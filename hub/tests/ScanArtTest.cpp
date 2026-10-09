@@ -382,7 +382,7 @@ private slots:
 
   void arttoolDocumentedCommandExportsFallback() {
     QTemporaryDir t;
-    const ac::Json request{{"dataRoot",AC_CATALOG_ROOT},{"userRoot",t.filePath("user").toStdString()},{"gameIds",ac::Json::array({"timecris"})},{"outputDirectory",t.filePath("out").toStdString()},{"kind","logo"}};
+    ac::Json request{{"dataRoot",AC_CATALOG_ROOT},{"userRoot",t.filePath("user").toStdString()},{"gameIds",ac::Json::array({"timecris"})},{"outputDirectory",t.filePath("out").toStdString()},{"kind","logo"}};
     const auto path=t.filePath("request.json");save(path,QByteArray::fromStdString(request.dump()));
     QString binary=QCoreApplication::applicationDirPath()+"/arttool";
 #ifdef Q_OS_WIN
@@ -399,6 +399,10 @@ private slots:
     const QImage image(t.filePath("out/timecris.png"));QVERIFY(!image.isNull());
     QCOMPARE(image.size(),QSize(920,430));QCOMPARE(image.pixelColor(0,0).alpha(),0);
     QVERIFY(QFileInfo::exists(t.filePath("out/receipt.json")));
+    request["width"]=600;request["height"]=900;save(path,QByteArray::fromStdString(request.dump()));
+    child.start(binary,{"--request",path});QVERIFY(child.waitForFinished(15000));QCOMPARE(child.exitCode(),0);
+    QCOMPARE(QImage(t.filePath("out/timecris.png")).size(),QSize(600,900));
+    request["width"]=5000;save(path,QByteArray::fromStdString(request.dump()));child.start(binary,{"--request",path});QVERIFY(child.waitForFinished(15000));QCOMPARE(child.exitCode(),2);
   }
 
   void scanTimeToolFingerprintSurvivesLaterChange() {

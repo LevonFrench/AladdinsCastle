@@ -139,3 +139,5 @@ The 7z adapter records live SDK allocation extents and validates member-count, n
 Final rebased Release verification: all three CTest targets passed in 2.94 s. After cache schema 3 and the metadata guards, the bounded owner CHD/BIOS recheck passed in 13.557 s with the same verified identities. The full-library timings above precede that guard update; they are not timings of the final hardened full scan.
 
 Final hardened full-library fresh scan (2026-10-09): 3,881 files, 50,930 archive entries, zero cache hits, 14.703 s internal / 15.654 s wall, exit 0. The three M1 identities and existing tools remained verified. Tool receipts now capture executable size/mtime at scan time so launch can reject changed proof. The added synthetic changed-after-scan regression and all three rebased Release CTest targets pass in 2.75 s (21 scanner/art Qt results).
+
+Private art exports accept optional width/height (1-4096 each, default 920x430), so Steam header/capsule/hero/logo previews use their actual intended aspect ratios. The subprocess fixture checks default export, custom portrait dimensions and oversized-request refusal.

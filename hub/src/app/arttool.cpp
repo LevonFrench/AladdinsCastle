@@ -48,11 +48,13 @@ int main(int argc, char **argv) {
     ac::Json receipt = ac::Json::array();
     const auto kind =
         QString::fromStdString(request.value("kind", std::string("banner")));
+    const QSize outputSize(request.value("width",920),request.value("height",430));
+    if(outputSize.width()<1||outputSize.height()<1||outputSize.width()>4096||outputSize.height()>4096)return 2;
     for (const auto &game : request.at("gameIds")) {
       const auto id = QString::fromStdString(game.get<std::string>());
       if (!QRegularExpression("^[A-Za-z0-9_-]+$").match(id).hasMatch())
         return 2;
-      const auto image = resolver.resolve(id, kind, {920, 430});
+      const auto image = resolver.resolve(id, kind, outputSize);
       const auto path = QDir(output).filePath(id + ".png");
       if (!image.image.save(path))
         return 3;
