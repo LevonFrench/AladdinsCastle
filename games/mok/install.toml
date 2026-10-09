@@ -5,7 +5,8 @@ default = "hotd2-vr-pcvr"   # third-party true-3D port: GPL, ships no game files
 # The Maze of the Kings in The House of the Dead 2 VR by mikermak (Flycast fork),
 # experimental since v0.3-test1: the game's own view widened (maze 60 -> 90 degrees,
 # story 40 -> 60), HUD and menus on a panel, the hero's staff in your hand (made
-# from your own copy at first start, staff-mok.bin). Same tool as games/dc-house-of-the-dead-2.
+# from your own copy at first start, staff-mok.bin). Same release as
+# games/dc-house-of-the-dead-2, installed into this variant's own folder.
 # Files, as upstream expects them: mok.zip (with 317-0333-com.pic; NAOMI BIOS inside
 # or naomi.zip beside it) and the folder mok/ with gds-0022.chd (.cue or .gdi also work).
 # ---------------------------------------------------------------------------
@@ -15,9 +16,24 @@ quality  = "true3d"
 status   = "wip"                          # upstream: experimental, played on Quest 3; PCVR not yet tested in a headset
 upstream = "https://github.com/mikermak/hotd2-vr"
 license  = "GPL-2.0-or-later (release builds GPL-3.0)"
-needs    = { media = ["mok", "naomigd"], tools = ["hotd2-vr"] }
-installed_when = "file:${tools.hotd2-vr.path}"
-preserve = ["hands.bin", "staff-mok.bin", "emu.cfg"]
+needs    = { media = ["mok", "naomigd"], tools = [] }
+installed_when = "file:${install_dir}/flycast.exe"
+preserve = ["staff-mok.bin", "emu.cfg"]   # made from the user's own game: never shared, kept on update
+
+[[variant.hotd2-vr-pcvr.step]]
+id     = "zip"
+do     = "github-release"
+repo   = "mikermak/hotd2-vr"
+tag    = "v0.3-test1"
+asset  = "hotd2-vr-pcvr.zip"
+sha256 = "553796f5d8d3c7d6de068931cc7f4790e58a82542004d07222b16ce5f0277790"
+bytes  = 7355819
+
+[[variant.hotd2-vr-pcvr.step]]
+id   = "app"
+do   = "extract"
+from = "${steps.zip.path}"
+to   = "${install_dir}"
 
 [[variant.hotd2-vr-pcvr.step]]
 id    = "set"
@@ -25,23 +41,14 @@ do    = "require-media"
 media = "mok"
 
 [[variant.hotd2-vr-pcvr.step]]
-id     = "cfg"
-do     = "write-config"
-file   = "${tools.hotd2-vr.dir}/emu.cfg"
-format = "ini"
-set = [
-  { section = "config", key = "vr.Laser",     from = "settings.laser",      bool = { on = "yes", off = "no" } },
-  { section = "config", key = "vr.DualWield", from = "settings.dual_wield", bool = { on = "yes", off = "no" } },
-]
-
-[[variant.hotd2-vr-pcvr.step]]
+id      = "steam"
 do      = "shortcut"
 targets = ["steam"]
 
 [variant.hotd2-vr-pcvr.launch]
-exe     = "${tools.hotd2-vr.path}"
+exe     = "${install_dir}/flycast.exe"
 args    = ["-config", "config:vr.Xr=yes", "${media.mok.path}"]
-cwd     = "${tools.hotd2-vr.dir}"
+cwd     = "${install_dir}"
 runtime = "steamvr"
 
 [variant.hotd2-vr-quest]
@@ -64,6 +71,7 @@ sha256 = "802ca9ed7dc6767c872f3a118b73fdc737a33e311dfdda3619097170ce03ffa3"
 bytes  = 19414237
 
 [[variant.hotd2-vr-quest.step]]
+id      = "install"
 do      = "adb-install"
 apk     = "${steps.apk.path}"
 package = "com.flycast.emulator.vr"

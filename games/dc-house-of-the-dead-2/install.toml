@@ -4,8 +4,9 @@ default = "hotd2-vr-pcvr"   # third-party true-3D port: GPL, ships no game files
 # ---------------------------------------------------------------------------
 # The House of the Dead 2 VR by mikermak: a Flycast fork that lifts the game's
 # projected vertices back into 3D and draws them per eye, with the light gun on
-# the controllers. One install of the tool (data/emulators/hotd2-vr.toml) serves
-# this game and The Maze of the Kings (games/mok).
+# the controllers. The PCVR zip is self-contained and installs into this
+# variant's own folder (its emu.cfg already sets vr.Xr = yes). The same release
+# also runs The Maze of the Kings (games/mok), which installs its own copy.
 # Upstream profiles: PAL MK-5100250 and US MK-51002. Other releases need their own.
 # ---------------------------------------------------------------------------
 [variant.hotd2-vr-pcvr]
@@ -14,9 +15,24 @@ quality  = "true3d"
 status   = "wip"                          # upstream test build v0.3-test1; PCVR not yet tested in a headset upstream
 upstream = "https://github.com/mikermak/hotd2-vr"
 license  = "GPL-2.0-or-later (release builds GPL-3.0)"
-needs    = { media = ["disc"], tools = ["hotd2-vr"] }
-installed_when = "file:${tools.hotd2-vr.path}"
-preserve = ["hands.bin", "staff-mok.bin", "emu.cfg"]   # made from the user's own game: never shared, kept on update
+needs    = { media = ["disc"], tools = [] }
+installed_when = "file:${install_dir}/flycast.exe"
+preserve = ["hands.bin", "emu.cfg"]       # hands.bin is made from the user's own game: never shared, kept on update
+
+[[variant.hotd2-vr-pcvr.step]]
+id     = "zip"
+do     = "github-release"
+repo   = "mikermak/hotd2-vr"
+tag    = "v0.3-test1"
+asset  = "hotd2-vr-pcvr.zip"
+sha256 = "553796f5d8d3c7d6de068931cc7f4790e58a82542004d07222b16ce5f0277790"   # GitHub asset digest, 2026-10-09
+bytes  = 7355819
+
+[[variant.hotd2-vr-pcvr.step]]
+id   = "app"
+do   = "extract"
+from = "${steps.zip.path}"
+to   = "${install_dir}"
 
 [[variant.hotd2-vr-pcvr.step]]
 id     = "disc"
@@ -25,23 +41,17 @@ media  = "disc"
 verify = "none"                           # a .chd, .gdi, .cue + .bin or .cdi of the PAL or US release
 
 [[variant.hotd2-vr-pcvr.step]]
-id     = "cfg"
-do     = "write-config"
-file   = "${tools.hotd2-vr.dir}/emu.cfg"
-format = "ini"
-set = [
-  { section = "config", key = "vr.Laser",     from = "settings.laser",      bool = { on = "yes", off = "no" } },
-  { section = "config", key = "vr.DualWield", from = "settings.dual_wield", bool = { on = "yes", off = "no" } },
-]
-
-[[variant.hotd2-vr-pcvr.step]]
+id      = "steam"
 do      = "shortcut"
 targets = ["steam"]                       # target is the Hub: --launch dc-house-of-the-dead-2 (docs/launch-and-runtime.md)
 
+# Settings (laser, two guns) map to emu.cfg [config] vr.Laser / vr.DualWield with a
+# write-config step once the engine passes per-game settings to recipes.
+
 [variant.hotd2-vr-pcvr.launch]
-exe     = "${tools.hotd2-vr.path}"
-args    = ["-config", "config:vr.Xr=yes", "${media.disc.path}"]
-cwd     = "${tools.hotd2-vr.dir}"
+exe     = "${install_dir}/flycast.exe"
+args    = ["-config", "config:vr.Xr=yes", "${media.disc.path}"]   # flycast [option]... [<rom path>] (core/cfg/cl.cpp)
+cwd     = "${install_dir}"
 runtime = "steamvr"                       # any OpenXR runtime with OpenGL works; SteamVR is pinned by default
 
 # ---------------------------------------------------------------------------
@@ -67,6 +77,7 @@ sha256 = "802ca9ed7dc6767c872f3a118b73fdc737a33e311dfdda3619097170ce03ffa3"
 bytes  = 19414237
 
 [[variant.hotd2-vr-quest.step]]
+id      = "install"
 do      = "adb-install"
 apk     = "${steps.apk.path}"
 package = "com.flycast.emulator.vr"
@@ -79,6 +90,7 @@ media  = "disc"
 verify = "none"
 
 [[variant.hotd2-vr-quest.step]]
+id   = "push"
 do   = "run"
 exe  = "${tools.adb.path}"
 args = ["push", "${media.disc.path}", "/sdcard/Download/"]

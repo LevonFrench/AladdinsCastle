@@ -65,4 +65,4 @@ B, C and (after C) D, E, F can run in parallel. G comes last.
 4. "Play in Supermodel / MAME / PCSX2" (automatic flat variants, game-packages §4.1) launch the three games in windows; the Hub shows "Playing" and regains focus on exit.
 5. With Steam closed, add Steam library entries for the three games; they appear with local art and launch through `aladdinscastle-hub --launch <id>`.
 6. The Hub shows as a SteamVR dashboard tab (`--overlay`), clickable with the laser (spike B).
-7. *Optional stretch:* the recipe in `games/dc-house-of-the-dead-2/install.toml` installs `hotd2-vr` from its pinned GitHub release (hash verified), writes the two managed `emu.cfg` keys, and launches it with SteamVR pinned. Not required for M1 sign-off (D44).
+7. *Optional stretch:* the recipe in `games/dc-house-of-the-dead-2/install.toml` downloads the pinned `hotd2-vr` release (hash verified), extracts it into the variant's folder, and launches it with SteamVR pinned. Not required for M1 sign-off (D44).
