@@ -539,6 +539,10 @@ CatalogData CatalogLoader::load(const QString &root) const {
                     QString::fromStdString(route.value().get<std::string>())) ||
                 !data.emulators.contains(route.key()))
                 continue;
+            // VR tools are authored setup variants, never automatic flat routes.
+            if (QStringList{"vr-tool", "vr-port"}.contains(
+                    str(data.emulators[route.key()], "kind")))
+                continue;
             const auto id = QString::fromStdString(route.key());
             bool exists = false;
             for (const auto &v : g.variants)

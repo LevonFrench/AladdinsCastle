@@ -263,6 +263,26 @@ class CatalogTest : public QObject {
         proxy.setFacet("manufacturerIds", QStringList{"sega"});
         QCOMPARE(visible(proxy), QStringList{"c"});
     }
+    void vrToolsDoNotGenerateFlatRoutes() {
+        QTemporaryDir temp;
+        vocab(temp.path());
+        game(temp.path(), "a", "Synthetic");
+        write(temp.path(), "user/overrides/games/a/game.toml",
+              "[routes]\nflat='working'\nvrport='working'\n");
+        write(temp.path(), "data/emulators/flat.toml",
+              "id='flat'\nname='Flat emulator'\nkind='emulator'\n");
+        write(temp.path(), "data/emulators/vrport.toml",
+              "id='vrport'\nname='VR port'\nkind='vr-tool'\n");
+        const auto data = ac::CatalogLoader().load(temp.path());
+        const auto *record = data.find("a");
+        QVERIFY(record);
+        bool flat = false;
+        for (const auto &variant : record->variants) {
+            QVERIFY(variant.id != "vrport");
+            flat |= variant.id == "flat" && variant.generated && variant.quality == "flat";
+        }
+        QVERIFY(flat);
+    }
     void searchAndStableSort() {
         QTemporaryDir temp;
         ac::GameListModel model(fixtures(temp.path()));
