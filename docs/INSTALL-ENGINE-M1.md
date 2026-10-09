@@ -96,3 +96,5 @@ manifest and state boundaries. Tests use zero survival wait; production uses
 the specified three seconds. Windows MSVC is the local build gate; Linux CI,
 actual owner emulator CLI behavior, FAT copy fallback, locked files, live GUI,
 Steam and headset acceptance remain distinct gates.
+
+Final rebased local verification (2026-10-09): Debug MSVC/Qt build and all three CTest targets passed in 107.24 s, including 39 install Qt results. A real official pinned Supermodel install succeeded in an isolated private Hub root; uninstall removed all 12 installed payload files and the emulator directory. Content-addressed download cache, state and audit logs intentionally remain as portable receipts; therefore uninstall is payload-clean, rather than a byte-identical empty user-state tree. No owner media was copied. Windows/Linux Release CI and the three real flat launches remain separate gates.
