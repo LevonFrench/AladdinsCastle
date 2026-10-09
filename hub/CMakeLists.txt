@@ -91,8 +91,11 @@ qt_add_qml_module(hubui URI AladdinsCastle.Hub VERSION 1.0 NO_PLUGIN
     SOURCES src/ui/Theme.h src/ui/Theme.cpp src/ui/UiSettings.h src/ui/UiSettings.cpp
         src/ui/UiController.h src/ui/UiController.cpp)
 ac_project_warnings(hubui)
+add_library(hubapp STATIC src/app/HubServices.cpp src/app/HubServices.h)
+target_link_libraries(hubapp PUBLIC hubui)
+ac_project_warnings(hubapp)
 qt_add_executable(aladdinscastle-hub src/app/main.cpp)
-target_link_libraries(aladdinscastle-hub PRIVATE hubui huboverlay Qt6::OpenGL Qt6::ShaderTools OpenVR::OpenVR)
+target_link_libraries(aladdinscastle-hub PRIVATE hubapp huboverlay Qt6::OpenGL Qt6::ShaderTools OpenVR::OpenVR)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/resources")
 configure_file("../docs/ui/theme.toml" "resources/theme.toml" COPYONLY)
 qt_add_resources(aladdinscastle-hub theme
@@ -165,4 +168,10 @@ if(BUILD_TESTING)
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(overlay-scene PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
+    qt_add_executable(integration-tests tests/IntegrationTest.cpp)
+    target_link_libraries(integration-tests PRIVATE hubapp Qt6::Test)
+    target_compile_definitions(integration-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    ac_project_warnings(integration-tests)
+    add_test(NAME hub-integration COMMAND integration-tests -o -,txt)
+    set_tests_properties(hub-integration PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
 endif()
