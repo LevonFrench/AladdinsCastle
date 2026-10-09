@@ -28,6 +28,14 @@ void receipt(const QString &root,const QString &media){
 class IntegrationTest:public QObject{
  Q_OBJECT
 private slots:
+ void requiredM1GamesOfferFlatRoutes(){
+    const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
+    for(const auto &pair:QList<QPair<QString,QString>>{{"timecris","mame"},{"scud","supermodel"},{"ps2-time-crisis-2","pcsx2"}}){
+        const auto *game=catalog.find(pair.first);QVERIFY(game);bool offered=false;
+        for(const auto &v:game->variants)if(v.generated&&v.quality=="flat"&&v.tools.contains(pair.second))offered=true;
+        QVERIFY2(offered,qPrintable("Required M1 flat route missing: "+pair.first));
+    }
+ }
  void restoreArtAndScanSignals(){
     QTemporaryDir temp;const auto media=temp.filePath("fixture.zip");ac::install::atomicWrite(media,"synthetic metadata only");receipt(temp.path(),media);
     ac::GameListModel games(syntheticCatalog(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
