@@ -24,3 +24,10 @@ AGENCY.md
 .vs/
 .vscode/
 *.log
+
+# Local machine reports (never commit)
+.local/
+
+# Runtime data (user art, installs) never published
+user/
+installed/
