@@ -27,16 +27,16 @@ note  = "NAOMI GD-ROM BIOS"
 [routes]
 mame              = "not-working"
 demul             = "profile"
-vr = { best = "theatre" }
+vr = { best = "true3d", via = "hotd2-vr by mikermak (Flycast fork, experimental)" }
 
 [hub]
 pill   = "MAZE KINGS"
 colour = "#0c1a2e"
 accent = "#2f8fff"
 blurb  = "Ride the rails through a maze of kings and fight for every corridor."
-badges = ["roomscale", "2-players"]
+badges = ["roomscale", "2-players", "quest-standalone", "wip"]
 
 [meta]
-sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp", "https://github.com/mikermak/hotd2-vr"]
 confidence = "high"
-checked    = "2026-10-08"
+checked    = "2026-10-09"

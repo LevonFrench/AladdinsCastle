@@ -19,7 +19,7 @@ gun  = "Dreamcast light gun"
 
 [[media]]
 kind = "disc"
-note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD). hotd2-vr profiles: PAL MK-5100250 and US MK-51002"
 
 [[media]]
 kind = "bios"
@@ -27,16 +27,16 @@ note = "Optional: your own Dreamcast BIOS dump"
 
 [routes]
 flycast = "unknown"
-vr      = { best = "none", planned = "true3d-planned" }
+vr      = { best = "true3d", via = "hotd2-vr by mikermak (Flycast fork, PCVR + Quest)" }
 
 [hub]
 pill   = "DC-HOTD2"
 colour = "#0e1a22"
 accent = "#3fb8e8"
 blurb  = "Sequel set in Italy: two guns, two players, and a lot of undead."
-badges = ["roomscale", "2-players"]
+badges = ["roomscale", "2-players", "quest-standalone", "wip"]
 
 [meta]
-sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead_2"]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead_2", "https://github.com/mikermak/hotd2-vr"]
 confidence = "medium"
-checked    = "2026-10-08"
+checked    = "2026-10-09"

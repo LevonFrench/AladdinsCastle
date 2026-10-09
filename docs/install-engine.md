@@ -484,6 +484,7 @@ set = [
 ```
 
 - **Entry forms:** a literal (`{ key, value }`), a typed read (`{ key, from, type }`), a `map` (`{ key, from, map, default }`), or a boolean map (`{ key, from, bool = { on, off } }`).
+- **ini sections:** for `format = "ini"`, each entry also names its section, `section = "config"`. The key is the literal key inside that section (Flycast's `vr.Laser` is one key, not a path).
 - **Types:** `string`, `int`, `float` (with `decimals = n`), `bool` (style per file: `01`, `truefalse` or `yesno`) and `path`.
 
 **Merge rules (E9).**

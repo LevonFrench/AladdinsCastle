@@ -15,6 +15,7 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 - **Automatic flat variants:** every game whose route lists a working emulator with a manifest gets "Play in <emulator>" (flat window), with no hand-written recipe ([game-packages.md](game-packages.md) §4.1).
 - Launch + Steam library shortcuts (`--launch`).
 - **Done when:** on the owner's PC, the Hub finds the owner's games and emulators, installs Supermodel from upstream, and launches **Scud Race** (Supermodel), **Time Crisis** (MAME) and **Time Crisis II** (PCSX2) in flat windows, from the Hub and from a Steam library entry. Executed by Codex from [tasks/m1/](tasks/m1/README.md). Third-party VR ports (DR-89, VC2VR) are out of scope (owner, 2026-10-08).
+- **Stretch (optional):** install **hotd2-vr** from upstream for The House of the Dead 2 (Dreamcast) through its recipe (D44): the first true-3D game the Hub installs, with no new engine features.
 
 ## M2: namco22-vr: our first true-3D setups (libacvr v0 built with it)
 - libacvr v0 on the [contract](libacvr-contract.md): OpenXR session, multiview, recenter/height, pause overlay, gun module (aim projection, cover button, recoil), ghost-control framework (wheel, `shifter_hl`, pedals, buttons), comfort basics.

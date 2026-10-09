@@ -1,0 +1,85 @@
+format  = 1
+default = "hotd2-vr-pcvr"   # third-party true-3D port: GPL, ships no game files (D44)
+
+# ---------------------------------------------------------------------------
+# The House of the Dead 2 VR by mikermak: a Flycast fork that lifts the game's
+# projected vertices back into 3D and draws them per eye, with the light gun on
+# the controllers. One install of the tool (data/emulators/hotd2-vr.toml) serves
+# this game and The Maze of the Kings (games/mok).
+# Upstream profiles: PAL MK-5100250 and US MK-51002. Other releases need their own.
+# ---------------------------------------------------------------------------
+[variant.hotd2-vr-pcvr]
+title    = "The House of the Dead 2 VR by mikermak (PCVR)"
+quality  = "true3d"
+status   = "wip"                          # upstream test build v0.3-test1; PCVR not yet tested in a headset upstream
+upstream = "https://github.com/mikermak/hotd2-vr"
+license  = "GPL-2.0-or-later (release builds GPL-3.0)"
+needs    = { media = ["disc"], tools = ["hotd2-vr"] }
+installed_when = "file:${tools.hotd2-vr.path}"
+preserve = ["hands.bin", "staff-mok.bin", "emu.cfg"]   # made from the user's own game: never shared, kept on update
+
+[[variant.hotd2-vr-pcvr.step]]
+id     = "disc"
+do     = "require-media"
+media  = "disc"
+verify = "none"                           # a .chd, .gdi, .cue + .bin or .cdi of the PAL or US release
+
+[[variant.hotd2-vr-pcvr.step]]
+id     = "cfg"
+do     = "write-config"
+file   = "${tools.hotd2-vr.dir}/emu.cfg"
+format = "ini"
+set = [
+  { section = "config", key = "vr.Laser",     from = "settings.laser",      bool = { on = "yes", off = "no" } },
+  { section = "config", key = "vr.DualWield", from = "settings.dual_wield", bool = { on = "yes", off = "no" } },
+]
+
+[[variant.hotd2-vr-pcvr.step]]
+do      = "shortcut"
+targets = ["steam"]                       # target is the Hub: --launch dc-house-of-the-dead-2 (docs/launch-and-runtime.md)
+
+[variant.hotd2-vr-pcvr.launch]
+exe     = "${tools.hotd2-vr.path}"
+args    = ["-config", "config:vr.Xr=yes", "${media.disc.path}"]
+cwd     = "${tools.hotd2-vr.dir}"
+runtime = "steamvr"                       # any OpenXR runtime with OpenGL works; SteamVR is pinned by default
+
+# ---------------------------------------------------------------------------
+# The same app on Quest 3/3S standalone (sideloaded with adb). The game goes to
+# the headset's Download folder; the app finds it there and asks once for file access.
+# ---------------------------------------------------------------------------
+[variant.hotd2-vr-quest]
+title    = "The House of the Dead 2 VR by mikermak (Quest standalone)"
+quality  = "true3d"
+status   = "wip"
+upstream = "https://github.com/mikermak/hotd2-vr"
+license  = "GPL-2.0-or-later (release builds GPL-3.0)"
+needs    = { media = ["disc"], tools = ["adb"], headset = "developer-mode" }
+installed_when = "adb:package:com.flycast.emulator.vr"
+
+[[variant.hotd2-vr-quest.step]]
+id     = "apk"
+do     = "github-release"
+repo   = "mikermak/hotd2-vr"
+tag    = "v0.3-test1"
+asset  = "hotd2-vr-quest.apk"
+sha256 = "802ca9ed7dc6767c872f3a118b73fdc737a33e311dfdda3619097170ce03ffa3"
+bytes  = 19414237
+
+[[variant.hotd2-vr-quest.step]]
+do      = "adb-install"
+apk     = "${steps.apk.path}"
+package = "com.flycast.emulator.vr"
+replace = true                            # one fixed signing key upstream: updates keep settings, saves and hands
+
+[[variant.hotd2-vr-quest.step]]
+id     = "disc"
+do     = "require-media"
+media  = "disc"
+verify = "none"
+
+[[variant.hotd2-vr-quest.step]]
+do   = "run"
+exe  = "${tools.adb.path}"
+args = ["push", "${media.disc.path}", "/sdcard/Download/"]
+note = "One-file images (.chd, .cdi). For .gdi or .cue + .bin, copy the whole folder to Download yourself."

@@ -1,0 +1,59 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+# Third-party true-3D VR build of Flycast. Games use it through install.toml variants, never through
+# [routes], so the Hub does not generate a flat "Play in" variant for it.
+id = "hotd2-vr"
+name = "The House of the Dead 2 VR (Flycast fork by mikermak)"
+kind = "vr-tool"
+upstream = "https://github.com/mikermak/hotd2-vr"
+license = "GPL-2.0-or-later"
+license_note = "Flycast fork, LICENSE is GPL-2.0 with Flycast's 'or later'. Release builds include a CC BY 4.0 gun model and are distributed under GPL-3.0 (upstream README, checked 2026-10-09). No game code or data in the repo or the releases; the hands and staff models are made on the user's machine from their own game (hands.bin, staff-mok.bin) and must never be shared."
+redistribution = "download-from-upstream-only"
+platforms = ["windows-x64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "github-release"
+repo = "mikermak/hotd2-vr"
+tag = "v0.3-test1"
+asset = "hotd2-vr-pcvr.zip"
+sha256 = "553796f5d8d3c7d6de068931cc7f4790e58a82542004d07222b16ce5f0277790"
+version = "v0.3-test1"
+archive = "zip"
+note = "Pre-release test build, 7,355,819 bytes, published 2026-10-09. SHA-256 is GitHub's asset digest (gh api, 2026-10-09); the Hub re-verifies it. Upstream says PCVR is not yet tested in a headset."
+
+[portable]
+marker = "none"
+note = "PC: emu.cfg next to flycast.exe; the zip's emu.cfg sets vr.Xr = yes. The Quest APK (hotd2-vr-quest.apk, package com.flycast.emulator.vr) is installed by the games' quest variants, not by this manifest."
+
+[locate]
+exe = ["flycast.exe"]
+version = { from = "?" }
+min = "v0.3-test1"
+note = "A plain Flycast install has the same exe name. Accept only a folder whose emu.cfg has vr.* keys, or ask the user."
+
+[launch]
+args = ["-config", "config:vr.Xr=yes", "${media.file}"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "flycast [option]... [<rom path>] and -config section:key=value (core/cfg/cl.cpp in the fork, verified 2026-10-09). Needs an OpenXR runtime with OpenGL: SteamVR, Quest Link / Air Link, Virtual Desktop. The Hub pins SteamVR by default (docs/launch-and-runtime.md)."
+
+[config]
+files = [
+  { path = "emu.cfg", format = "ini", note = "[config] vr.WorldScale, vr.FovScale, vr.WidenFov, vr.Laser, vr.ShowGun, vr.GunScale, vr.GameHands, vr.HandScale, vr.SlideReload, vr.StaffHand, vr.DropShotMarker, vr.DualWield, vr.HideP2Prompt, vr.DropShotFlash, vr.ComfortStart, vr.ComfortMin, vr.HudDepth, vr.XrRefreshRate, vr.XrResolution, vr.Xr (upstream README Options table)" },
+]
+
+[input.gun]
+method = "in-process-only"
+max_guns = 2
+notes = "Motion controllers through OpenXR inside the fork: ray cast into the rebuilt scene, handed to the game at its stock screen framing. Two guns: the left controller's menu button lets player 2 join. A UDP light-gun input on 127.0.0.1 also exists (core/input/udp_lightgun.*)."
+
+[meta]
+sources = [
+  "https://github.com/mikermak/hotd2-vr",
+  "https://github.com/mikermak/hotd2-vr/releases/tag/v0.3-test1",
+  "https://github.com/mikermak/hotd2-vr/blob/hotd2-vr/core/cfg/cl.cpp",
+]
+verified = ["licence (gh, LICENSE + README credits)", "release asset names, sizes and GitHub digests (gh api, 2026-10-09)", "command line and -config syntax (fork source)", "option names (upstream README)"]
+unverified = ["PCVR in a headset (upstream has not tested it yet)", "exit behaviour", "where the PC build keeps hands.bin"]
+checked = "2026-10-09"
+confidence = "medium"

@@ -138,6 +138,7 @@ Verified means the build name or upstream page was checked on 2026-10-08. Unveri
 | hidhide | verified | - | - | - | - | Windows 10 or later |
 | adb | unverified | - | - | unverified | - | Page names no architecture; no aarch64 build listed |
 | desktopplus | unverified | - | - | - | - | Windows 8.1 or later per README |
+| hotd2-vr | verified (zip, not yet tested in a headset upstream) | - | - | - | - | Quest APK installed by game recipes; no Linux build |
 
 Steam Frame relevance. The owner's target order is Steam Frame first, streamed through SteamVR, then standalone SteamOS ARM64. Two observations follow from the matrix. First, for the standalone ARM64 stage the verified native ARM64 Linux builds are DuckStation, xemu and ARMSX2 only. Every other emulator is x86-64 on Linux or has no confirmed Linux build. Second, Windows ARM64 builds exist for MAME, DuckStation and xemu, but the streamed stage's host is a Windows or Linux PC, not the headset. This matrix does not decide which stage runs which tool; it records what exists.
 
@@ -161,6 +162,7 @@ Steam Frame relevance. The owner's target order is Steam Frame first, streamed t
 | Flycast | GPL-2.0 | None beyond the normal rules. |
 | vJoy, HidHide | MIT | None beyond the normal rules. Driver installs need admin and are system-wide, not portable. |
 | Desktop+ | GPL-3.0 | Single maintainer. Free on Steam (app 1494460). |
+| hotd2-vr | GPL-2.0-or-later (release builds GPL-3.0, CC BY 4.0 gun model) | Third-party VR port (D44). Pre-release test builds; pin each tag. Hands and staff models it makes from the user's game stay on the user's machine. |
 | adb (platform-tools) | Google's proprietary platform-tools licence | Download from Google's URLs only. No redistribution. |
 
 ## 5. How game routes map to manifests
@@ -191,7 +193,7 @@ The route keys are the `[routes]` keys in `games/<id>/game.toml` (see `docs/game
 | `demulshooter` | 0 | `demulshooter.toml` | Written as an input bridge, not a route |
 | `mupen64plus`, `ares`, `cemu`, `ryujinx` | 0 | none | Listed in the schema; not written |
 
-Supporting manifests with no route key: `vjoy.toml` and `hidhide.toml` (wheel and pedal input stacks), `adb.toml` (Install to Quest), `desktopplus.toml` (SteamVR overlay), `armsx2.toml` (ARM64 Linux PS2, candidate for the `pcsx2` route).
+Supporting manifests with no route key: `vjoy.toml` and `hidhide.toml` (wheel and pedal input stacks), `adb.toml` (Install to Quest), `desktopplus.toml` (SteamVR overlay), `hotd2-vr.toml` (third-party true-3D Flycast fork, used by game recipes, D44), `armsx2.toml` (ARM64 Linux PS2, candidate for the `pcsx2` route).
 
 Note on `yuzu-like`. It appears in four game files but is not in the route list in `docs/game-schema.md` section 2. The owner should either add it to the schema or retire it. No manifest is written for it.
 

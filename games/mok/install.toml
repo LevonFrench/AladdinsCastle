@@ -1,0 +1,70 @@
+format  = 1
+default = "hotd2-vr-pcvr"   # third-party true-3D port: GPL, ships no game files (D44)
+
+# ---------------------------------------------------------------------------
+# The Maze of the Kings in The House of the Dead 2 VR by mikermak (Flycast fork),
+# experimental since v0.3-test1: the game's own view widened (maze 60 -> 90 degrees,
+# story 40 -> 60), HUD and menus on a panel, the hero's staff in your hand (made
+# from your own copy at first start, staff-mok.bin). Same tool as games/dc-house-of-the-dead-2.
+# Files, as upstream expects them: mok.zip (with 317-0333-com.pic; NAOMI BIOS inside
+# or naomi.zip beside it) and the folder mok/ with gds-0022.chd (.cue or .gdi also work).
+# ---------------------------------------------------------------------------
+[variant.hotd2-vr-pcvr]
+title    = "The Maze of the Kings in HOTD2 VR by mikermak (PCVR)"
+quality  = "true3d"
+status   = "wip"                          # upstream: experimental, played on Quest 3; PCVR not yet tested in a headset
+upstream = "https://github.com/mikermak/hotd2-vr"
+license  = "GPL-2.0-or-later (release builds GPL-3.0)"
+needs    = { media = ["mok", "naomigd"], tools = ["hotd2-vr"] }
+installed_when = "file:${tools.hotd2-vr.path}"
+preserve = ["hands.bin", "staff-mok.bin", "emu.cfg"]
+
+[[variant.hotd2-vr-pcvr.step]]
+id    = "set"
+do    = "require-media"
+media = "mok"
+
+[[variant.hotd2-vr-pcvr.step]]
+id     = "cfg"
+do     = "write-config"
+file   = "${tools.hotd2-vr.dir}/emu.cfg"
+format = "ini"
+set = [
+  { section = "config", key = "vr.Laser",     from = "settings.laser",      bool = { on = "yes", off = "no" } },
+  { section = "config", key = "vr.DualWield", from = "settings.dual_wield", bool = { on = "yes", off = "no" } },
+]
+
+[[variant.hotd2-vr-pcvr.step]]
+do      = "shortcut"
+targets = ["steam"]
+
+[variant.hotd2-vr-pcvr.launch]
+exe     = "${tools.hotd2-vr.path}"
+args    = ["-config", "config:vr.Xr=yes", "${media.mok.path}"]
+cwd     = "${tools.hotd2-vr.dir}"
+runtime = "steamvr"
+
+[variant.hotd2-vr-quest]
+title    = "The Maze of the Kings in HOTD2 VR by mikermak (Quest standalone)"
+quality  = "true3d"
+status   = "wip"
+upstream = "https://github.com/mikermak/hotd2-vr"
+license  = "GPL-2.0-or-later (release builds GPL-3.0)"
+needs    = { media = ["mok", "naomigd"], tools = ["adb"], headset = "developer-mode" }
+installed_when = "adb:package:com.flycast.emulator.vr"
+note     = "Same app as games/dc-house-of-the-dead-2. Copy mok.zip and the mok folder to the headset's Download folder; with more than one game there, the app asks which to play."
+
+[[variant.hotd2-vr-quest.step]]
+id     = "apk"
+do     = "github-release"
+repo   = "mikermak/hotd2-vr"
+tag    = "v0.3-test1"
+asset  = "hotd2-vr-quest.apk"
+sha256 = "802ca9ed7dc6767c872f3a118b73fdc737a33e311dfdda3619097170ce03ffa3"
+bytes  = 19414237
+
+[[variant.hotd2-vr-quest.step]]
+do      = "adb-install"
+apk     = "${steps.apk.path}"
+package = "com.flycast.emulator.vr"
+replace = true

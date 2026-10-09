@@ -43,16 +43,16 @@ note = "DX"
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "theatre" }
+vr          = { best = "true3d", via = "Port0r: Rally VR (Quest standalone only, closed source; the Hub cannot install it)" }
 
 [hub]
 pill   = "SRALLYC"
 colour = "#10160d"
 accent = "#43a047"
 blurb  = "Dirt, gravel and tarmac stages, and every one of them wants to slide."
-badges = ["seated"]
+badges = ["seated", "quest-standalone"]
 
 [meta]
-sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/srallyc.xml", "https://en.wikipedia.org/wiki/Sega_Rally_Championship"]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/srallyc.xml", "https://en.wikipedia.org/wiki/Sega_Rally_Championship", "https://github.com/jacquesdupontd/port0r"]
 confidence = "high"
-checked    = "2026-10-08"
+checked    = "2026-10-09"
