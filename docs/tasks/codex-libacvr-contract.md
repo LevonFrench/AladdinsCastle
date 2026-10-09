@@ -49,7 +49,7 @@ Design the C ABI that every AladdinsCastle VR setup implements, so one shared ru
 - No game content: no ROMs, BIOS files or links to them.
 - Licences: our code is GPL-3.0. namco22 and DR-89 are MIT; Supermodel is GPL. Don't copy code; reference it by file:line.
 - Use full absolute paths (`J:\...`) when reporting files.
-- Check the header compiles: `gcc -std=c99 -fsyntax-only libacvr/include/acvr.h` (or `clang`), and the optional example with `-c`.
+- Check the header compiles: `gcc -std=c99 -fsyntax-only libacvr/include/acvr.h`, `clang`, or MSVC `cl /Zs /TC`. No compiler was on PATH on this PC (2026-10-08). If none is available, say so in your summary; don't install toolchains without asking.
 
 ## Done when
 
