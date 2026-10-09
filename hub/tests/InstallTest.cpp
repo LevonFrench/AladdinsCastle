@@ -819,6 +819,8 @@ private slots:
     atomicWrite(tool + "/portable.ini", "marker");
     atomicWrite(tool + "/owner.ini", "do not read");
     atomicWrite(tool + "/resources/game-index.yaml", "public resource");
+    for(const auto *name:{"shader.fx","shader.h","shader.hlsl","icon.ico","catalog.mo","sound.wav","LICENSESCN"})
+      atomicWrite(tool + "/resources/" + name, "synthetic public resource");
     const auto disc = temp.path() + "/synthetic.disc",
                bios = temp.path() + "/synthetic-bios.dat";
     atomicWrite(disc, "disc");
@@ -846,6 +848,8 @@ private slots:
     QVERIFY(plan.executable.contains("/application/"));
     const auto receipt = prepareFlatLaunch(plan, temp.path());
     QCOMPARE(tree(tool), before);
+    for(const auto *name:{"shader.fx","shader.h","shader.hlsl","icon.ico","catalog.mo","sound.wav","LICENSESCN"})
+      QVERIFY(QFileInfo(QFileInfo(plan.executable).absolutePath()+"/resources/"+name).isFile());
     QVERIFY(
         !QFileInfo(QFileInfo(plan.executable).absolutePath() + "/portable.ini")
              .exists());
