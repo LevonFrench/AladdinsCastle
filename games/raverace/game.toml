@@ -1,0 +1,44 @@
+id           = "raverace"
+title        = "Rave Racer"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1995
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-22"
+players      = 1                    # linkable cabinets; upstream decomp supports online play up to 8
+series       = "Ridge Racer"
+
+[controls]
+type    = "wheel"
+shifter = "hl"
+pedals  = ["accel", "brake"]
+extras  = ["view-change"]
+
+[[media]]
+kind = "mame-romset"
+set  = "raverace"
+note = "Rave Racer World RV2 Ver.B (MAME 0.271+); older MAME named a set raveracw"
+
+[[media]]
+kind = "mame-romset"
+set  = "namcoc74"
+note = "C74 MCU set needed by namco22-decompile"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+native      = { project = "namco22-decompile", status = "playable" }
+vr          = { best = "none", planned = "true3d-planned" }
+
+[hub]
+pill   = "RAVERACE"
+colour = "#0f0f1a"
+accent = "#ff9a00"
+blurb  = "Grab the ghost wheel, slam the shifter into high, floor the trigger."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/spacestate1/namco22-decompile", "https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos22.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

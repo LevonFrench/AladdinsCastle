@@ -1,0 +1,55 @@
+# Controlled vocabulary: manufacturer ids (the brand on the cabinet or box).
+# Add new entries here in the same change that first uses them.
+
+[sega]
+label = "Sega"
+[namco]
+label = "Namco / Bandai Namco"
+[konami]
+label = "Konami"
+[taito]
+label = "Taito"
+[capcom]
+label = "Capcom"
+[midway]
+label = "Midway"
+[atari-games]
+label = "Atari Games"
+[raw-thrills]
+label = "Raw Thrills"
+[play-mechanix]
+label = "Play Mechanix"
+[global-vr]
+label = "Global VR"
+[incredible-technologies]
+label = "Incredible Technologies"
+[jaleco]
+label = "Jaleco"
+[gaelco]
+label = "Gaelco"
+[sammy]
+label = "Sammy"
+[tecmo]
+label = "Tecmo / Koei Tecmo"
+[nintendo]
+label = "Nintendo"
+[sony]
+label = "Sony"
+[capcom-sega]
+label = "Capcom / Sega"
+[ecole]
+label = "Ecole Software"
+[eidos]
+label = "Eidos"
+[electronic-arts]
+label = "Electronic Arts"
+[activision]
+label = "Activision"
+[ubisoft]
+label = "Ubisoft"
+[infogrames]
+label = "Infogrames / Atari SA"
+[acclaim]
+label = "Acclaim"
+[other]
+label = "Other (name in developer field)"

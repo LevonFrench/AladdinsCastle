@@ -1,0 +1,17 @@
+default = "pcsx2-theatre"
+
+# Our true-3D PS2 setup (PenguinScreen2-style stereo + libacvr GunCon 2 aim). Roadmap M7.
+[variant.pcsx2-vr]
+title   = "AladdinsCastle true 3D (PCSX2 stereo + libacvr)"
+quality = "true3d"
+status  = "planned"
+needs   = { media = ["disc", "bios"], tools = ["pcsx2"] }
+
+# Virtual screen now: PCSX2 with an emulated GunCon 2, aimed by the controller ray. Roadmap M4.
+[variant.pcsx2-theatre]
+title   = "Theatre (PCSX2 + acvr-theatre, GunCon 2 x2)"
+quality = "theatre"
+status  = "planned"
+needs   = { media = ["disc", "bios"], tools = ["pcsx2", "acvr-theatre"] }
+input   = { device = "guncon2", players = 2, hook = "absolute-pointer" }
+note    = "PCSX2 reads GunCon 2 position from the absolute host pointer; two guns need per-port pointer mapping (to verify)."

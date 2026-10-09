@@ -1,0 +1,74 @@
+# Controlled vocabulary: genre and subgenre ids.
+
+[genre.gun]
+label = "Light gun"
+
+[genre.racing]
+label = "Racing"
+
+# Gun subgenres
+[subgenre.rail-shooter]
+genre = "gun"
+label = "Rail shooter"
+[subgenre.cover-shooter]
+genre = "gun"
+label = "Cover shooter (pedal)"
+[subgenre.sniper]
+genre = "gun"
+label = "Sniper / scope"
+[subgenre.horror]
+genre = "gun"
+label = "Horror"
+[subgenre.party]
+genre = "gun"
+label = "Party / mini-games"
+[subgenre.hunting]
+genre = "gun"
+label = "Hunting"
+[subgenre.machine-gun]
+genre = "gun"
+label = "Mounted machine gun"
+[subgenre.water-gun]
+genre = "gun"
+label = "Water / hose"
+
+# Racing subgenres
+[subgenre.circuit]
+genre = "racing"
+label = "Circuit"
+[subgenre.rally]
+genre = "racing"
+label = "Rally / off-road"
+[subgenre.street]
+genre = "racing"
+label = "Street / touge"
+[subgenre.kart]
+genre = "racing"
+label = "Kart"
+[subgenre.futuristic]
+genre = "racing"
+label = "Futuristic"
+[subgenre.motorcycle]
+genre = "racing"
+label = "Motorcycle"
+[subgenre.bicycle]
+genre = "racing"
+label = "Bicycle"
+[subgenre.boat]
+genre = "racing"
+label = "Boat / jet ski"
+[subgenre.ski]
+genre = "racing"
+label = "Ski / snowboard"
+[subgenre.truck]
+genre = "racing"
+label = "Truck / big rig"
+[subgenre.mission-driving]
+genre = "racing"
+label = "Mission driving (taxi, ambulance)"
+[subgenre.flying]
+genre = "racing"
+label = "Flying / air race"
+[subgenre.vehicle-combat]
+genre = "racing"
+label = "Vehicle combat"

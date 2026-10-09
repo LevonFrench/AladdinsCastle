@@ -1,0 +1,34 @@
+default = "vc2vr"
+
+[variant.vc2vr]
+title    = "VC2VR by NeuralF (true 3D, PCVR)"
+quality  = "true3d"
+status   = "wip"                       # upstream is v1.0 beta
+upstream = "https://github.com/NeuralF/Rea-Virtua-Cop-2-VR"
+license  = "MIT"
+needs    = { media = ["vcop2-pc"], tools = [] }
+installed_when = "${media.vcop2-pc.dir}/VC2VR.exe"
+
+[[variant.vc2vr.step]]
+do      = "github-release"
+repo    = "NeuralF/Rea-Virtua-Cop-2-VR"
+asset   = "VC2VR-*.zip"
+version = "v1.0-beta"                  # pinned, tested tag
+to      = "${download_dir}"
+
+[[variant.vc2vr.step]]
+do   = "extract"
+to   = "${media.vcop2-pc.dir}"         # mod files go next to PPJ2DD.EXE
+note = "No game files are modified on disk."
+
+[[variant.vc2vr.step]]
+do      = "shortcut"
+targets = ["steam"]
+exe     = "${media.vcop2-pc.dir}/VC2VR.exe"
+
+[variant.vc2vr.launch]
+exe = "${media.vcop2-pc.dir}/VC2VR.exe"
+cwd = "${media.vcop2-pc.dir}"
+
+[variant.vc2vr.uninstall]
+remove = ["VC2VR.exe", "HGL_VIEW.DLL", "VC2VR.ini", "HGL_VIEW.ini"]   # verify the list against the release zip

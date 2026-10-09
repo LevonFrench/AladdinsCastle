@@ -1,0 +1,43 @@
+id           = "vcop2"
+title        = "Virtua Cop 2"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1995
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-model-2"
+players      = 2
+series       = "Virtua Cop"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Virtua Gun"
+
+[[media]]
+kind = "mame-romset"
+set  = "vcop2"
+note = "Arcade set (for theatre / future true-3D)"
+
+[[media]]
+kind = "pc-game"
+find = ["PPJ2DD.EXE"]
+note = "Virtua Cop 2 for Windows (1997); needed by the VC2VR variant. Keep its disc image mounted for music."
+
+[routes]
+mame        = "working"
+model2emu   = "working"
+teknoparrot = "profile"
+vr          = { best = "true3d", via = "VC2VR (PC release)" }
+
+[hub]
+pill   = "VCOP2"
+colour = "#0f121a"
+accent = "#f2c200"
+blurb  = "Two guns, two players, full 360 degrees of the original city."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/NeuralF/Rea-Virtua-Cop-2-VR"]
+confidence = "high"
+checked    = "2026-10-08"

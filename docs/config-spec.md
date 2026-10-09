@@ -18,13 +18,14 @@ Status: **draft for discussion**. Field names will change before v1. Open questi
 ```
 <AladdinsCastle folder>/          # portable: everything lives here
   config.toml              # global settings (paths, VR runtime, comfort defaults)
-  games/<game-id>/
-    game.toml
-    art/                   # marquee.png, flyer.jpg, screenshots, video (user-scraped or pack art)
-  setups/<setup-id>/
-    setup.toml             # how to launch one VR setup
-    ...                    # files the recipe installed (third-party releases, our builds)
-  recipes/<recipe-id>.toml # how to install a setup (see frontend.md section 3)
+  games/<game-id>/         # one folder per game, like one mod in the Installer Hub
+    game.toml              # catalog entry (game-schema.md)
+    install.toml           # VR setup variants and their install steps
+    README.md              # shown on the detail page
+    art/                   # tile, banner, marquee, flyer, preview video (user-scraped or pack art)
+    setup/                 # our per-game config: controls.toml (ghost controls), gun.toml, comfort.toml
+  setups/<setup-id>.toml   # shared setup definitions (e.g. acvr-theatre, supermodel-vr) used by many games
+  installed/<game-id>/<variant>/   # what an install put down
   tools/<tool-id>.toml     # emulator/helper: install, locate and search rules (frontend.md section 4)
   tools/<tool-id>/         # tools the Hub installed for you
   controls/<control-set-id>.toml
@@ -38,64 +39,11 @@ Status: **draft for discussion**. Field names will change before v1. Open questi
   media/                   # default place for the user's own ROMs/ISOs; never shipped
 ```
 
-All paths may use variables: `${data}`, `${media}`, `${game_dir}`, `${setup_dir}`, `${env:NAME}`.
+All paths may use variables: `${data}`, `${media}`, `${game_dir}`, `${install_dir}`, `${media.<key>}`, `${tools.<id>}`, `${settings.<key>}`, `${profile.<key>}`, `${env:NAME}`.
 
-## 3. `game.toml`
+## 3. `game.toml` and the game folder
 
-```toml
-id      = "timecris"
-title   = "Time Crisis"
-year    = 1995
-maker   = "Namco"
-genre   = ["gun"]             # gun | racing | ... (free-form tags allowed)
-tags    = ["namco", "system-22", "rail", "cover"]
-players = 1
-board   = "namco-super-system-22"
-
-[media]                        # what the user must supply; never downloaded
-main = { file = "timecris.zip", kind = "mame-romset", set = "timecris", mame_min = "0.271" }
-# Per-chip hashes may be listed or imported from a hash pack:
-hashes = "hashpack:namco22/timecris"
-
-# VR setups in preference order. The Hub offers the first one that is installed
-# and has its media; the user can pick another on the game page.
-[[setups]]
-id      = "namco22-vr"            # our true-3D setup (libacvr on namco22-decompile)
-recipe  = "timecris-namco22-vr"
-quality = "true3d"
-
-[[setups]]
-id      = "time-crisis-vr-dr89"   # existing third-party VR port
-recipe  = "timecris-dr89"
-quality = "true3d"
-
-[[setups]]
-id      = "mame-theatre"          # fallback: virtual screen
-recipe  = "mame-theatre"
-quality = "theatre"
-args    = { set = "timecris" }
-
-[controls]
-set       = "gun-1p-pedal"        # controls/gun-1p-pedal.toml
-gun_model = "guncon-arcade"       # guns/guncon-arcade/
-cover     = "duck"                # overrides the control set default
-
-[gun.calibration]                 # mapping from projected screen space to device range
-x = { min = 0.0, max = 1.0, out_min = 0, out_max = 1023 }
-y = { min = 0.0, max = 1.0, out_min = 0, out_max = 1023 }
-
-[art]                             # paths relative to game_dir, or scraper refs
-marquee = "art/marquee.png"
-flyer   = "art/flyer.jpg"
-video   = "art/attract.mp4"
-steam   = { grid = "art/steam-grid.png", hero = "art/steam-hero.png" }   # for SteamVR library shortcuts
-
-[comfort]
-camera_cuts = "fade"              # game has hard cuts between cover positions
-
-[ext.wiki]                        # anything under ext.* is free-form
-notes = "Ver.B (TS2) is the set the decomp expects."
-```
+Each game is a folder (`games/<id>/`) with `game.toml`, `install.toml`, `README.md` and `art/`. See [game-packages.md](game-packages.md) for the folder and install variants, and [game-schema.md](game-schema.md) for every `game.toml` field and the controlled vocabularies (genre, manufacturer, hardware) behind the Hub's filters.
 
 ## 4. `setup.toml`
 

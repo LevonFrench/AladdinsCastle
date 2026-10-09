@@ -1,0 +1,40 @@
+id           = "scud"
+title        = "Scud Race"
+alt_titles   = ["Sega Super GT"]
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1996
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-model-3"
+players      = 1                    # twin / deluxe cabinets link
+series       = "Scud Race"
+
+[controls]
+type    = "wheel"
+shifter = "h4"                      # verify: Sega 4-speed H-pattern on Model 2/3 racers
+pedals  = ["accel", "brake"]
+extras  = ["view-change"]
+
+[[media]]
+kind = "mame-romset"
+set  = "scud"
+note = "Supermodel set scud (also scudau, scuddx)"
+
+[routes]
+supermodel  = "working"
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none", planned = "true3d-planned" }
+
+[hub]
+pill   = "SCUD"
+colour = "#101418"
+accent = "#e8e8e8"
+blurb  = "AM2's Model 3 supercars, from the driver's seat."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/mamedev/mame/blob/master/src/mame/sega/model3.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

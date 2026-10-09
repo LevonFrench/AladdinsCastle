@@ -19,6 +19,9 @@ When a decision is settled, record it here with the date and update the docs it 
 | D12 | Linux / SteamOS | v1 / later | Later; keep code portable | Open |
 | D13 | Name / trademark | Keep "AladdinsCastle" / rename before store release | Keep for open source; clear before any store release | Open |
 | D17 | Emulators and tools | Hub installs them / user has them | Both, plus search: **install from official sources**, **point to an existing install**, or **search the PC**; same for game files | **Decided 2026-10-08 (owner)** |
+| D18 | Game catalog structure | Central list / one folder per game | One folder per game (game.toml + install.toml + README + art), like each mod in the Installer Hub; filter by genre, manufacturer, year, hardware | **Decided 2026-10-08 (owner)** |
+| D19 | UI look | Own design / close to PCVR Mods Installer Hub | Very close to the Installer Hub (dark cards, pills, accent colours, hover art, featured banner, filter chips, S/M/L) | **Decided 2026-10-08 (owner)** |
+| D20 | First emulators | see [emulators.md](emulators.md) | namco22-decompile first (engine), then Supermodel (first true emulator); MAME + PCSX2 for theatre in parallel | Open |
 | D16 | In-VR game switching | SteamVR library shortcuts only / plus a flat in-VR list panel | SteamVR shortcuts in v1; revisit later | Open |
 
 ## Questions for the owner

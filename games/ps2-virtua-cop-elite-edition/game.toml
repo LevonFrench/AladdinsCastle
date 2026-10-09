@@ -1,0 +1,43 @@
+id           = "ps2-virtua-cop-elite-edition"
+title        = "Virtua Cop: Elite Edition"
+alt_titles   = ["Virtua Cop Re-Birth"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2002
+manufacturer = "sega"
+developer    = "Sega AM2 / Riz"
+hardware     = "sony-ps2"
+players      = 2
+series       = "Virtua Cop"
+contains     = ["vcop", "vcop2"]
+regions      = ["jp", "eu"]          # Japan 2002-08-15 (Re-Birth), Europe 2002-11-29; no North American release
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco GunCon 2 / G-Con 2 (or standard controller)"
+extras = ["training mode", "exercise mode", "unlockable art"]
+
+[[media]]
+kind = "disc"
+note = "Your own dump of the PAL Elite Edition or the Japanese Re-Birth disc (ISO/CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "VCOP-EE"
+colour = "#0f141f"
+accent = "#3fa9f5"
+blurb  = "Virtua Cop 1 and 2 on one PS2 disc, GunCon 2, 2-player co-op."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://segaretro.org/Virtua_Cop:_Elite_Edition", "https://en.wikipedia.org/wiki/Virtua_Cop"]
+confidence = "medium"
+checked    = "2026-10-08"

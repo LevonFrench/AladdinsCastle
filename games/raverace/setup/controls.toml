@@ -1,0 +1,40 @@
+# Ghost controls for the Rave Racer cabinet. Positions in metres from the seat reference point.
+id    = "namco-rave-racer"
+title = "Rave Racer cabinet"
+seat  = { height_m = 0.55, posture = "seated" }
+
+[[element]]
+id        = "wheel"
+type      = "wheel"
+position  = [0.0, 0.78, 0.42]
+tilt_deg  = 25
+radius_m  = 0.17
+range_deg = 270
+spring    = { return_speed = 6.0 }
+output    = { axis = "steering" }
+haptics   = { centre_detent = 0.2, ffb = "game" }
+
+[[element]]
+id       = "shifter"
+type     = "shifter_hl"                # two-position low/high lever
+position = [0.22, 0.62, 0.30]
+output   = { low = "gear_low", high = "gear_high" }
+
+[[element]]
+id     = "accel"
+type   = "pedal"
+source = "right_trigger"
+curve  = { deadzone = 0.04, gamma = 1.4 }
+output = { axis = "accelerator" }
+
+[[element]]
+id     = "brake"
+type   = "pedal"
+source = "left_trigger"
+output = { axis = "brake" }
+
+[[element]]
+id       = "view"
+type     = "button"
+position = [-0.18, 0.70, 0.36]
+output   = { button = "view_change" }

@@ -1,0 +1,248 @@
+# Controlled vocabulary: hardware ids. kind = arcade | console | pc. family groups the Hub's tree filter.
+# Add new entries here in the same change that first uses them.
+
+# ---- Sega arcade ----
+[sega-system-32]
+label = "Sega System 32"
+kind = "arcade"
+family = "sega"
+[sega-model-1]
+label = "Sega Model 1"
+kind = "arcade"
+family = "sega"
+[sega-model-2]
+label = "Sega Model 2 (2/2A/2B/2C)"
+kind = "arcade"
+family = "sega"
+[sega-model-3]
+label = "Sega Model 3"
+kind = "arcade"
+family = "sega"
+[sega-stv]
+label = "Sega ST-V"
+kind = "arcade"
+family = "sega"
+[sega-naomi]
+label = "Sega NAOMI"
+kind = "arcade"
+family = "sega"
+[sega-naomi-2]
+label = "Sega NAOMI 2"
+kind = "arcade"
+family = "sega"
+[sega-hikaru]
+label = "Sega Hikaru"
+kind = "arcade"
+family = "sega"
+[sega-chihiro]
+label = "Sega Chihiro"
+kind = "arcade"
+family = "sega"
+[sega-triforce]
+label = "Namco/Sega/Nintendo Triforce"
+kind = "arcade"
+family = "sega"
+[sega-lindbergh]
+label = "Sega Lindbergh"
+kind = "arcade"
+family = "sega"
+[sega-ringedge]
+label = "Sega RingEdge"
+kind = "arcade"
+family = "sega"
+[sega-ringwide]
+label = "Sega RingWide"
+kind = "arcade"
+family = "sega"
+[sega-ringedge-2]
+label = "Sega RingEdge 2"
+kind = "arcade"
+family = "sega"
+[sega-nu]
+label = "Sega Nu"
+kind = "arcade"
+family = "sega"
+[sega-alls]
+label = "Sega ALLS"
+kind = "arcade"
+family = "sega"
+[sammy-atomiswave]
+label = "Sammy Atomiswave"
+kind = "arcade"
+family = "sega"
+
+# ---- Namco arcade ----
+[namco-system-21]
+label = "Namco System 21"
+kind = "arcade"
+family = "namco"
+[namco-system-22]
+label = "Namco System 22"
+kind = "arcade"
+family = "namco"
+[namco-super-system-22]
+label = "Namco Super System 22"
+kind = "arcade"
+family = "namco"
+[namco-system-11]
+label = "Namco System 11"
+kind = "arcade"
+family = "namco"
+[namco-system-12]
+label = "Namco System 12"
+kind = "arcade"
+family = "namco"
+[namco-system-23]
+label = "Namco System 23 / Super System 23"
+kind = "arcade"
+family = "namco"
+[namco-system-246]
+label = "Namco System 246 / 256 (PS2-based)"
+kind = "arcade"
+family = "namco"
+[namco-system-357]
+label = "Namco System 357 / 369 (PS3-based)"
+kind = "arcade"
+family = "namco"
+[namco-es1]
+label = "Namco System ES1"
+kind = "arcade"
+family = "namco"
+[namco-es3]
+label = "Namco System ES3"
+kind = "arcade"
+family = "namco"
+[namco-es4]
+label = "Namco System ES4"
+kind = "arcade"
+family = "namco"
+[namco-nb]
+label = "Namco NB-1 / NB-2"
+kind = "arcade"
+family = "namco"
+
+# ---- Konami arcade ----
+[konami-gti-club]
+label = "Konami GTI Club board"
+kind = "arcade"
+family = "konami"
+[konami-zr107]
+label = "Konami ZR107"
+kind = "arcade"
+family = "konami"
+[konami-hornet]
+label = "Konami Hornet"
+kind = "arcade"
+family = "konami"
+[konami-m2]
+label = "Konami M2"
+kind = "arcade"
+family = "konami"
+[konami-viper]
+label = "Konami Viper"
+kind = "arcade"
+family = "konami"
+[konami-pc]
+label = "Konami PC-based (e7/Python etc.)"
+kind = "arcade"
+family = "konami"
+
+# ---- Taito arcade ----
+[taito-jc]
+label = "Taito JC System"
+kind = "arcade"
+family = "taito"
+[taito-type-zero]
+label = "Taito Type Zero"
+kind = "arcade"
+family = "taito"
+[taito-wolf]
+label = "Taito Wolf System"
+kind = "arcade"
+family = "taito"
+[taito-type-x]
+label = "Taito Type X / X+ / X2 / X3"
+kind = "arcade"
+family = "taito"
+
+# ---- Other arcade ----
+[midway-seattle]
+label = "Midway Seattle"
+kind = "arcade"
+family = "midway"
+[midway-vegas]
+label = "Midway Vegas"
+kind = "arcade"
+family = "midway"
+[midway-zeus]
+label = "Midway Zeus"
+kind = "arcade"
+family = "midway"
+[atari-arcade]
+label = "Atari Games 3D boards (e.g. Hard Drivin', Phoenix)"
+kind = "arcade"
+family = "atari"
+[pc-arcade]
+label = "PC-based arcade (Raw Thrills, Global VR, others)"
+kind = "arcade"
+family = "pc-arcade"
+[other-arcade]
+label = "Other arcade hardware"
+kind = "arcade"
+family = "other"
+
+# ---- Consoles ----
+[sony-ps1]
+label = "PlayStation"
+kind = "console"
+family = "sony"
+[sony-ps2]
+label = "PlayStation 2"
+kind = "console"
+family = "sony"
+[sony-ps3]
+label = "PlayStation 3"
+kind = "console"
+family = "sony"
+[sega-saturn]
+label = "Sega Saturn"
+kind = "console"
+family = "sega"
+[sega-dreamcast]
+label = "Sega Dreamcast"
+kind = "console"
+family = "sega"
+[nintendo-64]
+label = "Nintendo 64"
+kind = "console"
+family = "nintendo"
+[nintendo-gamecube]
+label = "Nintendo GameCube"
+kind = "console"
+family = "nintendo"
+[nintendo-wii]
+label = "Nintendo Wii"
+kind = "console"
+family = "nintendo"
+[nintendo-wii-u]
+label = "Nintendo Wii U"
+kind = "console"
+family = "nintendo"
+[nintendo-switch]
+label = "Nintendo Switch"
+kind = "console"
+family = "nintendo"
+[microsoft-xbox]
+label = "Xbox"
+kind = "console"
+family = "microsoft"
+[microsoft-xbox-360]
+label = "Xbox 360"
+kind = "console"
+family = "microsoft"
+
+# ---- PC ----
+[pc-windows]
+label = "Windows PC"
+kind = "pc"
+family = "pc"

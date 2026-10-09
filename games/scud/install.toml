@@ -1,0 +1,13 @@
+default = "supermodel-theatre"
+
+[variant.supermodel-vr]
+title   = "AladdinsCastle true 3D (Supermodel New3D stereo + libacvr)"
+quality = "true3d"
+status  = "planned"                     # roadmap M5
+needs   = { media = ["scud"], tools = ["supermodel-vr"] }
+
+[variant.supermodel-theatre]
+title   = "Theatre (Supermodel + acvr-theatre, ghost wheel via vJoy)"
+quality = "theatre"
+status  = "planned"                     # roadmap M4
+needs   = { media = ["scud"], tools = ["supermodel", "acvr-theatre", "vjoy"] }

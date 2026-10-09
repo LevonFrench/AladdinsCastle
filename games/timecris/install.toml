@@ -1,0 +1,78 @@
+default = "dr89-pcvr"
+
+# ---------------------------------------------------------------------------
+# Our own true-3D setup: namco22-decompile + libacvr. Planned (roadmap M3).
+# ---------------------------------------------------------------------------
+[variant.namco22-vr]
+title   = "AladdinsCastle true 3D (namco22-decompile + libacvr)"
+quality = "true3d"
+status  = "planned"
+needs   = { media = ["timecris"], tools = [] }
+
+# ---------------------------------------------------------------------------
+# DR-89 Time Crisis VR, PCVR build.
+# The upstream release zip ships a roms/ folder with game files, so the Hub
+# never downloads it. The user points to a ROM-free build they made or obtained.
+# ---------------------------------------------------------------------------
+[variant.dr89-pcvr]
+title    = "Time Crisis VR by DR-89 (PCVR)"
+quality  = "true3d"
+status   = "stable"
+upstream = "https://github.com/DR-89/time-crisis-vr"
+license  = "MIT (port code)"
+needs    = { media = ["timecris"], tools = [] }
+installed_when = "${install_dir}/TimeCrisisVR.exe"
+
+[[variant.dr89-pcvr.step]]
+do      = "locate-package"
+what    = "Time Crisis VR Windows build without game files"
+pattern = "TimeCrisisVR-*-windows-x64*.zip"
+
+[[variant.dr89-pcvr.step]]
+do = "extract"
+to = "${install_dir}"
+
+[[variant.dr89-pcvr.step]]
+do    = "copy-media"
+media = "timecris"
+to    = "${install_dir}/roms/"
+
+[[variant.dr89-pcvr.step]]
+do   = "write-config"
+file = "${install_dir}/quest-options.cfg"
+set  = { physical_crouch = "${settings.cover == 'duck' ? 1 : 0}", left_handed = "${profile.left_handed ? 1 : 0}", laser_enabled = "${settings.laser ? 1 : 0}", gun_pitch = "${settings.gun_pitch}" }
+
+[[variant.dr89-pcvr.step]]
+do      = "shortcut"
+targets = ["steam"]
+exe     = "${install_dir}/Play SteamVR.cmd"
+
+[variant.dr89-pcvr.launch]
+exe = "${install_dir}/Play SteamVR.cmd"
+cwd = "${install_dir}"
+
+# ---------------------------------------------------------------------------
+# DR-89 Time Crisis VR, Quest standalone (sideloaded over USB with adb).
+# Package id from upstream quest/AndroidManifest.xml: org.timecrisis.quest
+# ---------------------------------------------------------------------------
+[variant.dr89-quest]
+title    = "Time Crisis VR by DR-89 (Quest 3 standalone)"
+quality  = "true3d"
+status   = "stable"
+upstream = "https://github.com/DR-89/time-crisis-vr"
+needs    = { media = ["timecris"], tools = ["adb"], headset = "developer-mode" }
+installed_when = "adb:package:org.timecrisis.quest"
+
+[[variant.dr89-quest.step]]
+do      = "locate-package"
+what    = "Time Crisis VR ROM-free APK (build it with the upstream build tools)"
+pattern = "TimeCrisisVR-*.apk"
+
+[[variant.dr89-quest.step]]
+do = "adb-install"
+
+[[variant.dr89-quest.step]]
+do     = "run"
+exe    = "${tools.powershell}"
+args   = ["-File", "${upstream_dir}/Install-ROM.ps1", "-Rom", "${media.timecris}"]
+note   = "Upstream's own ROM importer copies your timecris.zip to the headset."

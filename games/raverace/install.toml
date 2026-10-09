@@ -1,0 +1,9 @@
+default = "namco22-vr"
+
+[variant.namco22-vr]
+title    = "AladdinsCastle true 3D (namco22-decompile + libacvr)"
+quality  = "true3d"
+status   = "planned"                   # roadmap M3: first racing setup
+upstream = "https://github.com/spacestate1/namco22-decompile"
+needs    = { media = ["raverace", "namcoc74"], tools = [] }
+controls = "setup/controls.toml"
