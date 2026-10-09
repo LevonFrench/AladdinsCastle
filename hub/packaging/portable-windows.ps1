@@ -29,6 +29,7 @@ New-Item -ItemType Directory -Path $OutputDir | Out-Null
 foreach ($binary in @('aladdinscastle-hub.exe','hubtool.exe','openvr_api.dll')) {
     Copy-Item -LiteralPath (Join-Path $BuildDir "bin/$binary") -Destination $OutputDir
 }
+Copy-Item -LiteralPath (Join-Path $BuildDir 'bin/resources') -Destination (Join-Path $OutputDir 'resources') -Recurse
 $deploy = Join-Path $QtDir 'bin/windeployqt.exe'
 & $deploy --release --no-translations --no-compiler-runtime --qmldir (Join-Path $RepoRoot 'hub/qml') --dir $OutputDir (Join-Path $OutputDir 'aladdinscastle-hub.exe')
 if ($LASTEXITCODE -ne 0) { throw "windeployqt failed ($LASTEXITCODE)" }

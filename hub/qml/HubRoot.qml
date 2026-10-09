@@ -3,10 +3,12 @@ import QtQuick
 import QtQuick.Controls
 Item {
     id: root
+    property bool overlayPresentation: false
     implicitWidth: 1000
     implicitHeight: 700
     Rectangle { anchors.fill: parent; color: surfaceColor }
     Column {
+        visible: !overlaySpikeEnabled
         anchors.centerIn: parent
         spacing: 20
         Label {
@@ -21,5 +23,11 @@ Item {
             color: brandColor
             font.pixelSize: 18
         }
+    }
+    Loader {
+        anchors.fill: parent
+        active: overlaySpikeEnabled
+        source: "spike/OverlayTest.qml"
+        onLoaded: item.overlayPresentation = root.overlayPresentation
     }
 }
