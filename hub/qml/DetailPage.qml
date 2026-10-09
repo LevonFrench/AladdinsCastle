@@ -36,7 +36,7 @@ ScrollView {
    UiText{visible:(page.detail.needs||[]).length===0;text:"No install requirements have been authored for this entry.";color:Theme.get("color.text.muted_detail")}
   }
   Flow{width:parent.width;spacing:12
-   PillButton{objectName:"detailPrimary";text:page.detail.state===4?page.detail.variantTitle:page.detail.state===6?"Locate / install emulator":page.detail.stateLabel||"No setup yet";implicitWidth:162;neon:true;accent:page.detail.stateColour||Theme.get("color.brand.orange");vrOverlayMode:page.vrOverlayMode;enabled:page.detail.m1Available===true&&[3,4,5,6,7,2].indexOf(page.detail.state)>=0;onClicked:uiController.primary(page.detail.gameId)}
+   PillButton{objectName:"detailPrimary";text:page.detail.playing?"Playing":page.detail.state===4?page.detail.variantTitle:page.detail.state===6?"Locate / install emulator":page.detail.stateLabel||"No setup yet";implicitWidth:162;neon:true;accent:page.detail.stateColour||Theme.get("color.brand.orange");vrOverlayMode:page.vrOverlayMode;enabled:page.detail.m1Available===true&&!page.detail.playing&&[3,4,5,6,7,2].indexOf(page.detail.state)>=0;onClicked:uiController.primary(page.detail.gameId)}
    PillButton{text:"Reinstall";visible:page.detail.reinstallVisible===true;onClicked:uiController.startInstall(page.detail.gameId,page.detail.variantId)}
    PillButton{text:"Add to Steam library";visible:page.detail.state===4;onClicked:uiController.openLocation("steam-shortcut")}
    PillButton{text:"Upstream page";visible:(page.detail.components||[]).length>0&&!!page.detail.components[0].upstream;onClicked:uiController.openLink(page.detail.components[0].upstream)}

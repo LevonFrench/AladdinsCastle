@@ -22,14 +22,14 @@ UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettin
  connect(settings,&UiSettings::gameSaved,this,&UiController::writeConfigRequested);
 }
 QString UiController::vrLabel(int badge)const{const QStringList labels{"FLAT","TRUE 3D","THEATRE","PLANNED"};return labels.value(badge,"FLAT");}
-QString UiController::primaryLabel(const QString &id)const{auto g=m_games->find(id);if(!g)return "No setup yet";if(g->roles.value("state").toInt()==4){const auto *v=variant(*g);return v?v->title:"Play";}if(g->roles.value("state").toInt()==6)return "Locate / install emulator";return g->roles.value("stateLabel").toString();}
+QString UiController::primaryLabel(const QString &id)const{auto g=m_games->find(id);if(!g)return "No setup yet";if(g->roles.value("playing").toBool())return "Playing";if(g->roles.value("state").toInt()==4){const auto *v=variant(*g);return v?v->title:"Play";}if(g->roles.value("state").toInt()==6)return "Locate / install emulator";return g->roles.value("stateLabel").toString();}
 QString UiController::appVersion()const{return QCoreApplication::applicationVersion();}
 void UiController::message(const QString &text){m_status=text;emit statusChanged();}
 QVariantMap UiController::game(const QString &id)const {auto g=m_games->find(id);return g?g->roles:QVariantMap{};}
 QVariantMap UiController::filteredGame(int row)const{auto i=m_filter->mapToSource(m_filter->index(row,0));return i.isValid()?m_games->records()[i.row()].roles:QVariantMap{};}
 void UiController::openDetail(const QString &id){if(!m_games->find(id))return;m_detailId=id;m_variantId.clear();emit detailChanged();}
 void UiController::selectVariant(const QString &id){auto g=m_games->find(m_detailId);if(!g)return;for(const auto &v:g->variants)if(v.id==id){m_variantId=id;emit detailChanged();return;}}
-const Variant *UiController::variant(const GameRecord &g) const{for(const auto &v:g.variants)if(v.id==m_variantId)return &v;for(const auto &v:g.variants)if(v.id==g.runtime.selectedVariantId)return &v;for(const auto &v:g.variants)if(v.id==g.roles.value("preferredVariantId").toString())return &v;for(const auto &v:g.variants)if(v.generated)return &v;for(const auto &v:g.variants)if(v.status!="planned")return &v;return g.variants.isEmpty()?nullptr:&g.variants.first();}
+const Variant *UiController::variant(const GameRecord &g) const{for(const auto &v:g.variants)if(g.id==m_detailId&&v.id==m_variantId)return &v;for(const auto &v:g.variants)if(v.id==g.runtime.selectedVariantId)return &v;for(const auto &v:g.variants)if(v.id==g.roles.value("preferredVariantId").toString())return &v;for(const auto &v:g.variants)if(v.generated)return &v;for(const auto &v:g.variants)if(v.status!="planned")return &v;return g.variants.isEmpty()?nullptr:&g.variants.first();}
 QString UiController::safeMarkdown(QString text){
  text.remove(QRegularExpression("!\\[[^\\]]*\\]\\([^)]*\\)"));
  text.replace("![","[");

@@ -11,6 +11,8 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QGuiApplication>
+#include <QImage>
+#include <QFileInfo>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
@@ -81,6 +83,19 @@ int main(int argc,char **argv){
         QString error;if(!overlay.initialize(engine,app.applicationDirPath()+"/resources/overlay-thumbnail.png",&error)){err<<error<<'\n';return 3;}
     }
     if(options.mode==ac::Mode::Desktop||options.window){engine.loadFromModule("AladdinsCastle.Hub","DesktopShell");if(engine.rootObjects().isEmpty())return 2;}
+    // Explicit operator diagnostics capture this application's own Qt surface.
+    // Private owner captures are never included in packaging.
+    const auto qaGame=qEnvironmentVariable("AC_UI_PLAY");
+    if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});
+    const auto capture=qEnvironmentVariable("AC_UI_CAPTURE");
+    if(!capture.isEmpty())QTimer::singleShot(6000,&app,[&engine,&ui,&games,capture]{
+        for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow*>(object)){
+            QDir().mkpath(QFileInfo(capture).absolutePath());window->grabWindow().save(capture);break;
+        }
+        ac::Json receipt{{"status",ui.status().toStdString()},{"games",ac::Json::array()}};
+        for(const auto &game:games.records())if(game.runtime.playing)receipt["games"].push_back({{"id",game.id.toStdString()},{"playing",true},{"stateLabel",game.roles.value("stateLabel").toString().toStdString()}});
+        ac::install::atomicWrite(capture+".json",QByteArray::fromStdString(receipt.dump(2)));
+    });
     out<<"AladdinsCastle: "<<count<<" games\n";out.flush();
     if(options.quitAfterMs>0)QTimer::singleShot(options.quitAfterMs,&app,&QCoreApplication::quit);
     return app.exec();

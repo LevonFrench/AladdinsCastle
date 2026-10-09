@@ -26,7 +26,7 @@ foreach ($required in @('msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll'))
     if ($required -notin $crtFiles.Name) { throw "Official VS redist is missing $required" }
 }
 New-Item -ItemType Directory -Path $OutputDir | Out-Null
-foreach ($binary in @('aladdinscastle-hub.exe','hubtool.exe','openvr_api.dll')) {
+foreach ($binary in @('aladdinscastle-hub.exe','hubtool.exe','arttool.exe','steamtool.exe','openvr_api.dll')) {
     Copy-Item -LiteralPath (Join-Path $BuildDir "bin/$binary") -Destination $OutputDir
 }
 Copy-Item -LiteralPath (Join-Path $BuildDir 'bin/resources') -Destination (Join-Path $OutputDir 'resources') -Recurse
