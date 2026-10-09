@@ -35,6 +35,8 @@ class FilterSortModel : public QSortFilterProxyModel {
     bool lessThan(const QModelIndex &left, const QModelIndex &right) const override;
 
   private:
+    bool acceptsRow(int row, const QVariantMap &facets) const;
+    mutable QMap<QString, QVariantList> m_choicesCache;
     QString m_query, m_sort = "title";
     QVariantMap m_facets;
     bool m_scanComplete = false;

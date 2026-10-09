@@ -33,6 +33,7 @@ FocusScope {
     HoverHandler{id:previewHover;onHoveredChanged:if(!hovered)preview.visible=false}
    }
   }
+  PillButton{objectName:"globalStop";text:typeof hubServices!=="undefined"&&hubServices.preparing?"Stop preparing launch":"Stop game";visible:typeof hubServices!=="undefined"&&hubServices.launchBusy;vrOverlayMode:root.vrOverlayMode;onClicked:uiController.stopLaunch()}
   UiText{Layout.fillWidth:true;Layout.leftMargin:14;Layout.bottomMargin:6;text:uiController.status||gameFilter.visibleCount+" / "+catalogGameCount+" games · Local art only";font.pixelSize:11;color:Theme.get("color.text.muted_detail")}
  }
  FiltersDrawer{id:filters;parent:root;x:Math.max(0,Math.min(root.width-width,160));y:Math.min(140,root.height-height);vrOverlayMode:root.vrOverlayMode}
@@ -43,7 +44,7 @@ FocusScope {
   onAccepted:{uiSettings.set("scanRoots",roots.text);uiController.scan(roots.text.split(/\n|;/).filter(p=>p.trim().length>0))}
   background:Rectangle{color:Theme.get("color.surface.panel");border.color:Theme.get("color.line.button");radius:8}
  }
- Connections {target:uiController;function onLocationRequested(kind){if(kind==="tool")toolDialog.open();else if(kind==="media")scanDialog.open();else if(kind==="steam-shortcut"&&typeof hubServices!=="undefined"){hubServices.beginSteam(uiController.detail.gameId);steamDialog.open()}}}
+ Connections {target:uiController;function onLocationRequested(kind){if(kind==="tool")toolDialog.open();else if(kind==="media")scanDialog.open();else if(kind==="steam-shortcut"&&typeof hubServices!=="undefined"){hubServices.beginSteam(uiController.detail.gameId,uiController.detail.variantId);steamDialog.open()}}}
  Dialog {id:toolDialog;parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;title:"Emulators";standardButtons:Dialog.Close
   Column {width:parent.width;spacing:12
    UiText {width:parent.width;text:"Locate your existing MAME or PCSX2 folder with Find my files. Supermodel can be installed from its pinned official release.";wrapMode:Text.Wrap}
@@ -53,18 +54,23 @@ FocusScope {
    PillButton {text:"Preview Supermodel removal";enabled:typeof hubServices!=="undefined"&&!uiController.installing;onClicked:{hubServices.previewSupermodelRemoval();toolDialog.close()}}
   }
  }
- Dialog {id:steamDialog;parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,680);modal:true;title:"Review Steam shortcut changes";standardButtons:Dialog.Close
+ Dialog {id:steamDialog;parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,680);modal:true;title:typeof hubServices!=="undefined"&&hubServices.steamRemoving?"Review Steam shortcut removal":"Review Steam shortcut changes";standardButtons:Dialog.Close
   Column {width:parent.width;spacing:12
    UiText {width:parent.width;wrapMode:Text.Wrap;text:"Choose the account folder and review the exact files below. Save authorizes this displayed change. Steam must be fully closed; custom art is preserved."}
    ComboBox {id:steamAccount;model:typeof hubServices!=="undefined"?hubServices.steamAccounts:[];width:parent.width}
    PillButton {text:"Preview this account";enabled:steamAccount.currentIndex>=0;onClicked:hubServices.previewSteam(steamAccount.currentText)}
    ScrollView {width:parent.width;height:260;TextArea {text:typeof hubServices!=="undefined"?hubServices.steamPreview:"";readOnly:true;wrapMode:Text.Wrap;color:Theme.get("color.text.primary");font.pixelSize:11}}
-   PillButton {text:"Save the reviewed Steam shortcut";enabled:typeof hubServices!=="undefined"&&hubServices.steamWriteReady;onClicked:hubServices.approveSteamWrite()}
+   PillButton {text:typeof hubServices!=="undefined"&&hubServices.steamRemoving?"Approve the reviewed Steam removal":"Save the reviewed Steam shortcut";enabled:typeof hubServices!=="undefined"&&hubServices.steamWriteReady;onClicked:hubServices.approveSteamWrite()}
   }
  }
  Dialog {id:removeDialog;parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;title:"Remove owned installation files?";standardButtons:Dialog.Ok|Dialog.Cancel
+  onOpened:removeSteam.selected=false
+  Column {width:parent.width;spacing:10
   ScrollView {width:parent.width;height:240;TextArea {text:typeof hubServices!=="undefined"?hubServices.removalPlan:"";readOnly:true;wrapMode:Text.Wrap;color:Theme.get("color.text.primary")}}
-  onAccepted:hubServices.confirmRemoval()
+  PillButton {id:removeSteam;objectName:"removeSteamOption";text:"Also review Steam entry removal (separate approval)";visible:typeof hubServices!=="undefined"&&hubServices.canRemoveSteam;selected:false;onClicked:selected=!selected}
+  UiText {width:parent.width;wrapMode:Text.Wrap;text:"Steam changes require a separate exact preview and approval. Close Steam yourself before applying them."}
+  }
+  onAccepted:if(hubServices.confirmRemoval(removeSteam.selected))steamDialog.open()
  }
  Connections {target:typeof hubServices!=="undefined"?hubServices:null;function onRemovalPlanChanged(){removeDialog.open()}}
  FolderDialog{id:folder;title:"Choose a folder to scan";onAccepted:roots.text+=(roots.text.length?";":"")+uiController.localPath(selectedFolder)}

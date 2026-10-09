@@ -80,6 +80,40 @@ class UiTest:public QObject {
   const QStringList components{"PillButton","UiText","GameArt","GradientText","GameCard","SectionHeader","FeaturedBanner","Header","FilterBar","ScanProgress","FiltersDrawer","GameGrid","LibraryTile","RecentlyPlayedRow","ExplorePage","DetailPage","InstallConsole","RecoveryPanel","SettingsPage","SortMenu","HelpPanel"};
   for(const auto &name:components){QQmlComponent c(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/"+name+".qml"));QVERIFY2(c.isReady(),qPrintable(c.errorString()));std::unique_ptr<QObject> o(c.create());QVERIFY2(o!=nullptr,qPrintable(c.errorString()));}
  }
+ void hardwareFacetsHaveCountsAndNoUndefinedText(){
+  filter.clearFacets();const auto tree=ui->hardwareTree();QVERIFY(!tree.isEmpty());
+  for(const auto &kindValue:tree){const auto kind=kindValue.toMap();QVERIFY(kind.value("count").toInt()>0);const auto families=kind.value("children").toList();QVERIFY(!families.isEmpty());
+   for(const auto &familyValue:families){const auto family=familyValue.toMap();QVERIFY(family.value("count").toInt()>0);const auto boards=family.value("children").toList();QVERIFY(!boards.isEmpty());for(const auto &boardValue:boards)QVERIFY(boardValue.toMap().value("count").toInt()>0);}
+  }
+  auto drawer=window->findChild<QObject *>("filtersDrawer");QVERIFY(drawer);QVERIFY(QMetaObject::invokeMethod(drawer,"open"));QTest::qWait(100);
+  std::function<void(QQuickItem *)> inspect=[&](QQuickItem *item){QVERIFY(!item->property("text").toString().contains("undefined",Qt::CaseInsensitive));for(auto child:item->childItems())inspect(child);};inspect(window->contentItem());
+  QVERIFY(QMetaObject::invokeMethod(drawer,"close"));
+  // Manufacturer choices ignore their own selected value while obeying the genre facet.
+  filter.setFacet("genre",QStringList{"gun"});const auto choices=filter.choices("manufacturerIds");QVERIFY(!choices.isEmpty());
+  for(const auto &choiceValue:choices){auto choice=choiceValue.toMap();int expected=0;for(const auto &g:games->records())if(g.roles.value("genreId")=="gun"&&g.roles.value("manufacturerId")==choice.value("id"))++expected;QCOMPARE(choice.value("count").toInt(),expected);}
+  filter.setFacet("manufacturerIds",QStringList{choices.first().toMap().value("id").toString()});QCOMPARE(filter.choices("manufacturerIds"),choices);
+  filter.clearFacets();filter.setQuery("no-synthetic-game-has-this-title");QVERIFY(ui->hardwareTree().isEmpty());for(const auto &choice:filter.choices("hardwareIds"))QCOMPARE(choice.toMap().value("count").toInt(),0);filter.clearFacets();
+ }
+ void retryCarriesSelectedIdentifiers(){
+  ac::UiController noSelection(games.get(),&filter,settings.get());QSignalSpy noRetry(&noSelection,&ac::UiController::retryInstallRequested);noSelection.retryInstall(false,{});QCOMPARE(noRetry.count(),0);QVERIFY(noSelection.status().contains("Nothing to retry",Qt::CaseInsensitive));
+  ui->openDetail("timecris");for(const auto &v:games->find("timecris")->variants)if(v.generated){ui->selectVariant(v.id);break;}auto d=ui->detail();const auto variant=d.value("variantId").toString();QVERIFY(!variant.isEmpty());QSignalSpy retry(ui.get(),&ac::UiController::retryInstallRequested);
+  ui->retryInstall(false,"synthetic handover");QCOMPARE(retry.count(),0);QVERIFY(ui->status().contains("Nothing to retry"));
+  for(const auto &v:games->find("timecris")->variants)if(!v.generated){ui->selectVariant(v.id);ui->retryInstall(false,{});QCOMPARE(retry.count(),0);QVERIFY(ui->status().contains("Nothing to retry",Qt::CaseInsensitive));break;}
+ }
+ void stopControlAndRemovalOptIn(){
+  auto stop=window->findChild<QObject *>("globalStop");QVERIFY(stop);QSignalSpy stops(ui.get(),&ac::UiController::stopLaunchRequested);QVERIFY(QMetaObject::invokeMethod(stop,"clicked"));QCOMPARE(stops.count(),1);QVERIFY(ui->status().contains("Stop requested"));
+  auto remove=window->findChild<QObject *>("removeSteamOption");QVERIFY(remove);QVERIFY(!remove->property("selected").toBool());
+  ui->launchPreparing("timecris","Preparing emulator profile");QVERIFY(ui->status().contains("Preparing"));QVERIFY(!games->find("timecris")->roles.value("playing").toBool());
+ }
+ void shippedFlatRemovalControlIsReachable(){
+  ui->openDetail("timecris");for(const auto &v:games->find("timecris")->variants)if(v.generated){ui->selectVariant(v.id);break;}
+  root->setProperty("view","Detail");QCoreApplication::processEvents();auto button=window->findChild<QObject *>("detailOwnedRemoval");QVERIFY(button);QVERIFY(button->property("visible").toBool());QVERIFY(ui->detail().value("m1Available").toBool());QVERIFY(!ui->detail().value("reinstallVisible").toBool());
+  QSignalSpy removals(ui.get(),&ac::UiController::uninstallPreviewRequested);QVERIFY(QMetaObject::invokeMethod(button,"clicked"));QCOMPARE(removals.count(),1);QCOMPARE(removals.first().at(0).toString(),QString("timecris"));QCOMPARE(removals.first().at(1).toString(),ui->detail().value("variantId").toString());root->setProperty("view","List");
+ }
+ void failedToolRecoveryHasExplicitButton(){
+  ui->installEvent({{"kind","fail"},{"text","Synthetic tool failure"},{"retryKind","tool"},{"retryGameId","tool-supermodel"},{"retryVariantId","windows-x64"},{"retryLabel","Supermodel"}});
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/RecoveryPanel.qml"));std::unique_ptr<QObject> panel(component.create());QVERIFY(panel);auto button=panel->findChild<QObject *>("retryFailedTool");QVERIFY(button);QVERIFY(button->property("visible").toBool());QVERIFY(button->property("text").toString().contains("tool-supermodel"));QVERIFY(button->property("text").toString().contains("windows-x64"));QSignalSpy retry(ui.get(),&ac::UiController::retryToolInstallRequested);QVERIFY(QMetaObject::invokeMethod(button,"clicked"));QCOMPARE(retry.count(),1);QCOMPARE(retry.first().at(0).toString(),QString("tool-supermodel"));QCOMPARE(retry.first().at(1).toString(),QString("windows-x64"));ui->installEvent({{"kind","fail"},{"text","Synthetic tool removal failure"},{"retryKind","tool"},{"retryOperation","uninstall"},{"retryGameId","tool-supermodel"},{"retryVariantId","windows-x64"}});ui->retryFailedTool(false,{});QCOMPARE(retry.count(),1);ui->installFinished(true,"Synthetic completion");
+ }
  void readmePrivacy(){
   QString raw="![inline](https://example.invalid/inline.png)\n![reference][cover]\n[cover]: https://example.invalid/ref.png\n![shortcut]\n[shortcut]: https://example.invalid/shortcut.png\n<img\n src=\"https://example.invalid/html.png\">\n[Upstream](https://example.invalid/project)";
   auto safe=ac::UiController::safeMarkdown(raw);QVERIFY(!safe.contains("!["));QVERIFY(!safe.contains("<img",Qt::CaseInsensitive));QVERIFY(safe.contains("[Upstream]"));
@@ -108,7 +142,8 @@ class UiTest:public QObject {
  }
  void signalsAndProofGates(){
   QSignalSpy scans(ui.get(),&ac::UiController::scanRequested);ui->scan({"synthetic-root"});QCOMPARE(scans.count(),1);QVERIFY(!ui->scanning());ui->scanStarted();QVERIFY(ui->scanning());ui->scanFinished(true);QVERIFY(filter.scanComplete());
-  ui->installEvent({{"kind","step"},{"step",2},{"total",4},{"text","Extract"}});ui->installEvent({{"kind","ok"},{"text","Verified archive"}});QCOMPARE(ui->consoleEvents().first().toMap().value("line").toString(),QString("--- [2/4] Extract ---"));ui->installEvent({{"kind","fail"},{"step",2},{"total",4},{"text","Synthetic failure"}});QVERIFY(!ui->recovery().isEmpty());QVERIFY(!ui->installing());QSignalSpy retries(ui.get(),&ac::UiController::retryInstallRequested);ui->retryInstall(false,"synthetic-file");QCOMPARE(retries.count(),1);ui->installFinished(true,"Synthetic service completion without proof");
+  ui->openDetail("timecris");for(const auto &v:games->find("timecris")->variants)if(v.generated){ui->selectVariant(v.id);break;}
+  const auto eventStart=ui->consoleEvents().size();ui->installEvent({{"kind","step"},{"step",2},{"total",4},{"text","Extract"}});ui->installEvent({{"kind","ok"},{"text","Verified archive"}});QCOMPARE(ui->consoleEvents().at(eventStart).toMap().value("line").toString(),QString("--- [2/4] Extract ---"));ui->installEvent({{"kind","fail"},{"step",2},{"total",4},{"text","Synthetic failure"}});QVERIFY(!ui->recovery().isEmpty());QVERIFY(!ui->installing());QSignalSpy retries(ui.get(),&ac::UiController::retryInstallRequested);ui->retryInstall(false,"synthetic-file");QCOMPARE(retries.count(),0);QVERIFY(ui->status().contains("Nothing to retry"));ui->installFinished(true,"Synthetic service completion without proof");
   for(const auto &g:games->records())QVERIFY(g.roles.value("state").toInt()!=static_cast<int>(ac::GameState::Installed));
   ui->openDetail("timecris");ui->selectVariant("dr89-pcvr");QSignalSpy install(ui.get(),&ac::UiController::installRequested);ui->startInstall("timecris","dr89-pcvr");QCOMPARE(install.count(),0);
  }

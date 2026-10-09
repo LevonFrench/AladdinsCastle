@@ -68,7 +68,16 @@ void UiController::scan(const QStringList &roots){if(m_scanning){emit cancelScan
 void UiController::startInstall(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated){message("This VR setup is outside M1. Select a flat emulator route.");return;}message("Install requested; waiting for installer.");emit installRequested(id,variantId);return;}}
 void UiController::play(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated){message("This VR setup is outside M1. Select a flat emulator route.");return;}emit playRequested(id,variantId);return;}}
 void UiController::cancelInstall(){emit cancelInstallRequested();message("Cancel requested; the installer stops between steps.");}
-void UiController::retryInstall(bool fromStart,const QString &handover){emit retryInstallRequested(fromStart,handover);}
+void UiController::retryInstall(bool fromStart,const QString &handover){
+ auto g=m_games->find(m_detailId);const auto *v=g?variant(*g):nullptr;
+ if(!g||!v||!v->generated||!g->install.is_object()||!g->install.contains("variant")||!g->install["variant"].contains(v->id.toStdString())){message("Nothing to retry: the selected game and variant have no M1 owned installation recipe.");return;}
+ emit retryInstallRequested(g->id,v->id,fromStart,handover);
+}
+void UiController::retryFailedTool(bool fromStart,const QString &handover){
+ if(m_recovery.value("retryKind")!="tool"||m_recovery.value("retryOperation","install")!="install"||m_recovery.value("retryGameId").toString().isEmpty()){message("There is no identified failed tool installation to retry.");return;}
+ emit retryToolInstallRequested(m_recovery.value("retryGameId").toString(),m_recovery.value("retryVariantId").toString(),fromStart,handover);
+}
+void UiController::stopLaunch(){emit stopLaunchRequested();message("Stop requested; the game is asked to close, then forced to stop after the timeout.");}
 void UiController::answerPrompt(bool proceed){emit promptAnswered(proceed);}
 void UiController::skipStep(){if(m_recovery.value("canSkip").toBool())emit skipStepRequested();}
 void UiController::uninstall(const QString &id,const QString &variantId){emit uninstallPreviewRequested(id,variantId);message("Waiting for the ownership manifest preview before removal.");}
@@ -90,7 +99,21 @@ void UiController::toggleFacet(const QString &key,const QString &value){
 }
 bool UiController::selected(const QString &key,const QString &value)const{return m_filter->facet(key).toStringList().contains(value);}
 QVariantList UiController::activeFacets()const{QVariantList out;for(const auto &key:{"genre","statePills","inLibraryOnly","hardwareIds","manufacturerIds","yearMin","yearMax","graphicsIds","vrKeys","playersBuckets","controlsTypes","decades"}){auto value=m_filter->facet(key);if(!value.isValid())continue;if(value.metaType().id()==QMetaType::Bool){if(value.toBool())out<<QVariantMap{{"key",key},{"value","true"},{"label","In my library"}};}else if(value.metaType().id()==QMetaType::Int)out<<QVariantMap{{"key",key},{"value",value.toString()},{"label",QString(key)+": "+value.toString()}};else for(const auto &item:value.toStringList())out<<QVariantMap{{"key",key},{"value",item},{"label",QString(key)+": "+item}};}return out;}
-QVariantList UiController::hardwareTree()const{QVariantList result;QMap<QString,int> counts;for(const auto &choice:m_filter->choices("hardwareIds")){auto row=choice.toMap();counts[row.value("id").toString()]=row.value("count").toInt();}auto vocab=m_games->catalog().vocab;if(!vocab.contains("hardware"))return result;const auto &hw=vocab["hardware"];for(const auto &kind:{"arcade","console","pc"}){QVariantList families;QStringList names;for(const auto &item:hw.items())if(str(item.value(),"kind")==kind&&!names.contains(str(item.value(),"family")))names<<str(item.value(),"family");names.sort();for(const auto &family:names){QVariantList boards;for(const auto &item:hw.items())if(str(item.value(),"kind")==kind&&str(item.value(),"family")==family){QString id=QString::fromStdString(item.key());int count=counts.value(id);if(count)boards<<QVariantMap{{"id",id},{"label",str(item.value(),"label")},{"count",count}};}if(!boards.isEmpty())families<<QVariantMap{{"id",QString(kind)+"/"+family},{"label",family},{"children",boards}};}result<<QVariantMap{{"id",kind},{"label",QString(kind).toUpper()},{"children",families}};}return result;}
+QVariantList UiController::hardwareTree()const{
+ QVariantList result;QMap<QString,int> counts;
+ for(const auto &choice:m_filter->choices("hardwareIds")){auto row=choice.toMap();counts[row.value("id").toString()]=row.value("count").toInt();}
+ auto vocab=m_games->catalog().vocab;if(!vocab.contains("hardware"))return result;const auto &hw=vocab["hardware"];
+ for(const auto &kind:{"arcade","console","pc"}){
+  QVariantList families;QStringList names;int kindCount=0;
+  for(const auto &item:hw.items())if(str(item.value(),"kind")==kind&&!names.contains(str(item.value(),"family")))names<<str(item.value(),"family");
+  names.sort();for(const auto &family:names){QVariantList boards;int familyCount=0;
+   for(const auto &item:hw.items())if(str(item.value(),"kind")==kind&&str(item.value(),"family")==family){QString id=QString::fromStdString(item.key());int count=counts.value(id);if(count>0){boards<<QVariantMap{{"id",id},{"label",str(item.value(),"label")},{"count",count}};familyCount+=count;}}
+   if(!boards.isEmpty()){families<<QVariantMap{{"id",QString(kind)+"/"+family},{"label",family},{"count",familyCount},{"children",boards}};kindCount+=familyCount;}
+  }
+  if(!families.isEmpty())result<<QVariantMap{{"id",kind},{"label",QString(kind).toUpper()},{"count",kindCount},{"children",families}};
+ }
+ return result;
+}
 int UiController::hardwareSelection(const QString &node)const{int count=0,on=0;auto list=m_filter->facet("hardwareIds").toStringList();for(const auto &g:m_games->records()){auto id=g.roles.value("hardwareId").toString(),kind=g.roles.value("hardwareKind").toString(),family=g.roles.value("hardwareFamily").toString();if(node==id||node==kind||node==kind+"/"+family){++count;if(list.contains(id)||list.contains(kind)||list.contains(family)||list.contains(kind+"/"+family))++on;}}return on==0?0:on==count?2:1;}
 QVariantList UiController::sections()const{QVariantList result;for(const auto &genre:{"gun","racing"}){QVariantList rows;for(int i=0;i<m_filter->rowCount();++i){auto g=filteredGame(i);if(g.value("genreId")==genre)rows<<g;}result<<QVariantMap{{"id",genre},{"label",QString(genre)=="gun"?"Light guns":"Racing"},{"count",rows.size()},{"games",rows}};}return result;}
 QVariantList UiController::featured()const{QVariantList out;for(const auto &g:m_games->records())if(g.roles.value("featuredEligible").toBool())out<<g.roles;if(out.isEmpty()&&!m_games->records().isEmpty())out<<m_games->records().first().roles;return out;}
@@ -106,6 +129,7 @@ void UiController::scanFinished(bool success){m_scanning=false;emit scanChanged(
 void UiController::installStarted(){m_installing=true;m_recovery.clear();emit installChanged();message("Preparing install.");}
 void UiController::installEvent(const QVariantMap &event){auto e=event;e["line"]=eventText(e);m_events<<e;if(e.value("kind")=="step"){m_installing=true;m_recovery.clear();}if(e.value("kind")=="fail"){m_installing=false;m_recovery=e;}emit installChanged();}
 void UiController::installFinished(bool success,const QString &text){m_installing=false;if(success)m_recovery.clear();else if(m_recovery.isEmpty())m_recovery={{"text",text},{"kind","fail"}};emit installChanged();message(text);}
+void UiController::launchPreparing(const QString &id,const QString &text){message("Preparing "+game(id).value("title").toString()+": "+text);}
 void UiController::launchStarted(const QString &id){message("Playing "+game(id).value("title").toString());}
 void UiController::launchFinished(const QString &,const QString &error){message(error.isEmpty()?"Game closed.":error);}
 void UiController::applyRuntimeStates(const QVector<RuntimeState> &states){m_games->queueRuntimeStates(states);}

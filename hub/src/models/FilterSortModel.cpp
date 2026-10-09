@@ -23,13 +23,17 @@ FilterSortModel::FilterSortModel(QObject *parent) : QSortFilterProxyModel(parent
     connect(this, &QAbstractItemModel::rowsRemoved, this, &FilterSortModel::visibleCountChanged);
 }
 void FilterSortModel::setSourceModel(QAbstractItemModel *model) {
+    m_choicesCache.clear();
     QSortFilterProxyModel::setSourceModel(model);
+    connect(model, &QAbstractItemModel::dataChanged, this, [this]{ m_choicesCache.clear(); });
+    connect(model, &QAbstractItemModel::modelReset, this, [this]{ m_choicesCache.clear(); });
     sort(0);
 }
 void FilterSortModel::setQuery(const QString &query) {
     if (m_query == query)
         return;
     m_query = query;
+    m_choicesCache.clear();
     invalidateFilter();
     emit queryChanged();
     emit visibleCountChanged();
@@ -46,6 +50,7 @@ void FilterSortModel::setScanComplete(bool value) {
     if (m_scanComplete == value)
         return;
     m_scanComplete = value;
+    m_choicesCache.clear();
     invalidateFilter();
     emit facetsChanged();
     emit visibleCountChanged();
@@ -122,6 +127,7 @@ void FilterSortModel::setFacet(const QString &name, const QVariant &value) {
     if (m_facets.value(name) == normalized)
         return;
     m_facets[name] = normalized;
+    m_choicesCache.clear();
     invalidateFilter();
     emit facetsChanged();
     emit visibleCountChanged();
@@ -129,12 +135,14 @@ void FilterSortModel::setFacet(const QString &name, const QVariant &value) {
 void FilterSortModel::clearFacets() {
     m_facets.clear();
     m_query.clear();
+    m_choicesCache.clear();
     invalidateFilter();
     emit facetsChanged();
     emit queryChanged();
     emit visibleCountChanged();
 }
 QVariantList FilterSortModel::choices(const QString &name) const {
+    if (m_choicesCache.contains(name)) return m_choicesCache.value(name);
     const auto *source = qobject_cast<GameListModel *>(sourceModel());
     QVariantList result;
     if (!source)
@@ -153,7 +161,15 @@ QVariantList FilterSortModel::choices(const QString &name) const {
     const auto field = fields.value(name);
     if (field.isEmpty())
         return result;
+    QMap<QString, int> counts;
+    auto facets = m_facets;
+    facets.remove(name);
+    if (name.startsWith("hardware"))
+        for (const auto &key : {"hardwareIds", "hardwareKinds", "hardwareFamilies"})
+            facets.remove(key);
+    int row = 0;
     for (const auto &g : source->records()) {
+        const bool accepted = acceptsRow(row++, facets);
         const auto id = g.roles.value(field).toString();
         if (id.isEmpty())
             continue;
@@ -166,14 +182,23 @@ QVariantList FilterSortModel::choices(const QString &name) const {
         if (label.startsWith("Unknown ("))
             continue;
         values[id] = label;
+        if (accepted) {
+            ++counts[id];
+            if (name == "vrKeys" && g.roles.value("vrPlanned").toBool())
+                ++counts["planned"];
+        }
     }
     if (name == "vrKeys")
         values["planned"] = "True 3D planned";
     for (auto it = values.begin(); it != values.end(); ++it)
-        result << QVariantMap{{"id", it.key()}, {"label", it.value()}};
+        result << QVariantMap{{"id", it.key()}, {"label", it.value()}, {"count", counts.value(it.key())}};
+    m_choicesCache.insert(name, result);
     return result;
 }
 bool FilterSortModel::filterAcceptsRow(int row, const QModelIndex &) const {
+    return acceptsRow(row, m_facets);
+}
+bool FilterSortModel::acceptsRow(int row, const QVariantMap &facets) const {
     const auto *source = qobject_cast<GameListModel *>(sourceModel());
     if (!source)
         return true;
@@ -184,26 +209,26 @@ bool FilterSortModel::filterAcceptsRow(int row, const QModelIndex &) const {
     auto known = [&](const char *label) {
         return !r.value(label).toString().startsWith("Unknown (");
     };
-    if (!matches(selected(m_facets.value("genre")), r.value("genreId").toString(),
+    if (!matches(selected(facets.value("genre")), r.value("genreId").toString(),
                  known("genreLabel")))
         return false;
-    if (!matches(selected(m_facets.value("manufacturerIds")), r.value("manufacturerId").toString(),
+    if (!matches(selected(facets.value("manufacturerIds")), r.value("manufacturerId").toString(),
                  known("manufacturerLabel")))
         return false;
-    if (!matches(selected(m_facets.value("graphicsIds")), r.value("graphicsId").toString(),
+    if (!matches(selected(facets.value("graphicsIds")), r.value("graphicsId").toString(),
                  known("graphicsLabel")))
         return false;
     const auto year = r.value("year").toInt();
     if (year > 0) {
-        if (m_facets.value("yearMin").isValid() && year < m_facets.value("yearMin").toInt())
+        if (facets.value("yearMin").isValid() && year < facets.value("yearMin").toInt())
             return false;
-        if (m_facets.value("yearMax").isValid() && m_facets.value("yearMax").toInt() > 0 &&
-            year > m_facets.value("yearMax").toInt())
+        if (facets.value("yearMax").isValid() && facets.value("yearMax").toInt() > 0 &&
+            year > facets.value("yearMax").toInt())
             return false;
-        if (!matches(selected(m_facets.value("decades")), r.value("decade").toString()))
+        if (!matches(selected(facets.value("decades")), r.value("decade").toString()))
             return false;
     }
-    const auto hw = selected(m_facets.value("hardwareIds"));
+    const auto hw = selected(facets.value("hardwareIds"));
     if (!hw.isEmpty() && known("hardwareLabel") && !hw.contains(r.value("hardwareId").toString()) &&
         !hw.contains(r.value("hardwareFamily").toString()) &&
         !hw.contains(r.value("hardwareKind").toString()) &&
@@ -211,36 +236,38 @@ bool FilterSortModel::filterAcceptsRow(int row, const QModelIndex &) const {
                      r.value("hardwareFamily").toString()))
         return false;
     for (const auto *field : {"hardwareKinds", "hardwareFamilies"})
-        if (!matches(selected(m_facets.value(field)),
+        if (!matches(selected(facets.value(field)),
                      r.value(QString(field) == "hardwareKinds" ? "hardwareKind" : "hardwareFamily")
                          .toString(),
                      known("hardwareLabel")))
             return false;
-    if (!matches(selected(m_facets.value("playersBuckets")), r.value("playersBucket").toString(),
+    if (!matches(selected(facets.value("playersBuckets")), r.value("playersBucket").toString(),
                  r.value("players").toInt() > 0))
         return false;
     if (!matches(
-            selected(m_facets.value("controlsTypes")), r.value("controlsType").toString(),
+            selected(facets.value("controlsTypes")), r.value("controlsType").toString(),
             QStringList{"gun", "wheel", "handlebars", "bike", "ski", "joystick", "yoke", "boat"}
                 .contains(r.value("controlsType").toString())))
         return false;
-    const auto vr = selected(m_facets.value("vrKeys"));
+    const auto vr = selected(facets.value("vrKeys"));
     const auto best = r.value("vrBest").toString();
     if (!vr.isEmpty() && QStringList{"true3d", "theatre", "none"}.contains(best) &&
         !vr.contains(best) && !(vr.contains("planned") && r.value("vrPlanned").toBool()))
         return false;
     if (m_scanComplete) {
-        if (m_facets.value("inLibraryOnly").toBool() && !r.value("inLibrary").toBool())
+        if (facets.value("inLibraryOnly").toBool() && !r.value("inLibrary").toBool())
             return false;
-        const auto state = selected(m_facets.value("statePills"));
+        const auto state = selected(facets.value("statePills"));
         const auto pill = r.value("statePill").toString();
         if (!state.isEmpty() && !state.contains(pill) &&
             !(state.contains("ready") && pill == "updates"))
             return false;
     }
+    if (m_query.isEmpty() && selected(facets.value("hiddenPublishers")).isEmpty())
+        return true;
     const auto search = r.value("searchIndex").toMap();
     const auto tokens = folded(m_query).split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-    const auto hidden = selected(m_facets.value("hiddenPublishers"));
+    const auto hidden = selected(facets.value("hiddenPublishers"));
     bool isHidden = hidden.contains(r.value("manufacturerId").toString());
     for (const auto &token : tokens)
         if (token.startsWith('+') && token.size() > 1 &&

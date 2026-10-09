@@ -37,6 +37,8 @@ ScrollView {
   }
   Flow{width:parent.width;spacing:12
    PillButton{objectName:"detailPrimary";text:page.detail.playing?"Playing":page.detail.state===4?page.detail.variantTitle:page.detail.state===6?"Locate / install emulator":page.detail.stateLabel||"No setup yet";implicitWidth:162;neon:true;accent:page.detail.stateColour||Theme.get("color.brand.orange");vrOverlayMode:page.vrOverlayMode;enabled:page.detail.m1Available===true&&!page.detail.playing&&[3,4,5,6,7,2].indexOf(page.detail.state)>=0;onClicked:uiController.primary(page.detail.gameId)}
+   PillButton{objectName:"detailStop";text:"Stop";visible:typeof hubServices!=="undefined"&&hubServices.launchBusy;vrOverlayMode:page.vrOverlayMode;onClicked:uiController.stopLaunch()}
+   UiText{objectName:"launchProgress";text:"Preparing launch�";visible:typeof hubServices!=="undefined"&&hubServices.preparing}
    PillButton{text:"Reinstall";visible:page.detail.reinstallVisible===true;onClicked:uiController.startInstall(page.detail.gameId,page.detail.variantId)}
    PillButton{text:"Add to Steam library";visible:page.detail.state===4;onClicked:uiController.openLocation("steam-shortcut")}
    PillButton{text:"Upstream page";visible:(page.detail.components||[]).length>0&&!!page.detail.components[0].upstream;onClicked:uiController.openLink(page.detail.components[0].upstream)}
@@ -69,7 +71,7 @@ ScrollView {
   TextEdit{objectName:"readmeText";width:parent.width;readOnly:true;selectByMouse:true;text:page.detail.readme||"No setup documentation yet.";textFormat:TextEdit.MarkdownText;wrapMode:TextEdit.Wrap;font.family:Theme.get("font.family");font.pixelSize:Theme.get("type.detail_body."+page.sizeValue);color:Theme.get("color.text.body");onLinkActivated:link=>uiController.openLink(link)}
   UiText{text:"WHAT IT INSTALLS";font.weight:600;color:Theme.get("color.text.heading")}
   Repeater{model:page.detail.components||[];Column{required property var modelData;width:parent.width;UiText{width:parent.width;text:modelData.name+" · "+(modelData.version||"Recipe version")+" · "+(modelData.license||"See upstream licence")+" · "+modelData.role} PillButton{text:"Upstream";visible:!!modelData.upstream;onClicked:uiController.openLink(modelData.upstream)}}}
-  Column{visible:page.detail.reinstallVisible===true;width:parent.width;spacing:8;UiText{text:"UNINSTALL";font.weight:600;color:Theme.get("color.text.heading")} UiText{width:parent.width;text:"Removal uses the ownership manifest. Your media, saves, profiles and edited files are kept. Review the exact preview before removal."} PillButton{text:"Preview uninstall";accent:Theme.get("color.state.uninstall");neon:true;onClicked:uiController.uninstall(page.detail.gameId,page.detail.variantId)}}
+  Column{visible:page.detail.reinstallVisible===true||page.detail.m1Available===true;width:parent.width;spacing:8;UiText{text:"OWNED FILES AND STEAM";font.weight:600;color:Theme.get("color.text.heading")} UiText{width:parent.width;text:"Review the ownership manifest and optionally the Hub-owned Steam shortcut. An empty manifest means no owned installation files to remove. This action does not clean emulator profiles."} PillButton{objectName:"detailOwnedRemoval";text:"Preview owned files / Steam removal";accent:Theme.get("color.state.uninstall");neon:true;onClicked:uiController.uninstall(page.detail.gameId,page.detail.variantId)}}
   UiText{visible:!!page.detail.quip;width:parent.width;text:page.detail.quip||"";font.italic:true;color:page.detail.accent||Theme.get("color.brand.orange")}
   Item{height:24;width:1}
  }

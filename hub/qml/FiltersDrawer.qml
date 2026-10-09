@@ -6,6 +6,7 @@ import AladdinsCastle.Hub
 Popup {
  id:drawer
  property bool vrOverlayMode:false
+ objectName:"filtersDrawer"
  width:Math.min(parent?parent.width-20:420,420);height:Math.min(parent?parent.height-20:650,650);padding:16;modal:true;closePolicy:Popup.CloseOnEscape|Popup.CloseOnPressOutside
  background:Rectangle{color:Theme.get("color.surface.panel");radius:8;border.color:Theme.get("color.line.button")}
  ScrollView {anchors.fill:parent;clip:true;ScrollBar.vertical.policy:ScrollBar.AlwaysOn
@@ -13,10 +14,10 @@ Popup {
   UiText{text:"HARDWARE";color:Theme.get("color.text.label");font.pixelSize:11}
   Repeater {model:uiController.hardwareTree
    Column {required property var modelData;property bool expanded:true;width:parent.width
-    Row {spacing:5;PillButton{text:parent.parent.expanded?"▾":"▸";width:40;Accessible.name:"Expand "+modelData.label;onClicked:parent.parent.expanded=!parent.parent.expanded} PillButton{text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label;selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
+    Row {spacing:5;PillButton{text:parent.parent.expanded?"▾":"▸";width:40;Accessible.name:"Expand "+modelData.label;onClicked:parent.parent.expanded=!parent.parent.expanded} PillButton{text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
     Repeater {model:parent.expanded?modelData.children:[]
      Column {required property var modelData;property bool expanded:false;width:parent.width
-      Row {x:16;spacing:5;PillButton{text:parent.parent.expanded?"▾":"▸";width:40;Accessible.name:"Expand "+modelData.label;onClicked:parent.parent.expanded=!parent.parent.expanded} PillButton{text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label;selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
+      Row {x:16;spacing:5;PillButton{text:parent.parent.expanded?"▾":"▸";width:40;Accessible.name:"Expand "+modelData.label;onClicked:parent.parent.expanded=!parent.parent.expanded} PillButton{text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
       Repeater {model:parent.expanded?modelData.children:[];PillButton {required property var modelData;x:32;width:parent.width-32;text:modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
      }
     }
@@ -25,7 +26,7 @@ Popup {
   Repeater {model:[{title:"GRAPHICS",key:"graphicsIds"},{title:"MANUFACTURER",key:"manufacturerIds"},{title:"DECADE",key:"decades"},{title:"VR",key:"vrKeys"},{title:"PLAYERS",key:"playersBuckets"},{title:"CONTROLS",key:"controlsTypes"}]
    Column {required property var modelData;width:parent.width;spacing:5
     UiText{text:modelData.title;color:Theme.get("color.text.label");font.pixelSize:11}
-    Flow {width:parent.width;spacing:5;property string facetKey:parent.modelData.key;Repeater {model:gameFilter.choices(parent.facetKey);PillButton {required property var modelData;text:modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.selected(parent.facetKey,modelData.id);onClicked:uiController.toggleFacet(parent.facetKey,modelData.id)}}}
+    Flow {width:parent.width;spacing:5;property string facetKey:parent.modelData.key;Repeater {model:(gameFilter.visibleCount,uiController.activeFacets,gameFilter.choices(parent.facetKey));PillButton {required property var modelData;text:modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.selected(parent.facetKey,modelData.id);onClicked:uiController.toggleFacet(parent.facetKey,modelData.id)}}}
    }
   }
   UiText{text:"YEAR";color:Theme.get("color.text.label");font.pixelSize:11}

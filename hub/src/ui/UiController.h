@@ -46,7 +46,9 @@ class UiController : public QObject {
  Q_INVOKABLE void startInstall(const QString &gameId,const QString &variantId);
  Q_INVOKABLE void play(const QString &gameId,const QString &variantId);
  Q_INVOKABLE void cancelInstall();
+ Q_INVOKABLE void stopLaunch();
  Q_INVOKABLE void retryInstall(bool fromStart,const QString &handover);
+ Q_INVOKABLE void retryFailedTool(bool fromStart,const QString &handover);
  Q_INVOKABLE void answerPrompt(bool proceed);
  Q_INVOKABLE void skipStep();
  Q_INVOKABLE void uninstall(const QString &gameId,const QString &variantId);
@@ -60,13 +62,16 @@ class UiController : public QObject {
  public slots:
  void scanStarted(); void scanProgress(const QVariantMap &progress); void scanFinished(bool success);
  void installStarted(); void installEvent(const QVariantMap &event); void installFinished(bool success,const QString &message);
+ void launchPreparing(const QString &gameId,const QString &message);
  void launchStarted(const QString &gameId); void launchFinished(const QString &gameId,const QString &error);
  void applyRuntimeStates(const QVector<RuntimeState> &states);
  signals:
  void artRevisionChanged(); void artProviderChanged(); void detailChanged(); void installChanged(); void scanChanged(); void statusChanged(); void facetsChanged();
  void scanRequested(const QStringList &roots); void cancelScanRequested();
  void installRequested(const QString &gameId,const QString &variantId); void playRequested(const QString &gameId,const QString &variantId);
- void cancelInstallRequested(); void retryInstallRequested(bool fromStart,const QString &handover);
+ void cancelInstallRequested(); void retryInstallRequested(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
+ void stopLaunchRequested();
+ void retryToolInstallRequested(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
  void promptAnswered(bool proceed); void skipStepRequested(); void uninstallPreviewRequested(const QString &gameId,const QString &variantId);
  void locationRequested(const QString &kind); void writeConfigRequested(const QString &gameId,const QVariantMap &settings);
  private:
