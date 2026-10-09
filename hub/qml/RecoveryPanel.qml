@@ -16,10 +16,10 @@ Rectangle {
   UiText{width:parent.width;text:"Drag a downloaded file, folder or archive here, or choose it. The installer validates it before replacing anything."}
   Row{width:parent.width;spacing:8;TextField{id:path;objectName:"handoverPath";width:parent.width-130;height:44;placeholderText:"Paste a full path";text:panel.handoverPath;color:Theme.get("color.text.primary");onTextEdited:panel.handoverPath=text;onAccepted:uiController.retryInstall(false,text);background:Rectangle{color:Theme.get("color.surface.pill");border.color:Theme.get("color.line.button");radius:4}} PillButton{text:"Choose file";onClicked:picker.open()}}
   Flow{width:parent.width;spacing:8
-   PillButton{text:"Retry this step";onClicked:uiController.retryInstall(false,panel.handoverPath)} PillButton{text:"Retry from start";onClicked:uiController.retryInstall(true,panel.handoverPath)}
-   PillButton{text:"Open log";onClicked:uiController.openLocation("log")} PillButton{text:"Open install folder";onClicked:uiController.openLocation("install")} PillButton{text:"Open Downloads";onClicked:uiController.openLocation("downloads")}
+   PillButton{text:"Recover and retry";onClicked:uiController.retryInstall(true,panel.handoverPath)}
+   PillButton{text:"Open log";onClicked:uiController.openLocation("log")} PillButton{text:"Open install folder";onClicked:uiController.openLocation("install")} PillButton{text:"Open download cache";onClicked:uiController.openLocation("downloads")}
    PillButton{text:"Clear handover";visible:panel.handoverPath.length>0;onClicked:panel.handoverPath=""}
-   PillButton{text:"Skip optional step";visible:panel.recovery.canSkip===true;onClicked:uiController.skipStep()}
+   
    PillButton{text:"Open download page";visible:!!panel.recovery.downloadUrl;onClicked:uiController.openLink(panel.recovery.downloadUrl)}
   }
  }

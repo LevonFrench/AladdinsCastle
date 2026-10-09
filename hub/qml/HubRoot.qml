@@ -43,7 +43,7 @@ FocusScope {
   onAccepted:{uiSettings.set("scanRoots",roots.text);uiController.scan(roots.text.split(/\n|;/).filter(p=>p.trim().length>0))}
   background:Rectangle{color:Theme.get("color.surface.panel");border.color:Theme.get("color.line.button");radius:8}
  }
- Connections {target:uiController;function onLocationRequested(kind){if(kind==="tool")toolDialog.open();else scanDialog.open()}}
+ Connections {target:uiController;function onLocationRequested(kind){if(kind==="tool")toolDialog.open();else if(kind==="media")scanDialog.open();else if(kind==="steam-shortcut"&&typeof hubServices!=="undefined"){hubServices.beginSteam(uiController.detail.gameId);steamDialog.open()}}}
  Dialog {id:toolDialog;parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;title:"Emulators";standardButtons:Dialog.Close
   Column {width:parent.width;spacing:12
    UiText {width:parent.width;text:"Locate your existing MAME or PCSX2 folder with Find my files. Supermodel can be installed from its pinned official release.";wrapMode:Text.Wrap}
@@ -51,6 +51,15 @@ FocusScope {
    ScrollView {width:parent.width;height:180;TextArea {text:typeof hubServices!=="undefined"?hubServices.toolPlan:"";readOnly:true;wrapMode:Text.Wrap;color:Theme.get("color.text.primary");font.pixelSize:12}}
    PillButton {text:"Install Supermodel";enabled:typeof hubServices!=="undefined"&&!uiController.installing;onClicked:{hubServices.installSupermodel();toolDialog.close()}}
    PillButton {text:"Preview Supermodel removal";enabled:typeof hubServices!=="undefined"&&!uiController.installing;onClicked:{hubServices.previewSupermodelRemoval();toolDialog.close()}}
+  }
+ }
+ Dialog {id:steamDialog;parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,680);modal:true;title:"Review Steam shortcut changes";standardButtons:Dialog.Close
+  Column {width:parent.width;spacing:12
+   UiText {width:parent.width;wrapMode:Text.Wrap;text:"Choose the account folder and review the exact files below. Save authorizes this displayed change. Steam must be fully closed; custom art is preserved."}
+   ComboBox {id:steamAccount;model:typeof hubServices!=="undefined"?hubServices.steamAccounts:[];width:parent.width}
+   PillButton {text:"Preview this account";enabled:steamAccount.currentIndex>=0;onClicked:hubServices.previewSteam(steamAccount.currentText)}
+   ScrollView {width:parent.width;height:260;TextArea {text:typeof hubServices!=="undefined"?hubServices.steamPreview:"";readOnly:true;wrapMode:Text.Wrap;color:Theme.get("color.text.primary");font.pixelSize:11}}
+   PillButton {text:"Save the reviewed Steam shortcut";enabled:typeof hubServices!=="undefined"&&hubServices.steamWriteReady;onClicked:hubServices.approveSteamWrite()}
   }
  }
  Dialog {id:removeDialog;parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;title:"Remove owned installation files?";standardButtons:Dialog.Ok|Dialog.Cancel

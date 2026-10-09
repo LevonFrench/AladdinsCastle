@@ -2,18 +2,23 @@
 #include "HubServices.h"
 #include "core/install/Support.h"
 #include <QDir>
+#include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
 #include <QDateTime>
 #include <QTimer>
+#include <QDesktopServices>
+#include <QUrl>
 namespace ac {
 namespace {
 scan::ScanOptions scanOptions(const QString &root) {
+    install::scopedPath("user/scan-folders.json",root);
+    install::scopedPath("user/cache/scan.toml",root);
     scan::ScanOptions options; options.userRoot=QDir(root).filePath("user");
     options.toolRoots={QDir(root).filePath("emulators")}; return options;
 }
-Json readJson(const QString &path) {
-    QFile file(path);
+Json readJson(const QString &path,const QString &root) {
+    QFile file(install::scopedPath(path,root));
     if (!file.open(QIODevice::ReadOnly)) return Json::object();
     if (file.size()>128*1024*1024) throw install::Error("E_STATE_SIZE","Hub state is too large");
     return Json::parse(file.readAll().toStdString());
@@ -44,11 +49,11 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(&installer_,&install::InstallService::runtimeStateReady,this,[this](const RuntimeState &state){if(games_->find(state.gameId))games_->applyRuntimeStates({state});});
     connect(ui_,&UiController::cancelInstallRequested,&installer_,&install::InstallService::cancel);
     connect(ui_,&UiController::installRequested,this,[this](const QString &id,const QString &variant){
-        try{lastInstall_=gameRequest(id,variant);installer_.start(lastInstall_);}catch(const std::exception &e){report(e);}
+        try{lastInstall_=gameRequest(id,variant);ui_->installStarted();installer_.start(lastInstall_);}catch(const std::exception &e){report(e);}
     });
     connect(ui_,&UiController::retryInstallRequested,this,[this](bool,const QString &handover){
         if(lastInstall_.gameId.isEmpty())return;
-        lastInstall_.handover=handover;installer_.start(lastInstall_);
+        lastInstall_.handover=handover;ui_->installStarted();installer_.start(lastInstall_);
     });
     connect(ui_,&UiController::uninstallPreviewRequested,this,[this](const QString &id,const QString &variant){
         try{auto request=gameRequest(id,variant);request.operation="uninstall";previewRemoval(request);}catch(const std::exception &e){report(e);}
@@ -62,7 +67,47 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(&launcher_,&launch::LaunchService::runtimeStateReady,this,[this](const RuntimeState &state){games_->applyRuntimeStates({state});});
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::playingChanged);
     connect(&launcher_,&launch::LaunchService::raiseHubRequested,this,&HubServices::raiseHubRequested);
+    connect(ui_,&UiController::locationRequested,this,[this](const QString &kind){
+        QString path;if(kind=="log")path=root_+"/user/logs/install";else if(kind=="install")path=root_+"/emulators";else if(kind=="downloads")path=root_+"/user/cache";else return;
+        try{path=install::scopedPath(path,root_);QDir().mkpath(path);QDesktopServices::openUrl(QUrl::fromLocalFile(path));}catch(const std::exception &e){report(e);}
+    });
     restore();
+}
+void HubServices::beginSteam(const QString &id){
+    steamPreviewReady_=false;steamText_.clear();steamAccounts_.clear();
+    try{
+        const auto *game=games_->find(id);if(!game)throw install::Error("E_GAME_INVALID","Unknown game");
+        if(QDir(root_).absolutePath()!=QDir(QCoreApplication::applicationDirPath()).absolutePath())throw install::Error("E_PORTABLE_ROOT","Create Steam entries from the portable Hub folder");
+        launch::flatRequest(games_->catalog(),id,root_,bindings_,ui_->detail().value("variantId").toString());
+        steamRequest_={};steamRequest_.steamRoot=launch::systemRuntimeInputs().steamPath;
+        steamRequest_.userRoot=install::scopedPath("user",root_);
+        steamRequest_.shortcut={id,game->roles.value("title").toString(),QCoreApplication::applicationFilePath(),root_,false,0,game->runtime.lastPlayed};
+        steamRequest_.art["header"]=art_->resolve(id,"banner",{460,215}).image;
+        steamRequest_.art["capsule"]=art_->resolve(id,"portrait",{600,900}).image;
+        steamRequest_.art["hero"]=art_->resolve(id,"hero",{1920,620}).image;
+        steamRequest_.art["logo"]=art_->resolve(id,"logo",{640,360}).image;
+        steamAccounts_=steam::accounts(steamRequest_.steamRoot);
+        if(steamAccounts_.isEmpty())throw install::Error("E_STEAM_ACCOUNT","No Steam userdata shortcut folder found");
+        steamText_="Select an account folder, then preview the exact shortcut and art changes. Close Steam before saving.";
+    }catch(const std::exception &e){steamText_=QString::fromUtf8(e.what());}
+    emit steamPreviewChanged();
+}
+void HubServices::previewSteam(const QString &account){
+    steamPreviewReady_=false;
+    try{
+        if(!steamAccounts_.contains(account))throw install::Error("E_STEAM_ACCOUNT","Select a listed account folder");
+        steamRequest_.accountId=account;steamPreview_=steam::preview(steamRequest_);
+        steamText_=QString::fromStdString(steamPreview_.json.dump(2));steamPreviewReady_=true;
+    }catch(const std::exception &e){steamText_=QString::fromUtf8(e.what());}
+    emit steamPreviewChanged();
+}
+void HubServices::approveSteamWrite(){
+    if(!steamPreviewReady_)return;
+    try{
+        const auto result=steam::apply(steamRequest_,steamPreview_,true);
+        steamText_="Steam shortcut saved. "+result.warnings.join("\n");steamPreviewReady_=false;
+    }catch(const std::exception &e){steamText_=QString::fromUtf8(e.what());steamPreviewReady_=false;}
+    emit steamPreviewChanged();
 }
 RuntimeState HubServices::current(const QString &id)const{auto game=games_->find(id);return game?game->runtime:RuntimeState{};}
 void HubServices::report(const std::exception &e){ui_->installFinished(false,QString::fromUtf8(e.what()));}
@@ -83,7 +128,7 @@ QString HubServices::toolPlan()const{
     catch(const std::exception &e){return QString::fromUtf8(e.what());}
 }
 void HubServices::installSupermodel(){
-    try{lastInstall_=install::Engine::emulatorRequest(root_,games_->catalog().emulators.at("supermodel"));lastInstall_.catalogRoot=QFileInfo(games_->records().first().folder).dir().absolutePath()+"/..";installer_.start(lastInstall_);}catch(const std::exception &e){report(e);}
+    try{lastInstall_=install::Engine::emulatorRequest(root_,games_->catalog().emulators.at("supermodel"));lastInstall_.catalogRoot=QFileInfo(games_->records().first().folder).dir().absolutePath()+"/..";ui_->installStarted();installer_.start(lastInstall_);}catch(const std::exception &e){report(e);}
 }
 void HubServices::previewSupermodelRemoval(){
     install::Request request;request.root=root_;request.gameId="tool-supermodel";request.variantId="windows-x64";request.operation="uninstall";previewRemoval(request);
@@ -91,12 +136,12 @@ void HubServices::previewSupermodelRemoval(){
 void HubServices::previewRemoval(const install::Request &request){
     try{pendingRemoval_=request;removalText_=QString::fromStdString(install::Engine().uninstallPreview(request).dump(2));emit removalPlanChanged();}catch(const std::exception &e){report(e);}
 }
-void HubServices::confirmRemoval(){if(!pendingRemoval_.gameId.isEmpty())installer_.start(pendingRemoval_);pendingRemoval_={};}
+void HubServices::confirmRemoval(){if(!pendingRemoval_.gameId.isEmpty()){ui_->installStarted();installer_.start(pendingRemoval_);}pendingRemoval_={};}
 void HubServices::restore(){
     try{
-        bindings_=readJson(root_+"/user/cache/scan-bindings.json");
+        bindings_=readJson(root_+"/user/cache/scan-bindings.json",root_);
         QVector<RuntimeState> states;QVector<scan::Binding> artBindings;
-        const auto times=readJson(root_+"/user/last-played.json");
+        const auto times=readJson(root_+"/user/last-played.json",root_);
         for(const auto &game:games_->records()){
             auto state=game.runtime;state.gameId=game.id;
             state.lastPlayed=times.value(game.id.toStdString(),qint64(0));
@@ -105,6 +150,13 @@ void HubServices::restore(){
                 const QFileInfo currentFile(binding.path);
                 if(!currentFile.isFile())binding.verified=false;
                 for(const auto &file:bindings_.value("files",Json::array()))if(text(file,"path")==binding.path&&(file.value("size",qint64(-1))!=currentFile.size()||file.value("mtime",qint64(-1))!=currentFile.lastModified().toMSecsSinceEpoch()))binding.verified=false;
+                const auto validSupport=[&](const QString &path){
+                    const QFileInfo support(path);if(!support.isFile())return false;
+                    for(const auto &file:bindings_.value("files",Json::array()))if(text(file,"path")==path&&(file.value("size",qint64(-1))!=support.size()||file.value("mtime",qint64(-1))!=support.lastModified().toMSecsSinceEpoch()))return false;
+                    return true;
+                };
+                for(const auto &support:binding.supportPaths)if(!validSupport(support))binding.verified=false;
+                for(const auto &support:b.value("supportRequirements",Json::array()))if(!validSupport(text(support,"sourcePath")))binding.verified=false;
                 if(binding.verified)state.mediaFound<<binding.requirementId;
                 artBindings<<binding;
             }

@@ -59,6 +59,7 @@ int main(int argc,char **argv){
     ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);
     QQuickStyle::setStyle("Basic");ac::Theme theme(games.catalog().theme);
     const auto portableRoot=options.installRoot.isEmpty()?app.applicationDirPath():QDir(options.installRoot).absolutePath();
+    try{ac::install::scopedPath("user/hub-settings.toml",portableRoot);ac::install::scopedPath("user/scan-folders.json",portableRoot);ac::install::scopedPath("user/cache/scan-bindings.json",portableRoot);}catch(const std::exception &e){err<<e.what()<<'\n';return 2;}
     ac::UiSettings settings(portableRoot+"/user");ac::UiController ui(&games,&filter,&settings);
     ac::HubServices services(&games,&filter,&ui,&settings,portableRoot);
     qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",&theme);

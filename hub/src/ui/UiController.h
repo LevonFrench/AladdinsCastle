@@ -59,7 +59,7 @@ class UiController : public QObject {
  Q_INVOKABLE void removeRecent(const QString &id);
  public slots:
  void scanStarted(); void scanProgress(const QVariantMap &progress); void scanFinished(bool success);
- void installEvent(const QVariantMap &event); void installFinished(bool success,const QString &message);
+ void installStarted(); void installEvent(const QVariantMap &event); void installFinished(bool success,const QString &message);
  void launchStarted(const QString &gameId); void launchFinished(const QString &gameId,const QString &error);
  void applyRuntimeStates(const QVector<RuntimeState> &states);
  signals:
