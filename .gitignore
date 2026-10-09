@@ -1,0 +1,26 @@
+# Local reference clones (third-party repos, not part of this project)
+_refs/
+
+# Never commit game content
+roms/
+*.zip
+*.7z
+*.chd
+*.iso
+*.bin
+*.cue
+
+# Build output
+build/
+out/
+bin/
+obj/
+.godot/
+*.apk
+
+# Local machine / agent files
+AGENCY.md
+.claude/
+.vs/
+.vscode/
+*.log
