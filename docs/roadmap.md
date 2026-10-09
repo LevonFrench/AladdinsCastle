@@ -4,17 +4,17 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 
 ## M0: Play now
 - [Quest 3 quickstart](quest3-quickstart.md): DR-89 Time Crisis VR, VC2VR, PenguinScreen2.
-- **Done when:** the owner has played Time Crisis VR on Quest 3 and written down what feels right and wrong. That feeds the controls spec.
+- **Done when (optional):** the owner has played Time Crisis VR or VC2VR on PCVR (ALVR + SteamVR) and noted what feels right and wrong. Not a blocker for M1.
 
 ## M1: Hub skeleton + third-party setups
 - Spikes from hub-architecture.md: S1 QML → SteamVR dashboard overlay (Qt `QQuickRenderControl` → GL texture → `IVROverlay`), S2 400-card grid performance.
 - Desktop Hub: library grid with fallback art, game detail page, settings, portable folder layout.
 - Config loader (layered TOML) + JSON Schemas + `validate` / `explain` CLI.
-- Recipe engine: `github-release`, `require-media`, `extract`, `write-config`, `shortcut`, `adb-install`.
-- First recipes: DR-89 Time Crisis VR (PCVR + **Install to Quest**), VC2VR (detect the PC game).
+- Recipe engine: `github-release`, `locate-package`, `require-media`, `copy-media`, `extract`, `write-config`, `shortcut` (no `adb-install` in M1).
+- First recipes: DR-89 Time Crisis VR (**PCVR only**), VC2VR (detect the PC game). Quest sideloading is out of M1 (owner, 2026-10-08).
 - Media scanner: hash-check ROM folders.
 - SteamVR library shortcuts with art.
-- **Done when:** from a clean PC, the Hub installs Time Crisis VR (PC and Quest) and VC2VR, and both launch from the Hub and from the SteamVR library.
+- **Done when:** from a clean PC, the Hub installs Time Crisis VR (PCVR) and VC2VR, and both launch from the Hub and from the SteamVR library. Executed by Codex from the briefs in [tasks/m1/](tasks/m1/README.md).
 
 ## M2: libacvr v0 + test setup
 - libacvr: OpenXR session, multiview, recenter/height, pause overlay, gun module, ghost-control framework (`wheel`, `shifter_hl`, `pedal`, `button`), comfort basics.
@@ -50,7 +50,7 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 
 ## M8: Standalone setups (Steam Frame first, then Quest 3)
 - **Steam Frame (SteamOS, ARM64):** Linux ARM64 builds of the Hub, libacvr and namco22-vr; then the emulators that have ARM64 builds. Target audience #1 (owner, 2026-10-08).
-- **Quest 3:** libacvr + namco22-vr built for Android/OpenXR, installed by the Hub over USB.
+- **Quest 3:** libacvr + namco22-vr built for Android/OpenXR, installed by the Hub over USB (`adb-install`; DR-89's Quest APK variant also lands here).
 
 Platform priority throughout: Steam Frame → Quest 3 over PC → Quest 3 native. M1-M7 target SteamVR on a PC, which already covers the Frame (streamed) and the Quest 3 over PC.
 
