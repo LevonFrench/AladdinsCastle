@@ -19,7 +19,7 @@ Rectangle {
    PillButton{text:"Recover and retry";onClicked:uiController.retryInstall(true,panel.handoverPath)}
    PillButton{text:"Open log";onClicked:uiController.openLocation("log")} PillButton{text:"Open install folder";onClicked:uiController.openLocation("install")} PillButton{text:"Open download cache";onClicked:uiController.openLocation("downloads")}
    PillButton{text:"Clear handover";visible:panel.handoverPath.length>0;onClicked:panel.handoverPath=""}
-   
+
    PillButton{text:"Open download page";visible:!!panel.recovery.downloadUrl;onClicked:uiController.openLink(panel.recovery.downloadUrl)}
   }
  }
