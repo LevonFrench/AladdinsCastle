@@ -1,0 +1,75 @@
+name: Hub CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+
+jobs:
+  catalog:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tools/validate_catalog.py
+      - name: Parse all catalog and theme TOML
+        shell: python
+        run: |
+          import pathlib, tomllib
+          paths = [*pathlib.Path("data").rglob("*.toml"),
+                   *pathlib.Path("games").rglob("*.toml"),
+                   pathlib.Path("docs/ui/theme.toml")]
+          for path in sorted(paths):
+              with path.open("rb") as stream:
+                  tomllib.load(stream)
+          print(f"Parsed {len(paths)} TOML files")
+
+  hub:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Set up MSVC 2022 x64
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0
+      - name: Install pinned Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: ${{ runner.os == 'Windows' && 'win64_msvc2022_64' || 'linux_gcc_64' }}
+          modules: 'qtshadertools'
+          cache: true
+      - name: Pin CMake and Ninja
+        run: python -m pip install cmake==3.31.10 ninja==1.13.0
+      - run: cmake -S hub -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+      - run: cmake --build build --parallel 2
+      - run: ctest --test-dir build --output-on-failure
+      - name: Build Windows portable folder and ZIP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./hub/packaging/portable-windows.ps1 -BuildDir build -QtDir "$env:QT_ROOT_DIR" -OutputDir "$env:GITHUB_WORKSPACE/out/AladdinsCastle"
+      - name: Portable catalog count
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & ./out/AladdinsCastle/hubtool.exe --data-root ./out/AladdinsCastle count
+          if ($LASTEXITCODE -ne 0) { throw 'Portable catalog count failed' }
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: AladdinsCastle-Windows-x64
+          path: out/AladdinsCastle.zip
+          if-no-files-found: error
