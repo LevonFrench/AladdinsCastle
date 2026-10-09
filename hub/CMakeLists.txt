@@ -16,6 +16,12 @@ include(cmake/ProjectWarnings.cmake)
 qt_standard_project_setup(REQUIRES 6.8)
 
 add_library(hubcore STATIC
+    src/core/catalog/CatalogLoader.cpp
+    src/core/catalog/GameRecord.cpp
+    src/models/GameListModel.cpp
+    src/models/GameListModel.h
+    src/models/FilterSortModel.cpp
+    src/models/FilterSortModel.h
     src/core/catalog/CatalogPaths.cpp
     src/core/catalog/CatalogPaths.h
     src/core/app/LaunchOptions.cpp
@@ -30,7 +36,7 @@ add_library(hubcore STATIC
     src/core/art/Art.h)
 target_compile_features(hubcore PUBLIC cxx_std_20)
 target_include_directories(hubcore PUBLIC src)
-target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Network Qt6::Concurrent
+target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent
     tomlplusplus::tomlplusplus nlohmann_json::nlohmann_json
     nlohmann_json_schema_validator::validator)
 ac_project_warnings(hubcore)
@@ -69,4 +75,9 @@ if(BUILD_TESTING)
     target_link_libraries(hub-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(hub-tests)
     add_test(NAME hub-smoke COMMAND hub-tests)
+    qt_add_executable(catalog-tests tests/CatalogTest.cpp)
+    target_link_libraries(catalog-tests PRIVATE hubcore Qt6::Test)
+    target_compile_definitions(catalog-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    ac_project_warnings(catalog-tests)
+    add_test(NAME hub-catalog COMMAND catalog-tests)
 endif()
