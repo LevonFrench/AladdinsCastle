@@ -6,6 +6,8 @@
 #include <nlohmann/json.hpp>
 namespace ac {
 using Json = nlohmann::ordered_json;
+// Every declared media row has a requirement, even before its serial is known.
+QString mediaRequirementId(const Json &media, const QString &gameId, qsizetype index);
 enum class GameState {
     DataError,
     Installing,

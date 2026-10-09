@@ -103,6 +103,25 @@ class CatalogTest : public QObject {
             flat |= v.id == "supermodel" && v.quality == "flat";
         QVERIFY(flat);
     }
+    void unnamedDiscAndBiosCannotBecomeReady() {
+        QTemporaryDir temp; vocab(temp.path()); game(temp.path(), "fake", "Synthetic");
+        QFile metadata(temp.path() + "/games/fake/game.toml");
+        QVERIFY(metadata.open(QIODevice::Append));
+        metadata.write("\n[[media]]\nkind='disc'\n[[media]]\nkind='bios'\n[routes]\npcsx2='working'\n");
+        metadata.close();
+        write(temp.path(), "data/emulators/pcsx2.toml", "id='pcsx2'\nname='Synthetic Tool'\n[launch]\nargs=[]\n");
+        ac::GameListModel model(ac::CatalogLoader().load(temp.path()));
+        const auto *record = model.find("fake"); QVERIFY(record);
+        QCOMPARE(record->variants.size(), 1);
+        QCOMPARE(record->variants[0].media, QStringList({"fake-media-0", "fake-media-1"}));
+        ac::RuntimeState state; state.gameId = "fake"; state.toolsOk = {"pcsx2"};
+        model.applyRuntimeStates({state});
+        QCOMPARE(model.find("fake")->roles.value("baseState").toInt(), int(ac::GameState::NeedsFiles));
+        state.mediaFound = {"fake-media-0"}; model.applyRuntimeStates({state});
+        QCOMPARE(model.find("fake")->roles.value("baseState").toInt(), int(ac::GameState::NeedsFiles));
+        state.mediaFound << "fake-media-1"; model.applyRuntimeStates({state});
+        QCOMPARE(model.find("fake")->roles.value("baseState").toInt(), int(ac::GameState::ReadyToInstall));
+    }
     void layeringAndProvenance() {
         try {
             QTemporaryDir temp;

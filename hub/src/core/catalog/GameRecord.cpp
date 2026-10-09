@@ -4,6 +4,16 @@
 #include <QJsonDocument>
 #include <QRegularExpression>
 namespace ac {
+QString mediaRequirementId(const Json &media, const QString &gameId, qsizetype index) {
+    if (media.is_object()) {
+        for (const char *key : {"set", "serial", "id"}) {
+            const auto it = media.find(key);
+            if (it != media.end() && it->is_string() && !it->get_ref<const std::string &>().empty())
+                return QString::fromStdString(it->get<std::string>());
+        }
+    }
+    return gameId + "-media-" + QString::number(index);
+}
 QString folded(const QString &value) {
     auto text = value.normalized(QString::NormalizationForm_D).toCaseFolded();
     text.remove(QRegularExpression("[\\p{Mn}\\p{Mc}]"));

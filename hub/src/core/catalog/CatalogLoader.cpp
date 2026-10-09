@@ -552,12 +552,11 @@ CatalogData CatalogLoader::load(const QString &root) const {
             v.status = "stable";
             v.generated = true;
             v.tools << id;
-            if (g.raw.contains("media") && g.raw["media"].is_array())
-                for (const auto &m : g.raw["media"]) {
-                    auto media = str(m, "set", str(m, "serial", str(m, "id")));
-                    if (!media.isEmpty())
-                        v.media << media;
-                }
+            if (g.raw.contains("media") && g.raw["media"].is_array()) {
+                qsizetype mediaIndex = 0;
+                for (const auto &m : g.raw["media"])
+                    v.media << mediaRequirementId(m, g.id, mediaIndex++);
+            }
             v.raw = Json{
                 {"title", v.title.toStdString()},
                 {"quality", "flat"},
