@@ -36,3 +36,12 @@ The Microsoft Visual C++ runtime DLLs come only from the official Visual Studio
 VC/Redist/MSVC x64 CRT directory, subject to Microsoft's redistribution terms.
 They are not copied from Windows/System32. The VS 2022 runtime retains the
 msvcp140.dll name; the earlier architecture example msvcp170.dll is incorrect.
+
+The archive backend statically links the following project-local sources;
+their unmodified upstream licence texts are preserved with the package:
+- libarchive 3.8.9: licenses/libarchive-COPYING.txt
+  https://github.com/libarchive/libarchive/tree/v3.8.9
+- zlib 1.3.1: licenses/zlib-LICENSE.txt
+  https://github.com/madler/zlib/tree/v1.3.1
+- xz/liblzma 5.8.1: licenses/xz-COPYING.txt
+  https://github.com/tukaani-project/xz/tree/v5.8.1

@@ -13,7 +13,7 @@ unverified_platforms = []
 do = "github-release"
 repo = "PCSX2/pcsx2"
 tag = "v2.8.2"
-asset = "pcsx2-*-windows-x64-Qt.7z"
+asset = "pcsx2-v2.8.2-windows-x64-Qt.7z"
 version = "v2.8.2"
 archive = "7z"
 note = "Portable Qt build. Verified asset name pcsx2-v2.8.2-windows-x64-Qt.7z (published 2026-09-04). Do not use the installer .exe. Pin policy: pin v2.8.2 and move only after testing."
@@ -29,7 +29,7 @@ note = "AppImage (verified asset name). The Flatpak is not used. This is x86-64,
 
 [portable]
 marker = "portable.ini"
-note = "Also portable.txt, or the -portable switch (Pcsx2Config.cpp 2203-2208; QtHost.cpp). RetroBat writes portable.ini with RunWizard=0 (observed), which skips the first-run wizard."
+note = "portable.ini, portable.txt or -portable override -datapath. v2.7.24 has no -datapath. M1 copies only executable, DLLs and public resources into a Hub-owned application folder, creates its own portable.txt pointing at the fresh profile and passes -portable. Existing INI/account data is never read or copied."
 
 [locate]
 exe = ["pcsx2-qt.exe", "pcsx2-qtx64*.exe", "pcsx2-*.AppImage"]
@@ -41,10 +41,10 @@ note = "min is left unset until the setups' needs are tested."
 paths = ["${ProgramFiles}/PCSX2", "${LOCALAPPDATA}/Programs/PCSX2", "${scoop}/apps/pcsx2/current", "*:/Emulators/PCSX2*"]
 
 [launch]
-args = ["-batch", "-nogui", "-fullscreen", "--", "${media.disc}"]
-cwd = "${tool_dir}"
+args = ["-batch", "-nogui", "-nofullscreen", "-datapath", "${profile_dir}", "--", "${media.disc}"]
+cwd = "${profile_dir}"
 exits_on_game_end = true
-note = "-batch exits after shutdown; -nogui implies batch (help text, QtHost.cpp 2139-2140). The -- separator is parsed (QtHost.cpp 2337). The double-dash spellings RetroBat uses (--nogui, --fullscreen) are not verified upstream."
+note = "Pinned v2.8.2 QtHost.cpp verifies -batch, -nogui, -nofullscreen and --. Pcsx2Config.cpp appends /PCSX2 to -datapath. Fresh profile uses UI.SettingsVersion=1, UI.SetupWizardIncomplete=false, Folders.Bios and Filenames.BIOS from the confirmed BIOS binding. Actual owner-build launch remains an acceptance gate."
 
 [config]
 files = [

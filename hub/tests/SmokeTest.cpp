@@ -61,6 +61,29 @@ private slots:
         QVERIFY2(process.exitCode() == 0, process.readAllStandardError().constData());
         QVERIFY(process.readAllStandardOutput().contains("AladdinsCastle: 1 games"));
     }
+    void hubtoolRejectsIncompleteArguments() {
+        QTemporaryDir temp;
+        QVERIFY(temp.isValid());
+        QDir().mkpath(temp.path() + "/games/synthetic");
+        QFile metadata(temp.path() + "/games/synthetic/game.toml");
+        QVERIFY(metadata.open(QIODevice::WriteOnly));
+        metadata.write("id='synthetic'\ntitle='Synthetic'\n");
+        metadata.close();
+        auto executable = QCoreApplication::applicationDirPath() + "/hubtool";
+#ifdef Q_OS_WIN
+        executable += ".exe";
+#endif
+        for (const auto &command : {QStringList{"explain"}, QStringList{"count", "extra"},
+                                   QStringList{"explain", "synthetic", "extra"}}) {
+            QProcess process;
+            process.start(executable, QStringList{"--data-root", temp.path()} + command);
+            QVERIFY(process.waitForStarted());
+            QVERIFY(process.waitForFinished(15000));
+            QCOMPARE(process.exitStatus(), QProcess::NormalExit);
+            QCOMPARE(process.exitCode(), 64);
+            QVERIFY(process.readAllStandardError().contains("Usage:"));
+        }
+    }
     void modesAndRejections() {
         QCOMPARE(ac::parseLaunchOptions({}).mode, ac::Mode::Desktop);
         auto overlay = ac::parseLaunchOptions({"--overlay", "--window"});
