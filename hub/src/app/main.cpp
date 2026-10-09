@@ -2,6 +2,8 @@
 #include "core/app/LaunchOptions.h"
 #include "core/catalog/CatalogLoader.h"
 #include "core/catalog/CatalogPaths.h"
+#include "core/launch/Launch.h"
+#include "core/install/Support.h"
 #include "models/FilterSortModel.h"
 #include "models/GameListModel.h"
 #include <QCoreApplication>
@@ -45,6 +47,27 @@ int main(int argc, char **argv) {
     if (options.version) {
         out << "AladdinsCastle Hub 0.1.0\n";
         return 0;
+    }
+    if (options.mode == ac::Mode::Launch) {
+        QCoreApplication app(argc, argv);
+        const auto dataRoot = ac::findCatalogRoot(app.applicationDirPath(), QDir::currentPath(), options.dataRoot);
+        if (dataRoot.isEmpty()) { err << "Catalog missing.\n"; return 2; }
+        const auto installRoot = options.installRoot.isEmpty() ? dataRoot : QDir(options.installRoot).absolutePath();
+        const auto bindings = options.bindingsFile.isEmpty() ? installRoot + "/user/cache/scan-bindings.json" : options.bindingsFile;
+        try {
+            const auto source = ac::Json::parse(ac::install::readBytes(bindings).toStdString());
+            const auto request = ac::launch::flatRequest(ac::CatalogLoader().load(dataRoot), options.gameId, installRoot, source, options.variantId);
+            ac::launch::LaunchService launch;
+            QObject::connect(&launch, &ac::launch::LaunchService::finished, &app,
+                [&](const QString &, int code, const QString &error, const QString &log) {
+                    if (!error.isEmpty()) err << error << '\n';
+                    out << "Launch log: " << log << '\n'; out.flush();
+                    QTimer::singleShot(0, &app, [code] { QCoreApplication::exit(code); });
+                });
+            launch.start(request);
+            if (options.quitAfterMs > 0) QTimer::singleShot(options.quitAfterMs, &launch, &ac::launch::LaunchService::stop);
+            return app.exec();
+        } catch (const std::exception &e) { err << e.what() << '\n'; return 2; }
     }
     if (options.mode != ac::Mode::Desktop) {
         QCoreApplication app(argc, argv);

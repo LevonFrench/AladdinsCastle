@@ -41,6 +41,11 @@ add_library(hubcore STATIC
     src/core/install/FlatLaunch.cpp
     src/core/update/Update.h
     src/core/launch/Launch.h
+    src/core/launch/Launch.cpp
+    src/core/launch/Runtime.cpp
+    src/core/steam/Steam.h
+    src/core/steam/Steam.cpp
+    src/core/steam/BinaryVdf.cpp
     src/core/settings/Settings.h
     src/core/art/Art.h)
 target_compile_features(hubcore PUBLIC cxx_std_20)
@@ -79,6 +84,10 @@ set_target_properties(aladdinscastle-hub PROPERTIES
 qt_add_executable(hubtool src/app/hubtool.cpp)
 target_link_libraries(hubtool PRIVATE hubcore)
 ac_project_warnings(hubtool)
+qt_add_executable(steamtool src/app/steamtool.cpp)
+target_link_libraries(steamtool PRIVATE hubcore)
+ac_project_warnings(steamtool)
+set_target_properties(steamtool PROPERTIES WIN32_EXECUTABLE FALSE)
 
 if(BUILD_TESTING)
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
@@ -96,4 +105,12 @@ if(BUILD_TESTING)
     ac_project_warnings(install-tests)
     target_compile_definitions(install-tests PRIVATE AC_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
     add_test(NAME hub-install COMMAND install-tests)
+    qt_add_executable(launch-tests tests/LaunchSteamTest.cpp)
+    target_link_libraries(launch-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(launch-tests)
+    set_target_properties(launch-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-launch-steam COMMAND launch-tests)
+    if(NOT WIN32)
+        set_tests_properties(hub-launch-steam PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    endif()
 endif()
