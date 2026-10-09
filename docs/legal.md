@@ -7,7 +7,7 @@ This is not legal advice. It sets out the project's rules.
 - AladdinsCastle **never ships, downloads or links to** ROMs, BIOS files, disc images or game binaries.
 - Users supply their own dumps and PC game installs. Config files describe what is needed by name and hash only.
 - Pull requests, issues or packs that contain or link to game content will be removed.
-- Hand-off backends are third-party projects with their own terms. Some third-party releases may bundle game content. We point users to content-free builds where they exist and do not mirror any release.
+- Third-party setups are separate projects with their own terms. Recipes download them only from their original release pages. Some third-party releases may bundle game content. We point users to content-free builds where they exist and do not mirror any release.
 
 ## Code licences
 

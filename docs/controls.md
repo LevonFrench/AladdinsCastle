@@ -28,7 +28,7 @@ The game camera's projection must match exactly. DR-89's v0.8.3 fix found that a
 | Pedal / cover (Time Crisis) | Physical ducking | `duck` (head below a set fraction of standing height), `grip_hold`, `grip_toggle` |
 | Special weapon / grenade (HotD 4 shake, Let's Go Jungle) | Shake gesture | `shake` (acceleration threshold), `button` |
 | Weapon switch (Ghost Squad, Razing Storm) | B/Y | Any button |
-| Start / coin | A/X, or a coin slot on the cabinet in the hall | Coin animation optional |
+| Start / coin | A/X | Any button |
 | Recenter | Hold both grips | Any chord |
 
 - **Hand switching:** pulling a trigger moves the gun to that hand (as in DR-89). Two players on one headset play akimbo, as in VC2VR. In true 3D, the second controller becomes player 2's gun.
@@ -81,13 +81,11 @@ Racing in VR is the biggest motion sickness risk. All of these are options:
 - Fade or blink on hard camera cuts.
 - The "ride the screen" fallback: the game on a large curved screen in front of the cabinet seat.
 
-## 3. Hall controls
+## 3. Pause overlay controls (all setups)
 
 | Action | Default |
 |---|---|
-| Move | Left stick smooth locomotion, or teleport arc (option) |
-| Turn | Snap turn on the right stick (option: smooth) |
-| Interact | Point the laser and pull the trigger, or touch directly |
-| Menu | Left menu button: game list, settings, search |
-| Insert coin / play | Pull the trigger at the cabinet screen, or drop a coin in the slot |
-| Exit game | Hold the menu button for 1 s, then confirm |
+| Open / close the pause overlay | Left menu button |
+| Select in the overlay | Point the laser and pull the trigger |
+| Recenter + set standing height | In the overlay, or hold both grips |
+| Quit to desktop / SteamVR | In the overlay, or hold the menu button for 1 s and confirm |

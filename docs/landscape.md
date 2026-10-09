@@ -6,9 +6,9 @@ Checked 2026-10-08. "Activity" is the repository's last push date.
 
 | Project | What it does | Licence | Activity | How we use it |
 |---|---|---|---|---|
-| [DR-89/time-crisis-vr](https://github.com/DR-89/time-crisis-vr) | Time Crisis in true VR on **Quest 3 standalone** and Windows PCVR: tracked pistol, stereo, physical ducking or grip cover, 120 Hz target | MIT (port code) | v0.8.4, 2026-10-07 | Hand-off backend; reference for gun projection and cover. Possible collaborator. |
-| [NeuralF/Rea-Virtua-Cop-2-VR](https://github.com/NeuralF/Rea-Virtua-Cop-2-VR) (VC2VR) | Intercepts the 1997 PC Virtua Cop 2 renderer, rebuilds the 3D scene, renders through OpenXR; motion-controller gun, two-gun player 2 | MIT | 2026-09-02 | Hand-off backend; the renderer-intercept pattern for other PC ports (HotD 1-3, Virtua Cop) |
-| [PenguinVRLab/PenguinScreen2](https://github.com/PenguinVRLab/PenguinScreen2) | PCSX2 fork: virtual theatre for every PS2 game, per-eye stereo and head-driven camera for profiled games, YAML profiles | GPL-3.0 (profiles: non-commercial) | v1.0-rc2, 2026-10-05 | Hand-off backend on Linux; the model for pcsx2-vr and for drop-in profile files |
+| [DR-89/time-crisis-vr](https://github.com/DR-89/time-crisis-vr) | Time Crisis in true VR on **Quest 3 standalone** and Windows PCVR: tracked pistol, stereo, physical ducking or grip cover, 120 Hz target | MIT (port code) | v0.8.4, 2026-10-07 | Third-party setup (recipe); reference for gun projection and cover. Possible collaborator. |
+| [NeuralF/Rea-Virtua-Cop-2-VR](https://github.com/NeuralF/Rea-Virtua-Cop-2-VR) (VC2VR) | Intercepts the 1997 PC Virtua Cop 2 renderer, rebuilds the 3D scene, renders through OpenXR; motion-controller gun, two-gun player 2 | MIT | 2026-09-02 | Third-party setup (recipe); the renderer-intercept pattern for other PC ports (HotD 1-3, Virtua Cop) |
+| [PenguinVRLab/PenguinScreen2](https://github.com/PenguinVRLab/PenguinScreen2) | PCSX2 fork: virtual theatre for every PS2 game, per-eye stereo and head-driven camera for profiled games, YAML profiles | GPL-3.0 (profiles: non-commercial) | v1.0-rc2, 2026-10-05 | Third-party setup on Linux; the model for pcsx2-vr and for drop-in profile files |
 
 ## Engines with source-level access (where true 3D is possible)
 
@@ -23,6 +23,12 @@ Checked 2026-10-08. "Activity" is the repository's last push date.
 | [r4dius/outrun2-decomp](https://github.com/r4dius/outrun2-decomp) | OutRun 2 decompilation (unfinished) | not stated | 2026-10-07 | Full code access, still early |
 
 No VR or stereo work was found for Model 2 Emulator, Flycast, Demul or TeknoParrot. The mainline Dolphin OpenXR pull requests were closed without merging. The old Dolphin VR fork is Rift-only and abandoned.
+
+## Installer / launcher model
+
+| Project | What | Why it matters |
+|---|---|---|
+| [Mr-Nlce/PCVR-Mods-Installer-Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub) | Portable Windows hub (PowerShell/batch, MIT, v0.8.6.2, 300+ games): finds games on Steam/GOG/Epic, downloads each VR mod from its original source, runs a guided per-game installer, updates, launches | **The model for the AladdinsCastle Hub.** One folder per game, each with `<Game>-core.ps1` + README; shared `Modules/InstallerSafety.ps1` (safe downloads, manual fallbacks) and `Utils/GameDetection.ps1`; GitHub version cache. We use declarative TOML recipes instead of a script per game, and install our own setups. |
 
 ## VR light gun front ends and tools
 
@@ -57,7 +63,7 @@ No VR or stereo work was found for Model 2 Emulator, Flycast, Demul or TeknoParr
 
 ## What nobody has done yet (our opening)
 
-1. A **front end** that ties these together: one hall, one config system, true 3D where possible and theatre elsewhere.
-2. A **backend protocol** so the hall, not each port, owns hands, guns, ghost controls, comfort and UI.
+1. An **installer hub for arcade light gun and racing games** that ties these together: one library, one config system, true 3D where possible and theatre elsewhere.
+2. A **shared VR runtime (libacvr)**, so hands, guns, ghost controls, comfort and the pause menu work the same in every game instead of being rebuilt per port.
 3. **Motion-controlled racing** on arcade originals: ghost wheel, shifter, pedals and handlebars.
 4. True 3D for **Model 3, Lindbergh and PS2 gun games on Windows**.

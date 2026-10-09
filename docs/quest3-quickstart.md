@@ -1,6 +1,6 @@
 # Play now on Quest 3 (before AladdinsCastle exists)
 
-These existing projects already run 3D light gun games in true VR today. AladdinsCastle will launch them in hand-off mode. Until then, here is how to run them directly. Status checked 2026-10-08.
+These existing projects already run 3D light gun games in true VR today. The AladdinsCastle Hub will install and launch them for you. Until then, here is how to run them directly. Status checked 2026-10-08.
 
 ## Time Crisis VR (DR-89): standalone on Quest 3, or PCVR
 
@@ -9,8 +9,11 @@ These existing projects already run 3D light gun games in true VR today. Aladdin
 - Effort: **about 15 minutes**.
 
 Standalone (Quest 3):
-1. Turn on developer mode for the headset in the Meta Horizon phone app. This needs a free Meta developer account.
-2. Connect the Quest by USB-C and allow USB debugging in the headset.
+1. **Developer mode** (one-time):
+   1. Sign in at https://developers.meta.com with your Meta account and create an organization (free). Meta asks you to verify the account (two-factor authentication, or a phone or payment method).
+   2. On your phone, open the **Meta Horizon** app → **Devices** → select your Quest 3 → **Headset settings** → **Developer mode** → on.
+   3. Restart the headset.
+2. Connect the Quest to the PC with USB-C, put it on, and accept **Allow USB debugging** (tick "Always allow from this computer").
 3. Install the APK from the Releases page with SideQuest, or with platform-tools:
    ```bash
    adb install -r TimeCrisisVR-v0.8.4-quest.apk

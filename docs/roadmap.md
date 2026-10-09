@@ -1,50 +1,53 @@
-# Roadmap (draft 0)
+# Roadmap (draft 1)
 
-Each milestone ends with something you can do in the headset. Dates are not set.
+Each milestone ends with something you can do in the headset or the Hub. Dates are not set.
 
 ## M0: Play now
 - [Quest 3 quickstart](quest3-quickstart.md): DR-89 Time Crisis VR, VC2VR, PenguinScreen2.
 - **Done when:** the owner has played Time Crisis VR on Quest 3 and written down what feels right and wrong. That feeds the controls spec.
 
-## M1: Hall skeleton + hand-off
-- Godot 4 project with an OpenXR hall: one room, generic cabinets, laser interaction, list mode.
-- Config loader: layered TOML, JSON Schemas, a `validate` and `explain` CLI.
-- Hand-off backend kind: launch DR-89 Time Crisis VR (Windows) and VC2VR, then return to the hall on exit.
-- **Done when:** in the headset, you walk to a Time Crisis cabinet, pull the trigger, play, quit, and you're back in the hall.
+## M1: Hub skeleton + third-party setups
+- Desktop Hub: library grid with fallback art, game detail page, settings, portable folder layout.
+- Config loader (layered TOML) + JSON Schemas + `validate` / `explain` CLI.
+- Recipe engine: `github-release`, `require-media`, `extract`, `write-config`, `shortcut`, `adb-install`.
+- First recipes: DR-89 Time Crisis VR (PCVR + **Install to Quest**), VC2VR (detect the PC game).
+- Media scanner: hash-check ROM folders.
+- SteamVR library shortcuts with art.
+- **Done when:** from a clean PC, the Hub installs Time Crisis VR (PC and Quest) and VC2VR, and both launch from the Hub and from the SteamVR library.
 
-## M2: ACBP v0 + compositor + ghost controls
-- ACBP spec v0, a C header, and a test backend that renders a stereo scene with depth and a fake game camera.
-- Hall compositor: backend eyes and depth composited with hands, gun and ghost controls. Display-list replay at headset rate.
-- Ghost-control framework with `wheel`, `shifter_hl`, `pedal` and `button`, sending to the test backend and to vJoy.
-- **Done when:** you can grab the ghost wheel and drive the test scene smoothly at 90 Hz or more.
+## M2: libacvr v0 + test setup
+- libacvr: OpenXR session, multiview, recenter/height, pause overlay, gun module, ghost-control framework (`wheel`, `shifter_hl`, `pedal`, `button`), comfort basics.
+- A test setup ("stereo cube") implementing the backend contract with a fake game camera.
+- **Done when:** in the headset you can shoot targets with correct parallax aim, and grab the ghost wheel to drive the test scene at 90 Hz or more.
 
-## M3: namco22-vr, the first true-3D games through our own stack
-- ACBP host on namco22-decompile, with stereo through the `geo_hw.c` projection.
-- **Rave Racer** with ghost wheel, two-position shifter and trigger pedals: the first racing slice.
-- **Time Crisis** through ACBP, with gun mapping from the game camera and physical ducking.
-- Contribute generic changes upstream where welcome. Coordinate with DR-89, whose Time Crisis port is built on the same base.
-- **Done when:** both games play start to finish in the hall at the headset's refresh rate.
+## M3: namco22-vr, the first true-3D games of our own
+- libacvr host on namco22-decompile (guarded build-time patches, like DR-89's), stereo through the `geo_hw.c` projection.
+- **Rave Racer** with ghost wheel, two-position shifter and trigger pedals: the first racing setup.
+- **Time Crisis** on our host, with libacvr gun and cover, alongside DR-89's.
+- Contribute generic changes upstream, and coordinate with DR-89.
+- **Done when:** both play start to finish at the headset's refresh rate, installed by recipe from the Hub.
 
-## M4: Theatre mode + input bridges
-- Window capture to the cabinet screen and a big screen.
-- Bridges: MAME Lua light gun plugin, PCSX2 and DuckStation absolute pointer, RPCS3 per-player mouse, vJoy wheels and pedals, a DemulShooter integration for Model 2, Lindbergh and TeknoParrot gun games.
-- **Done when:** any game in the catalog can be launched from the hall and played with motion controllers on a virtual screen.
+## M4: Theatre setups + input bridges
+- acvr-theatre (window capture to a VR screen).
+- Bridges: MAME Lua light gun plugin, PCSX2/DuckStation absolute pointer, RPCS3 per-player mouse, vJoy wheels and pedals, DemulShooter for Model 2 / Lindbergh / TeknoParrot gun games.
+- Recipes for the emulators (download from official sources only).
+- **Done when:** any game in the catalog can be installed and played with motion controllers on a virtual screen.
 
 ## M5: supermodel-vr
-- Per-eye frustum in Supermodel New3D plus ACBP output.
+- Per-eye frustum in Supermodel New3D + libacvr.
 - First games: Scud Race (racing) and a Model 3 gun game.
 
-## M6: Art, packs and community
-- Scraper integration (user-side), art provenance sidecars, branded cabinet pack format, pack validator (rejects ROM content).
-- Example packs: Namco System 22, Sega Model 3.
+## M6: Art, recipes and community
+- User-side scraper integration with provenance sidecars.
+- Recipe and pack sharing; a pack validator that rejects ROM content.
 
 ## M7: PS2 true 3D
-- Port PenguinScreen2's stereo approach to Windows, or work with that project upstream. Add GunCon 2 aim from the VR ray.
+- Port PenguinScreen2's stereo approach to Windows, or work with that project upstream, adding libacvr gun aim.
 - Targets: Time Crisis 2/3, Crisis Zone, Vampire Night, Virtua Cop Elite Edition.
 
-## M8: Quest standalone
-- Godot Android export of the hall plus namco22-vr built for Android, so System 22 games run on Quest 3 without a PC.
+## M8: Quest-standalone setups of our own
+- libacvr + namco22-vr built for Android/OpenXR, installed to the Quest by the Hub over USB.
 
 ## Research track (runs alongside)
 - Stereo seams for Model 2 (MAME TGP path, sm2-emu), Lindbergh (lindbergh-loader GL shim), Daytona XBLA recomp, OutRun 2006, Dolphin.
-- Each gets a feasibility note in the wiki before it becomes a milestone.
+- Each one gets a feasibility note in the wiki before it becomes a milestone.

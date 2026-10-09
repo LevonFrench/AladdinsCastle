@@ -1,6 +1,6 @@
 # Game catalog and routes
 
-Every game gets the best route available: **True 3D** (ACBP backend or an existing VR port), **Hand-off** (third-party VR app), or **Theatre** (virtual screen). Full lists with emulator status are in [`data/`](data/):
+Every game gets the best VR setup available: **True 3D** (our libacvr setup or an existing third-party VR port) or **Theatre** (virtual screen). Full lists with emulator status are in [`data/`](data/):
 
 - [Arcade 3D light gun games](data/arcade-gun-games.md): about 60 titles, with MAME set, status flags, TeknoParrot profile and DemulShooter support.
 - [Console light gun games](data/console-gun-games.md): PS1/PS2/PS3, Saturn, Dreamcast, Wii, Xbox, Switch, PC.
@@ -13,8 +13,8 @@ Status as of 2026-10-08. `?` = unverified.
 
 | Game | Original hardware | True-3D route | Status |
 |---|---|---|---|
-| Time Crisis (1995) | Namco Super System 22 | DR-89 Time Crisis VR (hand-off), then **namco22-vr** (ours) | Playable in VR today (experimental) |
-| Virtua Cop 2 (1995) | Sega Model 2 | VC2VR on the 1997 PC port (hand-off) | Playable in VR today (beta) |
+| Time Crisis (1995) | Namco Super System 22 | DR-89 Time Crisis VR (third-party setup), then **namco22-vr** (ours) | Playable in VR today (experimental) |
+| Virtua Cop 2 (1995) | Sega Model 2 | VC2VR on the 1997 PC port (third-party setup) | Playable in VR today (beta) |
 | Virtua Cop (1994) | Sega Model 2 | VC2VR-style renderer intercept on the PC port | Research |
 | The House of the Dead 1/2/3 | Model 2 / NAOMI / Chihiro | Renderer intercept on the official PC ports, VC2VR-style | Research |
 | The Lost World, Ocean Hunter | Sega Model 3 | **supermodel-vr** (ours) | Research. Both NOT_WORKING in MAME; check Supermodel status |
@@ -43,7 +43,7 @@ Model 2 Emulator, MAME, TeknoParrot (Lindbergh, RingEdge, Type X, ES3), Flycast,
 
 ## First slice
 
-1. **Time Crisis**: hand-off to DR-89 first, then namco22-vr.
+1. **Time Crisis**: install DR-89's port by recipe first, then our namco22-vr.
 2. **Rave Racer**: namco22-vr with ghost wheel, shifter and trigger pedals.
 
-Both run on the same MIT-licensed engine and share a projection model, so one backend covers both the gun and the racing pillar.
+Both run on the same MIT-licensed engine and share a projection model, so one setup of our own covers both the gun and the racing pillar.
