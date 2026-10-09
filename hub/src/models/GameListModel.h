@@ -30,5 +30,3 @@ class GameListModel : public QAbstractListModel {
     QTimer m_batchTimer;
 };
 } // namespace ac
-Q_DECLARE_METATYPE(ac::RuntimeState)
-Q_DECLARE_METATYPE(QVector<ac::RuntimeState>)

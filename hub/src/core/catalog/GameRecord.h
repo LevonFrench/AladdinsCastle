@@ -64,3 +64,6 @@ void resolveState(GameRecord &game);
 QString folded(const QString &value);
 QVariant jsonVariant(const Json &value);
 } // namespace ac
+
+Q_DECLARE_METATYPE(ac::RuntimeState)
+Q_DECLARE_METATYPE(QVector<ac::RuntimeState>)
