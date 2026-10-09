@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/app/LaunchOptions.h"
+#include "core/app/LaunchFailure.h"
 #include "core/catalog/CatalogPaths.h"
 #include <QDir>
 #include <QFile>
@@ -84,6 +85,28 @@ private slots:
             QVERIFY(process.readAllStandardError().contains("Usage:"));
         }
     }
+    void launchFailureLogAndWindowSubsystem(){
+        QTemporaryDir temp;QVERIFY(temp.isValid());
+        const auto log=ac::writeLaunchFailureLog(temp.path(),"../escape","synthetic preflight failure");
+        QVERIFY(log.startsWith(temp.path()+"/user/logs/launch-unknown-game-"));
+        QFile file(log);QVERIFY(file.open(QIODevice::ReadOnly));QVERIFY(file.readAll().contains("synthetic preflight failure"));
+        QVERIFY(log!=ac::writeLaunchFailureLog(temp.path(),"../escape","second failure"));
+#ifdef Q_OS_WIN
+        QFile binary(QCoreApplication::applicationDirPath()+"/aladdinscastle-hub.exe");QVERIFY(binary.open(QIODevice::ReadOnly));const auto bytes=binary.readAll();
+        QVERIFY(bytes.size()>256);quint32 pe=0;memcpy(&pe,bytes.constData()+0x3c,4);QVERIFY(pe+94<quint32(bytes.size()));quint16 subsystem=0;memcpy(&subsystem,bytes.constData()+pe+24+68,2);QCOMPARE(subsystem,quint16(2));
+#endif
+    }
+    void preflightFailureWritesPortableLog(){
+        QTemporaryDir temp;QVERIFY(temp.isValid());auto executable=QCoreApplication::applicationDirPath()+"/aladdinscastle-hub";
+#ifdef Q_OS_WIN
+        executable+=".exe";
+#endif
+        QProcess process;auto env=QProcessEnvironment::systemEnvironment();env.insert("QT_QPA_PLATFORM","offscreen");env.insert("QT_QUICK_BACKEND","software");env.insert("QT_OPENGL","software");process.setProcessEnvironment(env);
+        const auto root=temp.filePath(QString::fromUtf8("portable space 漢字"));QDir().mkpath(root);
+        process.start(executable,{"--launch","synthetic","--variant","flat-mame","--install-root",root,"--data-root",temp.filePath("missing-catalog")});
+        QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(15000));QCOMPARE(process.exitCode(),2);
+        const auto logs=QDir(root+"/user/logs").entryList({"launch-synthetic-*.log"},QDir::Files);QCOMPARE(logs.size(),1);QFile log(root+"/user/logs/"+logs.first());QVERIFY(log.open(QIODevice::ReadOnly));QVERIFY(log.readAll().contains("Catalog missing"));
+    }
     void modesAndRejections() {
         QCOMPARE(ac::parseLaunchOptions({}).mode, ac::Mode::Desktop);
         auto overlay = ac::parseLaunchOptions({"--overlay", "--window"});
@@ -92,7 +115,7 @@ private slots:
         QCOMPARE(launch.mode, ac::Mode::Launch); QCOMPARE(launch.gameId, QString("synthetic-game"));
         for (const auto &args : {QStringList{"--launch"}, QStringList{"--launch", "../outside"},
              QStringList{"--overlay", "--launch", "example"}, QStringList{"--window"},
-             QStringList{"--quit-after-ms", "0"}, QStringList{"--unknown"}})
+             QStringList{"--quit-after-ms", "0"}, QStringList{"--launch","synthetic","--variant","../escape"}, QStringList{"--unknown"}})
             QVERIFY2(!ac::parseLaunchOptions(args).error.isEmpty(), qPrintable(args.join(' ')));
     }
 };

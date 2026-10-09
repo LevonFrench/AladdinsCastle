@@ -39,6 +39,7 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
         options.error = "--window requires --overlay.";
     if (options.error.isEmpty() && options.spike && options.mode != Mode::Desktop && options.mode != Mode::Overlay)
         options.error = "--spike requires desktop or overlay mode.";
+    if(options.error.isEmpty()&&!options.variantId.isEmpty()&&!QRegularExpression("^[a-z0-9]+(?:-[a-z0-9]+)*$").match(options.variantId).hasMatch())options.error="Invalid variant ID.";
     return options;
 }
 }

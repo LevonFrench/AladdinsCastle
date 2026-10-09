@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/app/LaunchOptions.h"
+#include "core/app/LaunchFailure.h"
 #include "core/catalog/CatalogLoader.h"
 #include "core/catalog/CatalogPaths.h"
 #include "core/install/Support.h"
@@ -26,8 +27,13 @@ int main(int argc,char **argv){
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     ac::LaunchOptions options;
     {QCoreApplication argumentApp(argc,argv);options=ac::parseLaunchOptions(argumentApp.arguments().mid(1));}
+    if(options.mode!=ac::Mode::Desktop||options.help||options.version||options.quitAfterMs>0)ac::attachParentConsole();
     QTextStream out(stdout),err(stderr);
-    if(!options.error.isEmpty()){err<<options.error<<'\n';return 2;}
+    if(!options.error.isEmpty()){
+        err<<options.error<<'\n';
+        if(options.mode==ac::Mode::Launch){QCoreApplication app(argc,argv);QString log;try{log=ac::writeLaunchFailureLog(options.installRoot.isEmpty()?app.applicationDirPath():options.installRoot,options.gameId,options.error);}catch(const std::exception &){}ac::showLaunchFailure(options.error,log);}
+        return 2;
+    }
     if(options.help){out<<"AladdinsCastle Hub\nUsage: aladdinscastle-hub [--overlay [--window] | --launch <game-id>]\n  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;}
     if(options.version){out<<"AladdinsCastle Hub 0.1.0\n";return 0;}
     if(options.mode==ac::Mode::RegisterOverlay||options.mode==ac::Mode::UnregisterOverlay){
@@ -37,19 +43,20 @@ int main(int argc,char **argv){
     }
     if(options.mode==ac::Mode::Launch){
         QCoreApplication app(argc,argv);
+        const auto root=options.installRoot.isEmpty()?app.applicationDirPath():QDir(options.installRoot).absolutePath();
+        const auto failure=[&](const QString &message){QString log;try{log=ac::writeLaunchFailureLog(root,options.gameId,message);}catch(const std::exception &e){err<<"Launch log unavailable: "<<e.what()<<'\n';}err<<message<<'\n';ac::showLaunchFailure(message,log);};
         try{
             const auto catalogRoot=ac::findCatalogRoot(app.applicationDirPath(),QDir::currentPath(),options.dataRoot);
             if(catalogRoot.isEmpty())throw ac::install::Error("E_CATALOG","Catalog missing");
-            const auto root=options.installRoot.isEmpty()?app.applicationDirPath():QDir(options.installRoot).absolutePath();
             const auto catalog=ac::CatalogLoader().load(catalogRoot);
             const auto bindings=ac::Json::parse(ac::install::readBytes(options.bindingsFile.isEmpty()?root+"/user/cache/scan-bindings.json":options.bindingsFile).toStdString());
             ac::launch::LaunchService launcher;
-            QObject::connect(&launcher,&ac::launch::LaunchService::finished,&app,[&](const QString &,int code,const QString &message,const QString &){if(!message.isEmpty())err<<message<<'\n';app.exit(code);});
+            QObject::connect(&launcher,&ac::launch::LaunchService::finished,&app,[&](const QString &,int code,const QString &message,const QString &){if(!message.isEmpty())failure(message);app.exit(code);});
             const auto request=ac::launch::flatRequest(catalog,options.gameId,root,bindings,options.variantId);
             if(!launcher.start(request))return 1;
             if(options.quitAfterMs>0)QTimer::singleShot(options.quitAfterMs,&launcher,&ac::launch::LaunchService::stop);
             return app.exec();
-        }catch(const std::exception &e){err<<e.what()<<'\n';return 2;}
+        }catch(const std::exception &e){failure(QString::fromUtf8(e.what()));return 2;}
     }
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);

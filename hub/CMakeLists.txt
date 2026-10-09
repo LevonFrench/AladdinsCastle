@@ -29,6 +29,8 @@ add_library(hubcore STATIC
     src/core/catalog/CatalogPaths.h
     src/core/app/LaunchOptions.cpp
     src/core/app/LaunchOptions.h
+    src/core/app/LaunchFailure.cpp
+    src/core/app/LaunchFailure.h
     src/core/config/Config.h
     src/core/filter/Filter.h
     src/core/scan/Scan.h
@@ -115,7 +117,7 @@ add_custom_command(TARGET aladdinscastle-hub POST_BUILD
         "$<TARGET_FILE:OpenVR::OpenVR>" "$<TARGET_FILE_DIR:aladdinscastle-hub>"
     VERBATIM)
 set_target_properties(aladdinscastle-hub PROPERTIES
-    BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN")
+    BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN" WIN32_EXECUTABLE TRUE)
 
 qt_add_executable(hubtool src/app/hubtool.cpp)
 target_link_libraries(hubtool PRIVATE hubcore)
