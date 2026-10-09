@@ -131,11 +131,11 @@ QStringList accounts(const QString &root) {
   return out;
 }
 Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
-  if (!QRegularExpression("^[a-z0-9]+(?:-[a-z0-9]+)*$")
+  if (!QRegularExpression("\\A[a-z0-9]+(?:-[a-z0-9]+)*\\z")
            .match(s.gameId)
            .hasMatch())
     throw Error("E_SHORTCUT", "Invalid game ID");
-  if (!remove && !QRegularExpression("^[a-z0-9]+(?:-[a-z0-9]+)*$")
+  if ((!remove || !s.variantId.isEmpty()) && !QRegularExpression("\\A[a-z0-9]+(?:-[a-z0-9]+)*\\z")
                       .match(s.variantId).hasMatch())
     throw Error("E_SHORTCUT", "An explicit valid variant ID is required");
   auto d = parse(before);
@@ -213,7 +213,10 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
       set(*owned, text(key, {}));
     for (const auto *key : {"Devkit", "DevkitOverrideAppID"})
       set(*owned, integer(key, 0));
-    if (!r.ownedFound) {
+    if (r.ownedFound) {
+      for (const auto *key : {"icon", "IsHidden", "AllowOverlay", "AllowDesktopConfig", "LastPlayTime"})
+        field(*owned, key); // Keep the duplicate-field rejection without rewriting user values.
+    } else {
       set(*owned, text("icon", {}));
       set(*owned, integer("IsHidden", 0));
       for (const auto *key : {"AllowDesktopConfig", "AllowOverlay"})
@@ -377,7 +380,7 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
       throw Error("E_STEAM_RUNNING", "Steam started; no library change made");
     const auto current = QFileInfo::exists(p.target)
                              ? install::readBytes(p.target) : QByteArray();
-    if (install::sha256(current).toStdString() != p.json["beforeSha256"])
+    if (install::sha256(current).toStdString() != p.json["beforeSha256"].get<std::string>())
       throw Error("E_PREVIEW_CHANGED",
                   "Steam library changed before replacement; review a fresh preview");
     install::atomicWrite(p.target, p.edit.bytes);
@@ -402,6 +405,13 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
         }
         backup(path, p.backupFolder,
                "art-" + QFileInfo(path).completeBaseName());
+        if (running())
+          throw Error("E_STEAM_RUNNING", "Steam started; remaining art unchanged");
+        if (install::hashFile(path).toStdString() !=
+            p.json["art"][static_cast<size_t>(i)]["beforeSha256"].get<std::string>()) {
+          result.warnings << "Kept grid art changed after preview: " + QFileInfo(path).fileName();
+          continue;
+        }
         if (!QFile::remove(path))
           throw Error("E_ART", "Could not remove owned grid art");
         receipt.erase(name);
@@ -426,10 +436,16 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
           throw Error("E_ART", "Could not encode grid art");
         if (QFileInfo::exists(path) && install::readBytes(path) == bytes)
           continue;
-        if (running())
-          throw Error("E_STEAM_RUNNING", "Steam started; remaining art unchanged");
         backup(path, p.backupFolder,
                "art-" + QFileInfo(path).completeBaseName());
+        if (running())
+          throw Error("E_STEAM_RUNNING", "Steam started; remaining art unchanged");
+        const auto current = QFileInfo::exists(path) ? install::readBytes(path) : QByteArray();
+        if (install::sha256(current).toStdString() !=
+            p.json["art"][static_cast<size_t>(i)]["beforeSha256"].get<std::string>()) {
+          result.warnings << "Kept grid art changed after preview: " + QFileInfo(path).fileName();
+          continue;
+        }
         QDir().mkpath(QFileInfo(path).absolutePath());
         install::atomicWrite(path, bytes);
         receipt[QFileInfo(path).fileName().toStdString()] =
