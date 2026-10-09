@@ -11,7 +11,7 @@ AladdinsCastle is an open-source desktop hub that installs and launches VR setup
 - **A desktop Hub** (modelled on [PCVR Mods Installer Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub)): a library with art, detection of your ROMs and PC games, one-click install of each game's VR setup from original sources, updates, launch, SteamVR library shortcuts, and **Install to Quest** for standalone setups. No VR lobby: games open straight into VR.
 - **True 3D** wherever a stereo setup exists: our own setups (decompilations and emulators plus our shared VR runtime, libacvr), plus existing VR ports installed by recipe.
 - **Theatre mode** for everything else: the emulator on a virtual screen with motion-controller aiming.
-- **Motion-controller light guns** with parallax-correct aim, off-screen reload, physical ducking for cover, recoil haptics, and two-gun co-op.
+- **Motion-controller light guns** with parallax-correct aim, off-screen reload, cover on a button, recoil haptics, and two-gun co-op.
 - **Ghost controls for racing**: grab the wheel, shifter, handlebars or levers. Pedals on the triggers. Haptic detents and force feedback.
 - **Everything is a file.** Games, VR setups, install recipes, control sets, guns and profiles are plain TOML you can edit, share and override.
 

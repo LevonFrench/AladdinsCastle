@@ -33,11 +33,12 @@ When a decision is settled, record it here with the date and update the docs it 
 | D40 | Metadata and art sources | Scrapers / local art on disk | **v1: local art only** (ES/RetroBat folders, RetroArch thumbnails, PCSX2 covers, user/art) + generated fallback; scrapers deferred ([art-pipeline.md](art-pipeline.md) §0) | **Decided 2026-10-08 (owner)** |
 | D41 | Unlicensed third-party tools | Auto-install / consent install / locate only | **DemulShooter: consent install** (official GitHub release only, after an explicit screen: third-party tool, no published licence, hooks game memory, antivirus may flag it; never bundled or modified). **Redream: locate only**, not a default; Flycast is the default Dreamcast/NAOMI emulator. | **Decided 2026-10-08 (owner asked for the best option)** |
 | D42 | Milestone order after scope | Third-party VR ports first / emulators + flat, then own VR | **M1 = Hub + emulators + flat launch; M2 = namco22-vr (Time Crisis + Rave Racer) with libacvr.** Third-party VR ports (DR-89 Time Crisis VR, VC2VR) out of scope. | **Decided 2026-10-08 (owner)** |
+| D43 | Cover in gun games | Physical ducking / button | **Button only**: hold either grip = pedal down (shoot), release = cover; options inverted or toggle. No head-height ducking anywhere (also Police 911). | **Decided 2026-10-08 (owner)** |
 | D23-D33 | Hub build details | see [hub-architecture.md](hub-architecture.md) §14 | One exe with modes; OpenGL; Qt 6.8 LTS; portable-folder state; TOML tokens; Python CI + C++ warn mode; ship VC++ runtime | **Default for M1 execution** ([tasks/m1](tasks/m1/README.md)); owner can override |
 | D16 | In-VR game switching | SteamVR library shortcuts only / plus a flat in-VR list panel | SteamVR shortcuts in v1; revisit later | Open |
 
 ## Questions for the owner
 
-1. After playing DR-89's Time Crisis VR: grip cover or physical ducking as default? Laser on or off?
+1. ~~Grip cover or physical ducking?~~ **Decided: cover on a button, no physical ducking (D43).** Laser on or off by default?
 2. Racing: seated only, or standing as well? Should the ghost controls be always visible, or appear when a hand comes near?
 3. Online play eventually? namco22-decompile already has netplay for Rave Racer and Cyber Sled.

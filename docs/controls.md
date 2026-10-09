@@ -25,7 +25,7 @@ The game camera's projection must match exactly. DR-89's v0.8.3 fix found that a
 |---|---|---|
 | Fire | Trigger of the hand holding the gun | Analog threshold, auto-fire rate |
 | Reload | Off-screen shot | `button` (A/X), `offscreen`, `point_down`, `holster` (put the gun to your hip), `flick` (quick wrist snap) |
-| Pedal / cover (Time Crisis) | Physical ducking | `duck` (head below a set fraction of standing height), `grip_hold`, `grip_toggle` |
+| Pedal / cover (Time Crisis) | **Button: hold either grip = pedal down (out of cover, shoot); release = take cover / reload** | `hold_to_shoot` (default, mirrors the arcade pedal), `hold_to_cover` (inverted), `toggle` |
 | Special weapon / grenade (HotD 4 shake, Let's Go Jungle) | Shake gesture | `shake` (acceleration threshold), `button` |
 | Weapon switch (Ghost Squad, Razing Storm) | B/Y | Any button |
 | Start / coin | A/X | Any button |
@@ -36,11 +36,12 @@ The game camera's projection must match exactly. DR-89's v0.8.3 fix found that a
 - **Laser / crosshair:** off, laser, dot or game-native crosshair, each setting saved per game.
 - **Haptics:** fire pulse, recoil from the game's output events (MAMEHooker-style lamp/solenoid outputs or decompiled hooks), and a damage hit.
 
-### 1.3 Physical cover (Time Crisis, Crisis Zone, Razing Storm)
+### 1.3 Cover button (Time Crisis, Crisis Zone, Razing Storm)
 
-- Calibrate standing head height on first launch and on recenter.
-- Duck threshold: enter cover when the head drops at least 0.20 m below calibrated standing height, and leave it when the head comes back within 0.12 m. These are DR-89's tested values (`quest_cover.c`). The gap between the two thresholds stops you flickering in and out of cover. Both are configurable, in metres or as a fraction of height.
-- Leaning sideways can optionally count as cover too, for seated play.
+- **No physical ducking** (owner decision, 2026-10-08). Cover is always on a button.
+- Default `hold_to_shoot`: holding either grip is the arcade pedal pressed (you're out of cover and can shoot); releasing it takes cover and reloads, exactly like letting go of the real pedal.
+- Options: `hold_to_cover` (inverted) and `toggle`. Two-pedal games (Time Crisis 5) put the second pedal on the other grip.
+- Haptic tick when entering and leaving cover.
 
 ## 2. Racing: ghost controls
 

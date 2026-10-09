@@ -123,7 +123,7 @@ Each row lists the games, the real control, the default VR mapping and the 3D mo
 | `sniper_rifle` | Silent Scope 1/2/EX/Fortune Hunter | Rifle on a **positional yaw/pitch mount** (MAME AD_STICK `0x000-0x7FF`); a small scope screen (secondary sources) | Two-hand rifle on a virtual mount; **yaw/pitch → the game's ADC counts**. The scope shows a **render-to-texture zoomed view** of the game around the aim point, only while your eye is near it (performance). | Rifle + mount + scope (lens = render target) |
 | `crossbow` | The Walking Dead | Crossbow | Like pistol, plus reload by pulling the string back (`lever_slide`) | Crossbow |
 | `fire_hose` | **Brave Firefighters** (hose with spray switch held, drainage button, nozzle twist mist/stream/fog, strong vibration; not in MAME) | Two-hand hose nozzle | Aim like a gun from the nozzle pose; **spray = trigger held**; **nozzle mode = left-hand `grip_twist` on the collar** (detents for mist/stream/fog); drain = B; continuous rumble while spraying | Nozzle + collar + hose |
-| `body_sensor` | Police 911 / 24-7 (body-tracking duck and dodge) | Camera sensor tracks the player | **Head position**: duck = height drop (as Time Crisis cover), dodge = lateral offset | — |
+| `body_sensor` | Police 911 / 24-7 (body-tracking duck and dodge) | Camera sensor tracks the player | **Buttons, no body tracking:** duck = hold grip (as the cover button), dodge = left stick X | — |
 
 ### 3.8 Cabinet motion
 
@@ -143,7 +143,7 @@ Continuous gestures (pedalling, paddling, rocking, poling) tire arms fast. Every
 
 ## 5. Input conflicts: the trigger rule
 
-The **trigger is the fire button** whenever a cabinet's steering control carries fire buttons (Tokyo Wars, Desert Tank, gun-and-drive games like Lucky & Wild and Deadstorm Pirates). On those cabinets the **pedals move to the thumbstick Y axis**. Elsewhere the triggers are pedals. Gun games with foot pedals (Time Crisis cover pedal, TC5's two pedals, Razing Storm attack/cover, Space Gun halt/reverse, Crisis Zone) map pedals to head height (cover) or the thumbstick, never the trigger.
+The **trigger is the fire button** whenever a cabinet's steering control carries fire buttons (Tokyo Wars, Desert Tank, gun-and-drive games like Lucky & Wild and Deadstorm Pirates). On those cabinets the **pedals move to the thumbstick Y axis**. Elsewhere the triggers are pedals. Gun games with foot pedals (Time Crisis cover pedal, TC5's two pedals, Razing Storm attack/cover, Space Gun halt/reverse, Crisis Zone) map pedals to the grip button (cover) or the thumbstick, never the trigger. No head-height ducking anywhere.
 
 ## 6. 3D model library
 

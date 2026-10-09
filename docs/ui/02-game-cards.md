@@ -234,7 +234,7 @@ Same geometry, same colour logic, same S / M / L. The content comes from [game-s
 | Time Crisis                    [TRUE 3D]         |  title + quality badge, right-docked
 | Namco · Super System 22 · 1995                   |  coloured line: manufacturer · hardware · year
 |     by Namco                                     |  developer (hidden if same as manufacturer)
-| Duck behind cover for real, then pop up.         |  [hub].blurb, one line
+| Take cover, pop up, shoot.         |  [hub].blurb, one line
 | +----------------------------------------------+ |
 | |                 Ready                        | |  button; hover: "Start in VR ▶"
 | +----------------------------------------------+ |

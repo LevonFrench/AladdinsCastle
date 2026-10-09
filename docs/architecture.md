@@ -29,7 +29,7 @@ A C/C++ library (C ABI) that every AladdinsCastle setup links, so they all behav
 |---|---|
 | Session | OpenXR instance, session and swapchains (Vulkan, D3D11 or OpenGL binding), refresh-rate selection with fallback, recenter, standing-height calibration |
 | Frame | Multiview stereo helpers; display-list replay at headset rate (§2.2) |
-| Gun | Gun models, aim ray → hit → projection through the game camera ([controls.md](controls.md) §1.1), off-screen/reload, cover/ducking, laser, recoil haptics, two-gun play |
+| Gun | Gun models, aim ray → hit → projection through the game camera ([controls.md](controls.md) §1.1), off-screen/reload, cover button, laser, recoil haptics, two-gun play |
 | Ghost controls | Wheel, shifters, pedals, handlebars, levers and buttons from the game's control set ([controls.md](controls.md) §2) |
 | Comfort | Vignette, horizon lock, cut fades, cockpit anchor |
 | Overlay | The shared pause menu ([frontend.md](frontend.md) §2) |

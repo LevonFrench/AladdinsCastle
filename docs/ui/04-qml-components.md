@@ -236,7 +236,7 @@ Two rows [DIVERGE from 01 section 1.5, 2.2], plus the Filters drawer [NEW].
 | Time Crisis                       [WIP] [TRUE 3D]|  title (2 lines) | docked badges
 | Namco . Namco Super System 22 . 1995             |  meta line, accent colour
 |     by Namco                                     |  developer, only if different
-| Duck behind cover for real, then pop up.         |  blurb, one line
+| Take cover, pop up, shoot.         |  blurb, one line
 | +----------------------------------------------+ |
 | |                 Ready                        | |  neon button; label rule in 2.3
 | +----------------------------------------------+ |
@@ -378,7 +378,7 @@ VARIANT  ( DR-89 PCVR  * )  ( DR-89 Quest 3 )  ( Our true 3D - planned )   #4
 | amber bar  Needs your files: timecris.zip not found. We never download it.  #5 state line
  WHAT YOU NEED   (rows, section 4.11.2)                                       #6
  [ Find my files ]  [ Upstream page ]                                         #7 action row
- SETTINGS FOR THIS GAME   Cover [ Grip | Duck ]  Laser [ On | Off ] ...      #8
+ SETTINGS FOR THIS GAME   Cover [ Hold to shoot | Hold to cover | Toggle ]  Laser [ On | Off ] ...      #8
  ABOUT | SIMILAR GAMES   (two columns)                                       #10, #11
  [VIDEO]  (hidden: no video field, C-video)                                    #12
  CONTROLS (table)  ·  README  ·  WHAT IT INSTALLS  ·  UNINSTALL  ·  quip      #13 to #17

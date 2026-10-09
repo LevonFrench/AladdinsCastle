@@ -476,7 +476,7 @@ do     = "write-config"
 file   = "${install_dir}/quest-options.cfg"
 format = "cfg"                              # key=value lines, no sections
 set = [
-  { key = "physical_crouch", from = "settings.cover",      map = { duck = 1, grip = 0 }, default = 0 },
+  { key = "physical_crouch", from = "settings.cover",      map = { hold_to_shoot = 0, hold_to_cover = 0, toggle = 0 }, default = 0 },
   { key = "laser_enabled",   from = "settings.laser",      bool = { on = 1, off = 0 } },
   { key = "gun_pitch",       from = "settings.gun_pitch",  type = "int" },
   { key = "left_handed",     from = "profile.left_handed", bool = { on = 1, off = 0 } },

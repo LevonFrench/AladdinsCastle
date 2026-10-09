@@ -35,7 +35,7 @@ It's an installer, launcher and set of VR setups, modelled on [PCVR Mods Install
 
 1. Open AladdinsCastle on the PC. The library shows marquees and flyers. *Time Crisis* says **Ready · True 3D**. *Rave Racer* says **Needs your files**.
 2. Point the Hub at your ROM folder. It verifies `raverace.zip` by hash, and Rave Racer turns **Ready**.
-3. Press **Play** on Time Crisis and put on the Quest 3. You are standing in the castle courtyard with a GunCon in your hand. Duck for real to take cover.
+3. Press **Play** on Time Crisis and put on the Quest 3. You are standing in the castle courtyard with a GunCon in your hand. Let go of the grip to take cover, squeeze it to pop back out.
 4. Hold the menu button: the pause overlay offers recenter, laser, cover mode, quit.
 5. Quit and you're back on the desktop, or in the SteamVR library where every installed game also appears with its art. Pick *Rave Racer* from there without taking the headset off.
 6. In Rave Racer a ghost steering wheel and gear lever float in front of you. Grab the wheel and squeeze the right trigger to accelerate.

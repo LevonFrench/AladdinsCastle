@@ -17,9 +17,9 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 - **Done when:** on the owner's PC, the Hub finds the owner's games and emulators, installs Supermodel from upstream, and launches **Scud Race** (Supermodel), **Time Crisis** (MAME) and **Time Crisis II** (PCSX2) in flat windows, from the Hub and from a Steam library entry. Executed by Codex from [tasks/m1/](tasks/m1/README.md). Third-party VR ports (DR-89, VC2VR) are out of scope (owner, 2026-10-08).
 
 ## M2: namco22-vr: our first true-3D setups (libacvr v0 built with it)
-- libacvr v0 on the [contract](libacvr-contract.md): OpenXR session, multiview, recenter/height, pause overlay, gun module (aim projection, cover/ducking, recoil), ghost-control framework (wheel, `shifter_hl`, pedals, buttons), comfort basics.
+- libacvr v0 on the [contract](libacvr-contract.md): OpenXR session, multiview, recenter/height, pause overlay, gun module (aim projection, cover button, recoil), ghost-control framework (wheel, `shifter_hl`, pedals, buttons), comfort basics.
 - libacvr host on namco22-decompile (guarded build-time patches), stereo through the `geo_hw.c` projection.
-- **Time Crisis** (tracked pistol, physical ducking) and **Rave Racer** (ghost wheel, two-position shifter, trigger pedals).
+- **Time Crisis** (tracked pistol, cover on the grip button) and **Rave Racer** (ghost wheel, two-position shifter, trigger pedals).
 - **Control Mapping mode** ([controls-catalog.md](controls-catalog.md) §7) and the first 3D control models (wheel, H/L shifter, pistol).
 - Installed by the Hub as `acvr` variants; the Hub dashboard overlay from spike S1 becomes the in-VR Hub.
 - Contribute generic changes upstream to namco22-decompile.

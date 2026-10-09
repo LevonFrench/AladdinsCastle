@@ -409,7 +409,7 @@ VARIANT   ( DR-89 PCVR  * default )  ( DR-89 Quest 3 )  ( Our true 3D - planned 
 
  [ Find my files ]  [ Upstream page ]                                         (primary + companions)
 
- SETTINGS FOR THIS GAME   Cover [ Grip | Duck ]  Laser [ On | Off ]  Gun angle [-60 ... +60]  Hand [ Right | Left ]
+ SETTINGS FOR THIS GAME   Cover [ Hold to shoot | Hold to cover | Toggle ]  Laser [ On | Off ]  Gun angle [-60 ... +60]  Hand [ Right | Left ]
 
  PERFORMANCE   SOLID   (optional, OPEN)
 
@@ -452,7 +452,7 @@ When installed, the primary button becomes `Start in VR ▶`, the state pill bec
 | 16 | Uninstall | Only when installed (section 2.12). |
 | 17 | Quip | Optional, last. |
 
-**Controls table, gun setups** (generated, example for Time Crisis): fire = either trigger; take cover = duck (physical) or grip (grip mode); insert credits = A (right hand); laser = B (right hand); pause = left menu; recenter and set standing height = X (left hand). These come from the README and [controls.md](../controls.md) section 1.2. The generator reads the same data, so the README and the page cannot disagree.
+**Controls table, gun setups** (generated, example for Time Crisis): fire = either trigger; take cover = release the grip (hold to shoot) (grip mode); insert credits = A (right hand); laser = B (right hand); pause = left menu; recenter and set standing height = X (left hand). These come from the README and [controls.md](../controls.md) section 1.2. The generator reads the same data, so the README and the page cannot disagree.
 
 **Controls table, racing setups** (example for Rave Racer, from `setup/controls.toml`): steering wheel with range 270 degrees, two-position shifter (low, high), accelerator and brake from the triggers with a dead zone of 0.04, view-change button. Rows come from the `[[element]]` list.
 
@@ -612,7 +612,7 @@ Rules:
  [OK] Linked roms/timecris.zip (no second copy written)
 
 --- [4/4] Write settings and shortcut ---
- [OK] Wrote quest-options.cfg (cover: duck, laser: on, gun angle: -10)
+ [OK] Wrote quest-options.cfg (cover: hold to shoot, laser: on, gun angle: -10)
  [!!] Desktop shortcut not created: file in use. Retry from Settings.
 
  >>> Installed with 1 warning. [Start in VR ▶]
@@ -678,7 +678,7 @@ Shown as a strip under the action row (the Elden Ring pattern, section 1.20). Fo
 
 | Setting | Control | Stored in | Applied by |
 |---|---|---|---|
-| Cover | Segmented: Grip / Duck | `user/profiles/<player>.toml`, per-game override | Re-running `write-config` (`physical_crouch`) |
+| Cover | Segmented: Hold to shoot / Hold to cover / Toggle | `user/profiles/<player>.toml`, per-game override | Re-running `write-config` (`physical_crouch`) |
 | Laser | On / Off | Same | `write-config` (`laser_enabled`) |
 | Gun angle | Slider, -60 to +60 degrees (the range in [controls.md](../controls.md) section 1.1) | Same | `write-config` (`gun_pitch`) |
 | Hand | Right / Left | Profile (`left_handed`) | `write-config` |

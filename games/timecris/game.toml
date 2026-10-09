@@ -32,8 +32,8 @@ vr          = { best = "true3d", via = "DR-89 Time Crisis VR" }
 pill   = "TIMECRIS"
 colour = "#1a0f0f"
 accent = "#e0302a"
-blurb  = "Duck behind cover for real, then pop up and shoot."
-badges = ["roomscale", "quest-standalone"]
+blurb  = "Take cover, pop up, and shoot the castle clear."
+badges = ["roomscale"]
 
 [meta]
 sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos22.cpp", "https://github.com/spacestate1/namco22-decompile", "https://github.com/DR-89/time-crisis-vr"]

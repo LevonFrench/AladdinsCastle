@@ -51,7 +51,7 @@ vr          = { best = "true3d", via = "DR-89 Time Crisis VR" }   # best: true3d
 pill   = "TIMECRIS"                       # short tag in the card's top-left pill (uppercase, <= 12 chars)
 colour = "#1a0f0f"                        # card background tint
 accent = "#e0302a"                        # border glow, version line, Install button
-blurb  = "Duck behind cover for real, then pop up and shoot."   # one line under the author
+blurb  = "Take cover, pop up, and shoot the castle clear."   # one line under the author
 badges = ["roomscale", "quest-standalone"]                       # extra tile badges: roomscale | seated | 2-players | 3-players | wip | cover | quest-standalone
 steam_app_id = 0                          # optional: official Steam app id when the game is also sold on Steam (for art matching)
 
