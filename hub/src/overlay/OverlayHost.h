@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: GPL-3.0-only
+#pragma once
+#include "OverlayInput.h"
+#include "OverlayRuntime.h"
+#include <QElapsedTimer>
+#include <QPointer>
+#include <QTimer>
+class QQmlEngine;
+class QQuickItem;
+namespace ac {
+class QuickTextureRenderer;
+class SpikeState;
+class OverlayHost : public QObject {
+    Q_OBJECT
+public:
+    OverlayHost(SpikeState &state, std::unique_ptr<OverlayRuntime> runtime = makeOpenVrRuntime(), QObject *parent = nullptr);
+    ~OverlayHost() override;
+    bool initialize(QQmlEngine &engine, const QString &thumbnail, QString *error);
+    Q_INVOKABLE void requestKeyboard(QQuickItem *item);
+    Q_INVOKABLE void dismissKeyboard();
+    // Public input boundary: tests inject synthetic events through the same path.
+    void handleRuntimeEvent(const vr::VREvent_t &event);
+    void shutdown();
+signals:
+    void quitRequested();
+    void failed(const QString &error);
+private:
+    void tick();
+    void closeKeyboard(bool clearFocus, bool hide);
+    SpikeState &m_state;
+    std::unique_ptr<OverlayRuntime> m_runtime;
+    std::unique_ptr<QuickTextureRenderer> m_renderer;
+    OverlayInput m_input;
+    OverlayFrameGate m_gate;
+    QPointer<QQuickItem> m_keyboardTarget;
+    quint64 m_keyboardToken = 0;
+    bool m_keyboardOpen = false;
+    bool m_quitSeen = false;
+    bool m_running = false;
+    QTimer m_timer;
+    QElapsedTimer m_clock;
+    qint64 m_reportTime = 0;
+    quint64 m_frames = 0;
+    double m_cpuSum = 0;
+    double m_cpuMax = 0;
+};
+}

@@ -1,0 +1,21 @@
+{
+  "source": "builtin",
+  "applications": [
+    {
+      "app_key": "org.aladdinscastle.hub",
+      "launch_type": "binary",
+      "binary_path_windows": "../aladdinscastle-hub.exe",
+      "binary_path_linux": "../aladdinscastle-hub",
+      "working_directory": "..",
+      "arguments": "--overlay",
+      "is_dashboard_overlay": true,
+      "image_path": "overlay-thumbnail.png",
+      "strings": {
+        "en_us": {
+          "name": "AladdinsCastle",
+          "description": "AladdinsCastle Hub dashboard overlay"
+        }
+      }
+    }
+  ]
+}

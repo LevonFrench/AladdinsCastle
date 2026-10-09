@@ -10,10 +10,12 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
         if (arg == "--help" || arg == "-h") options.help = true;
         else if (arg == "--version") options.version = true;
         else if (arg == "--window") options.window = true;
-        else if (arg == "--overlay" || arg == "--launch") {
-            if (modeSeen) { options.error = "Choose only one of --overlay and --launch."; break; }
+        else if (arg == "--spike") options.spike = true;
+        else if (arg == "--overlay" || arg == "--launch" || arg == "--register-overlay" || arg == "--unregister-overlay") {
+            if (modeSeen) { options.error = "Choose one execution mode (--overlay, --launch, --register-overlay, --unregister-overlay)."; break; }
             modeSeen = true;
-            options.mode = arg == "--overlay" ? Mode::Overlay : Mode::Launch;
+            options.mode = arg == "--overlay" ? Mode::Overlay : arg == "--launch" ? Mode::Launch
+                        : arg == "--register-overlay" ? Mode::RegisterOverlay : Mode::UnregisterOverlay;
             if (options.mode == Mode::Launch) {
                 if (++i >= arguments.size()) { options.error = "--launch requires a game ID."; break; }
                 options.gameId = arguments.at(i);
@@ -32,6 +34,8 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
     }
     if (options.error.isEmpty() && options.window && options.mode != Mode::Overlay)
         options.error = "--window requires --overlay.";
+    if (options.error.isEmpty() && options.spike && options.mode != Mode::Desktop && options.mode != Mode::Overlay)
+        options.error = "--spike requires desktop or overlay mode.";
     return options;
 }
 }

@@ -68,6 +68,15 @@ endif()
 ac_project_warnings(hubcore)
 qt_add_resources(hubcore scan_metadata PREFIX /scan BASE resources FILES resources/serial-index.json)
 
+add_library(huboverlay STATIC
+    src/overlay/OverlayInput.cpp src/overlay/OverlayInput.h
+    src/overlay/QuickTextureRenderer.cpp src/overlay/QuickTextureRenderer.h
+    src/overlay/OverlayRuntime.cpp src/overlay/OverlayRuntime.h
+    src/overlay/OverlayHost.cpp src/overlay/OverlayHost.h src/overlay/SpikeState.h)
+target_include_directories(huboverlay PUBLIC src)
+target_link_libraries(huboverlay PUBLIC Qt6::Quick Qt6::OpenGL OpenVR::OpenVR)
+ac_project_warnings(huboverlay)
+
 qt_add_library(hubui STATIC)
 target_link_libraries(hubui PUBLIC hubcore Qt6::Quick Qt6::QuickControls2)
 file(GLOB AC_QML_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
@@ -75,19 +84,23 @@ foreach(qml_file IN LISTS AC_QML_FILES)
     get_filename_component(qml_name "${qml_file}" NAME)
     set_source_files_properties("${qml_file}" PROPERTIES QT_RESOURCE_ALIAS "${qml_name}")
 endforeach()
+set_source_files_properties(qml/spike/OverlayTest.qml PROPERTIES QT_RESOURCE_ALIAS spike/OverlayTest.qml)
 qt_add_qml_module(hubui URI AladdinsCastle.Hub VERSION 1.0 NO_PLUGIN
     RESOURCE_PREFIX /qt/qml OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml/AladdinsCastle/Hub"
-    QML_FILES ${AC_QML_FILES}
+    QML_FILES ${AC_QML_FILES} qml/spike/OverlayTest.qml
     SOURCES src/ui/Theme.h src/ui/Theme.cpp src/ui/UiSettings.h src/ui/UiSettings.cpp
         src/ui/UiController.h src/ui/UiController.cpp)
 ac_project_warnings(hubui)
 qt_add_executable(aladdinscastle-hub src/app/main.cpp)
-target_link_libraries(aladdinscastle-hub PRIVATE hubui Qt6::OpenGL Qt6::ShaderTools OpenVR::OpenVR)
+target_link_libraries(aladdinscastle-hub PRIVATE hubui huboverlay Qt6::OpenGL Qt6::ShaderTools OpenVR::OpenVR)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/resources")
 configure_file("../docs/ui/theme.toml" "resources/theme.toml" COPYONLY)
 qt_add_resources(aladdinscastle-hub theme
     PREFIX /resources BASE "${CMAKE_CURRENT_BINARY_DIR}/resources"
     FILES "${CMAKE_CURRENT_BINARY_DIR}/resources/theme.toml")
+file(MAKE_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources")
+configure_file(resources/aladdinscastle.vrmanifest "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/aladdinscastle.vrmanifest" COPYONLY)
+configure_file(resources/overlay-thumbnail.png "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/overlay-thumbnail.png" COPYONLY)
 ac_project_warnings(aladdinscastle-hub)
 add_custom_command(TARGET aladdinscastle-hub POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -133,4 +146,23 @@ if(BUILD_TESTING)
     ac_project_warnings(scan-art-tests)
     add_test(NAME hub-scan-art COMMAND scan-art-tests)
     set_tests_properties(hub-scan-art PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    qt_add_executable(overlay-tests tests/OverlayTest.cpp)
+    target_link_libraries(overlay-tests PRIVATE huboverlay hubcore Qt6::Test)
+    ac_project_warnings(overlay-tests)
+    set_target_properties(overlay-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME overlay-synthetic COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:overlay-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/overlay-synthetic.txt
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
+    qt_add_executable(overlay-scene-tests tests/OverlaySceneTest.cpp)
+    target_link_libraries(overlay-scene-tests PRIVATE huboverlay Qt6::Test Qt6::QuickControls2)
+    target_compile_definitions(overlay-scene-tests PRIVATE AC_SPIKE_SCENE="${CMAKE_CURRENT_SOURCE_DIR}/qml/spike/OverlayTest.qml")
+    ac_project_warnings(overlay-scene-tests)
+    set_target_properties(overlay-scene-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME overlay-scene COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:overlay-scene-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/overlay-scene.txt
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
+    set_tests_properties(overlay-scene PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
 endif()
