@@ -4,6 +4,24 @@
 
 This page covers the art the Hub shows for the 413 catalogued games (cards, banners, detail pages) and the Steam library art for SteamVR shortcuts. It sets which source comes first, how assets are matched to games, where credentials live, how the Hub stays within each service's limits, what goes in each provenance sidecar, what the generated fallback looks like, and what may ship in a pack.
 
+## 0. v1: local art only (owner, 2026-10-08)
+
+No scraping in v1. The Hub uses art already on the user's disk, then generated fallback art. Scrapers (ScreenScraper, SteamGridDB, others in this doc) are deferred.
+
+Resolution order per game (first hit wins, per asset type):
+1. `user/art/<id>/` (art the user dropped in for this game).
+2. **Configured local art folders**, matched by the keys the media scanner already knows:
+   | Layout | Path pattern | Match key |
+   |---|---|---|
+   | EmulationStation / RetroBat per-system folders | `<roms>/<system>/{marquee,boxart,snap,images,media}/<file>.<png,jpg,mp4>` | ROM/disc file basename; for arcade also the MAME set name |
+   | RetroArch thumbnails | `<retroarch>/thumbnails/<playlist>/Named_{Boxarts,Snaps,Titles}/<No-Intro title>.png` | Normalised title (No-Intro rules: `&` → `_`, etc.) |
+   | PCSX2 covers | `<pcsx2>/covers/<serial>.jpg` | Disc serial |
+   | MAME artwork | `<mame>/artwork/<set>.zip` (bezels/overlays) | MAME set name (bezels only) |
+   Folder roots come from the same "point to / search" flow as ROMs and emulators. Nothing is copied; the Hub reads in place and caches thumbnails under `user/cache/art/`.
+3. Generated fallback (§ generated art in this doc).
+
+Asset roles: marquee → card art strip and featured banner; boxart → detail hero and Steam capsule; snap/video → detail page preview.
+
 ## 1. Rules
 
 1. **No third-party art in the repo or in packs.** Packs may ship only art they have the right to distribute (section 10).
