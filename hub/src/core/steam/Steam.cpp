@@ -295,6 +295,8 @@ Preview preview(const WriteRequest &r) {
   Document beforeDocument, afterDocument;
   const auto *prior = ownedShortcut(before, r.shortcut.gameId, beforeDocument);
   const auto *next = ownedShortcut(p.edit.bytes, r.shortcut.gameId, afterDocument);
+  if (r.remove)
+    p.json["launchOptions"] = fieldValue(prior ? field(*prior, "LaunchOptions") : nullptr);
   p.json["userFields"] = Json::object();
   for (const auto *key : {"icon", "IsHidden", "AllowOverlay", "AllowDesktopConfig", "LastPlayTime"})
     p.json["userFields"][key] = {

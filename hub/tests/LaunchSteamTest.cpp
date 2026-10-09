@@ -351,6 +351,10 @@ void LaunchSteamTest::multipleAccountsAndUnicodePaths() {
   QCOMPARE(QString::fromUtf8(find(stored.roots[0].children[0], "Exe")->payload),
            '"' + QDir::toNativeSeparators(r.shortcut.executable) + '"');
   QVERIFY(!QFileInfo::exists(root + "/userdata/123/config/shortcuts.vdf"));
+  r.remove = true;
+  r.shortcut.variantId = "another-flat";
+  QCOMPARE(steam::preview(r).json["launchOptions"],
+           Json("--launch test-game --variant flat-synthetic"));
 }
 void LaunchSteamTest::collisionRefused() {
   auto a = shortcut();
