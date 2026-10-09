@@ -84,7 +84,7 @@ class UiTest:public QObject {
   QString raw="![inline](https://example.invalid/inline.png)\n![reference][cover]\n[cover]: https://example.invalid/ref.png\n![shortcut]\n[shortcut]: https://example.invalid/shortcut.png\n<img\n src=\"https://example.invalid/html.png\">\n[Upstream](https://example.invalid/project)";
   auto safe=ac::UiController::safeMarkdown(raw);QVERIFY(!safe.contains("!["));QVERIFY(!safe.contains("<img",Qt::CaseInsensitive));QVERIFY(safe.contains("[Upstream]"));
 #ifdef Q_OS_WIN
-  QCOMPARE(ui->localPath(QUrl("file:///J:/synthetic%20folder")),QString("J:/synthetic folder"));
+  const auto syntheticPath=user.filePath("synthetic folder");QCOMPARE(ui->localPath(QUrl::fromLocalFile(syntheticPath)),syntheticPath);
 #else
   QCOMPARE(ui->localPath(QUrl("file:///tmp/synthetic%20folder")),QString("/tmp/synthetic folder"));
 #endif

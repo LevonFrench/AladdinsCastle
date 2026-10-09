@@ -1,6 +1,6 @@
 # Task for Codex: MAME sprite-depth probe (OutRun first)
 
-**Repo:** `J:\projects\games\aladdinscastle` (public, GPL-3.0). **Branch:** `codex/mame-sprite-probe` (use a git worktree, see the end). **Type:** experiment + small tool; evidence decides the design of sprite-scaler games in VR.
+**Repo:** `<repo>` (public, GPL-3.0). **Branch:** `codex/mame-sprite-probe` (use a git worktree, see the end). **Type:** experiment + small tool; evidence decides the design of sprite-scaler games in VR.
 
 ## Question to answer
 
@@ -10,16 +10,16 @@ Hypothesis: these games compute sprite size ≈ k / distance, so `z ≈ k / zoom
 
 ## Read first
 
-- `J:\projects\games\aladdinscastle\docs\architecture.md` §2.4 (stereo techniques) and `docs\catalog.md`
+- `<repo>\docs\architecture.md` §2.4 (stereo techniques) and `docs\catalog.md`
 - Wiki notes (local, read-only):
-  - `J:\projects\.wiki\topics\vr-arcade-gun-racing\raw\articles\2026-10-08-scaler-mame-sega-namco-taito-sprite-sources.md` (sprite devices, OutRun sprite RAM `0x100000-0x100fff`, zoom fields `vzoom`/`hzoom` 0x200 = full, Y Board affine ground)
-  - `J:\projects\.wiki\topics\vr-arcade-gun-racing\raw\repos\2026-10-08-gap2-input-mame-lua-outputs.md` (MAME Lua API notes)
-  - `J:\projects\.wiki\topics\vr-arcade-gun-racing\raw\repos\2026-10-08-scaler-djyt-cannonball.md` (Cannonball reads true `oentry.z`: use as a **reference for expected values only**; its licence is non-commercial, so copy no code)
+  - `<wiki>\topics\vr-arcade-gun-racing\raw\articles\2026-10-08-scaler-mame-sega-namco-taito-sprite-sources.md` (sprite devices, OutRun sprite RAM `0x100000-0x100fff`, zoom fields `vzoom`/`hzoom` 0x200 = full, Y Board affine ground)
+  - `<wiki>\topics\vr-arcade-gun-racing\raw\repos\2026-10-08-gap2-input-mame-lua-outputs.md` (MAME Lua API notes)
+  - `<wiki>\topics\vr-arcade-gun-racing\raw\repos\2026-10-08-scaler-djyt-cannonball.md` (Cannonball reads true `oentry.z`: use as a **reference for expected values only**; its licence is non-commercial, so copy no code)
 - MAME source (BSD-3 / GPL-2.0+): `src/mame/sega/segaorun.cpp`, `src/mame/sega/sega16sp.cpp` (`sega_outrun_sprite_device`, sprite format comment ~line 1059), `src/mame/sega/segaic16.cpp` (road), and the Lua engine docs `docs/source/luascript/` (MAME 0.289).
 
 ## Local setup (private: not in this file)
 
-The owner's MAME 0.289 install path and ROM folder (which contains `outrun.zip`) are listed in `J:\projects\games\aladdinscastle\AGENCY.md` ("Owner's local library"). Read them from there. **Never write into those folders** except MAME's own `plugins` directory for the probe plugin, and remove it again when done (or ask the owner first if a plugin folder write is not acceptable; an `-autoboot_script` with `-plugin` disabled avoids touching MAME's folders entirely, so prefer that).
+The owner's MAME 0.289 install path and ROM folder (which contains `outrun.zip`) are listed in `<repo>\AGENCY.md` ("Owner's local library"). Read them from there. **Never write into those folders** except MAME's own `plugins` directory for the probe plugin, and remove it again when done (or ask the owner first if a plugin folder write is not acceptable; an `-autoboot_script` with `-plugin` disabled avoids touching MAME's folders entirely, so prefer that).
 
 ## Deliverables (only these paths, on your branch)
 
@@ -41,15 +41,15 @@ The owner's MAME 0.289 install path and ROM folder (which contains `outrun.zip`)
 - Read-only on the owner's ROM folders. No ROM content, sprite graphics or screenshots in commits. Captures stay in `.local/` (gitignored).
 - Don't modify `games\`, `data\`, `docs\ui\`, other docs, or `tools\validate_catalog.py` (other work is ongoing).
 - No code copied from Cannonball (non-commercial licence). MAME code may be referenced by file:line.
-- Use full absolute paths (`J:\...`) when reporting.
+- Use full absolute paths (`<local-root>/...`) when reporting.
 
 ## Worktree (so you don't share the main checkout)
 
 ```bash
-git -C J:/projects/games/aladdinscastle worktree add J:/projects/games/aladdinscastle-codex-probe -b codex/mame-sprite-probe main
+git -C <repo> worktree add <repo> -b codex/mame-sprite-probe main
 ```
 
-Work in `J:\projects\games\aladdinscastle-codex-probe`. The `.local/` folder there is gitignored too.
+Work in `<repo>`. The `.local/` folder there is gitignored too.
 
 ## Done when
 

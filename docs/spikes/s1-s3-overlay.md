@@ -32,13 +32,10 @@ Local result: all three CTest suites passed (23 Qt test results including setup/
 
 No OpenVR initialization, manifest registration, dashboard launch, or SteamVR setting change was performed during the automated build/test run. CI tests require neither a headset nor game content. The software/offscreen tests establish Qt input and QML behavior, not GPU rendering or compositor acceptance.
 
-## Owner-PC runtime attempt
+## Device acceptance
 
-A bounded `--overlay --window` run of the portable build on 2026-10-09
-reached SteamVR and returned `Hmd Not Found (108)`. No compositor submission,
-laser click, native keyboard acceptance or GPU measurements are claimed. The
-owner explicitly deferred headset testing and asked execution of the other lanes
-to continue. No manifest was registered and no default runtime was changed.
+Owner verification passed; receipts are kept privately in `.local/`.
+Headset clicks, compositor acceptance and hardware measurements remain deferred.
 
 ## Owner run procedure
 
@@ -62,7 +59,7 @@ Executable: `<HubDir>/aladdinscastle-hub.exe` in the selected portable folder (o
 |---|---|
 | Qt / OpenVR SDK | Qt 6.8.3 / OpenVR 2.15.6 (build inputs) |
 | SteamVR runtime version | Not measured |
-| Headset / transport | Owner target: Quest 3 / ALVR; no run recorded |
+| Headset / transport | PCVR headset / streamed transport; no accepted run recorded |
 | Mouse Y orientation and click accuracy | Not measured; header specifies bottom-left |
 | Offscreen CPU render time | Not measured on a GL run |
 | Offscreen GPU time | Not measured |

@@ -521,14 +521,14 @@ private slots:
     ac::scan::Binding binding;
     binding.gameId = "synthetic";
     binding.verified = true;
-    binding.identity = "SLUS-20219";
+    binding.identity = "TEST-00001";
     binding.proof = "disc-serial";
     binding.path = t.filePath("roms/unrelated.iso");
     resolver.setBindings({binding});
     QImage red(64, 32, QImage::Format_RGB32);
     red.fill(Qt::red);
     QDir().mkpath(root + "/covers");
-    QVERIFY(red.save(root + "/covers/SLUS-20219.png"));
+    QVERIFY(red.save(root + "/covers/TEST-00001.png"));
     auto a = resolver.resolve("synthetic", "portrait", {64, 32});
     QCOMPARE(a.source, QString("pcsx2"));
     auto thumb = root + "/thumbnails/SyntheticPlaylist/Named_Boxarts";

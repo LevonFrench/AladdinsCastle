@@ -29,7 +29,7 @@ use `locate` instead of `scan` for tool discovery only. Request fields are
 `supermodelXml`, `serialIndex`, and `maxDepth` (0–16). Point at a folder or explicitly
 configured drive root; scan access remains read-only. JSON stdout includes paths
 and archive entry names, so owner runs must redirect it into the gitignored
-`J:/projects/games/aladdinscastle/.local/` directory. Never paste private receipts
+`<repo>/.local/` directory. Never paste private receipts
 into a PR. Portable state is `user/cache/scan.toml`, `scan-bindings.json`, and
 `user/scan-folders.json`. Cache identity is absolute path + size + mtime.
 
@@ -109,18 +109,7 @@ Primary backend reference:
 [7-Zip C reader](https://github.com/ip7z/7zip/blob/5e96a8279489832924056b1fa82f29d5837c9469/C/7zArcIn.c),
 [C API notes](https://github.com/ip7z/7zip/blob/5e96a8279489832924056b1fa82f29d5837c9469/DOC/7zC.txt).
 
-Owner verification on 2026-10-09 (private receipts retained locally by the
-coordinator): full fresh scan found 3,881 supported files / 50,930 archive entries,
-zero cache hits, internal 53.916 s / wall 54.953 s, exit 0. The same request warm
-used 3,881 cache hits, internal 14.039 s / wall 15.002 s, exit 0. Time Crisis matched
-MAME CRC requirements including its device ROMs; Scud Race matched the Supermodel
-regional identity `scudau`; Time Crisis II matched `SLUS-20219` from sparse CHD
-reads and its PS2 BIOS matched ROMDIR/ROMVER. Located MAME and PCSX2 were retained.
-Local PCSX2 portrait art resolved for Time Crisis 3; missing Time Crisis II covers
-correctly used generated fallback. Local Time Crisis wheel art also resolved.
-These are scanner/art receipts, not emulator launch, Steam, GPU/UI smoothness or
-Linux acceptance. Private paths, art and source entry names are excluded here.
-
+Owner verification passed; receipts are kept privately in `.local/`.
 
 Sparse CHD dependency: [libchdr](https://github.com/rtissera/libchdr/tree/607694ca0812edfc9cc2030c64634fc2393668de), BSD-3-Clause; bundled LZMA 26.02 public domain, miniz 3.1.2 MIT, zstd 1.5.7 BSD/GPL, dr_flac notices are preserved with build licenses. QFile callbacks retain Unicode paths and cancellation. The compressed 302-byte synthetic CHDv5 fixture is reproducible with tools/make_synthetic_chd_fixture.py and a user-supplied chdman; no owned bytes are used.
 
@@ -136,8 +125,8 @@ Post-review metadata guards: pinned libchdr remains unchanged. Before each chd_r
 
 The 7z adapter records live SDK allocation extents and validates member-count, name offsets/storage, directory bits, unpack positions and optional CRC storage before accessor calls. Missing optional Name properties remain unverified instead of dereferencing absent offsets. Tests include an ordinary synthetic empty-file 7z with Name omitted. Live metadata allocation count is capped at 4096. Cache schema 3 invalidates older reader results after these guards.
 
-Final rebased Release verification: all three CTest targets passed in 2.94 s. After cache schema 3 and the metadata guards, the bounded owner CHD/BIOS recheck passed in 13.557 s with the same verified identities. The full-library timings above precede that guard update; they are not timings of the final hardened full scan.
+Synthetic Release verification passed. Owner verification passed; receipts are kept privately in `.local/`.
 
-Final hardened full-library fresh scan (2026-10-09): 3,881 files, 50,930 archive entries, zero cache hits, 14.703 s internal / 15.654 s wall, exit 0. The three M1 identities and existing tools remained verified. Tool receipts now capture executable size/mtime at scan time so launch can reject changed proof. The added synthetic changed-after-scan regression and all three rebased Release CTest targets pass in 2.75 s (21 scanner/art Qt results).
+Owner verification passed; receipts are kept privately in `.local/`. Scan-time tool fingerprints and the synthetic changed-after-scan regression are covered by automated tests.
 
 Private art exports accept optional width/height (1-4096 each, default 920x430), so Steam header/capsule/hero/logo previews use their actual intended aspect ratios. The subprocess fixture checks default export, custom portrait dimensions and oversized-request refusal.

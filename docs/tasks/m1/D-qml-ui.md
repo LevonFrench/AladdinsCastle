@@ -1,6 +1,6 @@
 # M1 lane D: QML UI (Mod Hub style)
 
-**Branch:** `m1/d-ui`. **Depends on:** C. **Read:** [ui/01-shell-and-filters.md](../../ui/01-shell-and-filters.md), [ui/02-game-cards.md](../../ui/02-game-cards.md), [ui/03-detail-and-install-flow.md](../../ui/03-detail-and-install-flow.md), [ui/04-qml-components.md](../../ui/04-qml-components.md) (the build map), [ui/05-models.md](../../ui/05-models.md), [ui/theme.toml](../../ui/theme.toml). Reference look: PCVR Mods Installer Hub screenshot and source (MIT), local clone in `J:/projects/games/aladdinscastle/_refs/PCVR-Mods-Installer-Hub/`.
+**Branch:** `m1/d-ui`. **Depends on:** C. **Read:** [ui/01-shell-and-filters.md](../../ui/01-shell-and-filters.md), [ui/02-game-cards.md](../../ui/02-game-cards.md), [ui/03-detail-and-install-flow.md](../../ui/03-detail-and-install-flow.md), [ui/04-qml-components.md](../../ui/04-qml-components.md) (the build map), [ui/05-models.md](../../ui/05-models.md), [ui/theme.toml](../../ui/theme.toml). Reference look: PCVR Mods Installer Hub screenshot and source (MIT), local clone in `<repo>/_refs/PCVR-Mods-Installer-Hub/`.
 
 ## Build (in `hub/qml/`)
 

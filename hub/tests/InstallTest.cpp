@@ -182,7 +182,7 @@ private slots:
   void names_data() {
     QTest::addColumn<QString>("name");
     for (const auto &name :
-         QStringList{"../escape", "/absolute", "C:/evil", "x:stream", "con.txt",
+         QStringList{"../escape", "/absolute", QDir::rootPath()+"evil", "x:stream", "con.txt",
                      "AUX", "x.", "x ", "a/../../evil"})
       QTest::newRow(qPrintable(name)) << name;
   }
@@ -611,7 +611,7 @@ private slots:
   }
   void unsafeArchives() {
     QTemporaryDir temp;
-    for (const auto &name : QStringList{"../escape", "C:/evil", "con.txt",
+    for (const auto &name : QStringList{"../escape", QDir::rootPath()+"evil", "con.txt",
                                         "x:stream", "game.iso"}) {
       const auto path = temp.path() + "/bad.zip";
       archiveFile(path, {name});

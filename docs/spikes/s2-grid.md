@@ -1,6 +1,6 @@
 # S2: 413-game desktop grid
 
-Measured on 2026-10-09 with the approved Qt 6.8.3/MSVC 2022 Release toolchain, OpenGL, Windows 11, Ryzen 9 5900X, RTX 3080 Ti and 31.9 GiB RAM. Window: 1120 × 720; actual scrolling viewport: 1120 × 565. All 413 catalog records were present. Art is the original inline-generated fallback; no game content or third-party game art was used.
+Measured on 2026-10-09 with the approved Qt 6.8.3/MSVC 2022 Release toolchain, OpenGL, Windows 11, a desktop with a recent high-end GPU. Window: 1120 × 720; actual scrolling viewport: 1120 × 565. All 413 catalog records were present. Art is the original inline-generated fallback; no game content or third-party game art was used.
 
 ## Final measurement
 

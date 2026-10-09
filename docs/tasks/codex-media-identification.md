@@ -1,6 +1,6 @@
 # Task for Codex: media identification ("Find my files")
 
-**Repo:** `J:\projects\games\aladdinscastle` (public, GPL-3.0). **Phase:** scoping, with a small read-only prototype. **Branch:** create `codex/media-identification` and commit there; do not push to `main`.
+**Repo:** `<repo>` (public, GPL-3.0). **Phase:** scoping, with a small read-only prototype. **Branch:** create `codex/media-identification` and commit there; do not push to `main`.
 
 ## Goal
 
@@ -8,10 +8,10 @@ Design how the AladdinsCastle Hub recognises the user's own game files **by cont
 
 ## Read first
 
-- `J:\projects\games\aladdinscastle\docs\game-schema.md`: `[[media]]` entries (kind `mame-romset`, `disc`, `pc-game`, `bios`; `set`, `serial`, `find`)
-- `J:\projects\games\aladdinscastle\docs\frontend.md` §4 (install / locate / search for emulators and game files)
-- `J:\projects\games\aladdinscastle\games\*\game.toml`: real examples (`timecris`, `raverace`, `scud`, `vcop2`, `ps2-virtua-cop-elite-edition`); more are being added by other agents right now
-- `J:\projects\games\aladdinscastle\_refs\namco22-decompile\docs\ROM_CHECKSUMS.md`: per-chip checksums and accepted older chip names
+- `<repo>\docs\game-schema.md`: `[[media]]` entries (kind `mame-romset`, `disc`, `pc-game`, `bios`; `set`, `serial`, `find`)
+- `<repo>\docs\frontend.md` §4 (install / locate / search for emulators and game files)
+- `<repo>\games\*\game.toml`: real examples (`timecris`, `raverace`, `scud`, `vcop2`, `ps2-virtua-cop-elite-edition`); more are being added by other agents right now
+- `<repo>\_refs\namco22-decompile\docs\ROM_CHECKSUMS.md`: per-chip checksums and accepted older chip names
 
 ## What to identify
 
@@ -27,11 +27,11 @@ Design how the AladdinsCastle Hub recognises the user's own game files **by cont
 
 ## Deliverables (only these paths)
 
-1. `J:\projects\games\aladdinscastle\docs\media-identification.md`: the design: per media kind, the method, the data source (MAME listxml, Supermodel Games.xml, Redump DATs, our own `data/hashes/`), how results map to `game.toml` `[[media]]`, how missing parts are reported in the UI ("Needs your files: namcoc74"), performance (header-only reads, caching by path+size+mtime), and privacy (results stay on the user's PC).
-2. `J:\projects\games\aladdinscastle\tools\identify\`: a **Python 3.12, standard-library-only**, read-only prototype CLI:
+1. `<repo>\docs\media-identification.md`: the design: per media kind, the method, the data source (MAME listxml, Supermodel Games.xml, Redump DATs, our own `data/hashes/`), how results map to `game.toml` `[[media]]`, how missing parts are reported in the UI ("Needs your files: namcoc74"), performance (header-only reads, caching by path+size+mtime), and privacy (results stay on the user's PC).
+2. `<repo>\tools\identify\`: a **Python 3.12, standard-library-only**, read-only prototype CLI:
    - `python tools/identify/identify.py <folder> [--mame <path to mame.exe>] [--games games] --out .local/identify-report.json`
    - Romsets matched via zip CRC32s against MAME `-listxml` output (cache the XML under `.local/`); discs matched via serial/header where cheap; prints a short human summary and writes the JSON report.
-3. Add `.local/` to `J:\projects\games\aladdinscastle\.gitignore`.
+3. Add `.local/` to `<repo>\.gitignore`.
 
 ## Test it on the owner's library (read-only)
 
@@ -43,7 +43,7 @@ Design how the AladdinsCastle Hub recognises the user's own game files **by cont
 
 - Don't modify `games\`, `docs\ui\`, `data\vocab\`, `_refs\`, `tools\validate_catalog.py` or other existing docs (other agents are writing there). Put suggested schema changes in your design doc.
 - No downloading of game content or links to it. Downloading public hash DATs is out of scope for the prototype: design for it instead.
-- Use full absolute paths (`J:\...`) when reporting.
+- Use full absolute paths (`<local-root>/...`) when reporting.
 
 ## Done when
 

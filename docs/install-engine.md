@@ -424,7 +424,7 @@ Undo records are written to the journal and copied into the manifest (§9.1). Th
 - **Inputs:** `what`, `pattern` (filename glob), `kind` (`archive`, `file` or `folder`), `sha256` (optional), `search` (optional extra folders; default Downloads).
 - **Behaviour:** read-only search, with no writes and no network. The engine lists candidates with name, size, mtime and hash result. The user confirms one. Nothing is used silently (frontend.md §4).
 - **Partial downloads** are excluded by suffix: `.crdownload`, `.part`, `.tmp`, `.opdownload` (`Core/Modules/InstallerFoundation.ps1:131`).
-- **Dropped paths** are canonicalised the same way as the Mod Hub: quotes removed, bare drive `D:` becomes `D:\` (`Core/Modules/InstallerRecovery.ps1:11-30`).
+- **Dropped paths** are canonicalised the same way as the Mod Hub: quotes removed, bare drive `D:` becomes `<local-root>/` (`Core/Modules/InstallerRecovery.ps1:11-30`).
 - **Verified state:** with `sha256`, the candidate must match. Without it, the state is "found, not verified" (ui/03 §2.5).
 - **Output:** `path`, `sha256`, `bytes`, `verified`. Stored in `located.toml`.
 - **Failure modes:** not found gives `E_MEDIA_MISSING` (action: "Find my files"). A candidate that fails validation is rejected, and the original is not touched.

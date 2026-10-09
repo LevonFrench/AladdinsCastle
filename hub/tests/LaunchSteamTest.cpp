@@ -17,8 +17,8 @@ void write(const QString &path, const QByteArray &bytes) {
 steam::Shortcut shortcut() {
   return {"test-game",
           "Synthetic Game",
-          "C:/Synthetic/hub.exe",
-          "C:/Synthetic",
+          "/Synthetic/hub.exe",
+          "/Synthetic",
           false,
           0,
           0};
@@ -85,8 +85,8 @@ void LaunchSteamTest::appIds() {
   // Independently generated with Python zlib.crc32 UTF-8 vectors.
   QCOMPARE(steam::appId("123456789", {}), quint32(0xcbf43926));
   QCOMPARE(steam::appId({}, {}), quint32(0x80000000));
-  QCOMPARE(steam::appId("\"C:/Synthetic/hub.exe\"", "Synthetic Game"),
-           quint32(0xc17a01bd));
+  QCOMPARE(steam::appId("\"/Synthetic/hub.exe\"", "Synthetic Game"),
+           quint32(0xb7400df6));
   QCOMPARE(steam::appId("\"/tmp/hub\"", QString::fromUtf8("遊戲 Café")),
            quint32(0x9c6c4176));
   QCOMPARE(steam::launchId(0xcbf43926), quint64(0xcbf4392602000000ull));
@@ -112,7 +112,7 @@ void LaunchSteamTest::ownedEditPreservesUnownedAndUnknown() {
   const auto parsed = steam::parse(original);
   auto s = shortcut();
   s.title = "Renamed synthetic";
-  s.executable = "C:/Moved/hub.exe";
+  s.executable = "/Moved/hub.exe";
   const auto update = steam::edit(original, s);
   QCOMPARE(update.id, first.id);
   QVERIFY(update.changed);
