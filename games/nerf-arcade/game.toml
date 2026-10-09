@@ -6,6 +6,7 @@ year         = 2019
 manufacturer = "raw-thrills"
 developer    = "Play Mechanix"
 hardware     = "pc-arcade"
+graphics     = "polygon-3d"
 players      = 2
 series       = "NERF"
 

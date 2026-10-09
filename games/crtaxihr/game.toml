@@ -6,6 +6,7 @@ year         = 2003
 manufacturer = "sega"
 developer    = "Hitmaker"
 hardware     = "sega-chihiro"
+graphics     = "polygon-3d"
 players      = 1
 
 [controls]

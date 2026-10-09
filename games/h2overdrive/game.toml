@@ -6,6 +6,7 @@ year         = 2009
 manufacturer = "raw-thrills"
 developer    = "Specular Interactive"
 hardware     = "pc-arcade"
+graphics     = "polygon-3d"
 players      = 1
 series       = "H2Overdrive"
 

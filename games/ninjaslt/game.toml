@@ -6,6 +6,7 @@ year         = 2000
 manufacturer = "namco"
 developer    = "Namco"
 hardware     = "sega-naomi"
+graphics     = "polygon-3d"
 players      = 2
 
 [controls]

@@ -9,6 +9,7 @@ year         = 2002
 manufacturer = "namco"
 developer    = "Now Production"
 hardware     = "sony-ps2"
+graphics     = "polygon-3d"
 original     = "ninjaslt"
 players      = 2
 

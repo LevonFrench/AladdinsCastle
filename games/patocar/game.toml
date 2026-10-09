@@ -5,6 +5,7 @@ subgenre     = ["mission-driving"]
 year         = 2001
 manufacturer = "sega"
 hardware     = "sega-stv"
+graphics     = "polygon-3d"   # verify: 2D/3D not confirmed
 players      = 1
 series       = "Patrol Car"
 

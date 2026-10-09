@@ -6,6 +6,7 @@ year         = 1992
 manufacturer = "sega"
 developer    = "Sega AM2"
 hardware     = "sega-model-1"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Virtua Racing"
 

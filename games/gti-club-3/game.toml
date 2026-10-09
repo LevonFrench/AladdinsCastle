@@ -7,6 +7,7 @@ year         = 2008
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "other-arcade"
+graphics     = "polygon-3d"
 players      = 2
 series       = "GTI Club"
 

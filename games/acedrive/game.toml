@@ -6,6 +6,7 @@ year         = 1994
 manufacturer = "namco"
 developer    = "Namco"
 hardware     = "namco-system-22"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Ace Driver"
 

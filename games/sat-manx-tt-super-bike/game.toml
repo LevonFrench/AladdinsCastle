@@ -7,6 +7,7 @@ year         = 1997
 manufacturer = "sega"
 developer    = "Tantalus Interactive (Saturn port); Sega AM3 / Sega AM4 (arcade)"
 hardware     = "sega-saturn"
+graphics     = "polygon-3d"
 players      = 1
 original     = "manxtt"
 

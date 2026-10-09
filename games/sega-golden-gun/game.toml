@@ -6,6 +6,7 @@ year         = 2011
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-ringwide"
+graphics     = "polygon-3d"
 players      = 2                   # unverified: check cabinet / MAME inputs
 
 [controls]

@@ -9,6 +9,7 @@ year         = 2001
 manufacturer = "sega"
 developer    = "Sega AM2 (arcade); Acclaim Studios Cheltenham (PS2 port)"
 hardware     = "sony-ps2"
+graphics     = "polygon-3d"
 original     = "18-wheeler-american-pro-trucker"
 players      = 1
 series       = "18 Wheeler"

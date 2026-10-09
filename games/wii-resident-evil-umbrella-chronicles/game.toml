@@ -7,6 +7,7 @@ year         = 2007
 manufacturer = "capcom"
 developer    = "Capcom; Cavia"
 hardware     = "nintendo-wii"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Resident Evil"
 

@@ -7,6 +7,7 @@ year         = 2011
 manufacturer = "sega"
 developer    = "Sumo Digital (360 port); Sega Racing Studio (arcade)"
 hardware     = "microsoft-xbox-360"
+graphics     = "polygon-3d"
 players      = 4
 series       = "Sega Rally"
 # original = arcade Sega Rally 3 (2008); set name not verified; left unset. Player count is for online play and unverified.

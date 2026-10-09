@@ -7,6 +7,7 @@ year         = 2011
 manufacturer = "sega"
 developer    = "Sega AM2 (arcade original)"
 hardware     = "microsoft-xbox-360"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Daytona USA"
 original     = "daytona"

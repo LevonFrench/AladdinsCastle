@@ -6,6 +6,7 @@ year         = 2003
 manufacturer = "sega"
 developer    = "Amusement Vision"
 hardware     = "sega-triforce"
+graphics     = "polygon-3d"
 players      = 1
 series       = "F-Zero"
 

@@ -7,6 +7,7 @@ year         = 1998
 manufacturer = "sega"
 developer    = "Sega AM1 (arcade); PC port by Sega"
 hardware     = "pc-windows"
+graphics     = "polygon-3d"
 players      = 1
 series       = "The House of the Dead"
 original     = "hotd"

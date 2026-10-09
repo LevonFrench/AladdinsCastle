@@ -6,6 +6,7 @@ year         = 1997
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-model-2"
+graphics     = "polygon-3d"
 players      = 2
 series       = "The House of the Dead"
 

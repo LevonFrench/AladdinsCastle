@@ -6,6 +6,7 @@ year         = 1998
 manufacturer = "taito"
 developer    = "Taito"
 hardware     = "taito-pjc"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Operation Tiger"
 

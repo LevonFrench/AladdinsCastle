@@ -9,6 +9,7 @@ year         = 2007
 manufacturer = "other"
 developer    = "Genki (publisher Genki)"
 hardware     = "sony-ps3"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Wangan Midnight"
 

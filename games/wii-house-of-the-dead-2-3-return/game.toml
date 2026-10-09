@@ -7,6 +7,7 @@ year         = 2008
 manufacturer = "sega"
 developer    = "Sega; H.I.C."
 hardware     = "nintendo-wii"
+graphics     = "polygon-3d"
 players      = 2
 series       = "The House of the Dead"
 contains     = ["hotd2", "hotd3"]

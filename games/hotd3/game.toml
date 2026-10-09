@@ -6,6 +6,7 @@ year         = 2002
 manufacturer = "sega"
 developer    = "Wow Entertainment"
 hardware     = "sega-chihiro"
+graphics     = "polygon-3d"
 players      = 2
 series       = "The House of the Dead"
 

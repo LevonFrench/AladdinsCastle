@@ -6,6 +6,7 @@ year         = 2011
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-ringedge"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Initial D"
 

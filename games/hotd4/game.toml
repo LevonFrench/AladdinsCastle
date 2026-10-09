@@ -6,6 +6,7 @@ year         = 2005
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-lindbergh"
+graphics     = "polygon-3d"
 players      = 2
 series       = "The House of the Dead"
 

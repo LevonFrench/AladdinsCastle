@@ -6,6 +6,7 @@ year         = 1995
 manufacturer = "namco"
 developer    = "Namco"
 hardware     = "namco-super-system-22"
+graphics     = "polygon-3d"
 players      = 1
 series       = ""
 

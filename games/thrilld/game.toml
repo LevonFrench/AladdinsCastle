@@ -6,6 +6,7 @@ year         = 1998
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "konami-hornet"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Thrill Drive"
 

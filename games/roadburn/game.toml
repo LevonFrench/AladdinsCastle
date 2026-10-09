@@ -6,6 +6,7 @@ year         = 1999
 manufacturer = "atari-games"
 developer    = "Atari Games"
 hardware     = "midway-vegas"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Road Burners"
 

@@ -6,6 +6,7 @@ year         = 1999
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-hikaru"
+graphics     = "polygon-3d"
 players      = 1                   # unverified: check cabinet / MAME inputs
 
 [controls]

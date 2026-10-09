@@ -6,6 +6,7 @@ year         = 2000
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "konami-viper"
+graphics     = "polygon-3d"
 players      = 2
 series       = "GTI Club"
 

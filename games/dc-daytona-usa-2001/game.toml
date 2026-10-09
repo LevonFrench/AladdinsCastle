@@ -7,6 +7,7 @@ year         = 2000
 manufacturer = "sega"
 developer    = "Amusement Vision; Genki"
 hardware     = "sega-dreamcast"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Daytona USA"
 # Revamp of the 1994 arcade game, not a straight port; original left unset.

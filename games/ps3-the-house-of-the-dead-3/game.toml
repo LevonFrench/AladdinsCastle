@@ -9,6 +9,7 @@ year         = 2012
 manufacturer = "sega"
 developer    = "Wow Entertainment"
 hardware     = "sony-ps3"
+graphics     = "polygon-3d"
 original     = "hotd3"
 players      = 2
 series       = "The House of the Dead"

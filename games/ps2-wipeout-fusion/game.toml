@@ -8,6 +8,7 @@ year         = 2002
 manufacturer = "sony"
 developer    = "Studio Liverpool"
 hardware     = "sony-ps2"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Wipeout"
 

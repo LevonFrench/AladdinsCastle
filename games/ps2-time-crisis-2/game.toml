@@ -8,6 +8,7 @@ year         = 2001
 manufacturer = "namco"
 developer    = "Namco"
 hardware     = "sony-ps2"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Time Crisis"
 original     = "timecrs2"

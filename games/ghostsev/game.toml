@@ -6,6 +6,7 @@ year         = 2007
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-lindbergh"
+graphics     = "polygon-3d"
 players      = 2                   # unverified: check cabinet / MAME inputs
 series       = "Ghost Squad"
 

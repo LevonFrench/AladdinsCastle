@@ -6,6 +6,7 @@ year         = 1998
 manufacturer = "sega"
 developer    = "Sega AM Annex"
 hardware     = "sega-model-3"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Sega Rally"
 

@@ -7,6 +7,7 @@ year         = 2006
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-lindbergh"
+graphics     = "polygon-3d"
 players      = 2                   # unverified: check cabinet / MAME inputs
 series       = "The House of the Dead"
 

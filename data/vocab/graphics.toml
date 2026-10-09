@@ -1,0 +1,18 @@
+# Controlled vocabulary: how a game draws its world. Drives the Hub's GRAPHICS filter and which VR technique applies.
+# FMV / pre-rendered-video games (Area 51, Maximum Force, Mad Dog McCree...) are out of scope and not catalogued (owner, 2026-10-08).
+
+[polygon-3d]
+label = "3D (polygons)"
+vr    = "True 3D via stereo reconstruction or engine host"
+
+[mixed]
+label = "Mixed 2D / 3D"
+vr    = "Partial depth: 3D layers in stereo, sprites placed as depth billboards"
+
+[sprite-scaler]
+label = "Sprite scaler (pseudo-3D)"
+vr    = "Depth from sprite scale: each scaled sprite becomes a billboard at its implied distance (cf. M2's Sega 3D Classics stereo)"
+
+[2d]
+label = "2D"
+vr    = "Theatre, optionally with parallax layers"

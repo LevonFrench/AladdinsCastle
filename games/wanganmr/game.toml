@@ -5,6 +5,7 @@ subgenre     = ["street"]
 year         = 2002
 manufacturer = "namco"
 hardware     = "namco-system-246"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Wangan Midnight"
 

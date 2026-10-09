@@ -7,6 +7,7 @@ year         = 2004
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "microsoft-xbox"
+graphics     = "polygon-3d"
 original     = "sscope"
 players      = 1
 series       = "Silent Scope"

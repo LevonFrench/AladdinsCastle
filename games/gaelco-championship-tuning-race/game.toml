@@ -6,6 +6,7 @@ year         = 2005
 manufacturer = "gaelco"
 developer    = "Gaelco"
 hardware     = "pc-arcade"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Championship Tuning Race"
 

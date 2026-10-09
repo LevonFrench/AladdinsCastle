@@ -8,6 +8,7 @@ year         = 1994
 manufacturer = "sony"
 developer    = "Polys Entertainment (Sony Computer Entertainment Japan)"
 hardware     = "sony-ps1"
+graphics     = "polygon-3d"
 players      = 2
 
 [controls]

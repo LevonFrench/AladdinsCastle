@@ -6,6 +6,7 @@ year         = 1996
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "konami-zr107"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Midnight Run"
 

@@ -6,6 +6,7 @@ year         = 2005
 manufacturer = "taito"
 developer    = "Taito"
 hardware     = "taito-type-x"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Battle Gear"
 

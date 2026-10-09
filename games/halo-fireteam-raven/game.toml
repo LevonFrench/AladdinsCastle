@@ -6,6 +6,7 @@ year         = 2018
 manufacturer = "raw-thrills"
 developer    = "Raw Thrills"
 hardware     = "pc-arcade"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Halo"
 

@@ -6,6 +6,7 @@ year         = 1997
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "konami-hornet"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Racing Jam"
 

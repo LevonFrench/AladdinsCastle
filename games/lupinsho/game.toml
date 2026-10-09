@@ -7,6 +7,7 @@ year         = 2001
 manufacturer = "sega"
 developer    = "Eighting"
 hardware     = "sega-naomi"
+graphics     = "polygon-3d"
 players      = 2                   # unverified: check cabinet / MAME inputs
 
 [controls]

@@ -6,6 +6,7 @@ year         = 2002
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "konami-viper"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Silent Scope"
 

@@ -8,6 +8,7 @@ year         = 1996
 manufacturer = "other"
 developer    = "Probe Entertainment (publisher Fox Interactive)"
 hardware     = "sony-ps1"
+graphics     = "polygon-3d"   # verify: 2D/3D not confirmed
 players      = 1
 series       = "Die Hard"
 

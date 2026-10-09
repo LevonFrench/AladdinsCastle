@@ -7,6 +7,7 @@ year         = 2000
 manufacturer = "sega"
 developer    = "Sega AM3 (arcade); Hitmaker (Dreamcast)"
 hardware     = "sega-dreamcast"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Crazy Taxi"
 original     = "crzytaxi"

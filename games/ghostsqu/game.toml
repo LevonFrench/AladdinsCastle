@@ -6,6 +6,7 @@ year         = 2004
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-chihiro"
+graphics     = "polygon-3d"
 players      = 2
 
 [controls]

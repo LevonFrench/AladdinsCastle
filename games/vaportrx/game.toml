@@ -6,6 +6,7 @@ year         = 1998
 manufacturer = "atari-games"
 developer    = "Atari Games (Blue Shift Inc. credited by some databases)"
 hardware     = "midway-seattle"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Vapor TRX"
 

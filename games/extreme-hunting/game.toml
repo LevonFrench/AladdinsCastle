@@ -6,6 +6,7 @@ year         = 2004
 manufacturer = "sammy"
 developer    = "Sammy"
 hardware     = "sammy-atomiswave"
+graphics     = "polygon-3d"
 players      = 1                   # unverified: check cabinet / MAME inputs
 
 [controls]

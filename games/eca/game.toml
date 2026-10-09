@@ -5,6 +5,7 @@ subgenre     = ["mission-driving"]
 year         = 1999
 manufacturer = "sega"
 hardware     = "sega-model-3"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Emergency Call Ambulance"
 

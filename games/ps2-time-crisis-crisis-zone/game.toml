@@ -9,6 +9,7 @@ year         = 2004
 manufacturer = "namco"
 developer    = "Namco (arcade); Bandai Namco Studios (PS2 port per Wikipedia)"
 hardware     = "sony-ps2"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Time Crisis"
 original     = "crszone"

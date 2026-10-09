@@ -9,6 +9,7 @@ year         = 2012
 manufacturer = "sega"
 developer    = "Sega AM1; Sega Shanghai Studio (PS3)"
 hardware     = "sony-ps3"
+graphics     = "polygon-3d"
 original     = "hotd4"
 players      = 2
 series       = "The House of the Dead"

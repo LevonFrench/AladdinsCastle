@@ -6,6 +6,7 @@ year         = 2009
 manufacturer = "namco"
 developer    = "Namco Bandai Games"
 hardware     = "namco-system-357"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Time Crisis"
 

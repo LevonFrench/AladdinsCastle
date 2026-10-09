@@ -6,6 +6,7 @@ year         = 2000
 manufacturer = "ecole"
 developer    = "Ecole Software"
 hardware     = "sega-naomi"
+graphics     = "polygon-3d"
 players      = 2                   # unverified: check cabinet / MAME inputs
 
 [controls]

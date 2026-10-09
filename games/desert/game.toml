@@ -5,6 +5,7 @@ subgenre     = ["vehicle-combat"]
 year         = 1994
 manufacturer = "sega"
 hardware     = "sega-model-2"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Desert Tank"
 

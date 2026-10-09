@@ -7,6 +7,7 @@ year         = 2010
 manufacturer = "other"
 developer    = "Vector Unit"
 hardware     = "microsoft-xbox-360"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Hydro Thunder"
 

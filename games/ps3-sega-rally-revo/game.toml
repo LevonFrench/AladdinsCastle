@@ -8,6 +8,7 @@ year         = 2007
 manufacturer = "sega"
 developer    = "Sega Racing Studio (PS3)"
 hardware     = "sony-ps3"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Sega Rally"
 

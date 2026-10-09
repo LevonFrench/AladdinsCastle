@@ -6,6 +6,7 @@ year         = 1998
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-naomi"
+graphics     = "polygon-3d"
 players      = 2
 series       = "The House of the Dead"
 

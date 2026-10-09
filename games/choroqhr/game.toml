@@ -6,6 +6,7 @@ year         = 1998
 manufacturer = "sega"
 developer    = "Takara"
 hardware     = "sega-stv"
+graphics     = "polygon-3d"   # verify: 2D/3D not confirmed
 players      = 1
 series       = "Choro Q"
 

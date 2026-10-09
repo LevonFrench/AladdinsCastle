@@ -6,6 +6,7 @@ year         = 2000
 manufacturer = "gaelco"
 developer    = "Gaelco"
 hardware     = "other-arcade"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Smashing Drive"
 

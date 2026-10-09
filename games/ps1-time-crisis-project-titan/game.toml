@@ -8,6 +8,7 @@ year         = 2001
 manufacturer = "namco"
 developer    = "Namco; Flying Tiger Development"
 hardware     = "sony-ps1"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Time Crisis"
 

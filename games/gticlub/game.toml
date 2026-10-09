@@ -6,6 +6,7 @@ year         = 1996
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "konami-gti-club"
+graphics     = "polygon-3d"
 players      = 2
 series       = "GTI Club"
 

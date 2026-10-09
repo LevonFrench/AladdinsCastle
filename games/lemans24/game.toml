@@ -6,6 +6,7 @@ year         = 1997
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-model-3"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Le Mans"
 

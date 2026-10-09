@@ -9,6 +9,7 @@ year         = 2003
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sony-ps2"
+graphics     = "polygon-3d"
 original     = "initdv3j"
 players      = 1
 series       = "Initial D"

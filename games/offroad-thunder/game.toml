@@ -7,6 +7,7 @@ year         = 2000
 manufacturer = "midway"
 developer    = "Midway Studios San Diego"
 hardware     = "pc-arcade"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Thunder"
 

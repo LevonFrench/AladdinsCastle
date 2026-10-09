@@ -7,6 +7,7 @@ year         = 2000
 manufacturer = "capcom"
 developer    = "Tose"
 hardware     = "sony-ps1"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Resident Evil"
 

@@ -9,6 +9,7 @@ year         = 2010
 manufacturer = "namco"
 developer    = "Nex Entertainment"
 hardware     = "sony-ps3"
+graphics     = "polygon-3d"
 original     = "razing-storm"
 players      = 2
 series       = "Time Crisis"

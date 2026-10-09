@@ -6,6 +6,7 @@ year         = 1994
 manufacturer = "midway"
 developer    = "Midway"
 hardware     = "midway-vunit"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Cruis'n"
 

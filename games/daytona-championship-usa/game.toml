@@ -6,6 +6,7 @@ year         = 2017
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "other-arcade"
+graphics     = "polygon-3d"
 players      = 1
 
 [controls]

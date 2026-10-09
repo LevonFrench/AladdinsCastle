@@ -7,6 +7,7 @@ year         = 2021
 manufacturer = "raw-thrills"
 developer    = "Raw Thrills"
 hardware     = "nintendo-switch"
+graphics     = "polygon-3d"
 original     = "cruisn-blast"
 players      = 4
 series       = "Cruis'n"

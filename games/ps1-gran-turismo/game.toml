@@ -9,6 +9,7 @@ year         = 1997
 manufacturer = "sony"
 developer    = "Polys Entertainment (later Polyphony Digital)"
 hardware     = "sony-ps1"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Gran Turismo"
 

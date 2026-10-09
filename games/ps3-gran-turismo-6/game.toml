@@ -8,6 +8,7 @@ year         = 2013
 manufacturer = "sony"
 developer    = "Polyphony Digital"
 hardware     = "sony-ps3"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Gran Turismo"
 

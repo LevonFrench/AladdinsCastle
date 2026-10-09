@@ -8,6 +8,7 @@ year         = 1995
 manufacturer = "sony"
 developer    = "Psygnosis"
 hardware     = "sony-ps1"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Wipeout"
 

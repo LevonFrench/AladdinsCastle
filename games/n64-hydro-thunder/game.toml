@@ -7,6 +7,7 @@ year         = 2000
 manufacturer = "midway"
 developer    = "Eurocom (console port); Midway Games (arcade)"
 hardware     = "nintendo-64"
+graphics     = "polygon-3d"
 original     = "hydro-thunder"
 players      = 2
 series       = "Hydro Thunder"

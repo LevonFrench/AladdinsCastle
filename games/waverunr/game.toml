@@ -5,6 +5,7 @@ subgenre     = ["boat"]
 year         = 1996
 manufacturer = "sega"
 hardware     = "sega-model-2"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Wave Runner"
 

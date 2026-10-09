@@ -7,6 +7,7 @@ year         = 2007
 manufacturer = "sega"
 developer    = "Sega AM2 (arcade); Polygon Magic (Wii port)"
 hardware     = "nintendo-wii"
+graphics     = "polygon-3d"
 original     = "ghostsqu"
 players      = 2
 series       = "Ghost Squad"

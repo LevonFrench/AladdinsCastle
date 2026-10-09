@@ -6,6 +6,7 @@ year         = 2018
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-alls"
+graphics     = "polygon-3d"
 players      = 2                   # unverified: check cabinet / MAME inputs
 series       = "The House of the Dead"
 

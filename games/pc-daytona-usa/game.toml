@@ -7,6 +7,7 @@ year         = 1996
 manufacturer = "sega"
 developer    = "Sega AM2"
 hardware     = "pc-windows"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Daytona USA"
 original     = "daytona"

@@ -6,6 +6,7 @@ year         = 2000
 manufacturer = "sega"
 developer    = "Sega / LucasArts"
 hardware     = "sega-hikaru"
+graphics     = "polygon-3d"
 players      = 1
 
 [controls]

@@ -9,6 +9,7 @@ year         = 1999
 manufacturer = "sony"
 developer    = "Polyphony Digital"
 hardware     = "sony-ps1"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Gran Turismo"
 

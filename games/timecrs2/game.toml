@@ -6,6 +6,7 @@ year         = 1997
 manufacturer = "namco"
 developer    = "Namco"
 hardware     = "namco-system-23"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Time Crisis"
 

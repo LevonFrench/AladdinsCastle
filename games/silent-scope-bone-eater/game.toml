@@ -6,6 +6,7 @@ year         = 2014
 manufacturer = "konami"
 developer    = "tri-Ace / Konami"
 hardware     = "other-arcade"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Silent Scope"
 

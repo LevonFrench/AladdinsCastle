@@ -6,6 +6,7 @@ year         = 2005
 manufacturer = "namco"
 developer    = "Namco"
 hardware     = "sega-chihiro"
+graphics     = "polygon-3d"
 players      = 1
 
 [controls]

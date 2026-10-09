@@ -6,6 +6,7 @@ year         = 2001
 manufacturer = "capcom"
 developer    = "Capcom / Namco"
 hardware     = "sega-naomi"
+graphics     = "polygon-3d"
 players      = 2                   # unverified: check cabinet / MAME inputs
 
 [controls]

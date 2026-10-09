@@ -7,6 +7,7 @@ year         = 2010
 manufacturer = "other"
 developer    = "Play Mechanix"
 hardware     = "nintendo-wii"
+graphics     = "polygon-3d"
 original     = "big-buck-hunter-pro"
 players      = 2
 series       = "Big Buck Hunter"

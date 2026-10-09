@@ -9,6 +9,7 @@ year         = 1997
 manufacturer = "namco"
 developer    = "Namco"
 hardware     = "sony-ps1"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Time Crisis"
 original     = "timecris"

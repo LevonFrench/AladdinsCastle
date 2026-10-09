@@ -5,6 +5,7 @@ subgenre     = ["circuit"]
 year         = 1997
 manufacturer = "jaleco"
 hardware     = "sega-model-2"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Over Rev"
 

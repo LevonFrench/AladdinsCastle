@@ -8,6 +8,7 @@ year         = 2001
 manufacturer = "sega"
 developer    = "Hitmaker"
 hardware     = "sony-ps2"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Crazy Taxi"
 original     = "crzytaxi"

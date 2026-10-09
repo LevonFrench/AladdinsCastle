@@ -9,6 +9,7 @@ year         = 2006
 manufacturer = "sega"
 developer    = "Sega AM3"
 hardware     = "sony-ps2"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Sega Rally"
 

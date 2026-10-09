@@ -7,6 +7,7 @@ year         = 2004
 manufacturer = "sega"
 developer    = "Sumo Digital (Xbox port); Sega AM2 (arcade)"
 hardware     = "microsoft-xbox"
+graphics     = "polygon-3d"
 original     = "outr2"
 players      = 1
 series       = "OutRun"

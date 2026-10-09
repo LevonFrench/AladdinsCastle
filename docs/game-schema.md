@@ -1,6 +1,6 @@
 # Game catalog schema (`games/<id>/game.toml`)
 
-Every game is a folder (see [game-packages.md](game-packages.md)). This page fixes the fields so the Hub can **filter by genre, manufacturer, year and hardware** (and more). Values for `genre`, `subgenre`, `manufacturer` and `hardware` must come from the vocab files in [`data/vocab/`](../data/vocab/). New values are added to the vocab file first, in the same change.
+Every game is a folder (see [game-packages.md](game-packages.md)). This page fixes the fields so the Hub can **filter by genre, manufacturer, year and hardware** (and more). Values for `genre`, `subgenre`, `manufacturer`, `hardware` and `graphics` must come from the vocab files in [`data/vocab/`](../data/vocab/). New values are added to the vocab file first, in the same change.
 
 ## 1. One entry per release
 
@@ -21,6 +21,7 @@ year         = 1995                       # required; first release of THIS rele
 manufacturer = "namco"                    # required; vocab/manufacturers.toml (brand on cabinet/box)
 developer    = "Namco"                    # free text; studio if different (e.g. "Sega AM2", "Wow Entertainment")
 hardware     = "namco-super-system-22"    # required; vocab/hardware.toml
+graphics     = "polygon-3d"               # required; vocab/graphics.toml: polygon-3d | mixed | sprite-scaler | 2d (FMV games are out of scope)
 players      = 1                          # max simultaneous players
 series       = "Time Crisis"              # optional
 original     = ""                         # ports: id of the arcade original
@@ -68,6 +69,7 @@ checked    = "2026-10-08"
 | Genre | `genre`, `subgenre` | chips |
 | Manufacturer | `manufacturer` | multi-select |
 | Year | `year` | range slider + decade chips |
+| Graphics | `graphics` | chips: 3D / Mixed / Sprite scaler / 2D |
 | Hardware | `hardware` (grouped by `family` and `kind` from the vocab) | tree: Arcade → Sega → Model 3; Console → Sony → PS2 |
 | VR | `routes.vr.best` | True 3D / Theatre / Planned |
 | Players | `players` | 1 / 2+ |

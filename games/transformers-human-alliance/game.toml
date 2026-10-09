@@ -6,6 +6,7 @@ year         = 2014
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sega-ringedge-2"
+graphics     = "polygon-3d"
 players      = 2                   # unverified: check cabinet / MAME inputs
 
 [controls]

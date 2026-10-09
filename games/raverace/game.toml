@@ -6,6 +6,7 @@ year         = 1995
 manufacturer = "namco"
 developer    = "Namco"
 hardware     = "namco-system-22"
+graphics     = "polygon-3d"
 players      = 1                    # linkable cabinets; upstream decomp supports online play up to 8
 series       = "Ridge Racer"
 

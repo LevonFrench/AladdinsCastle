@@ -6,6 +6,7 @@ year         = 1996
 manufacturer = "gaelco"
 developer    = "Gaelco"
 hardware     = "gaelco-3d"
+graphics     = "polygon-3d"
 players      = 2
 series       = "Speed Up"
 

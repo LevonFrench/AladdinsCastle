@@ -6,6 +6,7 @@ year         = 2001
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "konami-viper"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Thrill Drive"
 

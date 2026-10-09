@@ -8,6 +8,7 @@ year         = 2001
 manufacturer = "ubisoft"
 developer    = "Rebellion Developments"
 hardware     = "sony-ps1"
+graphics     = "polygon-3d"   # verify: 2D/3D not confirmed
 players      = 1
 
 [controls]

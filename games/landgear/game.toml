@@ -6,6 +6,7 @@ year         = 1995
 manufacturer = "taito"
 developer    = "Taito"
 hardware     = "taito-jc"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Landing Gear"
 

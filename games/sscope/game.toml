@@ -6,6 +6,7 @@ year         = 1999
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "konami-hornet"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Silent Scope"
 

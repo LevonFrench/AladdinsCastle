@@ -7,6 +7,7 @@ year         = 2022
 manufacturer = "sega"
 developer    = "MegaPixel Studio (published by Forever Entertainment under license from Sega)"
 hardware     = "nintendo-switch"
+graphics     = "polygon-3d"
 players      = 1
 series       = "The House of the Dead"
 

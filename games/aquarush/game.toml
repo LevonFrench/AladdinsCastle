@@ -6,6 +6,7 @@ year         = 1999
 manufacturer = "namco"
 developer    = "Namco"
 hardware     = "namco-system-12"
+graphics     = "polygon-3d"
 players      = 1
 series       = ""
 

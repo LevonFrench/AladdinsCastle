@@ -7,6 +7,7 @@ year         = 2002
 manufacturer = "sega"
 developer    = "Hitmaker"
 hardware     = "microsoft-xbox"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Crazy Taxi"
 # An arcade Crazy Taxi: High Roller exists; not linked here until its set name is verified.

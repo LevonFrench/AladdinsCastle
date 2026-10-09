@@ -6,6 +6,7 @@ year         = 1999
 manufacturer = "sega"
 developer    = "Hitmaker"
 hardware     = "sega-naomi"
+graphics     = "polygon-3d"
 players      = 1
 
 [controls]

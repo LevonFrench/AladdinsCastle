@@ -11,7 +11,7 @@ import sys
 import tomllib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REQUIRED = ["id", "title", "genre", "year", "manufacturer", "hardware"]
+REQUIRED = ["id", "title", "genre", "year", "manufacturer", "hardware", "graphics"]
 PREFIXES = {"sony-ps1": "ps1-", "sony-ps2": "ps2-", "sony-ps3": "ps3-", "sega-saturn": "sat-",
             "sega-dreamcast": "dc-", "nintendo-64": "n64-", "nintendo-gamecube": "gc-",
             "nintendo-wii": "wii-", "nintendo-wii-u": "wiiu-", "nintendo-switch": "switch-",
@@ -28,6 +28,7 @@ def main():
     genres = load(os.path.join(ROOT, "data/vocab/genres.toml"))
     makers = load(os.path.join(ROOT, "data/vocab/manufacturers.toml"))
     hardware = load(os.path.join(ROOT, "data/vocab/hardware.toml"))
+    graphics = load(os.path.join(ROOT, "data/vocab/graphics.toml"))
     errors, warnings, games = [], [], []
 
     for path in sorted(glob.glob(os.path.join(ROOT, "games/*/game.toml"))):
@@ -56,6 +57,8 @@ def main():
                 warnings.append(f"{rel}: subgenre '{sg}' belongs to genre '{s.get('genre')}'")
         if g.get("manufacturer") not in makers:
             errors.append(f"{rel}: manufacturer '{g.get('manufacturer')}' not in vocab")
+        if g.get("graphics") not in graphics:
+            errors.append(f"{rel}: graphics '{g.get('graphics')}' not in vocab")
         hw = hardware.get(g.get("hardware"))
         if not hw:
             errors.append(f"{rel}: hardware '{g.get('hardware')}' not in vocab")
@@ -96,7 +99,7 @@ def main():
         print("warning", w)
     print(f"\n{len(games)} games, {len(errors)} errors, {len(warnings)} warnings")
     if "--summary" in sys.argv:
-        for field in ("genre", "manufacturer", "hardware"):
+        for field in ("genre", "graphics", "manufacturer", "hardware"):
             c = collections.Counter(g.get(field) for g in games)
             print(f"\nby {field}: " + ", ".join(f"{k} {v}" for k, v in c.most_common()))
         dec = collections.Counter((g.get("year", 0) // 10) * 10 for g in games if isinstance(g.get("year"), int))

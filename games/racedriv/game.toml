@@ -6,6 +6,7 @@ year         = 1990
 manufacturer = "atari-games"
 developer    = "Atari Games"
 hardware     = "atari-arcade"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Hard Drivin'"
 

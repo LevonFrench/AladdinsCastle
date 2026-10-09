@@ -7,6 +7,7 @@ year         = 2005
 manufacturer = "sega"
 developer    = "Wow Entertainment"
 hardware     = "pc-windows"
+graphics     = "polygon-3d"
 original     = "hotd3"
 players      = 1
 series       = "The House of the Dead"

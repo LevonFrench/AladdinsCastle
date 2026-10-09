@@ -6,6 +6,7 @@ year         = 1997
 manufacturer = "gaelco"
 developer    = "Gaelco"
 hardware     = "gaelco-3d"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Surf Planet"
 

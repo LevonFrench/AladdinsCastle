@@ -6,6 +6,7 @@ year         = 2007
 manufacturer = "namco"
 developer    = "Namco / Bandai Namco Studios"
 hardware     = "sega-triforce"
+graphics     = "polygon-3d"
 players      = 1
 series       = "Mario Kart Arcade GP"
 

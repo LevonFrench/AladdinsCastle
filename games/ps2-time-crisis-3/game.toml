@@ -8,6 +8,7 @@ year         = 2003
 manufacturer = "namco"
 developer    = "Namco; Nextech (arcade)"
 hardware     = "sony-ps2"
+graphics     = "polygon-3d"
 original     = "timecrs3"
 players      = 2
 series       = "Time Crisis"

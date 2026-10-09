@@ -7,6 +7,7 @@ year         = 2008
 manufacturer = "konami"
 developer    = "Raw Thrills (arcade); Leviathan Games (Wii)"
 hardware     = "nintendo-wii"
+graphics     = "polygon-3d"
 original     = "target-terror"
 players      = 2
 # original = arcade Target: Terror (Raw Thrills, 2004); set name not verified; left unset
