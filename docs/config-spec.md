@@ -25,6 +25,8 @@ Status: **draft for discussion**. Field names will change before v1. Open questi
     setup.toml             # how to launch one VR setup
     ...                    # files the recipe installed (third-party releases, our builds)
   recipes/<recipe-id>.toml # how to install a setup (see frontend.md section 3)
+  tools/<tool-id>.toml     # emulator/helper: install, locate and search rules (frontend.md section 4)
+  tools/<tool-id>/         # tools the Hub installed for you
   controls/<control-set-id>.toml
   guns/<gun-id>/gun.toml + model.glb
   packs/<pack-id>/pack.toml (+ any of the folders above)
