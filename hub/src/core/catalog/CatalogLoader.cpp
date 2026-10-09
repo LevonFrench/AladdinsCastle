@@ -204,6 +204,9 @@ void validate(GameRecord &g, const CatalogData &data, const QSet<QString> &ids) 
                 warn("arcade entry uses console id prefix");
                 break;
             }
+    for (const auto &m : j.value("media", Json::array()))
+        if (m.contains("optional") && !m["optional"].is_boolean())
+            warn("media.optional must be boolean", true);
     const auto routes = object(j, "routes");
     for (auto it = routes.begin(); it != routes.end(); ++it) {
         if (it.key() == "vr") {
@@ -528,6 +531,11 @@ CatalogData CatalogLoader::load(const QString &root) const {
             record.installedWhen = str(record.raw, "installed_when");
             auto needs = object(record.raw, "needs");
             record.media = list(needs, "media");
+            qsizetype mediaIndex = 0;
+            for (const auto &m : g.raw.value("media", Json::array())) {
+                const auto requirement = mediaRequirementId(m, g.id, mediaIndex++);
+                if (optionalMedia(m)) record.media.removeAll(requirement);
+            }
             record.tools = list(needs, "tools");
             g.variants << record;
         }
@@ -558,8 +566,11 @@ CatalogData CatalogLoader::load(const QString &root) const {
             v.tools << id;
             if (g.raw.contains("media") && g.raw["media"].is_array()) {
                 qsizetype mediaIndex = 0;
-                for (const auto &m : g.raw["media"])
-                    v.media << mediaRequirementId(m, g.id, mediaIndex++);
+                for (const auto &m : g.raw["media"]) {
+                    const auto requirement = mediaRequirementId(m, g.id, mediaIndex++);
+                    if (!optionalMedia(m) && mediaAppliesToRoute(m, id, str(g.raw, "hardware")))
+                        v.media << requirement;
+                }
             }
             v.raw = Json{
                 {"title", v.title.toStdString()},

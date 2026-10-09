@@ -1,7 +1,7 @@
 # M1 scanner and local art
 
 The scanner reads only configured media/tool roots. It does not search credentials,
-account/licence directories, follow directory symlinks, download game content or
+account/licence directories, follow directory symlinks or Windows junctions, download game content or
 launch games. Results and local paths stay in the portable user's directory. Public
 tests contain synthetic headers and a tiny synthetic archive encoded in C++.
 
@@ -41,7 +41,7 @@ It neither reads nor decompresses members. A renamed archive is matched by its
 metadata, never by filename. Split clone parents and recursively required MAME
 devices are searched across all inspected archives; device requirements are
 reported only after that inventory is complete. Receipts include supporting
-archive paths and actual matched clone identity. A match verifies **declared header
+archive paths and actual matched clone identity. Arcade receipts also retain the metadata-declared clone family in `setCandidates`; flat plans use the matched identity only when both it and the catalog set belong to that allowlist. Set IDs reject whitespace, paths and option-like values. Legacy differing-identity receipts require a fresh scan; unchanged or absent identity remains compatible with the declared catalog set. Game candidate scores count non-merge ROMs; a verified candidate outranks any partial candidate. Each MAME `bios=` group is an alternative, both on machines and required devices, rather than a requirement to own every BIOS revision. Required `<disk sha1>` rows must also match a valid CHDv5 header in the matched set folder beside the archive (`<ROM root>/<set>/*.chd`); ZIP metadata alone cannot verify a disk-based game. The matching CHD paths are retained as supporting bindings. A match verifies **declared header
 identity**, not the integrity of compressed payloads; there is no full ROM audit.
 
 7z uses the pinned official 7-Zip C SDK (`25.01`, commit
@@ -63,19 +63,17 @@ requiring firmware from a different emulator's definition.
 Disc reads are bounded: ISO9660 PVD, root directory (up to 2 MiB), SYSTEM.CNF
 (up to 64 KiB), CHD v5 header SHA1, Dreamcast IP.BIN, Saturn header, and GC/Wii IDs.
 PS2 BIOS detection checks ROMDIR/ROMVER structures in .bin/.rom/.rom0, not filenames. A discovered same-basename .rom1 is an optional companion path; .mec/.nvm/.inf/.diff auxiliary files are not read. Disc headers
-with no catalog identity remain unverified. CHDv5 sparse decoding uses pinned libchdr to read only ISO9660 PVD/root/SYSTEM.CNF hunks. Dimensions are checked before map allocation: hunk bytes at most 1 MiB, logical bytes at most 100 GiB, map at most one million hunks /32 MiB compressed. Reads stop at 64 MiB compressed input and 8 MiB / 128 decoded hunks; parent-dependent discs remain unverified. Combined header SHA1 is retained separately and never treated as an uncompressed disc hash. An explicit chd_sha1 field can identify that distinct combined hash. Raw 2352-byte PS1 data tracks support 16/24-byte sector prefixes. Multi-track GDI/CUE traversal and generic BIOS platforms remain
+with no catalog identity remain unverified. CHDv5 sparse decoding uses pinned libchdr to read only ISO9660 PVD/root/SYSTEM.CNF hunks. Dimensions are checked before map allocation: hunk bytes at most 1 MiB, logical bytes at most 100 GiB, normalized map at most 32 MiB (12 bytes per compressed-map entry or 4 per uncompressed entry), with compressed-map bytes also capped at 32 MiB. Reads stop at 64 MiB compressed input and 8 MiB / 128 decoded hunks; parent-dependent discs remain unverified. Combined header SHA1 is retained separately and never treated as an uncompressed disc hash. An explicit chd_sha1 field can identify that distinct combined hash. Raw 2352-byte PS1 data tracks support 16/24-byte sector prefixes. Multi-track GDI/CUE traversal and generic BIOS platforms remain
 unverified unless supported identifying metadata is supplied; no guessed filename
 match becomes Ready.
 
-The bundled serial index contains 106 PS2 title/serial mappings from the
+The bundled serial index contains 100 PS2 title/serial mappings from the
 [official PCSX2 GameIndex](https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml),
 including Time Crisis II regional releases and recognized retail GunCon/reprint bundles. Demos/trials remain distinct. It contains metadata facts only.
 `tools/build_serial_index.py` reproduces the index from that pinned YAML without
 network calls or copying emulator settings. Exact catalog/alternate-title matching
 normalizes punctuation and the numbered title spelling `II`/`2`; unknown serials
-never match by ISO filename. Other platforms can use explicit catalog serials/IDs
-or a configured metadata index. PE executable name + file-version metadata finds
-PC media where the catalog supplies `find`/`exe` names. Tool location verifies a
+never match by ISO filename. The shipped automatic serial-to-game lookup is PS2-only. Dreamcast, Saturn, GC/Wii and other disc identities require an explicit catalog `serial`/ID or an owner-supplied `serialIndex`; recognizing their header does not identify a game in the shipped index. GDI/CUE traversal is still unsupported. PC media matching is explicitly **name-only**: a catalog `find`/`exe` basename plus PE/ELF structure, reported as `executable-name-only`. File version is informational; there is no PC payload hash, product-ID or publisher check. Tool location verifies a
 PE/ELF executable structure; it does not claim a downloaded install is verified.
 
 ## Local art
@@ -123,7 +121,7 @@ ScanResult.elapsedMs measures completed run time; fileCount, archiveEntryCount a
 
 Post-review metadata guards: pinned libchdr remains unchanged. Before each chd_read, HeaderSafety resolves normalized v5 self-references with visited-hunk checks, target/map bounds and a 32-step limit. Only terminal codec 0-3 or direct uncompressed type 4 is decoded; parent and all other indirect types remain unverified. LOWRAM mode is disabled so the pinned API's normalized map is available. No recursive self-reference decoder path is entered. Synthetic normalized-map tests cover valid short references, cycles, target overflow, depth cap, indirect forms, cancellation and truncated maps.
 
-The 7z adapter records live SDK allocation extents and validates member-count, name offsets/storage, directory bits, unpack positions and optional CRC storage before accessor calls. Missing optional Name properties remain unverified instead of dereferencing absent offsets. Tests include an ordinary synthetic empty-file 7z with Name omitted. Live metadata allocation count is capped at 4096. Cache schema 3 invalidates older reader results after these guards.
+The 7z adapter records live SDK allocation extents and validates member-count, name offsets/storage, directory bits, unpack positions and optional CRC storage before accessor calls. Missing optional Name properties remain unverified instead of dereferencing absent offsets. Tests include an ordinary synthetic empty-file 7z with Name omitted. Live metadata allocation count is capped at 4096. Cache schema 4 invalidates older reader results after the map-budget and junction/proof changes.
 
 Synthetic Release verification passed. Owner verification passed; receipts are kept privately in `.local/`.
 

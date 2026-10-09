@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/catalog/CatalogLoader.h"
+#include "core/install/Support.h"
 #include "models/FilterSortModel.h"
 #include "models/GameListModel.h"
 #include <QAbstractItemModelTester>
@@ -121,6 +122,80 @@ class CatalogTest : public QObject {
         QCOMPARE(model.find("fake")->roles.value("baseState").toInt(), int(ac::GameState::NeedsFiles));
         state.mediaFound << "fake-media-1"; model.applyRuntimeStates({state});
     QCOMPARE(model.find("fake")->roles.value("baseState").toInt(), int(ac::GameState::Installed));
+    }
+    void routeMediaAndOptionalBios() {
+        QTemporaryDir temp; vocab(temp.path());
+        game(temp.path(), "fake", "Synthetic");
+        QFile f(temp.path() + "/games/fake/game.toml"); QVERIFY(f.open(QIODevice::Append));
+        f.write("\n[[media]]\nkind='mame-romset'\nset='test'\n"
+                "[[media]]\nkind='pc-game'\nid='pc-release'\nfind=['Synthetic.exe']\n"
+                "[routes]\nmame='working'\nteknoparrot='playable'\n"); f.close();
+        for (const auto &tool : QStringList{"mame", "teknoparrot"})
+            write(temp.path(), "data/emulators/" + tool + ".toml",
+                  "id='" + tool + "'\nname='Synthetic Tool'\n[launch]\nargs=['${rom.set}','${media.file}']\n");
+        auto data = ac::CatalogLoader().load(temp.path());
+        const auto *g = data.find("fake"); QVERIFY(g);
+        QCOMPARE(g->variants.size(), 2);
+        for (const auto &v : g->variants)
+            QCOMPARE(v.media, v.id == "mame" ? QStringList{"test"} : QStringList{"pc-release"});
+        write(temp.path(), "synthetic-tool.exe", "synthetic tool; never executed");
+        write(temp.path(), "synthetic.zip", "synthetic media; never executed");
+        ac::Json bindings{{"tools", {{"mame", {{"path", (temp.path() + "/synthetic-tool.exe").toStdString()}}}}},
+                          {"media", {{"test", {{"path", (temp.path() + "/synthetic.zip").toStdString()}, {"verified", true}}}}}};
+        bindings["media"]["test"]["identity"] = "synthetic-regional";
+        bindings["media"]["test"]["proof"] = "mame-header-crc";
+        bindings["media"]["test"]["setCandidates"] = ac::Json::array({"test", "synthetic-regional"});
+        const auto plan = ac::install::makeFlatLaunchPlan(*g, data.emulators["mame"], temp.path(), bindings);
+        QCOMPARE(plan.args, QStringList({"synthetic-regional", temp.path() + "/synthetic.zip"}));
+        auto invalid = bindings;
+        invalid["media"]["test"].erase("setCandidates");
+        QVERIFY_THROWS_EXCEPTION(ac::install::Error,
+            ac::install::makeFlatLaunchPlan(*g, data.emulators["mame"], temp.path(), invalid));
+        invalid = bindings; invalid["media"]["test"]["identity"] = "foreign";
+        QVERIFY_THROWS_EXCEPTION(ac::install::Error,
+            ac::install::makeFlatLaunchPlan(*g, data.emulators["mame"], temp.path(), invalid));
+        for (const auto &id : QStringList{"--option", "regional --option", "../escape", "regional\n"}) {
+            invalid = bindings; invalid["media"]["test"]["identity"] = id.toStdString();
+            invalid["media"]["test"]["setCandidates"] = ac::Json::array({"test", id.toStdString()});
+            QVERIFY_THROWS_EXCEPTION(ac::install::Error,
+                ac::install::makeFlatLaunchPlan(*g, data.emulators["mame"], temp.path(), invalid));
+        }
+        invalid = bindings; invalid["media"]["test"].erase("identity"); invalid["media"]["test"].erase("setCandidates");
+        QCOMPARE(ac::install::makeFlatLaunchPlan(*g, data.emulators["mame"], temp.path(), invalid).args[0], QString("test"));
+        invalid["media"]["test"]["identity"] = "test";
+        QCOMPARE(ac::install::makeFlatLaunchPlan(*g, data.emulators["mame"], temp.path(), invalid).args[0], QString("test"));
+        ac::GameListModel model(data); ac::RuntimeState state; state.gameId = "fake";
+        state.toolsOk = {"mame"}; state.mediaFound = {"test"}; model.applyRuntimeStates({state});
+        QCOMPARE(model.find("fake")->roles["baseState"].toInt(), int(ac::GameState::Installed));
+        QVERIFY(model.find("fake")->roles["inLibrary"].toBool());
+
+        game(temp.path(), "dc-fake", "Synthetic Console", "gun", "sega", 2000, "sega-dreamcast");
+        QFile console(temp.path() + "/games/dc-fake/game.toml"); QVERIFY(console.open(QIODevice::Append));
+        console.write("\n[[media]]\nkind='disc'\nid='disc'\n[[media]]\nkind='bios'\nid='bios'\noptional=true\n"
+                      "[routes]\nflycast='working'\n"); console.close();
+        write(temp.path(), "games/dc-fake/install.toml", "[variant.authored]\nquality='true3d'\nstatus='stable'\nneeds={media=['disc','bios']}\n");
+        write(temp.path(), "data/emulators/flycast.toml", "id='flycast'\nname='Synthetic Tool'\n[launch]\nargs=['${media.disc}']\n");
+        data = ac::CatalogLoader().load(temp.path()); g = data.find("dc-fake"); QVERIFY(g);
+        QCOMPARE(g->variants.size(), 2);
+        for (const auto &v : g->variants) QCOMPARE(v.media, QStringList{"disc"});
+        write(temp.path(), "synthetic.iso", "synthetic disc");
+        bindings = {{"tools", {{"flycast", {{"path", (temp.path() + "/synthetic-tool.exe").toStdString()}}}}},
+                    {"media", {{"disc", {{"path", (temp.path() + "/synthetic.iso").toStdString()}, {"verified", true}}}}}};
+        const auto consolePlan = ac::install::makeFlatLaunchPlan(*g, data.emulators["flycast"], temp.path(), bindings);
+        QCOMPARE(consolePlan.args, QStringList{temp.path() + "/synthetic.iso"});
+        ac::GameListModel consoleModel(data); state = {}; state.gameId = "dc-fake";
+        state.toolsOk = {"flycast"}; state.mediaFound = {"disc"}; consoleModel.applyRuntimeStates({state});
+        QCOMPARE(consoleModel.find("dc-fake")->roles["baseState"].toInt(), int(ac::GameState::Installed));
+        QCOMPARE(consoleModel.find("dc-fake")->roles["mediaStatus"].toInt(), int(ac::MediaStatus::Found));
+        state.mediaFound = {"bios"}; consoleModel.applyRuntimeStates({state});
+        QVERIFY(!consoleModel.find("dc-fake")->roles["inLibrary"].toBool());
+    }
+    void invalidOptionalMetadataFailsValidation() {
+        QTemporaryDir temp; vocab(temp.path()); game(temp.path(), "fake", "Synthetic");
+        QFile f(temp.path() + "/games/fake/game.toml"); QVERIFY(f.open(QIODevice::Append));
+        f.write("\n[[media]]\nkind='bios'\noptional='true'\n"); f.close();
+        const auto data = ac::CatalogLoader().load(temp.path());
+        QVERIFY(data.find("fake")->validationErrors.contains("media.optional must be boolean"));
     }
     void layeringAndProvenance() {
         try {

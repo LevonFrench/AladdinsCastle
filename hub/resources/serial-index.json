@@ -1,19 +1,4 @@
 {
-  "PAPX-90207": {
-    "gameId": "ps2-gran-turismo-3-a-spec",
-    "title": "GRAN TURISMO 3 - A-Spec - オートバックス限定リプレイシアター",
-    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
-  },
-  "PAPX-90208": {
-    "gameId": "ps2-gran-turismo-3-a-spec",
-    "title": "GRAN TURISMO 3 - A-Spec - リプレイシアター",
-    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
-  },
-  "PAPX-90523": {
-    "gameId": "ps2-gran-turismo-4",
-    "title": "GRAN TURISMO 4 - オンライン実験バージョン",
-    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
-  },
   "PBPX-95502": {
     "gameId": "ps2-gran-turismo-3-a-spec",
     "title": "GRAN TURISMO 3 - A-Spec [本体同梱版]",
@@ -22,16 +7,6 @@
   "PBPX-95601": {
     "gameId": "ps2-gran-turismo-4",
     "title": "GRAN TURISMO 4 [本体同梱版]",
-    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
-  },
-  "PCPX-96312": {
-    "gameId": "ps2-gran-turismo-3-a-spec",
-    "title": "GRAN TURISMO 3 - A-Spec - [オートバックス店頭試遊ディスク]",
-    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
-  },
-  "PCPX-96649": {
-    "gameId": "ps2-gran-turismo-4",
-    "title": "GRAN TURISMO 4 [体験版]",
     "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
   },
   "SCAJ-10004": {
@@ -327,11 +302,6 @@
   "SLKA-25423": {
     "gameId": "ps2-sega-rally-2006",
     "title": "Sega Rally 2006 [PlayStation 2 BigHit Series]",
-    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
-  },
-  "SLPM-61137": {
-    "gameId": "ps2-sega-rally-2006",
-    "title": "SEGA RALLY 2006 [体験版]",
     "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
   },
   "SLPM-62102": {

@@ -61,6 +61,8 @@ struct GameRecord {
     QStringList warnings, errors, validationErrors;
     bool hasRecipe = false;
 };
+bool optionalMedia(const Json &media);
+bool mediaAppliesToRoute(const Json &media, const QString &routeId, const QString &hardware);
 void resolveState(GameRecord &game);
 QString folded(const QString &value);
 QVariant jsonVariant(const Json &value);

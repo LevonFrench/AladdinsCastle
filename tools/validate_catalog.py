@@ -25,6 +25,32 @@ def load(path):
         return tomllib.load(f)
 
 
+def media_errors(game):
+    errors = []
+    media = game.get("media", [])
+    if not isinstance(media, list):
+        return ["media must be an array of tables"]
+    for row, item in enumerate(media):
+        if not isinstance(item, dict):
+            errors.append(f"media[{row}] must be a table")
+        elif "optional" in item and not isinstance(item["optional"], bool):
+            errors.append(f"media[{row}].optional must be boolean")
+    return errors
+
+
+def self_test():
+    import unittest
+
+    class MediaContract(unittest.TestCase):
+        def test_optional_boolean(self):
+            for value in (True, False):
+                self.assertEqual(media_errors({"media": [{"kind": "bios", "optional": value}]}), [])
+            for value in ("true", 1, None):
+                self.assertTrue(media_errors({"media": [{"optional": value}]}))
+
+    return 0 if unittest.TextTestRunner().run(unittest.defaultTestLoader.loadTestsFromTestCase(MediaContract)).wasSuccessful() else 1
+
+
 def main():
     genres = load(os.path.join(ROOT, "data/vocab/genres.toml"))
     makers = load(os.path.join(ROOT, "data/vocab/manufacturers.toml"))
@@ -41,6 +67,7 @@ def main():
             errors.append(f"{rel}: TOML error: {e}")
             continue
         games.append(g)
+        errors.extend(f"{rel}: {message}" for message in media_errors(g))
         for k in REQUIRED:
             if k not in g:
                 errors.append(f"{rel}: missing required field '{k}'")
@@ -109,4 +136,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(self_test() if sys.argv[1:] == ["--test"] else main())

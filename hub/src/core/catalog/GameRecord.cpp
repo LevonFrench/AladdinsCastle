@@ -3,6 +3,8 @@
 #include <QColor>
 #include <QJsonDocument>
 #include <QRegularExpression>
+#include <QSet>
+#include <algorithm>
 namespace ac {
 QString mediaRequirementId(const Json &media, const QString &gameId, qsizetype index) {
     if (media.is_object()) {
@@ -13,6 +15,22 @@ QString mediaRequirementId(const Json &media, const QString &gameId, qsizetype i
         }
     }
     return gameId + "-media-" + QString::number(index);
+}
+bool optionalMedia(const Json &media) {
+    return media.is_object() && media.contains("optional") &&
+           media["optional"].is_boolean() && media["optional"].get<bool>();
+}
+bool mediaAppliesToRoute(const Json &media, const QString &routeId, const QString &hardware) {
+    const auto kind = QString::fromStdString(media.value("kind", std::string()));
+    const bool arcade = QStringList{"mame", "supermodel", "model2emu", "lindbergh-loader"}.contains(routeId) ||
+        (QStringList{"flycast", "demul"}.contains(routeId) && hardware != "sega-dreamcast");
+    const bool pc = QStringList{"teknoparrot", "native", "demulshooter"}.contains(routeId) || hardware == "pc-windows";
+    if (arcade)
+        return kind == "mame-romset" || (kind == "bios" && media.contains("set")) ||
+               (routeId == "lindbergh-loader" && kind == "other");
+    if (pc)
+        return kind == "pc-game" || kind == "pc" || kind == "other";
+    return kind == "disc" || (kind == "bios" && !media.contains("set"));
 }
 QString folded(const QString &value) {
     auto text = value.normalized(QString::NormalizationForm_D).toCaseFolded();
@@ -26,6 +44,18 @@ QVariant jsonVariant(const Json &value) {
 void resolveState(GameRecord &game) {
     auto &r = game.roles;
     const auto &runtime = game.runtime;
+    QSet<QString> optionalIds, biosIds;
+    qsizetype mediaIndex = 0;
+    for (const auto &m : game.raw.value("media", Json::array())) {
+        const auto id = mediaRequirementId(m, game.id, mediaIndex++);
+        if (optionalMedia(m)) optionalIds.insert(id);
+        if (m.value("kind", std::string()) == "bios") biosIds.insert(id);
+    }
+    const auto requiredMedia = [&](const Variant &v) {
+        auto ids = v.media;
+        ids.removeIf([&](const QString &id) { return optionalIds.contains(id); });
+        return ids;
+    };
     GameState base = GameState::NoRecipe;
     const Variant *best = nullptr;
     QString installedId, version;
@@ -46,9 +76,9 @@ void resolveState(GameRecord &game) {
         }
     }
     const auto requirementsReady = [&](const Variant &v) {
-        if (v.generated && v.quality == "flat" && (v.media.isEmpty() || v.tools.isEmpty()))
+        if (v.generated && v.quality == "flat" && (requiredMedia(v).isEmpty() || v.tools.isEmpty()))
             return false;
-        for (const auto &id : v.media) if (!runtime.mediaFound.contains(id)) return false;
+        for (const auto &id : requiredMedia(v)) if (!runtime.mediaFound.contains(id)) return false;
         for (const auto &id : v.tools) if (!runtime.toolsOk.contains(id)) return false;
         return true;
     };
@@ -73,7 +103,7 @@ void resolveState(GameRecord &game) {
         else {
             base = GameState::ReadyToInstall;
             for (const auto &id : best->tools) if (!runtime.toolsOk.contains(id)) base = GameState::NeedsEmulator;
-            for (const auto &id : best->media) if (!runtime.mediaFound.contains(id)) base = GameState::NeedsFiles;
+            for (const auto &id : requiredMedia(*best)) if (!runtime.mediaFound.contains(id)) base = GameState::NeedsFiles;
         }
     }
     else if (!installedId.isEmpty())
@@ -95,17 +125,17 @@ void resolveState(GameRecord &game) {
             for (const auto &id : best->tools)
                 if (!runtime.toolsOk.contains(id))
                     base = GameState::NeedsEmulator;
-            for (const auto &id : best->media)
+            for (const auto &id : requiredMedia(*best))
                 if (!runtime.mediaFound.contains(id))
                     base = GameState::NeedsFiles;
         }
     }
     int found = 0;
     if (best)
-        for (const auto &id : best->media)
+        for (const auto &id : requiredMedia(*best))
             if (runtime.mediaFound.contains(id))
                 ++found;
-    const auto mediaStatus = !best || best->media.isEmpty() || found == best->media.size()
+    const auto mediaStatus = !best || requiredMedia(*best).isEmpty() || found == requiredMedia(*best).size()
                                  ? MediaStatus::Found
                              : found > 0 ? MediaStatus::Partial
                                          : MediaStatus::Missing;
@@ -151,7 +181,8 @@ void resolveState(GameRecord &game) {
                      : base == GameState::Installed    ? "ready"
                      : base == GameState::NeedsFiles   ? "needsFiles"
                                                        : "";
-    r["inLibrary"] = !runtime.mediaFound.isEmpty();
+    r["inLibrary"] = std::any_of(runtime.mediaFound.cbegin(), runtime.mediaFound.cend(),
+                                  [&](const QString &id) { return !biosIds.contains(id); });
     r["mediaStatus"] = static_cast<int>(mediaStatus);
     r["toolStatus"] = static_cast<int>(tools);
     r["installedVariantId"] = installedId;

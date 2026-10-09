@@ -3,7 +3,32 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
+#include <QRegularExpression>
 namespace ac::install {
+namespace {
+QString matchedSet(const Json &row, const Json &binding) {
+  const auto declared = string(row, "set"), identity = string(binding, "identity");
+  const auto selected = identity.isEmpty() ? declared : identity;
+  const QRegularExpression safe("\\A[a-z0-9][a-z0-9_-]*\\z");
+  if (!safe.match(declared).hasMatch() || !safe.match(selected).hasMatch())
+    throw Error("E_MEDIA_IDENTITY", "Invalid arcade set identity; scan again");
+  if (selected != declared) {
+    if (!QStringList{"mame-header-crc", "supermodel-header-crc"}.contains(string(binding, "proof")) ||
+        !binding.contains("setCandidates") || !binding["setCandidates"].is_array())
+      throw Error("E_MEDIA_IDENTITY", "Clone membership requires a fresh metadata scan");
+    QStringList allowed;
+    for (const auto &candidate : binding["setCandidates"]) {
+      if (!candidate.is_string()) throw Error("E_MEDIA_IDENTITY", "Invalid clone family; scan again");
+      const auto id = QString::fromStdString(candidate.get<std::string>());
+      if (!safe.match(id).hasMatch()) throw Error("E_MEDIA_IDENTITY", "Invalid clone family; scan again");
+      allowed << id;
+    }
+    if (!allowed.contains(declared) || !allowed.contains(selected))
+      throw Error("E_MEDIA_IDENTITY", "Selected set is outside the declared clone family; scan again");
+  }
+  return selected;
+}
+} // namespace
 LaunchPlan makeFlatLaunchPlan(const GameRecord &game, const Json &emulator,
                               const QString &root, const Json &bindings) {
   const auto tool = string(emulator, "id");
@@ -32,11 +57,15 @@ LaunchPlan makeFlatLaunchPlan(const GameRecord &game, const Json &emulator,
   int index = 0;
   for (const auto &m : game.raw.value("media", Json::array())) {
     const auto key = mediaRequirementId(m, game.id, index++);
+    if (!mediaAppliesToRoute(m, tool, string(game.raw, "hardware")))
+      continue;
     const auto media = bindings.value("media", Json::object())
                            .value(key.toStdString(), Json::object());
     const auto path = string(media, "path");
-    if (!QFileInfo(path).isFile() || !media.value("verified", false))
+    if (!QFileInfo(path).isFile() || !media.value("verified", false)) {
+      if (optionalMedia(m)) continue;
       throw Error("E_MEDIA_MISSING", "Required media is not verified");
+    }
     const auto dir = QFileInfo(path).absolutePath();
     if (string(m, "kind").contains("bios")) {
       vars["bios.dir"] = dir;
@@ -48,7 +77,8 @@ LaunchPlan makeFlatLaunchPlan(const GameRecord &game, const Json &emulator,
           {"path", path.toStdString()},
           {"dir", dir.toStdString()},
           {"set",
-           string(m, "set", QFileInfo(path).completeBaseName()).toStdString()}};
+           (string(m, "kind") == "mame-romset" ? matchedSet(m, media)
+                : string(m, "set", QFileInfo(path).completeBaseName())).toStdString()}};
     if (!rompaths.contains(dir))
       rompaths << dir;
     for (const auto &support :

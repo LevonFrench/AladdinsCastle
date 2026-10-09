@@ -363,7 +363,8 @@ QString chdSerial(QFile &f, const QByteArray &header, std::atomic_bool &cancel,
   // map.
   if (hunk < 2048 || hunk > 1024 * 1024 || unit == 0 || hunk % unit ||
       logical == 0 || logical > 100ULL * 1024 * 1024 * 1024 ||
-      (logical + hunk - 1) / hunk > 1000000 ||
+      (logical + hunk - 1) / hunk >
+          (32ULL * 1024 * 1024) / (qFromBigEndian<quint32>(header.constData() + 16) ? 12 : 4) ||
       mapOffset > static_cast<quint64>(f.size())) {
     error = "CHD dimensions exceed bounded metadata limits";
     return {};

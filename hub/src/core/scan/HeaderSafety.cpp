@@ -6,8 +6,9 @@ bool resolveChdHunk(const unsigned char *map, quint64 mapBytes,
                     quint32 hunkCount, quint32 entryBytes, bool compressed,
                     quint32 requested, quint32 &terminal,
                     std::atomic_bool &cancel, QString &error) {
-  if (!map || !hunkCount || hunkCount > 1000000 ||
-      entryBytes != (compressed ? 12U : 4U) ||
+  constexpr quint64 mapByteBudget = 32ULL * 1024 * 1024;
+  if (!map || !hunkCount || entryBytes != (compressed ? 12U : 4U) ||
+      mapBytes > mapByteBudget || quint64(hunkCount) * entryBytes > mapByteBudget ||
       mapBytes < quint64(hunkCount) * entryBytes || requested >= hunkCount) {
     error = "CHD map bounds invalid";
     return false;

@@ -66,7 +66,7 @@ QStringList enumerate(const QStringList &roots, const QStringList &extensions,
   QQueue<QPair<QString, int>> queue;
   for (const auto &r : roots) {
     QFileInfo f(r);
-    if (f.isSymLink() || blocked(f.fileName()))
+    if (f.isSymLink() || f.isJunction() || blocked(f.fileName()))
       continue;
     if (f.isFile()) {
       if (extensions.contains(f.suffix().toLower()))
@@ -86,7 +86,7 @@ QStringList enumerate(const QStringList &roots, const QStringList &extensions,
              QDir::Name)) {
       if (cancel)
         break;
-      if (f.isSymLink() || blocked(f.fileName()))
+      if (f.isSymLink() || f.isJunction() || blocked(f.fileName()))
         continue;
       if (f.isDir()) {
         if (d < depth)
@@ -175,11 +175,16 @@ struct Rom {
   quint32 crc = 0;
   quint64 size = 0;
   bool hasSize = false;
+  QString bios;
+};
+struct Disk {
+  QString name, sha1, bios;
 };
 struct Set {
   QString name, parent;
   QMap<QString, Rom> roms;
-  QStringList devices;
+  QStringList devices, biosOrder;
+  QVector<Disk> disks;
 };
 using Sets = QMap<QString, Set>;
 Sets readSets(const QString &path, bool supermodel, QStringList &errors,
@@ -206,7 +211,15 @@ Sets readSets(const QString &path, bool supermodel, QStringList &errors,
         current.parent = a.value(supermodel ? "parent" : "cloneof").toString();
       } else if (supermodel && tag == "region")
         region = a.value("name").toString();
-      else if (!supermodel && tag == "device_ref")
+      else if (!supermodel && tag == "biosset") {
+        const auto bios = a.value("name").toString();
+        if (a.value("default") == "yes") current.biosOrder.prepend(bios);
+        else current.biosOrder << bios;
+      } else if (!supermodel && tag == "disk") {
+        if (a.value("status") != "nodump" && a.value("optional") != "yes")
+          current.disks << Disk{a.value("name").toString(), a.value("sha1").toString().toLower(),
+                                a.value("bios").toString()};
+      } else if (!supermodel && tag == "device_ref")
         current.devices << a.value("name").toString();
       else if ((!supermodel && tag == "rom") || (supermodel && tag == "file")) {
         if (a.value("status") == "nodump" || a.value("optional") == "yes")
@@ -221,9 +234,10 @@ Sets readSets(const QString &path, bool supermodel, QStringList &errors,
         if (!ok)
           continue;
         Rom rom{a.value("name").toString(), a.value("merge").toString(), crc,
-                a.value("size").toULongLong(), a.hasAttribute("size")};
+                a.value("size").toULongLong(), a.hasAttribute("size"),
+                a.value("bios").toString()};
         const QString k =
-            supermodel ? region + "/" + a.value("offset").toString() : rom.name;
+            supermodel ? region + "/" + a.value("offset").toString() : rom.name + "/" + rom.bios;
         current.roms[k] = rom;
       }
     } else if (xml.isEndElement() &&
@@ -266,8 +280,11 @@ QString family(QString name, const Sets &sets) {
 struct ArchiveIndex {
   QHash<quint32, QVector<const FileIdentity *>> providers;
   QHash<const FileIdentity *, QHash<quint32, QSet<quint64>>> signatures;
+  QHash<QString, QVector<const FileIdentity *>> chds;
   explicit ArchiveIndex(const QVector<FileIdentity> &files) {
-    for (const auto &file : files)
+    for (const auto &file : files) {
+      if (file.kind.startsWith("chd-") && file.error.isEmpty() && !file.chdHeaderSha1.isEmpty())
+        chds[QFileInfo(file.path).absolutePath()].push_back(&file);
       if (file.kind == "archive-crc" && file.error.isEmpty()) {
         QSet<quint32> seen;
         for (const auto &entry : file.entries)
@@ -279,6 +296,7 @@ struct ArchiveIndex {
             }
           }
       }
+    }
   }
   bool contains(const FileIdentity *file, const Rom &rom) const {
     const auto f = signatures.constFind(file);
@@ -310,6 +328,59 @@ void supportRequirement(Binding &binding, const QString &set,
       return;
     }
 }
+QStringList biosChoices(const Set &set) {
+  QStringList choices;
+  for (const auto &rom : set.roms)
+    if (!rom.bios.isEmpty() && !choices.contains(rom.bios)) choices << rom.bios;
+  for (const auto &disk : set.disks)
+    if (!disk.bios.isEmpty() && !choices.contains(disk.bios)) choices << disk.bios;
+  for (qsizetype i = set.biosOrder.size(); i > 0; --i)
+    if (choices.removeAll(set.biosOrder[i - 1])) choices.prepend(set.biosOrder[i - 1]);
+  if (choices.isEmpty()) choices << QString();
+  return choices;
+}
+QVector<Rom> biosRoms(const Set &set, const QString &bios) {
+  QVector<Rom> out;
+  for (const auto &rom : set.roms)
+    if (rom.bios.isEmpty() || rom.bios == bios) out << rom;
+  return out;
+}
+const FileIdentity *matchingDisk(const Disk &disk, const Set &set,
+                                const FileIdentity &archive, const ArchiveIndex &index) {
+  if (!QRegularExpression("^[a-f0-9]{40}$").match(disk.sha1).hasMatch()) return nullptr;
+  const auto folder = QDir(QFileInfo(archive.path).absolutePath()).filePath(set.name);
+  for (const auto *file : index.chds.value(folder))
+    if (file->chdHeaderSha1.compare(disk.sha1, Qt::CaseInsensitive) == 0) return file;
+  return nullptr;
+}
+Binding deviceRoms(const Set &set, const ArchiveIndex &index, const FileIdentity &primary) {
+  Binding best;
+  bool first = true;
+  for (const auto &bios : biosChoices(set)) {
+    Binding candidate;
+    for (const auto &rom : biosRoms(set, bios)) {
+      bool found = false;
+      for (const auto *support : index.providers.value(rom.crc))
+        if (index.contains(support, rom)) {
+          if (support->path != primary.path) candidate.supportPaths << support->path;
+          supportRequirement(candidate, set.name, *support, rom);
+          found = true;
+          break;
+        }
+      if (!found) candidate.missing << "device:" + set.name + ":" + rom.name;
+    }
+    for (const auto &disk : set.disks) {
+      if (!disk.bios.isEmpty() && disk.bios != bios) continue;
+      if (const auto *chd = matchingDisk(disk, set, primary, index))
+        candidate.supportPaths << chd->path;
+      else candidate.missing << "device-disk:" + set.name + ":" + disk.name;
+    }
+    if (first || candidate.missing.size() < best.missing.size()) {
+      best = candidate; first = false;
+    }
+  }
+  return best;
+}
 Binding matchSet(const QString &name, const Sets &sets,
                  const ArchiveIndex &index, const Families &families,
                  bool supermodel, std::atomic_bool &cancel) {
@@ -317,95 +388,77 @@ Binding matchSet(const QString &name, const Sets &sets,
   int bestScore = 0;
   const auto targetFamily = family(name, sets);
   for (const auto &candidate : families.value(targetFamily)) {
-    if (cancel)
-      break;
-    const auto expected =
-        supermodel ? inherited(candidate, sets) : sets[candidate];
-    if (expected.roms.isEmpty())
-      continue;
+    if (cancel) break;
+    const auto expected = supermodel ? inherited(candidate, sets) : sets[candidate];
+    if (expected.roms.isEmpty() && expected.disks.isEmpty()) continue;
     QSet<const FileIdentity *> relevant;
     for (const auto &rom : expected.roms)
       for (const auto *f : index.providers.value(rom.crc))
-        if (index.contains(f, rom))
-          relevant.insert(f);
+        if (index.contains(f, rom)) relevant.insert(f);
+    // Disk-only definitions still require a ZIP/7z companion in the same root.
+    if (expected.roms.isEmpty() && !expected.disks.isEmpty())
+      for (auto it = index.signatures.cbegin(); it != index.signatures.cend(); ++it)
+        relevant.insert(it.key());
     auto candidates = relevant.values();
     std::sort(candidates.begin(), candidates.end(),
-              [](const FileIdentity *a, const FileIdentity *b) {
-                return a->path < b->path;
-              });
+              [](const FileIdentity *a, const FileIdentity *b) { return a->path < b->path; });
     for (const auto *candidateFile : candidates) {
-      if (cancel)
-        break;
+      if (cancel) break;
       const auto &file = *candidateFile;
-      int score = 0;
-      for (const auto &rom : expected.roms)
-        if (index.contains(&file, rom))
-          ++score;
-      if (score == 0 || score < bestScore)
-        continue;
-      Binding b;
-      b.path = file.path;
-      b.identity = expected.name;
-      b.proof = supermodel ? "supermodel-header-crc" : "mame-header-crc";
-      for (const auto &rom : expected.roms) {
-        if (index.contains(&file, rom)) {
-          supportRequirement(b, expected.name, file, rom);
-          continue;
+      for (const auto &bios : biosChoices(expected)) {
+        const auto roms = biosRoms(expected, bios);
+        int score = 0;
+        for (const auto &rom : roms)
+          if (rom.merge.isEmpty() && index.contains(&file, rom)) ++score;
+        Binding b;
+        b.path = file.path; b.identity = expected.name;
+        b.setCandidates = families.value(targetFamily);
+        b.proof = supermodel ? "supermodel-header-crc" : "mame-header-crc";
+        for (const auto &disk : expected.disks) {
+          if (!disk.bios.isEmpty() && disk.bios != bios) continue;
+          if (const auto *chd = matchingDisk(disk, expected, file, index)) {
+            b.supportPaths << chd->path;
+            ++score;
+          } else b.missing << "disk:" + disk.name + ":" + disk.sha1;
         }
-        bool found = false;
-        // Split parent archives are allowed only for inherited/merge ROMs.
-        if (!rom.merge.isEmpty() || (supermodel && !expected.parent.isEmpty()))
-          for (const auto *candidateSupport : index.providers.value(rom.crc))
-            if (index.contains(candidateSupport, rom)) {
-              const auto &support = *candidateSupport;
-              b.supportPaths << support.path;
-              supportRequirement(b, expected.name, support, rom);
-              found = true;
-              break;
-            }
-        if (!found)
-          b.missing << QString("rom:%1:%2")
-                           .arg(rom.name, QString::number(rom.crc, 16)
-                                              .rightJustified(8, '0'));
-      }
-      QSet<QString> visited;
-      QQueue<QString> devices;
-      for (const auto &d : expected.devices)
-        devices.enqueue(d);
-      while (!devices.isEmpty()) {
-        auto d = devices.dequeue();
-        if (visited.contains(d))
-          continue;
-        visited.insert(d);
-        if (!sets.contains(d)) {
-          b.missing << "device-metadata:" + d;
-          continue;
-        }
-        for (const auto &next : sets[d].devices)
-          devices.enqueue(next);
-        for (const auto &rom : sets[d].roms) {
+        // BIOS/parent archives alone cannot anchor the game match.
+        if (!score) continue;
+        for (const auto &rom : roms) {
+          if (index.contains(&file, rom)) {
+            supportRequirement(b, expected.name, file, rom); continue;
+          }
           bool found = false;
-          for (const auto *candidateSupport : index.providers.value(rom.crc))
-            if (index.contains(candidateSupport, rom)) {
-              const auto &support = *candidateSupport;
-              if (support.path != file.path)
-                b.supportPaths << support.path;
-              supportRequirement(b, d, support, rom);
-              found = true;
-              break;
-            }
-          if (!found)
-            b.missing << "device:" + d + ":" + rom.name;
+          if (!rom.merge.isEmpty() || (supermodel && !expected.parent.isEmpty()))
+            for (const auto *support : index.providers.value(rom.crc))
+              if (index.contains(support, rom)) {
+                b.supportPaths << support->path;
+                supportRequirement(b, expected.name, *support, rom);
+                found = true; break;
+              }
+          if (!found) b.missing << QString("rom:%1:%2").arg(
+              rom.name, QString::number(rom.crc, 16).rightJustified(8, '0'));
+        }
+        QSet<QString> visited;
+        QQueue<QString> devices;
+        for (const auto &d : expected.devices) devices.enqueue(d);
+        while (!devices.isEmpty()) {
+          const auto d = devices.dequeue();
+          if (visited.contains(d)) continue;
+          visited.insert(d);
+          if (!sets.contains(d)) { b.missing << "device-metadata:" + d; continue; }
+          for (const auto &next : sets[d].devices) devices.enqueue(next);
+          auto requirements = deviceRoms(sets[d], index, file);
+          b.missing << requirements.missing;
+          b.supportPaths << requirements.supportPaths;
+          b.supportRequirements << requirements.supportRequirements;
+        }
+        b.supportPaths.removeDuplicates();
+        b.verified = b.missing.isEmpty();
+        if (best.path.isEmpty() || (b.verified && !best.verified) ||
+            (b.verified == best.verified && score > bestScore)) {
+          best = b; bestScore = score;
         }
       }
-      b.supportPaths.removeDuplicates();
-      b.verified = b.missing.isEmpty();
-      if (b.verified || score > bestScore) {
-        best = b;
-        bestScore = score;
-      }
-      if (b.verified)
-        return b;
     }
   }
   return best;
@@ -502,6 +555,7 @@ Json ScanResult::toJson() const {
                  {"path", v.path.toStdString()},
                  {"proof", v.proof.toStdString()},
                  {"identity", v.identity.toStdString()},
+                 {"setCandidates", list(v.setCandidates)},
                  {"verified", v.verified},
                  {"supportPaths", list(v.supportPaths)},
                  {"supportRequirements", requirements},
@@ -609,7 +663,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
   if (!o.userRoot.isEmpty())
     try {
       auto table = toml::parse_file(cachePath.toStdString());
-      if (table["version"].value_or(0) == 3)
+      if (table["version"].value_or(0) == 4)
         if (auto a = table["files"].as_array())
           for (const auto &n : *a)
             if (auto p = n.value<std::string>()) {
@@ -693,7 +747,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
         binding.gameId = g.id;
         binding.requirementId = requirementId(g, m, i++);
         const auto kind = s(m, "kind");
-        if (kind == "mame-romset") {
+        if (kind == "mame-romset" || (kind == "bios" && !s(m, "set").isEmpty())) {
           const auto name = s(m, "set");
           auto candidate =
               matchSet(name, mame, archiveIndex, mameFamilies, false, cancel);
@@ -716,11 +770,8 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
             if (kind == "bios")
               found = f.kind == "ps2-bios-romdir" &&
                       s(g.raw, "hardware") == "sony-ps2";
-            else if (f.kind == "chd-sha1")
-              found =
-                  !s(m, "chd_sha1").isEmpty() &&
-                  s(m, "chd_sha1").compare(f.identity, Qt::CaseInsensitive) ==
-                      0;
+            else if (!s(m, "chd_sha1").isEmpty() && !f.chdHeaderSha1.isEmpty())
+              found = s(m, "chd_sha1").compare(f.chdHeaderSha1, Qt::CaseInsensitive) == 0;
             else if (!s(m, "serial").isEmpty())
               found = s(m, "serial") == f.identity;
             else if (serials.contains(f.identity.toStdString())) {
@@ -757,7 +808,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
                 executable(path)) {
               binding.path = path;
               binding.identity = version(path);
-              binding.proof = "pe-name-fileversion";
+              binding.proof = "executable-name-only";
               binding.verified = true;
               break;
             }
@@ -779,7 +830,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
   if (!r.cancelled && !o.userRoot.isEmpty()) {
     QDir().mkpath(o.userRoot + "/cache");
     toml::table table;
-    table.insert("version", 3);
+    table.insert("version", 4);
     toml::array a;
     for (const auto &f : r.files)
       a.push_back(identityJson(f).dump());

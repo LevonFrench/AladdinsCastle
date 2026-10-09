@@ -4,6 +4,7 @@
 #include "core/scan/Scan.h"
 #include "core/scan/ScanController.h"
 #include <QDir>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QFontDatabase>
 #include <QTemporaryDir>
@@ -107,6 +108,32 @@ QByteArray iso() {
   std::memcpy(data.data() + 21 * 2048, boot.data(), size_t(boot.size()));
   return data;
 }
+QByteArray syntheticChd(quint64 logical = 24 * 2048) {
+  constexpr quint32 hunk = 4096;
+  const auto hunks = (logical + hunk - 1) / hunk;
+  QByteArray bytes(static_cast<qsizetype>(124 + hunks * 4), 0);
+  std::memcpy(bytes.data(), "MComprHD", 8);
+  qToBigEndian<quint32>(124, bytes.data() + 8);
+  qToBigEndian<quint32>(5, bytes.data() + 12);
+  qToBigEndian<quint64>(logical, bytes.data() + 32);
+  qToBigEndian<quint64>(124, bytes.data() + 40);
+  qToBigEndian<quint32>(hunk, bytes.data() + 56);
+  qToBigEndian<quint32>(2048, bytes.data() + 60);
+  const auto image = iso();
+  const auto digest = QCryptographicHash::hash(image, QCryptographicHash::Sha1);
+  std::memcpy(bytes.data() + 84, digest.constData(), 20);
+  if (logical == quint64(image.size())) {
+    const auto first = (quint64(bytes.size()) + hunk - 1) / hunk;
+    for (quint64 i = 0; i < hunks; ++i)
+      qToBigEndian<quint32>(static_cast<quint32>(first + i), bytes.data() + 124 + i * 4);
+    bytes.resize(static_cast<qsizetype>(first * hunk));
+    bytes += image;
+  } else {
+    // A valid map ends before EOF, even when every sparse block is zero.
+    bytes.append('\0');
+  }
+  return bytes;
+}
 } // namespace
 class ScanArtTest : public QObject {
   Q_OBJECT
@@ -207,6 +234,14 @@ private slots:
     QVERIFY(!ac::scan::detail::resolveChdHunk(
         reinterpret_cast<const unsigned char *>(map.constData()), 12, 40, 12,
         true, 0, terminal, stop, error));
+    QVERIFY(error.contains("map bounds"));
+    QVERIFY(!ac::scan::detail::resolveChdHunk(
+        reinterpret_cast<const unsigned char *>(map.constData()), 32ULL * 1024 * 1024 + 4,
+        1, 4, false, 0, terminal, stop, error));
+    QVERIFY(error.contains("map bounds"));
+    QVERIFY(!ac::scan::detail::resolveChdHunk(
+        reinterpret_cast<const unsigned char *>(map.constData()), quint64(map.size()),
+        32U * 1024 * 1024 / 4 + 1, 4, false, 0, terminal, stop, error));
     QVERIFY(error.contains("map bounds"));
   }
   void serialHeaders() {
@@ -380,6 +415,149 @@ private slots:
   }
 
 
+  void mameDisksRequireMatchingAdjacentChd() {
+    QTemporaryDir t;
+    save(t.filePath("renamed.zip"), zip({{0x12345678, 100}}));
+    const auto chd = syntheticChd();
+    const auto sha = QString::fromLatin1(chd.mid(84, 20).toHex());
+    const auto xml = t.filePath("metadata.xml");
+    const auto metadata = [&](const QString &digest) {
+      return QString("<mame><machine name='test'><rom name='program' crc='12345678' size='100'/>"
+                     "<disk name='game' sha1='%1'/></machine></mame>").arg(digest).toUtf8();
+    };
+    save(xml, metadata(sha));
+    ac::scan::ScanOptions o; o.mediaRoots = {t.path()}; o.mameXml = xml;
+    std::atomic_bool stop = false;
+    auto result = ac::scan::Scanner::run(catalog(), o, stop);
+    QVERIFY(!result.bindings[0].verified);
+    QVERIFY(result.bindings[0].missing.join(' ').contains("disk:game"));
+    save(t.filePath("wrong-folder/game.chd"), chd);
+    result = ac::scan::Scanner::run(catalog(), o, stop);
+    QVERIFY(!result.bindings[0].verified);
+    save(t.filePath("test/game.chd"), chd);
+    auto identity = ac::scan::Scanner::inspect(t.filePath("test/game.chd"), stop);
+    QVERIFY2(identity.error.isEmpty(), qPrintable(identity.error));
+    QCOMPARE(identity.chdHeaderSha1, sha);
+    result = ac::scan::Scanner::run(catalog(), o, stop);
+    QVERIFY(result.bindings[0].verified);
+    QVERIFY(result.bindings[0].supportPaths.contains(t.filePath("test/game.chd")));
+    save(xml, metadata(QString(40, '0')));
+    result = ac::scan::Scanner::run(catalog(), o, stop);
+    QVERIFY(!result.bindings[0].verified);
+    auto disc = catalog("disc"); disc.games[0].raw["media"][0].erase("set");
+    disc.games[0].raw["media"][0]["chd_sha1"] = sha.toStdString();
+    result = ac::scan::Scanner::run(disc, o, stop);
+    QVERIFY(result.bindings[0].verified);
+  }
+  void biosArchivesCannotShadowVerifiedClone() {
+    QTemporaryDir t;
+    save(t.filePath("a-broken.zip"), zip({{0x10000001, 100}, {0x10000002, 100}}));
+    save(t.filePath("bios.zip"), zip({{0x20000001, 100}, {0x20000002, 100}, {0x20000003, 100}}));
+    save(t.filePath("z-program.zip"), zip({{0x30000001, 100}}));
+    const auto xml = t.filePath("metadata.xml");
+    save(xml, "<mame><machine name='test'><rom name='a' crc='10000001' size='100'/>"
+              "<rom name='b' crc='10000002' size='100'/><rom name='c' crc='10000003' size='100'/>"
+              "</machine><machine name='z-regional' cloneof='test'>"
+              "<rom name='a' merge='a' crc='20000001' size='100'/>"
+              "<rom name='b' merge='b' crc='20000002' size='100'/>"
+              "<rom name='c' merge='c' crc='20000003' size='100'/>"
+              "<rom name='program' crc='30000001' size='100'/></machine></mame>");
+    ac::scan::ScanOptions o; o.mediaRoots = {t.path()}; o.mameXml = xml;
+    std::atomic_bool stop = false;
+    auto result = ac::scan::Scanner::run(catalog(), o, stop);
+    QVERIFY(result.bindings[0].verified);
+    QCOMPARE(result.bindings[0].identity, QString("z-regional"));
+    QCOMPARE(result.bindings[0].path, t.filePath("z-program.zip"));
+    QVERIFY(result.bindings[0].setCandidates.contains("test"));
+    QVERIFY(result.bindings[0].setCandidates.contains("z-regional"));
+    QCOMPARE(result.toJson()["bindings"][0]["setCandidates"].size(), size_t(2));
+    o.mediaRoots = {t.filePath("bios.zip")};
+    result = ac::scan::Scanner::run(catalog(), o, stop);
+    QVERIFY(!result.bindings[0].verified);
+    QVERIFY(result.states[0].mediaFound.isEmpty());
+  }
+  void biosAlternativesAndSetRows() {
+    QTemporaryDir t;
+    save(t.filePath("game.zip"), zip({{0x12345678, 100}}));
+    save(t.filePath("alternate.zip"), zip({{0xabcdef12, 100}}));
+    const auto xml = t.filePath("metadata.xml");
+    save(xml, "<mame><machine name='test'><rom name='base' crc='12345678' size='100'/>"
+              "<device_ref name='chip'/></machine><machine name='chip' isbios='yes'>"
+              "<biosset name='default' default='yes'/><biosset name='alternate'/>"
+              "<rom name='firmware' bios='default' crc='11111111' size='100'/>"
+              "<rom name='firmware' bios='alternate' crc='abcdef12' size='100'/>"
+              "</machine></mame>");
+    auto c = catalog();
+    c.games[0].raw["media"].push_back({{"kind", "bios"}, {"set", "chip"}});
+    ac::scan::ScanOptions o; o.mediaRoots = {t.path()}; o.mameXml = xml;
+    std::atomic_bool stop = false;
+    auto result = ac::scan::Scanner::run(c, o, stop);
+    QVERIFY(result.bindings[0].verified);
+    QVERIFY(result.bindings[1].verified);
+    QCOMPARE(result.bindings[1].proof, QString("mame-header-crc"));
+    o.mediaRoots = {t.filePath("alternate.zip")};
+    result = ac::scan::Scanner::run(c, o, stop);
+    QVERIFY(!result.bindings[0].verified);
+    QVERIFY(result.bindings[1].verified);
+    c.games[0].runtime = result.states[0]; ac::resolveState(c.games[0]);
+    QVERIFY(!c.games[0].roles["inLibrary"].toBool());
+    // Alternatives within the game definition itself may reuse the same name.
+    save(xml, "<mame><machine name='test'><biosset name='default' default='yes'/>"
+              "<biosset name='alternate'/><rom name='firmware' bios='default' crc='11111111' size='100'/>"
+              "<rom name='firmware' bios='alternate' crc='abcdef12' size='100'/></machine></mame>");
+    result = ac::scan::Scanner::run(catalog(), o, stop);
+    QVERIFY(result.bindings[0].verified);
+  }
+  void chdMapBudgetAllowsLargeSparseDiscs() {
+    QTemporaryDir t;
+    const auto path = t.filePath("large-synthetic.chd");
+    auto data = syntheticChd(1200001ULL * 4096);
+    save(path, data);
+    std::atomic_bool stop = false;
+    const auto inspected = ac::scan::Scanner::inspect(path, stop);
+    QVERIFY2(inspected.error.isEmpty(), qPrintable(inspected.error));
+    QCOMPARE(inspected.kind, QString("chd-sha1"));
+    QVERIFY(!inspected.chdHeaderSha1.isEmpty());
+    qToBigEndian<quint64>(100ULL * 1024 * 1024 * 1024, data.data() + 32);
+    save(path, data);
+    const auto over = ac::scan::Scanner::inspect(path, stop);
+    QVERIFY(over.error.contains("dimensions"));
+  }
+  void pcProofIsExplicitlyNameOnly() {
+    QTemporaryDir t;
+    QByteArray pe(68, 0); pe[0] = 'M'; pe[1] = 'Z';
+    qToLittleEndian<quint32>(64, pe.data() + 60); pe.replace(64, 4, QByteArray("PE\0\0", 4));
+    save(t.filePath("Synthetic.exe"), pe);
+    auto c = catalog("pc-game"); c.games[0].raw["media"][0]["find"] = ac::Json::array({"Synthetic.exe"});
+    ac::scan::ScanOptions o; o.mediaRoots = {t.path()}; std::atomic_bool stop = false;
+    const auto result = ac::scan::Scanner::run(c, o, stop);
+    QVERIFY(result.bindings[0].verified);
+    QCOMPARE(result.bindings[0].proof, QString("executable-name-only"));
+  }
+  void directoryLinksAreNotFollowed() {
+    QTemporaryDir root, outside;
+    save(outside.filePath("synthetic.zip"), zip({{0x12345678, 100}}));
+    const auto link = root.filePath("linked-folder");
+#ifdef Q_OS_WIN
+    QProcess maker;
+    maker.start("cmd.exe", {"/c", "mklink", "/J", QDir::toNativeSeparators(link), QDir::toNativeSeparators(outside.path())});
+    QVERIFY(maker.waitForFinished(10000)); QCOMPARE(maker.exitCode(), 0);
+    QVERIFY(QFileInfo(link).isJunction());
+#else
+    QVERIFY(QFile::link(outside.path(), link));
+    QVERIFY(QFileInfo(link).isSymLink());
+#endif
+    ac::scan::ScanOptions o; o.mediaRoots = {root.path()}; std::atomic_bool stop = false;
+    QVERIFY(ac::scan::Scanner::run(catalog(), o, stop).files.isEmpty());
+    o.mediaRoots = {link};
+    QVERIFY(ac::scan::Scanner::run(catalog(), o, stop).files.isEmpty());
+    QVERIFY(QFileInfo::exists(outside.filePath("synthetic.zip")));
+#ifdef Q_OS_WIN
+    QVERIFY(QDir().rmdir(link));
+#else
+    QVERIFY(QFile::remove(link));
+#endif
+  }
   void arttoolDocumentedCommandExportsFallback() {
     QTemporaryDir t;
     ac::Json request{{"dataRoot",AC_CATALOG_ROOT},{"userRoot",t.filePath("user").toStdString()},{"gameIds",ac::Json::array({"timecris"})},{"outputDirectory",t.filePath("out").toStdString()},{"kind","logo"}};
@@ -390,7 +568,7 @@ private slots:
 #endif
     QProcess child;auto environment=QProcessEnvironment::systemEnvironment();
 #ifdef Q_OS_WIN
-    environment.insert("QT_QPA_PLATFORM","windows");
+    environment.insert("QT_QPA_PLATFORM","offscreen");
 #else
     environment.insert("QT_QPA_PLATFORM","offscreen");
 #endif

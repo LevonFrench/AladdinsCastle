@@ -39,6 +39,7 @@ extras  = []                              # e.g. view-change button, nitro, snip
 [[media]]                                 # what the user must own (never downloaded)
 kind  = "mame-romset"                     # mame-romset | disc | pc-game | bios | other
 set   = "timecris"                        # MAME set; or serial = "SLUS-20219" for discs
+optional = false                         # boolean; true never blocks readiness or launch
 note  = "World TS2 Ver.B"
 
 [routes]                                  # how it can run today (status vocab below)
@@ -62,6 +63,8 @@ checked    = "2026-10-08"
 ```
 
 `[routes]` status values: `working`, `imperfect`, `not-working`, `profile` (TeknoParrot profile exists), `playable`, `unknown`. Emulator keys: `mame`, `supermodel`, `model2emu`, `flycast`, `redream`, `demul`, `dolphin`, `pcsx2`, `duckstation`, `rpcs3`, `mednafen`, `yabasanshiro`, `mupen64plus`, `ares`, `xemu`, `cxbx`, `teknoparrot`, `demulshooter` (gun bridge exists: `profile`), `lindbergh-loader`, `xenia`, `cemu`, `ryujinx`, `native`.
+
+Media requirements are selected per route: arcade emulators use ROM sets and set-based BIOS rows, console emulators use discs and console BIOS rows, and PC routes use `pc-game` rows. Alternative PC media on an arcade entry does not block its arcade route. `optional = true` is allowed on any media row; an absent optional row never blocks readiness or launch. Authored variant needs retain their explicit selection, with optional rows excluded from blocking requirements. A BIOS alone does not put a game in "In my library".
 
 ## 3. Hub filters
 

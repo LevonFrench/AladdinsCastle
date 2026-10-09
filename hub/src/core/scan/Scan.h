@@ -31,6 +31,7 @@ struct Binding {
   QStringList supportPaths, missing;
   QVector<SupportRequirement> supportRequirements;
   bool verified = false;
+  QStringList setCandidates; // Metadata-declared clone family, never archive basenames.
 };
 struct ToolBinding {
   QString id, path, version;
