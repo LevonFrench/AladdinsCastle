@@ -13,14 +13,14 @@ Resolution order per game (first hit wins, per asset type):
 2. **Configured local art folders**, matched by the keys the media scanner already knows:
    | Layout | Path pattern | Match key |
    |---|---|---|
-   | EmulationStation / RetroBat per-system folders | `<roms>/<system>/{marquee,boxart,snap,images,media}/<file>.<png,jpg,mp4>` | ROM/disc file basename; for arcade also the MAME set name |
+   | EmulationStation / RetroBat per-system folders | `<roms>/<system>/{marquee,boxart,snap,wheel,fanart,images,media}/<file>.<png,jpg,mp4>` (folders beside the ROMs) | ROM/disc file basename; for arcade also the MAME set name |
    | RetroArch thumbnails | `<retroarch>/thumbnails/<playlist>/Named_{Boxarts,Snaps,Titles}/<No-Intro title>.png` | Normalised title (No-Intro rules: `&` → `_`, etc.) |
    | PCSX2 covers | `<pcsx2>/covers/<serial>.jpg` | Disc serial |
    | MAME artwork | `<mame>/artwork/<set>.zip` (bezels/overlays) | MAME set name (bezels only) |
    Folder roots come from the same "point to / search" flow as ROMs and emulators. Nothing is copied; the Hub reads in place and caches thumbnails under `user/cache/art/`.
 3. Generated fallback (§ generated art in this doc).
 
-Asset roles: marquee → card art strip and featured banner; boxart → detail hero and Steam capsule; snap/video → detail page preview.
+Asset roles: marquee → card art strip; fanart → featured banner and detail hero; wheel (transparent logo) → title logo and Steam logo; boxart → Steam capsule; snap/video → detail page preview.
 
 ## 1. Rules
 
