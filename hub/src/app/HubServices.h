@@ -42,5 +42,6 @@ private:
     std::shared_ptr<art::Resolver> art_;
     Json bindings_=Json::object();
     install::Request lastInstall_, pendingRemoval_;
+    bool rescanPending_=false;
 };
 }

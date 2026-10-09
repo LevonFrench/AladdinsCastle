@@ -38,13 +38,14 @@ int main(int argc,char **argv){
         try{
             const auto catalogRoot=ac::findCatalogRoot(app.applicationDirPath(),QDir::currentPath(),options.dataRoot);
             if(catalogRoot.isEmpty())throw ac::install::Error("E_CATALOG","Catalog missing");
-            const auto root=app.applicationDirPath();
+            const auto root=options.installRoot.isEmpty()?app.applicationDirPath():QDir(options.installRoot).absolutePath();
             const auto catalog=ac::CatalogLoader().load(catalogRoot);
-            const auto bindings=ac::Json::parse(ac::install::readBytes(root+"/user/cache/scan-bindings.json").toStdString());
+            const auto bindings=ac::Json::parse(ac::install::readBytes(options.bindingsFile.isEmpty()?root+"/user/cache/scan-bindings.json":options.bindingsFile).toStdString());
             ac::launch::LaunchService launcher;
             QObject::connect(&launcher,&ac::launch::LaunchService::finished,&app,[&](const QString &,int code,const QString &message,const QString &){if(!message.isEmpty())err<<message<<'\n';app.exit(code);});
-            const auto request=ac::launch::flatRequest(catalog,options.gameId,root,bindings);
+            const auto request=ac::launch::flatRequest(catalog,options.gameId,root,bindings,options.variantId);
             if(!launcher.start(request))return 1;
+            if(options.quitAfterMs>0)QTimer::singleShot(options.quitAfterMs,&launcher,&ac::launch::LaunchService::stop);
             return app.exec();
         }catch(const std::exception &e){err<<e.what()<<'\n';return 2;}
     }
@@ -57,8 +58,9 @@ int main(int argc,char **argv){
     const auto count=catalog.report.records;
     ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);
     QQuickStyle::setStyle("Basic");ac::Theme theme(games.catalog().theme);
-    ac::UiSettings settings(app.applicationDirPath()+"/user");ac::UiController ui(&games,&filter,&settings);
-    ac::HubServices services(&games,&filter,&ui,&settings,app.applicationDirPath());
+    const auto portableRoot=options.installRoot.isEmpty()?app.applicationDirPath():QDir(options.installRoot).absolutePath();
+    ac::UiSettings settings(portableRoot+"/user");ac::UiController ui(&games,&filter,&settings);
+    ac::HubServices services(&games,&filter,&ui,&settings,portableRoot);
     qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",&theme);
     ac::SpikeState spike;QQmlApplicationEngine engine;ac::OverlayHost overlay(spike);
     engine.addImageProvider("art",new ac::art::Provider(services.artResolver()));ui.setArtProviderReady(true);

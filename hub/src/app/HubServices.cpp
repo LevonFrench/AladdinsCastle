@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QDateTime>
+#include <QTimer>
 namespace ac {
 namespace {
 scan::ScanOptions scanOptions(const QString &root) {
@@ -30,7 +31,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
     connect(&scanner_,&scan::ScanController::scanStarted,ui_,&UiController::scanStarted);
     connect(&scanner_,&scan::ScanController::progress,ui_,&UiController::scanProgress);
-    connect(&scanner_,&scan::ScanController::scanFinished,this,[this](bool cancelled){ui_->scanFinished(!cancelled);});
+    connect(&scanner_,&scan::ScanController::scanFinished,this,[this](bool cancelled){ui_->scanFinished(!cancelled);if(rescanPending_){rescanPending_=false;QTimer::singleShot(0,this,[this]{scan({});});}});
     connect(&scanner_,&scan::ScanController::resultsReady,this,[this](const scan::ScanResult &result){
         bindings_=result.toJson(); art_->setBindings(result.bindings);
         auto roots=scanner_.options().artRoots+scanner_.options().mediaRoots;
@@ -66,6 +67,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
 RuntimeState HubServices::current(const QString &id)const{auto game=games_->find(id);return game?game->runtime:RuntimeState{};}
 void HubServices::report(const std::exception &e){ui_->installFinished(false,QString::fromUtf8(e.what()));}
 void HubServices::scan(const QStringList &folders){
+    if(scanner_.running()){rescanPending_=true;return;}
     QStringList roots=folders;
     if(roots.isEmpty())roots=scanner_.options().mediaRoots+scanner_.options().toolRoots+scanner_.options().artRoots;
     roots<<QDir(root_).filePath("emulators");roots.removeDuplicates();scanner_.scan(roots);
@@ -106,7 +108,10 @@ void HubServices::restore(){
                 if(binding.verified)state.mediaFound<<binding.requirementId;
                 artBindings<<binding;
             }
-            for(const auto &tool:bindings_.value("tools",Json::array()))if(tool.value("verified",false)&&QFileInfo(text(tool,"path")).isFile())state.toolsOk<<text(tool,"id");
+            for(const auto &tool:bindings_.value("tools",Json::array())) {
+                const QFileInfo executable(text(tool,"path"));
+                if(tool.value("verified",false)&&executable.isFile()&&(!tool.contains("size")||tool["size"].get<qint64>()==executable.size())&&(!tool.contains("mtime")||tool["mtime"].get<qint64>()==executable.lastModified().toMSecsSinceEpoch()))state.toolsOk<<text(tool,"id");
+            }
             states<<state;
         }
         games_->applyRuntimeStates(states);art_->setBindings(artBindings);
