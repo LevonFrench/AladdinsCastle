@@ -1,0 +1,36 @@
+id           = "wanganmd"
+title        = "Wangan Midnight"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2001
+manufacturer = "namco"
+developer    = "Genki"
+hardware     = "namco-system-246"
+players      = 1
+series       = "Wangan Midnight"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "mame-romset"
+set  = "wanganmd"
+note = "Wangan Midnight (WMN1 Ver. A); needs the System 246 BIOS set (sys246). MAME marks NOT_WORKING"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "WANGAN"
+colour = "#0c0c10"
+accent = "#ff7a00"
+blurb  = "Midnight highway street racing on the System 246 board."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcops2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/wanganmd.xml", "https://en.wikipedia.org/wiki/Wangan_Midnight"]
+confidence = "high"
+checked    = "2026-10-08"

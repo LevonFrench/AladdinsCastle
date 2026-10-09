@@ -45,8 +45,11 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 - Port PenguinScreen2's stereo approach to Windows, or work with that project upstream, adding libacvr gun aim.
 - Targets: Time Crisis 2/3, Crisis Zone, Vampire Night, Virtua Cop Elite Edition.
 
-## M8: Quest-standalone setups of our own
-- libacvr + namco22-vr built for Android/OpenXR, installed to the Quest by the Hub over USB.
+## M8: Standalone setups (Steam Frame first, then Quest 3)
+- **Steam Frame (SteamOS, ARM64):** Linux ARM64 builds of the Hub, libacvr and namco22-vr; then the emulators that have ARM64 builds. Target audience #1 (owner, 2026-10-08).
+- **Quest 3:** libacvr + namco22-vr built for Android/OpenXR, installed by the Hub over USB.
+
+Platform priority throughout: Steam Frame → Quest 3 over PC → Quest 3 native. M1-M7 target SteamVR on a PC, which already covers the Frame (streamed) and the Quest 3 over PC.
 
 ## Research track (runs alongside)
 - Stereo seams for Model 2 (MAME TGP path, sm2-emu), Lindbergh (lindbergh-loader GL shim), Daytona XBLA recomp, OutRun 2006, Dolphin.

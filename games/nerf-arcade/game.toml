@@ -1,0 +1,38 @@
+id           = "nerf-arcade"
+title        = "NERF Arcade"
+genre        = "gun"
+subgenre     = ["party"]
+year         = 2019
+manufacturer = "raw-thrills"
+developer    = "Play Mechanix"
+hardware     = "pc-arcade"
+players      = 2
+series       = "NERF"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "NERF foam blaster"
+pedals = []
+extras = ["foam-darts"]
+
+[[media]]
+kind = "other"
+note = "Not in MAME. Developed with Hasbro, Raw Thrills publishes. Announced March 2019. TeknoParrot profile NERF (GunGame=true); DemulShooter RtNerfArcade (X64). Player count not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "NERF"
+colour = "#1a1408"
+accent = "#ffd400"
+blurb  = "Foam-dart blasters in a party-game arcade built with Hasbro's blaster line."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://giantbomb.com/wiki/Games/NERF_Arcade", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/NERF.xml"]
+confidence = "low"
+checked    = "2026-10-08"

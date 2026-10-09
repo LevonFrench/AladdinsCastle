@@ -1,0 +1,40 @@
+id           = "extreme-hunting"
+title        = "Extreme Hunting"
+genre        = "gun"
+subgenre     = ["hunting"]
+year         = 2004
+manufacturer = "sammy"
+developer    = "Sammy"
+hardware     = "sammy-atomiswave"
+players      = 1                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Sammy rifle-style gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "xtrmhunt"
+note  = "Atomiswave"
+
+[[media]]
+kind  = "bios"
+set   = "awbios"
+note  = "Atomiswave BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "XHUNT"
+colour = "#1f1a0a"
+accent = "#f5c542"
+blurb  = "Rifle in hand, take your shot in the wild and keep it clean."
+badges = ["roomscale", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/dc/dc_atomiswave.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

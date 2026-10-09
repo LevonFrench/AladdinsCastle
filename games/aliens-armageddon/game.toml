@@ -1,0 +1,39 @@
+id           = "aliens-armageddon"
+title        = "Aliens: Armageddon"
+alt_titles   = ["Aliens Armageddon"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2014
+manufacturer = "raw-thrills"
+developer    = "Play Mechanix"
+hardware     = "pc-arcade"
+players      = 2
+series       = "Aliens"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "rifle-style light gun (fixed on standard, detached on deluxe)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "other"
+note = "Not in MAME. TeknoParrot profile AliensArmageddon (ElfLdr2, GunGame=true); DemulShooter RtAliensArmageddon. Player count not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "ALIENSARM"
+colour = "#0e1210"
+accent = "#7bd15a"
+blurb  = "Colonial Marines on LV-426: on-rails rifles, dense hordes and a deluxe 55-inch screen."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://giantbomb.com/wiki/Games/Aliens_Armageddon", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/AliensArmageddon.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

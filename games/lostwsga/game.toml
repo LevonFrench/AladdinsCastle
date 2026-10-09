@@ -1,0 +1,38 @@
+id           = "lostwsga"
+title        = "The Lost World: Jurassic Park"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1997
+manufacturer = "sega"
+developer    = "Sega AM3"
+hardware     = "sega-model-3"
+players      = 2
+series       = "The Lost World"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Sega light gun"
+
+[[media]]
+kind = "mame-romset"
+set  = "lostwsga"
+note = "Revision A (parent set)"
+
+[routes]
+mame        = "not-working"
+supermodel  = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "LOSTWORLD"
+colour = "#0e1a0f"
+accent = "#8bc34a"
+blurb  = "Dinosaur rail shooter on Model 3 with a pair of guns and plenty of roar."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model3.cpp", "https://github.com/trzy/Supermodel/blob/master/Docs/README.txt", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/lostwsga.xml", "https://en.wikipedia.org/wiki/The_Lost_World:_Jurassic_Park_(arcade_game)"]
+confidence = "high"
+checked    = "2026-10-08"

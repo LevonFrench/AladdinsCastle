@@ -1,0 +1,35 @@
+id           = "n64-wave-race-64"
+title        = "Wave Race 64"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 1996
+manufacturer = "nintendo"
+developer    = "Nintendo EAD"
+hardware     = "nintendo-64"
+players      = 2
+series       = "Wave Race"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "other"
+note = "Your own N64 cartridge dump (not provided by this catalog)"
+
+[routes]
+# No N64 emulator key in game-schema.md yet; add one before routing.
+vr = { best = "none" }
+
+[hub]
+pill   = "N64-WAVE"
+colour = "#1c1a0e"
+accent = "#f4c430"
+blurb  = "Jet-ski racing across shifting seas, a Nintendo 64 classic."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Wave_Race_64"]
+confidence = "medium"
+checked    = "2026-10-08"

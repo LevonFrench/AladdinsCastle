@@ -1,0 +1,38 @@
+id           = "offroad-thunder"
+title        = "Off Road Thunder"
+alt_titles   = ["Offroad Thunder"]
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 2000
+manufacturer = "midway"
+developer    = "Midway Studios San Diego"
+hardware     = "pc-arcade"
+players      = 1
+series       = "Thunder"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Midway Quicksilver II PC-based board. Not in MAME. North American release Jan 2000 (Wikipedia); VideoGameGeek lists 1999. Successor to Off Road Challenge (offroadc). TeknoParrot profile OffroadThunder"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "OFFROADT"
+colour = "#141410"
+accent = "#e0a040"
+blurb  = "Off-road racing across dusty, mud-slicked tracks, the sequel to Off Road Challenge."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Offroad_Thunder", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/OffroadThunder.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

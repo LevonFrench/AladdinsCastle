@@ -1,0 +1,42 @@
+id           = "hotd"
+title        = "The House of the Dead"
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 1997
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-model-2"
+players      = 2
+series       = "The House of the Dead"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Sega light gun"
+
+[[media]]
+kind = "mame-romset"
+set  = "hotd"
+note = "Revision A (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "hotdo"
+note = "Original revision"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "HOTD"
+colour = "#1a0808"
+accent = "#d32f2f"
+blurb  = "Zombies in a creepy mansion, one trigger pull at a time."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/hotd.xml", "https://en.wikipedia.org/wiki/The_House_of_the_Dead"]
+confidence = "high"
+checked    = "2026-10-08"

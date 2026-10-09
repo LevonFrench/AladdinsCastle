@@ -1,0 +1,42 @@
+id           = "sat-area-51"
+title        = "Area 51"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1996
+manufacturer = "atari-games"
+developer    = "Mesa Logic (Saturn port by Tantalus / Perfect Entertainment)"
+hardware     = "sega-saturn"
+players      = 2
+series       = "Area 51"
+# original = "area51"  (arcade set name not verified; left unset)
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Saturn light gun (peripheral unverified)"
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre" }
+
+[hub]
+pill   = "SAT-A51"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "Alien-base light gun shooter that reached Saturn in late 1996."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Area_51_(1995_video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

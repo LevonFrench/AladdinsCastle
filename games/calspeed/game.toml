@@ -1,0 +1,38 @@
+id           = "calspeed"
+title        = "California Speed"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1998
+manufacturer = "atari-games"
+developer    = "Atari Games"
+hardware     = "midway-seattle"
+players      = 2
+series       = "California Speed"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "calspeed"
+note = "California Speed (Version 2.1a); older builds calspeeda and calspeedb"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "CALSPEED"
+colour = "#141010"
+accent = "#ffcc33"
+blurb  = "Desert highways and high-speed traffic, with a wheel that wants more throttle."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/seattle.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/calspeed.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

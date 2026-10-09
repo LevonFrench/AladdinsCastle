@@ -1,0 +1,37 @@
+id           = "x360-daytona-usa"
+title        = "Daytona USA"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2011
+manufacturer = "sega"
+developer    = "Sega AM2 (arcade original)"
+hardware     = "microsoft-xbox-360"
+players      = 2
+series       = "Daytona USA"
+original     = "daytona"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "other"
+note = "Xbox Live Arcade digital purchase; no disc involved"
+
+[routes]
+xenia = "unknown"
+native = { project = "daytona-xbla-recomp", status = "unknown" }
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "X360-DAY"
+colour = "#101a10"
+accent = "#7bdc8a"
+blurb  = "Oval racer on Xbox Live Arcade; a community static recompilation also exists."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Daytona_USA"]
+confidence = "medium"
+checked    = "2026-10-08"

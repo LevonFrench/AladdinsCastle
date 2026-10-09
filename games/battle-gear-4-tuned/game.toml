@@ -1,0 +1,37 @@
+id           = "battle-gear-4-tuned"
+title        = "Battle Gear 4 Tuned"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2006
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-type-x"
+players      = 1
+series       = "Battle Gear"
+
+[controls]
+type    = "wheel"
+shifter = "h6"
+pedals  = ["accel", "brake", "clutch"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Japan update of Battle Gear 4, dated November 2006 by Wikipedia (2006 by Arcade-Museum). Not in MAME. TeknoParrot/OpenParrot profile BattleGear4Tuned. Shifter layout not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "BGTUNED"
+colour = "#101418"
+accent = "#ff6a3d"
+blurb  = "The last Battle Gear: Battle Gear 4 with the tuning bolted on."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Battle_Gear", "https://new.tcrf.net/Battle_Gear_4_Tuned", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/BattleGear4Tuned.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

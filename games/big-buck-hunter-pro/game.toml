@@ -1,0 +1,38 @@
+id           = "big-buck-hunter-pro"
+title        = "Big Buck Hunter Pro"
+genre        = "gun"
+subgenre     = ["hunting"]
+year         = 2006
+manufacturer = "raw-thrills"
+developer    = "Raw Thrills / Play Mechanix"
+hardware     = "pc-arcade"
+players      = 2
+series       = "Big Buck Hunter"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "dual pump-action shotgun controllers"
+pedals = []
+extras = ["pump-action"]
+
+[[media]]
+kind = "other"
+note = "Not in MAME. TeknoParrot profile BBHPro (ElfLdr2, GunGame=true); DemulShooter has a Big Buck Hunter Ultimate class. Year 2005 in some databases. Other BBH releases (World, HD Wild, Home) are not catalogued in this pass"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "BBHPRO"
+colour = "#0c1a10"
+accent = "#8fd14f"
+blurb  = "Shotgun-style hunting with five 3D-modeled animals and a two-gun setup for head-to-head play."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://giantbomb.com/wiki/Games/Big_Buck_Hunter_Pro", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/BBHPro.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

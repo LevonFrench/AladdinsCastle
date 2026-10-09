@@ -1,0 +1,41 @@
+id           = "dc-house-of-the-dead-2"
+title        = "The House of the Dead 2"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 1999
+manufacturer = "sega"
+developer    = "Sega AM1"
+hardware     = "sega-dreamcast"
+players      = 2
+series       = "The House of the Dead"
+original     = "hotd2"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Dreamcast light gun"
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "DC-HOTD2"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Sequel set in Italy: two guns, two players, and a lot of undead."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead_2"]
+confidence = "medium"
+checked    = "2026-10-08"

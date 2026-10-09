@@ -1,0 +1,43 @@
+id           = "srally2"
+title        = "Sega Rally 2"
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1998
+manufacturer = "sega"
+developer    = "Sega AM Annex"
+hardware     = "sega-model-3"
+players      = 1
+series       = "Sega Rally"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "srally2"
+note = "Export (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "srally2dx"
+note = "Export Deluxe (may run slow in Supermodel)"
+
+[routes]
+mame        = "not-working"
+supermodel  = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SRALLY2"
+colour = "#0f1410"
+accent = "#66bb6a"
+blurb  = "The Model 3 successor to Sega Rally, with a sharper rally feel."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model3.cpp", "https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/srally2.xml", "https://en.wikipedia.org/wiki/Sega_Rally_2"]
+confidence = "high"
+checked    = "2026-10-08"

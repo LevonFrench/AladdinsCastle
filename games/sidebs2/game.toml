@@ -1,0 +1,39 @@
+id           = "sidebs2"
+title        = "Side by Side 2"
+alt_titles   = ["Side by Side 2 Evoluzione"]
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1997
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-jc"
+players      = 2
+series       = "Side by Side"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "sidebs2"
+note = "Side by Side 2 (Ver 2.6 OK); regional sets sidebs2u, sidebs2j, sidebs2ja"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SIDEBS2"
+colour = "#0e1a18"
+accent = "#3fe0b0"
+blurb  = "The sequel doubles down on the side-by-side duel, now with Italian flair."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitojc.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

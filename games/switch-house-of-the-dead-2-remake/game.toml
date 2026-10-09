@@ -1,0 +1,36 @@
+id           = "switch-house-of-the-dead-2-remake"
+title        = "The House of the Dead 2: Remake"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 2025
+manufacturer = "sega"
+developer    = "MegaPixel Studio (published by Forever Entertainment)"
+hardware     = "nintendo-switch"
+players      = 1
+series       = "The House of the Dead"
+original     = "hotd2"
+
+[controls]
+type = "gun"
+gun  = "Analog stick crosshair; gyro or touch can emulate a light gun"
+
+[[media]]
+kind = "other"
+note = "Your own Switch copy (digital or game card); nothing is provided by this catalog"
+
+[routes]
+yuzu-like = "unknown"
+vr        = { best = "theatre" }
+
+[hub]
+pill   = "SW-HOTD2"
+colour = "#1f0c10"
+accent = "#ff4b5c"
+blurb  = "2025 remake of House of the Dead 2 with stick or gyro aiming."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead_2"]
+confidence = "medium"
+checked    = "2026-10-08"

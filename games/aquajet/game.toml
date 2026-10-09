@@ -1,0 +1,35 @@
+id           = "aquajet"
+title        = "Aqua Jet"
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 1996
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-super-system-22"
+players      = 1
+series       = ""
+
+[controls]
+type = "boat"
+
+[[media]]
+kind = "mame-romset"
+set  = "aquajet"
+note = "Aqua Jet (World, AJ2 Ver. B); MAME marks imperfect graphics"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "AQUAJET"
+colour = "#061820"
+accent = "#23c4e8"
+blurb  = "Jet-ski racing with boat-style controls on Super System 22."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos22.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/aquajet.xml", "https://en.wikipedia.org/wiki/Aqua_Jet"]
+confidence = "high"
+checked    = "2026-10-08"

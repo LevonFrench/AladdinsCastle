@@ -1,0 +1,40 @@
+id           = "crzytaxi"
+title        = "Crazy Taxi"
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 1999
+manufacturer = "sega"
+developer    = "Hitmaker"
+hardware     = "sega-naomi"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["drive / reverse gear buttons"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "crzytaxi"
+note  = "NAOMI; MAME GAME line flagged not-working"
+
+[[media]]
+kind  = "bios"
+set   = "naomi"
+note  = "NAOMI BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "CRAZYTAXI"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Fares, cash and a city that never stops honking."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,38 @@
+id           = "the-walking-dead"
+title        = "The Walking Dead"
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 2017
+manufacturer = "raw-thrills"
+developer    = "Raw Thrills / Play Mechanix"
+hardware     = "pc-arcade"
+players      = 2
+series       = "The Walking Dead"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "crossbow light gun"
+pedals = []
+extras = ["crossbow"]
+
+[[media]]
+kind = "other"
+note = "Not in MAME. Announced 2016, released 2017 (Bonhams lists 2016). TeknoParrot profile WalkingDead (ElfLdr2, GunGame=true); DemulShooter RtWalkingDead"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "TWD"
+colour = "#101010"
+accent = "#b5b5b5"
+blurb  = "Crossbow rail-shooting through a walker-infested world, one bolt at a time."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://www.replaymag.com/raw-thrillsplay-mechanix-the-walking-dead-arcade-august-2017/", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/WalkingDead.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

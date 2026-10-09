@@ -1,0 +1,37 @@
+id           = "wii-house-of-the-dead-2-3-return"
+title        = "The House of the Dead 2 & 3 Return"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 2008
+manufacturer = "sega"
+developer    = "Sega; H.I.C."
+hardware     = "nintendo-wii"
+players      = 2
+series       = "The House of the Dead"
+contains     = ["hotd2", "hotd3"]
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Wii Zapper / Wii Remote IR pointer"
+
+[[media]]
+kind = "disc"
+note = "Your own Wii disc image (ISO/WBFS)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "WII-HOTD23"
+colour = "#0e1a20"
+accent = "#5ec8ff"
+blurb  = "Compilation of House of the Dead 2 and III, built on their Dreamcast and Xbox ports."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead_2_%26_3_Return"]
+confidence = "medium"
+checked    = "2026-10-08"

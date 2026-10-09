@@ -1,0 +1,43 @@
+id           = "acedrive"
+title        = "Ace Driver"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1994
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-22"
+players      = 1
+series       = "Ace Driver"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = ["force-feedback"]
+
+[[media]]
+kind = "mame-romset"
+set  = "acedrive"
+note = "Ace Driver (World, AD2); MAME marks imperfect graphics"
+
+[[media]]
+kind = "mame-romset"
+set  = "namcoc74"
+note = "C74 MCU set needed by namco22-decompile"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+native      = { project = "namco22-decompile", status = "playable" }
+vr          = { best = "none", planned = "true3d-planned" }   # namco22-vr (libacvr on namco22-decompile)
+
+[hub]
+pill   = "ACEDRIVE"
+colour = "#101a24"
+accent = "#4fc3f7"
+blurb  = "Force-feedback wheel racer that also runs natively on a PC."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos22.cpp", "https://github.com/spacestate1/namco22-decompile", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/acedrive.xml"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,38 @@
+id           = "silent-scope-bone-eater"
+title        = "Silent Scope: Bone-Eater"
+genre        = "gun"
+subgenre     = ["sniper"]
+year         = 2014
+manufacturer = "konami"
+developer    = "tri-Ace / Konami"
+hardware     = "other-arcade"
+players      = 1
+series       = "Silent Scope"
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "sniper rifle with scope"
+pedals = []
+extras = ["scope-zoom"]
+
+[[media]]
+kind = "other"
+note = "Japanese arcade PCB, not in MAME. Board not confirmed by sources (proposed hardware kept as other-arcade). TeknoParrot profile SilentScopeBoneEater (EmulatorType TeknoMacaw, GunGame=true)"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "BONEEATR"
+colour = "#101214"
+accent = "#b0c8d8"
+blurb  = "The sniper returns to Japanese arcades a decade on, with a new scope and a new enemy."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Silent_Scope", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/SilentScopeBoneEater.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

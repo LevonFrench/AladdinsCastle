@@ -1,0 +1,41 @@
+# two-player split-screen assumed; not verified
+id           = "ps2-burnout-2-point-of-impact"
+title        = "Burnout 2: Point of Impact"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2002
+manufacturer = "acclaim"
+developer    = "Criterion Games"
+hardware     = "sony-ps2"
+players      = 2
+series       = "Burnout"
+
+[controls]
+type    = "other"
+pedals  = []
+extras  = ["home pad (no arcade cabinet)"]
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "BURN2"
+colour = "#1a0c0c"
+accent = "#ff6a2a"
+blurb  = "Burnout 2 adds Crash Mode and more events on PS2."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Burnout_2:_Point_of_Impact"]
+confidence = "high"
+checked    = "2026-10-08"

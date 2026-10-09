@@ -1,0 +1,42 @@
+# original set crzytaxi: MAME naomi.cpp INPUT_PORTS name; GAME line not verified
+id           = "ps2-crazy-taxi"
+title        = "Crazy Taxi"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 2001
+manufacturer = "sega"
+developer    = "Hitmaker"
+hardware     = "sony-ps2"
+players      = 1
+series       = "Crazy Taxi"
+original     = "crzytaxi"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "CTAXI-PS2"
+colour = "#1a1a0a"
+accent = "#f5c33a"
+blurb  = "Taxi fares against the clock on PS2, a port of the Sega arcade game."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Crazy_Taxi_(video_game)"]
+confidence = "high"
+checked    = "2026-10-08"

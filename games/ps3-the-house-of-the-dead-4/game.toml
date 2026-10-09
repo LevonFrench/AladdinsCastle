@@ -1,0 +1,44 @@
+# PS Move support taken from the consolegun data table; not checked in the article text
+# two-player assumed from the arcade; PS3 two-player not verified
+id           = "ps3-the-house-of-the-dead-4"
+title        = "The House of the Dead 4"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 2012
+manufacturer = "sega"
+developer    = "Sega AM1; Sega Shanghai Studio (PS3)"
+hardware     = "sony-ps3"
+players      = 2
+series       = "The House of the Dead"
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "PlayStation Move gun shell (per data notes)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS3 disc dump (ISO or folder dump)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
+
+[routes]
+rpcs3 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "HOTD4-PS3"
+colour = "#0c1a14"
+accent = "#2ad07a"
+blurb  = "Sega's rail shooter on PSN, with the PS3 release running on PS Move gun controllers."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead_4"]
+confidence = "medium"
+checked    = "2026-10-08"

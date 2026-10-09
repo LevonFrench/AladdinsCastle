@@ -1,0 +1,40 @@
+id           = "wrungp"
+title        = "Wave Runner GP"
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 2001
+manufacturer = "sega"
+developer    = "CRI"
+hardware     = "sega-naomi"
+players      = 1
+
+[controls]
+type    = "boat"
+extras  = ["throttle"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "wrungp"
+note  = "CRI / Sega; wrungpo is the USA Rev A"
+
+[[media]]
+kind  = "bios"
+set   = "naomi"
+note  = "NAOMI BIOS"
+
+[routes]
+mame              = "not-working"
+teknoparrot       = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "WAVE GP"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Jet ski on a Sega board with the throttle wide open."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/waverunr.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

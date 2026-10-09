@@ -1,0 +1,38 @@
+id           = "roadburn"
+title        = "Road Burners"
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1999
+manufacturer = "atari-games"
+developer    = "Atari Games"
+hardware     = "midway-vegas"
+players      = 2
+series       = "Road Burners"
+
+[controls]
+type    = "handlebars"
+shifter = ""
+pedals  = []
+extras  = ["seat-lean-steering", "throttle"]
+
+[[media]]
+kind = "mame-romset"
+set  = "roadburn"
+note = "Road Burners (ver 1.04); older build roadburn1. Cabinets link for up to eight racers"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "ROADBURN"
+colour = "#140e10"
+accent = "#ff5a3d"
+blurb  = "Lean into the bends on a tilting motorcycle and race five world cities against the clock."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/vegas.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/roadburn.xml", "https://en.wikipedia.org/wiki/Road_Burners"]
+confidence = "medium"
+checked    = "2026-10-08"

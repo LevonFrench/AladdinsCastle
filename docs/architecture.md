@@ -117,6 +117,19 @@ Outputs (recoil, lamps, FFB) come back through MAMEHooker-style output events or
 
 ## 5. Platforms
 
+Priority (owner, 2026-10-08): **1. Steam Frame**, **2. Quest 3 over PC**, **3. Quest 3 native**.
+
+| Target | How AladdinsCastle runs | What it needs from us |
+|---|---|---|
+| Steam Frame, streamed from a PC | Everything runs on the Windows (or Linux) PC through SteamVR; the Frame streams it | SteamVR-first: OpenXR on SteamVR, SteamVR dashboard Hub overlay, SteamVR library shortcuts |
+| Steam Frame, standalone | Hub, libacvr setups and emulators run on the headset (SteamOS on Arm; Snapdragon 8 Gen 3). Valve: Windows x86 via Proton + FEX, Android APKs via Lepton, Linux ARM64 via Steam Linux Runtime 3.0 ARM64. Streaming from a PC is the primary mode. | Linux ARM64 builds of Hub + libacvr; per-emulator route (ARM64 build vs APK via Lepton vs Proton + FEX). ARM64 builds today: DuckStation, ARMSX2 (PCSX2 fork); not PCSX2 upstream, Flycast, MAME; Dolphin/RPCS3/Supermodel unconfirmed. Controller profile `XR_VALVE_frame_controller_interaction` with Touch fallback. On-device OpenXR runtime for standalone: not documented yet. |
+| Quest 3 over PC | Same as Frame-streamed, through SteamVR. **Reference test setup: ALVR + SteamVR** (the owner's setup; ALVR is a SteamVR driver, so SteamVR is the runtime and dashboard overlays work). Meta Link / VDXR runtimes only for setups that support them. | Runtime check and switching; dashboard overlay only appears under SteamVR |
+| Quest 3 native | APKs sideloaded by the Hub over USB (developer mode) | Android/OpenXR builds; System 22 games first (DR-89 already runs there) |
+
+**Test machines (owner):** a Windows PC with SteamVR + ALVR to a Quest 3 (primary), and a **Bazzite** box (Fedora Atomic, SteamOS-like, x86_64, NVIDIA) as the Linux / SteamOS stand-in until Steam Frame hardware is in hand. It covers Linux Hub and libacvr builds, Linux-native references (PenguinScreen2, lindbergh-loader, namco22-decompile Linux builds) and SteamVR / WiVRn on Linux. ARM64 needs real Frame hardware or an ARM64 Linux machine.
+
+Details per runtime:
+
 - **v1: Windows x64 Hub + PCVR setups.** Quest 3 through Quest Link (cable, reference), Air Link or Virtual Desktop (VDXR). Any OpenXR runtime should work, with SteamVR supported. Graphics API chosen per setup; libacvr supports whatever the runtimes accept (**OPEN**: confirm against Link, VDXR and SteamVR).
 - **Quest standalone setups:** libacvr is plain C/C++ and builds for Android/OpenXR. DR-89 already runs namco22 on Quest, so System 22 games are the natural first standalone setups. The Hub installs them over USB with adb. Emulator setups stay PC-only.
 - **Linux/SteamOS:** desirable (PenguinScreen2 and lindbergh-loader are Linux-native). Not a v1 target.
@@ -126,7 +139,7 @@ Outputs (recoil, lamps, FFB) come back through MAMEHooker-style output events or
 ```
 aladdinscastle/
   docs/                 design docs (this folder)
-  hub/                  desktop Hub app (library, recipes, installer, launcher)
+  hub/                  Hub app, Qt 6 / QML: desktop window + SteamVR dashboard overlay (same UI)
   libacvr/              shared VR runtime library (C ABI) + test setup ("stereo cube")
   setups/
     namco22-vr/         libacvr host on namco22-decompile (submodule + guarded patches)

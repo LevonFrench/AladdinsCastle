@@ -1,0 +1,38 @@
+id           = "surfplnt"
+title        = "Surf Planet"
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 1997
+manufacturer = "gaelco"
+developer    = "Gaelco"
+hardware     = "other-arcade"
+players      = 1
+series       = "Surf Planet"
+
+[controls]
+type    = "other"
+shifter = ""
+pedals  = []
+extras  = ["surf-stance"]
+
+[[media]]
+kind = "mame-romset"
+set  = "surfplnt"
+note = "Surf Planet (version 4.1); earlier builds surfplnt40, surfplnt31 down to surfplnt10"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SURFPLNT"
+colour = "#0a1a20"
+accent = "#4fd8e8"
+blurb  = "Ride the waves on a 3D board, and balance is everything."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/gaelco/gaelco3d.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

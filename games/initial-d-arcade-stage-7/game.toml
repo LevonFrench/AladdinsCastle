@@ -1,0 +1,35 @@
+id           = "initial-d-arcade-stage-7"
+title        = "Initial D Arcade Stage 7 AA"
+alt_titles   = ["Initial D Arcade Stage 7AA+"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2011
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-ringedge"
+players      = 1
+series       = "Initial D"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["manual shifter"]
+
+[[media]]
+kind  = "other"
+note  = "RingEdge board; no MAME set; no route confirmed in gap sources"
+
+[routes]
+vr = { best = "none" }
+
+[hub]
+pill   = "IDSTAGE7"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Stage seven on RingEdge, the same stick and a faster rival on every corner."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Initial_D_(video_game_series)"]
+confidence = "medium"
+checked    = "2026-10-08"

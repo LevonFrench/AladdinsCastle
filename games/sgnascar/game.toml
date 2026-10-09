@@ -1,0 +1,39 @@
+id           = "sgnascar"
+title        = "NASCAR Arcade"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Sega / Electronic Arts"
+hardware     = "sega-hikaru"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "sgnascar"
+note  = "Rev A; sgnascaro is the original"
+
+[[media]]
+kind  = "bios"
+set   = "hikaru"
+note  = "Hikaru BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "NASCAR"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Stock cars on a Hikaru wheel, pack racing with the EA name on the box."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/hikaru.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,35 @@
+id           = "pc-daytona-usa"
+title        = "Daytona USA"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1996
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "pc-windows"
+players      = 2
+series       = "Daytona USA"
+original     = "daytona"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "pc-game"
+note = "Your own Windows install (disc or digital copy); exe name to confirm"
+
+[routes]
+vr = { best = "theatre" }
+
+[hub]
+pill   = "PC-DAYTONA"
+colour = "#101318"
+accent = "#60a5fa"
+blurb  = "Windows port of the Model 2 oval racer, played with a wheel and pedals."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Daytona_USA"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,38 @@
+id           = "thrild2"
+title        = "Thrill Drive 2"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2001
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-viper"
+players      = 1
+series       = "Thrill Drive"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "thrild2"
+note = "Thrill Drive 2 (ver EBB); variants thrild2j, thrild2a, thrild2c. All NOT_WORKING in MAME. Player count not confirmed by sources"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "THRILL2"
+colour = "#140e18"
+accent = "#ff6aa8"
+blurb  = "The Viper-era follow-up: more car, more street, more trouble."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/viper.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

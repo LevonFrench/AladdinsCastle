@@ -1,0 +1,41 @@
+id           = "dc-daytona-usa-2001"
+title        = "Daytona USA 2001"
+alt_titles   = ["Daytona USA (North America)"]
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Amusement Vision; Genki"
+hardware     = "sega-dreamcast"
+players      = 2
+series       = "Daytona USA"
+# Revamp of the 1994 arcade game, not a straight port; original left unset.
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = ["view-change"]
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "DC-DAY2001"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Full Daytona revamp with every original course plus three new ones."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Daytona_USA_2001"]
+confidence = "medium"
+checked    = "2026-10-08"

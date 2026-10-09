@@ -1,0 +1,41 @@
+id           = "segartv"
+title        = "Sega Race TV"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2007
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-lindbergh"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "segartv"
+note  = "Export"
+
+[[media]]
+kind  = "bios"
+set   = "lindbios"
+note  = "Lindbergh BIOS"
+
+[routes]
+mame              = "not-working"
+teknoparrot       = "profile"
+lindbergh-loader  = "working"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "RACE TV"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "A Lindbergh racer, wheel and pedals in hand."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/lindbergh.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/segartv.xml"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,32 @@
+id           = "18-wheeler-american-pro-trucker"
+title        = "18 Wheeler: American Pro Trucker"
+genre        = "racing"
+subgenre     = ["truck"]
+year         = 1999
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-naomi"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "other"
+note  = "NAOMI cart; no MAME set found in naomi.cpp"
+
+[routes]
+vr = { best = "none" }
+
+[hub]
+pill   = "18WHEELER"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Haul the big rig across the states with a truck stop every few miles."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/18_Wheeler:_American_Pro_Trucker"]
+confidence = "medium"
+checked    = "2026-10-08"

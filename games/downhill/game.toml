@@ -1,0 +1,35 @@
+id           = "downhill"
+title        = "Downhill Bikers"
+genre        = "racing"
+subgenre     = ["bicycle"]
+year         = 1997
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-23"
+players      = 1
+series       = ""
+
+[controls]
+type = "bike"                  # verify: mountain-bike input not confirmed by a primary source
+
+[[media]]
+kind = "mame-romset"
+set  = "downhill"
+note = "Downhill Bikers (World, DH2 Ver. A); US set downhillu. MAME marks NOT_WORKING (GAME_FLAGS)"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "DOWNHILL"
+colour = "#0f1a10"
+accent = "#7ed957"
+blurb  = "Mountain-bike descent on a System 23 course."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos23.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/downhillu.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

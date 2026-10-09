@@ -1,0 +1,52 @@
+id           = "daytona"
+title        = "Daytona USA"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1994
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Daytona USA"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "daytona"
+note = "Revision A (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "daytona93"
+note = "Original 1993 set"
+
+[[media]]
+kind = "mame-romset"
+set  = "daytonase"
+note = "Special Edition (Revision A)"
+
+[[media]]
+kind = "mame-romset"
+set  = "daytonas"
+note = "With Saturn advertisements"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "DAYTONA"
+colour = "#0d1424"
+accent = "#ffca28"
+blurb  = "The classic oval-and-track racer: a wheel, two pedals and a fast lap."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/daytona.xml", "https://en.wikipedia.org/wiki/Daytona_USA"]
+confidence = "high"
+checked    = "2026-10-08"

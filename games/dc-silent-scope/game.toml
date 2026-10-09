@@ -1,0 +1,42 @@
+id           = "dc-silent-scope"
+title        = "Silent Scope"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "sniper"]
+year         = 2000
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "sega-dreamcast"
+players      = 1
+series       = "Silent Scope"
+# original = "silscope"  (arcade set name not verified; left unset)
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "Sniper rifle light gun (Dreamcast peripheral unverified)"
+extras = ["sniper scope"]
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "DC-SSCOPE"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Sniper rail game with a scope view, ported to Dreamcast in 2000."
+badges = ["roomscale"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Silent_Scope_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

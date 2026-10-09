@@ -1,0 +1,38 @@
+id           = "golgo13"
+title        = "Golgo 13"
+genre        = "gun"
+subgenre     = ["sniper"]
+year         = 1999
+manufacturer = "namco"
+developer    = "Raizing / Eighting"
+hardware     = "namco-system-12"
+players      = 1
+series       = "Golgo 13"
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "Sniper-rifle light gun with scope"
+extras = ["sniper-scope"]
+
+[[media]]
+kind = "mame-romset"
+set  = "golgo13"
+note = "Golgo 13 (Japan, GLG1 Ver. A); MAME header lists the Raizing/Namco System 12 board"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "GOLGO13"
+colour = "#0f1214"
+accent = "#c0392b"
+blurb  = "One sniper rifle, one long scope, and a single clean shot."
+badges = ["roomscale"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos12.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/golgo13.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

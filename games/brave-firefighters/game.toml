@@ -1,0 +1,40 @@
+id           = "brave-firefighters"
+title        = "Brave Firefighters"
+genre        = "gun"
+subgenre     = ["water-gun"]
+year         = 1999
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-hikaru"
+players      = 1                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "other"
+extras  = ["water hose / nozzle"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "braveff"
+note  = "Hikaru"
+
+[[media]]
+kind  = "bios"
+set   = "hikaru"
+note  = "Hikaru BIOS"
+
+[routes]
+mame              = "not-working"
+demul             = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "BRAVE FF"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Grab the nozzle, aim the hose, and put the fire out before the building goes."
+badges = ["roomscale"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/hikaru.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

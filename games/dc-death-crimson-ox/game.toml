@@ -1,0 +1,41 @@
+id           = "dc-death-crimson-ox"
+title        = "Death Crimson OX"
+alt_titles   = ["Guncom 2 (Europe, PS2)"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2001
+manufacturer = "sammy"
+developer    = "Ecole Software"
+hardware     = "sega-dreamcast"
+players      = 2
+series       = "Death Crimson"
+original     = "deathcox"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Dreamcast light gun"
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "working"  # Batocera lists this as working (secondary source, see data note)
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "DC-DCOX"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Arcade-first light gun shooter that reached Dreamcast in 2001."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Death_Crimson_OX"]
+confidence = "medium"
+checked    = "2026-10-08"

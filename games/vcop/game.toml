@@ -1,0 +1,43 @@
+id           = "vcop"
+title        = "Virtua Cop"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1994
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-model-2"
+players      = 2
+series       = "Virtua Cop"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Virtua Gun"
+pedals = ["cover-pedal"]
+
+[[media]]
+kind = "mame-romset"
+set  = "vcop"
+note = "Revision B (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "vcopa"
+note = "Revision A"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "VIRTUACOP"
+colour = "#1a1310"
+accent = "#ff7a1a"
+blurb  = "The original city cop shooter: duck behind cover, pop up and clear the street."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/vcop.xml", "https://en.wikipedia.org/wiki/Virtua_Cop"]
+confidence = "high"
+checked    = "2026-10-08"

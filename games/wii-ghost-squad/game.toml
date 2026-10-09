@@ -1,0 +1,37 @@
+id           = "wii-ghost-squad"
+title        = "Ghost Squad"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2007
+manufacturer = "sega"
+developer    = "Sega AM2 (arcade); Polygon Magic (Wii port)"
+hardware     = "nintendo-wii"
+players      = 2
+series       = "Ghost Squad"
+# original = "gsquad"  (arcade set name not verified; left unset)
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Wii Zapper / Wii Remote IR pointer"
+
+[[media]]
+kind = "disc"
+note = "Your own Wii disc image (ISO/WBFS)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "WII-GSQUAD"
+colour = "#0e1a20"
+accent = "#5ec8ff"
+blurb  = "Police-team rail shooter, aimed with the Wii Remote or a Zapper."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Ghost_Squad_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

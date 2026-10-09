@@ -1,0 +1,39 @@
+id           = "dc-18-wheeler"
+title        = "18 Wheeler: American Pro Trucker"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["truck"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-dreamcast"
+players      = 1
+# original = "18wheelr"  (arcade set name not verified; left unset)
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "DC-18WHL"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Long-haul trucking with a big wheel, arcade-to-Dreamcast port."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/18_Wheeler:_American_Pro_Trucker"]
+confidence = "medium"
+checked    = "2026-10-08"

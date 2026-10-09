@@ -1,0 +1,42 @@
+id           = "ps1-resident-evil-survivor"
+title        = "Resident Evil Survivor"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["horror"]
+year         = 2000
+manufacturer = "capcom"
+developer    = "Tose"
+hardware     = "sony-ps1"
+players      = 1
+series       = "Resident Evil"
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "RE-SURV"
+colour = "#1a0a0a"
+accent = "#d42a2a"
+blurb  = "First-person Resident Evil survival horror, played with a GunCon."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Resident_Evil_Survivor", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "high"
+checked    = "2026-10-08"

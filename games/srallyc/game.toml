@@ -1,0 +1,57 @@
+id           = "srallyc"
+title        = "Sega Rally Championship"
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1995
+manufacturer = "sega"
+developer    = "Sega AM3"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Sega Rally"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "srallyc"
+note = "Twin/DX Revision C (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "srallycb"
+note = "Twin/DX Revision B"
+
+[[media]]
+kind = "mame-romset"
+set  = "srallycc"
+note = "Twin/DX Revision A"
+
+[[media]]
+kind = "mame-romset"
+set  = "srallycdx"
+note = "DX Revision A"
+
+[[media]]
+kind = "mame-romset"
+set  = "srallycdxa"
+note = "DX"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SRALLYC"
+colour = "#10160d"
+accent = "#43a047"
+blurb  = "Dirt, gravel and tarmac stages, and every one of them wants to slide."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/srallyc.xml", "https://en.wikipedia.org/wiki/Sega_Rally_Championship"]
+confidence = "high"
+checked    = "2026-10-08"

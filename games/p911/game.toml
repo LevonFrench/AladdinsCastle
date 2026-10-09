@@ -1,0 +1,40 @@
+id           = "p911"
+title        = "Police 911"
+alt_titles   = ["The Keisatsukan: Shinjuku 24-ji", "Police 24/7"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2000
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-viper"
+players      = 1
+series       = "Police 911"
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "full-body police cabinet gun"
+pedals = []
+extras = ["full-body-cabinet"]
+
+[[media]]
+kind = "mame-romset"
+set  = "p911ud"
+note = "Police 911 (ver UAD); the parent set p911 and Police 24/7 (p911ed) are variants"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "POLICE911"
+colour = "#0c1424"
+accent = "#3a7bff"
+blurb  = "Full-body cop shooter: duck, lean and clear the street."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/viper.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/p911ud.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

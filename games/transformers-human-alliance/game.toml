@@ -1,0 +1,34 @@
+id           = "transformers-human-alliance"
+title        = "Transformers: Human Alliance"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2014
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-ringedge-2"
+players      = 2                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega gun"
+
+[[media]]
+kind  = "other"
+note  = "RingWide board; TeknoParrot profile Transformers; DemulShooter Game_RwTransformers"
+
+[routes]
+teknoparrot       = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "TRANSFORM"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Autobots and Decepticons in a light-gun shooter on RingEdge 2."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/Transformers.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

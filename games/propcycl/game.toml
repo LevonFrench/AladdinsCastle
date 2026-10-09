@@ -1,0 +1,37 @@
+id           = "propcycl"
+title        = "Prop Cycle"
+genre        = "racing"
+subgenre     = ["futuristic"]
+year         = 1996
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-super-system-22"
+players      = 1
+series       = ""
+
+[controls]
+type   = "handlebars"          # verify: handlebar and pedal input not confirmed by a primary source
+extras = ["pedal-propeller"]
+
+[[media]]
+kind = "mame-romset"
+set  = "propcycl"
+note = "Prop Cycle (World, PR2 Ver. A); MAME marks imperfect graphics"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+native      = { project = "namco22-decompile", status = "playable" }
+vr          = { best = "none", planned = "true3d-planned" }   # namco22-vr (libacvr on namco22-decompile)
+
+[hub]
+pill   = "PROPCYCL"
+colour = "#0e1a1a"
+accent = "#5ae0d0"
+blurb  = "Pedal the propeller, steer with the bars, and fly low over the river."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos22.cpp", "https://github.com/spacestate1/namco22-decompile", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/propcycl.xml", "https://en.wikipedia.org/wiki/Prop_Cycle"]
+confidence = "medium"
+checked    = "2026-10-08"

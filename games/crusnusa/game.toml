@@ -1,0 +1,38 @@
+id           = "crusnusa"
+title        = "Cruis'n USA"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1994
+manufacturer = "midway"
+developer    = "Midway"
+hardware     = "other-arcade"
+players      = 2
+series       = "Cruis'n"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "crusnusa"
+note = "Cruis'n USA (v4.5); older builds crusnusa44, crusnusa41, crusnusa20"
+
+[routes]
+mame        = "working"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "CRUISNUSA"
+colour = "#101820"
+accent = "#ff4fa0"
+blurb  = "Cross-country road trip with a steering wheel and a tour of every landmark."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/midvunit.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

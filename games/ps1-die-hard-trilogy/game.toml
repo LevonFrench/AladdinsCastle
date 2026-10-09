@@ -1,0 +1,43 @@
+# not on the Wikipedia GunCon list; gun route from the consolegun data table (Sinden snippet)
+id           = "ps1-die-hard-trilogy"
+title        = "Die Hard Trilogy"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1996
+manufacturer = "other"
+developer    = "Probe Entertainment (publisher Fox Interactive)"
+hardware     = "sony-ps1"
+players      = 1
+series       = "Die Hard"
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Konami Justifier (Sharpshooting stages; per data notes, GunCon patch unverified)"
+pedals  = []
+extras  = ["gun section only: other stages use a pad"]
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "DHT-PS1"
+colour = "#1a1414"
+accent = "#f2a33a"
+blurb  = "Three Die Hard games on one disc; only the Sharpshooting stages use a light gun."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Die_Hard_Trilogy", "https://en.wikipedia.org/wiki/List_of_light-gun_games"]
+confidence = "low"
+checked    = "2026-10-08"

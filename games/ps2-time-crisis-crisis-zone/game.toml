@@ -1,0 +1,45 @@
+# arcade original: crszone (MAME, Namco System 23 Evolution, 1999)
+# players unverified (1 assumed)
+id           = "ps2-time-crisis-crisis-zone"
+title        = "Time Crisis: Crisis Zone"
+alt_titles   = ["Crisis Zone"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2004
+manufacturer = "namco"
+developer    = "Namco (arcade); Bandai Namco Studios (PS2 port per Wikipedia)"
+hardware     = "sony-ps2"
+players      = 1
+series       = "Time Crisis"
+original     = "crszone"
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon 2"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "CZONE"
+colour = "#1a0f0f"
+accent = "#e0302a"
+blurb  = "PS2 version of Namco's 1999 Crisis Zone rail shooter, aimed with GunCon 2."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Crisis_Zone", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

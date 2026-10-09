@@ -1,0 +1,38 @@
+id           = "harddriv"
+title        = "Hard Drivin'"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1988
+manufacturer = "atari-games"
+developer    = "Atari Games"
+hardware     = "atari-arcade"
+players      = 1
+series       = "Hard Drivin'"
+
+[controls]
+type    = "wheel"
+shifter = "h4"
+pedals  = ["accel", "brake", "clutch"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "harddriv"
+note = "Hard Drivin' (cockpit, rev 7); compact cabinet set harddrivc, regional and older revs are variants"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "HARDDRIV"
+colour = "#101418"
+accent = "#ff9d2e"
+blurb  = "The first real 3D driving sim in an arcade, with a cockpit and a stick shift."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/atari/harddriv.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/harddriv.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

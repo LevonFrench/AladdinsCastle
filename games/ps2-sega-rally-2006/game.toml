@@ -1,0 +1,42 @@
+# year taken from the Japan release date (Jan 2006)
+# players unverified (1 assumed)
+id           = "ps2-sega-rally-2006"
+title        = "Sega Rally 2006"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 2006
+manufacturer = "sega"
+developer    = "Sega AM3"
+hardware     = "sony-ps2"
+players      = 1
+series       = "Sega Rally"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "SRALLY06"
+colour = "#141a0c"
+accent = "#9ae03a"
+blurb  = "Rally racing on PS2 in the Sega Rally series, the 2006 entry."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Rally_2006"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,39 @@
+id           = "sscopefh"
+title        = "Silent Scope Fortune Hunter"
+genre        = "gun"
+subgenre     = ["sniper"]
+year         = 2002
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-viper"
+players      = 1
+series       = "Silent Scope"
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "sniper rifle with scope"
+pedals = []
+extras = ["scope-zoom"]
+
+[[media]]
+kind = "mame-romset"
+set  = "sscopefh"
+note = "Silent Scope Fortune Hunter (ver EAA); MAME driver comment says UK only"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SSCOPEFH"
+colour = "#121010"
+accent = "#d9a441"
+blurb  = "A later Silent Scope on Viper with a treasure-hunting twist."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/viper.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/sscopefh.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

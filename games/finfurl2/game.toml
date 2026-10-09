@@ -1,0 +1,36 @@
+id           = "finfurl2"
+title        = "Final Furlong 2"
+genre        = "racing"
+subgenre     = ["horse"]                 # horse racing: no matching vocab subgenre; proposed "horse" (see report)
+year         = 1998
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-23"
+players      = 1
+series       = "Final Furlong"
+
+[controls]
+type   = "other"
+extras = ["horse-saddle"]
+
+[[media]]
+kind = "mame-romset"
+set  = "finfurl2"
+note = "Final Furlong 2 (World, FFS2 Ver. A); Japanese set finfurl2j. MAME marks NOT_WORKING (GAME_FLAGS)"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "FINFURL2"
+colour = "#15120a"
+accent = "#e3c16f"
+blurb  = "The second Final Furlong, same saddle and course."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos23.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/finfurl2.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

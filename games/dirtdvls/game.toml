@@ -1,0 +1,47 @@
+id           = "dirtdvls"
+title        = "Dirt Devils"
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1998
+manufacturer = "sega"
+hardware     = "sega-model-3"
+players      = 1
+series       = "Dirt Devils"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "dirtdvls"
+note = "Export Revision A (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "dirtdvlsu"
+note = "USA Revision A"
+
+[[media]]
+kind = "mame-romset"
+set  = "dirtdvlsj"
+note = "Japan Revision A"
+
+[routes]
+mame        = "not-working"
+supermodel  = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "DIRTDEVILS"
+colour = "#1a140c"
+accent = "#ff7043"
+blurb  = "Off-road racing over dirt tracks with a wheel and pedals."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model3.cpp", "https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/dirtdvls.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,35 @@
+id           = "switch-mario-kart-8-deluxe"
+title        = "Mario Kart 8 Deluxe"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["kart"]
+year         = 2017
+manufacturer = "nintendo"
+developer    = "Nintendo EAD; Bandai Namco Studios (additional work)"
+hardware     = "nintendo-switch"
+players      = 4
+series       = "Mario Kart"
+
+[controls]
+type   = "other"
+extras = ["Joy-Con or Pro Controller"]
+
+[[media]]
+kind = "other"
+note = "Your own Switch copy (digital or game card); nothing is provided by this catalog"
+
+[routes]
+yuzu-like = "unknown"
+vr        = { best = "theatre" }
+
+[hub]
+pill   = "SW-MK8D"
+colour = "#1f0c10"
+accent = "#ff4b5c"
+blurb  = "Kart racing with the whole Mario cast, four players locally."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Mario_Kart_8"]
+confidence = "medium"
+checked    = "2026-10-08"

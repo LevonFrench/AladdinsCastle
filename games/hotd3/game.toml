@@ -1,0 +1,43 @@
+id           = "hotd3"
+title        = "The House of the Dead III"
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 2002
+manufacturer = "sega"
+developer    = "Wow Entertainment"
+hardware     = "sega-chihiro"
+players      = 2
+series       = "The House of the Dead"
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega twin gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "hotd3"
+note  = "Chihiro Xbox-based; Chihiro BIOS and Xbox image needed"
+
+[[media]]
+kind  = "bios"
+set   = "chihiro"
+note  = "Chihiro BIOS"
+
+[routes]
+mame              = "not-working"
+teknoparrot       = "profile"
+cxbx              = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "HOTD3"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Chihiro's Xbox-powered zombies, with the usual two guns and far too many hands."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/chihiro.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/HOTD3.xml"]
+confidence = "high"
+checked    = "2026-10-08"

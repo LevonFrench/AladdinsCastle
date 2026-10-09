@@ -9,7 +9,7 @@ Model: [PCVR Mods Installer Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-
 | Function | Detail |
 |---|---|
 | **Library** | A grid of games with art (marquee, flyer, box art, screenshots), filterable by Gun / Racing, platform and status. |
-| **Status per game** | `Ready` · `Needs your files` · `Not installed` · `Update available` · `Unsupported`, plus the VR quality badge: **True 3D** or **Theatre**. |
+| **Status per game** | The states in [game-packages.md](game-packages.md) §2 (Needs your files · Needs an emulator · Ready to install · Installed · Update available · Coming soon), plus the VR quality badge: **True 3D** or **Theatre**. |
 | **Detect** | Scans folders you choose for ROM sets and disc images by hash. Finds PC ports (Steam, GOG, plain folders). Finds installed VR runtimes (SteamVR, Meta Link, Virtual Desktop). |
 | **Install** | Runs the game's **recipe** (see §3): downloads backends and tools from their original sources only, checks hashes, extracts, writes config, sets up controls. Never downloads game content. |
 | **Install to Quest** | For setups that run standalone (e.g. DR-89 Time Crisis VR): sideload the APK over USB with adb. The Hub checks developer mode and USB debugging and walks you through them if they're off. |
@@ -26,40 +26,38 @@ Model: [PCVR Mods Installer Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-
 
 ## 3. Recipes: how a setup is installed
 
-Each game has a recipe: a file of steps, data first, with a script only as an escape hatch. The Installer Hub uses one PowerShell script per game. We use declarative TOML so recipes are easy to read, review and share, and allow a script step for the odd cases.
+Each game's install steps live in its own `games/<id>/install.toml`, one block per **variant** (see [game-packages.md](game-packages.md) §4). Steps are data first, with a script only as an escape hatch. The Installer Hub uses one PowerShell script per game; we use declarative TOML so installs are easy to read, review and share.
+
+Example: the VC2VR variant of [`games/vcop2/install.toml`](../games/vcop2/install.toml):
 
 ```toml
-# recipes/timecris-dr89.toml
-id      = "timecris-dr89"
-game    = "timecris"
-title   = "Time Crisis - DR-89 Time Crisis VR (PCVR)"
-quality = "true3d"
+[variant.vc2vr]
+title    = "VC2VR by NeuralF (true 3D, PCVR)"
+quality  = "true3d"
+status   = "wip"
+needs    = { media = ["vcop2-pc"], tools = [] }
+installed_when = "${media.vcop2-pc.dir}/VC2VR.exe"
 
-[[step]]
-do       = "github-release"          # download from the original source only
-repo     = "DR-89/time-crisis-vr"
-asset    = "TimeCrisisVR-*-windows-x64.zip"
-version  = "latest"                  # or a pinned tag
-to       = "${setup_dir}"
+[[variant.vc2vr.step]]
+do      = "github-release"              # original source only, pinned tag
+repo    = "NeuralF/Rea-Virtua-Cop-2-VR"
+asset   = "VC2VR-*.zip"
+version = "v1.0-beta"
+to      = "${download_dir}"
 
-[[step]]
-do    = "require-media"              # the user's own files; checked, never downloaded
-file  = "timecris.zip"
-check = "hashpack:namco22/timecris"
+[[variant.vc2vr.step]]
+do = "extract"
+to = "${media.vcop2-pc.dir}"
 
-[[step]]
-do   = "write-config"
-file = "${setup_dir}/quest-options.cfg"
-set  = { physical_crouch = "${profile.cover == 'duck' ? 1 : 0}", left_handed = "${profile.left_handed}" }
-
-[[step]]
+[[variant.vc2vr.step]]
 do      = "shortcut"
-targets = ["desktop", "steam"]
-exe     = "${setup_dir}/Play SteamVR.cmd"
-art     = "game"
+targets = ["steam"]
+exe     = "${media.vcop2-pc.dir}/VC2VR.exe"
 ```
 
-Step kinds: `github-release`, `download` (URL + sha256), `extract`, `copy`, `require-media`, `write-config` (ini/cfg/toml/json/yaml), `patch-text`, `registry`, `adb-install`, `shortcut`, `run` (script or exe, with a confirmation prompt), and `uninstall` steps that reverse the install. Unknown step kinds stop the install with a clear message. They are never skipped silently.
+A release that bundles game files is never downloaded by the Hub. Such variants use `locate-package` instead (see `games/timecris/install.toml`).
+
+Step kinds: `github-release`, `download` (URL + sha256), `locate-package` (the user points to a file they obtained), `extract`, `copy`, `copy-media` (copies or links the user's own checked files into place), `require-media`, `write-config` (ini/cfg/toml/json/yaml), `patch-text`, `registry`, `adb-install`, `shortcut`, `run` (script or exe, with a confirmation prompt), and `uninstall` steps that reverse the install. Unknown step kinds stop the install with a clear message. They are never skipped silently.
 
 ## 4. Emulators and tools: install, locate or search
 
@@ -101,17 +99,19 @@ The same three routes apply to **game files**: point the Hub at your ROM, ISO an
 ## 5. Art and metadata
 
 1. **We ship no third-party art.** Packs may include only art they have the right to distribute.
-2. **Scraping happens on the user's machine** with the user's own accounts where a service needs them (ScreenScraper and others). Each asset gets a `*.source.toml` sidecar recording where it came from.
+2. **Scraping happens on the user's machine** with the user's own accounts where a service needs them (ScreenScraper and others). Scraped art goes to `user/art/<id>/` (private, gitignored), never into `games/<id>/art/`. Each asset gets a `*.source.toml` sidecar recording where it came from.
 3. **Fallback art** is generated: title on a marquee template in the maker's colours. Every game looks good on day one.
 
-## 6. Technology (OPEN, recommendation)
+## 6. Technology: Qt 6 / QML (decided 2026-10-08)
 
-| Option | For | Against |
-|---|---|---|
-| **Tauri 2 (Rust + web UI) (recommended)** | Small portable exe; rich art grid with web tech; Rust for downloads, hashing, adb, file work | Two languages |
-| .NET (WPF or Avalonia) | Native Windows; easy registry, Steam and shortcut work | Heavier runtime; UI theming takes more effort |
-| PowerShell + WPF (exactly what the Installer Hub uses) | Nothing to install (Windows PowerShell 5.1 + WPF ship with Windows); proven at 300+ games with card tiles, banners, detail view, filters | Big scripts get hard to maintain (their catalog is a 6,700-line PowerShell file); slow cold start (they need a splash screen); Windows-only |
-| Godot 4 (desktop) | Same engine as a possible future VR UI | Not a natural fit for file/installer work |
+| Option | Verdict |
+|---|---|
+| **Qt 6 / QML** | **Chosen.** The same QML UI runs as a desktop window and renders offscreen (`QQuickRenderControl`) into a SteamVR dashboard overlay, exactly how OpenVR Advanced Settings works. Native on Windows and Linux x86_64/ARM64 (Steam Frame). GPU-rendered cards, glows and animations match the Mod Hub look. LGPL Qt is compatible with GPL-3.0. |
+| Tauri 2 | Dropped. WebView2 / WebKitGTK cannot render offscreen into a VR texture; CEF off-screen rendering for Tauri is an open PR. |
+| Godot 4 | Not chosen for the Hub. Good at render-to-texture, but a SteamVR dashboard overlay needs an unverified plugin. Still a candidate for in-VR panels. |
+| .NET WPF / PowerShell + WPF | Ruled out: Windows-only, and WPF has no supported path into a D3D11/Vulkan texture. |
+
+Zero-code VR until our overlay exists: Desktop+ or SteamVR's Desktop view mirrors the Hub window.
 
 How the Installer Hub is built: `Start PCVR Mods Hub.bat` → `Show-StartupSplash.ps1` → `VRModHub.ps1` (WPF window, about 40 modules in `Core/Modules/`), then background `Update-Hub.ps1` and `Prefetch-Versions.ps1`. Downloads via `Invoke-WebRequest`; extraction via bundled `7z.exe` or `Expand-Archive`; GitHub releases API with a version cache; DepotDownloader for Steam depots; settings in JSON.
 

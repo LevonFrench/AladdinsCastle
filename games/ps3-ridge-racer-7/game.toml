@@ -1,0 +1,42 @@
+# 'Ridge Racer 7 3D License Version' patch (Oct 2010) per the Wikipedia article
+# two-player assumed; not verified
+id           = "ps3-ridge-racer-7"
+title        = "Ridge Racer 7"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2006
+manufacturer = "namco"
+developer    = "Namco Bandai Games"
+hardware     = "sony-ps3"
+players      = 2
+series       = "Ridge Racer"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS3 disc dump (ISO or folder dump)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
+
+[routes]
+rpcs3 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "RR7-PS3"
+colour = "#0c1a24"
+accent = "#2ab0e8"
+blurb  = "PS3 Ridge Racer with the series' drift handling; a later patch added 3D play."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Ridge_Racer_7"]
+confidence = "high"
+checked    = "2026-10-08"

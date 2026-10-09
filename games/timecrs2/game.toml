@@ -1,0 +1,38 @@
+id           = "timecrs2"
+title        = "Time Crisis II"
+genre        = "gun"
+subgenre     = ["rail-shooter", "cover-shooter"]
+year         = 1997
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-23"
+players      = 2
+series       = "Time Crisis"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco gun with recoil, two-gun link cabinet"
+pedals = ["cover-pedal", "cover-pedal"]
+
+[[media]]
+kind = "mame-romset"
+set  = "timecrs2"
+note = "Time Crisis II (US, TSS3 Ver. B); World TSS2 Ver. B is set timecrs2v2b. MAME marks NOT_WORKING"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "TC2"
+colour = "#1a0f0f"
+accent = "#e0302a"
+blurb  = "Two guns, a bigger threat, and the same duck-and-pop routine."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos23.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/timecrs2v5a.xml", "https://en.wikipedia.org/wiki/Time_Crisis_II"]
+confidence = "high"
+checked    = "2026-10-08"

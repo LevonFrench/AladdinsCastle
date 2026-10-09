@@ -1,0 +1,37 @@
+id           = "gunblade"
+title        = "Gunblade NY"
+genre        = "gun"
+subgenre     = ["rail-shooter", "machine-gun"]
+year         = 1995
+manufacturer = "sega"
+developer    = "Sega AM3"
+hardware     = "sega-model-2"
+players      = 2
+series       = "Gunblade"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Gunblade mounted machine gun"
+
+[[media]]
+kind = "mame-romset"
+set  = "gunblade"
+note = "Revision A (parent set)"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "GUNBLADE"
+colour = "#0e141b"
+accent = "#4fc3f7"
+blurb  = "Helicopter gunship over Manhattan, strapped to a mounted cannon."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/gunblade.xml", "https://en.wikipedia.org/wiki/Gunblade_NY"]
+confidence = "medium"
+checked    = "2026-10-08"

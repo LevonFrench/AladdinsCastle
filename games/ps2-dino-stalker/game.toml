@@ -1,0 +1,42 @@
+id           = "ps2-dino-stalker"
+title        = "Dino Stalker"
+alt_titles   = ["Gun Survivor 3"]
+genre        = "gun"
+subgenre     = ["horror"]
+year         = 2002
+manufacturer = "capcom"
+developer    = "TOSE"
+hardware     = "sony-ps2"
+players      = 1
+series       = "Dino Crisis; Gun Survivor"
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon 2 (GunCon 1 also listed)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "DINO-PS2"
+colour = "#0f1a10"
+accent = "#4ad16a"
+blurb  = "Dinosaur-hunting horror shooter on PS2, aimed with a GunCon."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Dino_Stalker", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "high"
+checked    = "2026-10-08"

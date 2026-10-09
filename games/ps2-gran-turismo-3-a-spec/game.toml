@@ -1,0 +1,41 @@
+# sim racer, included as circuit per the brief
+id           = "ps2-gran-turismo-3-a-spec"
+title        = "Gran Turismo 3: A-Spec"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2001
+manufacturer = "sony"
+developer    = "Polyphony Digital"
+hardware     = "sony-ps2"
+players      = 2
+series       = "Gran Turismo"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["simulation; wheel optional on home release"]
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "GT3-PS2"
+colour = "#0c1220"
+accent = "#c5d0e6"
+blurb  = "The first PS2 Gran Turismo, a car simulator with a large licensed garage."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Gran_Turismo_3:_A-Spec"]
+confidence = "high"
+checked    = "2026-10-08"

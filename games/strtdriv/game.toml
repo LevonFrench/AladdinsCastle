@@ -1,0 +1,38 @@
+id           = "strtdriv"
+title        = "Street Drivin'"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1993
+manufacturer = "atari-games"
+developer    = "Atari Games"
+hardware     = "atari-arcade"
+players      = 1
+series       = "Hard Drivin'"
+
+[controls]
+type    = "wheel"
+shifter = "h4"
+pedals  = ["accel", "brake", "clutch"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "strtdriv"
+note = "Street Drivin' (prototype); MAME lists it as a prototype only"
+
+[routes]
+mame        = "working"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "STRTDRIV"
+colour = "#101418"
+accent = "#ffb347"
+blurb  = "A prototype street-driving spin on the Hard Drivin' cockpit."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/atari/harddriv.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

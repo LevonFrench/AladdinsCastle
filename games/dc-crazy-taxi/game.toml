@@ -1,0 +1,40 @@
+id           = "dc-crazy-taxi"
+title        = "Crazy Taxi"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Sega AM3 (arcade); Hitmaker (Dreamcast)"
+hardware     = "sega-dreamcast"
+players      = 1
+series       = "Crazy Taxi"
+original     = "crzytaxi"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "DC-CTAXI"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Pick up fares, follow the arrows, and beat the clock to the drop-off."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Crazy_Taxi_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

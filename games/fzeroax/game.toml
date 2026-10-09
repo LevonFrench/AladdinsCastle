@@ -1,0 +1,47 @@
+id           = "fzeroax"
+title        = "F-Zero AX"
+genre        = "racing"
+subgenre     = ["futuristic"]
+year         = 2003
+manufacturer = "sega"
+developer    = "Amusement Vision"
+hardware     = "sega-triforce"
+players      = 1
+series       = "F-Zero"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "fzeroax"
+note  = "Rev E (GDT-0004E); fzeroaxa to fzeroaxd are earlier revisions"
+
+[[media]]
+kind  = "mame-romset"
+set   = "fzeroaxm"
+note  = "F-Zero AX Monster Ride"
+
+[[media]]
+kind  = "bios"
+set   = "triforce"
+note  = "Triforce BIOS"
+
+[routes]
+mame              = "not-working"
+teknoparrot       = "profile"
+dolphin           = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "F-ZERO AX"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "The Sega-Nintendo hover racer on Triforce: boost hard and hold the line."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/triforce.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/FZeroAX.xml"]
+confidence = "high"
+checked    = "2026-10-08"

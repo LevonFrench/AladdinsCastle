@@ -1,0 +1,39 @@
+id           = "sat-maximum-force"
+title        = "Maximum Force"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1997
+manufacturer = "midway"
+developer    = "Tantalus Interactive (Saturn port); arcade by Mesa Logic"
+hardware     = "sega-saturn"
+players      = 2
+[controls]
+type = "gun"
+guns = 2
+gun  = "Saturn light gun (peripheral unverified)"
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre" }
+
+[hub]
+pill   = "SAT-MAXF"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "Atari arcade gallery shooter taken to Saturn with a light gun."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Maximum_Force"]
+confidence = "medium"
+checked    = "2026-10-08"

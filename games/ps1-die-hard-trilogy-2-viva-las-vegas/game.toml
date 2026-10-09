@@ -1,0 +1,42 @@
+id           = "ps1-die-hard-trilogy-2-viva-las-vegas"
+title        = "Die Hard Trilogy 2: Viva Las Vegas"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2000
+manufacturer = "other"
+developer    = "n-Space (publisher Fox Interactive)"
+hardware     = "sony-ps1"
+players      = 1
+series       = "Die Hard"
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon (listed on the Wikipedia GunCon page)"
+pedals  = []
+extras  = ["gun section only: Sharpshooting stages"]
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "DHT2-PS1"
+colour = "#1a1414"
+accent = "#f2a33a"
+blurb  = "The second Die Hard collection; its gun stages are one slice of a mostly third-person game."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Die_Hard_Trilogy_2:_Viva_Las_Vegas", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

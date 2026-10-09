@@ -1,0 +1,41 @@
+# players unverified (1 assumed)
+id           = "ps3-sega-rally-revo"
+title        = "Sega Rally Revo"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 2007
+manufacturer = "sega"
+developer    = "Sega Racing Studio (PS3)"
+hardware     = "sony-ps3"
+players      = 1
+series       = "Sega Rally"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS3 disc dump (ISO or folder dump)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
+
+[routes]
+rpcs3 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "SRREVO"
+colour = "#141a0c"
+accent = "#9ae03a"
+blurb  = "Rally racer on PS3 in the Sega Rally series, with dirt tracks and rally cars."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Rally_Revo"]
+confidence = "high"
+checked    = "2026-10-08"

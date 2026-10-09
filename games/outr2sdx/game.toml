@@ -1,0 +1,42 @@
+id           = "outr2sdx"
+title        = "OutRun 2 SP SDX"
+alt_titles   = ["OutRun 2 SP SDX"]
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2006
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-lindbergh"
+players      = 1
+series       = "OutRun"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "outr2sdx"
+note  = "Lindbergh"
+
+[[media]]
+kind  = "bios"
+set   = "lindbios"
+note  = "Lindbergh BIOS"
+
+[routes]
+mame              = "not-working"
+lindbergh-loader  = "working"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "OUTRUN2SDX"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "SP SDX on Lindbergh, the same coast and a shiny new cabinet."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/lindbergh.cpp", "https://www.wiki.batocera.org/_export/raw/systems:lindbergh"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,40 @@
+id           = "dc-sega-rally-2"
+title        = "Sega Rally 2"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1999
+manufacturer = "sega"
+developer    = "Sega AM Annex"
+hardware     = "sega-dreamcast"
+players      = 2
+series       = "Sega Rally"
+# original = "srally2"  (arcade Model 3 set name not verified; left unset)
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "DC-SRALLY2"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Early Dreamcast rally racer, a home port of the Model 3 arcade sequel."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Rally_2"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,38 @@
+id           = "smashing-drive"
+title        = "Smashing Drive"
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 2000
+manufacturer = "gaelco"
+developer    = "Gaelco"
+hardware     = "other-arcade"
+players      = 1
+series       = "Smashing Drive"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "smashdrv"
+note = "Smashing Drive (World); UK set smashdrvb. Driver in gaelco/atvtrack.cpp. Gaelco PowerVR-based board per Wikipedia infobox"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SMASHDRV"
+colour = "#101418"
+accent = "#ffcc00"
+blurb  = "A taxi run through traffic, with power-ups that let you plow through anything in your way."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/gaelco/atvtrack.cpp", "https://www.giantbomb.com/smashing-drive/3030-17771/"]
+confidence = "medium"
+checked    = "2026-10-08"

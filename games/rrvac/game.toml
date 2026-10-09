@@ -1,0 +1,36 @@
+id           = "rrvac"
+title        = "Ridge Racer V Arcade Battle"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2000
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-246"
+players      = 1                    # single-seat cabinet; linkable battle
+series       = "Ridge Racer"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "mame-romset"
+set  = "rrvac"
+note = "Ridge Racer V Arcade Battle (RRV3 Ver. A); needs the System 246 BIOS set (sys246). MAME marks NOT_WORKING"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "RRV"
+colour = "#0a1a14"
+accent = "#2ee6a6"
+blurb  = "Ridge Racer V's arcade battle, on the PS2-based System 246 board."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcops2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/rrv.xml"]
+confidence = "high"
+checked    = "2026-10-08"

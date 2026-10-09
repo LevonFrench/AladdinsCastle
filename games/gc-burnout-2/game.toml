@@ -1,0 +1,35 @@
+id           = "gc-burnout-2"
+title        = "Burnout 2: Point of Impact"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2003
+manufacturer = "acclaim"
+developer    = "Criterion Games"
+hardware     = "nintendo-gamecube"
+players      = 2
+series       = "Burnout"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "disc"
+note = "Your own GameCube disc image (ISO/GCM or RVZ)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "GC-BURN2"
+colour = "#1a1028"
+accent = "#8a63e6"
+blurb  = "Crash-driven street racer where the wrecks are the point."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Burnout_2:_Point_of_Impact"]
+confidence = "medium"
+checked    = "2026-10-08"

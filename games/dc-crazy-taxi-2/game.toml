@@ -1,0 +1,39 @@
+id           = "dc-crazy-taxi-2"
+title        = "Crazy Taxi 2"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 2001
+manufacturer = "sega"
+developer    = "Hitmaker"
+hardware     = "sega-dreamcast"
+players      = 1
+series       = "Crazy Taxi"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "DC-CTAXI2"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Second Crazy Taxi, Dreamcast-only, played with a gamepad."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Crazy_Taxi_2"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,42 @@
+# arcade origin (Acclaim, 1997) not confirmed; 2D vs 3D not verified
+id           = "ps1-judge-dredd"
+title        = "Judge Dredd"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1997
+manufacturer = "other"
+developer    = "Gremlin Interactive (NA publisher Activision)"
+hardware     = "sony-ps1"
+players      = 1
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon (listed on the Wikipedia GunCon page); Konami Justifier per data notes"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "JDREDD"
+colour = "#1a1a10"
+accent = "#e8d13a"
+blurb  = "Judge Dredd light-gun shooter, with the Mega City One lawman in the crosshairs."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Judge_Dredd_(1997_video_game)", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "low"
+checked    = "2026-10-08"

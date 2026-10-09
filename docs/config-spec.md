@@ -22,18 +22,19 @@ Status: **draft for discussion**. Field names will change before v1. Open questi
     game.toml              # catalog entry (game-schema.md)
     install.toml           # VR setup variants and their install steps
     README.md              # shown on the detail page
-    art/                   # tile, banner, marquee, flyer, preview video (user-scraped or pack art)
+    art/                   # redistributable art only (original / licensed); scraped art -> user/art/<id>/
     setup/                 # our per-game config: controls.toml (ghost controls), gun.toml, comfort.toml
   setups/<setup-id>.toml   # shared setup definitions (e.g. acvr-theatre, supermodel-vr) used by many games
   installed/<game-id>/<variant>/   # what an install put down
   tools/<tool-id>.toml     # emulator/helper: install, locate and search rules (frontend.md section 4)
   tools/<tool-id>/         # tools the Hub installed for you
-  controls/<control-set-id>.toml
+  controls/<control-set-id>.toml # shared control sets reused by many games (e.g. gun-1p-pedal)
   guns/<gun-id>/gun.toml + model.glb
   packs/<pack-id>/pack.toml (+ any of the folders above)
   user/
     overrides/...          # same layout; wins over everything
     bindings.toml
+    art/<game-id>/         # scraped / user-added art (private, gitignored)
     profiles/<player>.toml
     scores/, saves/, calibration/
   media/                   # default place for the user's own ROMs/ISOs; never shipped
@@ -80,7 +81,9 @@ files = ["${setup_dir}/Play VR.cmd"]
 
 `acvr` setups also declare which libacvr modules they use (`gun`, `ghost`, `cover`), the outputs they emit (`ffb`, `lamps`, `recoil`), and whether they report the game camera every frame (see [architecture.md](architecture.md) §2).
 
-## 5. Control sets: `controls/<id>.toml`
+## 5. Control sets
+
+A game's own cabinet controls live in `games/<id>/setup/controls.toml`. Control sets shared by many games (a generic 1-gun pedal cabinet, a generic wheel + H-shifter) live in `controls/<id>.toml`. `game.toml` refers to either; the per-game file wins. Same format in both places:
 
 ```toml
 id    = "namco-rave-racer"

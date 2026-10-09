@@ -1,0 +1,42 @@
+# genre set to racing (vehicle combat); GunCon mode is co-op only per the Wikipedia GunCon page
+id           = "ps2-starsky-and-hutch"
+title        = "Starsky & Hutch"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["vehicle-combat"]
+year         = 2003
+manufacturer = "other"
+developer    = "Mind's Eye Productions (publisher Empire Interactive)"
+hardware     = "sony-ps2"
+players      = 2
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Namco GunCon 1 or GunCon 2 (co-op mode only)"
+pedals  = []
+extras  = ["second player joins in co-op with a GunCon"]
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "STARSKY"
+colour = "#1a1408"
+accent = "#f0b030"
+blurb  = "Driving-and-shooting game where a second player can join in with a GunCon."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Starsky_%26_Hutch_(video_game)", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

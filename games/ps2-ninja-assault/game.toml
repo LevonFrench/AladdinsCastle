@@ -1,0 +1,43 @@
+# arcade original (2000, Namco; DemulShooter lists a NAOMI route) - set name not verified
+# two-player assumed from the arcade data; PS2 two-player not verified
+id           = "ps2-ninja-assault"
+title        = "Ninja Assault"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2002
+manufacturer = "namco"
+developer    = "Now Production"
+hardware     = "sony-ps2"
+players      = 2
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Namco GunCon 2 (EU also GunCon 1)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "NINJA-A"
+colour = "#140f0f"
+accent = "#c93a3a"
+blurb  = "Ninja-themed PS2 rail shooter, aimed with GunCon 2."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Ninja_Assault", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

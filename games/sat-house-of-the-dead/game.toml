@@ -1,0 +1,42 @@
+id           = "sat-house-of-the-dead"
+title        = "The House of the Dead"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 1998
+manufacturer = "sega"
+developer    = "Sega AM1"
+hardware     = "sega-saturn"
+players      = 2
+series       = "The House of the Dead"
+original     = "hotd"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Virtua Gun (Saturn light gun)"
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre" }
+
+[hub]
+pill   = "SAT-HOTD"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "Zombie rail shooter where the trick is shooting the undead without hitting civilians."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

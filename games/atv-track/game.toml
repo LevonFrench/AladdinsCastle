@@ -1,0 +1,39 @@
+id           = "atv-track"
+title        = "ATV Track"
+alt_titles   = ["ATV Track: Quads"]
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 2002
+manufacturer = "gaelco"
+developer    = "Gaelco"
+hardware     = "other-arcade"
+players      = 2
+series       = "ATV Track"
+
+[controls]
+type    = "handlebars"
+shifter = ""
+pedals  = []
+extras  = ["powered-motion-base", "handlebar-force-feedback"]
+
+[[media]]
+kind = "mame-romset"
+set  = "atvtrack"
+note = "ATV Track (set 1); set 2 is atvtracka. Both NOT_WORKING in MAME. Driver in gaelco/atvtrack.cpp. Two cabinets link for competitive play"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "ATVTRACK"
+colour = "#14120e"
+accent = "#ffb63d"
+blurb  = "Quad-bike racing through the Amazon on a cabinet that bucks when you hit the dirt."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/gaelco/atvtrack.cpp", "https://giantbomb.com/wiki/Games/ATV_Track"]
+confidence = "medium"
+checked    = "2026-10-08"

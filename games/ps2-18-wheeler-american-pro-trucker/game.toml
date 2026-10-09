@@ -1,0 +1,42 @@
+# PS2 published by Acclaim per the Wikipedia footnote; arcade set not in MAME list
+# players unverified (1 assumed)
+id           = "ps2-18-wheeler-american-pro-trucker"
+title        = "18 Wheeler: American Pro Trucker"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["truck"]
+year         = 2001
+manufacturer = "sega"
+developer    = "Sega AM2 (arcade); Acclaim Studios Cheltenham (PS2 port)"
+hardware     = "sony-ps2"
+players      = 1
+series       = "18 Wheeler"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "18WHEEL"
+colour = "#1a1408"
+accent = "#f0a030"
+blurb  = "Big-rig racing and cargo delivery; the PS2 port of Sega's arcade truck game."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/18_Wheeler:_American_Pro_Trucker"]
+confidence = "medium"
+checked    = "2026-10-08"

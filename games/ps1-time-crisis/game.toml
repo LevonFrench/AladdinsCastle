@@ -1,0 +1,45 @@
+# arcade original: timecris (MAME, Namco Super System 22, 1995)
+# foot-pedal support is the series norm, not confirmed by the sources used
+id           = "ps1-time-crisis"
+title        = "Time Crisis"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "cover-shooter"]
+year         = 1997
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sony-ps1"
+players      = 1
+series       = "Time Crisis"
+original     = "timecris"
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon (GunCon 1)"
+pedals  = ["cover-pedal"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "TC-PS1"
+colour = "#1a0f0f"
+accent = "#e0302a"
+blurb  = "Namco's PlayStation port of the rail shooter, with a foot pedal to duck behind cover."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Time_Crisis_(video_game)", "https://en.wikipedia.org/wiki/GunCon", "https://github.com/stenzek/duckstation/blob/master/src/core/guncon.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

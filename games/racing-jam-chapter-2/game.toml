@@ -1,0 +1,38 @@
+id           = "racing-jam-chapter-2"
+title        = "Racing Jam: Chapter II"
+alt_titles   = ["Racing Jam Chapter 2"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1998
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-hornet"
+players      = 2
+series       = "Racing Jam"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Not in MAME. TeknoParrot profile racingj2 (EmulatorType TeknoHornet). Year conflicts: 1998 (Wikipedia list) vs 1999 (Arcade-Museum)"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "RJAM2"
+colour = "#101418"
+accent = "#ff7a4a"
+blurb  = "The sequel keeps the street-racing hustle and the wheel-in-hand chaos."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/List_of_arcade_video_games:_R", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/racingj2.xml"]
+confidence = "low"
+checked    = "2026-10-08"

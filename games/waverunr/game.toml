@@ -1,0 +1,35 @@
+id           = "waverunr"
+title        = "Wave Runner"
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 1996
+manufacturer = "sega"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Wave Runner"
+
+[controls]
+type   = "boat"
+extras = ["throttle"]
+
+[[media]]
+kind = "mame-romset"
+set  = "waverunr"
+note = "Japan Revision A"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "WAVERUNNER"
+colour = "#071823"
+accent = "#00b8d4"
+blurb  = "Jet-ski racing across open water, handlebars and throttle."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/waverunr.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

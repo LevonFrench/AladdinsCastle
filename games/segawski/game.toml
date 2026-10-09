@@ -1,0 +1,36 @@
+id           = "segawski"
+title        = "Sega Water Ski"
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 1997
+manufacturer = "sega"
+developer    = "Sega AM1"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Sega Water Ski"
+
+[controls]
+type   = "other"
+extras = ["foot-pads"]
+
+[[media]]
+kind = "mame-romset"
+set  = "segawski"
+note = "Japan Revision A"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "WATERSKI"
+colour = "#071a1f"
+accent = "#26a69a"
+blurb  = "Water skiing behind a boat, steered by shifting your weight on foot pads."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/segawski.xml", "https://en.wikipedia.org/wiki/Sega_Water_Ski"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,42 @@
+# 3D status not stated in the sources used; verify before publishing
+id           = "ps1-elemental-gearbolt"
+title        = "Elemental Gearbolt"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1997
+manufacturer = "sony"
+developer    = "Alfa System (NA publisher Working Designs)"
+hardware     = "sony-ps1"
+players      = 1
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "GEARBOLT"
+colour = "#0c1220"
+accent = "#4aa3ff"
+blurb  = "Futuristic light-gun shooter on PlayStation with GunCon aim."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Elemental_Gearbolt", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

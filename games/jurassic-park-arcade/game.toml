@@ -1,0 +1,38 @@
+id           = "jurassic-park-arcade"
+title        = "Jurassic Park Arcade"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2015
+manufacturer = "raw-thrills"
+developer    = "Raw Thrills"
+hardware     = "pc-arcade"
+players      = 2
+series       = "Jurassic Park"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "light gun"
+pedals = []
+extras = ["motion-seat-option"]
+
+[[media]]
+kind = "other"
+note = "Not in MAME. Unveiled Nov 2014; sit-down cabinet March 2015, motion deluxe April 2015. TeknoParrot profile JurassicPark (ElfLdr2, GunGame=true); DemulShooter RtJurassicPark. Player count not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "JPARKARC"
+colour = "#101a10"
+accent = "#e6c040"
+blurb  = "Dinosaur rail-shooting with a motion cabinet that rocks when the T-Rex shows up."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Jurassic_Park_Arcade", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/JurassicPark.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

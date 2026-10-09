@@ -1,0 +1,43 @@
+# an arcade version (Namco, July 2001) exists; no original link set, set not verified
+id           = "ps2-resident-evil-survivor-2-code-veronica"
+title        = "Resident Evil Survivor 2 - Code: Veronica"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["horror"]
+year         = 2001
+manufacturer = "capcom"
+developer    = "Namco, Nextech, SIMS (per Wikipedia infobox)"
+hardware     = "sony-ps2"
+players      = 1
+series       = "Resident Evil"
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon 2 (GunCon 1 also listed)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "RE-SV2"
+colour = "#1a0a0a"
+accent = "#d42a2a"
+blurb  = "GunCon-based Resident Evil shooter set in the Code: Veronica storyline."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Resident_Evil_Survivor_2_%E2%80%93_Code:_Veronica", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "high"
+checked    = "2026-10-08"

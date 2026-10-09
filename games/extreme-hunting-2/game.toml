@@ -1,0 +1,40 @@
+id           = "extreme-hunting-2"
+title        = "Extreme Hunting 2"
+genre        = "gun"
+subgenre     = ["hunting"]
+year         = 2006
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sammy-atomiswave"
+players      = 1                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "rifle-style gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "xtrmhnt2"
+note  = "Atomiswave; needs unemulated protection in MAME"
+
+[[media]]
+kind  = "bios"
+set   = "awbios"
+note  = "Atomiswave BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "XHUNT2"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "The Extreme Hunting follow-up, rifle in hand."
+badges = ["roomscale", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/dc/dc_atomiswave.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

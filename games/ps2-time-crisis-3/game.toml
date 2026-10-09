@@ -1,0 +1,43 @@
+# arcade board System 246; not in MAME (TeknoParrot profile only), so no original set
+id           = "ps2-time-crisis-3"
+title        = "Time Crisis 3"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "cover-shooter"]
+year         = 2003
+manufacturer = "namco"
+developer    = "Namco; Nextech (arcade)"
+hardware     = "sony-ps2"
+players      = 2
+series       = "Time Crisis"
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Namco GunCon 2 (GunCon 1 listed for EU)"
+pedals  = ["cover-pedal"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "TC3-PS2"
+colour = "#1a0f0f"
+accent = "#e0302a"
+blurb  = "PS2 port of the third Time Crisis arcade game, with GunCon 2 and two-player co-op."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Time_Crisis_3", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "high"
+checked    = "2026-10-08"

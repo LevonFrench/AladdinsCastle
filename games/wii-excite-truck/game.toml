@@ -1,0 +1,35 @@
+id           = "wii-excite-truck"
+title        = "Excite Truck"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 2006
+manufacturer = "nintendo"
+developer    = "Monster Games"
+hardware     = "nintendo-wii"
+players      = 2
+series       = "Excite"
+
+[controls]
+type   = "other"
+extras = ["Wii Remote tilt"]
+
+[[media]]
+kind = "disc"
+note = "Your own Wii disc image (ISO/WBFS)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "WII-EXCITE"
+colour = "#0e1a20"
+accent = "#5ec8ff"
+blurb  = "Off-road truck racing with tilt steering and deformable terrain."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Excite_Truck"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,35 @@
+id           = "switch-cruisn-blast"
+title        = "Cruis'n Blast"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2021
+manufacturer = "raw-thrills"
+developer    = "Raw Thrills"
+hardware     = "nintendo-switch"
+players      = 4
+series       = "Cruis'n"
+# original = "cruisnblst"  (arcade set name not verified; left unset)
+
+[controls]
+type = "wheel"
+
+[[media]]
+kind = "other"
+note = "Your own Switch copy (digital or game card); nothing is provided by this catalog"
+
+[routes]
+yuzu-like = "unknown"
+vr        = { best = "theatre" }
+
+[hub]
+pill   = "SW-CRSNB"
+colour = "#1f0c10"
+accent = "#ff4b5c"
+blurb  = "Arcade stunt racer that came to Switch with extra modes."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Cruis%27n_Blast"]
+confidence = "low"
+checked    = "2026-10-08"

@@ -1,0 +1,38 @@
+id           = "gticlub2"
+title        = "GTI Club: Corso Italiano"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2000
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-viper"
+players      = 2
+series       = "GTI Club"
+
+[controls]
+type    = "wheel"
+shifter = "h4"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "gticlub2"
+note = "GTI Club: Corso Italiano (ver JAB); EAA release is gticlub2ea (Driving Party)"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "GTI2"
+colour = "#0e1420"
+accent = "#ff7a2f"
+blurb  = "Italian coastal racing on Viper, with linked seats and a wheel that bites back."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/viper.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/gticlub2.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

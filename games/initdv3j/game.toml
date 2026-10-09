@@ -1,0 +1,52 @@
+id           = "initdv3j"
+title        = "Initial D Arcade Stage 3"
+alt_titles   = ["Initial D Arcade Stage Ver. 3"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2004
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi-2"
+players      = 1
+series       = "Initial D"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["manual shifter"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "initdv3j"
+note  = "Japan Rev C (GDS-0032C)"
+
+[[media]]
+kind  = "mame-romset"
+set   = "initdv3e"
+note  = "Export (GDS-0033)"
+
+[[media]]
+kind  = "mame-romset"
+set   = "inidv3cy"
+note  = "Cycraft Edition (Export Rev B)"
+
+[[media]]
+kind  = "bios"
+set   = "naomi2"
+note  = "NAOMI 2 BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "IDSTAGE3"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Stage three, the Cycraft years and the same tight hairpins."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp", "https://en.wikipedia.org/wiki/Initial_D_(video_game_series)"]
+confidence = "high"
+checked    = "2026-10-08"

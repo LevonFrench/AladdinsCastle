@@ -1,0 +1,41 @@
+# players 1 assumed
+id           = "ps3-burnout-paradise"
+title        = "Burnout Paradise"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2008
+manufacturer = "electronic-arts"
+developer    = "Criterion Games"
+hardware     = "sony-ps3"
+players      = 1
+series       = "Burnout"
+
+[controls]
+type    = "other"
+pedals  = []
+extras  = ["open-world city; home pad (no arcade cabinet)"]
+
+[[media]]
+kind = "disc"
+note = "Your own PS3 disc dump (ISO or folder dump)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
+
+[routes]
+rpcs3 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "BURNPAR"
+colour = "#1a0c0c"
+accent = "#ff6a2a"
+blurb  = "Open-world Burnout set in the city of Paradise, with free roaming and smash events."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Burnout_Paradise"]
+confidence = "high"
+checked    = "2026-10-08"

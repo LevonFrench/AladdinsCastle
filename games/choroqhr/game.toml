@@ -1,0 +1,31 @@
+id           = "choroqhr"
+title        = "Choro Q Hyper Racing 5"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1998
+manufacturer = "sega"
+developer    = "Takara"
+hardware     = "sega-stv"
+players      = 1
+series       = "Choro Q"
+
+[[media]]
+kind = "mame-romset"
+set  = "choroqhr"
+note = "J 981230 V1.000 (needs stvbios)"
+
+[routes]
+mame = "not-working"
+vr   = { best = "none" }
+
+[hub]
+pill   = "CHOROQ"
+colour = "#1a0d14"
+accent = "#ff4081"
+blurb  = "Takara's toy-car racer on the Saturn-based ST-V board."
+badges = ["wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/stv.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

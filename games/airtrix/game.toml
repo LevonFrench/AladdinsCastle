@@ -1,0 +1,38 @@
+id           = "airtrix"
+title        = "Air Trix"
+genre        = "racing"
+subgenre     = ["flying"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Hitmaker"
+hardware     = "sega-hikaru"
+players      = 1
+
+[controls]
+type    = "joystick"
+
+[[media]]
+kind  = "mame-romset"
+set   = "airtrix"
+note  = "Rev A; airtrixo is the original"
+
+[[media]]
+kind  = "bios"
+set   = "hikaru"
+note  = "Hikaru BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "AIR TRIX"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Stunt flying on Hikaru: spin, loop and show off the sky."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/hikaru.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,38 @@
+id           = "xtrial"
+title        = "Xtrial Racing"
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 2002
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-viper"
+players      = 1
+series       = "Xtrial"
+
+[controls]
+type    = "handlebars"
+shifter = ""
+pedals  = []
+extras  = ["throttle"]
+
+[[media]]
+kind = "mame-romset"
+set  = "xtrial"
+note = "Xtrial Racing (ver JAB). Motorcycle trials per platform listings; TeknoParrot profile lists wheel-style mapping"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "XTRIAL"
+colour = "#14100e"
+accent = "#ff9f3d"
+blurb  = "Motorbike trials over rough terrain, where balance matters as much as throttle."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/viper.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/xtrial.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

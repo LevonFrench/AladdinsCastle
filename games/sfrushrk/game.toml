@@ -1,0 +1,38 @@
+id           = "sfrushrk"
+title        = "San Francisco Rush: The Rock"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1997
+manufacturer = "atari-games"
+developer    = "Atari Games"
+hardware     = "midway-seattle"
+players      = 2
+series       = "San Francisco Rush"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "sfrushrk"
+note = "San Francisco Rush: The Rock (boot rom L 1.0); Wavenet variants are NOT_WORKING"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SFRUSHRK"
+colour = "#101424"
+accent = "#ff6a1f"
+blurb  = "Rush to the island prison, with stunts and tunnels on the Rock."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/seattle.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/sfrushrk.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,47 @@
+id           = "eca"
+title        = "Emergency Call Ambulance"
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 1999
+manufacturer = "sega"
+hardware     = "sega-model-3"
+players      = 1
+series       = "Emergency Call Ambulance"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "eca"
+note = "Export (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "ecaj"
+note = "Japan"
+
+[[media]]
+kind = "mame-romset"
+set  = "ecau"
+note = "USA"
+
+[routes]
+mame        = "not-working"
+supermodel  = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "AMBULANCE"
+colour = "#1a0d0d"
+accent = "#ff5252"
+blurb  = "Drive an ambulance through Chicago streets and get the patients to hospital."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model3.cpp", "https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/eca.xml", "https://en.wikipedia.org/wiki/Emergency_Call_Ambulance"]
+confidence = "high"
+checked    = "2026-10-08"

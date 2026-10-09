@@ -1,0 +1,35 @@
+id           = "pc-crazy-taxi"
+title        = "Crazy Taxi"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 2002
+manufacturer = "sega"
+developer    = "Hitmaker"
+hardware     = "pc-windows"
+players      = 1
+series       = "Crazy Taxi"
+original     = "crzytaxi"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "pc-game"
+note = "Your own Windows install (disc or digital copy); exe name to confirm"
+
+[routes]
+vr = { best = "theatre" }
+
+[hub]
+pill   = "PC-CTAXI"
+colour = "#101318"
+accent = "#60a5fa"
+blurb  = "Windows version of the taxi arcade game, driven with a wheel or pad."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Crazy_Taxi_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

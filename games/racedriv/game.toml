@@ -1,0 +1,38 @@
+id           = "racedriv"
+title        = "Race Drivin'"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1990
+manufacturer = "atari-games"
+developer    = "Atari Games"
+hardware     = "atari-arcade"
+players      = 1
+series       = "Hard Drivin'"
+
+[controls]
+type    = "wheel"
+shifter = "h4"
+pedals  = ["accel", "brake", "clutch"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "racedriv"
+note = "Race Drivin' (cockpit, rev 5); compact set racedrivc, and the Panorama prototype racedrivpan"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "RACEDRIV"
+colour = "#101418"
+accent = "#ff9d2e"
+blurb  = "Hard Drivin's follow-up, with a rally-style course and a Panorama prototype."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/atari/harddriv.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/racedriv.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

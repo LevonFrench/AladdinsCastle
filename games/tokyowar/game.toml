@@ -1,0 +1,37 @@
+id           = "tokyowar"
+title        = "Tokyo Wars"
+genre        = "racing"
+subgenre     = ["vehicle-combat"]
+year         = 1996
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-super-system-22"
+players      = 2
+series       = ""
+
+[controls]
+type   = "other"
+extras = ["tank-controls"]
+
+[[media]]
+kind = "mame-romset"
+set  = "tokyowar"
+note = "Tokyo Wars (World, TW2 Ver. A); MAME marks imperfect graphics"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+native      = { project = "namco22-decompile", status = "playable" }
+vr          = { best = "none", planned = "true3d-planned" }   # namco22-vr (libacvr on namco22-decompile)
+
+[hub]
+pill   = "TOKYOWARS"
+colour = "#101a10"
+accent = "#8bc34a"
+blurb  = "Tank battles on the Super System 22 board, also playable natively."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos22.cpp", "https://github.com/spacestate1/namco22-decompile", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/tokyowar.xml", "https://en.wikipedia.org/wiki/Tokyo_Wars"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,39 @@
+id           = "carnevil"
+title        = "CarnEvil"
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 1998
+manufacturer = "midway"
+developer    = "Midway Games"
+hardware     = "midway-seattle"
+players      = 2
+series       = "CarnEvil"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "pump-action light gun (reloads by pumping)"
+pedals = []
+extras = ["pump-reload", "temporary-weapon-boosts"]
+
+[[media]]
+kind = "mame-romset"
+set  = "carnevil"
+note = "CarnEvil (v1.0.3); v1.0.1 is carnevil1. Driver is in williams/seattle.cpp. Two-player count not confirmed by the sources read"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "CARNEVIL"
+colour = "#1a0c10"
+accent = "#ff3a4a"
+blurb  = "A haunted fairground full of monsters, a pump-action shotgun, and a teenager who summoned it."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/seattle.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/carnevil.xml", "https://en.wikipedia.org/wiki/CarnEvil"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,42 @@
+id           = "lupinsho"
+title        = "Lupin the Third: The Shooting"
+alt_titles   = ["Lupin The Third - The Shooting"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2001
+manufacturer = "sega"
+developer    = "Eighting"
+hardware     = "sega-naomi"
+players      = 2                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "lupinsho"
+note  = "NAOMI GD-ROM Rev A (GDS-0018A); lupinshoo is the original GDS-0018 set"
+
+[[media]]
+kind  = "bios"
+set   = "naomigd"
+note  = "NAOMI GD-ROM BIOS"
+
+[routes]
+mame              = "not-working"
+demul             = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "LUPIN III"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Lupin and the gang in a 3D light-gun shootout."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

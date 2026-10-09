@@ -1,0 +1,41 @@
+id           = "winrun"
+title        = "Winning Run"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1988
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-21"
+players      = 1
+series       = "Winning Run"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "mame-romset"
+set  = "winrun"
+note = "Winning Run (World, Ver. 09); MAME marks imperfect graphics"
+
+[[media]]
+kind = "mame-romset"
+set  = "winrungp"
+note = "Winning Run: Suzuka GP (Japan, 1989) is a separate MAME set of the same board"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "WINRUN"
+colour = "#0a0a1a"
+accent = "#ffd23f"
+blurb  = "The first System 21 polygon racer, from 1988."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos21.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/winrun.xml", "https://en.wikipedia.org/wiki/Winning_Run"]
+confidence = "high"
+checked    = "2026-10-08"

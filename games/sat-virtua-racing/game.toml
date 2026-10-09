@@ -1,0 +1,40 @@
+id           = "sat-virtua-racing"
+title        = "Virtua Racing"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1995
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-saturn"
+players      = 2
+original     = "vr"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre" }
+
+[hub]
+pill   = "SAT-VRACING"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "Early polygon Formula One racer, home version on Saturn."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Virtua_Racing"]
+confidence = "medium"
+checked    = "2026-10-08"

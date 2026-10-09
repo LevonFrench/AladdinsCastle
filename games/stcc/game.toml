@@ -1,0 +1,52 @@
+id           = "stcc"
+title        = "Sega Touring Car Championship"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1996
+manufacturer = "sega"
+developer    = "Sega AM Annex"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Touring Car"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "stcc"
+note = "Newer revision (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "stccb"
+note = "Revision B"
+
+[[media]]
+kind = "mame-romset"
+set  = "stcca"
+note = "Revision A"
+
+[[media]]
+kind = "mame-romset"
+set  = "stcco"
+note = "Original release"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "STCC"
+colour = "#0a0f18"
+accent = "#ff5252"
+blurb  = "Touring cars on the track, with the wheel doing most of the work."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/stcc.xml", "https://en.wikipedia.org/wiki/Sega_Touring_Car_Championship"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,41 @@
+# link-cable two-player assumed from the series norm; not verified
+id           = "ps1-ridge-racer-revolution"
+title        = "Ridge Racer Revolution"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1995
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sony-ps1"
+players      = 2
+series       = "Ridge Racer"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "RRR-PS1"
+colour = "#0c1a24"
+accent = "#2ab0e8"
+blurb  = "Ridge Racer sequel for PlayStation with more cars and a link-cable two-player mode."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Ridge_Racer_Revolution"]
+confidence = "high"
+checked    = "2026-10-08"

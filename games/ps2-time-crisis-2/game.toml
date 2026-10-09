@@ -1,0 +1,44 @@
+# arcade original: timecrs2 (MAME, Namco System 23, 1997)
+id           = "ps2-time-crisis-2"
+title        = "Time Crisis II"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "cover-shooter"]
+year         = 2001
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sony-ps2"
+players      = 2
+series       = "Time Crisis"
+original     = "timecrs2"
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Namco GunCon 2 (GunCon 1 also listed)"
+pedals  = ["cover-pedal"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "TC2-PS2"
+colour = "#1a0f0f"
+accent = "#e0302a"
+blurb  = "Namco's PS2 port of Time Crisis II with GunCon 2 and two-player play."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Time_Crisis_II", "https://en.wikipedia.org/wiki/GunCon", "https://github.com/PCSX2/pcsx2/blob/master/pcsx2/USB/usb-lightgun/guncon2.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

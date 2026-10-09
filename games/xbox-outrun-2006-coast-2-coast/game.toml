@@ -1,0 +1,35 @@
+id           = "xbox-outrun-2006-coast-2-coast"
+title        = "OutRun 2006: Coast 2 Coast"
+alt_titles   = ["OutRun 2 SP (Japan)"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2006
+manufacturer = "sega"
+developer    = "Sumo Digital"
+hardware     = "microsoft-xbox"
+players      = 2
+series       = "OutRun"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "disc"
+note = "Your own Xbox disc image (ISO or CISO)"
+
+[routes]
+xemu = "unknown"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "XBOX-OR06"
+colour = "#0f1a0f"
+accent = "#6fd46f"
+blurb  = "Console OutRun 2 SP and Coast 2 Coast combined into one Xbox release."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/OutRun_2006:_Coast_2_Coast"]
+confidence = "medium"
+checked    = "2026-10-08"

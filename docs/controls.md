@@ -81,6 +81,14 @@ Racing in VR is the biggest motion sickness risk. All of these are options:
 - Fade or blink on hard camera cuts.
 - The "ride the screen" fallback: the game on a large curved screen in front of the cabinet seat.
 
+## 2.4 Platform input notes (research 2026-10-08)
+
+- **API:** OpenXR actions in libacvr (works on SteamVR, Meta and Monado runtimes; SteamVR shows its binding UI for OpenXR apps). OpenVR IVRInput only as a SteamVR fallback.
+- **Base profile:** `/interaction_profiles/oculus/touch_controller` (trigger value, grip/aim pose, haptic). Touch Plus extras (`/interaction_profiles/meta/touch_controller_plus`) are optional: SteamVR 2.19's OpenXR runtime doesn't list that extension; Meta's PC runtime does. Steam Frame controller profile: to research.
+- **Aim pose is runtime-dependent:** keep the per-hand gun-angle offset and an in-game calibration step (DR-89 needed −60..+60°). Meta's Horizon OS OpenXR had a 180° aim-pose bug in 1.1.49-1.1.52.
+- **Tracking loss:** Quest 3 estimates controller position briefly when out of camera view (weaker above the head than Quest 2). Use `XR_SPACE_LOCATION_POSITION_TRACKED_BIT` vs `..._VALID_BIT`: freeze or fade the gun and don't fire on inferred poses. Holster/reload gestures behind the head will be unreliable.
+- **Haptics:** amplitude 0-1, duration in nanoseconds, frequency in Hz. Over Meta Link to SteamVR, haptics were reported very weak until SteamVR's *Meta Plugin Compatibility* was turned off (2024). Test recoil on each bridge: ALVR, Link, Virtual Desktop, Steam Link, Steam Frame.
+
 ## 3. Pause overlay controls (all setups)
 
 | Action | Default |

@@ -1,0 +1,36 @@
+id           = "wii-resident-evil-darkside-chronicles"
+title        = "Resident Evil: The Darkside Chronicles"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 2009
+manufacturer = "capcom"
+developer    = "Capcom; Cavia"
+hardware     = "nintendo-wii"
+players      = 1
+series       = "Resident Evil"
+
+[controls]
+type = "gun"
+guns = 1
+gun  = "Wii Remote IR pointer (Zapper support unverified)"
+
+[[media]]
+kind = "disc"
+note = "Your own Wii disc image (ISO/WBFS)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "WII-REDARK"
+colour = "#0e1a20"
+accent = "#5ec8ff"
+blurb  = "Second on-rails Resident Evil collection, with the Wii Remote as the gun."
+badges = ["roomscale"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Resident_Evil:_The_Darkside_Chronicles"]
+confidence = "medium"
+checked    = "2026-10-08"

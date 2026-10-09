@@ -1,0 +1,41 @@
+id           = "outr2st"
+title        = "OutRun 2 SP"
+alt_titles   = ["OutRun 2 Special Tours"]
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2004
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-chihiro"
+players      = 1
+series       = "OutRun"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "outr2st"
+note  = "Rev A (GDX-0014A); outr2sto and outr2stj are other sets"
+
+[[media]]
+kind  = "bios"
+set   = "chihiro"
+note  = "Chihiro BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "OUTRUN2SP"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Special Tours on Chihiro: longer routes, more scenery, same fast coast."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/chihiro.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

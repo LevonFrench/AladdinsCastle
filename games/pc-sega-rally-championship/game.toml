@@ -1,0 +1,35 @@
+id           = "pc-sega-rally-championship"
+title        = "Sega Rally Championship"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1997
+manufacturer = "sega"
+developer    = "Sega AM3"
+hardware     = "pc-windows"
+players      = 2
+series       = "Sega Rally"
+original     = "srallyc"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "pc-game"
+note = "Your own Windows install (disc or digital copy); exe name to confirm"
+
+[routes]
+vr = { best = "theatre" }
+
+[hub]
+pill   = "PC-SRALLY"
+colour = "#101318"
+accent = "#60a5fa"
+blurb  = "Windows rally racer with surface-dependent grip, the arcade game at home."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Rally_Championship"]
+confidence = "medium"
+checked    = "2026-10-08"

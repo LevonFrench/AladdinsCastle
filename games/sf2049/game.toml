@@ -1,0 +1,38 @@
+id           = "sf2049"
+title        = "San Francisco Rush 2049"
+genre        = "racing"
+subgenre     = ["futuristic"]
+year         = 1999
+manufacturer = "atari-games"
+developer    = "Atari Games"
+hardware     = "midway-vegas"
+players      = 2
+series       = "San Francisco Rush"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "sf2049"
+note = "San Francisco Rush 2049 (Version 1.04); later sets sf2049se, sf2049te, sf2049tea"
+
+[routes]
+mame        = "working"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SF2049"
+colour = "#0c1220"
+accent = "#ff3d9a"
+blurb  = "Hover-free future racing through a neon San Francisco, with stunts and shortcuts."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/vegas.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

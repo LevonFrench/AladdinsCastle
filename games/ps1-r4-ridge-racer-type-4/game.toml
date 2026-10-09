@@ -1,0 +1,41 @@
+# two-player assumed; not verified
+id           = "ps1-r4-ridge-racer-type-4"
+title        = "R4: Ridge Racer Type 4"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1998
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sony-ps1"
+players      = 2
+series       = "Ridge Racer"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "R4-PS1"
+colour = "#0c1a24"
+accent = "#2ab0e8"
+blurb  = "Type 4 in the Ridge Racer numbering, a PlayStation entry in the family."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/R4:_Ridge_Racer_Type_4"]
+confidence = "high"
+checked    = "2026-10-08"

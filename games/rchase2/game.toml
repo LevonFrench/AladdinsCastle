@@ -1,0 +1,37 @@
+id           = "rchase2"
+title        = "Rail Chase 2"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1995
+manufacturer = "sega"
+developer    = "Sega AM3"
+hardware     = "sega-model-2"
+players      = 2
+series       = "Rail Chase"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Sega light gun"
+
+[[media]]
+kind = "mame-romset"
+set  = "rchase2"
+note = "Revision A (parent set)"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "RAILCHASE2"
+colour = "#15100c"
+accent = "#ffb300"
+blurb  = "Ride a mine cart down the rails and shoot everything you see."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/rchase2.xml", "https://en.wikipedia.org/wiki/Rail_Chase_2"]
+confidence = "medium"
+checked    = "2026-10-08"

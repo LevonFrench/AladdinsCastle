@@ -1,0 +1,42 @@
+# arcade original Wangan Midnight (Namco) is not in MAME, so no original set
+# players unverified (1 assumed)
+id           = "ps3-wangan-midnight"
+title        = "Wangan Midnight"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2007
+manufacturer = "other"
+developer    = "Genki (publisher Genki)"
+hardware     = "sony-ps3"
+players      = 1
+series       = "Wangan Midnight"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS3 disc dump (ISO or folder dump)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
+
+[routes]
+rpcs3 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "WANGAN"
+colour = "#0a0f1a"
+accent = "#3a8ae0"
+blurb  = "Night-time highway racer on PS3 in the Wangan Midnight series."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Wangan_Midnight_(2007_video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

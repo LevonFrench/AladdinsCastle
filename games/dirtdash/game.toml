@@ -1,0 +1,37 @@
+id           = "dirtdash"
+title        = "Dirt Dash"
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1995
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-super-system-22"
+players      = 1
+series       = ""
+
+[controls]
+type   = "wheel"               # verify: wheel and pedals not confirmed by a primary source
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "mame-romset"
+set  = "dirtdash"
+note = "Dirt Dash (World, DT2 Ver. C); MAME marks imperfect graphics"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+native      = { project = "namco22-decompile", status = "playable" }
+vr          = { best = "none", planned = "true3d-planned" }   # namco22-vr (libacvr on namco22-decompile)
+
+[hub]
+pill   = "DIRTDASH"
+colour = "#1c1408"
+accent = "#e0a040"
+blurb  = "Off-road buggy racing, all five stages playable natively."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos22.cpp", "https://github.com/spacestate1/namco22-decompile", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/dirtdash.xml", "https://en.wikipedia.org/wiki/Dirt_Dash"]
+confidence = "medium"
+checked    = "2026-10-08"

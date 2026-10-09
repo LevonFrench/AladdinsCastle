@@ -1,0 +1,40 @@
+id           = "gunsur2"
+title        = "Gun Survivor 2: Biohazard Code: Veronica"
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 2001
+manufacturer = "capcom"
+developer    = "Capcom / Namco"
+hardware     = "sega-naomi"
+players      = 2                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Namco gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "gunsur2"
+note  = "NAOMI World BHF2 Ver.E"
+
+[[media]]
+kind  = "bios"
+set   = "naomi"
+note  = "NAOMI BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "GUNSURV2"
+colour = "#1f1010"
+accent = "#ff8a3d"
+blurb  = "Resident Evil in 3D, dropped to a gun and the two-player shootout."
+badges = ["roomscale", "2-players", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

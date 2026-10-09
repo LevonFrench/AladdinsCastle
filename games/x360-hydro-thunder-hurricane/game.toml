@@ -1,0 +1,35 @@
+id           = "x360-hydro-thunder-hurricane"
+title        = "Hydro Thunder Hurricane"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 2010
+manufacturer = "other"
+developer    = "Vector Unit"
+hardware     = "microsoft-xbox-360"
+players      = 2
+series       = "Hydro Thunder"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "other"
+note = "Xbox Live Arcade digital purchase; no disc involved"
+
+[routes]
+xenia = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "X360-HURR"
+colour = "#101a10"
+accent = "#7bdc8a"
+blurb  = "Sequel to Hydro Thunder, a 2010 Xbox Live Arcade powerboat racer."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Hydro_Thunder_Hurricane"]
+confidence = "medium"
+checked    = "2026-10-08"

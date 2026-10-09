@@ -1,0 +1,47 @@
+id           = "initdv2j"
+title        = "Initial D Arcade Stage 2"
+alt_titles   = ["Initial D Arcade Stage Ver. 2"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2002
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi-2"
+players      = 1
+series       = "Initial D"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["manual shifter"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "initdv2j"
+note  = "Japan Rev B (GDS-0026B)"
+
+[[media]]
+kind  = "mame-romset"
+set   = "initdv2e"
+note  = "Export (GDS-0027)"
+
+[[media]]
+kind  = "bios"
+set   = "naomi2"
+note  = "NAOMI 2 BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "IDSTAGE2"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Second stage, more cars on the course and the same stick-shift swagger."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp", "https://en.wikipedia.org/wiki/Initial_D_(video_game_series)"]
+confidence = "high"
+checked    = "2026-10-08"

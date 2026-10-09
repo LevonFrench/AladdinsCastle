@@ -1,0 +1,36 @@
+id           = "wii-house-of-the-dead-overkill"
+title        = "The House of the Dead: Overkill"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 2009
+manufacturer = "sega"
+developer    = "Headstrong Games"
+hardware     = "nintendo-wii"
+players      = 2
+series       = "The House of the Dead"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Wii Zapper / Wii Remote IR pointer"
+
+[[media]]
+kind = "disc"
+note = "Your own Wii disc image (ISO/WBFS)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "WII-OVRKL"
+colour = "#0e1a20"
+accent = "#5ec8ff"
+blurb  = "Grim, non-canonical prequel spin-off with a Wii Zapper and co-op."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead:_Overkill"]
+confidence = "medium"
+checked    = "2026-10-08"

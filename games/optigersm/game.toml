@@ -1,0 +1,39 @@
+id           = "optigersm"
+title        = "Operation Tiger Second Mission"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1998
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "other-arcade"
+players      = 2
+series       = "Operation Tiger"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "light gun (2 guns)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "optigersm"
+note = "Operation Tiger Second Mission (Ver 2.02 J); Taito PJC board per MAME taito/taitopjc.cpp"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "OPTIGERSM"
+colour = "#141a10"
+accent = "#9ccc4e"
+blurb  = "The second mission: same jungle, bigger guns, two players."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitopjc.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/optigersm.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

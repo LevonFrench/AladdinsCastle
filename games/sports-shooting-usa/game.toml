@@ -1,0 +1,40 @@
+id           = "sports-shooting-usa"
+title        = "Sports Shooting USA"
+genre        = "gun"
+subgenre     = ["hunting"]
+year         = 2003
+manufacturer = "sammy"
+developer    = "Sammy USA"
+hardware     = "sammy-atomiswave"
+players      = 1                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "shotgun-style gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "sprtshot"
+note  = "Atomiswave"
+
+[[media]]
+kind  = "bios"
+set   = "awbios"
+note  = "Atomiswave BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "SPORTSHOT"
+colour = "#1f1a0a"
+accent = "#f5c542"
+blurb  = "Clay pigeons in the air and one gun to hit them all."
+badges = ["roomscale", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/dc/dc_atomiswave.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

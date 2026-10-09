@@ -1,0 +1,40 @@
+id           = "outr2"
+title        = "OutRun 2"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2003
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-chihiro"
+players      = 1
+series       = "OutRun"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "outr2"
+note  = "Rev A (GDX-0004A); outr2o is the original"
+
+[[media]]
+kind  = "bios"
+set   = "chihiro"
+note  = "Chihiro BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "OUTRUN2"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "The coast highway again, now in full 3D on Chihiro."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/chihiro.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

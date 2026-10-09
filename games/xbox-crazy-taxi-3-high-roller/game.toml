@@ -1,0 +1,36 @@
+id           = "xbox-crazy-taxi-3-high-roller"
+title        = "Crazy Taxi 3: High Roller"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 2002
+manufacturer = "sega"
+developer    = "Hitmaker"
+hardware     = "microsoft-xbox"
+players      = 1
+series       = "Crazy Taxi"
+# An arcade Crazy Taxi: High Roller exists; not linked here until its set name is verified.
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "disc"
+note = "Your own Xbox disc image (ISO or CISO)"
+
+[routes]
+xemu = "unknown"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "XBOX-CT3"
+colour = "#0f1a0f"
+accent = "#6fd46f"
+blurb  = "Third Crazy Taxi, first released on Xbox before the arcade and PC versions."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Crazy_Taxi_3:_High_Roller"]
+confidence = "medium"
+checked    = "2026-10-08"

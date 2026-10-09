@@ -66,6 +66,9 @@ label = "Truck / big rig"
 [subgenre.mission-driving]
 genre = "racing"
 label = "Mission driving (taxi, ambulance)"
+[subgenre.horse]
+genre = "racing"
+label = "Horse racing"
 [subgenre.flying]
 genre = "racing"
 label = "Flying / air race"

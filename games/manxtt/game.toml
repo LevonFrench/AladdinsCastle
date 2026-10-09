@@ -1,0 +1,45 @@
+id           = "manxtt"
+title        = "Manx TT Superbike"
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1995
+manufacturer = "sega"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Manx TT"
+
+[controls]
+type   = "bike"
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "manxtt"
+note = "DX/Twin Revision D (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "manxttc"
+note = "DX/Twin Revision C"
+
+[[media]]
+kind = "mame-romset"
+set  = "manxttdx"
+note = "DX"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "MANXTT"
+colour = "#150f0b"
+accent = "#ff6d00"
+blurb  = "TT motorbike racing: lean into the bends and twist the throttle."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/manxtt.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,42 @@
+id           = "house-of-the-dead-4-special"
+title        = "The House of the Dead 4 Special"
+alt_titles   = ["The House of the Dead 4 Special (HotD 4 Special)"]
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 2006
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-lindbergh"
+players      = 2                   # unverified: check cabinet / MAME inputs
+series       = "The House of the Dead"
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega twin gun"
+
+[[media]]
+kind  = "other"
+note  = "Lindbergh set not in MAME; TeknoParrot profile HOTD4SP and HOTD4SPELF2"
+
+[[media]]
+kind  = "bios"
+set   = "lindbios"
+note  = "Lindbergh BIOS"
+
+[routes]
+teknoparrot       = "profile"
+lindbergh-loader  = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "HOTD4 SP"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "The HotD4 expansion-era cut, more zombies and better shooting."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/HOTD4SP.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

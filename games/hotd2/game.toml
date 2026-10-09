@@ -1,0 +1,42 @@
+id           = "hotd2"
+title        = "The House of the Dead 2"
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 1998
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi"
+players      = 2
+series       = "The House of the Dead"
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega twin gun (recoil)"
+
+[[media]]
+kind  = "mame-romset"
+set   = "hotd2"
+note  = "NAOMI The House of the Dead 2 (USA); needs hod2bios"
+
+[[media]]
+kind  = "bios"
+set   = "hod2bios"
+note  = "NAOMI HotD2-specific BIOS"
+
+[routes]
+mame              = "not-working"
+demul             = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "HOTD2"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Two guns, one zombie-filled mansion, and a shotgun you will want back."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,35 @@
+id           = "truckk"
+title        = "Truck Kyosokyoku"
+genre        = "racing"
+subgenre     = ["truck"]
+year         = 2000
+manufacturer = "namco"
+developer    = "Metro"
+hardware     = "namco-system-12"
+players      = 1
+series       = ""
+
+[controls]
+type = "wheel"                 # verify: truck cabinet input not confirmed by a primary source
+
+[[media]]
+kind = "mame-romset"
+set  = "truckk"
+note = "Truck Kyosokyoku (TKK2 Ver. A); MAME lists Metro / Namco and marks imperfect sound"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "TRUCKK"
+colour = "#14140a"
+accent = "#c8b400"
+blurb  = "Big-rig racing on the System 12 board."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos12.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/truckk.xml"]
+confidence = "low"
+checked    = "2026-10-08"

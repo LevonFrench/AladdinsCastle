@@ -1,0 +1,38 @@
+id           = "halo-fireteam-raven"
+title        = "Halo: Fireteam Raven"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2018
+manufacturer = "raw-thrills"
+developer    = "Raw Thrills"
+hardware     = "pc-arcade"
+players      = 2
+series       = "Halo"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "light gun"
+pedals = []
+extras = []
+
+[[media]]
+kind = "other"
+note = "Not in MAME. First arcade game in the Halo series, arcade launch July 2018. Developer credit taken from Xbox and Giant Bomb listings only. TeknoParrot profile Halo (ElfLdr2, GunGame=true). Player count not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "HALORAVEN"
+colour = "#0c1410"
+accent = "#8fd16a"
+blurb  = "Spartan co-op rail-shooting, the first arcade Halo outing."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://giantbomb.com/wiki/Games/Halo_Fireteam_Raven", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/Halo.xml"]
+confidence = "low"
+checked    = "2026-10-08"

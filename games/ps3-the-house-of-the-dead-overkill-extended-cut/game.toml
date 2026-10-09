@@ -1,0 +1,45 @@
+# no arcade original; the Wii release (2009) is the base game
+# PS3 Extended Cut date (NA Oct 2011) from the Wikipedia release field
+# two-player assumed from the base game co-op; PS3 two-player not verified
+id           = "ps3-the-house-of-the-dead-overkill-extended-cut"
+title        = "The House of the Dead: Overkill - Extended Cut"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 2011
+manufacturer = "sega"
+developer    = "Headstrong Games"
+hardware     = "sony-ps3"
+players      = 2
+series       = "The House of the Dead"
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "PlayStation Move gun shell (per data notes)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS3 disc dump (ISO or folder dump)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
+
+[routes]
+rpcs3 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "OVERKILL"
+colour = "#1a0c10"
+accent = "#d93a5a"
+blurb  = "Extended Cut of the Wii rail shooter, with PS Move gun support on PS3."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead:_Overkill"]
+confidence = "medium"
+checked    = "2026-10-08"

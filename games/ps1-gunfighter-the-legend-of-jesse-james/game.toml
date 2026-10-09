@@ -1,0 +1,42 @@
+# 2D vs 3D not verified from the sources used
+id           = "ps1-gunfighter-the-legend-of-jesse-james"
+title        = "Gunfighter: The Legend of Jesse James"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2001
+manufacturer = "ubisoft"
+developer    = "Rebellion Developments"
+hardware     = "sony-ps1"
+players      = 1
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon (listed on the Wikipedia GunCon page)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "GUNFJ"
+colour = "#1f140c"
+accent = "#d98c3a"
+blurb  = "Western gunfight shooter for PlayStation with GunCon support."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Gunfighter:_The_Legend_of_Jesse_James", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "low"
+checked    = "2026-10-08"

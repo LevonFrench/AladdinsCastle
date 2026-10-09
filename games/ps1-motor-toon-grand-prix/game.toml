@@ -1,0 +1,40 @@
+# two-player assumed; not verified
+id           = "ps1-motor-toon-grand-prix"
+title        = "Motor Toon Grand Prix"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["kart"]
+year         = 1994
+manufacturer = "sony"
+developer    = "Polys Entertainment (Sony Computer Entertainment Japan)"
+hardware     = "sony-ps1"
+players      = 2
+
+[controls]
+type    = "other"
+pedals  = []
+extras  = ["home pad (no arcade cabinet)"]
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "MTOON"
+colour = "#1a1a0a"
+accent = "#f5c33a"
+blurb  = "Cartoon kart racer from the PlayStation's first year in Japan."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Motor_Toon_Grand_Prix"]
+confidence = "medium"
+checked    = "2026-10-08"

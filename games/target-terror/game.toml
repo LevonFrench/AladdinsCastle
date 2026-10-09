@@ -1,0 +1,39 @@
+id           = "target-terror"
+title        = "Target: Terror"
+alt_titles   = ["Target Terror", "Target Terror Gold"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2004
+manufacturer = "raw-thrills"
+developer    = "Raw Thrills"
+hardware     = "pc-arcade"
+players      = 2
+series       = "Target Terror"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "light gun"
+pedals = []
+extras = []
+
+[[media]]
+kind = "other"
+note = "Not in MAME. Raw Thrills' first independent coin-op (2003 per Wikipedia; 2004 per most databases). Gold upgrade followed. 3D status not verified in this pass. TeknoParrot profile TargetTerrorGold (ElfLdr2, GunGame=true); DemulShooter RtTargetTerror. Player count not confirmed"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "TTERROR"
+colour = "#140c0c"
+accent = "#ff5a3a"
+blurb  = "Terror attacks on the Golden Gate, Los Alamos and an airport, and the trigger is yours."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://giantbomb.com/wiki/Games/Target_Terror", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/TargetTerrorGold.xml"]
+confidence = "low"
+checked    = "2026-10-08"

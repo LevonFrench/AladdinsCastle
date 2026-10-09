@@ -1,0 +1,38 @@
+id           = "vaportrx"
+title        = "Vapor TRX"
+genre        = "racing"
+subgenre     = ["futuristic"]
+year         = 1998
+manufacturer = "atari-games"
+developer    = "Atari Games (Blue Shift Inc. credited by some databases)"
+hardware     = "midway-seattle"
+players      = 2
+series       = "Vapor TRX"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "vaportrx"
+note = "Vapor TRX (GUTS Jul 2 1998); later build vaportrxp. Control scheme not confirmed by sources"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "VAPORTRX"
+colour = "#0a1218"
+accent = "#4fe8ff"
+blurb  = "Rocket-powered, spaceship-like racers blast through canyons and cities, with turbo pads and weapon pickups."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/seattle.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/vaportrx.xml", "https://www.arcade-museum.com/Videogame/vapor-trx"]
+confidence = "medium"
+checked    = "2026-10-08"

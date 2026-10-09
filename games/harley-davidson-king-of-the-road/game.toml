@@ -1,0 +1,34 @@
+id           = "harley-davidson-king-of-the-road"
+title        = "Harley-Davidson: King of the Road"
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 2008
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-lindbergh"
+players      = 1
+
+[controls]
+type    = "other"
+extras  = ["motorcycle controls (see note)"]
+
+[[media]]
+kind  = "other"
+note  = "Lindbergh per Batocera; TeknoParrot profile Harley (ElfLdr2)"
+
+[routes]
+teknoparrot       = "profile"
+lindbergh-loader  = "working"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "HARLEY"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Ride the bike, lean into the curves and keep the chrome shining."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://www.wiki.batocera.org/_export/raw/systems:lindbergh", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/Harley.xml"]
+confidence = "low"
+checked    = "2026-10-08"

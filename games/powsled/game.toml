@@ -1,0 +1,40 @@
+id           = "powsled"
+title        = "Power Sled"
+genre        = "racing"
+subgenre     = ["ski"]
+year         = 1996
+manufacturer = "sega"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Power Sled"
+
+[controls]
+type   = "handlebars"
+extras = ["throttle"]
+
+[[media]]
+kind = "mame-romset"
+set  = "powsled"
+note = "Slave Revision A (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "powsledr"
+note = "Relay set"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "POWSLED"
+colour = "#0e1620"
+accent = "#80deea"
+blurb  = "Snowmobile racing across snowy courses with a throttle in your hand."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/powsled.xml"]
+confidence = "low"
+checked    = "2026-10-08"

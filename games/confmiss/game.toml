@@ -1,0 +1,41 @@
+id           = "confmiss"
+title        = "Confidential Mission"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi"
+players      = 2
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega twin gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "confmiss"
+note  = "NAOMI GD-ROM Confidential Mission (GDS-0001)"
+
+[[media]]
+kind  = "bios"
+set   = "naomigd"
+note  = "NAOMI GD-ROM BIOS"
+
+[routes]
+mame              = "not-working"
+demul             = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "CONFMISS"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Agents, a briefing, and two guns on a secret mission."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

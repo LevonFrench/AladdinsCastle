@@ -1,0 +1,38 @@
+id           = "thrill-drive-4"
+title        = "Thrill Drive 4"
+alt_titles   = ["Crazy Streets"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2007
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "other-arcade"
+players      = 1
+series       = "Thrill Drive"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Arcade PCB not in MAME; board not confirmed. TeknoParrot profile ThrillDrive4. Player count not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "THRILL4"
+colour = "#120e14"
+accent = "#ff5e8a"
+blurb  = "Over-the-top street racing, released outside Japan as Crazy Streets."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://giantbomb.com/wiki/Games/Crazy_Streets_Thrill_Drive_4", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/ThrillDrive4.xml"]
+confidence = "low"
+checked    = "2026-10-08"

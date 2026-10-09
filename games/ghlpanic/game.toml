@@ -1,0 +1,38 @@
+id           = "ghlpanic"
+title        = "Ghoul Panic"
+alt_titles   = ["Oh! Bakyuun"]
+genre        = "gun"
+subgenre     = ["horror"]
+year         = 1999
+manufacturer = "namco"
+developer    = "Raizing"
+hardware     = "namco-system-12"
+players      = 2
+series       = ""
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Namco light gun"
+
+[[media]]
+kind = "mame-romset"
+set  = "ghlpanic"
+note = "Ghoul Panic (World, OB2 Ver. A); the Japanese release is set ohbakyuun (Oh! Bakyuun)"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "GHOULPANIC"
+colour = "#130f1a"
+accent = "#8e5bd6"
+blurb  = "Haunted-house light gun with 3D stages."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos12.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/ghlpanic.xml", "https://en.wikipedia.org/wiki/Ghoul_Panic"]
+confidence = "medium"
+checked    = "2026-10-08"

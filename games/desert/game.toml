@@ -1,0 +1,35 @@
+id           = "desert"
+title        = "Desert Tank"
+genre        = "racing"
+subgenre     = ["vehicle-combat"]
+year         = 1994
+manufacturer = "sega"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Desert Tank"
+
+[controls]
+type   = "other"
+extras = ["tank-throttle", "turret-fire"]
+
+[[media]]
+kind = "mame-romset"
+set  = "desert"
+note = "Parent set (MAME credits Sega / Martin Marietta)"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "DESERTTANK"
+colour = "#1a1408"
+accent = "#c7a13d"
+blurb  = "Drive a tank across the desert and blast anything that moves."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/desert.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

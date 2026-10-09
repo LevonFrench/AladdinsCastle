@@ -1,0 +1,41 @@
+id           = "hummerxt"
+title        = "Hummer Extreme"
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 2008
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-lindbergh"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "hummerxt"
+note  = "Lindbergh"
+
+[[media]]
+kind  = "bios"
+set   = "lindbios"
+note  = "Lindbergh BIOS"
+
+[routes]
+mame              = "not-working"
+teknoparrot       = "profile"
+lindbergh-loader  = "working"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "HUMMER X"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Off-road in a giant SUV on a Lindbergh cabinet, plenty of mud to spin through."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/lindbergh.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/HummerExtreme.xml"]
+confidence = "high"
+checked    = "2026-10-08"

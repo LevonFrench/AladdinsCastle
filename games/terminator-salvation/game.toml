@@ -1,0 +1,38 @@
+id           = "terminator-salvation"
+title        = "Terminator Salvation"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2010
+manufacturer = "raw-thrills"
+developer    = "Play Mechanix"
+hardware     = "pc-arcade"
+players      = 2
+series       = "Terminator"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "light gun"
+pedals = []
+extras = []
+
+[[media]]
+kind = "other"
+note = "Not in MAME. Released 2010 per Giant Bomb (Arcade-Museum gives 2009 production). TeknoParrot profile Terminator (ElfLdr2, GunGame=true); DemulShooter RtTerminatorSalvation. Player count not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "TERMINATOR"
+colour = "#101014"
+accent = "#c8d0d8"
+blurb  = "Rail-shooting through a post-apocalyptic future with a light gun and no mercy."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://www.giantbomb.com/games/3030-27102/", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/Terminator.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

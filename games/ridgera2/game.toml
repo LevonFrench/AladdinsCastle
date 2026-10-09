@@ -1,0 +1,36 @@
+id           = "ridgera2"
+title        = "Ridge Racer 2"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1994
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-22"
+players      = 1                    # single-seat cabinet; linkable
+series       = "Ridge Racer"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "mame-romset"
+set  = "ridgera2"
+note = "Ridge Racer 2 (World, RRS2); Japanese set ridgera2j (RRS1 Ver. B). MAME marks imperfect graphics"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "RR2"
+colour = "#0a1a14"
+accent = "#2ee6a6"
+blurb  = "More cars, tighter corners, and the same wheel-first drift."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos22.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/ridgera2j.xml"]
+confidence = "high"
+checked    = "2026-10-08"

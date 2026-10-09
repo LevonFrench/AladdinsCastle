@@ -1,0 +1,39 @@
+id           = "wangmid2"
+title        = "Wangan Midnight Maximum Tune 2"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2005
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sega-chihiro"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "wangmid2"
+note  = "Export Rev A (GDX-0016A); wangmid2j and wangmid2o are other sets"
+
+[[media]]
+kind  = "bios"
+set   = "chihiro"
+note  = "Chihiro BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "WANGAN2"
+colour = "#2a0f14"
+accent = "#ff4d6d"
+blurb  = "The sequel on Chihiro, faster nights and a longer midnight run."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/chihiro.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

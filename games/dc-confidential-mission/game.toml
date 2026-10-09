@@ -1,0 +1,40 @@
+id           = "dc-confidential-mission"
+title        = "Confidential Mission"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2001
+manufacturer = "sega"
+developer    = "Hitmaker (Sega AM3)"
+hardware     = "sega-dreamcast"
+players      = 2
+original     = "confmiss"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Dreamcast light gun"
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "working"  # Batocera lists this as working (secondary source, see data note)
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "DC-CONFM"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Spy-movie gallery shooter in the Virtua Cop mould, for one or two players."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Confidential_Mission"]
+confidence = "medium"
+checked    = "2026-10-08"

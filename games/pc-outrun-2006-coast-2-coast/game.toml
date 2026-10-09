@@ -1,0 +1,35 @@
+id           = "pc-outrun-2006-coast-2-coast"
+title        = "OutRun 2006: Coast 2 Coast"
+alt_titles   = ["OutRun 2 SP (Japan)"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2006
+manufacturer = "sega"
+developer    = "Sumo Digital"
+hardware     = "pc-windows"
+players      = 2
+series       = "OutRun"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "pc-game"
+note = "Your own Windows install (disc or digital copy); exe name to confirm"
+
+[routes]
+native = { project = "OutRun2006Tweaks", status = "unknown" }
+vr     = { best = "theatre" }
+
+[hub]
+pill   = "PC-OR06"
+colour = "#101318"
+accent = "#60a5fa"
+blurb  = "Windows OutRun 2006, with a community wrapper DLL that fixes frame timing and input."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/OutRun_2006:_Coast_2_Coast", "https://github.com/emoose/OutRun2006Tweaks"]
+confidence = "medium"
+checked    = "2026-10-08"

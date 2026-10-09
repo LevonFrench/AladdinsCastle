@@ -1,0 +1,40 @@
+id           = "zerogu2"
+title        = "Zero Gunner 2"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2001
+manufacturer = "psikyo"
+developer    = "Psikyo"
+hardware     = "sega-naomi"
+players      = 2                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Psikyo gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "zerogu2"
+note  = "NAOMI Zero Gunner 2"
+
+[[media]]
+kind  = "bios"
+set   = "naomi"
+note  = "NAOMI BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "ZEROGUN2"
+colour = "#1a1024"
+accent = "#b57bff"
+blurb  = "Psikyo's sequel: aim, shoot, and try not to get shot by the big stuff."
+badges = ["roomscale", "2-players", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

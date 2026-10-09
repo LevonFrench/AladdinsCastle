@@ -1,0 +1,42 @@
+# sim racer, included as circuit per the brief
+# two-player assumed; not verified
+id           = "ps1-gran-turismo-2"
+title        = "Gran Turismo 2"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1999
+manufacturer = "sony"
+developer    = "Polyphony Digital"
+hardware     = "sony-ps1"
+players      = 2
+series       = "Gran Turismo"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["simulation; wheel optional on home release"]
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "GT2-PS1"
+colour = "#0c1220"
+accent = "#c5d0e6"
+blurb  = "PlayStation sequel to Gran Turismo with more cars and tracks."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Gran_Turismo_2"]
+confidence = "high"
+checked    = "2026-10-08"

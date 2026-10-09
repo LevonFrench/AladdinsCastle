@@ -1,0 +1,43 @@
+id           = "sat-virtua-cop"
+title        = "Virtua Cop"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1995
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-saturn"
+players      = 2
+series       = "Virtua Cop"
+original     = "vcop"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Virtua Gun (Saturn light gun) or Saturn mouse"
+extras = ["training mode"]
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre" }
+
+[hub]
+pill   = "SAT-VCOP"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "Arcade cop shooter on Saturn, with Virtua Gun support and a training gallery."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Virtua_Cop"]
+confidence = "medium"
+checked    = "2026-10-08"

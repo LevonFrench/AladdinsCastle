@@ -1,0 +1,39 @@
+id           = "sat-manx-tt-super-bike"
+title        = "Manx TT Super Bike"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1997
+manufacturer = "sega"
+developer    = "Tantalus Interactive (Saturn port); Sega AM3 / Sega AM4 (arcade)"
+hardware     = "sega-saturn"
+players      = 1
+original     = "manxtt"
+
+[controls]
+type = "bike"
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre" }
+
+[hub]
+pill   = "SAT-MANX"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "Motorcycle circuit racer that came home to Saturn in 1997."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Manx_TT_Super_Bike"]
+confidence = "medium"
+checked    = "2026-10-08"

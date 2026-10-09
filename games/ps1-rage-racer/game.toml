@@ -1,0 +1,41 @@
+# two-player assumed; not verified
+id           = "ps1-rage-racer"
+title        = "Rage Racer"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1996
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sony-ps1"
+players      = 2
+series       = "Ridge Racer"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "RAGE-PS1"
+colour = "#1a0c10"
+accent = "#e8453a"
+blurb  = "Namco's PlayStation racer in the Ridge Racer family, with its own car roster."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Rage_Racer"]
+confidence = "high"
+checked    = "2026-10-08"

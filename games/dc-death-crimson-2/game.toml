@@ -1,0 +1,41 @@
+id           = "dc-death-crimson-2"
+title        = "Death Crimson 2"
+alt_titles   = ["Death Crimson 2: Meranito no Saidan"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1999
+manufacturer = "other"
+developer    = "Ecole Software"
+hardware     = "sega-dreamcast"
+players      = 4
+series       = "Death Crimson"
+regions      = ["jp"]
+
+[controls]
+type = "gun"
+guns = 4
+gun  = "Dreamcast light gun (up to four players)"
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "DC-DCRIM2"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Ecole's Japan-only Dreamcast gun shooter, playable with up to four players."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Death_Crimson_2"]
+confidence = "medium"
+checked    = "2026-10-08"

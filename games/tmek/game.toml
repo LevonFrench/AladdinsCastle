@@ -1,0 +1,39 @@
+id           = "tmek"
+title        = "T-MEK"
+alt_titles   = ["T-Mek: The Warlords"]
+genre        = "racing"
+subgenre     = ["vehicle-combat"]
+year         = 1994
+manufacturer = "atari-games"
+developer    = "Atari Games"
+hardware     = "atari-arcade"
+players      = 1
+series       = "T-MEK"
+
+[controls]
+type    = "joystick"
+shifter = ""
+pedals  = []
+extras  = ["twin-analog-sticks", "trigger", "thumb-button"]
+
+[[media]]
+kind = "mame-romset"
+set  = "tmek"
+note = "T-MEK (v5.1, The Warlords); other sets tmek51p, tmek45, tmek44"
+
+[routes]
+mame        = "working"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "TMEK"
+colour = "#101418"
+accent = "#c0ff3d"
+blurb  = "Sit-down mech combat in polygon arenas, steered and aimed with a pair of analog sticks."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/atari/atarigt.cpp", "https://en.wikipedia.org/wiki/T-MEK"]
+confidence = "medium"
+checked    = "2026-10-08"

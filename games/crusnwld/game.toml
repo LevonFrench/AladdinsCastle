@@ -1,0 +1,38 @@
+id           = "crusnwld"
+title        = "Cruis'n World"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1996
+manufacturer = "midway"
+developer    = "Midway"
+hardware     = "other-arcade"
+players      = 2
+series       = "Cruis'n"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "crusnwld"
+note = "Cruis'n World (v2.5); earlier builds crusnwld13 to crusnwld24"
+
+[routes]
+mame        = "working"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "CRUISNWLD"
+colour = "#101820"
+accent = "#ff4fa0"
+blurb  = "Round the world in road races, with plenty of shortcuts and wheel-spinning."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/midvunit.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

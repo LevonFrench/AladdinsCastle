@@ -1,0 +1,41 @@
+id           = "motoraid"
+title        = "Motor Raid"
+genre        = "racing"
+subgenre     = ["motorcycle", "futuristic"]
+year         = 1997
+manufacturer = "sega"
+developer    = "Sega AM1"
+hardware     = "sega-model-2"
+players      = 2
+series       = "Motor Raid"
+
+[controls]
+type   = "bike"
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "motoraid"
+note = "Twin (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "motoraiddx"
+note = "Twin/DX (MAME not-working)"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "MOTORAID"
+colour = "#1a0d1f"
+accent = "#b388ff"
+blurb  = "Futuristic motorbike racing with a melee weapon and a turbo gauge."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/motoraid.xml", "https://en.wikipedia.org/wiki/Motor_Raid"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,35 @@
+id           = "n64-cruisn-exotica"
+title        = "Cruis'n Exotica"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2000
+manufacturer = "midway"
+developer    = "Gratuitous Games (N64); Midway Games (arcade)"
+hardware     = "nintendo-64"
+players      = 4
+series       = "Cruis'n"
+# original = "cruisnexo"  (arcade set name not verified; left unset)
+
+[controls]
+type = "wheel"
+
+[[media]]
+kind = "other"
+note = "Your own N64 cartridge dump (not provided by this catalog)"
+
+[routes]
+# No N64 emulator key in game-schema.md yet; add one before routing.
+vr = { best = "none" }
+
+[hub]
+pill   = "N64-CRSNE"
+colour = "#1c1a0e"
+accent = "#f4c430"
+blurb  = "Late Cruis'n arcade racer, ported to N64 in 2000."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Cruis%27n_Exotica"]
+confidence = "low"
+checked    = "2026-10-08"

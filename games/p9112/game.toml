@@ -1,0 +1,39 @@
+id           = "p9112"
+title        = "Police 911 2"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2001
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-viper"
+players      = 1
+series       = "Police 911"
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "full-body police cabinet gun"
+pedals = []
+extras = ["full-body-cabinet"]
+
+[[media]]
+kind = "mame-romset"
+set  = "p9112"
+note = "Police 911 2 (VER. UAA:B) on the full-body dongle cabinet"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "POLICE911"
+colour = "#0c1424"
+accent = "#3a7bff"
+blurb  = "The second full-body cop shooter, back on the street with a dongle cabinet."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/viper.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/p9112.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

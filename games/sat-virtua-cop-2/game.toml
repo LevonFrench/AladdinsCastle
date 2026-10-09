@@ -1,0 +1,42 @@
+id           = "sat-virtua-cop-2"
+title        = "Virtua Cop 2"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1996
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-saturn"
+players      = 2
+series       = "Virtua Cop"
+original     = "vcop2"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Virtua Gun (Saturn light gun)"
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre" }
+
+[hub]
+pill   = "SAT-VCOP2"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "Second cop game in the series, two guns and the city shootout on Saturn."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Virtua_Cop_2"]
+confidence = "medium"
+checked    = "2026-10-08"

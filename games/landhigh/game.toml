@@ -1,0 +1,38 @@
+id           = "landhigh"
+title        = "Landing High"
+genre        = "racing"
+subgenre     = ["flying"]
+year         = 1999
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-type-zero"
+players      = 1
+series       = "Landing High"
+
+[controls]
+type    = "yoke"
+shifter = ""
+pedals  = []
+extras  = ["throttle"]
+
+[[media]]
+kind = "mame-romset"
+set  = "landhigh"
+note = "Landing High Japan (VER.2.01OK, single monitor); landhigha is VER.2.02O. Gameplay not verified from sources"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "LANDHIGH"
+colour = "#0c1420"
+accent = "#8fd0ff"
+blurb  = "Yoke-and-throttle flying on Taito's Type Zero board."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitotz.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

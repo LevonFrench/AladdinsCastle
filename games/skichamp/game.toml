@@ -1,0 +1,36 @@
+id           = "skichamp"
+title        = "Ski Champ"
+genre        = "racing"
+subgenre     = ["ski"]
+year         = 1998
+manufacturer = "sega"
+hardware     = "sega-model-3"
+players      = 1
+series       = "Ski Champ"
+
+[controls]
+type   = "ski"
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "skichamp"
+note = "Parent set"
+
+[routes]
+mame        = "not-working"
+supermodel  = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SKICHAMP"
+colour = "#0c1a24"
+accent = "#b3e5fc"
+blurb  = "Downhill skiing with poles: race the gates against the clock."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model3.cpp", "https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/skichamp.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

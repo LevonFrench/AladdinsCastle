@@ -1,0 +1,41 @@
+id           = "sat-sega-rally-championship"
+title        = "Sega Rally Championship"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1995
+manufacturer = "sega"
+developer    = "Sega AM3"
+hardware     = "sega-saturn"
+players      = 2
+series       = "Sega Rally"
+original     = "srallyc"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre" }
+
+[hub]
+pill   = "SAT-SRALLY"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "Rally racer where the road surface changes grip, on Saturn."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Rally_Championship"]
+confidence = "medium"
+checked    = "2026-10-08"

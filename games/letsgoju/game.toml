@@ -1,0 +1,47 @@
+id           = "letsgoju"
+title        = "Let's Go Jungle"
+alt_titles   = ["Let's Go Jungle! Special"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2006
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-lindbergh"
+players      = 2                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "letsgoju"
+note  = "Export"
+
+[[media]]
+kind  = "other"
+note  = "Let's Go Jungle Special (Lindbergh) version: TeknoParrot LGJS, DemulShooter LindberghLgjsp"
+
+[[media]]
+kind  = "bios"
+set   = "lindbios"
+note  = "Lindbergh BIOS"
+
+[routes]
+mame              = "not-working"
+teknoparrot       = "profile"
+lindbergh-loader  = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "LGJUNGLE"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Jungle safari on a Lindbergh cabinet, a gun in each hand."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/lindbergh.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/LGJ.xml"]
+confidence = "high"
+checked    = "2026-10-08"

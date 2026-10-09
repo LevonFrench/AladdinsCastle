@@ -1,0 +1,38 @@
+id           = "crszone"
+title        = "Crisis Zone"
+genre        = "gun"
+subgenre     = ["rail-shooter", "cover-shooter"]
+year         = 1999
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-23"
+players      = 1
+series       = "Time Crisis"
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "Namco gun with fully automatic machine-gun trigger"
+extras = ["cover-shield"]
+
+[[media]]
+kind = "mame-romset"
+set  = "crszone"
+note = "Crisis Zone (World, CSZO4 Ver. B); MAME marks NOT_WORKING"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "CRISISZONE"
+colour = "#14100d"
+accent = "#d9822b"
+blurb  = "Solo rail shooter: a shield on one arm and a machine gun on the trigger."
+badges = ["roomscale"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos23.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/crszone.xml", "https://en.wikipedia.org/wiki/Crisis_Zone"]
+confidence = "high"
+checked    = "2026-10-08"

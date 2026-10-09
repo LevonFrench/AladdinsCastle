@@ -1,0 +1,41 @@
+id           = "ps2-gunfighter-ii-revenge-of-jesse-james"
+title        = "Gunfighter II: Revenge of Jesse James"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2003
+manufacturer = "ubisoft"
+developer    = "Rebellion Developments"
+hardware     = "sony-ps2"
+players      = 1
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon 1 / GunCon 2 (EU release per Wikipedia GunCon list)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "GUNFJ2"
+colour = "#1f140c"
+accent = "#d98c3a"
+blurb  = "Western rail shooter sequel on PS2 with GunCon aim."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Gunfighter_II:_Revenge_of_Jesse_James", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

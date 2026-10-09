@@ -1,0 +1,38 @@
+id           = "offroadc"
+title        = "Off Road Challenge"
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1997
+manufacturer = "midway"
+developer    = "Midway"
+hardware     = "other-arcade"
+players      = 2
+series       = "Off Road"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "offroadc"
+note = "Off Road Challenge (v1.63); older builds offroadc0 to offroadc5"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "OFFROAD"
+colour = "#141410"
+accent = "#d4a94a"
+blurb  = "Mud, dust and jumps across off-road tracks on Midway's V-Unit board."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/midvunit.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/offroadc.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

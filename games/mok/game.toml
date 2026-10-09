@@ -1,0 +1,41 @@
+id           = "mok"
+title        = "The Maze of the Kings"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2002
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi"
+players      = 2
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega twin gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "mok"
+note  = "NAOMI GD-ROM The Maze of the Kings (GDS-0022)"
+
+[[media]]
+kind  = "bios"
+set   = "naomigd"
+note  = "NAOMI GD-ROM BIOS"
+
+[routes]
+mame              = "not-working"
+demul             = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "MAZE KINGS"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Ride the rails through a maze of kings and fight for every corridor."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

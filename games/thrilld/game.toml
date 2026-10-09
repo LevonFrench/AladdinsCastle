@@ -1,0 +1,38 @@
+id           = "thrilld"
+title        = "Thrill Drive"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1998
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-hornet"
+players      = 1
+series       = "Thrill Drive"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "thrilldgeu"
+note = "Thrill Drive (ver GE713UFB); parent set thrilld, regional sets thrilldgnj/thrilldgmj/thrilldgpj etc. All NOT_WORKING in MAME. Player count not confirmed by sources"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "THRILLD"
+colour = "#140e18"
+accent = "#ff4fa0"
+blurb  = "Street racing on Hornet hardware, a wheel and a rival in the mirror."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/hornet.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/thrilld.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

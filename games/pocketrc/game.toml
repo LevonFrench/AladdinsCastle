@@ -1,0 +1,35 @@
+id           = "pocketrc"
+title        = "Pocket Racer"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1996
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-11"
+players      = 1
+series       = ""
+
+[controls]
+type = "wheel"                 # verify: upright cabinet input not confirmed by a primary source
+
+[[media]]
+kind = "mame-romset"
+set  = "pocketrc"
+note = "Pocket Racer (Japan, PKR1 Ver. B); MAME marks it working"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "POCKETRC"
+colour = "#1a1a0a"
+accent = "#f5d000"
+blurb  = "Super-deformed Choro-Q style cars on System 11 hardware."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos11.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/pocketrc.xml", "https://en.wikipedia.org/wiki/Ridge_Racer_(1993_video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

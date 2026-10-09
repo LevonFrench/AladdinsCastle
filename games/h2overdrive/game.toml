@@ -1,0 +1,37 @@
+id           = "h2overdrive"
+title        = "H2Overdrive"
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 2009
+manufacturer = "raw-thrills"
+developer    = "Specular Interactive"
+hardware     = "pc-arcade"
+players      = 1
+series       = "H2Overdrive"
+
+[controls]
+type    = "boat"
+shifter = ""
+pedals  = []
+extras  = ["throttle"]
+
+[[media]]
+kind = "other"
+note = "Not in MAME. Released May 2009 by Raw Thrills, spiritual successor to Hydro Thunder. TeknoParrot/OpenParrot profile H2Overdrive. Player count not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "H2O"
+colour = "#0a1a24"
+accent = "#38d0ff"
+blurb  = "Powerboat racing from the Hydro Thunder lineage, all spray and throttle."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://www.giantbomb.com/games/3030-25132/", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/H2Overdrive.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

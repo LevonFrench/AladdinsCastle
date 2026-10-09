@@ -1,0 +1,40 @@
+id           = "sega-clay-challenge"
+title        = "Sega Clay Challenge"
+genre        = "gun"
+subgenre     = ["hunting"]
+year         = 2008
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sammy-atomiswave"
+players      = 1                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "shotgun-style gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "claychal"
+note  = "Atomiswave"
+
+[[media]]
+kind  = "bios"
+set   = "awbios"
+note  = "Atomiswave BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "CLAY CHAL"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Trap-shooting on Atomiswave: pull, aim, and watch the clays fly."
+badges = ["roomscale", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/dc/dc_atomiswave.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

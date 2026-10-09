@@ -1,0 +1,36 @@
+id           = "xbox-outrun-2"
+title        = "OutRun 2"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2004
+manufacturer = "sega"
+developer    = "Sumo Digital (Xbox port); Sega AM2 (arcade)"
+hardware     = "microsoft-xbox"
+players      = 1
+series       = "OutRun"
+# original = "outrun2"  (arcade set name not verified; left unset)
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "disc"
+note = "Your own Xbox disc image (ISO or CISO)"
+
+[routes]
+xemu = "unknown"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "XBOX-OR2"
+colour = "#0f1a0f"
+accent = "#6fd46f"
+blurb  = "Ferrari cruising racer with branching routes, ported to Xbox by Sumo Digital."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/OutRun_2"]
+confidence = "medium"
+checked    = "2026-10-08"

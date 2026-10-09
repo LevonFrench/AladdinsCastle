@@ -1,0 +1,35 @@
+id           = "aquarush"
+title        = "Aqua Rush"
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 1999
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-12"
+players      = 1
+series       = ""
+
+[controls]
+type = "boat"
+
+[[media]]
+kind = "mame-romset"
+set  = "aquarush"
+note = "Aqua Rush (Japan, AQ1 Ver. A1); MAME marks it working"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "AQUARUSH"
+colour = "#06202a"
+accent = "#2ad4ff"
+blurb  = "Jet-ski racing on the System 12 board."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos12.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/aquarush.xml"]
+confidence = "low"
+checked    = "2026-10-08"

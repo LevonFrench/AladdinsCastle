@@ -15,13 +15,13 @@ It's an installer, launcher and set of VR setups, modelled on [PCVR Mods Install
 
 ## Who it's for
 
-- VR owners (Quest 3 first, via PCVR) who grew up on Time Crisis, House of the Dead, Virtua Cop, Daytona and Ridge Racer.
+- **Steam Frame owners first**, then **Quest 3 owners playing over PC** (Link, Air Link, Virtual Desktop, Steam Link), then **Quest 3 standalone**. They grew up on Time Crisis, House of the Dead, Virtua Cop, Daytona and Ridge Racer.
 - Arcade preservation and emulation hobbyists who already own dumps.
 - Modders who want to add a game, recipe or control set without touching code.
 
 ## What success looks like
 
-- **Version 1:** a Windows Hub that installs and launches at least one gun game and one racing game in true 3D on a Quest 3 over PCVR. All controls go through the motion controllers, and every game is defined by config and recipe files.
+- **Version 1:** a Hub that installs and launches at least one gun game and one racing game in true 3D through SteamVR on a PC, played on a Steam Frame (streamed) or a Quest 3 over PC. All controls go through the motion controllers, and every game is defined by config and recipe files.
 - **Long term:** most of the notable 3D light gun and racing catalog is playable in true 3D. Community recipes add games. Quest-standalone setups cover what can run on the headset itself.
 
 ## Non-goals

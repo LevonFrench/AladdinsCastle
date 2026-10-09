@@ -1,0 +1,35 @@
+id           = "gc-wave-race-blue-storm"
+title        = "Wave Race: Blue Storm"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 2001
+manufacturer = "nintendo"
+developer    = "Nintendo Software Technology"
+hardware     = "nintendo-gamecube"
+players      = 2
+series       = "Wave Race"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "disc"
+note = "Your own GameCube disc image (ISO/GCM or RVZ)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "GC-WAVEBS"
+colour = "#1a1028"
+accent = "#8a63e6"
+blurb  = "GameCube sequel to Wave Race 64, jet-ski racing on shifting seas."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Wave_Race:_Blue_Storm"]
+confidence = "medium"
+checked    = "2026-10-08"

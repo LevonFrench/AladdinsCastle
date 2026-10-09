@@ -1,0 +1,36 @@
+id           = "x360-outrun-online-arcade"
+title        = "OutRun Online Arcade"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2009
+manufacturer = "sega"
+developer    = "Sumo Digital"
+hardware     = "microsoft-xbox-360"
+players      = 2
+series       = "OutRun"
+# Partial port of OutRun 2 arcade material; parent id left unset because the port is partial.
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "other"
+note = "Xbox Live Arcade digital purchase; no disc involved"
+
+[routes]
+xenia = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "X360-ORONL"
+colour = "#101a10"
+accent = "#7bdc8a"
+blurb  = "Partial OutRun 2 port on Xbox Live Arcade, with features trimmed from earlier releases."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/OutRun_Online_Arcade"]
+confidence = "medium"
+checked    = "2026-10-08"

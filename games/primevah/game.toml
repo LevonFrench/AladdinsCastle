@@ -1,0 +1,42 @@
+id           = "primevah"
+title        = "Primeval Hunt"
+genre        = "gun"
+subgenre     = ["hunting"]
+year         = 2008
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-lindbergh"
+players      = 2                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega rifle-style gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "primevah"
+note  = "Lindbergh"
+
+[[media]]
+kind  = "bios"
+set   = "lindbios"
+note  = "Lindbergh BIOS"
+
+[routes]
+mame              = "not-working"
+teknoparrot       = "profile"
+lindbergh-loader  = "working"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "PRIMEVAL"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Track prehistoric game with a rifle on Lindbergh."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/lindbergh.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/Primevil.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

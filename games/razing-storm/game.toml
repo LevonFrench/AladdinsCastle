@@ -1,0 +1,35 @@
+id           = "razing-storm"
+title        = "Razing Storm"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2009
+manufacturer = "namco"
+developer    = "Namco Bandai Games"
+hardware     = "namco-system-357"
+players      = 2
+series       = "Time Crisis"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Namco gun (System 357 cabinet)"
+
+[[media]]
+kind = "other"
+note = "Not in MAME. System 357 arcade board. The PS3 release is a separate disc and runs in RPCS3"
+
+[routes]
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "RAZING"
+colour = "#0a1220"
+accent = "#33c3ff"
+blurb  = "Special-forces rail shooter on the System 357 board."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/RazingStorm.xml", "https://en.wikipedia.org/wiki/Razing_Storm"]
+confidence = "high"
+checked    = "2026-10-08"

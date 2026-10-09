@@ -1,0 +1,38 @@
+id           = "wii-gunblade-ny-la-machineguns"
+title        = "Gunblade NY & L.A. Machineguns: Arcade Hits Pack"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "machine-gun"]
+year         = 2010
+manufacturer = "sega"
+developer    = "Sega AM3 (arcade)"
+hardware     = "nintendo-wii"
+players      = 2
+series       = "Gunblade NY"
+# original = "gunblade"  (arcade set name not verified; left unset)
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "Wii Remote IR pointer (mounted-gun style)"
+extras = ["mounted gun"]
+
+[[media]]
+kind = "disc"
+note = "Your own Wii disc image (ISO/WBFS)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "WII-GUNBL"
+colour = "#0e1a20"
+accent = "#5ec8ff"
+blurb  = "Two arcade machine-gun rail shooters bundled on one Wii disc."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Gunblade_NY"]
+confidence = "low"
+checked    = "2026-10-08"

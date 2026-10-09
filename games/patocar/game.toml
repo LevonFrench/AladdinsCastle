@@ -1,0 +1,30 @@
+id           = "patocar"
+title        = "Hashire Patrol Car"
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 2001
+manufacturer = "sega"
+hardware     = "sega-stv"
+players      = 1
+series       = "Patrol Car"
+
+[[media]]
+kind = "mame-romset"
+set  = "patocar"
+note = "J 990326 V1.000 (needs stvbios)"
+
+[routes]
+mame = "imperfect"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "PATROLCAR"
+colour = "#0c1220"
+accent = "#448aff"
+blurb  = "Patrol-car chase driving on the Saturn-based ST-V board."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/stv.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

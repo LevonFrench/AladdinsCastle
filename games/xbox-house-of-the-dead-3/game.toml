@@ -1,0 +1,37 @@
+id           = "xbox-house-of-the-dead-3"
+title        = "The House of the Dead III"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 2002
+manufacturer = "sega"
+developer    = "Wow Entertainment"
+hardware     = "microsoft-xbox"
+players      = 2
+series       = "The House of the Dead"
+# original = "hotd3"  (arcade set name not verified; left unset)
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Xbox light gun (peripheral unverified)"
+
+[[media]]
+kind = "disc"
+note = "Your own Xbox disc image (ISO or CISO)"
+
+[routes]
+xemu = "unknown"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "XBOX-HOTD3"
+colour = "#0f1a0f"
+accent = "#6fd46f"
+blurb  = "Xbox edition of House of the Dead III, with the HotD 2 port unlocked as a bonus."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead_III"]
+confidence = "low"
+checked    = "2026-10-08"

@@ -1,0 +1,43 @@
+# mixed 2D sprite enemies on 3D levels, per the Wikipedia lead
+# arcade origin set name not verified
+id           = "ps1-maximum-force"
+title        = "Maximum Force"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1997
+manufacturer = "midway"
+developer    = "Mesa Logic (publisher Midway in NA, GT Interactive in EU)"
+hardware     = "sony-ps1"
+players      = 1
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon (listed on the Wikipedia GunCon page)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "MFORCE"
+colour = "#14141a"
+accent = "#c94a4a"
+blurb  = "Shooting-gallery style gun game: pre-rendered 3D levels with video-sprite enemies."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Maximum_Force", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

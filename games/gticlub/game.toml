@@ -1,0 +1,38 @@
+id           = "gticlub"
+title        = "GTI Club: Rally Cote d'Azur"
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1996
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-gti-club"
+players      = 2
+series       = "GTI Club"
+
+[controls]
+type    = "wheel"
+shifter = "h4"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "gticlub"
+note = "GTI Club: Rally Cote D'Azur (ver EAA); regional sets gticlubu, gticluba, gticlubj"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "GTICLUB"
+colour = "#101820"
+accent = "#ff5a1f"
+blurb  = "Linked cabinets, rally stages on the Cote d'Azur, and a wheel that fights back."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/gticlub.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/gticlub.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

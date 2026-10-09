@@ -1,0 +1,47 @@
+id           = "cybsled"
+title        = "Cyber Sled"
+genre        = "racing"
+subgenre     = ["vehicle-combat"]
+year         = 1993
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-21"
+players      = 2
+series       = ""
+
+[controls]
+type   = "joystick"
+extras = ["twin-analog-joysticks", "trigger-per-stick"]
+
+[[media]]
+kind = "mame-romset"
+set  = "cybsled"
+note = "Cyber Sled (World, CY2); MAME marks imperfect graphics"
+
+[[media]]
+kind = "mame-romset"
+set  = "namcoc67"
+note = "C67 DSP set needed by namco22-decompile (cybsled build)"
+
+[[media]]
+kind = "mame-romset"
+set  = "namcoc68"
+note = "C68 I/O set needed by namco22-decompile (cybsled build)"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+native      = { project = "namco22-decompile", status = "playable" }
+vr          = { best = "none", planned = "true3d-planned" }   # namco22-vr (libacvr on namco22-decompile)
+
+[hub]
+pill   = "CYBSLED"
+colour = "#101414"
+accent = "#7cff5a"
+blurb  = "Two-joystick vehicle combat in 3D, one sled per player."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos21_c67.cpp", "https://github.com/spacestate1/namco22-decompile", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/cybsled.xml", "https://en.wikipedia.org/wiki/Cyber_Sled"]
+confidence = "high"
+checked    = "2026-10-08"

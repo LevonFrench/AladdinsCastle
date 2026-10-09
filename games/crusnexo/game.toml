@@ -1,0 +1,38 @@
+id           = "crusnexo"
+title        = "Cruis'n Exotica"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1999
+manufacturer = "midway"
+developer    = "Midway"
+hardware     = "midway-zeus"
+players      = 2
+series       = "Cruis'n"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "crusnexo"
+note = "Cruis'n Exotica (version 2.4); variants crusnexoa and similar are NOT_WORKING"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "CRUISNEX"
+colour = "#101820"
+accent = "#ff9a1f"
+blurb  = "Supercars across the globe, all sunshine and speed on the Zeus board."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/midzeus.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

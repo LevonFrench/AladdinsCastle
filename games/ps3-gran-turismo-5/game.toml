@@ -1,0 +1,41 @@
+# sim racer, included as circuit per the brief
+id           = "ps3-gran-turismo-5"
+title        = "Gran Turismo 5"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2010
+manufacturer = "sony"
+developer    = "Polyphony Digital"
+hardware     = "sony-ps3"
+players      = 2
+series       = "Gran Turismo"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["simulation; wheel optional on home release"]
+
+[[media]]
+kind = "disc"
+note = "Your own PS3 disc dump (ISO or folder dump)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
+
+[routes]
+rpcs3 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "GT5-PS3"
+colour = "#0c1220"
+accent = "#c5d0e6"
+blurb  = "Gran Turismo 5 on PS3, a large car simulator with a wide garage."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Gran_Turismo_5"]
+confidence = "high"
+checked    = "2026-10-08"

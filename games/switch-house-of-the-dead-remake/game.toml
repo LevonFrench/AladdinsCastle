@@ -1,0 +1,35 @@
+id           = "switch-house-of-the-dead-remake"
+title        = "The House of the Dead: Remake"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 2022
+manufacturer = "sega"
+developer    = "MegaPixel Studio (published by Forever Entertainment under license from Sega)"
+hardware     = "nintendo-switch"
+players      = 1
+series       = "The House of the Dead"
+
+[controls]
+type = "gun"
+gun  = "Analog stick crosshair; gyro or touch can emulate a light gun"
+
+[[media]]
+kind = "other"
+note = "Your own Switch copy (digital or game card); nothing is provided by this catalog"
+
+[routes]
+yuzu-like = "unknown"
+vr        = { best = "theatre" }
+
+[hub]
+pill   = "SW-HOTD"
+colour = "#1f0c10"
+accent = "#ff4b5c"
+blurb  = "Remade House of the Dead with stick or gyro aiming, no light gun needed."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

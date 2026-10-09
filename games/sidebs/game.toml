@@ -1,0 +1,38 @@
+id           = "sidebs"
+title        = "Side by Side"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1996
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-jc"
+players      = 2
+series       = "Side by Side"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "sidebs"
+note = "Side by Side (Ver 3.0 OK); regional sets sidebsj, sidebsja, sidebsjb"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SIDEBS"
+colour = "#0e1a18"
+accent = "#3fe0b0"
+blurb  = "Two cars, one track, and a rival close enough to touch."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitojc.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

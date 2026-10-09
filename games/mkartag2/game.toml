@@ -1,0 +1,36 @@
+id           = "mkartag2"
+title        = "Mario Kart Arcade GP 2"
+genre        = "racing"
+subgenre     = ["kart"]
+year         = 2007
+manufacturer = "namco"
+developer    = "Namco / Bandai Namco Studios"
+hardware     = "sega-triforce"
+players      = 1
+series       = "Mario Kart Arcade GP"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "mame-romset"
+set  = "mkartag2"
+note = "Mario Kart Arcade GP 2 (Japan, MK21 Ver. A); parent is the Triforce BIOS (triforce). MAME marks NOT_WORKING"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "MKAGP2"
+colour = "#1a1020"
+accent = "#e60012"
+blurb  = "The 2007 sequel, with the same wheel-and-pedal kart racing."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/triforce.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/MarioKartGP2.xml", "https://en.wikipedia.org/wiki/Mario_Kart_Arcade_GP"]
+confidence = "high"
+checked    = "2026-10-08"

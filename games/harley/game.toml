@@ -1,0 +1,41 @@
+id           = "harley"
+title        = "Harley-Davidson and L.A. Riders"
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1997
+manufacturer = "sega"
+hardware     = "sega-model-3"
+players      = 1
+series       = "Harley-Davidson"
+
+[controls]
+type   = "bike"
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "harley"
+note = "Revision B (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "harleya"
+note = "Revision A"
+
+[routes]
+mame        = "not-working"
+supermodel  = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "HARLEY"
+colour = "#1a0e0a"
+accent = "#ff8f00"
+blurb  = "Ride a Harley through the city and lean into every corner."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model3.cpp", "https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/harley_m3.xml", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/Harley.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

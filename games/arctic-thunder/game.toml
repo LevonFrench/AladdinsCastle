@@ -1,0 +1,37 @@
+id           = "arctic-thunder"
+title        = "Arctic Thunder"
+genre        = "racing"
+subgenre     = ["vehicle-combat", "ski"]
+year         = 2000
+manufacturer = "midway"
+developer    = "Midway Games"
+hardware     = "pc-arcade"
+players      = 1
+series       = "Thunder"
+
+[controls]
+type    = "handlebars"
+shifter = ""
+pedals  = []
+extras  = ["seat-shaker", "cold-air-fan", "missile-and-melee-buttons"]
+
+[[media]]
+kind = "other"
+note = "Midway PC-based board (Quantum3D Graphite per Wikipedia; sources differ). Not in MAME. Up to four cabinets link. Ultimate Arctic Thunder (2004 update, TeknoParrot profile UltimateArcticThunder) is a variant of this entry"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "ARCTIC"
+colour = "#0c141c"
+accent = "#9fe6ff"
+blurb  = "Snowmobile combat racing with missiles, melee hits and a cold wind in your face."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Arctic_Thunder", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/ArcticThunder.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

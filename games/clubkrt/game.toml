@@ -1,0 +1,40 @@
+id           = "clubkrt"
+title        = "Club Kart: European Session"
+alt_titles   = ["Club Kart"]
+genre        = "racing"
+subgenre     = ["kart"]
+year         = 2001
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi-2"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "clubkrt"
+note  = "Rev D; clubkrta and clubkrtc are earlier revisions"
+
+[[media]]
+kind  = "bios"
+set   = "naomi2"
+note  = "NAOMI 2 BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "CLUB KART"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Karts on a Sega board, round and round the European session."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

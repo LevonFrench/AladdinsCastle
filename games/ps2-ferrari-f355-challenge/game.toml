@@ -1,0 +1,41 @@
+# PS2 release Sept 2002 (JP/EU/NA); arcade 1999 on NAOMI
+# players unverified (1 assumed)
+id           = "ps2-ferrari-f355-challenge"
+title        = "Ferrari F355 Challenge"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2002
+manufacturer = "sega"
+developer    = "Sega AM2 (arcade); Tose (PS2)"
+hardware     = "sony-ps2"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "F355-PS2"
+colour = "#1a0a0a"
+accent = "#e0302a"
+blurb  = "Single-car Ferrari racing aimed at realism, ported to PS2 from Sega's arcade cabinet."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/F355_Challenge"]
+confidence = "medium"
+checked    = "2026-10-08"

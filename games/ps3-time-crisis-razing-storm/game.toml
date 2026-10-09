@@ -1,0 +1,44 @@
+# disc is a compilation; per the brief it also carries Deadstorm Pirates (arcade 2010), not split into its own entry
+# two-player and cover-pedal not verified from the sources used
+id           = "ps3-time-crisis-razing-storm"
+title        = "Time Crisis: Razing Storm"
+alt_titles   = ["Big 3 Gun Shooting"]
+genre        = "gun"
+subgenre     = ["rail-shooter", "cover-shooter"]
+year         = 2010
+manufacturer = "namco"
+developer    = "Nex Entertainment"
+hardware     = "sony-ps3"
+players      = 2
+series       = "Time Crisis"
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Namco GunCon 3 or PlayStation Move gun shell"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS3 disc dump (ISO or folder dump)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
+
+[routes]
+rpcs3 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "RAZING"
+colour = "#1a0f0f"
+accent = "#e0302a"
+blurb  = "Namco's PS3 compilation of rail shooters, with GunCon 3 and PS Move support."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Time_Crisis:_Razing_Storm", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

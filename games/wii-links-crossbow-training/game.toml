@@ -1,0 +1,36 @@
+id           = "wii-links-crossbow-training"
+title        = "Link's Crossbow Training"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["party"]
+year         = 2007
+manufacturer = "nintendo"
+developer    = "Nintendo EAD"
+hardware     = "nintendo-wii"
+players      = 1
+series       = "The Legend of Zelda"
+
+[controls]
+type = "gun"
+guns = 1
+gun  = "Wii Zapper (bundled with the game)"
+
+[[media]]
+kind = "disc"
+note = "Your own Wii disc image (ISO/WBFS)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "WII-LXBOW"
+colour = "#0e1a20"
+accent = "#5ec8ff"
+blurb  = "Zelda-themed shooting gallery, the bundled launch game for the Wii Zapper."
+badges = ["roomscale"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Link%27s_Crossbow_Training"]
+confidence = "medium"
+checked    = "2026-10-08"

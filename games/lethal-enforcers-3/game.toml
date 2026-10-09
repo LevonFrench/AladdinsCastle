@@ -1,0 +1,39 @@
+id           = "lethal-enforcers-3"
+title        = "Lethal Enforcers 3"
+alt_titles   = ["Seigi no Hero"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2004
+manufacturer = "konami"
+developer    = "Polygon Magic / Konami"
+hardware     = "konami-pc"
+players      = 2
+series       = "Lethal Enforcers"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "LED light gun with recoil and front/back/left/right speakers"
+pedals = []
+extras = ["recoil", "rumble", "off-screen-shield-and-reload"]
+
+[[media]]
+kind = "other"
+note = "Konami PC-based arcade PCB, not in MAME. TeknoParrot profile LethalEnforcers3 (GunGame=true); DemulShooter KonamiLethalEnforcer3. Player count not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "LE3"
+colour = "#14101a"
+accent = "#e05050"
+blurb  = "The last Lethal Enforcers: 3D stages, recoil guns, and a shield you raise by pointing away."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Lethal_Enforcers_3", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/LethalEnforcers3.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

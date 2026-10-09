@@ -1,0 +1,41 @@
+id           = "deathcox"
+title        = "Death Crimson OX"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2000
+manufacturer = "ecole"
+developer    = "Ecole Software"
+hardware     = "sega-naomi"
+players      = 2                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Ecole twin gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "deathcox"
+note  = "NAOMI Death Crimson OX (USA); deathcoxo and deathcoxj are other sets"
+
+[[media]]
+kind  = "bios"
+set   = "naomi"
+note  = "NAOMI BIOS"
+
+[routes]
+mame              = "not-working"
+demul             = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "DEATH OX"
+colour = "#101a1a"
+accent = "#3ad1b5"
+blurb  = "Ecole's crimson rail shooter, two guns and a lot of targets."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

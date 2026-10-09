@@ -1,0 +1,33 @@
+id           = "sega-rally-3"
+title        = "Sega Rally 3"
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 2008
+manufacturer = "sega"
+developer    = "Sega Racing Studio"
+hardware     = "sega-europa-r"
+players      = 1
+series       = "Sega Rally"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "other"
+note  = "Sega Europa-R board (not in hardware vocab); no MAME or TeknoParrot profile found"
+
+[routes]
+vr = { best = "none" }
+
+[hub]
+pill   = "SRALLY3"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Rally stages on Sega's Europa-R board: wheel and pedals on gravel."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Rally_3"]
+confidence = "medium"
+checked    = "2026-10-08"

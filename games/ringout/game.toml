@@ -1,0 +1,39 @@
+id           = "ringout"
+title        = "Ring Out 4x4"
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1999
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "ringout"
+note  = "Rev A; ringouto is the original"
+
+[[media]]
+kind  = "bios"
+set   = "naomi"
+note  = "NAOMI BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "RING OUT"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Big-wheeled 4x4 off-roading, crashing through the course without a care."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

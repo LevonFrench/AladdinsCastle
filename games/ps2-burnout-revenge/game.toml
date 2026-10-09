@@ -1,0 +1,41 @@
+# two-player split-screen assumed; not verified
+id           = "ps2-burnout-revenge"
+title        = "Burnout Revenge"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2005
+manufacturer = "electronic-arts"
+developer    = "Criterion Games"
+hardware     = "sony-ps2"
+players      = 2
+series       = "Burnout"
+
+[controls]
+type    = "other"
+pedals  = []
+extras  = ["home pad (no arcade cabinet)"]
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "BURNREV"
+colour = "#1a0c0c"
+accent = "#ff6a2a"
+blurb  = "Burnout Revenge on PS2, adding Traffic Attack and more crash events."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Burnout_Revenge"]
+confidence = "high"
+checked    = "2026-10-08"

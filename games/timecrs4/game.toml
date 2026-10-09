@@ -1,0 +1,38 @@
+id           = "timecrs4"
+title        = "Time Crisis 4"
+genre        = "gun"
+subgenre     = ["rail-shooter", "cover-shooter"]
+year         = 2006
+manufacturer = "namco"
+developer    = "Namco Bandai Games / Nex Entertainment"
+hardware     = "namco-system-246"
+players      = 2
+series       = "Time Crisis"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco GunCon-style gun with recoil"
+pedals = ["cover-pedal", "cover-pedal"]
+
+[[media]]
+kind = "mame-romset"
+set  = "timecrs4"
+note = "Time Crisis 4 (World, TSF1002-NA-A); System Super 256 family; needs the System 256 BIOS set (sys256). MAME marks NOT_WORKING"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "TC4"
+colour = "#1a0f0f"
+accent = "#e0302a"
+blurb  = "The 2006 cover shooter, on the Super 256 board with a sharper gun."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcops2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/timecrs4.xml", "https://en.wikipedia.org/wiki/Time_Crisis_4"]
+confidence = "high"
+checked    = "2026-10-08"

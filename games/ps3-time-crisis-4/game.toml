@@ -1,0 +1,43 @@
+# arcade original (2006, System 246) not in MAME, so no original set
+id           = "ps3-time-crisis-4"
+title        = "Time Crisis 4"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "cover-shooter"]
+year         = 2007
+manufacturer = "namco"
+developer    = "Namco Bandai Games; Nex Entertainment"
+hardware     = "sony-ps3"
+players      = 1
+series       = "Time Crisis"
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon 3"
+pedals  = ["cover-pedal"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS3 disc dump (ISO or folder dump)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
+
+[routes]
+rpcs3 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "TC4-PS3"
+colour = "#1a0f0f"
+accent = "#e0302a"
+blurb  = "PS3 port of Time Crisis 4 with GunCon 3, plus a first-person shooter mode."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Time_Crisis_4", "https://en.wikipedia.org/wiki/GunCon", "https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Emu/Io/GunCon3.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

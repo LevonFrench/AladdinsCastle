@@ -66,6 +66,10 @@ family = "sega"
 label = "Sega ALLS"
 kind = "arcade"
 family = "sega"
+[sega-europa-r]
+label = "Sega Europa-R"
+kind = "arcade"
+family = "sega"
 [sammy-atomiswave]
 label = "Sammy Atomiswave"
 kind = "arcade"

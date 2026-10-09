@@ -1,0 +1,39 @@
+id           = "jpark3"
+title        = "Jurassic Park III"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2001
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-viper"
+players      = 2
+series       = "Jurassic Park"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "optical infrared light gun, five-shot magazine"
+pedals = []
+extras = ["off-screen-reload", "escape-button"]
+
+[[media]]
+kind = "mame-romset"
+set  = "jpark3"
+note = "Jurassic Park III (ver EBC); US set jpark3u. Reuses the Police 911 cabinet and motion sensor per Codex Gamicus"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "JPARK3"
+colour = "#101a14"
+accent = "#5fd06a"
+blurb  = "Dodge raptors and dinosaur bosses, reloading by shooting off-screen."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/viper.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/jpark3u.xml", "https://gamicus.fandom.com/wiki/Jurassic_Park_III"]
+confidence = "medium"
+checked    = "2026-10-08"

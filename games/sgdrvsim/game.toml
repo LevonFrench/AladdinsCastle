@@ -1,0 +1,39 @@
+id           = "sgdrvsim"
+title        = "Sega Driving Simulator"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2002
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi-2"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "sgdrvsim"
+note  = "NAOMI 2"
+
+[[media]]
+kind  = "bios"
+set   = "naomi2"
+note  = "NAOMI 2 BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "SEGA DRV"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Sega's driving sim on NAOMI 2, wheel and pedals in hand."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,39 @@
+id           = "sstrkfgt"
+title        = "Sega Strike Fighter"
+genre        = "racing"
+subgenre     = ["flying"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi"
+players      = 1
+
+[controls]
+type    = "joystick"
+extras  = ["thrust lever", "missile button", "air brake", "view change"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "sstrkfgt"
+note  = "Rev A"
+
+[[media]]
+kind  = "bios"
+set   = "naomi"
+note  = "NAOMI BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "SSTRIKE"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Flight stick, thrust lever and a sky full of bogeys to shoot down."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

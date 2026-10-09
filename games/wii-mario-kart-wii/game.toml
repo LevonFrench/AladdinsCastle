@@ -1,0 +1,35 @@
+id           = "wii-mario-kart-wii"
+title        = "Mario Kart Wii"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["kart"]
+year         = 2008
+manufacturer = "nintendo"
+developer    = "Nintendo EAD"
+hardware     = "nintendo-wii"
+players      = 4
+series       = "Mario Kart"
+
+[controls]
+type   = "other"
+extras = ["Wii Remote (Wii Wheel optional)"]
+
+[[media]]
+kind = "disc"
+note = "Your own Wii disc image (ISO/WBFS)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "WII-MKWII"
+colour = "#0e1a20"
+accent = "#5ec8ff"
+blurb  = "Motion-steered kart racing with 24 characters and four players."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Mario_Kart_Wii"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,38 @@
+id           = "landgear"
+title        = "Landing Gear"
+genre        = "racing"
+subgenre     = ["flying"]
+year         = 1995
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-jc"
+players      = 1
+series       = "Landing Gear"
+
+[controls]
+type    = "yoke"
+shifter = ""
+pedals  = []
+extras  = ["throttle"]
+
+[[media]]
+kind = "mame-romset"
+set  = "landgear"
+note = "Landing Gear (Ver 4.2 O); regional sets landgearj, landgeara, landgearja"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "LANDGEAR"
+colour = "#101820"
+accent = "#7fd3ff"
+blurb  = "Pull the yoke, line up the runway, and hope the landing gear comes down."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitojc.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,38 @@
+id           = "batlgear"
+title        = "Battle Gear"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1999
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-type-zero"
+players      = 1
+series       = "Battle Gear"
+
+[controls]
+type    = "wheel"
+shifter = "h6"
+pedals  = ["accel", "brake", "clutch"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "batlgear"
+note = "Battle Gear (VER.2.40A) on Taito Type Zero hardware"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "BATLGEAR"
+colour = "#101418"
+accent = "#ff4d4d"
+blurb  = "Stick-shift street racing with a real clutch and a Japanese street-tuning attitude."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitotz.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

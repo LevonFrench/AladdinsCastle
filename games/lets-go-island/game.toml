@@ -1,0 +1,33 @@
+id           = "lets-go-island"
+title        = "Let's Go Island"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2011
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-ringwide"
+players      = 2                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega gun"
+
+[[media]]
+kind  = "other"
+note  = "RingWide board; DemulShooter Game_RwLGI and Game_RwLGI3D"
+
+[routes]
+vr = { best = "none" }
+
+[hub]
+pill   = "LGISLAND"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "A Let's Go series light-gun game on RingWide, set on an island."
+badges = ["roomscale", "2-players", "wip"]
+
+[meta]
+sources    = []
+confidence = "low"
+checked    = "2026-10-08"

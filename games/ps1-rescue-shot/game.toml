@@ -1,0 +1,42 @@
+# 2D vs 3D not verified from the sources used (brief asks for 3D only); check before keeping
+id           = "ps1-rescue-shot"
+title        = "Rescue Shot"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2000
+manufacturer = "namco"
+developer    = "Now Production"
+hardware     = "sony-ps1"
+players      = 1
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "RSHOT"
+colour = "#101a14"
+accent = "#49d17a"
+blurb  = "Light-gun shooter for GunCon on PlayStation, published by Namco in Japan."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Rescue_Shot", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "low"
+checked    = "2026-10-08"

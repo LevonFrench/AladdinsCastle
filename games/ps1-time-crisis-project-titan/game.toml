@@ -1,0 +1,43 @@
+# pedal support assumed from series norm; not confirmed by the sources used
+id           = "ps1-time-crisis-project-titan"
+title        = "Time Crisis: Project Titan"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "cover-shooter"]
+year         = 2001
+manufacturer = "namco"
+developer    = "Namco; Flying Tiger Development"
+hardware     = "sony-ps1"
+players      = 1
+series       = "Time Crisis"
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon"
+pedals  = ["cover-pedal"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "TC-TITAN"
+colour = "#1a0f0f"
+accent = "#e0302a"
+blurb  = "A later PlayStation Time Crisis entry, using the same GunCon and cover-pedal loop."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Time_Crisis:_Project_Titan", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,35 @@
+id           = "house-of-the-dead-scarlet-dawn"
+title        = "The House of the Dead: Scarlet Dawn"
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 2018
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-alls"
+players      = 2                   # unverified: check cabinet / MAME inputs
+series       = "The House of the Dead"
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega twin gun"
+
+[[media]]
+kind  = "other"
+note  = "ALLS board; TeknoParrot profile HOTDSD; DemulShooter Game_AllsHodSd"
+
+[routes]
+teknoparrot       = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "HOTD SD"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Newest House of the Dead on the ALLS board, two players and a lot of undead."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/HOTDSD.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

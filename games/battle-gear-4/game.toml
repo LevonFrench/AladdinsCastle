@@ -1,0 +1,37 @@
+id           = "battle-gear-4"
+title        = "Battle Gear 4"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2005
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-type-x"
+players      = 1
+series       = "Battle Gear"
+
+[controls]
+type    = "wheel"
+shifter = "h6"
+pedals  = ["accel", "brake", "clutch"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Launched in Japan by July 2005 on Taito's Type X+ board (2.5 GHz). Not in MAME. TeknoParrot/OpenParrot profile BattleGear4. Shifter layout not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "BATLGR4"
+colour = "#101418"
+accent = "#ff5252"
+blurb  = "The Type X+ era of Battle Gear: a stick shift, a clutch and a street run for the fast lane."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Battle_Gear", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/BattleGear4.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

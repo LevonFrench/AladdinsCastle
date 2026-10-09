@@ -1,0 +1,37 @@
+id           = "cruisn-blast"
+title        = "Cruis'n Blast"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2017
+manufacturer = "raw-thrills"
+developer    = "Raw Thrills"
+hardware     = "pc-arcade"
+players      = 2
+series       = "Cruis'n"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Not in MAME. Arcade release Jan 2017 (Giant Bomb). Switch port 2021 is a separate entry (switch-cruisn-blast). TeknoParrot profile CruisnBlast (ElfLdr2). Player count not confirmed by sources"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "CBLAST"
+colour = "#101420"
+accent = "#ffd23d"
+blurb  = "Arcade-bright road racing on Raw Thrills hardware, with a wheel and a full-throttle attitude."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://www.giantbomb.com/games/3030-56744/", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/CruisnBlast.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,51 @@
+id           = "wingwar"
+title        = "Wing War"
+genre        = "racing"
+subgenre     = ["flying"]
+year         = 1994
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-model-1"
+players      = 2
+series       = "Wing War"
+
+[controls]
+type   = "yoke"
+extras = ["throttle", "view-buttons"]
+
+[[media]]
+kind = "mame-romset"
+set  = "wingwar"
+note = "World set (parent)"
+
+[[media]]
+kind = "mame-romset"
+set  = "wingwaru"
+note = "US"
+
+[[media]]
+kind = "mame-romset"
+set  = "wingwarj"
+note = "Japan"
+
+[[media]]
+kind = "mame-romset"
+set  = "wingwar360"
+note = "R360 motion cabinet (US)"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "WINGWAR"
+colour = "#0c1016"
+accent = "#90caf9"
+blurb  = "Head-to-head dogfights in a two-player sit-down cockpit."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model1.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/wingwar.xml", "https://en.wikipedia.org/wiki/Wing_War"]
+confidence = "high"
+checked    = "2026-10-08"

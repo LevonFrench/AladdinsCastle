@@ -1,0 +1,37 @@
+id           = "vr"
+title        = "Virtua Racing"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1992
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-model-1"
+players      = 1
+series       = "Virtua Racing"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "vr"
+note = "World set (parent)"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "VIRTUARACE"
+colour = "#0b1220"
+accent = "#e0412e"
+blurb  = "The early polygon racer where the wheel and the track do all the talking."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model1.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/vr.xml", "https://en.wikipedia.org/wiki/Virtua_Racing"]
+confidence = "high"
+checked    = "2026-10-08"

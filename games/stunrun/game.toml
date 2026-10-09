@@ -1,0 +1,38 @@
+id           = "stunrun"
+title        = "S.T.U.N. Runner"
+genre        = "racing"
+subgenre     = ["vehicle-combat"]
+year         = 1989
+manufacturer = "atari-games"
+developer    = "Atari Games"
+hardware     = "atari-arcade"
+players      = 1
+series       = "S.T.U.N. Runner"
+
+[controls]
+type    = "yoke"
+shifter = ""
+pedals  = []
+extras  = ["twin-triggers", "smart-bomb-start-buttons"]
+
+[[media]]
+kind = "mame-romset"
+set  = "stunrun"
+note = "S.T.U.N. Runner (rev 6); Japan set stunrunj, rev 4 set stunrun4"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "STUNRUN"
+colour = "#101418"
+accent = "#ff3d8a"
+blurb  = "Ride a speed bike through a polygon battle zone, steering with a yoke and firing twin lasers."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/atari/harddriv.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/stunrunj.xml", "https://en.wikipedia.org/wiki/S.T.U.N._Runner"]
+confidence = "medium"
+checked    = "2026-10-08"

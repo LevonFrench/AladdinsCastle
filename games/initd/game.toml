@@ -1,0 +1,52 @@
+id           = "initd"
+title        = "Initial D Arcade Stage 1"
+alt_titles   = ["Initial D Arcade Stage"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2002
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi-2"
+players      = 1
+series       = "Initial D"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["manual shifter"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "initd"
+note  = "Japan, Rev B (GDS-0020B)"
+
+[[media]]
+kind  = "mame-romset"
+set   = "initdo"
+note  = "Japan (GDS-0020)"
+
+[[media]]
+kind  = "mame-romset"
+set   = "initdexp"
+note  = "Export Rev A (GDS-0025A)"
+
+[[media]]
+kind  = "bios"
+set   = "naomi2"
+note  = "NAOMI 2 BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "IDSTAGE1"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Takumi's Trueno on the NAOMI 2 mountain pass, one card in and go."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp", "https://en.wikipedia.org/wiki/Initial_D_(video_game_series)"]
+confidence = "high"
+checked    = "2026-10-08"

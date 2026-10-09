@@ -1,0 +1,35 @@
+id           = "motoxgo"
+title        = "Motocross Go!"
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1997
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-23"
+players      = 1
+series       = ""
+
+[controls]
+type = "bike"                  # verify: motocross bike input not confirmed by a primary source
+
+[[media]]
+kind = "mame-romset"
+set  = "motoxgo"
+note = "Motocross Go! (World, MG3 Ver. A); MAME marks NOT_WORKING (GAME_FLAGS)"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "MOTOXGO"
+colour = "#1a1206"
+accent = "#ffb300"
+blurb  = "Motocross bike racing on a System 23 course."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos23.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/motoxgo.xml", "https://en.wikipedia.org/wiki/Motocross_Go!"]
+confidence = "medium"
+checked    = "2026-10-08"

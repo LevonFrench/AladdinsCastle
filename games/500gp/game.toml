@@ -1,0 +1,35 @@
+id           = "500gp"
+title        = "500 GP"
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1998
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-23"
+players      = 1
+series       = ""
+
+[controls]
+type = "bike"                  # verify: motorcycle input not confirmed by a primary source
+
+[[media]]
+kind = "mame-romset"
+set  = "500gp"
+note = "500 GP (US, 5GP3 Ver. C); MAME marks NOT_WORKING (GAME_FLAGS)"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "500GP"
+colour = "#120c0c"
+accent = "#ff4d4d"
+blurb  = "Motorcycle grand-prix racing on a System 23 board."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos23.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/500gp.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

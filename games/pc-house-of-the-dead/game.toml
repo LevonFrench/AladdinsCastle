@@ -1,0 +1,35 @@
+id           = "pc-house-of-the-dead"
+title        = "The House of the Dead"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 1998
+manufacturer = "sega"
+developer    = "Sega AM1 (arcade); PC port by Sega"
+hardware     = "pc-windows"
+players      = 1
+series       = "The House of the Dead"
+original     = "hotd"
+
+[controls]
+type = "gun"
+gun  = "Mouse or keyboard (no light gun)"
+
+[[media]]
+kind = "pc-game"
+note = "Your own Windows install (disc or digital copy); exe name to confirm"
+
+[routes]
+vr = { best = "theatre" }
+
+[hub]
+pill   = "PC-HOTD"
+colour = "#101318"
+accent = "#60a5fa"
+blurb  = "Windows port of the 1997 zombie rail shooter, played with a mouse."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_House_of_the_Dead_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,39 @@
+id           = "dc-f355-challenge"
+title        = "F355 Challenge"
+alt_titles   = ["F355 Challenge: Passione Rossa"]
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-dreamcast"
+players      = 2
+# original = "f355"  (arcade set name not verified; left unset)
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "DC-F355"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Ferrari F355 simulation from a Naomi-era arcade, home version on Dreamcast."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/F355_Challenge"]
+confidence = "medium"
+checked    = "2026-10-08"

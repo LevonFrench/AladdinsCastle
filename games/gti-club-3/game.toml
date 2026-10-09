@@ -1,0 +1,38 @@
+id           = "gti-club-3"
+title        = "GTI Club: Supermini Festa"
+alt_titles   = ["GTI Club 3"]
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2008
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "other-arcade"
+players      = 2
+series       = "GTI Club"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Arcade PCB not in MAME; board not confirmed. Year is inferred from a home-port review (arcade date not found). TeknoParrot/OpenParrot profile GtiClub3"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "GTI3"
+colour = "#0e1420"
+accent = "#ff8a3d"
+blurb  = "The third GTI Club adds more cars, more locations and more modes to the linked cabinets."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/GTI_Club", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/GtiClub3.xml"]
+confidence = "low"
+checked    = "2026-10-08"

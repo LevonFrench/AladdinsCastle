@@ -1,0 +1,43 @@
+id           = "daytona2"
+title        = "Daytona USA 2: Battle on the Edge"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1998
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-model-3"
+players      = 1
+series       = "Daytona USA"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "daytona2"
+note = "Revision A (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "dayto2pe"
+note = "Power Edition"
+
+[routes]
+mame        = "not-working"
+supermodel  = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "DAYTONA2"
+colour = "#0d1424"
+accent = "#ff9100"
+blurb  = "The Model 3 sequel to Daytona USA, with its Power Edition update."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model3.cpp", "https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/daytona2.xml", "https://en.wikipedia.org/wiki/Daytona_USA_2"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,41 @@
+id           = "sat-death-crimson"
+title        = "Death Crimson"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1996
+manufacturer = "other"
+developer    = "Ecole Software"
+hardware     = "sega-saturn"
+players      = 1
+series       = "Death Crimson"
+
+[controls]
+type = "gun"
+guns = 1
+gun  = "Saturn light gun"
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre" }
+
+[hub]
+pill   = "SAT-DCRIM"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "Ecole's first light-gun shooter, a 1996 Saturn game that started the Death Crimson line."
+badges = ["roomscale"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Death_Crimson_OX"]
+confidence = "low"
+checked    = "2026-10-08"

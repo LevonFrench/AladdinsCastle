@@ -1,0 +1,42 @@
+# 3D status not stated in the lead; verify before publishing
+id           = "ps2-endgame"
+title        = "Endgame"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2002
+manufacturer = "other"
+developer    = "Cunning Developments (publisher Empire Interactive)"
+hardware     = "sony-ps2"
+players      = 1
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon 1 or GunCon 2 (required)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "ENDGAME"
+colour = "#0f1420"
+accent = "#3fa9f5"
+blurb  = "Light-gun shooter with destructible environments, built on RenderWare; needs a GunCon."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Endgame_(video_game)", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

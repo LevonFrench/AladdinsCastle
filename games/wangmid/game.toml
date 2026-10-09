@@ -1,0 +1,41 @@
+id           = "wangmid"
+title        = "Wangan Midnight Maximum Tune"
+alt_titles   = ["Wangan Midnight Maximum Tune (Export)"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2004
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sega-chihiro"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["shifter (see note)"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "wangmid"
+note  = "Export Rev B (GDX-0009B); wangmidj and wangmido are other sets"
+
+[[media]]
+kind  = "bios"
+set   = "chihiro"
+note  = "Chihiro BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "WANGAN"
+colour = "#2a0f14"
+accent = "#ff4d6d"
+blurb  = "Midnight highway runs on a Namco-built Chihiro cabinet, one tuned car."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/chihiro.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

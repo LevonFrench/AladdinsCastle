@@ -1,0 +1,35 @@
+id           = "gc-mario-kart-double-dash"
+title        = "Mario Kart: Double Dash!!"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["kart"]
+year         = 2003
+manufacturer = "nintendo"
+developer    = "Nintendo EAD"
+hardware     = "nintendo-gamecube"
+players      = 4
+series       = "Mario Kart"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "disc"
+note = "Your own GameCube disc image (ISO/GCM or RVZ)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "GC-MKDD"
+colour = "#1a1028"
+accent = "#8a63e6"
+blurb  = "Karts shared by pairs of racers, four players."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Mario_Kart:_Double_Dash"]
+confidence = "medium"
+checked    = "2026-10-08"

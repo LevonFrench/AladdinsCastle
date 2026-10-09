@@ -1,0 +1,36 @@
+id           = "ridgerac"
+title        = "Ridge Racer"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1993
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-22"
+players      = 1                    # single-seat cabinet; linkable
+series       = "Ridge Racer"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind = "mame-romset"
+set  = "ridgerac"
+note = "Ridge Racer (World, RR2 Ver. B); MAME marks imperfect graphics"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "RIDGERAC"
+colour = "#0a1a14"
+accent = "#2ee6a6"
+blurb  = "The original arcade drift racer, wheel first."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos22.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/ridgerac.xml", "https://en.wikipedia.org/wiki/Ridge_Racer_(1993_video_game)"]
+confidence = "high"
+checked    = "2026-10-08"

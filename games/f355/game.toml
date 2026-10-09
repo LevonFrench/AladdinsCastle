@@ -1,0 +1,46 @@
+id           = "f355"
+title        = "Ferrari F355 Challenge"
+alt_titles   = ["Ferrari F355 Challenge (Deluxe)"]
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1999
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi"
+players      = 1
+series       = "Ferrari F355 Challenge"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "f355"
+note  = "Deluxe, no link cable"
+
+[[media]]
+kind  = "mame-romset"
+set   = "f355twin"
+note  = "Twin/deluxe link cabinet"
+
+[[media]]
+kind  = "bios"
+set   = "f355bios"
+note  = "NAOMI F355 twin BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "F355"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Ferrari's V8 on a Sega cabinet, lap after lap on the circuit."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

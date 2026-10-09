@@ -1,0 +1,37 @@
+id           = "hydro-thunder"
+title        = "Hydro Thunder"
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 1999
+manufacturer = "midway"
+developer    = "Midway Games"
+hardware     = "pc-arcade"
+players      = 1
+series       = "Thunder"
+
+[controls]
+type    = "boat"
+shifter = ""
+pedals  = []
+extras  = ["throttle"]
+
+[[media]]
+kind = "other"
+note = "Midway Quicksilver II PC-based board (3dfx). Not in MAME. Cabinets link for up to four players. Original arcade of the Dreamcast port dc-hydro-thunder. TeknoParrot profile HydroThunder"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "HYDRO"
+colour = "#0a1420"
+accent = "#2fb8ff"
+blurb  = "Super-boat racing with a throttle in hand and spray in your face."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://www.arcade-history.com/game/4154/hydro-thunder", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/HydroThunder.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

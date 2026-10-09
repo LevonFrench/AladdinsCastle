@@ -1,0 +1,41 @@
+id           = "f355twn2"
+title        = "Ferrari F355 Challenge 2: International Course Edition"
+alt_titles   = ["Ferrari F355 Challenge 2"]
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2001
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi"
+players      = 1
+series       = "Ferrari F355 Challenge"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "f355twn2"
+note  = "Twin/deluxe"
+
+[[media]]
+kind  = "bios"
+set   = "f355bios"
+note  = "NAOMI F355 twin BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "F355 CH2"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "The F355 sequel, with new courses and the same sharp corners."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "high"
+checked    = "2026-10-08"

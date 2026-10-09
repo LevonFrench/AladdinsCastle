@@ -1,0 +1,38 @@
+id           = "dc-metropolis-street-racer"
+title        = "Metropolis Street Racer"
+alt_titles   = ["MSR Metropolis Street Racer"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Bizarre Creations"
+hardware     = "sega-dreamcast"
+players      = 1
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "DC-MSR"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Dreamcast-exclusive street racer from Bizarre Creations."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Metropolis_Street_Racer"]
+confidence = "medium"
+checked    = "2026-10-08"

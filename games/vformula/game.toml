@@ -1,0 +1,36 @@
+id           = "vformula"
+title        = "Virtua Formula"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1993
+manufacturer = "sega"
+hardware     = "sega-model-1"
+players      = 1
+series       = "Virtua Racing"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "vformula"
+note = "MAME lists vr as parent; kept as its own game (different title)"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "VFORMULA"
+colour = "#101418"
+accent = "#ffd600"
+blurb  = "Open-wheel Formula racing on the Model 1 board, same wheel and pedal setup."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model1.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/vformula.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,41 @@
+# two-player assumed; not verified
+id           = "ps1-wipeout-2097"
+title        = "Wipeout 2097"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["futuristic"]
+year         = 1996
+manufacturer = "sony"
+developer    = "Psygnosis"
+hardware     = "sony-ps1"
+players      = 2
+series       = "Wipeout"
+
+[controls]
+type    = "other"
+pedals  = []
+extras  = ["home pad (no arcade cabinet)", "optional NeGcon analogue control"]
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "WIP2097"
+colour = "#0a1420"
+accent = "#3ad0ff"
+blurb  = "Faster, more open Wipeout sequel on PlayStation, with analogue support via NeGcon."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Wipeout_2097"]
+confidence = "high"
+checked    = "2026-10-08"

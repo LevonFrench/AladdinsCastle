@@ -1,0 +1,41 @@
+# two-player split-screen assumed; not verified
+id           = "ps2-burnout"
+title        = "Burnout"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2001
+manufacturer = "acclaim"
+developer    = "Criterion Games"
+hardware     = "sony-ps2"
+players      = 2
+series       = "Burnout"
+
+[controls]
+type    = "other"
+pedals  = []
+extras  = ["home pad (no arcade cabinet)"]
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "BURNOUT"
+colour = "#1a0c0c"
+accent = "#ff6a2a"
+blurb  = "Crash-focused street racer on PS2 with a boost meter and traffic."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Burnout_(video_game)"]
+confidence = "high"
+checked    = "2026-10-08"

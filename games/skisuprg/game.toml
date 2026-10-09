@@ -1,0 +1,35 @@
+id           = "skisuprg"
+title        = "Sega Ski Super G"
+genre        = "racing"
+subgenre     = ["ski"]
+year         = 1996
+manufacturer = "sega"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Sega Ski"
+
+[controls]
+type   = "ski"
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "skisuprg"
+note = "Parent set"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SKISUPERG"
+colour = "#0d1420"
+accent = "#e0f7fa"
+blurb  = "Downhill ski races against the clock and the other racers."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/skisuprg.xml", "https://en.wikipedia.org/wiki/Sega_Ski_Super_G"]
+confidence = "medium"
+checked    = "2026-10-08"

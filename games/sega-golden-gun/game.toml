@@ -1,0 +1,33 @@
+id           = "sega-golden-gun"
+title        = "Sega Golden Gun"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2011
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-ringwide"
+players      = 2                   # unverified: check cabinet / MAME inputs
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega golden gun"
+
+[[media]]
+kind  = "other"
+note  = "RingWide board; DemulShooter Game_RwSGG"
+
+[routes]
+vr = { best = "none" }
+
+[hub]
+pill   = "GOLDEN GUN"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Sega's gold-finished gun shooter on the RingWide board."
+badges = ["roomscale", "2-players", "wip"]
+
+[meta]
+sources    = []
+confidence = "low"
+checked    = "2026-10-08"

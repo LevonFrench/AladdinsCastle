@@ -1,0 +1,33 @@
+id           = "daytona-championship-usa"
+title        = "Daytona Championship USA"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2017
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "other-arcade"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "other"
+note  = "Board not verified (Wikipedia list gives no board); TeknoParrot profile Daytona3 / Daytona3NSE is presumed to be this title"
+
+[routes]
+teknoparrot       = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "DAYTONA3"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Daytona on the oval, with a TeknoParrot profile for a home route."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/List_of_Sega_arcade_games", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/Daytona3.xml"]
+confidence = "low"
+checked    = "2026-10-08"

@@ -1,0 +1,43 @@
+# arcade original: ridgerac (MAME, Namco System 22, 1993)
+# two-player assumed from series norm; not verified
+id           = "ps1-ridge-racer"
+title        = "Ridge Racer"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1994
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sony-ps1"
+players      = 2
+series       = "Ridge Racer"
+original     = "ridgerac"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "RR-PS1"
+colour = "#0c1a24"
+accent = "#2ab0e8"
+blurb  = "PlayStation launch-era port of Namco's drift racer, the first Ridge Racer on console."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Ridge_Racer_(1993_video_game)"]
+confidence = "high"
+checked    = "2026-10-08"

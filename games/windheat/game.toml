@@ -1,0 +1,38 @@
+id           = "windheat"
+title        = "Winding Heat"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1996
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-zr107"
+players      = 2
+series       = "Midnight Run"
+
+[controls]
+type    = "wheel"
+shifter = "h4"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "windheat"
+note = "Winding Heat (EAA, Euro v2.11); regional sets windheatu, windheatj, windheata"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "WINDHEAT"
+colour = "#101418"
+accent = "#ffb13a"
+blurb  = "Hot-rod street racing on the ZR107 board, with a little more room to play."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/zr107.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,43 @@
+id           = "initiad4"
+title        = "Initial D Arcade Stage 4"
+alt_titles   = ["Initial D4"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2007
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-lindbergh"
+players      = 1
+series       = "Initial D"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["manual shifter"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "initiad4"
+note  = "Rev D; initiad4c is Rev C"
+
+[[media]]
+kind  = "bios"
+set   = "lindbios"
+note  = "Lindbergh BIOS"
+
+[routes]
+mame              = "not-working"
+lindbergh-loader  = "working"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "IDSTAGE4"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Stage four on Lindbergh, with the steering that bites back."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/lindbergh.cpp", "https://www.wiki.batocera.org/_export/raw/systems:lindbergh"]
+confidence = "high"
+checked    = "2026-10-08"

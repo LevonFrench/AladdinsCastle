@@ -1,0 +1,36 @@
+id           = "wii-target-terror"
+title        = "Target: Terror"
+alt_titles   = ["Target: Force (Japan)"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2008
+manufacturer = "konami"
+developer    = "Raw Thrills (arcade); Leviathan Games (Wii)"
+hardware     = "nintendo-wii"
+players      = 2
+# original = arcade Target: Terror (Raw Thrills, 2004); set name not verified; left unset
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Wii Remote IR pointer"
+
+[[media]]
+kind = "disc"
+note = "Your own Wii disc image (ISO/WBFS)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "WII-TTERR"
+colour = "#0e1a20"
+accent = "#5ec8ff"
+blurb  = "Counter-terror gallery shooter, the home version of a 2004 Raw Thrills cabinet."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Target:_Terror"]
+confidence = "medium"
+checked    = "2026-10-08"

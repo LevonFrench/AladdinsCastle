@@ -1,0 +1,36 @@
+id           = "x360-sega-rally-online-arcade"
+title        = "Sega Rally Online Arcade"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 2011
+manufacturer = "sega"
+developer    = "Sumo Digital (360 port); Sega Racing Studio (arcade)"
+hardware     = "microsoft-xbox-360"
+players      = 4
+series       = "Sega Rally"
+# original = arcade Sega Rally 3 (2008); set name not verified; left unset. Player count is for online play and unverified.
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+
+[[media]]
+kind = "other"
+note = "Xbox Live Arcade digital purchase; no disc involved"
+
+[routes]
+xenia = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "X360-SRALLY"
+colour = "#101a10"
+accent = "#7bdc8a"
+blurb  = "Sega Rally 3 arcade sequel on Xbox 360, from Sumo Digital."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Rally_3"]
+confidence = "low"
+checked    = "2026-10-08"

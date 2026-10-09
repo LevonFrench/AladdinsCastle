@@ -1,0 +1,38 @@
+id           = "dangcurv"
+title        = "Dangerous Curves"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1995
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-jc"
+players      = 1
+series       = "Dangerous Curves"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "dangcurv"
+note = "Dangerous Curves (Ver 2.9 O); Japanese set dangcurvj"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "DANGCURV"
+colour = "#1a1010"
+accent = "#ff6b4a"
+blurb  = "Tight curves and tighter timing on Taito's JC board."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitojc.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

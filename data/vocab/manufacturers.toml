@@ -51,5 +51,11 @@ label = "Ubisoft"
 label = "Infogrames / Atari SA"
 [acclaim]
 label = "Acclaim"
+[forever-entertainment]
+label = "Forever Entertainment"
+[crave-entertainment]
+label = "Crave Entertainment"
+[psikyo]
+label = "Psikyo"
 [other]
 label = "Other (name in developer field)"

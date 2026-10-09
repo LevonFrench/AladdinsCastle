@@ -1,0 +1,38 @@
+id           = "sfrush"
+title        = "San Francisco Rush"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1996
+manufacturer = "atari-games"
+developer    = "Atari Games"
+hardware     = "midway-seattle"
+players      = 2
+series       = "San Francisco Rush"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "sfrush"
+note = "San Francisco Rush (MAME Seattle board); The Rock is sfrushrk"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SFRUSH"
+colour = "#101424"
+accent = "#ff6a1f"
+blurb  = "Jump, bounce and drift across San Francisco with a wheel and a head full of stunts."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/williams/seattle.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/sfrush.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

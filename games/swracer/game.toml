@@ -1,0 +1,39 @@
+id           = "swracer"
+title        = "Star Wars Racer Arcade"
+genre        = "racing"
+subgenre     = ["futuristic"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Sega / LucasArts"
+hardware     = "sega-hikaru"
+players      = 1
+
+[controls]
+type    = "joystick"
+extras  = ["throttle"]
+
+[[media]]
+kind  = "mame-romset"
+set   = "swracer"
+note  = "Hikaru; no NOT_WORKING flag in MAME"
+
+[[media]]
+kind  = "bios"
+set   = "hikaru"
+note  = "Hikaru BIOS"
+
+[routes]
+mame              = "not-working"
+vr = { best = "none" }
+
+[hub]
+pill   = "SW RACER"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Pod racing on Hikaru with a throttle and a prayer."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/hikaru.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

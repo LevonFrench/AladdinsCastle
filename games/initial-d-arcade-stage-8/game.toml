@@ -1,0 +1,34 @@
+id           = "initial-d-arcade-stage-8"
+title        = "Initial D Arcade Stage 8 Infinity"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2011
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-ringedge"
+players      = 1
+series       = "Initial D"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["manual shifter"]
+
+[[media]]
+kind  = "other"
+note  = "RingEdge board; no MAME set; no route confirmed in gap sources"
+
+[routes]
+vr = { best = "none" }
+
+[hub]
+pill   = "IDSTAGE8"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Infinity on RingEdge: the last stage of this run, with everything turned up."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Initial_D_(video_game_series)"]
+confidence = "medium"
+checked    = "2026-10-08"

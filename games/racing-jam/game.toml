@@ -1,0 +1,37 @@
+id           = "racing-jam"
+title        = "Racing Jam"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1997
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-hornet"
+players      = 2
+series       = "Racing Jam"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Not in MAME. TeknoParrot profile racingj (EmulatorType TeknoHornet). Year conflicts: 1997 (Giant Bomb) vs 1998 (Arcade-Museum). Player count not confirmed"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "RJAM"
+colour = "#101418"
+accent = "#ff5a8a"
+blurb  = "Street racing on Hornet hardware, with a wheel and a rival hot on your bumper."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://giantbomb.com/wiki/Games/Racing_Jam", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/racingj.xml"]
+confidence = "low"
+checked    = "2026-10-08"

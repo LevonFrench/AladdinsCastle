@@ -1,0 +1,43 @@
+id           = "ghostsev"
+title        = "Ghost Squad Evolution"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2007
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-lindbergh"
+players      = 2                   # unverified: check cabinet / MAME inputs
+series       = "Ghost Squad"
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Sega twin gun"
+
+[[media]]
+kind  = "mame-romset"
+set   = "ghostsev"
+note  = "Lindbergh"
+
+[[media]]
+kind  = "bios"
+set   = "lindbios"
+note  = "Lindbergh BIOS"
+
+[routes]
+mame              = "not-working"
+teknoparrot       = "profile"
+lindbergh-loader  = "profile"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "GS EVO"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Ghost Squad, rebuilt for Lindbergh with the same two-gun punch."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/lindbergh.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/GSEVO.xml"]
+confidence = "high"
+checked    = "2026-10-08"

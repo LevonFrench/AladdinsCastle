@@ -1,0 +1,37 @@
+id           = "gaelco-championship-tuning-race"
+title        = "Gaelco Championship Tuning Race"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 2005
+manufacturer = "gaelco"
+developer    = "Gaelco"
+hardware     = "pc-arcade"
+players      = 1
+series       = "Championship Tuning Race"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Last arcade game from Gaelco. Not in MAME. Board not confirmed (TeknoParrot uses the ElfLdr2 emulator). Cabinets link over a network switch for up to four players"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "GCTR"
+colour = "#101418"
+accent = "#4fd0ff"
+blurb  = "Head-to-head or time-trial laps, with winnings spent on upgrades across four cars and four tracks."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://arcade-museum.com/Videogame/gaelco-championship-tuning-race", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/GaelcoChampionshipTuningRace.xml"]
+confidence = "low"
+checked    = "2026-10-08"

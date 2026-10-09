@@ -1,0 +1,43 @@
+# arcade original not in MAME (TeknoParrot profile only), so no original set
+# players and 3D status not verified from the sources used
+id           = "ps2-vampire-night"
+title        = "Vampire Night"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 2001
+manufacturer = "namco"
+developer    = "Wow Entertainment"
+hardware     = "sony-ps2"
+players      = 1
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon 1 and GunCon 2 (per Wikipedia GunCon list)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "VNIGHT"
+colour = "#0f0f1a"
+accent = "#8e3ad6"
+blurb  = "Undead-hunting rail shooter ported from the arcade, aimed with a GunCon."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Vampire_Night", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

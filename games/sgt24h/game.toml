@@ -1,0 +1,36 @@
+id           = "sgt24h"
+title        = "Super GT 24h"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1996
+manufacturer = "jaleco"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Super GT"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "sgt24h"
+note = "Parent set"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SGT24H"
+colour = "#131008"
+accent = "#ffc107"
+blurb  = "A long-distance endurance race played on a wheel and pedals."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/sgt24h.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

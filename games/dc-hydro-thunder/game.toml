@@ -1,0 +1,39 @@
+id           = "dc-hydro-thunder"
+title        = "Hydro Thunder"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 1999
+manufacturer = "midway"
+developer    = "Midway Games West; Eurocom (console port)"
+hardware     = "sega-dreamcast"
+players      = 2
+series       = "Hydro Thunder"
+# original = "hydrthnd"  (arcade set name not verified; left unset)
+
+[controls]
+type = "boat"
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "DC-HYDRO"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Arcade powerboat racer, a Dreamcast launch-year port."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Hydro_Thunder"]
+confidence = "medium"
+checked    = "2026-10-08"

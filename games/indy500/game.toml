@@ -1,0 +1,46 @@
+id           = "indy500"
+title        = "Indy 500"
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1995
+manufacturer = "sega"
+hardware     = "sega-model-2"
+players      = 1
+series       = "Indy 500"
+
+[controls]
+type   = "wheel"
+pedals = ["accel", "brake"]
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "indy500"
+note = "Twin Revision A, Newer (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "indy500d"
+note = "Deluxe Revision A"
+
+[[media]]
+kind = "mame-romset"
+set  = "indy500to"
+note = "Twin Revision A"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "INDY500"
+colour = "#11131a"
+accent = "#e8e8e8"
+blurb  = "Oval racing with a wheel and two pedals, all about the straights."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/indy500.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

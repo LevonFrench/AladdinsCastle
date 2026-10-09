@@ -1,0 +1,39 @@
+id           = "jetwave"
+title        = "Jet Wave"
+alt_titles   = ["Wave Shark"]
+genre        = "racing"
+subgenre     = ["boat"]
+year         = 1996
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-zr107"
+players      = 2
+series       = "Jet Wave"
+
+[controls]
+type    = "bike"
+shifter = ""
+pedals  = []
+extras  = ["throttle-handle"]
+
+[[media]]
+kind = "mame-romset"
+set  = "jetwave"
+note = "Jet Wave (EAB, Euro v1.04); US title Wave Shark is waveshrk"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "JETWAVE"
+colour = "#0a1620"
+accent = "#2fd0ff"
+blurb  = "Jet-ski racing on open water, all spray and throttle."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/zr107.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

@@ -1,0 +1,34 @@
+id           = "initial-d-arcade-stage-5"
+title        = "Initial D Arcade Stage 5"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2007
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-lindbergh"
+players      = 1
+series       = "Initial D"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = ["manual shifter"]
+
+[[media]]
+kind  = "other"
+note  = "Lindbergh; Batocera lists Rev A/B with unverified status; no MAME set found"
+
+[routes]
+vr = { best = "none" }
+
+[hub]
+pill   = "IDSTAGE5"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "The Lindbergh stage five, a long run through the mountain roads."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://www.wiki.batocera.org/_export/raw/systems:lindbergh"]
+confidence = "low"
+checked    = "2026-10-08"

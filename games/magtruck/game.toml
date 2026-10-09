@@ -1,0 +1,36 @@
+id           = "magtruck"
+title        = "Magical Truck Adventure"
+genre        = "racing"
+subgenre     = ["truck"]
+year         = 1998
+manufacturer = "sega"
+hardware     = "sega-model-3"
+players      = 1
+series       = "Magical Truck"
+
+[controls]
+type   = "wheel"
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "magtruck"
+note = "Export (parent set)"
+
+[routes]
+mame        = "not-working"
+supermodel  = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "MAGTRUCK"
+colour = "#101a10"
+accent = "#9ccc65"
+blurb  = "Truck driving through a cartoon world with a big rig."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model3.cpp", "https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/magtruck.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,40 @@
+id           = "sscope2"
+title        = "Silent Scope 2: Dark Silhouette"
+alt_titles   = ["Silent Scope 2"]
+genre        = "gun"
+subgenre     = ["sniper"]
+year         = 2000
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-hornet"
+players      = 1
+series       = "Silent Scope"
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "sniper rifle with scope"
+pedals = []
+extras = ["scope-zoom"]
+
+[[media]]
+kind = "mame-romset"
+set  = "sscope2"
+note = "Silent Scope 2: Dark Silhouette (ver UAD, Ver 1.03); Voodoo 1 variants are sscope2vd1 and similar"
+
+[routes]
+mame        = "not-working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SSCOPE2"
+colour = "#0e1316"
+accent = "#3fd0e0"
+blurb  = "The sniper rifle is back for a darker, harder mission."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/hornet.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/sscope2.xml"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,38 @@
+id           = "midnrun"
+title        = "Midnight Run: Road Fighter 2"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1995
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-zr107"
+players      = 2
+series       = "Midnight Run"
+
+[controls]
+type    = "wheel"
+shifter = "h4"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "midnrun"
+note = "Midnight Run: Road Fighter 2 (EAA, Euro v1.11); regional sets midnrunj, midnruna, midnruna2"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "unknown"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "MIDNRUN"
+colour = "#140e18"
+accent = "#ff3d7f"
+blurb  = "Night-time road fighting with a wheel and a clock that never stops."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/zr107.cpp"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,42 @@
+id           = "ps2-resident-evil-dead-aim"
+title        = "Resident Evil: Dead Aim"
+alt_titles   = ["Gun Survivor 4"]
+genre        = "gun"
+subgenre     = ["horror"]
+year         = 2003
+manufacturer = "capcom"
+developer    = "Cavia"
+hardware     = "sony-ps2"
+players      = 1
+series       = "Resident Evil"
+
+[controls]
+type    = "gun"
+guns    = 1
+gun     = "Namco GunCon 2 (GunCon 1 also listed)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "RE-DA"
+colour = "#1a0a0a"
+accent = "#d42a2a"
+blurb  = "First-person Resident Evil shooter on PS2, played with a GunCon 2."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Resident_Evil:_Dead_Aim", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "high"
+checked    = "2026-10-08"

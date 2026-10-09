@@ -1,0 +1,41 @@
+# two-player assumed; not verified
+id           = "ps2-wipeout-fusion"
+title        = "Wipeout Fusion"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["futuristic"]
+year         = 2002
+manufacturer = "sony"
+developer    = "Studio Liverpool"
+hardware     = "sony-ps2"
+players      = 2
+series       = "Wipeout"
+
+[controls]
+type    = "other"
+pedals  = []
+extras  = ["home pad (no arcade cabinet)"]
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (ISO or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own PS2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "theatre" }
+
+[hub]
+pill   = "WIPE-FUS"
+colour = "#0a1420"
+accent = "#3ad0ff"
+blurb  = "Anti-gravity racing on PS2 in the Wipeout series."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Wipeout_Fusion"]
+confidence = "high"
+checked    = "2026-10-08"

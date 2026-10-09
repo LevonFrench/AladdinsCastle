@@ -1,0 +1,43 @@
+id           = "oceanhun"
+title        = "The Ocean Hunter"
+genre        = "gun"
+subgenre     = ["rail-shooter", "hunting"]
+year         = 1998
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-model-3"
+players      = 2
+series       = "The Ocean Hunter"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Sega light gun"
+
+[[media]]
+kind = "mame-romset"
+set  = "oceanhun"
+note = "Revision A (parent set)"
+
+[[media]]
+kind = "mame-romset"
+set  = "oceanhuna"
+note = "Original release"
+
+[routes]
+mame        = "not-working"
+supermodel  = "working"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "OCEANHUNT"
+colour = "#0a1620"
+accent = "#29b6f6"
+blurb  = "Hunt sea creatures from a rail with a pair of guns."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model3.cpp", "https://github.com/trzy/Supermodel/blob/master/Docs/README.txt", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/oceanhun.xml", "https://en.wikipedia.org/wiki/The_Ocean_Hunter"]
+confidence = "high"
+checked    = "2026-10-08"

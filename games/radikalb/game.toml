@@ -1,0 +1,38 @@
+id           = "radikalb"
+title        = "Radikal Bikers"
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1998
+manufacturer = "gaelco"
+developer    = "Gaelco"
+hardware     = "other-arcade"
+players      = 2
+series       = "Radikal Bikers"
+
+[controls]
+type    = "handlebars"
+shifter = ""
+pedals  = []
+extras  = ["throttle"]
+
+[[media]]
+kind = "mame-romset"
+set  = "radikalb"
+note = "Radikal Bikers (version 2.02); Atari-license set radikalba, prototype radikalbp is NOT_WORKING"
+
+[routes]
+mame        = "imperfect"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "RADIKAL"
+colour = "#18101a"
+accent = "#ff4fb0"
+blurb  = "Hot-blooded bike racing with handlebars and a bad attitude."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/gaelco/gaelco3d.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/RadikalBikers.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

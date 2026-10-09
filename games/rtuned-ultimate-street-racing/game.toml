@@ -1,0 +1,34 @@
+id           = "rtuned-ultimate-street-racing"
+title        = "R-Tuned: Ultimate Street Racing"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2008
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-lindbergh"
+players      = 1
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+
+[[media]]
+kind  = "other"
+note  = "Lindbergh; TeknoParrot profile R-Tuned and R-TunedElf2"
+
+[routes]
+teknoparrot       = "profile"
+lindbergh-loader  = "working"
+vr = { best = "theatre" }
+
+[hub]
+pill   = "R-TUNED"
+colour = "#0c1a2e"
+accent = "#2f8fff"
+blurb  = "Import-scene street racing on Lindbergh with more neon than you can handle."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/R-Tuned:_Ultimate_Street_Racing", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/R-Tuned.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,38 @@
+id           = "g13knd"
+title        = "Golgo 13 Kiseki no Dandou"
+genre        = "gun"
+subgenre     = ["sniper"]
+year         = 2000
+manufacturer = "namco"
+developer    = "Raizing / Eighting"
+hardware     = "namco-system-12"
+players      = 1
+series       = "Golgo 13"
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "Sniper-rifle light gun with scope"
+extras = ["sniper-scope"]
+
+[[media]]
+kind = "mame-romset"
+set  = "g13knd"
+note = "Golgo 13 Kiseki no Dandou (Japan, GLS1 Ver. A)"
+
+[routes]
+mame        = "working"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "GOLGO13K"
+colour = "#0f1214"
+accent = "#c0392b"
+blurb  = "The second Golgo 13 arcade game: same rifle, new mission."
+badges = ["roomscale"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos12.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/g13knd.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

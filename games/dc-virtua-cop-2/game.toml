@@ -1,0 +1,42 @@
+id           = "dc-virtua-cop-2"
+title        = "Virtua Cop 2"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2000
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-dreamcast"
+players      = 2
+series       = "Virtua Cop"
+original     = "vcop2"
+# Japanese Dreamcast release dated 2000-03-02 per Wikipedia; NA appearance via Sega Smash Pack not verified here.
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Dreamcast light gun"
+
+[[media]]
+kind = "disc"
+note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Optional: your own Dreamcast BIOS dump"
+
+[routes]
+flycast = "unknown"
+vr      = { best = "theatre" }
+
+[hub]
+pill   = "DC-VCOP2"
+colour = "#0e1a22"
+accent = "#3fb8e8"
+blurb  = "Virtua Cop 2 on Dreamcast, the same two-gun city shootout in a home release."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Virtua_Cop_2"]
+confidence = "medium"
+checked    = "2026-10-08"

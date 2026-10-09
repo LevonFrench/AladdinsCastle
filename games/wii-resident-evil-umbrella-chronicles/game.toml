@@ -1,0 +1,36 @@
+id           = "wii-resident-evil-umbrella-chronicles"
+title        = "Resident Evil: The Umbrella Chronicles"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 2007
+manufacturer = "capcom"
+developer    = "Capcom; Cavia"
+hardware     = "nintendo-wii"
+players      = 1
+series       = "Resident Evil"
+
+[controls]
+type = "gun"
+guns = 1
+gun  = "Wii Zapper / Wii Remote IR pointer"
+
+[[media]]
+kind = "disc"
+note = "Your own Wii disc image (ISO/WBFS)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "theatre", planned = "true3d-planned" }
+
+[hub]
+pill   = "WII-REUMB"
+colour = "#0e1a20"
+accent = "#5ec8ff"
+blurb  = "On-rails Resident Evil story chapters, played with the Wii Zapper."
+badges = ["roomscale"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Resident_Evil:_The_Umbrella_Chronicles"]
+confidence = "medium"
+checked    = "2026-10-08"
