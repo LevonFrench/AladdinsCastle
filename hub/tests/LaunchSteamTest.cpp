@@ -21,7 +21,8 @@ steam::Shortcut shortcut() {
           "/Synthetic",
           false,
           0,
-          0};
+          0,
+          "flat-synthetic"};
 }
 const steam::Node *find(const steam::Node &n, const QByteArray &key) {
   for (const auto &c : n.children)
@@ -38,6 +39,11 @@ private slots:
   void malformed();
   void appIds();
   void ownedEditPreservesUnownedAndUnknown();
+  void userFieldsPreservedAndPreviewed();
+  void pinnedVariants();
+  void finalWriteGuards();
+  void noOpAndFirstBackup();
+  void multipleAccountsAndUnicodePaths();
   void collisionRefused();
   void previewApprovalClosedAndChanged();
   void backupsAndOwnedRemoval();
@@ -126,6 +132,144 @@ void LaunchSteamTest::ownedEditPreservesUnownedAndUnknown() {
   QCOMPARE(steam::parse(remove.bytes).roots[0].children.size(), 1);
   QCOMPARE(steam::parse(remove.bytes).roots[0].children[0].raw,
            parsed.roots[0].children[0].raw);
+}
+void LaunchSteamTest::userFieldsPreservedAndPreviewed() {
+  QTemporaryDir temp;
+  QDir().mkpath(temp.path() + "/steam/userdata/123/config");
+  steam::WriteRequest r;
+  r.steamRoot = temp.path() + "/steam";
+  r.accountId = "123";
+  r.userRoot = temp.path() + "/user";
+  r.shortcut = shortcut();
+  auto d = steam::parse(steam::edit({}, r.shortcut).bytes);
+  d.roots[0].raw.clear();
+  auto &owned = d.roots[0].children[0];
+  owned.raw.clear();
+  for (auto &n : owned.children) {
+    if (n.key == "icon") { n.payload = "/Synthetic/custom icon.png"; n.raw.clear(); }
+    if (n.key == "IsHidden" || n.key == "LastPlayTime") {
+      qToLittleEndian(quint32(42), n.payload.data()); n.raw.clear();
+    }
+    if (n.key == "AllowOverlay" || n.key == "AllowDesktopConfig") {
+      qToLittleEndian(quint32(0), n.payload.data()); n.raw.clear();
+    }
+  }
+  owned.children << steam::Node{1, "FlatpakAppID", "org.synthetic.Game", {}, {}, 8};
+  const auto before = steam::serialize(d);
+  const auto target = r.steamRoot + "/userdata/123/config/shortcuts.vdf";
+  write(target, before);
+  r.shortcut.title = "Updated synthetic";
+  r.shortcut.lastPlayed = 999;
+  const auto p = steam::preview(r);
+  const auto prior = steam::parse(before), after = steam::parse(p.edit.bytes);
+  for (const auto *key : {"icon", "IsHidden", "AllowOverlay", "AllowDesktopConfig", "LastPlayTime", "FlatpakAppID"})
+    QCOMPARE(find(after.roots[0].children[0], key)->raw,
+             find(prior.roots[0].children[0], key)->raw);
+  QCOMPARE(p.json["userFields"]["icon"]["after"], Json("/Synthetic/custom icon.png"));
+  QCOMPARE(p.json["userFields"]["IsHidden"]["after"], Json(42));
+  QCOMPARE(p.json["userFields"]["AllowOverlay"]["after"], Json(0));
+  QCOMPARE(p.json["userFields"]["LastPlayTime"]["after"], Json(42));
+  for (const auto *key : {"icon", "IsHidden", "AllowOverlay", "AllowDesktopConfig", "LastPlayTime"}) {
+    QCOMPARE(p.json["userFields"][key]["before"], p.json["userFields"][key]["after"]);
+    QCOMPARE(p.json["userFields"][key]["action"], Json("preserve"));
+  }
+  // Missing user fields in legacy entries stay absent, too.
+  d.roots[0].children[0].children.removeIf([](const steam::Node &n) { return n.key == "icon"; });
+  const auto missing = steam::edit(steam::serialize(d), r.shortcut);
+  QVERIFY(!find(steam::parse(missing.bytes).roots[0].children[0], "icon"));
+}
+void LaunchSteamTest::pinnedVariants() {
+  auto s = shortcut();
+  auto first = steam::edit({}, s);
+  QCOMPARE(find(steam::parse(first.bytes).roots[0].children[0], "LaunchOptions")->payload,
+           QByteArray("--launch test-game --variant flat-synthetic"));
+  s.variantId = "legacy-vr"; s.vr = true;
+  const auto vr = steam::edit(first.bytes, s);
+  QCOMPARE(find(steam::parse(vr.bytes).roots[0].children[0], "LaunchOptions")->payload,
+           QByteArray("--launch test-game --variant legacy-vr"));
+  for (const auto &id : QStringList{"", "bad id", "--flat", "../escape", "flat\" --other", QString::fromUtf8("遊戲")}) {
+    s.variantId = id;
+    QVERIFY_THROWS_EXCEPTION(install::Error, steam::edit(vr.bytes, s));
+  }
+  // Removal of a legacy shortcut does not invent a flat variant.
+  s.variantId.clear();
+  QVERIFY(steam::edit(vr.bytes, s, true).changed);
+}
+void LaunchSteamTest::finalWriteGuards() {
+  QTemporaryDir temp;
+  QDir().mkpath(temp.path() + "/steam/userdata/123/config");
+  steam::WriteRequest r;
+  r.steamRoot = temp.path() + "/steam"; r.accountId = "123";
+  r.userRoot = temp.path() + "/user"; r.shortcut = shortcut();
+  auto initial = steam::edit({}, r.shortcut).bytes;
+  const auto target = r.steamRoot + "/userdata/123/config/shortcuts.vdf";
+  write(target, initial);
+  r.shortcut.title = "Updated synthetic";
+  auto p = steam::preview(r);
+  int checks = 0;
+  try {
+    steam::apply(r, p, true, [&] { return ++checks == 2; });
+    QFAIL("Steam starting immediately before replacement was not rejected");
+  } catch (const install::Error &e) { QCOMPARE(e.code, QString("E_STEAM_RUNNING")); }
+  QCOMPARE(install::readBytes(target), initial);
+  auto external = r.shortcut; external.title = "External editor";
+  const auto externalBytes = steam::edit(initial, external).bytes;
+  checks = 0;
+  try {
+    steam::apply(r, p, true, [&] {
+      if (++checks == 2) write(target, externalBytes);
+      return false;
+    });
+    QFAIL("Last-moment external write was not rejected");
+  } catch (const install::Error &e) { QCOMPARE(e.code, QString("E_PREVIEW_CHANGED")); }
+  QCOMPARE(install::readBytes(target), externalBytes);
+}
+void LaunchSteamTest::noOpAndFirstBackup() {
+  QTemporaryDir temp;
+  QDir().mkpath(temp.path() + "/steam/userdata/123/config");
+  steam::WriteRequest r;
+  r.steamRoot = temp.path() + "/steam"; r.accountId = "123";
+  r.userRoot = temp.path() + "/user"; r.shortcut = shortcut();
+  const auto initial = steam::edit({}, r.shortcut).bytes;
+  auto p = steam::preview(r);
+  write(p.target, initial);
+  p = steam::preview(r);
+  QVERIFY(!p.edit.changed);
+  const auto modified = QFileInfo(p.target).lastModified();
+  steam::apply(r, p, true, [] { return false; });
+  QCOMPARE(install::readBytes(p.target), initial);
+  QCOMPARE(QFileInfo(p.target).lastModified(), modified);
+  QVERIFY(!QFileInfo::exists(p.backupFolder));
+  for (int i = 0; i < 15; ++i) {
+    r.shortcut.title = "Update " + QString::number(i);
+    steam::apply(r, steam::preview(r), true, [] { return false; });
+  }
+  QCOMPARE(install::readBytes(p.backupFolder + "/shortcuts-first.bak"), initial);
+  QCOMPARE(QDir(p.backupFolder).entryList({"shortcuts-recent-*.bak"}, QDir::Files).size(), 10);
+  const auto count = QDir(p.backupFolder).entryList(QDir::Files).size();
+  const auto latestModified = QFileInfo(p.target).lastModified();
+  QVERIFY(!steam::apply(r, steam::preview(r), true, [] { return false; }).changed);
+  QCOMPARE(QDir(p.backupFolder).entryList(QDir::Files).size(), count);
+  QCOMPARE(QFileInfo(p.target).lastModified(), latestModified);
+  QCOMPARE(install::readBytes(p.backupFolder + "/shortcuts-first.bak"), initial);
+}
+void LaunchSteamTest::multipleAccountsAndUnicodePaths() {
+  QTemporaryDir temp;
+  const auto root = temp.path() + QString::fromUtf8("/遊戲 Café folder");
+  for (const auto &id : QStringList{"123", "456", "0", "invalid"})
+    QDir().mkpath(root + "/userdata/" + id + "/config");
+  QCOMPARE(steam::accounts(root), QStringList({"123", "456"}));
+  steam::WriteRequest r;
+  r.steamRoot = root; r.accountId = "456"; r.userRoot = temp.path() + "/user";
+  r.shortcut = shortcut(); r.shortcut.executable = root + "/hub executable.exe";
+  r.shortcut.startDir = root;
+  const auto p = steam::preview(r);
+  QCOMPARE(p.json["variantId"], Json("flat-synthetic"));
+  steam::apply(r, p, true, [] { return false; });
+  const auto stored = steam::parse(install::readBytes(p.target));
+  QCOMPARE(QString::fromUtf8(find(stored.roots[0].children[0], "Exe")->payload),
+           '"' + QDir::toNativeSeparators(r.shortcut.executable) + '"');
+  QVERIFY(!QFileInfo::exists(root + "/userdata/123/config/shortcuts.vdf"));
 }
 void LaunchSteamTest::collisionRefused() {
   auto a = shortcut();
@@ -239,7 +383,7 @@ void LaunchSteamTest::backupsAndOwnedRemoval() {
   }
   const auto p = steam::preview(r);
   QCOMPARE(
-      QDir(p.backupFolder).entryList({"shortcuts-*.bak"}, QDir::Files).size(),
+      QDir(p.backupFolder).entryList({"shortcuts-recent-*.bak"}, QDir::Files).size(),
       10);
   for (const auto &path : p.artPaths)
     QVERIFY(QFileInfo::exists(path));

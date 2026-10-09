@@ -70,19 +70,50 @@ QString quote(const QString &path) {
     throw Error("E_SHORTCUT", "Invalid shortcut path");
   return '"' + QDir::toNativeSeparators(path) + '"';
 }
+QString launchOptions(const Shortcut &s) {
+  return "--launch " + s.gameId + " --variant " + s.variantId;
+}
+const Node *ownedShortcut(const QByteArray &bytes, const QString &gameId,
+                          Document &document) {
+  document = parse(bytes);
+  for (const auto &root : document.roots)
+    if (root.key == "shortcuts")
+      for (const auto &n : root.children)
+        if (tagged(n, "AladdinsCastle") &&
+            tagged(n, QByteArray("AladdinsCastle:") + gameId.toUtf8()))
+          return &n;
+  return nullptr;
+}
+Json fieldValue(const Node *n) {
+  if (!n)
+    return nullptr;
+  if (n->type == 1)
+    return QString::fromUtf8(n->payload).toStdString();
+  if (n->type == 2 && n->payload.size() == 4)
+    return qFromLittleEndian<quint32>(n->payload.constData());
+  return {{"type", n->type}, {"payloadHex", n->payload.toHex().toStdString()}};
+}
 void backup(const QString &source, const QString &folder,
-            const QString &label) {
-  if (!QFileInfo::exists(source))
+            const QString &label, bool preserveFirst = false) {
+  const bool exists = QFileInfo::exists(source);
+  if (!exists && !preserveFirst)
     return;
   QDir().mkpath(folder);
+  if (preserveFirst) {
+    const auto first = install::scopedPath(label + "-first.bak", folder);
+    if (!QFileInfo::exists(first))
+      install::atomicWrite(first, exists ? install::readBytes(source) : QByteArray());
+  }
+  if (!exists)
+    return;
   const auto filename =
-      label + "-" +
+      label + "-recent-" +
       QDateTime::currentDateTimeUtc().toString("yyyyMMdd-HHmmss-zzz") + "-" +
       QUuid::createUuid().toString(QUuid::Id128) + ".bak";
   install::atomicWrite(install::scopedPath(filename, folder),
                        install::readBytes(source));
   QDir dir(folder);
-  const auto files = dir.entryList({label + "-*.bak"}, QDir::Files, QDir::Name);
+  const auto files = dir.entryList({label + "-recent-*.bak"}, QDir::Files, QDir::Name);
   for (qsizetype i = 0; i < files.size() - 10; ++i)
     QFile::remove(install::scopedPath(files[i], folder));
 }
@@ -104,6 +135,9 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
            .match(s.gameId)
            .hasMatch())
     throw Error("E_SHORTCUT", "Invalid game ID");
+  if (!remove && !QRegularExpression("^[a-z0-9]+(?:-[a-z0-9]+)*$")
+                      .match(s.variantId).hasMatch())
+    throw Error("E_SHORTCUT", "An explicit valid variant ID is required");
   auto d = parse(before);
   Node *root = nullptr;
   for (auto &n : d.roots)
@@ -174,17 +208,21 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
     set(*owned, text("AppName", s.title));
     set(*owned, text("Exe", quote(s.executable)));
     set(*owned, text("StartDir", quote(s.startDir)));
-    set(*owned, text("LaunchOptions", "--launch " + s.gameId));
-    for (const auto *key : {"icon", "ShortcutPath", "DevkitGameID"})
+    set(*owned, text("LaunchOptions", launchOptions(s)));
+    for (const auto *key : {"ShortcutPath", "DevkitGameID"})
       set(*owned, text(key, {}));
-    for (const auto *key : {"IsHidden", "Devkit", "DevkitOverrideAppID"})
+    for (const auto *key : {"Devkit", "DevkitOverrideAppID"})
       set(*owned, integer(key, 0));
-    for (const auto *key : {"AllowDesktopConfig", "AllowOverlay"})
-      set(*owned, integer(key, 1));
+    if (!r.ownedFound) {
+      set(*owned, text("icon", {}));
+      set(*owned, integer("IsHidden", 0));
+      for (const auto *key : {"AllowDesktopConfig", "AllowOverlay"})
+        set(*owned, integer(key, 1));
+      set(*owned, integer("LastPlayTime",
+                          static_cast<quint32>(qBound(qint64(0), s.lastPlayed,
+                                                      qint64(0xffffffffu)))));
+    }
     set(*owned, integer("OpenVR", s.vr ? 1u : 0u));
-    set(*owned, integer("LastPlayTime",
-                        static_cast<quint32>(qBound(qint64(0), s.lastPlayed,
-                                                    qint64(0xffffffffu)))));
     Node tags;
     if (const auto *old = field(*owned, "tags"))
       tags = *old;
@@ -244,12 +282,22 @@ Preview preview(const WriteRequest &r) {
             {"appid", p.edit.id},
             {"title", r.shortcut.title.toStdString()},
             {"exe", quote(r.shortcut.executable).toStdString()},
-            {"launchOptions", ("--launch " + r.shortcut.gameId).toStdString()},
+            {"launchOptions", (r.remove ? QString() : launchOptions(r.shortcut)).toStdString()},
+            {"variantId", r.shortcut.variantId.toStdString()},
             {"OpenVR", r.shortcut.vr ? 1 : 0},
             {"backupFolder", p.backupFolder.toStdString()},
             {"beforeSha256", install::sha256(before).toStdString()},
             {"afterSha256", install::sha256(p.edit.bytes).toStdString()},
             {"art", Json::array()}};
+  Document beforeDocument, afterDocument;
+  const auto *prior = ownedShortcut(before, r.shortcut.gameId, beforeDocument);
+  const auto *next = ownedShortcut(p.edit.bytes, r.shortcut.gameId, afterDocument);
+  p.json["userFields"] = Json::object();
+  for (const auto *key : {"icon", "IsHidden", "AllowOverlay", "AllowDesktopConfig", "LastPlayTime"})
+    p.json["userFields"][key] = {
+        {"before", fieldValue(prior ? field(*prior, key) : nullptr)},
+        {"after", fieldValue(next ? field(*next, key) : nullptr)},
+        {"action", r.remove ? "remove" : (p.edit.ownedFound ? "preserve" : "default")}};
   const QStringList roles{"header", "capsule", "hero", "logo"};
   p.json["StartDir"] = quote(r.shortcut.startDir).toStdString();
   p.json["launchId"] = QString::number(launchId(p.edit.id)).toStdString();
@@ -323,11 +371,17 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
   Json receipt = Json::object();
   if (QFileInfo::exists(receiptPath))
     receipt = Json::parse(install::readBytes(receiptPath).toStdString());
-  backup(p.target, p.backupFolder, "shortcuts");
-  if (running())
-    throw Error("E_STEAM_RUNNING", "Steam started; no library change made");
-  if (p.edit.changed)
+  if (p.edit.changed) {
+    backup(p.target, p.backupFolder, "shortcuts", true);
+    if (running())
+      throw Error("E_STEAM_RUNNING", "Steam started; no library change made");
+    const auto current = QFileInfo::exists(p.target)
+                             ? install::readBytes(p.target) : QByteArray();
+    if (install::sha256(current).toStdString() != p.json["beforeSha256"])
+      throw Error("E_PREVIEW_CHANGED",
+                  "Steam library changed before replacement; review a fresh preview");
     install::atomicWrite(p.target, p.edit.bytes);
+  }
   const QStringList roles{"header", "capsule", "hero", "logo"};
   const QList<QSize> sizes{{920, 430}, {600, 900}, {1920, 620}, {1280, 720}};
   for (qsizetype i = 0; i < p.artPaths.size(); ++i)
@@ -357,8 +411,6 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
                                  QFileInfo(path).fileName();
           continue;
         }
-        backup(path, p.backupFolder,
-               "art-" + QFileInfo(path).completeBaseName());
         auto image = r.art[roles[i]].scaled(sizes[i], Qt::KeepAspectRatio,
                                             Qt::SmoothTransformation);
         QImage canvas(sizes[i], QImage::Format_ARGB32_Premultiplied);
@@ -372,6 +424,12 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
         buffer.open(QIODevice::WriteOnly);
         if (!canvas.save(&buffer, "PNG"))
           throw Error("E_ART", "Could not encode grid art");
+        if (QFileInfo::exists(path) && install::readBytes(path) == bytes)
+          continue;
+        if (running())
+          throw Error("E_STEAM_RUNNING", "Steam started; remaining art unchanged");
+        backup(path, p.backupFolder,
+               "art-" + QFileInfo(path).completeBaseName());
         QDir().mkpath(QFileInfo(path).absolutePath());
         install::atomicWrite(path, bytes);
         receipt[QFileInfo(path).fileName().toStdString()] =
@@ -383,9 +441,11 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
     } catch (const std::exception &e) {
       result.warnings << QString::fromUtf8(e.what());
     }
-  if (r.remove && QFileInfo::exists(receiptPath))
-    install::atomicWrite(receiptPath,
-                         QByteArray::fromStdString(receipt.dump(2)));
+  if (r.remove && QFileInfo::exists(receiptPath)) {
+    const auto bytes = QByteArray::fromStdString(receipt.dump(2));
+    if (install::readBytes(receiptPath) != bytes)
+      install::atomicWrite(receiptPath, bytes);
+  }
   return result;
 }
 QMap<QString, QImage> fallbackArt(const QString &title,

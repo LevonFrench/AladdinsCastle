@@ -34,7 +34,8 @@ int main(int argc, char **argv) {
                   string(j, "startDir"),
                   j.value("vr", false),
                   j.value("storedAppId", quint32(0)),
-                  j.value("lastPlayed", qint64(0))};
+                  j.value("lastPlayed", qint64(0)),
+                  string(j, "variantId")};
     r.remove = j.value("remove", false);
     r.overwriteCustomArt = j.value("overwriteCustomArt", false);
     if (!r.remove) {
