@@ -20,9 +20,12 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
                 const QRegularExpression id("^[a-z0-9]+(?:-[a-z0-9]+)*$");
                 if (!id.match(options.gameId).hasMatch()) { options.error = "Invalid game ID."; break; }
             }
-        } else if (arg == "--data-root" || arg == "--quit-after-ms") {
+        } else if (arg == "--data-root" || arg == "--quit-after-ms" || arg == "--install-root" || arg == "--bindings" || arg == "--variant") {
             if (++i >= arguments.size()) { options.error = arg + " requires a value."; break; }
             if (arg == "--data-root") options.dataRoot = arguments.at(i);
+            else if (arg == "--install-root") options.installRoot = arguments.at(i);
+            else if (arg == "--bindings") options.bindingsFile = arguments.at(i);
+            else if (arg == "--variant") options.variantId = arguments.at(i);
             else {
                 bool ok = false;
                 options.quitAfterMs = arguments.at(i).toInt(&ok);

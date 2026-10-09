@@ -45,7 +45,38 @@ void resolveState(GameRecord &game) {
             }
         }
     }
-    if (!installedId.isEmpty())
+    const auto requirementsReady = [&](const Variant &v) {
+        if (v.generated && v.quality == "flat" && (v.media.isEmpty() || v.tools.isEmpty()))
+            return false;
+        for (const auto &id : v.media) if (!runtime.mediaFound.contains(id)) return false;
+        for (const auto &id : v.tools) if (!runtime.toolsOk.contains(id)) return false;
+        return true;
+    };
+    const Variant *preferred = nullptr;
+    for (const auto &v : game.variants)
+        if (v.id == runtime.selectedVariantId && v.status != "planned") { preferred = &v; break; }
+    if (!preferred)
+        for (const auto &v : game.variants)
+            if (v.generated && v.quality == "flat" && v.status != "planned" && requirementsReady(v)) { preferred = &v; break; }
+    if (!preferred)
+        for (const auto &v : game.variants)
+            if (v.generated && v.quality == "flat" && v.status != "planned") { preferred = &v; break; }
+    if (preferred) {
+        best = preferred;
+        installedId.clear(); update = false; version.clear();
+        for (const auto &state : runtime.variants)
+            if (state.id == best->id && state.verified && state.installedWhenExists && state.manifestExists) {
+                installedId = state.id; update = state.updateAvailable; version = state.updateVersion;
+            }
+        if (!installedId.isEmpty()) base = update ? GameState::Update : GameState::Installed;
+        else if (best->generated && best->quality == "flat" && requirementsReady(*best)) base = GameState::Installed;
+        else {
+            base = GameState::ReadyToInstall;
+            for (const auto &id : best->tools) if (!runtime.toolsOk.contains(id)) base = GameState::NeedsEmulator;
+            for (const auto &id : best->media) if (!runtime.mediaFound.contains(id)) base = GameState::NeedsFiles;
+        }
+    }
+    else if (!installedId.isEmpty())
         base = update ? GameState::Update : GameState::Installed;
     else if (game.hasRecipe || !game.variants.isEmpty()) {
         for (const auto &v : game.variants) {
@@ -106,7 +137,8 @@ void resolveState(GameRecord &game) {
     const auto stateColours = r.value("_stateColours").toMap();
     r["baseState"] = static_cast<int>(base);
     r["state"] = static_cast<int>(display);
-    r["stateLabel"] = labels.at(static_cast<int>(display)) +
+    r["playing"] = runtime.playing;
+    r["stateLabel"] = runtime.playing ? QString("Playing") : labels.at(static_cast<int>(display)) +
                       (display == GameState::Installing && !runtime.jobProgress.isEmpty()
                            ? " " + runtime.jobProgress
                            : "");
@@ -123,9 +155,10 @@ void resolveState(GameRecord &game) {
     r["mediaStatus"] = static_cast<int>(mediaStatus);
     r["toolStatus"] = static_cast<int>(tools);
     r["installedVariantId"] = installedId;
+    r["preferredVariantId"] = best ? best->id : QString();
     r["updateAvailable"] = update;
     r["updateVersion"] = version;
-    r["reinstallVisible"] = base == GameState::Installed || base == GameState::Update;
+    r["reinstallVisible"] = best && !best->generated && (base == GameState::Installed || base == GameState::Update);
     r["jobStatus"] = static_cast<int>(runtime.jobStatus);
     r["jobProgress"] = runtime.jobProgress;
     r["lastPlayed"] = runtime.lastPlayed;

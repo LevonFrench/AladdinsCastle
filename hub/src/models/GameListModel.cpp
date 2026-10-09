@@ -72,7 +72,7 @@ GameListModel::GameListModel(CatalogData catalog, QObject *parent)
                                   "artTile",
                                   "artPortrait",
                                   "artSource",
-                                  "searchIndex"};
+                                  "searchIndex", "playing", "preferredVariantId"};
     int role = Qt::UserRole + 1;
     for (const auto &name : names)
         m_roles.insert(role++, name);
