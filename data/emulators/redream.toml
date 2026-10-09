@@ -6,7 +6,8 @@ upstream = "https://redream.io/download"
 license = "?"
 license_note = "The site says Redream is completely free to use on Windows, Mac, Linux and Raspberry Pi 4, and a one-time $6 Premium adds HD rendering and extra save slots (read 2026-10-08). No licence text is published. Third-party sources call it closed source (secondary). The GitHub repo inolen/redream reports GPL-3.0 but is historic (earlier research)."
 redistribution = "download-from-upstream-only"
-gate = "licence terms not published: owner review before automated download"
+gate = "locate-only"
+note_default = "Not a default emulator: Flycast (open source, light gun support) is the default for Dreamcast and NAOMI. Users who own Redream can point the Hub at it (D41)."
 platforms = ["windows-x64", "linux-x64"]
 unverified_platforms = []
 

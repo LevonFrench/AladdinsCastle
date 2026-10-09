@@ -72,7 +72,7 @@ Each row lists the games, the real control, the default VR mapping and the 3D mo
 | `lean_platform` | Hang-On / Super Hang-On sit-down (PADDLE `0x20-0xE0` REVERSE), Manx TT and Motor Raid (BANK PADDLE REVERSE), Motocross Go! / 500 GP (bank/tilt), Wave Runner (ROLL) | The whole bike tilts; rider leans | Lean = **`body_lean`** (head lateral offset; calibrate "full lean" once), blended with `bar_roll` (default 70/30). Seated: shoulder roll is enough. | Seat + tank; the bike model visibly tilts with you |
 | `wheelie_pull` | Enduro Racer ("bank up/down" AD_STICK_Y) | Pull bars back to lift the front | `bar_push` backwards → lift axis | Trail-bike bars |
 | `jetski_bars` | Wave Runner (HANDLE, ROLL, THROTTLE lever), Aqua Jet (3 axes, physical form unverified), Jet Wave | Jet-ski bars, throttle lever, body roll | Steer = `bar_yaw`; roll = `body_lean` + `bar_roll`; throttle = right trigger (the lever on the bar animates) | Jet-ski bars with throttle lever |
-| `bicycle` | **Prop Cycle** (AD_STICK_X handle L/R, AD_STICK_Y climb/drop, both `0x0BF-0x33F` centre `0x1FF`; pedal flywheel with rotation sensor), Downhill Bikers (PADDLE steering; brake buttons) | Bars turn and pitch; pedals spin | Turn = `bar_yaw`; climb/drop = **`bar_lift`/`bar_push`** (push the bars down/forward to dive, pull up to climb). **Pedalling:** default = **pedal-in-place cadence**: you march/pedal standing or seated and `body_bob` frequency becomes pedal speed (Race Yourselves-style head micro-motion). Alt 1: right trigger = pedal effort. Alt 2: a real exercise bike's BLE cadence sensor (FTMS/CSC). | Bicycle bars, frame top tube, pedals that spin at the game cadence |
+| `bicycle` | **Prop Cycle** (AD_STICK_X handle L/R, AD_STICK_Y climb/drop, both `0x0BF-0x33F` centre `0x1FF`; pedal flywheel with rotation sensor), Downhill Bikers (PADDLE steering; brake buttons) | Bars turn and pitch; pedals spin | Turn = `bar_yaw`; climb/drop = **`bar_lift`/`bar_push`** (push the bars down/forward to dive, pull up to climb). **Pedalling:** default = **pedal-in-place cadence**: you march/pedal standing or seated and `body_bob` frequency becomes pedal speed (Race Yourselves-style head micro-motion). Alt 1: right trigger = pedal effort. Accessories are out of scope (D39). | Bicycle bars, frame top tube, pedals that spin at the game cadence |
 
 ### 3.3 Snow, skate and water boards
 
@@ -231,7 +231,7 @@ Every game ships with the **best default mapping** from this catalog. Control Ma
 
 ## 8. Open questions
 
-1. **Optional hardware:** support real accessories later (exercise bike BLE cadence for Prop Cycle, a real wheel and pedals, a balance board for skate/ski, body trackers for lean)? Default stays controllers-only.
+1. ~~Optional hardware~~: **decided no (D39)**. Controllers and headset only; every mapping must work with them.
 2. **Cabinet motion feel:** the subtle peripheral cockpit tilt, on or off by default?
 3. **Model production:** build the first models now with Blender (parametric scripts), starting with wheel, H-shifter, motorbike bars, bicycle, ski plates, flight stick and throttle, and mounted gun?
 4. Unknowns to resolve per game: Rapid River's steer channel, Aqua Jet's and Alpine Surfer's physical form, Hydro Thunder wheel vs yoke, and shifter types for several Sega/Namco racers.

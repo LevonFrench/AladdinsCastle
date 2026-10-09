@@ -11,7 +11,7 @@ This is not legal advice. It sets out the project's rules.
 
 ## Code licences
 
-- AladdinsCastle is **GPL-3.0** ([LICENSE](../LICENSE)).
+- AladdinsCastle is **GPL-3.0** ([LICENSE](../LICENSE)), except **`libacvr/`, which is MIT** ([libacvr/LICENSE](../libacvr/LICENSE)). libacvr is the glue every VR setup links; MIT lets it link into engines under any licence (namco22-decompile MIT, Supermodel/PCSX2 GPL, a Cannonball fork under its non-commercial licence) and lets upstream projects adopt it. The Hub and everything else stay GPL-3.0.
 - Upstream projects keep their licences. namco22-decompile, DR-89 Time Crisis VR, VC2VR, UEVR and OpenXR-Toolkit are MIT. Supermodel, PCSX2 and PenguinScreen2 are GPL. MAME is GPL-2.0+. Check each file's own header: DuckStation, for example, has files under CC-BY-NC-ND-4.0, which must not be copied into our tree.
 - PenguinScreen2's bundled VR profiles use a separate non-commercial licence.
 

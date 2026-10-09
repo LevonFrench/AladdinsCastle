@@ -4,9 +4,10 @@ name = "DemulShooter"
 kind = "input-bridge"
 upstream = "https://github.com/argonlefou/DemulShooter"
 license = "none"
-license_note = "No LICENSE file in the repo root (checked 2026-10-08; the root has no licence file). With no licence granted, do not redistribute or modify. Owner decision needed before the Hub may install it automatically."
+license_note = "No LICENSE file in the repo root (checked 2026-10-08). With no licence granted we never redistribute, bundle or modify it. The Hub only downloads the official release on the user's explicit request (D41)."
 redistribution = "download-from-upstream-only"
-gate = "owner-decision: no licence published; no automatic install until decided"
+gate = "consent-install"
+consent = "DemulShooter is a third-party tool with no published licence. It hooks into game memory to read and write gun input, and antivirus tools may flag it. AladdinsCastle will download the official release from github.com/argonlefou/DemulShooter. Continue?"
 platforms = ["windows-x64"]
 unverified_platforms = []
 

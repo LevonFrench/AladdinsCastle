@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-3.0-only
+/* SPDX-License-Identifier: MIT  (libacvr/ is MIT-licensed: see libacvr/LICENSE; the rest of AladdinsCastle is GPL-3.0)
  * Draft 1, 2026-10-08. Contract only; no libacvr implementation is supplied.
  * Normative semantics and source evidence: docs/libacvr-contract.md.
  */

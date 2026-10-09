@@ -208,3 +208,9 @@ Resolution order for a game route: the Hub reads `routes.<key>`, then `data/emul
 7. Mednafen's licence needs confirmation from the source tarball COPYING.
 8. `docs/frontend.md` section 4 still says `tools/<id>.toml`. Update it to `data/emulators/<id>.toml`.
 9. The gun and wheel `method` values are research-level. Confirm each against a running build before a setup depends on it.
+
+## Gate decisions (2026-10-08, D41)
+
+- `gate = "consent-install"`: the Hub downloads only the official upstream release, and only after the user confirms a screen showing the manifest's `consent` text. Used for **DemulShooter** (no published licence, memory hooks, antivirus false positives).
+- `gate = "locate-only"`: the Hub never downloads it; the user points to their own install. Used for **Redream** (closed freeware with no licence text; Flycast is the default for Dreamcast/NAOMI) and **Model 2 Emulator** (closed, no official download).
+- DuckStation keeps `download-from-upstream-only` (CC BY-NC-ND: unmodified upstream downloads are fine; no bundling, no derivatives).

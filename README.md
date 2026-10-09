@@ -63,4 +63,4 @@ This project does not include, download or link to ROMs, BIOS files, disc images
 
 ## Licence
 
-[GPL-3.0](LICENSE). Third-party projects keep their own licences.
+[GPL-3.0](LICENSE), except **`libacvr/`, which is [MIT](libacvr/LICENSE)** so any engine or emulator can link it whatever its own licence (MIT, GPL, or non-commercial like Cannonball). Third-party projects keep their own licences.
