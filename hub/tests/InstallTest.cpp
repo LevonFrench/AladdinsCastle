@@ -1224,7 +1224,7 @@ private slots:
     GameRecord game;
     game.id = "synthetic";
     game.raw =
-        Json{{"media", Json::array({Json{{"kind", "ps2-disc"}, {"id", "disc"}},
+        Json{{"media", Json::array({Json{{"kind", "disc"}, {"id", "disc"}},
                                     Json{{"kind", "bios"}, {"id", "bios"}}})}};
     const Json emulator{
         {"id", "pcsx2"},
