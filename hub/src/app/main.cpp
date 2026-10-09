@@ -2,90 +2,83 @@
 #include "core/app/LaunchOptions.h"
 #include "core/catalog/CatalogLoader.h"
 #include "core/catalog/CatalogPaths.h"
-#include "models/FilterSortModel.h"
-#include "models/GameListModel.h"
+#include "core/install/Support.h"
+#include "core/launch/Launch.h"
+#include "app/HubServices.h"
+#include "overlay/OverlayHost.h"
+#include "overlay/SpikeState.h"
+#include "ui/Theme.h"
 #include <QCoreApplication>
 #include <QDir>
-#include <QFile>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QSGRendererInterface>
+#include <QQuickStyle>
 #include <QTextStream>
 #include <QTimer>
-#include <QtConcurrent/QtConcurrentRun>
-#include "ui/Theme.h"
-#include "ui/UiController.h"
-#include "ui/UiSettings.h"
-#include <QQuickStyle>
+#include <QtConcurrent>
 #include <qqml.h>
-int main(int argc, char **argv) {
+int main(int argc,char **argv){
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     ac::LaunchOptions options;
-    {
-        // Qt reads the native Unicode command line on Windows. Keep headless
-        // options free of a GUI application, then create the selected app below.
-        QCoreApplication argumentApp(argc, argv);
-        options = ac::parseLaunchOptions(argumentApp.arguments().mid(1));
+    {QCoreApplication argumentApp(argc,argv);options=ac::parseLaunchOptions(argumentApp.arguments().mid(1));}
+    QTextStream out(stdout),err(stderr);
+    if(!options.error.isEmpty()){err<<options.error<<'\n';return 2;}
+    if(options.help){out<<"AladdinsCastle Hub\nUsage: aladdinscastle-hub [--overlay [--window] | --launch <game-id>]\n  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;}
+    if(options.version){out<<"AladdinsCastle Hub 0.1.0\n";return 0;}
+    if(options.mode==ac::Mode::RegisterOverlay||options.mode==ac::Mode::UnregisterOverlay){
+        QCoreApplication app(argc,argv);QString error;
+        if(!ac::changeOverlayRegistration(QDir(app.applicationDirPath()).filePath("resources/aladdinscastle.vrmanifest"),options.mode==ac::Mode::RegisterOverlay,&error)){err<<error<<'\n';return 3;}
+        out<<"Overlay manifest action completed.\n";return 0;
     }
-    QTextStream out(stdout), err(stderr);
-    if (!options.error.isEmpty()) {
-        err << options.error << '\n';
-        return 2;
-    }
-    if (options.help) {
-        out << "AladdinsCastle Hub\nUsage: aladdinscastle-hub [--overlay [--window] | --launch "
-               "<game-id>]\n"
-               "  --data-root <folder>   Folder containing games/ (portable data by default)\n"
-               "  --quit-after-ms <ms>   Exit after a bounded desktop smoke run\n";
-        return 0;
-    }
-    if (options.version) {
-        out << "AladdinsCastle Hub 0.1.0\n";
-        return 0;
-    }
-    if (options.mode != ac::Mode::Desktop) {
-        QCoreApplication app(argc, argv);
-        err << (options.mode == ac::Mode::Overlay ? "Overlay rendering is implemented in lane B."
-                                                  : "Game launch is implemented in lane G.")
-            << '\n';
-        return 3;
+    if(options.mode==ac::Mode::Launch){
+        QCoreApplication app(argc,argv);
+        try{
+            const auto catalogRoot=ac::findCatalogRoot(app.applicationDirPath(),QDir::currentPath(),options.dataRoot);
+            if(catalogRoot.isEmpty())throw ac::install::Error("E_CATALOG","Catalog missing");
+            const auto root=app.applicationDirPath();
+            const auto catalog=ac::CatalogLoader().load(catalogRoot);
+            const auto bindings=ac::Json::parse(ac::install::readBytes(root+"/user/cache/scan-bindings.json").toStdString());
+            ac::launch::LaunchService launcher;
+            QObject::connect(&launcher,&ac::launch::LaunchService::finished,&app,[&](const QString &,int code,const QString &message,const QString &){if(!message.isEmpty())err<<message<<'\n';app.exit(code);});
+            const auto request=ac::launch::flatRequest(catalog,options.gameId,root,bindings);
+            if(!launcher.start(request))return 1;
+            return app.exec();
+        }catch(const std::exception &e){err<<e.what()<<'\n';return 2;}
     }
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
-    QGuiApplication app(argc, argv);
-    QCoreApplication::setApplicationName("AladdinsCastle");
-    QCoreApplication::setApplicationVersion("0.1.0");
-    const auto root =
-        ac::findCatalogRoot(app.applicationDirPath(), QDir::currentPath(), options.dataRoot);
-    if (root.isEmpty()) {
-        err << "Catalog missing: supply --data-root <folder containing games/>.\n";
-        return 2;
+    QGuiApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
+    QCoreApplication::setApplicationName("AladdinsCastle");QCoreApplication::setApplicationVersion("0.1.0");
+    const auto catalogRoot=ac::findCatalogRoot(app.applicationDirPath(),QDir::currentPath(),options.dataRoot);
+    if(catalogRoot.isEmpty()){err<<"Catalog missing.\n";return 2;}
+    auto catalog=QtConcurrent::run([catalogRoot]{return ac::CatalogLoader().load(catalogRoot);}).result();
+    const auto count=catalog.report.records;
+    ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    QQuickStyle::setStyle("Basic");ac::Theme theme(games.catalog().theme);
+    ac::UiSettings settings(app.applicationDirPath()+"/user");ac::UiController ui(&games,&filter,&settings);
+    ac::HubServices services(&games,&filter,&ui,&settings,app.applicationDirPath());
+    qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",&theme);
+    ac::SpikeState spike;QQmlApplicationEngine engine;ac::OverlayHost overlay(spike);
+    engine.addImageProvider("art",new ac::art::Provider(services.artResolver()));ui.setArtProviderReady(true);
+    auto *context=engine.rootContext();context->setContextProperty("catalogGameCount",count);
+    context->setContextProperty("gameModel",&games);context->setContextProperty("gameFilter",&filter);
+    context->setContextProperty("uiSettings",&settings);context->setContextProperty("uiController",&ui);
+    context->setContextProperty("hubServices",&services);context->setContextProperty("overlayHost",&overlay);
+    context->setContextProperty("spikeState",&spike);context->setContextProperty("overlaySpikeEnabled",options.spike);
+    context->setContextProperty("surfaceColor",theme.get("color.surface.window"));
+    context->setContextProperty("primaryTextColor",theme.get("color.text.primary"));context->setContextProperty("brandColor",theme.get("color.brand.orange"));
+    QObject::connect(&engine,&QQmlApplicationEngine::objectCreationFailed,&app,[]{QCoreApplication::exit(2);},Qt::QueuedConnection);
+    QObject::connect(&services,&ac::HubServices::raiseHubRequested,&app,[&]{for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow*>(object)){window->show();window->raise();window->requestActivate();}});
+    QObject::connect(&app,&QGuiApplication::lastWindowClosed,&app,[&]{if(!services.playing())app.quit();});
+    if(options.mode==ac::Mode::Overlay){
+        QObject::connect(&overlay,&ac::OverlayHost::quitRequested,&app,&QCoreApplication::quit);
+        QObject::connect(&overlay,&ac::OverlayHost::failed,&app,[&](const QString &error){err<<error<<'\n';app.exit(3);});
+        QString error;if(!overlay.initialize(engine,app.applicationDirPath()+"/resources/overlay-thumbnail.png",&error)){err<<error<<'\n';return 3;}
     }
-    auto catalog = QtConcurrent::run([root] { return ac::CatalogLoader().load(root); }).result();
-    const auto count = catalog.report.records;
-    ac::GameListModel gameModel(std::move(catalog));
-    ac::FilterSortModel filterModel;
-    filterModel.setSourceModel(&gameModel);
-    QQuickStyle::setStyle("Basic");
-    ac::Theme theme(gameModel.catalog().theme);
-    ac::UiSettings settings(QDir(app.applicationDirPath()).filePath("user"));
-    ac::UiController controller(&gameModel, &filterModel, &settings);
-    qmlRegisterSingletonInstance("AladdinsCastle.Hub", 1, 0, "Theme", &theme);
-    QQmlApplicationEngine engine;
-    engine.rootContext()->setContextProperty("catalogGameCount", count);
-    engine.rootContext()->setContextProperty("gameModel", &gameModel);
-    engine.rootContext()->setContextProperty("gameFilter", &filterModel);
-    engine.rootContext()->setContextProperty("uiSettings", &settings);
-    engine.rootContext()->setContextProperty("uiController", &controller);
-    QObject::connect(
-        &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
-        [] { QCoreApplication::exit(2); }, Qt::QueuedConnection);
-    engine.load(QUrl("qrc:/qt/qml/AladdinsCastle/Hub/DesktopShell.qml"));
-    if (engine.rootObjects().isEmpty())
-        return 2;
-    out << "AladdinsCastle: " << count << " games\n";
-    out.flush();
-    if (options.quitAfterMs > 0)
-        QTimer::singleShot(options.quitAfterMs, &app, &QCoreApplication::quit);
+    if(options.mode==ac::Mode::Desktop||options.window){engine.loadFromModule("AladdinsCastle.Hub","DesktopShell");if(engine.rootObjects().isEmpty())return 2;}
+    out<<"AladdinsCastle: "<<count<<" games\n";out.flush();
+    if(options.quitAfterMs>0)QTimer::singleShot(options.quitAfterMs,&app,&QCoreApplication::quit);
     return app.exec();
 }

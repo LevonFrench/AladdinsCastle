@@ -8,6 +8,7 @@
 #include <QOpenGLFunctions>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QQmlContext>
 #include <QQuickGraphicsDevice>
 #include <QQuickItem>
 #include <QQuickRenderControl>
@@ -48,7 +49,8 @@ bool QuickTextureRenderer::initialize(QQmlEngine &engine, QSize size, QString *e
     connect(m_control.get(), &QQuickRenderControl::sceneChanged, this, &QuickTextureRenderer::dirty);
     connect(m_window.get(), &QQuickWindow::sceneGraphInitialized, this, &QuickTextureRenderer::createTexture);
     connect(m_window.get(), &QQuickWindow::sceneGraphInvalidated, this, &QuickTextureRenderer::destroyTexture);
-    QQmlComponent component(&engine, QUrl("qrc:/qt/qml/AladdinsCastle/Hub/HubRoot.qml"));
+    const bool spike = engine.rootContext()->contextProperty("overlaySpikeEnabled").toBool();
+    QQmlComponent component(&engine, QUrl(spike ? "qrc:/qt/qml/AladdinsCastle/Hub/SpikeRoot.qml" : "qrc:/qt/qml/AladdinsCastle/Hub/HubRoot.qml"));
     QObject *object = component.createWithInitialProperties({{"overlayPresentation", true}});
     m_root = qobject_cast<QQuickItem *>(object);
     if (!m_root) {

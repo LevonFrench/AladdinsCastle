@@ -10,6 +10,7 @@ FocusScope {
  property string view:"List"
  property var history:[]
  property bool vrOverlayMode:false
+ property alias overlayPresentation: root.vrOverlayMode
  property bool reduceMotion:(uiSettings.values,uiSettings.get("reduceMotion",false))
  property string sizeValue:Object.keys(uiSettings.values).length>=0 ? (uiSettings.values,uiSettings.get("size"+view,vrOverlayMode?"L":"S")) : "S"
  property var previewGame:({})
@@ -42,6 +43,21 @@ FocusScope {
   onAccepted:{uiSettings.set("scanRoots",roots.text);uiController.scan(roots.text.split(/\n|;/).filter(p=>p.trim().length>0))}
   background:Rectangle{color:Theme.get("color.surface.panel");border.color:Theme.get("color.line.button");radius:8}
  }
+ Connections {target:uiController;function onLocationRequested(kind){if(kind==="tool")toolDialog.open();else scanDialog.open()}}
+ Dialog {id:toolDialog;parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;title:"Emulators";standardButtons:Dialog.Close
+  Column {width:parent.width;spacing:12
+   UiText {width:parent.width;text:"Locate your existing MAME or PCSX2 folder with Find my files. Supermodel can be installed from its pinned official release.";wrapMode:Text.Wrap}
+   PillButton {text:"Find my files / emulator folders";onClicked:{toolDialog.close();scanDialog.open()}}
+   ScrollView {width:parent.width;height:180;TextArea {text:typeof hubServices!=="undefined"?hubServices.toolPlan:"";readOnly:true;wrapMode:Text.Wrap;color:Theme.get("color.text.primary");font.pixelSize:12}}
+   PillButton {text:"Install Supermodel";enabled:typeof hubServices!=="undefined"&&!uiController.installing;onClicked:{hubServices.installSupermodel();toolDialog.close()}}
+   PillButton {text:"Preview Supermodel removal";enabled:typeof hubServices!=="undefined"&&!uiController.installing;onClicked:{hubServices.previewSupermodelRemoval();toolDialog.close()}}
+  }
+ }
+ Dialog {id:removeDialog;parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;title:"Remove owned installation files?";standardButtons:Dialog.Ok|Dialog.Cancel
+  ScrollView {width:parent.width;height:240;TextArea {text:typeof hubServices!=="undefined"?hubServices.removalPlan:"";readOnly:true;wrapMode:Text.Wrap;color:Theme.get("color.text.primary")}}
+  onAccepted:hubServices.confirmRemoval()
+ }
+ Connections {target:typeof hubServices!=="undefined"?hubServices:null;function onRemovalPlanChanged(){removeDialog.open()}}
  FolderDialog{id:folder;title:"Choose a folder to scan";onAccepted:roots.text+=(roots.text.length?";":"")+uiController.localPath(selectedFolder)}
  Shortcut{sequence:"Ctrl+K";onActivated:header.focusSearch()}
  Shortcut{sequence:"/";enabled:!header.searchField.activeFocus;onActivated:header.focusSearch()}
