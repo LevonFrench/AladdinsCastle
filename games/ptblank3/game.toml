@@ -1,0 +1,41 @@
+id           = "ptblank3"
+title        = "Point Blank 3"
+alt_titles   = ["Gunbalina"]
+genre        = "gun"
+subgenre     = ["party"]
+year         = 2000
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-10"
+graphics     = "2d"
+players      = 2
+series       = "Point Blank"
+regions      = ["world", "jp"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco light gun (pair)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "ptblank3"
+note = "World GNN2 Ver.A on Namco System 10 (PS1-based). Clone gunbalina = Japan GNN1 Ver.A. MAME flags imperfect sound and unemulated protection. Wikipedia says the arcade release was Japan-only, which conflicts with the World set"
+
+[routes]
+mame = "imperfect"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "PB3"
+colour = "#101018"
+accent = "#ff7a1a"
+blurb  = "The 2000 arcade entry, with cameos from Splatterhouse, Klonoa and Mappy."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos10.cpp", "https://en.wikipedia.org/wiki/Point_Blank_(video_game_series)"]
+confidence = "medium"
+checked    = "2026-10-08"

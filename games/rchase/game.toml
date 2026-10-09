@@ -1,0 +1,40 @@
+id           = "rchase"
+title        = "Rail Chase"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1991
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-y-board"          # proposed vocab: sega-y-board ("Sega Y Board", MAME segaybd.cpp)
+graphics     = "sprite-scaler"        # Y-board family is sprite-scaled; no Wikipedia article found, low confidence
+players      = 1                      # unverified
+series       = "Rail Chase"
+
+[controls]
+type    = "gun"
+guns    = 1                           # unverified: MAME input block exposes no gun names
+gun     = "Positional light gun"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "rchase"
+note = "World (MAME parent); Japan sets are rchasej and rchasejb"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "RAIL CHASE"
+colour = "#140808"
+accent = "#ff6f3a"
+blurb  = "A Sega Y-board rail shooter with scaled sprites coming at you."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segaybd.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

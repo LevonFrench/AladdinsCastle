@@ -1,0 +1,39 @@
+id           = "bbusters"
+title        = "Beast Busters"
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 1989
+manufacturer = "snk"
+developer    = "SNK"
+hardware     = "other-arcade"
+graphics     = "2d"
+players      = 3
+series       = "Beast Busters"
+
+[controls]
+type   = "gun"
+guns   = 3
+gun    = "Mounted machine gun (SNK)"
+pedals = []
+extras = ["mounted gun", "power-ups"]
+
+[[media]]
+kind = "mame-romset"
+set  = "bbusters"
+note = "World. Clones: bbustersu, bbustersua (US), bbustersj, bbustersja (Japan, 2 and 3 player)"
+
+[routes]
+mame = "working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "BEAST"
+colour = "#101a14"
+accent = "#6fbf5a"
+blurb  = "Three-player rail shooter through a city overrun by the undead, on mounted machine guns."
+badges = ["3-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/snk/bbusters.cpp", "https://en.wikipedia.org/wiki/Beast_Busters"]
+confidence = "high"
+checked    = "2026-10-08"

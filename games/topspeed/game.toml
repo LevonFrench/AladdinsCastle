@@ -1,0 +1,39 @@
+id           = "topspeed"
+title        = "Top Speed"
+alt_titles   = ["Full Throttle"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1987
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-top-speed"          # proposed vocab: taito-top-speed (Taito Top Speed board; Wikipedia leaves the board blank)
+graphics     = "sprite-scaler"        # Commodore User called it an Out Run clone (Wikipedia); medium confidence
+players      = 1
+series       = "Top Speed"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Shifter input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = ["nitro-button"]
+
+[[media]]
+kind = "mame-romset"
+set  = "topspeed"
+note = "World rev 1 (MAME parent); US set topspeedu; Japan as Full Throttle is fullthrl"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "TOP SPEED"
+colour = "#0c1220"
+accent = "#ff6a00"
+blurb  = "A Taito road racer with a nitro button; critics called it an Out Run clone."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/topspeed.cpp", "https://en.wikipedia.org/wiki/Top_Speed_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

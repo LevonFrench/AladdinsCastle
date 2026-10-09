@@ -1,0 +1,39 @@
+id           = "lethal-enforcers-2"
+title        = "Lethal Enforcers II: Gun Fighters"
+alt_titles   = ["Lethal Enforcers II"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1994
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "other-arcade"
+graphics     = "2d"
+players      = 2
+series       = "Lethal Enforcers"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Konami revolver-style light gun (Justifier type)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "other"
+note = "Konami arcade PCB, not in MAME (no set found in the lethal.cpp driver). Console versions: Genesis, Sega CD, PS1 compilation"
+
+[routes]
+mame = "unknown"
+vr   = { best = "none" }
+
+[hub]
+pill   = "LETHAL2"
+colour = "#1a0d0d"
+accent = "#e0503a"
+blurb  = "Western sequel with digitized gunfighters, built for two players."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Lethal_Enforcers_II:_Gun_Fighters"]
+confidence = "medium"
+checked    = "2026-10-08"

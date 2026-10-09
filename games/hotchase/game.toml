@@ -1,0 +1,39 @@
+id           = "hotchase"
+title        = "Hot Chase"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 1988
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-wec"          # proposed vocab: konami-wec (MAME wecleman.cpp family)
+graphics     = "sprite-scaler"        # same driver family as WEC Le Mans; medium confidence
+players      = 1
+series       = "Hot Chase"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Shift input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "hotchase"
+note = "Set 1 (MAME parent); set 2 is hotchasea"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "HOT CHASE"
+colour = "#140c0c"
+accent = "#ff4a1a"
+blurb  = "Drive a Porsche 959 to the border before the bomb attached to your car goes off."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/wecleman.cpp", "https://en.wikipedia.org/wiki/Hot_Chase"]
+confidence = "medium"
+checked    = "2026-10-08"

@@ -1,0 +1,44 @@
+id           = "ps1-lethal-enforcers-1-2"
+title        = "Lethal Enforcers I & II"
+alt_titles   = ["Lethal Enforcers Deluxe Pack"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1997
+manufacturer = "konami"
+developer    = "Konami Chicago"
+hardware     = "sony-ps1"
+graphics     = "2d"
+players      = 2
+series       = "Lethal Enforcers"
+contains     = ["lethalen", "lethal-enforcers-2"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Konami Justifier (revolver-shaped light gun)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (compilation of the two arcade games)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "PS1 LE12"
+colour = "#1a0d0d"
+accent = "#e0503a"
+blurb  = "Konami's 1997 PlayStation compilation of the first two Lethal Enforcers, with Justifier support."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Lethal_Enforcers", "https://en.wikipedia.org/wiki/Lethal_Enforcers_II:_Gun_Fighters"]
+confidence = "medium"
+checked    = "2026-10-08"

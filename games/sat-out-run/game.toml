@@ -1,0 +1,44 @@
+id           = "sat-out-run"
+title        = "Sega Ages Out Run"
+alt_titles   = ["Out Run (Sega Ages)"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1996                   # Sega Ages Vol. 3, JP 20 Sep 1996 (Wikipedia Sega Ages)
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-saturn"          # exists in vocab
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Out Run"
+original     = "outrun"
+
+[controls]                            # as the original cabinet (see outrun)
+type    = "wheel"
+shifter = "hl"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Sega Ages Vol. 3 Out Run, Japan Saturn release; your own disc image or disc"
+
+[[media]]
+kind = "bios"
+note = "Your own Sega Saturn BIOS dump"
+
+[routes]
+mednafen    = "unknown"
+yabasanshiro = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "SAT OUTRUN"
+colour = "#0c1a24"
+accent = "#4fd1ff"
+blurb  = "Out Run on the Saturn from the Sega Ages line (Vol. 3)."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Ages", "https://en.wikipedia.org/wiki/Out_Run"]
+confidence = "medium"
+checked    = "2026-10-08"

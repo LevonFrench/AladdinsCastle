@@ -1,0 +1,39 @@
+id           = "finalap3"
+title        = "Final Lap 3"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1992
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-2"          # proposed vocab: namco-system-2
+graphics     = "sprite-scaler"        # Final Lap engine lineage (medium confidence)
+players      = 2                      # Wikipedia: up to 8 players simultaneously (linked two-player cabinets)
+series       = "Final Lap"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Shift Gear input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "finalap3"
+note = "World Rev C (MAME parent); Japan and bootleg sets are separate"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_GRAPHICS
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "FINALAP 3"
+colour = "#0c0c1a"
+accent = "#3bd4ff"
+blurb  = "The third Final Lap on the System 2 cabinet, with linked racers across the Suzuka circuit."
+badges = ["2-players", "seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos2.cpp", "https://en.wikipedia.org/wiki/Final_Lap_3"]
+confidence = "medium"
+checked    = "2026-10-08"

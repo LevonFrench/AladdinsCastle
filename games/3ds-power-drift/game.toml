@@ -1,0 +1,38 @@
+id           = "3ds-power-drift"
+title        = "3D Power Drift"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["kart"]
+year         = 2015                   # JP 23 Dec 2015 (Wikipedia 3D Reprint Archives table)
+manufacturer = "sega"
+developer    = "M2"
+hardware     = "nintendo-3ds"      # CLOSEST vocab id: nintendo-3ds is not in the vocab (see report)
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Power Drift"
+original     = "pdrift"
+
+[controls]                            # as the original cabinet (see pdrift)
+type    = "wheel"
+shifter = "hl"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Nintendo 3DS eShop or game card, bought by you"
+
+[routes]
+vr          = { best = "none" }
+
+[hub]
+pill   = "3D PDRIFT"
+colour = "#1a0a14"
+accent = "#ff5a7a"
+blurb  = "Power Drift's sprite-scaled karts in stereo 3D on the 3DS."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_3D_Reprint_Archives", "https://en.wikipedia.org/wiki/Power_Drift"]
+confidence = "high"
+checked    = "2026-10-08"

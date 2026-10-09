@@ -1,0 +1,38 @@
+id           = "gprider"
+title        = "GP Rider"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1990
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-x-board"          # proposed vocab: sega-x-board ("Sega X Board", MAME segaxbd.cpp)
+graphics     = "sprite-scaler"
+players      = 2                      # two-player motion-sim cabinet (Wikipedia); MAME parent is the twin setup
+series       = "GP Rider"
+
+[controls]
+type    = "bike"
+shifter = "seq"                       # shift up/down inputs in MAME
+extras  = ["motion-sim-cockpit", "throttle-grip", "brake-lever"]
+
+[[media]]
+kind = "mame-romset"
+set  = "gprider"
+note = "World FD1094 twin setup (MAME parent); single-cabinet set is gpriders"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "GP RIDER"
+colour = "#1a0a0a"
+accent = "#ff4438"
+blurb  = "Two riders on motion-sim motorbikes and a rival who plays like a human."
+badges = ["2-players", "seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segaxbd.cpp", "https://en.wikipedia.org/wiki/GP_Rider"]
+confidence = "medium"
+checked    = "2026-10-08"

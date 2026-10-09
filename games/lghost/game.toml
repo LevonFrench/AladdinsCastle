@@ -1,0 +1,39 @@
+id           = "lghost"
+title        = "Laser Ghost"
+genre        = "gun"
+subgenre     = ["rail-shooter", "horror"]
+year         = 1990
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-system-18"
+graphics     = "2d"
+players      = 3
+regions      = ["world", "jp", "us"]
+
+[controls]
+type   = "gun"
+guns   = 3
+gun    = "Sega positional gun with fire and special-weapon buttons"
+pedals = []
+extras = ["mirror-projected laser reticle", "special weapons"]
+
+[[media]]
+kind = "mame-romset"
+set  = "lghost"
+note = "World FD1094 317-0166 set. Clones: lghostu (US), lghostj (Japan), bootlegs lghostd and lghostud. Board is Sega System 18 (not in vocab)"
+
+[routes]
+mame = "working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "LGHOST"
+colour = "#0f1420"
+accent = "#50c0ff"
+blurb  = "Three hunters, a mirror-lit laser sight and a city full of ghosts."
+badges = ["3-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segas18.cpp", "https://en.wikipedia.org/wiki/Laser_Ghost"]
+confidence = "medium"
+checked    = "2026-10-08"

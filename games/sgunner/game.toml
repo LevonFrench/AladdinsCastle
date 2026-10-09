@@ -1,0 +1,39 @@
+id           = "sgunner"
+title        = "Steel Gunner"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1990
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-2"
+graphics     = "2d"
+players      = 2
+series       = "Steel Gunner"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco light gun"
+pedals = []
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "sgunner"
+note = "Steel Gunner Rev B. Clone: sgunnerj (Japan). Board is Namco System 2 / System 2 Plus (not in vocab)"
+
+[routes]
+mame = "working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "STLGUN"
+colour = "#15161a"
+accent = "#9aa6b8"
+blurb  = "Police mecha pilots take on the STURM terror group in Namco's first light-gun shooter."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos2.cpp", "https://en.wikipedia.org/wiki/Steel_Gunner"]
+confidence = "medium"
+checked    = "2026-10-08"

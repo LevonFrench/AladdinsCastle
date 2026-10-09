@@ -1,0 +1,41 @@
+id           = "ptblank2"
+title        = "Point Blank 2"
+alt_titles   = ["Gunbarl"]
+genre        = "gun"
+subgenre     = ["party"]
+year         = 1999
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-12"
+graphics     = "2d"
+players      = 2
+series       = "Point Blank"
+regions      = ["world", "jp"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco light gun (pair)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "ptblank2"
+note = "World GNB5/Ver.A on Namco System 12 (parent set). System 11 sets (ptblank2a, ptblank2b, ptblank2ua = US GNB3, gunbarla = Japan GNB1) are on System 11 hardware"
+
+[routes]
+mame = "working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "PB2"
+colour = "#101018"
+accent = "#ff7a1a"
+blurb  = "More mini-stages than the original, with Very Hard swapped for Insane."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos12.cpp", "https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos11.cpp", "https://en.wikipedia.org/wiki/Point_Blank_(video_game_series)"]
+confidence = "medium"
+checked    = "2026-10-08"

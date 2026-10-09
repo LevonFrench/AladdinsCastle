@@ -6,7 +6,7 @@ year         = 1999
 manufacturer = "namco"
 developer    = "Raizing / Eighting"
 hardware     = "namco-system-12"
-graphics     = "polygon-3d"   # verify: 2D/3D not confirmed
+graphics     = "mixed"
 players      = 1
 series       = "Golgo 13"
 

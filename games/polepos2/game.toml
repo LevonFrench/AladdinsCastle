@@ -1,0 +1,39 @@
+id           = "polepos2"
+title        = "Pole Position II"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1983
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-pole-position"          # proposed vocab: namco-pole-position (same board as Pole Position, per Wikipedia)
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Pole Position"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # same cabinet as Pole Position; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "polepos2"
+note = "Japan (MAME parent); Atari and bootleg sets are separate"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "POLEPOS2"
+colour = "#101418"
+accent = "#ffb000"
+blurb  = "Three new tracks, the same wheel, and the highest-grossing arcade racer of 1984 in the US."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/polepos.cpp", "https://en.wikipedia.org/wiki/Pole_Position_II"]
+confidence = "high"
+checked    = "2026-10-08"

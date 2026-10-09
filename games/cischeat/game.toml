@@ -1,0 +1,39 @@
+id           = "cischeat"
+title        = "Cisco Heat"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1990
+manufacturer = "jaleco"
+developer    = "Jaleco"
+hardware     = "jaleco-cischeat"          # proposed vocab: jaleco-cischeat ("Jaleco road generator" board, MAME cischeat.cpp)
+graphics     = "sprite-scaler"        # Jaleco road generator with scaled sprites (medium confidence; Wikipedia silent on technique)
+players      = 1                      # linkable cabinets (Wikipedia)
+series       = "Cisco Heat"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a P1 Gear Shift input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = ["motion-sim-deluxe"]       # upright, sit-down, and motion-based deluxe cabinets (Wikipedia)
+
+[[media]]
+kind = "mame-romset"
+set  = "cischeat"
+note = "Cisco Heat (MAME parent)"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_GRAPHICS
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "CISCO HEAT"
+colour = "#0c1420"
+accent = "#3ba0ff"
+blurb  = "Police squad car, San Francisco streets, and the National Championship Steeplechase."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/jaleco/cischeat.cpp", "https://en.wikipedia.org/wiki/Cisco_Heat"]
+confidence = "medium"
+checked    = "2026-10-08"

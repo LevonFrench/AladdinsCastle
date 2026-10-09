@@ -1,0 +1,38 @@
+id           = "mechatt"
+title        = "Mechanized Attack"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1989
+manufacturer = "snk"
+developer    = "SNK"
+hardware     = "other-arcade"
+graphics     = "2d"
+players      = 1
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "SNK light gun (type not confirmed)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "mechatt"
+note = "World. Clones: mechattj (Japan), mechattu (US), mechattu1 (US version 1, single player)"
+
+[routes]
+mame = "working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "MECHATT"
+colour = "#14141a"
+accent = "#7aa0d8"
+blurb  = "SNK's 1989 rail shooter with mechanical enemies, single player and one gun."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/snk/mechatt.cpp", "https://en.wikipedia.org/wiki/Mechanized_Attack"]
+confidence = "medium"
+checked    = "2026-10-08"

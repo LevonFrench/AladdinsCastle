@@ -1,0 +1,38 @@
+id           = "radm"
+title        = "Rad Mobile"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1990
+manufacturer = "sega"
+developer    = "Sega AM3"
+hardware     = "sega-system-32"        # exists in vocab
+graphics     = "sprite-scaler"        # System 32 sprite graphics (Wikipedia)
+players      = 2                      # two-seat cabinet variant exists (Wikipedia); count medium confidence
+series       = "Rad"
+
+[controls]
+type    = "wheel"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "radm"
+note = "World (MAME parent); US set is radmu"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "RAD MOBILE"
+colour = "#0d1424"
+accent = "#ffd400"
+blurb  = "A cross-country dash with police on your tail and Sonic hanging from the mirror."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segas32.cpp", "https://en.wikipedia.org/wiki/Rad_Mobile"]
+confidence = "medium"
+checked    = "2026-10-08"

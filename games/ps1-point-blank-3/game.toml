@@ -1,0 +1,45 @@
+id           = "ps1-point-blank-3"
+title        = "Point Blank 3"
+alt_titles   = ["Gunbalina"]
+genre        = "gun"
+subgenre     = ["party"]
+year         = 2001
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sony-ps1"
+graphics     = "2d"
+players      = 2
+series       = "Point Blank"
+original     = "ptblank3"
+regions      = ["world"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco GunCon (G-Con 45)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "PS1 PB3"
+colour = "#101018"
+accent = "#ff7a1a"
+blurb  = "Point Blank 3 on PlayStation, released worldwide after the arcade cabinet."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Point_Blank_(video_game_series)"]
+confidence = "medium"
+checked    = "2026-10-08"

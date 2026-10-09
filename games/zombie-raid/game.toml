@@ -1,0 +1,38 @@
+id           = "zombie-raid"
+title        = "Zombie Raid"
+genre        = "gun"
+subgenre     = ["horror"]
+year         = 1995
+manufacturer = "sammy"
+developer    = "American Sammy"
+hardware     = "seta-1"
+graphics     = "2d"
+players      = 2
+regions      = ["us"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Sammy light gun (type not confirmed)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "other"
+note = "Arcade PCB on Seta 1st-generation hardware (not in vocab). Not checked in MAME. North America release only"
+
+[routes]
+mame = "unknown"
+vr   = { best = "none" }
+
+[hub]
+pill   = "ZOMBIE"
+colour = "#101410"
+accent = "#9ac44a"
+blurb  = "Screen-scrolling horror shooter for two players, released only in North America."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Zombie_Raid"]
+confidence = "medium"
+checked    = "2026-10-08"

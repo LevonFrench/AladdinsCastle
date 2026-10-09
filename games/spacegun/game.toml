@@ -1,0 +1,40 @@
+id           = "spacegun"
+title        = "Space Gun"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1990
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-z"          # proposed vocab: taito-z ("Taito Z System", per Wikipedia)
+graphics     = "sprite-scaler"        # Taito Z sprite board; Wikipedia says rail shooter, first-person view; medium confidence
+players      = 1                      # unverified
+series       = "Space Gun"
+
+[controls]
+type    = "gun"
+guns    = 1                           # unverified: MAME input block exposes no gun names
+gun     = "Positional light gun"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "spacegun"
+note = "World (MAME parent); Japan and US sets are spacegunj and spacegunu"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SPACEGUN"
+colour = "#0a0c18"
+accent = "#7dd3fc"
+blurb  = "A first-person rail shooter on Taito Z hardware, one gun, and enemies zooming in."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taito_z.cpp", "https://en.wikipedia.org/wiki/Space_Gun_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

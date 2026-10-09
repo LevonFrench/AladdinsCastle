@@ -1,0 +1,39 @@
+id           = "turbo"
+title        = "Turbo"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1981
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-vco-object"          # proposed vocab: sega-vco-object ("Sega VCO Object" board, per Wikipedia)
+graphics     = "sprite-scaler"        # 2.5D; Wikipedia: first game to use scaling sprites
+players      = 1
+series       = "Turbo"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # steering wheel + low/high gear shift (Wikipedia)
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "turbo"
+note = "Program 1513-1515 (MAME parent)"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_SOUND
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "TURBO"
+colour = "#1c1408"
+accent = "#ffb000"
+blurb  = "Sega's 1981 cockpit racer: low gear, high gear, and scaling sprites rushing past."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/turbo.cpp", "https://en.wikipedia.org/wiki/Turbo_(video_game)"]
+confidence = "high"
+checked    = "2026-10-08"

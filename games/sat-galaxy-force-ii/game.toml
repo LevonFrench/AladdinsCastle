@@ -1,0 +1,42 @@
+id           = "sat-galaxy-force-ii"
+title        = "Sega Ages Galaxy Force II"
+alt_titles   = []
+genre        = "racing"                # follows the arcade entry (racing/flying per owner)
+subgenre     = ["flying"]
+year         = 1998                   # Sega Ages Vol. 12, JP 2 Jul 1998 (Wikipedia Sega Ages)
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-saturn"          # exists in vocab
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Galaxy Force"
+original     = "gforce2"
+
+[controls]                            # as the original cabinet (see gforce2)
+type    = "joystick"
+extras  = ["missile-button"]
+
+[[media]]
+kind = "disc"
+note = "Sega Ages Vol. 12 Galaxy Force II, Japan Saturn release; your own disc image or disc"
+
+[[media]]
+kind = "bios"
+note = "Your own Sega Saturn BIOS dump"
+
+[routes]
+mednafen    = "unknown"
+yabasanshiro = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "SAT GF2"
+colour = "#0a1426"
+accent = "#4fd1ff"
+blurb  = "Galaxy Force II on the Saturn in the Sega Ages series (Japan release)."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Ages", "https://en.wikipedia.org/wiki/Galaxy_Force"]
+confidence = "medium"
+checked    = "2026-10-08"

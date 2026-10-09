@@ -1,0 +1,39 @@
+id           = "f1lap"
+title        = "F1 Super Lap"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1993
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-system-32"        # exists in vocab
+graphics     = "sprite-scaler"        # System 32 sprite-based; no Wikipedia article found, low confidence
+players      = 1                      # unverified
+series       = "F1"
+
+[controls]
+type    = "wheel"
+shifter = "seq"                       # Gear Up / Gear Down inputs in MAME
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "f1lap"
+note = "World (MAME parent); Japan set is f1lapj"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "F1 SUPERLAP"
+colour = "#140c0c"
+accent = "#e10600"
+blurb  = "A System 32 Formula One lap: wheel, pedals and paddle-style shifts."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segas32.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

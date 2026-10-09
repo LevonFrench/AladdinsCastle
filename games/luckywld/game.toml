@@ -1,0 +1,40 @@
+id           = "luckywld"
+title        = "Lucky & Wild"
+alt_titles   = []
+genre        = "gun"                   # owner-requested pick: gun (driving is secondary to the two guns); Wikipedia genre is first-person racing/shooter
+subgenre     = ["rail-shooter"]
+year         = 1993                   # Wikipedia JP April 1993 (MAME lists 1992)
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-2"          # proposed vocab: namco-system-2
+graphics     = "sprite-scaler"        # Wikipedia: 2D sprites used to create the illusion of a 3D world
+players      = 2
+series       = "Lucky & Wild"
+
+[controls]
+type    = "gun"
+guns    = 2                           # player 1 drives and shoots, player 2 shoots (Wikipedia; MAME P1/P2 Fire)
+gun     = "Positional light gun (two guns)"
+pedals  = ["accel"]
+extras  = ["steering-wheel"]
+
+[[media]]
+kind = "mame-romset"
+set  = "luckywld"
+note = "World (MAME parent); Japan set is luckywldj"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "LUCKY&WLD"
+colour = "#1a0c14"
+accent = "#ff9a3c"
+blurb  = "Buddy-cop driving with two light guns: one man drives, one surfer covers the shots."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos2.cpp", "https://en.wikipedia.org/wiki/Lucky_%26_Wild"]
+confidence = "high"
+checked    = "2026-10-08"

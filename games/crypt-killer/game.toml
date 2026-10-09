@@ -1,0 +1,37 @@
+id           = "crypt-killer"
+title        = "Crypt Killer"
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 1995
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "other-arcade"
+graphics     = "mixed"
+players      = 3
+
+[controls]
+type   = "gun"
+guns   = 3
+gun    = "Konami light gun (type not confirmed)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "other"
+note = "Konami arcade PCB, not in MAME (no set found). Wikipedia: 3D polygon scenery and characters with 2D sprite enemies and projectiles. Home ports: PlayStation and Saturn (1997)"
+
+[routes]
+mame = "unknown"
+vr   = { best = "none" }
+
+[hub]
+pill   = "CRYPTKILL"
+colour = "#101414"
+accent = "#8fbf7a"
+blurb  = "On-rails crypt raid through caves and temples: polygon scenery, sprite enemies."
+badges = ["3-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Crypt_Killer"]
+confidence = "medium"
+checked    = "2026-10-08"

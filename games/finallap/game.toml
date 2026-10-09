@@ -1,0 +1,39 @@
+id           = "finallap"
+title        = "Final Lap"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1987
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-2"          # proposed vocab: namco-system-2 (first game on Namco System 2, per Wikipedia)
+graphics     = "sprite-scaler"        # Pole Position successor; sprite road (medium confidence on the exact technique)
+players      = 2                      # two-player sit-down cabinet; up to four linked cabinets for 8 players
+series       = "Final Lap"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Shift Gear input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "finallap"
+note = "Rev E (MAME parent); Rev B/C/D and Japan revisions are separate sets"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_GRAPHICS
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "FINALLAP"
+colour = "#0c0c1a"
+accent = "#ff3b3b"
+blurb  = "Suzuka in a Formula One race, linked cabinets for eight, and a gear lever that matters."
+badges = ["2-players", "seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos2.cpp", "https://en.wikipedia.org/wiki/Final_Lap"]
+confidence = "medium"
+checked    = "2026-10-08"

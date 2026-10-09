@@ -1,0 +1,38 @@
+id           = "3ds-turbo-out-run"
+title        = "3D Turbo Out Run"
+alt_titles   = ["3D Turbo OutRun"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2016                   # JP 22 Dec 2016 (Wikipedia); NA/EU not released
+manufacturer = "sega"
+developer    = "M2"
+hardware     = "nintendo-3ds"      # CLOSEST vocab id: nintendo-3ds is not in the vocab (see report)
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Out Run"
+original     = "toutrun"
+
+[controls]                            # as the original cabinet (see toutrun)
+type    = "wheel"
+shifter = "hl"
+pedals  = ["accel", "brake"]
+extras  = ["turbo-button"]
+
+[[media]]
+kind = "other"
+note = "Japan-only Nintendo 3DS eShop release; delisted per Wikipedia, so availability may be gone"
+
+[routes]
+vr          = { best = "none" }
+
+[hub]
+pill   = "3D TURBO"
+colour = "#1a0a24"
+accent = "#ff6b2c"
+blurb  = "Turbo Out Run in stereo 3D, a Japan-only 3DS release."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_3D_Reprint_Archives", "https://en.wikipedia.org/wiki/Turbo_OutRun"]
+confidence = "high"
+checked    = "2026-10-08"

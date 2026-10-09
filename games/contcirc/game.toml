@@ -1,0 +1,39 @@
+id           = "contcirc"
+title        = "Continental Circus"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1987
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-z"          # proposed vocab: taito-z ("Taito Z System", per Wikipedia board names)
+graphics     = "sprite-scaler"        # sprite-scaled Formula One track with alternate-frame 3D glasses (Wikipedia)
+players      = 1
+series       = "Continental Circus"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Shifter input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = ["shutter-3d-glasses"]      # upright and sit-down models use shutter glasses above the head (Wikipedia)
+
+[[media]]
+kind = "mame-romset"
+set  = "contcirc"
+note = "World (MAME parent); US sets contcircu and contcircua; Japan contcircj"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_GRAPHICS
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "CONT CIRC"
+colour = "#1a1208"
+accent = "#ff3b8e"
+blurb  = "Grand-prix circus with shutter glasses on your head and a crash that costs seconds."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taito_z.cpp", "https://en.wikipedia.org/wiki/Continental_Circus"]
+confidence = "high"
+checked    = "2026-10-08"

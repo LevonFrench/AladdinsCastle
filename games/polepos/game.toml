@@ -1,0 +1,39 @@
+id           = "polepos"
+title        = "Pole Position"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1982
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-pole-position"          # proposed vocab: namco-pole-position ("Namco Pole Position" board, per Wikipedia)
+graphics     = "sprite-scaler"        # scaling sprites and pseudo-3D rear perspective (Wikipedia)
+players      = 1
+series       = "Pole Position"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Gear Change input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "polepos"
+note = "World (MAME parent); Japan and Atari sets are separate"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "POLEPOS"
+colour = "#101418"
+accent = "#ffd400"
+blurb  = "Pole position at Fuji, a racing wheel and a pseudo-3D track that sways into the corners."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/polepos.cpp", "https://en.wikipedia.org/wiki/Pole_Position"]
+confidence = "high"
+checked    = "2026-10-08"

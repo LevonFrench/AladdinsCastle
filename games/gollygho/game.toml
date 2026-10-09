@@ -1,0 +1,39 @@
+id           = "gollygho"
+title        = "Golly! Ghost!"
+genre        = "gun"
+subgenre     = ["horror"]
+year         = 1991
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-2"
+graphics     = "2d"
+players      = 2
+series       = "Golly! Ghost!"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco light guns ('Zip' and 'Zap')"
+pedals = []
+extras = ["mirror diorama"]
+
+[[media]]
+kind = "mame-romset"
+set  = "gollygho"
+note = "Japanese/World release. Board is Namco System 2 (not in vocab). MAME marks the set as requiring artwork"
+
+[routes]
+mame = "working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "GOLLY"
+colour = "#1a1024"
+accent = "#e070d0"
+blurb  = "Haunted-house shooting with a mirror diorama: hit every ghost before the timer runs out."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos2.cpp", "https://en.wikipedia.org/wiki/Golly!_Ghost!"]
+confidence = "medium"
+checked    = "2026-10-08"

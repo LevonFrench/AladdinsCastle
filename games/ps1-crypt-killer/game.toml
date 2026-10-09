@@ -1,0 +1,42 @@
+id           = "ps1-crypt-killer"
+title        = "Crypt Killer"
+genre        = "gun"
+subgenre     = ["horror", "rail-shooter"]
+year         = 1997
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "sony-ps1"
+graphics     = "mixed"
+players      = 2
+original     = "crypt-killer"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Konami Justifier (Hyper Blaster)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "PS1 CK"
+colour = "#101414"
+accent = "#8fbf7a"
+blurb  = "The crypt shooter on PlayStation, with the Justifier light gun."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Crypt_Killer"]
+confidence = "medium"
+checked    = "2026-10-08"

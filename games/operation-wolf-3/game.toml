@@ -1,0 +1,38 @@
+id           = "operation-wolf-3"
+title        = "Operation Wolf 3"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1994
+manufacturer = "taito"
+developer    = "East Technology"
+hardware     = "other-arcade"
+graphics     = "2d"
+players      = 2
+series       = "Operation Wolf"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Taito light gun (type not confirmed)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "other"
+note = "Taito arcade PCB, not in MAME (no set found in the taito drivers checked). Wikipedia: only Operation Wolf game with digitized-photograph graphics"
+
+[routes]
+mame = "unknown"
+vr   = { best = "none" }
+
+[hub]
+pill   = "OPWOLF3"
+colour = "#1a1408"
+accent = "#c8a040"
+blurb  = "Counter-terrorist sequel with digitized photographs instead of sprites."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Operation_Wolf_3"]
+confidence = "medium"
+checked    = "2026-10-08"

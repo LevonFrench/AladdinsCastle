@@ -1,0 +1,39 @@
+id           = "sci"
+title        = "Special Criminal Investigation"
+alt_titles   = ["S.C.I."]
+genre        = "racing"
+subgenre     = ["vehicle-combat"]
+year         = 1989
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-z"          # proposed vocab: taito-z ("Taito Z System", per Wikipedia board names)
+graphics     = "sprite-scaler"        # Taito Z sprite-scaled road (medium confidence; Wikipedia silent on technique)
+players      = 1                      # gunman passenger is an in-game character (Wikipedia)
+series       = "Chase"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Shifter input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = ["fire-button", "nitro-button"]   # some cabinets: fire button on the gearshift or wheel; nitrous boost (Wikipedia)
+
+[[media]]
+kind = "mame-romset"
+set  = "sci"
+note = "World set 1 (MAME parent); World set 2 is scia, Japan scij, US sciu"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_GRAPHICS
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SCI"
+colour = "#0c1220"
+accent = "#ff8a1a"
+blurb  = "Chase H.Q. gets a gun: fire at the getaway cars from the driver's seat."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taito_z.cpp", "https://en.wikipedia.org/wiki/Special_Criminal_Investigation"]
+confidence = "high"
+checked    = "2026-10-08"

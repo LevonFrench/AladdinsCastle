@@ -1,0 +1,39 @@
+id           = "pdrift"
+title        = "Power Drift"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["kart"]
+year         = 1988
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-y-board"          # proposed vocab: sega-y-board ("Sega Y Board", per Wikipedia)
+graphics     = "sprite-scaler"        # whole world built from rotating and scaling sprites (Wikipedia)
+players      = 1                      # linkable cabinets (a link version exists)
+series       = "Power Drift"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Gear Shift input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "pdrift"
+note = "World, Rev A (MAME parent)"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "PDRIFT"
+colour = "#1a0a14"
+accent = "#ff5a7a"
+blurb  = "A kart drifting through sprite-scaled tracks on Sega's Y-board hardware."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segaybd.cpp", "https://en.wikipedia.org/wiki/Power_Drift"]
+confidence = "high"
+checked    = "2026-10-08"

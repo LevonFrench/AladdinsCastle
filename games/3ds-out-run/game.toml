@@ -1,0 +1,38 @@
+id           = "3ds-out-run"
+title        = "3D Out Run"
+alt_titles   = ["3D OutRun"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2014                   # JP 23 Apr 2014; NA/EU 12 Mar 2015 (Wikipedia 3D Reprint Archives table)
+manufacturer = "sega"
+developer    = "M2"
+hardware     = "nintendo-3ds"      # CLOSEST vocab id: nintendo-3ds is not in the vocab (see report); change when nintendo-3ds exists
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Out Run"
+original     = "outrun"
+
+[controls]                            # as the original cabinet (see outrun)
+type    = "wheel"
+shifter = "hl"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Nintendo 3DS eShop or game card, bought by you; not provided by the catalog"
+
+[routes]
+vr          = { best = "none" }
+
+[hub]
+pill   = "3D OUTRUN"
+colour = "#1a0a24"
+accent = "#ff3da0"
+blurb  = "Out Run in stereo 3D on the 3DS, with the original's pace and road."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_3D_Reprint_Archives"]
+confidence = "high"
+checked    = "2026-10-08"

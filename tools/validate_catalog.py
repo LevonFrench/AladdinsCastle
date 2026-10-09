@@ -15,7 +15,8 @@ REQUIRED = ["id", "title", "genre", "year", "manufacturer", "hardware", "graphic
 PREFIXES = {"sony-ps1": "ps1-", "sony-ps2": "ps2-", "sony-ps3": "ps3-", "sega-saturn": "sat-",
             "sega-dreamcast": "dc-", "nintendo-64": "n64-", "nintendo-gamecube": "gc-",
             "nintendo-wii": "wii-", "nintendo-wii-u": "wiiu-", "nintendo-switch": "switch-",
-            "microsoft-xbox": "xbox-", "microsoft-xbox-360": "x360-", "pc-windows": "pc-"}
+            "microsoft-xbox": "xbox-", "microsoft-xbox-360": "x360-", "pc-windows": "pc-", "nintendo-3ds": "3ds-", "nintendo-ds": "nds-",
+            "sega-genesis": "md-", "sega-cd": "scd-", "super-nes": "snes-", "sega-master-system": "sms-", "sega-game-gear": "gg-"}
 ROUTE_STATUS = {"working", "imperfect", "not-working", "profile", "playable", "unknown"}
 
 

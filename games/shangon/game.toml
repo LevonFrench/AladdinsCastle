@@ -1,0 +1,37 @@
+id           = "shangon"
+title        = "Super Hang-On"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1987
+manufacturer = "sega"
+developer    = "Sega AM1"
+hardware     = "sega-outrun"          # MAME driver is segaorun.cpp; proposed vocab: sega-outrun (to confirm against Wikipedia board list)
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Hang-On"
+
+[controls]
+type    = "bike"
+extras  = ["motion-sim-deluxe"]       # simulated motorcycle cabinet (Wikipedia)
+
+[[media]]
+kind = "mame-romset"
+set  = "shangon"
+note = "Sitdown/upright, unprotected (MAME parent)"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "S-HANG-ON"
+colour = "#1a1206"
+accent = "#ffb13b"
+blurb  = "The Hang-On sequel: a motorbike cabinet, a long road, and a lot of other riders."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segaorun.cpp", "https://en.wikipedia.org/wiki/Super_Hang-On"]
+confidence = "high"
+checked    = "2026-10-08"

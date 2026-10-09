@@ -1,0 +1,39 @@
+id           = "buggyboy"
+title        = "Buggy Boy"
+alt_titles   = ["Speed Buggy"]
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1985
+manufacturer = "tatsumi"                # Tatsumi; not in manufacturer vocab, name in developer field
+developer    = "Tatsumi"
+hardware     = "tatsumi-tx-1"          # proposed vocab: tatsumi-tx-1 (MAME tx1.cpp family)
+graphics     = "sprite-scaler"        # pseudo-3D off-road buggy; medium confidence
+players      = 1
+series       = "Buggy Boy"
+
+[controls]
+type    = "wheel"
+shifter = ""                          # not characterised
+pedals  = ["accel", "brake"]          # not verified against the cabinet
+extras  = ["three-screen-cockpit"]    # panoramic three-screen display in the cockpit version (Wikipedia)
+
+[[media]]
+kind = "mame-romset"
+set  = "buggyboy"
+note = "Cockpit rev D (MAME parent); rev B is buggyboyb; upright Junior is buggyboyjr"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "BUGGY BOY"
+colour = "#1a1206"
+accent = "#ffd400"
+blurb  = "Off-road buggy on two wheels for bonus points, across a three-screen cockpit display."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/tatsumi/tx1.cpp", "https://en.wikipedia.org/wiki/Buggy_Boy"]
+confidence = "medium"
+checked    = "2026-10-08"

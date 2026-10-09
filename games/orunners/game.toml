@@ -1,0 +1,39 @@
+id           = "orunners"
+title        = "OutRunners"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1993                   # Wikipedia (MAME lists 1992)
+manufacturer = "sega"
+developer    = "Sega AM1"
+hardware     = "sega-system-32"        # Wikipedia: System 32 Multi (Multi32); closest vocab id, see report
+graphics     = "sprite-scaler"        # sprite design and parallax, like Power Drift (Wikipedia)
+players      = 2                      # two-player cabinet; head-to-head linkable up to 8
+series       = "Out Run"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # medium confidence: Out Run lineage
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "orunners"
+note = "World (MAME parent); US and Japan sets are orunnersu and orunnersj"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "ORUNNERS"
+colour = "#1a0a24"
+accent = "#ff6ec7"
+blurb  = "The Out Run series goes head-to-head: two cabinets, two drivers, one shared road."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segas32.cpp", "https://en.wikipedia.org/wiki/OutRunners"]
+confidence = "medium"
+checked    = "2026-10-08"

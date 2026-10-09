@@ -7,7 +7,7 @@ year         = 1999
 manufacturer = "namco"
 developer    = "Raizing"
 hardware     = "namco-system-12"
-graphics     = "polygon-3d"   # verify: 2D/3D not confirmed
+graphics     = "polygon-3d"
 players      = 2
 series       = ""
 

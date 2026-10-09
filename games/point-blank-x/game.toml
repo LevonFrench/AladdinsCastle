@@ -1,0 +1,41 @@
+id           = "point-blank-x"
+title        = "Point Blank X"
+alt_titles   = ["Gun Bullet X"]
+genre        = "gun"
+subgenre     = ["party"]
+year         = 2016
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-es4"
+graphics     = "2d"
+players      = 2
+series       = "Point Blank"
+regions      = ["world"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "GunCon-style light gun (similar to Time Crisis 4)"
+pedals = []
+extras = ["ticket dispenser", "flat-screen cabinet"]
+
+[[media]]
+kind = "other"
+note = "Namco ES4 arcade PCB, not in MAME. TeknoParrot profile PointBlankX (GunGame=true); DemulShooter class Es4PointBlankX"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "none" }
+
+[hub]
+pill   = "PBX"
+colour = "#101018"
+accent = "#ff7a1a"
+blurb  = "Reboot on a flat-screen cabinet: HD remakes of Point Blank 1-3 stages plus new ones."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Point_Blank_(video_game_series)", "https://www.mobygames.com/game/point-blank-x"]
+confidence = "low"
+checked    = "2026-10-08"

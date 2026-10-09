@@ -1,0 +1,39 @@
+id           = "racingb"
+title        = "Racing Beat"
+alt_titles   = ["Double Axle", "Power Wheels (Japan)"]
+genre        = "racing"
+subgenre     = ["truck", "rally"]
+year         = 1991
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-z"          # proposed vocab: taito-z ("Taito Z System", per Wikipedia)
+graphics     = "sprite-scaler"        # Taito Z; medium confidence
+players      = 1                      # Wikipedia modes: single and multiplayer (linked); count unverified
+series       = "Double Axle"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Shifter input; pattern unverified
+pedals  = ["accel", "brake"]          # MAME shows gas and brake switches; treated as pedals
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "racingb"
+note = "World (MAME parent); Japan set is racingbj. Wikipedia title for the NA release is Double Axle"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_GRAPHICS
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "RACINGB"
+colour = "#1a1208"
+accent = "#ffb000"
+blurb  = "Monster truck races through mud, ice and rocks, with money for upgrades."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taito_z.cpp", "https://en.wikipedia.org/wiki/Double_Axle"]
+confidence = "medium"
+checked    = "2026-10-08"

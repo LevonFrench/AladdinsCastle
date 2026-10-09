@@ -1,0 +1,39 @@
+id           = "terminator-2-judgment-day"
+title        = "Terminator 2: Judgment Day"
+alt_titles   = ["T2"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1991
+manufacturer = "midway"
+developer    = "Midway"
+hardware     = "other-arcade"
+graphics     = "2d"
+players      = 2
+series       = "Terminator"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Midway light gun (type not confirmed)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "other"
+note = "Midway arcade PCB (board not in vocab), not in MAME (midtunit and midwunit drivers checked, no T2 set). Digitized film cast; ports on Genesis, SNES, Master System, MS-DOS"
+
+[routes]
+mame = "unknown"
+vr   = { best = "none" }
+
+[hub]
+pill   = "T2"
+colour = "#101014"
+accent = "#c8c8d8"
+blurb  = "The film cast, digitized, in a first-person rail shooter built alongside the movie."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Terminator_2:_Judgment_Day_(arcade_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

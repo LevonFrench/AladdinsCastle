@@ -1,0 +1,39 @@
+id           = "chasehq"
+title        = "Chase H.Q."
+alt_titles   = ["Chase HQ"]
+genre        = "racing"
+subgenre     = ["mission-driving"]
+year         = 1988
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-z"          # proposed vocab: taito-z ("Taito Z System", per Wikipedia board names)
+graphics     = "sprite-scaler"        # Wikipedia: arguably the first sprite-scaled racer since Out Run
+players      = 1
+series       = "Chase"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Shifter input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = ["turbo-button"]            # MAME exposes a Turbo input
+
+[[media]]
+kind = "mame-romset"
+set  = "chasehq"
+note = "World (MAME parent); Japan and US sets are chasehqj and chasehqu"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_GRAPHICS
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "CHASE HQ"
+colour = "#0c1220"
+accent = "#ff3b3b"
+blurb  = "Police pursuit: catch the criminal before the clock runs out, with a turbo boost to help."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taito_z.cpp", "https://en.wikipedia.org/wiki/Chase_H.Q."]
+confidence = "high"
+checked    = "2026-10-08"

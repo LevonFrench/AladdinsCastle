@@ -1,0 +1,39 @@
+id           = "overdriv"
+title        = "Over Drive"
+alt_titles   = ["Overdrive"]
+genre        = "racing"
+subgenre     = []                     # not characterised; no Wikipedia article found
+year         = 1990
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-over-drive"          # proposed vocab: konami-over-drive ("Konami Over Drive / GX789" board, MAME overdriv.cpp)
+graphics     = "sprite-scaler"        # K053247 zoomable sprites and K053250 road hardware (MAME); low confidence
+players      = 1
+series       = "Over Drive"
+
+[controls]
+type    = "wheel"
+shifter = ""                          # not characterised
+pedals  = ["accel", "brake"]          # not verified against the cabinet
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "overdriv"
+note = "Set 1 (MAME parent); sets 2 and 3 are overdriva and overdrivb. MAME marks it not working"
+
+[routes]
+mame        = "not-working"
+vr          = { best = "none" }
+
+[hub]
+pill   = "OVERDRIVE"
+colour = "#140c08"
+accent = "#ff7a00"
+blurb  = "Konami 1990 driving game; MAME emulation is not working yet."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/overdriv.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

@@ -1,0 +1,39 @@
+id           = "tx1"
+title        = "TX-1"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1983
+manufacturer = "tatsumi"                # Tatsumi; not in manufacturer vocab, name in developer field
+developer    = "Tatsumi"
+hardware     = "tatsumi-tx-1"          # proposed vocab: tatsumi-tx-1 ("Tatsumi TX-1" board, MAME tx1.cpp)
+graphics     = "sprite-scaler"        # Pole Position-style pseudo-3D (Wikipedia)
+players      = 1
+series       = "TX-1"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # Wikipedia: downshifts required in corners; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = ["force-feedback-wheel"]    # first car driving game with force feedback (Wikipedia)
+
+[[media]]
+kind = "mame-romset"
+set  = "tx1"
+note = "World (MAME parent); Japan rev B and C are tx1jb and tx1jc"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_SOUND
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "TX-1"
+colour = "#0c1220"
+accent = "#ff3a1a"
+blurb  = "Force feedback in the wheel and a three-screen view of the road, from 1983."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/tatsumi/tx1.cpp", "https://en.wikipedia.org/wiki/TX-1"]
+confidence = "high"
+checked    = "2026-10-08"

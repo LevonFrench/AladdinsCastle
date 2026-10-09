@@ -1,0 +1,40 @@
+id           = "opwolf"
+title        = "Operation Wolf"
+genre        = "gun"
+subgenre     = ["rail-shooter", "machine-gun"]
+year         = 1987
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "other-arcade"
+graphics     = "2d"
+players      = 2
+series       = "Operation Wolf"
+regions      = ["world", "jp", "us"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Taito mounted machine gun (optical sensor, recoil-like feedback)"
+pedals = []
+extras = ["mounted gun"]
+
+[[media]]
+kind = "mame-romset"
+set  = "opwolf"
+note = "World rev 2 set 1. Clones: opwolfa, opwolfj (Japan), opwolfu (US rev 2), opwolfp (prototype)"
+
+[routes]
+mame = "imperfect"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "OPWOLF"
+colour = "#1a1408"
+accent = "#d9a33a"
+blurb  = "Mount the machine gun and hold the rail against a mercenary raid."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/opwolf.cpp", "https://en.wikipedia.org/wiki/Operation_Wolf"]
+confidence = "high"
+checked    = "2026-10-08"

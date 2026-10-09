@@ -1,0 +1,37 @@
+id           = "enduror"
+title        = "Enduro Racer"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["motorcycle", "rally"]
+year         = 1986
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-space-harrier"          # proposed vocab: sega-space-harrier ("Sega Space Harrier" board, per Wikipedia)
+graphics     = "sprite-scaler"        # shares the Hang-On engine and PCB (Wikipedia)
+players      = 1
+series       = "Enduro Racer"
+
+[controls]
+type    = "handlebars"                # stand-up cabinet with handlebars; a dirt-bike cabinet also exists
+extras  = ["wheelie-pull-up"]         # throttle and brake; pull the handlebars up for a wheelie
+
+[[media]]
+kind = "mame-romset"
+set  = "enduror"
+note = "Rev A, YM2151, FD1089B (MAME parent)"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "ENDURO"
+colour = "#1a1206"
+accent = "#d4a017"
+blurb  = "Dirt-bike handlebars, a wheelie over the logs, and a field of riders in your way."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segahang.cpp", "https://en.wikipedia.org/wiki/Enduro_Racer"]
+confidence = "high"
+checked    = "2026-10-08"

@@ -1,0 +1,39 @@
+id           = "fourtrax"
+title        = "Four Trax"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1989
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-2"          # proposed vocab: namco-system-2
+graphics     = "sprite-scaler"        # Final Lap engine family in MAME (medium confidence)
+players      = 2                      # two-player cabinets, up to four linked (Wikipedia)
+series       = "Four Trax"
+
+[controls]
+type    = "handlebars"                # quad-bike racing; handlebar layout not verified
+shifter = ""                          # MAME exposes a Gear Shift input; not characterised
+pedals  = []
+extras  = ["throttle", "brake-lever"]
+
+[[media]]
+kind = "mame-romset"
+set  = "fourtrax"
+note = "World (MAME parent); Japan and US sets are fourtraxj and fourtraxa"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_GRAPHICS
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "FOURTRAX"
+colour = "#141a0c"
+accent = "#9be03c"
+blurb  = "Four quad bikes, one off-road lap at a time, and the clock always ticking."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos2.cpp", "https://en.wikipedia.org/wiki/Four_Trax"]
+confidence = "medium"
+checked    = "2026-10-08"

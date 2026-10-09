@@ -1,0 +1,40 @@
+id           = "othunder"
+title        = "Operation Thunderbolt"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1988
+manufacturer = "taito"
+developer    = "Taito"
+hardware     = "taito-f2"          # proposed vocab: taito-f2 (MAME othunder.cpp is based on the F2 driver)
+graphics     = "sprite-scaler"        # Wikipedia: forward-scrolling pseudo-3D perspective; board is F2 family, scaling unverified (medium)
+players      = 2
+series       = "Operation Wolf"
+
+[controls]
+type    = "gun"
+guns    = 2                           # two positional gun controllers on the cabinet (Wikipedia)
+gun     = "Positional light gun (two guns)"
+pedals  = []
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "othunder"
+note = "World rev 1 (MAME parent); US set othunderu; Japan set othunderj"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "OP THUNDR"
+colour = "#140c08"
+accent = "#ff7a1a"
+blurb  = "Two positional guns and forward-scrolling stages with a pseudo-3D perspective."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/othunder.cpp", "https://en.wikipedia.org/wiki/Operation_Thunderbolt_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

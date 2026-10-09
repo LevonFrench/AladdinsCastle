@@ -1,0 +1,38 @@
+id           = "switch-out-run"
+title        = "Sega Ages OutRun"
+alt_titles   = ["Sega Ages Out Run"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2018                   # JP 29 Nov 2018; NA/EU 10 Jan 2019 (Wikipedia Sega Ages)
+manufacturer = "sega"
+developer    = "M2"
+hardware     = "nintendo-switch"      # exists in vocab
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Out Run"
+original     = "outrun"
+
+[controls]                            # as the original cabinet (see outrun)
+type    = "wheel"
+shifter = "hl"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Nintendo Switch eShop purchase, bought by you"
+
+[routes]
+vr          = { best = "none" }
+
+[hub]
+pill   = "NSW OUTRUN"
+colour = "#1a0a24"
+accent = "#ff3da0"
+blurb  = "Sega Ages OutRun on Switch, with the arcade cabinet's pace and extra music from the 3DS version."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Ages", "https://en.wikipedia.org/wiki/Out_Run"]
+confidence = "high"
+checked    = "2026-10-08"

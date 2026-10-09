@@ -1,0 +1,38 @@
+id           = "revolution-x"
+title        = "Revolution X"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1994
+manufacturer = "midway"
+developer    = "Midway"
+hardware     = "other-arcade"
+graphics     = "2d"
+players      = 2
+regions      = ["world"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Mounted light gun (Midway, type not confirmed)"
+pedals = []
+extras = ["mounted gun"]
+
+[[media]]
+kind = "other"
+note = "Midway arcade PCB (board not in vocab), not in MAME. Digitized Aerosmith performances. Players count not confirmed by the sources used"
+
+[routes]
+mame = "unknown"
+vr   = { best = "none" }
+
+[hub]
+pill   = "REVX"
+colour = "#101018"
+accent = "#e0a040"
+blurb  = "Aerosmith-soundtracked rail shooter with digitized band members and branching paths."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Revolution_X"]
+confidence = "medium"
+checked    = "2026-10-08"

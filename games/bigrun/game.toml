@@ -1,0 +1,39 @@
+id           = "bigrun"
+title        = "Big Run"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1989
+manufacturer = "jaleco"
+developer    = "Jaleco"
+hardware     = "jaleco-cischeat"          # proposed vocab: jaleco-cischeat ("Jaleco road generator" board, MAME cischeat.cpp); Wikipedia says dedicated Jaleco hardware
+graphics     = "sprite-scaler"        # Wikipedia: rendered in pseudo-3D
+players      = 1
+series       = "Big Run"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a P1 Gear Shift input; pattern unverified
+pedals  = ["accel", "brake"]          # brake confirmed in MAME; accelerator assumed on the same cabinet
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "bigrun"
+note = "11th Rallye version (MAME parent); US set is bigrunu"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "BIG RUN"
+colour = "#1a1008"
+accent = "#ffb000"
+blurb  = "Paris-Dakar in a Porsche 959: finish each leg on time or the desert wins."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/jaleco/cischeat.cpp", "https://en.wikipedia.org/wiki/Big_Run_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

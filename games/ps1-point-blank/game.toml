@@ -1,0 +1,45 @@
+id           = "ps1-point-blank"
+title        = "Point Blank"
+alt_titles   = ["Gun Bullet"]
+genre        = "gun"
+subgenre     = ["party"]
+year         = 1997
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sony-ps1"
+graphics     = "2d"
+players      = 2
+series       = "Point Blank"
+original     = "ptblank"
+regions      = ["jp", "us"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco GunCon (G-Con 45)"
+pedals = []
+extras = ["arrange mode", "RPG mode"]
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (US SLUS-00481 or the Japanese release)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "PS1 PB1"
+colour = "#101018"
+accent = "#ff7a1a"
+blurb  = "The 1997 PlayStation port with GunCon support, an arrange mode and an RPG mode."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Point_Blank_(video_game_series)"]
+confidence = "medium"
+checked    = "2026-10-08"

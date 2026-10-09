@@ -1,0 +1,37 @@
+id           = "hangon"
+title        = "Hang-On"
+alt_titles   = ["Hang On"]
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1985
+manufacturer = "sega"
+developer    = "Sega AM1"
+hardware     = "sega-hang-on"          # proposed vocab: sega-hang-on ("Super Scaler" board, per Wikipedia)
+graphics     = "sprite-scaler"        # Wikipedia: Super Scaler board simulates 3D effects
+players      = 1
+series       = "Hang-On"
+
+[controls]
+type    = "bike"
+extras  = ["motion-sim-deluxe"]       # deluxe motion-controlled motorbike cabinet
+
+[[media]]
+kind = "mame-romset"
+set  = "hangon"
+note = "Rev A (MAME parent)"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "HANG-ON"
+colour = "#1a1206"
+accent = "#ff8c1a"
+blurb  = "Lean into the bends on a motorbike cabinet and pick up speed in the 16-bit rush."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segahang.cpp", "https://en.wikipedia.org/wiki/Hang-On"]
+confidence = "high"
+checked    = "2026-10-08"

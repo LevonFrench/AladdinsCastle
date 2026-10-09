@@ -1,0 +1,39 @@
+id           = "f1en"
+title        = "F1 Exhaust Note"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1991
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-system-32"        # exists in vocab
+graphics     = "sprite-scaler"        # System 32 sprite-based; Wikipedia does not describe pseudo-3D, medium confidence
+players      = 2                      # two-player dual cabinet; link up to four cabinets for 8 (Wikipedia)
+series       = "F1"
+
+[controls]
+type    = "wheel"
+shifter = "seq"                       # Gear Up / Gear Down inputs in MAME
+pedals  = ["accel", "brake"]
+extras  = ["overtake-button"]
+
+[[media]]
+kind = "mame-romset"
+set  = "f1en"
+note = "World Rev A (MAME parent); US and Japan sets are f1enu and f1enj"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "F1 EXHAUST"
+colour = "#140c0c"
+accent = "#e10600"
+blurb  = "Two-seat Formula One with a seat that carries the engine note to your back."
+badges = ["2-players", "seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segas32.cpp", "https://en.wikipedia.org/wiki/F1_Exhaust_Note"]
+confidence = "medium"
+checked    = "2026-10-08"

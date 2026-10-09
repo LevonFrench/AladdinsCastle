@@ -1,0 +1,39 @@
+id           = "sgunner2"
+title        = "Steel Gunner 2"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1991
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-2"
+graphics     = "2d"
+players      = 2
+series       = "Steel Gunner"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco light gun"
+pedals = []
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "sgunner2"
+note = "US set. Clone: sgunner2j (Japan, Rev A). Board is Namco System 2 (not in vocab). Wikipedia dates the sequel to 1992; MAME dates the US set to 1991"
+
+[routes]
+mame = "working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "STLGUN2"
+colour = "#15161a"
+accent = "#9aa6b8"
+blurb  = "The Steel Gunner sequel: more Gargoyle mecha and more shootable scenery."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos2.cpp", "https://en.wikipedia.org/wiki/Steel_Gunner"]
+confidence = "medium"
+checked    = "2026-10-08"

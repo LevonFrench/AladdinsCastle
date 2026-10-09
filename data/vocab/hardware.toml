@@ -262,3 +262,129 @@ family = "microsoft"
 label = "Windows PC"
 kind = "pc"
 family = "pc"
+
+# ---- Added 2026-10-08 (scaler / 2D gun slices) ----
+[sega-vco-object]
+label = "Sega VCO Object (Turbo)"
+kind = "arcade"
+family = "sega"
+
+[sega-hang-on]
+label = "Sega Hang-On (Super Scaler)"
+kind = "arcade"
+family = "sega"
+
+[sega-space-harrier]
+label = "Sega Space Harrier board"
+kind = "arcade"
+family = "sega"
+
+[sega-outrun]
+label = "Sega OutRun board"
+kind = "arcade"
+family = "sega"
+
+[sega-x-board]
+label = "Sega X Board"
+kind = "arcade"
+family = "sega"
+
+[sega-y-board]
+label = "Sega Y Board"
+kind = "arcade"
+family = "sega"
+
+[sega-system-18]
+label = "Sega System 18"
+kind = "arcade"
+family = "sega"
+
+[namco-pole-position]
+label = "Namco Pole Position hardware"
+kind = "arcade"
+family = "namco"
+
+[namco-system-2]
+label = "Namco System 2"
+kind = "arcade"
+family = "namco"
+
+[namco-system-10]
+label = "Namco System 10"
+kind = "arcade"
+family = "namco"
+
+[taito-z]
+label = "Taito Z System"
+kind = "arcade"
+family = "taito"
+
+[taito-top-speed]
+label = "Taito Top Speed board"
+kind = "arcade"
+family = "taito"
+
+[taito-f2]
+label = "Taito F2 System"
+kind = "arcade"
+family = "taito"
+
+[konami-wec]
+label = "Konami WEC Le Mans hardware"
+kind = "arcade"
+family = "konami"
+
+[konami-over-drive]
+label = "Konami Over Drive (GX789)"
+kind = "arcade"
+family = "konami"
+
+[jaleco-cischeat]
+label = "Jaleco Big Run / Cisco Heat road hardware"
+kind = "arcade"
+family = "other"
+
+[tatsumi-tx-1]
+label = "Tatsumi TX-1 / Buggy Boy"
+kind = "arcade"
+family = "other"
+
+[seta-1]
+label = "Seta 1st-generation hardware"
+kind = "arcade"
+family = "other"
+
+[sega-master-system]
+label = "Sega Master System"
+kind = "console"
+family = "sega"
+
+[sega-game-gear]
+label = "Sega Game Gear"
+kind = "console"
+family = "sega"
+
+[sega-genesis]
+label = "Sega Genesis / Mega Drive"
+kind = "console"
+family = "sega"
+
+[sega-cd]
+label = "Sega CD / Mega-CD"
+kind = "console"
+family = "sega"
+
+[super-nes]
+label = "Super NES / Super Famicom"
+kind = "console"
+family = "nintendo"
+
+[nintendo-ds]
+label = "Nintendo DS"
+kind = "console"
+family = "nintendo"
+
+[nintendo-3ds]
+label = "Nintendo 3DS"
+kind = "console"
+family = "nintendo"

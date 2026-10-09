@@ -1,0 +1,44 @@
+id           = "ps2-gunvari-collection-time-crisis"
+title        = "Gunvari Collection + Time Crisis"
+genre        = "gun"
+subgenre     = ["party", "cover-shooter"]
+year         = 2002
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sony-ps2"
+graphics     = "mixed"
+players      = 2
+series       = "Point Blank"
+regions      = ["jp"]
+contains     = ["ptblank", "ptblank2", "ptblank3", "timecris"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco GunCon 2"
+pedals = []
+extras = []
+
+[[media]]
+kind = "disc"
+note = "Your own PS2 disc dump (Japan-only compilation)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation 2 BIOS dump"
+
+[routes]
+pcsx2 = "unknown"
+vr    = { best = "none" }
+
+[hub]
+pill   = "GUNVARI"
+colour = "#101018"
+accent = "#ff7a1a"
+blurb  = "Japan-only compilation of Point Blank 1-3 and the first Time Crisis."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Point_Blank_(video_game_series)", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-08"

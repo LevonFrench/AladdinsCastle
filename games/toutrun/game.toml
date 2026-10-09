@@ -1,0 +1,39 @@
+id           = "toutrun"
+title        = "Turbo Out Run"
+alt_titles   = ["Turbo OutRun"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1989
+manufacturer = "sega"
+developer    = "Sega AM2"
+hardware     = "sega-outrun"          # proposed vocab: sega-outrun (Out Run board upgrade kit, per Wikipedia)
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Out Run"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # console-mounted shifter with turbo button (Wikipedia)
+pedals  = ["accel", "brake"]
+extras  = ["turbo-button"]
+
+[[media]]
+kind = "mame-romset"
+set  = "toutrun"
+note = "FD1094 317-0118 upgrade set (MAME parent); cockpit and Japan variants are separate sets"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "TOUTRUN"
+colour = "#1a0a24"
+accent = "#ff6b2c"
+blurb  = "Out Run with a turbo button and a Ferrari F40 running a Porsche 959 down the coast."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segaorun.cpp", "https://en.wikipedia.org/wiki/Turbo_OutRun"]
+confidence = "high"
+checked    = "2026-10-08"

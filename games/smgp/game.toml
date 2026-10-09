@@ -1,0 +1,39 @@
+id           = "smgp"
+title        = "Super Monaco GP"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1989
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-x-board"          # proposed vocab: sega-x-board ("Sega X Board", per Wikipedia)
+graphics     = "sprite-scaler"
+players      = 1                      # arcade linkable (Wikipedia: up to 8 players by linking)
+series       = "Monaco GP"
+
+[controls]
+type    = "wheel"
+shifter = "seq"                       # shift plates behind the wheel (Wikipedia)
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "smgp"
+note = "World Rev B (MAME parent); US and Japan sets are separate"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SMGP"
+colour = "#0c1a10"
+accent = "#3ddc84"
+blurb  = "One lap of Monaco with a wheel, shift plates behind it, and nineteen rivals."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segaxbd.cpp", "https://en.wikipedia.org/wiki/Super_Monaco_GP"]
+confidence = "high"
+checked    = "2026-10-08"

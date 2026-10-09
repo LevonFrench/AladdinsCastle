@@ -1,0 +1,39 @@
+id           = "lethalen"
+title        = "Lethal Enforcers"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1992
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "other-arcade"
+graphics     = "2d"
+players      = 2
+series       = "Lethal Enforcers"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Konami revolver-style light gun (Justifier type)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "lethalen"
+note = "Version UAE 11/19/92. Clones: lethalenub, lethalenua, lethalenux (US, hacked/proto), EA-series sets (lethaleneae, lethalenead, lethaleneab, lethaleneaa), lethalenj (Japan)"
+
+[routes]
+mame = "imperfect"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "LETHAL"
+colour = "#1a0d0d"
+accent = "#e0503a"
+blurb  = "Digitized actors on a rail: pick your shots and keep the citizens safe."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/lethal.cpp", "https://en.wikipedia.org/wiki/Lethal_Enforcers"]
+confidence = "high"
+checked    = "2026-10-08"

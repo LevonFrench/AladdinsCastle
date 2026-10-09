@@ -1,0 +1,37 @@
+id           = "gforce2"
+title        = "Galaxy Force II"
+alt_titles   = ["Galaxy Force 2"]
+genre        = "racing"                # owner asked for racing/flying; Wikipedia calls it a rail shooter (see report)
+subgenre     = ["flying"]
+year         = 1988
+manufacturer = "sega"
+developer    = "Sega AM1"
+hardware     = "sega-y-board"          # proposed vocab: sega-y-board ("Sega Y Board", per Wikipedia)
+graphics     = "sprite-scaler"        # Sega Super Scaler lineage
+players      = 1
+series       = "Galaxy Force"
+
+[controls]
+type    = "joystick"
+extras  = ["missile-button", "motion-sim-cockpit"]
+
+[[media]]
+kind = "mame-romset"
+set  = "gforce2"
+note = "Galaxy Force 2 (MAME parent); Japan and Super Deluxe sets are separate"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "GFORCE II"
+colour = "#0a1426"
+accent = "#4fd1ff"
+blurb  = "Fly the TRY-Z against the Fourth Empire from a motion-sim cockpit."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segaybd.cpp", "https://en.wikipedia.org/wiki/Galaxy_Force"]
+confidence = "medium"
+checked    = "2026-10-08"

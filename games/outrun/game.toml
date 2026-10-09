@@ -1,0 +1,39 @@
+id           = "outrun"
+title        = "Out Run"
+alt_titles   = ["OutRun"]
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1986
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-outrun"          # proposed vocab: sega-outrun ("Sega OutRun" board, per Wikipedia board list)
+graphics     = "sprite-scaler"        # pseudo-3D (Wikipedia)
+players      = 1
+series       = "Out Run"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # stick shift (Wikipedia: all four cabinets)
+pedals  = ["accel", "brake"]
+extras  = ["motion-sim-deluxe"]       # hydraulic motion-sim deluxe sit-down cabinet
+
+[[media]]
+kind = "mame-romset"
+set  = "outrun"
+note = "Rev B sitdown/upright (MAME parent)"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "OUTRUN"
+colour = "#1a0a24"
+accent = "#ff3da0"
+blurb  = "Ferrari, open road, a pick-your-soundtrack radio and five destinations before time runs out."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segaorun.cpp", "https://en.wikipedia.org/wiki/Out_Run"]
+confidence = "high"
+checked    = "2026-10-08"

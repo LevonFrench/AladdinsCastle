@@ -1,0 +1,39 @@
+id           = "wecleman"
+title        = "WEC Le Mans 24"
+alt_titles   = ["WEC Le Mans"]
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1986
+manufacturer = "konami"
+developer    = "Konami"
+hardware     = "konami-wec"          # proposed vocab: konami-wec ("Konami WEC Le Mans" board, MAME wecleman.cpp)
+graphics     = "sprite-scaler"        # pseudo-3D road family; technique medium confidence
+players      = 1
+series       = "WEC Le Mans"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Shift input and Wikipedia stresses gear shifting; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = ["force-feedback-wheel", "spin-cabinet-deluxe"]
+
+[[media]]
+kind = "mame-romset"
+set  = "wecleman"
+note = "v2.01 (MAME parent); v2.00 is weclemana, v1.26 is weclemanc"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "WEC LM24"
+colour = "#0a0c18"
+accent = "#ffcc33"
+blurb  = "Endurance racing at Le Mans: force feedback in the wheel and day to dusk to night."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/konami/wecleman.cpp", "https://en.wikipedia.org/wiki/WEC_Le_Mans"]
+confidence = "medium"
+checked    = "2026-10-08"

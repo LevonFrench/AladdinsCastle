@@ -1,0 +1,37 @@
+id           = "scross"
+title        = "Stadium Cross"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["motorcycle", "rally"]
+year         = 1992
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-system-32"        # exists in vocab (MAME: Sega Multi32 system)
+graphics     = "sprite-scaler"        # no Wikipedia article found; low confidence
+players      = 1                      # unverified
+series       = "Stadium Cross"
+
+[controls]
+type    = "bike"                      # motocross; cabinet not verified
+extras  = ["throttle-grip", "brake-lever"]
+
+[[media]]
+kind = "mame-romset"
+set  = "scross"
+note = "World (MAME parent); linkable set is scrossa"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "STADCROSS"
+colour = "#1a1206"
+accent = "#c07020"
+blurb  = "Motocross on the Multi32 board."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segas32.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

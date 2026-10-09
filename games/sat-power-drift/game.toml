@@ -1,0 +1,44 @@
+id           = "sat-power-drift"
+title        = "Sega Ages Power Drift"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["kart"]
+year         = 1998                   # Sega Ages Vol. 10, JP 26 Feb 1998 (Wikipedia Sega Ages)
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-saturn"          # exists in vocab
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Power Drift"
+original     = "pdrift"
+
+[controls]                            # as the original cabinet (see pdrift)
+type    = "wheel"
+shifter = "hl"
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "disc"
+note = "Sega Ages Vol. 10 Power Drift, Japan Saturn release; your own disc image or disc"
+
+[[media]]
+kind = "bios"
+note = "Your own Sega Saturn BIOS dump"
+
+[routes]
+mednafen    = "unknown"
+yabasanshiro = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "SAT PDRIFT"
+colour = "#0a1420"
+accent = "#ff5a7a"
+blurb  = "Power Drift on the Saturn in the Sega Ages series (Japan release)."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_Ages", "https://en.wikipedia.org/wiki/Power_Drift"]
+confidence = "medium"
+checked    = "2026-10-08"

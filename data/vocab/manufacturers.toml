@@ -57,5 +57,9 @@ label = "Forever Entertainment"
 label = "Crave Entertainment"
 [psikyo]
 label = "Psikyo"
+[snk]
+label = "SNK"
+[tatsumi]
+label = "Tatsumi"
 [other]
 label = "Other (name in developer field)"

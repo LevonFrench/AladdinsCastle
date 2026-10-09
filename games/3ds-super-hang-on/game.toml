@@ -1,0 +1,36 @@
+id           = "3ds-super-hang-on"
+title        = "3D Super Hang-On"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 2013                   # JP 27 Mar 2013; NA/EU 28 Nov 2013 (Wikipedia)
+manufacturer = "sega"
+developer    = "M2"
+hardware     = "nintendo-3ds"      # CLOSEST vocab id: nintendo-3ds is not in the vocab (see report)
+graphics     = "sprite-scaler"
+players      = 1
+series       = "Hang-On"
+original     = "shangon"
+
+[controls]                            # as the original cabinet (see shangon); the 3DS version emulates a bike via screen tilt
+type    = "bike"
+extras  = ["screen-tilt-option"]
+
+[[media]]
+kind = "other"
+note = "Nintendo 3DS eShop or game card, bought by you; Wikipedia notes this release was later delisted"
+
+[routes]
+vr          = { best = "none" }
+
+[hub]
+pill   = "3D SHANGON"
+colour = "#1a1206"
+accent = "#ffb13b"
+blurb  = "Super Hang-On in stereo 3D, with an optional screen tilt that tries to copy the bike."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Sega_3D_Reprint_Archives", "https://en.wikipedia.org/wiki/Super_Hang-On"]
+confidence = "high"
+checked    = "2026-10-08"

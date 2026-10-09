@@ -1,0 +1,41 @@
+id           = "ptblank"
+title        = "Point Blank"
+alt_titles   = ["Gun Bullet"]
+genre        = "gun"
+subgenre     = ["party"]
+year         = 1994
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-nb"
+graphics     = "2d"
+players      = 2
+series       = "Point Blank"
+regions      = ["world", "jp"]
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco light gun (pair, one per player)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "mame-romset"
+set  = "ptblank"
+note = "World GN2 Rev B set 1. Clones: ptblanka (set 2), gunbuletj (Japan, Gun Bullet), gunbuletw (World GN3 Rev B)"
+
+[routes]
+mame = "working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "POINTBLANK"
+colour = "#101018"
+accent = "#ff7a1a"
+blurb  = "Namco's party shooting gallery: two guns, a crowd of mini-games and Dr. Dan and Dr. Don."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namconb1.cpp", "https://en.wikipedia.org/wiki/Point_Blank_(video_game_series)"]
+confidence = "medium"
+checked    = "2026-10-08"

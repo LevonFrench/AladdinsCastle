@@ -1,0 +1,39 @@
+id           = "radr"
+title        = "Rad Rally"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["rally"]
+year         = 1991
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-system-32"        # exists in vocab
+graphics     = "sprite-scaler"        # System 32 sprite-based; no Wikipedia article found, low confidence
+players      = 1                      # unverified
+series       = "Rad"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # MAME exposes a Gear Change input; pattern unverified
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "radr"
+note = "World (MAME parent); US and Japan sets are radru and radrj"
+
+[routes]
+mame        = "working"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "RAD RALLY"
+colour = "#0d1424"
+accent = "#ffb000"
+blurb  = "Rally stages on the System 32 board, with a gear lever."
+badges = []
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/segas32.cpp"]
+confidence = "low"
+checked    = "2026-10-08"

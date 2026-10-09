@@ -1,0 +1,39 @@
+id           = "finalap2"
+title        = "Final Lap 2"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["circuit"]
+year         = 1990
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-2"          # proposed vocab: namco-system-2
+graphics     = "sprite-scaler"        # Final Lap engine lineage (medium confidence)
+players      = 2                      # Wikipedia: up to 8 players simultaneously (linked two-player cabinets)
+series       = "Final Lap"
+
+[controls]
+type    = "wheel"
+shifter = "hl"                        # assumed same cabinet as Final Lap; unverified
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "mame-romset"
+set  = "finalap2"
+note = "World Rev B (MAME parent); Japan sets are finalap2j and finalap2jb"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_GRAPHICS
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "FINALAP 2"
+colour = "#0c0c1a"
+accent = "#ff6a3b"
+blurb  = "Four new courses on the System 2 cabinet, and the top-earning cockpit of September 1990."
+badges = ["2-players", "seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos2.cpp", "https://en.wikipedia.org/wiki/Final_Lap_2"]
+confidence = "medium"
+checked    = "2026-10-08"

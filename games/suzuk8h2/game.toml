@@ -1,0 +1,37 @@
+id           = "suzuk8h2"
+title        = "Suzuka 8 Hours 2"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["motorcycle"]
+year         = 1993
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-system-2"          # proposed vocab: namco-system-2
+graphics     = "sprite-scaler"        # sequel to Suzuka 8 Hours; medium confidence
+players      = 2                      # two-player bike cabinets (same family as Suzuka 8 Hours)
+series       = "Suzuka 8 Hours"
+
+[controls]
+type    = "bike"
+extras  = ["throttle-grip", "brake-lever", "lean-to-steer"]
+
+[[media]]
+kind = "mame-romset"
+set  = "suzuk8h2"
+note = "World Rev B (MAME parent); Japan Rev B is suzuk8h2j"
+
+[routes]
+mame        = "imperfect"             # MACHINE_IMPERFECT_GRAPHICS
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "SUZUKA 8H2"
+colour = "#140a0a"
+accent = "#ff7a2e"
+blurb  = "The sequel: the same bike cabinet and a leaning rider."
+badges = ["2-players", "seated"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos2.cpp", "https://en.wikipedia.org/wiki/Suzuka_8_Hours_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-08"

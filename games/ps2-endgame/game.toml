@@ -1,4 +1,3 @@
-# 3D status not stated in the lead; verify before publishing
 id           = "ps2-endgame"
 title        = "Endgame"
 alt_titles   = []
@@ -8,7 +7,7 @@ year         = 2002
 manufacturer = "other"
 developer    = "Cunning Developments (publisher Empire Interactive)"
 hardware     = "sony-ps2"
-graphics     = "polygon-3d"   # verify: 2D/3D not confirmed
+graphics     = "polygon-3d"
 players      = 1
 
 [controls]
