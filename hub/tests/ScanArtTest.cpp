@@ -7,6 +7,8 @@
 #include <QFile>
 #include <QFontDatabase>
 #include <QTemporaryDir>
+#include <QProcess>
+#include <QProcessEnvironment>
 #include <QtEndian>
 #include <QtTest>
 namespace {
@@ -375,6 +377,28 @@ private slots:
     QVERIFY(r.bindings[0].verified);
     QCOMPARE(r.bindings[0].identity, QString("regional"));
     QCOMPARE(r.bindings[0].supportPaths.size(), 1);
+  }
+
+
+  void arttoolDocumentedCommandExportsFallback() {
+    QTemporaryDir t;
+    const ac::Json request{{"dataRoot",AC_CATALOG_ROOT},{"userRoot",t.filePath("user").toStdString()},{"gameIds",ac::Json::array({"timecris"})},{"outputDirectory",t.filePath("out").toStdString()},{"kind","logo"}};
+    const auto path=t.filePath("request.json");save(path,QByteArray::fromStdString(request.dump()));
+    QString binary=QCoreApplication::applicationDirPath()+"/arttool";
+#ifdef Q_OS_WIN
+    binary+=".exe";
+#endif
+    QProcess child;auto environment=QProcessEnvironment::systemEnvironment();
+#ifdef Q_OS_WIN
+    environment.insert("QT_QPA_PLATFORM","windows");
+#else
+    environment.insert("QT_QPA_PLATFORM","offscreen");
+#endif
+    child.setProcessEnvironment(environment);child.start(binary,{"--request",path});
+    QVERIFY(child.waitForFinished(15000));QCOMPARE(child.exitCode(),0);
+    const QImage image(t.filePath("out/timecris.png"));QVERIFY(!image.isNull());
+    QCOMPARE(image.size(),QSize(920,430));QCOMPARE(image.pixelColor(0,0).alpha(),0);
+    QVERIFY(QFileInfo::exists(t.filePath("out/receipt.json")));
   }
 
   void scanTimeToolFingerprintSurvivesLaterChange() {
