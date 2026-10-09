@@ -147,13 +147,13 @@ void HubServices::scan(const QStringList &folders){
 }
 install::Request HubServices::gameRequest(const QString &id,const QString &variant){
     auto game=games_->find(id);if(!game)throw install::Error("E_GAME_INVALID","Unknown game");
-    install::Request request;request.root=root_;request.catalogRoot=QFileInfo(game->folder).dir().absolutePath()+"/..";
+    install::Request request;request.root=root_;request.catalogRoot=QDir::cleanPath(QFileInfo(game->folder).dir().absolutePath()+"/..");
     request.gameId=id;request.variantId=variant;request.recipe=game->install;request.runtime=current(id);
     request.bindings=launch::normalizeBindings(bindings_,id);request.settings=Json::parse(QJsonDocument(QJsonObject::fromVariantMap(settings_->game(id))).toJson(QJsonDocument::Compact).toStdString());return request;
 }
 QString HubServices::catalogRoot()const{
     if(games_->records().isEmpty())throw install::Error("E_CATALOG_EMPTY","Catalog has no games. Load a valid catalog before installing or removing emulator tools.");
-    return QFileInfo(games_->records().first().folder).dir().absolutePath()+"/..";
+    return QDir::cleanPath(QFileInfo(games_->records().first().folder).dir().absolutePath()+"/..");
 }
 QString HubServices::toolPlan()const{
     try{const auto catalog=catalogRoot();auto request=install::Engine::emulatorRequest(root_,games_->catalog().emulators.at("supermodel"));request.catalogRoot=catalog;return install::Engine().plan(request).text;}

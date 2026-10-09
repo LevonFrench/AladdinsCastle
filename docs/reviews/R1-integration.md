@@ -72,7 +72,7 @@ These gates remain open. Software tests and green CI do not establish them.
 - Parent hardening: 5/5 targeted suites passed; the additional fake-runtime
   failure regression also passed.
 - Final integrated Windows validation: all 13 GPU-free CTest suites passed. The installer suite was rerun after its obsolete synthetic media kind was aligned with the shipped disc schema. The S2 benchmark remained deliberately skipped.
-- Late media-alias regressions failed before the file-identity guard and passed afterward; the affected privacy, installer and integration suites then passed (3/3). The Linux aggregate-initializer warning was corrected and its affected local suites passed (4/4).
+- Late media-alias regressions failed before the file-identity guard and passed afterward; the affected privacy, installer and integration suites then passed (3/3). The Linux aggregate-initializer warning and derived catalog-root normalization were corrected; their affected local suites passed (4/4). The selected-variant retry fixture also asserts that policy lookup works without an intermediate games directory.
 - Windows/Linux CI receipts are recorded in the integration PR checks; those builds do not establish device or runtime acceptance.
 - Independent read-only source review found no remaining P0/P1 blocker or critical regression in the new paths; it confirmed the explicitly deferred immediate Save transaction.
 - Scoped scanner/catalog validation: 413 records, zero errors, two existing warnings.
