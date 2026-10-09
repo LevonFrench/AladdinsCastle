@@ -29,6 +29,7 @@ AladdinsCastle is an open-source desktop hub that installs and launches VR setup
 | [Game schema](docs/game-schema.md) | `game.toml` fields and filters: genre, manufacturer, year, hardware ([vocab](data/vocab/)) |
 | [UI spec](docs/ui/) | Hub UI modelled closely on PCVR Mods Installer Hub: shell and filters, game cards, detail page and install flow |
 | [Emulators](docs/emulators.md) | Which emulators to target first, for true 3D and for theatre |
+| [Scaler and 2D games in VR](docs/scaler-and-2d-in-vr.md) | What M2 did in the Sega 3D Classics, and our layered depth method for sprite-scaler and 2D games |
 | [Catalog](docs/catalog.md) | Light gun and racing games, with the best route for each ([full tables](docs/data/)) |
 | [Roadmap](docs/roadmap.md) | Milestones M0-M8 |
 | [Workshop](docs/workshop.md) | Open decisions and recommendations |
