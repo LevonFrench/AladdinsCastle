@@ -12,6 +12,7 @@ if(_qt_core_type STREQUAL "STATIC_LIBRARY")
 endif()
 
 include(cmake/Dependencies.cmake)
+include(cmake/ArchiveDependencies.cmake)
 include(cmake/ProjectWarnings.cmake)
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -30,6 +31,14 @@ add_library(hubcore STATIC
     src/core/filter/Filter.h
     src/core/scan/Scan.h
     src/core/install/Install.h
+    src/core/install/Install.cpp
+    src/core/install/Support.cpp
+    src/core/install/Support.h
+    src/core/install/Archive.cpp
+    src/core/install/ConfigEdit.cpp
+    src/core/install/ArtifactStore.cpp
+    src/core/install/ArtifactStore.h
+    src/core/install/FlatLaunch.cpp
     src/core/update/Update.h
     src/core/launch/Launch.h
     src/core/settings/Settings.h
@@ -39,6 +48,8 @@ target_include_directories(hubcore PUBLIC src)
 target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent
     tomlplusplus::tomlplusplus nlohmann_json::nlohmann_json
     nlohmann_json_schema_validator::validator)
+target_link_libraries(hubcore PUBLIC archive_static)
+target_compile_definitions(hubcore PUBLIC NOMINMAX)
 ac_project_warnings(hubcore)
 
 qt_add_executable(aladdinscastle-hub src/app/main.cpp)
@@ -80,4 +91,9 @@ if(BUILD_TESTING)
     target_compile_definitions(catalog-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(catalog-tests)
     add_test(NAME hub-catalog COMMAND catalog-tests)
+    qt_add_executable(install-tests tests/InstallTest.cpp)
+    target_link_libraries(install-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(install-tests)
+    target_compile_definitions(install-tests PRIVATE AC_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
+    add_test(NAME hub-install COMMAND install-tests)
 endif()

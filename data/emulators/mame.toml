@@ -43,9 +43,9 @@ note = "Exe name after install is not verified in this pass."
 paths = ["${ProgramFiles}/MAME", "${LOCALAPPDATA}/Programs/MAME", "${scoop}/apps/mame/current", "*:/Emulators/MAME*"]
 
 [launch]
-args = ["${rom.set}", "-rompath", "${media.dir};${bios.dir}", "-skip_gameinfo", "-inipath", "${tool_dir}", "-cfg_directory", "${tool_dir}/cfg", "-nvram_directory", "${tool_dir}/nvram", "-state_directory", "${tool_dir}/sta", "-snapshot_directory", "${tool_dir}/snap"]
+args = ["${rom.set}", "-rompath", "${media.dir};${bios.dir}", "-skip_gameinfo", "-window", "-inipath", "${profile_dir}/ini", "-cfg_directory", "${profile_dir}/cfg", "-nvram_directory", "${profile_dir}/nvram", "-input_directory", "${profile_dir}/input", "-state_directory", "${profile_dir}/sta", "-snapshot_directory", "${profile_dir}/snap", "-diff_directory", "${profile_dir}/diff", "-comment_directory", "${profile_dir}/comments", "-homepath", "${profile_dir}/home"]
 gun_args = ["-lightgun"]
-cwd = "${tool_dir}"
+cwd = "${profile_dir}"
 exits_on_game_end = "?"
 note = "Options -rompath, -skip_gameinfo, -inipath, -cfg_directory, -nvram_directory, -state_directory, -snapshot_directory and -lightgun are documented upstream (docs.mamedev.org). ${rom.set} is the MAME set name without .zip. Exit behaviour is not verified."
 
