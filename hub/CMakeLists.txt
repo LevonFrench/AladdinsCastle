@@ -41,21 +41,25 @@ target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concur
     nlohmann_json_schema_validator::validator)
 ac_project_warnings(hubcore)
 
+qt_add_library(hubui STATIC)
+target_link_libraries(hubui PUBLIC hubcore Qt6::Quick Qt6::QuickControls2)
+file(GLOB AC_QML_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
+foreach(qml_file IN LISTS AC_QML_FILES)
+    get_filename_component(qml_name "${qml_file}" NAME)
+    set_source_files_properties("${qml_file}" PROPERTIES QT_RESOURCE_ALIAS "${qml_name}")
+endforeach()
+qt_add_qml_module(hubui URI AladdinsCastle.Hub VERSION 1.0 NO_PLUGIN
+    RESOURCE_PREFIX /qt/qml OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml/AladdinsCastle/Hub"
+    QML_FILES ${AC_QML_FILES}
+    SOURCES src/ui/Theme.h src/ui/Theme.cpp src/ui/UiSettings.h src/ui/UiSettings.cpp
+        src/ui/UiController.h src/ui/UiController.cpp)
+ac_project_warnings(hubui)
 qt_add_executable(aladdinscastle-hub src/app/main.cpp)
-target_link_libraries(aladdinscastle-hub PRIVATE hubcore Qt6::Quick
-    Qt6::QuickControls2 Qt6::OpenGL Qt6::ShaderTools OpenVR::OpenVR)
-set_source_files_properties(qml/HubRoot.qml PROPERTIES QT_RESOURCE_ALIAS HubRoot.qml)
-set_source_files_properties(qml/DesktopShell.qml PROPERTIES QT_RESOURCE_ALIAS DesktopShell.qml)
-qt_add_qml_module(aladdinscastle-hub
-    URI AladdinsCastle.Hub VERSION 1.0
-    RESOURCE_PREFIX /qt/qml
-    OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml/AladdinsCastle/Hub"
-    QML_FILES qml/HubRoot.qml qml/DesktopShell.qml)
+target_link_libraries(aladdinscastle-hub PRIVATE hubui Qt6::OpenGL Qt6::ShaderTools OpenVR::OpenVR)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/resources")
 configure_file("../docs/ui/theme.toml" "resources/theme.toml" COPYONLY)
 qt_add_resources(aladdinscastle-hub theme
-    PREFIX /resources
-    BASE "${CMAKE_CURRENT_BINARY_DIR}/resources"
+    PREFIX /resources BASE "${CMAKE_CURRENT_BINARY_DIR}/resources"
     FILES "${CMAKE_CURRENT_BINARY_DIR}/resources/theme.toml")
 ac_project_warnings(aladdinscastle-hub)
 add_custom_command(TARGET aladdinscastle-hub POST_BUILD
@@ -80,4 +84,13 @@ if(BUILD_TESTING)
     target_compile_definitions(catalog-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(catalog-tests)
     add_test(NAME hub-catalog COMMAND catalog-tests)
+    qt_add_executable(ui-tests tests/UiTest.cpp)
+    target_link_libraries(ui-tests PRIVATE hubui Qt6::Test)
+    if(WIN32)
+        target_link_libraries(ui-tests PRIVATE psapi)
+    endif()
+    target_compile_definitions(ui-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    ac_project_warnings(ui-tests)
+    add_test(NAME hub-ui COMMAND ui-tests -o -,txt)
+    set_tests_properties(hub-ui PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
 endif()
