@@ -19,4 +19,4 @@ Test against the owner's folders from AGENCY.md **locally only**; reports go to 
 
 ## Acceptance
 
-On the owner's PC: the scan finds Time Crisis (including old-name sets mapped to current MAME names), the Model 3 sets and the PS2 GunCon discs by serial, flags missing device sets, and the library shows the owner's local art for those games and generated fallback elsewhere. Runtime stated in the PR.
+On the owner's PC: the scan finds Time Crisis and other MAME sets (including old-name sets mapped to current MAME names), Scud Race and the other Model 3 sets, and the PS2 GunCon discs (incl. Time Crisis II) by serial, locates the existing MAME and PCSX2 installs, flags missing device sets, and the library shows the owner's local art for those games and generated fallback elsewhere. Runtime stated in the PR.

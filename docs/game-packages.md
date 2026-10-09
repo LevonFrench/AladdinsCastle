@@ -94,6 +94,16 @@ Full file: [`games/timecris/install.toml`](../games/timecris/install.toml). This
 
 Step kinds are listed in [frontend.md](frontend.md) §3.
 
+### 4.1 Automatic variants (no recipe needed)
+
+Most games have no hand-written `install.toml`. The Hub generates variants for them from data:
+- For each `[routes]` key whose status is `working`, `imperfect` or `playable` **and** that has a manifest in `data/emulators/<key>.toml`, the Hub offers **"Play in <Emulator>"** with `quality = "flat"` (M1: a normal desktop window) or, once acvr-theatre exists (M3), `quality = "theatre"`.
+- The variant's needs are the game's `[[media]]` plus that emulator (installed by the Hub or located).
+- Launch arguments come from the manifest's `[launch]` block with the game's media substituted (`${set}`, `${media.<key>}`, `${rompath}`).
+- A hand-written `install.toml` variant with the same id overrides the generated one.
+
+`quality` values: `true3d`, `theatre`, `flat`.
+
 ## 5. README.md template
 
 Same sections as the Installer Hub's per-mod READMEs, which users already know:

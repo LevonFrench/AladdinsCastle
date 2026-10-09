@@ -1,7 +1,7 @@
 # M1 execution plan (for Codex)
 
-**Milestone M1:** Hub skeleton + third-party setups ([roadmap](../../roadmap.md)).
-**Done when:** on a clean Windows PC, the Hub installs **DR-89 Time Crisis VR (PCVR)** and **VC2VR**, and both launch from the Hub and from the SteamVR library. Quest sideloading is **out of M1**.
+**Milestone M1:** Hub + emulators, flat launch ([roadmap](../../roadmap.md)).
+**Done when:** on the owner's PC, the Hub finds the owner's games and emulators, installs **Supermodel** from upstream, and launches **Scud Race** (Supermodel), **Time Crisis** (MAME) and **Time Crisis II** (PCSX2) in flat windows, from the Hub and from a Steam library entry. Third-party VR ports (DR-89, VC2VR) and Quest sideloading are **out of scope**.
 
 Codex executes the lanes below. Each lane has its own brief, branch and worktree, and ends in a pull request.
 
@@ -59,9 +59,9 @@ B, C and (after C) D, E, F can run in parallel. G comes last.
 
 ## M1 acceptance (owner's PC, after all lanes merge)
 
-1. A fresh portable build starts; the library shows 413 games with fallback or local art, all filters work, and the grid stays smooth (S2 numbers recorded).
-2. "Find my files" points at the owner's folders. Time Crisis and Virtua Cop 2 PC turn **Ready**, matched by hash or exe.
-3. Install Time Crisis VR (PCVR) via `locate-package` from a ROM-free build, and VC2VR via `github-release`. Both reach **Installed** with verify passing; uninstall leaves nothing behind (journal).
-4. Start in VR from the Hub (SteamVR via ALVR): both run, and the Hub regains focus on exit.
-5. With Steam closed, add the SteamVR library entries; both appear with art and launch from the headset through `--launch`.
-6. The Hub shows as a SteamVR dashboard tab (`--overlay`), clickable with the laser (from spike B; full overlay polish is M2).
+1. A fresh portable build starts; the library shows all catalog games with local or fallback art, all filters work, and the grid stays smooth (S2 numbers recorded).
+2. "Find my files" points at the owner's folders: Scud Race, Time Crisis and Time Crisis II turn **Ready** (matched by hash / serial), and the existing MAME and PCSX2 installs are **located** (not reinstalled).
+3. Supermodel is **installed from upstream** (pinned release, hash recorded), portable mode set; uninstall leaves nothing behind.
+4. "Play in Supermodel / MAME / PCSX2" (automatic flat variants, game-packages §4.1) launch the three games in windows; the Hub shows "Playing" and regains focus on exit.
+5. With Steam closed, add Steam library entries for the three games; they appear with local art and launch through `aladdinscastle-hub --launch <id>`.
+6. The Hub shows as a SteamVR dashboard tab (`--overlay`), clickable with the laser (spike B).

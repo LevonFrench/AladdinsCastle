@@ -1,6 +1,6 @@
 # M1 lane E: install engine (M1 subset)
 
-**Branch:** `m1/e-install`. **Depends on:** A, C. **Read:** [install-engine.md](../../install-engine.md) (normative), [game-packages.md](../../game-packages.md) §4, [frontend.md](../../frontend.md) §3-§4, [emulator-manifests.md](../../emulator-manifests.md), [legal.md](../../legal.md), `games/timecris/install.toml`, `games/vcop2/install.toml`.
+**Branch:** `m1/e-install`. **Depends on:** A, C. **Read:** [install-engine.md](../../install-engine.md) (normative), [game-packages.md](../../game-packages.md) §4, [frontend.md](../../frontend.md) §3-§4, [emulator-manifests.md](../../emulator-manifests.md), [legal.md](../../legal.md), `data/emulators/supermodel.toml`, `mame.toml`, `pcsx2.toml`.
 
 ## Build (in `hub/src/core/install/`)
 
@@ -15,6 +15,10 @@
 
 Fake HTTPS GitHub server, golden plans and transcripts, crash injection at every journal point (roll back or forward), zip-slip and size-limit cases, uninstall leaves the tree byte-identical to before.
 
+## Also in this lane: automatic flat variants
+
+Implement [game-packages.md](../../game-packages.md) §4.1: generate "Play in <Emulator>" variants from `[routes]` + `data/emulators/*.toml`, substituting media into the manifest's `[launch]` args. Verify the M1 manifests' launch args against each emulator's real CLI on the owner's PC and correct the manifests where needed (Supermodel `<zip>`, MAME `<set> -rompath <dir>`, PCSX2 `-batch -nogui -- <disc>`).
+
 ## Acceptance
 
-On the owner's PC: VC2VR installs into the Virtua Cop 2 PC folder (in-place variant, backups kept) and uninstalls cleanly. DR-89 Time Crisis VR installs from a user-located ROM-free zip plus the owner's own `timecris` set, writes `quest-options.cfg` from settings, verifies and uninstalls cleanly. No owner paths or file names in tests or logs committed.
+On the owner's PC: Supermodel installs from its official release (pinned, hash recorded, portable) and uninstalls cleanly; the owner's existing MAME and PCSX2 are located and verified, not reinstalled or modified; automatic variants exist for every game with a working route + manifest. No owner paths or file names in committed tests or logs.
