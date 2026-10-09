@@ -8,6 +8,7 @@ year         = 2007
 manufacturer = "namco"
 developer    = "Namco Bandai Games; Nex Entertainment"
 hardware     = "sony-ps3"
+original     = "timecrs4"
 players      = 1
 series       = "Time Crisis"
 
@@ -28,7 +29,7 @@ note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
 
 [routes]
 rpcs3 = "unknown"
-vr    = { best = "theatre" }
+vr    = { best = "none" }
 
 [hub]
 pill   = "TC4-PS3"

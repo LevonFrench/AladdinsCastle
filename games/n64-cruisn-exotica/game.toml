@@ -7,6 +7,7 @@ year         = 2000
 manufacturer = "midway"
 developer    = "Gratuitous Games (N64); Midway Games (arcade)"
 hardware     = "nintendo-64"
+original     = "crusnexo"
 players      = 4
 series       = "Cruis'n"
 # original = "cruisnexo"  (arcade set name not verified; left unset)

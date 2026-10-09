@@ -26,7 +26,7 @@ note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
 
 [routes]
 rpcs3 = "unknown"
-vr    = { best = "theatre" }
+vr    = { best = "none" }
 
 [hub]
 pill   = "GT6-PS3"

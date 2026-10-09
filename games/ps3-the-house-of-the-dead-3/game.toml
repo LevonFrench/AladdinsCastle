@@ -9,6 +9,7 @@ year         = 2012
 manufacturer = "sega"
 developer    = "Wow Entertainment"
 hardware     = "sony-ps3"
+original     = "hotd3"
 players      = 2
 series       = "The House of the Dead"
 
@@ -29,7 +30,7 @@ note = "Your own PS3 firmware file (PS3UPDAT.PUP)"
 
 [routes]
 rpcs3 = "unknown"
-vr    = { best = "theatre" }
+vr    = { best = "none" }
 
 [hub]
 pill   = "HOTD3-PS3"

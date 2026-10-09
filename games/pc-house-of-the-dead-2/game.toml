@@ -20,7 +20,7 @@ kind = "pc-game"
 note = "Your own Windows install (disc or digital copy); exe name to confirm"
 
 [routes]
-vr = { best = "theatre" }
+vr = { best = "none" }
 
 [hub]
 pill   = "PC-HOTD2"

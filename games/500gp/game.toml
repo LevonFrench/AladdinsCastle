@@ -20,7 +20,7 @@ note = "500 GP (US, 5GP3 Ver. C); MAME marks NOT_WORKING (GAME_FLAGS)"
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "500GP"

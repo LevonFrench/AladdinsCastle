@@ -7,6 +7,7 @@ year         = 1996
 manufacturer = "nintendo"
 developer    = "Leland Interactive Media (N64); TV Games Inc. (arcade)"
 hardware     = "nintendo-64"
+original     = "crusnusa"
 players      = 2
 series       = "Cruis'n"
 # original = "cruisusa"  (arcade set name not verified; left unset)

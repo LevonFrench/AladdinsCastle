@@ -23,7 +23,7 @@ note = "Time Crisis 4 (World, TSF1002-NA-A); System Super 256 family; needs the 
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "TC4"

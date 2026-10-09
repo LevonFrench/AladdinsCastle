@@ -21,7 +21,7 @@ note = "Ace Driver: Victory Lap (World, ADV2 Ver. B); MAME marks imperfect graph
 [routes]
 mame        = "imperfect"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "VICTLAP"

@@ -7,6 +7,7 @@ year         = 2010
 manufacturer = "sega"
 developer    = "Sega AM3 (arcade)"
 hardware     = "nintendo-wii"
+original     = "gunblade"
 players      = 2
 series       = "Gunblade NY"
 # original = "gunblade"  (arcade set name not verified; left unset)
@@ -23,7 +24,7 @@ note = "Your own Wii disc image (ISO/WBFS)"
 
 [routes]
 dolphin = "unknown"
-vr      = { best = "theatre" }
+vr      = { best = "none" }
 
 [hub]
 pill   = "WII-GUNBL"

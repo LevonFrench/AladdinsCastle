@@ -21,7 +21,7 @@ note = "Ridge Racer V Arcade Battle (RRV3 Ver. A); needs the System 246 BIOS set
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "RRV"

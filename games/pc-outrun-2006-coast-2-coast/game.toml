@@ -20,7 +20,7 @@ note = "Your own Windows install (disc or digital copy); exe name to confirm"
 
 [routes]
 native = { project = "OutRun2006Tweaks", status = "unknown" }
-vr     = { best = "theatre" }
+vr     = { best = "none" }
 
 [hub]
 pill   = "PC-OR06"

@@ -22,7 +22,7 @@ note = "Prop Cycle (World, PR2 Ver. A); MAME marks imperfect graphics"
 mame        = "imperfect"
 teknoparrot = "profile"
 native      = { project = "namco22-decompile", status = "playable" }
-vr          = { best = "none", planned = "true3d-planned" }   # namco22-vr (libacvr on namco22-decompile)
+vr          = { best = "theatre", planned = "true3d-planned" }   # namco22-vr (libacvr on namco22-decompile)
 
 [hub]
 pill   = "PROPCYCL"

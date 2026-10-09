@@ -20,7 +20,7 @@ note = "Xbox Live Arcade digital purchase; no disc involved"
 
 [routes]
 xenia = "unknown"
-vr    = { best = "theatre" }
+vr    = { best = "none" }
 
 [hub]
 pill   = "X360-HURR"

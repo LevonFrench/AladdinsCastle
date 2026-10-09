@@ -18,7 +18,7 @@ extras  = []
 [[media]]
 kind = "mame-romset"
 set  = "harddriv"
-note = "Hard Drivin' (cockpit, rev 7); compact cabinet set harddrivc, regional and older revs are variants"
+note = "Hard Drivin' (cockpit, rev 7); compact cabinet set harddrivc, regional and older revs are variants. MAME year 1988 (the brief said 1989+)"
 
 [routes]
 mame        = "working"
@@ -29,7 +29,7 @@ vr          = { best = "theatre" }
 pill   = "HARDDRIV"
 colour = "#101418"
 accent = "#ff9d2e"
-blurb  = "The first real 3D driving sim in an arcade, with a cockpit and a stick shift."
+blurb  = "A cockpit driving sim with a stick shift, on Atari's 3D board."
 badges = ["seated"]
 
 [meta]

@@ -20,7 +20,7 @@ note = "Your own GameCube disc image (ISO/GCM or RVZ)"
 
 [routes]
 dolphin = "unknown"
-vr      = { best = "theatre", planned = "true3d-planned" }
+vr      = { best = "none", planned = "true3d-planned" }
 
 [hub]
 pill   = "GC-MKDD"

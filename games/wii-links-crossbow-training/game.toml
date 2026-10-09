@@ -21,7 +21,7 @@ note = "Your own Wii disc image (ISO/WBFS)"
 
 [routes]
 dolphin = "unknown"
-vr      = { best = "theatre" }
+vr      = { best = "none" }
 
 [hub]
 pill   = "WII-LXBOW"

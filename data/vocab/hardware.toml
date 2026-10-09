@@ -164,12 +164,20 @@ family = "taito"
 label = "Taito Wolf System"
 kind = "arcade"
 family = "taito"
+[taito-pjc]
+label = "Taito PJC"
+kind = "arcade"
+family = "taito"
 [taito-type-x]
 label = "Taito Type X / X+ / X2 / X3"
 kind = "arcade"
 family = "taito"
 
 # ---- Other arcade ----
+[midway-vunit]
+label = "Midway V-Unit"
+kind = "arcade"
+family = "midway"
 [midway-seattle]
 label = "Midway Seattle"
 kind = "arcade"
@@ -186,6 +194,10 @@ family = "midway"
 label = "Atari Games 3D boards (e.g. Hard Drivin', Phoenix)"
 kind = "arcade"
 family = "atari"
+[gaelco-3d]
+label = "Gaelco 3D"
+kind = "arcade"
+family = "other"
 [pc-arcade]
 label = "PC-based arcade (Raw Thrills, Global VR, others)"
 kind = "arcade"

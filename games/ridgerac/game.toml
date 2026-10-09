@@ -21,7 +21,7 @@ note = "Ridge Racer (World, RR2 Ver. B); MAME marks imperfect graphics"
 [routes]
 mame        = "imperfect"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "RIDGERAC"

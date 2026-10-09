@@ -24,7 +24,7 @@ note = "ATV Track (set 1); set 2 is atvtracka. Both NOT_WORKING in MAME. Driver 
 [routes]
 mame        = "not-working"
 teknoparrot = "unknown"
-vr          = { best = "theatre" }
+vr          = { best = "none" }
 
 [hub]
 pill   = "ATVTRACK"

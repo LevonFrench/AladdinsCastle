@@ -5,7 +5,7 @@ subgenre     = ["boat"]
 year         = 1997
 manufacturer = "gaelco"
 developer    = "Gaelco"
-hardware     = "other-arcade"
+hardware     = "gaelco-3d"
 players      = 1
 series       = "Surf Planet"
 

@@ -7,6 +7,7 @@ year         = 1998
 manufacturer = "nintendo"
 developer    = "Eurocom (N64); Midway Games (arcade)"
 hardware     = "nintendo-64"
+original     = "crusnwld"
 players      = 4
 series       = "Cruis'n"
 # original = "cruisnwld"  (arcade set name not verified; left unset)

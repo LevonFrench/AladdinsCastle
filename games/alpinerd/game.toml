@@ -21,7 +21,7 @@ note = "Alpine Racer (World, AR2 Ver. D); MAME marks imperfect graphics"
 [routes]
 mame        = "imperfect"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "ALPINE"

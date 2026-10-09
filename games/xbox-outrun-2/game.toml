@@ -7,6 +7,7 @@ year         = 2004
 manufacturer = "sega"
 developer    = "Sumo Digital (Xbox port); Sega AM2 (arcade)"
 hardware     = "microsoft-xbox"
+original     = "outr2"
 players      = 1
 series       = "OutRun"
 # original = "outrun2"  (arcade set name not verified; left unset)
@@ -21,7 +22,7 @@ note = "Your own Xbox disc image (ISO or CISO)"
 
 [routes]
 xemu = "unknown"
-vr   = { best = "theatre" }
+vr   = { best = "none" }
 
 [hub]
 pill   = "XBOX-OR2"

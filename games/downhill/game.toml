@@ -20,7 +20,7 @@ note = "Downhill Bikers (World, DH2 Ver. A); US set downhillu. MAME marks NOT_WO
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "DOWNHILL"

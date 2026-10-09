@@ -20,7 +20,7 @@ note = "Your own Xbox disc image (ISO or CISO)"
 
 [routes]
 xemu = "unknown"
-vr   = { best = "theatre" }
+vr   = { best = "none" }
 
 [hub]
 pill   = "XBOX-OR06"

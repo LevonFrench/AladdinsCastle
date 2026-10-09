@@ -1,0 +1,39 @@
+id           = "far-cry-paradise-lost"
+title        = "Far Cry: Paradise Lost"
+alt_titles   = ["Far Cry Arcade", "Paradise Lost"]
+genre        = "gun"
+subgenre     = ["machine-gun"]
+year         = 2007
+manufacturer = "global-vr"
+developer    = "Global VR (licensed from Ubisoft)"
+hardware     = "pc-arcade"
+players      = 2
+series       = "Far Cry"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "twin swivel-mounted machine guns"
+pedals = []
+extras = ["mounted-machine-gun"]
+
+[[media]]
+kind = "other"
+note = "Not in MAME. Giant Bomb lists 30 April 2007 (first shown January 2007). Arcade spin-off of Far Cry: Instincts. TeknoParrot profile FarCryParadiseLost (GunGame=true); DemulShooter GvrFarCry"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "FARCRY"
+colour = "#101a12"
+accent = "#e8b84a"
+blurb  = "Jack Carver and a partner hold the line behind twin swivel-mounted machine guns."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://giantbomb.com/wiki/Games/Paradise_Lost", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/FarCryParadiseLost.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

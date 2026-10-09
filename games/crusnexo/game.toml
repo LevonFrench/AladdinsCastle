@@ -23,7 +23,7 @@ note = "Cruis'n Exotica (version 2.4); variants crusnexoa and similar are NOT_WO
 [routes]
 mame        = "not-working"
 teknoparrot = "unknown"
-vr          = { best = "theatre" }
+vr          = { best = "none" }
 
 [hub]
 pill   = "CRUISNEX"

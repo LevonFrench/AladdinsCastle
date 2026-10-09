@@ -7,6 +7,7 @@ year         = 2005
 manufacturer = "sega"
 developer    = "Wow Entertainment"
 hardware     = "pc-windows"
+original     = "hotd3"
 players      = 1
 series       = "The House of the Dead"
 # original = "hotd3"  (arcade set name not verified; left unset)
@@ -20,7 +21,7 @@ kind = "pc-game"
 note = "Your own Windows install (disc or digital copy); exe name to confirm"
 
 [routes]
-vr = { best = "theatre" }
+vr = { best = "none" }
 
 [hub]
 pill   = "PC-HOTD3"

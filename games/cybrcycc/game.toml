@@ -20,7 +20,7 @@ note = "Cyber Cycles (World, CB2 Ver. C); Japanese set cybrcyccj (CB1 Ver. C). M
 [routes]
 mame        = "imperfect"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "CYBRCYCLE"

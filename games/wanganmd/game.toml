@@ -21,7 +21,7 @@ note = "Wangan Midnight (WMN1 Ver. A); needs the System 246 BIOS set (sys246). M
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "WANGAN"

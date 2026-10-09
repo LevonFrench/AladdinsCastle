@@ -9,6 +9,7 @@ year         = 2003
 manufacturer = "sega"
 developer    = "Sega"
 hardware     = "sony-ps2"
+original     = "initdv3j"
 players      = 1
 series       = "Initial D"
 
@@ -27,7 +28,7 @@ note = "Your own PS2 BIOS dump"
 
 [routes]
 pcsx2 = "unknown"
-vr    = { best = "theatre" }
+vr    = { best = "none" }
 
 [hub]
 pill   = "INITIALD"

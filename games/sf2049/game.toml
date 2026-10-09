@@ -18,7 +18,7 @@ extras  = []
 [[media]]
 kind = "mame-romset"
 set  = "sf2049"
-note = "San Francisco Rush 2049 (Version 1.04); later sets sf2049se, sf2049te, sf2049tea"
+note = "San Francisco Rush 2049 (Version 1.04); later sets sf2049se, sf2049te, sf2049tea. Player count and controls not confirmed by sources read"
 
 [routes]
 mame        = "working"
@@ -29,7 +29,7 @@ vr          = { best = "theatre" }
 pill   = "SF2049"
 colour = "#0c1220"
 accent = "#ff3d9a"
-blurb  = "Hover-free future racing through a neon San Francisco, with stunts and shortcuts."
+blurb  = "Stunt racing through a futuristic San Francisco, with shortcuts and a wheel in your hands."
 badges = ["seated", "2-players"]
 
 [meta]

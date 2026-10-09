@@ -1,0 +1,37 @@
+id           = "the-fast-and-the-furious"
+title        = "The Fast and the Furious"
+genre        = "racing"
+subgenre     = ["street"]
+year         = 2004
+manufacturer = "raw-thrills"
+developer    = "Raw Thrills"
+hardware     = "pc-arcade"
+players      = 1
+series       = "Fast & Furious"
+
+[controls]
+type    = "wheel"
+shifter = ""
+pedals  = ["accel", "brake"]
+extras  = []
+
+[[media]]
+kind = "other"
+note = "Arcade release 2004 per Arcade-Museum. Catalogued from release listings only: no MAME set and no TeknoParrot profile found, so 3D status and controls are unverified. Later entries (Drift 2007, Fast & Furious: Arcade 2022) not catalogued in this pass"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "unknown"
+vr          = { best = "none" }
+
+[hub]
+pill   = "FASTFURY"
+colour = "#14100c"
+accent = "#ff5a1f"
+blurb  = "Street racing with nitrous and neon from Raw Thrills' 2004 big-screen cabinet."
+badges = ["seated"]
+
+[meta]
+sources    = ["https://arcade-museum.com/Videogame/fast-and-the-furious"]
+confidence = "low"
+checked    = "2026-10-08"

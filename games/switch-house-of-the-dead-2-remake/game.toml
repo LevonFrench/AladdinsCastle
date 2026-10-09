@@ -21,7 +21,7 @@ note = "Your own Switch copy (digital or game card); nothing is provided by this
 
 [routes]
 yuzu-like = "unknown"
-vr        = { best = "theatre" }
+vr        = { best = "none" }
 
 [hub]
 pill   = "SW-HOTD2"

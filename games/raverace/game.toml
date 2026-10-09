@@ -29,7 +29,7 @@ note = "C74 MCU set needed by namco22-decompile"
 mame        = "imperfect"
 teknoparrot = "profile"
 native      = { project = "namco22-decompile", status = "playable" }
-vr          = { best = "none", planned = "true3d-planned" }
+vr          = { best = "theatre", planned = "true3d-planned" }
 
 [hub]
 pill   = "RAVERACE"

@@ -25,7 +25,7 @@ note = "Supermodel set scud (also scudau, scuddx)"
 supermodel  = "working"
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none", planned = "true3d-planned" }
+vr          = { best = "theatre", planned = "true3d-planned" }
 
 [hub]
 pill   = "SCUD"

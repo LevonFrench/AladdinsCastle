@@ -20,7 +20,7 @@ note = "Aqua Rush (Japan, AQ1 Ver. A1); MAME marks it working"
 [routes]
 mame        = "working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "AQUARUSH"

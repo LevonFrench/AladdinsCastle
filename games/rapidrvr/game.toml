@@ -20,7 +20,7 @@ note = "Rapid River (US, RD3 Ver. C); World set rapidrvrv2c. MAME marks NOT_WORK
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "RAPIDRVR"

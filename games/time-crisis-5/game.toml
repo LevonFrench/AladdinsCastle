@@ -21,7 +21,7 @@ note = "Not in MAME. Needs the Namco System ES3 board or the TeknoParrot profile
 
 [routes]
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "TC5"

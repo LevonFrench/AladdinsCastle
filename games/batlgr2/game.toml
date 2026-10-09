@@ -12,27 +12,27 @@ series       = "Battle Gear"
 [controls]
 type    = "wheel"
 shifter = "h6"
-pedals  = ["accel", "brake", "clutch"]
+pedals  = ["accel", "brake"]
 extras  = []
 
 [[media]]
 kind = "mame-romset"
 set  = "batlgr2"
-note = "Battle Gear 2 (VER.2.04J); batlgr2a is the Side by Side conversion (ver 2.01J)"
+note = "Battle Gear 2 (VER.2.04J); batlgr2a is the Side by Side conversion (ver 2.01J). MAME NOT_WORKING. Shifter layout not confirmed by sources"
 
 [routes]
 mame        = "not-working"
-teknoparrot = "profile"
-vr          = { best = "theatre" }
+teknoparrot = "unknown"
+vr          = { best = "none" }
 
 [hub]
 pill   = "BATLGR2"
 colour = "#101418"
 accent = "#ff5252"
-blurb  = "Second gear, second chance: the Battle Gear series with a six-speed shifter."
+blurb  = "The second Battle Gear on Type Zero hardware, a wheel and a gear lever on the street."
 badges = ["seated"]
 
 [meta]
-sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitotz.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/BattleGear4.xml"]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitotz.cpp"]
 confidence = "medium"
 checked    = "2026-10-08"

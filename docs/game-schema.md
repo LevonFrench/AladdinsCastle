@@ -59,7 +59,7 @@ confidence = "high"                       # high | medium | low (how well-source
 checked    = "2026-10-08"
 ```
 
-`[routes]` status values: `working`, `imperfect`, `not-working`, `profile` (TeknoParrot profile exists), `playable`, `unknown`. Emulator keys: `mame`, `supermodel`, `model2emu`, `flycast`, `redream`, `demul`, `dolphin`, `pcsx2`, `duckstation`, `rpcs3`, `mednafen`, `yabasanshiro`, `mupen64plus`, `ares`, `xemu`, `cxbx`, `teknoparrot`, `lindbergh-loader`, `xenia`, `cemu`, `ryujinx`, `native`.
+`[routes]` status values: `working`, `imperfect`, `not-working`, `profile` (TeknoParrot profile exists), `playable`, `unknown`. Emulator keys: `mame`, `supermodel`, `model2emu`, `flycast`, `redream`, `demul`, `dolphin`, `pcsx2`, `duckstation`, `rpcs3`, `mednafen`, `yabasanshiro`, `mupen64plus`, `ares`, `xemu`, `cxbx`, `teknoparrot`, `demulshooter` (gun bridge exists: `profile`), `lindbergh-loader`, `xenia`, `cemu`, `ryujinx`, `native`.
 
 ## 3. Hub filters
 

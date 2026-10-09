@@ -21,7 +21,7 @@ note = "Your own Wii disc image (ISO/WBFS)"
 
 [routes]
 dolphin = "unknown"
-vr      = { best = "theatre", planned = "true3d-planned" }
+vr      = { best = "none", planned = "true3d-planned" }
 
 [hub]
 pill   = "WII-OVRKL"

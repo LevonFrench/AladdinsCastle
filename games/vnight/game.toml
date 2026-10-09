@@ -22,7 +22,7 @@ note = "Vampire Night (VPN3 Ver. B); needs the System 246 BIOS set (sys246). MAM
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "VNIGHT"

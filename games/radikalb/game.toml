@@ -5,7 +5,7 @@ subgenre     = ["motorcycle"]
 year         = 1998
 manufacturer = "gaelco"
 developer    = "Gaelco"
-hardware     = "other-arcade"
+hardware     = "gaelco-3d"
 players      = 2
 series       = "Radikal Bikers"
 

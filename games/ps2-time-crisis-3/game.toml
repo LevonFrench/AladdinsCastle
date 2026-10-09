@@ -8,6 +8,7 @@ year         = 2003
 manufacturer = "namco"
 developer    = "Namco; Nextech (arcade)"
 hardware     = "sony-ps2"
+original     = "timecrs3"
 players      = 2
 series       = "Time Crisis"
 
@@ -28,7 +29,7 @@ note = "Your own PS2 BIOS dump"
 
 [routes]
 pcsx2 = "unknown"
-vr    = { best = "theatre" }
+vr    = { best = "none" }
 
 [hub]
 pill   = "TC3-PS2"

@@ -32,7 +32,7 @@ note = "C68 I/O set needed by namco22-decompile (cybsled build)"
 mame        = "imperfect"
 teknoparrot = "profile"
 native      = { project = "namco22-decompile", status = "playable" }
-vr          = { best = "none", planned = "true3d-planned" }   # namco22-vr (libacvr on namco22-decompile)
+vr          = { best = "theatre", planned = "true3d-planned" }   # namco22-vr (libacvr on namco22-decompile)
 
 [hub]
 pill   = "CYBSLED"

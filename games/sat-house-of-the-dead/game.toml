@@ -27,7 +27,7 @@ note = "Your own Saturn BIOS dump"
 [routes]
 mednafen     = "unknown"
 yabasanshiro = "unknown"
-vr           = { best = "theatre" }
+vr           = { best = "none" }
 
 [hub]
 pill   = "SAT-HOTD"

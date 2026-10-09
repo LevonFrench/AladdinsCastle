@@ -12,12 +12,12 @@ series       = "Battle Gear"
 [controls]
 type    = "wheel"
 shifter = "h6"
-pedals  = ["accel", "brake", "clutch"]
+pedals  = ["accel", "brake"]
 extras  = []
 
 [[media]]
 kind = "other"
-note = "Japan update of Battle Gear 4, dated November 2006 by Wikipedia (2006 by Arcade-Museum). Not in MAME. TeknoParrot/OpenParrot profile BattleGear4Tuned. Shifter layout not confirmed by sources"
+note = "Japan update of Battle Gear 4, dated November 2006 by Wikipedia (2006 by Arcade-Museum). Not in MAME. TeknoParrot/OpenParrot profile BattleGear4Tuned (wheel, gas and brake only). Shifter layout not confirmed by sources"
 
 [routes]
 mame        = "unknown"

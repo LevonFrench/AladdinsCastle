@@ -21,7 +21,7 @@ note = "Ridge Racer 2 (World, RRS2); Japanese set ridgera2j (RRS1 Ver. B). MAME 
 [routes]
 mame        = "imperfect"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "RR2"

@@ -7,6 +7,7 @@ year         = 2002
 manufacturer = "sega"
 developer    = "Wow Entertainment"
 hardware     = "microsoft-xbox"
+original     = "hotd3"
 players      = 2
 series       = "The House of the Dead"
 # original = "hotd3"  (arcade set name not verified; left unset)
@@ -22,7 +23,7 @@ note = "Your own Xbox disc image (ISO or CISO)"
 
 [routes]
 xemu = "unknown"
-vr   = { best = "theatre" }
+vr   = { best = "none" }
 
 [hub]
 pill   = "XBOX-HOTD3"

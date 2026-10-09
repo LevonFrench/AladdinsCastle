@@ -7,6 +7,7 @@ year         = 2010
 manufacturer = "other"
 developer    = "Play Mechanix"
 hardware     = "nintendo-wii"
+original     = "big-buck-hunter-pro"
 players      = 2
 series       = "Big Buck Hunter"
 # arcade parent: Big Buck Hunter Pro (Raw Thrills, 2006); set name not verified; left unset
@@ -22,7 +23,7 @@ note = "Your own Wii disc image (ISO/WBFS)"
 
 [routes]
 dolphin = "unknown"
-vr      = { best = "theatre" }
+vr      = { best = "none" }
 
 [hub]
 pill   = "WII-BBHP"

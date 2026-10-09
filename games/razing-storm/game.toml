@@ -20,7 +20,7 @@ note = "Not in MAME. System 357 arcade board. The PS3 release is a separate disc
 
 [routes]
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "RAZING"

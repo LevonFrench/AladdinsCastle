@@ -1,0 +1,38 @@
+id           = "aliens-extermination"
+title        = "Aliens Extermination"
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2007
+manufacturer = "global-vr"
+developer    = "Play Mechanix"
+hardware     = "pc-arcade"
+players      = 2
+series       = "Aliens"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "pulse-rifle style gun with force feedback"
+pedals = []
+extras = ["force-feedback"]
+
+[[media]]
+kind = "other"
+note = "Not in MAME. Most sources say 2007 (AVPUnknown lists 2006). Developer credit from AVPUnknown (published by Global VR). TeknoParrot profile AliensExtermination (GunGame=true); DemulShooter GvrAliens and GvrAliensHasp"
+
+[routes]
+mame        = "unknown"
+teknoparrot = "profile"
+vr          = { best = "theatre" }
+
+[hub]
+pill   = "ALIENSEXT"
+colour = "#0e1210"
+accent = "#8ad46a"
+blurb  = "Colonial Marines back on LV-426 with co-op pulse rifles and force feedback."
+badges = ["2-players"]
+
+[meta]
+sources    = ["https://arcade-museum.com/Videogame/aliens-extermination--global--2007--18824", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/AliensExtermination.xml"]
+confidence = "medium"
+checked    = "2026-10-08"

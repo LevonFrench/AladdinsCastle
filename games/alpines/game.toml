@@ -21,7 +21,7 @@ note = "Alpine Surfer (World, AF2 Ver. A); MAME marks imperfect graphics"
 [routes]
 mame        = "imperfect"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "ALPINESURF"

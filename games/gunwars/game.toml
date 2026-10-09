@@ -21,7 +21,7 @@ note = "Gunmen Wars (Japan, GM1 Ver. B); MAME marks NOT_WORKING"
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "GUNMEN"

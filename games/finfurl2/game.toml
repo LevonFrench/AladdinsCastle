@@ -21,7 +21,7 @@ note = "Final Furlong 2 (World, FFS2 Ver. A); Japanese set finfurl2j. MAME marks
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "FINFURL2"

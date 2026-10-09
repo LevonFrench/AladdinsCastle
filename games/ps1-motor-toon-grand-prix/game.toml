@@ -25,7 +25,7 @@ note = "Your own PlayStation BIOS dump"
 
 [routes]
 duckstation = "unknown"
-vr    = { best = "theatre" }
+vr    = { best = "none" }
 
 [hub]
 pill   = "MTOON"

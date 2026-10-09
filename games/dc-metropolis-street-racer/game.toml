@@ -23,7 +23,7 @@ note = "Optional: your own Dreamcast BIOS dump"
 
 [routes]
 flycast = "unknown"
-vr      = { best = "theatre" }
+vr      = { best = "none" }
 
 [hub]
 pill   = "DC-MSR"

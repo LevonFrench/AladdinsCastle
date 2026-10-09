@@ -9,6 +9,7 @@ year         = 2001
 manufacturer = "sega"
 developer    = "Sega AM2 (arcade); Acclaim Studios Cheltenham (PS2 port)"
 hardware     = "sony-ps2"
+original     = "18-wheeler-american-pro-trucker"
 players      = 1
 series       = "18 Wheeler"
 
@@ -27,7 +28,7 @@ note = "Your own PS2 BIOS dump"
 
 [routes]
 pcsx2 = "unknown"
-vr    = { best = "theatre" }
+vr    = { best = "none" }
 
 [hub]
 pill   = "18WHEEL"

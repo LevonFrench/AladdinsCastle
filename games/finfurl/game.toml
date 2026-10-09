@@ -21,7 +21,7 @@ note = "Final Furlong (World, FF2 Ver. A); MAME marks NOT_WORKING (GAME_FLAGS). 
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "FINFURL"

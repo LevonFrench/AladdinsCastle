@@ -5,7 +5,7 @@ subgenre     = ["circuit"]
 year         = 1996
 manufacturer = "gaelco"
 developer    = "Gaelco"
-hardware     = "other-arcade"
+hardware     = "gaelco-3d"
 players      = 2
 series       = "Speed Up"
 

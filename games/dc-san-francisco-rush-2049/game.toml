@@ -7,6 +7,7 @@ year         = 2000
 manufacturer = "midway"
 developer    = "Atari Games (arcade); Midway Games West (ports)"
 hardware     = "sega-dreamcast"
+original     = "sf2049"
 players      = 2
 series       = "Rush"
 # original = "rush2049"  (arcade set name not verified; left unset)
@@ -25,7 +26,7 @@ note = "Optional: your own Dreamcast BIOS dump"
 
 [routes]
 flycast = "unknown"
-vr      = { best = "theatre" }
+vr      = { best = "none" }
 
 [hub]
 pill   = "DC-RUSH49"

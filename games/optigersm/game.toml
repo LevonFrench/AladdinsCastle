@@ -5,21 +5,21 @@ subgenre     = ["rail-shooter"]
 year         = 1998
 manufacturer = "taito"
 developer    = "Taito"
-hardware     = "other-arcade"
+hardware     = "taito-pjc"
 players      = 2
 series       = "Operation Tiger"
 
 [controls]
 type   = "gun"
 guns   = 2
-gun    = "light gun (2 guns)"
+gun    = "positional light gun with trigger and two buttons"
 pedals = []
-extras = []
+extras = ["missile-button", "grenade-button"]
 
 [[media]]
 kind = "mame-romset"
 set  = "optigersm"
-note = "Operation Tiger Second Mission (Ver 2.02 J); Taito PJC board per MAME taito/taitopjc.cpp"
+note = "Operation Tiger Second Mission (Ver 2.02 J); Taito PJC board per MAME taito/taitopjc.cpp (proposed vocab taito-pjc). Japan-only sequel"
 
 [routes]
 mame        = "not-working"
@@ -30,10 +30,10 @@ vr          = { best = "theatre" }
 pill   = "OPTIGERSM"
 colour = "#141a10"
 accent = "#9ccc4e"
-blurb  = "The second mission: same jungle, bigger guns, two players."
+blurb  = "Operation Tiger's Japan-only sequel: two players, two guns, more of the same mission."
 badges = ["2-players"]
 
 [meta]
-sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitopjc.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/optigersm.xml"]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/taito/taitopjc.cpp", "https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/GameProfiles/optigersm.xml", "https://www.timeextension.com/news/2024/02/lost-operation-wolf-sequel-operation-tiger-second-mission-has-been-preserved"]
 confidence = "medium"
 checked    = "2026-10-08"

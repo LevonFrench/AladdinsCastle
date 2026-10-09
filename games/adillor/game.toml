@@ -20,7 +20,7 @@ note = "Armadillo Racing (World, AM2 Ver. A); MAME marks imperfect graphics"
 [routes]
 mame        = "imperfect"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "ARMADILLO"

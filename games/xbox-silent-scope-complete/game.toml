@@ -7,6 +7,7 @@ year         = 2004
 manufacturer = "konami"
 developer    = "Konami"
 hardware     = "microsoft-xbox"
+original     = "sscope"
 players      = 1
 series       = "Silent Scope"
 # Compilation of Silent Scope 1, 2, EX and 3; contains ids left unset until arcade set names are verified.
@@ -22,7 +23,7 @@ note = "Your own Xbox disc image (ISO or CISO)"
 
 [routes]
 xemu = "unknown"
-vr   = { best = "theatre" }
+vr   = { best = "none" }
 
 [hub]
 pill   = "XBOX-SSC"

@@ -9,6 +9,7 @@ year         = 2002
 manufacturer = "sega"
 developer    = "Sega AM2 (arcade); Tose (PS2)"
 hardware     = "sony-ps2"
+original     = "f355"
 players      = 1
 
 [controls]
@@ -26,7 +27,7 @@ note = "Your own PS2 BIOS dump"
 
 [routes]
 pcsx2 = "unknown"
-vr    = { best = "theatre" }
+vr    = { best = "none" }
 
 [hub]
 pill   = "F355-PS2"

@@ -21,7 +21,7 @@ note = "Winning Run '91 (Japan, Ver 1.0); MAME marks imperfect graphics"
 [routes]
 mame        = "imperfect"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "WINRUN91"

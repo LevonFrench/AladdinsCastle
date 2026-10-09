@@ -7,6 +7,7 @@ year         = 2000
 manufacturer = "sega"
 developer    = "Sega AM2"
 hardware     = "sega-dreamcast"
+original     = "f355"
 players      = 2
 # original = "f355"  (arcade set name not verified; left unset)
 
@@ -24,7 +25,7 @@ note = "Optional: your own Dreamcast BIOS dump"
 
 [routes]
 flycast = "unknown"
-vr      = { best = "theatre", planned = "true3d-planned" }
+vr      = { best = "none", planned = "true3d-planned" }
 
 [hub]
 pill   = "DC-F355"

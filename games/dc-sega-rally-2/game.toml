@@ -7,6 +7,7 @@ year         = 1999
 manufacturer = "sega"
 developer    = "Sega AM Annex"
 hardware     = "sega-dreamcast"
+original     = "srally2"
 players      = 2
 series       = "Sega Rally"
 # original = "srally2"  (arcade Model 3 set name not verified; left unset)
@@ -25,7 +26,7 @@ note = "Optional: your own Dreamcast BIOS dump"
 
 [routes]
 flycast = "unknown"
-vr      = { best = "theatre" }
+vr      = { best = "none" }
 
 [hub]
 pill   = "DC-SRALLY2"

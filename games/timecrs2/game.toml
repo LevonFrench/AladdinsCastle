@@ -23,7 +23,7 @@ note = "Time Crisis II (US, TSS3 Ver. B); World TSS2 Ver. B is set timecrs2v2b. 
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "TC2"

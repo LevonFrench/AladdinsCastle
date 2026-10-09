@@ -21,7 +21,7 @@ note = "Mario Kart Arcade GP (Japan, MKA1 Ver. A1); parent is the Triforce BIOS 
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "MKAGP"

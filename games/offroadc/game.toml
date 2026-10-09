@@ -5,7 +5,7 @@ subgenre     = ["rally"]
 year         = 1997
 manufacturer = "midway"
 developer    = "Midway"
-hardware     = "other-arcade"
+hardware     = "midway-vunit"
 players      = 2
 series       = "Off Road"
 

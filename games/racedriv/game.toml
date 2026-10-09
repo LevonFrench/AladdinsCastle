@@ -29,7 +29,7 @@ vr          = { best = "theatre" }
 pill   = "RACEDRIV"
 colour = "#101418"
 accent = "#ff9d2e"
-blurb  = "Hard Drivin's follow-up, with a rally-style course and a Panorama prototype."
+blurb  = "Hard Drivin's follow-up, with a compact cabinet and a Panorama prototype."
 badges = ["seated"]
 
 [meta]

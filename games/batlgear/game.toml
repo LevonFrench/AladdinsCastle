@@ -12,13 +12,13 @@ series       = "Battle Gear"
 [controls]
 type    = "wheel"
 shifter = "h6"
-pedals  = ["accel", "brake", "clutch"]
+pedals  = ["accel", "brake"]
 extras  = []
 
 [[media]]
 kind = "mame-romset"
 set  = "batlgear"
-note = "Battle Gear (VER.2.40A) on Taito Type Zero hardware"
+note = "Battle Gear (VER.2.40A) on Taito Type Zero hardware (taitotz.cpp header). MAME NOT_WORKING. Shifter layout not confirmed by sources"
 
 [routes]
 mame        = "not-working"
@@ -29,7 +29,7 @@ vr          = { best = "none" }
 pill   = "BATLGEAR"
 colour = "#101418"
 accent = "#ff4d4d"
-blurb  = "Stick-shift street racing with a real clutch and a Japanese street-tuning attitude."
+blurb  = "Street racing on Taito's Type Zero board, with a wheel and a gear lever."
 badges = ["seated"]
 
 [meta]

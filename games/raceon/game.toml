@@ -21,7 +21,7 @@ note = "Race On! (World, RO2 Ver. A); Japanese set raceonj. MAME marks NOT_WORKI
 [routes]
 mame        = "not-working"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "RACEON"

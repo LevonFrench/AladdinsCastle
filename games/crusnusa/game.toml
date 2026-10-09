@@ -5,7 +5,7 @@ subgenre     = ["street"]
 year         = 1994
 manufacturer = "midway"
 developer    = "Midway"
-hardware     = "other-arcade"
+hardware     = "midway-vunit"
 players      = 2
 series       = "Cruis'n"
 

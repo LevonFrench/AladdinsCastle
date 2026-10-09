@@ -26,7 +26,7 @@ note = "Winning Run: Suzuka GP (Japan, 1989) is a separate MAME set of the same 
 [routes]
 mame        = "imperfect"
 teknoparrot = "profile"
-vr          = { best = "none" }
+vr          = { best = "theatre" }
 
 [hub]
 pill   = "WINRUN"
