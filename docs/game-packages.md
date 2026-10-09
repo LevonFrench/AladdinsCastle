@@ -25,7 +25,7 @@ games/timecris/
 
 **Art location rule:** `games/<id>/art/` holds only art the repo or a pack is allowed to redistribute (original or properly licensed). Art the Hub scrapes or the user adds goes to `user/art/<id>/`, which is gitignored and never published. The Hub looks in `user/art/<id>/` first, then `games/<id>/art/`, then generates a fallback.
 
-Installed files go to `installed/<game-id>/<variant>/`. Shared emulators and tools go to `tools/` (see [frontend.md](frontend.md) §4). User settings go to `user/`.
+Installed files go to `installed/<game-id>/<variant>/`. Emulators the Hub installs go to `emulators/<id>/` (manifests in `data/emulators/`, see [frontend.md](frontend.md) §4). User settings go to `user/`.
 
 ## 2. Tile and detail page
 

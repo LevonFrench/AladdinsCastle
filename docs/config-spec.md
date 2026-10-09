@@ -26,8 +26,8 @@ Status: **draft for discussion**. Field names will change before v1. Open questi
     setup/                 # our per-game config: controls.toml (ghost controls), gun.toml, comfort.toml
   setups/<setup-id>.toml   # shared setup definitions (e.g. acvr-theatre, supermodel-vr) used by many games
   installed/<game-id>/<variant>/   # what an install put down
-  tools/<tool-id>.toml     # emulator/helper: install, locate and search rules (frontend.md section 4)
-  tools/<tool-id>/         # tools the Hub installed for you
+  data/emulators/<id>.toml # emulator/helper manifest: install, locate, search, launch, input (emulator-manifests.md)
+  emulators/<id>/          # emulators the Hub installed for you (runtime folder, gitignored)
   controls/<control-set-id>.toml # shared control sets reused by many games (e.g. gun-1p-pedal)
   guns/<gun-id>/gun.toml + model.glb
   packs/<pack-id>/pack.toml (+ any of the folders above)

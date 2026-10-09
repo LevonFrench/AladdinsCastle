@@ -65,11 +65,11 @@ Many setups need an emulator or helper (MAME, Model 2 Emulator, Supermodel, PCSX
 
 | Route | What happens |
 |---|---|
-| **Install it for me** | Download from the official release page only (GitHub releases or the project's own site), check the hash, put it in the AladdinsCastle `tools/` folder, and record the version for updates. Never a mirror, never with game content. |
+| **Install it for me** | Download from the official release page only (GitHub releases or the project's own site), check the hash, put it in the AladdinsCastle `emulators/<id>/` folder, and record the version for updates. Never a mirror, never with game content. |
 | **I already have it: here it is** | You pick the folder or exe. The Hub verifies it (exe name, version string or file hash) and uses it in place, never modifying your install. Per-emulator settings our setups need go into a separate profile or config dir where the emulator supports one. |
 | **Search for it** | Scan likely places: Program Files, `%LOCALAPPDATA%`, Scoop and winget install paths, Steam (e.g. Dolphin, RetroArch), common emulator folders on every drive, and front ends' known paths (LaunchBox, RetroBat, Playnite). Results are listed with version for you to confirm. Nothing is used without confirmation. |
 
-Each tool is described by a `tools/<id>.toml` file:
+Each emulator or helper is described by a `data/emulators/<id>.toml` manifest (schema: [emulator-manifests.md](emulator-manifests.md)):
 
 ```toml
 id       = "pcsx2"

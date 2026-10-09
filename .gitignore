@@ -29,5 +29,6 @@ AGENCY.md
 .local/
 
 # Runtime data (user art, installs) never published
-user/
-installed/
+/user/
+/installed/
+/emulators/
