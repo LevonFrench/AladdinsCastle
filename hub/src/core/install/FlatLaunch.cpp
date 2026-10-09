@@ -303,10 +303,16 @@ Json prepareFlatLaunch(const LaunchPlan &plan, const QString &root,
     scopedPath(source, QFileInfo(source).absolutePath());
     const auto safe = scopedPath(destination, profileRoot);
     const auto suffix = QFileInfo(source).suffix().toLower();
-    if (!QSet<QString>{"exe", "dll",  "xml",  "bmp",  "png", "svg", "ttf",
-                       "otf", "qm",   "json", "yaml", "zip", "txt", "metallib",
-                       "bin", "dxil", "spv",  "glsl", "ini", "dat"}
-             .contains(suffix))
+    // These resource types and extensionless notices are shipped in the
+    // official PCSX2 v2.7.24 public resources tree. Config/account files are
+    // rejected before any bytes are read, including on subsequent launches.
+    const bool publicNotice = suffix.isEmpty() && QSet<QString>{
+        "NotoColorEmoji-Regular-license", "Roboto-Regular-copyright",
+        "promptfont-license", "LICENSE", "LICENSESCN"}.contains(QFileInfo(source).fileName());
+    if (!publicNotice && !QSet<QString>{"exe", "dll", "xml", "bmp", "png", "svg", "ttf",
+                       "otf", "qm", "json", "yaml", "zip", "txt", "metallib",
+                       "bin", "dxil", "spv", "glsl", "ini", "dat",
+                       "fx", "h", "hlsl", "ico", "mo", "wav"}.contains(suffix))
       throw Error("E_SOURCE_OUT_OF_SCOPE",
                   "Unknown public application resource type");
     // No INI or account databases from a located tool, even under resource
