@@ -685,7 +685,9 @@ void LaunchSteamTest::lastPlayedLockRefusal() {
 }
 void LaunchSteamTest::hungChildCanBeStopped() {
   QTemporaryDir temp;launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=false;r.plan.executable=QCoreApplication::applicationFilePath();r.plan.cwd=temp.path();r.plan.args={"--synthetic-child","0","hang"};
-  launch::LaunchService service;QSignalSpy started(&service,&launch::LaunchService::started),done(&service,&launch::LaunchService::finished);QVERIFY(service.start(r));QTRY_COMPARE(started.count(),1);service.stop();QTRY_COMPARE_WITH_TIMEOUT(done.count(),1,7000);QVERIFY(!service.playing());
+  launch::LaunchService service;QSignalSpy started(&service,&launch::LaunchService::started),done(&service,&launch::LaunchService::finished);QVERIFY(service.start(r));QTRY_COMPARE(started.count(),1);
+  QTRY_VERIFY_WITH_TIMEOUT(([&]{const auto logs=QDir(temp.path()+"/user/logs/test-game").entryList({"*.log"},QDir::Files);return !logs.isEmpty()&&install::readBytes(temp.path()+"/user/logs/test-game/"+logs.first()).contains("synthetic hung child ready");})(),5000);
+  service.stop();QTRY_COMPARE_WITH_TIMEOUT(done.count(),1,7000);QVERIFY(!service.playing());QVERIFY(done[0][1].toInt()!=0);
 }
 void LaunchSteamTest::sameGameLock() {
   QTemporaryDir temp;
@@ -746,6 +748,7 @@ int main(int argc, char **argv) {
 #ifndef Q_OS_WIN
       std::signal(SIGTERM, SIG_IGN);
 #endif
+      out << "synthetic hung child ready\n";out.flush();
       QThread::sleep(60);
     } else if(argc > 3) QThread::msleep(1000);
     return QByteArray(argv[2]).toInt();
