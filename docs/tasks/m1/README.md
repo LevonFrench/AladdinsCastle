@@ -57,6 +57,10 @@ Integration: D + E + F + G on main → M1 acceptance run on the owner's PC
 
 B, C and (after C) D, E, F can run in parallel. G comes last.
 
+## Review fixes
+
+After the lanes were integrated, a review produced [R1-review-fixes.md](R1-review-fixes.md): the fixes to make on `codex/m1-integration` before M1 sign-off.
+
 ## M1 acceptance (owner's PC, after all lanes merge)
 
 1. A fresh portable build starts; the library shows all catalog games with local or fallback art, all filters work, and the grid stays smooth (S2 numbers recorded).
