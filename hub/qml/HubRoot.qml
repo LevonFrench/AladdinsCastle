@@ -1,90 +1,52 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
-Item {
-    id: root
-    implicitWidth: 1100
-    implicitHeight: 760
-    Rectangle { anchors.fill: parent; color: surfaceColor }
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 18
-        spacing: 10
-        Label { text: "AladdinsCastle · " + gameFilter.visibleCount + " / " + catalogGameCount + " games"; color: primaryTextColor; font.pixelSize: 26; font.bold: true }
-        RowLayout {
-            Layout.fillWidth: true
-            TextField { id: searchField; Layout.fillWidth: true; placeholderText: "Search titles, developers…  -publisher  +publisher"; onTextChanged: gameFilter.query = text }
-            ComboBox { model: ["title", "year", "manufacturer", "hardware", "recent"]; onActivated: gameFilter.sortMode = currentText }
-            Button { text: "Clear filters"; onClicked: { gameFilter.clearFacets(); searchField.clear(); filters.reset(); yearMin.value = 1970; yearMax.value = 2026; libraryToggle.checked = false; statePicker.currentIndex = 0 } }
-        }
-        Flow {
-            id: filters
-            Layout.fillWidth: true
-            Layout.preferredHeight: childrenRect.height
-            spacing: 6
-            function reset() { for (let i = 0; i < children.length; ++i) if (children[i].currentIndex !== undefined) children[i].currentIndex = 0 }
-            Repeater {
-                model: [{name:"Genre",key:"genre"},{name:"Graphics",key:"graphicsIds"},{name:"Manufacturer",key:"manufacturerIds"},{name:"Hardware kind",key:"hardwareKinds"},{name:"Hardware family",key:"hardwareFamilies"},{name:"Board",key:"hardwareIds"},{name:"VR",key:"vrKeys"},{name:"Players",key:"playersBuckets"},{name:"Controls",key:"controlsTypes"},{name:"Decade",key:"decades"}]
-                ComboBox {
-                    required property var modelData
-                    property string facetKey: modelData.key
-                    width: 160
-                    textRole: "label"
-                    valueRole: "id"
-                    model: [{id:"", label:modelData.name + ": All"}].concat(gameFilter.choices(facetKey))
-                    onActivated: gameFilter.setFacet(facetKey, currentValue === "" ? [] : [currentValue])
-                }
-            }
-        }
-        RowLayout {
-            Label { text: "Year"; color: primaryTextColor }
-            SpinBox { id: yearMin; from: 1970; to: 2026; value: 1970; editable: true; onValueModified: gameFilter.setFacet("yearMin",value) }
-            Label { text: "to"; color: primaryTextColor }
-            SpinBox { id: yearMax; from: 1970; to: 2026; value: 2026; editable: true; onValueModified: gameFilter.setFacet("yearMax",value) }
-            CheckBox { id: libraryToggle; text: "In my library"; enabled: gameFilter.scanComplete; onToggled: gameFilter.setFacet("inLibraryOnly",checked) }
-            ComboBox { id: statePicker; enabled: gameFilter.scanComplete; model: ["All states","To install","Ready","Updates","Needs files"]; onActivated: gameFilter.setFacet("statePills",currentIndex === 0 ? [] : [["toInstall","ready","updates","needsFiles"][currentIndex-1]]) }
-            Button { text: "Warnings (" + gameModel.warnings.length + ")"; onClicked: warnings.open() }
-        }
-        ListView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            model: gameFilter
-            reuseItems: true
-            spacing: 4
-            ScrollBar.vertical: ScrollBar {}
-            delegate: Rectangle {
-                required property string gameId
-                required property string title
-                required property int year
-                required property string manufacturerLabel
-                required property string hardwareLabel
-                required property string stateLabel
-                required property color colourBase
-                required property color accent
-                required property string loadWarning
-                width: ListView.view.width
-                height: 66
-                color: colourBase
-                border.color: accent
-                radius: 5
-                RowLayout {
-                    anchors.fill: parent; anchors.margins: 10
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Label { text: title; color: primaryTextColor; font.pixelSize: 17; font.bold: true }
-                        Label { text: year + " · " + manufacturerLabel + " · " + hardwareLabel; color: "#aaaaaa" }
-                    }
-                    Label { text: loadWarning.length ? "⚠ " + stateLabel : stateLabel; color: accent }
-                }
-            }
-        }
-    }
-    Popup {
-        id: warnings
-        width: Math.min(root.width - 40, 900); height: Math.min(root.height - 40, 560)
-        anchors.centerIn: parent; modal: true; closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        ScrollView { anchors.fill: parent; TextArea { text: gameModel.warnings.join("\n"); readOnly: true; wrapMode: Text.Wrap; selectByMouse: true } }
-    }
+import AladdinsCastle.Hub
+FocusScope {
+ id:root
+ objectName:"hubRoot"
+ property string view:"List"
+ property var history:[]
+ property bool vrOverlayMode:false
+ property bool reduceMotion:(uiSettings.values,uiSettings.get("reduceMotion",false))
+ property string sizeValue:Object.keys(uiSettings.values).length>=0 ? (uiSettings.values,uiSettings.get("size"+view,vrOverlayMode?"L":"S")) : "S"
+ property var previewGame:({})
+ function navigate(page,id){history=history.concat([view]);view=page;if(id)uiController.openDetail(id);preview.visible=false}
+ function back(){if(history.length){view=history[history.length-1];history=history.slice(0,-1)}else view="List";preview.visible=false}
+ function closeTop(){if(filters.opened)filters.close();else if(sort.opened)sort.close();else if(help.opened)help.close();else if(gameFilter.query.length)gameFilter.query="";else back()}
+ function showDetail(id){navigate("Detail",id)}
+ Rectangle{anchors.fill:parent;color:Theme.get("color.surface.window")}
+ Canvas{anchors.fill:parent;layer.enabled:true;onPaint:{let c=getContext("2d");c.fillStyle=Theme.get("color.surface.dot_grid");for(let x=0;x<width;x+=24)for(let y=0;y<height;y+=24){c.beginPath();c.arc(x,y,0.9,0,2*Math.PI);c.fill()}} onWidthChanged:requestPaint();onHeightChanged:requestPaint()}
+ ColumnLayout{anchors.fill:parent;spacing:0
+  Header{id:header;Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:implicitHeight;Layout.maximumHeight:implicitHeight;vrOverlayMode:root.vrOverlayMode;onLibraryRequested:root.navigate(root.view==="Library"?"List":"Library");onHelpRequested:{sort.close();filters.close();help.open()} onOrderRequested:{help.close();filters.close();sort.open()} onQueryEdited:text=>{gameFilter.query=text;if(root.view==="Detail")root.view="List"}}
+  FilterBar{Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:implicitHeight;Layout.maximumHeight:implicitHeight;vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;onBackPressed:root.back();onFiltersRequested:{sort.close();help.close();filters.open()} onScanRequested:if(uiController.scanning)uiController.scan([]);else scanDialog.open();onSizeChosen:value=>uiSettings.set("size"+root.view,value)}
+  Item{id:content;Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:0;Layout.preferredHeight:0;clip:true
+   GameGrid{id:grid;anchors.fill:parent;visible:root.view==="List"||root.view==="Library";view:root.view;sizeValue:root.sizeValue;vrOverlayMode:root.vrOverlayMode;reduceMotion:root.reduceMotion;effectsEnabled:!(uiSettings.values,uiSettings.get("cheapEffects",true));onDetailRequested:id=>root.showDetail(id);onActionRequested:id=>{root.showDetail(id);uiController.primary(id)} onExploreRequested:root.navigate("Explore");onPreviewRequested:(game,item)=>{if(root.vrOverlayMode)return;root.previewGame=game;let p=item.mapToItem(content,0,0);preview.x=Math.max(0,Math.min(content.width-preview.width,p.x-(preview.width-item.width)/2));preview.y=Math.max(0,Math.min(content.height-preview.height,p.y-(preview.height-item.height)/2));preview.visible=true} onPreviewClosed:preview.visible=false}
+   Loader{anchors.fill:parent;anchors.margins:24;active:root.view==="Detail";sourceComponent:Component{DetailPage{vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;onDetailRequested:id=>uiController.openDetail(id)}}}
+   Loader{anchors.fill:parent;anchors.margins:20;active:root.view==="Explore";sourceComponent:Component{ExplorePage{sizeValue:root.sizeValue;vrOverlayMode:root.vrOverlayMode;onDetailRequested:id=>root.showDetail(id)}}}
+   Loader{anchors.fill:parent;anchors.margins:24;active:root.view==="Settings";sourceComponent:Component{SettingsPage{vrOverlayMode:root.vrOverlayMode}}}
+   Item{id:preview;objectName:"previewHost";visible:false;width:previewCard.implicitWidth*Theme.get("motion.preview_scale");height:previewCard.implicitHeight*Theme.get("motion.preview_scale");z:1000
+    GameCard{id:previewCard;game:root.previewGame;preview:true;sizeValue:root.sizeValue;scale:Theme.get("motion.preview_scale");transformOrigin:Item.TopLeft;onDetailRequested:id=>root.showDetail(id);onActionRequested:id=>{root.showDetail(id);uiController.primary(id)}}
+    HoverHandler{id:previewHover;onHoveredChanged:if(!hovered)preview.visible=false}
+   }
+  }
+  UiText{Layout.fillWidth:true;Layout.leftMargin:14;Layout.bottomMargin:6;text:uiController.status||gameFilter.visibleCount+" / "+catalogGameCount+" games · Local art only";font.pixelSize:11;color:Theme.get("color.text.muted_detail")}
+ }
+ FiltersDrawer{id:filters;parent:root;x:Math.max(0,Math.min(root.width-width,160));y:Math.min(140,root.height-height);vrOverlayMode:root.vrOverlayMode}
+ SortMenu{id:sort;parent:root;x:Math.max(0,root.width-width-180);y:60;vrOverlayMode:root.vrOverlayMode}
+ HelpPanel{id:help;parent:root;x:Math.max(0,root.width-width-200);y:60;onSettingsRequested:root.navigate("Settings")}
+ Dialog{id:scanDialog;parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,520);modal:true;title:"Scan my files";standardButtons:Dialog.Ok|Dialog.Cancel
+  Column{width:parent.width;spacing:10;UiText{width:parent.width;text:"Choose folders containing your own game files. The scanner identifies media locally; no game content is downloaded."} TextField{id:roots;objectName:"scanRoots";width:parent.width;placeholderText:"Folders separated by ;";text:(uiSettings.values,uiSettings.get("scanRoots",""));color:Theme.get("color.text.primary");background:Rectangle{color:Theme.get("color.surface.pill");border.color:Theme.get("color.line.button");radius:4}} PillButton{text:"Browse folder";onClicked:folder.open()}}
+  onAccepted:{uiSettings.set("scanRoots",roots.text);uiController.scan(roots.text.split(/\n|;/).filter(p=>p.trim().length>0))}
+  background:Rectangle{color:Theme.get("color.surface.panel");border.color:Theme.get("color.line.button");radius:8}
+ }
+ FolderDialog{id:folder;title:"Choose a folder to scan";onAccepted:roots.text+=(roots.text.length?";":"")+uiController.localPath(selectedFolder)}
+ Shortcut{sequence:"Ctrl+K";onActivated:header.focusSearch()}
+ Shortcut{sequence:"/";enabled:!header.searchField.activeFocus;onActivated:header.focusSearch()}
+ Shortcut{sequence:"Escape";onActivated:root.closeTop()}
+ Shortcut{sequence:"Alt+Left";onActivated:root.back()}
+ Connections{target:uiSettings;function onChanged(){root.previewGame=root.previewGame}}
+ Component.onCompleted:if((uiSettings.values,uiSettings.get("scanOnStartup",false))&&(uiSettings.values,uiSettings.get("scanRoots","")).length)uiController.scan((uiSettings.values,uiSettings.get("scanRoots","")).split(/\n|;/))
 }
