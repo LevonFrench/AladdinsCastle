@@ -39,7 +39,7 @@ The game camera's projection must match exactly. DR-89's v0.8.3 fix found that a
 ### 1.3 Physical cover (Time Crisis, Crisis Zone, Razing Storm)
 
 - Calibrate standing head height on first launch and on recenter.
-- Duck threshold defaults to 80% of standing height, with hysteresis so you don't flicker in and out of cover.
+- Duck threshold: enter cover when the head drops at least 0.20 m below calibrated standing height, and leave it when the head comes back within 0.12 m. These are DR-89's tested values (`quest_cover.c`). The gap between the two thresholds stops you flickering in and out of cover. Both are configurable, in metres or as a fraction of height.
 - Leaning sideways can optionally count as cover too, for seated play.
 
 ## 2. Racing: ghost controls

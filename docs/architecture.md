@@ -59,6 +59,20 @@ Head motion therefore stays smooth at the headset's rate even though the world u
   - *Comfort options* (see [controls.md](controls.md) §2.3) adjust how the anchor moves: cut fades, horizon lock, vignette.
 - Eye poses = anchor × head pose × eye offset, sent to the backend in game-world units. Scale is set per game: `world_units_per_metre`.
 
+### 2.3a How backends produce stereo: three proven techniques
+
+Studied from source, 2026-10-08:
+
+| Technique | Used by | How | Quality |
+|---|---|---|---|
+| **Unproject reconstruction** | DR-89 Time Crisis VR, VC2VR | Take the game's projected polygons (screen x, y plus view-space depth z, plus that polygon's camera: focal, cx, cy). Rebuild view-space vertices with `x = (sx - cx)·z/f`, `y = (cy - sy)·z/f`. Render the rebuilt triangles per eye with OpenXR view and projection. | True 6DoF stereo; only what the game drew is visible. VC2VR re-runs the world pass with the view rotated to the 6 cube faces to fill in what's behind you. |
+| **Source-level host** | DR-89 on namco22-decompile | The engine exposes a host API (`ss22_host.h`) and splits a frame into `ss22_prepare()` (once per simulation step) and `ss22_draw()` (any number of times). The host draws once per eye (or with multiview) from one simulation step. | Best. No hooking; upstream patched only through guarded build-time edits (`patch_upstream.py`). |
+| **Clip-space disparity + camera RAM writes** | PenguinScreen2 (PCSX2) | Per-vertex horizontal offset in the GS vertex shader, from the PS2 per-vertex Q (1/w) value. Head rotation written into the game's camera variables in emulated RAM. | Cheap. Stereo depth only as good as Q is as a depth proxy. Head rotation needs a per-game RAM profile. Not real 6DoF parallax. |
+
+**Generalisation for AladdinsCastle:** unproject reconstruction works with any emulator or port that can give us per-polygon screen coordinates, view-space depth and projection parameters. That's the generic route for Model 2/3, NAOMI-class and PC-port backends: hook the point where the emulated geometry engine outputs projected vertices. For PS2-class hardware with programmable vertex units, the PenguinScreen2 approach is the realistic first step.
+
+Gun aim in both shipping gun ports matches [controls.md](controls.md) §1.1: cast the ray against the rebuilt triangles, then project the hit through *that triangle's* game camera. Time Crisis VR writes the result straight into the arcade gun register (`x = 68 + nx·626`, `y = 43 + ny·241`). VC2VR has to steer the PC game's joystick-velocity input in a closed loop, which lags. Direct register or port writes are the target.
+
 ### 2.4 Gun mapping
 
 Covered in [controls.md](controls.md) §1.1. The backend gets an already-projected screen point and an off-screen flag, so it does not need to know about VR.
