@@ -15,13 +15,11 @@
 #include <QTextStream>
 #include <QTimer>
 #include <QtConcurrent/QtConcurrentRun>
-#include <toml++/toml.hpp>
-namespace {
-QString token(const toml::table &theme, const char *section, const char *key,
-              const char *fallback) {
-    return QString::fromStdString(theme["color"][section][key].value_or(std::string(fallback)));
-}
-} // namespace
+#include "ui/Theme.h"
+#include "ui/UiController.h"
+#include "ui/UiSettings.h"
+#include <QQuickStyle>
+#include <qqml.h>
 int main(int argc, char **argv) {
     ac::LaunchOptions options;
     {
@@ -68,32 +66,21 @@ int main(int argc, char **argv) {
     ac::GameListModel gameModel(std::move(catalog));
     ac::FilterSortModel filterModel;
     filterModel.setSourceModel(&gameModel);
-    QFile themeFile(":/resources/theme.toml");
-    if (!themeFile.open(QIODevice::ReadOnly)) {
-        err << "Embedded theme missing.\n";
-        return 2;
-    }
-    toml::table theme;
-    try {
-        theme = toml::parse(themeFile.readAll().toStdString());
-    } catch (const toml::parse_error &error) {
-        err << "Theme parse failed: " << error.what() << '\n';
-        return 2;
-    }
+    QQuickStyle::setStyle("Basic");
+    ac::Theme theme(gameModel.catalog().theme);
+    ac::UiSettings settings(QDir(app.applicationDirPath()).filePath("user"));
+    ac::UiController controller(&gameModel, &filterModel, &settings);
+    qmlRegisterSingletonInstance("AladdinsCastle.Hub", 1, 0, "Theme", &theme);
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("catalogGameCount", count);
     engine.rootContext()->setContextProperty("gameModel", &gameModel);
     engine.rootContext()->setContextProperty("gameFilter", &filterModel);
-    engine.rootContext()->setContextProperty("surfaceColor",
-                                             token(theme, "surface", "window", "#0f0f12"));
-    engine.rootContext()->setContextProperty("primaryTextColor",
-                                             token(theme, "text", "primary", "#ffffff"));
-    engine.rootContext()->setContextProperty("brandColor",
-                                             token(theme, "brand", "orange", "#dd6600"));
+    engine.rootContext()->setContextProperty("uiSettings", &settings);
+    engine.rootContext()->setContextProperty("uiController", &controller);
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
         [] { QCoreApplication::exit(2); }, Qt::QueuedConnection);
-    engine.loadFromModule("AladdinsCastle.Hub", "DesktopShell");
+    engine.load(QUrl("qrc:/qt/qml/AladdinsCastle/Hub/DesktopShell.qml"));
     if (engine.rootObjects().isEmpty())
         return 2;
     out << "AladdinsCastle: " << count << " games\n";
