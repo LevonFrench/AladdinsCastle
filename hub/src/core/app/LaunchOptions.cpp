@@ -2,6 +2,9 @@
 #include "LaunchOptions.h"
 #include <QRegularExpression>
 namespace ac {
+bool wantsParentConsole(const LaunchOptions &options){
+    return options.help||options.version||options.quitAfterMs>0||options.mode==Mode::Launch||options.mode==Mode::RegisterOverlay||options.mode==Mode::UnregisterOverlay;
+}
 LaunchOptions parseLaunchOptions(const QStringList &arguments) {
     LaunchOptions options;
     bool modeSeen = false;

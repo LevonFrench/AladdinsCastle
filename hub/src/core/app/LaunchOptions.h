@@ -17,4 +17,5 @@ struct LaunchOptions {
 };
 // Arguments exclude argv[0]. Parsing never launches a process or changes state.
 LaunchOptions parseLaunchOptions(const QStringList &arguments);
+bool wantsParentConsole(const LaunchOptions &options);
 }

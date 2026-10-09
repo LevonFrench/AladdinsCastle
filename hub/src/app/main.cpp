@@ -27,7 +27,7 @@ int main(int argc,char **argv){
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     ac::LaunchOptions options;
     {QCoreApplication argumentApp(argc,argv);options=ac::parseLaunchOptions(argumentApp.arguments().mid(1));}
-    if(options.mode!=ac::Mode::Desktop||options.help||options.version||options.quitAfterMs>0)ac::attachParentConsole();
+    if(ac::wantsParentConsole(options))ac::attachParentConsole();
     QTextStream out(stdout),err(stderr);
     if(!options.error.isEmpty()){
         err<<options.error<<'\n';

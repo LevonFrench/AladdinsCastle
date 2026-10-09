@@ -8,6 +8,7 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QtTest>
+#include <cstring>
 class SmokeTest : public QObject {
     Q_OBJECT
 private slots:
@@ -110,9 +111,9 @@ private slots:
     void modesAndRejections() {
         QCOMPARE(ac::parseLaunchOptions({}).mode, ac::Mode::Desktop);
         auto overlay = ac::parseLaunchOptions({"--overlay", "--window"});
-        QCOMPARE(overlay.mode, ac::Mode::Overlay); QVERIFY(overlay.window); QVERIFY(overlay.error.isEmpty());
+        QCOMPARE(overlay.mode, ac::Mode::Overlay); QVERIFY(overlay.window); QVERIFY(overlay.error.isEmpty());QVERIFY(!ac::wantsParentConsole(overlay));QVERIFY(ac::wantsParentConsole(ac::parseLaunchOptions({"--help"})));
         auto launch = ac::parseLaunchOptions({"--launch", "synthetic-game"});
-        QCOMPARE(launch.mode, ac::Mode::Launch); QCOMPARE(launch.gameId, QString("synthetic-game"));
+        QCOMPARE(launch.mode, ac::Mode::Launch); QCOMPARE(launch.gameId, QString("synthetic-game"));QVERIFY(ac::wantsParentConsole(launch));
         for (const auto &args : {QStringList{"--launch"}, QStringList{"--launch", "../outside"},
              QStringList{"--overlay", "--launch", "example"}, QStringList{"--window"},
              QStringList{"--quit-after-ms", "0"}, QStringList{"--launch","synthetic","--variant","../escape"}, QStringList{"--unknown"}})
