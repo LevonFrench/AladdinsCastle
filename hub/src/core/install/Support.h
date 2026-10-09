@@ -47,6 +47,7 @@ public:
                              const QStringList &include = {},
                              const QStringList &exclude = {});
 };
+Json loadContentGuard(const QString &catalogRoot);
 void contentGuard(const QString &name, const Json &guard);
 bool verifyPe64(const QString &path);
 } // namespace ac::install

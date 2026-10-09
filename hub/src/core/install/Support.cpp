@@ -333,21 +333,49 @@ Json expandJson(const Json &j, const QMap<QString, QString> &vars,
       out[i] = expandJson(j[i], vars, key);
   return out;
 }
+namespace {
+void validateGuard(const Json &guard) {
+  if (!guard.is_object() || !guard.contains("format") ||
+      !guard["format"].is_number_integer() || guard["format"] != 1)
+    throw Error("E_CONTENT_GUARD", "Content guard format 1 is required");
+  for (const auto *key : {"extensions", "names", "sha256"}) {
+    if (!guard.contains(key) || !guard[key].is_array())
+      throw Error("E_CONTENT_GUARD", "Content guard lists are required");
+    for (const auto &value : guard[key]) {
+      if (!value.is_string() || value.get<std::string>().empty())
+        throw Error("E_CONTENT_GUARD", "Content guard list entry is invalid");
+      const auto text = QString::fromStdString(value.get<std::string>());
+      if (QString(key) == "extensions" &&
+          !QRegularExpression("^[a-zA-Z0-9]+$").match(text).hasMatch())
+        throw Error("E_CONTENT_GUARD", "Content guard extension is invalid");
+      if (QString(key) == "sha256" &&
+          !QRegularExpression("^[a-fA-F0-9]{64}$").match(text).hasMatch())
+        throw Error("E_CONTENT_GUARD", "Content guard hash is invalid");
+    }
+  }
+  if (guard["extensions"].empty())
+    throw Error("E_CONTENT_GUARD", "Content guard extensions cannot be empty");
+}
+} // namespace
+Json loadContentGuard(const QString &catalogRoot) {
+  try {
+    const auto guard = CatalogLoader::parseToml(catalogRoot + "/data/content-guard.toml");
+    validateGuard(guard);
+    return guard;
+  } catch (const std::exception &) {
+    throw Error("E_CONTENT_GUARD", "Content guard is missing or malformed; install is blocked");
+  }
+}
 void contentGuard(const QString &name, const Json &guard) {
+  validateGuard(guard);
   const auto file = QFileInfo(name).fileName().toLower(),
              ext = QFileInfo(name).suffix().toLower();
-  const QSet<QString> blocked{"iso", "bin",  "img", "chd", "cue", "gdi", "cso",
-                              "rvz", "wbfs", "nsp", "xci", "mdf", "rom"};
-  if (blocked.contains(ext))
-    throw Error("E_CONTENT_GUARD", "Game content extension refused: " + name);
-  for (const auto &n : (guard.is_object() ? guard.value("names", Json::array())
-                                          : Json::array()))
-    if (n.is_string() &&
-        file == QString::fromStdString(n.get<std::string>()).toLower())
+  for (const auto &extension : guard["extensions"])
+    if (ext == QString::fromStdString(extension.get<std::string>()).toLower())
+      throw Error("E_CONTENT_GUARD", "Game content extension refused");
+  for (const auto &n : guard["names"])
+    if (file == QString::fromStdString(n.get<std::string>()).toLower())
       throw Error("E_CONTENT_GUARD", "Known game/BIOS file refused");
-  if (file == "scph10000.bin" || file == "scph1001.bin" ||
-      file == "naomi.zip" || file == "neogeo.zip")
-    throw Error("E_CONTENT_GUARD", "Known BIOS filename refused");
 }
 bool verifyPe64(const QString &path) {
   QFile f(path);

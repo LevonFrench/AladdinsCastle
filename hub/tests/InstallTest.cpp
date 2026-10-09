@@ -82,7 +82,13 @@ public:
     socket->startServerEncryption();
   }
 };
+QString catalogFixtureRoot() {
+  return QDir(QString(AC_TEST_FIXTURES) + "/../../..").absolutePath();
+}
+Json testGuard() { return loadContentGuard(catalogFixtureRoot()); }
 Request fixture(const QString &root) {
+  atomicWrite(root + "/data/content-guard.toml",
+              readBytes(catalogFixtureRoot() + "/data/content-guard.toml"));
   Request r;
   r.root = root;
   r.gameId = "synthetic";
@@ -337,6 +343,186 @@ private slots:
     r.recipe["variant"]["flat"]["step"][0]["id"] = "a\\b";
     QVERIFY_THROWS_EXCEPTION(Error, Engine().plan(r));
   }
+  void emulatorPolicy_data() {
+    QTest::addColumn<QString>("file");
+    QTest::addColumn<bool>("consent");
+    const QDir dir(catalogFixtureRoot() + "/data/emulators");
+    const auto files = dir.entryList({"*.toml"}, QDir::Files);
+    QVERIFY(!files.isEmpty());
+    for (const auto &file : files)
+      for (const bool consent : {false, true})
+        QTest::newRow(qPrintable(file + (consent ? "-consent" : "-automatic")))
+            << dir.filePath(file) << consent;
+  }
+  void emulatorPolicy() {
+    QFETCH(QString, file);
+    QFETCH(bool, consent);
+    QTemporaryDir temp;
+    const auto manifest = CatalogLoader::parseToml(file);
+    const auto gate = string(manifest, "gate");
+    const bool blocked = string(manifest, "redistribution") != "download-from-upstream-only" ||
+                         (manifest.contains("gate") && gate != "consent-install");
+    const bool requiresConsent = !blocked && gate == "consent-install" && !consent;
+    try {
+      auto request = Engine::emulatorRequest(temp.path(), manifest, consent);
+      QVERIFY(!blocked && !requiresConsent);
+      request.catalogRoot = catalogFixtureRoot();
+      // Unresolved pins/platforms remain rejected; this exercise never fetches.
+      try {
+        Engine().plan(request);
+      } catch (const Error &error) {
+        QCOMPARE(error.code, QString("E_PLAN_INVALID"));
+      }
+    } catch (const Error &error) {
+      if (blocked) {
+        QCOMPARE(error.code, QString("E_STEP_DISABLED"));
+        if (!gate.isEmpty())
+          QVERIFY(QString::fromUtf8(error.what()).contains(gate));
+      } else if (requiresConsent) {
+        QCOMPARE(error.code, QString("E_CONSENT_REQUIRED"));
+        QVERIFY(QString::fromUtf8(error.what()).contains(string(manifest, "consent")));
+      } else
+        QCOMPARE(error.code, QString("E_PLATFORM_UNVERIFIED"));
+    }
+    QVERIFY(tree(temp.path()).isEmpty());
+  }
+  void unknownEmulatorPoliciesFailClosed() {
+    const Json base{{"id", "synthetic"}, {"redistribution", "download-from-upstream-only"}};
+    for (const auto &gate : {Json(""), Json("owner-review"), Json(false)}) {
+      auto manifest = base;
+      manifest["gate"] = gate;
+      for (const bool consent : {false, true}) {
+        try {
+          Engine::emulatorRequest("unused", manifest, consent);
+          QFAIL("Unknown gate allowed automatic install");
+        } catch (const Error &error) {
+          QCOMPARE(error.code, QString("E_STEP_DISABLED"));
+        }
+      }
+    }
+    for (const auto &policy : {Json("manual-only"), Json("not-redistributable"), Json("unknown"), Json(false)}) {
+      auto manifest = base;
+      manifest["redistribution"] = policy;
+      manifest["gate"] = "consent-install";
+      try {
+        Engine::emulatorRequest("unused", manifest, true);
+        QFAIL("Consent bypassed redistribution policy");
+      } catch (const Error &error) {
+        QCOMPARE(error.code, QString("E_STEP_DISABLED"));
+      }
+    }
+  }
+  void contentGuardCatalogPolicy() {
+    QTemporaryDir runtime, catalog;
+    auto request = fixture(runtime.path());
+    // Runtime-root policy must not override a supplied catalog root.
+    request.catalogRoot = catalog.path();
+    QDir().mkpath(catalog.path() + "/games/synthetic/setup");
+    atomicWrite(catalog.path() + "/games/synthetic/setup/example.exe", "synthetic");
+    request.recipe["variant"]["flat"]["step"][0]["from"] =
+        (catalog.path() + "/games/synthetic/setup/example.exe").toStdString();
+    for (const auto &bytes : QList<QByteArray>{QByteArray(), "not toml [", "format=1\nnames=[]\nsha256=[]\n", "format=1\nextensions=[]\nnames=[]\nsha256=[]\n", "format=1\nextensions=[1]\nnames=[]\nsha256=[]\n"}) {
+      if (!bytes.isEmpty())
+        atomicWrite(catalog.path() + "/data/content-guard.toml", bytes);
+      try {
+        Engine().plan(request);
+        QFAIL("Missing or malformed content guard allowed planning");
+      } catch (const Error &error) {
+        QCOMPARE(error.code, QString("E_CONTENT_GUARD"));
+      }
+      QVERIFY(!QFileInfo(runtime.path() + "/user").exists());
+    }
+    atomicWrite(catalog.path() + "/data/content-guard.toml",
+                "format=1\nextensions=[\"custom\"]\nnames=[]\nsha256=[]\n");
+    Engine().plan(request);
+    const auto guard = loadContentGuard(catalog.path());
+    QVERIFY_THROWS_EXCEPTION(Error, contentGuard("GAME.CUSTOM", guard));
+    contentGuard("tool.exe", guard);
+    atomicWrite(catalog.path() + "/games/synthetic/game.toml", "[[media]]\nset=\"synthetic-set\"\n");
+    request.recipe["variant"]["flat"]["step"][0]["from"] =
+        (catalog.path() + "/games/synthetic/setup/synthetic-set.zip").toStdString();
+    QVERIFY_THROWS_EXCEPTION(Error, Engine().plan(request));
+    atomicWrite(catalog.path() + "/games/synthetic/game.toml", "malformed [");
+    try {
+      Engine().plan(request);
+      QFAIL("Unreadable catalog media names allowed planning");
+    } catch (const Error &error) {
+      QCOMPARE(error.code, QString("E_CONTENT_GUARD"));
+    }
+  }
+  void contentGuardExtensionsAndArchiveMembers() {
+    QTemporaryDir temp;
+    const auto guard = testGuard();
+    for (const auto &extension : guard["extensions"]) {
+      const auto name = "synthetic." + QString::fromStdString(extension.get<std::string>()).toUpper();
+      QVERIFY_THROWS_EXCEPTION(Error, contentGuard(name, guard));
+      const auto path = temp.path() + "/package.zip";
+      archiveFile(path, {name});
+      try {
+        Archive::inspect(path, {}, guard);
+        QFAIL("Archive member passed content guard");
+      } catch (const Error &error) {
+        QCOMPARE(error.code, QString("E_CONTENT_GUARD"));
+      }
+    }
+    for (const auto *extension : {"cdi", "gcm", "pbp", "rvz", "wbfs"})
+      QVERIFY_THROWS_EXCEPTION(Error, contentGuard(QString("synthetic.") + extension, guard));
+    QVERIFY_THROWS_EXCEPTION(Error, contentGuard("tool.exe", Json::object()));
+  }
+  void setupExtractSourcePlanning() {
+    QTemporaryDir temp;
+    auto request = fixture(temp.path());
+    auto &step = request.recipe["variant"]["flat"]["step"][0];
+    step = Json{{"id", "extract"}, {"do", "extract"},
+                {"from", (temp.path() + "/games/synthetic/setup/tool.zip").toStdString()},
+                {"to", "${install_dir}"}};
+    Engine().plan(request);
+    step["from"] = (temp.path() + "/package.zip").toStdString();
+    Engine().plan(request);
+    step["from"] = (temp.path() + "/games/synthetic/setup/disc.ISO").toStdString();
+    try {
+      Engine().plan(request);
+      QFAIL("Content extension allowed as setup extraction source");
+    } catch (const Error &error) {
+      QCOMPARE(error.code, QString("E_CONTENT_GUARD"));
+    }
+    QVERIFY(!QFileInfo(temp.path() + "/user").exists());
+  }
+  void mediaSourceRejectedBeforeIO_data() {
+    QTest::addColumn<QString>("kind");
+    QTest::addColumn<QString>("source");
+    for (const auto &kind : QStringList{"extract", "copy"})
+      for (const auto &source : QStringList{"${steps.required.path}", "${steps.required.dir}/tool.zip",
+                                           "${steps.linked.path}", "${media.disc.path}", "direct", "directory"})
+        QTest::newRow(qPrintable(kind + "-" + source)) << kind << source;
+    QTest::newRow("extract-shorthand") << QString("extract") << QString("required");
+  }
+  void mediaSourceRejectedBeforeIO() {
+    QFETCH(QString, kind);
+    QFETCH(QString, source);
+    QTemporaryDir temp;
+    auto request = fixture(temp.path());
+    const auto media = temp.path() + "/games/synthetic/setup/disc.dat";
+    atomicWrite(media, "synthetic media");
+    request.bindings["media"]["disc"] = Json{{"path", media.toStdString()}};
+    if (source == "direct")
+      source = media;
+    else if (source == "directory")
+      source = QFileInfo(media).absolutePath();
+    request.recipe["variant"]["flat"]["step"] = Json::array({
+        Json{{"id", "required"}, {"do", "require-media"}, {"media", "disc"}},
+        Json{{"id", "linked"}, {"do", "copy-media"}, {"media", "disc"}, {"to", "${install_dir}/disc.dat"}},
+        Json{{"id", "consumer"}, {"do", kind.toStdString()}, {"from", source.toStdString()}, {"to", "${install_dir}"}}});
+    const auto before = tree(temp.path());
+    try {
+      Engine().plan(request);
+      QFAIL("Media source allowed ordinary extract/copy");
+    } catch (const Error &error) {
+      QCOMPARE(error.code, QString("E_SOURCE_OUT_OF_SCOPE"));
+    }
+    QCOMPARE(tree(temp.path()), before);
+    QVERIFY(!QFileInfo(temp.path() + "/user").exists());
+  }
   void repeatedConfigWritesRetainOwnership() {
     QTemporaryDir temp;
     auto r = fixture(temp.path());
@@ -402,26 +588,26 @@ private slots:
               {"version", "v1"},
               {"sha256", sha256(server.payload).toStdString()},
               {"name", "tool.dat"}};
-    const auto cached = store.acquire(step);
+    const auto cached = store.acquire(step, testGuard());
     QCOMPARE(readBytes(cached), server.payload);
     QCOMPARE(server.requests.size(), 2);
     QVERIFY(!server.requests[0].contains("Cookie:"));
     QVERIFY(!server.requests[0].contains("Authorization:"));
-    QCOMPARE(store.acquire(step), cached);
+    QCOMPARE(store.acquire(step, testGuard()), cached);
     QCOMPARE(server.requests.size(), 2);
     QFile::remove(cached);
     const auto part = cached + ".part";
     atomicWrite(part, server.payload.left(5));
     atomicWrite(part + ".validator", "test-v1");
     step["url"] = "https://github.com/artifact";
-    QCOMPARE(readBytes(store.acquire(step)), server.payload);
+    QCOMPARE(readBytes(store.acquire(step, testGuard())), server.payload);
     QVERIFY(server.requests.last().toLower().contains("range: bytes=5-"));
     QVERIFY(server.requests.last().toLower().contains("if-range: test-v1"));
     step["url"] = "https://github.com/denied";
     QFile::remove(cached);
-    QVERIFY_THROWS_EXCEPTION(Error, store.acquire(step));
+    QVERIFY_THROWS_EXCEPTION(Error, store.acquire(step, testGuard()));
     step["url"] = "https://github.com/html";
-    QVERIFY_THROWS_EXCEPTION(Error, store.acquire(step));
+    QVERIFY_THROWS_EXCEPTION(Error, store.acquire(step, testGuard()));
     const auto release = store.githubRelease("synthetic/example", "v1");
     QCOMPARE(string(release, "tag_name"), QString("v1"));
     const auto calls = server.requests.size();
@@ -591,7 +777,7 @@ private slots:
       archiveFile(path, {"wrapper/example.exe"}, format);
       QList<ArchiveEntry> entries;
       try {
-        entries = Archive::inspect(path, {1024, 10});
+        entries = Archive::inspect(path, {1024, 10}, testGuard());
       } catch (const Error &e) {
         QFAIL(qPrintable(e.code + ": " + QString::fromUtf8(e.what())));
       }
@@ -599,7 +785,7 @@ private slots:
       QStringList files;
       try {
         files = Archive::extract(path, temp.path() + "/stage-" + format,
-                                 {1024, 10}, Json::object(), 1);
+                                 {1024, 10}, testGuard(), 1);
       } catch (const Error &e) {
         QFAIL(qPrintable(format + " " + e.code + ": " +
                          QString::fromUtf8(e.what())));
@@ -615,24 +801,23 @@ private slots:
                                         "x:stream", "game.iso"}) {
       const auto path = temp.path() + "/bad.zip";
       archiveFile(path, {name});
-      QVERIFY_THROWS_EXCEPTION(Error, Archive::inspect(path, {1024, 10}));
+      QVERIFY_THROWS_EXCEPTION(Error, Archive::inspect(path, {1024, 10}, testGuard()));
     }
     archiveFile(temp.path() + "/collision.zip", {"a.exe", "A.exe"});
     QVERIFY_THROWS_EXCEPTION(
-        Error, Archive::inspect(temp.path() + "/collision.zip", {1024, 10}));
+        Error, Archive::inspect(temp.path() + "/collision.zip", {1024, 10}, testGuard()));
     archiveFile(temp.path() + "/symlink.tar", {"link"}, "tar", true);
     QVERIFY_THROWS_EXCEPTION(
-        Error, Archive::inspect(temp.path() + "/symlink.tar", {1024, 10}));
+        Error, Archive::inspect(temp.path() + "/symlink.tar", {1024, 10}, testGuard()));
     archiveFile(temp.path() + "/cap.zip", {"a.exe", "b.exe"});
+    auto guard = testGuard();
+    guard["sha256"] = Json::array({sha256("test").toStdString()});
+    QVERIFY_THROWS_EXCEPTION(Error, Archive::inspect(
+        temp.path() + "/cap.zip", {1024, 10}, guard));
     QVERIFY_THROWS_EXCEPTION(
-        Error,
-        Archive::inspect(
-            temp.path() + "/cap.zip", {1024, 10},
-            Json{{"sha256", Json::array({sha256("test").toStdString()})}}));
+        Error, Archive::inspect(temp.path() + "/cap.zip", {4, 10}, testGuard()));
     QVERIFY_THROWS_EXCEPTION(
-        Error, Archive::inspect(temp.path() + "/cap.zip", {4, 10}));
-    QVERIFY_THROWS_EXCEPTION(
-        Error, Archive::inspect(temp.path() + "/cap.zip", {1024, 1}));
+        Error, Archive::inspect(temp.path() + "/cap.zip", {1024, 1}, testGuard()));
   }
   void updateRollback() {
     QTemporaryDir temp;

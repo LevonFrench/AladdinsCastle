@@ -610,11 +610,8 @@ void verify(const Transaction &tx, const Plan &plan) {
     throw Error("E_VERIFY_FAILED", "Windows x64 PE verification failed");
 }
 Json guardFor(const Request &r) {
-  Json guard = Json::object();
   const auto catalog = r.catalogRoot.isEmpty() ? r.root : r.catalogRoot;
-  const auto path = catalog + "/data/content-guard.toml";
-  if (QFileInfo::exists(path))
-    guard = CatalogLoader::parseToml(path);
+  Json guard = loadContentGuard(catalog);
   Json names = guard.value("names", Json::array());
   QDirIterator it(catalog + "/games", {"game.toml"}, QDir::Files,
                   QDirIterator::Subdirectories);
@@ -625,6 +622,7 @@ Json guardFor(const Request &r) {
         if (m.contains("set"))
           names.push_back(m["set"].get<std::string>() + ".zip");
     } catch (const std::exception &) {
+      throw Error("E_CONTENT_GUARD", "Catalog media names are unavailable; install is blocked");
     }
   }
   guard["names"] = names;
@@ -665,7 +663,8 @@ Plan Engine::plan(const Request &r) const {
   if (p.version == "latest" || p.version == "cached")
     throw Error("E_PLAN_INVALID", "Concrete version required");
   auto vars = variables(r, p.installDir);
-  QSet<QString> ids;
+  const auto guard = guardFor(r);
+  QSet<QString> ids, mediaOutputs;
   const auto steps = p.variant.value("step", Json::array());
   const QMap<QString, QSet<QString>> specific{
       {"github-release",
@@ -740,23 +739,55 @@ Plan Engine::plan(const Request &r) const {
         else if (QDir::cleanPath(target) != QDir::cleanPath(p.installDir))
           scopedPath(target, p.installDir);
       }
-    if (kind == "copy") {
-      const auto from = string(expanded, "from");
-      if (string(step, "from").startsWith("${steps.")) {
-        const auto match =
-            QRegularExpression(
-                "^\\$\\{steps\\.[a-z0-9_-]+\\.(?:path|dir)\\}(/.*)?$")
-                .match(string(step, "from"));
-        if (!match.hasMatch())
-          throw Error("E_SOURCE_OUT_OF_SCOPE",
-                      "Copy source must use one prior output");
-        const auto suffix = match.captured(1);
-        if (!suffix.isEmpty())
+    if (kind == "extract" || kind == "copy") {
+      const auto rawFrom = string(step, "from"), from = string(expanded, "from");
+      const auto output = QRegularExpression(
+          "^\\$\\{steps\\.([a-z0-9_-]+)\\.(?:path|dir)\\}(/.*)?$").match(rawFrom);
+      const bool shorthand = kind == "extract" && ids.contains(rawFrom) && rawFrom != id;
+      const auto sourceId = output.hasMatch() ? output.captured(1) : rawFrom;
+      if (rawFrom.contains("${media.") ||
+          ((output.hasMatch() || shorthand) && mediaOutputs.contains(sourceId)))
+        throw Error("E_SOURCE_OUT_OF_SCOPE", "Media cannot be an extract/copy source");
+      for (const auto &media : r.bindings.value("media", Json::object())) {
+        const auto bound = string(media, "path");
+        if (bound.isEmpty())
+          continue;
+        // Compare lexical and canonical paths without reading or hashing media.
+        auto normalize = [](const QString &path) {
+          const QFileInfo info(path);
+          const auto canonical = info.canonicalFilePath();
+          auto normalized = QDir::cleanPath(canonical.isEmpty() ? info.absoluteFilePath() : canonical);
+#ifdef Q_OS_WIN
+          normalized = normalized.toLower();
+#endif
+          return normalized;
+        };
+        const auto normalizedSource = normalize(from), normalizedMedia = normalize(bound);
+        if (normalizedSource == normalizedMedia ||
+            (QFileInfo(from).isDir() && normalizedMedia.startsWith(normalizedSource + '/')))
+          throw Error("E_SOURCE_OUT_OF_SCOPE", "Bound media cannot be an extract/copy source");
+      }
+      if (output.hasMatch() || shorthand) {
+        if (!ids.contains(sourceId) || sourceId == id)
+          throw Error("E_SOURCE_OUT_OF_SCOPE", "Source must use one prior output");
+        const auto suffix = output.captured(2);
+        if (!suffix.isEmpty()) {
           validateRelative(suffix.mid(1));
-      } else
-        scopedPath(from, (r.catalogRoot.isEmpty() ? r.root : r.catalogRoot) +
-                             "/games/" + r.gameId + "/setup");
+          contentGuard(suffix, guard);
+        }
+      } else {
+        if (rawFrom.contains("${steps."))
+          throw Error("E_SOURCE_OUT_OF_SCOPE", "Source must use one prior output");
+        if (kind == "copy")
+          scopedPath(from, (r.catalogRoot.isEmpty() ? r.root : r.catalogRoot) +
+                               "/games/" + r.gameId + "/setup");
+        else
+          scopedPath(from, QFileInfo(from).absolutePath());
+        contentGuard(from, guard);
+      }
     }
+    if (kind == "require-media" || kind == "copy-media")
+      mediaOutputs.insert(id);
     if (kind == "write-config") {
       if (!QSet<QString>{"ini", "cfg", "toml", "json"}.contains(
               string(step, "format")))
@@ -1295,14 +1326,15 @@ Request Engine::emulatorRequest(const QString &root, const Json &manifest,
   r.gameId = "tool-" + id;
   r.variantId = "windows-x64";
   r.consentAccepted = consent;
-  const auto gate = string(manifest, "gate",
-                           string(manifest, "redistribution", "locate-only"));
-  if (gate == "locate-only")
-    throw Error("E_STEP_DISABLED", "This tool must be located");
+  const auto gate = string(manifest, "gate");
+  if (string(manifest, "redistribution") != "download-from-upstream-only" ||
+      (manifest.contains("gate") && gate != "consent-install"))
+    throw Error("E_STEP_DISABLED", gate.isEmpty()
+                    ? "This tool must be located or searched for"
+                    : "Automatic install blocked: " + gate);
   if (gate == "consent-install" && !consent)
-    throw Error(
-        "E_CONSENT_REQUIRED",
-        string(manifest, "consent", "Confirm the tool consent text first"));
+    throw Error("E_CONSENT_REQUIRED",
+                string(manifest, "consent", "Confirm the tool consent text first"));
   if (!strings(manifest.value("platforms", Json::array()))
            .contains("windows-x64"))
     throw Error("E_PLATFORM_UNVERIFIED",
