@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/catalog/CatalogLoader.h"
 #include "core/catalog/CatalogPaths.h"
+#include "core/scan/Scan.h"
 #include "core/install/Install.h"
 #include "core/install/Support.h"
 #include <QCoreApplication>
@@ -62,6 +63,29 @@ int main(int argc, char **argv) {
     return 2;
   }
   const auto catalog = ac::CatalogLoader().load(root);
+  const bool scanMode = args.size() == 3 && (args[0] == "scan" || args[0] == "locate") && args[1] == "--request";
+  if (scanMode) {
+    QFile request(args[2]);
+    if (!request.open(QIODevice::ReadOnly)) {
+      err << "Cannot read private scan request.\n";
+      return 2;
+    }
+    try {
+      auto options = ac::scan::Scanner::optionsFromJson(
+          ac::Json::parse(request.readAll().toStdString()));
+      options.locateOnly = args[0] == "locate";
+      if (options.userRoot.isEmpty())
+        options.userRoot = QDir(root).filePath("user");
+      std::atomic_bool cancel = false;
+      const auto result = ac::scan::Scanner::run(catalog, options, cancel);
+      out << QString::fromStdString(result.toJson().dump(2)) << '\n';
+      return result.cancelled ? 4 : 0;
+    } catch (const std::exception &e) {
+      err << "Invalid scan request: " << e.what() << '\n';
+      return 2;
+    }
+  }
+
   if (installRoot.isEmpty())
     installRoot = root;
   installRoot = QDir(installRoot).absolutePath();

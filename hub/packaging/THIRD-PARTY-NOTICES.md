@@ -31,6 +31,17 @@ Pinned additional dependencies and their preserved license texts:
   https://github.com/pboettch/json-schema-validator/tree/2.4.0
 - OpenVR v2.15.6 (BSD-3-Clause): licenses/OpenVR-BSD-3-Clause.txt
   https://github.com/ValveSoftware/openvr/tree/v2.15.6
+- 7-Zip 25.01 C metadata reader (public domain): licenses/7zip-C-public-domain.txt
+  https://github.com/ip7z/7zip/tree/5e96a8279489832924056b1fa82f29d5837c9469/C
+  Only the C SDK is linked. Its archive-header decoder does not extract game members.
+- libchdr sparse CHD reader (BSD-3-Clause), pinned607694ca0812edfc9cc2030c64634fc2393668de:
+  licenses/libchdr-BSD-3-Clause.txt; https://github.com/rtissera/libchdr/tree/607694ca0812edfc9cc2030c64634fc2393668de
+  Bundled LZMA26.02 (public domain), miniz3.1.2 (MIT), zstd1.5.7 (BSD-3/GPL),
+  dr_flac (its bundled notices) are preserved under licenses/libchdr-*.txt.
+  Only sparse identifying sectors are decoded; no disc extraction or full hashing.
+- Bundled PS2 serial/title metadata facts: official PCSX2 GameIndex, GPL-3.0 project
+  https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml
+  Source URL and exact revision are retained on every mapping; no game data is included.
 
 The Microsoft Visual C++ runtime DLLs come only from the official Visual Studio
 VC/Redist/MSVC x64 CRT directory, subject to Microsoft's redistribution terms.
