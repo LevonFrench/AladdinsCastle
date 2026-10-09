@@ -376,6 +376,20 @@ private slots:
     QCOMPARE(r.bindings[0].identity, QString("regional"));
     QCOMPARE(r.bindings[0].supportPaths.size(), 1);
   }
+
+  void scanTimeToolFingerprintSurvivesLaterChange() {
+    QTemporaryDir t;
+    QByteArray pe(68,0);pe[0]='M';pe[1]='Z';qToLittleEndian<quint32>(64,pe.data()+60);pe.replace(64,4,QByteArray("PE\0\0",4));
+    const auto path=t.filePath("mame.exe");save(path,pe);
+    ac::scan::ScanOptions options;options.locateOnly=true;options.toolRoots={t.path()};
+    std::atomic_bool stop=false;const auto result=ac::scan::Scanner::run(catalog(),options,stop);
+    QCOMPARE(result.tools.size(),1);const auto recorded=result.tools.first().mtime;
+    save(path,pe+"changed");const auto json=result.toJson();
+    QCOMPARE(json["tools"][0]["size"].get<qint64>(),qint64(68));
+    QCOMPARE(json["tools"][0]["mtime"].get<qint64>(),recorded);
+    QVERIFY(QFileInfo(path).size()!=result.tools.first().size);
+  }
+
   void scopedRootsSkipSecretsAndSymlinks() {
     QTemporaryDir t;
     save(t.filePath(".ssh/secret.zip"), zip({{0x12345678, 100}}));

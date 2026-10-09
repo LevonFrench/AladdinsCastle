@@ -511,6 +511,7 @@ Json ScanResult::toJson() const {
     t.push_back({{"id", v.id.toStdString()},
                  {"path", v.path.toStdString()},
                  {"version", v.version.toStdString()},
+                 {"size", v.size}, {"mtime", v.mtime},
                  {"verified", v.verified}});
   for (const auto &v : files) {
     auto j = identityJson(v);
@@ -596,7 +597,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
       }
     }
     if (!id.isEmpty() && executable(path))
-      r.tools.push_back({id, path, version(path), true});
+      r.tools.push_back({id, path, version(path), true, QFileInfo(path).size(), QFileInfo(path).lastModified().toMSecsSinceEpoch()});
   }
   if (o.locateOnly) {
     r.cancelled = cancel;

@@ -35,6 +35,7 @@ struct Binding {
 struct ToolBinding {
   QString id, path, version;
   bool verified = false;
+  qint64 size = 0, mtime = 0;
 };
 struct ScanOptions {
   QStringList mediaRoots, toolRoots, artRoots;
