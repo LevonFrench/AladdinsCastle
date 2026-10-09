@@ -19,7 +19,7 @@ extras  = ["view-change"]
 [[media]]
 kind = "mame-romset"
 set  = "raverace"
-note = "Rave Racer World RV2 Ver.B (MAME 0.271+); older MAME named a set raveracw"
+note = "Rave Racer World RV2 Ver.B (MAME 0.271+); older MAME versions used a different name for this set, so files are matched by hash"
 
 [[media]]
 kind = "mame-romset"

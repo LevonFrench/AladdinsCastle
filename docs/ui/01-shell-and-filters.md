@@ -1,5 +1,7 @@
 # 01. Window shell, header and filters: the PCVR Mods Installer Hub look, adapted for AladdinsCastle
 
+> **Status note (2026-10-08):** the Hub stack is decided: **Qt 6 / QML** (workshop D4). Sections in this spec that discuss WPF, PowerShell or Tauri implementations are historical. The QML mapping is in [04-qml-components.md](04-qml-components.md).
+
 > **File references:** paths starting `Core/`, `Start PCVR Mods Hub.bat` or `_screenshots/` are relative to [Mr-Nlce/PCVR-Mods-Installer-Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub) at commit `a64401f` (MIT). Paths starting `docs/`, `data/`, `games/` are in this repo.
 
 Status: research spec, 2026-10-08. Owner decision D19 (UI look "very close to the Installer Hub") is recorded in `docs/workshop.md`. D4 (Hub technology) is still open, so part 3 covers both PowerShell + WPF and a web UI (Tauri 2).

@@ -1,0 +1,88 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "xemu"
+name = "xemu"
+kind = "emulator"
+upstream = "https://github.com/xemu-project/xemu"
+license = "GPL-2.0"
+license_note = "COPYING is the GPL-2.0 text. LICENSE is a QEMU-style notice: firmware and other bundled files are separate programs with their own licences (read 2026-10-08). The Hub does not ship firmware or BIOS. GitHub reports other."
+redistribution = "download-from-upstream-only"
+platforms = ["windows-x64", "windows-arm64", "linux-x64", "linux-arm64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "github-release"
+repo = "xemu-project/xemu"
+tag = "v0.8.136"
+asset = "xemu-win-x86_64-release.zip"
+version = "v0.8.136"
+archive = "zip"
+note = "Portable zip (verified asset name, published 2026-06-08)."
+
+[install.windows-arm64]
+do = "github-release"
+repo = "xemu-project/xemu"
+tag = "v0.8.136"
+asset = "xemu-win-aarch64-release.zip"
+version = "v0.8.136"
+archive = "zip"
+note = "Windows ARM64 zip (verified asset name)."
+
+[install.linux-x64]
+do = "github-release"
+repo = "xemu-project/xemu"
+tag = "v0.8.136"
+asset = "xemu-0.8.136-x86_64.AppImage"
+version = "v0.8.136"
+archive = "none"
+note = "x86-64 AppImage (verified asset name)."
+
+[install.linux-arm64]
+do = "github-release"
+repo = "xemu-project/xemu"
+tag = "v0.8.136"
+asset = "xemu-0.8.136-aarch64.AppImage"
+version = "v0.8.136"
+archive = "none"
+note = "Linux ARM64 AppImage (verified asset name). Relevant to Steam Frame if the build runs there; not run in this pass."
+
+[portable]
+marker = "cli:-config_path"
+note = "The -config_path switch is verified (ui/xemu.c 1383-1385). The Hub passes a config file inside the tool folder, so nothing is written to the profile. RetroBat keeps xemu.toml beside xemu.exe (observed)."
+
+[locate]
+exe = ["xemu.exe", "xemu-*.AppImage"]
+version = { from = "?" }
+min = "?"
+
+[search]
+paths = ["${ProgramFiles}/xemu", "${LOCALAPPDATA}/Programs/xemu", "${scoop}/apps/xemu/current", "*:/Emulators/xemu*"]
+
+[launch]
+args = ["-config_path", "${tool_dir}/xemu.toml", "-dvd_path", "${media.iso}", "-full-screen"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "-config_path is verified upstream. -dvd_path and -full-screen were not found in ui/xemu.c and are RetroBat observed (unverified). Exit behaviour not verified."
+
+[config]
+files = [
+  { path = "xemu.toml", format = "toml", note = "[general], [sys], [sys.files], [audio], [display.quality], [display.window], [display.ui], [chihiro.settings] (RetroBat and Batocera observed)" },
+]
+
+[input.gun]
+method = "chihiro-lightgun-mode"
+max_guns = "?"
+notes = "No gun input for original Xbox titles. Chihiro: [chihiro.settings] lightgun_mode = true and [chihiro.jvs] pointer_device = 'mouse' for player 1 (RetroBat Xemu.Guns.cs, observed)."
+
+[input.wheel]
+method = "?"
+notes = "Not verified."
+
+[meta]
+sources = [
+  "https://github.com/xemu-project/xemu/releases/tag/v0.8.136",
+  "https://github.com/xemu-project/xemu/blob/master/ui/xemu.c",
+]
+verified = ["release asset names for Windows and Linux, x64 and ARM64 (gh, 2026-10-08)", "licence files COPYING and LICENSE (read)", "-config_path switch (upstream source)"]
+unverified = ["-dvd_path and -full-screen", "wheel input", "Chihiro key names beyond RetroBat observations"]
+checked = "2026-10-08"
+confidence = "medium"

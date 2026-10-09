@@ -59,7 +59,7 @@ Sources: M2 / SEGA developer interviews (SEGA Blog, Impress Game Watch, Silicone
 
 The fusion rule: use (1) when a profile exists, otherwise (2) checked by (3). Anything that fits neither (HUD, large backgrounds, explosions) goes to the profile's "flat layer" list.
 
-**Being tested now:** Codex task `docs/tasks/codex-mame-sprite-probe.md` captures OutRun's sprite list and road data through MAME Lua and measures how well `z = k / zoom` agrees with road contact.
+**Tested (2026-10-08):** the MAME Lua probe ([scaler-depth-probe.md](scaler-depth-probe.md)) captured 3,000 OutRun frames. One global `k` fits poorly (pooled r = 0.37, 50% median error against a flat-ground proxy), while some asset groups fit well. So the order is: **(1) game-RAM world Z via a per-game profile** (what M2 effectively did), **(2) per-asset-group `k`**, (3) ground contact as a check. Open: metric road depth, hills and footpoints, asset/LOD classification.
 
 ### Gun games in this style
 

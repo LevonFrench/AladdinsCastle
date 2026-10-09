@@ -1,0 +1,92 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "duckstation"
+name = "DuckStation"
+kind = "emulator"
+upstream = "https://github.com/stenzek/duckstation"
+license = "CC-BY-NC-ND-4.0"
+license_note = "LICENSE file is Attribution-NonCommercial-NoDerivatives 4.0 (verified). Not open source. The Hub may download the unmodified upstream release. It must not ship, repackage, patch or derive from it, and must not copy lightgun_controller.cpp (also CC BY-NC-ND) into GPL code. GitHub reports other."
+redistribution = "download-from-upstream-only"
+gate = "owner-review: CC BY-NC-ND-4.0 (no bundling, no modified copies)"
+platforms = ["windows-x64", "windows-arm64", "linux-x64", "linux-arm64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "github-release"
+repo = "stenzek/duckstation"
+tag = "latest"
+asset = "duckstation-windows-x64-release.zip"
+version = "latest, published 2026-10-06T09:49:07Z"
+archive = "zip"
+note = "The tag latest is rolling, not a version. Pin by published_at plus the sha256 the Hub records at install. Portable zip (installer not used). SSE2 build for older CPUs: duckstation-windows-x64-sse2-release.zip."
+
+[install.windows-arm64]
+do = "github-release"
+repo = "stenzek/duckstation"
+tag = "latest"
+asset = "duckstation-windows-arm64-release.zip"
+version = "latest, published 2026-10-06T09:49:07Z"
+archive = "zip"
+note = "Windows ARM64 zip (verified asset name)."
+
+[install.linux-x64]
+do = "github-release"
+repo = "stenzek/duckstation"
+tag = "latest"
+asset = "DuckStation-x64.AppImage"
+version = "latest, published 2026-10-06T09:49:07Z"
+archive = "none"
+note = "AppImage (verified). An SSE2 AppImage (DuckStation-x64-SSE2.AppImage) also exists."
+
+[install.linux-arm64]
+do = "github-release"
+repo = "stenzek/duckstation"
+tag = "latest"
+asset = "DuckStation-arm64.AppImage"
+version = "latest, published 2026-10-06T09:49:07Z"
+archive = "none"
+note = "Native ARM64 Linux AppImage (verified). Relevant to ARM64 Linux targets such as Steam Frame. DuckStation-armhf.AppImage is 32-bit ARM and is not listed."
+
+[portable]
+marker = "portable.txt"
+note = "portable.txt in the program folder selects portable mode (src/core/core.cpp 151-152, verified)."
+
+[locate]
+exe = ["duckstation-qt-x64-ReleaseLTCG.exe", "duckstation-qt-*.exe", "DuckStation*.AppImage"]
+version = { from = "file-version" }
+min = "?"
+note = "Windows exe name is from RetroBat and is not confirmed against the release zip."
+
+[search]
+paths = ["${ProgramFiles}/DuckStation", "${LOCALAPPDATA}/Programs/DuckStation", "${scoop}/apps/duckstation/current", "*:/Emulators/DuckStation*"]
+
+[launch]
+args = ["-batch", "-fullscreen", "--", "${media.disc}"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "-batch, -fullscreen, -fastboot, -slowboot, -statefile, -exe and -- are in upstream qthost.cpp (lines 3392-3485, verified). Exit-on-shutdown for -batch is not confirmed in this pass."
+
+[config]
+files = [
+  { path = "settings.ini", format = "ini", note = "sections [Main], [Console], [BIOS], [GPU], [Display], [Audio], [InputSources], [Pad1..n], [ControllerPorts], [Folders]" },
+]
+
+[input.gun]
+method = "absolute-host-pointer"
+max_guns = 1
+notes = "Pad1 Type = GunCon (or Justifier) and A = Pointer-0/RightButton, with an optional pedal key (Batocera and RetroBat observed). [ControllerPorts] PointerXScale and PointerYScale. RawInput is set true for raw-input guns (RetroBat). There is no external IPC. lightgun_controller.cpp is CC BY-NC-ND: do not copy it."
+
+[input.wheel]
+method = "?"
+notes = "Wheel keys not extracted in this pass."
+
+[meta]
+sources = [
+  "https://github.com/stenzek/duckstation/releases/tag/latest",
+  "https://github.com/stenzek/duckstation/blob/master/LICENSE",
+  "https://github.com/stenzek/duckstation/blob/master/src/core/core.cpp",
+  "https://github.com/stenzek/duckstation/blob/master/src/duckstation-qt/qthost.cpp",
+]
+verified = ["release asset names (gh, 2026-10-08)", "licence text LICENSE (read)", "portable.txt trigger and CLI switches (upstream source lines)"]
+unverified = ["exit-on-shutdown for -batch", "Windows exe name in the zip", "wheel keys", "minimum version"]
+checked = "2026-10-08"
+confidence = "high"

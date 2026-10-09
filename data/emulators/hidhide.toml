@@ -1,0 +1,53 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "hidhide"
+name = "HidHide"
+kind = "driver"
+upstream = "https://github.com/nefarius/HidHide"
+license = "MIT"
+license_note = "LICENSE (MIT) at the repo root (gh API, 2026-10-08). Kernel-mode filter driver. The release is signed (secondary; verify on install)."
+redistribution = "download-from-upstream-only"
+platforms = ["windows-x64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "github-release"
+repo = "nefarius/HidHide"
+tag = "v1.5.230.0"
+asset = "HidHide_1.5.230_x64.exe"
+version = "v1.5.230.0"
+archive = "none"
+run_installer = true
+elevation = "admin"
+note = "Installer (verified asset name, published 2024-05-11). Repo pushed 2026-07-05. The maintainer says there is little capacity for major work. Requires Windows 10 or later and KMDF 1.13 or later (README)."
+
+[portable]
+marker = "none"
+note = "System driver. Not portable. The Hub records the install and offers an uninstall step."
+
+[locate]
+exe = ["HidHideClient.exe"]
+version = { from = "?" }
+min = "?"
+note = "Client tool name not verified in this pass. Confirm the driver service instead of trusting the exe."
+
+[search]
+paths = ["${ProgramFiles}/Nefarius Software Solutions/HidHide", "${ProgramFiles}/HidHide"]
+
+[input.gun]
+method = "not-applicable"
+max_guns = 0
+notes = "HidHide provides no input. It hides physical devices from processes that are not whitelisted."
+
+[input.wheel]
+method = "hide-physical-devices"
+notes = "Hides the physical wheel or pad so the game sees only the vJoy device. Whitelist the feeder process. Keep it as a companion to vjoy.toml."
+
+[meta]
+sources = [
+  "https://github.com/nefarius/HidHide",
+  "https://github.com/nefarius/HidHide/releases/tag/v1.5.230.0",
+]
+verified = ["release asset name (gh, 2026-10-08)", "MIT licence (LICENSE, gh)", "requirements statement (README)"]
+unverified = ["client exe name", "install path", "signing status on install", "reboot requirement"]
+checked = "2026-10-08"
+confidence = "high"

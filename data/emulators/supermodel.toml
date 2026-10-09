@@ -1,0 +1,72 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "supermodel"
+name = "Supermodel"
+kind = "emulator"
+upstream = "https://github.com/trzy/Supermodel"
+license = "GPL-3.0"
+license_note = "Docs/LICENSE.txt is GPLv3 (read 2026-10-08). GitHub licence detection reports none because the repo has no root LICENSE file."
+redistribution = "download-from-upstream-only"
+platforms = []
+unverified_platforms = ["windows-x64", "linux-x64"]
+
+[install.windows-x64]
+do = "github-release"
+repo = "trzy/Supermodel"
+tag = "v0.3a-20260928-git-8b4de23"
+asset = "supermodel-0.3a-20260928-git-8b4de23-windows.zip"
+version = "v0.3a-20260928-git-8b4de23"
+archive = "zip"
+note = "Portable zip (verified asset name, published 2026-09-28). The architecture is not in the name, so x64 is assumed and not verified."
+
+[install.linux-x64]
+do = "github-release"
+repo = "trzy/Supermodel"
+tag = "v0.3a-20260928-git-8b4de23"
+asset = "supermodel-0.3a-20260928-git-8b4de23-linux.tar.gz"
+version = "v0.3a-20260928-git-8b4de23"
+archive = "tar.gz"
+note = "Linux tarball exists (verified name). Its architecture is not verified, so do not offer it on ARM64 until it is checked."
+
+[portable]
+marker = "none"
+note = "Config is read from Config/ relative to the working directory (upstream README). Run with cwd set to the install folder."
+
+[locate]
+exe = ["supermodel.exe", "supermodel"]
+version = { from = "?" }
+min = "?"
+
+[search]
+paths = ["${ProgramFiles}/Supermodel", "${LOCALAPPDATA}/Programs/Supermodel", "${scoop}/apps/supermodel/current", "*:/Emulators/Supermodel*"]
+
+[launch]
+args = ["${rom.zip}", "-fullscreen", "-res=${display.width},${display.height}", "-channels=2", "-log-output=${tool_dir}/logs/supermodel.log"]
+gun_args = ["-crosshairs=1"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "Options -fullscreen, -res=W,H, -channels, -log-output and -crosshairs appear in upstream Main.cpp help (lines 1834-1902, 2070). Use -crosshairs=3 for two guns. The ROM argument is the set zip name. Exit behaviour is not verified."
+
+[config]
+files = [
+  { path = "Config/Supermodel.ini", format = "ini", note = "[Global] input bindings and UI sections" },
+  { path = "Config/Games.xml", format = "xml", note = "game and ROM set definitions" },
+]
+
+[input.gun]
+method = "mouse-device-binding"
+max_guns = 2
+notes = "Stock Supermodel binds gun 1 to MOUSE1_XAXIS and MOUSE1_YAXIS, trigger MOUSE1_LEFT_BUTTON and offscreen MOUSE1_RIGHT_BUTTON in Config/Supermodel.ini [Global]. Gun 2 uses the MOUSE2_* names (Batocera observed). A standalone exe has no external aim API, so a VR aim point needs an absolute pointer device it can read. An embedded host can instead set the public gunX/gunY values after the input poll (upstream Inputs.cpp:760, Model3.cpp), with no fork."
+
+[input.wheel]
+method = "raw-axes-or-keyboard-fallback"
+notes = "Bindings for InputSteering, InputAccelerator, InputBrake, InputGearShiftUp and InputGearShiftDown (Batocera observed). Keyboard fallbacks are used when no pad is found."
+
+[meta]
+sources = [
+  "https://github.com/trzy/Supermodel/releases/tag/v0.3a-20260928-git-8b4de23",
+  "https://github.com/trzy/Supermodel",
+]
+verified = ["release asset names (gh, 2026-10-08)", "licence file Docs/LICENSE.txt (read)", "config layout and command-line switches (upstream README and Main.cpp)", "in-process gunX/gunY hook (upstream source)"]
+unverified = ["architecture of the Windows zip and Linux tarball", "exit behaviour", "SUPERMODEL_CONFIG_PATH", "gun and wheel key names (Batocera observed only)"]
+checked = "2026-10-08"
+confidence = "high"

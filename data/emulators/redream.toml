@@ -1,0 +1,69 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "redream"
+name = "Redream"
+kind = "emulator"
+upstream = "https://redream.io/download"
+license = "?"
+license_note = "The site says Redream is completely free to use on Windows, Mac, Linux and Raspberry Pi 4, and a one-time $6 Premium adds HD rendering and extra save slots (read 2026-10-08). No licence text is published. Third-party sources call it closed source (secondary). The GitHub repo inolen/redream reports GPL-3.0 but is historic (earlier research)."
+redistribution = "download-from-upstream-only"
+gate = "licence terms not published: owner review before automated download"
+platforms = ["windows-x64", "linux-x64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "download"
+url = "https://redream.io/download/redream.x86_64-windows-v1.5.0.zip"
+sha256 = "?"
+version = "v1.5.0"
+archive = "zip"
+note = "Stable v1.5.0 (verified file name on the official download page, 2026-10-08). The page publishes no checksum, so the Hub records sha256 at first download. Development builds on the same page are not used."
+
+[install.linux-x64]
+do = "download"
+url = "https://redream.io/download/redream.x86_64-linux-v1.5.0.tar.gz"
+sha256 = "?"
+version = "v1.5.0"
+archive = "tar.gz"
+note = "Stable v1.5.0 (verified file name). The Raspberry Pi build is aarch32 and is not an ARM64 route. No ARM64 Linux build is listed."
+
+[portable]
+marker = "?"
+note = "RetroBat and Batocera run Redream from its own folder with redream.cfg beside it (observed). Not verified on Windows."
+
+[locate]
+exe = ["redream.exe", "redream"]
+version = { from = "?" }
+min = "?"
+
+[search]
+paths = ["${ProgramFiles}/Redream", "${LOCALAPPDATA}/Programs/Redream", "${scoop}/apps/redream/current", "*:/Emulators/Redream*"]
+
+[launch]
+args = ["${media.file}"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "Invocation is RetroBat observed (redream.exe with the file). Batocera passes the ROM path. The site lists no CLI."
+
+[config]
+files = [
+  { path = "redream.cfg", format = "ini", note = "[buttons], [hats], [axis], [video], [system] (Batocera observed)" },
+]
+
+[input.gun]
+method = "none-observed"
+max_guns = 0
+notes = "No gun configuration observed in RetroBat or Batocera. The site says there is no controller configuration, which is not checked against the binary."
+
+[input.wheel]
+method = "sdl-pad-axes"
+notes = "Pad example from Batocera: a:joy0, b:joy1, dpad_down:hat1, ljoy_left:-axis0."
+
+[meta]
+sources = [
+  "https://redream.io/download",
+  "https://redream.io/",
+]
+verified = ["download file names and URLs (official page read, 2026-10-08)", "free-use and Premium statements (official page)"]
+unverified = ["licence terms", "checksums", "Windows CLI and config location", "exit behaviour"]
+checked = "2026-10-08"
+confidence = "medium"

@@ -1,0 +1,54 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "adb"
+name = "Android platform-tools (adb, fastboot)"
+kind = "sdk"
+upstream = "https://developer.android.com/tools/releases/platform-tools"
+license = "Android SDK Platform-Tools licence (Google, proprietary)"
+license_note = "Google's platform-tools licence (text dated 2026-04-28 on the page, read 2026-10-08). Not open source. The Hub downloads from Google's URLs only and never redistributes the package."
+redistribution = "download-from-upstream-only"
+platforms = []
+unverified_platforms = ["windows-x64", "linux-x64"]
+
+[install.windows-x64]
+do = "download"
+url = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip"
+sha256 = "?"
+version = "37.0.1 (July 2026, per the page; the URL is rolling latest)"
+archive = "zip"
+note = "The rolling latest URL is verified on the official page. Google publishes no checksum on that page, so the Hub records sha256 at first download and shows it. The page does not state the CPU architecture."
+
+[install.linux-x64]
+do = "download"
+url = "https://dl.google.com/android/repository/platform-tools-latest-linux.zip"
+sha256 = "?"
+version = "37.0.1 (July 2026, per the page; the URL is rolling latest)"
+archive = "zip"
+note = "Linux package (verified URL). The page does not list an aarch64 or arm64 build, so do not offer it on ARM64 Linux."
+
+[portable]
+marker = "none"
+note = "Extract into the tool folder (tools/adb/). Where adb keeps its key pair is not verified in this pass."
+
+[locate]
+exe = ["adb.exe", "adb"]
+version = { from = "command:adb version" }
+min = "?"
+note = "Output format of adb version not verified in this pass."
+
+[search]
+paths = ["${LOCALAPPDATA}/Android/Sdk/platform-tools", "${ProgramFiles}/Android/platform-tools", "${scoop}/apps/adb/current"]
+
+[launch]
+args = ["install", "-r", "${apk.path}"]
+cwd = "${tool_dir}"
+exits_on_game_end = true
+note = "Used by the adb-install step (Install to Quest). Standard adb install usage, not verified against this build. Developer mode and USB debugging must be on; the Hub checks and walks the user through them (docs/frontend.md section 1)."
+
+[meta]
+sources = [
+  "https://developer.android.com/tools/releases/platform-tools",
+]
+verified = ["download URLs for Windows and Linux (official page, 2026-10-08)", "version and licence statements (official page)"]
+unverified = ["checksums (none published)", "architecture of the packages", "adb key storage location", "adb version output"]
+checked = "2026-10-08"
+confidence = "medium"

@@ -1,0 +1,62 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "desktopplus"
+name = "Desktop+"
+kind = "vr-tool"
+upstream = "https://github.com/elvissteinjr/DesktopPlus"
+homepage = "https://store.steampowered.com/app/1494460/"
+license = "GPL-3.0"
+license_note = "LICENSE is GPL-3.0 (read 2026-10-08). Single maintainer. Free on Steam (app 1494460); the browser component is a free DLC (app 3263240, per the store page)."
+redistribution = "download-from-upstream-only"
+platforms = []
+unverified_platforms = ["windows-x64"]
+
+[install.windows-x64]
+do = "github-release"
+repo = "elvissteinjr/DesktopPlus"
+tag = "v3.6"
+asset = "DesktopPlus-3.6.zip"
+version = "v3.6"
+archive = "zip"
+note = "Latest stable, published 2026-08-14 (verified asset name). Beta v3.6.1 (2026-10-05) is a pre-release and is not used. The Steam install (app 1494460) is an alternative: the Hub locates it instead. Windows 8.1 or later (README). Architecture is not in the name."
+
+[portable]
+marker = "?"
+note = "Portable behaviour and config location not verified."
+
+[locate]
+exe = ["DesktopPlus.exe"]
+version = { from = "?" }
+min = "?"
+note = "DesktopPlus.exe is the overlay and input process; DesktopPlusUI.exe is its UI process (repo source)."
+
+[search]
+paths = ["${ProgramFiles}/DesktopPlus", "${LOCALAPPDATA}/Programs/DesktopPlus", "${scoop}/apps/desktopplus/current"]
+
+[launch]
+args = []
+cwd = "${tool_dir}"
+exits_on_game_end = "n/a"
+note = "A SteamVR overlay app: started once and kept running, not a game launcher. Its Launch Application action can start the Hub from inside VR."
+
+[config]
+files = []
+
+[input.gun]
+method = "laser-to-sendinput"
+max_guns = 0
+notes = "Laser pointer uses ComputeOverlayIntersection, sends VREvent_MouseMove, then injects real input with SendInput (MOUSEEVENTF_VIRTUALDESK and ABSOLUTE). This moves the user's real cursor. An elevated helper handles UAC-restricted windows. Not a gun bridge."
+
+[input.wheel]
+method = "none"
+notes = "Not applicable."
+
+[meta]
+sources = [
+  "https://github.com/elvissteinjr/DesktopPlus",
+  "https://github.com/elvissteinjr/DesktopPlus/releases/tag/v3.6",
+  "https://store.steampowered.com/app/1494460/",
+]
+verified = ["release asset name (gh, 2026-10-08)", "GPL-3.0 LICENSE (read)", "process names and laser and SendInput design (repo source, read 2026-10-08)", "Steam app ID and price (store page)"]
+unverified = ["portable behaviour", "config location", "architecture of the zip", "Windows build requirements against the README versus the user guide"]
+checked = "2026-10-08"
+confidence = "high"

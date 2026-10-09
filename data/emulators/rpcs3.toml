@@ -1,0 +1,64 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "rpcs3"
+name = "RPCS3"
+kind = "emulator"
+upstream = "https://github.com/RPCS3/rpcs3"
+license = "GPL-2.0"
+license_note = "Source repo RPCS3/rpcs3 LICENSE is GPL-2.0 (text read 2026-10-08). The binaries repo RPCS3/rpcs3-binaries-win has no licence in GitHub metadata. The Hub downloads the upstream archive only and never repackages it."
+redistribution = "download-from-upstream-only"
+platforms = ["windows-x64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "github-release"
+repo = "RPCS3/rpcs3-binaries-win"
+tag = "build-304d544bc1b3af4f15400a47b34132ff49b1bc69"
+asset = "rpcs3-v*_win64_msvc.7z"
+checksum_asset = "rpcs3-v0.0.43-20250-304d544b_win64_msvc.7z.sha256"
+version = "v0.0.43-20250-304d544b"
+archive = "7z"
+note = "Latest build tag, published 2026-10-08 (verified). Tags are build hashes, so pin the tag and check the .sha256 asset. The Linux build is not on GitHub: no Linux install block is offered."
+
+[portable]
+marker = "?"
+note = "Not verified upstream. RetroBat keeps config and dev_flash beside rpcs3.exe (RetroBat observed). Check before relying on it."
+
+[locate]
+exe = ["rpcs3.exe"]
+version = { from = "?" }
+min = "?"
+
+[search]
+paths = ["${ProgramFiles}/RPCS3", "${LOCALAPPDATA}/Programs/RPCS3", "${scoop}/apps/rpcs3/current", "*:/Emulators/RPCS3*"]
+
+[launch]
+args = ["${media.eboot}", "--no-gui", "--fullscreen"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "--no-gui and --fullscreen are in upstream rpcs3.cpp (lines 394-405, 817-818). --fullscreen only works with --no-gui. --config and --input-config are also upstream. Exit on stop is not verified."
+
+[config]
+files = [
+  { path = "config/config.yml", format = "yaml", note = "[Input/Output]: Move, Camera, Camera type, Show move cursor (Batocera observed)" },
+  { path = "config/vfs.yml", format = "yaml", note = "VFS paths (Batocera observed)" },
+]
+
+[input.gun]
+method = "mouse-handler-per-player"
+max_guns = 4
+notes = "GunCon 3 reads normalised x and y from the Mouse Handler per player, up to 4 (gap research note, not re-read upstream). config.yml: Move = Gun and Camera = Fake (Batocera observed). Gun key names are not verified."
+
+[input.wheel]
+method = "?"
+notes = "Wheel keys not verified."
+
+[meta]
+sources = [
+  "https://github.com/RPCS3/rpcs3/blob/master/rpcs3/rpcs3.cpp",
+  "https://github.com/RPCS3/rpcs3/blob/master/LICENSE",
+  "https://github.com/RPCS3/rpcs3-binaries-win/releases",
+]
+verified = ["release asset names and tag (gh, 2026-10-08)", "licence text LICENSE (read)", "CLI option names (upstream rpcs3.cpp)"]
+unverified = ["portable marker", "exit behaviour", "gun and wheel key names", "Linux builds"]
+checked = "2026-10-08"
+confidence = "medium"

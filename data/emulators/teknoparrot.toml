@@ -1,0 +1,74 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "teknoparrot"
+name = "TeknoParrot"
+kind = "emulator"
+upstream = "https://github.com/teknogods/TeknoParrotUI"
+homepage = "https://teknoparrot.com/"
+license = "GPL-3.0"
+license_note = "The UI teknogods/TeknoParrotUI is GPL-3.0 (LICENSE read via gh, 2026-10-08). The emulator core is not in any public repo (teknogods/TeknoParrot holds only a README) and has no published licence. The Hub installs the UI only and never fetches cores or game files. The site says game files are not included."
+redistribution = "download-from-upstream-only"
+gate = "core licence unknown: Hub installs the UI only; the core is handled by the UI (mechanism not verified)"
+platforms = ["windows-x64", "linux-x64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "github-release"
+repo = "teknogods/TeknoParrotUI"
+tag = "TeknoParrotUI-net8"
+asset = "TeknoParrotUi-2.0.0.131-win-x64.zip"
+version = "2.0.0.131"
+archive = "zip"
+note = "Pre-release published 2026-07-13 (verified asset name). The older tag 1.0.0.2215 (2019) is marked Latest and is not used. Official site download (/en/Home/Download) is an alternative."
+
+[install.linux-x64]
+do = "github-release"
+repo = "teknogods/TeknoParrotUI"
+tag = "TeknoParrotUI-net8"
+asset = "TeknoParrotUi-2.0.0.131-linux-x64.zip"
+version = "2.0.0.131"
+archive = "zip"
+note = "Build exists (verified asset name). Running TeknoParrot games on Linux is not verified: do not offer until tested. x64 only, so not an ARM64 route."
+
+[portable]
+marker = "?"
+note = "UserProfiles is resolved relative to TeknoParrotUi.exe (RetroBat observed). Check against the TeknoParrotUI source before relying on it."
+
+[locate]
+exe = ["TeknoParrotUi.exe"]
+version = { from = "?" }
+min = "?"
+
+[search]
+paths = ["${ProgramFiles}/TeknoParrot", "${LOCALAPPDATA}/Programs/TeknoParrot", "${scoop}/apps/teknoparrot/current", "*:/Emulators/TeknoParrot*"]
+
+[launch]
+args = ["--profile=${profile.name}", "--startMinimized"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "Invocation is RetroBat observed. Confirm the switch names in the TeknoParrotUI source before shipping. Exit behaviour not verified."
+
+[config]
+files = [
+  { path = "UserProfiles/<GameProfile>.xml", format = "xml", note = "JoystickButtons and ConfigValues (Windowed, Borderless Fullscreen, DisplayMode, ResolutionWidth, ResolutionHeight)" },
+  { path = "GameProfiles/*.xml", format = "xml", note = "game profile definitions, read-only" },
+]
+
+[input.gun]
+method = "rawinput-device-mapping"
+max_guns = 4
+notes = "TeknoParrotUI routes each raw-input mouse device path to P1 to P4 LightGun, absolute or relative (InputListenerRawInput.cs, lines 964-988, from the teknogods/TeknoParrotUI source). It writes gun and button bytes into a 64-byte named shared-memory section (JvsHelper.cs 11-17). Whether a game core reads that section is not verified, so external control is undocumented. Gun profiles: a JoystickButtons ButtonName containing Gun, or an InputMappingString containing lightgun (RetroBat observed)."
+
+[input.wheel]
+method = "?"
+notes = "Wheel keys not verified."
+
+[meta]
+sources = [
+  "https://github.com/teknogods/TeknoParrotUI",
+  "https://github.com/teknogods/TeknoParrotUI/releases",
+  "https://teknoparrot.com/",
+]
+verified = ["release tags and asset names (gh, 2026-10-08)", "UI licence GPL-3.0 (LICENSE via gh)", "raw-input routing and shared-memory writes (UI source, read 2026-10-08)", "core absent from teknogods/TeknoParrot (README only)"]
+unverified = ["core download and update path", "Linux run status", "launch switches", "portable marker", "gun and wheel key names"]
+checked = "2026-10-08"
+confidence = "medium"

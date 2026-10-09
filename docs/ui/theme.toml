@@ -1,0 +1,708 @@
+# AladdinsCastle Hub: design tokens for the Qt 6 / QML front end.
+#
+# Sources: docs/ui/01-shell-and-filters.md (01), docs/ui/02-game-cards.md (02),
+# docs/ui/03-detail-and-install-flow.md (03), and the component map in docs/ui/04-qml-components.md.
+# "Hub" = PCVR Mods Installer Hub, commit a64401f (MIT). Hub line references are relative to
+# _refs/PCVR-Mods-Installer-Hub/ (local reference clone, gitignored).
+#
+# Conventions
+#   Colours  "#rrggbb" (opaque) or "#aarrggbb" (alpha first: Qt QColor and WPF order).
+#            Spec 02 writes its fade as 8-digit RRGGBBAA; it is converted here (see surface.card_fade).
+#   Sizes    logical px at 100% scale. S / M / L values are inline tables { S = .., M = .., L = .. }.
+#   Time     milliseconds.
+#   Weight   numeric, same as QML font.weight: 400 Regular, 500 Medium, 600 SemiBold, 700 Bold, 800 ExtraBold.
+#   Tags     [proposal] not in the Hub or in 01-03.  [open] owner decision pending.
+#            [conflict Cn] two specs disagree; see docs/ui/04-qml-components.md section 10 and
+#            docs/ui/05-models.md section 12. The value shown is the one the component map uses.
+#   Every token names its source in a comment.
+
+[meta]
+schema_version = 1
+status = "draft, 2026-10-08"
+specs = ["docs/ui/01-shell-and-filters.md", "docs/ui/02-game-cards.md", "docs/ui/03-detail-and-install-flow.md"]
+components = "docs/ui/04-qml-components.md"
+models = "docs/ui/05-models.md"
+
+# ---------------------------------------------------------------- colours
+
+[color.surface]
+window = "#0f0f12"              # 01 1.14 window background. Core/Modules/Window.Layout.ps1:12
+header = "#0d0d0f"              # 01 1.4 header strip. Window.Layout.ps1:24
+filterbar = "#0d0d0f"           # 01 1.5 filter bar. Window.Layout.ps1:272
+filterbar_rule = "#1a1a22"      # 01 1.5 filter bar bottom border. Window.Layout.ps1:273
+card = "#0c0c10"                # 02 1.5 Frosted card base. Frosted.ps1:27. [open] 02 2.2 may use per-game [hub].colour
+card_fade = "#db16161a"         # 02 2.4 / 03 art fade rgba(22,22,26,0.86): alpha 0.86 = 0xdb. Spec 02 wrote 16161adc (RRGGBBAA); converted
+pill = "#16161a"                # 01 1.14 glass base: search, ORDER, menu buttons, chips. Window.Layout.ps1:116, 156, 180, 205
+panel = "#16161a"               # 01 1.17 overlay panels (ORDER, help). Window.Layout.ps1:1436
+box = "#13131a"                 # 03 1.8 Game Info, similar and uninstall boxes. DetailView.Page.ps1:1197
+box_rule = "#222230"            # 03 1.8 box border. DetailView.Page.ps1:1199
+banner = "#0f0f15"              # 01 1.6 banner frame. Window.Layout.ps1:716
+explore_label = "#0d0d12"       # 01 1.8 GENRE and PC POWER label box. Window.Layout.ps1:1264-1272
+explore_label_rule = "#22222e"  # 01 1.8
+chip_active = "#2a1a08"         # 01 1.8 genre chip active fill. BannerOvFilters.ps1:72-110
+count_fill = "#1e1e28"          # 01 1.8 genre row count bubble. BannerOvFilters.ps1:727-738
+count_rule = "#2c2c3a"          # 01 1.8
+count_text = "#9a9aae"          # 01 1.8
+menu_hover = "#1e1e2a"          # 01 1.11 menu row hover. CatalogSort.ps1:310
+similar_hover = "#1a1a24"       # 03 1.8 similar-games row hover
+quip_fill = "#16161e"           # 03 1.12 quip box
+quip_hover = "#2b2b36"          # 03 1.12
+dot_grid = "#222230"            # 01 1.14 dot grid on the content area (24 px tile, dot radius 0.9)
+scrim = "#01000000"             # 01 1.17 transparent scrim behind menus
+
+[color.glass]
+tint = "#09ffffff"              # 01 1.14 glass tint: S/M/L and back button. Window.Layout.ps1:284, 327
+hairline = "#0fffffff"          # 01 1.14 inactive pill border. Filter.Controls.ps1:60
+pill_opaque = "#000000"         # 01 1.5 filter pill base (opaque glass). Window.Layout.ps1:349
+section_fill = "#0dffffff"      # 01 1.7 section header pill. Window.Layout.ps1:890-909
+section_line = "#22ffffff"      # 01 1.7
+ring = "#ffeeb0"                # 01 1.5 selected ring (cream). Filter.Controls.ps1:61
+ring_halo = "#80ffeeb0"         # 01 1.5 2 px outer halo at margin -1. Filter.Controls.ps1:98
+
+[color.line]
+strong = "#2a2a35"              # 01 1.14 search, ORDER idle border, banner border. Window.Layout.ps1:182, 206, 717
+button = "#3a3a48"              # 01 1.14 library, help, back-button hover base, overlay border. Window.Layout.ps1:118, 158
+rule = "#1e1e26"                # 02 1.5 / 03 2.7 divider and meta-strip rule. Window.Layout.ps1:917
+banner_hover = "#4a4a55"        # 01 1.6 banner border on hover. Filter.Banners.ps1:262
+banner_press = "#ff8822"        # 01 1.6 banner border on press (2 px). Filter.Banners.ps1:268
+back_hover = "#dd6600"          # 01 1.8 Back button hover border
+
+[color.text]
+primary = "#ffffff"             # 01 1.14 titles, active pill text
+title_end = "#d8dee3"           # 01 1.4 / 03 1.2 title gradient bottom (header, banners, detail)
+card_title_end = "#a8b0ba"      # 02 1.5 card title gradient bottom
+inactive = "#c7c7d0"            # 01 1.14 inactive pill text (set in code). Filter.Controls.ps1:77
+muted = "#aaaaaa"               # 01 1.14 S/M/L text. Window.Layout.ps1:289
+dim = "#6f6f7a"                 # 01 1.14 TYPE and STATE labels. Window.Layout.ps1:337, 412
+faint = "#555568"               # 01 1.14 tagline, version, placeholder, search hint; 02 1.5 author line
+count = "#7a7a86"               # 01 1.14 section counts. Window.Layout.ps1:908
+label = "#666677"               # 03 2.7 9 px meta labels; 01 1.8 explore labels text
+value = "#dddddd"               # 03 1.2 meta values
+body = "#c8c8d4"                # 03 1.8 description text
+heading = "#f0f0f4"             # 03 1.8 section headings
+muted_detail = "#8a8f99"        # 03 2.7 secondary text, console [..] lines
+note = "#777788"                # 02 1.5 card note line
+author = "#555568"              # 02 1.5 card author line
+author_long = "#888899"         # 02 1.5 author on long titles
+separator = "#444455"           # 02 1.5 separator
+menu_caption = "#6a6a7e"        # 01 1.11 / 01 1.17 menu captions
+scan_text = "#e8f5ec"           # 01 1.14 scan button text. Window.Layout.ps1:562
+ready_count = "#fcefb0"         # 01 1.5 " VR Ready" count label (here: " ready" label). Filter.Scan.ps1:607
+
+[color.brand]
+orange = "#dd6600"              # 01 1.14 headset glyph, gamepad icon, Explore button, Shuffle. Window.Layout.ps1:41
+blue = "#3a8add"                # 01 1.14 title glow, ORDER prefix, active ORDER. Window.Layout.ps1:52
+gold = "#bfa845"                # 01 1.6 Show button border and text. Filter.Banners.ps1:223
+gold_press = "#f0d860"          # 01 1.6 Show button press. Filter.Banners.ps1:225
+orange_press = "#ffcc66"        # 01 1.8 Explore button press
+active_sml = "#5566aa"          # 01 1.14 S/M/L active border. Window.Controls.ps1:129
+discover_on_a = "#f47a1e"       # 01 1.4 library button active border gradient start. DiscoverInit.ps1:560-574
+discover_on_b = "#5566aa"       # 01 1.4 library button active border gradient end
+discover_on_fill = "#26262e"    # 01 1.4 library button active fill
+discover_off_a = "#3c4777"      # 01 1.4 library button idle border gradient start. DiscoverInit.ps1:576-595
+discover_off_b = "#ab5515"      # 01 1.4 library button idle border gradient end
+discover_off_fill = "#16161a"   # 01 1.4 library button idle fill
+recent_teal = "#3fb6c8"         # 01 1.7 Recently Played icon. Window.Layout.ps1:840
+recent_gold = "#c7a13a"         # 01 1.7 "to launch in VR" caption. Window.Layout.ps1:851
+discord = "#5865f2"             # 01 1.17 help dot, shown only if a community server exists [open]
+
+[color.scan]
+found = "#5fff8f"               # 01 1.14 counter numbers, shimmer colour. Filter.Scan.ps1:583
+fill = "#034ade80"              # 01 1.5 scan button fill (almost transparent). Filter.Scan.ps1:502
+line = "#b35fff8f"              # 01 1.5 scan button border 2 px. Filter.Scan.ps1:501
+scanning = "#ffcc44"            # 01 1.12 "Scanning..." label and magnifier. Filter.Scan.ps1:139
+spinner = "#6bf49b"             # 01 1.12 neon light colour. ScanSpinner.ps1:243
+shimmer_centre = "#605fff8f"    # 01 1.5 shimmer band centre
+shimmer_edge = "#005fff8f"      # 01 1.5 shimmer band edges
+separator = "#5aa880"           # 01 1.5 counter separator (40 % opacity in the Hub; apply opacity in QML)
+toggle_on_fill = "#0e4ade80"    # 01 1.5 Scan on Startup, on
+toggle_on_line = "#5aa880"      # 01 1.5
+toggle_on_text = "#aaccbb"      # 01 1.5
+toggle_off_text = "#7e8a85"     # 01 1.5 Scan on Startup, off (fill #000000, line glass.hairline)
+updates_fill = "#1f60a5fa"      # 01 1.5 Updates count badge fill (alpha 31)
+updates_text = "#8fb6dd"        # 01 1.5 Updates count badge text
+
+[color.update_banner]
+fill = "#1a2e1a"                # 01 1.4 update banner. Window.Layout.ps1:82-98
+fill_hover = "#234a23"          # 01 1.4
+line = "#5fe08a"                # 01 1.4 border 1.2 px
+glow = "#4ade80"                # 01 1.4 glow blur 13, opacity 0.85
+dot = "#8bff8b"                 # 01 1.4 green dot 7 px
+text = "#c8ffc8"                # 01 1.4 "Update X available"
+text_accent = "#8bff8b"         # 01 1.4 " - Click to update"
+
+[color.state]
+installed_neon = "#f59e0b"      # 02 2.3 Needs your files (amber). 02 1.8 "Installed, no mod" neon amber
+installed_line = "#5c4420"      # 02 1.8 / 2.3 amber border
+ready_neon = "#34d399"          # 02 2.3 Installed (VR ready) neon green
+ready_line = "#1d2e22"          # 02 1.8 installed card border
+ready_glow = "#46a05a"          # 02 1.8 radial top glow
+ready_sheen_top = "#227052"     # 02 1.8 glass sheen gradient top, alpha 20
+ready_sheen_bottom = "#104230"  # 02 1.8 glass sheen gradient bottom
+ready_label = "#cdb77a"         # 02 1.8 gold label on Ready. 03 2.7 --gold (active mode)
+update_neon = "#2563eb"         # 02 1.8 / 03 1.5 update blue
+update_line = "#6da3ff"         # 03 1.5 update button border (detail)
+update_label = "#b9ccf4"        # 02 1.8 update label
+ready_button_fill = "#161d18"   # 03 1.5 Ready button fill (detail). DetailView.Page.ps1:2293
+ready_button_line = "#5fa873"   # 03 1.5 Ready button border. DetailView.Page.ps1:2295
+ready_button_text = "#88dd99"   # 03 1.5 Ready button text. DetailView.Page.ps1:2296
+installed_pill_line = "#4d8a5e" # 03 1.3 INSTALLED pill border. DetailView.Page.ps1:665
+planned_neon = "#8a93a6"        # 02 2.3 Coming soon
+planned_line = "#40404e"        # 02 2.2 PLANNED badge border
+planned_text = "#9a9aa8"        # 02 2.2 / 01 2.10 PLANNED text
+needs_neon = "#f59e0b"          # 02 2.3 Find my files (amber)
+needs_emulator = "#7ab5ff"      # 02 2.3 Install emulator (info blue)
+reinstall_card_line = "#3d6e4a" # 02 1.4 reinstall pill divider
+reinstall_card_glyph = "#88dd99" # 02 1.4 reinstall glyph
+reinstall_detail_line = "#5a6aa8" # 03 1.6 Reinstall border (detail page)
+retry_line = "#e0b060"          # 03 2.6 Retry install border (amber)
+uninstall = "#cc6655"           # 03 1.11 / 2.6 Uninstall accent
+status_update = "#ffb060"       # 03 1.4 "Update available" status text. DetailView.Page.ps1:920-925
+status_installed = "#7ed59a"    # 03 1.4 "Game installed" status text
+status_muted = "#8a8f99"        # 03 1.4 status detail text
+segment_inactive = "#767688"    # 03 1.6 VR / Flat segmented control, inactive text. Reused for Cover, Hand, Players, On / Off
+segment_line = "#4a7ea0"        # 03 1.6 segmented control border
+upstream_fill = "#0e1c21"       # 03 1.6 Mod Page button fill, reused for "Upstream page" [proposal]
+upstream_line = "#4a9ab0"       # 03 1.6
+upstream_text = "#b8dde8"       # 03 1.6
+steam_fill = "#101a30"          # 03 1.6 Open in Steam fill (only if a store id exists) [open]
+steam_line = "#5078cc"          # 03 1.6
+steam_text = "#b8cdf0"          # 03 1.6
+
+[color.card]
+info_border = "#40404e"         # 02 1.4 info pill border. Frosted.ps1:1487-1570
+info_sep = "#3a3a4a"            # 02 1.4 info pill separator
+
+[color.badge]
+free = "#34d399"              # 02 1.5 FREE. Not in the AladdinsCastle data set; kept for completeness
+wip = "#f87171"                 # 02 1.5 WIP docked badge. 03 1.3
+addon_line = "#5599ee"          # 02 1.5 add-on / improvement tag border
+addon_text = "#7ab5ff"          # 02 1.5
+click_pulse = "#4ade80"         # 02 1.5 click pulse (1200 ms)
+quality_true3d = "#34d399"      # 02 2.2 TRUE 3D badge. 03 2.7 --quality-true3d
+quality_theatre_line = "#5599ee" # 02 2.2 THEATRE badge border (add-on style) [conflict C-theatre]
+quality_theatre_text = "#7ab5ff" # 02 2.2 / 03 2.7 THEATRE badge text [conflict C-theatre]
+quality_planned_line = "#40404e" # 02 2.2 / 03 2.7 PLANNED badge border
+quality_planned_text = "#9a9aa8" # 02 2.2 / 03 2.7 PLANNED badge text
+vr_chip_all = "#888888"         # 01 2.5 Explore VR toggle chip "All"
+vr_chip_true3d = "#34d399"      # 01 2.5 Explore VR toggle chip "True 3D"
+vr_chip_theatre = "#6fa8ff"     # 01 2.5 Explore VR toggle chip "Theatre" [conflict C-theatre]
+vr_chip_planned = "#9a9aa8"     # 01 2.5 Explore VR toggle chip "Planned"
+
+[color.genre]
+gun = "#e0302a"                 # 01 2.10 Light gun (proposal; equals the schema example accent in games/timecris)
+racing = "#f0a020"              # 01 2.10 Racing (proposal)
+bucket_rail = "#e0302a"         # 01 2.5 Explore bucket: Rail shooters (proposed)
+bucket_cover = "#dd6600"        # 01 2.5 Cover and sniper
+bucket_horror = "#cc3344"       # 01 2.5 Horror
+bucket_hunting = "#dd9922"      # 01 2.5 Hunting, party and water
+bucket_circuit = "#f0a020"      # 01 2.5 Circuit and street
+bucket_rally = "#88aa44"        # 01 2.5 Rally and off-road
+bucket_kart = "#aa66dd"         # 01 2.5 Kart and futuristic
+bucket_bikes = "#44aadd"        # 01 2.5 Bikes, boats and more
+bucket_new = "#38bdf8"          # 01 1.8 NEW chip (Hub genre accent, reused) [open: 01 2.5 keeps New]
+
+[color.console]
+bg = "#0c0c10"                  # 03 2.7 --console-bg [proposal]
+step = "#6ec6e6"                # 03 2.7 "--- [n/t]" headers [proposal]
+ok = "#5fcf80"                  # 03 2.7 [OK]. DetailView.Content.ps1:735-750
+warn = "#e0b060"                # 03 2.7 [!!]
+fail = "#f87171"                # 03 2.7 [XX]
+work = "#8a8f99"                # 03 2.7 [..]
+detail = "#8a8f99"              # 03 2.8 detail lines (indented)
+prompt_fill = "#facc15"         # 03 2.8 prompt pill fill
+prompt_text = "#111111"         # 03 2.8 prompt pill text
+copy_ok_fill = "#16301f"        # 03 1.10 "Copied!" chip fill
+copy_ok_text = "#5fcf80"        # 03 1.10 "Copied!" chip text
+
+[color.notice]
+fill = "#1ce0a83a"              # 03 1.8 amber notice: rgb(224,168,58) alpha 28 (0x1c)
+line = "#e0a83a"                # 03 1.8 notice border
+heading = "#f0b848"             # 03 1.8 notice heading and link: rgb(240,184,72)
+body = "#dcd2be"                # 03 1.8 notice body: rgb(220,210,190)
+
+[color.needs_box]
+fill = "#262563eb"              # 03 1.2 "You'll need X installed": rgb(37,99,235) alpha 38 (0x26)
+line = "#6e2563eb"              # 03 1.2 same blue, alpha 110 (0x6e)
+text = "#cfd6e6"                # 03 1.2
+
+[color.hero]
+bg = "#0a0a0c"                  # 03 1.2 hero background
+
+# ---------------------------------------------------------------- gradients
+
+[gradient.list_banner_fade]     # 01 1.6 Window.Layout.ps1:725-734. Keeps the title readable
+[[gradient.list_banner_fade.stop]]
+color = "#f00f0f15"
+pos = 0.00
+[[gradient.list_banner_fade.stop]]
+color = "#c00f0f15"
+pos = 0.35
+[[gradient.list_banner_fade.stop]]
+color = "#000f0f15"
+pos = 0.75
+
+[gradient.explore_banner_fade]  # 01 1.8 eight stops, Window.Layout.ps1:1155-1177. Positions are an even spread 0 to 0.85 (inferred; check the source)
+[[gradient.explore_banner_fade.stop]]
+color = "#f00f0f15"
+pos = 0.0000
+[[gradient.explore_banner_fade.stop]]
+color = "#e60f0f15"
+pos = 0.1214
+[[gradient.explore_banner_fade.stop]]
+color = "#cc0f0f15"
+pos = 0.2429
+[[gradient.explore_banner_fade.stop]]
+color = "#a60f0f15"
+pos = 0.3643
+[[gradient.explore_banner_fade.stop]]
+color = "#7a0f0f15"
+pos = 0.4857
+[[gradient.explore_banner_fade.stop]]
+color = "#4e0f0f15"
+pos = 0.6071
+[[gradient.explore_banner_fade.stop]]
+color = "#260f0f15"
+pos = 0.7286
+[[gradient.explore_banner_fade.stop]]
+color = "#000f0f15"
+pos = 0.8500
+
+[gradient.hero_edge]            # 03 1.2 row 5. Accent edges on wide windows
+alpha = 150                     # accent at alpha 150 (0x96)
+fade_from = 0.22                # fades to 0 between these stops
+fade_to = 0.78
+
+[gradient.wash]                 # 01 1.6 "Colour wash". Computed at runtime from [hub].accent (Core/Modules/OverviewPage.ps1:636-694). Not stored
+stop_pos = [0.00, 0.30, 0.66, 1.00]   # deep, deep, mid, amber
+stop_value = [28, 28, 78, 115]        # HSV V (0-255) per stop
+deolive_pull = [0.65, 0.65, 0.50, 0.20]  # pull hue toward hue_target when hue is in deolive_hue_range
+deolive_hue_range = [35, 78]
+hue_target = 28
+sat_cap = 0.85
+
+# ---------------------------------------------------------------- formulas (runtime colour maths)
+
+[formula.luminance]             # perceived luminance, Rec. 601 weights, range 0-255 (Core/Modules/Helpers.ps1:1513-1527)
+weight_r = 0.299
+weight_g = 0.587
+weight_b = 0.114
+
+[formula.tint]                  # 02 1.5 flat tint of the card. a = (top + mid) / 2 = 0.06
+top_alpha = 0.10
+mid_alpha = 0.02
+lift_below_alpha = 0.09         # if a < 0.09 and lum < 0.45, lift dark accents
+lift_below_lum = 0.45
+lift_factor = 0.30
+
+[formula.border]                # 02 1.5 card border = accent * 0.22 + base * 0.78
+accent_mix = 0.22
+
+[formula.pill]                  # 02 1.5 family pill fill and text
+fill_accent_mix = 0.18          # fill = accent * 0.18 + pill * 0.82
+text_accent_mix = 0.50          # text = accent * 0.5 + white * 0.5
+
+[formula.neon]                  # 02 1.5 neon button and glow. Hub GetGlowColor scales channels by min_lum / lum and clamps at 255 (one pass)
+lift_min_lum = 140
+dim = 0.90
+glow_blur_scale = 14            # blur = 14 * scale
+glow_opacity_base = 0.72        # opacity = base - per_lum * lum (0-1 scale), floored at min
+glow_opacity_per_lum = 0.22
+glow_opacity_min = 0.42
+fill = "#0e0e12"                # 02 1.4 button fill
+
+[formula.hero_tint]             # 03 1.2 hero card tint from accent
+top_alpha = 0.30
+mid_alpha = 0.10
+
+[formula.default_button]        # 03 1.5 "Default" button (not scanned or not found): accent-tinted slate, per channel
+fill_scale = 0.09
+fill_offset = 6
+line_scale = 0.55
+line_offset = 60
+text_base = 120
+text_scale = 0.45
+
+# ---------------------------------------------------------------- glow and shadow
+
+[glow]
+title_color = "#3a8add"         # 01 1.4 title glow (same text, DropShadow)
+title_blur = 16
+title_opacity = 0.45
+headset_color = "#dd6600"       # 01 1.4 headset glyph glow
+headset_blur = 9
+headset_opacity = 0.60
+card_hover_color = "#000000"    # 02 1.9 preview shadow. Helpers.ps1:1162-1172
+card_hover_blur = 24
+card_hover_depth = 6
+card_hover_opacity = 0.60
+card_update_blur = 16           # 02 1.8 update state glow
+card_update_opacity = 0.55
+info_hover_blur = 10            # 02 1.4 info pill hover glow
+info_hover_opacity = 0.85
+update_banner_blur = 13         # 01 1.4
+update_banner_opacity = 0.85
+quip_hover_blur = 18            # 03 1.12
+quip_hover_opacity = 0.70
+click_pulse_blur = 18           # 02 1.5 click pulse colour: [color.badge].click_pulse
+spinner_halo_thickness = 3.2    # x core thickness. 01 1.12 ScanSpinner.ps1:132-201
+spinner_halo_opacity = 0.40
+spinner_halo_blur = 9
+spinner_band_thickness = 2
+spinner_band_opacity = 0.95
+spinner_band_blur = 2
+spinner_radius = 6
+spinner_lit_fraction = 0.30     # two lit segments, each 30 % of half the perimeter
+dot_pulse_period = 1700         # 01 1.15 banner kicker dot, auto-reverse; scale and glow in opposite phase
+
+# ---------------------------------------------------------------- motion (durations in ms)
+
+[motion]
+hover_dwell = 600               # 02 1.9 card preview dwell. Helpers.ps1:91
+hover_lift_scale = 1.06         # 02 1.9 lift before preview (Frosted only); [open] keep in the map or drop
+preview_scale = 1.4             # 02 1.9 card preview scale. Helpers.ps1:1162-1172
+preview_z = 1000                # 02 1.9 z-order of the preview
+scroll_quiet = 120              # 02 1.9 hover suppressed while scrolling, re-armed after this quiet time. Helpers.ps1:98
+banner_defer = 1200             # 01 1.15 Show / Explore defer, so the press glow shows
+banner_sweep = 700              # 01 1.15 hover sweep, once per hover
+banner_close_show = 5000        # 01 1.15 hover-close chips appear after this dwell
+banner_close_hide = 800         # 01 1.15 hover-close chips hide after leave
+banner_rotate_min = 300000      # 01 1.6 rotation, random 5 to 15 minutes, re-armed each tick
+banner_rotate_max = 900000
+search_example = 2600           # 01 1.10 hint cycle while focused and empty
+search_debounce = 0             # 01 1.10 no debounce on live search
+state_pill_reveal = 520         # 01 1.5 STATE pills reveal after a scan. Filter.Scan.ps1:2251
+scan_attention_step = 400       # 01 1.15 scan button attention pulse, 3 pulses over about 2.4 s
+scan_attention_pulses = 3
+scan_on_startup_hide = 450      # 01 1.5 Scan on Startup toggle hides after the pointer leaves
+scan_yield = 80                 # 01 1.12 UI refresh while scanning (the scan itself runs off-thread in Qt)
+scan_heartbeat_stale = 60000    # 01 1.12 a silent scan older than this is treated as dead
+scan_spinner_loop = 2200        # 01 1.12 one lap of the scan light
+shimmer_sweep = 1500            # 01 1.15 counter shimmer sweep
+shimmer_pause_min = 12000       # 01 1.15 random pause between sweeps
+shimmer_pause_max = 60000
+shimmer_optout_dwell = 5000     # 01 1.15 opt-out chips after this dwell [hover-only in the Hub: see 04 section 9 for the non-hover route]
+recent_heading_show = 5000      # 01 1.7 Recently Played heading overlay [see 04 section 9]
+recent_heading_hide = 800
+recent_tile_dwell = 7000        # 01 1.7 tile management overlay [see 04 section 9]
+explore_wrap_glyph = 1200       # 01 1.8 end-of-row arrow glyph
+download_progress = 250         # 03 1.15 progress line update interval
+download_connect_timeout_s = 30 # 03 1.15
+download_read_timeout_s = 120   # 03 1.15
+github_lookup_timeout_s = 10    # 03 2.9
+update_check_ttl_h = 6          # 03 1.17 / 2.12 version cache TTL (GitHub latest tag)
+header_hover = 0                # 01 1.4 header hover grow is instant
+menu_open = 0                   # 01 1.15 header buttons and menus have no animation
+# Installs are awaited, never polled. The Hub polls every 750 ms (03 3); no token needed.
+
+[motion.hover_factor]
+banner_frame = 1.02             # 01 1.6 banner frame on hover (instant)
+detail_hero = 1.02              # 03 1.2 hero on hover
+detail_pill = 1.08              # 03 1.3 title-row pills on hover
+similar_row = 1.05              # 03 1.8
+quip_across = 1.03              # 03 1.12
+quip_down = 1.10                # 03 1.12
+header_version = 1.10           # 01 1.4 version pill hover grow
+header_headset = 1.15           # 01 1.4 headset hover grow
+header_title = 1.04             # 01 1.4 title hover grow
+header_tagline = 1.04           # 01 1.4 tagline hover grow
+
+# ---------------------------------------------------------------- type
+
+[font]
+family = "Segoe UI"             # 01 1.14 "Segoe UI everywhere". [open] Segoe UI is absent on Linux and SteamOS (D12): choose a bundled font or a fallback list
+fallback = ["Segoe UI Variable", "Noto Sans", "DejaVu Sans", "sans-serif"]
+mono = ["Consolas", "Cascadia Mono", "Courier New", "monospace"]   # 03 2.7 --mono
+
+[type]                          # size px (desktop, scale 1.0), weight. S / M / L where the Hub sizes them
+app_title = { size = 22, weight = 700 }            # 01 1.4 title. Window.Layout.ps1:50-61
+version = { size = 10, weight = 400 }              # 01 1.4
+tagline = { size = 11, weight = 500 }              # 01 1.4
+order_prefix = { size = 9, weight = 600 }          # 01 1.4 ORDER label
+order_label = { size = 11, weight = 400 }          # 01 1.4 mode name
+search_text = { size = 12, weight = 400 }          # 01 1.4
+search_placeholder = { size = 11, weight = 400 }   # 01 1.4
+search_hint = { size = 10, weight = 400 }          # 01 1.4
+filter_label = { size = 11, weight = 600 }         # 01 1.5 TYPE / STATE / GENRE labels
+filter_pill = { size = 13, weight = 600 }          # 01 1.5
+facet_chip = { size = 12, weight = 600 }           # 01 2.2 active facet chips (13 to 12 px)
+sml_button = { size = 12, weight = 700 }           # 01 1.5
+scan_label = { size = 12, weight = 600 }           # 01 1.5
+scan_count = { size = 13, weight = 800 }           # 01 1.5 counter numbers
+scanning = { size = 14, weight = 400 }             # 01 1.12
+updates_badge = { size = 12, weight = 600 }        # 01 1.5
+banner_kicker = { size = 10, weight = 600 }        # 01 1.6
+banner_title = { S = 22, M = 25, L = 28, weight = 600 }   # 01 1.6 list banner title
+banner_subtitle = { S = 11, M = 12, L = 13, weight = 400 } # 01 1.6
+banner_button = { S = 11, M = 12, L = 13, weight = 700 }   # 01 1.6 Show / Explore; arrow 13 px
+explore_title = { S = 21, M = 24, L = 27, weight = 600 }   # 01 1.8
+explore_kicker = { S = 9, M = 10, L = 11, weight = 600 }   # 01 1.8
+explore_subtitle = { S = 11, M = 11, L = 12.5, weight = 400 } # 01 1.8
+explore_button = { S = 11, M = 11, L = 12, weight = 700 }  # 01 1.8
+section_title = { S = 13, M = 14, L = 17, weight = 600 }   # 01 1.7 / 01 1.14
+section_kind = { S = 13, M = 14, L = 17, weight = 500 }    # 01 1.7
+section_count = { S = 11, M = 11, L = 13, weight = 500 }   # 01 1.7
+genre_row_title = { size = 22, weight = 700 }      # 01 1.8 Explore row title
+genre_row_count = { size = 10, weight = 600 }      # 01 1.8
+menu_heading = { size = 10, weight = 400 }         # 01 1.11 / 1.17
+menu_item = { size = 13, weight = 400 }            # 01 1.11 / 1.17
+menu_caption = { size = 11, weight = 400 }         # 01 1.11 / 1.17
+card_pill = { size = 8, weight = 600 }             # 02 1.4 family pill (caps)
+card_docked = { size = 8, weight = 700 }           # 02 1.4 WIP docked badge
+card_title = { size = 13, weight = 700 }           # 02 1.4
+card_meta = { size = 10, weight = 500, long = 9 }  # 02 1.4 accent line; 9 px at 31+ characters
+card_author = { size = 9, weight = 500, long = 8 } # 02 1.4 "by ..."; 8 px if author > 28 characters
+card_note = { size = 10, weight = 500 }            # 02 1.4
+card_button = { size = 11, weight = 600 }          # 02 1.4
+card_info_i = { size = 12, weight = 700 }          # 02 1.4 italic "i"
+similar_title = { size = 13, weight = 500 }        # 03 1.8
+similar_sub = { size = 9.5, weight = 500 }         # 03 1.8
+detail_title = { size = 28, weight = 700 }         # 03 1.2 row 6
+detail_meta_label = { size = 9, weight = 600 }     # 03 1.2 row 7
+detail_meta_value = { size = 13, weight = 500 }    # 03 1.2 row 7
+update_banner_text = { size = 11.5, weight = 600 } # 01 1.4 header update banner text
+detail_body = { S = 12, M = 14, L = 16, weight = 400 }     # 03 1.10 README body; line height below
+detail_line = { S = 18, M = 21, L = 24 }                   # 03 1.10 line height
+detail_heading = { size = 14, weight = 600 }       # 03 1.8 heading one step above body [proposal size]
+detail_button = { size = 14, weight = 600, line = 20 }     # 03 1.5 primary button
+detail_companion = { size = 12, weight = 600 }     # [proposal] companion buttons, matches card button scale
+notice_heading = { size = 12, weight = 700 }       # 03 1.8
+notice_body = { size = 14, weight = 400, line = 20 }       # 03 1.8
+quip = { size = 14, weight = 600 }                 # 03 1.12 italic in the accent colour
+console = { S = 12, M = 13, L = 14, weight = 400, line = 18 }  # 03 2.8 monospace, 13 px at M [proposal S and L]
+console_max_h = 360             # 03 2.8
+
+[type.gradient]                 # gradient text is drawn with a mask, not with a drop shadow on the same item (02 1.13)
+title_top = "#ffffff"           # 01 1.4 / 02 1.5
+title_bottom = "#d8dee3"        # 01 1.4 (header, banners, detail)
+card_title_bottom = "#a8b0ba"   # 02 1.5 (card)
+
+# ---------------------------------------------------------------- space, size, radius
+
+[space]                         # logical px, CSS order where a single value is shown
+header_pad_wide = [28, 20, 28, 14]     # left, top, right, bottom. 01 1.3 row. Window.Layout.ps1:24
+header_pad_narrow = [14, 20, 14, 14]   # below 620 px (breakpoint.icons_hidden). 01 1.3
+filterbar_pad = [28, 0, 28, 12]        # 01 1.5
+content_pad = [28, 20, 28, 24]         # 01 1.1 content area. Window.Layout.ps1:682-710
+back_margin_right = 18                 # 01 1.5 back arrow right margin
+sml_gap = 5                            # 01 1.5
+pill_gap_type = 7                      # 01 1.5 between TYPE pills and before the scan button
+pill_gap_state = 6                     # 01 1.5 between STATE pills
+header_btn_gap = 10                    # 01 1.4 between header buttons
+pill_pad = { x = 15, y = 9 }           # 01 1.5 filter pill padding
+section_pill_pad = { x = 10, y = 6 }   # 01 1.7
+section_meta_gap = 9                   # 01 1.7 count margin
+section_grid_margin = { top = 22, bottom = 30 }  # 01 1.7 grid margins
+section_divider_margin = 24            # 01 1.7 bottom margin after each divider
+section_header_top = 20                # 01 1.7 first section header top margin
+section_header_bottom = 10
+banner_text_pad = { left = 22, top = 16, right = 22, bottom = 16 } # 01 1.6 (top 20 / 24 at M / L)
+banner_btn_pad = { S = [14, 7], M = [16, 8], L = [18, 9] }         # 01 1.6 [x, y]
+banner_bottom_margin = 22              # 01 1.6 list and library banner
+explore_banner_bottom = 18             # 01 1.8
+explore_title_pad = { left = 22, top = 68, right = 22, bottom = 16 }  # 01 1.8 (top 62 / 70 / 82 at S / M / L; see 04 section 10)
+explore_top_margin = { S = 62, M = 70, L = 82 }    # 01 1.8
+genre_chip_margin = [0, 0, 8, 8]       # 01 1.8
+genre_row_bottom = 26                  # 01 1.8
+genre_row_title_bottom = 10            # 01 1.8
+genre_count_pad = { x = 7, y = 1 }     # 01 1.8
+edge_host_w = 56                       # 01 1.8 row edge host
+card_inner_pad = 14                    # 02 1.4 card padding (all sides)
+card_title_gap = 2                     # 02 1.4 mod/author lines margin top
+card_note_gap = 6                      # 02 1.4 note margin top (4 with add-on)
+card_info_margin = { top = 8, right = 8 } # 02 1.4
+
+[size.window]
+default_w = 1120                # 01 1.1 / 01 2.1
+default_h = 720
+min_w = 500                     # Hub minimum. 01 2.1 keeps it; 01 4 recommends 720 x 480 [open, conflict C-minwin]
+min_h = 400
+rec_min_w = 720                 # 01 4 recommendation, open
+rec_min_h = 480
+
+[breakpoint]                    # 01 1.3 / 01 2.1
+full_caption = 780              # at and above: full caption, version pill and tagline
+icons_hidden = 620              # below: title group and headset glyph hidden, ORDER prefix hidden
+
+[size.header]
+square_btn = 34                 # 01 1.4
+square_btn_radius = 8
+order_pill_w = 144              # 01 1.4 (112 below 620 px)
+order_pill_w_narrow = 112
+order_pill_h = 34
+order_pill_radius = 6
+search_col = 165                # 01 1.4 (115 below 620 px)
+search_col_narrow = 115
+search_radius = 6
+search_hint_h = 16              # 01 1.4 hint hangs below the pill on its own layer
+headset_w = 32                  # 01 1.4 glyph 32 x 17
+headset_h = 17
+update_dot = 7
+
+[size.filter]
+back_btn = 24                   # 01 1.5 / 01 2.2
+back_radius = 6
+pill_radius = 6
+sml_w = 30                      # 01 1.5
+sml_h = 28
+sml_radius = 6
+facet_chip_pad = { x = 10, y = 6 }      # 01 2.2
+facet_chip_h = 26               # [proposal] 26 px chip height, matches genre-chip minimum (01 1.8)
+facet_clear_size = 11           # 01 2.2
+drawer_w = { min = 380, max = 420 }     # 01 2.2 Filters drawer width
+drawer_pad = 6
+year_thumb = 12                 # 01 2.2 range slider thumb
+year_track_h = 4                # [proposal]
+updates_badge_min = 20          # 01 1.5
+
+[size.banner]
+list_h = { S = 140, M = 156, L = 174 }    # 01 1.6 list and library
+explore_h = { S = 184, M = 200, L = 224 }  # 01 1.8
+radius = 8                      # 01 1.6
+border_px = 1
+btn_radius = 4                  # 01 1.6 Show / Explore
+btn_border_px = 2               # Show button border 2 px; Explore 1.5 px
+explore_btn_border_px = 1.5
+close_chip_radius = 3           # 01 1.6 hover-close chips
+
+[size.card]
+base_w = 175                    # 02 1.2 at S
+base_h = 160
+radius = 8                      # 02 1.4
+border_px = 1
+scale = { S = 1.00, M = 1.15, L = 1.30 }    # 02 1.2 LayoutTransform body scale. Window.Controls.ps1:141-158
+level = { S = 1.0, M = 1.5, L = 2.0 }       # 02 1.2 header and banner level; saved as scaleList / sizeList
+art_strip_h = 80                # 02 1.9 preview strip, card coordinates
+art_strip_radius = 7
+art_fade_h = 18
+info_pill_h = 22                # 02 1.4
+info_pill_radius = 11
+family_pill_radius = 3          # 02 1.4
+family_pill_pad = { x = 6, y = 2 }
+family_pill_max_w = 104         # 02 1.4 (86 with a gem: no gem in v1)
+docked_radius = 2               # 02 1.4 WIP badge
+docked_pad = { x = 5, y = 1 }
+button_radius = 4               # 02 1.4 neon button
+button_pad_v = 6                # 02 1.4 (about 27 px tall with the label, est.)
+reinstall_w = 28                # 02 1.4
+controls_glyph = { motion = 14, gamepad = 18, stroke = 1.9 }   # 02 1.4 (v1 glyphs: gun, wheel, bike)
+hot_zone = { top = 34, bottom = 41 }           # 02 1.4 Hub hot zones. Replaced in v1 by one hit map (04 section 4.7)
+
+[size.card.preview]             # 02 1.9 derived, shown for reference
+w = { S = 245, M = 282, L = 319 }
+h = { S = 224, M = 258, L = 291 }
+
+[size.library_tile]             # 01 1.9 portrait tiles, 2:3
+S = { w = 220, h = 330 }
+M = { w = 250, h = 375 }
+L = { w = 275, h = 413 }
+
+[size.explore_tile]             # 01 1.8
+S = { w = 140, h = 210 }
+M = { w = 175, h = 260 }
+L = { w = 215, h = 320 }
+
+[size.detail]                   # 03 1.2, 1.10
+hero_h = 360
+hero_radius = 10
+hero_max_w = 1040               # above this window width, the hero freezes at 1040 px, centred
+paragraph_min_w = 720
+paragraph_max_w = 1040
+paragraph_frac = 0.78           # 03 1.10 paragraph width cap as a fraction of window width
+meta_gap = 24                   # 03 1.2 row 7 two-column gap
+meta_rule = 1
+pill_radius = 3
+title_pill_pad = { x = 6, y = 2 }   # [proposal] same as family pill
+companion_h = 34                # [proposal] companion button height
+primary_min_w = 162             # 03 1.5 primary button MinWidth
+primary_radius = 7              # 03 1.5 primary button radius 7, padding 16/10 [see primary_pad]
+primary_pad = { x = 16, y = 10 }
+game_info_gap = 10              # 03 1.2 row 13: Game Info (1.7 star) : Similar games (1 star), 10 px gap
+similar_thumb = { w = 160, h = 75 }   # 03 1.8
+similar_rows = { min = 4, max = 12, row_h = 93 }   # 03 1.8 row count from box height: (h - 26) / 93
+video_thumb = { w = 132, h = 74 }     # 03 1.9 (only if video exists; no video field in the schema, see 05)
+video_gap = 14                        # 03 1.9
+box_radius = 6                        # 03 1.8
+box_pad = { top = 14, right = 10, bottom = 14, left = 12 }   # 03 1.8
+notice_radius = 5               # 03 1.8
+notice_pad = { top = 11, right = 9, bottom = 11, left = 10 } # 03 1.8
+quip_radius = 6                 # 03 1.12
+quip_bar = 3                    # 03 1.12
+state_bar = 3                   # 03 1.2 row 8 status line bar, 10 to 16 % tint
+state_tint_alpha = 26           # 03 1.4 tint alpha for update and installed status lines
+
+[size.console]
+radius = 6                      # 03 2.8
+border_px = 1
+line_h = 18                     # 03 2.8 (console line height)
+max_h = 360                     # 03 2.8
+copy_chip_radius = 4            # 03 1.10
+prompt_radius = 4               # [proposal]
+
+[size.section]
+pill_radius = 11                # 01 1.7
+icon_px = 14                    # 01 1.7
+divider_px = 1                  # 01 1.7 #1e1e26
+genre_row_btn = 30              # 01 1.8 row edge circle button
+genre_row_chevron = 16
+genre_row_bubble_scale_hover = 1.12
+explore_row_gap = 26            # 01 1.8
+
+[size.overlay]
+order_w = 230                   # 01 1.11
+order_top = 60
+order_right = 203
+help_w = 224                    # 01 1.17
+help_top = 60
+help_right = 200
+panel_radius = 8                # 01 1.17 / 01 1.11
+panel_pad = 6
+item_radius = 7                 # 01 1.17 help item radius
+item_pad = { x = 9, y = 8 }
+item_dot = 8
+active_dot = 8                  # 01 1.11 active dot in ORDER menu
+
+[size.hit]
+min_px = 40                     # [proposal] desktop minimum for any control (mouse and touch)
+vr_primary_px = 56              # [proposal] VR overlay mode, primary and companion buttons. Derivation: 04 section 9
+vr_secondary_px = 44            # [proposal] VR overlay mode, other controls
+spacing_px = 16                 # [proposal] VR overlay mode minimum gap between targets
+text_min_px = 12                # [proposal] desktop minimum for text (Hub S size body is 12 px)
+
+# ---------------------------------------------------------------- VR overlay mode
+
+[vr]                            # 04 section 9. Numbers are proposals and must be measured in the headset
+overlay_w_px = 1280             # [proposal] logical canvas for the SteamVR dashboard overlay
+overlay_h_px = 800
+overlay_width_m = 2.0           # [proposal] width of the overlay in the headset
+dashboard_distance_m = 1.5      # [assumption] typical dashboard viewing distance
+laser_jitter_deg = 1.0          # [assumption] pointer jitter to measure; sets the minimum target size
+text_min_px = 16                # [proposal] body text in overlay mode: 16 px = 0.96 degrees at 1.5 m (04 section 9.1)
+label_min_px = 14               # [proposal] labels outside cards; card text follows the card scale
+default_size = "L"              # [proposal] overlay mode starts at the L token set
+focus_preview = 600             # [proposal] keyboard or gamepad focus shows the card preview after this dwell (same as the hover dwell)
+
+# ---------------------------------------------------------------- shape
+
+[radius]
+chip = 3                        # 01 1.14 / 01 1.5 family pill, small chips
+banner_btn = 4                  # 01 1.6
+genre = 5                       # 01 1.8 genre labels and chips (S, M)
+pill = 6                        # 01 1.5 filter pills, back button, S/M/L, ORDER, search
+focus = 7                       # 01 1.14 focus rings
+card = 8                        # 02 1.4
+header_btn = 8                  # 01 1.4
+banner = 8                      # 01 1.6
+panel = 8                       # 01 1.17 overlay panels
+section_pill = 11               # 01 1.7
+updates_badge = 10              # 01 1.5
+hero = 10                       # 03 1.2
+info_pill = 11                  # 02 1.4
+docked_badge = 2                # 02 1.4
+circle = 15                     # 01 1.8 30 px edge buttons
+count_bubble = 8                # 01 1.8
+console = 6                     # 03 2.8
+quip = 6                        # 03 1.12
+box = 6                         # 03 1.8
+notice = 5                      # 03 1.8
+copy_chip = 4                   # 03 1.10

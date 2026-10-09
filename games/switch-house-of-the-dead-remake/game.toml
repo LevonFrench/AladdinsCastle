@@ -20,7 +20,7 @@ kind = "other"
 note = "Your own Switch copy (digital or game card); nothing is provided by this catalog"
 
 [routes]
-yuzu-like = "unknown"
+ryujinx = "unknown"
 vr        = { best = "none" }
 
 [hub]

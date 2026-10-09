@@ -1,0 +1,53 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "vjoy"
+name = "vJoy (Brunner Innovation fork)"
+kind = "driver"
+upstream = "https://github.com/BrunnerInnovation/vJoy"
+license = "MIT"
+license_note = "LICENSE.txt is MIT (gh API, 2026-10-08). Fork of njz3/vJoy. The Brunner fork is sponsored for Windows driver signing so force feedback works on Windows 11. The maintainer says it does not plan heavy maintenance. A secondary report flagged a SourceForge copy as tampered, so download only from the Brunner GitHub releases or the official vJoy site."
+redistribution = "download-from-upstream-only"
+platforms = []
+unverified_platforms = ["windows-x64"]
+
+[install.windows-x64]
+do = "github-release"
+repo = "BrunnerInnovation/vJoy"
+tag = "v2.2.2.0"
+asset = "vJoySetup_v2.2.2.0_Win10_Win11.exe"
+version = "v2.2.2.0"
+archive = "none"
+run_installer = true
+elevation = "admin"
+note = "Signed kernel-driver installer (verified asset name, published 2023-12-19). Windows 10 and 11 only per README. The architecture is not stated in the name, so the platform stays unverified. Remove stale vJoy driver packages before reinstalling (secondary guide). Reboot may be needed (not verified)."
+
+[portable]
+marker = "none"
+note = "System driver. It installs into Windows and is not portable. The Hub records the install, never bundles it, and offers an uninstall step."
+
+[locate]
+exe = ["vJoyConf.exe"]
+version = { from = "?" }
+min = "?"
+note = "Configuration tool name not verified in this pass. Confirm the driver is present (device enumeration) rather than trusting the exe."
+
+[search]
+paths = ["${ProgramFiles}/vJoy"]
+
+[input.gun]
+method = "not-applicable"
+max_guns = 0
+notes = "vJoy is a virtual joystick, not an absolute pointer, so it cannot carry two light-gun aim points (see the gun-hooks note)."
+
+[input.wheel]
+method = "vjoy-axes"
+notes = "Virtual DirectInput joystick with axes and force feedback (Brunner README). Suited to steering wheel and pedal input. Pair with HidHide to hide the physical device."
+
+[meta]
+sources = [
+  "https://github.com/BrunnerInnovation/vJoy",
+  "https://github.com/BrunnerInnovation/vJoy/releases/tag/v2.2.2.0",
+]
+verified = ["release asset name (gh, 2026-10-08)", "MIT licence (LICENSE.txt, gh)", "Windows 10 and 11 support statement (README)"]
+unverified = ["architecture", "vJoyConf.exe name", "reboot requirement", "uninstall steps"]
+checked = "2026-10-08"
+confidence = "high"

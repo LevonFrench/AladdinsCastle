@@ -1,0 +1,76 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "mame"
+name = "MAME"
+kind = "emulator"
+upstream = "https://github.com/mamedev/mame"
+license = "GPL-2.0"
+license_note = "COPYING is GPL-2.0 (read 2026-10-08). Some files carry other licences. GitHub reports other. ROMs and BIOS are never downloaded or shipped."
+redistribution = "download-from-upstream-only"
+platforms = ["windows-x64", "windows-arm64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "github-release"
+repo = "mamedev/mame"
+tag = "mame0289"
+asset = "mame0289b_x64.exe"
+checksum_asset = "SHA256SUMS"
+version = "mame0289"
+archive = "?"
+note = "GitHub Latest, published 2026-07-30 (verified). The meaning of the b suffix is not verified. Check whether the file is a self-extracting archive before the Hub runs it. Verify the hash against SHA256SUMS in the same release."
+
+[install.windows-arm64]
+do = "github-release"
+repo = "mamedev/mame"
+tag = "mame0289"
+asset = "mame0289b_arm64.exe"
+checksum_asset = "SHA256SUMS"
+version = "mame0289"
+archive = "?"
+note = "Windows ARM64 build (verified asset name). Linux: the release holds only mame0289lx.zip, a source package, so no Linux binary manifest is offered."
+
+[portable]
+marker = "none"
+note = "No switch needed. On Windows the default -inipath is .;ini;ini/presets, so a mame.ini beside the exe is used. The Hub still passes -inipath explicitly."
+
+[locate]
+exe = ["mame64.exe", "mame.exe"]
+version = { from = "?" }
+min = "?"
+note = "Exe name after install is not verified in this pass."
+
+[search]
+paths = ["${ProgramFiles}/MAME", "${LOCALAPPDATA}/Programs/MAME", "${scoop}/apps/mame/current", "*:/Emulators/MAME*"]
+
+[launch]
+args = ["${rom.set}", "-rompath", "${media.dir};${bios.dir}", "-skip_gameinfo", "-inipath", "${tool_dir}", "-cfg_directory", "${tool_dir}/cfg", "-nvram_directory", "${tool_dir}/nvram", "-state_directory", "${tool_dir}/sta", "-snapshot_directory", "${tool_dir}/snap"]
+gun_args = ["-lightgun"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "Options -rompath, -skip_gameinfo, -inipath, -cfg_directory, -nvram_directory, -state_directory, -snapshot_directory and -lightgun are documented upstream (docs.mamedev.org). ${rom.set} is the MAME set name without .zip. Exit behaviour is not verified."
+
+[config]
+files = [
+  { path = "mame.ini", format = "ini", note = "created with -createconfig; kept in the tool folder" },
+  { path = "cfg/<romname>.cfg", format = "xml", note = "per-game mameconfig version 10 (RetroBat and Batocera observed)" },
+]
+
+[input.gun]
+method = "lua-field"
+max_guns = "?"
+notes = "A Lua field:set_value overrides IPT_LIGHTGUN_X/Y and other analog fields until clear_value (src/frontend/mame/luaengine_input.cpp, line 269). No fork is needed. Field names are per driver. Output (recoil, lamps) goes over -output network on TCP 8000 as name = value text. The network output has no input channel. Per-game gun mapping uses GUNCODE_ sequences in cfg/<romname>.cfg (Batocera observed)."
+
+[input.wheel]
+method = "per-game-cfg"
+notes = "Analog ports (ANALOG<n>) are mapped per game in cfg/<romname>.cfg (Batocera observed). Not verified in this pass."
+
+[meta]
+sources = [
+  "https://github.com/mamedev/mame/releases/tag/mame0289",
+  "https://docs.mamedev.org/commandline/commandline-all.html",
+  "https://github.com/mamedev/mame/blob/master/src/frontend/mame/luaengine_input.cpp",
+]
+verified = ["release asset names (gh, 2026-10-08)", "licence text COPYING (read)", "command-line options (upstream docs)", "Lua field override (upstream source line)"]
+unverified = ["asset suffix meanings", "archive type of the Windows exe", "exe name after install", "version query", "exit behaviour"]
+checked = "2026-10-08"
+confidence = "medium"

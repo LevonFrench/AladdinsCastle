@@ -1,0 +1,71 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "flycast"
+name = "Flycast"
+kind = "emulator"
+upstream = "https://github.com/flyinghead/flycast"
+license = "GPL-2.0"
+license_note = "LICENSE is GPL-2.0 (GitHub API, 2026-10-08). The Android APK and Switch NRO builds are out of scope for the desktop Hub."
+redistribution = "download-from-upstream-only"
+platforms = ["windows-x64", "linux-x64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "github-release"
+repo = "flyinghead/flycast"
+tag = "v2.7"
+asset = "flycast-win64-2.7.zip"
+version = "v2.7"
+archive = "zip"
+note = "Portable zip (verified asset name, published 2026-08-19)."
+
+[install.linux-x64]
+do = "github-release"
+repo = "flyinghead/flycast"
+tag = "v2.7"
+asset = "flycast-x86_64-2.7.AppImage"
+version = "v2.7"
+archive = "none"
+note = "x86-64 AppImage only (verified). No ARM64 Linux build is published, so Flycast is not an ARM64 route."
+
+[portable]
+marker = "?"
+note = "emu.cfg is resolved with get_writable_config_path (core/cfg/cfg.cpp 32-38). The Windows implementation was not traced. RetroBat writes emu.cfg beside flycast.exe (observed)."
+
+[locate]
+exe = ["flycast.exe", "flycast-*.AppImage"]
+version = { from = "?" }
+min = "?"
+
+[search]
+paths = ["${ProgramFiles}/Flycast", "${LOCALAPPDATA}/Programs/Flycast", "${scoop}/apps/flycast/current", "*:/Emulators/Flycast*"]
+
+[launch]
+args = ["${media.file}"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "RetroBat invokes flycast.exe with the file path. Transient overrides use -config section:key=value (core/cfg/cl.cpp 31-33, 184-188, verified). Exit behaviour not verified."
+
+[config]
+files = [
+  { path = "emu.cfg", format = "ini", note = "[window] fullscreen, width, height; [config] rend.* and rend.CrossHairColor1-4; [input] device1-4" },
+]
+
+[input.gun]
+method = "in-process-only"
+max_guns = 2
+notes = "External configuration: [input] device<n> = 7 (MDT_LightGun) for gun ports, device<n>.1 = 1 (VMU), device<n>.2 = 10 (None) (Batocera observed). Maple light guns sit on ports 2 and 3. The in-process SetMousePosition(x, y, w, h, mouseId) is not an external IPC. DemulShooter lists Flycast 2.7 outputs (release v17.7)."
+
+[input.wheel]
+method = "?"
+notes = "Not verified."
+
+[meta]
+sources = [
+  "https://github.com/flyinghead/flycast/releases/tag/v2.7",
+  "https://github.com/flyinghead/flycast/blob/master/core/cfg/cfg.cpp",
+  "https://github.com/flyinghead/flycast/blob/master/core/cfg/cl.cpp",
+]
+verified = ["release asset names (gh, 2026-10-08)", "licence (gh)", "config file name and CLI override (upstream source)"]
+unverified = ["Windows config path", "exit behaviour", "gun key names beyond Batocera observations"]
+checked = "2026-10-08"
+confidence = "medium"

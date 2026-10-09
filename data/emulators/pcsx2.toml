@@ -1,0 +1,76 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "pcsx2"
+name = "PCSX2"
+kind = "emulator"
+upstream = "https://github.com/PCSX2/pcsx2"
+license = "GPL-3.0"
+license_note = "COPYING.GPLv3 (verified). GitHub API reports gpl-3.0."
+redistribution = "download-from-upstream-only"
+platforms = ["windows-x64", "linux-x64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "github-release"
+repo = "PCSX2/pcsx2"
+tag = "v2.8.2"
+asset = "pcsx2-*-windows-x64-Qt.7z"
+version = "v2.8.2"
+archive = "7z"
+note = "Portable Qt build. Verified asset name pcsx2-v2.8.2-windows-x64-Qt.7z (published 2026-09-04). Do not use the installer .exe. Pin policy: pin v2.8.2 and move only after testing."
+
+[install.linux-x64]
+do = "github-release"
+repo = "PCSX2/pcsx2"
+tag = "v2.8.2"
+asset = "pcsx2-*-linux-appimage-x64-Qt.AppImage"
+version = "v2.8.2"
+archive = "none"
+note = "AppImage (verified asset name). The Flatpak is not used. This is x86-64, not ARM64. The ARM64 PS2 route is armsx2.toml."
+
+[portable]
+marker = "portable.ini"
+note = "Also portable.txt, or the -portable switch (Pcsx2Config.cpp 2203-2208; QtHost.cpp). RetroBat writes portable.ini with RunWizard=0 (observed), which skips the first-run wizard."
+
+[locate]
+exe = ["pcsx2-qt.exe", "pcsx2-qtx64*.exe", "pcsx2-*.AppImage"]
+version = { from = "file-version" }
+min = "?"
+note = "min is left unset until the setups' needs are tested."
+
+[search]
+paths = ["${ProgramFiles}/PCSX2", "${LOCALAPPDATA}/Programs/PCSX2", "${scoop}/apps/pcsx2/current", "*:/Emulators/PCSX2*"]
+
+[launch]
+args = ["-batch", "-nogui", "-fullscreen", "--", "${media.disc}"]
+cwd = "${tool_dir}"
+exits_on_game_end = true
+note = "-batch exits after shutdown; -nogui implies batch (help text, QtHost.cpp 2139-2140). The -- separator is parsed (QtHost.cpp 2337). The double-dash spellings RetroBat uses (--nogui, --fullscreen) are not verified upstream."
+
+[config]
+files = [
+  { path = "inis/PCSX2.ini", format = "ini", note = "[USB1]/[USB2] gun settings live here" },
+  { path = "inis/PCSX2_ui.ini", format = "ini" },
+  { path = "inis/PCSX2_vm.ini", format = "ini" },
+  { path = "inis/GSdx.ini", format = "ini" },
+  { path = "inis/LilyPad.ini", format = "ini" },
+]
+
+[input.gun]
+method = "absolute-host-pointer"
+max_guns = 1
+notes = "GunCon 2 reads host pointer 0 for both ports (pcsx2/USB/usb-lightgun/guncon2.cpp:375). The per-port Pointer key is read but unused (line 504). Two independent guns need a fork (MAX_POINTER_DEVICES = 1, InputManager.h:170). Keys written by Batocera: [USB1] Type = guncon2; guncon2_Start = SDL-<index>/Start; guncon2_C = Keyboard/<pedal key>; guncon2_cursor_path and guncon2_cursor_color (blue for port 1, red for port 2). PINE IPC has no gun message."
+
+[input.wheel]
+method = "?"
+notes = "Wheel bindings are in RetroBat Pcsx2.Wheels.cs, not read in this pass. Keys unverified."
+
+[meta]
+sources = [
+  "https://github.com/PCSX2/pcsx2/releases/tag/v2.8.2",
+  "https://github.com/PCSX2/pcsx2/blob/master/pcsx2-qt/QtHost.cpp",
+  "https://github.com/PCSX2/pcsx2/blob/master/pcsx2/Pcsx2Config.cpp",
+]
+verified = ["release asset names (gh, 2026-10-08)", "licence (COPYING.GPLv3, gh)", "portable triggers and CLI switches (upstream source lines)"]
+unverified = ["double-dash spellings", "wheel keys", "portable behaviour on Linux", "min version"]
+checked = "2026-10-08"
+confidence = "high"

@@ -1,0 +1,58 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "demulshooter"
+name = "DemulShooter"
+kind = "input-bridge"
+upstream = "https://github.com/argonlefou/DemulShooter"
+license = "none"
+license_note = "No LICENSE file in the repo root (checked 2026-10-08; the root has no licence file). With no licence granted, do not redistribute or modify. Owner decision needed before the Hub may install it automatically."
+redistribution = "download-from-upstream-only"
+gate = "owner-decision: no licence published; no automatic install until decided"
+platforms = ["windows-x64"]
+unverified_platforms = []
+
+[install.windows-x64]
+do = "github-release"
+repo = "argonlefou/DemulShooter"
+tag = "v17.9"
+asset = "DemulShooter_v17.9.zip"
+version = "v17.9"
+archive = "zip"
+note = "Latest release published 2026-09-22 (verified). The repo has DemulShooter and DemulShooterX64 projects, and the release notes name DemulShooterX64.exe."
+
+[portable]
+marker = "?"
+note = "Per-game configuration. Portable behaviour not verified."
+
+[locate]
+exe = ["DemulShooterX64.exe", "DemulShooter.exe"]
+version = { from = "?" }
+min = "?"
+note = "Exe names come from the repo project folders and release notes, not from the extracted zip."
+
+[search]
+paths = ["${ProgramFiles}/DemulShooter", "${LOCALAPPDATA}/Programs/DemulShooter", "${scoop}/apps/demulshooter/current"]
+
+[launch]
+args = []
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "Runs alongside an emulator as a bridge, not as a standalone game launcher. Per-emulator arguments are not verified."
+
+[input.gun]
+method = "bridge-consumes-gun-input"
+max_guns = 2
+notes = "Per-player gun binding for many arcade emulators and games (release page). Hooks emulator or game state, and sends outputs such as recoil. Outputs are listed for Flycast 2.7 (v17.7) and TeknoParrot (v17.4, v17.6). A Sinden recoil link on TCP 8000 appeared only in a search snippet and is unverified."
+
+[input.wheel]
+method = "none"
+notes = "Not a wheel bridge."
+
+[meta]
+sources = [
+  "https://github.com/argonlefou/DemulShooter",
+  "https://github.com/argonlefou/DemulShooter/releases/tag/v17.9",
+]
+verified = ["release asset name (gh, 2026-10-08)", "absence of a licence file (repo root listing)", "per-player binding and output notes (release page, read via WebFetch)"]
+unverified = ["executable names after extraction", "memory-hook mechanics", "portable behaviour", "per-game support list"]
+checked = "2026-10-08"
+confidence = "medium"

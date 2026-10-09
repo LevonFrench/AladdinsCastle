@@ -1,0 +1,62 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "cxbx-reloaded"
+name = "Cxbx-Reloaded"
+kind = "emulator"
+upstream = "https://github.com/Cxbx-Reloaded/Cxbx-Reloaded"
+license = "GPL-2.0"
+license_note = "COPYING is GPL-2.0 (read 2026-10-08). GitHub reports gpl-2.0. Requires Npcap for network emulation (README)."
+redistribution = "download-from-upstream-only"
+gate = "pre-release CI builds only (README: no stable builds): owner to confirm the pinned CI tag"
+platforms = []
+unverified_platforms = ["windows-x64"]
+
+[install.windows-x64]
+do = "github-release"
+repo = "Cxbx-Reloaded/Cxbx-Reloaded"
+tag = "CI-585c49a"
+asset = "CxbxReloaded-Release.zip"
+version = "CI-585c49a"
+archive = "zip"
+note = "Pre-release CI build published 2026-04-19 (verified). The asset name has no architecture, so the platform is unverified. Official download page per README: cxbx-reloaded.co.uk/download."
+
+[portable]
+marker = "?"
+note = "settings.ini is written beside cxbxr-ldr.exe (RetroBat observed). Not verified upstream."
+
+[locate]
+exe = ["cxbxr-ldr.exe", "cxbx.exe"]
+version = { from = "?" }
+min = "?"
+
+[search]
+paths = ["${ProgramFiles}/Cxbx-Reloaded", "${LOCALAPPDATA}/Programs/Cxbx-Reloaded", "${scoop}/apps/cxbx-reloaded/current", "*:/Emulators/Cxbx*"]
+
+[launch]
+args = ["${media.xbe_or_xiso}"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "cxbxr-ldr.exe with an XBE or XISO path (RetroBat observed). Chihiro games use cxbx.exe /load (RetroBat observed). The CLI is not documented in the README."
+
+[config]
+files = [
+  { path = "settings.ini", format = "ini", note = "written by RetroBat Cxbx.Generator.cs (line 157)" },
+]
+
+[input.gun]
+method = "demulshooter-bridge"
+max_guns = "?"
+notes = "RetroBat wires RawLightgun and DemulShooter helpers (Cxbx.Generator.cs 203-212), not settings.ini. Key names were not extracted."
+
+[input.wheel]
+method = "?"
+notes = "Not verified."
+
+[meta]
+sources = [
+  "https://github.com/Cxbx-Reloaded/Cxbx-Reloaded",
+  "https://github.com/Cxbx-Reloaded/Cxbx-Reloaded/releases/tag/CI-585c49a",
+]
+verified = ["release tag and asset name (gh, 2026-10-08)", "licence COPYING (read)", "README statements on builds and Npcap"]
+unverified = ["platform architecture", "CLI and settings keys (RetroBat observed)", "portable marker", "gun keys"]
+checked = "2026-10-08"
+confidence = "low"

@@ -1,0 +1,58 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "model2emu"
+name = "Model 2 Emulator (ElSemi)"
+kind = "emulator"
+upstream = "?"
+license = "none"
+license_note = "Closed source. No licence published by the author (community wiki, 2026-10-08). The Batocera GitHub mirror batocera-linux/model2emu has no licence and is not used. Third-party archives are not used."
+redistribution = "not-redistributable"
+gate = "no official source found: locate-only (I already have it) and search only"
+platforms = []
+unverified_platforms = ["windows-x86"]
+
+[install.windows-x86]
+do = "manual"
+help = "No official download was found on 2026-10-08. Choose I already have it and point the Hub at an emulator folder. Do not fetch from the Batocera GitHub mirror or from third-party archives."
+note = "Latest version 1.1a per the community wiki. 32-bit Windows (community). Not a stable distribution channel."
+
+[portable]
+marker = "none"
+note = "Config lives beside the exe (RetroBat observed). The Hub runs it with the working directory set to the emulator folder."
+
+[locate]
+exe = ["emulator.exe", "emulator_multicpu.exe"]
+version = { from = "?" }
+min = "?"
+
+[search]
+paths = ["${ProgramFiles(x86)}/Model2", "${LOCALAPPDATA}/Programs/Model2", "*:/Emulators/Model2*"]
+
+[launch]
+args = ["${rom.basename}"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "Takes a bare ROM base name: no path and no .zip (RetroBat observed). The working directory must be the emulator folder."
+
+[config]
+files = [
+  { path = "Emulator.ini", format = "ini", note = "RomDirs, Renderer and Input sections (RetroBat observed)" },
+  { path = "CFG/<game>.input", format = "other", note = "per-game input file, copied from templatescfg/xinput or dinput (RetroBat observed)" },
+]
+
+[input.gun]
+method = "rawinput-device-index"
+max_guns = 2
+notes = "RetroBat writes RawDevP1 and RawDevP2 (raw device index of each gun) and UseRawInput = 1 in Emulator.ini. Community reports say two mice work under RawInput. No Lua gun-write API was found. DemulShooter is the documented bridge for outputs."
+
+[input.wheel]
+method = "template-input-file"
+notes = "Per-game CFG/<game>.input from templates (RetroBat observed). Not verified."
+
+[meta]
+sources = [
+  "https://emulation.gametechwiki.com/index.php/Model_2_Emulator (secondary)",
+]
+verified = ["no official distribution found (search, 2026-10-08)", "no licence published (community wiki and mirror repo read)"]
+unverified = ["all config keys (RetroBat observed)", "32-bit requirement (community)", "version history"]
+checked = "2026-10-08"
+confidence = "low"

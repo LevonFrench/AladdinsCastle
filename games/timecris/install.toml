@@ -38,18 +38,25 @@ media = "timecris"
 to    = "${install_dir}/roms/"
 
 [[variant.dr89-pcvr.step]]
-do   = "write-config"
-file = "${install_dir}/quest-options.cfg"
-set  = { physical_crouch = "${settings.cover == 'duck' ? 1 : 0}", left_handed = "${profile.left_handed ? 1 : 0}", laser_enabled = "${settings.laser ? 1 : 0}", gun_pitch = "${settings.gun_pitch}" }
+id     = "cfg"
+do     = "write-config"
+file   = "${install_dir}/quest-options.cfg"
+format = "cfg"                              # key=value lines (see docs/install-engine.md)
+set = [
+  { key = "physical_crouch", from = "settings.cover",      map = { duck = 1, grip = 0 }, default = 0 },
+  { key = "laser_enabled",   from = "settings.laser",      bool = { on = 1, off = 0 } },
+  { key = "gun_pitch",       from = "settings.gun_pitch",  type = "int" },
+  { key = "left_handed",     from = "profile.left_handed", bool = { on = 1, off = 0 } },
+]
 
 [[variant.dr89-pcvr.step]]
 do      = "shortcut"
-targets = ["steam"]
-exe     = "${install_dir}/Play SteamVR.cmd"
+targets = ["steam"]                         # target is the Hub: --launch timecris (docs/launch-and-runtime.md)
 
 [variant.dr89-pcvr.launch]
-exe = "${install_dir}/Play SteamVR.cmd"
-cwd = "${install_dir}"
+exe     = "${install_dir}/TimeCrisisVR.exe"  # not the generated Play SteamVR.cmd: the Hub pins the runtime itself
+cwd     = "${install_dir}"
+runtime = "steamvr"
 
 # ---------------------------------------------------------------------------
 # DR-89 Time Crisis VR, Quest standalone (sideloaded over USB with adb).

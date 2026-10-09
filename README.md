@@ -31,6 +31,14 @@ AladdinsCastle is an open-source desktop hub that installs and launches VR setup
 | [Emulators](docs/emulators.md) | Which emulators to target first, for true 3D and for theatre |
 | [Scaler and 2D games in VR](docs/scaler-and-2d-in-vr.md) | What M2 did in the Sega 3D Classics, and our layered depth method for sprite-scaler and 2D games |
 | [Catalog](docs/catalog.md) | Light gun and racing games, with the best route for each ([full tables](docs/data/)) |
+| [Hub architecture](docs/hub-architecture.md) | Qt 6 / QML Hub: modules, desktop + SteamVR overlay from one UI, packaging, licensing |
+| [QML components](docs/ui/04-qml-components.md) · [models](docs/ui/05-models.md) · [theme](docs/ui/theme.toml) | Component map, C++→QML models and design tokens for the Mod Hub-style UI |
+| [Art pipeline](docs/art-pipeline.md) | Asset sizes, user-side scraping, provenance, generated fallback, source licences |
+| [Install engine](docs/install-engine.md) | Recipe execution: states, step kinds, download safety, journal, uninstall, updates |
+| [Emulator manifests](docs/emulator-manifests.md) | Schema for `data/emulators/*.toml`, platform matrix (incl. ARM64), licence gates |
+| [Launch and runtime](docs/launch-and-runtime.md) | Pre-flight checks, runtime pinning, Steam/SteamVR library shortcuts, Steam Frame |
+| [Controls catalog](docs/controls-catalog.md) | Every cabinet control (bikes, skis, horse, paddle, planes, tanks, special guns), VR mappings, 3D model library, Control Mapping mode |
+| [Scaler depth probe](docs/scaler-depth-probe.md) | MAME Lua measurement of OutRun sprite scale vs road depth |
 | [Roadmap](docs/roadmap.md) | Milestones M0-M8 |
 | [Workshop](docs/workshop.md) | Open decisions and recommendations |
 | [Quest 3 quickstart](docs/quest3-quickstart.md) | Play Time Crisis VR, Virtua Cop 2 VR and PS2 games in VR now |

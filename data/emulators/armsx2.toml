@@ -1,0 +1,63 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "armsx2"
+name = "ARMSX2"
+kind = "emulator"
+upstream = "https://github.com/ARMSX2/ARMSX2"
+license = "GPL-3.0"
+license_note = "COPYING.GPLv3 at the repo root (read 2026-10-08). ARM64 fork of PCSX2. Android APKs (tag 2.8.2) exist but are out of scope for the desktop Hub. The project describes native ARM64 JIT work alongside legacy x86-to-ARM64 translation paths (GamingOnLinux, 2026-07-07, secondary)."
+redistribution = "download-from-upstream-only"
+platforms = ["linux-arm64"]
+unverified_platforms = []
+
+[install.linux-arm64]
+do = "github-release"
+repo = "ARMSX2/ARMSX2"
+tag = "linuxv0.0.1"
+asset = "ARMSX2-linux-Qt-arm64-appimage-sha.47229e4ff3.zip"
+version = "linuxv0.0.1"
+archive = "zip"
+note = "Published 2026-07-06 (verified asset name). The zip holds an ARM64 AppImage; its inner file name is not verified. The sha in the asset name is the build commit. The repo was pushed 2026-10-08, so re-check the tag before each update."
+
+[portable]
+marker = "?"
+note = "Likely portable.txt or portable.ini as in PCSX2, but not verified for ARMSX2."
+
+[locate]
+exe = ["ARMSX2*.AppImage"]
+version = { from = "?" }
+min = "?"
+
+[search]
+paths = ["${HOME}/Applications", "${HOME}/AppImages"]
+
+[launch]
+args = ["-batch", "-nogui", "-fullscreen", "--", "${media.disc}"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "PCSX2-derived argument set assumed, not verified for ARMSX2. Confirm against the ARMSX2 source before shipping."
+
+[config]
+files = [
+  { path = "inis/PCSX2.ini", format = "ini", note = "assumed PCSX2 layout, unverified" },
+]
+
+[input.gun]
+method = "?"
+max_guns = "?"
+notes = "Gun support is not verified. It may inherit the PCSX2 GunCon 2 path; check before offering gun setups."
+
+[input.wheel]
+method = "?"
+notes = "Not verified."
+
+[meta]
+sources = [
+  "https://github.com/ARMSX2/ARMSX2",
+  "https://github.com/ARMSX2/ARMSX2/releases/tag/linuxv0.0.1",
+  "https://github.com/ARMSX2/ARMSX2/releases/tag/2.8.2",
+  "https://www.gamingonlinux.com/2026/07/playstation-2-emulator-for-arm-devices-armsx2-gets-an-initial-linux-release/",
+]
+verified = ["release tag and asset name for Linux ARM64 (gh, 2026-10-08)", "GPL-3.0 COPYING.GPLv3 (read)"]
+unverified = ["AppImage name inside the zip", "portable marker", "launch arguments", "gun support", "fork status versus upstream PCSX2"]
+checked = "2026-10-08"
+confidence = "low"

@@ -1,0 +1,70 @@
+# AladdinsCastle emulator/tool manifest. Schema and gate rules: docs/emulator-manifests.md
+id = "dolphin"
+name = "Dolphin"
+kind = "emulator"
+upstream = "https://github.com/dolphin-emu/dolphin"
+license = "GPL-2.0-or-later"
+license_note = "COPYING: most code is GPLv2+, and the repo is aggregate-compatible with GPLv3 (read 2026-10-08). Some vendored code has other licences. GitHub reports other."
+redistribution = "manual-only"
+gate = "download channel not verified: dolphin-emu.org/download returned HTTP 403 on 2026-10-08"
+platforms = []
+unverified_platforms = ["windows-x64", "linux-x64", "linux-arm64"]
+
+[install.windows-x64]
+do = "manual"
+url = "https://dolphin-emu.org/download/"
+version = "2609"
+help = "Download the Windows build from the official Dolphin download page, then choose I already have it. The GitHub repo has no release objects; git tags 2609, 2609a, 2606 and 2606a exist. Pin to a tag once the channel is verified."
+note = "Windows build channel not read in this pass."
+
+[install.linux-arm64]
+do = "manual"
+url = "https://dolphin-emu.org/download/"
+version = "2609"
+help = "Upstream has an AArch64 JIT (2021 dev blog). No ARM64 Linux build was confirmed. Check the official download page or build from source on an ARM64 machine."
+note = "Not confirmed. Do not offer until checked."
+
+[portable]
+marker = "portable.txt"
+note = "An empty portable.txt next to Dolphin.exe makes the exe folder/User the user directory (UICommon.cpp 317, 359, 374, 436, verified)."
+
+[locate]
+exe = ["Dolphin.exe", "dolphin-emu"]
+version = { from = "?" }
+min = "?"
+
+[search]
+paths = ["${ProgramFiles}/Dolphin", "${ProgramFiles}/Dolphin Emulator", "${LOCALAPPDATA}/Programs/Dolphin", "${scoop}/apps/dolphin/current", "*:/Emulators/Dolphin*"]
+
+[launch]
+args = ["-b", "-e", "${media.iso}"]
+cwd = "${tool_dir}"
+exits_on_game_end = "?"
+note = "-e and --exec are verified (MainNoGUI.cpp 224-226). --save_state is also verified. -b batch mode is verified in behaviour (MainWindow.cpp line 934) but the option definition was not located upstream. Batocera and RetroBat both pass -b."
+
+[config]
+files = [
+  { path = "User/Config/Dolphin.ini", format = "ini" },
+  { path = "User/Config/GFX.ini", format = "ini" },
+  { path = "User/Config/WiimoteNew.ini", format = "ini", note = "Wiimote IR and button bindings" },
+  { path = "User/GameSettings/<GameID>.ini", format = "ini", note = "per-game overrides" },
+]
+
+[input.gun]
+method = "cursor-binding"
+max_guns = "?"
+notes = "WiimoteNew.ini [Wiimote1]: Source = 1; Device = DInput/0/Keyboard Mouse by default (RetroBat changes it to the real device); IR/Up, IR/Down, IR/Left, IR/Right = Cursor Y-, Cursor Y+, Cursor X-, Cursor X+; Buttons/A = Click 1; Buttons/B = Click 0 (RetroBat Dolphin.WiiGuns.cs). The Wiimote IR cursor is absolute and normalised to [-1, 1] (Cursor.cpp 61-133). There is no scripting API for writing it."
+
+[input.wheel]
+method = "per-game-gamesettings"
+notes = "Per-game controller profile in User/GameSettings (Batocera observed). Keys not extracted."
+
+[meta]
+sources = [
+  "https://github.com/dolphin-emu/dolphin/blob/master/COPYING",
+  "https://dolphin-emu.org/download/",
+]
+verified = ["licence text COPYING (read)", "portable.txt trigger and CLI switches (upstream source lines)", "no GitHub release objects (gh, 2026-10-08)"]
+unverified = ["Windows and Linux download channel", "-b option definition", "ARM64 Linux build", "gun and wheel keys (RetroBat observed)"]
+checked = "2026-10-08"
+confidence = "medium"

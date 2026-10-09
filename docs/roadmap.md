@@ -7,6 +7,7 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 - **Done when:** the owner has played Time Crisis VR on Quest 3 and written down what feels right and wrong. That feeds the controls spec.
 
 ## M1: Hub skeleton + third-party setups
+- Spikes from hub-architecture.md: S1 QML → SteamVR dashboard overlay (Qt `QQuickRenderControl` → GL texture → `IVROverlay`), S2 400-card grid performance.
 - Desktop Hub: library grid with fallback art, game detail page, settings, portable folder layout.
 - Config loader (layered TOML) + JSON Schemas + `validate` / `explain` CLI.
 - Recipe engine: `github-release`, `require-media`, `extract`, `write-config`, `shortcut`, `adb-install`.
@@ -17,6 +18,8 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 
 ## M2: libacvr v0 + test setup
 - libacvr: OpenXR session, multiview, recenter/height, pause overlay, gun module, ghost-control framework (`wheel`, `shifter_hl`, `pedal`, `button`), comfort basics.
+- **Control Mapping mode** (controls-catalog §7): every mappable element visible and moving 1:1, with calibrate/learn/rebind/save. Built on the same pipeline, so it ships with the first controls.
+- First 3D control models (parametric Blender scripts → glTF): wheel, H-shifter, motorbike bars, flight stick + throttle, mounted gun.
 - A test setup ("stereo cube") implementing the backend contract with a fake game camera.
 - **Done when:** in the headset you can shoot targets with correct parallax aim, and grab the ghost wheel to drive the test scene at 90 Hz or more.
 
