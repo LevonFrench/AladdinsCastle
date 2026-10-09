@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(AladdinsCastleHub VERSION 0.1.0 LANGUAGES CXX)
+project(AladdinsCastleHub VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -12,6 +12,8 @@ if(_qt_core_type STREQUAL "STATIC_LIBRARY")
 endif()
 
 include(cmake/Dependencies.cmake)
+include(cmake/SevenZip.cmake)
+include(cmake/ChdMetadata.cmake)
 include(cmake/ProjectWarnings.cmake)
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -29,17 +31,31 @@ add_library(hubcore STATIC
     src/core/config/Config.h
     src/core/filter/Filter.h
     src/core/scan/Scan.h
+    src/core/scan/Scan.cpp
+    src/core/scan/Headers.cpp
+    src/core/scan/HeaderSafety.cpp
+    src/core/scan/HeaderSafety.h
+    src/core/scan/ScanController.cpp
+    src/core/scan/ScanController.h
     src/core/install/Install.h
     src/core/update/Update.h
     src/core/launch/Launch.h
     src/core/settings/Settings.h
-    src/core/art/Art.h)
+    src/core/art/Art.h
+    src/core/art/Art.cpp)
 target_compile_features(hubcore PUBLIC cxx_std_20)
 target_include_directories(hubcore PUBLIC src)
 target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent
     tomlplusplus::tomlplusplus nlohmann_json::nlohmann_json
     nlohmann_json_schema_validator::validator)
+target_link_libraries(hubcore PRIVATE ac7zmetadata)
+target_link_libraries(hubcore PRIVATE chdr-static)
+target_link_libraries(hubcore PUBLIC Qt6::Quick)
+if(WIN32)
+    target_link_libraries(hubcore PRIVATE version)
+endif()
 ac_project_warnings(hubcore)
+qt_add_resources(hubcore scan_metadata PREFIX /scan BASE resources FILES resources/serial-index.json)
 
 qt_add_executable(aladdinscastle-hub src/app/main.cpp)
 target_link_libraries(aladdinscastle-hub PRIVATE hubcore Qt6::Quick
@@ -68,6 +84,9 @@ set_target_properties(aladdinscastle-hub PROPERTIES
 qt_add_executable(hubtool src/app/hubtool.cpp)
 target_link_libraries(hubtool PRIVATE hubcore)
 ac_project_warnings(hubtool)
+qt_add_executable(arttool src/app/arttool.cpp)
+target_link_libraries(arttool PRIVATE hubcore)
+ac_project_warnings(arttool)
 
 if(BUILD_TESTING)
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
@@ -80,4 +99,10 @@ if(BUILD_TESTING)
     target_compile_definitions(catalog-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(catalog-tests)
     add_test(NAME hub-catalog COMMAND catalog-tests)
+    qt_add_executable(scan-art-tests tests/ScanArtTest.cpp)
+    target_link_libraries(scan-art-tests PRIVATE hubcore Qt6::Test)
+    target_compile_definitions(scan-art-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    ac_project_warnings(scan-art-tests)
+    add_test(NAME hub-scan-art COMMAND scan-art-tests)
+    set_tests_properties(hub-scan-art PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
