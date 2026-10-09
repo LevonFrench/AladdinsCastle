@@ -47,6 +47,7 @@ struct RuntimeState {
     qint64 lastPlayed = 0, firstSeen = 0;
     int recentIndex = -1;
     ArtSource artSource = ArtSource::Generated;
+    bool playing = false;
 };
 struct GameRecord {
     QString id, folder;

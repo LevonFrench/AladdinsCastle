@@ -7,6 +7,7 @@ struct LaunchOptions {
     Mode mode = Mode::Desktop;
     QString gameId;
     QString dataRoot;
+    QString installRoot, bindingsFile, variantId;
     QString error;
     bool window = false;
     bool spike = false;

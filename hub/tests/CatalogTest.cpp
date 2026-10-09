@@ -120,7 +120,7 @@ class CatalogTest : public QObject {
         state.mediaFound = {"fake-media-0"}; model.applyRuntimeStates({state});
         QCOMPARE(model.find("fake")->roles.value("baseState").toInt(), int(ac::GameState::NeedsFiles));
         state.mediaFound << "fake-media-1"; model.applyRuntimeStates({state});
-        QCOMPARE(model.find("fake")->roles.value("baseState").toInt(), int(ac::GameState::ReadyToInstall));
+    QCOMPARE(model.find("fake")->roles.value("baseState").toInt(), int(ac::GameState::Installed));
     }
     void layeringAndProvenance() {
         try {

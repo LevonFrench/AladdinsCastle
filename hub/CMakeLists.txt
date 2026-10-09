@@ -49,6 +49,11 @@ add_library(hubcore STATIC
     src/core/install/FlatLaunch.cpp
     src/core/update/Update.h
     src/core/launch/Launch.h
+    src/core/launch/Launch.cpp
+    src/core/launch/Runtime.cpp
+    src/core/steam/Steam.h
+    src/core/steam/Steam.cpp
+    src/core/steam/BinaryVdf.cpp
     src/core/settings/Settings.h
     src/core/art/Art.h
     src/core/art/Art.cpp)
@@ -118,6 +123,10 @@ ac_project_warnings(hubtool)
 qt_add_executable(arttool src/app/arttool.cpp)
 target_link_libraries(arttool PRIVATE hubcore)
 ac_project_warnings(arttool)
+qt_add_executable(steamtool src/app/steamtool.cpp)
+target_link_libraries(steamtool PRIVATE hubcore)
+ac_project_warnings(steamtool)
+set_target_properties(steamtool PROPERTIES WIN32_EXECUTABLE FALSE)
 
 if(BUILD_TESTING)
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
@@ -174,4 +183,12 @@ if(BUILD_TESTING)
     ac_project_warnings(integration-tests)
     add_test(NAME hub-integration COMMAND integration-tests -o -,txt)
     set_tests_properties(hub-integration PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
+    qt_add_executable(launch-tests tests/LaunchSteamTest.cpp)
+    target_link_libraries(launch-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(launch-tests)
+    set_target_properties(launch-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-launch-steam COMMAND launch-tests)
+    if(NOT WIN32)
+        set_tests_properties(hub-launch-steam PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    endif()
 endif()
