@@ -60,15 +60,15 @@ private slots:
  void retryUsesCurrentGameAndVariant(){
     QTemporaryDir temp;auto catalog=syntheticCatalog(temp.path());auto &game=catalog.games.first();
     ac::Variant alternate=game.variants.first();alternate.id="flat-alternate";game.variants<<alternate;game.install={{"format",1},{"variant",ac::Json::object()}};
-    for(const auto &v:game.variants){const auto name=v.id.toStdString();game.install["variant"][name]={{"version","synthetic-v1"},{"installed_when","file:${install_dir}/synthetic.txt"},{"step",ac::Json::array({{{"id","generate"},{"do","write-config"},{"file","${install_dir}/synthetic.txt"},{"format","ini"},{"create",true},{"set",ac::Json::array({{{"section","Synthetic"},{"key","variant"},{"value",name}}})}}})}};}
+    for(const auto &v:game.variants){const auto name=v.id.toStdString();game.install["variant"][name]={{"version","synthetic-v1"},{"installed_when","file:${install_dir}/synthetic.txt"},{"step",ac::Json::array({{{"id","generate"},{"do","write-config"},{"file","${install_dir}/synthetic.txt"},{"format","ini"},{"create",true},{"set",ac::Json::array({{{"section","Synthetic"},{"key","variant"},{"value",name}},{{"section","Synthetic"},{"key","setting"},{"from","settings.syntheticChoice"}}})}}})}};}
     ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
-    ui.openDetail("synthetic");ui.selectVariant("flat-alternate");QSignalSpy changed(&ui,&ac::UiController::installChanged);ui.retryInstall(false,{});
+    QVERIFY(settings.saveGame("synthetic",{{"syntheticChoice","desired-value"}}));QVERIFY(ui.status().contains("Settings saved"));ui.openDetail("synthetic");ui.selectVariant("flat-alternate");QSignalSpy changed(&ui,&ac::UiController::installChanged);ui.retryInstall(false,{});
     QTRY_VERIFY_WITH_TIMEOUT(!ui.installing()&&changed.count()>1,10000);
     const auto states=QDir(temp.filePath("user/state/installs/synthetic")).entryList(QDir::Files);QVERIFY2(!states.isEmpty(),qPrintable(ui.status()));
     QVERIFY(!QFileInfo::exists(temp.filePath("user/state/installs/tool-supermodel")));
     // No prior session install is required; the selected variant gets its own persisted state.
     bool selectedState=false;for(const auto &file:states)if(file.contains("flat-alternate"))selectedState=true;QVERIFY(selectedState);
-    QVERIFY(ac::install::readBytes(temp.filePath("installed/synthetic/flat-alternate/synthetic.txt")).contains("flat-alternate"));QVERIFY(!QFileInfo::exists(temp.filePath("installed/synthetic/flat-mame/synthetic.txt")));
+    QVERIFY(ac::install::readBytes(temp.filePath("installed/synthetic/flat-alternate/synthetic.txt")).contains("flat-alternate"));QVERIFY(ac::install::readBytes(temp.filePath("installed/synthetic/flat-alternate/synthetic.txt")).contains("desired-value"));QVERIFY(!QFileInfo::exists(temp.filePath("installed/synthetic/flat-mame/synthetic.txt")));
  }
  void launchPreparationBusyAndStopAreDistinct(){
     QTemporaryDir temp;ac::GameListModel games(syntheticCatalog(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
@@ -113,6 +113,15 @@ private slots:
     ac::steam::Shortcut shortcut;shortcut.gameId="synthetic";shortcut.variantId="flat-mame";shortcut.title="Synthetic integration game";shortcut.executable=QCoreApplication::applicationFilePath();shortcut.startDir=temp.path();const auto before=ac::steam::edit({},shortcut).bytes;ac::install::atomicWrite(target,before);
     services.previewSteam("123");QVERIFY(services.steamWriteReady());services.approveSteamWrite();QVERIFY(!services.steamWriteReady());QCOMPARE(installs.count(),0);QCOMPARE(ac::install::readBytes(payload),payloadBytes);QCOMPARE(ac::install::readBytes(target),before);QVERIFY(services.canRemoveSteam());
     running=false;services.previewSteam("123");QVERIFY(services.steamWriteReady());services.approveSteamWrite();QTRY_VERIFY_WITH_TIMEOUT(!ui.installing()&&!QFileInfo::exists(payload),5000);QVERIFY(installs.count()>0);QVERIFY(!ac::steam::edit(ac::install::readBytes(target),shortcut,true).ownedFound);
+ }
+ void savedSettingsPreserveUnknownKeysAndNonInstallErrors(){
+    QTemporaryDir temp;ac::GameListModel games(syntheticCatalog(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
+    QVERIFY(settings.saveGame("synthetic",{{"futureKey","keep"},{"futureModes",QVariantList{"a","b"}},{"laser","off"}}));QVERIFY(settings.saveGame("synthetic",{{"laser","on"}}));ac::UiSettings saved(temp.filePath("user"));QCOMPARE(saved.game("synthetic").value("futureKey").toString(),QString("keep"));QCOMPARE(saved.game("synthetic").value("futureModes").toList(),QVariantList({"a","b"}));QCOMPARE(saved.game("synthetic").value("laser").toString(),QString("on"));QVERIFY(ui.status().contains("Settings saved"));
+    QVERIFY(!services.beginSteam("unknown-game",{},true));QVERIFY(ui.status().startsWith("Steam:"));QVERIFY(ui.recovery().isEmpty());ui.uninstall("synthetic","../invalid");QVERIFY(ui.status().startsWith("Hub:"));QVERIFY(ui.recovery().isEmpty());QVERIFY(!ui.installing());
+ }
+ void emptyCatalogToolActionsFailSafely(){
+    QTemporaryDir temp;ac::CatalogData catalog;ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
+    QVERIFY(services.toolPlan().contains("Catalog has no games"));services.installSupermodel();QVERIFY(ui.status().contains("Catalog has no games"));QVERIFY(!ui.installing());services.previewSupermodelRemoval();QVERIFY(ui.status().startsWith("Hub:"));QVERIFY(ui.status().contains("Catalog has no games"));QVERIFY(!QFileInfo::exists(temp.filePath("emulators")));
  }
  void changedMediaIsNotReadyOnRestore(){
     QTemporaryDir temp;const auto media=temp.filePath("fixture.zip");ac::install::atomicWrite(media,"before");receipt(temp.path(),media);ac::install::atomicWrite(media,"different size after proof");

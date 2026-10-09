@@ -13,6 +13,9 @@
 #include <QTemporaryDir>
 #include <QElapsedTimer>
 #include <QTimer>
+#include <QPersistentModelIndex>
+#include <QPointer>
+#include <QJSValue>
 #include <QQuickImageProvider>
 #include <QPainter>
 #include <QAtomicInteger>
@@ -29,6 +32,7 @@
 namespace {
 QStringList warnings;
 int cardCount(QQuickItem *item,bool visibleOnly=false){if(!item)return 0;int count=0;if(item->objectName()=="cardPrimary"){auto p=item->mapToScene(QPointF());if(!visibleOnly||(item->isVisible()&&p.y()>100&&p.y()<690))++count;}for(auto child:item->childItems())count+=cardCount(child,visibleOnly);return count;}
+QList<QQuickItem *> namedItems(QQuickItem *item,const QString &name){QList<QQuickItem *> result;if(!item)return result;if(item->objectName()==name)result<<item;for(auto child:item->childItems())result.append(namedItems(child,name));return result;}
 void logMessage(QtMsgType type,const QMessageLogContext &,const QString &message){if(type==QtWarningMsg||type==QtCriticalMsg)warnings<<message;fprintf(stderr,"%s\n",qPrintable(message));}
 double cpuSeconds(){
 #ifdef Q_OS_WIN
@@ -79,6 +83,25 @@ class UiTest:public QObject {
  void componentLoading(){
   const QStringList components{"PillButton","UiText","GameArt","GradientText","GameCard","SectionHeader","FeaturedBanner","Header","FilterBar","ScanProgress","FiltersDrawer","GameGrid","LibraryTile","RecentlyPlayedRow","ExplorePage","DetailPage","InstallConsole","RecoveryPanel","SettingsPage","SortMenu","HelpPanel"};
   for(const auto &name:components){QQmlComponent c(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/"+name+".qml"));QVERIFY2(c.isReady(),qPrintable(c.errorString()));std::unique_ptr<QObject> o(c.create());QVERIFY2(o!=nullptr,qPrintable(c.errorString()));}
+ }
+ void resizingSurvivesUnrelatedSettings(){
+  const auto original=window->size();window->resize(1104,688);QCoreApplication::processEvents();settings->set("reduceMotion",true);QCOMPARE(window->size(),QSize(1104,688));settings->set("reduceMotion",false);window->resize(original);
+ }
+ void persistentGridKeepsCardsFocusAndScroll(){
+  filter.clearFacets();filter.setSortMode("title");root->setProperty("view","List");QTest::qWait(100);auto list=window->findChild<QQuickItem *>("sectionedGrid");QVERIFY(list);list->setProperty("contentY",280.0);QTest::qWait(50);
+  auto cards=namedItems(list,"gameCard");QVERIFY(!cards.isEmpty());QPointer<QQuickItem> kept=cards.first();const auto value=kept->property("game");const auto game=value.metaType().id()==qMetaTypeId<QJSValue>()?value.value<QJSValue>().toVariant().toMap():value.toMap();const auto id=game.value("gameId").toString();QVERIFY(games->find(id));
+  kept->forceActiveFocus();QVERIFY(kept->hasActiveFocus());const auto y=list->property("contentY").toDouble();const auto modelValue=list->property("model");auto object=modelValue.value<QObject *>();if(!object&&modelValue.metaType().id()==qMetaTypeId<QJSValue>())object=modelValue.value<QJSValue>().toQObject();auto model=qobject_cast<ac::SectionedGridModel *>(object);QVERIFY(model);
+  QPersistentModelIndex index(model->index(1));QSignalSpy resets(model,&QAbstractItemModel::modelReset),changes(model,&QAbstractItemModel::dataChanged);const auto originalState=games->find(id)->runtime;auto state=originalState;state.playing=true;games->applyRuntimeStates({state});QTRY_VERIFY(changes.count()>0);QVERIFY(index.isValid());QCOMPARE(resets.count(),0);QVERIFY(kept);QVERIFY(namedItems(list,"gameCard").contains(kept.data()));QVERIFY(kept->hasActiveFocus());QCOMPARE(list->property("contentY").toDouble(),y);
+  games->applyRuntimeStates({originalState});QTest::qWait(50);list->setProperty("contentY",0.0);
+ }
+ void recentReordersWhenLastPlayedChanges(){
+  filter.setSortMode("recent");const auto id=games->records().last().id;const auto original=games->find(id)->runtime;auto state=original;state.lastPlayed=123456;games->applyRuntimeStates({state});QTRY_COMPARE(ui->filteredGame(0).value("gameId").toString(),id);games->applyRuntimeStates({original});filter.setSortMode("title");
+ }
+ void exploreTilesBindLocalArt(){
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/ExplorePage.qml"));std::unique_ptr<QObject> object(component.create());QVERIFY(object);auto page=qobject_cast<QQuickItem *>(object.get());QVERIFY(page);page->setParentItem(window->contentItem());page->setWidth(1000);page->setHeight(650);QTest::qWait(100);const auto tiles=namedItems(page,"libraryTile");QVERIFY(!tiles.isEmpty());for(auto tile:tiles)QVERIFY(tile->property("source").toUrl().toString().startsWith("image://art/"));page->setParentItem(nullptr);
+ }
+ void nonInstallErrorsHaveNoInstallRecovery(){
+  ui->installFinished(true,"Synthetic completion");ui->showError("Steam","Synthetic failure");QCOMPARE(ui->status(),QString("Steam: Synthetic failure"));QVERIFY(ui->recovery().isEmpty());QVERIFY(!ui->installing());
  }
  void hardwareFacetsHaveCountsAndNoUndefinedText(){
   filter.clearFacets();const auto tree=ui->hardwareTree();QVERIFY(!tree.isEmpty());
@@ -141,7 +164,7 @@ class UiTest:public QObject {
   filter.setQuery("scud");QVERIFY(filter.visibleCount()>0);filter.setQuery("unlikely-no-title-synthetic");QCOMPARE(filter.visibleCount(),0);filter.setQuery("");root->setProperty("view","List");QCOMPARE(filter.visibleCount(),413);
  }
  void signalsAndProofGates(){
-  QSignalSpy scans(ui.get(),&ac::UiController::scanRequested);ui->scan({"synthetic-root"});QCOMPARE(scans.count(),1);QVERIFY(!ui->scanning());ui->scanStarted();QVERIFY(ui->scanning());ui->scanFinished(true);QVERIFY(filter.scanComplete());
+  QSignalSpy scans(ui.get(),&ac::UiController::scanRequested),cancels(ui.get(),&ac::UiController::cancelScanRequested);ui->startScan({"synthetic-root"});ui->startScan({"synthetic-root"});QCOMPARE(scans.count(),1);QCOMPARE(cancels.count(),0);QVERIFY(ui->scanning());ui->cancelScan();QCOMPARE(cancels.count(),1);ui->scanStarted();QVERIFY(ui->scanning());ui->scanFinished(true);QVERIFY(filter.scanComplete());
   ui->openDetail("timecris");for(const auto &v:games->find("timecris")->variants)if(v.generated){ui->selectVariant(v.id);break;}
   const auto eventStart=ui->consoleEvents().size();ui->installEvent({{"kind","step"},{"step",2},{"total",4},{"text","Extract"}});ui->installEvent({{"kind","ok"},{"text","Verified archive"}});QCOMPARE(ui->consoleEvents().at(eventStart).toMap().value("line").toString(),QString("--- [2/4] Extract ---"));ui->installEvent({{"kind","fail"},{"step",2},{"total",4},{"text","Synthetic failure"}});QVERIFY(!ui->recovery().isEmpty());QVERIFY(!ui->installing());QSignalSpy retries(ui.get(),&ac::UiController::retryInstallRequested);ui->retryInstall(false,"synthetic-file");QCOMPARE(retries.count(),0);QVERIFY(ui->status().contains("Nothing to retry"));ui->installFinished(true,"Synthetic service completion without proof");
   for(const auto &g:games->records())QVERIFY(g.roles.value("state").toInt()!=static_cast<int>(ac::GameState::Installed));
@@ -150,6 +173,12 @@ class UiTest:public QObject {
  void keyboardFocusAndOverlay(){
   window->requestActivate();QTest::keyClick(window,Qt::Key_K,Qt::ControlModifier);QTest::qWait(30);auto search=window->findChild<QQuickItem *>("searchField");QVERIFY(search);QVERIFY(search->hasActiveFocus());for(char letter:std::string("scud"))QTest::keyClick(window,letter);QTest::qWait(30);QCOMPARE(filter.query(),QString("scud"));QTest::keyClick(window,Qt::Key_Escape);QTest::qWait(30);QCOMPARE(filter.query(),QString());
   root->setProperty("vrOverlayMode",true);QTest::qWait(30);QQmlComponent c(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/PillButton.qml"));std::unique_ptr<QObject> button(c.create());button->setProperty("vrOverlayMode",true);QVERIFY(button->property("implicitHeight").toDouble()>=40);root->setProperty("vrOverlayMode",false);
+ }
+ void allOverlayPillsHaveMinimumTargets(){
+  root->setProperty("vrOverlayMode",true);int checked=0;std::function<void(QQuickItem *)> inspect=[&](QQuickItem *item){if(item->property("targetHeight").isValid()){++checked;QVERIFY2(item->property("vrOverlayMode").toBool(),qPrintable(item->property("text").toString()));QVERIFY(item->height()>=56);QVERIFY(item->width()>=44);}for(auto child:item->childItems())inspect(child);};
+  ui->openDetail("timecris");for(const auto &view:{"List","Detail","Explore","Settings"}){root->setProperty("view",view);QTest::qWait(60);inspect(window->contentItem());}
+  for(const auto &name:{"scanDialog","toolDialog","steamDialog","removeDialog"}){auto dialog=window->findChild<QObject *>(name);QVERIFY(dialog);QVERIFY(QMetaObject::invokeMethod(dialog,"open"));QTest::qWait(60);inspect(window->contentItem());QVERIFY(QMetaObject::invokeMethod(dialog,"close"));}
+  QVERIFY(checked>50);root->setProperty("view","List");root->setProperty("vrOverlayMode",false);
  }
  void sceneWarnings(){QTest::qWait(100);QStringList invalid;for(const auto &w:warnings)if(w.contains("ReferenceError")||w.contains("TypeError")||w.contains("Unable to assign")||w.contains("Binding loop")||w.contains("is not a type"))invalid<<w;QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));}
  void selfBenchmark(){

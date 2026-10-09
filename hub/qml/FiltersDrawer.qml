@@ -14,11 +14,11 @@ Popup {
   UiText{text:"HARDWARE";color:Theme.get("color.text.label");font.pixelSize:11}
   Repeater {model:uiController.hardwareTree
    Column {required property var modelData;property bool expanded:true;width:parent.width
-    Row {spacing:5;PillButton{text:parent.parent.expanded?"▾":"▸";width:40;Accessible.name:"Expand "+modelData.label;onClicked:parent.parent.expanded=!parent.parent.expanded} PillButton{text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
+    Row {spacing:5;PillButton{vrOverlayMode:drawer.vrOverlayMode;text:parent.parent.expanded?"▾":"▸";width:vrOverlayMode?44:40;Accessible.name:"Expand "+modelData.label;onClicked:parent.parent.expanded=!parent.parent.expanded} PillButton{vrOverlayMode:drawer.vrOverlayMode;text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
     Repeater {model:parent.expanded?modelData.children:[]
      Column {required property var modelData;property bool expanded:false;width:parent.width
-      Row {x:16;spacing:5;PillButton{text:parent.parent.expanded?"▾":"▸";width:40;Accessible.name:"Expand "+modelData.label;onClicked:parent.parent.expanded=!parent.parent.expanded} PillButton{text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
-      Repeater {model:parent.expanded?modelData.children:[];PillButton {required property var modelData;x:32;width:parent.width-32;text:modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
+      Row {x:16;spacing:5;PillButton{vrOverlayMode:drawer.vrOverlayMode;text:parent.parent.expanded?"▾":"▸";width:vrOverlayMode?44:40;Accessible.name:"Expand "+modelData.label;onClicked:parent.parent.expanded=!parent.parent.expanded} PillButton{vrOverlayMode:drawer.vrOverlayMode;text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
+      Repeater {model:parent.expanded?modelData.children:[];PillButton {vrOverlayMode:drawer.vrOverlayMode;required property var modelData;x:32;width:parent.width-32;text:modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
      }
     }
    }
@@ -26,14 +26,14 @@ Popup {
   Repeater {model:[{title:"GRAPHICS",key:"graphicsIds"},{title:"MANUFACTURER",key:"manufacturerIds"},{title:"DECADE",key:"decades"},{title:"VR",key:"vrKeys"},{title:"PLAYERS",key:"playersBuckets"},{title:"CONTROLS",key:"controlsTypes"}]
    Column {required property var modelData;width:parent.width;spacing:5
     UiText{text:modelData.title;color:Theme.get("color.text.label");font.pixelSize:11}
-    Flow {width:parent.width;spacing:5;property string facetKey:parent.modelData.key;Repeater {model:(gameFilter.visibleCount,uiController.activeFacets,gameFilter.choices(parent.facetKey));PillButton {required property var modelData;text:modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.selected(parent.facetKey,modelData.id);onClicked:uiController.toggleFacet(parent.facetKey,modelData.id)}}}
+    Flow {width:parent.width;spacing:5;property string facetKey:parent.modelData.key;Repeater {model:(gameFilter.visibleCount,uiController.activeFacets,gameFilter.choices(parent.facetKey));PillButton {vrOverlayMode:drawer.vrOverlayMode;required property var modelData;text:modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.selected(parent.facetKey,modelData.id);onClicked:uiController.toggleFacet(parent.facetKey,modelData.id)}}}
    }
   }
   UiText{text:"YEAR";color:Theme.get("color.text.label");font.pixelSize:11}
   RangeSlider {id:years;width:parent.width;from:1970;to:2026;stepSize:1;first.value:gameFilter.facet("yearMin")||1970;second.value:gameFilter.facet("yearMax")||2026;first.onMoved:gameFilter.setFacet("yearMin",Math.round(first.value));second.onMoved:gameFilter.setFacet("yearMax",Math.round(second.value));Accessible.name:"Year range"}
   UiText{text:Math.round(years.first.value)+" – "+Math.round(years.second.value)}
-  PillButton{text:gameFilter.scanComplete?"IN MY LIBRARY":"Scan my files first";enabled:gameFilter.scanComplete;selected:gameFilter.facet("inLibraryOnly")===true;onClicked:gameFilter.setFacet("inLibraryOnly",!selected)}
-  Row {spacing:10;PillButton{text:"Clear";onClicked:gameFilter.clearFacets()} PillButton{text:"Done";onClicked:drawer.close()}}
+  PillButton{vrOverlayMode:drawer.vrOverlayMode;text:gameFilter.scanComplete?"IN MY LIBRARY":"Scan my files first";enabled:gameFilter.scanComplete;selected:gameFilter.facet("inLibraryOnly")===true;onClicked:gameFilter.setFacet("inLibraryOnly",!selected)}
+  Row {spacing:10;PillButton{vrOverlayMode:drawer.vrOverlayMode;text:"Clear";onClicked:gameFilter.clearFacets()} PillButton{vrOverlayMode:drawer.vrOverlayMode;text:"Done";onClicked:drawer.close()}}
  }
  }
  WheelHandler {onWheel:drawer.close()}

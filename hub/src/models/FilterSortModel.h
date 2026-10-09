@@ -36,6 +36,9 @@ class FilterSortModel : public QSortFilterProxyModel {
 
   private:
     bool acceptsRow(int row, const QVariantMap &facets) const;
+    void buildSortKeys(QAbstractItemModel *model);
+    struct SortKeys {QString title,manufacturer,id;};
+    QVector<SortKeys> m_sortKeys;
     mutable QMap<QString, QVariantList> m_choicesCache;
     QString m_query, m_sort = "title";
     QVariantMap m_facets;

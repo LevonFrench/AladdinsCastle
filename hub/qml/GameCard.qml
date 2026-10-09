@@ -4,6 +4,7 @@ import QtQuick.Effects
 import AladdinsCastle.Hub
 FocusScope {
  id: card
+ objectName:"gameCard"
  layer.enabled: preview
  property var game: ({})
  property string sizeValue: "S"
@@ -49,6 +50,6 @@ FocusScope {
   UiText { visible:!card.preview;width:parent.width;height:20*card.factor;text:card.game.blurb||"Catalog metadata · supply your own game files";font.pixelSize:10*card.factor;color:Theme.get("color.text.note");maximumLineCount:2;elide:Text.ElideRight }
   UiText { visible:!card.preview;text:uiController.vrLabel(card.game.vrBadge||0)+"  "+(card.game.players>1?card.game.players+"P":"")+"  "+(card.game.controlsLabel||"");font.pixelSize:8*card.factor;color:Theme.get("color.text.muted_detail") }
  }
- PillButton { id:primary; objectName:"cardPrimary"; anchors.left:parent.left;anchors.right:info.left;anchors.bottom:parent.bottom;anchors.margins:10*card.factor;text:uiController.primaryLabel(card.game.gameId||"");height:card.vrOverlayMode?56:40;neon:true;accent:card.game.stateColour||card.game.accent||Theme.get("color.brand.orange");onClicked:card.actionRequested(card.game.gameId);onHoveredChanged:if(hovered){dwell.stop();card.previewClosed()} }
- PillButton { id:info;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:10*card.factor;width:40;height:card.vrOverlayMode?56:40;text:"i";Accessible.name:"Details for "+(card.game.title||"");onClicked:card.detailRequested(card.game.gameId) }
+ PillButton {vrOverlayMode:card.vrOverlayMode; id:primary; objectName:"cardPrimary"; anchors.left:parent.left;anchors.right:info.left;anchors.bottom:parent.bottom;anchors.margins:10*card.factor;text:uiController.primaryLabel(card.game.gameId||"");height:card.vrOverlayMode?56:40;neon:true;accent:card.game.stateColour||card.game.accent||Theme.get("color.brand.orange");onClicked:card.actionRequested(card.game.gameId);onHoveredChanged:if(hovered){dwell.stop();card.previewClosed()} }
+ PillButton {vrOverlayMode:card.vrOverlayMode; id:info;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:10*card.factor;width:vrOverlayMode?44:40;height:card.vrOverlayMode?56:40;text:"i";Accessible.name:"Details for "+(card.game.title||"");onClicked:card.detailRequested(card.game.gameId) }
 }

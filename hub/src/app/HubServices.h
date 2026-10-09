@@ -49,6 +49,7 @@ signals:
     void playingChanged();
     void raiseHubRequested();
 private:
+    QString catalogRoot() const;
     RuntimeState current(const QString &id) const;
     install::Request gameRequest(const QString &id, const QString &variant);
     void restore();

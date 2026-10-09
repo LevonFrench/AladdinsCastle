@@ -16,13 +16,13 @@ Item {
             Item { Layout.fillWidth: true }
             Label { text: root.overlayPresentation ? "DASHBOARD" : "DESKTOP"; color: brandColor }
         }
-        Label { text: "TOP LEFT · 1280 × 900 · 50 original synthetic cards"; color: "#b9c0d0" }
+        Label { text: "TOP LEFT · 1280 × 800 · 50 original synthetic cards"; color: "#b9c0d0" }
         RowLayout {
-            Button { objectName: "spikeClickButton"; text: "Test click · " + spikeState.clickCount; onClicked: spikeState.clicked() }
-            Button { text: "Reset text"; onClicked: spikeState.text = "" }
-            CheckBox { text: "Flip mouse Y"; checked: spikeState.flipY; onToggled: spikeState.flipY = checked }
-            CheckBox { text: "50 glows"; checked: spikeState.glow; onToggled: spikeState.glow = checked }
-            CheckBox { text: "Animate glows"; checked: spikeState.animate; onToggled: spikeState.animate = checked }
+            Button {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; objectName: "spikeClickButton"; text: "Test click · " + spikeState.clickCount; onClicked: spikeState.clicked() }
+            Button {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "Reset text"; onClicked: spikeState.text = "" }
+            CheckBox {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "Flip mouse Y"; checked: spikeState.flipY; onToggled: spikeState.flipY = checked }
+            CheckBox {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "50 glows"; checked: spikeState.glow; onToggled: spikeState.glow = checked }
+            CheckBox {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "Animate glows"; checked: spikeState.animate; onToggled: spikeState.animate = checked }
         }
         Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: 54; radius: 6
@@ -49,16 +49,16 @@ Item {
             Layout.fillWidth: true
             RowLayout {
                 Label { text: "In-scene fallback keyboard"; color: primaryTextColor }
-                Button { text: "Done"; onClicked: { editor.focus = false; if (root.overlayPresentation) overlayHost.dismissKeyboard() } }
+                Button {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "Done"; onClicked: { editor.focus = false; if (root.overlayPresentation) overlayHost.dismissKeyboard() } }
             }
             Flow {
                 Layout.fillWidth: true; Layout.preferredHeight: implicitHeight
                 spacing: 4
                 Repeater {
                     model: "abcdefghijklmnopqrstuvwxyz0123456789".split("").concat(["-", "Space", "⌫"])
-                    Button {
+                    Button {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40;
                         required property string modelData
-                        text: modelData; width: modelData === "Space" ? 76 : 38; height: 34
+                        text: modelData; width: modelData === "Space" ? 76 : (root.overlayPresentation?44:38); height: root.overlayPresentation?56:34
                         onClicked: {
                             if (modelData === "⌫") spikeState.text = Array.from(spikeState.text).slice(0, -1).join("")
                             else if (spikeState.text.length < 256) spikeState.text += modelData === "Space" ? " " : modelData
@@ -112,7 +112,7 @@ Item {
         RowLayout {
             Label { text: "BOTTOM LEFT · wheel-scroll the grid"; color: "#b9c0d0" }
             Item { Layout.fillWidth: true }
-            Button { text: "Bottom-right click · " + spikeState.clickCount; onClicked: spikeState.clicked() }
+            Button {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "Bottom-right click · " + spikeState.clickCount; onClicked: spikeState.clicked() }
         }
     }
 }

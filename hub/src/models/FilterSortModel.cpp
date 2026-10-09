@@ -22,11 +22,18 @@ FilterSortModel::FilterSortModel(QObject *parent) : QSortFilterProxyModel(parent
     connect(this, &QAbstractItemModel::rowsInserted, this, &FilterSortModel::visibleCountChanged);
     connect(this, &QAbstractItemModel::rowsRemoved, this, &FilterSortModel::visibleCountChanged);
 }
+void FilterSortModel::buildSortKeys(QAbstractItemModel *model){
+    m_sortKeys.clear();if(const auto *source=qobject_cast<GameListModel *>(model))for(const auto &game:source->records())m_sortKeys<<SortKeys{folded(game.roles.value("title").toString()),folded(game.roles.value("manufacturerLabel").toString()),folded(game.id)};
+}
 void FilterSortModel::setSourceModel(QAbstractItemModel *model) {
+    buildSortKeys(model);
     m_choicesCache.clear();
     QSortFilterProxyModel::setSourceModel(model);
-    connect(model, &QAbstractItemModel::dataChanged, this, [this]{ m_choicesCache.clear(); });
-    connect(model, &QAbstractItemModel::modelReset, this, [this]{ m_choicesCache.clear(); });
+    connect(model, &QAbstractItemModel::dataChanged, this, [this](const QModelIndex &,const QModelIndex &,const QList<int> &roles){
+        m_choicesCache.clear();const auto *source=qobject_cast<GameListModel *>(sourceModel());
+        if(source&&(roles.isEmpty()||roles.contains(source->roleForName("title"))||roles.contains(source->roleForName("manufacturerLabel"))||roles.contains(source->roleForName("gameId")))){buildSortKeys(sourceModel());invalidate();sort(0);}
+    });
+    connect(model, &QAbstractItemModel::modelReset, this, [this]{ m_choicesCache.clear(); buildSortKeys(sourceModel()); });
     sort(0);
 }
 void FilterSortModel::setQuery(const QString &query) {
@@ -42,6 +49,7 @@ void FilterSortModel::setSortMode(const QString &mode) {
     if (m_sort == mode)
         return;
     m_sort = mode;
+    if(const auto *source=qobject_cast<GameListModel *>(sourceModel()))setSortRole(source->roleForName(mode=="recent"?"lastPlayed":mode=="added"?"firstSeen":"title"));
     invalidate();
     sort(0);
     emit sortModeChanged();
@@ -310,7 +318,8 @@ bool FilterSortModel::lessThan(const QModelIndex &left, const QModelIndex &right
         return left.row() < right.row();
     const auto &a = source->records()[left.row()].roles, &b = source->records()[right.row()].roles;
     auto text = [&](const char *key) {
-        return QString::compare(folded(a.value(key).toString()), folded(b.value(key).toString()));
+        const auto &x=m_sortKeys[left.row()],&y=m_sortKeys[right.row()];
+        return QString::compare(QString(key)=="title"?x.title:QString(key)=="manufacturerLabel"?x.manufacturer:x.id,QString(key)=="title"?y.title:QString(key)=="manufacturerLabel"?y.manufacturer:y.id);
     };
     auto number = [&](const char *key) {
         auto x = a.value(key).toLongLong(), y = b.value(key).toLongLong();

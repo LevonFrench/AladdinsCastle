@@ -9,6 +9,8 @@
 #include <QTimer>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QJsonDocument>
+#include <QJsonObject>
 namespace ac {
 namespace {
 scan::ScanOptions scanOptions(const QString &root) {
@@ -34,6 +36,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     steamRunningProbe_=std::move(steamRunningProbe);
     installer_.setRuntimeStateSource([this](const QString &id){return current(id);});
     launcher_.setRuntimeStateSource([this](const QString &id){return current(id);});
+    connect(ui_,&UiController::writeConfigRequested,this,[this](const QString &id,const QVariantMap &){ui_->settingsSaved(id);});
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
     connect(&scanner_,&scan::ScanController::scanStarted,ui_,&UiController::scanStarted);
@@ -68,11 +71,11 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         installTool(id,variant,handover);
     });
     connect(ui_,&UiController::uninstallPreviewRequested,this,[this](const QString &id,const QString &variant){
-        try{auto request=gameRequest(id,variant);request.operation="uninstall";request.catalogRoot=QFileInfo(games_->records().first().folder).dir().absolutePath()+"/..";previewRemoval(request);}catch(const std::exception &e){report(e);}
+        try{auto request=gameRequest(id,variant);request.operation="uninstall";request.catalogRoot=catalogRoot();previewRemoval(request);}catch(const std::exception &e){report(e);}
     });
     connect(ui_,&UiController::playRequested,this,[this](const QString &id,const QString &variant){
         if(launchBusy()){ui_->scanProgress({{"text","Play refused: a game is already running or a launch is being prepared. Use Stop first."}});return;}
-        try{launcher_.start(launch::flatRequest(games_->catalog(),id,root_,bindings_,variant));}catch(const std::exception &e){ui_->launchFinished(id,QString::fromUtf8(e.what()));}
+        try{launcher_.start(launch::flatRequest(games_->catalog(),id,root_,bindings_,variant));}catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
     connect(ui_,&UiController::stopLaunchRequested,&launcher_,&launch::LaunchService::stop);
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
@@ -110,7 +113,7 @@ bool HubServices::beginSteam(const QString &id,const QString &variantId,bool rem
         steamAccounts_=steam::accounts(steamRequest_.steamRoot);
         if(steamAccounts_.isEmpty())throw install::Error("E_STEAM_ACCOUNT","No Steam userdata shortcut folder found");
         steamText_=remove?"Select an account folder, then preview removal of the Hub-owned shortcut and art. Close Steam yourself before approving removal.":"Select an account folder, then preview the exact shortcut and art changes. Close Steam before saving.";
-    }catch(const std::exception &e){steamAccounts_.clear();steamText_=QString::fromUtf8(e.what());}
+    }catch(const std::exception &e){steamAccounts_.clear();steamText_=QString::fromUtf8(e.what());ui_->showError("Steam",steamText_);}
     emit steamPreviewChanged();
     return !steamAccounts_.isEmpty();
 }
@@ -120,7 +123,7 @@ void HubServices::previewSteam(const QString &account){
         if(!steamAccounts_.contains(account))throw install::Error("E_STEAM_ACCOUNT","Select a listed account folder");
         steamRequest_.accountId=account;steamPreview_=steam::preview(steamRequest_);
         steamText_=QString::fromStdString(steamPreview_.json.dump(2));steamPreviewReady_=true;
-    }catch(const std::exception &e){steamText_=QString::fromUtf8(e.what());}
+    }catch(const std::exception &e){steamText_=QString::fromUtf8(e.what());ui_->showError("Steam",steamText_);}
     emit steamPreviewChanged();
 }
 void HubServices::approveSteamWrite(){
@@ -132,11 +135,11 @@ void HubServices::approveSteamWrite(){
         if(pendingSteamRemoval_&&steamRequest_.remove&&pendingRemoval_.gameId==steamRequest_.shortcut.gameId&&pendingRemoval_.variantId==steamRequest_.shortcut.variantId){
             const auto request=pendingRemoval_;pendingRemoval_={};pendingSteamRemoval_=false;startInstallRequest(request,"game");
         }
-    }catch(const std::exception &e){steamText_=QString::fromUtf8(e.what());steamPreviewReady_=false;if(pendingSteamRemoval_)ui_->scanProgress({{"text",steamText_+" Installation preserved; review Steam again or explicitly uninstall without Steam removal."}});}
+    }catch(const std::exception &e){steamText_=QString::fromUtf8(e.what());steamPreviewReady_=false;ui_->showError("Steam",steamText_+(pendingSteamRemoval_?" Installation preserved; review Steam again or explicitly uninstall without Steam removal.":""));}
     emit steamPreviewChanged();
 }
 RuntimeState HubServices::current(const QString &id)const{auto game=games_->find(id);return game?game->runtime:RuntimeState{};}
-void HubServices::report(const std::exception &e){ui_->installFinished(false,QString::fromUtf8(e.what()));}
+void HubServices::report(const std::exception &e){ui_->showError("Hub",QString::fromUtf8(e.what()));}
 void HubServices::scan(const QStringList &folders){
     if(scanner_.running()){rescanPending_=true;return;}
     QStringList roots=folders;
@@ -147,10 +150,14 @@ install::Request HubServices::gameRequest(const QString &id,const QString &varia
     auto game=games_->find(id);if(!game)throw install::Error("E_GAME_INVALID","Unknown game");
     install::Request request;request.root=root_;request.catalogRoot=QFileInfo(game->folder).dir().absolutePath()+"/..";
     request.gameId=id;request.variantId=variant;request.recipe=game->install;request.runtime=current(id);
-    request.bindings=launch::normalizeBindings(bindings_,id);return request;
+    request.bindings=launch::normalizeBindings(bindings_,id);request.settings=Json::parse(QJsonDocument(QJsonObject::fromVariantMap(settings_->game(id))).toJson(QJsonDocument::Compact).toStdString());return request;
+}
+QString HubServices::catalogRoot()const{
+    if(games_->records().isEmpty())throw install::Error("E_CATALOG_EMPTY","Catalog has no games. Load a valid catalog before installing or removing emulator tools.");
+    return QFileInfo(games_->records().first().folder).dir().absolutePath()+"/..";
 }
 QString HubServices::toolPlan()const{
-    try{auto request=install::Engine::emulatorRequest(root_,games_->catalog().emulators.at("supermodel"));request.catalogRoot=QFileInfo(games_->records().first().folder).dir().absolutePath()+"/..";return install::Engine().plan(request).text;}
+    try{const auto catalog=catalogRoot();auto request=install::Engine::emulatorRequest(root_,games_->catalog().emulators.at("supermodel"));request.catalogRoot=catalog;return install::Engine().plan(request).text;}
     catch(const std::exception &e){return QString::fromUtf8(e.what());}
 }
 QVariantMap HubServices::retryContext()const{
@@ -165,12 +172,12 @@ void HubServices::installTool(const QString &id,const QString &variant,const QSt
     activeInstall_={};activeInstall_.gameId=id;activeInstall_.variantId=variant;activeInstallKind_="tool";
     try{
         if(id!="tool-supermodel"||variant!="windows-x64")throw install::Error("E_TOOL_INVALID","Only the identified Supermodel M1 tool installation can be retried");
-        auto request=install::Engine::emulatorRequest(root_,games_->catalog().emulators.at("supermodel"));request.catalogRoot=QFileInfo(games_->records().first().folder).dir().absolutePath()+"/..";request.handover=handover;startInstallRequest(request,"tool");
+        const auto catalog=catalogRoot();auto request=install::Engine::emulatorRequest(root_,games_->catalog().emulators.at("supermodel"));request.catalogRoot=catalog;request.handover=handover;startInstallRequest(request,"tool");
     }catch(const std::exception &e){auto event=retryContext();event["kind"]="fail";event["text"]=QString::fromUtf8(e.what());ui_->installEvent(event);ui_->installFinished(false,QString::fromUtf8(e.what()));}
 }
 void HubServices::installSupermodel(){installTool("tool-supermodel","windows-x64");}
 void HubServices::previewSupermodelRemoval(){
-    install::Request request;request.root=root_;request.gameId="tool-supermodel";request.variantId="windows-x64";request.operation="uninstall";request.catalogRoot=QFileInfo(games_->records().first().folder).dir().absolutePath()+"/..";previewRemoval(request);
+    try{install::Request request;request.root=root_;request.gameId="tool-supermodel";request.variantId="windows-x64";request.operation="uninstall";request.catalogRoot=catalogRoot();previewRemoval(request);}catch(const std::exception &e){report(e);}
 }
 void HubServices::previewRemoval(const install::Request &request){
     const bool hadSteamPreview=steamPreviewReady_;pendingRemoval_={};pendingSteamRemoval_=false;steamPreviewReady_=false;

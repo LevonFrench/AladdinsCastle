@@ -8,17 +8,48 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QRegularExpression>
+#include <QTimer>
 #include <algorithm>
 namespace ac {
 namespace {
 QString str(const Json &j,const char *key){return j.contains(key)&&j[key].is_string()?QString::fromStdString(j[key].get<std::string>()):QString();}
 QString eventText(const QVariantMap &e){auto kind=e.value("kind").toString(), text=e.value("text").toString();if(kind=="step")return QString("--- [%1/%2] %3 ---").arg(e.value("index",e.value("step")).toInt()).arg(e.value("total").toInt()).arg(text);const QMap<QString,QString> prefixes{{"ok"," [OK] "},{"warn"," [!!] "},{"fail"," [XX] "},{"work"," [..] "},{"detail","  "},{"prompt"," >>> "},{"done"," >>> "}};return prefixes.value(kind,"  ")+text;}
 }
+SectionedGridModel::SectionedGridModel(GameListModel *games,FilterSortModel *filter,int columns,QObject *parent):QAbstractListModel(parent),m_games(games),m_filter(filter),m_columns(std::max(1,columns)){
+ connect(filter,&QAbstractItemModel::modelReset,this,[this]{scheduleRefresh();});connect(filter,&QAbstractItemModel::layoutChanged,this,[this]{scheduleRefresh();});
+ connect(filter,&QAbstractItemModel::rowsInserted,this,[this]{scheduleRefresh();});connect(filter,&QAbstractItemModel::rowsRemoved,this,[this]{scheduleRefresh();});connect(filter,&QAbstractItemModel::dataChanged,this,[this]{scheduleRefresh();});
+ connect(games,&QAbstractItemModel::dataChanged,this,[this]{scheduleRefresh();});refresh();
+}
+QVariant SectionedGridModel::data(const QModelIndex &index,int role)const{return index.isValid()&&index.row()>=0&&index.row()<count()&&(role==Qt::UserRole+1||role==Qt::DisplayRole)?QVariant(m_rows[index.row()].data):QVariant{};}
+void SectionedGridModel::setColumns(int columns){columns=std::max(1,columns);if(columns==m_columns)return;m_columns=columns;emit columnsChanged();scheduleRefresh();}
+void SectionedGridModel::scheduleRefresh(){if(m_queued)return;m_queued=true;QTimer::singleShot(0,this,[this]{m_queued=false;refresh();});}
+void SectionedGridModel::refresh(){
+ QVector<Row> desired;
+ for(const auto &genre:{"gun","racing"}){
+  QVariantList games;QStringList ids;
+  for(int i=0;i<m_filter->rowCount();++i){const auto source=m_filter->mapToSource(m_filter->index(i,0));if(!source.isValid())continue;const auto &g=m_games->records()[source.row()];if(g.roles.value("genreId")!=genre)continue;games<<g.roles;ids<<g.id;}
+  if(games.isEmpty())continue;
+  desired<<Row{QString("header:")+genre,{{"header",true},{"label",QString(genre)=="gun"?"Light guns":"Racing"},{"count",games.size()},{"id",genre}}};
+  for(int i=0;i<games.size();i+=m_columns){QVariantList cards;QStringList keys;for(int j=i;j<std::min(i+m_columns,static_cast<int>(games.size()));++j){cards<<games[j];keys<<ids[j];}desired<<Row{"games:"+keys.join('|'),{{"header",false},{"games",cards}}};}
+ }
+ // Move/insert/remove rows without resets; unchanged cards keep their indexes.
+ for(int i=0;i<desired.size();++i){
+  if(i>=m_rows.size()||m_rows[i].key!=desired[i].key){int existing=-1;for(int j=i+1;j<m_rows.size();++j)if(m_rows[j].key==desired[i].key){existing=j;break;}
+   if(existing>=0){beginMoveRows({},existing,existing,{},i);m_rows.move(existing,i);endMoveRows();}
+   else{beginInsertRows({},i,i);m_rows.insert(i,desired[i]);endInsertRows();}
+  }
+  if(m_rows[i].data!=desired[i].data){m_rows[i].data=desired[i].data;emit dataChanged(index(i),index(i),{Qt::UserRole+1});}
+ }
+ if(m_rows.size()>desired.size()){beginRemoveRows({},static_cast<int>(desired.size()),count()-1);m_rows.resize(desired.size());endRemoveRows();}
+ emit countChanged();
+}
+QObject *UiController::createGridModel(int columns){return new SectionedGridModel(m_games,m_filter,columns,this);}
+void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<SectionedGridModel *>(model);grid&&grid->parent()==this)grid->deleteLater();}
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_games(games),m_filter(filter),m_settings(settings){
  connect(filter,&FilterSortModel::facetsChanged,this,&UiController::facetsChanged);
  connect(filter,&FilterSortModel::visibleCountChanged,this,&UiController::facetsChanged);
  connect(games,&QAbstractItemModel::dataChanged,this,[this]{emit detailChanged();emit facetsChanged();});
- connect(settings,&UiSettings::error,this,&UiController::message);
+ connect(settings,&UiSettings::error,this,[this](const QString &text){showError("Settings",text);});
  connect(settings,&UiSettings::gameSaved,this,&UiController::writeConfigRequested);
 }
 QString UiController::vrLabel(int badge)const{const QStringList labels{"FLAT","TRUE 3D","THEATRE","PLANNED"};return labels.value(badge,"FLAT");}
@@ -64,7 +95,11 @@ QVariantMap UiController::detail()const{
  result["variants"]=variants;result["needs"]=needs;result["controls"]=controls;result["components"]=components;result["similar"]=similar;result["settingsSupported"]=supported;result["readme"]=readme(g);result["notice"]=str(g.raw,"notice");result["quip"]=str(g.raw,"quip");result["settings"]=m_settings->game(g.id);return result;
 }
 void UiController::primary(const QString &id){auto g=m_games->find(id);if(!g)return;if(g->roles.value("playing").toBool()){message("Playing "+g->roles.value("title").toString());return;}if(m_detailId!=id)openDetail(id);auto d=detail();int state=d.value("state").toInt();if(state==5){emit locationRequested("media");message("Choose folders containing your own media.");}else if(state==6){emit locationRequested("tool");message("Locate an existing emulator or install its pinned release.");}else if(state==4)play(id,d.value("variantId").toString());else if(state==3||state==7)startInstall(id,d.value("variantId").toString());else if(state==2)retryInstall(false,{});else message(d.value("stateLabel").toString());}
-void UiController::scan(const QStringList &roots){if(m_scanning){emit cancelScanRequested();return;}if(roots.isEmpty()){message("Choose at least one folder to scan.");return;}message("Scan requested; waiting for scanner.");emit scanRequested(roots);}
+void UiController::scan(const QStringList &roots){startScan(roots);}
+void UiController::startScan(const QStringList &roots){if(m_scanning)return;if(roots.isEmpty()){message("Choose at least one folder to scan.");return;}m_scanning=true;emit scanChanged();message("Scan requested; waiting for scanner.");emit scanRequested(roots);}
+void UiController::cancelScan(){if(!m_scanning)return;emit cancelScanRequested();message("Scan cancellation requested.");}
+void UiController::showError(const QString &operation,const QString &text){message(operation+": "+text);}
+void UiController::settingsSaved(const QString &id){emit detailChanged();message("Settings saved for "+game(id).value("title").toString()+". They apply to the next owned install or repair; existing emulator profiles are preserved.");}
 void UiController::startInstall(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated){message("This VR setup is outside M1. Select a flat emulator route.");return;}message("Install requested; waiting for installer.");emit installRequested(id,variantId);return;}}
 void UiController::play(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated){message("This VR setup is outside M1. Select a flat emulator route.");return;}emit playRequested(id,variantId);return;}}
 void UiController::cancelInstall(){emit cancelInstallRequested();message("Cancel requested; the installer stops between steps.");}
@@ -80,7 +115,7 @@ void UiController::retryFailedTool(bool fromStart,const QString &handover){
 void UiController::stopLaunch(){emit stopLaunchRequested();message("Stop requested; the game is asked to close, then forced to stop after the timeout.");}
 void UiController::answerPrompt(bool proceed){emit promptAnswered(proceed);}
 void UiController::skipStep(){if(m_recovery.value("canSkip").toBool())emit skipStepRequested();}
-void UiController::uninstall(const QString &id,const QString &variantId){emit uninstallPreviewRequested(id,variantId);message("Waiting for the ownership manifest preview before removal.");}
+void UiController::uninstall(const QString &id,const QString &variantId){message("Waiting for the ownership manifest preview before removal.");emit uninstallPreviewRequested(id,variantId);}
 void UiController::toggleFacet(const QString &key,const QString &value){
  auto list=m_filter->facet(key).toStringList();
  if(key=="hardwareIds"){

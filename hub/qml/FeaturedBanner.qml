@@ -21,6 +21,6 @@ Rectangle {
   UiText {width:parent.width;text:(banner.game.subgenreLabels||[]).slice(0,3).join(" · ")+" · "+(banner.game.year||"");font.pixelSize:11;elide:Text.ElideRight;wrapMode:Text.NoWrap}
   Row {spacing:10;PillButton {text:banner.explore?"View this game":"Show";neon:true;accent:Theme.get("color.brand.gold");vrOverlayMode:banner.vrOverlayMode;onClicked:defer.restart()} PillButton {text:banner.explore?"Shuffle":"Explore all games ›";neon:true;accent:Theme.get("color.brand.orange");vrOverlayMode:banner.vrOverlayMode;onClicked:if(banner.explore)banner.shuffleRequested();else banner.exploreRequested()} }
  }
- PillButton {anchors.right:parent.right;anchors.top:parent.top;anchors.margins:8;width:40;text:"×";Accessible.name:"Hide featured banner";onClicked:banner.disableRequested()}
+ PillButton {vrOverlayMode:banner.vrOverlayMode;anchors.right:parent.right;anchors.top:parent.top;anchors.margins:8;width:vrOverlayMode?44:40;text:"×";Accessible.name:"Hide featured banner";onClicked:banner.disableRequested()}
  Timer {id:defer;interval:Theme.get("motion.banner_defer");onTriggered:banner.showRequested(banner.game.gameId)}
 }

@@ -11,7 +11,7 @@ Button {
  property bool vrOverlayMode: false
  property int targetHeight: vrOverlayMode ? 56 : 40
  implicitHeight: targetHeight
- implicitWidth: Math.max(40, label.implicitWidth+24)
+ implicitWidth: Math.max(vrOverlayMode?44:40, label.implicitWidth+24)
  hoverEnabled: true
  padding: 10
  Accessible.name: text

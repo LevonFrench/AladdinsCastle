@@ -5,6 +5,27 @@
 #include <QObject>
 #include <QUrl>
 namespace ac {
+// One model per grid presentation: desktop and overlay can use different columns.
+class SectionedGridModel : public QAbstractListModel {
+ Q_OBJECT
+ Q_PROPERTY(int count READ count NOTIFY countChanged)
+ Q_PROPERTY(int columns READ columns WRITE setColumns NOTIFY columnsChanged)
+ public:
+ SectionedGridModel(GameListModel *games,FilterSortModel *filter,int columns,QObject *parent=nullptr);
+ int count()const{return static_cast<int>(m_rows.size());}
+ int columns()const{return m_columns;}
+ void setColumns(int columns);
+ int rowCount(const QModelIndex &parent={})const override{return parent.isValid()?0:count();}
+ QVariant data(const QModelIndex &index,int role)const override;
+ QHash<int,QByteArray> roleNames()const override{return {{Qt::UserRole+1,"rowData"}};}
+ Q_INVOKABLE QVariantMap row(int index)const{return index>=0&&index<count()?m_rows[index].data:QVariantMap{};}
+ signals: void countChanged();void columnsChanged();
+ private:
+ struct Row {QString key;QVariantMap data;};
+ void scheduleRefresh();void refresh();
+ GameListModel *m_games;FilterSortModel *m_filter;int m_columns;bool m_queued=false;
+ QVector<Row> m_rows;
+};
 class UiController : public QObject {
  Q_OBJECT
  Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged)
@@ -43,6 +64,10 @@ class UiController : public QObject {
  Q_INVOKABLE void selectVariant(const QString &id);
  Q_INVOKABLE void primary(const QString &gameId);
  Q_INVOKABLE void scan(const QStringList &roots);
+ Q_INVOKABLE void startScan(const QStringList &roots);
+ Q_INVOKABLE void cancelScan();
+ Q_INVOKABLE QObject *createGridModel(int columns);
+ Q_INVOKABLE void releaseGridModel(QObject *model);
  Q_INVOKABLE void startInstall(const QString &gameId,const QString &variantId);
  Q_INVOKABLE void play(const QString &gameId,const QString &variantId);
  Q_INVOKABLE void cancelInstall();
@@ -60,6 +85,8 @@ class UiController : public QObject {
  Q_INVOKABLE void openLocation(const QString &kind);
  Q_INVOKABLE void removeRecent(const QString &id);
  public slots:
+ void showError(const QString &operation,const QString &message);
+ void settingsSaved(const QString &gameId);
  void scanStarted(); void scanProgress(const QVariantMap &progress); void scanFinished(bool success);
  void installStarted(); void installEvent(const QVariantMap &event); void installFinished(bool success,const QString &message);
  void launchPreparing(const QString &gameId,const QString &message);
