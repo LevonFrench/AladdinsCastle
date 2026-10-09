@@ -5,6 +5,9 @@ namespace ac {
 bool wantsParentConsole(const LaunchOptions &options){
     return options.help||options.version||options.quitAfterMs>0||options.mode==Mode::Launch||options.mode==Mode::RegisterOverlay||options.mode==Mode::UnregisterOverlay;
 }
+bool shouldOpenDesktop(const LaunchOptions &options, bool overlayInitialized) {
+    return options.mode == Mode::Desktop || options.window || (options.mode == Mode::Overlay && !overlayInitialized);
+}
 LaunchOptions parseLaunchOptions(const QStringList &arguments) {
     LaunchOptions options;
     bool modeSeen = false;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/app/LaunchOptions.h"
 #include "core/app/LaunchFailure.h"
+#include "core/app/NetworkPolicy.h"
 #include "core/catalog/CatalogLoader.h"
 #include "core/catalog/CatalogPaths.h"
 #include "core/install/Support.h"
@@ -72,7 +73,7 @@ int main(int argc,char **argv){
     ac::UiSettings settings(portableRoot+"/user");ac::UiController ui(&games,&filter,&settings);
     ac::HubServices services(&games,&filter,&ui,&settings,portableRoot);
     qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",&theme);
-    ac::SpikeState spike;QQmlApplicationEngine engine;ac::OverlayHost overlay(spike);
+    ac::SpikeState spike;ac::LocalQmlNetworkFactory localNetwork;QQmlApplicationEngine engine;engine.setNetworkAccessManagerFactory(&localNetwork);ac::OverlayHost overlay(spike);
     engine.addImageProvider("art",new ac::art::Provider(services.artResolver()));ui.setArtProviderReady(true);
     auto *context=engine.rootContext();context->setContextProperty("catalogGameCount",count);
     context->setContextProperty("gameModel",&games);context->setContextProperty("gameFilter",&filter);
@@ -84,12 +85,13 @@ int main(int argc,char **argv){
     QObject::connect(&engine,&QQmlApplicationEngine::objectCreationFailed,&app,[]{QCoreApplication::exit(2);},Qt::QueuedConnection);
     QObject::connect(&services,&ac::HubServices::raiseHubRequested,&engine,[&]{for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow*>(object)){window->show();window->raise();window->requestActivate();}});
     QObject::connect(&app,&QGuiApplication::lastWindowClosed,&app,[&]{if(!services.playing())app.quit();});
+    bool overlayInitialized=false;
     if(options.mode==ac::Mode::Overlay){
         QObject::connect(&overlay,&ac::OverlayHost::quitRequested,&app,&QCoreApplication::quit);
         QObject::connect(&overlay,&ac::OverlayHost::failed,&app,[&](const QString &error){err<<error<<'\n';app.exit(3);});
-        QString error;if(!overlay.initialize(engine,app.applicationDirPath()+"/resources/overlay-thumbnail.png",&error)){err<<error<<'\n';return 3;}
+        QString error;overlayInitialized=overlay.initialize(engine,app.applicationDirPath()+"/resources/overlay-thumbnail.png",&error);if(!overlayInitialized){err<<error<<"; opening desktop Hub.\n";overlay.shutdown();}
     }
-    if(options.mode==ac::Mode::Desktop||options.window){engine.loadFromModule("AladdinsCastle.Hub","DesktopShell");if(engine.rootObjects().isEmpty())return 2;}
+    if(ac::shouldOpenDesktop(options,overlayInitialized)){engine.loadFromModule("AladdinsCastle.Hub","DesktopShell");if(engine.rootObjects().isEmpty())return 2;}
     // Explicit operator diagnostics capture this application's own Qt surface.
     // Private owner captures are never included in packaging.
     const auto qaGame=qEnvironmentVariable("AC_UI_PLAY");

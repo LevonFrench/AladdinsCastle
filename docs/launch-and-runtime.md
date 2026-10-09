@@ -102,7 +102,7 @@ Integer-like fields (`IsHidden`, `OpenVR`, and the rest) must match the type Ste
 
 ### 5.3 AppId and idempotency
 
-- Implemented formula: `appid = CRC32(Exe + AppName) | 0x80000000`, using UTF-8 bytes, the stored quoted `Exe`, reflected polynomial 0xEDB88320, and no terminating NUL. [V: Steam ROM Manager primary `generate-app-id.ts`, read 2026-10-09; owner-PC Steam verification pending] The 64-bit launch ID is `(uint64(appid) << 32) | 0x02000000`.
+- Steam ROM Manager convention (not a claim about Steam internals): `appid = CRC32(Exe + AppName) | 0x80000000`, using UTF-8 bytes, the stored quoted `Exe`, reflected polynomial 0xEDB88320, and no terminating NUL. [V: Steam ROM Manager primary `generate-app-id.ts`, read 2026-10-09; owner-PC Steam verification pending] The 64-bit launch ID is `(uint64(appid) << 32) | 0x02000000`.
 - Key: `appid`. A matching entry is updated; a missing one is appended.
 - Only entries tagged `AladdinsCastle` are ever updated or removed.
 - Retain the AppId already stored in a matching owned game entry when renaming a setup or moving the Hub. Ownership requires both `AladdinsCastle` and `AladdinsCastle:<game-id>` tags. Refuse any AppId collision with a different entry.

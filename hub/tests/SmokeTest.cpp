@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/app/LaunchOptions.h"
 #include "core/app/LaunchFailure.h"
+#include "core/app/NetworkPolicy.h"
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QSignalSpy>
+#include <QTcpServer>
 #include "core/catalog/CatalogPaths.h"
 #include <QDir>
 #include <QFile>
@@ -107,6 +112,29 @@ private slots:
         process.start(executable,{"--launch","synthetic","--variant","flat-mame","--install-root",root,"--data-root",temp.filePath("missing-catalog")});
         QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(15000));QCOMPARE(process.exitCode(),2);
         const auto logs=QDir(root+"/user/logs").entryList({"launch-synthetic-*.log"},QDir::Files);QCOMPARE(logs.size(),1);QFile log(root+"/user/logs/"+logs.first());QVERIFY(log.open(QIODevice::ReadOnly));QVERIFY(log.readAll().contains("Catalog missing"));
+    }
+    void qmlRemoteResourcesDenied() {
+        ac::LocalQmlNetworkFactory factory; std::unique_ptr<QNetworkAccessManager> manager(factory.create(nullptr));
+        QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
+        for(const auto &url : {QUrl(QString("http://127.0.0.1:%1/private.png").arg(server.serverPort())), QUrl("https://synthetic.invalid/private.png")}) {
+            auto *reply=manager->get(QNetworkRequest(url)); QSignalSpy done(reply,&QNetworkReply::finished);
+            QTRY_COMPARE(done.count(),1); QCOMPARE(reply->error(),QNetworkReply::ContentAccessDenied); QVERIFY(!server.hasPendingConnections()); delete reply;
+        }
+        QTemporaryDir temp; QFile file(temp.filePath("local.txt")); QVERIFY(file.open(QIODevice::WriteOnly));file.write("local resource");file.close();
+        auto *reply=manager->get(QNetworkRequest(QUrl::fromLocalFile(file.fileName())));QSignalSpy done(reply,&QNetworkReply::finished);QTRY_COMPARE(done.count(),1);QCOMPARE(reply->readAll(),QByteArray("local resource"));delete reply;
+    }
+    void overlayFailureDesktopPolicy() {
+        const auto overlay=ac::parseLaunchOptions({"--overlay"});QVERIFY(ac::shouldOpenDesktop(overlay,false));QVERIFY(!ac::shouldOpenDesktop(overlay,true));
+        QVERIFY(ac::shouldOpenDesktop(ac::parseLaunchOptions({"--overlay","--window"}),true));QVERIFY(ac::shouldOpenDesktop({},false));
+    }
+    void cliWorksWithoutOpenVrRuntime() {
+#ifdef Q_OS_WIN
+        QTemporaryDir temp; const auto binary=QCoreApplication::applicationDirPath()+"/aladdinscastle-hub.exe";const auto copy=temp.filePath("aladdinscastle-hub.exe");QVERIFY(QFile::copy(binary,copy));
+        QProcess process;auto env=QProcessEnvironment::systemEnvironment();QStringList qtDirs;
+        for(const auto &dir:env.value("PATH").split(';'))if(QFileInfo(QDir(dir).filePath("Qt6Core.dll")).isFile())qtDirs.append(dir);
+        QVERIFY(!qtDirs.isEmpty());qtDirs.append(env.value("SystemRoot")+"/System32");env.insert("PATH",qtDirs.join(';'));process.setProcessEnvironment(env);
+        process.start(copy,{"--help"});QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(15000));QCOMPARE(process.exitCode(),0);QVERIFY(process.readAllStandardOutput().contains("Usage:"));QVERIFY(!QFileInfo::exists(temp.filePath("openvr_api.dll")));
+#endif
     }
     void modesAndRejections() {
         QCOMPARE(ac::parseLaunchOptions({}).mode, ac::Mode::Desktop);

@@ -1,6 +1,7 @@
 # One project-local backend for ZIP, 7z, TAR and gzip. No global tool installs.
 set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(ac_zlib GIT_REPOSITORY https://github.com/madler/zlib.git GIT_TAG v1.3.1 GIT_SHALLOW TRUE SYSTEM)
+FetchContent_Declare(ac_zlib GIT_REPOSITORY https://github.com/madler/zlib.git GIT_TAG 51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf # v1.3.1
+    SYSTEM)
 FetchContent_MakeAvailable(ac_zlib)
 set_target_properties(zlib PROPERTIES EXCLUDE_FROM_ALL TRUE)
 set(ZLIB_FOUND TRUE)
@@ -15,7 +16,8 @@ foreach(tool XZ XZDEC LZMADEC LZMAINFO)
     set(XZ_TOOL_${tool} OFF CACHE BOOL "" FORCE)
 endforeach()
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(ac_xz GIT_REPOSITORY https://github.com/tukaani-project/xz.git GIT_TAG v5.8.1 GIT_SHALLOW TRUE SYSTEM)
+FetchContent_Declare(ac_xz GIT_REPOSITORY https://github.com/tukaani-project/xz.git GIT_TAG a522a226545730551f7e7c2685fab27cf567746c # v5.8.1
+    SYSTEM)
 set(_ac_testing "${BUILD_TESTING}")
 set(BUILD_TESTING OFF)
 FetchContent_MakeAvailable(ac_xz)
@@ -38,7 +40,8 @@ set(ENABLE_CAT OFF CACHE BOOL "" FORCE)
 set(ENABLE_UNZIP OFF CACHE BOOL "" FORCE)
 set(ENABLE_ACL OFF CACHE BOOL "" FORCE)
 set(ENABLE_XATTR OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(ac_archive GIT_REPOSITORY https://github.com/libarchive/libarchive.git GIT_TAG v3.8.9 GIT_SHALLOW TRUE SYSTEM)
+FetchContent_Declare(ac_archive GIT_REPOSITORY https://github.com/libarchive/libarchive.git GIT_TAG 27cbc7827172698143e440801fc0ba39ccb4f1f5 # v3.8.9
+    SYSTEM)
 FetchContent_MakeAvailable(ac_archive)
 target_include_directories(archive_static SYSTEM PUBLIC "${ac_archive_SOURCE_DIR}/libarchive" "${ac_archive_BINARY_DIR}")
 target_compile_definitions(archive_static PUBLIC LIBARCHIVE_STATIC)

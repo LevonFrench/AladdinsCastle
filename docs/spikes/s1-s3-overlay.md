@@ -4,7 +4,7 @@ Status: implementation complete; owner headset acceptance and hardware measureme
 
 ## What is implemented
 
-- `OverlayHost` initializes OpenVR as `VRApplication_Overlay`, creates a dashboard tab and its thumbnail, configures mouse scale to 1280 × 900 and width to 2 m, polls main/thumbnail/system events, and acknowledges `VREvent_Quit` before Qt exits.
+- `OverlayHost` initializes OpenVR as `VRApplication_Overlay`, creates a dashboard tab and its thumbnail, configures mouse scale to 1280 × 800 and width to 2 m, polls main/thumbnail/system events, and acknowledges `VREvent_Quit` before Qt exits.
 - `QuickTextureRenderer` uses the Qt 6.8.3 single-threaded example's external OpenGL context, offscreen surface, unshown `QQuickWindow`, `QQuickRenderControl`, and `fromOpenGLTexture`. Each frame runs polish/begin/sync/render/end and `glFlush` before submitting the GL texture. Compositor references are cleared before the GL resources are destroyed.
 - One `HubRoot.qml` file has two instances in `--overlay --window`. They share one QML engine and a small `SpikeState` model (text, clicks, effect toggles). Each presentation has its own Qt rendering infrastructure; it does not share a single QRhi across concurrent frames. OpenGL context sharing uses Qt's global share context.
 - Rendering and texture submission run only while the dashboard overlay is visible and dirty, capped at one frame per 16 ms. Hidden input polling continues at 50 ms. The overlay scene is hidden while its tab is hidden, pausing its glow animations. A visibility transition forces a fresh frame, and changes requested during rendering remain pending.
@@ -34,7 +34,7 @@ No OpenVR initialization, manifest registration, dashboard launch, or SteamVR se
 
 ## Device acceptance
 
-Owner verification passed; receipts are kept privately in `.local/`.
+Private operator receipts are kept in `.local/`; headset and compositor acceptance remain deferred.
 Headset clicks, compositor acceptance and hardware measurements remain deferred.
 
 ## Owner run procedure
@@ -68,7 +68,7 @@ Executable: `<HubDir>/aladdinscastle-hub.exe` in the selected portable folder (o
 | Crashes / driver issues | No hardware run; none claimed |
 | Screenshots / owner confirmation | Pending |
 
-The host logs actual submitted-frame counts, elapsed wall intervals, and mean/max CPU time for polish/sync/render/end/flush when it runs. These are CPU submission measurements, not GPU timings. The RGBA8 color texture is 1280 × 900 × 4 bytes by construction; that excludes Qt depth/stencil, effects, driver, desktop and compositor allocations and must not be reported as measured total GPU memory.
+The host logs actual submitted-frame counts, elapsed wall intervals, and mean/max CPU time for polish/sync/render/end/flush when it runs. These are CPU submission measurements, not GPU timings. The RGBA8 color texture is 1280 × 800 × 4 bytes by construction; that excludes Qt depth/stencil, effects, driver, desktop and compositor allocations and must not be reported as measured total GPU memory.
 
 ## Primary API sources
 

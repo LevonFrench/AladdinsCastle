@@ -31,6 +31,8 @@ add_library(hubcore STATIC
     src/core/app/LaunchOptions.h
     src/core/app/LaunchFailure.cpp
     src/core/app/LaunchFailure.h
+    src/core/app/NetworkPolicy.cpp
+    src/core/app/NetworkPolicy.h
     src/core/config/Config.h
     src/core/filter/Filter.h
     src/core/scan/Scan.h
@@ -116,6 +118,10 @@ add_custom_command(TARGET aladdinscastle-hub POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:OpenVR::OpenVR>" "$<TARGET_FILE_DIR:aladdinscastle-hub>"
     VERBATIM)
+if(MSVC)
+    target_link_options(aladdinscastle-hub PRIVATE "/DELAYLOAD:openvr_api.dll")
+    target_link_libraries(aladdinscastle-hub PRIVATE delayimp)
+endif()
 set_target_properties(aladdinscastle-hub PROPERTIES
     BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN" WIN32_EXECUTABLE TRUE)
 
@@ -132,6 +138,7 @@ set_target_properties(steamtool PROPERTIES WIN32_EXECUTABLE FALSE)
 
 if(BUILD_TESTING)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME build-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/check_build_policy.py)
     add_test(NAME public-privacy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/check_public_privacy.py --test)
 
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
@@ -146,6 +153,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-catalog COMMAND catalog-tests)
     qt_add_executable(install-tests tests/InstallTest.cpp)
     target_link_libraries(install-tests PRIVATE hubcore Qt6::Test)
+    add_dependencies(install-tests hubtool)
     ac_project_warnings(install-tests)
     target_compile_definitions(install-tests PRIVATE AC_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
     add_test(NAME hub-install COMMAND install-tests)

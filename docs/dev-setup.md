@@ -1,8 +1,8 @@
-# Hub development setup (M1 lane A)
+# Hub development setup (integrated M1)
 
-M1 builds the desktop skeleton and its CLI. Overlay rendering, emulator installs,
-game launch, scanning and Steam shortcuts remain later lanes. Build from a checkout
-containing the catalog; no game content is required.
+M1 builds the desktop Hub, overlay host, catalog, scanner, installer, launch services and
+Steam review tools. Build from a checkout containing the catalog; no game content
+is required for compilation or the synthetic tests. Device acceptance is separate.
 
 ## Pinned toolchain
 
@@ -55,10 +55,12 @@ root (`<RepoRoot>`) and set the tools and Qt paths for this shell:
 $env:Path = "<ToolsDir>/python/Scripts;<QtDir>/bin;$env:Path"
 cmake -S hub -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=<QtDir> -DBUILD_TESTING=ON
 cmake --build build --parallel 2
+$env:QT_QPA_PLATFORM = "offscreen"
+$env:QT_QUICK_BACKEND = "software"
+$env:QT_OPENGL = "software"
 ctest --test-dir build --output-on-failure
 python tools/validate_catalog.py
 & ./build/bin/hubtool.exe count
-& ./build/bin/aladdinscastle-hub.exe
 ```
 
 On Linux, put the Qt `bin` directory on PATH, use the same CMake commands with
@@ -67,11 +69,12 @@ Ubuntu needs Ninja, OpenGL development headers, xkbcommon and the xcb cursor
 runtime (CI installs these). Qt Test uses synthetic temporary catalog folders;
 it never requires ROMs, BIOS files, emulator installs, Steam or SteamVR.
 
-Build outputs remain under `build/`. Targets are `hubcore` (static),
-`aladdinscastle-hub`, `hubtool`, and `hub-tests`. Our targets use C++20
+Build outputs remain under `build/`. Targets include `hubcore`, `hubui`, `huboverlay`,
+`aladdinscastle-hub`, `hubtool`, `arttool`, `steamtool` and the CTest executables. Our targets use C++20
 and warnings as errors. Dependencies are marked as system code, and never
 inherit those warning options. Qt is shared; OpenVR uses upstream headers plus
-the pinned prebuilt shared runtime. No OpenVR initialization is implemented in A.
+the pinned prebuilt shared runtime. Desktop and CLI modes do not initialize OpenVR. The Windows GUI binary delay-loads
+OpenVR; failed overlay initialization opens the desktop Hub.
 
 The QML module is `AladdinsCastle.Hub` with `DesktopShell` and `HubRoot`.
 The app loads it through `QQmlApplicationEngine::loadFromModule`.
@@ -87,20 +90,14 @@ beside its binaries and keeps user state in `user/`.
 
 ## Dependency pins
 
-FetchContent clones only these tags on first configure; an absent tag fails
-configuration. Public tag references were verified on 2026-10-08:
+FetchContent pins public dependency commits, not mutable tags. The CMake files
+under `hub/cmake/` are the authoritative SHA list; they cover toml++, JSON/schema,
+OpenVR, zlib, xz, libarchive, 7-Zip and libchdr. The revisions preserve the tested
+release versions. GitHub Actions are pinned by SHA too. `build-policy` checks
+that pins remain immutable and verifies package revision selection.
 
-| Dependency | Tag | Tag reference commit |
-|---|---|---|
-| [toml++](https://github.com/marzer/tomlplusplus/tree/v3.4.0) | v3.4.0 | 30172438cee64926dc41fdd9c11fb3ba5b2ba9de |
-| [nlohmann/json](https://github.com/nlohmann/json/tree/v3.12.0) | v3.12.0 | 65ee68451d8eb2b5f3a30b410476ab83deb3289b |
-| [json-schema-validator](https://github.com/pboettch/json-schema-validator/tree/2.4.0) | 2.4.0 | 55b49c221b41c8369342d4d23e52d9f31119c848 |
-| [OpenVR](https://github.com/ValveSoftware/openvr/tree/v2.15.6) | v2.15.6 | 41bc3825fd35b04047610c86fee26fb33b017b29 |
-
-Tag pins follow the lane brief. These recorded tag references are receipts,
-rather than a claim that upstream tags are immutable. Cached FetchContent
-sources can be reused for offline rebuilds after one successful configure.
-Dependency license texts are copied to `build/licenses/`.
+Cached FetchContent sources can be reused for offline rebuilds after one successful
+configure. Dependency license texts are copied to `build/licenses/`.
 
 ## Windows portable package
 
@@ -112,7 +109,8 @@ After a Release build, run from the same x64 developer shell:
 
 The output folder must not exist. The script uses `windeployqt`, includes
 the CLI and OpenVR DLL, copies catalog/config metadata, creates `user/`,
-and emits `<NewPortableFolder>.zip`. Optional `schemas/` and `recipes/`
+and emits `<NewPortableFolder>.zip`. `BUILD-INFO.txt` records the source commit
+from `GITHUB_SHA` in CI, or the checkout HEAD for a local package. Optional `schemas/` and `recipes/`
 are copied only when present. No local user folders or game art are staged.
 
 VC++ DLLs come exclusively from the official VS `VC/Redist/MSVC/<version>/x64/Microsoft.VC*.CRT`

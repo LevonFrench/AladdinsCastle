@@ -11,6 +11,7 @@
 #include <QTemporaryDir>
 #include <QFile>
 #include <QtTest>
+#include <QQmlEngine>
 #include <limits>
 class Recorder : public QObject {
 public:
@@ -33,11 +34,11 @@ public:
         return true;
     }
 };
-struct RuntimeReceipt { int acknowledgements = 0; int registrations = 0; int hides = 0; };
+struct RuntimeReceipt { int acknowledgements = 0; int registrations = 0; int hides = 0; QSize initializedSize; bool rejectInit = false; };
 class FakeRuntime final : public ac::OverlayRuntime {
 public:
     explicit FakeRuntime(RuntimeReceipt &receipt) : m_receipt(receipt) {}
-    bool initialize(QSize, const QString &, QString *) override { return true; }
+    bool initialize(QSize size, const QString &, QString *error) override { m_receipt.initializedSize=size; if(m_receipt.rejectInit) { if(error)*error="Synthetic runtime unavailable"; return false; } return true; }
     bool isVisible() const override { return false; }
     vr::VROverlayHandle_t handle() const override { return 42; }
     bool pollEvent(vr::VREvent_t *) override { return false; }
@@ -53,17 +54,17 @@ class OverlayTest : public QObject {
     Q_OBJECT
 private slots:
     void coordinateContractAndDiagnosticOverride() {
-        ac::OverlayInput input({1280, 900});
-        QCOMPARE(input.mapPosition(0, 0), QPointF(0, 900));
-        QCOMPARE(input.mapPosition(1280, 900), QPointF(1280, 0));
-        QCOMPARE(input.mapPosition(640, 450), QPointF(640, 450));
+        ac::OverlayInput input({1280, 800});
+        QCOMPARE(input.mapPosition(0, 0), QPointF(0, 800));
+        QCOMPARE(input.mapPosition(1280, 800), QPointF(1280, 0));
+        QCOMPARE(input.mapPosition(640, 400), QPointF(640, 400));
         QCOMPARE(input.mapPosition(-100, 1200), QPointF(0, 0));
         input.setFlipY(false); QCOMPARE(input.mapPosition(25, 40), QPointF(25, 40));
     }
     void dragButtonStateAndHideRelease() {
         ac::OverlayInput input; Recorder receiver;
         vr::VREvent_t event{}; event.eventType = vr::VREvent_MouseButtonDown;
-        event.data.mouse = {30, 850, vr::VRMouseButton_Left, 0};
+        event.data.mouse = {30, 750, vr::VRMouseButton_Left, 0};
         QVERIFY(input.dispatch(event, &receiver));
         QCOMPARE(receiver.position, QPointF(30, 50)); QCOMPARE(input.buttons(), Qt::LeftButton);
         event.eventType = vr::VREvent_MouseMove; event.data.mouse.x = 50;
@@ -131,6 +132,10 @@ private slots:
         gate.markDirty(); QVERIFY(!gate.shouldRender(false, 32)); QVERIFY(gate.shouldRender(true, 48)); gate.submitted(48);
         QVERIFY(!gate.shouldRender(false, 64)); QVERIFY(gate.shouldRender(true, 80)); gate.submitted(80);
         gate.stop(); gate.markDirty(); QVERIFY(!gate.shouldRender(true, 1000));
+    }
+    void failedRuntimeDoesNotAllocateRenderer() {
+        ac::SpikeState state;RuntimeReceipt receipt;receipt.rejectInit=true;QQmlEngine engine;ac::OverlayHost host(state,std::make_unique<FakeRuntime>(receipt));QString error;
+        QVERIFY(!host.initialize(engine,{},&error));QCOMPARE(receipt.initializedSize,QSize(1280,800));QCOMPARE(error,QString("Synthetic runtime unavailable"));host.shutdown();
     }
     void quitAcknowledgedOnceBeforeExitSignal() {
         ac::SpikeState state; RuntimeReceipt receipt;

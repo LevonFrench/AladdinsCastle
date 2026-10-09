@@ -18,10 +18,11 @@ OverlayHost::OverlayHost(SpikeState &state, std::unique_ptr<OverlayRuntime> runt
 }
 OverlayHost::~OverlayHost() { shutdown(); }
 bool OverlayHost::initialize(QQmlEngine &engine, const QString &thumbnail, QString *error) {
+    // Runtime failure is handled before allocating a rendering context.
+    if (!m_runtime->initialize({1280, 800}, thumbnail, error)) return false;
     m_renderer = std::make_unique<QuickTextureRenderer>();
     connect(m_renderer.get(), &QuickTextureRenderer::dirty, this, [this] { m_gate.markDirty(); });
-    if (!m_renderer->initialize(engine, {1280, 900}, error)) return false;
-    if (!m_runtime->initialize(m_renderer->size(), thumbnail, error)) return false;
+    if (!m_renderer->initialize(engine, {1280, 800}, error)) { m_runtime->shutdown(); return false; }
     m_running = true;
     connect(m_renderer->window(), &QQuickWindow::activeFocusItemChanged, this, [this] {
         if (m_keyboardOpen && m_renderer->window()->activeFocusItem() != m_keyboardTarget)
@@ -29,7 +30,7 @@ bool OverlayHost::initialize(QQmlEngine &engine, const QString &thumbnail, QStri
     });
     m_clock.start(); m_timer.start();
     QTextStream(stdout) << "Overlay GL: " << m_renderer->graphicsDescription()
-        << "\nOverlay target: 1280x900 RGBA8, visible dirty frames capped at 62.5 Hz.\n"
+        << "\nOverlay target: 1280x800 RGBA8, visible dirty frames capped at 62.5 Hz.\n"
         << "Render telemetry is CPU submission time, not GPU frame time or VR acceptance.\n";
     return true;
 }

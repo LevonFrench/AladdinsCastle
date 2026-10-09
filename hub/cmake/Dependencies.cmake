@@ -9,17 +9,21 @@ set(JSON_VALIDATOR_INSTALL OFF CACHE BOOL "" FORCE)
 set(JSON_VALIDATOR_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(tomlplusplus
     GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-    GIT_TAG v3.4.0 GIT_SHALLOW TRUE SYSTEM)
+    GIT_TAG 30172438cee64926dc41fdd9c11fb3ba5b2ba9de # v3.4.0
+    SYSTEM)
 FetchContent_Declare(nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.12.0 GIT_SHALLOW TRUE SYSTEM)
+    GIT_TAG 55f93686c01528224f448c19128836e7df245f72 # v3.12.0
+    SYSTEM)
 FetchContent_Declare(json_schema_validator
     GIT_REPOSITORY https://github.com/pboettch/json-schema-validator.git
-    GIT_TAG 2.4.0 GIT_SHALLOW TRUE SYSTEM)
+    GIT_TAG c780404a84dd9ba978ba26bc58d17cb43fa7bc80 # 2.4.0
+    SYSTEM)
 # Only consume upstream headers and its prebuilt library, never its build system.
 FetchContent_Declare(openvr
     GIT_REPOSITORY https://github.com/ValveSoftware/openvr.git
-    GIT_TAG v2.15.6 GIT_SHALLOW TRUE
+    GIT_TAG 0924064316de3effbcd1acf1e309182a2deb1c05 # v2.15.6
+
     SOURCE_SUBDIR _headers_and_prebuilt_only SYSTEM)
 FetchContent_MakeAvailable(tomlplusplus nlohmann_json json_schema_validator openvr)
 

@@ -37,13 +37,13 @@ private slots:
         QQmlComponent component(&engine, QUrl::fromLocalFile(QString::fromUtf8(AC_SPIKE_SCENE)));
         QQuickRenderControl renderControl;
         QQuickWindow first(&renderControl), second;
-        first.setGeometry(0, 0, 1280, 900); second.setGeometry(0, 0, 1280, 900);
+        first.setGeometry(0, 0, 1280, 800); second.setGeometry(0, 0, 1280, 800);
         auto *root = qobject_cast<QQuickItem *>(component.create());
         QVERIFY2(root, qPrintable(component.errorString()));
-        root->setParent(first.contentItem()); root->setParentItem(first.contentItem()); root->setSize({1280, 900});
+        root->setParent(first.contentItem()); root->setParentItem(first.contentItem()); root->setSize({1280, 800});
         auto *otherRoot = qobject_cast<QQuickItem *>(component.create());
         QVERIFY2(otherRoot, qPrintable(component.errorString()));
-        otherRoot->setParent(second.contentItem()); otherRoot->setParentItem(second.contentItem()); otherRoot->setSize({1280, 900});
+        otherRoot->setParent(second.contentItem()); otherRoot->setParentItem(second.contentItem()); otherRoot->setSize({1280, 800});
         // Software/offscreen Qt presentation only: no graphics context or VR runtime.
         root->forceActiveFocus();
         QFocusEvent initialFocus(QEvent::FocusIn, Qt::OtherFocusReason);
@@ -58,7 +58,7 @@ private slots:
         const auto center = button->mapToScene({button->width() / 2, button->height() / 2});
         ac::OverlayInput input;
         vr::VREvent_t click{}; click.eventType = vr::VREvent_MouseButtonDown;
-        click.data.mouse = {static_cast<float>(center.x()), static_cast<float>(900 - center.y()), vr::VRMouseButton_Left, 0};
+        click.data.mouse = {static_cast<float>(center.x()), static_cast<float>(800 - center.y()), vr::VRMouseButton_Left, 0};
         QVERIFY(input.dispatch(click, &first));
         click.eventType = vr::VREvent_MouseButtonUp; QVERIFY(input.dispatch(click, &first));
         QCOMPARE(state.clickCount(), 1);

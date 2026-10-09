@@ -12,7 +12,7 @@ bool matchesKeyboardSession(const vr::VREvent_t &event, quint64 token, vr::VROve
 // permits comparing runtimes against that contract without platform guesses.
 class OverlayInput {
 public:
-    explicit OverlayInput(QSize size = {1280, 900}) : m_size(size) {}
+    explicit OverlayInput(QSize size = {1280, 800}) : m_size(size) {}
     void setFlipY(bool flip) { m_flipY = flip; }
     QPointF mapPosition(float x, float y) const;
     bool dispatch(const vr::VREvent_t &event, QObject *receiver);

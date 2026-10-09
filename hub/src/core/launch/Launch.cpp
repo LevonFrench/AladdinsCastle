@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QUuid>
 #include <QtConcurrent/QtConcurrentRun>
 namespace ac::launch {
 using install::Error;
@@ -194,10 +195,15 @@ bool LaunchService::start(const Request &request) {
         install::scopedPath("user/logs/" + request.gameId, request.root);
     if (!QDir().mkpath(logs))
       throw Error("E_WRITE_DENIED", "Cannot create launch log folder");
+    const auto oldLogs = QDir(logs).entryInfoList({"*.log"}, QDir::Files, QDir::Time);
+    for(qsizetype i=19;i<oldLogs.size();++i) {
+      const auto old = install::scopedPath(oldLogs[i].absoluteFilePath(), request.root);
+      if(!QFile::remove(old)) throw Error("E_WRITE_DENIED", "Could not rotate launch log");
+    }
     logPath_ = install::scopedPath(
         logs + "/" +
             QDateTime::currentDateTimeUtc().toString("yyyyMMdd-HHmmss-zzz") +
-            ".log",
+            "-" + QUuid::createUuid().toString(QUuid::Id128).left(8) + ".log",
         request.root);
     install::atomicWrite(logPath_, "AladdinsCastle launch\nruntime=" +
                                        request.runtime.toUtf8() + "\n");
@@ -304,6 +310,9 @@ void LaunchService::complete(int code, const QString &error) {
     try {
       const auto path =
           install::scopedPath("user/last-played.json", request_.root);
+      QLockFile stateLock(install::scopedPath("user/locks/last-played.lock",request_.root));
+      stateLock.setStaleLockTime(0);
+      if(!stateLock.tryLock(1000)) throw Error("E_LOCKED", "Last-played state is locked by another Hub");
       Json times = Json::object();
       if (QFileInfo::exists(path))
         times = Json::parse(install::readBytes(path).toStdString());

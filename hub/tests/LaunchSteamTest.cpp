@@ -8,6 +8,7 @@
 #include <QTest>
 #include <QTextStream>
 #include <QtEndian>
+#include <csignal>
 using namespace ac;
 namespace {
 void write(const QString &path, const QByteArray &bytes) {
@@ -60,6 +61,9 @@ private slots:
   void childLaunchAndLogs_data();
   void childLaunchAndLogs();
   void sameGameLock();
+  void boundedLogsAndConcurrentLastPlayed();
+  void lastPlayedLockRefusal();
+  void hungChildCanBeStopped();
   void immediateCancel_data();
   void immediateCancel();
 };
@@ -662,6 +666,27 @@ void LaunchSteamTest::childLaunchAndLogs() {
   if (exitCode)
     QVERIFY(done[0][2].toString().contains("line 49"));
 }
+void LaunchSteamTest::boundedLogsAndConcurrentLastPlayed() {
+  QTemporaryDir temp; QVERIFY(temp.isValid());
+  for(int i=0;i<35;++i)write(temp.path()+"/user/logs/test-game/old-"+QString::number(i)+".log","old synthetic log");
+  write(temp.path()+"/user/logs/test-game/preserve.txt","unrelated");
+  launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=false;r.plan.executable=QCoreApplication::applicationFilePath();r.plan.cwd=temp.path();r.plan.args={"--synthetic-child","0","wait"};
+  launch::LaunchService one,two;QSignalSpy first(&one,&launch::LaunchService::finished),second(&two,&launch::LaunchService::finished);
+  QVERIFY(one.start(r));r.gameId="other-game";QVERIFY(two.start(r));
+  QTRY_COMPARE_WITH_TIMEOUT(first.count(),1,10000);QTRY_COMPARE_WITH_TIMEOUT(second.count(),1,10000);
+  QCOMPARE(QDir(temp.path()+"/user/logs/test-game").entryList({"*.log"},QDir::Files).size(),20);QVERIFY(QFileInfo::exists(temp.path()+"/user/logs/test-game/preserve.txt"));
+  const auto times=Json::parse(install::readBytes(temp.path()+"/user/last-played.json").toStdString());QVERIFY(times.contains("test-game"));QVERIFY(times.contains("other-game"));
+}
+void LaunchSteamTest::lastPlayedLockRefusal() {
+  QTemporaryDir temp;QDir().mkpath(temp.path()+"/user/locks");QLockFile lock(temp.path()+"/user/locks/last-played.lock");QVERIFY(lock.tryLock());
+  launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=false;r.plan.executable=QCoreApplication::applicationFilePath();r.plan.cwd=temp.path();r.plan.args={"--synthetic-child","0"};
+  launch::LaunchService service;QSignalSpy done(&service,&launch::LaunchService::finished);QVERIFY(service.start(r));QTRY_COMPARE_WITH_TIMEOUT(done.count(),1,10000);
+  QVERIFY(done[0][2].toString().contains("Last-played state is locked"));QVERIFY(!QFileInfo::exists(temp.path()+"/user/last-played.json"));
+}
+void LaunchSteamTest::hungChildCanBeStopped() {
+  QTemporaryDir temp;launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=false;r.plan.executable=QCoreApplication::applicationFilePath();r.plan.cwd=temp.path();r.plan.args={"--synthetic-child","0","hang"};
+  launch::LaunchService service;QSignalSpy started(&service,&launch::LaunchService::started),done(&service,&launch::LaunchService::finished);QVERIFY(service.start(r));QTRY_COMPARE(started.count(),1);service.stop();QTRY_COMPARE_WITH_TIMEOUT(done.count(),1,7000);QVERIFY(!service.playing());
+}
 void LaunchSteamTest::sameGameLock() {
   QTemporaryDir temp;
   launch::Request r;
@@ -717,8 +742,12 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 50; ++i)
       out << "line " << i << '\n';
     out.flush();
-    if (argc > 3)
-      QThread::msleep(1000);
+    if (argc > 3 && QByteArray(argv[3]) == "hang") {
+#ifndef Q_OS_WIN
+      std::signal(SIGTERM, SIG_IGN);
+#endif
+      QThread::sleep(60);
+    } else if(argc > 3) QThread::msleep(1000);
     return QByteArray(argv[2]).toInt();
   }
   QGuiApplication app(argc, argv);

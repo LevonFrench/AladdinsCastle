@@ -11,6 +11,9 @@ $ErrorActionPreference = 'Stop'
 $BuildDir = (Resolve-Path -LiteralPath $BuildDir).Path
 $QtDir = (Resolve-Path -LiteralPath $QtDir).Path
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+. (Join-Path $PSScriptRoot 'BuildInfo.ps1')
+$checkoutRevision = if (-not $env:GITHUB_SHA) { (& git -C $RepoRoot rev-parse HEAD) } else { '' }
+$buildRevision = Get-PackageBuildRevision -CiRevision $env:GITHUB_SHA -CheckoutRevision $checkoutRevision
 $OutputDir = [IO.Path]::GetFullPath($OutputDir)
 if (Test-Path -LiteralPath $OutputDir) {
     throw "Output must be a new folder: $OutputDir"
@@ -71,6 +74,7 @@ if (Test-Path -LiteralPath $sbom -PathType Container) {
 @"
 Qt 6.8.3; shared MSVC 2022 x64 libraries.
 Application source: https://github.com/LevonFrench/AladdinsCastle
+Source commit: $buildRevision
 Qt source and module notices: see THIRD-PARTY-NOTICES.md.
 "@ | Set-Content -LiteralPath (Join-Path $OutputDir 'BUILD-INFO.txt') -Encoding utf8
 $zip = "$OutputDir.zip"
