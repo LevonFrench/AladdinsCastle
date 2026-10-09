@@ -61,19 +61,58 @@ art     = "game"
 
 Step kinds: `github-release`, `download` (URL + sha256), `extract`, `copy`, `require-media`, `write-config` (ini/cfg/toml/json/yaml), `patch-text`, `registry`, `adb-install`, `shortcut`, `run` (script or exe, with a confirmation prompt), and `uninstall` steps that reverse the install. Unknown step kinds stop the install with a clear message. They are never skipped silently.
 
-## 4. Art and metadata
+## 4. Emulators and tools: install, locate or search
+
+Many setups need an emulator or helper (MAME, Model 2 Emulator, Supermodel, PCSX2, RPCS3, Dolphin, Flycast, DuckStation, TeknoParrot, DemulShooter, vJoy, HidHide, adb). The Hub offers all three routes for every one of them. *(Owner decision 2026-10-08.)*
+
+| Route | What happens |
+|---|---|
+| **Install it for me** | Download from the official release page only (GitHub releases or the project's own site), check the hash, put it in the AladdinsCastle `tools/` folder, and record the version for updates. Never a mirror, never with game content. |
+| **I already have it: here it is** | You pick the folder or exe. The Hub verifies it (exe name, version string or file hash) and uses it in place, never modifying your install. Per-emulator settings our setups need go into a separate profile or config dir where the emulator supports one. |
+| **Search for it** | Scan likely places: Program Files, `%LOCALAPPDATA%`, Scoop and winget install paths, Steam (e.g. Dolphin, RetroArch), common emulator folders on every drive, and front ends' known paths (LaunchBox, RetroBat, Playnite). Results are listed with version for you to confirm. Nothing is used without confirmation. |
+
+Each tool is described by a `tools/<id>.toml` file:
+
+```toml
+id       = "pcsx2"
+name     = "PCSX2"
+upstream = "https://github.com/PCSX2/pcsx2"
+license  = "GPL-3.0"
+
+[install]
+do      = "github-release"
+repo    = "PCSX2/pcsx2"
+asset   = "pcsx2-*-windows-x64-Qt.7z"
+version = "latest"               # or a pinned, tested version
+
+[locate]
+exe       = ["pcsx2-qt.exe", "pcsx2-qtx64*.exe"]
+version   = { from = "file-version" }
+min       = "2.0.0"
+
+[search]
+paths     = ["${ProgramFiles}/PCSX2", "${LOCALAPPDATA}/Programs/PCSX2", "${scoop}/apps/pcsx2/current", "*:/Emulators/PCSX2*"]
+```
+
+If a found version is older than a setup needs, the Hub says so and offers to install a side-by-side copy rather than upgrade the user's own install.
+
+The same three routes apply to **game files**: point the Hub at your ROM, ISO and PC-game folders, or let it search. Matches are confirmed by hash.
+
+## 5. Art and metadata
 
 1. **We ship no third-party art.** Packs may include only art they have the right to distribute.
 2. **Scraping happens on the user's machine** with the user's own accounts where a service needs them (ScreenScraper and others). Each asset gets a `*.source.toml` sidecar recording where it came from.
 3. **Fallback art** is generated: title on a marquee template in the maker's colours. Every game looks good on day one.
 
-## 5. Technology (OPEN, recommendation)
+## 6. Technology (OPEN, recommendation)
 
 | Option | For | Against |
 |---|---|---|
 | **Tauri 2 (Rust + web UI) (recommended)** | Small portable exe; rich art grid with web tech; Rust for downloads, hashing, adb, file work | Two languages |
 | .NET (WPF or Avalonia) | Native Windows; easy registry, Steam and shortcut work | Heavier runtime; UI theming takes more effort |
-| PowerShell + batch (as the Installer Hub) | Zero install, proven model | No real GUI for an art library |
+| PowerShell + WPF (exactly what the Installer Hub uses) | Nothing to install (Windows PowerShell 5.1 + WPF ship with Windows); proven at 300+ games with card tiles, banners, detail view, filters | Big scripts get hard to maintain (their catalog is a 6,700-line PowerShell file); slow cold start (they need a splash screen); Windows-only |
 | Godot 4 (desktop) | Same engine as a possible future VR UI | Not a natural fit for file/installer work |
 
-The Installer Hub's lessons to copy: portable folder (no installer needed), built-in self-updater, version cache to stay under GitHub rate limits, Steam/GOG/Epic library detection, safe-download helpers with a manual fallback when automatic steps fail.
+How the Installer Hub is built: `Start PCVR Mods Hub.bat` → `Show-StartupSplash.ps1` → `VRModHub.ps1` (WPF window, about 40 modules in `Core/Modules/`), then background `Update-Hub.ps1` and `Prefetch-Versions.ps1`. Downloads via `Invoke-WebRequest`; extraction via bundled `7z.exe` or `Expand-Archive`; GitHub releases API with a version cache; DepotDownloader for Steam depots; settings in JSON.
+
+Lessons to copy: portable folder (no installer), splash then background update checks, self-updater, version cache to stay under GitHub rate limits, Steam/GOG/Epic detection, safe-download helpers with a manual fallback when automatic steps fail. What we change: the catalog and recipes are data files (TOML), not code.
