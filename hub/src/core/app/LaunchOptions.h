@@ -2,13 +2,14 @@
 #pragma once
 #include <QStringList>
 namespace ac {
-enum class Mode { Desktop, Overlay, Launch };
+enum class Mode { Desktop, Overlay, Launch, RegisterOverlay, UnregisterOverlay };
 struct LaunchOptions {
     Mode mode = Mode::Desktop;
     QString gameId;
     QString dataRoot;
     QString error;
     bool window = false;
+    bool spike = false;
     bool help = false;
     bool version = false;
     int quitAfterMs = 0;
