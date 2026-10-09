@@ -75,7 +75,7 @@ int main(int argc,char **argv){
     context->setContextProperty("surfaceColor",theme.get("color.surface.window"));
     context->setContextProperty("primaryTextColor",theme.get("color.text.primary"));context->setContextProperty("brandColor",theme.get("color.brand.orange"));
     QObject::connect(&engine,&QQmlApplicationEngine::objectCreationFailed,&app,[]{QCoreApplication::exit(2);},Qt::QueuedConnection);
-    QObject::connect(&services,&ac::HubServices::raiseHubRequested,&app,[&]{for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow*>(object)){window->show();window->raise();window->requestActivate();}});
+    QObject::connect(&services,&ac::HubServices::raiseHubRequested,&engine,[&]{for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow*>(object)){window->show();window->raise();window->requestActivate();}});
     QObject::connect(&app,&QGuiApplication::lastWindowClosed,&app,[&]{if(!services.playing())app.quit();});
     if(options.mode==ac::Mode::Overlay){
         QObject::connect(&overlay,&ac::OverlayHost::quitRequested,&app,&QCoreApplication::quit);
