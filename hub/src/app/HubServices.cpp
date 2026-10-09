@@ -102,8 +102,7 @@ bool HubServices::beginSteam(const QString &id,const QString &variantId,bool rem
         }
         steamRequest_.steamRoot=steamRootSource_();
         steamRequest_.userRoot=install::scopedPath("user",root_);
-        steamRequest_.shortcut={id,game->roles.value("title").toString(),QCoreApplication::applicationFilePath(),root_,false,0,game->runtime.lastPlayed};
-        steamRequest_.shortcut.variantId=variantId;
+        steamRequest_.shortcut={id,game->roles.value("title").toString(),QCoreApplication::applicationFilePath(),root_,false,0,game->runtime.lastPlayed,variantId};
         if(!remove){
         steamRequest_.art["header"]=art_->resolve(id,"banner",{460,215}).image;
         steamRequest_.art["capsule"]=art_->resolve(id,"portrait",{600,900}).image;

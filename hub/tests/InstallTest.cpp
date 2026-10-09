@@ -11,6 +11,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 #include <archive.h>
+#include <filesystem>
 #include <archive_entry.h>
 using namespace ac;
 using namespace ac::install;
@@ -500,16 +501,27 @@ private slots:
                                            "${steps.linked.path}", "${media.disc.path}", "direct", "directory"})
         QTest::newRow(qPrintable(kind + "-" + source)) << kind << source;
     QTest::newRow("extract-shorthand") << QString("extract") << QString("required");
+    QTest::newRow("copy-hardlink") << QString("copy") << QString("hardlink");
+    QTest::newRow("extract-hardlink") << QString("extract") << QString("hardlink");
+    QTest::newRow("copy-hardlink-directory") << QString("copy") << QString("hardlink-directory");
   }
   void mediaSourceRejectedBeforeIO() {
     QFETCH(QString, kind);
     QFETCH(QString, source);
     QTemporaryDir temp;
     auto request = fixture(temp.path());
-    const auto media = temp.path() + "/games/synthetic/setup/disc.dat";
+    const auto media = temp.path() + (source.startsWith("hardlink") ? "/library/disc.dat" : "/games/synthetic/setup/disc.dat");
     atomicWrite(media, "synthetic media");
     request.bindings["media"]["disc"] = Json{{"path", media.toStdString()}};
-    if (source == "direct")
+    if (source.startsWith("hardlink")) {
+      const auto alias = temp.path()+"/games/synthetic/setup/aliases/media.dat";QDir().mkpath(QFileInfo(alias).absolutePath());std::error_code error;
+#ifdef Q_OS_WIN
+      std::filesystem::create_hard_link(std::filesystem::path(media.toStdWString()),std::filesystem::path(alias.toStdWString()),error);
+#else
+      std::filesystem::create_hard_link(std::filesystem::path(media.toStdString()),std::filesystem::path(alias.toStdString()),error);
+#endif
+      QVERIFY2(!error,error.message().c_str());source=source=="hardlink-directory"?QFileInfo(alias).absolutePath():alias;
+    } else if (source == "direct")
       source = media;
     else if (source == "directory")
       source = QFileInfo(media).absolutePath();

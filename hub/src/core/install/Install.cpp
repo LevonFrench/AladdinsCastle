@@ -813,6 +813,30 @@ Plan Engine::plan(const Request &r) const {
         if (normalizedSource == normalizedMedia ||
             (QFileInfo(from).isDir() && normalizedMedia.startsWith(normalizedSource + '/')))
           throw Error("E_SOURCE_OUT_OF_SCOPE", "Bound media cannot be an extract/copy source");
+        if (QFileInfo(bound).isFile()) {
+          const auto identity = fileIdentity(bound);
+          auto rejectAlias = [&](const QString &path) {
+            if (QFileInfo(path).isFile() && fileIdentity(path) == identity)
+              throw Error("E_SOURCE_OUT_OF_SCOPE", "A media hard-link alias cannot be an extract/copy source");
+          };
+          if (QFileInfo(from).isFile()) rejectAlias(from);
+          else if (QFileInfo(from).isDir()) {
+            const auto sourceScope = output.hasMatch() || shorthand ? r.root :
+                kind == "copy" ? (r.catalogRoot.isEmpty() ? r.root : r.catalogRoot) + "/games/" + r.gameId + "/setup" : QFileInfo(from).absolutePath();
+            const auto sourceRoot = scopedPath(from, sourceScope);
+            QStringList directories{sourceRoot};
+            while (!directories.isEmpty()) {
+              const auto directory = directories.takeLast();
+              for (const auto &entry : QDir(directory).entryInfoList(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot)) {
+                if (entry.isSymLink() || entry.isJunction())
+                  throw Error("E_SOURCE_OUT_OF_SCOPE", "Media-source inspection refuses linked directory entries");
+                const auto path = scopedPath(entry.absoluteFilePath(), sourceRoot);
+                if (entry.isDir()) directories.append(path);
+                else rejectAlias(path);
+              }
+            }
+          }
+        }
       }
       if (output.hasMatch() || shorthand) {
         if (!ids.contains(sourceId) || sourceId == id)
