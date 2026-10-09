@@ -18,6 +18,8 @@ namespace {
 class HttpsServer : public QTcpServer {
 public:
   QByteArray payload = "synthetic tool artifact";
+  bool notModified = false;
+  QByteArray releasePayload = "{\"tag_name\":\"v1\",\"assets\":[]}";
   QList<QByteArray> requests;
   QString url() const {
     return "https://localhost:" + QString::number(serverPort());
@@ -38,7 +40,9 @@ public:
       requests << req;
       const auto route = req.split(' ').value(1);
       QByteArray response;
-      if (route == "/redirect")
+      if (notModified && route == "/artifact")
+        response = "HTTP/1.1 304 Not Modified\r\nETag: test-v1\r\nContent-Length: 0\r\n\r\n";
+      else if (route == "/redirect")
         response = "HTTP/1.1 302 Found\r\nLocation: " + url().toUtf8() +
                    "/artifact\r\nContent-Length: 0\r\n\r\n";
       else if (route == "/denied")
@@ -51,7 +55,7 @@ public:
         response = "HTTP/1.1 429 Limited\r\nRetry-After: 60\r\nContent-Length: "
                    "0\r\n\r\n";
       else if (route.contains("/releases/tags/")) {
-        const QByteArray body = "{\"tag_name\":\"v1\",\"assets\":[]}";
+        const QByteArray body = releasePayload;
         response = "HTTP/1.1 200 OK\r\nETag: test-v1\r\nContent-Length: " +
                    QByteArray::number(body.size()) + "\r\n\r\n" + body;
       } else if (route == "/html") {
@@ -546,7 +550,7 @@ private slots:
     QVERIFY(!QFileInfo(temp.path() + "/installed/synthetic/flat/settings.ini")
                  .exists());
   }
-  void repairKeepsManagedUserEdits() {
+  void repairRemergesManagedKeysKeepsUserFields() {
     QTemporaryDir temp;
     auto r = fixture(temp.path());
     Options o;
@@ -559,9 +563,10 @@ private slots:
     QVERIFY2(repaired.success, qPrintable(repaired.message));
     QCOMPARE(repaired.state, QString("installed-with-warnings"));
     QCOMPARE(readBytes(file),
-             QByteArray("[Global]\nenabled = 9\nunknown = mine\n"));
+             QByteArray("[Global]\nenabled = 1\nunknown = mine\n"));
     QCOMPARE(Engine(o).uninstall(r).state, QString("uninstall-incomplete"));
-    QVERIFY(readBytes(file).contains("enabled = 9"));
+    QVERIFY(!readBytes(file).contains("enabled"));
+    QVERIFY(readBytes(file).contains("unknown = mine"));
     QVERIFY(readBytes(file).contains("unknown = mine"));
   }
   void hostGuard() {
@@ -617,6 +622,211 @@ private slots:
         Error, store.githubRelease("synthetic/example", "missing"));
     QVERIFY_THROWS_EXCEPTION(
         Error, store.githubRelease("synthetic/example", "limited"));
+  }
+  void validatorLifecycleAndWrongPin() {
+    HttpsServer server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temp;
+    TestTrust trust;
+    trust.baseUrl = server.url(); trust.hosts = {"localhost"};
+    trust.authorities = QSslCertificate::fromPath(QString(AC_TEST_FIXTURES) + "/tls/localhost-cert.pem");
+    ArtifactStore store(temp.path(), {}, trust);
+    const auto pin = sha256(server.payload);
+    Json step{{"do", "download"}, {"url", "https://github.com/artifact"}, {"sha256", pin.toStdString()}};
+    const auto part = temp.path() + "/user/cache/artifacts/" + pin + ".part";
+    atomicWrite(part + ".validator", "stale");
+    const auto acquired = store.acquire(step, testGuard());
+    QCOMPARE(hashFile(acquired), pin);
+    QVERIFY(!server.requests.last().contains("If-None-Match"));
+    QVERIFY(!server.requests.last().contains("If-Range"));
+    QVERIFY(!QFileInfo(part + ".validator").exists());
+    QVERIFY(QFile::remove(acquired));
+    server.notModified = true;
+    try { store.acquire(step, testGuard()); QFAIL("304 artifact accepted"); }
+    catch (const Error &e) { QCOMPARE(e.code, QString("E_NETWORK")); }
+    server.notModified = false;
+    step["sha256"] = std::string(64, '0');
+    const auto wrongPart = temp.path() + "/user/cache/artifacts/" + QString(64, '0') + ".part";
+    atomicWrite(wrongPart, server.payload.left(4)); atomicWrite(wrongPart + ".validator", "test-v1");
+    try { store.acquire(step, testGuard()); QFAIL("Wrong artifact pin accepted"); }
+    catch (const Error &e) { QCOMPARE(e.code, QString("E_HASH_MISMATCH")); }
+    QVERIFY(!QFileInfo(wrongPart).exists());
+    QVERIFY(!QFileInfo(wrongPart + ".validator").exists());
+    QVERIFY(server.requests.last().toLower().contains("range: bytes=4-"));
+    QVERIFY(server.requests.last().toLower().contains("if-range: test-v1"));
+  }
+  void githubCrosscheckUnavailableUsesPin() {
+    HttpsServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temp;
+    TestTrust trust;
+    trust.baseUrl = server.url(); trust.hosts = {"localhost"};
+    trust.authorities = QSslCertificate::fromPath(QString(AC_TEST_FIXTURES) + "/tls/localhost-cert.pem");
+    QStringList warnings;
+    Options options; options.event = [&](const QVariantMap &e) { if (e.value("kind") == "warn") warnings << e.value("text").toString(); };
+    ArtifactStore store(temp.path(), options, trust);
+    Json step{{"do", "github-release"}, {"repo", "synthetic/example"}, {"tag", "missing"},
+              {"asset", "tool.dat"}, {"sha256", sha256(server.payload).toStdString()}};
+    QCOMPARE(readBytes(store.acquire(step, testGuard())), server.payload);
+    QVERIFY(!warnings.isEmpty());
+    QCOMPARE(server.requests.size(), 2);
+    QVERIFY(server.requests[1].contains("/releases/download/missing/tool.dat"));
+  }
+  void githubMalformedCrosscheckAndContradictoryDigest() {
+    for (const bool malformed : {true, false}) {
+      HttpsServer server; QVERIFY(server.listen(QHostAddress::LocalHost)); QTemporaryDir temp;
+      server.releasePayload = malformed ? QByteArray("{\"assets\":\"invalid\"}")
+        : QByteArray::fromStdString(Json{{"assets", Json::array({Json{{"name", "tool.dat"}, {"digest", "sha256:" + std::string(64, '0')}}})}}.dump());
+      TestTrust trust; trust.baseUrl = server.url(); trust.hosts = {"localhost"};
+      trust.authorities = QSslCertificate::fromPath(QString(AC_TEST_FIXTURES) + "/tls/localhost-cert.pem");
+      QStringList warnings; Options options;
+      options.event = [&](const QVariantMap &e) { if (e.value("kind") == "warn") warnings << e.value("text").toString(); };
+      ArtifactStore store(temp.path(), options, trust);
+      Json step{{"do", "github-release"}, {"repo", "synthetic/example"}, {"tag", "v1"},
+        {"asset", "tool.dat"}, {"sha256", sha256(server.payload).toStdString()}};
+      if (malformed) {
+        QCOMPARE(readBytes(store.acquire(step, testGuard())), server.payload); QVERIFY(!warnings.isEmpty());
+      } else {
+        try { store.acquire(step, testGuard()); QFAIL("Contradictory API digest accepted"); }
+        catch (const Error &e) { QCOMPARE(e.code, QString("E_HASH_MISMATCH")); }
+        QVERIFY(warnings.isEmpty()); QCOMPARE(server.requests.size(), 1);
+      }
+    }
+  }
+  void mediaLinkUpdateAndRemovalWithoutBackup() {
+    QTemporaryDir temp; auto r = fixture(temp.path());
+    const auto source = temp.path() + "/synthetic.media";
+    atomicWrite(source, QByteArray(1024 * 1024, 'm'));
+    const auto mediaHash = hashFile(source);
+    r.bindings["media"]["disc"] = Json{{"path", source.toStdString()}, {"sha256", mediaHash.toStdString()}, {"verified", true}};
+    r.recipe["variant"]["flat"]["step"].push_back(Json{{"id", "media"}, {"do", "copy-media"}, {"media", "disc"}, {"to", "${install_dir}/disc.media"}, {"mode", "link"}});
+    Options options; options.survivalMs = 0;
+    auto installed = Engine(options).install(r); QVERIFY2(installed.success, qPrintable(installed.message));
+    r.operation = "update"; r.recipe["variant"]["flat"]["version"] = "v2";
+    atomicWrite(temp.path() + "/games/synthetic/setup/example.exe", "synthetic binary v2");
+    auto updated = Engine(options).install(r); QVERIFY2(updated.success, qPrintable(updated.message));
+    const auto link = temp.path() + "/installed/synthetic/flat/disc.media";
+    QVERIFY(QFileInfo(link).isFile()); QCOMPARE(hashFile(link), mediaHash);
+    QVERIFY(!QFileInfo(temp.path() + "/user/state/backups/" + mediaHash).exists());
+    auto removed = Engine(options).uninstall(r); QVERIFY2(removed.success, qPrintable(removed.message));
+    QVERIFY(QFileInfo(source).exists()); QCOMPARE(hashFile(source), mediaHash);
+    QVERIFY(!QFileInfo(link).exists());
+    QVERIFY(!QFileInfo(temp.path() + "/user/state/backups/" + mediaHash).exists());
+    const auto journal = readBytes(stateBase(r) + ".journal.jsonl");
+    QVERIFY(journal.contains("media-unlink"));
+  }
+  void explicitMediaCopyStreamsAcrossUpdate() {
+    QTemporaryDir temp; auto r = fixture(temp.path());
+    const auto source = temp.path() + "/synthetic.media";
+    atomicWrite(source, QByteArray(2 * 1024 * 1024 + 7, 's'));
+    const auto expected = hashFile(source);
+    r.allowMediaCopy = true;
+    r.bindings["media"]["disc"] = Json{{"path", source.toStdString()}, {"sha256", expected.toStdString()}, {"verified", true}};
+    r.recipe["variant"]["flat"]["step"].push_back(Json{{"do", "copy-media"}, {"media", "disc"}, {"to", "${install_dir}/disc.media"}, {"mode", "copy"}});
+    Options options; options.survivalMs = 0; QVERIFY(Engine(options).install(r).success);
+    const auto installed = temp.path() + "/installed/synthetic/flat/disc.media";
+    QCOMPARE(hashFile(installed), expected);
+    r.operation = "update"; r.recipe["variant"]["flat"]["version"] = "v2";
+    const auto updated = Engine(options).install(r); QVERIFY2(updated.success, qPrintable(updated.message));
+    QCOMPARE(hashFile(installed), expected);
+    QVERIFY(Engine(options).uninstall(r).success);
+    QVERIFY(QFileInfo(source).exists()); QCOMPARE(hashFile(source), expected);
+  }
+  void configRemergeKeepsUnmanagedEditsAndOriginalPrior() {
+    QTemporaryDir temp; auto r = fixture(temp.path());
+    const auto cfg = temp.path() + "/installed/synthetic/flat/settings.ini";
+    atomicWrite(cfg, "[Global]\nenabled=9\nuntouched=original\n");
+    Options options; options.survivalMs = 0;
+    QVERIFY(Engine(options).install(r).success);
+    atomicWrite(cfg, "[Global]\nenabled=7\nuntouched=edited\nuserkey=yes\n");
+    r.operation = "repair";
+    const auto repaired = Engine(options).install(r); QVERIFY2(repaired.success, qPrintable(repaired.message));
+    QVERIFY(readBytes(cfg).contains("enabled=1")); QVERIFY(readBytes(cfg).contains("untouched=edited"));
+    const auto removed = Engine(options).uninstall(r);
+    QCOMPARE(removed.state, QString("uninstall-incomplete"));
+    QVERIFY(readBytes(cfg).contains("enabled=9")); QVERIFY(readBytes(cfg).contains("userkey=yes"));
+  }
+  void failedUpdateRecordsPriorStateAndError() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options options; options.survivalMs = 0;
+    QVERIFY(Engine(options).install(r).success);
+    r.operation = "update"; r.recipe["variant"]["flat"]["version"] = "v2";
+    r.recipe["variant"]["flat"]["installed_when"] = "file:${install_dir}/missing.exe";
+    const auto failed = Engine(options).install(r); QVERIFY(!failed.success);
+    const auto state = readEnvelope(stateBase(r) + ".toml");
+    QCOMPARE(string(state, "state"), QString("failed"));
+    QCOMPARE(string(state, "previous_state"), QString("installed"));
+    QCOMPARE(string(state, "last_error"), QString("E_VERIFY_FAILED"));
+    QCOMPARE(string(state, "installed_version"), QString("v1"));
+    QCOMPARE(readBytes(temp.path() + "/installed/synthetic/flat/example.exe"), QByteArray("synthetic binary v1"));
+  }
+  void unlinkRecoveryRestoresOriginalIdentityWithoutBackup() {
+    QTemporaryDir temp; auto r = fixture(temp.path());
+    const auto source = temp.path() + "/synthetic.media"; atomicWrite(source, "synthetic medium");
+    r.bindings["media"]["disc"] = Json{{"path", source.toStdString()}, {"sha256", hashFile(source).toStdString()}, {"verified", true}};
+    r.recipe["variant"]["flat"]["step"].push_back(Json{{"id", "media"}, {"do", "copy-media"}, {"media", "disc"}, {"to", "${install_dir}/disc.media"}, {"mode", "link"}});
+    Options normal; normal.survivalMs = 0; QVERIFY(Engine(normal).install(r).success);
+    bool unlinked = false; Options faulted; faulted.survivalMs = 0;
+    faulted.fault = [&](const QString &point) {
+      if (point == "write" && !QFileInfo(temp.path() + "/installed/synthetic/flat/disc.media").exists()) {
+        unlinked = true; throw std::runtime_error("synthetic abrupt unlink");
+      }
+    };
+    bool crashed = false; try { Engine(faulted).uninstall(r); } catch (...) { crashed = true; }
+    QVERIFY(crashed);
+    QVERIFY(unlinked);
+    QVERIFY(Engine(normal).recover(r).success);
+    QCOMPARE(hashFile(temp.path() + "/installed/synthetic/flat/disc.media"), hashFile(source));
+    QVERIFY(!QFileInfo(temp.path() + "/user/state/backups/" + hashFile(source)).exists());
+  }
+  void mediaVerificationModesAndGeneratedIds() {
+    QTemporaryDir temp; auto r = fixture(temp.path());
+    const auto media = temp.path() + "/synthetic.media"; atomicWrite(media, "synthetic fixture");
+    r.bindings["media"]["disc"] = Json{{"path", media.toStdString()}, {"verified", false}};
+    auto &steps = r.recipe["variant"]["flat"]["step"];
+    steps[0].erase("id"); steps[1]["id"] = "auto-step-1";
+    steps.push_back(Json{{"do", "require-media"}, {"media", "disc"}, {"verify", "none"}});
+    const auto plan = Engine().plan(r);
+    QCOMPARE(string(plan.steps[0], "id"), QString("auto-step-2"));
+    Options options; options.survivalMs = 0;
+    auto result = Engine(options).install(r); QVERIFY2(result.success, qPrintable(result.message));
+    steps.back()["verify"] = "name"; steps.back()["set"] = "synthetic";
+    QVERIFY(Engine(options).install(r).success);
+    steps.back()["set"] = "different";
+    QCOMPARE(Engine(options).install(r).code, QString("E_MEDIA_MISMATCH"));
+    steps.back()["verify"] = "unsupported";
+    QVERIFY_THROWS_EXCEPTION(Error, Engine(options).plan(r));
+  }
+  void hotdSelfContainedDryRun() {
+    QTemporaryDir temp; Request r;
+    r.root = temp.path(); r.catalogRoot = catalogFixtureRoot();
+    r.gameId = "dc-house-of-the-dead-2"; r.variantId = "hotd2-vr-pcvr";
+    r.recipe = CatalogLoader::parseToml(r.catalogRoot + "/games/dc-house-of-the-dead-2/install.toml");
+    r.bindings["media"]["disc"] = Json{{"path", (temp.path() + "/synthetic-disc.chd").toStdString()}};
+    const auto before = tree(temp.path()); const auto plan = Engine().plan(r);
+    QCOMPARE(plan.steps.size(), size_t(4));
+    QCOMPARE(string(plan.steps[0], "tag"), QString("v0.3-test1"));
+    QCOMPARE(string(plan.steps[2], "verify"), QString("none"));
+    QCOMPARE(tree(temp.path()), before);
+  }
+  void hubtoolSettingsAreAvailableToRecipe() {
+    QTemporaryDir temp; auto r = fixture(temp.path());
+    auto &set = r.recipe["variant"]["flat"]["step"][1]["set"][0];
+    set.erase("value"); set["from"] = "settings.enabled";
+    const auto recipe = temp.path() + "/recipe.toml";
+    atomicWrite(recipe, "format=1\n[variant.flat]\nstatus=\"stable\"\nversion=\"v1\"\ninstalled_when=\"file:${install_dir}/settings.ini\"\n[[variant.flat.step]]\ndo=\"write-config\"\nfile=\"${install_dir}/settings.ini\"\nformat=\"ini\"\ncreate=true\n[[variant.flat.step.set]]\nsection=\"Global\"\nkey=\"enabled\"\nfrom=\"settings.enabled\"\ntype=\"int\"\n");
+    const auto settings = temp.path() + "/settings.json"; atomicWrite(settings, "{\"enabled\":42}");
+    QProcess accepted;
+    accepted.start(QCoreApplication::applicationDirPath() + "/hubtool", {"--data-root", catalogFixtureRoot(), "--install-root", temp.path(), "--recipe", recipe, "--settings", settings,
+      "install", "synthetic", "flat"});
+    QVERIFY(accepted.waitForFinished(30000));
+    const auto cliOutput = accepted.readAllStandardOutput() + accepted.readAllStandardError();
+    QVERIFY2(accepted.exitCode() == 0, qPrintable(QString::number(accepted.exitCode()) + ": " + QString::fromUtf8(cliOutput)));
+    QVERIFY(readBytes(temp.path() + "/installed/synthetic/flat/settings.ini").contains("42"));
+    atomicWrite(settings, "[]");
+    QProcess process;
+    process.start(QCoreApplication::applicationDirPath() + "/hubtool", {"--data-root", catalogFixtureRoot(), "--install-root", temp.path(), "--settings", settings,
+      "plan", "dc-house-of-the-dead-2", "hotd2-vr-pcvr"});
+    QVERIFY(process.waitForFinished(30000)); QCOMPARE(process.exitCode(), 64);
+    QVERIFY(process.readAllStandardError().contains("Settings must be a JSON object"));
   }
   void configs() {
     const QByteArray initial =

@@ -6,6 +6,7 @@
 namespace ac::install {
 QString string(const Json &j, const char *key, const QString &fallback = {});
 QByteArray readBytes(const QString &path);
+void atomicCopy(const QString &source, const QString &destination);
 void atomicWrite(const QString &path, const QByteArray &bytes);
 void durableAppend(const QString &path, const Json &record);
 void validateRelative(const QString &path);

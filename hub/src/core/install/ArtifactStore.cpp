@@ -110,7 +110,7 @@ Json ArtifactStore::request(const QString &input, const QString &method,
       req.setRawHeader("Range", "bytes=" + QByteArray::number(offset) + "-");
       if (!validator.isEmpty())
         req.setRawHeader("If-Range", validator);
-    } else if (!validator.isEmpty())
+    } else if (destination.isEmpty() && !validator.isEmpty())
       req.setRawHeader("If-None-Match", validator);
     QNetworkReply *reply =
         method == "HEAD" ? manager.head(req) : manager.get(req);
@@ -231,6 +231,8 @@ Json ArtifactStore::request(const QString &input, const QString &method,
       throw Error(
           "E_NETWORK",
           "HTTPS request failed (TLS, connection, timeout or truncated body)");
+    if (status == 304 && !destination.isEmpty())
+      throw Error("E_NETWORK", "304 is invalid for an artifact download");
     if (status != 200 && status != 206 && status != 304)
       throw Error("E_NETWORK", "Unexpected HTTP response");
     if (!destination.isEmpty() && (!etag.isEmpty() || !modified.isEmpty()))
@@ -338,16 +340,29 @@ QString ArtifactStore::acquire(const Json &step, const Json &guard) {
   const auto part = dir + (digest(pin) ? pin : sha256(url.toUtf8())) + ".part";
   scopedPath(part, root_);
   if (string(step, "do") == "github-release") {
-    const auto release =
-        githubRelease(string(step, "repo"), string(step, "tag"));
+    Json release;
+    const auto unavailable = [&] {
+      release = Json();
+      if (options_.event) options_.event(QVariantMap{{"kind", "warn"}, {"text", "GitHub API cross-check unavailable; verifying the pinned artifact"}});
+    };
+    try {
+      release = githubRelease(string(step, "repo"), string(step, "tag"));
+      if (!release.is_object() || !release.contains("assets") || !release["assets"].is_array())
+        throw Error("E_FORMAT", "Malformed GitHub cross-check response");
+    } catch (const Error &e) {
+      if (!QSet<QString>{"E_NETWORK", "E_RATE_LIMITED", "E_RELEASE_NOT_FOUND", "E_FORMAT", "E_HOST_NOT_ALLOWED"}.contains(e.code)) throw;
+      unavailable();
+    } catch (const Json::exception &) {
+      unavailable();
+    }
     Json matched = Json::array();
-    for (const auto &asset : release.value("assets", Json::array()))
+    for (const auto &asset : release.is_object() ? release.value("assets", Json::array()) : Json::array())
       if (string(asset, "name") == string(step, "asset"))
         matched.push_back(asset);
-    if (matched.size() != 1)
+    if (!release.is_null() && matched.size() != 1)
       throw Error("E_ASSET_AMBIGUOUS",
                   "Pinned GitHub asset must match exactly once");
-    const auto upstreamDigest = string(matched[0], "digest");
+    const auto upstreamDigest = matched.empty() ? QString() : string(matched[0], "digest");
     if (!upstreamDigest.isEmpty() && !pin.isEmpty() &&
         upstreamDigest != "sha256:" + pin)
       throw Error("E_HASH_MISMATCH",
@@ -360,7 +375,8 @@ QString ArtifactStore::acquire(const Json &step, const Json &guard) {
   QStorageInfo disk(dir);
   if (expected && disk.bytesAvailable() < expected + expected / 2)
     throw Error("E_DISK_SPACE", "Insufficient download space");
-  const auto offset = QFileInfo(part).size();
+  const auto offset = QFileInfo::exists(part) ? QFileInfo(part).size() : 0;
+  if (offset == 0) QFile::remove(part + ".validator");
   const auto validator = QFileInfo::exists(part + ".validator")
                              ? readBytes(part + ".validator")
                              : QByteArray();
@@ -380,6 +396,7 @@ QString ArtifactStore::acquire(const Json &step, const Json &guard) {
       throw Error("E_CONTENT_GUARD", "Known game content hash refused");
   if (!pin.isEmpty() && pin != actual) {
     QFile::remove(part);
+    QFile::remove(part + ".validator");
     throw Error("E_HASH_MISMATCH", "Artifact SHA-256 differs from pin");
   }
   QFile f(part);
@@ -405,6 +422,8 @@ QString ArtifactStore::acquire(const Json &step, const Json &guard) {
   }
   if (!QFileInfo::exists(dir + actual) && !QFile::rename(part, dir + actual))
     throw Error("E_WRITE_DENIED", "Cannot promote artifact cache");
+  QFile::remove(part + ".validator");
+  if (QFileInfo::exists(part)) QFile::remove(part);
   return dir + actual;
 }
 } // namespace ac::install

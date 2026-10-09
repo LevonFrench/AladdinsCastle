@@ -207,7 +207,7 @@ class Transaction {
 public:
   Request r;
   Options options;
-  QString base, run, dir;
+  QString base, run, dir, activeStep;
   Json manifest, baseline, stateBefore, manifestBefore, guard = Json::object();
   bool warning = false;
   Transaction(Request req, Options opts, Plan p)
@@ -225,7 +225,8 @@ public:
         r.root + "/user/logs/install/" +
         QDateTime::currentDateTimeUtc().toString("yyyyMMdd-HHmmss") + "-" + run;
     QDir().mkpath(QFileInfo(log).absolutePath());
-    options.event = [caller, log](const QVariantMap &value) {
+    options.event = [caller, log, this](const QVariantMap &value) {
+      if (value.value("kind").toString() == "warn") warning = true;
       if (caller)
         caller(value);
       const auto json =
@@ -259,17 +260,39 @@ public:
                          : r.operation == "repair"    ? "repairing"
                          : r.operation == "uninstall" ? "uninstalling"
                                                       : "installing"},
-               {"run", run.toStdString()}};
+               {"run", run.toStdString()},
+               {"previous_state", string(stateBefore, "state", "not-installed").toStdString()}};
     writeEnvelope(base + ".toml", state);
     fault(options, "start-state");
   }
   void append(const Json &j) { durableAppend(base + ".journal.jsonl", j); }
-  QString backup(const QByteArray &bytes) {
-    const auto hash = sha256(bytes),
-               path = r.root + "/user/state/backups/" + hash;
-    if (!QFileInfo::exists(path))
-      atomicWrite(path, bytes);
+  QString backupFile(const QString &path) {
+    const auto hash = hashFile(path), destination = r.root + "/user/state/backups/" + hash;
+    if (!QFileInfo::exists(destination)) atomicCopy(path, destination);
     return hash;
+  }
+  void rawCopy(const QString &source, const QString &path) {
+    const auto prior = QFileInfo::exists(path) ? backupFile(path) : QString();
+    mkdir(QFileInfo(path).absolutePath());
+    Json intent{{"kind", "intent"}, {"op", "file"}, {"path", path.toStdString()},
+                {"prior", prior.toStdString()}, {"after", hashFile(source).toStdString()}, {"remove", false}};
+    append(intent); fault(options, "intent");
+    atomicCopy(source, path);
+    if (hashFile(path) != string(intent, "after")) throw Error("E_FILE_CHANGED", "Copy source changed during streaming");
+    fault(options, "write");
+    intent["kind"] = "done"; append(intent); fault(options, "done");
+  }
+  void unlinkMedia(const QString &path, const Json &row) {
+    const auto source = string(row, "source");
+    scopedPath(source, QFileInfo(source).absolutePath());
+    // Keep only link identity in the journal; the original media is not backed up.
+    if (!QFileInfo(source).isFile() || fileIdentity(source) != string(row, "file_id"))
+      throw Error("E_MEDIA_MISMATCH", "Original media link changed; keep the installed link");
+    Json intent{{"kind", "intent"}, {"op", "media-unlink"}, {"path", path.toStdString()},
+                {"source", source.toStdString()}, {"file_id", string(row, "file_id").toStdString()}};
+    append(intent); fault(options, "intent");
+    if (!QFile::remove(path)) throw Error("E_FILE_IN_USE", "Cannot remove media link");
+    fault(options, "write"); intent["kind"] = "done"; append(intent); fault(options, "done");
   }
   void checkpoint() {
     fault(options, "before-manifest");
@@ -299,7 +322,7 @@ public:
   void rawWrite(const QString &path, const QByteArray &bytes,
                 bool remove = false) {
     const auto existed = QFileInfo::exists(path);
-    const auto prior = existed ? backup(readBytes(path)) : QString();
+    const auto prior = existed ? backupFile(path) : QString();
     mkdir(QFileInfo(path).absolutePath());
     Json intent{{"kind", "intent"},
                 {"op", "file"},
@@ -403,7 +426,8 @@ public:
   }
   void write(const QString &path, const QByteArray &bytes,
              const QString &origin, const QString &step,
-             const Json &keys = Json::array(), const QString &format = {}) {
+             const Json &keys = Json::array(), const QString &format = {},
+             const QString &copySource = {}) {
     const auto safe = scopedPath(path, dir);
     const auto relative = QDir(dir).relativeFilePath(safe);
     const auto old = oldRow(relative);
@@ -412,7 +436,7 @@ public:
         QSet<QString>{"ini", "cfg", "json", "toml", "yaml", "xml", "txt", "csv"}
             .contains(ext);
     const bool exists = QFileInfo::exists(path);
-    const auto hash = sha256(bytes);
+    const auto hash = copySource.isEmpty() ? sha256(bytes) : hashFile(copySource);
     if (origin != "user-media-copy" && origin != "user-media-link")
       for (const auto &blocked : guard.value("sha256", Json::array()))
         if (blocked.is_string() &&
@@ -420,7 +444,7 @@ public:
                     .compare(hash, Qt::CaseInsensitive) == 0)
           throw Error("E_CONTENT_GUARD",
                       "Known content hash refused before file placement");
-    if (!old.empty() && exists && hashFile(path) != string(old, "sha256")) {
+    if (keys.empty() && !old.empty() && exists && hashFile(path) != string(old, "sha256")) {
       if (!config)
         throw Error("E_FILE_CHANGED", "Owned binary changed: " + relative);
       auto kept = old;
@@ -443,13 +467,13 @@ public:
                    ? Json{{"path", relative.toStdString()},
                           {"prior", exists ? "backup" : "absent"},
                           {"backup",
-                           exists ? backup(readBytes(path)).toStdString() : ""}}
+                           exists ? backupFile(path).toStdString() : ""}}
                    : old;
     row["kind"] = config ? "config" : "binary";
     row["origin"] = origin.toStdString();
     row["step"] = step.toStdString();
     row["sha256"] = hash.toStdString();
-    row["bytes"] = bytes.size();
+    row["bytes"] = copySource.isEmpty() ? bytes.size() : QFileInfo(copySource).size();
     row["user_edited"] = false;
     if (!keys.empty() && !old.empty() && exists &&
         hashFile(path) != string(old, "sha256")) {
@@ -481,8 +505,10 @@ public:
           row["keys"].push_back(prior);
       }
     }
-    if (!exists || hashFile(path) != hash)
-      rawWrite(path, bytes);
+    if (!exists || hashFile(path) != hash) {
+      if (copySource.isEmpty()) rawWrite(path, bytes);
+      else rawCopy(copySource, path);
+    }
     for (size_t i = 0; i < manifest["file"].size(); ++i)
       if (string(manifest["file"][i], "path") == relative) {
         manifest["file"].erase(manifest["file"].begin() +
@@ -491,6 +517,9 @@ public:
       }
     manifest["file"].push_back(row);
     checkpoint();
+  }
+  void copy(const QString &source, const QString &destination, const QString &origin, const QString &step) {
+    write(destination, {}, origin, step, Json::array(), {}, source);
   }
   void commit(const QString &state, const QString &version) {
     checkpoint();
@@ -527,7 +556,8 @@ Json loadJournal(const QString &path) {
   }
   return records;
 }
-bool rollback(const Request &r, const Json &records, const Options &options) {
+bool rollback(const Request &r, const Json &records, const Options &options,
+              const QString &errorCode = "E_INTERRUPTED") {
   bool complete = true;
   if (!records.empty())
     cleanStaging(r, string(records[0], "run"));
@@ -551,6 +581,14 @@ bool rollback(const Request &r, const Json &records, const Options &options) {
       } else if (op == "mkdir") {
         if (QFileInfo::exists(path) && !QDir().rmdir(path))
           complete = false;
+      } else if (op == "media-unlink") {
+        const auto source = string(j, "source"), identity = string(j, "file_id");
+        scopedPath(source, QFileInfo(source).absolutePath());
+        if (!QFileInfo::exists(path)) {
+          if (!QFileInfo(source).isFile() || fileIdentity(source) != identity || !hardlink(source, path))
+            throw Error("E_ROLLBACK_INCOMPLETE", "Cannot restore media link from original");
+        } else if (fileIdentity(path) != identity)
+          throw Error("E_ROLLBACK_INCOMPLETE", "Media link changed during rollback");
       } else if (op == "file") {
         const auto prior = string(j, "prior"), after = string(j, "after");
         const bool exists = QFileInfo::exists(path);
@@ -559,10 +597,10 @@ bool rollback(const Request &r, const Json &records, const Options &options) {
           continue;
         }
         if (!prior.isEmpty()) {
-          const auto bytes = readBytes(r.root + "/user/state/backups/" + prior);
-          if (sha256(bytes) != prior)
+          const auto backupPath = r.root + "/user/state/backups/" + prior;
+          if (hashFile(backupPath) != prior)
             throw Error("E_ROLLBACK_INCOMPLETE", "Backup checksum failed");
-          atomicWrite(path, bytes);
+          atomicCopy(backupPath, path);
         } else if (exists && !QFile::remove(path))
           complete = false;
       }
@@ -579,8 +617,9 @@ bool rollback(const Request &r, const Json &records, const Options &options) {
       state = Json{{"game", r.gameId.toStdString()},
                    {"variant", r.variantId.toStdString()},
                    {"state", "failed"}};
-    if (!complete)
-      state["state"] = "rollback-incomplete";
+    state["previous_state"] = string(start["state_before"], "state", "not-installed").toStdString();
+    state["last_error"] = errorCode.toStdString();
+    state["state"] = complete ? "failed" : "rollback-incomplete";
     writeEnvelope(base + ".toml", state);
     if (complete)
       durableAppend(base + ".journal.jsonl",
@@ -665,7 +704,15 @@ Plan Engine::plan(const Request &r) const {
   auto vars = variables(r, p.installDir);
   const auto guard = guardFor(r);
   QSet<QString> ids, mediaOutputs;
-  const auto steps = p.variant.value("step", Json::array());
+  auto steps = p.variant.value("step", Json::array());
+  QSet<QString> reserved;
+  for (const auto &step : steps) if (!string(step, "id").isEmpty()) reserved.insert(string(step, "id"));
+  int generated = 0;
+  for (auto &step : steps) if (!step.contains("id")) {
+    QString id;
+    do { id = "auto-step-" + QString::number(++generated); } while (reserved.contains(id));
+    reserved.insert(id); step["id"] = id.toStdString();
+  }
   const QMap<QString, QSet<QString>> specific{
       {"github-release",
        {"repo", "tag", "asset", "sha256", "record_sha256", "version", "archive",
@@ -691,7 +738,7 @@ Plan Engine::plan(const Request &r) const {
     if (!specific.contains(kind))
       throw Error("E_UNKNOWN_STEP", "Unknown step: " + kind);
     if (id.isEmpty() || ids.contains(id))
-      throw Error("E_PLAN_INVALID", "Step IDs must be present and unique");
+      throw Error("E_PLAN_INVALID", "Step IDs must be nonempty and unique");
     if (!QRegularExpression("^[a-z0-9_-]+$").match(id).hasMatch())
       throw Error("E_PLAN_INVALID",
                   "Step ID must be one literal safe component");
@@ -785,6 +832,13 @@ Plan Engine::plan(const Request &r) const {
           scopedPath(from, QFileInfo(from).absolutePath());
         contentGuard(from, guard);
       }
+    }
+    if (kind == "require-media") {
+      const auto verify = string(step, "verify", "hash");
+      if (!QSet<QString>{"none", "name", "hash"}.contains(verify))
+        throw Error("E_PLAN_INVALID", "Unknown media verification mode");
+      if (verify == "name" && string(step, "set").isEmpty())
+        throw Error("E_PLAN_INVALID", "Name verification requires a set name");
     }
     if (kind == "require-media" || kind == "copy-media")
       mediaOutputs.insert(id);
@@ -892,20 +946,25 @@ Result Engine::install(const Request &r) {
                 tx->manifest["directory"].erase(directory);
                 break;
               }
-        } else
-          tx->rawWrite(dest, readBytes(src));
+        } else {
+          bool mediaLink = false;
+          for (const auto &row : tx->baseline.value("file", Json::array()))
+            if (string(row, "path") == QDir(live).relativeFilePath(src) && string(row, "origin") == "user-media-link") mediaLink = true;
+          if (!mediaLink) tx->rawCopy(src, dest);
+        }
       }
       tx->dir = stage;
     }
     auto vars = variables(r, tx->dir);
     vars["staging_dir"] = extractRoot;
-    ArtifactStore artifacts(r.root, options_);
+    ArtifactStore artifacts(r.root, tx->options);
     int index = 0;
     for (const auto &raw : p.steps) {
       if (options_.cancel && options_.cancel->load())
         throw Error("E_CANCELLED", "Cancelled between steps");
       auto step = expandJson(raw, vars);
       const auto kind = string(step, "do"), id = string(step, "id");
+      tx->activeStep = id;
       event(tx->options, tx->run, "step", string(step, "what", id), {}, id,
             ++index, static_cast<int>(p.steps.size()));
       Json output = Json::object();
@@ -944,12 +1003,16 @@ Result Engine::install(const Request &r) {
         const auto path = string(media, "path");
         if (!QFileInfo(path).isFile())
           throw Error("E_MEDIA_MISSING", "Required media missing");
-        const auto hash = hashFile(path),
-                   expected = string(step, "sha256", string(media, "sha256"));
-        if (expected.isEmpty() || hash != expected ||
-            !media.value("verified", false))
-          throw Error("E_MEDIA_MISMATCH",
-                      "Media must be verified before install");
+        const auto verification = kind == "copy-media" ? QString("hash") : string(step, "verify", "hash");
+        if (verification == "hash") {
+          const auto expected = string(step, "sha256", string(media, "sha256"));
+          if (expected.isEmpty() || hashFile(path) != expected || !media.value("verified", false))
+            throw Error("E_MEDIA_MISMATCH", "Media must be verified before install");
+        } else if (verification == "name") {
+          const auto expected = string(step, "set");
+          if (QFileInfo(path).completeBaseName().compare(expected, Qt::CaseInsensitive) != 0)
+            throw Error("E_MEDIA_MISMATCH", "Media filename differs from required set");
+        }
         if (kind == "copy-media") {
           auto dest = string(step, "to");
           if (dest.endsWith('/') || QFileInfo(dest).isDir())
@@ -964,12 +1027,15 @@ Result Engine::install(const Request &r) {
               throw Error(
                   "E_LINK_UNSUPPORTED",
                   "Hard link unavailable; confirm the extra media copy first");
-            tx->write(dest, readBytes(path), "user-media-copy", id);
+            tx->copy(path, dest, "user-media-copy", id);
           }
           output["path"] = dest.toStdString();
           output["mode_used"] = linked ? "link" : "copy";
-        } else
+        } else {
           output = media;
+          output["match"] = verification == "hash" ? "exact" : verification.toStdString();
+          output["verified"] = verification == "hash";
+        }
       } else if (kind == "extract") {
         auto from = string(step, "from");
         if (!from.contains('/') && vars.contains("steps." + from + ".path"))
@@ -1002,8 +1068,7 @@ Result Engine::install(const Request &r) {
                              strings(step.value("include", Json::array())),
                              strings(step.value("exclude", Json::array())));
         for (const auto &name : files)
-          tx->write(scopedPath(name, destination),
-                    readBytes(staging + "/" + name), "extracted", id);
+          tx->copy(staging + "/" + name, scopedPath(name, destination), "extracted", id);
         output["dir"] = destination.toStdString();
         output["files"] = files.size();
       } else if (kind == "copy") {
@@ -1012,7 +1077,7 @@ Result Engine::install(const Request &r) {
         scopedPath(from, QFileInfo(from).absolutePath());
         if (QFileInfo(from).isFile()) {
           contentGuard(from, guard);
-          tx->write(dest, readBytes(from), "copied", id);
+          tx->copy(from, dest, "copied", id);
         } else {
           QDirIterator files(from, QDir::Files | QDir::NoSymLinks,
                              QDirIterator::Subdirectories);
@@ -1025,8 +1090,7 @@ Result Engine::install(const Request &r) {
                 QDir::match(strings(step["include"]), name)) {
               if (!step.contains("exclude") ||
                   !QDir::match(strings(step["exclude"]), name))
-                tx->write(scopedPath(name, dest), readBytes(source), "copied",
-                          id);
+                tx->copy(source, scopedPath(name, dest), "copied", id);
             }
           }
         }
@@ -1066,6 +1130,7 @@ Result Engine::install(const Request &r) {
       tx->checkpoint();
       event(tx->options, tx->run, "ok", "Step complete", {}, id, index,
             static_cast<int>(p.steps.size()));
+      tx->activeStep.clear();
     }
     for (const auto &row : tx->baseline.value("file", Json::array())) {
       bool present = false;
@@ -1115,7 +1180,8 @@ Result Engine::install(const Request &r) {
     bool complete = true;
     if (tx)
       complete =
-          rollback(r, loadJournal(tx->base + ".journal.jsonl"), options_);
+          rollback(r, loadJournal(tx->base + ".journal.jsonl"), options_,
+                   tx->activeStep.isEmpty() ? e.code : tx->activeStep + ": " + e.code);
     event(options_, {}, "fail", QString::fromUtf8(e.what()), e.code);
     return {false,
             complete ? (e.code == "E_CANCELLED" ? 3 : 1) : 2,
@@ -1125,7 +1191,7 @@ Result Engine::install(const Request &r) {
             Json::object()};
   } catch (const std::exception &e) {
     const bool complete =
-        !tx || rollback(r, loadJournal(tx->base + ".journal.jsonl"), options_);
+        !tx || rollback(r, loadJournal(tx->base + ".journal.jsonl"), options_, "E_PLAN_INVALID");
     event(options_, {}, "fail", QString::fromUtf8(e.what()), "E_PLAN_INVALID");
     return {false,
             complete ? 1 : 2,
@@ -1196,11 +1262,13 @@ Result Engine::uninstall(const Request &r) {
       }
       if (string(row, "prior") == "backup") {
         const auto backup = string(row, "backup");
-        const auto bytes = readBytes(r.root + "/user/state/backups/" + backup);
-        if (sha256(bytes) != backup)
+        const auto backupPath = r.root + "/user/state/backups/" + backup;
+        if (hashFile(backupPath) != backup)
           throw Error("E_ROLLBACK_INCOMPLETE", "Backup checksum failed");
-        tx->rawWrite(path, bytes);
-      } else
+        tx->rawCopy(backupPath, path);
+      } else if (string(row, "origin") == "user-media-link")
+        tx->unlinkMedia(path, row);
+      else
         tx->rawWrite(path, {}, true);
       for (auto current = tx->manifest["file"].begin();
            current != tx->manifest["file"].end(); ++current)

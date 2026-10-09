@@ -63,6 +63,27 @@ void atomicWrite(const QString &path, const QByteArray &bytes) {
   if (!f.commit())
     throw Error("E_FILE_IN_USE", "Cannot replace " + path);
 }
+void atomicCopy(const QString &source, const QString &destination) {
+  scopedPath(source, QFileInfo(source).absolutePath());
+  scopedPath(destination, QFileInfo(destination).absolutePath());
+  if (!QDir().mkpath(QFileInfo(destination).absolutePath()))
+    throw Error("E_WRITE_DENIED", "Cannot create streamed copy folder");
+  QFile input(source);
+  QSaveFile output(destination);
+  output.setDirectWriteFallback(false);
+  if (!input.open(QIODevice::ReadOnly) || !output.open(QIODevice::WriteOnly))
+    throw Error("E_WRITE_DENIED", "Cannot open streamed copy");
+  while (!input.atEnd()) {
+    const auto chunk = input.read(128 * 1024);
+    if (chunk.isEmpty() && input.error() != QFileDevice::NoError)
+      throw Error("E_READ", "Streamed copy read failed");
+    if (output.write(chunk) != chunk.size())
+      throw Error("E_WRITE_DENIED", "Streamed copy write failed");
+  }
+  syncFile(output);
+  if (!output.commit())
+    throw Error("E_FILE_IN_USE", "Cannot replace streamed copy");
+}
 void durableAppend(const QString &path, const Json &record) {
   scopedPath(path, QFileInfo(path).absolutePath());
   QFile f(path);

@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     args.removeAt(pos + 1);
     args.removeAt(pos);
   }
-  QString installRoot, bindingsPath, recipePath, handover;
+  QString installRoot, bindingsPath, recipePath, handover, settingsPath;
   auto take = [&](const QString &name, QString &value) {
     const auto p = args.indexOf(name);
     if (p < 0)
@@ -37,14 +37,14 @@ int main(int argc, char **argv) {
   };
   if (!take("--install-root", installRoot) ||
       !take("--bindings", bindingsPath) || !take("--recipe", recipePath) ||
-      !take("--handover", handover)) {
+      !take("--handover", handover) || !take("--settings", settingsPath)) {
     err << "Missing option value\n";
     return 64;
   }
   const bool consent = args.removeOne("--consent");
   const QString usage =
       "Usage: hubtool [--data-root <folder>] [--install-root <folder>] "
-      "[--bindings <JSON>] [--recipe <TOML>] [--handover <path>] count | "
+      "[--bindings <JSON>] [--settings <JSON>] [--recipe <TOML>] [--handover <path>] count | "
       "explain <game> | plan/install/repair/update/uninstall/recover <game> "
       "<variant> | plan-tool/install-tool/uninstall-tool <tool> | locate-tool "
       "<tool> <exe>\n";
@@ -134,6 +134,10 @@ int main(int argc, char **argv) {
       if (!bindingsPath.isEmpty())
         request.bindings =
             ac::Json::parse(readBytes(bindingsPath).toStdString());
+      if (!settingsPath.isEmpty()) {
+        request.settings = ac::Json::parse(readBytes(settingsPath).toStdString());
+        if (!request.settings.is_object()) throw Error("E_PLAN_INVALID", "Settings must be a JSON object");
+      }
       Options options;
       options.event = [&](const QVariantMap &value) {
         out << value.value("kind").toString() << "  "
