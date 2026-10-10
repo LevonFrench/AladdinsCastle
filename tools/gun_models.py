@@ -102,17 +102,17 @@ def main():
                 errors.append(f"games/{game['id']}: unknown gun_model '{explicit}'")
             return explicit, "game.toml", False
         kind = hardware.get(game.get("hardware"), {}).get("kind")
-        if game.get("hardware") in defaults.get("inherit_original", []) and depth == 0:
-            original = games.get(game.get("original", ""))
-            if original:
-                model, _, review = resolve(original, 1)
-                return model, f"original {original['id']}", review
         for i, r in enumerate(rules):
             try:
                 if rule_matches(r.get("match", {}), game, kind):
                     return r["model"], f"rule {i + 1}", bool(r.get("review"))
             except ValueError as e:
                 errors.append(f"defaults.toml rule {i + 1}: {e}")
+        if game.get("hardware") in defaults.get("inherit_original", []) and depth == 0:
+            original = games.get(game.get("original", ""))
+            if original:
+                model, _, review = resolve(original, 1)
+                return model, f"original {original['id']}", review
         return defaults.get("fallback"), "fallback", True
 
     rows = []
@@ -151,7 +151,8 @@ def main():
     reviews = sum(1 for r in rows if r[3])
     unused = sorted(set(models) - set(by_model))
     print(f"{len(models)} gun models, {len(rules)} rules, {len(rows)} gun games")
-    print(f"a gun in each hand: {two_yes} games; separate views: {two_sep}; one gun only: {len(rows) - two_yes - two_sep}")
+    print(f"eligible for a gun in each hand: {two_yes} games; separate views: {two_sep}; one gun only: {len(rows) - two_yes - two_sep}")
+    print("(eligibility comes from the catalog; whether an installed route can take two guns is a separate check)")
     print(f"assignments to review: {reviews}")
     if unused:
         print("models no game uses yet: " + ", ".join(unused))

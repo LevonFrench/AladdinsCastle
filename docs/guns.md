@@ -11,7 +11,7 @@ Two rules for every gun game:
 
 ### 1.1 Which games
 
-Of the catalog's 152 gun games, 100 have two or more guns. **94 of them get a gun in each hand.** The other 6 give each player a separate view (twin linked cabinets with one screen per player, or split screen), so one headset can't show both; they stay one-gun until a two-view setup exists. The list is `[two_guns].separate_views` in [`data/guns/defaults.toml`](../data/guns/defaults.toml): Time Crisis II, 3, 4 and 5 in the arcade, and Time Crisis II and 3 on PlayStation 2.
+Of the catalog's 152 gun games, 100 have two or more guns. **94 of them are eligible for a gun in each hand.** Eligibility is a fact about the game; whether it works today depends on the installed route (§1.3). The other 6 give each player a separate view (twin linked cabinets with one screen per player, or split screen), so one headset can't show both; they stay one-gun until a two-view setup exists. The list is `[two_guns].separate_views` in [`data/guns/defaults.toml`](../data/guns/defaults.toml): Time Crisis II, 3, 4 and 5 in the arcade, and Time Crisis II and 3 on PlayStation 2.
 
 A cabinet with three or four guns (Beast Busters, Laser Ghost, Crypt Killer, Death Crimson 2) still maps two: players 1 and 2.
 
@@ -43,7 +43,7 @@ Two guns need two independent gun inputs in whatever runs the game:
 | hotd2-vr (third party) | Yes, built in (`vr.DualWield`) |
 | Theatre through an emulator | Only where the emulator takes two separate guns: `max_guns` under `[input.gun]` in its manifest ([emulator-manifests.md](emulator-manifests.md)). MAME, Supermodel and Flycast do. PCSX2 reads one absolute pointer, so two GunCons need a fork. |
 
-The Hub shows a "2 guns" badge on a game only when its installed route supports it.
+The Hub shows a "2 guns" badge on a game only when its installed route supports it. The catalog's eligibility list (`python tools/gun_models.py`) is not that check, and no route has been accepted with two guns in a headset yet.
 
 ## 2. The gun model library (D46)
 

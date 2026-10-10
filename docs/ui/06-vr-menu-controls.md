@@ -9,10 +9,10 @@ Code references are to branch `codex/m1-integration` at `5921903` (the build use
 | Seen in the headset | What the code does | What working overlays do | Change |
 |---|---|---|---|
 | **Some clicks work, some don't** | `hub/src/overlay/OverlayInput.cpp` sends press and release at the coordinates carried by the button event. Nothing raises the drag threshold, so a press that moves a few pixels inside the scrolling grid becomes a drag and the click is lost. | Valve's own Qt overlay sample sends press and release at the **last mouse-move position**. Studies of ray pointing find the trigger pull itself shifts the pointer (upward in about 73% of trials). | Use the last move position for button events. Hold the pointer still for about 100 ms around a press. Raise the drag threshold to about 40 px while in the overlay. Filter pointer jitter (One Euro). |
-| **The stick doesn't scroll** | Requests smooth scroll events and multiplies their deltas by 120 before building the wheel event. | OpenVR Advanced Settings (Qt and QML, like us) multiplies smooth scroll deltas by **2880** (360 × 8; Qt's wheel unit is an eighth of a degree). Our factor is 24 times smaller, so the list barely moves. | Keep smooth scroll events and scale by 2880, with a speed setting. Add a dead zone. |
+| **The stick doesn't scroll** | Requests smooth scroll events and multiplies their deltas by 120 before building the wheel event. | OpenVR Advanced Settings (Qt and QML, like us) multiplies smooth scroll deltas by **2880** (360 × 8; Qt's wheel unit is an eighth of a degree). Our factor is 24 times smaller, so the list barely moves. | Keep smooth scroll events and scale **those** by 2880, with a speed setting and a dead zone. A discrete scroll event is one notch and stays at 120. Log which kind the runtime actually sends before tuning. |
 | **Numbers work, letters don't** | Not explained by the research. | Advanced Settings reads typed text with `GetKeyboardText`; Valve's sample and Desktop+ treat the keyboard as a session tied to one field. | Needs a test that presses every key through the real hit geometry, for both the SteamVR keyboard and any on-panel keys. See §4. |
 
-These are evidence-backed causes, not proven ones. The Y direction of pointer coordinates also differs between the three reference apps, so it must be checked on the real runtime with off-centre targets.
+These are evidence-backed causes, not proven ones: no packet trace from the headset exists yet, and the thresholds and timings below are targets to tune, not measured settings. The Y direction of pointer coordinates also differs between the three reference apps, so it must be checked on the real runtime with off-centre targets.
 
 ## 2. The control scheme
 
@@ -31,7 +31,7 @@ Rules:
 
 1. **Clicks land where you aimed.** Button events use the last move position; the pointer is frozen for about 100 ms from trigger-down; movement under the drag threshold between press and release is still a click.
 2. **Drag threshold about 40 px** in overlay mode (a few pixels on the desktop). Above it, a press on a list becomes a scroll drag.
-3. **Stick scrolling** uses smooth scroll events × 2880 × the user's speed setting, with a dead zone, and can be turned off (a resting thumb must not scroll).
+3. **Stick scrolling** uses smooth scroll events × 2880 × the user's speed setting, with a dead zone, and can be turned off (a resting thumb must not scroll). Discrete events, if the runtime sends them instead, count as one notch (120) each. The scroll goes to the list under the controller that scrolled.
 4. **Targets:** at least 48 px high with 8 px gaps on the 1280 × 800 overlay canvas, hit areas larger than the visuals, and hit areas at the panel edge extended outward. (Platform guidance: about 22 mm, or 2.5 to 3 degrees, per target and 12 mm between targets.)
 5. **Typing is rare.** Filters, an A to Z jump strip and recent searches come before the keyboard.
 6. **Losing focus never clicks.** On focus loss or hide, held buttons are released without activating anything and the pointer is parked off the panel.
@@ -62,8 +62,17 @@ No typed text is logged.
 6. Pressing a button and moving off the panel before release does not activate it.
 7. Text on the smallest card size is readable without leaning in.
 
-## 5. Questions for the owner
+## 5. What the owner reported (2026-10-10)
 
-1. "Numbers work, letters don't": was that SteamVR's own keyboard, the keys drawn on the panel, or both?
-2. Which controller did you try to scroll with, and was its laser over the cards at the time?
-3. Were the clicks that failed mostly inside the scrolling grid (cards), with the top bar working?
+- The letters that failed were the **keys drawn on the panel**, not SteamVR's keyboard.
+- Controllers: stock Meta Quest Touch controllers (through ALVR and SteamVR).
+- Failed clicks were **everywhere**: only some of the top bar worked, and only some of everything else.
+
+Because the failures were not limited to the scrolling grid, pointer position and press/release stability come first, the drag threshold second:
+
+1. Button events at the last move position (the build tested used the position in the button event).
+2. Freeze the pointer from trigger-down, and treat a release within the click slop of the press as a click on the pressed control, even if the laser has drifted off it. A trigger pull that shifts the laser by a degree or two moves it about as far as a 44 px button is tall.
+3. Bigger targets on the panel keyboard and the top bar (§2 rule 4).
+4. Then the drag threshold for lists.
+
+The diagnostic page (§3) decides between these before anything is tuned.
