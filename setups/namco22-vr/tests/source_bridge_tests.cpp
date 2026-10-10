@@ -48,6 +48,18 @@ int main() {
         check(captured.quad.color==0x128000 && captured.quad.texbank==7 && captured.quad.cmode==13 && captured.quad.objectflags==3 &&
               captured.quad.cz_type==2 && captured.quad.cz_adjust==0x801234,"palette/addressing/fog/solid metadata retained without interpretation");
         check(captured.quad.zsort==0x123456 && captured.quad.order==17 && captured.quad.uvbox[0]==12 && captured.quad.clip[0]==9,"sort order and stable UV/clip seam retained");
+        auto fog_capture=captured;fog_capture.quad.nrv=3;fog_capture.quad.rv[1].z=512;fog_capture.quad.rv[2].z=4096;
+        n22::FogQuad fog_quad;
+        check(n22::copy_geo_fog_triangle(fog_capture,2,{0,2,1},fog_quad)==ACVR_OK && fog_quad.tick==2 &&
+              fog_quad.native_depth==std::array<int32_t,3>{2,4096,512},"owned capture retains explicit fan native depths without scene conversion");
+        check(fog_quad.colour_word==0x128000 && fog_quad.cz_adjust==0x801234 && fog_quad.cz_type==2 &&
+              !fog_quad.constant_provided,"capture copies fog selectors without guessing a board constant");
+        const auto old_quad=fog_quad;
+        check(n22::copy_geo_fog_triangle(fog_capture,2,{0,3,1},fog_quad)==ACVR_BAD_ARGUMENT && fog_quad.native_depth==old_quad.native_depth,"bad native fan index leaves previous fog metadata unchanged");
+        n22::FogState fog_state;
+        check(n22::copy_super22_fog(*second,fog_state)==ACVR_OK && fog_state.tick==2 && fog_state.rgb[0]==2,
+              "actual leased source bank feeds owned fog decoder with same tick");
+        fog_capture.quad.rv[0].z=999;check(fog_quad.native_depth[0]==2,"later capture mutation cannot affect copied native fog depth");
         quad.direct=1;check(!n22::copy_geo_quad(quad,&view).has_camera,"direct polygons are not assigned an invented camera");
         quad.direct=0;view.zoom_mant=1545;
         auto emitted=n22::prepare_with_capture(*second,[&](const ss22_regs &r) {
