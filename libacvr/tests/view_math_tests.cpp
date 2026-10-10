@@ -95,5 +95,19 @@ void invalid_atomic() {
     p=pose();reject(p,std::numeric_limits<float>::denorm_min(),fov,std::numeric_limits<float>::denorm_min(),1,ACVR_GRAPHICS_GL);
     p.position_m[0]=std::numeric_limits<float>::quiet_NaN();reject(p,1,fov,.1f,10,ACVR_GRAPHICS_GL);
 }
+void thin_frustum_admission() {
+    // Admission may differ with representability, but an accepted float matrix
+    // must map the requested angles, not a pair of prematurely rounded slopes.
+    for(auto api:{ACVR_GRAPHICS_GL,ACVR_GRAPHICS_VULKAN}) for(float left:{.25f,.5f,.7f,.9f,1.2f}) {
+        const float right=std::nextafter(left,2.f);
+        auto eye=init<acvr_eye>();const auto original=eye;
+        const auto result=acvr::compose_eye(pose(),pose(),1,{left,right,-.7f,.7f},1,100,api,eye);
+        if(result==ACVR_OK) {
+            const auto a=transform_point(eye.projection_from_view,{std::tan(double(left)),0,-1,1});
+            const auto b=transform_point(eye.projection_from_view,{std::tan(double(right)),0,-1,1});
+            check(std::abs(a[0]/a[3]+1)<=.0001&&std::abs(b[0]/b[3]-1)<=.0001);
+        } else check(result==ACVR_BAD_ARGUMENT&&std::memcmp(&eye,&original,sizeof(eye))==0);
+    }
 }
-int main() {try {frusta();anchors_and_ipd();recenter();eye_ray_agreement();invalid_atomic();}catch(const std::exception &e){std::cerr<<e.what()<<'\n';return 1;}std::cout<<checks<<" provider view checks passed (CPU only)\n";}
+}
+int main() {try {frusta();anchors_and_ipd();recenter();eye_ray_agreement();invalid_atomic();thin_frustum_admission();}catch(const std::exception &e){std::cerr<<e.what()<<'\n';return 1;}std::cout<<checks<<" provider view checks passed (CPU only)\n";}

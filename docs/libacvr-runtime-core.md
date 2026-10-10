@@ -122,6 +122,8 @@ vertical forward vector has no stable yaw and rejects recentering without changi
 the previous anchor. Invalid poses, frusta, scaling and numeric overflow likewise
 leave destination values unchanged. Rounded quaternions within the accepted
 unit tolerance normalize identically in live eye, gun-ray and model transforms.
+Tangent slopes are evaluated from the requested float angles in double precision;
+rounding slopes to float first can incorrectly admit an unusable thin frustum.
 
 These are dependency-free math functions, not an OpenXR provider or a working
 recenter UI. The production host still must call them with one frame's predicted

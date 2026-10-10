@@ -55,7 +55,10 @@ acvr_result compose_eye(const acvr_pose &anchor,const acvr_pose &eye_pose,float 
         for(unsigned row=0;row<3;++row) view[column*4+row]=axis[row];
         view[12+column]=translation[column];
     }
-    const double left=std::tan(fov.left),right=std::tan(fov.right),down=std::tan(fov.down),up=std::tan(fov.up);
+    // Explicit double arguments avoid tan(float) rounding the requested slopes
+    // before the packed-matrix endpoint check (platform-dependent for thin FOVs).
+    const double left=std::tan(double(fov.left)),right=std::tan(double(fov.right)),
+                 down=std::tan(double(fov.down)),up=std::tan(double(fov.up));
     const double n=double(near_m)*scale,f=double(far_m)*scale;
     const double y=api==ACVR_GRAPHICS_VULKAN?-1:1;
     projection[0]=2/(right-left);projection[5]=y*2/(up-down);
