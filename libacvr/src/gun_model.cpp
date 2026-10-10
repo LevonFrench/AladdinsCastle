@@ -64,9 +64,9 @@ bool decode_gun_model(const std::vector<uint8_t> &glb,std::string_view metadata,
         const auto *motions=table["motion"].as_table();
         require(!table.contains("motion")||motions,"motion must be a table");
         if(motions) for(const auto &[key,value]:*motions) {
-            (void)key; require(model.motions.size()<64,"too many motions");
+            require(model.motions.size()<64,"too many motions");
             const auto *entry=value.as_table(); require(entry,"motion entry must be a table");
-            GunMotion m; m.node=(*entry)["node"].value_or(std::string{});
+            GunMotion m; m.id=std::string(key.str()); require(!m.id.empty(),"empty motion id"); m.node=(*entry)["node"].value_or(std::string{});
             require(nodes.count(m.node)!=0,"unknown motion node");
             m.drive=(*entry)["drive"].value_or(std::string{});
             require(m.drive=="trigger"||m.drive=="recoil"||m.drive=="pump"||m.drive=="selector"||m.drive=="yaw"||m.drive=="pitch"||
@@ -76,6 +76,7 @@ bool decode_gun_model(const std::vector<uint8_t> &glb,std::string_view metadata,
             m.axis=numbers<3>((*entry)["axis"]); const auto range=numbers<2>((*entry)["range"]);
             require(std::abs(m.axis[0]*m.axis[0]+m.axis[1]*m.axis[1]+m.axis[2]*m.axis[2]-1)<.001f,"motion axis must be unit length");
             require(range[1]>range[0],"motion range must increase"); m.minimum=range[0]; m.maximum=range[1];
+            if(m.drive=="yaw"||m.drive=="pitch") m.rest=std::clamp(-m.minimum/(m.maximum-m.minimum),0.f,1.f);
             const auto duration=(*entry)["duration_ms"].value<int64_t>();
             require(!entry->contains("duration_ms")||duration.has_value(),"invalid recoil duration");
             if(duration) { require(*duration>0 && *duration<=10000,"recoil duration out of range"); m.duration_ms=uint32_t(*duration); }
@@ -112,8 +113,11 @@ bool load_gun_model(const std::string &path,const std::string &metadata,std::str
     } catch(const std::exception &e) { try { error=e.what(); } catch(...) {} return false; }
       catch(...) { try { error="gun model read failed"; } catch(...) {} return false; }
 }
-void GunInstance::reset() { states.assign(model.motions.size(),{}); sequence=0; }
-void GunInstance::clear_motion() { states.assign(model.motions.size(),{}); }
+void GunInstance::reset() { clear_motion(); sequence=0; }
+void GunInstance::clear_motion() {
+    states.assign(model.motions.size(),{});
+    for(size_t i=0;i<states.size();++i) states[i].value=model.motions[i].rest;
+}
 acvr_result GunInstance::event(const acvr_gun_event &e,int64_t now) {
     if(e.size<sizeof(e)||e.version!=ACVR_STRUCT_VERSION||!e.node_utf8||e.sequence<=sequence||now<0||
        !std::isfinite(e.value)||e.value<0||e.value>1||e.kind<ACVR_GUN_EVENT_RECOIL||e.kind>ACVR_GUN_EVENT_AXIS||
@@ -133,6 +137,54 @@ acvr_result GunInstance::drive(std::string_view name,float value,bool pulse,int6
         acvr_gun_event e{}; ACVR_INIT(&e);e.sequence=sequence+1;e.node_utf8=model.motions[i].node.c_str();e.value=value;
         e.kind=pulse?ACVR_GUN_EVENT_RECOIL:ACVR_GUN_EVENT_AXIS;
         const auto result=event(e,now);if(result!=ACVR_OK) return result;
+    }
+    return ACVR_OK;
+}
+acvr_result GunInstance::pulse_motion(std::string_view id,float value,uint32_t duration,int64_t now) {
+    if(states.size()!=model.motions.size()||now<0||!duration||duration>10000||!std::isfinite(value)||value<0||value>1)
+        return ACVR_BAD_ARGUMENT;
+    const auto it=std::find_if(model.motions.begin(),model.motions.end(),[&](const GunMotion &m){return m.id==id;});
+    if(it==model.motions.end()) return ACVR_BAD_ARGUMENT;
+    if(sequence==UINT64_MAX) return ACVR_BAD_STATE;
+    auto &s=states[size_t(it-model.motions.begin())];s.value=value;s.start=now;s.duration=int64_t(duration)*1000000;s.pulse=true;
+    ++sequence;return ACVR_OK;
+}
+acvr_result GunOutputRouter::configure(const std::vector<GunOutputRoute> &input,const GunInstance &gun,uint32_t slot,uint32_t player) {
+    if(input.size()>64) return ACVR_BAD_ARGUMENT;
+    std::vector<Route> prepared;bool recoil=false,trigger=false;std::set<std::string> targets;
+    for(const auto &c:input) {
+        if(c.kind<ACVR_OUTPUT_SOLENOID||c.kind>ACVR_OUTPUT_FFB||c.slot!=slot||c.player!=player||
+           !c.duration_ms||c.duration_ms>10000||!std::isfinite(c.amplitude)||c.amplitude<0||c.amplitude>1||
+           !targets.insert(c.motion).second) return ACVR_BAD_ARGUMENT;
+        const auto it=std::find_if(gun.model.motions.begin(),gun.model.motions.end(),[&](const GunMotion &m){return m.id==c.motion;});
+        if(it==gun.model.motions.end()) return ACVR_BAD_ARGUMENT;
+        recoil=recoil||it->drive=="recoil";trigger=trigger||it->drive=="trigger";Route r;r.config=c;prepared.push_back(std::move(r));
+    }
+    routes=std::move(prepared);recoil_=recoil;trigger_=trigger;return ACVR_OK;
+}
+void GunOutputRouter::cancel() {for(auto &r:routes) {r.high=false;r.armed=false;r.expires=0;}}
+acvr_result GunOutputRouter::consume(const acvr_output_event &e,int64_t now,bool tracked,GunInstance &gun) {
+    if(now<0||!std::isfinite(e.strength)) return ACVR_BAD_ARGUMENT;
+    for(auto &r:routes) {
+        const auto &c=r.config;
+        if(e.kind!=c.kind||e.player!=c.player||e.channel!=c.channel) continue;
+        if((e.kind==ACVR_OUTPUT_FFB&&(e.effect<ACVR_FFB_CONSTANT||e.effect>ACVR_FFB_STOP))||
+           e.strength>1||e.strength<(e.kind==ACVR_OUTPUT_FFB?-1.f:0.f)) return ACVR_BAD_ARGUMENT;
+        const float magnitude=e.kind==ACVR_OUTPUT_FFB&&e.effect==ACVR_FFB_STOP?0.f:std::abs(e.strength);
+        if(r.expires&&now>=r.expires) {r.high=false;r.expires=0;}
+        if(!magnitude) {r.high=false;r.armed=true;r.expires=0;continue;}
+        if(!tracked) {r.high=true;r.armed=false;r.expires=0;continue;}
+        const bool rising=!r.high;r.high=true;
+        if(e.duration_ms) {
+            const int64_t duration=int64_t(e.duration_ms)*1000000;
+            if(now>INT64_MAX-duration) return ACVR_BAD_ARGUMENT;
+            r.expires=now+duration;
+        } else r.expires=0;
+        if(rising&&r.armed&&r.last_tick!=e.tick_id) {
+            const auto result=gun.pulse_motion(c.motion,magnitude*c.amplitude,c.duration_ms,now);
+            if(result!=ACVR_OK) return result;
+            r.last_tick=e.tick_id;
+        }
     }
     return ACVR_OK;
 }
@@ -157,7 +209,7 @@ acvr_result GunInstance::draw(const acvr_pose &anchor,const acvr_pose &grip,cons
     for(const auto &node:model.asset.nodes) local.push_back(node.local);
     for(size_t i=0;i<model.motions.size();++i) {
         const auto &m=model.motions[i]; const auto &s=states[i]; float value=s.value;
-        if(s.pulse) value*=now<s.start?0.f:std::max(0.f,1.f-float(now-s.start)/float(s.duration));
+        if(s.pulse) value=m.rest+(value-m.rest)*(now<s.start?0.f:std::max(0.f,1.f-float(now-s.start)/float(s.duration)));
         const float amount=m.minimum+(m.maximum-m.minimum)*value; auto delta=identity();
         if(m.rotate) {
             acvr_pose p{}; ACVR_INIT(&p); const auto sine=std::sin(amount*.5f);

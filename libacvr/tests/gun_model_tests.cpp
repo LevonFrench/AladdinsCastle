@@ -88,8 +88,59 @@ void logical_drives() {
     check(gun.drive("trigger",0,false,2000000)==ACVR_OK && gun.draw(p,p,c,10,5,2000000,out)==ACVR_OK && out.scene_from_node[3][14]==0);
     check(gun.drive("trigger",2,false,2000000)==ACVR_BAD_ARGUMENT);
 }
+void routed_outputs() {
+    Fixture f;acvr::GunInstance gun;std::string error;
+    auto text=metadata;const auto at=text.find("motion.recoil");text.replace(at,13,"motion.slide-output");
+    check(acvr::decode_gun_model(f.bytes(),text,"synthetic",gun.model,error));gun.reset();
+    acvr::GunOutputRoute route;route.kind=ACVR_OUTPUT_SOLENOID;route.channel=7;route.motion="slide-output";route.amplitude=.5f;route.duration_ms=100;
+    acvr::GunOutputRouter router;check(router.configure({route},gun,0,0)==ACVR_OK && router.owns_recoil());
+    auto bad=route;bad.motion="body_mesh";check(router.configure({bad},gun,0,0)==ACVR_BAD_ARGUMENT && router.owns_recoil());
+    check(router.configure({route,route},gun,0,0)==ACVR_BAD_ARGUMENT);
+    auto e=init<acvr_output_event>();e.kind=ACVR_OUTPUT_SOLENOID;e.channel=7;e.tick_id=1;e.strength=1;
+    auto p=pose();auto c=config();acvr::GunDraw draw;
+    check(router.consume(e,0,true,gun)==ACVR_OK);
+    check(gun.draw(p,p,c,10,5,0,draw)==ACVR_OK && std::abs(draw.scene_from_node[3][14]-.075f)<.001f);
+    ++e.tick_id;check(router.consume(e,50000000,true,gun)==ACVR_OK);
+    check(gun.draw(p,p,c,10,5,50000000,draw)==ACVR_OK && std::abs(draw.scene_from_node[3][14]-.0375f)<.001f); // held level did not retrigger
+    e.strength=0;check(router.consume(e,60000000,true,gun)==ACVR_OK);
+    e.strength=1;check(router.consume(e,60000000,true,gun)==ACVR_OK);
+    e.strength=0;check(router.consume(e,70000000,true,gun)==ACVR_OK);
+    e.strength=1;check(router.consume(e,70000000,true,gun)==ACVR_OK); // same native tick never retriggers
+    check(gun.draw(p,p,c,10,5,70000000,draw)==ACVR_OK && std::abs(draw.scene_from_node[3][14]-.0675f)<.001f);
+    router.cancel();gun.clear_motion();++e.tick_id;
+    check(router.consume(e,80000000,true,gun)==ACVR_OK);
+    check(gun.draw(p,p,c,10,5,80000000,draw)==ACVR_OK && draw.scene_from_node[3][14]==0);
+    e.strength=0;check(router.consume(e,90000000,true,gun)==ACVR_OK);
+    e.strength=1;++e.tick_id;check(router.consume(e,100000000,false,gun)==ACVR_OK);
+    ++e.tick_id;check(router.consume(e,110000000,true,gun)==ACVR_OK);
+    check(gun.draw(p,p,c,10,5,110000000,draw)==ACVR_OK && draw.scene_from_node[3][14]==0);
+    e.strength=0;check(router.consume(e,120000000,true,gun)==ACVR_OK);
+    e.strength=1;e.duration_ms=10;++e.tick_id;check(router.consume(e,130000000,true,gun)==ACVR_OK);
+    ++e.tick_id;check(router.consume(e,150000000,true,gun)==ACVR_OK); // previous explicit-duration level expired
+    check(gun.draw(p,p,c,10,5,150000000,draw)==ACVR_OK && std::abs(draw.scene_from_node[3][14]-.075f)<.001f);
+    e.strength=2;check(router.consume(e,160000000,true,gun)==ACVR_BAD_ARGUMENT);
+    check(gun.pulse_motion("missing",1,45,0)==ACVR_BAD_ARGUMENT);
+    check(gun.pulse_motion("slide-output",1,0,0)==ACVR_BAD_ARGUMENT);
+    route.kind=ACVR_OUTPUT_FFB;check(router.configure({route},gun,0,0)==ACVR_OK);gun.clear_motion();
+    e.kind=ACVR_OUTPUT_FFB;e.effect=ACVR_FFB_CONSTANT;e.strength=-.5f;e.duration_ms=0;++e.tick_id;
+    check(router.consume(e,170000000,true,gun)==ACVR_OK);
+    check(gun.draw(p,p,c,10,5,170000000,draw)==ACVR_OK && std::abs(draw.scene_from_node[3][14]-.0375f)<.001f);
+    e.effect=ACVR_FFB_STOP;e.strength=0;check(router.consume(e,180000000,true,gun)==ACVR_OK);
+}
+void mounted_neutral_rest() {
+    Fixture f;acvr::GunInstance gun;std::string error;
+    const std::string text="id='synthetic'\n[motion.swivel]\nnode='body_mesh'\nkind='rotate'\naxis=[0,1,0]\nrange=[-0.7,0.7]\ndrive='yaw'\n";
+    check(acvr::decode_gun_model(f.bytes(),text,"synthetic",gun.model,error));gun.reset();
+    auto p=pose();auto c=config();acvr::GunDraw base,moved;
+    check(gun.draw(p,p,c,1,5,0,base)==ACVR_OK && std::abs(base.scene_from_node[3][0]-1)<.0001f);
+    check(gun.drive("yaw",1,false,0)==ACVR_OK && gun.draw(p,p,c,1,5,0,moved)==ACVR_OK);
+    check(std::abs(moved.scene_from_node[3][0]-std::cos(.7f))<.0001f && moved.muzzle.direction_scene[2]==base.muzzle.direction_scene[2]);
+    gun.clear_motion();check(gun.draw(p,p,c,1,5,1,moved)==ACVR_OK && moved.scene_from_node==base.scene_from_node);
+    check(gun.pulse_motion("swivel",1,100,1)==ACVR_OK);
+    check(gun.draw(p,p,c,1,5,100000001,moved)==ACVR_OK && moved.scene_from_node==base.scene_from_node);
+}
 int main() {
-    try { load_and_motion(); invalid_metadata_and_files(); logical_drives(); }
+    try { load_and_motion(); invalid_metadata_and_files(); logical_drives(); routed_outputs(); mounted_neutral_rest(); }
     catch(const std::exception &e) {std::cerr<<e.what()<<'\n';return 1;}
     std::cout<<checks<<" model checks passed\n";
 }

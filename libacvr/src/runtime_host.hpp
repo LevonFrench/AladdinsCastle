@@ -31,6 +31,9 @@ struct Host {
     virtual void output(const acvr_output_event &) = 0;
     virtual void cancel_effects() noexcept = 0;
     virtual bool supports_guns() const noexcept { return false; }
+    // Already-resolved controls data, copied/validated at create. No channel is
+    // inferred from catalog labels. Empty keeps the native-fire visual fallback.
+    virtual std::vector<GunOutputRoute> gun_output_routes() const { return {}; }
     // Rebind player/slot haptics to this hand; core cancels old effects first.
     virtual void gun_hand_changed(uint32_t, uint32_t) {}
     // Called after world draw for each eye, using its existing depth attachment.

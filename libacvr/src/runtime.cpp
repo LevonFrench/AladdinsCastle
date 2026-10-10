@@ -99,6 +99,7 @@ struct acvr_runtime {
     acvr_gun_slot_config gun_config{};
     std::array<std::string,5> gun_strings;
     acvr::GunDraw gun_draw;
+    acvr::GunOutputRouter gun_outputs;
     bool gun_tracked=false;
     uint32_t gun_hand=ACVR_HAND_RIGHT;
     bool hand_switch=false;
@@ -109,7 +110,7 @@ struct acvr_runtime {
         for (auto &g : triggers) g.clear();
         for (auto &b : buttons) b.second.clear();
 #ifdef ACVR_GUN_MODELS
-        if(gun_model) gun_model->clear_motion();
+        if(gun_model) {gun_model->clear_motion();gun_outputs.cancel();}
         switch_armed.fill(false);
 #endif
     }
@@ -133,7 +134,10 @@ struct acvr_runtime {
         paused = value; clear_inputs(); host->cancel_effects(); clock_started = false;
         return ACVR_OK;
     }
-    acvr_result outputs() {
+    acvr_result outputs(int64_t now) {
+#ifndef ACVR_GUN_MODELS
+        (void)now;
+#endif
         std::array<acvr_output_event, 32> events;
         // A broken backend must not trap the owner thread in an endless MORE loop.
         for (unsigned batch = 0; batch < 128; ++batch) {
@@ -145,12 +149,28 @@ struct acvr_runtime {
             if (out.count > events.size() || out.events != events.data() || out.stride != sizeof(events[0]) ||
                 (result == ACVR_MORE && !out.count) || out.dropped < dropped)
                 return ACVR_BAD_STATE;
-            if (out.dropped != dropped) { host->cancel_effects(); dropped = out.dropped; }
+            if (out.dropped != dropped) {
+                host->cancel_effects(); dropped = out.dropped;
+#ifdef ACVR_GUN_MODELS
+                if(gun_model) {gun_model->clear_motion();gun_outputs.cancel();}
+#endif
+            }
             for (uint32_t i = 0; i < out.count; ++i) {
                 const auto &e = events[i];
                 if (valid(&e) != ACVR_OK || e.sequence <= sequence || e.tick_id > tick ||
                     e.player >= info.player_count || !std::isfinite(e.strength)) return ACVR_BAD_STATE;
-                sequence = e.sequence; host->output(e);
+                sequence = e.sequence;
+#ifdef ACVR_GUN_MODELS
+                if(gun_model) {
+                    const auto motion=gun_outputs.consume(e,now,gun_tracked,*gun_model);
+                    if(motion!=ACVR_OK) return motion;
+                    // Tracking loss must not immediately reactivate the hand's
+                    // haptics while later native output levels are drained.
+                    if(!gun_tracked && e.player==gun_config.player &&
+                       (e.kind==ACVR_OUTPUT_SOLENOID||e.kind==ACVR_OUTPUT_FFB)) continue;
+                }
+#endif
+                host->output(e);
             }
             if (result == ACVR_OK) return ACVR_OK;
         }
@@ -245,11 +265,11 @@ struct acvr_runtime {
         remainder %= info.native_rate_num;
         if (interval > uint64_t(INT64_MAX - simulation_ns) || due_ns > INT64_MAX - int64_t(interval)) return ACVR_BAD_STATE;
         simulation_ns += int64_t(interval); due_ns += int64_t(interval);
-        result=outputs();
+        result=outputs(d.tracking.predicted_display_time_ns);
 #ifdef ACVR_GUN_MODELS
-        // No output-to-motion mapping exists yet. This is the one fallback
-        // visual pulse, generated only after a successful native fire tick.
-        if(result==ACVR_OK && gun_model && !guns.empty() && (guns[0].trigger&ACVR_INPUT_PRESSED))
+        // A declared real recoil route is authoritative even when no output
+        // arrives this tick (empty ammo/reload). Never layer a fire fallback on it.
+        if(result==ACVR_OK && gun_model && !gun_outputs.owns_recoil() && !guns.empty() && (guns[0].trigger&ACVR_INPUT_PRESSED))
             result=gun_model->drive("recoil",1,true,d.tracking.predicted_display_time_ns);
 #endif
         return result;
@@ -380,6 +400,7 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
                 if (!gun_declared[i]) result = ACVR_BAD_ARGUMENT;
 #ifdef ACVR_GUN_MODELS
             if(models && (info.gun_count!=1 || raw->players[0]!=raw->gun_config.player)) result=ACVR_BAD_ARGUMENT;
+            if(result==ACVR_OK && models) result=raw->gun_outputs.configure(raw->host->gun_output_routes(),*raw->gun_model,0,raw->players[0]);
 #endif
             if (result != ACVR_OK) { acvr_runtime_destroy(raw); return result; }
             raw->gun_count = info.gun_count; raw->budget = config->max_catchup_ticks; raw->fallback_m = config->fallback_aim_distance_m;
@@ -430,7 +451,7 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 const uint32_t other=1-r->gun_hand;
                 const auto &other_hand=other==ACVR_HAND_RIGHT?d.tracking.right:d.tracking.left;
                 if(r->hand_switch && r->switch_armed[other] && d.trigger[other] && !r->switch_levels[other] && r->tracked(other_hand)) {
-                    r->gun_hand=other;r->gun_config.hand=other;r->triggers[0].handoff();r->gun_model->clear_motion();r->host->cancel_effects();
+                    r->gun_hand=other;r->gun_config.hand=other;r->triggers[0].handoff();r->gun_model->clear_motion();r->gun_outputs.cancel();r->host->cancel_effects();
                     r->host->gun_hand_changed(0,other);
                 }
                 for(unsigned h=0;h<2;++h) {
@@ -440,9 +461,9 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                     else if(!d.trigger[h]) r->switch_armed[h]=true;
                 }
                 const auto &h=r->hand(d,0); r->gun_tracked=r->tracked(h);
-                if(!r->gun_tracked) {r->gun_model->clear_motion();r->host->cancel_effects();}
+                if(!r->gun_tracked) {r->gun_model->clear_motion();r->gun_outputs.cancel();r->host->cancel_effects();}
                 else {
-                    result=r->gun_model->drive("trigger",d.trigger[r->gun_hand]?1.f:0.f,false,now);
+                    result=r->gun_outputs.owns_trigger()?ACVR_OK:r->gun_model->drive("trigger",d.trigger[r->gun_hand]?1.f:0.f,false,now);
                     if(result!=ACVR_OK) return finish(result,false);
                     result=r->gun_model->draw(d.scene_from_stage,h.grip,r->gun_config,r->info.scene_units_per_metre,r->fallback_m,now,r->gun_draw);
                     if(result!=ACVR_OK) return finish(result,false);

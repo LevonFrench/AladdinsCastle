@@ -65,15 +65,40 @@ recoil decay without changing static aim/reference nodes. Preview injection
 rejects duplicate sequences, future ticks, missing nodes and invalid values;
 pause, failure and tracking loss clear motion. Models can be hidden while the
 laser mode and ballistic ray remain independent. Only LOD0 is currently selected.
-This prepares actual render commands; a GPU gun renderer is still required.
+This prepares actual render commands; the compiled GL pass still needs a provider.
 Trigger levels now drive declared trigger motion. Successful native fire edges
 emit one fallback recoil pulse, then the model packet is refreshed once before
-both eyes; display replay cannot restart that pulse. No backend output-to-motion
-mapping is active yet, so this visual fallback is the sole automatic recoil path.
+both eyes; display replay cannot restart that pulse. Prepared output routes can
+replace this fallback, as described below.
 Single-gun hand switching uses the other tracked trigger's rising edge, cancels
 old effects and motion, releases an old held trigger, and suppresses the switching
 edge. A new release/press is required to fire. The host receives the new hand for
 its haptic routing; this callback is not proof of physical haptic execution.
+
+## Prepared output-to-motion routes
+
+The private host may supply `GunOutputRoute` records from resolved control data.
+The runtime copies and validates them against the configured slot/player and
+actual metadata motion IDs. It does not infer channels or parse controls files.
+Duplicate targets, missing motion IDs, invalid amplitudes/durations and wrong
+slot/player assignments fail creation. The host must supply verified mappings;
+none is supplied for a real game yet.
+
+Matching solenoid/lamp/FFB output levels pulse on a rising edge, at most once per
+route/native tick. Explicit event duration expires a level; persistent levels
+need an observed low edge. Strength scales the route amplitude, with magnitude
+used for signed FFB. FFB STOP is a low level. Display/eye replay never consumes
+the event again. The route duration controls visual decay. A declared recoil
+route suppresses fallback fire animation even when no recoil event arrives
+(such as an empty magazine). An output-owned trigger motion also excludes the
+ordinary trigger-level drive.
+
+Pause, handoff, overflow and tracking loss cancel motion and require an observed
+low output before rearming. Untracked configured hands do not receive solenoid
+or FFB callbacks that would immediately restart haptics. Physical device haptics
+and their complete lifecycle remain provider responsibilities. Mounted yaw/pitch
+rest at zero angle (clamped to the authored range), including after cancellation
+and pulse decay; their normalized input values still interpolate the full range.
 
 ## Explicitly incomplete
 
@@ -85,7 +110,7 @@ Builds without the optional model dependencies reject configured model slots.
 The internal host supplies already composed eye matrices and receives scene
 scale/anchor configuration; the production provider must implement that math
 and device lifecycle. The recorded host does not establish graphics correctness.
-Two-gun join policy, full control/output-to-motion mapping, haptics and
+Two-gun join policy, control-data parsing and verified real output mappings, haptics and
 distance-based LOD selection remain required next slices. Explicit preview
 events are not proof that real-game recoil outputs have been mapped.
 The optional GL gun renderer now compiles and passes mock-dispatch checks;
@@ -115,3 +140,8 @@ Single-gun switching tests verify release-before-press, held-trigger suppression
 changed grip rays and hand notifications. Replayed display frames decay rather
 than repeat fallback recoil. Missing shared depth rejects the draw and submits
 zero layers. Logical trigger-drive tests keep unchanged levels idempotent.
+Prepared-output tests distinguish metadata IDs from node/drive names, exercise
+amplitude/duration, held levels, same-tick deduplication, explicit expiry, signed
+FFB, cancellation/rearm and neutral mounted rest. Runtime integration tests prove
+real-route/fallback exclusion, copied routes and no callbacks to an untracked
+configured hand. These are synthetic CPU receipts, not game-output acceptance.

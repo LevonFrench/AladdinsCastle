@@ -22,6 +22,9 @@ struct Receipt {
     std::vector<acvr::Matrix> model_nodes;
     acvr_ray model_ray{};
     std::vector<uint32_t> hand_changes;
+    std::vector<acvr::GunOutputRoute> motion_routes;
+    std::vector<float> output_levels;
+    uint64_t drop_tick=0;
     unsigned opened=0,closed=0,released=0,draws=0,paused=0,cancelled=0,ends=0,submitted=0,outputs=0;
     bool leased=false, fail_right=false, fail_step=false, fail_flush=false, bad_outputs=false;
     uint32_t rate=60,den=1;
@@ -85,7 +88,9 @@ acvr_result ACVR_CALL outputs(acvr_backend *b,acvr_outputs *out) {
     if(b->pending) {
         auto &e=out->events[0]; e.sequence=++b->sequence; e.tick_id=b->frame.id;
         e.kind=ACVR_OUTPUT_SOLENOID; e.strength=1; e.duration_ms=45; b->pending=false;
+        if(!b->r->output_levels.empty()) {e.strength=b->r->output_levels.at(size_t(b->frame.id-1));e.duration_ms=0;}
     }
+    if(b->r->drop_tick&&b->frame.id>=b->r->drop_tick) out->dropped=1;
     return ACVR_OK;
 }
 acvr_result ACVR_CALL flush(acvr_backend *b) { check(!b->r->leased); return b->r->fail_flush?ACVR_ERROR:ACVR_OK; }
@@ -131,6 +136,7 @@ struct Recorded final:acvr::Host {
     void output(const acvr_output_event &) override { ++r.outputs; }
     void cancel_effects() noexcept override { ++r.cancelled; }
     bool supports_guns() const noexcept override {return r.model_support;}
+    std::vector<acvr::GunOutputRoute> gun_output_routes() const override {return r.motion_routes;}
     void gun_hand_changed(uint32_t slot,uint32_t hand) override {check(slot==0);r.hand_changes.push_back(hand);}
     acvr_result draw_gun(const acvr_draw_info &info,const acvr::GunDraw &gun) override {
         check(r.drawn_frames.back()==info.frame_id); // world eye was drawn first
@@ -331,12 +337,46 @@ void handoff_and_recoil() {
     check(acvr_runtime_destroy(p)==ACVR_OK);
     std::filesystem::remove(path);std::filesystem::remove(meta);std::filesystem::remove(dir);
 }
+void runtime_output_routes() {
+    const auto dir=std::filesystem::current_path()/"synthetic-output-route-tests";
+    std::filesystem::create_directories(dir);const auto path=dir/"model.glb",meta=dir/"model.toml";
+    {const auto bytes=Fixture{}.bytes();std::ofstream f(path,std::ios::binary);f.write(reinterpret_cast<const char *>(bytes.data()),std::streamsize(bytes.size()));}
+    {std::ofstream f(meta);f<<"id='synthetic'\n[motion.slide-output]\nnode='body_mesh'\nkind='slide'\naxis=[0,0,1]\nrange=[0,0.015]\ndrive='recoil'\n";}
+    auto slot=init<acvr_gun_slot_config>();auto file=path.string(),metadata=meta.string();
+    slot.model_id_utf8="synthetic";slot.model_path_utf8=file.c_str();slot.metadata_path_utf8=metadata.c_str();
+    slot.grip_node_utf8="grip";slot.muzzle_node_utf8="muzzle";slot.show_gun=1;slot.angle_xyzw[3]=1;
+    for(unsigned i=0;i<4;++i) {slot.body_rgba[i]=.5f;slot.accent_rgba[i]=1;}
+    auto c=config();c.gun_slots=&slot;c.gun_slot_count=1;c.gun_slot_stride=sizeof(slot);c.gun_policy=init<acvr_gun_policy>();
+    Receipt r;r.model_support=true;r.output_levels={0,.4f,.4f,0,.4f,.4f,.4f,0,.4f,.4f,0,.4f};r.drop_tick=10;
+    acvr::GunOutputRoute route;route.kind=ACVR_OUTPUT_SOLENOID;route.motion="slide-output";route.amplitude=.5f;route.duration_ms=100;r.motion_routes={route};
+    current=&r;auto a=api();acvr_runtime *p=nullptr;
+    std::vector<Sample> samples{{0},{17000000,true},{21000000,true},{34000000,true},{51000000},{68000000,true},
+        {85000000,true,false,true,true,false},{102000000,true},{119000000},{136000000,true},{153000000,true},{170000000},{187000000,true}};
+    check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,samples),&p)==ACVR_OK);
+    r.motion_routes[0].amplitude=1; // runtime retained its own prepared route copy
+    check(acvr_runtime_tick(p)==ACVR_OK && r.model_nodes[3][14]==0);
+    check(acvr_runtime_tick(p)==ACVR_OK && std::abs(r.model_nodes[3][14]-.03f)<.001f); // output amplitude, not fallback .15
+    check(acvr_runtime_tick(p)==ACVR_OK && r.steps.size()==2 && r.model_nodes[3][14]<.03f);
+    check(acvr_runtime_tick(p)==ACVR_OK && std::abs(r.model_nodes[3][14]-.0249f)<.001f); // held output did not retrigger
+    check(acvr_runtime_tick(p)==ACVR_OK && acvr_runtime_tick(p)==ACVR_OK && std::abs(r.model_nodes[3][14]-.03f)<.001f);
+    const auto before=r.outputs;
+    check(acvr_runtime_tick(p)==ACVR_OK && r.outputs==before); // untracked hand cannot restart haptics
+    check(acvr_runtime_tick(p)==ACVR_OK && r.model_nodes[3][14]==0); // held level after recovery remains suppressed
+    check(acvr_runtime_tick(p)==ACVR_OK && acvr_runtime_tick(p)==ACVR_OK && std::abs(r.model_nodes[3][14]-.03f)<.001f);
+    check(acvr_runtime_tick(p)==ACVR_OK && r.model_nodes[3][14]==0); // output overflow cancels visual route
+    check(acvr_runtime_tick(p)==ACVR_OK && acvr_runtime_tick(p)==ACVR_OK && std::abs(r.model_nodes[3][14]-.03f)<.001f);
+    check(acvr_runtime_destroy(p)==ACVR_OK);
+    r.motion_routes[0].motion="unknown";p=nullptr;
+    check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,std::vector<Sample>{}),&p)==ACVR_BAD_ARGUMENT && !p && r.closed==2);
+    std::filesystem::remove(path);std::filesystem::remove(meta);std::filesystem::remove(dir);
+}
 #endif
 int main() {
     try { timing_and_edges(); rational_and_budget(); pause_loss_and_zero_layers(); failures_and_ownership(); muzzle_math(); anchored_aim(); long_replay_and_invalid_samples();
 #ifdef ACVR_GUN_MODELS
         configured_model();
         handoff_and_recoil();
+        runtime_output_routes();
 #endif
     }
     catch(const std::exception &e) { std::cerr<<e.what()<<'\n'; return 1; }
