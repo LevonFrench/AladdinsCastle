@@ -349,6 +349,39 @@ class CatalogTest : public QObject {
             QVERIFY(QString::fromUtf8(output).contains(expected));
         }
     }
+    void gunContractParity_data() {
+        QTest::addColumn<QString>("fields"); QTest::addColumn<QString>("expected");
+        for (const auto *policy : {"on_join", "always", "off"})
+            QTest::newRow(policy) << QString("gun_model='user-model-1'\ntwo_guns='%1'\nextension='keep'\n").arg(policy) << QString();
+        QTest::newRow("missing") << QString() << QString();
+        for (const auto *value : {"true", "1", "[]", "{}", "''", "'../gun'", "'Gun'", "'gun.glb'", "\"gun\\n\""})
+            QTest::newRow(qPrintable(QString("model-%1").arg(value))) << QString("gun_model=%1\n").arg(value)
+                << QString("controls.gun_model must be a lowercase kebab-case id");
+        for (const auto *value : {"true", "1", "[]", "{}", "''", "'on-join'"})
+            QTest::newRow(qPrintable(QString("policy-%1").arg(value))) << QString("two_guns=%1\n").arg(value)
+                << QString("controls.two_guns must be on_join|always|off");
+    }
+    void gunContractParity() {
+        QFETCH(QString, fields); QFETCH(QString, expected);
+        QTemporaryDir temp; vocab(temp.path()); game(temp.path(), "fake", "Synthetic");
+        const auto path = temp.path() + "/games/fake/game.toml";
+        auto metadata = ac::install::readBytes(path);
+        metadata.replace("[controls]\n", "[controls]\n" + fields.toUtf8());
+        ac::install::atomicWrite(path, metadata);
+        const auto cpp = ac::CatalogLoader().load(temp.path());
+        const auto *record = cpp.find("fake"); QVERIFY(record);
+        QProcess python;
+        python.start(QStringLiteral(AC_PYTHON_EXECUTABLE),
+            {QStringLiteral(AC_CATALOG_ROOT) + "/tools/validate_catalog.py", "--root", temp.path(), "--json"});
+        QVERIFY(python.waitForStarted(5000)); QVERIFY(python.waitForFinished(10000));
+        QCOMPARE(python.exitStatus(), QProcess::NormalExit);
+        QCOMPARE(python.exitCode(), expected.isEmpty() ? 0 : 1);
+        const auto report = ac::Json::parse(python.readAllStandardOutput().toStdString());
+        QCOMPARE(int(report["errors"].size()), expected.isEmpty() ? 0 : 1);
+        QCOMPARE(record->validationErrors.size(), expected.isEmpty() ? 0 : 1);
+        if (!expected.isEmpty()) QVERIFY(record->validationErrors.contains(expected));
+        if (fields.contains("extension")) QCOMPARE(record->raw["controls"]["extension"].get<std::string>(), std::string("keep"));
+    }
     void layeringAndProvenance() {
         try {
             QTemporaryDir temp;

@@ -19,6 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python tools/validate_catalog.py
+      - run: python tools/validate_catalog.py --test
       - name: Parse all catalog and theme TOML
         shell: python
         run: |
@@ -60,6 +61,11 @@ jobs:
       - name: Pin CMake and Ninja
         run: python -m pip install cmake==3.31.10 ninja==1.13.0
       - run: cmake -S hub -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+      - name: Build libacvr C and C++ contract checks (no XR or graphics)
+        run: |
+          cmake -S libacvr -B build-contract -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake --build build-contract --parallel 2
+          ctest --test-dir build-contract --output-on-failure
       - run: cmake --build build --parallel 2
       - run: ctest --test-dir build --output-on-failure
       - name: Build Windows portable folder and ZIP

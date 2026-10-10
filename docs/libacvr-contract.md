@@ -1,8 +1,8 @@
-# libacvr backend contract — draft 1
+# libacvr backend contract — v0.1
 
 > **Source references:** `namco22-decompile/...`, `time-crisis-vr/...`, `Supermodel/...` and `Rea-Virtua-Cop-2-VR/...` paths are relative to [namco22-decompile](https://github.com/spacestate1/namco22-decompile), [time-crisis-vr](https://github.com/DR-89/time-crisis-vr), [Supermodel](https://github.com/trzy/Supermodel), [Rea-Virtua-Cop-2-VR](https://github.com/NeuralF/Rea-Virtua-Cop-2-VR) as cloned on 2026-10-08 (shallow clones; line numbers may drift). Other paths are in this repo.
 
-Design date: 2026-10-08. Public header: `libacvr/include/acvr.h`. This is a proposed in-process ABI, not an implemented runtime or an assertion that either reference already supports it. Our new code is GPL-3.0-only. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied and no game content is included.
+Initial design: 2026-10-08; v0.1 published 2026-10-10. Public header: `libacvr/include/acvr.h`. This is a proposed in-process ABI, not an implemented runtime or an assertion that either reference already supports it. libacvr code and public header are MIT; board adapters outside libacvr and the Hub are GPL-3.0-only unless explicitly licensed otherwise. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied and no game content is included.
 
 ## Evidence and scope
 
@@ -23,7 +23,7 @@ Read first: `docs/architecture.md` §2, `docs/controls.md` §1.1 and §2, `docs/
 2. Supermodel's simulation and rendering are coupled; New3D rendering also changes the emulated line-of-sight results. A per-eye projection replacement alone is insufficient.
 3. Lost World uses analog guns, while other Supermodel games use its light-gun serial registers. The adapter must select the route from the loaded game's input flags.
 
-This task changes only this document and the header. Concurrent edits to other documents and game setups are outside this commit. No AGENCY.md update is made because the owner's explicit deliverable-path restriction takes precedence; its “docs only; no code” status should eventually become “draft header; runtime unimplemented.”
+M2 lane contract entrypoints: `docs/renderer-interface.md` and `docs/control-set-format.md`. These supersede older draft examples where stated; no runtime implementation is claimed.
 
 ## Roles and ABI rules
 
@@ -142,7 +142,7 @@ STEERING/LEAN/STICK_X/STICK_Y range −1..1; accelerator/brake/rear-brake/lever/
 
 HELD is a level. PRESSED/RELEASED are edges emitted only on the consuming native tick. A press has HELD|PRESSED; a release has RELEASED without HELD. To retain a tap between native ticks, the runtime queues press then release on distinct native ticks, never collapses both into one state. Catch-up cannot repeat PRESSED. Opposing H-gate gear states and low/high cannot be active together. Gears remain selected after releasing the grip, while wheel spring returns are computed by libacvr. Sequential up/down, coin and view gestures are at least one-native-tick pulses; low/high and H-gate are latched levels. On controller handoff while firing, queue a released tick before a new press as DR-89 does (`time-crisis-vr/quest/quest_host.c:685`). Reload is a one-tick **request**; each backend translates it to its own off-screen/trigger sequence and must not apply a second auto-trigger state machine accidentally.
 
-TRACKED means a valid controller ray was available, independently of whether projection is off-screen. Loss clears trigger edges, sends untracked/off-screen and neutral axes/buttons. `COVER_PEDAL=1` means depressed/exposed, not ducked. Physical ducking with enter drop 0.20 m / leave drop 0.12 m hysteresis follows `time-crisis-vr/quest/quest_cover.c:7`; uncalibrated/untracked yields 0/covered. Cover works per player; Time Crisis converts at its existing >0.55 threshold.
+TRACKED means a valid controller ray was available, independently of whether projection is off-screen. Loss clears trigger edges, sends untracked/off-screen and neutral axes/buttons. `COVER_PEDAL=1` means depressed/exposed, not ducked. Owner decision D43 supersedes the historical physical-ducking reference: cover is button-only, never head height. One gun defaults to either grip; two guns use each player's own grip. Hold = 1/exposed, release = 0/covered; invert/toggle are explicit options. Untracked input yields 0/covered. Cover works per player; Time Crisis converts at its existing >0.55 threshold.
 
 ### Time Crisis device mapping
 
@@ -205,7 +205,7 @@ Separate HUD is opt-in. Without it, backend keeps screen-space graphics merged a
 
 SOLENOID/LAMP events are normalized level changes on setup-declared channels. A 0-duration value persists until the next change; a timed pulse automatically ends. Time Crisis recoil channel 1 follows MCU bit 1, recoil_mask=0x0002 (`namco22-decompile/timecris/src/tc_game.c:207`). Queue the real rise/fall once per native tick; runtime synthesizes haptics on rising edges. DR-89's 45 ms rumble at `time-crisis-vr/quest/quest_host.c:709` is a reference profile, not a fixed ABI duration. Replaying geometry cannot fire another solenoid pulse.
 
-FFB channel is the axis semantic (normally STEERING); effect distinguishes constant signed force, spring, friction, vibration and stop. A change replaces that effect for that player/axis; STOP cancels all of them. Supermodel emits separate effects at `Supermodel/Src/Model3/DriveBoard/WheelBoard.cpp:581`, `:601`, `:622`, `:641`. Preserve those distinctions; controller vibration cannot faithfully reproduce wheel torque. Runtime policy maps magnitude/effect to bounded haptics and may feed an optional physical wheel later. On pause, device/session loss and close it cancels all active effects independently of backend events.
+FFB channel is the axis semantic (normally STEERING); effect distinguishes constant signed force, spring, friction, vibration and stop. A change replaces that effect for that player/axis; STOP cancels all of them. Supermodel emits separate effects at `Supermodel/Src/Model3/DriveBoard/WheelBoard.cpp:581`, `:601`, `:622`, `:641`. Preserve those distinctions; controller vibration cannot faithfully reproduce wheel torque. Runtime policy maps magnitude/effect to bounded haptics and does not support physical accessories (D39). On pause, device/session loss and close it cancels all active effects independently of backend events.
 
 SCORE carries a signed 64-bit value and per-game channel; STATE carries a standard boot/attract/playing/game-over ID or setup extension ID. Unknown state is absence of an event, not a fabricated “playing.” TC has comments for mode/lives/timer at `namco22-decompile/timecris/src/tc_game.c:146`; that is limited evidence, not a shared scoring API. Supermodel COutputs explicitly describes mainly driving outputs (`Supermodel/Src/OSD/Outputs.h:35`); gun recoil/score is not assumed to exist. Add per-game verified readers before advertising events.
 
@@ -221,7 +221,7 @@ Output sequences start at 1 and increase within an open backend, including pause
 6. Supply TC input conversion above, intercept `ss22_out_poll` and decoded motor hooks before SDL rumble/network output, queue events and expose flush-persistent. `ss22_host_frame` no longer submits/paces; its adapter boundary serves the worker rendezvous. Existing host callbacks `input_update`, `input_neutral`, `snd_set_output`, `paused_tick` at `namco22-decompile/engine/ss22_host.h:17` are reusable concepts, not the full new ABI.
 7. Rave Racer: implement a separate private adapter around `namco22-decompile/raverace/src/rr_main.c:228` and nonreturning entry at `:531`. Its preparation/draw seam is `rr_gl_prepare`/`rr_gl_draw` (`namco22-decompile/raverace/src/rr_gl.c:291` and `:363`), with input and EEPROM/motor through rr_hw. Reuse geometry capture in shared geo_hw/quad_gl, but add collection hooks to rr_gl as well as ss22_gl. Preserve RR direct-polygons, fog/gamma and priority text behavior. Do not substitute the Super 22 register path for RR MCU/shared-RAM updates.
 8. Keep future guarded patches under the setup's own build tooling, not existing shared tools in this task. Require a known base commit, exact expected old fragments with occurrence counts, per-edit markers and idempotent verification; abort on drift rather than fuzzy replacement. DR-89 `edit` at `time-crisis-vr/tools/patch_upstream.py:5` checks old text and markers, but multiple edits to one file share markers; stronger per-edit receipts prevent silently skipping later additions. Its TC explosion dispatcher patch at `:17` is game-correctness work, not required by the ABI; audit separately before porting it.
-9. Verify CPU frame counts/inputs/output edges first with a synthetic/no-content fixture. When the owner supplies a real local game run, compare native register aim at centre/corners, translated gun origins, per-camera hits, missed rays, cover hysteresis and short taps. Compare paired/replayed eye pixels against a single-view reference and confirm native logic/NVRAM are unaffected by display cadence. Headset refresh/performance/comfort remain separate hardware acceptance gates.
+9. Verify CPU frame counts/inputs/output edges first with a synthetic/no-content fixture. When the owner supplies a real local game run, compare native register aim at centre/corners, translated gun origins, per-camera hits, missed rays, button-only cover and short taps. Compare paired/replayed eye pixels against a single-view reference and confirm native logic/NVRAM are unaffected by display cadence. Headset refresh/performance/comfort remain separate hardware acceptance gates.
 
 ## Supermodel integration plan
 
@@ -272,3 +272,65 @@ cl /nologo /std:c11 /Zs /TC /W4 /WX "libacvr/include/acvr.h"
 ```
 
 An automated read-only citation audit checked all explicit absolute file:line references for existence/range and verified every public typedef has a named rationale entry. Source claims and callback semantics were also reviewed against the cited local seams, including reverse-Z matrix construction at `Supermodel/Src/Graphics/New3D/Mat4.cpp:185`. No runtime linking, graphics execution, binary-layout comparison, engine patch application or headset acceptance was tested. No reference-source edits, engine launches, game-content access, push or main-branch commit occurred. The optional fake backend is omitted; it would not prove the real scheduling/LOS/stereo seams.
+
+
+## v0.1 additions and compatibility
+
+The ABI major and struct version remain 1. All existing field offsets and
+callback signatures are unchanged. `ACVR_HIT_V1_SIZE` and
+`ACVR_RUNTIME_CONFIG_V1_SIZE` identify the complete original records. Accept
+these original sizes, the complete new size, or larger future tails; reject
+partial v0.1 tails with BAD_ARGUMENT. Never read/write beyond caller size.
+A reader of the old prefix ignores the tail; a new producer writing an old hit
+returns position/camera only. An old producer leaves a new caller's zeroed hit
+flags untouched, so the runtime uses camera projection. Initialize output tails
+to zero before each query. New type records require their complete v0.1 size.
+`ACVR_INIT` still sets only size/version, so zero the entire object first.
+
+The runtime config tail optionally supplies stride-aware gun slots and a policy.
+Count zero permits NULL and selects the single-gun, no-model compatibility
+path; zero-filled tail is accepted in this case. Nonzero count requires complete
+policy, unique slots and players, valid hand IDs, model strings and nodes,
+finite 0..1 tints, unit quaternions, and backend-supported counts. Runtime copies
+all retained strings/config during create; no array or string pointer is retained.
+Models use metres and one root grip; model-to-stage is tracked grip multiplied
+by calibrated angle and inverse model grip. The muzzle ray uses the bind-pose
+muzzle transform and local -Z, independently of rendered recoil/pump animation.
+Scale to scene units exactly once. Runtime draws the model after the world,
+depth-tested, with optional laser/dot and per-slot linear body/accent tints.
+
+Slot 0/player 0 defaults right; slot 1/player 1 defaults left. Changing p1_hand
+swaps assignments. `two_guns=ON_JOIN` shows the off hand faint until a Start/join
+request is confirmed by a backend player state; a button alone does not prove
+joining. `ALWAYS` requests join when the game's declared inputs support it,
+without inventing credits or gameplay state. Without reliable player state,
+keep it unconfirmed and report the limitation. A setup may use STATE events
+with player and PLAYING/GAME_OVER only when it has verified per-player readers.
+`OFF`, separate views or a one-gun backend suppress slot 1. Single-gun hand
+switch happens only on the other trigger's rising edge; that edge changes hands
+without also firing. Two active guns disable hand switching and two-hand reload.
+Start/coin are distinct bound actions. Time Crisis declares no invented Start
+port: its initial control set uses existing trigger/pedal/coin behavior.
+
+Cover is `ACVR_AXIS_COVER_PEDAL` for each player, value 0..1, using D43 above.
+Lost pose validity suppresses that gun's fire/pedal, cancels its haptics, and
+requires a fresh release/press before firing after recovery. Model visibility
+and tracking validity are independent; hidden models can still aim when tracked.
+
+Named-node gun events drive visual motion from metadata; button/axis values
+interpolate the defined range, recoil pulses are finite. Sequences increase per
+slot across all input/output-derived events. Duplicate/out-of-order host preview
+injections return BAD_ARGUMENT; negative/nonfinite values or unknown nodes do
+likewise. The host preview export is optional for consumers; board adapters only
+publish existing output events. Runtime arbitrates output-based versus fallback
+trigger recoil once, so stereo replay cannot duplicate animation or haptics.
+Pause/close/loss clears motion levels and active haptics. No animated node may
+change the aim ray. Motion/LOD metadata is defined in the control-set contract.
+
+`acvr_runtime_get_tracking` copies stage-space head and both hands after a tick,
+with explicit validity bits and the same monotonic prediction time used for eye
+draws. The runtime preserves all output prefixes and caller-owned tail bytes.
+Nested pose/hand records require their own initialized prefixes. No callback
+recursion or cross-thread calls. Matrices supplied to the backend already include
+these poses, the anchor and scale: do not apply them again. These exports and the
+XR/gun renderer remain declarations until the lead's runtime block implements them.

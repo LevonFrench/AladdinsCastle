@@ -268,6 +268,15 @@ void validate(GameRecord &g, const CatalogData &data, const QSet<QString> &ids) 
     const auto ct = str(object(j, "controls"), "type");
     if (j.contains("controls") && !j["controls"].is_object())
         warn("controls must be a table", true);
+    const auto controls = object(j, "controls");
+    if (controls.contains("gun_model") &&
+        (!controls["gun_model"].is_string() ||
+         !QRegularExpression("\\A[a-z0-9][a-z0-9-]*\\z").match(str(controls, "gun_model")).hasMatch()))
+        warn("controls.gun_model must be a lowercase kebab-case id", true);
+    if (controls.contains("two_guns") &&
+        (!controls["two_guns"].is_string() ||
+         !QStringList{"on_join", "always", "off"}.contains(str(controls, "two_guns"))))
+        warn("controls.two_guns must be on_join|always|off", true);
     if (!ct.isEmpty() && !QStringList{"gun", "wheel", "handlebars", "bike", "ski", "joystick",
                                       "yoke", "boat", "other"}
                               .contains(ct))
