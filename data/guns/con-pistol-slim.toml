@@ -1,0 +1,31 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "con-pistol-slim"
+name      = "Slim console pistol"
+family    = "console"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 1                   # build order: 1 first
+model     = "assets/guns/con-pistol-slim.glb"
+source    = "assets/guns/src/con-pistol-slim.py"
+resembles = "Namco GunCon / G-Con 45 for PlayStation (1997): A and B buttons, one on each side below the barrel; black in Japan, grey and later orange elsewhere"
+shape     = "Slim automatic-style pistol, long flat barrel, round lens at the muzzle, one oval button on each side under the barrel."
+length_mm = 240                # design target for our model, not a measurement of the real item
+features  = ["laser"]
+notes     = "A and B do the same job on the real unit for most games; on Time Crisis they are the pedal, which we put on the grip button."
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "black"
+p1      = "black"
+p2      = "orange"
+black = { body = "#1b1b1e", accent = "#8a8d93" }
+grey = { body = "#8f9298", accent = "#2a2a2e" }
+orange = { body = "#f07a1a", accent = "#2a2a2e" }
+
+[[button]]
+id    = "a"
+label = "A"
+node  = "button_a"
+
+[[button]]
+id    = "b"
+label = "B"
+node  = "button_b"

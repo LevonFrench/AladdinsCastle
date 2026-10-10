@@ -1,0 +1,50 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "con-pistol-dpad"
+name      = "Console pistol with rear d-pad"
+family    = "console"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 1                   # build order: 1 first
+model     = "assets/guns/con-pistol-dpad.glb"
+source    = "assets/guns/src/con-pistol-dpad.py"
+resembles = "Namco GunCon 2 / G-Con 2 for PlayStation 2 (2001): A and B above the trigger, C under the grip, Select and Start on the left of the shaft, d-pad at the rear; black, orange and blue versions"
+shape     = "Smaller, rounder pistol; small d-pad on the back where a hammer would be; two buttons above the trigger guard; one button at the bottom of the grip."
+length_mm = 225                # design target for our model, not a measurement of the real item
+features  = ["laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "black"
+p1      = "orange"
+p2      = "blue"
+black = { body = "#1b1b1e", accent = "#8a8d93" }
+orange = { body = "#f07a1a", accent = "#2a2a2e" }
+blue = { body = "#2459c4", accent = "#2a2a2e" }
+
+[[button]]
+id    = "a"
+label = "A"
+node  = "button_a"
+
+[[button]]
+id    = "b"
+label = "B"
+node  = "button_b"
+
+[[button]]
+id    = "c"
+label = "C"
+node  = "button_c"
+
+[[button]]
+id    = "select"
+label = "Select"
+node  = "button_select"
+
+[[button]]
+id    = "start"
+label = "Start"
+node  = "button_start"
+
+[[button]]
+id    = "dpad"
+label = "D-pad"
+node  = "button_dpad"

@@ -1,0 +1,23 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "con-wand-rifle"
+name      = "Wand-in-a-shell rifle"
+family    = "console"            # generic | console | arcade | mounted | special
+hold      = "two-hand"          # one-hand | two-hand | mounted
+tier      = 3                   # build order: 1 first
+model     = "assets/guns/con-wand-rifle.glb"
+source    = "assets/guns/src/con-wand-rifle.py"
+resembles = "PlayStation Move Sharp Shooter: rifle-style shell with an adjustable stock that holds the Move controller"
+shape     = "Short rifle shell with a stock and a glowing ball at the muzzle."
+length_mm = 560                # design target for our model, not a measurement of the real item
+features  = ["rumble"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "grey"
+p1      = "grey"
+p2      = "grey"
+grey = { body = "#6f737a", accent = "#e84e9c" }
+
+[[button]]
+id    = "move"
+label = "Move button"
+node  = "button_move"

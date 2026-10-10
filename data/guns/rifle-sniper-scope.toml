@@ -1,0 +1,19 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "rifle-sniper-scope"
+name      = "Sniper rifle with a scope screen"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "two-hand"          # one-hand | two-hand | mounted
+tier      = 2                   # build order: 1 first
+model     = "assets/guns/rifle-sniper-scope.glb"
+source    = "assets/guns/src/rifle-sniper-scope.py"
+resembles = "Konami Silent Scope (rifle fixed to the console, with a scope that shows a close-up of part of the screen) and Namco Golgo 13 (sniper-rifle light gun with a scope)"
+shape     = "Long rifle with a stock and a fat scope whose rear lens is a small screen."
+length_mm = 1000                # design target for our model, not a measurement of the real item
+features  = ["scope_screen", "mount_optional"]
+notes     = "The scope lens shows a zoomed render of the game around the aim point (controls-catalog.md §3.7)."
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "black"
+p1      = "black"
+p2      = "black"
+black = { body = "#26262a", accent = "#7d8087" }

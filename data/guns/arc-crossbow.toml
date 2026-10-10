@@ -1,0 +1,18 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-crossbow"
+name      = "Arcade crossbow"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "two-hand"          # one-hand | two-hand | mounted
+tier      = 3                   # build order: 1 first
+model     = "assets/guns/arc-crossbow.glb"
+source    = "assets/guns/src/arc-crossbow.py"
+resembles = "The Walking Dead arcade crossbow"
+shape     = "Short crossbow with a pistol grip, stub stock and fixed limbs."
+length_mm = 600                # design target for our model, not a measurement of the real item
+features  = ["laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "black"
+p1      = "black"
+p2      = "black"
+black = { body = "#26262a", accent = "#b03a2e" }

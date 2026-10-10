@@ -23,6 +23,7 @@ AladdinsCastle is an open-source desktop hub that installs and launches VR setup
 | [Landscape](docs/landscape.md) | Existing projects we build on and learn from |
 | [Architecture](docs/architecture.md) | Hub, VR setups, libacvr shared runtime, stereo techniques, input bridge |
 | [Controls](docs/controls.md) | Gun aim math, cover, reload, ghost controls for racing, comfort |
+| [Guns](docs/guns.md) | A gun in each hand for two-player games; our own library of 23 gun models and which game gets which |
 | [Config spec](docs/config-spec.md) | Open-ended, layered TOML for games, setups, recipes, controls, guns |
 | [Front end](docs/frontend.md) | The Hub: library, recipes, install, launch, art, technology choice |
 | [Game packages](docs/game-packages.md) | One folder per game, like one mod in the Installer Hub ([examples](games/)) |

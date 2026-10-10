@@ -1,0 +1,30 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "mnt-smg"
+name      = "Swivel-mounted submachine gun"
+family    = "mounted"            # generic | console | arcade | mounted | special
+hold      = "mounted"          # one-hand | two-hand | mounted
+tier      = 2                   # build order: 1 first
+model     = "assets/guns/mnt-smg.glb"
+source    = "assets/guns/src/mnt-smg.py"
+resembles = "Taito Operation Wolf (1987): Uzi-style gun that swivels and elevates on the cabinet, automatic trigger, grenade button near the muzzle, recoil vibration; also Operation Thunderbolt, Operation Tiger and Space Gun"
+shape     = "Boxy SMG on a short post with a ball pivot under the receiver, pistol grip, a thumb button beside the muzzle."
+length_mm = 450                # design target for our model, not a measurement of the real item
+features  = ["auto_fire", "rumble", "pivot"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "black"
+p1      = "red"
+p2      = "blue"
+black = { body = "#26262a", accent = "#7d8087" }
+red = { body = "#c93a2e", accent = "#1c1c20" }
+blue = { body = "#2f66cc", accent = "#1c1c20" }
+
+[[button]]
+id    = "grenade"
+label = "Grenade"
+node  = "button_grenade"
+
+[[button]]
+id    = "missile"
+label = "Missile"
+node  = "button_missile"

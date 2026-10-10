@@ -1,0 +1,19 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-pistol-duty"
+name      = "Arcade duty pistol"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 3                   # build order: 1 first
+model     = "assets/guns/arc-pistol-duty.glb"
+source    = "assets/guns/src/arc-pistol-duty.py"
+resembles = "Konami Police 911 / Police 24/7 and Lethal Enforcers 3 pistols (semi-automatic service pistol shape)"
+shape     = "Squared semi-automatic with a flat slide and an accessory rail."
+length_mm = 215                # design target for our model, not a measurement of the real item
+features  = ["recoil_kick", "rumble", "laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "black"
+p1      = "black"
+p2      = "blue"
+black = { body = "#232327", accent = "#6f737a" }
+blue = { body = "#2b62d0", accent = "#1c1c20" }

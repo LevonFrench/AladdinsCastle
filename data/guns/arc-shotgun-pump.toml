@@ -1,0 +1,21 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-shotgun-pump"
+name      = "Arcade pump shotgun"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "two-hand"          # one-hand | two-hand | mounted
+tier      = 2                   # build order: 1 first
+model     = "assets/guns/arc-shotgun-pump.glb"
+source    = "assets/guns/src/arc-shotgun-pump.py"
+resembles = "Pump-action cabinet shotguns (The House of the Dead III, CarnEvil, Big Buck Hunter): pumping the fore-end reloads"
+shape     = "Short shotgun with a pistol grip, no stock or a stub stock, and a sliding fore-end under the barrel."
+length_mm = 620                # design target for our model, not a measurement of the real item
+features  = ["pump", "laser"]
+notes     = "With a gun in each hand there is no free hand for the pump: reload falls back to the game's off-screen rule or a flick."
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "red"
+p1      = "red"
+p2      = "blue"
+red = { body = "#c93a2e", accent = "#1c1c20" }
+blue = { body = "#2f66cc", accent = "#1c1c20" }
+green = { body = "#3c9a48", accent = "#1c1c20" }

@@ -20,6 +20,7 @@ This is not legal advice. It sets out the project's rules.
 - Arcade game names, logos, marquees and cabinet designs belong to their owners (Sega, Bandai Namco, Konami and others). We ship no third-party art. Art downloaded by users stays on their machine, with a record of where it came from.
 - "Aladdin's Castle" was the name of a Bally/Midway arcade chain. Before any commercial or store release, clear the project name for trademark use.
 - Cabinet 3D models we ship must be original or properly licensed (for example CC-BY with attribution).
+- **Gun and control models are lookalikes, not copies**: original designs that evoke a peripheral's silhouette and layout, with our own proportions, no logos, brand names or model numbers on the model, and descriptive ids instead of trademarks. Never extracted from games, scans or other people's meshes. Built models are released under CC0-1.0 ([guns.md](guns.md) §2.2, §2.6).
 
 ## Metadata services
 

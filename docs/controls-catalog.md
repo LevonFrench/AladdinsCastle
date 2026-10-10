@@ -149,7 +149,7 @@ The **trigger is the fire button** whenever a cabinet's steering control carries
 
 ### 6.1 What we build
 
-One model per control type above (about 35), plus variants where cabinets differ visibly (e.g. Sega vs Namco gun styles, H4 vs H6 gates). All are **original designs**: evocative of the arcade hardware but not copies of manufacturer trade dress or logos.
+One model per control type above (about 35), plus variants where cabinets differ visibly (e.g. H4 vs H6 gates). **Guns have their own library of 23 models** with their own node names and per-player colours: [guns.md](guns.md) §2. All are **original designs**: evocative of the arcade hardware but not copies of manufacturer trade dress or logos.
 
 ### 6.2 Format and conventions
 

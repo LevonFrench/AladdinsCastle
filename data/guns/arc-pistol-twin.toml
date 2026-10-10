@@ -1,0 +1,20 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-pistol-twin"
+name      = "Arcade twin-gun pistol"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 1                   # build order: 1 first
+model     = "assets/guns/arc-pistol-twin.glb"
+source    = "assets/guns/src/arc-pistol-twin.py"
+resembles = "Sega's tethered cabinet pistols (Virtua Cop, The House of the Dead, Confidential Mission, Lost World and the NAOMI gun games)"
+shape     = "Stocky pistol with a squared barrel block, a moulded revolver-style cylinder and a wide trigger guard."
+length_mm = 245                # design target for our model, not a measurement of the real item
+features  = ["recoil_kick", "laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "red"
+p1      = "red"
+p2      = "blue"
+red = { body = "#cf2f2b", accent = "#1c1c20" }
+blue = { body = "#2b62d0", accent = "#1c1c20" }
+grey = { body = "#7d8087", accent = "#1c1c20" }

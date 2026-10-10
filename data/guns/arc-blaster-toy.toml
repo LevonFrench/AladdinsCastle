@@ -1,0 +1,19 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-blaster-toy"
+name      = "Toy dart blaster"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 3                   # build order: 1 first
+model     = "assets/guns/arc-blaster-toy.glb"
+source    = "assets/guns/src/arc-blaster-toy.py"
+resembles = "NERF Arcade foam-dart blasters"
+shape     = "Oversized toy blaster with a drum and bright two-tone body."
+length_mm = 320                # design target for our model, not a measurement of the real item
+features  = ["laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "orange"
+p1      = "orange"
+p2      = "blue"
+orange = { body = "#f2811d", accent = "#2b62d0" }
+blue = { body = "#2b62d0", accent = "#f2811d" }

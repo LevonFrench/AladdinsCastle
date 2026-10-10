@@ -31,8 +31,8 @@ The game camera's projection must match exactly. DR-89's v0.8.3 fix found that a
 | Start / coin | A/X | Any button |
 | Recenter | Hold both grips | Any chord |
 
-- **Hand switching:** pulling a trigger moves the gun to that hand (as in DR-89). Two players on one headset play akimbo, as in VC2VR. In true 3D, the second controller becomes player 2's gun.
-- **Gun model per game:** GunCon blue, Virtua Gun, HotD pistol, Ghost Squad machine gun and so on, all set in the cabinet file. Recoil moves the model without moving the aim ray.
+- **A gun in each hand:** in every two-player gun game the right hand is player 1's gun and the left hand is player 2's; player 2 joins with that hand's Start button. With one gun out, pulling the other trigger moves it to that hand. Rules and exceptions: [guns.md](guns.md) §1.
+- **You see the gun you hold:** our own 3D model of the game's gun (a GunCon lookalike, a Virtua Gun lookalike, the cabinet's pistol, shotgun or mounted machine gun) is drawn at the controller. Recoil moves the model without moving the aim ray. Library and assignment: [guns.md](guns.md) §2.
 - **Laser / crosshair:** off, laser, dot or game-native crosshair, each setting saved per game.
 - **Haptics:** fire pulse, recoil from the game's output events (MAMEHooker-style lamp/solenoid outputs or decompiled hooks), and a damage hit.
 

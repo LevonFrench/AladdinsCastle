@@ -1,0 +1,19 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-revolver"
+name      = "Arcade revolver"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 2                   # build order: 1 first
+model     = "assets/guns/arc-revolver.glb"
+source    = "assets/guns/src/arc-revolver.py"
+resembles = "Konami Lethal Enforcers cabinet revolvers"
+shape     = "Large revolver with a heavy barrel and a fixed cylinder; one gun blue and one pink."
+length_mm = 280                # design target for our model, not a measurement of the real item
+features  = ["laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "blue"
+p1      = "blue"
+p2      = "pink"
+blue = { body = "#2a63c9", accent = "#1c1c20" }
+pink = { body = "#e060a8", accent = "#1c1c20" }

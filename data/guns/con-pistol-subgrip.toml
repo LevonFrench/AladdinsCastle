@@ -1,0 +1,60 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "con-pistol-subgrip"
+name      = "Console pistol with side sub-grip"
+family    = "console"            # generic | console | arcade | mounted | special
+hold      = "two-hand"          # one-hand | two-hand | mounted
+tier      = 3                   # build order: 1 first
+model     = "assets/guns/con-pistol-subgrip.glb"
+source    = "assets/guns/src/con-pistol-subgrip.py"
+resembles = "Namco GunCon 3 for PlayStation 3 (2007): sub-grip under the barrel on the left with an analog stick and two shoulder buttons, a second stick and two buttons at the rear, two more on the left; black in Japan, orange in the US"
+shape     = "Pistol with a second grip sticking out on the left under the barrel; thumbstick on top of each grip."
+length_mm = 250                # design target for our model, not a measurement of the real item
+features  = ["laser"]
+notes     = "With a gun in each hand the sub-grip stays on the model but is not held; its stick moves to the same hand's thumbstick."
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "orange"
+p1      = "orange"
+p2      = "black"
+black = { body = "#1b1b1e", accent = "#8a8d93" }
+orange = { body = "#f07a1a", accent = "#2a2a2e" }
+
+[[button]]
+id    = "b1"
+label = "B1"
+node  = "button_b1"
+
+[[button]]
+id    = "b2"
+label = "B2"
+node  = "button_b2"
+
+[[button]]
+id    = "c1"
+label = "C1"
+node  = "button_c1"
+
+[[button]]
+id    = "c2"
+label = "C2"
+node  = "button_c2"
+
+[[button]]
+id    = "stick_rear"
+label = "Rear thumbstick"
+node  = "button_stick_rear"
+
+[[button]]
+id    = "stick_sub"
+label = "Sub-grip thumbstick"
+node  = "button_stick_sub"
+
+[[button]]
+id    = "sub_l1"
+label = "Sub-grip upper button"
+node  = "button_sub_l1"
+
+[[button]]
+id    = "sub_l2"
+label = "Sub-grip lower button"
+node  = "button_sub_l2"

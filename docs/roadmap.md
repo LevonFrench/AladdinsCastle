@@ -21,7 +21,8 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 - libacvr v0 on the [contract](libacvr-contract.md): OpenXR session, multiview, recenter/height, pause overlay, gun module (aim projection, cover button, recoil), ghost-control framework (wheel, `shifter_hl`, pedals, buttons), comfort basics.
 - libacvr host on namco22-decompile (guarded build-time patches), stereo through the `geo_hw.c` projection.
 - **Time Crisis** (tracked pistol, cover on the grip button) and **Rave Racer** (ghost wheel, two-position shifter, trigger pedals).
-- **Control Mapping mode** ([controls-catalog.md](controls-catalog.md) §7) and the first 3D control models (wheel, H/L shifter, pistol).
+- **Control Mapping mode** ([controls-catalog.md](controls-catalog.md) §7) and the first 3D control models (wheel, H/L shifter).
+- **Gun models:** libacvr loads and draws our own gun models in the hand ([guns.md](guns.md)); tier 1 models are built ahead of M2 ([tasks/m2/guns-models.md](tasks/m2/guns-models.md)). A gun in each hand follows with the first two-player setups (M3 theatre, M4 Model 3).
 - Installed by the Hub as `acvr` variants; the Hub dashboard overlay from spike S1 becomes the in-VR Hub.
 - Contribute generic changes upstream to namco22-decompile.
 - **Done when:** both games play start to finish in true 3D at the headset's refresh rate on the owner's PC (ALVR + SteamVR), installed and launched from the Hub.

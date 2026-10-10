@@ -1,0 +1,20 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-pistol-optical"
+name      = "Plain optical arcade pistol"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 2                   # build order: 1 first
+model     = "assets/guns/arc-pistol-optical.glb"
+source    = "assets/guns/src/arc-pistol-optical.py"
+resembles = "The plain optical pistols on Midway, Atari Games, Konami, Taito and Sammy cabinets (Area 51, Maximum Force, Jurassic Park III)"
+shape     = "Simple boxy pistol with a straight barrel, no moving parts and a ridged grip."
+length_mm = 240                # design target for our model, not a measurement of the real item
+features  = ["laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "red"
+p1      = "red"
+p2      = "blue"
+red = { body = "#cc3a30", accent = "#1c1c20" }
+blue = { body = "#3068cc", accent = "#1c1c20" }
+green = { body = "#3aa04a", accent = "#1c1c20" }

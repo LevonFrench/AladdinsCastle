@@ -1,0 +1,25 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "con-revolver-chunky"
+name      = "Chunky console revolver"
+family    = "console"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 1                   # build order: 1 first
+model     = "assets/guns/con-revolver-chunky.glb"
+source    = "assets/guns/src/con-revolver-chunky.py"
+resembles = "Sega Virtua Gun for Saturn (sold as the Stunner in North America): trigger and a Start button; the Japanese unit is black with a yellow trigger and Start button"
+shape     = "Short, thick revolver-like pistol with a blocky barrel shroud, a fixed cylinder bulge and a Start button on the left side."
+length_mm = 230                # design target for our model, not a measurement of the real item
+features  = ["laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "black"
+p1      = "orange"
+p2      = "blue"
+black = { body = "#1b1b1e", accent = "#f2c81e" }
+orange = { body = "#f26a1b", accent = "#2a2a2e" }
+blue = { body = "#2459c4", accent = "#2a2a2e" }
+
+[[button]]
+id    = "start"
+label = "Start"
+node  = "button_start"

@@ -1,0 +1,34 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "con-pistol-slot"
+name      = "Console pistol with accessory slot"
+family    = "console"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 2                   # build order: 1 first
+model     = "assets/guns/con-pistol-slot.glb"
+source    = "assets/guns/src/con-pistol-slot.py"
+resembles = "Sega Dreamcast Gun (HKT-7800): pistol with one expansion slot for a memory unit or a vibration pack"
+shape     = "Rounded pistol with a rectangular slot bay on top behind the sights, a small d-pad on the back and two small buttons beside it."
+length_mm = 235                # design target for our model, not a measurement of the real item
+features  = ["laser", "rumble"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "grey"
+p1      = "grey"
+p2      = "black"
+grey = { body = "#c9ccd1", accent = "#3a3d44" }
+black = { body = "#1b1b1e", accent = "#8a8d93" }
+
+[[button]]
+id    = "b"
+label = "B"
+node  = "button_b"
+
+[[button]]
+id    = "start"
+label = "Start"
+node  = "button_start"
+
+[[button]]
+id    = "dpad"
+label = "D-pad"
+node  = "button_dpad"

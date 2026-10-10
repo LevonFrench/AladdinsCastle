@@ -1,0 +1,30 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-rifle-selector"
+name      = "Arcade assault rifle"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "two-hand"          # one-hand | two-hand | mounted
+tier      = 2                   # build order: 1 first
+model     = "assets/guns/arc-rifle-selector.glb"
+source    = "assets/guns/src/arc-rifle-selector.py"
+resembles = "Cabinet rifles with a stock (Ghost Squad: fire selector, trigger and a fore-grip action trigger, force-feedback recoil); also the rifle-style guns on hunting and film-licence cabinets"
+shape     = "Carbine with a fixed stock, iron sights, a rotary fire selector above the grip and a second small trigger on the fore-grip."
+length_mm = 700                # design target for our model, not a measurement of the real item
+features  = ["auto_fire", "recoil_kick", "laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "black"
+p1      = "red"
+p2      = "blue"
+black = { body = "#26262a", accent = "#7d8087" }
+red = { body = "#c93a2e", accent = "#1c1c20" }
+blue = { body = "#2f66cc", accent = "#1c1c20" }
+
+[[button]]
+id    = "selector"
+label = "Fire selector"
+node  = "button_selector"
+
+[[button]]
+id    = "action"
+label = "Fore-grip action trigger"
+node  = "button_action"

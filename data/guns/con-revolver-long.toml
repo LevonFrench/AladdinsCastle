@@ -1,0 +1,26 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "con-revolver-long"
+name      = "Long-barrel console revolver"
+family    = "console"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 2                   # build order: 1 first
+model     = "assets/guns/con-revolver-long.glb"
+source    = "assets/guns/src/con-revolver-long.py"
+resembles = "Konami Justifier (1993): revolver in the style of a Colt Python, blue, with a pink second-player gun; the PlayStation Hyper Blaster is green (black in Japan)"
+shape     = "Large revolver with a long ribbed barrel and a smooth cylinder."
+length_mm = 290                # design target for our model, not a measurement of the real item
+features  = ["laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "blue"
+p1      = "blue"
+p2      = "pink"
+blue = { body = "#2a63c9", accent = "#1c1c20" }
+pink = { body = "#e060a8", accent = "#1c1c20" }
+green = { body = "#39a845", accent = "#1c1c20" }
+black = { body = "#1b1b1e", accent = "#8a8d93" }
+
+[[button]]
+id    = "start"
+label = "Start"
+node  = "button_start"

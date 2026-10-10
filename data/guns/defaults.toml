@@ -1,0 +1,146 @@
+# Which gun model each gun game gets, and which games can put a gun in each hand.
+# Rules and schema: docs/guns.md. Check and print with: python tools/gun_models.py
+#
+# Order of resolution for a game:
+#   1. `gun_model` under [controls] in the game's game.toml (or a pack / user override)
+#   2. the first [[rule]] below that matches
+#   3. hardware listed in `inherit_original`: the model of the game named by `original`
+#   4. `fallback`
+fallback         = "generic-pistol"
+inherit_original = ["pc-windows", "nintendo-switch"]   # ports played with a mouse or a stick show the arcade original's gun
+
+# ---------------------------------------------------------------------------
+# A gun in each hand (docs/guns.md §1). Every gun game with two or more guns
+# gets it, except these: each player has a separate view (twin linked cabinets,
+# split screen), so one headset cannot show both. They stay one-gun until a
+# two-view setup exists.
+# ---------------------------------------------------------------------------
+[two_guns]
+separate_views = [
+  "timecrs2", "timecrs3", "timecrs4", "time-crisis-5",   # twin cabinets, one screen per player
+  "ps2-time-crisis-2", "ps2-time-crisis-3",              # split screen or system link (to verify per release)
+]
+# A cabinet with three or four guns still maps two: these player slots, in order.
+slots = ["p1", "p2"]
+
+# ---------------------------------------------------------------------------
+# Rules. Keys inside `match` are ANDed; a list means "any of". `gun` is a
+# case-insensitive regular expression tested against [controls].gun.
+# `review = true` marks an assignment made without a source for the gun's shape.
+# ---------------------------------------------------------------------------
+
+[[rule]]
+model = "rifle-sniper-scope"
+match = { id = ["sscope", "sscope2", "sscopex", "sscopefh", "silent-scope-bone-eater", "dc-silent-scope", "xbox-silent-scope-complete", "golgo13", "g13knd"] }
+
+[[rule]]
+model = "arc-shotgun-pump"
+match = { id = ["hotd3", "carnevil", "big-buck-hunter-pro", "sega-clay-challenge", "sports-shooting-usa"] }
+
+[[rule]]
+model = "arc-smg"
+match = { id = ["hotd4", "hotdex", "house-of-the-dead-4-special", "crszone", "razing-storm"] }
+
+[[rule]]
+model  = "arc-smg"
+review = true      # Sega Rambo: machine-gun controllers, mount not confirmed
+match  = { id = ["rambo"] }
+
+[[rule]]
+model = "arc-rifle-selector"
+match = { id = ["ghostsqu", "ghostsev", "aliens-armageddon", "aliens-extermination", "extreme-hunting", "extreme-hunting-2", "primevah"] }
+
+[[rule]]
+model  = "arc-rifle-selector"
+review = true      # rifle with force feedback per trade listings; not confirmed from a fetched source
+match  = { id = ["terminator-salvation"] }
+
+[[rule]]
+model = "mnt-smg"
+match = { id = ["opwolf", "othunder", "operation-wolf-3", "optiger", "optigersm", "spacegun"] }
+
+[[rule]]
+model = "mnt-mg-heavy"
+match = { id = ["gunblade", "lamachin", "wii-gunblade-ny-la-machineguns", "loffire", "terminator-2-judgment-day", "revolution-x", "bbusters", "letsgoju", "lets-go-island", "oceanhun", "far-cry-paradise-lost"] }
+
+[[rule]]
+model  = "mnt-mg-heavy"
+review = true      # positional or mounted guns whose shape has no source yet
+match  = { id = ["sgunner", "sgunner2", "mechatt", "lghost", "rchase", "rchase2", "luckywld", "halo-fireteam-raven", "jurassic-park-arcade", "transformers-human-alliance"] }
+
+[[rule]]
+model = "arc-crossbow"
+match = { id = ["the-walking-dead"] }
+
+[[rule]]
+model = "arc-blaster-toy"
+match = { id = ["nerf-arcade"] }
+
+[[rule]]
+model = "spc-hose-nozzle"
+match = { id = ["brave-firefighters"] }
+
+[[rule]]
+model = "arc-pistol-duty"
+match = { id = ["p911", "p9112", "lethal-enforcers-3"] }
+
+[[rule]]
+model = "arc-revolver"
+match = { id = ["lethalen", "lethal-enforcers-2"] }
+
+[[rule]]
+model = "arc-pistol-slide"   # Namco guns on other makers' boards
+match = { id = ["gunsur2", "ninjaslt"] }
+
+# --- consoles, by the peripheral the release was made for --------------------
+
+[[rule]]
+model = "con-revolver-long"
+match = { hardware = ["sony-ps1"], gun = "justifier|hyper blaster" }
+
+[[rule]]
+model = "con-pistol-slim"
+match = { hardware = ["sony-ps1"] }
+
+[[rule]]
+model = "con-pistol-dpad"
+match = { hardware = ["sony-ps2"] }
+
+[[rule]]
+model = "con-pistol-subgrip"
+match = { hardware = ["sony-ps3"], gun = "guncon 3" }
+
+[[rule]]
+model = "con-wand-rifle"
+match = { hardware = ["sony-ps3"] }
+
+[[rule]]
+model = "con-revolver-chunky"
+match = { hardware = ["sega-saturn"] }
+
+[[rule]]
+model = "con-pistol-slot"
+match = { hardware = ["sega-dreamcast"] }
+
+[[rule]]
+model = "con-remote-shell"
+match = { hardware = ["nintendo-wii"] }
+
+[[rule]]
+model  = "generic-pistol"
+review = true      # Xbox light gun peripheral not identified
+match  = { hardware = ["microsoft-xbox"] }
+
+# --- arcade, by maker ---------------------------------------------------------
+
+[[rule]]
+model = "arc-pistol-slide"
+match = { kind = "arcade", manufacturer = ["namco"] }
+
+[[rule]]
+model = "arc-pistol-twin"
+match = { kind = "arcade", manufacturer = ["sega", "ecole", "psikyo"] }
+
+[[rule]]
+model = "arc-pistol-optical"
+match = { kind = "arcade" }

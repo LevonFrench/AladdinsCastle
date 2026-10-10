@@ -1,0 +1,25 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-smg"
+name      = "Arcade submachine gun"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "two-hand"          # one-hand | two-hand | mounted
+tier      = 2                   # build order: 1 first
+model     = "assets/guns/arc-smg.glb"
+source    = "assets/guns/src/arc-smg.py"
+resembles = "Cabinet submachine guns (The House of the Dead 4, Crisis Zone, Razing Storm): hold the trigger for automatic fire"
+shape     = "Compact SMG with a vertical fore-grip, a short barrel shroud and no stock."
+length_mm = 420                # design target for our model, not a measurement of the real item
+features  = ["auto_fire", "rumble", "shake", "laser"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "red"
+p1      = "red"
+p2      = "blue"
+red = { body = "#c93a2e", accent = "#1c1c20" }
+blue = { body = "#2f66cc", accent = "#1c1c20" }
+grey = { body = "#6f737a", accent = "#1c1c20" }
+
+[[button]]
+id    = "grenade"
+label = "Grenade"
+node  = "button_grenade"

@@ -1,0 +1,22 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-pistol-slide"
+name      = "Arcade pistol with blowback slide"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 1                   # build order: 1 first
+model     = "assets/guns/arc-pistol-slide.glb"
+source    = "assets/guns/src/arc-pistol-slide.py"
+resembles = "Namco's tethered cabinet pistols (Time Crisis series, with recoil; Point Blank series; Ninja Assault; Vampire Night)"
+shape     = "Full-size semi-automatic with a separate slide that travels back about 15 mm, chunky rounded grip, cable boss under the grip."
+length_mm = 255                # design target for our model, not a measurement of the real item
+features  = ["recoil_slide", "laser"]
+notes     = "Optional node button_select for games with a weapon-select button on the gun (Time Crisis 4; to verify), hidden otherwise."
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "red"
+p1      = "red"
+p2      = "blue"
+red = { body = "#d2362e", accent = "#1c1c20" }
+blue = { body = "#2f6fd6", accent = "#1c1c20" }
+pink = { body = "#e86aa6", accent = "#1c1c20" }
+orange = { body = "#f07a1a", accent = "#1c1c20" }

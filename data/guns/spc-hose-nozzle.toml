@@ -1,0 +1,23 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "spc-hose-nozzle"
+name      = "Fire hose nozzle"
+family    = "special"            # generic | console | arcade | mounted | special
+hold      = "two-hand"          # one-hand | two-hand | mounted
+tier      = 3                   # build order: 1 first
+model     = "assets/guns/spc-hose-nozzle.glb"
+source    = "assets/guns/src/spc-hose-nozzle.py"
+resembles = "Sega Brave Firefighters hose nozzle"
+shape     = "Brass-coloured nozzle with a twist collar and a bale handle on a short length of hose."
+length_mm = 480                # design target for our model, not a measurement of the real item
+features  = ["rumble", "twist_collar"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "brass"
+p1      = "brass"
+p2      = "brass"
+brass = { body = "#c79a3a", accent = "#b02a22" }
+
+[[button]]
+id    = "drain"
+label = "Drain"
+node  = "button_drain"

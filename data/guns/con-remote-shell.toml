@@ -1,0 +1,39 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "con-remote-shell"
+name      = "Remote-in-a-shell carbine"
+family    = "console"            # generic | console | arcade | mounted | special
+hold      = "two-hand"          # one-hand | two-hand | mounted
+tier      = 3                   # build order: 1 first
+model     = "assets/guns/con-remote-shell.glb"
+source    = "assets/guns/src/con-remote-shell.py"
+resembles = "Wii Zapper (2007): submachine-gun style shell with the Wii Remote in the barrel and the Nunchuk in the rear grip"
+shape     = "Stubby two-grip shell: front grip with the trigger, rear grip with a thumbstick, a long white remote lying in the top channel."
+length_mm = 265                # design target for our model, not a measurement of the real item
+features  = ["rumble"]
+notes     = "With a gun in each hand it is drawn as the bare remote (pointer) instead of the shell."
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "white"
+p1      = "white"
+p2      = "white"
+white = { body = "#eef0f3", accent = "#9aa0a8" }
+
+[[button]]
+id    = "a"
+label = "A"
+node  = "button_a"
+
+[[button]]
+id    = "stick"
+label = "Thumbstick"
+node  = "button_stick"
+
+[[button]]
+id    = "z"
+label = "Z"
+node  = "button_z"
+
+[[button]]
+id    = "c"
+label = "C"
+node  = "button_c"
