@@ -67,7 +67,7 @@ ScrollView {
   PillButton{vrOverlayMode:page.vrOverlayMode;text:"Show more";visible:(page.detail.similar||[]).length>page.similarLimit;onClicked:page.similarLimit=12}
   UiText{text:"CONTROLS";font.weight:600;color:Theme.get("color.text.heading")}
   UiText{objectName:"detailControlsStatus";width:parent.width;visible:text.length>0;text:uiController.detailControlsStatus;color:Theme.get("color.text.muted_detail")}
-  PillButton{text:"Reload controls";objectName:"reloadDetailControls";visible:!page.vrOverlayMode;enabled:!uiController.detailControlsLoading;onClicked:uiController.reloadDetailControls()}
+  PillButton{text:"Reload controls";objectName:"reloadDetailControls";vrOverlayMode:page.vrOverlayMode;visible:!page.vrOverlayMode;enabled:!uiController.detailControlsLoading;onClicked:uiController.reloadDetailControls()}
   Loader{
    id:controlsView;objectName:"detailControlsLoader";width:parent.width
    active:!page.vrOverlayMode&&uiController.detailControls.gameId===page.detail.gameId&&uiController.detailControls.gameId.length>0
