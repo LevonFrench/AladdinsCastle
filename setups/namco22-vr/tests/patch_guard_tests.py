@@ -9,6 +9,9 @@ SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "tools/patch_engine.py"
 spec = importlib.util.spec_from_file_location("n22_patch", SCRIPT)
 patch = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(patch)
+material_spec = importlib.util.spec_from_file_location("n22_material_guard", SCRIPT.with_name("verify_material_source.py"))
+material_guard = importlib.util.module_from_spec(material_spec)
+material_spec.loader.exec_module(material_guard)
 
 class GuardTests(unittest.TestCase):
     def setUp(self):
@@ -19,6 +22,13 @@ class GuardTests(unittest.TestCase):
             raise RuntimeError("Fixture root outside intended test workspace")
         self.source = self.root / "source"
         self.manifest = {"files": {}, "headers": {}}
+        self.material_manifest = {"files": {}}
+        for name in material_guard.FILES:
+            path = self.source / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            text = "synthetic material evidence\n"
+            path.write_text(text, encoding="utf-8")
+            self.material_manifest["files"][name] = hashlib.sha256(text.encode()).hexdigest()
         for name in patch.HEADERS:
             path = self.source / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -77,6 +87,15 @@ class GuardTests(unittest.TestCase):
         (self.source/sorted(patch.HEADERS)[0]).write_text("drift", encoding="utf-8")
         with self.assertRaises(ValueError):
             patch.render(self.manifest, self.source)
+    def test_material_evidence_drift_rejected(self):
+        material_guard.verify(self.material_manifest, self.source)
+        (self.source / sorted(material_guard.FILES)[0]).write_text("drift", encoding="utf-8")
+        with self.assertRaises(ValueError):
+            material_guard.verify(self.material_manifest, self.source)
+    def test_material_allowlist_rejects_unapproved_paths(self):
+        self.material_manifest["files"]["unapproved/path.c"] = "unused"
+        with self.assertRaises(ValueError):
+            material_guard.verify(self.material_manifest, self.source)
 
 if __name__ == "__main__":
     unittest.main()

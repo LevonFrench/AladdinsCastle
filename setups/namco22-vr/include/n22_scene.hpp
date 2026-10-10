@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
 #include "acvr.h"
+#include "n22_material.hpp"
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -15,23 +16,29 @@ struct Polygon {
     uint32_t camera_id = 0;
     Layer layer = Layer::World;
     uint32_t rgb = 0xffffff;
+    uint32_t material = NoMaterial;
+    std::array<MaterialVertex,3> attributes{};
 };
 struct Triangle {
     std::array<Vec3, 3> vertices;
     uint32_t camera_id;
     Layer layer;
     uint32_t rgb;
+    uint32_t material = NoMaterial;
+    std::array<MaterialVertex,3> attributes{};
 };
 struct SceneInput {
     std::vector<acvr_game_camera> cameras;
     std::vector<Polygon> polygons;
     float hud_depth_scene = 2;
+    MaterialPacket materials;
 };
 // Owns all data. Never retains mutable source arrays or references to emulation.
 struct Frame {
     uint64_t id = 0;
     std::vector<acvr_game_camera> cameras;
     std::vector<Triangle> triangles;
+    MaterialPacket materials;
 };
 struct Image {
     uint32_t width, height;
@@ -41,6 +48,7 @@ struct Image {
 };
 acvr_game_camera synthetic_camera();
 SceneInput synthetic_cube();
+SceneInput synthetic_material_cube();
 Vec3 unproject(const ProjectedVertex &, const acvr_game_camera &);
 acvr_result prepare(const SceneInput &, uint64_t id, Frame &out);
 acvr_result project_gun(Vec3 point, const acvr_game_camera &, float &x, float &y,

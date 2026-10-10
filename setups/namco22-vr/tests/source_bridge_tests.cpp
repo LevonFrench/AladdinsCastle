@@ -36,10 +36,18 @@ int main() {
         check(n22_source_fixture_inputs()==2 && n22_source_fixture_presses()==1 && second->output_bits==2,"held trigger does not replay pressed edge");
         check(first->banks[n22::Palette][0]==1 && second->banks[n22::Palette][0]==2 && retained_spot[0]==1,"new source frame leaves old copy unchanged");
         geo_quad quad{};geo_view view{};quad.v[0].sx16=160;quad.rv[0].z=2;quad.ndv=3;
+        quad.rv[0].u=19;quad.rv[0].v=27;quad.rv[0].bri=128;quad.rv[0].uf=123;quad.rv[0].vf=456;quad.rv[0].bf=789;
+        quad.color=0x128000;quad.texbank=7;quad.cmode=13;quad.objectflags=3;quad.cz_type=2;quad.cz_adjust=0x801234;
+        quad.zsort=0x123456;quad.order=17;quad.uvbox[0]=12;quad.clip[0]=9;
         view.zoom_mant=1545;view.zoom_shift=1;view.vx=7;view.vy=-4;
         auto captured=n22::copy_geo_quad(quad,&view);quad.v[0].sx16=0;view.zoom_mant=0;
         check(captured.has_camera && captured.focal==772.5f && captured.cx==327 && captured.cy==236,"exact emitted camera copied before sorting");
         check(captured.quad.v[0].sx16==160 && captured.quad.rv[0].z==2 && captured.quad.ndv==3,"all raw/clipped/guard-band quad data retained");
+        check(captured.quad.rv[0].u==19 && captured.quad.rv[0].v==27 && captured.quad.rv[0].bri==128 &&
+              captured.quad.rv[0].uf==123 && captured.quad.rv[0].vf==456 && captured.quad.rv[0].bf==789,"UV brightness and pre-truncation fields survive capture");
+        check(captured.quad.color==0x128000 && captured.quad.texbank==7 && captured.quad.cmode==13 && captured.quad.objectflags==3 &&
+              captured.quad.cz_type==2 && captured.quad.cz_adjust==0x801234,"palette/addressing/fog/solid metadata retained without interpretation");
+        check(captured.quad.zsort==0x123456 && captured.quad.order==17 && captured.quad.uvbox[0]==12 && captured.quad.clip[0]==9,"sort order and stable UV/clip seam retained");
         quad.direct=1;check(!n22::copy_geo_quad(quad,&view).has_camera,"direct polygons are not assigned an invented camera");
         quad.direct=0;view.zoom_mant=1545;
         auto emitted=n22::prepare_with_capture(*second,[&](const ss22_regs &r) {

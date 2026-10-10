@@ -80,6 +80,10 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
     if(in.size<sizeof(in) || in.version!=ACVR_STRUCT_VERSION || in.target.size<sizeof(in.target) ||
        in.target.version!=ACVR_STRUCT_VERSION) return ACVR_BAD_VERSION;
     if(in.frame_id!=frame.id) return ACVR_BAD_STATE;
+    // Do not silently replace owned texture/material packets with flat RGB.
+    // GPU texture lifecycle and textured draw dispatch are a separate gate.
+    if(!frame.materials.materials.empty()) return ACVR_UNSUPPORTED;
+    for(const auto &t:frame.triangles) if(t.material!=NoMaterial) return ACVR_UNSUPPORTED;
     if(in.target.api!=ACVR_GRAPHICS_GL || in.target.array_layers!=1 || in.target.sample_count!=1 ||
        !in.target.depth_format || !in.target.depth_image || !in.target.colour_image || !in.target.framebuffer) return ACVR_UNSUPPORTED;
     if(in.target.colour_format!=0 && in.target.colour_format!=GL_RGB8 && in.target.colour_format!=GL_RGBA8 &&
