@@ -1,0 +1,98 @@
+{
+  "base_commit": "a9f1a0a1f9de62387a7138006fa36933fd477123",
+  "upstream": "https://github.com/spacestate1/namco22-decompile",
+  "scope": "disabled lifecycle/capture scaffolding; not a content loader or playable adapter",
+  "files": {
+    "engine/ss22_run.c": {
+      "sha256_lf": "5863bed1d1d807745cf43b3df87d5c970021410d6865ff1ced6a8674bfb7c5a0",
+      "edits": [
+        {
+          "id": "hooks-include",
+          "old": "#include \"ss22_host.h\"",
+          "new": "#include \"ss22_host.h\"\n#ifdef ACVR_SS22_ADAPTER\n#include \"n22_source_hooks.h\"\n#endif"
+        },
+        {
+          "id": "stop-poll",
+          "old": "void rr_tick(void)\n{",
+          "new": "void rr_tick(void)\n{\n#ifdef ACVR_SS22_ADAPTER\n    acvr_ss22_check_stop();\n#endif"
+        },
+        {
+          "id": "native-input-output",
+          "old": "    update_inputs();\n    if (rr_frame % 120 == 0) ss22_eeprom_save();\n    if (dump_every && rr_frame % dump_every == 0) dump_state();\n    sweep_tick();\n    ss22_out_poll(ss22_snd_outputs());                     /* the cabinet's outputs (lamps, the gun solenoid): MAME's network output + pad rumble */\n",
+          "new": "#ifdef ACVR_SS22_ADAPTER\n    acvr_ss22_output_bits(ss22_snd_outputs());\n#else\n    update_inputs();\n    if (rr_frame % 120 == 0) ss22_eeprom_save();\n    if (dump_every && rr_frame % dump_every == 0) dump_state();\n    sweep_tick();\n    ss22_out_poll(ss22_snd_outputs());                     /* the cabinet's outputs (lamps, the gun solenoid): MAME's network output + pad rumble */\n#endif\n"
+        },
+        {
+          "id": "snapshot-boundary",
+          "old": "    { static int every = -1, ms, run = 1;                  /* ENG_SLOWFRAME=every:ms[:run] (tests: a slow machine): `run` frames of +ms, every `every` frames */\n      if (every < 0) { const char *e = getenv(\"ENG_SLOWFRAME\"); every = 0; if (e) sscanf(e, \"%d:%d:%d\", &every, &ms, &run); if (run < 1) run = 1; }\n      if (every > 0 && ms > 0 && rr_frame % (uint32_t)every < (uint32_t)run) { struct timespec d = { ms / 1000, (long)(ms % 1000) * 1000000L }; nanosleep(&d, NULL); } }\n    if (video_on) {\n        double t1 = ftime_on ? ft_now() : 0;\n        ss22_video_prepare();                              /* the master's finished list, before this vblank starts the next */\n        double t2 = ftime_on ? ft_now() : 0;\n        if (shot_dir && rr_frame % shot_every == 0) {\n            char p[1024]; snprintf(p, sizeof p, \"%s/%s_f%u.ppm\", shot_dir, g_ss22_game->lname, rr_frame);\n            ss22_host_shot(p);\n        }\n        if (ss22_host_active() && !ss22_host_frame()) {\n            const bool restart = ss22_host_restart_requested();       /* File > Restart: power-cycle the cabinet */\n            ss22_eeprom_save(); ss22_snd_close(); ss22_out_close(); ss22_input_close(); ss22_host_close(); fprintf(stderr, \"[%s] quit at frame %u\\n\", g_ss22_game->tag, rr_frame);\n#ifndef _WIN32\n            if (restart) { fflush(NULL); execv(\"/proc/self/exe\", g_argv); perror(\"restart\"); }\n#else\n            (void)restart;\n#endif\n            exit(0);\n        }\n        if (ftime_on) {\n            double h = ft_now() - t2; ft_prep += t2 - t1; ft_host += h; ft_lprep = t2 - t1; ft_lhost = h;\n            if (h > 0.040) fprintf(stderr, \"[FTIME-SLOW] frame %u  host %.1f ms  (prep %.1f)\\n\", rr_frame, h * 1e3, (t2 - t1) * 1e3);   /* one line per over-40 ms host frame: WHICH frame, not just the window's max */\n        }\n    }\n    if (ftime_on && rr_frame % 60 == 0 && ft_n) {\n        extern double g_perf_bake, g_perf_clip, g_perf_gl;\n        extern long g_bb_draws, g_bb_binds;\n        extern long g_tex_page_resets;\n        static long ft_draws, ft_binds, ft_resets_prev;\n        long ft_resets = g_tex_page_resets - ft_resets_prev; ft_resets_prev = g_tex_page_resets;\n        fprintf(stderr, \"[FTIME] frame %u  avg %.2f ms = cpu %.2f + prep %.2f + host %.2f   max %.2f (prep %.2f host %.2f) | bake %.2f clip %.2f gl %.2f draws %ld binds %ld resets %ld\\n\",\n                rr_frame, ft_tot / ft_n * 1e3, (ft_tot - ft_prep - ft_host) / ft_n * 1e3,\n                ft_prep / ft_n * 1e3, ft_host / ft_n * 1e3, ft_max * 1e3,\n                ft_max_prep * 1e3, ft_max_host * 1e3,\n                (g_perf_bake - ft_bake) / ft_n * 1e3, (g_perf_clip - ft_clip) / ft_n * 1e3, (g_perf_gl - ft_gl) / ft_n * 1e3,\n                (g_bb_draws - ft_draws) / ft_n, (g_bb_binds - ft_binds) / ft_n, ft_resets);\n        ft_tot = ft_prep = ft_host = ft_max = 0; ft_n = 0;\n        ft_bake = g_perf_bake; ft_clip = g_perf_clip; ft_gl = g_perf_gl;\n        ft_draws = g_bb_draws; ft_binds = g_bb_binds;\n    }\n",
+          "new": "#ifdef ACVR_SS22_ADAPTER\n    ss22_video_prepare();\n    acvr_ss22_frame_boundary();\n#else\n    { static int every = -1, ms, run = 1;                  /* ENG_SLOWFRAME=every:ms[:run] (tests: a slow machine): `run` frames of +ms, every `every` frames */\n      if (every < 0) { const char *e = getenv(\"ENG_SLOWFRAME\"); every = 0; if (e) sscanf(e, \"%d:%d:%d\", &every, &ms, &run); if (run < 1) run = 1; }\n      if (every > 0 && ms > 0 && rr_frame % (uint32_t)every < (uint32_t)run) { struct timespec d = { ms / 1000, (long)(ms % 1000) * 1000000L }; nanosleep(&d, NULL); } }\n    if (video_on) {\n        double t1 = ftime_on ? ft_now() : 0;\n        ss22_video_prepare();                              /* the master's finished list, before this vblank starts the next */\n        double t2 = ftime_on ? ft_now() : 0;\n        if (shot_dir && rr_frame % shot_every == 0) {\n            char p[1024]; snprintf(p, sizeof p, \"%s/%s_f%u.ppm\", shot_dir, g_ss22_game->lname, rr_frame);\n            ss22_host_shot(p);\n        }\n        if (ss22_host_active() && !ss22_host_frame()) {\n            const bool restart = ss22_host_restart_requested();       /* File > Restart: power-cycle the cabinet */\n            ss22_eeprom_save(); ss22_snd_close(); ss22_out_close(); ss22_input_close(); ss22_host_close(); fprintf(stderr, \"[%s] quit at frame %u\\n\", g_ss22_game->tag, rr_frame);\n#ifndef _WIN32\n            if (restart) { fflush(NULL); execv(\"/proc/self/exe\", g_argv); perror(\"restart\"); }\n#else\n            (void)restart;\n#endif\n            exit(0);\n        }\n        if (ftime_on) {\n            double h = ft_now() - t2; ft_prep += t2 - t1; ft_host += h; ft_lprep = t2 - t1; ft_lhost = h;\n            if (h > 0.040) fprintf(stderr, \"[FTIME-SLOW] frame %u  host %.1f ms  (prep %.1f)\\n\", rr_frame, h * 1e3, (t2 - t1) * 1e3);   /* one line per over-40 ms host frame: WHICH frame, not just the window's max */\n        }\n    }\n    if (ftime_on && rr_frame % 60 == 0 && ft_n) {\n        extern double g_perf_bake, g_perf_clip, g_perf_gl;\n        extern long g_bb_draws, g_bb_binds;\n        extern long g_tex_page_resets;\n        static long ft_draws, ft_binds, ft_resets_prev;\n        long ft_resets = g_tex_page_resets - ft_resets_prev; ft_resets_prev = g_tex_page_resets;\n        fprintf(stderr, \"[FTIME] frame %u  avg %.2f ms = cpu %.2f + prep %.2f + host %.2f   max %.2f (prep %.2f host %.2f) | bake %.2f clip %.2f gl %.2f draws %ld binds %ld resets %ld\\n\",\n                rr_frame, ft_tot / ft_n * 1e3, (ft_tot - ft_prep - ft_host) / ft_n * 1e3,\n                ft_prep / ft_n * 1e3, ft_host / ft_n * 1e3, ft_max * 1e3,\n                ft_max_prep * 1e3, ft_max_host * 1e3,\n                (g_perf_bake - ft_bake) / ft_n * 1e3, (g_perf_clip - ft_clip) / ft_n * 1e3, (g_perf_gl - ft_gl) / ft_n * 1e3,\n                (g_bb_draws - ft_draws) / ft_n, (g_bb_binds - ft_binds) / ft_n, ft_resets);\n        ft_tot = ft_prep = ft_host = ft_max = 0; ft_n = 0;\n        ft_bake = g_perf_bake; ft_clip = g_perf_clip; ft_gl = g_perf_gl;\n        ft_draws = g_bb_draws; ft_binds = g_bb_binds;\n    }\n#endif\n"
+        },
+        {
+          "id": "no-native-exit",
+          "old": "    if (rr_frame >= max_frames) {\n        dump_state();\n        ss22_eeprom_save();\n        ss22_snd_close();\n        ss22_host_close();\n        ss22_env_report();\n        fprintf(stderr, \"[%s] stop at frame %u, %u traps\\n\", g_ss22_game->tag, rr_frame, rr_n_traps);\n        exit(rr_n_traps ? 3 : 0);\n    }",
+          "new": "#ifndef ACVR_SS22_ADAPTER\n    if (rr_frame >= max_frames) {\n        dump_state();\n        ss22_eeprom_save();\n        ss22_snd_close();\n        ss22_host_close();\n        ss22_env_report();\n        fprintf(stderr, \"[%s] stop at frame %u, %u traps\\n\", g_ss22_game->tag, rr_frame, rr_n_traps);\n        exit(rr_n_traps ? 3 : 0);\n    }\n#endif"
+        },
+        {
+          "id": "loader-disabled",
+          "old": "int ss22_main(int argc, char **argv, const ss22_game *g)\n{",
+          "new": "int ss22_main(int argc, char **argv, const ss22_game *g)\n{\n#ifdef ACVR_SS22_ADAPTER\n    /* Lifecycle-only scaffold: do not enter the legacy loader or create a host. */\n    (void)argc; (void)argv; (void)g;\n    return ACVR_UNSUPPORTED;\n#endif"
+        },
+        {
+          "id": "entry-trampoline",
+          "old": "    g->entry();                                         /* entry_reset: never returns */",
+          "new": "#ifdef ACVR_SS22_ADAPTER\n    return acvr_ss22_run_entry(g->entry);\n#else\n    g->entry();                                         /* entry_reset: never returns */\n#endif"
+        }
+      ]
+    },
+    "engine/ss22_video.c": {
+      "sha256_lf": "7d6cf8cc1c51bc7bf845243069d1373c4c468b920c96f5844dbf5bd81dc4fe9a",
+      "edits": [
+        {
+          "id": "hooks-include",
+          "old": "#include \"ss22_gl.h\"",
+          "new": "#include \"ss22_gl.h\"\n#ifdef ACVR_SS22_ADAPTER\n#include \"n22_source_hooks.h\"\n#endif"
+        },
+        {
+          "id": "video-copy",
+          "old": "    ss22_prepare(&r);",
+          "new": "#ifdef ACVR_SS22_ADAPTER\n    acvr_ss22_video_snapshot(&r);\n#else\n    ss22_prepare(&r);\n#endif"
+        }
+      ]
+    },
+    "engine/geo_hw.c": {
+      "sha256_lf": "155f25f681f5bb42ceece61efebc8e5d5450f04e914c1dee120c760201a08362",
+      "edits": [
+        {
+          "id": "hooks-include",
+          "old": "#include \"geo_hw.h\"",
+          "new": "#include \"geo_hw.h\"\n#ifdef ACVR_SS22_ADAPTER\n#include \"n22_source_hooks.h\"\n#endif"
+        },
+        {
+          "id": "camera-emission",
+          "old": "    cb(&q, user);",
+          "new": "#ifdef ACVR_SS22_ADAPTER\n    acvr_ss22_capture_quad(&q, &g_view);\n#endif\n    cb(&q, user);"
+        }
+      ]
+    },
+    "engine/ss22_gl.c": {
+      "sha256_lf": "ac2e4cc3456c626a0e60868a96efa9cbd977e14fbe2944aafa07935b30854e84",
+      "edits": [
+        {
+          "id": "hooks-include",
+          "old": "#include \"ss22_gl.h\"",
+          "new": "#include \"ss22_gl.h\"\n#ifdef ACVR_SS22_ADAPTER\n#include \"n22_source_hooks.h\"\n#endif"
+        },
+        {
+          "id": "direct-emission",
+          "old": "static void push_quad(const geo_quad *q, void *user)\n{\n    (void)user;",
+          "new": "static void push_quad(const geo_quad *q, void *user)\n{\n    (void)user;\n#ifdef ACVR_SS22_ADAPTER\n    if (q->direct) acvr_ss22_capture_quad(q, NULL);\n#endif"
+        }
+      ]
+    }
+  },
+  "headers": {
+    "engine/ss22_gl.h": "770272cc8c012ad675a871ae38b3685e772ccf05b0e28594d6c2784f98bed250",
+    "engine/geo_hw.h": "8d1a9d09a42792804557d5a6632764e4d27336160ae69514ed20dbee80c4f02c",
+    "engine/hud_edges.h": "e869854d6bca0af54963ec76fca7c3500cb70e898b0f44e38cce053ae19aa524",
+    "engine/ss22_board.h": "59e1e10f0e4f3e20e28dc1467cafb392a596ae2e37c135fc314f3ece0cefad33"
+  }
+}
