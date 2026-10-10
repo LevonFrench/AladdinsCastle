@@ -57,6 +57,11 @@ void load_and_motion() {
     anchor.orientation_xyzw[1]=anchor.orientation_xyzw[3]=float(std::sqrt(.5));
     check(gun.draw(anchor,grip,c,10,5,48000000,draw)==ACVR_OK && std::abs(draw.muzzle.direction_scene[0]+1)<.001f);
     check(std::abs(draw.muzzle.origin_scene[0]-18)<.001f && std::abs(draw.muzzle.origin_scene[1]-10.2f)<.001f);
+    const auto exact=draw;
+    anchor.orientation_xyzw[1]=anchor.orientation_xyzw[3]=std::sqrt(.5004f);
+    check(gun.draw(anchor,grip,c,10,5,48000000,draw)==ACVR_OK);
+    for(unsigned i=0;i<16;++i) check(std::abs(draw.scene_from_node[3][i]-exact.scene_from_node[3][i])<.00001f);
+    for(unsigned i=0;i<3;++i) check(std::abs(draw.muzzle.origin_scene[i]-exact.muzzle.origin_scene[i])<.00001f&&std::abs(draw.muzzle.direction_scene[i]-exact.muzzle.direction_scene[i])<.00001f);
     grip.orientation_xyzw[3]=2; check(gun.draw(anchor,grip,c,10,5,48000000,draw)==ACVR_BAD_ARGUMENT);
 }
 void invalid_metadata_and_files() {

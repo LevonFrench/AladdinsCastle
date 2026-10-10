@@ -7,6 +7,8 @@
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlContext>
+#include <QQmlIncubationController>
+#include <QScopeGuard>
 #include <QQuickWindow>
 #include <QQuickItem>
 #include <QQuickStyle>
@@ -135,8 +137,51 @@ class UiTest:public QObject {
  void recentReordersWhenLastPlayedChanges(){
   filter.setSortMode("recent");const auto id=games->records().last().id;const auto original=games->find(id)->runtime;auto state=original;state.lastPlayed=123456;games->applyRuntimeStates({state});QTRY_COMPARE(ui->filteredGame(0).value("gameId").toString(),id);games->applyRuntimeStates({original});filter.setSortMode("title");
  }
+ void exploreTilesBindLocalArt_data(){
+  QTest::addColumn<bool>("delayedIncubation");
+  QTest::newRow("window-incubation")<<false;
+  QTest::newRow("delayed-delegate-incubation")<<true;
+ }
  void exploreTilesBindLocalArt(){
-  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/ExplorePage.qml"));std::unique_ptr<QObject> object(component.create());QVERIFY(object);auto page=qobject_cast<QQuickItem *>(object.get());QVERIFY(page);page->setParentItem(window->contentItem());page->setWidth(1000);page->setHeight(650);QTest::qWait(100);const auto tiles=namedItems(page,"libraryTile");QVERIFY(!tiles.isEmpty());for(auto tile:tiles){const auto source=tile->property("source").toUrl().toString();QVERIFY(source.startsWith("image://art/"));QVERIFY(source.contains("/portrait"));}page->setParentItem(nullptr);
+  QFETCH(bool,delayedIncubation);
+  QQmlIncubationController incubation;
+  auto original=engine->incubationController();
+  if(delayedIncubation) engine->setIncubationController(&incubation);
+  const auto restore=qScopeGuard([&]{if(delayedIncubation)engine->setIncubationController(original);});
+  QTimer frames;frames.setInterval(5);
+  connect(&frames,&QTimer::timeout,this,[&]{incubation.incubateFor(2);});
+  if(delayedIncubation) QTimer::singleShot(250,&frames,qOverload<>(&QTimer::start));
+  // Sorting queues facetsChanged; exercise a model refresh during incubation.
+  QSignalSpy refreshed(ui.get(),&ac::UiController::facetsChanged);
+  if(delayedIncubation){filter.setSortMode("recent");filter.setSortMode("title");}
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/ExplorePage.qml"));
+  std::unique_ptr<QObject> object(component.create());QVERIFY2(object,qPrintable(component.errorString()));
+  auto page=qobject_cast<QQuickItem *>(object.get());QVERIFY(page);
+  page->setParentItem(window->contentItem());page->setWidth(1000);page->setHeight(650);
+  if(delayedIncubation) QTRY_VERIFY(refreshed.count()>0);
+  else QCoreApplication::processEvents();
+  QString diagnostic;
+  auto boundTiles=[&]{
+   // Model replacement/incubation can destroy items between event turns.
+   // Reacquire all delegates each time instead of retaining transient pointers.
+   const auto tiles=namedItems(page,"libraryTile");
+   if(tiles.isEmpty()){diagnostic="ExplorePage has no libraryTile delegates yet";return false;}
+   for(auto tile:tiles){
+    const auto value=tile->property("game");
+    const auto game=value.metaType().id()==qMetaTypeId<QJSValue>()?value.value<QJSValue>().toVariant().toMap():value.toMap();
+    const auto id=game.value("gameId").toString();
+    const auto source=tile->property("source").toUrl().toString();
+    const auto expected="image://art/"+id+"/portrait";
+    if(id.isEmpty()||!games->find(id)||source!=expected){
+     diagnostic=QString("item=%1 game=%2 source=%3 expected=%4 tiles=%5 incubating=%6")
+         .arg(tile->objectName(),id,source,expected).arg(tiles.size()).arg(engine->incubationController()?engine->incubationController()->incubatingObjectCount():0);
+     return false;
+    }
+   }
+   return true;
+  };
+  QTRY_VERIFY2(boundTiles(),qPrintable(diagnostic));
+  page->setParentItem(nullptr);
  }
  void nonInstallErrorsHaveNoInstallRecovery(){
   ui->installFinished(true,"Synthetic completion");ui->showError("Steam","Synthetic failure");QCOMPARE(ui->status(),QString("Steam: Synthetic failure"));QVERIFY(ui->recovery().isEmpty());QVERIFY(!ui->installing());

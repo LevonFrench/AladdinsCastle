@@ -566,6 +566,9 @@ CatalogData CatalogLoader::load(const QString &root) const {
         }
         const auto variants = object(g.install, "variant");
         for (auto v = variants.begin(); v != variants.end(); ++v) {
+            // Validation already warns on non-table rows; they cannot shadow
+            // a working generated flat route with the same id.
+            if (!v.value().is_object()) continue;
             Variant record;
             record.id = QString::fromStdString(v.key());
             record.raw = v.value();

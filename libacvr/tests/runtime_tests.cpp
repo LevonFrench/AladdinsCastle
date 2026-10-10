@@ -19,6 +19,8 @@ void check(bool value) { ++checks; if(!value) throw std::runtime_error("check " 
 struct Receipt {
     bool model_support=false,fail_model=false;
     bool controls_support=false;
+    bool pause_support=false;
+    unsigned pause_actions=0;
     bool omit_legacy_triggers=false;
     std::vector<std::string> unavailable;
     bool requires_depth=false;
@@ -148,6 +150,11 @@ struct Recorded final:acvr::Host {
     void cancel_effects() noexcept override { ++r.cancelled; }
     bool supports_guns() const noexcept override {return r.model_support;}
     bool supports_controller_samples() const noexcept override {return r.controls_support;}
+    uint32_t supported_runtime_actions() const noexcept override {return r.pause_support?acvr::action_bit(acvr::RuntimeAction::Pause):0;}
+    acvr_result runtime_action(acvr::RuntimeAction action) override {
+        if(action!=acvr::RuntimeAction::Pause||!r.pause_support) return ACVR_UNSUPPORTED;
+        ++r.pause_actions;return ACVR_OK;
+    }
     void unavailable_controls(const std::vector<std::string> &ids) override {r.unavailable=ids;}
     bool offscreen_reload(uint32_t slot) const noexcept override {return slot==0&&r.offscreen_reload;}
     std::vector<acvr::GunOutputRoute> gun_output_routes() const override {return r.motion_routes;}
@@ -312,6 +319,27 @@ void reload_edges() {
     check(acvr_runtime_destroy(p)==ACVR_OK);
 }
 #ifdef ACVR_GUN_MODELS
+void mapped_pause_stops_current_frame() {
+    const auto path=std::filesystem::current_path()/"synthetic-pause-controls.toml";
+    {std::ofstream out(path);out<<control_header()<<control_row("fire","gun","trigger","trigger")
+        <<control_row("coin","button","coin","secondary")<<control_row("pause","runtime","pause","primary","press");}
+    auto c=config();const auto name=path.u8string();c.merged_controls_path_utf8=name.c_str();auto a=api();acvr_runtime *p=nullptr;
+    Receipt r;r.controls_support=r.pause_support=true;current=&r;
+    std::vector<Sample> samples{{0},{17000000,true,true},{34000000,true,true},{51000000,true,true},{68000000},{85000000,true,true}};
+    samples[1].primary=samples[2].primary=samples[3].primary=true;
+    check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,samples),&p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.steps.size()==1&&r.submitted==1);
+    const auto outputs_before=r.outputs,draws_before=r.draws;
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.pause_actions==1);
+    check(r.steps.size()==1&&r.outputs==outputs_before&&r.draws==draws_before&&r.submitted==1&&r.ends==2);
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.steps.size()==1&&r.pause_actions==1&&r.ends==3);
+    check(acvr_runtime_set_paused(p,0)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.steps.size()==2&&r.pause_actions==1);
+    check(r.guns.back().trigger==0&&r.buttons.back().state==0);
+    check(acvr_runtime_tick(p)==ACVR_OK&&acvr_runtime_tick(p)==ACVR_OK);
+    check(r.guns.back().trigger==(ACVR_INPUT_HELD|ACVR_INPUT_PRESSED)&&r.buttons.back().state==(ACVR_INPUT_HELD|ACVR_INPUT_PRESSED));
+    check(acvr_runtime_destroy(p)==ACVR_OK);std::filesystem::remove(path);
+}
 void alternate_button_bindings() {
     const auto path=std::filesystem::current_path()/"synthetic-alternate-controls.toml";
     {std::ofstream out(path);out<<control_header()<<control_row("hold-coin","button","coin","secondary")<<control_row("press-coin","button","coin","primary","press");}
@@ -489,6 +517,7 @@ int main() {
     try { timing_and_edges(); rational_and_budget(); pause_loss_and_zero_layers(); failures_and_ownership(); muzzle_math(); anchored_aim(); long_replay_and_invalid_samples(); reload_edges();
 #ifdef ACVR_GUN_MODELS
         alternate_button_bindings();
+        mapped_pause_stops_current_frame();
         configured_controls();
         configured_model();
         mapped_model_motion_and_handoff();

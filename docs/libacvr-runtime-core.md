@@ -45,7 +45,7 @@ The optional `acvr_gun_assets` target decodes an in-memory GLB into named bind
 transforms, materials and CPU vertex/index arrays. Set `ACVR_JSON_INCLUDE_DIR`
 to an existing nlohmann JSON include directory; CMake never downloads it. CI
 reuses the dependency already configured for the Hub. Omitting the option builds
-only the dependency-free core and its three tests, not the gun reader.
+only the dependency-free core and its four tests, not the gun reader.
 
 The reader accepts self-contained rigid glTF 2.0 triangles, float positions and
 normals, normalized vertex colours, integer indices and interleaved accessors.
@@ -106,6 +106,30 @@ and their complete lifecycle remain provider responsibilities. Mounted yaw/pitch
 rest at zero angle (clamped to the authored range), including after cancellation
 and pulse decay; their normalized input values still interpolate the full range.
 
+## Provider eye and anchor math
+
+The internal `view_math.hpp` functions compose a predicted stage-space eye pose
+with the same rigid `scene_from_stage` anchor used by gun rays. Poses and near/far
+planes arrive in metres; view translation and projection depth scale once to
+scene units. Asymmetric FOV angles produce GL negative-one-to-one depth or Vulkan
+zero-to-one depth with projection Y flipped for a positive-height viewport. A
+provider using a negative-height viewport must not apply that flip again.
+
+Yaw-only recentering places the supplied head at an explicit target height and
+horizontal origin, preserving physical pitch and roll in subsequent eye poses.
+It does not infer a preferred height or treat head motion as cover input. A
+vertical forward vector has no stable yaw and rejects recentering without changing
+the previous anchor. Invalid poses, frusta, scaling and numeric overflow likewise
+leave destination values unchanged. Rounded quaternions within the accepted
+unit tolerance normalize identically in live eye, gun-ray and model transforms.
+Tangent slopes are evaluated from the requested float angles in double precision;
+rounding slopes to float first can incorrectly admit an unusable thin frustum.
+
+These are dependency-free math functions, not an OpenXR provider or a working
+recenter UI. The production host still must call them with one frame's predicted
+poses, use correct swapchain rectangles and handle reference-space changes,
+session events, user actions and persistence. No graphics context is exercised.
+
 ## Resolved controls input
 
 With the existing TOML dependency, the private host path reads a bounded v0.1
@@ -132,7 +156,11 @@ in a loaded asset. This validates references; general button-node animation is
 not implemented. Metadata motion IDs still validate output routes.
 
 Runtime actions require provider support; the mapper does not supply recenter,
-laser or pause UI. A paused provider owns the resume path. Dual-gun controls,
+laser or pause UI. Once the provider accepts a mapped pause action, the core
+pauses before consuming that sample's gameplay inputs or advancing the native
+clock and ends the display with zero game layers. A paused provider owns the
+resume path through `acvr_runtime_set_paused(0)`; gameplay mapping is suspended
+and held inputs must release before rearming. Dual-gun controls,
 gesture recognition, reason-rich diagnostics and full Hub/runtime parity remain
 open. The controls data version stays 0.1; no public ABI layout changed.
 
@@ -163,14 +191,14 @@ aim provenance and metre scale, focus/hand loss between native ticks, zero-layer
 frames, failed step/output/right-eye draw/flush, cross-thread rejection, malformed
 times/axis values and rotated muzzle transforms. These checks prove the common
 code path only; the actual XR provider and real game remain separate gates.
-With the existing JSON include configured, a fourth suite exercises synthetic
+With the existing JSON include configured, an additional suite exercises synthetic
 GLB decoding, index widths, interleaved/normalized colours, hierarchy/muzzle
 constraints, every truncated prefix, malformed offsets and resource budgets.
 No exported gun model or rendered image has been accepted by these tests.
-With TOML configured, a fifth suite covers metadata/motion and native synthetic
+With TOML configured, another suite covers metadata/motion and native synthetic
 file loading. The runtime suite also exercises configured left-hand grip aim,
 copied config lifetime, both-eye draw order, motion/aim separation, tracking
-loss/rearm and model-draw failure. A dependency-free build still passes three
+loss/rearm and model-draw failure. A dependency-free build now passes four
 suites. No player-side Python process is involved in model loading.
 Single-gun switching tests verify release-before-press, held-trigger suppression,
 changed grip rays and hand notifications. Replayed display frames decay rather
@@ -185,8 +213,11 @@ amplitude/duration, held levels, same-tick deduplication, explicit expiry, signe
 FFB, cancellation/rearm and neutral mounted rest. Runtime integration tests prove
 real-route/fallback exclusion, copied routes and no callbacks to an untracked
 configured hand. These are synthetic CPU receipts, not game-output acceptance.
-The seventh suite (alongside the optional GL mock suite) checks resolved control
+A dedicated suite (alongside the optional GL mock suite) checks resolved control
 mapping, exact source retention, unsupported rows, physical collisions and
 tracking/cancellation rearm. Runtime integration checks UTF-8 config loading,
 mapped left-hand cover/coin/reload, press release while physically held, mapped
 trigger motion, raw-trigger handoff, policy conflicts and actual node references.
+The provider math suite checks asymmetric frustum edges, both clip-depth ranges,
+three scene scales, physical eye separation, rotated anchor composition, retained
+pitch after recenter, atomic invalid-input rejection and rounded eye/ray agreement.

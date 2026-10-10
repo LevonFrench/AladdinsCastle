@@ -38,6 +38,9 @@ struct Host {
     virtual bool offscreen_reload(uint32_t) const noexcept { return false; }
     virtual bool supports_controller_samples() const noexcept { return false; }
     virtual uint32_t supported_runtime_actions() const noexcept { return 0; }
+    // An accepted Pause immediately pauses the core and ends this display with
+    // zero game layers. Provider UI owns resume via acvr_runtime_set_paused(0).
+    // It must not require another mapped action: gameplay mapping is suspended.
     virtual acvr_result runtime_action(RuntimeAction) { return ACVR_UNSUPPORTED; }
     virtual void unavailable_controls(const std::vector<std::string> &) {}
     // Already-resolved controls data, copied/validated at create. No channel is
