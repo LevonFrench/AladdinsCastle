@@ -49,6 +49,8 @@ pipelines and legacy assembly-program modes inactive.
 
 Only the eye's lower-left rectangle is cleared, with scissor enabled and both
 colour/depth write masks set. Forward depth uses clear 1, LEQUAL and range 0..1.
+The [owned background policy](BACKGROUND.md) supplies opaque mixer RGB to that
+same clear; absent state remains black and bad tick/policy fails before upload/clear.
 All fixed-function texture units and inherited raster/clip effects are disabled.
 This includes rectangle textures on every unit, colour sum, rasterizer discard,
 depth clamp, sample mask and all context clip distances. Modern enables, clip
