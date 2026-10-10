@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Candidate bindings require actual backend declarations before emitting input.
+version = "0.1"
+id = "gun-arc-crossbow"
+title = "Arcade crossbow controls"
+gun_model = "arc-crossbow"
+
+[policy]
+p1_hand = "right"
+two_guns = "on_join"
+hand_switch = "trigger"
+join = "button"
+per_hand_angle = true
+mirror_left_angle = true
+grab_modes = ["hold", "toggle"]
+seated_reload = true
+# Policy expresses desired behavior, not a live implementation.
+
+[[element]]
+id = "p1-trigger"
+label = "Fire"
+part = "trigger"
+node = "pivot_trigger"
+slot = 0
+player = 0
+input = { kind = "gun", semantic = "trigger" }
+binding = { hand = "slot", control = "trigger", mode = "hold" }
+
+[[element]]
+id = "p1-reload"
+label = "Reload"
+part = "aim-offscreen"
+node = "muzzle"
+slot = 0
+player = 0
+input = { kind = "gun", semantic = "reload" }
+binding = { hand = "slot", control = "offscreen_trigger", mode = "press" }
+
+[[element]]
+id = "p1-coin"
+label = "Insert credit"
+part = "coin-button"
+node = ""
+slot = 0
+player = 0
+input = { kind = "button", semantic = "coin" }
+binding = { hand = "slot", control = "secondary", mode = "press" }
+
+[[element]]
+id = "p1-laser"
+label = "Toggle laser"
+part = "laser"
+node = "fx_laser"
+slot = 0
+player = 0
+input = { kind = "runtime", semantic = "laser_toggle" }
+binding = { hand = "slot", control = "thumbstick_click", mode = "toggle" }
+
+[[element]]
+id = "p2-trigger"
+label = "Fire"
+part = "trigger"
+node = "pivot_trigger"
+slot = 1
+player = 1
+input = { kind = "gun", semantic = "trigger" }
+binding = { hand = "slot", control = "trigger", mode = "hold" }
+
+[[element]]
+id = "p2-reload"
+label = "Reload"
+part = "aim-offscreen"
+node = "muzzle"
+slot = 1
+player = 1
+input = { kind = "gun", semantic = "reload" }
+binding = { hand = "slot", control = "offscreen_trigger", mode = "press" }
+
+[[element]]
+id = "p2-coin"
+label = "Insert credit"
+part = "coin-button"
+node = ""
+slot = 1
+player = 1
+input = { kind = "button", semantic = "coin" }
+binding = { hand = "slot", control = "secondary", mode = "press" }
+
+[[element]]
+id = "p2-laser"
+label = "Toggle laser"
+part = "laser"
+node = "fx_laser"
+slot = 1
+player = 1
+input = { kind = "runtime", semantic = "laser_toggle" }
+binding = { hand = "slot", control = "thumbstick_click", mode = "toggle" }
+
+[[unmapped_part]]
+id = "p1-fore-grip"
+slot = 0
+player = 0
+node = "grip_two"
+label = "Second-hand grip"
+reason = "v0.1 grab/pose binding is not published; hold/toggle remain policy"
+requested_semantic = "grab"
+
+[[unmapped_part]]
+id = "p2-fore-grip"
+slot = 1
+player = 1
+node = "grip_two"
+label = "Second-hand grip"
+reason = "v0.1 grab/pose binding is not published; hold/toggle remain policy"
+requested_semantic = "grab"

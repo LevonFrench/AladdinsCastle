@@ -49,6 +49,29 @@ def rule_matches(match, game, hardware_kind):
     return True
 
 
+def resolve_model(game, games, models, defaults, hardware, depth=0):
+    """Shared rule resolver; returns (model id, provenance, shape-review flag)."""
+    explicit = game.get('controls', {}).get('gun_model')
+    if explicit:
+        if explicit not in models:
+            raise ValueError(f"games/{game['id']}: unknown gun_model '{explicit}'")
+        return explicit, 'game.toml', False
+    kind = hardware.get(game.get('hardware'), {}).get('kind')
+    for index, rule in enumerate(defaults.get('rule', [])):
+        if rule_matches(rule.get('match', {}), game, kind):
+            if rule.get('model') not in models:
+                raise ValueError(f'defaults.toml rule {index+1}: unknown model')
+            return rule['model'], f'rule {index+1}', bool(rule.get('review'))
+    if game.get('hardware') in defaults.get('inherit_original', []) and depth == 0:
+        original = games.get(game.get('original', ''))
+        if original:
+            model, _, review = resolve_model(original, games, models, defaults, hardware, 1)
+            return model, f"original {original['id']}", review
+    if defaults.get('fallback') not in models:
+        raise ValueError('defaults.toml: fallback is not a model')
+    return defaults['fallback'], 'fallback', True
+
+
 def main():
     errors = []
     models = {}
@@ -96,24 +119,11 @@ def main():
         errors.append(f"defaults.toml: game id '{gid}' is not in the catalog")
 
     def resolve(game, depth=0):
-        explicit = game.get("controls", {}).get("gun_model")
-        if explicit:
-            if explicit not in models:
-                errors.append(f"games/{game['id']}: unknown gun_model '{explicit}'")
-            return explicit, "game.toml", False
-        kind = hardware.get(game.get("hardware"), {}).get("kind")
-        for i, r in enumerate(rules):
-            try:
-                if rule_matches(r.get("match", {}), game, kind):
-                    return r["model"], f"rule {i + 1}", bool(r.get("review"))
-            except ValueError as e:
-                errors.append(f"defaults.toml rule {i + 1}: {e}")
-        if game.get("hardware") in defaults.get("inherit_original", []) and depth == 0:
-            original = games.get(game.get("original", ""))
-            if original:
-                model, _, review = resolve(original, 1)
-                return model, f"original {original['id']}", review
-        return defaults.get("fallback"), "fallback", True
+        try:
+            return resolve_model(game, games, models, defaults, hardware, depth)
+        except ValueError as exc:
+            errors.append(str(exc))
+            return defaults.get('fallback'), 'invalid rules', True
 
     rows = []
     for gid, g in games.items():
