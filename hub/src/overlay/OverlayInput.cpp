@@ -170,7 +170,10 @@ bool OverlayInput::dispatch(const vr::VREvent_t &event,QObject *receiver){
         cancel(now,event.eventType==vr::VREvent_FocusLeave?"focus-leave":"overlay-hidden",&event);return true;
     }
     if(event.eventType==vr::VREvent_FocusEnter||event.eventType==vr::VREvent_OverlayShown){
-        if(event.eventType==vr::VREvent_OverlayShown)m_visible=true;m_focused=true;
+        if(event.eventType==vr::VREvent_OverlayShown){
+            m_visible=true;
+        }
+        m_focused=true;
         cancel(now,event.eventType==vr::VREvent_FocusEnter?"focus-enter":"overlay-shown",&event);return true;
     }
     if(!pointer&&!wheel)return false;
@@ -192,7 +195,10 @@ bool OverlayInput::dispatch(const vr::VREvent_t &event,QObject *receiver){
     if(pointer){
         const auto button=mouseButton(event.data.mouse.button);if(button==Qt::NoButton)return reject("unknown-button");
         if(event.eventType==vr::VREvent_MouseButtonDown){
-            if(cursor.held.testFlag(button))return reject("duplicate-down");cursor.held|=button;
+            if(cursor.held.testFlag(button)){
+                return reject("duplicate-down");
+            }
+            cursor.held|=button;
             if((m_owner&&m_owner!=id)||cursor.suppressed!=Qt::NoButton||cursor.epoch!=m_epoch){
                 const auto reason=m_owner&&m_owner!=id?"owned-by-other-cursor":cursor.suppressed!=Qt::NoButton?"suppressed-chord":"missing-current-move";
                 cursor.suppressed|=button;return reject(reason);
