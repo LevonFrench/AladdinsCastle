@@ -39,9 +39,11 @@ struct Context {
         {n22::glc::UnpackImageHeight,99},{n22::glc::UnpackSkipImages,2},{GL_UNPACK_SWAP_BYTES,1},{GL_UNPACK_LSB_FIRST,1}};
     std::map<GLenum,std::array<float,16>> texture_matrices;
     std::map<GLenum,std::map<GLenum,float>> environment{{n22::glc::Texture0,{{GL_TEXTURE_ENV_MODE,static_cast<float>(GL_BLEND)},{n22::glc::RgbScale,2.f}}}};
+    std::map<GLenum,std::array<float,4>> environment_colour{{n22::glc::Texture0+1,{.2f,.4f,.6f,.8f}}};
     std::map<GLenum,float> transfer{{GL_RED_SCALE,.25f},{GL_GREEN_SCALE,2.f},{GL_BLUE_SCALE,.5f},{GL_ALPHA_SCALE,.3f},
         {GL_RED_BIAS,.1f},{GL_GREEN_BIAS,.2f},{GL_BLUE_BIAS,.3f},{GL_ALPHA_BIAS,.4f},{GL_MAP_COLOR,1.f}};
     GLenum shade_model=GL_FLAT;
+    GLenum fragment_clamp=GL_FALSE; // hostile: no intermediate combiner clamp
     std::array<float,4> current_colour{.7f,.6f,.5f,.4f};
     std::array<float,2> current_uv{.8f,.9f};
     Context() {
@@ -49,6 +51,10 @@ struct Context {
         matrices[GL_MODELVIEW]={identity};matrices[GL_PROJECTION]={identity};matrices[GL_TEXTURE]={identity};
         identity[12]=.75f;texture_matrices[n22::glc::Texture0]=identity;
         identity[12]=.33f;texture_matrices[n22::glc::Texture0+1]=identity;
+        const std::array<GLint,17> values{GL_BLEND,GL_ADD,GL_MODULATE,2,2,
+            n22::glc::Constant,n22::glc::Previous,GL_TEXTURE,GL_SRC_COLOR,GL_SRC_COLOR,GL_SRC_ALPHA,
+            GL_TEXTURE,n22::glc::PrimaryColour,n22::glc::Constant,GL_ONE_MINUS_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA};
+        for(size_t i=0;i<values.size();++i) environment[n22::glc::Texture0+1][n22::glc::EnvironmentParams[i]]=static_cast<float>(values[i]);
     }
 };
 struct Mock {
@@ -65,10 +71,10 @@ struct Mock {
     GLint colour_type=GL_TEXTURE,depth_type=GL_TEXTURE,colour_name=41,depth_name=42;
     bool fail_attachment_query=false;
     bool fail_vertex=false,fail_projection_push=false,fail_restore=false;
-    GLint max_texture=2048;
+    GLint max_texture=2048,texture_units=2;
     GLuint next_texture=100;
     size_t upload_count=0,fail_upload_number=0;
-    bool fail_generation=false,fail_delete=false,in_begin=false;
+    bool fail_generation=false,fail_delete=false,in_begin=false,fail_fog_query=false,fail_clamp=false;
     bool imaging=false;
     std::set<GLuint> live_textures;
     std::vector<GLuint> generated,deleted,vertex_textures;
@@ -76,6 +82,7 @@ struct Mock {
     std::vector<std::array<float,4>> colours;
     std::vector<std::array<float,2>> texcoords;
     std::vector<uint32_t> composed_samples;
+    std::vector<float> composed_alpha;
     explicit Mock() {calls.reserve(10000);vertices.reserve(10000);}
 };
 thread_local Mock *current;
@@ -94,7 +101,7 @@ void N22_GL_CALL get_integer(GLenum p,GLint *out) {
     case GL_MODELVIEW_STACK_DEPTH:*out=static_cast<GLint>(s.matrices[GL_MODELVIEW].size());break;
     case GL_MAX_PROJECTION_STACK_DEPTH:*out=4;break;
     case GL_MAX_MODELVIEW_STACK_DEPTH:*out=32;break;
-    case n22::glc::MaxTextureUnits:*out=2;break;
+    case n22::glc::MaxTextureUnits:*out=current->texture_units;break;
     case n22::glc::MaxClipDistances:*out=8;break;
     case GL_DEPTH_BITS:*out=current->depth;break;
     case GL_DOUBLEBUFFER:*out=1;break;
@@ -103,6 +110,7 @@ void N22_GL_CALL get_integer(GLenum p,GLint *out) {
     case n22::glc::PixelUnpackBinding:*out=static_cast<GLint>(s.unpack_buffer);break;
     case GL_TEXTURE_BINDING_2D:*out=static_cast<GLint>(s.texture_binding[s.active]);break;
     case n22::glc::SamplerBinding:*out=static_cast<GLint>(s.samplers[s.active]);break;
+    case n22::glc::ClampFragmentColour:*out=static_cast<GLint>(s.fragment_clamp);break;
     default:if(s.unpack.count(p)) *out=s.unpack[p];else {*out=0;current->error=GL_INVALID_ENUM;}break;
     }
 }
@@ -125,7 +133,11 @@ void N22_GL_CALL pop_attrib() {
     s.viewport=before.viewport;s.scissor=before.scissor;s.enabled=before.enabled;s.draw_buffers=before.draw_buffers;
     s.depth_func=before.depth_func;s.depth_mask=before.depth_mask;s.depth_range=before.depth_range;s.clear_depth=before.clear_depth;
     s.clear_colour=before.clear_colour;s.colour_mask=before.colour_mask;s.polygon=before.polygon;s.texture_enabled=before.texture_enabled;
-    s.environment=before.environment;s.shade_model=before.shade_model;s.transfer=before.transfer;
+    // Unit1 env/constant intentionally need explicit restoration as well.
+    const auto fog_env=s.environment[n22::glc::Texture0+1];const auto fog_colour=s.environment_colour[n22::glc::Texture0+1];
+    s.environment=before.environment;s.environment[n22::glc::Texture0+1]=fog_env;
+    s.environment_colour=before.environment_colour;s.environment_colour[n22::glc::Texture0+1]=fog_colour;
+    s.shade_model=before.shade_model;s.transfer=before.transfer;
     s.current_colour=before.current_colour;s.current_uv=before.current_uv;
     if(current->fail_restore) current->error=GL_INVALID_VALUE;
 }
@@ -167,8 +179,9 @@ void normalized() {
     for(auto cap:n22::glc::ModernCaps) if(current->state.enabled.count(cap)) throw std::runtime_error("inherited modern state must be disabled");
     for(GLenum i=0;i<8;++i) if(current->state.enabled.count(n22::glc::ClipDistance0+i)) throw std::runtime_error("all clip distances must be disabled");
     const bool textured=current->state.texture_enabled[n22::glc::Texture0].count(GL_TEXTURE_2D)!=0;
+    const bool fog=current->state.texture_enabled[n22::glc::Texture0+1].count(GL_TEXTURE_2D)!=0;
     for(const auto &u:current->state.texture_enabled) for(auto cap:u.second)
-        if(u.first!=n22::glc::Texture0 || cap!=GL_TEXTURE_2D) throw std::runtime_error("only explicit unit0 texturing may be enabled");
+        if((u.first!=n22::glc::Texture0 && !(fog && u.first==n22::glc::Texture0+1)) || cap!=GL_TEXTURE_2D) throw std::runtime_error("only explicit material/fog units may be enabled");
     if(textured) {
         const auto &s=current->state;
         if(s.active!=n22::glc::Texture0 || s.samplers.at(n22::glc::Texture0)!=0 || s.texture_matrices.at(n22::glc::Texture0)[12]!=0 ||
@@ -177,8 +190,27 @@ void normalized() {
         const auto &texture=current->uploads.at(s.texture_binding.at(n22::glc::Texture0));
         const auto x=std::min(texture.width-1,static_cast<uint32_t>(std::max(0.f,s.current_uv[0])*static_cast<float>(texture.width)));
         const auto y=std::min(texture.height-1,static_cast<uint32_t>(std::max(0.f,s.current_uv[1])*static_cast<float>(texture.height)));
-        uint32_t rgb=0;for(size_t c=0;c<3;++c) rgb|=static_cast<uint32_t>(std::clamp(texture.bytes[(size_t(y)*texture.width+x)*4+c]*s.current_colour[c]*4,0.f,255.f))<<((2-c)*8);
+        if(fog) {
+            const auto &env=s.environment.at(n22::glc::Texture0+1);
+            if(s.fragment_clamp!=GL_TRUE || s.samplers.at(n22::glc::Texture0+1)!=0 || s.texture_matrices.at(n22::glc::Texture0+1)[12]!=0 ||
+               env.at(GL_TEXTURE_ENV_MODE)!=n22::glc::Combine || env.at(n22::glc::CombineRgb)!=n22::glc::Interpolate ||
+               env.at(n22::glc::RgbScale)!=1 || env.at(GL_ALPHA_SCALE)!=1 || env.at(n22::glc::Source0Rgb)!=n22::glc::Previous ||
+               env.at(n22::glc::Source1Rgb)!=n22::glc::Constant || env.at(n22::glc::Source2Rgb)!=n22::glc::PrimaryColour ||
+               env.at(n22::glc::Operand0Rgb)!=GL_SRC_COLOR || env.at(n22::glc::Operand1Rgb)!=GL_SRC_COLOR || env.at(n22::glc::Operand2Rgb)!=GL_SRC_ALPHA ||
+               env.at(n22::glc::CombineAlpha)!=GL_REPLACE || env.at(n22::glc::Source0Alpha)!=n22::glc::Previous ||
+               env.at(n22::glc::Operand0Alpha)!=GL_SRC_ALPHA || s.environment.at(n22::glc::Texture0).at(n22::glc::CombineAlpha)!=GL_REPLACE ||
+               s.environment.at(n22::glc::Texture0).at(n22::glc::Source0Alpha)!=GL_TEXTURE)
+                throw std::runtime_error("explicit shade then fog, opaque alpha combiner required");
+            const auto &dummy=current->uploads.at(s.texture_binding.at(n22::glc::Texture0+1));
+            if(dummy.width!=1 || dummy.height!=1 || dummy.bytes!=std::vector<uint8_t>{255,255,255,255}) throw std::runtime_error("complete private fog texture");
+        }
+        uint32_t rgb=0;for(size_t c=0;c<3;++c) {
+            float value=std::clamp(texture.bytes[(size_t(y)*texture.width+x)*4+c]*s.current_colour[c]*4,0.f,255.f);
+            if(fog) value=value*s.current_colour[3]+s.environment_colour.at(n22::glc::Texture0+1)[c]*255*(1-s.current_colour[3]);
+            rgb|=static_cast<uint32_t>(std::clamp(value,0.f,255.f))<<((2-c)*8);
+        }
         current->composed_samples.push_back(rgb);
+        current->composed_alpha.push_back(s.environment.at(n22::glc::Texture0).at(n22::glc::CombineAlpha)==GL_REPLACE?1:s.current_colour[3]);
     }
     current->vertex_textures.push_back(textured?current->state.texture_binding[n22::glc::Texture0]:0);
 }
@@ -242,6 +274,24 @@ void N22_GL_CALL bind_buffer(GLenum target,GLuint name) {log("BindBuffer");if(ta
 void N22_GL_CALL bind_sampler(GLuint unit,GLuint name) {log("BindSampler");current->state.samplers[n22::glc::Texture0+unit]=name;}
 void N22_GL_CALL tex_env_i(GLenum target,GLenum p,GLint value) {log("TexEnvI");if(target!=GL_TEXTURE_ENV) throw std::runtime_error("texture environment");current->state.environment[current->state.active][p]=static_cast<float>(value);}
 void N22_GL_CALL tex_env_f(GLenum target,GLenum p,GLfloat value) {log("TexEnvF");if(target!=GL_TEXTURE_ENV) throw std::runtime_error("texture environment");current->state.environment[current->state.active][p]=value;}
+void N22_GL_CALL tex_env_fv(GLenum target,GLenum p,const GLfloat *value) {
+    log("TexEnvFV");if(current->in_begin || target!=GL_TEXTURE_ENV || p!=GL_TEXTURE_ENV_COLOR) throw std::runtime_error("fog constant outside Begin");
+    std::copy(value,value+4,current->state.environment_colour[current->state.active].begin());
+}
+void N22_GL_CALL get_tex_env_i(GLenum target,GLenum p,GLint *value) {
+    log("GetTexEnvI");if(target!=GL_TEXTURE_ENV) throw std::runtime_error("env query");
+    *value=static_cast<GLint>(current->state.environment.at(current->state.active).at(p));
+    if(current->fail_fog_query) current->error=GL_INVALID_ENUM;
+}
+void N22_GL_CALL get_tex_env_fv(GLenum target,GLenum p,GLfloat *value) {
+    log("GetTexEnvFV");if(target!=GL_TEXTURE_ENV || p!=GL_TEXTURE_ENV_COLOR) throw std::runtime_error("constant query");
+    const auto &colour=current->state.environment_colour.at(current->state.active);std::copy(colour.begin(),colour.end(),value);
+}
+void N22_GL_CALL clamp_colour(GLenum target,GLenum value) {
+    log("ClampColour");if(target!=n22::glc::ClampFragmentColour) throw std::runtime_error("fragment clamp only");
+    current->state.fragment_clamp=value;
+    if(current->fail_clamp && value==GL_TRUE) current->error=GL_INVALID_OPERATION;
+}
 void N22_GL_CALL tex_coord(GLfloat u,GLfloat v) {log("TexCoord");current->texcoords.push_back({u,v});current->state.current_uv={u,v};}
 void N22_GL_CALL colour_f(GLfloat r,GLfloat g,GLfloat b,GLfloat a) {log("ColourF");current->colours.push_back({r,g,b,a});current->state.current_colour={r,g,b,a};}
 void N22_GL_CALL shade_model(GLenum model) {log("ShadeModel");current->state.shade_model=model;}
@@ -266,7 +316,10 @@ void *ACVR_CALL resolve(void *user,const char *name) {
         {"glBindTexture",address(bind_texture)},{"glTexParameteri",address(tex_parameter)},{"glTexImage2D",address(tex_image)},
         {"glPixelStorei",address(pixel_store)},{"glBindBuffer",address(bind_buffer)},{"glBindSampler",address(bind_sampler)},
         {"glPixelTransferf",address(pixel_transfer)},
-        {"glTexEnvi",address(tex_env_i)},{"glTexEnvf",address(tex_env_f)},{"glTexCoord2f",address(tex_coord)},{"glColor4f",address(colour_f)},{"glShadeModel",address(shade_model)}};
+        {"glTexEnvi",address(tex_env_i)},{"glTexEnvf",address(tex_env_f)},{"glTexEnvfv",address(tex_env_fv)},
+        {"glGetTexEnviv",address(get_tex_env_i)},{"glGetTexEnvfv",address(get_tex_env_fv)},
+        {"glClampColor",address(clamp_colour)},
+        {"glTexCoord2f",address(tex_coord)},{"glColor4f",address(colour_f)},{"glShadeModel",address(shade_model)}};
     const auto found=table.find(name);if(found!=table.end()) return found->second;
     const auto texture_found=texture_table.find(name);return texture_found==texture_table.end()?nullptr:texture_found->second;
 }
@@ -287,8 +340,9 @@ void same_state(const Context &a,const Context &b) {
         "colour/raster/multitexture context state restored");
     check(a.unpack_buffer==b.unpack_buffer && a.unpack==b.unpack && a.texture_binding==b.texture_binding && a.samplers==b.samplers,
         "unit0 binding/samplers and unpack PBO/pixel state restored");
-    check(a.texture_matrices==b.texture_matrices && a.environment==b.environment && a.shade_model==b.shade_model && a.transfer==b.transfer,"texture matrices/env, pixel transfer and smooth shade state restored");
+    check(a.texture_matrices==b.texture_matrices && a.environment==b.environment && a.environment_colour==b.environment_colour && a.shade_model==b.shade_model && a.transfer==b.transfer,"texture matrices/env/constant, pixel transfer and smooth shade state restored");
     check(a.current_colour==b.current_colour && a.current_uv==b.current_uv,"current colour and UV attributes restored");
+    check(a.fragment_clamp==b.fragment_clamp,"explicit fragment clamping state restored");
 }
 void direct_dispatch() {
     Mock m;current=&m;auto d=device(m);n22::GlRenderer renderer;
@@ -480,8 +534,89 @@ void material_callback_path() {
     check(api.game_draw_eye(b,lease,&info)==ACVR_OK && m.upload_count==12,"new native tick gets its own textures");
     api.game_close(b);check(m.live_textures.empty() && m.deleted.size()==12,"public close retires unreleased texture lease while context lives");
 }
+n22::SceneInput fog_material_scene() {
+    auto in=n22::synthetic_material_cube();std::fill(in.materials.palette.begin(),in.materials.palette.end(),0xc81164);
+    in.fog.policy=n22::FogPolicy::Super22Table;in.fog.tick=1;in.fog.attributes[4]=4;in.fog.rgb={10,80,30};
+    in.fog.tables[0][0]=0;in.fog.tables[0][1]=128;in.fog.tables[0][2]=255;
+    for(auto &p:in.polygons) {
+        p.fog.provided=p.fog.has_native_depth=true;p.fog.tick=1;p.fog.native_depth={0,256,512};
+        for(auto &a:p.attributes) a.brightness=128;
+    }
+    in.polygons[1].fog.colour_word=0x8000; // mixed unfogged texture
+    in.polygons.back().fog.colour_word=0x8000;in.polygons.back().material=n22::NoMaterial; // mixed flat
+    return in;
+}
+void fog_lifecycle() {
+    Mock m;current=&m;n22::GlRenderer renderer;check(renderer.initialize(device(m))==ACVR_OK,"fog dispatch resolves without context creation");
+    auto in=fog_material_scene();n22::Frame frame;check(n22::prepare(in,1,frame)==ACVR_OK,"fog samples prepared once per owned lease");
+    const auto frozen=frame.triangles[0].fog_samples.alpha;in.fog.tables[0].fill(0);in.polygons[0].fog.native_depth.fill(0);
+    auto eye=n22::desktop_eye(0,-.032f,4,320,240);auto info=draw_info(eye);const auto original=m.state;
+    const auto result=renderer.draw(frame,info);
+    check(result==ACVR_OK && m.upload_count==7 && m.vertices.size()==36 && m.clears.size()==1,"single draw per triangle, six material textures plus one private fog dummy");same_state(original,m.state);uploaded_texels(frame,m);
+    check(m.composed_samples[0]==0xff22c8 && m.composed_samples[1]==0x843972 && m.composed_samples[2]==0x0a501e,"GL mock clamps high shade before interpolation to unshaded fog RGB");
+    check(m.colours[0][3]==1 && m.colours[1][3]==127.f/255.f && m.colours[2][3]==0,"primary alpha carries frozen native unfogged weights");
+    check(std::all_of(m.composed_alpha.begin(),m.composed_alpha.end(),[](float a){return a==1;}),"all fogged/unfogged textured output remains opaque");
+    check(m.composed_samples[3]==0xff22c8 && m.colours[3][3]==1 && m.vertex_textures.back()==0,"fog disables cleanly on unfogged texture and explicit flat triangle");
+    const auto handles=m.live_textures;const auto first_vertices=m.vertices;const auto first_colours=m.colours;
+    eye.eye_index=1;eye.rect_x=320;eye.view_from_scene[12]=-.2f;
+    check(renderer.draw(frame,info)==ACVR_OK && m.upload_count==7 && m.live_textures==handles && m.loaded_view.back()[12]==-.2f,"second eye/latest pose reuses frozen weights and all handles");same_state(original,m.state);
+    check(std::equal(first_vertices.begin(),first_vertices.end(),m.vertices.begin()+36) && std::equal(first_colours.begin(),first_colours.end(),m.colours.begin()+static_cast<ptrdiff_t>(first_colours.size())) && frame.triangles[0].fog_samples.alpha==frozen,"replay passes identical geometry/native fog data under new eye matrices");
+    size_t before=m.calls.size();auto wrong=std::async(std::launch::async,[&]{return renderer.release_frame(1);});
+    check(wrong.get()==ACVR_BAD_STATE && m.calls.size()==before && m.live_textures==handles,"fog dummy included in owner-thread cleanup gate");
+    check(renderer.release_frame(1)==ACVR_OK && m.live_textures.empty() && m.deleted.size()==7 && m.clears.size()==2,"owner release retires material and fog textures once without clearing shared depth");same_state(original,m.state);
+    check(renderer.shutdown()==ACVR_OK && m.deleted.size()==7,"post-release shutdown does not double delete");
+}
+void fog_failures() {
+    Mock m;current=&m;n22::GlRenderer renderer;renderer.initialize(device(m));n22::Frame frame;n22::prepare(fog_material_scene(),1,frame);
+    auto eye=n22::desktop_eye(0,0,4,320,240);auto info=draw_info(eye);const auto original=m.state;
+    for(auto layer:{n22::Layer::Hud,n22::Layer::Backdrop,n22::Layer::GunFlash}) {
+        auto bad=frame;bad.triangles[0].layer=layer;
+        check(renderer.draw(bad,info)==ACVR_UNSUPPORTED && m.calls.empty(),"unsupported enabled fog layer rejects before GL queries/uploads/clear");
+    }
+    auto bad=frame;bad.triangles[0].material=n22::NoMaterial;
+    check(renderer.draw(bad,info)==ACVR_UNSUPPORTED && m.calls.empty(),"enabled flat fog cannot fall back silently");
+    bad=frame;bad.materials.materials[0].objectflags=1;
+    check(renderer.draw(bad,info)==ACVR_UNSUPPORTED && m.calls.empty(),"enabled solid fog rejects before GL");
+    bad=frame;bad.fog.tick=2;check(renderer.draw(bad,info)==ACVR_BAD_ARGUMENT && m.calls.empty(),"stale fog binding cannot draw");
+    m.texture_units=1;check(renderer.draw(frame,info)==ACVR_UNSUPPORTED && m.generated.empty() && m.clears.empty(),"two-unit fog requirement rejects before resource generation/clear");same_state(original,m.state);
+    m.texture_units=2;m.fail_fog_query=true;
+    check(renderer.draw(frame,info)==ACVR_ERROR && m.generated.empty() && m.clears.empty(),"unit1 query failure restores selector before any mutations/uploads");same_state(original,m.state);
+    m.fail_fog_query=false;m.fail_generation=true;
+    check(renderer.draw(frame,info)==ACVR_ERROR && m.live_textures.empty() && m.deleted.size()==1 && m.clears.empty(),"partial fog resource generation rolls back once before clear");same_state(original,m.state);
+    m.fail_generation=false;m.fail_upload_number=m.upload_count+7;m.fail_delete=true;
+    check(renderer.draw(frame,info)==ACVR_ERROR && m.live_textures.empty() && m.clears.empty() && renderer.diagnostic().phase==n22::GlPhase::Upload && renderer.diagnostic().cleanup_error==GL_INVALID_VALUE,"failure uploading last dummy rolls back complete lease and retains first/cleanup errors");same_state(original,m.state);
+    m.fail_delete=false;m.fail_upload_number=0;m.fail_clamp=true;
+    check(renderer.draw(frame,info)==ACVR_ERROR && m.live_textures.size()==7 && m.clears.empty() && renderer.diagnostic().phase==n22::GlPhase::State,"clamp setup failure preserves target and known owner lease");same_state(original,m.state);
+    check(renderer.release_frame(1)==ACVR_OK && m.live_textures.empty(),"partial state setup releases its private lease");
+    m.fail_clamp=false;m.fail_vertex=true;
+    check(renderer.draw(frame,info)==ACVR_ERROR && m.live_textures.size()==7 && renderer.diagnostic().phase==n22::GlPhase::Draw,"fog draw failure retains immutable owner lease");same_state(original,m.state);
+    const size_t deleted=m.deleted.size();m.fail_delete=true;
+    check(renderer.release_frame(1)==ACVR_ERROR && m.live_textures.empty() && m.deleted.size()==deleted+7,"cleanup failure still retires all private fog/material names exactly once");
+    m.fail_delete=false;m.fail_vertex=false;renderer.shutdown();
+    for(const char *name:{"glTexEnvfv","glGetTexEnviv","glGetTexEnvfv","glClampColor"}) {
+        Mock missing;current=&missing;missing.missing.insert(name);n22::GlRenderer incomplete;
+        check(incomplete.initialize(device(missing))==ACVR_UNSUPPORTED && missing.calls.empty(),"missing required fog dispatch rejects without GL");
+    }
+    // Synthetic malformed GenTextures returning the saved unit1 binding must
+    // never lead us to delete that alleged borrowed texture name.
+    Mock alias;current=&alias;alias.next_texture=56;n22::GlRenderer guarded;guarded.initialize(device(alias));
+    check(guarded.draw(frame,info)==ACVR_ERROR && alias.clears.empty() && std::find(alias.deleted.begin(),alias.deleted.end(),GLuint{56})==alias.deleted.end(),"unit1 borrowed binding excluded from rollback deletion");same_state(original,alias.state);
+}
+void fog_callback_path() {
+    Mock m;current=&m;auto api=record<acvr_backend_api>();acvr_backend_query(1,&api);
+    check(api.supported_graphics==0,"fog cannot admit native factory/graphics");
+    auto open=record<acvr_open_info>();ACVR_INIT(&open.graphics);open.game_id_utf8="synthetic-system22";
+    auto meta=record<acvr_backend_info>();acvr_backend *b=nullptr;api.game_open(&open,&b,&meta);n22::configure_gl_draw(b,device(m));
+    check(n22::stage_cpu_scene(b,fog_material_scene())==ACVR_OK,"backend stages copied fog/material packet");
+    auto input=record<acvr_inputs>();input.tick_id=1;api.game_set_inputs(b,&input);
+    auto step=record<acvr_step_info>();step.tick_id=1;auto fi=record<acvr_frame_info>();acvr_frame *lease=nullptr;
+    check(api.game_step(b,&step,&lease,&fi)==ACVR_OK,"native-style lease caches vertex fog once");
+    auto eye=n22::desktop_eye(0,0,4,320,240);auto info=draw_info(eye);
+    check(api.game_draw_eye(b,lease,&info)==ACVR_OK && m.upload_count==7,"actual callback applies same-draw fog through CPU mocks");
+    api.game_release_frame(b,lease);check(m.live_textures.empty() && m.deleted.size()==7,"public owner release retires fog dummy too");api.game_close(b);
+}
 }
 int main() {
-    try {direct_dispatch();callback_path();material_lifecycle();material_failures();material_callback_path();std::cout<<checks<<" GL dispatch checks passed (CPU mocks only)\n";return 0;}
+    try {direct_dispatch();callback_path();material_lifecycle();material_failures();material_callback_path();fog_lifecycle();fog_failures();fog_callback_path();std::cout<<checks<<" GL dispatch checks passed (CPU mocks only)\n";return 0;}
     catch(const std::exception &e) {std::cerr<<e.what()<<"\n";return 1;}
 }

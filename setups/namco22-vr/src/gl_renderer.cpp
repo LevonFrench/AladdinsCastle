@@ -33,21 +33,34 @@ struct Saved {
     std::array<GLboolean,glc::ModernCaps.size()> modern{};
     std::vector<GLboolean> clips,rectangles;
     bool texture_state=false;
-    GLint texture_binding=0,sampler=0,unpack_buffer=0;
+    struct Unit {GLint binding=0,sampler=0;std::array<GLfloat,16> matrix{};};
+    std::array<Unit,2> texture_units{};
+    size_t unit_count=0;
+    GLint unpack_buffer=0;
+    std::array<GLint,glc::EnvironmentParams.size()> fog_environment{};
+    std::array<GLfloat,4> fog_constant{};
+    GLint fragment_clamp=0;
+    bool fog_clamp_state=false;
     std::array<GLint,glc::UnpackParams.size()> unpack{};
-    std::array<GLfloat,16> texture_matrix{};
     void restore() {
         if(!changed) return;
         if(model) {g.MatrixMode(GL_MODELVIEW);g.PopMatrix();}
         if(projection) {g.MatrixMode(GL_PROJECTION);g.PopMatrix();}
         if(attrib) g.PopAttrib();
         if(texture_state) {
-            g.ActiveTexture(glc::Texture0);g.BindTexture(GL_TEXTURE_2D,static_cast<GLuint>(texture_binding));
-            g.BindSampler(0,static_cast<GLuint>(sampler));
-            g.MatrixMode(GL_TEXTURE);g.LoadMatrixf(texture_matrix.data());
+            for(size_t i=0;i<unit_count;++i) {
+                const auto &unit=texture_units[i];g.ActiveTexture(glc::Texture0+static_cast<GLenum>(i));
+                g.BindTexture(GL_TEXTURE_2D,static_cast<GLuint>(unit.binding));g.BindSampler(static_cast<GLuint>(i),static_cast<GLuint>(unit.sampler));
+                g.MatrixMode(GL_TEXTURE);g.LoadMatrixf(unit.matrix.data());
+                if(i==1) {
+                    for(size_t j=0;j<fog_environment.size();++j) g.TexEnvi(GL_TEXTURE_ENV,glc::EnvironmentParams[j],fog_environment[j]);
+                    g.TexEnvfv(GL_TEXTURE_ENV,GL_TEXTURE_ENV_COLOR,fog_constant.data());
+                }
+            }
             g.BindBuffer(glc::PixelUnpackBuffer,static_cast<GLuint>(unpack_buffer));
             for(size_t i=0;i<unpack.size();++i) g.PixelStorei(glc::UnpackParams[i],unpack[i]);
         }
+        if(fog_clamp_state) g.ClampColor(glc::ClampFragmentColour,static_cast<GLenum>(fragment_clamp));
         // Modern enables are not guaranteed to be covered by legacy attribs.
         for(size_t i=0;i<modern.size();++i) (modern[i]?g.Enable:g.Disable)(glc::ModernCaps[i]);
         for(size_t i=0;i<clips.size();++i) (clips[i]?g.Enable:g.Disable)(glc::ClipDistance0+static_cast<GLenum>(i));
@@ -115,12 +128,14 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
         if(t.layer!=Layer::World && t.layer!=Layer::Hud && t.layer!=Layer::Backdrop && t.layer!=Layer::GunFlash) return ACVR_BAD_ARGUMENT;
         for(auto v:t.vertices) {const float p[]={v.x,v.y,v.z};if(!finite(p,3)) return ACVR_BAD_ARGUMENT;}
     }
+    if(auto r=validate_fog_draw(frame);r!=ACVR_OK) return r;
     TexturePlan prepared;
     if(!resource_frame_) {
         if(auto r=prepare_texture_plan(frame,prepared);r!=ACVR_OK) return r;
     }
     const auto &plan=resource_frame_?texture_plan_:prepared;
     const bool has_textures=!plan.rectangles.empty();
+    const bool has_fog=plan.fog_texture!=NoMaterial;
     auto check_error=[&](GlPhase phase) {
         const GLenum error=gl_.GetError();
         if(error!=GL_NO_ERROR && diagnostic_.error==GL_NO_ERROR) {diagnostic_.phase=phase;diagnostic_.error=error;}
@@ -154,7 +169,7 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
     GLint profile=0;gl_.GetIntegerv(glc::ContextProfileMask,&profile);
     if(check_error(GlPhase::Preflight) || !(profile&glc::CompatibilityProfileBit)) return ACVR_UNSUPPORTED;
     if(!version || std::strstr(version,"OpenGL ES") || ad<0 || pd<1 || md<1 || ad>=am || pd>=pm || md>=mm ||
-       units<1 || units>64 || clips<0 || clips>64) return ACVR_UNSUPPORTED;
+       units<(has_fog?2:1) || units>64 || clips<0 || clips>64) return ACVR_UNSUPPORTED;
     const bool srgb=(version[0]>='3' && version[0]<='9') || extension(extensions,"GL_EXT_framebuffer_sRGB") || extension(extensions,"GL_ARB_framebuffer_sRGB");
     saved.split_framebuffer=(version[0]>='3' && version[0]<='9') || extension(extensions,"GL_ARB_framebuffer_object") || extension(extensions,"GL_EXT_framebuffer_blit");
     if(saved.split_framebuffer) gl_.GetIntegerv(glc::ReadFramebufferBinding,&saved.read_framebuffer);
@@ -190,12 +205,21 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
             if(rect.width>static_cast<uint32_t>(maximum) || rect.height>static_cast<uint32_t>(maximum)) return ACVR_UNSUPPORTED;
         gl_.GetIntegerv(glc::PixelUnpackBinding,&saved.unpack_buffer);
         for(size_t i=0;i<saved.unpack.size();++i) gl_.GetIntegerv(glc::UnpackParams[i],&saved.unpack[i]);
-        gl_.ActiveTexture(glc::Texture0);
-        gl_.GetIntegerv(GL_TEXTURE_BINDING_2D,&saved.texture_binding);gl_.GetIntegerv(glc::SamplerBinding,&saved.sampler);
-        gl_.GetFloatv(GL_TEXTURE_MATRIX,saved.texture_matrix.data());
+        saved.unit_count=has_fog?2:1;
+        for(size_t i=0;i<saved.unit_count;++i) {
+            auto &unit=saved.texture_units[i];gl_.ActiveTexture(glc::Texture0+static_cast<GLenum>(i));
+            gl_.GetIntegerv(GL_TEXTURE_BINDING_2D,&unit.binding);gl_.GetIntegerv(glc::SamplerBinding,&unit.sampler);
+            gl_.GetFloatv(GL_TEXTURE_MATRIX,unit.matrix.data());
+            if(i==1) {
+                for(size_t j=0;j<saved.fog_environment.size();++j) gl_.GetTexEnviv(GL_TEXTURE_ENV,glc::EnvironmentParams[j],&saved.fog_environment[j]);
+                gl_.GetTexEnvfv(GL_TEXTURE_ENV,GL_TEXTURE_ENV_COLOR,saved.fog_constant.data());
+            }
+        }
         gl_.ActiveTexture(static_cast<GLenum>(saved.texture));
+        if(has_fog) gl_.GetIntegerv(glc::ClampFragmentColour,&saved.fragment_clamp);
         if(check_error(GlPhase::Preflight)) return ACVR_ERROR;
         saved.texture_state=true;
+        saved.fog_clamp_state=has_fog;
     }
     auto finish=[&](acvr_result value) {
         saved.restore();
@@ -239,7 +263,11 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
         for(auto parameter:glc::UnpackParams) gl_.PixelStorei(parameter,parameter==GL_UNPACK_ALIGNMENT?1:0);
         for(size_t i=0;i<glc::TransferParams.size();++i) gl_.PixelTransferf(glc::TransferParams[i],i<4?1.f:0.f);
         std::array<GLfloat,16> identity{};for(size_t i=0;i<16;i+=5) identity[i]=1;
-        gl_.MatrixMode(GL_TEXTURE);gl_.LoadMatrixf(identity.data());gl_.MatrixMode(GL_MODELVIEW);
+        for(size_t i=0;i<saved.unit_count;++i) {
+            gl_.ActiveTexture(glc::Texture0+static_cast<GLenum>(i));gl_.BindSampler(static_cast<GLuint>(i),0);
+            gl_.MatrixMode(GL_TEXTURE);gl_.LoadMatrixf(identity.data());
+        }
+        gl_.ActiveTexture(glc::Texture0);gl_.MatrixMode(GL_MODELVIEW);
         if(check_error(GlPhase::State)) return finish(ACVR_ERROR);
         if(!resource_frame_) {
             std::vector<GLuint> created(plan.rectangles.size(),0);
@@ -253,7 +281,9 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
             bool invalid=false;
             for(size_t i=0;i<created.size();++i) {
                 const auto name=created[i];
-                if(name==in.target.colour_image || name==in.target.depth_image || name==static_cast<GLuint>(saved.texture_binding)) {
+                bool borrowed=name==in.target.colour_image || name==in.target.depth_image;
+                for(size_t j=0;j<saved.unit_count;++j) borrowed=borrowed || name==static_cast<GLuint>(saved.texture_units[j].binding);
+                if(borrowed) {
                     created[i]=0;invalid=true; // never delete an alleged borrowed name
                 } else if(!name || std::find(created.begin(),created.begin()+static_cast<ptrdiff_t>(i),name)!=created.begin()+static_cast<ptrdiff_t>(i)) {
                     created[i]=0;invalid=true;
@@ -299,6 +329,25 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
         gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand0Rgb,GL_SRC_COLOR);gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand1Rgb,GL_SRC_COLOR);
         gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand0Alpha,GL_SRC_ALPHA);gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand1Alpha,GL_SRC_ALPHA);
         gl_.TexEnvf(GL_TEXTURE_ENV,glc::RgbScale,4);gl_.TexEnvf(GL_TEXTURE_ENV,GL_ALPHA_SCALE,1);
+        if(has_fog) {
+            // GL permits callers to disable intermediate fragment clamping.
+            // Force shade saturation before fog, then restore this state even
+            // if legacy attrib stacks do not cover it.
+            gl_.ClampColor(glc::ClampFragmentColour,GL_TRUE);
+            // Vertex alpha carries unfogged weight. Opaque texture alpha must
+            // flow unchanged through both units, never become transparency.
+            gl_.TexEnvi(GL_TEXTURE_ENV,glc::CombineAlpha,GL_REPLACE);
+            gl_.ActiveTexture(glc::Texture0+1);gl_.BindTexture(GL_TEXTURE_2D,textures_[texture_plan_.fog_texture]);
+            gl_.TexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,glc::Combine);
+            gl_.TexEnvi(GL_TEXTURE_ENV,glc::CombineRgb,glc::Interpolate);
+            gl_.TexEnvi(GL_TEXTURE_ENV,glc::Source0Rgb,glc::Previous);gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand0Rgb,GL_SRC_COLOR);
+            gl_.TexEnvi(GL_TEXTURE_ENV,glc::Source1Rgb,glc::Constant);gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand1Rgb,GL_SRC_COLOR);
+            gl_.TexEnvi(GL_TEXTURE_ENV,glc::Source2Rgb,glc::PrimaryColour);gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand2Rgb,GL_SRC_ALPHA);
+            gl_.TexEnvi(GL_TEXTURE_ENV,glc::CombineAlpha,GL_REPLACE);gl_.TexEnvi(GL_TEXTURE_ENV,glc::Source0Alpha,glc::Previous);
+            gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand0Alpha,GL_SRC_ALPHA);
+            gl_.TexEnvf(GL_TEXTURE_ENV,glc::RgbScale,1);gl_.TexEnvf(GL_TEXTURE_ENV,GL_ALPHA_SCALE,1);
+            gl_.ActiveTexture(glc::Texture0);
+        }
     }
     if(check_error(GlPhase::State)) return finish(ACVR_ERROR);
     gl_.Clear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -312,6 +361,14 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
         for(size_t i=0;i<frame.triangles.size();++i) {
             const auto &t=frame.triangles[i];
             if(t.layer==Layer::GunFlash || (t.layer==Layer::Backdrop)!=(pass==0)) continue;
+            if(has_fog) {
+                gl_.ActiveTexture(glc::Texture0+1);
+                if(t.fog_samples.enabled) {
+                    const std::array<GLfloat,4> colour{t.fog_samples.rgb[0]/255.f,t.fog_samples.rgb[1]/255.f,t.fog_samples.rgb[2]/255.f,1};
+                    gl_.TexEnvfv(GL_TEXTURE_ENV,GL_TEXTURE_ENV_COLOR,colour.data());gl_.Enable(GL_TEXTURE_2D);
+                } else gl_.Disable(GL_TEXTURE_2D);
+                gl_.ActiveTexture(glc::Texture0);
+            }
             const TextureRectangle *rect=nullptr;
             if(t.material!=NoMaterial) {
                 const auto id=texture_plan_.triangle_textures[i];rect=&texture_plan_.rectangles[id];
@@ -326,7 +383,7 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
                 if(rect) {
                     const auto &attribute=t.attributes[k];const auto &material=frame.materials.materials[t.material];
                     const float shade=(material.objectflags&6)?64.f:attribute.brightness;
-                    gl_.Color4f(shade/256.f,shade/256.f,shade/256.f,1);
+                    gl_.Color4f(shade/256.f,shade/256.f,shade/256.f,t.fog_samples.enabled?t.fog_samples.alpha[k]/255.f:1);
                     const float u=material.objectflags?.5f:(attribute.u-static_cast<float>(rect->min_u))/static_cast<float>(rect->width);
                     const float tv=material.objectflags?.5f:(attribute.v-static_cast<float>(rect->min_v))/static_cast<float>(rect->height);
                     gl_.TexCoord2f(u,tv);

@@ -34,7 +34,8 @@ and nearest sampling. GL supplies new-eye perspective interpolation; do not
 divide by original native Z again. Compatibility texture combine modulates at
 RGB scale 4 with brightness/256, preserving brightness above neutral 64. Opaque
 pen0 stays alpha255. Solid no-shade flags use neutral brightness. Flat triangles
-keep the explicit flat path. Fog/fades/gamma/sprite/text priority stay unsupported.
+keep the explicit flat path. The [bounded Super22 fog slice](FOG-DRAW.md) extends
+explicit textured World draws; fades/gamma/sprite/text priority remain deferred.
 
 ## Context, cleanup and state
 

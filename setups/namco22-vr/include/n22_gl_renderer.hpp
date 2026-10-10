@@ -35,6 +35,10 @@ inline constexpr GLenum UnpackImageHeight=0x806e,UnpackSkipImages=0x806d,ClampTo
 inline constexpr GLenum Combine=0x8570,CombineRgb=0x8571,CombineAlpha=0x8572,RgbScale=0x8573,PrimaryColour=0x8577;
 inline constexpr GLenum Source0Rgb=0x8580,Source1Rgb=0x8581,Source0Alpha=0x8588,Source1Alpha=0x8589;
 inline constexpr GLenum Operand0Rgb=0x8590,Operand1Rgb=0x8591,Operand0Alpha=0x8598,Operand1Alpha=0x8599;
+inline constexpr GLenum Interpolate=0x8575,Constant=0x8576,Previous=0x8578,Source2Rgb=0x8582,Operand2Rgb=0x8592;
+inline constexpr GLenum ClampFragmentColour=0x891b;
+inline constexpr std::array<GLenum,17> EnvironmentParams{GL_TEXTURE_ENV_MODE,CombineRgb,CombineAlpha,RgbScale,GL_ALPHA_SCALE,
+    Source0Rgb,Source1Rgb,Source2Rgb,Operand0Rgb,Operand1Rgb,Operand2Rgb,Source0Alpha,Source1Alpha,0x858a,Operand0Alpha,Operand1Alpha,0x859a};
 inline constexpr std::array<GLenum,8> UnpackParams{GL_UNPACK_ALIGNMENT,GL_UNPACK_ROW_LENGTH,GL_UNPACK_SKIP_ROWS,GL_UNPACK_SKIP_PIXELS,
     UnpackImageHeight,UnpackSkipImages,GL_UNPACK_SWAP_BYTES,GL_UNPACK_LSB_FIRST};
 inline constexpr std::array<GLenum,9> TransferParams{GL_RED_SCALE,GL_GREEN_SCALE,GL_BLUE_SCALE,GL_ALPHA_SCALE,
@@ -66,6 +70,8 @@ inline constexpr GLenum ColourMatrix=0x80b1;
  X(PixelStorei,void,(GLenum,GLint)) X(BindBuffer,void,(GLenum,GLuint)) X(BindSampler,void,(GLuint,GLuint)) \
  X(PixelTransferf,void,(GLenum,GLfloat)) \
  X(TexEnvi,void,(GLenum,GLenum,GLint)) X(TexEnvf,void,(GLenum,GLenum,GLfloat)) \
+ X(TexEnvfv,void,(GLenum,GLenum,const GLfloat *)) X(GetTexEnviv,void,(GLenum,GLenum,GLint *)) X(GetTexEnvfv,void,(GLenum,GLenum,GLfloat *)) \
+ X(ClampColor,void,(GLenum,GLenum)) \
  X(TexCoord2f,void,(GLfloat,GLfloat)) X(Color4f,void,(GLfloat,GLfloat,GLfloat,GLfloat)) X(ShadeModel,void,(GLenum))
 // Kept outside the core table only to make the EXT framebuffer fallback clear.
 struct GlDispatch {

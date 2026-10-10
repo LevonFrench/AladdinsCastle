@@ -29,6 +29,7 @@ struct Triangle {
     uint32_t material = NoMaterial;
     std::array<MaterialVertex,3> attributes{};
     FogQuad fog;
+    FogSamples fog_samples;
 };
 struct SceneInput {
     std::vector<acvr_game_camera> cameras;
@@ -56,6 +57,9 @@ SceneInput synthetic_cube();
 SceneInput synthetic_material_cube();
 Vec3 unproject(const ProjectedVertex &, const acvr_game_camera &);
 acvr_result prepare(const SceneInput &, uint64_t id, Frame &out);
+// Bounded draw admission; state-only inspection can still represent other fog
+// policies/layers. Reject unsupported enabled fog before uploads/target clears.
+acvr_result validate_fog_draw(const Frame &);
 acvr_result project_gun(Vec3 point, const acvr_game_camera &, float &x, float &y,
                         bool &offscreen);
 acvr_result raycast(const Frame &, const acvr_ray &, acvr_hit &);

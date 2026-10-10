@@ -35,8 +35,10 @@ explicitly flattened HUD. Infinite backdrop directions ignore
 translation and use a far-plane projection before the world pass. The supplied
 eye view/projection are used directly, without another native camera projection
 or scale. No emulation, input, raycast or output queue changes occur while drawing.
+The [bounded Super22 fog draw](FOG-DRAW.md) extends explicit textured opaque World
+triangles with immutable native weights; unsupported enabled fog fails before clear.
 
-This is not native composition parity: real texture admission/fog/palette-gamma/sprite
+This is not native composition parity: real texture/fog admission/palette-gamma/sprite
 priorities, real HUD classification, culling expansion and per-game calibration
 are still required. Frame colour bytes are written without framebuffer sRGB
 re-encoding; the gun renderer must establish its own linear/encoded colour policy.

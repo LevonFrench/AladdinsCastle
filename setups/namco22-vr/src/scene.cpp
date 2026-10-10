@@ -30,7 +30,7 @@ bool camera_valid(const acvr_game_camera &c) {
         c.viewport_px[1]+c.viewport_px[3]<=static_cast<float>(c.raster_height);
 }
 struct V4 { double x,y,z,w; };
-struct ClipVertex {V4 p;double u,v,brightness;};
+struct ClipVertex {V4 p;double u,v,brightness,unfogged;};
 V4 transform(const float *m,V4 p) {
     return {m[0]*p.x+m[4]*p.y+m[8]*p.z+m[12]*p.w,
             m[1]*p.x+m[5]*p.y+m[9]*p.z+m[13]*p.w,
@@ -54,7 +54,8 @@ std::vector<ClipVertex> clip(std::vector<ClipVertex> p) {
                 double t=da/(da-db);
                 out.push_back({{a.p.x+t*(b.p.x-a.p.x),a.p.y+t*(b.p.y-a.p.y),
                                a.p.z+t*(b.p.z-a.p.z),a.p.w+t*(b.p.w-a.p.w)},
-                               a.u+t*(b.u-a.u),a.v+t*(b.v-a.v),a.brightness+t*(b.brightness-a.brightness)});
+                               a.u+t*(b.u-a.u),a.v+t*(b.v-a.v),a.brightness+t*(b.brightness-a.brightness),
+                               a.unfogged+t*(b.unfogged-a.unfogged)});
             }
             if(db>=0) out.push_back(b);
             a=b; da=db;
@@ -93,8 +94,24 @@ acvr_result raster(const std::array<ClipVertex,3> &v,const acvr_eye &e,Image &im
                 const double u=(w0*v[0].u+w1*v[1].u+w2*v[2].u)/denominator;
                 const double tv=(w0*v[0].v+w1*v[1].v+w2*v[2].v)/denominator;
                 const double brightness=std::clamp((w0*v[0].brightness+w1*v[1].brightness+w2*v[2].brightness)/denominator,0.,255.);
-                const auto r=sample_material(materials,triangle.material,u,tv,brightness,rgb);
+                // Fog reference samples neutral palette bytes, preserving the
+                // floating shade result until AFTER fog. No integer shade
+                // pre-quantization or native per-fragment CZ relookup.
+                const auto r=sample_material(materials,triangle.material,u,tv,triangle.fog_samples.enabled?64.:brightness,rgb);
                 if(r!=ACVR_OK) return r;
+                if(triangle.fog_samples.enabled) {
+                    const double alpha=std::clamp((w0*v[0].unfogged+w1*v[1].unfogged+w2*v[2].unfogged)/denominator,0.,1.);
+                    uint32_t fogged=0;
+                    for(size_t channel=0;channel<3;++channel) {
+                        const auto shift=static_cast<unsigned>((2-channel)*8);
+                        const double shade=std::clamp(double((rgb>>shift)&255)*brightness/64.,0.,255.);
+                        const double value=shade*alpha+triangle.fog_samples.rgb[channel]*(1-alpha);
+                        // Defined reference rounding: clamp and floor once at
+                        // the final byte. Driver fixed-point rounding is unproven.
+                        fogged|=static_cast<uint32_t>(std::clamp(value,0.,255.))<<shift;
+                    }
+                    rgb=fogged;
+                }
             }
             image.depth[p]=z;image.rgb[p]=rgb;
         }
@@ -133,6 +150,12 @@ acvr_result prepare(const SceneInput &in,uint64_t id,Frame &out) {
         t.material=p.material;t.attributes=p.attributes;
         if(auto r=validate_fog_binding(in.fog,p.fog,id);r!=ACVR_OK) return r;
         t.fog=p.fog;
+        for(uint32_t k=0;k<3;++k) {
+            FogDecision decision;
+            if(auto r=decide_fog(in.fog,t.fog,k,decision);r!=ACVR_OK) return r;
+            t.fog_samples.alpha[k]=decision.alpha;t.fog_samples.rgb=decision.rgb;
+            t.fog_samples.enabled=t.fog_samples.enabled || decision.enabled;
+        }
         if(t.material!=NoMaterial) {
             if(t.material>=f.materials.materials.size()) return ACVR_BAD_ARGUMENT;
             for(const auto &attribute:t.attributes) if(!valid_material_vertex(attribute)) return ACVR_BAD_ARGUMENT;
@@ -147,6 +170,18 @@ acvr_result prepare(const SceneInput &in,uint64_t id,Frame &out) {
         if(p.layer!=Layer::GunFlash) f.triangles.push_back(t);
     }
     out=std::move(f); return ACVR_OK;
+}
+acvr_result validate_fog_draw(const Frame &f) {
+    if(f.fog.policy!=FogPolicy::Absent && (!f.id || f.fog.tick!=f.id)) return ACVR_BAD_ARGUMENT;
+    if(f.fog.policy!=FogPolicy::Absent && f.fog.policy!=FogPolicy::System22Constant && f.fog.policy!=FogPolicy::Super22Table) return ACVR_UNSUPPORTED;
+    for(const auto &t:f.triangles) {
+        if(auto r=validate_fog_binding(f.fog,t.fog,f.id);r!=ACVR_OK) return r;
+        if(!t.fog_samples.enabled) continue;
+        if(f.fog.policy!=FogPolicy::Super22Table || t.layer!=Layer::World || t.material==NoMaterial) return ACVR_UNSUPPORTED;
+        if(t.material>=f.materials.materials.size()) return ACVR_BAD_ARGUMENT;
+        if(f.materials.materials[t.material].objectflags) return ACVR_UNSUPPORTED;
+    }
+    return ACVR_OK;
 }
 acvr_result project_gun(Vec3 p,const acvr_game_camera &c,float &x,float &y,bool &off) {
     x=y=.5f; off=true;
@@ -202,6 +237,7 @@ acvr_result draw_cpu(const Frame &f,const acvr_eye &e,Image &image,bool hud_only
     for(float v:e.view_from_scene) if(!finite(v)) return ACVR_BAD_ARGUMENT;
     for(float v:e.projection_from_view) if(!finite(v)) return ACVR_BAD_ARGUMENT;
     if(auto r=validate_material_packet(f.materials);r!=ACVR_OK) return r;
+    if(auto r=validate_fog_draw(f);r!=ACVR_OK) return r;
     for(const auto &t:f.triangles) if(t.material!=NoMaterial) {
         if(t.material>=f.materials.materials.size()) return ACVR_BAD_ARGUMENT;
         for(const auto &attribute:t.attributes) if(!valid_material_vertex(attribute)) return ACVR_BAD_ARGUMENT;
@@ -218,7 +254,7 @@ acvr_result draw_cpu(const Frame &f,const acvr_eye &e,Image &image,bool hud_only
             V4 p=transform(e.view_from_scene,{v.x,v.y,v.z,t.layer==Layer::Backdrop?0.f:1.f});
             p=transform(e.projection_from_view,p);
             if(t.layer==Layer::Backdrop) p.z=p.w; // infinity, with rotation but no translation
-            poly.push_back({p,attr.u,attr.v,attr.brightness});
+            poly.push_back({p,attr.u,attr.v,attr.brightness,double(t.fog_samples.alpha[k])/255.});
         }
         poly=clip(std::move(poly));
         for(size_t i=1;i+1<poly.size();++i) {

@@ -13,6 +13,7 @@ struct TexturePlan {
     std::vector<TextureRectangle> rectangles;
     std::vector<uint32_t> triangle_textures; // NoMaterial for explicit flat triangles
     size_t bytes=0;
+    uint32_t fog_texture=NoMaterial; // private complete white unit-1 dummy
 };
 // All checked bounds and sparse samples succeed before replacing out.
 // Exact texels, no centre substitution, scaling tiers, GPU or filesystem calls.
