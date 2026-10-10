@@ -81,6 +81,7 @@ add_library(huboverlay STATIC
     src/overlay/OverlayInput.cpp src/overlay/OverlayInput.h
     src/overlay/QuickTextureRenderer.cpp src/overlay/QuickTextureRenderer.h
     src/overlay/OverlayRuntime.cpp src/overlay/OverlayRuntime.h
+    src/overlay/OverlayKeyboard.cpp src/overlay/OverlayKeyboard.h
     src/overlay/OverlayHost.cpp src/overlay/OverlayHost.h src/overlay/SpikeState.h)
 target_include_directories(huboverlay PUBLIC src)
 target_link_libraries(huboverlay PUBLIC Qt6::Quick Qt6::OpenGL OpenVR::OpenVR)

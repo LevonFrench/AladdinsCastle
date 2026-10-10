@@ -104,6 +104,17 @@ private slots:
         event.eventType = vr::VREvent_ScrollDiscrete; event.data.scroll.xdelta = -1; event.data.scroll.ydelta = 0;
         QVERIFY(input.dispatch(event, &receiver)); QCOMPARE(receiver.wheel, QPoint(-120, 120));
     }
+    void numericObservationsRemainBoundedAndDoNotChangeDispatch() {
+        ac::SpikeState state;ac::OverlayInput plain,observed;Recorder first,second;
+        observed.setObserver([&](const auto &event,auto position,auto angle,int type,auto buttons){state.recordInput(event,position,angle,type,buttons);});
+        vr::VREvent_t event{};event.eventType=vr::VREvent_MouseMove;
+        for(quint32 cursor=0;cursor<20;++cursor){event.data.mouse={float(cursor*10),float(600+cursor),0,cursor};QVERIFY(plain.dispatch(event,&first));QVERIFY(observed.dispatch(event,&second));}
+        QCOMPARE(first.types,second.types);QCOMPARE(first.position,second.position);QCOMPARE(plain.position(),observed.position());
+        QCOMPARE(state.cursors().size(),16);QCOMPARE(state.droppedPackets(),4);QCOMPARE(state.pointerPosition(),observed.position());
+        event.data.mouse.x=std::numeric_limits<float>::quiet_NaN();QVERIFY(!observed.dispatch(event,&second));QCOMPARE(state.droppedPackets(),4);
+        event={};event.eventType=vr::VREvent_KeyboardCharInput;event.data.keyboard.cNewInput[0]='q';
+        state.recordInput(event,{1,2},{},int(QEvent::KeyPress),Qt::NoButton);QCOMPARE(state.pointerPosition(),observed.position());QCOMPARE(state.cursors().size(),16);
+    }
     void keyboardUnicodeAndSpecialKeys() {
         ac::OverlayInput input; Recorder receiver;
         input.sendText(QString::fromUtf8("é漢😀"), &receiver);
