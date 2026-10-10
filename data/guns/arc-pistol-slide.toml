@@ -20,3 +20,22 @@ red = { body = "#d2362e", accent = "#1c1c20" }
 blue = { body = "#2f6fd6", accent = "#1c1c20" }
 pink = { body = "#e86aa6", accent = "#1c1c20" }
 orange = { body = "#f07a1a", accent = "#1c1c20" }
+
+# Motion ranges use metres (slide) or radians (rotate). Visual recoil never moves the aim anchors.
+
+[motion.trigger]
+node = "pivot_trigger"
+kind = "rotate"
+axis = [-1,0,0]
+range = [0,0.35]
+drive = "trigger"
+lod_nodes = ["pivot_trigger", "pivot_trigger_lod1"]
+
+[motion.recoil]
+node = "slide_recoil"
+kind = "slide"
+axis = [0,0,1]
+range = [0,0.015]
+drive = "recoil"
+lod_nodes = ["slide_recoil", "slide_recoil_lod1"]
+duration_ms = 45
