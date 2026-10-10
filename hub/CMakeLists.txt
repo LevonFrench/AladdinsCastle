@@ -166,7 +166,10 @@ if(BUILD_TESTING)
     endif()
     target_compile_definitions(ui-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(ui-tests)
-    add_test(NAME hub-ui COMMAND ui-tests -o -,txt)
+    add_test(NAME hub-ui COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:ui-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-ui.txt
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(hub-ui PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     qt_add_executable(scan-art-tests tests/ScanArtTest.cpp)
     target_link_libraries(scan-art-tests PRIVATE hubcore Qt6::Test)
