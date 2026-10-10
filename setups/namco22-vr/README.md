@@ -78,6 +78,10 @@ rendezvous, frozen register/display-list publication, and an actual GL renderer
 under `game_draw_eye`. Do not invoke the nonreturning game entry as `game_step`.
 The compiled GL slice reuses this callback and lease; dispatch tests run mocks
 only. It requires shared forward depth and a desktop GL3.3 compatibility provider.
+The [GL material path](GL-MATERIALS.md) uploads exact bounded synthetic rectangles
+once per immutable lease, replays both eyes and cleans only its own textures on
+owner-context release/close. Capacity, driver pixels and native composition remain
+separate acceptance gates; no real graphics provider is enabled here.
 Capture focal/centre/camera association at emission before sorting; preserve
 direct screen-space primitives, mixed sprite priorities, textures, fog and gamma.
 The existing reference clones stay read-only. This block neither downloads
