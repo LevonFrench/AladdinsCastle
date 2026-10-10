@@ -7,7 +7,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'assets/guns/src'))
-from common import TIERS, metadata, plan
+from common import TIERS, MATERIAL_RGBA, metadata, plan, preview_material_rgba
 
 
 class SourcePlanTests(unittest.TestCase):
@@ -49,6 +49,41 @@ class SourcePlanTests(unittest.TestCase):
         self.assertLess(spec['nodes']['grip_two']['at'][0],-.1)
         self.assertEqual(spec['nodes']['pivot_pitch']['parent'],'pivot_yaw')
         self.assertEqual(spec['nodes']['pivot_trigger']['parent'],'pivot_pitch')
+
+    def test_slide_moves_upper_geometry_and_kick_moves_whole_visible_body(self):
+        furniture={'frame','hand_grip','guard_post_-1','guard_post_1','guard_lower',
+                   'cable_boss','grip_rib_0','grip_rib_1','grip_rib_2'}
+        upper={'barrel_shell','rear_shell','muzzle_lens','sight_front_mesh','sight_rear_mesh'}
+        for mid in ('arc-pistol-slide','arc-pistol-twin'):
+            spec=plan(mid,runpy.run_path(str(ROOT/'assets/guns/src'/(mid+'.py')))['PARAMETERS'])
+            parts={p['name']:p for p in spec['parts']}
+            with self.subTest(model=mid):
+                for name in furniture:
+                    self.assertEqual(parts[name]['parent'],'visual_kick' if mid=='arc-pistol-twin' else None)
+                for name in upper:
+                    self.assertEqual(parts[name]['parent'],'visual_kick' if mid=='arc-pistol-twin' else 'slide_recoil')
+                for name in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear'):
+                    self.assertIsNone(spec['nodes'][name]['parent'])
+
+    def test_preview_multiplies_exported_linear_factors_for_all_palettes(self):
+        # Exported values stay stable; native GL multiplies these factors rather
+        # than replacing them. Black/white/low-sRGB cases exercise both branches.
+        self.assertEqual(MATERIAL_RGBA,{'body':(.55,.55,.55,1),'accent':(.32,.32,.34,1),
+                                        'dark':(.012,.012,.018,1),'glass':(.025,.10,.16,1)})
+        palettes=[{'body':'#000000','accent':'#ffffff'}, {'body':'#0a0bff','accent':'#ff0b0a'}]
+        for mid in TIERS:
+            palettes.extend(v for v in metadata(mid)['tints'].values() if isinstance(v,dict))
+        for tint in palettes:
+            with self.subTest(tint=tint):
+                result=preview_material_rgba(tint)
+                for role in ('dark','glass'):
+                    self.assertEqual(result[role],MATERIAL_RGBA[role])
+                for role in ('body','accent'):
+                    self.assertEqual(result[role][3],1)
+                    for index in range(3):
+                        s=int(tint[role][1+2*index:3+2*index],16)/255
+                        expected=MATERIAL_RGBA[role][index]*(s/12.92 if s<=.04045 else ((s+.055)/1.055)**2.4)
+                        self.assertAlmostEqual(result[role][index],expected)
 
 
 if __name__ == '__main__':
