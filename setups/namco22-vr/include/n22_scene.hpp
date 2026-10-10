@@ -3,6 +3,7 @@
 #include "acvr.h"
 #include "n22_material.hpp"
 #include "n22_fog.hpp"
+#include "n22_background.hpp"
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -37,6 +38,7 @@ struct SceneInput {
     float hud_depth_scene = 2;
     MaterialPacket materials;
     FogState fog;
+    BackgroundState background;
 };
 // Owns all data. Never retains mutable source arrays or references to emulation.
 struct Frame {
@@ -45,6 +47,7 @@ struct Frame {
     std::vector<Triangle> triangles;
     MaterialPacket materials;
     FogState fog;
+    BackgroundState background;
 };
 struct Image {
     uint32_t width, height;

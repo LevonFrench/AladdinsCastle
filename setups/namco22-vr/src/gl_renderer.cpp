@@ -129,6 +129,7 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
         for(auto v:t.vertices) {const float p[]={v.x,v.y,v.z};if(!finite(p,3)) return ACVR_BAD_ARGUMENT;}
     }
     if(auto r=validate_fog_draw(frame);r!=ACVR_OK) return r;
+    if(auto r=validate_background(frame.background,frame.id);r!=ACVR_OK) return r;
     TexturePlan prepared;
     if(!resource_frame_) {
         if(auto r=prepare_texture_plan(frame,prepared);r!=ACVR_OK) return r;
@@ -310,7 +311,10 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
     gl_.Scissor(eye.rect_x,eye.rect_y,static_cast<GLsizei>(eye.rect_width),static_cast<GLsizei>(eye.rect_height));
     gl_.Enable(GL_SCISSOR_TEST);gl_.Enable(GL_DEPTH_TEST);
     gl_.DepthFunc(GL_LEQUAL);gl_.DepthMask(GL_TRUE);gl_.DepthRange(0,1);gl_.ClearDepth(1);
-    gl_.ColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);gl_.ClearColor(0,0,0,1);gl_.PolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+    const uint32_t background=background_rgb(frame.background);
+    gl_.ColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+    gl_.ClearColor(static_cast<float>((background>>16)&255)/255.f,static_cast<float>((background>>8)&255)/255.f,static_cast<float>(background&255)/255.f,1);
+    gl_.PolygonMode(GL_FRONT_AND_BACK,GL_FILL);
     for(GLenum cap:std::array<GLenum,14>{GL_BLEND,GL_ALPHA_TEST,GL_CULL_FACE,GL_LIGHTING,GL_FOG,GL_STENCIL_TEST,GL_DITHER,GL_COLOR_LOGIC_OP,GL_POLYGON_OFFSET_FILL,GL_POLYGON_STIPPLE,glc::Multisample,glc::SampleAlphaCoverage,glc::SampleAlphaOne,glc::SampleCoverage}) gl_.Disable(cap);
     for(auto cap:glc::ModernCaps) gl_.Disable(cap);
     // packed RGB is display-referred; framebuffer sRGB stays disabled.

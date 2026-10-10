@@ -138,9 +138,10 @@ Vec3 unproject(const ProjectedVertex &v,const acvr_game_camera &c) {
 acvr_result prepare(const SceneInput &in,uint64_t id,Frame &out) {
     if(!finite(in.hud_depth_scene) || in.hud_depth_scene<=0) return ACVR_BAD_ARGUMENT;
     if(auto r=validate_material_packet(in.materials);r!=ACVR_OK) return r;
+    if(auto r=validate_background(in.background,id);r!=ACVR_OK) return r;
     if(in.fog.policy!=FogPolicy::Absent && (!id || in.fog.tick!=id)) return ACVR_BAD_ARGUMENT;
     if(in.fog.policy!=FogPolicy::Absent && in.fog.policy!=FogPolicy::System22Constant && in.fog.policy!=FogPolicy::Super22Table) return ACVR_UNSUPPORTED;
-    Frame f; f.id=id; f.cameras=in.cameras;f.materials=in.materials;f.fog=in.fog;
+    Frame f; f.id=id; f.cameras=in.cameras;f.materials=in.materials;f.fog=in.fog;f.background=in.background;
     for(size_t i=0;i<f.cameras.size();++i)
         if(!camera_valid(f.cameras[i]) || f.cameras[i].camera_id!=i) return ACVR_BAD_ARGUMENT;
     for(const auto &p:in.polygons) {
@@ -238,13 +239,15 @@ acvr_result draw_cpu(const Frame &f,const acvr_eye &e,Image &image,bool hud_only
     for(float v:e.projection_from_view) if(!finite(v)) return ACVR_BAD_ARGUMENT;
     if(auto r=validate_material_packet(f.materials);r!=ACVR_OK) return r;
     if(auto r=validate_fog_draw(f);r!=ACVR_OK) return r;
+    if(auto r=validate_background(f.background,f.id);r!=ACVR_OK) return r;
     for(const auto &t:f.triangles) if(t.material!=NoMaterial) {
         if(t.material>=f.materials.materials.size()) return ACVR_BAD_ARGUMENT;
         for(const auto &attribute:t.attributes) if(!valid_material_vertex(attribute)) return ACVR_BAD_ARGUMENT;
     }
+    const uint32_t background=hud_only?0:background_rgb(f.background);
     for(uint32_t y=0;y<e.rect_height;++y) for(uint32_t x=0;x<e.rect_width;++x) {
         size_t p=static_cast<size_t>(image.height-1-static_cast<uint32_t>(e.rect_y)-y)*image.width+static_cast<uint32_t>(e.rect_x)+x;
-        image.rgb[p]=0; image.depth[p]=1;
+        image.rgb[p]=background; image.depth[p]=1;
     }
     for(const auto &t:f.triangles) {
         if(hud_only!=(t.layer==Layer::Hud)) continue;

@@ -64,6 +64,7 @@ struct Mock {
     std::vector<std::array<float,4>> vertices;
     std::vector<std::array<float,16>> loaded_projection,loaded_view;
     std::vector<std::array<GLint,4>> clears;
+    std::vector<std::array<GLfloat,4>> clear_colours;
     std::vector<std::string> calls;
     std::set<std::string> missing;
     GLenum error=GL_NO_ERROR,status=n22::glc::FramebufferComplete;
@@ -170,6 +171,9 @@ void N22_GL_CALL colour_mask(GLboolean a,GLboolean b,GLboolean c,GLboolean d) {l
 void N22_GL_CALL clear(GLbitfield bits) {
     log("Clear");if(bits!=(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT) || !current->state.enabled.count(GL_SCISSOR_TEST)) throw std::runtime_error("clear must use scoped colour/depth rectangle");
     current->clears.push_back(current->state.scissor);
+    current->clear_colours.push_back(current->state.clear_colour);
+    if(current->state.clear_colour[3]!=1 || current->state.clear_depth!=1 || current->state.depth_mask!=GL_TRUE ||
+       current->state.colour_mask!=std::array<GLboolean,4>{GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE}) throw std::runtime_error("opaque scoped clear and unchanged forward depth");
 }
 void N22_GL_CALL polygon_mode(GLenum,GLenum mode) {log("PolygonMode");current->state.polygon=mode;}
 void N22_GL_CALL begin(GLenum mode) {log("Begin");if(mode!=GL_TRIANGLES || current->in_begin) throw std::runtime_error("triangle stream");current->in_begin=true;}
@@ -607,16 +611,41 @@ void fog_callback_path() {
     check(api.supported_graphics==0,"fog cannot admit native factory/graphics");
     auto open=record<acvr_open_info>();ACVR_INIT(&open.graphics);open.game_id_utf8="synthetic-system22";
     auto meta=record<acvr_backend_info>();acvr_backend *b=nullptr;api.game_open(&open,&b,&meta);n22::configure_gl_draw(b,device(m));
-    check(n22::stage_cpu_scene(b,fog_material_scene())==ACVR_OK,"backend stages copied fog/material packet");
+    auto in=fog_material_scene();in.background.policy=n22::BackgroundPolicy::Super22Mixer;in.background.tick=1;in.background.rgb={17,34,51};
+    check(n22::stage_cpu_scene(b,in)==ACVR_OK,"backend stages copied fog/material/background packet");
     auto input=record<acvr_inputs>();input.tick_id=1;api.game_set_inputs(b,&input);
     auto step=record<acvr_step_info>();step.tick_id=1;auto fi=record<acvr_frame_info>();acvr_frame *lease=nullptr;
     check(api.game_step(b,&step,&lease,&fi)==ACVR_OK,"native-style lease caches vertex fog once");
     auto eye=n22::desktop_eye(0,0,4,320,240);auto info=draw_info(eye);
     check(api.game_draw_eye(b,lease,&info)==ACVR_OK && m.upload_count==7,"actual callback applies same-draw fog through CPU mocks");
+    check(m.clears.size()==1 && m.clear_colours[0]==std::array<float,4>{17.f/255,34.f/255,51.f/255,1} && m.composed_samples[1]==0x843972,"background changes existing clear while opaque fogged material output stays unchanged");
     api.game_release_frame(b,lease);check(m.live_textures.empty() && m.deleted.size()==7,"public owner release retires fog dummy too");api.game_close(b);
+}
+void background_clear_path() {
+    Mock m;current=&m;n22::GlRenderer renderer;check(renderer.initialize(device(m))==ACVR_OK,"background uses existing GL dispatch without new entries");
+    n22::SceneInput in;in.background.policy=n22::BackgroundPolicy::Super22Mixer;in.background.tick=1;in.background.rgb={17,34,51};
+    n22::Frame frame;check(n22::prepare(in,1,frame)==ACVR_OK,"empty world owns explicit mixer background");in.background.rgb={0,0,0};
+    auto eye=n22::desktop_eye(0,-.032f,4,80,40);eye.rect_x=20;eye.rect_y=5;auto info=draw_info(eye);const auto original=m.state;
+    check(renderer.draw(frame,info)==ACVR_OK && m.vertices.empty() && m.generated.empty() && m.clears.size()==1 &&
+          m.clear_colours[0]==std::array<float,4>{17.f/255,34.f/255,51.f/255,1},"uncovered world gets exact normalized background in one existing clear with no resource/pass");same_state(original,m.state);
+    check(m.clears[0]==std::array<GLint,4>{20,5,80,40},"nonzero eye clear uses exact neighbour-preserving scissor");
+    eye.eye_index=1;eye.rect_x=180;eye.view_from_scene[12]=-.25f;
+    check(renderer.draw(frame,info)==ACVR_OK && m.clears.size()==2 && m.clears[1]==std::array<GLint,4>{180,5,80,40} && m.clear_colours[1]==m.clear_colours[0],"second eye/current pose replays immutable background in its own rectangle");same_state(original,m.state);
+    const auto calls=m.calls.size();auto bad=frame;bad.background.tick=2;
+    check(renderer.draw(bad,info)==ACVR_BAD_ARGUMENT && m.calls.size()==calls,"bad background tick rejects before any GL query/upload/clear");
+    bad=frame;bad.background.policy=static_cast<n22::BackgroundPolicy>(99);
+    check(renderer.draw(bad,info)==ACVR_UNSUPPORTED && m.calls.size()==calls,"unknown background policy rejects before commands");
+    n22::Frame absent;in.background={};n22::prepare(in,1,absent);
+    check(renderer.draw(absent,info)==ACVR_OK && m.clear_colours.back()==std::array<float,4>{0,0,0,1},"absent policy keeps existing opaque black GL clear");same_state(original,m.state);
+    auto covered=n22::synthetic_cube();covered.background=frame.background;n22::Frame with_geometry;n22::prepare(covered,1,with_geometry);
+    check(renderer.draw(with_geometry,info)==ACVR_OK && m.vertices.size()==36 && m.clears.size()==4 && m.generated.empty(),"world geometry draws after same existing background clear with no extra pass/resource");same_state(original,m.state);
+    check(renderer.shutdown()==ACVR_OK && m.deleted.empty() && m.clears.size()==4,"background-only shutdown creates/deletes/clears nothing");
+    Mock failing;current=&failing;n22::GlRenderer errors;errors.initialize(device(failing));failing.fail_vertex=true;
+    check(errors.draw(with_geometry,info)==ACVR_ERROR && failing.clears.size()==1,"background geometry failure stays one scoped clear");same_state(original,failing.state);
+    check(errors.shutdown()==ACVR_OK && failing.generated.empty() && failing.deleted.empty(),"background failure needs no resource cleanup");
 }
 }
 int main() {
-    try {direct_dispatch();callback_path();material_lifecycle();material_failures();material_callback_path();fog_lifecycle();fog_failures();fog_callback_path();std::cout<<checks<<" GL dispatch checks passed (CPU mocks only)\n";return 0;}
+    try {direct_dispatch();callback_path();material_lifecycle();material_failures();material_callback_path();fog_lifecycle();fog_failures();fog_callback_path();background_clear_path();std::cout<<checks<<" GL dispatch checks passed (CPU mocks only)\n";return 0;}
     catch(const std::exception &e) {std::cerr<<e.what()<<"\n";return 1;}
 }
