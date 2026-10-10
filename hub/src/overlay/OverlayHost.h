@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
 #include "OverlayInput.h"
+#include "OverlayKeyboard.h"
 #include "OverlayRuntime.h"
 #include <QElapsedTimer>
-#include <QPointer>
 #include <QTimer>
 class QQmlEngine;
 class QQuickItem;
@@ -26,15 +26,12 @@ signals:
     void failed(const QString &error);
 private:
     void tick();
-    void closeKeyboard(bool clearFocus, bool hide);
     SpikeState &m_state;
     std::unique_ptr<OverlayRuntime> m_runtime;
     std::unique_ptr<QuickTextureRenderer> m_renderer;
     OverlayInput m_input;
     OverlayFrameGate m_gate;
-    QPointer<QQuickItem> m_keyboardTarget;
-    quint64 m_keyboardToken = 0;
-    bool m_keyboardOpen = false;
+    OverlayKeyboard m_keyboard;
     bool m_quitSeen = false;
     bool m_running = false;
     QTimer m_timer;

@@ -49,6 +49,7 @@ bool OverlayInput::dispatch(const vr::VREvent_t &event, QObject *receiver) {
         }
         QMouseEvent mapped(type, m_position, m_position, m_position, button,
                            m_buttons, Qt::NoModifier);
+        if (m_observer) m_observer(event, mapped.position(), {}, mapped.type(), mapped.buttons());
         QCoreApplication::sendEvent(receiver, &mapped);
         return true;
     }
@@ -64,6 +65,7 @@ bool OverlayInput::dispatch(const vr::VREvent_t &event, QObject *receiver) {
         m_wheelRemainder = accumulated - QPointF(angle);
         QWheelEvent mapped(m_position, m_position, {}, angle, m_buttons,
                            Qt::NoModifier, Qt::NoScrollPhase, false);
+        if (m_observer) m_observer(event, mapped.position(), mapped.angleDelta(), mapped.type(), mapped.buttons());
         QCoreApplication::sendEvent(receiver, &mapped);
         return true;
     }

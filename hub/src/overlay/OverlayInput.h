@@ -4,6 +4,8 @@
 #include <QPointF>
 #include <QSize>
 #include <openvr.h>
+#include <functional>
+#include <utility>
 namespace ac {
 // Keyboard packets may be queued after HideKeyboard. An old close/done must
 // never dismiss a later session or accept text meant for another overlay.
@@ -20,12 +22,17 @@ public:
     void sendText(const QString &text, QObject *receiver);
     Qt::MouseButtons buttons() const { return m_buttons; }
     QPointF position() const { return m_position; }
+    // Observes accepted packets and the Qt event submitted by this translator.
+    // It does not supply position, button state or routing decisions.
+    using Observer = std::function<void(const vr::VREvent_t &, QPointF, QPoint, int, Qt::MouseButtons)>;
+    void setObserver(Observer observer) { m_observer = std::move(observer); }
 private:
     QSize m_size;
     bool m_flipY = true;
     Qt::MouseButtons m_buttons = Qt::NoButton;
     QPointF m_position;
     QPointF m_wheelRemainder;
+    Observer m_observer;
 };
 // Deterministic, hardware-free policy used by the real host. Hidden dirty work
 // remains pending and visibility transitions guarantee a fresh first frame.
