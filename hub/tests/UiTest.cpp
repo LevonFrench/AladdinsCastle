@@ -82,6 +82,17 @@ class UiTest:public QObject {
   if(!qEnvironmentVariable("AC_UI_BENCH_OUTPUT").isEmpty()){auto out=QFileInfo(qEnvironmentVariable("AC_UI_BENCH_OUTPUT")).dir();QVERIFY(window->grabWindow().save(out.filePath("d-startup.png")));}
  }
  void themeAndSettings(){QCOMPARE(theme->get("motion.hover_dwell").toInt(),600);QCOMPARE(theme->get("motion.preview_scale").toDouble(),1.4);QVERIFY(theme->get("gradient.explore_banner_fade.stop").toList().size()==8);QVERIFY(settings->set("reduceMotion",true));QVERIFY(settings->saveGame("synthetic",{{"laser","on"},{"gun_pitch",-10}}));ac::UiSettings copy(user.path());QCOMPARE(copy.get("reduceMotion").toBool(),true);QCOMPARE(copy.game("synthetic").value("gun_pitch").toInt(),-10);settings->set("reduceMotion",false);}
+ void desktopDetailEmbedsNativeControls(){
+  ui->openDetail("timecris");root->setProperty("view","Detail");
+  QTRY_VERIFY_WITH_TIMEOUT(!namedItems(window->contentItem(),"universalControlsView").isEmpty(),3000);
+  const auto view=namedItems(window->contentItem(),"universalControlsView").first();
+  auto model=view->property("controlsModel").value<QObject *>();QVERIFY(model);
+  QCOMPARE(model->property("gameId").toString(),QString("timecris"));
+  QVERIFY(!model->property("rows").toList().isEmpty());
+  QVERIFY(!model->property("previewAvailable").toBool());
+  root->setProperty("view","List");
+  QTRY_VERIFY(model->property("gameId").toString().isEmpty());
+ }
  void componentLoading(){
   const QStringList components{"PillButton","UiText","GameArt","GradientText","GameCard","SectionHeader","FeaturedBanner","Header","FilterBar","ScanProgress","FiltersDrawer","GameGrid","LibraryTile","RecentlyPlayedRow","ExplorePage","DetailPage","InstallConsole","RecoveryPanel","SettingsPage","SortMenu","HelpPanel"};
   for(const auto &name:components){QQmlComponent c(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/"+name+".qml"));QVERIFY2(c.isReady(),qPrintable(c.errorString()));std::unique_ptr<QObject> o(c.create());QVERIFY2(o!=nullptr,qPrintable(c.errorString()));}
