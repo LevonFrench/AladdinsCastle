@@ -120,7 +120,10 @@ def plan(model_id, parameters):
     cylinder('muzzle_lens', (0, bore_y, muzzle_z+length*.008), length*(.035 if mounted else .040), length*.015, 'glass', body_parent)
     for name in ('sight_front', 'sight_rear'):
         at = nodes[name]['at']
-        box(name+'_mesh', at, (length*.025, length*.025, length*.032), 'dark', body_parent, bevel=.001)
+        # Native decoding reserves sight_* for static references, including
+        # descendant meshes. Visible geometry may recoil; marker names do not.
+        visible_name = 'front_sight_geometry' if name=='sight_front' else 'rear_sight_geometry'
+        box(visible_name, at, (length*.025, length*.025, length*.032), 'dark', body_parent, bevel=.001)
     for button in meta.get('button', []):
         bid = button['id']
         if mounted:
