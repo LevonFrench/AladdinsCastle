@@ -316,9 +316,12 @@ def main():
     parser.add_argument('--allow-unmapped',action='store_true')
     parser.add_argument('--backend-declarations',type=Path,help='Explicit offline TOML declarations keyed by [game.<id>]')
     parser.add_argument('--proposed-overrides',action='store_true',help='SOURCE ONLY: explicitly evaluate candidate fragments, never a default layer')
+    parser.add_argument('--export-view-catalog',type=Path,help='Build-time baseline JSON for native Hub loading; no Python needed by players')
     args = parser.parse_args()
     if args.proposed_overrides and not args.allow_unmapped:
         parser.error('--proposed-overrides requires --allow-unmapped; candidates never satisfy readiness')
+    if args.export_view_catalog and (args.game or args.proposed_overrides or args.backend_declarations):
+        parser.error('View catalog exports only canonical all-game baseline data, without proposed/live declarations')
     errors,rows = [],[]
     try:
         resolver = Resolver()
@@ -334,6 +337,10 @@ def main():
     except (OSError,ValueError,KeyError,TypeError) as exc:
         errors.append(str(exc))
     gaps = sum(len(r['gaps']) for r in rows)
+    if args.export_view_catalog and not errors:
+        args.export_view_catalog.parent.mkdir(parents=True,exist_ok=True)
+        args.export_view_catalog.write_text(json.dumps({'version':'0.1','baseline_only':True,'games':rows},
+            indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
     if args.json:
         print(json.dumps({'acceptance':'source-only' if args.allow_unmapped else 'completeness',
                           'games':rows,'errors':errors,'gap_count':gaps},indent=2,ensure_ascii=False))
