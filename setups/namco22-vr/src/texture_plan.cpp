@@ -40,7 +40,9 @@ acvr_result prepare_texture_plan(const Frame &frame,TexturePlan &out) {
         const auto bytes=uint64_t(width)*height*4;
         rect.rgba.resize(static_cast<size_t>(bytes));
         for(uint32_t y=0;y<height;++y) for(uint32_t x=0;x<width;++x) {
-            uint32_t rgb=0;const auto r=sample_material(frame.materials,rect.material,double(rect.min_u)+x+.5,double(rect.min_v)+y+.5,64,rgb);
+            // The sampler floors U/V. The integer cell coordinate represents
+            // the same pen as its centre and stays inside inclusive +65536.
+            uint32_t rgb=0;const auto r=sample_material(frame.materials,rect.material,double(rect.min_u)+x,double(rect.min_v)+y,64,rgb);
             if(r!=ACVR_OK) return r;
             const size_t at=(size_t(y)*width+x)*4;
             rect.rgba[at]=static_cast<uint8_t>(rgb>>16);rect.rgba[at+1]=static_cast<uint8_t>(rgb>>8);

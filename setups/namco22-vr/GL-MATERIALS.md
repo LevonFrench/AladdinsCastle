@@ -24,6 +24,11 @@ on the first draw, then both eyes and changed-pose replay reuse immutable handle
 No target colour/depth/FBO is retained. New-frame drawing cannot replace an
 unreleased texture lease. A failed upload rolls back only owned object names.
 
+The bake uses the integer coordinate within each source texel cell; the floor
+sampler gives the same pen as its centre while preserving the public inclusive
+U/V range at +65536. Draw UVs remain texel-centred. Limits are not widened or
+narrowed to accommodate the bake.
+
 Textured triangles use the supplied eye matrices, normalized texel-centre UVs
 and nearest sampling. GL supplies new-eye perspective interpolation; do not
 divide by original native Z again. Compatibility texture combine modulates at
