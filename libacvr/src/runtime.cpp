@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "runtime_host.hpp"
+#include "pose_math.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -44,11 +45,12 @@ bool unit(const float *q) {
 bool pose_ok(const acvr_pose &p) {
     return valid(&p) == ACVR_OK && finite(p.position_m, 3) && unit(p.orientation_xyzw);
 }
-std::array<float, 3> rotate(const float *q, std::array<float, 3> v) {
-    const std::array<float, 3> t{2 * (q[1]*v[2]-q[2]*v[1]),
+std::array<float, 3> rotate(const float *input, std::array<float, 3> v) {
+    const auto q=acvr::normalized_quaternion(input);
+    const std::array<double, 3> t{2 * (q[1]*v[2]-q[2]*v[1]),
         2 * (q[2]*v[0]-q[0]*v[2]), 2 * (q[0]*v[1]-q[1]*v[0])};
-    return {v[0]+q[3]*t[0]+q[1]*t[2]-q[2]*t[1],
-        v[1]+q[3]*t[1]+q[2]*t[0]-q[0]*t[2], v[2]+q[3]*t[2]+q[0]*t[1]-q[1]*t[0]};
+    return {float(v[0]+q[3]*t[0]+q[1]*t[2]-q[2]*t[1]),
+        float(v[1]+q[3]*t[1]+q[2]*t[0]-q[0]*t[2]), float(v[2]+q[3]*t[2]+q[0]*t[1]-q[1]*t[0])};
 }
 struct Digital {
     bool sampled = false, held = false, armed = true;
