@@ -142,12 +142,14 @@ Vec3 unproject(const ProjectedVertex &v,const acvr_game_camera &c) {
 acvr_result prepare(const SceneInput &in,uint64_t id,Frame &out) {
     if(!finite(in.hud_depth_scene) || in.hud_depth_scene<=0) return ACVR_BAD_ARGUMENT;
     if(auto r=validate_material_packet(in.materials);r!=ACVR_OK) return r;
+    if(auto r=validate_composition_plan(in.composition,id);r!=ACVR_OK) return r;
     if(auto r=validate_background(in.background,id);r!=ACVR_OK) return r;
     if(auto r=validate_polygon_fade(in.polygon_fade,id);r!=ACVR_OK) return r;
     if(in.fog.policy!=FogPolicy::Absent && (!id || in.fog.tick!=id)) return ACVR_BAD_ARGUMENT;
     if(in.fog.policy!=FogPolicy::Absent && in.fog.policy!=FogPolicy::System22Constant && in.fog.policy!=FogPolicy::Super22Table) return ACVR_UNSUPPORTED;
     Frame f; f.id=id; f.cameras=in.cameras;f.materials=in.materials;f.fog=in.fog;f.background=in.background;
     f.polygon_fade=in.polygon_fade;
+    f.composition=in.composition;
     for(size_t i=0;i<f.cameras.size();++i)
         if(!camera_valid(f.cameras[i]) || f.cameras[i].camera_id!=i) return ACVR_BAD_ARGUMENT;
     for(const auto &p:in.polygons) {
@@ -247,6 +249,8 @@ acvr_result raycast(const Frame &f,const acvr_ray &r,acvr_hit &out) {
     return ACVR_OK;
 }
 acvr_result draw_cpu(const Frame &f,const acvr_eye &e,Image &image,bool hud_only) {
+    if(auto r=validate_composition_plan(f.composition,f.id);r!=ACVR_OK) return r;
+    if(f.composition.policy!=CompositionPolicy::Absent) return ACVR_UNSUPPORTED;
     if(e.size<sizeof(e) || e.version!=ACVR_STRUCT_VERSION) return ACVR_BAD_VERSION;
     if(e.array_layer!=0 || e.rect_x<0 || e.rect_y<0 || !e.rect_width || !e.rect_height ||
         static_cast<uint64_t>(e.rect_x)+e.rect_width>image.width ||

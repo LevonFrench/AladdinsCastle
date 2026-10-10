@@ -90,6 +90,11 @@ The [GL material path](GL-MATERIALS.md) uploads exact bounded synthetic rectangl
 once per immutable lease, replays both eyes and cleans only its own textures on
 owner-context release/close. Capacity, driver pixels and native composition remain
 separate acceptance gates; no real graphics provider is enabled here.
+The [owned composition CPU contract](COMPOSITION.md) binds a complete same-tick
+plan and per-eye item spans to the existing lease. It proves selected priority,
+fade/text-mask/gamma order with synthetic byte witnesses and preserves caller
+depth. Present plans reject in existing polygon-only CPU/GL draws until those
+paths can fulfill them; native decoding and GL finalization remain open.
 Capture focal/centre/camera association at emission before sorting; preserve
 direct screen-space primitives, mixed sprite priorities, textures, fog and gamma.
 The existing reference clones stay read-only. This block neither downloads

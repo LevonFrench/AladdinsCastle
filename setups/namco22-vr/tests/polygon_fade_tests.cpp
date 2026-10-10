@@ -65,6 +65,9 @@ void rational_witnesses() {
     in=fixture();std::fill(in.materials.palette.begin(),in.materials.palette.end(),0x010101);
     for(auto &a:in.polygons[0].attributes) a.brightness=127.5f;
     in.fog.rgb={10,10,10};check(centre(in)==0x030303 && 39245/13056==3,"final-only floor preserves rational3; premature shade byte gives2");
+    std::fill(in.materials.palette.begin(),in.materials.palette.end(),0x040404);
+    for(auto &a:in.polygons[0].attributes) a.brightness=64;
+    in.fog.rgb={1,1,1};check(centre(in)==0x010101 && 318/255==1 && 254/255==0,"fractional raw fog remains0.5 through blend; flooring fog early loses witness1");
     in=fixture();in.fog.tables[0].fill(255);in.fog.rgb={80,80,80};check(centre(in)==0x282828,"full fog scales raw constant by fade without prequantization");
     in=fixture();in.polygons[0].fog.colour_word=0x8000;check((centre(in)>>16)==200,"colour bit15 disables fog, never polygon fade");
     in=fixture();in.polygons[0].fog.cz_adjust=0x800000;check((centre(in)>>16)==200,"adjust bit23 disables fog, never polygon fade");

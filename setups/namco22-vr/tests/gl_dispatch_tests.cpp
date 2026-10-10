@@ -726,8 +726,33 @@ void polygon_fade_callback_path() {
     const auto at=m.composed_samples.size();check(api.game_draw_eye(b,f,&info)==ACVR_OK && (m.composed_samples[at]>>16)==142 && m.upload_count==14,"new tick receives new owned factors without retaining old fade");same_state(original,m.state);
     api.game_close(b);check(m.live_textures.empty() && m.deleted.size()==14,"public close cleans unreleased successor fade lease once");
 }
+void complete_composition_rejection() {
+    Mock m;current=&m;n22::GlRenderer renderer;
+    check(renderer.initialize(device(m))==ACVR_OK && m.calls.empty(),"complete composition test resolves mocks without graphics commands");
+    auto in=n22::synthetic_material_cube();in.composition.policy=n22::CompositionPolicy::Super22SourceOrder;
+    in.composition.tick=in.composition.mixer.tick=1;in.composition.declarations.fill(n22::CompositionDeclaration::Empty);
+    n22::Frame frame;check(n22::prepare(in,1,frame)==ACVR_OK,"present explicitly empty composition is a complete owned plan");
+    auto eye=n22::desktop_eye(0,0,4,320,240);auto info=draw_info(eye);const auto original=m.state;
+    check(renderer.draw(frame,info)==ACVR_UNSUPPORTED && m.calls.empty() && m.generated.empty() && m.clears.empty(),"present composition rejects before EVERY GL command, upload or clear");same_state(original,m.state);
+    frame.composition.mixer.tick=2;
+    check(renderer.draw(frame,info)==ACVR_BAD_ARGUMENT && m.calls.empty(),"invalid plan rejects before GL capabilities or target inspection");
+    in.composition={};check(n22::prepare(in,1,frame)==ACVR_OK && renderer.draw(frame,info)==ACVR_OK && m.upload_count==6 && m.clears.size()==1,"absent composition retains earlier owned-material draw path");same_state(original,m.state);renderer.shutdown();
+
+    Mock cb;current=&cb;auto api=record<acvr_backend_api>();acvr_backend_query(1,&api);
+    auto open=record<acvr_open_info>();ACVR_INIT(&open.graphics);open.game_id_utf8="synthetic-system22";
+    auto meta=record<acvr_backend_info>();acvr_backend *b=nullptr;api.game_open(&open,&b,&meta);
+    check(n22::configure_gl_draw(b,device(cb))==ACVR_OK,"complete composition uses existing callback binding");
+    in.composition.policy=n22::CompositionPolicy::Super22SourceOrder;in.composition.tick=in.composition.mixer.tick=1;in.composition.declarations.fill(n22::CompositionDeclaration::Empty);
+    check(n22::stage_cpu_scene(b,in)==ACVR_OK,"complete composition owned by ordinary staged scene");
+    auto inputs=record<acvr_inputs>();inputs.tick_id=1;api.game_set_inputs(b,&inputs);
+    auto step=record<acvr_step_info>();step.tick_id=1;auto fi=record<acvr_frame_info>();acvr_frame *lease=nullptr;
+    check(api.game_step(b,&step,&lease,&fi)==ACVR_OK,"complete composition published through public lease callback");
+    check(api.game_draw_eye(b,lease,&info)==ACVR_UNSUPPORTED && cb.calls.empty() && cb.generated.empty() && cb.clears.empty(),"public draw callback cannot silently render incomplete composition");
+    api.game_release_frame(b,lease);api.game_close(b);
+    check(cb.calls.empty(),"rejected complete composition allocates no GL resources to retire");
+}
 }
 int main() {
-    try {direct_dispatch();callback_path();material_lifecycle();material_failures();material_callback_path();fog_lifecycle();fog_failures();fog_callback_path();background_clear_path();polygon_fade_dispatch();polygon_fade_failures();polygon_fade_callback_path();std::cout<<checks<<" GL dispatch checks passed (CPU mocks only)\n";return 0;}
+    try {direct_dispatch();callback_path();material_lifecycle();material_failures();material_callback_path();fog_lifecycle();fog_failures();fog_callback_path();background_clear_path();polygon_fade_dispatch();polygon_fade_failures();polygon_fade_callback_path();complete_composition_rejection();std::cout<<checks<<" GL dispatch checks passed (CPU mocks only)\n";return 0;}
     catch(const std::exception &e) {std::cerr<<e.what()<<"\n";return 1;}
 }

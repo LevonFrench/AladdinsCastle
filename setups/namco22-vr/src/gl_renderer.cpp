@@ -102,6 +102,8 @@ acvr_result GlRenderer::initialize(const acvr_graphics_device &device) {
 acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
     if(!ready_ || owner_!=std::this_thread::get_id()) return ACVR_BAD_STATE;
     diagnostic_={};
+    if(auto r=validate_composition_plan(frame.composition,frame.id);r!=ACVR_OK) return r;
+    if(frame.composition.policy!=CompositionPolicy::Absent) return ACVR_UNSUPPORTED;
     if(in.size<sizeof(in) || in.version!=ACVR_STRUCT_VERSION || in.target.size<sizeof(in.target) ||
        in.target.version!=ACVR_STRUCT_VERSION) return ACVR_BAD_VERSION;
     if(in.frame_id!=frame.id) return ACVR_BAD_STATE;

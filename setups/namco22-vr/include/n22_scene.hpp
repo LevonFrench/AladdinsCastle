@@ -5,6 +5,7 @@
 #include "n22_fog.hpp"
 #include "n22_background.hpp"
 #include "n22_polygon_fade.hpp"
+#include "n22_composition.hpp"
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -41,6 +42,7 @@ struct SceneInput {
     FogState fog;
     BackgroundState background;
     PolygonFadeState polygon_fade;
+    CompositionPlan composition;
 };
 // Owns all data. Never retains mutable source arrays or references to emulation.
 struct Frame {
@@ -51,6 +53,7 @@ struct Frame {
     FogState fog;
     BackgroundState background;
     PolygonFadeState polygon_fade;
+    CompositionPlan composition;
 };
 struct Image {
     uint32_t width, height;
