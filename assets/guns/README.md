@@ -21,8 +21,10 @@ Or, after approval, build an individual script with `--background`,
 then `-- --out <absolute-output.glb> --preview-dir <absolute-preview-directory>`.
 Use `--samples 16` (default). `build.py --model <id>` selects a subset.
 No application installation, downloads, GPU renderer, editor/MCP, or game files
-are involved. The builder exports the neutral model before applying its p1 tint
-for previews. Failures produce a nonzero process exit code.
+are involved. The builder exports the neutral model before multiplying its
+linear body/accent base factors by the p1 palette tint for previews, matching
+native rendering. Fixed dark/glass RGBA stays unchanged. Failures produce a
+nonzero process exit code.
 
 ## Hierarchy and coordinates
 
@@ -44,6 +46,10 @@ materials: neutral `body`/`accent`, fixed `dark`/`glass`; no textures.
 | `button_<id>` | One named motion anchor per metadata button |
 | `pivot_yaw`, `pivot_pitch` | Nested mounted yoke/receiver hinges |
 | `grip_two` | Mounted left rear grip |
+
+Blowback moves the upper slide, its visible sights and lens. Frame, hand grip,
+guard, cable boss and grip ribs stay stationary. The twin's whole-body visual
+kick carries all visible furniture while its aim/reference anchors stay fixed.
 
 Canonical animated names appear in LOD0; LOD1 equivalents have `_lod1` suffixes.
 Both carry `extras.semantic_node`. Metadata `[motion.<id>]` includes `lod_nodes`,

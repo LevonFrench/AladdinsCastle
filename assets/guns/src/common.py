@@ -15,6 +15,18 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[3]
 TIERS = ('generic-pistol', 'arc-pistol-slide', 'arc-pistol-twin',
          'con-pistol-slim', 'con-pistol-dpad', 'con-revolver-chunky', 'mnt-mg-heavy')
+MATERIAL_RGBA = {'body':(.55,.55,.55,1), 'accent':(.32,.32,.34,1),
+                 'dark':(.012,.012,.018,1), 'glass':(.025,.10,.16,1)}
+
+
+def preview_material_rgba(tint):
+    """Match native linear base × palette tint, retaining fixed dark/glass."""
+    result = dict(MATERIAL_RGBA)
+    for name in ('body','accent'):
+        rgb = [int(tint[name][i:i+2],16)/255 for i in (1,3,5)]
+        linear = tuple(v/12.92 if v <= .04045 else ((v+.055)/1.055)**2.4 for v in rgb)+(1,)
+        result[name] = tuple(base*channel for base,channel in zip(MATERIAL_RGBA[name],linear))
+    return result
 
 
 def metadata(model_id):
@@ -85,6 +97,9 @@ def plan(model_id, parameters):
             for part in parts:
                 part['parent'] = body_parent
             nodes['pivot_trigger']['parent'] = body_parent
+        # Grip furniture belongs to the frame, not the blowback slide. Whole-body
+        # visual kick still carries it; static aim/reference markers never do.
+        frame_parent = 'visual_kick' if 'recoil_kick' in meta['features'] else None
         barrel_depth = length * (.68 if slim else .73)
         box('barrel_shell', (0, bore_y, muzzle_z+barrel_depth*.5), (width, length*(.16 if slim else .22), barrel_depth),
             parent=body_parent, bevel=.003 if slim else .005)
@@ -93,11 +108,11 @@ def plan(model_id, parameters):
             cylinder('fixed_cylinder', (0, bore_y*.70, -length*.10), length*.125, length*.20, 'accent', body_parent)
         # A genuinely open trigger guard, assembled from three independent rails.
         for side in (-1, 1):
-            box('guard_post_'+str(side), (0, -length*.12, -length*(.14+side*.115)), (width*.35, length*.20, length*.035), parent=body_parent, bevel=.002)
-        box('guard_lower', (0, -length*.205, -length*.14), (width*.35, length*.035, length*.265), parent=body_parent, bevel=.002)
-        cylinder('cable_boss', (0, -length*.43, length*.09), length*.04, length*.06, 'accent', body_parent, axis='y')
+            box('guard_post_'+str(side), (0, -length*.12, -length*(.14+side*.115)), (width*.35, length*.20, length*.035), parent=frame_parent, bevel=.002)
+        box('guard_lower', (0, -length*.205, -length*.14), (width*.35, length*.035, length*.265), parent=frame_parent, bevel=.002)
+        cylinder('cable_boss', (0, -length*.43, length*.09), length*.04, length*.06, 'accent', frame_parent, axis='y')
         for i in range(3):
-            box('grip_rib_'+str(i), (0, -length*(.14+i*.065), length*.13), (width*1.08, length*.014, length*.08), 'accent', body_parent, bevel=.001)
+            box('grip_rib_'+str(i), (0, -length*(.14+i*.065), length*.13), (width*1.08, length*.014, length*.08), 'accent', frame_parent, bevel=.001)
     # Trigger is a mesh below its real pivot, so rotation moves the visible part.
     trigger = nodes['pivot_trigger']['at']
     box('trigger', (trigger[0], trigger[1]-length*.045, trigger[2]-length*.01),
@@ -168,8 +183,7 @@ def blender_run(model_id, parameters):
         bpy.context.view_layer.update()
         return obj
     mats = {}
-    for name, color in {'body':(.55,.55,.55,1), 'accent':(.32,.32,.34,1),
-                        'dark':(.012,.012,.018,1), 'glass':(.025,.10,.16,1)}.items():
+    for name, color in MATERIAL_RGBA.items():
         mat = bpy.data.materials.new(name)
         mat.diffuse_color = color
         bsdf = mat.node_tree.nodes.get('Principled BSDF')
@@ -257,11 +271,9 @@ def blender_run(model_id, parameters):
         for obj in lod_objects[1][1]:
             obj.hide_render = True
         tint = meta['tints'][meta['tints']['p1']]
-        def linear_hex(value):
-            c = [int(value[i:i+2],16)/255 for i in (1,3,5)]
-            return tuple(v/12.92 if v <= .04045 else ((v+.055)/1.055)**2.4 for v in c)+(1,)
-        for name in ('body','accent'):
-            mats[name].node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = linear_hex(tint[name])
+        for name, color in preview_material_rgba(tint).items():
+            mats[name].diffuse_color = color
+            mats[name].node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = color
         scene.render.engine = 'CYCLES'
         scene.cycles.device = 'CPU'
         scene.cycles.samples = args.samples
