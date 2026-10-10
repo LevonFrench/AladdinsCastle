@@ -18,6 +18,7 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 - **Stretch (optional):** install **hotd2-vr** from upstream for The House of the Dead 2 (Dreamcast) through its recipe (D44): the first true-3D game the Hub installs, with no new engine features.
 
 ## M2: namco22-vr: our first true-3D setups (libacvr v0 built with it)
+- **Run as four Codex sessions** (lead, Hub, guns and controls, stereo boards): [tasks/m2/README.md](tasks/m2/README.md).
 - libacvr v0 on the [contract](libacvr-contract.md): OpenXR session, multiview, recenter/height, pause overlay, gun module (aim projection, cover button, recoil), ghost-control framework (wheel, `shifter_hl`, pedals, buttons), comfort basics.
 - libacvr host on namco22-decompile (guarded build-time patches), stereo through the `geo_hw.c` projection.
 - **Time Crisis** (tracked pistol, cover on the grip button) and **Rave Racer** (ghost wheel, two-position shifter, trigger pedals).
