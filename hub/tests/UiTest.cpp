@@ -20,6 +20,7 @@
 #include <QJSValue>
 #include <QQuickImageProvider>
 #include <QPainter>
+#include <QFocusEvent>
 #include <QAtomicInteger>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -92,6 +93,29 @@ class UiTest:public QObject {
   QVERIFY(!model->property("previewAvailable").toBool());
   root->setProperty("view","List");
   QTRY_VERIFY(model->property("gameId").toString().isEmpty());
+ }
+ void desktopControlsSwitchClearAndKeepEvidenceHonest(){
+  ui->openDetail("timecris");root->setProperty("view","Detail");
+  auto controls=ui->controlsController();auto model=controls->model();
+  QTRY_COMPARE_WITH_TIMEOUT(model->gameId(),QString("timecris"),10000);
+  QCOMPARE(controls->resolved().value("node_validation").toString(),QString("not-built"));
+  for(const auto &row:model->rows())QVERIFY(row.toMap().value("availability").toString()!="available");
+  const auto policy=controls->resolved().value("data").toMap().value("policy").toMap();
+  QVERIFY(settings->saveGame("timecris",{{"left_handed",true}}));
+  QTRY_VERIFY_WITH_TIMEOUT(!controls->loading(),10000);
+  QCOMPARE(controls->resolved().value("data").toMap().value("policy").toMap(),policy);
+  auto pressed=[&]{for(const auto &row:model->rows())if(row.toMap().value("pressed").toBool())return true;return false;};
+  QFocusEvent focusIn(QEvent::FocusIn,Qt::OtherFocusReason);QCoreApplication::sendEvent(window,&focusIn);qobject_cast<QQuickItem *>(root)->forceActiveFocus();
+  model->setBindingState("right","trigger",true);QVERIFY(pressed());
+  QFocusEvent focusOut(QEvent::FocusOut,Qt::OtherFocusReason);QCoreApplication::sendEvent(window,&focusOut);QTRY_VERIFY(!pressed());
+  QCoreApplication::sendEvent(window,&focusIn);
+  model->setBindingState("right","trigger",true);QVERIFY(pressed());ui->launchFinished("timecris",{});QVERIFY(!pressed());
+  ui->openDetail("vcop");QTRY_COMPARE_WITH_TIMEOUT(model->gameId(),QString("vcop"),10000);QVERIFY(!pressed());
+  QCOMPARE(controls->resolved().value("node_validation").toString(),QString("not-built"));
+  QString racing;for(const auto &game:games->records())if(game.roles.value("genreId")=="racing"){racing=game.id;break;}QVERIFY(!racing.isEmpty());
+  ui->openDetail(racing);QTRY_VERIFY_WITH_TIMEOUT(!controls->loading(),10000);QVERIFY(model->rows().isEmpty());QVERIFY(!ui->detailControlsStatus().isEmpty());
+  QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  root->setProperty("view","List");QTRY_VERIFY(model->gameId().isEmpty());
  }
  void componentLoading(){
   const QStringList components{"PillButton","UiText","GameArt","GradientText","GameCard","SectionHeader","FeaturedBanner","Header","FilterBar","ScanProgress","FiltersDrawer","GameGrid","LibraryTile","RecentlyPlayedRow","ExplorePage","DetailPage","InstallConsole","RecoveryPanel","SettingsPage","SortMenu","HelpPanel"};

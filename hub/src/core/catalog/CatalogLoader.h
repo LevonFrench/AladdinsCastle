@@ -9,6 +9,8 @@ struct CatalogReport {
     QStringList messages;
 };
 struct CatalogData {
+    QString root;
+    QStringList packIds;
     QVector<GameRecord> games;
     Json vocab = Json::object(), emulators = Json::object(), sharedSetups = Json::object(),
          theme = Json::object();

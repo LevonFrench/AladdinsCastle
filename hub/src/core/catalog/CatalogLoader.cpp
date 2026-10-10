@@ -445,6 +445,7 @@ const GameRecord *CatalogData::find(const QString &id) const {
 }
 CatalogData CatalogLoader::load(const QString &root) const {
     CatalogData data;
+    data.root=QDir(root).absolutePath();
     const auto themePath = QFileInfo::exists(root + "/docs/ui/theme.toml")
                                ? root + "/docs/ui/theme.toml"
                                : QString(":/resources/theme.toml");
@@ -477,8 +478,10 @@ CatalogData CatalogLoader::load(const QString &root) const {
     std::stable_sort(packs.begin(), packs.end(), [](const Pack &a, const Pack &b) {
         return a.priority == b.priority ? a.name < b.name : a.priority < b.priority;
     });
-    for (const auto &p : packs)
+    for (const auto &p : packs) {
+        data.packIds << p.name;
         layers << p.path;
+    }
     layers << QDir(root).filePath("user/overrides");
     QMap<QString, GameRecord> records;
     for (const auto &layer : layers) {

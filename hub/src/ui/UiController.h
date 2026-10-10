@@ -2,6 +2,7 @@
 #pragma once
 #include "models/FilterSortModel.h"
 #include "UiSettings.h"
+#include "DetailControlsController.h"
 #include <QObject>
 #include <QUrl>
 namespace ac {
@@ -29,6 +30,9 @@ class SectionedGridModel : public QAbstractListModel {
 class UiController : public QObject {
  Q_OBJECT
  Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged)
+ Q_PROPERTY(QObject *detailControls READ detailControls CONSTANT)
+ Q_PROPERTY(QString detailControlsStatus READ detailControlsStatus NOTIFY detailControlsChanged)
+ Q_PROPERTY(bool detailControlsLoading READ detailControlsLoading NOTIFY detailControlsChanged)
  Q_PROPERTY(QVariantList consoleEvents READ consoleEvents NOTIFY installChanged)
  Q_PROPERTY(QVariantMap recovery READ recovery NOTIFY installChanged)
  Q_PROPERTY(bool retryGameAvailable READ retryGameAvailable NOTIFY installChanged)
@@ -47,6 +51,14 @@ class UiController : public QObject {
  Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
  public:
  UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent=nullptr);
+ QObject *detailControls(){return m_detailControls.model();}
+ QString detailControlsStatus()const{return m_detailControls.status();}
+ bool detailControlsLoading()const{return m_detailControls.loading();}
+ DetailControlsController *controlsController(){return &m_detailControls;}
+ Q_INVOKABLE void refreshDetailControls();
+ Q_INVOKABLE void reloadDetailControls(){m_detailControls.refresh();}
+ Q_INVOKABLE void leaveDetail(){m_detailControlsVisible=false;m_detailControls.clear();}
+ Q_INVOKABLE void clearDetailControlStates(){m_detailControls.model()->clearBindingStates();}
  bool retryGameAvailable()const;
  bool retryToolAvailable()const;
  int artRevision()const{return m_artRevision;}
@@ -98,6 +110,7 @@ class UiController : public QObject {
  void launchStarted(const QString &gameId); void launchFinished(const QString &gameId,const QString &error);
  void applyRuntimeStates(const QVector<RuntimeState> &states);
  signals:
+ void detailControlsChanged();
  void artRevisionChanged(); void artProviderChanged(); void detailChanged(); void installChanged(); void scanChanged(); void statusChanged(); void facetsChanged();
  void scanRequested(const QStringList &roots); void cancelScanRequested();
  void installRequested(const QString &gameId,const QString &variantId); void playRequested(const QString &gameId,const QString &variantId);
@@ -107,6 +120,8 @@ class UiController : public QObject {
  void promptAnswered(bool proceed); void skipStepRequested(); void uninstallPreviewRequested(const QString &gameId,const QString &variantId);
  void locationRequested(const QString &kind); void writeConfigRequested(const QString &gameId,const QVariantMap &settings);
  private:
+ DetailControlsController m_detailControls;
+ bool m_detailControlsVisible=false;
  const Variant *variant(const GameRecord &record) const;
  QString readme(const GameRecord &record) const;
  void message(const QString &text);
