@@ -603,6 +603,7 @@ Json loadJournal(const QString &path) {
 }
 bool rollback(const Request &r, const Json &records, const Options &options,
               const QString &errorCode = "E_INTERRUPTED") {
+  event(options, {}, "rollback", "Reversing interrupted changes");
   bool complete = true;
   if (!records.empty())
     cleanStaging(r, string(records[0], "run"));
@@ -614,7 +615,7 @@ bool rollback(const Request &r, const Json &records, const Options &options,
     try {
       const auto path = scopedPath(string(j, "path"), r.root);
       if (op == "rename") {
-        const auto to = string(j, "to");
+        const auto to = scopedPath(string(j, "to"), r.root);
         if (QFileInfo::exists(to) && !QFileInfo::exists(path)) {
           if (!QDir().rename(to, path))
             throw Error("E_ROLLBACK_INCOMPLETE", "Cannot reverse swap");
@@ -982,10 +983,12 @@ Plan Engine::plan(const Request &r) const {
   return p;
 }
 Result Engine::install(const Request &r) {
+  // Exclusion must outlive the try block and every automatic rollback handler.
+  std::unique_ptr<Lock> lock;
   std::unique_ptr<Transaction> tx;
   try {
     auto p = plan(r);
-    Lock lock(r);
+    lock = std::make_unique<Lock>(r);
     const auto guard = guardFor(r);
     tx = std::make_unique<Transaction>(r, options_, p);
     tx->guard = guard;
@@ -1308,9 +1311,11 @@ Json Engine::uninstallPreview(const Request &r) const {
                Json::array({"user media", "unowned files", "user profiles"})}};
 }
 Result Engine::uninstall(const Request &r) {
+  // Exclusion must outlive the try block and every automatic rollback handler.
+  std::unique_ptr<Lock> lock;
   std::unique_ptr<Transaction> tx;
   try {
-    Lock lock(r);
+    lock = std::make_unique<Lock>(r);
     const auto base = stateBase(r);
     const auto old = readEnvelope(base + ".manifest.toml");
     if (old.empty())

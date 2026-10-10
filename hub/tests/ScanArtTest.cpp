@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFontDatabase>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QtEndian>
@@ -889,6 +890,62 @@ private slots:
         if (r.image.pixelColor(x, y).alpha() > 0)
           text = true;
     QVERIFY(text);
+  }
+  void futureFailureKeepsLastGoodState() {
+    QTemporaryDir t;
+    ac::GameListModel model(catalog());
+    ac::scan::ScanOptions options;
+    int calls = 0;
+    ac::scan::ScanController controller(&model, options, nullptr,
+        [&](const ac::CatalogData &c, const ac::scan::ScanOptions &, std::atomic_bool &, const ac::scan::Progress &) {
+          if (++calls == 2) throw std::runtime_error("synthetic unexpected worker failure");
+          ac::scan::ScanResult result;
+          auto state = c.games[0].runtime; state.mediaFound = {"last-good"};
+          result.states << state;
+          return result;
+        });
+    QSignalSpy done(&controller, &ac::scan::ScanController::scanFinished);
+    QSignalSpy ready(&controller, &ac::scan::ScanController::resultsReady);
+    QSignalSpy failed(&controller, &ac::scan::ScanController::scanFailed);
+    controller.scan(); QTRY_COMPARE(done.count(), 1);
+    const auto previous = controller.lastResult().toJson();
+    int beats = 0; QTimer heartbeat;
+    connect(&heartbeat, &QTimer::timeout, [&] { ++beats; }); heartbeat.start(1);
+    controller.scan(); QTRY_COMPARE(done.count(), 2);
+    QVERIFY(!controller.running()); QCOMPARE(failed.count(), 1); QCOMPARE(ready.count(), 1);
+    QVERIFY(controller.lastResult().toJson() == previous);
+    QCOMPARE(model.records()[0].runtime.mediaFound, QStringList{"last-good"});
+    QTRY_VERIFY(beats > 0);
+    controller.scan(); QTRY_COMPARE(done.count(), 3);
+    QCOMPARE(ready.count(), 2); QCOMPARE(failed.count(), 1);
+  }
+  void malformedRecordIsIsolated() {
+    QTemporaryDir t;
+    save(t.filePath("test.zip"), zip({{0x12345678, 100}}));
+    save(t.filePath("m.xml"), "<mame><machine name=\"test\"><rom name=\"r\" crc=\"12345678\" size=\"100\"/></machine></mame>");
+    auto c = catalog();
+    auto bad = c.games[0]; bad.id = "malformed"; bad.raw["hardware"] = 7;
+    bad.runtime.gameId = bad.id; bad.runtime.mediaFound = {"prior-good"};
+    c.games.prepend(bad);
+    ac::scan::ScanOptions options; options.mediaRoots = {t.path()}; options.mameXml = t.filePath("m.xml");
+    std::atomic_bool cancel{false};
+    ac::scan::ScanResult result;
+    try { result = ac::scan::Scanner::run(c, options, cancel); }
+    catch (const std::exception &e) { QFAIL(e.what()); }
+    QCOMPARE(result.states.size(), 1);
+    QCOMPARE(result.states[0].gameId, QString("synthetic"));
+    QVERIFY(result.states[0].mediaFound.contains("test"));
+    QCOMPARE(result.bindings.size(), 1);
+    QVERIFY(result.diagnostics.join("\n").contains("malformed"));
+    ac::GameListModel model(c);
+    ac::scan::ScanController controller(&model, options);
+    QSignalSpy done(&controller, &ac::scan::ScanController::scanFinished);
+    QSignalSpy ready(&controller, &ac::scan::ScanController::resultsReady);
+    controller.scan();
+    QTRY_COMPARE(done.count(), 1);
+    QVERIFY(!controller.running()); QCOMPARE(ready.count(), 1);
+    QCOMPARE(model.find("malformed")->runtime.mediaFound, QStringList{"prior-good"});
+    QVERIFY(model.find("synthetic")->runtime.mediaFound.contains("test"));
   }
   void threadResultPreservesRuntime() {
     QTemporaryDir t;
