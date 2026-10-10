@@ -8,12 +8,12 @@ Built models and preview/callout assets are CC0-1.0; scripts are GPL-3.0-only.
 ## Rebuild
 
 Ask the owner before invoking Blender, including headless/CPU use. The source
-targets the locally installed Blender 5.2, with factory startup, no add-ons,
+targets Blender 5.2, with factory startup, no add-ons,
 sequential processes, four CPU threads and Cycles explicitly set to CPU.
 The approval flag records an existing approval; it does not grant one.
 
 ```powershell
-python J:/projects/games/aladdinscastle/.local/worktrees/guns-controls/assets/guns/build.py --blender 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe' --owner-approved-cpu-batch
+python assets/guns/build.py --blender '<path-to-existing-blender-executable>' --owner-approved-cpu-batch
 ```
 
 Or, after approval, build an individual script with `--background`,
@@ -63,9 +63,9 @@ generic, slide, twin, slim, dpad, chunky, mounted. It contains no vendor art.
 ## Validate and add a model
 
 ```powershell
-python J:/projects/games/aladdinscastle/.local/worktrees/guns-controls/tools/check_gun_assets.py
-python J:/projects/games/aladdinscastle/.local/worktrees/guns-controls/tools/test_check_gun_assets.py
-python J:/projects/games/aladdinscastle/.local/worktrees/guns-controls/tools/gun_models.py
+python tools/check_gun_assets.py
+python tools/test_check_gun_assets.py
+python tools/gun_models.py
 ```
 
 The checker reads real vertex/index buffers and node transforms to measure each
