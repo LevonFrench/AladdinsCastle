@@ -78,13 +78,21 @@ the caller remains responsible for supplying already-resolved policy values.
 The provisional default model is used only when layered game `gun_model` is
 absent. Owner profile UX/persistence remains undecided. The view reads the final
 `policy.p1_hand`, clearing any previous pressed state when data is replaced.
+Every replacement resets to right when that key or the policy table is absent
+(including a resolved `!delete`); it never inherits the preceding game's hand.
+Both resolvers use this same assignment for primary and fallback collisions:
+slot 0 is the resolved primary hand and slot 1 is the opposite hand.
 
 The current registry supports the 23 registered models. Custom model registration
 and profile/pack registry discovery belong to the host's import/settings service;
 unknown model IDs fail explicitly instead of silently using another model.
 
 `setPrimaryHand("left"|"right")` changes slot→hand labels (A/X, B/Y) and clears
-pressed state. `setTwoGunsActive(bool)` chooses the one-handed reload fallback
+pressed state for a transient desktop preview. Replacement clears that override.
+For runtime hand switching, the host supplies the hand to resolution first and
+loads the validated result; changing view labels alone does not validate input
+collisions. No hand choice is persisted here.
+`setTwoGunsActive(bool)` chooses the one-handed reload fallback
 for an explicit dual-gun preview or joined state; backend capacity alone never
 means player two has joined. Host tracking/focus/game exit must call
 `clearBindingStates()`. `setBindingState(hand,logicalControl,pressed)` highlights

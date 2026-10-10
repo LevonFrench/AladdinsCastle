@@ -87,6 +87,25 @@ private slots:
         QVERIFY(model.controllerBindings("right").isEmpty());
         model.setTwoGunsActive(true); QVERIFY(!model.twoGunsActive());
     }
+    void replacementDefaultsHandAndClearsHostPreviewOverride() {
+        ac::ControlsViewModel model;
+        auto sample=samples["timecris"],data=sample.value("data").toMap();
+        auto policy=data.value("policy").toMap(); policy["p1_hand"]="left";
+        data["policy"]=policy; sample["data"]=data;
+        QVERIFY(model.loadResolved(sample)); QCOMPARE(model.primaryHand(),QString("left"));
+        model.setBindingState("left","trigger",true);
+        QVERIFY(rowWithId(model,"p1-trigger").value("pressed").toBool());
+        // A resolved !delete removes the key. No state from the preceding game
+        // or a host's transient preview override may substitute for the default.
+        policy.remove("p1_hand"); data["policy"]=policy; sample["data"]=data;
+        QVERIFY(model.loadResolved(sample)); QCOMPARE(model.primaryHand(),QString("right"));
+        QVERIFY(!rowWithId(model,"p1-trigger").value("pressed").toBool());
+        model.setPrimaryHand("left");
+        data.remove("policy"); sample["data"]=data;
+        QVERIFY(model.loadResolved(sample)); QCOMPARE(model.primaryHand(),QString("right"));
+        model.setPrimaryHand("left"); QVERIFY(!model.loadResolvedJson("invalid JSON"));
+        QCOMPARE(model.primaryHand(),QString("right"));
+    }
     void nativeCatalogLoaderNeedsNoPythonAtRuntime() {
         const QVariantMap catalog{{"version","0.1"},{"baseline_only",true},{"games",QVariantList{samples["timecris"],samples["hotd2"]}}};
         ac::ControlsViewModel model;

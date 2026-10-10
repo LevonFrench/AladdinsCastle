@@ -183,15 +183,19 @@ void validateBinding(const Map &binding) {
     if (binding.contains("threshold")) check(number(binding.value("threshold"))&&std::isfinite(binding.value("threshold").toDouble())&&binding.value("threshold").toDouble()>=0&&binding.value("threshold").toDouble()<=1,"Invalid trigger/grip threshold");
     if (binding.contains("invert")) check(binding.value("invert").metaType().id()==QMetaType::Bool,"Binding invert must be boolean");
 }
-QSet<QString> physicalHands(const Map &row,const Map &binding) {
+QSet<QString> physicalHands(const Map &row,const Map &binding,const QString &primaryHand) {
     const QString hand=binding.value("hand").toString();
-    if (hand=="slot") return {row.value("slot").toInt()==0?"right":"left"};
+    if (hand=="slot") return {row.value("slot").toInt()==0?primaryHand:(primaryHand=="right"?"left":"right")};
     if (hand=="either") return {"right","left"};
     return {hand};
 }
 void validateSet(const Map &data,const Map &model,const std::optional<QSet<QString>> &nodes,bool collisions) {
     check(data.value("version").toString()=="0.1"&&identifier(data.value("id"))&&nonempty(data.value("title")),"Invalid control set version/id/title");
     if (data.contains("gun_model")) check(data.value("gun_model")==model.value("id"),"Control-set model differs from selected gun");
+    if (data.contains("policy")) check(isMap(data.value("policy")),"Policy must be a table");
+    const auto policy=data.value("policy").toMap();
+    const QString primaryHand=policy.value("p1_hand","right").toString();
+    check(QSet<QString>{"left","right"}.contains(primaryHand),"Invalid profile primary hand");
     const auto elements=list(data,"element"),parts=optionalList(data,"unmapped_part");
     indexed(elements,"element"); indexed(parts,"unmapped_part");
     QMap<QString,Map> seen,fallbackSeen; QSet<QString> covered;
@@ -212,13 +216,13 @@ void validateSet(const Map &data,const Map &model,const std::optional<QSet<QStri
         }
         if (control=="offscreen_trigger") check(input==Map{{"kind","gun"},{"semantic","reload"}},"Offscreen trigger is only a composite reload");
         if (collisions&&data.value("configured_slots",2).toInt()==2&&QSet<QString>{"trigger","reload","cover_pedal"}.contains(input.value("semantic").toString())) check(binding.value("hand").toString()=="slot","Two-gun action must be slot-local");
-        for (const auto &hand:physicalHands(row,binding)) {
+        for (const auto &hand:physicalHands(row,binding,primaryHand)) {
             const QString key=hand+'/'+control; const auto old=seen.value(key);
             if (collisions&&!old.isEmpty()) check(old.value("input")==row.value("input")&&old.value("player")==row.value("player")&&old.value("binding")==row.value("binding"),"Controller binding collision");
             seen[key]=row;
         }
         const Map active=fallback.isEmpty()?binding:fallback;
-        for (const auto &hand:physicalHands(row,active)) {
+        for (const auto &hand:physicalHands(row,active,primaryHand)) {
             const QString key=hand+'/'+active.value("control").toString(); const auto old=fallbackSeen.value(key);
             if (collisions&&!old.isEmpty()) {
                 const Map oldActive=old.contains("fallback_binding")?old.value("fallback_binding").toMap():old.value("binding").toMap();
@@ -243,9 +247,6 @@ void validateSet(const Map &data,const Map &model,const std::optional<QSet<QStri
         const auto amp=output.value("amplitude"); check(number(amp)&&std::isfinite(amp.toDouble())&&amp.toDouble()>=0&&amp.toDouble()<=1,"Invalid output amplitude");
         check(integer(output.value("duration_ms"))&&output.value("duration_ms").toLongLong()>0,"Invalid output duration");
     }
-    if (data.contains("policy")) check(isMap(data.value("policy")),"Policy must be a table");
-    const auto policy=data.value("policy").toMap();
-    if (policy.contains("p1_hand")) check(QSet<QString>{"left","right"}.contains(policy.value("p1_hand").toString()),"Invalid profile primary hand");
     if (policy.contains("two_guns")) check(QSet<QString>{"off","on_join","always"}.contains(policy.value("two_guns").toString()),"Invalid two-gun policy");
 }
 void validateBackend(const std::optional<Map> &backend) {

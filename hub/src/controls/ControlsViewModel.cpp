@@ -112,6 +112,7 @@ bool ControlsViewModel::loadCatalogGame(const QByteArray &catalog, const QString
 void ControlsViewModel::clear() {
     m_result.clear(); m_data.clear(); m_rows.clear(); m_preview.clear(); m_anchors.clear();
     m_previewImage = {}; m_previewDirectory.clear(); m_pressed.clear(); m_error.clear(); m_twoGunsActive = false;
+    m_primaryHand = "right";
     emit changed();
 }
 

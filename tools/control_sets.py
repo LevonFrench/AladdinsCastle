@@ -107,6 +107,15 @@ def validate_set(data, vocab, model, nodes=None,check_collisions=True):
     require(text(data.get('id')) and ID.fullmatch(data['id']) and text(data.get('title')),'control set id/title required')
     if 'gun_model' in data:
         require(data['gun_model']==model['id'],'control set gun_model differs from the resolved model')
+    policy = data.get('policy',{})
+    require(isinstance(policy,dict),'policy must be a table')
+    primary_hand = policy.get('p1_hand','right')
+    require(primary_hand in ('left','right'),'invalid caller primary hand')
+    def physical_hands(element,binding):
+        hand=binding['hand']
+        if hand=='slot':
+            return {primary_hand if element['slot']==0 else ('left' if primary_hand=='right' else 'right')}
+        return {'left','right'} if hand=='either' else {hand}
     elements = rows_by_id(data.get('element'),'element')
     parts = rows_by_id(data.get('unmapped_part',[]),'unmapped_part')
     seen = {}
@@ -132,9 +141,7 @@ def validate_set(data, vocab, model, nodes=None,check_collisions=True):
             require(inp=={'kind':'gun','semantic':'reload'},eid+': offscreen trigger is only the composite reload edge')
         # A collision is about an actual physical action, including overlapping
         # either/slot/explicit hands. Different modes cannot excuse two actions.
-        hand = binding['hand']
-        hands = {('right' if element['slot']==0 else 'left')} if hand=='slot' else ({'left','right'} if hand=='either' else {hand})
-        for physical in hands:
+        for physical in physical_hands(element,binding):
             key = (physical,binding['control'])
             old = seen.get(key)
             if old and check_collisions:
@@ -146,8 +153,7 @@ def validate_set(data, vocab, model, nodes=None,check_collisions=True):
         if check_collisions and data.get('configured_slots',2)==2 and inp['semantic'] in ('trigger','reload','cover_pedal'):
             require(binding['hand']=='slot',eid+': two-gun fire/reload/pedal must be slot-local')
         active = element.get('fallback_binding',binding)
-        active_hands = {('right' if element['slot']==0 else 'left')} if active['hand']=='slot' else ({'left','right'} if active['hand']=='either' else {active['hand']})
-        for physical in active_hands:
+        for physical in physical_hands(element,active):
             key = physical,active['control']
             old = fallback_seen.get(key)
             if old and check_collisions:
@@ -170,10 +176,6 @@ def validate_set(data, vocab, model, nodes=None,check_collisions=True):
         require(row.get('motion') in model.get('motion',{}),oid+': unknown motion')
         require(type(row.get('amplitude')) in (int,float) and math.isfinite(row['amplitude']) and 0<=row['amplitude']<=1,oid+': amplitude must be 0..1')
         require(integer(row.get('duration_ms')) and row['duration_ms']>0,oid+': duration must be positive')
-    policy = data.get('policy',{})
-    require(isinstance(policy,dict),'policy must be a table')
-    if 'p1_hand' in policy:
-        require(policy['p1_hand'] in ('left','right'),'invalid caller primary hand')
     if 'two_guns' in policy:
         require(policy['two_guns'] in ('off','on_join','always'),'invalid two-gun policy')
     return data

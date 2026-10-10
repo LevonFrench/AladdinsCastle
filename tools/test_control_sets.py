@@ -76,6 +76,19 @@ class ControlSetTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'fallback collision'):
             validate_set(data,self.resolver.vocab,self.resolver.models[row['model']])
 
+    def test_left_primary_hand_collisions_follow_resolved_slots(self):
+        for gid,control in (('timecris','trigger'),('hotd3','flick_up')):
+            for hand,collides in (('left',True),('right',False)):
+                defaults={'policy':{'p1_hand':'left','two_guns':'off'},'element':[
+                    {'id':'p1-coin','binding':{'hand':hand,'control':control,'mode':'press'}}]}
+                with self.subTest(gid=gid,hand=hand):
+                    if collides:
+                        with self.assertRaisesRegex(ValueError,'collision'):
+                            self.resolver.resolve_game(gid,profile_defaults=defaults)
+                    else:
+                        result=self.resolver.resolve_game(gid,profile_defaults=defaults)
+                        self.assertEqual(result['data']['policy']['p1_hand'],'left')
+
     def test_actual_node_checks_are_conditional(self):
         data,model = self.generic()
         validate_set(data,self.resolver.vocab,model,nodes=None)

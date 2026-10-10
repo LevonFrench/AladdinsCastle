@@ -3,6 +3,7 @@
 #include <QtTest>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QJsonParseError>
 #include <QProcess>
 #include <QTemporaryDir>
@@ -165,6 +166,29 @@ private slots:
         QVERIFY(!actual.value("data").toMap().value("policy").toMap().contains("p1_hand"));
         QVERIFY(write(directory.path(),"user/overrides/data/guns/con-pistol-slim.toml","model='../outside.glb'\n"));
         QVERIFY(!fixture.resolveGame("fixture-gun",options,actual,error)); QVERIFY(error.contains("GLB"));
+    }
+    void handednessPrimaryAndFallbackCollisionsMatchPython() {
+        QProcess process; process.start(AC_CONTROLS_PYTHON,{QDir(AC_CONTROLS_ROOT).filePath("hub/src/controls/tests/handedness_parity.py"),
+            "--source-root",AC_CONTROLS_ROOT});
+        QVERIFY(process.waitForFinished(30000)); QCOMPARE(process.exitCode(),0);
+        QJsonParseError parseError;
+        const auto cases=QJsonDocument::fromJson(process.readAllStandardOutput(),&parseError).array();
+        QVERIFY(parseError.error==QJsonParseError::NoError); QCOMPARE(cases.size(),8);
+        for (const auto &value:cases) {
+            const auto test=value.toObject().toVariantMap();
+            ac::ControlsResolveOptions options; options.useUserOverrides=false;
+            options.profileDefaults=test.value("defaults").toMap();
+            Map out{{"sentinel",1}}; QString error;
+            const bool ok=resolver.resolveGame(test.value("game_id").toString(),options,out,error);
+            if (test.value("collides").toBool()) {
+                QVERIFY(!ok); QVERIFY2(error.contains("collision"),qPrintable(error));
+                QVERIFY(test.value("error").toString().contains("collision"));
+                QCOMPARE(out,Map({{"sentinel",1}}));
+            } else {
+                QVERIFY2(ok,qPrintable(error)); QVERIFY(!test.contains("error"));
+                QCOMPARE(QJsonDocument::fromVariant(out),QJsonDocument::fromVariant(test.value("result")));
+            }
+        }
     }
     void backendSupportAndDecodedNodesAreSeparateGates() {
         ac::ControlsResolveOptions options; options.useUserOverrides=false;
