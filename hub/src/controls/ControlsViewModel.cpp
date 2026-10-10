@@ -87,6 +87,8 @@ bool ControlsViewModel::loadResolved(const QVariantMap &result, const QString &d
         }
     }
     m_result = result; m_data = data; m_previewDirectory = directory;
+    const QString profileHand = data.value("policy").toMap().value("p1_hand").toString();
+    if (profileHand == "left" || profileHand == "right") m_primaryHand = profileHand;
     // Backend capacity does not mean player two has joined. The host explicitly
     // sets twoGunsActive when choosing a dual-hand preview or after joining.
     m_twoGunsActive = false;

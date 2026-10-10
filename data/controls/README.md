@@ -66,12 +66,17 @@ No racing files or canonical per-game overrides are changed by this lane.
 `tools/control_sets.py` exposes `Resolver(root)` and
 `resolve_game(game_id, backend=None, pack_overrides=(), user_override=None)`.
 The optional `proposed_override` argument is for explicit candidate inspection.
+Explicit tooling options `game_overrides`, `model_overrides`, `profile_defaults`
+and `profile_model` support native parity fixtures; they create no persisted
+profile format or implicit active layer. A pack/user group may be a sequence of
+fragments, applied sequentially so `!delete` reaches inherited data.
 The returned dictionary/CLI JSON schema includes:
 
 | Key | Meaning |
 |---|---|
 | `model`, `model_provenance`, `shape_review` | Gun choice and confidence |
 | `control_set`, `layers`, `data` | Shared set and merged source data |
+| `model_metadata` | Exact layered metadata for native gun preparation |
 | `two_gun_eligible`, `separate_views`, `configured_slots` | Catalog/options |
 | `declared_active_slots` | Intersected actual backend counts/shared-view support |
 | `node_validation` | Built-reference check or explicitly not built |
@@ -89,3 +94,5 @@ Layering is shared set → canonical game override → supplied ordered pack lay
 → user override. Tables merge recursively, ID arrays merge by ID, other arrays
 replace, and `!delete` removes keys. Unknown extension keys survive. Versionless
 gun overrides are rejected; existing versionless racing files are untouched.
+The production native implementation and host interfaces are documented in
+`hub/src/controls/README.md`; the player does not need this Python tool.

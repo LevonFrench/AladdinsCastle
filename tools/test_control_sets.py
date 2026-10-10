@@ -35,6 +35,8 @@ class ControlSetTests(unittest.TestCase):
         self.assertEqual(base['extension']['erase'],2)
         self.assertEqual(merge([1,2],[3]),[3])
         self.assertEqual(merge(base['element'],[]),[])
+        self.assertEqual(merge([{'id':'Plugin key / 1','opaque':7}],[{'id':'Plugin key / 1','extra':8}]),
+                         [{'id':'Plugin key / 1','opaque':7,'extra':8}])
         with self.assertRaisesRegex(ValueError,'duplicate'):
             merge(base['element'],[{'id':'fire'},{'id':'fire'}])
 
@@ -119,6 +121,12 @@ class ControlSetTests(unittest.TestCase):
             validate_set(data,self.resolver.vocab,self.resolver.models['con-pistol-slim'])
         with self.assertRaises(ValueError):
             self.resolver.resolve_game('timecris',user_override={'element':[{'id':'p2-trigger','slot':9}]})
+    def test_fragment_groups_do_not_consume_deletions_before_inheritance(self):
+        row=self.resolver.resolve_game('timecris',profile_defaults={'extension':{'erase':'inherited'}},
+            pack_overrides=([{'extension':{'one':1}},{'extension':{'erase':'!delete'}}],),
+            user_override=[{'extension':{'two':2}},{'extension':{'one':'!delete'}}])
+        self.assertEqual(row['data']['extension'],{'two':2})
+        self.assertEqual(row['layers'][-2:],['pack 1','user override'])
 
 
 if __name__ == '__main__':

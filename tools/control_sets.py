@@ -44,11 +44,19 @@ def text(value):
     return isinstance(value,str) and bool(value.strip())
 
 
-def rows_by_id(rows, context):
+def confined_path(root,relative):
+    require(isinstance(relative,str) and relative and not Path(relative).is_absolute() and
+            ':' not in relative and '\\' not in relative and '..' not in relative.split('/'),'configuration path escape rejected')
+    target=(Path(root)/relative).resolve()
+    require(target.is_relative_to(Path(root).resolve()),'configuration symlink escape rejected')
+    return target
+
+
+def rows_by_id(rows, context,strict=True):
     require(isinstance(rows,list),context+' must be an array')
     result = {}
     for row in rows:
-        require(isinstance(row,dict) and text(row.get('id')) and ID.fullmatch(row['id']),context+': kebab-case id required')
+        require(isinstance(row,dict) and text(row.get('id')) and (not strict or ID.fullmatch(row['id'])),context+': valid id required')
         require(row['id'] not in result,context+': duplicate id '+row['id'])
         result[row['id']] = row
     return result
@@ -68,8 +76,8 @@ def merge(base, later):
         return result
     if isinstance(base,list) and isinstance(later,list) and later and all(
             isinstance(v,dict) and 'id' in v for v in [*base,*later]):
-        existing = rows_by_id(base,'inherited array')
-        update = rows_by_id(later,'override array')
+        existing = rows_by_id(base,'inherited array',strict=False)
+        update = rows_by_id(later,'override array',strict=False)
         return [merge(row,update.pop(key)) if key in update else deepcopy(row)
                 for key,row in existing.items()] + [deepcopy(v) for v in update.values()]
     return deepcopy(later)
@@ -152,6 +160,7 @@ def validate_set(data, vocab, model, nodes=None,check_collisions=True):
         if part['node'] and nodes is not None:
             require(part['node'] in nodes,eid+': unresolved part refers to missing built node')
         require(integer(part.get('slot')) and integer(part.get('player')),eid+': unresolved part slot/player required')
+        require(part['slot']<2 and part['slot']==part['player'],eid+': unresolved part slot/player out of range')
     covered = {e['node'] for e in [*elements.values(),*parts.values()]}
     require({b['node'] for b in model.get('button',[])}<=covered,'model button lacks element or explicit unresolved part')
     output = rows_by_id(data.get('output',[]),'output')
@@ -161,6 +170,12 @@ def validate_set(data, vocab, model, nodes=None,check_collisions=True):
         require(row.get('motion') in model.get('motion',{}),oid+': unknown motion')
         require(type(row.get('amplitude')) in (int,float) and math.isfinite(row['amplitude']) and 0<=row['amplitude']<=1,oid+': amplitude must be 0..1')
         require(integer(row.get('duration_ms')) and row['duration_ms']>0,oid+': duration must be positive')
+    policy = data.get('policy',{})
+    require(isinstance(policy,dict),'policy must be a table')
+    if 'p1_hand' in policy:
+        require(policy['p1_hand'] in ('left','right'),'invalid caller primary hand')
+    if 'two_guns' in policy:
+        require(policy['two_guns'] in ('off','on_join','always'),'invalid two-gun policy')
     return data
 
 
@@ -232,17 +247,33 @@ class Resolver:
                         (isinstance(drive,str) and drive.startswith('button:') and drive[7:] in {b['id'] for b in model.get('button',[])}),
                         mid+': invalid motion drive')
 
-    def resolve_game(self,gid,backend=None,pack_overrides=(),user_override=None,proposed_override=None):
-        game = self.games[gid]
+    def resolve_game(self,gid,backend=None,pack_overrides=(),user_override=None,proposed_override=None,
+                     game_overrides=(),profile_defaults=None,profile_model=None,model_overrides=()):
+        game = deepcopy(self.games[gid])
         require(game.get('genre')=='gun','requested game is not a gun game')
+        for layer in game_overrides:
+            game = merge(game,layer)
+        require(game.get('id')==gid and game.get('genre')=='gun','layer changed game identity/genre')
+        profile_selected = 'gun_model' not in game.get('controls',{}) and bool(profile_model)
+        if profile_selected:
+            require(profile_model in self.models,'unknown caller default model')
+            game.setdefault('controls',{})['gun_model'] = profile_model
         model_id,model_why,review = gun_models.resolve_model(game,self.games,self.models,self.gun_defaults,self.hardware)
-        model = self.models[model_id]
+        if profile_selected:
+            model_why = 'caller model default'
+        model = deepcopy(self.models[model_id])
+        for layer in model_overrides:
+            model = merge(model,layer)
+        require(model.get('id')==model_id,'layer changed model identity')
         validate_backend(backend,self.vocab)
         matching = next((r for r in self.defaults['rule'] if r['gun_model']==model_id),None)
         sid = matching['control_set'] if matching else self.defaults['fallback']
         data = deepcopy(self.sets[sid])
         layers = [f'data/controls/{sid}.toml']
-        game_path = self.root/'games'/gid/'setup/controls.toml'
+        if profile_defaults:
+            data = merge(data,profile_defaults)
+            layers.append('caller defaults')
+        game_path = confined_path(self.root,f'games/{gid}/setup/controls.toml')
         if game_path.exists():
             layer = load(game_path)
             require(layer.get('version')=='0.1','legacy/versionless gun override cannot be silently migrated')
@@ -253,14 +284,17 @@ class Resolver:
             data = merge(data,proposed_override)
             layers.append('EXPLICIT SOURCE-ONLY proposed game override')
         for index,layer in enumerate(pack_overrides):
-            data = merge(data,layer)
+            for fragment in layer if isinstance(layer,(list,tuple)) else (layer,):
+                data = merge(data,fragment)
             layers.append(f'pack {index+1}')
         if user_override is not None:
-            data = merge(data,user_override)
+            for fragment in user_override if isinstance(user_override,(list,tuple)) else (user_override,):
+                data = merge(data,fragment)
             layers.append('user override')
         separate = gid in self.gun_defaults['two_guns']['separate_views']
         eligible = min(game.get('controls',{}).get('guns',1),game.get('players',1))>=2 and not separate
-        two_policy = game.get('controls',{}).get('two_guns','on_join')
+        two_policy = game.get('controls',{}).get('two_guns',data.get('policy',{}).get('two_guns','on_join'))
+        require(two_policy in ('off','on_join','always'),'invalid two-gun option')
         active_slots = 2 if eligible and two_policy!='off' else 1
         data['configured_slots'] = active_slots
         # Validate all known fields before selecting slots; inactive malformed
@@ -272,7 +306,10 @@ class Resolver:
         data['unmapped_part'] = [e for e in data.get('unmapped_part',[]) if e.get('slot',0)<active_slots]
         if 'output' in data:
             data['output'] = [e for e in data['output'] if e['slot']<active_slots and e['player']<active_slots]
-        path = self.root/model['model']
+        require(isinstance(model.get('model'),str) and re.fullmatch(
+            r'(?:assets/guns/|user/guns/|packs/[a-z0-9]+(?:-[a-z0-9]+)*/assets/guns/).+\.glb',model['model']),
+            'model path must name a GLB inside a gun-asset directory')
+        path = confined_path(self.root,model['model'])
         node_state, nodes = 'not-built',None
         if path.exists():
             from check_gun_assets import read_glb
@@ -303,7 +340,7 @@ class Resolver:
                     gaps.append({'category':'declared-input','id':f"p{declaration['player']+1}-{declaration['semantic']}",
                                  'reason':'Backend declares an input with no control element'})
         return {'game_id':gid,'model':model_id,'model_provenance':model_why,'shape_review':review,
-                'control_set':sid,'layers':layers,'data':data,'two_gun_eligible':eligible,
+                'control_set':sid,'layers':layers,'data':data,'model_metadata':model,'two_gun_eligible':eligible,
                 'separate_views':separate,'configured_slots':active_slots,'declared_active_slots':declared_slots,'node_validation':node_state,
                 'gaps':gaps}
 

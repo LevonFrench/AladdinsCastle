@@ -10,6 +10,7 @@
 #include <QQmlComponent>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonParseError>
 #include <QProcess>
 #include <QFile>
 #include <QDir>
@@ -47,7 +48,9 @@ private slots:
         process.start(AC_CONTROLS_PYTHON,{QDir(AC_CONTROLS_ROOT).filePath("tools/control_sets.py"),"--allow-unmapped","--proposed-overrides","--json"});
         QVERIFY(process.waitForFinished(30000));
         QCOMPARE(process.exitCode(),0);
-        const auto output=QJsonDocument::fromJson(process.readAllStandardOutput()).object().toVariantMap();
+        QJsonParseError parseError;
+        const auto output=QJsonDocument::fromJson(process.readAllStandardOutput(),&parseError).object().toVariantMap();
+        QVERIFY2(parseError.error==QJsonParseError::NoError,qPrintable(parseError.errorString()));
         QVERIFY(output.value("errors").toList().isEmpty());
         for (const auto &value:output.value("games").toList()) {
             const auto map=value.toMap(); samples[map.value("game_id").toString()]=map;
