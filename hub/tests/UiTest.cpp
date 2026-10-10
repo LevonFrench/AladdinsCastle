@@ -94,6 +94,23 @@ class UiTest:public QObject {
   root->setProperty("view","List");
   QTRY_VERIFY(model->property("gameId").toString().isEmpty());
  }
+ void catalogBadgesDescribeMetadata(){
+  QCOMPARE(ui->vrLabel(1),QString("TRUE 3D · CATALOG"));
+  QCOMPARE(ui->vrLabel(2),QString("THEATRE · CATALOG"));
+ }
+ void authoredVrCopyKeepsInstallAndPlayBlocked(){
+  ui->openDetail("timecris");ui->selectVariant("dr89-pcvr");
+  QVERIFY(!ui->detail().value("m1Available").toBool());
+  QSignalSpy install(ui.get(),&ac::UiController::installRequested),play(ui.get(),&ac::UiController::playRequested);
+  ui->startInstall("timecris","dr89-pcvr");QCOMPARE(install.count(),0);QVERIFY(ui->status().contains("not enabled"));
+  ui->play("timecris","dr89-pcvr");QCOMPARE(play.count(),0);QVERIFY(ui->status().contains("not enabled"));
+  const auto components=ui->detail().value("components").toList();QVERIFY(!components.isEmpty());
+  QVERIFY(components.first().toMap().value("role").toString().contains("recipe"));
+  root->setProperty("view","Detail");QTRY_VERIFY(window->findChild<QObject *>("detailStateReason"));
+  const auto reason=window->findChild<QObject *>("detailStateReason")->property("text").toString();
+  QVERIFY(reason.contains("not enabled"));QVERIFY(!reason.contains("M1"));
+  root->setProperty("view","List");
+ }
  void desktopControlsSwitchClearAndKeepEvidenceHonest(){
   ui->openDetail("timecris");root->setProperty("view","Detail");
   auto controls=ui->controlsController();auto model=controls->model();
