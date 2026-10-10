@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "runtime_host.hpp"
+#include "pose_math.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -44,11 +45,12 @@ bool unit(const float *q) {
 bool pose_ok(const acvr_pose &p) {
     return valid(&p) == ACVR_OK && finite(p.position_m, 3) && unit(p.orientation_xyzw);
 }
-std::array<float, 3> rotate(const float *q, std::array<float, 3> v) {
-    const std::array<float, 3> t{2 * (q[1]*v[2]-q[2]*v[1]),
+std::array<float, 3> rotate(const float *input, std::array<float, 3> v) {
+    const auto q=acvr::normalized_quaternion(input);
+    const std::array<double, 3> t{2 * (q[1]*v[2]-q[2]*v[1]),
         2 * (q[2]*v[0]-q[0]*v[2]), 2 * (q[0]*v[1]-q[1]*v[0])};
-    return {v[0]+q[3]*t[0]+q[1]*t[2]-q[2]*t[1],
-        v[1]+q[3]*t[1]+q[2]*t[0]-q[0]*t[2], v[2]+q[3]*t[2]+q[0]*t[1]-q[1]*t[0]};
+    return {float(v[0]+q[3]*t[0]+q[1]*t[2]-q[2]*t[1]),
+        float(v[1]+q[3]*t[1]+q[2]*t[0]-q[0]*t[2]), float(v[2]+q[3]*t[2]+q[0]*t[1]-q[1]*t[0])};
 }
 struct Digital {
     bool sampled = false, held = false, armed = true;
@@ -528,7 +530,18 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 d.axes=std::move(mapped_controls.axes);d.buttons=std::move(mapped_controls.buttons);
                 for(unsigned slot=0;slot<2;++slot) d.reload[slot]=mapped_controls.reload[slot];
                 r->mapped_offscreen=mapped_controls.offscreen_reload;
-                for(auto action:mapped_controls.actions) {result=r->host->runtime_action(action);if(result!=ACVR_OK) return finish(result,false);}
+                for(auto action:mapped_controls.actions) {
+                    result=r->host->runtime_action(action);if(result!=ACVR_OK) return finish(result,false);
+                    if(action==acvr::RuntimeAction::Pause) {
+                        // The provider accepted its pause UI. Stop this display
+                        // sample before feeding any of its gameplay inputs or
+                        // advancing the native clock; provider owns resume.
+                        r->user_paused=true;
+                        result=r->pause(true);
+                        r->last_display_ns=now;
+                        return finish(result,false);
+                    }
+                }
             }
             if(r->gun_model&&r->gun_tracked) {
                 const bool trigger=r->mapper?(mapped_controls.trigger[0]||mapped_controls.trigger_press[0]):d.trigger[r->gun_hand];

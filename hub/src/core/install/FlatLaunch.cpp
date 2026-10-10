@@ -40,6 +40,7 @@ LaunchPlan makeFlatLaunchPlan(const GameRecord &game, const Json &emulator,
   if (!QFileInfo(plan.executable).isFile())
     throw Error("E_TOOL_MISSING", "Locate the emulator first");
   scopedPath(plan.executable, QFileInfo(plan.executable).absolutePath());
+  plan.payloadRoots << toolPayloadRoot(plan.executable,tool);
   const auto profile =
       scopedPath("user/emulator-profiles/" + tool + "/" + game.id, root);
   plan.cwd = profile;

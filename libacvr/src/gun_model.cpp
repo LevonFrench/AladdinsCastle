@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "gun_model.hpp"
+#include "pose_math.hpp"
 #include <toml++/toml.hpp>
 #include <algorithm>
 #include <cmath>
@@ -35,10 +36,11 @@ bool pose_ok(const acvr_pose &p) {
     return std::abs(norm-1)<.001f;
 }
 Matrix pose_matrix(const acvr_pose &p) {
-    const float x=p.orientation_xyzw[0],y=p.orientation_xyzw[1],z=p.orientation_xyzw[2],w=p.orientation_xyzw[3];
-    return {1-2*y*y-2*z*z,2*x*y+2*z*w,2*x*z-2*y*w,0,
-        2*x*y-2*z*w,1-2*x*x-2*z*z,2*y*z+2*x*w,0,
-        2*x*z+2*y*w,2*y*z-2*x*w,1-2*x*x-2*y*y,0,
+    const auto q=normalized_quaternion(p.orientation_xyzw);
+    const double x=q[0],y=q[1],z=q[2],w=q[3];
+    return {float(1-2*y*y-2*z*z),float(2*x*y+2*z*w),float(2*x*z-2*y*w),0,
+        float(2*x*y-2*z*w),float(1-2*x*x-2*z*z),float(2*y*z+2*x*w),0,
+        float(2*x*z+2*y*w),float(2*y*z-2*x*w),float(1-2*x*x-2*y*y),0,
         p.position_m[0],p.position_m[1],p.position_m[2],1};
 }
 std::vector<uint8_t> read(const std::string &path,size_t limit) {

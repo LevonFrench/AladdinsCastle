@@ -44,6 +44,8 @@ struct WriteRequest {
   bool overwriteCustomArt = false;
   QMap<QString, QImage>
       art; // header, capsule, hero, logo; F supplies local art.
+  // Explicit synthetic barrier injection; never a CLI/config permission path.
+  std::function<void()> beforeReplace;
 };
 struct Preview {
   QString target, backupFolder;

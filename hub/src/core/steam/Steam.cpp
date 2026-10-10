@@ -372,11 +372,14 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
   if (running())
     throw Error("E_STEAM_RUNNING",
                 "Close Steam to update its library. Nothing has changed");
-  const auto locks = install::scopedPath("locks", r.userRoot);
-  QDir().mkpath(locks);
-  QLockFile lock(install::scopedPath("steam-" + r.accountId + ".lock", locks));
-  if (!lock.tryLock(0))
-    throw Error("E_BUSY", "Another Hub Steam update is running");
+  // Cooperating copies share the actual target, regardless of portable roots.
+  const auto target=install::scopedPath("userdata/"+r.accountId+"/config/shortcuts.vdf",r.steamRoot);
+  std::unique_ptr<install::ResourceLocks> lock;
+  try {lock=std::make_unique<install::ResourceLocks>(QStringList{target},install::ResourceAccess::Mutation);}
+  catch(const Error &error) {
+    if(error.code=="E_LOCKED") throw Error("E_BUSY","Another Hub Steam update is running");
+    throw;
+  }
   const auto p = preview(r);
   if (p.json != approved.json || p.edit.bytes != approved.edit.bytes)
     throw Error("E_PREVIEW_CHANGED",
@@ -399,6 +402,7 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
     if (install::sha256(current).toStdString() != p.json["beforeSha256"].get<std::string>())
       throw Error("E_PREVIEW_CHANGED",
                   "Steam library changed before replacement; review a fresh preview");
+    if (r.beforeReplace) r.beforeReplace();
     install::atomicWrite(p.target, p.edit.bytes);
   }
   const QStringList roles{"header", "capsule", "hero", "logo"};
