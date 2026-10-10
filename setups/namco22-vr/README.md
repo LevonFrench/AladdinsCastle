@@ -37,10 +37,10 @@ Use an existing C++17 compiler and CMake; no packages, downloads, Qt, SDL, GL,
 OpenXR or headset are required. For example, in a configured compiler terminal:
 
 ```powershell
-$checkout = 'J:/projects/games/aladdinscastle/.local/worktrees/stereo-boards'
-cmake -S "$checkout/setups/namco22-vr" -B "$checkout/.local/build-stereo" -DCMAKE_BUILD_TYPE=Release
-cmake --build "$checkout/.local/build-stereo" --config Release --parallel 2
-ctest --test-dir "$checkout/.local/build-stereo" -C Release --output-on-failure
+# Run from the checkout root.
+cmake -S setups/namco22-vr -B .local/build-stereo -DCMAKE_BUILD_TYPE=Release
+cmake --build .local/build-stereo --config Release --parallel 2
+ctest --test-dir .local/build-stereo -C Release --output-on-failure
 ```
 
 CI uses this standalone CMake project; shared workflow wiring belongs to the lead.
