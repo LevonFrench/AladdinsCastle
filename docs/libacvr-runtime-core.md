@@ -84,7 +84,8 @@ its haptic routing; this callback is not proof of physical haptic execution.
 
 The private host may supply `GunOutputRoute` records from resolved control data.
 The runtime copies and validates them against the configured slot/player and
-actual metadata motion IDs. It does not infer channels or parse controls files.
+actual metadata motion IDs. It does not infer channels. When a resolved controls
+file is configured, its output rows replace host-supplied routes.
 Duplicate targets, missing motion IDs, invalid amplitudes/durations and wrong
 slot/player assignments fail creation. The host must supply verified mappings;
 none is supplied for a real game yet.
@@ -105,17 +106,47 @@ and their complete lifecycle remain provider responsibilities. Mounted yaw/pitch
 rest at zero angle (clamped to the authored range), including after cancellation
 and pulse decay; their normalized input values still interpolate the full range.
 
+## Resolved controls input
+
+With the existing TOML dependency, the private host path reads a bounded v0.1
+resolved TOML file once at creation. The original text, including unknown fields,
+is retained. Layering stays with the caller; this is an original MIT mapper,
+not a copy of the GPL Hub resolver. JSON input is not implemented. A provider must
+explicitly support raw controller samples before a controls path is accepted.
+
+The current one-gun path supports slot/left/right/either bindings, thresholds,
+inversion, hold/press/toggle, declared cover-pedal and button inputs, and explicitly
+advertised runtime actions. Unavailable declarations and unsupported gestures or
+axis pulses are reported by element ID and emit no game input. Press buttons
+queue a complete native press/release even if the physical button stays held.
+Cancellation and tracking loss require release before rearming. Conflicting
+physical bindings are rejected before mutation; an unsafe handoff is suppressed.
+
+Gun trigger motion follows mapped fire. Other-trigger handoff uses the raw
+physical trigger at the current fixed 0.55 gesture threshold. A composite
+off-screen reload is enabled only for a compatible slot-trigger fire binding;
+unsupported combinations remain visible as unavailable rather than making an
+otherwise valid file fail. Model ID, primary hand and hand-switch policy cannot
+contradict an actual configured slot. Named input/unmapped-part nodes must exist
+in a loaded asset. This validates references; general button-node animation is
+not implemented. Metadata motion IDs still validate output routes.
+
+Runtime actions require provider support; the mapper does not supply recenter,
+laser or pause UI. A paused provider owns the resume path. Dual-gun controls,
+gesture recognition, reason-rich diagnostics and full Hub/runtime parity remain
+open. The controls data version stays 0.1; no public ABI layout changed.
+
 ## Explicitly incomplete
 
 No OpenXR loader/session/swapchains, Vulkan/GL device provider,
-control-set parser, recenter/height/pause overlay, or real backend
-integration exists yet. The core rejects controls-file requests,
+recenter/height/pause overlay, or real backend
+integration exists yet. The core rejects unsupported provider controls requests,
 multiple-gun or separate-HUD backends instead of ignoring those requirements.
 Builds without the optional model dependencies reject configured model slots.
 The internal host supplies already composed eye matrices and receives scene
 scale/anchor configuration; the production provider must implement that math
 and device lifecycle. The recorded host does not establish graphics correctness.
-Two-gun join policy, control-data parsing and verified real output mappings, haptics and
+Two-gun join policy, complete control-data support and verified real output mappings, haptics and
 distance-based LOD selection remain required next slices. Explicit preview
 events are not proof that real-game recoil outputs have been mapped.
 The optional GL gun renderer now compiles and passes mock-dispatch checks;
@@ -148,9 +179,14 @@ zero layers. Logical trigger-drive tests keep unchanged levels idempotent.
 Reload tests cover a short button tap between native steps, explicit tracking
 loss/rearm, off-screen composite edges, on-screen re-entry during a held reload,
 display replay and the disabled policy. The provider must supply resolved reload
-bindings; controls-file loading and actual game consumption remain unverified.
+bindings; actual game consumption remains unverified.
 Prepared-output tests distinguish metadata IDs from node/drive names, exercise
 amplitude/duration, held levels, same-tick deduplication, explicit expiry, signed
 FFB, cancellation/rearm and neutral mounted rest. Runtime integration tests prove
 real-route/fallback exclusion, copied routes and no callbacks to an untracked
 configured hand. These are synthetic CPU receipts, not game-output acceptance.
+The seventh suite (alongside the optional GL mock suite) checks resolved control
+mapping, exact source retention, unsupported rows, physical collisions and
+tracking/cancellation rearm. Runtime integration checks UTF-8 config loading,
+mapped left-hand cover/coin/reload, press release while physically held, mapped
+trigger motion, raw-trigger handoff, policy conflicts and actual node references.

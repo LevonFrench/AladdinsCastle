@@ -2,6 +2,7 @@
 #pragma once
 #include "acvr.h"
 #include "gun_model.hpp"
+#include "controls.hpp"
 #include <memory>
 #include <vector>
 
@@ -19,6 +20,7 @@ struct Display {
     acvr_draw_info eyes[2]{};
     bool trigger[2]{};
     bool reload[2]{}; // resolved gun-slot HELD levels; core queues native edges
+    ControllerButtons controllers[2]{}; // populated only by a capable provider
     std::vector<acvr_axis_input> axes;
     std::vector<acvr_button_input> buttons; // HELD levels only; core derives edges
 };
@@ -34,6 +36,10 @@ struct Host {
     virtual bool supports_guns() const noexcept { return false; }
     // Resolved binding policy only; false unless explicitly configured.
     virtual bool offscreen_reload(uint32_t) const noexcept { return false; }
+    virtual bool supports_controller_samples() const noexcept { return false; }
+    virtual uint32_t supported_runtime_actions() const noexcept { return 0; }
+    virtual acvr_result runtime_action(RuntimeAction) { return ACVR_UNSUPPORTED; }
+    virtual void unavailable_controls(const std::vector<std::string> &) {}
     // Already-resolved controls data, copied/validated at create. No channel is
     // inferred from catalog labels. Empty keeps the native-fire visual fallback.
     virtual std::vector<GunOutputRoute> gun_output_routes() const { return {}; }

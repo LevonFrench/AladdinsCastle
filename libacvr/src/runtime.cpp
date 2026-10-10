@@ -102,6 +102,8 @@ struct acvr_runtime {
     std::array<std::string,5> gun_strings;
     acvr::GunDraw gun_draw;
     acvr::GunOutputRouter gun_outputs;
+    std::unique_ptr<acvr::ControlMapper> mapper;
+    std::array<bool,2> mapped_offscreen{};
     bool gun_tracked=false;
     uint32_t gun_hand=ACVR_HAND_RIGHT;
     bool hand_switch=false;
@@ -115,12 +117,13 @@ struct acvr_runtime {
         for (auto &b : buttons) b.second.clear();
 #ifdef ACVR_GUN_MODELS
         if(gun_model) {gun_model->clear_motion();gun_outputs.cancel();}
+        if(mapper) mapper->cancel();
         switch_armed.fill(false);
 #endif
     }
     const acvr_hand_tracking &hand(const acvr::Display &d,uint32_t slot) const {
 #ifdef ACVR_GUN_MODELS
-        if(gun_model) return gun_hand==ACVR_HAND_RIGHT?d.tracking.right:d.tracking.left;
+        if(gun_model||mapper) return gun_hand==ACVR_HAND_RIGHT?d.tracking.right:d.tracking.left;
 #endif
         return slot==0?d.tracking.right:d.tracking.left;
     }
@@ -198,7 +201,11 @@ struct acvr_runtime {
         };
         if(reloads[slot].consume()&ACVR_INPUT_PRESSED) request_reload();
         const auto known_offscreen=[&]() {
-            if((gun.flags&ACVR_GUN_OFFSCREEN)&&(gun.trigger&ACVR_INPUT_PRESSED)&&host->offscreen_reload(slot)) request_reload();
+            bool enabled=host->offscreen_reload(slot);
+#ifdef ACVR_GUN_MODELS
+            if(mapper) enabled=mapped_offscreen[slot];
+#endif
+            if((gun.flags&ACVR_GUN_OFFSCREEN)&&(gun.trigger&ACVR_INPUT_PRESSED)&&enabled) request_reload();
             return ACVR_OK;
         };
         if (!frame) return ACVR_OK;
@@ -341,11 +348,12 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
         config->fallback_aim_distance_m <= 0 || !config->game_id_utf8 || !*config->game_id_utf8 ||
         !std::isfinite(config->requested_refresh_hz) || config->requested_refresh_hz < 0 ||
         (config->anchor_mode != ACVR_ANCHOR_RAIL && config->anchor_mode != ACVR_ANCHOR_COCKPIT)) return ACVR_BAD_ARGUMENT;
-    if(config->merged_controls_path_utf8 && *config->merged_controls_path_utf8) return ACVR_UNSUPPORTED;
+    const bool mapped=config->merged_controls_path_utf8 && *config->merged_controls_path_utf8;
     const bool models=config->size>=sizeof(*config) && config->gun_slot_count;
 #ifndef ACVR_GUN_MODELS
-    if(models) return ACVR_UNSUPPORTED;
+    if(models||mapped) return ACVR_UNSUPPORTED;
 #else
+    if(mapped&&!host->supports_controller_samples()) return ACVR_UNSUPPORTED;
     if(models) {
         if(config->gun_slot_count!=1 || !host->supports_guns()) return ACVR_UNSUPPORTED;
         if(!array_ok(config->gun_slots,config->gun_slot_count,config->gun_slot_stride)) return ACVR_BAD_ARGUMENT;
@@ -419,7 +427,31 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
                 if (!gun_declared[i]) result = ACVR_BAD_ARGUMENT;
 #ifdef ACVR_GUN_MODELS
             if(models && (info.gun_count!=1 || raw->players[0]!=raw->gun_config.player)) result=ACVR_BAD_ARGUMENT;
-            if(result==ACVR_OK && models) result=raw->gun_outputs.configure(raw->host->gun_output_routes(),*raw->gun_model,0,raw->players[0]);
+            if(result==ACVR_OK && mapped) {
+                if(info.gun_count!=1) result=ACVR_UNSUPPORTED;
+                else {
+                    std::string text,error;raw->mapper=std::make_unique<ControlMapper>();
+                    if(!read_control_file(config->merged_controls_path_utf8,text,error)||
+                       !raw->mapper->prepare(std::move(text),raw->controls,raw->players[0],raw->host->supported_runtime_actions(),error)) result=ACVR_BAD_ARGUMENT;
+                    else if(!models&&!raw->mapper->outputs().empty()) result=ACVR_UNSUPPORTED;
+                    else {
+                        const auto hand=raw->mapper->primary_hand();
+                        const auto switching=raw->mapper->hand_switch();
+                        if(models && ((hand!=UINT32_MAX&&hand!=raw->gun_hand)||
+                           (switching!=UINT32_MAX&&bool(switching)!=raw->hand_switch)||
+                           (!raw->mapper->model_id().empty()&&raw->mapper->model_id()!=raw->gun_config.model_id_utf8))) result=ACVR_BAD_ARGUMENT;
+                        else if(!models&&switching==1) result=ACVR_UNSUPPORTED;
+                        else {
+                            if(hand!=UINT32_MAX) raw->gun_hand=hand;
+                            if(!raw->mapper->can_use_hand(raw->gun_hand)) result=ACVR_BAD_ARGUMENT;
+                            else raw->host->unavailable_controls(raw->mapper->unavailable());
+                            if(models) for(const auto &node:raw->mapper->node_references())
+                                if(std::none_of(raw->gun_model->model.asset.nodes.begin(),raw->gun_model->model.asset.nodes.end(),[&](const GunNode &n){return n.name==node;})) result=ACVR_BAD_ARGUMENT;
+                        }
+                    }
+                }
+            }
+            if(result==ACVR_OK && models) result=raw->gun_outputs.configure(mapped?raw->mapper->outputs():raw->host->gun_output_routes(),*raw->gun_model,0,raw->players[0]);
 #endif
             if (result != ACVR_OK) { acvr_runtime_destroy(raw); return result; }
             raw->gun_count = info.gun_count; raw->budget = config->max_catchup_ticks; raw->fallback_m = config->fallback_aim_distance_m;
@@ -466,11 +498,17 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
         result = r->pause(!active); if (result != ACVR_OK) return finish(result, false);
         if (active) {
 #ifdef ACVR_GUN_MODELS
+            // Mapper-capable hosts supply controller values only. The physical
+            // other-trigger gesture uses the default .55 threshold; logical fire
+            // bindings (including remaps/toggle) drive gameplay and gun motion.
+            if(r->mapper) for(unsigned h=0;h<2;++h) d.trigger[h]=d.controllers[h].trigger>=.55f;
             if(r->gun_model) {
                 const uint32_t other=1-r->gun_hand;
                 const auto &other_hand=other==ACVR_HAND_RIGHT?d.tracking.right:d.tracking.left;
-                if(r->hand_switch && r->switch_armed[other] && d.trigger[other] && !r->switch_levels[other] && r->tracked(other_hand)) {
+                if(r->hand_switch && r->switch_armed[other] && d.trigger[other] && !r->switch_levels[other] && r->tracked(other_hand)&&
+                   (!r->mapper||r->mapper->can_use_hand(other))) {
                     r->gun_hand=other;r->gun_config.hand=other;r->triggers[0].handoff();r->reloads[0].clear();r->reload_blocks_fire[0]=false;r->gun_model->clear_motion();r->gun_outputs.cancel();r->host->cancel_effects();
+                    if(r->mapper) r->mapper->cancel();
                     r->host->gun_hand_changed(0,other);
                 }
                 for(unsigned h=0;h<2;++h) {
@@ -481,12 +519,23 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 }
                 const auto &h=r->hand(d,0); r->gun_tracked=r->tracked(h);
                 if(!r->gun_tracked) {r->gun_model->clear_motion();r->gun_outputs.cancel();r->host->cancel_effects();}
-                else {
-                    result=r->gun_outputs.owns_trigger()?ACVR_OK:r->gun_model->drive("trigger",d.trigger[r->gun_hand]?1.f:0.f,false,now);
-                    if(result!=ACVR_OK) return finish(result,false);
-                    result=r->gun_model->draw(d.scene_from_stage,h.grip,r->gun_config,r->info.scene_units_per_metre,r->fallback_m,now,r->gun_draw);
-                    if(result!=ACVR_OK) return finish(result,false);
-                }
+            }
+            acvr::MappedControls mapped_controls;
+            if(r->mapper) {
+                const bool hands_tracked[]{r->tracked(d.tracking.right),r->tracked(d.tracking.left)};
+                result=r->mapper->sample(d.controllers,hands_tracked,r->gun_hand,mapped_controls);
+                if(result!=ACVR_OK) return finish(result,false);
+                d.axes=std::move(mapped_controls.axes);d.buttons=std::move(mapped_controls.buttons);
+                for(unsigned slot=0;slot<2;++slot) d.reload[slot]=mapped_controls.reload[slot];
+                r->mapped_offscreen=mapped_controls.offscreen_reload;
+                for(auto action:mapped_controls.actions) {result=r->host->runtime_action(action);if(result!=ACVR_OK) return finish(result,false);}
+            }
+            if(r->gun_model&&r->gun_tracked) {
+                const bool trigger=r->mapper?(mapped_controls.trigger[0]||mapped_controls.trigger_press[0]):d.trigger[r->gun_hand];
+                result=r->gun_outputs.owns_trigger()?ACVR_OK:r->gun_model->drive("trigger",trigger?1.f:0.f,false,now);
+                if(result!=ACVR_OK) return finish(result,false);
+                result=r->gun_model->draw(d.scene_from_stage,r->hand(d,0).grip,r->gun_config,r->info.scene_units_per_metre,r->fallback_m,now,r->gun_draw);
+                if(result!=ACVR_OK) return finish(result,false);
             }
 #endif
             std::map<Key, bool> seen_axes, seen_buttons;
@@ -499,7 +548,11 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                     return finish(ACVR_BAD_ARGUMENT, false);
             }
             for (const auto &b : d.buttons) {
-                if (valid(&b) != ACVR_OK || b.state > ACVR_INPUT_HELD || !r->buttons.count({b.semantic,b.player}) ||
+                bool state_ok=b.state<=ACVR_INPUT_HELD;
+#ifdef ACVR_GUN_MODELS
+                if(r->mapper&&b.state==ACVR_INPUT_PRESSED) state_ok=true;
+#endif
+                if (valid(&b) != ACVR_OK || !state_ok || !r->buttons.count({b.semantic,b.player}) ||
                     !seen_buttons.emplace(Key{b.semantic,b.player},true).second) return finish(ACVR_BAD_ARGUMENT, false);
             }
             if (!r->clock_started || now - r->last_display_ns > 250000000 || now - r->due_ns > 250000000) {
@@ -514,13 +567,20 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
 #ifdef ACVR_GUN_MODELS
                     if(r->gun_model) input_hand=r->gun_hand;
 #endif
-                    r->triggers[i].sample(d.trigger[input_hand]);
+                    bool down=d.trigger[input_hand];
+#ifdef ACVR_GUN_MODELS
+                    if(r->mapper) down=mapped_controls.trigger[i];
+#endif
+                    r->triggers[i].sample(down);
+#ifdef ACVR_GUN_MODELS
+                    if(r->mapper&&mapped_controls.trigger_press[i]) {r->triggers[i].sample(true);r->triggers[i].sample(false);}
+#endif
                 }
             }
             for (auto &b : r->buttons) {
-                bool held = false;
-                for (const auto &v : d.buttons) if (v.semantic == b.first.first && v.player == b.first.second) held = (v.state & ACVR_INPUT_HELD) != 0;
-                b.second.sample(held);
+                bool held = false,pulse=false;
+                for (const auto &v : d.buttons) if (v.semantic == b.first.first && v.player == b.first.second) {held=(v.state&ACVR_INPUT_HELD)!=0;pulse=(v.state&ACVR_INPUT_PRESSED)!=0;}
+                b.second.sample(held);if(pulse) {b.second.sample(true);b.second.sample(false);}
             }
             for (uint32_t n = 0; now >= r->due_ns && n < r->budget; ++n) {
                 result = r->advance(d); if (result != ACVR_OK) return finish(result, false);
