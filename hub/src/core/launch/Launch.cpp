@@ -156,6 +156,11 @@ LaunchService::LaunchService(QObject *parent) : QObject(parent) {
   });
   connect(&process_, &QProcess::started, this, [this] {
     childStarted_ = true;
+    try {if(payload_) payload_->trackChild(process_.processId());}
+    catch(const std::exception &) {
+      emit warning(request_.gameId,"Could not preserve child usage evidence; stopping this launch for safety.");
+      stop(); return;
+    }
     auto state =
         runtimeSource_ ? runtimeSource_(request_.gameId) : RuntimeState{};
     state.gameId = request_.gameId;
@@ -193,6 +198,7 @@ LaunchService::~LaunchService() {
       process_.waitForFinished(1000);
     }
   }
+  if(payload_ && process_.state()==QProcess::NotRunning) payload_->clearPendingChildLaunch();
 }
 bool LaunchService::playing() const { return busy_; }
 void LaunchService::setRuntimeStateSource(
@@ -214,6 +220,7 @@ bool LaunchService::start(const Request &request) {
       throw Error("E_ID", "Invalid launch identifier");
     if (!QStringList{"none", "any", "steamvr"}.contains(request.runtime))
       throw Error("E_RUNTIME", "Unsupported runtime");
+    payload_=std::make_unique<install::ResourceLocks>(request.plan.payloadRoots,install::ResourceAccess::Use);
     const auto folder = install::scopedPath("user/locks", request.root);
     if (!QDir().mkpath(folder))
       throw Error("E_WRITE_DENIED", "Cannot create launch lock folder");
@@ -307,6 +314,13 @@ void LaunchService::beginChild() {
   process_.setWorkingDirectory(request_.plan.cwd);
   process_.setProcessChannelMode(QProcess::MergedChannels);
   process_.setStandardOutputFile(logPath_, QIODevice::Append);
+  try {if(payload_) payload_->prepareChildLaunch();}
+  catch(const std::exception &error) {
+    // No OS spawn has been attempted. Only this live holder can clear a
+    // partially written reservation before reporting the failed launch.
+    if(payload_) payload_->clearPendingChildLaunch();
+    complete(1,QString::fromUtf8(error.what()));return;
+  }
   process_.start(request_.plan.executable, request_.plan.args);
 }
 void LaunchService::stop() {
@@ -337,6 +351,8 @@ void LaunchService::complete(int code, const QString &error) {
   const auto generation = generation_;
   runtimeTimer_.stop();
   lock_.reset();
+  if(payload_ && process_.state()==QProcess::NotRunning) payload_->clearPendingChildLaunch();
+  payload_.reset();
   const auto root = request_.root, gameId = request_.gameId,
              variantId = request_.variantId, logPath = logPath_;
   QString message = error;

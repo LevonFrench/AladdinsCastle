@@ -55,6 +55,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(&scanner_,&scan::ScanController::scanStarted,ui_,&UiController::scanStarted);
     connect(&scanner_,&scan::ScanController::progress,ui_,&UiController::scanProgress);
     connect(&scanner_,&scan::ScanController::scanFinished,this,[this](bool cancelled){ui_->scanFinished(!cancelled);if(rescanPending_){rescanPending_=false;QTimer::singleShot(0,this,[this]{scan({});});}});
+    connect(&scanner_,&scan::ScanController::scanFailed,ui_,[this](const QString &message){ui_->showError("Scan failed",message);});
     connect(&scanner_,&scan::ScanController::resultsReady,this,[this](const scan::ScanResult &result){
         bindings_=result.toJson(); art_->setBindings(result.bindings);
         auto roots=scanner_.options().artRoots+scanner_.options().mediaRoots;

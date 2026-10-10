@@ -12,6 +12,8 @@ ScrollView {
  signal detailRequested(string id)
  clip:true
  objectName:"detailPage"
+ Component.onCompleted:uiController.refreshDetailControls()
+ Component.onDestruction:uiController.leaveDetail()
  Column{width:page.availableWidth;spacing:18
   GameArt {objectName:"detailHero";anchors.horizontalCenter:parent.horizontalCenter;width:Math.min(parent.width,Theme.get("size.detail.hero_max_w"));height:Theme.get("size.detail.hero_h");game:page.detail;source:page.detail.artBanner||""}
   GradientText{width:parent.width;text:page.detail.title||"Game";pixelSize:28}
@@ -23,9 +25,9 @@ ScrollView {
   }
   UiText{text:"VARIANT";font.pixelSize:11;color:Theme.get("color.text.label")}
   Flow{width:parent.width;spacing:6
-   Repeater{model:page.detail.variants||[];PillButton{vrOverlayMode:page.vrOverlayMode;required property var modelData;text:modelData.title+" · "+(modelData.quality||"flat")+(modelData.m1Available?"":" · outside M1");selected:page.detail.variantId===modelData.id;onClicked:uiController.selectVariant(modelData.id)}}
+   Repeater{model:page.detail.variants||[];PillButton{vrOverlayMode:page.vrOverlayMode;required property var modelData;text:modelData.title+" · "+(modelData.quality||"flat")+(modelData.m1Available?"":" · not enabled in Hub");selected:page.detail.variantId===modelData.id;onClicked:uiController.selectVariant(modelData.id)}}
   }
-  Rectangle{width:parent.width;height:stateText.implicitHeight+24;radius:6;color:Theme.alpha(page.detail.stateColour||Theme.get("color.state.planned_neon"),0.1);border.color:page.detail.stateColour||Theme.get("color.state.planned_neon");UiText{id:stateText;anchors.fill:parent;anchors.margins:12;text:page.detail.stateLabel==="No setup yet"?"No setup yet. Browse the metadata and documentation; a playable setup will appear here when available.":!page.detail.m1Available?"This VR setup is outside M1. Choose a flat emulator route for this milestone.":page.detail.state===5?"Needs your files. We never download game content.":page.detail.state===6?"Needs an emulator. Install it or locate an existing copy.":page.detail.stateLabel||"No setup yet";color:page.detail.stateColour||Theme.get("color.state.planned_neon")}}
+  Rectangle{width:parent.width;height:stateText.implicitHeight+24;radius:6;color:Theme.alpha(page.detail.stateColour||Theme.get("color.state.planned_neon"),0.1);border.color:page.detail.stateColour||Theme.get("color.state.planned_neon");UiText{id:stateText;objectName:"detailStateReason";anchors.fill:parent;anchors.margins:12;text:page.detail.stateLabel==="No setup yet"?"Catalog information is available; an authored setup is still needed.":page.detail.variantId&&!page.detail.m1Available?"Installing and launching this authored setup through the Hub is not enabled yet. "+(page.detail.stateReason||""):page.detail.stateReason||page.detail.stateLabel||"No setup yet";color:page.detail.stateColour||Theme.get("color.state.planned_neon")}}
   Column{width:parent.width;spacing:6;visible:!uiController.installing
    UiText{text:"WHAT YOU NEED";font.weight:600;color:Theme.get("color.text.heading")}
    Repeater{model:page.detail.needs||[];RowLayout{required property var modelData;width:parent.width;spacing:10
@@ -64,6 +66,22 @@ ScrollView {
   Repeater{model:(page.detail.similar||[]).slice(0,page.similarLimit);PillButton{vrOverlayMode:page.vrOverlayMode;required property var modelData;width:parent.width;text:modelData.title+" · "+modelData.controlsLabel+" · "+modelData.vrBadge+" · "+modelData.stateLabel;onClicked:page.detailRequested(modelData.gameId)}}
   PillButton{vrOverlayMode:page.vrOverlayMode;text:"Show more";visible:(page.detail.similar||[]).length>page.similarLimit;onClicked:page.similarLimit=12}
   UiText{text:"CONTROLS";font.weight:600;color:Theme.get("color.text.heading")}
+  UiText{objectName:"detailControlsStatus";width:parent.width;visible:text.length>0;text:uiController.detailControlsStatus;color:Theme.get("color.text.muted_detail")}
+  PillButton{text:"Reload controls";objectName:"reloadDetailControls";vrOverlayMode:page.vrOverlayMode;visible:!page.vrOverlayMode;enabled:!uiController.detailControlsLoading;onClicked:uiController.reloadDetailControls()}
+  Loader{
+   id:controlsView;objectName:"detailControlsLoader";width:parent.width
+   active:!page.vrOverlayMode&&uiController.detailControls.gameId===page.detail.gameId&&uiController.detailControls.gameId.length>0
+   visible:active;height:item?item.implicitHeight:0;source:"qrc:/controls/ControlsView.qml"
+   onLoaded:{
+    item.controlsModel=uiController.detailControls
+    item.width=Qt.binding(()=>controlsView.width)
+    item.panelColor=Qt.binding(()=>Theme.get("color.surface.panel"))
+    item.textColor=Qt.binding(()=>Theme.get("color.text.body"))
+    item.mutedColor=Qt.binding(()=>Theme.get("color.text.muted_detail"))
+    item.accentColor=Qt.binding(()=>Theme.get("color.brand.orange"))
+    item.textSize=Qt.binding(()=>Theme.get("type.detail_body."+page.sizeValue))
+   }
+  }
   RowLayout{width:parent.width;UiText{Layout.preferredWidth:parent.width*0.25;text:"Action";font.weight:600} UiText{Layout.preferredWidth:parent.width*0.3;text:"Input";font.weight:600} UiText{Layout.fillWidth:true;text:"Notes";font.weight:600}}
   Repeater{model:page.detail.controls||[];RowLayout{required property var modelData;width:parent.width;UiText{Layout.preferredWidth:parent.width*0.25;text:modelData.action} UiText{Layout.preferredWidth:parent.width*0.3;text:modelData.input} UiText{Layout.fillWidth:true;text:modelData.notes}}}
   UiText{width:parent.width;text:"The pause overlay uses the reserved menu input. Bind flat inputs in your emulator.";font.pixelSize:11;color:Theme.get("color.text.muted_detail")}

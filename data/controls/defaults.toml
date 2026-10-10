@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: GPL-3.0-only
+version = "0.1"
+fallback = "gun-generic-pistol"
+# These are review requirements only; they never generate an active input.
+required_cover = ["crszone", "ps2-time-crisis-crisis-zone", "razing-storm", "ps3-time-crisis-razing-storm"]
+
+[[rule]]
+id = "model-arc-blaster-toy"
+gun_model = "arc-blaster-toy"
+control_set = "gun-arc-blaster-toy"
+
+[[rule]]
+id = "model-arc-crossbow"
+gun_model = "arc-crossbow"
+control_set = "gun-arc-crossbow"
+
+[[rule]]
+id = "model-arc-pistol-duty"
+gun_model = "arc-pistol-duty"
+control_set = "gun-arc-pistol-duty"
+
+[[rule]]
+id = "model-arc-pistol-optical"
+gun_model = "arc-pistol-optical"
+control_set = "gun-arc-pistol-optical"
+
+[[rule]]
+id = "model-arc-pistol-slide"
+gun_model = "arc-pistol-slide"
+control_set = "gun-arc-pistol-slide"
+
+[[rule]]
+id = "model-arc-pistol-twin"
+gun_model = "arc-pistol-twin"
+control_set = "gun-arc-pistol-twin"
+
+[[rule]]
+id = "model-arc-revolver"
+gun_model = "arc-revolver"
+control_set = "gun-arc-revolver"
+
+[[rule]]
+id = "model-arc-rifle-selector"
+gun_model = "arc-rifle-selector"
+control_set = "gun-arc-rifle-selector"
+
+[[rule]]
+id = "model-arc-shotgun-pump"
+gun_model = "arc-shotgun-pump"
+control_set = "gun-arc-shotgun-pump"
+
+[[rule]]
+id = "model-arc-smg"
+gun_model = "arc-smg"
+control_set = "gun-arc-smg"
+
+[[rule]]
+id = "model-con-pistol-dpad"
+gun_model = "con-pistol-dpad"
+control_set = "gun-con-pistol-dpad"
+
+[[rule]]
+id = "model-con-pistol-slim"
+gun_model = "con-pistol-slim"
+control_set = "gun-con-pistol-slim"
+
+[[rule]]
+id = "model-con-pistol-slot"
+gun_model = "con-pistol-slot"
+control_set = "gun-con-pistol-slot"
+
+[[rule]]
+id = "model-con-pistol-subgrip"
+gun_model = "con-pistol-subgrip"
+control_set = "gun-con-pistol-subgrip"
+
+[[rule]]
+id = "model-con-remote-shell"
+gun_model = "con-remote-shell"
+control_set = "gun-con-remote-shell"
+
+[[rule]]
+id = "model-con-revolver-chunky"
+gun_model = "con-revolver-chunky"
+control_set = "gun-con-revolver-chunky"
+
+[[rule]]
+id = "model-con-revolver-long"
+gun_model = "con-revolver-long"
+control_set = "gun-con-revolver-long"
+
+[[rule]]
+id = "model-con-wand-rifle"
+gun_model = "con-wand-rifle"
+control_set = "gun-con-wand-rifle"
+
+[[rule]]
+id = "model-generic-pistol"
+gun_model = "generic-pistol"
+control_set = "gun-generic-pistol"
+
+[[rule]]
+id = "model-mnt-mg-heavy"
+gun_model = "mnt-mg-heavy"
+control_set = "gun-mnt-mg-heavy"
+
+[[rule]]
+id = "model-mnt-smg"
+gun_model = "mnt-smg"
+control_set = "gun-mnt-smg"
+
+[[rule]]
+id = "model-rifle-sniper-scope"
+gun_model = "rifle-sniper-scope"
+control_set = "gun-rifle-sniper-scope"
+
+[[rule]]
+id = "model-spc-hose-nozzle"
+gun_model = "spc-hose-nozzle"
+control_set = "gun-spc-hose-nozzle"

@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT
+# Synthetic illustration only; no actual game inputs or content are accessed.
+version = "0.1"
+id = "synthetic-cover"
+title = "Synthetic cover cabinet"
+
+[[element]]
+id = "p1-trigger"
+label = "Fire"
+part = "trigger"
+node = "pivot_trigger"
+slot = 0
+player = 0
+input = { kind = "gun", semantic = "trigger" }
+binding = { hand = "slot", control = "trigger", mode = "hold" }
+
+[[element]]
+id = "p1-cover"
+label = "Pedal down / expose"
+part = "cover-pedal"
+node = ""
+slot = 0
+player = 0
+input = { kind = "axis", semantic = "cover_pedal" }
+binding = { hand = "slot", control = "grip", mode = "hold" }
+
+[[element]]
+id = "p1-coin"
+label = "Coin"
+part = "coin-button"
+node = ""
+slot = 0
+player = 0
+input = { kind = "button", semantic = "coin" }
+binding = { hand = "slot", control = "secondary", mode = "press" }

@@ -268,6 +268,15 @@ void validate(GameRecord &g, const CatalogData &data, const QSet<QString> &ids) 
     const auto ct = str(object(j, "controls"), "type");
     if (j.contains("controls") && !j["controls"].is_object())
         warn("controls must be a table", true);
+    const auto controls = object(j, "controls");
+    if (controls.contains("gun_model") &&
+        (!controls["gun_model"].is_string() ||
+         !QRegularExpression("\\A[a-z0-9][a-z0-9-]*\\z").match(str(controls, "gun_model")).hasMatch()))
+        warn("controls.gun_model must be a lowercase kebab-case id", true);
+    if (controls.contains("two_guns") &&
+        (!controls["two_guns"].is_string() ||
+         !QStringList{"on_join", "always", "off"}.contains(str(controls, "two_guns"))))
+        warn("controls.two_guns must be on_join|always|off", true);
     if (!ct.isEmpty() && !QStringList{"gun", "wheel", "handlebars", "bike", "ski", "joystick",
                                       "yoke", "boat", "other"}
                               .contains(ct))
@@ -436,6 +445,7 @@ const GameRecord *CatalogData::find(const QString &id) const {
 }
 CatalogData CatalogLoader::load(const QString &root) const {
     CatalogData data;
+    data.root=QDir(root).absolutePath();
     const auto themePath = QFileInfo::exists(root + "/docs/ui/theme.toml")
                                ? root + "/docs/ui/theme.toml"
                                : QString(":/resources/theme.toml");
@@ -468,8 +478,10 @@ CatalogData CatalogLoader::load(const QString &root) const {
     std::stable_sort(packs.begin(), packs.end(), [](const Pack &a, const Pack &b) {
         return a.priority == b.priority ? a.name < b.name : a.priority < b.priority;
     });
-    for (const auto &p : packs)
+    for (const auto &p : packs) {
+        data.packIds << p.name;
         layers << p.path;
+    }
     layers << QDir(root).filePath("user/overrides");
     QMap<QString, GameRecord> records;
     for (const auto &layer : layers) {
@@ -557,6 +569,9 @@ CatalogData CatalogLoader::load(const QString &root) const {
         }
         const auto variants = object(g.install, "variant");
         for (auto v = variants.begin(); v != variants.end(); ++v) {
+            // Validation already warns on non-table rows; they cannot shadow
+            // a working generated flat route with the same id.
+            if (!v.value().is_object()) continue;
             Variant record;
             record.id = QString::fromStdString(v.key());
             record.raw = v.value();

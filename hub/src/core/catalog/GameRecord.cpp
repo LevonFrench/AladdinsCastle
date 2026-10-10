@@ -170,10 +170,25 @@ void resolveState(GameRecord &game) {
     r["baseState"] = static_cast<int>(base);
     r["state"] = static_cast<int>(display);
     r["playing"] = runtime.playing;
-    r["stateLabel"] = runtime.playing ? QString("Playing") : labels.at(static_cast<int>(display)) +
+    const auto label=display==GameState::Installed
+        ? (installedId.isEmpty()?QString("Flat launch ready"):QString("Setup installed"))
+        : labels.at(static_cast<int>(display));
+    r["stateLabel"] = runtime.playing ? QString("Playing") : label +
                       (display == GameState::Installing && !runtime.jobProgress.isEmpty()
                            ? " " + runtime.jobProgress
                            : "");
+    // Evidence wording does not change admission, filter states or acceptance.
+    QString reason;
+    if(display==GameState::DataError)reason="Catalog or recipe data needs correction. Review its diagnostics before installing.";
+    else if(display==GameState::Installing)reason="Installation is running; completion will refresh its recorded checks.";
+    else if(display==GameState::InstallFailed)reason="An installation attempt needs attention. Review the recovery details before retrying.";
+    else if(!installedId.isEmpty())reason="Owned files passed the recorded installation checks. Runtime and gameplay acceptance are separate.";
+    else if(base==GameState::Installed && best && best->generated)
+        reason="Required media and emulator were detected for this flat route. Launch preflight runs when you play.";
+    else if(best && best->generated)reason="A catalog flat route is available. Locate its required media and emulator to prepare a launch.";
+    else if(game.hasRecipe)reason="Authored recipe metadata is present. An owned installation still needs its recorded checks.";
+    else reason="Catalog capabilities describe recorded routes. No owned installation has been established for this entry.";
+    r["stateReason"]=reason;
     r["stateColour"] =
         display == GameState::ReadyToInstall
             ? r.value("accent")

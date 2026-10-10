@@ -2,6 +2,7 @@
 #pragma once
 #include "core/catalog/CatalogLoader.h"
 #include "core/install/Install.h"
+#include "core/install/Support.h"
 #include <QFutureWatcher>
 #include <QLockFile>
 #include <QObject>
@@ -61,6 +62,8 @@ private:
   void beginChild();
   void launchReady();
   void complete(int exitCode, const QString &error);
+  // Member ordering retains use through QProcess destruction on teardown.
+  std::unique_ptr<install::ResourceLocks> payload_;
   QProcess process_;
   QTimer runtimeTimer_;
   QFutureWatcher<QString> preparation_;

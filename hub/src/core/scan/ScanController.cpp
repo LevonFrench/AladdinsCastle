@@ -4,8 +4,9 @@
 #include <QtConcurrent>
 namespace ac::scan {
 ScanController::ScanController(GameListModel *model, ScanOptions options,
-                               QObject *parent)
-    : QObject(parent), m_model(model), m_options(std::move(options)) {
+                               QObject *parent, Runner runner)
+    : QObject(parent), m_model(model), m_options(std::move(options)),
+      m_runner(runner ? std::move(runner) : Scanner::run) {
   qRegisterMetaType<ScanResult>();
   QFile f(m_options.userRoot + "/scan-folders.json");
   if (f.open(QIODevice::ReadOnly))
@@ -18,12 +19,23 @@ ScanController::ScanController(GameListModel *model, ScanOptions options,
     } catch (const std::exception &) {
     }
   connect(&m_watcher, &QFutureWatcher<ScanResult>::finished, this, [this] {
-    m_last = m_watcher.result();
-    if (!m_last.cancelled) {
+    ScanResult result;
+    try {
+      result = m_watcher.result();
+    } catch (...) {
+      // Qt may wrap an unexpected worker exception. Retain the last successful
+      // result and model, release busy state, and stop legacy UI consumers.
+      m_running = false;
+      emit runningChanged();
+      emit scanFinished(true);
+      emit scanFailed("Scan failed. Previous results were kept; try scanning again.");
+      return;
+    }
+    if (!result.cancelled) {
       // Merge only scanner-owned fields into current complete GUI snapshots.
       // Installation jobs / selected variants / timestamps may have changed
       // during scanning.
-      for (auto &state : m_last.states)
+      for (auto &state : result.states)
         if (const auto *g = m_model->find(state.gameId)) {
           const auto found = state.mediaFound, tools = state.toolsOk,
                      older = state.toolsOlder;
@@ -33,10 +45,13 @@ ScanController::ScanController(GameListModel *model, ScanOptions options,
           state.toolsOk = tools;
           state.toolsOlder = older;
         }
-      m_model->applyRuntimeStates(m_last.states);
+      m_model->applyRuntimeStates(result.states);
+      m_last = std::move(result);
       emit resultsReady(m_last);
       ++m_artRevision;
       emit artRevisionChanged();
+    } else {
+      m_last = std::move(result);
     }
     m_running = false;
     emit runningChanged();
@@ -64,7 +79,7 @@ void ScanController::scan(const QStringList &folders) {
   emit runningChanged();
   emit scanStarted();
   m_watcher.setFuture(QtConcurrent::run([this, catalog, options, cancelled] {
-    return Scanner::run(
+    return m_runner(
         catalog, options, *cancelled, [this](const QVariantMap &v) {
           QMetaObject::invokeMethod(
               this, [this, v] { emit progress(v); }, Qt::QueuedConnection);

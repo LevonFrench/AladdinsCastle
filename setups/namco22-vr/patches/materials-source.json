@@ -1,0 +1,13 @@
+{
+  "base_commit": "a9f1a0a1f9de62387a7138006fa36933fd477123",
+  "scope": "read-only generic material source evidence; no content or engine execution",
+  "files": {
+    "engine/tex_bake.c": "72dfb46955f7db2bc54129f01b29aed0fdb64054ee963c11de0667b3cec39222",
+    "engine/tex_bake.h": "3c56dce6790f1a25363854d9c10c00df10003d911c47015a3470733b908d255b",
+    "engine/eng.c": "409c623c4d805aaeea0deade35676745f4dc436b9e24e776ff6241befeb6f7b5",
+    "engine/eng.h": "b956bcec65d3b0002343c329100773844c3300eb7af03e16533bd7cb24794334",
+    "engine/quad_gl.c": "29ec3776381c3e803ffab1195564182cab4108cbc0781875fb632f710c52fa2c",
+    "engine/fog_hw.c": "269b74316481dbaa70d7f2d15094088cf24451e3caaad6f743cc778928cf30cd",
+    "engine/fog_hw.h": "1cc2bd8cfe0acbb11e123e06273dc2e550a6a999021063f3deb035702827cbea"
+  }
+}

@@ -72,7 +72,7 @@ target_link_libraries(hubcore PRIVATE ac7zmetadata)
 target_link_libraries(hubcore PRIVATE chdr-static)
 target_link_libraries(hubcore PUBLIC Qt6::Quick)
 if(WIN32)
-    target_link_libraries(hubcore PRIVATE version)
+    target_link_libraries(hubcore PRIVATE version shell32 ole32 advapi32 uuid)
 endif()
 ac_project_warnings(hubcore)
 qt_add_resources(hubcore scan_metadata PREFIX /scan BASE resources FILES resources/serial-index.json)
@@ -81,13 +81,15 @@ add_library(huboverlay STATIC
     src/overlay/OverlayInput.cpp src/overlay/OverlayInput.h
     src/overlay/QuickTextureRenderer.cpp src/overlay/QuickTextureRenderer.h
     src/overlay/OverlayRuntime.cpp src/overlay/OverlayRuntime.h
+    src/overlay/OverlayKeyboard.cpp src/overlay/OverlayKeyboard.h
     src/overlay/OverlayHost.cpp src/overlay/OverlayHost.h src/overlay/SpikeState.h)
 target_include_directories(huboverlay PUBLIC src)
 target_link_libraries(huboverlay PUBLIC Qt6::Quick Qt6::OpenGL OpenVR::OpenVR)
 ac_project_warnings(huboverlay)
 
 qt_add_library(hubui STATIC)
-target_link_libraries(hubui PUBLIC hubcore Qt6::Quick Qt6::QuickControls2)
+add_subdirectory(src/controls)
+target_link_libraries(hubui PUBLIC hubcore accontrols Qt6::Quick Qt6::QuickControls2)
 file(GLOB AC_QML_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
 foreach(qml_file IN LISTS AC_QML_FILES)
     get_filename_component(qml_name "${qml_file}" NAME)
@@ -98,7 +100,8 @@ qt_add_qml_module(hubui URI AladdinsCastle.Hub VERSION 1.0 NO_PLUGIN
     RESOURCE_PREFIX /qt/qml OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml/AladdinsCastle/Hub"
     QML_FILES ${AC_QML_FILES} qml/spike/OverlayTest.qml
     SOURCES src/ui/Theme.h src/ui/Theme.cpp src/ui/UiSettings.h src/ui/UiSettings.cpp
-        src/ui/UiController.h src/ui/UiController.cpp)
+        src/ui/UiController.h src/ui/UiController.cpp
+        src/ui/DetailControlsController.h src/ui/DetailControlsController.cpp)
 ac_project_warnings(hubui)
 add_library(hubapp STATIC src/app/HubServices.cpp src/app/HubServices.h)
 target_link_libraries(hubapp PUBLIC hubui)
@@ -144,6 +147,15 @@ if(BUILD_TESTING)
     add_test(NAME public-privacy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/check_public_privacy.py --test)
 
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
+    qt_add_executable(detail-controls-tests tests/DetailControlsTest.cpp)
+    target_link_libraries(detail-controls-tests PRIVATE hubui Qt6::Test)
+    target_compile_definitions(detail-controls-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    ac_project_warnings(detail-controls-tests)
+    set_target_properties(detail-controls-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-detail-controls COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:detail-controls-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/detail-controls.txt
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(hub-tests tests/SmokeTest.cpp)
     target_link_libraries(hub-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(hub-tests)
@@ -166,7 +178,10 @@ if(BUILD_TESTING)
     endif()
     target_compile_definitions(ui-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(ui-tests)
-    add_test(NAME hub-ui COMMAND ui-tests -o -,txt)
+    add_test(NAME hub-ui COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:ui-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-ui.txt
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(hub-ui PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     qt_add_executable(scan-art-tests tests/ScanArtTest.cpp)
     target_link_libraries(scan-art-tests PRIVATE hubcore Qt6::Test)
@@ -201,7 +216,8 @@ if(BUILD_TESTING)
     set_tests_properties(hub-integration PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     qt_add_executable(launch-tests tests/LaunchSteamTest.cpp)
     target_link_libraries(launch-tests PRIVATE hubcore Qt6::Test)
-    add_dependencies(launch-tests steamtool)
+    add_dependencies(launch-tests steamtool hubtool)
+    target_compile_definitions(launch-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(launch-tests)
     set_target_properties(launch-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-launch-steam COMMAND launch-tests)

@@ -2,7 +2,7 @@
 
 Status: 2026-10-10, design. The SteamVR dashboard integration works: the Hub shows up as a dashboard tab at the right size and can be resized. Controlling it does not feel right yet. In the first headset session some clicks missed, the thumbstick did not scroll and letter keys failed. This page sets the control scheme and lists what to change, from research into how SteamVR overlays receive input and what working overlay apps do (hub wiki topic `steamvr-development`, article `vr-menu-controls`).
 
-Code references are to branch `codex/m1-integration` at `5921903` (the build used in that session).
+The problem analysis below refers to `codex/m1-integration` at `5921903`, the earlier owner-tested build. The control scheme remains a design target. PR28 diagnostics integrated at `7663e31`. Correctness source `7661094` in [PR31](https://github.com/LevonFrench/AladdinsCastle/pull/31) passed independent offline build and five affected software suites (47.03 s), plus both overlay suites after the behavior-preserving GCC repair (4.04 s). All six final-head hosted checks passed and it integrated into `next` at `385aab8`; the Hub tree equals reviewed head `dd32c622`. It implements per-cursor last-move authority, chord ownership, epoch validity and tested cancellation/recovery. Freeze remains zero, both scroll factors remain ×120, and native drag/slop is unchanged. The larger scales, thresholds and filtering below remain tuning candidates requiring packet/feel evidence. Headset acceptance is open.
 
 ## 1. What the evidence says about the three problems
 
@@ -42,15 +42,15 @@ Desktop mode keeps mouse, keyboard and gamepad as they are.
 
 ## 3. A diagnostic page
 
-Keep the overlay test scene (`--spike`) and make it answer these before any tuning:
+The reviewed PR31 overlay test scene (`--spike`) supplies the following observations. Use `--overlay --window --spike` only for a separately approved headset run; see [the procedure](../spikes/s1-s3-overlay.md).
 
-- Four off-centre targets, one near each corner, each showing whether it was hit: proves X and Y direction and scale.
-- The pointer position Qt receives, drawn as a marker.
-- Counters for move, press, release and both kinds of scroll events, with the last scroll delta: proves which events the runtime actually sends and their size.
-- A long list with visible position: proves stick scrolling and drag scrolling.
-- A text field with the SteamVR keyboard and an on-panel keyboard, showing every key received.
+- Four off-centre targets with individual hit counts, for comparing X/Y direction and scale.
+- The last pointer position submitted to Qt, drawn as a marker with raw cursor ID.
+- Bounded per-cursor raw/dispatched counts, cached positions, owner, fixed rejection/cancellation reasons and receipt/press times; separate smooth/discrete counts, raw deltas and Qt angle deltas.
+- A long list with visible `contentY`, for checking actual movement.
+- A transient text field, explicit **Open SteamVR keyboard** button, and all 39 on-panel keys plus Done. Focusing the field does not request the keyboard.
 
-No typed text is logged.
+No typed text is logged. Software tests cover actual hit geometry under both Y settings and matching/stale/wrong/closed keyboard sessions without runtime initialization. Last valid moves and wheel remainders now belong to each cursor; the first accepted down owns the chord. Invalid moves and lifecycle changes invalidate the epoch, with no elapsed-age expiry. Host visibility cannot be overridden by stale queued Shown, and queued Hidden cannot be erased by an unchanged host sample. Cancellation, teardown and late queued cleanup are tested for zero activation and subsequent recovery while native desktop input remains isolated. Ignored/canceled events have distinct observations. See [the implementation contract](../../hub/OVERLAY_DIAGNOSTICS.md). Headset packet evidence still decides orientation and feel tuning.
 
 ## 4. Acceptance in the headset
 

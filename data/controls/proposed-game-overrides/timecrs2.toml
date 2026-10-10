@@ -1,0 +1,23 @@
+# SOURCE-ONLY CANDIDATE: lead must approve and place in canonical game setup.
+# Button-only cover follows docs/controls.md D43; actual backend declaration required.
+version = "0.1"
+
+[[element]]
+id = "p1-cover"
+label = "Pedal down / expose (release: cover)"
+part = "cover-pedal"
+node = ""
+slot = 0
+player = 0
+input = { kind = "axis", semantic = "cover_pedal" }
+binding = { hand = "slot", control = "grip", mode = "hold" }
+
+[[element]]
+id = "p2-cover"
+label = "Pedal down / expose (release: cover)"
+part = "cover-pedal"
+node = ""
+slot = 1
+player = 1
+input = { kind = "axis", semantic = "cover_pedal" }
+binding = { hand = "slot", control = "grip", mode = "hold" }

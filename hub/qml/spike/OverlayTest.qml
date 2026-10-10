@@ -8,65 +8,92 @@ Item {
     property bool overlayPresentation: false
     property int selectedCard: -1
     Rectangle { anchors.fill: parent; color: surfaceColor }
+    Repeater {
+        model: 4
+        Button {
+            required property int index
+            objectName: "spikeCorner" + index
+            x: index % 2 ? root.width - width - 24 : 24
+            y: index < 2 ? 24 : root.height - height - 24
+            width: 164; height: 56
+            text: ["TOP LEFT", "TOP RIGHT", "BOTTOM LEFT", "BOTTOM RIGHT"][index] + " · " + spikeState.cornerHits[index]
+            onClicked: spikeState.hitCorner(index)
+        }
+    }
+    Label {
+        x: 212; y: 28; width: root.width - 424; height: 56
+        text: "AladdinsCastle · input diagnostics\n1280 × 800 · " + (root.overlayPresentation ? "DASHBOARD" : "DESKTOP") + " · observations, not routing fixes"
+        color: primaryTextColor; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 18
+    }
     ColumnLayout {
-        anchors.fill: parent; anchors.margins: 24; spacing: 12
+        anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24
+        anchors.topMargin: 96; anchors.bottomMargin: 96; spacing: 8
         RowLayout {
-            Layout.fillWidth: true
-            Label { text: "AladdinsCastle · S1–S3"; color: primaryTextColor; font.pixelSize: 28; font.bold: true }
-            Item { Layout.fillWidth: true }
-            Label { text: root.overlayPresentation ? "DASHBOARD" : "DESKTOP"; color: brandColor }
+            spacing: 8
+            Button { implicitHeight:48; text:"Reset text"; onClicked:spikeState.text="" }
+            CheckBox { implicitHeight:48; text:"Flip mouse Y"; checked:spikeState.flipY; onToggled:spikeState.flipY=checked }
+            CheckBox { implicitHeight:48; text:"50 glows"; checked:spikeState.glow; onToggled:spikeState.glow=checked }
+            CheckBox { implicitHeight:48; text:"Animate glows"; checked:spikeState.animate; onToggled:spikeState.animate=checked }
+            Label { Layout.fillWidth:true; text:"Last Qt pointer: cursor " + spikeState.pointerCursor + " (" + spikeState.pointerPosition.x.toFixed(1) + ", " + spikeState.pointerPosition.y.toFixed(1) + ")"; color:primaryTextColor }
         }
-        Label { text: "TOP LEFT · 1280 × 800 · 50 original synthetic cards"; color: "#b9c0d0" }
+        ListView {
+            objectName:"spikeInputObservations"
+            Layout.fillWidth:true; Layout.preferredHeight:88; clip:true
+            model:spikeState.cursors
+            ScrollBar.vertical:ScrollBar {}
+            delegate:Label {
+                required property var modelData
+                width:ListView.view.width; height:44; color:"#b9c0d0"; font.pixelSize:11
+                text:"Cursor " + modelData.cursor + " raw event " + modelData.rawEvent + " → Qt " + modelData.qtEvent
+                     + " last mouse raw (" + (modelData.rawX||0) + ", " + (modelData.rawY||0) + ") → Qt (" + modelData.qtX + ", " + modelData.qtY + ") buttons " + modelData.qtButtons
+                     + " cache (" + modelData.cachedX + ", " + modelData.cachedY + ") valid " + modelData.valid + " owner " + modelData.owner + "\n" + modelData.reason + " @ " + modelData.receiptMs + "ms · sent " + modelData.dispatched + " ignored " + (modelData.ignored||0) + " cancel " + (modelData.cancels||0) + " · move " + (modelData.moves||0) + " / press " + (modelData.presses||0) + " / release " + (modelData.releases||0)
+                     + "\nSmooth " + (modelData.smooth||0) + " raw Δ(" + (modelData.smoothRawX||0) + ", " + (modelData.smoothRawY||0) + ") Qt angle Δ(" + (modelData.smoothQtX||0) + ", " + (modelData.smoothQtY||0) + ")"
+                     + " · discrete " + (modelData.discrete||0) + " raw Δ(" + (modelData.discreteRawX||0) + ", " + (modelData.discreteRawY||0) + ") Qt angle Δ(" + (modelData.discreteQtX||0) + ", " + (modelData.discreteQtY||0) + ")"
+            }
+        }
         RowLayout {
-            Button {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; objectName: "spikeClickButton"; text: "Test click · " + spikeState.clickCount; onClicked: spikeState.clicked() }
-            Button {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "Reset text"; onClicked: spikeState.text = "" }
-            CheckBox {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "Flip mouse Y"; checked: spikeState.flipY; onToggled: spikeState.flipY = checked }
-            CheckBox {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "50 glows"; checked: spikeState.glow; onToggled: spikeState.glow = checked }
-            CheckBox {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "Animate glows"; checked: spikeState.animate; onToggled: spikeState.animate = checked }
-        }
-        Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 54; radius: 6
-            color: "#1d2530"; border.color: editor.activeFocus ? brandColor : "#667080"
-            TextInput {
-                id: editor; objectName: "spikeTextInput"
-                anchors.fill: parent; anchors.margins: 12
-                color: primaryTextColor; font.pixelSize: 24; clip: true
-                maximumLength: 256; selectByMouse: true
-                text: spikeState.text
-                onTextEdited: spikeState.text = text
-                onActiveFocusChanged: {
-                    if (activeFocus && root.overlayPresentation) overlayHost.requestKeyboard(editor)
+            Layout.fillWidth:true; spacing:8
+            Rectangle {
+                Layout.fillWidth:true; Layout.preferredHeight:54; radius:6
+                color:"#1d2530"; border.color:editor.activeFocus?brandColor:"#667080"
+                TextInput {
+                    id:editor; objectName:"spikeTextInput"
+                    anchors.fill:parent; anchors.margins:12
+                    color:primaryTextColor; font.pixelSize:24; clip:true
+                    maximumLength:256; selectByMouse:true; text:spikeState.text
+                    onTextEdited:spikeState.text=text
+                    Label { anchors.fill:parent; visible:!editor.text.length; text:"Transient text · use the keyboard button or panel keys"; color:"#909bab" }
                 }
-                Label { anchors.fill: parent; visible: !editor.text.length; text: "Click to type with SteamVR keyboard"; color: "#909bab" }
+                Connections { target:spikeState; function onTextChanged(){if(editor.text!==spikeState.text)editor.text=spikeState.text} }
             }
-            Connections {
-                target: spikeState
-                function onTextChanged() { if (editor.text !== spikeState.text) editor.text = spikeState.text }
+            Button {
+                objectName:"spikeKeyboardRequest"; implicitHeight:54
+                text:"Open SteamVR keyboard"; enabled:root.overlayPresentation
+                onClicked:overlayHost.requestKeyboard(editor)
             }
         }
-        Label { Layout.fillWidth: true; text: spikeState.status; color: "#b9c0d0"; wrapMode: Text.WordWrap }
-        ColumnLayout {
-            Layout.fillWidth: true
-            RowLayout {
-                Label { text: "In-scene fallback keyboard"; color: primaryTextColor }
-                Button {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "Done"; onClicked: { editor.focus = false; if (root.overlayPresentation) overlayHost.dismissKeyboard() } }
-            }
-            Flow {
-                Layout.fillWidth: true; Layout.preferredHeight: implicitHeight
-                spacing: 4
-                Repeater {
-                    model: "abcdefghijklmnopqrstuvwxyz0123456789".split("").concat(["-", "Space", "⌫"])
-                    Button {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40;
-                        required property string modelData
-                        text: modelData; width: modelData === "Space" ? 76 : (root.overlayPresentation?44:38); height: root.overlayPresentation?56:34
-                        onClicked: {
-                            if (modelData === "⌫") spikeState.text = Array.from(spikeState.text).slice(0, -1).join("")
-                            else if (spikeState.text.length < 256) spikeState.text += modelData === "Space" ? " " : modelData
-                        }
+        Label { Layout.fillWidth:true; text:spikeState.status + (spikeState.droppedPackets?" · Dropped packet observations: "+spikeState.droppedPackets:""); color:"#b9c0d0"; elide:Text.ElideRight }
+        RowLayout {
+            Layout.fillWidth:true; spacing:8
+            Label { Layout.fillWidth:true; text:"On-panel keyboard · every key updates the transient field above"; color:primaryTextColor }
+            Button { objectName:"spikeKeyboardDone"; implicitHeight:48; text:"Done"; onClicked:{editor.focus=false;if(root.overlayPresentation)overlayHost.dismissKeyboard()} }
+        }
+        Flow {
+            Layout.fillWidth:true; Layout.preferredHeight:implicitHeight; spacing:8
+            Repeater {
+                model:"abcdefghijklmnopqrstuvwxyz0123456789".split("").concat(["-", "Space", "⌫"])
+                Button {
+                    required property string modelData
+                    objectName:"spikePanelKey"; text:modelData
+                    width:modelData==="Space"?76:44; height:56
+                    onClicked:{
+                        if(modelData==="⌫")spikeState.text=Array.from(spikeState.text).slice(0,-1).join("")
+                        else if(spikeState.text.length<256)spikeState.text+=modelData==="Space"?" ":modelData
                     }
                 }
             }
         }
+        Label { objectName:"spikeScrollPosition"; text:"Long list · contentY " + scroll.contentY.toFixed(1) + " / " + Math.max(0,scroll.contentHeight-scroll.height).toFixed(1); color:primaryTextColor }
         Flickable {
             id: scroll; objectName: "spikeGrid"
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
@@ -109,10 +136,11 @@ Item {
                 }
             }
         }
-        RowLayout {
-            Label { text: "BOTTOM LEFT · wheel-scroll the grid"; color: "#b9c0d0" }
-            Item { Layout.fillWidth: true }
-            Button {implicitWidth:Math.max(root.overlayPresentation?44:40,implicitContentWidth+24);implicitHeight:root.overlayPresentation?56:40; text: "Bottom-right click · " + spikeState.clickCount; onClicked: spikeState.clicked() }
-        }
+    }
+    Rectangle {
+        objectName:"spikePointer"; z:20; visible:spikeState.hasPointer
+        width:16; height:16; radius:8; color:"transparent"; border.width:2; border.color:"#ffff66"
+        x:spikeState.pointerPosition.x-width/2; y:spikeState.pointerPosition.y-height/2
+        Label { x:18; text:"Qt · " + spikeState.pointerCursor; color:"#ffff66"; font.pixelSize:12 }
     }
 }
