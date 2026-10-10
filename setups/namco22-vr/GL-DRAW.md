@@ -12,12 +12,16 @@ callback in CPU mock tests. Real provider/engine admission remains unaccepted.
 - Desktop **OpenGL >=3.3 compatibility profile** for the combined world/gun
   path. World drawing uses compatibility functions; the lead's separate gun
   renderer uses GL3.3. Device must declare `ACVR_DEVICE_GL_COMPATIBILITY`,
-  never GLES. The draw preflight also verifies version/profile/stack support.
+  never GLES, and supply a nonzero context handle at initialization. The draw
+  preflight also verifies version/profile/stack support.
 - Single-sample, single-layer complete supplied FBO, colour at attachment 0,
   runtime-owned shared depth image and format, with at least 16 depth bits.
   The eventual real backend must declare `ACVR_CAP_REQUIRES_SHARED_DEPTH`.
   Missing depth is rejected before any draw/clear. Default-window FBO and
   private depth fallback are not supported by this combined path.
+  Colour/depth image names must be nonzero and fit GL object width. Attachment
+  0 and depth must be texture objects whose names match the supplied target;
+  completeness or sufficient depth precision alone does not admit a target.
 - The provider owns depth/colour acquisition, synchronization and presentation.
   Backend never detaches, deletes or clears shared depth after scene drawing.
   Guns reuse it through the same FBO/projection. Desktop preview needs a host
@@ -43,6 +47,10 @@ pipelines and legacy assembly-program modes inactive.
 Only the eye's lower-left rectangle is cleared, with scissor enabled and both
 colour/depth write masks set. Forward depth uses clear 1, LEQUAL and range 0..1.
 All fixed-function texture units and inherited raster/clip effects are disabled.
+This includes rectangle textures on every unit, colour sum, rasterizer discard,
+depth clamp, sample mask and all context clip distances. Modern enables, clip
+distances and per-unit rectangle enables are explicitly saved/restored instead
+of assuming the legacy attribute stack covers them.
 Context attributes, model/projection matrices and stack depth, draw/read FBOs,
 GLSL program, texture selector and target draw-buffer selection are restored.
 This restoration does not erase target colour/depth contents. No GL objects or
@@ -61,3 +69,6 @@ replayed eyes, newest matrices, scoped clears, raw triangle submission, infinity
 multitexture/depth/colour/raster/matrix/FBO/program state and partial failure/error
 restoration. They prove source/control-flow behavior only. They do not compile a
 driver shader, validate rasterized pixels, prove gun occlusion or run graphics.
+The hostile-state fixture deliberately omits modern/clip/rectangle restoration
+from mocked legacy `PopAttrib`; identity/type/query-error attachment cases must
+reject before clear and restore the original caller state.

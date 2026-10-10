@@ -24,6 +24,10 @@ inline constexpr GLint CompatibilityProfileBit=2;
 inline constexpr GLenum CurrentProgram=0x8b8d,ActiveTexture=0x84e0,Texture0=0x84c0;
 inline constexpr GLenum FramebufferSrgb=0x8db9,Srgb8Alpha8=0x8c43,Texture3D=0x806f,TextureCube=0x8513;
 inline constexpr GLenum Multisample=0x809d,SampleAlphaCoverage=0x809e,SampleAlphaOne=0x809f,SampleCoverage=0x80a0;
+inline constexpr GLenum RasterizerDiscard=0x8c89,DepthClamp=0x864f,SampleMask=0x8e51,ColourSum=0x8458;
+inline constexpr GLenum TextureRectangle=0x84f5,MaxClipDistances=0x0d32,ClipDistance0=0x3000;
+inline constexpr GLenum DepthAttachment=0x8d00,AttachmentObjectType=0x8cd0,AttachmentObjectName=0x8cd1;
+inline constexpr std::array<GLenum,5> ModernCaps{FramebufferSrgb,RasterizerDiscard,DepthClamp,SampleMask,ColourSum};
 inline constexpr GLbitfield MultisampleBit=0x20000000u;
 }
 #define N22_GL_FUNCTIONS(X) \
@@ -34,6 +38,8 @@ inline constexpr GLbitfield MultisampleBit=0x20000000u;
  X(MatrixMode,void,(GLenum)) X(PushMatrix,void,(void)) X(PopMatrix,void,(void)) \
  X(LoadMatrixf,void,(const GLfloat *)) X(Viewport,void,(GLint,GLint,GLsizei,GLsizei)) \
  X(Scissor,void,(GLint,GLint,GLsizei,GLsizei)) X(Enable,void,(GLenum)) X(Disable,void,(GLenum)) \
+ X(IsEnabled,GLboolean,(GLenum)) \
+ X(GetFramebufferAttachmentParameteriv,void,(GLenum,GLenum,GLenum,GLint *)) \
  X(DepthFunc,void,(GLenum)) X(DepthMask,void,(GLboolean)) X(DepthRange,void,(GLdouble,GLdouble)) \
  X(ClearDepth,void,(GLdouble)) X(ClearColor,void,(GLfloat,GLfloat,GLfloat,GLfloat)) \
  X(ColorMask,void,(GLboolean,GLboolean,GLboolean,GLboolean)) X(Clear,void,(GLbitfield)) \

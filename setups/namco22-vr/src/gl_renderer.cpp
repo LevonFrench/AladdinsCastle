@@ -26,14 +26,24 @@ bool extension(const char *list,const char *name) {
 }
 struct Saved {
     GlDispatch &g;
+    explicit Saved(GlDispatch &dispatch):g(dispatch) {}
     GLint framebuffer=0,read_framebuffer=0,program=0,texture=0,mode=GL_MODELVIEW;
     bool split_framebuffer=false;
     bool attrib=false,projection=false,model=false,changed=false;
+    std::array<GLboolean,glc::ModernCaps.size()> modern{};
+    std::vector<GLboolean> clips,rectangles;
     void restore() {
         if(!changed) return;
         if(model) {g.MatrixMode(GL_MODELVIEW);g.PopMatrix();}
         if(projection) {g.MatrixMode(GL_PROJECTION);g.PopMatrix();}
         if(attrib) g.PopAttrib();
+        // Modern enables are not guaranteed to be covered by legacy attribs.
+        for(size_t i=0;i<modern.size();++i) (modern[i]?g.Enable:g.Disable)(glc::ModernCaps[i]);
+        for(size_t i=0;i<clips.size();++i) (clips[i]?g.Enable:g.Disable)(glc::ClipDistance0+static_cast<GLenum>(i));
+        for(size_t i=0;i<rectangles.size();++i) {
+            g.ActiveTexture(glc::Texture0+static_cast<GLenum>(i));
+            (rectangles[i]?g.Enable:g.Disable)(glc::TextureRectangle);
+        }
         g.MatrixMode(static_cast<GLenum>(mode));
         g.ActiveTexture(static_cast<GLenum>(texture));
         g.UseProgram(static_cast<GLuint>(program));
@@ -52,11 +62,12 @@ acvr_result GlRenderer::initialize(const acvr_graphics_device &device) {
     if(device.size<sizeof(device) || device.version!=ACVR_STRUCT_VERSION) return ACVR_BAD_VERSION;
     if(device.api!=ACVR_GRAPHICS_GL || device.flags&ACVR_DEVICE_GLES ||
        !(device.flags&ACVR_DEVICE_GL_COMPATIBILITY)) return ACVR_UNSUPPORTED;
-    if(!device.get_proc) return ACVR_BAD_ARGUMENT;
+    if(!device.context || !device.get_proc) return ACVR_BAD_ARGUMENT;
     GlDispatch candidate{};
 #define N22_LOAD(name,ret,args) if(!resolve(candidate.name,device,"gl" #name, \
         std::strcmp(#name,"BindFramebuffer")==0?"glBindFramebufferEXT": \
-        std::strcmp(#name,"ActiveTexture")==0?"glActiveTextureARB":nullptr)) return ACVR_UNSUPPORTED;
+        std::strcmp(#name,"ActiveTexture")==0?"glActiveTextureARB": \
+        std::strcmp(#name,"GetFramebufferAttachmentParameteriv")==0?"glGetFramebufferAttachmentParameterivEXT":nullptr)) return ACVR_UNSUPPORTED;
     N22_GL_FUNCTIONS(N22_LOAD)
 #undef N22_LOAD
     if(!resolve(candidate.CheckFramebufferStatus,device,"glCheckFramebufferStatus","glCheckFramebufferStatusEXT") ||
@@ -70,7 +81,7 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
        in.target.version!=ACVR_STRUCT_VERSION) return ACVR_BAD_VERSION;
     if(in.frame_id!=frame.id) return ACVR_BAD_STATE;
     if(in.target.api!=ACVR_GRAPHICS_GL || in.target.array_layers!=1 || in.target.sample_count!=1 ||
-       !in.target.depth_format || !in.target.depth_image || !in.target.framebuffer) return ACVR_UNSUPPORTED;
+       !in.target.depth_format || !in.target.depth_image || !in.target.colour_image || !in.target.framebuffer) return ACVR_UNSUPPORTED;
     if(in.target.colour_format!=0 && in.target.colour_format!=GL_RGB8 && in.target.colour_format!=GL_RGBA8 &&
        in.target.colour_format!=glc::Srgb8Alpha8) return ACVR_UNSUPPORTED;
     if(in.view_count!=1 || !in.views || in.view_stride<sizeof(acvr_eye) ||
@@ -81,7 +92,8 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
        static_cast<uint64_t>(eye.rect_x)+eye.rect_width>in.target.width ||
        static_cast<uint64_t>(eye.rect_y)+eye.rect_height>in.target.height ||
        in.target.width>static_cast<uint32_t>(INT32_MAX) || in.target.height>static_cast<uint32_t>(INT32_MAX) ||
-       in.target.framebuffer>UINT32_MAX || !finite(eye.view_from_scene,16) || !finite(eye.projection_from_view,16)) return ACVR_BAD_ARGUMENT;
+       in.target.framebuffer>UINT32_MAX || in.target.depth_image>UINT32_MAX || in.target.colour_image>UINT32_MAX ||
+       !finite(eye.view_from_scene,16) || !finite(eye.projection_from_view,16)) return ACVR_BAD_ARGUMENT;
     // Initial path uses canonical RH OpenGL forward-depth perspective only.
     if(eye.projection_from_view[11]!=-1 || eye.projection_from_view[15]!=0 ||
        eye.projection_from_view[10]>-1 || eye.projection_from_view[14]>=0) return ACVR_UNSUPPORTED;
@@ -106,7 +118,7 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
     gl_.GetIntegerv(GL_ATTRIB_STACK_DEPTH,&ad);gl_.GetIntegerv(GL_MAX_ATTRIB_STACK_DEPTH,&am);
     gl_.GetIntegerv(GL_PROJECTION_STACK_DEPTH,&pd);gl_.GetIntegerv(GL_MAX_PROJECTION_STACK_DEPTH,&pm);
     gl_.GetIntegerv(GL_MODELVIEW_STACK_DEPTH,&md);gl_.GetIntegerv(GL_MAX_MODELVIEW_STACK_DEPTH,&mm);
-    gl_.GetIntegerv(glc::MaxTextureUnits,&units);gl_.GetIntegerv(GL_MAX_CLIP_PLANES,&clips);
+    gl_.GetIntegerv(glc::MaxTextureUnits,&units);gl_.GetIntegerv(glc::MaxClipDistances,&clips);
     const auto *raw_version=gl_.GetString(GL_VERSION);
     const auto *raw_ext=gl_.GetString(GL_EXTENSIONS);
     if(check_error(GlPhase::Preflight)) return ACVR_UNSUPPORTED;
@@ -128,6 +140,17 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
     if(saved.split_framebuffer) gl_.GetIntegerv(glc::ReadFramebufferBinding,&saved.read_framebuffer);
     if(check_error(GlPhase::Preflight)) return ACVR_UNSUPPORTED;
     if(in.target.colour_format==glc::Srgb8Alpha8 && !srgb) return ACVR_UNSUPPORTED;
+    for(size_t i=0;i<saved.modern.size();++i) saved.modern[i]=gl_.IsEnabled(glc::ModernCaps[i]);
+    saved.clips.resize(static_cast<size_t>(clips));
+    for(GLint i=0;i<clips;++i) saved.clips[static_cast<size_t>(i)]=gl_.IsEnabled(glc::ClipDistance0+static_cast<GLenum>(i));
+    // Query per-unit rectangle state while restoring the selector immediately.
+    saved.rectangles.resize(static_cast<size_t>(units));
+    for(GLint i=0;i<units;++i) {
+        gl_.ActiveTexture(glc::Texture0+static_cast<GLenum>(i));
+        saved.rectangles[static_cast<size_t>(i)]=gl_.IsEnabled(glc::TextureRectangle);
+    }
+    gl_.ActiveTexture(static_cast<GLenum>(saved.texture));
+    if(check_error(GlPhase::Preflight)) return ACVR_ERROR;
     auto finish=[&](acvr_result value) {
         saved.restore();
         const GLenum error=gl_.GetError();
@@ -145,6 +168,14 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
     const GLenum status=gl_.CheckFramebufferStatus(draw_target);
     if(check_error(GlPhase::State)) return finish(ACVR_ERROR);
     if(status!=glc::FramebufferComplete) {diagnostic_={GlPhase::State,GL_NO_ERROR,status};return finish(ACVR_BAD_STATE);}
+    for(GLenum attachment:std::array<GLenum,2>{glc::ColourAttachment0,glc::DepthAttachment}) {
+        GLint type=0,name=0;
+        gl_.GetFramebufferAttachmentParameteriv(draw_target,attachment,glc::AttachmentObjectType,&type);
+        gl_.GetFramebufferAttachmentParameteriv(draw_target,attachment,glc::AttachmentObjectName,&name);
+        if(check_error(GlPhase::State)) return finish(ACVR_ERROR);
+        const auto expected=attachment==glc::DepthAttachment?in.target.depth_image:in.target.colour_image;
+        if(type!=GL_TEXTURE || static_cast<GLuint>(name)!=expected) return finish(ACVR_BAD_ARGUMENT);
+    }
     GLint depth=0;gl_.GetIntegerv(GL_DEPTH_BITS,&depth);
     if(check_error(GlPhase::State)) return finish(ACVR_ERROR);
     if(depth<16) return finish(ACVR_UNSUPPORTED);
@@ -165,11 +196,12 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
     gl_.DepthFunc(GL_LEQUAL);gl_.DepthMask(GL_TRUE);gl_.DepthRange(0,1);gl_.ClearDepth(1);
     gl_.ColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);gl_.ClearColor(0,0,0,1);gl_.PolygonMode(GL_FRONT_AND_BACK,GL_FILL);
     for(GLenum cap:std::array<GLenum,14>{GL_BLEND,GL_ALPHA_TEST,GL_CULL_FACE,GL_LIGHTING,GL_FOG,GL_STENCIL_TEST,GL_DITHER,GL_COLOR_LOGIC_OP,GL_POLYGON_OFFSET_FILL,GL_POLYGON_STIPPLE,glc::Multisample,glc::SampleAlphaCoverage,glc::SampleAlphaOne,glc::SampleCoverage}) gl_.Disable(cap);
-    if(srgb) gl_.Disable(glc::FramebufferSrgb); // packed RGB is display-referred; no second gamma correction
-    for(GLint i=0;i<clips;++i) gl_.Disable(GL_CLIP_PLANE0+static_cast<GLenum>(i));
+    for(auto cap:glc::ModernCaps) gl_.Disable(cap);
+    // packed RGB is display-referred; framebuffer sRGB stays disabled.
+    for(GLint i=0;i<clips;++i) gl_.Disable(glc::ClipDistance0+static_cast<GLenum>(i));
     for(GLint i=0;i<units;++i) {
         gl_.ActiveTexture(glc::Texture0+static_cast<GLenum>(i));
-        for(GLenum cap:std::array<GLenum,8>{GL_TEXTURE_1D,GL_TEXTURE_2D,glc::Texture3D,glc::TextureCube,GL_TEXTURE_GEN_S,GL_TEXTURE_GEN_T,GL_TEXTURE_GEN_R,GL_TEXTURE_GEN_Q}) gl_.Disable(cap);
+        for(GLenum cap:std::array<GLenum,9>{GL_TEXTURE_1D,GL_TEXTURE_2D,glc::Texture3D,glc::TextureCube,glc::TextureRectangle,GL_TEXTURE_GEN_S,GL_TEXTURE_GEN_T,GL_TEXTURE_GEN_R,GL_TEXTURE_GEN_Q}) gl_.Disable(cap);
     }
     if(check_error(GlPhase::State)) return finish(ACVR_ERROR);
     gl_.Clear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
