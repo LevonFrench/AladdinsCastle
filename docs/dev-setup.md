@@ -74,7 +74,11 @@ Build outputs remain under `build/`. Targets include `hubcore`, `hubui`, `hubove
 and warnings as errors. Dependencies are marked as system code, and never
 inherit those warning options. Qt is shared; OpenVR uses upstream headers plus
 the pinned prebuilt shared runtime. Desktop and CLI modes do not initialize OpenVR. The Windows GUI binary delay-loads
-OpenVR; failed overlay initialization opens the desktop Hub.
+OpenVR. On Windows, overlay and manifest actions probe the portable DLL before
+calling OpenVR, so a missing or incompatible DLL returns a clear error. Failed
+overlay initialization opens the desktop Hub for user-started runs only. The
+manifest supplies `--steamvr-started`; failed runtime-started instances exit
+without opening another desktop window. No runtime check is part of CI.
 
 The QML module is `AladdinsCastle.Hub` with `DesktopShell` and `HubRoot`.
 The app loads it through `QQmlApplicationEngine::loadFromModule`.

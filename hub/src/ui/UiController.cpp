@@ -46,12 +46,13 @@ void SectionedGridModel::refresh(){
 QObject *UiController::createGridModel(int columns){return new SectionedGridModel(m_games,m_filter,columns,this);}
 void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<SectionedGridModel *>(model);grid&&grid->parent()==this)grid->deleteLater();}
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_games(games),m_filter(filter),m_settings(settings){
- connect(filter,&FilterSortModel::facetsChanged,this,&UiController::facetsChanged);
- connect(filter,&FilterSortModel::visibleCountChanged,this,&UiController::facetsChanged);
- connect(games,&QAbstractItemModel::dataChanged,this,[this]{emit detailChanged();emit facetsChanged();});
+ connect(filter,&FilterSortModel::facetsChanged,this,&UiController::scheduleFacetsChanged);
+ connect(filter,&FilterSortModel::visibleCountChanged,this,&UiController::scheduleFacetsChanged);
+ connect(games,&QAbstractItemModel::dataChanged,this,[this]{emit detailChanged();scheduleFacetsChanged();});
  connect(settings,&UiSettings::error,this,[this](const QString &text){showError("Settings",text);});
  connect(settings,&UiSettings::gameSaved,this,&UiController::writeConfigRequested);
 }
+void UiController::scheduleFacetsChanged(){if(m_facetsQueued)return;m_facetsQueued=true;QTimer::singleShot(0,this,[this]{m_facetsQueued=false;emit facetsChanged();});}
 QString UiController::vrLabel(int badge)const{const QStringList labels{"FLAT","TRUE 3D","THEATRE","PLANNED"};return labels.value(badge,"FLAT");}
 QString UiController::primaryLabel(const QString &id)const{auto g=m_games->find(id);if(!g)return "No setup yet";if(g->roles.value("playing").toBool())return "Playing";if(g->roles.value("state").toInt()==4){const auto *v=variant(*g);return v?v->title:"Play";}if(g->roles.value("state").toInt()==6)return "Locate / install emulator";return g->roles.value("stateLabel").toString();}
 QString UiController::appVersion()const{return QCoreApplication::applicationVersion();}
@@ -94,7 +95,7 @@ QVariantMap UiController::detail()const{
  std::sort(scores.begin(),scores.end(),[&titles](const auto &a,const auto &b){return a.first==b.first?titles.value(a.second)<titles.value(b.second):a.first>b.first;});for(int i=0;i<std::min(12,static_cast<int>(scores.size()));++i)similar<<game(scores[i].second);
  result["variants"]=variants;result["needs"]=needs;result["controls"]=controls;result["components"]=components;result["similar"]=similar;result["settingsSupported"]=supported;result["readme"]=readme(g);result["notice"]=str(g.raw,"notice");result["quip"]=str(g.raw,"quip");result["settings"]=m_settings->game(g.id);return result;
 }
-void UiController::primary(const QString &id){auto g=m_games->find(id);if(!g)return;if(g->roles.value("playing").toBool()){message("Playing "+g->roles.value("title").toString());return;}if(m_detailId!=id)openDetail(id);auto d=detail();int state=d.value("state").toInt();if(state==5){emit locationRequested("media");message("Choose folders containing your own media.");}else if(state==6){emit locationRequested("tool");message("Locate an existing emulator or install its pinned release.");}else if(state==4)play(id,d.value("variantId").toString());else if(state==3||state==7)startInstall(id,d.value("variantId").toString());else if(state==2)retryInstall(false,{});else message(d.value("stateLabel").toString());}
+void UiController::primary(const QString &id){auto g=m_games->find(id);if(!g)return;if(g->roles.value("playing").toBool()){message("Playing "+g->roles.value("title").toString());return;}if(m_detailId!=id)openDetail(id);auto d=detail();int state=d.value("state").toInt();if(state==5){emit locationRequested("media");message("Choose folders containing your own media.");}else if(state==6){emit locationRequested("tool");message("Locate an existing emulator or install its pinned release.");}else if(state==4)play(id,d.value("variantId").toString());else if(state==3||state==7)startInstall(id,d.value("variantId").toString());else if(state==2)retryGameInstall(id,d.value("variantId").toString(),false,{});else message(d.value("stateLabel").toString());}
 void UiController::scan(const QStringList &roots){startScan(roots);}
 void UiController::startScan(const QStringList &roots){if(m_scanning)return;if(roots.isEmpty()){message("Choose at least one folder to scan.");return;}m_scanning=true;emit scanChanged();message("Scan requested; waiting for scanner.");emit scanRequested(roots);}
 void UiController::cancelScan(){if(!m_scanning)return;emit cancelScanRequested();message("Scan cancellation requested.");}
@@ -104,7 +105,14 @@ void UiController::startInstall(const QString &id,const QString &variantId){auto
 void UiController::play(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated){message("This VR setup is outside M1. Select a flat emulator route.");return;}emit playRequested(id,variantId);return;}}
 void UiController::cancelInstall(){emit cancelInstallRequested();message("Cancel requested; the installer stops between steps.");}
 void UiController::retryInstall(bool fromStart,const QString &handover){
- auto g=m_games->find(m_detailId);const auto *v=g?variant(*g):nullptr;
+ const bool recovery=!m_recovery.isEmpty();
+ if(recovery&&(m_recovery.value("retryKind")!="game"||m_recovery.value("retryOperation","install")!="install"||m_recovery.value("retryGameId").toString().isEmpty()||m_recovery.value("retryVariantId").toString().isEmpty())){message("Nothing to retry: there is no identified failed game installation.");return;}
+ if(recovery){retryGameInstall(m_recovery.value("retryGameId").toString(),m_recovery.value("retryVariantId").toString(),fromStart,handover);return;}
+ auto g=m_games->find(m_detailId);const auto *v=g?variant(*g):nullptr;retryGameInstall(m_detailId,v?v->id:QString(),fromStart,handover);
+}
+void UiController::retryGameInstall(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover){
+ auto g=m_games->find(gameId);const Variant *v=nullptr;
+ if(g)for(const auto &candidate:g->variants)if(candidate.id==variantId)v=&candidate;
  if(!g||!v||!v->generated||!g->install.is_object()||!g->install.contains("variant")||!g->install["variant"].contains(v->id.toStdString())){message("Nothing to retry: the selected game and variant have no M1 owned installation recipe.");return;}
  emit retryInstallRequested(g->id,v->id,fromStart,handover);
 }

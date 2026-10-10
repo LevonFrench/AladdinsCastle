@@ -3,8 +3,10 @@
 Usage: python tools/validate_catalog.py [--summary]
 Exit code 1 if any error. Warnings don't fail.
 """
+import argparse
 import collections
 import glob
+import json
 import os
 import re
 import sys
@@ -25,16 +27,41 @@ def load(path):
         return tomllib.load(f)
 
 
-def media_errors(game):
+def media_requirement_id(item, game_id, row):
+    if isinstance(item, dict):
+        for key in ("set", "serial", "id"):
+            if isinstance(item.get(key), str) and item[key]:
+                return item[key]
+    return f"{game_id}-media-{row}"
+
+
+def media_errors(game, recipe=None):
     errors = []
     media = game.get("media", [])
     if not isinstance(media, list):
         return ["media must be an array of tables"]
+    ids = set()
     for row, item in enumerate(media):
         if not isinstance(item, dict):
-            errors.append(f"media[{row}] must be a table")
-        elif "optional" in item and not isinstance(item["optional"], bool):
-            errors.append(f"media[{row}].optional must be boolean")
+            errors.append("media item must be a table")
+            continue
+        if "optional" in item and not isinstance(item["optional"], bool):
+            errors.append("media.optional must be boolean")
+        for key in ("set", "serial", "id"):
+            if key in item and not isinstance(item[key], str):
+                errors.append(f"media.{key} must be text")
+        requirement = media_requirement_id(item, game.get("id", ""), row)
+        if requirement in ids:
+            errors.append(f"duplicate media requirement: {requirement}")
+        ids.add(requirement)
+    for variant in (recipe or {}).get("variant", {}).values():
+        needs = variant.get("needs", {}).get("media", [])
+        if not isinstance(needs, list) or any(not isinstance(item, str) for item in needs):
+            errors.append("needs.media must be an array of text")
+            continue
+        for requirement in needs:
+            if requirement not in ids:
+                errors.append(f"unresolved needs.media: {requirement}")
     return errors
 
 
@@ -48,29 +75,54 @@ def self_test():
             for value in ("true", 1, None):
                 self.assertTrue(media_errors({"media": [{"optional": value}]}))
 
+        def test_recipe_resolution(self):
+            game = {"id": "synthetic", "media": [{"set": "set", "serial": "ignored", "id": "ignored"},
+                    {"serial": "TEST-00003", "id": "ignored"}, {"id": "disc"}, {}]}
+            ids = ["set", "TEST-00003", "disc", "synthetic-media-3"]
+            recipe = {"variant": {"fixture": {"needs": {"media": ids}}}}
+            self.assertEqual(media_errors(game, recipe), [])
+            recipe["variant"]["fixture"]["needs"]["media"] = ["missing"]
+            self.assertEqual(media_errors(game, recipe), ["unresolved needs.media: missing"])
+
+        def test_malformed_contract(self):
+            for game, recipe in [({"media": "bad"}, {}), ({"media": ["bad"]}, {}),
+                    ({"media": [{"id": 1}]}, {}), ({"media": [{"id": "same"}, {"id": "same"}]}, {}),
+                    ({}, {"variant": {"fixture": {"needs": {"media": "bad"}}}}),
+                    ({}, {"variant": {"fixture": {"needs": {"media": [1]}}}})]:
+                self.assertTrue(media_errors(game, recipe))
+
     return 0 if unittest.TextTestRunner().run(unittest.defaultTestLoader.loadTestsFromTestCase(MediaContract)).wasSuccessful() else 1
 
 
-def main():
-    genres = load(os.path.join(ROOT, "data/vocab/genres.toml"))
-    makers = load(os.path.join(ROOT, "data/vocab/manufacturers.toml"))
-    hardware = load(os.path.join(ROOT, "data/vocab/hardware.toml"))
-    graphics = load(os.path.join(ROOT, "data/vocab/graphics.toml"))
+def main(root=ROOT, json_report=False):
+    genres = load(os.path.join(root, "data/vocab/genres.toml"))
+    makers = load(os.path.join(root, "data/vocab/manufacturers.toml"))
+    hardware = load(os.path.join(root, "data/vocab/hardware.toml"))
+    graphics = load(os.path.join(root, "data/vocab/graphics.toml"))
     errors, warnings, games = [], [], []
 
-    for path in sorted(glob.glob(os.path.join(ROOT, "games/*/game.toml"))):
+    for path in sorted(glob.glob(os.path.join(root, "games/*/game.toml"))):
         folder = os.path.basename(os.path.dirname(path))
-        rel = os.path.relpath(path, ROOT).replace("\\", "/")
+        rel = os.path.relpath(path, root).replace("\\", "/")
         try:
             g = load(path)
         except Exception as e:  # noqa: BLE001
             errors.append(f"{rel}: TOML error: {e}")
             continue
         games.append(g)
-        errors.extend(f"{rel}: {message}" for message in media_errors(g))
+        recipe_path = os.path.join(os.path.dirname(path), "install.toml")
+        try:
+            recipe = load(recipe_path) if os.path.isfile(recipe_path) else {}
+        except Exception as e:
+            errors.append(f"{rel}: install TOML error: {e}")
+            recipe = {}
+        errors.extend(f"{rel}: {message}" for message in media_errors(g, recipe))
         for k in REQUIRED:
             if k not in g:
                 errors.append(f"{rel}: missing required field '{k}'")
+        for k in ("id", "title", "genre", "manufacturer", "hardware", "graphics"):
+            if k in g and not isinstance(g[k], str):
+                errors.append(f"{rel}: {k} must be text")
         if g.get("id") != folder:
             errors.append(f"{rel}: id '{g.get('id')}' does not match folder '{folder}'")
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", folder):
@@ -97,7 +149,7 @@ def main():
             if hw.get("kind") == "arcade" and any(folder.startswith(p) for p in PREFIXES.values()):
                 warnings.append(f"{rel}: arcade entry uses a console id prefix")
         y = g.get("year")
-        if not isinstance(y, int) or not 1970 <= y <= 2026:
+        if type(y) is not int or not 1970 <= y <= 2026:
             errors.append(f"{rel}: year '{y}' is not a plausible integer year")
         for key, val in g.get("routes", {}).items():
             if key == "vr":
@@ -117,10 +169,18 @@ def main():
                 warnings.append(f"{rel}: hub.{k} '{hub[k]}' is not #rrggbb")
         if not g.get("meta", {}).get("sources"):
             warnings.append(f"{rel}: meta.sources empty")
+        if type(g.get("players")) is not int or g["players"] < 1:
+            warnings.append(f"{rel}: players missing or invalid")
+        controls = g.get("controls", {}).get("type", "")
+        if controls and controls not in {"gun", "wheel", "handlebars", "bike", "ski", "joystick", "yoke", "boat", "other"}:
+            warnings.append(f"{rel}: controls.type unknown: {controls}")
         orig = g.get("original")
-        if orig and not os.path.isdir(os.path.join(ROOT, "games", orig)):
+        if orig and not os.path.isdir(os.path.join(root, "games", orig)):
             warnings.append(f"{rel}: original '{orig}' has no games/{orig} folder (yet)")
 
+    if json_report:
+        print(json.dumps({"records": len(games), "errors": errors, "warnings": warnings}))
+        return 1 if errors else 0
     for e in errors:
         print("ERROR  ", e)
     for w in warnings:
@@ -136,4 +196,10 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(self_test() if sys.argv[1:] == ["--test"] else main())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--test", action="store_true")
+    parser.add_argument("--summary", action="store_true")
+    parser.add_argument("--root", default=ROOT, help="Base catalog root (packs/user overrides are runtime-only)")
+    parser.add_argument("--json", action="store_true", help="Machine-readable base-catalog report")
+    args = parser.parse_args()
+    sys.exit(self_test() if args.test else main(args.root, args.json))

@@ -167,8 +167,10 @@ static toml::table toTable(const Json &j) {
 }
 void writeEnvelope(const QString &path, const Json &data) {
   if (QFileInfo::exists(path)) {
-    readEnvelope(path);
-    atomicWrite(path + ".previous", readBytes(path));
+    QStringList recovered;
+    readEnvelope(path, &recovered);
+    // Recovery may have read .previous; do not overwrite it with corrupt main bytes.
+    if (recovered.isEmpty()) atomicWrite(path + ".previous", readBytes(path));
   }
   const Json envelope{
       {"schema", 1},

@@ -14,6 +14,9 @@
 #include <QProcessEnvironment>
 #include <QtTest>
 #include <cstring>
+#include <QEventLoop>
+#include <QElapsedTimer>
+#include <QTimer>
 class SmokeTest : public QObject {
     Q_OBJECT
 private slots:
@@ -113,6 +116,21 @@ private slots:
         QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(15000));QCOMPARE(process.exitCode(),2);
         const auto logs=QDir(root+"/user/logs").entryList({"launch-synthetic-*.log"},QDir::Files);QCOMPARE(logs.size(),1);QFile log(root+"/user/logs/"+logs.first());QVERIFY(log.open(QIODevice::ReadOnly));QVERIFY(log.readAll().contains("Catalog missing"));
     }
+    void preflightLogsRotatePerGame(){
+        QTemporaryDir temp;QVERIFY(temp.isValid());
+        const auto other=ac::writeLaunchFailureLog(temp.path(),"synthetic-long","unrelated synthetic game");
+        QString current;for(int i=0;i<27;++i)current=ac::writeLaunchFailureLog(temp.path(),"synthetic","synthetic failure");
+        QVERIFY(QFileInfo::exists(current));QVERIFY(QFileInfo::exists(other));
+        const auto logs=QDir(temp.filePath("user/logs")).entryList(QDir::Files);QCOMPARE(logs.size(),21);
+    }
+    void launchErrorPresentationDeadline(){
+        QCOMPARE(ac::launchFailureDialogTimeoutMs,15000);
+        QEventLoop modal;int displayed=0,dismissed=0;QElapsedTimer elapsed;elapsed.start();
+        QTimer::singleShot(3000,&modal,&QEventLoop::quit);
+        ac::runTimedLaunchFailurePresentation([&]{++displayed;modal.exec();},[&]{++dismissed;modal.quit();},25);
+        QCOMPARE(displayed,1);QCOMPARE(dismissed,1);QVERIFY(elapsed.elapsed()<1500);
+        ac::runTimedLaunchFailurePresentation([&]{++displayed;},[&]{++dismissed;},25);QTest::qWait(50);QCOMPARE(dismissed,1);
+    }
     void qmlRemoteResourcesDenied() {
         ac::LocalQmlNetworkFactory factory; std::unique_ptr<QNetworkAccessManager> manager(factory.create(nullptr));
         QTcpServer server; QVERIFY(server.listen(QHostAddress::LocalHost));
@@ -126,6 +144,9 @@ private slots:
     void overlayFailureDesktopPolicy() {
         const auto overlay=ac::parseLaunchOptions({"--overlay"});QVERIFY(ac::shouldOpenDesktop(overlay,false));QVERIFY(!ac::shouldOpenDesktop(overlay,true));
         QVERIFY(ac::shouldOpenDesktop(ac::parseLaunchOptions({"--overlay","--window"}),true));QVERIFY(ac::shouldOpenDesktop({},false));
+        const auto runtime=ac::parseLaunchOptions({"--overlay","--steamvr-started"});QVERIFY(runtime.error.isEmpty());QVERIFY(!ac::shouldOpenDesktop(runtime,false));QVERIFY(!ac::shouldOpenDesktop(runtime,true));
+        QVERIFY(!ac::parseLaunchOptions({"--steamvr-started"}).error.isEmpty());QVERIFY(!ac::shouldQuitAfterLastWindow(true));QVERIFY(ac::shouldQuitAfterLastWindow(false));
+        QVERIFY(ac::shouldQuitAfterLaunch(false,false,false));QVERIFY(!ac::shouldQuitAfterLaunch(true,false,false));QVERIFY(!ac::shouldQuitAfterLaunch(false,true,false));QVERIFY(!ac::shouldQuitAfterLaunch(false,false,true));
     }
     void cliWorksWithoutOpenVrRuntime() {
 #ifdef Q_OS_WIN
@@ -134,6 +155,23 @@ private slots:
         for(const auto &dir:env.value("PATH").split(';'))if(QFileInfo(QDir(dir).filePath("Qt6Core.dll")).isFile())qtDirs.append(dir);
         QVERIFY(!qtDirs.isEmpty());qtDirs.append(env.value("SystemRoot")+"/System32");env.insert("PATH",qtDirs.join(';'));process.setProcessEnvironment(env);
         process.start(copy,{"--help"});QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(15000));QCOMPARE(process.exitCode(),0);QVERIFY(process.readAllStandardOutput().contains("Usage:"));QVERIFY(!QFileInfo::exists(temp.filePath("openvr_api.dll")));
+#endif
+    }
+    void missingDllOverlayActionsFailWithoutRuntime(){
+#ifdef Q_OS_WIN
+        QTemporaryDir temp;QVERIFY(temp.isValid());const auto appDir=QCoreApplication::applicationDirPath();
+        const auto copy=temp.filePath("aladdinscastle-hub.exe");QVERIFY(QFile::copy(appDir+"/aladdinscastle-hub.exe",copy));
+        QVERIFY(QDir().mkpath(temp.filePath("resources")));QVERIFY(QFile::copy(appDir+"/resources/aladdinscastle.vrmanifest",temp.filePath("resources/aladdinscastle.vrmanifest")));
+        QVERIFY(QDir().mkpath(temp.filePath("games/synthetic")));QFile metadata(temp.filePath("games/synthetic/game.toml"));QVERIFY(metadata.open(QIODevice::WriteOnly));metadata.write("id='synthetic'\ntitle='Synthetic'\n");metadata.close();
+        auto env=QProcessEnvironment::systemEnvironment();QStringList qtDirs;for(const auto &dir:env.value("PATH").split(';'))if(QFileInfo(QDir(dir).filePath("Qt6Core.dll")).isFile())qtDirs<<dir;
+        QVERIFY(!qtDirs.isEmpty());qtDirs<<env.value("SystemRoot")+"/System32";env.insert("PATH",qtDirs.join(';'));env.insert("QT_QPA_PLATFORM","offscreen");env.insert("QT_QUICK_BACKEND","software");env.insert("QT_OPENGL","software");
+        for(const auto &args:{QStringList{"--overlay","--quit-after-ms","50"},QStringList{"--overlay","--steamvr-started"},QStringList{"--register-overlay"},QStringList{"--unregister-overlay"}}){
+            QProcess process;process.setProcessEnvironment(env);process.setWorkingDirectory(temp.path());process.start(copy,args);QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(15000));
+            QCOMPARE(process.exitStatus(),QProcess::NormalExit);const auto error=process.readAllStandardError();QVERIFY2(error.contains("OpenVR runtime DLL is missing"),error.constData());
+            if(args.contains("--quit-after-ms")){QCOMPARE(process.exitCode(),0);QVERIFY(error.contains("opening desktop Hub"));QVERIFY(process.readAllStandardOutput().contains("AladdinsCastle: 1 games"));}
+            else {QCOMPARE(process.exitCode(),3);QVERIFY(!error.contains("opening desktop Hub"));}
+        }
+        QVERIFY(!QFileInfo::exists(temp.filePath("openvr_api.dll")));
 #endif
     }
     void modesAndRejections() {

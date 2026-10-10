@@ -32,6 +32,7 @@ struct Binding {
   QVector<SupportRequirement> supportRequirements;
   bool verified = false;
   QStringList setCandidates; // Metadata-declared clone family, never archive basenames.
+  QString bios; // Selected machine BIOS, persisted for the MAME -bios option.
 };
 struct ToolBinding {
   QString id, path, version;

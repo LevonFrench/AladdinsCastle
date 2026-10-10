@@ -28,7 +28,7 @@ struct Shortcut {
   bool vr = false;
   quint32 storedAppId = 0;
   qint64 lastPlayed = 0;
-  QString variantId; // Required for upserts; removal uses the ownership tags.
+  QString variantId; // Required for upserts and variant-specific removal.
 };
 struct Edit {
   QByteArray bytes;

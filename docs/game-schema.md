@@ -66,6 +66,10 @@ checked    = "2026-10-08"
 
 Media requirements are selected per route: arcade emulators use ROM sets and set-based BIOS rows, console emulators use discs and console BIOS rows, and PC routes use `pc-game` rows. Alternative PC media on an arcade entry does not block its arcade route. `optional = true` is allowed on any media row; an absent optional row never blocks readiness or launch. Authored variant needs retain their explicit selection, with optional rows excluded from blocking requirements. A BIOS alone does not put a game in "In my library".
 
+Every `install.toml` variant's `needs.media` must resolve to a `[[media]]` requirement. Its key is the first nonempty text field in `set`, `serial`, `id` order, or `<game>-media-N` (zero-based row index). Use `id = "disc"` or another explicit id for requirements without a set or serial. Duplicate keys, non-text ids and unresolved recipe requirements fail both validators.
+
+MAME scan receipts preserve the selected machine BIOS and launch supplies `-bios <name>`. Device BIOS requirements use their metadata default because their alternative selection has no independent launch option. Merged clone disks may resolve in the parent's folder; folder matching is case insensitive. A CHD header SHA remains header evidence when sparse decoding fails, without claiming a payload audit. Disk-only machines bind the CHD itself rather than an unrelated archive.
+
 ## 3. Hub filters
 
 | Filter | Field | UI |

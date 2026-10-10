@@ -6,6 +6,9 @@ import AladdinsCastle.Hub
 Popup {
  id:drawer
  property bool vrOverlayMode:false
+ property var expansionById: ({})
+ function expandedFor(nodeId, fallback) { return Object.prototype.hasOwnProperty.call(expansionById,nodeId) ? expansionById[nodeId] : fallback }
+ function setExpanded(nodeId, value) { var next = {}; for (var key in expansionById) next[key]=expansionById[key]; next[nodeId]=value; expansionById=next }
  objectName:"filtersDrawer"
  width:Math.min(parent?parent.width-20:420,420);height:Math.min(parent?parent.height-20:650,650);padding:16;modal:true;closePolicy:Popup.CloseOnEscape|Popup.CloseOnPressOutside
  background:Rectangle{color:Theme.get("color.surface.panel");radius:8;border.color:Theme.get("color.line.button")}
@@ -13,11 +16,11 @@ Popup {
  Column {width:drawer.availableWidth-16;spacing:10
   UiText{text:"HARDWARE";color:Theme.get("color.text.label");font.pixelSize:11}
   Repeater {model:uiController.hardwareTree
-   Column {required property var modelData;property bool expanded:true;width:parent.width
-    Row {spacing:5;PillButton{vrOverlayMode:drawer.vrOverlayMode;text:parent.parent.expanded?"▾":"▸";width:vrOverlayMode?44:40;Accessible.name:"Expand "+modelData.label;onClicked:parent.parent.expanded=!parent.parent.expanded} PillButton{vrOverlayMode:drawer.vrOverlayMode;text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
+   Column {required property var modelData;objectName:"hardwareKind-"+modelData.id;property bool expanded:drawer.expandedFor(modelData.id,true);width:parent.width
+    Row {spacing:5;PillButton{vrOverlayMode:drawer.vrOverlayMode;text:parent.parent.expanded?"▾":"▸";width:vrOverlayMode?44:40;Accessible.name:"Expand "+modelData.label;onClicked:drawer.setExpanded(modelData.id,!parent.parent.expanded)} PillButton{vrOverlayMode:drawer.vrOverlayMode;text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
     Repeater {model:parent.expanded?modelData.children:[]
-     Column {required property var modelData;property bool expanded:false;width:parent.width
-      Row {x:16;spacing:5;PillButton{vrOverlayMode:drawer.vrOverlayMode;text:parent.parent.expanded?"▾":"▸";width:vrOverlayMode?44:40;Accessible.name:"Expand "+modelData.label;onClicked:parent.parent.expanded=!parent.parent.expanded} PillButton{vrOverlayMode:drawer.vrOverlayMode;text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
+     Column {required property var modelData;objectName:"hardwareFamily-"+modelData.id;property bool expanded:drawer.expandedFor(modelData.id,false);width:parent.width
+      Row {x:16;spacing:5;PillButton{vrOverlayMode:drawer.vrOverlayMode;text:parent.parent.expanded?"▾":"▸";width:vrOverlayMode?44:40;Accessible.name:"Expand "+modelData.label;onClicked:drawer.setExpanded(modelData.id,!parent.parent.expanded)} PillButton{vrOverlayMode:drawer.vrOverlayMode;text:(uiController.hardwareSelection(modelData.id)===1?"− ":"")+modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
       Repeater {model:parent.expanded?modelData.children:[];PillButton {vrOverlayMode:drawer.vrOverlayMode;required property var modelData;x:32;width:parent.width-32;text:modelData.label+" ("+modelData.count+")";selected:uiController.activeFacets.length>=0&&uiController.hardwareSelection(modelData.id)===2;onClicked:uiController.toggleFacet("hardwareIds",modelData.id)}}
      }
     }

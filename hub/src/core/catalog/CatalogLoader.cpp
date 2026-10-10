@@ -153,7 +153,7 @@ void validate(GameRecord &g, const CatalogData &data, const QSet<QString> &ids) 
         warn("folder/id must be lowercase kebab-case", true);
     for (const auto *key : {"id", "title", "genre", "manufacturer", "hardware", "graphics"})
         if (j.contains(key) && !j[key].is_string())
-            warn(QString("%1 must be text").arg(key));
+            warn(QString("%1 must be text").arg(key), true);
     if (!j.contains("hub") || !j["hub"].is_object())
         warn("hub table missing or invalid");
     const auto genres = object(data.vocab, "genres"), hardware = object(data.vocab, "hardware");
@@ -204,9 +204,34 @@ void validate(GameRecord &g, const CatalogData &data, const QSet<QString> &ids) 
                 warn("arcade entry uses console id prefix");
                 break;
             }
-    for (const auto &m : j.value("media", Json::array()))
-        if (m.contains("optional") && !m["optional"].is_boolean())
-            warn("media.optional must be boolean", true);
+    QSet<QString> mediaIds;
+    const auto media = j.value("media", Json::array());
+    if (!media.is_array()) warn("media must be an array of tables", true);
+    else {
+        qsizetype index = 0;
+        for (const auto &m : media) {
+            const auto requirement = mediaRequirementId(m, g.id, index++);
+            if (!m.is_object()) { warn("media item must be a table", true); continue; }
+            if (m.contains("optional") && !m["optional"].is_boolean())
+                warn("media.optional must be boolean", true);
+            for (const auto *key : {"set", "serial", "id"})
+                if (m.contains(key) && !m[key].is_string())
+                    warn(QString("media.%1 must be text").arg(key), true);
+            if (mediaIds.contains(requirement)) warn("duplicate media requirement: " + requirement, true);
+            mediaIds.insert(requirement);
+        }
+    }
+    const auto variants = object(g.install, "variant");
+    for (auto it = variants.begin(); it != variants.end(); ++it) {
+        const auto needs = object(it.value(), "needs");
+        if (needs.contains("media") && (!needs["media"].is_array() ||
+            std::any_of(needs["media"].begin(), needs["media"].end(),
+                        [](const Json &id) { return !id.is_string(); })))
+            warn("needs.media must be an array of text", true);
+        for (const auto &id : list(needs, "media"))
+            if (!mediaIds.contains(id))
+                warn("unresolved needs.media: " + id, true);
+    }
     const auto routes = object(j, "routes");
     for (auto it = routes.begin(); it != routes.end(); ++it) {
         if (it.key() == "vr") {
@@ -485,7 +510,7 @@ CatalogData CatalogLoader::load(const QString &root) const {
             read(folder + "/game.toml", g.raw, g.provenance, true);
             if (QFileInfo::exists(folder + "/install.toml"))
                 g.hasRecipe = true;
-            read(folder + "/install.toml", g.install, g.installProvenance, false);
+            read(folder + "/install.toml", g.install, g.installProvenance, true);
             QDir setup(folder + "/setup");
             for (const auto &file : setup.entryList({"*.toml"}, QDir::Files, QDir::Name)) {
                 const auto key = QFileInfo(file).baseName().toStdString();
@@ -532,7 +557,8 @@ CatalogData CatalogLoader::load(const QString &root) const {
             auto needs = object(record.raw, "needs");
             record.media = list(needs, "media");
             qsizetype mediaIndex = 0;
-            for (const auto &m : g.raw.value("media", Json::array())) {
+            for (const auto &m : (g.raw.contains("media") && g.raw["media"].is_array()
+                                     ? g.raw["media"] : Json::array())) {
                 const auto requirement = mediaRequirementId(m, g.id, mediaIndex++);
                 if (optionalMedia(m)) record.media.removeAll(requirement);
             }
@@ -568,7 +594,7 @@ CatalogData CatalogLoader::load(const QString &root) const {
                 qsizetype mediaIndex = 0;
                 for (const auto &m : g.raw["media"]) {
                     const auto requirement = mediaRequirementId(m, g.id, mediaIndex++);
-                    if (!optionalMedia(m) && mediaAppliesToRoute(m, id, str(g.raw, "hardware")))
+                    if (m.is_object() && !optionalMedia(m) && mediaAppliesToRoute(m, id, str(g.raw, "hardware")))
                         v.media << requirement;
                 }
             }

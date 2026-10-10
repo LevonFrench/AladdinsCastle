@@ -186,6 +186,11 @@ private slots:
     QStringList warnings;
     QCOMPARE(readEnvelope(file, &warnings).value("v", 0), 1);
     QVERIFY(!warnings.isEmpty());
+    const auto goodPrevious = readBytes(file + ".previous");
+    writeEnvelope(file, Json{{"v", 3}});
+    QCOMPARE(readBytes(file + ".previous"), goodPrevious);
+    atomicWrite(file, "corrupt again");
+    QCOMPARE(readEnvelope(file).value("v", 0), 1);
     atomicWrite(file, "schema = 2\n");
     QVERIFY_THROWS_EXCEPTION(Error, readEnvelope(file));
     QVERIFY_THROWS_EXCEPTION(Error, writeEnvelope(file, Json{{"v", 3}}));
@@ -673,13 +678,16 @@ private slots:
     TestTrust trust;
     trust.baseUrl = server.url(); trust.hosts = {"localhost"};
     trust.authorities = QSslCertificate::fromPath(QString(AC_TEST_FIXTURES) + "/tls/localhost-cert.pem");
-    QStringList warnings;
-    Options options; options.event = [&](const QVariantMap &e) { if (e.value("kind") == "warn") warnings << e.value("text").toString(); };
+    QStringList warnings, notices;
+    Options options; options.event = [&](const QVariantMap &e) {
+      if (e.value("kind") == "warn") warnings << e.value("text").toString();
+      if (e.value("kind") == "info") notices << e.value("text").toString();
+    };
     ArtifactStore store(temp.path(), options, trust);
     Json step{{"do", "github-release"}, {"repo", "synthetic/example"}, {"tag", "missing"},
               {"asset", "tool.dat"}, {"sha256", sha256(server.payload).toStdString()}};
     QCOMPARE(readBytes(store.acquire(step, testGuard())), server.payload);
-    QVERIFY(!warnings.isEmpty());
+    QVERIFY(warnings.isEmpty()); QVERIFY(!notices.isEmpty());
     QCOMPARE(server.requests.size(), 2);
     QVERIFY(server.requests[1].contains("/releases/download/missing/tool.dat"));
   }
@@ -690,13 +698,16 @@ private slots:
         : QByteArray::fromStdString(Json{{"assets", Json::array({Json{{"name", "tool.dat"}, {"digest", "sha256:" + std::string(64, '0')}}})}}.dump());
       TestTrust trust; trust.baseUrl = server.url(); trust.hosts = {"localhost"};
       trust.authorities = QSslCertificate::fromPath(QString(AC_TEST_FIXTURES) + "/tls/localhost-cert.pem");
-      QStringList warnings; Options options;
-      options.event = [&](const QVariantMap &e) { if (e.value("kind") == "warn") warnings << e.value("text").toString(); };
+      QStringList warnings, notices; Options options;
+      options.event = [&](const QVariantMap &e) {
+        if (e.value("kind") == "warn") warnings << e.value("text").toString();
+        if (e.value("kind") == "info") notices << e.value("text").toString();
+      };
       ArtifactStore store(temp.path(), options, trust);
       Json step{{"do", "github-release"}, {"repo", "synthetic/example"}, {"tag", "v1"},
         {"asset", "tool.dat"}, {"sha256", sha256(server.payload).toStdString()}};
       if (malformed) {
-        QCOMPARE(readBytes(store.acquire(step, testGuard())), server.payload); QVERIFY(!warnings.isEmpty());
+        QCOMPARE(readBytes(store.acquire(step, testGuard())), server.payload); QVERIFY(warnings.isEmpty()); QVERIFY(!notices.isEmpty());
       } else {
         try { store.acquire(step, testGuard()); QFAIL("Contradictory API digest accepted"); }
         catch (const Error &e) { QCOMPARE(e.code, QString("E_HASH_MISMATCH")); }
@@ -742,6 +753,8 @@ private slots:
     QCOMPARE(hashFile(installed), expected);
     QVERIFY(Engine(options).uninstall(r).success);
     QVERIFY(QFileInfo(source).exists()); QCOMPARE(hashFile(source), expected);
+    QVERIFY(!QFileInfo(temp.path() + "/user/state/backups/" + expected).exists());
+    QVERIFY(QDir(temp.path() + "/user/state/media-removals").entryList(QDir::Dirs | QDir::NoDotAndDotDot).isEmpty());
   }
   void configRemergeKeepsUnmanagedEditsAndOriginalPrior() {
     QTemporaryDir temp; auto r = fixture(temp.path());
@@ -757,18 +770,91 @@ private slots:
     QCOMPARE(removed.state, QString("uninstall-incomplete"));
     QVERIFY(readBytes(cfg).contains("enabled=9")); QVERIFY(readBytes(cfg).contains("userkey=yes"));
   }
+  void failedUpdateRecordsPriorStateAndError_data() {
+    QTest::addColumn<QString>("priorState");
+    for (const auto &state : QStringList{"installed", "installed-with-warnings", "installed-with-skipped"})
+      QTest::newRow(qPrintable(state)) << state;
+  }
   void failedUpdateRecordsPriorStateAndError() {
+    QFETCH(QString, priorState);
     QTemporaryDir temp; auto r = fixture(temp.path()); Options options; options.survivalMs = 0;
     QVERIFY(Engine(options).install(r).success);
+    auto prior = readEnvelope(stateBase(r) + ".toml"); prior["state"] = priorState.toStdString();
+    writeEnvelope(stateBase(r) + ".toml", prior);
     r.operation = "update"; r.recipe["variant"]["flat"]["version"] = "v2";
     r.recipe["variant"]["flat"]["installed_when"] = "file:${install_dir}/missing.exe";
     const auto failed = Engine(options).install(r); QVERIFY(!failed.success);
     const auto state = readEnvelope(stateBase(r) + ".toml");
-    QCOMPARE(string(state, "state"), QString("failed"));
-    QCOMPARE(string(state, "previous_state"), QString("installed"));
+    QCOMPARE(string(state, "state"), priorState);
+    QCOMPARE(string(state, "previous_state"), priorState);
+    const auto runtime = Engine(options).runtimeState(r);
+    QVERIFY(runtime.variants[0].verified); QVERIFY(runtime.variants[0].installedWhenExists);
+    GameRecord game; game.id = r.gameId; game.runtime = runtime; game.hasRecipe = true;
+    Variant variant; variant.id = r.variantId; variant.status = "stable"; game.variants.push_back(variant);
+    resolveState(game); QCOMPARE(game.roles.value("baseState").toInt(), static_cast<int>(GameState::Installed));
     QCOMPARE(string(state, "last_error"), QString("E_VERIFY_FAILED"));
     QCOMPARE(string(state, "installed_version"), QString("v1"));
     QCOMPARE(readBytes(temp.path() + "/installed/synthetic/flat/example.exe"), QByteArray("synthetic binary v1"));
+  }
+  void uninstallErrorPreservesInstallAndActualCode() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options options; options.survivalMs = 0;
+    const auto live = temp.path() + "/installed/synthetic/flat/example.exe";
+    atomicWrite(live, "synthetic prior tool"); const auto priorHash = hashFile(live);
+    QVERIFY(Engine(options).install(r).success);
+    atomicWrite(temp.path() + "/user/state/backups/" + priorHash, "synthetic corrupt backup");
+    const auto removed = Engine(options).uninstall(r); QVERIFY(!removed.success);
+    QCOMPARE(removed.code, QString("E_ROLLBACK_INCOMPLETE"));
+    const auto state = readEnvelope(stateBase(r) + ".toml");
+    QCOMPARE(string(state, "state"), QString("installed"));
+    QCOMPARE(string(state, "last_error"), removed.code);
+    QVERIFY(Engine(options).runtimeState(r).variants[0].verified);
+  }
+  void missingOriginalMediaLinkRemains() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options options; options.survivalMs = 0;
+    const auto source = temp.path() + "/synthetic.media"; atomicWrite(source, "synthetic medium");
+    r.bindings["media"]["disc"] = Json{{"path", source.toStdString()}, {"sha256", hashFile(source).toStdString()}, {"verified", true}};
+    r.recipe["variant"]["flat"]["step"].push_back(Json{{"do", "copy-media"}, {"media", "disc"}, {"to", "${install_dir}/disc.media"}, {"mode", "link"}});
+    QVERIFY(Engine(options).install(r).success); QVERIFY(QFile::remove(source));
+    const auto removed = Engine(options).uninstall(r);
+    QCOMPARE(removed.state, QString("uninstall-incomplete")); QVERIFY(removed.code.isEmpty());
+    QCOMPARE(removed.manifest["file"].size(), size_t(1));
+    QCOMPARE(string(removed.manifest["file"][0], "origin"), QString("user-media-link"));
+    QVERIFY(QFileInfo(temp.path() + "/installed/synthetic/flat/disc.media").isFile());
+  }
+  void unrelatedMalformedCatalogDoesNotBlockPlan() {
+    QTemporaryDir temp; auto r = fixture(temp.path());
+    atomicWrite(temp.path() + "/games/unrelated/game.toml", "broken = [");
+    QVERIFY(!Engine().plan(r).steps.empty());
+    atomicWrite(temp.path() + "/games/synthetic/game.toml", "broken = [");
+    try { Engine().plan(r); QFAIL("Malformed requested game allowed planning"); }
+    catch (const Error &e) { QCOMPARE(e.code, QString("E_CONTENT_GUARD")); }
+    atomicWrite(temp.path() + "/games/synthetic/game.toml", "id=\"synthetic\"\n");
+    atomicWrite(temp.path() + "/games/alias/game.toml", "id=\"synthetic\"\n[[media]]\nset=7\n");
+    try { Engine().plan(r); QFAIL("Malformed requested game ID under alias allowed planning"); }
+    catch (const Error &e) { QCOMPARE(e.code, QString("E_CONTENT_GUARD")); }
+    QVERIFY(QFile::remove(temp.path() + "/games/alias/game.toml"));
+    r.recipe["variant"]["flat"]["step"][0]["from"] = "${install_root}/games/synthetic/setup/disc.ISO";
+    try { Engine().plan(r); QFAIL("Content guard was weakened"); }
+    catch (const Error &e) { QCOMPARE(e.code, QString("E_CONTENT_GUARD")); }
+  }
+  void mediaCopyRemovalRecovery() {
+    for (const auto &point : QStringList{"write", "commit"}) {
+      QTemporaryDir temp; auto r = fixture(temp.path()); Options options; options.survivalMs = 0;
+      const auto source = temp.path() + "/synthetic.media"; atomicWrite(source, "synthetic medium");
+      const auto hash = hashFile(source); r.allowMediaCopy = true;
+      r.bindings["media"]["disc"] = Json{{"path", source.toStdString()}, {"sha256", hash.toStdString()}, {"verified", true}};
+      r.recipe["variant"]["flat"]["step"].push_back(Json{{"do", "copy-media"}, {"media", "disc"}, {"to", "${install_dir}/disc.media"}, {"mode", "copy"}});
+      QVERIFY(Engine(options).install(r).success);
+      const auto live = temp.path() + "/installed/synthetic/flat/disc.media";
+      auto faulted = options; bool reached = false;
+      faulted.fault = [&](const QString &at) { if (at == point && !QFileInfo(live).exists()) { reached = true; throw std::runtime_error("synthetic media removal crash"); } };
+      bool crashed = false; try { Engine(faulted).uninstall(r); } catch (...) { crashed = true; }
+      QVERIFY(crashed); QVERIFY(reached); QVERIFY(Engine(options).recover(r).success);
+      if (point == "write") { QVERIFY(QFileInfo(live).exists()); QCOMPARE(hashFile(live), hash); }
+      else QVERIFY(!QFileInfo(live).exists());
+      QVERIFY(!QFileInfo(temp.path() + "/user/state/backups/" + hash).exists());
+      QVERIFY(QDir(temp.path() + "/user/state/media-removals").entryList(QDir::Dirs | QDir::NoDotAndDotDot).isEmpty());
+    }
   }
   void unlinkRecoveryRestoresOriginalIdentityWithoutBackup() {
     QTemporaryDir temp; auto r = fixture(temp.path());

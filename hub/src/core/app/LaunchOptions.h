@@ -9,6 +9,7 @@ struct LaunchOptions {
     QString dataRoot;
     QString installRoot, bindingsFile, variantId;
     QString error;
+    bool steamVrStarted = false;
     bool window = false;
     bool spike = false;
     bool help = false;
@@ -19,4 +20,6 @@ struct LaunchOptions {
 LaunchOptions parseLaunchOptions(const QStringList &arguments);
 bool wantsParentConsole(const LaunchOptions &options);
 bool shouldOpenDesktop(const LaunchOptions &options, bool overlayInitialized);
+bool shouldQuitAfterLastWindow(bool launchBusy);
+bool shouldQuitAfterLaunch(bool overlayInitialized, bool launchBusy, bool desktopVisible);
 }

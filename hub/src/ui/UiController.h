@@ -105,6 +105,9 @@ class UiController : public QObject {
  const Variant *variant(const GameRecord &record) const;
  QString readme(const GameRecord &record) const;
  void message(const QString &text);
+ void scheduleFacetsChanged();
+ void retryGameInstall(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
+ bool m_facetsQueued=false;
  GameListModel *m_games; FilterSortModel *m_filter; UiSettings *m_settings;
  QString m_detailId,m_variantId,m_status; QVariantList m_events; QVariantMap m_recovery;
  int m_artRevision=0;

@@ -135,7 +135,7 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
            .match(s.gameId)
            .hasMatch())
     throw Error("E_SHORTCUT", "Invalid game ID");
-  if ((!remove || !s.variantId.isEmpty()) && !QRegularExpression("\\A[a-z0-9]+(?:-[a-z0-9]+)*\\z")
+  if (!QRegularExpression("\\A[a-z0-9]+(?:-[a-z0-9]+)*\\z")
                       .match(s.variantId).hasMatch())
     throw Error("E_SHORTCUT", "An explicit valid variant ID is required");
   auto d = parse(before);
@@ -168,7 +168,7 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
   if (owned && !r.id)
     throw Error("E_VDF", "Owned shortcut has an invalid AppId");
   if (!r.id)
-    r.id = appId(quote(s.executable), s.title);
+    r.id = appId(quote(s.executable), s.title + "\nAladdinsCastle:" + s.gameId);
   if (remove && !owned) {
     r.bytes = before;
     return r;
@@ -177,6 +177,17 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
     if (&n != owned && n.type == 0 && idOf(n) == r.id)
       throw Error("E_APPID_COLLISION",
                   "Shortcut AppId is already used; no changes made");
+  if (remove && owned) {
+    const auto *options = field(*owned, "LaunchOptions");
+    const auto match = options && options->type == 1
+        ? QRegularExpression("\\A--launch ([a-z0-9]+(?:-[a-z0-9]+)*) --variant ([a-z0-9]+(?:-[a-z0-9]+)*)\\z")
+              .match(QString::fromUtf8(options->payload))
+        : QRegularExpressionMatch();
+    if (!match.hasMatch() || match.captured(1) != s.gameId)
+      throw Error("E_SHORTCUT_VARIANT", "Owned shortcut has no unambiguous pinned variant; keep it and review it separately");
+    if (match.captured(2) != s.variantId)
+      throw Error("E_SHORTCUT_VARIANT", "Owned shortcut is pinned to a different variant; keep it and review it separately");
+  }
   if (remove) {
     if (!owned) {
       r.bytes = before;
@@ -205,6 +216,12 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
       owned = &root->children.last();
     }
     set(*owned, integer("appid", r.id));
+    // Explicit AppIds are durable. New shortcuts also retain their game identity
+    // used as the CRC disambiguator; existing owned AppIds stay unchanged.
+    if (!r.ownedFound)
+      set(*owned, text("AladdinsCastleDisambiguator", s.gameId));
+    else
+      field(*owned, "AladdinsCastleDisambiguator");
     set(*owned, text("AppName", s.title));
     set(*owned, text("Exe", quote(s.executable)));
     set(*owned, text("StartDir", quote(s.startDir)));
@@ -295,6 +312,7 @@ Preview preview(const WriteRequest &r) {
   Document beforeDocument, afterDocument;
   const auto *prior = ownedShortcut(before, r.shortcut.gameId, beforeDocument);
   const auto *next = ownedShortcut(p.edit.bytes, r.shortcut.gameId, afterDocument);
+  p.json["appidDisambiguator"] = fieldValue(next ? field(*next, "AladdinsCastleDisambiguator") : (prior ? field(*prior, "AladdinsCastleDisambiguator") : nullptr));
   if (r.remove)
     p.json["launchOptions"] = fieldValue(prior ? field(*prior, "LaunchOptions") : nullptr);
   p.json["userFields"] = Json::object();

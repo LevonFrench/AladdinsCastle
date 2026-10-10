@@ -18,7 +18,7 @@ ScrollView {
    Column{required property var modelData;width:parent.width;visible:root.bucket===-1||root.bucket===modelData.id;height:visible?implicitHeight:0;spacing:8
     SectionHeader{width:parent.width;title:modelData.label;count:modelData.count}
     Row{width:parent.width;spacing:6;PillButton{vrOverlayMode:root.vrOverlayMode;text:"‹";width:vrOverlayMode?44:40;Accessible.name:"Previous games";onClicked:row.positionViewAtIndex(Math.max(0,row.currentIndex-2),ListView.Beginning)}
-     ListView{id:row;orientation:ListView.Horizontal;width:parent.width-(root.vrOverlayMode?100:92);height:Theme.get("size.explore_tile."+root.sizeValue+".h");model:modelData.games;spacing:10;clip:true;delegate:LibraryTile{vrOverlayMode:root.vrOverlayMode;required property var modelData;game:modelData;source:modelData.artTile||modelData.artPortrait||"";explore:true;sizeValue:root.sizeValue;onDetailRequested:id=>root.detailRequested(id)}}
+     ListView{id:row;orientation:ListView.Horizontal;width:parent.width-(root.vrOverlayMode?100:92);height:Theme.get("size.explore_tile."+root.sizeValue+".h");model:modelData.games;spacing:10;clip:true;delegate:LibraryTile{vrOverlayMode:root.vrOverlayMode;required property var modelData;game:modelData;source:modelData.artPortrait||modelData.artTile||"";explore:true;sizeValue:root.sizeValue;onDetailRequested:id=>root.detailRequested(id)}}
      PillButton{vrOverlayMode:root.vrOverlayMode;text:"›";width:vrOverlayMode?44:40;Accessible.name:"Next games";onClicked:{row.currentIndex=Math.min(row.count-1,row.currentIndex+2);row.positionViewAtIndex(row.currentIndex,ListView.Beginning)}}
     }
    }

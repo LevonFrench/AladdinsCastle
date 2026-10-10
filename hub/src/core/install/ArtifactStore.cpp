@@ -343,7 +343,7 @@ QString ArtifactStore::acquire(const Json &step, const Json &guard) {
     Json release;
     const auto unavailable = [&] {
       release = Json();
-      if (options_.event) options_.event(QVariantMap{{"kind", "warn"}, {"text", "GitHub API cross-check unavailable; verifying the pinned artifact"}});
+      if (options_.event) options_.event(QVariantMap{{"kind", "info"}, {"text", "GitHub API cross-check unavailable; verifying the pinned artifact"}});
     };
     try {
       release = githubRelease(string(step, "repo"), string(step, "tag"));

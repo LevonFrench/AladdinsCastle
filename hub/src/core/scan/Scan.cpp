@@ -178,7 +178,7 @@ struct Rom {
   QString bios;
 };
 struct Disk {
-  QString name, sha1, bios;
+  QString name, sha1, bios, merge;
 };
 struct Set {
   QString name, parent;
@@ -218,7 +218,7 @@ Sets readSets(const QString &path, bool supermodel, QStringList &errors,
       } else if (!supermodel && tag == "disk") {
         if (a.value("status") != "nodump" && a.value("optional") != "yes")
           current.disks << Disk{a.value("name").toString(), a.value("sha1").toString().toLower(),
-                                a.value("bios").toString()};
+                                a.value("bios").toString(), a.value("merge").toString()};
       } else if (!supermodel && tag == "device_ref")
         current.devices << a.value("name").toString();
       else if ((!supermodel && tag == "rom") || (supermodel && tag == "file")) {
@@ -283,8 +283,10 @@ struct ArchiveIndex {
   QHash<QString, QVector<const FileIdentity *>> chds;
   explicit ArchiveIndex(const QVector<FileIdentity> &files) {
     for (const auto &file : files) {
-      if (file.kind.startsWith("chd-") && file.error.isEmpty() && !file.chdHeaderSha1.isEmpty())
-        chds[QFileInfo(file.path).absolutePath()].push_back(&file);
+      // The v5 header identity survives an unsupported/corrupt sparse map.
+      // It is header evidence only; never claim a payload audit.
+      if (file.kind.startsWith("chd-") && !file.chdHeaderSha1.isEmpty())
+        chds[QFileInfo(file.path).absolutePath().toCaseFolded()].push_back(&file);
       if (file.kind == "archive-crc" && file.error.isEmpty()) {
         QSet<quint32> seen;
         for (const auto &entry : file.entries)
@@ -348,15 +350,21 @@ QVector<Rom> biosRoms(const Set &set, const QString &bios) {
 const FileIdentity *matchingDisk(const Disk &disk, const Set &set,
                                 const FileIdentity &archive, const ArchiveIndex &index) {
   if (!QRegularExpression("^[a-f0-9]{40}$").match(disk.sha1).hasMatch()) return nullptr;
-  const auto folder = QDir(QFileInfo(archive.path).absolutePath()).filePath(set.name);
-  for (const auto *file : index.chds.value(folder))
-    if (file->chdHeaderSha1.compare(disk.sha1, Qt::CaseInsensitive) == 0) return file;
+  auto root = QFileInfo(archive.path).absolutePath();
+  if (archive.kind.startsWith("chd-")) root = QFileInfo(root).absolutePath();
+  QStringList names{set.name};
+  if (!disk.merge.isEmpty() && !set.parent.isEmpty()) names << set.parent;
+  for (const auto &name : names)
+    for (const auto *file : index.chds.value(QDir(root).filePath(name).toCaseFolded()))
+      if (file->chdHeaderSha1.compare(disk.sha1, Qt::CaseInsensitive) == 0) return file;
   return nullptr;
 }
 Binding deviceRoms(const Set &set, const ArchiveIndex &index, const FileIdentity &primary) {
   Binding best;
   bool first = true;
-  for (const auto &bios : biosChoices(set)) {
+  // Device BIOS choices have no independently addressable launch switch.
+  // Require their metadata default instead of silently accepting an alternative.
+  for (const auto &bios : QStringList{biosChoices(set).first()}) {
     Binding candidate;
     for (const auto &rom : biosRoms(set, bios)) {
       bool found = false;
@@ -395,10 +403,12 @@ Binding matchSet(const QString &name, const Sets &sets,
     for (const auto &rom : expected.roms)
       for (const auto *f : index.providers.value(rom.crc))
         if (index.contains(f, rom)) relevant.insert(f);
-    // Disk-only definitions still require a ZIP/7z companion in the same root.
+    // Disk-only machines anchor to their CHD, never an unrelated archive.
     if (expected.roms.isEmpty() && !expected.disks.isEmpty())
-      for (auto it = index.signatures.cbegin(); it != index.signatures.cend(); ++it)
-        relevant.insert(it.key());
+      for (const auto &files : index.chds)
+        for (const auto *file : files)
+          for (const auto &disk : expected.disks)
+            if (matchingDisk(disk, expected, *file, index) == file) relevant.insert(file);
     auto candidates = relevant.values();
     std::sort(candidates.begin(), candidates.end(),
               [](const FileIdentity *a, const FileIdentity *b) { return a->path < b->path; });
@@ -412,6 +422,7 @@ Binding matchSet(const QString &name, const Sets &sets,
           if (rom.merge.isEmpty() && index.contains(&file, rom)) ++score;
         Binding b;
         b.path = file.path; b.identity = expected.name;
+        b.bios = bios;
         b.setCandidates = families.value(targetFamily);
         b.proof = supermodel ? "supermodel-header-crc" : "mame-header-crc";
         for (const auto &disk : expected.disks) {
@@ -455,7 +466,10 @@ Binding matchSet(const QString &name, const Sets &sets,
         b.supportPaths.removeDuplicates();
         b.verified = b.missing.isEmpty();
         if (best.path.isEmpty() || (b.verified && !best.verified) ||
-            (b.verified == best.verified && score > bestScore)) {
+            (b.verified == best.verified &&
+             (score > bestScore || (score == bestScore &&
+              ((b.identity == name && best.identity != name) ||
+               (b.identity == best.identity && bios == biosChoices(expected).first() && best.bios != bios)))))) {
           best = b; bestScore = score;
         }
       }
@@ -555,6 +569,7 @@ Json ScanResult::toJson() const {
                  {"path", v.path.toStdString()},
                  {"proof", v.proof.toStdString()},
                  {"identity", v.identity.toStdString()},
+                 {"bios", v.bios.toStdString()},
                  {"setCandidates", list(v.setCandidates)},
                  {"verified", v.verified},
                  {"supportPaths", list(v.supportPaths)},

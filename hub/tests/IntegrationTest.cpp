@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "app/HubServices.h"
+#include "core/app/LaunchOptions.h"
 #include "core/catalog/CatalogLoader.h"
 #include "core/install/Support.h"
 #include <QTemporaryDir>
@@ -75,7 +76,7 @@ private slots:
  void launchPreparationBusyAndStopAreDistinct(){
     QTemporaryDir temp;ac::GameListModel games(syntheticCatalog(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
     ac::launch::Request request;request.root=temp.path();request.gameId="synthetic";request.variantId="flat-mame";request.plan.executable=QCoreApplication::applicationFilePath();request.plan.cwd=temp.path();request.plan.args={"--synthetic-child"};
-    bool prepared=false,busyMessage=false;auto connection=connect(services.launcher(),&ac::launch::LaunchService::starting,&ui,[&](const QString &,const QString &){prepared=services.preparing()&&services.launchBusy()&&!services.playing()&&ui.status().contains("Preparing");ui.play("synthetic","flat-mame");busyMessage=ui.status().contains("Play refused");ui.stopLaunch();});
+    bool prepared=false,busyMessage=false;auto connection=connect(services.launcher(),&ac::launch::LaunchService::starting,&ui,[&](const QString &,const QString &){prepared=!ac::shouldQuitAfterLastWindow(services.launchBusy())&&services.preparing()&&services.launchBusy()&&!services.playing()&&ui.status().contains("Preparing");ui.play("synthetic","flat-mame");busyMessage=ui.status().contains("Play refused");ui.stopLaunch();});
     services.launcher()->start(request);QVERIFY(prepared);QVERIFY(busyMessage);QVERIFY(!services.launchBusy());disconnect(connection);
     request.prepareProfile=false;QVERIFY(services.launcher()->start(request));QTRY_VERIFY_WITH_TIMEOUT(services.playing(),5000);QVERIFY(services.launchBusy());QVERIFY(!services.preparing());ui.stopLaunch();QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy()&&!services.playing(),6000);
  }
@@ -87,7 +88,7 @@ private slots:
     ui.uninstall("synthetic","flat-mame");services.confirmRemoval(true);QCOMPARE(steamChanges.count(),1);QVERIFY(services.steamRemoving());QVERIFY(!services.steamWriteReady());QCOMPARE(ac::install::readBytes(target),before);QCOMPARE(services.steamAccounts(),QStringList{"123"});
     services.previewSteam("123");QVERIFY2(services.steamWriteReady(),qPrintable(services.steamPreview()));const auto preview=ac::Json::parse(services.steamPreview().toStdString());QCOMPARE(QString::fromStdString(preview["operation"].get<std::string>()),QString("remove"));QVERIFY(QString::fromStdString(preview["launchOptions"].get<std::string>()).contains("--variant flat-mame"));QCOMPARE(ac::install::readBytes(target),before);
     services.confirmRemoval(false);QVERIFY(!services.steamWriteReady());services.approveSteamWrite();QCOMPARE(ac::install::readBytes(target),before);QTRY_VERIFY_WITH_TIMEOUT(!ui.installing(),5000);
-    QVERIFY(services.beginSteam("synthetic",{},true));services.previewSteam("123");QVERIFY(services.steamWriteReady());QVERIFY(services.steamPreview().contains("--variant flat-mame"));QCOMPARE(ac::install::readBytes(target),before);
+    QVERIFY(services.beginSteam("synthetic","flat-mame",true));services.previewSteam("123");QVERIFY(services.steamWriteReady());QVERIFY(services.steamPreview().contains("--variant flat-mame"));QCOMPARE(ac::install::readBytes(target),before);
     shortcut.variantId="retired-vr";shortcut.vr=true;const auto legacy=ac::steam::edit(before,shortcut).bytes;ac::install::atomicWrite(target,legacy);
     QVERIFY(services.beginSteam("synthetic","retired-vr",true));services.previewSteam("123");QVERIFY(services.steamWriteReady());QVERIFY(services.steamPreview().contains("--variant retired-vr"));QCOMPARE(ac::install::readBytes(target),legacy);
     QVERIFY(!services.beginSteam("synthetic","unavailable-route",false));QVERIFY(!services.steamWriteReady());QVERIFY(services.steamPreview().contains("available M1 flat variant"));QCOMPARE(ac::install::readBytes(target),legacy);
@@ -120,6 +121,17 @@ private slots:
     QTemporaryDir temp;ac::GameListModel games(syntheticCatalog(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
     QVERIFY(settings.saveGame("synthetic",{{"futureKey","keep"},{"futureModes",QVariantList{"a","b"}},{"laser","off"}}));QVERIFY(settings.saveGame("synthetic",{{"laser","on"}}));ac::UiSettings saved(temp.filePath("user"));QCOMPARE(saved.game("synthetic").value("futureKey").toString(),QString("keep"));QCOMPARE(saved.game("synthetic").value("futureModes").toList(),QVariantList({"a","b"}));QCOMPARE(saved.game("synthetic").value("laser").toString(),QString("on"));QVERIFY(ui.status().contains("Settings saved"));
     QVERIFY(!services.beginSteam("unknown-game",{},true));QVERIFY(ui.status().startsWith("Steam:"));QVERIFY(ui.recovery().isEmpty());ui.uninstall("synthetic","../invalid");QVERIFY(ui.status().startsWith("Hub:"));QVERIFY(ui.recovery().isEmpty());QVERIFY(!ui.installing());
+ }
+ void oldMameReceiptNeedsBiosRefresh(){
+    QTemporaryDir temp;
+    for(const auto &shape:{"missing","invalid","present"}){
+        const auto root=temp.filePath(shape);const auto media=root+"/synthetic.zip";ac::install::atomicWrite(media,"synthetic");receipt(root,media);
+        const auto path=root+"/user/cache/scan-bindings.json";auto saved=ac::Json::parse(ac::install::readBytes(path).toStdString());saved["bindings"][0]["proof"]="mame-header-crc";
+        if(QString(shape)!="missing")saved["bindings"][0]["bios"]=QString(shape)=="present"?ac::Json(""):ac::Json(true);
+        ac::install::atomicWrite(path,QByteArray::fromStdString(saved.dump()));ac::GameListModel games(syntheticCatalog(root));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(root+"/user");ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,root);
+        QCOMPARE(games.find("synthetic")->runtime.mediaFound.contains("synthetic"),QString(shape)=="present");
+        services.launcher()->warning("synthetic","Synthetic advisory");QVERIFY(ui.status().contains("Launch notice"));QVERIFY(ui.recovery().isEmpty());
+    }
  }
  void emptyCatalogToolActionsFailSafely(){
     QTemporaryDir temp;ac::CatalogData catalog;ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());

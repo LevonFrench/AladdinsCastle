@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "OverlayRuntime.h"
 #include <QFile>
+#include <QCoreApplication>
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -8,6 +15,32 @@
 #include <cstdint>
 namespace ac {
 namespace {
+bool probeOpenVrLibrary(QString *error) {
+#ifdef Q_OS_WIN
+    // Resolve only the portable DLL; never let the delay loader raise SEH on
+    // absent DLLs or search another application's runtime installation.
+    static HMODULE module = nullptr;
+    if (!module) {
+        const auto path = QCoreApplication::applicationDirPath() + "/openvr_api.dll";
+        module = LoadLibraryExW(reinterpret_cast<LPCWSTR>(path.utf16()), nullptr,
+                               LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+    }
+    if (!module) {
+        *error = "OpenVR runtime DLL is missing or cannot be loaded from the portable folder.";
+        return false;
+    }
+    for (const auto *symbol : {"VR_InitInternal2", "VR_ShutdownInternal", "VR_GetGenericInterface",
+                               "VR_IsInterfaceVersionValid", "VR_GetInitToken", "VR_GetVRInitErrorAsEnglishDescription"}) {
+        if (!GetProcAddress(module, symbol)) {
+            *error = "OpenVR runtime DLL is incompatible: required exports are missing.";
+            return false;
+        }
+    }
+#else
+    Q_UNUSED(error);
+#endif
+    return true;
+}
 QString overlayError(vr::EVROverlayError error) {
     return QString::fromLatin1(vr::VROverlay()->GetOverlayErrorNameFromEnum(error));
 }
@@ -15,6 +48,7 @@ class OpenVrRuntime final : public OverlayRuntime {
 public:
     ~OpenVrRuntime() override { shutdown(); }
     bool initialize(QSize size, const QString &thumbnail, QString *error) override {
+        if (!probeOpenVrLibrary(error)) return false;
         vr::EVRInitError initError = vr::VRInitError_None;
         m_system = vr::VR_Init(&initError, vr::VRApplication_Overlay);
         if (initError != vr::VRInitError_None) {
@@ -103,6 +137,7 @@ bool changeOverlayRegistration(const QString &manifest, bool add, QString *error
     if (applications.size() != 1 || applications.at(0).toObject().value("app_key").toString() != QLatin1String(overlayKey)) {
         *error = "Unexpected overlay manifest contents."; return false;
     }
+    if (!probeOpenVrLibrary(error)) return false;
     vr::EVRInitError initError = vr::VRInitError_None;
     vr::VR_Init(&initError, vr::VRApplication_Utility);
     if (initError != vr::VRInitError_None) {

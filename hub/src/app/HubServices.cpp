@@ -35,6 +35,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     steamRootSource_=steamRootSource?std::move(steamRootSource):[] { return launch::systemRuntimeInputs().steamPath; };
     steamRunningProbe_=std::move(steamRunningProbe);
     installer_.setRuntimeStateSource([this](const QString &id){return current(id);});
+    connect(&launcher_,&launch::LaunchService::warning,ui_,[this](const QString &,const QString &text){ui_->showError("Launch notice",text);});
     launcher_.setRuntimeStateSource([this](const QString &id){return current(id);});
     connect(ui_,&UiController::writeConfigRequested,this,[this](const QString &id,const QVariantMap &){ui_->settingsSaved(id);});
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
@@ -204,7 +205,7 @@ void HubServices::restore(){
             auto state=game.runtime;state.gameId=game.id;
             state.lastPlayed=times.value(game.id.toStdString(),qint64(0));
             for(const auto &b:bindings_.value("bindings",Json::array()))if(text(b,"gameId")==game.id){
-                scan::Binding binding;binding.gameId=game.id;binding.requirementId=text(b,"requirementId");binding.path=text(b,"path");binding.identity=text(b,"identity");binding.proof=text(b,"proof");binding.verified=b.value("verified",false);binding.supportPaths=strings(b,"supportPaths");
+                scan::Binding binding;binding.gameId=game.id;binding.requirementId=text(b,"requirementId");binding.path=text(b,"path");binding.identity=text(b,"identity");binding.proof=text(b,"proof");binding.verified=b.value("verified",false);if(binding.proof=="mame-header-crc"&&(!b.contains("bios")||!b["bios"].is_string()))binding.verified=false;binding.supportPaths=strings(b,"supportPaths");
                 const QFileInfo currentFile(binding.path);
                 if(!currentFile.isFile())binding.verified=false;
                 for(const auto &file:bindings_.value("files",Json::array()))if(text(file,"path")==binding.path&&(file.value("size",qint64(-1))!=currentFile.size()||file.value("mtime",qint64(-1))!=currentFile.lastModified().toMSecsSinceEpoch()))binding.verified=false;

@@ -64,6 +64,11 @@ void cleanStaging(const Request &r, const QString &run) {
   if (QFileInfo(staging).exists() && !QFileInfo(staging).isSymLink())
     QDir(staging).removeRecursively();
 }
+void cleanMediaRemovals(const Request &r, const QString &run) {
+  if (!QRegularExpression("^[0-9a-f-]{36}$").match(run).hasMatch()) return;
+  const auto path = scopedPath("user/state/media-removals/" + run, r.root);
+  if (QFileInfo(path).exists() && !QFileInfo(path).isSymLink()) QDir(path).removeRecursively();
+}
 QStringList strings(const Json &v) {
   QStringList out;
   if (v.is_array())
@@ -293,6 +298,12 @@ public:
     append(intent); fault(options, "intent");
     if (!QFile::remove(path)) throw Error("E_FILE_IN_USE", "Cannot remove media link");
     fault(options, "write"); intent["kind"] = "done"; append(intent); fault(options, "done");
+  }
+  void removeMediaCopy(const QString &path) {
+    // Move rather than copy media into a run-local quarantine until commit.
+    const auto trash = scopedPath("user/state/media-removals/" + run, r.root);
+    if (!QDir().mkpath(trash)) throw Error("E_WRITE_DENIED", "Cannot stage media removal");
+    rename(path, trash + "/" + QUuid::createUuid().toString(QUuid::WithoutBraces));
   }
   void checkpoint() {
     fault(options, "before-manifest");
@@ -619,11 +630,14 @@ bool rollback(const Request &r, const Json &records, const Options &options,
                    {"state", "failed"}};
     state["previous_state"] = string(start["state_before"], "state", "not-installed").toStdString();
     state["last_error"] = errorCode.toStdString();
-    state["state"] = complete ? "failed" : "rollback-incomplete";
+    const auto previous = string(start["state_before"], "state", "not-installed");
+    state["state"] = (complete ? (previous.startsWith("installed") ? previous : QString("failed"))
+                              : QString("rollback-incomplete")).toStdString();
     writeEnvelope(base + ".toml", state);
-    if (complete)
-      durableAppend(base + ".journal.jsonl",
-                    Json{{"kind", "rollback-complete"}});
+    if (complete) {
+      durableAppend(base + ".journal.jsonl", Json{{"kind", "rollback-complete"}});
+      cleanMediaRemovals(r, string(start, "run"));
+    }
   }
   event(options, {}, complete ? "ok" : "fail",
         complete ? "Changes rolled back" : "Rollback incomplete",
@@ -654,14 +668,27 @@ Json guardFor(const Request &r) {
   Json names = guard.value("names", Json::array());
   QDirIterator it(catalog + "/games", {"game.toml"}, QDir::Files,
                   QDirIterator::Subdirectories);
+  const QDir requestedFolder(catalog + "/games/" + r.gameId);
   while (it.hasNext()) {
+    const auto path = it.next();
+    const auto folder = QFileInfo(path).dir();
+    bool requested = QDir::cleanPath(folder.absolutePath()).compare(
+                         QDir::cleanPath(requestedFolder.absolutePath()), Qt::CaseInsensitive) == 0;
+    const auto canonicalRequested = requestedFolder.canonicalPath();
+    if (!canonicalRequested.isEmpty() && folder.canonicalPath().compare(
+            canonicalRequested, Qt::CaseInsensitive) == 0) requested = true;
     try {
-      const auto game = CatalogLoader::parseToml(it.next());
+      const auto game = CatalogLoader::parseToml(path);
+      requested = requested || string(game, "id") == r.gameId;
       for (const auto &m : game.value("media", Json::array()))
         if (m.contains("set"))
           names.push_back(m["set"].get<std::string>() + ".zip");
     } catch (const std::exception &) {
-      throw Error("E_CONTENT_GUARD", "Catalog media names are unavailable; install is blocked");
+      if (requested)
+        throw Error("E_CONTENT_GUARD", "Requested game media names are unavailable; install is blocked");
+      // The explicit guard still denies all configured content extensions/hashes.
+      // Only an unrelated malformed record may be skipped.
+      continue;
     }
   }
   guard["names"] = names;
@@ -1264,7 +1291,9 @@ Result Engine::uninstall(const Request &r) {
       if (!QFileInfo::exists(path))
         continue;
       if (string(row, "origin") == "user-media-link" &&
-          fileIdentity(path) != string(row, "file_id")) {
+          (!QFileInfo(string(row, "source")).isFile() ||
+           fileIdentity(string(row, "source")) != string(row, "file_id") ||
+           fileIdentity(path) != string(row, "file_id"))) {
         remaining.push_back(row);
         tx->warning = true;
         continue;
@@ -1292,6 +1321,8 @@ Result Engine::uninstall(const Request &r) {
         tx->rawCopy(backupPath, path);
       } else if (string(row, "origin") == "user-media-link")
         tx->unlinkMedia(path, row);
+      else if (string(row, "origin") == "user-media-copy")
+        tx->removeMediaCopy(path);
       else
         tx->rawWrite(path, {}, true);
       for (auto current = tx->manifest["file"].begin();
@@ -1316,6 +1347,7 @@ Result Engine::uninstall(const Request &r) {
     const auto state = remaining.empty() ? QString("not-installed")
                                          : QString("uninstall-incomplete");
     tx->commit(state, p.version);
+    cleanMediaRemovals(r, tx->run);
     return {remaining.empty(),
             remaining.empty() ? 0 : 2,
             state,
@@ -1325,7 +1357,7 @@ Result Engine::uninstall(const Request &r) {
             tx->manifest};
   } catch (const Error &e) {
     if (tx)
-      rollback(r, loadJournal(tx->base + ".journal.jsonl"), options_);
+      rollback(r, loadJournal(tx->base + ".journal.jsonl"), options_, e.code);
     return {false,
             2,
             "uninstall-incomplete",
@@ -1349,6 +1381,7 @@ Result Engine::recover(const Request &r) {
       if (string(*it, "kind") == "commit") {
         writeEnvelope(base + ".manifest.toml", (*it)["manifest"]);
         writeEnvelope(base + ".toml", (*it)["state"]);
+        cleanMediaRemovals(r, string(records[0], "run"));
         return {true,
                 0,
                 string((*it)["state"], "state"),
@@ -1360,7 +1393,7 @@ Result Engine::recover(const Request &r) {
     const auto ok = rollback(r, records, options_);
     return {ok,
             ok ? 0 : 2,
-            ok ? "failed" : "rollback-incomplete",
+            ok ? string(readEnvelope(base + ".toml"), "state") : QString("rollback-incomplete"),
             {},
             ok ? "Interrupted run rolled back" : "Rollback incomplete",
             Json::object()};

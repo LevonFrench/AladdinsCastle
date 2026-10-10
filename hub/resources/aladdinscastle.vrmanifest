@@ -7,7 +7,7 @@
       "binary_path_windows": "../aladdinscastle-hub.exe",
       "binary_path_linux": "../aladdinscastle-hub",
       "working_directory": "..",
-      "arguments": "--overlay",
+      "arguments": "--overlay --steamvr-started",
       "is_dashboard_overlay": true,
       "image_path": "overlay-thumbnail.png",
       "strings": {

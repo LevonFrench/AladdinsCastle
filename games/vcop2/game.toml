@@ -22,6 +22,7 @@ note = "Arcade set (for theatre / future true-3D)"
 
 [[media]]
 kind = "pc-game"
+id = "vcop2-pc"
 find = ["PPJ2DD.EXE"]
 note = "Virtua Cop 2 for Windows (1997); needed by the VC2VR variant. Keep its disc image mounted for music."
 

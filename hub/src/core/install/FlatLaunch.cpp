@@ -54,6 +54,7 @@ LaunchPlan makeFlatLaunchPlan(const GameRecord &game, const Json &emulator,
   Json bios = Json::object();
   Json aliases = Json::object();
   QStringList rompaths;
+  QString selectedBios;
   int index = 0;
   for (const auto &m : game.raw.value("media", Json::array())) {
     const auto key = mediaRequirementId(m, game.id, index++);
@@ -61,17 +62,24 @@ LaunchPlan makeFlatLaunchPlan(const GameRecord &game, const Json &emulator,
       continue;
     const auto media = bindings.value("media", Json::object())
                            .value(key.toStdString(), Json::object());
+    if (tool == "mame" && string(media, "proof") == "mame-header-crc" &&
+        (!media.contains("bios") || !media["bios"].is_string()))
+      throw Error("E_MEDIA_IDENTITY", "BIOS selection requires a fresh metadata scan");
     const auto path = string(media, "path");
     if (!QFileInfo(path).isFile() || !media.value("verified", false)) {
       if (optionalMedia(m)) continue;
       throw Error("E_MEDIA_MISSING", "Required media is not verified");
     }
-    const auto dir = QFileInfo(path).absolutePath();
+    auto dir = QFileInfo(path).absolutePath();
+    if (tool == "mame" && QFileInfo(path).suffix().compare("chd", Qt::CaseInsensitive) == 0)
+      dir = QFileInfo(dir).absolutePath();
     if (string(m, "kind").contains("bios")) {
       vars["bios.dir"] = dir;
       bios = media;
       continue;
     }
+    if (chosen.empty())
+      selectedBios = string(media, "bios");
     if (chosen.empty())
       chosen = Json{
           {"path", path.toStdString()},
@@ -131,6 +139,11 @@ LaunchPlan makeFlatLaunchPlan(const GameRecord &game, const Json &emulator,
   }
   if (plan.args.isEmpty())
     throw Error("E_PLAN_INVALID", "Manifest launch arguments missing");
+  if (tool == "mame" && !selectedBios.isEmpty()) {
+    if (!QRegularExpression("\\A[a-zA-Z0-9][a-zA-Z0-9_.-]*\\z").match(selectedBios).hasMatch())
+      throw Error("E_PLAN_INVALID", "Invalid MAME BIOS selection");
+    plan.args << "-bios" << selectedBios;
+  }
   if (tool == "mame")
     for (const auto *folder : {"cfg", "nvram", "input", "sta", "snap", "diff",
                                "comments", "home", "ini"})

@@ -94,11 +94,35 @@ class UiTest:public QObject {
   QPersistentModelIndex index(model->index(1));QSignalSpy resets(model,&QAbstractItemModel::modelReset),changes(model,&QAbstractItemModel::dataChanged);const auto originalState=games->find(id)->runtime;auto state=originalState;state.playing=true;games->applyRuntimeStates({state});QTRY_VERIFY(changes.count()>0);QVERIFY(index.isValid());QCOMPARE(resets.count(),0);QVERIFY(kept);QVERIFY(namedItems(list,"gameCard").contains(kept.data()));QVERIFY(kept->hasActiveFocus());QCOMPARE(list->property("contentY").toDouble(),y);
   games->applyRuntimeStates({originalState});QTest::qWait(50);list->setProperty("contentY",0.0);
  }
+ void runtimeBurstCoalescesFacetNotifications(){
+  filter.clearFacets();filter.setSortMode("title");QCoreApplication::processEvents();QSignalSpy facets(ui.get(),&ac::UiController::facetsChanged);QVector<ac::RuntimeState> originals;
+  for(int i=0;i<12;++i){auto state=games->records()[i].runtime;originals<<state;state.lastPlayed=9000+i;games->applyRuntimeStates({state});}
+  QCOMPARE(facets.count(),0);QTRY_COMPARE(facets.count(),1);games->applyRuntimeStates(originals);QTest::qWait(30);
+ }
+ void hardwareExpansionSurvivesRecount(){
+  filter.setFacet("genre",QStringList{"gun"});QTest::qWait(50);const auto kind=ui->hardwareTree().first().toMap();const auto family=kind.value("children").toList().first().toMap();
+  auto drawer=window->findChild<QObject *>("filtersDrawer");QVERIFY(drawer);QVERIFY(QMetaObject::invokeMethod(drawer,"open"));QTest::qWait(50);
+  QVERIFY(QMetaObject::invokeMethod(drawer,"setExpanded",Q_ARG(QVariant,kind.value("id")),Q_ARG(QVariant,QVariant(false))));
+  QVERIFY(QMetaObject::invokeMethod(drawer,"setExpanded",Q_ARG(QVariant,family.value("id")),Q_ARG(QVariant,QVariant(true))));filter.clearFacets();QTest::qWait(70);
+  auto kinds=namedItems(window->contentItem(),"hardwareKind-"+kind.value("id").toString());QCOMPARE(kinds.size(),1);QVERIFY(!kinds.first()->property("expanded").toBool());
+  QVERIFY(QMetaObject::invokeMethod(drawer,"setExpanded",Q_ARG(QVariant,kind.value("id")),Q_ARG(QVariant,QVariant(true))));QTest::qWait(50);
+  auto families=namedItems(window->contentItem(),"hardwareFamily-"+family.value("id").toString());QCOMPARE(families.size(),1);QVERIFY(families.first()->property("expanded").toBool());QVERIFY(QMetaObject::invokeMethod(drawer,"close"));
+ }
+ void recoveryRetryIgnoresOpenPage(){
+  auto failed=*games->find("timecris");failed.id="synthetic-failed";auto page=failed;page.id="synthetic-page";
+  ac::Variant route;route.id="flat-synthetic";route.title="Synthetic route";route.generated=true;route.quality="flat";
+  for(auto *game:{&failed,&page}){game->runtime.jobStatus=ac::JobStatus::Failed;game->variants={route};game->install={{"variant",{{"flat-synthetic",ac::Json::object()}}}};}
+  ac::CatalogData data;data.games={failed,page};ac::GameListModel source(std::move(data));ac::FilterSortModel proxy;proxy.setSourceModel(&source);ac::UiSettings state(user.filePath("retry-state"));ac::UiController controller(&source,&proxy,&state);
+  controller.installEvent({{"kind","fail"},{"retryKind","game"},{"retryOperation","install"},{"retryGameId","synthetic-failed"},{"retryVariantId","flat-synthetic"}});controller.openDetail("synthetic-page");QSignalSpy retry(&controller,&ac::UiController::retryInstallRequested);controller.retryInstall(false,{});
+  QCOMPARE(retry.count(),1);QCOMPARE(retry.first()[0].toString(),QString("synthetic-failed"));QCOMPARE(retry.first()[1].toString(),QString("flat-synthetic"));
+  controller.primary("synthetic-page");QCOMPARE(retry.count(),2);QCOMPARE(retry.last()[0].toString(),QString("synthetic-page"));QCOMPARE(retry.last()[1].toString(),QString("flat-synthetic"));
+  QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&controller);QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/RecoveryPanel.qml"));std::unique_ptr<QObject> panel(component.create(&context));QVERIFY(panel);auto button=panel->findChild<QObject *>("retrySelectedGame");QVERIFY(button);QVERIFY(button->property("text").toString().contains("synthetic-failed"));
+ }
  void recentReordersWhenLastPlayedChanges(){
   filter.setSortMode("recent");const auto id=games->records().last().id;const auto original=games->find(id)->runtime;auto state=original;state.lastPlayed=123456;games->applyRuntimeStates({state});QTRY_COMPARE(ui->filteredGame(0).value("gameId").toString(),id);games->applyRuntimeStates({original});filter.setSortMode("title");
  }
  void exploreTilesBindLocalArt(){
-  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/ExplorePage.qml"));std::unique_ptr<QObject> object(component.create());QVERIFY(object);auto page=qobject_cast<QQuickItem *>(object.get());QVERIFY(page);page->setParentItem(window->contentItem());page->setWidth(1000);page->setHeight(650);QTest::qWait(100);const auto tiles=namedItems(page,"libraryTile");QVERIFY(!tiles.isEmpty());for(auto tile:tiles)QVERIFY(tile->property("source").toUrl().toString().startsWith("image://art/"));page->setParentItem(nullptr);
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/ExplorePage.qml"));std::unique_ptr<QObject> object(component.create());QVERIFY(object);auto page=qobject_cast<QQuickItem *>(object.get());QVERIFY(page);page->setParentItem(window->contentItem());page->setWidth(1000);page->setHeight(650);QTest::qWait(100);const auto tiles=namedItems(page,"libraryTile");QVERIFY(!tiles.isEmpty());for(auto tile:tiles){const auto source=tile->property("source").toUrl().toString();QVERIFY(source.startsWith("image://art/"));QVERIFY(source.contains("/portrait"));}page->setParentItem(nullptr);
  }
  void nonInstallErrorsHaveNoInstallRecovery(){
   ui->installFinished(true,"Synthetic completion");ui->showError("Steam","Synthetic failure");QCOMPARE(ui->status(),QString("Steam: Synthetic failure"));QVERIFY(ui->recovery().isEmpty());QVERIFY(!ui->installing());

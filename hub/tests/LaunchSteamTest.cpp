@@ -4,11 +4,13 @@
 #include "core/steam/Steam.h"
 #include <QGuiApplication>
 #include <QSignalSpy>
+#include <QElapsedTimer>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextStream>
 #include <QtEndian>
 #include <csignal>
+#include <limits>
 using namespace ac;
 namespace {
 void write(const QString &path, const QByteArray &bytes) {
@@ -42,6 +44,10 @@ private slots:
   void ownedEditPreservesUnownedAndUnknown();
   void userFieldsPreservedAndPreviewed();
   void pinnedVariants();
+  void variantRemovalRefused_data();
+  void variantRemovalRefused();
+  void sameTitlesDisambiguated();
+  void rotationFailureAdvisory();
   void steamtoolVariantRequest();
   void finalWriteGuards();
   void finalArtGuards_data();
@@ -63,6 +69,8 @@ private slots:
   void sameGameLock();
   void boundedLogsAndConcurrentLastPlayed();
   void lastPlayedLockRefusal();
+  void completionBlocksReentrantStart();
+  void finishedCanStartReplacementWithoutStaleRaise();
   void hungChildCanBeStopped();
   void immediateCancel_data();
   void immediateCancel();
@@ -103,9 +111,11 @@ void LaunchSteamTest::appIds() {
   QCOMPARE(steam::appId("\"/tmp/hub\"", QString::fromUtf8("遊戲 Café")),
            quint32(0x9c6c4176));
   QCOMPARE(steam::launchId(0xcbf43926), quint64(0xcbf4392602000000ull));
-  QCOMPARE(steam::artNames(4294967295u),
-           QStringList({"4294967295.png", "4294967295p.png",
-                        "4294967295_hero.png", "4294967295_logo.png"}));
+  const auto maximumId = std::numeric_limits<quint32>::max();
+  const auto stem = QString::number(maximumId);
+  QCOMPARE(steam::artNames(maximumId),
+           QStringList({stem + ".png", stem + "p.png",
+                        stem + "_hero.png", stem + "_logo.png"}));
 }
 void LaunchSteamTest::ownedEditPreservesUnownedAndUnknown() {
   auto first = steam::edit({}, shortcut());
@@ -209,7 +219,83 @@ void LaunchSteamTest::pinnedVariants() {
   }
   // Removal of a legacy shortcut does not invent a flat variant.
   s.variantId.clear();
-  QVERIFY(steam::edit(vr.bytes, s, true).changed);
+  QVERIFY_THROWS_EXCEPTION(install::Error, steam::edit(vr.bytes, s, true));
+}
+void LaunchSteamTest::variantRemovalRefused_data() {
+  QTest::addColumn<QByteArray>("options");
+  QTest::newRow("different-variant") << QByteArray("--launch test-game --variant other-flat");
+  QTest::newRow("legacy-unpinned") << QByteArray("--launch test-game");
+  QTest::newRow("wrong-game") << QByteArray("--launch other-game --variant flat-synthetic");
+  QTest::newRow("extra-options") << QByteArray("--launch test-game --variant flat-synthetic --variant other-flat");
+  QTest::newRow("absent") << QByteArray();
+}
+void LaunchSteamTest::variantRemovalRefused() {
+  QFETCH(QByteArray, options);
+  QTemporaryDir temp;
+  steam::WriteRequest request;
+  request.steamRoot = temp.path() + "/steam";
+  request.userRoot = temp.path() + "/user";
+  request.accountId = "123";
+  request.shortcut = shortcut();
+  request.remove = true;
+  auto document = steam::parse(steam::edit({}, request.shortcut).bytes);
+  document.roots[0].raw.clear();
+  auto &owned = document.roots[0].children[0];
+  owned.raw.clear();
+  for (auto &node : owned.children)
+    if (node.key == "LaunchOptions") { node.raw.clear(); node.payload = options; }
+  const auto before = steam::serialize(document);
+  const auto target = request.steamRoot + "/userdata/123/config/shortcuts.vdf";
+  write(target, before);
+  QVERIFY_THROWS_EXCEPTION(install::Error, steam::preview(request));
+  QCOMPARE(install::readBytes(target), before);
+  QVERIFY(!QFileInfo::exists(request.userRoot));
+  request.remove = false;
+  const auto repaired = steam::edit(before, request.shortcut);
+  QVERIFY(steam::edit(repaired.bytes, request.shortcut, true).changed);
+}
+void LaunchSteamTest::sameTitlesDisambiguated() {
+  auto a = shortcut(), b = a;
+  b.gameId = "other-game";
+  const auto first = steam::edit({}, a);
+  const auto second = steam::edit(first.bytes, b);
+  QVERIFY(first.id != second.id);
+  const auto document = steam::parse(second.bytes);
+  QCOMPARE(document.roots[0].children.size(), 2);
+  QCOMPARE(find(document.roots[0].children[0], "AladdinsCastleDisambiguator")->payload, a.gameId.toUtf8());
+  QCOMPARE(find(document.roots[0].children[1], "AladdinsCastleDisambiguator")->payload, b.gameId.toUtf8());
+  // Stored identity survives relocation/renaming, and removal targets one game.
+  b.title = "Renamed synthetic";
+  b.executable = "/Synthetic/moved-hub.exe";
+  const auto updated = steam::edit(second.bytes, b);
+  QCOMPARE(updated.id, second.id);
+  const auto removed = steam::edit(updated.bytes, a, true);
+  QCOMPARE(steam::parse(removed.bytes).roots[0].children.size(), 1);
+  QCOMPARE(steam::edit(removed.bytes, b).id, second.id);
+  // Legacy owned AppIds retain their ID without a newly invented disambiguator.
+  auto legacy = steam::parse(first.bytes);
+  legacy.roots[0].raw.clear();
+  auto &entry = legacy.roots[0].children[0]; entry.raw.clear();
+  entry.children.removeIf([](const steam::Node &n) { return n.key == "AladdinsCastleDisambiguator"; });
+  for (auto &node : entry.children)
+    if (node.key == "appid") { node.raw.clear(); qToLittleEndian(quint32(0x81234567), node.payload.data()); }
+  const auto preserved = steam::edit(steam::serialize(legacy), a);
+  QCOMPARE(preserved.id, quint32(0x81234567));
+  QVERIFY(!find(steam::parse(preserved.bytes).roots[0].children[0], "AladdinsCastleDisambiguator"));
+}
+void LaunchSteamTest::rotationFailureAdvisory() {
+  QTemporaryDir temp;
+  const auto logs = temp.path() + "/user/logs/test-game";
+  for (int i = 0; i < 21; ++i)
+    write(logs + "/old-" + QString::number(i) + ".log", "synthetic old log");
+  int attempts = 0;
+  const auto warnings = launch::rotateLaunchLogs(temp.path(), logs, [&](const QString &) { ++attempts; return false; });
+  QCOMPARE(attempts, 2);
+  QCOMPARE(warnings.size(), 2);
+  QVERIFY(warnings.first().contains("launch will continue"));
+  QCOMPARE(QDir(logs).entryList({"*.log"}, QDir::Files).size(), 21);
+  QCOMPARE(launch::rotateLaunchLogs(temp.path(), logs).size(), 0);
+  QCOMPARE(QDir(logs).entryList({"*.log"}, QDir::Files).size(), 19);
 }
 void LaunchSteamTest::steamtoolVariantRequest() {
   QTemporaryDir temp;
@@ -357,8 +443,7 @@ void LaunchSteamTest::multipleAccountsAndUnicodePaths() {
   QVERIFY(!QFileInfo::exists(root + "/userdata/123/config/shortcuts.vdf"));
   r.remove = true;
   r.shortcut.variantId = "another-flat";
-  QCOMPARE(steam::preview(r).json["launchOptions"],
-           Json("--launch test-game --variant flat-synthetic"));
+  QVERIFY_THROWS_EXCEPTION(install::Error, steam::preview(r));
 }
 void LaunchSteamTest::collisionRefused() {
   auto a = shortcut();
@@ -560,7 +645,7 @@ void LaunchSteamTest::flatSelectionAndPlayingRole() {
   GameRecord game;
   game.id = "test-game";
   game.raw = {
-      {"media", Json::array({{{"kind", "disc"}, {"serial", "SYNTH-00001"}}})}};
+      {"media", Json::array({{{"kind", "disc"}, {"serial", "TEST-00002"}}})}};
   Variant vr;
   vr.id = "legacy-vr";
   vr.quality = "true-3d";
@@ -577,7 +662,7 @@ void LaunchSteamTest::flatSelectionAndPlayingRole() {
         {"launch", {{"args", Json::array({"${media.file}"})}}}}}};
   Json bindings{
       {"media",
-       {{"SYNTH-00001", {{"path", path.toStdString()}, {"verified", true}}}}},
+       {{"TEST-00002", {{"path", path.toStdString()}, {"verified", true}}}}},
       {"tools",
        {{"synthetic",
          {{"path", QCoreApplication::applicationFilePath().toStdString()},
@@ -671,17 +756,89 @@ void LaunchSteamTest::boundedLogsAndConcurrentLastPlayed() {
   for(int i=0;i<35;++i)write(temp.path()+"/user/logs/test-game/old-"+QString::number(i)+".log","old synthetic log");
   write(temp.path()+"/user/logs/test-game/preserve.txt","unrelated");
   launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=false;r.plan.executable=QCoreApplication::applicationFilePath();r.plan.cwd=temp.path();r.plan.args={"--synthetic-child","0","wait"};
-  launch::LaunchService one,two;QSignalSpy first(&one,&launch::LaunchService::finished),second(&two,&launch::LaunchService::finished);
+  launch::LaunchService one,two;QSignalSpy first(&one,&launch::LaunchService::finished),second(&two,&launch::LaunchService::finished), firstWarnings(&one,&launch::LaunchService::warning), secondWarnings(&two,&launch::LaunchService::warning);
   QVERIFY(one.start(r));r.gameId="other-game";QVERIFY(two.start(r));
   QTRY_COMPARE_WITH_TIMEOUT(first.count(),1,10000);QTRY_COMPARE_WITH_TIMEOUT(second.count(),1,10000);
   QCOMPARE(QDir(temp.path()+"/user/logs/test-game").entryList({"*.log"},QDir::Files).size(),20);QVERIFY(QFileInfo::exists(temp.path()+"/user/logs/test-game/preserve.txt"));
-  const auto times=Json::parse(install::readBytes(temp.path()+"/user/last-played.json").toStdString());QVERIFY(times.contains("test-game"));QVERIFY(times.contains("other-game"));
+  QTRY_VERIFY_WITH_TIMEOUT(([&] {
+    const auto path = temp.path() + "/user/last-played.json";
+    if (!QFileInfo::exists(path)) return false;
+    const auto times = Json::parse(install::readBytes(path).toStdString());
+    return (times.contains("test-game") || !firstWarnings.isEmpty()) && (times.contains("other-game") || !secondWarnings.isEmpty());
+  })(), 5000);
 }
 void LaunchSteamTest::lastPlayedLockRefusal() {
   QTemporaryDir temp;QDir().mkpath(temp.path()+"/user/locks");QLockFile lock(temp.path()+"/user/locks/last-played.lock");QVERIFY(lock.tryLock());
   launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=false;r.plan.executable=QCoreApplication::applicationFilePath();r.plan.cwd=temp.path();r.plan.args={"--synthetic-child","0"};
-  launch::LaunchService service;QSignalSpy done(&service,&launch::LaunchService::finished);QVERIFY(service.start(r));QTRY_COMPARE_WITH_TIMEOUT(done.count(),1,10000);
-  QVERIFY(done[0][2].toString().contains("Last-played state is locked"));QVERIFY(!QFileInfo::exists(temp.path()+"/user/last-played.json"));
+  launch::LaunchService service;
+  QSignalSpy done(&service, &launch::LaunchService::finished), warnings(&service, &launch::LaunchService::warning);
+  bool guiProbe = false;
+  QTimer::singleShot(0, this, [&] { guiProbe = true; });
+  QElapsedTimer elapsed; elapsed.start();
+  QVERIFY(service.start(r));
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 10000);
+  QCOMPARE(done[0][1].toInt(), 0);
+  QVERIFY(done[0][2].toString().isEmpty());
+  QVERIFY(elapsed.elapsed() < 900); // Metadata contention never waits for 1 second.
+  QTRY_COMPARE_WITH_TIMEOUT(warnings.count(), 1, 5000);
+  QVERIFY(warnings[0][1].toString().contains("Last-played state is locked"));
+  QVERIFY(guiProbe); // The event loop runs while persistence uses the worker.
+  QVERIFY(!service.busy());
+  QVERIFY(!QFileInfo::exists(temp.path() + "/user/last-played.json"));
+}
+void LaunchSteamTest::completionBlocksReentrantStart() {
+  QTemporaryDir temp;
+  QDir().mkpath(temp.path() + "/user/locks");
+  QLockFile held(temp.path() + "/user/locks/last-played.lock");
+  QVERIFY(held.tryLock());
+  launch::Request first;
+  first.root = temp.path(); first.gameId = "test-game"; first.variantId = "flat-test";
+  first.prepareProfile = false; first.plan.executable = QCoreApplication::applicationFilePath();
+  first.plan.cwd = temp.path(); first.plan.args = {"--synthetic-child", "0"};
+  auto next = first; next.gameId = "other-game";
+  launch::LaunchService service;
+  QSignalSpy done(&service, &launch::LaunchService::finished), started(&service, &launch::LaunchService::started);
+  int attempts = 0; bool refused = true, pendingBusy = true;
+  const auto attempt = [&] {
+    ++attempts; pendingBusy = pendingBusy && service.busy();
+    refused = !service.start(next) && refused;
+  };
+  connect(&service, &launch::LaunchService::runtimeStateReady, this, [&](const RuntimeState &state) {
+    if (!state.playing) attempt();
+  });
+  connect(&service, &launch::LaunchService::playingChanged, this, [&] {
+    if (!service.playing()) attempt();
+  });
+  connect(&service, &launch::LaunchService::warning, this, [&](const QString &, const QString &) { attempt(); });
+  QVERIFY(service.start(first));
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 10000);
+  QCOMPARE(attempts, 3); QVERIFY(refused); QVERIFY(pendingBusy);
+  QCOMPARE(started.count(), 1); QCOMPARE(done[0][0].toString(), first.gameId);
+  QCOMPARE(done[0][1].toInt(), 0); QVERIFY(done[0][2].toString().isEmpty());
+  QVERIFY(!service.busy());
+  QVERIFY(!QFileInfo::exists(temp.path() + "/user/logs/other-game"));
+}
+void LaunchSteamTest::finishedCanStartReplacementWithoutStaleRaise() {
+  QTemporaryDir temp;
+  launch::Request first;
+  first.root = temp.path(); first.gameId = "test-game"; first.variantId = "flat-test";
+  first.prepareProfile = false; first.plan.executable = QCoreApplication::applicationFilePath();
+  first.plan.cwd = temp.path(); first.plan.args = {"--synthetic-child", "0"};
+  auto next = first; next.gameId = "other-game"; next.plan.args << "wait";
+  launch::LaunchService service;
+  QSignalSpy done(&service, &launch::LaunchService::finished), raised(&service, &launch::LaunchService::raiseHubRequested);
+  bool replacementStarted = false;
+  connect(&service, &launch::LaunchService::finished, this,
+          [&](const QString &gameId, int, const QString &, const QString &) {
+    if (gameId == first.gameId) replacementStarted = service.start(next);
+  });
+  QVERIFY(service.start(first));
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 5000);
+  QVERIFY(replacementStarted); QVERIFY(service.busy());
+  QCOMPARE(raised.count(), 0); // Old session cannot raise over its replacement.
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 2, 10000);
+  QCOMPARE(done[1][0].toString(), next.gameId);
+  QCOMPARE(raised.count(), 1); QVERIFY(!service.busy());
 }
 void LaunchSteamTest::hungChildCanBeStopped() {
   QTemporaryDir temp;launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=false;r.plan.executable=QCoreApplication::applicationFilePath();r.plan.cwd=temp.path();r.plan.args={"--synthetic-child","0","hang"};

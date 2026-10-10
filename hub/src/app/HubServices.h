@@ -27,8 +27,8 @@ public:
     QString toolPlan() const;
     QString removalPlan() const { return removalText_; }
     bool playing() const { return childPlaying_; }
-    bool launchBusy() const { return launcher_.playing(); }
-    bool preparing() const { return launchBusy() && !playing(); }
+    bool launchBusy() const { return launcher_.busy(); }
+    bool preparing() const { return launcher_.playing() && !playing(); }
     bool canRemoveSteam() const { return games_->find(pendingRemoval_.gameId) != nullptr; }
     bool steamRemoving() const { return steamRequest_.remove; }
     std::shared_ptr<art::Resolver> artResolver() const { return art_; }

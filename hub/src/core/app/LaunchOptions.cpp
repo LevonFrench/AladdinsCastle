@@ -6,8 +6,11 @@ bool wantsParentConsole(const LaunchOptions &options){
     return options.help||options.version||options.quitAfterMs>0||options.mode==Mode::Launch||options.mode==Mode::RegisterOverlay||options.mode==Mode::UnregisterOverlay;
 }
 bool shouldOpenDesktop(const LaunchOptions &options, bool overlayInitialized) {
+    if (options.mode == Mode::Overlay && options.steamVrStarted && !overlayInitialized) return false;
     return options.mode == Mode::Desktop || options.window || (options.mode == Mode::Overlay && !overlayInitialized);
 }
+bool shouldQuitAfterLastWindow(bool launchBusy) { return !launchBusy; }
+bool shouldQuitAfterLaunch(bool overlayInitialized,bool launchBusy,bool desktopVisible){return !overlayInitialized&&!launchBusy&&!desktopVisible;}
 LaunchOptions parseLaunchOptions(const QStringList &arguments) {
     LaunchOptions options;
     bool modeSeen = false;
@@ -15,6 +18,7 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
         const auto &arg = arguments.at(i);
         if (arg == "--help" || arg == "-h") options.help = true;
         else if (arg == "--version") options.version = true;
+        else if (arg == "--steamvr-started") options.steamVrStarted = true;
         else if (arg == "--window") options.window = true;
         else if (arg == "--spike") options.spike = true;
         else if (arg == "--overlay" || arg == "--launch" || arg == "--register-overlay" || arg == "--unregister-overlay") {
@@ -41,6 +45,8 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
             }
         } else { options.error = "Unknown argument: " + arg; break; }
     }
+    if (options.error.isEmpty() && options.steamVrStarted && options.mode != Mode::Overlay)
+        options.error = "--steamvr-started requires --overlay.";
     if (options.error.isEmpty() && options.window && options.mode != Mode::Overlay)
         options.error = "--window requires --overlay.";
     if (options.error.isEmpty() && options.spike && options.mode != Mode::Desktop && options.mode != Mode::Overlay)

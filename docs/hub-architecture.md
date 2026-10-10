@@ -193,7 +193,7 @@ Steam Frame: when streamed from the PC, SteamVR and the overlay run on the PC, s
 
 | Target | Qt | Compiler | Graphics | Notes |
 |---|---|---|---|---|
-| Windows x64 (owner PC, SteamVR with ALVR to Quest 3) | Qt 6 for MSVC 2022 x64 (Qt Online Installer) | MSVC | OpenGL (proposed) | Primary development target. |
+| Windows x64 (owner PC, SteamVR with ALVR to a PCVR headset) | Qt 6 for MSVC 2022 x64 (Qt Online Installer) | MSVC | OpenGL (proposed) | Primary development target. |
 | Linux x86_64 (Bazzite test box) | Qt 6 from the Online Installer or a distro package | GCC or Clang | OpenGL | Linux Hub and libacvr builds (architecture.md section 5). |
 | Linux ARM64 (Steam Frame, SteamOS on Arm) | Qt 6 Online Installer for `linux_arm64` (from 6.7, with caveats), or a source build | GCC | OpenGL | See the caveats in section 10. Needs an ARM64 machine for testing. |
 
@@ -263,7 +263,7 @@ Spikes (run in M1 with owner hardware, or moved to M2 if the owner prefers):
 
 | Spike | Question | Pass condition | If it fails |
 |---|---|---|---|
-| S1 Overlay | Does a Qt GL texture show in a SteamVR dashboard tab on the owner's PC (ALVR, Quest 3)? | Tab visible, pixels correct, clicks land | Use Desktop+ (zero code) and re-plan D22. |
+| S1 Overlay | Does a Qt GL texture show in a SteamVR dashboard tab on the owner's PC (ALVR, PCVR headset)? | Tab visible, pixels correct, clicks land | Use Desktop+ (zero code) and re-plan D22. |
 | S2 Keyboard | Does `ShowKeyboardForOverlay` type into a QML `TextInput`? | Typed text appears in the field | Use an in-scene keyboard. |
 | S3 Two presentations | One `HubRoot` in a window and in the overlay, one process | No crash; GPU cost measured | Use the window and the Desktop+ overlay in two processes. |
 | S4 Linux ARM64 | Does the Qt arm64 build start on Ubuntu 24.04 arm64? | App starts and renders | Build from source on the target OS. |

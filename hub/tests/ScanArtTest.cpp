@@ -434,13 +434,13 @@ private slots:
     save(t.filePath("wrong-folder/game.chd"), chd);
     result = ac::scan::Scanner::run(catalog(), o, stop);
     QVERIFY(!result.bindings[0].verified);
-    save(t.filePath("test/game.chd"), chd);
-    auto identity = ac::scan::Scanner::inspect(t.filePath("test/game.chd"), stop);
+    save(t.filePath("TeSt/game.chd"), chd);
+    auto identity = ac::scan::Scanner::inspect(t.filePath("TeSt/game.chd"), stop);
     QVERIFY2(identity.error.isEmpty(), qPrintable(identity.error));
     QCOMPARE(identity.chdHeaderSha1, sha);
     result = ac::scan::Scanner::run(catalog(), o, stop);
     QVERIFY(result.bindings[0].verified);
-    QVERIFY(result.bindings[0].supportPaths.contains(t.filePath("test/game.chd")));
+    QVERIFY(result.bindings[0].supportPaths.contains(t.filePath("TeSt/game.chd")));
     save(xml, metadata(QString(40, '0')));
     result = ac::scan::Scanner::run(catalog(), o, stop);
     QVERIFY(!result.bindings[0].verified);
@@ -492,9 +492,15 @@ private slots:
     ac::scan::ScanOptions o; o.mediaRoots = {t.path()}; o.mameXml = xml;
     std::atomic_bool stop = false;
     auto result = ac::scan::Scanner::run(c, o, stop);
-    QVERIFY(result.bindings[0].verified);
+    QVERIFY(!result.bindings[0].verified); // Device alternatives cannot be selected at launch.
     QVERIFY(result.bindings[1].verified);
+    QCOMPARE(result.bindings[1].bios, QString("alternate"));
     QCOMPARE(result.bindings[1].proof, QString("mame-header-crc"));
+    save(t.filePath("default.zip"), zip({{0x11111111, 100}}));
+    result = ac::scan::Scanner::run(c, o, stop);
+    QVERIFY(result.bindings[0].verified);
+    QCOMPARE(result.bindings[1].bios, QString("default"));
+    QVERIFY(QFile::remove(t.filePath("default.zip")));
     o.mediaRoots = {t.filePath("alternate.zip")};
     result = ac::scan::Scanner::run(c, o, stop);
     QVERIFY(!result.bindings[0].verified);
@@ -507,6 +513,46 @@ private slots:
               "<rom name='firmware' bios='alternate' crc='abcdef12' size='100'/></machine></mame>");
     result = ac::scan::Scanner::run(catalog(), o, stop);
     QVERIFY(result.bindings[0].verified);
+    QCOMPARE(result.bindings[0].bios, QString("alternate"));
+    QCOMPARE(QString::fromStdString(result.toJson()["bindings"][0]["bios"].get<std::string>()), QString("alternate"));
+    save(t.filePath("default.zip"), zip({{0x11111111, 100}}));
+    o.mediaRoots = {t.path()};
+    result = ac::scan::Scanner::run(catalog(), o, stop);
+    QCOMPARE(result.bindings[0].bios, QString("default"));
+  }
+  void diskMergeHeaderAndDiskOnlyAnchor() {
+    QTemporaryDir t;
+    auto chd = syntheticChd();
+    const auto sha = QString::fromLatin1(chd.mid(84, 20).toHex());
+    // A deliberately unsupported sparse map keeps its independent header SHA.
+    qToBigEndian<quint64>(quint64(chd.size() + 100), chd.data() + 40);
+    save(t.filePath("PaReNt/base.chd"), chd);
+    save(t.filePath("unrelated.zip"), zip({{0x98765432, 100}}));
+    const auto xml = t.filePath("metadata.xml");
+    save(xml, QString("<mame><machine name='parent'/><machine name='test' cloneof='parent'>"
+                      "<disk name='clone' merge='base' sha1='%1'/></machine></mame>").arg(sha).toUtf8());
+    std::atomic_bool stop = false;
+    const auto inspected = ac::scan::Scanner::inspect(t.filePath("PaReNt/base.chd"), stop);
+    QVERIFY(!inspected.error.isEmpty()); QCOMPARE(inspected.chdHeaderSha1, sha);
+    ac::scan::ScanOptions options; options.mediaRoots = {t.path()}; options.mameXml = xml;
+    auto result = ac::scan::Scanner::run(catalog(), options, stop);
+    QVERIFY(result.bindings[0].verified);
+    QCOMPARE(result.bindings[0].path, t.filePath("PaReNt/base.chd"));
+    QCOMPARE(result.bindings[0].identity, QString("test"));
+    QFile::remove(t.filePath("PaReNt/base.chd"));
+    result = ac::scan::Scanner::run(catalog(), options, stop);
+    QVERIFY(!result.bindings[0].verified); QVERIFY(result.bindings[0].path.isEmpty());
+  }
+  void requestedSetWinsEqualFamilyScore() {
+    QTemporaryDir t;
+    save(t.filePath("synthetic.zip"), zip({{0x12345678, 100}}));
+    const auto xml = t.filePath("metadata.xml");
+    save(xml, "<mame><machine name='a-parent'><rom name='program' crc='12345678' size='100'/></machine>"
+              "<machine name='test' cloneof='a-parent'><rom name='program' crc='12345678' size='100'/></machine></mame>");
+    ac::scan::ScanOptions options; options.mediaRoots = {t.path()}; options.mameXml = xml;
+    std::atomic_bool stop = false;
+    const auto result = ac::scan::Scanner::run(catalog(), options, stop);
+    QVERIFY(result.bindings[0].verified); QCOMPARE(result.bindings[0].identity, QString("test"));
   }
   void chdMapBudgetAllowsLargeSparseDiscs() {
     QTemporaryDir t;
@@ -718,16 +764,22 @@ private slots:
   void directCoverRootAndTransparentLogo() {
     QTemporaryDir t;
     auto c = catalog("disc");
-    c.games[0].id = "ps2-time-crisis-3";
+    c.games[0].id = "synthetic-cover";
     auto covers = t.filePath("covers");
     QDir().mkpath(covers);
     QImage image(64, 32, QImage::Format_RGB32);
     image.fill(Qt::green);
-    QVERIFY(image.save(covers + "/SCES_518.44.png"));
+    QVERIFY(image.save(covers + "/TEST-00002.png"));
     ac::art::Resolver resolver(c, {t.filePath("user"), {covers}});
-    auto r = resolver.resolve("ps2-time-crisis-3", "portrait", {64, 32});
+    ac::scan::Binding binding;
+    binding.gameId = "synthetic-cover";
+    binding.verified = true;
+    binding.identity = "TEST-00002";
+    binding.proof = "disc-serial";
+    resolver.setBindings({binding});
+    auto r = resolver.resolve("synthetic-cover", "portrait", {64, 32});
     QCOMPARE(r.source, QString("pcsx2"));
-    r = resolver.resolve("ps2-time-crisis-3", "logo", {300, 150});
+    r = resolver.resolve("synthetic-cover", "logo", {300, 150});
     QCOMPARE(r.source, QString("generated"));
     QCOMPARE(r.image.pixelColor(0, 0).alpha(), 0);
     bool text = false;

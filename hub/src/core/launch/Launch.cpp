@@ -108,6 +108,21 @@ QString lastLines(const QString &path, int count) {
   return lines.mid(qMax(qsizetype(0), lines.size() - qMax(0, count)))
       .join('\n');
 }
+QStringList rotateLaunchLogs(const QString &root, const QString &folder,
+                            const std::function<bool(const QString &)> &remove) {
+  QStringList warnings;
+  const auto oldLogs = QDir(folder).entryInfoList({"*.log"}, QDir::Files, QDir::Time);
+  for (qsizetype i = 19; i < oldLogs.size(); ++i) {
+    try {
+      const auto old = install::scopedPath(oldLogs[i].absoluteFilePath(), root);
+      if (!(remove ? remove(old) : QFile::remove(old)))
+        warnings << "Could not rotate an old launch log; launch will continue";
+    } catch (const std::exception &) {
+      warnings << "Could not rotate an old launch log safely; launch will continue";
+    }
+  }
+  return warnings;
+}
 LaunchService::LaunchService(QObject *parent) : QObject(parent) {
   connect(&preparation_, &QFutureWatcher<QString>::finished, this, [this] {
     if (preparationCancelled_) {
@@ -155,6 +170,8 @@ LaunchService::~LaunchService() {
   runtimeTimer_.stop();
   preparation_.disconnect(this);
   preparation_.waitForFinished();
+  for (auto *watcher : persistence_)
+    watcher->waitForFinished();
   if (process_.state() != QProcess::NotRunning) {
     process_.terminate();
     if (!process_.waitForFinished(1000)) {
@@ -169,7 +186,7 @@ void LaunchService::setRuntimeStateSource(
   runtimeSource_ = std::move(source);
 }
 bool LaunchService::start(const Request &request) {
-  if (busy_)
+  if (busy())
     return false;
   const auto generation = ++generation_;
   preparationCancelled_ = false;
@@ -195,11 +212,7 @@ bool LaunchService::start(const Request &request) {
         install::scopedPath("user/logs/" + request.gameId, request.root);
     if (!QDir().mkpath(logs))
       throw Error("E_WRITE_DENIED", "Cannot create launch log folder");
-    const auto oldLogs = QDir(logs).entryInfoList({"*.log"}, QDir::Files, QDir::Time);
-    for(qsizetype i=19;i<oldLogs.size();++i) {
-      const auto old = install::scopedPath(oldLogs[i].absoluteFilePath(), request.root);
-      if(!QFile::remove(old)) throw Error("E_WRITE_DENIED", "Could not rotate launch log");
-    }
+    const auto rotationWarnings = rotateLaunchLogs(request.root, logs);
     logPath_ = install::scopedPath(
         logs + "/" +
             QDateTime::currentDateTimeUtc().toString("yyyyMMdd-HHmmss-zzz") +
@@ -207,6 +220,8 @@ bool LaunchService::start(const Request &request) {
         request.root);
     install::atomicWrite(logPath_, "AladdinsCastle launch\nruntime=" +
                                        request.runtime.toUtf8() + "\n");
+    for (const auto &message : rotationWarnings)
+      emit warning(request.gameId, message);
     busy_ = true;
     emit playingChanged();
     if (!busy_ || preparationCancelled_ || generation_ != generation)
@@ -300,44 +315,74 @@ void LaunchService::stop() {
   }
 }
 void LaunchService::complete(int code, const QString &error) {
+  if (completing_)
+    return;
+  // Reserve this session through all advisory persistence and completion signals.
+  // playing() can be false while busy() still prevents a reentrant new launch.
+  completing_ = true;
+  const auto generation = generation_;
   runtimeTimer_.stop();
   lock_.reset();
+  const auto root = request_.root, gameId = request_.gameId,
+             variantId = request_.variantId, logPath = logPath_;
   QString message = error;
-  if (!error.isEmpty() && !logPath_.isEmpty())
-    message += "\n" + lastLines(logPath_);
-  if (childStarted_) {
-    const auto now = QDateTime::currentSecsSinceEpoch();
-    try {
-      const auto path =
-          install::scopedPath("user/last-played.json", request_.root);
-      QLockFile stateLock(install::scopedPath("user/locks/last-played.lock",request_.root));
-      stateLock.setStaleLockTime(0);
-      if(!stateLock.tryLock(1000)) throw Error("E_LOCKED", "Last-played state is locked by another Hub");
-      Json times = Json::object();
-      if (QFileInfo::exists(path))
-        times = Json::parse(install::readBytes(path).toStdString());
-      times[request_.gameId.toStdString()] = now;
-      install::atomicWrite(path, QByteArray::fromStdString(times.dump(2)));
-    } catch (const std::exception &e) {
-      message +=
-          "\nCould not record last played: " + QString::fromUtf8(e.what());
-    }
-    auto state =
-        runtimeSource_ ? runtimeSource_(request_.gameId) : RuntimeState{};
-    state.gameId = request_.gameId;
+  if (!error.isEmpty() && !logPath.isEmpty())
+    message += "\n" + lastLines(logPath);
+  const bool wasBusy = busy_, ranChild = childStarted_;
+  busy_ = false;
+  childStarted_ = false;
+  const auto now = QDateTime::currentSecsSinceEpoch();
+  if (ranChild) {
+    auto state = runtimeSource_ ? runtimeSource_(gameId) : RuntimeState{};
+    state.gameId = gameId;
     state.lastPlayed = now;
-    state.selectedVariantId = request_.variantId;
+    state.selectedVariantId = variantId;
     state.playing = false;
     emit runtimeStateReady(state);
   }
-  const bool wasBusy = busy_;
-  busy_ = false;
-  const bool ranChild = childStarted_;
-  childStarted_ = false;
   if (wasBusy)
     emit playingChanged();
-  emit finished(request_.gameId, code, message, logPath_);
-  if (ranChild)
-    emit raiseHubRequested();
+  const auto finish = [this, gameId, code, message, logPath, ranChild, generation] {
+    completing_ = false;
+    emit finished(gameId, code, message, logPath);
+    // A finished handler may legitimately launch another game. Never raise the
+    // Hub for this completed session over its newly started replacement.
+    if (ranChild && generation_ == generation)
+      emit raiseHubRequested();
+  };
+  if (!ranChild) {
+    finish();
+    return;
+  }
+  // State I/O is advisory and happens off the GUI thread; contention skips it.
+  // Deliver completion after the advisory so CLI callers can log it before exit.
+  auto *watcher = new QFutureWatcher<QString>(this);
+  persistence_ << watcher;
+  connect(watcher, &QFutureWatcher<QString>::finished, this,
+          [this, watcher, gameId, finish] {
+    const auto advisory = watcher->result();
+    persistence_.removeOne(watcher);
+    watcher->deleteLater();
+    if (!advisory.isEmpty())
+      emit warning(gameId, advisory);
+    finish();
+  });
+  watcher->setFuture(QtConcurrent::run([root, gameId, now] {
+    try {
+      const auto path = install::scopedPath("user/last-played.json", root);
+      QLockFile stateLock(install::scopedPath("user/locks/last-played.lock", root));
+      stateLock.setStaleLockTime(0);
+      if (!stateLock.tryLock(0))
+        throw Error("E_LOCKED", "Last-played state is locked by another Hub");
+      Json times = Json::object();
+      if (QFileInfo::exists(path))
+        times = Json::parse(install::readBytes(path).toStdString());
+      times[gameId.toStdString()] = now;
+      install::atomicWrite(path, QByteArray::fromStdString(times.dump(2)));
+      return QString();
+    } catch (const std::exception &e) {
+      return "Could not record last played: " + QString::fromUtf8(e.what());
+    }
+  }));
 }
 } // namespace ac::launch

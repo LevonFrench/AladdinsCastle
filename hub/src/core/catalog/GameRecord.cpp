@@ -21,7 +21,8 @@ bool optionalMedia(const Json &media) {
            media["optional"].is_boolean() && media["optional"].get<bool>();
 }
 bool mediaAppliesToRoute(const Json &media, const QString &routeId, const QString &hardware) {
-    const auto kind = QString::fromStdString(media.value("kind", std::string()));
+    if (!media.is_object() || !media.contains("kind") || !media["kind"].is_string()) return false;
+    const auto kind = QString::fromStdString(media["kind"].get<std::string>());
     const bool arcade = QStringList{"mame", "supermodel", "model2emu", "lindbergh-loader"}.contains(routeId) ||
         (QStringList{"flycast", "demul"}.contains(routeId) && hardware != "sega-dreamcast");
     const bool pc = QStringList{"teknoparrot", "native", "demulshooter"}.contains(routeId) || hardware == "pc-windows";
@@ -46,10 +47,11 @@ void resolveState(GameRecord &game) {
     const auto &runtime = game.runtime;
     QSet<QString> optionalIds, biosIds;
     qsizetype mediaIndex = 0;
-    for (const auto &m : game.raw.value("media", Json::array())) {
+    for (const auto &m : (game.raw.contains("media") && game.raw["media"].is_array()
+                             ? game.raw["media"] : Json::array())) {
         const auto id = mediaRequirementId(m, game.id, mediaIndex++);
         if (optionalMedia(m)) optionalIds.insert(id);
-        if (m.value("kind", std::string()) == "bios") biosIds.insert(id);
+        if (m.is_object() && m.contains("kind") && m["kind"] == "bios") biosIds.insert(id);
     }
     const auto requiredMedia = [&](const Variant &v) {
         auto ids = v.media;
