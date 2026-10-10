@@ -2,6 +2,8 @@
 
 Status: 2026-10-10, decided with the owner. One lead session and three lane sessions, all new. The lead does the main thrust itself and directs the other three from their reports.
 
+**After the first block, read [R1-redirect.md](R1-redirect.md) first.** It sets each session's next target, the standing approvals and lighter reporting; where it differs from this page or a brief, it wins.
+
 | # | Session | In one line | Owns | Brief |
 |---|---|---|---|---|
 | 1 | **Lead** | Time Crisis in true 3D, launched from the Hub; libacvr; integrates and directs | `libacvr/`, the shared contracts, the `next` branch | [1-lead.md](1-lead.md) |
@@ -24,10 +26,10 @@ Status: 2026-10-10, decided with the owner. One lead session and three lane sess
 1. **Start state:** `main` after the M1 pull request is merged. Read [README](../../../README.md), [workshop.md](../../workshop.md), this page and your brief before anything else. The M1 ground rules still hold ([tasks/m1/README.md](../m1/README.md)): privacy, licences, tests in CI, a report with every pull request.
 2. **Your own branch and worktree.** Lanes branch from `next` and open pull requests into `next`. Nobody commits to `main`. The lead opens `next` → `main` pull requests at checkpoints for outside review.
 3. **Stay in your folders.** The "Owns" column is exclusive. If you need a change in another session's area, ask for it in your report.
-4. **Ask the owner first, every time, for:** installing or updating any tool; using the GPU, SteamVR or the headset; touching the owner's game files, even one game; downloading any third-party release; writing Steam files. Say exactly what and why. One approval covers one thing.
+4. **Ask the owner first for:** installing or updating any tool; using the GPU, SteamVR or the headset; touching the owner's game files, even one game; downloading any third-party release; writing Steam files. Say exactly what and why. The standing approvals in [R1-redirect.md](R1-redirect.md) cover the listed cases once the owner has confirmed them; anything else is one approval for one thing. If a step is blocked on an approval, say so in one line and do other real work; do not build a substitute.
 5. **No game content, ever,** in the repository, in tests or in reports. Tests use synthetic fixtures. Private receipts stay under `.local/`.
 6. **GPU-free by default.** Everything must build and test with `QT_QPA_PLATFORM=offscreen` and software rendering, as CI does. Headset and GPU checks are separate, owner-run acceptance steps, and passing tests never counts as passing them.
-7. **Reports.** End every working block with `docs/status/<lane>/<date>-<n>.md` on your branch, pushed: done; verified and how; not verified; blocked on; questions for the lead; next. Under one page. No private data.
+7. **Reports.** One per checkpoint or blocking question, not per working block: `docs/status/<lane>/<date>-<n>.md` on your branch, pushed: done; verified and how; not verified; blocked on; questions for the lead; next. Half a page. No private data. Lanes do not review other lanes.
 8. **The lead answers** in `docs/status/lead/<date>-<n>.md` on `next`: answers, the next target for each lane, merge order, and one combined headset checklist so a single sitting with the owner checks everything that is ready.
 9. **Previous work to read, not to redo:** the M1 reviews in `docs/reviews/`, and on the owner's machine the stop handoff and the six-report agency review under `.local/handoffs/2026-10-10-stop/` in the main checkout (private; cite findings by their ids, never copy private details into the repository).
 
