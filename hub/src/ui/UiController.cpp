@@ -45,12 +45,15 @@ void SectionedGridModel::refresh(){
 }
 QObject *UiController::createGridModel(int columns){return new SectionedGridModel(m_games,m_filter,columns,this);}
 void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<SectionedGridModel *>(model);grid&&grid->parent()==this)grid->deleteLater();}
-UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_games(games),m_filter(filter),m_settings(settings){
+UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_detailControls(this),m_games(games),m_filter(filter),m_settings(settings){
+ connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
+ m_detailControls.configure(games->catalog().root,games->catalog().packIds);
  connect(filter,&FilterSortModel::facetsChanged,this,&UiController::scheduleFacetsChanged);
  connect(filter,&FilterSortModel::visibleCountChanged,this,&UiController::scheduleFacetsChanged);
  connect(games,&QAbstractItemModel::dataChanged,this,[this]{emit detailChanged();scheduleFacetsChanged();});
  connect(settings,&UiSettings::error,this,[this](const QString &text){showError("Settings",text);});
  connect(settings,&UiSettings::gameSaved,this,&UiController::writeConfigRequested);
+ connect(settings,&UiSettings::gameSaved,this,[this](const QString &id,const QVariantMap &){if(m_detailControlsVisible&&id==m_detailId)refreshDetailControls();});
 }
 void UiController::scheduleFacetsChanged(){if(m_facetsQueued)return;m_facetsQueued=true;QTimer::singleShot(0,this,[this]{m_facetsQueued=false;emit facetsChanged();});}
 QString UiController::vrLabel(int badge)const{const QStringList labels{"FLAT","TRUE 3D","THEATRE","PLANNED"};return labels.value(badge,"FLAT");}
@@ -59,8 +62,13 @@ QString UiController::appVersion()const{return QCoreApplication::applicationVers
 void UiController::message(const QString &text){m_status=text;emit statusChanged();}
 QVariantMap UiController::game(const QString &id)const {auto g=m_games->find(id);return g?g->roles:QVariantMap{};}
 QVariantMap UiController::filteredGame(int row)const{auto i=m_filter->mapToSource(m_filter->index(row,0));return i.isValid()?m_games->records()[i.row()].roles:QVariantMap{};}
-void UiController::openDetail(const QString &id){if(!m_games->find(id))return;m_detailId=id;m_variantId.clear();emit detailChanged();}
-void UiController::selectVariant(const QString &id){auto g=m_games->find(m_detailId);if(!g)return;for(const auto &v:g->variants)if(v.id==id){m_variantId=id;emit detailChanged();return;}}
+void UiController::openDetail(const QString &id){if(!m_games->find(id))return;m_detailId=id;m_variantId.clear();if(m_detailControlsVisible)refreshDetailControls();emit detailChanged();}
+void UiController::selectVariant(const QString &id){auto g=m_games->find(m_detailId);if(!g)return;for(const auto &v:g->variants)if(v.id==id){m_variantId=id;if(m_detailControlsVisible)refreshDetailControls();emit detailChanged();return;}}
+void UiController::refreshDetailControls(){
+ m_detailControlsVisible=true;
+ const auto game=m_games->find(m_detailId);const auto selected=game?variant(*game):nullptr;
+ m_detailControls.selectGame(game?game->id:QString(),selected?selected->id:QString());
+}
 const Variant *UiController::variant(const GameRecord &g) const{for(const auto &v:g.variants)if(g.id==m_detailId&&v.id==m_variantId)return &v;for(const auto &v:g.variants)if(v.id==g.runtime.selectedVariantId)return &v;for(const auto &v:g.variants)if(v.id==g.roles.value("preferredVariantId").toString())return &v;for(const auto &v:g.variants)if(v.generated)return &v;for(const auto &v:g.variants)if(v.status!="planned")return &v;return g.variants.isEmpty()?nullptr:&g.variants.first();}
 QString UiController::safeMarkdown(QString text){
  text.remove(QRegularExpression("!\\[[^\\]]*\\]\\([^)]*\\)"));
@@ -183,6 +191,6 @@ void UiController::installEvent(const QVariantMap &event){auto e=event;e["line"]
 void UiController::installFinished(bool success,const QString &text){m_installing=false;if(success)m_recovery.clear();else if(m_recovery.isEmpty())m_recovery={{"text",text},{"kind","fail"}};emit installChanged();message(text);}
 void UiController::launchPreparing(const QString &id,const QString &text){message("Preparing "+game(id).value("title").toString()+": "+text);}
 void UiController::launchStarted(const QString &id){message("Playing "+game(id).value("title").toString());}
-void UiController::launchFinished(const QString &,const QString &error){message(error.isEmpty()?"Game closed.":error);}
+void UiController::launchFinished(const QString &,const QString &error){clearDetailControlStates();message(error.isEmpty()?"Game closed.":error);}
 void UiController::applyRuntimeStates(const QVector<RuntimeState> &states){m_games->queueRuntimeStates(states);}
 }

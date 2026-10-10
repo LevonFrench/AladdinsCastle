@@ -14,6 +14,7 @@ FocusScope {
  property bool reduceMotion:(uiSettings.values,uiSettings.get("reduceMotion",false))
  property string sizeValue:Object.keys(uiSettings.values).length>=0 ? (uiSettings.values,uiSettings.get("size"+view,vrOverlayMode?"L":"S")) : "S"
  property var previewGame:({})
+ onActiveFocusChanged:if(!activeFocus)uiController.clearDetailControlStates()
  function navigate(page,id){history=history.concat([view]);view=page;if(id)uiController.openDetail(id);preview.visible=false}
  function back(){if(history.length){view=history[history.length-1];history=history.slice(0,-1)}else view="List";preview.visible=false}
  function closeTop(){if(filters.opened)filters.close();else if(sort.opened)sort.close();else if(help.opened)help.close();else if(gameFilter.query.length)gameFilter.query="";else back()}

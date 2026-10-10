@@ -87,7 +87,8 @@ target_link_libraries(huboverlay PUBLIC Qt6::Quick Qt6::OpenGL OpenVR::OpenVR)
 ac_project_warnings(huboverlay)
 
 qt_add_library(hubui STATIC)
-target_link_libraries(hubui PUBLIC hubcore Qt6::Quick Qt6::QuickControls2)
+add_subdirectory(src/controls)
+target_link_libraries(hubui PUBLIC hubcore accontrols Qt6::Quick Qt6::QuickControls2)
 file(GLOB AC_QML_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
 foreach(qml_file IN LISTS AC_QML_FILES)
     get_filename_component(qml_name "${qml_file}" NAME)
@@ -98,7 +99,8 @@ qt_add_qml_module(hubui URI AladdinsCastle.Hub VERSION 1.0 NO_PLUGIN
     RESOURCE_PREFIX /qt/qml OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml/AladdinsCastle/Hub"
     QML_FILES ${AC_QML_FILES} qml/spike/OverlayTest.qml
     SOURCES src/ui/Theme.h src/ui/Theme.cpp src/ui/UiSettings.h src/ui/UiSettings.cpp
-        src/ui/UiController.h src/ui/UiController.cpp)
+        src/ui/UiController.h src/ui/UiController.cpp
+        src/ui/DetailControlsController.h src/ui/DetailControlsController.cpp)
 ac_project_warnings(hubui)
 add_library(hubapp STATIC src/app/HubServices.cpp src/app/HubServices.h)
 target_link_libraries(hubapp PUBLIC hubui)
@@ -144,6 +146,15 @@ if(BUILD_TESTING)
     add_test(NAME public-privacy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/check_public_privacy.py --test)
 
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
+    qt_add_executable(detail-controls-tests tests/DetailControlsTest.cpp)
+    target_link_libraries(detail-controls-tests PRIVATE hubui Qt6::Test)
+    target_compile_definitions(detail-controls-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    ac_project_warnings(detail-controls-tests)
+    set_target_properties(detail-controls-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-detail-controls COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:detail-controls-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/detail-controls.txt
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(hub-tests tests/SmokeTest.cpp)
     target_link_libraries(hub-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(hub-tests)
