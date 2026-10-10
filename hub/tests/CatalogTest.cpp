@@ -256,15 +256,37 @@ class CatalogTest : public QObject {
         QVERIFY(data.find("fake")->errors.isEmpty());
         QVERIFY(data.find("fake")->warnings.join('\n').contains("TOML error"));
     }
+    void validAuthoredVariantKeepsPrecedence() {
+        QTemporaryDir temp; vocab(temp.path()); game(temp.path(), "fake", "Synthetic");
+        QFile file(temp.path() + "/games/fake/game.toml"); QVERIFY(file.open(QIODevice::Append));
+        file.write("\n[[media]]\nkind='mame-romset'\nset='test'\n[routes]\nmame='working'\n"); file.close();
+        write(temp.path(), "data/emulators/mame.toml", "id='mame'\nname='Synthetic Tool'\n[launch]\nargs=['${rom.set}']\n");
+        write(temp.path(), "games/fake/install.toml",
+              "[variant.mame]\ntitle='Authored choice'\nquality='flat'\nstatus='stable'\n"
+              "needs={media=['test'],tools=['mame']}\nx-extension={preserved=true}\n");
+        const auto data=ac::CatalogLoader().load(temp.path());
+        const auto *record=data.find("fake"); QVERIFY(record); QCOMPARE(record->variants.size(),1);
+        QCOMPARE(record->variants[0].id,QString("mame"));
+        QCOMPARE(record->variants[0].title,QString("Authored choice"));
+        QVERIFY(!record->variants[0].generated);
+        QVERIFY(record->variants[0].raw["x-extension"]["preserved"].get<bool>());
+    }
+    void malformedRecipeKeepsReadyFlatRoute_data() {
+        QTest::addColumn<QString>("recipe");
+        QTest::newRow("syntax-error") << QString("[variant.broken\n");
+        QTest::newRow("same-id-scalar") << QString("[variant]\nmame=7\n");
+        QTest::newRow("same-id-array") << QString("[variant]\nmame=['bad']\n");
+    }
     void malformedRecipeKeepsReadyFlatRoute() {
+        QFETCH(QString, recipe);
         QTemporaryDir temp; vocab(temp.path()); game(temp.path(), "fake", "Synthetic");
         QFile f(temp.path() + "/games/fake/game.toml"); QVERIFY(f.open(QIODevice::Append));
         f.write("\n[[media]]\nkind='mame-romset'\nset='test'\n[routes]\nmame='working'\n"); f.close();
         write(temp.path(), "data/emulators/mame.toml", "id='mame'\nname='Synthetic Tool'\n[launch]\nargs=['${rom.set}']\n");
-        write(temp.path(), "games/fake/install.toml", "[variant.broken\n");
+        write(temp.path(), "games/fake/install.toml", recipe.toUtf8());
         ac::GameListModel model(ac::CatalogLoader().load(temp.path()));
         const auto *game = model.find("fake"); QVERIFY(game); QVERIFY(game->errors.isEmpty());
-        QVERIFY(game->warnings.join('\n').contains("install.toml")); QCOMPARE(game->variants.size(),1);
+        QVERIFY(game->warnings.join('\n').contains(recipe.startsWith("[variant.broken") ? "TOML error" : "variant.mame must be a table")); QCOMPARE(game->variants.size(),1);
         QVERIFY(game->variants[0].generated); QCOMPARE(game->variants[0].id,QString("mame"));
         ac::RuntimeState state; state.gameId="fake"; state.mediaFound={"test"}; state.toolsOk={"mame"};
         model.applyRuntimeStates({state});
