@@ -2,6 +2,7 @@
 #include "n22_upstream_bridge.hpp"
 #include "n22_source_hooks.h"
 #include "n22_background.hpp"
+#include "n22_polygon_fade.hpp"
 #include <iostream>
 #include <stdexcept>
 extern "C" {
@@ -63,6 +64,9 @@ int main() {
         n22::BackgroundState background;
         check(n22::copy_super22_background(*second,background)==ACVR_OK && background.tick==2 && background.rgb==std::array<uint8_t,3>{2,2,2},"actual copied source bank feeds same-tick background decoder");
         n22_source_fixture_mutate();check(background.rgb==std::array<uint8_t,3>{2,2,2},"native source mutation leaves owned background RGB unchanged");
+        n22::PolygonFadeState fade;
+        check(n22::copy_super22_polygon_fade(*second,fade)==ACVR_OK && fade.tick==2 && fade.rgb==std::array<uint8_t,3>{2,2,2},"actual leased source copy feeds same-tick fade packet without native globals");
+        check(n22::polygon_fade_factors(fade)==std::array<double,3>{2./256,2./256,2./256},"copied native-shaped bytes feed global enabled byte/256 factors");
         fog_capture.quad.rv[0].z=999;check(fog_quad.native_depth[0]==2,"later capture mutation cannot affect copied native fog depth");
         quad.direct=1;check(!n22::copy_geo_quad(quad,&view).has_camera,"direct polygons are not assigned an invented camera");
         quad.direct=0;view.zoom_mant=1545;

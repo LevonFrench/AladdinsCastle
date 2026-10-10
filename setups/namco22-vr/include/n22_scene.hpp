@@ -4,6 +4,7 @@
 #include "n22_material.hpp"
 #include "n22_fog.hpp"
 #include "n22_background.hpp"
+#include "n22_polygon_fade.hpp"
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -39,6 +40,7 @@ struct SceneInput {
     MaterialPacket materials;
     FogState fog;
     BackgroundState background;
+    PolygonFadeState polygon_fade;
 };
 // Owns all data. Never retains mutable source arrays or references to emulation.
 struct Frame {
@@ -48,6 +50,7 @@ struct Frame {
     MaterialPacket materials;
     FogState fog;
     BackgroundState background;
+    PolygonFadeState polygon_fade;
 };
 struct Image {
     uint32_t width, height;
@@ -63,6 +66,7 @@ acvr_result prepare(const SceneInput &, uint64_t id, Frame &out);
 // Bounded draw admission; state-only inspection can still represent other fog
 // policies/layers. Reject unsupported enabled fog before uploads/target clears.
 acvr_result validate_fog_draw(const Frame &);
+acvr_result validate_polygon_fade_draw(const Frame &);
 acvr_result project_gun(Vec3 point, const acvr_game_camera &, float &x, float &y,
                         bool &offscreen);
 acvr_result raycast(const Frame &, const acvr_ray &, acvr_hit &);

@@ -45,6 +45,8 @@ fog=10, unfogged=127/255)` yields 6; pre-quantizing shade would yield 5.
 High-brightness checks distinguish shade-clamp-before-fog from a final-only clamp.
 GL explicitly forces and restores CLAMP_FRAGMENT_COLOR=TRUE, since hostile
 caller state can otherwise disable intermediate combiner saturation.
+The separate [polygon-fade source policy](POLYGON-FADE.md) scales shade and raw
+fog inputs before this saturation, preserving floats until final output.
 CPU analytic comparisons allow one output byte for floating raster interpolation;
 driver quantization and coverage have not been measured.
 
@@ -80,9 +82,9 @@ API basis: [Khronos GL3.3 compatibility specification](https://registry.khronos.
 sections 3.6.1 (current-eye attribute/depth interpolation), 3.9.16 (combiner
 operations/clamping) and 3.7.5 (fragment colour clamp control).
 
-Polygon fade, screen fade, final gamma, sprites/text/priority, actual layer
+Screen fade, final gamma, sprites/text/priority, actual layer
 classification, world scale and native driver/gameplay/headset acceptance remain
-open. Fades and gamma are distinct future composition operations; none are
-baked into the fog colour, palette or shade. This slice cannot admit full Time
+open. Bounded polygon input fade is now explicit; screen fade/gamma remain distinct
+future composition operations, not palette or fog substitutions. This cannot admit full Time
 Crisis composition. Owner approval is still required for GPU use, game/BIOS/
 generated-source access, downloads and installs.

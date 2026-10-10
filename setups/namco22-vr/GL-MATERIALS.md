@@ -35,7 +35,9 @@ divide by original native Z again. Compatibility texture combine modulates at
 RGB scale 4 with brightness/256, preserving brightness above neutral 64. Opaque
 pen0 stays alpha255. Solid no-shade flags use neutral brightness. Flat triangles
 keep the explicit flat path. The [bounded Super22 fog slice](FOG-DRAW.md) extends
-explicit textured World draws; fades/gamma/sprite/text priority remain deferred.
+explicit textured World draws; complete native composition remains deferred.
+The [polygon-fade input policy](POLYGON-FADE.md) adds bounded per-channel factors;
+screen fade/gamma and sprite/text priority remain deferred.
 
 ## Context, cleanup and state
 

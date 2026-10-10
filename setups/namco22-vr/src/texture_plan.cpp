@@ -8,6 +8,7 @@ namespace n22 {
 acvr_result prepare_texture_plan(const Frame &frame,TexturePlan &out) {
     if(auto r=validate_material_packet(frame.materials);r!=ACVR_OK) return r;
     if(auto r=validate_fog_draw(frame);r!=ACVR_OK) return r;
+    if(auto r=validate_polygon_fade_draw(frame);r!=ACVR_OK) return r;
     if(frame.triangles.size()>MaxGlTriangles) return ACVR_UNSUPPORTED;
     TexturePlan plan;plan.triangle_textures.resize(frame.triangles.size(),NoMaterial);
     const bool fog=std::any_of(frame.triangles.begin(),frame.triangles.end(),[](const Triangle &t){return t.fog_samples.enabled;});

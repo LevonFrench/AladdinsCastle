@@ -40,7 +40,7 @@ struct Saved {
     std::array<GLint,glc::EnvironmentParams.size()> fog_environment{};
     std::array<GLfloat,4> fog_constant{};
     GLint fragment_clamp=0;
-    bool fog_clamp_state=false;
+    bool fragment_clamp_state=false;
     std::array<GLint,glc::UnpackParams.size()> unpack{};
     void restore() {
         if(!changed) return;
@@ -60,7 +60,7 @@ struct Saved {
             g.BindBuffer(glc::PixelUnpackBuffer,static_cast<GLuint>(unpack_buffer));
             for(size_t i=0;i<unpack.size();++i) g.PixelStorei(glc::UnpackParams[i],unpack[i]);
         }
-        if(fog_clamp_state) g.ClampColor(glc::ClampFragmentColour,static_cast<GLenum>(fragment_clamp));
+        if(fragment_clamp_state) g.ClampColor(glc::ClampFragmentColour,static_cast<GLenum>(fragment_clamp));
         // Modern enables are not guaranteed to be covered by legacy attribs.
         for(size_t i=0;i<modern.size();++i) (modern[i]?g.Enable:g.Disable)(glc::ModernCaps[i]);
         for(size_t i=0;i<clips.size();++i) (clips[i]?g.Enable:g.Disable)(glc::ClipDistance0+static_cast<GLenum>(i));
@@ -130,6 +130,10 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
     }
     if(auto r=validate_fog_draw(frame);r!=ACVR_OK) return r;
     if(auto r=validate_background(frame.background,frame.id);r!=ACVR_OK) return r;
+    if(auto r=validate_polygon_fade_draw(frame);r!=ACVR_OK) return r;
+    const bool active_fade=polygon_fade_active(frame.polygon_fade);
+    const auto factors=polygon_fade_factors(frame.polygon_fade);
+    const std::array<GLfloat,3> fade{static_cast<float>(factors[0]),static_cast<float>(factors[1]),static_cast<float>(factors[2])};
     TexturePlan prepared;
     if(!resource_frame_) {
         if(auto r=prepare_texture_plan(frame,prepared);r!=ACVR_OK) return r;
@@ -137,6 +141,7 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
     const auto &plan=resource_frame_?texture_plan_:prepared;
     const bool has_textures=!plan.rectangles.empty();
     const bool has_fog=plan.fog_texture!=NoMaterial;
+    const bool needs_fragment_clamp=has_fog || active_fade;
     auto check_error=[&](GlPhase phase) {
         const GLenum error=gl_.GetError();
         if(error!=GL_NO_ERROR && diagnostic_.error==GL_NO_ERROR) {diagnostic_.phase=phase;diagnostic_.error=error;}
@@ -217,10 +222,10 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
             }
         }
         gl_.ActiveTexture(static_cast<GLenum>(saved.texture));
-        if(has_fog) gl_.GetIntegerv(glc::ClampFragmentColour,&saved.fragment_clamp);
+        if(needs_fragment_clamp) gl_.GetIntegerv(glc::ClampFragmentColour,&saved.fragment_clamp);
         if(check_error(GlPhase::Preflight)) return ACVR_ERROR;
         saved.texture_state=true;
-        saved.fog_clamp_state=has_fog;
+        saved.fragment_clamp_state=needs_fragment_clamp;
     }
     auto finish=[&](acvr_result value) {
         saved.restore();
@@ -333,11 +338,13 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
         gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand0Rgb,GL_SRC_COLOR);gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand1Rgb,GL_SRC_COLOR);
         gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand0Alpha,GL_SRC_ALPHA);gl_.TexEnvi(GL_TEXTURE_ENV,glc::Operand1Alpha,GL_SRC_ALPHA);
         gl_.TexEnvf(GL_TEXTURE_ENV,glc::RgbScale,4);gl_.TexEnvf(GL_TEXTURE_ENV,GL_ALPHA_SCALE,1);
-        if(has_fog) {
+        if(needs_fragment_clamp) {
             // GL permits callers to disable intermediate fragment clamping.
             // Force shade saturation before fog, then restore this state even
             // if legacy attrib stacks do not cover it.
             gl_.ClampColor(glc::ClampFragmentColour,GL_TRUE);
+        }
+        if(has_fog) {
             // Vertex alpha carries unfogged weight. Opaque texture alpha must
             // flow unchanged through both units, never become transparency.
             gl_.TexEnvi(GL_TEXTURE_ENV,glc::CombineAlpha,GL_REPLACE);
@@ -368,7 +375,7 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
             if(has_fog) {
                 gl_.ActiveTexture(glc::Texture0+1);
                 if(t.fog_samples.enabled) {
-                    const std::array<GLfloat,4> colour{t.fog_samples.rgb[0]/255.f,t.fog_samples.rgb[1]/255.f,t.fog_samples.rgb[2]/255.f,1};
+                    const std::array<GLfloat,4> colour{t.fog_samples.rgb[0]/255.f*fade[0],t.fog_samples.rgb[1]/255.f*fade[1],t.fog_samples.rgb[2]/255.f*fade[2],1};
                     gl_.TexEnvfv(GL_TEXTURE_ENV,GL_TEXTURE_ENV_COLOR,colour.data());gl_.Enable(GL_TEXTURE_2D);
                 } else gl_.Disable(GL_TEXTURE_2D);
                 gl_.ActiveTexture(glc::Texture0);
@@ -387,7 +394,7 @@ acvr_result GlRenderer::draw(const Frame &frame,const acvr_draw_info &in) {
                 if(rect) {
                     const auto &attribute=t.attributes[k];const auto &material=frame.materials.materials[t.material];
                     const float shade=(material.objectflags&6)?64.f:attribute.brightness;
-                    gl_.Color4f(shade/256.f,shade/256.f,shade/256.f,t.fog_samples.enabled?t.fog_samples.alpha[k]/255.f:1);
+                    gl_.Color4f(shade/256.f*fade[0],shade/256.f*fade[1],shade/256.f*fade[2],t.fog_samples.enabled?t.fog_samples.alpha[k]/255.f:1);
                     const float u=material.objectflags?.5f:(attribute.u-static_cast<float>(rect->min_u))/static_cast<float>(rect->width);
                     const float tv=material.objectflags?.5f:(attribute.v-static_cast<float>(rect->min_v))/static_cast<float>(rect->height);
                     gl_.TexCoord2f(u,tv);

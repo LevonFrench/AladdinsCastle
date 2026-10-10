@@ -37,6 +37,8 @@ eye view/projection are used directly, without another native camera projection
 or scale. No emulation, input, raycast or output queue changes occur while drawing.
 The [bounded Super22 fog draw](FOG-DRAW.md) extends explicit textured opaque World
 triangles with immutable native weights; unsupported enabled fog fails before clear.
+The [polygon-fade source policy](POLYGON-FADE.md) folds same-tick mixer factors
+into shade/fog inputs, including clamp restoration when fog is absent/disabled.
 
 This is not native composition parity: real texture/fog admission/palette-gamma/sprite
 priorities, real HUD classification, culling expansion and per-game calibration

@@ -34,6 +34,8 @@ applies same-draw RGB fog to explicit opaque textured World triangles in CPU/GL
 source paths. Synthetic CPU/mocks admit no real board, driver or game.
 The [owned Super22 background](BACKGROUND.md) supplies only the existing world's
 scoped clear; its same-tick state is distinct from fog, fades and gamma.
+The [explicit polygon-fade source order](POLYGON-FADE.md) folds owned mixer
+factors into shade/fog inputs for admitted opaque textured World triangles.
 
 Explicit HUD test tags flatten to one chosen depth and render into a separate CPU
 image. Backdrop tags ignore eye translation and sit at infinity; gun-flash tags
