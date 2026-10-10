@@ -1,0 +1,207 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Candidate bindings require actual backend declarations before emitting input.
+version = "0.1"
+id = "gun-con-pistol-dpad"
+title = "Console pistol with rear d-pad controls"
+gun_model = "con-pistol-dpad"
+
+[policy]
+p1_hand = "right"
+two_guns = "on_join"
+hand_switch = "trigger"
+join = "button"
+per_hand_angle = true
+mirror_left_angle = true
+grab_modes = ["hold", "toggle"]
+seated_reload = true
+# Policy expresses desired behavior, not a live implementation.
+
+[[element]]
+id = "p1-trigger"
+label = "Fire"
+part = "trigger"
+node = "pivot_trigger"
+slot = 0
+player = 0
+input = { kind = "gun", semantic = "trigger" }
+binding = { hand = "slot", control = "trigger", mode = "hold" }
+
+[[element]]
+id = "p1-reload"
+label = "Reload"
+part = "aim-offscreen"
+node = "muzzle"
+slot = 0
+player = 0
+input = { kind = "gun", semantic = "reload" }
+binding = { hand = "slot", control = "offscreen_trigger", mode = "press" }
+
+[[element]]
+id = "p1-coin"
+label = "Insert credit"
+part = "coin-button"
+node = ""
+slot = 0
+player = 0
+input = { kind = "button", semantic = "coin" }
+binding = { hand = "slot", control = "secondary", mode = "press" }
+
+[[element]]
+id = "p1-laser"
+label = "Toggle laser"
+part = "laser"
+node = "fx_laser"
+slot = 0
+player = 0
+input = { kind = "runtime", semantic = "laser_toggle" }
+binding = { hand = "slot", control = "thumbstick_click", mode = "toggle" }
+
+[[unmapped_part]]
+id = "p1-a"
+slot = 0
+player = 0
+node = "button_a"
+label = "A"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_a"
+
+[[unmapped_part]]
+id = "p1-b"
+slot = 0
+player = 0
+node = "button_b"
+label = "B"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_b"
+
+[[unmapped_part]]
+id = "p1-c"
+slot = 0
+player = 0
+node = "button_c"
+label = "C"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_c"
+
+[[unmapped_part]]
+id = "p1-select"
+slot = 0
+player = 0
+node = "button_select"
+label = "Select"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_select"
+
+[[element]]
+id = "p1-start"
+label = "Start / join"
+part = "start-button"
+node = "button_start"
+slot = 0
+player = 0
+input = { kind = "button", semantic = "start" }
+binding = { hand = "slot", control = "primary", mode = "press" }
+
+[[unmapped_part]]
+id = "p1-dpad"
+slot = 0
+player = 0
+node = "button_dpad"
+label = "D-pad"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "dpad"
+
+[[element]]
+id = "p2-trigger"
+label = "Fire"
+part = "trigger"
+node = "pivot_trigger"
+slot = 1
+player = 1
+input = { kind = "gun", semantic = "trigger" }
+binding = { hand = "slot", control = "trigger", mode = "hold" }
+
+[[element]]
+id = "p2-reload"
+label = "Reload"
+part = "aim-offscreen"
+node = "muzzle"
+slot = 1
+player = 1
+input = { kind = "gun", semantic = "reload" }
+binding = { hand = "slot", control = "offscreen_trigger", mode = "press" }
+
+[[element]]
+id = "p2-coin"
+label = "Insert credit"
+part = "coin-button"
+node = ""
+slot = 1
+player = 1
+input = { kind = "button", semantic = "coin" }
+binding = { hand = "slot", control = "secondary", mode = "press" }
+
+[[element]]
+id = "p2-laser"
+label = "Toggle laser"
+part = "laser"
+node = "fx_laser"
+slot = 1
+player = 1
+input = { kind = "runtime", semantic = "laser_toggle" }
+binding = { hand = "slot", control = "thumbstick_click", mode = "toggle" }
+
+[[unmapped_part]]
+id = "p2-a"
+slot = 1
+player = 1
+node = "button_a"
+label = "A"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_a"
+
+[[unmapped_part]]
+id = "p2-b"
+slot = 1
+player = 1
+node = "button_b"
+label = "B"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_b"
+
+[[unmapped_part]]
+id = "p2-c"
+slot = 1
+player = 1
+node = "button_c"
+label = "C"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_c"
+
+[[unmapped_part]]
+id = "p2-select"
+slot = 1
+player = 1
+node = "button_select"
+label = "Select"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_select"
+
+[[element]]
+id = "p2-start"
+label = "Start / join"
+part = "start-button"
+node = "button_start"
+slot = 1
+player = 1
+input = { kind = "button", semantic = "start" }
+binding = { hand = "slot", control = "primary", mode = "press" }
+
+[[unmapped_part]]
+id = "p2-dpad"
+slot = 1
+player = 1
+node = "button_dpad"
+label = "D-pad"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "dpad"
