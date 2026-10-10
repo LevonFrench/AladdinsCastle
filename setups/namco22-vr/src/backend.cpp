@@ -162,6 +162,10 @@ acvr_result draw_cpu_frame(acvr_backend *b,const acvr_frame *f,const acvr_eye &e
     if(!lease(b,f)) return ACVR_BAD_STATE;
     try { return draw_cpu(f->scene,e,image,hud); } catch(...) { return ACVR_ERROR; }
 }
+acvr_result compose_cpu_frame(acvr_backend *b,const acvr_frame *f,const acvr_eye &e,const CompositionEyeSpans &spans,Image &image) {
+    if(!lease(b,f)) return ACVR_BAD_STATE;
+    return compose_cpu(f->scene,e,spans,image);
+}
 acvr_result inspect_fog_frame(acvr_backend *b,const acvr_frame *f,uint32_t triangle,uint32_t vertex,FogDecision &out) {
     if(!lease(b,f)) return ACVR_BAD_STATE;
     if(triangle>=f->scene.triangles.size()) return ACVR_BAD_ARGUMENT;

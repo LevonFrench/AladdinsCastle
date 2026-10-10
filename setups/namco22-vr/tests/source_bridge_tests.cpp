@@ -3,6 +3,7 @@
 #include "n22_source_hooks.h"
 #include "n22_background.hpp"
 #include "n22_polygon_fade.hpp"
+#include "n22_composition.hpp"
 #include <iostream>
 #include <stdexcept>
 extern "C" {
@@ -67,6 +68,9 @@ int main() {
         n22::PolygonFadeState fade;
         check(n22::copy_super22_polygon_fade(*second,fade)==ACVR_OK && fade.tick==2 && fade.rgb==std::array<uint8_t,3>{2,2,2},"actual leased source copy feeds same-tick fade packet without native globals");
         check(n22::polygon_fade_factors(fade)==std::array<double,3>{2./256,2./256,2./256},"copied native-shaped bytes feed global enabled byte/256 factors");
+        n22::CompositionMixer mixer;
+        check(n22::copy_super22_composition_mixer(*second,mixer)==ACVR_OK && mixer.tick==2 && mixer.background==std::array<uint8_t,3>{2,2,2} && mixer.fade==std::array<uint8_t,3>{2,2,2} && mixer.factor==2 && mixer.flags==2 && mixer.gamma[0][17]==2 && mixer.gamma[2][255]==2,"actual copied source bank feeds complete same-tick composition mixer");
+        n22_source_fixture_mutate();check(mixer.background[0]==2 && mixer.gamma[2][255]==2,"native source mutation cannot alter complete owned mixer/LUT");
         fog_capture.quad.rv[0].z=999;check(fog_quad.native_depth[0]==2,"later capture mutation cannot affect copied native fog depth");
         quad.direct=1;check(!n22::copy_geo_quad(quad,&view).has_camera,"direct polygons are not assigned an invented camera");
         quad.direct=0;view.zoom_mant=1545;
