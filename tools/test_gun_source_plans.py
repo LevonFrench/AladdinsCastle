@@ -53,7 +53,7 @@ class SourcePlanTests(unittest.TestCase):
     def test_slide_moves_upper_geometry_and_kick_moves_whole_visible_body(self):
         furniture={'frame','hand_grip','guard_post_-1','guard_post_1','guard_lower',
                    'cable_boss','grip_rib_0','grip_rib_1','grip_rib_2'}
-        upper={'barrel_shell','rear_shell','muzzle_lens','sight_front_mesh','sight_rear_mesh'}
+        upper={'barrel_shell','rear_shell','muzzle_lens','front_sight_geometry','rear_sight_geometry'}
         for mid in ('arc-pistol-slide','arc-pistol-twin'):
             spec=plan(mid,runpy.run_path(str(ROOT/'assets/guns/src'/(mid+'.py')))['PARAMETERS'])
             parts={p['name']:p for p in spec['parts']}
@@ -64,6 +64,27 @@ class SourcePlanTests(unittest.TestCase):
                     self.assertEqual(parts[name]['parent'],'visual_kick' if mid=='arc-pistol-twin' else 'slide_recoil')
                 for name in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear'):
                     self.assertIsNone(spec['nodes'][name]['parent'])
+
+    def test_animated_visible_meshes_do_not_claim_static_reference_names(self):
+        for mid in TIERS:
+            spec=plan(mid,runpy.run_path(str(ROOT/'assets/guns/src'/(mid+'.py')))['PARAMETERS'])
+            driven={m['node'] for m in metadata(mid)['motion'].values()}
+            with self.subTest(model=mid):
+                for part in spec['parts']:
+                    ancestor=part['parent']; animated=False
+                    while ancestor:
+                        animated |= ancestor in driven
+                        ancestor=spec['nodes'][ancestor]['parent']
+                    if animated:
+                        # Exact grip/muzzle names plus sight_/fx_ prefixes mirror
+                        # native protection. Ordinary grip_rib geometry is valid.
+                        for name in (part['name'],part['name']+'_lod0',part['name']+'_lod1'):
+                            self.assertNotIn(name,('grip','grip_two','muzzle'))
+                            self.assertFalse(name.startswith(('sight_','fx_')),name)
+                parts={p['name']:p for p in spec['parts']}
+                for marker,visible in (('sight_front','front_sight_geometry'),('sight_rear','rear_sight_geometry')):
+                    self.assertEqual(parts[visible]['at'],spec['nodes'][marker]['at'])
+                    self.assertIsNone(spec['nodes'][marker]['parent'])
 
     def test_preview_multiplies_exported_linear_factors_for_all_palettes(self):
         # Exported values stay stable; native GL multiplies these factors rather

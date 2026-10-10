@@ -17,6 +17,7 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = {'grip','muzzle','sight_front','sight_rear','pivot_trigger','fx_muzzle','fx_laser','LOD0','LOD1'}
 IDENTITY = (1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1)
+MOTION_DRIVES = {'trigger','recoil','pump','selector','yaw','pitch'}
 
 
 def demand(condition, message):
@@ -49,13 +50,15 @@ def read_glb(path):
     return doc, chunks[1][1][:buffer['byteLength']]
 
 
-def accessor(doc, binary, index):
+def accessor(doc, binary, index, color=False):
     demand(isinstance(index,int) and 0 <= index < len(doc.get('accessors',[])), 'invalid accessor index')
     acc = doc['accessors'][index]
     demand('sparse' not in acc, 'sparse accessors unsupported in authored tier 1')
-    demand(not acc.get('normalized'), 'normalized accessors unsupported')
+    normalized = acc.get('normalized',False)
+    demand(type(normalized) is bool, 'invalid accessor normalization')
+    demand(color or not normalized, 'normalized accessors unsupported for this attribute')
     formats = {5121:('B',1),5123:('H',2),5125:('I',4),5126:('f',4)}
-    sizes = {'SCALAR':1,'VEC3':3}
+    sizes = {'SCALAR':1,'VEC3':3,'VEC4':4}
     demand(acc.get('componentType') in formats and acc.get('type') in sizes, 'unsupported accessor layout')
     vi = acc.get('bufferView')
     demand(isinstance(vi,int) and 0 <= vi < len(doc.get('bufferViews',[])), 'invalid bufferView index')
@@ -71,7 +74,25 @@ def accessor(doc, binary, index):
     demand(offset+length <= len(binary) and local+(count-1)*stride+item_width <= length, 'accessor exceeds binary/view bounds')
     result = [struct.unpack_from('<'+code*components,binary,offset+local+i*stride) for i in range(count)]
     demand(all(math.isfinite(v) for row in result for v in row), 'non-finite accessor data')
+    if color and acc['componentType'] != 5126:
+        demand(normalized and acc['componentType'] in (5121,5123), 'vertex color integers must be normalized bytes/shorts')
+        divisor = 255 if acc['componentType']==5121 else 65535
+        result = [tuple(v/divisor for v in row) for row in result]
     return result
+
+
+def finite_number(value):
+    if type(value) not in (int,float):
+        return False
+    try:
+        return math.isfinite(value) and abs(value)<=3.4028234663852886e38
+    except OverflowError:
+        return False
+
+
+def rgba(value,context):
+    demand(isinstance(value,(list,tuple)) and len(value)==4 and
+           all(finite_number(v) and 0<=v<=1 for v in value),context+' RGBA must be four finite numbers in 0..1')
 
 
 def multiply(a,b):
@@ -143,6 +164,11 @@ def check_asset(path, meta):
     demand(abs(direction[0])<1e-5 and abs(direction[1])<1e-5 and abs(direction[2]+1)<1e-5, 'muzzle bore must point -Z')
     materials = doc.get('materials',[])
     demand({m.get('name') for m in materials}=={'body','accent','dark','glass'} and len(materials)==4, 'expected four named materials')
+    for material in materials:
+        pbr = material.get('pbrMetallicRoughness',{})
+        demand(isinstance(pbr,dict), 'material PBR must be a table')
+        demand(not any(key in pbr for key in ('baseColorTexture','metallicRoughnessTexture')), 'material textures unsupported')
+        rgba(pbr.get('baseColorFactor',[1,1,1,1]),'material')
     totals, positions = {'LOD0':0,'LOD1':0}, {'LOD0':[],'LOD1':[]}
     used_materials, used_meshes = set(),set()
     for index,node in enumerate(nodes):
@@ -159,6 +185,16 @@ def check_asset(path, meta):
             pi = prim.get('attributes',{}).get('POSITION')
             points = accessor(doc,binary,pi)
             demand(doc['accessors'][pi]['type']=='VEC3' and doc['accessors'][pi]['componentType']==5126, 'POSITION must be float VEC3')
+            if 'COLOR_0' in prim.get('attributes',{}):
+                ci = prim['attributes']['COLOR_0']
+                demand(type(ci) is int and 0<=ci<len(doc['accessors']), 'invalid vertex color accessor')
+                ca = doc['accessors'][ci]
+                demand(ca.get('type') in ('VEC3','VEC4') and ca.get('count')==len(points) and
+                       (ca.get('componentType')==5126 or
+                        ca.get('componentType') in (5121,5123) and ca.get('normalized') is True),
+                       'vertex color layout/count must match POSITION')
+                for value in accessor(doc,binary,ci,color=True):
+                    rgba(value if len(value)==4 else (*value,1),'vertex color')
             if 'indices' in prim:
                 ia = doc['accessors'][prim['indices']]
                 demand(ia['type']=='SCALAR' and ia['componentType'] in (5121,5123,5125), 'indices must be unsigned integers')
@@ -183,16 +219,37 @@ def check_asset(path, meta):
         demand(abs(length-meta['length_mm']) <= meta['length_mm']*.1,
                f'{lod} bore length {length:.2f} mm differs from target {meta["length_mm"]} mm')
         bounds[lod] = round(length,3)
-    for mid,motion in meta.get('motion',{}).items():
+    # Native model validation protects every static reference and every ancestor,
+    # including the LOD1 alias. Direct-child muzzle checks alone cannot prove this.
+    static_ancestors = set()
+    for index,name in enumerate(names):
+        if name in ('grip','grip_two','muzzle') or name.startswith(('sight_','fx_')):
+            ancestor = index
+            while ancestor is not None:
+                static_ancestors.add(ancestor)
+                ancestor = parents.get(ancestor)
+    motions = meta.get('motion',{})
+    demand(isinstance(motions,dict) and len(motions)<=64, 'motion must be a table with at most 64 entries')
+    driven = set()
+    for mid,motion in motions.items():
+        demand(isinstance(mid,str) and mid and isinstance(motion,dict), 'motion id/table required')
         demand(motion.get('node') in names, f'motion {mid}: missing node')
         demand(motion.get('kind') in ('rotate','slide'), f'motion {mid}: invalid kind')
         axis,limits = motion.get('axis',[]),motion.get('range',[])
-        demand(len(axis)==3 and all(math.isfinite(v) for v in axis) and abs(sum(v*v for v in axis)-1)<1e-5, f'motion {mid}: unit axis required')
-        demand(len(limits)==2 and all(math.isfinite(v) for v in limits) and limits[0]<limits[1], f'motion {mid}: invalid range')
-        demand(isinstance(motion.get('drive'),str) and motion['drive'], f'motion {mid}: missing drive')
+        demand(isinstance(axis,list) and len(axis)==3 and all(finite_number(v) for v in axis) and abs(sum(v*v for v in axis)-1)<1e-5, f'motion {mid}: unit axis required')
+        demand(isinstance(limits,list) and len(limits)==2 and all(finite_number(v) for v in limits) and limits[0]<limits[1], f'motion {mid}: invalid range')
+        drive = motion.get('drive')
+        demand(isinstance(drive,str) and (drive in MOTION_DRIVES or drive.startswith('button:') and len(drive)>7), f'motion {mid}: unsupported motion drive')
+        if 'duration_ms' in motion:
+            duration = motion['duration_ms']
+            demand(type(duration) is int and 0<duration<=10000, f'motion {mid}: duration must be an integer in 1..10000 ms')
         demand(motion.get('lod_nodes')==[motion['node'],motion['node']+'_lod1'], f'motion {mid}: explicit LOD targets required')
         for target in motion['lod_nodes']:
             demand(target in names, f'motion {mid}: missing LOD target {target}')
+            index = names.index(target)
+            demand(index not in static_ancestors, f'motion {mid}: motion would move a static aim/reference anchor')
+            demand(index not in driven, f'motion {mid}: node has multiple motion drivers')
+            driven.add(index)
         canonical = nodes[names.index(motion['node'])]
         alternate = nodes[names.index(motion['node']+'_lod1')]
         demand(canonical.get('extras',{}).get('semantic_node')==motion['node'] and

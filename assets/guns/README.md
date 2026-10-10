@@ -50,6 +50,8 @@ materials: neutral `body`/`accent`, fixed `dark`/`glass`; no textures.
 Blowback moves the upper slide, its visible sights and lens. Frame, hand grip,
 guard, cable boss and grip ribs stay stationary. The twin's whole-body visual
 kick carries all visible furniture while its aim/reference anchors stay fixed.
+Visible sight parts are `front_sight_geometry`/`rear_sight_geometry`; the static
+`sight_front`/`sight_rear` names and transforms stay reserved for reference nodes.
 
 Canonical animated names appear in LOD0; LOD1 equivalents have `_lod1` suffixes.
 Both carry `extras.semantic_node`. Metadata `[motion.<id>]` includes `lod_nodes`,
@@ -78,6 +80,14 @@ The checker reads real vertex/index buffers and node transforms to measure each
 LOD; declared accessor bounds cannot fool it. It checks file/chunk/buffer bounds,
 scene roots, unique names, bore direction, triangle/material limits, buttons,
 motion aliases/limits, both PNG dimensions and every required callout anchor.
+Actual-asset checks also reject unsupported drives, non-integer/out-of-range
+durations, repeated motion targets and driven ancestors of static references
+(including either LOD). Native static names reserve `grip`, `grip_two`, `muzzle`
+and every `sight_`/`fx_` prefix. Material RGBA and decoded vertex RGB/RGBA must be
+finite in 0..1; normalized unsigned byte/short vertex colors are supported.
+Distinct motion targets may share a logical drive. The checker deliberately
+keeps the authored tier's two explicit LOD aliases and four used material roles;
+it supplements the native decoder and does not replace its acceptance gate.
 `--source-only` is available before Blender approval and explicitly reports
 that it provides no built-asset acceptance. The default check fails on missing
 outputs; never use source-only mode as a replacement for the final CI gate.
