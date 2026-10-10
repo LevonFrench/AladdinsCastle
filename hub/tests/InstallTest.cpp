@@ -184,6 +184,145 @@ void archiveFile(const QString &path, const QStringList &names,
 class InstallTest : public QObject {
   Q_OBJECT
 private slots:
+  void automaticRollbackRetainsLock_data() {
+    QTest::addColumn<bool>("uninstall");
+    QTest::newRow("install") << false;
+    QTest::newRow("uninstall") << true;
+  }
+  void automaticRollbackRetainsLock() {
+    QFETCH(bool, uninstall);
+    QTemporaryDir temp;
+    auto request = fixture(temp.path());
+    Options normal; normal.survivalMs = 0;
+    const auto live = temp.path() + "/installed/synthetic/flat/example.exe";
+    if (uninstall) {
+      atomicWrite(live, "synthetic prior executable");
+      QVERIFY(Engine(normal).install(request).success);
+      const auto manifest = readEnvelope(stateBase(request) + ".manifest.toml");
+      for (const auto &row : manifest["file"])
+        if (string(row, "path") == "example.exe")
+          QVERIFY(QFile::remove(temp.path() + "/user/state/backups/" + string(row, "backup")));
+    }
+    bool atStart = false, atEnd = false, excluded = true, unchanged = true;
+    auto options = normal;
+    options.event = [&](const QVariantMap &v) {
+      if (!uninstall && v.value("kind") == "verify")
+        throw Error("E_VERIFY", "Synthetic verification failure");
+      const bool start = v.value("kind") == "rollback";
+      const bool end = v.value("text") == "Changes rolled back";
+      if (!start && !end) return;
+      atStart |= start; atEnd |= end;
+      const auto journal = readBytes(stateBase(request) + ".journal.jsonl");
+      QProcess competitor;
+      competitor.start(QCoreApplication::applicationDirPath() + "/hubtool",
+          {"--data-root", catalogFixtureRoot(), "--install-root", temp.path(),
+           "recover", "synthetic", "flat"});
+      const bool finished = competitor.waitForFinished(10000);
+      excluded &= finished && competitor.exitStatus() == QProcess::NormalExit &&
+          competitor.exitCode() != 0 && competitor.readAllStandardOutput().contains("Another install is active");
+      unchanged &= journal == readBytes(stateBase(request) + ".journal.jsonl");
+    };
+    const auto failed = uninstall ? Engine(options).uninstall(request) : Engine(options).install(request);
+    QVERIFY(!failed.success);
+    QVERIFY(atStart); QVERIFY(atEnd);
+    QVERIFY2(excluded, "Second process acquired the operation lock during automatic rollback");
+    QVERIFY(unchanged);
+    QVERIFY(readBytes(stateBase(request) + ".journal.jsonl").contains("rollback-complete"));
+    QVERIFY(Engine(normal).recover(request).success);
+    if (uninstall) {
+      QCOMPARE(readBytes(live), QByteArray("synthetic binary v1"));
+      QVERIFY(QFileInfo(temp.path() + "/installed/synthetic/flat/settings.ini").isFile());
+    } else QVERIFY(!QFileInfo(live).exists());
+  }
+  void recoveryRejectsExternalInverseRename_data() {
+    QTest::addColumn<QString>("operand");
+    QTest::newRow("external-absolute") << QString("absolute");
+    QTest::newRow("external-relative") << QString("relative");
+    QTest::newRow("linked-ancestor") << QString("linked");
+  }
+  void recoveryRejectsExternalInverseRename() {
+    QFETCH(QString, operand);
+    QTemporaryDir temp, external;
+    auto request = fixture(temp.path());
+    const auto destination = temp.path() + "/installed/stolen";
+    const auto source = external.path() + "/unrelated";
+    atomicWrite(source + "/sentinel", "synthetic unrelated bytes");
+    QVERIFY(QDir().mkpath(temp.path() + "/installed"));
+    QString to = source;
+    if (operand == "relative") to = QDir(temp.path()).relativeFilePath(source);
+    if (operand == "linked") {
+      const auto link = temp.path() + "/linked";
+#ifdef Q_OS_WIN
+      QProcess process;
+      process.start("cmd.exe", {"/c", "mklink", "/J", QDir::toNativeSeparators(link), QDir::toNativeSeparators(external.path())});
+      QVERIFY(process.waitForFinished(10000)); QCOMPARE(process.exitCode(), 0);
+#else
+      std::error_code error;
+      std::filesystem::create_directory_symlink(external.path().toStdString(), link.toStdString(), error);
+      QVERIFY2(!error, error.message().c_str());
+#endif
+      to = link + "/unrelated";
+    }
+    const auto journal = stateBase(request) + ".journal.jsonl";
+    QDir().mkpath(QFileInfo(journal).absolutePath());
+    durableAppend(journal, Json{{"kind", "begin"}, {"run", QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString()},
+        {"manifest_before", Json::object()}, {"state_before", Json::object()}});
+    durableAppend(journal, Json{{"kind", "intent"}, {"op", "rename"},
+        {"path", destination.toStdString()}, {"to", to.toStdString()}});
+    const auto recovered = Engine().recover(request);
+    QVERIFY2(!recovered.success, "Recovery moved an unrelated tree into the portable root");
+    QCOMPARE(recovered.state, QString("rollback-incomplete"));
+    QCOMPARE(readBytes(source + "/sentinel"), QByteArray("synthetic unrelated bytes"));
+    QVERIFY(!QFileInfo(destination).exists());
+    QVERIFY(!readBytes(journal).contains("rollback-complete"));
+  }
+  void recoveryAllowsContainedInverseRename() {
+    QTemporaryDir temp;
+    auto request = fixture(temp.path());
+    const auto original = temp.path() + "/installed/original";
+    const auto moved = temp.path() + "/installed/previous";
+    atomicWrite(moved + "/sentinel", "synthetic contained bytes");
+    const auto journal = stateBase(request) + ".journal.jsonl";
+    QDir().mkpath(QFileInfo(journal).absolutePath());
+    durableAppend(journal, Json{{"kind", "begin"}, {"run", QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString()},
+        {"manifest_before", Json::object()}, {"state_before", Json::object()}});
+    durableAppend(journal, Json{{"kind", "intent"}, {"op", "rename"},
+        {"path", original.toStdString()}, {"to", moved.toStdString()}});
+    QVERIFY(Engine().recover(request).success);
+    QCOMPARE(readBytes(original + "/sentinel"), QByteArray("synthetic contained bytes"));
+    QVERIFY(!QFileInfo(moved).exists());
+  }
+  void artifactPromotionVerifiesExistingObject_data() {
+    QTest::addColumn<bool>("corrupt");
+    QTest::newRow("corrupt") << true;
+    QTest::newRow("valid") << false;
+  }
+  void artifactPromotionVerifiesExistingObject() {
+    QFETCH(bool, corrupt);
+    QTemporaryDir temp;
+    HttpsServer server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    TestTrust trust{QSslCertificate::fromPath(QString(AC_TEST_FIXTURES) + "/tls/localhost-cert.pem"),
+                    {"localhost"}, server.url()};
+    const auto hash = sha256(server.payload);
+    const auto final = temp.path() + "/user/cache/artifacts/" + hash;
+    atomicWrite(final, corrupt ? QByteArray("synthetic corrupt cache object") : server.payload);
+    ArtifactStore store(temp.path(), {}, trust);
+    // First-record mode learns the digest only after fetching. The final object
+    // therefore bypasses the known-pin cache lookup at entry.
+    const Json step{{"do", "download"}, {"url", "https://github.com/artifact"},
+                    {"name", "tool.dat"}, {"record_sha256", true}};
+    bool refused = false;
+    try { QCOMPARE(hashFile(store.acquire(step, testGuard())), hash); }
+    catch (const Error &) { refused = true; }
+    QVERIFY(server.requests.size() == 1);
+    QVERIFY(!refused || corrupt);
+    if (refused) {
+      QCOMPARE(readBytes(final), QByteArray("synthetic corrupt cache object"));
+      QVERIFY(QFileInfo(final + ".part").exists() ||
+              !QDir(temp.path() + "/user/cache/artifacts").entryList({"*.part"}).isEmpty());
+    }
+  }
   void canonical() {
     const Json j{{"z", 1}, {"a", "\n\t\"\\"}, {"b", true}};
     QCOMPARE(

@@ -816,95 +816,109 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
   for (const auto &g : catalog.games) {
     if (cancel)
       break;
-    auto state = g.runtime;
-    state.gameId = g.id;
-    state.mediaFound.clear();
-    state.toolsOk.clear();
-    state.toolsOlder.clear();
-    for (const auto &tool : r.tools)
-      if (tool.verified)
-        state.toolsOk << tool.id;
-    state.toolsOk.removeDuplicates();
-    if (g.raw.contains("media") && g.raw["media"].is_array()) {
-      int i = 0;
-      for (const auto &m : g.raw["media"]) {
-        Binding binding;
-        binding.gameId = g.id;
-        binding.requirementId = requirementId(g, m, i++);
-        const auto kind = s(m, "kind");
-        if (kind == "mame-romset" || (kind == "bios" && !s(m, "set").isEmpty())) {
-          const auto name = s(m, "set");
-          auto candidate =
-              matchSet(name, mame, archiveIndex, mameFamilies, false, cancel);
-          if (g.raw.value("hardware", std::string()) == "sega-model-3") {
-            auto model = matchSet(name, model3, archiveIndex, model3Families,
-                                  true, cancel);
-            if (model.verified || candidate.path.isEmpty())
-              candidate = model;
-          }
-          candidate.gameId = binding.gameId;
-          candidate.requirementId = binding.requirementId;
-          binding = candidate;
-          if (binding.path.isEmpty())
-            binding.missing << "No CRC-verified set candidate";
-        } else if (kind == "disc" || kind == "bios") {
-          for (const auto &f : r.files) {
-            if (!f.error.isEmpty() || f.identity.isEmpty())
-              continue;
-            bool found = false;
-            if (kind == "bios")
-              found = f.kind == "ps2-bios-romdir" &&
-                      s(g.raw, "hardware") == "sony-ps2";
-            else if (!s(m, "chd_sha1").isEmpty() && !f.chdHeaderSha1.isEmpty())
-              found = s(m, "chd_sha1").compare(f.chdHeaderSha1, Qt::CaseInsensitive) == 0;
-            else if (!s(m, "serial").isEmpty())
-              found = s(m, "serial") == f.identity;
-            else if (serials.contains(f.identity.toStdString())) {
-              const auto &entry = serials[f.identity.toStdString()];
-              found = s(entry, "gameId") == g.id;
+    const auto bindingStart = r.bindings.size();
+    try {
+      if (!g.raw.is_object() ||
+          (g.raw.contains("hardware") && !g.raw["hardware"].is_string()) ||
+          (g.raw.contains("media") && !g.raw["media"].is_array()))
+        throw Json::type_error::create(302, "Invalid scanner record fields", &g.raw);
+      auto state = g.runtime;
+      state.gameId = g.id;
+      state.mediaFound.clear();
+      state.toolsOk.clear();
+      state.toolsOlder.clear();
+      for (const auto &tool : r.tools)
+        if (tool.verified)
+          state.toolsOk << tool.id;
+      state.toolsOk.removeDuplicates();
+      if (g.raw.contains("media") && g.raw["media"].is_array()) {
+        int i = 0;
+        for (const auto &m : g.raw["media"]) {
+          if (!m.is_object())
+            throw Json::type_error::create(302, "Invalid media requirement", &m);
+          Binding binding;
+          binding.gameId = g.id;
+          binding.requirementId = requirementId(g, m, i++);
+          const auto kind = s(m, "kind");
+          if (kind == "mame-romset" || (kind == "bios" && !s(m, "set").isEmpty())) {
+            const auto name = s(m, "set");
+            auto candidate =
+                matchSet(name, mame, archiveIndex, mameFamilies, false, cancel);
+            if (s(g.raw, "hardware") == "sega-model-3") {
+              auto model = matchSet(name, model3, archiveIndex, model3Families,
+                                    true, cancel);
+              if (model.verified || candidate.path.isEmpty())
+                candidate = model;
             }
-            if (found) {
-              binding.path = f.path;
-              binding.identity = f.identity;
-              binding.proof = f.kind;
-              binding.verified = true;
+            candidate.gameId = binding.gameId;
+            candidate.requirementId = binding.requirementId;
+            binding = candidate;
+            if (binding.path.isEmpty())
+              binding.missing << "No CRC-verified set candidate";
+          } else if (kind == "disc" || kind == "bios") {
+            for (const auto &f : r.files) {
+              if (!f.error.isEmpty() || f.identity.isEmpty())
+                continue;
+              bool found = false;
               if (kind == "bios")
-                for (const auto &component : r.files)
-                  if (component.kind == "ps2-bios-component" &&
-                      QFileInfo(component.path).absolutePath() ==
-                          QFileInfo(f.path).absolutePath() &&
-                      QFileInfo(component.path).completeBaseName() ==
-                          QFileInfo(f.path).completeBaseName())
-                    binding.supportPaths << component.path;
-              break;
+                found = f.kind == "ps2-bios-romdir" &&
+                        s(g.raw, "hardware") == "sony-ps2";
+              else if (!s(m, "chd_sha1").isEmpty() && !f.chdHeaderSha1.isEmpty())
+                found = s(m, "chd_sha1").compare(f.chdHeaderSha1, Qt::CaseInsensitive) == 0;
+              else if (!s(m, "serial").isEmpty())
+                found = s(m, "serial") == f.identity;
+              else if (serials.contains(f.identity.toStdString())) {
+                const auto &entry = serials[f.identity.toStdString()];
+                found = s(entry, "gameId") == g.id;
+              }
+              if (found) {
+                binding.path = f.path;
+                binding.identity = f.identity;
+                binding.proof = f.kind;
+                binding.verified = true;
+                if (kind == "bios")
+                  for (const auto &component : r.files)
+                    if (component.kind == "ps2-bios-component" &&
+                        QFileInfo(component.path).absolutePath() ==
+                            QFileInfo(f.path).absolutePath() &&
+                        QFileInfo(component.path).completeBaseName() ==
+                            QFileInfo(f.path).completeBaseName())
+                      binding.supportPaths << component.path;
+                break;
+              }
             }
-          }
-          if (!binding.verified)
-            binding.missing << "No matching verified header identity";
-        } else if (kind == "pc-game" || kind == "pc") {
-          auto names = strings(m, "find");
-          if (!s(m, "find").isEmpty())
-            names << s(m, "find");
-          if (!s(m, "exe").isEmpty())
-            names << s(m, "exe");
-          for (const auto &path : paths)
-            if (names.contains(QFileInfo(path).fileName(),
-                               Qt::CaseInsensitive) &&
-                executable(path)) {
-              binding.path = path;
-              binding.identity = version(path);
-              binding.proof = "executable-name-only";
-              binding.verified = true;
-              break;
-            }
-        } else
-          binding.missing << "Unsupported media requirement";
-        if (binding.verified)
-          state.mediaFound << binding.requirementId;
-        r.bindings << binding;
+            if (!binding.verified)
+              binding.missing << "No matching verified header identity";
+          } else if (kind == "pc-game" || kind == "pc") {
+            auto names = strings(m, "find");
+            if (!s(m, "find").isEmpty())
+              names << s(m, "find");
+            if (!s(m, "exe").isEmpty())
+              names << s(m, "exe");
+            for (const auto &path : paths)
+              if (names.contains(QFileInfo(path).fileName(),
+                                 Qt::CaseInsensitive) &&
+                  executable(path)) {
+                binding.path = path;
+                binding.identity = version(path);
+                binding.proof = "executable-name-only";
+                binding.verified = true;
+                break;
+              }
+          } else
+            binding.missing << "Unsupported media requirement";
+          if (binding.verified)
+            state.mediaFound << binding.requirementId;
+          r.bindings << binding;
+        }
       }
+      r.states << state;
+    } catch (const Json::exception &) {
+      // A record is all-or-nothing: discard any partial bindings and omit its
+      // state, preserving that game's prior valid model snapshot.
+      r.bindings.resize(bindingStart);
+      r.diagnostics << "Skipped malformed catalog record: " + g.id;
     }
-    r.states << state;
     if (progress)
       progress({{"phase", "matching"},
                 {"completed", ++matchedGames},
