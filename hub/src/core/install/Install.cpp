@@ -203,6 +203,7 @@ void event(const Options &o, const QString &run, const QString &kind,
 }
 struct Lock {
   QLockFile global, variant;
+  std::unique_ptr<ResourceLocks> payload;
   explicit Lock(const Request &r)
       : global(scopedPath("user/state/locks/global.lock", r.root)),
         variant(scopedPath("user/state/locks/" + r.gameId + "--" + r.variantId +
@@ -215,6 +216,9 @@ struct Lock {
     if (!global.tryLock(0) || !variant.tryLock(0))
       throw Error("E_LOCKED", "Another install is active; queued service can "
                               "retry after it completes");
+    const auto relative=r.gameId.startsWith("tool-") ? "emulators/"+r.gameId.mid(5)
+                                                   : "installed/"+r.gameId+"/"+r.variantId;
+    payload=std::make_unique<ResourceLocks>(QStringList{scopedPath(relative,r.root)},ResourceAccess::Mutation);
   }
 };
 void fault(const Options &o, const QString &point) {

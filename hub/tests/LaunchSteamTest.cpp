@@ -5,6 +5,7 @@
 #include <QGuiApplication>
 #include <QSignalSpy>
 #include <QElapsedTimer>
+#include <QCoreApplication>
 #include <QSemaphore>
 #include <QScopeGuard>
 #include <QtConcurrent/QtConcurrentRun>
@@ -13,6 +14,7 @@
 #include <QTextStream>
 #include <QtEndian>
 #include <csignal>
+#include <cstdlib>
 #include <limits>
 using namespace ac;
 namespace {
@@ -30,6 +32,32 @@ steam::Shortcut shortcut() {
           0,
           "flat-synthetic"};
 }
+steam::WriteRequest syntheticSteamRequest(const QString &root, const QString &copy,
+                                          const QString &game, const QString &account = "123") {
+  steam::WriteRequest request;
+  request.steamRoot = root + "/synthetic-steam";
+  request.userRoot = root + "/copy-" + copy;
+  request.accountId = account;
+  request.shortcut = shortcut(); request.shortcut.gameId = game;
+  request.shortcut.title = "Synthetic " + game;
+  return request;
+}
+install::Request syntheticManagedTool(const QString &root) {
+  write(root + "/data/content-guard.toml", install::readBytes(QString(AC_CATALOG_ROOT) + "/data/content-guard.toml"));
+  install::Request request; request.root=root; request.gameId="tool-synthetic"; request.variantId="windows-x64";
+  request.runtime.gameId=request.gameId;
+  const auto source=root+"/games/tool-synthetic/setup/synthetic-tool.exe";
+  install::atomicCopy(QCoreApplication::applicationFilePath(),source);
+  request.recipe={{"format",1},{"variant",{{"windows-x64",{
+      {"status","stable"},{"version","v1"},{"install_dir","emulators/synthetic"},
+      {"installed_when","file:${install_dir}/synthetic-tool.exe"},
+      {"step",Json::array({{{"id","copy"},{"do","copy"},{"from",source.toStdString()},
+                           {"to","${install_dir}/synthetic-tool.exe"}},
+                          {{"id","config"},{"do","write-config"},{"file","${install_dir}/settings.ini"},
+                           {"format","ini"},{"create",true},{"set",Json::array({{{"section","Synthetic"},{"key","enabled"},{"value",1}}})}}})}
+  }}}}};
+  return request;
+}
 const steam::Node *find(const steam::Node &n, const QByteArray &key) {
   for (const auto &c : n.children)
     if (c.key == key)
@@ -40,6 +68,14 @@ const steam::Node *find(const steam::Node &n, const QByteArray &key) {
 class LaunchSteamTest : public QObject {
   Q_OBJECT
 private slots:
+  void steamCopiesShareTargetLock_data();
+  void steamCopiesShareTargetLock();
+  void managedToolUsersExcludeMutation();
+  void flatPlanRetainsOriginalPayload();
+  void sharedResourceUseMutationRaceAndCrash();
+  void sortedResourcesRefuseWithoutPartialReservation();
+  void orphanedChildKeepsUsageLease_data();
+  void orphanedChildKeepsUsageLease();
   void binaryRoundTrip();
   void malformed_data();
   void malformed();
@@ -83,6 +119,182 @@ private slots:
   void immediateCancel_data();
   void immediateCancel();
 };
+void LaunchSteamTest::steamCopiesShareTargetLock_data() {
+  QTest::addColumn<bool>("distinctTarget"); QTest::addColumn<bool>("caseAlias");
+  QTest::newRow("same-target-two-copies") << false << false;
+  QTest::newRow("distinct-account") << true << false;
+#ifdef Q_OS_WIN
+  QTest::newRow("same-target-case-alias") << false << true;
+#endif
+}
+void LaunchSteamTest::steamCopiesShareTargetLock() {
+  QFETCH(bool, distinctTarget); QFETCH(bool, caseAlias);
+  QTemporaryDir temp;
+  const auto root=temp.path();
+  QVERIFY(QDir().mkpath(root+"/synthetic-steam/userdata/123/config"));
+  QVERIFY(QDir().mkpath(root+"/synthetic-steam/userdata/456/config"));
+  const auto firstRequest=syntheticSteamRequest(root,"one","first-game");
+  const auto secondRoot=caseAlias?root.toUpper():root;
+  const auto secondRequest=syntheticSteamRequest(secondRoot,"two","second-game",distinctTarget?"456":"123");
+  const auto readyA=root+"/ready-a", goA=root+"/go-a", readyB=root+"/ready-b", goB=root+"/go-b";
+  QProcess first,second;
+  // Copies can intentionally override every process temporary location.
+  const auto tempA=root+"/temp-a",tempB=root+"/temp-b";
+  QVERIFY(QDir().mkpath(tempA)); QVERIFY(QDir().mkpath(tempB));
+  auto envA=QProcessEnvironment::systemEnvironment(),envB=envA;
+  for(const auto &key:{"TEMP","TMP","TMPDIR"}) {envA.insert(key,tempA);envB.insert(key,tempB);}
+  first.setProcessEnvironment(envA); second.setProcessEnvironment(envB);
+  auto cleanup=qScopeGuard([&]{for(auto *process:{&first,&second})if(process->state()!=QProcess::NotRunning){process->kill();process->waitForFinished(3000);}});
+  const auto executable=QCoreApplication::applicationFilePath();
+  first.start(executable,{"--synthetic-steam-writer",root,"one","first-game","123",readyA,goA});
+  QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(readyA),10000);
+  second.start(executable,{"--synthetic-steam-writer",secondRoot,"two","second-game",distinctTarget?"456":"123",readyB,goB});
+  QTRY_VERIFY_WITH_TIMEOUT(second.state()==QProcess::NotRunning || QFileInfo::exists(readyB),10000);
+  const bool excluded=second.state()==QProcess::NotRunning && second.exitCode()!=0 &&
+      second.readAllStandardOutput().contains("E_BUSY") && !QFileInfo::exists(readyB);
+  if(distinctTarget) {
+    QVERIFY(QFileInfo::exists(readyB)); write(goB,"go"); QVERIFY(second.waitForFinished(10000)); QCOMPARE(second.exitCode(),0);
+    QCOMPARE(first.state(),QProcess::Running); // Different target did not wait for the first writer.
+  }
+  write(goA,"go"); QVERIFY(first.waitForFinished(10000)); QCOMPARE(first.exitCode(),0);
+  if(!distinctTarget && QFileInfo::exists(readyB)) {write(goB,"go"); QVERIFY(second.waitForFinished(10000));}
+  if(!distinctTarget) {
+    QVERIFY2(excluded,"Separate Hub copies both reached the same Steam replacement boundary");
+    const auto target=steam::preview(firstRequest).target;
+    QVERIFY(steam::edit(install::readBytes(target),firstRequest.shortcut,true).ownedFound);
+    // Retry uses a fresh owner preview, preserving the first writer's addition.
+    steam::apply(secondRequest,steam::preview(secondRequest),true,[]{return false;});
+    const auto bytes=install::readBytes(target);
+    QVERIFY(steam::edit(bytes,firstRequest.shortcut,true).ownedFound);
+    QVERIFY(steam::edit(bytes,secondRequest.shortcut,true).ownedFound);
+  } else {
+    QVERIFY(steam::edit(install::readBytes(steam::preview(firstRequest).target),firstRequest.shortcut,true).ownedFound);
+    QVERIFY(steam::edit(install::readBytes(steam::preview(secondRequest).target),secondRequest.shortcut,true).ownedFound);
+  }
+}
+void LaunchSteamTest::managedToolUsersExcludeMutation() {
+  QTemporaryDir owner, portable;
+  auto request=syntheticManagedTool(owner.path()); install::Options options; options.survivalMs=0;
+  const auto installed=install::Engine(options).install(request); QVERIFY2(installed.success,qPrintable(installed.code+": "+installed.message));
+  const auto payload=owner.path()+"/emulators/synthetic";
+  launch::Request launch; launch.root=portable.path(); launch.gameId="first-dependent"; launch.variantId="flat-synthetic";
+  launch.prepareProfile=false; launch.plan.executable=payload+"/synthetic-tool.exe"; launch.plan.cwd=portable.path();
+  launch.plan.args={"--synthetic-child","0","hang"}; launch.plan.payloadRoots={payload};
+  launch.runtimeInputs.environment.insert("XR_RUNTIME_JSON","synthetic-unused");
+  auto other=launch; other.gameId="second-dependent";
+  launch::LaunchService first,second;
+  QSignalSpy firstStarted(&first,&launch::LaunchService::started),secondStarted(&second,&launch::LaunchService::started);
+  QVERIFY(first.start(launch)); QVERIFY(second.start(other));
+  QTRY_COMPARE_WITH_TIMEOUT(firstStarted.count(),1,10000); QTRY_COMPARE_WITH_TIMEOUT(secondStarted.count(),1,10000);
+  const auto journal=install::stateBase(request)+".journal.jsonl";
+  const auto before=install::readBytes(journal);
+  QProcess remover;
+  remover.start(QCoreApplication::applicationDirPath()+"/hubtool",
+      {"--data-root",QString(AC_CATALOG_ROOT),"--install-root",owner.path(),"uninstall","tool-synthetic","windows-x64"});
+  QVERIFY(remover.waitForFinished(10000));
+  QVERIFY2(remover.readAllStandardOutput().contains("Another Hub"),"Removal did not acquire the same shared payload guard as launch");
+  QCOMPARE(install::readBytes(journal),before);
+  QVERIFY(QFileInfo(payload+"/settings.ini").isFile());
+  first.stop(); QTRY_VERIFY_WITH_TIMEOUT(!first.busy(),7000);
+  const auto stillUsed=install::Engine(options).uninstall(request); QVERIFY(!stillUsed.success);
+  QCOMPARE(stillUsed.code,QString("E_LOCKED")); QCOMPARE(install::readBytes(journal),before);
+  // A distinct managed resource remains independently usable.
+  QTemporaryDir unrelated; auto independent=syntheticManagedTool(unrelated.path());
+  QVERIFY(install::Engine(options).install(independent).success); QVERIFY(install::Engine(options).uninstall(independent).success);
+  second.stop(); QTRY_VERIFY_WITH_TIMEOUT(!second.busy(),7000);
+  QVERIFY(install::Engine(options).uninstall(request).success);
+  QVERIFY(!QFileInfo(payload+"/synthetic-tool.exe").exists());
+}
+void LaunchSteamTest::flatPlanRetainsOriginalPayload() {
+  QTemporaryDir temp;
+  const auto original=temp.path()+"/emulators/pcsx2/bin";
+  write(original+"/pcsx2.exe","synthetic executable; never run");
+  const auto media=temp.path()+"/synthetic.iso", bios=temp.path()+"/synthetic.rom";
+  write(media,"synthetic medium"); write(bios,"synthetic bios");
+  GameRecord game; game.id="synthetic"; game.raw={{"hardware","sony-ps2"},{"media",Json::array({{{"kind","disc"},{"id","disc"}},{{"kind","bios"},{"id","bios"}}})}};
+  Json emulator{{"id","pcsx2"},{"launch",{{"args",Json::array({"${media.disc}"})}}}};
+  Json bindings{{"tools",{{"pcsx2",{{"path",(original+"/pcsx2.exe").toStdString()}}}}},
+                {"media",{{"disc",{{"path",media.toStdString()},{"verified",true}}},
+                           {"bios",{{"path",bios.toStdString()},{"verified",true}}}}}};
+  install::LaunchPlan plan; try {plan=install::makeFlatLaunchPlan(game,emulator,temp.path(),bindings);} catch(const install::Error &error){QFAIL(qPrintable(error.code+": "+QString::fromUtf8(error.what())));}
+  QVERIFY(plan.executable.contains("/user/emulator-profiles/pcsx2/"));
+  QVERIFY2(plan.payloadRoots.contains(temp.path()+"/emulators/pcsx2"),"Clone plan lost its original shared tool resource");
+}
+void LaunchSteamTest::sharedResourceUseMutationRaceAndCrash() {
+  QTemporaryDir temp;
+  const auto payload=temp.path()+"/payload",ready=temp.path()+"/reader-ready",go=temp.path()+"/reader-go";
+  QVERIFY(QDir().mkpath(payload));
+  QProcess reader;
+  auto cleanup=qScopeGuard([&]{if(reader.state()!=QProcess::NotRunning){reader.kill();reader.waitForFinished(3000);}});
+  const auto arguments=QStringList{"--synthetic-resource-user",payload,ready,go,"crash"};
+  {
+    install::ResourceLocks mutation({payload},install::ResourceAccess::Mutation);
+    reader.start(QCoreApplication::applicationFilePath(),arguments);
+    QVERIFY(reader.waitForFinished(10000)); QCOMPARE(reader.exitCode(),1);
+    QVERIFY(reader.readAllStandardOutput().contains("E_LOCKED")); QVERIFY(!QFileInfo::exists(ready));
+  }
+  reader.start(QCoreApplication::applicationFilePath(),arguments);
+  QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(ready),10000);
+  const auto directory=install::resourceLockDirectory(payload);
+  QVERIFY(!QDir(directory).entryList({"use-*.lock"}).isEmpty());
+  try {install::ResourceLocks denied({payload},install::ResourceAccess::Mutation);QFAIL("Mutation entered while a reader held use");}
+  catch(const install::Error &error){QCOMPARE(error.code,QString("E_LOCKED"));}
+  write(go,"go"); QVERIFY(reader.waitForFinished(10000)); QCOMPARE(reader.exitCode(),0);
+  QVERIFY(!QDir(directory).entryList({"use-*.lock"}).isEmpty()); // Abrupt exit bypassed destructor.
+  install::ResourceLocks recovered({payload},install::ResourceAccess::Mutation);
+  QVERIFY(QDir(directory).entryList({"use-*.lock"}).isEmpty());
+}
+void LaunchSteamTest::sortedResourcesRefuseWithoutPartialReservation() {
+  QTemporaryDir temp;
+  const auto a=temp.path()+"/a",b=temp.path()+"/b";
+  QVERIFY(QDir().mkpath(a)); QVERIFY(QDir().mkpath(b));
+  install::ResourceLocks use({b},install::ResourceAccess::Use);
+  QElapsedTimer elapsed; elapsed.start();
+  try {install::ResourceLocks denied({b,a},install::ResourceAccess::Mutation);QFAIL("Mutation entered in-use resource");}
+  catch(const install::Error &error){QCOMPARE(error.code,QString("E_LOCKED"));}
+  QVERIFY(elapsed.elapsed()<1000);
+  install::ResourceLocks aStillFree({a},install::ResourceAccess::Mutation); // Earlier sorted reservation unwound.
+}
+void LaunchSteamTest::orphanedChildKeepsUsageLease_data() {
+  QTest::addColumn<QString>("evidence");
+  QTest::newRow("surviving-original-child") << QString("original");
+  QTest::newRow("unknown-child-creation") << QString("unknown");
+  QTest::newRow("recycled-pid-creation") << QString("recycled");
+}
+void LaunchSteamTest::orphanedChildKeepsUsageLease() {
+  QFETCH(QString,evidence);
+  QTemporaryDir temp;
+  const auto payload=temp.path()+"/payload",ready=temp.path()+"/ready",go=temp.path()+"/go";
+  QVERIFY(QDir().mkpath(payload));
+  QProcess child,holder;
+  auto cleanup=qScopeGuard([&]{for(auto *process:{&child,&holder})if(process->state()!=QProcess::NotRunning){process->kill();process->waitForFinished(3000);}});
+  child.start(QCoreApplication::applicationFilePath(),{"--synthetic-child","0","hang"});
+  QVERIFY(child.waitForStarted(10000));
+  holder.start(QCoreApplication::applicationFilePath(),{"--synthetic-resource-user",payload,ready,go,"crash",QString::number(child.processId())});
+  QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(ready),10000);
+  write(go,"go"); QVERIFY(holder.waitForFinished(10000)); QCOMPARE(holder.exitCode(),0);
+  QCOMPARE(child.state(),QProcess::Running);
+  const auto directory=install::resourceLockDirectory(payload);
+  const auto records=QDir(directory).entryList({"*.child.json"}); QCOMPARE(records.size(),1);
+  if(evidence!="original") {
+    const auto path=directory+"/"+records[0];
+    auto record=Json::parse(install::readBytes(path).toStdString());
+    // Simulate an unavailable identity query or a previous PID creation, without
+    // depending on OS PID allocation/reuse timing.
+    record["child_identity"]=evidence=="unknown"?"":"0";
+    write(path,QByteArray::fromStdString(record.dump()));
+  }
+  bool refused=false;
+  try {install::ResourceLocks mutation({payload},install::ResourceAccess::Mutation);}
+  catch(const install::Error &error){QCOMPARE(error.code,QString("E_LOCKED"));refused=true;}
+  if(evidence=="recycled") {
+    QVERIFY2(!refused,"A reused PID with a different creation incorrectly preserved the old child lease");
+    QVERIFY(QDir(directory).entryList({"use-*"}).isEmpty());
+  } else QVERIFY2(refused,"Stale Hub cleanup permitted mutation under its surviving tracked child");
+  child.kill(); QVERIFY(child.waitForFinished(10000));
+  install::ResourceLocks reclaimed({payload},install::ResourceAccess::Mutation);
+  QVERIFY(QDir(directory).entryList({"use-*"}).isEmpty());
+}
 void LaunchSteamTest::binaryRoundTrip() {
   QCOMPARE(steam::serialize(steam::parse({})), QByteArray());
   // Includes duplicate keys, non-text payload, nested tags and alternative
@@ -1028,6 +1240,31 @@ void LaunchSteamTest::immediateCancel() {
   QVERIFY(!service.playing());
 }
 int main(int argc, char **argv) {
+  if((argc==6 || argc==7) && QByteArray(argv[1])=="--synthetic-resource-user") {
+    QCoreApplication app(argc,argv);const auto args=app.arguments();QTextStream out(stdout);
+    try {
+      install::ResourceLocks use({args[2]},install::ResourceAccess::Use);
+      if(args.size()==7)use.trackChild(args[6].toLongLong());
+      write(args[3],"ready");QElapsedTimer timeout;timeout.start();
+      while(!QFileInfo::exists(args[4]) && timeout.elapsed()<15000)QThread::msleep(10);
+      if(!QFileInfo::exists(args[4]))throw install::Error("E_TEST_TIMEOUT","Synthetic reader barrier timed out");
+      if(args[5]=="crash")std::_Exit(0);
+      return 0;
+    } catch(const install::Error &error){out << error.code << '\n';out.flush();return 1;}
+  }
+  if (argc == 8 && QByteArray(argv[1]) == "--synthetic-steam-writer") {
+    QCoreApplication app(argc,argv); const auto args=app.arguments(); QTextStream out(stdout);
+    try {
+      auto request=syntheticSteamRequest(args[2],args[3],args[4],args[5]);
+      request.beforeReplace=[&] {
+        write(args[6],"ready"); QElapsedTimer timeout; timeout.start();
+        while(!QFileInfo::exists(args[7]) && timeout.elapsed()<15000) QThread::msleep(10);
+        if(!QFileInfo::exists(args[7])) throw install::Error("E_TEST_TIMEOUT","Synthetic writer barrier timed out");
+      };
+      steam::apply(request,steam::preview(request),true,[]{return false;});
+      out << "ok\n"; out.flush(); return 0;
+    } catch(const install::Error &error) {out << error.code << '\n'; out.flush(); return 1;}
+  }
   if (argc > 1 && QByteArray(argv[1]) == "--synthetic-child") {
     QTextStream out(stdout);
     out << "XR=" << qEnvironmentVariable("XR_RUNTIME_JSON") << '\n';

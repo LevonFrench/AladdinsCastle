@@ -69,6 +69,7 @@ private:
 struct LaunchPlan {
   QString executable, cwd;
   QStringList args, writableDirs;
+  QStringList payloadRoots; // Original emulator/setup resources held while in use.
   Json data = Json::object();
 };
 LaunchPlan makeFlatLaunchPlan(const GameRecord &game, const Json &emulator,
