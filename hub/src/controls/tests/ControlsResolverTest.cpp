@@ -73,7 +73,7 @@ private slots:
         QTemporaryDir directory(scratch+"/paths-XXXXXX"); QVERIFY(directory.isValid());
         QVERIFY(write(directory.path(),"safe.toml","value = 7\n"));
         Map out{{"sentinel",1}}; QString error;
-        for (const QString path:{QString("../safe.toml"),QString("/absolute.toml"),QString("bad:drive/file.toml"),QString("nested\\escape.toml")}) {
+        for (const QString &path:{QString("../safe.toml"),QString("/absolute.toml"),QString("bad:drive/file.toml"),QString("nested\\escape.toml")}) {
             QVERIFY(!ac::ControlsResolver::readConfinedToml(directory.path(),path,out,error,true)); QCOMPARE(out,Map({{"sentinel",1}}));
         }
         QVERIFY(ac::ControlsResolver::readConfinedToml(directory.path(),"safe.toml",out,error)); QCOMPARE(out.value("value").toInt(),7);
@@ -97,7 +97,7 @@ private slots:
     }
     void actualPackUserFilesMatchPythonAndPreserveUserPrecedence() {
         QTemporaryDir directory(scratch+"/layers-XXXXXX"); QVERIFY(directory.isValid());
-        for (const QString folder:{QString("data/guns"),QString("data/controls"),QString("data/vocab")}) {
+        for (const QString &folder:{QString("data/guns"),QString("data/controls"),QString("data/vocab")}) {
             const QDir source(QDir(AC_CONTROLS_ROOT).filePath(folder));
             for (const auto &name:source.entryList({"*.toml"},QDir::Files)) {
                 QFile file(source.filePath(name)); QVERIFY(file.open(QIODevice::ReadOnly));

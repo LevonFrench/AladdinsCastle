@@ -76,7 +76,7 @@ bool ControlsViewModel::loadResolved(const QVariantMap &result, const QString &d
         m_error = "Controls data is unavailable"; emit changed(); return false;
     }
     QSet<QString> ids;
-    for (const QString key : {QString("element"), QString("unmapped_part")}) {
+    for (const QString &key : {QString("element"), QString("unmapped_part")}) {
         for (const auto &value : data.value(key).toList()) {
             const auto row = value.toMap();
             const QString rowId = row.value("id").toString();
@@ -111,13 +111,13 @@ bool ControlsViewModel::loadCatalogGame(const QByteArray &catalog, const QString
 
 void ControlsViewModel::clear() {
     m_result.clear(); m_data.clear(); m_rows.clear(); m_preview.clear(); m_anchors.clear();
-    m_previewImage = {}; m_previewDirectory.clear(); m_pressed.clear(); m_error.clear(); m_twoGunsActive = false;
+    m_previewImage = QUrl{}; m_previewDirectory.clear(); m_pressed.clear(); m_error.clear(); m_twoGunsActive = false;
     m_primaryHand = "right";
     emit changed();
 }
 
 void ControlsViewModel::loadPreview() {
-    m_previewImage = {}; m_anchors.clear(); m_preview.clear();
+    m_previewImage = QUrl{}; m_anchors.clear(); m_preview.clear();
     const QString manifest = confinedFile(m_previewDirectory, modelId() + ".json");
     if (manifest.isEmpty()) return;
     QFile file(manifest);

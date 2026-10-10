@@ -192,7 +192,7 @@ private slots:
         QQmlEngine engine;
         QQmlComponent component(&engine,QUrl("qrc:/controls/ControlsView.qml"));
         QVERIFY2(component.isReady(),qPrintable(component.errorString()));
-        for (const QString gid : {QString("timecris"),QString("ps1-time-crisis"),QString("hotd3"),QString("gunblade"),
+        for (const QString &gid : {QString("timecris"),QString("ps1-time-crisis"),QString("hotd3"),QString("gunblade"),
                                   QString("sscope"),QString("ps3-time-crisis-4"),QString("brave-firefighters"),QString("vcop")}) {
             ac::ControlsViewModel model; QVERIFY(model.loadResolved(samples[gid]));
             std::unique_ptr<QObject> object(component.createWithInitialProperties({{"controlsModel",QVariant::fromValue(&model)},{"width",1000}}));

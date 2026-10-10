@@ -242,7 +242,7 @@ void validateSet(const Map &data,const Map &model,const std::optional<QSet<QStri
     for (const auto &value:outputs) {
         const auto output=value.toMap();
         check(QSet<QString>{"solenoid","lamp","ffb"}.contains(output.value("kind").toString()),"Invalid output kind");
-        for (const QString key:{QString("slot"),QString("player"),QString("channel")}) check(integer(output.value(key)),"Invalid output index");
+        for (const QString &key:{QString("slot"),QString("player"),QString("channel")}) check(integer(output.value(key)),"Invalid output index");
         check(output.value("slot").toULongLong()<2&&output.value("player").toULongLong()<2&&model.value("motion").toMap().contains(output.value("motion").toString()),"Invalid output slot/motion");
         const auto amp=output.value("amplitude"); check(number(amp)&&std::isfinite(amp.toDouble())&&amp.toDouble()>=0&&amp.toDouble()<=1,"Invalid output amplitude");
         check(integer(output.value("duration_ms"))&&output.value("duration_ms").toLongLong()>0,"Invalid output duration");
