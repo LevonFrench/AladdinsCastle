@@ -10,6 +10,10 @@ namespace acvr {
 // This is not part of the C ABI and must never be passed across a module boundary.
 struct Display {
     acvr_tracking tracking{};
+    // Rigid anchor, translation in metres before scene scaling. Required each
+    // begin; eyes must use the inverse of this SAME predicted-frame transform.
+    // Tracking stays stage-space; never pre-transform it in a provider.
+    acvr_pose scene_from_stage{};
     bool focused = true, should_render = true;
     acvr_draw_info eyes[2]{};
     bool trigger[2]{};
@@ -35,4 +39,8 @@ acvr_result create_with_host(const acvr_runtime_config *, const acvr_backend_api
 acvr_result muzzle_ray(const acvr_pose &grip, const acvr_pose &mount,
                        const float angle_xyzw[4], float units_per_metre,
                        float distance_m, acvr_ray &out);
+acvr_result anchored_muzzle_ray(const acvr_pose &scene_from_stage,
+                               const acvr_pose &grip, const acvr_pose &mount,
+                               const float angle_xyzw[4], float units_per_metre,
+                               float distance_m, acvr_ray &out);
 }

@@ -93,19 +93,20 @@ acvr_tracking tracking() {
 }
 struct Sample { int64_t time; bool trigger=false,coin=false,focused=true,render=true,tracked=true; float pedal=0; };
 struct Recorded final:acvr::Host {
+    acvr_pose anchor=pose();
     Receipt &r; std::vector<Sample> samples; size_t index=0; acvr_eye eyes[2];
     Recorded(Receipt &receipt,std::vector<Sample> values):r(receipt),samples(std::move(values)) {
         for(unsigned i=0;i<2;++i) { eyes[i]=init<acvr_eye>(); eyes[i].eye_index=i; }
     }
     acvr_graphics_device device() const override { return init<acvr_graphics_device>(); }
     bool headless() const noexcept override { return true; }
-    acvr_result configure(float units,uint32_t anchor) override {
-        check(units==10 && anchor==ACVR_ANCHOR_RAIL); return ACVR_OK;
+    acvr_result configure(float units,uint32_t mode) override {
+        check(units==10 && mode==ACVR_ANCHOR_RAIL); return ACVR_OK;
     }
     acvr_result begin(acvr::Display &d) override {
         if(index==samples.size()) return ACVR_STOPPED;
         auto s=samples[index++]; d.tracking=tracking(); d.tracking.sample_time_ns=d.tracking.predicted_display_time_ns=s.time;
-        d.focused=s.focused; d.should_render=s.render; d.trigger[0]=s.trigger;
+        d.focused=s.focused; d.should_render=s.render; d.trigger[0]=s.trigger; d.scene_from_stage=anchor;
         if(!s.tracked) d.tracking.right.aim_flags=0;
         auto b=init<acvr_button_input>(); b.semantic=ACVR_BUTTON_COIN; b.state=s.coin?ACVR_INPUT_HELD:0; d.buttons.push_back(b);
         auto a=init<acvr_axis_input>(); a.semantic=ACVR_AXIS_COVER_PEDAL; a.value=s.pedal; d.axes.push_back(a);
@@ -194,6 +195,27 @@ void muzzle_math() {
     check(std::abs(ray.origin_scene[0]-8)<.0001f && std::abs(ray.direction_scene[0]+1)<.0001f);
     grip.orientation_xyzw[3]=2; check(acvr::muzzle_ray(grip,mount,identity,10,5,ray)==ACVR_BAD_ARGUMENT);
 }
+void anchored_aim() {
+    auto anchor=pose(),grip=pose(),mount=pose();
+    anchor.position_m[0]=2; anchor.position_m[1]=3;
+    anchor.orientation_xyzw[1]=anchor.orientation_xyzw[3]=float(std::sqrt(.5));
+    grip.position_m[0]=1; mount.position_m[2]=-.2f;
+    const float identity[4]{0,0,0,1}; auto ray=init<acvr_ray>();
+    check(acvr::anchored_muzzle_ray(anchor,grip,mount,identity,10,5,ray)==ACVR_OK);
+    check(std::abs(ray.origin_scene[0]-18)<.001f && ray.origin_scene[1]==30 && std::abs(ray.origin_scene[2]+10)<.001f);
+    check(std::abs(ray.direction_scene[0]+1)<.001f && std::abs(ray.direction_scene[2])<.001f && ray.max_distance_scene==50);
+    Receipt r; current=&r; auto c=config(); auto a=api(); acvr_runtime *p=nullptr;
+    auto host=std::make_unique<Recorded>(r,std::vector<Sample>{{0},{17000000},{34000000}});
+    auto *raw=host.get(); host->anchor=anchor;
+    check(acvr::create_with_host(&c,&a,std::move(host),&p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK && acvr_runtime_tick(p)==ACVR_OK);
+    check(r.rays.size()==1 && r.rays[0].origin_scene[0]==20 && r.rays[0].origin_scene[1]==30);
+    check(std::abs(r.rays[0].direction_scene[0]+1)<.001f);
+    auto t=tracking(); check(acvr_runtime_get_tracking(p,&t)==ACVR_OK && t.right.aim.position_m[0]==0);
+    raw->anchor.orientation_xyzw[3]=2; // invalid anchor must not step or submit
+    check(acvr_runtime_tick(p)==ACVR_BAD_ARGUMENT && r.steps.size()==2 && r.submitted==2);
+    check(acvr_runtime_destroy(p)==ACVR_OK);
+}
 void long_replay_and_invalid_samples() {
     Receipt r; std::vector<Sample> frames;
     for(int64_t i=0;i<=900;++i) frames.push_back({i*1000000000LL/90});
@@ -217,7 +239,7 @@ void long_replay_and_invalid_samples() {
     check(acvr_runtime_destroy(p)==ACVR_OK);
 }
 int main() {
-    try { timing_and_edges(); rational_and_budget(); pause_loss_and_zero_layers(); failures_and_ownership(); muzzle_math(); long_replay_and_invalid_samples(); }
+    try { timing_and_edges(); rational_and_budget(); pause_loss_and_zero_layers(); failures_and_ownership(); muzzle_math(); anchored_aim(); long_replay_and_invalid_samples(); }
     catch(const std::exception &e) { std::cerr<<e.what()<<'\n'; return 1; }
     std::cout<<checks<<" runtime checks passed\n"; return 0;
 }

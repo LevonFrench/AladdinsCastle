@@ -134,7 +134,8 @@ struct acvr_runtime {
         auto mount = init<acvr_pose>(); mount.orientation_xyzw[3] = 1;
         const float identity[4]{0, 0, 0, 1};
         auto ray = init<acvr_ray>();
-        auto result = acvr::muzzle_ray(hand.aim, mount, identity, info.scene_units_per_metre, fallback_m, ray);
+        auto result = acvr::anchored_muzzle_ray(d.scene_from_stage, hand.aim, mount, identity,
+                                               info.scene_units_per_metre, fallback_m, ray);
         if (result != ACVR_OK) return result;
         auto hit = init<acvr_hit>();
         result = api.game_raycast(backend, frame, &ray, &hit);
@@ -210,6 +211,24 @@ struct acvr_runtime {
 };
 
 namespace acvr {
+acvr_result anchored_muzzle_ray(const acvr_pose &anchor, const acvr_pose &grip,
+                               const acvr_pose &mount, const float *angle,
+                               float scale, float distance, acvr_ray &out) {
+    if (valid(&out) != ACVR_OK || !pose_ok(anchor) || !std::isfinite(scale) || scale <= 0)
+        return ACVR_BAD_ARGUMENT;
+    auto ray = init<acvr_ray>();
+    const auto status = muzzle_ray(grip, mount, angle, 1, distance, ray);
+    if (status != ACVR_OK) return status;
+    const auto origin = rotate(anchor.orientation_xyzw, {ray.origin_scene[0], ray.origin_scene[1], ray.origin_scene[2]});
+    const auto direction = rotate(anchor.orientation_xyzw, {ray.direction_scene[0], ray.direction_scene[1], ray.direction_scene[2]});
+    for (unsigned i = 0; i < 3; ++i) {
+        ray.origin_scene[i] = (origin[i] + anchor.position_m[i]) * scale;
+        ray.direction_scene[i] = direction[i];
+    }
+    ray.max_distance_scene *= scale;
+    if (!finite(ray.origin_scene, 3) || !std::isfinite(ray.max_distance_scene)) return ACVR_BAD_ARGUMENT;
+    payload(&out, ray); return ACVR_OK;
+}
 acvr_result muzzle_ray(const acvr_pose &grip, const acvr_pose &mount, const float *angle,
                        float scale, float distance, acvr_ray &out) {
     if (valid(&out) != ACVR_OK || !pose_ok(grip) || !pose_ok(mount) || !angle || !unit(angle) ||
@@ -318,7 +337,7 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             return value;
         };
         const auto now = d.tracking.predicted_display_time_ns;
-        if (valid(&d.tracking) != ACVR_OK || now < 0 || d.tracking.sample_time_ns < 0 ||
+        if (valid(&d.tracking) != ACVR_OK || !pose_ok(d.scene_from_stage) || now < 0 || d.tracking.sample_time_ns < 0 ||
             (r->have_tracking && now <= r->last_display_ns)) return finish(ACVR_BAD_ARGUMENT, false);
         r->tracking = d.tracking; r->tracking.display_id = r->display_id; r->have_tracking = true;
         const bool active = d.focused && (d.tracking.head_flags & 3u) == 3u && pose_ok(d.tracking.head) && !r->user_paused;

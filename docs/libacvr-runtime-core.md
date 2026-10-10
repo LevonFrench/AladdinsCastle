@@ -29,11 +29,31 @@ output until that host exists. No test starts a graphics device or XR runtime.
   zero layers; runtime failure cancels effects and rejects later ticks.
 - Tracking inspection preserves top-level and nested caller prefixes. Pause,
   inspection, ticking and destruction enforce the owning thread.
+- A required per-display rigid `scene_from_stage` pose carries the seat anchor.
+  Its translation is metres before scene scaling. The host composes both eye
+  matrices with the same anchor snapshot; the core applies it to gun rays.
+  Reported tracking stays stage-space. Invalid anchors fail before stepping.
+
+## Native gun data reader
+
+The optional `acvr_gun_assets` target decodes an in-memory GLB into named bind
+transforms, materials and CPU vertex/index arrays. Set `ACVR_JSON_INCLUDE_DIR`
+to an existing nlohmann JSON include directory; CMake never downloads it. CI
+reuses the dependency already configured for the Hub. Omitting the option builds
+only the dependency-free core and its three tests, not the gun reader.
+
+The reader accepts self-contained rigid glTF 2.0 triangles, float positions and
+normals, normalized vertex colours, integer indices and interleaved accessors.
+It retains material roles and LOD membership, requires an identity grip root and
+an independent static muzzle, and bounds input size, hierarchy, decoded vertices,
+primitives and triangles. Malformed/external buffers and unsupported required
+extensions fail without replacing the caller's existing asset. This is runtime
+data decoding, not the lane's complete authoring/metadata acceptance checker.
 
 ## Explicitly incomplete
 
-No OpenXR loader/session/swapchains, Vulkan/GL device provider, model loader or
-renderer, control-set parser, recenter/height/pause overlay, or real backend
+No OpenXR loader/session/swapchains, Vulkan/GL device provider, model renderer,
+control-set parser, recenter/height/pause overlay, or real backend
 integration exists yet. The core rejects model/controls-file requests and
 multiple-gun or separate-HUD backends instead of ignoring those requirements.
 The internal host supplies already composed eye matrices and receives scene
@@ -51,3 +71,7 @@ aim provenance and metre scale, focus/hand loss between native ticks, zero-layer
 frames, failed step/output/right-eye draw/flush, cross-thread rejection, malformed
 times/axis values and rotated muzzle transforms. These checks prove the common
 code path only; the actual XR provider and real game remain separate gates.
+With the existing JSON include configured, a fourth suite exercises synthetic
+GLB decoding, index widths, interleaved/normalized colours, hierarchy/muzzle
+constraints, every truncated prefix, malformed offsets and resource budgets.
+No exported gun model or rendered image has been accepted by these tests.

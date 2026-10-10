@@ -63,7 +63,7 @@ jobs:
       - run: cmake -S hub -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
       - name: Build libacvr runtime and ABI checks (no XR or graphics)
         run: |
-          cmake -S libacvr -B build-contract -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake -S libacvr -B build-contract -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DACVR_JSON_INCLUDE_DIR=${{ github.workspace }}/build/_deps/nlohmann_json-src/include
           cmake --build build-contract --parallel 2
           ctest --test-dir build-contract --output-on-failure
       - name: System 22 synthetic stereo checks
