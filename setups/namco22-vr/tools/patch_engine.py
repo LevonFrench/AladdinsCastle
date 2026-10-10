@@ -75,7 +75,7 @@ def main():
     if commit != manifest["base_commit"]:
         raise ValueError("Engine commit mismatch")
     # Inspect only selected engine code; do not scan assets or game directories.
-    dirty = subprocess.check_output(["git", "-C", str(source), "status", "--porcelain", "--", *sorted(FILES | HEADERS)], text=True)
+    dirty = subprocess.check_output(["git", "--no-optional-locks", "-C", str(source), "status", "--porcelain", "--", *sorted(FILES | HEADERS)], text=True)
     if dirty:
         raise ValueError("Selected reference engine files are modified")
     rendered = render(manifest, source)
