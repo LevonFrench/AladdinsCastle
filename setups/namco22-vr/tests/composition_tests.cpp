@@ -94,6 +94,43 @@ void ordering_fades_gamma() {
     check(n22::compose_cpu(f,e,x,out)==ACVR_OK && out.rgb[0]==0x282828,"all-zero gamma bypass is the pin's uninitialized policy, not black mapping");
     f.composition.mixer.gamma[0][40]=77;check(n22::compose_cpu(f,e,x,out)==ACVR_OK && out.rgb[0]==0x4d0000,"any-byte enables all channels, including zero-filled green/blue LUTs");
 }
+void independent_review_regressions() {
+    // Literal witnesses from the independent Guns review. No production
+    // colour helpers are used to compute expected pixels.
+    const auto p=item(1,n22::CompositionKind::Polygon,100,1),t=item(4,n22::CompositionKind::Text);
+    auto masked=item(2,n22::CompositionKind::Sprite,100);masked.prioverchar=true;
+    const auto covering=item(1,n22::CompositionKind::Polygon,50,1);
+    check(run(scene({masked,covering,t}),{span(0,0,1,1,90),span(0,0,1,1,70),span(0,0,1,1,200)})==0x464646,"later polygon70 covers masked sprite90 but cannot clear its text mask");
+    check(run(scene({masked,covering,t}),{span(0,0,1,1,90,1),span(0,0,1,1,70),span(0,0,1,1,200)})==0x464646,"sprite alpha1 still masks text after polygon overdraw");
+    check(run(scene({masked,covering,t}),{span(0,0,1,1,90,0),span(0,0,1,1,70),span(0,0,1,1,200)})==0xc8c8c8,"sprite alpha0 leaves no mask, permitting text200 after polygon70");
+    auto ordinary=item(3,n22::CompositionKind::Sprite,10);
+    check(run(scene({masked,covering,ordinary,t}),{span(0,0,1,1,90),span(0,0,1,1,70),span(0,0,1,1,70),span(0,0,1,1,200)})==0x464646,"later ordinary sprite70 cannot clear an earlier prioverchar mask");
+
+    auto in=scene({p,t});in.composition.mixer.fade={20,20,20};in.composition.mixer.factor=127;
+    const std::array<uint32_t,4> expected{0x969696,0x828282,0x696969,0x555555}; //150,130,105,85
+    for(uint8_t flags=0;flags<4;++flags) {
+        in.composition.mixer.flags=flags;
+        check(run(in,{span(0,0,1,1,100),span(0,0,1,1,200,128)})==expected[flags],"partial text alpha with flags0/1/2/3 distinguishes both fade gates and their order");
+    }
+    check(21700/255==85 && (130*128+20*127)/255==75,"text-own110 before alpha over screen60 gives85; wrong fade-after-alpha gives75");
+    auto sprite=item(3,n22::CompositionKind::Sprite,50);sprite.sprite_fade=true;
+    in=scene({p,sprite});in.composition.mixer.fade={20,20,20};in.composition.mixer.factor=127;
+    check(run(in,{span(0,0,1,1,100),span(0,0,1,1,200,128)})==0x696969,"sprite item own fade before partial alpha gives105, not swapped85");
+    in.composition.items[1].sprite_fade=false;in.composition.mixer.flags=2;
+    check(run(in,{span(0,0,1,1,100),span(0,0,1,1,200,128)})==0x696969,"sprite mixer bit1 independently gives the same own-before-alpha105");
+    check((110*128+100*127)/255==105 && (150*128+20*128)/256==85,"independent sprite own-before-alpha105 differs from alpha-before-own85");
+
+    in=scene({p});in.composition.mixer.fade={20,20,20};in.composition.mixer.factor=255;in.composition.mixer.flags=1;
+    check(run(in,{span(0,0,1,1,100)})==0x141414,"global factor255 reaches fade20 exactly");
+    in=scene({p,sprite});in.composition.mixer.fade={20,20,20};in.composition.mixer.factor=255;in.composition.mixer.flags=2;
+    check(run(in,{span(0,0,1,1,100),span(0,0,1,1,200)})==0x141414,"sprite own factor255 reaches fade20 exactly");
+    in=scene({p,t});in.composition.mixer.fade={20,20,20};in.composition.mixer.factor=255;in.composition.mixer.flags=3;
+    check(run(in,{span(0,0,1,1,100),span(0,0,1,1,200)})==0x141414,"text own factor255 reaches fade20 over globally faded20");
+    in.composition.mixer.flags=1;
+    check(run(in,{span(0,0,1,1,100),span(0,0,1,1,200)})==0xc8c8c8,"flags1 factor255 still leaves later opaque text200 unfaded");
+    in.composition.mixer.flags=3;in.composition.mixer.factor=0;
+    check(run(in,{span(0,0,1,1,100),span(0,0,1,1,200,128)})==0x969696,"factor0 flags3 bypasses both fades with partial text alpha150");
+}
 void atomic_payload_limits_replay() {
     auto f=prepared(scene({item(7,n22::CompositionKind::Polygon,4,1)}));auto eye=n22::desktop_eye(0,0,4,4,4);eye.rect_x=2;eye.rect_y=1;
     auto good=payload(f.composition,eye);good.items[0].spans={span(0,0,2,2,90)};
@@ -160,6 +197,6 @@ void callbacks() {
 }
 }
 int main() {
-    try {mixer_and_plan();ordering_fades_gamma();atomic_payload_limits_replay();callbacks();std::cout<<checks<<" owned composition checks passed (synthetic CPU only)\n";return 0;}
+    try {mixer_and_plan();ordering_fades_gamma();independent_review_regressions();atomic_payload_limits_replay();callbacks();std::cout<<checks<<" owned composition checks passed (synthetic CPU only)\n";return 0;}
     catch(const std::exception &e) {std::cerr<<e.what()<<"\n";return 1;}
 }
