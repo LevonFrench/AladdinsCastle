@@ -248,6 +248,11 @@ void direct_dispatch() {
     before=m.calls.size();
     auto wrong_thread=std::async(std::launch::async,[&] {return renderer.draw(frame,info);});
     check(wrong_thread.get()==ACVR_BAD_STATE && m.calls.size()==before,"non-owner thread rejected before GL dispatch");
+    frame.materials.materials.emplace_back();
+    check(renderer.draw(frame,info)==ACVR_UNSUPPORTED && m.calls.size()==before,"material packet cannot silently fall back to flat GL draw");
+    frame.materials.materials.clear();frame.triangles[0].material=0;
+    check(renderer.draw(frame,info)==ACVR_UNSUPPORTED && m.calls.size()==before,"material triangle without GL texture admission rejected before commands");
+    frame.triangles[0].material=n22::NoMaterial;
     // Direction vertices and modified far projection keep backdrops at infinity.
     auto sky=n22::synthetic_cube();sky.polygons[0].layer=n22::Layer::Backdrop;
     check(n22::prepare(sky,1,frame)==ACVR_OK,"synthetic infinity layer");m.vertices.clear();m.loaded_projection.clear();

@@ -4,10 +4,13 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <string>
 
 int main(int argc,char **argv) {
     try {
-        if(argc!=2) { std::cerr<<"Usage: namco22_synthetic_capture <absolute .local path>/synthetic.ppm\n"; return 2; }
+        if(argc!=2 && (argc!=3 || std::string(argv[2])!="--materials")) {
+            std::cerr<<"Usage: namco22_synthetic_capture <absolute .local path>/synthetic.ppm [--materials]\n";return 2;
+        }
         std::filesystem::path requested=std::filesystem::u8path(argv[1]);
         if(!requested.is_absolute() || requested.extension()!= ".ppm") throw std::runtime_error("Output must be an absolute .ppm path under this checkout's .local directory");
         // Only output in the invoking checkout, not an arbitrary path containing .local.
@@ -23,7 +26,7 @@ int main(int argc,char **argv) {
         auto output=parent/requested.filename();
         if(std::filesystem::exists(output) || std::filesystem::is_symlink(std::filesystem::symlink_status(output))) throw std::runtime_error("Output exists; choose a new filename");
         n22::Frame frame;
-        if(n22::prepare(n22::synthetic_cube(),1,frame)!=ACVR_OK) return 1;
+        if(n22::prepare(argc==3?n22::synthetic_material_cube():n22::synthetic_cube(),1,frame)!=ACVR_OK) return 1;
         n22::Image image(1280,480);
         for(uint32_t i=0;i<2;++i) {
             auto eye=n22::desktop_eye(i,i==0?-.032f:.032f,4,640,480);

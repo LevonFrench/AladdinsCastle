@@ -24,7 +24,10 @@ identity view-local source cameras only. Scene units stay in the supplied depth
 units; eye matrices already contain the runtime's anchor and physical scale.
 The CPU path uses OpenGL clip space and lower-left eye rectangles, converts
 to top-left image rows, clips triangles against all six homogeneous planes,
-and depth-tests opaque flat colours. Parallel test cameras use off-axis frusta.
+and depth-tests opaque flat colours or the [owned synthetic material packet](MATERIALS.md).
+Material packets sample native tile/pen/palette/shade data per CPU fragment;
+homogeneous clipping and new-eye perspective interpolation preserve UVs.
+Parallel test cameras use off-axis frusta.
 
 Explicit HUD test tags flatten to one chosen depth and render into a separate CPU
 image. Backdrop tags ignore eye translation and sit at infinity; gun-flash tags
@@ -36,8 +39,10 @@ is separate; viewport rejection retains normalized diagnostics.
 
 ## Build and test without graphics
 
-Use existing C11/C++17 compilers, CMake and Python 3; no packages, downloads, Qt, SDL, GL,
-OpenXR or headset are required. For example, in a configured compiler terminal:
+Use existing C11/C++17 compilers, CMake and Python 3; no packages, downloads, Qt,
+SDL runtime, OpenXR or headset are required. Installed platform GL headers compile
+the dispatch-only source; tests call local mocks, with no GL library/context.
+For example, in a configured compiler terminal:
 
 ```powershell
 # Run from the checkout root.
@@ -57,6 +62,8 @@ input/lease sequencing, pause/replay, empty-frame camera retention and ABI tails
 Run it from that checkout root. It rejects outside directories, existing output
 files and symlink leaves; canonical directory checks reject redirected paths.
 It reads no geometry input. Build artifacts and captures remain ignored.
+The optional `--materials` argument selects a formula-generated checkerboard cube
+with owned pen tiles and per-face palettes. It still uses CPU rendering only.
 
 ## Real-board integration still required
 

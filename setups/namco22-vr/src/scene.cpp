@@ -30,6 +30,7 @@ bool camera_valid(const acvr_game_camera &c) {
         c.viewport_px[1]+c.viewport_px[3]<=static_cast<float>(c.raster_height);
 }
 struct V4 { double x,y,z,w; };
+struct ClipVertex {V4 p;double u,v,brightness;};
 V4 transform(const float *m,V4 p) {
     return {m[0]*p.x+m[4]*p.y+m[8]*p.z+m[12]*p.w,
             m[1]*p.x+m[5]*p.y+m[9]*p.z+m[13]*p.w,
@@ -43,16 +44,17 @@ double plane(V4 v,int i) {
     case 4:return v.w+v.z; default:return v.w-v.z;
     }
 }
-std::vector<V4> clip(std::vector<V4> p) {
+std::vector<ClipVertex> clip(std::vector<ClipVertex> p) {
     for(int i=0;i<6 && !p.empty();++i) {
-        std::vector<V4> out;
-        V4 a=p.back(); double da=plane(a,i);
-        for(V4 b:p) {
-            double db=plane(b,i);
+        std::vector<ClipVertex> out;
+        auto a=p.back(); double da=plane(a.p,i);
+        for(auto b:p) {
+            double db=plane(b.p,i);
             if((da>=0)!=(db>=0)) {
                 double t=da/(da-db);
-                out.push_back({a.x+t*(b.x-a.x),a.y+t*(b.y-a.y),
-                               a.z+t*(b.z-a.z),a.w+t*(b.w-a.w)});
+                out.push_back({{a.p.x+t*(b.p.x-a.p.x),a.p.y+t*(b.p.y-a.p.y),
+                               a.p.z+t*(b.p.z-a.p.z),a.p.w+t*(b.p.w-a.p.w)},
+                               a.u+t*(b.u-a.u),a.v+t*(b.v-a.v),a.brightness+t*(b.brightness-a.brightness)});
             }
             if(db>=0) out.push_back(b);
             a=b; da=db;
@@ -62,16 +64,17 @@ std::vector<V4> clip(std::vector<V4> p) {
     return p;
 }
 float edge(Vec3 a,Vec3 b,float x,float y) { return (x-a.x)*(b.y-a.y)-(y-a.y)*(b.x-a.x); }
-void raster(const std::array<V4,3> &v,const acvr_eye &e,Image &image,uint32_t rgb,bool sky) {
+acvr_result raster(const std::array<ClipVertex,3> &v,const acvr_eye &e,Image &image,
+                   const Triangle &triangle,const MaterialPacket &materials,bool sky) {
     std::array<Vec3,3> s{};
     for(size_t i=0;i<3;++i) {
-        if(v[i].w<=0) return;
-        s[i]={static_cast<float>(e.rect_x+(v[i].x/v[i].w+1)*.5*e.rect_width),
-              static_cast<float>(e.rect_y+(v[i].y/v[i].w+1)*.5*e.rect_height),
-              static_cast<float>((v[i].z/v[i].w+1)*.5)};
+        if(v[i].p.w<=0) return ACVR_OK;
+        s[i]={static_cast<float>(e.rect_x+(v[i].p.x/v[i].p.w+1)*.5*e.rect_width),
+              static_cast<float>(e.rect_y+(v[i].p.y/v[i].p.w+1)*.5*e.rect_height),
+              static_cast<float>((v[i].p.z/v[i].p.w+1)*.5)};
     }
     float area=edge(s[0],s[1],s[2].x,s[2].y);
-    if(!finite(area) || std::abs(area)<1e-8f) return;
+    if(!finite(area) || std::abs(area)<1e-8f) return ACVR_OK;
     int xmin=std::max(e.rect_x,static_cast<int>(std::floor(std::min({s[0].x,s[1].x,s[2].x}))));
     int xmax=std::min(e.rect_x+static_cast<int>(e.rect_width)-1,static_cast<int>(std::ceil(std::max({s[0].x,s[1].x,s[2].x}))));
     int ymin=std::max(e.rect_y,static_cast<int>(std::floor(std::min({s[0].y,s[1].y,s[2].y}))));
@@ -82,8 +85,21 @@ void raster(const std::array<V4,3> &v,const acvr_eye &e,Image &image,uint32_t rg
         if(a<0 || b<0 || c<0) continue;
         float z=sky?1.f:a*s[0].z+b*s[1].z+c*s[2].z;
         size_t p=static_cast<size_t>(image.height-1-static_cast<uint32_t>(y))*image.width+static_cast<uint32_t>(x);
-        if(z<=image.depth[p]) { image.depth[p]=z; image.rgb[p]=rgb; }
+        if(z<=image.depth[p]) {
+            uint32_t rgb=triangle.rgb;
+            if(triangle.material!=NoMaterial) {
+                const double w0=a/v[0].p.w,w1=b/v[1].p.w,w2=c/v[2].p.w,denominator=w0+w1+w2;
+                if(!std::isfinite(denominator) || denominator<=0) return ACVR_BAD_ARGUMENT;
+                const double u=(w0*v[0].u+w1*v[1].u+w2*v[2].u)/denominator;
+                const double tv=(w0*v[0].v+w1*v[1].v+w2*v[2].v)/denominator;
+                const double brightness=std::clamp((w0*v[0].brightness+w1*v[1].brightness+w2*v[2].brightness)/denominator,0.,255.);
+                const auto r=sample_material(materials,triangle.material,u,tv,brightness,rgb);
+                if(r!=ACVR_OK) return r;
+            }
+            image.depth[p]=z;image.rgb[p]=rgb;
+        }
     }
+    return ACVR_OK;
 }
 }
 Image::Image(uint32_t w,uint32_t h):width(w),height(h) {
@@ -104,13 +120,19 @@ Vec3 unproject(const ProjectedVertex &v,const acvr_game_camera &c) {
 }
 acvr_result prepare(const SceneInput &in,uint64_t id,Frame &out) {
     if(!finite(in.hud_depth_scene) || in.hud_depth_scene<=0) return ACVR_BAD_ARGUMENT;
-    Frame f; f.id=id; f.cameras=in.cameras;
+    if(auto r=validate_material_packet(in.materials);r!=ACVR_OK) return r;
+    Frame f; f.id=id; f.cameras=in.cameras;f.materials=in.materials;
     for(size_t i=0;i<f.cameras.size();++i)
         if(!camera_valid(f.cameras[i]) || f.cameras[i].camera_id!=i) return ACVR_BAD_ARGUMENT;
     for(const auto &p:in.polygons) {
         if(p.camera_id>=f.cameras.size()) return ACVR_BAD_ARGUMENT;
         if(p.layer!=Layer::World && p.layer!=Layer::Hud && p.layer!=Layer::Backdrop && p.layer!=Layer::GunFlash) return ACVR_BAD_ARGUMENT;
         Triangle t{}; t.camera_id=p.camera_id; t.layer=p.layer; t.rgb=p.rgb&0xffffff;
+        t.material=p.material;t.attributes=p.attributes;
+        if(t.material!=NoMaterial) {
+            if(t.material>=f.materials.materials.size()) return ACVR_BAD_ARGUMENT;
+            for(const auto &attribute:t.attributes) if(!valid_material_vertex(attribute)) return ACVR_BAD_ARGUMENT;
+        }
         for(size_t i=0;i<3;++i) {
             ProjectedVertex v=p.vertices[i];
             if(!finite(v.x16) || !finite(v.y16) || !finite(v.depth) || v.depth<=0) return ACVR_BAD_ARGUMENT;
@@ -175,21 +197,30 @@ acvr_result draw_cpu(const Frame &f,const acvr_eye &e,Image &image,bool hud_only
         image.rgb.size()!=static_cast<size_t>(image.width)*image.height || image.depth.size()!=image.rgb.size()) return ACVR_BAD_ARGUMENT;
     for(float v:e.view_from_scene) if(!finite(v)) return ACVR_BAD_ARGUMENT;
     for(float v:e.projection_from_view) if(!finite(v)) return ACVR_BAD_ARGUMENT;
+    if(auto r=validate_material_packet(f.materials);r!=ACVR_OK) return r;
+    for(const auto &t:f.triangles) if(t.material!=NoMaterial) {
+        if(t.material>=f.materials.materials.size()) return ACVR_BAD_ARGUMENT;
+        for(const auto &attribute:t.attributes) if(!valid_material_vertex(attribute)) return ACVR_BAD_ARGUMENT;
+    }
     for(uint32_t y=0;y<e.rect_height;++y) for(uint32_t x=0;x<e.rect_width;++x) {
         size_t p=static_cast<size_t>(image.height-1-static_cast<uint32_t>(e.rect_y)-y)*image.width+static_cast<uint32_t>(e.rect_x)+x;
         image.rgb[p]=0; image.depth[p]=1;
     }
     for(const auto &t:f.triangles) {
         if(hud_only!=(t.layer==Layer::Hud)) continue;
-        std::vector<V4> poly;
-        for(Vec3 v:t.vertices) {
+        std::vector<ClipVertex> poly;
+        for(size_t k=0;k<t.vertices.size();++k) {
+            const auto v=t.vertices[k];const auto attr=t.attributes[k];
             V4 p=transform(e.view_from_scene,{v.x,v.y,v.z,t.layer==Layer::Backdrop?0.f:1.f});
             p=transform(e.projection_from_view,p);
             if(t.layer==Layer::Backdrop) p.z=p.w; // infinity, with rotation but no translation
-            poly.push_back(p);
+            poly.push_back({p,attr.u,attr.v,attr.brightness});
         }
         poly=clip(std::move(poly));
-        for(size_t i=1;i+1<poly.size();++i) raster({poly[0],poly[i],poly[i+1]},e,image,t.rgb,t.layer==Layer::Backdrop);
+        for(size_t i=1;i+1<poly.size();++i) {
+            const auto r=raster({poly[0],poly[i],poly[i+1]},e,image,t,f.materials,t.layer==Layer::Backdrop);
+            if(r!=ACVR_OK) return r;
+        }
     }
     return ACVR_OK;
 }
@@ -227,6 +258,24 @@ SceneInput synthetic_cube() {
             p.vertices[j]={(320+480*a.x/depth)*16,(240-480*a.y/depth)*16,depth};
         }
         in.polygons.push_back(p);
+    }
+    return in;
+}
+SceneInput synthetic_material_cube() {
+    auto in=synthetic_cube();auto &packet=in.materials;
+    packet.addressing=TileAddressing::Fixed16;packet.palette.resize(0x8000);
+    packet.cells.push_back({0,0,0});packet.tiles.emplace_back();
+    for(size_t y=0;y<16;++y) for(size_t x=0;x<16;++x)
+        packet.tiles[0].pens[y*16+x]=static_cast<uint8_t>(1+((x/4+y/4)&1));
+    for(size_t face=0;face<6;++face) {
+        Material material;material.colour_word=static_cast<uint32_t>(face<<8);packet.materials.push_back(material);
+        const auto colour=in.polygons[face*2].rgb;
+        packet.palette[face*256+1]=colour;packet.palette[face*256+2]=colour^0xffffff;
+        for(size_t t=0;t<2;++t) {
+            auto &polygon=in.polygons[face*2+t];polygon.material=static_cast<uint32_t>(face);
+            if(t==0) polygon.attributes={MaterialVertex{.5f,.5f,64},{15.5f,.5f,64},{15.5f,15.5f,64}};
+            else polygon.attributes={MaterialVertex{.5f,.5f,64},{15.5f,15.5f,64},{.5f,15.5f,64}};
+        }
     }
     return in;
 }
