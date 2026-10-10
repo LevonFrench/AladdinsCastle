@@ -34,6 +34,7 @@ AladdinsCastle is an open-source desktop hub that installs and launches VR setup
 | [Catalog](docs/catalog.md) | Light gun and racing games, with the best route for each ([full tables](docs/data/)) |
 | [Hub architecture](docs/hub-architecture.md) | Qt 6 / QML Hub: modules, desktop + SteamVR overlay from one UI, packaging, licensing |
 | [QML components](docs/ui/04-qml-components.md) · [models](docs/ui/05-models.md) · [theme](docs/ui/theme.toml) | Component map, C++→QML models and design tokens for the Mod Hub-style UI |
+| [Hub in VR: menu controls](docs/ui/06-vr-menu-controls.md) | Laser, stick scrolling and keyboard rules for the dashboard overlay, with the fixes the first headset session called for |
 | [Art pipeline](docs/art-pipeline.md) | Asset sizes, user-side scraping, provenance, generated fallback, source licences |
 | [Install engine](docs/install-engine.md) | Recipe execution: states, step kinds, download safety, journal, uninstall, updates |
 | [Emulator manifests](docs/emulator-manifests.md) | Schema for `data/emulators/*.toml`, platform matrix (incl. ARM64), licence gates |
