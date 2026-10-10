@@ -2,7 +2,7 @@
 
 Status: 2026-10-10, design. The SteamVR dashboard integration works: the Hub shows up as a dashboard tab at the right size and can be resized. Controlling it does not feel right yet. In the first headset session some clicks missed, the thumbstick did not scroll and letter keys failed. This page sets the control scheme and lists what to change, from research into how SteamVR overlays receive input and what working overlay apps do (hub wiki topic `steamvr-development`, article `vr-menu-controls`).
 
-The problem analysis below refers to `codex/m1-integration` at `5921903`, the earlier owner-tested build. The control scheme is a target, not a claim of implemented or headset-verified behavior. On 2026-10-10, diagnostic source `9038515` in [PR28](https://github.com/LevonFrench/AladdinsCastle/pull/28) passed independent build and five software suites (43.47 s); hosted CI/integration and headset acceptance remain separate.
+The problem analysis below refers to `codex/m1-integration` at `5921903`, the earlier owner-tested build. The control scheme is a target, not a claim of implemented or headset-verified behavior. On 2026-10-10, diagnostic source `9038515` in [PR28](https://github.com/LevonFrench/AladdinsCastle/pull/28) passed independent build, five software suites (43.47 s) and all six hosted checks, then integrated into `next` at `7663e31`. Input-correctness implementation is a separate active block; headset acceptance remains open.
 
 ## 1. What the evidence says about the three problems
 

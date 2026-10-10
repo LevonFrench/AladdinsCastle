@@ -1,6 +1,6 @@
 # S1–S3: Qt 6.8 dashboard overlay spike
 
-Status: host foundation implemented; current headset acceptance and hardware measurements remain open. Updated 2026-10-10. Diagnostic source `9038515`, published in [PR28](https://github.com/LevonFrench/AladdinsCastle/pull/28) at `d6f011f`, passed independent build and software checks; integration awaits hosted CI. Instructions for the new diagnostic scene below require that source. The spike uses original synthetic artwork and 50 synthetic cards.
+Status: diagnostics integrated into `next` at `7663e31`; current headset acceptance and hardware measurements remain open. Updated 2026-10-10. [PR28](https://github.com/LevonFrench/AladdinsCastle/pull/28) at `d6f011f` passed independent build/software checks and all six hosted checks. The integrated Hub tree equals tested source `9038515`. Instructions below require that diagnostic source. The spike uses original synthetic artwork and 50 synthetic cards.
 
 ## What is implemented
 
