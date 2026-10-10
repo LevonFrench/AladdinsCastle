@@ -11,7 +11,9 @@ drawing. `game_open` accepts only `synthetic-system22`, an API-0 test record,
 and empty content/storage/options strings. It never opens those paths. The
 setup-local `stage_cpu_scene` and `draw_cpu_frame` bridge use the same owned
 frame lease, camera and nearest-hit data as the callbacks. The reported synthetic
-59.906 Hz rate exercises the contract; there is no emulation or sound scheduler.
+59.906 Hz rate exercises the contract; there is no emulation or sound scheduler
+connected to this factory. The [worker/source-hook slice](LIFECYCLE.md) is separate
+scaffolding for the actual host/frame/video seams, with a disabled legacy loader.
 No gun controls, persistence, output events or separate-HUD capability are
 advertised. The Time Crisis ADC helper is tested math, not register writes.
 
@@ -33,7 +35,7 @@ is separate; viewport rejection retains normalized diagnostics.
 
 ## Build and test without graphics
 
-Use an existing C++17 compiler and CMake; no packages, downloads, Qt, SDL, GL,
+Use existing C11/C++17 compilers, CMake and Python 3; no packages, downloads, Qt, SDL, GL,
 OpenXR or headset are required. For example, in a configured compiler terminal:
 
 ```powershell
@@ -43,7 +45,7 @@ cmake --build .local/build-stereo --config Release --parallel 2
 ctest --test-dir .local/build-stereo -C Release --output-on-failure
 ```
 
-CI uses this standalone CMake project; shared workflow wiring belongs to the lead.
+CI uses this standalone CMake project through the lead's shared workflow.
 Strict warnings apply to the library, test and capture executables on MSVC/GCC.
 Tests cover a cube, asymmetric focal lengths, convergence and disparity,
 translated gun/head origins, nearest camera association, clipping, layer policies,
@@ -69,7 +71,8 @@ under `game_draw_eye`. Do not invoke the nonreturning game entry as `game_step`.
 Capture focal/centre/camera association at emission before sorting; preserve
 direct screen-space primitives, mixed sprite priorities, textures, fog and gamma.
 The existing reference clones stay read-only. This block neither downloads
-upstream nor applies an engine patch.
+upstream. The follow-on hook slice applies guarded scaffolding only to an ignored
+source overlay and verifies it against the existing pinned source; see LIFECYCLE.md.
 
 Open gates include actual game initialization, input/register/audio/output
 integration, real layer classification, camera/cull expansion, near-face comfort,
