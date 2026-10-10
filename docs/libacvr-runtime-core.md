@@ -57,6 +57,8 @@ the host explicitly supports gun drawing. Config strings/tints are copied;
 metadata IDs and grip/muzzle names must agree. Aim uses the tracked grip and
 static muzzle; the compatibility path still uses controller aim. The host gets
 one immutable model draw packet after each world eye, using that eye's depth.
+Renderer contract v0.2 requires shared depth for a real configured-gun host;
+depth-requiring backends fail before drawing a target that lacks it.
 
 Named motion events now drive slide/rotate transforms, LOD aliases and finite
 recoil decay without changing static aim/reference nodes. Preview injection
@@ -64,18 +66,26 @@ rejects duplicate sequences, future ticks, missing nodes and invalid values;
 pause, failure and tracking loss clear motion. Models can be hidden while the
 laser mode and ballistic ray remain independent. Only LOD0 is currently selected.
 This prepares actual render commands; a GPU gun renderer is still required.
+Trigger levels now drive declared trigger motion. Successful native fire edges
+emit one fallback recoil pulse, then the model packet is refreshed once before
+both eyes; display replay cannot restart that pulse. No backend output-to-motion
+mapping is active yet, so this visual fallback is the sole automatic recoil path.
+Single-gun hand switching uses the other tracked trigger's rising edge, cancels
+old effects and motion, releases an old held trigger, and suppresses the switching
+edge. A new release/press is required to fire. The host receives the new hand for
+its haptic routing; this callback is not proof of physical haptic execution.
 
 ## Explicitly incomplete
 
 No OpenXR loader/session/swapchains, Vulkan/GL device provider, model renderer,
 control-set parser, recenter/height/pause overlay, or real backend
-integration exists yet. The core rejects controls-file requests, hand switching,
+integration exists yet. The core rejects controls-file requests,
 multiple-gun or separate-HUD backends instead of ignoring those requirements.
 Builds without the optional model dependencies reject configured model slots.
 The internal host supplies already composed eye matrices and receives scene
 scale/anchor configuration; the production provider must implement that math
 and device lifecycle. The recorded host does not establish graphics correctness.
-Two-gun join policy, automatic input/output-to-motion mapping, haptics and
+Two-gun join policy, full control/output-to-motion mapping, haptics and
 distance-based LOD selection remain required next slices. Explicit preview
 events are not proof that real-game recoil outputs have been mapped.
 
@@ -98,3 +108,7 @@ file loading. The runtime suite also exercises configured left-hand grip aim,
 copied config lifetime, both-eye draw order, motion/aim separation, tracking
 loss/rearm and model-draw failure. A dependency-free build still passes three
 suites. No player-side Python process is involved in model loading.
+Single-gun switching tests verify release-before-press, held-trigger suppression,
+changed grip rays and hand notifications. Replayed display frames decay rather
+than repeat fallback recoil. Missing shared depth rejects the draw and submits
+zero layers. Logical trigger-drive tests keep unchanged levels idempotent.

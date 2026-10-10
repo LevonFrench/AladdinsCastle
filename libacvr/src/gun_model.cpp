@@ -125,13 +125,25 @@ acvr_result GunInstance::event(const acvr_gun_event &e,int64_t now) {
     s.duration=int64_t(e.duration_ms?e.duration_ms:it->duration_ms)*1000000;
     sequence=e.sequence; return ACVR_OK;
 }
+acvr_result GunInstance::drive(std::string_view name,float value,bool pulse,int64_t now) {
+    if(states.size()!=model.motions.size()||now<0||!std::isfinite(value)||value<0||value>1) return ACVR_BAD_ARGUMENT;
+    for(size_t i=0;i<model.motions.size();++i) if(model.motions[i].drive==name) {
+        if(!pulse && !states[i].pulse && states[i].value==value) continue;
+        if(sequence==UINT64_MAX) return ACVR_BAD_STATE;
+        acvr_gun_event e{}; ACVR_INIT(&e);e.sequence=sequence+1;e.node_utf8=model.motions[i].node.c_str();e.value=value;
+        e.kind=pulse?ACVR_GUN_EVENT_RECOIL:ACVR_GUN_EVENT_AXIS;
+        const auto result=event(e,now);if(result!=ACVR_OK) return result;
+    }
+    return ACVR_OK;
+}
 acvr_result GunInstance::draw(const acvr_pose &anchor,const acvr_pose &grip,const acvr_gun_slot_config &config,
                              float scale,float distance,int64_t now,GunDraw &out) const {
     auto angle=grip; for(unsigned i=0;i<3;++i) angle.position_m[i]=0;
     std::copy_n(config.angle_xyzw,4,angle.orientation_xyzw);
     if(!pose_ok(anchor)||!pose_ok(grip)||!pose_ok(angle)||!std::isfinite(scale)||scale<=0||
        !std::isfinite(distance)||distance<=0||now<0||states.size()!=model.motions.size()) return ACVR_BAD_ARGUMENT;
-    GunDraw result; result.asset=&model.asset; result.slot=config.slot; result.visible=config.show_gun!=0; result.laser_mode=config.laser_mode;
+    GunDraw result; result.asset=&model.asset; result.slot=config.slot; result.hand=config.hand;
+    result.visible=config.show_gun!=0; result.laser_mode=config.laser_mode;
     std::copy_n(config.body_rgba,4,result.body.begin()); std::copy_n(config.accent_rgba,4,result.accent.begin());
     const auto placement=multiply(multiply(pose_matrix(anchor),pose_matrix(grip)),pose_matrix(angle));
     auto scene_placement=placement;

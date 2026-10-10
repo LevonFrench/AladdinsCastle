@@ -1,4 +1,4 @@
-# Renderer interface v0.1
+# Renderer interface v0.2
 
 Published 2026-10-10. Normative ABI: `libacvr/include/acvr.h`; lifecycle and
 graphics synchronization: `docs/libacvr-contract.md`. The shared core is described in `docs/libacvr-runtime-core.md`; the XR provider is pending.
@@ -49,3 +49,24 @@ origins; center/corner/miss aim; camera association; repeated eyes do not mutate
 simulation or output queues; lease rejection; HUD separation; guarded old/small
 and oversized structs. A Time Crisis capture and headset play remain separate
 owner-approved checks. No game content belongs in tests, reports or commits.
+
+## v0.2 shared depth and desktop compatibility
+
+The first gun/world integration needs the world depth to remain available after
+the backend returns. A backend with `ACVR_CAP_REQUIRES_SHARED_DEPTH` requires a
+matching runtime-owned depth attachment and rejects a missing one before draw.
+For GL this is attached to the supplied complete framebuffer; `depth_image` and
+`depth_format` are nonzero. Do not detach, delete or clear it after drawing the
+world. Runtime draws guns against that same depth and projection convention.
+Configured gun rendering also requires shared depth on a real graphics host.
+Backends without this flag retain v0.1's private-depth fallback, but that fallback
+alone cannot establish correct gun/world occlusion.
+
+`ACVR_DEVICE_GL_COMPATIBILITY` marks a desktop compatibility-profile context.
+It cannot be combined with `ACVR_DEVICE_GLES`. A fixed-function backend checks
+this flag and rejects core-only/GLES devices during open, before drawing. This
+does not promise a GL version: the provider still checks backend/driver/OpenXR
+requirements. Vulkan support and native texture/composition parity are separate.
+
+This minor contract revision adds constants only; struct sizes, ABI major and
+v0.1 tails are unchanged. The control-set data format remains version 0.1.

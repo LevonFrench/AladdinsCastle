@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT  (libacvr/ is MIT-licensed: see libacvr/LICENSE; the rest of AladdinsCastle is GPL-3.0)
- * Contract v0.1, 2026-10-10. Shared frame core implemented; OpenXR provider pending.
+ * Contract v0.2, 2026-10-10. Shared frame core implemented; OpenXR provider pending.
  * Normative semantics and source evidence: docs/libacvr-contract.md.
  */
 #ifndef ACVR_H_INCLUDED
@@ -22,7 +22,7 @@ extern "C" {
 
 #define ACVR_ABI_VERSION 1u
 #define ACVR_CONTRACT_MAJOR 0u
-#define ACVR_CONTRACT_MINOR 1u
+#define ACVR_CONTRACT_MINOR 2u
 #define ACVR_STRUCT_VERSION 1u
 #define ACVR_INIT(p) do { (p)->size = (uint32_t)sizeof(*(p)); \
                          (p)->version = ACVR_STRUCT_VERSION; } while (0)
@@ -47,12 +47,14 @@ typedef int32_t acvr_result;
 #define ACVR_GRAPHICS_D3D11    3u
 #define ACVR_GRAPHICS_BIT(api) (1u << (api))
 #define ACVR_DEVICE_GLES       1u
+#define ACVR_DEVICE_GL_COMPATIBILITY 2u /* desktop compatibility profile, never GLES */
 
 #define ACVR_CAP_MULTIVIEW     0x0001u
 #define ACVR_CAP_SEPARATE_HUD  0x0002u
 #define ACVR_CAP_RAYCAST       0x0004u
 #define ACVR_CAP_OUTPUTS       0x0008u
 #define ACVR_CAP_PERSISTENCE   0x0010u
+#define ACVR_CAP_REQUIRES_SHARED_DEPTH 0x0020u /* supplied depth survives world draw for runtime overlays */
 
 #define ACVR_CONTROL_AXIS     1u
 #define ACVR_CONTROL_BUTTON   2u

@@ -31,6 +31,8 @@ struct Host {
     virtual void output(const acvr_output_event &) = 0;
     virtual void cancel_effects() noexcept = 0;
     virtual bool supports_guns() const noexcept { return false; }
+    // Rebind player/slot haptics to this hand; core cancels old effects first.
+    virtual void gun_hand_changed(uint32_t, uint32_t) {}
     // Called after world draw for each eye, using its existing depth attachment.
     // Do not retain pointers, mutate draw state, or advance motion here.
     virtual acvr_result draw_gun(const acvr_draw_info &, const GunDraw &) { return ACVR_UNSUPPORTED; }
