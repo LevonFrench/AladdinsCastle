@@ -7,7 +7,8 @@ textures, captures, upstream source or third-party binaries are included.
 
 `acvr_backend_query` reports `supported_graphics=0`; a real libacvr graphics
 runtime must reject it. `game_draw_eye` returns `ACVR_UNSUPPORTED` without
-drawing. `game_open` accepts only `synthetic-system22`, an API-0 test record,
+drawing unless explicitly bound through the private [GL integration slice](GL-DRAW.md).
+`game_open` accepts only `synthetic-system22`, an API-0 test record,
 and empty content/storage/options strings. It never opens those paths. The
 setup-local `stage_cpu_scene` and `draw_cpu_frame` bridge use the same owned
 frame lease, camera and nearest-hit data as the callbacks. The reported synthetic
@@ -68,6 +69,8 @@ Follow the Namco22 integration plan in the shared contract: a source-pinned
 setup-owned build copy, guarded exact patches, native worker frame-boundary
 rendezvous, frozen register/display-list publication, and an actual GL renderer
 under `game_draw_eye`. Do not invoke the nonreturning game entry as `game_step`.
+The compiled GL slice reuses this callback and lease; dispatch tests run mocks
+only. It requires shared forward depth and a desktop GL3.3 compatibility provider.
 Capture focal/centre/camera association at emission before sorting; preserve
 direct screen-space primitives, mixed sprite priorities, textures, fog and gamma.
 The existing reference clones stay read-only. This block neither downloads

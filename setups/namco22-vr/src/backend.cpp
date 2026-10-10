@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "n22_cpu_backend.hpp"
+#include "n22_gl_renderer.hpp"
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -8,6 +9,7 @@ struct acvr_frame { n22::Frame scene; };
 struct acvr_backend {
     n22::Frame staged;
     std::unique_ptr<acvr_frame> leased;
+    std::unique_ptr<n22::GlRenderer> renderer;
     std::vector<acvr_game_camera> previous_cameras;
     uint64_t tick = 0, input_tick = 0;
     bool paused = false, staged_valid = false;
@@ -92,9 +94,11 @@ acvr_result ACVR_CALL camera(acvr_backend *b,const acvr_frame *f,uint32_t id,acv
     if(id>=f->scene.cameras.size()) return ACVR_BAD_ARGUMENT;
     payload(out,f->scene.cameras[id]); return ACVR_OK;
 }
-acvr_result ACVR_CALL draw(acvr_backend *,const acvr_frame *,const acvr_draw_info *) {
-    // Reject before touching target memory; there is no GL implementation yet.
-    return ACVR_UNSUPPORTED;
+acvr_result ACVR_CALL draw(acvr_backend *b,const acvr_frame *f,const acvr_draw_info *in) {
+    if(!b || !b->renderer) return ACVR_UNSUPPORTED;
+    if(!lease(b,f)) return ACVR_BAD_STATE;
+    if(!in) return ACVR_BAD_ARGUMENT;
+    try {return b->renderer->draw(f->scene,*in);} catch(...) {return ACVR_ERROR;}
 }
 acvr_result ACVR_CALL outputs(acvr_backend *b,acvr_outputs *out) {
     if(!b) return ACVR_BAD_ARGUMENT;
@@ -121,6 +125,17 @@ extern "C" acvr_result ACVR_CALL acvr_backend_query(uint32_t abi,acvr_backend_ap
     payload(out,api); return ACVR_OK;
 }
 namespace n22 {
+acvr_result configure_gl_draw(acvr_backend *b,const acvr_graphics_device &device) {
+    if(!b) return ACVR_BAD_ARGUMENT;
+    if(b->leased || b->renderer) return ACVR_BAD_STATE;
+    try {
+        auto renderer=std::make_unique<GlRenderer>();
+        const auto result=renderer->initialize(device);
+        if(result!=ACVR_OK) return result;
+        b->renderer=std::move(renderer);return ACVR_OK;
+    } catch(...) {return ACVR_ERROR;}
+}
+GlDiagnostic gl_diagnostic(acvr_backend *b) {return b && b->renderer?b->renderer->diagnostic():GlDiagnostic{};}
 acvr_result stage_cpu_scene(acvr_backend *b,const SceneInput &in) {
     if(!b) return ACVR_BAD_ARGUMENT;
     if(b->leased) return ACVR_BAD_STATE;
