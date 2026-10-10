@@ -177,6 +177,12 @@ void LaunchSteamTest::managedToolUsersExcludeMutation() {
   auto request=syntheticManagedTool(owner.path()); install::Options options; options.survivalMs=0;
   const auto installed=install::Engine(options).install(request); QVERIFY2(installed.success,qPrintable(installed.code+": "+installed.message));
   const auto payload=owner.path()+"/emulators/synthetic";
+#ifndef Q_OS_WIN
+  // The Windows-recipe fixture is copied atomically, which does not retain Unix
+  // execute bits. Grant only this owned synthetic child's owner execute bit.
+  const auto child=payload+"/synthetic-tool.exe";
+  QVERIFY(QFile::setPermissions(child,QFile::permissions(child)|QFileDevice::ExeOwner));
+#endif
   launch::Request launch; launch.root=portable.path(); launch.gameId="first-dependent"; launch.variantId="flat-synthetic";
   launch.prepareProfile=false; launch.plan.executable=payload+"/synthetic-tool.exe"; launch.plan.cwd=portable.path();
   launch.plan.args={"--synthetic-child","0","hang"}; launch.plan.payloadRoots={payload};
