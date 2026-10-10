@@ -550,7 +550,7 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             for (const auto &b : d.buttons) {
                 bool state_ok=b.state<=ACVR_INPUT_HELD;
 #ifdef ACVR_GUN_MODELS
-                if(r->mapper&&b.state==ACVR_INPUT_PRESSED) state_ok=true;
+                if(r->mapper&&(b.state&~(ACVR_INPUT_HELD|ACVR_INPUT_PRESSED))==0) state_ok=true;
 #endif
                 if (valid(&b) != ACVR_OK || !state_ok || !r->buttons.count({b.semantic,b.player}) ||
                     !seen_buttons.emplace(Key{b.semantic,b.player},true).second) return finish(ACVR_BAD_ARGUMENT, false);
@@ -580,7 +580,9 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             for (auto &b : r->buttons) {
                 bool held = false,pulse=false;
                 for (const auto &v : d.buttons) if (v.semantic == b.first.first && v.player == b.first.second) {held=(v.state&ACVR_INPUT_HELD)!=0;pulse=(v.state&ACVR_INPUT_PRESSED)!=0;}
-                b.second.sample(held);if(pulse) {b.second.sample(true);b.second.sample(false);}
+                // Alternate bindings coalesce into one logical button. A pulse
+                // cannot release a concurrent physical hold of that button.
+                b.second.sample(held);if(pulse&&!held) {b.second.sample(true);b.second.sample(false);}
             }
             for (uint32_t n = 0; now >= r->due_ns && n < r->budget; ++n) {
                 result = r->advance(d); if (result != ACVR_OK) return finish(result, false);

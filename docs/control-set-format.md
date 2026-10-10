@@ -74,6 +74,10 @@ active. Defaults use `offscreen_trigger` or `flick_up`. Grip holds expose/pedal
 down (1), release covers (0); optional invert/toggle are user choices. No
 head-height ducking. With one gun, `either` grip may drive its one cover pedal;
 with two, each slot's grip drives its own player's pedal.
+For `either`, combine the tracked physical controls before applying `invert`;
+an idle second grip cannot override a squeezed grip. No tracked source means
+neutral input even when inverted. Alternate bindings for one semantic button
+coalesce: a press pulse cannot release that button while another binding holds it.
 
 Control sets explicitly expand a second player's elements with distinct IDs;
 do not infer player identity from array order. Two-gun eligibility is intersected

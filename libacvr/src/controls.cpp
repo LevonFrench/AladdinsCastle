@@ -131,10 +131,13 @@ acvr_result ControlMapper::sample(const ControllerButtons (&hands)[2],const bool
                 case Control::Primary:held=s.primary;break;case Control::Secondary:held=s.secondary;break;
                 case Control::StickClick:held=s.stick_click;break;case Control::MenuChord:held=s.menu_chord;break;
             }
-            down=down||(b.invert?!held:held);
+            down=down||held;
         }
         if(b.control==Control::Offscreen) {result.offscreen_reload[0]=live;continue;}
         if(!live) {b.armed=false;b.previous=false;b.latched=false;continue;}
+        // "either" is one logical binding: combine tracked hands first, then
+        // invert it. An idle second grip must not defeat the pressed grip.
+        if(b.invert) down=!down;
         if(!b.armed) {if(!down) b.armed=true;b.previous=down;continue;}
         const bool rising=down&&!b.previous;b.previous=down;
         if(b.toggle&&rising) b.latched=!b.latched;

@@ -312,6 +312,22 @@ void reload_edges() {
     check(acvr_runtime_destroy(p)==ACVR_OK);
 }
 #ifdef ACVR_GUN_MODELS
+void alternate_button_bindings() {
+    const auto path=std::filesystem::current_path()/"synthetic-alternate-controls.toml";
+    {std::ofstream out(path);out<<control_header()<<control_row("hold-coin","button","coin","secondary")<<control_row("press-coin","button","coin","primary","press");}
+    auto c=config();const auto name=path.u8string();c.merged_controls_path_utf8=name.c_str();auto a=api();acvr_runtime *p=nullptr;
+    Receipt r;r.controls_support=true;current=&r;
+    std::vector<Sample> samples{{0},{17000000},{34000000},{51000000},{68000000},{85000000}};
+    samples[1].coin=samples[2].coin=true;samples[1].primary=samples[4].primary=samples[5].primary=true;
+    check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,samples),&p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.buttons.back().state==(ACVR_INPUT_HELD|ACVR_INPUT_PRESSED));
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.buttons.back().state==ACVR_INPUT_HELD);
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.buttons.back().state==ACVR_INPUT_RELEASED);
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.buttons.back().state==(ACVR_INPUT_HELD|ACVR_INPUT_PRESSED));
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.buttons.back().state==ACVR_INPUT_RELEASED);
+    check(acvr_runtime_destroy(p)==ACVR_OK);std::filesystem::remove(path);
+}
 void configured_controls() {
     const auto dir=std::filesystem::current_path()/"synthetic-runtime-controls";std::filesystem::create_directories(dir);
     const auto path=dir/std::filesystem::u8path("controls-\xc3\xa9.toml");
@@ -472,6 +488,7 @@ void runtime_output_routes() {
 int main() {
     try { timing_and_edges(); rational_and_budget(); pause_loss_and_zero_layers(); failures_and_ownership(); muzzle_math(); anchored_aim(); long_replay_and_invalid_samples(); reload_edges();
 #ifdef ACVR_GUN_MODELS
+        alternate_button_bindings();
         configured_controls();
         configured_model();
         mapped_model_motion_and_handoff();

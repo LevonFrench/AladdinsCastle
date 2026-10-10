@@ -58,4 +58,14 @@ void invalid_and_collisions() {
     const auto output=control_fixture()+"\n[[output]]\nid='kick'\nkind='solenoid'\nplayer=0\nslot=0\nchannel=7\nmotion='recoil'\namplitude=0.5\nduration_ms=45\n";
     check(mapper.prepare(output,declarations(),0,0,error)&&mapper.outputs().size()==1&&mapper.outputs()[0].channel==7);
 }
-int main() {try {mapping_and_rearm();toggle_and_runtime();invalid_and_collisions();}catch(const std::exception &e){std::cerr<<e.what()<<'\n';return 1;}std::cout<<checks<<" control checks passed\n";}
+void inverted_either_grip() {
+    auto source=control_header()+control_row("cover","axis","cover_pedal","grip","hold","either");
+    source.insert(source.find("mode='hold'}")+11,",invert=true");
+    acvr::ControlMapper mapper;std::string error;check(mapper.prepare(source,declarations(),0,0,error));
+    acvr::ControllerButtons h[2];bool tracked[]{true,true};acvr::MappedControls out;
+    check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes[0].value==1);
+    h[0].grip=1;check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes[0].value==0);
+    h[0].grip=0;h[1].grip=1;check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes[0].value==0);
+    tracked[0]=tracked[1]=false;check(mapper.sample(h,tracked,0,out)==ACVR_OK&&out.axes.empty());
+}
+int main() {try {mapping_and_rearm();toggle_and_runtime();invalid_and_collisions();inverted_either_grip();}catch(const std::exception &e){std::cerr<<e.what()<<'\n';return 1;}std::cout<<checks<<" control checks passed\n";}

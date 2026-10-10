@@ -50,7 +50,8 @@ struct Host {
     virtual acvr_result draw_gun(const acvr_draw_info &, const GunDraw &) { return ACVR_UNSUPPORTED; }
 };
 // Headless is accepted only here, never through the public XR create export.
-// The host's lifetime transfers on success or failure. No files are read by core.
+// The host's lifetime transfers on success or failure. Optional model/control
+// files are prepared once during creation; no per-frame filesystem reads.
 acvr_result create_with_host(const acvr_runtime_config *, const acvr_backend_api *,
                             std::unique_ptr<Host>, acvr_runtime **);
 // Shared model-independent math. The mount is the non-animated muzzle-in-grip
