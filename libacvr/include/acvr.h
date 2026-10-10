@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT  (libacvr/ is MIT-licensed: see libacvr/LICENSE; the rest of AladdinsCastle is GPL-3.0)
- * Contract v0.1, 2026-10-10. Declarations only; no runtime implementation yet.
+ * Contract v0.1, 2026-10-10. Shared frame core implemented; OpenXR provider pending.
  * Normative semantics and source evidence: docs/libacvr-contract.md.
  */
 #ifndef ACVR_H_INCLUDED
@@ -383,10 +383,11 @@ typedef struct acvr_runtime_config {
 } acvr_runtime_config;
 #define ACVR_RUNTIME_CONFIG_V1_SIZE ((uint32_t)offsetof(acvr_runtime_config, gun_slot_count))
 
-/* Proposed libacvr exports, declarations only. Create owns XR/device initialization
+/* libacvr exports. Create will own XR/device initialization
  * and calls game_open; tick handles one XR frame (0..N native ticks, 0..2 draws);
  * destroy releases the frame, flushes if supported, closes backend then graphics.
  * All exports are owner-thread-only, including pause; destroy accepts NULL.
+ * Until the XR provider is linked, public create returns UNSUPPORTED with NULL.
  */
 ACVR_API acvr_result ACVR_CALL acvr_runtime_create(const acvr_runtime_config *,
                                                   const acvr_backend_api *,

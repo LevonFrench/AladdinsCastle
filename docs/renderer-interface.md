@@ -1,7 +1,7 @@
 # Renderer interface v0.1
 
 Published 2026-10-10. Normative ABI: `libacvr/include/acvr.h`; lifecycle and
-graphics synchronization: `docs/libacvr-contract.md`. No runtime exists yet.
+graphics synchronization: `docs/libacvr-contract.md`. The shared core is described in `docs/libacvr-runtime-core.md`; the XR provider is pending.
 
 The board implements `acvr_backend_query` and `acvr_backend_api`. Query opens
 no game files and creates no graphics or XR session. Required callbacks remain

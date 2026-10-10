@@ -2,7 +2,7 @@
 
 > **Source references:** `namco22-decompile/...`, `time-crisis-vr/...`, `Supermodel/...` and `Rea-Virtua-Cop-2-VR/...` paths are relative to [namco22-decompile](https://github.com/spacestate1/namco22-decompile), [time-crisis-vr](https://github.com/DR-89/time-crisis-vr), [Supermodel](https://github.com/trzy/Supermodel), [Rea-Virtua-Cop-2-VR](https://github.com/NeuralF/Rea-Virtua-Cop-2-VR) as cloned on 2026-10-08 (shallow clones; line numbers may drift). Other paths are in this repo.
 
-Initial design: 2026-10-08; v0.1 published 2026-10-10. Public header: `libacvr/include/acvr.h`. This is a proposed in-process ABI, not an implemented runtime or an assertion that either reference already supports it. libacvr code and public header are MIT; board adapters outside libacvr and the Hub are GPL-3.0-only unless explicitly licensed otherwise. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied and no game content is included.
+Initial design: 2026-10-08; v0.1 published 2026-10-10. Public header: `libacvr/include/acvr.h`. This is the in-process ABI. The shared frame core is implemented with recorded-host checks (docs/libacvr-runtime-core.md); the OpenXR provider and real-game integration remain unimplemented. No upstream ABI compatibility is implied. libacvr code and public header are MIT; board adapters outside libacvr and the Hub are GPL-3.0-only unless explicitly licensed otherwise. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied and no game content is included.
 
 ## Evidence and scope
 
@@ -90,7 +90,7 @@ The table explains each type and its concrete seam. Struct field semantics in th
 | `game_draw_hud` | Optional separate-HUD capability. Receives target and timing with view_count=0/views=NULL, draws premultiplied RGBA, transparent outside HUD, no world/cabinet/UI. Cache once per frame, composite separately per display. Text and mixed sprites at `namco22-decompile/engine/ss22_gl.c:505` and `:530`; Supermodel tile layers at `Supermodel/Src/Model3/Model3.cpp:2171` and `:2173`. Classification needs new work. |
 | `game_flush_persistent` | Optional, after pausing/releasing lease, before close; saves only backend settings/NVRAM under the open storage root, reporting failures. EEPROM at `namco22-decompile/engine/ss22_board.c:461`, RR EEPROM at `namco22-decompile/raverace/src/rr_hw.c:192`, Model 3 NVRAM at `Supermodel/Src/Model3/Model3.cpp:1917`. Arbitrary save-state ABI is deferred. |
 | `acvr_runtime_create` | Proposed runtime export: validate table/config, choose an API supported by the backend, create XR/device, call open, validate capabilities and controls, start unpaused. Mirrors XR initialization responsibility at `time-crisis-vr/quest/quest_host.c:394`. A missing required callback/capability fails creation. |
-| `acvr_runtime_tick` | Proposed export: handles one display iteration, pacing/poses/input, 0..N native ticks and outputs, replay draw, submit or zero layers, return. Based on `time-crisis-vr/quest/quest_host.c:585` and deadline helper `time-crisis-vr/quest/quest_clock.h:8`. No runtime code exists yet. |
+| `acvr_runtime_tick` | Proposed export: handles one display iteration, pacing/poses/input, 0..N native ticks and outputs, replay draw, submit or zero layers, return. Based on `time-crisis-vr/quest/quest_host.c:585` and deadline helper `time-crisis-vr/quest/quest_clock.h:8`. The shared core implements the timing path with a recorded host; production OpenXR creation remains unsupported. |
 | `acvr_runtime_set_paused` | Proposed export forwards neutralization and pause, resets deadline on resume; based on focus/pause paths at `time-crisis-vr/quest/quest_host.c:305` and `:325`. |
 | `acvr_runtime_destroy` | Proposed export: pause, drain/cancel haptics, release lease, optional flush, close backend, destroy graphics/XR. NULL succeeds; returns first failure while finishing cleanup. Mirrors DR-89 cleanup at `time-crisis-vr/quest/quest_host.c:716`. |
 
@@ -330,7 +330,11 @@ change the aim ray. Motion/LOD metadata is defined in the control-set contract.
 `acvr_runtime_get_tracking` copies stage-space head and both hands after a tick,
 with explicit validity bits and the same monotonic prediction time used for eye
 draws. The runtime preserves all output prefixes and caller-owned tail bytes.
-Nested pose/hand records require their own initialized prefixes. No callback
+Nested pose/hand records require their own initialized prefixes and exactly the
+published embedded size. They cannot grow in place without changing the parent
+layout; a future expansion needs a new parent contract. The outer tracking record
+may have an unknown tail, which remains untouched. No callback
 recursion or cross-thread calls. Matrices supplied to the backend already include
-these poses, the anchor and scale: do not apply them again. These exports and the
-XR/gun renderer remain declarations until the lead's runtime block implements them.
+these poses, the anchor and scale: do not apply them again. The shared core implements tick/pause/tracking/destroy through a private provider seam.
+Public XR creation and gun-event animation still return UNSUPPORTED; see
+`docs/libacvr-runtime-core.md` for the implementation boundary.

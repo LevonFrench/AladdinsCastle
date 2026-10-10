@@ -61,11 +61,25 @@ jobs:
       - name: Pin CMake and Ninja
         run: python -m pip install cmake==3.31.10 ninja==1.13.0
       - run: cmake -S hub -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
-      - name: Build libacvr C and C++ contract checks (no XR or graphics)
+      - name: Build libacvr runtime and ABI checks (no XR or graphics)
         run: |
           cmake -S libacvr -B build-contract -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
           cmake --build build-contract --parallel 2
           ctest --test-dir build-contract --output-on-failure
+      - name: System 22 synthetic stereo checks
+        if: hashFiles('setups/namco22-vr/CMakeLists.txt') != ''
+        run: |
+          cmake -S setups/namco22-vr -B build-stereo -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake --build build-stereo --parallel 2
+          ctest --test-dir build-stereo --output-on-failure
+      - name: Gun source and malformed-asset checks
+        if: hashFiles('tools/test_check_gun_assets.py') != ''
+        run: |
+          python tools/test_check_gun_assets.py
+          python tools/test_gun_source_plans.py
+      - name: Control-set resolver checks
+        if: hashFiles('tools/test_control_sets.py') != ''
+        run: python tools/test_control_sets.py
       - run: cmake --build build --parallel 2
       - run: ctest --test-dir build --output-on-failure
       - name: Build Windows portable folder and ZIP
