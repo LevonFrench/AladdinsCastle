@@ -21,6 +21,7 @@
 #include <QQuickImageProvider>
 #include <QPainter>
 #include <QFocusEvent>
+#include <QFontMetricsF>
 #include <QAtomicInteger>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -93,6 +94,43 @@ class UiTest:public QObject {
   QVERIFY(!model->property("previewAvailable").toBool());
   root->setProperty("view","List");
   QTRY_VERIFY(model->property("gameId").toString().isEmpty());
+ }
+ void catalogBadgesDescribeMetadata(){
+  QCOMPARE(ui->vrLabel(1),QString("TRUE 3D · CATALOG"));
+  QCOMPARE(ui->vrLabel(2),QString("THEATRE · CATALOG"));
+ }
+ void catalogMetadataFitsSmallCard(){
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameCard.qml"));
+  std::unique_ptr<QObject> object(component.create());QVERIFY2(object,qPrintable(component.errorString()));
+  auto card=qobject_cast<QQuickItem *>(object.get());QVERIFY(card);card->setParentItem(window->contentItem());
+  card->setProperty("sizeValue","S");card->setWidth(card->implicitWidth());card->setHeight(card->implicitHeight());
+  const auto pad=theme->get("space.card_inner_pad").toDouble()*card->property("factor").toDouble();
+  double furthest=0;QString longest;int qualified=0;
+  for(const auto &game:games->records()){
+   const auto badge=game.roles.value("vrBadge").toInt();if(badge!=1&&badge!=2)continue;
+   ++qualified;card->setProperty("game",game.roles);QCoreApplication::processEvents();
+   const auto players=game.roles.value("players").toInt();
+   const auto text=ui->vrLabel(badge)+"  "+(players>1?QString::number(players)+"P":QString())+"  "+game.roles.value("controlsLabel").toString();
+   QQuickItem *metadata=nullptr;for(auto item:namedItems(card,QString()))if(item->property("text").toString()==text){metadata=item;break;}
+   QVERIFY(metadata);const auto right=metadata->mapToItem(card,QPointF(metadata->width(),0)).x();
+   if(right>furthest){furthest=right;longest=game.id+": "+text;}
+   QVERIFY(QFontMetricsF(metadata->property("font").value<QFont>()).horizontalAdvance(ui->vrLabel(badge))<=card->width()-2*pad);
+  }
+  QVERIFY(qualified>0);qInfo().noquote()<<"Furthest qualified small-card metadata:"<<longest<<"right edge"<<furthest<<"inner edge"<<card->width()-pad;
+  QVERIFY2(furthest<=card->width()-pad+0.5,qPrintable(longest));
+ }
+ void authoredVrCopyKeepsInstallAndPlayBlocked(){
+  ui->openDetail("timecris");ui->selectVariant("dr89-pcvr");
+  QVERIFY(!ui->detail().value("m1Available").toBool());
+  QSignalSpy install(ui.get(),&ac::UiController::installRequested),play(ui.get(),&ac::UiController::playRequested);
+  ui->startInstall("timecris","dr89-pcvr");QCOMPARE(install.count(),0);QVERIFY(ui->status().contains("not enabled"));
+  ui->play("timecris","dr89-pcvr");QCOMPARE(play.count(),0);QVERIFY(ui->status().contains("not enabled"));
+  const auto components=ui->detail().value("components").toList();QVERIFY(!components.isEmpty());
+  QVERIFY(components.first().toMap().value("role").toString().contains("recipe"));
+  root->setProperty("view","Detail");QTRY_VERIFY(window->findChild<QObject *>("detailStateReason"));
+  const auto reason=window->findChild<QObject *>("detailStateReason")->property("text").toString();
+  QVERIFY(reason.contains("not enabled"));QVERIFY(!reason.contains("M1"));
+  root->setProperty("view","List");
  }
  void desktopControlsSwitchClearAndKeepEvidenceHonest(){
   ui->openDetail("timecris");root->setProperty("view","Detail");

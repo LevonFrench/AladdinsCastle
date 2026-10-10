@@ -89,6 +89,29 @@ QStringList visible(ac::FilterSortModel &proxy) {
 class CatalogTest : public QObject {
     Q_OBJECT
   private slots:
+    void readinessLabelsSeparateDetectedAndOwnedEvidence() {
+        ac::GameRecord flat;flat.id="synthetic-flat";flat.roles["title"]="Synthetic flat";
+        ac::Variant route;route.id="flat";route.quality="flat";route.status="stable";route.generated=true;
+        route.media={"synthetic-media"};route.tools={"synthetic-tool"};flat.variants={route};
+        flat.runtime.mediaFound=route.media;flat.runtime.toolsOk=route.tools;ac::resolveState(flat);
+        auto owned=flat;owned.id="synthetic-owned";owned.hasRecipe=true;owned.variants[0].generated=false;owned.variants[0].quality="true3d";
+        ac::VariantRuntimeState proof;proof.id="flat";proof.verified=true;proof.installedWhenExists=true;proof.manifestExists=true;
+        owned.runtime.variants={proof};ac::resolveState(owned);
+        QCOMPARE(flat.roles.value("state").toInt(),int(ac::GameState::Installed));
+        QCOMPARE(owned.roles.value("state").toInt(),int(ac::GameState::Installed));
+        QCOMPARE(flat.roles.value("statePill"),owned.roles.value("statePill"));
+        QVERIFY(flat.roles.value("inLibrary").toBool());QVERIFY(owned.roles.value("inLibrary").toBool());
+        QCOMPARE(flat.roles.value("stateLabel").toString(),QString("Flat launch ready"));
+        QCOMPARE(owned.roles.value("stateLabel").toString(),QString("Setup installed"));
+        QVERIFY(flat.roles.value("stateReason").toString().contains("detected"));
+        QVERIFY(owned.roles.value("stateReason").toString().contains("Owned"));
+        QVERIFY(!flat.roles.contains("accepted"));QVERIFY(!owned.roles.contains("accepted"));
+        ac::CatalogData data;data.games={flat,owned};ac::GameListModel model(data);ac::FilterSortModel filter;filter.setSourceModel(&model);
+        filter.setFacet("statePills",QStringList{"ready"});QCOMPARE(filter.rowCount(),2);
+        owned.runtime.variants[0].verified=false;ac::resolveState(owned);
+        QVERIFY(owned.roles.value("state").toInt()!=int(ac::GameState::Installed));
+        QVERIFY(owned.roles.value("stateReason").toString().contains("recipe"));
+    }
     void realCatalog() {
         const auto data = ac::CatalogLoader().load(QStringLiteral(AC_CATALOG_ROOT));
         QCOMPARE(data.games.size(), 413);
