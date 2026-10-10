@@ -28,7 +28,18 @@ through preparation and the tracked child lifetime. A crashed holder's usage lea
 is reclaimed only when its recorded child has exited or the PID refers to a new
 creation. Windows process creation time and Linux process start time identify that
 creation; failed queries and unreadable/invalid evidence refuse mutation. A dead
-holder without a child record can be reclaimed by QLockFile's stale-holder check.
+holder without a child record can be reclaimed by QLockFile's stale-holder check
+only if it never entered the launch reservation phase.
+
+Before attempting an OS child start, the live holder durably writes a pending
+marker for every payload. Any failed marker write prevents spawn. The started
+callback replaces these markers with PID/creation records. Proven failed starts
+and normal completion clear the live holder's evidence. An orphaned pending
+marker is retained even if the launch might never have spawned: its unknown
+child cannot be proved absent. Stop the associated game and have an operator
+review that lease; production does not automatically delete it or infer safety
+from a timeout. Partial reservations are cleaned only by the live holder that
+knows it did not attempt spawn.
 
 This tracks the immediate launched child. Detached descendants and arbitrary
 external edits do not participate in the cooperative contract. The locks do not

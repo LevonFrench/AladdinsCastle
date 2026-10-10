@@ -198,6 +198,7 @@ LaunchService::~LaunchService() {
       process_.waitForFinished(1000);
     }
   }
+  if(payload_ && process_.state()==QProcess::NotRunning) payload_->clearPendingChildLaunch();
 }
 bool LaunchService::playing() const { return busy_; }
 void LaunchService::setRuntimeStateSource(
@@ -313,6 +314,13 @@ void LaunchService::beginChild() {
   process_.setWorkingDirectory(request_.plan.cwd);
   process_.setProcessChannelMode(QProcess::MergedChannels);
   process_.setStandardOutputFile(logPath_, QIODevice::Append);
+  try {if(payload_) payload_->prepareChildLaunch();}
+  catch(const std::exception &error) {
+    // No OS spawn has been attempted. Only this live holder can clear a
+    // partially written reservation before reporting the failed launch.
+    if(payload_) payload_->clearPendingChildLaunch();
+    complete(1,QString::fromUtf8(error.what()));return;
+  }
   process_.start(request_.plan.executable, request_.plan.args);
 }
 void LaunchService::stop() {
@@ -343,6 +351,7 @@ void LaunchService::complete(int code, const QString &error) {
   const auto generation = generation_;
   runtimeTimer_.stop();
   lock_.reset();
+  if(payload_ && process_.state()==QProcess::NotRunning) payload_->clearPendingChildLaunch();
   payload_.reset();
   const auto root = request_.root, gameId = request_.gameId,
              variantId = request_.variantId, logPath = logPath_;

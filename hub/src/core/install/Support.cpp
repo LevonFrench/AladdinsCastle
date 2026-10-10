@@ -71,6 +71,8 @@ bool recordChildStillUses(const QString &path) {
   try {
     if(QFileInfo(path).size()>4096) throw Error("E_LOCKED","Shared child lease evidence is too large");
     const auto record=Json::parse(readBytes(path).toStdString());
+    if(record.is_object() && record.value("format",0)==1 && record.value("phase",std::string())=="pending")
+      throw Error("E_LOCKED","A launch has no registered child identity yet. Wait for its Hub/game to stop; if the Hub exited, an operator must review the pending lease. Automatic cleanup is refused");
     if(!record.is_object() || record.value("format",0)!=1 || !record.contains("child_pid") ||
        !record["child_pid"].is_number_integer() || !record.contains("child_identity") || !record["child_identity"].is_string())
       throw Error("E_LOCKED","Shared child lease evidence is invalid");
@@ -78,7 +80,11 @@ bool recordChildStillUses(const QString &path) {
     if(pid<=0 || (!creation.isEmpty() && !QRegularExpression("\\A[0-9]{1,20}\\z").match(creation).hasMatch()))
       throw Error("E_LOCKED","Shared child lease evidence is invalid");
     return childStillUses(pid,creation);
-  } catch(const std::exception &) {
+  } catch(const Error &error) {
+    if(error.code=="E_LOCKED") throw;
+    throw Error("E_LOCKED","Shared child lease evidence cannot be verified; retained for safety");
+  }
+  catch(const std::exception &) {
     throw Error("E_LOCKED","Shared child lease evidence cannot be verified; retained for safety");
   }
 }
@@ -171,6 +177,7 @@ struct ResourceLocks::Impl {
   QStringList childRecords;
   qint64 childPid=0;
   QString childCreation;
+  bool pendingChild=false;
 };
 QString resourceLockDirectory(const QString &resource) {
   const auto root=sharedLockRoot();
@@ -222,18 +229,34 @@ ResourceLocks::ResourceLocks(QStringList resources, ResourceAccess access):impl_
 }
 ResourceLocks::~ResourceLocks() {
   // Also preserve a still-running child if a caller releases use prematurely.
-  const bool retain=impl_->childPid>0 && childStillUses(impl_->childPid,impl_->childCreation);
+  const bool retain=impl_->childPid>0 ? childStillUses(impl_->childPid,impl_->childCreation) : impl_->pendingChild;
   if(!retain) for(const auto &record:impl_->childRecords) QFile::remove(record);
+}
+void ResourceLocks::prepareChildLaunch() {
+  if(impl_->childRecords.isEmpty()) return;
+  if(impl_->childPid>0 || impl_->pendingChild)
+    throw Error("E_PLAN_INVALID","Child launch evidence is already reserved");
+  impl_->pendingChild=true;
+  const Json record{{"format",1},{"phase","pending"}};
+  // The caller must not spawn unless every durable write succeeds. A partial
+  // failure is only cleared by the still-live holder after proving no spawn.
+  for(const auto &path:impl_->childRecords) atomicWrite(path,QByteArray::fromStdString(record.dump()));
+}
+void ResourceLocks::clearPendingChildLaunch() {
+  if(!impl_->pendingChild || impl_->childPid>0) return;
+  impl_->pendingChild=false;
+  for(const auto &path:impl_->childRecords) QFile::remove(path);
 }
 void ResourceLocks::trackChild(qint64 pid) {
   if(impl_->childRecords.isEmpty()) return;
   if(pid<=0) throw Error("E_PLAN_INVALID","Invalid tracked child process");
   const auto identity=childIdentity(pid);
-  if(identity.state==ChildState::Gone) return;
+  if(identity.state==ChildState::Gone) {clearPendingChildLaunch();return;}
   impl_->childPid=pid; impl_->childCreation=identity.creation;
   const Json record{{"format",1},{"child_pid",pid},{"child_identity",identity.creation.toStdString()}};
   // Empty creation means the query failed: keep the evidence conservative.
   for(const auto &path:impl_->childRecords) atomicWrite(path,QByteArray::fromStdString(record.dump()));
+  impl_->pendingChild=false;
 }
 QString toolPayloadRoot(const QString &executable, const QString &toolId) {
   auto directory=QFileInfo(executable).absolutePath();

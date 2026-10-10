@@ -76,6 +76,11 @@ private slots:
   void sortedResourcesRefuseWithoutPartialReservation();
   void orphanedChildKeepsUsageLease_data();
   void orphanedChildKeepsUsageLease();
+  void orphanBeforeChildRegistrationRefusesMutation_data();
+  void orphanBeforeChildRegistrationRefusesMutation();
+  void pendingChildLifecycle_data();
+  void pendingChildLifecycle();
+  void partialPendingWritePreventsSpawn();
   void binaryRoundTrip();
   void malformed_data();
   void malformed();
@@ -300,6 +305,84 @@ void LaunchSteamTest::orphanedChildKeepsUsageLease() {
   child.kill(); QVERIFY(child.waitForFinished(10000));
   install::ResourceLocks reclaimed({payload},install::ResourceAccess::Mutation);
   QVERIFY(QDir(directory).entryList({"use-*"}).isEmpty());
+}
+void LaunchSteamTest::orphanBeforeChildRegistrationRefusesMutation_data() {
+  QTest::addColumn<bool>("spawn");QTest::addColumn<bool>("multiple");
+  QTest::newRow("crash-before-spawn")<<false<<false;
+  QTest::newRow("crash-after-spawn-before-track")<<true<<false;
+  QTest::newRow("all-payloads-before-spawn")<<true<<true;
+}
+void LaunchSteamTest::orphanBeforeChildRegistrationRefusesMutation() {
+  QFETCH(bool,spawn);QFETCH(bool,multiple);
+  QTemporaryDir temp;
+  const auto payload=temp.path()+"/payload",ready=temp.path()+"/ready",go=temp.path()+"/go";
+  QStringList payloads{payload};if(multiple)payloads<<payload+"-second";
+  QStringList evidence;
+  for(const auto &path:payloads){QVERIFY(QDir().mkpath(path));evidence<<install::resourceLockDirectory(path);}
+  QProcess child,holder;
+  auto cleanup=qScopeGuard([&]{
+    for(auto *process:{&child,&holder})if(process->state()!=QProcess::NotRunning){process->kill();process->waitForFinished(3000);}
+    // Operator-equivalent cleanup only for this test's fresh leases, after all
+    // owned synthetic processes are proven stopped; production never does this.
+    if(child.state()==QProcess::NotRunning && holder.state()==QProcess::NotRunning)
+      for(const auto &directory:evidence)for(const auto &name:QDir(directory).entryList({"use-*"},QDir::Files))
+        QFile::remove(install::scopedPath(directory+"/"+name,directory));
+  });
+  // Same protocol order as LaunchService: use registered, OS child spawned,
+  // then holder dies before the started callback can persist child identity.
+  holder.start(QCoreApplication::applicationFilePath(),{"--synthetic-resource-user",payload,ready,go,"crash",multiple?"pending-two":"pending"});
+  QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(ready),10000);
+  for(const auto &directory:evidence){
+    const auto records=QDir(directory).entryList({"*.child.json"});QCOMPARE(records.size(),1);
+    QCOMPARE(Json::parse(install::readBytes(directory+"/"+records[0]).toStdString()).value("phase",std::string()),std::string("pending"));
+  }
+  if(spawn){child.start(QCoreApplication::applicationFilePath(),{"--synthetic-child","0","hang"});QVERIFY(child.waitForStarted(10000));}
+  write(go,"go");QVERIFY(holder.waitForFinished(10000));QCOMPARE(holder.exitCode(),0);
+  if(spawn)QCOMPARE(child.state(),QProcess::Running);
+  for(const auto &path:payloads){
+    bool refused=false;
+    try {install::ResourceLocks mutation({path},install::ResourceAccess::Mutation);}
+    catch(const install::Error &error){QCOMPARE(error.code,QString("E_LOCKED"));QVERIFY(QString::fromUtf8(error.what()).contains("pending lease"));refused=true;}
+    QVERIFY2(refused,"Mutation reclaimed a crashed launch holder before its child identity was known");
+  }
+}
+void LaunchSteamTest::pendingChildLifecycle_data() {
+  QTest::addColumn<bool>("failedStart");
+  QTest::newRow("failed-os-start")<<true;
+  QTest::newRow("normal-child-completion")<<false;
+}
+void LaunchSteamTest::pendingChildLifecycle() {
+  QFETCH(bool,failedStart);
+  QTemporaryDir temp;const auto payload=temp.path()+"/payload";QVERIFY(QDir().mkpath(payload));
+  launch::Request request;request.root=temp.path();request.gameId="pending-lifecycle";request.variantId="flat-synthetic";
+  request.prepareProfile=false;request.plan.cwd=temp.path();request.plan.payloadRoots={payload};
+  request.plan.executable=QCoreApplication::applicationFilePath();request.plan.args={"--synthetic-child","0"};
+  if(failedStart){request.plan.executable=temp.path()+"/not-an-executable.bin";write(request.plan.executable,"owned non-executable fixture");}
+  launch::LaunchService service;QSignalSpy started(&service,&launch::LaunchService::started),done(&service,&launch::LaunchService::finished);
+  service.start(request);QTRY_COMPARE_WITH_TIMEOUT(done.count(),1,10000);QTRY_VERIFY(!service.busy());
+  QCOMPARE(started.count(),failedStart?0:1);
+  if(failedStart)QVERIFY(!done.first()[2].toString().isEmpty());
+  install::ResourceLocks mutation({payload},install::ResourceAccess::Mutation);
+  QVERIFY(QDir(install::resourceLockDirectory(payload)).entryList({"use-*"}).isEmpty());
+}
+void LaunchSteamTest::partialPendingWritePreventsSpawn() {
+  QTemporaryDir temp;QStringList payloads{temp.path()+"/a",temp.path()+"/b"};
+  for(const auto &path:payloads)QVERIFY(QDir().mkpath(path));
+  launch::Request request;request.root=temp.path();request.gameId="partial-pending";request.variantId="flat-synthetic";
+  request.prepareProfile=false;request.plan.cwd=temp.path();request.plan.payloadRoots=payloads;
+  request.plan.executable=QCoreApplication::applicationFilePath();request.plan.args={"--synthetic-child","0"};
+  launch::LaunchService service;QSignalSpy started(&service,&launch::LaunchService::started),done(&service,&launch::LaunchService::finished);
+  QString blocked;
+  connect(&service,&launch::LaunchService::playingChanged,&service,[&]{
+    if(!service.playing()||!blocked.isEmpty())return;
+    const auto directory=install::resourceLockDirectory(payloads.last());const auto uses=QDir(directory).entryList({"use-*.lock"});
+    if(uses.size()==1){blocked=directory+"/"+uses[0]+".child.json";QVERIFY(QDir().mkdir(blocked));}
+  });
+  service.start(request);QVERIFY(!blocked.isEmpty());QTRY_COMPARE_WITH_TIMEOUT(done.count(),1,10000);QTRY_VERIFY(!service.busy());
+  QCOMPARE(started.count(),0);QVERIFY(done.first()[2].toString().contains("Cannot write"));
+  QVERIFY(QDir(install::resourceLockDirectory(payloads.first())).entryList({"use-*"}).isEmpty());
+  QVERIFY(QDir().rmdir(blocked)); // This test's empty fault directory only.
+  install::ResourceLocks mutation(payloads,install::ResourceAccess::Mutation);
 }
 void LaunchSteamTest::binaryRoundTrip() {
   QCOMPARE(steam::serialize(steam::parse({})), QByteArray());
@@ -1249,8 +1332,9 @@ int main(int argc, char **argv) {
   if((argc==6 || argc==7) && QByteArray(argv[1])=="--synthetic-resource-user") {
     QCoreApplication app(argc,argv);const auto args=app.arguments();QTextStream out(stdout);
     try {
-      install::ResourceLocks use({args[2]},install::ResourceAccess::Use);
-      if(args.size()==7)use.trackChild(args[6].toLongLong());
+      QStringList payloads{args[2]};if(args.size()==7 && args[6]=="pending-two")payloads<<args[2]+"-second";
+      install::ResourceLocks use(payloads,install::ResourceAccess::Use);
+      if(args.size()==7){if(args[6].startsWith("pending"))use.prepareChildLaunch();else use.trackChild(args[6].toLongLong());}
       write(args[3],"ready");QElapsedTimer timeout;timeout.start();
       while(!QFileInfo::exists(args[4]) && timeout.elapsed()<15000)QThread::msleep(10);
       if(!QFileInfo::exists(args[4]))throw install::Error("E_TEST_TIMEOUT","Synthetic reader barrier timed out");

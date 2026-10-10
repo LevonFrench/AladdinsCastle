@@ -17,6 +17,11 @@ class ResourceLocks {
 public:
   ResourceLocks(QStringList resources, ResourceAccess access);
   ~ResourceLocks();
+  // Persist for every payload before OS spawn. An orphaned pending launch is
+  // deliberately not reclaimed: its unregistered child could still be alive.
+  void prepareChildLaunch();
+  // Caller must prove no child was started or QProcess is no longer running.
+  void clearPendingChildLaunch();
   void trackChild(qint64 processId);
   ResourceLocks(const ResourceLocks &) = delete;
   ResourceLocks &operator=(const ResourceLocks &) = delete;
