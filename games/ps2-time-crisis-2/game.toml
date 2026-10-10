@@ -29,7 +29,7 @@ kind = "bios"
 note = "Your own PS2 BIOS dump"
 
 [routes]
-pcsx2 = "unknown"
+pcsx2 = "playable" # Official pinned PCSX2 GameIndex: compatible rating 5
 vr    = { best = "none" }
 
 [hub]
@@ -40,6 +40,6 @@ blurb  = "Namco's PS2 port of Time Crisis II with GunCon 2 and two-player play."
 badges = ["2-players"]
 
 [meta]
-sources    = ["https://en.wikipedia.org/wiki/Time_Crisis_II", "https://en.wikipedia.org/wiki/GunCon", "https://github.com/PCSX2/pcsx2/blob/master/pcsx2/USB/usb-lightgun/guncon2.cpp"]
+sources    = ["https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml", "https://en.wikipedia.org/wiki/Time_Crisis_II", "https://en.wikipedia.org/wiki/GunCon", "https://github.com/PCSX2/pcsx2/blob/master/pcsx2/USB/usb-lightgun/guncon2.cpp"]
 confidence = "high"
-checked    = "2026-10-08"
+checked    = "2026-10-09"

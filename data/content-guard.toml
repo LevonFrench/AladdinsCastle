@@ -1,0 +1,5 @@
+# Metadata only. Game-set ZIP names are additionally loaded from the catalog.
+format = 1
+names = ["neogeo.zip", "naomi.zip", "naomi2.zip", "awbios.zip", "scph1001.bin", "scph10000.bin"]
+extensions = ["iso", "bin", "img", "chd", "cue", "gdi", "cso", "cdi", "gcm", "pbp", "rvz", "wbfs", "nsp", "xci", "mdf", "rom"]
+sha256 = []

@@ -1,0 +1,502 @@
+{
+  "PBPX-95502": {
+    "gameId": "ps2-gran-turismo-3-a-spec",
+    "title": "GRAN TURISMO 3 - A-Spec [本体同梱版]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "PBPX-95601": {
+    "gameId": "ps2-gran-turismo-4",
+    "title": "GRAN TURISMO 4 [本体同梱版]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCAJ-10004": {
+    "gameId": "ps2-time-crisis-2",
+    "title": "Time Crisis 2 [PlayStation2 the Best]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCAJ-20047": {
+    "gameId": "ps2-time-crisis-3",
+    "title": "Time Crisis 3",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCAJ-20060": {
+    "gameId": "ps2-time-crisis-3",
+    "title": "Time Crisis 3",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCAJ-25008": {
+    "gameId": "ps2-initial-d-special-stage",
+    "title": "Initial D - Special Stage",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCAJ-30006": {
+    "gameId": "ps2-gran-turismo-4",
+    "title": "Gran Turismo 4",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCAJ-30007": {
+    "gameId": "ps2-gran-turismo-4",
+    "title": "Gran Turismo 4",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCAJ-30008": {
+    "gameId": "ps2-gran-turismo-4",
+    "title": "Gran Turismo 4 [PlayStation2 the Best]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCED-50768": {
+    "gameId": "ps2-wipeout-fusion",
+    "title": "Wipeout Fusion",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCES-50000": {
+    "gameId": "ps2-ridge-racer-v",
+    "title": "Ridge Racer V",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCES-50005": {
+    "gameId": "ps2-wipeout-fusion",
+    "title": "Wipeout Fusion",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCES-50294": {
+    "gameId": "ps2-gran-turismo-3-a-spec",
+    "title": "Gran Turismo 3 - A-Spec",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCES-50300": {
+    "gameId": "ps2-time-crisis-2",
+    "title": "Time Crisis 2",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCES-50411": {
+    "gameId": "ps2-vampire-night",
+    "title": "Vampire Night",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCES-50889": {
+    "gameId": "ps2-ninja-assault",
+    "title": "Ninja Assault",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCES-50956": {
+    "gameId": "ps2-ferrari-f355-challenge",
+    "title": "Ferrari F355 Challenge",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCES-51719": {
+    "gameId": "ps2-gran-turismo-4",
+    "title": "Gran Turismo 4",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCES-51844": {
+    "gameId": "ps2-time-crisis-3",
+    "title": "Time Crisis 3",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCES-52530": {
+    "gameId": "ps2-time-crisis-crisis-zone",
+    "title": "Crisis Zone",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCKA-20002": {
+    "gameId": "ps2-time-crisis-2",
+    "title": "Time Crisis II",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCKA-20015": {
+    "gameId": "ps2-time-crisis-3",
+    "title": "Time Crisis 3",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCKA-20034": {
+    "gameId": "ps2-time-crisis-3",
+    "title": "Time Crisis 3 [PlayStation 2 BigHit Series]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCKA-20038": {
+    "gameId": "ps2-time-crisis-crisis-zone",
+    "title": "Time Crisis - Crisis Zone",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCPS-15009": {
+    "gameId": "ps2-gran-turismo-3-a-spec",
+    "title": "Gran Turismo 3 - A-Spec",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCPS-17001": {
+    "gameId": "ps2-gran-turismo-4",
+    "title": "Gran Turismo 4",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCPS-19252": {
+    "gameId": "ps2-gran-turismo-4",
+    "title": "Gran Turismo 4 [PlayStation2 the Best]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCPS-51014": {
+    "gameId": "ps2-ninja-assault",
+    "title": "Ninja Assault",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCPS-55003": {
+    "gameId": "ps2-vampire-night",
+    "title": "Vampire Night",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCPS-55007": {
+    "gameId": "ps2-gran-turismo-3-a-spec",
+    "title": "Gran Turismo 3 - A-Spec",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCPS-56015": {
+    "gameId": "ps2-ninja-assault",
+    "title": "Ninja Assault",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCUS-90682": {
+    "gameId": "ps2-gran-turismo-4",
+    "title": "Gran Turismo 4",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCUS-97102": {
+    "gameId": "ps2-gran-turismo-3-a-spec",
+    "title": "Gran Turismo 3 - A-Spec",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCUS-97328": {
+    "gameId": "ps2-gran-turismo-4",
+    "title": "Gran Turismo 4",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SCUS-97563": {
+    "gameId": "ps2-gran-turismo-4",
+    "title": "Gran Turismo 4",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLAJ-25008": {
+    "gameId": "ps2-initial-d-special-stage",
+    "title": "Initial D - Special Stage",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLAJ-25053": {
+    "gameId": "ps2-burnout-3-takedown",
+    "title": "Burnout 3 - Takedown",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-50214": {
+    "gameId": "ps2-18-wheeler-american-pro-trucker",
+    "title": "18 Wheeler - American Pro Trucker",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-50215": {
+    "gameId": "ps2-crazy-taxi",
+    "title": "Crazy Taxi",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-50445": {
+    "gameId": "ps2-burnout",
+    "title": "Burnout",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-50930": {
+    "gameId": "ps2-dino-stalker",
+    "title": "Dino Stalker",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-50936": {
+    "gameId": "ps2-endgame",
+    "title": "Endgame",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-51044": {
+    "gameId": "ps2-burnout-2-point-of-impact",
+    "title": "Burnout 2 - Point of Impact",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-51095": {
+    "gameId": "ps2-dino-stalker",
+    "title": "Dino Stalker",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-51096": {
+    "gameId": "ps2-dino-stalker",
+    "title": "Dino Stalker",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-51229": {
+    "gameId": "ps2-virtua-cop-elite-edition",
+    "title": "Virtua Cop - Elite Edition",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-51448": {
+    "gameId": "ps2-resident-evil-dead-aim",
+    "title": "Resident Evil - Dead Aim",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-51617": {
+    "gameId": "ps2-starsky-and-hutch",
+    "title": "Starsky & Hutch",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-51618": {
+    "gameId": "ps2-starsky-and-hutch",
+    "title": "Starsky & Hutch",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-51783": {
+    "gameId": "ps2-starsky-and-hutch",
+    "title": "Starsky & Hutch",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-52584": {
+    "gameId": "ps2-burnout-3-takedown",
+    "title": "Burnout 3 - Takedown",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-52585": {
+    "gameId": "ps2-burnout-3-takedown",
+    "title": "Burnout 3 - Takedown",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-52968": {
+    "gameId": "ps2-burnout-2-point-of-impact",
+    "title": "Burnout 2 - Point of Impact",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-53506": {
+    "gameId": "ps2-burnout-revenge",
+    "title": "Burnout Revenge",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLES-53507": {
+    "gameId": "ps2-burnout-revenge",
+    "title": "Burnout Revenge",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLKA-25039": {
+    "gameId": "ps2-burnout-2-point-of-impact",
+    "title": "Burnout 2 - Point of Impact",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLKA-25090": {
+    "gameId": "ps2-starsky-and-hutch",
+    "title": "Starsky & Hutch",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLKA-25206": {
+    "gameId": "ps2-burnout-3-takedown",
+    "title": "Burnout 3 - Takedown",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLKA-25304": {
+    "gameId": "ps2-burnout-revenge",
+    "title": "Burnout Revenge",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLKA-25362": {
+    "gameId": "ps2-sega-rally-2006",
+    "title": "Sega Rally 2006",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLKA-25423": {
+    "gameId": "ps2-sega-rally-2006",
+    "title": "Sega Rally 2006 [PlayStation 2 BigHit Series]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPM-62102": {
+    "gameId": "ps2-crazy-taxi",
+    "title": "Crazy Taxi",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPM-62205": {
+    "gameId": "ps2-virtua-cop-elite-edition",
+    "title": "Virtua Cop Re-Birth",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPM-62211": {
+    "gameId": "ps2-18-wheeler-american-pro-trucker",
+    "title": "18 Wheeler - American Pro Trucker",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPM-65178": {
+    "gameId": "ps2-ferrari-f355-challenge",
+    "title": "Ferrari F355 Challenge",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPM-65185": {
+    "gameId": "ps2-ferrari-f355-challenge",
+    "title": "Ferrari F355 Challenge",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPM-65268": {
+    "gameId": "ps2-initial-d-special-stage",
+    "title": "Initial D - Special Stage",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPM-65719": {
+    "gameId": "ps2-burnout-3-takedown",
+    "title": "Burnout 3 - Takedown",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPM-66108": {
+    "gameId": "ps2-burnout-revenge",
+    "title": "Burnout Revenge",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPM-66212": {
+    "gameId": "ps2-sega-rally-2006",
+    "title": "Sega Rally 2006",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPM-74420": {
+    "gameId": "ps2-initial-d-special-stage",
+    "title": "Initial D - Special Stage [PlayStation2 the Best]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-20001": {
+    "gameId": "ps2-ridge-racer-v",
+    "title": "Ridge Racer V",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-20113": {
+    "gameId": "ps2-time-crisis-2",
+    "title": "Time Crisis II [with Guncon 2]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-20122": {
+    "gameId": "ps2-time-crisis-2",
+    "title": "Time Crisis II",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-20218": {
+    "gameId": "ps2-ninja-assault",
+    "title": "Ninja Assault",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-25077": {
+    "gameId": "ps2-vampire-night",
+    "title": "Vampire Night",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-25181": {
+    "gameId": "ps2-gunvari-collection-time-crisis",
+    "title": "Gunvari Collection & Time Crisis [Only Soft]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-25289": {
+    "gameId": "ps2-time-crisis-3",
+    "title": "Time Crisis 3 [with Guncon 2]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-25290": {
+    "gameId": "ps2-time-crisis-3",
+    "title": "Time Crisis 3 [Only Soft]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-25351": {
+    "gameId": "ps2-burnout-2-point-of-impact",
+    "title": "Burnout 2 - Point of Impact",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-73006": {
+    "gameId": "ps2-time-crisis-2",
+    "title": "Time Crisis II [PlayStation2 the Best]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLPS-73412": {
+    "gameId": "ps2-vampire-night",
+    "title": "Vampire Night [PlayStation2 the Best]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20002": {
+    "gameId": "ps2-ridge-racer-v",
+    "title": "Ridge Racer V",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20202": {
+    "gameId": "ps2-crazy-taxi",
+    "title": "Crazy Taxi",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20210": {
+    "gameId": "ps2-18-wheeler-american-pro-trucker",
+    "title": "18 Wheeler - American Pro Trucker",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20219": {
+    "gameId": "ps2-time-crisis-2",
+    "title": "Time Crisis II",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20221": {
+    "gameId": "ps2-vampire-night",
+    "title": "Vampire Night",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20307": {
+    "gameId": "ps2-burnout",
+    "title": "Burnout",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20389": {
+    "gameId": "ps2-endgame",
+    "title": "Endgame",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20462": {
+    "gameId": "ps2-wipeout-fusion",
+    "title": "Wipeout Fusion",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20485": {
+    "gameId": "ps2-dino-stalker",
+    "title": "Dino Stalker",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20492": {
+    "gameId": "ps2-ninja-assault",
+    "title": "Ninja Assault",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20497": {
+    "gameId": "ps2-burnout-2-point-of-impact",
+    "title": "Burnout 2 - Point of Impact",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20558": {
+    "gameId": "ps2-ferrari-f355-challenge",
+    "title": "Ferrari F355 Challenge",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20619": {
+    "gameId": "ps2-starsky-and-hutch",
+    "title": "Starsky & Hutch",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20645": {
+    "gameId": "ps2-time-crisis-3",
+    "title": "Time Crisis 3 [with Guncon]",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20669": {
+    "gameId": "ps2-resident-evil-dead-aim",
+    "title": "Resident Evil - Dead Aim",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20927": {
+    "gameId": "ps2-time-crisis-crisis-zone",
+    "title": "Time Crisis - Crisis Zone",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-21050": {
+    "gameId": "ps2-burnout-3-takedown",
+    "title": "Burnout 3 - Takedown",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-21242": {
+    "gameId": "ps2-burnout-revenge",
+    "title": "Burnout Revenge",
+    "source": "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+  }
+}

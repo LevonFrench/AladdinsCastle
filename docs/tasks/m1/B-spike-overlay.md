@@ -1,6 +1,6 @@
 # M1 lane B: spike: QML into a SteamVR dashboard overlay (S1-S3)
 
-**Branch:** `m1/b-overlay-spike`. **Depends on:** A. **Read:** [hub-architecture.md](../../hub-architecture.md) §7-§8 and §13, wiki notes `J:/projects/.wiki/topics/steamvr-development/wiki/concepts/steamvr-dashboard-overlay.md` and `wiki/references/qt6-overlay-and-steam-library.md`.
+**Branch:** `m1/b-overlay-spike`. **Depends on:** A. **Read:** [hub-architecture.md](../../hub-architecture.md) §7-§8 and §13, wiki notes `<wiki>/topics/steamvr-development/wiki/concepts/steamvr-dashboard-overlay.md` and `wiki/references/qt6-overlay-and-steam-library.md`.
 
 ## Goal
 

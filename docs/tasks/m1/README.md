@@ -9,9 +9,9 @@ Codex executes the lanes below. Each lane has its own brief, branch and worktree
 
 1. **Read first:** [README](../../../README.md), [workshop.md](../../workshop.md) (decisions), [hub-architecture.md](../../hub-architecture.md), plus the docs named in each brief. Specs win over guesses; when a spec is ambiguous, pick the simplest option, write it down in the PR, and carry on.
 2. **One lane = one branch + one worktree:**
-   `git -C J:/projects/games/aladdinscastle worktree add J:/projects/games/aladdinscastle-m1-<lane> -b m1/<lane> main`
+   `git -C <repo> worktree add <repo><lane> -b m1/<lane> main`
    Rebase on `main` before opening the PR. Never push to `main` directly.
-3. **Privacy:** the owner's local paths (ROM folders, emulator installs, Steam) are in `J:\projects\games\aladdinscastle\AGENCY.md` (gitignored, main checkout only). Never commit them, never commit ROM/disc file names from the owner's library, never commit game content. Local test output goes to `.local/` (gitignored).
+3. **Privacy:** the owner's local paths (ROM folders, emulator installs, Steam) are in `<repo>\AGENCY.md` (gitignored, main checkout only). Never commit them, never commit ROM/disc file names from the owner's library, never commit game content. Local test output goes to `.local/` (gitignored).
 4. **Licences:** our code is GPL-3.0; `libacvr/` is MIT. Third-party code only as dependencies with compatible licences (toml++ MIT, nlohmann/json MIT, json-schema-validator MIT, OpenVR BSD-3, Qt LGPL-3.0 dynamically linked). Never copy DuckStation (CC BY-NC-ND) or Cannonball (non-commercial) code.
 5. **System changes need the owner's OK:** installing toolchains, writing Steam's `shortcuts.vdf`, changing the OpenXR runtime. Ask first; say exactly what will change.
 6. **Tests:** every lane adds tests that run in CI (lane A sets CI up). No test may need game content: use synthetic fixtures.

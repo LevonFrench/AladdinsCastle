@@ -1,6 +1,6 @@
 # M1 lane G: launch, runtime pinning, Steam/SteamVR library
 
-**Branch:** `m1/g-launch`. **Depends on:** C, E. **Read:** [launch-and-runtime.md](../../launch-and-runtime.md) (normative), wiki `J:/projects/.wiki/topics/steamvr-development/wiki/references/qt6-overlay-and-steam-library.md` and `wiki/references/openxr-runtimes-and-overlays.md`.
+**Branch:** `m1/g-launch`. **Depends on:** C, E. **Read:** [launch-and-runtime.md](../../launch-and-runtime.md) (normative), wiki `<wiki>/topics/steamvr-development/wiki/references/qt6-overlay-and-steam-library.md` and `wiki/references/openxr-runtimes-and-overlays.md`.
 
 ## Build (in `hub/src/core/launch/` and `hub/src/core/steam/`)
 

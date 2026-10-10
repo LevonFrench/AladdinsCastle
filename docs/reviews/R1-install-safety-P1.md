@@ -1,0 +1,11 @@
+# R1 install safety: P1 items 6–8
+
+Scope: install safety only, based on integration commit `270a517`.
+
+- **6 — Manifest policy:** automatic install requires `download-from-upstream-only` and an absent gate, or the exact `consent-install` gate with explicit consent. Unknown, empty and malformed gates fail closed. Blocked requests include the manifest gate text in the error; consent never bypasses redistribution policy.
+- **7 — Content guard:** planning and execution load policy from the catalog root, falling back to the runtime root only when no catalog root is supplied. Missing or malformed policy blocks planning. Format, list entries and extension/hash syntax are validated. Unreadable catalog media-name metadata also blocks install. File and archive member extensions come from the policy; the shipped policy now includes `cdi`, `gcm` and `pbp` alongside `rvz` and `wbfs`.
+- **8 — Media provenance:** planning rejects ordinary extract/copy sources referring to `require-media` or `copy-media` outputs, direct media placeholders, bound media paths and directories containing bound media. Path comparison uses filesystem metadata without reading or hashing media. Ordinary package extraction and setup-file copying remain available. Media provenance violations use `E_SOURCE_OUT_OF_SCOPE`; content policy violations use `E_CONTENT_GUARD`.
+
+Validation: the approved cached toolchain built `install-tests` with one build worker. The full synthetic suite passed **94 tests, zero failed or skipped**. This includes every shipped emulator manifest with and without consent, missing/malformed catalog policy, catalog-root separation, all shipped extensions inside archives, positive archive-source planning and 13 media-source rejection cases with unchanged filesystem snapshots. Existing download, archive containment, recovery fault-injection, install/update/uninstall and profile-isolation cases also passed. The public-text privacy audit and its four regression tests passed.
+
+All checks used `QT_QPA_PLATFORM=offscreen`, `QT_QUICK_BACKEND=software`, and `QT_OPENGL=software`. The tests used synthetic media and a loopback HTTPS fixture. No real downloads, native Hub, emulator, VR runtime, headset checks or GPU timings were run. Those owner/device acceptance gates remain open. P2 install correctness work is outside this P1 change.

@@ -21,10 +21,12 @@ extras = ["training mode", "exercise mode", "unlockable art"]
 
 [[media]]
 kind = "disc"
+id = "disc"
 note = "Your own dump of the PAL Elite Edition or the Japanese Re-Birth disc (ISO/CHD)"
 
 [[media]]
 kind = "bios"
+id = "bios"
 note = "Your own PS2 BIOS dump"
 
 [routes]

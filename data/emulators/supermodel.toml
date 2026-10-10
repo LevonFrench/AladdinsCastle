@@ -6,8 +6,9 @@ upstream = "https://github.com/trzy/Supermodel"
 license = "GPL-3.0"
 license_note = "Docs/LICENSE.txt is GPLv3 (read 2026-10-08). GitHub licence detection reports none because the repo has no root LICENSE file."
 redistribution = "download-from-upstream-only"
-platforms = []
-unverified_platforms = ["windows-x64", "linux-x64"]
+platforms = ["windows-x64"]
+unverified_platforms = ["linux-x64"]
+install_exe = "supermodel.exe"
 
 [install.windows-x64]
 do = "github-release"
@@ -16,7 +17,9 @@ tag = "v0.3a-20260928-git-8b4de23"
 asset = "supermodel-0.3a-20260928-git-8b4de23-windows.zip"
 version = "v0.3a-20260928-git-8b4de23"
 archive = "zip"
-note = "Portable zip (verified asset name, published 2026-09-28). The architecture is not in the name, so x64 is assumed and not verified."
+sha256 = "457ae3834061e24cb82003f151d0bdc021f10a62d03655932957704fb0283942"
+bytes = 2960635
+note = "Pinned official archive downloaded 2026-10-09. supermodel.exe verified PE AMD64 machine 0x8664, PE32+ optional header 0x20b. Wrapper folder is stripped by the engine."
 
 [install.linux-x64]
 do = "github-release"
@@ -40,9 +43,9 @@ min = "?"
 paths = ["${ProgramFiles}/Supermodel", "${LOCALAPPDATA}/Programs/Supermodel", "${scoop}/apps/supermodel/current", "*:/Emulators/Supermodel*"]
 
 [launch]
-args = ["${rom.zip}", "-fullscreen", "-res=${display.width},${display.height}", "-channels=2", "-log-output=${tool_dir}/logs/supermodel.log"]
+args = ["${rom.zip}", "-window", "-game-xml-file=${tool_dir}/Config/Games.xml", "-res=${display.width},${display.height}", "-channels=2", "-log-output=${profile_dir}/logs/supermodel.log"]
 gun_args = ["-crosshairs=1"]
-cwd = "${tool_dir}"
+cwd = "${profile_dir}"
 exits_on_game_end = "?"
 note = "Options -fullscreen, -res=W,H, -channels, -log-output and -crosshairs appear in upstream Main.cpp help (lines 1834-1902, 2070). Use -crosshairs=3 for two guns. The ROM argument is the set zip name. Exit behaviour is not verified."
 
@@ -67,6 +70,6 @@ sources = [
   "https://github.com/trzy/Supermodel",
 ]
 verified = ["release asset names (gh, 2026-10-08)", "licence file Docs/LICENSE.txt (read)", "config layout and command-line switches (upstream README and Main.cpp)", "in-process gunX/gunY hook (upstream source)"]
-unverified = ["architecture of the Windows zip and Linux tarball", "exit behaviour", "SUPERMODEL_CONFIG_PATH", "gun and wheel key names (Batocera observed only)"]
-checked = "2026-10-08"
+unverified = ["architecture of the Linux tarball", "exit behaviour", "SUPERMODEL_CONFIG_PATH", "gun and wheel key names (Batocera observed only)"]
+checked = "2026-10-09"
 confidence = "high"

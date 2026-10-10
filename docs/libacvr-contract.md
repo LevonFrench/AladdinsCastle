@@ -267,7 +267,7 @@ Owner decisions to settle before implementation:
 Passed: MSVC C syntax check, exit 0, warnings treated as errors. MSVC was discovered through the installed vswhere utility outside PATH; no compiler was installed. MSVC's C11 mode was used because it has no C99 mode; the header uses C99 declarations/types and no C11-specific syntax. Validation command, run from `the repo root`:
 
 ```bat
-call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars64.bat"
+call "<local-root>/Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars64.bat"
 cl /nologo /std:c11 /Zs /TC /W4 /WX "libacvr/include/acvr.h"
 ```
 

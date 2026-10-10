@@ -19,10 +19,12 @@ gun  = "Dreamcast light gun"
 
 [[media]]
 kind = "disc"
+id = "disc"
 note = "Your own Dreamcast disc image (GDI/CDI or CHD). hotd2-vr profiles: PAL MK-5100250 and US MK-51002"
 
 [[media]]
 kind = "bios"
+optional = true
 note = "Optional: your own Dreamcast BIOS dump"
 
 [routes]

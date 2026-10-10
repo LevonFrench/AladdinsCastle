@@ -22,6 +22,7 @@ note = "Your own Dreamcast disc image (GDI/CDI or CHD)"
 
 [[media]]
 kind = "bios"
+optional = true
 note = "Optional: your own Dreamcast BIOS dump"
 
 [routes]

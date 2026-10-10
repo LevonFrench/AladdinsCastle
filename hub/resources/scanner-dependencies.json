@@ -1,0 +1,12 @@
+{
+  "scope": "M1 media identity and local art",
+  "dependencies": [
+    {"name":"7-Zip C SDK","version":"25.01","revision":"5e96a8279489832924056b1fa82f29d5837c9469","license":"public-domain","source":"https://github.com/ip7z/7zip","usage":"archive metadata; compressed header decoding only"},
+    {"name":"libchdr","revision":"607694ca0812edfc9cc2030c64634fc2393668de","license":"BSD-3-Clause","source":"https://github.com/rtissera/libchdr","usage":"bounded sparse identification sectors"},
+    {"name":"LZMA","version":"26.02","license":"public-domain","source":"libchdr/deps/lzma-26.02"},
+    {"name":"miniz","version":"3.1.2","license":"MIT","source":"libchdr/deps/miniz-3.1.2"},
+    {"name":"zstd","version":"1.5.7","license":"BSD-3-Clause OR GPL-2.0","source":"libchdr/deps/zstd-1.5.7"},
+    {"name":"dr_flac","license":"MIT-0 OR public-domain","source":"libchdr/include/dr_libs/dr_flac.h"},
+    {"name":"PCSX2 GameIndex metadata facts","revision":"aa7ab4306e269075784c7ac3eb4b45e6e6c53445","license":"GPL-3.0 project; factual subset","source":"https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"}
+  ]
+}

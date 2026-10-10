@@ -193,7 +193,7 @@ Steam Frame: when streamed from the PC, SteamVR and the overlay run on the PC, s
 
 | Target | Qt | Compiler | Graphics | Notes |
 |---|---|---|---|---|
-| Windows x64 (owner PC, SteamVR with ALVR to Quest 3) | Qt 6 for MSVC 2022 x64 (Qt Online Installer) | MSVC | OpenGL (proposed) | Primary development target. |
+| Windows x64 (owner PC, SteamVR with ALVR to a Quest 3) | Qt 6 for MSVC 2022 x64 (Qt Online Installer) | MSVC | OpenGL (proposed) | Primary development target. |
 | Linux x86_64 (Bazzite test box) | Qt 6 from the Online Installer or a distro package | GCC or Clang | OpenGL | Linux Hub and libacvr builds (architecture.md section 5). |
 | Linux ARM64 (Steam Frame, SteamOS on Arm) | Qt 6 Online Installer for `linux_arm64` (from 6.7, with caveats), or a source build | GCC | OpenGL | See the caveats in section 10. Needs an ARM64 machine for testing. |
 

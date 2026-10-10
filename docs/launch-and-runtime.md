@@ -93,7 +93,7 @@ Goal: each installed setup appears in the Steam library, and with the VR flag in
 | `ShortcutPath` | empty |
 | `IsHidden` | 0 |
 | `AllowDesktopConfig`, `AllowOverlay` | 1 [C] |
-| `OpenVR` | 1, to show in the SteamVR library. [C: most likely the "Include in VR Library" flag; test] |
+| `OpenVR` | 1 for VR variants, 0 for flat variants (all three M1 launches). [C: most likely the "Include in VR Library" flag; owner test pending] |
 | `Devkit`, `DevkitGameID`, `DevkitOverrideAppID` | 0, empty, 0 [C] |
 | `LastPlayTime` | 0, or the last-played Unix time [C] |
 | `tags` | Contains `AladdinsCastle` as the ownership marker. Array or nested object: sources disagree (test) |
@@ -102,10 +102,10 @@ Integer-like fields (`IsHidden`, `OpenVR`, and the rest) must match the type Ste
 
 ### 5.3 AppId and idempotency
 
-- Candidate formula: `appid = CRC32(AppName + Exe + "\0") | 0x80000000`, with Windows-1252 bytes and reflected polynomial 0xEDB88320. [C: Valve wiki, "tested so far"; disputed by a 2022 forum report] Test before shipping (§9).
-- Key: `appid`. A matching entry is updated; a missing one is appended.
-- Only entries tagged `AladdinsCastle` are ever updated or removed.
-- Renaming a setup or moving its exe changes the appid, which orphans the old tagged entry. Show the orphan list and remove only after the user confirms.
+- The generic Steam ROM Manager convention is `CRC32(Exe + AppName) | 0x80000000`. It is a community shortcut convention, not a claim about Steam internals. [V: Steam ROM Manager primary `generate-app-id.ts`, read 2026-10-09; real Steam verification pending]
+- The Hub deliberately disambiguates new game entries with `appid = CRC32(Exe + AppName + "\nAladdinsCastle:" + gameId) | 0x80000000`. The inputs use UTF-8 bytes, the stored quoted `Exe`, reflected polynomial `0xEDB88320`, and no terminating NUL. `\n` denotes one LF byte. The title written to `AppName` remains the catalog title. The 64-bit launch ID is `(uint64(appid) << 32) | 0x02000000`. [V: `Steam.cpp`, `BinaryVdf.cpp` and synthetic same-title/CRC regression tests]
+- Lookup uses both ownership tags, `AladdinsCastle` and `AladdinsCastle:<game-id>`, rather than recomputing an existing AppId. A matching owned game entry is updated; a missing entry is appended. The ownership tag already retains the game ID; no separate disambiguator VDF field is written.
+- Retain the AppId already stored in a matching owned game entry when renaming a setup or moving the Hub, including older entries created with a different CRC input. Preserve user fields, and refuse any AppId collision with a different entry. Remove only an owned entry whose stored launch game and explicit variant match the removal request.
 
 ### 5.4 Art
 

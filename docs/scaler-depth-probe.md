@@ -1,15 +1,15 @@
 # OutRun sprite-depth probe — MAME 0.289
 
-Experiment date: 2026-10-08. Branch: `codex/mame-sprite-probe`, isolated worktree `J:\projects\games\aladdinscastle-codex-probe`, based on main `f1161b1`. Tools are original GPL-3.0-only code. No Cannonball code, game pixels, screenshots, ROM bytes, or game-specific world-Z memory was used in the probe. The requested wiki notes were read as leads only; the actual decoder/API behavior was checked against the pinned MAME `mame0289` source and the owner's installed **0.289 (mame0289)** executable.
+Experiment date: 2026-10-08. Branch: `codex/mame-sprite-probe`, isolated worktree `<repo>`, based on main `f1161b1`. Tools are original GPL-3.0-only code. No Cannonball code, game pixels, screenshots, ROM bytes, or game-specific world-Z memory was used in the probe. The requested wiki notes were read as leads only; the actual decoder/API behavior was checked against the pinned MAME `mame0289` source and the owner's installed **0.289 (mame0289)** executable.
 
 **Verdict:** a single per-game `z = k / effective_sprite_scale` does **not** provide reliable automatic depth for all OutRun sprites in this run. The pooled fit has r=0.371549, median relative error 50.16% and p90 error 177.90%. Some individual source-address groups fit well, supporting authored/classified ground billboards as an experiment, but that does not establish automatic depth for every sprite or physical VR correctness. The road comparison is a **flat-ground screen proxy**, not measured world Z. A good correlation against this proxy would still require independent world-depth/headset validation.
 
 ## What ran and what remains private
 
-- `J:\projects\games\aladdinscastle-codex-probe\tools\mame-probe\outrun_sprites.lua`: MAME autoboot observer, default 3,000 displayed emulation frames, automatic clean exit.
-- `J:\projects\games\aladdinscastle-codex-probe\tools\mame-probe\analyze.py`: Python 3.12, standard library only; distributions, both zoom conventions, regressions, temporal holdout, identity groups, numeric outliers and optional text histogram.
-- Successful local capture: `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\outrun-20261008-214106.jsonl`.
-- Numeric local summary: `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\outrun-20261008-214106-summary.json` (and optional `.txt`).
+- `<repo>\tools\mame-probe\outrun_sprites.lua`: MAME autoboot observer, default 3,000 displayed emulation frames, automatic clean exit.
+- `<repo>\tools\mame-probe\analyze.py`: Python 3.12, standard library only; distributions, both zoom conventions, regressions, temporal holdout, identity groups, numeric outliers and optional text histogram.
+- Successful local capture: `<repo>\.local\mame-probe\outrun-20261008-214106.jsonl`.
+- Numeric local summary: `<repo>\.local\mame-probe\outrun-20261008-214106-summary.json` (and optional `.txt`).
 
 Captures, source downloads, runtime state and test fixtures stay under ignored `.local/`; `git check-ignore` confirmed the capture is ignored. Only the two tools and this document belong in the commit. The public document does not contain the owner's emulator/content paths. Those were read from the private main-checkout AGENCY.md; the ROM folder was only read by MAME. No plugin was installed, removed or altered. `-noreadconfig -nowriteconfig -noplugins` avoids the owner's configuration/plugins; all writable cfg/NVRAM/state/input/snapshot/diff/home directories were explicitly redirected to this worktree's `.local/mame-probe/runtime/`.
 
@@ -19,31 +19,31 @@ The successful capture is an untouched **attract-mode** run: no coin/start/pedal
 
 Primary sources are the [MAME mame0289 sprite implementation](https://github.com/mamedev/mame/blob/mame0289/src/mame/sega/sega16sp.cpp), [OutRun driver](https://github.com/mamedev/mame/blob/mame0289/src/mame/sega/segaorun.cpp), [road implementation](https://github.com/mamedev/mame/blob/mame0289/src/mame/sega/segaic16_road.cpp), [Lua bindings](https://github.com/mamedev/mame/blob/mame0289/src/frontend/mame/luaengine.cpp) and [Lua memory documentation](https://github.com/mamedev/mame/blob/mame0289/docs/source/luascript/ref-mem.rst). The road implementation in this tag is in **segaic16_road.cpp**, rather than the broader segaic16.cpp suggested in the brief.
 
-For precise local file:line receipts, downloaded source paths below are rooted at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source`. These are text-only public source snapshots; no game assets were downloaded. Line numbers are one-based and apply to the pinned tag, not current master.
+For precise local file:line receipts, downloaded source paths below are rooted at `<repo>\.local\mame-probe\source`. These are text-only public source snapshots; no game assets were downloaded. Line numbers are one-based and apply to the pinned tag, not current master.
 
 | API actually called | Verification |
 |---|---|
-| `emu.app_version()` | `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\frontend\mame\luaengine.cpp:899`; installed executable also printed `0.289 (mame0289)`. Script rejects other version families and systems. |
-| `manager.machine`, `.system.name`, `.devices[tag].spaces["program"]` | Machine/device access is documented in `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\ref-core.rst:288` and memory-space instantiation in `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\ref-mem.rst:52`. Discovery verified `:maincpu`, `:subcpu`, `:sprites` and `:segaic16road`. |
-| `machine.devices[":sprites"].items`, `emu.item(index)`, `item.size/count`, `item:read(word_index)` | Device-item enumeration binding at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\frontend\mame\luaengine.cpp:1612`; item construction/read at `:1154` / `:1171`. Discovered item **0/m_buffer**, element size 2, count 2,048; checked dynamically rather than hard-coding its save-item index. |
-| `machine.memory.shares[":segaic16road:roadram"]:read_u16(byte_offset)` | Named RAM-share reader documented at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\ref-mem.rst:337` and `:349`, binding at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\frontend\mame\luaengine_mem.cpp:784`. It applies the share's endianness, so no native-endian byte-string decoding is needed. |
-| `:subcpu` program space `:install_write_tap`, `:install_read_tap` | Docs at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\ref-mem.rst:122` and `:134`: callback receives address/data/mask; returning no integer leaves the access unchanged. All probe callbacks return nil. Retain handler objects as a frame-callback upvalue; otherwise GC removes the taps. |
-| `:maincpu` program space `:read_u16(0x100000)` | Binding at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\frontend\mame\luaengine_mem.cpp:547`. Captured only as an inactive-bank diagnostic; never used as the active sprite list. Reads use the actual address space and can have side effects (`:325`); the script never reads road-control registers itself. |
-| `emu.register_frame_done(callback)` | Binding at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\frontend\mame\luaengine.cpp:926`, “after frame is drawn” contract at `:809`. Run with frameskip 0/no autoframeskip, including with video none. Verified live; 3,000 callbacks produced 3,000 records. No overlay drawing occurs. |
-| `emu.add_machine_stop_notifier(callback)`, `machine:exit()` | Bindings at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\frontend\mame\luaengine.cpp:881` and `:1420`. Frame limit closes JSONL, writes completion trailer and schedules exit; external stop closes a partial file. Analyzer refuses partial/error captures. |
+| `emu.app_version()` | `<repo>\.local\mame-probe\source\src\frontend\mame\luaengine.cpp:899`; installed executable also printed `0.289 (mame0289)`. Script rejects other version families and systems. |
+| `manager.machine`, `.system.name`, `.devices[tag].spaces["program"]` | Machine/device access is documented in `<repo>\.local\mame-probe\source\ref-core.rst:288` and memory-space instantiation in `<repo>\.local\mame-probe\source\ref-mem.rst:52`. Discovery verified `:maincpu`, `:subcpu`, `:sprites` and `:segaic16road`. |
+| `machine.devices[":sprites"].items`, `emu.item(index)`, `item.size/count`, `item:read(word_index)` | Device-item enumeration binding at `<repo>\.local\mame-probe\source\src\frontend\mame\luaengine.cpp:1612`; item construction/read at `:1154` / `:1171`. Discovered item **0/m_buffer**, element size 2, count 2,048; checked dynamically rather than hard-coding its save-item index. |
+| `machine.memory.shares[":segaic16road:roadram"]:read_u16(byte_offset)` | Named RAM-share reader documented at `<repo>\.local\mame-probe\source\ref-mem.rst:337` and `:349`, binding at `<repo>\.local\mame-probe\source\src\frontend\mame\luaengine_mem.cpp:784`. It applies the share's endianness, so no native-endian byte-string decoding is needed. |
+| `:subcpu` program space `:install_write_tap`, `:install_read_tap` | Docs at `<repo>\.local\mame-probe\source\ref-mem.rst:122` and `:134`: callback receives address/data/mask; returning no integer leaves the access unchanged. All probe callbacks return nil. Retain handler objects as a frame-callback upvalue; otherwise GC removes the taps. |
+| `:maincpu` program space `:read_u16(0x100000)` | Binding at `<repo>\.local\mame-probe\source\src\frontend\mame\luaengine_mem.cpp:547`. Captured only as an inactive-bank diagnostic; never used as the active sprite list. Reads use the actual address space and can have side effects (`:325`); the script never reads road-control registers itself. |
+| `emu.register_frame_done(callback)` | Binding at `<repo>\.local\mame-probe\source\src\frontend\mame\luaengine.cpp:926`, “after frame is drawn” contract at `:809`. Run with frameskip 0/no autoframeskip, including with video none. Verified live; 3,000 callbacks produced 3,000 records. No overlay drawing occurs. |
+| `emu.add_machine_stop_notifier(callback)`, `machine:exit()` | Bindings at `<repo>\.local\mame-probe\source\src\frontend\mame\luaengine.cpp:881` and `:1420`. Frame limit closes JSONL, writes completion trailer and schedules exit; external stop closes a partial file. Analyzer refuses partial/error captures. |
 | `io.open`, `stream:write/flush/close`, `os.getenv`, `os.date` | Standard embedded Lua library calls, exercised by actual captures. Output path is `ACVR_PROBE_OUTPUT` or `.local/mame-probe/outrun-<timestamp>.jsonl` relative to the worktree; prepare the directory before launch. `ACVR_PROBE_FRAMES` overrides the default 3,000. |
 
 ## Active sprite list and field decoding
 
-MAME's OutRun device renders **buffer()**, not CPU-visible spriteram: `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\mame\sega\sega16sp.cpp:1097`. `draw_write` swaps the two banks then sets the CPU bank's first word to 0xffff (`:59`–`:75`). The rendered vector is registered as a save item at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\devices\video\sprite.h:164`. Reading CPU RAM **after** that swap would therefore capture the wrong list. `emu.item(...m_buffer):read` gives the correct retained list without reading ROM pixels or changing it.
+MAME's OutRun device renders **buffer()**, not CPU-visible spriteram: `<repo>\.local\mame-probe\source\src\mame\sega\sega16sp.cpp:1097`. `draw_write` swaps the two banks then sets the CPU bank's first word to 0xffff (`:59`–`:75`). The rendered vector is registered as a save item at `<repo>\.local\mame-probe\source\src\devices\video\sprite.h:164`. Reading CPU RAM **after** that swap would therefore capture the wrong list. `emu.item(...m_buffer):read` gives the correct retained list without reading ROM pixels or changing it.
 
-CPU-visible sprite RAM allocation is 0x100000..0x100fff at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\mame\sega\segaorun.cpp:1188`; the programmable memory mapper can remap it (`:796`). The probe decodes up to 256 eight-word entries, stops at the first end marker, records that marker and hidden entries, and omits renderer-mutated scratch word 7. This avoids treating the first word's 0xffff swap marker as a real screen sprite.
+CPU-visible sprite RAM allocation is 0x100000..0x100fff at `<repo>\.local\mame-probe\source\src\mame\sega\segaorun.cpp:1188`; the programmable memory mapper can remap it (`:796`). The probe decodes up to 256 eight-word entries, stops at the first end marker, records that marker and hidden entries, and omits renderer-mutated scratch word 7. This avoids treating the first word's 0xffff swap marker as a real screen sprite.
 
 Let w0..w6 be the first seven 16-bit words of an entry:
 
 | Recorded field | Decode / interpretation | Source |
 |---|---|---|
-| end / hidden | w0 bit 15; either bit in mask 0x5000 | `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\mame\sega\sega16sp.cpp:1101` / `:1105` |
+| end / hidden | w0 bit 15; either bit in mask 0x5000 | `<repo>\.local\mame-probe\source\src\mame\sega\sega16sp.cpp:1101` / `:1105` |
 | bank / offset / slot | (w0 >> 9) & 7; w1; list index. These are source identifiers, not a stable game-object/world-Z ID. | same file `:1106` / `:1108` |
 | screen Y start | (w0 & 0x1ff) − 256 | same file `:1107` |
 | screen X anchor | w2 & 0x1ff; add 512 for x<0x80 when rendering right-to-left; subtract **189**, the actual OutRun origin | same file `:1110`, `:1122`, `:1036` |
@@ -59,18 +59,18 @@ Screen X is an anchor, and recorded Y bounds are nominal destination rows. Trans
 
 ## Road latch and scanline state
 
-The sub-CPU maps road RAM at 0x080000..0x080fff mirrored through 0x08ffff and road control at 0x090000..0x09ffff: `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\mame\sega\segaorun.cpp:1212`–`:1213`. Road rendering uses a private `info->buffer` at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\mame\sega\segaic16_road.cpp:353`. The control read swaps it with CPU RAM (`:587`–`:605`); road device_start registers no buffer save item (`:19`). So reading the RAM share after the swap is also the wrong rendering bank.
+The sub-CPU maps road RAM at 0x080000..0x080fff mirrored through 0x08ffff and road control at 0x090000..0x09ffff: `<repo>\.local\mame-probe\source\src\mame\sega\segaorun.cpp:1212`–`:1213`. Road rendering uses a private `info->buffer` at `<repo>\.local\mame-probe\source\src\mame\sega\segaic16_road.cpp:353`. The control read swaps it with CPU RAM (`:587`–`:605`); road device_start registers no buffer save item (`:19`). So reading the RAM share after the swap is also the wrong rendering bank.
 
-The observer initializes a shadow of the CPU RAM share, tracks every sub-CPU RAM write with data/mask merging and mirror normalization, and observes the **game's own** control reads. Read taps execute after the underlying read handler; write taps execute before the write handler, verified at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\emu\emumem_het.cpp:12`–`:13` and `:61`–`:62`. On a latch, the write shadow still contains the pre-swap CPU bank, which becomes `active_road`; read the now-swapped RAM share to seed the next CPU write shadow. No callback replaces data and no observer invokes the control read. This is an implementation of the visible hardware bank operation, not a patched emulator or a world-Z lookup.
+The observer initializes a shadow of the CPU RAM share, tracks every sub-CPU RAM write with data/mask merging and mirror normalization, and observes the **game's own** control reads. Read taps execute after the underlying read handler; write taps execute before the write handler, verified at `<repo>\.local\mame-probe\source\src\emu\emumem_het.cpp:12`–`:13` and `:61`–`:62`. On a latch, the write shadow still contains the pre-swap CPU bank, which becomes `active_road`; read the now-swapped RAM share to seed the next CPU write shadow. No callback replaces data and no observer invokes the control read. This is an implementation of the visible hardware bank operation, not a patched emulator or a world-Z lookup.
 
-Control writes provide bits 0..1 (`J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\mame\sega\segaic16_road.cpp:612`). Until a real control write and road latch are observed, samples are not eligible. For each screen scanline y=0..223, record:
+Control writes provide bits 0..1 (`<repo>\.local\mame-probe\source\src\mame\sega\segaic16_road.cpp:612`). Until a real control write and road latch are observed, samples are not eligible. For each screen scanline y=0..223, record:
 
 - data0=buffer[y], data1=buffer[0x100+y], road-template row=(data>>1)&0xff, and solid/background flag data&0x800.
 - Horizontal scroll: buffer[0x200+(data0&0x1ff)]&0xfff and buffer[0x400+(data1&0x1ff)]&0xfff.
 - Colour/stripe controls: buffer[0x600+(data0&0x1ff)] and buffer[0x600+(data1&0x1ff)]. These are control words, never decoded pixel colours or graphics.
 - Visible-road candidate: road0 non-solid in mode0, road1 non-solid in mode3, either non-solid in mode1/2.
 
-Lookup paths are at `J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\source\src\mame\sega\segaic16_road.cpp:369`–`:370`, `:425`–`:436`; combination/mode selection at `:457` onward. OutRun control does not expose the X-board bit2 indexing mode. A template-row selector is a **ROM graphic row selector**, not metres or guaranteed linear world distance. This experiment captures no road graphics.
+Lookup paths are at `<repo>\.local\mame-probe\source\src\mame\sega\segaic16_road.cpp:369`–`:370`, `:425`–`:436`; combination/mode selection at `:457` onward. OutRun control does not expose the X-board bit2 indexing mode. A template-row selector is a **ROM graphic row selector**, not metres or guaranteed linear world distance. This experiment captures no road graphics.
 
 ## Fit method and selection limits
 
@@ -152,19 +152,19 @@ Optional extensions: local filename checks found Power Drift, Galaxy Force II an
 Read `$MameExe` and `$RomDirectory` from the private owner configuration/AGENCY.md; set both to full absolute local paths. The worktree and `.local/mame-probe` must exist. Run with default `ACVR_PROBE_FRAMES` unset or set to `3000`; unset `ACVR_PROBE_OUTPUT` to use timestamped capture files. Change only the worktree argument if moved to another directory.
 
 ```powershell
-$ProbeRoot = 'J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe'
+$ProbeRoot = '<repo>\.local\mame-probe'
 New-Item -ItemType Directory -Force -Path "$ProbeRoot\runtime" | Out-Null
-Set-Location -LiteralPath 'J:\projects\games\aladdinscastle-codex-probe'
+Set-Location -LiteralPath '<repo>'
 & $MameExe outrun -rompath $RomDirectory -noreadconfig -nowriteconfig -noplugins `
   -video none -sound none -window -nothrottle -frameskip 0 -noautoframeskip `
   -skip_gameinfo -autoboot_delay 0 `
-  -autoboot_script 'J:\projects\games\aladdinscastle-codex-probe\tools\mame-probe\outrun_sprites.lua' `
+  -autoboot_script '<repo>\tools\mame-probe\outrun_sprites.lua' `
   -cfg_directory "$ProbeRoot\runtime\cfg" -nvram_directory "$ProbeRoot\runtime\nvram" `
   -state_directory "$ProbeRoot\runtime\state" -input_directory "$ProbeRoot\runtime\inp" `
   -snapshot_directory "$ProbeRoot\runtime\snap" -diff_directory "$ProbeRoot\runtime\diff" `
   -homepath "$ProbeRoot\runtime\home" -seconds_to_run 65
-python 'J:\projects\games\aladdinscastle-codex-probe\tools\mame-probe\analyze.py' `
-  'J:\projects\games\aladdinscastle-codex-probe\.local\mame-probe\outrun-20261008-214106.jsonl' --text-plot
+python '<repo>\tools\mame-probe\analyze.py' `
+  '<repo>\.local\mame-probe\outrun-20261008-214106.jsonl' --text-plot
 ```
 
 `-seconds_to_run 65` is a safety ceiling in emulated seconds, not the intended capture termination. Successful completion must say `frame_limit` and match the metadata's requested count. Avoid reading the road latch/control register from Lua: the address-space API does not automatically disable side effects. No MAME folders or private input configuration should be used as output directories. The script has no input-port or RAM-write calls; handler installation observes execution without returning modified values.

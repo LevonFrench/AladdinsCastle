@@ -39,6 +39,7 @@ extras  = []                              # e.g. view-change button, nitro, snip
 [[media]]                                 # what the user must own (never downloaded)
 kind  = "mame-romset"                     # mame-romset | disc | pc-game | bios | other
 set   = "timecris"                        # MAME set; or serial = "SLUS-20219" for discs
+optional = false                         # boolean; true never blocks readiness or launch
 note  = "World TS2 Ver.B"
 
 [routes]                                  # how it can run today (status vocab below)
@@ -62,6 +63,12 @@ checked    = "2026-10-08"
 ```
 
 `[routes]` status values: `working`, `imperfect`, `not-working`, `profile` (TeknoParrot profile exists), `playable`, `unknown`. Emulator keys: `mame`, `supermodel`, `model2emu`, `flycast`, `redream`, `demul`, `dolphin`, `pcsx2`, `duckstation`, `rpcs3`, `mednafen`, `yabasanshiro`, `mupen64plus`, `ares`, `xemu`, `cxbx`, `teknoparrot`, `demulshooter` (gun bridge exists: `profile`), `lindbergh-loader`, `xenia`, `cemu`, `ryujinx`, `native`.
+
+Media requirements are selected per route: arcade emulators use ROM sets and set-based BIOS rows, console emulators use discs and console BIOS rows, and PC routes use `pc-game` rows. Alternative PC media on an arcade entry does not block its arcade route. `optional = true` is allowed on any media row; an absent optional row never blocks readiness or launch. Authored variant needs retain their explicit selection, with optional rows excluded from blocking requirements. A BIOS alone does not put a game in "In my library".
+
+Every `install.toml` variant's `needs.media` must resolve to a `[[media]]` requirement. Its key is the first nonempty text field in `set`, `serial`, `id` order, or `<game>-media-N` (zero-based row index). Use `id = "disc"` or another explicit id for requirements without a set or serial. Duplicate keys, non-text ids and unresolved recipe requirements fail both validators.
+
+MAME scan receipts preserve the selected machine BIOS and launch supplies `-bios <name>`. Device BIOS requirements use their metadata default because their alternative selection has no independent launch option. Merged clone disks may resolve in the parent's folder; folder matching is case insensitive on Windows and case sensitive on Linux. CHD map and metadata ranges must fit the physical file before header SHA evidence is used, even when sparse decoding is unsupported. Persisted CHD bindings without current bounds provenance require a new scan. This does not claim a payload audit. Disk-only machines bind the CHD itself rather than an unrelated archive.
 
 ## 3. Hub filters
 
