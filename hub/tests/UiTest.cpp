@@ -21,6 +21,7 @@
 #include <QQuickImageProvider>
 #include <QPainter>
 #include <QFocusEvent>
+#include <QFontMetricsF>
 #include <QAtomicInteger>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -97,6 +98,26 @@ class UiTest:public QObject {
  void catalogBadgesDescribeMetadata(){
   QCOMPARE(ui->vrLabel(1),QString("TRUE 3D · CATALOG"));
   QCOMPARE(ui->vrLabel(2),QString("THEATRE · CATALOG"));
+ }
+ void catalogMetadataFitsSmallCard(){
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameCard.qml"));
+  std::unique_ptr<QObject> object(component.create());QVERIFY2(object,qPrintable(component.errorString()));
+  auto card=qobject_cast<QQuickItem *>(object.get());QVERIFY(card);card->setParentItem(window->contentItem());
+  card->setProperty("sizeValue","S");card->setWidth(card->implicitWidth());card->setHeight(card->implicitHeight());
+  const auto pad=theme->get("space.card_inner_pad").toDouble()*card->property("factor").toDouble();
+  double furthest=0;QString longest;int qualified=0;
+  for(const auto &game:games->records()){
+   const auto badge=game.roles.value("vrBadge").toInt();if(badge!=1&&badge!=2)continue;
+   ++qualified;card->setProperty("game",game.roles);QCoreApplication::processEvents();
+   const auto players=game.roles.value("players").toInt();
+   const auto text=ui->vrLabel(badge)+"  "+(players>1?QString::number(players)+"P":QString())+"  "+game.roles.value("controlsLabel").toString();
+   QQuickItem *metadata=nullptr;for(auto item:namedItems(card,QString()))if(item->property("text").toString()==text){metadata=item;break;}
+   QVERIFY(metadata);const auto right=metadata->mapToItem(card,QPointF(metadata->width(),0)).x();
+   if(right>furthest){furthest=right;longest=game.id+": "+text;}
+   QVERIFY(QFontMetricsF(metadata->property("font").value<QFont>()).horizontalAdvance(ui->vrLabel(badge))<=card->width()-2*pad);
+  }
+  QVERIFY(qualified>0);qInfo().noquote()<<"Furthest qualified small-card metadata:"<<longest<<"right edge"<<furthest<<"inner edge"<<card->width()-pad;
+  QVERIFY2(furthest<=card->width()-pad+0.5,qPrintable(longest));
  }
  void authoredVrCopyKeepsInstallAndPlayBlocked(){
   ui->openDetail("timecris");ui->selectVariant("dr89-pcvr");
