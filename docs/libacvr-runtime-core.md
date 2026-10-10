@@ -77,7 +77,7 @@ its haptic routing; this callback is not proof of physical haptic execution.
 
 ## Explicitly incomplete
 
-No OpenXR loader/session/swapchains, Vulkan/GL device provider, model renderer,
+No OpenXR loader/session/swapchains, Vulkan/GL device provider,
 control-set parser, recenter/height/pause overlay, or real backend
 integration exists yet. The core rejects controls-file requests,
 multiple-gun or separate-HUD backends instead of ignoring those requirements.
@@ -88,6 +88,9 @@ and device lifecycle. The recorded host does not establish graphics correctness.
 Two-gun join policy, full control/output-to-motion mapping, haptics and
 distance-based LOD selection remain required next slices. Explicit preview
 events are not proof that real-game recoil outputs have been mapped.
+The optional GL gun renderer now compiles and passes mock-dispatch checks;
+it is not yet wired to a production provider or accepted on the GPU. Its
+restrictions and manual synthetic test gate are in `docs/libacvr-gun-gl.md`.
 
 ## Checks
 

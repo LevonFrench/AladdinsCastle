@@ -63,7 +63,7 @@ jobs:
       - run: cmake -S hub -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
       - name: Build libacvr runtime and ABI checks (no XR or graphics)
         run: |
-          cmake -S libacvr -B build-contract -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DACVR_JSON_INCLUDE_DIR=${{ github.workspace }}/build/_deps/nlohmann_json-src/include -DACVR_TOML_INCLUDE_DIR=${{ github.workspace }}/build/_deps/tomlplusplus-src/include
+          cmake -S libacvr -B build-contract -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DACVR_JSON_INCLUDE_DIR=${{ github.workspace }}/build/_deps/nlohmann_json-src/include -DACVR_TOML_INCLUDE_DIR=${{ github.workspace }}/build/_deps/tomlplusplus-src/include -DACVR_BUILD_GL_GUN_RENDERER=ON
           cmake --build build-contract --parallel 2
           ctest --test-dir build-contract --output-on-failure
       - name: System 22 synthetic stereo checks
@@ -80,6 +80,12 @@ jobs:
       - name: Control-set resolver checks
         if: hashFiles('tools/test_control_sets.py') != ''
         run: python tools/test_control_sets.py
+      - name: Native controls and software view checks
+        if: hashFiles('hub/src/controls/CMakeLists.txt') != ''
+        run: |
+          cmake -S hub/src/controls -B build-controls -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DAC_CONTROLS_TOML_INCLUDE_DIR=${{ github.workspace }}/build/_deps/tomlplusplus-src/include
+          cmake --build build-controls --parallel 2
+          ctest --test-dir build-controls --output-on-failure
       - run: cmake --build build --parallel 2
       - run: ctest --test-dir build --output-on-failure
       - name: Build Windows portable folder and ZIP
