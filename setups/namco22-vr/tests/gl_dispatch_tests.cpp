@@ -77,6 +77,7 @@ struct Mock {
     size_t upload_count=0,fail_upload_number=0;
     bool fail_generation=false,fail_delete=false,in_begin=false,fail_fog_query=false,fail_clamp=false;
     bool imaging=false;
+    bool require_fragment_clamp=false;
     std::set<GLuint> live_textures;
     std::vector<GLuint> generated,deleted,vertex_textures;
     std::map<GLuint,Upload> uploads;
@@ -188,6 +189,7 @@ void normalized() {
         if((u.first!=n22::glc::Texture0 && !(fog && u.first==n22::glc::Texture0+1)) || cap!=GL_TEXTURE_2D) throw std::runtime_error("only explicit material/fog units may be enabled");
     if(textured) {
         const auto &s=current->state;
+        if(current->require_fragment_clamp && s.fragment_clamp!=GL_TRUE) throw std::runtime_error("active input fade requires fragment saturation even with absent/disabled fog");
         if(s.active!=n22::glc::Texture0 || s.samplers.at(n22::glc::Texture0)!=0 || s.texture_matrices.at(n22::glc::Texture0)[12]!=0 ||
            s.environment.at(n22::glc::Texture0).at(n22::glc::RgbScale)!=4 || s.shade_model!=GL_SMOOTH ||
            !current->uploads.count(s.texture_binding.at(n22::glc::Texture0))) throw std::runtime_error("material state must be explicit");
@@ -644,8 +646,88 @@ void background_clear_path() {
     check(errors.draw(with_geometry,info)==ACVR_ERROR && failing.clears.size()==1,"background geometry failure stays one scoped clear");same_state(original,failing.state);
     check(errors.shutdown()==ACVR_OK && failing.generated.empty() && failing.deleted.empty(),"background failure needs no resource cleanup");
 }
+n22::SceneInput polygon_fade_scene(bool fog) {
+    auto in=n22::synthetic_material_cube();std::fill(in.materials.palette.begin(),in.materials.palette.end(),0xc82850);
+    in.polygon_fade.policy=n22::PolygonFadePolicy::Super22InputFold;in.polygon_fade.tick=1;in.polygon_fade.rgb={128,128,128};
+    in.background.policy=n22::BackgroundPolicy::Super22Mixer;in.background.tick=1;in.background.rgb={17,34,51};
+    if(fog) {in.fog.policy=n22::FogPolicy::Super22Table;in.fog.tick=1;in.fog.attributes[4]=4;in.fog.rgb={40,40,40};in.fog.tables[0].fill(128);}
+    for(auto &p:in.polygons) {
+        for(auto &a:p.attributes) a.brightness=128;
+        if(fog) {p.fog.provided=p.fog.has_native_depth=true;p.fog.tick=1;p.fog.native_depth.fill(256);}
+    }
+    return in;
+}
+void polygon_fade_dispatch() {
+    Mock m;current=&m;m.require_fragment_clamp=true;n22::GlRenderer renderer;renderer.initialize(device(m));
+    n22::Frame frame;auto in=polygon_fade_scene(true);n22::prepare(in,1,frame);in.polygon_fade.rgb={0,0,0};
+    auto eye=n22::desktop_eye(0,-.032f,4,320,240);auto info=draw_info(eye);const auto original=m.state;
+    check(renderer.draw(frame,info)==ACVR_OK && m.upload_count==7 && m.clears.size()==1 && m.vertices.size()==36,"active fade reuses the same two-unit draw and seven fog/material resources");same_state(original,m.state);uploaded_texels(frame,m);
+    check((m.composed_samples[0]>>16)==109 && m.colours[0]==std::array<float,4>{.25f,.25f,.25f,127.f/255},"GL mock rational109 folds shade and raw fog constant before shade saturation");
+    check(std::all_of(m.composed_alpha.begin(),m.composed_alpha.end(),[](float a){return a==1;}) && m.clear_colours[0]==std::array<float,4>{17.f/255,34.f/255,51.f/255,1},"polygon fade leaves opaque alpha and unfaded background clear intact");
+    const auto handles=m.live_textures;const auto first_colours=m.colours;
+    eye.eye_index=1;eye.rect_x=320;eye.view_from_scene[12]=-.2f;
+    check(renderer.draw(frame,info)==ACVR_OK && m.upload_count==7 && m.live_textures==handles &&
+          std::equal(first_colours.begin(),first_colours.end(),m.colours.begin()+static_cast<ptrdiff_t>(first_colours.size())),"both-eye moved-pose replay reuses frozen factors, weights and handles");same_state(original,m.state);
+    check(renderer.release_frame(1)==ACVR_OK && m.live_textures.empty() && m.deleted.size()==7,"fade introduces no extra object on owner release");
+    auto run=[&](n22::SceneInput scene,uint32_t expected,bool require_clamp) {
+        m.require_fragment_clamp=require_clamp;check(n22::prepare(scene,1,frame)==ACVR_OK,"GL rational fade packet prepared");
+        const size_t at=m.composed_samples.size();check(renderer.draw(frame,info)==ACVR_OK && (m.composed_samples[at]>>16)==expected,"independent exact red-channel source-order witness");same_state(original,m.state);
+        check(renderer.release_frame(1)==ACVR_OK && m.live_textures.empty(),"witness lease cleanup");
+    };
+    in=polygon_fade_scene(true);in.polygon_fade.rgb={192,192,192};run(in,142,true);
+    in=polygon_fade_scene(false);in.polygon_fade.rgb={255,255,255};std::fill(in.materials.palette.begin(),in.materials.palette.end(),0x404040);
+    for(auto &p:in.polygons) for(auto &a:p.attributes) a.brightness=64;
+    run(in,64,false);
+    in.polygon_fade.rgb={255,128,255};run(in,63,true);
+    in=polygon_fade_scene(true);std::fill(in.materials.palette.begin(),in.materials.palette.end(),0x010101);in.fog.rgb={10,10,10};
+    for(auto &p:in.polygons) for(auto &a:p.attributes) a.brightness=127.5f;
+    run(in,3,true);
+    in=polygon_fade_scene(true);for(auto &p:in.polygons) p.fog.colour_word=0x8000;const size_t uploads=m.upload_count;run(in,200,true);
+    check(m.upload_count==uploads+6,"disabled fog needs no dummy but active fade still forces/restores clamp");
+    in=polygon_fade_scene(true);for(auto &p:in.polygons) p.fog.cz_adjust=0x800000;run(in,200,true);
+    in=polygon_fade_scene(false);run(in,200,true);
+    in.polygon_fade.rgb={0,0,0};run(in,0,true);
+    renderer.shutdown();
+}
+void polygon_fade_failures() {
+    Mock m;current=&m;m.require_fragment_clamp=true;n22::GlRenderer renderer;renderer.initialize(device(m));
+    n22::Frame frame;n22::prepare(polygon_fade_scene(false),1,frame);auto eye=n22::desktop_eye(0,0,4,320,240);auto info=draw_info(eye);const auto original=m.state;
+    for(auto layer:{n22::Layer::Hud,n22::Layer::Backdrop,n22::Layer::GunFlash}) {
+        auto bad=frame;bad.triangles[0].layer=layer;check(renderer.draw(bad,info)==ACVR_UNSUPPORTED && m.calls.empty(),"active fade cannot be skipped on unsupported layer before upload/clear");
+    }
+    auto bad=frame;bad.triangles[0].material=n22::NoMaterial;check(renderer.draw(bad,info)==ACVR_UNSUPPORTED && m.calls.empty(),"active flat fade rejects before GL commands");
+    bad=frame;bad.materials.materials[0].objectflags=6;check(renderer.draw(bad,info)==ACVR_UNSUPPORTED && m.calls.empty(),"active solid fade rejects despite absent fog");
+    auto constant=polygon_fade_scene(false);constant.fog.policy=n22::FogPolicy::System22Constant;constant.fog.tick=1;
+    for(auto &p:constant.polygons) {p.fog.provided=p.fog.constant_provided=true;p.fog.tick=1;p.fog.constant_alpha=255;}
+    n22::prepare(constant,1,bad);check(renderer.draw(bad,info)==ACVR_UNSUPPORTED && m.calls.empty(),"System22 constant policy cannot silently use Super22 fade even when its fog is disabled");
+    bad=frame;bad.polygon_fade.tick=2;check(renderer.draw(bad,info)==ACVR_BAD_ARGUMENT && m.calls.empty(),"stale fade rejects before upload/clear");
+    bad=frame;bad.polygon_fade.policy=static_cast<n22::PolygonFadePolicy>(99);check(renderer.draw(bad,info)==ACVR_UNSUPPORTED && m.calls.empty(),"unknown fade order rejects before GL");
+    m.fail_clamp=true;
+    check(renderer.draw(frame,info)==ACVR_ERROR && m.clears.empty() && m.live_textures.size()==6 && renderer.diagnostic().phase==n22::GlPhase::State,"active fade clamp failure with absent fog preserves target and known owner resources");same_state(original,m.state);
+    check(renderer.release_frame(1)==ACVR_OK && m.live_textures.empty(),"partial setup retains normal owner cleanup");
+    m.fail_clamp=false;m.fail_vertex=true;
+    check(renderer.draw(frame,info)==ACVR_ERROR && m.clears.size()==1,"fade draw failure keeps one existing eye clear");same_state(original,m.state);
+    check(renderer.shutdown()==ACVR_OK && m.live_textures.empty() && m.deleted.size()==12,"fade failures delete only the normal material handles once");
+}
+void polygon_fade_callback_path() {
+    Mock m;current=&m;m.require_fragment_clamp=true;const auto original=m.state;
+    auto api=record<acvr_backend_api>();acvr_backend_query(1,&api);check(api.supported_graphics==0,"polygon fade does not admit production factory/graphics");
+    auto open=record<acvr_open_info>();ACVR_INIT(&open.graphics);open.game_id_utf8="synthetic-system22";auto meta=record<acvr_backend_info>();acvr_backend *b=nullptr;
+    api.game_open(&open,&b,&meta);n22::configure_gl_draw(b,device(m));auto in=polygon_fade_scene(true);
+    check(n22::stage_cpu_scene(b,in)==ACVR_OK,"usual backend stages immutable same-tick fade/fog/background/material packet");in.polygon_fade.rgb={0,0,0};
+    auto input=record<acvr_inputs>();input.tick_id=1;api.game_set_inputs(b,&input);auto step=record<acvr_step_info>();step.tick_id=1;
+    auto fi=record<acvr_frame_info>();acvr_frame *f=nullptr;check(api.game_step(b,&step,&f,&fi)==ACVR_OK,"active fade owns the usual frame lease");
+    auto eye=n22::desktop_eye(0,0,4,320,240);auto info=draw_info(eye);
+    check(api.game_draw_eye(b,f,&info)==ACVR_OK && (m.composed_samples[0]>>16)==109 && m.upload_count==7,"callback draws frozen byte128 despite changed producer");same_state(original,m.state);
+    api.game_release_frame(b,f);check(m.live_textures.empty() && m.deleted.size()==7,"public release performs normal fade resource retirement");
+    in=polygon_fade_scene(true);in.polygon_fade.tick=in.fog.tick=in.background.tick=2;in.polygon_fade.rgb={192,192,192};for(auto &p:in.polygons) p.fog.tick=2;
+    check(n22::stage_cpu_scene(b,in)==ACVR_OK,"subsequent tick stages new factors after release");input.tick_id=2;api.game_set_inputs(b,&input);
+    step.tick_id=2;step.simulation_time_ns=static_cast<int64_t>(1000000000000ULL/59906ULL);check(api.game_step(b,&step,&f,&fi)==ACVR_OK,"second fade lease publication");info.frame_id=2;
+    const auto at=m.composed_samples.size();check(api.game_draw_eye(b,f,&info)==ACVR_OK && (m.composed_samples[at]>>16)==142 && m.upload_count==14,"new tick receives new owned factors without retaining old fade");same_state(original,m.state);
+    api.game_close(b);check(m.live_textures.empty() && m.deleted.size()==14,"public close cleans unreleased successor fade lease once");
+}
 }
 int main() {
-    try {direct_dispatch();callback_path();material_lifecycle();material_failures();material_callback_path();fog_lifecycle();fog_failures();fog_callback_path();background_clear_path();std::cout<<checks<<" GL dispatch checks passed (CPU mocks only)\n";return 0;}
+    try {direct_dispatch();callback_path();material_lifecycle();material_failures();material_callback_path();fog_lifecycle();fog_failures();fog_callback_path();background_clear_path();polygon_fade_dispatch();polygon_fade_failures();polygon_fade_callback_path();std::cout<<checks<<" GL dispatch checks passed (CPU mocks only)\n";return 0;}
     catch(const std::exception &e) {std::cerr<<e.what()<<"\n";return 1;}
 }

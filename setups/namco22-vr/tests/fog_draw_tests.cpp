@@ -61,8 +61,12 @@ bool analytic(const n22::Triangle &t,const acvr_eye &e,int x,int y,std::array<do
     if(u<.03 || w<.03 || u+w>.97 || d<.101 || d>99) return false;
     weights={1-u-w,u,w};z=d;return true;
 }
-void interpolation_clip_replay() {
+void interpolation_clip_replay(bool active_fade) {
     auto in=fixture();in.fog.tables[0][0]=0;in.fog.tables[0][1]=128;in.fog.tables[0][2]=255;
+    if(active_fade) {
+        in.polygon_fade.policy=n22::PolygonFadePolicy::Super22InputFold;in.polygon_fade.tick=1;in.polygon_fade.rgb={192,128,255};
+    }
+    const std::array<double,3> fade=active_fade?std::array<double,3>{.75,.5,255./256}:std::array<double,3>{1,1,1};
     // Same native raster at very different reconstructed depths; the first
     // vertex is outside the eye near plane but inside the source packet.
     const std::array<n22::Vec3,3> positions{{{-.015f,-.012f,-.05f},{.65f,-.45f,-2},{-.2f,.5f,-1}}};
@@ -76,6 +80,7 @@ void interpolation_clip_replay() {
     check(f.triangles[0].fog_samples.alpha==std::array<uint8_t,3>{255,127,0},"once-per-lease weights use native depths, not scene Z");
     const auto frozen=f.triangles[0].fog_samples.alpha;
     in.fog.tables[0].fill(0);in.polygons[0].fog.native_depth.fill(0); // mutate producer only
+    in.polygon_fade.rgb={0,0,0}; // owned factors must also survive producer mutation
     size_t compared=0;bool witnessed_perspective=false;std::vector<uint32_t> first;
     for(float eye_x:{0.f,.025f,-.025f}) {
         auto e=n22::desktop_eye(0,eye_x,4,64,64);n22::Image image(64,64);
@@ -89,7 +94,7 @@ void interpolation_clip_replay() {
             for(size_t channel=0;channel<3;++channel) {
                 const unsigned shift=static_cast<unsigned>((2-channel)*8);
                 const double texel=(0xc81164>>shift)&255;
-                const int expected=static_cast<int>(std::clamp(texel*brightness/64.,0.,255.)*alpha+f.fog.rgb[channel]*(1-alpha));
+                const int expected=static_cast<int>(std::clamp(texel*brightness/64.*fade[channel],0.,255.)*alpha+f.fog.rgb[channel]*fade[channel]*(1-alpha));
                 check(std::abs(int((rgb>>shift)&255)-expected)<=1,"ray/triangle analytic fog agrees through eye clipping within one byte");
             }
             const double expected_depth=(-e.projection_from_view[10]+e.projection_from_view[14]/distance+1)*.5;
@@ -126,6 +131,6 @@ void admission_budgets() {
 }
 }
 int main() {
-    try {endpoints_rounding_depth();interpolation_clip_replay();admission_budgets();std::cout<<checks<<" synthetic analytic fog draw checks passed (CPU only)\n";return 0;}
+    try {endpoints_rounding_depth();interpolation_clip_replay(false);interpolation_clip_replay(true);admission_budgets();std::cout<<checks<<" synthetic analytic fog draw checks passed (CPU only)\n";return 0;}
     catch(const std::exception &e) {std::cerr<<e.what()<<"\n";return 1;}
 }

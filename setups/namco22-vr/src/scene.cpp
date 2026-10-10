@@ -66,7 +66,8 @@ std::vector<ClipVertex> clip(std::vector<ClipVertex> p) {
 }
 float edge(Vec3 a,Vec3 b,float x,float y) { return (x-a.x)*(b.y-a.y)-(y-a.y)*(b.x-a.x); }
 acvr_result raster(const std::array<ClipVertex,3> &v,const acvr_eye &e,Image &image,
-                   const Triangle &triangle,const MaterialPacket &materials,bool sky) {
+                   const Triangle &triangle,const MaterialPacket &materials,bool sky,
+                   bool active_fade,const std::array<double,3> &fade) {
     std::array<Vec3,3> s{};
     for(size_t i=0;i<3;++i) {
         if(v[i].p.w<=0) return ACVR_OK;
@@ -94,18 +95,21 @@ acvr_result raster(const std::array<ClipVertex,3> &v,const acvr_eye &e,Image &im
                 const double u=(w0*v[0].u+w1*v[1].u+w2*v[2].u)/denominator;
                 const double tv=(w0*v[0].v+w1*v[1].v+w2*v[2].v)/denominator;
                 const double brightness=std::clamp((w0*v[0].brightness+w1*v[1].brightness+w2*v[2].brightness)/denominator,0.,255.);
-                // Fog reference samples neutral palette bytes, preserving the
-                // floating shade result until AFTER fog. No integer shade
+                // Fog/fade reference samples neutral palette bytes, preserving
+                // floating shade until final output. No integer shade
                 // pre-quantization or native per-fragment CZ relookup.
-                const auto r=sample_material(materials,triangle.material,u,tv,triangle.fog_samples.enabled?64.:brightness,rgb);
+                const bool float_colour=triangle.fog_samples.enabled || active_fade;
+                const auto r=sample_material(materials,triangle.material,u,tv,float_colour?64.:brightness,rgb);
                 if(r!=ACVR_OK) return r;
-                if(triangle.fog_samples.enabled) {
-                    const double alpha=std::clamp((w0*v[0].unfogged+w1*v[1].unfogged+w2*v[2].unfogged)/denominator,0.,1.);
+                if(float_colour) {
+                    const double alpha=triangle.fog_samples.enabled?std::clamp((w0*v[0].unfogged+w1*v[1].unfogged+w2*v[2].unfogged)/denominator,0.,1.):1.;
                     uint32_t fogged=0;
                     for(size_t channel=0;channel<3;++channel) {
                         const auto shift=static_cast<unsigned>((2-channel)*8);
-                        const double shade=std::clamp(double((rgb>>shift)&255)*brightness/64.,0.,255.);
-                        const double value=shade*alpha+triangle.fog_samples.rgb[channel]*(1-alpha);
+                        // The pin folds per-channel fade into BOTH inputs,
+                        // before shade saturation, not after clamped fog RGB.
+                        const double shade=std::clamp(double((rgb>>shift)&255)*brightness/64.*fade[channel],0.,255.);
+                        const double value=shade*alpha+triangle.fog_samples.rgb[channel]*fade[channel]*(1-alpha);
                         // Defined reference rounding: clamp and floor once at
                         // the final byte. Driver fixed-point rounding is unproven.
                         fogged|=static_cast<uint32_t>(std::clamp(value,0.,255.))<<shift;
@@ -139,9 +143,11 @@ acvr_result prepare(const SceneInput &in,uint64_t id,Frame &out) {
     if(!finite(in.hud_depth_scene) || in.hud_depth_scene<=0) return ACVR_BAD_ARGUMENT;
     if(auto r=validate_material_packet(in.materials);r!=ACVR_OK) return r;
     if(auto r=validate_background(in.background,id);r!=ACVR_OK) return r;
+    if(auto r=validate_polygon_fade(in.polygon_fade,id);r!=ACVR_OK) return r;
     if(in.fog.policy!=FogPolicy::Absent && (!id || in.fog.tick!=id)) return ACVR_BAD_ARGUMENT;
     if(in.fog.policy!=FogPolicy::Absent && in.fog.policy!=FogPolicy::System22Constant && in.fog.policy!=FogPolicy::Super22Table) return ACVR_UNSUPPORTED;
     Frame f; f.id=id; f.cameras=in.cameras;f.materials=in.materials;f.fog=in.fog;f.background=in.background;
+    f.polygon_fade=in.polygon_fade;
     for(size_t i=0;i<f.cameras.size();++i)
         if(!camera_valid(f.cameras[i]) || f.cameras[i].camera_id!=i) return ACVR_BAD_ARGUMENT;
     for(const auto &p:in.polygons) {
@@ -179,6 +185,17 @@ acvr_result validate_fog_draw(const Frame &f) {
         if(auto r=validate_fog_binding(f.fog,t.fog,f.id);r!=ACVR_OK) return r;
         if(!t.fog_samples.enabled) continue;
         if(f.fog.policy!=FogPolicy::Super22Table || t.layer!=Layer::World || t.material==NoMaterial) return ACVR_UNSUPPORTED;
+        if(t.material>=f.materials.materials.size()) return ACVR_BAD_ARGUMENT;
+        if(f.materials.materials[t.material].objectflags) return ACVR_UNSUPPORTED;
+    }
+    return ACVR_OK;
+}
+acvr_result validate_polygon_fade_draw(const Frame &f) {
+    if(auto r=validate_polygon_fade(f.polygon_fade,f.id);r!=ACVR_OK) return r;
+    if(!polygon_fade_active(f.polygon_fade)) return ACVR_OK;
+    if(f.fog.policy!=FogPolicy::Absent && f.fog.policy!=FogPolicy::Super22Table) return ACVR_UNSUPPORTED;
+    for(const auto &t:f.triangles) {
+        if(t.layer!=Layer::World || t.material==NoMaterial) return ACVR_UNSUPPORTED;
         if(t.material>=f.materials.materials.size()) return ACVR_BAD_ARGUMENT;
         if(f.materials.materials[t.material].objectflags) return ACVR_UNSUPPORTED;
     }
@@ -240,11 +257,14 @@ acvr_result draw_cpu(const Frame &f,const acvr_eye &e,Image &image,bool hud_only
     if(auto r=validate_material_packet(f.materials);r!=ACVR_OK) return r;
     if(auto r=validate_fog_draw(f);r!=ACVR_OK) return r;
     if(auto r=validate_background(f.background,f.id);r!=ACVR_OK) return r;
+    if(auto r=validate_polygon_fade_draw(f);r!=ACVR_OK) return r;
     for(const auto &t:f.triangles) if(t.material!=NoMaterial) {
         if(t.material>=f.materials.materials.size()) return ACVR_BAD_ARGUMENT;
         for(const auto &attribute:t.attributes) if(!valid_material_vertex(attribute)) return ACVR_BAD_ARGUMENT;
     }
     const uint32_t background=hud_only?0:background_rgb(f.background);
+    const bool active_fade=polygon_fade_active(f.polygon_fade);
+    const auto fade=polygon_fade_factors(f.polygon_fade);
     for(uint32_t y=0;y<e.rect_height;++y) for(uint32_t x=0;x<e.rect_width;++x) {
         size_t p=static_cast<size_t>(image.height-1-static_cast<uint32_t>(e.rect_y)-y)*image.width+static_cast<uint32_t>(e.rect_x)+x;
         image.rgb[p]=background; image.depth[p]=1;
@@ -261,7 +281,7 @@ acvr_result draw_cpu(const Frame &f,const acvr_eye &e,Image &image,bool hud_only
         }
         poly=clip(std::move(poly));
         for(size_t i=1;i+1<poly.size();++i) {
-            const auto r=raster({poly[0],poly[i],poly[i+1]},e,image,t,f.materials,t.layer==Layer::Backdrop);
+            const auto r=raster({poly[0],poly[i],poly[i+1]},e,image,t,f.materials,t.layer==Layer::Backdrop,active_fade,fade);
             if(r!=ACVR_OK) return r;
         }
     }
