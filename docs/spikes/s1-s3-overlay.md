@@ -1,6 +1,6 @@
 # S1–S3: Qt 6.8 dashboard overlay spike
 
-Status: implementation complete; owner headset acceptance and hardware measurements deferred by the owner. Date: 2026-10-09. The spike uses only original synthetic artwork and 50 synthetic cards. It does not inspect game content or modify Steam shortcuts, the OpenXR runtime, or auto-launch settings.
+Status: host foundation implemented; current headset acceptance and hardware measurements remain open. Updated 2026-10-10. Diagnostic source `9038515`, published in [PR28](https://github.com/LevonFrench/AladdinsCastle/pull/28) at `d6f011f`, passed independent build and software checks; integration awaits hosted CI. Instructions for the new diagnostic scene below require that source. The spike uses original synthetic artwork and 50 synthetic cards.
 
 ## What is implemented
 
@@ -9,12 +9,15 @@ Status: implementation complete; owner headset acceptance and hardware measureme
 - One `HubRoot.qml` file has two instances in `--overlay --window`. They share one QML engine and a small `SpikeState` model (text, clicks, effect toggles). Each presentation has its own Qt rendering infrastructure; it does not share a single QRhi across concurrent frames. OpenGL context sharing uses Qt's global share context.
 - Rendering and texture submission run only while the dashboard overlay is visible and dirty, capped at one frame per 16 ms. Hidden input polling continues at 50 ms. The overlay scene is hidden while its tab is hidden, pausing its glow animations. A visibility transition forces a fresh frame, and changes requested during rendering remain pending.
 - Laser events become Qt mouse events with pressed-button state, left/right/middle buttons, releases on hide/focus loss, and wheel events retaining fractional deltas. Input Y defaults to `height - y` per the OpenVR header's bottom-left contract; the visible **Flip mouse Y** toggle permits a hardware comparison. The GL submission uses reversed V texture bounds. Actual pixel and cursor orientation remains an S1 check.
-- SteamVR's keyboard opens when the overlay text field gains focus. Minimal + modal mode delivers UTF-8 input as Qt key events, including Unicode scalars, backspace, Return, and ANSI arrow sequences. Both session token and overlay handle must match for text/done/close packets; queued packets from an older keyboard cannot dismiss a newer session. Global duplicate text/done packets are ignored. Done, hide, focus change, and shutdown end the keyboard session. There is also an in-scene alphanumeric keyboard with space, hyphen, backspace, and Done.
+- In the reviewed PR28 scene, **Open SteamVR keyboard** explicitly requests the keyboard; focusing the field alone does not. The button is disabled in desktop presentation. Minimal + modal mode delivers UTF-8 input as Qt key events. The shared `OverlayKeyboard` component retains token/overlay matching, Unicode/backspace handling and session cleanup. Stale or wrong-overlay packets cannot target a newer session. All 39 on-panel keys and Done remain available; text stays transient and unlogged.
+- PR28 adds four corner hit counters, a last-dispatched Qt pointer marker, bounded per-raw-cursor numeric observations and visible list `contentY`. Smooth/discrete counts and raw/Qt deltas are separate. These observe existing routing: button packets still supply coordinates, pointer/button/wheel-remainder state is global, and both scroll kinds still use ×120. Invalid packets and synthetic cancellation releases are outside the observation counters.
 - The portable `resources/aladdinscastle.vrmanifest` and `overlay-thumbnail.png` are copied with the binary. `--register-overlay` and `--unregister-overlay` are explicit manifest operations; normal startup never calls them. They do not enable auto-launch. The PNG is original and reproducible using `tools/generate_overlay_thumbnail.py`.
 
 The deliberate per-card `MultiEffect` glow is a stress case for this spike. Production cards should follow the UI spec's cheaper art/border path.
 
 ## Verification and acceptance
+
+Current diagnostic source: independent offline build and five affected suites passed (43.47 s): smoke, full UI, synthetic overlay, real QML scene and integration. Tests hit all four corners and all 39 keys plus Done by geometry under both Y settings, move the actual list, and exercise matching/stale/wrong/closed keyboard sessions and two independent software scenes. No runtime or graphics context is initialized. This establishes software behavior only; it does not prove the earlier headset input problems are fixed. The table and packaging receipt below describe the earlier host baseline.
 
 | Check | Local result | Owner hardware result |
 |---|---|---|
@@ -34,20 +37,19 @@ No OpenVR initialization, manifest registration, dashboard launch, or SteamVR se
 
 ## Device acceptance
 
-Private operator receipts are kept in `.local/`; headset and compositor acceptance remain deferred.
-Headset clicks, compositor acceptance and hardware measurements remain deferred.
+Earlier interaction feedback recorded in [the controls design](../ui/06-vr-menu-controls.md) includes unreliable whole-panel clicks, failed on-panel letters and missing stick scrolling. No current diagnostic build has headset acceptance or measured GPU performance.
 
 ## Owner run procedure
 
-Use a portable build or the development binary with the matching Qt DLLs available. Start SteamVR/ALVR through the owner's normal workflow. No account or runtime-selection operation is part of this procedure.
+Use a build containing the reviewed diagnostic source above with matching Qt DLLs. These are acceptance instructions, not authorization to run them. GPU/SteamVR/headset use and manifest writes require their own specific owner approval. Start SteamVR/ALVR through the owner's normal workflow; no account or runtime-selection operation is part of this procedure.
 
 Executable: `<HubDir>/aladdinscastle-hub.exe` in the selected portable folder (or `<BuildDir>/bin/aladdinscastle-hub.exe` for development).
 
-1. Start that executable with `--overlay --window`. Choose the **AladdinsCastle** dashboard tab. A window and overlay should show the same synthetic scene. Registration is optional for a directly started process.
-2. Click the top-left and bottom-right test buttons, then a card. The shared click count should increment in both presentations. Compare **Flip mouse Y** if any click misses. Check top/bottom labels and the PNG thumbnail are upright.
-3. Click the text field. Type several characters with SteamVR's keyboard, include backspace, and press Done. Verify the text in both presentations. If it fails, close the runtime keyboard and use the in-scene keys; record which route worked.
-4. Scroll the grid, toggle 50 glows, then enable Animate glows. Hide/reopen the dashboard. Verify no texture updates are produced while hidden and animation resumes on return.
-5. For S3 measurement, compare overlay-only `--overlay` with `--overlay --window` under the same visible/animation state. Record the measurement source, duration, GPU memory and GPU frame cost; CPU submission telemetry alone is insufficient.
+1. Start that executable with `--overlay --window --spike`. Choose the **AladdinsCastle** dashboard tab. The spike flag selects diagnostics; without it the normal Hub opens. Registration is optional for a directly started process.
+2. Hit all four corner targets with each controller and compare counters and the Qt marker. Compare **Flip mouse Y** if a hit misses; record raw cursor ID, raw mouse position and dispatched Qt position. Check labels and the thumbnail are upright.
+3. Focus the text field and verify that no keyboard opens automatically. Press **Open SteamVR keyboard**, type, backspace and Done. Separately test every on-panel letter/digit, Space, hyphen, backspace and Done. Record the failing route/key, never typed payload text.
+4. Scroll the list and compare `contentY`, smooth/discrete counters, raw deltas and Qt angle deltas for each controller. Existing ×120/global-position behavior is diagnostic evidence, not a completed routing fix. Test glows, hide/reopen and animation resumption separately.
+5. For S3 measurement, compare `--overlay --spike` with `--overlay --window --spike` under the same state. Record measurement source, duration, GPU memory and GPU frame cost; CPU submission telemetry alone is insufficient.
 6. To test persistence explicitly, close the process, invoke the same executable with `--register-overlay`, then launch the tab using the owner's SteamVR UI. After the test, invoke `--unregister-overlay`. Moving a registered portable folder requires removing its old manifest before registering the new location. No automatic launch is enabled by the Hub.
 7. Quit SteamVR normally and verify the Hub acknowledges quit and exits. Record crashes or GL/OpenVR error strings.
 
