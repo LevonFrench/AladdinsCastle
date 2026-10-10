@@ -6,16 +6,272 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QLockFile>
+#include <QScopeGuard>
+#include <QUuid>
+#include <vector>
+#include <limits>
 #include <QSaveFile>
 #include <QtEndian>
 #include <sstream>
 #include <toml++/toml.hpp>
 #ifdef Q_OS_WIN
 #include <io.h>
+#include <qt_windows.h>
+#include <shlobj.h>
+#include <sddl.h>
+#include <aclapi.h>
 #else
 #include <unistd.h>
+#include <sys/stat.h>
+#include <cerrno>
+#include <signal.h>
 #endif
 namespace ac::install {
+namespace {
+enum class ChildState { Gone, Alive, Unknown };
+struct ChildIdentity { ChildState state=ChildState::Unknown; QString creation; };
+ChildIdentity childIdentity(qint64 pid) {
+  if(pid<=0) return {};
+#ifdef Q_OS_WIN
+  if(static_cast<quint64>(pid)>MAXDWORD) return {};
+  HANDLE process=OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,static_cast<DWORD>(pid));
+  if(!process) return {GetLastError()==ERROR_INVALID_PARAMETER?ChildState::Gone:ChildState::Unknown,{}};
+  const auto close=qScopeGuard([&]{CloseHandle(process);});
+  const auto wait=WaitForSingleObject(process,0);
+  if(wait==WAIT_OBJECT_0) return {ChildState::Gone,{}};
+  if(wait!=WAIT_TIMEOUT) return {};
+  FILETIME creation{},exit{},kernel{},user{};
+  if(!GetProcessTimes(process,&creation,&exit,&kernel,&user)) return {};
+  const auto stamp=(static_cast<quint64>(creation.dwHighDateTime)<<32U)|creation.dwLowDateTime;
+  return {ChildState::Alive,QString::number(stamp)};
+#else
+  if(pid>std::numeric_limits<pid_t>::max()) return {};
+  QFile status(QString("/proc/%1/stat").arg(pid));
+  if(!status.open(QIODevice::ReadOnly)) {
+    if(::kill(static_cast<pid_t>(pid),0)!=0 && errno==ESRCH) return {ChildState::Gone,{}};
+    return {};
+  }
+  const auto raw=status.read(4096); const auto close=raw.lastIndexOf(')');
+  if(close<0) return {};
+  const auto fields=raw.mid(close+2).split(' '); // state is field 3; start time is field 22.
+  if(fields.size()<=19) return {};
+  if(fields[0]=="Z" || fields[0]=="X") return {ChildState::Gone,{}};
+  bool ok=false; const auto start=fields[19].toULongLong(&ok);
+  if(!ok) return {};
+  return {ChildState::Alive,QString::number(start)};
+#endif
+}
+bool childStillUses(qint64 pid,const QString &creation) {
+  const auto current=childIdentity(pid);
+  if(current.state==ChildState::Unknown) return true;
+  return current.state==ChildState::Alive && (creation.isEmpty() || creation==current.creation);
+}
+bool recordChildStillUses(const QString &path) {
+  try {
+    if(QFileInfo(path).size()>4096) throw Error("E_LOCKED","Shared child lease evidence is too large");
+    const auto record=Json::parse(readBytes(path).toStdString());
+    if(record.is_object() && record.value("format",0)==1 && record.value("phase",std::string())=="pending")
+      throw Error("E_LOCKED","A launch has no registered child identity yet. Wait for its Hub/game to stop; if the Hub exited, an operator must review the pending lease. Automatic cleanup is refused");
+    if(!record.is_object() || record.value("format",0)!=1 || !record.contains("child_pid") ||
+       !record["child_pid"].is_number_integer() || !record.contains("child_identity") || !record["child_identity"].is_string())
+      throw Error("E_LOCKED","Shared child lease evidence is invalid");
+    const auto pid=record["child_pid"].get<qint64>(); const auto creation=string(record,"child_identity");
+    if(pid<=0 || (!creation.isEmpty() && !QRegularExpression("\\A[0-9]{1,20}\\z").match(creation).hasMatch()))
+      throw Error("E_LOCKED","Shared child lease evidence is invalid");
+    return childStillUses(pid,creation);
+  } catch(const Error &error) {
+    if(error.code=="E_LOCKED") throw;
+    throw Error("E_LOCKED","Shared child lease evidence cannot be verified; retained for safety");
+  }
+  catch(const std::exception &) {
+    throw Error("E_LOCKED","Shared child lease evidence cannot be verified; retained for safety");
+  }
+}
+QString resourceIdentity(const QString &input) {
+  if (!QDir::isAbsolutePath(input))
+    throw Error("E_PATH_OUTSIDE_ROOT", "Shared resource paths must be absolute");
+  const auto absolute=QDir::cleanPath(QDir::fromNativeSeparators(input));
+  QString ancestor=absolute; QStringList suffix;
+  while(!QFileInfo::exists(ancestor)) {
+    suffix.prepend(QFileInfo(ancestor).fileName());
+    const auto parent=QFileInfo(ancestor).absolutePath();
+    if(parent==ancestor) throw Error("E_PATH_OUTSIDE_ROOT","Shared resource has no existing ancestor");
+    ancestor=parent;
+  }
+  scopedPath(absolute,ancestor); // Reject linked ancestors before canonicalizing.
+  auto identity=QFileInfo(ancestor).canonicalFilePath();
+  if(identity.isEmpty()) throw Error("E_PATH_OUTSIDE_ROOT","Cannot identify shared resource");
+  if(!suffix.isEmpty()) identity += "/"+suffix.join('/');
+  identity=QDir::cleanPath(identity);
+#ifdef Q_OS_WIN
+  identity=identity.toCaseFolded();
+#endif
+  return identity;
+}
+#ifdef Q_OS_WIN
+void privateDirectory(const QString &path) {
+  HANDLE token=nullptr;
+  if(!OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&token))
+    throw Error("E_WRITE_DENIED","Cannot identify shared-lock OS user");
+  const auto closeToken=qScopeGuard([&]{CloseHandle(token);});
+  DWORD bytes=0; GetTokenInformation(token,TokenUser,nullptr,0,&bytes);
+  std::vector<unsigned char> info(bytes);
+  if(bytes==0 || !GetTokenInformation(token,TokenUser,info.data(),bytes,&bytes))
+    throw Error("E_WRITE_DENIED","Cannot identify shared-lock OS user");
+  const auto sid=reinterpret_cast<TOKEN_USER *>(info.data())->User.Sid;
+  LPWSTR text=nullptr;
+  if(!ConvertSidToStringSidW(sid,&text)) throw Error("E_WRITE_DENIED","Cannot protect shared locks");
+  const auto freeText=qScopeGuard([&]{LocalFree(text);});
+  const auto sddl="O:"+QString::fromWCharArray(text)+"D:P(A;OICI;FA;;;"+QString::fromWCharArray(text)+")(A;OICI;FA;;;SY)";
+  PSECURITY_DESCRIPTOR descriptor=nullptr;
+  if(!ConvertStringSecurityDescriptorToSecurityDescriptorW(reinterpret_cast<LPCWSTR>(sddl.utf16()),SDDL_REVISION_1,&descriptor,nullptr))
+    throw Error("E_WRITE_DENIED","Cannot protect shared locks");
+  const auto freeDescriptor=qScopeGuard([&]{LocalFree(descriptor);});
+  SECURITY_ATTRIBUTES attributes{sizeof(SECURITY_ATTRIBUTES),descriptor,FALSE};
+  const auto native=QDir::toNativeSeparators(path).toStdWString();
+  if(!CreateDirectoryW(native.c_str(),&attributes) && GetLastError()!=ERROR_ALREADY_EXISTS)
+    throw Error("E_WRITE_DENIED","Cannot create private shared-lock folder");
+  scopedPath(path,QFileInfo(path).absolutePath());
+  PSID owner=nullptr; PSECURITY_DESCRIPTOR current=nullptr;
+  if(GetNamedSecurityInfoW(const_cast<LPWSTR>(native.c_str()),SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION,&owner,nullptr,nullptr,nullptr,&current)!=ERROR_SUCCESS)
+    throw Error("E_WRITE_DENIED","Cannot verify shared-lock ownership");
+  const auto freeCurrent=qScopeGuard([&]{LocalFree(current);});
+  if(!owner || !EqualSid(owner,sid)) throw Error("E_WRITE_DENIED","Shared locks belong to a different OS user");
+  BOOL present=FALSE,defaulted=FALSE; PACL dacl=nullptr;
+  if(!GetSecurityDescriptorDacl(descriptor,&present,&dacl,&defaulted) || !present || !dacl ||
+     SetNamedSecurityInfoW(const_cast<LPWSTR>(native.c_str()),SE_FILE_OBJECT,DACL_SECURITY_INFORMATION|PROTECTED_DACL_SECURITY_INFORMATION,
+                         nullptr,nullptr,dacl,nullptr)!=ERROR_SUCCESS)
+    throw Error("E_WRITE_DENIED","Cannot restrict shared-lock access");
+}
+QString sharedLockRoot() {
+  PWSTR folder=nullptr;
+  if(FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData,KF_FLAG_DONT_VERIFY,nullptr,&folder)))
+    throw Error("E_WRITE_DENIED","OS per-user shared-lock location is unavailable");
+  const auto freeFolder=qScopeGuard([&]{CoTaskMemFree(folder);});
+  const auto base=QString::fromWCharArray(folder);
+  const auto root=scopedPath(base+"/AladdinsCastle-shared-locks",base);
+  privateDirectory(root); return root;
+}
+#else
+void privateDirectory(const QString &path) {
+  const auto encoded=QFile::encodeName(path);
+  if(::mkdir(encoded.constData(),0700)!=0 && errno!=EEXIST)
+    throw Error("E_WRITE_DENIED","Cannot create private shared-lock folder");
+  struct stat info{};
+  if(::lstat(encoded.constData(),&info)!=0 || !S_ISDIR(info.st_mode) || info.st_uid!=::geteuid())
+    throw Error("E_WRITE_DENIED","Shared-lock folder is unsafe or belongs to another OS user");
+  if((info.st_mode&0077)!=0 && ::chmod(encoded.constData(),info.st_mode&0700)!=0)
+    throw Error("E_WRITE_DENIED","Cannot restrict shared-lock access");
+  scopedPath(path,QFileInfo(path).absolutePath());
+}
+QString sharedLockRoot() {
+  // Fixed system temporary base, not TMPDIR/TEMP/TMP; UID comes from the kernel.
+  const auto root=QString("/tmp/aladdinscastle-shared-locks-%1").arg(::geteuid());
+  privateDirectory(root); return root;
+}
+#endif
+} // namespace
+struct ResourceLocks::Impl {
+  std::vector<std::unique_ptr<QLockFile>> held;
+  QStringList childRecords;
+  qint64 childPid=0;
+  QString childCreation;
+  bool pendingChild=false;
+};
+QString resourceLockDirectory(const QString &resource) {
+  const auto root=sharedLockRoot();
+  const auto directory=scopedPath(root+"/"+sha256(resourceIdentity(resource).toUtf8()),root);
+  privateDirectory(directory); return directory;
+}
+ResourceLocks::ResourceLocks(QStringList resources, ResourceAccess access):impl_(std::make_unique<Impl>()) {
+  QMap<QString,QString> ordered;
+  for(const auto &resource:resources) ordered[resourceIdentity(resource)]=resource;
+  for(auto it=ordered.cbegin();it!=ordered.cend();++it) {
+    const auto directory=resourceLockDirectory(it.value());
+    auto guard=std::make_unique<QLockFile>(scopedPath(directory+"/mutation.lock",directory));
+    guard->setStaleLockTime(0);
+    if(!guard->tryLock(0)) throw Error("E_LOCKED","Another Hub is using or changing this resource; retry after it stops");
+    // Recheck link/alias identity under the guard before proceeding.
+    if(resourceIdentity(it.value())!=it.key()) throw Error("E_PATH_OUTSIDE_ROOT","Shared resource identity changed while locking");
+    scopedPath(directory,QFileInfo(directory).absolutePath());
+    if(access==ResourceAccess::Mutation) {
+      QSet<QString> uses;
+      for(const auto &entry:QDir(directory).entryInfoList({"use-*.lock","use-*.lock.child.json"},QDir::Files|QDir::Hidden|QDir::System)) {
+        auto lease=scopedPath(entry.absoluteFilePath(),directory);
+        if(lease.endsWith(".child.json")) lease.chop(QString(".child.json").size());
+        uses.insert(lease);
+      }
+      for(const auto &lease:uses) {
+        const auto record=lease+".child.json";
+        // A crashed Hub's child may still read its payload. Verify creation
+        // identity before reclaiming the holder's stale QLockFile.
+        if(QFileInfo::exists(record) && recordChildStillUses(record))
+          throw Error("E_LOCKED","Another Hub child is still using this resource; stop its game before changing it");
+        QLockFile use(scopedPath(lease,directory)); use.setStaleLockTime(0);
+        if(!use.tryLock(0)) throw Error("E_LOCKED","Another Hub is using this resource; stop its game before changing it");
+        if(QFileInfo::exists(record) && !QFile::remove(record))
+          throw Error("E_LOCKED","Cannot reclaim finished child lease evidence");
+        // The holder is gone and its recorded child is gone or a different
+        // creation. Unlock removes the reclaimed temporary QLockFile.
+      }
+      impl_->held.push_back(std::move(guard));
+    } else {
+      const auto lease=scopedPath(directory+"/use-"+QUuid::createUuid().toString(QUuid::WithoutBraces)+".lock",directory);
+      auto use=std::make_unique<QLockFile>(lease);
+      use->setStaleLockTime(0);
+      if(!use->tryLock(0)) throw Error("E_LOCKED","Cannot reserve shared resource use");
+      impl_->childRecords << lease+".child.json";
+      impl_->held.push_back(std::move(use));
+      // Registration occurs under the mutation guard; readers coexist afterward.
+    }
+  }
+}
+ResourceLocks::~ResourceLocks() {
+  // Also preserve a still-running child if a caller releases use prematurely.
+  const bool retain=impl_->childPid>0 ? childStillUses(impl_->childPid,impl_->childCreation) : impl_->pendingChild;
+  if(!retain) for(const auto &record:impl_->childRecords) QFile::remove(record);
+}
+void ResourceLocks::prepareChildLaunch() {
+  if(impl_->childRecords.isEmpty()) return;
+  if(impl_->childPid>0 || impl_->pendingChild)
+    throw Error("E_PLAN_INVALID","Child launch evidence is already reserved");
+  impl_->pendingChild=true;
+  const Json record{{"format",1},{"phase","pending"}};
+  // The caller must not spawn unless every durable write succeeds. A partial
+  // failure is only cleared by the still-live holder after proving no spawn.
+  for(const auto &path:impl_->childRecords) atomicWrite(path,QByteArray::fromStdString(record.dump()));
+}
+void ResourceLocks::clearPendingChildLaunch() {
+  if(!impl_->pendingChild || impl_->childPid>0) return;
+  impl_->pendingChild=false;
+  for(const auto &path:impl_->childRecords) QFile::remove(path);
+}
+void ResourceLocks::trackChild(qint64 pid) {
+  if(impl_->childRecords.isEmpty()) return;
+  if(pid<=0) throw Error("E_PLAN_INVALID","Invalid tracked child process");
+  const auto identity=childIdentity(pid);
+  if(identity.state==ChildState::Gone) {clearPendingChildLaunch();return;}
+  impl_->childPid=pid; impl_->childCreation=identity.creation;
+  const Json record{{"format",1},{"child_pid",pid},{"child_identity",identity.creation.toStdString()}};
+  // Empty creation means the query failed: keep the evidence conservative.
+  for(const auto &path:impl_->childRecords) atomicWrite(path,QByteArray::fromStdString(record.dump()));
+  impl_->pendingChild=false;
+}
+QString toolPayloadRoot(const QString &executable, const QString &toolId) {
+  auto directory=QFileInfo(executable).absolutePath();
+  for(auto parent=directory;;parent=QFileInfo(parent).absolutePath()) {
+    const auto base=QFileInfo(parent).fileName(), container=QFileInfo(QFileInfo(parent).absolutePath()).fileName();
+#ifdef Q_OS_WIN
+    const bool matches=base.compare(toolId,Qt::CaseInsensitive)==0 && container.compare("emulators",Qt::CaseInsensitive)==0;
+#else
+    const bool matches=base==toolId && container=="emulators";
+#endif
+    if(matches) return scopedPath(parent,QFileInfo(parent).absolutePath());
+    if(QFileInfo(parent).absolutePath()==parent) break;
+  }
+  return scopedPath(directory,QFileInfo(directory).absolutePath());
+}
 QString string(const Json &j, const char *key, const QString &fallback) {
   return j.contains(key) && j[key].is_string()
              ? QString::fromStdString(j[key].get<std::string>())
