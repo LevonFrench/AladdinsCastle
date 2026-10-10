@@ -154,7 +154,11 @@ in a loaded asset. This validates references; general button-node animation is
 not implemented. Metadata motion IDs still validate output routes.
 
 Runtime actions require provider support; the mapper does not supply recenter,
-laser or pause UI. A paused provider owns the resume path. Dual-gun controls,
+laser or pause UI. Once the provider accepts a mapped pause action, the core
+pauses before consuming that sample's gameplay inputs or advancing the native
+clock and ends the display with zero game layers. A paused provider owns the
+resume path through `acvr_runtime_set_paused(0)`; gameplay mapping is suspended
+and held inputs must release before rearming. Dual-gun controls,
 gesture recognition, reason-rich diagnostics and full Hub/runtime parity remain
 open. The controls data version stays 0.1; no public ABI layout changed.
 

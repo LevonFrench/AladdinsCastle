@@ -530,7 +530,18 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 d.axes=std::move(mapped_controls.axes);d.buttons=std::move(mapped_controls.buttons);
                 for(unsigned slot=0;slot<2;++slot) d.reload[slot]=mapped_controls.reload[slot];
                 r->mapped_offscreen=mapped_controls.offscreen_reload;
-                for(auto action:mapped_controls.actions) {result=r->host->runtime_action(action);if(result!=ACVR_OK) return finish(result,false);}
+                for(auto action:mapped_controls.actions) {
+                    result=r->host->runtime_action(action);if(result!=ACVR_OK) return finish(result,false);
+                    if(action==acvr::RuntimeAction::Pause) {
+                        // The provider accepted its pause UI. Stop this display
+                        // sample before feeding any of its gameplay inputs or
+                        // advancing the native clock; provider owns resume.
+                        r->user_paused=true;
+                        result=r->pause(true);
+                        r->last_display_ns=now;
+                        return finish(result,false);
+                    }
+                }
             }
             if(r->gun_model&&r->gun_tracked) {
                 const bool trigger=r->mapper?(mapped_controls.trigger[0]||mapped_controls.trigger_press[0]):d.trigger[r->gun_hand];
