@@ -29,8 +29,9 @@ Material packets sample native tile/pen/palette/shade data per CPU fragment;
 homogeneous clipping and new-eye perspective interpolation preserve UVs.
 Parallel test cameras use off-axis frusta.
 The [owned fog state/decision helper](FOG-STATE.md) preserves original native
-depth and copied CZ/mixer state per lease for inspection only; it applies no fog
-to pixels and admits no real board or game.
+depth and copied CZ/mixer state per lease. The bounded [Super22 fog draw](FOG-DRAW.md)
+applies same-draw RGB fog to explicit opaque textured World triangles in CPU/GL
+source paths. Synthetic CPU/mocks admit no real board, driver or game.
 
 Explicit HUD test tags flatten to one chosen depth and render into a separate CPU
 image. Backdrop tags ignore eye translation and sit at infinity; gun-flash tags
@@ -93,8 +94,9 @@ source overlay and verifies it against the existing pinned source; see LIFECYCLE
 
 Open gates include actual game initialization, input/register/audio/output
 integration, real layer classification, camera/cull expansion, near-face comfort,
-GL resources/synchronization and per-game world-scale calibration. The CPU core
-has no texture rasterizer or native composition parity. It can reconstruct only
+native GL resources/synchronization and per-game world-scale calibration. The CPU
+core has bounded synthetic texture/fog rasterization; native composition parity
+stays open. It can reconstruct only
 submitted polygons; missing geometry on a head turn remains unresolved.
 Attract-loop/stage depth and native calibration, racers, Hub install/launch and
 headset play all require separate owner-approved real runs. Board 1 is not done.

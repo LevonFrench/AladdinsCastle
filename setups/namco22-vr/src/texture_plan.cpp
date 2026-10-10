@@ -7,8 +7,11 @@
 namespace n22 {
 acvr_result prepare_texture_plan(const Frame &frame,TexturePlan &out) {
     if(auto r=validate_material_packet(frame.materials);r!=ACVR_OK) return r;
+    if(auto r=validate_fog_draw(frame);r!=ACVR_OK) return r;
     if(frame.triangles.size()>MaxGlTriangles) return ACVR_UNSUPPORTED;
     TexturePlan plan;plan.triangle_textures.resize(frame.triangles.size(),NoMaterial);
+    const bool fog=std::any_of(frame.triangles.begin(),frame.triangles.end(),[](const Triangle &t){return t.fog_samples.enabled;});
+    if(fog) plan.bytes=4; // reserve dummy budget before ANY pixel allocation
     using Key=std::tuple<uint32_t,int32_t,int32_t,uint32_t,uint32_t>;
     std::map<Key,uint32_t> keys;
     for(size_t i=0;i<frame.triangles.size();++i) {
@@ -28,17 +31,23 @@ acvr_result prepare_texture_plan(const Frame &frame,TexturePlan &out) {
         const Key key{t.material,min_u,min_v,width,height};auto found=keys.find(key);
         if(found!=keys.end()) {plan.triangle_textures[i]=found->second;continue;}
         const uint64_t bytes=uint64_t(width)*height*4;
-        if(plan.rectangles.size()>=MaxLeaseTextures || bytes>MaxLeaseTextureBytes ||
+        if(plan.rectangles.size()>=MaxLeaseTextures-(fog?1u:0u) || bytes>MaxLeaseTextureBytes ||
            plan.bytes>MaxLeaseTextureBytes-static_cast<size_t>(bytes)) return ACVR_UNSUPPORTED;
         TextureRectangle rect;rect.material=t.material;rect.min_u=min_u;rect.min_v=min_v;rect.width=width;rect.height=height;
         const auto id=static_cast<uint32_t>(plan.rectangles.size());keys.emplace(key,id);plan.triangle_textures[i]=id;
         plan.bytes+=static_cast<size_t>(bytes);plan.rectangles.push_back(std::move(rect));
+    }
+    if(fog) {
+        plan.fog_texture=static_cast<uint32_t>(plan.rectangles.size());
+        TextureRectangle dummy;dummy.material=NoMaterial;dummy.width=dummy.height=1;
+        plan.rectangles.push_back(std::move(dummy));
     }
     // Check every extent/key and the complete lease budget before pixel allocation.
     for(auto &rect:plan.rectangles) {
         const auto width=rect.width,height=rect.height;
         const auto bytes=uint64_t(width)*height*4;
         rect.rgba.resize(static_cast<size_t>(bytes));
+        if(rect.material==NoMaterial) {std::fill(rect.rgba.begin(),rect.rgba.end(),uint8_t{255});continue;}
         for(uint32_t y=0;y<height;++y) for(uint32_t x=0;x<width;++x) {
             // The sampler floors U/V. The integer cell coordinate represents
             // the same pen as its centre and stays inside inclusive +65536.

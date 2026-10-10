@@ -32,6 +32,13 @@ struct FogDecision {
     int32_t bank=-1,delta=0;
     std::array<uint8_t,3> rgb{};
 };
+// Computed exactly once when the owned frame is prepared, before eye clipping.
+// Alpha is the unfogged weight, never transparency or native priority alpha.
+struct FogSamples {
+    bool enabled=false;
+    std::array<uint8_t,3> alpha{255,255,255};
+    std::array<uint8_t,3> rgb{};
+};
 // Explicitly chosen Super22 policy only. No file I/O, global engine state,
 // native endian conversion, board/game detection or pixel/render integration.
 acvr_result copy_super22_fog(const VideoSnapshot &,FogState &out);

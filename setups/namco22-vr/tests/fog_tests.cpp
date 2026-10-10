@@ -102,10 +102,11 @@ void lease_ownership() {
     auto mismatch=fog_scene(state);mismatch.polygons[0].fog.tick=2;
     check(n22::prepare(mismatch,1,frame)==ACVR_BAD_ARGUMENT && frame.id==1,"mismatched captured tick fails atomically");
     auto baseline=n22::synthetic_cube();auto data=fog_scene(state);n22::Frame plain,with_state;
+    for(auto &p:data.polygons) p.fog.colour_word=0x8000; // explicit disabled fog
     check(n22::prepare(baseline,1,plain)==ACVR_OK && n22::prepare(data,1,with_state)==ACVR_OK,"comparison scenes differ only in fog inspection data");
     n22::Image before(128,64),after(128,64);const auto eye=n22::desktop_eye(0,0,4,64,64);
     check(n22::draw_cpu(plain,eye,before)==ACVR_OK && n22::draw_cpu(with_state,eye,after)==ACVR_OK &&
-          before.rgb==after.rgb && before.depth==after.depth,"state/decision plumbing does not alter existing CPU pixels/depth");
+          before.rgb==after.rgb && before.depth==after.depth,"disabled fog preserves existing CPU pixels/depth");
     acvr_backend_api api{};ACVR_INIT(&api);acvr_backend_query(1,&api);
     acvr_open_info open{};ACVR_INIT(&open);ACVR_INIT(&open.graphics);open.game_id_utf8="synthetic-system22";
     acvr_backend_info meta{};ACVR_INIT(&meta);acvr_backend *b=nullptr;api.game_open(&open,&b,&meta);

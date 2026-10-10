@@ -3,8 +3,9 @@
 This block implements CPU state inspection only. Time Crisis is catalogued as
 Super System22, so the Super22 CZ tables are relevant; no native board/factory
 admission or Time Crisis fog pixels are proved. Rendering, sorting, native code
-and shared libacvr ABI stay outside this block. Existing draw paths do not consume
-this metadata; pixel/depth output remains unchanged. Fog application is a later gate.
+and shared libacvr ABI stay outside the original state-only block. Its successor
+[bounded Super22 fog draw](FOG-DRAW.md) now prepares immutable vertex weights
+from this packet; native game/driver acceptance remains open.
 
 ## Explicit policies and original depth
 
@@ -26,7 +27,8 @@ explicit fan indices from an already owned `CapturedQuad.rv`; it does not choose
 guard-band vertices, sort, clip or convert coordinates. All raw selectors and tick
 are copied. `SceneInput` preparation validates policy/tick/depth/constant binding
 and copies state and quad data into `Frame`. No source pointers survive publication.
-Private `inspect_fog_frame` reads that usual backend lease; no draw callback change.
+Private `inspect_fog_frame` reads that usual backend lease. Frame preparation also
+caches decisions for the bounded draw, keeping source depth separate from eye Z.
 
 ## Source-exact decisions
 
@@ -52,9 +54,10 @@ Fixed synthetic expectations cover complete monotonic/reverse tables, equal/
 decreasing entries, zero/overflow words, all bank routes/disable gates, unusual
 delta words, native index/factor endpoints, explicit absent/constant policies,
 same-tick binding and copied capture/frame/backend-lease ownership. A CPU draw
-comparison confirms metadata presence changes neither pixels nor shared depth.
+comparison confirms explicitly disabled fog changes neither pixels nor shared depth.
 
-Fog interpolation, brightness/fog/fade clamp/rounding order, screen fade, gamma,
+The successor draw verifies a bounded shade/fog clamp/rounding policy and eye
+interpolation with synthetic CPU/GL mocks. Full brightness/fog/fade order, screen fade, gamma,
 sprites/text/painter priority, native state initialization, world scale, real
 driver/gameplay/headset acceptance remain unimplemented. The 32 KiB tables are
 state storage, not a new GPU buffer or a claim of final native scene capacity.
