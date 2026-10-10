@@ -73,8 +73,9 @@ declare tile16 versus extended addressing; missing referenced cells/tiles fail.
 No filesystem/content input API. Preparation copies the packet into the frame.
 CPU per-eye rendering carries UV and brightness through clipping and perspective
 interpolation and evaluates texture/palette/shade only. Fog and remaining
-composition are not implicitly enabled. The initial GL renderer rejects material
-frames until texture/resource lifecycle and draws are implemented and checked.
+composition are not implicitly enabled. The [GL material slice](GL-MATERIALS.md)
+adds bounded exact rectangle upload/draw/lifecycle source with CPU dispatch
+checks; real factory/provider/driver admission remains unaccepted.
 
 Packet limits are 4096 cells, 4096 tiles, 4096 materials, a complete 32768-entry
 palette and finite vertex UV magnitude <=65536 / brightness 0..255. These are

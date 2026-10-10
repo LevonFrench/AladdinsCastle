@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "n22_cpu_backend.hpp"
+#include "n22_texture_plan.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -139,8 +140,52 @@ void backend_lease() {
     check(n22::stage_cpu_scene(b,in)==ACVR_BAD_STATE,"leased packet cannot be replaced");
     api.game_release_frame(b,f);api.game_close(b);
 }
+void texture_admission() {
+    n22::Frame frame;check(n22::prepare(n22::synthetic_material_cube(),1,frame)==ACVR_OK,"bounded GL preparation fixture");
+    n22::TexturePlan plan;check(n22::prepare_texture_plan(frame,plan)==ACVR_OK && plan.rectangles.size()==6 && plan.bytes==6*16*16*4,"exact whole-lease texture plan and duplicate-key reuse");
+    auto bad=frame;bad.triangles[0].attributes[0].u=-65536;bad.triangles[0].attributes[1].u=65536;
+    check(n22::prepare_texture_plan(bad,plan)==ACVR_UNSUPPORTED && plan.rectangles.size()==6,"large checked UV extent rejects without replacing plan");
+    bad=frame;bad.triangles[0].attributes[0].u=std::numeric_limits<float>::infinity();
+    check(n22::prepare_texture_plan(bad,plan)==ACVR_BAD_ARGUMENT,"nonfinite attributes reject before integer extent conversion");
+    bad=frame;bad.materials.materials.resize(257);bad.triangles.resize(257,frame.triangles[0]);
+    for(size_t i=0;i<257;++i) {bad.triangles[i].material=static_cast<uint32_t>(i);bad.materials.materials[i].objectflags=6;}
+    check(n22::prepare_texture_plan(bad,plan)==ACVR_UNSUPPORTED,"whole-lease texture count checked before pixel sampling");
+    bad=frame;bad.materials.materials.resize(9);bad.triangles.resize(9,frame.triangles[0]);
+    for(size_t i=0;i<9;++i) {bad.triangles[i].material=static_cast<uint32_t>(i);bad.triangles[i].attributes={n22::MaterialVertex{.5f,.5f,64},{1023.5f,.5f,64},{.5f,1023.5f,64}};}
+    // Sparse cells deliberately insufficient: budget must reject first, with
+    // no allocation of these nine 4 MiB rectangles and no sample fallback.
+    check(n22::prepare_texture_plan(bad,plan)==ACVR_UNSUPPORTED,"complete byte budget checked before any texture pixels allocated");
+    bad=frame;bad.triangles.resize(n22::MaxGlTriangles+1);
+    check(n22::prepare_texture_plan(bad,plan)==ACVR_UNSUPPORTED,"triangle count checked before per-triangle binding allocation");
+    bad=frame;bad.materials.tiles.clear();check(n22::prepare_texture_plan(bad,plan)==ACVR_BAD_ARGUMENT && plan.rectangles.size()==6,"missing sparse input has no partial plan publication");
+}
+void texture_uv_boundaries() {
+    auto in=scene();in.materials.cells={{0,0,0},{255,0,0},{0xff00,0,0}};
+    in.materials.palette[0]=0x123456;in.materials.palette[1]=0x6789ab;in.materials.palette[15]=0xfedcba;
+    in.materials.palette[16]=0x56789a;in.materials.palette[240]=0xabcdef;
+    for(bool vertical:{false,true}) for(float boundary:{65536.f,-65536.f}) {
+        for(auto &a:in.polygons[0].attributes) a={vertical?.5f:boundary,vertical?boundary:.5f,64};
+        const auto a=in.polygons[0].attributes[0];uint32_t rgb=0;
+        check(n22::valid_material_vertex(a) && n22::sample_material(in.materials,0,a.u,a.v,64,rgb)==ACVR_OK && rgb==0x123456,"inclusive U/V endpoint admitted by vertex and direct sampler");
+        n22::Frame frame;n22::prepare(in,1,frame);n22::TexturePlan plan;
+        check(n22::prepare_texture_plan(frame,plan)==ACVR_OK && plan.rectangles[0].rgba==std::vector<uint8_t>{0x12,0x34,0x56,255},"inclusive U/V endpoint produces exact admitted texture bytes");
+    }
+    for(bool vertical:{false,true}) for(bool upper:{true,false}) {
+        const float first=upper?65535.5f:-65536.f,last=upper?65536.f:-65535.f;
+        for(size_t i=0;i<3;++i) {
+            const float coordinate=i?last:first;in.polygons[0].attributes[i]={vertical?.5f:coordinate,vertical?coordinate:.5f,64};
+        }
+        n22::Frame frame;check(n22::prepare(in,1,frame)==ACVR_OK,"near-boundary span remains admitted");n22::TexturePlan plan;
+        const std::vector<uint8_t> expected=upper?(vertical?std::vector<uint8_t>{0xab,0xcd,0xef,255,0x12,0x34,0x56,255}:
+            std::vector<uint8_t>{0xfe,0xdc,0xba,255,0x12,0x34,0x56,255}):
+            (vertical?std::vector<uint8_t>{0x12,0x34,0x56,255,0x56,0x78,0x9a,255}:
+            std::vector<uint8_t>{0x12,0x34,0x56,255,0x67,0x89,0xab,255});
+        check(n22::prepare_texture_plan(frame,plan)==ACVR_OK && plan.rectangles[0].rgba==expected &&
+              plan.rectangles[0].width==(vertical?1u:2u) && plan.rectangles[0].height==(vertical?2u:1u),"U/V upper/lower boundary span exact bytes preserve wrapping");
+    }
+}
 }
 int main() {
-    try {address_and_palette();modes_and_shade();malformed();per_eye_and_ownership();clipped_attributes();backend_lease();std::cout<<checks<<" material packet checks passed (synthetic CPU only)\n";return 0;}
+    try {address_and_palette();modes_and_shade();malformed();per_eye_and_ownership();clipped_attributes();backend_lease();texture_admission();texture_uv_boundaries();std::cout<<checks<<" material packet checks passed (synthetic CPU only)\n";return 0;}
     catch(const std::exception &e) {std::cerr<<e.what()<<"\n";return 1;}
 }

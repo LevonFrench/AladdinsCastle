@@ -45,7 +45,13 @@ acvr_result ACVR_CALL open(const acvr_open_info *in,acvr_backend **out,acvr_back
         payload(info,value); *out=b.release(); return ACVR_OK;
     } catch(...) { return ACVR_ERROR; }
 }
-void ACVR_CALL close(acvr_backend *b) { delete b; }
+void ACVR_CALL close(acvr_backend *b) {
+    if(b && b->renderer) {
+        if(!b->renderer->owner_thread()) return; // invalid cross-thread call; owner can retry
+        b->renderer->shutdown();
+    }
+    delete b;
+}
 acvr_result ACVR_CALL pause(acvr_backend *b,uint32_t paused) {
     if(!b || paused>1) return ACVR_BAD_ARGUMENT;
     b->paused=paused!=0; b->input_tick=0; return ACVR_OK;
@@ -86,7 +92,13 @@ acvr_result ACVR_CALL step(acvr_backend *b,const acvr_step_info *in,acvr_frame *
     } catch(...) { return ACVR_ERROR; }
 }
 void ACVR_CALL release(acvr_backend *b,acvr_frame *f) {
-    if(lease(b,f)) b->leased.reset();
+    if(lease(b,f)) {
+        if(b->renderer) {
+            if(!b->renderer->owner_thread()) return;
+            b->renderer->release_frame(f->scene.id);
+        }
+        b->leased.reset();
+    }
 }
 acvr_result ACVR_CALL camera(acvr_backend *b,const acvr_frame *f,uint32_t id,acvr_game_camera *out) {
     if(!lease(b,f)) return ACVR_BAD_STATE;
