@@ -121,7 +121,9 @@ Vec3 unproject(const ProjectedVertex &v,const acvr_game_camera &c) {
 acvr_result prepare(const SceneInput &in,uint64_t id,Frame &out) {
     if(!finite(in.hud_depth_scene) || in.hud_depth_scene<=0) return ACVR_BAD_ARGUMENT;
     if(auto r=validate_material_packet(in.materials);r!=ACVR_OK) return r;
-    Frame f; f.id=id; f.cameras=in.cameras;f.materials=in.materials;
+    if(in.fog.policy!=FogPolicy::Absent && (!id || in.fog.tick!=id)) return ACVR_BAD_ARGUMENT;
+    if(in.fog.policy!=FogPolicy::Absent && in.fog.policy!=FogPolicy::System22Constant && in.fog.policy!=FogPolicy::Super22Table) return ACVR_UNSUPPORTED;
+    Frame f; f.id=id; f.cameras=in.cameras;f.materials=in.materials;f.fog=in.fog;
     for(size_t i=0;i<f.cameras.size();++i)
         if(!camera_valid(f.cameras[i]) || f.cameras[i].camera_id!=i) return ACVR_BAD_ARGUMENT;
     for(const auto &p:in.polygons) {
@@ -129,6 +131,8 @@ acvr_result prepare(const SceneInput &in,uint64_t id,Frame &out) {
         if(p.layer!=Layer::World && p.layer!=Layer::Hud && p.layer!=Layer::Backdrop && p.layer!=Layer::GunFlash) return ACVR_BAD_ARGUMENT;
         Triangle t{}; t.camera_id=p.camera_id; t.layer=p.layer; t.rgb=p.rgb&0xffffff;
         t.material=p.material;t.attributes=p.attributes;
+        if(auto r=validate_fog_binding(in.fog,p.fog,id);r!=ACVR_OK) return r;
+        t.fog=p.fog;
         if(t.material!=NoMaterial) {
             if(t.material>=f.materials.materials.size()) return ACVR_BAD_ARGUMENT;
             for(const auto &attribute:t.attributes) if(!valid_material_vertex(attribute)) return ACVR_BAD_ARGUMENT;

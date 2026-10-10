@@ -85,6 +85,18 @@ CapturedQuad copy_geo_quad(const geo_quad &q,const geo_view *v) {
     }
     return out;
 }
+acvr_result copy_geo_fog_triangle(const CapturedQuad &captured,uint64_t tick,std::array<uint32_t,3> indices,FogQuad &out) {
+    const auto &q=captured.quad;
+    if(!tick || q.nrv<3 || q.nrv>10 || q.cz_type<0 || q.cz_type>3) return ACVR_BAD_ARGUMENT;
+    FogQuad copied;copied.provided=true;copied.has_native_depth=true;copied.tick=tick;
+    copied.colour_word=q.color&0xffffff;copied.cz_adjust=static_cast<uint32_t>(q.cz_adjust)&0xffffff;
+    copied.cz_type=static_cast<uint8_t>(q.cz_type);
+    for(size_t i=0;i<3;++i) {
+        if(indices[i]>=static_cast<uint32_t>(q.nrv)) return ACVR_BAD_ARGUMENT;
+        copied.native_depth[i]=q.rv[indices[i]].z;
+    }
+    out=copied;return ACVR_OK;
+}
 std::vector<CapturedQuad> prepare_with_capture(const VideoSnapshot &s,
         const std::function<void(const ss22_regs &)> &prepare) {
     struct Sink {std::vector<CapturedQuad> quads;bool failed=false;} sink;

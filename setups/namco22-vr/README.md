@@ -28,6 +28,9 @@ and depth-tests opaque flat colours or the [owned synthetic material packet](MAT
 Material packets sample native tile/pen/palette/shade data per CPU fragment;
 homogeneous clipping and new-eye perspective interpolation preserve UVs.
 Parallel test cameras use off-axis frusta.
+The [owned fog state/decision helper](FOG-STATE.md) preserves original native
+depth and copied CZ/mixer state per lease for inspection only; it applies no fog
+to pixels and admits no real board or game.
 
 Explicit HUD test tags flatten to one chosen depth and render into a separate CPU
 image. Backdrop tags ignore eye translation and sit at infinity; gun-flash tags

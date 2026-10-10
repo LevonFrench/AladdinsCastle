@@ -2,6 +2,7 @@
 #pragma once
 #include "acvr.h"
 #include "n22_material.hpp"
+#include "n22_fog.hpp"
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -18,6 +19,7 @@ struct Polygon {
     uint32_t rgb = 0xffffff;
     uint32_t material = NoMaterial;
     std::array<MaterialVertex,3> attributes{};
+    FogQuad fog;
 };
 struct Triangle {
     std::array<Vec3, 3> vertices;
@@ -26,12 +28,14 @@ struct Triangle {
     uint32_t rgb;
     uint32_t material = NoMaterial;
     std::array<MaterialVertex,3> attributes{};
+    FogQuad fog;
 };
 struct SceneInput {
     std::vector<acvr_game_camera> cameras;
     std::vector<Polygon> polygons;
     float hud_depth_scene = 2;
     MaterialPacket materials;
+    FogState fog;
 };
 // Owns all data. Never retains mutable source arrays or references to emulation.
 struct Frame {
@@ -39,6 +43,7 @@ struct Frame {
     std::vector<acvr_game_camera> cameras;
     std::vector<Triangle> triangles;
     MaterialPacket materials;
+    FogState fog;
 };
 struct Image {
     uint32_t width, height;
