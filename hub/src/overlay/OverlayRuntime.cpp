@@ -2,6 +2,7 @@
 #include "OverlayRuntime.h"
 #include <QFile>
 #include <QCoreApplication>
+#include <QDir>
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -14,14 +15,13 @@
 #include <QJsonArray>
 #include <cstdint>
 namespace ac {
-namespace {
 bool probeOpenVrLibrary(QString *error) {
 #ifdef Q_OS_WIN
     // Resolve only the portable DLL; never let the delay loader raise SEH on
     // absent DLLs or search another application's runtime installation.
     static HMODULE module = nullptr;
     if (!module) {
-        const auto path = QCoreApplication::applicationDirPath() + "/openvr_api.dll";
+        const auto path = QDir::toNativeSeparators(QCoreApplication::applicationDirPath() + "/openvr_api.dll");
         module = LoadLibraryExW(reinterpret_cast<LPCWSTR>(path.utf16()), nullptr,
                                LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
     }
@@ -41,6 +41,7 @@ bool probeOpenVrLibrary(QString *error) {
 #endif
     return true;
 }
+namespace {
 QString overlayError(vr::EVROverlayError error) {
     return QString::fromLatin1(vr::VROverlay()->GetOverlayErrorNameFromEnum(error));
 }

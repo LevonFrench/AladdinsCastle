@@ -8,6 +8,7 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QTimer>
+#include <QThreadPool>
 #include <functional>
 namespace ac::launch {
 struct RuntimeInputs {
@@ -64,6 +65,7 @@ private:
   QTimer runtimeTimer_;
   QFutureWatcher<QString> preparation_;
   QList<QFutureWatcher<QString> *> persistence_;
+  QThreadPool persistencePool_;
   Request request_;
   RuntimeInfo runtime_;
   std::unique_ptr<QLockFile> lock_;

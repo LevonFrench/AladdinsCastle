@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Launch.h"
 #include "core/install/Support.h"
+#include "core/scan/Scan.h"
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -39,6 +40,11 @@ Json normalizeBindings(const Json &source, const QString &gameId) {
   for (auto &b : result["media"]) {
     if (!b.value("verified", false))
       continue;
+    if (!scan::hasValidatedChdBounds(b, source.value("files", Json::array()))) {
+      b["verified"] = false;
+      b["verificationError"] = "CHD bounds verification receipt is missing or stale; scan again";
+      continue;
+    }
     const auto check = [&](const QString &path) {
       const QFileInfo current(path);
       if (!current.isFile())
@@ -124,6 +130,10 @@ QStringList rotateLaunchLogs(const QString &root, const QString &folder,
   return warnings;
 }
 LaunchService::LaunchService(QObject *parent) : QObject(parent) {
+  // Completion metadata must remain available while scans/installations occupy
+  // Qt's global pool. This owned pool has at most one pending session task.
+  persistencePool_.setMaxThreadCount(1);
+  persistencePool_.setExpiryTimeout(0);
   connect(&preparation_, &QFutureWatcher<QString>::finished, this, [this] {
     if (preparationCancelled_) {
       complete(1, "Launch cancelled");
@@ -169,9 +179,13 @@ LaunchService::LaunchService(QObject *parent) : QObject(parent) {
 LaunchService::~LaunchService() {
   runtimeTimer_.stop();
   preparation_.disconnect(this);
+  process_.disconnect(this);
   preparation_.waitForFinished();
-  for (auto *watcher : persistence_)
+  for (auto *watcher : persistence_) {
+    watcher->disconnect(this);
     watcher->waitForFinished();
+  }
+  persistencePool_.waitForDone();
   if (process_.state() != QProcess::NotRunning) {
     process_.terminate();
     if (!process_.waitForFinished(1000)) {
@@ -354,7 +368,7 @@ void LaunchService::complete(int code, const QString &error) {
     finish();
     return;
   }
-  // State I/O is advisory and happens off the GUI thread; contention skips it.
+  // State I/O and the bounded contention wait happen on the dedicated worker.
   // Deliver completion after the advisory so CLI callers can log it before exit.
   auto *watcher = new QFutureWatcher<QString>(this);
   persistence_ << watcher;
@@ -367,12 +381,12 @@ void LaunchService::complete(int code, const QString &error) {
       emit warning(gameId, advisory);
     finish();
   });
-  watcher->setFuture(QtConcurrent::run([root, gameId, now] {
+  watcher->setFuture(QtConcurrent::run(&persistencePool_, [root, gameId, now] {
     try {
       const auto path = install::scopedPath("user/last-played.json", root);
       QLockFile stateLock(install::scopedPath("user/locks/last-played.lock", root));
       stateLock.setStaleLockTime(0);
-      if (!stateLock.tryLock(0))
+      if (!stateLock.tryLock(1500))
         throw Error("E_LOCKED", "Last-played state is locked by another Hub");
       Json times = Json::object();
       if (QFileInfo::exists(path))

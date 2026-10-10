@@ -167,7 +167,16 @@ class CatalogTest : public QObject {
         diskBinding["media"]["test"]["path"] = (temp.path() + "/test/synthetic.chd").toStdString();
         auto diskManifest = data.emulators["mame"];
         diskManifest["launch"]["args"].push_back("${rompath}");
+        QVERIFY_THROWS_EXCEPTION(ac::install::Error,
+            ac::install::makeFlatLaunchPlan(*g,diskManifest,temp.path(),diskBinding));
+        diskBinding["media"]["test"]["chdBounds"]={{"version",1},{"paths",ac::Json::array({(temp.path()+"/test/synthetic.chd").toStdString()})}};
         QCOMPARE(ac::install::makeFlatLaunchPlan(*g, diskManifest, temp.path(), diskBinding).args.last(), temp.path());
+        auto supportBinding=bindings;
+        supportBinding["media"]["test"]["supportPaths"]=ac::Json::array({(temp.path()+"/test/synthetic.chd").toStdString()});
+        QVERIFY_THROWS_EXCEPTION(ac::install::Error,
+            ac::install::makeFlatLaunchPlan(*g,data.emulators["mame"],temp.path(),supportBinding));
+        supportBinding["media"]["test"]["chdBounds"]=diskBinding["media"]["test"]["chdBounds"];
+        QVERIFY(!ac::install::makeFlatLaunchPlan(*g,data.emulators["mame"],temp.path(),supportBinding).args.isEmpty());
         auto invalid = bindings;
         invalid["media"]["test"].erase("setCandidates");
         QVERIFY_THROWS_EXCEPTION(ac::install::Error,
@@ -244,7 +253,29 @@ class CatalogTest : public QObject {
         QVERIFY(data.find("fake")->validationErrors.contains("duplicate media requirement: disc"));
         write(temp.path(), recipePath, "[variant.synthetic\n");
         data = ac::CatalogLoader().load(temp.path());
-        QVERIFY(!data.find("fake")->errors.isEmpty());
+        QVERIFY(data.find("fake")->errors.isEmpty());
+        QVERIFY(data.find("fake")->warnings.join('\n').contains("TOML error"));
+    }
+    void malformedRecipeKeepsReadyFlatRoute() {
+        QTemporaryDir temp; vocab(temp.path()); game(temp.path(), "fake", "Synthetic");
+        QFile f(temp.path() + "/games/fake/game.toml"); QVERIFY(f.open(QIODevice::Append));
+        f.write("\n[[media]]\nkind='mame-romset'\nset='test'\n[routes]\nmame='working'\n"); f.close();
+        write(temp.path(), "data/emulators/mame.toml", "id='mame'\nname='Synthetic Tool'\n[launch]\nargs=['${rom.set}']\n");
+        write(temp.path(), "games/fake/install.toml", "[variant.broken\n");
+        ac::GameListModel model(ac::CatalogLoader().load(temp.path()));
+        const auto *game = model.find("fake"); QVERIFY(game); QVERIFY(game->errors.isEmpty());
+        QVERIFY(game->warnings.join('\n').contains("install.toml")); QCOMPARE(game->variants.size(),1);
+        QVERIFY(game->variants[0].generated); QCOMPARE(game->variants[0].id,QString("mame"));
+        ac::RuntimeState state; state.gameId="fake"; state.mediaFound={"test"}; state.toolsOk={"mame"};
+        model.applyRuntimeStates({state});
+        QCOMPARE(model.find("fake")->roles["baseState"].toInt(),int(ac::GameState::Installed));
+        QVERIFY(model.find("fake")->roles["inLibrary"].toBool());
+        write(temp.path(), "synthetic.exe", "synthetic tool; never executed");
+        write(temp.path(), "test.zip", "synthetic media; never executed");
+        ac::Json bindings{{"tools",{{"mame",{{"path",temp.filePath("synthetic.exe").toStdString()}}}}},
+                          {"media",{{"test",{{"path",temp.filePath("test.zip").toStdString()},{"verified",true}}}}}};
+        const auto plan=ac::install::makeFlatLaunchPlan(*model.find("fake"),model.catalog().emulators["mame"],temp.path(),bindings);
+        QCOMPARE(plan.args,QStringList{"test"});
     }
     void malformedMediaReturnsValidationErrors_data() {
         QTest::addColumn<QString>("metadata"); QTest::addColumn<QString>("error");
@@ -284,12 +315,22 @@ class CatalogTest : public QObject {
             << QString("[variant.synthetic]\nneeds={media=['disc',1]}\n") << QString("needs.media must be an array of text");
         QTest::newRow("needs-not-array") << QString("[[media]]\nkind='disc'\nid='disc'\n")
             << QString("[variant.synthetic]\nneeds={media='disc'}\n") << QString("needs.media must be an array of text");
+        QTest::newRow("variant-not-table") << QString() << QString("variant='bad'\n") << QString("variant must be a table");
+        QTest::newRow("variant-entry-not-table") << QString() << QString("[variant]\nsynthetic='bad'\n") << QString("variant.synthetic must be a table");
+        QTest::newRow("needs-not-table") << QString() << QString("[variant.synthetic]\nneeds='bad'\n") << QString("variant.synthetic.needs must be a table");
+        QTest::newRow("controls-not-table") << QString() << QString() << QString("controls must be a table");
     }
     void pythonCppBaseContractParity() {
         QFETCH(QString, media); QFETCH(QString, recipe); QFETCH(QString, expected);
         QTemporaryDir temp; vocab(temp.path()); game(temp.path(), "fake", "Synthetic");
         QFile f(temp.path() + "/games/fake/game.toml"); QVERIFY(f.open(QIODevice::Append));
         f.write("\n" + media.toUtf8()); f.close();
+        if(expected=="controls must be a table") {
+            auto metadata=ac::install::readBytes(temp.path()+"/games/fake/game.toml");
+            metadata.replace("[controls]\ntype='gun'\n", "");
+            metadata.prepend("controls=['bad']\n");
+            ac::install::atomicWrite(temp.path()+"/games/fake/game.toml",metadata);
+        }
         if (!recipe.isEmpty()) write(temp.path(), "games/fake/install.toml", recipe);
         const auto cpp = ac::CatalogLoader().load(temp.path());
         QProcess python;

@@ -16,6 +16,7 @@ struct FileIdentity {
   QVector<ArchiveEntry> entries;
   qint64 size = 0, mtime = 0;
   bool cacheHit = false;
+  bool chdHeaderBoundsOk = false;
 };
 struct SupportEntry {
   QString sourceName, targetName;
@@ -55,6 +56,9 @@ struct ScanResult {
   bool cancelled = false;
   Json toJson() const;
 };
+// String/receipt metadata only: never inspects media. Legacy CHD bindings
+// require a fresh scan that records bounded physical header provenance.
+bool hasValidatedChdBounds(const Json &binding, const Json &files = Json::array());
 using Progress = std::function<void(const QVariantMap &)>;
 class Scanner {
 public:

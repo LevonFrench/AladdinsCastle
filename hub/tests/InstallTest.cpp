@@ -8,6 +8,8 @@
 #include <QSslKey>
 #include <QSslSocket>
 #include <QTcpServer>
+#include <QLockFile>
+#include <QUuid>
 #include <QTemporaryDir>
 #include <QtTest>
 #include <archive.h>
@@ -125,6 +127,18 @@ Request fixture(const QString &root) {
                                                     {"key", "enabled"},
                                                     {"value", 1}}})}}})}}}}}};
   return r;
+}
+Request copiedMediaFixture(const QString &root) {
+  auto request = fixture(root);
+  const auto source = root + "/synthetic.media";
+  atomicWrite(source, "synthetic copied medium");
+  request.allowMediaCopy = true;
+  request.bindings["media"]["disc"] = Json{{"path", source.toStdString()}, {"sha256", hashFile(source).toStdString()}, {"verified", true}};
+  request.recipe["variant"]["flat"]["step"].push_back(Json{{"id", "media"}, {"do", "copy-media"}, {"media", "disc"}, {"to", "${install_dir}/disc.media"}, {"mode", "copy"}});
+  return request;
+}
+QString quarantineRun(const Request &request) {
+  return string(Json::parse(readBytes(stateBase(request) + ".journal.jsonl").split('\n').first().toStdString()), "run");
 }
 QMap<QString, QByteArray> tree(const QString &root) {
   QMap<QString, QByteArray> out;
@@ -855,6 +869,126 @@ private slots:
       QVERIFY(!QFileInfo(temp.path() + "/user/state/backups/" + hash).exists());
       QVERIFY(QDir(temp.path() + "/user/state/media-removals").entryList(QDir::Dirs | QDir::NoDotAndDotDot).isEmpty());
     }
+  }
+  void rollbackRestoresTerminalPriorState_data() {
+    QTest::addColumn<QString>("priorState");
+    for (const auto &state : QStringList{"not-installed", "uninstall-incomplete", "failed", "custom-terminal"})
+      QTest::newRow(qPrintable(state)) << state;
+  }
+  void rollbackRestoresTerminalPriorState() {
+    QFETCH(QString, priorState);
+    QTemporaryDir temp; auto request = fixture(temp.path()); Options options; options.survivalMs = 0;
+    QVERIFY(Engine(options).install(request).success);
+    auto before = readEnvelope(stateBase(request) + ".toml"); before["state"] = priorState.toStdString();
+    writeEnvelope(stateBase(request) + ".toml", before);
+    request.recipe["variant"]["flat"]["installed_when"] = "file:${install_dir}/absent.exe";
+    const auto failed = Engine(options).install(request); QVERIFY(!failed.success);
+    const auto after = readEnvelope(stateBase(request) + ".toml");
+    QCOMPARE(string(after, "state"), priorState);
+    QCOMPARE(string(after, "last_error"), QString("E_VERIFY_FAILED"));
+  }
+  void mediaCleanupFailureWarnsAndStartupRetries() {
+    QTemporaryDir temp; auto request = copiedMediaFixture(temp.path()); Options options; options.survivalMs = 0;
+    QVERIFY(Engine(options).install(request).success);
+    QStringList warnings; options.event = [&](const QVariantMap &value) { if (value.value("code") == "E_MEDIA_CLEANUP") warnings << value.value("text").toString(); };
+    int purges = 0; options.mediaRemovalPurge = [&](const QString &) { ++purges; return false; };
+    const auto removed = Engine(options).uninstall(request); QVERIFY(removed.success);
+    QCOMPARE(purges, 1); QCOMPARE(warnings.size(), 1);
+    const auto run = quarantineRun(request), trash = temp.path() + "/user/state/media-removals/" + run;
+    QVERIFY(QFileInfo(trash).isDir());
+    QVERIFY(!QDir(trash).entryList(QDir::Files).isEmpty());
+    QCOMPARE(Engine(options).sweepFinishedMediaRemovals(temp.path()).size(), 1);
+    QCOMPARE(purges, 2);
+    // The next install archives this finished journal; startup supports that generation too.
+    Options normal; normal.survivalMs = 0; QVERIFY(Engine(normal).install(request).success);
+    QVERIFY(Engine(normal).sweepFinishedMediaRemovals(temp.path()).isEmpty());
+    QVERIFY(!QFileInfo(trash).exists());
+    QCOMPARE(readBytes(temp.path() + "/synthetic.media"), QByteArray("synthetic copied medium"));
+  }
+  void startupMediaCleanupPreservesUntrustedRuns_data() {
+    QTest::addColumn<QString>("reason");
+    for (const auto &reason : QStringList{"interrupted", "orphan", "corrupt-tail", "unrecorded-member", "linked-member", "locked"})
+      QTest::newRow(qPrintable(reason)) << reason;
+  }
+  void startupMediaCleanupPreservesUntrustedRuns() {
+    QFETCH(QString, reason);
+    QTemporaryDir temp; auto request = copiedMediaFixture(temp.path()); Options options; options.survivalMs = 0;
+    QVERIFY(Engine(options).install(request).success);
+    if (reason == "interrupted") {
+      options.fault = [&](const QString &point) {
+        if (point == "write" && !QFileInfo(temp.path() + "/installed/synthetic/flat/disc.media").exists())
+          throw std::runtime_error("synthetic interrupted removal");
+      };
+      bool crashed = false; try { Engine(options).uninstall(request); } catch (...) { crashed = true; } QVERIFY(crashed);
+    } else {
+      options.mediaRemovalPurge = [](const QString &) { return false; };
+      QVERIFY(Engine(options).uninstall(request).success);
+    }
+    const auto run = quarantineRun(request), trash = temp.path() + "/user/state/media-removals/" + run;
+    const auto journal = stateBase(request) + ".journal.jsonl";
+    if (reason == "orphan") QVERIFY(QFile::remove(journal));
+    else if (reason == "corrupt-tail") atomicWrite(journal, readBytes(journal) + "broken json\n");
+    else if (reason == "unrecorded-member") atomicWrite(trash + "/" + QUuid::createUuid().toString(QUuid::WithoutBraces), "unowned synthetic member");
+    else if (reason == "linked-member") {
+      const auto outside = temp.path() + "/outside", link = trash + "/" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+      atomicWrite(outside + "/keep.dat", "synthetic outside");
+#ifdef Q_OS_WIN
+      QProcess process; process.start("cmd.exe", {"/c", "mklink", "/J", QDir::toNativeSeparators(link), QDir::toNativeSeparators(outside)});
+      QVERIFY(process.waitForFinished()); QCOMPARE(process.exitCode(), 0);
+#else
+      QVERIFY(QFile::link(outside, link));
+#endif
+    }
+    QLockFile locked(temp.path() + "/user/state/locks/global.lock");
+    if (reason == "locked") QVERIFY(locked.tryLock(0));
+    Engine().sweepFinishedMediaRemovals(temp.path());
+    QVERIFY(QFileInfo(trash).isDir()); QVERIFY(!QDir(trash).entryList(QDir::Files).isEmpty());
+    if (reason == "interrupted") {
+      Options normal; normal.survivalMs = 0; QVERIFY(Engine(normal).recover(request).success);
+      QCOMPARE(readBytes(temp.path() + "/installed/synthetic/flat/disc.media"), QByteArray("synthetic copied medium"));
+      QVERIFY(!QFileInfo(trash).exists());
+    }
+    if (reason == "linked-member") QCOMPARE(readBytes(temp.path() + "/outside/keep.dat"), QByteArray("synthetic outside"));
+  }
+  void droppedMediaCopyUsesQuarantine_data() {
+    QTest::addColumn<bool>("failVerification");
+    QTest::newRow("commit") << false; QTest::newRow("rollback") << true;
+  }
+  void droppedMediaCopyUsesQuarantine() {
+    QFETCH(bool, failVerification);
+    QTemporaryDir temp; auto request = copiedMediaFixture(temp.path()); Options options; options.survivalMs = 0;
+    QVERIFY(Engine(options).install(request).success);
+    const auto hash = hashFile(temp.path() + "/synthetic.media");
+    request.operation = "update"; request.recipe["variant"]["flat"]["version"] = "v2";
+    request.recipe["variant"]["flat"]["step"].erase(request.recipe["variant"]["flat"]["step"].end() - 1);
+    if (failVerification) request.recipe["variant"]["flat"]["installed_when"] = "file:${install_dir}/absent.exe";
+    const auto updated = Engine(options).install(request); QCOMPARE(updated.success, !failVerification);
+    const auto journal = readBytes(stateBase(request) + ".journal.jsonl");
+    QVERIFY(journal.contains("media-removals/"));
+    QVERIFY(!QFileInfo(temp.path() + "/user/state/backups/" + hash).exists());
+    QVERIFY(QDir(temp.path() + "/user/state/media-removals").entryList(QDir::Dirs | QDir::NoDotAndDotDot).isEmpty());
+    const auto live = temp.path() + "/installed/synthetic/flat/disc.media";
+    if (failVerification) QCOMPARE(hashFile(live), hash); else QVERIFY(!QFileInfo(live).exists());
+  }
+  void mediaQuarantineRenameErrorIsPrecise() {
+    QTemporaryDir temp; auto request = copiedMediaFixture(temp.path()); Options options; options.survivalMs = 0;
+    QVERIFY(Engine(options).install(request).success);
+    bool injected = false; QString conflict;
+    options.fault = [&](const QString &point) {
+      if (point != "intent" || injected) return;
+      const auto lines = readBytes(stateBase(request) + ".journal.jsonl").trimmed().split('\n');
+      const auto intent = Json::parse(lines.last().toStdString());
+      if (string(intent, "op") == "rename" && string(intent, "to").contains("/media-removals/")) {
+        injected = true; conflict = string(intent, "to"); atomicWrite(conflict, "synthetic destination conflict");
+      }
+    };
+    const auto failed = Engine(options).uninstall(request); QVERIFY(injected); QVERIFY(!failed.success);
+    QCOMPARE(failed.code, QString("E_FILE_IN_USE"));
+    QVERIFY(failed.message.contains("Cannot quarantine copied media for removal"));
+    QVERIFY(!failed.message.contains("swap install directory"));
+    QCOMPARE(readBytes(conflict), QByteArray("synthetic destination conflict"));
+    Engine().sweepFinishedMediaRemovals(temp.path());
+    QCOMPARE(readBytes(conflict), QByteArray("synthetic destination conflict"));
   }
   void unlinkRecoveryRestoresOriginalIdentityWithoutBackup() {
     QTemporaryDir temp; auto r = fixture(temp.path());

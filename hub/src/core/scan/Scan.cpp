@@ -151,6 +151,7 @@ Json identityJson(const FileIdentity &f) {
           {"kind", f.kind.toStdString()},
           {"identity", f.identity.toStdString()},
           {"chdHeaderSha1", f.chdHeaderSha1.toStdString()},
+          {"chdHeaderBoundsOk", f.chdHeaderBoundsOk},
           {"error", f.error.toStdString()},
           {"entries", entries}};
 }
@@ -162,6 +163,10 @@ FileIdentity fromIdentity(const Json &j) {
   f.chdHeaderSha1 = s(j, "chdHeaderSha1");
   f.error = s(j, "error");
   f.size = j.value("size", qint64(0));
+  f.chdHeaderBoundsOk = j.value("chdHeaderBoundsOk", false);
+  // R2 receipts did not validate physical CHD offsets. Reinspect them even
+  // when their path, length and timestamp have not changed.
+  if (f.kind.startsWith("chd-") && !j.contains("chdHeaderBoundsOk")) f.size = -1;
   f.mtime = j.value("mtime", qint64(0));
   if (j.contains("entries"))
     for (const auto &e : j["entries"])
@@ -277,16 +282,44 @@ QString family(QString name, const Sets &sets) {
   }
   return name;
 }
+QString folderKey(QString path) {
+#ifdef Q_OS_WIN
+  return path.toCaseFolded();
+#else
+  return path;
+#endif
+}
+QString receiptPath(const QString &path) { return folderKey(QDir::cleanPath(path)); }
+bool bindingPaths(const Json &binding, QSet<QString> &paths, QSet<QString> &chds) {
+  if (!binding.is_object()) return false;
+  const auto add = [&](const QString &path, bool knownChd = false) {
+    if (path.isEmpty()) return;
+    const auto key = receiptPath(path); paths.insert(key);
+    if (knownChd || QFileInfo(path).suffix().compare("chd",Qt::CaseInsensitive)==0) chds.insert(key);
+  };
+  add(s(binding,"path"),s(binding,"proof").startsWith("chd-"));
+  for (const auto *field : {"supportPaths","supportRequirements"}) {
+    if (!binding.contains(field)) continue;
+    if (!binding[field].is_array()) return false;
+    for (const auto &source : binding[field]) {
+      if (QString(field)=="supportPaths" && source.is_string())
+        add(QString::fromStdString(source.get<std::string>()));
+      else if(source.is_object()) add(s(source,QString(field)=="supportPaths"?"path":"sourcePath"));
+      else return false;
+    }
+  }
+  return true;
+}
 struct ArchiveIndex {
   QHash<quint32, QVector<const FileIdentity *>> providers;
   QHash<const FileIdentity *, QHash<quint32, QSet<quint64>>> signatures;
   QHash<QString, QVector<const FileIdentity *>> chds;
   explicit ArchiveIndex(const QVector<FileIdentity> &files) {
     for (const auto &file : files) {
-      // The v5 header identity survives an unsupported/corrupt sparse map.
+      // The v5 header identity survives unsupported bounded sparse decoding.
       // It is header evidence only; never claim a payload audit.
-      if (file.kind.startsWith("chd-") && !file.chdHeaderSha1.isEmpty())
-        chds[QFileInfo(file.path).absolutePath().toCaseFolded()].push_back(&file);
+      if (file.kind.startsWith("chd-") && file.chdHeaderBoundsOk && !file.chdHeaderSha1.isEmpty())
+        chds[folderKey(QFileInfo(file.path).absolutePath())].push_back(&file);
       if (file.kind == "archive-crc" && file.error.isEmpty()) {
         QSet<quint32> seen;
         for (const auto &entry : file.entries)
@@ -355,7 +388,7 @@ const FileIdentity *matchingDisk(const Disk &disk, const Set &set,
   QStringList names{set.name};
   if (!disk.merge.isEmpty() && !set.parent.isEmpty()) names << set.parent;
   for (const auto &name : names)
-    for (const auto *file : index.chds.value(QDir(root).filePath(name).toCaseFolded()))
+    for (const auto *file : index.chds.value(folderKey(QDir(root).filePath(name))))
       if (file->chdHeaderSha1.compare(disk.sha1, Qt::CaseInsensitive) == 0) return file;
   return nullptr;
 }
@@ -531,6 +564,31 @@ QString mameMetadata(const QVector<ToolBinding> &tools, const ScanOptions &o,
   return {};
 }
 } // namespace
+bool hasValidatedChdBounds(const Json &binding, const Json &files) {
+  QSet<QString> paths, required;
+  if (!bindingPaths(binding,paths,required)) return false;
+  if (!files.is_array()) return false;
+  for (const auto &file : files) {
+    const auto path=receiptPath(s(file,"path"));
+    if(paths.contains(path)&&s(file,"kind").startsWith("chd-")) {
+      required.insert(path);
+      if (!file.contains("chdHeaderBoundsOk") || !file["chdHeaderBoundsOk"].is_boolean() ||
+          !file["chdHeaderBoundsOk"].get<bool>()) return false;
+    }
+  }
+  if (!binding.contains("chdBounds")) return required.isEmpty();
+  const auto &marker=binding["chdBounds"];
+  if (!marker.is_object() || !marker.contains("version") || !marker["version"].is_number_integer() ||
+      marker["version"]!=1 || !marker.contains("paths") || !marker["paths"].is_array()) return false;
+  QSet<QString> checked;
+  for(const auto &path:marker["paths"]) {
+    if(!path.is_string())return false;
+    const auto key=receiptPath(QString::fromStdString(path.get<std::string>()));
+    if(!paths.contains(key)||checked.contains(key))return false;
+    checked.insert(key);
+  }
+  return std::all_of(required.begin(),required.end(),[&](const QString &path){return checked.contains(path);});
+}
 QString Scanner::requirementId(const GameRecord &game, const Json &media,
                                int index) {
   return ac::mediaRequirementId(media, game.id, index);
@@ -551,6 +609,8 @@ ScanOptions Scanner::optionsFromJson(const Json &j) {
 Json ScanResult::toJson() const {
   Json b = Json::array(), t = Json::array(), f = Json::array(),
        st = Json::array();
+  QHash<QString,const FileIdentity *> identities;
+  for(const auto &file:files) identities.insert(receiptPath(file.path),&file);
   for (const auto &v : bindings) {
     Json requirements = Json::array();
     for (const auto &r : v.supportRequirements) {
@@ -575,6 +635,16 @@ Json ScanResult::toJson() const {
                  {"supportPaths", list(v.supportPaths)},
                  {"supportRequirements", requirements},
                  {"missing", list(v.missing)}});
+    auto &row=b.back();QSet<QString> paths,required;
+    bool checked=bindingPaths(row,paths,required);
+    for(const auto &path:paths)if(identities.contains(path)&&identities[path]->kind.startsWith("chd-"))required.insert(path);
+    Json chds=Json::array();auto ordered=required.values();ordered.sort();
+    for(const auto &path:ordered) {
+      const auto *identity=identities.value(path,nullptr);
+      if(!identity||!identity->kind.startsWith("chd-")||!identity->chdHeaderBoundsOk){checked=false;break;}
+      chds.push_back(identity->path.toStdString());
+    }
+    if(checked)row["chdBounds"]={{"version",1},{"paths",chds}};
   }
   for (const auto &v : tools)
     t.push_back({{"id", v.id.toStdString()},

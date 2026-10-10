@@ -54,8 +54,18 @@ def media_errors(game, recipe=None):
         if requirement in ids:
             errors.append(f"duplicate media requirement: {requirement}")
         ids.add(requirement)
-    for variant in (recipe or {}).get("variant", {}).values():
-        needs = variant.get("needs", {}).get("media", [])
+    variants = (recipe or {}).get("variant", {})
+    if not isinstance(variants, dict):
+        return errors + ["variant must be a table"]
+    for name, variant in variants.items():
+        if not isinstance(variant, dict):
+            errors.append(f"variant.{name} must be a table")
+            continue
+        needs_table = variant.get("needs", {})
+        if not isinstance(needs_table, dict):
+            errors.append(f"variant.{name}.needs must be a table")
+            continue
+        needs = needs_table.get("media", [])
         if not isinstance(needs, list) or any(not isinstance(item, str) for item in needs):
             errors.append("needs.media must be an array of text")
             continue
@@ -63,6 +73,10 @@ def media_errors(game, recipe=None):
             if requirement not in ids:
                 errors.append(f"unresolved needs.media: {requirement}")
     return errors
+
+
+def controls_errors(game):
+    return ["controls must be a table"] if "controls" in game and not isinstance(game["controls"], dict) else []
 
 
 def self_test():
@@ -91,6 +105,15 @@ def self_test():
                     ({}, {"variant": {"fixture": {"needs": {"media": [1]}}}})]:
                 self.assertTrue(media_errors(game, recipe))
 
+        def test_non_table_recipe_and_controls(self):
+            for recipe, expected in [({"variant": "bad"}, "variant must be a table"),
+                    ({"variant": {"synthetic": "bad"}}, "variant.synthetic must be a table"),
+                    ({"variant": {"synthetic": {"needs": "bad"}}}, "variant.synthetic.needs must be a table")]:
+                self.assertEqual(media_errors({}, recipe), [expected])
+            for value in ("bad", ["bad"], 1):
+                self.assertEqual(controls_errors({"controls": value}), ["controls must be a table"])
+            self.assertEqual(controls_errors({"controls": {"type": "gun"}}), [])
+
     return 0 if unittest.TextTestRunner().run(unittest.defaultTestLoader.loadTestsFromTestCase(MediaContract)).wasSuccessful() else 1
 
 
@@ -117,6 +140,7 @@ def main(root=ROOT, json_report=False):
             errors.append(f"{rel}: install TOML error: {e}")
             recipe = {}
         errors.extend(f"{rel}: {message}" for message in media_errors(g, recipe))
+        errors.extend(f"{rel}: {message}" for message in controls_errors(g))
         for k in REQUIRED:
             if k not in g:
                 errors.append(f"{rel}: missing required field '{k}'")
@@ -171,7 +195,7 @@ def main(root=ROOT, json_report=False):
             warnings.append(f"{rel}: meta.sources empty")
         if type(g.get("players")) is not int or g["players"] < 1:
             warnings.append(f"{rel}: players missing or invalid")
-        controls = g.get("controls", {}).get("type", "")
+        controls = g.get("controls", {}).get("type", "") if isinstance(g.get("controls", {}), dict) else ""
         if controls and controls not in {"gun", "wheel", "handlebars", "bike", "ski", "joystick", "yoke", "boat", "other"}:
             warnings.append(f"{rel}: controls.type unknown: {controls}")
         orig = g.get("original")

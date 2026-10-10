@@ -5,6 +5,9 @@
 #include <QGuiApplication>
 #include <QSignalSpy>
 #include <QElapsedTimer>
+#include <QSemaphore>
+#include <QScopeGuard>
+#include <QtConcurrent/QtConcurrentRun>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextStream>
@@ -61,6 +64,8 @@ private slots:
   void supportChangesRefused();
   void runtimePrecedenceAndLibraries();
   void bindingChangesRefused();
+  void chdReceiptNeedsValidatedBounds_data();
+  void chdReceiptNeedsValidatedBounds();
   void toolChangesRefused();
   void flatSelectionAndPlayingRole();
   void generatedFlatReadyOverridesLegacyRecipe();
@@ -69,6 +74,9 @@ private slots:
   void sameGameLock();
   void boundedLogsAndConcurrentLastPlayed();
   void lastPlayedLockRefusal();
+  void transientLastPlayedLockHandoff();
+  void completionIndependentOfGlobalPool();
+  void pendingPersistenceTeardownBounded();
   void completionBlocksReentrantStart();
   void finishedCanStartReplacementWithoutStaleRaise();
   void hungChildCanBeStopped();
@@ -262,8 +270,11 @@ void LaunchSteamTest::sameTitlesDisambiguated() {
   QVERIFY(first.id != second.id);
   const auto document = steam::parse(second.bytes);
   QCOMPARE(document.roots[0].children.size(), 2);
-  QCOMPARE(find(document.roots[0].children[0], "AladdinsCastleDisambiguator")->payload, a.gameId.toUtf8());
-  QCOMPARE(find(document.roots[0].children[1], "AladdinsCastleDisambiguator")->payload, b.gameId.toUtf8());
+  QVERIFY(!find(document.roots[0].children[0], "AladdinsCastleDisambiguator"));
+  QVERIFY(!find(document.roots[0].children[1], "AladdinsCastleDisambiguator"));
+  const auto quoted = '\"' + QDir::toNativeSeparators(a.executable) + '\"';
+  QCOMPARE(first.id, steam::appId(quoted, a.title + "\nAladdinsCastle:" + a.gameId));
+  QCOMPARE(second.id, steam::appId(quoted, b.title + "\nAladdinsCastle:" + b.gameId));
   // Stored identity survives relocation/renaming, and removal targets one game.
   b.title = "Renamed synthetic";
   b.executable = "/Synthetic/moved-hub.exe";
@@ -276,7 +287,7 @@ void LaunchSteamTest::sameTitlesDisambiguated() {
   auto legacy = steam::parse(first.bytes);
   legacy.roots[0].raw.clear();
   auto &entry = legacy.roots[0].children[0]; entry.raw.clear();
-  entry.children.removeIf([](const steam::Node &n) { return n.key == "AladdinsCastleDisambiguator"; });
+  entry.children << steam::Node{1, "AladdinsCastleDisambiguator", "obsolete", {}, {}, 8};
   for (auto &node : entry.children)
     if (node.key == "appid") { node.raw.clear(); qToLittleEndian(quint32(0x81234567), node.payload.data()); }
   const auto preserved = steam::edit(steam::serialize(legacy), a);
@@ -619,6 +630,65 @@ void LaunchSteamTest::bindingChangesRefused() {
   QVERIFY_THROWS_EXCEPTION(install::Error,
                            launch::normalizeBindings(j, "test-game"));
 }
+void LaunchSteamTest::chdReceiptNeedsValidatedBounds_data() {
+  QTest::addColumn<int>("reference");
+  QTest::newRow("primary-chd") << 0;
+  QTest::newRow("support-path-chd") << 1;
+  QTest::newRow("support-object-chd") << 2;
+  QTest::newRow("support-requirement-chd") << 3;
+  QTest::newRow("renamed-primary-chd") << 4;
+  QTest::newRow("renamed-support-chd") << 5;
+}
+void LaunchSteamTest::chdReceiptNeedsValidatedBounds() {
+  QFETCH(int, reference);
+  QTemporaryDir temp;
+  const auto chd = temp.path() + (reference >= 4 ? "/synthetic.dat" : "/synthetic.chd");
+  const bool primaryChd = reference == 0 || reference == 4;
+  const auto primary = primaryChd ? chd : temp.path() + "/synthetic.zip";
+  write(primary, "synthetic saved-receipt primary");
+  if (!primaryChd) write(chd, "synthetic saved-receipt support");
+  Json binding{{"gameId", "test-game"}, {"requirementId", "TEST-00002"},
+               {"path", primary.toStdString()}, {"verified", true}};
+  if (reference == 1 || reference == 5) binding["supportPaths"] = Json::array({chd.toStdString()});
+  if (reference == 2) binding["supportPaths"] = Json::array({{{"path", chd.toStdString()}}});
+  if (reference == 3) binding["supportRequirements"] = Json::array({{{"set", "synthetic-support"}, {"sourcePath", chd.toStdString()}, {"entries", Json::array()}}});
+  Json files = Json::array();
+  for (const auto &path : QStringList{primary, chd}) {
+    const QFileInfo file(path);
+    files.push_back({{"path", path.toStdString()}, {"size", file.size()},
+                     {"mtime", file.lastModified().toMSecsSinceEpoch()},
+                     {"kind", path == chd ? "chd-synthetic" : "zip"}});
+  }
+  Json source{{"bindings", Json::array({binding})}, {"files", files},
+              {"tools", {{"synthetic", {{"path", QCoreApplication::applicationFilePath().toStdString()},
+                                           {"verified", true}}}}}};
+  CatalogData catalog;
+  GameRecord game; game.id = "test-game";
+  game.raw = {{"media", Json::array({{{"kind", "disc"}, {"serial", "TEST-00002"}}})}};
+  Variant route; route.id = "flat-synthetic"; route.quality = "flat"; route.tools = {"synthetic"};
+  game.variants = {route}; catalog.games = {game};
+  catalog.emulators = {{"synthetic", {{"id", "synthetic"}, {"launch", {{"args", Json::array({"${media.file}"})}}}}}};
+  auto normalized = launch::normalizeBindings(source, game.id);
+  QVERIFY(!normalized["media"]["TEST-00002"]["verified"].get<bool>());
+  QVERIFY(normalized["media"]["TEST-00002"]["verificationError"].get<std::string>().find("scan again") != std::string::npos);
+  QVERIFY_THROWS_EXCEPTION(install::Error, launch::flatRequest(catalog, game.id, temp.path(), source));
+  // Current scanners emit this marker only for all physically checked CHDs.
+  // Here synthetic bytes exercise receipt policy without opening CHD payloads.
+  source["bindings"][0]["chdBounds"] = {{"version", 1}, {"paths", Json::array({chd.toStdString()})}};
+  // A marker alone cannot upgrade old unchecked file-identity metadata.
+  QVERIFY(!launch::normalizeBindings(source, game.id)["media"]["TEST-00002"]["verified"].get<bool>());
+  for (auto &file : source["files"])
+    if (file["path"] == chd.toStdString()) file["chdHeaderBoundsOk"] = true;
+  normalized = launch::normalizeBindings(source, game.id);
+  QVERIFY(normalized["media"]["TEST-00002"]["verified"].get<bool>());
+  try {
+    QCOMPARE(launch::flatRequest(catalog, game.id, temp.path(), source).variantId, route.id);
+  } catch (const std::exception &error) {
+    QFAIL(qPrintable(QString::fromUtf8(error.what())));
+  }
+  source["bindings"][0]["chdBounds"]["paths"] = Json::array();
+  QVERIFY(!launch::normalizeBindings(source, game.id)["media"]["TEST-00002"]["verified"].get<bool>());
+}
 void LaunchSteamTest::toolChangesRefused() {
   QTemporaryDir temp;
   const auto path = temp.path() + "/synthetic.exe";
@@ -764,26 +834,89 @@ void LaunchSteamTest::boundedLogsAndConcurrentLastPlayed() {
     const auto path = temp.path() + "/user/last-played.json";
     if (!QFileInfo::exists(path)) return false;
     const auto times = Json::parse(install::readBytes(path).toStdString());
-    return (times.contains("test-game") || !firstWarnings.isEmpty()) && (times.contains("other-game") || !secondWarnings.isEmpty());
+    return times.contains("test-game") && times.contains("other-game");
   })(), 5000);
+  QCOMPARE(firstWarnings.count(), 0); QCOMPARE(secondWarnings.count(), 0);
 }
 void LaunchSteamTest::lastPlayedLockRefusal() {
   QTemporaryDir temp;QDir().mkpath(temp.path()+"/user/locks");QLockFile lock(temp.path()+"/user/locks/last-played.lock");QVERIFY(lock.tryLock());
   launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=false;r.plan.executable=QCoreApplication::applicationFilePath();r.plan.cwd=temp.path();r.plan.args={"--synthetic-child","0"};
   launch::LaunchService service;
   QSignalSpy done(&service, &launch::LaunchService::finished), warnings(&service, &launch::LaunchService::warning);
-  bool guiProbe = false;
-  QTimer::singleShot(0, this, [&] { guiProbe = true; });
+  int heartbeats = 0;
+  QTimer heartbeat; heartbeat.setInterval(10);
+  connect(&heartbeat, &QTimer::timeout, this, [&] { ++heartbeats; });
+  heartbeat.start();
   QElapsedTimer elapsed; elapsed.start();
   QVERIFY(service.start(r));
   QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 10000);
   QCOMPARE(done[0][1].toInt(), 0);
   QVERIFY(done[0][2].toString().isEmpty());
-  QVERIFY(elapsed.elapsed() < 900); // Metadata contention never waits for 1 second.
+  QVERIFY(elapsed.elapsed() >= 1200);
+  QVERIFY(elapsed.elapsed() < 3500); // Bounded worker lock wait, including process startup.
   QTRY_COMPARE_WITH_TIMEOUT(warnings.count(), 1, 5000);
   QVERIFY(warnings[0][1].toString().contains("Last-played state is locked"));
-  QVERIFY(guiProbe); // The event loop runs while persistence uses the worker.
+  QVERIFY(heartbeats > 30); // GUI event processing continues throughout the worker wait.
   QVERIFY(!service.busy());
+  QVERIFY(!QFileInfo::exists(temp.path() + "/user/last-played.json"));
+}
+void LaunchSteamTest::transientLastPlayedLockHandoff() {
+  QTemporaryDir temp;
+  QDir().mkpath(temp.path() + "/user/locks");
+  QLockFile held(temp.path() + "/user/locks/last-played.lock");
+  QVERIFY(held.tryLock());
+  launch::Request request;
+  request.root = temp.path(); request.gameId = "test-game"; request.variantId = "flat-test";
+  request.prepareProfile = false; request.plan.executable = QCoreApplication::applicationFilePath();
+  request.plan.cwd = temp.path(); request.plan.args = {"--synthetic-child", "0"};
+  launch::LaunchService service;
+  QSignalSpy done(&service, &launch::LaunchService::finished), warnings(&service, &launch::LaunchService::warning);
+  connect(&service, &launch::LaunchService::playingChanged, this, [&] {
+    if (!service.playing()) QTimer::singleShot(150, this, [&] { held.unlock(); });
+  });
+  QVERIFY(service.start(request));
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 5000);
+  QCOMPARE(done[0][1].toInt(), 0); QVERIFY(done[0][2].toString().isEmpty());
+  QCOMPARE(warnings.count(), 0);
+  const auto times = Json::parse(install::readBytes(temp.path() + "/user/last-played.json").toStdString());
+  QVERIFY(times.contains(request.gameId.toStdString())); QVERIFY(!service.busy());
+}
+void LaunchSteamTest::completionIndependentOfGlobalPool() {
+  auto *global = QThreadPool::globalInstance();
+  const auto previousLimit = global->maxThreadCount();
+  global->setMaxThreadCount(1);
+  QSemaphore entered, release;
+  auto blocker = QtConcurrent::run(global, [&] { entered.release(); release.acquire(); });
+  auto cleanup = qScopeGuard([&] { release.release(); blocker.waitForFinished(); global->setMaxThreadCount(previousLimit); });
+  QVERIFY(entered.tryAcquire(1, 5000));
+  QTemporaryDir temp;
+  launch::Request request;
+  request.root = temp.path(); request.gameId = "test-game"; request.variantId = "flat-test";
+  request.prepareProfile = false; request.plan.executable = QCoreApplication::applicationFilePath();
+  request.plan.cwd = temp.path(); request.plan.args = {"--synthetic-child", "0"};
+  launch::LaunchService service;
+  QSignalSpy done(&service, &launch::LaunchService::finished);
+  QVERIFY(service.start(request));
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 5000);
+  QVERIFY(!blocker.isFinished()); // Completion succeeded while the global worker remained occupied.
+  QCOMPARE(done[0][1].toInt(), 0); QVERIFY(done[0][2].toString().isEmpty());
+  QVERIFY(QFileInfo::exists(temp.path() + "/user/last-played.json"));
+}
+void LaunchSteamTest::pendingPersistenceTeardownBounded() {
+  QTemporaryDir temp;
+  QDir().mkpath(temp.path() + "/user/locks");
+  QLockFile held(temp.path() + "/user/locks/last-played.lock");
+  QVERIFY(held.tryLock());
+  launch::Request request;
+  request.root = temp.path(); request.gameId = "test-game"; request.variantId = "flat-test";
+  request.prepareProfile = false; request.plan.executable = QCoreApplication::applicationFilePath();
+  request.plan.cwd = temp.path(); request.plan.args = {"--synthetic-child", "0"};
+  auto service = std::make_unique<launch::LaunchService>();
+  QVERIFY(service->start(request));
+  QTRY_VERIFY_WITH_TIMEOUT(!service->playing() && service->busy(), 5000);
+  QElapsedTimer elapsed; elapsed.start();
+  service.reset(); // Drains its owned pool; no detached task retains session state.
+  QVERIFY(elapsed.elapsed() < 2500);
   QVERIFY(!QFileInfo::exists(temp.path() + "/user/last-played.json"));
 }
 void LaunchSteamTest::completionBlocksReentrantStart() {

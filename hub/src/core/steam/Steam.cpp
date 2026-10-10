@@ -216,12 +216,9 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
       owned = &root->children.last();
     }
     set(*owned, integer("appid", r.id));
-    // Explicit AppIds are durable. New shortcuts also retain their game identity
-    // used as the CRC disambiguator; existing owned AppIds stay unchanged.
-    if (!r.ownedFound)
-      set(*owned, text("AladdinsCastleDisambiguator", s.gameId));
-    else
-      field(*owned, "AladdinsCastleDisambiguator");
+    // Ownership tags already store the game identity used by the CRC suffix.
+    // Remove the obsolete Hub-only field while preserving every user field.
+    owned->children.removeIf([](const Node &n) { return n.key == "AladdinsCastleDisambiguator"; });
     set(*owned, text("AppName", s.title));
     set(*owned, text("Exe", quote(s.executable)));
     set(*owned, text("StartDir", quote(s.startDir)));
@@ -312,7 +309,6 @@ Preview preview(const WriteRequest &r) {
   Document beforeDocument, afterDocument;
   const auto *prior = ownedShortcut(before, r.shortcut.gameId, beforeDocument);
   const auto *next = ownedShortcut(p.edit.bytes, r.shortcut.gameId, afterDocument);
-  p.json["appidDisambiguator"] = fieldValue(next ? field(*next, "AladdinsCastleDisambiguator") : (prior ? field(*prior, "AladdinsCastleDisambiguator") : nullptr));
   if (r.remove)
     p.json["launchOptions"] = fieldValue(prior ? field(*prior, "LaunchOptions") : nullptr);
   p.json["userFields"] = Json::object();

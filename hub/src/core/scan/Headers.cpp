@@ -5,11 +5,13 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
+#include <QSet>
 #include <QRegularExpression>
 #include <QtEndian>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <mutex>
 extern "C" {
 #include <7z.h>
@@ -473,10 +475,61 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
              qFromBigEndian<quint32>(header.constData() + 12) == 5 &&
              qFromBigEndian<quint32>(header.constData() + 8) == 124) {
     r.kind = "chd-sha1";
+    const auto mapOffset = qFromBigEndian<quint64>(header.constData() + 40),
+               metadataOffset = qFromBigEndian<quint64>(header.constData() + 48),
+               fileBytes = static_cast<quint64>(f.size());
+    const auto fits = [fileBytes](quint64 offset, quint64 bytes) {
+      return offset >= 124 && offset <= fileBytes && bytes <= fileBytes - offset;
+    };
+    bool mapFits = true;
+    if (mapOffset) {
+      if (qFromBigEndian<quint32>(header.constData() + 16) != 0) {
+        mapFits = fits(mapOffset, 16);
+        if (mapFits) {
+          const auto mapHeader = readAt(f, static_cast<qint64>(mapOffset), 16);
+          mapFits = mapHeader.size() == 16 && fits(mapOffset + 16,
+              qFromBigEndian<quint32>(mapHeader.constData()));
+        }
+      } else {
+        const auto logical = qFromBigEndian<quint64>(header.constData() + 32);
+        const auto hunk = qFromBigEndian<quint32>(header.constData() + 56);
+        const auto hunks = hunk ? logical / hunk + (logical % hunk != 0) : quint64(0);
+        mapFits = hunk && hunks <= std::numeric_limits<quint64>::max() / 4 && fits(mapOffset, hunks * 4);
+      }
+    }
+    bool metadataFits = true;
+    QString metadataBoundsError;
+    QSet<quint64> visited;
+    auto nextMetadata = metadataOffset;
+    // Only headers are read: at most 256 nodes / 4 KiB, no metadata payload.
+    while (nextMetadata && metadataFits) {
+      if (visited.contains(nextMetadata)) {
+        metadataFits = false; metadataBoundsError = "CHD metadata chain cycle"; break;
+      }
+      if (visited.size() >= 256) {
+        metadataFits = false; metadataBoundsError = "CHD metadata header budget exceeded"; break;
+      }
+      visited.insert(nextMetadata);
+      metadataFits = fits(nextMetadata, 16);
+      if (!metadataFits) break;
+      const auto metadataHeader = readAt(f, static_cast<qint64>(nextMetadata), 16);
+      metadataFits = metadataHeader.size() == 16;
+      if (!metadataFits) break;
+      const auto length = qFromBigEndian<quint32>(metadataHeader.constData() + 4) & 0x00ffffffU;
+      metadataFits = fits(nextMetadata + 16, length);
+      nextMetadata = qFromBigEndian<quint64>(metadataHeader.constData() + 8);
+    }
+    r.chdHeaderBoundsOk = mapFits && metadataFits;
+    if (!r.chdHeaderBoundsOk) {
+      r.error = metadataBoundsError.isEmpty() ? "CHD map or metadata lies outside the physical file" : metadataBoundsError;
+      return r;
+    }
     r.identity = QString::fromLatin1(header.mid(84, 20).toHex());
     r.chdHeaderSha1 = r.identity;
-    if (header.mid(84, 20) == QByteArray(20, '\0'))
+    if (header.mid(84, 20) == QByteArray(20, '\0')) {
       r.identity.clear();
+      r.chdHeaderSha1.clear();
+    }
     QString sparseError;
     const auto discSerial = chdSerial(f, header, cancel, sparseError);
     if (!discSerial.isEmpty()) {

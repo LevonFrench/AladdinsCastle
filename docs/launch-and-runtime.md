@@ -102,10 +102,10 @@ Integer-like fields (`IsHidden`, `OpenVR`, and the rest) must match the type Ste
 
 ### 5.3 AppId and idempotency
 
-- Steam ROM Manager convention (not a claim about Steam internals): `appid = CRC32(Exe + AppName) | 0x80000000`, using UTF-8 bytes, the stored quoted `Exe`, reflected polynomial 0xEDB88320, and no terminating NUL. [V: Steam ROM Manager primary `generate-app-id.ts`, read 2026-10-09; owner-PC Steam verification pending] The 64-bit launch ID is `(uint64(appid) << 32) | 0x02000000`.
-- Key: `appid`. A matching entry is updated; a missing one is appended.
-- Only entries tagged `AladdinsCastle` are ever updated or removed.
-- Retain the AppId already stored in a matching owned game entry when renaming a setup or moving the Hub. Ownership requires both `AladdinsCastle` and `AladdinsCastle:<game-id>` tags. Refuse any AppId collision with a different entry.
+- The generic Steam ROM Manager convention is `CRC32(Exe + AppName) | 0x80000000`. It is a community shortcut convention, not a claim about Steam internals. [V: Steam ROM Manager primary `generate-app-id.ts`, read 2026-10-09; real Steam verification pending]
+- The Hub deliberately disambiguates new game entries with `appid = CRC32(Exe + AppName + "\nAladdinsCastle:" + gameId) | 0x80000000`. The inputs use UTF-8 bytes, the stored quoted `Exe`, reflected polynomial `0xEDB88320`, and no terminating NUL. `\n` denotes one LF byte. The title written to `AppName` remains the catalog title. The 64-bit launch ID is `(uint64(appid) << 32) | 0x02000000`. [V: `Steam.cpp`, `BinaryVdf.cpp` and synthetic same-title/CRC regression tests]
+- Lookup uses both ownership tags, `AladdinsCastle` and `AladdinsCastle:<game-id>`, rather than recomputing an existing AppId. A matching owned game entry is updated; a missing entry is appended. The ownership tag already retains the game ID; no separate disambiguator VDF field is written.
+- Retain the AppId already stored in a matching owned game entry when renaming a setup or moving the Hub, including older entries created with a different CRC input. Preserve user fields, and refuse any AppId collision with a different entry. Remove only an owned entry whose stored launch game and explicit variant match the removal request.
 
 ### 5.4 Art
 

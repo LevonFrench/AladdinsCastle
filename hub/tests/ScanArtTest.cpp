@@ -439,8 +439,22 @@ private slots:
     QVERIFY2(identity.error.isEmpty(), qPrintable(identity.error));
     QCOMPARE(identity.chdHeaderSha1, sha);
     result = ac::scan::Scanner::run(catalog(), o, stop);
+#ifdef Q_OS_WIN
     QVERIFY(result.bindings[0].verified);
     QVERIFY(result.bindings[0].supportPaths.contains(t.filePath("TeSt/game.chd")));
+#else
+    QVERIFY(!result.bindings[0].verified); // Linux MAME folders are case sensitive.
+    save(t.filePath("test/game.chd"), chd);
+    result = ac::scan::Scanner::run(catalog(), o, stop);
+    QVERIFY(result.bindings[0].verified);
+    QVERIFY(result.bindings[0].supportPaths.contains(t.filePath("test/game.chd")));
+#endif
+    const auto receipt=result.toJson();
+    QVERIFY(ac::scan::hasValidatedChdBounds(receipt["bindings"][0],receipt["files"]));
+    auto unchecked=result;
+    for(auto &file:unchecked.files)if(file.kind.startsWith("chd-"))file.chdHeaderBoundsOk=false;
+    const auto uncheckedReceipt=unchecked.toJson();
+    QVERIFY(!uncheckedReceipt["bindings"][0].contains("chdBounds"));
     save(xml, metadata(QString(40, '0')));
     result = ac::scan::Scanner::run(catalog(), o, stop);
     QVERIFY(!result.bindings[0].verified);
@@ -524,23 +538,77 @@ private slots:
     QTemporaryDir t;
     auto chd = syntheticChd();
     const auto sha = QString::fromLatin1(chd.mid(84, 20).toHex());
-    // A deliberately unsupported sparse map keeps its independent header SHA.
-    qToBigEndian<quint64>(quint64(chd.size() + 100), chd.data() + 40);
-    save(t.filePath("PaReNt/base.chd"), chd);
+    // Parent-dependent sparse decoding is unsupported, with bounded physical offsets.
+    chd[104] = 1;
+    save(t.filePath("parent/base.chd"), chd);
     save(t.filePath("unrelated.zip"), zip({{0x98765432, 100}}));
     const auto xml = t.filePath("metadata.xml");
     save(xml, QString("<mame><machine name='parent'/><machine name='test' cloneof='parent'>"
                       "<disk name='clone' merge='base' sha1='%1'/></machine></mame>").arg(sha).toUtf8());
     std::atomic_bool stop = false;
-    const auto inspected = ac::scan::Scanner::inspect(t.filePath("PaReNt/base.chd"), stop);
+    const auto inspected = ac::scan::Scanner::inspect(t.filePath("parent/base.chd"), stop);
     QVERIFY(!inspected.error.isEmpty()); QCOMPARE(inspected.chdHeaderSha1, sha);
+    QVERIFY(inspected.chdHeaderBoundsOk);
     ac::scan::ScanOptions options; options.mediaRoots = {t.path()}; options.mameXml = xml;
     auto result = ac::scan::Scanner::run(catalog(), options, stop);
     QVERIFY(result.bindings[0].verified);
-    QCOMPARE(result.bindings[0].path, t.filePath("PaReNt/base.chd"));
+    QCOMPARE(result.bindings[0].path, t.filePath("parent/base.chd"));
     QCOMPARE(result.bindings[0].identity, QString("test"));
-    QFile::remove(t.filePath("PaReNt/base.chd"));
+    auto receipt=result.toJson();
+    QVERIFY(ac::scan::hasValidatedChdBounds(receipt["bindings"][0],receipt["files"]));
+    QVERIFY(receipt["bindings"][0].contains("chdBounds"));
+    auto unchecked=result;
+    for(auto &file:unchecked.files)if(file.kind.startsWith("chd-"))file.chdHeaderBoundsOk=false;
+    const auto uncheckedReceipt=unchecked.toJson();
+    QVERIFY(!uncheckedReceipt["bindings"][0].contains("chdBounds"));
+    QVERIFY(!ac::scan::hasValidatedChdBounds(uncheckedReceipt["bindings"][0],uncheckedReceipt["files"]));
+    QFile::remove(t.filePath("parent/base.chd"));
     result = ac::scan::Scanner::run(catalog(), options, stop);
+    QVERIFY(!result.bindings[0].verified); QVERIFY(result.bindings[0].path.isEmpty());
+  }
+  void chdPhysicalOffsetsRejectTruncation_data() {
+    QTest::addColumn<QString>("kind");
+    for (const auto *kind : {"map-beyond", "map-eof", "map-range", "compressed-header",
+                            "compressed-range", "metadata-beyond", "metadata-eof", "metadata-header",
+                            "metadata-body", "metadata-next", "metadata-next-body", "metadata-cycle", "metadata-budget"})
+      QTest::newRow(kind) << QString(kind);
+  }
+  void chdPhysicalOffsetsRejectTruncation() {
+    QFETCH(QString, kind); QTemporaryDir t; auto data = syntheticChd();
+    const auto sha = QString::fromLatin1(data.mid(84, 20).toHex());
+    const auto size = quint64(data.size());
+    if (kind == "map-beyond" || kind == "map-eof")
+      qToBigEndian<quint64>(size + (kind == "map-beyond" ? 100 : 0), data.data() + 40);
+    else if (kind == "map-range") qToBigEndian<quint64>(size - 4, data.data() + 40);
+    else if (kind == "compressed-header" || kind == "compressed-range") {
+      qToBigEndian<quint32>(1, data.data() + 16);
+      qToBigEndian<quint64>(size - (kind == "compressed-header" ? 4 : 16), data.data() + 40);
+      if (kind == "compressed-range") qToBigEndian<quint32>(100, data.data() + data.size() - 16);
+    } else if (kind == "metadata-next-body" || kind == "metadata-cycle" || kind == "metadata-budget") {
+      data[104]=1; // The sparse decoder would otherwise return early for this parent-dependent CHD.
+      const auto first=quint64(data.size());
+      const int nodes=kind=="metadata-budget"?257:2;
+      data.append(QByteArray(nodes*16,0));
+      qToBigEndian<quint64>(first,data.data()+48);
+      for(int i=0;i<nodes-1;++i)qToBigEndian<quint64>(first+quint64((i+1)*16),data.data()+first+quint64(i*16)+8);
+      if(kind=="metadata-next-body")qToBigEndian<quint32>(100,data.data()+first+20);
+      if(kind=="metadata-cycle")qToBigEndian<quint64>(first,data.data()+first+24);
+    } else if (kind == "metadata-body" || kind == "metadata-next") {
+      qToBigEndian<quint64>(size - 16, data.data() + 48);
+      data.replace(data.size()-16,16,QByteArray(16,0));
+      if(kind=="metadata-body") qToBigEndian<quint32>(100,data.data()+data.size()-12);
+      else qToBigEndian<quint64>(size+100,data.data()+data.size()-8);
+    } else qToBigEndian<quint64>(kind == "metadata-beyond" ? size + 100 :
+                               kind == "metadata-eof" ? size : size - 4, data.data() + 48);
+    save(t.filePath("test/base.chd"), data);
+    std::atomic_bool stop = false;
+    const auto inspected = ac::scan::Scanner::inspect(t.filePath("test/base.chd"), stop);
+    QVERIFY(!inspected.chdHeaderBoundsOk); QVERIFY(inspected.chdHeaderSha1.isEmpty());
+    QVERIFY(inspected.error.contains(kind=="metadata-cycle"?"cycle":kind=="metadata-budget"?"budget":"physical file"));
+    const auto xml = t.filePath("metadata.xml");
+    save(xml, QString("<mame><machine name='test'><disk name='base' sha1='%1'/></machine></mame>").arg(sha).toUtf8());
+    ac::scan::ScanOptions options; options.mediaRoots = {t.path()}; options.mameXml = xml;
+    const auto result = ac::scan::Scanner::run(catalog(), options, stop);
     QVERIFY(!result.bindings[0].verified); QVERIFY(result.bindings[0].path.isEmpty());
   }
   void requestedSetWinsEqualFamilyScore() {
@@ -554,6 +622,26 @@ private slots:
     const auto result = ac::scan::Scanner::run(catalog(), options, stop);
     QVERIFY(result.bindings[0].verified); QCOMPARE(result.bindings[0].identity, QString("test"));
   }
+  void legacyChdCacheRechecksPhysicalBounds() {
+    QTemporaryDir t; auto data = syntheticChd();
+    const auto sha = QString::fromLatin1(data.mid(84, 20).toHex());
+    qToBigEndian<quint64>(quint64(data.size() + 100), data.data() + 40);
+    save(t.filePath("test/base.chd"), data);
+    const auto xml = t.filePath("metadata.xml");
+    save(xml, QString("<mame><machine name='test'><disk name='base' sha1='%1'/></machine></mame>").arg(sha).toUtf8());
+    ac::scan::ScanOptions options; options.mediaRoots = {t.path()}; options.mameXml = xml;
+    options.userRoot = t.filePath("user"); std::atomic_bool stop = false;
+    const auto first = ac::scan::Scanner::run(catalog(), options, stop);
+    QCOMPARE(first.files.size(),1); QVERIFY(!first.files[0].chdHeaderBoundsOk);
+    const auto cachePath = options.userRoot + "/cache/scan.toml";
+    QFile cache(cachePath); QVERIFY(cache.open(QIODevice::ReadOnly)); auto bytes = cache.readAll(); cache.close();
+    bytes.replace("\"chdHeaderBoundsOk\":false,", "");
+    bytes.replace("\\\"chdHeaderBoundsOk\\\":false,", "");
+    QVERIFY(!bytes.contains("chdHeaderBoundsOk")); save(cachePath,bytes);
+    const auto second = ac::scan::Scanner::run(catalog(), options, stop);
+    QCOMPARE(second.files.size(),1); QVERIFY(!second.files[0].cacheHit);
+    QVERIFY(!second.files[0].chdHeaderBoundsOk); QVERIFY(!second.bindings[0].verified);
+  }
   void chdMapBudgetAllowsLargeSparseDiscs() {
     QTemporaryDir t;
     const auto path = t.filePath("large-synthetic.chd");
@@ -563,10 +651,23 @@ private slots:
     const auto inspected = ac::scan::Scanner::inspect(path, stop);
     QVERIFY2(inspected.error.isEmpty(), qPrintable(inspected.error));
     QCOMPARE(inspected.kind, QString("chd-sha1"));
+    QVERIFY(inspected.chdHeaderBoundsOk);
     QVERIFY(!inspected.chdHeaderSha1.isEmpty());
+    // Increasing logical size alone leaves a truncated raw map. Physical
+    // bounds must reject it before allocation-driving dimensions are checked.
     qToBigEndian<quint64>(100ULL * 1024 * 1024 * 1024, data.data() + 32);
     save(path, data);
+    const auto truncated = ac::scan::Scanner::inspect(path, stop);
+    QVERIFY(truncated.error.contains("physical file"));
+    QVERIFY(!truncated.chdHeaderBoundsOk);
+    QVERIFY(truncated.chdHeaderSha1.isEmpty());
+    // A complete raw map one entry over 32 MiB isolates the sparse-read budget
+    // from physical truncation, without allocating its logical disc contents.
+    data = syntheticChd(((32ULL * 1024 * 1024) / 4 + 1) * 4096);
+    save(path, data);
     const auto over = ac::scan::Scanner::inspect(path, stop);
+    QVERIFY(over.chdHeaderBoundsOk);
+    QVERIFY(!over.chdHeaderSha1.isEmpty());
     QVERIFY(over.error.contains("dimensions"));
   }
   void pcProofIsExplicitlyNameOnly() {

@@ -100,13 +100,22 @@ void UiController::scan(const QStringList &roots){startScan(roots);}
 void UiController::startScan(const QStringList &roots){if(m_scanning)return;if(roots.isEmpty()){message("Choose at least one folder to scan.");return;}m_scanning=true;emit scanChanged();message("Scan requested; waiting for scanner.");emit scanRequested(roots);}
 void UiController::cancelScan(){if(!m_scanning)return;emit cancelScanRequested();message("Scan cancellation requested.");}
 void UiController::showError(const QString &operation,const QString &text){message(operation+": "+text);}
+void UiController::overlayFallback(const QString &reason){showError("Overlay unavailable",reason);}
 void UiController::settingsSaved(const QString &id){emit detailChanged();message("Settings saved for "+game(id).value("title").toString()+". They apply to the next owned install or repair; existing emulator profiles are preserved.");}
 void UiController::startInstall(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated){message("This VR setup is outside M1. Select a flat emulator route.");return;}message("Install requested; waiting for installer.");emit installRequested(id,variantId);return;}}
 void UiController::play(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated){message("This VR setup is outside M1. Select a flat emulator route.");return;}emit playRequested(id,variantId);return;}}
 void UiController::cancelInstall(){emit cancelInstallRequested();message("Cancel requested; the installer stops between steps.");}
+bool UiController::retryGameAvailable()const{
+ const QRegularExpression id("^[a-z0-9]+(?:-[a-z0-9]+)*$");
+ return m_recovery.value("retryKind")=="game"&&m_recovery.value("retryOperation")=="install"&&id.match(m_recovery.value("retryGameId").toString()).hasMatch()&&id.match(m_recovery.value("retryVariantId").toString()).hasMatch();
+}
+bool UiController::retryToolAvailable()const{
+ const QRegularExpression id("^[a-z0-9]+(?:-[a-z0-9]+)*$");
+ return m_recovery.value("retryKind")=="tool"&&m_recovery.value("retryOperation")=="install"&&id.match(m_recovery.value("retryGameId").toString()).hasMatch()&&id.match(m_recovery.value("retryVariantId").toString()).hasMatch();
+}
 void UiController::retryInstall(bool fromStart,const QString &handover){
  const bool recovery=!m_recovery.isEmpty();
- if(recovery&&(m_recovery.value("retryKind")!="game"||m_recovery.value("retryOperation","install")!="install"||m_recovery.value("retryGameId").toString().isEmpty()||m_recovery.value("retryVariantId").toString().isEmpty())){message("Nothing to retry: there is no identified failed game installation.");return;}
+ if(recovery&&!retryGameAvailable()){message("Nothing to retry: there is no identified failed game installation.");return;}
  if(recovery){retryGameInstall(m_recovery.value("retryGameId").toString(),m_recovery.value("retryVariantId").toString(),fromStart,handover);return;}
  auto g=m_games->find(m_detailId);const auto *v=g?variant(*g):nullptr;retryGameInstall(m_detailId,v?v->id:QString(),fromStart,handover);
 }
@@ -117,7 +126,7 @@ void UiController::retryGameInstall(const QString &gameId,const QString &variant
  emit retryInstallRequested(g->id,v->id,fromStart,handover);
 }
 void UiController::retryFailedTool(bool fromStart,const QString &handover){
- if(m_recovery.value("retryKind")!="tool"||m_recovery.value("retryOperation","install")!="install"||m_recovery.value("retryGameId").toString().isEmpty()){message("There is no identified failed tool installation to retry.");return;}
+ if(!retryToolAvailable()){message("There is no identified failed tool installation to retry.");return;}
  emit retryToolInstallRequested(m_recovery.value("retryGameId").toString(),m_recovery.value("retryVariantId").toString(),fromStart,handover);
 }
 void UiController::stopLaunch(){emit stopLaunchRequested();message("Stop requested; the game is asked to close, then forced to stop after the timeout.");}

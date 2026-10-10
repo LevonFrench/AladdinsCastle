@@ -64,10 +64,42 @@ void cleanStaging(const Request &r, const QString &run) {
   if (QFileInfo(staging).exists() && !QFileInfo(staging).isSymLink())
     QDir(staging).removeRecursively();
 }
-void cleanMediaRemovals(const Request &r, const QString &run) {
-  if (!QRegularExpression("^[0-9a-f-]{36}$").match(run).hasMatch()) return;
-  const auto path = scopedPath("user/state/media-removals/" + run, r.root);
-  if (QFileInfo(path).exists() && !QFileInfo(path).isSymLink()) QDir(path).removeRecursively();
+bool runId(const QString &value) {
+  return QRegularExpression("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z").match(value).hasMatch();
+}
+QString cleanMediaRemovals(const Request &r, const QString &run, const Options &options,
+                          const QSet<QString> *trustedMembers = nullptr) {
+  if (!runId(run)) return {};
+  try {
+    const auto path = scopedPath("user/state/media-removals/" + run, r.root);
+    if (!QFileInfo::exists(path)) return {};
+    QSet<QString> owned;
+    if (trustedMembers) owned = *trustedMembers;
+    else {
+      bool first = true;
+      for (const auto &line : readBytes(stateBase(r) + ".journal.jsonl").split('\n')) {
+        if (line.trimmed().isEmpty()) continue;
+        const auto record = Json::parse(line.toStdString());
+        if (first && (string(record, "kind") != "begin" || string(record, "run") != run))
+          throw Error("E_STATE_FORMAT", "Quarantine journal identity differs");
+        first = false;
+        if (string(record, "kind") == "done" && string(record, "op") == "rename" && string(record, "to").startsWith(path + "/"))
+          owned.insert(string(record, "to"));
+      }
+      if (first) throw Error("E_STATE_FORMAT", "Quarantine journal is unavailable");
+    }
+    for (const auto &member : QDir(path).entryInfoList(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot)) {
+      if (!member.isFile() || member.isSymLink() || member.isJunction() || !runId(member.fileName()) || !owned.contains(member.absoluteFilePath()))
+        throw Error("E_PATH_OUTSIDE_ROOT", "Unsafe media quarantine member");
+      scopedPath(member.absoluteFilePath(), r.root);
+    }
+    if (options.mediaRemovalPurge ? options.mediaRemovalPurge(path) : QDir(path).removeRecursively()) return {};
+  } catch (const std::exception &) {
+    // Cleanup is advisory after the transaction is durably terminal.
+  }
+  const auto warning = QString("Copied media removal cleanup is incomplete; temporary quarantine remains for retry");
+  if (options.event) options.event({{"kind", "warn"}, {"code", "E_MEDIA_CLEANUP"}, {"text", warning}});
+  return warning;
 }
 QStringList strings(const Json &v) {
   QStringList out;
@@ -303,7 +335,8 @@ public:
     // Move rather than copy media into a run-local quarantine until commit.
     const auto trash = scopedPath("user/state/media-removals/" + run, r.root);
     if (!QDir().mkpath(trash)) throw Error("E_WRITE_DENIED", "Cannot stage media removal");
-    rename(path, trash + "/" + QUuid::createUuid().toString(QUuid::WithoutBraces));
+    rename(path, trash + "/" + QUuid::createUuid().toString(QUuid::WithoutBraces),
+           "Cannot quarantine copied media for removal");
   }
   void checkpoint() {
     fault(options, "before-manifest");
@@ -353,7 +386,8 @@ public:
     append(intent);
     fault(options, "done");
   }
-  void rename(const QString &from, const QString &to) {
+  void rename(const QString &from, const QString &to,
+              const QString &failure = "Cannot swap install directory") {
     Json intent{{"kind", "intent"},
                 {"op", "rename"},
                 {"path", from.toStdString()},
@@ -361,7 +395,7 @@ public:
     append(intent);
     fault(options, "intent");
     if (QFileInfo::exists(to) || !QDir().rename(from, to))
-      throw Error("E_FILE_IN_USE", "Cannot swap install directory");
+      throw Error("E_FILE_IN_USE", failure);
     fault(options, "write");
     intent["kind"] = "done";
     append(intent);
@@ -631,12 +665,14 @@ bool rollback(const Request &r, const Json &records, const Options &options,
     state["previous_state"] = string(start["state_before"], "state", "not-installed").toStdString();
     state["last_error"] = errorCode.toStdString();
     const auto previous = string(start["state_before"], "state", "not-installed");
-    state["state"] = (complete ? (previous.startsWith("installed") ? previous : QString("failed"))
+    const bool stablePrior = !start["state_before"].empty() && !string(start["state_before"], "state").isEmpty() &&
+        !QSet<QString>{"installing", "updating", "repairing", "uninstalling", "rollback-incomplete"}.contains(previous);
+    state["state"] = (complete ? (stablePrior ? previous : QString("failed"))
                               : QString("rollback-incomplete")).toStdString();
     writeEnvelope(base + ".toml", state);
     if (complete) {
       durableAppend(base + ".journal.jsonl", Json{{"kind", "rollback-complete"}});
-      cleanMediaRemovals(r, string(start, "run"));
+      cleanMediaRemovals(r, string(start, "run"), options);
     }
   }
   event(options, {}, complete ? "ok" : "fail",
@@ -1192,9 +1228,10 @@ Result Engine::install(const Request &r) {
         continue;
       const auto path = scopedPath(string(row, "path"), tx->dir);
       if (update && QFileInfo::exists(path) &&
-          hashFile(path) == string(row, "sha256"))
-        tx->rawWrite(path, {}, true);
-      else {
+          hashFile(path) == string(row, "sha256")) {
+        if (string(row, "origin") == "user-media-copy") tx->removeMediaCopy(path);
+        else tx->rawWrite(path, {}, true);
+      } else {
         tx->manifest["file"].push_back(row);
         if (update) {
           tx->warning = true;
@@ -1226,6 +1263,7 @@ Result Engine::install(const Request &r) {
                                      : QString("installed");
     tx->commit(state, p.version);
     cleanStaging(r, tx->run);
+    cleanMediaRemovals(r, tx->run, options_);
     return {true, 0, state, {}, "Installed and verified", tx->manifest};
   } catch (const Error &e) {
     bool complete = true;
@@ -1347,7 +1385,7 @@ Result Engine::uninstall(const Request &r) {
     const auto state = remaining.empty() ? QString("not-installed")
                                          : QString("uninstall-incomplete");
     tx->commit(state, p.version);
-    cleanMediaRemovals(r, tx->run);
+    cleanMediaRemovals(r, tx->run, options_);
     return {remaining.empty(),
             remaining.empty() ? 0 : 2,
             state,
@@ -1366,6 +1404,97 @@ Result Engine::uninstall(const Request &r) {
             Json::object()};
   }
 }
+QStringList Engine::sweepFinishedMediaRemovals(const QString &root) const {
+  QStringList warnings;
+  try {
+    const auto trashRoot = scopedPath("user/state/media-removals", root);
+    if (!QFileInfo::exists(trashRoot)) return warnings;
+    const auto installs = scopedPath("user/state/installs", root);
+    const auto locks = scopedPath("user/state/locks", root);
+    if (!QDir().mkpath(locks)) throw Error("E_WRITE_DENIED", "Cannot lock media cleanup");
+    QLockFile lock(locks + "/global.lock"); lock.setStaleLockTime(0);
+    if (!lock.tryLock(0)) {
+      warnings << "Temporary copied media cleanup deferred while an install is active";
+      return warnings;
+    }
+    QMap<QString, QSet<QString>> finished;
+    QSet<QString> interrupted;
+    const QRegularExpression id("\\A[a-z0-9]+(?:-[a-z0-9]+)*\\z");
+    for (const auto &game : QDir(installs).entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks)) {
+      if (game.isJunction() || !id.match(game.fileName()).hasMatch()) continue;
+      scopedPath(game.absoluteFilePath(), root);
+      for (const auto &journal : QDir(game.absoluteFilePath()).entryInfoList(
+               {"*.journal.jsonl", "*.journal.jsonl.previous"}, QDir::Files | QDir::NoSymLinks)) {
+        QString run;
+        try {
+          if (journal.isJunction()) continue;
+          scopedPath(journal.absoluteFilePath(), root);
+          const auto suffix = journal.fileName().endsWith(".previous")
+              ? QString(".journal.jsonl.previous") : QString(".journal.jsonl");
+          const auto variant = journal.fileName().chopped(suffix.size());
+          if (!id.match(variant).hasMatch()) continue;
+          Json records = Json::array();
+          for (const auto &line : readBytes(journal.absoluteFilePath()).split('\n')) {
+            if (line.trimmed().isEmpty()) continue;
+            const auto record = Json::parse(line.toStdString());
+            if (!record.is_object()) throw Error("E_STATE_FORMAT", "Invalid cleanup journal");
+            records.push_back(record);
+            if (records.size() == 1) run = string(record, "run");
+          }
+          if (!runId(run) || records.empty() || string(records[0], "kind") != "begin") continue;
+          const auto &terminal = records.back();
+          const auto kind = string(terminal, "kind");
+          if (kind != "commit" && kind != "rollback-complete") {
+            interrupted.insert(run); continue;
+          }
+          if (kind == "commit") {
+            const auto state = terminal.value("state", Json::object());
+            const auto manifest = terminal.value("manifest", Json::object());
+            const auto priorRun = string(records[0].value("state_before", Json::object()), "run");
+            if (string(state, "run") != run ||
+                (string(manifest, "run") != run && string(manifest, "run") != priorRun) ||
+                string(state, "game") != game.fileName() || string(manifest, "game") != game.fileName() ||
+                string(state, "variant") != variant || string(manifest, "variant") != variant)
+              throw Error("E_STATE_FORMAT", "Cleanup receipt identity differs");
+          }
+          QSet<QString> destinations;
+          const auto trash = scopedPath(trashRoot + "/" + run, root);
+          for (size_t i = 1; i < records.size(); ++i) {
+            const auto &record = records[i];
+            if (string(record, "kind") == "begin") throw Error("E_STATE_FORMAT", "Duplicate journal begin");
+            if (string(record, "kind") != "done" || string(record, "op") != "rename") continue;
+            const auto to = string(record, "to");
+            if (!to.startsWith(trash + "/")) continue;
+            const auto member = scopedPath(to, trash);
+            if (QFileInfo(member).absolutePath() != trash || !runId(QFileInfo(member).fileName()))
+              throw Error("E_STATE_FORMAT", "Cleanup destination differs");
+            scopedPath(string(record, "path"), root);
+            destinations.insert(member);
+          }
+          if (!destinations.isEmpty()) finished[run].unite(destinations);
+        } catch (const std::exception &) {
+          if (runId(run)) interrupted.insert(run);
+          // Invalid/untrusted journals never authorize deletion.
+        }
+      }
+    }
+    for (auto it = finished.cbegin(); it != finished.cend(); ++it) {
+      if (interrupted.contains(it.key())) continue;
+      const auto trash = scopedPath(trashRoot + "/" + it.key(), root);
+      if (!QFileInfo::exists(trash)) continue;
+      bool trusted = true;
+      for (const auto &member : QDir(trash).entryInfoList(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot))
+        if (!member.isFile() || member.isSymLink() || member.isJunction() || !it.value().contains(member.absoluteFilePath())) trusted = false;
+      if (!trusted) continue;
+      Request request; request.root = root;
+      const auto warning = cleanMediaRemovals(request, it.key(), options_, &it.value());
+      if (!warning.isEmpty()) warnings << warning;
+    }
+  } catch (const std::exception &) {
+    warnings << "Temporary copied media cleanup deferred because its local evidence is unsafe or unavailable";
+  }
+  return warnings;
+}
 Result Engine::recover(const Request &r) {
   try {
     Lock lock(r);
@@ -1376,12 +1505,14 @@ Result Engine::recover(const Request &r) {
     if (records.empty())
       return {true, 4, {}, {}, "No interrupted run", Json::object()};
     for (auto it = records.rbegin(); it != records.rend(); ++it) {
-      if (string(*it, "kind") == "rollback-complete")
+      if (string(*it, "kind") == "rollback-complete") {
+        cleanMediaRemovals(r, string(records[0], "run"), options_);
         return {true, 4, {}, {}, "Already rolled back", Json::object()};
+      }
       if (string(*it, "kind") == "commit") {
         writeEnvelope(base + ".manifest.toml", (*it)["manifest"]);
         writeEnvelope(base + ".toml", (*it)["state"]);
-        cleanMediaRemovals(r, string(records[0], "run"));
+        cleanMediaRemovals(r, string(records[0], "run"), options_);
         return {true,
                 0,
                 string((*it)["state"], "state"),

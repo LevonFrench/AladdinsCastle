@@ -222,7 +222,13 @@ void validate(GameRecord &g, const CatalogData &data, const QSet<QString> &ids) 
         }
     }
     const auto variants = object(g.install, "variant");
+    if (g.install.contains("variant") && !g.install["variant"].is_object())
+        warn("variant must be a table", true);
     for (auto it = variants.begin(); it != variants.end(); ++it) {
+        const auto name = QString::fromStdString(it.key());
+        if (!it.value().is_object()) { warn("variant." + name + " must be a table", true); continue; }
+        if (it.value().contains("needs") && !it.value()["needs"].is_object())
+            warn("variant." + name + ".needs must be a table", true);
         const auto needs = object(it.value(), "needs");
         if (needs.contains("media") && (!needs["media"].is_array() ||
             std::any_of(needs["media"].begin(), needs["media"].end(),
@@ -260,6 +266,8 @@ void validate(GameRecord &g, const CatalogData &data, const QSet<QString> &ids) 
     if (!j.contains("players") || !j["players"].is_number_integer() || integer(j, "players") < 1)
         warn("players missing or invalid");
     const auto ct = str(object(j, "controls"), "type");
+    if (j.contains("controls") && !j["controls"].is_object())
+        warn("controls must be a table", true);
     if (!ct.isEmpty() && !QStringList{"gun", "wheel", "handlebars", "bike", "ski", "joystick",
                                       "yoke", "boat", "other"}
                               .contains(ct))
@@ -510,7 +518,9 @@ CatalogData CatalogLoader::load(const QString &root) const {
             read(folder + "/game.toml", g.raw, g.provenance, true);
             if (QFileInfo::exists(folder + "/install.toml"))
                 g.hasRecipe = true;
-            read(folder + "/install.toml", g.install, g.installProvenance, true);
+            // A broken authored recipe warns without hiding a working generated
+            // flat route. Recipe execution still requires a parsed variant.
+            read(folder + "/install.toml", g.install, g.installProvenance, false);
             QDir setup(folder + "/setup");
             for (const auto &file : setup.entryList({"*.toml"}, QDir::Files, QDir::Name)) {
                 const auto key = QFileInfo(file).baseName().toStdString();

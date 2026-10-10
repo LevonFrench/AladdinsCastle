@@ -20,6 +20,8 @@ public:
     virtual void acknowledgeQuit() = 0;
     virtual void shutdown() = 0;
 };
+// Loads and checks exports only; never calls VR_Init or contacts SteamVR.
+bool probeOpenVrLibrary(QString *error);
 std::unique_ptr<OverlayRuntime> makeOpenVrRuntime();
 // Only the two explicit command-line actions call this function.
 bool changeOverlayRegistration(const QString &manifest, bool add, QString *error);

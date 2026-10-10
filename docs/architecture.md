@@ -126,7 +126,7 @@ Priority (owner, 2026-10-08): **1. Steam Frame**, **2. Quest 3 over PC**, **3. Q
 | Quest 3 over PC | Same as Frame-streamed, through SteamVR. **Reference test setup: ALVR + SteamVR** (a streamed PCVR setup; ALVR is a SteamVR driver, so SteamVR is the runtime and dashboard overlays work). Meta Link / VDXR runtimes only for setups that support them. | Runtime check and switching; dashboard overlay only appears under SteamVR |
 | Quest 3 native | APKs sideloaded by the Hub over USB (developer mode) | Android/OpenXR builds; System 22 games first (DR-89 already runs there) |
 
-**Test machines (owner):** a Windows PC with SteamVR + ALVR to a PCVR headset (primary), and a **Bazzite** box (Fedora Atomic, SteamOS-like, x86_64, NVIDIA) as the Linux / SteamOS stand-in until Steam Frame hardware is in hand. It covers Linux Hub and libacvr builds, Linux-native references (PenguinScreen2, lindbergh-loader, namco22-decompile Linux builds) and SteamVR / WiVRn on Linux. ARM64 needs real Frame hardware or an ARM64 Linux machine.
+**Test machines (owner):** a Windows PC with SteamVR + ALVR to a Quest 3 (primary), and a **Bazzite** box (Fedora Atomic, SteamOS-like, x86_64, NVIDIA) as the Linux / SteamOS stand-in until Steam Frame hardware is in hand. It covers Linux Hub and libacvr builds, Linux-native references (PenguinScreen2, lindbergh-loader, namco22-decompile Linux builds) and SteamVR / WiVRn on Linux. ARM64 needs real Frame hardware or an ARM64 Linux machine.
 
 Details per runtime:
 

@@ -7,6 +7,8 @@
 #include <QFileInfo>
 #include <QDateTime>
 #include <QTimer>
+#include <QFutureWatcher>
+#include <QtConcurrent>
 #include <QDesktopServices>
 #include <QUrl>
 #include <QJsonDocument>
@@ -37,6 +39,16 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     installer_.setRuntimeStateSource([this](const QString &id){return current(id);});
     connect(&launcher_,&launch::LaunchService::warning,ui_,[this](const QString &,const QString &text){ui_->showError("Launch notice",text);});
     launcher_.setRuntimeStateSource([this](const QString &id){return current(id);});
+    // Only journal-proven finished quarantine runs may be swept, off the GUI thread.
+    auto *cleanup = new QFutureWatcher<QStringList>(this);
+    connect(cleanup,&QFutureWatcher<QStringList>::finished,this,[this,cleanup]{
+        const auto warnings=cleanup->result();cleanup->deleteLater();
+        if(!warnings.isEmpty())ui_->showError("Cleanup notice",warnings.join("\n"));
+    });
+    cleanup->setFuture(QtConcurrent::run([root=root_]{
+        try{return install::Engine().sweepFinishedMediaRemovals(root);}
+        catch(const std::exception &){return QStringList{"Finished media cleanup could not complete; retained files will be retried at the next startup."};}
+    }));
     connect(ui_,&UiController::writeConfigRequested,this,[this](const QString &id,const QVariantMap &){ui_->settingsSaved(id);});
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
@@ -81,7 +93,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::stopLaunchRequested,&launcher_,&launch::LaunchService::stop);
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
-    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){childPlaying_=false;emit playingChanged();ui_->launchFinished(id,error);});
+    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){childPlaying_=false;emit playingChanged();ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();});
     connect(&launcher_,&launch::LaunchService::runtimeStateReady,this,[this](const RuntimeState &state){games_->applyRuntimeStates({state});});
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::playingChanged);
     connect(&launcher_,&launch::LaunchService::raiseHubRequested,this,&HubServices::raiseHubRequested);
@@ -205,7 +217,7 @@ void HubServices::restore(){
             auto state=game.runtime;state.gameId=game.id;
             state.lastPlayed=times.value(game.id.toStdString(),qint64(0));
             for(const auto &b:bindings_.value("bindings",Json::array()))if(text(b,"gameId")==game.id){
-                scan::Binding binding;binding.gameId=game.id;binding.requirementId=text(b,"requirementId");binding.path=text(b,"path");binding.identity=text(b,"identity");binding.proof=text(b,"proof");binding.verified=b.value("verified",false);if(binding.proof=="mame-header-crc"&&(!b.contains("bios")||!b["bios"].is_string()))binding.verified=false;binding.supportPaths=strings(b,"supportPaths");
+                scan::Binding binding;binding.gameId=game.id;binding.requirementId=text(b,"requirementId");binding.path=text(b,"path");binding.identity=text(b,"identity");binding.proof=text(b,"proof");binding.verified=b.value("verified",false)&&scan::hasValidatedChdBounds(b,bindings_.value("files",Json::array()));if(binding.proof=="mame-header-crc"&&(!b.contains("bios")||!b["bios"].is_string()))binding.verified=false;binding.supportPaths=strings(b,"supportPaths");
                 const QFileInfo currentFile(binding.path);
                 if(!currentFile.isFile())binding.verified=false;
                 for(const auto &file:bindings_.value("files",Json::array()))if(text(file,"path")==binding.path&&(file.value("size",qint64(-1))!=currentFile.size()||file.value("mtime",qint64(-1))!=currentFile.lastModified().toMSecsSinceEpoch()))binding.verified=false;

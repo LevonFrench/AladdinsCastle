@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QTemporaryDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QtTest>
 #include <QQmlEngine>
 #include <limits>
@@ -53,6 +54,15 @@ private:
 class OverlayTest : public QObject {
     Q_OBJECT
 private slots:
+    void presentDllProbeDoesNotInitializeRuntime() {
+#ifdef Q_OS_WIN
+        QVERIFY(QFileInfo::exists(QCoreApplication::applicationDirPath()+"/openvr_api.dll"));
+        QString error;QVERIFY2(ac::probeOpenVrLibrary(&error),qPrintable(error));QVERIFY(error.isEmpty());
+        QVERIFY2(ac::probeOpenVrLibrary(&error),qPrintable(error));
+#else
+        QSKIP("Portable DLL probe is Windows-specific; no runtime initialization is permitted.");
+#endif
+    }
     void coordinateContractAndDiagnosticOverride() {
         ac::OverlayInput input({1280, 800});
         QCOMPARE(input.mapPosition(0, 0), QPointF(0, 800));

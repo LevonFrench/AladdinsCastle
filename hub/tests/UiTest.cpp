@@ -118,6 +118,20 @@ class UiTest:public QObject {
   controller.primary("synthetic-page");QCOMPARE(retry.count(),2);QCOMPARE(retry.last()[0].toString(),QString("synthetic-page"));QCOMPARE(retry.last()[1].toString(),QString("flat-synthetic"));
   QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&controller);QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/RecoveryPanel.qml"));std::unique_ptr<QObject> panel(component.create(&context));QVERIFY(panel);auto button=panel->findChild<QObject *>("retrySelectedGame");QVERIFY(button);QVERIFY(button->property("text").toString().contains("synthetic-failed"));
  }
+ void overlayFallbackShowsReason(){
+  ui->overlayFallback("Synthetic overlay reason");QVERIFY(ui->status().contains("Overlay unavailable"));QVERIFY(ui->status().contains("Synthetic overlay reason"));QVERIFY(ui->recovery().isEmpty());
+ }
+ void recoveryRetryRequiresInstallIds(){
+  ac::UiController controller(games.get(),&filter,settings.get());QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&controller);QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/RecoveryPanel.qml"));std::unique_ptr<QObject> panel(component.create(&context));QVERIFY(panel);auto item=qobject_cast<QQuickItem *>(panel.get());QVERIFY(item);item->setParentItem(window->contentItem());item->setWidth(1000);auto gameButton=panel->findChild<QObject *>("retrySelectedGame");auto toolButton=panel->findChild<QObject *>("retryFailedTool");QVERIFY(gameButton);QVERIFY(toolButton);
+  for(const QString operation:{"uninstall","repair",""}){
+   controller.installEvent({{"kind","fail"},{"retryKind","game"},{"retryOperation",operation},{"retryGameId","synthetic"},{"retryVariantId","flat"}});QVERIFY(!controller.retryGameAvailable());QVERIFY(!gameButton->property("visible").toBool());QSignalSpy retry(&controller,&ac::UiController::retryInstallRequested);controller.retryInstall(false,{});QCOMPARE(retry.count(),0);
+  }
+  for(const auto missing:{"retryGameId","retryVariantId"}){QVariantMap event{{"kind","fail"},{"retryKind","game"},{"retryOperation","install"},{"retryGameId","synthetic"},{"retryVariantId","flat"}};event.remove(missing);controller.installEvent(event);QVERIFY(!controller.retryGameAvailable());QVERIFY(!gameButton->property("visible").toBool());}
+  controller.installEvent({{"kind","fail"},{"retryKind","game"},{"retryOperation","install"},{"retryGameId","synthetic"},{"retryVariantId","flat"}});QVERIFY(controller.retryGameAvailable());QTRY_VERIFY(gameButton->property("visible").toBool());QVERIFY(!toolButton->property("visible").toBool());
+  controller.installEvent({{"kind","fail"},{"retryKind","tool"},{"retryOperation","uninstall"},{"retryGameId","synthetic"},{"retryVariantId","flat"}});QVERIFY(!controller.retryToolAvailable());QVERIFY(!toolButton->property("visible").toBool());QSignalSpy toolRetry(&controller,&ac::UiController::retryToolInstallRequested);controller.retryFailedTool(false,{});QCOMPARE(toolRetry.count(),0);
+  controller.installEvent({{"kind","fail"},{"retryKind","tool"},{"retryOperation","install"},{"retryGameId","synthetic"},{"retryVariantId","flat"}});QVERIFY(controller.retryToolAvailable());QTRY_VERIFY(toolButton->property("visible").toBool());
+  controller.installEvent({{"kind","step"}});controller.installFinished(false,"Generic synthetic failure");QVERIFY(!controller.retryGameAvailable());QVERIFY(!controller.retryToolAvailable());
+ }
  void recentReordersWhenLastPlayedChanges(){
   filter.setSortMode("recent");const auto id=games->records().last().id;const auto original=games->find(id)->runtime;auto state=original;state.lastPlayed=123456;games->applyRuntimeStates({state});QTRY_COMPARE(ui->filteredGame(0).value("gameId").toString(),id);games->applyRuntimeStates({original});filter.setSortMode("title");
  }
@@ -158,7 +172,7 @@ class UiTest:public QObject {
   QSignalSpy removals(ui.get(),&ac::UiController::uninstallPreviewRequested);QVERIFY(QMetaObject::invokeMethod(button,"clicked"));QCOMPARE(removals.count(),1);QCOMPARE(removals.first().at(0).toString(),QString("timecris"));QCOMPARE(removals.first().at(1).toString(),ui->detail().value("variantId").toString());root->setProperty("view","List");
  }
  void failedToolRecoveryHasExplicitButton(){
-  ui->installEvent({{"kind","fail"},{"text","Synthetic tool failure"},{"retryKind","tool"},{"retryGameId","tool-supermodel"},{"retryVariantId","windows-x64"},{"retryLabel","Supermodel"}});
+  ui->installEvent({{"kind","fail"},{"text","Synthetic tool failure"},{"retryKind","tool"},{"retryOperation","install"},{"retryGameId","tool-supermodel"},{"retryVariantId","windows-x64"},{"retryLabel","Supermodel"}});
   QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/RecoveryPanel.qml"));std::unique_ptr<QObject> panel(component.create());QVERIFY(panel);auto button=panel->findChild<QObject *>("retryFailedTool");QVERIFY(button);QVERIFY(button->property("visible").toBool());QVERIFY(button->property("text").toString().contains("tool-supermodel"));QVERIFY(button->property("text").toString().contains("windows-x64"));QSignalSpy retry(ui.get(),&ac::UiController::retryToolInstallRequested);QVERIFY(QMetaObject::invokeMethod(button,"clicked"));QCOMPARE(retry.count(),1);QCOMPARE(retry.first().at(0).toString(),QString("tool-supermodel"));QCOMPARE(retry.first().at(1).toString(),QString("windows-x64"));ui->installEvent({{"kind","fail"},{"text","Synthetic tool removal failure"},{"retryKind","tool"},{"retryOperation","uninstall"},{"retryGameId","tool-supermodel"},{"retryVariantId","windows-x64"}});ui->retryFailedTool(false,{});QCOMPARE(retry.count(),1);ui->installFinished(true,"Synthetic completion");
  }
  void readmePrivacy(){

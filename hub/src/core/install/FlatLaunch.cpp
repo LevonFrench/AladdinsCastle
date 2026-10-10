@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Support.h"
+#include "core/scan/Scan.h"
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
@@ -66,6 +67,8 @@ LaunchPlan makeFlatLaunchPlan(const GameRecord &game, const Json &emulator,
         (!media.contains("bios") || !media["bios"].is_string()))
       throw Error("E_MEDIA_IDENTITY", "BIOS selection requires a fresh metadata scan");
     const auto path = string(media, "path");
+    if (!scan::hasValidatedChdBounds(media,bindings.value("files",Json::array())))
+      throw Error("E_MEDIA_IDENTITY","CHD header bounds require a fresh metadata scan");
     if (!QFileInfo(path).isFile() || !media.value("verified", false)) {
       if (optionalMedia(m)) continue;
       throw Error("E_MEDIA_MISSING", "Required media is not verified");

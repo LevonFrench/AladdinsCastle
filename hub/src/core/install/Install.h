@@ -38,6 +38,8 @@ struct Options {
   std::atomic_bool *cancel = nullptr;
   int survivalMs = 3000;
   std::function<Json(const Json &)> shortcut;
+  // Explicit dependency injection for synthetic cleanup-failure tests only.
+  std::function<bool(const QString &)> mediaRemovalPurge;
 };
 QString sha256(const QByteArray &bytes);
 QString hashFile(const QString &path);
@@ -51,6 +53,9 @@ public:
   Result install(const Request &request);
   Result uninstall(const Request &request);
   Result recover(const Request &request);
+  // Purge only UUID quarantine runs proven terminal by strict local journals.
+  // Interrupted, orphan, corrupt and unsafe folders are deliberately retained.
+  QStringList sweepFinishedMediaRemovals(const QString &root) const;
   Json uninstallPreview(const Request &request) const;
   RuntimeState runtimeState(const Request &request) const;
   static Request emulatorRequest(const QString &root, const Json &manifest,

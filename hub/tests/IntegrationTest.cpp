@@ -7,6 +7,7 @@
 #include <QDateTime>
 #include <QGuiApplication>
 #include <QTimer>
+#include <QWindow>
 #include <QtTest>
 namespace {
 ac::CatalogData syntheticCatalog(const QString &root){
@@ -80,6 +81,13 @@ private slots:
     services.launcher()->start(request);QVERIFY(prepared);QVERIFY(busyMessage);QVERIFY(!services.launchBusy());disconnect(connection);
     request.prepareProfile=false;QVERIFY(services.launcher()->start(request));QTRY_VERIFY_WITH_TIMEOUT(services.playing(),5000);QVERIFY(services.launchBusy());QVERIFY(!services.preparing());ui.stopLaunch();QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy()&&!services.playing(),6000);
  }
+ void closedHubReopensOnLaunchFailure(){
+    QTemporaryDir temp;ac::GameListModel games(syntheticCatalog(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
+    QWindow window;window.show();window.hide();QVERIFY(!window.isVisible());QSignalSpy raised(&services,&ac::HubServices::raiseHubRequested);
+    connect(&services,&ac::HubServices::raiseHubRequested,&window,[&]{window.show();});
+    ac::launch::Request request;request.root=temp.path();request.gameId="synthetic";request.variantId="flat-mame";request.prepareProfile=false;request.plan.executable=temp.filePath("missing-synthetic-tool.exe");request.plan.cwd=temp.path();
+    QVERIFY(services.launcher()->start(request));QTRY_COMPARE(raised.count(),1);QVERIFY(!services.launchBusy());QVERIFY(window.isVisible());QVERIFY(ui.status().contains("missing",Qt::CaseInsensitive));QVERIFY(!ac::shouldQuitAfterLaunch(false,services.launchBusy(),window.isVisible()));window.hide();
+ }
  void uninstallSteamRemovalRequiresSeparateApproval(){
     QTemporaryDir temp;const auto steamRoot=temp.filePath("synthetic-steam");const auto target=steamRoot+"/userdata/123/config/shortcuts.vdf";QDir().mkpath(QFileInfo(target).absolutePath());
     ac::steam::Shortcut shortcut;shortcut.gameId="synthetic";shortcut.variantId="flat-mame";shortcut.title="Synthetic integration game";shortcut.executable=QCoreApplication::applicationFilePath();shortcut.startDir=temp.path();const auto before=ac::steam::edit({},shortcut).bytes;ac::install::atomicWrite(target,before);
@@ -132,6 +140,28 @@ private slots:
         QCOMPARE(games.find("synthetic")->runtime.mediaFound.contains("synthetic"),QString(shape)=="present");
         services.launcher()->warning("synthetic","Synthetic advisory");QVERIFY(ui.status().contains("Launch notice"));QVERIFY(ui.recovery().isEmpty());
     }
+ }
+ void legacyChdReceiptsRequireFreshBounds(){
+    QTemporaryDir temp;
+    for(const auto &shape:{"primary","support","renamed"}){
+        const auto root=temp.filePath(shape);const auto primary=root+"/synthetic.zip",disk=root+(QString(shape)=="renamed"?"/synthetic-disk.dat":"/synthetic-disk.chd");ac::install::atomicWrite(primary,"synthetic archive");ac::install::atomicWrite(disk,"synthetic old truncated CHD");receipt(root,QString(shape)=="primary"?disk:primary);
+        const auto path=root+"/user/cache/scan-bindings.json";auto saved=ac::Json::parse(ac::install::readBytes(path).toStdString());auto &binding=saved["bindings"][0];binding["proof"]="mame-header-crc";binding["bios"]="";
+        if(QString(shape)!="primary")binding["supportPaths"]=ac::Json::array({disk.toStdString()});
+        if(QString(shape)=="renamed")saved["files"]=ac::Json::array({{{"path",disk.toStdString()},{"kind","chd-sha1"}}});
+        ac::install::atomicWrite(path,QByteArray::fromStdString(saved.dump()));ac::GameListModel games(syntheticCatalog(root));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(root+"/user");ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,root);
+        QVERIFY(games.find("synthetic")->runtime.mediaFound.isEmpty());
+    }
+ }
+ void startupSweepsOnlyFinishedMediaRemovals(){
+    QTemporaryDir temp;auto data=syntheticCatalog(temp.path());const auto setup=temp.filePath("games/synthetic/setup/example.exe"),media=temp.filePath("synthetic.media");ac::install::atomicWrite(setup,"synthetic tool bytes");ac::install::atomicWrite(media,"synthetic copied medium");
+    ac::install::Request request;request.root=temp.path();request.gameId="synthetic";request.variantId="flat";request.allowMediaCopy=true;
+    request.bindings["media"]["disc"]={{"path",media.toStdString()},{"sha256",ac::install::hashFile(media).toStdString()},{"verified",true}};
+    request.recipe={{"format",1},{"variant",{{"flat",{{"status","stable"},{"version","v1"},{"installed_when","file:${install_dir}/example.exe"},{"step",ac::Json::array({{{"id","copy"},{"do","copy"},{"from",setup.toStdString()},{"to","${install_dir}/example.exe"}},{{"id","media"},{"do","copy-media"},{"media","disc"},{"mode","copy"},{"to","${install_dir}/disc.media"}}})}}}}}};
+    ac::install::Options options;options.survivalMs=0;QVERIFY(ac::install::Engine(options).install(request).success);options.mediaRemovalPurge=[](const QString &){return false;};QVERIFY(ac::install::Engine(options).uninstall(request).success);
+    const auto removals=temp.filePath("user/state/media-removals");QVERIFY(!QDir(removals).entryList(QDir::Dirs|QDir::NoDotAndDotDot).isEmpty());
+    const auto orphan=removals+"/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/ffffffff-aaaa-bbbb-cccc-dddddddddddd";ac::install::atomicWrite(orphan,"synthetic unrecorded file");
+    ac::GameListModel games(std::move(data));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
+    QTRY_COMPARE_WITH_TIMEOUT(QDir(removals).entryList(QDir::Dirs|QDir::NoDotAndDotDot),QStringList{"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"},5000);QCOMPARE(ac::install::readBytes(orphan),QByteArray("synthetic unrecorded file"));
  }
  void emptyCatalogToolActionsFailSafely(){
     QTemporaryDir temp;ac::CatalogData catalog;ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());

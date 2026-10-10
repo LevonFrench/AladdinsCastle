@@ -31,6 +31,8 @@ class UiController : public QObject {
  Q_PROPERTY(QVariantMap detail READ detail NOTIFY detailChanged)
  Q_PROPERTY(QVariantList consoleEvents READ consoleEvents NOTIFY installChanged)
  Q_PROPERTY(QVariantMap recovery READ recovery NOTIFY installChanged)
+ Q_PROPERTY(bool retryGameAvailable READ retryGameAvailable NOTIFY installChanged)
+ Q_PROPERTY(bool retryToolAvailable READ retryToolAvailable NOTIFY installChanged)
  Q_PROPERTY(bool installing READ installing NOTIFY installChanged)
  Q_PROPERTY(bool scanning READ scanning NOTIFY scanChanged)
  Q_PROPERTY(QString status READ status NOTIFY statusChanged)
@@ -45,6 +47,8 @@ class UiController : public QObject {
  Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
  public:
  UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent=nullptr);
+ bool retryGameAvailable()const;
+ bool retryToolAvailable()const;
  int artRevision()const{return m_artRevision;}
  void setArtRevision(int revision){if(m_artRevision!=revision){m_artRevision=revision;emit artRevisionChanged();}}
  bool artProviderReady()const{return m_artProviderReady;}
@@ -86,6 +90,7 @@ class UiController : public QObject {
  Q_INVOKABLE void removeRecent(const QString &id);
  public slots:
  void showError(const QString &operation,const QString &message);
+ void overlayFallback(const QString &reason);
  void settingsSaved(const QString &gameId);
  void scanStarted(); void scanProgress(const QVariantMap &progress); void scanFinished(bool success);
  void installStarted(); void installEvent(const QVariantMap &event); void installFinished(bool success,const QString &message);

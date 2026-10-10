@@ -4,7 +4,7 @@
 
 ## Goal
 
-Prove, on the owner's PC (Windows, SteamVR active OpenXR runtime, PCVR headset via ALVR), that the same QML scene can be:
+Prove, on the owner's PC (Windows, SteamVR active OpenXR runtime, Quest 3 via ALVR), that the same QML scene can be:
 - **S1:** rendered offscreen with `QQuickRenderControl` → `QQuickRenderTarget::fromOpenGLTexture` → `IVROverlay::SetOverlayTexture` on a `CreateDashboardOverlay` tab, with laser clicks landing on the right QML item;
 - **S2:** typed into from the SteamVR keyboard (`ShowKeyboardForOverlay` → QML `TextInput`), or failing that, from an in-scene QML keyboard;
 - **S3:** shown in a desktop window **and** the overlay at once from one process (one `HubRoot` in two presentations), with the GPU cost measured.
