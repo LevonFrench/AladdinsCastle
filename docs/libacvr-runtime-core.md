@@ -50,16 +50,34 @@ primitives and triangles. Malformed/external buffers and unsupported required
 extensions fail without replacing the caller's existing asset. This is runtime
 data decoding, not the lane's complete authoring/metadata acceptance checker.
 
+With `ACVR_TOML_INCLUDE_DIR` pointing to the existing tomlplusplus include tree,
+`acvr_gun_models` adds bounded native UTF-8-path GLB/TOML loading and motion
+preparation. One configured gun slot is accepted by the private host path when
+the host explicitly supports gun drawing. Config strings/tints are copied;
+metadata IDs and grip/muzzle names must agree. Aim uses the tracked grip and
+static muzzle; the compatibility path still uses controller aim. The host gets
+one immutable model draw packet after each world eye, using that eye's depth.
+
+Named motion events now drive slide/rotate transforms, LOD aliases and finite
+recoil decay without changing static aim/reference nodes. Preview injection
+rejects duplicate sequences, future ticks, missing nodes and invalid values;
+pause, failure and tracking loss clear motion. Models can be hidden while the
+laser mode and ballistic ray remain independent. Only LOD0 is currently selected.
+This prepares actual render commands; a GPU gun renderer is still required.
+
 ## Explicitly incomplete
 
 No OpenXR loader/session/swapchains, Vulkan/GL device provider, model renderer,
 control-set parser, recenter/height/pause overlay, or real backend
-integration exists yet. The core rejects model/controls-file requests and
+integration exists yet. The core rejects controls-file requests, hand switching,
 multiple-gun or separate-HUD backends instead of ignoring those requirements.
+Builds without the optional model dependencies reject configured model slots.
 The internal host supplies already composed eye matrices and receives scene
 scale/anchor configuration; the production provider must implement that math
 and device lifecycle. The recorded host does not establish graphics correctness.
-Two-gun join policy and animation/haptic mapping remain required next slices.
+Two-gun join policy, automatic input/output-to-motion mapping, haptics and
+distance-based LOD selection remain required next slices. Explicit preview
+events are not proof that real-game recoil outputs have been mapped.
 
 ## Checks
 
@@ -75,3 +93,8 @@ With the existing JSON include configured, a fourth suite exercises synthetic
 GLB decoding, index widths, interleaved/normalized colours, hierarchy/muzzle
 constraints, every truncated prefix, malformed offsets and resource budgets.
 No exported gun model or rendered image has been accepted by these tests.
+With TOML configured, a fifth suite covers metadata/motion and native synthetic
+file loading. The runtime suite also exercises configured left-hand grip aim,
+copied config lifetime, both-eye draw order, motion/aim separation, tracking
+loss/rearm and model-draw failure. A dependency-free build still passes three
+suites. No player-side Python process is involved in model loading.

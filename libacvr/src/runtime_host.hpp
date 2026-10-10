@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 #include "acvr.h"
+#include "gun_model.hpp"
 #include <memory>
 #include <vector>
 
@@ -29,6 +30,10 @@ struct Host {
     virtual acvr_result end(bool rendered) = 0; // false submits zero layers
     virtual void output(const acvr_output_event &) = 0;
     virtual void cancel_effects() noexcept = 0;
+    virtual bool supports_guns() const noexcept { return false; }
+    // Called after world draw for each eye, using its existing depth attachment.
+    // Do not retain pointers, mutate draw state, or advance motion here.
+    virtual acvr_result draw_gun(const acvr_draw_info &, const GunDraw &) { return ACVR_UNSUPPORTED; }
 };
 // Headless is accepted only here, never through the public XR create export.
 // The host's lifetime transfers on success or failure. No files are read by core.

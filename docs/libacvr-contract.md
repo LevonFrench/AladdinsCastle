@@ -336,5 +336,8 @@ layout; a future expansion needs a new parent contract. The outer tracking recor
 may have an unknown tail, which remains untouched. No callback
 recursion or cross-thread calls. Matrices supplied to the backend already include
 these poses, the anchor and scale: do not apply them again. The shared core implements tick/pause/tracking/destroy through a private provider seam.
-Public XR creation and gun-event animation still return UNSUPPORTED; see
+Public XR creation still returns UNSUPPORTED. The private configured-model path
+now supports validated gun-event preview animation when model dependencies and
+a gun-capable host are provided; automatic input/output motion mapping remains
+pending. See
 `docs/libacvr-runtime-core.md` for the implementation boundary.

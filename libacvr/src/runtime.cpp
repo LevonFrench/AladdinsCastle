@@ -89,8 +89,34 @@ struct acvr_runtime {
     uint64_t period_whole = 0, period_rem = 0, remainder = 0;
     bool clock_started = false, user_paused = false, paused = false, failed = false, have_tracking = false;
     std::string game, content, storage, options;
+#ifdef ACVR_GUN_MODELS
+    std::unique_ptr<acvr::GunInstance> gun_model;
+    acvr_gun_slot_config gun_config{};
+    std::array<std::string,5> gun_strings;
+    acvr::GunDraw gun_draw;
+    bool gun_tracked=false;
+    uint32_t gun_hand=ACVR_HAND_RIGHT;
+#endif
     bool owns_thread() const { return owner == std::this_thread::get_id(); }
-    void clear_inputs() { for (auto &g : triggers) g.clear(); for (auto &b : buttons) b.second.clear(); }
+    void clear_inputs() {
+        for (auto &g : triggers) g.clear();
+        for (auto &b : buttons) b.second.clear();
+#ifdef ACVR_GUN_MODELS
+        if(gun_model) gun_model->clear_motion();
+#endif
+    }
+    const acvr_hand_tracking &hand(const acvr::Display &d,uint32_t slot) const {
+#ifdef ACVR_GUN_MODELS
+        if(gun_model) return gun_hand==ACVR_HAND_RIGHT?d.tracking.right:d.tracking.left;
+#endif
+        return slot==0?d.tracking.right:d.tracking.left;
+    }
+    bool tracked(const acvr_hand_tracking &h) const {
+#ifdef ACVR_GUN_MODELS
+        if(gun_model) return (h.grip_flags&3u)==3u && pose_ok(h.grip);
+#endif
+        return (h.aim_flags&3u)==3u && pose_ok(h.aim);
+    }
     void release() { if (frame) { api.game_release_frame(backend, frame); frame = nullptr; } }
     acvr_result pause(bool value) {
         if (paused == value) return ACVR_OK;
@@ -126,16 +152,21 @@ struct acvr_runtime {
         gun = init<acvr_gun_input>(); gun.slot = slot; gun.player = players[slot];
         gun.flags = ACVR_GUN_OFFSCREEN; gun.camera_id = ACVR_NO_CAMERA;
         gun.screen_x = gun.screen_y = 0.5f;
-        const auto &hand = slot == 0 ? d.tracking.right : d.tracking.left;
-        if ((hand.aim_flags & 3u) != 3u || !pose_ok(hand.aim)) { triggers[slot].clear(); return ACVR_OK; }
+        const auto &source_hand = hand(d,slot);
+        if (!tracked(source_hand)) { triggers[slot].clear(); return ACVR_OK; }
         gun.flags |= ACVR_GUN_TRACKED; gun.trigger = triggers[slot].consume();
         if (!frame) return ACVR_OK;
         gun.aim_frame_id = frame_info.frame_id;
         auto mount = init<acvr_pose>(); mount.orientation_xyzw[3] = 1;
         const float identity[4]{0, 0, 0, 1};
         auto ray = init<acvr_ray>();
-        auto result = acvr::anchored_muzzle_ray(d.scene_from_stage, hand.aim, mount, identity,
-                                               info.scene_units_per_metre, fallback_m, ray);
+        auto result = ACVR_OK;
+#ifdef ACVR_GUN_MODELS
+        if(gun_model) ray=gun_draw.muzzle;
+        else
+#endif
+            result = acvr::anchored_muzzle_ray(d.scene_from_stage, source_hand.aim, mount, identity,
+                                              info.scene_units_per_metre, fallback_m, ray);
         if (result != ACVR_OK) return result;
         auto hit = init<acvr_hit>();
         result = api.game_raycast(backend, frame, &ray, &hit);
@@ -256,11 +287,41 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
         config->fallback_aim_distance_m <= 0 || !config->game_id_utf8 || !*config->game_id_utf8 ||
         !std::isfinite(config->requested_refresh_hz) || config->requested_refresh_hz < 0 ||
         (config->anchor_mode != ACVR_ANCHOR_RAIL && config->anchor_mode != ACVR_ANCHOR_COCKPIT)) return ACVR_BAD_ARGUMENT;
-    // Parsing/binding/model loading is the next slice. Never silently ignore it.
-    if ((config->size >= sizeof(*config) && config->gun_slot_count) ||
-        (config->merged_controls_path_utf8 && *config->merged_controls_path_utf8)) return ACVR_UNSUPPORTED;
+    if(config->merged_controls_path_utf8 && *config->merged_controls_path_utf8) return ACVR_UNSUPPORTED;
+    const bool models=config->size>=sizeof(*config) && config->gun_slot_count;
+#ifndef ACVR_GUN_MODELS
+    if(models) return ACVR_UNSUPPORTED;
+#else
+    if(models) {
+        if(config->gun_slot_count!=1 || !host->supports_guns()) return ACVR_UNSUPPORTED;
+        if(!array_ok(config->gun_slots,config->gun_slot_count,config->gun_slot_stride)) return ACVR_BAD_ARGUMENT;
+        const auto &slot=*config->gun_slots; const auto &policy=config->gun_policy;
+        if(valid(&slot)!=ACVR_OK || slot.size>config->gun_slot_stride || slot.slot!=0 || slot.hand>ACVR_HAND_LEFT ||
+           valid(&policy)!=ACVR_OK || policy.two_guns>ACVR_TWO_GUNS_ALWAYS || policy.p1_hand>ACVR_HAND_LEFT ||
+           policy.hand_switch>1 || policy.shared_view>1 || slot.hand!=policy.p1_hand ||
+           !std::isfinite(policy.unjoined_alpha)||policy.unjoined_alpha<0||policy.unjoined_alpha>1 ||
+           slot.show_gun>1||slot.laser_mode>ACVR_LASER_DOT||!unit(slot.angle_xyzw)) return ACVR_BAD_ARGUMENT;
+        if(policy.hand_switch) return ACVR_UNSUPPORTED;
+        for(const auto *s:{slot.model_id_utf8,slot.model_path_utf8,slot.metadata_path_utf8,slot.grip_node_utf8,slot.muzzle_node_utf8})
+            if(!s||!*s) return ACVR_BAD_ARGUMENT;
+        for(unsigned i=0;i<4;++i) if(!std::isfinite(slot.body_rgba[i])||slot.body_rgba[i]<0||slot.body_rgba[i]>1||
+            !std::isfinite(slot.accent_rgba[i])||slot.accent_rgba[i]<0||slot.accent_rgba[i]>1) return ACVR_BAD_ARGUMENT;
+    }
+#endif
     try {
         auto r = std::make_unique<acvr_runtime>(); r->api = *api; r->host = std::move(host);
+#ifdef ACVR_GUN_MODELS
+        if(models) {
+            r->gun_config=*config->gun_slots; auto &c=r->gun_config;
+            const char **fields[]{&c.model_id_utf8,&c.model_path_utf8,&c.metadata_path_utf8,&c.grip_node_utf8,&c.muzzle_node_utf8};
+            for(unsigned i=0;i<5;++i) {r->gun_strings[i]=*fields[i];*fields[i]=r->gun_strings[i].c_str();}
+            r->gun_hand=c.hand; r->gun_model=std::make_unique<GunInstance>(); std::string error;
+            if(!load_gun_model(c.model_path_utf8,c.metadata_path_utf8,c.model_id_utf8,r->gun_model->model,error)) return ACVR_BAD_ARGUMENT;
+            const auto &asset=r->gun_model->model.asset;
+            if(asset.nodes[asset.grip].name!=c.grip_node_utf8 || asset.nodes[asset.muzzle].name!=c.muzzle_node_utf8) return ACVR_BAD_ARGUMENT;
+            r->gun_model->reset();
+        }
+#endif
         auto graphics = r->host->device();
         if (valid(&graphics) != ACVR_OK || graphics.api != config->graphics_api) return ACVR_BAD_ARGUMENT;
         if (r->host->headless()) { if (graphics.api != 0) return ACVR_BAD_ARGUMENT; }
@@ -302,6 +363,9 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
             }
             for (uint32_t i = 0; result == ACVR_OK && i < info.gun_count; ++i)
                 if (!gun_declared[i]) result = ACVR_BAD_ARGUMENT;
+#ifdef ACVR_GUN_MODELS
+            if(models && (info.gun_count!=1 || raw->players[0]!=raw->gun_config.player)) result=ACVR_BAD_ARGUMENT;
+#endif
             if (result != ACVR_OK) { acvr_runtime_destroy(raw); return result; }
             raw->gun_count = info.gun_count; raw->budget = config->max_catchup_ticks; raw->fallback_m = config->fallback_aim_distance_m;
             const uint64_t period = 1000000000ULL * info.native_rate_den;
@@ -343,6 +407,16 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
         const bool active = d.focused && (d.tracking.head_flags & 3u) == 3u && pose_ok(d.tracking.head) && !r->user_paused;
         result = r->pause(!active); if (result != ACVR_OK) return finish(result, false);
         if (active) {
+#ifdef ACVR_GUN_MODELS
+            if(r->gun_model) {
+                const auto &h=r->hand(d,0); r->gun_tracked=r->tracked(h);
+                if(!r->gun_tracked) {r->gun_model->clear_motion();r->host->cancel_effects();}
+                else {
+                    result=r->gun_model->draw(d.scene_from_stage,h.grip,r->gun_config,r->info.scene_units_per_metre,r->fallback_m,now,r->gun_draw);
+                    if(result!=ACVR_OK) return finish(result,false);
+                }
+            }
+#endif
             std::map<Key, bool> seen_axes, seen_buttons;
             for (const auto &a : d.axes) {
                 const auto found = std::find_if(r->controls.begin(), r->controls.end(), [&](const acvr_control_desc &c) {
@@ -360,9 +434,15 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 r->due_ns = now; r->clock_started = true;
             }
             for (uint32_t i = 0; i < r->gun_count; ++i) {
-                const auto &hand = i == 0 ? d.tracking.right : d.tracking.left;
-                if ((hand.aim_flags & 3u) != 3u || !pose_ok(hand.aim)) r->triggers[i].clear();
-                else r->triggers[i].sample(d.trigger[i]);
+                const auto &h = r->hand(d,i);
+                if (!r->tracked(h)) r->triggers[i].clear();
+                else {
+                    uint32_t input_hand=i;
+#ifdef ACVR_GUN_MODELS
+                    if(r->gun_model) input_hand=r->gun_hand;
+#endif
+                    r->triggers[i].sample(d.trigger[input_hand]);
+                }
             }
             for (auto &b : r->buttons) {
                 bool held = false;
@@ -383,6 +463,12 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             info.frame_id = r->frame_info.frame_id; info.display_id = r->display_id; info.predicted_display_time_ns = now;
             result = r->api.game_draw_eye(r->backend, r->frame, &info);
             if (result != ACVR_OK) return finish(result, false);
+#ifdef ACVR_GUN_MODELS
+            if(r->gun_model && r->gun_tracked) {
+                result=r->host->draw_gun(info,r->gun_draw);
+                if(result!=ACVR_OK) return finish(result,false);
+            }
+#endif
         }
         return finish(ACVR_OK, draw);
     } catch (...) {
@@ -413,9 +499,17 @@ acvr_result ACVR_CALL acvr_runtime_get_tracking(acvr_runtime *r, acvr_tracking *
     out->left.aim.size=saved.left.aim.size; out->left.aim.version=saved.left.aim.version;
     return ACVR_OK;
 }
-acvr_result ACVR_CALL acvr_runtime_gun_event(acvr_runtime *r, const acvr_gun_event *) {
+acvr_result ACVR_CALL acvr_runtime_gun_event(acvr_runtime *r, const acvr_gun_event *event) {
     if (!r) return ACVR_BAD_ARGUMENT;
-    return r->owns_thread() ? ACVR_UNSUPPORTED : ACVR_BAD_STATE; // model animation not linked
+    if(!r->owns_thread()||r->failed) return ACVR_BAD_STATE;
+#ifdef ACVR_GUN_MODELS
+    if(!r->gun_model) return ACVR_UNSUPPORTED;
+    if(!r->have_tracking||r->paused||!r->gun_tracked) return ACVR_BAD_STATE;
+    if(valid(event)!=ACVR_OK||event->slot!=r->gun_config.slot||event->tick_id>r->tick) return ACVR_BAD_ARGUMENT;
+    return r->gun_model->event(*event,r->tracking.predicted_display_time_ns);
+#else
+    (void)event; return ACVR_UNSUPPORTED;
+#endif
 }
 acvr_result ACVR_CALL acvr_runtime_destroy(acvr_runtime *r) {
     if (!r) return ACVR_OK;
