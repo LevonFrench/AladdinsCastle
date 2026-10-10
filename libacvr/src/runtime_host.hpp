@@ -18,6 +18,7 @@ struct Display {
     bool focused = true, should_render = true;
     acvr_draw_info eyes[2]{};
     bool trigger[2]{};
+    bool reload[2]{}; // resolved gun-slot HELD levels; core queues native edges
     std::vector<acvr_axis_input> axes;
     std::vector<acvr_button_input> buttons; // HELD levels only; core derives edges
 };
@@ -31,6 +32,8 @@ struct Host {
     virtual void output(const acvr_output_event &) = 0;
     virtual void cancel_effects() noexcept = 0;
     virtual bool supports_guns() const noexcept { return false; }
+    // Resolved binding policy only; false unless explicitly configured.
+    virtual bool offscreen_reload(uint32_t) const noexcept { return false; }
     // Already-resolved controls data, copied/validated at create. No channel is
     // inferred from catalog labels. Empty keeps the native-fire visual fallback.
     virtual std::vector<GunOutputRoute> gun_output_routes() const { return {}; }

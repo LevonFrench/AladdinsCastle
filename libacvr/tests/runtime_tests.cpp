@@ -18,6 +18,8 @@ void check(bool value) { ++checks; if(!value) throw std::runtime_error("check " 
 struct Receipt {
     bool model_support=false,fail_model=false;
     bool requires_depth=false;
+    bool offscreen_reload=false,project_hit=false;
+    float hit_x=.5f,hit_y=.5f;
     unsigned model_draws=0;
     std::vector<acvr::Matrix> model_nodes;
     acvr_ray model_ray{};
@@ -76,6 +78,7 @@ acvr_result ACVR_CALL camera(acvr_backend *b,const acvr_frame *,uint32_t id,acvr
 }
 acvr_result ACVR_CALL raycast(acvr_backend *b,const acvr_frame *,const acvr_ray *r,acvr_hit *h) {
     check(b->r->leased); b->r->rays.push_back(*r);
+    if(b->r->project_hit) {h->found=1;h->camera_id=0;h->flags=ACVR_HIT_GUN_COORDS;h->screen_x=b->r->hit_x;h->screen_y=b->r->hit_y;return ACVR_OK;}
     h->found=0; h->camera_id=ACVR_NO_CAMERA; return ACVR_OK; // exercise camera fallback
 }
 acvr_result ACVR_CALL draw(acvr_backend *b,const acvr_frame *f,const acvr_draw_info *d) {
@@ -108,7 +111,7 @@ acvr_tracking tracking() {
     t.right.grip_flags=t.right.aim_flags=t.left.grip_flags=t.left.aim_flags=3;
     t.right.hand=ACVR_HAND_RIGHT; t.left.hand=ACVR_HAND_LEFT; return t;
 }
-struct Sample { int64_t time; bool trigger=false,coin=false,focused=true,render=true,tracked=true; float pedal=0; bool left_trigger=false; };
+struct Sample { int64_t time; bool trigger=false,coin=false,focused=true,render=true,tracked=true; float pedal=0; bool left_trigger=false,reload=false; };
 struct Recorded final:acvr::Host {
     acvr_pose anchor=pose();
     Receipt &r; std::vector<Sample> samples; size_t index=0; acvr_eye eyes[2];
@@ -124,6 +127,7 @@ struct Recorded final:acvr::Host {
         if(index==samples.size()) return ACVR_STOPPED;
         auto s=samples[index++]; d.tracking=tracking(); d.tracking.sample_time_ns=d.tracking.predicted_display_time_ns=s.time;
         d.focused=s.focused; d.should_render=s.render; d.trigger[0]=s.trigger; d.scene_from_stage=anchor;
+        d.reload[0]=s.reload;
         if(!s.tracked) d.tracking.right.aim_flags=d.tracking.right.grip_flags=d.tracking.left.grip_flags=0;
         if(r.model_support) {d.tracking.left.grip.position_m[0]=1;d.tracking.left.aim.position_m[0]=9;d.trigger[1]=s.left_trigger;}
         auto b=init<acvr_button_input>(); b.semantic=ACVR_BUTTON_COIN; b.state=s.coin?ACVR_INPUT_HELD:0; d.buttons.push_back(b);
@@ -136,6 +140,7 @@ struct Recorded final:acvr::Host {
     void output(const acvr_output_event &) override { ++r.outputs; }
     void cancel_effects() noexcept override { ++r.cancelled; }
     bool supports_guns() const noexcept override {return r.model_support;}
+    bool offscreen_reload(uint32_t slot) const noexcept override {return slot==0&&r.offscreen_reload;}
     std::vector<acvr::GunOutputRoute> gun_output_routes() const override {return r.motion_routes;}
     void gun_hand_changed(uint32_t slot,uint32_t hand) override {check(slot==0);r.hand_changes.push_back(hand);}
     acvr_result draw_gun(const acvr_draw_info &info,const acvr::GunDraw &gun) override {
@@ -270,6 +275,33 @@ void long_replay_and_invalid_samples() {
     check(lost.guns[1].trigger==0 && lost.guns.back().trigger==(ACVR_INPUT_HELD|ACVR_INPUT_PRESSED));
     check(acvr_runtime_destroy(p)==ACVR_OK);
 }
+void reload_edges() {
+    Receipt r;r.offscreen_reload=r.project_hit=true;r.hit_x=1.2f;
+    auto p=create(r,{{0},{17000000,true},{21000000,true},{34000000,true},{51000000},{68000000,true}});
+    check(acvr_runtime_tick(p)==ACVR_OK && !(r.guns.back().flags&ACVR_GUN_RELOAD));
+    check(acvr_runtime_tick(p)==ACVR_OK && (r.guns.back().flags&ACVR_GUN_RELOAD) && r.guns.back().trigger==0);
+    check(acvr_runtime_tick(p)==ACVR_OK && r.steps.size()==2); // display replay has no new reload
+    r.hit_x=.5f;check(acvr_runtime_tick(p)==ACVR_OK && !(r.guns.back().flags&ACVR_GUN_RELOAD) && r.guns.back().trigger==0); // moving onto screen while held cannot fire
+    check(acvr_runtime_tick(p)==ACVR_OK && r.guns.back().trigger==0);
+    check(acvr_runtime_tick(p)==ACVR_OK && r.guns.back().trigger==(ACVR_INPUT_HELD|ACVR_INPUT_PRESSED));
+    check(acvr_runtime_destroy(p)==ACVR_OK);
+    Receipt disabled;disabled.project_hit=true;disabled.hit_x=1.2f;
+    p=create(disabled,{{0},{17000000,true}});
+    check(acvr_runtime_tick(p)==ACVR_OK && acvr_runtime_tick(p)==ACVR_OK);
+    check(!(disabled.guns.back().flags&ACVR_GUN_RELOAD) && disabled.guns.back().trigger==(ACVR_INPUT_HELD|ACVR_INPUT_PRESSED));
+    check(acvr_runtime_destroy(p)==ACVR_OK);
+    Receipt explicit_reload;
+    std::vector<Sample> samples{{0},{4000000},{8000000},{17000000},{34000000},{51000000},{68000000},{85000000}};
+    samples[1].reload=true; // short press is retained until next native tick
+    samples[4].reload=true;samples[4].tracked=false;samples[5].reload=true;samples[7].reload=true;
+    p=create(explicit_reload,samples);
+    for(unsigned i=0;i<4;++i) check(acvr_runtime_tick(p)==ACVR_OK);
+    check(explicit_reload.guns.size()==2 && (explicit_reload.guns.back().flags&ACVR_GUN_RELOAD));
+    check(acvr_runtime_tick(p)==ACVR_OK && !(explicit_reload.guns.back().flags&ACVR_GUN_RELOAD));
+    check(acvr_runtime_tick(p)==ACVR_OK && !(explicit_reload.guns.back().flags&ACVR_GUN_RELOAD));
+    check(acvr_runtime_tick(p)==ACVR_OK && acvr_runtime_tick(p)==ACVR_OK && (explicit_reload.guns.back().flags&ACVR_GUN_RELOAD));
+    check(acvr_runtime_destroy(p)==ACVR_OK);
+}
 #ifdef ACVR_GUN_MODELS
 void configured_model() {
     const auto dir=std::filesystem::current_path()/"synthetic-runtime-model-tests";
@@ -372,7 +404,7 @@ void runtime_output_routes() {
 }
 #endif
 int main() {
-    try { timing_and_edges(); rational_and_budget(); pause_loss_and_zero_layers(); failures_and_ownership(); muzzle_math(); anchored_aim(); long_replay_and_invalid_samples();
+    try { timing_and_edges(); rational_and_budget(); pause_loss_and_zero_layers(); failures_and_ownership(); muzzle_math(); anchored_aim(); long_replay_and_invalid_samples(); reload_edges();
 #ifdef ACVR_GUN_MODELS
         configured_model();
         handoff_and_recoil();

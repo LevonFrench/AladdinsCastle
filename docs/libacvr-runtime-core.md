@@ -23,6 +23,11 @@ output until that host exists. No test starts a graphics device or XR runtime.
   per native tick. Pause/focus/tracking loss clears stale transitions; trigger
   recovery requires release before another shot. Lost gun tracking also
   neutralizes its player's cover pedal.
+- Explicit slot reload levels use the same queued edge/rearm behavior. An
+  opt-in private host policy turns a trigger press with a known off-screen aim
+  into one `ACVR_GUN_RELOAD` request, suppressing fire for that entire hold.
+  Moving back on-screen cannot fire until release/press. Missing initial aim
+  evidence does not invent an off-screen reload; the default policy is disabled.
 - Output draining once per native step, ordered sequences, overflow-triggered
   effect cancellation and a bounded guard against a broken infinite MORE loop.
 - Exactly one end call per successful host begin. Failed right-eye draw submits
@@ -140,6 +145,10 @@ Single-gun switching tests verify release-before-press, held-trigger suppression
 changed grip rays and hand notifications. Replayed display frames decay rather
 than repeat fallback recoil. Missing shared depth rejects the draw and submits
 zero layers. Logical trigger-drive tests keep unchanged levels idempotent.
+Reload tests cover a short button tap between native steps, explicit tracking
+loss/rearm, off-screen composite edges, on-screen re-entry during a held reload,
+display replay and the disabled policy. The provider must supply resolved reload
+bindings; controls-file loading and actual game consumption remain unverified.
 Prepared-output tests distinguish metadata IDs from node/drive names, exercise
 amplitude/duration, held levels, same-tick deduplication, explicit expiry, signed
 FFB, cancellation/rearm and neutral mounted rest. Runtime integration tests prove

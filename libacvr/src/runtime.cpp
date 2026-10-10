@@ -86,6 +86,8 @@ struct acvr_runtime {
     std::vector<acvr_control_desc> controls;
     std::map<Key, Digital> buttons;
     std::array<Digital, 2> triggers;
+    std::array<Digital, 2> reloads;
+    std::array<bool,2> reload_blocks_fire{};
     std::array<uint32_t, 2> players{};
     uint32_t gun_count = 0, budget = 0;
     float fallback_m = 0;
@@ -108,6 +110,8 @@ struct acvr_runtime {
     bool owns_thread() const { return owner == std::this_thread::get_id(); }
     void clear_inputs() {
         for (auto &g : triggers) g.clear();
+        for (auto &g : reloads) g.clear();
+        reload_blocks_fire.fill(false);
         for (auto &b : buttons) b.second.clear();
 #ifdef ACVR_GUN_MODELS
         if(gun_model) {gun_model->clear_motion();gun_outputs.cancel();}
@@ -181,8 +185,22 @@ struct acvr_runtime {
         gun.flags = ACVR_GUN_OFFSCREEN; gun.camera_id = ACVR_NO_CAMERA;
         gun.screen_x = gun.screen_y = 0.5f;
         const auto &source_hand = hand(d,slot);
-        if (!tracked(source_hand)) { triggers[slot].clear(); return ACVR_OK; }
+        if (!tracked(source_hand)) { triggers[slot].clear();reloads[slot].clear();reload_blocks_fire[slot]=false;return ACVR_OK; }
         gun.flags |= ACVR_GUN_TRACKED; gun.trigger = triggers[slot].consume();
+        if(reload_blocks_fire[slot]) {
+            if(!(gun.trigger&ACVR_INPUT_HELD)) reload_blocks_fire[slot]=false;
+            gun.trigger=0;
+        }
+        const auto request_reload=[&]() {
+            gun.flags|=ACVR_GUN_RELOAD;
+            if(gun.trigger&ACVR_INPUT_HELD) reload_blocks_fire[slot]=true;
+            gun.trigger=0;
+        };
+        if(reloads[slot].consume()&ACVR_INPUT_PRESSED) request_reload();
+        const auto known_offscreen=[&]() {
+            if((gun.flags&ACVR_GUN_OFFSCREEN)&&(gun.trigger&ACVR_INPUT_PRESSED)&&host->offscreen_reload(slot)) request_reload();
+            return ACVR_OK;
+        };
         if (!frame) return ACVR_OK;
         gun.aim_frame_id = frame_info.frame_id;
         auto mount = init<acvr_pose>(); mount.orientation_xyzw[3] = 1;
@@ -214,7 +232,8 @@ struct acvr_runtime {
             float c[3];
             for (unsigned row = 0; row < 3; ++row) c[row] = camera.view_from_scene[row] * p[0] +
                 camera.view_from_scene[4+row] * p[1] + camera.view_from_scene[8+row] * p[2] + camera.view_from_scene[12+row];
-            if (!finite(c, 3) || c[2] >= 0) return ACVR_OK;
+            if (!finite(c, 3)) return ACVR_OK;
+            if (c[2] >= 0) return known_offscreen();
             nx = (camera.centre_x_px + camera.focal_x_px * c[0] / -c[2]) / float(camera.raster_width);
             ny = (camera.centre_y_px - camera.focal_y_px * c[1] / -c[2]) / float(camera.raster_height);
         }
@@ -224,7 +243,7 @@ struct acvr_runtime {
         if (nx >= 0 && nx <= 1 && ny >= 0 && ny <= 1 && x >= camera.viewport_px[0] && y >= camera.viewport_px[1] &&
             x <= camera.viewport_px[0]+camera.viewport_px[2] && y <= camera.viewport_px[1]+camera.viewport_px[3])
             gun.flags &= ~ACVR_GUN_OFFSCREEN;
-        return ACVR_OK;
+        return known_offscreen();
     }
     acvr_result advance(const acvr::Display &d) {
         std::vector<acvr_gun_input> guns(gun_count);
@@ -451,7 +470,7 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 const uint32_t other=1-r->gun_hand;
                 const auto &other_hand=other==ACVR_HAND_RIGHT?d.tracking.right:d.tracking.left;
                 if(r->hand_switch && r->switch_armed[other] && d.trigger[other] && !r->switch_levels[other] && r->tracked(other_hand)) {
-                    r->gun_hand=other;r->gun_config.hand=other;r->triggers[0].handoff();r->gun_model->clear_motion();r->gun_outputs.cancel();r->host->cancel_effects();
+                    r->gun_hand=other;r->gun_config.hand=other;r->triggers[0].handoff();r->reloads[0].clear();r->reload_blocks_fire[0]=false;r->gun_model->clear_motion();r->gun_outputs.cancel();r->host->cancel_effects();
                     r->host->gun_hand_changed(0,other);
                 }
                 for(unsigned h=0;h<2;++h) {
@@ -488,8 +507,9 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             }
             for (uint32_t i = 0; i < r->gun_count; ++i) {
                 const auto &h = r->hand(d,i);
-                if (!r->tracked(h)) r->triggers[i].clear();
+                if (!r->tracked(h)) {r->triggers[i].clear();r->reloads[i].clear();r->reload_blocks_fire[i]=false;}
                 else {
+                    r->reloads[i].sample(d.reload[i]);
                     uint32_t input_hand=i;
 #ifdef ACVR_GUN_MODELS
                     if(r->gun_model) input_hand=r->gun_hand;
