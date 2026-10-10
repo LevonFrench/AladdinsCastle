@@ -10,7 +10,7 @@
 namespace ac {
 OverlayHost::OverlayHost(SpikeState &state, std::unique_ptr<OverlayRuntime> runtime, QObject *parent)
     : QObject(parent), m_state(state), m_runtime(std::move(runtime)), m_keyboard(state,m_input,*m_runtime) {
-    m_input.setObserver([this](const auto &event,auto position,auto angle,int type,auto buttons){m_state.recordInput(event,position,angle,type,buttons);});
+    m_input.setDiagnosticObserver([this](const auto &event,const auto &value){m_state.recordInput(event,value);});
     connect(&m_keyboard,&OverlayKeyboard::dirty,this,[this]{m_gate.markDirty();});
     m_timer.setTimerType(Qt::PreciseTimer); m_timer.setInterval(16);
     connect(&m_timer, &QTimer::timeout, this, &OverlayHost::tick);
@@ -26,6 +26,7 @@ bool OverlayHost::initialize(QQmlEngine &engine, const QString &thumbnail, QStri
     connect(m_renderer.get(), &QuickTextureRenderer::dirty, this, [this] { m_gate.markDirty(); });
     if (!m_renderer->initialize(engine, {1280, 800}, error)) { m_runtime->shutdown(); return false; }
     m_running = true;
+    m_input.bindReceiver(m_renderer->window());
     m_keyboard.setWindow(m_renderer->window());
     m_clock.start(); m_timer.start();
     QTextStream(stdout) << "Overlay GL: " << m_renderer->graphicsDescription()
@@ -50,14 +51,14 @@ void OverlayHost::handleRuntimeEvent(const vr::VREvent_t &event) {
     if (m_input.dispatch(event, m_renderer->window())) m_gate.markDirty();
 }
 void OverlayHost::tick() {
+    const bool visible = m_runtime->isVisible();
+    m_renderer->setVisible(visible);m_input.setVisible(visible);
     vr::VREvent_t event{};
     // Bound work per tick; an input flood must not starve Qt's event loop.
     for (int count = 0; count < 256 && m_runtime->pollEvent(&event); ++count) {
         handleRuntimeEvent(event); if (m_quitSeen) return;
     }
-    const bool visible = m_runtime->isVisible();
     m_timer.setInterval(visible ? 16 : 50);
-    m_renderer->setVisible(visible);
     if (!visible) { m_input.releaseButtons(m_renderer->window()); m_keyboard.close(false, true); }
     if (!m_gate.shouldRender(visible, m_clock.elapsed())) return;
     QString error;
@@ -75,7 +76,9 @@ void OverlayHost::tick() {
     }
 }
 void OverlayHost::shutdown() {
-    m_timer.stop(); m_gate.stop(); m_keyboard.close(false, true);
+    m_timer.stop(); m_gate.stop();
+    if(m_renderer)m_input.releaseButtons(m_renderer->window());
+    m_keyboard.close(false, true);
     // Clear compositor references before deleting the GL texture/context.
     if (m_running) { m_runtime->shutdown(); m_running = false; }
     m_keyboard.setWindow(nullptr);

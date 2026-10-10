@@ -38,15 +38,15 @@ Item {
         }
         ListView {
             objectName:"spikeInputObservations"
-            Layout.fillWidth:true; Layout.preferredHeight:64; clip:true
+            Layout.fillWidth:true; Layout.preferredHeight:88; clip:true
             model:spikeState.cursors
             ScrollBar.vertical:ScrollBar {}
             delegate:Label {
                 required property var modelData
-                width:ListView.view.width; height:32; color:"#b9c0d0"; font.pixelSize:11
+                width:ListView.view.width; height:44; color:"#b9c0d0"; font.pixelSize:11
                 text:"Cursor " + modelData.cursor + " raw event " + modelData.rawEvent + " → Qt " + modelData.qtEvent
                      + " last mouse raw (" + (modelData.rawX||0) + ", " + (modelData.rawY||0) + ") → Qt (" + modelData.qtX + ", " + modelData.qtY + ") buttons " + modelData.qtButtons
-                     + " · move " + (modelData.moves||0) + " / press " + (modelData.presses||0) + " / release " + (modelData.releases||0)
+                     + " cache (" + modelData.cachedX + ", " + modelData.cachedY + ") valid " + modelData.valid + " owner " + modelData.owner + "\n" + modelData.reason + " @ " + modelData.receiptMs + "ms · sent " + modelData.dispatched + " ignored " + (modelData.ignored||0) + " cancel " + (modelData.cancels||0) + " · move " + (modelData.moves||0) + " / press " + (modelData.presses||0) + " / release " + (modelData.releases||0)
                      + "\nSmooth " + (modelData.smooth||0) + " raw Δ(" + (modelData.smoothRawX||0) + ", " + (modelData.smoothRawY||0) + ") Qt angle Δ(" + (modelData.smoothQtX||0) + ", " + (modelData.smoothQtY||0) + ")"
                      + " · discrete " + (modelData.discrete||0) + " raw Δ(" + (modelData.discreteRawX||0) + ", " + (modelData.discreteRawY||0) + ") Qt angle Δ(" + (modelData.discreteQtX||0) + ", " + (modelData.discreteQtY||0) + ")"
             }
