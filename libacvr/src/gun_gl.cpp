@@ -101,16 +101,17 @@ acvr_result pack_gun_vertices(const GunDraw &gun,const acvr_eye &eye,std::vector
                     t.depth+=eye.view_from_scene[2]*position[0]+eye.view_from_scene[6]*position[1]+eye.view_from_scene[10]*position[2]+eye.view_from_scene[14];
                 }
                 if(!p.has_normals) {
-                    const auto view_position=[&](unsigned j) {
-                        const auto &v=t.vertices[j].position;
-                        return Vector3{double(eye.view_from_scene[0])*v[0]+double(eye.view_from_scene[4])*v[1]+double(eye.view_from_scene[8])*v[2],
-                            double(eye.view_from_scene[1])*v[0]+double(eye.view_from_scene[5])*v[1]+double(eye.view_from_scene[9])*v[2],
-                            double(eye.view_from_scene[2])*v[0]+double(eye.view_from_scene[6])*v[1]+double(eye.view_from_scene[10])*v[2]};
+                    const auto local_position=[&](unsigned j) {
+                        const auto &v=p.vertices[p.indices[at+j]].position;
+                        return Vector3{v[0],v[1],v[2]};
                     };
-                    const auto a=view_position(0),b=view_position(1),c=view_position(2);
+                    const auto a=local_position(0),b=local_position(1),c=local_position(2);
                     const Vector3 ab{b[0]-a[0],b[1]-a[1],b[2]-a[2]};
                     const Vector3 ac{c[0]-a[0],c[1]-a[1],c[2]-a[2]};
-                    float normal[3]{};if(!unit(cross(ab,ac),normal)) return ACVR_BAD_ARGUMENT;
+                    const auto face=cross(ab,ac);
+                    Vector3 transformed{};
+                    for(unsigned k=0;k<3;++k) for(unsigned axis=0;axis<3;++axis) transformed[k]+=normal_columns[axis][k]*face[axis];
+                    float normal[3]{};if(!unit(transformed,normal)) return ACVR_BAD_ARGUMENT;
                     for(auto &vertex:t.vertices) std::copy_n(normal,3,vertex.normal_view);
                 }
                 if(!std::isfinite(t.depth)) return ACVR_BAD_ARGUMENT;

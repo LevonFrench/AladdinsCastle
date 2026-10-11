@@ -148,6 +148,14 @@ void packing() {
     primitive.has_normals=false;p.scene_from_node[3][0]=0.f;
     check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_BAD_ARGUMENT);
     p.scene_from_node[3][0]=1.f;e=eye();
+    p.scene_from_node[3][0]=-1.f; // Mirroring reverses winding but not the authored normal contract.
+    check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_OK);
+    const std::array<float,3> fallback{vertices[0].normal_view[0],vertices[0].normal_view[1],vertices[0].normal_view[2]};
+    primitive.has_normals=true;for(auto &vertex:primitive.vertices) vertex.normal={0,0,1};
+    check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_OK);
+    for(unsigned k=0;k<3;++k) check(std::abs(vertices[0].normal_view[k]-fallback[k])<.0001f);
+    check(fallback[2]>.9999f);
+    primitive.has_normals=false;p.scene_from_node[3][0]=1.f;
     p.visible=false;check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_OK && vertices.empty());p.visible=true;
     p.lod=1;check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_OK && vertices[1].position[0]==.1f);
     p.lod=0;gun.model.asset.materials[0].base_colour[3]=.5f;gun.model.asset.primitives[1].lod=0;p.scene_from_node[5][14]=-2;
