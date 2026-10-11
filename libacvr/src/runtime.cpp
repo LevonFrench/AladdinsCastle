@@ -89,6 +89,7 @@ struct acvr_runtime {
     acvr_frame_info frame_info = init<acvr_frame_info>();
     acvr_backend_info info = init<acvr_backend_info>();
     acvr_tracking tracking{};
+    acvr_controller_sample calibration{};
     std::vector<acvr_control_desc> controls;
     std::map<Key, Digital> buttons;
     std::array<Digital, 2> triggers;
@@ -101,6 +102,7 @@ struct acvr_runtime {
     int64_t simulation_ns = 0, due_ns = 0, last_display_ns = 0;
     uint64_t period_whole = 0, period_rem = 0, remainder = 0;
     bool clock_started = false, user_paused = false, paused = false, failed = false, have_tracking = false;
+    bool busy = false, have_calibration = false;
     std::string game, content, storage, options;
 #ifdef ACVR_GUN_MODELS
     std::unique_ptr<acvr::GunInstance> gun_model;
@@ -516,7 +518,9 @@ acvr_result ACVR_CALL acvr_runtime_create(const acvr_runtime_config *config, con
 }
 acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
     if (!r) return ACVR_BAD_ARGUMENT;
-    if (!r->owns_thread() || r->failed) return ACVR_BAD_STATE;
+    if (!r->owns_thread() || r->failed || r->busy) return ACVR_BAD_STATE;
+    r->busy=true;
+    struct CallScope {acvr_runtime *runtime;~CallScope(){runtime->busy=false;}} call_scope{r};
     const auto activation=r->host->activate();
     if(activation!=ACVR_OK)return activation;
     struct ContextScope {acvr::Host *host;~ContextScope(){host->deactivate();}} context{r->host.get()};
@@ -539,6 +543,14 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             (r->have_tracking && now <= r->last_display_ns)) return finish(ACVR_BAD_ARGUMENT, false);
         r->tracking = d.tracking; r->tracking.display_id = r->display_id; r->have_tracking = true;
         const bool active = d.focused && (d.tracking.head_flags & 3u) == 3u && pose_ok(d.tracking.head) && !r->user_paused;
+        if(r->host->supports_calibration_samples()) {
+            r->calibration=d.calibration;r->calibration.size=sizeof(r->calibration);
+            r->calibration.version=ACVR_STRUCT_VERSION;
+            r->calibration.display_id=r->display_id;
+            r->calibration.sample_time_ns=d.tracking.sample_time_ns;
+            r->calibration.focused=active?1u:0u;
+            r->have_calibration=true;
+        }
         result = r->pause(!active); if (result != ACVR_OK) return finish(result, false);
         if (active) {
 #ifdef ACVR_GUN_MODELS
@@ -708,7 +720,9 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
 }
 acvr_result ACVR_CALL acvr_runtime_set_paused(acvr_runtime *r, uint32_t paused) {
     if (!r || paused > 1) return ACVR_BAD_ARGUMENT;
-    if (!r->owns_thread() || r->failed) return ACVR_BAD_STATE;
+    if (!r->owns_thread() || r->failed || r->busy) return ACVR_BAD_STATE;
+    r->busy=true;
+    struct CallScope {acvr_runtime *runtime;~CallScope(){runtime->busy=false;}} call_scope{r};
     if(!paused){r->user_paused=false;return ACVR_OK;} // resume only after next valid focused pose
     const auto activation=r->host->activate();if(activation!=ACVR_OK)return activation;
     struct ContextScope {acvr::Host *host;~ContextScope(){host->deactivate();}} context{r->host.get()};
@@ -717,7 +731,7 @@ acvr_result ACVR_CALL acvr_runtime_set_paused(acvr_runtime *r, uint32_t paused) 
 }
 acvr_result ACVR_CALL acvr_runtime_get_tracking(acvr_runtime *r, acvr_tracking *out) {
     if (!r) return ACVR_BAD_ARGUMENT;
-    if (!r->owns_thread() || !r->have_tracking) return ACVR_BAD_STATE;
+    if (!r->owns_thread() || r->busy || !r->have_tracking) return ACVR_BAD_STATE;
     if (valid(out) != ACVR_OK || !embedded(out->head) || !embedded(out->right) ||
         !embedded(out->left) || !embedded(out->right.grip) || !embedded(out->right.aim) ||
         !embedded(out->left.grip) || !embedded(out->left.aim)) return ACVR_BAD_ARGUMENT;
@@ -731,6 +745,28 @@ acvr_result ACVR_CALL acvr_runtime_get_tracking(acvr_runtime *r, acvr_tracking *
     out->left.grip.size=saved.left.grip.size; out->left.grip.version=saved.left.grip.version;
     out->left.aim.size=saved.left.aim.size; out->left.aim.version=saved.left.aim.version;
     return ACVR_OK;
+}
+acvr_result ACVR_CALL acvr_runtime_get_controller_sample(acvr_runtime *r, acvr_controller_sample *out) {
+    if (!r) return ACVR_BAD_ARGUMENT;
+    if (!r->owns_thread() || r->failed || r->busy) return ACVR_BAD_STATE;
+    if (!r->host->supports_calibration_samples()) return ACVR_UNSUPPORTED;
+    if (!r->have_calibration) return ACVR_BAD_STATE;
+    if (valid(out) != ACVR_OK) return valid(out);
+    payload(out, r->calibration);
+    return ACVR_OK;
+}
+acvr_result ACVR_CALL acvr_runtime_set_gun_angle(acvr_runtime *r,const acvr_gun_angle_update *update) {
+    if (!r || !update) return ACVR_BAD_ARGUMENT;
+    if (!r->owns_thread() || r->failed || r->busy) return ACVR_BAD_STATE;
+    const auto checked=valid(update);if(checked!=ACVR_OK)return checked;
+#ifdef ACVR_GUN_MODELS
+    if (!r->gun_model) return ACVR_UNSUPPORTED;
+    if (update->slot != r->gun_config.slot || !unit(update->angle_xyzw)) return ACVR_BAD_ARGUMENT;
+    std::copy_n(update->angle_xyzw,4,r->gun_config.angle_xyzw);
+    return ACVR_OK;
+#else
+    return ACVR_UNSUPPORTED;
+#endif
 }
 acvr_result ACVR_CALL acvr_runtime_gun_event(acvr_runtime *r, const acvr_gun_event *event) {
     if (!r) return ACVR_BAD_ARGUMENT;
@@ -746,7 +782,8 @@ acvr_result ACVR_CALL acvr_runtime_gun_event(acvr_runtime *r, const acvr_gun_eve
 }
 acvr_result ACVR_CALL acvr_runtime_destroy(acvr_runtime *r) {
     if (!r) return ACVR_OK;
-    if (!r->owns_thread()) return ACVR_BAD_STATE;
+    if (!r->owns_thread() || r->busy) return ACVR_BAD_STATE;
+    r->busy=true; // no callback may re-enter the runtime being destroyed
     acvr_result result = r->host->activate();
     r->host->cancel_effects();
     if (r->backend) {
