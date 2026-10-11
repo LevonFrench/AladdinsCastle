@@ -1,8 +1,10 @@
 # R3 directions — 2026-10-11
 
-R3 and owner decisions D54–D62 govern the resumed work. Main e847c81 is merged into next; the owner is unavailable for headset testing. CPU/GPU, builds, headless Blender and project windows are authorized. No Computer Use or OS input takeover. Desktop evidence never accepts headset behavior. Published next a2d10b0 has both combined CI runs green; next-to-main PR9 remains draft for outside review. Nobody commits to main.
+R3 and owner decisions D54–D62 govern the resumed work. Main e847c81 is merged into next; the owner is unavailable for headset testing. CPU/GPU, builds, headless Blender and project windows are authorized. No Computer Use or OS input takeover. Desktop evidence never accepts headset behavior. The previous published next a2d10b0 has both combined CI runs green; next-to-main PR9 remains draft for outside review. Nobody commits to main.
 
 The later sitting passed buttons, facing and the save prompt, then rejected first-mission framing, stereo and aim. Those remain the product blockers. Generated controls, sharper presets, real logging, controller recentre and the Windows PowerShell 5.1 kit are integrated. Fresh DSU server settings now use DolphinXR's canonical trailing semicolon; PR62 passed independent review, all six hosted checks and 59 actual PowerShell 5.1 checks. The diagnosed shutdown retry closes normally within the unchanged five-second grace and logs one DSU restart. Actual captures show setup instructions, not mission or performance proof.
+
+PR57, PR63 and PR65 are now integrated locally at fd85a50 after all six final hosted checks passed for each. Their earlier pending-check statements below describe the reviewed lane checkpoint; combined integration CI follows publication. PR64 production source passes independent review and all 11 native headless tests; its report-only final head is 839e0ae.
 
 ## Lane directions and merge order
 
