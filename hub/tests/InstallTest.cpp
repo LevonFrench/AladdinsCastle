@@ -632,6 +632,63 @@ private slots:
       QVERIFY_THROWS_EXCEPTION(Error, contentGuard(QString("synthetic.") + extension, guard));
     QVERIFY_THROWS_EXCEPTION(Error, contentGuard("tool.exe", Json::object()));
   }
+  void pinnedArchiveSupportFiles_data() {
+    QTest::addColumn<QString>("change");
+    QTest::newRow("exact archive path and content") << QString("exact");
+    for(const auto &change:QStringList{"archive","path","content","name-denial","hash-denial","archive-hash-denial","size","no-pin","duplicate","traversal"}) {
+      QTest::newRow(qPrintable(change)) << change;
+    }
+  }
+  void pinnedArchiveSupportFiles() {
+    QFETCH(QString,change);
+    QTemporaryDir temp;
+    const auto path=temp.filePath("support.zip"),stage=temp.filePath("stage");
+    const auto entry=change=="name-denial"?QString("Sys/scph1001.bin"):QString("Sys/synthetic-support.bin");
+    archiveFile(path,{entry});
+    auto guard=testGuard();
+    guard["archive_support"]=Json::array({{{"archive_sha256",hashFile(path).toStdString()},
+      {"path",entry.toStdString()},{"sha256",sha256("test").toStdString()},{"bytes",4}}});
+    if(change=="archive") { QFile file(path);QVERIFY(file.open(QIODevice::Append));QCOMPARE(file.write("changed"),qint64(7)); }
+    if(change=="path") { guard["archive_support"][0]["path"]="Sys/different.bin"; }
+    if(change=="content") { guard["archive_support"][0]["sha256"]=std::string(64,'0'); }
+    if(change=="hash-denial") { guard["sha256"].push_back(sha256("test").toStdString()); }
+    if(change=="archive-hash-denial") { guard["sha256"].push_back(hashFile(path).toStdString()); }
+    if(change=="size") { guard["archive_support"][0]["bytes"]=5; }
+    if(change=="no-pin") { guard.erase("archive_support"); }
+    if(change=="duplicate") { guard["archive_support"].push_back(guard["archive_support"][0]); }
+    if(change=="traversal") { guard["archive_support"][0]["path"]="../Sys/synthetic-support.bin"; }
+    QString error;
+    QStringList files;
+    try { files=Archive::extract(path,stage,{1024,10},guard); }
+    catch(const Error &e) { error=e.code; }
+    if(change=="exact") {
+      QVERIFY2(error.isEmpty(),qPrintable("Pinned upstream support file refused: "+error));
+      QCOMPARE(files,QStringList({entry}));QCOMPARE(readBytes(stage+"/"+entry),QByteArray("test"));
+      // The ordinary file/copy guard still refuses the same extension.
+      QVERIFY_THROWS_EXCEPTION(Error,contentGuard(entry,guard));
+    } else {
+      QCOMPARE(error,QString("E_CONTENT_GUARD"));
+      QVERIFY(!QFileInfo::exists(stage));
+    }
+  }
+  void localPinnedDolphinArchivePreflight() {
+    const auto path=qEnvironmentVariable("AC_PINNED_DOLPHIN_ARCHIVE");
+    if(path.isEmpty()) { QSKIP("Explicit local pinned archive preflight; never downloads or installs."); }
+    const auto guard=testGuard();
+    QCOMPARE(hashFile(path),QString("d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"));
+    QList<ArchiveEntry> entries;
+    QString error;
+    try { entries=Archive::inspect(path,{},guard); }catch(const Error &e) { error=e.code; }
+    QVERIFY2(error.isEmpty(),qPrintable("Pinned release preflight refused: "+error));
+    QVERIFY(entries.size()>9);
+    for(const auto &support:guard["archive_support"]) {
+      bool found=false;
+      for(const auto &entry:entries) {
+        if(entry.path==string(support,"path")) { found=true;QCOMPARE(entry.bytes,qint64(support["bytes"].get<int64_t>())); }
+      }
+      QVERIFY(found);
+    }
+  }
   void setupExtractSourcePlanning() {
     QTemporaryDir temp;
     auto request = fixture(temp.path());
