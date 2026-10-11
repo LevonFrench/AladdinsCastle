@@ -2,6 +2,8 @@
 
 Status: 2026-10-10, decided with the owner. One lead session and three lane sessions, all new. The lead does the main thrust itself and directs the other three from their reports.
 
+**The main thrust is now Wii games in 3D mode: read [W-wii-chronicles.md](W-wii-chronicles.md) and [3d-mode-target.md](../../3d-mode-target.md).** They replace Time Crisis as the first game and re-point the stereo lane at Dolphin.
+
 **After the first block, read [R1-redirect.md](R1-redirect.md) first.** It sets each session's next target, the standing approvals and lighter reporting; where it differs from this page or a brief, it wins.
 
 | # | Session | In one line | Owns | Brief |
