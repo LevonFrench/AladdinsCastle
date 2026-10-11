@@ -202,7 +202,7 @@ def attach_input(run_directory, profile, manifest, script, entrypoint, port=2676
         raise ValueError("Script copy already exists")
     (user / "Config/WiimoteNew.ini").write_bytes(profile_bytes)
     (user / "Config/DSUClient.ini").write_text(ini({"Server": {
-        "Enabled": "True", "Entries": f"AladdinsCastle:127.0.0.1:{port}"}}), encoding="utf-8")
+        "Enabled": "True", "Entries": f"AladdinsCastle:127.0.0.1:{port};"}}), encoding="utf-8")
     script_copy.write_bytes(raw)
     if native_bytes is not None:
         (run_directory / "native-control-reference.ini").write_bytes(native_bytes)

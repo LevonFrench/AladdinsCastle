@@ -1,5 +1,6 @@
 """Synthetic checks only. No emulator launch, real disc, or timing claim."""
 import hashlib
+import configparser
 import json
 from pathlib import Path
 import tempfile
@@ -159,6 +160,14 @@ class Phase1Tests(unittest.TestCase):
             record = phase1.attach_input(self.root / "run", profile, manifest, script, entrypoint)
         self.assertEqual(checker.call_args.args[0][-1], "--check")
         self.assertEqual(record["status"], "prepared-unmeasured")
+        dsu = configparser.ConfigParser(interpolation=None)
+        dsu.read(self.root / "run/User/Config/DSUClient.ini")
+        entries = dsu["Server"]["Entries"]
+        # Pinned Dolphin ConfigChanged compares this canonical reconstruction.
+        parsed = [part.split(":") for part in entries.split(";") if part]
+        rebuilt = "".join(f"{p[0]}:{p[1]}:{int(p[2])};" for p in parsed)
+        self.assertEqual(entries, rebuilt)
+        self.assertEqual(parsed, [["AladdinsCastle", "127.0.0.1", "26760"]])
         self.assertIsNone(record["measured_results"])
         self.assertEqual((self.root / "run/User/Config/WiimoteNew.ini").read_bytes(), profile.read_bytes())
         self.assertEqual(record["input_contract"]["script_sha256"], phase1.sha(script))

@@ -91,7 +91,8 @@ def render(mode, labels=None, _prefix=None, games=None):
                 for i in range(4)}
     wiimotes["BalanceBoard"] = {"Source": "0"}
     files = {
-        "Config/DSUClient.ini": ini({"Server": {"Enabled": "True", "Entries": f"{labels['dsu_server_name']}:127.0.0.1:26760"}}),
+        # Pinned ConfigChanged rebuilds every entry with ';' and raw-compares.
+        "Config/DSUClient.ini": ini({"Server": {"Enabled": "True", "Entries": f"{labels['dsu_server_name']}:127.0.0.1:26760;"}}),
         "Config/WiimoteNew.ini": ini(wiimotes),
         "Config/GFX.ini": ini({"Stereoscopy": {"StereoMode": "1", "StereoDepth": "20", "StereoConvergence": "20", "StereoSwapEyes": "False"}}),
         "Config/Dolphin.ini": ini({"Core": {"EnableCheats": "False"},
@@ -106,9 +107,16 @@ def render(mode, labels=None, _prefix=None, games=None):
     return files
 
 
+def _pre_canonical_dsu_entries(files, server_name):
+    """Exact older bytes for manifest admission only; never a fresh profile."""
+    return {**files, "Config/DSUClient.ini": ini({"Server": {
+        "Enabled": "True", "Entries": f"{server_name}:127.0.0.1:26760"}})}
+
+
 def legacy_templates(mode):
     """Exact pre-D62 identities are historical data, not current label defaults."""
     legacy = render(mode, {"short_id": "aladdinscastle", "dsu_server_name": "AladdinsCastle"}, _prefix="AladdinsCastle")
+    legacy = _pre_canonical_dsu_entries(legacy, "AladdinsCastle")
     previous = dict(legacy)
     for name, data in previous.items():
         if name == "Config/WiimoteNew.ini" or name.startswith("Config/Profiles/Wiimote/"):
@@ -172,7 +180,11 @@ def admit(user, root=ROOT):
         games = profile_games(manifest.get("games"))
         expected = render(mode, labels, games=games)
         if manifest != envelope(mode, expected, labels, games):
-            raise ValueError("Profile manifest has unexpected contents")
+            # Existing immutable profiles retain their recorded bytes. Admit
+            # only the exact former template; use fresh preparation for the fix.
+            expected = _pre_canonical_dsu_entries(expected, labels["dsu_server_name"])
+            if manifest != envelope(mode, expected, labels, games):
+                raise ValueError("Profile manifest has unexpected contents")
     else:
         for expected in legacy_templates(mode):
             if manifest == envelope(mode, expected):
