@@ -166,7 +166,7 @@ def attach_input(run_directory, profile, manifest, script, entrypoint, port=2676
             raise ValueError("Paired native profile differs from the same game's shared manifest")
         paired = configparser.ConfigParser(interpolation=None)
         paired.read_string(native_bytes.decode("utf-8-sig"))
-        if paired.get("Wiimote1", "Source", fallback=None) != "3" or paired.get("Wiimote1", "Device", fallback=None) != "OpenXR/0/OpenXRController":
+        if paired.get("Wiimote1", "Source", fallback=None) != "3" or paired.get("Wiimote1", "Device", fallback=None) != "OpenXR/0/OpenXR Controller":
             raise ValueError("Paired native profile must identify the supplied OpenXR slot")
     parsed = configparser.ConfigParser(interpolation=None)
     parsed.optionxform = str

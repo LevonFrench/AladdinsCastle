@@ -142,7 +142,7 @@ class Phase1Tests(unittest.TestCase):
         files = {key: phase1.sha(profile)}
         if game_id:
             paired = profile.with_name("dolphinxr-right.ini")
-            paired.write_text("[Wiimote1]\nSource = 3\nDevice = OpenXR/0/OpenXRController\n")
+            paired.write_text("[Wiimote1]\nSource = 3\nDevice = OpenXR/0/OpenXR Controller\n")
             files[key.replace("scripted-dsu", "dolphinxr")] = phase1.sha(paired)
         manifest.write_text(json.dumps({"version": "shell-stick/1", "files": files}))
         script = self.root / "timeline.json"
