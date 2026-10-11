@@ -18,14 +18,32 @@ class ControlSetTests(unittest.TestCase):
 
     def test_all_catalog_games_resolve_without_claiming_acceptance(self):
         rows = [self.resolver.resolve_game(gid) for gid,g in self.resolver.games.items() if g.get('genre')=='gun']
-        self.assertEqual(len(rows),152)
-        # The resumed Wii catalog declares both Chronicles games as two-player.
-        self.assertEqual(sum(r['two_gun_eligible'] for r in rows),96)
-        self.assertEqual(sum(r['separate_views'] for r in rows),6)
+        self.assertEqual({r['game_id'] for r in rows},
+                         {gid for gid,g in self.resolver.games.items() if g.get('genre')=='gun'})
         for row in rows:
             elements=row['data']['element']
             self.assertEqual(len({e['id'] for e in elements}),len(elements))
             self.assertTrue(all(e['part'] and e['label'] and e['binding'] for e in elements))
+
+    def test_catalog_two_gun_policy_for_known_titles(self):
+        # Shared-view co-op, separate-view cabinets/ports, and a solo cabinet
+        # have different headset policies regardless of the catalog's size.
+        shared = ('wii-resident-evil-umbrella-chronicles',
+                  'wii-resident-evil-darkside-chronicles', 'hotd2', 'gunblade')
+        separate = ('timecrs2', 'timecrs3', 'timecrs4', 'time-crisis-5',
+                    'ps2-time-crisis-2', 'ps2-time-crisis-3')
+        for gid in shared + separate + ('timecris',):
+            with self.subTest(game=gid):
+                game = self.resolver.games[gid]
+                row = self.resolver.resolve_game(gid)
+                is_shared = gid in shared
+                self.assertEqual(game['players'], 2 if gid != 'timecris' else 1)
+                self.assertEqual(game['controls']['guns'], 2 if gid != 'timecris' else 1)
+                self.assertEqual(row['separate_views'], gid in separate)
+                self.assertEqual(row['two_gun_eligible'], is_shared)
+                self.assertEqual(row['configured_slots'], 2 if is_shared else 1)
+                self.assertEqual({e['slot'] for e in row['data']['element']},
+                                 {0, 1} if is_shared else {0})
 
     def test_unknown_extensions_and_keyed_array_merge(self):
         base = {'extension':{'x':1,'erase':2},'element':[{'id':'fire','binding':{'control':'trigger','hand':'slot'},'future':9}]}

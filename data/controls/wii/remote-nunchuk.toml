@@ -72,6 +72,9 @@ mode = "hold"
 
 [[element]]
 id = "menu"
+implementation_state = "unavailable"
+implementation_reason = "Touch right system button is not an application menu input on this rig; fallback choice is pending"
+binding_label = "Binding pending: choose left-hand menu or accessibility fallback"
 part = "Remote + button"
 label = "+: game menu / command"
 control = "menu"
@@ -88,6 +91,8 @@ role = "remote"
 
 [[element]]
 id = "minus"
+implementation_state = "planned"
+implementation_reason = "Current bridge and Dolphin profile omit Remote minus / DSU Share"
 part = "Remote - button"
 label = "-: game command"
 control = "keyboard_minus"
@@ -96,6 +101,8 @@ role = "remote"
 
 [[element]]
 id = "one"
+implementation_state = "planned"
+implementation_reason = "Current bridge and Dolphin profile omit Remote 1 / DSU Square"
 part = "Remote 1 button"
 label = "1: game command"
 control = "keyboard_one"
@@ -104,6 +111,8 @@ role = "remote"
 
 [[element]]
 id = "two"
+implementation_state = "planned"
+implementation_reason = "Current bridge and Dolphin profile omit Remote 2 / DSU Triangle"
 part = "Remote 2 button"
 label = "2: game command"
 control = "keyboard_two"
@@ -147,6 +156,8 @@ role = "local"
 
 [[element]]
 id = "laser"
+implementation_state = "planned"
+implementation_reason = "Visible laser toggle is not implemented by the current bridge"
 part = "Gun laser"
 label = "Toggle laser"
 control = "thumbstick_click"

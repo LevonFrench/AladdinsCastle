@@ -31,9 +31,41 @@ class WiiControlsTests(unittest.TestCase):
         for x,y in zip(a,b):
             self.assertNotEqual(x['id'],y['id'])
             self.assertEqual(x['target'],y['target'])
-            self.assertEqual(x['binding'],y['binding'])
+            self.assertEqual({k:v for k,v in x['binding'].items() if k!='physical_dsu_slot_by_mode'},
+                             {k:v for k,v in y['binding'].items() if k!='physical_dsu_slot_by_mode'})
         a[0]['label']='Mutation'
         self.assertNotEqual(a[0]['label'],b[0]['label'])
+
+    def test_physical_devices_follow_mode_without_changing_player_slots(self):
+        game=resolve_game(ROOT,'wii-resident-evil-umbrella-chronicles')
+        rows={r['id']:r for r in game['data']['element']}
+        expected={'p1-fire':(0,0), 'p1-z':(1,0), 'p1-stick':(1,0),
+                  'p2-fire':(0,1), 'p2-z':(1,1), 'p2-stick':(1,1)}
+        for rid,(single,coop) in expected.items():
+            with self.subTest(row=rid):
+                self.assertEqual(rows[rid]['binding']['physical_dsu_slot_by_mode'],
+                                 {'one_gun':single,'two_remotes':coop})
+                self.assertEqual(rows[rid]['slot'],0 if rid.startswith('p1-') else 1)
+        self.assertEqual(game['data']['policy']['nunchuk_hand_by_mode'],
+                         {'one_gun':'other','two_remotes':'same'})
+        self.assertNotIn('nunchuk_hand',game['data']['policy'])
+        self.assertEqual(game['data']['policy']['supported_primary_hands'],['right'])
+
+    def test_missing_producer_profile_and_laser_paths_are_planned(self):
+        for game in compile_library()['games']:
+            rows={r['id']:r for r in game['data']['element']}
+            if game['data']['custom_setup']: continue
+            for part in ('minus','one','two','laser'):
+                with self.subTest(game=game['game_id'],part=part):
+                    availability=rows['p1-'+part]['availability']
+                    self.assertEqual(availability['state'],'planned')
+                    self.assertTrue(availability['reason'])
+            self.assertEqual(rows['p1-laser']['binding']['physical_dsu_slot_by_mode'],
+                             {'one_gun':None,'two_remotes':None})
+            self.assertEqual(rows['p1-fire']['availability']['state'],'configured')
+            self.assertEqual(rows['p1-menu']['availability']['state'],'unavailable')
+            self.assertIn('Binding pending',rows['p1-menu']['binding_label'])
+            self.assertIn('right system button',rows['p1-menu']['availability']['reason'])
 
     def test_defaults_and_fallbacks_have_distinct_routes(self):
         game=resolve_game(ROOT,'wii-resident-evil-umbrella-chronicles')

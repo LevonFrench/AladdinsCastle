@@ -57,12 +57,24 @@ def compile_library(root=ROOT):
             for source in elements:
                 row=deepcopy(source); row['id']=f'p{slot+1}-'+row['id']; row['slot']=row['player']=slot
                 row['binding']=dict(hand='slot',control=row.pop('control'),mode=row.get('mode','press'),role=row['role'])
+                # Logical player slots are not physical DSU devices. One gun
+                # attaches its Nunchuk to the other device; co-op reuses each
+                # player's own device for both Remote and Nunchuk.
+                has_device=row['role']!='local' or row['binding']['control'] in ('reload_fallback','melee_fallback')
+                row['binding']['physical_dsu_slot_by_mode']=dict(
+                    one_gun=(1 if row['role']=='nunchuk' else 0) if has_device else None,
+                    two_remotes=slot if has_device else None)
                 row['input']=dict(kind='wii' if row['role']!='local' else 'runtime',semantic=row['target'])
-                row['availability']=dict(state='configured',reason='Authored mapping; emulator/profile and gameplay checks are separate')
+                row['availability']=dict(state=row.pop('implementation_state','configured'),
+                    reason=row.pop('implementation_reason','Authored mapping; emulator/profile and gameplay checks are separate'))
+                require(row['availability']['state'] in ('configured','planned','unavailable'),'Invalid Wii implementation state')
+                if row['binding']['control']=='owner_setup':
+                    row['availability']=dict(state='planned',reason='Choose the game layout and binding with the owner')
                 row.setdefault('node',''); generated.append(row)
         model=load(root/'data/guns/generic-pistol.toml')
         data=dict(version='0.1',family='wii',id=gid+'-controls',title=game['title']+' controls',gun_model='generic-pistol',
-                  element=generated,policy=dict(p1_hand='right',two_guns='on_join',nunchuk_hand='other',custom_setup=custom),
+                  element=generated,policy=dict(p1_hand='right',two_guns='on_join',supported_primary_hands=['right'],
+                      nunchuk_hand_by_mode=dict(one_gun='other',two_remotes='same'),custom_setup=custom),
                   transport=base['transport'],questions=profile.get('questions',[]),sources=profile.get('sources',[]),
                   custom_setup=custom,game_profile=profile.get('game_profile','remote-nunchuk'),
                   instruction=profile.get('instruction','Move the gun to aim. Use real motion; R and V are seated fallbacks.'))
@@ -99,7 +111,7 @@ def main():
         for game in selected:
             print(game['game_id'])
             for row in game['data']['element']:
-                if row['slot']==0: print('  '+row['part']+' -> '+row['label']+' -> '+row['binding']['control']+' ('+row['target']+')')
+                if row['slot']==0: print('  '+row['part']+' -> '+row['label']+' -> '+row.get('binding_label',row['binding']['control'])+' ('+row['target']+'; '+row['availability']['state']+')')
         print('5 tier-1 Wii mappings; 0 data errors; gameplay acceptance is separate')
     return 0
 

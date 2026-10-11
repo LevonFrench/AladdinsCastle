@@ -234,17 +234,42 @@ private slots:
         QVERIFY(model.wiiControls()); QVERIFY(model.previewAvailable());
         QCOMPARE(rowWithId(model,"p1-fire").value("hand").toString(),QString("right"));
         QCOMPARE(rowWithId(model,"p1-z").value("hand").toString(),QString("left"));
+        QCOMPARE(rowWithId(model,"p1-fire").value("physicalDsuSlot").toInt(),0);
+        QCOMPARE(rowWithId(model,"p1-z").value("physicalDsuSlot").toInt(),1);
+        for (const QString &part : {QString("minus"),QString("one"),QString("two"),QString("laser")}) {
+            const auto row=rowWithId(model,"p1-"+part);
+            QCOMPARE(row.value("availability").toString(),QString("planned"));
+            QVERIFY(row.value("availabilityLabel").toString().contains("unavailable"));
+            QVERIFY(!row.value("reason").toString().isEmpty());
+        }
+        QCOMPARE(rowWithId(model,"p1-laser").value("physicalDsuSlot").toInt(),-1);
+        QCOMPARE(rowWithId(model,"p1-menu").value("availability").toString(),QString("unavailable"));
+        QVERIFY(rowWithId(model,"p1-menu").value("bindingLabel").toString().contains("Binding pending"));
+        QVERIFY(!rowWithId(model,"p1-menu").value("bindingLabel").toString().contains("Right menu button"));
+        model.setBindingState("right","thumbstick_click",true);
+        QVERIFY(!rowWithId(model,"p1-laser").value("pressed").toBool());
         QVERIFY(rowWithId(model,"p2-fire").isEmpty());
         QVERIFY(rowWithId(model,"p1-reload-fallback").value("bindingLabel").toString().contains("Keyboard R"));
         model.setTwoGunsActive(true);
         QCOMPARE(rowWithId(model,"p1-z").value("hand").toString(),QString("right"));
         QCOMPARE(rowWithId(model,"p2-z").value("hand").toString(),QString("left"));
+        QCOMPARE(rowWithId(model,"p1-z").value("physicalDsuSlot").toInt(),0);
+        QCOMPARE(rowWithId(model,"p2-z").value("physicalDsuSlot").toInt(),1);
         model.setBindingState("left","trigger",true);
         QVERIFY(rowWithId(model,"p2-fire").value("pressed").toBool());
         QVERIFY(!rowWithId(model,"p1-fire").value("pressed").toBool());
         model.setTwoGunsActive(false); model.setPrimaryHand("left");
-        QCOMPARE(rowWithId(model,"p1-fire").value("hand").toString(),QString("left"));
-        QCOMPARE(rowWithId(model,"p1-stick").value("hand").toString(),QString("right"));
+        QCOMPARE(rowWithId(model,"p1-fire").value("hand").toString(),QString("right"));
+        QCOMPARE(rowWithId(model,"p1-stick").value("hand").toString(),QString("left"));
+        QVERIFY(model.notice().contains("Left-primary setup is not ready"));
+        for (const auto &value:model.rows()) {
+            QCOMPARE(value.toMap().value("availability").toString(),QString("unavailable"));
+            QVERIFY(value.toMap().value("reason").toString().contains("Left-primary"));
+        }
+        model.setBindingState("right","trigger",true);
+        QVERIFY(!rowWithId(model,"p1-fire").value("pressed").toBool());
+        QVERIFY(model.controllerBindings("right").isEmpty());
+        QVERIFY(model.controllerBindings("left").isEmpty());
         model.setPrimaryHand("right"); model.setPreviewView("held"); QVERIFY(model.previewAvailable());
         QQmlComponent component(&engine,QUrl("qrc:/controls/ControlsView.qml"));
         std::unique_ptr<QObject> object(component.createWithInitialProperties({{"controlsModel",QVariant::fromValue(&model)},{"width",1000}}));
@@ -252,8 +277,11 @@ private slots:
         auto *item=qobject_cast<QQuickItem *>(object.get()); QVERIFY(item);
         QCOMPARE(named(item,"controlsCallout").size(),model.rows().size());
         QVERIFY(named(item,"wiiPartsDiagram").front()->isVisible());
+        QVERIFY(!named(item,"controller-right-thumbstick_click").front()->property("used").toBool());
+        QVERIFY(named(item,"controller-left-thumbstick_click").front()->property("used").toBool());
         QQuickWindow window; window.setColor(QColor("#0f0f12")); window.resize(1040,2400);
         item->setParentItem(window.contentItem()); item->setPosition({20,20}); window.show(); QTest::qWait(100);
+        window.resize(1040,qMax(2400,qCeil(item->height())+40)); QTest::qWait(60);
         const QImage capture=window.grabWindow(); QVERIFY(!capture.isNull());
         QVERIFY(capture.save(QDir(fixtureRoot).filePath("wii-umbrella-controls.png")));
         item->setParentItem(nullptr);

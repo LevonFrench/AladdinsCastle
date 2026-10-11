@@ -132,6 +132,12 @@ Column {
                     color: root.mutedColor; font.pixelSize: root.textSize - 2; wrapMode: Text.Wrap
                 }
                 Text {
+                    visible: callout.modelData.availability === "planned" || callout.modelData.availability === "unavailable"
+                    width: parent.width
+                    text: callout.modelData.reason
+                    color: root.mutedColor; font.pixelSize: root.textSize - 2; wrapMode: Text.Wrap
+                }
+                Text {
                     visible: !!callout.modelData.fallbackLabel
                     width: parent.width
                     text: "With two guns: " + callout.modelData.fallbackLabel
