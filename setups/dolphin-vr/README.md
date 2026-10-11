@@ -94,7 +94,9 @@ The real Dolphin translation unit compiled, and synthetic tests passed for
 projection math, sampling, row caps, locale-safe CSV and summary frame bounds.
 No geometry, game pixels, executable or log enters the repository. Build and
 patch identities remain in private storage. The source boot and game-specific
-HUD/world interpretation are still pending the lead's desktop turn. This does
+HUD/world interpretation are held: a system permission prompt blocked the
+coordinated desktop checks, and the lead withheld the turn pending manual
+resolution. This lane launched no overnight game or desktop window. This does
 not establish game performance, XR rendering, gun depth or headset acceptance.
 
 Notices are preserved in the extracted release `LICENSES/` and source
