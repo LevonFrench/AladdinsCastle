@@ -1,5 +1,26 @@
 # Original gun assets
 
+The owner-promoted `con-remote-shell` and companion `con-stick-grip` are built
+alongside the seven original tier 1 guns. Their authored scripts contain no
+imported/traced shapes or maker labels. The shell is held at its trigger grip;
+`grip_two` is its rear docking anchor. The separate controller is an
+`asset_kind="controller"`: identity `grip`, two-axis `pivot_stick_x/y`, stick/C/Z
+button nodes, no muzzle/sights/effects/cable. Its declared 120 mm length is along
+Y; gun lengths remain along the -Z bore. Both models use four neutral materials
+and the same 8,000/2,000 budgets and CPU runtime-lighting formula.
+
+`preview/shell-stick-sheet.png` has shell/stick rows and side/three-quarter/held
+columns. Shell sight-through images show both LODs. Runtime assembly consumes
+the split/docked/two-remotes and handedness policy in
+`data/controls/wii/shell-and-stick.toml`; physical drawing/docking is separate
+from these CPU previews. Native dual-player aim is unsupported by the pin.
+
+After owner approval, `Build-ShellStick.ps1 -OwnerApprovedCpuBuild -Blender <existing-executable>` rebuilds the
+two models and their sheet with Windows PowerShell 5.1, factory startup and CPU
+only. `-CheckOnly` invokes no Blender. Both script paths were actually exercised
+in Windows PowerShell 5.1. The original seven-model sheets are retained.
+Omit `-Blender` only when the existing executable is available on PATH.
+
 Seven tier 1 source designs have independently authored closed side outlines
 (25–50 points in millimetres), symmetric extrusion and rounded edges. Shared
 code handles geometry and export; each model script owns its silhouette.

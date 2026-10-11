@@ -12,6 +12,13 @@ class ControlsViewModel final : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantList rows READ rows NOTIFY changed)
     Q_PROPERTY(QVariantList markers READ markers NOTIFY changed)
+    Q_PROPERTY(QVariantList accessoryMarkers READ accessoryMarkers NOTIFY changed)
+    Q_PROPERTY(QVariantList secondShellMarkers READ secondShellMarkers NOTIFY changed)
+    Q_PROPERTY(bool twoGunsSupported READ twoGunsSupported NOTIFY changed)
+    Q_PROPERTY(QUrl accessoryPreviewImage READ accessoryPreviewImage NOTIFY changed)
+    Q_PROPERTY(bool accessoryPreviewAvailable READ accessoryPreviewAvailable NOTIFY changed)
+    Q_PROPERTY(QString accessoryId READ accessoryId NOTIFY changed)
+    Q_PROPERTY(QString holdMode READ holdMode WRITE setHoldMode NOTIFY changed)
     Q_PROPERTY(QString title READ title NOTIFY changed)
     Q_PROPERTY(QString gameId READ gameId NOTIFY changed)
     Q_PROPERTY(QString modelId READ modelId NOTIFY changed)
@@ -35,6 +42,15 @@ public:
     Q_INVOKABLE QUrl controllerImage(const QString &hand) const;
     QVariantList rows() const { return m_rows; }
     QVariantList markers() const;
+    QVariantList accessoryMarkers() const;
+    QVariantList secondShellMarkers() const { return markersForModel(modelId(),1); }
+    bool twoGunsSupported() const { return m_result.value("configured_slots").toInt()>1 &&
+        (m_data.value("route").toString()!="dolphinxr" || m_data.value("policy").toMap().value("native_two_remotes").toBool()); }
+    QUrl accessoryPreviewImage() const { return m_accessoryImage; }
+    bool accessoryPreviewAvailable() const { return !m_accessoryImage.isEmpty() && !m_twoGunsActive; }
+    QString accessoryId() const { return m_data.value("assembly").toMap().value("accessory").toString(); }
+    QString holdMode() const { return m_twoGunsActive ? "two-remotes" : m_holdMode; }
+    void setHoldMode(const QString &mode);
     QString title() const { return m_data.value("title").toString(); }
     QString gameId() const { return m_result.value("game_id").toString(); }
     QString modelId() const { return m_result.value("model").toString(); }
@@ -55,14 +71,18 @@ private:
     void rebuild();
     void loadPreview();
     QVariantList makeRows() const;
+    QVariantList markersForModel(const QString &model,int player=-1) const;
     QString elementHand(const QVariantMap &element, const QVariantMap &binding) const;
     static QString bindingLabel(const QVariantMap &binding, const QString &hand);
     static QString stateKey(const QString &hand, const QString &control);
     QVariantMap m_result, m_data, m_preview, m_anchors;
+    QVariantMap m_accessoryAnchors;
+    QUrl m_accessoryImage;
     QVariantList m_rows;
     QString m_previewDirectory, m_error;
     QString m_view = "threequarter";
     QString m_primaryHand = "right";
+    QString m_holdMode = "split";
     bool m_twoGunsActive = false;
     QUrl m_previewImage;
     QSet<QString> m_pressed;

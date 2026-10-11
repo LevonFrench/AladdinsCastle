@@ -1,19 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
+# Await owner-selected option/instruction screens. No inferred game actions.
 version = "0.1"
 game_id = "wii-resident-evil-umbrella-chronicles"
-game_profile = "Remote and Nunchuk"
-instruction = "Reload by shaking the gun. Follow the game prompts for knife and counterattacks."
-sources = ["docs/tasks/m2/W-wii-chronicles.md", "docs/tasks/m2/R1-redirect.md"]
-questions = ["Confirm knife-enable and grenade chord in the selected game control layout.", "Confirm C weapon selection and Z meaning in the selected layout."]
-
-[[action]]
-id = "interact"
-label = "Pick up / interact: press A / X"
-
-[[action]]
-id = "stick"
-label = "Look around within the game camera range"
-
-[[action]]
-id = "motion"
-label = "Reload: shake gun; swing for motion prompts"
+control_set = "shell-and-stick"
+layout = { state = "question", name = "", question = "Which game option-screen layout is selected for shell and stick?" }
+questions = ["Confirm knife-enable and grenade chord in the selected game control layout.", "Confirm C weapon selection and Z meaning in the selected layout.", "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."]
+sources = []

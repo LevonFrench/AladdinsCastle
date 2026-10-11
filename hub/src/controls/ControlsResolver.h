@@ -17,6 +17,7 @@ struct ControlsResolveOptions {
     // from a new persistence format. Game/pack/user-specific keys win.
     QVariantMap profileDefaults;
     QString profileModel;
+    QString route = "flat-dolphin";
     std::optional<QVariantMap> backend;
     // Only a successful runtime asset decoder supplies these names. No GLB I/O.
     QMap<QString,QSet<QString>> decodedModelNodes;
