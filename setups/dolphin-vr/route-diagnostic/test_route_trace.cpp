@@ -12,6 +12,30 @@ void Require(bool ok, const char* message) { if (!ok) throw std::runtime_error(m
 std::string Read(const std::filesystem::path& path)
 { std::ifstream file(path, std::ios::binary); return {std::istreambuf_iterator<char>(file),{}}; }
 struct CommaDecimal : std::numpunct<char> { char do_decimal_point() const override { return ','; } };
+struct MetadataEnvironment
+{
+  std::string old;
+  bool existed = false;
+  explicit MetadataEnvironment(const std::filesystem::path& path)
+  {
+    const auto* previous = std::getenv("AC_DOLPHIN_VR_ROUTE_METADATA");
+    existed = previous != nullptr; if (previous) old = previous;
+#ifdef _WIN32
+    Require(_wputenv_s(L"AC_DOLPHIN_VR_ROUTE_METADATA", path.c_str()) == 0,"Synthetic metadata environment");
+#else
+    Require(setenv("AC_DOLPHIN_VR_ROUTE_METADATA",path.c_str(),1) == 0,"Synthetic metadata environment");
+#endif
+  }
+  ~MetadataEnvironment()
+  {
+#ifdef _WIN32
+    _putenv_s("AC_DOLPHIN_VR_ROUTE_METADATA",existed ? old.c_str() : "");
+#else
+    if (existed) setenv("AC_DOLPHIN_VR_ROUTE_METADATA",old.c_str(),1);
+    else unsetenv("AC_DOLPHIN_VR_ROUTE_METADATA");
+#endif
+  }
+};
 std::vector<std::string> Split(const std::string& csv)
 {
   std::vector<std::string> fields;std::istringstream input(csv);std::string field;
@@ -89,6 +113,7 @@ int main(int argc, char** argv)
     }
     const auto rows_path=root/"rows.csv";
     {
+      MetadataEnvironment metadata(std::filesystem::absolute(root/"rows-metadata.json"));
       ACVRRouteTrace::Logger logger(rows_path,{2,2,1024*1024,0,600});
       Require(logger.Record(s),"First sampled frame");
       logger.EndFrame();Require(!logger.Record(s),"Interval skips intervening frame");
@@ -97,12 +122,20 @@ int main(int argc, char** argv)
     }
     const auto rows=Read(rows_path);
     Require(std::count(rows.begin(),rows.end(),'\n')==3,"Header plus exactly two rows");
+    const auto metadata=Read(root/"rows-metadata.json");
+    Require(metadata.size()<=4096 && std::count(metadata.begin(),metadata.end(),'\n')==1,"One bounded final origin record");
+    Require(metadata.find("\"stop_reason\":\"row-limit\"")!=std::string::npos,"Destructor cannot overwrite row-limit cause");
+    Require(metadata.find("\"complete_rows\":2")!=std::string::npos,"Actual completed row counter");
+    Require(metadata.find("\"anchor_elapsed_unit\":\"nanoseconds\"")!=std::string::npos,"Explicit origin offset unit");
+    Require(metadata.find("\"exact_gpu_frame_sync\":false")!=std::string::npos,"Clock record cannot claim GPU-frame sync");
     const auto bytes_path=root/"bytes.csv";
     {
+      MetadataEnvironment metadata(std::filesystem::absolute(root/"bytes-metadata.json"));
       ACVRRouteTrace::Logger logger(bytes_path,{1,20,static_cast<std::uint64_t>(header.size()+10),0,600});
       Require(!logger.Record(s)&&!logger.IsSampling(),"Byte cap stops before partial row");
     }
     Require(Read(bytes_path)==header,"Byte cap preserves complete CSV header");
+    Require(Read(root/"bytes-metadata.json").find("\"stop_reason\":\"byte-limit\"")!=std::string::npos,"Byte cap reason retained");
     const auto invalid=root/"invalid.csv";
     {
       ACVRRouteTrace::Logger logger(invalid,{0,10,1024*1024,0,600});
@@ -121,9 +154,19 @@ int main(int argc, char** argv)
       Require(!logger.Record(s),"Delayed capture emits no premature row");
     }
     {
+      MetadataEnvironment metadata(std::filesystem::absolute(root/"expired-metadata.json"));
       ACVRRouteTrace::Logger logger(root/"expired.csv",{1,10,1024*1024,0,1e-12});
       Require(!logger.IsSampling()&&!logger.Record(s),"Time bound stops without sleep");
     }
+    Require(Read(root/"expired-metadata.json").find("\"stop_reason\":\"time-limit\"")!=std::string::npos,"Elapsed stop reason retained");
+    const auto metadata_sentinel=root/"metadata-sentinel.json";
+    { std::ofstream output(metadata_sentinel); output << "synthetic metadata sentinel"; }
+    {
+      MetadataEnvironment metadata(std::filesystem::absolute(metadata_sentinel));
+      ACVRRouteTrace::Logger logger(root/"metadata-refused.csv",{1,1,1024*1024,0,600});
+      Require(logger.Record(s),"Metadata collision must not change existing CSV admission");
+    }
+    Require(Read(metadata_sentinel)=="synthetic metadata sentinel","Metadata exclusive create preserves earlier evidence");
     std::cout<<"Synthetic route decisions, CSV and bounded opt-in checks passed\n";
     return 0;
   }

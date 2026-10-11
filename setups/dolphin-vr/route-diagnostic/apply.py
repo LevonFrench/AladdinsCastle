@@ -185,6 +185,10 @@ def main():
     if target.exists():
         raise SystemExit('Diagnostic helper already exists; preserve it')
     changes[target] = header
+    clock_target = source/'Source/Core/VideoCommon/ACTraceClock.h'
+    if clock_target.exists():
+        raise SystemExit('Clock helper already exists; preserve it')
+    changes[clock_target] = Path(__file__).with_name('ACTraceClock.h').read_bytes()
     for path, data in changes.items():
         path.write_bytes(data)
         print(path.name+' SHA256 '+hashlib.sha256(data).hexdigest())

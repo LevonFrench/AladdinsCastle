@@ -194,8 +194,11 @@ std::optional<CapturedFrame> WindowCapture::take() {
     auto access=frame.Surface().as<::Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess>();
     ComPtr<ID3D11Texture2D> texture;
     winrt::check_hresult(access->GetInterface(IID_PPV_ARGS(texture.GetAddressOf())));
-    const auto time=frame.SystemRelativeTime().count()/10000;
-    auto result=readClientPixels(m->device.Get(),m->context.Get(),texture.Get(),crop,time);
+    const auto compositorTime=frame.SystemRelativeTime().count();
+    const auto acquisitionClock=ACTraceClock::Now();
+    auto result=readClientPixels(m->device.Get(),m->context.Get(),texture.Get(),crop,compositorTime/10000);
+    result.compositorTime100ns=compositorTime;
+    result.acquisitionClock=acquisitionClock;
     m->observation.kind=CapturePoll::Frame;
     frame.Close(); return result;
 }

@@ -4,6 +4,7 @@
 #include <d3d11.h>
 #include "core.h"
 #include "failure_diagnostic.h"
+#include "../../../setups/dolphin-vr/route-diagnostic/ACTraceClock.h"
 #include <memory>
 #include <optional>
 #include <vector>
@@ -13,6 +14,9 @@ namespace theatre {
 struct CapturedFrame {
     unsigned width=0,height=0;
     std::int64_t timeMs=0;
+    // Full compositor timestamp, 100 ns QPC-domain units; not a Dolphin GPU fence.
+    std::int64_t compositorTime100ns=0;
+    ACTraceClock::Anchor acquisitionClock{};
     std::vector<std::uint8_t> pixels;
 };
 CapturedFrame readClientPixels(ID3D11Device* device,ID3D11DeviceContext* context,

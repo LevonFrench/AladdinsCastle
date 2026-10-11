@@ -14,6 +14,8 @@
 #include <string>
 #include <type_traits>
 #include <fcntl.h>
+#include <limits>
+#include "ACTraceClock.h"
 #ifdef _WIN32
 #include <io.h>
 #include <share.h>
@@ -162,27 +164,42 @@ public:
 #endif
     if (m_file && std::fwrite(header.data(), 1, header.size(), m_file) == header.size())
       m_bytes = header.size();
-    else Close();
+    else Close("header-write-error");
+    if (m_file)
+    {
+      m_origin = ACTraceClock::Now();
+      if (m_origin.available)
+        m_anchor_elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            m_origin.steady_anchor - m_start).count();
+      try { OpenMetadata(); }
+      catch (...) { /* Optional metadata cannot change renderer/CSV admission. */ }
+    }
   }
-  ~Logger() { Close(); }
+  ~Logger() { Close("logger-destroyed"); }
   Logger(const Logger&) = delete;
   Logger& operator=(const Logger&) = delete;
   bool IsSampling()
   {
     if (!m_file) return false;
     const double elapsed = Elapsed();
-    if (m_file && elapsed >= m_limits.start_seconds + m_limits.duration_seconds) Close();
+    if (m_file && elapsed >= m_limits.start_seconds + m_limits.duration_seconds) Close("time-limit");
     return m_file && elapsed >= m_limits.start_seconds && m_frame % m_limits.interval == 0;
   }
-  void EndFrame() { ++m_frame; if (m_file && std::fflush(m_file) != 0) Close(); }
+  void EndFrame()
+  {
+    if (m_frame == (std::numeric_limits<std::uint64_t>::max)()) { Close("counter-overflow"); return; }
+    ++m_frame;
+    if (m_file && std::fflush(m_file) != 0) Close("flush-error");
+  }
   bool Record(const Sample& sample)
   {
     if (!IsSampling()) return false;
     const auto row = Serialize(sample, m_frame, Elapsed() * 1000);
-    if (m_rows >= m_limits.rows || row.size() > m_limits.bytes - m_bytes) { Close(); return false; }
-    if (std::fwrite(row.data(), 1, row.size(), m_file) != row.size()) { Close(); return false; }
+    if (m_rows >= m_limits.rows) { Close("row-limit"); return false; }
+    if (row.size() > m_limits.bytes - m_bytes) { Close("byte-limit"); return false; }
+    if (std::fwrite(row.data(), 1, row.size(), m_file) != row.size()) { Close("row-write-error"); return false; }
     m_bytes += row.size();
-    if (++m_rows == m_limits.rows) Close();
+    if (++m_rows == m_limits.rows) Close("row-limit");
     return true;
   }
 private:
@@ -222,9 +239,75 @@ private:
   }
   double Elapsed() const
   { return std::chrono::duration<double>(std::chrono::steady_clock::now() - m_start).count(); }
-  void Close() { if (m_file) { std::fclose(m_file); m_file = nullptr; } }
+  void OpenMetadata()
+  {
+    // Independent opt-in, one exclusive-create sidecar; failure does not alter
+    // CSV sampling/admission. Never serialize its path or any game information.
+    std::filesystem::path path;
+#ifdef _WIN32
+    wchar_t* value = nullptr; std::size_t length = 0;
+    if (_wdupenv_s(&value, &length, L"AC_DOLPHIN_VR_ROUTE_METADATA") != 0) return;
+    path = value ? value : L""; std::free(value);
+    if (path.empty() || !path.is_absolute()) return;
+    int descriptor = -1;
+    if (_wsopen_s(&descriptor, path.c_str(), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY,
+                 _SH_DENYWR, _S_IREAD | _S_IWRITE) != 0) return;
+#else
+    const char* value = std::getenv("AC_DOLPHIN_VR_ROUTE_METADATA");
+    path = value ? value : "";
+    if (path.empty() || !path.is_absolute()) return;
+    const int descriptor = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
+    if (descriptor < 0) return;
+#endif
+#ifdef _WIN32
+    m_metadata = _fdopen(descriptor, "wb");
+#else
+    m_metadata = ::fdopen(descriptor, "wb");
+#endif
+    if (!m_metadata)
+    {
+#ifdef _WIN32
+      _close(descriptor);
+#else
+      ::close(descriptor);
+#endif
+    }
+  }
+  void Close(const char* reason)
+  {
+    if (!m_file) return; // First terminal cause wins; destructor cannot replace it.
+    const double stop_elapsed_ms = Elapsed()*1000; // Decision time, before any final file IO.
+    const bool csv_close_ok = std::fclose(m_file) == 0;
+    m_file = nullptr;
+    if (!m_metadata) return;
+    // One final origin/counter/stop record, at most 4096 bytes. An abrupt process
+    // kill leaves an empty/incomplete sidecar, which supplies no stop evidence.
+    try
+    {
+      std::ostringstream out; out.imbue(std::locale::classic());
+      out << std::setprecision(17) << "{\"schema\":1,\"kind\":\"route-origin-and-stop\",";
+      ACTraceClock::Fields(out, m_origin);
+      out << ",\"elapsed_unit\":\"milliseconds\",\"anchor_elapsed_unit\":\"nanoseconds\""
+          << ",\"logger_elapsed_at_anchor_ns\":" << m_anchor_elapsed_ns
+          << ",\"sample_interval_frames\":" << m_limits.interval
+          << ",\"row_limit\":" << m_limits.rows << ",\"byte_limit\":" << m_limits.bytes
+          << ",\"start_seconds\":" << m_limits.start_seconds
+          << ",\"duration_seconds\":" << m_limits.duration_seconds
+          << ",\"completed_frame_events\":" << m_frame << ",\"complete_rows\":" << m_rows
+          << ",\"complete_csv_bytes\":" << m_bytes << ",\"stop_elapsed_ms\":" << stop_elapsed_ms
+          << ",\"stop_reason\":\"" << reason << "\",\"csv_close_ok\":" << (csv_close_ok ? "true" : "false")
+          << ",\"exact_gpu_frame_sync\":false}\n";
+      const auto record = out.str();
+      if (record.size() <= 4096) std::fwrite(record.data(), 1, record.size(), m_metadata);
+    }
+    catch (...) { /* Optional metadata must not throw from renderer/destructor. */ }
+    std::fclose(m_metadata); m_metadata = nullptr;
+  }
   Limits m_limits;
   std::FILE* m_file = nullptr;
+  std::FILE* m_metadata = nullptr;
+  ACTraceClock::Anchor m_origin{};
+  std::int64_t m_anchor_elapsed_ns = 0;
   std::chrono::steady_clock::time_point m_start = std::chrono::steady_clock::now();
   std::uint64_t m_frame = 0, m_rows = 0, m_bytes = 0;
 };
