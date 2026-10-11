@@ -9,6 +9,20 @@ def profile(route,mode,hand):
     p.read_string(render_profile(route,mode,hand).decode());return p
 
 class ShellProfilesTests(unittest.TestCase):
+    def test_canonical_installer_seed_bytes_keep_their_pinned_hashes(self):
+        import hashlib,tomllib
+        found=[]
+        def visit(value):
+            if isinstance(value,dict):
+                if str(value.get('source','')).startswith('data/controls/wii/generated/'):
+                    found.append(value)
+                for child in value.values():visit(child)
+            elif isinstance(value,list):
+                for child in value:visit(child)
+        for path in (ROOT/'games').glob('*/install.toml'):
+            visit(tomllib.loads(path.read_text(encoding='utf-8')))
+        self.assertTrue(found)
+        for step in found:self.assertEqual(hashlib.sha256((ROOT/step['source']).read_bytes()).hexdigest(),step['source_sha256'],step['source'])
     def test_game_default_profiles_and_scripted_roles_remain_one_source(self):
         from wii_shell_stick import game_policy,render_game_profile,render_scripted_profile,scripted_bridge_profile
         for path in (ROOT/'data/controls/wii/games').glob('*.toml'):

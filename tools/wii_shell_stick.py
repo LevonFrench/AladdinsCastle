@@ -87,7 +87,8 @@ def render_profile(route='dolphinxr',mode='split',primary_hand='right',root=ROOT
     sections['BalanceBoard']={'Source':'0'}
     config=configparser.ConfigParser(interpolation=None); config.optionxform=str; config.read_dict(sections)
     output=io.StringIO(); config.write(output)
-    return (output.getvalue().rstrip()+'\n').encode('utf-8')
+    # Preserve canonical bytes: existing installer recipes pin these hashes.
+    return output.getvalue().encode('utf-8')
 
 def bridge_profile(mode='split',primary_hand='right',root=ROOT):
     data=source(root); players=[]
