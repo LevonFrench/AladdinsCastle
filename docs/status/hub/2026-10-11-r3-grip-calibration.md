@@ -21,7 +21,12 @@ single diagnosed retry with strict warnings preserved. Nine core/service cases
 full integration suite (27.94s) passed. QML checks click the actual calibration
 control and shared restart, retaining the original hand/action after form edits.
 
-Heavy slot released. Independent review and hosted verification are pending;
+Heavy slot released. Independent source review closed checkpoint `541b6be`.
+The accepted consumer report correction is inherited; the unchanged public
+privacy policy passes, with all reviewed Hub source/test bytes preserved.
+Hosted verification is pending;
 no native room, XR, GPU, physical input, calibration save or headset acceptance
-was executed. Next: lead review/publication checkpoint, native lane's matching
+was executed. QML uses an inert service probe; actual HubServices/native runtime
+and controller/save behavior remain unproved. Next: lead publication checkpoint,
+native lane's matching
 capability receipt, then the lead's next task. Parent owns AGENCY/KB and merges.
