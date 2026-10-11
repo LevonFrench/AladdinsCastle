@@ -12,6 +12,8 @@ struct LaunchOptions {
     bool steamVrStarted = false;
     bool window = false;
     bool spike = false;
+    bool pictureFlipY = false;
+    bool pointerFlipY = true;
     bool help = false;
     bool version = false;
     int quitAfterMs = 0;

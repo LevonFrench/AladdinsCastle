@@ -1,0 +1,62 @@
+version = "0.1"
+id = "gun-con-stick-grip"
+title = "con-stick-grip controls"
+gun_model = "con-stick-grip"
+
+[policy]
+p1_hand = "right"
+two_guns = "on_join"
+
+[[unmapped_part]]
+id="p1-stick"
+slot=0
+player=0
+node="button_stick"
+label="Analog stick"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="stick"
+
+[[unmapped_part]]
+id="p1-c"
+slot=0
+player=0
+node="button_c"
+label="C"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="c"
+
+[[unmapped_part]]
+id="p1-z"
+slot=0
+player=0
+node="button_z"
+label="Z"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="z"
+
+[[unmapped_part]]
+id="p2-stick"
+slot=1
+player=1
+node="button_stick"
+label="Analog stick"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="stick"
+
+[[unmapped_part]]
+id="p2-c"
+slot=1
+player=1
+node="button_c"
+label="C"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="c"
+
+[[unmapped_part]]
+id="p2-z"
+slot=1
+player=1
+node="button_z"
+label="Z"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="z"

@@ -12,22 +12,39 @@ Column {
     property color mutedColor: "#8a8f99"
     property color accentColor: "#dd6600"
     property int textSize: 14
+    property bool shellAndStick: root.controlsModel && root.controlsModel.accessoryId === "con-stick-grip"
     spacing: 12
     width: 1000
     Text { width: parent.width; text: root.controlsModel && root.controlsModel.title ? root.controlsModel.title : "CONTROLS"; color: root.textColor; font.pixelSize: 18; font.bold: true; wrapMode: Text.Wrap }
     Text { objectName: "controlsNotice"; width: parent.width; text: root.controlsModel ? root.controlsModel.notice : "Choose a game to see its controls"; color: root.mutedColor; font.pixelSize: root.textSize; wrapMode: Text.Wrap }
     Image {
         objectName: "wiiPartsDiagram"
-        visible: root.controlsModel && root.controlsModel.wiiControls
+        visible: root.controlsModel && root.controlsModel.wiiControls && !root.shellAndStick
         width: Math.min(root.width, 500); height: visible ? width * 270 / 500 : 0
         source: visible ? "qrc:/controls/wii/remote-nunchuk.svg" : ""
         fillMode: Image.PreserveAspectFit
         Accessible.name: "Wii Remote pointer, B trigger, A and directional buttons; Nunchuk stick, C and Z"
     }
+    Row {
+        objectName: "shellAndStickPreviews"
+        visible: root.shellAndStick
+        width: root.width; spacing: 12
+        PartPreview { objectName: "shellPartPreview"; width: (root.width-12)/2; label: "Shell · firing hand"; imageSource: root.controlsModel ? root.controlsModel.previewImage : ""; markers: root.controlsModel ? root.controlsModel.markers : []; accentColor: root.accentColor; textColor: root.textColor }
+        PartPreview { objectName: "stickPartPreview"; visible: root.controlsModel && (root.controlsModel.accessoryPreviewAvailable || root.controlsModel.twoGunsActive); width: (root.width-12)/2; label: root.controlsModel && root.controlsModel.twoGunsActive ? "Shell · player 2" : root.controlsModel && root.controlsModel.holdMode==="docked" ? "Stick controller · rear dock" : "Stick controller · off hand"; imageSource: root.controlsModel ? root.controlsModel.twoGunsActive ? root.controlsModel.previewImage : root.controlsModel.accessoryPreviewImage : ""; markers: root.controlsModel ? root.controlsModel.twoGunsActive ? root.controlsModel.secondShellMarkers : root.controlsModel.accessoryMarkers : []; accentColor: root.accentColor; textColor: root.textColor }
+    }
+    Row {
+        visible: root.shellAndStick; spacing: 8
+        Button { text: "Split"; onClicked: root.controlsModel.holdMode="split" }
+        Button { text: "Docked"; onClicked: root.controlsModel.holdMode="docked" }
+        Button { text: "Two players"; enabled: root.controlsModel && root.controlsModel.twoGunsSupported; onClicked: root.controlsModel.holdMode="two-remotes" }
+        Button { text: "Swap hands"; onClicked: root.controlsModel.primaryHand=root.controlsModel.primaryHand==="right"?"left":"right" }
+        Button { text: "Side"; onClicked: root.controlsModel.previewView="front" }
+        Button { text: "Three-quarter"; onClicked: root.controlsModel.previewView="threequarter" }
+    }
     Flow {
         width: parent.width; spacing: 14
         Column {
-            visible: root.controlsModel && root.controlsModel.previewAvailable
+            visible: root.controlsModel && root.controlsModel.previewAvailable && !root.shellAndStick
             width: Math.min(root.width, 500); spacing: 6
             Rectangle {
                 width: parent.width; height: width

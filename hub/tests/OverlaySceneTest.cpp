@@ -300,7 +300,7 @@ private slots:
         QFETCH(bool,flip);DiagnosticScene scene;scene.state.setFlipY(flip);QVERIFY(scene.click(item(scene.root,"spikeKeyboardTab")));
         const auto keys=visualItems(scene.root,"spikePanelKey");QCOMPARE(keys.size(),qsizetype(39));
         for(auto key:keys){const auto label=key->property("modelData").toString();
-            const auto center=key->mapToScene({key->width()/2,key->height()/2});QVERIFY(center.x()>0&&center.x()<1280&&center.y()>0&&center.y()<800);QVERIFY(key->height()>=48);
+            const auto center=key->mapToScene({key->width()/2,key->height()/2});QVERIFY2(center.x()>0&&center.x()<1280&&center.y()>0&&center.y()<800,qPrintable(QString("Key %1 center (%2,%3), flow (%4,%5)").arg(label).arg(center.x()).arg(center.y()).arg(key->parentItem()->width()).arg(key->parentItem()->height())));QVERIFY(key->height()>=48);
             scene.state.setText(label==QString::fromUtf8("⌫")?"xy":"");QVERIFY(scene.click(key));
             const auto expected=label=="Space"?QString(" "):label==QString::fromUtf8("⌫")?QString("x"):label;
             QVERIFY2(scene.state.text()==expected,qPrintable("Hit geometry failed for panel key "+label));

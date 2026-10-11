@@ -30,13 +30,14 @@ Item {
         anchors.fill: parent; anchors.leftMargin: 24; anchors.rightMargin: 24
         anchors.topMargin: 96; anchors.bottomMargin: 96; spacing: 8
         RowLayout {
+            Layout.fillWidth:true
             spacing: 8
             Button { objectName:"spikeKeyboardTab";implicitHeight:48;font.pixelSize:20;text:root.keyboardPage?"Cards / pointer":"Keyboard";onClicked:root.keyboardPage=!root.keyboardPage }
             Button { visible:root.keyboardPage;implicitHeight:48; text:"Reset text"; onClicked:spikeState.text="" }
-            CheckBox { objectName:"spikeFlipY"; implicitHeight:48; font.pixelSize:22; palette.windowText:primaryTextColor; text:"Flip Y"; checked:spikeState.flipY; onToggled:spikeState.flipY=checked }
+            CheckBox { objectName:"spikeFlipY"; implicitHeight:48; font.pixelSize:22; palette.windowText:primaryTextColor; text:"Flip Y"; Accessible.name:"Pointer Flip Y"; ToolTip.text:"Pointer only; picture orientation uses --overlay-picture-flip-y"; ToolTip.visible:hovered; checked:spikeState.flipY; onToggled:spikeState.flipY=checked }
             CheckBox { implicitHeight:48; font.pixelSize:18; palette.windowText:primaryTextColor; text:"50 glows"; checked:spikeState.glow; onToggled:spikeState.glow=checked }
             CheckBox { implicitHeight:48; font.pixelSize:18; palette.windowText:primaryTextColor; text:"Animate glows"; checked:spikeState.animate; onToggled:spikeState.animate=checked }
-            Label { Layout.fillWidth:true; text:"Last Qt pointer: cursor " + spikeState.pointerCursor + " (" + spikeState.pointerPosition.x.toFixed(1) + ", " + spikeState.pointerPosition.y.toFixed(1) + ")"; color:primaryTextColor }
+            Label { Layout.fillWidth:true; Layout.minimumWidth:0; Layout.preferredWidth:0; wrapMode:Text.Wrap; text:"Last Qt pointer: cursor " + spikeState.pointerCursor + " (" + spikeState.pointerPosition.x.toFixed(1) + ", " + spikeState.pointerPosition.y.toFixed(1) + ")"; color:primaryTextColor }
         }
         RowLayout {
             visible:!root.keyboardPage
@@ -108,7 +109,7 @@ Item {
         }
         Flow {
             visible:root.keyboardPage
-            Layout.fillWidth:true; Layout.preferredHeight:implicitHeight; spacing:8
+            Layout.fillWidth:true; Layout.minimumWidth:0; Layout.preferredWidth:0; Layout.preferredHeight:implicitHeight; spacing:8
             Repeater {
                 model:"abcdefghijklmnopqrstuvwxyz0123456789".split("").concat(["-", "Space", "⌫"])
                 Button {

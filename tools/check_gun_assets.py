@@ -17,7 +17,7 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = {'grip','muzzle','sight_front','sight_rear','pivot_trigger','fx_muzzle','fx_laser','LOD0','LOD1'}
 IDENTITY = (1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1)
-MOTION_DRIVES = {'trigger','recoil','pump','selector','yaw','pitch'}
+MOTION_DRIVES = {'trigger','recoil','pump','selector','yaw','pitch','stick_x','stick_y'}
 
 
 def demand(condition, message):
@@ -183,13 +183,17 @@ def check_functional_sights(front, rear, mesh_triangles):
 
 
 def check_asset(path, meta):
+    controller=meta.get('asset_kind')=='controller'
     doc, binary = read_glb(path)
     demand(not doc.get('images') and not doc.get('textures'), 'tier 1 must have no images/textures')
     demand(not doc.get('extensionsRequired'), 'required extensions unsupported for tier 1')
     nodes = doc.get('nodes',[])
     names = [n.get('name') for n in nodes]
     demand(all(isinstance(n,str) and n for n in names) and len(set(names)) == len(names), 'missing/duplicate node names')
-    needed = REQUIRED | {b['node'] for b in meta.get('button',[])}
+    needed = ({'grip','LOD0','LOD1','pivot_stick_x','pivot_stick_y'} if controller else REQUIRED) | {b['node'] for b in meta.get('button',[])}
+    if controller:
+        demand(not any(n in names for n in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear')), 'controller must have no muzzle, sights or gun effects')
+    if meta.get('assembly',{}).get('dock_node'): needed.add(meta['assembly']['dock_node'])
     if 'recoil_slide' in meta['features']:
         needed |= {'slide_recoil','limit_recoil'}
     if meta['hold'] == 'mounted':
@@ -218,14 +222,15 @@ def check_asset(path, meta):
     demand(len(worlds)==len(nodes), 'unreachable/extra root nodes')
     demand(all(abs(a-b)<1e-6 for a,b in zip(worlds[root],IDENTITY)), 'grip must be identity at origin')
     functional=nodes[root].get('extras',{}).get('functional_sights')
-    if meta.get('tier')==1:
+    if meta.get('tier')==1 and not controller:
         demand(isinstance(functional,dict) and functional.get('kind')=='notch-blade','tier 1 functional sight declaration required')
-    for marker in ('muzzle','fx_muzzle','fx_laser'):
+    for marker in (() if controller else ('muzzle','fx_muzzle','fx_laser')):
         demand(parents.get(names.index(marker))==root, marker+' must not inherit visual recoil')
-    muzzle = worlds[names.index('muzzle')]
-    demand(transform(muzzle,(0,0,0))[2]<-0.01, 'muzzle must be in front of grip along -Z')
-    direction = transform(muzzle,(0,0,-1),vector=True)
-    demand(abs(direction[0])<1e-5 and abs(direction[1])<1e-5 and abs(direction[2]+1)<1e-5, 'muzzle bore must point -Z')
+    if not controller:
+        muzzle = worlds[names.index('muzzle')]
+        demand(transform(muzzle,(0,0,0))[2]<-0.01, 'muzzle must be in front of grip along -Z')
+        direction = transform(muzzle,(0,0,-1),vector=True)
+        demand(abs(direction[0])<1e-5 and abs(direction[1])<1e-5 and abs(direction[2]+1)<1e-5, 'muzzle bore must point -Z')
     materials = doc.get('materials',[])
     demand({m.get('name') for m in materials}=={'body','accent','dark','glass'} and len(materials)==4, 'expected four named materials')
     for material in materials:
@@ -295,7 +300,8 @@ def check_asset(path, meta):
         demand(0 < totals[lod] <= budget, f'{lod} triangle budget: {totals[lod]}/{budget}')
         lo = [min(p[i] for p in positions[lod]) for i in range(3)]
         hi = [max(p[i] for p in positions[lod]) for i in range(3)]
-        length = (hi[2]-lo[2])*1000
+        axis=1 if controller else 2
+        length = (hi[axis]-lo[axis])*1000
         demand(abs(length-meta['length_mm']) <= meta['length_mm']*.1,
                f'{lod} bore length {length:.2f} mm differs from target {meta["length_mm"]} mm')
         bounds[lod] = round(length,3)
@@ -353,7 +359,9 @@ def check_previews(directory, mid, meta):
     path = directory/(mid+'.json')
     data = json.loads(path.read_text(encoding='utf-8'))
     demand(data.get('version')=='0.1' and data.get('model')==mid and data.get('size')==[512,512], 'invalid callout manifest')
-    required = {'grip','muzzle','sight_front','sight_rear','pivot_trigger','fx_muzzle','fx_laser'} | {b['node'] for b in meta.get('button',[])} | {m['node'] for m in meta.get('motion',{}).values()}
+    controller=meta.get('asset_kind')=='controller'
+    required = ({'grip'} if controller else {'grip','muzzle','sight_front','sight_rear','pivot_trigger','fx_muzzle','fx_laser'}) | {b['node'] for b in meta.get('button',[])} | {m['node'] for m in meta.get('motion',{}).values()}
+    if meta.get('assembly',{}).get('dock_node'): required.add(meta['assembly']['dock_node'])
     if meta['hold']=='mounted':
         required.add('grip_two')
     demand(set(data.get('views',{}))=={'front','threequarter','held'}, 'three CPU preview views required')
@@ -363,7 +371,7 @@ def check_previews(directory, mid, meta):
            data['render'].get('denoising_use_gpu') is False, 'CPU 64-sample denoised previews required')
     lighting=json.loads((ROOT/'assets/guns/runtime-lighting.json').read_text(encoding='utf-8'))
     demand(data['render'].get('lighting')==lighting and data['render'].get('exposure')==0,'preview must match R2 runtime camera-space lighting')
-    demand(set(data.get('sight_reviews',{}))=={'LOD0','LOD1'},'sight-through reviews required for both LODs')
+    demand(set(data.get('sight_reviews',{}))==(set() if controller else {'LOD0','LOD1'}),'sight-through reviews required for guns only')
     for filename in data['sight_reviews'].values():
         demand(Path(filename).name==filename and filename.endswith('.png'),'invalid sight-through review path')
         png=(directory/filename).read_bytes()
@@ -388,16 +396,17 @@ def main():
     parser.add_argument('--model',action='append')
     args = parser.parse_args()
     sys.path.insert(0,str(ROOT/'assets/guns/src'))
-    from common import TIERS, plan
+    from common import BUILT_MODELS, plan
     errors = []
-    for mid in args.model or TIERS:
+    for mid in args.model or BUILT_MODELS:
         try:
             with (ROOT/'data/guns'/(mid+'.toml')).open('rb') as stream:
                 meta = tomllib.load(stream)
             params = runpy.run_path(str(ROOT/'assets/guns/src'/(mid+'.py')))['PARAMETERS']
             demand(params['length_mm']==meta['length_mm'], 'source length differs from metadata')
             spec = plan(mid,params)
-            demand({'muzzle','sight_front','sight_rear','pivot_trigger'}<=set(spec['nodes']), 'source lacks named anchors')
+            if meta.get('asset_kind')!='controller':
+                demand({'muzzle','sight_front','sight_rear','pivot_trigger'}<=set(spec['nodes']), 'source lacks named anchors')
             demand({b['node'] for b in meta.get('button',[])}<=set(spec['nodes']), 'source lacks button anchors')
             for motion in meta.get('motion',{}).values():
                 demand(motion['node'] in spec['nodes'], 'motion target absent from source plan')

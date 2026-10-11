@@ -14,6 +14,7 @@ bool shouldQuitAfterLaunch(bool overlayInitialized,bool launchBusy,bool desktopV
 LaunchOptions parseLaunchOptions(const QStringList &arguments) {
     LaunchOptions options;
     bool modeSeen = false;
+    bool orientationSeen = false;
     for (qsizetype i = 0; i < arguments.size(); ++i) {
         const auto &arg = arguments.at(i);
         if (arg == "--help" || arg == "-h") options.help = true;
@@ -21,6 +22,12 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
         else if (arg == "--steamvr-started") options.steamVrStarted = true;
         else if (arg == "--window") options.window = true;
         else if (arg == "--spike") options.spike = true;
+        else if(arg=="--overlay-picture-flip-y"||arg=="--overlay-pointer-flip-y"){
+            orientationSeen=true;
+            if(++i>=arguments.size()||!QStringList{"on","off"}.contains(arguments.at(i))){options.error=arg+" requires on or off.";break;}
+            if(arg=="--overlay-picture-flip-y")options.pictureFlipY=arguments.at(i)=="on";
+            else options.pointerFlipY=arguments.at(i)=="on";
+        }
         else if (arg == "--overlay" || arg == "--launch" || arg == "--register-overlay" || arg == "--unregister-overlay") {
             if (modeSeen) { options.error = "Choose one execution mode (--overlay, --launch, --register-overlay, --unregister-overlay)."; break; }
             modeSeen = true;
@@ -45,6 +52,8 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
             }
         } else { options.error = "Unknown argument: " + arg; break; }
     }
+    if(options.error.isEmpty()&&orientationSeen&&options.mode!=Mode::Overlay)
+        options.error="Overlay orientation options require --overlay.";
     if (options.error.isEmpty() && options.steamVrStarted && options.mode != Mode::Overlay)
         options.error = "--steamvr-started requires --overlay.";
     if (options.error.isEmpty() && options.window && options.mode != Mode::Overlay)

@@ -1,19 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
+# Await owner-selected option/instruction screens. No inferred game actions.
 version = "0.1"
 game_id = "wii-house-of-the-dead-overkill"
-game_profile = "Remote and Nunchuk"
-instruction = "Use the game Nunchuk / Zapper layout when testing this mapping."
-sources = ["docs/tasks/m2/W-wii-chronicles.md", "docs/tasks/m2/R1-redirect.md"]
-questions = ["Confirm A reload, Z weapon switch, C grenade and danger-camera stick in the chosen layout.", "Confirm the Remote plus/minus actions before assigning a gameplay label."]
-
-[[action]]
-id = "interact"
-label = "Remote A game action"
-
-[[action]]
-id = "z"
-label = "Nunchuk Z game action"
-
-[[action]]
-id = "c"
-label = "Nunchuk C game action"
+control_set = "shell-and-stick"
+layout = { state = "question", name = "", question = "Which game option-screen layout is selected for shell and stick?" }
+questions = ["Confirm A reload, Z weapon switch, C grenade and danger-camera stick in the chosen layout.", "Confirm the Remote plus/minus actions before assigning a gameplay label.", "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."]
+sources = []

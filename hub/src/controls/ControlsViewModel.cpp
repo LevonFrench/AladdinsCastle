@@ -92,6 +92,7 @@ bool ControlsViewModel::loadResolved(const QVariantMap &result, const QString &d
     // Backend capacity does not mean player two has joined. The host explicitly
     // sets twoGunsActive when choosing a dual-hand preview or after joining.
     m_twoGunsActive = false;
+    m_holdMode = "split";
     loadPreview(); rebuild(); return true;
 }
 
@@ -113,11 +114,13 @@ void ControlsViewModel::clear() {
     m_result.clear(); m_data.clear(); m_rows.clear(); m_preview.clear(); m_anchors.clear();
     m_previewImage = QUrl{}; m_previewDirectory.clear(); m_pressed.clear(); m_error.clear(); m_twoGunsActive = false;
     m_primaryHand = "right";
+    m_holdMode = "split"; m_accessoryAnchors.clear(); m_accessoryImage = QUrl{};
     emit changed();
 }
 
 void ControlsViewModel::loadPreview() {
     m_previewImage = QUrl{}; m_anchors.clear(); m_preview.clear();
+    m_accessoryImage=QUrl{}; m_accessoryAnchors.clear();
     const QString manifest = confinedFile(m_previewDirectory, modelId() + ".json");
     if (manifest.isEmpty()) return;
     QFile file(manifest);
@@ -136,10 +139,30 @@ void ControlsViewModel::loadPreview() {
     const auto anchors = view.value("nodes").toMap();
     for (auto it = anchors.begin(); it != anchors.end(); ++it) if (!coordinates(it.value())) return;
     m_preview = preview; m_anchors = anchors; m_previewImage = QUrl::fromLocalFile(image);
+    if (!accessoryId().isEmpty()) {
+        const QString accessoryManifest=confinedFile(m_previewDirectory,accessoryId()+".json");
+        QFile accessoryFile(accessoryManifest);
+        if (!accessoryFile.open(QIODevice::ReadOnly)||accessoryFile.size()>1024*1024) return;
+        const auto accessoryDocument=QJsonDocument::fromJson(accessoryFile.readAll(),&error);
+        if(error.error!=QJsonParseError::NoError||!accessoryDocument.isObject()) return;
+        const auto accessory=accessoryDocument.object().toVariantMap();
+        if(accessory.value("model").toString()!=accessoryId()||accessory.value("version").toString()!="0.1"||accessory.value("size").toList()!=QVariantList{512,512}) return;
+        const auto accessoryView=accessory.value("views").toMap().value(m_view).toMap();
+        const QString accessoryPath=confinedFile(m_previewDirectory,accessoryView.value("image").toString());
+        QImageReader accessoryReader(accessoryPath);
+        if(accessoryPath.isEmpty()||accessoryReader.size()!=QSize(512,512)||!accessoryReader.canRead()) return;
+        const auto accessoryAnchors=accessoryView.value("nodes").toMap();
+        for(auto it=accessoryAnchors.begin();it!=accessoryAnchors.end();++it) if(!coordinates(it.value())) return;
+        m_accessoryAnchors=accessoryAnchors; m_accessoryImage=QUrl::fromLocalFile(accessoryPath);
+    }
 }
 
 QString ControlsViewModel::elementHand(const QVariantMap &element, const QVariantMap &binding) const {
     if (wiiControls()) {
+        if(m_data.value("schema").toString()=="shell-stick/1") {
+            const QString firing=element.value("slot").toInt()==0 ? m_primaryHand : (m_primaryHand=="right"?"left":"right");
+            return binding.value("role").toString()=="nunchuk"&&!m_twoGunsActive ? (firing=="right"?"left":"right") : firing;
+        }
         const auto device=binding.value("physical_dsu_slot_by_mode").toMap().value(m_twoGunsActive ? "two_remotes" : "one_gun");
         if (!device.isNull() && device.isValid()) return device.toInt()==0 ? "right" : "left";
     }
@@ -149,6 +172,14 @@ QString ControlsViewModel::elementHand(const QVariantMap &element, const QVarian
 }
 QString ControlsViewModel::bindingLabel(const QVariantMap &binding, const QString &hand) {
     const QString control = binding.value("control").toString();
+    if(control.contains(" & ")) {
+        QStringList labels;
+        for(const auto &raw:control.split(" & ")) {
+            const auto token=raw.trimmed(); if(token.startsWith('!')) continue;
+            labels.append(bindingLabel({{"control",token}},hand));
+        }
+        return labels.join(" + ");
+    }
     const QString side = hand == "either" ? "Either hand" : pretty(hand);
     QString label;
     if (control == "primary") label = hand == "right" ? "A (right)" : hand == "left" ? "X (left)" : "A / X";
@@ -161,6 +192,8 @@ QString ControlsViewModel::bindingLabel(const QVariantMap &binding, const QStrin
     else if (control == "menu_chord") label = "Menu chord";
     else if (control == "pointer") label = side + " gun direction";
     else if (control == "thumbstick") label = side + " thumbstick";
+    else if (control == "click") label = side + " thumbstick click";
+    else if (control == "up" || control == "down" || control == "left" || control == "right") label = side + " thumbstick " + control;
     else if (control == "menu") label = side + " menu button";
     else if (control == "remote_motion") label = side + " gun movement";
     else if (control == "nunchuk_motion") label = side + " controller movement";
@@ -184,7 +217,9 @@ QVariantList ControlsViewModel::makeRows() const {
         if (wiiControls() && source.value("slot").toInt()>0 && !m_twoGunsActive) return;
         const auto ordinary = source.value("binding").toMap();
         const auto fallback = source.value("fallback_binding").toMap();
-        const auto binding = m_twoGunsActive && !fallback.isEmpty() ? fallback : ordinary;
+        auto binding = m_twoGunsActive && !fallback.isEmpty() ? fallback : ordinary;
+        const auto expressions=binding.value("expression_by_mode").toMap();
+        if(!expressions.isEmpty()) binding["control"]=expressions.value(m_twoGunsActive?"two_remotes":m_holdMode);
         const QString hand = elementHand(source,binding);
         const QString control = binding.value("control").toString();
         const auto availability = source.value("availability").toMap();
@@ -199,8 +234,16 @@ QVariantList ControlsViewModel::makeRows() const {
         }
         else if (state != "available" && state != "unavailable" && state != "planned") state = "unverified";
         const QString node = source.value("node").toString();
-        const auto anchor = m_anchors.value(node).toList();
-        const bool pressed = !unmapped && state != "planned" && state != "unavailable" && (m_pressed.contains(stateKey(hand,control)) ||
+        const QString partModel=source.value("model",modelId()).toString();
+        const auto anchor = (partModel==accessoryId()?m_accessoryAnchors:m_anchors).value(node).toList();
+        bool expressionPressed=true;
+        for(const auto &raw:control.split(" & ")) {
+            const auto token=raw.trimmed(); const bool neg=token.startsWith('!');
+            const bool held=m_pressed.contains(stateKey(hand,neg?token.mid(1):token));
+            expressionPressed &= neg?!held:held;
+        }
+        const bool recenter=m_pressed.contains(stateKey("left","click"))&&m_pressed.contains(stateKey("right","click"));
+        const bool pressed = !recenter && !unmapped && state != "planned" && state != "unavailable" && (expressionPressed || m_pressed.contains(stateKey(hand,control)) ||
             (hand == "either" && (m_pressed.contains(stateKey("left",control)) || m_pressed.contains(stateKey("right",control)))));
         const QString part = unmapped ? source.value("label").toString() : pretty(source.value("part").toString());
         const QString action = unmapped ? "Game action pending" : source.value("label").toString();
@@ -209,9 +252,9 @@ QVariantList ControlsViewModel::makeRows() const {
                                           wiiControls() ? "Wii control mapping — awaiting gameplay validation" : state == "available" ? "Ready to test" :
                                           state == "unmapped" ? "Mapping pending" : "Awaiting validation";
         const auto device = binding.value("physical_dsu_slot_by_mode").toMap().value(m_twoGunsActive ? "two_remotes" : "one_gun");
-        QVariantMap row{{"id",source.value("id")},{"part",part},{"action",action},{"node",node},
+        QVariantMap row{{"id",source.value("id")},{"part",part},{"action",action},{"node",node},{"model",partModel},
             {"slot",source.value("slot")},{"player",source.value("player")},{"hand",hand},{"control",control},
-            {"physicalDsuSlot",device.isNull() || !device.isValid() ? -1 : device.toInt()},
+            {"physicalDsuSlot",m_data.value("schema").toString()=="shell-stick/1" ? (hand=="right"?0:1) : device.isNull() || !device.isValid() ? -1 : device.toInt()},
             {"bindingLabel",bindingText},{"fallbackLabel",fallback.isEmpty() ? QString() : bindingLabel(fallback,elementHand(source,fallback))},
             {"availability",state},{"availabilityLabel",availabilityLabel},{"reason",unmapped ? source.value("reason") : reason},
             {"pressed",pressed},{"anchorAvailable",previewAvailable() && coordinates(anchor)},
@@ -227,6 +270,9 @@ void ControlsViewModel::rebuild() { m_rows = makeRows(); emit changed(); }
 QString ControlsViewModel::notice() const {
     if (!m_error.isEmpty()) return m_error;
     if (wiiControls()) {
+        if(m_data.value("schema").toString()=="shell-stick/1") return
+            "Route: "+m_data.value("route").toString()+" · Hold: "+holdMode()+" · Firing hand: "+m_primaryHand+
+            ". Shell in firing hand; stick in the other. Both thumbstick clicks recenter. Game layout/actions remain questions. Native two-player aim is unsupported; native left aim requires its matching installed hand setting.";
         if (!m_data.value("policy").toMap().value("supported_primary_hands").toStringList().contains(m_primaryHand))
             return "Left-hand Wii Remote setup is not available yet. Right hand: Wii Remote. Left hand: Nunchuk.";
         return (m_twoGunsActive ? QString("Player 1: right hand. Player 2: left hand. Each hand controls its own Wii Remote and Nunchuk.") :
@@ -247,8 +293,14 @@ void ControlsViewModel::setPrimaryHand(const QString &hand) {
     m_primaryHand = hand; m_pressed.clear(); rebuild();
 }
 void ControlsViewModel::setTwoGunsActive(bool active) {
+    if(active&&m_data.value("route").toString()=="dolphinxr"&&!m_data.value("policy").toMap().value("native_two_remotes").toBool()) return;
     if (active == m_twoGunsActive || (active && m_result.value("configured_slots").toInt() < 2)) return;
     m_twoGunsActive = active; m_pressed.clear(); rebuild();
+}
+void ControlsViewModel::setHoldMode(const QString &mode) {
+    if(mode=="two-remotes") { setTwoGunsActive(true); return; }
+    if(mode!="split"&&mode!="docked") return;
+    setTwoGunsActive(false); m_holdMode=mode; m_pressed.clear(); rebuild();
 }
 void ControlsViewModel::setBindingState(const QString &hand, const QString &control, bool pressed) {
     if (hand != "left" && hand != "right") return;
@@ -267,6 +319,15 @@ QVariantList ControlsViewModel::controllerBindings(const QString &hand) const {
         if (row.value("availability").toString() == "unmapped" ||
             (row.value("hand").toString() != hand && row.value("hand").toString() != "either")) continue;
         const QString control = row.value("control").toString();
+        if(m_data.value("schema").toString()=="shell-stick/1") {
+            for(const auto &raw:control.split(" & ")) {
+                const auto token=raw.trimmed(); if(token.startsWith('!')) continue;
+                auto part=row; QString highlight=token;
+                if(token=="click"||token=="up"||token=="down"||token=="left"||token=="right") highlight="thumbstick_click";
+                part["controllerControl"]=highlight;result.append(part);
+            }
+            continue;
+        }
         QString highlight = control;
         if (highlight == "offscreen_trigger") highlight = "trigger";
         if (wiiControls() && highlight == "thumbstick") highlight = "thumbstick_click";
@@ -276,12 +337,18 @@ QVariantList ControlsViewModel::controllerBindings(const QString &hand) const {
     return result;
 }
 QVariantList ControlsViewModel::markers() const {
+    return markersForModel(modelId(),m_data.value("schema").toString()=="shell-stick/1"?0:-1);
+}
+QVariantList ControlsViewModel::accessoryMarkers() const { return markersForModel(accessoryId()); }
+QVariantList ControlsViewModel::markersForModel(const QString &model,int player) const {
     QVariantList result;
     QMap<QString,QVariantMap> nodes;
     int number = 0;
     for (const auto &value : m_rows) {
         ++number;
         const auto row = value.toMap();
+        if(player>=0&&row.value("player").toInt()!=player) continue;
+        if(row.value("model").toString()!=model) continue;
         if (!row.value("anchorAvailable").toBool()) continue;
         const QString node = row.value("node").toString();
         auto marker = nodes.value(node);

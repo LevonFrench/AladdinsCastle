@@ -245,7 +245,7 @@ class Resolver:
                 require(isinstance(limits,list) and len(limits)==2 and all(type(v) in (int,float) and math.isfinite(v) for v in limits) and
                         limits[0]<limits[1],mid+': invalid motion range')
                 drive = motion.get('drive')
-                require(drive in {'trigger','recoil','pump','selector','yaw','pitch'} or
+                require(drive in {'trigger','recoil','pump','selector','yaw','pitch','stick_x','stick_y'} or
                         (isinstance(drive,str) and drive.startswith('button:') and drive[7:] in {b['id'] for b in model.get('button',[])}),
                         mid+': invalid motion drive')
 

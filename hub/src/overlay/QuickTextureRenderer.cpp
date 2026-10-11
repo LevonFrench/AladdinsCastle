@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "QuickTextureRenderer.h"
+#include "OverlayRuntime.h"
 #include <QElapsedTimer>
 #include <QFocusEvent>
 #include <QCoreApplication>
@@ -87,8 +88,8 @@ void QuickTextureRenderer::createTexture() {
     if (f->glGetError() != GL_NO_ERROR) { destroyTexture(); return; }
     auto target = QQuickRenderTarget::fromOpenGLTexture(m_texture, m_size);
     target.setDevicePixelRatio(1);
-    // OpenGL's texture origin is bottom-left; leave target mirroring disabled.
-    // SteamVR bounds are flipped at submission for the Qt top-left image.
+    target.setMirrorVertically(overlayMirrorVertically);
+    // Keep target ordering unchanged; compositor bounds must not invert it.
     m_window->setRenderTarget(target);
 }
 void QuickTextureRenderer::destroyTexture() {
