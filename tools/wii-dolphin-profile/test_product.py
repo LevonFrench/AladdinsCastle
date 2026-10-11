@@ -36,7 +36,7 @@ class ProductLabels(unittest.TestCase):
             self.assertEqual(config["Wiimote1"]["Device"], "DSUClient/0/Gallery Input")
             self.assertEqual(config["Wiimote1"]["Nunchuk/Buttons/Z"], "`DSUClient/1/Gallery Input:L2`")
             server = parsed((user / "Config/DSUClient.ini").read_bytes())
-            self.assertEqual(server["Server"]["Entries"], "Gallery Input:127.0.0.1:26760")
+            self.assertEqual(server["Server"]["Entries"], "Gallery Input:127.0.0.1:26760;")
             self.assertTrue((user / "Config/Profiles/Wiimote/synthetic-gallery-one-gun-1.ini").is_file())
             manifest = json.loads((user / setup.MANIFEST).read_text())
             self.assertEqual(manifest["schema"], 1)
@@ -53,6 +53,47 @@ class ProductLabels(unittest.TestCase):
             setup.create(self.root / ".local/new", "one-gun", self.root)
             new = parsed((self.root / ".local/new/Config/WiimoteNew.ini").read_bytes())
             self.assertEqual(new["Wiimote1"]["Device"], "DSUClient/0/Other Input")
+
+    def test_dsu_entries_use_product_name_and_canonical_terminator(self):
+        for name in ("Gallery Input", "Other Input"):
+            with self.subTest(name=name), patch.object(setup, "ROOT", self.root):
+                self.labels["dsu_server_name"] = name
+                self.path.write_text(json.dumps(self.labels))
+                entries = parsed(setup.render("one-gun")["Config/DSUClient.ini"])["Server"]["Entries"]
+                self.assertEqual(entries, name + ":127.0.0.1:26760;")
+                parts = [entry.split(":") for entry in entries.split(";") if entry]
+                rebuilt = "".join(f"{p[0]}:{p[1]}:{int(p[2])};" for p in parts)
+                self.assertEqual(entries, rebuilt)
+
+    def test_old_product_dsu_manifest_is_admitted_without_rewriting(self):
+        games = ["SYN001"]
+        with patch.object(setup, "ROOT", self.root):
+            for mode in ("one-gun", "two-remotes"):
+                with self.subTest(mode=mode):
+                    files = setup.render(mode, self.labels, games=games)
+                    # Independently spell the exact pre-terminator DSU file.
+                    files["Config/DSUClient.ini"] = setup.ini({"Server": {
+                        "Enabled": "True", "Entries": "Gallery Input:127.0.0.1:26760"}})
+                    user = self.root / ".local" / mode
+                    for name, data in files.items():
+                        path = user / name
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_bytes(data)
+                    manifest_path = user / setup.MANIFEST
+                    manifest_path.write_text(json.dumps(setup.envelope(mode, files, self.labels, games)))
+                    before = {p.relative_to(user): p.read_bytes() for p in user.rglob("*") if p.is_file()}
+                    setup.check(user, self.root)
+                    setup.create(user, mode, self.root, game_id=games[0])
+                    setup.command(user, self.root / "Synthetic Dolphin.exe", root=self.root)
+                    self.assertEqual(before, {p.relative_to(user): p.read_bytes() for p in user.rglob("*") if p.is_file()})
+                    # Compatibility accepts only the former exact template,
+                    # never arbitrary re-hashed endpoint changes.
+                    files["Config/DSUClient.ini"] = setup.ini({"Server": {
+                        "Enabled": "True", "Entries": "Gallery Input:127.0.0.1:26761"}})
+                    (user / "Config/DSUClient.ini").write_bytes(files["Config/DSUClient.ini"])
+                    manifest_path.write_text(json.dumps(setup.envelope(mode, files, self.labels, games)))
+                    with self.assertRaises(ValueError):
+                        setup.check(user, self.root)
 
     def test_exact_six_legacy_manifests_admit_without_rewriting(self):
         fixtures = json.loads(Path(__file__).with_name("legacy-manifests.json").read_text())
