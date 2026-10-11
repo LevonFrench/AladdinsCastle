@@ -3,3 +3,70 @@ format = 1
 names = ["neogeo.zip", "naomi.zip", "naomi2.zip", "awbios.zip", "scph1001.bin", "scph10000.bin"]
 extensions = ["iso", "bin", "img", "chd", "cue", "gdi", "cso", "cdi", "gcm", "pbp", "rvz", "wbfs", "nsp", "xci", "mdf", "rom"]
 sha256 = []
+
+# DolphinXR v0.4 support resources, byte-identical to tracked Data/Sys files at
+# source commit 85c4266b29eb308d173fefa0f21f5cb77df3516a. Metadata only; no payloads.
+# Exact release archive/member proof only. Names and denied hashes still win.
+
+[[archive_support]]
+archive_sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+path = "Sys/codehandler.bin"
+sha256 = "2b2ff0716aeb9b806cc61181e559041312957f25f04c435bd7da80a78917b33b"
+bytes = 2880
+source = "https://github.com/iChris4/dolphinXR/blob/85c4266b29eb308d173fefa0f21f5cb77df3516a/Data/Sys/codehandler.bin"
+
+[[archive_support]]
+archive_sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+path = "Sys/GC/dsp_coef.bin"
+sha256 = "d7741279c2e8ec5c5fb318f8fbdd6de6bf583520d288e836a5383233a4238179"
+bytes = 4096
+source = "https://github.com/iChris4/dolphinXR/blob/85c4266b29eb308d173fefa0f21f5cb77df3516a/Data/Sys/GC/dsp_coef.bin"
+
+[[archive_support]]
+archive_sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+path = "Sys/GC/dsp_rom.bin"
+sha256 = "4ea1fea6c649bcf9f627007bc9403d5437896c681d3e089b083263a7646cd3ae"
+bytes = 8192
+source = "https://github.com/iChris4/dolphinXR/blob/85c4266b29eb308d173fefa0f21f5cb77df3516a/Data/Sys/GC/dsp_rom.bin"
+
+[[archive_support]]
+archive_sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+path = "Sys/GC/font_japanese.bin"
+sha256 = "38f9f59d505bc4e2d86b0196706195f33ad72b7fe9d029cf263072cde19d044f"
+bytes = 259626
+source = "https://github.com/iChris4/dolphinXR/blob/85c4266b29eb308d173fefa0f21f5cb77df3516a/Data/Sys/GC/font_japanese.bin"
+
+[[archive_support]]
+archive_sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+path = "Sys/GC/font_western.bin"
+sha256 = "4ad991be2b0aa305f09b90a79fc50f57833b30b008890b5ef1336cc3d9d0bae0"
+bytes = 6478
+source = "https://github.com/iChris4/dolphinXR/blob/85c4266b29eb308d173fefa0f21f5cb77df3516a/Data/Sys/GC/font_western.bin"
+
+[[archive_support]]
+archive_sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+path = "Sys/Wii/shared2/wc24/misc.bin"
+sha256 = "13dd5b6b2682defd3b23afd8e2983d00edc25bd4dc28a8389380dee0ec45a4a5"
+bytes = 1024
+source = "https://github.com/iChris4/dolphinXR/blob/85c4266b29eb308d173fefa0f21f5cb77df3516a/Data/Sys/Wii/shared2/wc24/misc.bin"
+
+[[archive_support]]
+archive_sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+path = "Sys/Wii/shared2/wc24/nwc24dl.bin"
+sha256 = "057b6f840c19b41ce080318bc7e717e2b910965ce72ab781a7e319017636c38e"
+bytes = 63488
+source = "https://github.com/iChris4/dolphinXR/blob/85c4266b29eb308d173fefa0f21f5cb77df3516a/Data/Sys/Wii/shared2/wc24/nwc24dl.bin"
+
+[[archive_support]]
+archive_sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+path = "Sys/Wii/shared2/wc24/nwc24fl.bin"
+sha256 = "ed94af416c47ed3bc2c944ebcd1d734b8935d9697feb0f7039d8fea3ec514c18"
+bytes = 32864
+source = "https://github.com/iChris4/dolphinXR/blob/85c4266b29eb308d173fefa0f21f5cb77df3516a/Data/Sys/Wii/shared2/wc24/nwc24fl.bin"
+
+[[archive_support]]
+archive_sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+path = "Sys/Wii/shared2/wc24/nwc24fls.bin"
+sha256 = "c3a4a5649d6ed2322a0de98d2258b96a6a1d3c0179854fd21e9835d529736822"
+bytes = 12800
+source = "https://github.com/iChris4/dolphinXR/blob/85c4266b29eb308d173fefa0f21f5cb77df3516a/Data/Sys/Wii/shared2/wc24/nwc24fls.bin"
