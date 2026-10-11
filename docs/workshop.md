@@ -48,7 +48,7 @@ When a decision is settled, record it here with the date and update the docs it 
 | D55 | Default hold | Split / docked two-handed | **Per game,** a field of the game's control set. | **Decided 2026-10-11 (owner)** |
 | D56 | Gun test room | Now / later | **Now:** a VR room of our own, no emulator, to hold, aim and calibrate every gun and read its labels. | **Decided 2026-10-11 (owner)** |
 | D57 | Simulator runtime for desktop testing | Install one / not needed | **Not needed.** No simulator runtime is installed. | **Decided 2026-10-11 (owner)** |
-| D58 | Link's Crossbow Training | Stay in tier 2 / move up | **Moves up** beside Umbrella Chronicles as a second showcase. | **Decided 2026-10-11 (owner)** |
+| D58 | Link's Crossbow Training | Stay in tier 2 / move up | **Moves up** beside Umbrella Chronicles as a second showcase, only if the owner has the disc; otherwise it is out. | **Decided 2026-10-11 (owner)** |
 | D59 | Pinball | — | **Its own tab:** only VR-ready Visual Pinball tables from the user's own collection, started from the headset ([tasks/m2/P-pinball-tab.md](tasks/m2/P-pinball-tab.md)). | **Decided 2026-10-11 (owner)** |
 | D60 | Workshop ideas of 2026-10-11 | — | **All accepted,** sequenced in R3: two-handed aim, hands, labels on the gun, weapon-matched guns, holsters, reload choices, head-driven look, the test room, save states, DolphinXR's built-in switches. | **Decided 2026-10-11 (owner)** |
 | D61 | When the Wii work is blocked | Wait / move on | **Never stall.** Move to the next unblocked item, then to the arcade boards in the D49 order, and come back when the block clears. | **Decided 2026-10-11 (owner)** |

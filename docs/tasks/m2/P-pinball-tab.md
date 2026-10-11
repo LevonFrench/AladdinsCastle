@@ -48,10 +48,36 @@ The detail page says why a table is listed ("VPS: VR", "script: VR room", "marke
 
 ## Launch
 
-- Add VPX to the emulator manifests as a located program: the **BGFX build of VPX 10.8**, which is the one with OpenXR. The OpenGL build has no VR. No automatic install until the official download channel and the licence are checked.
-- Start it with the chosen table and have it close when the table ends. The flags are to be read from the build's own help or source, not from memory (`-play`, `-minimized` and `-exit` are the names to look for).
-- VR is governed by `AskToTurnOn` under `[PlayerVR]` in VPX's settings (0 on, 1 autodetect, 2 off). Prefer a Hub-owned settings file if VPX accepts one on the command line. Never edit the user's own VPX settings without asking; if they are not set for VR, say so on the page.
+- Add VPX to the emulator manifests as a located program: the **BGFX build of VPX 10.8**, which is the one with OpenXR. In 10.8.1 the OpenGL build no longer has VR. No automatic install until the official download channel is checked.
+- The command line, read from `docs/CommandLineParameters.txt` at tag `v10.8.1-5436-af26b2d93`:
+  - `-Play [filename]` loads and plays a table. `-Minimized` starts VPX in its "invisible" minimised window mode, and `-ExtMinimized` does the same with the pause menu enabled.
+  - `-Ini [filename]` uses a custom settings file instead of the default one. **This is how the Hub sets VR without touching the user's settings.**
+  - `-TableIni [filename]` does the same for one table's settings.
+  - There is no separate exit flag. What VPX does when the table ends in each window mode is to be read from the source and then seen.
+- VR is governed by `AskToTurnOn` under `[PlayerVR]` (0 on, 1 autodetect, 2 off). Put it in the Hub-owned settings file. Never edit the user's own VPX settings without asking.
 - Runtime is OpenXR. While the table runs the Hub stays out of the way; when VPX exits the Hub is back on the same tab.
+
+## While a table is running: the "now playing" card
+
+The Hub is a SteamVR dashboard tab, so it is one button press away while a table runs. Its tab then shows a card for the running table: **Exit table, Restart, Recentre**, and it returns to the grid when VPX ends. The same card serves every game the Hub starts, Dolphin included.
+
+- **Close cleanly.** Ask VPX to close; do not kill it. A killed table can lose its saved scores and settings. How VPX handles a close request from outside is the first thing to read in its source.
+- **Monitor.** Start with what needs nothing inside VPX: the process, its window and its log. Then see what its plugin interface can report.
+
+## Reading VPX's source
+
+Worth doing, read-only, no build. One repository covers every build: https://github.com/vpinball/vpinball.
+
+- Take a shallow copy of the tag that matches the located build (`v10.8.1-5436-af26b2d93` for 10.8.1-5436) into `.local/`. The full history is about 735 MB.
+- Licence, from its `LICENSE` file: the project has been moving from an older MAME-style licence to GPLv3 or later and says most files now comply. Reading is fine. Before copying any code, check that file's own header.
+- Questions to answer from it:
+  1. What happens when the table ends in each window mode, and the exit codes.
+  2. How a close request from outside is handled, and what is saved on the way out.
+  3. Where the log goes and which lines mark "table loaded", "playing" and "closed".
+  4. How VR is switched on and what happens with no headset connected.
+  5. The plugin interface. The tag ships `helloworld`, `helloscript`, `inspector`, `scoreview`, `remote-control` (replays input from another VPX over the local network, port 8888) and others. Could a small plugin of ours report table state and take Exit, Restart and Recentre from the Hub over this machine only?
+  6. `-CaptureAttract [n frames] [framerate] [filename]` captures attract frames into a "Capture" folder. Where is that folder, and can it make preview pictures from the user's own tables without writing into the library?
+  7. `-Audit [filename]`: what it reports, and whether that helps classify a table.
 
 ## Controls card
 

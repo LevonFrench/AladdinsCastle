@@ -24,7 +24,7 @@ The pinned DolphinXR build, Umbrella Chronicles, default and eager modes, then t
 | D55 | **The default hold is per game:** split (gun in one hand, stick controller in the other) or docked two-handed. It is a field of the game's control set |
 | D56 | **Build the gun test room now:** a VR room of our own with no emulator |
 | D57 | **No simulator runtime is installed.** SteamVR's own null driver stays an option under the conditions in R2 |
-| D58 | **Link's Crossbow Training moves up** beside Umbrella Chronicles as a second showcase |
+| D58 | **Link's Crossbow Training moves up** beside Umbrella Chronicles as a second showcase, **only if the owner has the disc.** If not, it is out; nobody looks for one |
 | D59 | **Pinball gets its own tab:** only VR-ready Visual Pinball tables from the user's own collection ([P-pinball-tab.md](P-pinball-tab.md)) |
 | D60 | **All the workshop ideas are accepted,** in the order below |
 | D61 | **Never stall.** When Wii work is blocked on a headset sitting or on the owner, sessions move to the next unblocked item on this page, and after that to the arcade boards in the D49 order (System 22 first, where that work is parked). They come back when the block clears |
@@ -80,7 +80,7 @@ Without a headset: it builds, its maths and drawing pass headless tests, and its
 
 ### 7. Link's Crossbow Training (D58)
 
-Catalog entry, control set and profile beside Umbrella Chronicles. It needs the owner's yes for the disc before any session reads it.
+Only if the owner has the disc and says so. Then: catalog entry, control set and profile beside Umbrella Chronicles. Until then no session spends time on it.
 
 ### 8. Later, most per-game work
 
