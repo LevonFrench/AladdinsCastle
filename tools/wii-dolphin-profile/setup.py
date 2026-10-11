@@ -5,6 +5,7 @@ import configparser
 import hashlib
 import io
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -14,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[2]
 GAME_IDS = ("RBUP08", "SBDP08")
 PIN = "85c4266b29eb308d173fefa0f21f5cb77df3516a"
 MANIFEST = "aladdinscastle-profile.json"
+POINTER_YAW = math.degrees(2*math.atan(3.2/(2*2.0)))
+POINTER_PITCH = math.degrees(2*math.atan(1.8/(2*2.0)))
 
 
 def ini(sections):
@@ -36,6 +39,8 @@ def profile(remote, nunchuk):
     result = {"Device": f"DSUClient/{remote}/AladdinsCastle",
               "Extension": "Nunchuk", "Extension/Attach MotionPlus": "False",
               "IR/Relative Input": "False", "IR/Auto-Hide": "False",
+              "IR/Total Yaw": f"{POINTER_YAW:.6f}", "IR/Total Pitch": f"{POINTER_PITCH:.6f}",
+              "IR/Hide": b("Square"),
               "IMUIR/Enabled": "False"}
     for wii, source in {"A": "Cross", "B": "R2", "+": "Options"}.items():
         result[f"Buttons/{wii}"] = b(source)
@@ -75,6 +80,7 @@ def render(mode):
         "Config/WiimoteNew.ini": ini(wiimotes),
         "Config/GFX.ini": ini({"Stereoscopy": {"StereoMode": "1", "StereoDepth": "20", "StereoConvergence": "20", "StereoSwapEyes": "False"}}),
         "Config/Dolphin.ini": ini({"Core": {"EnableCheats": "False"},
+                                  "Display": {"RenderWindowWidth": "1280", "RenderWindowHeight": "720", "RenderWindowAutoSize": "False"},
                                   "Analytics": {"Enabled": "False", "PermissionAsked": "True"},
                                   "AutoUpdate": {"UpdateTrack": ""}}),
     }
@@ -125,11 +131,26 @@ def admit(user, root=ROOT):
     mode = manifest["mode"]
     expected = render(mode)
     if manifest != envelope(mode, expected):
-        initial = dict(expected)
+        # Recognize the two published pre-R2 templates without weakening the
+        # manifest/path gate or migrating any runtime-edited configuration.
+        previous = dict(expected)
+        for name, data in previous.items():
+            if name == "Config/WiimoteNew.ini" or name.startswith("Config/Profiles/Wiimote/"):
+                parsed = configparser.ConfigParser(interpolation=None)
+                parsed.optionxform = str
+                parsed.read_string(data.decode("utf-8"))
+                for section in parsed.sections():
+                    for key in ("IR/Total Yaw", "IR/Total Pitch", "IR/Hide"):
+                        parsed.remove_option(section,key)
+                previous[name] = ini({section: dict(parsed[section]) for section in parsed.sections()})
+        previous["Config/Dolphin.ini"] = ini({"Core": {"EnableCheats": "False"},
+            "Analytics": {"Enabled": "False", "PermissionAsked": "True"}, "AutoUpdate": {"UpdateTrack": ""}})
+        initial = dict(previous)
         initial["Config/Dolphin.ini"] = ini({"Core": {"EnableCheats": "False"}})
-        if manifest != envelope(mode, initial):
+        if manifest == envelope(mode, previous): expected = previous
+        elif manifest == envelope(mode, initial): expected = initial
+        else:
             raise ValueError("Profile manifest has unexpected contents")
-        expected = initial
     for name in expected:
         path = safe_user(user / name, root)
         if not path.is_file():

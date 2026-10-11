@@ -3,6 +3,7 @@ import configparser
 import importlib.util
 import json
 import io
+import math
 from contextlib import redirect_stdout
 from pathlib import Path
 import tempfile
@@ -54,6 +55,20 @@ class Profiles(unittest.TestCase):
         self.assertEqual(parse(files["Config/Dolphin.ini"])["Analytics"]["PermissionAsked"], "True")
         self.assertEqual(parse(files["Config/Dolphin.ini"])["AutoUpdate"]["UpdateTrack"], "")
         self.assertEqual(parse(files["Config/DSUClient.ini"])["Server"]["Entries"], "AladdinsCastle:127.0.0.1:26760")
+
+    def test_window_and_pointer_ranges_follow_source_contract(self):
+        for mode in ("one-gun","two-remotes"):
+            files=setup.render(mode)
+            display=parse(files["Config/Dolphin.ini"])["Display"]
+            self.assertEqual((display["RenderWindowWidth"],display["RenderWindowHeight"]),("1280","720"))
+            self.assertEqual(display["RenderWindowAutoSize"],"False")
+            for name,data in files.items():
+                if name.startswith("Config/Profiles/Wiimote/"):
+                    p=parse(data)["Profile"]
+                    self.assertAlmostEqual(math.tan(math.radians(float(p["IR/Total Yaw"]))/2)*2,1.6,places=6)
+                    self.assertAlmostEqual(math.tan(math.radians(float(p["IR/Total Pitch"]))/2)*2,.9,places=6)
+                    self.assertEqual(p["IR/Hide"],"`Square`")
+                    self.assertIn(p["Device"],("DSUClient/0/AladdinsCastle","DSUClient/1/AladdinsCastle"))
 
     def test_isolation_idempotence_and_modified_config_preserved(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -171,8 +186,16 @@ class Profiles(unittest.TestCase):
             user=root/".local/user"
             setup.create(user,"one-gun",root)
             initial=setup.render("one-gun")
+            for name,data in initial.items():
+                if name == "Config/WiimoteNew.ini" or name.startswith("Config/Profiles/Wiimote/"):
+                    parsed=parse(data)
+                    for section in parsed.sections():
+                        parsed.remove_option(section,"IR/Total Yaw")
+                        parsed.remove_option(section,"IR/Total Pitch")
+                        parsed.remove_option(section,"IR/Hide")
+                    initial[name]=setup.ini({section:dict(parsed[section]) for section in parsed.sections()})
             initial["Config/Dolphin.ini"]=setup.ini({"Core":{"EnableCheats":"False"}})
-            (user/"Config/Dolphin.ini").write_bytes(initial["Config/Dolphin.ini"])
+            for name,data in initial.items(): (user/name).write_bytes(data)
             (user/setup.MANIFEST).write_text(json.dumps(setup.envelope("one-gun",initial)))
             setup.check(user,root)
             (user/"Config/Dolphin.ini").write_text("[Core]\nEnableCheats = False\n[General]\nSyntheticRuntime = True\n")

@@ -1,40 +1,33 @@
-# Ordinary Dolphin fallback checkpoint
+# R2 viewer checkpoint
 
-D3D11 upload follow-up: the full guarded GDI client is now submitted as a
-shared BGRA8 texture on SteamVR's nominated adapter, with Gamma colour space.
-No capture guard/scope change, raw retry or image reduction. Seven headless
-CTests pass, including full-size software-WARP readback and resource/error
-regressions. The raw RequestFailed23 cause is unknown; no accepted headset
-frame is claimed by this lane. Lead coordinates live retry.
+Windows.Graphics.Capture now targets the selected Dolphin window and crops to
+its client. GDI, overlap rejection and the cursor exception are gone; process,
+window identity and minimisation guards remain. A capture-only mode saves two
+private PNGs without initializing SteamVR. Two compositor frames at least
+1 second apart must have different RGB; plain grey and alpha-only noise fail.
+Frame-size, crop and output-path checks remain bounded. The existing D3D11
+BGRA8/Gamma overlay submission is preserved, with hardware acceptance open.
 
-Fresh isolated one-gun and two-Remote profiles, per-game PAL selectors,
-loopback DSU, absolute aim and physical Motion Input are implemented. One gun
-uses the opposite hand for Nunchuk; two Remotes use separate hand feeds with
-same-hand Nunchuk attachments. Cheats, analytics and automatic updates are
-disabled in newly generated profiles. Existing/live user directories are never
-regenerated automatically. The command printer does not launch applications.
+Fresh profiles set a 1280 x 720 render window with auto-size disabled. Pinned
+Cursor source confirms IR/Total Yaw and IR/Total Pitch are full degree ranges:
+77.319617 and 48.455491 degrees match a 3.2 x 1.8 m plane at 2 m. IR/Hide uses
+Square independently on each Remote. Existing profiles are preserved and prior
+published manifests remain recognized. Four-corner and origin checks remain live.
 
-The original Windows SBS theatre helper builds from the existing OpenVR SDK.
-It captures only the selected Dolphin client, rejects ambiguous/occluded or
-stale windows, bounds image memory/run duration, checks black pixels, and
-cleans up its fixed overlay. Explicit recenter publishes a shared HMD matrix
-for the lead's bridge. It is a3D theatre fallback, not the true-3D scene target.
+MSVC Release builds with strict warnings. Fourteen Python profile tests and
+eight headless CTests pass, including full-size software crop/PNG round-trip,
+D3D upload, frame timing/difference, ownership and lifecycle rejection cases.
+The second proven frame seeds the overlay before display. The live theatre loop
+now polls WGC without waiting for a fresh frame, so it
+services recenter and quit promptly and exits 0 at stop or deadline after the
+startup gate. The startup gate still fails if two fresh, different frames are
+never proved. A CPU regression covers empty-pool wait and stop/deadline decisions.
+The new integration build and all eight native headless CTests pass. These are
+software-only checks; no real window capture, game, desktop or headset run
+occurred in this integration check.
 
-Verified: thirteen Python profile tests; MSVC Release build with warnings treated
-as errors; seven headless CTests covering plane/aspect/selection/pixel bounds,
-invalid run requests, missing/present native DLL probes and scoped physical-pixel
-DPI context. Occlusion diagnostics report PID/class/rect only, skip positively
-DWM-cloaked windows and preserve the guard on unknown state. An explicit per-run
-cursor-overlay PID exception requires exact class plus all three verified
-layered/transparent/no-activate styles; each mismatch is tested. No VR_Init, game
-launch, headset run or actual game capture was performed by this lane.
-
-Command printing admits known managed manifests and safe paths after runtime
-config edits without changing files; create/inspect retain pristine protection.
-Unowned/tampered/linked profiles are refused. Touch's usable menu mapping is
-explicitly pending. Source delivery is ready; real occluders remain blocked.
-
-Open: bridge consumption of shared calibration; actual Dolphin config loading,
-GPU-render capture through GDI, colour/eye order/orientation, headset stereo,
-physical motion signs/feel, co-op and progression. Live work belongs to the
-lead's coordinated sitting. See README.md and theatre/README.md for operation.
+Earlier live attempts failed to establish accepted game SBS pixels or a headset
+image. Desktop SBS proof remains pending a coordinated turn.
+Native DolphinXR first boot is not blocked by this fallback. No tool install,
+new download, system setting or Steam write occurred. This checkpoint claims
+source/software readiness; real game pixels and headset acceptance stay open.

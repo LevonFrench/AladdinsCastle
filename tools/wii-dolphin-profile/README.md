@@ -25,7 +25,7 @@ synthetic temporary directories; set TEMP/TMP to an owned local test directory
 when the host sandbox's default temporary location is inaccessible.
 
 The tool writes DSUClient.ini, WiimoteNew.ini, named profiles, GFX.ini and
-per-game selectors for the approved PAL releases RBUP08 and SBDP08. Cheats are
+per-game selectors for the PAL releases RBUP08 and SBDP08. Cheats are
 disabled; no 60fps research codes are included. Analytics and the automatic
 update track are disabled in fresh profiles, with the analytics permission
 question marked answered. This does not modify a currently running profile.
@@ -57,24 +57,32 @@ profile's DSU Options-to-Remote+ mapping is authored, but a usable physical
 menu/Start binding is pending; do not claim the application-menu button works.
 
 To print (never execute) an isolated launch command, supply explicit executable
-and approved game paths using `command --user ... --dolphin ... --game-file ...`.
+and explicit game paths using `command --user ... --dolphin ... --game-file ...`.
 Omit `--game-file` to print a controller-configuration launch. Keep that output
 private. The actual command is `Dolphin.exe --user <isolatedUser> -b -e
-<approvedDisc>`. Launch coordination belongs to the lead.
+<gameFile>`. Launch coordination belongs to the lead.
 
 GFX uses side-by-side stereo, depth20, convergence20 and unswapped eyes. This is
 **3D theatre**, a fallback to the project's true-3D scene target. SteamVR
 Desktop alone is not an SBS decoder. The theatre helper below is an original
-bounded window-capture viewer; its actual game-render capture must be checked.
+bounded Windows.Graphics.Capture viewer; its actual game-render capture must be checked.
 
 Source contract checked against DolphinXR v0.4 commit
 85c4266b29eb308d173fefa0f21f5cb77df3516a, specifically
 DualShockUDPClient.cpp, InputConfig.cpp, ControlGroup.cpp, Nunchuk.cpp and
-GraphicsSettings.cpp. Installed ordinary Dolphin5.0-17269 contains the relevant
-DSU/motion/stereo key names. The newer StereoPerEyeResolutionFull key is omitted.
+GraphicsSettings.cpp. These keys are checked against that source. The newer StereoPerEyeResolutionFull key is omitted.
 Binary key presence and source matching are not runtime acceptance.
 
 ## SBS theatre helper
 
-See theatre/README.md. Builds use only the supplied existing OpenVR SDK and
+See theatre/README.md. Builds use only the existing OpenVR SDK and
 toolchain. No game or VR launch is part of the CPU test commands.
+
+Fresh profiles set Display/RenderWindowWidth = 1280, RenderWindowHeight = 720
+and RenderWindowAutoSize = False. Pointer full ranges are IR/Total Yaw =
+77.319617 and IR/Total Pitch = 48.455491 degrees, derived as twice atan of the
+plane half-extent over its 2 m distance. Pinned Cursor.cpp declares these names
+and converts the full degree ranges to radians. IR/Hide = Square is scoped to
+each Remote default device; the bridge selects edge or hide off-screen policy.
+This assumes the calibrated plane centre and origin; verify its four corners
+with the real controller. Existing user directories are never migrated.
