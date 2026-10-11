@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 import subprocess
 from native_patch import apply as apply_native_batch
+from paired_proof_patch import apply as apply_paired_proof
 
 PIN = 'a9f1a0a1f9de62387a7138006fa36933fd477123'
 
@@ -66,6 +67,7 @@ def main():
     edit('engine/ss22_gl.c', 'bool eng_gl_write_ppm(const char *path, int vw, int vh)',
          '#endif /* upstream headless helper excluded only in synthetic slice */\n\nbool eng_gl_write_ppm(const char *path, int vw, int vh)')
     apply_native_batch(edit, contents)
+    apply_paired_proof(edit, contents)
     for name, text in contents.items():
         target = output / name
         target.parent.mkdir(parents=True, exist_ok=True)
