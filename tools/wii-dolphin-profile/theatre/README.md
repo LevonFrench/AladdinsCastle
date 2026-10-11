@@ -45,6 +45,19 @@ explains why DPI-virtualized window rectangles must not be compared directly
 with unadjusted DWM frame bounds. The headless Windows regression verifies the
 thread context is set and restored without opening windows or initializing VR.
 
+An optional **per-run** `--cursor-overlay-pid <observedPID>` acknowledges the
+computer-use tool's cursor layer. It excludes an intersecting window only when
+its PID matches that explicit value, its class is exactly
+`CodexComputerUseCursorOverlay`, and its current extended styles include all of
+WS_EX_LAYERED, WS_EX_TRANSPARENT and WS_EX_NOACTIVATE. No opt-in means no cursor
+exception; class alone never exempts a window. Every check before/after capture
+revalidates the predicates. The first allowed case is logged with PID/class,
+bounds and styles; a mismatching PID/class/style keeps capture blocked and a
+matching opted PID with wrong class/styles reports why. These styles identify
+the tool's convention; they do not prove every cursor pixel is invisible.
+No process/window is hidden, killed or altered. The capture DC remains the
+selected Dolphin client; no other window's DC or pixels are queried.
+
 GDI BitBlt copies to a top-down32-bit BGRA DIB. Pixels are submitted through
 SetOverlayRaw with the parallel-SBS flag. Client dimensions must have even
 width and fit4096x2160; no unbounded allocation. Preflight rejects black capture

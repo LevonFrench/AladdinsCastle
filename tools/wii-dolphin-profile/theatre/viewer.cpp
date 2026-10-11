@@ -51,7 +51,8 @@ static BOOL CALLBACK enumerate(HWND window,LPARAM value) {
     }
     return TRUE;
 }
-static void validWindow(HWND window,DWORD pid,HANDLE process) {
+struct CursorOptIn { DWORD pid{}; bool announced=false; };
+static void validWindow(HWND window,DWORD pid,HANDLE process,CursorOptIn& cursor) {
     DWORD current=0; GetWindowThreadProcessId(window,&current);
     if(WaitForSingleObject(process,0)!=WAIT_TIMEOUT || !IsWindow(window) || current!=pid)
         fail("Selected Dolphin process/window closed or became stale");
@@ -81,7 +82,25 @@ static void validWindow(HWND window,DWORD pid,HANDLE process) {
             DWORD otherPid=0; GetWindowThreadProcessId(above,&otherPid);
             wchar_t className[256]{};
             const std::wstring name=GetClassNameW(above,className,256)>0?className:L"<unavailable>";
-            throw std::runtime_error(theatre::occlusionDiagnostic(otherPid,name,candidate,selected,cloakKnown,cloaked,frameKnown));
+            std::string diagnostic=theatre::occlusionDiagnostic(otherPid,name,candidate,selected,cloakKnown,cloaked,frameKnown);
+            if(cursor.pid && otherPid==cursor.pid) {
+                const LONG_PTR style=GetWindowLongPtrW(above,GWL_EXSTYLE);
+                const bool layered=(style&WS_EX_LAYERED)!=0;
+                const bool transparent=(style&WS_EX_TRANSPARENT)!=0;
+                const bool noActivate=(style&WS_EX_NOACTIVATE)!=0;
+                std::ostringstream styles;
+                styles << " ex-style=0x" << std::hex << style << std::dec
+                       << " layered=" << layered << " transparent=" << transparent << " noactivate=" << noActivate;
+                if(theatre::cursorException(cursor.pid,otherPid,name,layered,transparent,noActivate)) {
+                    if(!cursor.announced) {
+                        std::cout << "Explicit cursor-overlay opt-in allowed: " << diagnostic << styles.str() << std::endl;
+                        cursor.announced=true;
+                    }
+                    continue; // Only the explicit per-run PID/class/style exception.
+                }
+                diagnostic += styles.str()+"; cursor-overlay opt-in refused (PID/class/all3 styles must match)";
+            }
+            throw std::runtime_error(diagnostic);
         }
     }
 }
@@ -156,11 +175,12 @@ static fs::path calibrationPath(const std::wstring& text) {
 }
 int wmain(int argc,wchar_t** argv) {
     try {
-        unsigned pid=0,seconds=0; fs::path headFile;
+        unsigned pid=0,seconds=0; fs::path headFile; CursorOptIn cursor;
         for(int i=1;i<argc;++i) {
             const std::wstring flag=argv[i];
             if(i+1>=argc) fail("Options need values");
             if(flag==L"--pid") pid=theatre::number(argv[++i],MAXDWORD);
+            else if(flag==L"--cursor-overlay-pid") cursor.pid=theatre::number(argv[++i],MAXDWORD);
             else if(flag==L"--seconds") seconds=theatre::number(argv[++i],600);
             else if(flag==L"--head-file") headFile=calibrationPath(argv[++i]);
             else fail("Unknown option");
@@ -178,9 +198,9 @@ int wmain(int argc,wchar_t** argv) {
         EnumWindows(enumerate,reinterpret_cast<LPARAM>(&windows));
         if(windows.candidates.size()!=1) fail("Expected one visible unowned Dolphin window; close dialogs first");
         HWND window=windows.candidates.front();
-        validWindow(window,pid,process.value);
+        validWindow(window,pid,process.value,cursor);
         // Preflight GDI pixels before any VR initialization. A black render is a blocker.
-        { Capture capture(window); capture.copy(); validWindow(window,pid,process.value);
+        { Capture capture(window); capture.copy(); validWindow(window,pid,process.value,cursor);
           if(!theatre::containsColour(static_cast<const std::uint8_t*>(capture.pixels),theatre::imageBytes(capture.w,capture.h)))
               fail("Selected client capture is black; actual GDI game capture is unverified. No alternate capture used"); }
         wchar_t executable[32768]{};
@@ -214,7 +234,7 @@ int wmain(int argc,wchar_t** argv) {
         const auto start=Clock::now(); auto blackSince=Clock::time_point{};
         std::uint64_t frames=0;
         while(running && Clock::now()-start<std::chrono::seconds(seconds)) {
-            validWindow(window,pid,process.value);
+            validWindow(window,pid,process.value,cursor);
             MSG message{};
             while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE))
                 if(message.message==WM_HOTKEY && message.wParam==1) recenter(++revision);
@@ -222,7 +242,7 @@ int wmain(int argc,wchar_t** argv) {
             while(system->PollNextEvent(&event,sizeof(event))) if(event.eventType==vr::VREvent_Quit) running=false;
             if(!running) break;
             Capture capture(window); capture.copy();
-            validWindow(window,pid,process.value);
+            validWindow(window,pid,process.value,cursor);
             const auto bytes=theatre::imageBytes(capture.w,capture.h);
             if(!theatre::containsColour(static_cast<const std::uint8_t*>(capture.pixels),bytes)) {
                 if(blackSince==Clock::time_point{}) blackSince=Clock::now();

@@ -32,6 +32,15 @@ int main() {
         require(detail.find("\\u000a\\u0022")!=std::string::npos);
         require(detail.find("DWM-cloaked=unknown bounds=GetWindowRect")!=std::string::npos);
         require(detail.find("pixels=physical")!=std::string::npos);
+        const std::wstring cursorClass=L"CodexComputerUseCursorOverlay";
+        require(cursorException(123,123,cursorClass,true,true,true));
+        require(!cursorException(0,123,cursorClass,true,true,true));
+        require(!cursorException(123,321,cursorClass,true,true,true));
+        require(!cursorException(123,123,L"SyntheticOtherWindow",true,true,true));
+        require(!cursorException(123,123,L"codexComputerUseCursorOverlay",true,true,true));
+        require(!cursorException(123,123,cursorClass,false,true,true));
+        require(!cursorException(123,123,cursorClass,true,false,true));
+        require(!cursorException(123,123,cursorClass,true,true,false));
         for (const auto* text : {L"0",L"-1",L"1.2",L"12x",L"1001",L"99999999999999999999999"})
             rejects([&]{ number(text,1000); });
         require(imageBytes(1280,720)==1280u*720u*4u);

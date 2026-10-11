@@ -13,6 +13,11 @@ namespace theatre {
 constexpr double width = 3.2, height = 1.8, distance = 2.0;
 using Matrix = std::array<float, 12>;
 struct Rect { long left,top,right,bottom; };
+inline bool cursorException(std::uint32_t optedPid,std::uint32_t actualPid,
+        const std::wstring& className,bool layered,bool transparent,bool noActivate) {
+    return optedPid!=0 && optedPid==actualPid && className==L"CodexComputerUseCursorOverlay" &&
+           layered && transparent && noActivate;
+}
 inline bool occludes(bool visible,bool minimized,bool cloakKnown,bool cloaked,
                      const Rect& candidate,const Rect& client) {
     if(!visible || minimized || (cloakKnown && cloaked)) return false;
