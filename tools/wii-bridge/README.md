@@ -52,7 +52,20 @@ Sources checked for this implementation:
 - https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.cpp
 - Existing OpenVR2.15.6 header/API at commit0924064316de3effbcd1acf1e309182a2deb1c05.
 
-MSVC build and five protocol/motion tests pass, including two real UDP clients
+MSVC build and six protocol/motion tests pass, including two real UDP clients
 and expiry. These tests do not establish tracking, controller feel, game motion
 recognition, stereo viewing, co-op or headset acceptance. The first live probe
-reported Hmd Not Found; connect ALVR before repeating it.
+reported Hmd Not Found before ALVR connected.
+
+## Live sitting notes
+
+Close the SteamVR dashboard before aiming. The first owner sitting measured
+inactive pose actions with the dashboard open and valid left/right poses in
+240/240 samples after it closed. Keep inactive actions disconnected; do not
+substitute raw device poses to bypass dashboard input ownership.
+
+For the original SBS theatre helper, pass its exact `--head-file` path to this
+bridge too. Its initial head pose and each Ctrl+Alt+C revision define both the
+screen and pointer plane. The bridge rejects mismatched screen dimensions and
+nonfinite calibration. A bridge running without a calibration cannot shoot.
+This is a fixed-screen fallback, not true 3D mode.

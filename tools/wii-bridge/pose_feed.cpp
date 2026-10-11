@@ -34,6 +34,13 @@ int main(int argc,char** argv) {
     try {
         auto* input=vr::VRInput();
         if(!input) throw std::runtime_error("SteamVR input unavailable");
+        for (uint32_t device=0;device<vr::k_unMaxTrackedDeviceCount;++device) {
+            if(system->GetTrackedDeviceClass(device)!=vr::TrackedDeviceClass_Controller) continue;
+            char type[256]{};
+            system->GetStringTrackedDeviceProperty(device,vr::Prop_ControllerType_String,type,sizeof(type));
+            std::cerr << "controller " << device << " role=" << system->GetControllerRoleForTrackedDeviceIndex(device)
+                      << " type=" << type << " connected=" << system->IsTrackedDeviceConnected(device) << '\n';
+        }
         check(input->SetActionManifestPath(std::filesystem::absolute(argv[1]).string().c_str()),"manifest");
         vr::VRActionSetHandle_t set;
         check(input->GetActionSetHandle("/actions/wii",&set),"action set");
@@ -50,7 +57,11 @@ int main(int argc,char** argv) {
             if(seconds>0 && std::chrono::duration<double>(now-start).count()>=seconds) break;
             vr::VREvent_t event{};
             bool quit=false;
-            while(system->PollNextEvent(&event,sizeof(event))) if(event.eventType==vr::VREvent_Quit) quit=true;
+            while(system->PollNextEvent(&event,sizeof(event))) {
+                if(event.eventType==vr::VREvent_Quit) quit=true;
+                if(event.eventType>=1701 && event.eventType<=1708)
+                    std::cerr << "input event " << event.eventType << '\n';
+            }
             if(quit) break;
             vr::VRActiveActionSet_t active{}; active.ulActionSet=set;
             check(input->UpdateActionState(&active,sizeof(active),1),"update actions");
@@ -63,6 +74,14 @@ int main(int argc,char** argv) {
             for(int hand=0;hand<2;++hand) {
                 vr::InputPoseActionData_t pose{};
                 auto error=input->GetPoseActionDataRelativeToNow(actions[hand],vr::TrackingUniverseStanding,0,&pose,sizeof(pose),0);
+                if(now-start<std::chrono::milliseconds(10) ||
+                    (now-start>std::chrono::seconds(1) && now-start<std::chrono::milliseconds(1010))) {
+                    vr::InputBindingInfo_t bindings[8]{}; uint32_t count=0;
+                    auto be=input->GetActionBindingInfo(actions[hand],bindings,sizeof(bindings[0]),8,&count);
+                    std::cerr << "hand " << hand << " pose error=" << error << " active=" << pose.bActive
+                              << " binding error=" << be << " count=" << count << '\n';
+                    for(uint32_t b=0;b<count && b<8;++b) std::cerr << bindings[b].rchDevicePathName << ' ' << bindings[b].rchInputPathName << '\n';
+                }
                 vr::InputAnalogActionData_t stick{};
                 input->GetAnalogActionData(actions[2+hand],&stick,sizeof(stick),0);
                 std::cout << (hand?",":"") << "{\"valid\":"

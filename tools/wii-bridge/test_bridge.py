@@ -64,6 +64,17 @@ class Protocol(unittest.TestCase):
 
 
 class Tracking(unittest.TestCase):
+    def test_shared_theatre_calibration_rejects_bad_geometry(self):
+        mapper=Mapper()
+        record=dict(schema=1,head_valid=True,width=3.2,height=1.8,distance=2.,head=IDENTITY[:])
+        self.assertTrue(mapper.theatre_calibration(record))
+        center=mapper.center
+        record['width']=4
+        self.assertFalse(mapper.theatre_calibration(record))
+        record['width']=3.2;record['head'][0]=float('nan')
+        self.assertFalse(mapper.theatre_calibration(record))
+        self.assertEqual(mapper.center,center)
+
     def test_world_fixed_plane_and_hand_isolation(self):
         mapper=Mapper();mapper.recenter(IDENTITY)
         frame=dict(time=1,hands=[hand(),hand()])

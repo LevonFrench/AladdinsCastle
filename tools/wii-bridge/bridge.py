@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--pose-reader', type=Path, required=True)
     parser.add_argument('--port', type=int, default=26760)
     parser.add_argument('--seconds', type=float, default=0)
+    parser.add_argument('--head-file', type=Path, help='Shared calibration emitted by the SBS theatre')
     args = parser.parse_args()
     server = Server(args.port)
     mapper = Mapper()
@@ -56,10 +57,13 @@ def main():
     started=time.monotonic()
     fallback=None
     reader_error=''
+    calibration_revision=None
     def center():
+        if args.head_file:
+            return
         if frame and frame['head_valid']:
             mapper.recenter(frame['head'])
-    tk.Button(window,text='Centre pointer plane',command=center,font=('Segoe UI',13)).pack(pady=5)
+    tk.Button(window,text='Use Ctrl+Alt+C in theatre to centre' if args.head_file else 'Centre pointer plane',command=center,font=('Segoe UI',13),state='disabled' if args.head_file else 'normal').pack(pady=5)
     # Temporary app-owned hotkeys keep accessibility motions usable while the
     # game has focus. No hooks, persistent settings, or global key recording.
     hotkeys=[]
@@ -90,8 +94,16 @@ def main():
         window.destroy()
     window.protocol('WM_DELETE_WINDOW',close)
     def tick():
-        nonlocal frame,last_sample,fallback,reader_error
+        nonlocal frame,last_sample,fallback,reader_error,calibration_revision
         now=time.monotonic()
+        if args.head_file:
+            try:
+                record=json.loads(args.head_file.read_text(encoding='utf-8'))
+                revision=record.get('revision')
+                if revision != calibration_revision and mapper.theatre_calibration(record):
+                    calibration_revision=revision
+            except (OSError, ValueError, TypeError):
+                pass
         if user32:
             while user32.PeekMessageW(ctypes.byref(hotkey_message),None,0x312,0x312,1):
                 if hotkey_message.wParam in hotkeys:

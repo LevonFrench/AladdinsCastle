@@ -20,6 +20,8 @@ class Mapper:
         self.pads = [Pad(), Pad()]
 
     def recenter(self, head):
+        if len(head) != 12 or not all(math.isfinite(v) for v in head):
+            return False
         # Freeze a level plane once; it must never follow the head between calibrations.
         forward = (-head[2], 0, -head[10])
         length = math.sqrt(dot(forward, forward))
@@ -30,6 +32,13 @@ class Mapper:
         self.up = (0, 1, 0)
         self.center = tuple(head[i*4+3]+self.distance*self.forward[i] for i in range(3))
         return True
+
+    def theatre_calibration(self, record):
+        if (not isinstance(record, dict) or record.get('schema') != 1 or record.get('head_valid') is not True or
+            record.get('width') != self.width or record.get('height') != self.height or
+            record.get('distance') != self.distance):
+            return False
+        return self.recenter(record.get('head', []))
 
     def update(self, frame):
         t = frame['time']
