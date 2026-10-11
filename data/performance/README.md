@@ -4,6 +4,8 @@ Phase 1 preparation for RBUP08, then SBDP08. No rates or preset performance are
 measured yet. The three experiments are baseline, candidate 60 code, then the
 same code with a 1.5 VBI override. 90 is a requested target, not a measured rate.
 These are private experiment profiles; nothing changes shipped profiles.
+Read-only header inspection found PAL revision 0 for both discs; this establishes
+disc identity only. Neither candidate has been run on these revisions.
 
 Use `python data/performance/phase1.py prepare --executable <pinned-release-exe>
 --disc <exact-ISO> --game-id <id> --experiment <experiment> --output <new-run>
