@@ -25,7 +25,8 @@ it depends on a Windows context utility outside the approved unit list. The
 fixture creates a real SDL compatibility context directly. There is no replacement
 stub. MinGW PE linking retained unused generic file-loader/capture symbols despite
 function-section flags. The fixture invokes none of them. Removing those symbols
-is a separate guarded build-boundary decision; no content loading is admitted.
+would change the build boundary. Lead accepted retained-but-uncalled functions
+for this direct formula fixture checkpoint; no content loading is admitted.
 
 The `acvr_eye` seam consumes the shared column-major matrix/rectangle layout.
 It converts captured +Z board view to canonical -Z, applies the supplied eye
