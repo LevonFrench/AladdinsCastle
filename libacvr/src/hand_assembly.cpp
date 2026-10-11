@@ -24,8 +24,15 @@ bool safe_asset(const std::string &path){
     return path.size()>=4&&path.substr(path.size()-4)==".glb";
 }
 Matrix product(const Matrix &a,const Matrix &b){
-    Matrix out{};for(unsigned c=0;c<4;++c)for(unsigned r=0;r<4;++r)for(unsigned k=0;k<4;++k)
-        out[c*4+r]+=a[k*4+r]*b[c*4+k];return out;
+    Matrix out{};
+    for (unsigned c = 0; c < 4; ++c) {
+        for (unsigned r = 0; r < 4; ++r) {
+            for (unsigned k = 0; k < 4; ++k) {
+                out[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k];
+            }
+        }
+    }
+    return out;
 }
 Matrix rotation(const std::array<float,4> &q){
     const double x=q[0],y=q[1],z=q[2],w=q[3];
