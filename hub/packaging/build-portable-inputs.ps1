@@ -6,16 +6,30 @@ if (-not $RepoRoot) { $RepoRoot = Join-Path $PSScriptRoot '../..' }
 . (Join-Path $PSScriptRoot 'PortablePolicy.ps1')
 $RepoRoot = Assert-PlainPortablePath $RepoRoot
 $BuildDir = Assert-PlainPortablePath $BuildDir
+# Configure writes generated identity, notices and resources before linking.
+# Refuse every existing writable descendant before any compiler/configure call.
+@(Get-PlainPortableFiles $BuildDir) | Out-Null
 $revision = Get-PortableSourceRevision $RepoRoot
 $cachePath = Assert-PlainPortablePath (Join-Path $BuildDir 'CMakeCache.txt')
 $cache = Get-Content -LiteralPath $cachePath
 $cacheHomes = @($cache | Where-Object { $_ -like 'CMAKE_HOME_DIRECTORY:*=*' })
 if ($cacheHomes.Count -ne 1 -or [IO.Path]::GetFullPath(($cacheHomes[0] -split '=',2)[1]).TrimEnd('\','/') -ine
     [IO.Path]::GetFullPath((Join-Path $RepoRoot 'hub')).TrimEnd('\','/')) { throw 'Build cache belongs to another source tree.' }
-foreach ($dependency in @('tomlplusplus','nlohmann_json','json_schema_validator','openvr','libarchive','xz','zlib','chdr')) {
-    $entry = @($cache | Where-Object { $_ -like "${dependency}_SOURCE_DIR:*=*" })
-    if ($entry.Count -ne 1 -or -not (Test-Path -LiteralPath (($entry[0] -split '=',2)[1]) -PathType Container)) { throw 'All pinned dependency sources must already be local.' }
-    Assert-PlainPortablePath (($entry[0] -split '=',2)[1]) | Out-Null
+$baseEntries = @($cache | Where-Object { $_ -like 'FETCHCONTENT_BASE_DIR:*=*' })
+if ($baseEntries.Count -ne 1) { throw 'Configured FetchContent base is required.' }
+$fetchBase = ($baseEntries[0] -split '=',2)[1]
+# Use FetchContent names, not subproject PROJECT_SOURCE_DIR cache entries.
+# CMake 3.31 FetchContent.cmake selects an explicit SOURCE_DIR override, or
+# FETCHCONTENT_BASE_DIR/<lowercase declared name>-src when none is set.
+foreach ($dependency in @('tomlplusplus','nlohmann_json','json_schema_validator','openvr','ac_archive','ac_xz','ac_zlib','libchdr','sevenzip')) {
+    $key = 'FETCHCONTENT_SOURCE_DIR_'+$dependency.ToUpperInvariant()
+    $overrides = @($cache | Where-Object { $_ -like "${key}:*=*" })
+    if ($overrides.Count -gt 1) { throw 'Duplicate dependency source override.' }
+    $dependencyRoot = if ($overrides.Count) { ($overrides[0] -split '=',2)[1] } else { '' }
+    if (-not $dependencyRoot) { $dependencyRoot = Join-Path $fetchBase ($dependency+'-src') }
+    if (-not [IO.Path]::IsPathRooted($dependencyRoot)) { throw 'Dependency source directories must be absolute.' }
+    $dependencyRoot = Assert-PlainPortablePath $dependencyRoot
+    if (-not (Test-Path -LiteralPath $dependencyRoot -PathType Container)) { throw 'All declared dependency sources must already be local.' }
 }
 $productFile = Join-Path $RepoRoot 'data/product.json'
 $product = Read-PortableJson $productFile
@@ -26,6 +40,7 @@ try {
     $env:MSBUILDDISABLENODEREUSE = '1'
     & cmake -S (Join-Path $RepoRoot 'hub') -B $BuildDir -DFETCHCONTENT_FULLY_DISCONNECTED=ON -DFETCHCONTENT_UPDATES_DISCONNECTED=ON
     if ($LASTEXITCODE -ne 0) { throw 'Existing-cache configure failed; no build receipt issued.' }
+    @(Get-PlainPortableFiles $BuildDir) | Out-Null
     $targets = @('aladdinscastle-hub','hubtool','arttool','steamtool')
     $arguments = @('--build',$BuildDir,'--parallel','2')
     if (-not $AllTargets) { $arguments += @('--target') + $targets }

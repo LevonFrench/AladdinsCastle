@@ -15,14 +15,20 @@ native selection, loader, runtime registration or persisted calibration.
 Linked inputs/trees and extra metadata are refused; output/archive must be new.
 
 Verified with synthetic inputs only: four unsafe baseline cases failed first.
-Actual PowerShell 5.1 passed nine case groups, including default payload,
+Actual PowerShell 5.1 passed ten case groups, including default payload,
 optional bytes inside ZIP, six capability/key/privacy negatives, junctions,
 compiler failure refusal and all-target provenance. The producer's reserved
 HOME-name error was diagnosed, renamed and passed the sole retry. Final fresh
-inert-probe run and four build-policy checks pass. No product compiler, real
+inert-probe run and four build-policy checks pass. Independent review found
+two producer gaps: subproject cache names and writable build descendants.
+The preserved pre-fix producer fails both new regressions; the repaired source
+passes all ten groups. Fixtures derive names from real FetchContent declarations,
+cover override/default cache layouts and reject generated/bin junctions before
+any configure call, with external sentinels unchanged. No product compiler, real
 native executable, game/Steam/runtime or actual candidate package was run.
 
-Independent source review is pending. Real four-EXE lineage and deployed Qt
-notice inventory remain execution/release gates. The consumer launcher merge
-failure has a separate reviewed logging diagnostic; it is not waived here.
+Final repair freeze and reconciliation with integrated consumer/calibration
+await independent closure. Real four-EXE lineage and deployed Qt notice
+inventory remain execution/release gates. Consumer/calibration final hosted
+checks passed and are integrated; the earlier launcher failure remains unknown.
 Parent owns candidate approval, coordinated build slot, publication and merges.

@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$FixtureRoot,[switch]$FreshDeployProbe)
+param([Parameter(Mandatory)][string]$FixtureRoot,[switch]$FreshDeployProbe,[string]$ProducerSource='')
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -ne 5) { throw 'Run this regression with Windows PowerShell 5.1.' }
 if (Test-Path -LiteralPath $FixtureRoot) { throw 'Use a new fixture folder.' }
@@ -27,6 +27,11 @@ function New-Fixture([string]$Name) {
     }
     foreach ($script in Get-ChildItem -LiteralPath (Join-Path $source 'hub/packaging') -File -Filter '*.ps1') {
         Copy-Item -LiteralPath $script.FullName -Destination (Join-Path $repo 'hub/packaging')
+    }
+    if($ProducerSource){Copy-Item -LiteralPath $ProducerSource -Destination (Join-Path $repo 'hub/packaging/build-portable-inputs.ps1')}
+    New-Item -ItemType Directory -Path (Join-Path $repo 'hub/cmake') | Out-Null
+    foreach($module in @('Dependencies.cmake','ArchiveDependencies.cmake','SevenZip.cmake','ChdMetadata.cmake')) {
+        Copy-Item -LiteralPath (Join-Path $source "hub/cmake/$module") -Destination (Join-Path $repo 'hub/cmake')
     }
     Copy-Item -LiteralPath $probe -Destination (Join-Path $root 'qt/bin/windeployqt.exe')
     $product = Get-Content -LiteralPath (Join-Path $source 'data/product.json') -Raw
@@ -87,6 +92,25 @@ function Add-NativeFixture($Fixture) {
     $receipt = [ordered]@{schema='gun-room-launch/1';control_stdin=$true;calibrate_grip=$true;source_commit=('b'*40);sha256=$hash}
     $receipt | ConvertTo-Json | Set-Content -LiteralPath ($binary+'.launch.json') -Encoding utf8
     return @{NativeRoomExecutable=$binary;NativeRoomSourceCommit=('b'*40);NativeRoomSha256=$hash}
+}
+function Set-FixtureFetchContentCache($Fixture,[bool]$UseOverrides) {
+    # Names are extracted independently from the actual declarations. Cache
+    # layout follows configured CMake's SOURCE_DIR overrides/base-dir schema,
+    # including header-only/prebuilt dependencies with no PROJECT cache key.
+    $names=@()
+    foreach($module in Get-ChildItem -LiteralPath (Join-Path $Fixture.Repo 'hub/cmake') -File -Filter '*.cmake') {
+        foreach($match in [regex]::Matches((Get-Content $module.FullName -Raw),'FetchContent_Declare\(\s*([A-Za-z0-9_]+)')) {$names+=$match.Groups[1].Value.ToLowerInvariant()}
+    }
+    $names=@($names | Sort-Object -Unique)
+    Assert-Test ($names -contains 'openvr' -and $names -contains 'sevenzip' -and $names -contains 'json_schema_validator') 'Canonical declarations missing required header/prebuilt dependency.'
+    $base=Join-Path $Fixture.Build '_deps'
+    Add-Content -LiteralPath (Join-Path $Fixture.Build 'CMakeCache.txt') -Value "FETCHCONTENT_BASE_DIR:PATH=$base"
+    foreach($name in $names) {
+        $path=if($UseOverrides){Join-Path $Fixture.Root "local-sources/$name"}else{Join-Path $base ($name+'-src')}
+        New-Item -ItemType Directory -Force -Path $path | Out-Null
+        $value=if($UseOverrides){$path}else{''}
+        Add-Content -LiteralPath (Join-Path $Fixture.Build 'CMakeCache.txt') -Value ('FETCHCONTENT_SOURCE_DIR_'+$name.ToUpperInvariant()+':PATH='+$value)
+    }
 }
 function Assert-RefusedBeforeOutput($Fixture) {
     $refused = $false
@@ -165,13 +189,11 @@ try {
         Assert-RefusedBeforeOutput $f
     }
     Test-Case 'actual build helper captures four changed outputs and failed build refuses receipt' {
-        foreach($fail in @($false,$true)) {
-            $f=New-Fixture ('producer-'+$fail)
+        foreach($mode in @('override','default','failure')) {
+            $fail=$mode -eq 'failure'
+            $f=New-Fixture ('producer-'+$mode)
             Remove-Item -LiteralPath (Join-Path $f.Build 'generated/portable-build.json')
-            foreach($dependency in @('tomlplusplus','nlohmann_json','json_schema_validator','openvr','libarchive','xz','zlib','chdr')) {
-                $dir=Join-Path $f.Root "deps/$dependency";New-Item -ItemType Directory -Force -Path $dir | Out-Null
-                Add-Content -LiteralPath (Join-Path $f.Build 'CMakeCache.txt') -Value "${dependency}_SOURCE_DIR:STATIC=$dir"
-            }
+            Set-FixtureFetchContentCache $f ($mode -ne 'default')
             $global:PortableFakeBuild=$f;$global:PortableFakeFail=$fail;$global:PortableFakeCalls=@()
             function global:cmake {
                 $global:PortableFakeCalls+=,@($args)
@@ -202,6 +224,28 @@ try {
             Assert-Test ($all.all_targets -is [bool] -and $all.all_targets) 'CI all-target build mode was not recorded.'
             Assert-Test (@($all.binaries.PSObject.Properties).Count -eq 4) 'CI receipt omitted shipping outputs.'
             Assert-Test (($global:PortableFakeCalls[1] -join ' ').EndsWith('--parallel 2')) 'CI producer did not use the bounded all-target command.'
+        }
+    }
+    Test-Case 'writable build junctions refuse before any configure/build call' {
+        foreach($leaf in @('generated','bin')) {
+            $f=New-Fixture ('build-junction-'+$leaf)
+            Set-FixtureFetchContentCache $f $true
+            $original=(Resolve-Path -LiteralPath (Join-Path $f.Build $leaf)).Path
+            $saved=[IO.Path]::GetFullPath((Join-Path $f.Build ($leaf+'-original')))
+            $prefix=[IO.Path]::GetFullPath($f.Build).TrimEnd('\','/')+'\'
+            if(-not $original.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase) -or -not $saved.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){throw 'Fixture move escaped its build workspace.'}
+            Move-Item -LiteralPath $original -Destination $saved
+            $external=Join-Path $f.Root 'external';New-Item -ItemType Directory -Path $external | Out-Null
+            Write-FixtureFile (Join-Path $external 'sentinel.txt') 'unchanged external sentinel'
+            New-Item -ItemType Junction -Path $original -Target $external | Out-Null
+            $global:PortableCmakeSentinel=Join-Path $f.Root 'cmake-called'
+            function global:cmake {Write-FixtureFile $global:PortableCmakeSentinel 'called';$global:LASTEXITCODE=0}
+            $reason=''
+            try{& (Join-Path $f.Repo 'hub/packaging/build-portable-inputs.ps1') -RepoRoot $f.Repo -BuildDir $f.Build | Out-Null}catch{$reason=$_.Exception.Message}finally{Remove-Item Function:cmake}
+            Assert-Test ($reason -like '*Linked*') 'Producer did not specifically refuse the build junction.'
+            Assert-Test (-not (Test-Path -LiteralPath $global:PortableCmakeSentinel)) 'CMake was invoked before rejecting writable junction.'
+            Assert-Test ((Get-Content (Join-Path $external 'sentinel.txt') -Raw) -ceq 'unchanged external sentinel') 'External target was modified.'
+            Assert-Test (@(Get-ChildItem -LiteralPath $external -Force).Count -eq 1) 'Producer wrote through the junction.'
         }
     }
     Write-Output "Windows PowerShell $($PSVersionTable.PSVersion): $failures failed"
