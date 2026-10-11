@@ -20,7 +20,11 @@ Dolphin screen, then click **Centre pointer plane**. The reference plane is
 2m away,3.2m wide and1.8m high. It stays fixed until recalibrated. Actual screen
 size/yaw/pitch must be matched during the sitting. Displayed dots use the aim
 pose's forward ray; DSU right-stick axes carry its absolute coordinates.
-Trigger is suppressed when the ray misses the reference plane or its bounds.
+When the ray misses, the pointer clamps to the nearest plane edge and trigger
+still passes through, so a game can use off-screen fire for reload. A game
+launch can choose `--offscreen-pointer hide`: this holds DSU Square off-screen,
+which hides Dolphin's Point cursor only if that game's Dolphin profile binds
+`IR/Hide` to `Square`. Edge mode is the default until that profile is present.
 Closing the window stops its reader and server. `--seconds N` bounds a test.
 
 Buttons: trigger→R2, primary(A/X)→Cross, grip→L2, secondary(B/Y)→Circle,
@@ -30,11 +34,21 @@ is determined by Dolphin's server description: use **AladdinsCastle**.
 Thumbstick click is read but not sent as a Wii button; visible laser toggle is
 not implemented yet. Wii profile generation belongs to tools/wii-dolphin-profile.
 
-Acceleration is the derivative of tracking-space velocity, with gravity added,
-rotated into the current aim/body frame and expressed as DSU signed g. Gyro is
-tracking angular velocity rotated into that frame, converted to deg/s. A gap
-over50ms resets the derivative; samples stale for150ms disconnect both pads.
-All axes require physical sign/orientation verification against Dolphin.
+The reader emits poses at about120 Hz. A dedicated Python reader thread maps
+each sample before the UI can skip it; a separate120 Hz thread owns the DSU
+socket and sends packets even if the Tk window stalls. Acceleration is a tracking-space velocity
+change over the preceding25ms, with gravity added, rotated into the aim/body
+frame and expressed as DSU signed g. Gyro is angular velocity in that frame,
+converted to deg/s. A gap over50ms resets the derivative. Each one-second log
+reports peak dynamic acceleration in g and peak velocity for each hand; it helps
+detect a missing velocity stream and lost shake peaks. A short sensor-only latch
+repeats a transient for up to25ms so Dolphin's newest-packet input drain still
+sees it if it skips a packet. This can delay the return to neutral by at most25ms;
+the current pointer and buttons are never held. Tracking loss clears the latch
+immediately. A sample stale for150ms
+or an untracked hand sends neutral motion/buttons while both DSU slots remain
+connected and discoverable. Signs are derived from the pinned DolphinXR DSU
+input names and tested with rotated poses; physical verification is still due.
 Do not map Dolphin Shake/Swing in addition to Motion Input. R/V in this window
 produce bounded player-one-only accessibility shake/swing waveforms on that same motion path;
 they are provisional and not yet tuned in either game. On Windows, temporary
@@ -63,7 +77,7 @@ reported Hmd Not Found before ALVR connected.
 
 Close the SteamVR dashboard before aiming. The first owner sitting measured
 inactive pose actions with the dashboard open and valid left/right poses in
-240/240 samples after it closed. Keep inactive actions disconnected; do not
+240/240 samples after it closed. Keep inactive action data neutral; do not
 substitute raw device poses to bypass dashboard input ownership.
 
 For the original SBS theatre helper, pass its exact `--head-file` path to this

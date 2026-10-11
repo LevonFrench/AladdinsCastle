@@ -38,7 +38,8 @@ def axis(value):
 
 @dataclass
 class Pad:
-    connected: bool = False
+    # DSU device identity survives SteamVR tracking loss; its data goes neutral.
+    connected: bool = True
     pointer: tuple = (0.0, 0.0)  # right/up
     stick: tuple = (0.0, 0.0)
     buttons: int = 0  # two DSU bitmask bytes, little endian
@@ -57,15 +58,16 @@ def info(slot, connected):
 
 
 def payload(slot, pad, sequence):
+    connected = slot < 2
     result = bytearray(80)
-    result[:11] = info(slot, pad.connected)
-    struct.pack_into('<BIHBB4B', result, 11, int(pad.connected), sequence & 0xffffffff,
-                     pad.buttons if pad.connected else 0, 0, 0,
+    result[:11] = info(slot, connected)
+    struct.pack_into('<BIHBB4B', result, 11, int(connected), sequence & 0xffffffff,
+                     pad.buttons if connected else 0, 0, 0,
                      axis(pad.stick[0]), axis(pad.stick[1]),
                      axis(pad.pointer[0]), axis(pad.pointer[1]))
     # Analog mirrors are what Dolphin reads for the face/shoulder buttons.
     for i, bit in enumerate([7, 6, 5, 4, 15, 14, 13, 12, 11, 10, 9, 8]):
-        result[24+i] = 255 if pad.connected and pad.buttons & (1 << bit) else 0
+        result[24+i] = 255 if connected and pad.buttons & (1 << bit) else 0
     struct.pack_into('<Q6f', result, 48, pad.timestamp, *pad.accel, *pad.gyro)
     return bytes(result)
 
@@ -110,7 +112,7 @@ class Server:
                     continue
                 for slot in body[4:4+count]:
                     if slot < 4:
-                        connected = slot < 2 and pads[slot].connected
+                        connected = slot < 2
                         self.send(address, kind, info(slot, connected)+b'\0')
             elif kind == DATA and len(body) == 8:
                 flags, slot = body[:2]
