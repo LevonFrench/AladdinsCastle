@@ -15,10 +15,11 @@ the split/docked/two-remotes and handedness policy in
 `data/controls/wii/shell-and-stick.toml`; physical drawing/docking is separate
 from these CPU previews. Native dual-player aim is unsupported by the pin.
 
-After owner approval, `Build-ShellStick.ps1 -OwnerApprovedCpuBuild` rebuilds the
+After owner approval, `Build-ShellStick.ps1 -OwnerApprovedCpuBuild -Blender <existing-executable>` rebuilds the
 two models and their sheet with Windows PowerShell 5.1, factory startup and CPU
 only. `-CheckOnly` invokes no Blender. Both script paths were actually exercised
 in Windows PowerShell 5.1. The original seven-model sheets are retained.
+Omit `-Blender` only when the existing executable is available on PATH.
 
 Seven tier 1 source designs have independently authored closed side outlines
 (25–50 points in millimetres), symmetric extrusion and rounded edges. Shared

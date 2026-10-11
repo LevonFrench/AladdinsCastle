@@ -339,6 +339,12 @@ bool ControlsResolver::resolveGame(const QString &id,const ControlsResolveOption
             // Authored Wii display data is not an arcade-runtime declaration.
             Map row=m_wii.value(id).toMap();
             const auto routes=row.value("route_variants").toMap();
+            // The compiled default row declares the flat route. Alternate
+            // variants cannot repair or override a missing/mismatched default
+            // route declaration supplied by a malformed catalog.
+            const auto baseline=row.value("data").toMap();
+            check(baseline.value("route").toString()=="flat-dolphin","Invalid Wii catalog baseline route");
+            check(routes.value("flat-dolphin").toMap()==baseline,"Wii baseline route metadata mismatch");
             check(options.route=="flat-dolphin"||options.route=="dolphinxr","Unknown Wii input route");
             check(routes.contains(options.route),"No matching Wii route metadata");
             Map data=routes.value(options.route).toMap(),policy=data.value("policy").toMap();

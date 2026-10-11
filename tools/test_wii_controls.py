@@ -50,4 +50,21 @@ class WiiControlsTests(unittest.TestCase):
             if e['target'] in ('pointer','accelerometer_gyro','nunchuk_acceleration'):continue
             self.assertEqual(e['availability']['state'],'planned')
         with self.assertRaisesRegex(ValueError,'unsupported layers'):Resolver().resolve_game(row['game_id'],user_override={'policy':{'p1_hand':'left'}})
+    def test_variants_cannot_repair_missing_or_mismatched_baseline_route(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        gid='wii-resident-evil-umbrella-chronicles'
+        valid=compile_library()
+        fixtures=ROOT/'.local/wii-route-tests';fixtures.mkdir(parents=True,exist_ok=True)
+        for declared in (None,'dolphinxr','future-route'):
+            with self.subTest(declared=declared),TemporaryDirectory(dir=fixtures) as temp:
+                catalog=deepcopy(valid)
+                for row in catalog['games']:
+                    if row['game_id']!=gid:continue
+                    if declared is None:row['data'].pop('route')
+                    else:row['data']['route']=declared
+                output=Path(temp)/'data/controls/wii/view-catalog.json'
+                output.parent.mkdir(parents=True);output.write_text(json.dumps(catalog),encoding='utf-8')
+                for selected in ('flat-dolphin','dolphinxr'):
+                    with self.assertRaisesRegex(ValueError,'baseline route'):resolve_game(temp,gid,route=selected)
 if __name__=='__main__':unittest.main()

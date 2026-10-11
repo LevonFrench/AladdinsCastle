@@ -52,7 +52,10 @@ def compile_library(root=ROOT):
 def resolve_game(root,gid,primary_hand='right',model=None,route='flat-dolphin'):
     require(primary_hand in ('left','right'),'Invalid primary hand');require(route in ROUTES,'Unknown Wii route')
     catalog=json.loads((Path(root)/'data/controls/wii/view-catalog.json').read_text(encoding='utf-8'))
-    row=deepcopy(next(r for r in catalog['games'] if r['game_id']==gid));row['data']=deepcopy(row['route_variants'][route]);row['data']['policy']['p1_hand']=primary_hand
+    row=deepcopy(next(r for r in catalog['games'] if r['game_id']==gid))
+    require(row.get('data',{}).get('route')=='flat-dolphin','Invalid Wii catalog baseline route')
+    require(row['route_variants'].get('flat-dolphin')==row['data'],'Wii baseline route metadata mismatch')
+    row['data']=deepcopy(row['route_variants'][route]);row['data']['policy']['p1_hand']=primary_hand
     if model:row['model']=model['id'];row['model_metadata']=model;row['data']['gun_model']=model['id']
     return row
 
