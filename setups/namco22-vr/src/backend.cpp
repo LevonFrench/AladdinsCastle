@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "n22_cpu_backend.hpp"
 #include "n22_gl_renderer.hpp"
+#include "n22_api_table.h"
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -128,13 +129,13 @@ acvr_result ACVR_CALL hit(acvr_backend *b,const acvr_frame *f,const acvr_ray *r,
 }
 extern "C" acvr_result ACVR_CALL acvr_backend_query(uint32_t abi,acvr_backend_api *out) {
     if(abi!=ACVR_ABI_VERSION) return ACVR_BAD_VERSION;
-    if(auto r=valid(out);r!=ACVR_OK) return r;
+    if(auto r=n22_api_table_valid(out);r!=ACVR_OK) return r;
     acvr_backend_api api{}; api.abi_version=ACVR_ABI_VERSION;
     api.supported_graphics=0;
     api.game_open=open; api.game_close=close; api.game_pause=pause; api.game_set_inputs=inputs;
     api.game_step=step; api.game_release_frame=release; api.game_camera=camera;
     api.game_draw_eye=draw; api.game_poll_outputs=outputs; api.game_raycast=hit;
-    payload(out,api); return ACVR_OK;
+    n22_api_table_payload(out,&api); return ACVR_OK;
 }
 namespace n22 {
 acvr_result configure_gl_draw(acvr_backend *b,const acvr_graphics_device &device) {
