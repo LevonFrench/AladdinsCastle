@@ -23,7 +23,7 @@ try {
     Assert (Test-Path "$user/Logs" -PathType Container) 'Logs must exist before any executable starts.'
     Assert ((Get-FileHash "$user/Config/WiimoteNew.ini").Hash -eq (Get-FileHash $profile).Hash) 'Native bytes differ.'
     $gfx = [IO.File]::ReadAllText("$user/Config/GFX.ini")
-    Assert ($gfx -match 'InternalResolution = 4' -and $gfx -match 'MSAA = 1' -and $gfx -match 'MaxAnisotropy = 3') 'Sharp quality wrong.'
+    Assert ($gfx -match 'InternalResolution = 4' -and $gfx -match 'MSAA = 1' -and $gfx -match 'MaxAnisotropy = 3' -and $gfx -match 'ResolutionScale = 1\.0') 'Sharp quality or runtime eye resolution wrong.'
     $hotkeys = [IO.File]::ReadAllText("$user/Config/Hotkeys.ini")
     Assert ($hotkeys.Contains('@(Shift+R)') -and $hotkeys.Contains('Left Button Thumbstick') -and $hotkeys.Contains('Right Button Thumbstick')) 'Recenter bindings missing.'
     Add-Content "$user/Config/GFX.ini" "`n[Unrelated]`nOwnerValue = Keep"

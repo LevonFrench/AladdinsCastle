@@ -48,6 +48,7 @@ foreach ($path in @($Executable,$Disc,$userPath)) {
 }
 $launchArgs = @('--user', ('"' + $userPath + '"'), '-v', 'D3D',
     '-C', "Graphics.VR.EnableOpenXR=$vr", '-C', "Graphics.VR.EagerHeartbeat=$eager",
+    '-C', 'Graphics.VR.ResolutionScale=1.0',
     '-C', "Graphics.Settings.InternalResolution=$($qualitySettings.InternalResolution)",
     '-C', "Graphics.Settings.MSAA=$($qualitySettings.MSAA)", '-C', 'Graphics.Settings.SSAA=False',
     '-C', "Graphics.Enhancements.MaxAnisotropy=$($qualitySettings.MaxAnisotropy)",
@@ -69,6 +70,8 @@ $owned = $null
 try {
     $owned = Start-Process -FilePath $Executable -ArgumentList $launchArgs -WorkingDirectory (Split-Path $Executable) -PassThru `
         -RedirectStandardOutput (Join-Path $run 'stdout.log') -RedirectStandardError (Join-Path $run 'stderr.log')
+    # Keep the native process handle before exit so PowerShell 5.1 retains ExitCode.
+    $null = $owned.Handle
     @{pid=$owned.Id; executable=$Executable; started=(Get-Date).ToString('o')} |
         ConvertTo-Json | Set-Content -LiteralPath (Join-Path $run 'process.json') -Encoding UTF8
     $deadline = (Get-Date).AddSeconds($MaximumSeconds)

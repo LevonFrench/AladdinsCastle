@@ -121,7 +121,7 @@ function Initialize-AcSitting {
     $vr = if ($Mode -eq 'Desktop') {'False'} else {'True'}
     $eager = if ($Mode -eq 'Eager') {'True'} else {'False'}
     Set-AcIniValues (Join-Path $config 'GFX.ini') ([ordered]@{
-        VR = [ordered]@{EnableOpenXR=$vr;EagerHeartbeat=$eager;FlatScreen='False';VirtualScreen='True';DisableCPUCull='True';ScreenDistance='1.5';ScreenSize='1.5';HudThickness='0.0';EnableCameraAnchor='False';EnableControllerAnchor='False'}
+        VR = [ordered]@{EnableOpenXR=$vr;EagerHeartbeat=$eager;ResolutionScale='1.0';FlatScreen='False';VirtualScreen='True';DisableCPUCull='True';ScreenDistance='1.5';ScreenSize='1.5';HudThickness='0.0';EnableCameraAnchor='False';EnableControllerAnchor='False'}
         Settings = [ordered]@{InternalResolution=$q.InternalResolution;MSAA=$q.MSAA;SSAA='False';ShowFPS='True'}
         Enhancements = [ordered]@{MaxAnisotropy=$q.MaxAnisotropy}
     })

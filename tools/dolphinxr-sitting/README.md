@@ -31,6 +31,13 @@ for that fix. Normal head turns must never continuously reanchor the world.
 | Sharp (candidate default) | 4x | Off | 8x |
 | SharpAA (desktop comparison) | 4x | 4x | 16x |
 
+The kit explicitly sets `GFX.ini` `[VR] ResolutionScale = 1.0` and the matching
+launch override. This uses the OpenXR runtime's recommended per-eye dimensions
+without downscaling. Those lens-corrected render dimensions can differ from the
+headset's physical panel resolution. They are independent of the game's internal
+resolution (4x is 2560x2112); the native OpenXR log records recommended and actual
+eye dimensions when a VR session is initialized.
+
 These are configuration candidates, not measured performance presets. Desktop
 mode explicitly passes `Graphics.VR.EnableOpenXR=False` and stereoscopy 0.
 `GFX` is the file name, but **not** a valid command-line system prefix. Compare
