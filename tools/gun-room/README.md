@@ -38,6 +38,24 @@ deadline (15 s default in capture mode). A supervisory timeout is still needed
 if a runtime blocks inside `xrWaitFrame`. No headset fit/feel is inferred from
 the PPMs.
 
+For a Hub-owned room process, opt in with `--xr --control-stdin` and pass the
+child read end of a private inherited Windows `CreatePipe` as standard input.
+The Hub keeps the write end and sends exactly `close\n` (`close\r\n` is also
+accepted) to request an orderly runtime destroy and process exit. Closing the
+write end has the same effect. The room checks that stdin is a pipe before XR
+creation, verifies it is a readable pipe end, duplicates the read handle for
+its lifetime, and polls once before XR creation and before each runtime tick
+without waiting for input. Malformed commands, trailing
+bytes in the same read, and commands longer than seven bytes exit nonzero
+after runtime destroy; capture mode records `control_stdin` as the error
+receipt reason when possible. Pipe type alone cannot prove that the launcher
+created an anonymous pipe, so the private `CreatePipe` ownership is a Hub
+contract. A valid cooperative close exits zero even before an eye capture;
+that exit code alone is not capture evidence. Only a successful capture
+receipt with real eye images establishes a captured frame. Polling cannot
+interrupt an OpenXR call already blocked inside the runtime; the Hub still
+needs an external timeout for a hung native process.
+
 The authored off-hand `grip_two` anchor is connected to the native gun
 overlay and ballistic ray while the off-hand grip action is held near the
 anchor. The original hand assets are checked in under `assets/hands`. When
