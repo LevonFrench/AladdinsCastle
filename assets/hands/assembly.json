@@ -87,6 +87,36 @@
             0
           ]
         }
+      },
+      "primary_mount_by_hand": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
       }
     },
     "arc-pistol-slide": {
@@ -164,6 +194,36 @@
             0
           ]
         }
+      },
+      "primary_mount_by_hand": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
       }
     },
     "arc-pistol-twin": {
@@ -239,6 +299,36 @@
             0,
             0,
             0
+          ]
+        }
+      },
+      "primary_mount_by_hand": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
           ]
         }
       }
@@ -342,6 +432,36 @@
             0,
             0,
             0
+          ]
+        }
+      },
+      "primary_mount_by_hand": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
           ]
         }
       }
@@ -499,6 +619,36 @@
             0
           ]
         }
+      },
+      "primary_mount_by_hand": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
       }
     },
     "con-revolver-chunky": {
@@ -589,6 +739,36 @@
             0
           ]
         }
+      },
+      "primary_mount_by_hand": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
       }
     },
     "mnt-mg-heavy": {
@@ -611,7 +791,7 @@
         },
         "left": {
           "asset": "assets/hands/grip-hand-left.glb",
-          "node": "grip",
+          "node": "grip_two",
           "translation": [
             0,
             0,
@@ -693,6 +873,36 @@
           ]
         }
       },
+      "primary_mount_by_hand": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip_two",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
       "support_grip": {
         "node": "grip_two",
         "translation": [
@@ -707,6 +917,38 @@
           1
         ],
         "state": "provisional"
+      },
+      "support_by_primary": {
+        "right": {
+          "node": "grip_two",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "state": "provisional"
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "state": "provisional"
+        }
       }
     },
     "con-remote-shell": {
@@ -889,6 +1131,36 @@
           ]
         }
       },
+      "primary_mount_by_hand": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
       "support_grip": {
         "node": "grip_two",
         "translation": [
@@ -897,12 +1169,44 @@
           0
         ],
         "rotation_xyzw": [
-          0,
-          0,
-          0,
-          1
+          -0.3826834324,
+          0.0,
+          0.0,
+          0.9238795325
         ],
         "state": "provisional"
+      },
+      "support_by_primary": {
+        "right": {
+          "node": "grip_two",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            -0.3826834324,
+            0.0,
+            0.0,
+            0.9238795325
+          ],
+          "state": "provisional"
+        },
+        "left": {
+          "node": "grip_two",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            -0.3826834324,
+            0.0,
+            0.0,
+            0.9238795325
+          ],
+          "state": "provisional"
+        }
       }
     },
     "con-stick-grip": {
@@ -1029,6 +1333,36 @@
             0,
             0,
             0
+          ]
+        }
+      },
+      "primary_mount_by_hand": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
           ]
         }
       }
