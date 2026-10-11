@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "ui/DetailControlsController.h"
 #include "core/catalog/CatalogLoader.h"
+#include "ui/UiController.h"
+#include "ui/UiSettings.h"
 #include <QDirIterator>
 #include <QFile>
 #include <QJsonDocument>
@@ -134,6 +136,41 @@ private slots:
     barrier->release.release();QVERIFY(pool->waitForDone(10000));QTest::qWait(50);
     QVERIFY(controller.model()->rows().isEmpty());QVERIFY(controller.resolved().isEmpty());
     QVERIFY(controller.status().contains("inside DolphinXR"));
+  }
+  void runtimeRouteTransitionClearsVisibleAndPendingMapping_data(){
+    QTest::addColumn<bool>("pending");
+    QTest::newRow("visible-flat")<<false;QTest::newRow("pending-flat")<<true;
+  }
+  void runtimeRouteTransitionClearsVisibleAndPendingMapping(){
+    QFETCH(bool,pending);
+    QTemporaryDir temp;wiiFixture(temp.path(),"flat-dolphin");
+    ac::GameListModel games(ac::CatalogLoader().load(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(temp.path()+"/ui-settings");ac::UiController ui(&games,&filter,&settings);
+    const QString game="wii-resident-evil-umbrella-chronicles";
+    auto *pool=QThreadPool::globalInstance();pool->waitForDone();const auto prior=pool->maxThreadCount();pool->setMaxThreadCount(1);
+    struct Barrier{QSemaphore entered,release;};auto barrier=std::make_shared<Barrier>();
+    const auto restore=qScopeGuard([&]{barrier->release.release();pool->waitForDone();pool->setMaxThreadCount(prior);});
+    if(pending){pool->start([barrier]{barrier->entered.release();barrier->release.acquire();});QTRY_VERIFY_WITH_TIMEOUT(barrier->entered.available()>0,10000);}
+    ui.openDetail(game);ui.refreshDetailControls();QCOMPARE(ui.detail().value("variantId").toString(),QString("dolphin"));
+    if(pending)QVERIFY(ui.detailControlsLoading());
+    else {QTRY_VERIFY_WITH_TIMEOUT(!ui.detailControlsLoading(),10000);QVERIFY(!ui.controlsController()->model()->rows().isEmpty());}
+    QSignalSpy changes(ui.controlsController(),&ac::DetailControlsController::changed);
+    auto state=games.find(game)->runtime;state.lastPlayed+=1;games.applyRuntimeStates({state});
+    auto unrelated=games.find("vcop")->runtime;unrelated.playing=true;games.applyRuntimeStates({unrelated});
+    QCOMPARE(changes.count(),0); // Same effective selection must not re-resolve.
+    state.selectedVariantId="dolphinxr";games.applyRuntimeStates({state});
+    QCOMPARE(ui.detail().value("variantId").toString(),QString("dolphinxr"));
+    QVERIFY2(ui.controlsController()->model()->rows().isEmpty(),"Runtime selected native route left flat DSU rows visible");
+    QVERIFY2(ui.detailControlsStatus().contains("inside DolphinXR"),"Runtime native route did not replace pending flat mapping");
+    barrier->release.release();QVERIFY(pool->waitForDone(10000));QTest::qWait(50);
+    QVERIFY(ui.controlsController()->model()->rows().isEmpty());QVERIFY(!ui.detailControlsLoading());
+    QVERIFY(ui.detailControlsStatus().contains("inside DolphinXR"));
+    state.selectedVariantId="dolphin";games.applyRuntimeStates({state});
+    QTRY_VERIFY_WITH_TIMEOUT(!ui.detailControlsLoading(),10000);QVERIFY(!ui.controlsController()->model()->rows().isEmpty());
+    ui.selectVariant("dolphin");QTRY_VERIFY_WITH_TIMEOUT(!ui.detailControlsLoading(),10000);
+    changes.clear();state.selectedVariantId="dolphinxr";games.applyRuntimeStates({state});
+    QCOMPARE(ui.detail().value("variantId").toString(),QString("dolphin"));QCOMPARE(changes.count(),0);
+    QVERIFY(!ui.controlsController()->model()->rows().isEmpty());
   }
   void canonicalRouteKeepsOriginalHostVariant(){
     QTemporaryDir temp;wiiFixture(temp.path(),"flat-dolphin");

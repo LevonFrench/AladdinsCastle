@@ -122,6 +122,7 @@ class UiController : public QObject {
  private:
  DetailControlsController m_detailControls;
  bool m_detailControlsVisible=false;
+ void syncDetailControls(bool force);
  const Variant *variant(const GameRecord &record) const;
  QString readme(const GameRecord &record) const;
  void message(const QString &text);

@@ -164,6 +164,8 @@ class UiTest:public QObject {
  void selectedNativeWiiRouteExplainsMappingOnRealPage(){
   QTemporaryDir fixture;
   const QString game="wii-resident-evil-umbrella-chronicles";
+  const auto originalRuntime=games->find(game)->runtime;
+  const auto restoreRuntime=qScopeGuard([&]{games->applyRuntimeStates({originalRuntime});});
   for(const auto &folder:{QString("data"),QString("games/timecris"),QString("games/vcop"),"games/"+game}){
    QDirIterator files(QString(AC_CATALOG_ROOT)+"/"+folder,{"*.toml"},QDir::Files,QDirIterator::Subdirectories);
    while(files.hasNext()){
@@ -222,6 +224,13 @@ class UiTest:public QObject {
   QTRY_COMPARE(namedItems(window->contentItem(),"universalControlsView").size(),1);
   clickRoute("dolphinxr");QTRY_COMPARE(ui->detail().value("variantId").toString(),QString("dolphinxr"));
   QTRY_VERIFY(ui->controlsController()->model()->rows().isEmpty());QVERIFY(ui->detailControlsStatus().contains("inside DolphinXR"));
+  QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  ui->openDetail(game); // Clear the explicit choice: follow effective runtime selection.
+  QTRY_VERIFY_WITH_TIMEOUT(!ui->controlsController()->model()->rows().isEmpty(),10000);
+  auto runtime=originalRuntime;runtime.selectedVariantId="dolphinxr";games->applyRuntimeStates({runtime});
+  QTRY_COMPARE(ui->detail().value("variantId").toString(),QString("dolphinxr"));
+  QTRY_VERIFY(ui->controlsController()->model()->rows().isEmpty());
+  QTRY_VERIFY(explanation->property("text").toString().contains("inside DolphinXR"));
   QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
   root->setProperty("view","List");
  }

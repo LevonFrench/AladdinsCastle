@@ -50,7 +50,7 @@ UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettin
  m_detailControls.configure(games->catalog().root,games->catalog().packIds);
  connect(filter,&FilterSortModel::facetsChanged,this,&UiController::scheduleFacetsChanged);
  connect(filter,&FilterSortModel::visibleCountChanged,this,&UiController::scheduleFacetsChanged);
- connect(games,&QAbstractItemModel::dataChanged,this,[this]{emit detailChanged();scheduleFacetsChanged();});
+ connect(games,&QAbstractItemModel::dataChanged,this,[this]{if(m_detailControlsVisible)syncDetailControls(false);emit detailChanged();scheduleFacetsChanged();});
  connect(settings,&UiSettings::error,this,[this](const QString &text){showError("Settings",text);});
  connect(settings,&UiSettings::gameSaved,this,&UiController::writeConfigRequested);
  connect(settings,&UiSettings::gameSaved,this,[this](const QString &id,const QVariantMap &){if(m_detailControlsVisible&&id==m_detailId)refreshDetailControls();});
@@ -66,10 +66,15 @@ void UiController::openDetail(const QString &id){if(!m_games->find(id))return;m_
 void UiController::selectVariant(const QString &id){auto g=m_games->find(m_detailId);if(!g)return;for(const auto &v:g->variants)if(v.id==id){m_variantId=id;if(m_detailControlsVisible)refreshDetailControls();emit detailChanged();return;}}
 void UiController::refreshDetailControls(){
  m_detailControlsVisible=true;
+ syncDetailControls(true);
+}
+void UiController::syncDetailControls(bool force){
  const auto game=m_games->find(m_detailId);const auto selected=game?variant(*game):nullptr;
  const auto hardware=game?str(game->raw,"hardware"):QString();
  const auto route=selected&&hardware=="nintendo-wii"&&selected->generated&&selected->id=="dolphin"?QString("flat-dolphin"):selected?selected->id:QString();
- m_detailControls.selectGame(game?game->id:QString(),selected?selected->id:QString(),hardware,route);
+ const auto gameId=game?game->id:QString(),variantId=selected?selected->id:QString();
+ if(force||!m_detailControls.selectionMatches(gameId,variantId,hardware,route))
+   m_detailControls.selectGame(gameId,variantId,hardware,route);
 }
 const Variant *UiController::variant(const GameRecord &g) const{for(const auto &v:g.variants)if(g.id==m_detailId&&v.id==m_variantId)return &v;for(const auto &v:g.variants)if(v.id==g.runtime.selectedVariantId)return &v;for(const auto &v:g.variants)if(v.id==g.roles.value("preferredVariantId").toString())return &v;for(const auto &v:g.variants)if(v.generated)return &v;for(const auto &v:g.variants)if(v.status!="planned")return &v;return g.variants.isEmpty()?nullptr:&g.variants.first();}
 QString UiController::safeMarkdown(QString text){

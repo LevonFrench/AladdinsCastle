@@ -15,8 +15,8 @@ priority/name order to native resolution; the Hub does not sort a second registr
 Library loading and pack/user TOML resolution run in a worker. Generation checks
 prevent old game/context results from replacing the current selection, including
 after leaving detail. Only a matching configuration epoch may populate the
-immutable library cache. Game/setup selection and saved-setting notifications
-refresh the view; Reload controls re-reads configuration. A refreshed catalog
+immutable library cache. Game/setup selection, effective runtime selection changes and saved-setting notifications
+refresh the view; unchanged context and unrelated game updates do not restart resolution. Reload controls re-reads configuration. A refreshed catalog
 must call `configure(root,packIds)` with its new registry snapshot. No production
 Python process is used.
 
