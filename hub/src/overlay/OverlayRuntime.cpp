@@ -47,6 +47,7 @@ QString overlayError(vr::EVROverlayError error) {
 }
 class OpenVrRuntime final : public OverlayRuntime {
 public:
+    explicit OpenVrRuntime(bool pictureFlipY):m_pictureFlipY(pictureFlipY){}
     ~OpenVrRuntime() override { shutdown(); }
     bool initialize(QSize size, const QString &thumbnail, QString *error) override {
         if (!probeOpenVrLibrary(error)) return false;
@@ -61,9 +62,9 @@ public:
         auto result = vr::VROverlay()->CreateDashboardOverlay(overlayKey, "AladdinsCastle", &m_main, &m_thumbnail);
         if (result != vr::VROverlayError_None) { *error = "CreateDashboardOverlay: " + overlayError(result); shutdown(); return false; }
         const vr::HmdVector2_t scale{{static_cast<float>(size.width()), static_cast<float>(size.height())}};
-        // Qt's GL target contains the image in GL orientation. OpenVR samples
-        // flipped V bounds so the dashboard image is upright. Verify S1 in VR.
-        const vr::VRTextureBounds_t bounds{0, 1, 1, 0};
+        // The reversed V bounds inverted the owner's dashboard image.
+        // Preserve the recorded M1 correction; pointer Y is separate.
+        const auto bounds=overlayPictureBounds(m_pictureFlipY);
         for (const auto status : {
                 vr::VROverlay()->SetOverlayWidthInMeters(m_main, 2.0F),
                 vr::VROverlay()->SetOverlayInputMethod(m_main, vr::VROverlayInputMethod_Mouse),
@@ -123,13 +124,14 @@ public:
         vr::VR_Shutdown(); m_system = nullptr; m_initialized = false;
     }
 private:
+    bool m_pictureFlipY=false;
     vr::IVRSystem *m_system = nullptr;
     vr::VROverlayHandle_t m_main = vr::k_ulOverlayHandleInvalid;
     vr::VROverlayHandle_t m_thumbnail = vr::k_ulOverlayHandleInvalid;
     bool m_initialized = false;
 };
 }
-std::unique_ptr<OverlayRuntime> makeOpenVrRuntime() { return std::make_unique<OpenVrRuntime>(); }
+std::unique_ptr<OverlayRuntime> makeOpenVrRuntime(bool pictureFlipY) { return std::make_unique<OpenVrRuntime>(pictureFlipY); }
 bool changeOverlayRegistration(const QString &manifest, bool add, QString *error) {
     QFile file(manifest);
     if (!file.open(QIODevice::ReadOnly)) { *error = "Overlay manifest is missing from the portable resources folder."; return false; }
