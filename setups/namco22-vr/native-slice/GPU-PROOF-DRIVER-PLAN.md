@@ -88,15 +88,17 @@ One diagnosis and one separately coordinated retry at most. Retain failed receip
 
 ## Review and handoff sequence
 
-1. Close ARC-PR61-01: lead independently verifies the frozen 178-byte common
-   composition encoding and four hash vectors in the producer contract. Only
-   after closure assign producer or Viewer implementation against that exact
-   contract hash; Dolphin live admission and schema-1 receipts stay untouched.
+1. ARC-PR61-01 common-composition encoding is closed at `8fdd245`. Independently
+   review the next [snapshot/oracle freeze](SNAPSHOT-ORACLE-FREEZE.md), its three
+   snapshot vectors and exact numeric manifest before producer/Viewer source
+   assignments. The manifest covers orientation/pose replay and clipped CZ only;
+   other cases below remain unapproved for execution until their numeric oracles
+   are added/reviewed. Dolphin admission and schema-1 receipts stay untouched.
 2. Assign producer/driver source; review isolated proof gate and resource preflight.
    CPU checks cover lifecycle/serialization/correlation adversaries without SDL
    video/GL. A scheduled native compile uses only approved cached inputs, no run.
-3. Freeze the snapshot field serialization, independent byte/hash vectors and
-   fixture oracle/tolerances in source review BEFORE any producer run. Lead then
+3. Verify source consumes/binds all frozen snapshot fields and resource bytes,
+   and matches the approved oracle scope BEFORE any producer run. Lead then
    coordinates an explicitly authorized bounded GPU slot for the exact
    executable/hash and scenario. Common-composition vectors do not freeze the
    separate snapshot serialization or prove scene/pose correctness.
@@ -105,6 +107,6 @@ One diagnosis and one separately coordinated retry at most. Retain failed receip
 5. Lead decides whether native GPU proof is accepted and what source integration
    follows. Do not turn on `begin_eye` or public capability automatically.
 
-At this checkpoint only the plan and CPU composition hash fixture exist. No
+At this checkpoint only the plan and composition/snapshot/oracle CPU fixtures exist. No
 producer executable, image, receipt serializer, Viewer validator, new runtime
 permission or measured rendering result.
