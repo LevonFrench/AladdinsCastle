@@ -5,7 +5,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Executable,
     [Parameter(Mandatory=$true)][string]$ExecutableSHA256,
     [Parameter(Mandatory=$true)][string]$Disc,
-    [ValidateSet('RBUP08','SBDP08')][string]$GameID = 'RBUP08',
+    [ValidatePattern('^[A-Z0-9]{6}$')][string]$GameID = 'RBUP08',
     [Parameter(Mandatory=$true)][string]$StateDirectory,
     [string]$NativeProfile = (Join-Path $PSScriptRoot '../../data/controls/wii/generated/dolphinxr/split-right.ini'),
     [ValidateSet('Default','Eager','Desktop')][string]$Mode = 'Default',

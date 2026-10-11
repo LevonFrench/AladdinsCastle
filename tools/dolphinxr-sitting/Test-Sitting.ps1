@@ -89,6 +89,26 @@ try {
     $script:checks++
     MustFail { Assert-AcSittingInputs $exe ('0'*64) $disc RBUP08 } 'Must reject executable mismatch.'
     MustFail { Assert-AcSittingInputs $exe $hash $disc SBDP08 } 'Must reject other title.'
+    foreach ($shift in @(9,12)) {
+        $sectorSize = 1 -shl $shift
+        $wbfs = New-Object byte[] ($sectorSize*2)
+        [Text.Encoding]::ASCII.GetBytes('WBFS').CopyTo($wbfs,0)
+        $wbfs[7]=2; $wbfs[8]=$shift; $wbfs[9]=21; $wbfs[12]=1
+        $header.CopyTo($wbfs,$sectorSize)
+        [IO.File]::WriteAllBytes($disc,$wbfs)
+        Assert-AcSittingInputs $exe $hash $disc RBUP08
+        $script:checks++
+        $wbfs[13]=1; [IO.File]::WriteAllBytes($disc,$wbfs)
+        MustFail { Assert-AcSittingInputs $exe $hash $disc RBUP08 } 'Must refuse multiple WBFS slots.'
+        $wbfs[13]=0; $wbfs[8]=32; [IO.File]::WriteAllBytes($disc,$wbfs)
+        MustFail { Assert-AcSittingInputs $exe $hash $disc RBUP08 } 'Must reject invalid WBFS shift before allocation.'
+        $wbfs[8]=$shift; $wbfs[12]=0; [IO.File]::WriteAllBytes($disc,$wbfs)
+        MustFail { Assert-AcSittingInputs $exe $hash $disc RBUP08 } 'Must require the first WBFS slot.'
+        $wbfs[12]=1; $wbfs[$sectorSize+24]=0; [IO.File]::WriteAllBytes($disc,$wbfs)
+        MustFail { Assert-AcSittingInputs $exe $hash $disc RBUP08 } 'Must reject invalid copied Wii magic.'
+        [IO.File]::WriteAllBytes($disc,$wbfs[0..($sectorSize+12)])
+        MustFail { Assert-AcSittingInputs $exe $hash $disc RBUP08 } 'Must reject truncated copied Wii header.'
+    }
     [IO.File]::WriteAllBytes($disc,[byte[]]@(1,2))
     MustFail { Assert-AcSittingInputs $exe $hash $disc RBUP08 } 'Must reject short header.'
     Assert (-not (Test-AcOpenXRLog "$root/missing.log")) 'Missing log cannot pass.'

@@ -219,6 +219,7 @@ Source = 0
 
 function Assert-AcSittingInputs([string]$Executable, [string]$ExecutableSHA256,
                                [string]$Disc, [string]$GameID) {
+    if ($GameID -cnotmatch '^[A-Z0-9]{6}$') { throw 'Expected a six-character Wii game ID.' }
     if ($ExecutableSHA256 -notmatch '^[a-fA-F0-9]{64}$' -or
         (Get-FileHash -LiteralPath $Executable -Algorithm SHA256).Hash -ne $ExecutableSHA256) {
         throw 'Pinned DolphinXR executable hash differs.'
@@ -227,6 +228,29 @@ function Assert-AcSittingInputs([string]$Executable, [string]$ExecutableSHA256,
     try {
         $header = New-Object byte[] 32
         if ($stream.Read($header, 0, 32) -ne 32) { throw 'Disc header is truncated.' }
+        if ([Text.Encoding]::ASCII.GetString($header,0,4) -ceq 'WBFS') {
+            # Copied disc header follows the host sector, not a fixed 512-byte offset.
+            # Match the Hub's bounded single-disc metadata reader. This does not
+            # validate the payload/block map or inspect companion files.
+            $hostShift = [int]$header[8]; $wbfsShift = [int]$header[9]
+            if ($hostShift -lt 9 -or $hostShift -gt 12 -or $wbfsShift -lt 15 -or
+                $wbfsShift -gt 31 -or $wbfsShift -lt $hostShift) { throw 'Invalid WBFS sector sizes.' }
+            $hostSize = 1 -shl $hostShift
+            $sectors = [uint64]$header[4]*16777216 + [uint64]$header[5]*65536 + [uint64]$header[6]*256 + [uint64]$header[7]
+            if ($sectors -eq 0 -or $sectors*$hostSize -lt $hostSize+32 -or $stream.Length -lt $hostSize+32) {
+                throw 'Truncated WBFS disc information.'
+            }
+            $container = New-Object byte[] $hostSize
+            $stream.Position = 0
+            if ($stream.Read($container,0,$hostSize) -ne $hostSize -or $container[12] -eq 0) {
+                throw 'WBFS has no first disc slot.'
+            }
+            for ($i=13; $i -lt $hostSize; $i++) {
+                if ($container[$i] -ne 0) { throw 'Multiple WBFS disc slots are unsupported.' }
+            }
+            $stream.Position = $hostSize
+            if ($stream.Read($header,0,32) -ne 32) { throw 'Copied Wii header is truncated.' }
+        }
     } finally { $stream.Dispose() }
     if ([Text.Encoding]::ASCII.GetString($header,0,6) -cne $GameID -or
         [BitConverter]::ToString($header[24..27]) -ne '5D-1C-9E-A3') {

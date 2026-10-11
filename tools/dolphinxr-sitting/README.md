@@ -3,8 +3,13 @@
 Windows PowerShell 5.1 is the supported operator shell. The public runner takes
 explicit executable/hash/disc/private-state paths; owner-specific wrappers stay
 under `.local`. Nothing installs, downloads, changes Steam, or chooses a system
-runtime. `-CheckOnly` checks the executable and a 32-byte Wii header without
-writing settings. `-PrepareOnly` prepares settings without starting any process.
+runtime. `-CheckOnly` checks the executable and Wii identity without writing
+settings. Raw ISO and single-disc WBFS headers are supported. WBFS host-sector
+size determines the copied header offset; malformed or multiple-disc containers
+are refused. This bounded metadata check does not verify the WBFS block map,
+payload or split companions. `-GameID` must match the exact six-character header
+ID. A matching header is not a boot result or permission to access a collection.
+`-PrepareOnly` prepares settings without starting any process.
 
 Default and Eager modes consume the exact shared `shell-stick/1` native
 `split-right.ini` bytes and verify their generated manifest hash. The pinned
