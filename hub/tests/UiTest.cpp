@@ -144,17 +144,22 @@ class GunRoomProbe:public SteamPreparationProbe {
  Q_PROPERTY(QVariantList gunRoomModels MEMBER choices CONSTANT)
  Q_PROPERTY(bool gunRoomAvailable READ available NOTIFY gunRoomChanged)
  Q_PROPERTY(QString gunRoomReason READ reason NOTIFY gunRoomChanged)
+ Q_PROPERTY(bool gunRoomCalibrationAvailable READ calibrationAvailable NOTIFY gunRoomChanged)
+ Q_PROPERTY(QString gunRoomCalibrationReason READ calibrationReason NOTIFY gunRoomChanged)
  Q_PROPERTY(bool gunRoomBusy MEMBER inactive CONSTANT)
 public:
  QVariantList choices{QVariantMap{{"id","synthetic-pistol"},{"title","Synthetic pistol"}}};
  QString model,hand,binary,explanation="Choose a hand.";
- bool admitted=false;int launches=0;
+ bool admitted=false,calibrationCapability=false;int launches=0,calibrations=0;
+ bool calibrationAvailable()const{return admitted&&calibrationCapability;}
+ QString calibrationReason()const{return "This reviewed build does not admit grip calibration.";}
  bool available()const{return admitted;}QString reason()const{return explanation;}
  Q_INVOKABLE void previewGunRoom(const QString &m,const QString &h,const QString &b){
   model=m;hand=h;binary=b;admitted=!model.isEmpty()&&(hand=="left"||hand=="right")&&!binary.isEmpty();
   explanation=admitted?QString():"Choose a gun model and a hand; a reviewed executable is required.";emit gunRoomChanged();
  }
  Q_INVOKABLE void launchGunRoom(const QString &m,const QString &h,const QString &b){previewGunRoom(m,h,b);if(admitted)++launches;}
+ Q_INVOKABLE void calibrateGunRoom(const QString &m,const QString &h,const QString &b){previewGunRoom(m,h,b);if(calibrationAvailable())++calibrations;}
 signals:void gunRoomChanged();
 };
 class UiTest:public QObject {
@@ -285,6 +290,18 @@ class UiTest:public QObject {
   if(diagnosticEnabled())qInfo()<<"DISPATCH"<<presses.size()<<releases.size()<<clicks.size()<<probe.launches;
   QCOMPARE(probe.launches,1);QCOMPARE(probe.model,QString("synthetic-pistol"));QCOMPARE(probe.hand,QString("left"));
   QCOMPARE(probe.binary,localSettings.get("gunRoomExecutable").toString());
+  auto calibrate=scene->findChild<QQuickItem *>("gunRoomCalibrate");QVERIFY(calibrate);
+  QVERIFY(!calibrate->isVisible());QCOMPARE(probe.calibrations,0);
+  probe.calibrationCapability=true;emit probe.gunRoomChanged();
+  QTRY_VERIFY(calibrate->isVisible());QTRY_VERIFY(calibrate->isEnabled());
+  QVERIFY(softwareFrame(window));point=calibrate->mapToScene({calibrate->width()/2,calibrate->height()/2});
+  page->setProperty("contentY",page->property("contentY").toReal()+point.y()-window->height()/2);
+  QVERIFY(softwareFrame(window));QTRY_VERIFY(withinClips(calibrate));
+  point=calibrate->mapToScene({calibrate->width()/2,calibrate->height()/2});
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  QCOMPARE(probe.calibrations,1);QCOMPARE(probe.launches,1);
+  QCOMPARE(probe.hand,QString("left"));
+  probe.calibrationCapability=false;emit probe.gunRoomChanged();QTRY_VERIFY(!calibrate->isVisible());
   QVERIFY(QMetaObject::invokeMethod(&localUi,"launchRoomQueued",Q_ARG(QString,probe.model),Q_ARG(QString,probe.hand)));
   localUi.launchStarted("__gun_room");
   auto exit=scene->findChild<QQuickItem *>("nowPlayingExit");QVERIFY(exit);QTRY_VERIFY(exit->isVisible());
@@ -293,6 +310,19 @@ class UiTest:public QObject {
   QCOMPARE(close.size(),1);QVERIFY(!exit->isEnabled());
   QVERIFY(localUi.nowPlaying().value("closing").toBool());
   localUi.launchFinished("__gun_room",QString());QTRY_VERIFY(!exit->isVisible());
+  QVERIFY(QMetaObject::invokeMethod(&localUi,"launchRoomQueued",Q_ARG(QString,probe.model),Q_ARG(QString,probe.hand),Q_ARG(bool,true)));
+  localUi.launchStarted("__gun_room");
+  QVERIFY(localUi.nowPlaying().value("calibrateGrip").toBool());
+  // A later form edit must not change the retained card/restart action.
+  hand->setProperty("currentIndex",1);QCOMPARE(localUi.nowPlaying().value("variantId").toString(),QString("synthetic-pistol|left|calibrate"));
+  QSignalSpy replay(&localUi,&ac::UiController::playRequested);
+  auto restart=scene->findChild<QQuickItem *>("nowPlayingRestart");QVERIFY(restart);
+  QTRY_VERIFY(restart->isVisible());QVERIFY(softwareFrame(window));QVERIFY(withinClips(restart));
+  point=restart->mapToScene({restart->width()/2,restart->height()/2});
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  QVERIFY(localUi.nowPlaying().value("closing").toBool());QCOMPARE(replay.size(),0);
+  localUi.launchFinished("__gun_room",QString());QCOMPARE(replay.size(),1);
+  QCOMPARE(replay[0][1].toString(),QString("synthetic-pistol|left|calibrate"));
   scene->setProperty("vrOverlayMode",true);QTRY_VERIFY(!scene->findChild<QQuickItem *>("gunRoomLaunch"));
   QVERIFY(!entry->isVisible());
  }

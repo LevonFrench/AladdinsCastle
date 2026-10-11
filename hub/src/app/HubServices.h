@@ -23,6 +23,8 @@ class HubServices : public QObject {
     Q_PROPERTY(QVariantList gunRoomModels READ gunRoomModels CONSTANT)
     Q_PROPERTY(bool gunRoomAvailable READ gunRoomAvailable NOTIFY gunRoomChanged)
     Q_PROPERTY(QString gunRoomReason READ gunRoomReason NOTIFY gunRoomChanged)
+    Q_PROPERTY(bool gunRoomCalibrationAvailable READ gunRoomCalibrationAvailable NOTIFY gunRoomChanged)
+    Q_PROPERTY(QString gunRoomCalibrationReason READ gunRoomCalibrationReason NOTIFY gunRoomChanged)
     Q_PROPERTY(bool gunRoomBusy READ gunRoomBusy NOTIFY playingChanged)
 public:
     HubServices(GameListModel *games, FilterSortModel *filter, UiController *ui,
@@ -52,9 +54,12 @@ public:
     QVariantList gunRoomModels()const{return gunRoomModels_;}
     bool gunRoomAvailable()const{return gunRoomAvailable_;}
     QString gunRoomReason()const{return gunRoomReason_;}
+    bool gunRoomCalibrationAvailable()const{return gunRoomCalibrationAvailable_&&!launchBusy()&&!hubExitPending_;}
+    QString gunRoomCalibrationReason()const{return gunRoomCalibrationReason_;}
     bool gunRoomBusy()const{return gunRoom_.busy();}
     Q_INVOKABLE void previewGunRoom(const QString &model,const QString &hand,const QString &executable);
     Q_INVOKABLE void launchGunRoom(const QString &model,const QString &hand,const QString &executable);
+    Q_INVOKABLE void calibrateGunRoom(const QString &model,const QString &hand,const QString &executable);
     Q_INVOKABLE void requestHubExit(int code=0);
 signals:
     void gunRoomChanged();
@@ -75,6 +80,7 @@ private:
     void startInstallRequest(const install::Request &request,const QString &kind);
     void installTool(const QString &gameId,const QString &variantId,const QString &handover={});
     void startGunRoom(const gunroom::Inputs &inputs);
+    gunroom::Inputs gunRoomInputs(const QString &model,const QString &hand,const QString &executable) const;
     GameListModel *games_; FilterSortModel *filter_; UiController *ui_;
     UiSettings *settings_; QString root_, removalText_;
     scan::ScanController scanner_;
@@ -93,6 +99,8 @@ private:
     steam::WriteRequest steamRequest_;steam::Preview steamPreview_;
     QVariantList gunRoomModels_;
     QString gunRoomReason_;
+    QString gunRoomCalibrationReason_;
+    bool gunRoomCalibrationAvailable_=false;
     bool gunRoomAvailable_=false, hubExitPending_=false;
     int hubExitCode_=0;
     gunroom::Inputs retainedGunRoom_;

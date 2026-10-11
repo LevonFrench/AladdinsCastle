@@ -21,10 +21,30 @@ local build receipt is supplied by the native lane; the Hub never generates or
 modifies it. It prevents accidental admission of an older binary without the
 close contract. It is not hardware acceptance. Click and restart revalidate it.
 
+An optional literal JSON boolean `calibrate_grip: true` admits the separate
+**Calibrate grip in VR** action after the same identity, metadata, path and
+executable-hash checks. Missing, false, string, numeric or container values keep
+normal launch available and do not expose calibration. The native lane supplies
+this capability only for its matching reviewed build; selecting it does not
+replace the historical pinned executable or change its receipt.
+
 The retained child receives separate arguments:
 `--root <root> --xr --model <id> --hand <left|right> --control-stdin`.
 There is no shell, capture request, angle-file write or game/backend claim.
 Visible Hub and room names consume the canonical product definition.
+Calibration adds only `--calibrate-grip`; it keeps the explicitly selected model,
+hand, executable, loader and owned stdin pipe. The retained card distinguishes
+the action, and restart revalidates both its capability and binary bytes rather
+than substituting a normal launch or using later form edits.
+
+The native room owns calibration editing and persistence. Keep the trigger
+released, start with B (right) or Y (left) released, then hold it with a centred
+stick for 0.8 seconds and release to edit. Stick X adjusts yaw; Y adjusts pitch.
+Hold with the stick centred for 1.2 seconds and release to save an actual change;
+a short tap cancels. Focus, tracking or required-action loss cancels; unsupported
+interaction profiles cannot save. Native room exit cancels unsaved changes.
+Saved per-model/per-hand calibration is applied by later normal native launches.
+The Hub neither writes calibration files nor simulates a successful save.
 
 Exit writes exactly `close\n` to the owned managed stdin pipe, then schedules
 EOF. [Qt's write-channel contract](https://doc.qt.io/qt-6/qprocess.html#closeWriteChannel)

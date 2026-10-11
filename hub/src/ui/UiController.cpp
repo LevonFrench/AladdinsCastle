@@ -227,9 +227,10 @@ void UiController::closeLaunch(){
  if(!m_nowPlaying.value("running").toBool()||m_nowPlaying.value("closing").toBool()||!m_nowPlaying.value("closeUnavailable").toString().isEmpty())return;
  m_nowPlaying["closing"]=true;emit nowPlayingChanged();emit closeLaunchRequested();
 }
-void UiController::launchRoomQueued(const QString &model,const QString &hand){
- launchQueued("__gun_room",model+"|"+hand,QString());
- m_nowPlaying["title"]=appName()+" Gun Room · "+model+" · "+hand;
+void UiController::launchRoomQueued(const QString &model,const QString &hand,bool calibrateGrip){
+ launchQueued("__gun_room",model+"|"+hand+(calibrateGrip?"|calibrate":""),QString());
+ m_nowPlaying["title"]=appName()+" Gun Room · "+model+" · "+hand+(calibrateGrip?" · Grip calibration":"");
+ m_nowPlaying["calibrateGrip"]=calibrateGrip;
  m_nowPlaying["gunRoom"]=true;emit nowPlayingChanged();
 }
 void UiController::launchClosing(){
