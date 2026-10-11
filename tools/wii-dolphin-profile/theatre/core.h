@@ -4,8 +4,6 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
-#include <sstream>
-#include <iomanip>
 #include <stdexcept>
 #include <string>
 
@@ -16,42 +14,13 @@ inline std::string overlayFailure(const char* operation,int code,const char* nam
     return std::string(operation)+": "+(name?name:"UnknownOverlayError")+" ("+std::to_string(code)+")";
 }
 struct Rect { long left,top,right,bottom; };
-inline bool cursorException(std::uint32_t optedPid,std::uint32_t actualPid,
-        const std::wstring& className,bool layered,bool transparent,bool noActivate) {
-    return optedPid!=0 && optedPid==actualPid && className==L"CodexComputerUseCursorOverlay" &&
-           layered && transparent && noActivate;
-}
-inline bool occludes(bool visible,bool minimized,bool cloakKnown,bool cloaked,
-                     const Rect& candidate,const Rect& client) {
-    if(!visible || minimized || (cloakKnown && cloaked)) return false;
-    return candidate.left<candidate.right && candidate.top<candidate.bottom &&
-           client.left<client.right && client.top<client.bottom &&
-           candidate.left<client.right && candidate.right>client.left &&
-           candidate.top<client.bottom && candidate.bottom>client.top;
-}
-inline std::string occlusionDiagnostic(std::uint32_t pid,const std::wstring& className,
-        const Rect& window,const Rect& client,bool cloakKnown,unsigned cloak,bool frameKnown) {
-    std::ostringstream output;
-    output << "Selected Dolphin client is occluded: PID=" << pid << " class=\"";
-    for(wchar_t character:className) {
-        if(character>=32 && character<=126 && character!=L'"' && character!=L'\\')
-            output << static_cast<char>(character);
-        else output << "\\u" << std::hex << std::setw(4) << std::setfill('0')
-                    << static_cast<std::uint32_t>(character) << std::dec;
-    }
-    const auto rectangle=[&](const Rect& value) {
-        output << '[' << value.left << ',' << value.top << ',' << value.right << ',' << value.bottom << ']';
-    };
-    output << "\" rect="; rectangle(window);
-    output << " client="; rectangle(client);
-    output << " DWM-cloaked=";
-    if(cloakKnown) output << cloak; else output << "unknown";
-    output << " bounds=" << (frameKnown?"DWM-frame":"GetWindowRect")
-           << " pixels=physical; uncover it before capture (no title/content queried)";
-    return output.str();
-}
 inline bool eligible(std::uint32_t pid,std::uint32_t selected,bool visible,bool owned) {
     return selected != 0 && pid == selected && visible && !owned;
+}
+inline void selectedWindow(bool processLive,bool exists,std::uint32_t actual,std::uint32_t selected,bool minimized) {
+    if(!processLive || !exists || !selected || actual!=selected)
+        throw std::runtime_error("Selected Dolphin process/window closed or became stale");
+    if(minimized) throw std::runtime_error("Selected Dolphin window is minimized");
 }
 inline unsigned number(const std::wstring& text, unsigned maximum) {
     if (text.empty() || text.find_first_not_of(L"0123456789") != std::wstring::npos)
@@ -64,6 +33,32 @@ inline std::size_t imageBytes(unsigned w, unsigned h) {
     if (!w || !h || w > 4096 || h > 2160 || w % 2)
         throw std::runtime_error("Client image must have even width, at most4096x2160");
     return static_cast<std::size_t>(w) * h * 4;
+}
+inline void captureSize(long w,long h) {
+    if(w<=0 || h<=0 || w>4352 || h>2304) throw std::runtime_error("WGC window frame exceeds bounded size");
+}
+inline void validateCrop(const Rect& crop,unsigned w,unsigned h) {
+    captureSize(w,h);
+    if(crop.left<0 || crop.top<0 || crop.right<=crop.left || crop.bottom<=crop.top ||
+       crop.right>static_cast<long>(w) || crop.bottom>static_cast<long>(h))
+        throw std::runtime_error("Client crop escapes selected WGC window frame");
+    imageBytes(static_cast<unsigned>(crop.right-crop.left),static_cast<unsigned>(crop.bottom-crop.top));
+}
+struct FrameView { unsigned width,height; const std::uint8_t* pixels; std::size_t bytes; std::int64_t timeMs; };
+inline bool framesDiffer(const FrameView& a,const FrameView& b) {
+    if(!a.pixels || !b.pixels || a.bytes!=imageBytes(a.width,a.height) || b.bytes!=imageBytes(b.width,b.height))
+        throw std::runtime_error("Frame gate requires exact client pixels");
+    if(a.width!=b.width || a.height!=b.height) throw std::runtime_error("Client resized during two-frame gate");
+    if(a.timeMs<0 || b.timeMs<a.timeMs || b.timeMs-a.timeMs<1000)
+        throw std::runtime_error("Frame gate needs compositor frames at least one second apart");
+    for(std::size_t i=0;i<a.bytes;i+=4)
+        if(a.pixels[i]!=b.pixels[i] || a.pixels[i+1]!=b.pixels[i+1] || a.pixels[i+2]!=b.pixels[i+2]) return true;
+    return false;
+}
+enum class LiveFrameStep { Stop, Wait, Submit };
+inline LiveFrameStep liveFrameStep(bool running,bool beforeDeadline,bool freshFrame) {
+    if(!running || !beforeDeadline) return LiveFrameStep::Stop;
+    return freshFrame ? LiveFrameStep::Submit : LiveFrameStep::Wait;
 }
 inline Matrix plane(const Matrix& head) {
     for (auto v : head) if (!std::isfinite(v)) throw std::runtime_error("Invalid head pose");
@@ -79,11 +74,5 @@ inline Matrix plane(const Matrix& head) {
 inline float texelAspect(unsigned w, unsigned h) {
     imageBytes(w,h);
     return static_cast<float>((width/height) * 2.0 * h / w);
-}
-inline bool containsColour(const std::uint8_t* pixels, std::size_t bytes) {
-    if (!pixels || bytes < 4 || bytes % 4) return false;
-    for (std::size_t i=0;i<bytes;i+=4)
-        if (pixels[i] > 4 || pixels[i+1] > 4 || pixels[i+2] > 4) return true;
-    return false;
 }
 }
