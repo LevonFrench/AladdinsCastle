@@ -16,7 +16,7 @@ PIN="a9f1a0a1f9de62387a7138006fa36933fd477123"
 
 def no_links(path):
     for part in [path,*path.parents]:
-        if part.exists() and (part.is_symlink() or getattr(part,"is_junction",lambda:False)()):
+        if part.is_symlink() or getattr(part,"is_junction",lambda:False)():
             raise ValueError("linked private output/input forbidden")
 
 

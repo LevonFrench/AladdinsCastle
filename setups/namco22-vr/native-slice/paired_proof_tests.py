@@ -5,6 +5,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest.mock import Mock
 
 import paired_proof_protocol as p
 
@@ -136,6 +137,33 @@ class ProofProtocol(unittest.TestCase):
     def test_generated_header_frozen_to_exact_oracle(self):
         import generate_paired_oracle as g
         self.assertEqual(Path(__file__).with_name("paired_oracle.h").read_text(),g.render())
+
+    def test_dangling_links_rejected_in_requested_path_and_ancestors(self):
+        import paired_proof as controller
+        # Inert path doubles model dangling filesystem links without requiring
+        # Windows symlink privileges or creating a native process.
+        def path_double():
+            part=Mock()
+            part.parents=()
+            part.exists.return_value=False
+            part.is_symlink.return_value=False
+            part.is_junction.return_value=False
+            return part
+        for location in ("requested","ancestor"):
+            for kind in ("is_symlink","is_junction"):
+                requested,parent=path_double(),path_double()
+                requested.parents=(parent,)
+                linked=requested if location=="requested" else parent
+                getattr(linked,kind).return_value=True
+                with self.subTest(location=location,kind=kind):
+                    with self.assertRaisesRegex(ValueError,"linked private output/input forbidden"):
+                        controller.no_links(requested)
+                    requested.exists.assert_not_called()
+                    parent.exists.assert_not_called()
+                    requested.resolve.assert_not_called()
+        fresh=path_double()
+        controller.no_links(fresh)
+        fresh.exists.assert_not_called()
 
     def test_source_interface_example_and_live_serializer_shape(self):
         import paired_proof_schema as schema
