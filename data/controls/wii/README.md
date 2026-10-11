@@ -10,6 +10,11 @@ Run without `--write` to check that the committed catalog matches its sources.
 Both the native Hub resolver and Python export consume the same compiled data.
 Wii semantics remain outside the arcade libacvr input vocabulary.
 
+`data.route = "flat-dolphin"` identifies these DSU mappings. The selected
+`dolphinxr` route configures native controller mapping inside DolphinXR and
+must not display these rows. The Hub owns selected-route gating; missing,
+unknown or mismatched route keys clear the DSU view with an explanation.
+
 | Part | VR input | DSU / Dolphin input |
 |---|---|---|
 | Remote pointer | Gun aim ray | Right stick, absolute pointer |
