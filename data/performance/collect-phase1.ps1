@@ -48,7 +48,13 @@ if ($run.experiment -ne 'baseline') {
         $previousExecution.game_id -ne $run.game_id -or $previousExecution.revision -ne $run.revision -or
         $previousExecution.executable_sha256 -ne $run.executable_sha256) { throw 'Predecessor did not establish counters, same stretch and normal speed with CPU headroom' }
 }
-$builders = @(Get-Process -Name cmake,MSBuild,ninja,cl,link,blender,Dolphin -ErrorAction SilentlyContinue)
+$buildProcessNames = @(
+    'cmake','MSBuild','ninja','cl','link','blender','Dolphin',
+    'gcc','g++','cc1','cc1plus','make','gmake','mingw32-make',
+    'clang','clang++','clang-cl','clang-cpp','ld','ld.lld','lld','lld-link',
+    '*-gcc','*-g++','gcc-[0-9]*','g++-[0-9]*','clang-[0-9]*','clang++-[0-9]*'
+)
+$builders = @(Get-Process -Name $buildProcessNames -ErrorAction SilentlyContinue)
 if ($builders.Count) { throw 'A build/render/Dolphin process is active: quiet-machine lease cannot be used' }
 $pin = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../setups/dolphin-vr/upstream-pin.json') -Raw | ConvertFrom-Json
 if ((Get-FileHash -LiteralPath $run.executable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $pin.executable_sha256) {

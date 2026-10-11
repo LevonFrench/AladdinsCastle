@@ -25,7 +25,10 @@ it must transcribe the lead's actual grant. Keep the session identity and exact
 grant provenance in the private handoff; the public harness needs no chat ID.
 The script refuses an expired lease,
 another Dolphin/build/render process, changed profile/executable/disc, or a reused
-run. It launches VR off, V-Sync off, emulated CPU clock 100%, speed limit 100%,
+run. Known build processes include MSVC, GCC compiler/worker processes, make,
+Clang variants and their linkers, plus versioned and target-prefixed compiler
+names. This guard supplements the lead's actual quiet-machine scheduling.
+It launches VR off, V-Sync off, emulated CPU clock 100%, speed limit 100%,
 PAL60 on, 3x resolution, no AA, 16x AF and hybrid ubershaders. Those graphics values
 are unmeasured starting values from the brief.
 
