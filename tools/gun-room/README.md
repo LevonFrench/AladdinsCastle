@@ -3,8 +3,9 @@
 This is an opt-in Windows desktop-GL/OpenXR room using libacvr's public
 `acvr_runtime_create`. The XR path draws a floor, three shootable targets and
 the current muzzle ray into real stereo swapchain images. libacvr overlays an
-existing authored gun GLB, using its lit gun renderer and the tracked right
-hand. `--model` selects any existing model with a matching GLB and TOML.
+existing authored gun GLB, using its lit gun renderer and the selected tracked
+hand. `--hand right|left` selects the primary hand (right by default) and its
+saved grip angle. `--model` selects any existing model with a matching GLB and TOML.
 
 `--preview-svg NAME.svg` writes a headless geometry diagram under
 `<root>/.local/gun-room` without opening XR. Existing previews require

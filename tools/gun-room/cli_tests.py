@@ -32,6 +32,8 @@ def main() -> None:
         assert not (root / ".local").exists(), "invalid number wrote output directory"
         assert run("--preview-svg", "../escape.svg") == 2
         assert not (root / ".local").exists(), "invalid path wrote output directory"
+        assert run("--preview-svg", "bad-hand.svg", "--hand", "both") == 2
+        assert not (root / ".local").exists(), "invalid hand wrote output directory"
         for bad in ("../escape", "a/b", "name.ppm", ""):
             assert run("--xr", "--capture-eyes", bad) == 2
         assert run("--preview-svg", "safe.svg", "--capture-eyes", "eyes-one") == 2
@@ -55,6 +57,10 @@ def main() -> None:
         assert angle.read_text(encoding="utf-8") == saved
         assert run("--preview-svg", "updated.svg", "--angle-file", "grip.txt", "--right-angle-deg", "15", "--update-angle-file") == 0
         assert "right 15" in angle.read_text(encoding="utf-8")
+        assert run("--preview-svg", "left.svg", "--hand", "left", "--angle-file", "grip.txt",
+                   "--left-angle-deg", "-7", "--update-angle-file") == 0
+        assert "right 15" in angle.read_text(encoding="utf-8")
+        assert "left -7" in angle.read_text(encoding="utf-8")
         outside = root / "outside.txt"
         outside.write_text("untouched", encoding="utf-8")
         alias = preview.parent / "alias.txt"

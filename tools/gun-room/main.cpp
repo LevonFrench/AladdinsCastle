@@ -120,6 +120,7 @@ struct Options {
     std::string capture_name;
     std::string app_name;
     float right=0,left=0;
+    uint32_t hand=ACVR_HAND_RIGHT;
     int seconds=0;
     bool xr=false,have_right=false,have_left=false,replace_preview=false,update_angles=false;
     bool save_angles=false;
@@ -185,6 +186,11 @@ bool parse(int argc,char **argv,Options &o){
         else if(i+1>=argc)return false;
         else if(key=="--root")o.root=argv[++i];
         else if(key=="--model")o.model=argv[++i];
+        else if(key=="--hand"){
+            const std::string hand=argv[++i];
+            if(hand!="right"&&hand!="left")return false;
+            o.hand=hand=="right"?ACVR_HAND_RIGHT:ACVR_HAND_LEFT;
+        }
         else if(key=="--angle-file")o.angle_file=argv[++i];
         else if(key=="--preview-svg")o.preview=argv[++i];
         else if(key=="--capture-eyes"){o.capture_name=argv[++i];if(o.capture_name.empty())return false;}
@@ -253,7 +259,7 @@ int main(int argc,char **argv){
     bool valid=false;try {valid=parse(argc,argv,o);}catch(...) {valid=false;}
     if(!valid){
         std::cerr<<"Usage: acvr_gun_room --root ABS_PATH [--xr] [--preview-svg NAME.svg] "
-                 "[--replace-preview] [--model ID] [--angle-file NAME.txt] "
+                 "[--replace-preview] [--model ID] [--hand right|left] [--angle-file NAME.txt] "
                  "[--right-angle-deg N] [--left-angle-deg N] [--update-angle-file] "
                  "[--capture-eyes FRESH_NAME (requires --xr)] [--seconds 5..60]\n";return 2;
     }
@@ -284,18 +290,18 @@ int main(int argc,char **argv){
     const auto metadata=o.root/"data"/"guns"/(o.model+".toml");
     if(!std::filesystem::is_regular_file(model)||!std::filesystem::is_regular_file(metadata))return 2;
     const auto model_path=model.string(),meta_path=metadata.string(),root_path=o.root.string();
-    auto slot=record<acvr_gun_slot_config>();slot.slot=slot.player=0;slot.hand=ACVR_HAND_RIGHT;
+    auto slot=record<acvr_gun_slot_config>();slot.slot=slot.player=0;slot.hand=o.hand;
     slot.model_id_utf8=o.model.c_str();slot.model_path_utf8=model_path.c_str();slot.metadata_path_utf8=meta_path.c_str();
     slot.grip_node_utf8="grip";slot.muzzle_node_utf8="muzzle";
     slot.show_gun=1;slot.laser_mode=ACVR_LASER_OFF; // The room draws the aim ray itself.
-    const auto angle=room::yaw_angle(o.right);
+    const auto angle=room::yaw_angle(o.hand==ACVR_HAND_RIGHT?o.right:o.left);
     for(unsigned i=0;i<4;++i){slot.angle_xyzw[i]=angle[i];slot.body_rgba[i]=i==3?1.f:.8f;slot.accent_rgba[i]=i==3?1.f:.35f;}
     auto config=record<acvr_runtime_config>();config.graphics_api=ACVR_GRAPHICS_GL;
     config.anchor_mode=ACVR_ANCHOR_RAIL;config.fallback_aim_distance_m=5;
     config.max_catchup_ticks=4;config.game_id_utf8=o.app_name.c_str();
     config.content_root_utf8=root_path.c_str();config.gun_slot_count=1;
     config.gun_slot_stride=sizeof(slot);config.gun_slots=&slot;
-    config.gun_policy=record<acvr_gun_policy>();config.gun_policy.p1_hand=ACVR_HAND_RIGHT;
+    config.gun_policy=record<acvr_gun_policy>();config.gun_policy.p1_hand=o.hand;
     config.gun_policy.two_guns=ACVR_TWO_GUNS_OFF;
     auto api=backend_api();acvr_runtime *runtime=nullptr;
     const auto created=acvr_runtime_create(&config,&api,&runtime);
