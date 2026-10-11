@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Sitting.psm1') -Force
+$product = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../data/product.json') -Raw | ConvertFrom-Json
 $root = Join-Path ([IO.Path]::GetTempPath()) ('.local/ac-sitting-test-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root -Force | Out-Null
 $script:checks = 0
@@ -71,7 +72,7 @@ try {
     $dsuFolder = Join-Path $root 'generated/flat-dolphin'
     New-Item -ItemType Directory $dsuFolder -Force | Out-Null
     $dsu = Join-Path $dsuFolder 'split-right.ini'
-    Set-Content -LiteralPath $dsu -Value "[Wiimote1]`nSource = 1`nDevice = DSUClient/0/AladdinsCastle`nButtons/A = Cross`nButtons/B = R2"
+    Set-Content -LiteralPath $dsu -Value "[Wiimote1]`nSource = 1`nDevice = DSUClient/0/$($product.dsu_server_name)`nButtons/A = Cross`nButtons/B = R2"
     @{version='shell-stick/1';files=@{'flat-dolphin/split-right.ini'=(Get-FileHash $dsu).Hash}} |
         ConvertTo-Json | Set-Content "$root/generated/generated-files.json"
     $scripted = Initialize-AcSitting -UserDirectory "$root/scripted" -NativeProfile $profile -Mode Desktop `

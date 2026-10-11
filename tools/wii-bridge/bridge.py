@@ -26,6 +26,9 @@ def main():
     parser.add_argument('--offscreen-pointer', choices=('edge', 'hide'), default='edge',
                         help='Per-game pointer policy: edge clamp, or Dolphin Point/Hide via DSU Square')
     args = parser.parse_args()
+    product = json.loads((Path(__file__).resolve().parents[2] / 'data/product.json').read_text(encoding='utf-8'))
+    if product.get('schema') != 1 or not isinstance(product.get('display_name'), str):
+        raise ValueError('Invalid product identity')
     mapper = Mapper(offscreen=args.offscreen_pointer)
     latch = MotionLatch()
     state_lock = threading.Lock()
@@ -83,7 +86,7 @@ def main():
         service_thread.join(timeout=2)
         window.destroy()
         raise RuntimeError(f'DSU service could not start: {service_start_error[0]}')
-    window.title('AladdinsCastle — Wii controller bridge')
+    window.title(product['display_name'] + ' — Wii controller bridge')
     window.geometry('900x650')
     window.configure(bg='#132030')
     tk.Label(window,text='Wii Remotes · live SteamVR motion',font=('Segoe UI',22),fg='white',bg='#132030').pack(pady=12)

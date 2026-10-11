@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Windows PowerShell 5.1. Preparing settings never launches Dolphin or VR.
 Set-StrictMode -Version 2.0
+$script:Product = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../data/product.json') -Raw | ConvertFrom-Json
+if ($script:Product.schema -ne 1 -or $script:Product.dsu_server_name -notmatch '^[A-Za-z0-9_-]+$' -or
+    $script:Product.display_name -notmatch '^[A-Za-z0-9 _-]+$') { throw 'Invalid product identity.' }
+$script:SittingMarker = $script:Product.display_name + ' sitting settings v2'
 
 function Write-AcText([string]$Path, [string]$Text) {
     $null = Assert-AcPrivatePath $Path
@@ -110,7 +114,7 @@ function Initialize-AcSitting {
     if ($DsuProfile) {
         $dsuBytes = [IO.File]::ReadAllBytes($DsuProfile)
         $dsuText = [Text.Encoding]::UTF8.GetString($dsuBytes)
-        if ($dsuText -notmatch '(?m)^Device = DSUClient/0/AladdinsCastle\r?$' -or
+        if ($dsuText -notmatch ('(?m)^Device = DSUClient/0/' + [regex]::Escape($script:Product.dsu_server_name) + '\r?$') -or
             $dsuText -notmatch '(?m)^Source = 1\r?$') { throw 'Expected generated split-right DSU profile.' }
         $dsuManifest = Get-Content -LiteralPath (Join-Path (Split-Path (Split-Path $DsuProfile)) 'generated-files.json') -Raw | ConvertFrom-Json
         if ((Split-Path $DsuProfile -Leaf) -ne 'split-right.ini' -or $dsuManifest.version -ne 'shell-stick/1' -or
@@ -122,7 +126,7 @@ function Initialize-AcSitting {
     $null = Assert-AcPrivatePath $marker
     if ((Test-Path -LiteralPath $userPath) -and
         (-not (Test-Path -LiteralPath $marker) -or
-         [IO.File]::ReadAllText($marker) -ne 'AladdinsCastle sitting settings v2')) {
+         [IO.File]::ReadAllText($marker) -ne $script:SittingMarker)) {
         throw 'Existing unowned User directory refused; choose a fresh sitting-v2 directory.'
     }
     $config = Join-Path $userPath 'Config'
@@ -132,7 +136,7 @@ function Initialize-AcSitting {
     New-Item -ItemType Directory -Path $config -Force | Out-Null
     # Pinned DolphinXR creates many user folders, but omits Logs before opening its file listener.
     New-Item -ItemType Directory -Path (Join-Path $userPath 'Logs') -Force | Out-Null
-    Write-AcText $marker 'AladdinsCastle sitting settings v2'
+    Write-AcText $marker $script:SittingMarker
     $backup = Join-Path $userPath ('ConfigBackups/' + [Guid]::NewGuid().ToString('N'))
     $existing = @(Get-ChildItem -LiteralPath $config -Filter '*.ini' -File)
     if ($existing.Count) {
@@ -170,7 +174,7 @@ function Initialize-AcSitting {
     if ($null -ne $dsuBytes) {
         Write-AcText (Join-Path $config 'WiimoteNew.ini') $dsuText
         Set-AcIniValues (Join-Path $config 'DSUClient.ini') ([ordered]@{
-            Server=[ordered]@{Enabled='True';Entries="AladdinsCastle:127.0.0.1:$DsuPort"}
+            Server=[ordered]@{Enabled='True';Entries="$($script:Product.dsu_server_name):127.0.0.1:$DsuPort"}
         })
         Set-AcIniValues (Join-Path $config 'Dolphin.ini') ([ordered]@{Input=[ordered]@{BackgroundInput='True'}})
     } elseif ($Mode -eq 'Desktop') {
