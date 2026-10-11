@@ -24,7 +24,7 @@ jobs:
       - run: python tools/validate_catalog.py
       - run: python tools/validate_catalog.py --test
       - name: Wii DSU packet, hand isolation and motion checks
-        run: python -m unittest discover -s tools/wii-bridge -p test_bridge.py -v
+        run: python -m unittest discover -s tools/wii-bridge -p "test_*.py" -v
       - name: Isolated Dolphin profile checks
         if: hashFiles('tools/wii-dolphin-profile/test_profile.py') != ''
         run: python -m unittest discover -s tools/wii-dolphin-profile -p test_profile.py -v

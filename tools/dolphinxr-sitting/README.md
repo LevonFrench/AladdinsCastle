@@ -53,3 +53,20 @@ the bounded deadline or interruption.
 Run `Test-Sitting.ps1` in Windows PowerShell 5.1 for synthetic admission,
 configuration, running-process refusal and log checks. No game or app launches
 in those tests. The real desktop run and both headset modes are separate checks.
+
+R3 adds explicit native options: `-ForcedVBI Auto|Off|72|90|120`,
+`-Mirror Both|Left|Right|None`, `-ControllerAnchor`, `-CameraAnchor` and
+`-CameraSmoothing` (0..1, default 0.85). Off is the conservative VBI default;
+it also clears the legacy AutoVBIFromHMD flag. Native Forced VBI is conditional
+on OpenXR being enabled. Auto needs the runtime's startup refresh measurement;
+a VR-off run cannot prove it. Anchor switches still require an applicable
+object/profile selection; controller anchoring supplies position, not a complete
+tracked gun implementation. No tuned per-game profile is claimed by these switches.
+
+For unattended input, pass `-DsuProfile` pointing at the shared generated
+`flat-dolphin/split-right.ini` and optionally `-DsuPort` (26760 by default).
+The manifest is checked before any settings write. This selects Source 1 and
+loopback DSU independently of Default/Eager/Desktop rendering, with background
+input enabled. Run the bounded DSU service described in `tools/wii-bridge/SCRIPTED.md`;
+it never takes over the OS mouse or keyboard. Starting this runner does not start
+that service. The supervisor must own and close both processes.
