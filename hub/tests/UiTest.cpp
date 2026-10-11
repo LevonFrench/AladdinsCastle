@@ -41,6 +41,45 @@
 #endif
 namespace {
 QStringList warnings;
+bool diagnosticEnabled(){return qEnvironmentVariableIsSet("AC_UI_GEOMETRY_DIAGNOSTIC");}
+QJsonObject geometry(QQuickItem *item){
+ const auto point=item->mapToScene({item->width()/2,item->height()/2});
+ QJsonArray chain;
+ for(auto parent=item;parent;parent=parent->parentItem()){
+  const auto local=parent->mapFromScene(point);
+  chain<<QJsonObject{{"name",parent->objectName()},{"type",parent->metaObject()->className()},
+   {"width",parent->width()},{"height",parent->height()},{"implicitHeight",parent->implicitHeight()},
+   {"clip",parent->clip()},{"containsPoint",parent->contains(local)},
+   {"visible",parent->isVisible()},{"enabled",parent->isEnabled()}};
+ }
+ return {{"pointX",point.x()},{"pointY",point.y()},
+  {"mode",QJsonValue::fromVariant(item->property("vrOverlayMode"))},
+  {"targetHeight",QJsonValue::fromVariant(item->property("targetHeight"))},{"chain",chain}};
+}
+void snapshot(const QString &tag,QQuickItem *item){
+ if(diagnosticEnabled())qInfo().noquote()<<"GEOMETRY "+tag+" "+QString::fromUtf8(QJsonDocument(geometry(item)).toJson(QJsonDocument::Compact));
+}
+bool softwareFrame(QQuickWindow *window){
+ QSignalSpy rendered(window,&QQuickWindow::afterRendering);
+ window->update();return QTest::qWaitFor([&]{return !rendered.isEmpty();},2000);
+}
+bool withinClips(QQuickItem *item){
+ if(item->width()<=0||item->height()<=0||!item->isVisible())return false;
+ const auto point=item->mapToScene({item->width()/2,item->height()/2});
+ for(auto parent=item;parent;parent=parent->parentItem())
+  if(parent->clip()&&!parent->contains(parent->mapFromScene(point)))return false;
+ return true;
+}
+void hitSnapshot(QQuickWindow *window,const QPointF &point){
+ if(!diagnosticEnabled())return;
+ QJsonArray path;auto item=window->contentItem();
+ for(int depth=0;item&&depth<32;++depth){
+  path<<QJsonObject{{"name",item->objectName()},{"type",item->metaObject()->className()},{"z",item->z()}};
+  const auto local=item->mapFromScene(point);item=item->childAt(local.x(),local.y());
+ }
+ const auto grabber=window->mouseGrabberItem();
+ qInfo().noquote()<<"HIT "+QString::fromUtf8(QJsonDocument(QJsonObject{{"path",path},{"grabber",grabber?grabber->objectName():QString()}}).toJson(QJsonDocument::Compact));
+}
 int cardCount(QQuickItem *item,bool visibleOnly=false){if(!item)return 0;int count=0;if(item->objectName()=="cardPrimary"){auto p=item->mapToScene(QPointF());if(!visibleOnly||(item->isVisible()&&p.y()>100&&p.y()<690))++count;}for(auto child:item->childItems())count+=cardCount(child,visibleOnly);return count;}
 QList<QQuickItem *> namedItems(QQuickItem *item,const QString &name){QList<QQuickItem *> result;if(!item)return result;if(item->objectName()==name)result<<item;for(auto child:item->childItems())result.append(namedItems(child,name));return result;}
 void logMessage(QtMsgType type,const QMessageLogContext &,const QString &message){if(type==QtWarningMsg||type==QtCriticalMsg)warnings<<message;fprintf(stderr,"%s\n",qPrintable(message));}
@@ -150,9 +189,13 @@ class UiTest:public QObject {
   QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
  }
  void pinballTabRealScene(){
+  const auto previousView=root->property("view"),previousMode=root->property("vrOverlayMode");
+  const auto cleanup=qScopeGuard([&]{ui->selectPinball(QString());root->setProperty("view",previousView);root->setProperty("vrOverlayMode",previousMode);});
   root->setProperty("view","List");root->setProperty("vrOverlayMode",true);
   const auto tabs=namedItems(window->contentItem(),"pinballTab");QCOMPARE(tabs.size(),1);
-  const auto tab=tabs.first();QVERIFY(tab->height()>=48);
+  const auto tab=tabs.first();snapshot("pinball-before-frame",tab);
+  if(diagnosticEnabled()){QVERIFY(softwareFrame(window));snapshot("pinball-after-frame",tab);}
+  QVERIFY(tab->height()>=48);
   auto p=tab->mapToScene(QPointF(tab->width()/2,tab->height()/2));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
   QCOMPARE(root->property("view").toString(),QString("Pinball"));
   QVariantList rows;for(int i=0;i<25;++i)rows<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"maker","Synthetic"},{"year",2000},{"vrReady",i!=24},{"evidence",QStringList{"marked by you"}},{"romState","needs no ROM"}};
@@ -175,12 +218,16 @@ class UiTest:public QObject {
   root->setProperty("vrOverlayMode",false);root->setProperty("view","List");
  }
  void sharedNowPlayingRealScene(){
+  const auto previousView=root->property("view"),previousMode=root->property("vrOverlayMode");
+  const auto cleanup=qScopeGuard([&]{ui->launchFinished("timecris","Synthetic fixture cleanup");root->setProperty("view",previousView);root->setProperty("vrOverlayMode",previousMode);});
   root->setProperty("view","List"); root->setProperty("vrOverlayMode",true);
   QVERIFY(QMetaObject::invokeMethod(ui.get(),"launchQueued",Q_ARG(QString,"timecris"),Q_ARG(QString,"flat"),Q_ARG(QString,"")));
   ui->launchStarted("timecris");
   QTRY_VERIFY(!namedItems(window->contentItem(),"nowPlayingExit").isEmpty());
   auto exit=namedItems(window->contentItem(),"nowPlayingExit").first();
-  QVERIFY(exit->isVisible()); QVERIFY(exit->height()>=48);
+  QVERIFY(exit->isVisible());snapshot("card-before-frame",exit);
+  if(diagnosticEnabled()){QVERIFY(softwareFrame(window));snapshot("card-after-frame",exit);}
+  QVERIFY(exit->height()>=48);
   auto recentre=namedItems(window->contentItem(),"nowPlayingRecentre").first();
   QVERIFY(!recentre->isEnabled());
   QSignalSpy close(ui.get(),SIGNAL(closeLaunchRequested()));
@@ -224,12 +271,18 @@ class UiTest:public QObject {
   QVERIFY(model);QVERIFY(hand);QCOMPARE(hand->property("currentIndex").toInt(),-1);QVERIFY(!launch->isEnabled());
   model->setProperty("currentIndex",0);QVERIFY(!launch->isEnabled());hand->setProperty("currentIndex",0);
   QTRY_VERIFY(launch->isEnabled());
+  snapshot("gun-room-before-frame",launch);
+  if(diagnosticEnabled()){QVERIFY(softwareFrame(window));snapshot("gun-room-after-frame",launch);}
   auto point=launch->mapToScene({launch->width()/2,launch->height()/2});
   auto page=scene->findChild<QQuickItem *>("gunRoomPage");QVERIFY(page);
   page->setProperty("contentY",qMax(0.0,point.y()-window->height()/2));
-  QTRY_VERIFY(launch->mapToScene({launch->width()/2,launch->height()/2}).y()<window->height());
+  if(diagnosticEnabled()){QVERIFY(softwareFrame(window));snapshot("gun-room-after-scroll",launch);}
+  QTRY_VERIFY(withinClips(launch));
   point=launch->mapToScene({launch->width()/2,launch->height()/2});
+  QSignalSpy presses(launch,SIGNAL(pressed())),releases(launch,SIGNAL(released())),clicks(launch,SIGNAL(clicked()));
+  hitSnapshot(window,point);
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  if(diagnosticEnabled())qInfo()<<"DISPATCH"<<presses.size()<<releases.size()<<clicks.size()<<probe.launches;
   QCOMPARE(probe.launches,1);QCOMPARE(probe.model,QString("synthetic-pistol"));QCOMPARE(probe.hand,QString("left"));
   QCOMPARE(probe.binary,localSettings.get("gunRoomExecutable").toString());
   QVERIFY(QMetaObject::invokeMethod(&localUi,"launchRoomQueued",Q_ARG(QString,probe.model),Q_ARG(QString,probe.hand)));

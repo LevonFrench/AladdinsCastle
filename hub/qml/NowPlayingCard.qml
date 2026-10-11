@@ -17,6 +17,6 @@ Rectangle {
    PillButton {objectName:"nowPlayingRestart";text:"Restart";vrOverlayMode:card.vrOverlayMode;enabled:card.session.running===true&&!card.session.closing&&!card.session.closeUnavailable;onClicked:uiController.restartLaunch()}
    PillButton {objectName:"nowPlayingRecentre";text:"Recentre";vrOverlayMode:card.vrOverlayMode;enabled:false}
   }
-  UiText {Layout.fillWidth:true;wrapMode:Text.Wrap;text:card.session.closing?(card.session.gunRoom?"Waiting for the room to close cleanly…":"Waiting for the game to close cleanly…"):card.session.closeUnavailable||"Recentre is not available from the Hub for this launch. Use the application's recentre control."}
+  UiText {Layout.fillWidth:true;wrapMode:Text.Wrap;text:card.session.closing?(card.session.gunRoom?"Waiting for the room to close cleanly…":"Waiting for the game to close cleanly…"):card.session.closeUnavailable||(card.session.gunRoom?"Recentre is not available from the Hub for this room.":"Recentre is not available from the Hub for this launch. Use the game's recentre control.")}
  }
 }
