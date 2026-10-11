@@ -1,5 +1,26 @@
 # Native synthetic System 22 slice
 
+The proposed [snapshot/oracle freeze](SNAPSHOT-ORACLE-FREEZE.md) fixes the
+resolved native input root and bounded numeric scene manifest. Verify its CPU
+fixtures with `python -B check_scene_vectors.py` from this directory. It covers
+two scenes and does not establish GPU pixels or the remaining planned cases.
+
+The proposed [paired producer evidence contract](PAIRED-EVIDENCE-CONTRACT.md)
+defines exact eye pixels, lease/pose/projection correlation and capture limits.
+The bounded [GPU proof-driver plan](GPU-PROOF-DRIVER-PLAN.md) depends on review
+before source implementation or execution. Both are source-only specifications;
+no receipt, Viewer admission, GPU result or draw-gate change is claimed.
+The common composition digest now has a fixed byte encoding and
+[CPU hash vectors](composition-vectors.json); run
+`python -B check_composition_vectors.py` from this directory to verify them.
+This does not implement a producer/Viewer or enable any rendering path.
+
+The next [native batch proof plan](NATIVE-BATCH-PLAN.md) connects the clipped
+packets to guarded upstream batching, with a CPU capture seam in actual `bb_emit`.
+The new draw and noncapture binding gates are compile-time OFF. The legacy fixture
+and `begin_eye` remain unchanged; no new GPU image exists for this source branch.
+Native CZ bytes use the upstream helper and a separate board-depth varying.
+
 The follow-on [head-pose contract](HEADPOSE-CONTRACT.md) adds a CPU-only clipped
 attribute stage for rotation, XYZ translation and uniform scale. It does not
 broaden the GPU entry point below. The accepted PR53 image/executable stay frozen;
@@ -75,10 +96,12 @@ Copy-Item -LiteralPath "$SDK/bin/SDL2.dll" -Destination "$BUILD/SDL2.dll"
 & "$CTEST" --test-dir "$BUILD" --output-on-failure
 ```
 
-CTest runs the native formula `--check` and the head-pose clipping suite without
+CTest runs the native formula `--check`, head-pose clipping and native batch CPU suites without
 SDL initialization, window, GPU or game files. The latter stages two original
 fan triangles per native polygon, preserves painter key/ties, and checks5878
-adversarial assertions plus the actual prepared-queue bridge. It consumes only
+adversarial assertions plus the actual prepared-queue bridge. Native batching adds
+143 checks, including rotated/Z-translated clipping, discrete CZ endpoints and
+unchanged legacy fan/attribute copies. It consumes only
 explicitly supplied pinned sources/local SDK; ordinary hosted Hub/catalog checks
 do not by themselves establish these native test results.
 `--draw` is a separately authorized GPU check, not a CI test:

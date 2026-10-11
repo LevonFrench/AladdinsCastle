@@ -54,7 +54,27 @@ class Profiles(unittest.TestCase):
         self.assertEqual(parse(files["Config/Dolphin.ini"])["Analytics"]["Enabled"], "False")
         self.assertEqual(parse(files["Config/Dolphin.ini"])["Analytics"]["PermissionAsked"], "True")
         self.assertEqual(parse(files["Config/Dolphin.ini"])["AutoUpdate"]["UpdateTrack"], "")
-        self.assertEqual(parse(files["Config/DSUClient.ini"])["Server"]["Entries"], "AladdinsCastle:127.0.0.1:26760")
+        self.assertEqual(parse(files["Config/DSUClient.ini"])["Server"]["Entries"], "AladdinsCastle:127.0.0.1:26760;")
+
+    def test_dsu_entries_match_pinned_config_changed_roundtrip(self):
+        # DolphinXR 85c4266, DualShockUDPClient.cpp ConfigChanged (413-451):
+        # split ';', then ':', parse the port, rebuild name:address:port; and
+        # compare raw strings. An omitted terminator restarts unchanged servers.
+        for mode in ("one-gun", "two-remotes"):
+            with self.subTest(mode=mode):
+                server = parse(setup.render(mode)["Config/DSUClient.ini"])["Server"]
+                self.assertEqual(server["Enabled"], "True")
+                entries = server["Entries"]
+                fields = [entry.split(":") for entry in entries.split(";")]
+                active = [(name, address, int(port)) for name, address, port in
+                          (parts[:3] for parts in fields if len(parts) >= 3)]
+                self.assertEqual(active, [("AladdinsCastle", "127.0.0.1", 26760)])
+                reconstructed = "".join(f"{name}:{address}:{port};" for name, address, port in active)
+                for _ in range(3):
+                    # Repeated unchanged ConfigChanged calls must skip restart.
+                    self.assertEqual(entries, reconstructed)
+                # This regression distinguishes the broken pre-fix spelling.
+                self.assertNotEqual(entries.removesuffix(";"), reconstructed)
 
     def test_window_and_pointer_ranges_follow_source_contract(self):
         for mode in ("one-gun","two-remotes"):

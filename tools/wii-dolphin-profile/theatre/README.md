@@ -40,8 +40,44 @@ harness cannot detect unrelated prompts or authorize a runtime slot.
 Supply a private JSON configuration under this checkout's `.local` containing
 absolute `dolphin`, `capture` and `disc` paths, exact `dolphin_sha256` and
 `capture_sha256` hashes, and `disc_header_sha256` (the first 32 bytes). The
-ordinary-Dolphin profile currently admits only the two scoped Chronicles ISO
-headers. No collection traversal or content copy occurs. Keep this JSON and
+header ID must belong to the historical default pair when `game_id` is omitted,
+preserving existing recipes. Generic recipes
+add explicit `game_id` (six uppercase letters/digits), selected `game_slug`,
+`dsu_profile` and `dsu_profile_sha256`. These are explicit selection fields,
+not an owner-title allow-list or permission to access/run a game.
+Hexadecimal SHA-256 text accepts either case, matching PowerShell's `Get-FileHash`;
+the original private recipe/manifest bytes are retained.
+
+Generic profiles must be canonical
+`games/<game_slug>/scripted-dsu-right.ini` or
+`games/<game_slug>/flat-dolphin-right.ini`, with an exact
+`generated-files.json` entry and caller hash. The slug is the selected generated
+game/control-set folder identifier, matching the sitting runner's `ControlSet`;
+it is never inferred from media filenames. Only that game's selector is created.
+The canonical global split-right profile remains supported for legacy recipes.
+Native Source 3, wrong slugs, linked profiles and malformed INI are refused.
+An adjacent manifest and caller hash are integrity checks, not proof of canonical
+controls. Admission compares the entire payload to the scoped, hash-pinned
+one-remote producer template, using the selected product DSU label. It requires
+exactly Wiimote1–4 and BalanceBoard sections, no defaults, and every non-selected
+slot strictly disabled. Changed buttons, axes or extra settings fail even if
+both untrusted hashes are recomputed. Preparation copies the validated bytes
+without reopening the source profile.
+
+The current template is pinned to Guns' committed `6b1874` output with Home blank
+because its DSU byte is unsupported. Both per-game right-primary DSU roles use
+that complete contract. Only the legacy global split-right path additionally
+accepts the complete historical template; generic profiles cannot use it. Native
+seed and historical profiles/receipts remain untouched. Future producer changes
+need a reviewed consumer-template update and fail closed in the meantime.
+
+`disc_header_sha256` always hashes the selected 32-byte Wii header: offset zero
+for ISO, or the copied header after the bounded host sector for single-disc WBFS.
+Wii magic and the selected ID must match. WBFS host shifts 9–12 and block shifts
+15–31 are bounded before allocation; a missing first slot, extra disc slots,
+invalid declared size or truncated copied header fails. This checks metadata
+only, not payload/block-map integrity. No collection/companion traversal or
+content copy occurs. Keep this JSON and
 all output outside Git. `prepare` validates inputs and writes fresh settings
 without launching; `run` requires a different fresh output directory and the
 lead's runtime slot:
@@ -50,6 +86,10 @@ Fresh settings explicitly disable `Interface/OnScreenDisplayMessages` and enable
 `Interface/ShowActiveTitle`, as verified against the pinned source. Diagnostic
 OSD must not qualify as game content. The default settle is 20 seconds; both
 this and those isolated settings reproduce the successful safety-screen phase.
+New prepared receipts retain the exact config fingerprint, header metadata and
+selected profile key. The tool rechecks them after preparation and immediately
+before launching; even a same-size header change or config whitespace edit fails.
+Historical receipts/configurations are not rewritten or resumed.
 
 Optional `dsu_profile` and `dsu_profile_sha256` select the canonical generated
 `flat-dolphin/split-right.ini`. Its shared manifest must match exactly. The
@@ -129,3 +169,33 @@ references, overlay resources and temporary hotkeys are released on exit.
 Sources: [Microsoft HWND capture](https://learn.microsoft.com/en-us/windows/win32/api/windows.graphics.capture.interop/nf-windows-graphics-capture-interop-igraphicscaptureiteminterop-createforwindow),
 [free-threaded frame pool](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.direct3d11captureframepool.createfreethreaded),
 [compositor frame time](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.direct3d11captureframe.systemrelativetime).
+
+## Opt-in failure diagnostics
+
+For an explicitly authorized capture-only attempt, add
+`--failure-diagnostic-dir <absolute fresh private directory under .local>`.
+Its existing parent must have no linked ancestors; the directory is reserved
+before capture and held against replacement/write access. It must differ from
+the accepted proof directory. The option is rejected for live-overlay runs.
+No diagnostic files are written on success; the reserved directory stays empty.
+
+On failure, `failure.json` records `accepted: false`, the original error, parsed
+startup/comparison bounds, exact stage, admitted PID/HWND and title-match boolean,
+client/source/crop dimensions, poll/resize/raw-frame/content/comparison counters,
+and compositor timestamps. No window title is recorded. A first spatial candidate
+(or first raw frame when none qualifies) and the latest raw frame are retained,
+at most two images, as `first-candidate.png`/`first-raw.png` and `latest-raw.png`.
+Their metadata also says `accepted: false`. Samples remain private diagnostics;
+they are never accepted `frame-1.png`, `frame-2.png` or `capture.json` evidence.
+Metadata precedes exclusive image writes; `sample_export` describes requested
+exports, and partial export errors leave the original failure and exit 1 intact.
+Existing files are never overwritten. No raw frames produces metadata only.
+
+Admission, candidate threshold, excluded border/alpha, minimum interval, RGB
+change gate and accepted proof bytes remain unchanged. Poll counters distinguish
+no delivery, pool resize, readback failure, uniform content, too-soon timestamps
+and RGB-identical candidates; scalar statistics and samples do not establish
+gameplay, stereoscopic depth or headset acceptance. The CPU diagnostic fixture
+checks phase/counters, the exact 1% boundary, alpha/border exclusion, immutable
+two-sample retention and independent JSON parsing. Software readback tests cover
+exclusive failure PNG writes and preservation of existing files.

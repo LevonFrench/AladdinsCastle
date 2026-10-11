@@ -14,11 +14,20 @@
 #endif
 
 template<class T> T init() { T x{}; ACVR_INIT(&x); return x; }
+acvr_gun_angle_update angle_update(uint32_t slot,const float *xyzw){
+    auto update=init<acvr_gun_angle_update>();update.slot=slot;
+    for(unsigned i=0;i<4;++i)update.angle_xyzw[i]=xyzw[i];
+    return update;
+}
 unsigned checks=0;
 void check(bool value) { ++checks; if(!value) throw std::runtime_error("check " + std::to_string(checks)); }
 struct Receipt {
     bool model_support=false,fail_model=false;
     bool controls_support=false;
+    bool calibration_support=false;
+    bool check_calibration_reentry=false;
+    bool check_calibration_pause_reentry=false,check_calibration_close_reentry=false;
+    acvr_runtime *calibration_runtime=nullptr;
     bool pause_support=false;
     unsigned pause_actions=0;
     bool omit_legacy_triggers=false;
@@ -45,6 +54,14 @@ struct Receipt {
     std::vector<acvr_ray> rays;
     std::vector<uint64_t> drawn_frames;
 } *current;
+void check_calibration_callback(Receipt &r){
+    auto sample=init<acvr_controller_sample>();const float identity[4]{0,0,0,1};
+    auto update=angle_update(0,identity);
+    auto tracking=init<acvr_tracking>();
+    check(acvr_runtime_get_tracking(r.calibration_runtime,&tracking)==ACVR_BAD_STATE);
+    check(acvr_runtime_get_controller_sample(r.calibration_runtime,&sample)==ACVR_BAD_STATE);
+    check(acvr_runtime_set_gun_angle(r.calibration_runtime,&update)==ACVR_BAD_STATE);
+}
 struct acvr_frame { uint64_t id=0; };
 struct acvr_backend { Receipt *r; acvr_frame frame; uint64_t sequence=0; bool pending=false; };
 acvr_control_desc controls[3];
@@ -62,8 +79,12 @@ acvr_result ACVR_CALL open(const acvr_open_info *in,acvr_backend **out,acvr_back
     info->controls=controls; info->control_count=3; info->control_stride=sizeof(controls[0]);
     return current->fail_open?ACVR_ERROR:ACVR_OK;
 }
-void ACVR_CALL close(acvr_backend *b) { if(b->r->fail_open)check(b->r->context_active); ++b->r->closed; delete b; }
-acvr_result ACVR_CALL pause(acvr_backend *b,uint32_t) { if(b->r->require_context_pause)check(b->r->context_active); ++b->r->paused; return ACVR_OK; }
+void ACVR_CALL close(acvr_backend *b) { if(b->r->fail_open)check(b->r->context_active);
+    if(b->r->check_calibration_close_reentry)check_calibration_callback(*b->r);
+    ++b->r->closed; delete b; }
+acvr_result ACVR_CALL pause(acvr_backend *b,uint32_t) { if(b->r->require_context_pause)check(b->r->context_active);
+    if(b->r->check_calibration_pause_reentry)check_calibration_callback(*b->r);
+    ++b->r->paused; return ACVR_OK; }
 acvr_result ACVR_CALL inputs(acvr_backend *b,const acvr_inputs *in) {
     check(!b->r->leased); check(in->tick_id==b->r->steps.size()+1);
     check(in->gun_count==1 && in->axis_count==1 && in->button_count==1);
@@ -119,7 +140,7 @@ acvr_tracking tracking() {
     t.right.grip_flags=t.right.aim_flags=t.left.grip_flags=t.left.aim_flags=3;
     t.right.hand=ACVR_HAND_RIGHT; t.left.hand=ACVR_HAND_LEFT; return t;
 }
-struct Sample { int64_t time; bool trigger=false,coin=false,focused=true,render=true,tracked=true; float pedal=0; bool left_trigger=false,reload=false,primary=false; };
+struct Sample { int64_t time; bool trigger=false,coin=false,focused=true,render=true,tracked=true; float pedal=0; bool left_trigger=false,reload=false,primary=false; bool cal_secondary=false;float cal_x=0,cal_y=0; };
 struct Recorded final:acvr::Host {
     acvr_pose anchor=pose();
     Receipt &r; std::vector<Sample> samples; size_t index=0; acvr_eye eyes[2];
@@ -135,10 +156,21 @@ struct Recorded final:acvr::Host {
         check(units==10 && mode==ACVR_ANCHOR_RAIL); return ACVR_OK;
     }
     acvr_result begin(acvr::Display &d) override {
+        if(r.check_calibration_reentry){
+            check_calibration_callback(r);
+        }
         if(wait_once) {wait_once=false;return ACVR_MORE;}
         if(index==samples.size()) return ACVR_STOPPED;
         auto s=samples[index++]; d.tracking=tracking(); d.tracking.sample_time_ns=d.tracking.predicted_display_time_ns=s.time;
         d.focused=s.focused; d.should_render=s.render; d.trigger[0]=s.trigger; d.scene_from_stage=anchor;
+        d.calibration=init<acvr_controller_sample>();
+        if(r.calibration_support){
+            d.calibration.active[0]=ACVR_CALIB_SECONDARY_ACTIVE|ACVR_CALIB_STICK_X_ACTIVE|
+                                    ACVR_CALIB_STICK_Y_ACTIVE|ACVR_CALIB_TRIGGER_ACTIVE;
+            d.calibration.secondary_down[0]=s.cal_secondary?1u:0u;
+            d.calibration.stick_x[0]=s.cal_x;d.calibration.stick_y[0]=s.cal_y;
+            d.calibration.trigger[0]=s.trigger?1.f:0.f;
+        }
         d.reload[0]=s.reload;
         d.controllers[0].trigger=s.trigger?1.f:0.f;d.controllers[1].trigger=s.left_trigger?1.f:0.f;
         for(auto &controller:d.controllers) {controller.grip=s.pedal;controller.secondary=s.coin;controller.primary=s.primary;}
@@ -156,6 +188,7 @@ struct Recorded final:acvr::Host {
     void cancel_effects() noexcept override { ++r.cancelled; }
     bool supports_guns() const noexcept override {return r.model_support;}
     bool supports_controller_samples() const noexcept override {return r.controls_support;}
+    bool supports_calibration_samples() const noexcept override {return r.calibration_support;}
     uint32_t supported_runtime_actions() const noexcept override {return r.pause_support?acvr::action_bit(acvr::RuntimeAction::Pause):0;}
     acvr_result runtime_action(acvr::RuntimeAction action) override {
         if(action!=acvr::RuntimeAction::Pause||!r.pause_support) return ACVR_UNSUPPORTED;
@@ -199,6 +232,45 @@ void timing_and_edges() {
     check(ext.sentinel[0]==123 && ext.sentinel[1]==456);
     check(acvr_runtime_tick(p)==ACVR_STOPPED); check(acvr_runtime_destroy(p)==ACVR_OK);
     check(r.closed==1 && r.released==r.steps.size());
+}
+void calibration_sample_contract(){
+    Receipt r;r.calibration_support=true;
+    std::vector<Sample> samples{{17000000},{34000000}};
+    samples[0].cal_secondary=true;samples[0].cal_x=.75f;samples[0].cal_y=-.5f;
+    samples[1].focused=false;samples[1].cal_secondary=false;
+    auto p=create(r,samples);
+    r.check_calibration_reentry=true;r.calibration_runtime=p;
+    auto out=init<acvr_controller_sample>();
+    check(acvr_runtime_get_controller_sample(p,&out)==ACVR_BAD_STATE);
+    check(acvr_runtime_tick(p)==ACVR_OK);
+    check(acvr_runtime_get_controller_sample(p,&out)==ACVR_OK&&out.display_id==1&&
+          out.sample_time_ns==17000000&&out.focused==1&&out.secondary_down[0]==1&&
+          out.stick_x[0]==.75f&&out.stick_y[0]==-.5f&&out.active[1]==0);
+    out.size=8;check(acvr_runtime_get_controller_sample(p,&out)==ACVR_BAD_ARGUMENT);
+    out.size=sizeof(out);++out.version;
+    check(acvr_runtime_get_controller_sample(p,&out)==ACVR_BAD_VERSION);
+    out=init<acvr_controller_sample>();
+    struct Extended {acvr_controller_sample value;uint64_t sentinel;} extended{init<acvr_controller_sample>(),123};
+    extended.value.size=sizeof(extended);
+    check(acvr_runtime_get_controller_sample(p,&extended.value)==ACVR_OK&&
+          extended.value.size==sizeof(extended)&&extended.sentinel==123);
+    acvr_result other=ACVR_OK;std::thread thread([&]{other=acvr_runtime_get_controller_sample(p,&out);});thread.join();
+    check(other==ACVR_BAD_STATE);
+    r.check_calibration_pause_reentry=true;
+    const auto pauses_before=r.paused;
+    check(acvr_runtime_set_paused(p,1)==ACVR_OK&&r.paused==pauses_before+1);
+    check(acvr_runtime_set_paused(p,0)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK);
+    check(acvr_runtime_get_controller_sample(p,&out)==ACVR_OK&&out.display_id==2&&
+          out.focused==0&&out.secondary_down[0]==0);
+    const float identity[4]{0,0,0,1};auto update=angle_update(0,identity);
+    check(acvr_runtime_set_gun_angle(p,&update)==ACVR_UNSUPPORTED);
+    r.check_calibration_close_reentry=true;
+    check(acvr_runtime_destroy(p)==ACVR_OK);
+    Receipt unsupported;auto q=create(unsupported,{{17000000}});
+    check(acvr_runtime_tick(q)==ACVR_OK);
+    check(acvr_runtime_get_controller_sample(q,&out)==ACVR_UNSUPPORTED);
+    check(acvr_runtime_destroy(q)==ACVR_OK);
 }
 void provider_wait_and_orderly_stop() {
     Receipt r;current=&r;auto c=config();auto a=api();acvr_runtime *p=nullptr;
@@ -452,7 +524,18 @@ void configured_model() {
     check(acvr_runtime_tick(p)==ACVR_OK && r.model_draws==4 && !(r.guns.back().flags&ACVR_GUN_TRACKED));
     ++e.sequence;check(acvr_runtime_gun_event(p,&e)==ACVR_BAD_STATE);
     check(acvr_runtime_tick(p)==ACVR_OK && r.model_draws==6 && r.guns.back().trigger==0 && r.model_nodes[3][14]==0);
-    check(acvr_runtime_tick(p)==ACVR_OK);r.fail_model=true;
+    const float yaw[4]{0,float(std::sqrt(.5)),0,float(std::sqrt(.5))};
+    const float invalid[4]{0,0,0,2};
+    auto update=angle_update(0,yaw);
+    auto sample=init<acvr_controller_sample>();
+    check(acvr_runtime_get_controller_sample(p,&sample)==ACVR_UNSUPPORTED);
+    update.size=8;check(acvr_runtime_set_gun_angle(p,&update)==ACVR_BAD_ARGUMENT);
+    update.size=sizeof(update);++update.version;
+    check(acvr_runtime_set_gun_angle(p,&update)==ACVR_BAD_VERSION);
+    update=angle_update(1,yaw);check(acvr_runtime_set_gun_angle(p,&update)==ACVR_BAD_ARGUMENT);
+    update=angle_update(0,invalid);check(acvr_runtime_set_gun_angle(p,&update)==ACVR_BAD_ARGUMENT);
+    update=angle_update(0,yaw);check(acvr_runtime_set_gun_angle(p,&update)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.model_ray.direction_scene[0]<-.99f);r.fail_model=true;
     check(acvr_runtime_tick(p)==ACVR_ERROR && r.submitted==5);
     check(acvr_runtime_gun_event(p,&e)==ACVR_BAD_STATE);
     check(acvr_runtime_destroy(p)==ACVR_OK && r.closed==1);
@@ -583,7 +666,7 @@ void runtime_output_routes() {
 #endif
 int main() {
 #define RUN(test) do { try { test(); } catch(...) { std::cerr << #test << ": "; throw; } } while(false)
-    try { RUN(timing_and_edges); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(failures_and_ownership); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
+    try { RUN(timing_and_edges); RUN(calibration_sample_contract); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(failures_and_ownership); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
 #ifdef ACVR_OPENXR_GL
         public_preflight_never_opens_xr();
 #endif

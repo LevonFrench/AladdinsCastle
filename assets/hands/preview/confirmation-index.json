@@ -1,0 +1,3408 @@
+{
+  "schema": "gun-confirmation/1",
+  "state": "owner-confirmation-pending",
+  "limits": [
+    "Gun choices and holds are proposals; owner confirmation is pending.",
+    "Existing CPU previews use the runtime lighting recipe, not an actual headset frame.",
+    "Rigid mounting and visible proportions can be reviewed; comfort, calibration, pressure and fine intersections remain unaccepted.",
+    "Game layouts, reload classifiers and confirm/back meanings require the game option/instruction screens.",
+    "Canonical DSU transport source tests do not establish game input or tracked recentre acceptance."
+  ],
+  "evidence": {
+    "source": "authored policy and SHA256-bound existing artifacts",
+    "visual": "CPU grip-family sheets; rigid mounting and lighting proxy only",
+    "runtime": "no game/headset acceptance recorded"
+  },
+  "shared_artifacts": [
+    "data/controls/wii/shell-and-stick.toml",
+    "assets/hands/assembly.json",
+    "tools/hand_assembly.py",
+    "tools/gun_confirmation.py",
+    "tools/wii_controls.py",
+    "tools/wii_shell_stick.py",
+    "assets/guns/src/common.py",
+    "assets/hands/src/grip_hand.py",
+    "assets/guns/runtime-lighting.json",
+    "assets/hands/review_grips.py",
+    "assets/hands/grip_sheets.py",
+    "assets/guns/propose_wii.py",
+    "assets/guns/preview/wii-proposal-sheet.json",
+    "assets/guns/preview/wii-proposal-sheet.png",
+    "assets/guns/preview/shell-stick-sheet.png",
+    "assets/controls/wii/umbrella-shell-stick-controls.png",
+    "assets/hands/preview/grips/coverage.json",
+    "assets/hands/preview/grips/grip-coverage-sheet.png",
+    "assets/hands/grip-hand-left.glb",
+    "assets/hands/grip-hand-left.toml",
+    "assets/hands/grip-hand-right.glb",
+    "assets/hands/grip-hand-right.toml"
+  ],
+  "models": {
+    "con-pistol-slim": {
+      "label": "Slim console pistol",
+      "state": "provisional",
+      "sources": [
+        "data/guns/con-pistol-slim.toml",
+        "assets/guns/src/con-pistol-slim.py",
+        "assets/guns/con-pistol-slim.glb",
+        "assets/guns/preview/con-pistol-slim.json",
+        "assets/guns/preview/con-pistol-slim.png",
+        "assets/guns/preview/con-pistol-slim-front.png",
+        "assets/guns/preview/con-pistol-slim-held.png",
+        "assets/guns/preview/con-pistol-slim-silhouette.png"
+      ],
+      "sight_checks": [
+        "assets/guns/preview/con-pistol-slim-sight-lod0.png",
+        "assets/guns/preview/con-pistol-slim-sight-lod1.png"
+      ],
+      "review_sheet": "assets/hands/preview/grips/con-pistol-slim-review-sheet.png",
+      "review_cases": [
+        {
+          "id": "con-pistol-slim-right-primary",
+          "primary_hand": "right",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/con-pistol-slim-right-primary-assembly.png",
+            "assets/hands/preview/grips/con-pistol-slim-right-primary-grip.png"
+          ]
+        },
+        {
+          "id": "con-pistol-slim-left-primary",
+          "primary_hand": "left",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/con-pistol-slim-left-primary-assembly.png",
+            "assets/hands/preview/grips/con-pistol-slim-left-primary-grip.png"
+          ]
+        }
+      ],
+      "mounts": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "support": {}
+    },
+    "con-remote-shell": {
+      "label": "Remote shell",
+      "state": "provisional",
+      "sources": [
+        "data/guns/con-remote-shell.toml",
+        "assets/guns/src/con-remote-shell.py",
+        "assets/guns/con-remote-shell.glb",
+        "assets/guns/preview/con-remote-shell.json",
+        "assets/guns/preview/con-remote-shell.png",
+        "assets/guns/preview/con-remote-shell-front.png",
+        "assets/guns/preview/con-remote-shell-held.png",
+        "assets/guns/preview/con-remote-shell-silhouette.png"
+      ],
+      "sight_checks": [
+        "assets/guns/preview/con-remote-shell-sight-lod0.png",
+        "assets/guns/preview/con-remote-shell-sight-lod1.png"
+      ],
+      "review_sheet": "assets/hands/preview/grips/con-remote-shell-review-sheet.png",
+      "review_cases": [
+        {
+          "id": "con-remote-shell-right-primary",
+          "primary_hand": "right",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/con-remote-shell-right-primary-assembly.png",
+            "assets/hands/preview/grips/con-remote-shell-right-primary-grip.png"
+          ]
+        },
+        {
+          "id": "con-remote-shell-left-primary",
+          "primary_hand": "left",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/con-remote-shell-left-primary-assembly.png",
+            "assets/hands/preview/grips/con-remote-shell-left-primary-grip.png"
+          ]
+        },
+        {
+          "id": "con-remote-shell-right-support",
+          "primary_hand": "right",
+          "hold": "support",
+          "images": [
+            "assets/hands/preview/grips/con-remote-shell-right-support-assembly.png",
+            "assets/hands/preview/grips/con-remote-shell-right-support-grip.png"
+          ]
+        },
+        {
+          "id": "con-remote-shell-left-support",
+          "primary_hand": "left",
+          "hold": "support",
+          "images": [
+            "assets/hands/preview/grips/con-remote-shell-left-support-assembly.png",
+            "assets/hands/preview/grips/con-remote-shell-left-support-grip.png"
+          ]
+        },
+        {
+          "id": "con-remote-shell-right-docked",
+          "primary_hand": "right",
+          "hold": "docked",
+          "images": [
+            "assets/hands/preview/grips/con-remote-shell-right-docked-assembly.png",
+            "assets/hands/preview/grips/con-remote-shell-right-docked-grip.png"
+          ]
+        },
+        {
+          "id": "con-remote-shell-left-docked",
+          "primary_hand": "left",
+          "hold": "docked",
+          "images": [
+            "assets/hands/preview/grips/con-remote-shell-left-docked-assembly.png",
+            "assets/hands/preview/grips/con-remote-shell-left-docked-grip.png"
+          ]
+        }
+      ],
+      "mounts": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "support": {
+        "right": {
+          "node": "grip_two",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            -0.3826834324,
+            0.0,
+            0.0,
+            0.9238795325
+          ],
+          "state": "provisional"
+        },
+        "left": {
+          "node": "grip_two",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            -0.3826834324,
+            0.0,
+            0.0,
+            0.9238795325
+          ],
+          "state": "provisional"
+        }
+      }
+    },
+    "con-stick-grip": {
+      "label": "Analog stick grip",
+      "state": "provisional",
+      "sources": [
+        "data/guns/con-stick-grip.toml",
+        "assets/guns/src/con-stick-grip.py",
+        "assets/guns/con-stick-grip.glb",
+        "assets/guns/preview/con-stick-grip.json",
+        "assets/guns/preview/con-stick-grip.png",
+        "assets/guns/preview/con-stick-grip-front.png",
+        "assets/guns/preview/con-stick-grip-held.png",
+        "assets/guns/preview/con-stick-grip-silhouette.png"
+      ],
+      "sight_checks": [],
+      "review_sheet": "assets/hands/preview/grips/con-stick-grip-review-sheet.png",
+      "review_cases": [
+        {
+          "id": "con-stick-grip-right-primary",
+          "primary_hand": "right",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/con-stick-grip-right-primary-assembly.png",
+            "assets/hands/preview/grips/con-stick-grip-right-primary-grip.png"
+          ]
+        },
+        {
+          "id": "con-stick-grip-left-primary",
+          "primary_hand": "left",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/con-stick-grip-left-primary-assembly.png",
+            "assets/hands/preview/grips/con-stick-grip-left-primary-grip.png"
+          ]
+        }
+      ],
+      "mounts": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "support": {}
+    },
+    "mnt-mg-heavy": {
+      "label": "Pivot-mounted heavy machine gun",
+      "state": "provisional",
+      "sources": [
+        "data/guns/mnt-mg-heavy.toml",
+        "assets/guns/src/mnt-mg-heavy.py",
+        "assets/guns/mnt-mg-heavy.glb",
+        "assets/guns/preview/mnt-mg-heavy.json",
+        "assets/guns/preview/mnt-mg-heavy.png",
+        "assets/guns/preview/mnt-mg-heavy-front.png",
+        "assets/guns/preview/mnt-mg-heavy-held.png",
+        "assets/guns/preview/mnt-mg-heavy-silhouette.png"
+      ],
+      "sight_checks": [
+        "assets/guns/preview/mnt-mg-heavy-sight-lod0.png",
+        "assets/guns/preview/mnt-mg-heavy-sight-lod1.png"
+      ],
+      "review_sheet": "assets/hands/preview/grips/mnt-mg-heavy-review-sheet.png",
+      "review_cases": [
+        {
+          "id": "mnt-mg-heavy-right-primary",
+          "primary_hand": "right",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/mnt-mg-heavy-right-primary-assembly.png",
+            "assets/hands/preview/grips/mnt-mg-heavy-right-primary-grip.png"
+          ]
+        },
+        {
+          "id": "mnt-mg-heavy-left-primary",
+          "primary_hand": "left",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/mnt-mg-heavy-left-primary-assembly.png",
+            "assets/hands/preview/grips/mnt-mg-heavy-left-primary-grip.png"
+          ]
+        },
+        {
+          "id": "mnt-mg-heavy-right-support",
+          "primary_hand": "right",
+          "hold": "support",
+          "images": [
+            "assets/hands/preview/grips/mnt-mg-heavy-right-support-assembly.png",
+            "assets/hands/preview/grips/mnt-mg-heavy-right-support-grip.png"
+          ]
+        },
+        {
+          "id": "mnt-mg-heavy-left-support",
+          "primary_hand": "left",
+          "hold": "support",
+          "images": [
+            "assets/hands/preview/grips/mnt-mg-heavy-left-support-assembly.png",
+            "assets/hands/preview/grips/mnt-mg-heavy-left-support-grip.png"
+          ]
+        }
+      ],
+      "mounts": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip_two",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "support": {
+        "right": {
+          "node": "grip_two",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "state": "provisional"
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "state": "provisional"
+        }
+      }
+    },
+    "con-revolver-chunky": {
+      "label": "Chunky console revolver",
+      "state": "provisional",
+      "sources": [
+        "data/guns/con-revolver-chunky.toml",
+        "assets/guns/src/con-revolver-chunky.py",
+        "assets/guns/con-revolver-chunky.glb",
+        "assets/guns/preview/con-revolver-chunky.json",
+        "assets/guns/preview/con-revolver-chunky.png",
+        "assets/guns/preview/con-revolver-chunky-front.png",
+        "assets/guns/preview/con-revolver-chunky-held.png",
+        "assets/guns/preview/con-revolver-chunky-silhouette.png"
+      ],
+      "sight_checks": [
+        "assets/guns/preview/con-revolver-chunky-sight-lod0.png",
+        "assets/guns/preview/con-revolver-chunky-sight-lod1.png"
+      ],
+      "review_sheet": "assets/hands/preview/grips/con-revolver-chunky-review-sheet.png",
+      "review_cases": [
+        {
+          "id": "con-revolver-chunky-right-primary",
+          "primary_hand": "right",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/con-revolver-chunky-right-primary-assembly.png",
+            "assets/hands/preview/grips/con-revolver-chunky-right-primary-grip.png"
+          ]
+        },
+        {
+          "id": "con-revolver-chunky-left-primary",
+          "primary_hand": "left",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/con-revolver-chunky-left-primary-assembly.png",
+            "assets/hands/preview/grips/con-revolver-chunky-left-primary-grip.png"
+          ]
+        }
+      ],
+      "mounts": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "support": {}
+    },
+    "generic-pistol": {
+      "label": "Plain arcade pistol",
+      "state": "provisional",
+      "sources": [
+        "data/guns/generic-pistol.toml",
+        "assets/guns/src/generic-pistol.py",
+        "assets/guns/generic-pistol.glb",
+        "assets/guns/preview/generic-pistol.json",
+        "assets/guns/preview/generic-pistol.png",
+        "assets/guns/preview/generic-pistol-front.png",
+        "assets/guns/preview/generic-pistol-held.png",
+        "assets/guns/preview/generic-pistol-silhouette.png"
+      ],
+      "sight_checks": [
+        "assets/guns/preview/generic-pistol-sight-lod0.png",
+        "assets/guns/preview/generic-pistol-sight-lod1.png"
+      ],
+      "review_sheet": "assets/hands/preview/grips/generic-pistol-review-sheet.png",
+      "review_cases": [
+        {
+          "id": "generic-pistol-right-primary",
+          "primary_hand": "right",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/generic-pistol-right-primary-assembly.png",
+            "assets/hands/preview/grips/generic-pistol-right-primary-grip.png"
+          ]
+        },
+        {
+          "id": "generic-pistol-left-primary",
+          "primary_hand": "left",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/generic-pistol-left-primary-assembly.png",
+            "assets/hands/preview/grips/generic-pistol-left-primary-grip.png"
+          ]
+        }
+      ],
+      "mounts": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "support": {}
+    },
+    "arc-pistol-slide": {
+      "label": "Arcade pistol with blowback slide",
+      "state": "provisional",
+      "sources": [
+        "data/guns/arc-pistol-slide.toml",
+        "assets/guns/src/arc-pistol-slide.py",
+        "assets/guns/arc-pistol-slide.glb",
+        "assets/guns/preview/arc-pistol-slide.json",
+        "assets/guns/preview/arc-pistol-slide.png",
+        "assets/guns/preview/arc-pistol-slide-front.png",
+        "assets/guns/preview/arc-pistol-slide-held.png",
+        "assets/guns/preview/arc-pistol-slide-silhouette.png"
+      ],
+      "sight_checks": [
+        "assets/guns/preview/arc-pistol-slide-sight-lod0.png",
+        "assets/guns/preview/arc-pistol-slide-sight-lod1.png"
+      ],
+      "review_sheet": "assets/hands/preview/grips/arc-pistol-slide-review-sheet.png",
+      "review_cases": [
+        {
+          "id": "arc-pistol-slide-right-primary",
+          "primary_hand": "right",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/arc-pistol-slide-right-primary-assembly.png",
+            "assets/hands/preview/grips/arc-pistol-slide-right-primary-grip.png"
+          ]
+        },
+        {
+          "id": "arc-pistol-slide-left-primary",
+          "primary_hand": "left",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/arc-pistol-slide-left-primary-assembly.png",
+            "assets/hands/preview/grips/arc-pistol-slide-left-primary-grip.png"
+          ]
+        }
+      ],
+      "mounts": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "support": {}
+    },
+    "con-pistol-dpad": {
+      "label": "Console pistol with rear d-pad",
+      "state": "provisional",
+      "sources": [
+        "data/guns/con-pistol-dpad.toml",
+        "assets/guns/src/con-pistol-dpad.py",
+        "assets/guns/con-pistol-dpad.glb",
+        "assets/guns/preview/con-pistol-dpad.json",
+        "assets/guns/preview/con-pistol-dpad.png",
+        "assets/guns/preview/con-pistol-dpad-front.png",
+        "assets/guns/preview/con-pistol-dpad-held.png",
+        "assets/guns/preview/con-pistol-dpad-silhouette.png"
+      ],
+      "sight_checks": [
+        "assets/guns/preview/con-pistol-dpad-sight-lod0.png",
+        "assets/guns/preview/con-pistol-dpad-sight-lod1.png"
+      ],
+      "review_sheet": "assets/hands/preview/grips/con-pistol-dpad-review-sheet.png",
+      "review_cases": [
+        {
+          "id": "con-pistol-dpad-right-primary",
+          "primary_hand": "right",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/con-pistol-dpad-right-primary-assembly.png",
+            "assets/hands/preview/grips/con-pistol-dpad-right-primary-grip.png"
+          ]
+        },
+        {
+          "id": "con-pistol-dpad-left-primary",
+          "primary_hand": "left",
+          "hold": "primary",
+          "images": [
+            "assets/hands/preview/grips/con-pistol-dpad-left-primary-assembly.png",
+            "assets/hands/preview/grips/con-pistol-dpad-left-primary-grip.png"
+          ]
+        }
+      ],
+      "mounts": {
+        "right": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        },
+        "left": {
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      "support": {}
+    }
+  },
+  "games": [
+    {
+      "game_id": "wii-dead-space-extraction",
+      "title": "Dead Space: Extraction",
+      "proposal": {
+        "state": "proposed",
+        "model": "con-pistol-slim",
+        "rationale": "Slim angular tool-like silhouette keeps the sight area open. A provisional stand-in for the science-fiction setting; selected in-game weapon matching remains open."
+      },
+      "hold": {
+        "choice": "split",
+        "state": "provisional",
+        "question": "Confirm the hold, firing hand and whether the stick controller stays split or docks."
+      },
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "flick-down",
+        "state": "question",
+        "question": "Confirm the selected reload and active-reload instruction before enabling the proposed flick.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake",
+        "enabled": false
+      },
+      "layout": {
+        "state": "question",
+        "name": "",
+        "question": "Which game option-screen layout is selected for shell and stick?"
+      },
+      "questions": [
+        "Which game option-screen layout is selected for shell and stick?",
+        "Confirm reload timing, kinesis, stasis, alternate fire and glow-worm motions in the game.",
+        "Seated R/V waveforms need game-specific tuning; they are not alternate-fire or stasis buttons.",
+        "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."
+      ],
+      "sources": [
+        "data/controls/wii/games/wii-dead-space-extraction.toml",
+        "games/wii-dead-space-extraction/game.toml"
+      ],
+      "parts": [
+        {
+          "id": "p1-fire",
+          "part": "Remote B trigger",
+          "label": "Question: game action for Remote B trigger?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "pivot_trigger"
+        },
+        {
+          "id": "p1-interact",
+          "part": "Remote A button",
+          "label": "Question: game action for Remote A button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_a"
+        },
+        {
+          "id": "p1-dpad-up",
+          "part": "Remote d-pad up",
+          "label": "Question: game action for Remote d-pad up?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-down",
+          "part": "Remote d-pad down",
+          "label": "Question: game action for Remote d-pad down?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-left",
+          "part": "Remote d-pad left",
+          "label": "Question: game action for Remote d-pad left?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-right",
+          "part": "Remote d-pad right",
+          "label": "Question: game action for Remote d-pad right?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-menu",
+          "part": "Remote plus button",
+          "label": "Question: game action for Remote plus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_plus"
+        },
+        {
+          "id": "p1-minus",
+          "part": "Remote minus button",
+          "label": "Question: game action for Remote minus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_minus"
+        },
+        {
+          "id": "p1-one",
+          "part": "Remote 1 button",
+          "label": "Question: game action for Remote 1 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_one"
+        },
+        {
+          "id": "p1-two",
+          "part": "Remote 2 button",
+          "label": "Question: game action for Remote 2 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_two"
+        },
+        {
+          "id": "p1-home",
+          "part": "Remote Home button",
+          "label": "Question: game action for Remote Home button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_home"
+        },
+        {
+          "id": "p1-z",
+          "part": "Stick controller Z button",
+          "label": "Question: game action for Stick controller Z button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_z"
+        },
+        {
+          "id": "p1-c",
+          "part": "Stick controller C button",
+          "label": "Question: game action for Stick controller C button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_c"
+        },
+        {
+          "id": "p1-stick-up",
+          "part": "Analog stick up",
+          "label": "Question: game action for Analog stick up?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-down",
+          "part": "Analog stick down",
+          "label": "Question: game action for Analog stick down?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-left",
+          "part": "Analog stick left",
+          "label": "Question: game action for Analog stick left?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-right",
+          "part": "Analog stick right",
+          "label": "Question: game action for Analog stick right?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-remote-shake",
+          "part": "Shake the shell",
+          "label": "Question: game action for Shake the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-remote-swing",
+          "part": "Swing the shell",
+          "label": "Question: game action for Swing the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-shake",
+          "part": "Shake the stick controller",
+          "label": "Question: game action for Shake the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-swing",
+          "part": "Swing the stick controller",
+          "label": "Question: game action for Swing the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-aim",
+          "part": "Shell aim",
+          "label": "Aim",
+          "state": "confirmed",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "muzzle"
+        },
+        {
+          "id": "p1-motion",
+          "part": "Move the shell",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-nunchuk-motion",
+          "part": "Move the stick controller",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        }
+      ],
+      "review_models": [
+        "con-pistol-slim",
+        "con-remote-shell",
+        "con-stick-grip"
+      ]
+    },
+    {
+      "game_id": "wii-gunblade-ny-la-machineguns",
+      "title": "Gunblade NY & L.A. Machineguns: Arcade Hits Pack",
+      "proposal": {
+        "state": "proposed",
+        "model": "mnt-mg-heavy",
+        "rationale": "The catalog describes mounted machine guns; the built heavy model already has paired rear grips for two-handed aim."
+      },
+      "hold": {
+        "choice": "docked",
+        "state": "provisional",
+        "question": "Confirm the hold, firing hand and whether the stick controller stays split or docks."
+      },
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "button",
+        "state": "question",
+        "question": "Automatic-fire presentation suggests a button convenience option; first confirm whether this game has an explicit reload action.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake",
+        "enabled": false
+      },
+      "layout": {
+        "state": "question",
+        "name": "",
+        "question": "Which game option-screen layout is selected?"
+      },
+      "questions": [
+        "Which game option-screen layout is selected?",
+        "Confirm stick attachment, button actions and motion prompts in the selected game layout."
+      ],
+      "sources": [
+        "data/controls/wii/games/wii-gunblade-ny-la-machineguns.toml",
+        "games/wii-gunblade-ny-la-machineguns/game.toml"
+      ],
+      "parts": [
+        {
+          "id": "p1-fire",
+          "part": "Remote B trigger",
+          "label": "Question: game action for Remote B trigger?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "pivot_trigger"
+        },
+        {
+          "id": "p1-interact",
+          "part": "Remote A button",
+          "label": "Question: game action for Remote A button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_a"
+        },
+        {
+          "id": "p1-dpad-up",
+          "part": "Remote d-pad up",
+          "label": "Question: game action for Remote d-pad up?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-down",
+          "part": "Remote d-pad down",
+          "label": "Question: game action for Remote d-pad down?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-left",
+          "part": "Remote d-pad left",
+          "label": "Question: game action for Remote d-pad left?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-right",
+          "part": "Remote d-pad right",
+          "label": "Question: game action for Remote d-pad right?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-menu",
+          "part": "Remote plus button",
+          "label": "Question: game action for Remote plus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_plus"
+        },
+        {
+          "id": "p1-minus",
+          "part": "Remote minus button",
+          "label": "Question: game action for Remote minus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_minus"
+        },
+        {
+          "id": "p1-one",
+          "part": "Remote 1 button",
+          "label": "Question: game action for Remote 1 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_one"
+        },
+        {
+          "id": "p1-two",
+          "part": "Remote 2 button",
+          "label": "Question: game action for Remote 2 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_two"
+        },
+        {
+          "id": "p1-home",
+          "part": "Remote Home button",
+          "label": "Question: game action for Remote Home button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_home"
+        },
+        {
+          "id": "p1-z",
+          "part": "Stick controller Z button",
+          "label": "Question: game action for Stick controller Z button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_z"
+        },
+        {
+          "id": "p1-c",
+          "part": "Stick controller C button",
+          "label": "Question: game action for Stick controller C button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_c"
+        },
+        {
+          "id": "p1-stick-up",
+          "part": "Analog stick up",
+          "label": "Question: game action for Analog stick up?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-down",
+          "part": "Analog stick down",
+          "label": "Question: game action for Analog stick down?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-left",
+          "part": "Analog stick left",
+          "label": "Question: game action for Analog stick left?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-right",
+          "part": "Analog stick right",
+          "label": "Question: game action for Analog stick right?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-remote-shake",
+          "part": "Shake the shell",
+          "label": "Question: game action for Shake the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-remote-swing",
+          "part": "Swing the shell",
+          "label": "Question: game action for Swing the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-shake",
+          "part": "Shake the stick controller",
+          "label": "Question: game action for Shake the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-swing",
+          "part": "Swing the stick controller",
+          "label": "Question: game action for Swing the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-aim",
+          "part": "Shell aim",
+          "label": "Aim",
+          "state": "confirmed",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "muzzle"
+        },
+        {
+          "id": "p1-motion",
+          "part": "Move the shell",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-nunchuk-motion",
+          "part": "Move the stick controller",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        }
+      ],
+      "review_models": [
+        "mnt-mg-heavy",
+        "con-remote-shell",
+        "con-stick-grip"
+      ]
+    },
+    {
+      "game_id": "wii-house-of-the-dead-overkill",
+      "title": "The House of the Dead: Overkill",
+      "proposal": {
+        "state": "proposed",
+        "model": "con-revolver-chunky",
+        "rationale": "Exaggerated chunky toy silhouette gives this arcade rail-shooter its own visual identity; owner choice and weapon matching remain open."
+      },
+      "hold": {
+        "choice": "split",
+        "state": "provisional",
+        "question": "Confirm the hold, firing hand and whether the stick controller stays split or docks."
+      },
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "flick-down",
+        "state": "question",
+        "question": "A one-hand flick is proposed for convenience; verify the game reload action before enabling it.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake",
+        "enabled": false
+      },
+      "layout": {
+        "state": "question",
+        "name": "",
+        "question": "Which game option-screen layout is selected for shell and stick?"
+      },
+      "questions": [
+        "Which game option-screen layout is selected for shell and stick?",
+        "Confirm A reload, Z weapon switch, C grenade and danger-camera stick in the chosen layout.",
+        "Confirm the Remote plus/minus actions before assigning a gameplay label.",
+        "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."
+      ],
+      "sources": [
+        "data/controls/wii/games/wii-house-of-the-dead-overkill.toml",
+        "games/wii-house-of-the-dead-overkill/game.toml"
+      ],
+      "parts": [
+        {
+          "id": "p1-fire",
+          "part": "Remote B trigger",
+          "label": "Question: game action for Remote B trigger?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "pivot_trigger"
+        },
+        {
+          "id": "p1-interact",
+          "part": "Remote A button",
+          "label": "Question: game action for Remote A button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_a"
+        },
+        {
+          "id": "p1-dpad-up",
+          "part": "Remote d-pad up",
+          "label": "Question: game action for Remote d-pad up?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-down",
+          "part": "Remote d-pad down",
+          "label": "Question: game action for Remote d-pad down?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-left",
+          "part": "Remote d-pad left",
+          "label": "Question: game action for Remote d-pad left?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-right",
+          "part": "Remote d-pad right",
+          "label": "Question: game action for Remote d-pad right?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-menu",
+          "part": "Remote plus button",
+          "label": "Question: game action for Remote plus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_plus"
+        },
+        {
+          "id": "p1-minus",
+          "part": "Remote minus button",
+          "label": "Question: game action for Remote minus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_minus"
+        },
+        {
+          "id": "p1-one",
+          "part": "Remote 1 button",
+          "label": "Question: game action for Remote 1 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_one"
+        },
+        {
+          "id": "p1-two",
+          "part": "Remote 2 button",
+          "label": "Question: game action for Remote 2 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_two"
+        },
+        {
+          "id": "p1-home",
+          "part": "Remote Home button",
+          "label": "Question: game action for Remote Home button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_home"
+        },
+        {
+          "id": "p1-z",
+          "part": "Stick controller Z button",
+          "label": "Question: game action for Stick controller Z button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_z"
+        },
+        {
+          "id": "p1-c",
+          "part": "Stick controller C button",
+          "label": "Question: game action for Stick controller C button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_c"
+        },
+        {
+          "id": "p1-stick-up",
+          "part": "Analog stick up",
+          "label": "Question: game action for Analog stick up?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-down",
+          "part": "Analog stick down",
+          "label": "Question: game action for Analog stick down?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-left",
+          "part": "Analog stick left",
+          "label": "Question: game action for Analog stick left?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-right",
+          "part": "Analog stick right",
+          "label": "Question: game action for Analog stick right?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-remote-shake",
+          "part": "Shake the shell",
+          "label": "Question: game action for Shake the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-remote-swing",
+          "part": "Swing the shell",
+          "label": "Question: game action for Swing the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-shake",
+          "part": "Shake the stick controller",
+          "label": "Question: game action for Shake the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-swing",
+          "part": "Swing the stick controller",
+          "label": "Question: game action for Swing the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-aim",
+          "part": "Shell aim",
+          "label": "Aim",
+          "state": "confirmed",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "muzzle"
+        },
+        {
+          "id": "p1-motion",
+          "part": "Move the shell",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-nunchuk-motion",
+          "part": "Move the stick controller",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        }
+      ],
+      "review_models": [
+        "con-revolver-chunky",
+        "con-remote-shell",
+        "con-stick-grip"
+      ]
+    },
+    {
+      "game_id": "wii-links-crossbow-training",
+      "title": "Link's Crossbow Training",
+      "proposal": {
+        "state": "proposed",
+        "model": "con-remote-shell",
+        "rationale": "A training-shell proxy with an open sight line and second grip for two-handed target practice. A crossbow silhouette is a separate future design choice; this does not claim weapon matching."
+      },
+      "hold": {
+        "choice": "docked",
+        "state": "provisional",
+        "question": "Confirm the hold, firing hand and whether the stick controller stays split or docks."
+      },
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "button",
+        "state": "question",
+        "question": "Does the selected target-training layout have any reload action?",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake",
+        "enabled": false
+      },
+      "layout": {
+        "state": "question",
+        "name": "",
+        "question": "Which game's instruction-screen layout is selected for the target-training showcase?"
+      },
+      "questions": [
+        "Which game's instruction-screen layout is selected for the target-training showcase?",
+        "Confirm B/A aiming and firing, stick movement, C/Z meanings and every motion prompt.",
+        "Confirm whether this layout has any reload action before enabling a reload choice."
+      ],
+      "sources": [
+        "data/controls/wii/games/wii-links-crossbow-training.toml",
+        "games/wii-links-crossbow-training/game.toml"
+      ],
+      "parts": [
+        {
+          "id": "p1-fire",
+          "part": "Remote B trigger",
+          "label": "Question: game action for Remote B trigger?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "pivot_trigger"
+        },
+        {
+          "id": "p1-interact",
+          "part": "Remote A button",
+          "label": "Question: game action for Remote A button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_a"
+        },
+        {
+          "id": "p1-dpad-up",
+          "part": "Remote d-pad up",
+          "label": "Question: game action for Remote d-pad up?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-down",
+          "part": "Remote d-pad down",
+          "label": "Question: game action for Remote d-pad down?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-left",
+          "part": "Remote d-pad left",
+          "label": "Question: game action for Remote d-pad left?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-right",
+          "part": "Remote d-pad right",
+          "label": "Question: game action for Remote d-pad right?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-menu",
+          "part": "Remote plus button",
+          "label": "Question: game action for Remote plus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_plus"
+        },
+        {
+          "id": "p1-minus",
+          "part": "Remote minus button",
+          "label": "Question: game action for Remote minus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_minus"
+        },
+        {
+          "id": "p1-one",
+          "part": "Remote 1 button",
+          "label": "Question: game action for Remote 1 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_one"
+        },
+        {
+          "id": "p1-two",
+          "part": "Remote 2 button",
+          "label": "Question: game action for Remote 2 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_two"
+        },
+        {
+          "id": "p1-home",
+          "part": "Remote Home button",
+          "label": "Question: game action for Remote Home button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_home"
+        },
+        {
+          "id": "p1-z",
+          "part": "Stick controller Z button",
+          "label": "Question: game action for Stick controller Z button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_z"
+        },
+        {
+          "id": "p1-c",
+          "part": "Stick controller C button",
+          "label": "Question: game action for Stick controller C button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_c"
+        },
+        {
+          "id": "p1-stick-up",
+          "part": "Analog stick up",
+          "label": "Question: game action for Analog stick up?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-down",
+          "part": "Analog stick down",
+          "label": "Question: game action for Analog stick down?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-left",
+          "part": "Analog stick left",
+          "label": "Question: game action for Analog stick left?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-right",
+          "part": "Analog stick right",
+          "label": "Question: game action for Analog stick right?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-remote-shake",
+          "part": "Shake the shell",
+          "label": "Question: game action for Shake the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-remote-swing",
+          "part": "Swing the shell",
+          "label": "Question: game action for Swing the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-shake",
+          "part": "Shake the stick controller",
+          "label": "Question: game action for Shake the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-swing",
+          "part": "Swing the stick controller",
+          "label": "Question: game action for Swing the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-aim",
+          "part": "Shell aim",
+          "label": "Aim",
+          "state": "confirmed",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "muzzle"
+        },
+        {
+          "id": "p1-motion",
+          "part": "Move the shell",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-nunchuk-motion",
+          "part": "Move the stick controller",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        }
+      ],
+      "review_models": [
+        "con-remote-shell",
+        "con-remote-shell",
+        "con-stick-grip"
+      ]
+    },
+    {
+      "game_id": "wii-resident-evil-darkside-chronicles",
+      "title": "Resident Evil: The Darkside Chronicles",
+      "proposal": {
+        "state": "proposed",
+        "model": "generic-pistol",
+        "rationale": "Compact form with little visual clutter keeps the sight picture clear during camera motion; exact weapon matching awaits review."
+      },
+      "hold": {
+        "choice": "split",
+        "state": "provisional",
+        "question": "Confirm the hold, firing hand and whether the stick controller stays split or docks."
+      },
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "button",
+        "state": "question",
+        "question": "Seated button is the provisional convenience choice; reload input/layout still needs confirmation.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake",
+        "enabled": false
+      },
+      "layout": {
+        "state": "question",
+        "name": "",
+        "question": "Which game option-screen layout is selected for shell and stick?"
+      },
+      "questions": [
+        "Which game option-screen layout is selected for shell and stick?",
+        "Confirm reload gesture, melee-enable input and timed prompts during the first sitting.",
+        "Confirm directional and stick weapon selection in this control layout.",
+        "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."
+      ],
+      "sources": [
+        "data/controls/wii/games/wii-resident-evil-darkside-chronicles.toml",
+        "games/wii-resident-evil-darkside-chronicles/game.toml"
+      ],
+      "parts": [
+        {
+          "id": "p1-fire",
+          "part": "Remote B trigger",
+          "label": "Question: game action for Remote B trigger?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "pivot_trigger"
+        },
+        {
+          "id": "p1-interact",
+          "part": "Remote A button",
+          "label": "Question: game action for Remote A button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_a"
+        },
+        {
+          "id": "p1-dpad-up",
+          "part": "Remote d-pad up",
+          "label": "Question: game action for Remote d-pad up?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-down",
+          "part": "Remote d-pad down",
+          "label": "Question: game action for Remote d-pad down?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-left",
+          "part": "Remote d-pad left",
+          "label": "Question: game action for Remote d-pad left?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-right",
+          "part": "Remote d-pad right",
+          "label": "Question: game action for Remote d-pad right?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-menu",
+          "part": "Remote plus button",
+          "label": "Question: game action for Remote plus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_plus"
+        },
+        {
+          "id": "p1-minus",
+          "part": "Remote minus button",
+          "label": "Question: game action for Remote minus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_minus"
+        },
+        {
+          "id": "p1-one",
+          "part": "Remote 1 button",
+          "label": "Question: game action for Remote 1 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_one"
+        },
+        {
+          "id": "p1-two",
+          "part": "Remote 2 button",
+          "label": "Question: game action for Remote 2 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_two"
+        },
+        {
+          "id": "p1-home",
+          "part": "Remote Home button",
+          "label": "Question: game action for Remote Home button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_home"
+        },
+        {
+          "id": "p1-z",
+          "part": "Stick controller Z button",
+          "label": "Question: game action for Stick controller Z button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_z"
+        },
+        {
+          "id": "p1-c",
+          "part": "Stick controller C button",
+          "label": "Question: game action for Stick controller C button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_c"
+        },
+        {
+          "id": "p1-stick-up",
+          "part": "Analog stick up",
+          "label": "Question: game action for Analog stick up?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-down",
+          "part": "Analog stick down",
+          "label": "Question: game action for Analog stick down?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-left",
+          "part": "Analog stick left",
+          "label": "Question: game action for Analog stick left?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-right",
+          "part": "Analog stick right",
+          "label": "Question: game action for Analog stick right?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-remote-shake",
+          "part": "Shake the shell",
+          "label": "Question: game action for Shake the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-remote-swing",
+          "part": "Swing the shell",
+          "label": "Question: game action for Swing the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-shake",
+          "part": "Shake the stick controller",
+          "label": "Question: game action for Shake the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-swing",
+          "part": "Swing the stick controller",
+          "label": "Question: game action for Swing the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-aim",
+          "part": "Shell aim",
+          "label": "Aim",
+          "state": "confirmed",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "muzzle"
+        },
+        {
+          "id": "p1-motion",
+          "part": "Move the shell",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-nunchuk-motion",
+          "part": "Move the stick controller",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        }
+      ],
+      "review_models": [
+        "generic-pistol",
+        "con-remote-shell",
+        "con-stick-grip"
+      ]
+    },
+    {
+      "game_id": "wii-resident-evil-umbrella-chronicles",
+      "title": "Resident Evil: The Umbrella Chronicles",
+      "proposal": {
+        "state": "proposed",
+        "model": "arc-pistol-slide",
+        "rationale": "Readable semi-automatic silhouette and slide; a provisional handgun stand-in, not an assertion about the selected in-game weapon."
+      },
+      "hold": {
+        "choice": "split",
+        "state": "provisional",
+        "question": "Confirm the hold, firing hand and whether the stick controller stays split or docks."
+      },
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "shake",
+        "state": "question",
+        "question": "Shake is the documented starting choice; confirm the selected game layout.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake",
+        "enabled": false
+      },
+      "layout": {
+        "state": "question",
+        "name": "",
+        "question": "Which game option-screen layout is selected for shell and stick?"
+      },
+      "questions": [
+        "Which game option-screen layout is selected for shell and stick?",
+        "Confirm knife-enable and grenade chord in the selected game control layout.",
+        "Confirm C weapon selection and Z meaning in the selected layout.",
+        "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."
+      ],
+      "sources": [
+        "data/controls/wii/games/wii-resident-evil-umbrella-chronicles.toml",
+        "games/wii-resident-evil-umbrella-chronicles/game.toml"
+      ],
+      "parts": [
+        {
+          "id": "p1-fire",
+          "part": "Remote B trigger",
+          "label": "Question: game action for Remote B trigger?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "pivot_trigger"
+        },
+        {
+          "id": "p1-interact",
+          "part": "Remote A button",
+          "label": "Question: game action for Remote A button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_a"
+        },
+        {
+          "id": "p1-dpad-up",
+          "part": "Remote d-pad up",
+          "label": "Question: game action for Remote d-pad up?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-down",
+          "part": "Remote d-pad down",
+          "label": "Question: game action for Remote d-pad down?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-left",
+          "part": "Remote d-pad left",
+          "label": "Question: game action for Remote d-pad left?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-right",
+          "part": "Remote d-pad right",
+          "label": "Question: game action for Remote d-pad right?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-menu",
+          "part": "Remote plus button",
+          "label": "Question: game action for Remote plus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_plus"
+        },
+        {
+          "id": "p1-minus",
+          "part": "Remote minus button",
+          "label": "Question: game action for Remote minus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_minus"
+        },
+        {
+          "id": "p1-one",
+          "part": "Remote 1 button",
+          "label": "Question: game action for Remote 1 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_one"
+        },
+        {
+          "id": "p1-two",
+          "part": "Remote 2 button",
+          "label": "Question: game action for Remote 2 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_two"
+        },
+        {
+          "id": "p1-home",
+          "part": "Remote Home button",
+          "label": "Question: game action for Remote Home button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_home"
+        },
+        {
+          "id": "p1-z",
+          "part": "Stick controller Z button",
+          "label": "Question: game action for Stick controller Z button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_z"
+        },
+        {
+          "id": "p1-c",
+          "part": "Stick controller C button",
+          "label": "Question: game action for Stick controller C button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_c"
+        },
+        {
+          "id": "p1-stick-up",
+          "part": "Analog stick up",
+          "label": "Question: game action for Analog stick up?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-down",
+          "part": "Analog stick down",
+          "label": "Question: game action for Analog stick down?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-left",
+          "part": "Analog stick left",
+          "label": "Question: game action for Analog stick left?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-right",
+          "part": "Analog stick right",
+          "label": "Question: game action for Analog stick right?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-remote-shake",
+          "part": "Shake the shell",
+          "label": "Question: game action for Shake the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-remote-swing",
+          "part": "Swing the shell",
+          "label": "Question: game action for Swing the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-shake",
+          "part": "Shake the stick controller",
+          "label": "Question: game action for Shake the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-swing",
+          "part": "Swing the stick controller",
+          "label": "Question: game action for Swing the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-aim",
+          "part": "Shell aim",
+          "label": "Aim",
+          "state": "confirmed",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "muzzle"
+        },
+        {
+          "id": "p1-motion",
+          "part": "Move the shell",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-nunchuk-motion",
+          "part": "Move the stick controller",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        }
+      ],
+      "review_models": [
+        "arc-pistol-slide",
+        "con-remote-shell",
+        "con-stick-grip"
+      ]
+    },
+    {
+      "game_id": "wii-sin-and-punishment-star-successor",
+      "title": "Sin & Punishment: Star Successor",
+      "proposal": {
+        "state": "proposed",
+        "model": "con-pistol-dpad",
+        "rationale": "Angular pointer-gun form distinguishes character movement plus pointer aiming; retain the free analog-stick hand."
+      },
+      "hold": {
+        "choice": "split",
+        "state": "provisional",
+        "question": "Confirm the hold, firing hand and whether the stick controller stays split or docks."
+      },
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "button",
+        "state": "question",
+        "question": "No generic magazine reload is asserted for the character-control game. Confirm whether a reload action exists.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake",
+        "enabled": false
+      },
+      "layout": {
+        "state": "question",
+        "name": "",
+        "question": "Which game option-screen layout is selected for shell and stick?"
+      },
+      "questions": [
+        "Which game option-screen layout is selected for shell and stick?",
+        "Place the character and pointer in the 3D scene with the owner.",
+        "Confirm the chosen in-game controller layout before binding dodge, melee, lock-on and charged shots.",
+        "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."
+      ],
+      "sources": [
+        "data/controls/wii/games/wii-sin-and-punishment-star-successor.toml",
+        "games/wii-sin-and-punishment-star-successor/game.toml"
+      ],
+      "parts": [
+        {
+          "id": "p1-fire",
+          "part": "Remote B trigger",
+          "label": "Question: game action for Remote B trigger?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "pivot_trigger"
+        },
+        {
+          "id": "p1-interact",
+          "part": "Remote A button",
+          "label": "Question: game action for Remote A button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_a"
+        },
+        {
+          "id": "p1-dpad-up",
+          "part": "Remote d-pad up",
+          "label": "Question: game action for Remote d-pad up?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-down",
+          "part": "Remote d-pad down",
+          "label": "Question: game action for Remote d-pad down?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-left",
+          "part": "Remote d-pad left",
+          "label": "Question: game action for Remote d-pad left?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-dpad-right",
+          "part": "Remote d-pad right",
+          "label": "Question: game action for Remote d-pad right?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_dpad"
+        },
+        {
+          "id": "p1-menu",
+          "part": "Remote plus button",
+          "label": "Question: game action for Remote plus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_plus"
+        },
+        {
+          "id": "p1-minus",
+          "part": "Remote minus button",
+          "label": "Question: game action for Remote minus button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_minus"
+        },
+        {
+          "id": "p1-one",
+          "part": "Remote 1 button",
+          "label": "Question: game action for Remote 1 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_one"
+        },
+        {
+          "id": "p1-two",
+          "part": "Remote 2 button",
+          "label": "Question: game action for Remote 2 button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_two"
+        },
+        {
+          "id": "p1-home",
+          "part": "Remote Home button",
+          "label": "Question: game action for Remote Home button?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "button_home"
+        },
+        {
+          "id": "p1-z",
+          "part": "Stick controller Z button",
+          "label": "Question: game action for Stick controller Z button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_z"
+        },
+        {
+          "id": "p1-c",
+          "part": "Stick controller C button",
+          "label": "Question: game action for Stick controller C button?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_c"
+        },
+        {
+          "id": "p1-stick-up",
+          "part": "Analog stick up",
+          "label": "Question: game action for Analog stick up?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-down",
+          "part": "Analog stick down",
+          "label": "Question: game action for Analog stick down?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-left",
+          "part": "Analog stick left",
+          "label": "Question: game action for Analog stick left?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-stick-right",
+          "part": "Analog stick right",
+          "label": "Question: game action for Analog stick right?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "button_stick"
+        },
+        {
+          "id": "p1-remote-shake",
+          "part": "Shake the shell",
+          "label": "Question: game action for Shake the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-remote-swing",
+          "part": "Swing the shell",
+          "label": "Question: game action for Swing the shell?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-shake",
+          "part": "Shake the stick controller",
+          "label": "Question: game action for Shake the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-stick-swing",
+          "part": "Swing the stick controller",
+          "label": "Question: game action for Swing the stick controller?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        },
+        {
+          "id": "p1-aim",
+          "part": "Shell aim",
+          "label": "Aim",
+          "state": "confirmed",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "muzzle"
+        },
+        {
+          "id": "p1-motion",
+          "part": "Move the shell",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "remote",
+          "model": "con-remote-shell",
+          "node": "grip"
+        },
+        {
+          "id": "p1-nunchuk-motion",
+          "part": "Move the stick controller",
+          "label": "Question: motion action in this game?",
+          "state": "question",
+          "role": "nunchuk",
+          "model": "con-stick-grip",
+          "node": "grip"
+        }
+      ],
+      "review_models": [
+        "con-pistol-dpad",
+        "con-remote-shell",
+        "con-stick-grip"
+      ]
+    }
+  ],
+  "artifacts": {
+    "assets/controls/wii/umbrella-shell-stick-controls.png": {
+      "kind": "software-controls-preview",
+      "hash_basis": "file-bytes",
+      "sha256": "4064737265ca3e6e0a65d72502098ee6884c40a09119115e5e1f9f1cab689f79"
+    },
+    "assets/guns/arc-pistol-slide.glb": {
+      "kind": "mesh",
+      "hash_basis": "file-bytes",
+      "sha256": "d2df90a1d8fc62e09a8854004930d05950f6d90ea88708ebf7b19ceaa3088a07"
+    },
+    "assets/guns/con-pistol-dpad.glb": {
+      "kind": "mesh",
+      "hash_basis": "file-bytes",
+      "sha256": "a5f2cda5da5218ac9d9f07c97ca92496eca7211604c790246869c71d31b8e68c"
+    },
+    "assets/guns/con-pistol-slim.glb": {
+      "kind": "mesh",
+      "hash_basis": "file-bytes",
+      "sha256": "4b38bc9418ecada3f511a722c6dcccc7c5c76682e41184ad4231f9cd549bd1aa"
+    },
+    "assets/guns/con-remote-shell.glb": {
+      "kind": "mesh",
+      "hash_basis": "file-bytes",
+      "sha256": "c5c8f3395e7f6b9ba4666b57586a7a48461def8a3ba8df24e2f94e050114d176"
+    },
+    "assets/guns/con-revolver-chunky.glb": {
+      "kind": "mesh",
+      "hash_basis": "file-bytes",
+      "sha256": "36b3a7ebc6f33983f1d8f3540721923010cd953d91c4b59ba227510674faf457"
+    },
+    "assets/guns/con-stick-grip.glb": {
+      "kind": "mesh",
+      "hash_basis": "file-bytes",
+      "sha256": "29dcf90594aebf6baed6235060d03e7a9a73ebf2aeb751aff9b7875e296f8e1d"
+    },
+    "assets/guns/generic-pistol.glb": {
+      "kind": "mesh",
+      "hash_basis": "file-bytes",
+      "sha256": "533c90e30515c44e45fe1436e1652e37c2308278706941c66b9113f01f5ca19e"
+    },
+    "assets/guns/mnt-mg-heavy.glb": {
+      "kind": "mesh",
+      "hash_basis": "file-bytes",
+      "sha256": "6e415db4cfdb593cbeffa470293588c8eacc3a0b5df278135fd7c5de069791af"
+    },
+    "assets/guns/preview/arc-pistol-slide-front.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "10277f0d7a0c278abd419eea38a81e37e6d90e4fff697bbac843887f086eab24"
+    },
+    "assets/guns/preview/arc-pistol-slide-held.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "4a9ce839d9223109e280b2c5aaacc901b6f38b538c2683bf795723216e52c8f1"
+    },
+    "assets/guns/preview/arc-pistol-slide-sight-lod0.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "c3e49ebf37ba69ee560d36c05791bbb1a8fb393b1e3026a313fe37ad3be7a070"
+    },
+    "assets/guns/preview/arc-pistol-slide-sight-lod1.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "50609b69626cf32c58bf060cf24a9231dd33849ce183c1a0070842c635785ac5"
+    },
+    "assets/guns/preview/arc-pistol-slide-silhouette.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "d123c181287b1aa12b0aa0c7eb959bd765dbcc93ed7dc4d31b2b804d21aab57f"
+    },
+    "assets/guns/preview/arc-pistol-slide.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "d7984fc37565cde6932c4caf37fc449f228f24828bf9e50582094b1f5b5e34e0"
+    },
+    "assets/guns/preview/arc-pistol-slide.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "b7bf6d9cf8535a79828844c248d51e09086f0c8eabda5ad5b0ef177bd1ffd696"
+    },
+    "assets/guns/preview/con-pistol-dpad-front.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "623b17359fc5135024b61618d716068ff3ff172167dfe5d9eafd9768b86abdbc"
+    },
+    "assets/guns/preview/con-pistol-dpad-held.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "d316e6c4dc39545059f7861536162bf3623c04abf6a0ce8c9cc2156420fe478f"
+    },
+    "assets/guns/preview/con-pistol-dpad-sight-lod0.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "b099621a02c04ba9a2679a4dcfa508d9ada1b8fd7a1de8e18527d4511e6f96e7"
+    },
+    "assets/guns/preview/con-pistol-dpad-sight-lod1.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "0e6d9a4ce97d721a69dc265e23f49ab2ae21f8f1a77deb5ef6730b5ccdae22b3"
+    },
+    "assets/guns/preview/con-pistol-dpad-silhouette.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "bae9e05999da1ed27b2d03891a06800aa2993ebec034e78697cd6f22ee46d74f"
+    },
+    "assets/guns/preview/con-pistol-dpad.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "73dc0f25f6eca4ed05737a677132ac788a6e2a6887f3b595540f7529bcb151ed"
+    },
+    "assets/guns/preview/con-pistol-dpad.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "804c4429fc52bfefec13f87945b6d7fcd5572561d87e53806c8235e3e780c9fe"
+    },
+    "assets/guns/preview/con-pistol-slim-front.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "0d15b637a04991f6400bfa44c43ea5515652670201ea79aacb7fb9aab294fa28"
+    },
+    "assets/guns/preview/con-pistol-slim-held.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "041ff50bb1374abd120efdcb602f5176cb646cfbb2ec3d3dc3f6e5b8c5f392f4"
+    },
+    "assets/guns/preview/con-pistol-slim-sight-lod0.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "6b46c2dc6a92f9a3a9b2100bb3c6d1254f98d3ff2c166f5e735ea839a422f699"
+    },
+    "assets/guns/preview/con-pistol-slim-sight-lod1.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "3c699a59168e5b69da7406719230adb2cd97707e534352c5226189c70d6dc09e"
+    },
+    "assets/guns/preview/con-pistol-slim-silhouette.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "13f7cf53739de8f292d02d12ea07d6726b7eb9500dc8fe6b3f8faae250f1d2cb"
+    },
+    "assets/guns/preview/con-pistol-slim.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "b6b81a52675d191cd6a75299b1ee5b1fa3b4fd11817b0f97788b16e8778c59d9"
+    },
+    "assets/guns/preview/con-pistol-slim.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "902c77f82473e32564de7128da41feb59db7d0303b96259233b58862e89564cd"
+    },
+    "assets/guns/preview/con-remote-shell-front.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "b1cb875ad5e1d7f0ecefb06ae9c7d15a6bbb2d16654be1b72b7db6eeb4a5746c"
+    },
+    "assets/guns/preview/con-remote-shell-held.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "c24620cc6f177f4e1e16e578fbcd6c2b76064473a33ea70966baa5c5567a1682"
+    },
+    "assets/guns/preview/con-remote-shell-sight-lod0.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "06f0d7c538255c251fbc0d554b6c7f33235dd719aef53207b08289b0ef3cd219"
+    },
+    "assets/guns/preview/con-remote-shell-sight-lod1.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "1e8d8d3d5a6513f44bd47086369bd2e349eb85cb32217906942337f9802e3ff5"
+    },
+    "assets/guns/preview/con-remote-shell-silhouette.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "936a109403ac31d8655944691d7ed949d22796d31df5948f2208e10998aa7dc8"
+    },
+    "assets/guns/preview/con-remote-shell.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "d41cf10f53ad75f32d52dade4acf7837bf070647643b00ace600e6390f64dab8"
+    },
+    "assets/guns/preview/con-remote-shell.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "eef10b470c9941e0f3244ee88ecb7594c16074cf45aab82e6a569f4f3a5dbed5"
+    },
+    "assets/guns/preview/con-revolver-chunky-front.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "f3c95410e9f9ded9dd3e7cf00719bd034115a1a9368c62396c503e0525181fc0"
+    },
+    "assets/guns/preview/con-revolver-chunky-held.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "caf1cf3fd48ec1d0ae53f7c75a01d11cb8407a7de6f515e3cfc745407d51205e"
+    },
+    "assets/guns/preview/con-revolver-chunky-sight-lod0.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "2613f9ba7d26ebedec1db99053e0a4197b2e7916395ca017dc17ff81b72622d2"
+    },
+    "assets/guns/preview/con-revolver-chunky-sight-lod1.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "855f8844beba8df0e572197886ece8267f0f2c8259f59b340953982c76c01e2c"
+    },
+    "assets/guns/preview/con-revolver-chunky-silhouette.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "1cfaf365a9cd4378525af15e716157e96b0658c810370db5fa7674679ad78c9b"
+    },
+    "assets/guns/preview/con-revolver-chunky.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "7329fa1cb05cbab516d4c3247e4c3069114e45dea1c5874b8289e04f42c32bed"
+    },
+    "assets/guns/preview/con-revolver-chunky.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "871efcbda77a3f2fad21c729e0a020e12a7608e3d662d6ff46e3766dbeeb6bc3"
+    },
+    "assets/guns/preview/con-stick-grip-front.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "3d12b8254dfc76b9448e02330f16c94df1d5113c8319ba0373d4ebd5fba50896"
+    },
+    "assets/guns/preview/con-stick-grip-held.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "de2285d38b70200af1d286232804c78f4476a01a2650c9d29d143eb5b8b82650"
+    },
+    "assets/guns/preview/con-stick-grip-silhouette.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "dbf541cf432df6cd31d8cd674127625abe4e11ae49fef1c2b6a58130666992d4"
+    },
+    "assets/guns/preview/con-stick-grip.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "52b67ec2ab6965af129b1b05af63eaf97b4995df01c7a201916b4d310a41eef9"
+    },
+    "assets/guns/preview/con-stick-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "a4a6b700049fd0fff0828b9858c58afc3ba2888b52c9969c3568cd661352401a"
+    },
+    "assets/guns/preview/generic-pistol-front.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "708bdcf53c13023e828441ce92814b562c180cfe7d9855a281d4d066e166099e"
+    },
+    "assets/guns/preview/generic-pistol-held.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "69eafd6bdc39812efe074e5e898e6ccf5a8edcbbd419c65d5e93b8055e84e61a"
+    },
+    "assets/guns/preview/generic-pistol-sight-lod0.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "f55250a9e549849301cd6a3c9682a0b6191ac85ed3d114200a91f5fce8438eb5"
+    },
+    "assets/guns/preview/generic-pistol-sight-lod1.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "9e0147ac2b7f9aae1a08efd9fb0d878db09f423fa6379d20a48aefdc4f4ee2c2"
+    },
+    "assets/guns/preview/generic-pistol-silhouette.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "c907fdfb48b50cc46b616dce192547c07b77416abcc029b838b145a9274ac019"
+    },
+    "assets/guns/preview/generic-pistol.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "cac7d104d2e9cb811c8077b8fcad628d927205ed45e1a26a26c6b4d8ce568a0d"
+    },
+    "assets/guns/preview/generic-pistol.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "57b3c2e547b75c48e0adde8d42ca4ed9a3fa7ddc7979922bb192f6867bc2359d"
+    },
+    "assets/guns/preview/mnt-mg-heavy-front.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "6afc229595cd9ab70456b9f721e7b2b9940347ad7631c7033b33e56e11522e26"
+    },
+    "assets/guns/preview/mnt-mg-heavy-held.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "bf681833299950e87bd305f9a51fbb9a871b8594ea57d45bc859ce727ebecef7"
+    },
+    "assets/guns/preview/mnt-mg-heavy-sight-lod0.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "bfe852c190330c8ead48e2ea46b0fcd8294c9593e16acdb08e50496270b37729"
+    },
+    "assets/guns/preview/mnt-mg-heavy-sight-lod1.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "39727b54842e4d1c50f95c3a0e060db8b2ce8fe16c53b1424ef7030f6f3248db"
+    },
+    "assets/guns/preview/mnt-mg-heavy-silhouette.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "cbdc4c510fb9a808fb299f44714c5d5f41082f2e93b4aadb8bbb1bae21e2c4ba"
+    },
+    "assets/guns/preview/mnt-mg-heavy.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "2d78fcd8d7716a9e8fc00320293241a64aadcdc99a77978651709ef6286e7ecf"
+    },
+    "assets/guns/preview/mnt-mg-heavy.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "0eb273537681948dc2acf3dff2493da64dacff549a361997bdf0d745924a72f4"
+    },
+    "assets/guns/preview/shell-stick-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "864b9acc7eaed9a13fbde79b3fde246ae1ea5a9356f54869e191ec9e13f907f9"
+    },
+    "assets/guns/preview/wii-proposal-sheet.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "615375bc6a54c1f8b51b91dd8d7998139bfcc7f7799fae10b70b8faa41326409"
+    },
+    "assets/guns/preview/wii-proposal-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "2aa88f0687140f7c231d9624c4c55c0cd4186d93f88e9de2efed84f040809ede"
+    },
+    "assets/guns/propose_wii.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "d8d699963a9edf9d6fd515c4a0817586306d8996bc85930c98ed6bb8a7d61192"
+    },
+    "assets/guns/runtime-lighting.json": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "6baf2010619ca122a5fa9cfeb934407c24ff20b030b8ad98301291d2ae6ab450"
+    },
+    "assets/guns/src/arc-pistol-slide.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "38f923d5188d88ef91f43f3328d0d5c8a359bad24da0c2d1088b04610ddb4c27"
+    },
+    "assets/guns/src/common.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "0f17566d6aaf7b0bb972faf4ff251775c751f36da7537303e120b8a810633fc1"
+    },
+    "assets/guns/src/con-pistol-dpad.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "33ede9b5c799f766a85fb387544dc4510a1ce3346efaf46ea3489e6f4c62c332"
+    },
+    "assets/guns/src/con-pistol-slim.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "afec36fcfa03bead7f0e7ee9452e3ca90a1b0bd25a6d85b218504c2724b2a547"
+    },
+    "assets/guns/src/con-remote-shell.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "2bc8f11d09780cc9a193c6faa802d4dc35291b32b667e79b89c3412cbb88362d"
+    },
+    "assets/guns/src/con-revolver-chunky.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "ea09f942d9bdb029d0fe2ef22d1cd5e8584d30ee5b0171e2c92a0b5e20ac1ac5"
+    },
+    "assets/guns/src/con-stick-grip.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "caa6fe4657bea3efbe92cb3c12facdbd5f3f859b6926448c2a0f5aff10cb6ee3"
+    },
+    "assets/guns/src/generic-pistol.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "51a4e2d03bd2f17616ab5bb0808cc5aa85aa0d879c2b98a86b592c6e5258beb6"
+    },
+    "assets/guns/src/mnt-mg-heavy.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "d297574c4ea34b34e8f889da22ebf41f8d476b02902b6181cfa20e56153d1d5a"
+    },
+    "assets/hands/assembly.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "ca4c5b11e775d531a808fc11485b2e610c87df23135bd8a5e675fbab454ea1b4"
+    },
+    "assets/hands/grip-hand-left.glb": {
+      "kind": "mesh",
+      "hash_basis": "file-bytes",
+      "sha256": "8cf5104669ed4e59d49c21a500df389df71003b38314c154315e2a5a12f459e6"
+    },
+    "assets/hands/grip-hand-left.toml": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "7e9db8b3a83b5d6063c7cd86564998f39dfc54e41de4a0e9f9d5ccf6d4c797e4"
+    },
+    "assets/hands/grip-hand-right.glb": {
+      "kind": "mesh",
+      "hash_basis": "file-bytes",
+      "sha256": "28f79a25b5bfcc595c5b0f88dda403fc01b4fa53f20ec3935ab4beae35799a94"
+    },
+    "assets/hands/grip-hand-right.toml": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "0763bc2851b6d9405776f5e2b4da9746dd7198bb1ae1765c11072ff1bb35af70"
+    },
+    "assets/hands/grip_sheets.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "8c2c0ba2e3e8c6fe86b7247fe2c66aa39457cc4799e1625b3b1a03c7900eba24"
+    },
+    "assets/hands/preview/grips/arc-pistol-slide-left-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "848a617661379ae6eed42a9691cf4d4755a483f0a25d2573dd3f10d14386fde0"
+    },
+    "assets/hands/preview/grips/arc-pistol-slide-left-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "b1884174419e5d60e832772f7687ecca7b9400bed9486749e031855565e2c8c8"
+    },
+    "assets/hands/preview/grips/arc-pistol-slide-review-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "04d4bfe6de7055300dcc87a70ba5ef8257dafc9faafcb19ca946f2945832b427"
+    },
+    "assets/hands/preview/grips/arc-pistol-slide-right-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "e4abd2b9a0a13e42246ce354f659571819ab4c3d66e1aad3d85ef5025a4fb1f3"
+    },
+    "assets/hands/preview/grips/arc-pistol-slide-right-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "0fd529bd2da9a1941b5c5489ceb9188e515bd1929c4479b44c0b1ad75551a997"
+    },
+    "assets/hands/preview/grips/con-pistol-dpad-left-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "5aac990a6c4eaf20875956acc3eead13688bd7e0889bdf3bc5730fc0548fe91a"
+    },
+    "assets/hands/preview/grips/con-pistol-dpad-left-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "60c6539e4322fef9b48bc19f3c0c35da8017deb269a48920fbc3d9f5c330a65e"
+    },
+    "assets/hands/preview/grips/con-pistol-dpad-review-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "994175ab95c29b59a61121da1e4a8e94249e479a71aa514df0b5cb9f6cf41faa"
+    },
+    "assets/hands/preview/grips/con-pistol-dpad-right-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "30d95f9502f7c3ca110a65d6a5d2c2bfd39c3aaafc89af2fb1d3a14bcacff887"
+    },
+    "assets/hands/preview/grips/con-pistol-dpad-right-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "592e1ab9132ce4ccf2e7e7afe86459b9722924a306c9a81bd5582a78b06f6740"
+    },
+    "assets/hands/preview/grips/con-pistol-slim-left-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "210bc337bb75143085228eb128c8b93aba2692dd999bee5ade4a1f015886006d"
+    },
+    "assets/hands/preview/grips/con-pistol-slim-left-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "707bc60f4de5a1e2ad8b011a01929f1da7c253dc2f42f693399d941982b8672e"
+    },
+    "assets/hands/preview/grips/con-pistol-slim-review-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "2dbfe1ad331ca9c23633a80183354bc0f5f1b5ef2f9e87d55a6766031ca5d5cf"
+    },
+    "assets/hands/preview/grips/con-pistol-slim-right-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "21af239bb83632c8c12c8ec35d7746a16b2ad27c47816e45cd7e4fe84710bff7"
+    },
+    "assets/hands/preview/grips/con-pistol-slim-right-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "bd1efdb6c98cdc63e5fd160c3d48a1106a55af80d467b0017aae6fece8d42326"
+    },
+    "assets/hands/preview/grips/con-remote-shell-left-docked-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "542818705a1939ab679cc581a71bf3f9156748f91fae296cd2494d2276112b15"
+    },
+    "assets/hands/preview/grips/con-remote-shell-left-docked-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "b9df350ae437aec2613a245eed0022e4c1611a85eb5e7c1f29bc574fe2023ba5"
+    },
+    "assets/hands/preview/grips/con-remote-shell-left-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "ab4b6d248485a535695b2cf3dac6a6899b94c69c6cb48570e693b9323f18321d"
+    },
+    "assets/hands/preview/grips/con-remote-shell-left-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "f8ebff99605e81816b28028005ef56004ca76dcb518f9ff0b6f94dfae49f0a40"
+    },
+    "assets/hands/preview/grips/con-remote-shell-left-support-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "10e8fa37859770d9bc2df94563508fe79085b08ea88b42afd43547da1f278a25"
+    },
+    "assets/hands/preview/grips/con-remote-shell-left-support-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "c4442f586294243c1503f3b42fa127bc5d4ff01d5281e47134ad67b8c38d0958"
+    },
+    "assets/hands/preview/grips/con-remote-shell-review-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "797a317c2adfae711562e63b724ebf01116fa78aaf75dd5fe2e54101be0e5954"
+    },
+    "assets/hands/preview/grips/con-remote-shell-right-docked-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "da86e79ab9168406f0487791f608481634c5c0e9e49b00922ee119f676408586"
+    },
+    "assets/hands/preview/grips/con-remote-shell-right-docked-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "02cc0595c870a5f6966991dca25a3b7783a08926225f7373fbc16f949cc90c60"
+    },
+    "assets/hands/preview/grips/con-remote-shell-right-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "c202c255cc84109e14844b21521703b18191a4ca0806bfdadc2027e49b1506c2"
+    },
+    "assets/hands/preview/grips/con-remote-shell-right-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "5ac815e6da1218aeffb49d4d0d85976053b439e27e30f4b1f293cc9bb339e6ad"
+    },
+    "assets/hands/preview/grips/con-remote-shell-right-support-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "9f834e94367971abeeaf5ab599c63f62318f4be4db97218620117f1e482a5d9f"
+    },
+    "assets/hands/preview/grips/con-remote-shell-right-support-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "b9719fb7ca884071678158e7a9a8dbc4358ace777b0e68ea5a933c3b879ddbc8"
+    },
+    "assets/hands/preview/grips/con-revolver-chunky-left-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "e190d2ee8d8b57e6bdb3672ee7fb9cfd801a1fb86c7a40b5c2d58b978749f82f"
+    },
+    "assets/hands/preview/grips/con-revolver-chunky-left-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "0ed4b773f6b6a3c2ed1b2a43907117a0a631f5d6e736d2be0db7a1305ae61f8a"
+    },
+    "assets/hands/preview/grips/con-revolver-chunky-review-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "f9a43b14f15ac91a0c93c230678e6d53587e0cc87da77d00f30ad6a06fffa385"
+    },
+    "assets/hands/preview/grips/con-revolver-chunky-right-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "12880712d70cfd1bd8a94a08f8f2c08bc5faaa5784e1afd138367cefad166cb1"
+    },
+    "assets/hands/preview/grips/con-revolver-chunky-right-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "4d95817a3c223ac2f74ca4562ff2f7d708332f5a21866f77d0c29ed82e5e6069"
+    },
+    "assets/hands/preview/grips/con-stick-grip-left-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "72d04fbd970d47245be12c685ed270892d59697b3b3e1c366f5508c8d996afc7"
+    },
+    "assets/hands/preview/grips/con-stick-grip-left-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "c27dd3d10a6a8f1ca9467851a22bce4ede8067daa7fe45cb91865ea5fd3e9657"
+    },
+    "assets/hands/preview/grips/con-stick-grip-review-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "1236fd92ecb296debedabbe07398c219f6526ef862d54fc600018742d3fa9ffa"
+    },
+    "assets/hands/preview/grips/con-stick-grip-right-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "c2a76a9bde0650995d71a76d86a1860c122302c417ad179cb15b820ffb8c4cec"
+    },
+    "assets/hands/preview/grips/con-stick-grip-right-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "9bf461e493d1df4fee75e1a0f3c97a1b58112a32b9e81aff9b3fae82e5ce578f"
+    },
+    "assets/hands/preview/grips/coverage.json": {
+      "kind": "metadata",
+      "hash_basis": "repository-lf",
+      "sha256": "0deefacda14289f852c8ded487193d1d2a254598281f54cb76019bac9d35fc0d"
+    },
+    "assets/hands/preview/grips/generic-pistol-left-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "b6359b02c0c2ec277641294c8a6a3a1174c81c8fda48f1486c6aafd66e570f06"
+    },
+    "assets/hands/preview/grips/generic-pistol-left-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "5e67521bc609f21feb47fce3b4e5a962e94d81f2ad88506534d73795cd3430a8"
+    },
+    "assets/hands/preview/grips/generic-pistol-review-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "ffcb091778f2180381d937052cdb240868903d6b1f87bd4d5537220f2345dc57"
+    },
+    "assets/hands/preview/grips/generic-pistol-right-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "9acddc41ef1819d4f1ead9cf73b4a0c242aefd7a0a1596d8b8f91eb7ea61a3cb"
+    },
+    "assets/hands/preview/grips/generic-pistol-right-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "2e235c57adebe1eab418abcc3301a498e0c1c94cb093e63e721cbe72576bef62"
+    },
+    "assets/hands/preview/grips/grip-coverage-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "ca4c2acdc40c86340efd4e97c51bae3a227b36c690bf6ce695b88c955a79c0b1"
+    },
+    "assets/hands/preview/grips/mnt-mg-heavy-left-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "058f50ae31cfc93b3746f5ddb0a0c24d5df65ae47f30323358a2d595e2cb5e38"
+    },
+    "assets/hands/preview/grips/mnt-mg-heavy-left-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "4e60e67e1d5f0a9b1ead53e4db76f7db0f69f40519cb00a33914afe48ab07913"
+    },
+    "assets/hands/preview/grips/mnt-mg-heavy-left-support-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "bd00a785209eff97b6b50c5f363207656c6dc186fff40304659eeab4bf973d67"
+    },
+    "assets/hands/preview/grips/mnt-mg-heavy-left-support-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "02449ca5b13d7986df17724b67af0c922d994a6e1621cc3d536824b93d628888"
+    },
+    "assets/hands/preview/grips/mnt-mg-heavy-review-sheet.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "1a25dfb786ed51353bdd1a9a616e5797daacc4940c5247a73ad9c71de7848deb"
+    },
+    "assets/hands/preview/grips/mnt-mg-heavy-right-primary-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "9622c33c72f1124d7789c6075714ad211fb436384be9ab856d1697e402f80e26"
+    },
+    "assets/hands/preview/grips/mnt-mg-heavy-right-primary-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "e4c2df9ca735f0b9ca202181ba067fcf4cb4dae8c82105953f124f287fa18986"
+    },
+    "assets/hands/preview/grips/mnt-mg-heavy-right-support-assembly.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "5b915ac86965bdede21236ce32697e6ee5865f7c342aba92691fac5137d4c699"
+    },
+    "assets/hands/preview/grips/mnt-mg-heavy-right-support-grip.png": {
+      "kind": "preview",
+      "hash_basis": "file-bytes",
+      "sha256": "109543ae2b3fbe7a12eadc29ce42fed534b26d96f954e523084812a383f78083"
+    },
+    "assets/hands/review_grips.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "0b5131874ffa23045ed223a3dfd4b84803a8c17ce44c4aea9b6c84d05e4fa918"
+    },
+    "assets/hands/src/grip_hand.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "04b683390d6955c9129083370d995456ef801225fce9baaec86fc1ea80d9a0dd"
+    },
+    "data/controls/wii/games/wii-dead-space-extraction.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "0112dd2d88674c6dd73ed8e3de472ae20b474338c0e02be261e723a124857f3f"
+    },
+    "data/controls/wii/games/wii-gunblade-ny-la-machineguns.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "82c32de0389b7c92e0934c04ee5454d50d8c234c921cd05fcfcfea107eb6e1d6"
+    },
+    "data/controls/wii/games/wii-house-of-the-dead-overkill.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "5c94d700626822b8189dcbaf7dbe44f7a8cdfc98c0341e6583578e1eb9c0f247"
+    },
+    "data/controls/wii/games/wii-links-crossbow-training.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "a5f0853c9903aea8a4447f76197a03264cdfb21926cef3ccdf6000f3755d0d9f"
+    },
+    "data/controls/wii/games/wii-resident-evil-darkside-chronicles.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "b326ef4e2808a0d46bcacec8897d45adf0f6ab499d002002eadd7039c4ddfee5"
+    },
+    "data/controls/wii/games/wii-resident-evil-umbrella-chronicles.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "7b111e1a741e2203921162b8e5b7a7af3b4e25aa31f34fbdaf8bdf0d3a599f28"
+    },
+    "data/controls/wii/games/wii-sin-and-punishment-star-successor.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "adefc9984ef84bfa1c6b64db93d3cf1201de0938a55ab74b75fd9630c2afe549"
+    },
+    "data/controls/wii/shell-and-stick.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "fb196a2f10e4e83839de694b72f0933d9b149b1ba583fcc1973fa761ea108c43"
+    },
+    "data/guns/arc-pistol-slide.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "19352254d98f4540ad7a41c800ae94343abcaacd35f77d55a203e61b532a8677"
+    },
+    "data/guns/con-pistol-dpad.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "488f86bc6e85991d42d835f682d968e9787d38b32c82439e26c9391a6374a1d8"
+    },
+    "data/guns/con-pistol-slim.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "a062b9fe678659a0669edbdbb9654d0e629a4770b637256fe25646b7b2379d94"
+    },
+    "data/guns/con-remote-shell.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "3574c8493d15d8c8ce6c1153e2a240c16c4a4d22a8a7811851ab735bd53e0596"
+    },
+    "data/guns/con-revolver-chunky.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "5015f28bcaabebbc13c1713ad326af44c34acbb66fceba1e7c27e6e26a3fd2df"
+    },
+    "data/guns/con-stick-grip.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "485cd5eab8dd0ac0fb973951897569fbeee0f064e654cc3b2e85515fd520a468"
+    },
+    "data/guns/generic-pistol.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "d87851675661fbbe760c022fe860cde9daf18196be403f7c3acc692711c05a7d"
+    },
+    "data/guns/mnt-mg-heavy.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "c008465e444e823a7043aba4de60d9d138f7dedcaeb65aa49df041530a0e8ada"
+    },
+    "games/wii-dead-space-extraction/game.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "f2ab0d4ba79d6ece7d95b6418fc247130bd4edb7e249baadc6b19e47065de51c"
+    },
+    "games/wii-gunblade-ny-la-machineguns/game.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "3ed2db0f4faa684ba3ab1dcc4b3b0e10a2520f5a9a551b56c7df6b73e890befc"
+    },
+    "games/wii-house-of-the-dead-overkill/game.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "9667bdb09a76675b9198af35193d0ea63f6c0727d094272299f8b187e19aa59d"
+    },
+    "games/wii-links-crossbow-training/game.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "3f884ecacc24bc59404daf65dadde2f0d9a7cbcde838831249dd13af86a06a3b"
+    },
+    "games/wii-resident-evil-darkside-chronicles/game.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "17e677854e33922304651782dbb18093552bc85e0cc5c13cb5f19d3bd96e4976"
+    },
+    "games/wii-resident-evil-umbrella-chronicles/game.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "a3fccde20ab1e7fd53e2bab5497c5d8c2a11c55b6b1c1f7a0be197cf150238a9"
+    },
+    "games/wii-sin-and-punishment-star-successor/game.toml": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "1066e052911fa6d1ceaa5359a7bf65953c1e7fdbda5834383b10b71633832144"
+    },
+    "tools/gun_confirmation.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "6bfe61fcf6601275c9df908489e7800452ef98893de146e3180c7d13020b7a9e"
+    },
+    "tools/hand_assembly.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "11979c9c25c9c2a84b5bb0f487b19307e5c714425384cdbedcf1f4ee85f91fe0"
+    },
+    "tools/wii_controls.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "f067c742bc137aaab13f1ca97b79544bc42bdba7256edc4f89cd7cfff5c299a9"
+    },
+    "tools/wii_shell_stick.py": {
+      "kind": "source",
+      "hash_basis": "repository-lf",
+      "sha256": "d9d2b85b402afe9faebdc62fec70bbd53e73c31380e97e882b18d77e2aa44f02"
+    }
+  }
+}

@@ -12,6 +12,7 @@ import shutil
 import tempfile
 from product import load as load_product
 from product import snapshot as product_snapshot
+from disc_header import valid_id
 
 ROOT = Path(__file__).resolve().parents[2]
 GAME_IDS = ("RBUP08", "SBDP08")
@@ -70,7 +71,15 @@ def profile(remote, nunchuk, server_name=None):
     return result
 
 
-def render(mode, labels=None, _prefix=None):
+def profile_games(games=None):
+    games = list(GAME_IDS) if games is None else games
+    if not isinstance(games, (list, tuple)) or not (
+            tuple(games) == GAME_IDS or len(games) == 1 and valid_id(games[0])):
+        raise ValueError("Expected legacy game pair or one selected game ID")
+    return list(games)
+
+
+def render(mode, labels=None, _prefix=None, games=None):
     if mode not in ("one-gun", "two-remotes"):
         raise ValueError("Unknown profile mode")
     count = 1 if mode == "one-gun" else 2
@@ -82,7 +91,8 @@ def render(mode, labels=None, _prefix=None):
                 for i in range(4)}
     wiimotes["BalanceBoard"] = {"Source": "0"}
     files = {
-        "Config/DSUClient.ini": ini({"Server": {"Enabled": "True", "Entries": f"{labels['dsu_server_name']}:127.0.0.1:26760"}}),
+        # Pinned ConfigChanged rebuilds every entry with ';' and raw-compares.
+        "Config/DSUClient.ini": ini({"Server": {"Enabled": "True", "Entries": f"{labels['dsu_server_name']}:127.0.0.1:26760;"}}),
         "Config/WiimoteNew.ini": ini(wiimotes),
         "Config/GFX.ini": ini({"Stereoscopy": {"StereoMode": "1", "StereoDepth": "20", "StereoConvergence": "20", "StereoSwapEyes": "False"}}),
         "Config/Dolphin.ini": ini({"Core": {"EnableCheats": "False"},
@@ -92,14 +102,21 @@ def render(mode, labels=None, _prefix=None):
     }
     for name, data in zip(names, remotes):
         files[f"Config/Profiles/Wiimote/{name}.ini"] = ini({"Profile": data})
-    for game in GAME_IDS:
+    for game in profile_games(games):
         files[f"GameSettings/{game}.ini"] = ini({"Controls": {f"WiimoteProfile{i+1}": name for i, name in enumerate(names)}})
     return files
+
+
+def _pre_canonical_dsu_entries(files, server_name):
+    """Exact older bytes for manifest admission only; never a fresh profile."""
+    return {**files, "Config/DSUClient.ini": ini({"Server": {
+        "Enabled": "True", "Entries": f"{server_name}:127.0.0.1:26760"}})}
 
 
 def legacy_templates(mode):
     """Exact pre-D62 identities are historical data, not current label defaults."""
     legacy = render(mode, {"short_id": "aladdinscastle", "dsu_server_name": "AladdinsCastle"}, _prefix="AladdinsCastle")
+    legacy = _pre_canonical_dsu_entries(legacy, "AladdinsCastle")
     previous = dict(legacy)
     for name, data in previous.items():
         if name == "Config/WiimoteNew.ini" or name.startswith("Config/Profiles/Wiimote/"):
@@ -138,8 +155,8 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def envelope(mode, files, labels=None):
-    result = {"schema": 1, "mode": mode, "source_pin": PIN, "games": list(GAME_IDS),
+def envelope(mode, files, labels=None, games=None):
+    result = {"schema": 1, "mode": mode, "source_pin": PIN, "games": profile_games(games),
             "files": {name: digest(data) for name, data in files.items()}}
     if labels is not None:
         result["product_labels"] = product_snapshot(labels)
@@ -160,9 +177,14 @@ def admit(user, root=ROOT):
     mode = manifest["mode"]
     if "product_labels" in manifest:
         labels = product_snapshot(manifest["product_labels"])
-        expected = render(mode, labels)
-        if manifest != envelope(mode, expected, labels):
-            raise ValueError("Profile manifest has unexpected contents")
+        games = profile_games(manifest.get("games"))
+        expected = render(mode, labels, games=games)
+        if manifest != envelope(mode, expected, labels, games):
+            # Existing immutable profiles retain their recorded bytes. Admit
+            # only the exact former template; use fresh preparation for the fix.
+            expected = _pre_canonical_dsu_entries(expected, labels["dsu_server_name"])
+            if manifest != envelope(mode, expected, labels, games):
+                raise ValueError("Profile manifest has unexpected contents")
     else:
         for expected in legacy_templates(mode):
             if manifest == envelope(mode, expected):
@@ -186,14 +208,18 @@ def check(user, root=ROOT):
     return manifest
 
 
-def create(user, mode, root=ROOT):
+def create(user, mode, root=ROOT, game_id=None):
     user = safe_user(user, root)
+    if game_id is not None and not valid_id(game_id):
+        raise ValueError("Expected six-character selected game ID")
     if user.exists():
-        if check(user, root)["mode"] != mode:
-            raise ValueError("Use a fresh --user directory to change modes")
+        manifest = check(user, root)
+        if manifest["mode"] != mode or game_id is not None and manifest["games"] != [game_id]:
+            raise ValueError("Use a fresh --user directory to change mode or selected game")
         return user
     labels = load_product(ROOT / "data/product.json")
-    files = render(mode, labels)
+    games = [game_id] if game_id is not None else None
+    files = render(mode, labels, games=games)
     user.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".profile-stage-", dir=user.parent))
     try:
@@ -201,7 +227,7 @@ def create(user, mode, root=ROOT):
             target = stage / name
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
-        (stage / MANIFEST).write_text(json.dumps(envelope(mode, files, labels), indent=2)+"\n", encoding="utf-8")
+        (stage / MANIFEST).write_text(json.dumps(envelope(mode, files, labels, games), indent=2)+"\n", encoding="utf-8")
         # rename (rather than replace) cannot overwrite an existing directory on Windows.
         # Recheck on all platforms and never touch an existing user's contents.
         if user.exists():

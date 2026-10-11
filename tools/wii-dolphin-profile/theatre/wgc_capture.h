@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <d3d11.h>
 #include "core.h"
+#include "failure_diagnostic.h"
 #include <memory>
 #include <optional>
 #include <vector>
@@ -17,6 +18,8 @@ struct CapturedFrame {
 CapturedFrame readClientPixels(ID3D11Device* device,ID3D11DeviceContext* context,
                               ID3D11Texture2D* source,const Rect& crop,std::int64_t timeMs);
 void writeFramePng(const std::filesystem::path& file,const CapturedFrame& frame);
+void writeFailurePng(const std::filesystem::path& file,const DiagnosticSample& frame);
+void writeNewPrivateFile(const std::filesystem::path& file,const std::uint8_t* bytes,std::size_t length);
 class WindowCapture {
 public:
     explicit WindowCapture(HWND window);
@@ -24,6 +27,7 @@ public:
     WindowCapture(const WindowCapture&)=delete;
     WindowCapture& operator=(const WindowCapture&)=delete;
     std::optional<CapturedFrame> take();
+    CaptureObservation lastObservation() const;
 private:
     struct Impl;
     std::unique_ptr<Impl> m;

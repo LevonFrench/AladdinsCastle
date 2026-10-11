@@ -10,24 +10,71 @@ import ctypes
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import time
 
 import setup
+import disc_header
+import canonical_dsu
 
 
 def sha256(path, header=False):
+    if header:
+        return disc_header.inspect(path)["sha256"]
     with path.open("rb") as stream:
-        if header:
-            data = stream.read(32)
-            if len(data) != 32 or data[:6].decode("ascii", errors="replace") not in setup.GAME_IDS:
-                raise ValueError("Disc header is not one of the two scoped games")
-            return hashlib.sha256(data).hexdigest()
         digest = hashlib.sha256()
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
         return digest.hexdigest()
+
+
+def profile_data(state):
+    """Sitting's generated DSU path contract; inspect no other profile files."""
+    value = state.get("dsu_profile")
+    if not isinstance(value, str):
+        raise ValueError("Expected explicit canonical DSU profile path")
+    profile = Path(value)
+    if not profile.is_absolute() or not profile.is_file():
+        raise ValueError("Expected absolute regular DSU profile")
+    for path in (profile, *profile.parents):
+        if path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction()):
+            raise ValueError("Linked canonical DSU profile path refused")
+    if profile.parent.parent.name == "games":
+        slug = state.get("game_slug")
+        if not isinstance(slug, str) or re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug) is None:
+            raise ValueError("Per-game canonical DSU profile requires selected game_slug")
+        if profile.parent.name != slug:
+            raise ValueError("Canonical DSU profile differs from selected game_slug")
+        if profile.name not in ("scripted-dsu-right.ini", "flat-dolphin-right.ini"):
+            raise ValueError("Expected generated right-primary per-game DSU profile")
+        generated = profile.parent.parent.parent
+        key = f"games/{slug}/{profile.name}"
+    else:
+        if state.get("game_slug") or profile.parent.name != "flat-dolphin" or profile.name != "split-right.ini":
+            raise ValueError("Expected legacy split-right profile or selected per-game profile")
+        generated = profile.parent.parent
+        key = "flat-dolphin/split-right.ini"
+    manifest_path = generated / "generated-files.json"
+    if manifest_path.is_symlink() or (hasattr(manifest_path, "is_junction") and manifest_path.is_junction()):
+        raise ValueError("Linked generated manifest refused")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), dict):
+        raise ValueError("Invalid generated profile manifest")
+    payload = profile.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+    entry_hash, caller_hash = manifest["files"].get(key), state.get("dsu_profile_sha256")
+    if (manifest.get("version") != "shell-stick/1" or not isinstance(entry_hash, str) or entry_hash.lower() != digest
+            or not isinstance(caller_hash, str) or caller_hash.lower() != digest):
+        raise ValueError("DSU profile does not match the canonical generated manifest")
+    server = setup.load_product(setup.ROOT / "data/product.json")["dsu_server_name"]
+    canonical_dsu.validate(payload, server, allow_legacy=key == "flat-dolphin/split-right.ini")
+    return key, payload
+
+
+def profile_key(state):
+    return profile_data(state)[0]
 
 
 def admit(config, root=setup.ROOT):
@@ -36,6 +83,11 @@ def admit(config, root=setup.ROOT):
     state = json.loads(config.read_text(encoding="utf-8-sig"))
     if not isinstance(state, dict):
         raise ValueError("Configuration must be an object")
+    selected_id = state.get("game_id")
+    if "game_id" in state and not disc_header.valid_id(selected_id):
+        raise ValueError("Expected explicit six-character game_id")
+    if "game_id" not in state and "game_slug" in state:
+        raise ValueError("game_slug requires explicit game_id")
     for key, basename in (("dolphin", "Dolphin.exe"), ("capture", "acvr-dolphin-theatre.exe"), ("disc", None)):
         if not isinstance(state.get(key), str):
             raise ValueError("Missing explicit input path: " + key)
@@ -45,28 +97,27 @@ def admit(config, root=setup.ROOT):
         expected = state[key + ("_header_sha256" if key == "disc" else "_sha256")]
         if not isinstance(expected, str) or sha256(path, header=key == "disc") != expected.lower():
             raise ValueError("Input identity changed: " + key)
+        if key == "disc":
+            selected = disc_header.inspect(path, selected_id)
+            if "game_id" not in state and selected["game_id"] not in setup.GAME_IDS:
+                raise ValueError("Generic recipes require explicit game_id and canonical per-game DSU profile")
+    if "game_id" in state and (not state.get("game_slug") or "dsu_profile" not in state):
+        raise ValueError("Generic recipes require selected game_slug and canonical DSU profile")
     if "dsu_profile" in state:
-        profile = Path(state["dsu_profile"])
-        manifest = json.loads((profile.parent.parent / "generated-files.json").read_text(encoding="utf-8"))
-        if (not profile.is_absolute() or profile.parent.name != "flat-dolphin" or profile.name != "split-right.ini"
-                or manifest.get("version") != "shell-stick/1"
-                or manifest.get("files", {}).get("flat-dolphin/split-right.ini") != sha256(profile)
-                or state.get("dsu_profile_sha256") != sha256(profile)):
-            raise ValueError("DSU profile does not match the canonical generated manifest")
-        parsed = configparser.ConfigParser(interpolation=None)
-        parsed.read_string(profile.read_text(encoding="utf-8"))
-        server = setup.load_product(setup.ROOT / "data/product.json")["dsu_server_name"]
-        if parsed.get("Wiimote1", "Device", fallback="") != f"DSUClient/0/{server}":
-            raise ValueError("Canonical DSU profile label differs from product metadata; regenerate it")
+        profile_key(state)
     return state
 
 
 def prepare(config, run, root=setup.ROOT):
+    config = setup.safe_user(config, root)
+    config_hash = sha256(config)
     state = admit(config, root)
+    selected_profile = profile_data(state) if "dsu_profile" in state else None
     run = setup.safe_user(run, root)
     # Never resume or overwrite a previous run, including failed proofs.
     run.mkdir(parents=True, exist_ok=False)
-    user = setup.create(run / "User", "one-gun", root)
+    selected = disc_header.inspect(Path(state["disc"]), state.get("game_id"))
+    user = setup.create(run / "User", "one-gun", root, game_id=state.get("game_id"))
     path = user / "Config/Dolphin.ini"
     ini = configparser.ConfigParser(interpolation=None)
     ini.optionxform = str
@@ -77,20 +128,30 @@ def prepare(config, run, root=setup.ROOT):
     ini["Interface"] = {"OnScreenDisplayMessages": "False", "ShowActiveTitle": "True"}
     if "dsu_profile" in state:
         ini["Input"] = {"BackgroundInput": "True"}
-        (user / "Config/WiimoteNew.ini").write_bytes(Path(state["dsu_profile"]).read_bytes())
+        (user / "Config/WiimoteNew.ini").write_bytes(selected_profile[1])
         # Fresh per-game named profiles otherwise override the canonical global DSU bindings.
-        for game_id in setup.GAME_IDS:
+        for game_id in ([state["game_id"]] if "game_id" in state else setup.GAME_IDS):
             (user / "GameSettings" / (game_id + ".ini")).write_bytes(setup.ini({"Controls": {}}))
     path.write_bytes(setup.ini({section: dict(ini[section]) for section in ini.sections()}))
     # Logs and all emulator outputs use the fresh user/cwd, not the installed User.
     (user / "Logs").mkdir()
     result = {"schema": 1, "config": str(config), "run": str(run), "user": str(user),
               "dolphin": setup.command(user, state["dolphin"], state["disc"], root),
-              "capture": state["capture"], "inputs": state, "state": "prepared", "live_proof": False}
-    with Path(state["disc"]).open("rb") as stream:
-        result["game_id"] = stream.read(6).decode("ascii")
+              "capture": state["capture"], "inputs": state, "state": "prepared", "live_proof": False,
+              "config_sha256": config_hash, "disc_header": selected, "game_id": selected["game_id"],
+              "profile_key": selected_profile[0] if selected_profile else None}
+    verify_prepared(result, root)
     (run / "prepared.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
+
+
+def verify_prepared(plan, root=setup.ROOT):
+    config = setup.safe_user(plan["config"], root)
+    if sha256(config) != plan["config_sha256"] or admit(config, root) != plan["inputs"]:
+        raise ValueError("Configuration changed after preparation")
+    selected = disc_header.inspect(Path(plan["inputs"]["disc"]), plan["inputs"].get("game_id"))
+    if selected != plan["disc_header"]:
+        raise ValueError("Disc header changed after preparation")
 
 
 def owned_window_count(pid):
@@ -237,8 +298,7 @@ def main(argv=None):
             print("Prepared private isolated run; no application launched")
             return 0
         # Recheck identities immediately before process creation, after writes.
-        if admit(args.config) != plan["inputs"]:
-            raise ValueError("Configuration changed after preparation")
+        verify_prepared(plan)
         result = supervise(plan, args.seconds, startup=args.startup_seconds, settle=args.settle_seconds)
         print(result["state"] + "; inspect private result.json and client PNGs")
         return 0 if result["state"] == "captured-awaiting-inspection" else 1

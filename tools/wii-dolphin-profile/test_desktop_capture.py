@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import patch
 
 import desktop_capture as capture
+import canonical_dsu
 
 
 class Child:
@@ -38,7 +39,7 @@ class CaptureTest(unittest.TestCase):
         inputs = {}
         for key, name in (("dolphin", "Dolphin.exe"), ("capture", "acvr-dolphin-theatre.exe"), ("disc", "synthetic-disc.bin")):
             path = self.local / name
-            path.write_bytes(b"RBUP08" + bytes(26) if key == "disc" else b"synthetic binary, not executable")
+            path.write_bytes(b"RBUP08" + bytes(18) + b"\x5d\x1c\x9e\xa3" + bytes(4) if key == "disc" else b"synthetic binary, not executable")
             inputs[key] = str(path)
             inputs[key + ("_header_sha256" if key == "disc" else "_sha256")] = capture.sha256(path, key == "disc")
         self.config = self.local / "inputs.json"
@@ -83,7 +84,7 @@ class CaptureTest(unittest.TestCase):
 
     def test_unscoped_disc_and_outside_config_reject(self):
         path = Path(self.inputs["disc"])
-        path.write_bytes(b"ZZZZZZ" + bytes(26))
+        path.write_bytes(b"zzzzzz" + bytes(26))
         with self.assertRaises(ValueError):
             capture.sha256(path, True)
         with self.assertRaises(ValueError):
@@ -197,7 +198,7 @@ class CaptureTest(unittest.TestCase):
         generated = self.local / "generated"
         profile = generated / "flat-dolphin/split-right.ini"
         profile.parent.mkdir(parents=True)
-        profile.write_bytes(b"[Wiimote1]\nSource = 1\nDevice = DSUClient/0/AladdinsCastle\n")
+        profile.write_bytes(canonical_dsu.render("AladdinsCastle", legacy=True))
         (generated / "generated-files.json").write_text(json.dumps({"version":"shell-stick/1",
             "files":{"flat-dolphin/split-right.ini":capture.sha256(profile)}}))
         self.inputs.update(dsu_profile=str(profile), dsu_profile_sha256=capture.sha256(profile))
@@ -211,7 +212,7 @@ class CaptureTest(unittest.TestCase):
         profile.write_bytes(b"tampered")
         with self.assertRaises(ValueError):
             capture.admit(self.config,self.root)
-        profile.write_bytes(b"[Wiimote1]\nSource = 1\nDevice = DSUClient/0/Other Input\n")
+        profile.write_bytes(canonical_dsu.render("OtherInput", legacy=True))
         (generated / "generated-files.json").write_text(json.dumps({"version":"shell-stick/1",
             "files":{"flat-dolphin/split-right.ini":capture.sha256(profile)}}))
         self.inputs["dsu_profile_sha256"] = capture.sha256(profile)
