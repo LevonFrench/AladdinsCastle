@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "display_name": "AladdinsCastle",
+  "short_id": "aladdinscastle",
+  "program_name": "aladdinscastle-hub",
+  "overlay_key": "org.aladdinscastle.hub",
+  "steam_shortcut_name": "AladdinsCastle",
+  "user_data_folder": "AladdinsCastle",
+  "dsu_server_name": "AladdinsCastle"
+}
