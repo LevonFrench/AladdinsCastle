@@ -42,16 +42,24 @@ def table(path, title, author, version, script, mini=False):
     path.write_bytes(raw)
 
 class Checks(unittest.TestCase):
+    def helper_json(self, *arguments):
+        completed=subprocess.run([HUB,*arguments],capture_output=True,text=True)
+        self.assertEqual(completed.returncode,0,'Diagnostic helper failed: '+completed.stderr)
+        value=json.loads(completed.stdout)
+        self.assertIsInstance(value,dict,'Diagnostic helper must return a JSON object')
+        return value
     def test_blocked_plan_explains_actual_isolation_gaps(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp); f=p/'ready.vpx'
             table(f,'Ready (Synthetic 2000)','Test','1.0','Const VRRoom=1\nVRRoomCabinet.Visible=True')
             original=f.read_bytes()
-            row=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)]))['tables'][0]
+            row=self.helper_json('scan-pinball',str(p))['tables'][0]
             self.assertTrue(row['vrReady']);self.assertEqual(row['romState'],'needs no ROM')
             for mode in ('desktop','vr'):
-                plan=json.loads(subprocess.check_output([HUB,'plan-pinball',str(f),HUB,str(p/'owned'),mode]))
-                self.assertFalse(plan['launchAllowed'])
+                plan=self.helper_json('plan-pinball',str(f),HUB,str(p/'owned'),mode)
+                self.assertIs(plan.get('launchAllowed'),False)
+                self.assertIn('isolationBlockers',plan,'PINBALL_ISOLATION_BLOCKERS_MISSING')
+                self.assertIsInstance(plan['isolationBlockers'],list)
                 blockers={x['id']:x['text'] for x in plan['isolationBlockers']}
                 self.assertEqual(set(blockers),{'preferences','table-data','scripts-and-plugins'})
                 self.assertIn('settings folder',blockers['preferences'])

@@ -12,11 +12,12 @@ VR-ready table classified as needing no ROM. Scan and now-playing behavior
 are unchanged. Developer docs cite the immutable VPX source and correct the
 FileLocator links to src/core.
 
-Verification pending independent source/build-plan review and a CPU slot:
-Python fixture syntax, diff checks and the public privacy scan pass. No Hub
-binary or C++ build has run at this head. Synthetic plan checks require
-all blocker reasons, unchanged fixture bytes and no session files; the real
-QML scene checks matching help in VR/desktop. No PowerShell is changed. No VPX
+Verification uses existing hosted CI after independent source review. No Hub
+binary, local C++ build or local UI test has run for this change; the preserved
+local execution plan is held. The new synthetic check requires helper exit0,
+valid JSON and an explicit missing-blocker assertion before inspecting reasons,
+unchanged fixture bytes and no session files. The real QML scene test checks
+matching help in VR/desktop. No PowerShell is changed. No VPX
 launch/build, collection access, GPU, download or registry operation occurred.
 
 Independent review precedes publication. Portable PR71 at frozen bf29239 passed
