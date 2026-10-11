@@ -5,6 +5,15 @@
 #include <openvr.h>
 #include <memory>
 namespace ac {
+inline constexpr bool overlayMirrorVertically=false;
+// Preserve the Qt target's recorded corner ordering. Pointer coordinates use
+// their separate OpenVR bottom-left conversion and must not invert the image.
+inline constexpr vr::VRTextureBounds_t overlayTextureBounds{0,0,1,1};
+inline vr::VRTextureBounds_t overlayPictureBounds(bool flipY){
+    auto bounds=overlayTextureBounds;
+    if(flipY){bounds.vMin=1;bounds.vMax=0;}
+    return bounds;
+}
 inline constexpr char overlayKey[] = "org.aladdinscastle.hub";
 // A narrow adapter keeps lifecycle tests independent of the SteamVR service.
 class OverlayRuntime {
@@ -22,7 +31,7 @@ public:
 };
 // Loads and checks exports only; never calls VR_Init or contacts SteamVR.
 bool probeOpenVrLibrary(QString *error);
-std::unique_ptr<OverlayRuntime> makeOpenVrRuntime();
+std::unique_ptr<OverlayRuntime> makeOpenVrRuntime(bool pictureFlipY=false);
 // Only the two explicit command-line actions call this function.
 bool changeOverlayRegistration(const QString &manifest, bool add, QString *error);
 }

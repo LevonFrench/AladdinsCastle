@@ -43,6 +43,8 @@ create = true
 only_if_missing = true
 set = [
   { section = "Core", key = "GFXBackend", value = "D3D" },
+  { section = "General", key = "HotkeysRequireFocus", value = "False" },
+  { section = "Android", key = "QuestLeftHanded", value = "False" },
   { section = "General", key = "ISOPaths", value = 0 },
   { section = "General", key = "RecursiveISOPaths", value = "False" },
   { section = "Analytics", key = "Enabled", value = "False" },
@@ -58,6 +60,10 @@ format = "ini"
 create = true
 only_if_missing = true
 set = [
+  { section = "Settings", key = "InternalResolution", value = 4 },
+  { section = "Settings", key = "MSAA", value = 1 },
+  { section = "Settings", key = "SSAA", value = "False" },
+  { section = "Enhancements", key = "MaxAnisotropy", value = 3 },
   { section = "VR", key = "EnableOpenXR", value = "True" },
   { section = "VR", key = "FlatScreen", value = "False" },
   { section = "VR", key = "VirtualScreen", value = "True" },
@@ -76,17 +82,47 @@ file = "${install_dir}/User/Config/WiimoteNew.ini"
 format = "ini"
 create = true
 only_if_missing = true
+source = "data/controls/wii/generated/dolphinxr/split-right.ini"
+source_sha256 = "edfcccec10a8226ee5366b0fedf500a57a3674dd7b91b72c6bf200e55fc27ebe"
+
+[[variant.dolphinxr.step]]
+id = "logs-directory"
+do = "create-directory"
+to = "${install_dir}/User/Logs"
+
+[[variant.dolphinxr.step]]
+id = "logger"
+do = "write-config"
+file = "${install_dir}/User/Config/Logger.ini"
+format = "ini"
+create = true
+only_if_missing = true
 set = [
-  { section = "Wiimote1", key = "Source", value = 3 },
-  { section = "Wiimote2", key = "Source", value = 0 },
-  { section = "Wiimote3", key = "Source", value = 0 },
-  { section = "Wiimote4", key = "Source", value = 0 },
-  { section = "BalanceBoard", key = "Source", value = 0 },
+  { section = "Options", key = "WriteToFile", value = "True" },
+  { section = "Options", key = "WriteToConsole", value = "False" },
+  { section = "Options", key = "Verbosity", value = 4 },
+  { section = "Logs", key = "OpenXR", value = "True" },
+  { section = "Logs", key = "Video", value = "True" },
+  { section = "Logs", key = "CORE", value = "True" },
+  { section = "Logs", key = "Wiimote", value = "True" },
+  { section = "Logs", key = "CI", value = "True" },
+]
+
+[[variant.dolphinxr.step]]
+id = "hotkeys"
+do = "write-config"
+file = "${install_dir}/User/Config/Hotkeys.ini"
+format = "ini"
+create = true
+only_if_missing = true
+set = [
+  { section = "Hotkeys", key = "Device", value = "DInput/0/Keyboard Mouse" },
+  { section = "Hotkeys", key = "VR/Reset VR Position", value = "@(Shift+R) | (`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`)" },
 ]
 
 [variant.dolphinxr.launch]
 exe = "${install_dir}/Dolphin.exe"
 exe_sha256 = "2a21141c760af5925a28da2cbbe19115ef497d4d5e24350b2bb5ed1a68b9639a"
-args = ["--user", "${install_dir}/User", "-C", "GFX.VR.EnableOpenXR=True", "--exec", "${media.disc.path}"]
+args = ["--user", "${install_dir}/User", "-C", "Graphics.VR.EnableOpenXR=True", "-C", "Graphics.VR.EagerHeartbeat=False", "-C", "Graphics.Stereoscopy.StereoMode=0", "--exec", "${media.disc.path}"]
 cwd = "${install_dir}"
 runtime = "steamvr"

@@ -65,6 +65,31 @@ private slots:
         QSKIP("Portable DLL probe is Windows-specific; no runtime initialization is permitted.");
 #endif
     }
+    void textureAndInputCornerContracts() {
+        const auto bounds=ac::overlayTextureBounds;
+        ac::OverlayInput input({1280,800});
+        for(const QPointF corner:QList<QPointF>{{0,0},{1,0},{0,1},{1,1}}){
+            QPointF sampled(bounds.uMin+corner.x()*(bounds.uMax-bounds.uMin),
+                            bounds.vMin+corner.y()*(bounds.vMax-bounds.vMin));
+            if(ac::overlayMirrorVertically)sampled.setY(1-sampled.y());
+            QCOMPARE(sampled,corner);
+            const auto flipped=ac::overlayPictureBounds(true);
+            QCOMPARE(QPointF(flipped.uMin+corner.x()*(flipped.uMax-flipped.uMin),
+                             flipped.vMin+corner.y()*(flipped.vMax-flipped.vMin)),QPointF(corner.x(),1-corner.y()));
+            QCOMPARE(input.mapPosition(float(corner.x()*1280),float((1-corner.y())*800)),
+                     QPointF(corner.x()*1280,corner.y()*800));
+        }
+    }
+    void independentOrientationCommandLine(){
+        const auto defaults=ac::parseLaunchOptions({"--overlay"});
+        QVERIFY(!defaults.pictureFlipY);QVERIFY(defaults.pointerFlipY);
+        const auto options=ac::parseLaunchOptions({"--overlay","--window","--spike","--overlay-picture-flip-y","on","--overlay-pointer-flip-y","off"});
+        QVERIFY2(options.error.isEmpty(),qPrintable(options.error));
+        QVERIFY(options.pictureFlipY);QVERIFY(!options.pointerFlipY);
+        QVERIFY(!ac::parseLaunchOptions({"--overlay","--overlay-picture-flip-y"}).error.isEmpty());
+        QVERIFY(!ac::parseLaunchOptions({"--overlay","--overlay-pointer-flip-y","maybe"}).error.isEmpty());
+        QVERIFY(!ac::parseLaunchOptions({"--launch","synthetic","--overlay-picture-flip-y","on"}).error.isEmpty());
+    }
     void coordinateContractAndDiagnosticOverride() {
         ac::OverlayInput input({1280, 800});input.setTuning({0,0,0,120,true});
         QCOMPARE(input.mapPosition(0, 0), QPointF(0, 800));
