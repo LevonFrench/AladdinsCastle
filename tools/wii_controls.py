@@ -61,15 +61,23 @@ def compile_library(root=ROOT):
                 # attaches its Nunchuk to the other device; co-op reuses each
                 # player's own device for both Remote and Nunchuk.
                 has_device=row['role']!='local' or row['binding']['control'] in ('reload_fallback','melee_fallback')
+                fallback_player=row.get('fallback_player')
+                if fallback_player is not None:
+                    require(type(fallback_player) is int and fallback_player==0,'Current keyboard fallback producer only supports player 1')
                 row['binding']['physical_dsu_slot_by_mode']=dict(
                     one_gun=(1 if row['role']=='nunchuk' else 0) if has_device else None,
-                    two_remotes=slot if has_device else None)
+                    two_remotes=(fallback_player if fallback_player is not None else slot) if has_device else None)
                 row['input']=dict(kind='wii' if row['role']!='local' else 'runtime',semantic=row['target'])
                 row['availability']=dict(state=row.pop('implementation_state','configured'),
                     reason=row.pop('implementation_reason','Authored mapping; emulator/profile and gameplay checks are separate'))
                 require(row['availability']['state'] in ('configured','planned','unavailable'),'Invalid Wii implementation state')
                 if row['binding']['control']=='owner_setup':
                     row['availability']=dict(state='planned',reason='Choose the game layout and binding with the owner')
+                    row['player_reason']='Choose this binding together during setup.'
+                if fallback_player is not None and slot!=fallback_player:
+                    row['availability']=dict(state='unavailable',reason='Keyboard fallback producer only injects motion into physical DSU slot 0')
+                    row['player_reason']='Keyboard fallback is only available for player 1. Use physical motion.'
+                    row['binding_label']='Unavailable: keyboard fallback is player 1 only'
                 row.setdefault('node',''); generated.append(row)
         model=load(root/'data/guns/generic-pistol.toml')
         data=dict(version='0.1',family='wii',id=gid+'-controls',title=game['title']+' controls',gun_model='generic-pistol',

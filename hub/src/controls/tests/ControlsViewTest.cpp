@@ -236,11 +236,16 @@ private slots:
         QCOMPARE(rowWithId(model,"p1-z").value("hand").toString(),QString("left"));
         QCOMPARE(rowWithId(model,"p1-fire").value("physicalDsuSlot").toInt(),0);
         QCOMPARE(rowWithId(model,"p1-z").value("physicalDsuSlot").toInt(),1);
-        for (const QString &part : {QString("minus"),QString("one"),QString("two"),QString("laser")}) {
+        QVERIFY(model.notice().startsWith("Right hand: Wii Remote. Left hand: Nunchuk."));
+        QVERIFY(!model.notice().contains("DSU"));
+        for (const QString &part : {QString("dpad"),QString("minus"),QString("one"),QString("two"),QString("laser")}) {
             const auto row=rowWithId(model,"p1-"+part);
             QCOMPARE(row.value("availability").toString(),QString("planned"));
             QVERIFY(row.value("availabilityLabel").toString().contains("unavailable"));
             QVERIFY(!row.value("reason").toString().isEmpty());
+            QVERIFY(!row.value("reason").toString().contains("DSU"));
+            QVERIFY(!row.value("reason").toString().contains("bridge"));
+            QVERIFY(!row.value("reason").toString().contains("profile"));
         }
         QCOMPARE(rowWithId(model,"p1-laser").value("physicalDsuSlot").toInt(),-1);
         QCOMPARE(rowWithId(model,"p1-menu").value("availability").toString(),QString("unavailable"));
@@ -255,16 +260,24 @@ private slots:
         QCOMPARE(rowWithId(model,"p2-z").value("hand").toString(),QString("left"));
         QCOMPARE(rowWithId(model,"p1-z").value("physicalDsuSlot").toInt(),0);
         QCOMPARE(rowWithId(model,"p2-z").value("physicalDsuSlot").toInt(),1);
+        for (const QString &part : {QString("reload-fallback"),QString("melee-fallback")}) {
+            const auto p1=rowWithId(model,"p1-"+part), p2=rowWithId(model,"p2-"+part);
+            QCOMPARE(p1.value("availability").toString(),QString("unverified"));
+            QCOMPARE(p2.value("availability").toString(),QString("unavailable"));
+            QCOMPARE(p2.value("physicalDsuSlot").toInt(),0);
+            QVERIFY(p2.value("bindingLabel").toString().contains("player 1 only"));
+        }
+        QVERIFY(!model.notice().contains("DSU"));
         model.setBindingState("left","trigger",true);
         QVERIFY(rowWithId(model,"p2-fire").value("pressed").toBool());
         QVERIFY(!rowWithId(model,"p1-fire").value("pressed").toBool());
         model.setTwoGunsActive(false); model.setPrimaryHand("left");
         QCOMPARE(rowWithId(model,"p1-fire").value("hand").toString(),QString("right"));
         QCOMPARE(rowWithId(model,"p1-stick").value("hand").toString(),QString("left"));
-        QVERIFY(model.notice().contains("Left-primary setup is not ready"));
+        QVERIFY(model.notice().contains("Left-hand Wii Remote setup is not available yet"));
         for (const auto &value:model.rows()) {
             QCOMPARE(value.toMap().value("availability").toString(),QString("unavailable"));
-            QVERIFY(value.toMap().value("reason").toString().contains("Left-primary"));
+            QVERIFY(value.toMap().value("reason").toString().contains("Left-hand Wii Remote"));
         }
         model.setBindingState("right","trigger",true);
         QVERIFY(!rowWithId(model,"p1-fire").value("pressed").toBool());

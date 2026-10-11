@@ -190,11 +190,12 @@ QVariantList ControlsViewModel::makeRows() const {
         const auto availability = source.value("availability").toMap();
         QString state = availability.value("state").toString();
         QString reason = availability.value("reason").toString();
+        if (wiiControls()) reason=source.value("player_reason","This control is not available yet.").toString();
         const bool unsupportedHand = wiiControls() && !m_data.value("policy").toMap().value("supported_primary_hands").toStringList().contains(m_primaryHand);
         if (unmapped) state = "unmapped";
         else if (unsupportedHand) {
             state = "unavailable";
-            reason = "Left-primary setup is not implemented by the current Dolphin profile";
+            reason = "Left-hand Wii Remote setup is not available yet.";
         }
         else if (state != "available" && state != "unavailable" && state != "planned") state = "unverified";
         const QString node = source.value("node").toString();
@@ -204,7 +205,7 @@ QVariantList ControlsViewModel::makeRows() const {
         const QString part = unmapped ? source.value("label").toString() : pretty(source.value("part").toString());
         const QString action = unmapped ? "Game action pending" : source.value("label").toString();
         const QString bindingText = unmapped ? "Binding pending" : source.contains("binding_label") ? source.value("binding_label").toString() : bindingLabel(binding,hand);
-        const QString availabilityLabel = state == "planned" ? "Planned — unavailable in current setup" : state == "unavailable" ? "Unavailable for this setup" :
+        const QString availabilityLabel = state == "planned" ? "Planned — unavailable" : state == "unavailable" ? "Unavailable" :
                                           wiiControls() ? "Wii control mapping — awaiting gameplay validation" : state == "available" ? "Ready to test" :
                                           state == "unmapped" ? "Mapping pending" : "Awaiting validation";
         const auto device = binding.value("physical_dsu_slot_by_mode").toMap().value(m_twoGunsActive ? "two_remotes" : "one_gun");
@@ -227,10 +228,10 @@ QString ControlsViewModel::notice() const {
     if (!m_error.isEmpty()) return m_error;
     if (wiiControls()) {
         if (!m_data.value("policy").toMap().value("supported_primary_hands").toStringList().contains(m_primaryHand))
-            return "Left-primary setup is not ready: the current Dolphin profile uses a right Remote. Shown devices retain their physical slot assignments.";
-        return m_data.value("instruction").toString() +
-            (m_twoGunsActive ? " Each player's Nunchuk shares their Remote's physical controller." : " Remote: right controller (DSU 0). Nunchuk: left controller (DSU 1).") +
-            " Planned controls are unavailable in the current bridge/profile.";
+            return "Left-hand Wii Remote setup is not available yet. Right hand: Wii Remote. Left hand: Nunchuk.";
+        return (m_twoGunsActive ? QString("Player 1: right hand. Player 2: left hand. Each hand controls its own Wii Remote and Nunchuk.") :
+                                 QString("Right hand: Wii Remote. Left hand: Nunchuk.")) +
+            " Some controls are unavailable.";
     }
     if (m_rows.isEmpty()) return "Choose a game to see its controls";
     for (const auto &value : m_rows) if (value.toMap().value("availability").toString() != "available")

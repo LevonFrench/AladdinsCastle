@@ -193,6 +193,7 @@
           },
           {
             "id": "p1-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
             "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
             "part": "Remote + button",
             "label": "+: game menu / command",
@@ -222,6 +223,8 @@
           },
           {
             "id": "p1-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
             "part": "Remote directional pad",
             "label": "Directional game commands",
             "target": "dpad",
@@ -243,13 +246,14 @@
               "semantic": "dpad"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
             },
             "node": ""
           },
           {
             "id": "p1-minus",
+            "player_reason": "This button is not available yet.",
             "part": "Remote - button",
             "label": "-: game command",
             "target": "share",
@@ -278,6 +282,7 @@
           },
           {
             "id": "p1-one",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 1 button",
             "label": "1: game command",
             "target": "square",
@@ -306,6 +311,7 @@
           },
           {
             "id": "p1-two",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 2 button",
             "label": "2: game command",
             "target": "triangle",
@@ -392,8 +398,9 @@
           },
           {
             "id": "p1-reload-fallback",
+            "fallback_player": 0,
             "part": "Seated reload button",
-            "label": "Reload motion: R in bridge window / Ctrl+Alt+R in Dolphin",
+            "label": "Seated reload (player 1 only)",
             "target": "inject_remote_shake",
             "role": "local",
             "slot": 0,
@@ -420,8 +427,9 @@
           },
           {
             "id": "p1-melee-fallback",
+            "fallback_player": 0,
             "part": "Seated melee button",
-            "label": "Swing motion: V / Ctrl+Alt+V; hold the game's knife button if needed",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
             "target": "inject_remote_swing",
             "role": "local",
             "slot": 0,
@@ -448,6 +456,7 @@
           },
           {
             "id": "p1-laser",
+            "player_reason": "Visible laser is not available yet.",
             "part": "Gun laser",
             "label": "Toggle laser",
             "target": "laser_toggle",
@@ -773,6 +782,7 @@
           },
           {
             "id": "p1-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
             "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
             "part": "Remote + button",
             "label": "+: game menu / command",
@@ -802,6 +812,8 @@
           },
           {
             "id": "p1-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
             "part": "Remote directional pad",
             "label": "Directional game commands",
             "target": "dpad",
@@ -823,13 +835,14 @@
               "semantic": "dpad"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
             },
             "node": ""
           },
           {
             "id": "p1-minus",
+            "player_reason": "This button is not available yet.",
             "part": "Remote - button",
             "label": "-: game command",
             "target": "share",
@@ -858,6 +871,7 @@
           },
           {
             "id": "p1-one",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 1 button",
             "label": "1: game command",
             "target": "square",
@@ -886,6 +900,7 @@
           },
           {
             "id": "p1-two",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 2 button",
             "label": "2: game command",
             "target": "triangle",
@@ -972,8 +987,9 @@
           },
           {
             "id": "p1-reload-fallback",
+            "fallback_player": 0,
             "part": "Seated reload button",
-            "label": "Reload motion: R in bridge window / Ctrl+Alt+R in Dolphin",
+            "label": "Seated reload (player 1 only)",
             "target": "inject_remote_shake",
             "role": "local",
             "slot": 0,
@@ -1000,8 +1016,9 @@
           },
           {
             "id": "p1-melee-fallback",
+            "fallback_player": 0,
             "part": "Seated melee button",
-            "label": "Swing motion: V / Ctrl+Alt+V; hold the game's knife button if needed",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
             "target": "inject_remote_swing",
             "role": "local",
             "slot": 0,
@@ -1028,6 +1045,7 @@
           },
           {
             "id": "p1-laser",
+            "player_reason": "Visible laser is not available yet.",
             "part": "Gun laser",
             "label": "Toggle laser",
             "target": "laser_toggle",
@@ -1228,6 +1246,7 @@
           },
           {
             "id": "p2-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
             "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
             "part": "Remote + button",
             "label": "+: game menu / command",
@@ -1257,6 +1276,8 @@
           },
           {
             "id": "p2-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
             "part": "Remote directional pad",
             "label": "Directional game commands",
             "target": "dpad",
@@ -1278,13 +1299,14 @@
               "semantic": "dpad"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
             },
             "node": ""
           },
           {
             "id": "p2-minus",
+            "player_reason": "This button is not available yet.",
             "part": "Remote - button",
             "label": "-: game command",
             "target": "share",
@@ -1313,6 +1335,7 @@
           },
           {
             "id": "p2-one",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 1 button",
             "label": "1: game command",
             "target": "square",
@@ -1341,6 +1364,7 @@
           },
           {
             "id": "p2-two",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 2 button",
             "label": "2: game command",
             "target": "triangle",
@@ -1427,8 +1451,9 @@
           },
           {
             "id": "p2-reload-fallback",
+            "fallback_player": 0,
             "part": "Seated reload button",
-            "label": "Reload motion: R in bridge window / Ctrl+Alt+R in Dolphin",
+            "label": "Seated reload (player 1 only)",
             "target": "inject_remote_shake",
             "role": "local",
             "slot": 1,
@@ -1440,7 +1465,7 @@
               "role": "local",
               "physical_dsu_slot_by_mode": {
                 "one_gun": 0,
-                "two_remotes": 1
+                "two_remotes": 0
               }
             },
             "input": {
@@ -1448,15 +1473,18 @@
               "semantic": "inject_remote_shake"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
             },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
             "node": ""
           },
           {
             "id": "p2-melee-fallback",
+            "fallback_player": 0,
             "part": "Seated melee button",
-            "label": "Swing motion: V / Ctrl+Alt+V; hold the game's knife button if needed",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
             "target": "inject_remote_swing",
             "role": "local",
             "slot": 1,
@@ -1468,7 +1496,7 @@
               "role": "local",
               "physical_dsu_slot_by_mode": {
                 "one_gun": 0,
-                "two_remotes": 1
+                "two_remotes": 0
               }
             },
             "input": {
@@ -1476,13 +1504,16 @@
               "semantic": "inject_remote_swing"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
             },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
             "node": ""
           },
           {
             "id": "p2-laser",
+            "player_reason": "Visible laser is not available yet.",
             "part": "Gun laser",
             "label": "Toggle laser",
             "target": "laser_toggle",
@@ -1808,6 +1839,7 @@
           },
           {
             "id": "p1-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
             "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
             "part": "Remote + button",
             "label": "+: game menu / command",
@@ -1837,6 +1869,8 @@
           },
           {
             "id": "p1-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
             "part": "Remote directional pad",
             "label": "Select weapon / directional commands",
             "target": "dpad",
@@ -1858,13 +1892,14 @@
               "semantic": "dpad"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
             },
             "node": ""
           },
           {
             "id": "p1-minus",
+            "player_reason": "This button is not available yet.",
             "part": "Remote - button",
             "label": "-: game command",
             "target": "share",
@@ -1893,6 +1928,7 @@
           },
           {
             "id": "p1-one",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 1 button",
             "label": "1: game command",
             "target": "square",
@@ -1921,6 +1957,7 @@
           },
           {
             "id": "p1-two",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 2 button",
             "label": "2: game command",
             "target": "triangle",
@@ -2007,8 +2044,9 @@
           },
           {
             "id": "p1-reload-fallback",
+            "fallback_player": 0,
             "part": "Seated reload button",
-            "label": "Reload motion: R in bridge window / Ctrl+Alt+R in Dolphin",
+            "label": "Seated reload (player 1 only)",
             "target": "inject_remote_shake",
             "role": "local",
             "slot": 0,
@@ -2035,8 +2073,9 @@
           },
           {
             "id": "p1-melee-fallback",
+            "fallback_player": 0,
             "part": "Seated melee button",
-            "label": "Swing motion: V / Ctrl+Alt+V; hold the game's knife button if needed",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
             "target": "inject_remote_swing",
             "role": "local",
             "slot": 0,
@@ -2063,6 +2102,7 @@
           },
           {
             "id": "p1-laser",
+            "player_reason": "Visible laser is not available yet.",
             "part": "Gun laser",
             "label": "Toggle laser",
             "target": "laser_toggle",
@@ -2263,6 +2303,7 @@
           },
           {
             "id": "p2-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
             "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
             "part": "Remote + button",
             "label": "+: game menu / command",
@@ -2292,6 +2333,8 @@
           },
           {
             "id": "p2-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
             "part": "Remote directional pad",
             "label": "Select weapon / directional commands",
             "target": "dpad",
@@ -2313,13 +2356,14 @@
               "semantic": "dpad"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
             },
             "node": ""
           },
           {
             "id": "p2-minus",
+            "player_reason": "This button is not available yet.",
             "part": "Remote - button",
             "label": "-: game command",
             "target": "share",
@@ -2348,6 +2392,7 @@
           },
           {
             "id": "p2-one",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 1 button",
             "label": "1: game command",
             "target": "square",
@@ -2376,6 +2421,7 @@
           },
           {
             "id": "p2-two",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 2 button",
             "label": "2: game command",
             "target": "triangle",
@@ -2462,8 +2508,9 @@
           },
           {
             "id": "p2-reload-fallback",
+            "fallback_player": 0,
             "part": "Seated reload button",
-            "label": "Reload motion: R in bridge window / Ctrl+Alt+R in Dolphin",
+            "label": "Seated reload (player 1 only)",
             "target": "inject_remote_shake",
             "role": "local",
             "slot": 1,
@@ -2475,7 +2522,7 @@
               "role": "local",
               "physical_dsu_slot_by_mode": {
                 "one_gun": 0,
-                "two_remotes": 1
+                "two_remotes": 0
               }
             },
             "input": {
@@ -2483,15 +2530,18 @@
               "semantic": "inject_remote_shake"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
             },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
             "node": ""
           },
           {
             "id": "p2-melee-fallback",
+            "fallback_player": 0,
             "part": "Seated melee button",
-            "label": "Swing motion: V / Ctrl+Alt+V; hold the game's knife button if needed",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
             "target": "inject_remote_swing",
             "role": "local",
             "slot": 1,
@@ -2503,7 +2553,7 @@
               "role": "local",
               "physical_dsu_slot_by_mode": {
                 "one_gun": 0,
-                "two_remotes": 1
+                "two_remotes": 0
               }
             },
             "input": {
@@ -2511,13 +2561,16 @@
               "semantic": "inject_remote_swing"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
             },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
             "node": ""
           },
           {
             "id": "p2-laser",
+            "player_reason": "Visible laser is not available yet.",
             "part": "Gun laser",
             "label": "Toggle laser",
             "target": "laser_toggle",
@@ -2843,6 +2896,7 @@
           },
           {
             "id": "p1-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
             "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
             "part": "Remote + button",
             "label": "+: game menu / command",
@@ -2872,6 +2926,8 @@
           },
           {
             "id": "p1-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
             "part": "Remote directional pad",
             "label": "Directional game commands",
             "target": "dpad",
@@ -2893,13 +2949,14 @@
               "semantic": "dpad"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
             },
             "node": ""
           },
           {
             "id": "p1-minus",
+            "player_reason": "This button is not available yet.",
             "part": "Remote - button",
             "label": "-: game command",
             "target": "share",
@@ -2928,6 +2985,7 @@
           },
           {
             "id": "p1-one",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 1 button",
             "label": "1: game command",
             "target": "square",
@@ -2956,6 +3014,7 @@
           },
           {
             "id": "p1-two",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 2 button",
             "label": "2: game command",
             "target": "triangle",
@@ -3042,8 +3101,9 @@
           },
           {
             "id": "p1-reload-fallback",
+            "fallback_player": 0,
             "part": "Seated reload button",
-            "label": "Reload motion: R in bridge window / Ctrl+Alt+R in Dolphin",
+            "label": "Seated reload (player 1 only)",
             "target": "inject_remote_shake",
             "role": "local",
             "slot": 0,
@@ -3070,8 +3130,9 @@
           },
           {
             "id": "p1-melee-fallback",
+            "fallback_player": 0,
             "part": "Seated melee button",
-            "label": "Swing motion: V / Ctrl+Alt+V; hold the game's knife button if needed",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
             "target": "inject_remote_swing",
             "role": "local",
             "slot": 0,
@@ -3098,6 +3159,7 @@
           },
           {
             "id": "p1-laser",
+            "player_reason": "Visible laser is not available yet.",
             "part": "Gun laser",
             "label": "Toggle laser",
             "target": "laser_toggle",
@@ -3298,6 +3360,7 @@
           },
           {
             "id": "p2-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
             "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
             "part": "Remote + button",
             "label": "+: game menu / command",
@@ -3327,6 +3390,8 @@
           },
           {
             "id": "p2-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
             "part": "Remote directional pad",
             "label": "Directional game commands",
             "target": "dpad",
@@ -3348,13 +3413,14 @@
               "semantic": "dpad"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
             },
             "node": ""
           },
           {
             "id": "p2-minus",
+            "player_reason": "This button is not available yet.",
             "part": "Remote - button",
             "label": "-: game command",
             "target": "share",
@@ -3383,6 +3449,7 @@
           },
           {
             "id": "p2-one",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 1 button",
             "label": "1: game command",
             "target": "square",
@@ -3411,6 +3478,7 @@
           },
           {
             "id": "p2-two",
+            "player_reason": "This button is not available yet.",
             "part": "Remote 2 button",
             "label": "2: game command",
             "target": "triangle",
@@ -3497,8 +3565,9 @@
           },
           {
             "id": "p2-reload-fallback",
+            "fallback_player": 0,
             "part": "Seated reload button",
-            "label": "Reload motion: R in bridge window / Ctrl+Alt+R in Dolphin",
+            "label": "Seated reload (player 1 only)",
             "target": "inject_remote_shake",
             "role": "local",
             "slot": 1,
@@ -3510,7 +3579,7 @@
               "role": "local",
               "physical_dsu_slot_by_mode": {
                 "one_gun": 0,
-                "two_remotes": 1
+                "two_remotes": 0
               }
             },
             "input": {
@@ -3518,15 +3587,18 @@
               "semantic": "inject_remote_shake"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
             },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
             "node": ""
           },
           {
             "id": "p2-melee-fallback",
+            "fallback_player": 0,
             "part": "Seated melee button",
-            "label": "Swing motion: V / Ctrl+Alt+V; hold the game's knife button if needed",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
             "target": "inject_remote_swing",
             "role": "local",
             "slot": 1,
@@ -3538,7 +3610,7 @@
               "role": "local",
               "physical_dsu_slot_by_mode": {
                 "one_gun": 0,
-                "two_remotes": 1
+                "two_remotes": 0
               }
             },
             "input": {
@@ -3546,13 +3618,16 @@
               "semantic": "inject_remote_swing"
             },
             "availability": {
-              "state": "configured",
-              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
             },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
             "node": ""
           },
           {
             "id": "p2-laser",
+            "player_reason": "Visible laser is not available yet.",
             "part": "Gun laser",
             "label": "Toggle laser",
             "target": "laser_toggle",
@@ -3817,6 +3892,7 @@
               "state": "planned",
               "reason": "Choose the game layout and binding with the owner"
             },
+            "player_reason": "Choose this binding together during setup.",
             "node": ""
           },
           {
@@ -3845,6 +3921,7 @@
               "state": "planned",
               "reason": "Choose the game layout and binding with the owner"
             },
+            "player_reason": "Choose this binding together during setup.",
             "node": ""
           },
           {
@@ -3873,6 +3950,7 @@
               "state": "planned",
               "reason": "Choose the game layout and binding with the owner"
             },
+            "player_reason": "Choose this binding together during setup.",
             "node": ""
           },
           {
@@ -3901,6 +3979,7 @@
               "state": "planned",
               "reason": "Choose the game layout and binding with the owner"
             },
+            "player_reason": "Choose this binding together during setup.",
             "node": ""
           }
         ],

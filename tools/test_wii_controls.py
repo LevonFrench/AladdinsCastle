@@ -55,7 +55,7 @@ class WiiControlsTests(unittest.TestCase):
         for game in compile_library()['games']:
             rows={r['id']:r for r in game['data']['element']}
             if game['data']['custom_setup']: continue
-            for part in ('minus','one','two','laser'):
+            for part in ('dpad','minus','one','two','laser'):
                 with self.subTest(game=game['game_id'],part=part):
                     availability=rows['p1-'+part]['availability']
                     self.assertEqual(availability['state'],'planned')
@@ -66,6 +66,20 @@ class WiiControlsTests(unittest.TestCase):
             self.assertEqual(rows['p1-menu']['availability']['state'],'unavailable')
             self.assertIn('Binding pending',rows['p1-menu']['binding_label'])
             self.assertIn('right system button',rows['p1-menu']['availability']['reason'])
+
+    def test_keyboard_motion_fallbacks_do_not_claim_player_two(self):
+        game=resolve_game(ROOT,'wii-resident-evil-umbrella-chronicles')
+        rows={r['id']:r for r in game['data']['element']}
+        for part in ('reload-fallback','melee-fallback'):
+            a,b=rows['p1-'+part],rows['p2-'+part]
+            self.assertEqual(a['availability']['state'],'configured')
+            self.assertEqual(b['availability']['state'],'unavailable')
+            self.assertEqual(a['fallback_player'],0)
+            self.assertEqual(b['fallback_player'],0)
+            self.assertEqual(b['binding']['physical_dsu_slot_by_mode'],{'one_gun':0,'two_remotes':0})
+            self.assertIn('player 1 only',b['binding_label'])
+        self.assertEqual(rows['p2-motion']['availability']['state'],'configured')
+        self.assertEqual(rows['p2-motion']['binding']['physical_dsu_slot_by_mode']['two_remotes'],1)
 
     def test_defaults_and_fallbacks_have_distinct_routes(self):
         game=resolve_game(ROOT,'wii-resident-evil-umbrella-chronicles')

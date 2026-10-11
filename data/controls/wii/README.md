@@ -20,10 +20,10 @@ Wii semantics remain outside the arcade libacvr input vocabulary.
 | Nunchuk stick | Thumbstick | Left stick |
 | Remote + | Binding pending: left menu or accessibility fallback | Intended Options; right Touch system button unavailable |
 | Remote - / 1 / 2 | Planned keyboard or custom binding | Intended Share / Square / Triangle; bridge and profile omit these |
-| Remote directional pad | Keyboard arrows or custom binding | DSU directional buttons |
+| Remote directional pad | Planned directional binding | Intended DSU directional buttons; producer emits no bits or keyboard arrows |
 | Remote movement | Physical controller motion | Accelerometer in g; gyro in degrees/second |
 | Nunchuk movement | Nunchuk-hand physical motion | Nunchuk accelerometer binding |
-| Seated shake / swing | R / V in bridge; Ctrl+Alt+R / V in Dolphin | Inject motion on the same accelerometer/gyro path |
+| Seated shake / swing | Player 1 only: R / V in bridge; Ctrl+Alt+R / V in Dolphin | Inject motion into DSU 0 on the same accelerometer/gyro path |
 | Laser | Planned thumbstick click | Local action, no Wii button; visible laser not implemented |
 
 Logical `slot` / `player` identifies the player. Physical DSU device 0 is right,
@@ -36,8 +36,13 @@ physical assignments and mirrors A/B to X/Y. Left-primary selection is not
 implemented by the current profile generator; selecting it marks the setup
 unavailable and retains the actual physical device assignments.
 
-Minus/1/2 and laser are planned, and Remote + has a pending accessible binding;
-the view shows their reasons and does not highlight them as active inputs.
+D-pad, minus/1/2 and laser are planned, and Remote + has a pending accessible
+binding. The R/V producer only targets physical slot 0: `fallback_player = 0`
+keeps both keyboard fallback rows scoped to player 1, with player 2's generated
+rows unavailable even in co-op. Player 2's physical-motion mapping still targets
+slot 1. The view shows plain reasons and does not highlight unavailable controls
+as active inputs. DSU IDs and implementation reasons stay in data/docs; the
+one-gun notice reads "Right hand: Wii Remote. Left hand: Nunchuk."
 Physical axis signs, fallback waveform recognition and game actions still need
 separate bridge/profile checks. The profile lane's current game auto-selectors
 cover the two approved PAL Chronicles releases, not acceptance of all five sets.
