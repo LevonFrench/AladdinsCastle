@@ -17,6 +17,8 @@ Status: 2026-10-10, owner decision D52. This replaces "Time Crisis on System 22"
 
 A tier is done when each of its games passes the acceptance list in the target with its own control set. Do not start a tier before the one above it is playable.
 
+**Changed 2026-10-11 ([R3-new-directions.md](R3-new-directions.md)):** Link's Crossbow Training moves up beside Umbrella Chronicles as a second showcase (D58). When Wii work is blocked on a headset sitting or on the owner, sessions do not wait: they take the next unblocked item in R3, then the arcade boards (D61).
+
 ## What is known (research 2026-10-10)
 
 Hub wiki topic `vr-arcade-gun-racing`, article `wii-games-in-vr-dolphin`. "Unverified" means no fetched source states it.
