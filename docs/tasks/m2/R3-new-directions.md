@@ -80,7 +80,9 @@ Without a headset: it builds, its maths and drawing pass headless tests, and its
 
 ### 7. Link's Crossbow Training (D58)
 
-Only if the owner has the disc and says so. Then: catalog entry, control set and profile beside Umbrella Chronicles. Until then no session spends time on it.
+Lapsed on 2026-10-11: no disc is available for testing, so no session spends time on it.
+
+**Which games get test time.** Only games a tester has a disc for. That list is kept in the lead's private notes, never here, and it sets the order within a tier. A game nobody can test keeps its catalog entry and waits.
 
 ### 8. Later, most per-game work
 
