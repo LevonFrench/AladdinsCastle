@@ -5,6 +5,6 @@
 #include <QString>
 namespace ac::pinball {
 QVariantMap inspect(const QString &path);
-QVariantMap scan(const QString &folder,const QString &database={},const QString &romFolder={});
+QVariantMap scan(const QString &folder,const QString &database={},const QString &romFolder={},const QString &mediaFolder={});
 QVariantMap launchPlan(const QString &table,const QString &executable,const QString &ownedRoot,bool vr);
 }

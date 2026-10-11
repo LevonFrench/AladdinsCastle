@@ -56,6 +56,23 @@ class Checks(unittest.TestCase):
             for i,script in enumerate(["' Const VRRoom=1\nVRRoomCabinet.Visible=True",'If VRRoom=1 Then\nVRRoomCabinet.Visible=True\nEnd If','Const VRRoom=1\nOrdinaryObject.Visible=True','Debug.Print "Then VRRoom=1"\nVRRoomCabinet.Visible=True']):table(p/(str(i)+'.vpx'),'Noise','Test','1.0',script)
             result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)]))
             self.assertEqual(result['vrReady'],0)
+    def test_dynamic_rom_cannot_borrow_a_literal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=pathlib.Path(tmp);table(p/'dynamic.vpx','Dynamic','Test','1.0','Const VRRoom=1\nVRRoomCabinet.Visible=True\ncGameName="synthetic"\ncGameName=ChooseRom()')
+            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)]))['tables'][0]
+            self.assertEqual(result['romState'],'unknown');self.assertNotIn('rom',result)
+    def test_only_exact_local_media_is_associated(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=pathlib.Path(tmp);lib=p/'tables';lib.mkdir();art=p/'media';art.mkdir()
+            table(lib/'fixture.vpx','Fixture','Test','1.0','')
+            (art/'fixture.png').write_bytes(b'synthetic media metadata; never decoded')
+            (art/'fixture.directb2s').write_bytes(b'synthetic metadata; never decoded')
+            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(lib),'','',str(art)]))['tables'][0]
+            self.assertEqual(pathlib.Path(result['wheelPath']),art/'fixture.png')
+            self.assertEqual(pathlib.Path(result['backglassPath']),art/'fixture.directb2s')
+            (art/'fixture.png').rename(art/'unrelated.png')
+            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(lib),'','',str(art)]))['tables'][0]
+            self.assertNotIn('wheelPath',result)
     def test_classification_and_refusals(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp); lib=p/'tables';lib.mkdir();roms=p/'roms';roms.mkdir()

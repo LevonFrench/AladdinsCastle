@@ -124,6 +124,13 @@ class UiTest:public QObject {
   if(!qEnvironmentVariable("AC_UI_BENCH_OUTPUT").isEmpty()){auto out=QFileInfo(qEnvironmentVariable("AC_UI_BENCH_OUTPUT")).dir();QVERIFY(window->grabWindow().save(out.filePath("d-startup.png")));}
  }
  void themeAndSettings(){QCOMPARE(theme->get("motion.hover_dwell").toInt(),600);QCOMPARE(theme->get("motion.preview_scale").toDouble(),1.4);QVERIFY(theme->get("gradient.explore_banner_fade.stop").toList().size()==8);QVERIFY(settings->set("reduceMotion",true));QVERIFY(settings->saveGame("synthetic",{{"laser","on"},{"gun_pitch",-10}}));ac::UiSettings copy(user.path());QCOMPARE(copy.get("reduceMotion").toBool(),true);QCOMPARE(copy.game("synthetic").value("gun_pitch").toInt(),-10);settings->set("reduceMotion",false);}
+ void emptyArtModelDuringNavigation(){
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameArt.qml"));
+  std::unique_ptr<QObject> art(component.create());QVERIFY(art);const auto before=warnings.size();
+  QVERIFY(art->setProperty("game",QVariant()));QTest::qWait(40);
+  QStringList invalid;for(const auto &warning:warnings.mid(before))if(warning.contains("TypeError")||warning.contains("ReferenceError"))invalid<<warning;
+  QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
+ }
  void pinballTabRealScene(){
   root->setProperty("view","List");root->setProperty("vrOverlayMode",true);
   const auto tabs=namedItems(window->contentItem(),"pinballTab");QCOMPARE(tabs.size(),1);

@@ -147,7 +147,7 @@ class UiController : public QObject {
  void closeLaunchRequested();
  void nowPlayingChanged();
  void pinballChanged();
- void pinballScanRequested(const QString &folder,const QString &database,const QString &roms);
+ void pinballScanRequested(const QString &folder,const QString &database,const QString &roms,const QString &media);
  void pinballPlanRequested(const QString &table,const QString &executable,const QString &id);
  void retryToolInstallRequested(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
  void promptAnswered(bool proceed); void skipStepRequested(); void uninstallPreviewRequested(const QString &gameId,const QString &variantId);

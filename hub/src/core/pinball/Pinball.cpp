@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QSet>
 #include <QMap>
+#include <QUrl>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -103,10 +104,12 @@ QVariantMap inspect(const QString &path) {
   static const QRegularExpression roomObject("\\bVR(?:Room|_Room|_)[A-Za-z0-9_]*\\.Visible\\s*=",QRegularExpression::CaseInsensitiveOption);
   const bool room=switchAssignment.match(roomCode).hasMatch()&&roomObject.match(roomCode).hasMatch();
   if(room){row["vrReady"]=true;row["evidence"]=QStringList{"script: VR room"};}
-  const auto rom=QRegularExpression("\\b(?:cGameName|GameName)\\s*=\\s*\"([A-Za-z0-9_]+)\"",QRegularExpression::CaseInsensitiveOption).globalMatch(code);
-  auto matches=rom;QSet<QString> names;while(matches.hasNext())names.insert(matches.next().captured(1));
-  if(names.size()==1){row["rom"]=*names.begin();row["romState"]="ROM missing";}
-  else if(names.isEmpty()&&!QRegularExpression("\\b(cGameName|GameName|VPinMAME|Controller\\.Run|CreateObject|Execute)\\b",QRegularExpression::CaseInsensitiveOption).match(code).hasMatch())row["romState"]="needs no ROM";
+  static const QRegularExpression romAssignment("(?:^|:|\\bThen\\s+|\\bElse\\s+)\\s*(?:Const\\s+)?(?:cGameName|GameName)\\s*=\\s*",QRegularExpression::CaseInsensitiveOption|QRegularExpression::MultilineOption);
+  static const QRegularExpression literalRom("^\"([A-Za-z0-9_]+)\"[ \\t\\r]*(?:$|:)",QRegularExpression::MultilineOption);
+  auto matches=romAssignment.globalMatch(code);QSet<QString> names;int assignments=0,literals=0;
+  while(matches.hasNext()){const auto assignment=matches.next();++assignments;const auto literal=literalRom.match(code.mid(assignment.capturedEnd()));if(literal.hasMatch()&&literal.capturedStart()==0){names.insert(literal.captured(1));++literals;}}
+  if(names.size()==1&&assignments==literals){row["rom"]=*names.begin();row["romState"]="ROM missing";}
+  else if(names.isEmpty()&&!QRegularExpression("\\b(cGameName|GameName|VPinMAME|LoadVPM|Controller\\.Run|CreateObject|Execute)\\b",QRegularExpression::CaseInsensitiveOption).match(code).hasMatch())row["romState"]="needs no ROM";
   const QRegularExpression machineName("^(.*?)\\s*\\(([^()]*)\\s+(\\d{4})\\)");
   auto identity=machineName.match(row["title"].toString());
   if(!identity.hasMatch())identity=machineName.match(QFileInfo(path).completeBaseName());
@@ -114,7 +117,7 @@ QVariantMap inspect(const QString &path) {
  }catch(const std::exception &e){row["error"]=QString::fromUtf8(e.what());row["vrReady"]=false;row["evidence"]=QStringList{};}
  return row;
 }
-QVariantMap scan(const QString &folder,const QString &database,const QString &romFolder) {
+QVariantMap scan(const QString &folder,const QString &database,const QString &romFolder,const QString &mediaFolder) {
  QVariantList rows;QJsonArray db;
  if(!database.isEmpty()){QFile f(database);require(!link(QFileInfo(database))&&f.open(QIODevice::ReadOnly)&&f.size()<=64*1024*1024);QJsonParseError error;const auto doc=QJsonDocument::fromJson(f.readAll(),&error);require(error.error==QJsonParseError::NoError&&doc.isArray());db=doc.array();}
  QMultiMap<QString,QJsonObject> machineIndex;
@@ -122,6 +125,16 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
  QDir dir(folder);require(dir.exists());int ready=0;
  for(const auto &file:dir.entryInfoList({"*.vpx","*.VPX"},QDir::Files|QDir::NoDotAndDotDot,QDir::Name)){
   if(link(file))continue;auto row=inspect(file.absoluteFilePath());
+  // Explicit roots, exact stems, metadata only. No recursion or remote artwork.
+  QStringList artRoots{folder};if(!mediaFolder.isEmpty())artRoots.prepend(mediaFolder);
+  for(const auto &root:artRoots){
+   for(const auto &ext:{"png","jpg","webp"}){
+    const QFileInfo image(QDir(root).filePath(file.completeBaseName()+"."+ext));
+    if(!row.contains("wheelPath")&&image.isFile()&&!link(image)&&image.size()<=32*1024*1024){row["wheelPath"]=image.absoluteFilePath();row["wheelUrl"]=QUrl::fromLocalFile(image.absoluteFilePath()).toString();}
+   }
+   const QFileInfo backglass(QDir(root).filePath(file.completeBaseName()+".directb2s"));
+   if(!row.contains("backglassPath")&&backglass.isFile()&&!link(backglass))row["backglassPath"]=backglass.absoluteFilePath();
+  }
   const auto rom=row.value("rom").toString();if(!rom.isEmpty()&&!romFolder.isEmpty()){
    QFileInfo zip(QDir(romFolder).filePath(rom+".zip"));if(zip.isFile()&&!link(zip))row["romState"]="ready";
   }

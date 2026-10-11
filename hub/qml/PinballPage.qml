@@ -4,16 +4,16 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import AladdinsCastle.Hub
-import "controls"
 Item {
  id:page
  property bool vrOverlayMode:false
  property var scanData:uiController.pinballData
  property var selected:uiController.pinballSelection
  property var rows:scanData.tables||[]
+ function makerOptions(){let result=["All makers"];for(let row of rows)if(row.maker&&result.indexOf(row.maker)<0)result.push(row.maker);return result}
  property var filtered:rows.filter(function(r){
   return (excluded.checked||r.vrReady===true)&&(!query.text||r.title.toLowerCase().indexOf(query.text.toLowerCase())>=0)
-   &&(!maker.text||String(r.maker||"").toLowerCase().indexOf(maker.text.toLowerCase())>=0)
+   &&(maker.currentIndex===0||r.maker===maker.currentText)
    &&(decade.currentText==="All decades"||Math.floor(Number(r.year)/10)*10===Number(decade.currentText))
    &&(type.currentText==="All types"||r.type===type.currentText)
    &&(!ready.checked||r.romState==="ready"||r.romState==="needs no ROM")
@@ -29,12 +29,13 @@ Item {
    PillButton {text:uiController.pinballScanning?"Scanning…":"Scan";vrOverlayMode:page.vrOverlayMode;enabled:!uiController.pinballScanning;onClicked:uiController.scanPinball()}
    PillButton {text:"Database";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballDatabase";file.nameFilters=["JSON (*.json)"];file.open()}}
    PillButton {text:"ROM folder";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballRoms";folder.open()}}
+   PillButton {text:"Media folder";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballMedia";folder.open()}}
   }
   UiText {text:String(page.scanData.vrReady||0)+" VR-ready of "+String(page.scanData.total||0)+" tables"}
   RowLayout {spacing:8
    TextField {id:query;objectName:"pinballSearch";Layout.fillWidth:true;Layout.preferredHeight:page.vrOverlayMode?56:40;placeholderText:"Search tables";Accessible.name:"Search Pinball tables"}
    PillButton {text:"Keyboard";vrOverlayMode:page.vrOverlayMode;visible:page.vrOverlayMode;onClicked:if(typeof overlayHost!=="undefined")overlayHost.requestKeyboard(query)}
-   TextField {id:maker;Layout.preferredWidth:150;Layout.preferredHeight:page.vrOverlayMode?56:40;placeholderText:"Maker"}
+   ComboBox {id:maker;Layout.preferredWidth:150;Layout.preferredHeight:page.vrOverlayMode?56:40;model:page.makerOptions();delegate:ItemDelegate{width:maker.width;height:page.vrOverlayMode?56:40;text:modelData}}
    ComboBox {id:decade;Layout.preferredHeight:page.vrOverlayMode?56:40;model:["All decades","1950","1960","1970","1980","1990","2000","2010","2020"];delegate:ItemDelegate{width:decade.width;height:page.vrOverlayMode?56:40;text:modelData}}
    ComboBox {id:type;Layout.preferredHeight:page.vrOverlayMode?56:40;model:["All types","SS","EM","Original"];delegate:ItemDelegate{width:type.width;height:page.vrOverlayMode?56:40;text:modelData}}
    ComboBox {id:sort;Layout.preferredHeight:page.vrOverlayMode?56:40;model:["Title","Recent"];delegate:ItemDelegate{width:sort.width;height:page.vrOverlayMode?56:40;text:modelData}}
@@ -48,7 +49,7 @@ Item {
   GridView {id:grid;objectName:"pinballGrid";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;cellWidth:Math.max(210,width/Math.max(1,Math.floor(width/210)));cellHeight:196;model:page.filtered;boundsBehavior:Flickable.StopAtBounds
    ScrollBar.vertical:ScrollBar{}
    delegate:Button {objectName:"pinballTile";required property var modelData;width:grid.cellWidth-8;height:grid.cellHeight-8;Accessible.name:modelData.title;onClicked:uiController.selectPinball(modelData.id)
-    contentItem:Column {spacing:8;UiText{width:parent.width;text:modelData.title;wrapMode:Text.Wrap;font.pixelSize:18}UiText{width:parent.width;text:(modelData.maker||"")+" "+(modelData.year||"");wrapMode:Text.Wrap}UiText{width:parent.width;text:modelData.romState;wrapMode:Text.Wrap}}
+    contentItem:Column {spacing:8;Image{width:parent.width;height:visible?64:0;visible:!!modelData.wheelUrl;source:modelData.wheelUrl||"";sourceSize.width:256;sourceSize.height:64;fillMode:Image.PreserveAspectFit}UiText{width:parent.width;text:modelData.title;wrapMode:Text.Wrap;font.pixelSize:18}UiText{width:parent.width;text:(modelData.maker||"")+" "+(modelData.year||"");wrapMode:Text.Wrap}UiText{width:parent.width;text:modelData.romState;wrapMode:Text.Wrap}}
    }
   }
   RowLayout {spacing:8;visible:page.vrOverlayMode
@@ -64,7 +65,10 @@ Item {
    UiText {width:parent.width;wrapMode:Text.Wrap;text:(page.selected.evidence||[]).join(", ")+"\n"+(page.selected.features||[]).join(", ")+"\n"+(page.selected.error||page.selected.romState||"")}
    UiText {width:parent.width;wrapMode:Text.Wrap;text:"Y exits the table. X opens the in-game menu."}
    UiText {width:parent.width;wrapMode:Text.Wrap;text:uiController.pinballControlsStatus;visible:text.length>0}
-   ControlsView {width:parent.width;controlsModel:uiController.pinballControls;visible:controlsModel.rows.length>0;textSize:page.vrOverlayMode?18:14}
+   Loader {width:parent.width;active:uiController.pinballControls.rows.length>0;visible:active;height:item?item.implicitHeight:0;source:"qrc:/controls/ControlsView.qml"
+    onLoaded:{item.width=width;item.controlsModel=uiController.pinballControls;item.textSize=page.vrOverlayMode?18:14}
+    onWidthChanged:if(item)item.width=width
+   }
    Row {spacing:8
     PillButton {text:page.selected.favourite?"Unfavourite":"Favourite";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.favouritePinball()}
     PillButton {text:"Mark VR-ready";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(true)}

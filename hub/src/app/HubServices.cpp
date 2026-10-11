@@ -51,10 +51,10 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         catch(const std::exception &){return QStringList{"Finished media cleanup could not complete; retained files will be retried at the next startup."};}
     }));
     connect(ui_,&UiController::writeConfigRequested,this,[this](const QString &id,const QVariantMap &){ui_->settingsSaved(id);});
-    connect(ui_,&UiController::pinballScanRequested,this,[this](const QString &folder,const QString &database,const QString &roms){
+    connect(ui_,&UiController::pinballScanRequested,this,[this](const QString &folder,const QString &database,const QString &roms,const QString &media){
         auto *watcher=new QFutureWatcher<QVariantMap>(this);
         connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{const auto result=watcher->result();watcher->deleteLater();if(result.contains("error"))ui_->pinballFailed(result["error"].toString());else ui_->pinballLoaded(result);});
-        watcher->setFuture(QtConcurrent::run([folder,database,roms]{try{return pinball::scan(folder,database,roms);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}}));
+        watcher->setFuture(QtConcurrent::run([folder,database,roms,media]{try{return pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}}));
     });
     connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &id){
         try{const auto plan=pinball::launchPlan(table,executable,install::scopedPath("user/pinball/sessions/"+id,root_),true);ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}

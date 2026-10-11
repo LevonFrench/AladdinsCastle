@@ -311,6 +311,12 @@ private slots:
     header.replace(0,6,"SBDE08");save(path,header);QFile file(path);QVERIFY(file.open(QIODevice::ReadWrite));QVERIFY(file.setFileTime(stamp,QFileDevice::FileModificationTime));file.close();
     QCOMPARE(QFileInfo(path).lastModified().toMSecsSinceEpoch(),stamp.toMSecsSinceEpoch());
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::launch::normalizeBindings(source,"synthetic"));
+    // Simulate replacement after request construction, before the actual spawn.
+    ac::launch::Request request;request.root=t.path();request.gameId="synthetic";request.variantId="flat";
+    request.prepareProfile=false;request.plan.executable=QCoreApplication::applicationFilePath();request.plan.cwd=t.path();request.plan.args={"-help"};request.discIdentities[path]="RBUP08";
+    ac::launch::LaunchService service;QSignalSpy started(&service,&ac::launch::LaunchService::started),finished(&service,&ac::launch::LaunchService::finished);
+    service.start(request);QTRY_COMPARE(finished.size(),1);QCOMPARE(started.size(),0);QVERIFY(!service.playing());
+    QVERIFY(finished[0][2].toString().contains("Disc header identity changed"));
   }
   void wbfsHeaderIdentityAndRefusals() {
     QTemporaryDir t; std::atomic_bool stop=false;
