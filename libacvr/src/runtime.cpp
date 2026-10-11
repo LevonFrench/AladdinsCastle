@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include "runtime_host.hpp"
 #include "pose_math.hpp"
+#include "two_hand.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -11,6 +12,9 @@
 #include <string>
 #include <thread>
 #include <tuple>
+#ifdef ACVR_OPENXR_GL
+#include "openxr_gl_host.hpp"
+#endif
 
 namespace {
 template<class T> acvr_result valid(const T *p) {
@@ -103,6 +107,8 @@ struct acvr_runtime {
     acvr_gun_slot_config gun_config{};
     std::array<std::string,5> gun_strings;
     acvr::GunDraw gun_draw;
+    acvr_pose effective_grip{};
+    bool support_grip=false;
     acvr::GunOutputRouter gun_outputs;
     std::unique_ptr<acvr::ControlMapper> mapper;
     std::array<bool,2> mapped_offscreen{};
@@ -335,11 +341,8 @@ acvr_result muzzle_ray(const acvr_pose &grip, const acvr_pose &mount, const floa
     if (!finite(result.origin_scene, 3) || !std::isfinite(result.max_distance_scene)) return ACVR_BAD_ARGUMENT;
     payload(&out, result); return ACVR_OK;
 }
-acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backend_api *api,
-                            std::unique_ptr<Host> host, acvr_runtime **out) {
-    if (!out) return ACVR_BAD_ARGUMENT;
-    *out = nullptr;
-    if (!config || config->size < ACVR_RUNTIME_CONFIG_V1_SIZE || !host) return ACVR_BAD_ARGUMENT;
+acvr_result validate_create_arguments(const acvr_runtime_config *config,const acvr_backend_api *api) {
+    if (!config || config->size < ACVR_RUNTIME_CONFIG_V1_SIZE) return ACVR_BAD_ARGUMENT;
     if (config->version != ACVR_STRUCT_VERSION) return ACVR_BAD_VERSION;
     if (config->size != ACVR_RUNTIME_CONFIG_V1_SIZE && config->size < sizeof(*config)) return ACVR_BAD_ARGUMENT;
     auto result = valid(api); if (result != ACVR_OK) return result;
@@ -350,14 +353,12 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
         config->fallback_aim_distance_m <= 0 || !config->game_id_utf8 || !*config->game_id_utf8 ||
         !std::isfinite(config->requested_refresh_hz) || config->requested_refresh_hz < 0 ||
         (config->anchor_mode != ACVR_ANCHOR_RAIL && config->anchor_mode != ACVR_ANCHOR_COCKPIT)) return ACVR_BAD_ARGUMENT;
-    const bool mapped=config->merged_controls_path_utf8 && *config->merged_controls_path_utf8;
     const bool models=config->size>=sizeof(*config) && config->gun_slot_count;
 #ifndef ACVR_GUN_MODELS
-    if(models||mapped) return ACVR_UNSUPPORTED;
+    if(models||(config->merged_controls_path_utf8&&*config->merged_controls_path_utf8)) return ACVR_UNSUPPORTED;
 #else
-    if(mapped&&!host->supports_controller_samples()) return ACVR_UNSUPPORTED;
     if(models) {
-        if(config->gun_slot_count!=1 || !host->supports_guns()) return ACVR_UNSUPPORTED;
+        if(config->gun_slot_count!=1) return ACVR_UNSUPPORTED;
         if(!array_ok(config->gun_slots,config->gun_slot_count,config->gun_slot_stride)) return ACVR_BAD_ARGUMENT;
         const auto &slot=*config->gun_slots; const auto &policy=config->gun_policy;
         if(valid(&slot)!=ACVR_OK || slot.size>config->gun_slot_stride || slot.slot!=0 || slot.hand>ACVR_HAND_LEFT ||
@@ -370,6 +371,20 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
         for(unsigned i=0;i<4;++i) if(!std::isfinite(slot.body_rgba[i])||slot.body_rgba[i]<0||slot.body_rgba[i]>1||
             !std::isfinite(slot.accent_rgba[i])||slot.accent_rgba[i]<0||slot.accent_rgba[i]>1) return ACVR_BAD_ARGUMENT;
     }
+#endif
+    return ACVR_OK;
+}
+acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backend_api *api,
+                            std::unique_ptr<Host> host, acvr_runtime **out) {
+    if (!out) return ACVR_BAD_ARGUMENT;
+    *out = nullptr;
+    auto result=validate_create_arguments(config,api);if(result!=ACVR_OK)return result;
+    if(!host)return ACVR_BAD_ARGUMENT;
+#ifdef ACVR_GUN_MODELS
+    const bool mapped=config->merged_controls_path_utf8 && *config->merged_controls_path_utf8;
+    const bool models=config->size>=sizeof(*config) && config->gun_slot_count;
+    if(mapped&&!host->supports_controller_samples()) return ACVR_UNSUPPORTED;
+    if(models&&!host->supports_guns())return ACVR_UNSUPPORTED;
 #endif
     try {
         auto r = std::make_unique<acvr_runtime>(); r->api = *api; r->host = std::move(host);
@@ -396,8 +411,17 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
         r->options = config->backend_options_utf8 ? config->backend_options_utf8 : "";
         auto open = init<acvr_open_info>(); open.graphics = graphics; open.game_id_utf8 = r->game.c_str();
         open.content_root_utf8 = r->content.c_str(); open.storage_root_utf8 = r->storage.c_str(); open.backend_options_utf8 = r->options.c_str();
-        result = api->game_open(&open, &r->backend, &r->info);
-        if (result != ACVR_OK) { if (r->backend) api->game_close(r->backend); return result; }
+        result=r->host->activate();if(result!=ACVR_OK)return result;
+        try {result = api->game_open(&open, &r->backend, &r->info);}
+        catch (...) {
+            if (r->backend) api->game_close(r->backend);
+            r->host->deactivate();throw;
+        }
+        if (result != ACVR_OK) {
+            if (r->backend) api->game_close(r->backend);
+            r->host->deactivate();return result;
+        }
+        r->host->deactivate();
         // Any failure after open must close even if vector allocation throws.
         acvr_runtime *raw = r.release();
         try {
@@ -472,17 +496,35 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
 }
 
 extern "C" {
-acvr_result ACVR_CALL acvr_runtime_create(const acvr_runtime_config *, const acvr_backend_api *, acvr_runtime **out) {
+acvr_result ACVR_CALL acvr_runtime_create(const acvr_runtime_config *config, const acvr_backend_api *api, acvr_runtime **out) {
     if (!out) return ACVR_BAD_ARGUMENT;
-    *out = nullptr; return ACVR_UNSUPPORTED; // OpenXR provider not linked yet.
+    *out = nullptr;
+#ifdef ACVR_OPENXR_GL
+    const auto preflight=acvr::validate_create_arguments(config,api);
+    if(preflight!=ACVR_OK)return preflight;
+    if(config->graphics_api!=ACVR_GRAPHICS_GL||!(api->supported_graphics&ACVR_GRAPHICS_BIT(ACVR_GRAPHICS_GL)))return ACVR_UNSUPPORTED;
+    std::unique_ptr<acvr::Host> host;
+    const char *model_id=nullptr;
+#ifdef ACVR_GUN_MODELS
+    if(config->gun_slot_count)model_id=config->gun_slots[0].model_id_utf8;
+#endif
+    const auto result = acvr::make_openxr_gl_host(config->game_id_utf8,config->content_root_utf8,model_id,host);
+    return result == ACVR_OK ? acvr::create_with_host(config, api, std::move(host), out) : result;
+#else
+    (void)config; (void)api; return ACVR_UNSUPPORTED;
+#endif
 }
 acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
     if (!r) return ACVR_BAD_ARGUMENT;
     if (!r->owns_thread() || r->failed) return ACVR_BAD_STATE;
+    const auto activation=r->host->activate();
+    if(activation!=ACVR_OK)return activation;
+    struct ContextScope {acvr::Host *host;~ContextScope(){host->deactivate();}} context{r->host.get()};
     bool begun = false;
     try {
         acvr::Display d;
         auto result = r->host->begin(d);
+        if (result == ACVR_MORE || result == ACVR_STOPPED) return result;
         if (result != ACVR_OK) { r->failed = true; r->pause(true); r->host->cancel_effects(); return result; }
         begun = true; ++r->display_id;
         const auto finish = [&](acvr_result value, bool rendered) {
@@ -520,6 +562,26 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                     else if(!d.trigger[h]) r->switch_armed[h]=true;
                 }
                 const auto &h=r->hand(d,0); r->gun_tracked=r->tracked(h);
+                r->support_grip=false;
+                if(r->gun_tracked) {
+                    r->effective_grip=h.grip;
+                    const uint32_t off_hand=1-r->gun_hand;
+                    const auto &off=off_hand==ACVR_HAND_RIGHT?d.tracking.right:d.tracking.left;
+                    const auto &asset=r->gun_model->model.asset;
+                    const auto &nodes=asset.nodes;
+                    const auto primary=r->host->primary_anchor_mount(r->gun_hand);
+                    const auto support=r->host->support_anchor_mount(r->gun_hand);
+                    const auto second=std::find_if(nodes.begin(),nodes.end(),[&](const acvr::GunNode &n){
+                        return !support.node.empty()&&n.name==support.node;
+                    });
+                    if(second!=nodes.end() && (off.grip_flags&3u)==3u && pose_ok(off.grip) &&
+                       d.controllers[off_hand].grip>=.55f) {
+                        std::array<float,3> local{};
+                        if(primary.node.empty()||!acvr::gun_relative_mount_position(asset,primary,support,local))
+                            return finish(ACVR_BAD_ARGUMENT,false);
+                        r->support_grip=acvr::solve_two_hand_grip(h.grip,off.grip,r->gun_config.angle_xyzw,local,.18f,r->effective_grip);
+                    }
+                }
                 if(!r->gun_tracked) {r->gun_model->clear_motion();r->gun_outputs.cancel();r->host->cancel_effects();}
             }
             acvr::MappedControls mapped_controls;
@@ -547,8 +609,11 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 const bool trigger=r->mapper?(mapped_controls.trigger[0]||mapped_controls.trigger_press[0]):d.trigger[r->gun_hand];
                 result=r->gun_outputs.owns_trigger()?ACVR_OK:r->gun_model->drive("trigger",trigger?1.f:0.f,false,now);
                 if(result!=ACVR_OK) return finish(result,false);
-                result=r->gun_model->draw(d.scene_from_stage,r->hand(d,0).grip,r->gun_config,r->info.scene_units_per_metre,r->fallback_m,now,r->gun_draw);
+                const auto primary=r->host->primary_anchor_mount(r->gun_hand);
+                if(primary.node.empty())return finish(ACVR_BAD_ARGUMENT,false);
+                result=r->gun_model->draw(d.scene_from_stage,r->effective_grip,r->gun_config,r->info.scene_units_per_metre,r->fallback_m,now,r->gun_draw,primary);
                 if(result!=ACVR_OK) return finish(result,false);
+                r->gun_draw.support_grip=r->support_grip;
             }
 #endif
             std::map<Key, bool> seen_axes, seen_buttons;
@@ -607,8 +672,11 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
         // Refresh once after native outputs/fallback pulses, then share exactly
         // the same model state between eyes. Neither draw may advance motion.
         if(draw && r->gun_model && r->gun_tracked) {
-            result=r->gun_model->draw(d.scene_from_stage,r->hand(d,0).grip,r->gun_config,r->info.scene_units_per_metre,r->fallback_m,now,r->gun_draw);
+            const auto primary=r->host->primary_anchor_mount(r->gun_hand);
+            if(primary.node.empty())return finish(ACVR_BAD_ARGUMENT,false);
+            result=r->gun_model->draw(d.scene_from_stage,r->effective_grip,r->gun_config,r->info.scene_units_per_metre,r->fallback_m,now,r->gun_draw,primary);
             if(result!=ACVR_OK) return finish(result,false);
+            r->gun_draw.support_grip=r->support_grip;
         }
 #endif
         if (draw) for (unsigned eye = 0; eye < 2; ++eye) {
@@ -641,8 +709,11 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
 acvr_result ACVR_CALL acvr_runtime_set_paused(acvr_runtime *r, uint32_t paused) {
     if (!r || paused > 1) return ACVR_BAD_ARGUMENT;
     if (!r->owns_thread() || r->failed) return ACVR_BAD_STATE;
-    r->user_paused = paused != 0;
-    return paused ? r->pause(true) : ACVR_OK; // resume only after next valid focused pose
+    if(!paused){r->user_paused=false;return ACVR_OK;} // resume only after next valid focused pose
+    const auto activation=r->host->activate();if(activation!=ACVR_OK)return activation;
+    struct ContextScope {acvr::Host *host;~ContextScope(){host->deactivate();}} context{r->host.get()};
+    r->user_paused=true;
+    return r->pause(true);
 }
 acvr_result ACVR_CALL acvr_runtime_get_tracking(acvr_runtime *r, acvr_tracking *out) {
     if (!r) return ACVR_BAD_ARGUMENT;
@@ -676,16 +747,18 @@ acvr_result ACVR_CALL acvr_runtime_gun_event(acvr_runtime *r, const acvr_gun_eve
 acvr_result ACVR_CALL acvr_runtime_destroy(acvr_runtime *r) {
     if (!r) return ACVR_OK;
     if (!r->owns_thread()) return ACVR_BAD_STATE;
-    acvr_result result = ACVR_OK;
+    acvr_result result = r->host->activate();
     r->host->cancel_effects();
     if (r->backend) {
-        result = r->api.game_pause(r->backend, 1);
+        const auto paused=r->api.game_pause(r->backend, 1);
+        if(result==ACVR_OK)result=paused;
         r->release();
         if ((r->info.capabilities & ACVR_CAP_PERSISTENCE) && r->api.game_flush_persistent) {
             const auto saved = r->api.game_flush_persistent(r->backend); if (result == ACVR_OK) result = saved;
         }
         r->api.game_close(r->backend);
     }
+    r->host->deactivate();
     delete r; return result;
 }
 }

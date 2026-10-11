@@ -18,11 +18,20 @@ struct GunModel {
     GunAsset asset;
     std::vector<GunMotion> motions;
 };
+struct GunMount {
+    std::string_view node;
+    std::array<float,3> translation{};
+    std::array<float,4> rotation_xyzw{0,0,0,1};
+};
 // Native metadata/model preparation. No graphics. Output is atomic on failure.
 bool decode_gun_model(const std::vector<uint8_t> &glb, std::string_view metadata,
                       std::string_view expected_id, GunModel &, std::string &error) noexcept;
 bool load_gun_model(const std::string &model_path, const std::string &metadata_path,
                     std::string_view expected_id, GunModel &, std::string &error) noexcept;
+bool gun_relative_node_position(const GunAsset &,std::string_view primary,
+                                std::string_view support,std::array<float,3> &out) noexcept;
+bool gun_relative_mount_position(const GunAsset &,const GunMount &primary,
+                                 const GunMount &support,std::array<float,3> &out) noexcept;
 
 struct GunDraw {
     const GunAsset *asset=nullptr; // borrowed until draw returns
@@ -31,6 +40,7 @@ struct GunDraw {
     acvr_ray muzzle{}; // bind pose, independent of animated node transforms
     uint32_t lod=0, slot=0, hand=0, laser_mode=0;
     bool visible=true;
+    bool support_grip=false; // authored second grip physically captured this frame
 };
 class GunInstance {
 public:
@@ -46,7 +56,7 @@ public:
     acvr_result pulse_motion(std::string_view id, float value, uint32_t duration_ms, int64_t now_ns);
     acvr_result draw(const acvr_pose &scene_from_stage, const acvr_pose &grip,
                      const acvr_gun_slot_config &, float scale, float distance,
-                     int64_t now_ns, GunDraw &) const;
+                     int64_t now_ns, GunDraw &,GunMount primary_mount={}) const;
 private:
     struct MotionState { float value=0; int64_t start=0, duration=0; bool pulse=false; };
     std::vector<MotionState> states;

@@ -2,9 +2,10 @@
 
 The MIT library now implements the common frame loop behind the published C
 exports. `src/runtime_host.hpp` is a private C++ platform boundary, not a second
-public ABI. A recorded host drives tests; a production OpenXR host is still
-required. Public `acvr_runtime_create` returns `ACVR_UNSUPPORTED` and clears its
-output until that host exists. No test starts a graphics device or XR runtime.
+public ABI. A recorded host drives the CPU tests. The optional Windows OpenXR
+desktop-GL host implements public `acvr_runtime_create`; the default build still
+returns `ACVR_UNSUPPORTED` with a cleared output. CPU tests do not start a graphics
+device or XR runtime. Native room runs and headset acceptance are separate gates.
 
 ## Implemented
 
@@ -166,19 +167,23 @@ open. The controls data version stays 0.1; no public ABI layout changed.
 
 ## Explicitly incomplete
 
-No OpenXR loader/session/swapchains, Vulkan/GL device provider,
-recenter/height/pause overlay, or real backend
-integration exists yet. The core rejects unsupported provider controls requests,
+The optional Windows desktop-GL provider supplies loader/session/swapchain and
+device lifecycle for the synthetic gun room, with authored gun/hand overlays,
+two-hand aiming and bounded eye readback. It uses existing headers and an existing
+loader/runtime, with no build-time fetch. See `tools/gun-room/README.md` for the
+opt-in build and evidence limits. Vulkan, other platform providers, a complete
+recenter/height/pause UI and real-game backend integration remain open.
+The core rejects unsupported provider controls requests,
 multiple-gun or separate-HUD backends instead of ignoring those requirements.
 Builds without the optional model dependencies reject configured model slots.
 The internal host supplies already composed eye matrices and receives scene
-scale/anchor configuration; the production provider must implement that math
-and device lifecycle. The recorded host does not establish graphics correctness.
+scale/anchor configuration. The recorded host does not establish graphics correctness.
 Two-gun join policy, complete control-data support and verified real output mappings, haptics and
 distance-based LOD selection remain required next slices. Explicit preview
 events are not proof that real-game recoil outputs have been mapped.
-The optional GL gun renderer now compiles and passes mock-dispatch checks;
-it is not yet wired to a production provider or accepted on the GPU. Its
+The optional GL gun renderer compiles, passes mock-dispatch checks and is wired
+to the Windows provider. Native hand appearance and physical fit require their
+own runtime and owner evidence. Its
 restrictions and manual synthetic test gate are in `docs/libacvr-gun-gl.md`.
 
 ## Checks
