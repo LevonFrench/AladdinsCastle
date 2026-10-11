@@ -1,0 +1,4094 @@
+{
+  "version": "0.1",
+  "baseline_only": true,
+  "games": [
+    {
+      "game_id": "wii-dead-space-extraction",
+      "model": "generic-pistol",
+      "model_provenance": "Wii initial world-gun default",
+      "shape_review": false,
+      "control_set": "wii-dead-space-extraction-controls",
+      "layers": [
+        "data/controls/wii/remote-nunchuk.toml",
+        "data/controls/wii/games/wii-dead-space-extraction.toml"
+      ],
+      "data": {
+        "version": "0.1",
+        "family": "wii",
+        "id": "wii-dead-space-extraction-controls",
+        "title": "Dead Space: Extraction controls",
+        "gun_model": "generic-pistol",
+        "element": [
+          {
+            "id": "p1-aim",
+            "part": "Remote IR sensor",
+            "label": "Aim: point the gun",
+            "target": "right_stick",
+            "role": "remote",
+            "node": "muzzle",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "pointer",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "right_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-fire",
+            "part": "Remote B trigger",
+            "label": "Fire",
+            "target": "r2",
+            "role": "remote",
+            "node": "pivot_trigger",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "trigger",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "r2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-interact",
+            "part": "Remote A button",
+            "label": "Remote A game action",
+            "target": "cross",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "primary",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "cross"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-z",
+            "part": "Nunchuk Z button",
+            "label": "Nunchuk Z game action",
+            "target": "l2",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "grip",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "l2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-c",
+            "part": "Nunchuk C button",
+            "label": "Nunchuk C game action",
+            "target": "circle",
+            "role": "nunchuk",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "secondary",
+              "mode": "press",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "circle"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-stick",
+            "part": "Nunchuk stick",
+            "label": "Look / game navigation",
+            "target": "left_stick",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "left_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
+            "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
+            "part": "Remote + button",
+            "label": "+: game menu / command",
+            "target": "options",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "menu",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "options"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Touch right system button is not an application menu input on this rig; fallback choice is pending"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
+            "part": "Remote directional pad",
+            "label": "Directional game commands",
+            "target": "dpad",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "dpad",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "dpad"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-minus",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote - button",
+            "label": "-: game command",
+            "target": "share",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_minus",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "share"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote minus / DSU Share"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-one",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 1 button",
+            "label": "1: game command",
+            "target": "square",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_one",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "square"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 1 / DSU Square"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-two",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 2 button",
+            "label": "2: game command",
+            "target": "triangle",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_two",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "triangle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 2 / DSU Triangle"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-motion",
+            "part": "Remote accelerometer and gyro",
+            "label": "Move / shake / swing the gun",
+            "target": "accelerometer_gyro",
+            "role": "remote",
+            "node": "grip",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "remote_motion",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "accelerometer_gyro"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-nunchuk-motion",
+            "part": "Nunchuk accelerometer",
+            "label": "Move the Nunchuk hand",
+            "target": "nunchuk_acceleration",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "nunchuk_motion",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "nunchuk_acceleration"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-reload-fallback",
+            "fallback_player": 0,
+            "part": "Seated reload button",
+            "label": "Seated reload (player 1 only)",
+            "target": "inject_remote_shake",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "reload_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_shake"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-melee-fallback",
+            "fallback_player": 0,
+            "part": "Seated melee button",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
+            "target": "inject_remote_swing",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "melee_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_swing"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-laser",
+            "player_reason": "Visible laser is not available yet.",
+            "part": "Gun laser",
+            "label": "Toggle laser",
+            "target": "laser_toggle",
+            "role": "local",
+            "node": "fx_laser",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "laser_toggle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Visible laser toggle is not implemented by the current bridge"
+            }
+          }
+        ],
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "on_join",
+          "supported_primary_hands": [
+            "right"
+          ],
+          "nunchuk_hand_by_mode": {
+            "one_gun": "other",
+            "two_remotes": "same"
+          },
+          "custom_setup": false
+        },
+        "transport": {
+          "server_description": "AladdinsCastle",
+          "slots": [
+            "right",
+            "left"
+          ],
+          "pointer": "right_stick",
+          "nunchuk_stick": "left_stick",
+          "acceleration_units": "g",
+          "gyro_units": "degrees_per_second",
+          "motion_input": true,
+          "shake_binding": false,
+          "swing_binding": false,
+          "pointer_relative": false,
+          "pointer_auto_hide": false,
+          "rumble": false,
+          "pointer_steps": 256
+        },
+        "questions": [
+          "Confirm reload timing, kinesis, stasis, alternate fire and glow-worm motions in the game.",
+          "Seated R/V waveforms need game-specific tuning; they are not alternate-fire or stasis buttons."
+        ],
+        "sources": [
+          "docs/tasks/m2/W-wii-chronicles.md",
+          "docs/tasks/m2/R1-redirect.md"
+        ],
+        "custom_setup": false,
+        "game_profile": "Remote and Nunchuk",
+        "instruction": "Physical gun tilt, swing and shake pass through as full motion; follow game prompts."
+      },
+      "model_metadata": {
+        "id": "generic-pistol",
+        "name": "Plain arcade pistol",
+        "family": "generic",
+        "hold": "one-hand",
+        "tier": 1,
+        "model": "assets/guns/generic-pistol.glb",
+        "source": "assets/guns/src/generic-pistol.py",
+        "resembles": "Nothing in particular: the fallback when a game has no better match",
+        "shape": "Compact semi-automatic outline with a thick grip and a short flat-topped barrel.",
+        "length_mm": 230,
+        "features": [
+          "laser"
+        ],
+        "tints": {
+          "default": "red",
+          "p1": "red",
+          "p2": "blue",
+          "red": {
+            "body": "#c8322b",
+            "accent": "#1c1c20"
+          },
+          "blue": {
+            "body": "#2f6fd6",
+            "accent": "#1c1c20"
+          },
+          "grey": {
+            "body": "#8a8d93",
+            "accent": "#1c1c20"
+          }
+        },
+        "motion": {
+          "trigger": {
+            "node": "pivot_trigger",
+            "kind": "rotate",
+            "axis": [
+              -1,
+              0,
+              0
+            ],
+            "range": [
+              0,
+              0.35
+            ],
+            "drive": "trigger",
+            "lod_nodes": [
+              "pivot_trigger",
+              "pivot_trigger_lod1"
+            ]
+          }
+        }
+      },
+      "two_gun_eligible": false,
+      "separate_views": false,
+      "configured_slots": 1,
+      "declared_active_slots": 0,
+      "node_validation": "not-decoded",
+      "gaps": [
+        {
+          "category": "runtime-acceptance",
+          "id": "wii-input",
+          "reason": "Dolphin and headset acceptance are separate from this mapping"
+        }
+      ]
+    },
+    {
+      "game_id": "wii-house-of-the-dead-overkill",
+      "model": "generic-pistol",
+      "model_provenance": "Wii initial world-gun default",
+      "shape_review": false,
+      "control_set": "wii-house-of-the-dead-overkill-controls",
+      "layers": [
+        "data/controls/wii/remote-nunchuk.toml",
+        "data/controls/wii/games/wii-house-of-the-dead-overkill.toml"
+      ],
+      "data": {
+        "version": "0.1",
+        "family": "wii",
+        "id": "wii-house-of-the-dead-overkill-controls",
+        "title": "The House of the Dead: Overkill controls",
+        "gun_model": "generic-pistol",
+        "element": [
+          {
+            "id": "p1-aim",
+            "part": "Remote IR sensor",
+            "label": "Aim: point the gun",
+            "target": "right_stick",
+            "role": "remote",
+            "node": "muzzle",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "pointer",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "right_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-fire",
+            "part": "Remote B trigger",
+            "label": "Fire",
+            "target": "r2",
+            "role": "remote",
+            "node": "pivot_trigger",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "trigger",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "r2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-interact",
+            "part": "Remote A button",
+            "label": "Remote A game action",
+            "target": "cross",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "primary",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "cross"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-z",
+            "part": "Nunchuk Z button",
+            "label": "Nunchuk Z game action",
+            "target": "l2",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "grip",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "l2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-c",
+            "part": "Nunchuk C button",
+            "label": "Nunchuk C game action",
+            "target": "circle",
+            "role": "nunchuk",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "secondary",
+              "mode": "press",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "circle"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-stick",
+            "part": "Nunchuk stick",
+            "label": "Look / game navigation",
+            "target": "left_stick",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "left_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
+            "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
+            "part": "Remote + button",
+            "label": "+: game menu / command",
+            "target": "options",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "menu",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "options"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Touch right system button is not an application menu input on this rig; fallback choice is pending"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
+            "part": "Remote directional pad",
+            "label": "Directional game commands",
+            "target": "dpad",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "dpad",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "dpad"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-minus",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote - button",
+            "label": "-: game command",
+            "target": "share",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_minus",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "share"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote minus / DSU Share"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-one",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 1 button",
+            "label": "1: game command",
+            "target": "square",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_one",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "square"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 1 / DSU Square"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-two",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 2 button",
+            "label": "2: game command",
+            "target": "triangle",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_two",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "triangle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 2 / DSU Triangle"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-motion",
+            "part": "Remote accelerometer and gyro",
+            "label": "Move / shake / swing the gun",
+            "target": "accelerometer_gyro",
+            "role": "remote",
+            "node": "grip",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "remote_motion",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "accelerometer_gyro"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-nunchuk-motion",
+            "part": "Nunchuk accelerometer",
+            "label": "Move the Nunchuk hand",
+            "target": "nunchuk_acceleration",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "nunchuk_motion",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "nunchuk_acceleration"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-reload-fallback",
+            "fallback_player": 0,
+            "part": "Seated reload button",
+            "label": "Seated reload (player 1 only)",
+            "target": "inject_remote_shake",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "reload_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_shake"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-melee-fallback",
+            "fallback_player": 0,
+            "part": "Seated melee button",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
+            "target": "inject_remote_swing",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "melee_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_swing"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-laser",
+            "player_reason": "Visible laser is not available yet.",
+            "part": "Gun laser",
+            "label": "Toggle laser",
+            "target": "laser_toggle",
+            "role": "local",
+            "node": "fx_laser",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "laser_toggle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Visible laser toggle is not implemented by the current bridge"
+            }
+          },
+          {
+            "id": "p2-aim",
+            "part": "Remote IR sensor",
+            "label": "Aim: point the gun",
+            "target": "right_stick",
+            "role": "remote",
+            "node": "muzzle",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "pointer",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "right_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p2-fire",
+            "part": "Remote B trigger",
+            "label": "Fire",
+            "target": "r2",
+            "role": "remote",
+            "node": "pivot_trigger",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "trigger",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "r2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p2-interact",
+            "part": "Remote A button",
+            "label": "Remote A game action",
+            "target": "cross",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "primary",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "cross"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-z",
+            "part": "Nunchuk Z button",
+            "label": "Nunchuk Z game action",
+            "target": "l2",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "grip",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "l2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-c",
+            "part": "Nunchuk C button",
+            "label": "Nunchuk C game action",
+            "target": "circle",
+            "role": "nunchuk",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "secondary",
+              "mode": "press",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "circle"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-stick",
+            "part": "Nunchuk stick",
+            "label": "Look / game navigation",
+            "target": "left_stick",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "left_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
+            "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
+            "part": "Remote + button",
+            "label": "+: game menu / command",
+            "target": "options",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "menu",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "options"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Touch right system button is not an application menu input on this rig; fallback choice is pending"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
+            "part": "Remote directional pad",
+            "label": "Directional game commands",
+            "target": "dpad",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "dpad",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "dpad"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-minus",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote - button",
+            "label": "-: game command",
+            "target": "share",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_minus",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "share"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote minus / DSU Share"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-one",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 1 button",
+            "label": "1: game command",
+            "target": "square",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_one",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "square"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 1 / DSU Square"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-two",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 2 button",
+            "label": "2: game command",
+            "target": "triangle",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_two",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "triangle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 2 / DSU Triangle"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-motion",
+            "part": "Remote accelerometer and gyro",
+            "label": "Move / shake / swing the gun",
+            "target": "accelerometer_gyro",
+            "role": "remote",
+            "node": "grip",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "remote_motion",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "accelerometer_gyro"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p2-nunchuk-motion",
+            "part": "Nunchuk accelerometer",
+            "label": "Move the Nunchuk hand",
+            "target": "nunchuk_acceleration",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "nunchuk_motion",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "nunchuk_acceleration"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-reload-fallback",
+            "fallback_player": 0,
+            "part": "Seated reload button",
+            "label": "Seated reload (player 1 only)",
+            "target": "inject_remote_shake",
+            "role": "local",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "reload_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_shake"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
+            },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
+            "node": ""
+          },
+          {
+            "id": "p2-melee-fallback",
+            "fallback_player": 0,
+            "part": "Seated melee button",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
+            "target": "inject_remote_swing",
+            "role": "local",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "melee_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_swing"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
+            },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
+            "node": ""
+          },
+          {
+            "id": "p2-laser",
+            "player_reason": "Visible laser is not available yet.",
+            "part": "Gun laser",
+            "label": "Toggle laser",
+            "target": "laser_toggle",
+            "role": "local",
+            "node": "fx_laser",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "laser_toggle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Visible laser toggle is not implemented by the current bridge"
+            }
+          }
+        ],
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "on_join",
+          "supported_primary_hands": [
+            "right"
+          ],
+          "nunchuk_hand_by_mode": {
+            "one_gun": "other",
+            "two_remotes": "same"
+          },
+          "custom_setup": false
+        },
+        "transport": {
+          "server_description": "AladdinsCastle",
+          "slots": [
+            "right",
+            "left"
+          ],
+          "pointer": "right_stick",
+          "nunchuk_stick": "left_stick",
+          "acceleration_units": "g",
+          "gyro_units": "degrees_per_second",
+          "motion_input": true,
+          "shake_binding": false,
+          "swing_binding": false,
+          "pointer_relative": false,
+          "pointer_auto_hide": false,
+          "rumble": false,
+          "pointer_steps": 256
+        },
+        "questions": [
+          "Confirm A reload, Z weapon switch, C grenade and danger-camera stick in the chosen layout.",
+          "Confirm the Remote plus/minus actions before assigning a gameplay label."
+        ],
+        "sources": [
+          "docs/tasks/m2/W-wii-chronicles.md",
+          "docs/tasks/m2/R1-redirect.md"
+        ],
+        "custom_setup": false,
+        "game_profile": "Remote and Nunchuk",
+        "instruction": "Use the game Nunchuk / Zapper layout when testing this mapping."
+      },
+      "model_metadata": {
+        "id": "generic-pistol",
+        "name": "Plain arcade pistol",
+        "family": "generic",
+        "hold": "one-hand",
+        "tier": 1,
+        "model": "assets/guns/generic-pistol.glb",
+        "source": "assets/guns/src/generic-pistol.py",
+        "resembles": "Nothing in particular: the fallback when a game has no better match",
+        "shape": "Compact semi-automatic outline with a thick grip and a short flat-topped barrel.",
+        "length_mm": 230,
+        "features": [
+          "laser"
+        ],
+        "tints": {
+          "default": "red",
+          "p1": "red",
+          "p2": "blue",
+          "red": {
+            "body": "#c8322b",
+            "accent": "#1c1c20"
+          },
+          "blue": {
+            "body": "#2f6fd6",
+            "accent": "#1c1c20"
+          },
+          "grey": {
+            "body": "#8a8d93",
+            "accent": "#1c1c20"
+          }
+        },
+        "motion": {
+          "trigger": {
+            "node": "pivot_trigger",
+            "kind": "rotate",
+            "axis": [
+              -1,
+              0,
+              0
+            ],
+            "range": [
+              0,
+              0.35
+            ],
+            "drive": "trigger",
+            "lod_nodes": [
+              "pivot_trigger",
+              "pivot_trigger_lod1"
+            ]
+          }
+        }
+      },
+      "two_gun_eligible": true,
+      "separate_views": false,
+      "configured_slots": 2,
+      "declared_active_slots": 0,
+      "node_validation": "not-decoded",
+      "gaps": [
+        {
+          "category": "runtime-acceptance",
+          "id": "wii-input",
+          "reason": "Dolphin and headset acceptance are separate from this mapping"
+        }
+      ]
+    },
+    {
+      "game_id": "wii-resident-evil-darkside-chronicles",
+      "model": "generic-pistol",
+      "model_provenance": "Wii initial world-gun default",
+      "shape_review": false,
+      "control_set": "wii-resident-evil-darkside-chronicles-controls",
+      "layers": [
+        "data/controls/wii/remote-nunchuk.toml",
+        "data/controls/wii/games/wii-resident-evil-darkside-chronicles.toml"
+      ],
+      "data": {
+        "version": "0.1",
+        "family": "wii",
+        "id": "wii-resident-evil-darkside-chronicles-controls",
+        "title": "Resident Evil: The Darkside Chronicles controls",
+        "gun_model": "generic-pistol",
+        "element": [
+          {
+            "id": "p1-aim",
+            "part": "Remote IR sensor",
+            "label": "Aim: point the gun",
+            "target": "right_stick",
+            "role": "remote",
+            "node": "muzzle",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "pointer",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "right_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-fire",
+            "part": "Remote B trigger",
+            "label": "Fire",
+            "target": "r2",
+            "role": "remote",
+            "node": "pivot_trigger",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "trigger",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "r2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-interact",
+            "part": "Remote A button",
+            "label": "Pick up / interact: press A / X",
+            "target": "cross",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "primary",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "cross"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-z",
+            "part": "Nunchuk Z button",
+            "label": "Z: context action",
+            "target": "l2",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "grip",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "l2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-c",
+            "part": "Nunchuk C button",
+            "label": "C: context action",
+            "target": "circle",
+            "role": "nunchuk",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "secondary",
+              "mode": "press",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "circle"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-stick",
+            "part": "Nunchuk stick",
+            "label": "Select weapon / navigate",
+            "target": "left_stick",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "left_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
+            "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
+            "part": "Remote + button",
+            "label": "+: game menu / command",
+            "target": "options",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "menu",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "options"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Touch right system button is not an application menu input on this rig; fallback choice is pending"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
+            "part": "Remote directional pad",
+            "label": "Select weapon / directional commands",
+            "target": "dpad",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "dpad",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "dpad"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-minus",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote - button",
+            "label": "-: game command",
+            "target": "share",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_minus",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "share"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote minus / DSU Share"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-one",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 1 button",
+            "label": "1: game command",
+            "target": "square",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_one",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "square"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 1 / DSU Square"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-two",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 2 button",
+            "label": "2: game command",
+            "target": "triangle",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_two",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "triangle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 2 / DSU Triangle"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-motion",
+            "part": "Remote accelerometer and gyro",
+            "label": "Move / shake / swing the gun",
+            "target": "accelerometer_gyro",
+            "role": "remote",
+            "node": "grip",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "remote_motion",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "accelerometer_gyro"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-nunchuk-motion",
+            "part": "Nunchuk accelerometer",
+            "label": "Move the Nunchuk hand",
+            "target": "nunchuk_acceleration",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "nunchuk_motion",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "nunchuk_acceleration"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-reload-fallback",
+            "fallback_player": 0,
+            "part": "Seated reload button",
+            "label": "Seated reload (player 1 only)",
+            "target": "inject_remote_shake",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "reload_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_shake"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-melee-fallback",
+            "fallback_player": 0,
+            "part": "Seated melee button",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
+            "target": "inject_remote_swing",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "melee_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_swing"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-laser",
+            "player_reason": "Visible laser is not available yet.",
+            "part": "Gun laser",
+            "label": "Toggle laser",
+            "target": "laser_toggle",
+            "role": "local",
+            "node": "fx_laser",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "laser_toggle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Visible laser toggle is not implemented by the current bridge"
+            }
+          },
+          {
+            "id": "p2-aim",
+            "part": "Remote IR sensor",
+            "label": "Aim: point the gun",
+            "target": "right_stick",
+            "role": "remote",
+            "node": "muzzle",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "pointer",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "right_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p2-fire",
+            "part": "Remote B trigger",
+            "label": "Fire",
+            "target": "r2",
+            "role": "remote",
+            "node": "pivot_trigger",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "trigger",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "r2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p2-interact",
+            "part": "Remote A button",
+            "label": "Pick up / interact: press A / X",
+            "target": "cross",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "primary",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "cross"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-z",
+            "part": "Nunchuk Z button",
+            "label": "Z: context action",
+            "target": "l2",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "grip",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "l2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-c",
+            "part": "Nunchuk C button",
+            "label": "C: context action",
+            "target": "circle",
+            "role": "nunchuk",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "secondary",
+              "mode": "press",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "circle"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-stick",
+            "part": "Nunchuk stick",
+            "label": "Select weapon / navigate",
+            "target": "left_stick",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "left_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
+            "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
+            "part": "Remote + button",
+            "label": "+: game menu / command",
+            "target": "options",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "menu",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "options"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Touch right system button is not an application menu input on this rig; fallback choice is pending"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
+            "part": "Remote directional pad",
+            "label": "Select weapon / directional commands",
+            "target": "dpad",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "dpad",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "dpad"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-minus",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote - button",
+            "label": "-: game command",
+            "target": "share",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_minus",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "share"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote minus / DSU Share"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-one",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 1 button",
+            "label": "1: game command",
+            "target": "square",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_one",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "square"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 1 / DSU Square"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-two",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 2 button",
+            "label": "2: game command",
+            "target": "triangle",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_two",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "triangle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 2 / DSU Triangle"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-motion",
+            "part": "Remote accelerometer and gyro",
+            "label": "Move / shake / swing the gun",
+            "target": "accelerometer_gyro",
+            "role": "remote",
+            "node": "grip",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "remote_motion",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "accelerometer_gyro"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p2-nunchuk-motion",
+            "part": "Nunchuk accelerometer",
+            "label": "Move the Nunchuk hand",
+            "target": "nunchuk_acceleration",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "nunchuk_motion",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "nunchuk_acceleration"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-reload-fallback",
+            "fallback_player": 0,
+            "part": "Seated reload button",
+            "label": "Seated reload (player 1 only)",
+            "target": "inject_remote_shake",
+            "role": "local",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "reload_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_shake"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
+            },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
+            "node": ""
+          },
+          {
+            "id": "p2-melee-fallback",
+            "fallback_player": 0,
+            "part": "Seated melee button",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
+            "target": "inject_remote_swing",
+            "role": "local",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "melee_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_swing"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
+            },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
+            "node": ""
+          },
+          {
+            "id": "p2-laser",
+            "player_reason": "Visible laser is not available yet.",
+            "part": "Gun laser",
+            "label": "Toggle laser",
+            "target": "laser_toggle",
+            "role": "local",
+            "node": "fx_laser",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "laser_toggle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Visible laser toggle is not implemented by the current bridge"
+            }
+          }
+        ],
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "on_join",
+          "supported_primary_hands": [
+            "right"
+          ],
+          "nunchuk_hand_by_mode": {
+            "one_gun": "other",
+            "two_remotes": "same"
+          },
+          "custom_setup": false
+        },
+        "transport": {
+          "server_description": "AladdinsCastle",
+          "slots": [
+            "right",
+            "left"
+          ],
+          "pointer": "right_stick",
+          "nunchuk_stick": "left_stick",
+          "acceleration_units": "g",
+          "gyro_units": "degrees_per_second",
+          "motion_input": true,
+          "shake_binding": false,
+          "swing_binding": false,
+          "pointer_relative": false,
+          "pointer_auto_hide": false,
+          "rumble": false,
+          "pointer_steps": 256
+        },
+        "questions": [
+          "Confirm reload gesture, melee-enable input and timed prompts during the first sitting.",
+          "Confirm directional and stick weapon selection in this control layout."
+        ],
+        "sources": [
+          "docs/tasks/m2/W-wii-chronicles.md",
+          "docs/tasks/m2/R1-redirect.md"
+        ],
+        "custom_setup": false,
+        "game_profile": "Remote and Nunchuk",
+        "instruction": "Camera stabiliser is on by default in the VR profile. Aim independently of character/camera motion."
+      },
+      "model_metadata": {
+        "id": "generic-pistol",
+        "name": "Plain arcade pistol",
+        "family": "generic",
+        "hold": "one-hand",
+        "tier": 1,
+        "model": "assets/guns/generic-pistol.glb",
+        "source": "assets/guns/src/generic-pistol.py",
+        "resembles": "Nothing in particular: the fallback when a game has no better match",
+        "shape": "Compact semi-automatic outline with a thick grip and a short flat-topped barrel.",
+        "length_mm": 230,
+        "features": [
+          "laser"
+        ],
+        "tints": {
+          "default": "red",
+          "p1": "red",
+          "p2": "blue",
+          "red": {
+            "body": "#c8322b",
+            "accent": "#1c1c20"
+          },
+          "blue": {
+            "body": "#2f6fd6",
+            "accent": "#1c1c20"
+          },
+          "grey": {
+            "body": "#8a8d93",
+            "accent": "#1c1c20"
+          }
+        },
+        "motion": {
+          "trigger": {
+            "node": "pivot_trigger",
+            "kind": "rotate",
+            "axis": [
+              -1,
+              0,
+              0
+            ],
+            "range": [
+              0,
+              0.35
+            ],
+            "drive": "trigger",
+            "lod_nodes": [
+              "pivot_trigger",
+              "pivot_trigger_lod1"
+            ]
+          }
+        }
+      },
+      "two_gun_eligible": true,
+      "separate_views": false,
+      "configured_slots": 2,
+      "declared_active_slots": 0,
+      "node_validation": "not-decoded",
+      "gaps": [
+        {
+          "category": "runtime-acceptance",
+          "id": "wii-input",
+          "reason": "Dolphin and headset acceptance are separate from this mapping"
+        }
+      ]
+    },
+    {
+      "game_id": "wii-resident-evil-umbrella-chronicles",
+      "model": "generic-pistol",
+      "model_provenance": "Wii initial world-gun default",
+      "shape_review": false,
+      "control_set": "wii-resident-evil-umbrella-chronicles-controls",
+      "layers": [
+        "data/controls/wii/remote-nunchuk.toml",
+        "data/controls/wii/games/wii-resident-evil-umbrella-chronicles.toml"
+      ],
+      "data": {
+        "version": "0.1",
+        "family": "wii",
+        "id": "wii-resident-evil-umbrella-chronicles-controls",
+        "title": "Resident Evil: The Umbrella Chronicles controls",
+        "gun_model": "generic-pistol",
+        "element": [
+          {
+            "id": "p1-aim",
+            "part": "Remote IR sensor",
+            "label": "Aim: point the gun",
+            "target": "right_stick",
+            "role": "remote",
+            "node": "muzzle",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "pointer",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "right_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-fire",
+            "part": "Remote B trigger",
+            "label": "Fire",
+            "target": "r2",
+            "role": "remote",
+            "node": "pivot_trigger",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "trigger",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "r2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-interact",
+            "part": "Remote A button",
+            "label": "Pick up / interact: press A / X",
+            "target": "cross",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "primary",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "cross"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-z",
+            "part": "Nunchuk Z button",
+            "label": "Z: context action",
+            "target": "l2",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "grip",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "l2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-c",
+            "part": "Nunchuk C button",
+            "label": "C: context action",
+            "target": "circle",
+            "role": "nunchuk",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "secondary",
+              "mode": "press",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "circle"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-stick",
+            "part": "Nunchuk stick",
+            "label": "Look around within the game camera range",
+            "target": "left_stick",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "left_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
+            "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
+            "part": "Remote + button",
+            "label": "+: game menu / command",
+            "target": "options",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "menu",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "options"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Touch right system button is not an application menu input on this rig; fallback choice is pending"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
+            "part": "Remote directional pad",
+            "label": "Directional game commands",
+            "target": "dpad",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "dpad",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "dpad"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-minus",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote - button",
+            "label": "-: game command",
+            "target": "share",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_minus",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "share"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote minus / DSU Share"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-one",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 1 button",
+            "label": "1: game command",
+            "target": "square",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_one",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "square"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 1 / DSU Square"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-two",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 2 button",
+            "label": "2: game command",
+            "target": "triangle",
+            "role": "remote",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_two",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "triangle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 2 / DSU Triangle"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-motion",
+            "part": "Remote accelerometer and gyro",
+            "label": "Reload: shake gun; swing for motion prompts",
+            "target": "accelerometer_gyro",
+            "role": "remote",
+            "node": "grip",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "remote_motion",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "accelerometer_gyro"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-nunchuk-motion",
+            "part": "Nunchuk accelerometer",
+            "label": "Move the Nunchuk hand",
+            "target": "nunchuk_acceleration",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "nunchuk_motion",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "nunchuk_acceleration"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-reload-fallback",
+            "fallback_player": 0,
+            "part": "Seated reload button",
+            "label": "Seated reload (player 1 only)",
+            "target": "inject_remote_shake",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "reload_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_shake"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-melee-fallback",
+            "fallback_player": 0,
+            "part": "Seated melee button",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
+            "target": "inject_remote_swing",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "melee_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_swing"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-laser",
+            "player_reason": "Visible laser is not available yet.",
+            "part": "Gun laser",
+            "label": "Toggle laser",
+            "target": "laser_toggle",
+            "role": "local",
+            "node": "fx_laser",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "laser_toggle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Visible laser toggle is not implemented by the current bridge"
+            }
+          },
+          {
+            "id": "p2-aim",
+            "part": "Remote IR sensor",
+            "label": "Aim: point the gun",
+            "target": "right_stick",
+            "role": "remote",
+            "node": "muzzle",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "pointer",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "right_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p2-fire",
+            "part": "Remote B trigger",
+            "label": "Fire",
+            "target": "r2",
+            "role": "remote",
+            "node": "pivot_trigger",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "trigger",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "r2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p2-interact",
+            "part": "Remote A button",
+            "label": "Pick up / interact: press A / X",
+            "target": "cross",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "primary",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "cross"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-z",
+            "part": "Nunchuk Z button",
+            "label": "Z: context action",
+            "target": "l2",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "grip",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "l2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-c",
+            "part": "Nunchuk C button",
+            "label": "C: context action",
+            "target": "circle",
+            "role": "nunchuk",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "secondary",
+              "mode": "press",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "circle"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-stick",
+            "part": "Nunchuk stick",
+            "label": "Look around within the game camera range",
+            "target": "left_stick",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "left_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-menu",
+            "player_reason": "Menu button unavailable. Choose a left-hand button or keyboard shortcut.",
+            "binding_label": "Binding pending: choose left-hand menu or accessibility fallback",
+            "part": "Remote + button",
+            "label": "+: game menu / command",
+            "target": "options",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "menu",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "options"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Touch right system button is not an application menu input on this rig; fallback choice is pending"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-dpad",
+            "player_reason": "Directional controls are not available yet.",
+            "binding_label": "Directional binding pending",
+            "part": "Remote directional pad",
+            "label": "Directional game commands",
+            "target": "dpad",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "dpad",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "dpad"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-minus",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote - button",
+            "label": "-: game command",
+            "target": "share",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_minus",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "share"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote minus / DSU Share"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-one",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 1 button",
+            "label": "1: game command",
+            "target": "square",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_one",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "square"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 1 / DSU Square"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-two",
+            "player_reason": "This button is not available yet.",
+            "part": "Remote 2 button",
+            "label": "2: game command",
+            "target": "triangle",
+            "role": "remote",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "keyboard_two",
+              "mode": "press",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "triangle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Current bridge and Dolphin profile omit Remote 2 / DSU Triangle"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-motion",
+            "part": "Remote accelerometer and gyro",
+            "label": "Reload: shake gun; swing for motion prompts",
+            "target": "accelerometer_gyro",
+            "role": "remote",
+            "node": "grip",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "remote_motion",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "accelerometer_gyro"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p2-nunchuk-motion",
+            "part": "Nunchuk accelerometer",
+            "label": "Move the Nunchuk hand",
+            "target": "nunchuk_acceleration",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "nunchuk_motion",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 1
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "nunchuk_acceleration"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p2-reload-fallback",
+            "fallback_player": 0,
+            "part": "Seated reload button",
+            "label": "Seated reload (player 1 only)",
+            "target": "inject_remote_shake",
+            "role": "local",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "reload_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_shake"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
+            },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
+            "node": ""
+          },
+          {
+            "id": "p2-melee-fallback",
+            "fallback_player": 0,
+            "part": "Seated melee button",
+            "label": "Seated swing (player 1 only); hold the game's knife button if needed",
+            "target": "inject_remote_swing",
+            "role": "local",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "melee_fallback",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "inject_remote_swing"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Keyboard fallback producer only injects motion into physical DSU slot 0"
+            },
+            "player_reason": "Keyboard fallback is only available for player 1. Use physical motion.",
+            "binding_label": "Unavailable: keyboard fallback is player 1 only",
+            "node": ""
+          },
+          {
+            "id": "p2-laser",
+            "player_reason": "Visible laser is not available yet.",
+            "part": "Gun laser",
+            "label": "Toggle laser",
+            "target": "laser_toggle",
+            "role": "local",
+            "node": "fx_laser",
+            "slot": 1,
+            "player": 1,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "laser_toggle"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Visible laser toggle is not implemented by the current bridge"
+            }
+          }
+        ],
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "on_join",
+          "supported_primary_hands": [
+            "right"
+          ],
+          "nunchuk_hand_by_mode": {
+            "one_gun": "other",
+            "two_remotes": "same"
+          },
+          "custom_setup": false
+        },
+        "transport": {
+          "server_description": "AladdinsCastle",
+          "slots": [
+            "right",
+            "left"
+          ],
+          "pointer": "right_stick",
+          "nunchuk_stick": "left_stick",
+          "acceleration_units": "g",
+          "gyro_units": "degrees_per_second",
+          "motion_input": true,
+          "shake_binding": false,
+          "swing_binding": false,
+          "pointer_relative": false,
+          "pointer_auto_hide": false,
+          "rumble": false,
+          "pointer_steps": 256
+        },
+        "questions": [
+          "Confirm knife-enable and grenade chord in the selected game control layout.",
+          "Confirm C weapon selection and Z meaning in the selected layout."
+        ],
+        "sources": [
+          "docs/tasks/m2/W-wii-chronicles.md",
+          "docs/tasks/m2/R1-redirect.md"
+        ],
+        "custom_setup": false,
+        "game_profile": "Remote and Nunchuk",
+        "instruction": "Reload by shaking the gun. Follow the game prompts for knife and counterattacks."
+      },
+      "model_metadata": {
+        "id": "generic-pistol",
+        "name": "Plain arcade pistol",
+        "family": "generic",
+        "hold": "one-hand",
+        "tier": 1,
+        "model": "assets/guns/generic-pistol.glb",
+        "source": "assets/guns/src/generic-pistol.py",
+        "resembles": "Nothing in particular: the fallback when a game has no better match",
+        "shape": "Compact semi-automatic outline with a thick grip and a short flat-topped barrel.",
+        "length_mm": 230,
+        "features": [
+          "laser"
+        ],
+        "tints": {
+          "default": "red",
+          "p1": "red",
+          "p2": "blue",
+          "red": {
+            "body": "#c8322b",
+            "accent": "#1c1c20"
+          },
+          "blue": {
+            "body": "#2f6fd6",
+            "accent": "#1c1c20"
+          },
+          "grey": {
+            "body": "#8a8d93",
+            "accent": "#1c1c20"
+          }
+        },
+        "motion": {
+          "trigger": {
+            "node": "pivot_trigger",
+            "kind": "rotate",
+            "axis": [
+              -1,
+              0,
+              0
+            ],
+            "range": [
+              0,
+              0.35
+            ],
+            "drive": "trigger",
+            "lod_nodes": [
+              "pivot_trigger",
+              "pivot_trigger_lod1"
+            ]
+          }
+        }
+      },
+      "two_gun_eligible": true,
+      "separate_views": false,
+      "configured_slots": 2,
+      "declared_active_slots": 0,
+      "node_validation": "not-decoded",
+      "gaps": [
+        {
+          "category": "runtime-acceptance",
+          "id": "wii-input",
+          "reason": "Dolphin and headset acceptance are separate from this mapping"
+        }
+      ]
+    },
+    {
+      "game_id": "wii-sin-and-punishment-star-successor",
+      "model": "generic-pistol",
+      "model_provenance": "Wii initial world-gun default",
+      "shape_review": false,
+      "control_set": "wii-sin-and-punishment-star-successor-controls",
+      "layers": [
+        "data/controls/wii/remote-nunchuk.toml",
+        "data/controls/wii/games/wii-sin-and-punishment-star-successor.toml"
+      ],
+      "data": {
+        "version": "0.1",
+        "family": "wii",
+        "id": "wii-sin-and-punishment-star-successor-controls",
+        "title": "Sin & Punishment: Star Successor controls",
+        "gun_model": "generic-pistol",
+        "element": [
+          {
+            "id": "p1-move",
+            "part": "Nunchuk stick",
+            "label": "Move the on-screen character",
+            "target": "left_stick",
+            "role": "nunchuk",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "thumbstick",
+              "mode": "hold",
+              "role": "nunchuk",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 1,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "left_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            },
+            "node": ""
+          },
+          {
+            "id": "p1-aim",
+            "part": "Remote pointer",
+            "label": "Aim independently of character movement",
+            "target": "right_stick",
+            "role": "remote",
+            "node": "muzzle",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "pointer",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "right_stick"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-fire",
+            "part": "Remote fire input",
+            "label": "Shoot: confirm the selected game layout",
+            "target": "r2",
+            "role": "remote",
+            "node": "pivot_trigger",
+            "mode": "hold",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "trigger",
+              "mode": "hold",
+              "role": "remote",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": 0,
+                "two_remotes": 0
+              }
+            },
+            "input": {
+              "kind": "wii",
+              "semantic": "r2"
+            },
+            "availability": {
+              "state": "configured",
+              "reason": "Authored mapping; emulator/profile and gameplay checks are separate"
+            }
+          },
+          {
+            "id": "p1-dodge",
+            "part": "Character dodge",
+            "label": "Dodge",
+            "target": "owner:dodge",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "owner_setup",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "owner:dodge"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Choose the game layout and binding with the owner"
+            },
+            "player_reason": "Choose this binding together during setup.",
+            "node": ""
+          },
+          {
+            "id": "p1-melee",
+            "part": "Character melee",
+            "label": "Melee",
+            "target": "owner:melee",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "owner_setup",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "owner:melee"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Choose the game layout and binding with the owner"
+            },
+            "player_reason": "Choose this binding together during setup.",
+            "node": ""
+          },
+          {
+            "id": "p1-lock-on",
+            "part": "Character lock-on",
+            "label": "Lock-on",
+            "target": "owner:lock-on",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "owner_setup",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "owner:lock-on"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Choose the game layout and binding with the owner"
+            },
+            "player_reason": "Choose this binding together during setup.",
+            "node": ""
+          },
+          {
+            "id": "p1-charged-shot",
+            "part": "Character charged shot",
+            "label": "Charged shot",
+            "target": "owner:charged-shot",
+            "role": "local",
+            "slot": 0,
+            "player": 0,
+            "binding": {
+              "hand": "slot",
+              "control": "owner_setup",
+              "mode": "press",
+              "role": "local",
+              "physical_dsu_slot_by_mode": {
+                "one_gun": null,
+                "two_remotes": null
+              }
+            },
+            "input": {
+              "kind": "runtime",
+              "semantic": "owner:charged-shot"
+            },
+            "availability": {
+              "state": "planned",
+              "reason": "Choose the game layout and binding with the owner"
+            },
+            "player_reason": "Choose this binding together during setup.",
+            "node": ""
+          }
+        ],
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "on_join",
+          "supported_primary_hands": [
+            "right"
+          ],
+          "nunchuk_hand_by_mode": {
+            "one_gun": "other",
+            "two_remotes": "same"
+          },
+          "custom_setup": true
+        },
+        "transport": {
+          "server_description": "AladdinsCastle",
+          "slots": [
+            "right",
+            "left"
+          ],
+          "pointer": "right_stick",
+          "nunchuk_stick": "left_stick",
+          "acceleration_units": "g",
+          "gyro_units": "degrees_per_second",
+          "motion_input": true,
+          "shake_binding": false,
+          "swing_binding": false,
+          "pointer_relative": false,
+          "pointer_auto_hide": false,
+          "rumble": false,
+          "pointer_steps": 256
+        },
+        "questions": [
+          "Place the character and pointer in the 3D scene with the owner.",
+          "Confirm the chosen in-game controller layout before binding dodge, melee, lock-on and charged shots."
+        ],
+        "sources": [
+          "docs/tasks/m2/W-wii-chronicles.md",
+          "https://en-americas-support.nintendo.com/app/answers/detail/a_id/16890/p/172"
+        ],
+        "custom_setup": true,
+        "game_profile": "character-and-pointer",
+        "instruction": "Dedicated character-and-pointer setup: choose dodge, melee, lock-on and charge controls with the owner in the headset."
+      },
+      "model_metadata": {
+        "id": "generic-pistol",
+        "name": "Plain arcade pistol",
+        "family": "generic",
+        "hold": "one-hand",
+        "tier": 1,
+        "model": "assets/guns/generic-pistol.glb",
+        "source": "assets/guns/src/generic-pistol.py",
+        "resembles": "Nothing in particular: the fallback when a game has no better match",
+        "shape": "Compact semi-automatic outline with a thick grip and a short flat-topped barrel.",
+        "length_mm": 230,
+        "features": [
+          "laser"
+        ],
+        "tints": {
+          "default": "red",
+          "p1": "red",
+          "p2": "blue",
+          "red": {
+            "body": "#c8322b",
+            "accent": "#1c1c20"
+          },
+          "blue": {
+            "body": "#2f6fd6",
+            "accent": "#1c1c20"
+          },
+          "grey": {
+            "body": "#8a8d93",
+            "accent": "#1c1c20"
+          }
+        },
+        "motion": {
+          "trigger": {
+            "node": "pivot_trigger",
+            "kind": "rotate",
+            "axis": [
+              -1,
+              0,
+              0
+            ],
+            "range": [
+              0,
+              0.35
+            ],
+            "drive": "trigger",
+            "lod_nodes": [
+              "pivot_trigger",
+              "pivot_trigger_lod1"
+            ]
+          }
+        }
+      },
+      "two_gun_eligible": false,
+      "separate_views": false,
+      "configured_slots": 1,
+      "declared_active_slots": 0,
+      "node_validation": "not-decoded",
+      "gaps": [
+        {
+          "category": "runtime-acceptance",
+          "id": "wii-input",
+          "reason": "Dolphin and headset acceptance are separate from this mapping"
+        }
+      ]
+    }
+  ]
+}

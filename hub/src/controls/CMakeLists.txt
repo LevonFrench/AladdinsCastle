@@ -32,9 +32,14 @@ qt_add_resources(accontrols controls_icons PREFIX /controls/icons
     BASE "${AC_CONTROLS_ROOT}/assets/controls/controllers"
     FILES "${AC_CONTROLS_ROOT}/assets/controls/controllers/touch-left.svg"
           "${AC_CONTROLS_ROOT}/assets/controls/controllers/touch-right.svg")
+qt_add_resources(accontrols wii_controls_icon PREFIX /controls/wii
+    BASE "${AC_CONTROLS_ROOT}/assets/controls/wii"
+    FILES "${AC_CONTROLS_ROOT}/assets/controls/wii/remote-nunchuk.svg")
 if(BUILD_TESTING)
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME wii-controls-data COMMAND ${Python3_EXECUTABLE} "${AC_CONTROLS_ROOT}/tools/wii_controls.py")
+    set_tests_properties(wii-controls-data PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1;PYTHONIOENCODING=utf-8")
     qt_add_executable(controls-view-tests tests/ControlsViewTest.cpp)
     target_link_libraries(controls-view-tests PRIVATE accontrols Qt6::Test)
     target_compile_definitions(controls-view-tests PRIVATE

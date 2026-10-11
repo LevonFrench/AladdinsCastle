@@ -1,0 +1,131 @@
+{
+  "version": "0.1",
+  "model": "arc-pistol-twin",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "arc-pistol-twin-front.png",
+      "nodes": {
+        "muzzle": [
+          0.137681,
+          0.325495
+        ],
+        "fx_muzzle": [
+          0.137681,
+          0.325495
+        ],
+        "fx_laser": [
+          0.137681,
+          0.325495
+        ],
+        "sight_front": [
+          0.244158,
+          0.224934
+        ],
+        "sight_rear": [
+          0.776545,
+          0.260426
+        ],
+        "visual_kick": [
+          0.670068,
+          0.485212
+        ],
+        "pivot_trigger": [
+          0.542887,
+          0.443804
+        ],
+        "grip": [
+          0.670068,
+          0.485212
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "arc-pistol-twin.png",
+      "nodes": {
+        "muzzle": [
+          0.249827,
+          0.438226
+        ],
+        "fx_muzzle": [
+          0.249827,
+          0.438226
+        ],
+        "fx_laser": [
+          0.249827,
+          0.438226
+        ],
+        "sight_front": [
+          0.323348,
+          0.315934
+        ],
+        "sight_rear": [
+          0.690948,
+          0.202367
+        ],
+        "visual_kick": [
+          0.617428,
+          0.439557
+        ],
+        "pivot_trigger": [
+          0.529612,
+          0.43623
+        ],
+        "grip": [
+          0.617428,
+          0.439557
+        ]
+      }
+    },
+    "held": {
+      "image": "arc-pistol-twin-held.png",
+      "nodes": {
+        "muzzle": [
+          0.423278,
+          0.187747
+        ],
+        "fx_muzzle": [
+          0.423278,
+          0.187747
+        ],
+        "fx_laser": [
+          0.423278,
+          0.187747
+        ],
+        "sight_front": [
+          0.445825,
+          0.143084
+        ],
+        "sight_rear": [
+          0.558559,
+          0.403414
+        ],
+        "visual_kick": [
+          0.536012,
+          0.559688
+        ],
+        "pivot_trigger": [
+          0.509081,
+          0.467912
+        ],
+        "grip": [
+          0.536012,
+          0.559688
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": -2.0
+  },
+  "silhouette": "arc-pistol-twin-silhouette.png",
+  "silhouette_scale_m": 0.82
+}

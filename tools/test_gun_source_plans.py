@@ -7,10 +7,52 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'assets/guns/src'))
-from common import TIERS, MATERIAL_RGBA, metadata, plan, preview_material_rgba
+from common import TIERS, MATERIAL_RGBA, metadata, plan, preview_material_rgba, geometry
 
 
 class SourcePlanTests(unittest.TestCase):
+    def test_sights_are_seated_in_actual_side_surface_not_global_bounds(self):
+        # A slope can leave a small sight floating while whole-part AABBs overlap.
+        # Check the authored roof at the sight centre, with a small seated overlap.
+        for mid in TIERS:
+            spec=plan(mid,runpy.run_path(str(ROOT/'assets/guns/src'/(mid+'.py')))['PARAMETERS'])
+            parts={p['name']:p for p in spec['parts']}
+            for name in ('front_sight_geometry','rear_sight_geometry'):
+                sight=parts[name]; z=sight['at'][2]; roofs=[]
+                for upper_name in ('barrel_shell','receiver','sight_rail_geometry'):
+                    if upper_name not in parts: continue
+                    upper=parts[upper_name]
+                    points=[(a+upper['at'][2],b+upper['at'][1]) for a,b in upper['points']]
+                    for a,b in zip(points,points[1:]+points[:1]):
+                        if a[0]!=b[0] and min(a[0],b[0])<=z<=max(a[0],b[0]):
+                            roofs.append(a[1]+(z-a[0])*(b[1]-a[1])/(b[0]-a[0]))
+                bottom=sight['at'][1]-sight['size'][1]/2
+                self.assertLessEqual(bottom,max(roofs)-.0002,(mid,name))
+
+    def test_authored_silhouettes_and_connected_source_parts(self):
+        from check_gun_assets import part_bounds, check_part_touches
+        outlines=[]
+        for mid in TIERS:
+            module=runpy.run_path(str(ROOT/'assets/guns/src'/(mid+'.py')))
+            outline=module['BODY_OUTLINE']; outlines.append(tuple(outline))
+            self.assertTrue(25<=len(outline)<=50)
+            self.assertEqual(len(set(outline)),len(outline))
+            spec=plan(mid,module['PARAMETERS'])
+            bounds={}
+            for p in spec['parts']:
+                verts,_=geometry(p,0)
+                bounds[p['name']]=part_bounds([tuple(a+b for a,b in zip(v,p['at'])) for v in verts])
+            check_part_touches(bounds,mid)
+            if mid!='mnt-mg-heavy':
+                grip=module['GRIP_OUTLINE']
+                # Compare the centres of the two top and two heel corners.
+                top=tuple(sum(p[i] for p in grip[:2])/2 for i in (0,1))
+                bottom=tuple((grip[4][i]+grip[6][i])/2 for i in (0,1))
+                rake=math.degrees(math.atan2(bottom[0]-top[0],top[1]-bottom[1]))
+                self.assertTrue(12<=rake<=18,(mid,rake))
+                self.assertTrue(85<=max(y for _,y in grip)-min(y for _,y in grip)<=100)
+        self.assertEqual(len(set(outlines)),7)
+
     def test_all_seven_plans(self):
         for mid in TIERS:
             with self.subTest(model=mid):
@@ -30,7 +72,7 @@ class SourcePlanTests(unittest.TestCase):
                 for name in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear'):
                     self.assertIsNone(spec['nodes'][name]['parent'])
                 for part in spec['parts']:
-                    self.assertIn(part['shape'],('box','cylinder'))
+                    self.assertIn(part['shape'],('outline','ring','box','cylinder','vented_tube'))
                     self.assertIn(part['parent'],[None,*spec['nodes']])
                 for motion in meta['motion'].values():
                     self.assertIn(motion['node'],spec['nodes'])
@@ -51,9 +93,8 @@ class SourcePlanTests(unittest.TestCase):
         self.assertEqual(spec['nodes']['pivot_trigger']['parent'],'pivot_pitch')
 
     def test_slide_moves_upper_geometry_and_kick_moves_whole_visible_body(self):
-        furniture={'frame','hand_grip','guard_post_-1','guard_post_1','guard_lower',
-                   'cable_boss','grip_rib_0','grip_rib_1','grip_rib_2'}
-        upper={'barrel_shell','rear_shell','muzzle_lens','front_sight_geometry','rear_sight_geometry'}
+        furniture={'frame','hand_grip','grip_panel_left','trigger_guard','cable_boss'}
+        upper={'barrel_shell','muzzle_lens','front_sight_geometry','rear_sight_geometry'}
         for mid in ('arc-pistol-slide','arc-pistol-twin'):
             spec=plan(mid,runpy.run_path(str(ROOT/'assets/guns/src'/(mid+'.py')))['PARAMETERS'])
             parts={p['name']:p for p in spec['parts']}

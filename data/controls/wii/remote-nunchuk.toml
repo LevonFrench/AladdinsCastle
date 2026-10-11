@@ -1,0 +1,177 @@
+# SPDX-License-Identifier: GPL-3.0-only
+version = "0.1"
+
+[transport]
+server_description = "AladdinsCastle"
+slots = ["right", "left"]
+pointer = "right_stick"
+nunchuk_stick = "left_stick"
+acceleration_units = "g"
+gyro_units = "degrees_per_second"
+motion_input = true
+shake_binding = false
+swing_binding = false
+pointer_relative = false
+pointer_auto_hide = false
+rumble = false
+pointer_steps = 256
+
+[[element]]
+id = "aim"
+part = "Remote IR sensor"
+label = "Aim: point the gun"
+control = "pointer"
+target = "right_stick"
+role = "remote"
+node = "muzzle"
+mode = "hold"
+
+[[element]]
+id = "fire"
+part = "Remote B trigger"
+label = "Fire"
+control = "trigger"
+target = "r2"
+role = "remote"
+node = "pivot_trigger"
+mode = "hold"
+
+[[element]]
+id = "interact"
+part = "Remote A button"
+label = "A: pick up / interact"
+control = "primary"
+target = "cross"
+role = "remote"
+
+[[element]]
+id = "z"
+part = "Nunchuk Z button"
+label = "Z: context action"
+control = "grip"
+target = "l2"
+role = "nunchuk"
+mode = "hold"
+
+[[element]]
+id = "c"
+part = "Nunchuk C button"
+label = "C: context action"
+control = "secondary"
+target = "circle"
+role = "nunchuk"
+
+[[element]]
+id = "stick"
+part = "Nunchuk stick"
+label = "Look / game navigation"
+control = "thumbstick"
+target = "left_stick"
+role = "nunchuk"
+mode = "hold"
+
+[[element]]
+id = "menu"
+implementation_state = "unavailable"
+implementation_reason = "Touch right system button is not an application menu input on this rig; fallback choice is pending"
+player_reason = "Menu button unavailable. Choose a left-hand button or keyboard shortcut."
+binding_label = "Binding pending: choose left-hand menu or accessibility fallback"
+part = "Remote + button"
+label = "+: game menu / command"
+control = "menu"
+target = "options"
+role = "remote"
+
+[[element]]
+id = "dpad"
+implementation_state = "planned"
+implementation_reason = "Current bridge emits no Pad N/S/E/W bits or keyboard arrows"
+player_reason = "Directional controls are not available yet."
+binding_label = "Directional binding pending"
+part = "Remote directional pad"
+label = "Directional game commands"
+control = "dpad"
+target = "dpad"
+role = "remote"
+
+[[element]]
+id = "minus"
+implementation_state = "planned"
+implementation_reason = "Current bridge and Dolphin profile omit Remote minus / DSU Share"
+player_reason = "This button is not available yet."
+part = "Remote - button"
+label = "-: game command"
+control = "keyboard_minus"
+target = "share"
+role = "remote"
+
+[[element]]
+id = "one"
+implementation_state = "planned"
+implementation_reason = "Current bridge and Dolphin profile omit Remote 1 / DSU Square"
+player_reason = "This button is not available yet."
+part = "Remote 1 button"
+label = "1: game command"
+control = "keyboard_one"
+target = "square"
+role = "remote"
+
+[[element]]
+id = "two"
+implementation_state = "planned"
+implementation_reason = "Current bridge and Dolphin profile omit Remote 2 / DSU Triangle"
+player_reason = "This button is not available yet."
+part = "Remote 2 button"
+label = "2: game command"
+control = "keyboard_two"
+target = "triangle"
+role = "remote"
+
+[[element]]
+id = "motion"
+part = "Remote accelerometer and gyro"
+label = "Move / shake / swing the gun"
+control = "remote_motion"
+target = "accelerometer_gyro"
+role = "remote"
+node = "grip"
+mode = "hold"
+
+[[element]]
+id = "nunchuk-motion"
+part = "Nunchuk accelerometer"
+label = "Move the Nunchuk hand"
+control = "nunchuk_motion"
+target = "nunchuk_acceleration"
+role = "nunchuk"
+mode = "hold"
+
+[[element]]
+id = "reload-fallback"
+fallback_player = 0
+part = "Seated reload button"
+label = "Seated reload (player 1 only)"
+control = "reload_fallback"
+target = "inject_remote_shake"
+role = "local"
+
+[[element]]
+id = "melee-fallback"
+fallback_player = 0
+part = "Seated melee button"
+label = "Seated swing (player 1 only); hold the game's knife button if needed"
+control = "melee_fallback"
+target = "inject_remote_swing"
+role = "local"
+
+[[element]]
+id = "laser"
+implementation_state = "planned"
+implementation_reason = "Visible laser toggle is not implemented by the current bridge"
+player_reason = "Visible laser is not available yet."
+part = "Gun laser"
+label = "Toggle laser"
+control = "thumbstick_click"
+target = "laser_toggle"
+role = "local"
+node = "fx_laser"

@@ -121,6 +121,24 @@ def local_matrix(node):
             *t,1)
 
 
+def part_bounds(points):
+    demand(bool(points), 'mesh has no referenced positions')
+    return (tuple(min(p[i] for p in points) for i in range(3)),
+            tuple(max(p[i] for p in points) for i in range(3)))
+
+
+def check_part_touches(parts, lod):
+    """AABB contact in world metres, for distinct mesh instances in ONE LOD.
+
+    This is a bounds check, not proof of manifold joins or surface intersection.
+    A tenth of a micrometre tolerates float32 export rounding, not visible gaps.
+    """
+    for name,(lo,hi) in parts.items():
+        neighbors=[other for other,(olo,ohi) in parts.items() if other!=name and
+                   all(lo[i]<=ohi[i]+1e-7 and olo[i]<=hi[i]+1e-7 for i in range(3))]
+        demand(bool(neighbors), f'{lod} floating mesh bounds: {name}')
+
+
 def check_asset(path, meta):
     doc, binary = read_glb(path)
     demand(not doc.get('images') and not doc.get('textures'), 'tier 1 must have no images/textures')
@@ -171,6 +189,7 @@ def check_asset(path, meta):
         rgba(pbr.get('baseColorFactor',[1,1,1,1]),'material')
     totals, positions = {'LOD0':0,'LOD1':0}, {'LOD0':[],'LOD1':[]}
     used_materials, used_meshes = set(),set()
+    mesh_bounds = {'LOD0':{}, 'LOD1':{}}
     for index,node in enumerate(nodes):
         if 'mesh' not in node:
             continue
@@ -179,6 +198,7 @@ def check_asset(path, meta):
         mi = node['mesh']
         demand(isinstance(mi,int) and 0 <= mi < len(doc.get('meshes',[])), 'invalid mesh index')
         used_meshes.add(mi)
+        instance_points = []
         for prim in doc['meshes'][mi].get('primitives',[]):
             demand(prim.get('mode',4)==4 and not prim.get('extensions'), 'expected uncompressed triangles')
             demand(not prim.get('targets'), 'morph targets unsupported for tier 1')
@@ -204,10 +224,13 @@ def check_asset(path, meta):
                 indices = list(range(len(points)))
             demand(len(indices)%3==0, 'triangle count is not integral')
             totals[lod] += len(indices)//3
-            positions[lod].extend(transform(worlds[index],points[i]) for i in set(indices))
+            referenced = [transform(worlds[index],points[i]) for i in set(indices)]
+            positions[lod].extend(referenced)
+            instance_points.extend(referenced)
             material = prim.get('material')
             demand(isinstance(material,int) and 0 <= material < len(materials), 'invalid material index')
             used_materials.add(material)
+        mesh_bounds[lod][node['name']] = part_bounds(instance_points)
     demand(used_meshes==set(range(len(doc.get('meshes',[])))), 'unreferenced meshes')
     demand(used_materials==set(range(4)), 'all material slots must be used')
     bounds = {}
@@ -219,6 +242,7 @@ def check_asset(path, meta):
         demand(abs(length-meta['length_mm']) <= meta['length_mm']*.1,
                f'{lod} bore length {length:.2f} mm differs from target {meta["length_mm"]} mm')
         bounds[lod] = round(length,3)
+        check_part_touches(mesh_bounds[lod],lod)
     # Native model validation protects every static reference and every ancestor,
     # including the LOD1 alias. Direct-child muzzle checks alone cannot prove this.
     static_ancestors = set()
@@ -260,7 +284,8 @@ def check_asset(path, meta):
         start = transform(worlds[names.index('slide_recoil')],(0,0,0))
         stop = transform(worlds[names.index('limit_recoil')],(0,0,0))
         demand(all(abs(a-b)<1e-5 for a,b in zip(stop,(start[0],start[1],start[2]+.015))), 'limit_recoil stop must be 15 mm behind slide')
-    return {'triangles':totals,'length_mm':bounds,'nodes':len(nodes)}
+    return {'triangles':totals,'length_mm':bounds,'nodes':len(nodes),
+            'touch_checked_parts':{lod:len(parts) for lod,parts in mesh_bounds.items()}}
 
 
 def check_previews(directory, mid, meta):
@@ -270,7 +295,15 @@ def check_previews(directory, mid, meta):
     required = {'grip','muzzle','sight_front','sight_rear','pivot_trigger','fx_muzzle','fx_laser'} | {b['node'] for b in meta.get('button',[])} | {m['node'] for m in meta.get('motion',{}).values()}
     if meta['hold']=='mounted':
         required.add('grip_two')
-    demand(set(data.get('views',{}))=={'front','threequarter'}, 'both CPU preview views required')
+    demand(set(data.get('views',{}))=={'front','threequarter','held'}, 'three CPU preview views required')
+    demand(data.get('render',{}).get('device')=='CPU' and data['render'].get('samples')==64 and
+           data['render'].get('denoiser')=='OPENIMAGEDENOISE' and
+           data['render'].get('view_transform')=='Standard' and
+           data['render'].get('denoising_use_gpu') is False, 'CPU 64-sample denoised previews required')
+    demand(data.get('silhouette_scale_m')==.82, 'uniform metric silhouette scale required')
+    silhouette = directory/(mid+'-silhouette.png')
+    png = silhouette.read_bytes()
+    demand(png[:8]==b'\x89PNG\r\n\x1a\n' and struct.unpack_from('>II',png,16)==(512,512), '512x512 silhouette required')
     for view in data['views'].values():
         name = view.get('image','')
         demand(Path(name).name==name and name.endswith('.png'), 'preview path must be a PNG basename')
@@ -310,6 +343,15 @@ def main():
             errors.append(f'{mid}: {exc}')
     for error in errors:
         print('error '+error)
+    if not args.source_only and not args.model:
+        for name in ('sheet.png','silhouette-sheet.png'):
+            try:
+                png = (ROOT/'assets/guns/preview'/name).read_bytes()
+                demand(png[:8]==b'\x89PNG\r\n\x1a\n' and png[12:16]==b'IHDR' and
+                       struct.unpack_from('>II',png,16)==(2048,1024), 'expected 2048x1024 PNG sheet')
+            except (OSError,ValueError,struct.error) as exc:
+                errors.append(f'{name}: {exc}')
+                print('error '+errors[-1])
     print(f'{len(errors)} errors'+('; SOURCE ONLY, not asset acceptance' if args.source_only else ''))
     return bool(errors)
 

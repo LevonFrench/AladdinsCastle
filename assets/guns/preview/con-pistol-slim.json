@@ -1,0 +1,143 @@
+{
+  "version": "0.1",
+  "model": "con-pistol-slim",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "con-pistol-slim-front.png",
+      "nodes": {
+        "muzzle": [
+          0.138239,
+          0.327899
+        ],
+        "fx_muzzle": [
+          0.138239,
+          0.327899
+        ],
+        "fx_laser": [
+          0.138239,
+          0.327899
+        ],
+        "sight_front": [
+          0.210703,
+          0.261474
+        ],
+        "sight_rear": [
+          0.793432,
+          0.261474
+        ],
+        "pivot_trigger": [
+          0.585099,
+          0.406401
+        ],
+        "button_a": [
+          0.35563,
+          0.406401
+        ],
+        "button_b": [
+          0.35563,
+          0.406401
+        ],
+        "grip": [
+          0.711911,
+          0.442633
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "con-pistol-slim.png",
+      "nodes": {
+        "muzzle": [
+          0.250213,
+          0.440295
+        ],
+        "fx_muzzle": [
+          0.250213,
+          0.440295
+        ],
+        "fx_laser": [
+          0.250213,
+          0.440295
+        ],
+        "sight_front": [
+          0.300247,
+          0.358931
+        ],
+        "sight_rear": [
+          0.702608,
+          0.198693
+        ],
+        "pivot_trigger": [
+          0.558759,
+          0.390027
+        ],
+        "button_a": [
+          0.428709,
+          0.463429
+        ],
+        "button_b": [
+          0.371924,
+          0.442824
+        ],
+        "grip": [
+          0.646319,
+          0.388669
+        ]
+      }
+    },
+    "held": {
+      "image": "con-pistol-slim-held.png",
+      "nodes": {
+        "muzzle": [
+          0.423396,
+          0.190146
+        ],
+        "fx_muzzle": [
+          0.423396,
+          0.190146
+        ],
+        "fx_laser": [
+          0.423396,
+          0.190146
+        ],
+        "sight_front": [
+          0.43874,
+          0.161559
+        ],
+        "sight_rear": [
+          0.562135,
+          0.411601
+        ],
+        "pivot_trigger": [
+          0.51802,
+          0.45242
+        ],
+        "button_a": [
+          0.431068,
+          0.357607
+        ],
+        "button_b": [
+          0.50779,
+          0.350309
+        ],
+        "grip": [
+          0.544873,
+          0.539387
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": -1.0
+  },
+  "silhouette": "con-pistol-slim-silhouette.png",
+  "silhouette_scale_m": 0.82
+}

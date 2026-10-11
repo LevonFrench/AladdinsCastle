@@ -1,0 +1,131 @@
+{
+  "version": "0.1",
+  "model": "con-revolver-chunky",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "con-revolver-chunky-front.png",
+      "nodes": {
+        "muzzle": [
+          0.137681,
+          0.312539
+        ],
+        "fx_muzzle": [
+          0.137681,
+          0.312539
+        ],
+        "fx_laser": [
+          0.137681,
+          0.312539
+        ],
+        "sight_front": [
+          0.254253,
+          0.230624
+        ],
+        "sight_rear": [
+          0.745747,
+          0.271582
+        ],
+        "pivot_trigger": [
+          0.540958,
+          0.435413
+        ],
+        "button_start": [
+          0.525205,
+          0.334594
+        ],
+        "grip": [
+          0.673283,
+          0.482672
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "con-revolver-chunky.png",
+      "nodes": {
+        "muzzle": [
+          0.246409,
+          0.425002
+        ],
+        "fx_muzzle": [
+          0.246409,
+          0.425002
+        ],
+        "fx_laser": [
+          0.246409,
+          0.425002
+        ],
+        "sight_front": [
+          0.326899,
+          0.317181
+        ],
+        "sight_rear": [
+          0.666263,
+          0.219914
+        ],
+        "pivot_trigger": [
+          0.524862,
+          0.427758
+        ],
+        "button_start": [
+          0.591471,
+          0.366956
+        ],
+        "grip": [
+          0.616229,
+          0.435083
+        ]
+      }
+    },
+    "held": {
+      "image": "con-revolver-chunky-held.png",
+      "nodes": {
+        "muzzle": [
+          0.427896,
+          0.175668
+        ],
+        "fx_muzzle": [
+          0.427896,
+          0.175668
+        ],
+        "fx_laser": [
+          0.427896,
+          0.175668
+        ],
+        "sight_front": [
+          0.452581,
+          0.152089
+        ],
+        "sight_rear": [
+          0.556656,
+          0.399783
+        ],
+        "pivot_trigger": [
+          0.513292,
+          0.459106
+        ],
+        "button_start": [
+          0.405265,
+          0.371723
+        ],
+        "grip": [
+          0.541312,
+          0.558346
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": -2.0
+  },
+  "silhouette": "con-revolver-chunky-silhouette.png",
+  "silhouette_scale_m": 0.82
+}

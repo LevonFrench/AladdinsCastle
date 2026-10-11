@@ -4,6 +4,8 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QJsonDocument>
+#include <QJsonParseError>
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -306,13 +308,45 @@ bool ControlsResolver::loadLibrary(const QString &root,QString &error) {
         const auto rules=list(defaults,"rule"); indexed(rules,"control rule"); QSet<QString> coverage;
         for (const auto &value:rules) { const auto rule=value.toMap(); check(models.contains(rule.value("gun_model").toString())&&sets.contains(rule.value("control_set").toString()),"Unknown default model/set"); coverage.insert(rule.value("gun_model").toString()); }
         check(coverage==QSet<QString>(models.keyBegin(),models.keyEnd()),"Every model requires an explicit control-set rule");
-        m_root=canonical; m_games=games; m_models=models; m_sets=sets; m_defaults=defaults; m_gunDefaults=guns; m_hardware=hardware; error.clear(); return true;
+        Map wii;
+        const auto catalogPath=confined(canonical,"data/controls/wii/view-catalog.json",true);
+        if (!catalogPath.isEmpty() && QFileInfo::exists(catalogPath)) {
+            QFile catalog(catalogPath); check(catalog.open(QIODevice::ReadOnly)&&catalog.size()<4*1024*1024,"Wii view catalog unreadable");
+            QJsonParseError parse;
+            const auto document=QJsonDocument::fromJson(catalog.readAll(),&parse).toVariant().toMap();
+            check(parse.error==QJsonParseError::NoError&&document.value("version").toString()=="0.1","Invalid Wii view catalog");
+            for (const auto &value:list(document,"games")) {
+                const auto row=value.toMap(); const auto gid=row.value("game_id").toString();
+                check(games.contains(gid)&&!wii.contains(gid)&&games.value(gid).toMap().value("hardware").toString()=="nintendo-wii","Invalid Wii catalog identity");
+                check(row.value("data").toMap().value("family").toString()=="wii","Invalid Wii data family");
+                wii[gid]=row;
+            }
+        }
+        m_root=canonical; m_games=games; m_models=models; m_sets=sets; m_defaults=defaults; m_gunDefaults=guns; m_hardware=hardware; m_wii=wii; error.clear(); return true;
     } catch (const std::exception &e) { error=QString::fromUtf8(e.what()); return false; }
 }
 
 bool ControlsResolver::resolveGame(const QString &id,const ControlsResolveOptions &options,Map &out,QString &error) const {
     try {
         check(!m_root.isEmpty()&&identifier(id)&&m_games.contains(id),"Unknown/invalid gun game");
+        if (m_wii.contains(id)) {
+            check(options.packIds.isEmpty(),"Wii view pack layers require its dedicated mapping");
+            if (options.useUserOverrides) {
+                const auto gameOverride=confined(m_root,options.userOverrideDirectory+"/games/"+id+"/game.toml",true);
+                const auto controlsOverride=confined(m_root,options.userOverrideDirectory+"/games/"+id+"/setup/controls.toml",true);
+                check(!QFileInfo::exists(gameOverride)&&!QFileInfo::exists(controlsOverride),"Wii view user layers require its dedicated mapping");
+            }
+            // Authored Wii display data is not an arcade-runtime declaration.
+            Map row=m_wii.value(id).toMap(),data=row.value("data").toMap(),policy=data.value("policy").toMap();
+            const auto defaults=options.profileDefaults.value("policy").toMap();
+            const QString hand=defaults.value("p1_hand","right").toString();
+            check(hand=="left"||hand=="right","Invalid primary hand"); policy["p1_hand"]=hand; data["policy"]=policy;
+            if (!options.profileModel.isEmpty()) {
+                check(m_models.contains(options.profileModel),"Unknown profile default model");
+                row["model"]=options.profileModel; row["model_metadata"]=m_models.value(options.profileModel); data["gun_model"]=options.profileModel;
+            }
+            row["data"]=data; out=row; error.clear(); return true;
+        }
         Map game=m_games.value(id).toMap(); check(game.value("genre").toString()=="gun","Requested game is not a gun game");
         validateBackend(options.backend); QStringList packs;
         for (const auto &pack:options.packIds) { check(identifier(pack)&&!packs.contains(pack),"Invalid/duplicate pack id"); packs.append(pack); }
