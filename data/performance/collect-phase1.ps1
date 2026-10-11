@@ -25,7 +25,7 @@ function PrivatePath([string]$Value) {
 $runRoot = PrivatePath $RunDirectory
 $lease = Get-Content -LiteralPath (PrivatePath $LeaseFile) -Raw | ConvertFrom-Json
 if ($lease.quiet_machine -ne $true -or $lease.desktop -ne $true -or
-    $lease.granted_by -ne '01a1244c-ea10-76a0-8ddc-b2901ea4f020' -or
+    $lease.granted_by -ne 'lead' -or
     [DateTimeOffset]::Parse($lease.expires_utc) -le [DateTimeOffset]::UtcNow.AddSeconds($Seconds + 20)) {
     throw 'Missing or expired lead QUIET MACHINE + DESKTOP grant'
 }

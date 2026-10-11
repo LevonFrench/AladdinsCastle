@@ -15,8 +15,9 @@ or Dolphin processes, logs logical-core and available GPU engine counters,
 records other running process names, and closes its own process. Code and
 override runs require a reviewed predecessor with the same scene, disc revision,
 build, normal speed, warmed shaders and CPU headroom. Twelve synthetic checks
-passed; PowerShell syntax and refusal gates were checked without launching an
-application.
+passed; PowerShell syntax and seven lease/refusal checks passed without accessing
+an executable or launching an application. The public lease uses a neutral lead
+marker; the exact coordination identity and grant provenance stay private.
 
 Pinned source 85c4266 confirms that render_times.txt and vblank_times.txt contain
 milliseconds between counter events. The FPS counter counts host presentations,

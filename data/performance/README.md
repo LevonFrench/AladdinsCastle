@@ -17,9 +17,11 @@ Shipped game settings remain inherited, including Darkside's EFB-to-RAM setting.
 
 The lead must grant both QUIET MACHINE and DESKTOP for an exact run before
 `collect-phase1.ps1` is invoked. The private lease JSON has `quiet_machine: true`,
-`desktop: true`, `granted_by` (lead chat ID), `run_directory` (exact absolute
+`desktop: true`, `granted_by: "lead"`, `run_directory` (exact absolute
 directory) and `expires_utc` (ISO timestamp). Creating a lease is not permission;
-it must transcribe the lead's actual grant. The script refuses an expired lease,
+it must transcribe the lead's actual grant. Keep the session identity and exact
+grant provenance in the private handoff; the public harness needs no chat ID.
+The script refuses an expired lease,
 another Dolphin/build/render process, changed profile/executable/disc, or a reused
 run. It launches VR off, V-Sync off, emulated CPU clock 100%, speed limit 100%,
 PAL60 on, 3x resolution, no AA, 16x AF and hybrid ubershaders. Those graphics values
@@ -80,3 +82,4 @@ can be promoted until measurements exist. Phase 2 and the other three titles
 remain outside this overnight lane.
 
 Synthetic verification: `python -m unittest discover -s data/performance -p test_phase1.py`.
+Launcher refusal checks: `pwsh -NoProfile -File data/performance/test_collector_gates.ps1`.
