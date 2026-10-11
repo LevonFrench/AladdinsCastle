@@ -268,6 +268,16 @@ private slots:
         QVERIFY(capture.save(QDir(fixtureRoot).filePath("wii-umbrella-shell-stick-native.png")));
         item->setParentItem(nullptr);
         QVERIFY(model.loadResolved(samples["wii-resident-evil-umbrella-chronicles"],QDir(AC_CONTROLS_ROOT).filePath("assets/guns/preview")));
+        QCOMPARE(rowWithId(model,"p1-home").value("availability").toString(),QString("unavailable"));
+        QVERIFY(rowWithId(model,"p1-home").value("reason").toString().contains("PS/Home"));
+        QVERIFY(model.notice().contains("Tracked recentre unavailable"));
+        QCOMPARE(rowWithId(model,"p1-fire").value("physicalDsuSlot").toInt(),0);
+        QCOMPARE(rowWithId(model,"p1-z").value("physicalDsuSlot").toInt(),1);
+        model.setPrimaryHand("left");
+        QCOMPARE(rowWithId(model,"p1-fire").value("hand").toString(),QString("left"));
+        QCOMPARE(rowWithId(model,"p1-fire").value("physicalDsuSlot").toInt(),0);
+        QCOMPARE(rowWithId(model,"p1-z").value("physicalDsuSlot").toInt(),1);
+        model.setPrimaryHand("right");
         model.setTwoGunsActive(true); QVERIFY(model.twoGunsActive()); QVERIFY(!model.accessoryPreviewAvailable());
         QCOMPARE(rowWithId(model,"p1-z").value("hand").toString(),QString("right"));
         QCOMPARE(rowWithId(model,"p2-z").value("hand").toString(),QString("left"));

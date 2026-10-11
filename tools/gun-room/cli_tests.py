@@ -26,7 +26,36 @@ def main() -> None:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 check=False,
+                timeout=5,
             ).returncode
+
+        def prequeued_control(payload: bytes, *args: str, eof: bool = False) -> int:
+            read_fd, write_fd = os.pipe()
+            try:
+                if payload:
+                    os.write(write_fd, payload)
+                if eof:
+                    os.close(write_fd)
+                    write_fd = -1
+                process = subprocess.Popen(
+                    [str(executable), "--root", str(root), "--model", "fixture", "--xr",
+                     "--control-stdin", *args],
+                    stdin=read_fd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                )
+                os.close(read_fd)
+                read_fd = -1
+                try:
+                    process.communicate(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.communicate()
+                    raise
+                return process.returncode
+            finally:
+                if read_fd >= 0:
+                    os.close(read_fd)
+                if write_fd >= 0:
+                    os.close(write_fd)
 
         assert run("--preview-svg", "sample.svg", "--right-angle-deg", "garbage") == 2
         assert not (root / ".local").exists(), "invalid number wrote output directory"
@@ -39,7 +68,20 @@ def main() -> None:
         assert run("--preview-svg", "safe.svg", "--capture-eyes", "eyes-one") == 2
         assert run("--preview-svg", "safe.svg", "--seconds", "4") == 2
         assert run("--preview-svg", "safe.svg", "--seconds", "10") == 2
+        assert run("--preview-svg", "safe.svg", "--control-stdin") == 2
         assert not (root / ".local").exists(), "invalid capture options wrote output directory"
+        wrong_handle = subprocess.run(
+            [str(executable), "--root", str(root), "--model", "fixture", "--xr", "--control-stdin"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            check=False, timeout=5,
+        )
+        assert wrong_handle.returncode == 2, "non-pipe stdin must fail before XR create"
+        assert not (root / ".local").exists(), "invalid control handle wrote output directory"
+        assert prequeued_control(b"close\n") == 0, "queued close must exit before XR create"
+        assert prequeued_control(b"", eof=True) == 0, "queued EOF must exit before XR create"
+        assert prequeued_control(b"cl", eof=True) == 0, "queued partial EOF must exit before XR create"
+        assert prequeued_control(b"wrong\n") == 9, "queued malformed input must fail before XR create"
+        assert not (root / ".local").exists(), "precreate control changed output directory"
         assert run("--preview-svg", "sample.svg") == 0
         preview = root / ".local" / "gun-room" / "sample.svg"
         before = preview.read_bytes()
@@ -61,6 +103,9 @@ def main() -> None:
                    "--left-angle-deg", "-7", "--update-angle-file") == 0
         assert "right 15" in angle.read_text(encoding="utf-8")
         assert "left -7" in angle.read_text(encoding="utf-8")
+        assert prequeued_control(b"wrong\n", "--capture-eyes", "control-bad") == 9
+        receipt = json.loads((preview.parent / "control-bad" / "receipt.json").read_text(encoding="utf-8"))
+        assert receipt["status"] == "error" and receipt["reason"] == "control_stdin"
         outside = root / "outside.txt"
         outside.write_text("untouched", encoding="utf-8")
         alias = preview.parent / "alias.txt"

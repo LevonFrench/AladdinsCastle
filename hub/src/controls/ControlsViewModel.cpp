@@ -226,7 +226,7 @@ QVariantList ControlsViewModel::makeRows() const {
         const auto availability = source.value("availability").toMap();
         QString state = availability.value("state").toString();
         QString reason = availability.value("reason").toString();
-        if (wiiControls()) reason=source.value("player_reason","This control is not available yet.").toString();
+        if (wiiControls() && source.contains("player_reason")) reason=source.value("player_reason").toString();
         const bool unsupportedHand = wiiControls() && !m_data.value("policy").toMap().value("supported_primary_hands").toStringList().contains(m_primaryHand);
         if (unmapped) state = "unmapped";
         else if (unsupportedHand) {
@@ -253,9 +253,12 @@ QVariantList ControlsViewModel::makeRows() const {
                                           wiiControls() ? "Wii control mapping — awaiting gameplay validation" : state == "available" ? "Ready to test" :
                                           state == "unmapped" ? "Mapping pending" : "Awaiting validation";
         const auto device = binding.value("physical_dsu_slot_by_mode").toMap().value(m_twoGunsActive ? "two_remotes" : "one_gun");
+        const auto transport=m_data.value("transport").toMap();
+        const int wiiDsuSlot=m_data.value("route").toString()=="dolphinxr" ? -1 :
+            transport.value("dsu_slot_policy").toString()=="roles" ? (m_twoGunsActive ? source.value("slot").toInt() : transport.value("device_slots").toMap().value(source.value("role").toString(),-1).toInt()) : (hand=="right"?0:1);
         QVariantMap row{{"id",source.value("id")},{"part",part},{"action",action},{"node",node},{"model",partModel},
             {"slot",source.value("slot")},{"player",source.value("player")},{"hand",hand},{"control",control},
-            {"physicalDsuSlot",m_data.value("schema").toString()=="shell-stick/1" ? (hand=="right"?0:1) : device.isNull() || !device.isValid() ? -1 : device.toInt()},
+            {"physicalDsuSlot",m_data.value("schema").toString()=="shell-stick/1" ? wiiDsuSlot : device.isNull() || !device.isValid() ? -1 : device.toInt()},
             {"bindingLabel",bindingText},{"fallbackLabel",fallback.isEmpty() ? QString() : bindingLabel(fallback,elementHand(source,fallback))},
             {"availability",state},{"availabilityLabel",availabilityLabel},{"reason",unmapped ? source.value("reason") : reason},
             {"pressed",pressed},{"warning",source.value("warning",false)},{"anchorAvailable",previewAvailable() && coordinates(anchor)},
@@ -281,7 +284,11 @@ QString ControlsViewModel::notice() const {
         if(m_data.value("schema").toString()=="shell-stick/1") return
             "Route: "+m_data.value("route").toString()+" · Hold: "+holdMode()+" · Firing hand: "+m_primaryHand+
             (m_twoGunsActive ? ". A shell at each controller; no separate stick." : m_holdMode=="docked" ? ". Stick seated at the shell's rear grip; two-handed aim." : ". Shell in firing hand; stick in the other.")+
-            " Both thumbstick clicks recenter. Game layout/actions remain questions. Native two-player aim is unsupported; native left aim requires its matching installed hand setting.";
+            (m_data.value("route").toString()=="dolphinxr" ? " Both thumbstick clicks recenter through the installed native hotkey." :
+                " Canonical DSU: Remote slot 0, stick slot 1. Tracked recentre unavailable."+
+                QString(m_data.value("transport").toMap().value("live_bridge_compatible").toBool() ? " Transport source-tested; gameplay validation pending." : " Live producer unavailable pending source review.")+
+                QString(m_twoGunsActive ? " Two-remotes producer remains planned." : ""))+
+            " Game layout/actions remain questions. Native two-player aim is unsupported; native left aim requires its matching installed hand setting.";
         if (!m_data.value("policy").toMap().value("supported_primary_hands").toStringList().contains(m_primaryHand))
             return "Left-hand Wii Remote setup is not available yet. Right hand: Wii Remote. Left hand: Nunchuk.";
         return (m_twoGunsActive ? QString("Player 1: right hand. Player 2: left hand. Each hand controls its own Wii Remote and Nunchuk.") :

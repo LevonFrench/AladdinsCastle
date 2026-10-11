@@ -5,6 +5,7 @@
 #include "acvr.h"
 #include "room_scene.hpp"
 #include "capture_plan.hpp"
+#include "control_stdin.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <array>
@@ -123,7 +124,7 @@ struct Options {
     uint32_t hand=ACVR_HAND_RIGHT;
     int seconds=0;
     bool xr=false,have_right=false,have_left=false,replace_preview=false,update_angles=false;
-    bool save_angles=false;
+    bool save_angles=false,control_stdin=false;
 };
 bool filename(const std::filesystem::path &p,const char *extension){
     if(p.empty()||p.has_parent_path()||p.extension()!=extension)return false;
@@ -181,6 +182,7 @@ bool parse(int argc,char **argv,Options &o){
     for(int i=1;i<argc;++i){
         const std::string key=argv[i];
         if(key=="--xr")o.xr=true;
+        else if(key=="--control-stdin")o.control_stdin=true;
         else if(key=="--replace-preview")o.replace_preview=true;
         else if(key=="--update-angle-file")o.update_angles=true;
         else if(i+1>=argc)return false;
@@ -205,6 +207,7 @@ bool parse(int argc,char **argv,Options &o){
         else return false;
     }
     if(!o.xr&&o.preview.empty())return false;
+    if(o.control_stdin&&!o.xr)return false;
     if(o.seconds&&!o.xr)return false;
     if(!o.capture_name.empty()&&(!o.xr||!room::capture_name_ok(o.capture_name)))return false;
     if(o.root.empty()||!o.root.is_absolute()||!std::filesystem::is_directory(o.root))return false;
@@ -261,7 +264,12 @@ int main(int argc,char **argv){
         std::cerr<<"Usage: acvr_gun_room --root ABS_PATH [--xr] [--preview-svg NAME.svg] "
                  "[--replace-preview] [--model ID] [--hand right|left] [--angle-file NAME.txt] "
                  "[--right-angle-deg N] [--left-angle-deg N] [--update-angle-file] "
-                 "[--capture-eyes FRESH_NAME (requires --xr)] [--seconds 5..60]\n";return 2;
+                 "[--capture-eyes FRESH_NAME (requires --xr)] [--seconds 5..60] "
+                 "[--control-stdin (requires --xr and a pipe on stdin)]\n";return 2;
+    }
+    room::ControlStdin control;
+    if(o.control_stdin&&!control.attach(GetStdHandle(STD_INPUT_HANDLE))){
+        std::cerr<<"--control-stdin requires the launcher pipe on stdin\n";return 2;
     }
     if(!o.preview.empty()||o.save_angles){
         try {std::filesystem::create_directories(o.root/".local"/"gun-room");}
@@ -304,6 +312,14 @@ int main(int argc,char **argv){
     config.gun_policy=record<acvr_gun_policy>();config.gun_policy.p1_hand=o.hand;
     config.gun_policy.two_guns=ACVR_TWO_GUNS_OFF;
     auto api=backend_api();acvr_runtime *runtime=nullptr;
+    if(o.control_stdin){
+        const auto request=control.poll();
+        if(request==room::ControlPoll::Close)return 0;
+        if(request==room::ControlPoll::Error){
+            std::cerr<<"Malformed or failed stdin control command\n";
+            error_receipt("control_stdin");return 9;
+        }
+    }
     const auto created=acvr_runtime_create(&config,&api,&runtime);
     if(created!=ACVR_OK){std::cerr<<"OpenXR room create failed: "<<created<<"\n";
         error_receipt("runtime_create");return 4;}
@@ -312,7 +328,16 @@ int main(int argc,char **argv){
     const auto receipt_status=[&](){return o.capture_name.empty()?room::CaptureStatus::Missing:
         room::capture_receipt_status(o.capture_dir,o.model);};
     int code=0;
+    bool cooperative_close=false,control_error=false;
     for(;;){
+        if(o.control_stdin){
+            const auto request=control.poll();
+            if(request==room::ControlPoll::Close){cooperative_close=true;break;}
+            if(request==room::ControlPoll::Error){
+                std::cerr<<"Malformed or failed stdin control command\n";
+                control_error=true;code=9;break;
+            }
+        }
         if((o.seconds||!o.capture_name.empty())&&std::chrono::steady_clock::now()>=deadline){
             std::cerr<<"OpenXR room deadline elapsed\n";code=8;break;
         }
@@ -329,8 +354,10 @@ int main(int argc,char **argv){
         }
     }
     if(acvr_runtime_destroy(runtime)!=ACVR_OK)code=6;
-    if(code!=0)error_receipt(code==8?"deadline":(code==6?"runtime_destroy":"runtime_tick"));
-    if(code==0&&!o.capture_name.empty()&&receipt_status()!=room::CaptureStatus::Success){
+    if(code!=0)error_receipt(control_error?"control_stdin":(code==8?"deadline":
+                                      (code==6?"runtime_destroy":"runtime_tick")));
+    if(code==0&&!cooperative_close&&!o.capture_name.empty()&&
+       receipt_status()!=room::CaptureStatus::Success){
         std::cerr<<"OpenXR stopped without a completed eye capture\n";code=7;
         error_receipt("stopped_without_capture");
     }
