@@ -10,9 +10,9 @@ validate it. AutoVBIFromHMD is explicitly false so Off cannot inherit the legacy
 90 fallback. The older harness's GFX CLI namespace was silently ignored by this
 parser; it is corrected to Graphics. No old profile is runtime evidence.
 
-Ten fresh profiles are prepared for RBUP08 and SBDP08 across Off, Auto, 72, 90
-and 120. Cheats remain off, with one fixed graphics/input configuration. The
-generated flat profile is verified against its shared manifest, and the lead's
+Eleven native profiles are prepared: RBUP08 and SBDP08 across Off, Auto, 72, 90
+and 120, plus RZJE69 Off. Cheats remain off, with one fixed graphics/input
+configuration. Per-game profiles are verified against their shared manifest, and the lead's
 scripted parser checks the private 180-second Cross/A boot candidate without
 starting a socket. Those button timings are untested; no title or mission is
 claimed. Native collection requires the lead's quiet runtime slot, approved XR
@@ -49,12 +49,13 @@ timeline hash, port and a fresh per-run token to both attachment and lease, then
 checks the live interpreter path/hash. Two real-collector regressions reject the
 old receipt and unrelated PID; twenty additional mismatch cases and matching
 controls pass without launching anything. Old preparations lack this contract
-and remain historical. The lead owns the matching scripted.py protocol change;
+and remain historical. The lead published the matching scripted.py protocol change;
 integration and runtime remain held pending review.
 
 Per-game attachment now verifies the exact game manifest paths and both generated
 control hashes, keeping scripted DSU active and the native pair as a reference.
 Dead Space's fresh private identity receipt matches RZJE69 revision 0. Its native
-Off baseline and disabled-code preview are staged; attachment does not activate
+Off baseline and disabled-code preview have their canonical per-game input attached; attachment does not activate
 the code or make its unavailable primary source verified. Canonical bytes must
-come from the corrected Guns checkpoint before future runtime.
+come from the corrected Guns checkpoint. Fresh profiles bind the published bridge
+protocol and unique per-run tokens; the incomplete earlier preparation is kept.
