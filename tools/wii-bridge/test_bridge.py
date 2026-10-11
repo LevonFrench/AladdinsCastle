@@ -1,19 +1,199 @@
 # SPDX-License-Identifier: GPL-3.0-only
 import copy
+import hashlib
 import math
+import json
 import socket
 import struct
+import tempfile
 import time
 import unittest
 import zlib
+from pathlib import Path
 from dsu import DATA, PORTS, VERSION, Pad, Server, axis, mac, packet, parse, payload
 from motion import Mapper, MotionLatch
+from policy import CanonicalPolicy
 
 IDENTITY = [1,0,0,0, 0,1,0,0, 0,0,1,0]
 
 
 def hand():
     return dict(valid=True,pose=IDENTITY[:],velocity=[0,0,0],omega=[0,0,0],stick=[0,0],buttons=[False]*6)
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+class CanonicalInput(unittest.TestCase):
+    def admitted_data(self, game='wii-dead-space-extraction', primary='right'):
+        path = ROOT / 'data/controls/wii/generated/games' / game / f'scripted-dsu-{primary}.json'
+        data = json.loads(path.read_text(encoding='utf-8'))
+        data['producer_policy'] = {
+            'schema': 'canonical-dsu/1',
+            'expression_tokens': sorted(('click', 'down', 'grip', 'left', 'primary',
+                                         'right', 'secondary', 'trigger', 'up')),
+            'slots': {'remote': 0, 'nunchuk': 1}, 'unsupported_actions': ['home'],
+            'offscreen_hide_supported': False,
+            'recenter': {'chord': ['right.click', 'left.click'],
+                         'suppress_game_buttons': True, 'shared_theatre_calibration': True},
+            'producers': {'scripted_dsu': {'supported': True, 'tracked_recenter': False},
+                          'legacy_steamvr': {'supported': False, 'reason': 'synthetic legacy refusal'},
+                          'canonical_live': {'supported': True, 'state': 'source-tested'}},
+        }
+        data['live_bridge_compatible'] = True
+        data['recenter_supported'] = False
+        for player in data['players']:
+            for action in player['actions']:
+                action['supported'] = action['script']['supported']
+        return data
+
+    def profile(self, primary='right'):
+        return CanonicalPolicy(self.admitted_data(primary=primary), 'synthetic-admitted')
+
+    def wire_mask(self, slot, pad):
+        return struct.unpack_from('<H', packet(DATA, payload(slot, pad, 1)), 36)[0]
+
+    def test_generated_hash_game_identity_and_refusal(self):
+        policy = self.profile()
+        self.assertEqual((policy.remote_hand, policy.stick_hand), ('right', 'left'))
+        with self.assertRaises(ValueError):
+            CanonicalPolicy.load(ROOT, '../escape', 'right')
+        unready = self.admitted_data()
+        unready['live_bridge_compatible'] = False
+        unready['producer_policy']['producers']['canonical_live'] = {
+            'supported': False, 'state': 'consumer-implementation-pending'}
+        with self.assertRaisesRegex(ValueError, 'not approved'):
+            CanonicalPolicy(unready, 'synthetic-refused')
+        scratch = Path(__file__).resolve().parent / '.local'
+        scratch.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as temp:
+            base = Path(temp) / 'data/controls/wii/generated'
+            target = base / 'games/wii-dead-space-extraction'
+            target.mkdir(parents=True)
+            source = ROOT / 'data/controls/wii/generated'
+            manifest = json.loads((source / 'generated-files.json').read_text(encoding='utf-8'))
+            product = Path(temp) / 'data/product.json'
+            product.write_bytes((ROOT / 'data/product.json').read_bytes())
+            for extension in ('.json', '.ini'):
+                name = 'scripted-dsu-right' + extension
+                (target / name).write_bytes((source / 'games/wii-dead-space-extraction' / name).read_bytes())
+            path = target / 'scripted-dsu-right.json'
+            path.write_text(json.dumps(self.admitted_data()), encoding='utf-8')
+            rel = 'games/wii-dead-space-extraction/scripted-dsu-right.json'
+            manifest['files'][rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+            (base / 'generated-files.json').write_text(json.dumps(manifest), encoding='utf-8')
+            self.assertEqual(CanonicalPolicy.load(temp, 'wii-dead-space-extraction', 'right').primary_hand, 'right')
+            path.write_bytes(path.read_bytes() + b' ')
+            with self.assertRaisesRegex(ValueError, 'hash mismatch'):
+                CanonicalPolicy.load(temp, 'wii-dead-space-extraction', 'right')
+            path.write_text(json.dumps(self.admitted_data()), encoding='utf-8')
+            (target / 'scripted-dsu-right.ini').write_bytes(b'changed')
+            with self.assertRaisesRegex(ValueError, 'hash mismatch'):
+                CanonicalPolicy.load(temp, 'wii-dead-space-extraction', 'right')
+        wrong = self.admitted_data()
+        wrong['device_slots']['remote'] = 1
+        with self.assertRaises(ValueError): CanonicalPolicy(wrong, 'synthetic')
+        wrong['device_slots']['remote'] = 0
+        wrong['players'][0]['actions'][0]['hand'] = 'left'
+        with self.assertRaises(ValueError): CanonicalPolicy(wrong, 'synthetic')
+
+    def test_every_generated_game_role_profile(self):
+        source = ROOT / 'data/controls/wii/generated'
+        manifest = json.loads((source / 'generated-files.json').read_text())
+        games = {path.split('/')[1] for path in manifest['files']
+                 if path.startswith('games/') and path.endswith('/scripted-dsu-right.json')}
+        self.assertGreaterEqual(len(games), 5)
+        for game in sorted(games):
+            for primary in ('right', 'left'):
+                with self.subTest(game=game, primary=primary):
+                    rel = f'games/{game}/scripted-dsu-{primary}.json'
+                    self.assertEqual(hashlib.sha256((source / rel).read_bytes()).hexdigest(), manifest['files'][rel])
+                    policy = CanonicalPolicy(self.admitted_data(game, primary), 'synthetic-admitted')
+                    self.assertEqual(policy.remote_hand, primary)
+                    self.assertEqual(policy.stick_hand, 'left' if primary == 'right' else 'right')
+
+    def test_right_remote_and_left_nunchuk_wire_actions(self):
+        mapper = Mapper(policy=self.profile())
+        frame = dict(time=1., hands=[hand(), hand()])
+        frame['hands'][1]['buttons'][0] = True # fire
+        frame['hands'][1]['buttons'][2] = True # interact Cross
+        self.assertEqual(self.wire_mask(0, mapper.update(frame)[0]), 1 << 14) # no calibration, no fire
+        self.assertTrue(mapper.recenter(IDENTITY))
+        frame['hands'][0]['buttons'][0] = True # Nunchuk Z
+        frame['hands'][0]['buttons'][1] = True # Nunchuk C
+        frame['hands'][0]['stick'] = [.8, -.7]
+        pads = mapper.update(frame)
+        self.assertEqual(self.wire_mask(0, pads[0]), (1 << 9) | (1 << 14))
+        self.assertEqual(self.wire_mask(1, pads[1]), (1 << 8) | (1 << 13))
+        self.assertEqual(pads[0].stick, (0., 0.))
+        self.assertEqual(pads[1].stick, (.8, -.7))
+        frame['hands'][1]['buttons'][1] = True # grip modifier changes Cross to Options
+        pads = mapper.update(frame)
+        self.assertEqual(self.wire_mask(0, pads[0]), 1 << 3)
+        frame['hands'][1]['buttons'][2] = False
+        frame['hands'][1]['buttons'][3] = True # grip + secondary = Share (minus)
+        frame['hands'][1]['stick'] = [0, .9] # grip + up = Square (Remote 1)
+        pads = mapper.update(frame)
+        self.assertEqual(self.wire_mask(0, pads[0]), (1 << 0) | (1 << 15))
+        frame['hands'][1]['buttons'][1] = False
+        frame['hands'][1]['buttons'][0] = False
+        frame['hands'][1]['stick'] = [0, 0]
+        pads = mapper.update(frame)
+        self.assertEqual(self.wire_mask(0, pads[0]), 1 << 11) # secondary fallback R1, not automatic reload
+        frame['hands'][1]['buttons'][3] = False
+        frame['hands'][1]['buttons'][5] = True
+        pads = mapper.update(frame)
+        self.assertEqual(self.wire_mask(0, pads[0]), 1 << 10) # solo click swing fallback
+        with self.assertRaises(ValueError): Mapper(policy=self.profile(), offscreen='hide')
+
+    def test_left_primary_role_tracking_and_recenter_suppression(self):
+        mapper = Mapper(policy=self.profile('left'));mapper.recenter(IDENTITY)
+        frame = dict(time=1., hands=[hand(), hand()])
+        frame['hands'][0]['buttons'][0] = True
+        frame['hands'][1]['buttons'][0] = True
+        pads = mapper.update(frame)
+        self.assertEqual(self.wire_mask(0, pads[0]), 1 << 9)
+        self.assertEqual(self.wire_mask(1, pads[1]), 1 << 8)
+        frame['hands'][0]['buttons'][1] = True
+        frame['hands'][0]['buttons'][5] = True # grip+click asks for unsupported Home
+        pads = mapper.update(frame)
+        self.assertEqual(self.wire_mask(0, pads[0]), 0)
+        frame['hands'][1]['buttons'][5] = True # both clicks reserve theatre recenter
+        frame['hands'][1]['stick'] = [0, 1]
+        pads = mapper.update(frame)
+        self.assertTrue(mapper.recenter_requested)
+        self.assertEqual([self.wire_mask(i, p) for i, p in enumerate(pads)], [0, 0])
+        self.assertEqual(pads[1].stick, (0., 0.))
+        frame['hands'][0]['valid'] = False
+        pads = mapper.update(frame)
+        self.assertFalse(mapper.tracked[0])
+        self.assertEqual(self.wire_mask(0, pads[0]), 0)
+        self.assertTrue(mapper.tracked[1])
+        latch = MotionLatch()
+        latch.publish(mapper.pads, mapper.tracked, mapper.dynamic_g, 10.)
+        served, tracked = latch.consume(10.01)
+        self.assertEqual(tracked, [False, True])
+        self.assertEqual([self.wire_mask(i, p) for i, p in enumerate(served)], [0, 1 << 8])
+        self.assertEqual(served[0].accel, Pad().accel)
+
+    def test_nonfinite_or_malformed_physical_hand_neutral_before_policy(self):
+        mapper = Mapper(policy=self.profile());mapper.recenter(IDENTITY)
+        frame = dict(time=1., hands=[hand(), hand()])
+        frame['hands'][1]['buttons'][0] = True
+        self.assertEqual(self.wire_mask(0, mapper.update(frame)[0]), 1 << 9)
+        frame['time'] = 1.01
+        frame['hands'][1]['stick'][0] = float('nan')
+        frame['hands'][1]['buttons'][5] = True
+        frame['hands'][0]['buttons'][5] = True
+        pads = mapper.update(frame)
+        self.assertFalse(mapper.tracked[0])
+        self.assertEqual(self.wire_mask(0, pads[0]), 0)
+        self.assertFalse(mapper.recenter_requested)
+        frame['time'] = 1.02
+        frame['hands'][1] = hand()
+        frame['hands'][1]['buttons'][0] = 1 # integer is not a digital bool
+        self.assertEqual(self.wire_mask(0, mapper.update(frame)[0]), 0)
+        self.assertFalse(mapper.tracked[0])
 
 
 class Protocol(unittest.TestCase):

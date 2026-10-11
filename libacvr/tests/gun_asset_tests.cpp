@@ -41,6 +41,14 @@ void valid_assets() {
     f.doc["nodes"][2]["name"]="geometry"; f.doc["nodes"][4]["name"]="geometry_low";
     check(acvr::decode_gun_glb(f.bytes(),asset,error) && asset.lod_count==1 && asset.triangles[0]==2);
 }
+void hand_rigid_asset() {
+    Fixture hand;
+    hand.doc["nodes"][1]["name"]="hand_finger_anchor"; // no muzzle or bore contract
+    acvr::GunAsset asset;std::string error;
+    check(!acvr::decode_gun_glb(hand.bytes(),asset,error));
+    check(acvr::decode_hand_glb(hand.bytes(),asset,error));
+    check(asset.grip==0 && asset.muzzle==asset.grip && asset.primitives.size()==2);
+}
 void interleaved_and_colours() {
     Fixture f; f.bin.clear();
     for(unsigned i=0;i<3;++i) {
@@ -107,7 +115,7 @@ void malformed() {
     reject(repeated);
 }
 int main() {
-    try { valid_assets(); interleaved_and_colours(); malformed(); }
+    try { valid_assets(); hand_rigid_asset(); interleaved_and_colours(); malformed(); }
     catch(const std::exception &e) { std::cerr<<e.what()<<'\n'; return 1; }
     std::cout<<checks<<" gun asset checks passed\n"; return 0;
 }

@@ -15,11 +15,17 @@ import sys
 from pathlib import Path
 from dsu import Pad, Server
 from motion import Mapper, MotionLatch
+from policy import CanonicalPolicy
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--pose-reader', type=Path, required=True)
+    route = parser.add_mutually_exclusive_group(required=True)
+    route.add_argument('--control-set', help='Exact generated scripted-DSU catalog slug')
+    route.add_argument('--legacy-input', action='store_true', help='Explicit historical button mapping')
+    parser.add_argument('--primary-hand', choices=('right', 'left'),
+                        help='Physical firing hand for the generated scripted-DSU profile')
     parser.add_argument('--port', type=int, default=26760)
     parser.add_argument('--seconds', type=float, default=0)
     parser.add_argument('--head-file', type=Path, help='Shared calibration emitted by the SBS theatre')
@@ -29,7 +35,20 @@ def main():
     product = json.loads((Path(__file__).resolve().parents[2] / 'data/product.json').read_text(encoding='utf-8'))
     if product.get('schema') != 1 or not isinstance(product.get('display_name'), str):
         raise ValueError('Invalid product identity')
-    mapper = Mapper(offscreen=args.offscreen_pointer)
+    policy = None
+    if args.control_set:
+        if args.primary_hand is None:
+            parser.error('--primary-hand is required with --control-set')
+        policy = CanonicalPolicy.load(Path(__file__).resolve().parents[2], args.control_set, args.primary_hand)
+        if (policy.data['server']['name'] != product.get('dsu_server_name') or
+                policy.data['server']['port'] != args.port):
+            raise ValueError('generated DSU server identity/port mismatch')
+    elif args.primary_hand is not None:
+        parser.error('--primary-hand applies only to --control-set')
+    mapper = Mapper(offscreen=args.offscreen_pointer, policy=policy)
+    if policy:
+        print(f'Canonical DSU control-set {args.control_set} {args.primary_hand}: '
+              f'generated JSON SHA256 {policy.source_hash}', file=sys.stderr, flush=True)
     latch = MotionLatch()
     state_lock = threading.Lock()
     gesture_state = [None]
@@ -49,7 +68,8 @@ def main():
                 with state_lock:
                     pads, tracked = latch.consume(now)
                     fallback = gesture_state[0]
-                if fallback and tracked[0]:
+                    chord = mapper.recenter_requested
+                if fallback and tracked[0] and not chord:
                     kind, start = fallback
                     t = now-start
                     if t <= .45:
@@ -93,7 +113,9 @@ def main():
     centre_help = ('Use Ctrl+Alt+C in the theatre to centre the screen and pointer together.'
                    if args.head_file else
                    'Face the centre of your Dolphin screen, then click Centre pointer plane.')
-    tk.Label(window,text=centre_help+'\nRight hand = Remote 1 · Left hand = Remote 2 / Nunchuk',font=('Segoe UI',12),fg='white',bg='#132030').pack()
+    role_help = (f'{policy.remote_hand.title()} hand = Remote · {policy.stick_hand.title()} hand = Nunchuk'
+                 if policy else 'Legacy: right hand = Remote 1 · left hand = Remote 2')
+    tk.Label(window,text=centre_help+'\n'+role_help,font=('Segoe UI',12),fg='white',bg='#132030').pack()
     canvas = tk.Canvas(window,width=820,height=360,bg='#0b111a',highlightthickness=0)
     canvas.pack(pady=12)
     for x,y in [(410,180),(30,30),(790,30),(30,330),(790,330)]:
@@ -218,10 +240,11 @@ def main():
             on_plane=mapper.on_plane[:] if fresh else [False,False]
             centred=bool(mapper.center)
             subscriptions,sent=server_state
+            chord=mapper.recenter_requested if fresh else False
             peaks=mapper.take_peaks() if now-last_peak_log >= 1 else None
         if peaks is not None:
             print('motion peak (1 s): '+', '.join(
-                f'remote {i+1} accel={peak:.2f} g speed={speed:.2f} m/s'
+                f'{("Remote" if i == 0 else "Nunchuk") if policy else "remote " + str(i+1)} accel={peak:.2f} g speed={speed:.2f} m/s'
                 for i,(peak,speed) in enumerate(peaks)),file=sys.stderr,flush=True)
             last_peak_log=now
         canvas.delete('hands')
@@ -232,8 +255,13 @@ def main():
             if tracked[i]:
                 canvas.create_oval(x-10,y-10,x+10,y+10,fill=color,tags='hands')
                 canvas.create_text(x+16,y,text=str(i+1),fill=color,tags='hands')
-            lines.append(f'Remote {i+1}: {"TRACKED" if tracked[i] else "not tracked":11}  {"on" if on_plane[i] else "off"}-screen  pointer {p.pointer[0]:+.2f},{p.pointer[1]:+.2f}  accel '+','.join(f'{v:+.2f}' for v in p.accel)+' g')
+            role = ('Remote' if i == 0 else 'Nunchuk') if policy else f'Remote {i+1}'
+            lines.append(f'{role}: {"TRACKED" if tracked[i] else "not tracked":11}  {"on" if on_plane[i] else "off"}-screen  pointer {p.pointer[0]:+.2f},{p.pointer[1]:+.2f}  accel '+','.join(f'{v:+.2f}' for v in p.accel)+' g')
         lines.append(f'DSU 127.0.0.1:{args.port} · {subscriptions} subscriptions · {sent} packets · plane '+('centred' if centred else 'needs centring'))
+        if policy:
+            lines.append(f'Canonical {args.control_set} · {args.primary_hand} · source {policy.source_hash[:12]} · theatre chord unimplemented')
+        if policy and chord:
+            lines.append('Both clicks reserved; use theatre Ctrl+Alt+C to recenter screen and pointer together.')
         if not errors.empty():
             reader_error=errors.get_nowait()
         if reader_error:

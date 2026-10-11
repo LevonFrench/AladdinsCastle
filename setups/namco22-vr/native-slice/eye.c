@@ -7,6 +7,7 @@
 
 const acvr_eye *acn22_eye;
 static int fixture_layers;
+void acn22_invalidate_frame(void) { fixture_layers=0; acn22_eye=NULL; }
 
 void acn22_latch_regs(const ss22_regs *r)
 {
@@ -80,6 +81,18 @@ acvr_result acn22_begin_eye(const acvr_eye *e)
     return ACVR_OK;
 }
 void acn22_end_eye(void) { acn22_eye = NULL; }
+acvr_result acn22_stage_prepared(const acvr_eye *e, acn22_pose_fragment *out,
+                               uint32_t capacity, uint32_t *written)
+{
+    if (!written) return ACVR_BAD_ARGUMENT;
+    *written=0;
+    if (!fixture_layers || ss22_sprites()) return ACVR_UNSUPPORTED;
+    if (g_fog.have_gamma) for (int c=0;c<3;c++) for(int i=0;i<256;i++)
+        if(g_fog.gamma[c][i]!=i)return ACVR_UNSUPPORTED;
+    int n; const geo_quad *q=acn22_prepared(&n);
+    if (!n) return ACVR_BAD_STATE;
+    return acn22_pose_stage(q,(uint32_t)n,e,out,capacity,written);
+}
 void acn22_draw_quad(const geo_quad *q, const void *cfg)
 {
     if (!acn22_eye) { eng_draw_quad(q, cfg); return; }

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: MIT  (libacvr/ is MIT-licensed: see libacvr/LICENSE; the rest of AladdinsCastle is GPL-3.0)
- * Contract v0.2, 2026-10-10. Shared frame core implemented; OpenXR provider pending.
+ * Contract v0.2, 2026-10-10. Shared frame core implemented; optional Windows
+ * OpenXR desktop-GL provider is available when enabled at build time.
  * Normative semantics and source evidence: docs/libacvr-contract.md.
  */
 #ifndef ACVR_H_INCLUDED
@@ -389,7 +390,8 @@ typedef struct acvr_runtime_config {
  * and calls game_open; tick handles one XR frame (0..N native ticks, 0..2 draws);
  * destroy releases the frame, flushes if supported, closes backend then graphics.
  * All exports are owner-thread-only, including pause; destroy accepts NULL.
- * Until the XR provider is linked, public create returns UNSUPPORTED with NULL.
+ * Without the optional XR provider, public create returns UNSUPPORTED with NULL.
+ * With it, only desktop GL is currently supported by public creation.
  */
 ACVR_API acvr_result ACVR_CALL acvr_runtime_create(const acvr_runtime_config *,
                                                   const acvr_backend_api *,
