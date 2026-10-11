@@ -19,6 +19,7 @@ def cases(root=ROOT):
         support=assembly['models'][mid].get('support_grip')
         if not support:continue
         for hand in ('right','left'):
+            support=assembly['models'][mid].get('support_by_primary',{}).get(hand,assembly['models'][mid]['support_grip'])
             other='left' if hand=='right' else 'right';pose=dict(assembly['models'][mid]['hands'][other]);pose.update({k:support[k] for k in ('node','translation','rotation_xyzw')})
             result.append(dict(id=mid+'-'+hand+'-support',model=mid,primary_hand=hand,hold='support',hands=[dict(hand=hand,pose=assembly['models'][mid]['hands'][hand]),dict(hand=other,pose=pose)]))
     source=tomllib.loads((root/'data/controls/wii/shell-and-stick.toml').read_text())
@@ -31,9 +32,15 @@ def cases(root=ROOT):
 def main():
     import bpy
     from mathutils import Quaternion,Vector
-    parser=argparse.ArgumentParser();parser.add_argument('--out',type=Path,required=True);args=parser.parse_args(sys.argv[sys.argv.index('--')+1:]);args.out=args.out.resolve()
+    parser=argparse.ArgumentParser();parser.add_argument('--out',type=Path,required=True);parser.add_argument('--only',action='append',default=[]);args=parser.parse_args(sys.argv[sys.argv.index('--')+1:]);args.out=args.out.resolve()
     if not bpy.app.background or bpy.app.version[:2]!=(5,2) or not args.out.is_relative_to(ROOT):raise ValueError('Confined headless Blender5.2 CPU review required')
-    args.out.mkdir(parents=True,exist_ok=True);scene=bpy.context.scene;records=[]
+    args.out.mkdir(parents=True,exist_ok=True);scene=bpy.context.scene;records=[];all_cases=cases()
+    if args.only:
+        if not set(args.only)<={c['id'] for c in all_cases}:raise ValueError('Unknown review case')
+        previous=json.loads((args.out/'coverage.json').read_text());old_cases={c['id']:c for c in previous['cases']}
+        for c in all_cases:
+            if c['id'] not in args.only and c!=old_cases[c['id']]:raise ValueError('Unrendered changed case: '+c['id'])
+        records=[r for r in previous['images'] if r['case'] not in args.only]
     def vec(v):return Vector((v[0],-v[2],v[1]))
     def quat(v):return Quaternion((v[3],v[0],-v[2],v[1]))
     def imported(path,meta,prefix):
@@ -63,7 +70,8 @@ def main():
     scene.render.engine='CYCLES';scene.cycles.device='CPU';scene.cycles.samples=64;scene.cycles.use_denoising=True;scene.cycles.denoiser='OPENIMAGEDENOISE';scene.cycles.denoising_use_gpu=False;scene.cycles.preview_denoising_use_gpu=False
     scene.render.resolution_x=scene.render.resolution_y=512;scene.render.resolution_percentage=100;scene.render.image_settings.file_format='PNG';scene.view_settings.view_transform='Standard';scene.view_settings.look='None';scene.view_settings.exposure=0;scene.view_settings.gamma=1
     scene.world.use_nodes=True;bg=scene.world.node_tree.nodes['Background'];bg.inputs['Color'].default_value=(.04,.04,.04,1);bg.inputs['Strength'].default_value=1
-    for case in cases():
+    for case in all_cases:
+        if args.only and case['id'] not in args.only:continue
         for o in list(bpy.data.objects):bpy.data.objects.remove(o,do_unlink=True)
         mid=case['model'];meta=metadata(mid);_,nodes,meshes=imported(meta['model'],meta,'model');hand_roots=[]
         for i,entry in enumerate(case['hands']):
@@ -82,8 +90,9 @@ def main():
         for view in ('assembly','grip'):
             target=(lo+hi)/2 if view=='assembly' else hand_center+Vector((0,-.01,-.03))
             camdata.ortho_scale=max(hi-lo)*1.35 if view=='assembly' else .22 if len(hand_roots)==1 else .36
-            cam.location=target+Vector((side*2.1,2.2,1.25))*.3;cam.rotation_euler=(target-cam.location).to_track_quat('-Z','Y').to_euler()
+            offset=(0,-3,.5) if mid=='mnt-mg-heavy' and case['hold']=='support' else ((-side if mid=='con-remote-shell' and case['hold']=='support' and view=='grip' else side)*2.1,2.2,1.25)
+            cam.location=target+Vector(offset)*.3;cam.rotation_euler=(target-cam.location).to_track_quat('-Z','Y').to_euler()
             filename=case['id']+'-'+view+'.png';scene.render.filepath=str(args.out/filename);bpy.ops.render.render(write_still=True);records.append(dict(case=case['id'],view=view,image=filename))
-    (args.out/'coverage.json').write_text(json.dumps(dict(schema='hand-grip-review/1',cases=cases(),images=records,lighting=RUNTIME_LIGHTING,device='CPU',samples=64,acceptance='Visual CPU fit coverage only; no physical acceptance'),indent=2)+'\n')
+    (args.out/'coverage.json').write_text(json.dumps(dict(schema='hand-grip-review/1',cases=all_cases,images=records,lighting=RUNTIME_LIGHTING,device='CPU',samples=64,acceptance='Visual CPU fit coverage only; no physical acceptance'),indent=2)+'\n')
     print('RESULT bounded grip coverage complete: '+str(len(records))+' CPU images')
 if __name__=='__main__':main()
