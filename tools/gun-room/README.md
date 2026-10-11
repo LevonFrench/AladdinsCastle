@@ -61,8 +61,7 @@ mounts select the authored anchor for both the support hand and two-hand aim;
 the required `primary_mount_by_hand` independently selects the gun's primary
 mounting node and local transform, while `hands[hand]` places the glove.
 Incomplete selectors, missing gun nodes and invalid transforms reject the room
-before XR initialization. This checkout's older assembly must receive the
-pending selector data before a native run. CPU checks exercised the exact
-updated source data for nine authored models; no XR eye
+before XR initialization. The checked-in assemblies include these selectors.
+CPU checks exercised the exact source data for nine authored models; no XR eye
 capture or headset fit has been observed. Do not mark the room accepted from
 CPU evidence.
