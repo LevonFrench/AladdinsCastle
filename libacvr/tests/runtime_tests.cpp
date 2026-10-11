@@ -21,6 +21,7 @@ acvr_gun_angle_update angle_update(uint32_t slot,const float *xyzw){
 }
 unsigned checks=0;
 void check(bool value) { ++checks; if(!value) throw std::runtime_error("check " + std::to_string(checks)); }
+enum class RightEyeFault { None, DrawPrefix, TargetPrefix, ViewCount, NullView, ViewStride, ViewPrefix, DepthImage, DepthFormat };
 struct Receipt {
     bool model_support=false,fail_model=false;
     bool controls_support=false;
@@ -33,6 +34,8 @@ struct Receipt {
     bool omit_legacy_triggers=false;
     std::vector<std::string> unavailable;
     bool requires_depth=false;
+    bool display_depth=false;
+    RightEyeFault right_eye_fault=RightEyeFault::None;
     bool offscreen_reload=false,project_hit=false;
     float hit_x=.5f,hit_y=.5f;
     unsigned model_draws=0;
@@ -180,7 +183,20 @@ struct Recorded final:acvr::Host {
         auto b=init<acvr_button_input>(); b.semantic=ACVR_BUTTON_COIN; b.state=s.coin?ACVR_INPUT_HELD:0; d.buttons.push_back(b);
         auto a=init<acvr_axis_input>(); a.semantic=ACVR_AXIS_COVER_PEDAL; a.value=s.pedal; d.axes.push_back(a);
         for(unsigned i=0;i<2;++i) { d.eyes[i]=init<acvr_draw_info>(); d.eyes[i].target=init<acvr_render_target>();
-            d.eyes[i].view_count=1; d.eyes[i].view_stride=sizeof(acvr_eye); d.eyes[i].views=&eyes[i]; }
+            d.eyes[i].view_count=1; d.eyes[i].view_stride=sizeof(acvr_eye); d.eyes[i].views=&eyes[i];
+            if(r.display_depth) {d.eyes[i].target.depth_image=1;d.eyes[i].target.depth_format=1;} }
+        auto &right=d.eyes[1];
+        switch(r.right_eye_fault) {
+        case RightEyeFault::None: break;
+        case RightEyeFault::DrawPrefix: right.size=0; break;
+        case RightEyeFault::TargetPrefix: right.target.size=0; break;
+        case RightEyeFault::ViewCount: right.view_count=2; break;
+        case RightEyeFault::NullView: right.views=nullptr; break;
+        case RightEyeFault::ViewStride: right.view_stride=0; break;
+        case RightEyeFault::ViewPrefix: eyes[1].size=0; break;
+        case RightEyeFault::DepthImage: right.target.depth_image=0; break;
+        case RightEyeFault::DepthFormat: right.target.depth_format=0; break;
+        }
         return ACVR_OK;
     }
     acvr_result end(bool rendered) override { ++r.ends; if(rendered) ++r.submitted; return ACVR_OK; }
@@ -355,6 +371,19 @@ void failures_and_ownership() {
     check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,std::vector<Sample>{}),&p)==ACVR_BAD_ARGUMENT);
     check(acvr_runtime_destroy(nullptr)==ACVR_OK);
 }
+void both_eyes_validate_before_drawing() {
+    for(const auto fault:{RightEyeFault::None,RightEyeFault::DrawPrefix,RightEyeFault::TargetPrefix,
+            RightEyeFault::ViewCount,RightEyeFault::NullView,RightEyeFault::ViewStride,
+            RightEyeFault::ViewPrefix,RightEyeFault::DepthImage,RightEyeFault::DepthFormat}) {
+        Receipt r;r.display_depth=true;r.requires_depth=true;r.right_eye_fault=fault;
+        auto p=create(r,{{0}});
+        const bool good=fault==RightEyeFault::None;
+        const bool missing_depth=fault==RightEyeFault::DepthImage||fault==RightEyeFault::DepthFormat;
+        check(acvr_runtime_tick(p)==(good?ACVR_OK:(missing_depth?ACVR_UNSUPPORTED:ACVR_BAD_ARGUMENT)));
+        check(r.draws==(good?2u:0u) && r.model_draws==0 && r.ends==1 && r.submitted==(good?1u:0u));
+        check(acvr_runtime_destroy(p)==ACVR_OK && !r.leased && r.released==1 && r.closed==1);
+    }
+}
 void muzzle_math() {
     auto grip=pose(),mount=pose(); grip.position_m[0]=1; mount.position_m[2]=-.2f;
     const float identity[4]{0,0,0,1}; auto ray=init<acvr_ray>();
@@ -511,6 +540,15 @@ void configured_model() {
     for(auto &s:samples) {s.left_trigger=s.trigger;s.trigger=false;}
     check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,samples),&p)==ACVR_OK);
     // Config strings and tint must already be copied; files need not stay open.
+    {
+        Receipt invalid;invalid.model_support=true;invalid.right_eye_fault=RightEyeFault::NullView;current=&invalid;
+        acvr_runtime *bad=nullptr;
+        check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(invalid,std::vector<Sample>{{0}}),&bad)==ACVR_OK);
+        check(acvr_runtime_tick(bad)==ACVR_BAD_ARGUMENT);
+        check(invalid.draws==0 && invalid.model_draws==0 && invalid.ends==1 && invalid.submitted==0);
+        check(acvr_runtime_destroy(bad)==ACVR_OK && invalid.released==1 && invalid.closed==1 && !invalid.leased);
+        current=&r;
+    }
     slot.body_rgba[0]=0;file.clear();metadata.clear();std::filesystem::remove(path);std::filesystem::remove(meta);std::filesystem::remove(dir);
     check(acvr_runtime_tick(p)==ACVR_OK && r.model_draws==2);
     check(r.model_ray.origin_scene[0]==10 && std::abs(r.model_ray.origin_scene[2]+2)<.001f);
@@ -666,7 +704,7 @@ void runtime_output_routes() {
 #endif
 int main() {
 #define RUN(test) do { try { test(); } catch(...) { std::cerr << #test << ": "; throw; } } while(false)
-    try { RUN(timing_and_edges); RUN(calibration_sample_contract); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(failures_and_ownership); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
+    try { RUN(timing_and_edges); RUN(calibration_sample_contract); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(failures_and_ownership); RUN(both_eyes_validate_before_drawing); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
 #ifdef ACVR_OPENXR_GL
         public_preflight_never_opens_xr();
 #endif

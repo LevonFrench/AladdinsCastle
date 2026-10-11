@@ -691,6 +691,7 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             r->gun_draw.support_grip=r->support_grip;
         }
 #endif
+        // Reject a malformed pair before either world or gun renderer sees it.
         if (draw) for (unsigned eye = 0; eye < 2; ++eye) {
             auto &info = d.eyes[eye];
             if (valid(&info) != ACVR_OK || valid(&info.target) != ACVR_OK || info.view_count != 1 ||
@@ -703,6 +704,9 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 return finish(ACVR_UNSUPPORTED,false);
 #endif
             info.frame_id = r->frame_info.frame_id; info.display_id = r->display_id; info.predicted_display_time_ns = now;
+        }
+        if (draw) for (unsigned eye = 0; eye < 2; ++eye) {
+            const auto &info = d.eyes[eye];
             result = r->api.game_draw_eye(r->backend, r->frame, &info);
             if (result != ACVR_OK) return finish(result, false);
 #ifdef ACVR_GUN_MODELS
