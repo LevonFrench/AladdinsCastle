@@ -1,12 +1,12 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$FixtureRoot)
+param([Parameter(Mandatory)][string]$FixtureRoot,[switch]$FreshDeployProbe)
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -ne 5) { throw 'Run this regression with Windows PowerShell 5.1.' }
 if (Test-Path -LiteralPath $FixtureRoot) { throw 'Use a new fixture folder.' }
 $source = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $probe = Join-Path $source '.local/wii/ps51-probe.exe'
 New-Item -ItemType Directory -Path $FixtureRoot | Out-Null
-if (-not (Test-Path -LiteralPath $probe)) {
+if ($FreshDeployProbe -or -not (Test-Path -LiteralPath $probe)) {
     # CI has no private local artifacts. Its built-in compiler makes only this
     # inert console fixture, never a product, SDK or third-party dependency.
     $probe = Join-Path $FixtureRoot 'inert-deploy.exe'
@@ -142,7 +142,7 @@ try {
         try { Assert-Test (@($archive.Entries | Where-Object {$_.FullName.Replace('\','/').EndsWith('/optional/gun-room-calibration/acvr_gun_room.exe')}).Count -eq 1) 'Native staging happened after archive creation.' } finally {$archive.Dispose()}
     }
     Test-Case 'native capability types and private receipt fields are refused' {
-        foreach ($mode in @('false','string','number','missing','extra')) {
+        foreach ($mode in @('false','string','number','missing','extra','case')) {
             $f=New-Fixture ('native-'+$mode);$native=Add-NativeFixture $f
             $path=$native.NativeRoomExecutable+'.launch.json'
             $receipt=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
@@ -151,6 +151,7 @@ try {
             if($mode -eq 'number'){$receipt.calibrate_grip=1}
             if($mode -eq 'missing'){$receipt.PSObject.Properties.Remove('calibrate_grip')}
             if($mode -eq 'extra'){$receipt | Add-Member -NotePropertyName private_path -NotePropertyValue 'synthetic-private'}
+            if($mode -eq 'case'){$receipt.PSObject.Properties.Remove('calibrate_grip');$receipt | Add-Member -NotePropertyName CALIBRATE_GRIP -NotePropertyValue $true}
             $receipt | ConvertTo-Json | Set-Content -LiteralPath $path -Encoding utf8
             $refused=$false;try{Invoke-Package $f $native}catch{$refused=$true}
             Assert-Test ($refused -and -not (Test-Path -LiteralPath $f.Output)) "Native receipt $mode was not refused before output."
@@ -192,6 +193,15 @@ try {
             Assert-Test ($global:PortableFakeCalls.Count -eq 2) 'Configure/build provider was not invoked.'
             Assert-Test (($global:PortableFakeCalls[1] -join ' ').Contains('--parallel 2 --target aladdinscastle-hub hubtool arttool steamtool')) 'Shipping targets/CPU bound were not passed to compiler.'
             Invoke-Package $f
+            # Windows CI asks the same producer for all targets. Its receipt must
+            # still bind each of the four shipping binaries, without launches.
+            $global:PortableFakeCalls=@();$global:PortableFakeFail=$false
+            function global:cmake {$global:PortableFakeCalls+=,@($args);$global:LASTEXITCODE=0}
+            try { & (Join-Path $f.Repo 'hub/packaging/build-portable-inputs.ps1') -RepoRoot $f.Repo -BuildDir $f.Build -AllTargets | Out-Null } finally {Remove-Item Function:cmake}
+            $all=Get-Content $receiptPath -Raw | ConvertFrom-Json
+            Assert-Test ($all.all_targets -is [bool] -and $all.all_targets) 'CI all-target build mode was not recorded.'
+            Assert-Test (@($all.binaries.PSObject.Properties).Count -eq 4) 'CI receipt omitted shipping outputs.'
+            Assert-Test (($global:PortableFakeCalls[1] -join ' ').EndsWith('--parallel 2')) 'CI producer did not use the bounded all-target command.'
         }
     }
     Write-Output "Windows PowerShell $($PSVersionTable.PSVersion): $failures failed"
