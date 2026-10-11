@@ -370,6 +370,7 @@ bool ControlsResolver::resolveGame(const QString &id,const ControlsResolveOption
             const auto defaults=options.profileDefaults.value("policy").toMap();
             const QString hand=defaults.value("p1_hand","right").toString();
             check(hand=="left"||hand=="right","Invalid primary hand"); policy["p1_hand"]=hand; data["policy"]=policy;
+            data["profiles"]=data.value("profiles_by_hand").toMap().value(hand);
             if (!options.profileModel.isEmpty()) {
                 check(m_models.contains(options.profileModel),"Unknown profile default model");
                 row["model"]=options.profileModel; row["model_metadata"]=m_models.value(options.profileModel); data["gun_model"]=options.profileModel;

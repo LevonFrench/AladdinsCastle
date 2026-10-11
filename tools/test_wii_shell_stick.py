@@ -89,7 +89,9 @@ class ShellProfilesTests(unittest.TestCase):
             for slot,player in enumerate(b['players']):
                 for action,definition in zip(player['actions'],source()['action']):
                     self.assertEqual(action['expression'],expression(definition,mode))
-                    self.assertIn(action['wire'],p['Wiimote'+str(slot+1)][definition['ini']])
+                    binding=p['Wiimote'+str(slot+1)][definition['ini']]
+                    if action['supported']:self.assertIn(action['wire'],binding)
+                    else:self.assertEqual(action['id'],'home');self.assertEqual(binding,'')
                 if mode=='two-remotes':self.assertEqual(player['remote_hand'],player['stick_hand'])
             self.assertTrue(b['recenter_suppresses_game_buttons'])
             self.assertEqual(b['recenter_chord'],['right.click','left.click'])
