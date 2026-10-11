@@ -69,6 +69,9 @@ def main() -> None:
         assert run("--preview-svg", "safe.svg", "--seconds", "4") == 2
         assert run("--preview-svg", "safe.svg", "--seconds", "10") == 2
         assert run("--preview-svg", "safe.svg", "--control-stdin") == 2
+        assert run("--preview-svg", "safe.svg", "--calibrate-grip") == 2
+        assert run("--xr", "--calibrate-grip", "--capture-eyes", "eyes-two") == 2
+        assert run("--xr", "--calibrate-grip", "--angle-file", "old.txt") == 2
         assert not (root / ".local").exists(), "invalid capture options wrote output directory"
         wrong_handle = subprocess.run(
             [str(executable), "--root", str(root), "--model", "fixture", "--xr", "--control-stdin"],
@@ -80,6 +83,7 @@ def main() -> None:
         assert prequeued_control(b"close\n") == 0, "queued close must exit before XR create"
         assert prequeued_control(b"", eof=True) == 0, "queued EOF must exit before XR create"
         assert prequeued_control(b"cl", eof=True) == 0, "queued partial EOF must exit before XR create"
+        assert prequeued_control(b"close\n", "--calibrate-grip") == 0
         assert prequeued_control(b"wrong\n") == 9, "queued malformed input must fail before XR create"
         assert not (root / ".local").exists(), "precreate control changed output directory"
         assert run("--preview-svg", "sample.svg") == 0
@@ -103,6 +107,14 @@ def main() -> None:
                    "--left-angle-deg", "-7", "--update-angle-file") == 0
         assert "right 15" in angle.read_text(encoding="utf-8")
         assert "left -7" in angle.read_text(encoding="utf-8")
+        calibration = preview.parent / "calibration"
+        calibration.mkdir()
+        (calibration / "fixture-right.json").write_text("invalid", encoding="utf-8")
+        assert prequeued_control(b"close\n", "--calibrate-grip") == 2, "bad calibration must fail before XR"
+        assert run("--xr", "--preview-svg", "blocked.svg") == 2
+        assert not (preview.parent / "blocked.svg").exists(), "invalid saved calibration wrote preview"
+        assert prequeued_control(b"close\n", "--angle-file", "grip.txt") == 0, "legacy yaw path must keep precedence"
+        (calibration / "fixture-right.json").unlink()
         assert prequeued_control(b"wrong\n", "--capture-eyes", "control-bad") == 9
         receipt = json.loads((preview.parent / "control-bad" / "receipt.json").read_text(encoding="utf-8"))
         assert receipt["status"] == "error" and receipt["reason"] == "control_stdin"

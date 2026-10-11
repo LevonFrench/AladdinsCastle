@@ -10,7 +10,9 @@ if(NOT ACVR_JSON_INCLUDE_DIR OR NOT ACVR_TOML_INCLUDE_DIR)
     message(FATAL_ERROR "Use already-local ACVR_JSON_INCLUDE_DIR and ACVR_TOML_INCLUDE_DIR")
 endif()
 add_subdirectory(../../libacvr acvr-build)
-add_executable(acvr_gun_room main.cpp room_scene.cpp capture_plan.cpp control_stdin.cpp)
+add_executable(acvr_gun_room main.cpp room_scene.cpp capture_plan.cpp control_stdin.cpp
+               grip_calibration.cpp grip_calibration_file.cpp grip_calibration_draw.cpp
+               grip_calibration_adapter.cpp)
 target_compile_features(acvr_gun_room PRIVATE cxx_std_17)
 target_include_directories(acvr_gun_room PRIVATE ../../libacvr/include "${ACVR_JSON_INCLUDE_DIR}")
 target_link_libraries(acvr_gun_room PRIVATE acvr opengl32)
@@ -38,6 +40,15 @@ if(MSVC)
 endif()
 add_test(NAME acvr_gun_room_control_stdin COMMAND acvr_gun_room_control_stdin_tests)
 set_tests_properties(acvr_gun_room_control_stdin PROPERTIES TIMEOUT 5)
+add_executable(acvr_gun_room_grip_tests grip_calibration.cpp grip_calibration_file.cpp
+               grip_calibration_adapter.cpp
+               grip_calibration_tests.cpp)
+target_compile_features(acvr_gun_room_grip_tests PRIVATE cxx_std_17)
+target_include_directories(acvr_gun_room_grip_tests PRIVATE "${ACVR_JSON_INCLUDE_DIR}" ../../libacvr/include)
+if(MSVC)
+    target_compile_options(acvr_gun_room_grip_tests PRIVATE /W4 /WX /permissive-)
+endif()
+add_test(NAME acvr_gun_room_grip COMMAND acvr_gun_room_grip_tests "${CMAKE_CURRENT_BINARY_DIR}")
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
     add_test(NAME acvr_gun_room_cli

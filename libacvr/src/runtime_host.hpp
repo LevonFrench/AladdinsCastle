@@ -21,6 +21,7 @@ struct Display {
     bool trigger[2]{};
     bool reload[2]{}; // resolved gun-slot HELD levels; core queues native edges
     ControllerButtons controllers[2]{}; // populated only by a capable provider
+    acvr_controller_sample calibration{}; // optional room sample, not mapper admission
     std::vector<acvr_axis_input> axes;
     std::vector<acvr_button_input> buttons; // HELD levels only; core derives edges
 };
@@ -45,6 +46,7 @@ struct Host {
     // Resolved binding policy only; false unless explicitly configured.
     virtual bool offscreen_reload(uint32_t) const noexcept { return false; }
     virtual bool supports_controller_samples() const noexcept { return false; }
+    virtual bool supports_calibration_samples() const noexcept { return false; }
     virtual uint32_t supported_runtime_actions() const noexcept { return 0; }
     // An accepted Pause immediately pauses the core and ends this display with
     // zero game layers. Provider UI owns resume via acvr_runtime_set_paused(0).
