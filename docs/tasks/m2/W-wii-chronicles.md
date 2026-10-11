@@ -90,6 +90,7 @@ Work with the owner present; the headset and GPU are available. Each step ends w
 | **Guns and controls** | Control sets for the Wii games (Remote and Nunchuk part → game action → VR controller), including the motion gestures and their button fallbacks; the view that shows them; commit the second gun batch; bring the Zapper-style shell forward; the custom Sin & Punishment set |
 | **Hub** | Find and identify Wii discs by the ids above; locate an existing Dolphin (the official download channel is not verified, so no automatic install yet); install and launch an authored VR variant for these two games; keep going on the VR menu fixes |
 | **Lead** | Steps 1, 2 and 4, libacvr's OpenXR host and gun drawing, integration, sittings with the owner |
+| **Frame rate and presets** (new) | Each tier 1 game at the headset's refresh rate, and starting presets per class of headset: [W-wii-framerate-presets.md](W-wii-framerate-presets.md). Its first answer feeds the lead's gun drawing: the pinned base does not redraw between game frames, so a gun drawn into the game's picture moves at the game's rate |
 
 ## Done when
 
