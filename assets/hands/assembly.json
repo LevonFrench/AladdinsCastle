@@ -1,0 +1,1027 @@
+{
+  "schema": "hand-assembly/1",
+  "units": "metres",
+  "axes": {
+    "up": "+Y",
+    "forward": "-Z",
+    "handedness": "right"
+  },
+  "quaternion_order": "xyzw",
+  "hand_root": "grip",
+  "state": "provisional",
+  "physical_fit": "CPU review only; owner sitting pending",
+  "lighting": "assets/guns/runtime-lighting.json",
+  "models": {
+    "generic-pistol": {
+      "hands": {
+        "right": {
+          "asset": "assets/hands/grip-hand-right.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        },
+        "left": {
+          "asset": "assets/hands/grip-hand-left.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        }
+      },
+      "label_anchors": {
+        "muzzle": {
+          "node": "muzzle",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.041,
+            -0.195
+          ]
+        },
+        "pivot_trigger": {
+          "node": "pivot_trigger",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.012,
+            -0.04
+          ]
+        },
+        "grip": {
+          "node": "grip",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "arc-pistol-slide": {
+      "hands": {
+        "right": {
+          "asset": "assets/hands/grip-hand-right.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        },
+        "left": {
+          "asset": "assets/hands/grip-hand-left.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        }
+      },
+      "label_anchors": {
+        "muzzle": {
+          "node": "muzzle",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.046,
+            -0.195
+          ]
+        },
+        "pivot_trigger": {
+          "node": "pivot_trigger",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.012,
+            -0.043
+          ]
+        },
+        "grip": {
+          "node": "grip",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "arc-pistol-twin": {
+      "hands": {
+        "right": {
+          "asset": "assets/hands/grip-hand-right.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        },
+        "left": {
+          "asset": "assets/hands/grip-hand-left.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        }
+      },
+      "label_anchors": {
+        "muzzle": {
+          "node": "muzzle",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.054,
+            -0.18
+          ]
+        },
+        "pivot_trigger": {
+          "node": "pivot_trigger",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.014,
+            -0.043
+          ]
+        },
+        "grip": {
+          "node": "grip",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "con-pistol-slim": {
+      "hands": {
+        "right": {
+          "asset": "assets/hands/grip-hand-right.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        },
+        "left": {
+          "asset": "assets/hands/grip-hand-left.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        }
+      },
+      "label_anchors": {
+        "muzzle": {
+          "node": "muzzle",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.038,
+            -0.19
+          ]
+        },
+        "pivot_trigger": {
+          "node": "pivot_trigger",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.012,
+            -0.042
+          ]
+        },
+        "button_a": {
+          "node": "button_a",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            -0.013,
+            0.012,
+            -0.118
+          ]
+        },
+        "button_b": {
+          "node": "button_b",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.013,
+            0.012,
+            -0.118
+          ]
+        },
+        "grip": {
+          "node": "grip",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "con-pistol-dpad": {
+      "hands": {
+        "right": {
+          "asset": "assets/hands/grip-hand-right.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        },
+        "left": {
+          "asset": "assets/hands/grip-hand-left.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        }
+      },
+      "label_anchors": {
+        "muzzle": {
+          "node": "muzzle",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.045,
+            -0.175
+          ]
+        },
+        "pivot_trigger": {
+          "node": "pivot_trigger",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.014,
+            -0.041
+          ]
+        },
+        "button_a": {
+          "node": "button_a",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            -0.017,
+            0.019,
+            -0.067
+          ]
+        },
+        "button_b": {
+          "node": "button_b",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.017,
+            0.019,
+            -0.067
+          ]
+        },
+        "button_c": {
+          "node": "button_c",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            -0.097,
+            0.022
+          ]
+        },
+        "button_select": {
+          "node": "button_select",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            -0.019,
+            0.043,
+            -0.107
+          ]
+        },
+        "button_start": {
+          "node": "button_start",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            -0.019,
+            0.043,
+            -0.13
+          ]
+        },
+        "button_dpad": {
+          "node": "button_dpad",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.04,
+            0.05
+          ]
+        },
+        "grip": {
+          "node": "grip",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "con-revolver-chunky": {
+      "hands": {
+        "right": {
+          "asset": "assets/hands/grip-hand-right.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        },
+        "left": {
+          "asset": "assets/hands/grip-hand-left.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        }
+      },
+      "label_anchors": {
+        "muzzle": {
+          "node": "muzzle",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.054,
+            -0.17
+          ]
+        },
+        "pivot_trigger": {
+          "node": "pivot_trigger",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.015,
+            -0.042
+          ]
+        },
+        "button_start": {
+          "node": "button_start",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            -0.034,
+            0.047,
+            -0.047
+          ]
+        },
+        "grip": {
+          "node": "grip",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "mnt-mg-heavy": {
+      "hands": {
+        "right": {
+          "asset": "assets/hands/grip-hand-right.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.0,
+            0,
+            0,
+            1.0
+          ],
+          "finger_pose": {}
+        },
+        "left": {
+          "asset": "assets/hands/grip-hand-left.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.0,
+            0,
+            0,
+            1.0
+          ],
+          "finger_pose": {}
+        }
+      },
+      "label_anchors": {
+        "grip_two": {
+          "node": "grip_two",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            -0.26,
+            0.0,
+            0.0
+          ]
+        },
+        "muzzle": {
+          "node": "muzzle",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            -0.13,
+            -0.002,
+            -0.632
+          ]
+        },
+        "pivot_trigger": {
+          "node": "pivot_trigger",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.004,
+            0.0
+          ]
+        },
+        "button_special": {
+          "node": "button_special",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            -0.17,
+            0.028,
+            -0.003
+          ]
+        },
+        "grip": {
+          "node": "grip",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "support_grip": {
+        "node": "grip_two",
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "state": "provisional"
+      }
+    },
+    "con-remote-shell": {
+      "hands": {
+        "right": {
+          "asset": "assets/hands/grip-hand-right.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        },
+        "left": {
+          "asset": "assets/hands/grip-hand-left.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            0,
+            0
+          ],
+          "rotation_xyzw": [
+            0.13052619222005157,
+            0,
+            0,
+            0.9914448613738104
+          ],
+          "finger_pose": {}
+        }
+      },
+      "label_anchors": {
+        "muzzle": {
+          "node": "muzzle",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.063,
+            -0.111
+          ]
+        },
+        "pivot_trigger": {
+          "node": "pivot_trigger",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.02,
+            -0.022
+          ]
+        },
+        "grip_two": {
+          "node": "grip_two",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            -0.029,
+            0.14
+          ]
+        },
+        "button_a": {
+          "node": "button_a",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.078,
+            -0.037
+          ]
+        },
+        "button_minus": {
+          "node": "button_minus",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            -0.011,
+            0.078,
+            -0.015
+          ]
+        },
+        "button_plus": {
+          "node": "button_plus",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.011,
+            0.078,
+            -0.015
+          ]
+        },
+        "button_home": {
+          "node": "button_home",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.078,
+            0.0
+          ]
+        },
+        "button_one": {
+          "node": "button_one",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.078,
+            0.018
+          ]
+        },
+        "button_two": {
+          "node": "button_two",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.078,
+            0.034
+          ]
+        },
+        "button_dpad": {
+          "node": "button_dpad",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.078,
+            -0.07
+          ]
+        },
+        "grip": {
+          "node": "grip",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "support_grip": {
+        "node": "grip_two",
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation_xyzw": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "state": "provisional"
+      }
+    },
+    "con-stick-grip": {
+      "hands": {
+        "right": {
+          "asset": "assets/hands/grip-hand-right.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            -0.005,
+            0.012
+          ],
+          "rotation_xyzw": [
+            0.0,
+            0,
+            0,
+            1.0
+          ],
+          "finger_pose": {
+            "pivot_thumb": {
+              "translation_offset": [
+                0,
+                0.04,
+                -0.026
+              ],
+              "rotation_xyzw": [
+                -0.3826834324,
+                0,
+                0,
+                0.9238795325
+              ]
+            }
+          }
+        },
+        "left": {
+          "asset": "assets/hands/grip-hand-left.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            -0.005,
+            0.012
+          ],
+          "rotation_xyzw": [
+            0.0,
+            0,
+            0,
+            1.0
+          ],
+          "finger_pose": {
+            "pivot_thumb": {
+              "translation_offset": [
+                0,
+                0.04,
+                -0.026
+              ],
+              "rotation_xyzw": [
+                -0.3826834324,
+                0,
+                0,
+                0.9238795325
+              ]
+            }
+          }
+        }
+      },
+      "label_anchors": {
+        "button_stick": {
+          "node": "button_stick",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.029,
+            -0.007
+          ]
+        },
+        "button_c": {
+          "node": "button_c",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.017,
+            -0.031
+          ]
+        },
+        "button_z": {
+          "node": "button_z",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0.0,
+            0.0,
+            -0.032
+          ]
+        },
+        "grip": {
+          "node": "grip",
+          "local_offset": [
+            0,
+            0,
+            0
+          ],
+          "bind_position": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    }
+  }
+}

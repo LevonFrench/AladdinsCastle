@@ -1,0 +1,102 @@
+# Source-backed controller policy; execution awaits the Hub's reviewed bridge.
+version = "pinball-controls/1"
+id = "vpx-openxr"
+title = "Pinball controls — VPX OpenXR"
+source_commit = "af26b2d9392b4c9ec3e3edff4bbd69562085a44c"
+sources = ["src/input/XRInputHandler.h:54", "src/input/XRInputHandler.h:125", "src/core/VPXPluginAPIImpl.cpp:135", "src/core/VPXPluginAPIImpl.cpp:558", "plugins/plugins/VPXPlugin.h:243"]
+runtime_bridge = "planned"
+
+[[action]]
+id="left-flipper"
+part="Left trigger"
+label="Left flipper"
+hand="left"
+control="trigger"
+target="LeftFlipper"
+threshold=0.3
+staged_threshold=0.6
+[[action]]
+id="right-flipper"
+part="Right trigger"
+label="Right flipper"
+hand="right"
+control="trigger"
+target="RightFlipper"
+threshold=0.3
+staged_threshold=0.6
+[[action]]
+id="left-magnasave"
+part="Left grip"
+label="Left MagnaSave (if table supports it)"
+hand="left"
+control="grip"
+target="LeftMagnaSave"
+[[action]]
+id="right-magnasave"
+part="Right grip"
+label="Right MagnaSave (if table supports it)"
+hand="right"
+control="grip"
+target="RightMagnaSave"
+[[action]]
+id="start"
+part="A"
+label="Start"
+hand="right"
+control="primary"
+target="StartGame"
+[[action]]
+id="coin"
+part="B"
+label="Insert coin"
+hand="right"
+control="secondary"
+target="AddCredit"
+[[action]]
+id="menu"
+part="X"
+label="Open menu"
+hand="left"
+control="primary"
+target="OpenInGameUI"
+[[action]]
+id="exit"
+part="Y — EXIT"
+label="WARNING: exits the current table"
+hand="left"
+control="secondary"
+target="ExitGame"
+warning=true
+[[action]]
+id="nudge"
+part="Left stick"
+label="Nudge (X/Y)"
+hand="left"
+control="thumbstick"
+target="nudgeDisplacementX/nudgeDisplacementY"
+reason="Native XR nudge sensors are mapped; this tag clears plugin stateMask. Host analog bridge pending."
+[[action]]
+id="recenter"
+part="Left stick click"
+label="Recenter — unavailable"
+hand="left"
+control="click"
+target="VRRecenter"
+state="unavailable"
+reason="Enum exists, but this tag comments out the plugin action map. No callable recenter bridge."
+[[action]]
+id="plunger"
+part="Right stick"
+label="Plunger (Y)"
+hand="right"
+control="thumbstick"
+target="plungerPosition"
+reason="Native XR plunger sensor is mapped; this tag clears plugin stateMask. Host analog bridge pending."
+scale=-1.0
+[[action]]
+id="launch"
+part="Right stick click"
+label="Launch ball"
+hand="right"
+control="click"
+target="LaunchBall"

@@ -216,6 +216,12 @@ private slots:
             }
         }
     }
+    void pinballRouteIsDisplayOnly() {
+        Map result;QString error;QVERIFY2(resolver.resolveRoute("vpx-openxr",result,error),qPrintable(error));
+        QFile file(QDir(AC_CONTROLS_ROOT).filePath("data/controls/pinball/view.json"));QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(QJsonDocument::fromVariant(result),QJsonDocument::fromJson(file.readAll()));
+        QVERIFY(!resolver.resolveRoute("unknown",result,error));
+    }
     void backendSupportAndDecodedNodesAreSeparateGates() {
         ac::ControlsResolveOptions options; options.useUserOverrides=false;
         options.backend=Map{{"guns",1},{"players",1},{"shared_view",true},{"runtime_actions",List{"laser_toggle"}},

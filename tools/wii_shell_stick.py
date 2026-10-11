@@ -16,6 +16,10 @@ TOKENS={'trigger','grip','click','primary','secondary','up','down','left','right
 def source(root=ROOT):
     with (Path(root)/'data/controls/wii/shell-and-stick.toml').open('rb') as f: data=tomllib.load(f)
     if data['version']!='shell-stick/1': raise ValueError('Unknown shell control schema')
+    product=json.loads((Path(root)/'data/product.json').read_text(encoding='utf-8'))
+    if product['schema']!=1 or not re.fullmatch(r'[A-Za-z0-9_-]+',product['dsu_server_name']):raise ValueError('Invalid DSU product identity')
+    data['dsu']['server']=product['dsu_server_name']
+    data['dsu']['device']=data['dsu']['device'].replace('{server}',data['dsu']['server'])
     ids=set(); outputs=set()
     for a in data['action']:
         if a['id'] in ids or a['ini'] in outputs: raise ValueError('Duplicate shell action/output')
@@ -83,7 +87,7 @@ def render_profile(route='dolphinxr',mode='split',primary_hand='right',root=ROOT
     sections['BalanceBoard']={'Source':'0'}
     config=configparser.ConfigParser(interpolation=None); config.optionxform=str; config.read_dict(sections)
     output=io.StringIO(); config.write(output)
-    return output.getvalue().encode('utf-8')
+    return (output.getvalue().rstrip()+'\n').encode('utf-8')
 
 def bridge_profile(mode='split',primary_hand='right',root=ROOT):
     data=source(root); players=[]
@@ -94,6 +98,41 @@ def bridge_profile(mode='split',primary_hand='right',root=ROOT):
                 recenter_chord=data['recenter_chord'],recenter_suppresses_game_buttons=True,
                 motion=dict(physical=True,button_fallback=True,button_transport='Shake/Swing bindings',units=dict(accel='g',gyro='degrees_per_second')))
 
+def game_policy(game_id,root=ROOT):
+    if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',game_id): raise ValueError('Invalid game ID')
+    with (Path(root)/'data/controls/wii/games'/f'{game_id}.toml').open('rb') as f: data=tomllib.load(f)
+    if data['game_id']!=game_id: raise ValueError('Game policy ID mismatch')
+    hold=data.get('hold',dict(default='split',state='provisional'))
+    if hold['default'] not in ('split','docked'): raise ValueError('Invalid default hold')
+    reload=data.get('reload',dict(choices=['shake','flick-down','offscreen','button'],selected='button',state='question',question='Does this game use reload?'))
+    if reload['choices']!=['shake','flick-down','offscreen','button'] or reload['selected'] not in reload['choices']: raise ValueError('Invalid reload choices')
+    if reload['state'] not in ('question','confirmed'): raise ValueError('Invalid reload evidence')
+    return dict(hold=hold,reload=reload,gun_proposal=data.get('gun_proposal',{}))
+
+def render_game_profile(game_id,route='dolphinxr',primary_hand='right',root=ROOT):
+    return render_profile(route,game_policy(game_id,root)['hold']['default'],primary_hand,root)
+
+def render_scripted_profile(game_id,primary_hand='right',root=ROOT):
+    # Scripted bridge slots are roles: slot0 Remote, slot1 stick. Handedness
+    # belongs to the producer descriptor, not a physical device-slot swap.
+    if primary_hand not in ('left','right'): raise ValueError('Invalid primary hand')
+    return render_profile('flat-dolphin',game_policy(game_id,root)['hold']['default'],'right',root)
+
+def scripted_bridge_profile(game_id,primary_hand='right',root=ROOT):
+    policy=game_policy(game_id,root); mode=policy['hold']['default']
+    descriptor=bridge_profile(mode,primary_hand,root)
+    descriptor.update(schema='scripted-dsu/1',game_id=game_id,device_slots=dict(remote=0,nunchuk=1),server=dict(name=source(root)['dsu']['server'],host='127.0.0.1',port=26760),reload=policy['reload'])
+    buttons=source(root)['dsu']['scripted_buttons']
+    for player in descriptor['players']:
+        for action in player['actions']:
+            action['slot']=0 if action['role']=='remote' else 1
+            wire=action['wire']
+            if wire in buttons: action['script']=dict(supported=True,field='buttons',button=wire)
+            elif wire.startswith('Left '):action['script']=dict(supported=True,field='stick',axis=0 if 'X' in wire else 1,value=-1 if wire.endswith('-') else 1)
+            else:action['script']=dict(supported=False,reason='Not accepted by the bounded scripted DSU schema')
+    descriptor['reload']['enabled']=False # choice/evidence only; classifier owned by host
+    return descriptor
+
 def generated_files(root=ROOT):
     result={}
     for mode in MODES:
@@ -103,6 +142,15 @@ def generated_files(root=ROOT):
                 result[f'{route}/{mode}-{hand}.ini']=render_profile(route,mode,hand,root)
                 if route=='dolphinxr':result[f'{route}/{mode}-{hand}.Dolphin.ini']=f'[Android]\nQuestLeftHanded = {"True" if hand=="left" else "False"}\n'.encode()
             result[f'flat-dolphin/{mode}-{hand}.json']=(json.dumps(bridge_profile(mode,hand,root),indent=2)+'\n').encode()
+    for path in sorted((Path(root)/'data/controls/wii/games').glob('*.toml')):
+        gid=path.stem;policy=game_policy(gid,root)
+        for hand in ('right','left'):
+            for route in ROUTES:
+                result[f'games/{gid}/{route}-{hand}.ini']=render_game_profile(gid,route,hand,root)
+            result[f'games/{gid}/dolphinxr-{hand}.Dolphin.ini']=f'[Android]\nQuestLeftHanded = {"True" if hand=="left" else "False"}\n'.encode()
+            result[f'games/{gid}/scripted-dsu-{hand}.ini']=render_scripted_profile(gid,hand,root)
+            result[f'games/{gid}/scripted-dsu-{hand}.json']=(json.dumps(scripted_bridge_profile(gid,hand,root),indent=2)+'\n').encode()
+    result['scripted-dsu/DSUClient.ini']=f'[Server]\nEnabled = True\nEntries = {source(root)["dsu"]["server"]}:127.0.0.1:26760\n'.encode()
     hashes={name:hashlib.sha256(data).hexdigest() for name,data in result.items()}
     result['generated-files.json']=(json.dumps(dict(version='shell-stick/1',source='data/controls/wii/shell-and-stick.toml',files=hashes,
         capabilities=dict(dolphinxr=dict(split=True,docked=True,two_remotes=False,left_hand_requires='Android/QuestLeftHanded'),flat_dolphin=dict(split=True,docked=True,two_remotes=True))),indent=2)+'\n').encode()

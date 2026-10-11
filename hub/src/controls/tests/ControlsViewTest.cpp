@@ -272,6 +272,16 @@ private slots:
         QCOMPARE(rowWithId(model,"p1-z").value("hand").toString(),QString("right"));
         QCOMPARE(rowWithId(model,"p2-z").value("hand").toString(),QString("left"));
     }
+    void perGameDefaultAndPinballWarnings() {
+        ac::ControlsViewModel model;QVERIFY(model.loadResolved(samples["wii-links-crossbow-training"]));
+        QCOMPARE(model.holdMode(),QString("docked"));QVERIFY(model.proposalNotice().contains("owner choice pending"));
+        QFile file(QDir(AC_CONTROLS_ROOT).filePath("data/controls/pinball/view.json"));QVERIFY(file.open(QIODevice::ReadOnly));
+        QVERIFY(model.loadResolvedJson(file.readAll()));QVERIFY(!model.wiiControls());
+        QVERIFY(rowWithId(model,"exit").value("warning").toBool());
+        QCOMPARE(rowWithId(model,"recenter").value("availability").toString(),QString("unavailable"));
+        model.setBindingState("left","click",true);QVERIFY(!rowWithId(model,"recenter").value("pressed").toBool());
+        model.setBindingState("left","secondary",true);QVERIFY(!rowWithId(model,"exit").value("pressed").toBool());
+    }
     void cleanupTestCase() {
         qInstallMessageHandler(nullptr);
         QVERIFY2(warnings.isEmpty(),qPrintable(warnings.join('\n')));

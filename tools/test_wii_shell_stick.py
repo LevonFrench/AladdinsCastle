@@ -9,6 +9,26 @@ def profile(route,mode,hand):
     p.read_string(render_profile(route,mode,hand).decode());return p
 
 class ShellProfilesTests(unittest.TestCase):
+    def test_game_default_profiles_and_scripted_roles_remain_one_source(self):
+        from wii_shell_stick import game_policy,render_game_profile,render_scripted_profile,scripted_bridge_profile
+        for path in (ROOT/'data/controls/wii/games').glob('*.toml'):
+            policy=game_policy(path.stem)
+            for hand in ('right','left'):
+                for route in ('flat-dolphin','dolphinxr'):
+                    self.assertEqual(render_game_profile(path.stem,route,hand),render_profile(route,policy['hold']['default'],hand))
+                self.assertEqual(render_scripted_profile(path.stem,hand),render_profile('flat-dolphin',policy['hold']['default'],'right'))
+                descriptor=scripted_bridge_profile(path.stem,hand)
+                self.assertEqual(descriptor['device_slots'],{'remote':0,'nunchuk':1})
+                self.assertEqual(descriptor['players'][0]['remote_hand'],hand)
+                self.assertTrue(all(a['slot']==(0 if a['role']=='remote' else 1) for a in descriptor['players'][0]['actions']))
+                self.assertFalse(descriptor['reload']['enabled'])
+    def test_product_identity_generates_server_and_device_paths(self):
+        import json
+        from wii_shell_stick import generated_files
+        name=json.loads((ROOT/'data/product.json').read_text())['dsu_server_name']
+        self.assertEqual(source()['dsu']['server'],name)
+        self.assertIn(('Entries = '+name+':127.0.0.1:26760').encode(),generated_files()['scripted-dsu/DSUClient.ini'])
+        self.assertEqual(profile('flat-dolphin','split','right')['Wiimote1']['Device'],'DSUClient/0/'+name)
     def test_generated_bytes_are_current(self): write_generated(check=True)
     def test_native_device_and_every_button_survive_all_modes_and_swaps(self):
         for mode,hand in itertools.product(MODES,('right','left')):

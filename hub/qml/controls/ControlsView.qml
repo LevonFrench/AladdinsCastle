@@ -17,6 +17,7 @@ Column {
     width: 1000
     Text { width: parent.width; text: root.controlsModel && root.controlsModel.title ? root.controlsModel.title : "CONTROLS"; color: root.textColor; font.pixelSize: 18; font.bold: true; wrapMode: Text.Wrap }
     Text { objectName: "controlsNotice"; width: parent.width; text: root.controlsModel ? root.controlsModel.notice : "Choose a game to see its controls"; color: root.mutedColor; font.pixelSize: root.textSize; wrapMode: Text.Wrap }
+    Text { objectName: "controlsProposalNotice"; width: parent.width; visible: text.length>0; text: root.controlsModel ? root.controlsModel.proposalNotice : ""; color: root.mutedColor; font.pixelSize: root.textSize; wrapMode: Text.Wrap }
     Image {
         objectName: "wiiPartsDiagram"
         visible: root.controlsModel && root.controlsModel.wiiControls && !root.shellAndStick
@@ -141,7 +142,7 @@ Column {
                     objectName: "controlsCalloutText"
                     width: parent.width
                     text: (callout.index+1) + ". " + callout.modelData.callout
-                    color: root.textColor; font.pixelSize: root.textSize; wrapMode: Text.Wrap
+                    color: callout.modelData.warning ? "#ff6b5f" : root.textColor; font.pixelSize: root.textSize; wrapMode: Text.Wrap
                 }
                 Text {
                     width: parent.width

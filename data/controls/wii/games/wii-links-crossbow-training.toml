@@ -1,0 +1,23 @@
+version = "0.1"
+game_id = "wii-links-crossbow-training"
+control_set = "shell-and-stick"
+layout = { state = "question", name = "", question = "Which game's instruction-screen layout is selected for the target-training showcase?" }
+questions = ["Confirm B/A aiming and firing, stick movement, C/Z meanings and every motion prompt.", "Confirm whether this layout has any reload action before enabling a reload choice."]
+sources = []
+
+[gun_proposal]
+state = "proposed"
+model = "con-remote-shell"
+rationale = "A training-shell proxy with an open sight line and second grip for two-handed target practice. A crossbow silhouette is a separate future design choice; this does not claim weapon matching."
+
+[hold]
+default = "docked"
+state = "provisional"
+
+[reload]
+choices = ["shake", "flick-down", "offscreen", "button"]
+selected = "button"
+state = "question"
+question = "Does the selected target-training layout have any reload action?"
+target_action = "remote-shake"
+button_fallback = "remote-shake"

@@ -1,0 +1,44 @@
+{
+  "schema": "hand-review/1",
+  "sheet": "hand-assembly-sheet.png",
+  "size": [
+    2048,
+    1104
+  ],
+  "sources": [
+    {
+      "image": "arc-pistol-slide-right-rest-side.png",
+      "sha256": "5187b000d64c79985c08ea63adcdfcf231c689a87923db4400d6e2d86aaef9dd"
+    },
+    {
+      "image": "arc-pistol-slide-right-rest-threequarter.png",
+      "sha256": "25f151df168297533169ad71f6db65b8cb9d97657f6f5d86cd9b4b98073cf4cd"
+    },
+    {
+      "image": "arc-pistol-slide-right-stress-side.png",
+      "sha256": "1a2572e252f5650874e0404265ce306fca1311d0fb13d507a6d23d41fea1a0ed"
+    },
+    {
+      "image": "arc-pistol-slide-right-stress-threequarter.png",
+      "sha256": "ab8f67b02fa39e4ad410e6a0cca6deb1ee6dda0fe45f4e373ddf956554159068"
+    },
+    {
+      "image": "con-stick-grip-left-rest-side.png",
+      "sha256": "b3ecbd74f25a5f056a8125be4d5a5911fc1a646fb9cb35146952e245a73e8307"
+    },
+    {
+      "image": "con-stick-grip-left-rest-threequarter.png",
+      "sha256": "a16d948f9df56002caea45a49ae66121a18810d165e303de78fe7be82cf0feb7"
+    },
+    {
+      "image": "con-stick-grip-left-stress-side.png",
+      "sha256": "2cdc8f1ce93b3a50eb1f089011e279c99b29163c9da303614fbcd8624724a3d3"
+    },
+    {
+      "image": "con-stick-grip-left-stress-threequarter.png",
+      "sha256": "2d86dfa1392ab8e80756babb33581b4b16aade7391403d9738b64a63a3e72510"
+    }
+  ],
+  "sha256": "b0f8dfdb512f767cf6ed7b02c0bc7b806fd18d3fa65bfa9fe3b377fa358a8fac",
+  "acceptance": "CPU fit review; owner physical acceptance pending"
+}

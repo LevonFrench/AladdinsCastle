@@ -6,3 +6,20 @@ control_set = "shell-and-stick"
 layout = { state = "question", name = "", question = "Which game option-screen layout is selected for shell and stick?" }
 questions = ["Confirm knife-enable and grenade chord in the selected game control layout.", "Confirm C weapon selection and Z meaning in the selected layout.", "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."]
 sources = []
+
+[gun_proposal]
+state = "proposed"
+model = "arc-pistol-slide"
+rationale = "Readable semi-automatic silhouette and slide; a provisional handgun stand-in, not an assertion about the selected in-game weapon."
+
+[hold]
+default = "split"
+state = "provisional"
+
+[reload]
+choices = ["shake", "flick-down", "offscreen", "button"]
+selected = "shake"
+state = "question"
+question = "Shake is the documented starting choice; confirm the selected game layout."
+target_action = "remote-shake"
+button_fallback = "remote-shake"
