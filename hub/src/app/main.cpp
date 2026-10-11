@@ -74,6 +74,7 @@ int main(int argc,char **argv){
     try{ac::install::scopedPath("user/hub-settings.toml",portableRoot);ac::install::scopedPath("user/scan-folders.json",portableRoot);ac::install::scopedPath("user/cache/scan-bindings.json",portableRoot);}catch(const std::exception &e){err<<e.what()<<'\n';return 2;}
     ac::UiSettings settings(portableRoot+"/user");ac::UiController ui(&games,&filter,&settings);
     ac::HubServices services(&games,&filter,&ui,&settings,portableRoot);
+    QObject::connect(&services,&ac::HubServices::hubExitReady,&app,[&app](int code){app.exit(code);});
     QObject::connect(&app,&QGuiApplication::applicationStateChanged,&ui,[&](Qt::ApplicationState state){if(state!=Qt::ApplicationActive)ui.clearDetailControlStates();});
     qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",&theme);
     ac::SpikeState spike;spike.setFlipY(options.pointerFlipY);ac::LocalQmlNetworkFactory localNetwork;QQmlApplicationEngine engine;engine.setNetworkAccessManagerFactory(&localNetwork);ac::OverlayHost overlay(spike,ac::makeOpenVrRuntime(options.pictureFlipY));
@@ -85,14 +86,14 @@ int main(int argc,char **argv){
     context->setContextProperty("spikeState",&spike);context->setContextProperty("overlaySpikeEnabled",options.spike);
     context->setContextProperty("surfaceColor",theme.get("color.surface.window"));
     context->setContextProperty("primaryTextColor",theme.get("color.text.primary"));context->setContextProperty("brandColor",theme.get("color.brand.orange"));
-    QObject::connect(&engine,&QQmlApplicationEngine::objectCreationFailed,&app,[]{QCoreApplication::exit(2);},Qt::QueuedConnection);
+    QObject::connect(&engine,&QQmlApplicationEngine::objectCreationFailed,&services,[&services]{services.requestHubExit(2);},Qt::QueuedConnection);
     QObject::connect(&services,&ac::HubServices::raiseHubRequested,&engine,[&]{for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow*>(object)){window->show();window->raise();window->requestActivate();}});
     QObject::connect(&app,&QGuiApplication::lastWindowClosed,&app,[&]{if(ac::shouldQuitAfterLastWindow(services.launchBusy()))app.quit();});
     bool overlayInitialized=false;
     QObject::connect(services.launcher(),&ac::launch::LaunchService::finished,&app,[&](const QString &,int,const QString &,const QString &){QTimer::singleShot(0,&app,[&]{bool visible=false;for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow *>(object))visible=visible||window->isVisible();if(ac::shouldQuitAfterLaunch(overlayInitialized,services.launchBusy(),visible))app.quit();});});
     if(options.mode==ac::Mode::Overlay){
-        QObject::connect(&overlay,&ac::OverlayHost::quitRequested,&app,&QCoreApplication::quit);
-        QObject::connect(&overlay,&ac::OverlayHost::failed,&app,[&](const QString &error){err<<error<<'\n';app.exit(3);});
+        QObject::connect(&overlay,&ac::OverlayHost::quitRequested,&services,[&services]{services.requestHubExit();});
+        QObject::connect(&overlay,&ac::OverlayHost::failed,&app,[&](const QString &error){err<<error<<'\n';services.requestHubExit(3);});
         QString error;overlayInitialized=overlay.initialize(engine,app.applicationDirPath()+"/resources/overlay-thumbnail.png",&error);if(!overlayInitialized){const bool fallback=ac::shouldOpenDesktop(options,false);err<<error<<(fallback?"; opening desktop Hub.\n":"; exiting SteamVR-started instance.\n");overlay.shutdown();if(!fallback)return 3;ui.overlayFallback(error);}
     }
     if(ac::shouldOpenDesktop(options,overlayInitialized)){engine.loadFromModule("AladdinsCastle.Hub","DesktopShell");if(engine.rootObjects().isEmpty())return 2;}
@@ -110,6 +111,6 @@ int main(int argc,char **argv){
         ac::install::atomicWrite(capture+".json",QByteArray::fromStdString(receipt.dump(2)));
     });
     out<<ac::product::display_name<<": "<<count<<" games\n";out.flush();
-    if(options.quitAfterMs>0)QTimer::singleShot(options.quitAfterMs,&app,&QCoreApplication::quit);
+    if(options.quitAfterMs>0)QTimer::singleShot(options.quitAfterMs,&services,[&services]{services.requestHubExit();});
     return app.exec();
 }

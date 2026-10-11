@@ -83,6 +83,9 @@ class UiController : public QObject {
  QString appName()const{return QString::fromUtf8(product::display_name);}
  QVariantMap nowPlaying()const{return m_nowPlaying;}
  Q_INVOKABLE void launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable);
+ Q_INVOKABLE void launchRoomQueued(const QString &model,const QString &hand);
+ void launchClosing();
+ void cancelPendingRestart(){m_restartAfterClose=false;}
  Q_INVOKABLE void closeLaunch();
  Q_INVOKABLE void restartLaunch();
  QVariantMap pinballData()const{return m_pinballData;}

@@ -37,6 +37,18 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
       scanner_(games,scanOptions(root_)),art_(std::make_shared<art::Resolver>(games->catalog(),art::ArtOptions{root_+"/user",{}})) {
     steamRootSource_=steamRootSource?std::move(steamRootSource):[] { return launch::systemRuntimeInputs().steamPath; };
     steamRunningProbe_=std::move(steamRunningProbe);
+    gunRoomModels_=gunroom::models(catalogRoot());
+    connect(&gunRoom_,&gunroom::Service::changed,this,[this]{
+        if(gunRoom_.closing())ui_->launchClosing();
+        emit playingChanged();
+    });
+    connect(&gunRoom_,&gunroom::Service::started,this,[this]{childPlaying_=true;emit playingChanged();ui_->launchStarted("__gun_room");});
+    connect(&gunRoom_,&gunroom::Service::finished,this,[this](const QString &error){
+        childPlaying_=false;emit playingChanged();
+        // Shutdown consumes a pending restart before notifying the shared card.
+        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished("__gun_room",error);emit hubExitReady(hubExitCode_);return;}
+        ui_->launchFinished("__gun_room",error);if(!error.isEmpty())ui_->showError("Gun room",error);
+    });
     installer_.setRuntimeStateSource([this](const QString &id){return current(id);});
     connect(&launcher_,&launch::LaunchService::warning,ui_,[this](const QString &,const QString &text){ui_->showError("Launch notice",text);});
     launcher_.setRuntimeStateSource([this](const QString &id){return current(id);});
@@ -98,6 +110,10 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     });
     connect(ui_,&UiController::playRequested,this,[this](const QString &id,const QString &variant){
         if(launchBusy()){ui_->scanProgress({{"text","Play refused: a game is already running or a launch is being prepared. Use Stop first."}});return;}
+        if(id=="__gun_room"){
+            if(variant!=retainedGunRoom_.model+"|"+retainedGunRoom_.hand){ui_->showError("Gun room","The retained model and hand differ from this restart request.");return;}
+            startGunRoom(retainedGunRoom_);return;
+        }
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
 #ifdef Q_OS_WIN
@@ -108,8 +124,8 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             launcher_.start(request);
         }catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
-    connect(ui_,&UiController::stopLaunchRequested,&launcher_,&launch::LaunchService::stop);
-    connect(ui_,&UiController::closeLaunchRequested,&launcher_,&launch::LaunchService::requestClose);
+    connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else launcher_.stop();});
+    connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else launcher_.requestClose();});
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
     connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){childPlaying_=false;emit playingChanged();ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();});
@@ -179,6 +195,39 @@ install::Request HubServices::gameRequest(const QString &id,const QString &varia
     install::Request request;request.root=root_;request.catalogRoot=QDir::cleanPath(QFileInfo(game->folder).dir().absolutePath()+"/..");
     request.gameId=id;request.variantId=variant;request.recipe=game->install;request.runtime=current(id);request.runtime.selectedVariantId=variant;
     request.bindings=launch::normalizeBindings(bindings_,id);request.settings=Json::parse(QJsonDocument(QJsonObject::fromVariantMap(settings_->game(id))).toJson(QJsonDocument::Compact).toStdString());return request;
+}
+HubServices::~HubServices(){
+    disconnect(&gunRoom_,nullptr,this,nullptr);
+    gunRoom_.close();
+}
+void HubServices::previewGunRoom(const QString &model,const QString &hand,const QString &executable){
+    auto inputs=gunroom::systemInputs(catalogRoot(),executable,model,hand);
+    const auto loader=settings_->get("gunRoomLoader",QString()).toString();
+    if(!loader.isEmpty())inputs.loader=loader;
+    const auto candidate=gunroom::plan(inputs);
+    gunRoomAvailable_=candidate.available()&&!launchBusy()&&!hubExitPending_;
+    gunRoomReason_=candidate.error;
+    if(candidate.available()&&!gunRoomAvailable_)gunRoomReason_="Close the current session before opening the gun room.";
+    emit gunRoomChanged();
+}
+void HubServices::launchGunRoom(const QString &model,const QString &hand,const QString &executable){
+    auto inputs=gunroom::systemInputs(catalogRoot(),executable,model,hand);
+    const auto loader=settings_->get("gunRoomLoader",QString()).toString();
+    if(!loader.isEmpty())inputs.loader=loader;
+    startGunRoom(inputs);
+}
+void HubServices::startGunRoom(const gunroom::Inputs &inputs){
+    if(launchBusy()||hubExitPending_){ui_->showError("Gun room","Close the current session before opening the gun room.");return;}
+    // Revalidate the selected paths and frozen bytes at the actual click/restart.
+    const auto candidate=gunroom::plan(inputs);
+    if(!candidate.available()){gunRoomAvailable_=false;gunRoomReason_=candidate.error;emit gunRoomChanged();ui_->showError("Gun room",candidate.error);return;}
+    retainedGunRoom_=inputs;
+    ui_->launchRoomQueued(inputs.model,inputs.hand);
+    if(!gunRoom_.start(candidate))ui_->launchFinished("__gun_room","Gun-room process could not be queued.");
+}
+void HubServices::requestHubExit(int code){
+    if(!gunRoom_.busy()){emit hubExitReady(code);return;}
+    hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();gunRoom_.close();
 }
 QString HubServices::catalogRoot()const{
     if(games_->records().isEmpty())throw install::Error("E_CATALOG_EMPTY","Catalog has no games. Load a valid catalog before installing or removing emulator tools.");

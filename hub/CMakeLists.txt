@@ -58,6 +58,8 @@ add_library(hubcore STATIC
     src/core/launch/Launch.h
     src/core/launch/Launch.cpp
     src/core/launch/Runtime.cpp
+    src/core/gunroom/GunRoom.cpp
+    src/core/gunroom/GunRoom.h
     src/core/steam/Steam.h
     src/core/steam/Steam.cpp
     src/core/steam/BinaryVdf.cpp
@@ -144,6 +146,10 @@ ac_project_warnings(steamtool)
 set_target_properties(steamtool PROPERTIES WIN32_EXECUTABLE FALSE)
 
 if(BUILD_TESTING)
+    qt_add_executable(gun-room-tests tests/GunRoomTest.cpp)
+    target_link_libraries(gun-room-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(gun-room-tests)
+    add_test(NAME hub-gun-room COMMAND gun-room-tests)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})
