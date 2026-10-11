@@ -28,6 +28,12 @@ jobs:
       - name: Isolated Dolphin profile checks
         if: hashFiles('tools/wii-dolphin-profile/test_profile.py') != ''
         run: python -m unittest discover -s tools/wii-dolphin-profile -p test_profile.py -v
+      - name: Shared Wii shell and stick profiles
+        if: hashFiles('tools/test_wii_shell_stick.py') != ''
+        run: python -m unittest discover -s tools -p test_wii_shell_stick.py -v
+      - name: Exported shell and stick model contracts
+        if: hashFiles('tools/test_shell_models.py') != ''
+        run: python -m unittest discover -s tools -p test_shell_models.py -v
       - name: Synthetic Wii frame-rate preparation checks
         if: hashFiles('data/performance/test_phase1.py') != ''
         run: python -m unittest discover -s data/performance -p test_phase1.py -v
@@ -79,6 +85,12 @@ jobs:
           cache: true
       - name: Pin CMake and Ninja
         run: python -m pip install cmake==3.31.10 ninja==1.13.0
+      - name: Dolphin facing math (CPU only)
+        if: hashFiles('setups/dolphin-vr/facing/CMakeLists.txt') != ''
+        run: |
+          cmake -S setups/dolphin-vr/facing -B build-dolphin-facing -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TRY_COMPILE_CONFIGURATION=Release
+          cmake --build build-dolphin-facing --target ac-dolphin-facing-test
+          ctest --test-dir build-dolphin-facing --output-on-failure
       - run: cmake -S hub -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
       - name: Compile native Wii pose reader (no VR initialization)
         run: |

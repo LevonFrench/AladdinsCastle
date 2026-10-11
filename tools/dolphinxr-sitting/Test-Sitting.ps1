@@ -73,6 +73,8 @@ try {
     Assert (-not (Test-AcOpenXRLog "$root/missing.log")) 'Missing log cannot pass.'
     Set-Content "$root/log.txt" 'Ordinary video message'
     Assert (-not (Test-AcOpenXRLog "$root/log.txt")) 'Unrelated log cannot pass.'
+    Add-Content "$root/log.txt" 'I[Video]: ordinary line mentioning OpenXR'
+    Assert (-not (Test-AcOpenXRLog "$root/log.txt")) 'A mention is not an OpenXR-category diagnostic.'
     Add-Content "$root/log.txt" 'I[OpenXR]: OpenXR disabled; no session initialized'
     Assert (Test-AcOpenXRLog "$root/log.txt") 'OpenXR diagnostic must be detected.'
     Write-Output "$script:checks checks passed in PowerShell $($PSVersionTable.PSVersion). No app/game/VR launched."

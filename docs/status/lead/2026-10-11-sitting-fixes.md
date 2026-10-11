@@ -21,10 +21,13 @@ its existing Flip Y control affects only input.
 
 The new kit prepares exact shared native bindings, a both-stick recenter chord,
 isolated background hotkeys, 4x/8x-filtering settings, and the log directory.
-Windows PowerShell 5.1 synthetic checks and all three prepare-only modes pass.
-The source candidate will keep a stable yaw basis and queue recenter until
-valid poses; conditional wear detection must be reported separately from the
-controller fallback. Desktop AA/filtering and real logging are still pending.
+Windows PowerShell 5.1 passes 25 synthetic checks; all three prepare-only modes
+pass. The compiled source candidate passed independent review, including 132
+anchored ray cases. It keeps a stable yaw basis and queues recenter until valid
+poses; conditional wear detection must be reported separately from the
+controller fallback. Candidate Desktop/SharpAA preparation also passes in 5.1.
+Desktop AA/filtering and real logging are still pending; no candidate runtime
+has been executed.
 
 Next sitting, in both Default and Eager heartbeat modes: (1) put on the headset
 and check facing; (2) recenter using both sticks; (3) confirm the save prompt and

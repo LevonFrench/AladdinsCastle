@@ -86,6 +86,7 @@ function Initialize-AcSitting {
         }
     }
     $marker = Join-Path $userPath 'ac-sitting-v2.txt'
+    $null = Assert-AcPrivatePath $marker
     if ((Test-Path -LiteralPath $userPath) -and
         (-not (Test-Path -LiteralPath $marker) -or
          [IO.File]::ReadAllText($marker) -ne 'AladdinsCastle sitting settings v2')) {
@@ -103,7 +104,10 @@ function Initialize-AcSitting {
     $existing = @(Get-ChildItem -LiteralPath $config -Filter '*.ini' -File)
     if ($existing.Count) {
         New-Item -ItemType Directory -Path $backup -Force | Out-Null
-        foreach ($file in $existing) { Copy-Item -LiteralPath $file.FullName -Destination $backup }
+        foreach ($file in $existing) {
+            $null = Assert-AcPrivatePath $file.FullName
+            Copy-Item -LiteralPath $file.FullName -Destination $backup
+        }
     }
     Set-AcIniValues (Join-Path $config 'Dolphin.ini') ([ordered]@{
         Core = [ordered]@{GFXBackend='D3D';EnableCheats='False'}
@@ -187,7 +191,8 @@ function Assert-AcSittingInputs([string]$Executable, [string]$ExecutableSHA256,
 
 function Test-AcOpenXRLog([string]$LogPath) {
     if (-not (Test-Path -LiteralPath $LogPath -PathType Leaf)) { return $false }
-    return [bool](Select-String -LiteralPath $LogPath -Pattern '(?:\bOpenXR\b|\bOPENXR\b)' -Quiet)
+    # Require the actual native logger category, not a path or arbitrary mention.
+    return [bool](Select-String -LiteralPath $LogPath -Pattern '[NEWID]\[OpenXR\]:' -Quiet)
 }
 
 Export-ModuleMember -Function Initialize-AcSitting, Assert-AcSittingInputs, Assert-AcPrivatePath, Test-AcOpenXRLog, Get-AcQuality
