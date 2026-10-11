@@ -110,6 +110,23 @@ static fs::path calibrationPath(const std::wstring& text) {
     return path;
 }
 int wmain(int argc,wchar_t** argv) {
+    fs::path diagnosticDir;
+    Handle diagnosticDirectory;
+    std::unique_ptr<theatre::FailureDiagnostic> diagnostic;
+    auto failed=[&](const std::string& error) {
+        if(diagnostic) {
+            try {
+                // Metadata precedes samples; partial export is never proof.
+                const auto json=diagnostic->json(error);
+                theatre::writeNewPrivateFile(diagnosticDir/L"failure.json",reinterpret_cast<const std::uint8_t*>(json.data()),json.size());
+                CaptureApartment failureApartment;
+                if(diagnostic->anchor) theatre::writeFailurePng(diagnosticDir/fs::path(diagnostic->anchorFile()),*diagnostic->anchor);
+                if(diagnostic->separateLatest()) theatre::writeFailurePng(diagnosticDir/L"latest-raw.png",*diagnostic->latest);
+            } catch(const std::exception& outputError) { std::cerr << "Failure diagnostic export: " << outputError.what() << '\n'; }
+              catch(...) { std::cerr << "Failure diagnostic export failed; original error retained\n"; }
+        }
+        std::cerr << "Theatre: " << error << '\n'; return 1;
+    };
     try {
         unsigned pid=0,seconds=0,startupSeconds=30; fs::path headFile,proofDir; bool captureOnly=false;
         std::wstring gameId;
@@ -123,6 +140,10 @@ int wmain(int argc,wchar_t** argv) {
             else if(flag==L"--game-id") gameId=argv[++i];
             else if(flag==L"--head-file") headFile=calibrationPath(argv[++i]);
             else if(flag==L"--proof-dir") proofDir=calibrationPath(argv[++i]);
+            else if(flag==L"--failure-diagnostic-dir") {
+                if(!fs::path(argv[i+1]).is_absolute()) fail("Failure diagnostic directory must be absolute");
+                diagnosticDir=calibrationPath(argv[++i]);
+            }
             else fail("Unknown option");
         }
         if(!pid || seconds<3 || (captureOnly?proofDir.empty():headFile.empty()))
@@ -130,6 +151,16 @@ int wmain(int argc,wchar_t** argv) {
         if(!captureOnly && !proofDir.empty()) fail("Proof directory is for capture-only mode");
         if(captureOnly && !theatre::validGameId(gameId)) fail("Capture-only needs --game-id <six-character disc header ID>");
         if(!gameId.empty() && !theatre::validGameId(gameId)) fail("Invalid game header ID");
+        if(!diagnosticDir.empty()) {
+            if(!captureOnly || diagnosticDir==proofDir) fail("Failure diagnostics need a separate capture-only directory");
+            if(!CreateDirectoryW(diagnosticDir.c_str(),nullptr)) fail("Cannot reserve fresh failure diagnostic directory");
+            diagnosticDirectory.value=CreateFileW(diagnosticDir.c_str(),FILE_LIST_DIRECTORY|FILE_READ_ATTRIBUTES,
+                FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OPEN_REPARSE_POINT,nullptr);
+            BY_HANDLE_FILE_INFORMATION info{};
+            if(diagnosticDirectory.value==INVALID_HANDLE_VALUE || !GetFileInformationByHandle(diagnosticDirectory.value,&info) ||
+               (info.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)) fail("Failure directory must remain an unlinked directory");
+            diagnostic=std::make_unique<theatre::FailureDiagnostic>(startupSeconds,seconds);
+        }
         PhysicalPixels physicalPixels;
         Handle process{OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,pid)};
         if(!process.value) fail("Cannot open the selected Dolphin process");
@@ -151,15 +182,30 @@ int wmain(int argc,wchar_t** argv) {
         } while(true);
         HWND window=windows.candidates.front();
         validWindow(window,pid,process.value);
+        if(diagnostic) {
+            RECT client{};
+            if(!GetClientRect(window,&client) || client.right<0 || client.bottom<0) client={};
+            diagnostic->select(pid,reinterpret_cast<std::uintptr_t>(window),static_cast<unsigned>(client.right),static_cast<unsigned>(client.bottom),true);
+            diagnostic->stage=theatre::FailureStage::CaptureStart;
+        }
         CaptureApartment apartment;
         auto deadline=startupDeadline;
         theatre::WindowCapture capture(window);
+        if(diagnostic) { diagnostic->capture=capture.lastObservation(); diagnostic->stage=theatre::FailureStage::FirstCandidate; }
         auto nextFrame=[&]() {
             while(running && Clock::now()<deadline) {
                 validWindow(window,pid,process.value);
-                auto frame=capture.take();
-                if(frame && theatre::spatialCandidate({frame->width,frame->height,frame->pixels.data(),frame->pixels.size(),frame->timeMs}))
-                    return *frame;
+                std::optional<theatre::CapturedFrame> frame;
+                try { frame=capture.take(); }
+                catch(...) { if(diagnostic) diagnostic->observePoll(capture.lastObservation()); throw; }
+                if(diagnostic) diagnostic->observePoll(capture.lastObservation());
+                if(frame) {
+                    const theatre::FrameView view{frame->width,frame->height,frame->pixels.data(),frame->pixels.size(),frame->timeMs};
+                    theatre::SpatialStatistics statistics;
+                    const bool candidate=theatre::spatialCandidate(view,diagnostic?&statistics:nullptr);
+                    if(diagnostic) diagnostic->observeFrame(view,statistics,candidate);
+                    if(candidate) return *frame;
+                }
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
             fail("No spatially varied WGC client frame before bounded wait ended");
@@ -167,13 +213,18 @@ int wmain(int argc,wchar_t** argv) {
         };
         auto first=nextFrame();
         deadline=Clock::now()+std::chrono::seconds(seconds);
+        if(diagnostic) diagnostic->stage=theatre::FailureStage::CompareChange;
         auto second=nextFrame();
         bool changed=false;
         while(!changed) {
-            if(second.timeMs-first.timeMs<1000) { second=nextFrame(); continue; }
+            if(second.timeMs-first.timeMs<1000) {
+                if(diagnostic) diagnostic->comparison(false);
+                second=nextFrame(); continue;
+            }
             changed=theatre::framesDiffer(
             {first.width,first.height,first.pixels.data(),first.pixels.size(),first.timeMs},
             {second.width,second.height,second.pixels.data(),second.pixels.size(),second.timeMs});
+            if(diagnostic) diagnostic->comparison(true,changed);
             if(!changed) second=nextFrame();
         }
         if(captureOnly) {
@@ -265,5 +316,6 @@ int wmain(int argc,wchar_t** argv) {
     } catch(const winrt::hresult_error& error) {
         std::cerr << "WGC: HRESULT=0x" << std::hex << static_cast<unsigned long>(error.code())
                   << ' ' << winrt::to_string(error.message()) << '\n'; return 1;
-    } catch(const std::exception& error) { std::cerr << "Theatre: " << error.what() << '\n'; return 1; }
+    } catch(const winrt::hresult_error& error) { return failed(winrt::to_string(error.message())+" (HRESULT "+std::to_string(error.code().value)+")"); }
+      catch(const std::exception& error) { return failed(error.what()); }
 }

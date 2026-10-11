@@ -10,6 +10,7 @@
 #include <d3d11_4.h>
 #include <dwmapi.h>
 #include <wincodec.h>
+#include <objbase.h>
 #include <wrl/client.h>
 #include <cstring>
 
@@ -50,6 +51,24 @@ CapturedFrame readClientPixels(ID3D11Device* device,ID3D11DeviceContext* context
     context->Unmap(staging.Get(),0);
     return result;
 }
+static void encodePng(IStream* stream,unsigned width,unsigned height,const std::vector<std::uint8_t>& pixels) {
+    if(pixels.size()!=imageBytes(width,height)) throw std::runtime_error("PNG requires exact client pixels");
+    ComPtr<IWICImagingFactory> factory;
+    d3dCheck(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(factory.GetAddressOf())),"WIC factory");
+    ComPtr<IWICBitmapEncoder> encoder;
+    d3dCheck(factory->CreateEncoder(GUID_ContainerFormatPng,nullptr,encoder.GetAddressOf()),"PNG encoder");
+    d3dCheck(encoder->Initialize(stream,WICBitmapEncoderNoCache),"PNG initialize");
+    ComPtr<IWICBitmapFrameEncode> output;
+    d3dCheck(encoder->CreateNewFrame(output.GetAddressOf(),nullptr),"PNG frame");
+    d3dCheck(output->Initialize(nullptr),"PNG frame initialize");
+    d3dCheck(output->SetSize(width,height),"PNG size");
+    auto format=GUID_WICPixelFormat32bppBGRA;
+    d3dCheck(output->SetPixelFormat(&format),"PNG BGRA format");
+    if(format!=GUID_WICPixelFormat32bppBGRA) throw std::runtime_error("PNG encoder changed pixel format");
+    d3dCheck(output->WritePixels(height,width*4,static_cast<UINT>(pixels.size()),
+        const_cast<BYTE*>(pixels.data())),"PNG pixels");
+    d3dCheck(output->Commit(),"PNG frame commit"); d3dCheck(encoder->Commit(),"PNG commit");
+}
 void writeFramePng(const std::filesystem::path& file,const CapturedFrame& frame) {
     if(frame.pixels.size()!=imageBytes(frame.width,frame.height) || std::filesystem::exists(file))
         throw std::runtime_error("Proof PNG requires valid pixels and a fresh filename");
@@ -72,7 +91,38 @@ void writeFramePng(const std::filesystem::path& file,const CapturedFrame& frame)
         const_cast<BYTE*>(frame.pixels.data())),"PNG pixels");
     d3dCheck(output->Commit(),"PNG frame commit"); d3dCheck(encoder->Commit(),"PNG commit");
 }
+void writeNewPrivateFile(const std::filesystem::path& file,const std::uint8_t* bytes,std::size_t length) {
+    HANDLE handle=CreateFileW(file.c_str(),GENERIC_WRITE,0,nullptr,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,nullptr);
+    if(handle==INVALID_HANDLE_VALUE) throw std::runtime_error("Cannot create fresh failure diagnostic file");
+    try {
+        while(length) {
+            const auto chunk=static_cast<DWORD>(std::min<std::size_t>(length,1024*1024));
+            DWORD written=0;
+            if(!WriteFile(handle,bytes,chunk,&written,nullptr) || written!=chunk)
+                throw std::runtime_error("Cannot write private failure diagnostic file");
+            bytes+=written; length-=written;
+        }
+        if(!FlushFileBuffers(handle)) throw std::runtime_error("Cannot flush private failure diagnostic file");
+    } catch(...) { CloseHandle(handle); throw; }
+    CloseHandle(handle);
+}
+void writeFailurePng(const std::filesystem::path& file,const DiagnosticSample& frame) {
+    ComPtr<IStream> stream;
+    d3dCheck(CreateStreamOnHGlobal(nullptr,TRUE,stream.GetAddressOf()),"Failure PNG memory stream");
+    encodePng(stream.Get(),frame.width,frame.height,frame.pixels);
+    STATSTG stat{};
+    d3dCheck(stream->Stat(&stat,STATFLAG_NONAME),"Failure PNG length");
+    if(stat.cbSize.QuadPart>64*1024*1024) throw std::runtime_error("Failure PNG exceeds bounded encoding");
+    HGLOBAL memory=nullptr;
+    d3dCheck(GetHGlobalFromStream(stream.Get(),&memory),"Failure PNG bytes");
+    const auto* bytes=static_cast<const std::uint8_t*>(GlobalLock(memory));
+    if(!bytes) throw std::runtime_error("Cannot access failure PNG bytes");
+    try { writeNewPrivateFile(file,bytes,static_cast<std::size_t>(stat.cbSize.QuadPart)); }
+    catch(...) { GlobalUnlock(memory); throw; }
+    GlobalUnlock(memory);
+}
 struct WindowCapture::Impl {
+    CaptureObservation observation;
     HWND window{};
     ComPtr<ID3D11Device> device;
     ComPtr<ID3D11DeviceContext> context;
@@ -104,6 +154,8 @@ WindowCapture::WindowCapture(HWND window):m(std::make_unique<Impl>()) {
     auto factory=winrt::get_activation_factory<capture::GraphicsCaptureItem,IGraphicsCaptureItemInterop>();
     winrt::check_hresult(factory->CreateForWindow(window,winrt::guid_of<capture::GraphicsCaptureItem>(),winrt::put_abi(m->item)));
     m->size=m->item.Size(); captureSize(m->size.Width,m->size.Height);
+    m->observation.sourceWidth=static_cast<unsigned>(m->size.Width);
+    m->observation.sourceHeight=static_cast<unsigned>(m->size.Height);
     m->pool=capture::Direct3D11CaptureFramePool::CreateFreeThreaded(m->runtimeDevice,
         winrt::Windows::Graphics::DirectX::DirectXPixelFormat::B8G8R8A8UIntNormalized,2,m->size);
     m->session=m->pool.CreateCaptureSession(m->item);
@@ -111,13 +163,20 @@ WindowCapture::WindowCapture(HWND window):m(std::make_unique<Impl>()) {
     m->session.StartCapture();
 }
 WindowCapture::~WindowCapture()=default;
+CaptureObservation WindowCapture::lastObservation() const { return m->observation; }
 std::optional<CapturedFrame> WindowCapture::take() {
+    m->observation.kind=CapturePoll::NoFrame;
     auto frame=m->pool.TryGetNextFrame();
     if(!frame) return std::nullopt;
+    m->observation.kind=CapturePoll::ReadbackError;
+    m->observation.cropValid=false;
     auto size=frame.ContentSize(); captureSize(size.Width,size.Height);
+    m->observation.sourceWidth=static_cast<unsigned>(size.Width);
+    m->observation.sourceHeight=static_cast<unsigned>(size.Height);
     if(size.Width!=m->size.Width || size.Height!=m->size.Height) {
         frame.Close(); m->size=size;
         m->pool.Recreate(m->runtimeDevice,winrt::Windows::Graphics::DirectX::DirectXPixelFormat::B8G8R8A8UIntNormalized,2,size);
+        m->observation.kind=CapturePoll::PoolRecreated;
         return std::nullopt;
     }
     // Match WGC's frame origin to this selected window's physical geometry.
@@ -132,11 +191,14 @@ std::optional<CapturedFrame> WindowCapture::take() {
     const Rect crop{origin.x-window.left,origin.y-window.top,
         origin.x-window.left+client.right,origin.y-window.top+client.bottom};
     validateCrop(crop,static_cast<unsigned>(size.Width),static_cast<unsigned>(size.Height));
+    m->observation.crop=crop;
+    m->observation.cropValid=true;
     auto access=frame.Surface().as<::Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess>();
     ComPtr<ID3D11Texture2D> texture;
     winrt::check_hresult(access->GetInterface(IID_PPV_ARGS(texture.GetAddressOf())));
     const auto time=frame.SystemRelativeTime().count()/10000;
     auto result=readClientPixels(m->device.Get(),m->context.Get(),texture.Get(),crop,time);
+    m->observation.kind=CapturePoll::Frame;
     frame.Close(); return result;
 }
 }
