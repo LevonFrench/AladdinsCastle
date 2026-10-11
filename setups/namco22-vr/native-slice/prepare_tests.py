@@ -40,6 +40,11 @@ def main():
         assert 'acn_view' in (out/'engine/geo_hw.h').read_text()
         assert 'ACN22_SYNTHETIC_SLICE' in (out/'engine/ss22_gl.c').read_text()
         assert 'if (!nb) { acn22_invalidate_frame(); return; }' in (out/'engine/ss22_gl.c').read_text()
+        batch = (out/'engine/quad_gl.c').read_text()
+        assert 'acn22_native_capture_fan((uint32_t)n, qa_xy, qa_rgba, qa_st); return;' in batch
+        assert 'glTexParameteri(GL_TEXTURE_1D,GL_TEXTURE_MIN_FILTER,GL_NEAREST)' in batch
+        assert 'glTexParameteri(GL_TEXTURE_1D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE)' in batch
+        assert '!st_buf.pose && !bb_run.pose' in batch
         sentinel = out/'sentinel'
         sentinel.write_text('keep')
         def refused(output, pin=module.PIN):
