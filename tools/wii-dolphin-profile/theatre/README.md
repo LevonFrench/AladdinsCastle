@@ -21,6 +21,37 @@ hardware adapter, game, window or VR initialization.
 
 ## Desktop proof
 
+For a coordinated input-free R3 turn, `desktop_capture.py` supervises both
+processes, creates a fresh private User directory and retains logs, proof PNGs
+and cleanup receipts. It performs no mouse/keyboard input, Computer Use,
+SteamVR initialization or system-setting changes. Scripted DSU input is supplied
+separately by the lead. A system prompt stops the item for the owner; this
+harness cannot detect unrelated prompts or authorize a runtime slot.
+
+Supply a private JSON configuration under this checkout's `.local` containing
+absolute `dolphin`, `capture` and `disc` paths, exact `dolphin_sha256` and
+`capture_sha256` hashes, and `disc_header_sha256` (the first 32 bytes). The
+ordinary-Dolphin profile currently admits only the two scoped Chronicles ISO
+headers. No collection traversal or content copy occurs. Keep this JSON and
+all output outside Git. `prepare` validates inputs and writes fresh settings
+without launching; `run` requires a different fresh output directory and the
+lead's runtime slot:
+
+```powershell
+python tools/wii-dolphin-profile/desktop_capture.py prepare --config .local/capture-inputs.json --run-dir .local/capture-prepared
+python tools/wii-dolphin-profile/desktop_capture.py run --config .local/capture-inputs.json --run-dir .local/capture-run --seconds 15
+```
+
+The supervisor waits up to 30 seconds for exactly one owned visible window,
+bounds capture to the requested 3–60 seconds plus 5 seconds for exit, then
+reaps capture before Dolphin. No automatic retry occurs. An ambiguous owned
+window set or timeout fails without input. A successful RGB gate still leaves
+`live_proof` false and `sbs_visual_check` required in the private result: inspect
+the PNGs for actual game/SBS content before claiming desktop proof. Headset
+acceptance is a separate owner sitting. The new synthetic harness tests cover
+identity rejection, fresh output isolation, failed/hung capture cleanup and
+reaping a real CPU-only child when the second spawn fails.
+
 Use this only in a coordinated desktop turn, after the native DolphinXR first
 boot. Start Dolphin with a fresh isolated profile (1280 x 720, auto-size off),
 then provide its explicit PID. No SteamVR initialization occurs in this mode:

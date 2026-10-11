@@ -27,7 +27,7 @@ jobs:
         run: python -m unittest discover -s tools/wii-bridge -p test_bridge.py -v
       - name: Isolated Dolphin profile checks
         if: hashFiles('tools/wii-dolphin-profile/test_profile.py') != ''
-        run: python -m unittest discover -s tools/wii-dolphin-profile -p test_profile.py -v
+        run: python -m unittest discover -s tools/wii-dolphin-profile -p 'test_*.py' -v
       - name: Shared Wii shell and stick profiles
         if: hashFiles('tools/test_wii_shell_stick.py') != ''
         run: python -m unittest discover -s tools -p test_wii_shell_stick.py -v
