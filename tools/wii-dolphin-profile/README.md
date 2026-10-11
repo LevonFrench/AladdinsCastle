@@ -31,7 +31,11 @@ synthetic temporary directories; set TEMP/TMP to an owned local test directory
 when the host sandbox's default temporary location is inaccessible.
 
 The tool writes DSUClient.ini, WiimoteNew.ini, named profiles, GFX.ini and
-per-game selectors for the PAL releases RBUP08 and SBDP08. Cheats are
+per-game selectors for the PAL releases RBUP08 and SBDP08.
+These remain the legacy default pair. The capture preparer's explicit generic
+recipe instead creates only its selected six-character ID, retaining the same
+schema and rejecting reuse of an existing User for a different game. No new
+owned-title list or file discovery is embedded in the tool. Cheats are
 disabled; no 60fps research codes are included. Analytics and the automatic
 update track are disabled in fresh profiles, with the analytics permission
 question marked answered. This does not modify a currently running profile.
