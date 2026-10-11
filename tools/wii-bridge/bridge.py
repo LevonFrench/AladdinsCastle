@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Live SteamVR -> DSU bridge, with visible pointer/motion status and calibration."""
 import argparse
+import ctypes
 import json
 import queue
 import subprocess
 import threading
 import time
 import tkinter as tk
+import sys
 from pathlib import Path
 from dsu import Pad, Server
 from motion import Mapper
@@ -58,7 +60,18 @@ def main():
         if frame and frame['head_valid']:
             mapper.recenter(frame['head'])
     tk.Button(window,text='Centre pointer plane',command=center,font=('Segoe UI',13)).pack(pady=5)
-    tk.Label(window,text='R = reload motion · V = melee motion (while this window has focus) · Close stops the bridge',fg='white',bg='#132030').pack()
+    # Temporary app-owned hotkeys keep accessibility motions usable while the
+    # game has focus. No hooks, persistent settings, or global key recording.
+    hotkeys=[]
+    user32=None
+    if sys.platform=='win32':
+        from ctypes import wintypes
+        user32=ctypes.windll.user32
+        for ident,key in [(0xAC01,'R'),(0xAC02,'V')]:
+            if user32.RegisterHotKey(None,ident,0x4003,ord(key)):
+                hotkeys.append(ident)
+        hotkey_message=wintypes.MSG()
+    tk.Label(window,text='Ctrl+Alt+R = reload · Ctrl+Alt+V = melee · R/V also work in this window · Close stops bridge',fg='white',bg='#132030').pack()
     def gesture(kind):
         nonlocal fallback
         fallback=(kind,time.monotonic())
@@ -68,6 +81,8 @@ def main():
     def close():
         nonlocal alive
         alive=False
+        if user32:
+            for ident in hotkeys:user32.UnregisterHotKey(None,ident)
         process.terminate()
         try: process.wait(timeout=3)
         except subprocess.TimeoutExpired: process.kill(); process.wait()
@@ -77,6 +92,10 @@ def main():
     def tick():
         nonlocal frame,last_sample,fallback,reader_error
         now=time.monotonic()
+        if user32:
+            while user32.PeekMessageW(ctypes.byref(hotkey_message),None,0x312,0x312,1):
+                if hotkey_message.wParam in hotkeys:
+                    gesture('reload' if hotkey_message.wParam==0xAC01 else 'melee')
         try:
             frame=samples.get_nowait()
             last_sample=now
@@ -110,6 +129,8 @@ def main():
             reader_error=errors.get_nowait()
         if reader_error:
             lines.append(reader_error)
+        if user32 and len(hotkeys)!=2:
+            lines.append('Some global hotkeys unavailable; R/V still work while this window has focus.')
         label.config(text='\n'.join(lines))
         if args.seconds and now-started>=args.seconds:
             close();return

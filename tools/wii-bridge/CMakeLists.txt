@@ -7,6 +7,7 @@ endif()
 add_executable(acvr-wii-pose pose_feed.cpp)
 target_compile_features(acvr-wii-pose PRIVATE cxx_std_17)
 target_include_directories(acvr-wii-pose PRIVATE "${OPENVR_SOURCE}/headers")
+configure_file("${OPENVR_SOURCE}/LICENSE" "${CMAKE_CURRENT_BINARY_DIR}/OpenVR-LICENSE.txt" COPYONLY)
 if(WIN32)
   target_link_libraries(acvr-wii-pose PRIVATE "${OPENVR_SOURCE}/lib/win64/openvr_api.lib")
   add_custom_command(TARGET acvr-wii-pose POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different

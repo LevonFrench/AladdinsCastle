@@ -36,8 +36,10 @@ over50ms resets the derivative; samples stale for150ms disconnect both pads.
 All axes require physical sign/orientation verification against Dolphin.
 Do not map Dolphin Shake/Swing in addition to Motion Input. R/V in this window
 produce bounded accessibility shake/swing waveforms on that same motion path;
-they are provisional and not yet tuned in either game. Global/controller
-fallback bindings and independent Nunchuk motion depend on profile integration.
+they are provisional and not yet tuned in either game. On Windows, temporary
+Ctrl+Alt+R/V hotkeys also work while Dolphin has focus and are unregistered on
+close. Conflicts appear in the status window. Controller fallback bindings and
+independent Nunchuk motion depend on profile integration.
 
 Protocol coverage: DSU1001 header/CRC, version query, requested port discovery,
 slot/MAC/all subscription, stable distinct MACs, five-second expiry, analog
