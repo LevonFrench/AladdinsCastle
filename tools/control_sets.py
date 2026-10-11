@@ -251,6 +251,19 @@ class Resolver:
 
     def resolve_game(self,gid,backend=None,pack_overrides=(),user_override=None,proposed_override=None,
                      game_overrides=(),profile_defaults=None,profile_model=None,model_overrides=()):
+        # Wii uses emulator-native parts/DSU inputs, not the arcade ABI vocabulary.
+        # One compiled mapping is consumed by both the Python export and native UI.
+        wii_catalog=self.root/'data/controls/wii/view-catalog.json'
+        if wii_catalog.exists():
+            catalog=json.loads(wii_catalog.read_text(encoding='utf-8'))
+            if any(row['game_id']==gid for row in catalog['games']):
+                require(not (pack_overrides or user_override is not None or proposed_override is not None or
+                             game_overrides or model_overrides),
+                        'Wii view layers must be authored in its dedicated mapping; unsupported layers cannot be ignored')
+                from wii_controls import resolve_game
+                hand=(profile_defaults or {}).get('policy',{}).get('p1_hand','right')
+                require(not profile_model or profile_model in self.models,'unknown caller default model')
+                return resolve_game(self.root,gid,hand,self.models.get(profile_model) if profile_model else None)
         game = deepcopy(self.games[gid])
         require(game.get('genre')=='gun','requested game is not a gun game')
         for layer in game_overrides:

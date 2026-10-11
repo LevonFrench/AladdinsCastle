@@ -16,9 +16,18 @@ Column {
     width: 1000
     Text { width: parent.width; text: root.controlsModel && root.controlsModel.title ? root.controlsModel.title : "CONTROLS"; color: root.textColor; font.pixelSize: 18; font.bold: true; wrapMode: Text.Wrap }
     Text { objectName: "controlsNotice"; width: parent.width; text: root.controlsModel ? root.controlsModel.notice : "Choose a game to see its controls"; color: root.mutedColor; font.pixelSize: root.textSize; wrapMode: Text.Wrap }
+    Image {
+        objectName: "wiiPartsDiagram"
+        visible: root.controlsModel && root.controlsModel.wiiControls
+        width: Math.min(root.width, 500); height: visible ? width * 270 / 500 : 0
+        source: visible ? "qrc:/controls/wii/remote-nunchuk.svg" : ""
+        fillMode: Image.PreserveAspectFit
+        Accessible.name: "Wii Remote pointer, B trigger, A and directional buttons; Nunchuk stick, C and Z"
+    }
     Flow {
         width: parent.width; spacing: 14
         Column {
+            visible: root.controlsModel && root.controlsModel.previewAvailable
             width: Math.min(root.width, 500); spacing: 6
             Rectangle {
                 width: parent.width; height: width
@@ -41,16 +50,41 @@ Column {
                 }
                 Repeater {
                     model: gunPreview.visible && root.controlsModel ? root.controlsModel.markers : []
-                    Rectangle {
+                    Item {
                         required property var modelData
+                        required property int index
                         objectName: "gunCalloutMarker"
-                        x: gunPreview.x + (gunPreview.width-gunPreview.paintedWidth)/2 + modelData.x*gunPreview.paintedWidth - width/2
-                        y: gunPreview.y + (gunPreview.height-gunPreview.paintedHeight)/2 + modelData.y*gunPreview.paintedHeight - height/2
-                        width: number.implicitWidth + 14; height: 27; radius: 13
-                        color: modelData.pressed ? root.accentColor : "#16161a"
-                        border.width: 2; border.color: root.accentColor
-                        Text { id: number; anchors.centerIn: parent; text: modelData.numbers; font.pixelSize: 12; color: root.textColor }
-                        HoverHandler { id: markerHover }
+                        id: marker
+                        anchors.fill: gunPreview
+                        property real partX: (gunPreview.width-gunPreview.paintedWidth)/2 + modelData.x*gunPreview.paintedWidth
+                        property real partY: (gunPreview.height-gunPreview.paintedHeight)/2 + modelData.y*gunPreview.paintedHeight
+                        property bool leftSide: modelData.x < .5
+                        property real labelY: Math.max(10, Math.min(height-30, partY + ((index%3)-1)*32))
+                        Canvas {
+                            id: leader
+                            anchors.fill: parent
+                            onPaint: {
+                                const ctx = getContext("2d")
+                                ctx.clearRect(0, 0, width, height)
+                                ctx.strokeStyle = root.accentColor
+                                ctx.lineWidth = marker.modelData.pressed ? 2 : 1
+                                ctx.beginPath()
+                                ctx.moveTo(marker.partX, marker.partY)
+                                ctx.lineTo(marker.leftSide ? 32 : width-32, marker.labelY+10)
+                                ctx.stroke()
+                            }
+                            Connections { target: root.controlsModel; function onChanged() { leader.requestPaint() } }
+                        }
+                        Rectangle { x: marker.partX-3; y: marker.partY-3; width: 6; height: 6; radius: 3; color: root.accentColor }
+                        Rectangle {
+                            x: marker.leftSide ? 4 : marker.width-width-4
+                            y: marker.labelY
+                            width: number.implicitWidth+12; height: 22; radius: 3
+                            color: marker.modelData.pressed ? root.accentColor : "#16161a"
+                            border.color: root.accentColor
+                            Text { id: number; anchors.centerIn: parent; text: marker.modelData.numbers; font.pixelSize: 12; color: root.textColor }
+                            HoverHandler { id: markerHover }
+                        }
                         ToolTip.visible: markerHover.hovered
                         ToolTip.text: modelData.callout
                         Accessible.name: modelData.callout
@@ -61,6 +95,7 @@ Column {
                 spacing: 8
                 Button { text: "Three-quarter"; checkable: true; checked: root.controlsModel ? root.controlsModel.previewView === "threequarter" : true; onClicked: if (root.controlsModel) root.controlsModel.previewView = "threequarter" }
                 Button { text: "Side"; checkable: true; checked: root.controlsModel ? root.controlsModel.previewView === "front" : false; onClicked: if (root.controlsModel) root.controlsModel.previewView = "front" }
+                Button { text: "Held"; checkable: true; checked: root.controlsModel ? root.controlsModel.previewView === "held" : false; onClicked: if (root.controlsModel) root.controlsModel.previewView = "held" }
             }
         }
         Row {

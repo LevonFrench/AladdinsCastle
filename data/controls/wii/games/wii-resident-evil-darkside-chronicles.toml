@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-3.0-only
+version = "0.1"
+game_id = "wii-resident-evil-darkside-chronicles"
+game_profile = "Remote and Nunchuk"
+instruction = "Camera stabiliser is on by default in the VR profile. Aim independently of character/camera motion."
+sources = ["docs/tasks/m2/W-wii-chronicles.md", "docs/tasks/m2/R1-redirect.md"]
+questions = ["Confirm reload gesture, melee-enable input and timed prompts during the first sitting.", "Confirm directional and stick weapon selection in this control layout."]
+
+[[action]]
+id = "interact"
+label = "Pick up / interact: press A / X"
+
+[[action]]
+id = "dpad"
+label = "Select weapon / directional commands"
+
+[[action]]
+id = "stick"
+label = "Select weapon / navigate"

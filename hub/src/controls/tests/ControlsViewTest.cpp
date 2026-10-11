@@ -64,7 +64,12 @@ private slots:
             QVERIFY(model.loadResolved(sample));
             QVERIFY(!model.previewAvailable());
             const auto data=sample.value("data").toMap();
-            QCOMPARE(model.rows().size(),data.value("element").toList().size()+data.value("unmapped_part").toList().size());
+            if (model.wiiControls()) {
+                const auto elements=data.value("element").toList();
+                qsizetype firstPlayer=0;
+                for (const auto &e:elements) if (e.toMap().value("slot").toInt()==0) ++firstPlayer;
+                QCOMPARE(model.rows().size(),firstPlayer);
+            } else QCOMPARE(model.rows().size(),data.value("element").toList().size()+data.value("unmapped_part").toList().size());
             for (const auto &value:model.rows()) {
                 const auto row=value.toMap();
                 QVERIFY(!row.value("part").toString().isEmpty());
@@ -188,7 +193,7 @@ private slots:
         manifest["views"]=QVariantMap{{"threequarter",view}}; QVERIFY(write());
         QVERIFY(model.loadResolved(samples["timecris"],directory.path())); QVERIFY(!model.previewAvailable());
     }
-    void offscreenComponentsShowPlaceholderAndEveryCallout() {
+    void offscreenComponentsShowMappingsWithoutEmptyPreview() {
         QQmlEngine engine;
         QQmlComponent component(&engine,QUrl("qrc:/controls/ControlsView.qml"));
         QVERIFY2(component.isReady(),qPrintable(component.errorString()));
@@ -200,7 +205,7 @@ private slots:
             auto *item=qobject_cast<QQuickItem *>(object.get()); QVERIFY(item);
             QCOMPARE(named(item,"controlsCallout").size(),model.rows().size());
             const auto placeholders=named(item,"gunPreviewPlaceholder"); QCOMPARE(placeholders.size(),1);
-            QVERIFY(placeholders[0]->isVisible());
+            QVERIFY(!placeholders[0]->isVisible());
             model.setBindingState("right","trigger",true);
             QCoreApplication::processEvents();
             QVERIFY(rowWithId(model,"p1-trigger").value("pressed").toBool());
@@ -221,6 +226,36 @@ private slots:
         item->setWidth(460); window.resize(500,1650); QTest::qWait(60);
         const QImage narrow=window.grabWindow(); QVERIFY(!narrow.isNull());
         QVERIFY(narrow.save(QDir(fixtureRoot).filePath("timecris-narrow-source-only.png")));
+        item->setParentItem(nullptr);
+    }
+    void wiiRolesAndSoftwareCapture() {
+        QQmlEngine engine; ac::ControlsViewModel model;
+        QVERIFY(model.loadResolved(samples["wii-resident-evil-umbrella-chronicles"],QDir(AC_CONTROLS_ROOT).filePath("assets/guns/preview")));
+        QVERIFY(model.wiiControls()); QVERIFY(model.previewAvailable());
+        QCOMPARE(rowWithId(model,"p1-fire").value("hand").toString(),QString("right"));
+        QCOMPARE(rowWithId(model,"p1-z").value("hand").toString(),QString("left"));
+        QVERIFY(rowWithId(model,"p2-fire").isEmpty());
+        QVERIFY(rowWithId(model,"p1-reload-fallback").value("bindingLabel").toString().contains("Keyboard R"));
+        model.setTwoGunsActive(true);
+        QCOMPARE(rowWithId(model,"p1-z").value("hand").toString(),QString("right"));
+        QCOMPARE(rowWithId(model,"p2-z").value("hand").toString(),QString("left"));
+        model.setBindingState("left","trigger",true);
+        QVERIFY(rowWithId(model,"p2-fire").value("pressed").toBool());
+        QVERIFY(!rowWithId(model,"p1-fire").value("pressed").toBool());
+        model.setTwoGunsActive(false); model.setPrimaryHand("left");
+        QCOMPARE(rowWithId(model,"p1-fire").value("hand").toString(),QString("left"));
+        QCOMPARE(rowWithId(model,"p1-stick").value("hand").toString(),QString("right"));
+        model.setPrimaryHand("right"); model.setPreviewView("held"); QVERIFY(model.previewAvailable());
+        QQmlComponent component(&engine,QUrl("qrc:/controls/ControlsView.qml"));
+        std::unique_ptr<QObject> object(component.createWithInitialProperties({{"controlsModel",QVariant::fromValue(&model)},{"width",1000}}));
+        QVERIFY2(object,qPrintable(component.errorString()));
+        auto *item=qobject_cast<QQuickItem *>(object.get()); QVERIFY(item);
+        QCOMPARE(named(item,"controlsCallout").size(),model.rows().size());
+        QVERIFY(named(item,"wiiPartsDiagram").front()->isVisible());
+        QQuickWindow window; window.setColor(QColor("#0f0f12")); window.resize(1040,2400);
+        item->setParentItem(window.contentItem()); item->setPosition({20,20}); window.show(); QTest::qWait(100);
+        const QImage capture=window.grabWindow(); QVERIFY(!capture.isNull());
+        QVERIFY(capture.save(QDir(fixtureRoot).filePath("wii-umbrella-controls.png")));
         item->setParentItem(nullptr);
     }
     void cleanupTestCase() {

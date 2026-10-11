@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-3.0-only
+version = "0.1"
+game_id = "wii-dead-space-extraction"
+game_profile = "Remote and Nunchuk"
+instruction = "Physical gun tilt, swing and shake pass through as full motion; follow game prompts."
+sources = ["docs/tasks/m2/W-wii-chronicles.md", "docs/tasks/m2/R1-redirect.md"]
+questions = ["Confirm reload timing, kinesis, stasis, alternate fire and glow-worm motions in the game.", "Seated R/V waveforms need game-specific tuning; they are not alternate-fire or stasis buttons."]
+
+[[action]]
+id = "interact"
+label = "Remote A game action"
+
+[[action]]
+id = "z"
+label = "Nunchuk Z game action"
+
+[[action]]
+id = "c"
+label = "Nunchuk C game action"

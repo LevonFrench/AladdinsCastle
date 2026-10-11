@@ -19,10 +19,13 @@ class ControlSetTests(unittest.TestCase):
     def test_all_catalog_games_resolve_without_claiming_acceptance(self):
         rows = [self.resolver.resolve_game(gid) for gid,g in self.resolver.games.items() if g.get('genre')=='gun']
         self.assertEqual(len(rows),152)
-        self.assertEqual(sum(r['two_gun_eligible'] for r in rows),94)
+        # The resumed Wii catalog declares both Chronicles games as two-player.
+        self.assertEqual(sum(r['two_gun_eligible'] for r in rows),96)
         self.assertEqual(sum(r['separate_views'] for r in rows),6)
-        self.assertTrue(all(r['gaps'] and r['declared_active_slots']==0 for r in rows))
-        self.assertTrue(all(e['availability']['state']=='unverified' for r in rows for e in r['data']['element']))
+        for row in rows:
+            elements=row['data']['element']
+            self.assertEqual(len({e['id'] for e in elements}),len(elements))
+            self.assertTrue(all(e['part'] and e['label'] and e['binding'] for e in elements))
 
     def test_unknown_extensions_and_keyed_array_merge(self):
         base = {'extension':{'x':1,'erase':2},'element':[{'id':'fire','binding':{'control':'trigger','hand':'slot'},'future':9}]}

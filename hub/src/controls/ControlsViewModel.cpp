@@ -141,6 +141,8 @@ void ControlsViewModel::loadPreview() {
 QString ControlsViewModel::elementHand(const QVariantMap &element, const QVariantMap &binding) const {
     const QString hand = binding.value("hand").toString();
     if (hand != "slot") return hand;
+    if (wiiControls() && binding.value("role").toString()=="nunchuk" && !m_twoGunsActive)
+        return m_primaryHand=="right" ? "left" : "right";
     return element.value("slot").toInt() == 0 ? m_primaryHand : (m_primaryHand == "right" ? "left" : "right");
 }
 QString ControlsViewModel::bindingLabel(const QVariantMap &binding, const QString &hand) {
@@ -155,6 +157,18 @@ QString ControlsViewModel::bindingLabel(const QVariantMap &binding, const QStrin
     else if (control == "slide") label = "Slide with free hand";
     else if (control == "thumbstick_click") label = side + " thumbstick click";
     else if (control == "menu_chord") label = "Menu chord";
+    else if (control == "pointer") label = side + " gun direction";
+    else if (control == "thumbstick") label = side + " thumbstick";
+    else if (control == "menu") label = side + " menu button";
+    else if (control == "remote_motion") label = side + " gun movement";
+    else if (control == "nunchuk_motion") label = side + " controller movement";
+    else if (control == "reload_fallback") label = "Keyboard R / Ctrl+Alt+R (rebindable)";
+    else if (control == "melee_fallback") label = "Keyboard V / Ctrl+Alt+V (rebindable)";
+    else if (control == "dpad") label = "Keyboard arrows / directional binding";
+    else if (control == "keyboard_minus") label = "Keyboard - / custom binding";
+    else if (control == "keyboard_one") label = "Keyboard 1 / custom binding";
+    else if (control == "keyboard_two") label = "Keyboard 2 / custom binding";
+    else if (control == "owner_setup") label = "Choose in the headset sitting";
     else if (control == "trigger" || control == "grip") label = side + ' ' + control;
     else return "Binding pending";
     if (binding.value("mode").toString() == "hold") label += " (hold)";
@@ -165,6 +179,7 @@ QString ControlsViewModel::bindingLabel(const QVariantMap &binding, const QStrin
 QVariantList ControlsViewModel::makeRows() const {
     QVariantList result;
     auto add = [this,&result](const QVariantMap &source, bool unmapped) {
+        if (wiiControls() && source.value("slot").toInt()>0 && !m_twoGunsActive) return;
         const auto ordinary = source.value("binding").toMap();
         const auto fallback = source.value("fallback_binding").toMap();
         const auto binding = m_twoGunsActive && !fallback.isEmpty() ? fallback : ordinary;
@@ -181,7 +196,7 @@ QVariantList ControlsViewModel::makeRows() const {
         const QString part = unmapped ? source.value("label").toString() : pretty(source.value("part").toString());
         const QString action = unmapped ? "Game action pending" : source.value("label").toString();
         const QString bindingText = unmapped ? "Binding pending" : bindingLabel(binding,hand);
-        const QString availabilityLabel = state == "available" ? "Ready to test" : state == "unavailable" ? "Unavailable for this setup" :
+        const QString availabilityLabel = wiiControls() ? "Wii control mapping" : state == "available" ? "Ready to test" : state == "unavailable" ? "Unavailable for this setup" :
                                           state == "unmapped" ? "Mapping pending" : "Awaiting validation";
         QVariantMap row{{"id",source.value("id")},{"part",part},{"action",action},{"node",node},
             {"slot",source.value("slot")},{"player",source.value("player")},{"hand",hand},{"control",control},
@@ -199,13 +214,14 @@ QVariantList ControlsViewModel::makeRows() const {
 void ControlsViewModel::rebuild() { m_rows = makeRows(); emit changed(); }
 QString ControlsViewModel::notice() const {
     if (!m_error.isEmpty()) return m_error;
+    if (wiiControls()) return m_data.value("instruction").toString();
     if (m_rows.isEmpty()) return "Choose a game to see its controls";
     for (const auto &value : m_rows) if (value.toMap().value("availability").toString() != "available")
         return "Some controls are awaiting validation. Their mappings are shown for review.";
     return "Controls match the supplied input declarations. Gameplay validation is separate.";
 }
 void ControlsViewModel::setPreviewView(const QString &view) {
-    if ((view != "front" && view != "threequarter") || m_view == view) return;
+    if ((view != "front" && view != "threequarter" && view != "held") || m_view == view) return;
     m_view = view; loadPreview(); rebuild();
 }
 void ControlsViewModel::setPrimaryHand(const QString &hand) {

@@ -9,6 +9,7 @@
 #include <QTemporaryDir>
 #include <QFile>
 #include <QDir>
+#include <QtEndian>
 
 namespace {
 using Map=QVariantMap;
@@ -24,6 +25,7 @@ class ControlsResolverTest final: public QObject {
     ac::ControlsResolver resolver;
     Map expected;
     QString scratch;
+    QMap<QString,QSet<QString>> builtNodes;
 private slots:
     void initTestCase() {
         QString error; QVERIFY2(resolver.loadLibrary(AC_CONTROLS_ROOT,error),qPrintable(error));
@@ -35,9 +37,22 @@ private slots:
         QVERIFY2(parseError.error==QJsonParseError::NoError,qPrintable(parseError.errorString()));
         for (const auto &game:output.value("games").toList()) expected[game.toMap().value("game_id").toString()]=game;
         QCOMPARE(expected.size(),152);
+        // Supply real authored asset names to the display resolver seam. This
+        // proves source/native reference parity, not a runtime renderer load.
+        const QDir assets(QDir(AC_CONTROLS_ROOT).filePath("assets/guns"));
+        for (const auto &file:assets.entryList({"*.glb"},QDir::Files)) {
+            QFile glb(assets.filePath(file)); QVERIFY(glb.open(QIODevice::ReadOnly));
+            const auto bytes=glb.readAll(); QVERIFY(bytes.size()>20);
+            const auto length=qFromLittleEndian<quint32>(bytes.constData()+12);
+            const auto doc=QJsonDocument::fromJson(bytes.mid(20,length)); QVERIFY(doc.isObject());
+            QSet<QString> names;
+            for (const auto &node:doc.object().value("nodes").toArray()) names.insert(node.toObject().value("name").toString());
+            builtNodes[QFileInfo(file).completeBaseName()]=names;
+        }
     }
     void all152NativeResultsMatchPython() {
         ac::ControlsResolveOptions options; options.useUserOverrides=false;
+        options.decodedModelNodes=builtNodes;
         QString error;
         for (auto it=expected.begin();it!=expected.end();++it) {
             Map actual; QVERIFY2(resolver.resolveGame(it.key(),options,actual,error),qPrintable(it.key()+": "+error));
@@ -178,6 +193,7 @@ private slots:
             const auto test=value.toObject().toVariantMap();
             ac::ControlsResolveOptions options; options.useUserOverrides=false;
             options.profileDefaults=test.value("defaults").toMap();
+            options.decodedModelNodes=builtNodes;
             Map out{{"sentinel",1}}; QString error;
             const bool ok=resolver.resolveGame(test.value("game_id").toString(),options,out,error);
             if (test.value("collides").toBool()) {
