@@ -7,10 +7,11 @@ otherwise the native provider's configured/system loader route is used. The Hub
 does not install a loader, alter the active XR runtime or configure Steam.
 
 Admission requires Windows, an absolute local data root, the canonical product
-name, a model present in the hand assembly with both primary selectors, its
+name, a model whose complete hand/mount metadata passes the shared native CPU
+decoder (including safe asset paths, supported nodes and normalized rotations), its
 local gun descriptor/asset, and existing absolute executable/loader paths.
 Linked ancestors and linked receipts are refused. Metadata reads are bounded;
-gun meshes are not decoded by this consumer. The provider owns placement and
+at most 128 model entries are considered. Gun meshes are not decoded by this consumer. The provider owns placement and
 full asset/node validation.
 
 The executable must have a sibling `<executable>.launch.json` with schema

@@ -19,6 +19,14 @@ include(cmake/ChdMetadata.cmake)
 include(cmake/ProjectWarnings.cmake)
 qt_standard_project_setup(REQUIRES 6.8)
 
+add_library(hubhandmetadata STATIC ../libacvr/src/hand_assembly.cpp)
+target_compile_features(hubhandmetadata PUBLIC cxx_std_20)
+set_target_properties(hubhandmetadata PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(hubhandmetadata PUBLIC ../libacvr/src)
+target_link_libraries(hubhandmetadata PRIVATE
+    tomlplusplus::tomlplusplus nlohmann_json::nlohmann_json)
+ac_project_warnings(hubhandmetadata)
+
 add_library(hubcore STATIC
     src/core/catalog/CatalogLoader.cpp
     src/core/catalog/GameRecord.cpp
@@ -74,6 +82,7 @@ target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concur
 target_link_libraries(hubcore PUBLIC archive_static)
 target_compile_definitions(hubcore PUBLIC NOMINMAX)
 target_link_libraries(hubcore PRIVATE ac7zmetadata)
+target_link_libraries(hubcore PRIVATE hubhandmetadata)
 target_link_libraries(hubcore PRIVATE chdr-static)
 target_link_libraries(hubcore PUBLIC Qt6::Quick)
 if(WIN32)

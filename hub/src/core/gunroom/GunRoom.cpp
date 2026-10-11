@@ -10,6 +10,7 @@
 #include <QCryptographicHash>
 #include <QRegularExpression>
 #include <toml++/toml.hpp>
+#include "hand_assembly.hpp"
 namespace ac::gunroom {
 namespace {
 void require(bool ok,const QString &reason) {
@@ -43,11 +44,16 @@ QVariantList models(const QString &root) {
     const auto document=object(install::scopedPath("assets/hands/assembly.json",root),1024*1024);
     require(document.value("schema")=="hand-assembly/1","Unsupported hand assembly.");
     const auto entries=document.value("models").toObject();
+    require(entries.size()<=128,"Too many models in hand metadata.");
+    const auto source=QJsonDocument(document).toJson(QJsonDocument::Compact);
     for(auto it=entries.begin();it!=entries.end();++it) {
       if(!QRegularExpression("^[a-z0-9-]{1,64}$").match(it.key()).hasMatch()) continue;
-      const auto entry=it.value().toObject();
-      const auto hands=entry.value("hands").toObject(),mounts=entry.value("primary_mount_by_hand").toObject();
-      if(!hands.contains("left")||!hands.contains("right")||!mounts.contains("left")||!mounts.contains("right")) continue;
+      // Share the native CPU metadata contract, including complete hand/mount
+      // records and normalized quaternions. Do not decode meshes or place nodes.
+      acvr::HandAssembly assembly;std::string error;
+      if(!acvr::decode_hand_assembly(
+          std::string_view(source.constData(),static_cast<size_t>(source.size())),
+          it.key().toStdString(),assembly,error)) continue;
       try {
         localFile(install::scopedPath("assets/guns/"+it.key()+".glb",root),"Gun model");
         const auto file=install::scopedPath("data/guns/"+it.key()+".toml",root);
