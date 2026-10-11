@@ -4,12 +4,44 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <sstream>
+#include <iomanip>
 #include <stdexcept>
 #include <string>
 
 namespace theatre {
 constexpr double width = 3.2, height = 1.8, distance = 2.0;
 using Matrix = std::array<float, 12>;
+struct Rect { long left,top,right,bottom; };
+inline bool occludes(bool visible,bool minimized,bool cloakKnown,bool cloaked,
+                     const Rect& candidate,const Rect& client) {
+    if(!visible || minimized || (cloakKnown && cloaked)) return false;
+    return candidate.left<candidate.right && candidate.top<candidate.bottom &&
+           client.left<client.right && client.top<client.bottom &&
+           candidate.left<client.right && candidate.right>client.left &&
+           candidate.top<client.bottom && candidate.bottom>client.top;
+}
+inline std::string occlusionDiagnostic(std::uint32_t pid,const std::wstring& className,
+        const Rect& window,const Rect& client,bool cloakKnown,unsigned cloak,bool frameKnown) {
+    std::ostringstream output;
+    output << "Selected Dolphin client is occluded: PID=" << pid << " class=\"";
+    for(wchar_t character:className) {
+        if(character>=32 && character<=126 && character!=L'"' && character!=L'\\')
+            output << static_cast<char>(character);
+        else output << "\\u" << std::hex << std::setw(4) << std::setfill('0')
+                    << static_cast<std::uint32_t>(character) << std::dec;
+    }
+    const auto rectangle=[&](const Rect& value) {
+        output << '[' << value.left << ',' << value.top << ',' << value.right << ',' << value.bottom << ']';
+    };
+    output << "\" rect="; rectangle(window);
+    output << " client="; rectangle(client);
+    output << " DWM-cloaked=";
+    if(cloakKnown) output << cloak; else output << "unknown";
+    output << " bounds=" << (frameKnown?"DWM-frame":"GetWindowRect")
+           << " pixels=physical; uncover it before capture (no title/content queried)";
+    return output.str();
+}
 inline bool eligible(std::uint32_t pid,std::uint32_t selected,bool visible,bool owned) {
     return selected != 0 && pid == selected && visible && !owned;
 }

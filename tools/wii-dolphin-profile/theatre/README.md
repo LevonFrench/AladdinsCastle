@@ -28,6 +28,23 @@ The bounded run stops after1–600 seconds or Ctrl+C/SteamVR quit; cleanup hides
 and destroys its overlay and unregisters the hotkey. Capture buffers stay in
 memory; no game screenshots are saved.
 
+An occlusion error reports only the blocking window's PID, class and rectangle,
+selected client rectangle, DWM cloak state and bounds source. No window title
+or other window's pixels are queried. Positively DWM-cloaked windows are skipped
+because DWM does not render them; failed cloak queries retain the guard. DWM's
+extended frame bounds exclude invisible resize margins; GetWindowRect is the
+conservative fallback. Transparent or otherwise suspected non-rendering windows
+are not silently ignored. Diagnostics establish the blocker for the next lead
+attempt; no screenshot or live VR acceptance is implied.
+
+The capture thread temporarily uses per-monitor-v2 DPI awareness, restored on
+exit, so client and DWM rectangles use physical pixels. This is an app-thread
+context change, not a system/display setting. [Microsoft's GetWindowRect
+documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowrect)
+explains why DPI-virtualized window rectangles must not be compared directly
+with unadjusted DWM frame bounds. The headless Windows regression verifies the
+thread context is set and restored without opening windows or initializing VR.
+
 GDI BitBlt copies to a top-down32-bit BGRA DIB. Pixels are submitted through
 SetOverlayRaw with the parallel-SBS flag. Client dimensions must have even
 width and fit4096x2160; no unbounded allocation. Preflight rejects black capture

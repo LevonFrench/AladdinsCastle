@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Captures one explicitly selected Dolphin client HWND, never the desktop.
 #include <windows.h>
+#include <dwmapi.h>
 #include <openvr.h>
 #include "core.h"
+#include "native_dpi.h"
 #include <atomic>
 #include <chrono>
 #include <cstring>
@@ -62,10 +64,25 @@ static void validWindow(HWND window,DWORD pid,HANDLE process) {
     if(!ClientToScreen(window,&origin)) fail("Cannot locate selected client bounds");
     OffsetRect(&client,origin.x,origin.y);
     for(HWND above=GetTopWindow(nullptr);above && above!=window;above=GetWindow(above,GW_HWNDNEXT)) {
-        RECT bounds{},intersection{};
-        if(IsWindowVisible(above) && !IsIconic(above) && GetWindowRect(above,&bounds) &&
-           IntersectRect(&intersection,&bounds,&client))
-            fail("Selected Dolphin client is occluded; uncover it before capture");
+        if(!IsWindowVisible(above) || IsIconic(above)) continue;
+        DWORD cloaked=0;
+        const bool cloakKnown=SUCCEEDED(DwmGetWindowAttribute(above,DWMWA_CLOAKED,&cloaked,sizeof(cloaked)));
+        // Positively cloaked windows are not rendered by DWM. Unknown state is
+        // never treated as permission to capture through another window.
+        if(cloakKnown && cloaked) continue;
+        RECT bounds{};
+        const bool frameKnown=SUCCEEDED(DwmGetWindowAttribute(above,DWMWA_EXTENDED_FRAME_BOUNDS,&bounds,sizeof(bounds))) &&
+                              bounds.left<bounds.right && bounds.top<bounds.bottom;
+        if(!frameKnown && !GetWindowRect(above,&bounds))
+            fail("Cannot query potential occluder bounds; capture refused");
+        const theatre::Rect candidate{bounds.left,bounds.top,bounds.right,bounds.bottom};
+        const theatre::Rect selected{client.left,client.top,client.right,client.bottom};
+        if(theatre::occludes(true,false,cloakKnown,cloaked!=0,candidate,selected)) {
+            DWORD otherPid=0; GetWindowThreadProcessId(above,&otherPid);
+            wchar_t className[256]{};
+            const std::wstring name=GetClassNameW(above,className,256)>0?className:L"<unavailable>";
+            throw std::runtime_error(theatre::occlusionDiagnostic(otherPid,name,candidate,selected,cloakKnown,cloaked,frameKnown));
+        }
     }
 }
 struct Capture {
@@ -150,6 +167,7 @@ int wmain(int argc,wchar_t** argv) {
         }
         if(!pid || !seconds || headFile.empty())
             fail("Use --pid <explicit Dolphin PID> --seconds <1..600> --head-file <fresh .local JSON>");
+        PhysicalPixels physicalPixels; // DWM and client bounds must share physical pixels.
         Handle process{OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,pid)};
         if(!process.value) fail("Cannot open the selected Dolphin process");
         wchar_t image[32768]{}; DWORD length=32768;

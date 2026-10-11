@@ -17,6 +17,21 @@ int main() {
         require(!eligible(12,12,false,false));
         require(!eligible(12,12,true,true));
         require(!eligible(0,0,true,false));
+        const Rect client{100,100,500,400}, covering{90,90,300,300}, edge{500,100,600,400};
+        require(occludes(true,false,true,false,covering,client));
+        require(!occludes(true,false,true,true,covering,client));
+        require(occludes(true,false,false,true,covering,client)); // Unknown DWM status fails closed.
+        require(!occludes(false,false,false,false,covering,client));
+        require(!occludes(true,true,false,false,covering,client));
+        require(!occludes(true,false,true,false,edge,client));
+        require(!occludes(true,false,true,false,Rect{100,100,100,300},client));
+        auto detail=occlusionDiagnostic(123,L"SyntheticWindow",covering,client,true,0,true);
+        require(detail.find("PID=123 class=\"SyntheticWindow\" rect=[90,90,300,300]")!=std::string::npos);
+        require(detail.find("client=[100,100,500,400] DWM-cloaked=0 bounds=DWM-frame")!=std::string::npos);
+        detail=occlusionDiagnostic(321,L"Synthetic\n\"Window",covering,client,false,0,false);
+        require(detail.find("\\u000a\\u0022")!=std::string::npos);
+        require(detail.find("DWM-cloaked=unknown bounds=GetWindowRect")!=std::string::npos);
+        require(detail.find("pixels=physical")!=std::string::npos);
         for (const auto* text : {L"0",L"-1",L"1.2",L"12x",L"1001",L"99999999999999999999999"})
             rejects([&]{ number(text,1000); });
         require(imageBytes(1280,720)==1280u*720u*4u);

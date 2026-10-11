@@ -14,8 +14,10 @@ cleans up its fixed overlay. Explicit recenter publishes a shared HMD matrix
 for the lead's bridge. It is a3D theatre fallback, not the true-3D scene target.
 
 Verified: eight Python profile tests; MSVC Release build with warnings treated
-as errors; four headless CTests covering plane/aspect/selection/pixel bounds,
-invalid run requests and missing/present native DLL probes. No VR_Init, game
+as errors; five headless CTests covering plane/aspect/selection/pixel bounds,
+invalid run requests, missing/present native DLL probes and scoped physical-pixel
+DPI context. Occlusion diagnostics report PID/class/rect only, skip positively
+DWM-cloaked windows and preserve the guard on unknown state. No VR_Init, game
 launch, headset run or actual game capture was performed by this lane.
 
 Open: bridge consumption of shared calibration; actual Dolphin config loading,
