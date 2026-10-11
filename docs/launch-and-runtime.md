@@ -11,7 +11,7 @@ Evidence tags:
 ## 1. Rules
 
 1. The Hub never changes the Windows default OpenXR runtime. It pins a runtime for one launch by setting `XR_RUNTIME_JSON` in that child process's environment only. [V: the loader reads it before the registry. DR-89 does the same in `pc/Start-SteamVR.ps1`, upstream https://github.com/DR-89/time-crisis-vr]
-2. SteamVR is the default runtime for PC play. It is the path for Steam Frame streaming and for Quest over PC (ALVR, Link, Steam Link), and the only one with OpenVR overlays for the Hub (see [architecture.md](architecture.md) §5 and D22). [V: architecture.md §5; OpenVR overlays exist only in SteamVR's compositor]
+2. SteamVR is the default runtime for PC play. It is the path for Steam Frame streaming and other streamed PCVR headsets, and the only one with OpenVR overlays for the Hub (see [architecture.md](architecture.md) §5 and D22). [V: architecture.md §5; OpenVR overlays exist only in SteamVR's compositor]
 3. Steam's `shortcuts.vdf` is written only with Steam closed, after a backup, and only entries the Hub owns are changed. [C, Valve wiki quoted in §5.1]
 4. Every launch writes a log, and every error dialog links to it.
 
@@ -180,7 +180,7 @@ A spike registers each setup with `AddApplicationManifest(absolutePath, false)`,
 | Steam open during library write | `steam.exe` running | "Close Steam to update its library. Nothing has changed." | Retry |
 | `shortcuts.vdf` unreadable | Parse error | "Steam's library file could not be read. No changes were made." | Open backup folder |
 | SteamVR did not start in 60 s | `vrserver.exe` not seen | "SteamVR did not start. Check that Steam can start it." | Retry; open log |
-| No headset | `XR_ERROR_FORM_FACTOR_UNAVAILABLE` in the setup log | "No headset is connected to the selected runtime. Start your headset (Link, Air Link, ALVR, Virtual Desktop or Steam Frame) and retry." | Retry |
+| No headset | `XR_ERROR_FORM_FACTOR_UNAVAILABLE` in the setup log | "No headset is connected to the selected runtime. Connect a SteamVR headset and retry the SteamVR route." | Retry |
 | Graphics not supported | Setup log (DR-89: OpenGL support or a GPU mismatch) | "The runtime does not support this setup's graphics API, or it runs on a different GPU." | Details |
 | Setup already running | Lock file | "This setup is already running." | Focus |
 | Setup crashed | Non-zero exit | "The setup stopped unexpectedly." Last 40 log lines. | Open log; diagnostics zip |

@@ -191,7 +191,7 @@ The route keys are the `[routes]` keys in `games/<id>/game.toml` (see `docs/game
 | `demulshooter` | 0 | `demulshooter.toml` | Written as an input bridge, not a route |
 | `mupen64plus`, `ares`, `cemu`, `ryujinx` | 0 | none | Listed in the schema; not written |
 
-Supporting manifests with no route key: `vjoy.toml` and `hidhide.toml` (wheel and pedal input stacks), `adb.toml` (Install to Quest), `desktopplus.toml` (SteamVR overlay), `armsx2.toml` (ARM64 Linux PS2, candidate for the `pcsx2` route).
+Supporting manifests with no route key: `vjoy.toml` and `hidhide.toml` (wheel and pedal input stacks), `adb.toml` (standalone headset installation), `desktopplus.toml` (SteamVR overlay), `armsx2.toml` (ARM64 Linux PS2, candidate for the `pcsx2` route).
 
 Note on `yuzu-like`. It appears in four game files but is not in the route list in `docs/game-schema.md` section 2. The owner should either add it to the schema or retire it. No manifest is written for it.
 

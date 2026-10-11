@@ -10,7 +10,7 @@ our steady HUD, wide frame, in-world gun and shot-placement acceptance is open.
 Choose your own disc with **Find my files**, select the variant, and install.
 The pinned emulator and its notices stay in that game's installation. Your disc
 stays where it is. No Steam shortcut or system install is part of this recipe.
-Connect the Quest through ALVR and SteamVR before launching the VR variant.
+Connect a SteamVR headset before launching the VR variant.
 It starts with one native OpenXR Wii Remote; use the fork's controller mapper
 for the initial sitting. Do not enable DSU simultaneously for that same Remote.
 

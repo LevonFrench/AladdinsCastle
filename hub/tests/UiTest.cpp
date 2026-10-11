@@ -28,6 +28,8 @@
 #include <QAtomicInteger>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
+#include <QDirIterator>
 #include <QImageReader>
 #include <ctime>
 #ifdef Q_OS_WIN
@@ -158,6 +160,79 @@ class UiTest:public QObject {
   QCOMPARE(namedItems(view,"controlsCallout").size(),missingPreview.rows().size());
   const auto images=namedItems(view,"gunPreviewImage");QCOMPARE(images.size(),1);QVERIFY(!images.first()->isVisible());
   root->setProperty("view","List");QTRY_VERIFY(controls->model()->gameId().isEmpty());
+ }
+ void selectedNativeWiiRouteExplainsMappingOnRealPage(){
+  QTemporaryDir fixture;
+  const QString game="wii-resident-evil-umbrella-chronicles";
+  const auto originalRuntime=games->find(game)->runtime;
+  const auto restoreRuntime=qScopeGuard([&]{games->applyRuntimeStates({originalRuntime});});
+  for(const auto &folder:{QString("data"),QString("games/timecris"),QString("games/vcop"),"games/"+game}){
+   QDirIterator files(QString(AC_CATALOG_ROOT)+"/"+folder,{"*.toml"},QDir::Files,QDirIterator::Subdirectories);
+   while(files.hasNext()){
+    const auto source=files.next(),target=QDir(fixture.path()).filePath(QDir(AC_CATALOG_ROOT).relativeFilePath(source));
+    QVERIFY(QDir().mkpath(QFileInfo(target).absolutePath()));QVERIFY(QFile::copy(source,target));
+   }
+  }
+  QFile catalog(QString(AC_CATALOG_ROOT)+"/data/controls/wii/view-catalog.json");QVERIFY(catalog.open(QIODevice::ReadOnly));
+  QJsonObject selected;
+  for(const auto &row:QJsonDocument::fromJson(catalog.readAll()).object().value("games").toArray())
+   if(row.toObject().value("game_id").toString()==game)selected=row.toObject();
+  QVERIFY(!selected.isEmpty());auto data=selected.value("data").toObject();data["route"]="flat-dolphin";selected["data"]=data;
+  QFile output(QDir(fixture.path()).filePath("data/controls/wii/view-catalog.json"));QVERIFY(output.open(QIODevice::WriteOnly));
+  output.write(QJsonDocument(QJsonObject{{"version","0.1"},{"games",QJsonArray{selected}}}).toJson());output.close();
+  ui->controlsController()->configure(fixture.path(),{});
+  const auto restore=qScopeGuard([&]{root->setProperty("view","List");ui->controlsController()->configure(AC_CATALOG_ROOT,{});});
+  ui->openDetail("wii-resident-evil-umbrella-chronicles");ui->selectVariant("dolphin");
+  root->setProperty("view","Detail");
+  QTRY_VERIFY2_WITH_TIMEOUT(!ui->controlsController()->model()->rows().isEmpty(),qPrintable(ui->detailControlsStatus()),10000);
+  QTRY_COMPARE(namedItems(window->contentItem(),"universalControlsView").size(),1);
+  QQuickItem *native=nullptr;
+  QTRY_VERIFY(!namedItems(window->contentItem(),"detailVariant").isEmpty());
+  for(auto *item:namedItems(window->contentItem(),"detailVariant"))
+    if(item->property("modelData").toMap().value("id")=="dolphinxr")native=item;
+  QVERIFY(native);QVERIFY(native->isVisible());
+  auto page=window->findChild<QQuickItem *>("detailPage");QVERIFY(page);
+  auto flick=page->property("contentItem").value<QQuickItem *>();QVERIFY(flick);
+  auto click=[&](QQuickItem *button){
+   const auto before=button->mapToScene(QPointF(button->width()/2,button->height()/2));
+   flick->setProperty("contentY",qMax(0.0,before.y()+flick->property("contentY").toDouble()-window->height()/2));
+   QTest::qWait(50);
+   const auto point=button->mapToScene(QPointF(button->width()/2,button->height()/2));
+   QVERIFY(point.y()>0&&point.y()<window->height());
+   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  };
+  click(native);
+  QTRY_COMPARE(ui->detail().value("variantId").toString(),QString("dolphinxr"));
+  QTRY_VERIFY_WITH_TIMEOUT(!ui->detailControlsLoading(),10000);
+  QVERIFY2(ui->controlsController()->model()->rows().isEmpty(),"Native route displays DSU bridge rows");
+  QTRY_VERIFY(window->findChild<QObject *>("detailControlsStatus"));
+  auto explanation=window->findChild<QObject *>("detailControlsStatus");
+  QVERIFY(explanation->property("visible").toBool());
+  QVERIFY(explanation->property("text").toString().contains("inside DolphinXR"));
+  QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  const auto rows=ui->detail().value("controls").toList();QCOMPARE(rows.size(),1);
+  QVERIFY(rows.first().toMap().value("notes").toString().contains("inside DolphinXR"));
+  auto clickRoute=[&](const QString &id){
+   for(auto *item:namedItems(window->contentItem(),"detailVariant"))
+    if(item->property("modelData").toMap().value("id").toString()==id){
+     click(item);return;
+    }
+   QFAIL("Route button not found");
+  };
+  clickRoute("dolphin");QTRY_COMPARE(ui->detail().value("variantId").toString(),QString("dolphin"));
+  QTRY_VERIFY_WITH_TIMEOUT(!ui->detailControlsLoading(),10000);QVERIFY(!ui->controlsController()->model()->rows().isEmpty());
+  QTRY_COMPARE(namedItems(window->contentItem(),"universalControlsView").size(),1);
+  clickRoute("dolphinxr");QTRY_COMPARE(ui->detail().value("variantId").toString(),QString("dolphinxr"));
+  QTRY_VERIFY(ui->controlsController()->model()->rows().isEmpty());QVERIFY(ui->detailControlsStatus().contains("inside DolphinXR"));
+  QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  ui->openDetail(game); // Clear the explicit choice: follow effective runtime selection.
+  QTRY_VERIFY_WITH_TIMEOUT(!ui->controlsController()->model()->rows().isEmpty(),10000);
+  auto runtime=originalRuntime;runtime.selectedVariantId="dolphinxr";games->applyRuntimeStates({runtime});
+  QTRY_COMPARE(ui->detail().value("variantId").toString(),QString("dolphinxr"));
+  QTRY_VERIFY(ui->controlsController()->model()->rows().isEmpty());
+  QTRY_VERIFY(explanation->property("text").toString().contains("inside DolphinXR"));
+  QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  root->setProperty("view","List");
  }
  void catalogBadgesDescribeMetadata(){
   QCOMPARE(ui->vrLabel(1),QString("TRUE 3D · CATALOG"));

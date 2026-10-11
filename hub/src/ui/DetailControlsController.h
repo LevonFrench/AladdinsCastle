@@ -15,7 +15,12 @@ public:
   explicit DetailControlsController(QObject *parent=nullptr);
   ~DetailControlsController() override;
   void configure(const QString &root,const QStringList &packIds);
-  void selectGame(const QString &gameId,const QString &variantId);
+  // UI supplies canonical controls routes for generated setup aliases;
+  // OptionsSource receives the original selected variant ID.
+  void selectGame(const QString &gameId,const QString &variantId,const QString &hardware = {},const QString &controlsRoute = {});
+  bool selectionMatches(const QString &gameId,const QString &variantId,const QString &hardware,const QString &controlsRoute)const{
+    return game_==gameId&&variant_==variantId&&hardware_==hardware&&route_==(controlsRoute.isEmpty()?variantId:controlsRoute);
+  }
   void refresh();
   void clear();
   void setOptionsSource(OptionsSource source);
@@ -29,7 +34,7 @@ private:
   void resolve();
   void resetView();
   ControlsViewModel model_;
-  QString root_,game_,variant_,status_;
+  QString root_,game_,variant_,hardware_,route_,status_;
   QStringList packs_;
   QVariantMap resolved_;
   OptionsSource options_;

@@ -25,7 +25,7 @@ ScrollView {
   }
   UiText{text:"VARIANT";font.pixelSize:11;color:Theme.get("color.text.label")}
   Flow{width:parent.width;spacing:6
-   Repeater{model:page.detail.variants||[];PillButton{vrOverlayMode:page.vrOverlayMode;required property var modelData;text:modelData.title+" · "+(modelData.quality||"flat")+(modelData.m1Available?"":" · not enabled in Hub");selected:page.detail.variantId===modelData.id;onClicked:uiController.selectVariant(modelData.id)}}
+   Repeater{model:page.detail.variants||[];PillButton{objectName:"detailVariant";vrOverlayMode:page.vrOverlayMode;required property var modelData;text:modelData.title+" · "+(modelData.quality||"flat")+(modelData.m1Available?"":" · not enabled in Hub");selected:page.detail.variantId===modelData.id;onClicked:uiController.selectVariant(modelData.id)}}
   }
   Rectangle{width:parent.width;height:stateText.implicitHeight+24;radius:6;color:Theme.alpha(page.detail.stateColour||Theme.get("color.state.planned_neon"),0.1);border.color:page.detail.stateColour||Theme.get("color.state.planned_neon");UiText{id:stateText;objectName:"detailStateReason";anchors.fill:parent;anchors.margins:12;text:page.detail.stateLabel==="No setup yet"?"Catalog information is available; an authored setup is still needed.":page.detail.variantId&&!page.detail.m1Available?"Installing and launching this authored setup through the Hub is not enabled yet. "+(page.detail.stateReason||""):page.detail.stateReason||page.detail.stateLabel||"No setup yet";color:page.detail.stateColour||Theme.get("color.state.planned_neon")}}
   Column{width:parent.width;spacing:6;visible:!uiController.installing

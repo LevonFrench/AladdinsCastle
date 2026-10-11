@@ -527,7 +527,7 @@ set = [
 - **Preconditions:** the `adb` tool is present (`needs.tools`). The device is in state `device`.
   - `unauthorized`: prompt "Accept the prompt in the headset", with a Check again button.
   - `offline`: reconnect guidance.
-  - No device: "Connect the headset" (USB, Link or Air Link).
+  - No device: "Connect the compatible standalone headset over USB."
 - **Identity check before any write:** read the package name from the APK's `AndroidManifest.xml` (an APK is a zip, read through the safe reader in §8.8). A mismatch with `package` is `E_PACKAGE_MISMATCH`.
 - **Dry-run:** prints the commands, for example `adb -s <serial> install -r <apk>`. Reads `pm list packages` and the previous version from `dumpsys package`. Writes nothing to the device.
 - **Output:** `package`, `version_code`, `previous_version_code` (0 for a fresh install).

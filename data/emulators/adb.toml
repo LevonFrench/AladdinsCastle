@@ -42,7 +42,7 @@ paths = ["${LOCALAPPDATA}/Android/Sdk/platform-tools", "${ProgramFiles}/Android/
 args = ["install", "-r", "${apk.path}"]
 cwd = "${tool_dir}"
 exits_on_game_end = true
-note = "Used by the adb-install step (Install to Quest). Standard adb install usage, not verified against this build. Developer mode and USB debugging must be on; the Hub checks and walks the user through them (docs/frontend.md section 1)."
+note = "Used by the adb-install step (Install to standalone headset). Standard adb install usage, not verified against this build. Developer mode and USB debugging must be on; the Hub checks and walks the user through them (docs/frontend.md section 1)."
 
 [meta]
 sources = [

@@ -181,6 +181,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-ui COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:ui-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-ui.txt
+        -DTEST_TIMEOUT=90
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(hub-ui PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     qt_add_executable(scan-art-tests tests/ScanArtTest.cpp)

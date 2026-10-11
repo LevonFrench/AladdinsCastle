@@ -15,7 +15,7 @@ python tools/wii-bridge/bridge.py --pose-reader .local/build-wii-pose/Release/ac
 python -m unittest discover -s tools/wii-bridge -p test_bridge.py -v
 ```
 
-Connect Quest through ALVR/SteamVR first. Face the middle of the intended
+Connect a SteamVR headset first. Face the middle of the intended
 Dolphin screen, then click **Centre pointer plane**. The reference plane is
 2m away,3.2m wide and1.8m high. It stays fixed until recalibrated. Actual screen
 size/yaw/pitch must be matched during the sitting. Displayed dots use the aim

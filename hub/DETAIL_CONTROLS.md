@@ -15,8 +15,8 @@ priority/name order to native resolution; the Hub does not sort a second registr
 Library loading and pack/user TOML resolution run in a worker. Generation checks
 prevent old game/context results from replacing the current selection, including
 after leaving detail. Only a matching configuration epoch may populate the
-immutable library cache. Game/setup selection and saved-setting notifications
-refresh the view; Reload controls re-reads configuration. A refreshed catalog
+immutable library cache. Game/setup selection, effective runtime selection changes and saved-setting notifications
+refresh the view; unchanged context and unrelated game updates do not restart resolution. Reload controls re-reads configuration. A refreshed catalog
 must call `configure(root,packIds)` with its new registry snapshot. No production
 Python process is used.
 
@@ -39,3 +39,15 @@ clear highlights. A future tracking/input host must call
 explicit joined-player evidence for dual-gun state. The display sends no input
 to a game and grants no runtime support. Preview assets and actual headset
 interaction remain separate acceptance gates.
+
+Wii display data is selected by route. Only a `data.route` of `flat-dolphin`
+paired with the selected `flat-dolphin` setup may populate its mapping view.
+Missing, unknown or mismatched routes clear the view and explain the gap.
+Selecting `dolphinxr` immediately clears rows and pending resolution, and says
+that native controller mapping is configured inside DolphinXR. The generic
+setup table also gives native guidance rather than borrowing bridge bindings.
+These are configuration displays; no runtime/controller behavior is implied.
+The catalog's generated ordinary Dolphin setup keeps its existing variant ID
+`dolphin`; Hub UI glue maps that generated Wii setup to the canonical controls
+route `flat-dolphin`. Authored or unknown setups receive no alias. Host options
+continue to receive the original selected variant ID.

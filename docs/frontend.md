@@ -12,7 +12,7 @@ Model: [PCVR Mods Installer Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-
 | **Status per game** | The states in [game-packages.md](game-packages.md) §2 (Needs your files · Needs an emulator · Ready to install · Installed · Update available · Coming soon), plus the VR quality badge: **True 3D** or **Theatre**. |
 | **Detect** | Scans folders you choose for ROM sets and disc images by hash. Finds PC ports (Steam, GOG, plain folders). Finds installed VR runtimes (SteamVR, Meta Link, Virtual Desktop). |
 | **Install** | Runs the game's **recipe** (see §3): downloads backends and tools from their original sources only, checks hashes, extracts, writes config, sets up controls. Never downloads game content. |
-| **Install to Quest** | For setups that run standalone (e.g. DR-89 Time Crisis VR): sideload the APK over USB with adb. The Hub checks developer mode and USB debugging and walks you through them if they're off. |
+| **Install to standalone headset** | For setups that run standalone (e.g. DR-89 Time Crisis VR): sideload the APK over USB with adb. The Hub checks developer mode and USB debugging and walks you through them if they're off. |
 | **Launch** | Checks the OpenXR runtime is up, then starts the backend straight into VR. |
 | **SteamVR library entries** | Optionally adds each installed game to Steam as a non-Steam shortcut with art, so you can launch from inside the headset with no lobby. |
 | **Update** | Checks upstream releases (GitHub API, cached and rate-limited like the Installer Hub's version cache) and offers updates. |

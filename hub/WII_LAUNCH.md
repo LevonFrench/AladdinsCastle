@@ -3,8 +3,8 @@
 The Hub-owned Wii disc index maps the public regional IDs for Umbrella Chronicles
 and Darkside Chronicles to their catalog titles, separately from the generated
 PCSX2 serial index. Matching uses the inspected disc header and Wii hardware;
-filenames are not identity. This checkpoint supports the raw ISO images supplied
-for these two games; it does not add compressed RVZ/WBFS decoding.
+filenames are not identity. This checkpoint supports raw ISO images
+for these two catalog games; it does not add compressed RVZ/WBFS decoding.
 
 Ordinary Dolphin remains a flat route. Its launch plan prepends an explicit
 `--user` pointing to a per-game Hub-owned User directory and uses an owned working
