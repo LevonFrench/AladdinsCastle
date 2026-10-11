@@ -67,6 +67,9 @@ def prepare(config, run, root=setup.ROOT):
     ini.optionxform = str
     ini.read_string(path.read_text(encoding="utf-8"))
     ini["Display"]["RenderToMain"] = "False"
+    # Verified in pinned MainSettings.cpp: Interface keys, fresh User only.
+    # Diagnostic OSD is not game content and must not satisfy the spatial gate.
+    ini["Interface"] = {"OnScreenDisplayMessages": "False", "ShowActiveTitle": "True"}
     if "dsu_profile" in state:
         ini["Input"] = {"BackgroundInput": "True"}
         (user / "Config/WiimoteNew.ini").write_bytes(Path(state["dsu_profile"]).read_bytes())
@@ -124,7 +127,7 @@ def stop_owned(process):
     return {"exit": process.returncode, "termination": termination}
 
 
-def supervise(plan, seconds=15, startup=90, settle=0, popen=subprocess.Popen,
+def supervise(plan, seconds=15, startup=90, settle=20, popen=subprocess.Popen,
               window_count=owned_window_count, clock=time.monotonic, sleep=time.sleep):
     """Keep both owned children alive until capture completes; always reap them."""
     if not 3 <= seconds <= 60 or not 1 <= startup <= 90 or not 0 <= settle <= 30:
@@ -135,8 +138,10 @@ def supervise(plan, seconds=15, startup=90, settle=0, popen=subprocess.Popen,
     children = []
     try:
         with (run / "dolphin.log").open("wb") as log, (run / "capture.log").open("wb") as capture_log:
+            receipt["dolphin_launch_requested_unix"] = time.time()
             dolphin = popen(plan["dolphin"], cwd=plan["user"], stdout=log, stderr=subprocess.STDOUT)
             children.append(dolphin)
+            receipt["dolphin_created_unix"] = time.time()
             receipt["dolphin_pid"] = dolphin.pid
             deadline = clock() + min(startup, 30)
             while True:
@@ -164,8 +169,10 @@ def supervise(plan, seconds=15, startup=90, settle=0, popen=subprocess.Popen,
                         raise RuntimeError("Owned window changed during settle; stop for owner")
                     sleep(0.1)
             receipt["settle_seconds"] = settle
+            receipt["capture_launch_requested_unix"] = time.time()
             capture = popen(args, cwd=run, stdout=capture_log, stderr=subprocess.STDOUT)
             children.append(capture)
+            receipt["capture_created_unix"] = time.time()
             receipt["capture_pid"] = capture.pid
             deadline = clock() + startup + seconds + 5
             while capture.poll() is None:
@@ -201,6 +208,7 @@ def supervise(plan, seconds=15, startup=90, settle=0, popen=subprocess.Popen,
                 receipt["state"] = "cleanup-failed"
         receipt["normal_exit"] = bool(children) and len(receipt["owned_cleanup"]) == len(children) and all(
             item["termination"] == "already-exited" and item["exit"] == 0 for item in receipt["owned_cleanup"])
+        receipt["finished_unix"] = time.time()
         (run / "result.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     return receipt
 
@@ -211,7 +219,7 @@ def main(argv=None):
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--run-dir", required=True, type=Path)
     parser.add_argument("--seconds", type=int, default=15)
-    parser.add_argument("--settle-seconds", type=int, default=0)
+    parser.add_argument("--settle-seconds", type=int, default=20)
     parser.add_argument("--startup-seconds", type=int, default=90)
     args = parser.parse_args(argv)
     try:

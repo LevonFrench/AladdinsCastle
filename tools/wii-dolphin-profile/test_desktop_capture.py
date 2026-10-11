@@ -49,6 +49,10 @@ class CaptureTest(unittest.TestCase):
     def plan(self):
         return capture.prepare(self.config, self.run, self.root)
 
+    def supervise(self, plan, **kwargs):
+        kwargs.setdefault("settle", 0)
+        return capture.supervise(plan, **kwargs)
+
     def test_prepare_no_process_preserves_input_and_refuses_existing_run(self):
         before = {p: p.read_bytes() for p in self.local.iterdir()}
         with patch.object(capture.subprocess, "Popen", side_effect=AssertionError("must not launch")):
@@ -59,6 +63,8 @@ class CaptureTest(unittest.TestCase):
         ini = configparser.ConfigParser()
         ini.read(self.run / "User/Config/Dolphin.ini")
         self.assertEqual(ini["Display"]["RenderToMain"], "False")
+        self.assertEqual(ini["Interface"]["OnScreenDisplayMessages"], "False")
+        self.assertEqual(ini["Interface"]["ShowActiveTitle"], "True")
         gfx = configparser.ConfigParser()
         gfx.read(self.run / "User/Config/GFX.ini")
         self.assertEqual(gfx["Stereoscopy"]["StereoMode"], "1")
@@ -88,7 +94,7 @@ class CaptureTest(unittest.TestCase):
         for windows in (0, 2):
             child = Child(123)
             ticks = iter((0, 0, 40))
-            result = capture.supervise(plan, popen=lambda *a, **k: child,
+            result = self.supervise(plan, popen=lambda *a, **k: child,
                 window_count=lambda pid: windows, clock=lambda: next(ticks), sleep=lambda t: None)
             self.assertEqual(result["state"], "failed")
             self.assertTrue(child.terminated)
@@ -97,7 +103,7 @@ class CaptureTest(unittest.TestCase):
     def test_failed_capture_keeps_logs_and_reaps_both(self):
         plan = self.plan()
         children = [Child(123), Child(456, 1)]
-        result = capture.supervise(plan, popen=lambda *a, **k: children.pop(0), window_count=lambda pid: 1)
+        result = self.supervise(plan, popen=lambda *a, **k: children.pop(0), window_count=lambda pid: 1)
         self.assertEqual(result["capture_exit"], 1)
         self.assertFalse(result["rgb_gate"])
         self.assertEqual([r["pid"] for r in result["owned_cleanup"]], [456, 123])
@@ -111,7 +117,7 @@ class CaptureTest(unittest.TestCase):
         dolphin, viewer = Child(123), Child(456)
         children = iter((dolphin, viewer))
         ticks = iter((0, 0, 200))
-        result = capture.supervise(plan, popen=lambda *a, **k: next(children), window_count=lambda pid: 1,
+        result = self.supervise(plan, popen=lambda *a, **k: next(children), window_count=lambda pid: 1,
                                    clock=lambda: next(ticks), sleep=lambda t: None)
         self.assertIn("exceeded bound", result["error"])
         self.assertTrue(dolphin.terminated and viewer.terminated)
@@ -129,8 +135,14 @@ class CaptureTest(unittest.TestCase):
                 (proof / "capture.json").write_text(json.dumps({"capture": "Windows.Graphics.Capture",
                     "different_rgb": True, "spatial_candidate": True, "game_window_selected": True, "interval_ms": 1100}))
             return next(children)
-        result = capture.supervise(plan, popen=start, window_count=lambda pid: 1)
+        ticks = iter((0, 0, 1, 21, 21))
+        result = capture.supervise(plan, popen=start, window_count=lambda pid: 1,
+                                   clock=lambda: next(ticks), sleep=lambda t: None)
+        self.assertEqual(result["settle_seconds"], 20)
         self.assertTrue(result["rgb_gate"])
+        self.assertLessEqual(result["dolphin_launch_requested_unix"], result["dolphin_created_unix"])
+        self.assertLessEqual(result["capture_launch_requested_unix"], result["capture_created_unix"])
+        self.assertLessEqual(result["capture_created_unix"], result["finished_unix"])
         self.assertFalse(result["live_proof"])
         self.assertEqual(result["sbs_visual_check"], "required")
 
@@ -143,7 +155,7 @@ class CaptureTest(unittest.TestCase):
             child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"], **kwargs)
             started.append(child)
             return child
-        result = capture.supervise(plan, popen=start, window_count=lambda pid: 1)
+        result = self.supervise(plan, popen=start, window_count=lambda pid: 1)
         self.assertEqual(result["state"], "failed")
         self.assertIsNotNone(started[0].poll())
         self.assertEqual(len(result["owned_cleanup"]), 1)
@@ -155,7 +167,7 @@ class CaptureTest(unittest.TestCase):
         for data in ([], {"capture": "Windows.Graphics.Capture", "different_rgb": True, "interval_ms": "1000"}):
             (proof / "capture.json").write_text(json.dumps(data))
             children = iter((Child(123), Child(456, 0)))
-            result = capture.supervise(plan, popen=lambda *a, **k: next(children), window_count=lambda pid: 1)
+            result = self.supervise(plan, popen=lambda *a, **k: next(children), window_count=lambda pid: 1)
             self.assertIn("Incomplete capture receipt", result["error"])
             self.assertFalse(result["rgb_gate"])
             self.assertEqual(len(result["owned_cleanup"]), 2)
@@ -170,7 +182,7 @@ class CaptureTest(unittest.TestCase):
             def start(argv, **kwargs):
                 calls.append(argv)
                 return dolphin if len(calls) == 1 else Child(456, 1)
-            result = capture.supervise(plan, settle=7, popen=start, clock=lambda: next(ticks),
+            result = self.supervise(plan, settle=7, popen=start, clock=lambda: next(ticks),
                 window_count=lambda pid: next(counts), sleep=lambda t: None)
             self.assertEqual(len(calls), 1 if changed else 2)
             if changed:
@@ -179,7 +191,7 @@ class CaptureTest(unittest.TestCase):
                 self.assertEqual(result["settle_seconds"], 7)
             self.assertTrue(dolphin.terminated)
         with self.assertRaises(ValueError):
-            capture.supervise(plan, settle=31)
+            self.supervise(plan, settle=31)
 
     def test_canonical_dsu_manifest_preserved_and_named_override_removed(self):
         generated = self.local / "generated"

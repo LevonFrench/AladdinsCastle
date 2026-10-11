@@ -40,6 +40,11 @@ all output outside Git. `prepare` validates inputs and writes fresh settings
 without launching; `run` requires a different fresh output directory and the
 lead's runtime slot:
 
+Fresh settings explicitly disable `Interface/OnScreenDisplayMessages` and enable
+`Interface/ShowActiveTitle`, as verified against the pinned source. Diagnostic
+OSD must not qualify as game content. The default settle is 20 seconds; both
+this and those isolated settings reproduce the successful safety-screen phase.
+
 Optional `dsu_profile` and `dsu_profile_sha256` select the canonical generated
 `flat-dolphin/split-right.ini`. Its shared manifest must match exactly. The
 supervisor copies those bytes to its fresh User, enables background input and
@@ -55,7 +60,7 @@ The supervisor waits up to 30 seconds for an owned visible window, then starts
 the helper. The helper has a separate 1–90 second startup bound for game-window
 selection and the first spatial candidate, followed by the requested 3–60
 seconds for a changing second frame. The supervisor allows 5 seconds for exit.
-Optional `--settle-seconds 0..30` adds a bounded delay before starting the helper;
+Optional `--settle-seconds 0..30` overrides the default 20-second delay before starting the helper;
 elapsed time alone never establishes game readiness. Cleanup receipts distinguish
 an already exited child from terminate/kill, and report `normal_exit` separately.
 Forced cleanup never proves a normal game exit. No automatic retry occurs. An ambiguous owned
@@ -65,6 +70,9 @@ the PNGs for actual game/SBS content before claiming desktop proof. Headset
 acceptance is a separate owner sitting. The new synthetic harness tests cover
 identity rejection, fresh output isolation, failed/hung capture cleanup and
 reaping a real CPU-only child when the second spawn fails.
+Private receipts also record Unix timestamps bracketing Dolphin/capture creation
+and completion. These are supervisor launch timestamps, not an exact DSU
+timeline start; that belongs in the separately owned scripted server receipt.
 
 Use this only in a coordinated desktop turn, after the native DolphinXR first
 boot. Start Dolphin with a fresh isolated profile (1280 x 720, auto-size off),
