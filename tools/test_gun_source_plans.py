@@ -7,10 +7,33 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'assets/guns/src'))
-from common import TIERS, MATERIAL_RGBA, metadata, plan, preview_material_rgba, geometry
+from common import TIERS, MATERIAL_RGBA, metadata, plan, preview_material_rgba, geometry, runtime_preview_rgba, RUNTIME_LIGHTING
 
 
 class SourcePlanTests(unittest.TestCase):
+    def test_runtime_lighting_uses_camera_normal_lambert_and_preserves_alpha(self):
+        self.assertEqual(RUNTIME_LIGHTING['direction_to_light'],[.36,.70,.62])
+        color=(.2,.4,.6,.3); direction=(.36,.70,.62)
+        for n in (direction,tuple(v*8 for v in direction)):
+            for actual,expected in zip(runtime_preview_rgba(n,color),color): self.assertAlmostEqual(actual,expected)
+        dark=runtime_preview_rgba(tuple(-v for v in direction),color)
+        for actual,expected in zip(dark,(.07,.14,.21,.3)): self.assertAlmostEqual(actual,expected)
+        self.assertGreater(runtime_preview_rgba((0,1,0),color)[0],runtime_preview_rgba((1,0,0),color)[0])
+        with self.assertRaises(ValueError): runtime_preview_rgba((0,0,0),color)
+
+    def test_all_sight_anchors_share_bore_parallel_tip_height(self):
+        for mid in TIERS:
+            spec=plan(mid,None)
+            with self.subTest(model=mid):
+                self.assertEqual(spec['sights']['kind'],'notch-blade')
+                front,rear=(spec['nodes'][name]['at'] for name in ('sight_front','sight_rear'))
+                self.assertEqual(front[:2],rear[:2]); self.assertLess(front[2],rear[2])
+                parts={p['name']:p for p in spec['parts']}
+                for lod in (0,1):
+                    self.assertEqual(geometry(parts['rear_sight_geometry'],lod)[0],geometry(parts['rear_sight_geometry'],0)[0])
+                self.assertEqual(parts['rear_sight_geometry']['shape'],'notched_sight')
+                self.assertLess(parts['front_sight_geometry']['size'][0],parts['rear_sight_geometry']['notch_width'])
+
     def test_sights_are_seated_in_actual_side_surface_not_global_bounds(self):
         # A slope can leave a small sight floating while whole-part AABBs overlap.
         # Check the authored roof at the sight centre, with a small seated overlap.
@@ -72,7 +95,7 @@ class SourcePlanTests(unittest.TestCase):
                 for name in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear'):
                     self.assertIsNone(spec['nodes'][name]['parent'])
                 for part in spec['parts']:
-                    self.assertIn(part['shape'],('outline','ring','box','cylinder','vented_tube'))
+                    self.assertIn(part['shape'],('outline','ring','box','cylinder','vented_tube','notched_sight'))
                     self.assertIn(part['parent'],[None,*spec['nodes']])
                 for motion in meta['motion'].values():
                     self.assertIn(motion['node'],spec['nodes'])
@@ -124,7 +147,9 @@ class SourcePlanTests(unittest.TestCase):
                             self.assertFalse(name.startswith(('sight_','fx_')),name)
                 parts={p['name']:p for p in spec['parts']}
                 for marker,visible in (('sight_front','front_sight_geometry'),('sight_rear','rear_sight_geometry')):
-                    self.assertEqual(parts[visible]['at'],spec['nodes'][marker]['at'])
+                    expected=list(parts[visible]['at'])
+                    if 'sights' in spec: expected[1]+=parts[visible]['size'][1]/2
+                    for actual,wanted in zip(expected,spec['nodes'][marker]['at']): self.assertAlmostEqual(actual,wanted)
                     self.assertIsNone(spec['nodes'][marker]['parent'])
 
     def test_preview_multiplies_exported_linear_factors_for_all_palettes(self):

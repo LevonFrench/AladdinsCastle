@@ -30,7 +30,7 @@ def make_design():
     d.box('handle_bridge',(0,127,76),(310,40,55),'body','pivot_pitch',4)
     d.box('thumb_console',(0,139,98),(80,24,35),'dark','pivot_pitch',3)
     d.markers((0,110,-530),(0,175,-213),(0,172,4),(130,116,102),'pivot_pitch')
-    d.sights((0,175,-213),(0,172,4),'pivot_pitch')
+    d.functional_sights((0,175,-213),(0,172,4),'pivot_pitch')
     d.outline('trigger',[(99,117),(108,117),(109,104),(105,92),(96,73),(96,66),
                         (88,69),(87,79),(94,95),(99,108)],14,'accent','pivot_trigger',x=130,bevel=1)
     d.node('button_special',(-40,140,99),'pivot_pitch')

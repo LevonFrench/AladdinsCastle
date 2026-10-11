@@ -50,7 +50,7 @@ as active inputs. DSU IDs and implementation reasons stay in data/docs; the
 one-gun notice reads "Right hand: Wii Remote. Left hand: Nunchuk."
 Physical axis signs, fallback waveform recognition and game actions still need
 separate bridge/profile checks. The profile lane's current game auto-selectors
-cover the two approved PAL Chronicles releases, not acceptance of all five sets.
+cover the two Chronicles game IDs, not acceptance of all five sets.
 
 Dolphin Motion Input is the single motion source: leave simulated Shake and
 Swing bindings empty. Relative pointer input and auto-hide are off. DSU's pointer
