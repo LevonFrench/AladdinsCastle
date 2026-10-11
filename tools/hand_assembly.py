@@ -8,6 +8,13 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'assets/guns/src'))
 from common import BUILT_MODELS,plan
 
+def between(a,b):
+    la=math.sqrt(sum(x*x for x in a));lb=math.sqrt(sum(x*x for x in b))
+    a=[v/la for v in a];b=[v/lb for v in b]
+    q=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0],1+sum(x*y for x,y in zip(a,b))]
+    length=math.sqrt(sum(x*x for x in q))
+    return [v/length for v in q]
+
 def compile_assembly():
     models={}
     for mid in BUILT_MODELS:
@@ -16,9 +23,11 @@ def compile_assembly():
         rotation=[math.sin(pitch/2),0,0,math.cos(pitch/2)]
         hands={hand:dict(asset=f'assets/hands/grip-hand-{hand}.glb',node='grip',translation=[0,0,0],rotation_xyzw=rotation,finger_pose={}) for hand in ('right','left')}
         if mid=='con-stick-grip':
-            for pose in hands.values():
+            for hand,pose in hands.items():
                 pose['translation']=[0,-.005,.012]
-                pose['finger_pose']={'pivot_thumb':dict(translation_offset=[0,.040,-.026],rotation_xyzw=[-.3826834324,0,0,.9238795325])}
+                sign=1 if hand=='right' else -1
+                # Keep the base at the palm; turn the distal direction to the cap.
+                pose['finger_pose']={'pivot_thumb':dict(translation_offset=[0,0,0],rotation_xyzw=between([-sign*.037,-.010,.011],[-sign*.022,.045,-.024]),scale=[1.25,1.25,1.25])}
         anchors={n:dict(node=n,local_offset=[0,0,0],bind_position=list(d['at'])) for n,d in spec['nodes'].items() if n in ('muzzle','grip_two','pivot_trigger') or n.startswith('button_')}
         anchors['grip']=dict(node='grip',local_offset=[0,0,0],bind_position=[0,0,0])
         models[mid]=dict(hands=hands,label_anchors=anchors)

@@ -22,6 +22,10 @@ class ShellModelsTests(unittest.TestCase):
                 self.assertTrue((ROOT/pose['asset']).is_file());self.assertIn(pose['node'],nodes)
                 self.assertAlmostEqual(sum(v*v for v in pose['rotation_xyzw']),1)
                 self.assertTrue(all(math.isfinite(v) for v in pose['translation']))
+                for override in pose['finger_pose'].values():
+                    self.assertEqual(override['translation_offset'],[0,0,0])
+                    self.assertTrue(all(v>0 for v in override.get('scale',[1,1,1])))
+                    self.assertAlmostEqual(sum(v*v for v in override['rotation_xyzw']),1)
     def test_hand_anatomy_is_mirrored_without_negative_scale(self):
         import runpy
         module=runpy.run_path(str(ROOT/'assets/hands/src/grip_hand.py'))

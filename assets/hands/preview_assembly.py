@@ -47,6 +47,7 @@ def main():
                 root.location+=vec(pose['translation'])
                 for node,override in pose['finger_pose'].items():
                     o=finger_nodes[node];o.location+=vec(override['translation_offset']);o.rotation_mode='QUATERNION';o.rotation_quaternion=quat(override['rotation_xyzw'])@o.rotation_quaternion
+                    o.scale=Vector(override.get('scale',[1,1,1]))
         bpy.context.view_layer.update()
         camera_data=bpy.data.cameras.new('review');camera=bpy.data.objects.new('review',camera_data);scene.collection.objects.link(camera);scene.camera=camera;camera_data.type='ORTHO'
         points=[o.matrix_world@Vector(v) for o in meshes for v in o.bound_box]
