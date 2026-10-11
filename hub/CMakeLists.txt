@@ -253,7 +253,11 @@ if(BUILD_TESTING)
     target_compile_definitions(launch-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(launch-tests)
     set_target_properties(launch-tests PROPERTIES WIN32_EXECUTABLE FALSE)
-    add_test(NAME hub-launch-steam COMMAND launch-tests)
+    add_test(NAME hub-launch-steam COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:launch-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-launch-steam.txt
+        -DTEST_TIMEOUT=120
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     if(NOT WIN32)
         set_tests_properties(hub-launch-steam PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     endif()
