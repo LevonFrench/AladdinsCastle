@@ -130,6 +130,36 @@ QStringList accounts(const QString &root) {
   }
   return out;
 }
+Shortcut prepareGameShortcut(const CatalogData &catalog, const QString &gameId,
+                             const QString &variantId, const QString &root,
+                             const QString &hubExecutable, const Json &bindings) {
+  const auto *game = catalog.find(gameId);
+  if (!game) {
+    throw Error("E_GAME_INVALID", "Unknown game");
+  }
+  const Variant *selected = nullptr;
+  for (const auto &variant : game->variants) {
+    if (variant.id == variantId &&
+        (variant.generated ||
+         (authoredLaunchSupported(variant) &&
+          install::string(variant.raw["launch"], "runtime") == "steamvr"))) {
+      selected = &variant;
+      break;
+    }
+  }
+  if (!selected) {
+    throw Error("E_VARIANT_INVALID", "Select an available flat or pinned authored SteamVR variant for this game");
+  }
+  if (QDir(root).absolutePath() != QFileInfo(hubExecutable).absolutePath()) {
+    throw Error("E_PORTABLE_ROOT", "Create Steam entries from the portable Hub folder");
+  }
+  const auto request = launch::gameRequest(catalog, gameId, root, bindings, variantId);
+  if (!selected->generated && request.runtime != "steamvr") {
+    throw Error("E_VARIANT_INVALID", "The authored Steam shortcut requires its pinned SteamVR runtime");
+  }
+  return {gameId, game->roles.value("title").toString(), hubExecutable, root,
+          request.runtime == "steamvr", 0, game->runtime.lastPlayed, variantId};
+}
 Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
   if (!QRegularExpression("\\A[a-z0-9]+(?:-[a-z0-9]+)*\\z")
            .match(s.gameId)
