@@ -480,4 +480,4 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [tools/gun_confirmation.py](../../../tools/gun_confirmation.py) | `6bfe61fcf6601275c9df908489e7800452ef98893de146e3180c7d13020b7a9e` |
 | [tools/hand_assembly.py](../../../tools/hand_assembly.py) | `11979c9c25c9c2a84b5bb0f487b19307e5c714425384cdbedcf1f4ee85f91fe0` |
 | [tools/wii_controls.py](../../../tools/wii_controls.py) | `f067c742bc137aaab13f1ca97b79544bc42bdba7256edc4f89cd7cfff5c299a9` |
-| [tools/wii_shell_stick.py](../../../tools/wii_shell_stick.py) | `8f1399edd5224b9b94d702561b930b3ff5b91f3ac295b22b62b783f6a63d2639` |
+| [tools/wii_shell_stick.py](../../../tools/wii_shell_stick.py) | `d9d2b85b402afe9faebdc62fec70bbd53e73c31380e97e882b18d77e2aa44f02` |

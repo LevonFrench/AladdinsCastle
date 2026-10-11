@@ -3402,7 +3402,7 @@
     "tools/wii_shell_stick.py": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "8f1399edd5224b9b94d702561b930b3ff5b91f3ac295b22b62b783f6a63d2639"
+      "sha256": "d9d2b85b402afe9faebdc62fec70bbd53e73c31380e97e882b18d77e2aa44f02"
     }
   }
 }
