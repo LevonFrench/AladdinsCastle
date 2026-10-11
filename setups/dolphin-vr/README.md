@@ -79,6 +79,24 @@ which must be addressed in a concrete patch/build slice rather than silently
 fetching more dependencies. Darkside camera stabilization comes after Umbrella.
 Do not expand beyond the first tier before acceptance.
 
+## Source instrumentation checkpoint — 2026-10-10
+
+The earlier release inspection above is historical. The pinned source now builds
+with the existing Windows compiler and Qt 6.8.3, using the 28 selected exact
+dependency commits. No tool installation or additional arbitrary dependency
+download was needed. The OpenXR loader and Dolphin desktop application linked
+successfully; upstream notices and local Qt runtime files are preserved with it.
+This is a locally instrumented executable, separate from the pinned release ZIP.
+
+[Original instrumentation and instructions](instrumentation/README.md) record
+sampled submitted draws, raw game projections/FoV and raster state with VR off.
+The real Dolphin translation unit compiled, and synthetic tests passed for
+projection math, sampling, row caps, locale-safe CSV and summary frame bounds.
+No geometry, game pixels, executable or log enters the repository. Build and
+patch identities remain in private storage. The source boot and game-specific
+HUD/world interpretation are still pending the lead's desktop turn. This does
+not establish game performance, XR rendering, gun depth or headset acceptance.
+
 Notices are preserved in the extracted release `LICENSES/` and source
 `COPYING`, `LICENSES/` and per-file SPDX headers. Source COPYING states mostly
 GPL-2.0-or-later with the aggregate compatible with GPLv3. No upstream source,
