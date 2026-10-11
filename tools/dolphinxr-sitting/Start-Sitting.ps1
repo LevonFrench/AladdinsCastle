@@ -8,6 +8,7 @@ param(
     [ValidatePattern('^[A-Z0-9]{6}$')][string]$GameID = 'RBUP08',
     [Parameter(Mandatory=$true)][string]$StateDirectory,
     [string]$NativeProfile = '',
+    [string]$ControlSet = '',
     [ValidateSet('Default','Eager','Desktop')][string]$Mode = 'Default',
     [ValidateSet('Native','Sharp','SharpAA')][string]$Quality = 'Sharp',
     [string]$DsuProfile='',
@@ -26,19 +27,17 @@ Import-Module (Join-Path $PSScriptRoot 'Sitting.psm1') -Force
 Assert-AcSittingInputs $Executable $ExecutableSHA256 $Disc $GameID
 $state = Assert-AcPrivatePath $StateDirectory
 if ($CheckOnly) { Write-Output 'Executable hash and exact Wii header match. No settings changed or process started.'; return }
+if ($ControlSet -and $ControlSet -cnotmatch '^[a-z0-9]+(?:-[a-z0-9]+)*$') { throw 'Invalid control-set identifier.' }
 if (-not $NativeProfile) {
-    $NativeProfile = Join-Path $PSScriptRoot '../../data/controls/wii/generated/dolphinxr/split-right.ini'
+    $relativeProfile = if ($ControlSet) { "games/$ControlSet/dolphinxr-right.ini" } else { 'dolphinxr/split-right.ini' }
+    $NativeProfile = Join-Path $PSScriptRoot "../../data/controls/wii/generated/$relativeProfile"
 }
 # The active native route is deliberately single-player/right hand. Native per-slot
 # IR routing is not supplied by swapping button expressions in the pinned build.
-if ((Split-Path $NativeProfile -Leaf) -ne 'split-right.ini') { throw 'This sitting requires the verified split-right native profile.' }
-$manifest = Get-Content -LiteralPath (Join-Path (Split-Path (Split-Path $NativeProfile)) 'generated-files.json') -Raw | ConvertFrom-Json
-if ($manifest.version -ne 'shell-stick/1' -or
-    $manifest.files.'dolphinxr/split-right.ini' -ne (Get-FileHash -LiteralPath $NativeProfile -Algorithm SHA256).Hash) {
-    throw 'Generated native profile does not match its shared contract manifest.'
-}
+$profileKey = Assert-AcGeneratedProfile $NativeProfile Native $ControlSet
+if (-not $ControlSet -and $profileKey.StartsWith('games/')) { $ControlSet = $profileKey.Split('/')[1] }
 $userPath = Initialize-AcSitting -UserDirectory (Join-Path $state "User-v2-$Mode") -NativeProfile $NativeProfile -Mode $Mode -Quality $Quality `
-    -DsuProfile $DsuProfile -DsuPort $DsuPort -ForcedVBI $ForcedVBI -Mirror $Mirror `
+    -DsuProfile $DsuProfile -DsuPort $DsuPort -ControlSet $ControlSet -ForcedVBI $ForcedVBI -Mirror $Mirror `
     -ControllerAnchor ([bool]$ControllerAnchor) -CameraAnchor ([bool]$CameraAnchor) -CameraSmoothing $CameraSmoothing
 if ($PrepareOnly) { Write-Output "Prepared $Mode / $Quality at $userPath. No process started."; return }
 if (@(Get-Process -Name Dolphin -ErrorAction SilentlyContinue).Count) {
@@ -69,6 +68,7 @@ foreach ($key in $vrSwitches.Keys) { $launchArgs += @('-C', "Graphics.VR.$key=$(
 @{ mode=$Mode; quality=$Quality; quality_settings=(Get-AcQuality $Quality); executable=$Executable;
    executable_sha256=$ExecutableSHA256; game_id=$GameID; user_dir=$userPath; args=$launchArgs;
    profile_sha256=(Get-FileHash -LiteralPath $NativeProfile -Algorithm SHA256).Hash;
+   control_set=$ControlSet; generated_profile=$profileKey;
    dsu_profile=$DsuProfile; dsu_port=$DsuPort; vr_switches=$vrSwitches;
    powershell=$PSVersionTable.PSVersion.ToString(); acceptance='Runtime and owner observation required' } |
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $run 'launch.json') -Encoding UTF8

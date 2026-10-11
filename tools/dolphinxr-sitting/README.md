@@ -17,6 +17,16 @@ native route uses one right-hand Remote and a left-hand attachment. Left-hand
 and multiple-player routing require separate native admission; swapping button
 expressions alone does not change the source's IR override.
 
+To select authored per-game controls, use `-ControlSet <catalog-game-id>`.
+The runner resolves `generated/games/<catalog-game-id>/dolphinxr-right.ini`
+and checks its entry in the shared generated manifest. For scripted input,
+also pass that game's `scripted-dsu-right.ini` as `-DsuProfile`. Native and DSU
+files must name the same control set, and all hashes are checked before writing.
+`-GameID` remains the independent exact disc-header check: the catalog slug is
+a control policy, not proof that a disc is the selected game. Existing explicit
+split-right profiles remain supported. Game gun/hold proposals remain provisional;
+this installs their generated input bindings without claiming held-model rendering.
+
 Settings live in new, explicitly managed `User-v2-<Mode>` directories. Older
 sitting directories are not migrated. Before each preparation, Dolphin must be
 closed. Previous INI files are backed up; owned keys are repaired while unrelated

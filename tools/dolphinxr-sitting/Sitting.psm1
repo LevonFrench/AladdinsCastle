@@ -78,12 +78,44 @@ function Get-AcVRSwitches {
     }
 }
 
+function Assert-AcGeneratedProfile {
+    param([string]$Path, [ValidateSet('Native','DSU')][string]$Role,
+          [string]$ControlSet = '')
+    $full = [IO.Path]::GetFullPath($Path)
+    $folder = Split-Path $full
+    $leaf = Split-Path $full -Leaf
+    $parent = Split-Path $folder -Leaf
+    if ((Split-Path (Split-Path $folder) -Leaf) -eq 'games') {
+        if ($parent -cnotmatch '^[a-z0-9]+(?:-[a-z0-9]+)*$' -or
+            ($ControlSet -and $parent -cne $ControlSet)) { throw 'Game control-set identity differs.' }
+        $allowed = if ($Role -eq 'Native') { @('dolphinxr-right.ini') } else { @('scripted-dsu-right.ini','flat-dolphin-right.ini') }
+        if ($leaf -cnotin $allowed) { throw 'Expected the generated right-primary game profile.' }
+        $generated = Split-Path (Split-Path $folder)
+        $key = "games/$parent/$leaf"
+    } else {
+        $expected = if ($Role -eq 'Native') { 'dolphinxr' } else { 'flat-dolphin' }
+        if ($ControlSet -or $parent -cne $expected -or $leaf -cne 'split-right.ini') {
+            throw 'Expected the generated split-right profile or a matching per-game profile.'
+        }
+        $generated = Split-Path $folder
+        $key = "$parent/$leaf"
+    }
+    $manifest = Get-Content -LiteralPath (Join-Path $generated 'generated-files.json') -Raw | ConvertFrom-Json
+    $entry = $manifest.files.PSObject.Properties[$key]
+    if ($manifest.version -ne 'shell-stick/1' -or $null -eq $entry -or
+        $entry.Value -ne (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash) {
+        throw 'Profile does not match the shared generated manifest.'
+    }
+    return $key
+}
+
 function Initialize-AcSitting {
     param([Parameter(Mandatory=$true)][string]$UserDirectory,
           [Parameter(Mandatory=$true)][string]$NativeProfile,
           [ValidateSet('Default','Eager','Desktop')][string]$Mode = 'Default',
           [ValidateSet('Native','Sharp','SharpAA')][string]$Quality = 'Sharp',
           [string]$DsuProfile='', [ValidateRange(1024,65535)][int]$DsuPort=26760,
+          [string]$ControlSet='',
           [ValidateSet('Auto','Off','72','90','120')][string]$ForcedVBI='Off',
           [ValidateSet('Both','Left','Right','None')][string]$Mirror='Both',
           [bool]$ControllerAnchor=$false, [bool]$CameraAnchor=$false,
@@ -92,6 +124,7 @@ function Initialize-AcSitting {
         throw 'Dolphin is running; settings cannot be prepared or changed during a session.'
     }
     $userPath = Assert-AcPrivatePath $UserDirectory
+    if ($ControlSet) { $null = Assert-AcGeneratedProfile $NativeProfile Native $ControlSet }
     $profileBytes = [IO.File]::ReadAllBytes($NativeProfile)
     $profile = [Text.Encoding]::UTF8.GetString($profileBytes)
     $sections = [regex]::Matches($profile, '(?m)^\[([^\r\n]+)\]\r?\n([\s\S]*?)(?=^\[|\z)')
@@ -115,12 +148,8 @@ function Initialize-AcSitting {
         $dsuBytes = [IO.File]::ReadAllBytes($DsuProfile)
         $dsuText = [Text.Encoding]::UTF8.GetString($dsuBytes)
         if ($dsuText -notmatch ('(?m)^Device = DSUClient/0/' + [regex]::Escape($script:Product.dsu_server_name) + '\r?$') -or
-            $dsuText -notmatch '(?m)^Source = 1\r?$') { throw 'Expected generated split-right DSU profile.' }
-        $dsuManifest = Get-Content -LiteralPath (Join-Path (Split-Path (Split-Path $DsuProfile)) 'generated-files.json') -Raw | ConvertFrom-Json
-        if ((Split-Path $DsuProfile -Leaf) -ne 'split-right.ini' -or $dsuManifest.version -ne 'shell-stick/1' -or
-            $dsuManifest.files.'flat-dolphin/split-right.ini' -ne (Get-FileHash -LiteralPath $DsuProfile -Algorithm SHA256).Hash) {
-            throw 'DSU profile does not match shared generated manifest.'
-        }
+            $dsuText -notmatch '(?m)^Source = 1\r?$') { throw 'Expected generated slot-zero DSU profile.' }
+        $null = Assert-AcGeneratedProfile $DsuProfile DSU $ControlSet
     }
     $marker = Join-Path $userPath 'ac-sitting-v2.txt'
     $null = Assert-AcPrivatePath $marker
@@ -264,4 +293,4 @@ function Test-AcOpenXRLog([string]$LogPath) {
     return [bool](Select-String -LiteralPath $LogPath -Pattern '[NEWID]\[OpenXR\]:' -Quiet)
 }
 
-Export-ModuleMember -Function Initialize-AcSitting, Assert-AcSittingInputs, Assert-AcPrivatePath, Test-AcOpenXRLog, Get-AcQuality, Get-AcVRSwitches
+Export-ModuleMember -Function Initialize-AcSitting, Assert-AcSittingInputs, Assert-AcPrivatePath, Test-AcOpenXRLog, Get-AcQuality, Get-AcVRSwitches, Assert-AcGeneratedProfile
