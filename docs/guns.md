@@ -94,7 +94,7 @@ Named nodes libacvr binds to:
 
 | Node | Meaning |
 |---|---|
-| `grip` | Where the hand holds it. Aligned to the controller's OpenXR grip pose. |
+| `grip` | Where the hand holds it. This point is placed at the controller's OpenXR grip **position**. Direction does not come from the grip pose (its −Z runs along the handle, not where you point): the model's bore follows the controller's **aim** pose plus the player's gun angle. |
 | `muzzle` | Front of the barrel, −Z along the bore. The aim ray starts here. |
 | `grip_two` | Second-hand hold (fore-grip, pump, rear handle). Optional. |
 | `sight_front`, `sight_rear` | Iron sights, for players who aim down them |

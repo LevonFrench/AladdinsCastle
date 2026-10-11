@@ -25,6 +25,7 @@ Catalog capability, an available recipe, detected launch requirements and a veri
 | [Landscape](docs/landscape.md) | Existing projects we build on and learn from |
 | [Architecture](docs/architecture.md) | Hub, VR setups, libacvr shared runtime, stereo techniques, input bridge |
 | [Controls](docs/controls.md) | Gun aim math, cover, reload, ghost controls for racing, comfort |
+| [3D mode target](docs/3d-mode-target.md) | What true 3D must look like: HUD on a steady panel, a wide frame, the gun in the world |
 | [Guns](docs/guns.md) | Planned gun library, two-player policy and game-to-model assignments |
 | [Config spec](docs/config-spec.md) | Open-ended, layered TOML for games, setups, recipes, controls, guns |
 | [Front end](docs/frontend.md) | The Hub: library, recipes, install, launch, art, technology choice |

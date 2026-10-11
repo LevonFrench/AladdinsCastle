@@ -19,6 +19,7 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 
 ## M2: namco22-vr: our first true-3D setups (libacvr v0 built with it)
 - **Run as four Codex sessions** (lead, Hub, guns and controls, stereo boards): [tasks/m2/README.md](tasks/m2/README.md).
+- **Main thrust changed 2026-10-10 (D52):** Wii games in 3D mode through Dolphin come first, in tiers of five starting with the two Resident Evil Chronicles games ([tasks/m2/W-wii-chronicles.md](tasks/m2/W-wii-chronicles.md)). The System 22 work below is parked as the next board.
 - libacvr v0 on the [contract](libacvr-contract.md): OpenXR session, multiview, recenter/height, pause overlay, gun module (aim projection, cover button, recoil), ghost-control framework (wheel, `shifter_hl`, pedals, buttons), comfort basics.
 - libacvr host on namco22-decompile (guarded build-time patches), stereo through the `geo_hw.c` projection.
 - **Time Crisis** (tracked pistol, cover on the grip button) and **Rave Racer** (ghost wheel, two-position shifter, trigger pedals).

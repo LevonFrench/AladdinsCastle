@@ -8,20 +8,20 @@ manufacturer = "capcom"
 developer    = "Capcom; Cavia"
 hardware     = "nintendo-wii"
 graphics     = "polygon-3d"
-players      = 1
+players      = 2
 series       = "Resident Evil"
 
 [controls]
 type = "gun"
-guns = 1
+guns = 2
 gun  = "Wii Remote IR pointer (Zapper support unverified)"
 
 [[media]]
 kind = "disc"
-note = "Your own Wii disc image (ISO/WBFS)"
+note = "Your own Wii disc image (ISO/WBFS). Game ids: SBDE08, SBDP08, SBDJ08, SBDK08"
 
 [routes]
-dolphin = "unknown"
+dolphin = "imperfect"
 vr      = { best = "none", planned = "true3d-planned" }
 
 [hub]
@@ -29,9 +29,9 @@ pill   = "WII-REDARK"
 colour = "#0e1a20"
 accent = "#5ec8ff"
 blurb  = "Second on-rails Resident Evil collection, with the Wii Remote as the gun."
-badges = ["roomscale"]
+badges = ["roomscale", "2-players"]
 
 [meta]
-sources    = ["https://en.wikipedia.org/wiki/Resident_Evil:_The_Darkside_Chronicles"]
+sources    = ["https://en.wikipedia.org/wiki/Resident_Evil:_The_Darkside_Chronicles", "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Darkside_Chronicles"]
 confidence = "medium"
-checked    = "2026-10-08"
+checked    = "2026-10-10"

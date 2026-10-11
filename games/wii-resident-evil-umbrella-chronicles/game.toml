@@ -8,20 +8,20 @@ manufacturer = "capcom"
 developer    = "Capcom; Cavia"
 hardware     = "nintendo-wii"
 graphics     = "polygon-3d"
-players      = 1
+players      = 2
 series       = "Resident Evil"
 
 [controls]
 type = "gun"
-guns = 1
+guns = 2
 gun  = "Wii Zapper / Wii Remote IR pointer"
 
 [[media]]
 kind = "disc"
-note = "Your own Wii disc image (ISO/WBFS)"
+note = "Your own Wii disc image (ISO/WBFS). Game ids: RBUE08, RBUP08, RBUJ08, RBUK08"
 
 [routes]
-dolphin = "unknown"
+dolphin = "working"
 vr      = { best = "none", planned = "true3d-planned" }
 
 [hub]
@@ -29,9 +29,9 @@ pill   = "WII-REUMB"
 colour = "#0e1a20"
 accent = "#5ec8ff"
 blurb  = "On-rails Resident Evil story chapters, played with the Wii Zapper."
-badges = ["roomscale"]
+badges = ["roomscale", "2-players"]
 
 [meta]
-sources    = ["https://en.wikipedia.org/wiki/Resident_Evil:_The_Umbrella_Chronicles"]
+sources    = ["https://en.wikipedia.org/wiki/Resident_Evil:_The_Umbrella_Chronicles", "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Umbrella_Chronicles"]
 confidence = "medium"
-checked    = "2026-10-08"
+checked    = "2026-10-10"
