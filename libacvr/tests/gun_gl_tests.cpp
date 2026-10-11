@@ -25,6 +25,8 @@ struct Mock {
     std::vector<acvr::GunGlVertex> uploaded;
     std::vector<GLboolean> draw_depth;
     std::vector<GLsizei> draw_counts;
+    std::vector<std::string> shader_sources;
+    bool normal_attribute=false;
 } mock;
 template<class Fn> struct Noop;
 template<class R,class... Args> struct Noop<R(ACVR_GL_CALL *)(Args...)> {
@@ -44,6 +46,9 @@ GLboolean ACVR_GL_CALL enabled(GLenum cap) {return mock.caps[cap];}
 void ACVR_GL_CALL enable(GLenum cap) {mock.caps[cap]=GL_TRUE;}
 void ACVR_GL_CALL disable(GLenum cap) {mock.caps[cap]=GL_FALSE;}
 GLuint ACVR_GL_CALL shader(GLenum) {return ++mock.next;}
+void ACVR_GL_CALL source(GLuint,GLsizei count,const char *const *strings,const GLint *) {
+    check(count==1 && strings && strings[0]);mock.shader_sources.emplace_back(strings[0]);
+}
 GLuint ACVR_GL_CALL program() {return ++mock.next;}
 void ACVR_GL_CALL shader_status(GLuint,GLenum,GLint *status) {*status=mock.compile?1:0;}
 void ACVR_GL_CALL program_status(GLuint,GLenum,GLint *status) {*status=1;}
@@ -62,6 +67,10 @@ void ACVR_GL_CALL upload(GLenum,std::ptrdiff_t bytes,const void *data,GLenum) {
     if(mock.fail_upload) {mock.error=GL_OUT_OF_MEMORY;return;}
     const auto *v=static_cast<const acvr::GunGlVertex *>(data);mock.uploaded.assign(v,v+bytes/std::ptrdiff_t(sizeof(*v)));
 }
+void ACVR_GL_CALL attribute(GLuint index,GLint size,GLenum type,GLboolean,GLsizei stride,const void *offset) {
+    if(index==2) mock.normal_attribute=size==3 && type==GL_FLOAT && stride==sizeof(acvr::GunGlVertex) &&
+        reinterpret_cast<uintptr_t>(offset)==offsetof(acvr::GunGlVertex,normal_view);
+}
 void ACVR_GL_CALL draw(GLenum mode,GLint first,GLsizei count) {
     check(mode==GL_TRIANGLES && first>=0 && count>0);check(mock.fbo==55 && mock.caps[GL_DEPTH_TEST] && !mock.caps[0x8c89]);
     ++mock.draws;mock.draw_depth.push_back(mock.depth_write);mock.draw_counts.push_back(count);
@@ -72,10 +81,10 @@ void ACVR_GL_CALL remove_many(GLsizei n,const GLuint *) {mock.deletes+=unsigned(
 void *ACVR_CALL proc(void *,const char *name) {
 #define MAP(n,fn) if(std::strcmp(name,"gl" #n)==0) return address(&fn)
     MAP(GetError,error);MAP(GetIntegerv,integer);MAP(IsEnabled,enabled);MAP(Enable,enable);MAP(Disable,disable);
-    MAP(CreateShader,shader);MAP(CreateProgram,program);MAP(GetShaderiv,shader_status);MAP(GetProgramiv,program_status);MAP(GetUniformLocation,uniform);
+    MAP(CreateShader,shader);MAP(ShaderSource,source);MAP(CreateProgram,program);MAP(GetShaderiv,shader_status);MAP(GetProgramiv,program_status);MAP(GetUniformLocation,uniform);
     MAP(GenVertexArrays,generate);MAP(GenBuffers,generate);MAP(UseProgram,use);MAP(BindVertexArray,vao);MAP(BindBuffer,buffer);
     MAP(BindFramebuffer,framebuffer);MAP(CheckFramebufferStatus,complete);MAP(GetFramebufferAttachmentParameteriv,attachment);
-    MAP(PushAttrib,push);MAP(PopAttrib,pop);MAP(DepthMask,depth);MAP(BufferData,upload);MAP(DrawArrays,draw);
+    MAP(PushAttrib,push);MAP(PopAttrib,pop);MAP(DepthMask,depth);MAP(BufferData,upload);MAP(VertexAttribPointer,attribute);MAP(DrawArrays,draw);
     MAP(DeleteProgram,remove_one);MAP(DeleteShader,remove_one);MAP(DeleteBuffers,remove_many);MAP(DeleteVertexArrays,remove_many);
 #undef MAP
 #define DEFAULT(name_,ret,args) if(std::strcmp(name,"gl" #name_)==0) return address(&Noop<acvr::GunGlDispatch::name_##Fn>::call);
@@ -97,9 +106,13 @@ acvr::GunDraw packet(acvr::GunInstance &gun) {
 }
 void renderer() {
     mock=Mock{};acvr::GunGlRenderer r;auto d=device();check(r.initialize(d)==ACVR_OK);
+    check(mock.shader_sources.size()==2 && mock.shader_sources[0].find("normal_view")!=std::string::npos &&
+        mock.shader_sources[1].find("dot(normalize(normal),light)")!=std::string::npos &&
+        mock.shader_sources[1].find("0.35+0.65*diffuse")!=std::string::npos);
     auto e=eye();auto in=info(e);acvr::GunInstance gun;auto p=packet(gun);
     const auto caps=mock.caps;check(r.draw(in,p)==ACVR_OK && mock.draws==1 && mock.draw_depth[0]);
-    check(mock.uploaded.size()==3 && std::abs(mock.uploaded[1].position[0]-.11f)<.0001f);
+    check(mock.uploaded.size()==3 && std::abs(mock.uploaded[1].position[0]-.11f)<.0001f && mock.normal_attribute);
+    check(std::abs(mock.uploaded[0].normal_view[2]-1.f)<.0001f);
     check(mock.program==17 && mock.vao==18 && mock.buffer==19 && mock.fbo==20 && mock.pushes==mock.pops);
     for(const auto &[key,value]:caps) check(mock.caps[key]==value);
     check(mock.depth_write==GL_FALSE);
@@ -122,6 +135,19 @@ void renderer() {
 void packing() {
     acvr::GunInstance gun;auto p=packet(gun);auto e=eye();std::vector<acvr::GunGlVertex> vertices;uint32_t opaque=999;
     p.body[0]=.25f;check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_OK && opaque==3 && vertices[0].colour[0]==.125f);
+    check(std::abs(vertices[0].normal_view[2]-1.f)<.0001f);
+    auto &primitive=gun.model.asset.primitives[0];primitive.has_normals=true;
+    for(auto &vertex:primitive.vertices) vertex.normal={1,1,0};
+    p.scene_from_node[3][0]=2.f;
+    e.view_from_scene[0]=0;e.view_from_scene[1]=1;e.view_from_scene[4]=-1;e.view_from_scene[5]=0;
+    check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_OK);
+    check(std::abs(vertices[0].normal_view[0]+.89442719f)<.0001f &&
+        std::abs(vertices[0].normal_view[1]-.4472136f)<.0001f);
+    primitive.vertices[0].normal={0,0,0};
+    check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_BAD_ARGUMENT);
+    primitive.has_normals=false;p.scene_from_node[3][0]=0.f;
+    check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_BAD_ARGUMENT);
+    p.scene_from_node[3][0]=1.f;e=eye();
     p.visible=false;check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_OK && vertices.empty());p.visible=true;
     p.lod=1;check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_OK && vertices[1].position[0]==.1f);
     p.lod=0;gun.model.asset.materials[0].base_colour[3]=.5f;gun.model.asset.primitives[1].lod=0;p.scene_from_node[5][14]=-2;

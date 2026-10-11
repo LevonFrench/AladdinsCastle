@@ -24,6 +24,29 @@ std::array<float,3> point(const Matrix &m,const std::array<float,3> &v) {
 Matrix product(const float *a,const float *b) {
     Matrix m{};for(unsigned c=0;c<4;++c) for(unsigned r=0;r<4;++r) for(unsigned k=0;k<4;++k) m[4*c+r]+=a[4*k+r]*b[4*c+k];return m;
 }
+using Vector3=std::array<double,3>;
+Vector3 cross(const Vector3 &a,const Vector3 &b) {
+    return {a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]};
+}
+double dot(const Vector3 &a,const Vector3 &b) {return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+bool unit(const Vector3 &v,float *out) {
+    const double length=std::sqrt(dot(v,v));
+    if(!std::isfinite(length)||length<1e-12) return false;
+    for(unsigned k=0;k<3;++k) {out[k]=float(v[k]/length);if(!std::isfinite(out[k])) return false;}
+    return true;
+}
+// Columns of the inverse-transpose are the cross products of the other two
+// columns divided by the determinant. Double intermediates avoid overflow for
+// valid but strongly nonuniform node scales.
+bool normal_matrix(const Matrix &m,std::array<Vector3,3> &columns) {
+    const Vector3 a{m[0],m[1],m[2]},b{m[4],m[5],m[6]},c{m[8],m[9],m[10]};
+    columns={cross(b,c),cross(c,a),cross(a,b)};
+    const double det=dot(a,columns[0]);
+    const double scale=std::sqrt(dot(a,a)*dot(b,b)*dot(c,c));
+    if(!std::isfinite(det)||!std::isfinite(scale)||scale==0||std::abs(det)<=scale*1e-12) return false;
+    for(auto &column:columns) for(double &component:column) component/=det;
+    return true;
+}
 struct Triangle {GunGlVertex vertices[3]{};float depth=0;};
 template<class Fn> bool load(Fn &fn,const acvr_graphics_device &d,const char *name) {
     void *p=d.get_proc(d.proc_user,name);const auto n=reinterpret_cast<uintptr_t>(p);
@@ -55,18 +78,40 @@ acvr_result pack_gun_vertices(const GunDraw &gun,const acvr_eye &eye,std::vector
             if(p.node>=gun.scene_from_node.size()||p.material>=gun.asset->materials.size()||p.indices.size()%3) return ACVR_BAD_ARGUMENT;
             const auto &m=gun.scene_from_node[p.node];const auto &material=gun.asset->materials[p.material];
             if(!finite(m.data(),16)||m[3]!=0||m[7]!=0||m[11]!=0||m[15]!=1||!rgba(material.base_colour.data())) return ACVR_BAD_ARGUMENT;
+            const auto view_from_node=product(eye.view_from_scene,m.data());
+            std::array<Vector3,3> normal_columns{};
+            if(!finite(view_from_node.data(),16)||!normal_matrix(view_from_node,normal_columns)) return ACVR_BAD_ARGUMENT;
             const std::array<float,4> fixed{1,1,1,1};
             const auto &tint=material.name=="body"?gun.body:material.name=="accent"?gun.accent:fixed;
             for(size_t at=0;at<p.indices.size();at+=3) {
                 Triangle t;bool opaque=true;
                 for(unsigned j=0;j<3;++j) {
                     if(p.indices[at+j]>=p.vertices.size()) return ACVR_BAD_ARGUMENT;
-                    const auto &v=p.vertices[p.indices[at+j]];if(!finite(v.position.data(),3)||!rgba(v.colour.data())) return ACVR_BAD_ARGUMENT;
+                    const auto &v=p.vertices[p.indices[at+j]];if(!finite(v.position.data(),3)||!rgba(v.colour.data())||
+                        (p.has_normals&&!finite(v.normal.data(),3))) return ACVR_BAD_ARGUMENT;
                     const auto position=point(m,v.position);if(!finite(position.data(),3)) return ACVR_BAD_ARGUMENT;
                     std::copy(position.begin(),position.end(),t.vertices[j].position);
+                    if(p.has_normals) {
+                        Vector3 normal{};
+                        for(unsigned k=0;k<3;++k) for(unsigned axis=0;axis<3;++axis) normal[k]+=normal_columns[axis][k]*v.normal[axis];
+                        if(!unit(normal,t.vertices[j].normal_view)) return ACVR_BAD_ARGUMENT;
+                    }
                     for(unsigned k=0;k<4;++k) t.vertices[j].colour[k]=v.colour[k]*material.base_colour[k]*tint[k];
                     opaque=opaque && t.vertices[j].colour[3]>=1.f;
                     t.depth+=eye.view_from_scene[2]*position[0]+eye.view_from_scene[6]*position[1]+eye.view_from_scene[10]*position[2]+eye.view_from_scene[14];
+                }
+                if(!p.has_normals) {
+                    const auto view_position=[&](unsigned j) {
+                        const auto &v=t.vertices[j].position;
+                        return Vector3{double(eye.view_from_scene[0])*v[0]+double(eye.view_from_scene[4])*v[1]+double(eye.view_from_scene[8])*v[2],
+                            double(eye.view_from_scene[1])*v[0]+double(eye.view_from_scene[5])*v[1]+double(eye.view_from_scene[9])*v[2],
+                            double(eye.view_from_scene[2])*v[0]+double(eye.view_from_scene[6])*v[1]+double(eye.view_from_scene[10])*v[2]};
+                    };
+                    const auto a=view_position(0),b=view_position(1),c=view_position(2);
+                    const Vector3 ab{b[0]-a[0],b[1]-a[1],b[2]-a[2]};
+                    const Vector3 ac{c[0]-a[0],c[1]-a[1],c[2]-a[2]};
+                    float normal[3]{};if(!unit(cross(ab,ac),normal)) return ACVR_BAD_ARGUMENT;
+                    for(auto &vertex:t.vertices) std::copy_n(normal,3,vertex.normal_view);
                 }
                 if(!std::isfinite(t.depth)) return ACVR_BAD_ARGUMENT;
                 if(opaque) packed.insert(packed.end(),std::begin(t.vertices),std::end(t.vertices));else transparent.push_back(t);
@@ -92,8 +137,10 @@ acvr_result GunGlRenderer::initialize(const acvr_graphics_device &d) {
     if(gl_.GetError()!=GL_NO_ERROR) {diagnostic_="pre-existing GL error before initialization";return ACVR_BAD_STATE;}
     GLint major=0,minor=0;gl_.GetIntegerv(MajorVersion,&major);gl_.GetIntegerv(MinorVersion,&minor);
     if(gl_.GetError()!=GL_NO_ERROR||major<3||(major==3&&minor<3)) {diagnostic_="requires desktop GL 3.3";return ACVR_UNSUPPORTED;}
-    const char *vertex="#version 330\nlayout(location=0) in vec3 position;layout(location=1) in vec4 colour;uniform mat4 mvp;out vec4 tint;void main(){gl_Position=mvp*vec4(position,1);tint=colour;}";
-    const char *fragment="#version 330\nin vec4 tint;out vec4 pixel;void main(){pixel=vec4(tint.rgb*tint.a,tint.a);}";
+    const char *vertex="#version 330\nlayout(location=0) in vec3 position;layout(location=1) in vec4 colour;layout(location=2) in vec3 normal_view;uniform mat4 mvp;out vec4 tint;out vec3 normal;void main(){gl_Position=mvp*vec4(position,1);tint=colour;normal=normal_view;}";
+    // Neutral view-space studio light. Colour inputs are linear glTF factors;
+    // preserve alpha and the existing premultiplied-alpha blend contract.
+    const char *fragment="#version 330\nin vec4 tint;in vec3 normal;out vec4 pixel;void main(){vec3 light=normalize(vec3(0.36,0.70,0.62));float diffuse=max(dot(normalize(normal),light),0.0);float shade=0.35+0.65*diffuse;pixel=vec4(tint.rgb*shade*tint.a,tint.a);}";
     GLuint shaders[2]{};bool good=true;
     for(unsigned i=0;i<2;++i) {
         shaders[i]=gl_.CreateShader(i?FragmentShader:VertexShader);if(!shaders[i]) {good=false;break;}
@@ -154,9 +201,10 @@ acvr_result GunGlRenderer::draw(const acvr_draw_info &in,const GunDraw &gun) {
     gl_.PushAttrib(GL_ALL_ATTRIB_BITS);if(gl_.GetError()!=GL_NO_ERROR) return finish(ACVR_ERROR);state.pushed=true;
     gl_.UseProgram(program_);gl_.BindVertexArray(vao_);gl_.BindBuffer(ArrayBuffer,buffer_);
     gl_.BufferData(ArrayBuffer,std::ptrdiff_t(vertices.size()*sizeof(GunGlVertex)),vertices.data(),StreamDraw);
-    gl_.EnableVertexAttribArray(0);gl_.EnableVertexAttribArray(1);
+    gl_.EnableVertexAttribArray(0);gl_.EnableVertexAttribArray(1);gl_.EnableVertexAttribArray(2);
     gl_.VertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,sizeof(GunGlVertex),nullptr);
     gl_.VertexAttribPointer(1,4,GL_FLOAT,GL_FALSE,sizeof(GunGlVertex),reinterpret_cast<void *>(offsetof(GunGlVertex,colour)));
+    gl_.VertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,sizeof(GunGlVertex),reinterpret_cast<void *>(offsetof(GunGlVertex,normal_view)));
     gl_.UniformMatrix4fv(matrix_,1,GL_FALSE,mvp.data());
     gl_.Viewport(eye.rect_x,eye.rect_y,GLsizei(eye.rect_width),GLsizei(eye.rect_height));gl_.Scissor(eye.rect_x,eye.rect_y,GLsizei(eye.rect_width),GLsizei(eye.rect_height));
     gl_.Enable(GL_SCISSOR_TEST);gl_.Enable(GL_DEPTH_TEST);gl_.DepthFunc(GL_LEQUAL);gl_.DepthRange(0,1);gl_.DepthMask(GL_TRUE);

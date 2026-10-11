@@ -41,7 +41,7 @@ struct GunGlDispatch {
     ACVR_GUN_GL_FUNCTIONS(ACVR_GL_FIELD)
 #undef ACVR_GL_FIELD
 };
-struct GunGlVertex { float position[3],colour[4]; };
+struct GunGlVertex { float position[3],colour[4],normal_view[3]; };
 // CPU packing is also the actual upload path, not a parallel test renderer.
 acvr_result pack_gun_vertices(const GunDraw &,const acvr_eye &,std::vector<GunGlVertex> &,uint32_t &opaque_count);
 class GunGlRenderer {
