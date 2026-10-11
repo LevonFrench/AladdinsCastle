@@ -8,6 +8,12 @@ It returns UTF-8 bytes; it performs no install or input operations.
 `data/controls/wii/generated/<route>/<mode>-<hand>.ini` is the exact generated
 `Config/WiimoteNew.ini` payload. Routes are `dolphinxr` and `flat-dolphin`;
 modes are `split`, `docked`, `two-remotes`; hands are `right` and `left`.
+Native `two-remotes` is rejected: the pinned native aim override reads a global
+hand setting, so two configured remotes would aim from the same controller.
+Native single-player profiles require their matching `<mode>-<hand>.Dolphin.ini`
+companion setting `[Android] QuestLeftHanded`. Merge that explicit owned setting
+into the isolated Dolphin configuration. Swapping button expressions alone does
+not swap native aim. DSU two-remotes remains generated, awaiting bridge parity.
 `generated-files.json` identifies every payload by SHA256. Install recipes and
 sitting preparation copy those bytes unchanged. Changing hold or handedness
 selects another generated payload; it never applies a second mapping layer.

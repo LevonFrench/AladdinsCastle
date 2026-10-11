@@ -12,6 +12,9 @@ class ShellProfilesTests(unittest.TestCase):
     def test_generated_bytes_are_current(self): write_generated(check=True)
     def test_native_device_and_every_button_survive_all_modes_and_swaps(self):
         for mode,hand in itertools.product(MODES,('right','left')):
+            if mode=='two-remotes':
+                with self.assertRaisesRegex(ValueError,'global'):render_profile('dolphinxr',mode,hand)
+                continue
             p=profile('dolphinxr',mode,hand)
             count=2 if mode=='two-remotes' else 1
             for slot in range(count):
@@ -59,5 +62,11 @@ class ShellProfilesTests(unittest.TestCase):
     def test_invalid_selection_rejected(self):
         for kwargs in ({'route':'other'},{'mode':'unknown'},{'primary_hand':'bad'}):
             with self.assertRaises(ValueError):render_profile(**kwargs)
+    def test_native_left_hand_requires_matching_global_aim_companion(self):
+        from wii_shell_stick import generated_files
+        outputs=generated_files()
+        self.assertIn(b'QuestLeftHanded = True',outputs['dolphinxr/split-left.Dolphin.ini'])
+        self.assertIn(b'QuestLeftHanded = False',outputs['dolphinxr/split-right.Dolphin.ini'])
+        self.assertNotIn('dolphinxr/two-remotes-right.ini',outputs)
 
 if __name__=='__main__':unittest.main()
