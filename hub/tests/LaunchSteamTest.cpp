@@ -2,6 +2,7 @@
 #include "core/install/Support.h"
 #include "core/launch/Launch.h"
 #include "core/steam/Steam.h"
+#include "AuthoredSteamFixture.h"
 #include <QGuiApplication>
 #include <QSignalSpy>
 #include <QElapsedTimer>
@@ -73,6 +74,8 @@ private slots:
   void steamCopiesShareTargetLock();
   void managedToolUsersExcludeMutation();
   void authoredOwnedLaunchAdmission();
+  void steamShortcutAdmission_data();
+  void steamShortcutAdmission();
   void dolphinUserDirectoryIsolated();
   void flatPlanRetainsOriginalPayload();
   void sharedResourceUseMutationRaceAndCrash();
@@ -218,6 +221,53 @@ void LaunchSteamTest::managedToolUsersExcludeMutation() {
   second.stop(); QTRY_VERIFY_WITH_TIMEOUT(!second.busy(),7000);
   QVERIFY(install::Engine(options).uninstall(request).success);
   QVERIFY(!QFileInfo(payload+"/synthetic-tool.exe").exists());
+}
+void LaunchSteamTest::steamShortcutAdmission_data() {
+  QTest::addColumn<QString>("change");
+  QTest::addColumn<QString>("expectedError");
+  QTest::newRow("authored exact receipt and unrelated stale tool") << QString("authored") << QString();
+  QTest::newRow("generated flat remains supported") << QString("flat") << QString();
+  QTest::newRow("missing authored receipt") << QString("receipt") << QString("E_SETUP_NOT_INSTALLED");
+  QTest::newRow("stale installed version") << QString("version") << QString("E_SETUP_NOT_INSTALLED");
+  QTest::newRow("modified owned executable") << QString("tamper") << QString("E_SETUP_IDENTITY");
+  QTest::newRow("missing required media") << QString("media") << QString("E_MEDIA_MISSING");
+  QTest::newRow("unsupported authored contract") << QString("unsupported") << QString("E_VARIANT_INVALID");
+  QTest::newRow("authored runtime outside SteamVR scope") << QString("runtime") << QString("E_VARIANT_INVALID");
+  QTest::newRow("nonportable Hub location") << QString("portable") << QString("E_PORTABLE_ROOT");
+}
+void LaunchSteamTest::steamShortcutAdmission() {
+  QFETCH(QString, change);
+  QFETCH(QString, expectedError);
+  test::AuthoredSteamFixture fixture;
+  auto &game=fixture.catalog.games.first();
+  auto variant=QString("dolphinxr");
+  if(change=="flat") { variant="flat-dolphin"; }
+  if(change=="receipt") { QVERIFY(QFile::remove(fixture.stateBase+".manifest.toml")); }
+  if(change=="version") {
+    auto state=install::readEnvelope(fixture.stateBase+".toml");state["installed_version"]="v0.3";
+    install::writeEnvelope(fixture.stateBase+".toml",state);
+  }
+  if(change=="tamper") { install::atomicWrite(fixture.executable,"changed synthetic bytes"); }
+  if(change=="media") { fixture.bindings["media"].erase("disc"); }
+  if(change=="unsupported") { game.variants[1].raw["launch"].erase("exe_sha256"); }
+  if(change=="runtime") { game.variants[1].raw["launch"]["runtime"]="none"; }
+  if(change=="portable") { fixture.hubExecutable=fixture.temp.filePath("other/hub.exe"); }
+  std::optional<steam::Shortcut> prepared;
+  QString error;
+  try { prepared=steam::prepareGameShortcut(fixture.catalog,game.id,variant,fixture.temp.path(),fixture.hubExecutable,fixture.bindings); }
+  catch(const install::Error &e) { error=e.code; }
+  QCOMPARE(error,expectedError);
+  if(!expectedError.isEmpty()) { QVERIFY(!prepared);return; }
+  QVERIFY(prepared);
+  QCOMPARE(prepared->executable,fixture.hubExecutable);
+  QCOMPARE(prepared->startDir,fixture.temp.path());
+  QCOMPARE(prepared->variantId,variant);
+  QCOMPARE(prepared->lastPlayed,qint64(12345));
+  QCOMPARE(prepared->vr,change!="flat");
+  const auto document=steam::parse(steam::edit({},*prepared).bytes);
+  const auto &entry=document.roots[0].children[0];
+  QCOMPARE(find(entry,"LaunchOptions")->payload,("--launch wii-synthetic --variant "+variant).toUtf8());
+  QCOMPARE(qFromLittleEndian<quint32>(find(entry,"OpenVR")->payload.constData()),change=="flat"?0u:1u);
 }
 void LaunchSteamTest::authoredOwnedLaunchAdmission() {
   QTemporaryDir t;write(t.filePath("data/content-guard.toml"),install::readBytes(QString(AC_CATALOG_ROOT)+"/data/content-guard.toml"));

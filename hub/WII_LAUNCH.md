@@ -28,7 +28,14 @@ restores verified authored receipts and selects the installed variant; the defau
 launcher uses it. Unsupported legacy authored recipes retain their refusal gate.
 `hubtool plan-launch <game> <variant>` with `--data-root`, `--install-root` and
 `--bindings` checks admission and prints the launch plan without starting a runtime.
-Steam shortcut support remains limited to generated routes.
+Steam shortcut creation accepts generated flat routes and pinned authored
+SteamVR routes. Preparation uses the same exact selected-variant admission as the
+UI/CLI before Steam discovery, retains the portable Hub executable/root gate,
+and sets the VR flag for the authored SteamVR route. The entry launches the Hub
+with `--launch <game> --variant <variant>` so launch-time identity checks still
+apply; it never launches Dolphin directly. Other authored runtimes remain outside
+this Steam follow-up. Account selection, exact preview, owner approval, stopped
+Steam checks, shared target locks and variant-specific removal stay in force.
 
 Recipes may seed configuration with `write-config only_if_missing = true`.
 Fresh files are created normally; existing files skip the config merge and old seed

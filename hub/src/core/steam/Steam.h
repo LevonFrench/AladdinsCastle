@@ -5,6 +5,7 @@
 #include <QImage>
 #include <QMap>
 #include <functional>
+namespace ac { struct CatalogData; }
 namespace ac::steam {
 struct Node {
   quint8 type = 0;
@@ -30,6 +31,10 @@ struct Shortcut {
   qint64 lastPlayed = 0;
   QString variantId; // Required for upserts and variant-specific removal.
 };
+// Prepare a pinned Hub shortcut without discovering or reading Steam.
+Shortcut prepareGameShortcut(const CatalogData &catalog, const QString &gameId,
+                             const QString &variantId, const QString &root,
+                             const QString &hubExecutable, const Json &bindings);
 struct Edit {
   QByteArray bytes;
   quint32 id = 0;

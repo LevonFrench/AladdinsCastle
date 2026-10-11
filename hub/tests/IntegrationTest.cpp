@@ -127,7 +127,7 @@ private slots:
     QVERIFY(services.beginSteam("synthetic","flat-mame",true));services.previewSteam("123");QVERIFY(services.steamWriteReady());QVERIFY(services.steamPreview().contains("--variant flat-mame"));QCOMPARE(ac::install::readBytes(target),before);
     shortcut.variantId="retired-vr";shortcut.vr=true;const auto legacy=ac::steam::edit(before,shortcut).bytes;ac::install::atomicWrite(target,legacy);
     QVERIFY(services.beginSteam("synthetic","retired-vr",true));services.previewSteam("123");QVERIFY(services.steamWriteReady());QVERIFY(services.steamPreview().contains("--variant retired-vr"));QCOMPARE(ac::install::readBytes(target),legacy);
-    QVERIFY(!services.beginSteam("synthetic","unavailable-route",false));QVERIFY(!services.steamWriteReady());QVERIFY(services.steamPreview().contains("available M1 flat variant"));QCOMPARE(ac::install::readBytes(target),legacy);
+    QVERIFY(!services.beginSteam("synthetic","unavailable-route",false));QVERIFY(!services.steamWriteReady());QVERIFY(services.steamPreview().contains("available flat or pinned authored SteamVR variant"));QCOMPARE(ac::install::readBytes(target),legacy);
  }
  void shippedFlatHasNothingToRetryAndFailedToolIsExplicit(){
     QTemporaryDir temp;auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);catalog.emulators["supermodel"]["gate"]="locate-only";

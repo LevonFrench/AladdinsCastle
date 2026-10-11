@@ -109,14 +109,11 @@ bool HubServices::beginSteam(const QString &id,const QString &variantId,bool rem
     try{
         const auto *game=games_->find(id);if(!game)throw install::Error("E_GAME_INVALID","Unknown game");
         if(!remove){
-            bool supported=false;for(const auto &v:game->variants)if(v.id==variantId&&v.generated)supported=true;
-            if(!supported)throw install::Error("E_VARIANT_INVALID","Select an available M1 flat variant for this game");
-            if(QDir(root_).absolutePath()!=QDir(QCoreApplication::applicationDirPath()).absolutePath())throw install::Error("E_PORTABLE_ROOT","Create Steam entries from the portable Hub folder");
-            launch::flatRequest(games_->catalog(),id,root_,bindings_,variantId);
+            steamRequest_.shortcut=steam::prepareGameShortcut(games_->catalog(),id,variantId,root_,QCoreApplication::applicationFilePath(),bindings_);
         }
         steamRequest_.steamRoot=steamRootSource_();
         steamRequest_.userRoot=install::scopedPath("user",root_);
-        steamRequest_.shortcut={id,game->roles.value("title").toString(),QCoreApplication::applicationFilePath(),root_,false,0,game->runtime.lastPlayed,variantId};
+        if(remove)steamRequest_.shortcut={id,game->roles.value("title").toString(),QCoreApplication::applicationFilePath(),root_,false,0,game->runtime.lastPlayed,variantId};
         if(!remove){
         steamRequest_.art["header"]=art_->resolve(id,"banner",{460,215}).image;
         steamRequest_.art["capsule"]=art_->resolve(id,"portrait",{600,900}).image;

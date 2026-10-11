@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/catalog/CatalogLoader.h"
+#include "core/steam/Steam.h"
+#include "AuthoredSteamFixture.h"
+#include <optional>
 #include "ui/Theme.h"
 #include "ui/UiController.h"
 #include "ui/UiSettings.h"
@@ -60,6 +63,40 @@ class OwnedArtProvider:public QQuickImageProvider {
   requests.fetchAndAddRelaxed(1);QImage image(requested.isValid()?requested:QSize(320,160),QImage::Format_ARGB32_Premultiplied);image.fill(accent);QPainter painter(&image);painter.setPen(accent.lighter(160));painter.drawEllipse(image.rect().adjusted(20,20,-20,-20));if(size)*size=image.size();return image;
  }
  private:QColor accent;
+};
+// Observe the real QML call and run the production preparation seam. Steam
+// discovery/account enumeration and file preview are deliberately absent here.
+class SteamPreparationProbe:public QObject {
+ Q_OBJECT
+ Q_PROPERTY(QString toolPlan MEMBER empty CONSTANT)
+ Q_PROPERTY(QString removalPlan MEMBER empty CONSTANT)
+ Q_PROPERTY(bool canRemoveSteam MEMBER inactive CONSTANT)
+ Q_PROPERTY(bool launchBusy MEMBER inactive CONSTANT)
+ Q_PROPERTY(bool preparing MEMBER inactive CONSTANT)
+ Q_PROPERTY(bool steamRemoving MEMBER inactive CONSTANT)
+ Q_PROPERTY(QStringList steamAccounts MEMBER accounts CONSTANT)
+ Q_PROPERTY(QString steamPreview MEMBER preview CONSTANT)
+ Q_PROPERTY(bool steamWriteReady MEMBER inactive CONSTANT)
+public:
+ bool inactive=false;
+ QString empty;
+ QStringList accounts;
+ QString preview="Synthetic shortcut preparation only";
+ ac::test::AuthoredSteamFixture *fixture=nullptr;
+ QString requestedGame,requestedVariant,error;
+ std::optional<ac::steam::Shortcut> prepared;
+ Q_INVOKABLE bool beginSteam(const QString &gameId,const QString &variantId) {
+  requestedGame=gameId;requestedVariant=variantId;
+  try {
+   prepared=ac::steam::prepareGameShortcut(fixture->catalog,gameId,variantId,
+       fixture->temp.path(),fixture->hubExecutable,fixture->bindings);
+  } catch(const ac::install::Error &e) { error=e.code; }
+  return prepared.has_value();
+ }
+ Q_INVOKABLE void previewSteam(const QString &) {}
+ Q_INVOKABLE void approveSteamWrite() {}
+signals:
+ void removalPlanChanged();
 };
 class UiTest:public QObject {
  Q_OBJECT
@@ -168,6 +205,47 @@ class UiTest:public QObject {
   QVERIFY(point.x()>0&&point.x()<window->width()&&point.y()>0&&point.y()<window->height());
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
   QCOMPARE(install.count(),1);localUi.play(game.id,authored.id);QCOMPARE(play.count(),1);
+ }
+ void authoredSteamActionUsesActualQmlSelection(){
+  ac::test::AuthoredSteamFixture fixture;
+  ac::GameListModel localGames(fixture.catalog);ac::FilterSortModel localFilter;localFilter.setSourceModel(&localGames);
+  ac::UiSettings localSettings(fixture.temp.filePath("user"));ac::UiController localUi(&localGames,&localFilter,&localSettings);
+  localUi.openDetail("wii-synthetic");localUi.selectVariant("flat-dolphin");
+  SteamPreparationProbe probe;probe.fixture=&fixture;
+  QQmlContext context(engine->rootContext());
+  context.setContextProperty("gameModel",&localGames);context.setContextProperty("gameFilter",&localFilter);
+  context.setContextProperty("uiController",&localUi);context.setContextProperty("uiSettings",&localSettings);
+  context.setContextProperty("hubServices",&probe);context.setContextProperty("catalogGameCount",1);
+  QQmlComponent component(engine.get());
+  component.setData("import QtQuick; import AladdinsCastle.Hub; HubRoot {width:1120;height:720;view: \"Detail\"}",QUrl());
+  std::unique_ptr<QQuickItem> scene(qobject_cast<QQuickItem *>(component.create(&context)));
+  QVERIFY2(scene,qPrintable(component.errorString()));scene->setParentItem(window->contentItem());scene->setZ(100);
+  QTRY_VERIFY(scene->findChild<QQuickItem *>("detailPage"));
+  auto page=scene->findChild<QQuickItem *>("detailPage");
+  auto flick=page->property("contentItem").value<QQuickItem *>();QVERIFY(flick);
+  const auto click=[&](QQuickItem *button){
+   const auto before=button->mapToScene({button->width()/2,button->height()/2});
+   flick->setProperty("contentY",qMax(0.0,before.y()+flick->property("contentY").toDouble()-window->height()/2));
+   QTest::qWait(50);
+   const auto point=button->mapToScene({button->width()/2,button->height()/2});
+   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  };
+  QQuickItem *variantButton=nullptr;
+  for(auto item:namedItems(page,QString()))
+   if(item->property("text").toString().startsWith("DolphinXR (experimental VR)")) { variantButton=item;break; }
+  QVERIFY(variantButton);click(variantButton);
+  QTRY_COMPARE(localUi.detail().value("variantId").toString(),QString("dolphinxr"));
+  QCOMPARE(localUi.detail().value("state").toInt(),int(ac::GameState::Installed));
+  QQuickItem *steamButton=nullptr;
+  for(auto item:namedItems(page,QString()))
+   if(item->property("text").toString()=="Add to Steam library") { steamButton=item;break; }
+  QVERIFY(steamButton);QVERIFY(steamButton->isVisible());click(steamButton);
+  QTRY_COMPARE(probe.requestedVariant,QString("dolphinxr"));
+  QCOMPARE(probe.requestedGame,QString("wii-synthetic"));
+  QVERIFY2(probe.prepared.has_value(),qPrintable("Selected authored Steam shortcut refused: "+probe.error));
+  QVERIFY(probe.prepared->vr);QCOMPARE(probe.prepared->executable,fixture.hubExecutable);
+  auto dialog=scene->findChild<QObject *>("steamDialog");QVERIFY(dialog);
+  QTRY_VERIFY(dialog->property("opened").toBool());QVERIFY(QMetaObject::invokeMethod(dialog,"close"));
  }
  void authoredVrCopyKeepsInstallAndPlayBlocked(){
   ui->openDetail("timecris");ui->selectVariant("dr89-pcvr");
