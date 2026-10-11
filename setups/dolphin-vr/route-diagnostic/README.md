@@ -8,7 +8,7 @@ This diagnostic is for DolphinXR pin `85c4266b29eb308d173fefa0f21f5cb77df3516a` 
 python -B setups/dolphin-vr/route-diagnostic/apply.py <absolute-private-source-path>
 ```
 
-`dolphinxr-85c4266-trace-facing-route.patch` is a separate delta over that baseline. The original `ACDrawTrace.h` is unchanged. Keep the previous candidate, original trace, diagnostic patch and any later executable independently hashed. Only the standalone CPU test has been compiled so far; native integration has not been compiled or executed.
+`dolphinxr-85c4266-trace-facing-route.patch` is a separate delta over that baseline. The original `ACDrawTrace.h` is unchanged. Keep the previous candidate, original trace, diagnostic patch and any later executable independently hashed. After lead source review, installed native Release compilation passed on its first attempt with two workers. A separate runtime tree was staged and hash-verified. It has not been executed.
 
 ## Fields and limits
 
@@ -20,12 +20,12 @@ Off means no output path and no file writes. Atomic exclusive creation refuses a
 
 ## Next private capture recipe — requires a new lease and reviewed build
 
-1. Review the source delta, then separately authorize/build and identify a diagnostic executable. Preserve the current executable; this source artifact is not a runnable replacement.
+1. Review and identify the exact diagnostic executable. The R3 native build passed and a separate private candidate is staged; preserve the earlier executable. A build is not permission to run it.
 2. Keep Default/Sharp, the isolated user profile and the same title/settings as the failed sitting. Do not guess world scale, change the target classifier or combine Eager/quality changes with this diagnosis.
 3. Before starting the authorized process, set `AC_DOLPHIN_VR_ROUTE_LOG` to a fresh absolute private CSV path. Optionally set `AC_DOLPHIN_VR_ROUTE_START_SECONDS` to a documented integer delay so the bounded sample window covers the mission. Setting it after process creation cannot enable that process's logger. Ensure the private parent directory exists and use a unique receipt filename.
 4. If desired, set the preserved logger's separate `AC_DOLPHIN_DRAW_LOG` to another private CSV. It samples every 30 frames with its own 200,000-row bound. It records original projection/BP state but not final route or EFB provenance. Its FOV/UID fields aid correlation without proving the culprit.
 5. Record exact executable/patch/config hashes, process start time, delay and phase markers. Correlate mission world draws, ortho composites, automatic effects, viewport classification, native copy dimensions and eye-layer preservation around the reported failure. Keep all runtime CSVs and supplied imagery private. Mono imagery does not prove correct stereo.
-6. End the bounded run, verify owned process cleanup and clear only these diagnostic environment variables from the launcher process. Diagnose the actual offending route before changing it or calibrating world aiming.
+6. End the bounded run, verify owned process cleanup and clear only these diagnostic environment variables from the launcher process. Diagnose the actual offending route before changing it or calibrating world aiming. A VR-off DSU run can establish original projection/title/mission metadata, but inactive/NA routing cannot establish what an active OpenXR scene did.
 
 ## Synthetic CPU verification
 
