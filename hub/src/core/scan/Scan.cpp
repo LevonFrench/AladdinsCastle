@@ -812,6 +812,13 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
     } catch (const std::exception &) {
       r.diagnostics << "Invalid serial index";
     }
+  // Wii facts live separately from the generated PCSX2 serial index.
+  Json wiiIds = Json::object();
+  QFile wiiIndex(":/scan/wii-disc-index.json");
+  if (wiiIndex.open(QIODevice::ReadOnly)) {
+    try { wiiIds = Json::parse(wiiIndex.readAll().toStdString()); }
+    catch (const std::exception &) { r.diagnostics << "Invalid Wii disc index"; }
+  }
   int matchedGames = 0;
   for (const auto &g : catalog.games) {
     if (cancel)
@@ -867,6 +874,10 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
                 found = s(m, "chd_sha1").compare(f.chdHeaderSha1, Qt::CaseInsensitive) == 0;
               else if (!s(m, "serial").isEmpty())
                 found = s(m, "serial") == f.identity;
+              else if (s(g.raw, "hardware") == "nintendo-wii" && f.kind == "disc-id" &&
+                       wiiIds.contains(f.identity.toStdString())) {
+                found = s(wiiIds[f.identity.toStdString()], "gameId") == g.id;
+              }
               else if (serials.contains(f.identity.toStdString())) {
                 const auto &entry = serials[f.identity.toStdString()];
                 found = s(entry, "gameId") == g.id;

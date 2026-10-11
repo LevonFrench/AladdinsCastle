@@ -266,6 +266,35 @@ private slots:
     QCOMPARE(r.states[0].lastPlayed, qint64(42));
     QCOMPARE(r.states[0].selectedVariantId, QString("kept"));
   }
+  void wiiIdsMatchRenamedDiscs_data() {
+    QTest::addColumn<QByteArray>("id");
+    QTest::addColumn<QString>("game");
+    for (const auto &id : {"RBUE08", "RBUP08", "RBUJ08", "RBUK08"})
+      QTest::newRow(id) << QByteArray(id) << QString("wii-resident-evil-umbrella-chronicles");
+    for (const auto &id : {"SBDE08", "SBDP08", "SBDJ08", "SBDK08"})
+      QTest::newRow(id) << QByteArray(id) << QString("wii-resident-evil-darkside-chronicles");
+  }
+  void wiiIdsMatchRenamedDiscs() {
+    QFETCH(QByteArray, id); QFETCH(QString, game);
+    QTemporaryDir t; QByteArray header(32, 0);
+    std::memcpy(header.data(), id.constData(), 6);
+    qToBigEndian<quint32>(0x5d1c9ea3, header.data()+24);
+    save(t.filePath("unrelated.iso"), header);
+    auto c = catalog("disc"); c.games[0].id=game;
+    c.games[0].raw["hardware"]="nintendo-wii";
+    c.games[0].raw["media"][0].erase("set");
+    ac::scan::ScanOptions options; options.mediaRoots={t.filePath("unrelated.iso")};
+    options.userRoot=t.filePath("private-user"); std::atomic_bool stop=false;
+    const auto result=ac::scan::Scanner::run(c,options,stop);
+    QCOMPARE(result.files.size(),1); QCOMPARE(result.files[0].identity,QString::fromLatin1(id));
+    QCOMPARE(result.bindings.size(),1); QVERIFY(result.bindings[0].verified);
+    QCOMPARE(result.bindings[0].identity,QString::fromLatin1(id));
+    // A wrong platform and a different title must not borrow this identity.
+    c.games[0].raw["hardware"]="sony-ps2";
+    QVERIFY(!ac::scan::Scanner::run(c,options,stop).bindings[0].verified);
+    c.games[0].raw["hardware"]="nintendo-wii";c.games[0].id="different-title";
+    QVERIFY(!ac::scan::Scanner::run(c,options,stop).bindings[0].verified);
+  }
   void otherDiscHeaders() {
     QTemporaryDir t;
     std::atomic_bool stop = false;

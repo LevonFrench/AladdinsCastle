@@ -75,7 +75,7 @@ if(WIN32)
     target_link_libraries(hubcore PRIVATE version shell32 ole32 advapi32 uuid)
 endif()
 ac_project_warnings(hubcore)
-qt_add_resources(hubcore scan_metadata PREFIX /scan BASE resources FILES resources/serial-index.json)
+qt_add_resources(hubcore scan_metadata PREFIX /scan BASE resources FILES resources/serial-index.json resources/wii-disc-index.json)
 
 add_library(huboverlay STATIC
     src/overlay/OverlayInput.cpp src/overlay/OverlayInput.h

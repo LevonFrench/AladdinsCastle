@@ -5,6 +5,7 @@
 #include <QVariantList>
 #include <QPointF>
 #include <QMap>
+#include <cmath>
 #include "OverlayInput.h"
 namespace ac {
 class SpikeState : public QObject {
@@ -18,11 +19,26 @@ class SpikeState : public QObject {
     Q_PROPERTY(int clickCount READ clickCount NOTIFY clickCountChanged)
     Q_PROPERTY(QString text READ text WRITE setText NOTIFY textChanged)
     Q_PROPERTY(QString status READ status WRITE setStatus NOTIFY statusChanged)
+    Q_PROPERTY(QVariantList events READ events NOTIFY observationsChanged)
+    Q_PROPERTY(int freezeMs READ freezeMs WRITE setFreezeMs NOTIFY tuningChanged)
+    Q_PROPERTY(int clickSlop READ clickSlop WRITE setClickSlop NOTIFY tuningChanged)
+    Q_PROPERTY(int dragThreshold READ dragThreshold WRITE setDragThreshold NOTIFY tuningChanged)
+    Q_PROPERTY(int smoothScale READ smoothScale WRITE setSmoothScale NOTIFY tuningChanged)
     Q_PROPERTY(bool flipY READ flipY WRITE setFlipY NOTIFY flipYChanged)
     Q_PROPERTY(bool glow READ glow WRITE setGlow NOTIFY glowChanged)
     Q_PROPERTY(bool animate READ animate WRITE setAnimate NOTIFY animateChanged)
 public:
     explicit SpikeState(QObject *parent = nullptr) : QObject(parent) {}
+    QVariantList events() const { return m_events; }
+    int freezeMs() const { return m_tuning.freezeMs; }
+    int clickSlop() const { return m_tuning.clickSlop; }
+    int dragThreshold() const { return m_tuning.dragThreshold; }
+    int smoothScale() const { return m_tuning.smoothScale; }
+    OverlayInput::Tuning tuning() const { return m_tuning; }
+    void setFreezeMs(int v) { v=qBound(0,v,500);if(v!=m_tuning.freezeMs){m_tuning.freezeMs=v;emit tuningChanged();} }
+    void setClickSlop(int v) { v=qBound(0,v,200);if(v!=m_tuning.clickSlop){m_tuning.clickSlop=v;emit tuningChanged();} }
+    void setDragThreshold(int v) { v=qBound(0,v,200);if(v!=m_tuning.dragThreshold){m_tuning.dragThreshold=v;emit tuningChanged();} }
+    void setSmoothScale(int v) { v=v==2880?2880:120;if(v!=m_tuning.smoothScale){m_tuning.smoothScale=v;emit tuningChanged();} }
     QVariantList cursors() const { QVariantList rows; for(const auto &row:m_cursors)rows.append(row); return rows; }
     QPointF pointerPosition() const { return m_pointer; }
     quint32 pointerCursor() const { return m_pointerCursor; }
@@ -54,6 +70,12 @@ public:
         if(!count.isEmpty()){row[count]=row.value(count).toLongLong()+1;if(value.dispatched)row["qt"+count]=row.value("qt"+count).toLongLong()+1;}
         if(value.canceled)row["cancels"]=row.value("cancels").toLongLong()+1;
         if(!value.dispatched&&!value.canceled)row["ignored"]=row.value("ignored").toLongLong()+1;
+        QVariantMap item=row;
+        item["packetCursor"]=wheel?event.data.scroll.cursorIndex:mouse?event.data.mouse.cursorIndex:value.cursor;
+        item["pressX"]=value.pressPosition.x();item["pressY"]=value.pressPosition.y();
+        item["releaseX"]=value.cachedPosition.x();item["releaseY"]=value.cachedPosition.y();
+        const auto d=value.cachedPosition-value.pressPosition;item["drift"]=std::hypot(d.x(),d.y());
+        m_events.prepend(item);while(m_events.size()>20)m_events.removeLast();
         emit observationsChanged();
     }
     Q_INVOKABLE void hitCorner(int index) { if(index<0||index>=m_cornerHits.size())return;m_cornerHits[index]=m_cornerHits[index].toInt()+1;emit cornerHitsChanged();clicked(); }
@@ -76,10 +98,13 @@ signals:
     void textChanged();
     void statusChanged();
     void flipYChanged();
+    void tuningChanged();
     void glowChanged();
     void animateChanged();
 private:
     QMap<quint32,QVariantMap> m_cursors;
+    QVariantList m_events;
+    OverlayInput::Tuning m_tuning{100,40,40,2880};
     QPointF m_pointer;
     quint32 m_pointerCursor=0;
     bool m_hasPointer=false;

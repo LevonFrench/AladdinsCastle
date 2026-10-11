@@ -133,6 +133,16 @@ void OverlayInput::setVisible(bool visible){
     if(visible){m_visible=true;m_focused=true;}
     cancel(receipt(),visible?"host-visible-restored":"host-hidden");
 }
+void OverlayInput::setTuning(Tuning tuning){
+    tuning.freezeMs=std::clamp(tuning.freezeMs,0,500);
+    tuning.clickSlop=std::clamp(tuning.clickSlop,0,200);
+    tuning.dragThreshold=std::clamp(tuning.dragThreshold,0,200);
+    tuning.smoothScale=tuning.smoothScale==2880?2880:120;
+    if(tuning.freezeMs==m_tuning.freezeMs&&tuning.clickSlop==m_tuning.clickSlop&&
+       tuning.dragThreshold==m_tuning.dragThreshold&&tuning.smoothScale==m_tuning.smoothScale&&
+       tuning.multiCursor==m_tuning.multiCursor)return;
+    cancel(std::max(qint64(0),receipt()),"tuning-changed");m_tuning=tuning;
+}
 void OverlayInput::setFlipY(bool flip){if(flip==m_flipY)return;cancel(std::max(qint64(0),receipt()),"orientation-changed");m_flipY=flip;}
 bool OverlayInput::eventFilter(QObject *receiver,QEvent *event){
     if(receiver!=m_receiver)return false;
@@ -145,7 +155,7 @@ bool OverlayInput::eventFilter(QObject *receiver,QEvent *event){
 void OverlayInput::releaseButtons(QObject *receiver){const auto now=receipt();bind(receiver,now);cancel(now,"host-cancel");}
 void OverlayInput::suppress(const vr::VREvent_t &event){
     if(event.eventType!=vr::VREvent_MouseButtonDown&&event.eventType!=vr::VREvent_MouseButtonUp)return;
-    const auto id=event.data.mouse.cursorIndex,raw=event.data.mouse.button;const auto button=mouseButton(raw);
+    const auto id=m_tuning.multiCursor?event.data.mouse.cursorIndex:0U,raw=event.data.mouse.button;const auto button=mouseButton(raw);
     if(button==Qt::NoButton||(!m_cursors.contains(id)&&m_cursors.size()>=64))return;
     auto &cursor=m_cursors[id];
     if(event.eventType==vr::VREvent_MouseButtonDown){cursor.held|=button;cursor.suppressed|=button;}
@@ -157,7 +167,7 @@ bool OverlayInput::dispatch(const vr::VREvent_t &event,QObject *receiver){
     bind(receiver,std::max(qint64(0),std::max(now,m_lastReceipt)));
     const bool pointer=event.eventType==vr::VREvent_MouseMove||event.eventType==vr::VREvent_MouseButtonDown||event.eventType==vr::VREvent_MouseButtonUp;
     const bool wheel=event.eventType==vr::VREvent_ScrollSmooth||event.eventType==vr::VREvent_ScrollDiscrete;
-    const auto id=wheel?event.data.scroll.cursorIndex:pointer?event.data.mouse.cursorIndex:m_lastCursor;
+    const auto id=m_tuning.multiCursor?(wheel?event.data.scroll.cursorIndex:pointer?event.data.mouse.cursorIndex:m_lastCursor):0U;
     if(now<0||now<m_lastReceipt){
         cancel(std::max(qint64(0),m_lastReceipt),"clock-regressed",&event);
         suppress(event);
@@ -177,6 +187,13 @@ bool OverlayInput::dispatch(const vr::VREvent_t &event,QObject *receiver){
         cancel(now,event.eventType==vr::VREvent_FocusEnter?"focus-enter":"overlay-shown",&event);return true;
     }
     if(!pointer&&!wheel)return false;
+    if(!m_tuning.multiCursor&&event.eventType==vr::VREvent_MouseMove&&m_hostVisible&&m_visible&&!m_focused){
+        const auto x=event.data.mouse.x,y=event.data.mouse.y;
+        if(valid(x)&&valid(y)&&x>=0&&y>=0&&x<m_size.width()&&y<m_size.height()){
+            m_focused=true;cancel(now,"valid-move-restored-focus");
+            for(auto &cursor:m_cursors){cursor.held=Qt::NoButton;cursor.suppressed=Qt::NoButton;}
+        }
+    }
     if(!m_hostVisible||!m_visible||!m_focused){suppress(event);observe(event,id,now,!m_hostVisible?"inactive-host-hidden":!m_visible?"inactive-hidden":"inactive-focus");return false;}
     // Keep admitted IDs stable for this translator lifetime; over-budget IDs
     // never become a late gesture after another ID releases its buttons.
@@ -190,11 +207,26 @@ bool OverlayInput::dispatch(const vr::VREvent_t &event,QObject *receiver){
         }
         cursor.raw={x,y};cursor.position=mapPosition(x,y);cursor.epoch=m_epoch;
         if(m_owner&&m_owner!=id)return reject("owned-by-other-cursor");
+        if(m_owner==id){
+            const auto drift=std::hypot(cursor.position.x()-m_pressPosition.x(),cursor.position.y()-m_pressPosition.y());
+            if(now-m_pressMs<m_tuning.freezeMs){observe(event,id,now,"press-freeze");return true;}
+            if(!m_dragged&&m_tuning.dragThreshold>0&&drift<=m_tuning.dragThreshold){observe(event,id,now,"click-slop");return true;}
+            m_dragged=true;
+        }
         m_position=cursor.position;observe(event,id,now,"move",QEvent::MouseMove);mouse(QEvent::MouseMove,Qt::NoButton,now);return true;
     }
     if(pointer){
         const auto button=mouseButton(event.data.mouse.button);if(button==Qt::NoButton)return reject("unknown-button");
+        if(!m_tuning.multiCursor&&button!=Qt::LeftButton)return reject("single-pointer-button");
         if(event.eventType==vr::VREvent_MouseButtonDown){
+            if(!m_tuning.multiCursor&&cursor.held.testFlag(button)&&cursor.epoch==m_epoch&&cursor.suppressed==Qt::NoButton){
+                // A fresh down after a lost up starts one new click. Cancel the
+                // previous Qt grab first, so it cannot become an activation.
+                const auto raw=cursor.raw,position=cursor.position;
+                cancel(now,"lost-up-rearmed",&event);
+                cursor.held=Qt::NoButton;cursor.suppressed=Qt::NoButton;
+                cursor.raw=raw;cursor.position=position;cursor.epoch=m_epoch;
+            }
             if(cursor.held.testFlag(button)){
                 return reject("duplicate-down");
             }
@@ -203,7 +235,7 @@ bool OverlayInput::dispatch(const vr::VREvent_t &event,QObject *receiver){
                 const auto reason=m_owner&&m_owner!=id?"owned-by-other-cursor":cursor.suppressed!=Qt::NoButton?"suppressed-chord":"missing-current-move";
                 cursor.suppressed|=button;return reject(reason);
             }
-            if(!m_owner){m_owner=id;m_pressPosition=cursor.position;m_pressMs=now;}
+            if(!m_owner){m_owner=id;m_pressPosition=cursor.position;m_pressMs=now;m_dragged=false;}
             m_buttons|=button;m_position=cursor.position;observe(event,id,now,"press",QEvent::MouseButtonPress);mouse(QEvent::MouseButtonPress,button,now);return true;
         }
         const bool held=cursor.held.testFlag(button),suppressed=cursor.suppressed.testFlag(button);
@@ -211,7 +243,10 @@ bool OverlayInput::dispatch(const vr::VREvent_t &event,QObject *receiver){
         if(suppressed)return reject("suppressed-up");
         if(!held||m_owner!=id||!m_buttons.testFlag(button))return reject("unowned-up");
         if(cursor.epoch!=m_epoch){cancel(now,"invalid-release-position",&event);return false;}
-        m_position=cursor.position;m_buttons&=~Qt::MouseButtons(button);
+        const auto drift=std::hypot(cursor.position.x()-m_pressPosition.x(),cursor.position.y()-m_pressPosition.y());
+        if(!m_dragged&&m_tuning.clickSlop>0&&drift>m_tuning.clickSlop){cancel(now,"outside-click-slop",&event);return false;}
+        m_position=!m_dragged&&(m_tuning.clickSlop>0||now-m_pressMs<m_tuning.freezeMs)?m_pressPosition:cursor.position;
+        m_buttons&=~Qt::MouseButtons(button);
         if(!m_buttons){m_owner.reset();clearTargets();m_lastMouse.reset();}
         observe(event,id,now,"release",QEvent::MouseButtonRelease);mouse(QEvent::MouseButtonRelease,button,now);return true;
     }
@@ -220,7 +255,8 @@ bool OverlayInput::dispatch(const vr::VREvent_t &event,QObject *receiver){
     if(cursor.epoch!=m_epoch)return reject("missing-current-move");
     if(!valid(event.data.scroll.xdelta)||!valid(event.data.scroll.ydelta))return reject("invalid-scroll");
     const QPointF units(std::clamp(qreal(event.data.scroll.xdelta),qreal(-100),qreal(100)),std::clamp(qreal(event.data.scroll.ydelta),qreal(-100),qreal(100)));
-    const auto accumulated=cursor.remainder+units*120;const QPoint angle(qRound(accumulated.x()),qRound(accumulated.y()));cursor.remainder=accumulated-QPointF(angle);m_position=cursor.position;
+    const auto scale=event.eventType==vr::VREvent_ScrollSmooth?m_tuning.smoothScale:120;
+    const auto accumulated=cursor.remainder+units*scale;const QPoint angle(qRound(accumulated.x()),qRound(accumulated.y()));cursor.remainder=accumulated-QPointF(angle);m_position=cursor.position;
     QWheelEvent mapped(m_position,m_position,{},angle,m_buttons,Qt::NoModifier,Qt::NoScrollPhase,false,Qt::MouseEventSynthesizedByApplication,&m_device);
     mapped.setTimestamp(quint64(now));observe(event,id,now,"scroll",QEvent::Wheel,angle);QCoreApplication::sendEvent(receiver,&mapped);return true;
 }

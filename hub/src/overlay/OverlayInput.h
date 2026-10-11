@@ -36,6 +36,8 @@ public:
     using Clock = std::function<qint64()>;
     explicit OverlayInput(QSize size = {1280,800}, Clock clock = {});
     ~OverlayInput() override;
+    struct Tuning { int freezeMs=0, clickSlop=0, dragThreshold=0, smoothScale=120; bool multiCursor=false; };
+    void setTuning(Tuning tuning);
     void setFlipY(bool flip);
     void bindReceiver(QObject *receiver);
     void setVisible(bool visible);
@@ -75,6 +77,8 @@ private:
     qint64 m_lastReceipt=-1,m_packetReceipt=0,m_pressMs=0;
     bool m_inPacket=false,m_canceling=false,m_visible=true,m_focused=true,m_hostVisible=true;
     QPointF m_pressPosition;
+    Tuning m_tuning;
+    bool m_dragged=false;
     quint64 m_epoch=1;
     QMap<quint32,Cursor> m_cursors;
     std::optional<quint32> m_owner;

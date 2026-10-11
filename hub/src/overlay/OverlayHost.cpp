@@ -14,6 +14,8 @@ OverlayHost::OverlayHost(SpikeState &state, std::unique_ptr<OverlayRuntime> runt
     connect(&m_keyboard,&OverlayKeyboard::dirty,this,[this]{m_gate.markDirty();});
     m_timer.setTimerType(Qt::PreciseTimer); m_timer.setInterval(16);
     connect(&m_timer, &QTimer::timeout, this, &OverlayHost::tick);
+    m_input.setTuning(state.tuning());
+    connect(&state,&SpikeState::tuningChanged,this,[this]{m_input.setTuning(m_state.tuning());m_gate.markDirty();});
     connect(&state, &SpikeState::flipYChanged, this, [this] {
         m_input.setFlipY(m_state.flipY()); m_gate.markDirty();
     });
