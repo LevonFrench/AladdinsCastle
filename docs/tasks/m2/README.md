@@ -4,6 +4,8 @@ Status: 2026-10-10, decided with the owner. One lead session and three lane sess
 
 **The main thrust is now Wii games in 3D mode: read [W-wii-chronicles.md](W-wii-chronicles.md) and [3d-mode-target.md](../../3d-mode-target.md).** They replace Time Crisis as the first game and re-point the stereo lane at Dolphin.
 
+**Newest direction, 2026-10-11: [R3-new-directions.md](R3-new-directions.md)** (after the first headset sitting: fixes, the gun test room, a gun per game, the never-stall rule) and **[P-pinball-tab.md](P-pinball-tab.md)** (a Pinball tab, Hub lane). [R2-first-image.md](R2-first-image.md) is the review before it.
+
 **After the first block, read [R1-redirect.md](R1-redirect.md) first.** It sets each session's next target, the standing approvals and lighter reporting; where it differs from this page or a brief, it wins.
 
 | # | Session | In one line | Owns | Brief |
