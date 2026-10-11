@@ -1,0 +1,119 @@
+{
+  "version": "0.1",
+  "model": "generic-pistol",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "generic-pistol-front.png",
+      "nodes": {
+        "muzzle": [
+          0.140832,
+          0.31569
+        ],
+        "fx_muzzle": [
+          0.140832,
+          0.31569
+        ],
+        "fx_laser": [
+          0.140832,
+          0.31569
+        ],
+        "sight_front": [
+          0.28891,
+          0.26528
+        ],
+        "sight_rear": [
+          0.739445,
+          0.274732
+        ],
+        "pivot_trigger": [
+          0.629174,
+          0.407057
+        ],
+        "grip": [
+          0.755198,
+          0.444865
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "generic-pistol.png",
+      "nodes": {
+        "muzzle": [
+          0.252003,
+          0.42829
+        ],
+        "fx_muzzle": [
+          0.252003,
+          0.42829
+        ],
+        "fx_laser": [
+          0.252003,
+          0.42829
+        ],
+        "sight_front": [
+          0.354248,
+          0.340946
+        ],
+        "sight_rear": [
+          0.665332,
+          0.225801
+        ],
+        "pivot_trigger": [
+          0.589192,
+          0.378514
+        ],
+        "grip": [
+          0.676209,
+          0.378829
+        ]
+      }
+    },
+    "held": {
+      "image": "generic-pistol-held.png",
+      "nodes": {
+        "muzzle": [
+          0.423945,
+          0.180289
+        ],
+        "fx_muzzle": [
+          0.423945,
+          0.180289
+        ],
+        "fx_laser": [
+          0.423945,
+          0.180289
+        ],
+        "sight_front": [
+          0.455301,
+          0.198537
+        ],
+        "sight_rear": [
+          0.550703,
+          0.400349
+        ],
+        "pivot_trigger": [
+          0.527353,
+          0.471922
+        ],
+        "grip": [
+          0.554039,
+          0.559966
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": -2.0
+  },
+  "silhouette": "generic-pistol-silhouette.png",
+  "silhouette_scale_m": 0.82
+}

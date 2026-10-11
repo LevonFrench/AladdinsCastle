@@ -15,7 +15,7 @@ def main():
     parser.add_argument('--model', action='append', choices=(
         'generic-pistol','arc-pistol-slide','arc-pistol-twin','con-pistol-slim',
         'con-pistol-dpad','con-revolver-chunky','mnt-mg-heavy'))
-    parser.add_argument('--samples', type=int, default=16)
+    parser.add_argument('--samples', type=int, default=64)
     args = parser.parse_args()
     if not args.blender.is_file():
         parser.error('Use the absolute path to an existing Blender executable; this tool never installs it')
@@ -29,7 +29,7 @@ def main():
     # Sheet assembly uses Blender's image data API without rendering or a GPU.
     if not args.model:
         subprocess.run([str(args.blender.resolve()),'--background','--factory-startup',
-                        '--python-exit-code','1','--python',str(HERE/'src/sheet.py'),
+                        '--python-exit-code','1','--threads','4','--python',str(HERE/'src/sheet.py'),
                         '--','--preview-dir',str(HERE/'preview')],check=True)
     return subprocess.call([sys.executable,str(HERE.parents[1]/'tools/check_gun_assets.py')])
 

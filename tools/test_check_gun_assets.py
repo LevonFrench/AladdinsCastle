@@ -22,6 +22,10 @@ def fixture():
     nodes[1]['translation'] = [0,.02,-.23]
     nodes[7]['children'],nodes[8]['children'] = [9],[10]
     nodes[9]['mesh'],nodes[10]['mesh'] = 0,0
+    # Each LOD has a second seated mesh instance. Parent transforms apply to
+    # both pieces, keeping the malformed-world-transform tests meaningful.
+    nodes.extend([{'name':'seated0','mesh':0},{'name':'seated1','mesh':0}])
+    nodes[9]['children'],nodes[10]['children']=[11],[12]
     doc = {'asset':{'version':'2.0'},'scene':0,'scenes':[{'nodes':[0]}], 'nodes':nodes,
            'buffers':[{'byteLength':len(binary)}],
            'bufferViews':[{'buffer':0,'byteOffset':0,'byteLength':36}, {'buffer':0,'byteOffset':36,'byteLength':6}],
@@ -49,7 +53,7 @@ def motion_fixture():
     doc['nodes'][7]['children'].append(4)
     doc['nodes'][4]['extras']={'semantic_node':'pivot_trigger'}
     doc['nodes'].append({'name':'pivot_trigger_lod1','extras':{'semantic_node':'pivot_trigger'}})
-    doc['nodes'][8]['children'].append(11)
+    doc['nodes'][8]['children'].append(13)
     meta['motion']={'trigger':{'node':'pivot_trigger','kind':'rotate','axis':[1,0,0],
         'range':[0,.3],'drive':'trigger','lod_nodes':['pivot_trigger','pivot_trigger_lod1']}}
     return doc,binary,meta
@@ -87,8 +91,21 @@ class GunAssetTests(unittest.TestCase):
 
     def test_valid_fixture(self):
         result = self.check(*fixture())
-        self.assertEqual(result['triangles'],{'LOD0':4,'LOD1':4})
+        self.assertEqual(result['triangles'],{'LOD0':8,'LOD1':8})
         self.assertAlmostEqual(result['length_mm']['LOD0'],230,places=3)
+
+    def test_touch_uses_transformed_referenced_vertices_in_same_lod(self):
+        doc,binary,meta=fixture()
+        doc['nodes'][11]['translation']=[.1,0,0]
+        # LOD1 still overlaps mesh0; it must not conceal this LOD0 separation.
+        doc['accessors'][0].update(min=[-.1,-1,-1],max=[1,1,1])
+        with self.assertRaisesRegex(ValueError,'LOD0 floating mesh bounds'):
+            self.check(doc,binary,meta)
+        doc['nodes'][11]['translation']=[.02,0,0] # exact edge contact
+        self.check(doc,binary,meta)
+        doc['nodes'][11]['translation']=[.0201,0,0] # visible .1 mm gap
+        with self.assertRaisesRegex(ValueError,'floating mesh bounds'):
+            self.check(doc,binary,meta)
 
     def test_rejects_malformed_assets(self):
         mutations = {
@@ -160,7 +177,7 @@ class GunAssetTests(unittest.TestCase):
         doc,binary,meta=motion_fixture()
         doc['nodes'].extend([{'name':'second','extras':{'semantic_node':'second'}},
                             {'name':'second_lod1','extras':{'semantic_node':'second'}}])
-        doc['nodes'][7]['children'].append(12); doc['nodes'][8]['children'].append(13)
+        doc['nodes'][7]['children'].append(14); doc['nodes'][8]['children'].append(15)
         meta['motion']['second']={**meta['motion']['trigger'],'node':'second','lod_nodes':['second','second_lod1']}
         self.check(doc,binary,meta)
 
@@ -213,7 +230,7 @@ class GunAssetTests(unittest.TestCase):
             with self.subTest(direct=name),self.assertRaisesRegex(ValueError,'static'):
                 self.check(doc,binary,meta)
         for name in ('sight_front','sight_rear','grip_two','sight_extra','fx_extra'):
-            for driven in (4,11):
+            for driven in (4,13):
                 doc,binary,meta=motion_fixture()
                 names=[n['name'] for n in doc['nodes']]
                 if name not in names:

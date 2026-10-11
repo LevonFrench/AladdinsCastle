@@ -1,0 +1,167 @@
+{
+  "version": "0.1",
+  "model": "mnt-mg-heavy",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "mnt-mg-heavy-front.png",
+      "nodes": {
+        "grip_two": [
+          0.842252,
+          0.425585
+        ],
+        "muzzle": [
+          0.137681,
+          0.427815
+        ],
+        "fx_muzzle": [
+          0.137681,
+          0.427815
+        ],
+        "fx_laser": [
+          0.137681,
+          0.427815
+        ],
+        "sight_front": [
+          0.491081,
+          0.355351
+        ],
+        "sight_rear": [
+          0.732999,
+          0.358696
+        ],
+        "pivot_yaw": [
+          0.505574,
+          0.617336
+        ],
+        "pivot_pitch": [
+          0.505574,
+          0.483556
+        ],
+        "pivot_trigger": [
+          0.842252,
+          0.421126
+        ],
+        "button_special": [
+          0.838907,
+          0.39437
+        ],
+        "grip": [
+          0.842252,
+          0.425585
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "mnt-mg-heavy.png",
+      "nodes": {
+        "grip_two": [
+          0.84115,
+          0.3751
+        ],
+        "muzzle": [
+          0.249827,
+          0.532864
+        ],
+        "fx_muzzle": [
+          0.249827,
+          0.532864
+        ],
+        "fx_laser": [
+          0.249827,
+          0.532864
+        ],
+        "sight_front": [
+          0.493842,
+          0.368662
+        ],
+        "sight_rear": [
+          0.66088,
+          0.305234
+        ],
+        "pivot_yaw": [
+          0.503848,
+          0.606994
+        ],
+        "pivot_pitch": [
+          0.503848,
+          0.483258
+        ],
+        "pivot_trigger": [
+          0.631482,
+          0.294895
+        ],
+        "button_special": [
+          0.766264,
+          0.320812
+        ],
+        "grip": [
+          0.631482,
+          0.299019
+        ]
+      }
+    },
+    "held": {
+      "image": "mnt-mg-heavy-held.png",
+      "nodes": {
+        "grip_two": [
+          0.430832,
+          0.593472
+        ],
+        "muzzle": [
+          0.423278,
+          0.279678
+        ],
+        "fx_muzzle": [
+          0.423278,
+          0.279678
+        ],
+        "fx_laser": [
+          0.423278,
+          0.279678
+        ],
+        "sight_front": [
+          0.498111,
+          0.366212
+        ],
+        "sight_rear": [
+          0.549338,
+          0.473021
+        ],
+        "pivot_yaw": [
+          0.50118,
+          0.607814
+        ],
+        "pivot_pitch": [
+          0.50118,
+          0.487618
+        ],
+        "pivot_trigger": [
+          0.714114,
+          0.562518
+        ],
+        "button_special": [
+          0.528183,
+          0.554663
+        ],
+        "grip": [
+          0.714114,
+          0.566524
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": -2.0
+  },
+  "silhouette": "mnt-mg-heavy-silhouette.png",
+  "silhouette_scale_m": 0.82
+}

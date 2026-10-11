@@ -1,6 +1,9 @@
 # Original gun assets
 
-Seven tier 1 source designs are built from primitives. No imported, extracted,
+Seven tier 1 source designs have independently authored closed side outlines
+(25–50 points in millimetres), symmetric extrusion and rounded edges. Shared
+code handles geometry and export; each model script owns its silhouette.
+No imported, extracted,
 traced or third-party meshes, logos or markings are used. These are toy-like
 peripherals with our own dimensions, not real firearms or branded replicas.
 Built models and preview/callout assets are CC0-1.0; scripts are GPL-3.0-only.
@@ -19,7 +22,8 @@ python assets/guns/build.py --blender '<path-to-existing-blender-executable>' --
 Or, after approval, build an individual script with `--background`,
 `--factory-startup`, `--python-exit-code 1`, `--threads 4`, `--python <script>`,
 then `-- --out <absolute-output.glb> --preview-dir <absolute-preview-directory>`.
-Use `--samples 16` (default). `build.py --model <id>` selects a subset.
+Use `--samples 64` (default and required for this art pass).
+`build.py --model <id>` selects a subset.
 No application installation, downloads, GPU renderer, editor/MCP, or game files
 are involved. The builder exports the neutral model before multiplying its
 linear body/accent base factors by the p1 palette tint for previews, matching
@@ -29,7 +33,9 @@ nonzero process exit code.
 ## Hierarchy and coordinates
 
 glTF 2.0 binary, metres, +Y up, -Z bore. One scene/root, `grip`, is identity at
-the web of the holding hand. On the mounted design it is the right rear handle;
+the web of the holding hand. Runtime places this point at the OpenXR grip
+position and orients the model bore using AIM orientation plus the gun angle.
+On the mounted design it is the right rear handle;
 `grip_two` is the left rear handle. `LOD0` and `LOD1` each own all their meshes;
 the runtime must select exactly one. Budgets: 8,000/2,000 triangles. Four used
 materials: neutral `body`/`accent`, fixed `dark`/`glass`; no textures.
@@ -48,7 +54,7 @@ materials: neutral `body`/`accent`, fixed `dark`/`glass`; no textures.
 | `grip_two` | Mounted left rear grip |
 
 Blowback moves the upper slide, its visible sights and lens. Frame, hand grip,
-guard, cable boss and grip ribs stay stationary. The twin's whole-body visual
+guard and cable boss stay stationary. The twin's whole-body visual
 kick carries all visible furniture while its aim/reference anchors stay fixed.
 Visible sight parts are `front_sight_geometry`/`rear_sight_geometry`; the static
 `sight_front`/`sight_rear` names and transforms stay reserved for reference nodes.
@@ -60,13 +66,18 @@ The lead accepted this convention for the v0.1 controls contract.
 
 ## Previews and callouts
 
-The CPU batch writes 512×512 `<id>.png` (three-quarter, p1 tint) and
-`<id>-front.png` (left-side elevation for part labels). `<id>.json` has version,
-model, image size and `views.front/threequarter`: each supplies an image basename
+The CPU batch writes 512×512 `<id>.png` (three-quarter, p1 tint),
+`<id>-front.png` (left-side elevation for part labels) and `<id>-held.png`
+(behind and slightly above in the model's aim frame). CPU Cycles uses 64 samples
+and OpenImageDenoise with GPU denoising disabled, Standard transform and reduced
+exposure. `<id>.json` has version,
+model, image size and `views.front/threequarter/held`: each supplies an image basename
 and every semantic node's normalized `[x,y]` position (origin top left).
 These are camera projections computed from the actual model, not guessed labels.
 `sheet.png` is a 4×2 contact sheet in model order:
-generic, slide, twin, slim, dpad, chunky, mounted. It contains no vendor art.
+generic, slide, twin, slim, dpad, chunky, mounted. `silhouette-sheet.png` combines
+flat black side projections on white at a shared 0.82 m square camera scale.
+Individual silhouettes are `<id>-silhouette.png`. They contain no vendor art.
 
 ## Validate and add a model
 
@@ -79,7 +90,10 @@ python tools/gun_models.py
 The checker reads real vertex/index buffers and node transforms to measure each
 LOD; declared accessor bounds cannot fool it. It checks file/chunk/buffer bounds,
 scene roots, unique names, bore direction, triangle/material limits, buttons,
-motion aliases/limits, both PNG dimensions and every required callout anchor.
+motion aliases/limits, all three PNG dimensions and every required callout anchor.
+For each LOD separately, every mesh instance's world bounds must touch or overlap
+another's, measured from referenced vertices. This is an AABB contact check;
+visual inspection still checks that actual surfaces meet.
 Actual-asset checks also reject unsupported drives, non-integer/out-of-range
 durations, repeated motion targets and driven ancestors of static references
 (including either LOD). Native static names reserve `grip`, `grip_two`, `muzzle`
@@ -92,8 +106,8 @@ it supplements the native decoder and does not replace its acceptance gate.
 that it provides no built-asset acceptance. The default check fails on missing
 outputs; never use source-only mode as a replacement for the final CI gate.
 
-Add a descriptive id and top-level parameter script, original primitives in
-`src/common.py`, metadata/motion in `data/guns/`, and include the id in the batch.
+Add a descriptive id, parameters and an original `make_design` shape function
+in its model script, metadata/motion in `data/guns/`, and include the id in the batch.
 Rebuild, run both tools, inspect the previews and report budgets/bounds. Structural
 reproducibility means the same nodes, bounds and budgets, not byte equality.
 Shape-source review flags remain until manuals/photos provide evidence.
