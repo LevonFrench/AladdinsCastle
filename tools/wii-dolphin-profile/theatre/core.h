@@ -52,7 +52,8 @@ inline void validateCrop(const Rect& crop,unsigned w,unsigned h) {
     imageBytes(static_cast<unsigned>(crop.right-crop.left),static_cast<unsigned>(crop.bottom-crop.top));
 }
 struct FrameView { unsigned width,height; const std::uint8_t* pixels; std::size_t bytes; std::int64_t timeMs; };
-inline bool spatialCandidate(const FrameView& frame) {
+struct SpatialStatistics { unsigned majorityVoteRgb=0; std::size_t interiorPixels=0,otherRgbPixels=0; };
+inline bool spatialCandidate(const FrameView& frame,SpatialStatistics* statistics=nullptr) {
     if(!frame.pixels || frame.bytes!=imageBytes(frame.width,frame.height))
         throw std::runtime_error("Content gate requires exact client pixels");
     // Ignore a five-percent perimeter, including rounded startup-window corners.
@@ -74,6 +75,7 @@ inline bool spatialCandidate(const FrameView& frame) {
     }
     for(unsigned y=my;y<frame.height-my;++y) for(unsigned x=mx;x<frame.width-mx;++x)
         if(rgb(x,y)!=candidate) ++different;
+    if(statistics) *statistics={candidate,total,different};
     return different>total/100;
 }
 inline bool framesDiffer(const FrameView& a,const FrameView& b) {

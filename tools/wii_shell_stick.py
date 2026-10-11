@@ -176,7 +176,9 @@ def generated_files(root=ROOT):
             result[f'games/{gid}/dolphinxr-{hand}.Dolphin.ini']=f'[Android]\nQuestLeftHanded = {"True" if hand=="left" else "False"}\n'.encode()
             result[f'games/{gid}/scripted-dsu-{hand}.ini']=render_scripted_profile(gid,hand,root)
             result[f'games/{gid}/scripted-dsu-{hand}.json']=(json.dumps(scripted_bridge_profile(gid,hand,root),indent=2)+'\n').encode()
-    result['scripted-dsu/DSUClient.ini']=f'[Server]\nEnabled = True\nEntries = {source(root)["dsu"]["server"]}:127.0.0.1:26760\n'.encode()
+    # Dolphin ConfigChanged serializes every entry with a trailing semicolon,
+    # then raw-compares Entries. Match those bytes to avoid needless restarts.
+    result['scripted-dsu/DSUClient.ini']=f'[Server]\nEnabled = True\nEntries = {source(root)["dsu"]["server"]}:127.0.0.1:26760;\n'.encode()
     hashes={name:hashlib.sha256(data).hexdigest() for name,data in result.items()}
     result['generated-files.json']=(json.dumps(dict(version='shell-stick/1',source='data/controls/wii/shell-and-stick.toml',files=hashes,
         capabilities=dict(dolphinxr=dict(split=True,docked=True,two_remotes=False,left_hand_requires='Android/QuestLeftHanded'),flat_dolphin=dict(split=True,docked=True,two_remotes=True,home=False,live_bridge_compatible=False,scripted_single_player=True,recenter=False),canonical_live=dict(single_player=CANONICAL_LIVE_SOURCE_TESTED,two_remotes=False,home=False,recenter=False))),indent=2)+'\n').encode()

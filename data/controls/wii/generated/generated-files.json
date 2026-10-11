@@ -92,7 +92,7 @@
     "games/wii-sin-and-punishment-star-successor/dolphinxr-left.Dolphin.ini": "a646a7666861bb810f08e1a7507bbb49b5b1e01e793400f77d048c4acd704ac4",
     "games/wii-sin-and-punishment-star-successor/scripted-dsu-left.ini": "4fce5331e9ddda67365f5908a02f31fece9275c60279598446cd1af1153bc139",
     "games/wii-sin-and-punishment-star-successor/scripted-dsu-left.json": "baf2371c6762f89d4678cc87069a8ff627df72b94c0f1225d4051e0edcaf646f",
-    "scripted-dsu/DSUClient.ini": "8e9a66c230afdd537ac8fb26c3453552c5126a23748e2cf633b18be62172a100"
+    "scripted-dsu/DSUClient.ini": "c6e58b5f44365c0fb1286b31b5342336d3a162983cdc0b0de24413f90c416b5e"
   },
   "capabilities": {
     "dolphinxr": {

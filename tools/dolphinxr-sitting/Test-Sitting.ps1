@@ -84,6 +84,14 @@ try {
     Assert ($gfx -match 'MirrorView = 2' -and $gfx -match 'ForcedVBIFrequency = 90') 'Selected mirror and VBI must be written.'
     Assert ($gfx -match 'EnableCameraAnchor = True' -and $gfx -match 'CameraAnchorSmoothing = 0.7') 'Camera anchor switch and invariant smoothing.'
     Assert ((Get-Content -LiteralPath "$scripted/Config/DSUClient.ini" -Raw) -match '127.0.0.1:28760') 'DSU stays loopback at selected port.'
+    # Dolphin ConfigChanged reconstructs every parsed entry with a trailing semicolon.
+    # A differing raw string restarts its DSU backend on every configuration write.
+    $entryLine = @(Get-Content -LiteralPath "$scripted/Config/DSUClient.ini" | Where-Object { $_ -match '^Entries\s*=' })[0]
+    $entries = ($entryLine -split '=', 2)[1].Trim()
+    $canonical = (@($entries -split ';' | Where-Object { $_ } | ForEach-Object { $_ + ';' }) -join '')
+    Assert ($entries -ceq $canonical) 'DSU server entries must be stable under Dolphin ConfigChanged serialization.'
+    Assert ($entries -ceq "$($product.dsu_server_name):127.0.0.1:28760;") 'DSU canonical entry preserves product name and selected port.'
+
     Assert ((Get-Content -LiteralPath "$scripted/Config/WiimoteNew.ini" -Raw) -match 'Source = 1') 'Scripted input must not use native XR override.'
     $gameFolder = Join-Path $root 'generated/games/synthetic-wii'
     New-Item -ItemType Directory $gameFolder -Force | Out-Null

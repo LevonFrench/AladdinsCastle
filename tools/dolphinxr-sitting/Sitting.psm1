@@ -203,7 +203,7 @@ function Initialize-AcSitting {
     if ($null -ne $dsuBytes) {
         Write-AcText (Join-Path $config 'WiimoteNew.ini') $dsuText
         Set-AcIniValues (Join-Path $config 'DSUClient.ini') ([ordered]@{
-            Server=[ordered]@{Enabled='True';Entries="$($script:Product.dsu_server_name):127.0.0.1:$DsuPort"}
+            Server=[ordered]@{Enabled='True';Entries="$($script:Product.dsu_server_name):127.0.0.1:$DsuPort;"}
         })
         Set-AcIniValues (Join-Path $config 'Dolphin.ini') ([ordered]@{Input=[ordered]@{BackgroundInput='True'}})
     } elseif ($Mode -eq 'Desktop') {

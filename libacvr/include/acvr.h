@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT  (libacvr/ is MIT-licensed: see libacvr/LICENSE; the rest of AladdinsCastle is GPL-3.0)
- * Contract v0.2, 2026-10-10. Shared frame core implemented; optional Windows
+ * Contract v0.3, 2026-10-11. Shared frame core implemented; optional Windows
  * OpenXR desktop-GL provider is available when enabled at build time.
  * Normative semantics and source evidence: docs/libacvr-contract.md.
  */
@@ -23,7 +23,7 @@ extern "C" {
 
 #define ACVR_ABI_VERSION 1u
 #define ACVR_CONTRACT_MAJOR 0u
-#define ACVR_CONTRACT_MINOR 2u
+#define ACVR_CONTRACT_MINOR 3u
 #define ACVR_STRUCT_VERSION 1u
 #define ACVR_INIT(p) do { (p)->size = (uint32_t)sizeof(*(p)); \
                          (p)->version = ACVR_STRUCT_VERSION; } while (0)
@@ -358,6 +358,27 @@ typedef struct acvr_tracking {
     acvr_hand_tracking right, left; /* same prediction/time domain as acvr_draw_info */
 } acvr_tracking;
 
+/* Optional room calibration sample from the latest OpenXR display, after tick.
+ * Right=0, left=1. Inactive controls have zero values, but are not usable.
+ * A repeated display_id is not a fresh sample. No gameplay mapping is implied. */
+#define ACVR_CALIB_SECONDARY_ACTIVE 1u
+#define ACVR_CALIB_STICK_X_ACTIVE   2u
+#define ACVR_CALIB_STICK_Y_ACTIVE   4u
+#define ACVR_CALIB_TRIGGER_ACTIVE   8u
+typedef struct acvr_controller_sample {
+    uint32_t size, version;
+    uint64_t display_id;
+    int64_t sample_time_ns;
+    uint32_t focused;
+    uint32_t active[2], secondary_down[2];
+    float stick_x[2], stick_y[2], trigger[2];
+} acvr_controller_sample;
+typedef struct acvr_gun_angle_update {
+    uint32_t size, version;
+    uint32_t slot;
+    float angle_xyzw[4]; /* finite unit gun-in-grip rotation */
+} acvr_gun_angle_update;
+
 #define ACVR_GUN_EVENT_RECOIL 1u
 #define ACVR_GUN_EVENT_BUTTON 2u
 #define ACVR_GUN_EVENT_AXIS   3u
@@ -401,6 +422,15 @@ ACVR_API acvr_result ACVR_CALL acvr_runtime_set_paused(acvr_runtime *, uint32_t 
 /* Host-side inspection after tick; BAD_STATE before a valid tracking sample.
  * Backend callbacks must not recursively call these exports. */
 ACVR_API acvr_result ACVR_CALL acvr_runtime_get_tracking(acvr_runtime *, acvr_tracking *);
+/* Owner-thread-only after a completed display tick. Unsupported providers
+ * return UNSUPPORTED. ACVR_MORE leaves the last sample intact; consumers must
+ * require a new display_id and bound elapsed time before using control levels. */
+ACVR_API acvr_result ACVR_CALL acvr_runtime_get_controller_sample(acvr_runtime *, acvr_controller_sample *);
+/* Changes the copied slot calibration for the NEXT tick. This is a general
+ * loaded-gun-model capability, independent of controller-sample availability.
+ * Call only between runtime operations, never from a backend callback. It
+ * does not write calibration files. */
+ACVR_API acvr_result ACVR_CALL acvr_runtime_set_gun_angle(acvr_runtime *, const acvr_gun_angle_update *);
 /* Optional host preview/test injection, not required from a board backend.
  * Runtime normally derives these events from controls and backend outputs. */
 ACVR_API acvr_result ACVR_CALL acvr_runtime_gun_event(acvr_runtime *, const acvr_gun_event *);

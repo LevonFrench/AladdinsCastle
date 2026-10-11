@@ -48,10 +48,17 @@ int main(int argc,char** argv) {
         if(std::filesystem::exists(file)) throw std::runtime_error("Unexpected existing synthetic fixture");
         theatre::writeFramePng(file,frame);
         rejects([&]{ theatre::writeFramePng(file,frame); });
+        const theatre::DiagnosticSample sample({frame.width,frame.height,frame.pixels.data(),frame.pixels.size(),frame.timeMs},1);
+        // Exclusive diagnostic export must not clobber an existing proof file.
+        rejects([&]{ theatre::writeFailurePng(file,sample); });
+        const auto failureFile=file.parent_path()/"synthetic-failure-sample.png";
+        theatre::writeFailurePng(failureFile,sample);
+        rejects([&]{ theatre::writeFailurePng(failureFile,sample); });
         ComPtr<IWICImagingFactory> factory;
         theatre::d3dCheck(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(factory.GetAddressOf())),"PNG fixture factory");
         ComPtr<IWICBitmapDecoder> decoder;
-        theatre::d3dCheck(factory->CreateDecoderFromFilename(file.c_str(),nullptr,GENERIC_READ,WICDecodeMetadataCacheOnLoad,decoder.GetAddressOf()),"PNG fixture decode");
+        for(const auto& roundtrip:{file,failureFile}) {
+        theatre::d3dCheck(factory->CreateDecoderFromFilename(roundtrip.c_str(),nullptr,GENERIC_READ,WICDecodeMetadataCacheOnLoad,decoder.GetAddressOf()),"PNG fixture decode");
         ComPtr<IWICBitmapFrameDecode> image;
         theatre::d3dCheck(decoder->GetFrame(0,image.GetAddressOf()),"PNG fixture frame");
         ComPtr<IWICFormatConverter> converter;
@@ -60,8 +67,11 @@ int main(int argc,char** argv) {
         std::vector<std::uint8_t> decoded(frame.pixels.size());
         theatre::d3dCheck(converter->CopyPixels(nullptr,1280*4,static_cast<UINT>(decoded.size()),decoded.data()),"PNG fixture readback");
         require(decoded==frame.pixels);
-        converter.Reset();image.Reset();decoder.Reset();factory.Reset();
+        converter.Reset();image.Reset();decoder.Reset();
+        }
+        factory.Reset();
         std::filesystem::remove(file);
+        std::filesystem::remove(failureFile);
         std::cout << "Software client crop/full-size PNG round-trip passed; no HWND, WGC session or VR initialized\n";
         return 0;
     } catch(const winrt::hresult_error& error) { std::cerr << winrt::to_string(error.message()) << '\n'; return 1; }

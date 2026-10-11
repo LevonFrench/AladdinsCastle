@@ -23,6 +23,32 @@ absolute `ACVR_OPENXR_LOADER_DLL` environment path or the System32 loader.
 The room accepts `--root ABS_PATH --xr`, with `--model arc-pistol-slide` by
 default. Optional `--angle-file FILE` reads `right`/`left` degree values;
 `--right-angle-deg N` and `--left-angle-deg N` override and save them.
+
+For controller calibration, launch with `--xr --calibrate-grip --hand right|left`.
+The selected hand must have a focused, tracked grip and aim, active B/Y,
+thumbstick axes and trigger, and the trigger must be released. Start with B/Y
+released. Hold B (right) or Y (left) with a centered stick for 0.8 seconds and
+release to edit. Stick X changes yaw (right moves the muzzle right); stick Y
+changes pitch (up moves the muzzle up), at up to 30 degrees per second. The
+resolution-relative panel in the central lower field of both eyes shows the
+hand, live angles and status. Hold B/Y for 1.2
+seconds with a centered stick, then release to save an actual change; a short
+tap cancels. Focus, tracking, action or fresh-sample loss cancels and restores
+the previous angle. Calibration does not suppress game firing, so keep the
+trigger released throughout. The selected hand is fixed for that launch.
+
+Saved angles live in strict per-model/per-hand JSON under
+`<root>/.local/gun-room/calibration`. A normal XR room launch applies a
+matching saved calibration. Explicit legacy `--angle-file` and degree options
+retain their prior yaw-only behavior and take precedence. Controller editing
+cannot be combined with capture or legacy angle options. B/Y and stick action
+availability depends on the active OpenXR interaction profile; unsupported
+profiles show `UNAVAILABLE` and cannot save. This source and CPU path does not
+establish headset visibility, controller binding, or grip fit; those require a
+separately authorized native XR run.
+The libacvr gun-angle setter also serves recorded/model hosts without a
+controller-sample provider; only the room's controller edit requires native
+calibration samples.
 For a bounded native proof run, `--capture-eyes FRESH_NAME --seconds 15` creates
 one new directory under `<root>/.local/gun-room` before XR creation. The name
 is a single safe path component; existing directories and reparse paths fail.

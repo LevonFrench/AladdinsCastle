@@ -6,6 +6,10 @@
 #include "room_scene.hpp"
 #include "capture_plan.hpp"
 #include "control_stdin.hpp"
+#include "grip_calibration.hpp"
+#include "grip_calibration_file.hpp"
+#include "grip_calibration_draw.hpp"
+#include "grip_calibration_adapter.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <array>
@@ -27,13 +31,18 @@ struct acvr_backend {
     acvr_frame frame;
     BindFbo bind_fbo=nullptr;
     room::Ray ray{};
+    const room::GripCalibration *calibration=nullptr;
+    unsigned hand=ACVR_HAND_RIGHT;
 };
 namespace {
+const room::GripCalibration *current_calibration=nullptr;
+unsigned current_hand=ACVR_HAND_RIGHT;
 template<class T> T record(){T value{};ACVR_INIT(&value);return value;}
 acvr_control_desc gun_control=record<acvr_control_desc>();
 acvr_result ACVR_CALL open(const acvr_open_info *info,acvr_backend **out,acvr_backend_info *details){
     if(!info||!out||!details||info->graphics.api!=ACVR_GRAPHICS_GL||!info->graphics.get_proc)return ACVR_BAD_ARGUMENT;
     auto backend=new acvr_backend;
+    backend->calibration=current_calibration;backend->hand=current_hand;
     backend->bind_fbo=reinterpret_cast<BindFbo>(info->graphics.get_proc(info->graphics.proc_user,"glBindFramebuffer"));
     if(!backend->bind_fbo){delete backend;return ACVR_UNSUPPORTED;}
     gun_control.kind=ACVR_CONTROL_GUN;gun_control.player=0;gun_control.semantic=0;
@@ -105,6 +114,7 @@ acvr_result ACVR_CALL draw(acvr_backend *b,const acvr_frame *,const acvr_draw_in
     glLineWidth(2);glColor3f(.36f,.84f,1);glBegin(GL_LINES);
     glVertex3fv(ray.origin.data());glVertex3f(ray.origin[0]+ray.direction[0]*5,
         ray.origin[1]+ray.direction[1]*5,ray.origin[2]+ray.direction[2]*5);glEnd();
+    if(b->calibration)room::draw_grip_status(*b->calibration,b->hand,d->target.width,d->target.height);
     return ACVR_OK;
 }
 acvr_result ACVR_CALL outputs(acvr_backend *,acvr_outputs *out){if(!out)return ACVR_BAD_ARGUMENT;out->count=0;return ACVR_OK;}
@@ -125,6 +135,7 @@ struct Options {
     int seconds=0;
     bool xr=false,have_right=false,have_left=false,replace_preview=false,update_angles=false;
     bool save_angles=false,control_stdin=false;
+    bool calibrate_grip=false;
 };
 bool filename(const std::filesystem::path &p,const char *extension){
     if(p.empty()||p.has_parent_path()||p.extension()!=extension)return false;
@@ -182,6 +193,7 @@ bool parse(int argc,char **argv,Options &o){
     for(int i=1;i<argc;++i){
         const std::string key=argv[i];
         if(key=="--xr")o.xr=true;
+        else if(key=="--calibrate-grip")o.calibrate_grip=true;
         else if(key=="--control-stdin")o.control_stdin=true;
         else if(key=="--replace-preview")o.replace_preview=true;
         else if(key=="--update-angle-file")o.update_angles=true;
@@ -208,6 +220,8 @@ bool parse(int argc,char **argv,Options &o){
     }
     if(!o.xr&&o.preview.empty())return false;
     if(o.control_stdin&&!o.xr)return false;
+    if(o.calibrate_grip&&(!o.xr||!o.preview.empty()||!o.capture_name.empty()||
+                          !o.angle_file.empty()||o.have_right||o.have_left||o.update_angles))return false;
     if(o.seconds&&!o.xr)return false;
     if(!o.capture_name.empty()&&(!o.xr||!room::capture_name_ok(o.capture_name)))return false;
     if(o.root.empty()||!o.root.is_absolute()||!std::filesystem::is_directory(o.root))return false;
@@ -265,7 +279,14 @@ int main(int argc,char **argv){
                  "[--replace-preview] [--model ID] [--hand right|left] [--angle-file NAME.txt] "
                  "[--right-angle-deg N] [--left-angle-deg N] [--update-angle-file] "
                  "[--capture-eyes FRESH_NAME (requires --xr)] [--seconds 5..60] "
-                 "[--control-stdin (requires --xr and a pipe on stdin)]\n";return 2;
+                 "[--control-stdin (requires --xr and a pipe on stdin)] "
+                 "[--calibrate-grip (requires --xr; no capture or legacy angle options)]\n";return 2;
+    }
+    room::GripAngles persisted{};
+    const bool use_persisted=o.xr&&o.angle_file.empty()&&!o.have_right&&!o.have_left;
+    if(use_persisted){
+        const auto load=room::load_grip(o.root,o.model,o.hand,persisted);
+        if(load==room::GripLoad::Error){std::cerr<<"Invalid private grip calibration\n";return 2;}
     }
     room::ControlStdin control;
     if(o.control_stdin&&!control.attach(GetStdHandle(STD_INPUT_HANDLE))){
@@ -281,6 +302,9 @@ int main(int argc,char **argv){
         if(!write_private_atomic(o.angle_file,out.str(),o.update_angles))return 3;
     }
     if(!o.xr)return 0;
+    room::GripCalibration calibration(persisted);
+    current_calibration=o.calibrate_grip?&calibration:nullptr;
+    current_hand=o.hand;
     if(!o.capture_name.empty()&&!room::prepare_capture_directory(o.root,o.capture_name,o.capture_dir)){
         std::cerr<<"Capture directory must be fresh and private\n";return 3;
     }
@@ -302,7 +326,8 @@ int main(int argc,char **argv){
     slot.model_id_utf8=o.model.c_str();slot.model_path_utf8=model_path.c_str();slot.metadata_path_utf8=meta_path.c_str();
     slot.grip_node_utf8="grip";slot.muzzle_node_utf8="muzzle";
     slot.show_gun=1;slot.laser_mode=ACVR_LASER_OFF; // The room draws the aim ray itself.
-    const auto angle=room::yaw_angle(o.hand==ACVR_HAND_RIGHT?o.right:o.left);
+    const auto angle=use_persisted?room::grip_quaternion(persisted):
+                      room::yaw_angle(o.hand==ACVR_HAND_RIGHT?o.right:o.left);
     for(unsigned i=0;i<4;++i){slot.angle_xyzw[i]=angle[i];slot.body_rgba[i]=i==3?1.f:.8f;slot.accent_rgba[i]=i==3?1.f:.35f;}
     auto config=record<acvr_runtime_config>();config.graphics_api=ACVR_GRAPHICS_GL;
     config.anchor_mode=ACVR_ANCHOR_RAIL;config.fallback_aim_distance_m=5;
@@ -329,6 +354,22 @@ int main(int argc,char **argv){
         room::capture_receipt_status(o.capture_dir,o.model);};
     int code=0;
     bool cooperative_close=false,control_error=false;
+    const auto now_ns=[](){return std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();};
+    const auto set_angle=[&](room::GripAngles value){
+        const auto q=room::grip_quaternion(value);
+        auto update=record<acvr_gun_angle_update>();update.slot=0;
+        std::copy(q.begin(),q.end(),update.angle_xyzw);
+        return acvr_runtime_set_gun_angle(runtime,&update)==ACVR_OK;
+    };
+    const auto apply_event=[&](room::GripEvent event){
+        if(event==room::GripEvent::None)return true;
+        if(event==room::GripEvent::Save){
+            if(room::save_grip(o.root,o.model,o.hand,calibration.preview())){calibration.saved();return true;}
+            calibration.save_failed();return set_angle(calibration.committed());
+        }
+        return set_angle(calibration.preview());
+    };
     for(;;){
         if(o.control_stdin){
             const auto request=control.poll();
@@ -343,8 +384,28 @@ int main(int argc,char **argv){
         }
         const auto result=acvr_runtime_tick(runtime);
         if(result==ACVR_STOPPED)break;
-        if(result==ACVR_MORE){std::this_thread::sleep_for(std::chrono::milliseconds(10));continue;}
+        if(result==ACVR_MORE){
+            if(o.calibrate_grip&&!apply_event(calibration.no_sample(now_ns()))){code=5;break;}
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));continue;
+        }
         if(result!=ACVR_OK){std::cerr<<"OpenXR room tick failed: "<<result<<"\n";code=5;break;}
+        if(o.calibrate_grip){
+            auto controls=record<acvr_controller_sample>();
+            auto tracking=record<acvr_tracking>();
+            tracking.head=record<acvr_pose>();
+            tracking.right=record<acvr_hand_tracking>();tracking.left=record<acvr_hand_tracking>();
+            tracking.right.grip=tracking.right.aim=record<acvr_pose>();
+            tracking.left.grip=tracking.left.aim=record<acvr_pose>();
+            const auto control_result=acvr_runtime_get_controller_sample(runtime,&controls);
+            const auto tracking_result=acvr_runtime_get_tracking(runtime,&tracking);
+            room::GripEvent event=room::GripEvent::None;
+            room::GripSample sample{};
+            if(control_result==ACVR_OK&&tracking_result==ACVR_OK&&
+               room::selected_grip_sample(controls,tracking,o.hand,now_ns(),sample))
+                event=calibration.sample(sample);
+            else event=calibration.unavailable();
+            if(!apply_event(event)){std::cerr<<"Grip calibration angle update failed\n";code=5;break;}
+        }
         const auto receipt=receipt_status();
         if(receipt==room::CaptureStatus::Success){
             std::cout<<"Actual OpenXR eye capture: "<<o.capture_dir.string()<<"\n";break;
@@ -353,6 +414,7 @@ int main(int argc,char **argv){
             std::cerr<<"OpenXR eye capture receipt reports failure\n";code=5;break;
         }
     }
+    if(o.calibrate_grip)apply_event(calibration.cancel());
     if(acvr_runtime_destroy(runtime)!=ACVR_OK)code=6;
     if(code!=0)error_receipt(control_error?"control_stdin":(code==8?"deadline":
                                       (code==6?"runtime_destroy":"runtime_tick")));

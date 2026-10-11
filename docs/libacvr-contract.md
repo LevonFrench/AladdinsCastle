@@ -1,8 +1,16 @@
-# libacvr backend contract — v0.1
+# libacvr backend contract — v0.3
 
 > **Source references:** `namco22-decompile/...`, `time-crisis-vr/...`, `Supermodel/...` and `Rea-Virtua-Cop-2-VR/...` paths are relative to [namco22-decompile](https://github.com/spacestate1/namco22-decompile), [time-crisis-vr](https://github.com/DR-89/time-crisis-vr), [Supermodel](https://github.com/trzy/Supermodel), [Rea-Virtua-Cop-2-VR](https://github.com/NeuralF/Rea-Virtua-Cop-2-VR) as cloned on 2026-10-08 (shallow clones; line numbers may drift). Other paths are in this repo.
 
-Initial design: 2026-10-08; v0.1 and v0.2 published 2026-10-10. Public header: `libacvr/include/acvr.h`. This is the in-process ABI. The shared frame core has recorded-host checks, and an optional Windows OpenXR desktop-GL provider implements public creation for the synthetic gun room (docs/libacvr-runtime-core.md). Real-game integration and headset acceptance remain open. No upstream ABI compatibility is implied. libacvr code and public header are MIT; board adapters outside libacvr and the Hub are GPL-3.0-only unless explicitly licensed otherwise. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied for this contract and no game content is included.
+Initial design: 2026-10-08; v0.1 and v0.2 published 2026-10-10; additive v0.3 published 2026-10-11. Public header: `libacvr/include/acvr.h`. This is the in-process ABI. The shared frame core has recorded-host checks, and an optional Windows OpenXR desktop-GL provider implements public creation for the synthetic gun room (docs/libacvr-runtime-core.md). Real-game integration and headset acceptance remain open. No upstream ABI compatibility is implied. libacvr code and public header are MIT; board adapters outside libacvr and the Hub are GPL-3.0-only unless explicitly licensed otherwise. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied for this contract and no game content is included.
+
+## v0.3 controller samples and grip calibration
+
+The additive v0.3 exports preserve earlier public struct layouts. `acvr_controller_sample` and `acvr_gun_angle_update` both carry `size` and `version`; callers initialize them before passing the records. The sample getter is an optional provider capability and returns `ACVR_UNSUPPORTED` when absent. Its right/left slots are 0/1; active bits, focus, display ID and sample time accompany the levels. A repeated display ID is not new input, and inactive zero values must not be interpreted as usable controls. This is calibration input, not a general gameplay mapper.
+
+`acvr_runtime_set_gun_angle` is a general loaded-model capability, independent of controller-sample support. It copies a validated finite unit gun-in-grip quaternion into the selected slot for the next tick and does not persist files. Missing model support returns `ACVR_UNSUPPORTED`. Tracking, controller-sample and angle-update calls are owner-thread-only and reject reentry during runtime operations or backend callbacks, including pause and destruction.
+
+The gun room owns its opt-in controller workflow and bounded per-model/per-hand persistence. CPU checks cover tagged ABI admission, lifecycle guards, sample freshness, edit/save/cancel transitions, panel bounds and persistence failure preservation. The native checkpoint passes 14 headless tests. Actual controller bindings, stereo readability, held fit and native persisted reload still need runtime evidence; see `tools/gun-room/CALIBRATION_CHECKPOINT.md`.
 
 ## Evidence and scope
 

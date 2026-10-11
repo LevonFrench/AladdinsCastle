@@ -68,8 +68,13 @@ perspective-correct UV/depth at interior samples, nonlinear CZ witness,
 unchanged tie/priority metadata, replay immutability, malformed structs/matrices,
 capacity failure and no partially published result. The new queue stage allocates
 no heap memory: it validates/counts first and publishes on a deterministic second
-pass. Native capture allocation failure marks the fixture frame inadmissible
-before either legacy draw or new CPU staging; it never admits a partial queue.
+pass.
+The internal stage API requires source, output and written-count storage to be
+distinct and nonoverlapping, in addition to immutable owner-thread source/eye
+input throughout both passes. The controlled fixture uses distinct buffers;
+this API is not admitted for arbitrary untrusted caller storage.
+Native capture allocation failure marks the fixture frame inadmissible before
+either legacy draw or new CPU staging; it never admits a partial queue.
 That source guard is not proof of arbitrary native allocation failure recovery.
 
 Current local verification: both CTests pass, with5878 head-pose assertions,

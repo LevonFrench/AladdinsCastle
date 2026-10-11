@@ -8,6 +8,20 @@ def profile(route,mode,hand):
     p=configparser.ConfigParser(interpolation=None);p.optionxform=str
     p.read_string(render_profile(route,mode,hand).decode());return p
 
+def dolphin_dsu_entries_roundtrip(value):
+    # Test-local model of valid decimal entries in pinned DolphinXR v0.4:
+    # DualShockUDPClient.cpp ConfigChanged, lines 413-451. It splits on ';'
+    # then ':', skips short entries and ports >= u16 max, and writes each
+    # parsed server as name:address:port; before raw-comparing the setting.
+    servers=[]
+    for detail in value.split(';'):
+        fields=detail.split(':')
+        if len(fields)<3:continue
+        port=int(fields[2])
+        if port>=65535:continue
+        servers.append((fields[0],fields[1],port & 65535))
+    return servers,''.join(f'{name}:{address}:{port};' for name,address,port in servers)
+
 class ShellProfilesTests(unittest.TestCase):
     def test_canonical_installer_seed_bytes_keep_their_pinned_hashes(self):
         import hashlib,tomllib
@@ -41,8 +55,27 @@ class ShellProfilesTests(unittest.TestCase):
         from wii_shell_stick import generated_files
         name=json.loads((ROOT/'data/product.json').read_text())['dsu_server_name']
         self.assertEqual(source()['dsu']['server'],name)
-        self.assertIn(('Entries = '+name+':127.0.0.1:26760').encode(),generated_files()['scripted-dsu/DSUClient.ini'])
+        self.assertIn(('Entries = '+name+':127.0.0.1:26760;\n').encode(),generated_files()['scripted-dsu/DSUClient.ini'])
         self.assertEqual(profile('flat-dolphin','split','right')['Wiimote1']['Device'],'DSUClient/0/'+name)
+    def test_dsu_entries_survive_upstream_parse_reserialize_without_repeat_restart(self):
+        from wii_shell_stick import generated_files
+        config=configparser.ConfigParser(interpolation=None)
+        config.read_string(generated_files()['scripted-dsu/DSUClient.ini'].decode())
+        value=config['Server']['Entries']
+        servers,serialized=dolphin_dsu_entries_roundtrip(value)
+        self.assertEqual(servers,[(source()['dsu']['server'],'127.0.0.1',26760)])
+        # After initial population, unrelated config writes must raw-compare
+        # equal; the old spelling parses the same server but restarts each time.
+        self.assertEqual(value,serialized)
+        self.assertEqual(dolphin_dsu_entries_roundtrip(serialized),(servers,serialized))
+        legacy=value.removesuffix(';')
+        self.assertEqual(dolphin_dsu_entries_roundtrip(legacy)[0],servers)
+        self.assertNotEqual(legacy,dolphin_dsu_entries_roundtrip(legacy)[1])
+    def test_upstream_dsu_grammar_skips_empty_and_invalid_port_entries(self):
+        servers,serialized=dolphin_dsu_entries_roundtrip('fixture-alpha:127.0.0.1:26760;fixture-beta:127.0.0.2:26761;;short;max:127.0.0.3:65535;')
+        self.assertEqual(servers,[('fixture-alpha','127.0.0.1',26760),('fixture-beta','127.0.0.2',26761)])
+        self.assertEqual(serialized,'fixture-alpha:127.0.0.1:26760;fixture-beta:127.0.0.2:26761;')
+        self.assertEqual(dolphin_dsu_entries_roundtrip(serialized),(servers,serialized))
     def test_generated_bytes_are_current(self): write_generated(check=True)
     def test_native_device_and_every_button_survive_all_modes_and_swaps(self):
         for mode,hand in itertools.product(MODES,('right','left')):

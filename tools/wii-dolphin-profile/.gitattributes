@@ -1,0 +1,3 @@
+# Producer byte hashes include the final empty INI line; preserve it exactly.
+canonical_dsu.ini whitespace=-blank-at-eof
+canonical_dsu_legacy.ini whitespace=-blank-at-eof
