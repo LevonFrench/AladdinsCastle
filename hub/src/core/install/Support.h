@@ -69,6 +69,9 @@ public:
                              const QStringList &exclude = {});
 };
 Json loadContentGuard(const QString &catalogRoot);
-void contentGuard(const QString &name, const Json &guard);
+// Archive proof arguments must be computed from the actual archive/member bytes.
+// Ordinary callers omit them and retain every extension denial.
+void contentGuard(const QString &name, const Json &guard,
+                  const QString &archiveSha256 = {}, const QString &entrySha256 = {});
 bool verifyPe64(const QString &path);
 } // namespace ac::install

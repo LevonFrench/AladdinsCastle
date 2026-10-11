@@ -634,6 +634,34 @@ void validateGuard(const Json &guard) {
   }
   if (guard["extensions"].empty())
     throw Error("E_CONTENT_GUARD", "Content guard extensions cannot be empty");
+  if (guard.contains("archive_support")) {
+    const auto &rows = guard["archive_support"];
+    if (!rows.is_array() || rows.size() > 256) {
+      throw Error("E_CONTENT_GUARD", "Archive support pins must be a bounded list");
+    }
+    QSet<QString> keys;
+    const QRegularExpression digest("^[0-9a-f]{64}$");
+    for (const auto &row : rows) {
+      if (!row.is_object() || !digest.match(string(row,"archive_sha256")).hasMatch() ||
+          !digest.match(string(row,"sha256")).hasMatch() ||
+          !row.contains("bytes") || !row["bytes"].is_number_integer() ||
+          row["bytes"].get<int64_t>() <= 0 || row["bytes"].get<int64_t>() > 512LL*1024*1024) {
+        throw Error("E_CONTENT_GUARD", "Archive support pin is invalid");
+      }
+      const auto path = string(row,"path");
+      try { validateRelative(path); }
+      catch (const Error &) { throw Error("E_CONTENT_GUARD", "Archive support path is invalid"); }
+      if (!path.startsWith("Sys/") || path.contains('\\') || path.contains('*') || path.contains('?') ||
+          QFileInfo(path).suffix() != "bin") {
+        throw Error("E_CONTENT_GUARD", "Archive support requires a literal Sys .bin path");
+      }
+      const auto key = string(row,"archive_sha256") + ":" + path.toCaseFolded();
+      if (keys.contains(key)) {
+        throw Error("E_CONTENT_GUARD", "Archive support pin is ambiguous");
+      }
+      keys.insert(key);
+    }
+  }
 }
 } // namespace
 Json loadContentGuard(const QString &catalogRoot) {
@@ -645,13 +673,26 @@ Json loadContentGuard(const QString &catalogRoot) {
     throw Error("E_CONTENT_GUARD", "Content guard is missing or malformed; install is blocked");
   }
 }
-void contentGuard(const QString &name, const Json &guard) {
+void contentGuard(const QString &name, const Json &guard,
+                  const QString &archiveSha256, const QString &entrySha256) {
   validateGuard(guard);
   const auto file = QFileInfo(name).fileName().toLower(),
              ext = QFileInfo(name).suffix().toLower();
-  for (const auto &extension : guard["extensions"])
-    if (ext == QString::fromStdString(extension.get<std::string>()).toLower())
+  bool pinnedSupport = false;
+  if (!archiveSha256.isEmpty() && !entrySha256.isEmpty()) {
+    for (const auto &row : guard.value("archive_support",Json::array())) {
+      if (string(row,"archive_sha256") == archiveSha256 && string(row,"path") == name &&
+          string(row,"sha256") == entrySha256) {
+        pinnedSupport = true;
+      }
+    }
+  }
+  for (const auto &extension : guard["extensions"]) {
+    if (ext == QString::fromStdString(extension.get<std::string>()).toLower() &&
+        !(ext == "bin" && pinnedSupport)) {
       throw Error("E_CONTENT_GUARD", "Game content extension refused");
+    }
+  }
   for (const auto &n : guard["names"])
     if (file == QString::fromStdString(n.get<std::string>()).toLower())
       throw Error("E_CONTENT_GUARD", "Known game/BIOS file refused");
