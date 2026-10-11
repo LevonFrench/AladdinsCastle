@@ -325,6 +325,24 @@ bool ControlsResolver::loadLibrary(const QString &root,QString &error) {
         m_root=canonical; m_games=games; m_models=models; m_sets=sets; m_defaults=defaults; m_gunDefaults=guns; m_hardware=hardware; m_wii=wii; error.clear(); return true;
     } catch (const std::exception &e) { error=QString::fromUtf8(e.what()); return false; }
 }
+bool ControlsResolver::resolveRoute(const QString &route,Map &out,QString &error) const {
+    try {
+        check(route=="vpx-openxr"&&!m_root.isEmpty(),"Unknown controls route or unloaded library");
+        QFile file(confined(m_root,"data/controls/pinball/view.json",false));
+        check(file.open(QIODevice::ReadOnly)&&file.size()<1024*1024,"Pinball view unreadable");
+        QJsonParseError parse;
+        const Map result=QJsonDocument::fromJson(file.readAll(),&parse).toVariant().toMap(),data=result.value("data").toMap();
+        check(parse.error==QJsonParseError::NoError&&result.value("game_id")=="pinball-vpx-openxr"&&result.value("model")=="quest-controllers"&&data.value("route")==route&&data.value("family")=="pinball"&&data.value("version")=="0.1","Invalid Pinball view identity");
+        QSet<QString> ids; bool recenter=false,exitWarning=false;
+        for(const auto &value:list(data,"element")) {
+            const Map row=value.toMap();const QString id=row.value("id").toString(),state=row.value("availability").toMap().value("state").toString(),hand=row.value("binding").toMap().value("hand").toString();
+            check(identifier(id)&&!ids.contains(id)&&nonempty(row.value("label"))&&(hand=="left"||hand=="right")&&(state=="planned"||state=="unavailable"),"Invalid or unreviewed Pinball action");ids.insert(id);
+            if(id=="recenter") { check(state=="unavailable","Pinball recenter is not callable");recenter=true; }
+            if(id=="exit") { check(row.value("warning").toBool(),"Pinball exit warning required");exitWarning=true; }
+        }
+        check(recenter&&exitWarning,"Pinball safety labels missing");out=result;error.clear();return true;
+    } catch(const std::exception &e) { error=QString::fromUtf8(e.what());return false; }
+}
 
 bool ControlsResolver::resolveGame(const QString &id,const ControlsResolveOptions &options,Map &out,QString &error) const {
     try {

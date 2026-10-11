@@ -31,6 +31,8 @@ public:
     // Reads configuration TOMLs only; no Python, renderer, XR or input emission.
     bool loadLibrary(const QString &root,QString &error);
     bool resolveGame(const QString &id,const ControlsResolveOptions &options,QVariantMap &out,QString &error) const;
+    // Controller-only Pinball view. No catalog identity or execution authority.
+    bool resolveRoute(const QString &route,QVariantMap &out,QString &error) const;
     static bool mergeLayers(const QVariant &base,const QVariant &later,QVariant &out,QString &error);
     static bool readConfinedToml(const QString &root,const QString &relative,QVariantMap &out,QString &error,bool optional=false);
 private:

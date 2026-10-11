@@ -183,20 +183,24 @@ def check_functional_sights(front, rear, mesh_triangles):
 
 
 def check_asset(path, meta):
-    controller=meta.get('asset_kind')=='controller'
+    accessory=meta.get('asset_kind') in ('controller','hand')
+    hand=meta.get('asset_kind')=='hand'
+    controller=accessory
     doc, binary = read_glb(path)
     demand(not doc.get('images') and not doc.get('textures'), 'tier 1 must have no images/textures')
     demand(not doc.get('extensionsRequired'), 'required extensions unsupported for tier 1')
     nodes = doc.get('nodes',[])
     names = [n.get('name') for n in nodes]
     demand(all(isinstance(n,str) and n for n in names) and len(set(names)) == len(names), 'missing/duplicate node names')
-    needed = ({'grip','LOD0','LOD1','pivot_stick_x','pivot_stick_y'} if controller else REQUIRED) | {b['node'] for b in meta.get('button',[])}
+    needed = ({'grip','LOD0','LOD1'} if accessory else REQUIRED) | {b['node'] for b in meta.get('button',[])}
+    if hand: needed |= {'pivot_'+finger for finger in ('index','middle','ring','pinky','thumb')}
+    elif controller: needed |= {'pivot_stick_x','pivot_stick_y'}
     if controller:
         demand(not any(n in names for n in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear')), 'controller must have no muzzle, sights or gun effects')
     if meta.get('assembly',{}).get('dock_node'): needed.add(meta['assembly']['dock_node'])
     if 'recoil_slide' in meta['features']:
         needed |= {'slide_recoil','limit_recoil'}
-    if meta['hold'] == 'mounted':
+    if meta.get('hold') == 'mounted':
         needed |= {'pivot_yaw','pivot_pitch','grip_two'}
     demand(needed <= set(names), 'missing nodes: '+', '.join(sorted(needed-set(names))))
     expected_buttons = {b['node'] for b in meta.get('button',[])}
@@ -259,7 +263,7 @@ def check_asset(path, meta):
             points = accessor(doc,binary,pi)
             demand(doc['accessors'][pi]['type']=='VEC3' and doc['accessors'][pi]['componentType']==5126, 'POSITION must be float VEC3')
             ni=prim.get('attributes',{}).get('NORMAL')
-            if ni is not None or meta.get('tier')==1:
+            if ni is not None or meta.get('tier')==1 or accessory:
                 demand(type(ni) is int and 0<=ni<len(doc['accessors']),'runtime lighting requires NORMAL')
                 na=doc['accessors'][ni]
                 demand(na.get('type')=='VEC3' and na.get('componentType')==5126 and na.get('count')==len(points),'normal layout/count must match POSITION')
@@ -326,7 +330,8 @@ def check_asset(path, meta):
         demand(isinstance(axis,list) and len(axis)==3 and all(finite_number(v) for v in axis) and abs(sum(v*v for v in axis)-1)<1e-5, f'motion {mid}: unit axis required')
         demand(isinstance(limits,list) and len(limits)==2 and all(finite_number(v) for v in limits) and limits[0]<limits[1], f'motion {mid}: invalid range')
         drive = motion.get('drive')
-        demand(isinstance(drive,str) and (drive in MOTION_DRIVES or drive.startswith('button:') and len(drive)>7), f'motion {mid}: unsupported motion drive')
+        allowed=MOTION_DRIVES | ({'grip','primary','secondary'} if hand else set())
+        demand(isinstance(drive,str) and (drive in allowed or drive.startswith('button:') and len(drive)>7), f'motion {mid}: unsupported motion drive')
         if 'duration_ms' in motion:
             duration = motion['duration_ms']
             demand(type(duration) is int and 0<duration<=10000, f'motion {mid}: duration must be an integer in 1..10000 ms')
@@ -359,10 +364,10 @@ def check_previews(directory, mid, meta):
     path = directory/(mid+'.json')
     data = json.loads(path.read_text(encoding='utf-8'))
     demand(data.get('version')=='0.1' and data.get('model')==mid and data.get('size')==[512,512], 'invalid callout manifest')
-    controller=meta.get('asset_kind')=='controller'
+    controller=meta.get('asset_kind') in ('controller','hand')
     required = ({'grip'} if controller else {'grip','muzzle','sight_front','sight_rear','pivot_trigger','fx_muzzle','fx_laser'}) | {b['node'] for b in meta.get('button',[])} | {m['node'] for m in meta.get('motion',{}).values()}
     if meta.get('assembly',{}).get('dock_node'): required.add(meta['assembly']['dock_node'])
-    if meta['hold']=='mounted':
+    if meta.get('hold')=='mounted':
         required.add('grip_two')
     demand(set(data.get('views',{}))=={'front','threequarter','held'}, 'three CPU preview views required')
     demand(data.get('render',{}).get('device')=='CPU' and data['render'].get('samples')==64 and

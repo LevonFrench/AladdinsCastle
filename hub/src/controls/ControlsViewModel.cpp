@@ -92,7 +92,8 @@ bool ControlsViewModel::loadResolved(const QVariantMap &result, const QString &d
     // Backend capacity does not mean player two has joined. The host explicitly
     // sets twoGunsActive when choosing a dual-hand preview or after joining.
     m_twoGunsActive = false;
-    m_holdMode = "split";
+    const QString defaultHold=data.value("assembly").toMap().value("default_hold").toString();
+    m_holdMode = defaultHold=="docked" ? "docked" : "split";
     loadPreview(); rebuild(); return true;
 }
 
@@ -257,7 +258,7 @@ QVariantList ControlsViewModel::makeRows() const {
             {"physicalDsuSlot",m_data.value("schema").toString()=="shell-stick/1" ? (hand=="right"?0:1) : device.isNull() || !device.isValid() ? -1 : device.toInt()},
             {"bindingLabel",bindingText},{"fallbackLabel",fallback.isEmpty() ? QString() : bindingLabel(fallback,elementHand(source,fallback))},
             {"availability",state},{"availabilityLabel",availabilityLabel},{"reason",unmapped ? source.value("reason") : reason},
-            {"pressed",pressed},{"anchorAvailable",previewAvailable() && coordinates(anchor)},
+            {"pressed",pressed},{"warning",source.value("warning",false)},{"anchorAvailable",previewAvailable() && coordinates(anchor)},
             {"anchorX",anchor.size()==2 ? anchor[0] : QVariant(0.0)},{"anchorY",anchor.size()==2 ? anchor[1] : QVariant(0.0)},
             {"callout",part + " → " + action + " → " + bindingText}};
         result.append(row);
@@ -267,12 +268,20 @@ QVariantList ControlsViewModel::makeRows() const {
     return result;
 }
 void ControlsViewModel::rebuild() { m_rows = makeRows(); emit changed(); }
+QString ControlsViewModel::proposalNotice() const {
+    const auto proposal=m_data.value("gun_proposal").toMap();
+    const auto reload=m_data.value("reload").toMap();
+    if(proposal.isEmpty()) return {};
+    return "World gun proposal: "+proposal.value("model").toString()+" (owner choice pending). Controls illustration: shell and stick. Default hold: "+m_data.value("assembly").toMap().value("default_hold").toString()+
+        ". Reload choices: "+reload.value("choices").toStringList().join(", ")+". Starting choice: "+reload.value("selected").toString()+" — question; game layout and motion recognition pending. Button fallback remains in the shared mapping.";
+}
 QString ControlsViewModel::notice() const {
     if (!m_error.isEmpty()) return m_error;
     if (wiiControls()) {
         if(m_data.value("schema").toString()=="shell-stick/1") return
             "Route: "+m_data.value("route").toString()+" · Hold: "+holdMode()+" · Firing hand: "+m_primaryHand+
-            ". Shell in firing hand; stick in the other. Both thumbstick clicks recenter. Game layout/actions remain questions. Native two-player aim is unsupported; native left aim requires its matching installed hand setting.";
+            (m_twoGunsActive ? ". A shell at each controller; no separate stick." : m_holdMode=="docked" ? ". Stick seated at the shell's rear grip; two-handed aim." : ". Shell in firing hand; stick in the other.")+
+            " Both thumbstick clicks recenter. Game layout/actions remain questions. Native two-player aim is unsupported; native left aim requires its matching installed hand setting.";
         if (!m_data.value("policy").toMap().value("supported_primary_hands").toStringList().contains(m_primaryHand))
             return "Left-hand Wii Remote setup is not available yet. Right hand: Wii Remote. Left hand: Nunchuk.";
         return (m_twoGunsActive ? QString("Player 1: right hand. Player 2: left hand. Each hand controls its own Wii Remote and Nunchuk.") :

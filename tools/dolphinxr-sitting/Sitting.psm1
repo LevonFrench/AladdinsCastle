@@ -58,11 +58,32 @@ function Get-AcQuality([ValidateSet('Native','Sharp','SharpAA')][string]$Quality
     }
 }
 
+function Get-AcVRSwitches {
+    param([ValidateSet('Auto','Off','72','90','120')][string]$ForcedVBI='Off',
+          [ValidateSet('Both','Left','Right','None')][string]$Mirror='Both',
+          [bool]$ControllerAnchor=$false, [bool]$CameraAnchor=$false,
+          [ValidateRange(0.0,1.0)][double]$CameraSmoothing=0.85)
+    # Native pinned enums; legacy AutoVBI must be false or Off can resolve to 90.
+    return [ordered]@{
+        ForcedVBIFrequency=@{Auto='-1';Off='0';'72'='72';'90'='90';'120'='120'}[$ForcedVBI]
+        AutoVBIFromHMD='False'
+        MirrorView=@{Both='0';Left='1';Right='2';None='3'}[$Mirror]
+        EnableControllerAnchor=$ControllerAnchor.ToString()
+        EnableCameraAnchor=$CameraAnchor.ToString()
+        CameraAnchorSmoothing=$CameraSmoothing.ToString([Globalization.CultureInfo]::InvariantCulture)
+    }
+}
+
 function Initialize-AcSitting {
     param([Parameter(Mandatory=$true)][string]$UserDirectory,
           [Parameter(Mandatory=$true)][string]$NativeProfile,
           [ValidateSet('Default','Eager','Desktop')][string]$Mode = 'Default',
-          [ValidateSet('Native','Sharp','SharpAA')][string]$Quality = 'Sharp')
+          [ValidateSet('Native','Sharp','SharpAA')][string]$Quality = 'Sharp',
+          [string]$DsuProfile='', [ValidateRange(1024,65535)][int]$DsuPort=26760,
+          [ValidateSet('Auto','Off','72','90','120')][string]$ForcedVBI='Off',
+          [ValidateSet('Both','Left','Right','None')][string]$Mirror='Both',
+          [bool]$ControllerAnchor=$false, [bool]$CameraAnchor=$false,
+          [ValidateRange(0.0,1.0)][double]$CameraSmoothing=0.85)
     if (@(Get-Process -Name Dolphin -ErrorAction SilentlyContinue).Count) {
         throw 'Dolphin is running; settings cannot be prepared or changed during a session.'
     }
@@ -83,6 +104,18 @@ function Initialize-AcSitting {
     foreach ($other in $sections) {
         if ($other.Groups[1].Value -ne 'Wiimote1' -and $other.Groups[2].Value -match '(?m)^Source\s*=\s*[1-9]') {
             throw 'Native multi-remote aiming is unsupported by this sitting profile.'
+        }
+    }
+    $dsuBytes = $null
+    if ($DsuProfile) {
+        $dsuBytes = [IO.File]::ReadAllBytes($DsuProfile)
+        $dsuText = [Text.Encoding]::UTF8.GetString($dsuBytes)
+        if ($dsuText -notmatch '(?m)^Device = DSUClient/0/AladdinsCastle\r?$' -or
+            $dsuText -notmatch '(?m)^Source = 1\r?$') { throw 'Expected generated split-right DSU profile.' }
+        $dsuManifest = Get-Content -LiteralPath (Join-Path (Split-Path (Split-Path $DsuProfile)) 'generated-files.json') -Raw | ConvertFrom-Json
+        if ((Split-Path $DsuProfile -Leaf) -ne 'split-right.ini' -or $dsuManifest.version -ne 'shell-stick/1' -or
+            $dsuManifest.files.'flat-dolphin/split-right.ini' -ne (Get-FileHash -LiteralPath $DsuProfile -Algorithm SHA256).Hash) {
+            throw 'DSU profile does not match shared generated manifest.'
         }
     }
     $marker = Join-Path $userPath 'ac-sitting-v2.txt'
@@ -132,7 +165,15 @@ function Initialize-AcSitting {
     Set-AcIniValues (Join-Path $config 'Hotkeys.ini') ([ordered]@{
         Hotkeys = [ordered]@{Device='DInput/0/Keyboard Mouse';'VR/Reset VR Position'='@(Shift+R) | (`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`)'}
     })
-    if ($Mode -eq 'Desktop') {
+    $switches = Get-AcVRSwitches $ForcedVBI $Mirror $ControllerAnchor $CameraAnchor $CameraSmoothing
+    Set-AcIniValues (Join-Path $config 'GFX.ini') ([ordered]@{VR=$switches})
+    if ($null -ne $dsuBytes) {
+        Write-AcText (Join-Path $config 'WiimoteNew.ini') $dsuText
+        Set-AcIniValues (Join-Path $config 'DSUClient.ini') ([ordered]@{
+            Server=[ordered]@{Enabled='True';Entries="AladdinsCastle:127.0.0.1:$DsuPort"}
+        })
+        Set-AcIniValues (Join-Path $config 'Dolphin.ini') ([ordered]@{Input=[ordered]@{BackgroundInput='True'}})
+    } elseif ($Mode -eq 'Desktop') {
         Write-AcText (Join-Path $config 'WiimoteNew.ini') @'
 [Wiimote1]
 Source = 1
@@ -195,4 +236,4 @@ function Test-AcOpenXRLog([string]$LogPath) {
     return [bool](Select-String -LiteralPath $LogPath -Pattern '[NEWID]\[OpenXR\]:' -Quiet)
 }
 
-Export-ModuleMember -Function Initialize-AcSitting, Assert-AcSittingInputs, Assert-AcPrivatePath, Test-AcOpenXRLog, Get-AcQuality
+Export-ModuleMember -Function Initialize-AcSitting, Assert-AcSittingInputs, Assert-AcPrivatePath, Test-AcOpenXRLog, Get-AcQuality, Get-AcVRSwitches

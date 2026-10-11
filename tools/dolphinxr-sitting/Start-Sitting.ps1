@@ -10,6 +10,12 @@ param(
     [string]$NativeProfile = (Join-Path $PSScriptRoot '../../data/controls/wii/generated/dolphinxr/split-right.ini'),
     [ValidateSet('Default','Eager','Desktop')][string]$Mode = 'Default',
     [ValidateSet('Native','Sharp','SharpAA')][string]$Quality = 'Sharp',
+    [string]$DsuProfile='',
+    [ValidateRange(1024,65535)][int]$DsuPort=26760,
+    [ValidateSet('Auto','Off','72','90','120')][string]$ForcedVBI='Off',
+    [ValidateSet('Both','Left','Right','None')][string]$Mirror='Both',
+    [switch]$ControllerAnchor, [switch]$CameraAnchor,
+    [ValidateRange(0.0,1.0)][double]$CameraSmoothing=0.85,
     [ValidateRange(0,60)][int]$LaunchDelaySeconds = 15,
     [ValidateRange(10,1800)][int]$MaximumSeconds = 900,
     [switch]$CheckOnly,
@@ -28,7 +34,9 @@ if ($manifest.version -ne 'shell-stick/1' -or
     $manifest.files.'dolphinxr/split-right.ini' -ne (Get-FileHash -LiteralPath $NativeProfile -Algorithm SHA256).Hash) {
     throw 'Generated native profile does not match its shared contract manifest.'
 }
-$userPath = Initialize-AcSitting -UserDirectory (Join-Path $state "User-v2-$Mode") -NativeProfile $NativeProfile -Mode $Mode -Quality $Quality
+$userPath = Initialize-AcSitting -UserDirectory (Join-Path $state "User-v2-$Mode") -NativeProfile $NativeProfile -Mode $Mode -Quality $Quality `
+    -DsuProfile $DsuProfile -DsuPort $DsuPort -ForcedVBI $ForcedVBI -Mirror $Mirror `
+    -ControllerAnchor ([bool]$ControllerAnchor) -CameraAnchor ([bool]$CameraAnchor) -CameraSmoothing $CameraSmoothing
 if ($PrepareOnly) { Write-Output "Prepared $Mode / $Quality at $userPath. No process started."; return }
 if (@(Get-Process -Name Dolphin -ErrorAction SilentlyContinue).Count) {
     throw 'Dolphin is already running. Close the existing session before starting this sitting.'
@@ -53,9 +61,12 @@ $launchArgs = @('--user', ('"' + $userPath + '"'), '-v', 'D3D',
     '-C', "Graphics.Settings.MSAA=$($qualitySettings.MSAA)", '-C', 'Graphics.Settings.SSAA=False',
     '-C', "Graphics.Enhancements.MaxAnisotropy=$($qualitySettings.MaxAnisotropy)",
     '-C', 'Graphics.Stereoscopy.StereoMode=0', '--exec', ('"' + $Disc + '"'))
+$vrSwitches = Get-AcVRSwitches $ForcedVBI $Mirror ([bool]$ControllerAnchor) ([bool]$CameraAnchor) $CameraSmoothing
+foreach ($key in $vrSwitches.Keys) { $launchArgs += @('-C', "Graphics.VR.$key=$($vrSwitches[$key])") }
 @{ mode=$Mode; quality=$Quality; quality_settings=(Get-AcQuality $Quality); executable=$Executable;
    executable_sha256=$ExecutableSHA256; game_id=$GameID; user_dir=$userPath; args=$launchArgs;
    profile_sha256=(Get-FileHash -LiteralPath $NativeProfile -Algorithm SHA256).Hash;
+   dsu_profile=$DsuProfile; dsu_port=$DsuPort; vr_switches=$vrSwitches;
    powershell=$PSVersionTable.PSVersion.ToString(); acceptance='Runtime and owner observation required' } |
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $run 'launch.json') -Encoding UTF8
 Write-Host "Mode $Mode; quality $Quality; bounded to $MaximumSeconds seconds. Logs: $run"
@@ -64,7 +75,8 @@ if ($Mode -ne 'Desktop') {
     Write-Host "Launch in $LaunchDelaySeconds seconds. This delay is preparation time, not a headset-wear detector."
     Start-Sleep -Seconds $LaunchDelaySeconds
 } else {
-    Write-Host 'VR is OFF. Mouse aims; X = A, Z = B, E = Plus; Shift/Control = Nunchuk Z/C.'
+    if ($DsuProfile) { Write-Host 'VR is OFF. Input uses the isolated loopback DSU profile; no desktop input is required.' }
+    else { Write-Host 'VR is OFF. Mouse aims; X = A, Z = B, E = Plus; Shift/Control = Nunchuk Z/C.' }
 }
 $owned = $null
 try {

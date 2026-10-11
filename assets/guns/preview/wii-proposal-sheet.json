@@ -1,0 +1,87 @@
+{
+  "version": "gun-proposal/1",
+  "final_choices_require_owner": true,
+  "size": [
+    1536,
+    1920
+  ],
+  "games": [
+    {
+      "game_id": "wii-dead-space-extraction",
+      "title": "Dead Space: Extraction",
+      "state": "proposed",
+      "model": "con-pistol-slim",
+      "rationale": "Slim angular tool-like silhouette keeps the sight area open. A provisional stand-in for the science-fiction setting; selected in-game weapon matching remains open.",
+      "default_hold": "split",
+      "hold_state": "provisional",
+      "preview": "assets/guns/preview/con-pistol-slim.png",
+      "preview_sha256": "902c77f82473e32564de7128da41feb59db7d0303b96259233b58862e89564cd"
+    },
+    {
+      "game_id": "wii-gunblade-ny-la-machineguns",
+      "title": "Gunblade NY & L.A. Machineguns: Arcade Hits Pack",
+      "state": "proposed",
+      "model": "mnt-mg-heavy",
+      "rationale": "The catalog describes mounted machine guns; the built heavy model already has paired rear grips for two-handed aim.",
+      "default_hold": "docked",
+      "hold_state": "provisional",
+      "preview": "assets/guns/preview/mnt-mg-heavy.png",
+      "preview_sha256": "0eb273537681948dc2acf3dff2493da64dacff549a361997bdf0d745924a72f4"
+    },
+    {
+      "game_id": "wii-house-of-the-dead-overkill",
+      "title": "The House of the Dead: Overkill",
+      "state": "proposed",
+      "model": "con-revolver-chunky",
+      "rationale": "Exaggerated chunky toy silhouette gives this arcade rail-shooter its own visual identity; owner choice and weapon matching remain open.",
+      "default_hold": "split",
+      "hold_state": "provisional",
+      "preview": "assets/guns/preview/con-revolver-chunky.png",
+      "preview_sha256": "871efcbda77a3f2fad21c729e0a020e12a7608e3d662d6ff46e3766dbeeb6bc3"
+    },
+    {
+      "game_id": "wii-links-crossbow-training",
+      "title": "Link's Crossbow Training",
+      "state": "proposed",
+      "model": "con-remote-shell",
+      "rationale": "A training-shell proxy with an open sight line and second grip for two-handed target practice. A crossbow silhouette is a separate future design choice; this does not claim weapon matching.",
+      "default_hold": "docked",
+      "hold_state": "provisional",
+      "preview": "assets/guns/preview/con-remote-shell.png",
+      "preview_sha256": "eef10b470c9941e0f3244ee88ecb7594c16074cf45aab82e6a569f4f3a5dbed5"
+    },
+    {
+      "game_id": "wii-resident-evil-darkside-chronicles",
+      "title": "Resident Evil: The Darkside Chronicles",
+      "state": "proposed",
+      "model": "generic-pistol",
+      "rationale": "Compact form with little visual clutter keeps the sight picture clear during camera motion; exact weapon matching awaits review.",
+      "default_hold": "split",
+      "hold_state": "provisional",
+      "preview": "assets/guns/preview/generic-pistol.png",
+      "preview_sha256": "57b3c2e547b75c48e0adde8d42ca4ed9a3fa7ddc7979922bb192f6867bc2359d"
+    },
+    {
+      "game_id": "wii-resident-evil-umbrella-chronicles",
+      "title": "Resident Evil: The Umbrella Chronicles",
+      "state": "proposed",
+      "model": "arc-pistol-slide",
+      "rationale": "Readable semi-automatic silhouette and slide; a provisional handgun stand-in, not an assertion about the selected in-game weapon.",
+      "default_hold": "split",
+      "hold_state": "provisional",
+      "preview": "assets/guns/preview/arc-pistol-slide.png",
+      "preview_sha256": "b7bf6d9cf8535a79828844c248d51e09086f0c8eabda5ad5b0ef177bd1ffd696"
+    },
+    {
+      "game_id": "wii-sin-and-punishment-star-successor",
+      "title": "Sin & Punishment: Star Successor",
+      "state": "proposed",
+      "model": "con-pistol-dpad",
+      "rationale": "Angular pointer-gun form distinguishes character movement plus pointer aiming; retain the free analog-stick hand.",
+      "default_hold": "split",
+      "hold_state": "provisional",
+      "preview": "assets/guns/preview/con-pistol-dpad.png",
+      "preview_sha256": "804c4429fc52bfefec13f87945b6d7fcd5572561d87e53806c8235e3e780c9fe"
+    }
+  ]
+}

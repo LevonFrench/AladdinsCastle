@@ -64,6 +64,26 @@ try {
     & "$PSScriptRoot/Start-Sitting.ps1" -Executable $exe -ExecutableSHA256 $hash -Disc $disc -GameID RBUP08 `
         -StateDirectory "$root/runner" -NativeProfile "$generated/split-right.ini" -Mode Desktop -PrepareOnly
     Assert (Test-Path "$root/runner/User-v2-Desktop/Logs") 'Actual runner prepare path failed.'
+    foreach ($setting in @(@('Auto','-1'),@('Off','0'),@('72','72'),@('90','90'),@('120','120'))) {
+        $switches = Get-AcVRSwitches -ForcedVBI $setting[0]
+        Assert ($switches.ForcedVBIFrequency -eq $setting[1] -and $switches.AutoVBIFromHMD -eq 'False') 'Native VBI enum and Off fallback guard.'
+    }
+    $dsuFolder = Join-Path $root 'generated/flat-dolphin'
+    New-Item -ItemType Directory $dsuFolder -Force | Out-Null
+    $dsu = Join-Path $dsuFolder 'split-right.ini'
+    Set-Content -LiteralPath $dsu -Value "[Wiimote1]`nSource = 1`nDevice = DSUClient/0/AladdinsCastle`nButtons/A = Cross`nButtons/B = R2"
+    @{version='shell-stick/1';files=@{'flat-dolphin/split-right.ini'=(Get-FileHash $dsu).Hash}} |
+        ConvertTo-Json | Set-Content "$root/generated/generated-files.json"
+    $scripted = Initialize-AcSitting -UserDirectory "$root/scripted" -NativeProfile $profile -Mode Desktop `
+        -DsuProfile $dsu -DsuPort 28760 -ForcedVBI 90 -Mirror Right -CameraAnchor $true -CameraSmoothing 0.7
+    $gfx = Get-Content -LiteralPath "$scripted/Config/GFX.ini" -Raw
+    Assert ($gfx -match 'MirrorView = 2' -and $gfx -match 'ForcedVBIFrequency = 90') 'Selected mirror and VBI must be written.'
+    Assert ($gfx -match 'EnableCameraAnchor = True' -and $gfx -match 'CameraAnchorSmoothing = 0.7') 'Camera anchor switch and invariant smoothing.'
+    Assert ((Get-Content -LiteralPath "$scripted/Config/DSUClient.ini" -Raw) -match '127.0.0.1:28760') 'DSU stays loopback at selected port.'
+    Assert ((Get-Content -LiteralPath "$scripted/Config/WiimoteNew.ini" -Raw) -match 'Source = 1') 'Scripted input must not use native XR override.'
+    Add-Content -LiteralPath $dsu -Value '# tampered'
+    MustFail { Initialize-AcSitting "$root/tampered-dsu" $profile -DsuProfile $dsu } 'DSU manifest mismatch must fail before writes.'
+    Assert (-not (Test-Path "$root/tampered-dsu")) 'Rejected DSU profile must not write settings.'
     Assert-AcSittingInputs $exe $hash $disc RBUP08
     $script:checks++
     MustFail { Assert-AcSittingInputs $exe ('0'*64) $disc RBUP08 } 'Must reject executable mismatch.'

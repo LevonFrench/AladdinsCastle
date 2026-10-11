@@ -45,11 +45,12 @@ accel = "{hand} Raw Accel {direction}"
 gyro = "{hand} Raw Gyro {direction}"
 
 [dsu]
-device = "DSUClient/{slot}/AladdinsCastle"
+device = "DSUClient/{slot}/{server}"
 pointer = "Right"
 stick = "Left"
 accel = "Accel {direction}"
 gyro = "Gyro {direction}"
+scripted_buttons = ["Share", "L3", "R3", "Options", "Pad N", "Pad E", "Pad S", "Pad W", "L2", "R2", "L1", "R1", "Triangle", "Circle", "Cross", "Square"]
 
 # Expressions are boolean token trees, with explicit suppression of the base
 # action in each modifier layer. A single compiler feeds view/profile/bridge.
