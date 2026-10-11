@@ -62,8 +62,9 @@ def profile_key(state):
     if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), dict):
         raise ValueError("Invalid generated profile manifest")
     digest = sha256(profile)
-    if (manifest.get("version") != "shell-stick/1" or manifest["files"].get(key) != digest
-            or state.get("dsu_profile_sha256") != digest):
+    entry_hash, caller_hash = manifest["files"].get(key), state.get("dsu_profile_sha256")
+    if (manifest.get("version") != "shell-stick/1" or not isinstance(entry_hash, str) or entry_hash.lower() != digest
+            or not isinstance(caller_hash, str) or caller_hash.lower() != digest):
         raise ValueError("DSU profile does not match the canonical generated manifest")
     parsed = configparser.ConfigParser(interpolation=None)
     try:

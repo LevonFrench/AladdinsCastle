@@ -45,6 +45,8 @@ preserving existing recipes. Generic recipes
 add explicit `game_id` (six uppercase letters/digits), selected `game_slug`,
 `dsu_profile` and `dsu_profile_sha256`. These are explicit selection fields,
 not an owner-title allow-list or permission to access/run a game.
+Hexadecimal SHA-256 text accepts either case, matching PowerShell's `Get-FileHash`;
+the original private recipe/manifest bytes are retained.
 
 Generic profiles must be canonical
 `games/<game_slug>/scripted-dsu-right.ini` or

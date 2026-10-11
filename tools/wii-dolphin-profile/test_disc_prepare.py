@@ -146,6 +146,17 @@ class SelectedDiscPreparation(unittest.TestCase):
             capture.prepare(self.config, self.run, self.root)
         self.assertFalse(self.run.exists())
 
+    def test_powershell_style_uppercase_hashes_are_admitted_without_rewriting(self):
+        key = "games/synthetic-game/scripted-dsu-right.ini"
+        self.profile_manifest.write_text(json.dumps({"version":"shell-stick/1",
+            "files":{key:capture.sha256(self.profile).upper()}}))
+        for field in ("dolphin_sha256", "capture_sha256", "disc_header_sha256", "dsu_profile_sha256"):
+            self.state[field] = self.state[field].upper()
+        self.save()
+        before = self.config.read_bytes()
+        self.assertEqual(capture.admit(self.config, self.root), self.state)
+        self.assertEqual(self.config.read_bytes(), before)
+
 
 if __name__ == "__main__":
     unittest.main()

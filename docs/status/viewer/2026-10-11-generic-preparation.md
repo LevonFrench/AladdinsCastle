@@ -13,9 +13,10 @@ ID, declared metadata bounds and single-slot rules match the sitting contract.
 The hash covers exactly 32 selected header bytes, not payload/block-map integrity.
 Prepared receipts retain input/config fingerprints and reject subsequent changes.
 
-Twelve new synthetic tests pass, covering ISO/WBFS offsets, malformed/multi-disc
+Thirteen new synthetic tests pass, covering ISO/WBFS offsets, malformed/multi-disc
 containers, wrong slugs/roles, same-size changed headers, changed config bytes,
-selected-game manifests and both DSU profile roles. The first full local run
+selected-game manifests, both DSU profile roles and PowerShell-style uppercase
+hashes without rewriting input. The first full local run
 had three existing tests fail at the known intermittent Windows staging rename;
 two passed their targeted retry, while one still failed. A benign rename check
 passed, cause remains unproven, and no production retry workaround was added.
