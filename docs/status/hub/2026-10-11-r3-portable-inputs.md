@@ -15,7 +15,7 @@ native selection, loader, runtime registration or persisted calibration.
 Linked inputs/trees and extra metadata are refused; output/archive must be new.
 
 Verified with synthetic inputs only: four unsafe baseline cases failed first.
-Actual PowerShell 5.1 passed ten case groups, including default payload,
+Actual PowerShell 5.1 passed eleven case groups, including default payload,
 optional bytes inside ZIP, six capability/key/privacy negatives, junctions,
 compiler failure refusal and all-target provenance. The producer's reserved
 HOME-name error was diagnosed, renamed and passed the sole retry. Final fresh
@@ -24,7 +24,14 @@ two producer gaps: subproject cache names and writable build descendants.
 The preserved pre-fix producer fails both new regressions; the repaired source
 passes all ten groups. Fixtures derive names from real FetchContent declarations,
 cover override/default cache layouts and reject generated/bin junctions before
-any configure call, with external sentinels unchanged. No product compiler, real
+any configure call, with external sentinels unchanged. Real-tree planning then
+found canonical tracked data/emulators incorrectly refused. Preserved source
+8848235 fails the new layout case; a flat tracked catalog exception preserves
+hidden/user/installed, other emulator folders and untracked-file refusals.
+The first repaired run exposed a wrong ZIP-root expectation in the new test;
+its diagnosed sole retry passes all eleven groups. Read-only PowerShell 5.1
+admits all 559 actual public metadata files, including 20 emulator entries.
+No product compiler, real
 native executable, game/Steam/runtime or actual candidate package was run.
 
 Reconciled once with integrated next source 64680ef, without conflicts or

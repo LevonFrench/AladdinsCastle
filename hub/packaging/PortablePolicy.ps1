@@ -77,7 +77,10 @@ function Get-TrackedPortableMetadata {
     $allowed = @{}
     foreach ($relative in $tracked) {
         if ([IO.Path]::GetExtension($relative) -notin @('.toml','.json','.md','.csv','.tsv')) { continue }
-        if ($relative -match '(^|/)(\.[^/]+|user|installed|emulators)(/|$)') { throw 'Private/reserved metadata directories cannot be staged.' }
+        if ($relative -match '(^|/)(\.[^/]+|user|installed)(/|$)') { throw 'Private/reserved metadata directories cannot be staged.' }
+        # Only the tracked, flat public catalog has this reserved name. Runtime
+        # emulator folders elsewhere (or nested inside it) remain refused.
+        if ($relative -match '(^|/)emulators(/|$)' -and $relative -cnotmatch '^data/emulators/[^/]+$') { throw 'Private/reserved metadata directories cannot be staged.' }
         $allowed[$relative] = Assert-PlainPortablePath (Join-Path $RepoRoot $relative)
     }
     foreach ($directory in @('games','data','schemas','recipes')) {

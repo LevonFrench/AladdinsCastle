@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([Parameter(Mandatory)][string]$FixtureRoot,[switch]$FreshDeployProbe,[string]$ProducerSource='')
+param([Parameter(Mandatory)][string]$FixtureRoot,[switch]$FreshDeployProbe,[string]$ProducerSource='',[string]$PolicySource='')
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -ne 5) { throw 'Run this regression with Windows PowerShell 5.1.' }
 if (Test-Path -LiteralPath $FixtureRoot) { throw 'Use a new fixture folder.' }
@@ -29,6 +29,7 @@ function New-Fixture([string]$Name) {
         Copy-Item -LiteralPath $script.FullName -Destination (Join-Path $repo 'hub/packaging')
     }
     if($ProducerSource){Copy-Item -LiteralPath $ProducerSource -Destination (Join-Path $repo 'hub/packaging/build-portable-inputs.ps1')}
+    if($PolicySource){Copy-Item -LiteralPath $PolicySource -Destination (Join-Path $repo 'hub/packaging/PortablePolicy.ps1')}
     New-Item -ItemType Directory -Path (Join-Path $repo 'hub/cmake') | Out-Null
     foreach($module in @('Dependencies.cmake','ArchiveDependencies.cmake','SevenZip.cmake','ChdMetadata.cmake')) {
         Copy-Item -LiteralPath (Join-Path $source "hub/cmake/$module") -Destination (Join-Path $repo 'hub/cmake')
@@ -122,6 +123,26 @@ function Test-Case([string]$Name,[scriptblock]$Body) {
     try { & $Body; Write-Output "PASS $Name" } catch { ++$script:failures; Write-Output "FAIL $Name : $($_.Exception.Message)" }
 }
 try {
+    Test-Case 'canonical tracked emulator catalog ships while reserved and extra metadata refuse' {
+        $f=New-Fixture 'emulator-catalog'
+        Write-FixtureFile (Join-Path $f.Repo 'data/emulators/synthetic.toml') 'id="synthetic"'
+        Save-FixtureRevision $f
+        Invoke-Package $f
+        Assert-Test (Test-Path -LiteralPath (Join-Path $f.Output 'data/emulators/synthetic.toml')) 'Tracked public emulator catalog was not staged.'
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $archive=[IO.Compression.ZipFile]::OpenRead($f.Output+'.zip')
+        try { Assert-Test (@($archive.Entries | Where-Object { $_.FullName.Replace('\','/') -eq 'package/data/emulators/synthetic.toml' }).Count -eq 1) 'Tracked emulator catalog missing from ZIP.' } finally { $archive.Dispose() }
+        $index=0
+        foreach($reserved in @('games/emulators/synthetic.toml','data/nested/emulators/synthetic.toml','data/emulators/nested/synthetic.toml','data/emulators/user/synthetic.toml','data/emulators/installed/synthetic.toml','data/emulators/.private/synthetic.toml','data/user/synthetic.toml','data/installed/synthetic.toml','data/.private/synthetic.toml')) {
+            $negative=New-Fixture ('reserved-catalog-'+$index);$index++
+            Write-FixtureFile (Join-Path $negative.Repo $reserved) 'synthetic reserved metadata'
+            Save-FixtureRevision $negative
+            Assert-RefusedBeforeOutput $negative
+        }
+        $extra=New-Fixture 'untracked-emulator-catalog'
+        Write-FixtureFile (Join-Path $extra.Repo 'data/emulators/untracked.toml') 'id="untracked"'
+        Assert-RefusedBeforeOutput $extra
+    }
     Test-Case 'missing four-EXE provenance' {
         $f=New-Fixture 'missing-provenance'
         Remove-Item -LiteralPath (Join-Path $f.Build 'generated/portable-build.json')
