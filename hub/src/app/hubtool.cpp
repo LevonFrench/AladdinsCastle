@@ -4,6 +4,7 @@
 #include "core/scan/Scan.h"
 #include "core/install/Install.h"
 #include "core/install/Support.h"
+#include "core/launch/Launch.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QTextStream>
@@ -45,7 +46,7 @@ int main(int argc, char **argv) {
   const QString usage =
       "Usage: hubtool [--data-root <folder>] [--install-root <folder>] "
       "[--bindings <JSON>] [--settings <JSON>] [--recipe <TOML>] [--handover <path>] count | "
-      "explain <game> | plan/install/repair/update/uninstall/recover <game> "
+      "explain <game> | plan-launch <game> <variant> | plan/install/repair/update/uninstall/recover <game> "
       "<variant> | plan-tool/install-tool/uninstall-tool <tool> | locate-tool "
       "<tool> <exe>\n";
   if (args == QStringList{"--help"}) {
@@ -89,6 +90,17 @@ int main(int argc, char **argv) {
   if (installRoot.isEmpty())
     installRoot = root;
   installRoot = QDir(installRoot).absolutePath();
+  if (args.size()==3 && args[0]=="plan-launch") {
+    try {
+      const auto bindings=ac::Json::parse(ac::install::readBytes(bindingsPath).toStdString());
+      const auto request=ac::launch::gameRequest(catalog,args[1],installRoot,bindings,args[2]);
+      ac::Json receipt{{"exe",request.plan.executable.toStdString()},{"cwd",request.plan.cwd.toStdString()},
+        {"runtime",request.runtime.toStdString()},{"args",ac::Json::array()}};
+      for(const auto &arg:request.plan.args)receipt["args"].push_back(arg.toStdString());
+      out<<QString::fromStdString(receipt.dump(2))<<'\n';return 0;
+    } catch(const ac::install::Error &e){err<<e.code<<": "<<e.what()<<'\n';return 64;}
+      catch(const std::exception &e){err<<e.what()<<'\n';return 64;}
+  }
   if (args[0] != "count" && args[0] != "explain") {
     try {
       using namespace ac::install;

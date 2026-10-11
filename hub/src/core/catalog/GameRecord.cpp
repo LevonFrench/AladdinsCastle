@@ -6,6 +6,15 @@
 #include <QSet>
 #include <algorithm>
 namespace ac {
+bool authoredLaunchSupported(const Variant &v) {
+    if(v.generated||v.status=="planned"||!v.raw.is_object())return false;
+    const auto it=v.raw.find("launch");if(it==v.raw.end()||!it->is_object())return false;
+    const auto &launch=*it;
+    const auto text=[&](const char *key){auto value=launch.find(key);return value!=launch.end()&&value->is_string()?QString::fromStdString(value->get<std::string>()):QString();};
+    return !text("exe").isEmpty()&&launch.contains("args")&&launch["args"].is_array()&&!launch["args"].empty()&&
+        QRegularExpression("\\A[0-9a-f]{64}\\z").match(text("exe_sha256")).hasMatch()&&
+        QStringList{"none","openxr","steamvr"}.contains(text("runtime"));
+}
 QString mediaRequirementId(const Json &media, const QString &gameId, qsizetype index) {
     if (media.is_object()) {
         for (const char *key : {"set", "serial", "id"}) {

@@ -16,6 +16,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <limits>
+#include <optional>
 using namespace ac;
 namespace {
 void write(const QString &path, const QByteArray &bytes) {
@@ -71,6 +72,7 @@ private slots:
   void steamCopiesShareTargetLock_data();
   void steamCopiesShareTargetLock();
   void managedToolUsersExcludeMutation();
+  void authoredOwnedLaunchAdmission();
   void dolphinUserDirectoryIsolated();
   void flatPlanRetainsOriginalPayload();
   void sharedResourceUseMutationRaceAndCrash();
@@ -216,6 +218,71 @@ void LaunchSteamTest::managedToolUsersExcludeMutation() {
   second.stop(); QTRY_VERIFY_WITH_TIMEOUT(!second.busy(),7000);
   QVERIFY(install::Engine(options).uninstall(request).success);
   QVERIFY(!QFileInfo(payload+"/synthetic-tool.exe").exists());
+}
+void LaunchSteamTest::authoredOwnedLaunchAdmission() {
+  QTemporaryDir t;write(t.filePath("data/content-guard.toml"),install::readBytes(QString(AC_CATALOG_ROOT)+"/data/content-guard.toml"));
+  const auto dir=t.filePath("installed/wii-synthetic/dolphinxr"),exe=dir+"/Dolphin.exe",disc=t.filePath("renamed.iso");
+  write(exe,"synthetic application; never run");write(disc,"synthetic disc");QDir().mkpath(dir+"/User");
+  const auto hash=install::hashFile(exe);
+  GameRecord game;game.id="wii-synthetic";game.hasRecipe=true;
+  game.raw={{"hardware","nintendo-wii"},{"media",Json::array({{{"kind","disc"},{"id","disc"}}})}};
+  Json raw{{"status","wip"},{"quality","true3d"},{"version","v0.4"},{"needs",{{"media",Json::array({"disc"})},{"tools",Json::array()}}},
+    {"installed_when","file:${install_dir}/Dolphin.exe"},{"step",Json::array({{{"id","disc"},{"do","require-media"},{"media","disc"},{"verify","none"}}})},
+    {"launch",{{"exe","${install_dir}/Dolphin.exe"},{"exe_sha256",hash.toStdString()},
+      {"args",Json::array({"--user","${install_dir}/User","-C","GFX.VR.EnableOpenXR=True","--exec","${media.disc.path}"})},
+      {"cwd","${install_dir}"},{"runtime","steamvr"}}}};
+  game.install={{"format",1},{"variant",{{"dolphinxr",raw}}}};
+  Variant v;v.id="dolphinxr";v.status="wip";v.quality="true3d";v.media={"disc"};v.raw=raw;game.variants<<v;
+  CatalogData catalog;catalog.games<<game;
+  Json bindings{{"media",{{"disc",{{"path",disc.toStdString()},{"verified",true}}}}}};
+  QVERIFY_THROWS_EXCEPTION(install::Error,launch::gameRequest(catalog,game.id,t.path(),bindings,"dolphinxr"));
+  install::Request installed;installed.root=t.path();installed.gameId=game.id;installed.variantId=v.id;installed.recipe=game.install;
+  const auto base=install::stateBase(installed);
+  install::writeEnvelope(base+".toml",{{"game",game.id.toStdString()},{"variant","dolphinxr"},{"state","installed"},{"installed_version","v0.4"},{"recipe_sha256",install::sha256(QByteArray::fromStdString(game.install.dump())).toStdString()}});
+  install::writeEnvelope(base+".manifest.toml",{{"game",game.id.toStdString()},{"variant","dolphinxr"},
+    {"install_dir",("installed/"+game.id+"/dolphinxr").toStdString()},
+    {"installed_when","file:${install_dir}/Dolphin.exe"},{"recipe_sha256",install::sha256(QByteArray::fromStdString(game.install.dump())).toStdString()},
+    {"file",Json::array({{{"path","Dolphin.exe"},{"sha256",hash.toStdString()}}})}});
+  std::optional<launch::Request> accepted;
+  try { accepted=launch::gameRequest(catalog,game.id,t.path(),bindings,"dolphinxr"); }
+  catch(const install::Error &) {}
+  QVERIFY2(accepted.has_value(),"Installed owned authored route refused");
+  const auto &request=*accepted;
+  QCOMPARE(request.runtime,QString("steamvr"));QCOMPARE(request.plan.executable,exe);
+  QCOMPARE(request.plan.args,QStringList({"--user",dir+"/User","-C","GFX.VR.EnableOpenXR=True","--exec",disc}));
+  QVERIFY(!request.prepareProfile);QVERIFY(request.plan.payloadRoots.contains(dir));
+  Json withStaleTool=bindings;
+  withStaleTool["tools"]["unrelated"]={{"path",t.filePath("missing-unrelated.exe").toStdString()},{"verified",false}};
+  std::optional<launch::Request> scoped;
+  try { scoped=launch::gameRequest(catalog,game.id,t.path(),withStaleTool,"dolphinxr"); }catch(const install::Error &) {}
+  QVERIFY2(scoped.has_value(),"An unrelated stale tool blocked the owned authored setup");
+  auto missingDisc=withStaleTool;missingDisc["media"].erase("disc");
+  QString requiredError;
+  try { launch::gameRequest(catalog,game.id,t.path(),missingDisc,"dolphinxr"); }catch(const install::Error &e){requiredError=e.code;}
+  QCOMPARE(requiredError,QString("E_MEDIA_MISSING"));
+  const auto goodState=install::readEnvelope(base+".toml"),goodManifest=install::readEnvelope(base+".manifest.toml");
+  const auto refusal=[&](){try{launch::gameRequest(catalog,game.id,t.path(),bindings,"dolphinxr");return QString();}catch(const install::Error &e){return e.code;}};
+  auto stale=goodState;stale["installed_version"]="v0.3";install::writeEnvelope(base+".toml",stale);
+  QCOMPARE(refusal(),QString("E_SETUP_NOT_INSTALLED"));install::writeEnvelope(base+".toml",goodState);
+  auto unowned=goodManifest;unowned["file"]=Json::array();install::writeEnvelope(base+".manifest.toml",unowned);
+  QCOMPARE(refusal(),QString("E_SETUP_IDENTITY"));install::writeEnvelope(base+".manifest.toml",goodManifest);
+  auto moved=goodManifest;moved["install_dir"]="installed/other/dolphinxr";install::writeEnvelope(base+".manifest.toml",moved);
+  QCOMPARE(refusal(),QString("E_SETUP_NOT_INSTALLED"));install::writeEnvelope(base+".manifest.toml",goodManifest);
+  auto requiredCatalog=catalog;
+  requiredCatalog.games[0].variants[0].tools={"required-helper"};
+  requiredCatalog.games[0].install["variant"]["dolphinxr"]["needs"]["tools"]=Json::array({"required-helper"});
+  const auto requiredHash=install::sha256(QByteArray::fromStdString(requiredCatalog.games[0].install.dump()));
+  auto requiredState=goodState,requiredManifest=goodManifest;requiredState["recipe_sha256"]=requiredHash.toStdString();requiredManifest["recipe_sha256"]=requiredHash.toStdString();
+  install::writeEnvelope(base+".toml",requiredState);install::writeEnvelope(base+".manifest.toml",requiredManifest);
+  requiredError.clear();
+  try { launch::gameRequest(requiredCatalog,game.id,t.path(),withStaleTool,"dolphinxr"); }catch(const install::Error &e){requiredError=e.code;}
+  QCOMPARE(requiredError,QString("E_MEDIA_MISSING"));
+  const auto helper=t.filePath("existing-helper/helper.exe");write(helper,"synthetic helper; never run");
+  auto withRequiredTool=withStaleTool;withRequiredTool["tools"]["required-helper"]={{"path",helper.toStdString()},{"verified",true}};
+  QCOMPARE(launch::gameRequest(requiredCatalog,game.id,t.path(),withRequiredTool,"dolphinxr").variantId,QString("dolphinxr"));
+  install::writeEnvelope(base+".toml",goodState);install::writeEnvelope(base+".manifest.toml",goodManifest);
+  write(exe,"modified application");
+  QVERIFY_THROWS_EXCEPTION(install::Error,launch::gameRequest(catalog,game.id,t.path(),bindings,"dolphinxr"));
 }
 void LaunchSteamTest::dolphinUserDirectoryIsolated() {
   QTemporaryDir t;

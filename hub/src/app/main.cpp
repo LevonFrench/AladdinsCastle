@@ -54,7 +54,7 @@ int main(int argc,char **argv){
             ac::launch::LaunchService launcher;
             QObject::connect(&launcher,&ac::launch::LaunchService::warning,&app,[&](const QString &,const QString &text){err<<"Launch notice: "<<text<<'\n';err.flush();});
             QObject::connect(&launcher,&ac::launch::LaunchService::finished,&app,[&](const QString &,int code,const QString &message,const QString &){if(!message.isEmpty())failure(message);app.exit(code);});
-            const auto request=ac::launch::flatRequest(catalog,options.gameId,root,bindings,options.variantId);
+            const auto request=ac::launch::gameRequest(catalog,options.gameId,root,bindings,options.variantId);
             if(!launcher.start(request))return 1;
             if(options.quitAfterMs>0)QTimer::singleShot(options.quitAfterMs,&launcher,&ac::launch::LaunchService::stop);
             return app.exec();

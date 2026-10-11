@@ -33,6 +33,9 @@ Json normalizeBindings(const Json &bindings, const QString &gameId);
 Request flatRequest(const CatalogData &catalog, const QString &gameId,
                     const QString &root, const Json &bindings,
                     const QString &variantId = {});
+Request gameRequest(const CatalogData &catalog, const QString &gameId,
+                    const QString &root, const Json &bindings,
+                    const QString &variantId = {});
 QString lastLines(const QString &log, int count = 40);
 QStringList rotateLaunchLogs(const QString &root, const QString &folder,
                             const std::function<bool(const QString &)> &remove = {});

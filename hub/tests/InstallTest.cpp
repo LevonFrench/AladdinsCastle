@@ -720,6 +720,45 @@ private slots:
     QVERIFY(!QFileInfo(temp.path() + "/installed/synthetic/flat/settings.ini")
                  .exists());
   }
+  void freshOnlyConfigSeedsThenPreservesRuntimeTuning_data() {
+    QTest::addColumn<QString>("operation");QTest::addColumn<bool>("freshOnly");QTest::addColumn<bool>("tuned");
+    QTest::newRow("repair preserves")<<QString("repair")<<true<<true;
+    QTest::newRow("update preserves")<<QString("update")<<true<<true;
+    QTest::newRow("legacy repair remerges")<<QString("repair")<<false<<true;
+    QTest::newRow("unchanged seed survives update")<<QString("update")<<true<<false;
+  }
+  void freshOnlyConfigSeedsThenPreservesRuntimeTuning() {
+    QFETCH(QString,operation);QFETCH(bool,freshOnly);QFETCH(bool,tuned);
+    QTemporaryDir t;auto r=fixture(t.path());Options o;o.survivalMs=0;
+    auto &settings=r.recipe["variant"]["flat"]["step"][1];
+    if (freshOnly) {
+      settings["only_if_missing"] = true;
+    }
+    QVERIFY(Engine(o).install(r).success);
+    const auto file=t.filePath("installed/synthetic/flat/settings.ini");
+    QVERIFY(readBytes(file).contains("enabled = 1"));
+    const QByteArray kept=tuned?QByteArray("# private runtime tuning\n[Global]\nenabled = 9\nunknown = mine\n"):readBytes(file);
+    if (tuned) {
+      atomicWrite(file, kept);
+    }
+    r.operation = operation;
+    if (operation == "update") {
+      r.recipe["variant"]["flat"]["version"] = "v2";
+    }
+    const auto result=Engine(o).install(r);QVERIFY2(result.success,qPrintable(result.message));
+    if(freshOnly){
+      QCOMPARE(readBytes(file),kept);
+      Engine(o).uninstall(r);
+      QCOMPARE(readBytes(file), kept);
+    } else {
+      QVERIFY(readBytes(file).contains("enabled = 1"));
+    }
+  }
+  void freshOnlyRequiresAnExplicitBoolean() {
+    QTemporaryDir t;auto r=fixture(t.path());
+    r.recipe["variant"]["flat"]["step"][1]["only_if_missing"]="true";
+    QVERIFY_THROWS_EXCEPTION(Error,Engine().plan(r));
+  }
   void repairRemergesManagedKeysKeepsUserFields() {
     QTemporaryDir temp;
     auto r = fixture(temp.path());
