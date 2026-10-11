@@ -23,6 +23,10 @@ release, audit the modules and plugins actually deployed by windeployqt, include
 their complete bundled third-party notices and record the source commit.
 
 Pinned additional dependencies and their preserved license texts:
+- Project-local libacvr hand assembly metadata decoder (MIT): licenses/libacvr-MIT.txt
+  Source and header byte receipts: licenses/libacvr-source.txt; application source
+  commit: BUILD-INFO.txt. Only the CPU metadata decoder is linked into the Hub;
+  the native provider retains mesh decoding, node placement and XR behavior.
 - toml++ v3.4.0 (MIT): licenses/tomlplusplus-MIT.txt
   https://github.com/marzer/tomlplusplus/tree/v3.4.0
 - nlohmann/json v3.12.0 (MIT): licenses/nlohmann-json-MIT.txt

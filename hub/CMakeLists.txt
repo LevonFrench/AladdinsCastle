@@ -26,6 +26,16 @@ target_include_directories(hubhandmetadata PUBLIC ../libacvr/src)
 target_link_libraries(hubhandmetadata PRIVATE
     tomlplusplus::tomlplusplus nlohmann_json::nlohmann_json)
 ac_project_warnings(hubhandmetadata)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/licenses")
+configure_file("../libacvr/LICENSE" "licenses/libacvr-MIT.txt" COPYONLY)
+set(_ac_hand_receipt "Project source: https://github.com/LevonFrench/AladdinsCastle\nApplication source commit: see ../BUILD-INFO.txt\n")
+foreach(_ac_hand_file src/hand_assembly.cpp src/hand_assembly.hpp src/gun_asset.hpp LICENSE)
+    set(_ac_hand_path "${CMAKE_CURRENT_SOURCE_DIR}/../libacvr/${_ac_hand_file}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_ac_hand_path}")
+    file(SHA256 "${_ac_hand_path}" _ac_hand_sha256)
+    string(APPEND _ac_hand_receipt "libacvr/${_ac_hand_file}: ${_ac_hand_sha256}\n")
+endforeach()
+file(WRITE "${CMAKE_BINARY_DIR}/licenses/libacvr-source.txt" "${_ac_hand_receipt}")
 
 add_library(hubcore STATIC
     src/core/catalog/CatalogLoader.cpp
