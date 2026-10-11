@@ -23,6 +23,7 @@ class ControlsViewModel final : public QObject {
     Q_PROPERTY(QString gameId READ gameId NOTIFY changed)
     Q_PROPERTY(QString modelId READ modelId NOTIFY changed)
     Q_PROPERTY(QString notice READ notice NOTIFY changed)
+    Q_PROPERTY(QString proposalNotice READ proposalNotice NOTIFY changed)
     Q_PROPERTY(bool wiiControls READ wiiControls NOTIFY changed)
     Q_PROPERTY(QUrl previewImage READ previewImage NOTIFY changed)
     Q_PROPERTY(bool previewAvailable READ previewAvailable NOTIFY changed)
@@ -55,6 +56,7 @@ public:
     QString gameId() const { return m_result.value("game_id").toString(); }
     QString modelId() const { return m_result.value("model").toString(); }
     QString notice() const;
+    QString proposalNotice() const;
     bool wiiControls() const { return m_data.value("family").toString()=="wii"; }
     QUrl previewImage() const { return m_previewImage; }
     bool previewAvailable() const { return !m_previewImage.isEmpty(); }
