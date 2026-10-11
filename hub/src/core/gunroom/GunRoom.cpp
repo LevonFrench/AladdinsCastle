@@ -105,8 +105,12 @@ Plan plan(const Inputs &in) {
     require(binary.open(QIODevice::ReadOnly)&&binary.size()>0&&binary.size()<=256*1024*1024&&hash.addData(&binary)&&
             QString::fromLatin1(hash.result().toHex())==expected,
             "Gun-room executable changed or differs from its frozen launch receipt.");
+    out.calibrationCapable=receipt.value("calibrate_grip")==true;
+    require(!in.calibrateGrip||out.calibrationCapable,
+            "This reviewed gun-room build does not admit grip calibration. Choose a matching calibration-capable build.");
     out.model=in.model;out.hand=in.hand;
     out.arguments={"--root",out.root,"--xr","--model",in.model,"--hand",in.hand,"--control-stdin"};
+    if(in.calibrateGrip)out.arguments<<"--calibrate-grip";
   } catch(const std::exception &error) { out.error=QString::fromUtf8(error.what()); }
   return out;
 }

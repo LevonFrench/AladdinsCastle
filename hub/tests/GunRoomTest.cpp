@@ -82,6 +82,31 @@ private slots:
     save(f.folder.filePath("assets/hands/assembly.json"),R"({"schema":"hand-assembly/1","models":{"synthetic-pistol":{}}})");
     QVERIFY(ac::gunroom::models(f.root).isEmpty());
   }
+  void calibrationRequiresLiteralCapabilityAndFreshHash() {
+    Fixture f;auto input=f.inputs;input.calibrateGrip=true;
+    // Older receipts still launch normally, but must never send a new flag.
+    QVERIFY(ac::gunroom::plan(f.inputs).available());
+    QVERIFY(!ac::gunroom::plan(f.inputs).arguments.contains("--calibrate-grip"));
+    QVERIFY(ac::gunroom::plan(input).error.contains("calibration",Qt::CaseInsensitive));
+    const auto receiptPath=f.binary+".launch.json";
+    auto receipt=QJsonDocument::fromJson([&]{QFile file(receiptPath);file.open(QIODevice::ReadOnly);return file.readAll();}()).object();
+    for(const auto &value:QList<QJsonValue>{false,QString("true"),1,QJsonValue::Null,QJsonArray{},QJsonObject{}}){
+      receipt["calibrate_grip"]=value;save(receiptPath,QJsonDocument(receipt).toJson());
+      QVERIFY(!ac::gunroom::plan(input).available());
+      QVERIFY(ac::gunroom::plan(f.inputs).available());
+    }
+    receipt["calibrate_grip"]=true;save(receiptPath,QJsonDocument(receipt).toJson());
+    const auto calibrated=ac::gunroom::plan(input);
+    QVERIFY2(calibrated.available(),qPrintable(calibrated.error));
+    auto expected=ac::gunroom::plan(f.inputs).arguments;expected<<"--calibrate-grip";
+    QCOMPARE(calibrated.arguments,expected);
+    save(f.binary,"changed binary after preview");
+    QVERIFY(!ac::gunroom::plan(input).available());
+    save(f.binary,"synthetic executable");
+    receipt.remove("calibrate_grip");save(receiptPath,QJsonDocument(receipt).toJson());
+    QVERIFY(!ac::gunroom::plan(input).available());
+    QVERIFY(ac::gunroom::plan(f.inputs).available());
+  }
   void missingRootNeverBorrowsCurrentDirectory() {
     Fixture f;const auto previous=QDir::currentPath();
     const auto restore=qScopeGuard([&]{QDir::setCurrent(previous);});

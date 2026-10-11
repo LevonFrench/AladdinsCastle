@@ -8,10 +8,12 @@ namespace ac::gunroom {
 struct Inputs {
   QString root, executable, loader, model, hand;
   bool supported = false;
+  bool calibrateGrip = false;
 };
 struct Plan {
   QString executable, root, loader, model, hand, error;
   QStringList arguments;
+  bool calibrationCapable = false;
   bool available() const { return error.isEmpty(); }
 };
 QStringList modelIds(const QString &root);

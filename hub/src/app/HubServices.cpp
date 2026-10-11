@@ -41,6 +41,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(&gunRoom_,&gunroom::Service::changed,this,[this]{
         if(gunRoom_.closing())ui_->launchClosing();
         emit playingChanged();
+        emit gunRoomChanged();
     });
     connect(&gunRoom_,&gunroom::Service::started,this,[this]{childPlaying_=true;emit playingChanged();ui_->launchStarted("__gun_room");});
     connect(&gunRoom_,&gunroom::Service::finished,this,[this](const QString &error){
@@ -111,7 +112,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::playRequested,this,[this](const QString &id,const QString &variant){
         if(launchBusy()){ui_->scanProgress({{"text","Play refused: a game is already running or a launch is being prepared. Use Stop first."}});return;}
         if(id=="__gun_room"){
-            if(variant!=retainedGunRoom_.model+"|"+retainedGunRoom_.hand){ui_->showError("Gun room","The retained model and hand differ from this restart request.");return;}
+            if(variant!=retainedGunRoom_.model+"|"+retainedGunRoom_.hand+(retainedGunRoom_.calibrateGrip?"|calibrate":"")){ui_->showError("Gun room","The retained model, hand and action differ from this restart request.");return;}
             startGunRoom(retainedGunRoom_);return;
         }
         try{
@@ -200,29 +201,37 @@ HubServices::~HubServices(){
     disconnect(&gunRoom_,nullptr,this,nullptr);
     gunRoom_.close();
 }
-void HubServices::previewGunRoom(const QString &model,const QString &hand,const QString &executable){
+gunroom::Inputs HubServices::gunRoomInputs(const QString &model,const QString &hand,const QString &executable) const{
     auto inputs=gunroom::systemInputs(games_->catalog().root,executable,model,hand);
     const auto loader=settings_->get("gunRoomLoader",QString()).toString();
     if(!loader.isEmpty())inputs.loader=loader;
-    const auto candidate=gunroom::plan(inputs);
+    return inputs;
+}
+void HubServices::previewGunRoom(const QString &model,const QString &hand,const QString &executable){
+    const auto candidate=gunroom::plan(gunRoomInputs(model,hand,executable));
     gunRoomAvailable_=candidate.available()&&!launchBusy()&&!hubExitPending_;
     gunRoomReason_=candidate.error;
     if(candidate.available()&&!gunRoomAvailable_)gunRoomReason_="Close the current session before opening the gun room.";
+    gunRoomCalibrationAvailable_=gunRoomAvailable_&&candidate.calibrationCapable;
+    gunRoomCalibrationReason_=!gunRoomAvailable_?gunRoomReason_:candidate.calibrationCapable?QString():
+        QString("This reviewed build does not admit grip calibration. Normal room launch is available.");
     emit gunRoomChanged();
 }
 void HubServices::launchGunRoom(const QString &model,const QString &hand,const QString &executable){
-    auto inputs=gunroom::systemInputs(games_->catalog().root,executable,model,hand);
-    const auto loader=settings_->get("gunRoomLoader",QString()).toString();
-    if(!loader.isEmpty())inputs.loader=loader;
+    const auto inputs=gunRoomInputs(model,hand,executable);
+    startGunRoom(inputs);
+}
+void HubServices::calibrateGunRoom(const QString &model,const QString &hand,const QString &executable){
+    auto inputs=gunRoomInputs(model,hand,executable);inputs.calibrateGrip=true;
     startGunRoom(inputs);
 }
 void HubServices::startGunRoom(const gunroom::Inputs &inputs){
     if(launchBusy()||hubExitPending_){ui_->showError("Gun room","Close the current session before opening the gun room.");return;}
     // Revalidate the selected paths and frozen bytes at the actual click/restart.
     const auto candidate=gunroom::plan(inputs);
-    if(!candidate.available()){gunRoomAvailable_=false;gunRoomReason_=candidate.error;emit gunRoomChanged();ui_->showError("Gun room",candidate.error);return;}
+    if(!candidate.available()){gunRoomAvailable_=false;gunRoomCalibrationAvailable_=false;gunRoomReason_=candidate.error;gunRoomCalibrationReason_=candidate.error;emit gunRoomChanged();ui_->showError("Gun room",candidate.error);return;}
     retainedGunRoom_=inputs;
-    ui_->launchRoomQueued(inputs.model,inputs.hand);
+    ui_->launchRoomQueued(inputs.model,inputs.hand,inputs.calibrateGrip);
     if(!gunRoom_.start(candidate))ui_->launchFinished("__gun_room","Gun-room process could not be queued.");
 }
 void HubServices::requestHubExit(int code){
