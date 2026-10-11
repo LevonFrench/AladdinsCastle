@@ -119,6 +119,29 @@ class UiTest:public QObject {
   QVERIFY(qualified>0);qInfo().noquote()<<"Furthest qualified small-card metadata:"<<longest<<"right edge"<<furthest<<"inner edge"<<card->width()-pad;
   QVERIFY2(furthest<=card->width()-pad+0.5,qPrintable(longest));
  }
+ void pinnedAuthoredSetupIsAvailableOnRealDetailPage(){
+  auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
+  auto game=*catalog.find("wii-resident-evil-umbrella-chronicles");
+  ac::Variant authored;authored.id="dolphinxr";authored.title="DolphinXR (experimental VR)";authored.status="wip";authored.quality="true3d";authored.media={"disc"};
+  authored.raw={{"status","wip"},{"quality","true3d"},{"version","v0.4"},{"launch",{{"exe","${install_dir}/Dolphin.exe"},{"exe_sha256",std::string(64,'a')},{"args",ac::Json::array({"--user","${install_dir}/User"})},{"runtime","steamvr"}}}};
+  game.variants.prepend(authored);game.install={{"format",1},{"variant",{{"dolphinxr",authored.raw}}}};game.hasRecipe=true;game.runtime.mediaFound={"disc"};
+  catalog.games={game};ac::GameListModel model(catalog);ac::FilterSortModel localFilter;localFilter.setSourceModel(&model);
+  ac::UiController localUi(&model,&localFilter,settings.get());localUi.openDetail(game.id);localUi.selectVariant(authored.id);
+  QVERIFY(localUi.detail().value("m1Available").toBool());
+  QSignalSpy install(&localUi,&ac::UiController::installRequested),play(&localUi,&ac::UiController::playRequested);
+  QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&localUi);
+  QQmlComponent component(engine.get());component.setData("import QtQuick; import AladdinsCastle.Hub; DetailPage {width:1120;height:720}",QUrl());
+  std::unique_ptr<QQuickItem> page(qobject_cast<QQuickItem *>(component.create(&context)));QVERIFY2(page,qPrintable(component.errorString()));
+  page->setParentItem(window->contentItem());page->setZ(100);QTest::qWait(50);
+  auto primary=page->findChild<QQuickItem *>("detailPrimary");QVERIFY(primary);QVERIFY(primary->isEnabled());
+  auto flick=page->property("contentItem").value<QQuickItem *>();QVERIFY(flick);QVERIFY(flick->property("contentY").isValid());
+  const auto initial=primary->mapToScene({primary->width()/2,primary->height()/2});
+  flick->setProperty("contentY",qMax(0.0,initial.y()-window->height()/2));QTest::qWait(50);
+  const auto point=primary->mapToScene({primary->width()/2,primary->height()/2});
+  QVERIFY(point.x()>0&&point.x()<window->width()&&point.y()>0&&point.y()<window->height());
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  QCOMPARE(install.count(),1);localUi.play(game.id,authored.id);QCOMPARE(play.count(),1);
+ }
  void authoredVrCopyKeepsInstallAndPlayBlocked(){
   ui->openDetail("timecris");ui->selectVariant("dr89-pcvr");
   QVERIFY(!ui->detail().value("m1Available").toBool());

@@ -102,6 +102,104 @@ Request flatRequest(const CatalogData &catalog, const QString &gameId,
   throw Error("E_FLAT_NOT_READY", "No flat variant has verified media and an "
                                   "emulator; scan or locate files first");
 }
+Request gameRequest(const CatalogData &catalog,const QString &gameId,const QString &root,const Json &source,const QString &variantId) {
+  const auto *game=catalog.find(gameId);
+  if(!game||!game->errors.isEmpty())throw Error("E_GAME_INVALID","Game is missing or invalid");
+  if(variantId.isEmpty()) {
+    QStringList choices;
+    const auto preferred=install::string(game->install,"default");
+    if(!preferred.isEmpty())choices<<preferred;
+    for(const auto &v:game->variants)
+      if(authoredLaunchSupported(v)&&!choices.contains(v.id))choices<<v.id;
+    for(const auto &id:choices) {
+      bool supported=false;
+      for(const auto &v:game->variants)if(v.id==id)supported=authoredLaunchSupported(v);
+      if(!supported)continue;
+      install::Request saved;saved.root=root;saved.gameId=gameId;saved.variantId=id;
+      const auto state=install::readEnvelope(install::stateBase(saved)+".toml");
+      if(install::string(state,"state").startsWith("installed"))
+        return gameRequest(catalog,gameId,root,source,id);
+    }
+    return flatRequest(catalog,gameId,root,source);
+  }
+  const Variant *variant=nullptr;
+  for(const auto &v:game->variants)if(v.id==variantId&&!v.generated){variant=&v;break;}
+  if(!variant)return flatRequest(catalog,gameId,root,source,variantId);
+  if(!authoredLaunchSupported(*variant))throw Error("E_SETUP_UNSUPPORTED","This authored setup has no pinned launch contract");
+  install::Request installed;installed.root=root;installed.catalogRoot=catalog.root;installed.gameId=gameId;installed.variantId=variantId;installed.recipe=game->install;
+  // Scope before normalization: stale files from another route must not affect
+  // this variant's admission, including media metadata validation.
+  Json scoped=source;
+  scoped["media"]=Json::object();
+  scoped["bindings"]=Json::array();
+  scoped["tools"]=Json::object();
+  for(const auto &id:variant->media) {
+    const auto key=id.toStdString();
+    if(source.contains("media")&&source["media"].is_object()&&source["media"].contains(key))
+      scoped["media"][key]=source["media"][key];
+  }
+  for(const auto &binding:source.value("bindings",Json::array()))
+    if(string(binding,"gameId")==gameId&&variant->media.contains(string(binding,"requirementId")))
+      scoped["bindings"].push_back(binding);
+  const auto tools=source.value("tools",Json::object());
+  if(tools.is_object()) {
+    for(const auto &id:variant->tools)
+      if(tools.contains(id.toStdString()))scoped["tools"][id.toStdString()]=tools[id.toStdString()];
+  } else if(tools.is_array()) {
+    for(const auto &tool:tools)
+      if(variant->tools.contains(string(tool,"id")))scoped["tools"][string(tool,"id").toStdString()]=tool;
+  }
+  installed.bindings=normalizeBindings(scoped,gameId);
+  for(const auto *space:{"media","tools"}) {
+    const auto &required=QString(space)=="media"?variant->media:variant->tools;
+    for(const auto &id:required) {
+      const auto binding=installed.bindings[space].value(id.toStdString(),Json::object());
+      if(!binding.value("verified",false)||!QFileInfo(string(binding,"path")).isFile())
+        throw Error("E_MEDIA_MISSING","Locate verified files required by this setup first");
+    }
+  }
+  const auto plan=install::Engine().plan(installed);
+  const auto base=install::stateBase(installed);
+  const auto state=install::readEnvelope(base+".toml"),manifest=install::readEnvelope(base+".manifest.toml");
+  const auto recipeHash=install::sha256(QByteArray::fromStdString(game->install.dump()));
+  if(!install::string(state,"state").startsWith("installed")||install::string(state,"installed_version")!=plan.version||
+     install::string(manifest,"recipe_sha256")!=recipeHash||install::string(state,"recipe_sha256")!=recipeHash||
+     install::string(manifest,"game")!=gameId||install::string(manifest,"variant")!=variantId||
+     install::string(state,"game")!=gameId||install::string(state,"variant")!=variantId||
+     install::string(manifest,"install_dir")!=QDir(root).relativeFilePath(plan.installDir))
+    throw Error("E_SETUP_NOT_INSTALLED","Install or repair this exact authored setup before launching");
+  const auto runtime=install::Engine().runtimeState(installed);
+  bool ready=false;for(const auto &v:runtime.variants)if(v.id==variantId)ready=v.verified&&v.manifestExists&&v.installedWhenExists;
+  if(!ready)throw Error("E_SETUP_NOT_INSTALLED","Owned setup files are missing; repair first");
+  QMap<QString,QString> vars{{"install_dir",plan.installDir},{"install_root",QDir(root).absolutePath()},{"game.id",gameId}};
+  for(const auto *space:{"media","tools"}) {
+    const auto group=installed.bindings.value(space,Json::object());
+    for(const auto &entry:group.items()){
+    const auto path=install::string(entry.value(),"path");
+    if(!entry.value().value("verified",false)||!QFileInfo(path).isFile())throw Error("E_MEDIA_MISSING","Locate verified launch files first");
+    const auto key=QString(space)+"."+QString::fromStdString(entry.key());vars[key+".path"]=path;vars[key+".dir"]=QFileInfo(path).absolutePath();
+  }
+  }
+  const auto authored=install::expandJson(plan.variant["launch"],vars);
+  Request request;request.root=root;request.gameId=gameId;request.variantId=variantId;request.runtime=install::string(authored,"runtime");request.prepareProfile=false;
+  auto &launch=request.plan;launch.executable=install::scopedPath(install::string(authored,"exe"),plan.installDir);
+  launch.cwd=install::scopedPath(install::string(authored,"cwd",plan.installDir),plan.installDir);
+  if(!QFileInfo(launch.executable).isFile()||install::hashFile(launch.executable)!=install::string(authored,"exe_sha256"))
+    throw Error("E_SETUP_IDENTITY","Authored executable identity changed; repair first");
+  bool owned=false;for(const auto &file:manifest.value("file",Json::array()))
+    if(install::scopedPath(install::string(file,"path"),plan.installDir)==launch.executable&&install::string(file,"sha256")==install::string(authored,"exe_sha256"))owned=true;
+  if(!owned)throw Error("E_SETUP_IDENTITY","The pinned executable has no matching ownership receipt");
+  for(const auto &arg:authored["args"]){if(!arg.is_string())throw Error("E_PLAN_INVALID","Launch arguments must be strings");launch.args<<QString::fromStdString(arg.get<std::string>());}
+  const auto user=install::scopedPath("User",plan.installDir);
+  int userOptions=0;for(qsizetype i=0;i<launch.args.size();++i){const auto &arg=launch.args[i];
+    if(arg=="--user"){++userOptions;if(i+1>=launch.args.size()||QDir::cleanPath(launch.args[i+1])!=user)throw Error("E_PLAN_INVALID","Authored User directory must be isolated");}
+    else if(arg.startsWith("--user=")||arg.startsWith("-u"))throw Error("E_PLAN_INVALID","Use one explicit owned --user directory");
+  }
+  if(userOptions!=1||!QFileInfo(user).isDir())throw Error("E_PLAN_INVALID","Authored User directory is missing or ambiguous");
+  launch.payloadRoots<<plan.installDir;launch.writableDirs<<user;
+  launch.data={{"game",gameId.toStdString()},{"variant",variantId.toStdString()},{"quality",variant->quality.toStdString()},{"runtime",request.runtime.toStdString()}};
+  return request;
+}
 QString lastLines(const QString &path, int count) {
   QFile f(path);
   if (!f.open(QIODevice::ReadOnly))

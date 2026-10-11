@@ -88,13 +88,13 @@ QVariantMap UiController::detail()const{
  auto source=m_games->find(m_detailId);if(!source)return {};auto g=*source;const auto *v=variant(g);
  if(v){g.runtime.selectedVariantId=v->id;resolveState(g);}QVariantMap result=g.roles;
  QVariantList variants,needs,controls,components,similar;QStringList supported;
- for(const auto &item:g.variants){QVariantMap row{{"id",item.id},{"title",item.title},{"quality",item.quality},{"status",item.status},{"generated",item.generated},{"m1Available",item.generated}};variants<<row;}
- if(v){result["variantId"]=v->id;result["variantTitle"]=v->title;result["m1Available"]=v->generated;
+ for(const auto &item:g.variants){QVariantMap row{{"id",item.id},{"title",item.title},{"quality",item.quality},{"status",item.status},{"generated",item.generated},{"m1Available",item.generated||authoredLaunchSupported(item)}};variants<<row;}
+ if(v){result["variantId"]=v->id;result["variantTitle"]=v->title;result["m1Available"]=v->generated||authoredLaunchSupported(*v);
  for(const auto &id:v->media)needs<<QVariantMap{{"kind","media"},{"name",id},{"status",g.runtime.mediaFound.contains(id)?"Found":"Missing"},{"found",g.runtime.mediaFound.contains(id)}};
  for(const auto &id:v->tools)needs<<QVariantMap{{"kind","tool"},{"name",id},{"status",g.runtime.toolsOk.contains(id)?"Found":g.runtime.toolsOlder.contains(id)?"Found (older)":"Missing"},{"found",g.runtime.toolsOk.contains(id)}};
  if(v->quality=="true3d"||v->quality=="theatre")needs<<QVariantMap{{"kind","runtime"},{"name","VR runtime"},{"status","Checked when launching"},{"found",false}};
  if(v->raw.contains("step")&&v->raw["step"].is_array())for(const auto &step:v->raw["step"])if(str(step,"do")=="write-config"&&step.contains("set")&&step["set"].is_array())for(const auto &entry:step["set"])supported<<str(entry,"from");
- components<<QVariantMap{{"name",v->title},{"license",str(v->raw,"license")},{"upstream",str(v->raw,"upstream")},{"version",str(v->raw,"version")},{"role",v->generated?"Flat emulator route":"Authored setup recipe (Hub launch unavailable)"}};
+ components<<QVariantMap{{"name",v->title},{"license",str(v->raw,"license")},{"upstream",str(v->raw,"upstream")},{"version",str(v->raw,"version")},{"role",v->generated?"Flat emulator route":authoredLaunchSupported(*v)?"Authored setup (experimental)":"Authored setup recipe (Hub launch unavailable)"}};
  }
  if(g.setup.is_object())for(const auto &setup:g.setup.items()){const auto &value=setup.value();if(!value.is_object())continue;if(value.contains("element")&&value["element"].is_array())for(const auto &e:value["element"])controls<<QVariantMap{{"action",str(e,"id")},{"input",str(e,"source").isEmpty()?str(e,"type"):str(e,"source")},{"notes",e.contains("output")?QString::fromStdString(e["output"].dump()):QString()}};}
  if(controls.isEmpty())controls<<QVariantMap{{"action",g.roles.value("controlsLabel")},{"input","Emulator bindings"},{"notes","Use the emulator's input settings. No per-game control set yet."}};
@@ -110,8 +110,8 @@ void UiController::cancelScan(){if(!m_scanning)return;emit cancelScanRequested()
 void UiController::showError(const QString &operation,const QString &text){message(operation+": "+text);}
 void UiController::overlayFallback(const QString &reason){showError("Overlay unavailable",reason);}
 void UiController::settingsSaved(const QString &id){emit detailChanged();message("Settings saved for "+game(id).value("title").toString()+". They apply to the next owned install or repair; existing emulator profiles are preserved.");}
-void UiController::startInstall(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}message("Install requested; waiting for installer.");emit installRequested(id,variantId);return;}}
-void UiController::play(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}emit playRequested(id,variantId);return;}}
+void UiController::startInstall(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}message("Install requested; waiting for installer.");emit installRequested(id,variantId);return;}}
+void UiController::play(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}emit playRequested(id,variantId);return;}}
 void UiController::cancelInstall(){emit cancelInstallRequested();message("Cancel requested; the installer stops between steps.");}
 bool UiController::retryGameAvailable()const{
  const QRegularExpression id("^[a-z0-9]+(?:-[a-z0-9]+)*$");
@@ -130,7 +130,7 @@ void UiController::retryInstall(bool fromStart,const QString &handover){
 void UiController::retryGameInstall(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover){
  auto g=m_games->find(gameId);const Variant *v=nullptr;
  if(g)for(const auto &candidate:g->variants)if(candidate.id==variantId)v=&candidate;
- if(!g||!v||!v->generated||!g->install.is_object()||!g->install.contains("variant")||!g->install["variant"].contains(v->id.toStdString())){message("Nothing to retry: the selected game and variant have no M1 owned installation recipe.");return;}
+ if(!g||!v||(!v->generated&&!authoredLaunchSupported(*v))||!g->install.is_object()||!g->install.contains("variant")||!g->install["variant"].contains(v->id.toStdString())){message("Nothing to retry: the selected game and variant have no M1 owned installation recipe.");return;}
  emit retryInstallRequested(g->id,v->id,fromStart,handover);
 }
 void UiController::retryFailedTool(bool fromStart,const QString &handover){

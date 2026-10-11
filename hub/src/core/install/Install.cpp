@@ -795,7 +795,7 @@ Plan Engine::plan(const Request &r) const {
        {"from", "to", "strip", "include", "exclude", "max_entries",
         "max_expanded", "overwrite"}},
       {"copy", {"from", "to", "include", "exclude"}},
-      {"write-config", {"file", "format", "create", "set"}},
+      {"write-config", {"file", "format", "create", "set", "only_if_missing"}},
       {"shortcut", {"targets", "name", "exe", "args", "cwd", "icon"}}};
   const QSet<QString> common{"id", "do", "what", "optional", "when", "note"};
   for (const auto &step : steps) {
@@ -935,6 +935,8 @@ Plan Engine::plan(const Request &r) const {
     if (kind == "require-media" || kind == "copy-media")
       mediaOutputs.insert(id);
     if (kind == "write-config") {
+      if (step.contains("only_if_missing") && !step["only_if_missing"].is_boolean())
+        throw Error("E_PLAN_INVALID", "only_if_missing requires an explicit boolean");
       if (!QSet<QString>{"ini", "cfg", "toml", "json"}.contains(
               string(step, "format")))
         throw Error("E_PLAN_INVALID", "Unknown config format");
@@ -1191,6 +1193,16 @@ Result Engine::install(const Request &r) {
         output["dir"] = dest.toStdString();
       } else if (kind == "write-config") {
         const auto path = scopedPath(string(step, "file"), tx->dir);
+        if (step.value("only_if_missing", false) && QFileInfo::exists(path)) {
+          // The runtime owns an existing seed. Do not read, merge or remove it.
+          // Relinquish earlier seed ownership, including during staged updates.
+          const auto relative=QDir(tx->dir).relativeFilePath(path).toStdString();
+          auto &oldFiles=tx->baseline["file"];
+          for(auto it=oldFiles.begin();it!=oldFiles.end();)
+            if(it->value("path",std::string())==relative)it=oldFiles.erase(it);else ++it;
+          output["path"]=path.toStdString();output["seed_skipped"]=true;
+          event(tx->options,tx->run,"ok","Existing config retained; seed skipped",{},id);
+        } else {
         if (!QFileInfo::exists(path) && !step.value("create", false))
           throw Error("E_CONFIG_PARSE",
                       "Config missing; create must be explicit");
@@ -1204,6 +1216,7 @@ Result Engine::install(const Request &r) {
           tx->warning = true;
           event(tx->options, tx->run, "warn",
                 "Config was reserialized; comments were not preserved");
+        }
         }
       } else if (kind == "shortcut") {
         if (options_.shortcut) {

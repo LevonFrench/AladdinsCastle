@@ -73,7 +73,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::retryInstallRequested,this,[this](const QString &id,const QString &variant,bool,const QString &handover){
         try{
             const auto *game=games_->find(id);bool available=false;
-            if(game)for(const auto &v:game->variants)if(v.id==variant&&v.generated)available=true;
+            if(game)for(const auto &v:game->variants)if(v.id==variant&&(v.generated||authoredLaunchSupported(v)))available=true;
             if(!available||!game->install.contains("variant")||!game->install["variant"].contains(variant.toStdString())){ui_->scanProgress({{"text","Nothing to retry: the selected game and variant have no M1 owned installation recipe."}});return;}
             auto request=gameRequest(id,variant);request.handover=handover;
             startInstallRequest(request,"game");
@@ -89,7 +89,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     });
     connect(ui_,&UiController::playRequested,this,[this](const QString &id,const QString &variant){
         if(launchBusy()){ui_->scanProgress({{"text","Play refused: a game is already running or a launch is being prepared. Use Stop first."}});return;}
-        try{launcher_.start(launch::flatRequest(games_->catalog(),id,root_,bindings_,variant));}catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
+        try{launcher_.start(launch::gameRequest(games_->catalog(),id,root_,bindings_,variant));}catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
     connect(ui_,&UiController::stopLaunchRequested,&launcher_,&launch::LaunchService::stop);
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
@@ -162,7 +162,7 @@ void HubServices::scan(const QStringList &folders){
 install::Request HubServices::gameRequest(const QString &id,const QString &variant){
     auto game=games_->find(id);if(!game)throw install::Error("E_GAME_INVALID","Unknown game");
     install::Request request;request.root=root_;request.catalogRoot=QDir::cleanPath(QFileInfo(game->folder).dir().absolutePath()+"/..");
-    request.gameId=id;request.variantId=variant;request.recipe=game->install;request.runtime=current(id);
+    request.gameId=id;request.variantId=variant;request.recipe=game->install;request.runtime=current(id);request.runtime.selectedVariantId=variant;
     request.bindings=launch::normalizeBindings(bindings_,id);request.settings=Json::parse(QJsonDocument(QJsonObject::fromVariantMap(settings_->game(id))).toJson(QJsonDocument::Compact).toStdString());return request;
 }
 QString HubServices::catalogRoot()const{
@@ -235,6 +235,13 @@ void HubServices::restore(){
             for(const auto &tool:bindings_.value("tools",Json::array())) {
                 const QFileInfo executable(text(tool,"path"));
                 if(tool.value("verified",false)&&executable.isFile()&&(!tool.contains("size")||tool["size"].get<qint64>()==executable.size())&&(!tool.contains("mtime")||tool["mtime"].get<qint64>()==executable.lastModified().toMSecsSinceEpoch()))state.toolsOk<<text(tool,"id");
+            }
+            for(const auto &variant:game.variants)if(authoredLaunchSupported(variant)) {
+                install::Request saved;saved.root=root_;saved.gameId=game.id;saved.variantId=variant.id;saved.recipe=game.install;saved.runtime=state;
+                state=install::Engine().runtimeState(saved);
+                for(const auto &installed:state.variants)
+                    if(installed.id==variant.id&&installed.verified&&installed.manifestExists&&installed.installedWhenExists&&state.selectedVariantId.isEmpty())
+                        state.selectedVariantId=variant.id;
             }
             states<<state;
         }

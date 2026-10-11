@@ -9,6 +9,7 @@
 #include <QTimer>
 #include <QWindow>
 #include <QtTest>
+#include <optional>
 namespace {
 ac::CatalogData syntheticCatalog(const QString &root){
     auto data=ac::CatalogLoader().load(AC_CATALOG_ROOT);
@@ -40,6 +41,33 @@ private slots:
         for(const auto &v:game->variants)if(v.generated&&v.quality=="flat"&&v.tools.contains(pair.second))offered=true;
         QVERIFY2(offered,qPrintable("Required M1 flat route missing: "+pair.first));
     }
+ }
+ void authoredInstallationRestoresAfterHubRestart(){
+    QTemporaryDir t;auto catalog=syntheticCatalog(t.path());auto &game=catalog.games[0];
+    game.raw["hardware"]="nintendo-wii";game.raw["media"]=ac::Json::array({{{"kind","disc"},{"id","disc"}}});
+    ac::Variant v;v.id="dolphinxr";v.title="DolphinXR (experimental VR)";v.status="wip";v.quality="true3d";v.media={"disc"};
+    const auto dir=t.filePath("installed/synthetic/dolphinxr"),exe=dir+"/Dolphin.exe";
+    ac::install::atomicWrite(exe,"synthetic application; never run");QDir().mkpath(dir+"/User");
+    const auto hash=ac::install::hashFile(exe);
+    v.raw={{"status","wip"},{"quality","true3d"},{"version","v0.4"},{"installed_when","file:${install_dir}/Dolphin.exe"},{"step",ac::Json::array()},
+      {"launch",{{"exe","${install_dir}/Dolphin.exe"},{"exe_sha256",hash.toStdString()},{"args",ac::Json::array({"--user","${install_dir}/User"})},{"runtime","none"}}}};
+    game.variants.prepend(v);game.install={{"format",1},{"default","dolphinxr"},{"variant",{{"dolphinxr",v.raw}}}};game.hasRecipe=true;
+    const auto media=t.filePath("synthetic.iso");ac::install::atomicWrite(media,"synthetic disc");receipt(t.path(),media);
+    auto bindings=ac::Json::parse(ac::install::readBytes(t.filePath("user/cache/scan-bindings.json")).toStdString());bindings["bindings"][0]["requirementId"]="disc";
+    ac::install::atomicWrite(t.filePath("user/cache/scan-bindings.json"),QByteArray::fromStdString(bindings.dump()));
+    ac::install::Request r;r.root=t.path();r.gameId=game.id;r.variantId=v.id;
+    const auto base=ac::install::stateBase(r),recipeHash=ac::install::sha256(QByteArray::fromStdString(game.install.dump()));
+    ac::install::writeEnvelope(base+".toml",{{"game","synthetic"},{"variant","dolphinxr"},{"state","installed"},{"installed_version","v0.4"},{"recipe_sha256",recipeHash.toStdString()}});
+    ac::install::writeEnvelope(base+".manifest.toml",{{"game","synthetic"},{"variant","dolphinxr"},{"install_dir","installed/synthetic/dolphinxr"},{"installed_when","file:${install_dir}/Dolphin.exe"},{"recipe_sha256",recipeHash.toStdString()},{"file",ac::Json::array({{{"path","Dolphin.exe"},{"sha256",hash.toStdString()}}})}});
+    ac::GameListModel model(catalog);ac::FilterSortModel filter;filter.setSourceModel(&model);ac::UiSettings settings(t.filePath("user"));ac::UiController ui(&model,&filter,&settings);
+    ac::HubServices services(&model,&filter,&ui,&settings,t.path());
+    QCOMPARE(model.find("synthetic")->runtime.selectedVariantId,QString("dolphinxr"));
+    QCOMPARE(model.find("synthetic")->roles.value("stateLabel").toString(),QString("Setup installed"));
+    ui.openDetail("synthetic");QCOMPARE(ui.detail().value("variantId").toString(),QString("dolphinxr"));
+    std::optional<ac::launch::Request> launch;
+    try { launch=ac::launch::gameRequest(catalog,"synthetic",t.path(),bindings); }catch(const ac::install::Error &) {}
+    QVERIFY2(launch.has_value(),"Default launch did not retain the installed authored setup");
+    QCOMPARE(launch->variantId,QString("dolphinxr"));
  }
  void restoreArtAndScanSignals(){
     QTemporaryDir temp;const auto media=temp.filePath("fixture.zip");ac::install::atomicWrite(media,"synthetic metadata only");receipt(temp.path(),media);
