@@ -68,10 +68,11 @@ Sources checked for this implementation:
 - https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.cpp
 - Existing OpenVR2.15.6 header/API at commit0924064316de3effbcd1acf1e309182a2deb1c05.
 
-MSVC build and six protocol/motion tests pass, including two real UDP clients
-and expiry. These tests do not establish tracking, controller feel, game motion
-recognition, stereo viewing, co-op or headset acceptance. The first live probe
-reported Hmd Not Found before ALVR connected.
+The native pose reader has a previous MSVC build. The current 13 protocol/motion
+tests pass, including two real UDP clients, expiry, and a short pulse surviving
+Dolphin's newest-packet drain. These tests do not establish tracking, controller
+feel, game motion recognition, stereo viewing, co-op or headset acceptance. The
+first live probe reported Hmd Not Found before the headset connection was ready.
 
 ## Live sitting notes
 
