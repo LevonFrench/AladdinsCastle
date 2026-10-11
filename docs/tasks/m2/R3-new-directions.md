@@ -94,6 +94,13 @@ Lapsed on 2026-10-11: no disc is available for testing, so no session spends tim
 
 The arcade boards, in the D49 order. System 22 first: pick up where [4-stereo-boards.md](4-stereo-boards.md) and [R1-redirect.md](R1-redirect.md) left it. Then Model 3, NAOMI and Dreamcast, System 23. The same rule applies there: real picture first, headset acceptance later.
 
+## Release name (D62)
+
+The release will be called **ACVR** and will ship from a new repository. Aladdin's Castle stays the working name here. Nothing is renamed now. What to do now, because it is cheap now and expensive later:
+
+- **One place for the name.** The display name, short id, program name, SteamVR overlay key, Steam shortcut name and user data folder name come from one definition. No other code, test or script spells the name out.
+- **Nothing private in what will ship.** The new repository will take the product's source, data and user documents. Status reports, task briefs and branch history stay behind, so write user documents that stand on their own.
+
 ## The next sitting, when the owner is back
 
 One list, in this order. Each item is a few minutes.
