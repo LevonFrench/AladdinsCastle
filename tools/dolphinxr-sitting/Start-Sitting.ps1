@@ -7,7 +7,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Disc,
     [ValidatePattern('^[A-Z0-9]{6}$')][string]$GameID = 'RBUP08',
     [Parameter(Mandatory=$true)][string]$StateDirectory,
-    [string]$NativeProfile = (Join-Path $PSScriptRoot '../../data/controls/wii/generated/dolphinxr/split-right.ini'),
+    [string]$NativeProfile = '',
     [ValidateSet('Default','Eager','Desktop')][string]$Mode = 'Default',
     [ValidateSet('Native','Sharp','SharpAA')][string]$Quality = 'Sharp',
     [string]$DsuProfile='',
@@ -26,6 +26,9 @@ Import-Module (Join-Path $PSScriptRoot 'Sitting.psm1') -Force
 Assert-AcSittingInputs $Executable $ExecutableSHA256 $Disc $GameID
 $state = Assert-AcPrivatePath $StateDirectory
 if ($CheckOnly) { Write-Output 'Executable hash and exact Wii header match. No settings changed or process started.'; return }
+if (-not $NativeProfile) {
+    $NativeProfile = Join-Path $PSScriptRoot '../../data/controls/wii/generated/dolphinxr/split-right.ini'
+}
 # The active native route is deliberately single-player/right hand. Native per-slot
 # IR routing is not supplied by swapping button expressions in the pinned build.
 if ((Split-Path $NativeProfile -Leaf) -ne 'split-right.ini') { throw 'This sitting requires the verified split-right native profile.' }

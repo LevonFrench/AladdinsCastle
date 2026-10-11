@@ -57,6 +57,9 @@ try {
     ([byte[]]@(0x5d,0x1c,0x9e,0xa3)).CopyTo($header,24)
     [IO.File]::WriteAllBytes($disc,$header)
     $hash = (Get-FileHash $exe).Hash
+    & (Join-Path $PSHOME 'powershell.exe') -NoProfile -File "$PSScriptRoot/Start-Sitting.ps1" `
+        -Executable $exe -ExecutableSHA256 $hash -Disc $disc -GameID RBUP08 -StateDirectory "$root/cli-check" -CheckOnly
+    Assert ($LASTEXITCODE -eq 0 -and -not (Test-Path "$root/cli-check")) 'PowerShell -File must support omitted default profile without writes.'
     $generated = Join-Path $root 'generated/dolphinxr'
     New-Item -ItemType Directory $generated -Force | Out-Null
     Copy-Item $profile "$generated/split-right.ini"
