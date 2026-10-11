@@ -12,4 +12,10 @@ ROM readiness means a single static ROM reference has a same-named local ZIP, no
 
 The controls card consumes the Guns lane's `vpx-openxr` route through `resolveRoute` and the existing universal view. Its Y-exit warning is retained; planned/unavailable execution labels do not imply a running bridge. The shared now-playing card preserves the current tab and exact route, requests a Windows child-window close without a force timer, and restarts only after successful process completion. Recentre stays disabled. Linux clean close and actual score-saving behavior are unaccepted.
 
+The detail page and diagnostic plan share the same plain-language launch help:
+startup preference writes, saved data beside tables, and unconfined script/ROM
+tool/plugin writes. VR-ready and ROM-readiness labels do not enable launch.
+The [write-isolation audit](VPX_ISOLATION.md) records the supported options and
+the exact unresolved sinks with immutable developer source citations.
+
 Wii disc identity is a separate bounded metadata check. WBFS host-sector size is derived from validated shifts and a single-disc slot; the copied header and Wii magic are checked. Rescans bypass metadata-only cache admission for ISO/GCM/WBFS, and admitted disc IDs are reread again immediately before child spawn. [Upstream WBFS layout reference](https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/DiscIO/WbfsBlob.cpp). `hubtool identify-disc <file>` exposes the same read-only reader without inspecting game payloads or starting an emulator.

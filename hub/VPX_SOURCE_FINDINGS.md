@@ -17,3 +17,8 @@ Read-only source inspection of official tag `v10.8.1-5436-af26b2d93`, commit `af
 7. **Audit.** `-Audit` loads a table and calls `AuditTable(true)`. It reports script duplicate declarations/Execute usage, invalid glass geometry, rendering/physics/asset problems and related warnings. It is not a trusted VR-room classifier or ROM inventory. The Hub uses bounded metadata reads instead of invoking the engine audit, avoiding table load side effects. [AppCommands.cpp:158–167](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/core/AppCommands.cpp#L158), [pintable.cpp:4603 onward](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/parts/pintable.cpp#L4603).
 
 The Quest controls are source-verified at [XRInputHandler.h:125–152](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/input/XRInputHandler.h#L125): triggers flippers, grips Magna Save, A start, B credit, X menu, Y exit, left stick nudge/click recentre, right stick plunger/click launch. These controller bindings do not imply an implemented Hub Recentre bridge.
+
+The [write-isolation audit](VPX_ISOLATION.md) also covers the actual parser's
+`-PrefPath` option, preference setup before argument parsing, user score
+storage and the separate script/COM/plugin persistence limits. No all-sinks
+launch plan has passed those conditions.

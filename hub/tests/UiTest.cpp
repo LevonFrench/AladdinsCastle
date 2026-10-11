@@ -215,6 +215,14 @@ class UiTest:public QObject {
   grid->setProperty("contentY",0);QTest::qWait(40);tiles=namedItems(window->contentItem(),"pinballTile");tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,tile->height()/2));
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTRY_VERIFY(!namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
   QCOMPARE(ui->property("pinballSelection").toMap().value("romState").toString(),QString("needs no ROM"));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"pinballLaunchHelp").isEmpty());
+  const auto launchHelp=namedItems(window->contentItem(),"pinballLaunchHelp").first();
+  const auto helpText=ui->property("pinballLaunchHelp").toString();
+  QVERIFY(helpText.contains("settings folder"));QVERIFY(helpText.contains("beside your tables"));QVERIFY(helpText.contains("scripts"));QVERIFY(helpText.contains("plugins"));
+  QCOMPARE(launchHelp->property("text").toString(),helpText);
+  root->setProperty("vrOverlayMode",false);QVERIFY(softwareFrame(window));
+  QCOMPARE(launchHelp->property("text").toString(),helpText);
+  root->setProperty("vrOverlayMode",true);QVERIFY(softwareFrame(window));
   QTRY_VERIFY(!namedItems(window->contentItem(),"universalControlsView").isEmpty());
   auto model=ui->property("pinballControls").value<QObject *>();QVERIFY(model);
   QCOMPARE(model->property("gameId").toString(),QString("pinball-vpx-openxr"));

@@ -42,6 +42,26 @@ def table(path, title, author, version, script, mini=False):
     path.write_bytes(raw)
 
 class Checks(unittest.TestCase):
+    def test_blocked_plan_explains_actual_isolation_gaps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=pathlib.Path(tmp); f=p/'ready.vpx'
+            table(f,'Ready (Synthetic 2000)','Test','1.0','Const VRRoom=1\nVRRoomCabinet.Visible=True')
+            original=f.read_bytes()
+            row=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)]))['tables'][0]
+            self.assertTrue(row['vrReady']);self.assertEqual(row['romState'],'needs no ROM')
+            for mode in ('desktop','vr'):
+                plan=json.loads(subprocess.check_output([HUB,'plan-pinball',str(f),HUB,str(p/'owned'),mode]))
+                self.assertFalse(plan['launchAllowed'])
+                blockers={x['id']:x['text'] for x in plan['isolationBlockers']}
+                self.assertEqual(set(blockers),{'preferences','table-data','scripts-and-plugins'})
+                self.assertIn('settings folder',blockers['preferences'])
+                self.assertIn('beside your tables',blockers['table-data'])
+                self.assertIn('scripts',blockers['scripts-and-plugins']);self.assertIn('plugins',blockers['scripts-and-plugins'])
+                self.assertTrue(plan['help'].startswith(plan['reason']))
+                for text in blockers.values():self.assertIn(text,plan['help'])
+                self.assertNotIn('https://',plan['help'])
+                self.assertFalse((p/'owned').exists());self.assertEqual(f.read_bytes(),original)
+            self.assertEqual({x.name for x in p.iterdir()},{'ready.vpx'})
     def test_minifat_and_directory_cycle(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp);f=p/'mini.vpx';table(f,'Mini (Synthetic 2000)','Test','1.0','Const VRRoom=1\nVRRoomCabinet.Visible=True',mini=True)
