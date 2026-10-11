@@ -1,5 +1,10 @@
 # Native synthetic System 22 slice
 
+The proposed [snapshot/oracle freeze](SNAPSHOT-ORACLE-FREEZE.md) fixes the
+resolved native input root and bounded numeric scene manifest. Verify its CPU
+fixtures with `python -B check_scene_vectors.py` from this directory. It covers
+two scenes and does not establish GPU pixels or the remaining planned cases.
+
 The proposed [paired producer evidence contract](PAIRED-EVIDENCE-CONTRACT.md)
 defines exact eye pixels, lease/pose/projection correlation and capture limits.
 The bounded [GPU proof-driver plan](GPU-PROOF-DRIVER-PLAN.md) depends on review
