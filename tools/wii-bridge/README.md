@@ -24,7 +24,8 @@ Trigger is suppressed when the ray misses the reference plane or its bounds.
 Closing the window stops its reader and server. `--seconds N` bounds a test.
 
 Buttons: trigger→R2, primary(A/X)→Cross, grip→L2, secondary(B/Y)→Circle,
-application menu→Options. Thumbstick remains the left stick. DSU provider name
+application menu→Options. The right Touch system button does not provide this
+application-menu action; a usable Remote + binding is still needed. Thumbstick remains the left stick. DSU provider name
 is determined by Dolphin's server description: use **AladdinsCastle**.
 Thumbstick click is read but not sent as a Wii button; visible laser toggle is
 not implemented yet. Wii profile generation belongs to tools/wii-dolphin-profile.
@@ -35,10 +36,11 @@ tracking angular velocity rotated into that frame, converted to deg/s. A gap
 over50ms resets the derivative; samples stale for150ms disconnect both pads.
 All axes require physical sign/orientation verification against Dolphin.
 Do not map Dolphin Shake/Swing in addition to Motion Input. R/V in this window
-produce bounded accessibility shake/swing waveforms on that same motion path;
+produce bounded player-one-only accessibility shake/swing waveforms on that same motion path;
 they are provisional and not yet tuned in either game. On Windows, temporary
 Ctrl+Alt+R/V hotkeys also work while Dolphin has focus and are unregistered on
-close. Conflicts appear in the status window. Controller fallback bindings and
+close. Player two uses physical motion; these keyboard shortcuts do not inject
+into its device. Conflicts appear in the status window. Controller fallback bindings and
 independent Nunchuk motion depend on profile integration.
 
 Protocol coverage: DSU1001 header/CRC, version query, requested port discovery,

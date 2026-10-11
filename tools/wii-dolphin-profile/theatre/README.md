@@ -80,10 +80,12 @@ On initial centre and each Ctrl+Alt+C, the helper atomically publishes JSON:
 schema1, increasing revision, width3.2, height1.8, distance2.0, head_valid=true
 and head=[12 row-major HMD matrix floats]. The bridge must consume that exact
 head matrix and call Mapper.recenter(head) for each new revision. Both use
-standing tracking space and the same level-yaw basis. Bridge integration belongs
-to the lead. Until it consumes the file, matching screen/pointer calibration
-remains open; independently pressing two recenter controls cannot guarantee a
-match. No continuous head following or hidden automatic recenter is used.
+standing tracking space and the same level-yaw basis. The integrated bridge
+consumes this file through its `--head-file` argument; give both processes the
+same fresh path. Its separate centre button is disabled in this mode. Independently
+pressing two recenter controls cannot guarantee a match. No continuous head
+following or hidden automatic recenter is used. Matching calibration is covered
+by software checks; actual image and aiming alignment still need the sitting.
 
 CPU tests cover invalid numbers, allocation bounds, fixed/yaw/vertical poses,
 SBS aspect and black pixels. Windows DLL tests load/unload present and absent

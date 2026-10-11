@@ -29,7 +29,10 @@ def main():
     window.geometry('900x650')
     window.configure(bg='#132030')
     tk.Label(window,text='Wii Remotes · live SteamVR motion',font=('Segoe UI',22),fg='white',bg='#132030').pack(pady=12)
-    tk.Label(window,text='Face the centre of your Dolphin screen, then click Centre pointer plane.\nRight hand = Remote 1 · Left hand = Remote 2 / Nunchuk',font=('Segoe UI',12),fg='white',bg='#132030').pack()
+    centre_help = ('Use Ctrl+Alt+C in the theatre to centre the screen and pointer together.'
+                   if args.head_file else
+                   'Face the centre of your Dolphin screen, then click Centre pointer plane.')
+    tk.Label(window,text=centre_help+'\nRight hand = Remote 1 · Left hand = Remote 2 / Nunchuk',font=('Segoe UI',12),fg='white',bg='#132030').pack()
     canvas = tk.Canvas(window,width=820,height=360,bg='#0b111a',highlightthickness=0)
     canvas.pack(pady=12)
     for x,y in [(410,180),(30,30),(790,30),(30,330),(790,330)]:
@@ -75,7 +78,7 @@ def main():
             if user32.RegisterHotKey(None,ident,0x4003,ord(key)):
                 hotkeys.append(ident)
         hotkey_message=wintypes.MSG()
-    tk.Label(window,text='Ctrl+Alt+R = reload · Ctrl+Alt+V = melee · R/V also work in this window · Close stops bridge',fg='white',bg='#132030').pack()
+    tk.Label(window,text='Player 1 only: Ctrl+Alt+R = reload · Ctrl+Alt+V = swing\nR/V also work in this window · Player 2 uses physical motion · Close stops bridge',fg='white',bg='#132030').pack()
     def gesture(kind):
         nonlocal fallback
         fallback=(kind,time.monotonic())
