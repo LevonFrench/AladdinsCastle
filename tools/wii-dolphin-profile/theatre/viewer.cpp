@@ -5,6 +5,7 @@
 #include <openvr.h>
 #include "core.h"
 #include "native_dpi.h"
+#include "d3d_upload.h"
 #include <atomic>
 #include <chrono>
 #include <cstring>
@@ -27,22 +28,27 @@ struct Handle {
 struct Session {
     HMODULE dll{}; bool initialized=false; bool hotkey=false;
     vr::IVROverlay* overlay{}; vr::VROverlayHandle_t handle=vr::k_ulOverlayHandleInvalid;
+    std::unique_ptr<theatre::D3DUpload> upload;
     ~Session() {
         if(hotkey) UnregisterHotKey(nullptr,1);
         if(overlay && handle!=vr::k_ulOverlayHandleInvalid) {
-            overlay->HideOverlay(handle); overlay->DestroyOverlay(handle);
+            overlay->HideOverlay(handle); overlay->ClearOverlayTexture(handle); overlay->DestroyOverlay(handle);
         }
+        upload.reset(); // Overlay released its resource before texture/context/device.
         if(initialized) vr::VR_Shutdown();
         if(dll) FreeLibrary(dll);
     }
 };
 static void vrCheck(vr::EVROverlayError error,const char* operation) {
-    if(error!=vr::VROverlayError_None)
-        throw std::runtime_error(std::string(operation)+": "+std::to_string(error));
+    if(error!=vr::VROverlayError_None) {
+        auto* overlay=vr::VROverlay();
+        throw std::runtime_error(theatre::overlayFailure(operation,static_cast<int>(error),
+            overlay?overlay->GetOverlayErrorNameFromEnum(error):nullptr));
+    }
 }
-struct Windows { DWORD pid; std::vector<HWND> candidates; };
+struct ClientWindows { DWORD pid; std::vector<HWND> candidates; };
 static BOOL CALLBACK enumerate(HWND window,LPARAM value) {
-    auto& found=*reinterpret_cast<Windows*>(value);
+    auto& found=*reinterpret_cast<ClientWindows*>(value);
     DWORD pid=0; GetWindowThreadProcessId(window,&pid);
     if(theatre::eligible(pid,found.pid,IsWindowVisible(window)!=FALSE,GetWindow(window,GW_OWNER)!=nullptr)) {
         RECT rectangle{};
@@ -194,7 +200,7 @@ int wmain(int argc,wchar_t** argv) {
         if(!QueryFullProcessImageNameW(process.value,0,image,&length) ||
            _wcsicmp(fs::path(image).filename().c_str(),L"Dolphin.exe")!=0)
             fail("Selected PID is not Dolphin.exe");
-        Windows windows{pid,{}};
+        ClientWindows windows{pid,{}};
         EnumWindows(enumerate,reinterpret_cast<LPARAM>(&windows));
         if(windows.candidates.size()!=1) fail("Expected one visible unowned Dolphin window; close dialogs first");
         HWND window=windows.candidates.front();
@@ -214,6 +220,9 @@ int wmain(int argc,wchar_t** argv) {
         if(init!=vr::VRInitError_None) fail(vr::VR_GetVRInitErrorAsEnglishDescription(init));
         session.initialized=true; session.overlay=vr::VROverlay();
         if(!system || !session.overlay) fail("SteamVR overlay interfaces unavailable");
+        int32_t adapter=-1; system->GetDXGIOutputInfo(&adapter);
+        session.upload=theatre::D3DUpload::onAdapter(adapter);
+        std::cout << "D3D11 overlay upload ready on SteamVR adapter index=" << adapter << std::endl;
         std::string key="aladdinscastle.dolphin.theatre."+std::to_string(GetCurrentProcessId());
         vrCheck(session.overlay->CreateOverlay(key.c_str(),"AladdinsCastle 3D theatre",&session.handle),"create overlay");
         vrCheck(session.overlay->SetOverlayFlag(session.handle,vr::VROverlayFlags_SideBySide_Parallel,true),"SBS parallel");
@@ -249,7 +258,11 @@ int wmain(int argc,wchar_t** argv) {
                 if(Clock::now()-blackSince>std::chrono::seconds(2)) fail("Client capture remained black for2s; stopping");
             } else blackSince={};
             vrCheck(session.overlay->SetOverlayTexelAspect(session.handle,theatre::texelAspect(capture.w,capture.h)),"eye aspect");
-            vrCheck(session.overlay->SetOverlayRaw(session.handle,capture.pixels,capture.w,capture.h,4),"BGRA raw submit");
+            if(session.upload->texture() && !session.upload->matches(capture.w,capture.h))
+                vrCheck(session.overlay->ClearOverlayTexture(session.handle),"release old overlay texture before resize");
+            session.upload->upload(capture.w,capture.h,capture.pixels,bytes);
+            const vr::Texture_t texture{session.upload->texture(),vr::TextureType_DirectX,vr::ColorSpace_Gamma};
+            vrCheck(session.overlay->SetOverlayTexture(session.handle,&texture),"BGRA8 D3D11 overlay submit");
             ++frames;
             std::this_thread::sleep_for(std::chrono::milliseconds(33));
         }

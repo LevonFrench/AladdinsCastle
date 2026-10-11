@@ -58,8 +58,13 @@ the tool's convention; they do not prove every cursor pixel is invisible.
 No process/window is hidden, killed or altered. The capture DC remains the
 selected Dolphin client; no other window's DC or pixels are queried.
 
-GDI BitBlt copies to a top-down32-bit BGRA DIB. Pixels are submitted through
-SetOverlayRaw with the parallel-SBS flag. Client dimensions must have even
+GDI BitBlt copies to a top-down32-bit BGRA DIB. Those same guarded pixels are
+uploaded without channel/row/size changes to a shared BGRA8 D3D11 texture and
+submitted through SetOverlayTexture (DirectX, Gamma) with the parallel-SBS flag.
+The device uses SteamVR's GetDXGIOutputInfo adapter index, CreateDXGIFactory1
+and D3D11CreateDevice with UNKNOWN driver type and BGRA support. An invalid
+adapter fails explicitly; there is no arbitrary/default adapter fallback.
+Texture dimensions remain the full client size. Client dimensions must have even
 width and fit4096x2160; no unbounded allocation. Preflight rejects black capture
 before VR initialization. Two seconds of continuous black pixels also stop a
 run; a dark game scene can therefore cause a conservative false stop. Nonblack
@@ -91,3 +96,20 @@ CPU tests cover invalid numbers, allocation bounds, fixed/yaw/vertical poses,
 SBS aspect and black pixels. Windows DLL tests load/unload present and absent
 DLL paths and inspect an export; they never call VR_Init. These checks do not
 verify actual GDI game capture, headset stereo, controller signs or gameplay.
+
+The Windows upload regression uses **software WARP only**, with no hardware
+adapter enumeration, windows, GDI capture or VR initialization. It verifies
+full640x480/800x600 synthetic BGRA buffers by staging-texture readback, including
+every channel/row/alpha byte, same-size resource reuse, resize and rejection
+cases. WARP proves the upload implementation, not SteamVR interoperability.
+Production clears the overlay resource before resize, and hides/clears/destroys
+the overlay before releasing its texture, context and device on exit. OpenVR
+errors include the API's enum name and numeric value; D3D errors include HRESULT.
+
+The original raw path returned RequestFailed23 on a full client buffer after
+nonblack preflight. The cause is unknown. The checked OpenVR header documents
+an unspecified raw-byte upper bound; that does not establish a size cause.
+The raw path is replaced, without repeated retries or downscaling. Official
+references: [Valve texture submission](https://github.com/ValveSoftware/openvr/wiki/IVROverlay%3A%3ASetOverlayTexture),
+[Valve adapter selection](https://github.com/ValveSoftware/openvr/wiki/IVRSystem%3A%3AGetDXGIOutputInfo),
+[Microsoft device creation](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-d3d11createdevice).
