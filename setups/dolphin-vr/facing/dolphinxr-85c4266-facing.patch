@@ -1,0 +1,457 @@
+diff --git a/Source/Core/VideoBackends/D3D/D3DMain.cpp b/Source/Core/VideoBackends/D3D/D3DMain.cpp
+index 92ab6a5..1c7c160 100644
+--- a/Source/Core/VideoBackends/D3D/D3DMain.cpp
++++ b/Source/Core/VideoBackends/D3D/D3DMain.cpp
+@@ -172,6 +172,10 @@ bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
+       DX11::g_openxr_d3d = std::move(openxr);
+     }
+   }
++  else
++  {
++    INFO_LOG_FMT(OPENXR, "OpenXR disabled; no session initialized");
++  }
+ #endif
+ 
+   std::unique_ptr<SwapChain> swap_chain;
+diff --git a/Source/Core/VideoCommon/VR/OpenXRManager.cpp b/Source/Core/VideoCommon/VR/OpenXRManager.cpp
+index df1d4d3..83d4b22 100644
+--- a/Source/Core/VideoCommon/VR/OpenXRManager.cpp
++++ b/Source/Core/VideoCommon/VR/OpenXRManager.cpp
+@@ -50,6 +50,8 @@
+ #include "Common/Timer.h"
+ #include "Common/VR/OpenXRInputState.h"
+ #include "Core/Config/GraphicsSettings.h"
++#include "Core/System.h"
++#include "VideoCommon/GeometryShaderManager.h"
+ #include "VideoCommon/OnScreenDisplay.h"
+ #include "VideoCommon/VideoConfig.h"
+ 
+@@ -509,6 +511,8 @@ bool OpenXRManager::CreateInstance(const std::vector<const char*>& extra_extensi
+   // is enabled) and Quest standalone. Vulkan-only — the dedicated coverage target that
+   // produces the projection layer's alpha is a Vulkan feature.
+   std::vector<const char*> enabled_extensions(extra_extensions);
++  if (runtime_has(XR_EXT_USER_PRESENCE_EXTENSION_NAME))
++    enabled_extensions.push_back(XR_EXT_USER_PRESENCE_EXTENSION_NAME);
+ #if defined(_WIN32) || defined(ANDROID)
+   const bool is_vulkan_binding =
+       std::find_if(extra_extensions.begin(), extra_extensions.end(), [](const char* extension) {
+@@ -901,7 +905,21 @@ bool OpenXRManager::InitializeSystem()
+   if (m_xrCreatePassthroughFB != nullptr)
+     props.next = &passthrough_props;
+ #endif
+-  xrGetSystemProperties(m_instance, m_system_id, &props);
++  XrSystemUserPresencePropertiesEXT presence{XR_TYPE_SYSTEM_USER_PRESENCE_PROPERTIES_EXT};
++  const bool presence_enabled = IsExtensionEnabled(XR_EXT_USER_PRESENCE_EXTENSION_NAME);
++  if (presence_enabled)
++  {
++    presence.next = props.next;
++    props.next = &presence;
++  }
++  const XrResult properties_result = xrGetSystemProperties(m_instance, m_system_id, &props);
++  m_system_supports_user_presence = presence_enabled && XR_SUCCEEDED(properties_result) &&
++      presence.supportsUserPresence == XR_TRUE;
++  INFO_LOG_FMT(OPENXR, "OpenXR: User presence extension={} system_support={}; facing mode={}",
++      presence_enabled ? "enabled" : "unavailable",
++      m_system_supports_user_presence ? "yes" : "no",
++      m_system_supports_user_presence ? "presence event then focused valid pose" :
++      "controller-confirmed recenter required after wearing");
+   m_system_name = props.systemName;
+   m_quest_or_vd_runtime.reset();
+   m_system_vendor_id = props.vendorId;
+@@ -991,6 +1009,10 @@ void OpenXRManager::SetSession(XrSession session)
+   DestroyFBPassthrough();
+ 
+   m_session = session;
++  {
++    std::lock_guard lock(m_home_mutex);
++    m_facing.ResetSession(m_system_supports_user_presence);
++  }
+ 
+   if (m_session == XR_NULL_HANDLE)
+   {
+@@ -1166,8 +1188,12 @@ void OpenXRManager::DestroySession()
+   m_xfb_pose_stamp_next = 0;
+   m_xfb_pose_stamp_serial = 0;
+   m_logged_interaction_profiles = {XR_NULL_PATH, XR_NULL_PATH};
+-  m_home_set = false;
+-  m_home_position = {0.f, 0.f, 0.f};
++  {
++    std::lock_guard lock(m_home_mutex);
++    m_home_set = false;
++    m_home_position = {0.f, 0.f, 0.f};
++    m_facing.ResetSession(m_system_supports_user_presence);
++  }
+   m_recenter_requested.store(false, std::memory_order_release);
+   m_flat_screen_pose_valid = false;
+   m_flat_screen_pose = {{0.f, 0.f, 0.f, 1.f}, {0.f, 0.f, 0.f}};
+@@ -2249,8 +2275,12 @@ bool OpenXRManager::CreateReferenceSpace()
+   }
+ 
+   m_reference_space_type = space_info.referenceSpaceType;
+-  m_home_set = false;
+-  m_home_position = {0.f, 0.f, 0.f};
++  {
++    std::lock_guard lock(m_home_mutex);
++    m_home_set = false;
++    m_home_position = {0.f, 0.f, 0.f};
++    m_facing.ResetAnchor();
++  }
+   INFO_LOG_FMT(OPENXR, "OpenXR: Created {} reference space.",
+                ReferenceSpaceTypeName(m_reference_space_type));
+   return true;
+@@ -2276,6 +2306,18 @@ bool OpenXRManager::PollEvents()
+       ResetInputActionsState();
+       return false;
+ 
++    case XR_TYPE_EVENT_DATA_USER_PRESENCE_CHANGED_EXT:
++    {
++      const auto& ev = *reinterpret_cast<const XrEventDataUserPresenceChangedEXT*>(&event);
++      if (ev.session == m_session && m_system_supports_user_presence)
++      {
++        std::lock_guard lock(m_home_mutex);
++        m_facing.ObservePresence(ev.isUserPresent == XR_TRUE);
++        INFO_LOG_FMT(OPENXR, "OpenXR: User presence={} facing_pending={}",
++            ev.isUserPresent == XR_TRUE ? "present" : "absent", m_facing.Pending());
++      }
++      break;
++    }
+     case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
+       INFO_LOG_FMT(OPENXR, "OpenXR: Reference space change pending.");
+       break;
+@@ -2711,16 +2753,33 @@ bool OpenXRManager::LocateViews()
+     RecordRenderedEyeViews();
+   }
+ 
+-  if (m_recenter_requested.exchange(false, std::memory_order_acq_rel) && view_count >= 2)
++  bool facing_changed = false;
++  {
++    std::lock_guard lock(m_home_mutex);
++    if (m_recenter_requested.exchange(false, std::memory_order_acq_rel))
++      m_facing.Request();
++    const XrVector3f center{
++        0.5f * (m_eye_views[0].pose.position.x + m_eye_views[1].pose.position.x),
++        0.5f * (m_eye_views[0].pose.position.y + m_eye_views[1].pose.position.y),
++        0.5f * (m_eye_views[0].pose.position.z + m_eye_views[1].pose.position.z)};
++    const auto& q = m_eye_views[0].pose.orientation;
++    facing_changed = m_facing.Apply(m_session_focused.load(std::memory_order_acquire),
++        (m_view_state_flags & XR_VIEW_STATE_POSITION_VALID_BIT) != 0,
++        (m_view_state_flags & XR_VIEW_STATE_ORIENTATION_VALID_BIT) != 0,
++        view_count >= 2, {center.x, center.y, center.z}, {q.x, q.y, q.z, q.w});
++    if (facing_changed)
++    {
++      m_home_position = center;
++      m_home_set = true;
++      m_flat_screen_pose_valid = false;
++      INFO_LOG_FMT(OPENXR, "OpenXR: Recentered position=({:.4f},{:.4f},{:.4f}) yaw={:.4f}",
++          center.x, center.y, center.z, m_facing.Yaw());
++    }
++  }
++  if (facing_changed)
+   {
+-    m_home_position.x = 0.5f * (m_eye_views[0].pose.position.x + m_eye_views[1].pose.position.x);
+-    m_home_position.y = 0.5f * (m_eye_views[0].pose.position.y + m_eye_views[1].pose.position.y);
+-    m_home_position.z = 0.5f * (m_eye_views[0].pose.position.z + m_eye_views[1].pose.position.z);
+-    m_home_set = true;
+-    // Re-place the flat panel in front of the newly recentered head pose.
+-    m_flat_screen_pose_valid = false;
+-    INFO_LOG_FMT(OPENXR, "OpenXR: Recentered home position to ({:.4f},{:.4f},{:.4f})",
+-                 m_home_position.x, m_home_position.y, m_home_position.z);
++    Core::System::GetInstance().GetGeometryShaderManager().InvalidateVRHeadPose();
++    InvalidateControllerAnchorCache();
+   }
+ 
+   return true;
+@@ -2861,8 +2920,15 @@ void OpenXRManager::SelectPresentPoseForXFB(uint32_t xfb_addr)
+   }
+ }
+ 
++OpenXRManager::HomeAnchor OpenXRManager::GetHomeAnchor() const
++{
++  std::lock_guard lock(m_home_mutex);
++  return {m_home_position, m_facing.Yaw()};
++}
++
+ void OpenXRManager::EnsureHomePositionFromCurrentViews() const
+ {
++  std::lock_guard lock(m_home_mutex);
+   if (m_home_set)
+     return;
+ 
+@@ -2912,6 +2978,7 @@ void OpenXRManager::EnsureHomePositionFromCurrentViews() const
+ std::array<XREyeView, 2> OpenXRManager::GetTrackingAdjustedEyeViews() const
+ {
+   EnsureHomePositionFromCurrentViews();
++  const auto home = GetHomeAnchor();
+ 
+   std::array<XREyeView, 2> eye_views = m_eye_views;
+   if (g_ActiveConfig.vr_tracking_mode == OpenXRTrackingMode::Full6DoF)
+@@ -2926,11 +2993,11 @@ std::array<XREyeView, 2> OpenXRManager::GetTrackingAdjustedEyeViews() const
+     for (uint32_t eye = 0; eye < 2; ++eye)
+     {
+       eye_views[eye].pose.position.x =
+-          m_home_position.x + (m_eye_views[eye].pose.position.x - center_x);
++          home.position.x + (m_eye_views[eye].pose.position.x - center_x);
+       eye_views[eye].pose.position.y =
+-          m_home_position.y + (m_eye_views[eye].pose.position.y - center_y);
++          home.position.y + (m_eye_views[eye].pose.position.y - center_y);
+       eye_views[eye].pose.position.z =
+-          m_home_position.z + (m_eye_views[eye].pose.position.z - center_z);
++          home.position.z + (m_eye_views[eye].pose.position.z - center_z);
+     }
+     return eye_views;
+   }
+@@ -2942,10 +3009,10 @@ std::array<XREyeView, 2> OpenXRManager::GetTrackingAdjustedEyeViews() const
+ 
+   eye_views[0].pose.orientation = {0.0f, 0.0f, 0.0f, 1.0f};
+   eye_views[1].pose.orientation = {0.0f, 0.0f, 0.0f, 1.0f};
+-  eye_views[0].pose.position = {m_home_position.x - half_ipd, m_home_position.y,
+-                                m_home_position.z};
+-  eye_views[1].pose.position = {m_home_position.x + half_ipd, m_home_position.y,
+-                                m_home_position.z};
++  eye_views[0].pose.position = {home.position.x - half_ipd, home.position.y,
++                                home.position.z};
++  eye_views[1].pose.position = {home.position.x + half_ipd, home.position.y,
++                                home.position.z};
+   return eye_views;
+ }
+ 
+@@ -3156,10 +3223,13 @@ bool OpenXRManager::MapAimPoseToGameView(const Common::VR::OpenXRPoseState& aim,
+   // height/forward, anchor rotation, anchor position) with the controller substituted
+   // for the eye. Any divergence between the two shows up as the element swimming
+   // against the hand under head motion — keep them in lockstep.
++  const auto home = GetHomeAnchor();
+   const float s = std::max(units_per_meter, 0.0001f);
+-  float px = (cx - m_home_position.x) * s;
+-  float py = (cy - m_home_position.y) * s;
+-  float pz = (cz - m_home_position.z) * s;
++  float px = (cx - home.position.x) * s;
++  float py = (cy - home.position.y) * s;
++  float pz = (cz - home.position.z) * s;
++  const auto p = ACFacing::ToGame(ACFacing::Vector{px, py, pz}, home.yaw);
++  px = p[0]; py = p[1]; pz = p[2];
+   if (g_ActiveConfig.vr_enable_camera_height)
+     py += g_ActiveConfig.vr_camera_height * s;
+   if (g_ActiveConfig.vr_enable_camera_forward)
+@@ -3188,6 +3258,7 @@ bool OpenXRManager::MapAimPoseToGameView(const Common::VR::OpenXRPoseState& aim,
+   std::array<float, 9> rot = {1.0f - y2 - z2, xy - wz,        xz + wy,
+                               xy + wz,        1.0f - x2 - z2, yz - wx,
+                               xz - wy,        yz + wx,        1.0f - x2 - y2};
++  rot = ACFacing::ToGame(rot, home.yaw);
+   if (m_camera_anchor_rotation_active)
+   {
+     const std::array<float, 9>& A = m_camera_anchor_rotation;
+@@ -3309,6 +3380,10 @@ void OpenXRManager::GetEyeProjectionRows(
+       g_ActiveConfig.vr_enable_camera_height ? g_ActiveConfig.vr_camera_height * s : 0.0f;
+ 
+   const std::array<XREyeView, 2> eye_views = GetTrackingAdjustedEyeViews();
++  const auto home = GetHomeAnchor();
++  // None mode already synthesizes eyes in the fixed game basis.
++  const float yaw = g_ActiveConfig.vr_tracking_mode == OpenXRTrackingMode::None ?
++      0.0f : home.yaw;
+ 
+   for (uint32_t eye = 0; eye < 2; ++eye)
+   {
+@@ -3355,21 +3430,17 @@ void OpenXRManager::GetEyeProjectionRows(
+     // A's columns are the rig axes in view space, so the full eye-local -> view
+     // rotation is A*R (HMD rotation composes inside the rig frame, and the user can
+     // still look around freely from the element-oriented base).
+-    float m00 = r00, m01 = r01, m02 = r02;
+-    float m10 = r10, m11 = r11, m12 = r12;
+-    float m20 = r20, m21 = r21, m22 = r22;
++    const auto rig = ACFacing::ToGame(ACFacing::Rotation{
++        r00, r01, r02, r10, r11, r12, r20, r21, r22}, yaw);
++    float m00 = rig[0], m01 = rig[1], m02 = rig[2];
++    float m10 = rig[3], m11 = rig[4], m12 = rig[5];
++    float m20 = rig[6], m21 = rig[7], m22 = rig[8];
+     if (m_camera_anchor_rotation_active)
+     {
+-      const std::array<float, 9>& A = m_camera_anchor_rotation;
+-      m00 = A[0] * r00 + A[1] * r10 + A[2] * r20;
+-      m01 = A[0] * r01 + A[1] * r11 + A[2] * r21;
+-      m02 = A[0] * r02 + A[1] * r12 + A[2] * r22;
+-      m10 = A[3] * r00 + A[4] * r10 + A[5] * r20;
+-      m11 = A[3] * r01 + A[4] * r11 + A[5] * r21;
+-      m12 = A[3] * r02 + A[4] * r12 + A[5] * r22;
+-      m20 = A[6] * r00 + A[7] * r10 + A[8] * r20;
+-      m21 = A[6] * r01 + A[7] * r11 + A[8] * r21;
+-      m22 = A[6] * r02 + A[7] * r12 + A[8] * r22;
++      const auto anchored = ACFacing::Compose(m_camera_anchor_rotation, rig);
++      m00 = anchored[0]; m01 = anchored[1]; m02 = anchored[2];
++      m10 = anchored[3]; m11 = anchored[4]; m12 = anchored[5];
++      m20 = anchored[6]; m21 = anchored[7]; m22 = anchored[8];
+     }
+ 
+     // --- Asymmetric projection from FOV tangent angles ---
+@@ -3402,9 +3473,11 @@ void OpenXRManager::GetEyeProjectionRows(
+ 
+     // Eye position relative to home, in game units.
+     // Includes both IPD offset (per-eye) and head positional tracking (shared).
+-    float ex = (eye_pos_xr.x - m_home_position.x) * s;
+-    float ey = (eye_pos_xr.y - m_home_position.y) * s;
+-    float ez = (eye_pos_xr.z - m_home_position.z) * s;
++    float ex = (eye_pos_xr.x - home.position.x) * s;
++    float ey = (eye_pos_xr.y - home.position.y) * s;
++    float ez = (eye_pos_xr.z - home.position.z) * s;
++    const auto p = ACFacing::ToGame(ACFacing::Vector{ex, ey, ez}, yaw);
++    ex = p[0]; ey = p[1]; ez = p[2];
+     if (camera_height_units != 0.0f)
+       ey += camera_height_units;
+     if (camera_forward_units != 0.0f)
+diff --git a/Source/Core/VideoCommon/VR/OpenXRManager.h b/Source/Core/VideoCommon/VR/OpenXRManager.h
+index 6d5b65b..0a83713 100644
+--- a/Source/Core/VideoCommon/VR/OpenXRManager.h
++++ b/Source/Core/VideoCommon/VR/OpenXRManager.h
+@@ -26,6 +26,7 @@
+ #include "Common/Matrix.h"
+ #include "Common/VR/OpenXRInputState.h"
+ #include "VideoCommon/AbstractFramebuffer.h"
++#include "VideoCommon/VR/ACFacing.h"
+ 
+ // OpenXRManager owns the XrInstance, XrSystemId, XrSession, and reference XrSpace.
+ // It handles the OpenXR session state machine and per-frame timing.
+@@ -454,6 +455,8 @@ private:
+   // predicted display time extrapolates fast controller motion several frames ahead.
+   XrTime GetInputSampleTime();
+   void EnsureHomePositionFromCurrentViews() const;
++  struct HomeAnchor { XrVector3f position; float yaw; };
++  HomeAnchor GetHomeAnchor() const;
+   std::array<XREyeView, 2> GetTrackingAdjustedEyeViews() const;
+   void ResetInputActionsState();
+   void HandleSessionStateChange(XrSessionState new_state);
+@@ -651,6 +654,9 @@ private:
+ 
+   // "Home" head-center position, recorded from the first stable tracked pose.
+   // All positional tracking is relative to this to avoid floor-level offsets.
++  bool m_system_supports_user_presence = false;
++  mutable std::mutex m_home_mutex;
++  ACFacing::State m_facing;
+   mutable bool m_home_set{false};
+   mutable XrVector3f m_home_position{0.f, 0.f, 0.f};
+   std::atomic<bool> m_recenter_requested{false};
+diff --git a/Source/Core/VideoCommon/VR/ACFacing.h b/Source/Core/VideoCommon/VR/ACFacing.h
+new file mode 100644
+--- /dev/null
++++ b/Source/Core/VideoCommon/VR/ACFacing.h
+@@ -0,0 +1,122 @@
++// Copyright 2026 AladdinsCastle contributors
++// SPDX-License-Identifier: GPL-3.0-or-later
++#pragma once
++#include <array>
++#include <cmath>
++#include <optional>
++
++namespace ACFacing
++{
++using Vector = std::array<float, 3>;
++using Rotation = std::array<float, 9>;
++
++inline std::optional<float> Heading(const std::array<float, 4>& quaternion)
++{
++  float norm = 0;
++  for (const float value : quaternion)
++  {
++    if (!std::isfinite(value))
++      return {};
++    norm += value * value;
++  }
++  if (!std::isfinite(norm) || norm < 1e-8f)
++    return {};
++  const float x = quaternion[0], y = quaternion[1];
++  const float z = quaternion[2], w = quaternion[3];
++  const float forward_x = -2 * (x * z + w * y) / norm;
++  const float forward_z = -1 + 2 * (x * x + y * y) / norm;
++  if (forward_x * forward_x + forward_z * forward_z < 1e-8f)
++    return {};  // Looking straight up/down has no horizontal heading.
++  return std::atan2(-forward_x, -forward_z);
++}
++
++inline Vector ToGame(Vector value, float yaw)
++{
++  const float c = std::cos(yaw), s = std::sin(yaw);
++  return {c * value[0] - s * value[2], value[1], s * value[0] + c * value[2]};
++}
++
++inline Rotation ToGame(Rotation rotation, float yaw)
++{
++  for (int column = 0; column < 3; ++column)
++  {
++    const auto transformed = ToGame(Vector{rotation[column], rotation[3 + column],
++                                           rotation[6 + column]}, yaw);
++    for (int row = 0; row < 3; ++row)
++      rotation[row * 3 + column] = transformed[row];
++  }
++  return rotation;
++}
++
++inline Rotation Compose(const Rotation& anchor, const Rotation& rotation)
++{
++  Rotation result{};
++  for (int row = 0; row < 3; ++row)
++    for (int column = 0; column < 3; ++column)
++      for (int axis = 0; axis < 3; ++axis)
++        result[row * 3 + column] += anchor[row * 3 + axis] * rotation[axis * 3 + column];
++  return result;
++}
++
++// Caller serializes access. Presence and focus are separate facts: focus alone
++// never establishes donning. Unsupported presence requires explicit confirmation.
++class State
++{
++public:
++  enum class Presence { Unknown, Absent, Present };
++  void ResetSession(bool presence_supported)
++  {
++    m_supported = presence_supported;
++    m_presence = Presence::Unknown;
++    m_manual = m_automatic = false;
++    m_yaw = 0;
++    m_captured = false;
++  }
++  void ResetAnchor()
++  {
++    m_yaw = 0;
++    m_captured = false;
++    m_manual = false;
++    m_automatic = m_supported && m_presence == Presence::Present;
++  }
++  void ObservePresence(bool present)
++  {
++    if (!m_supported)
++      return;
++    if (present && m_presence != Presence::Present)
++      m_automatic = true;  // Initial known present, don or redon.
++    if (!present)
++      m_automatic = false; // Cancel a don that ended before a valid pose.
++    m_presence = present ? Presence::Present : Presence::Absent;
++  }
++  void Request() { m_manual = true; }
++  bool Pending() const { return m_manual || m_automatic; }
++  bool Supported() const { return m_supported; }
++  Presence GetPresence() const { return m_presence; }
++  bool Captured() const { return m_captured; }
++  float Yaw() const { return m_yaw; }
++
++  bool Apply(bool focused, bool position_valid, bool orientation_valid, bool two_eyes,
++             Vector center, std::array<float, 4> orientation)
++  {
++    if (!Pending() || !focused || !position_valid || !orientation_valid || !two_eyes ||
++        (m_supported && m_presence == Presence::Absent))
++      return false;
++    for (const float value : center)
++      if (!std::isfinite(value))
++        return false;
++    const auto yaw = Heading(orientation);
++    if (!yaw)
++      return false;
++    m_yaw = *yaw;
++    m_captured = true;
++    m_manual = m_automatic = false;
++    return true;
++  }
++
++private:
++  bool m_supported = false, m_manual = false, m_automatic = false, m_captured = false;
++  Presence m_presence = Presence::Unknown;
++  float m_yaw = 0;
++};
++}  // namespace ACFacing
