@@ -7,6 +7,7 @@
 #include "native_dpi.h"
 #include "d3d_upload.h"
 #include "wgc_capture.h"
+#include "product_title.h"
 #include <winrt/base.h>
 #include <atomic>
 #include <chrono>
@@ -209,7 +210,7 @@ int wmain(int argc,wchar_t** argv) {
         int32_t adapter=-1; system->GetDXGIOutputInfo(&adapter);
         session.upload=theatre::D3DUpload::onAdapter(adapter);
         std::string key="aladdinscastle.dolphin.theatre."+std::to_string(GetCurrentProcessId());
-        vrCheck(session.overlay->CreateOverlay(key.c_str(),"AladdinsCastle 3D theatre",&session.handle),"create overlay");
+        vrCheck(session.overlay->CreateOverlay(key.c_str(),theatre::productTitle,&session.handle),"create overlay");
         vrCheck(session.overlay->SetOverlayFlag(session.handle,vr::VROverlayFlags_SideBySide_Parallel,true),"SBS parallel");
         vrCheck(session.overlay->SetOverlayWidthInMeters(session.handle,static_cast<float>(theatre::width)),"plane width");
         session.hotkey=RegisterHotKey(nullptr,1,MOD_CONTROL|MOD_ALT|MOD_NOREPEAT,'C')!=0;

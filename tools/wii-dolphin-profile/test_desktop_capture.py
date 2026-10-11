@@ -211,6 +211,13 @@ class CaptureTest(unittest.TestCase):
         profile.write_bytes(b"tampered")
         with self.assertRaises(ValueError):
             capture.admit(self.config,self.root)
+        profile.write_bytes(b"[Wiimote1]\nSource = 1\nDevice = DSUClient/0/Other Input\n")
+        (generated / "generated-files.json").write_text(json.dumps({"version":"shell-stick/1",
+            "files":{"flat-dolphin/split-right.ini":capture.sha256(profile)}}))
+        self.inputs["dsu_profile_sha256"] = capture.sha256(profile)
+        self.config.write_text(json.dumps(self.inputs))
+        with self.assertRaisesRegex(ValueError, "label differs from product metadata"):
+            capture.admit(self.config,self.root)
 
 
 if __name__ == "__main__":

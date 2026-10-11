@@ -10,7 +10,7 @@ desktop. Overlapping windows do not block capture and their pixels are not read.
 The selected process/window disappearing, changing identity or minimising stops
 capture. GDI and the former overlap/cursor exceptions have been removed.
 
-Build with an existing Windows SDK, C++/WinRT headers and OpenVR SDK:
+Build with existing Python 3, Windows SDK, C++/WinRT headers and OpenVR SDK:
 
 ```powershell
 cmake -S tools/wii-dolphin-profile/theatre -B .local/build-theatre -DOPENVR_SOURCE=<existing-sdk>
@@ -21,6 +21,12 @@ ctest --test-dir .local/build-theatre -C Release --output-on-failure
 Missing headers/runtime are a blocker to report; the project downloads nothing.
 Headless checks use software WARP and synthetic pixels, not a capture session,
 hardware adapter, game, window or VR initialization.
+The build derives the theatre's visible title from `data/product.json` through
+the scoped Python reader. Invalid metadata fails configuration. Generated C++
+uses escaped UTF-8 bytes, including quotes and supplementary Unicode; a native
+CPU test checks the compiled result. Overlay ownership keys, calibration and
+receipt schemas remain stable. Updating product labels requires rebuilding the
+title, and never modifies existing user files.
 
 ## Desktop proof
 
