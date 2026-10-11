@@ -1,5 +1,11 @@
 # Native synthetic System 22 slice
 
+The proposed [paired producer evidence contract](PAIRED-EVIDENCE-CONTRACT.md)
+defines exact eye pixels, lease/pose/projection correlation and capture limits.
+The bounded [GPU proof-driver plan](GPU-PROOF-DRIVER-PLAN.md) depends on review
+before source implementation or execution. Both are source-only specifications;
+no receipt, Viewer admission, GPU result or draw-gate change is claimed.
+
 The next [native batch proof plan](NATIVE-BATCH-PLAN.md) connects the clipped
 packets to guarded upstream batching, with a CPU capture seam in actual `bb_emit`.
 The new draw and noncapture binding gates are compile-time OFF. The legacy fixture
