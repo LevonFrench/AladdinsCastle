@@ -194,7 +194,7 @@ class UiTest:public QObject {
   root->setProperty("view","List");root->setProperty("vrOverlayMode",true);
   const auto tabs=namedItems(window->contentItem(),"pinballTab");QCOMPARE(tabs.size(),1);
   const auto tab=tabs.first();snapshot("pinball-before-frame",tab);
-  if(diagnosticEnabled()){QVERIFY(softwareFrame(window));snapshot("pinball-after-frame",tab);}
+  QVERIFY(softwareFrame(window));snapshot("pinball-after-frame",tab);
   QVERIFY(tab->height()>=48);
   auto p=tab->mapToScene(QPointF(tab->width()/2,tab->height()/2));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
   QCOMPARE(root->property("view").toString(),QString("Pinball"));
@@ -226,7 +226,7 @@ class UiTest:public QObject {
   QTRY_VERIFY(!namedItems(window->contentItem(),"nowPlayingExit").isEmpty());
   auto exit=namedItems(window->contentItem(),"nowPlayingExit").first();
   QVERIFY(exit->isVisible());snapshot("card-before-frame",exit);
-  if(diagnosticEnabled()){QVERIFY(softwareFrame(window));snapshot("card-after-frame",exit);}
+  QVERIFY(softwareFrame(window));snapshot("card-after-frame",exit);
   QVERIFY(exit->height()>=48);
   auto recentre=namedItems(window->contentItem(),"nowPlayingRecentre").first();
   QVERIFY(!recentre->isEnabled());
@@ -272,11 +272,11 @@ class UiTest:public QObject {
   model->setProperty("currentIndex",0);QVERIFY(!launch->isEnabled());hand->setProperty("currentIndex",0);
   QTRY_VERIFY(launch->isEnabled());
   snapshot("gun-room-before-frame",launch);
-  if(diagnosticEnabled()){QVERIFY(softwareFrame(window));snapshot("gun-room-after-frame",launch);}
+  QVERIFY(softwareFrame(window));snapshot("gun-room-after-frame",launch);
   auto point=launch->mapToScene({launch->width()/2,launch->height()/2});
   auto page=scene->findChild<QQuickItem *>("gunRoomPage");QVERIFY(page);
   page->setProperty("contentY",qMax(0.0,point.y()-window->height()/2));
-  if(diagnosticEnabled()){QVERIFY(softwareFrame(window));snapshot("gun-room-after-scroll",launch);}
+  QVERIFY(softwareFrame(window));snapshot("gun-room-after-scroll",launch);
   QTRY_VERIFY(withinClips(launch));
   point=launch->mapToScene({launch->width()/2,launch->height()/2});
   QSignalSpy presses(launch,SIGNAL(pressed())),releases(launch,SIGNAL(released())),clicks(launch,SIGNAL(clicked()));
