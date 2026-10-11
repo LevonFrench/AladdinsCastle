@@ -7,13 +7,13 @@
   "experiments": {"native-off": "Off", "native-auto": "Auto", "native-72": "72", "native-90": "90", "native-120": "120"},
   "run_order": ["native-off", "native-auto", "native-72", "native-90", "native-120"],
   "games": {
-    "RBUP08": {"format": "iso", "priority": 1},
-    "SBDP08": {"format": "iso", "priority": 2},
-    "RHOP8P": {"format": "iso", "priority": 3},
-    "RZJE69": {"format": "iso", "priority": 4},
-    "R2VE01": {"format": "wbfs", "priority": 5, "identity_dependency": "Hub WBFS identification contract"},
-    "RZPP01": {"format": "iso", "priority": 6},
-    "SQDE8P": {"format": "iso", "priority": 7}
+    "RBUP08": {"format": "iso", "priority": 1, "control_key": "wii-resident-evil-umbrella-chronicles"},
+    "SBDP08": {"format": "iso", "priority": 2, "control_key": "wii-resident-evil-darkside-chronicles"},
+    "RHOP8P": {"format": "iso", "priority": 3, "control_key": "wii-house-of-the-dead-overkill"},
+    "RZJE69": {"format": "iso", "priority": 4, "control_key": "wii-dead-space-extraction"},
+    "R2VE01": {"format": "wbfs", "priority": 5, "control_key": "wii-sin-and-punishment-star-successor", "identity_dependency": "Hub WBFS identification contract"},
+    "RZPP01": {"format": "iso", "priority": 6, "control_key": "wii-links-crossbow-training"},
+    "SQDE8P": {"format": "iso", "priority": 7, "control_key": "wii-gunblade-ny-la-machineguns"}
   },
   "constant_overrides": {
     "Graphics.VR.EnableOpenXR": "True",

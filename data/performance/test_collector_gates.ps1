@@ -60,7 +60,8 @@ CheckRefusal $lease '*Outside bounded Chronicles Phase 1 scope*'
 @{game_id='RBUP08';experiment='baseline'} | ConvertTo-Json | Set-Content -LiteralPath $runPath
 function Get-Process {
     [CmdletBinding()]
-    param([string[]]$Name)
+    param([string[]]$Name, [int]$Id)
+    if ($PSBoundParameters.ContainsKey('Id')) { return $mockDsuProducer }
     if (-not $Name) { throw 'Synthetic check reached unexpected process inventory' }
     foreach ($pattern in $Name) {
         if ($mockProcessName -like $pattern) {
@@ -86,6 +87,67 @@ CheckRefusal $lease '*Pinned executable changed*'
 Write-Output "7 lease/legacy-code, $($mockProcessNames.Count) active-build and 1 idle-control checks passed; no application launched."
 
 . (Join-Path $PSScriptRoot 'collector-common.ps1')
+# A matching synthetic interpreter can only reach the active-build sentinel, never launch.
+$digest = (Get-FileHash -LiteralPath $syntheticExe -Algorithm SHA256).Hash.ToLowerInvariant()
+$inputContract = @{ready_protocol=1;session_token=('a'*32);script_sha256=$digest;
+    producer_executable=$syntheticExe;producer_executable_sha256=$digest;port=26760;
+    script=$syntheticExe;entrypoint=$syntheticExe;entrypoint_sha256=$digest}
+$readyPath = Join-Path $fixture 'ready.json'
+$ready = @{ready=$true;port=26760;producer_pid=2222;session_token=('a'*32);script_sha256=$digest}
+$nativeLease.dsu_ready_file = $readyPath
+$nativeLease.dsu_server_pid = 2222
+$nativeLease.dsu_session_token = 'a'*32
+$mockDsuProducer = [pscustomobject]@{Id=2222;Path=$syntheticExe}
+@{game_id='RBUP08';experiment='native-off';route='native-vbi';forced_vbi_value=0;input_contract=$inputContract} |
+    ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $runPath
+# The previous gate accepted this old ready receipt with any live lease PID.
+@{ready=$true;port=26760} | ConvertTo-Json -Compress | Set-Content -LiteralPath $readyPath
+CheckRefusal $nativeLease '*does not bind this run*'
+$ready | ConvertTo-Json -Compress | Set-Content -LiteralPath $readyPath
+$changed = $nativeLease.Clone()
+$changed.dsu_server_pid = 3333
+$mockDsuProducer = [pscustomobject]@{Id=3333;Path=$syntheticExe}
+CheckRefusal $changed '*does not bind this run*'
+$mockDsuProducer = [pscustomobject]@{Id=2222;Path=$syntheticExe}
+$mockProcessName = 'cmake'
+CheckRefusal $nativeLease '*A build/render/Dolphin process is active*'
+
+$bindingRefusals = 0
+function CheckBindingRefusal($ReadyValue, $InputValue, $LeaseValue, $ProducerValue, $HashValue) {
+    $failure = $null
+    try { Assert-AcPhase1DsuBinding $ReadyValue $InputValue $LeaseValue $ProducerValue $HashValue }
+    catch { $failure = $_.Exception.Message }
+    if (-not $failure) { throw 'Mismatched DSU binding was accepted' }
+    $script:bindingRefusals++
+}
+foreach ($field in @('ready','port','producer_pid','session_token','script_sha256')) {
+    $bad = $ready.Clone()
+    $bad.Remove($field)
+    CheckBindingRefusal $bad $inputContract $nativeLease $mockDsuProducer $digest
+}
+foreach ($pair in @(@('ready','true'),@('port',26761),@('producer_pid',3333),
+        @('session_token',('b'*32)),@('script_sha256',('b'*64)))) {
+    $bad = $ready.Clone()
+    $bad[$pair[0]] = $pair[1]
+    CheckBindingRefusal $bad $inputContract $nativeLease $mockDsuProducer $digest
+}
+foreach ($field in @('dsu_server_pid','dsu_session_token')) {
+    $bad = $nativeLease.Clone()
+    $bad.Remove($field)
+    CheckBindingRefusal $ready $inputContract $bad $mockDsuProducer $digest
+}
+foreach ($field in @('ready_protocol','session_token','producer_executable','producer_executable_sha256')) {
+    $bad = $inputContract.Clone()
+    $bad.Remove($field)
+    CheckBindingRefusal $ready $bad $nativeLease $mockDsuProducer $digest
+}
+CheckBindingRefusal $ready $inputContract $nativeLease $null $digest
+CheckBindingRefusal $ready $inputContract $nativeLease ([pscustomobject]@{Id=3333;Path=$syntheticExe}) $digest
+CheckBindingRefusal $ready $inputContract $nativeLease ([pscustomobject]@{Id=2222;Path=(Join-Path $fixture 'other.exe')}) $digest
+CheckBindingRefusal $ready $inputContract $nativeLease $mockDsuProducer ('b'*64)
+Assert-AcPhase1DsuBinding $ready $inputContract $nativeLease $mockDsuProducer $digest
+Write-Output "DSU binding: 2 real-collector stale/unrelated-PID refusals, $bindingRefusals mismatch refusals and matching controls passed; no process launched."
+
 $modes = @{'native-off'=0;'native-auto'=-1;'native-72'=72;'native-90'=90;'native-120'=120}
 foreach ($mode in $modes.Keys) {
     $argsList = @(Get-AcPhase1Arguments ([pscustomobject]@{experiment=$mode;disc='synthetic-disc.fixture'}) 'synthetic-user')
@@ -95,7 +157,7 @@ foreach ($mode in $modes.Keys) {
     }
     if (@($argsList | Where-Object { $_ -like 'GFX.*' }).Count) { throw 'Unknown graphics CLI namespace emitted' }
 }
-$quoted = Join-AcPhase1Arguments @('C:\test path\','x=y')
-if ($quoted -ne '"C:\test path\\" "x=y"') { throw 'Windows native argument quoting failed' }
+$quoted = Join-AcPhase1Arguments @('test path\','x=y')
+if ($quoted -ne '"test path\\" "x=y"') { throw 'Windows native argument quoting failed' }
 if ((Get-AcPhase1ByteHash ([byte[]]@(97,98,99))) -ne 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad') { throw 'Portable byte hash failed' }
 Write-Output '2 native admission and 1 disabled-code refusal, 5 native argument modes, quoting and byte-hash checks passed.'

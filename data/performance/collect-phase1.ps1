@@ -56,10 +56,15 @@ if ($native) {
     }
     $readyPath = PrivatePath $lease.dsu_ready_file
     $ready = Get-Content -LiteralPath $readyPath | Select-Object -First 1 | ConvertFrom-Json
-    if ($ready.ready -ne $true -or $ready.port -ne $run.input_contract.port -or
-        $lease.dsu_server_pid -le 0 -or -not (Get-Process -Id $lease.dsu_server_pid -ErrorAction SilentlyContinue)) {
-        throw 'Lead scripted DSU server is not ready for this run'
+    $producer = $null
+    $producerHash = $null
+    if (($lease.dsu_server_pid -is [int] -or $lease.dsu_server_pid -is [long]) -and $lease.dsu_server_pid -gt 0) {
+        $producer = Get-Process -Id $lease.dsu_server_pid -ErrorAction SilentlyContinue
+        if ($producer -and $producer.Path) {
+            $producerHash = (Get-FileHash -LiteralPath $producer.Path -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
     }
+    Assert-AcPhase1DsuBinding $ready $run.input_contract $lease $producer $producerHash
 }
 if ($native -and $run.experiment -ne 'native-off') {
     if (-not $PredecessorRun) { throw 'Code runs require the previous same-stretch normal-speed receipt' }
@@ -114,6 +119,9 @@ $receipt = [ordered]@{ status='starting'; start_utc=[DateTimeOffset]::UtcNow.ToS
     release=$run.release; executable_sha256=$pin.executable_sha256; lease=$lease;
     input_script_sha256=$(if ($native) { $run.input_contract.script_sha256 } else { $null });
     dsu_profile_sha256=$(if ($native) { $run.input_contract.profile_sha256 } else { $null });
+    dsu_producer_pid=$(if ($native) { $ready.producer_pid } else { $null });
+    dsu_session_token=$(if ($native) { $ready.session_token } else { $null });
+    dsu_producer_executable_sha256=$(if ($native) { $producerHash } else { $null });
     required_stretch=$(if ($previous) { $previous.stretch } else { $null });
     other_processes=@(Get-Process | Select-Object ProcessName,Id,CPU); telemetry_errors=@();
     stop_reason='bounded-duration'; owned_process_absent=$false }

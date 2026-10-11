@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import secrets
 import statistics
 import subprocess
 import sys
@@ -134,18 +135,39 @@ def attach_input(run_directory, profile, manifest, script, entrypoint, port=2676
     run_directory = private_path(run_directory, private_root)
     record_path = run_directory / "run.json"
     record = json.loads(record_path.read_text())
-    if record.get("route") != "native-vbi" or record.get("status") != "prepared-awaiting-scripted-input":
-        raise ValueError("Input attaches once, to a fresh native VBI profile only")
+    native = record.get("route") == "native-vbi" and record.get("status") == "prepared-awaiting-scripted-input"
+    disabled = record.get("route") == "disabled-code-candidate" and record.get("status") == "prepared-disabled-code-candidate"
+    if not (native or disabled) or record.get("input_contract"):
+        raise ValueError("Input attaches once, to a fresh native or disabled preview profile only")
     if type(port) is not int or not 1024 <= port <= 65535:
         raise ValueError("Invalid DSU port")
     profile, manifest, script, entrypoint = map(lambda p: Path(p).resolve(), (profile, manifest, script, entrypoint))
-    if profile.name != "split-right.ini" or entrypoint.name != "scripted.py":
-        raise ValueError("Expected the generated split-right profile and lead scripted.py")
+    if entrypoint.name != "scripted.py":
+        raise ValueError("Expected the lead scripted.py")
+    game_key = NATIVE_PLAN["games"][record["game_id"]]["control_key"]
+    if profile.name == "split-right.ini" and record["game_id"] in ("RBUP08", "SBDP08"):
+        profile_key, native_key = "flat-dolphin/split-right.ini", None
+    else:
+        profile_key = f"games/{game_key}/scripted-dsu-right.ini"
+        native_key = f"games/{game_key}/dolphinxr-right.ini"
+    if profile != (manifest.parent / profile_key).resolve():
+        raise ValueError("Profile path must match this exact game's shared manifest entry")
     profile_bytes = profile.read_bytes()
     profile_digest = hashlib.sha256(profile_bytes).hexdigest()
-    contract = json.loads(manifest.read_text())
-    if contract.get("version") != "shell-stick/1" or contract.get("files", {}).get("flat-dolphin/split-right.ini", "").lower() != profile_digest:
-        raise ValueError("Generated flat profile differs from its shared manifest")
+    manifest_bytes = manifest.read_bytes()
+    contract = json.loads(manifest_bytes)
+    if contract.get("version") != "shell-stick/1" or contract.get("files", {}).get(profile_key, "").lower() != profile_digest:
+        raise ValueError("Generated scripted profile differs from its shared manifest")
+    native_bytes = None
+    if native_key:
+        native_bytes = (manifest.parent / native_key).read_bytes()
+        native_digest = hashlib.sha256(native_bytes).hexdigest()
+        if contract.get("files", {}).get(native_key, "").lower() != native_digest:
+            raise ValueError("Paired native profile differs from the same game's shared manifest")
+        paired = configparser.ConfigParser(interpolation=None)
+        paired.read_string(native_bytes.decode("utf-8-sig"))
+        if paired.get("Wiimote1", "Source", fallback=None) != "3" or paired.get("Wiimote1", "Device", fallback=None) != "OpenXR/0/OpenXRController":
+            raise ValueError("Paired native profile must identify the supplied OpenXR slot")
     parsed = configparser.ConfigParser(interpolation=None)
     parsed.optionxform = str
     parsed.read_string(profile_bytes.decode("utf-8-sig"))
@@ -161,11 +183,16 @@ def attach_input(run_directory, profile, manifest, script, entrypoint, port=2676
     timeline = json.loads(raw)
     if type(timeline.get("seconds")) not in (int, float) or not 0 < timeline["seconds"] <= 180:
         raise ValueError("This run set bounds timelines to 180 seconds")
-    checked = subprocess.run([sys.executable, str(entrypoint), "--script", str(script), "--check"],
+    entrypoint_digest = sha(entrypoint)
+    producer = Path(sys.executable).resolve()
+    producer_digest = sha(producer)
+    checked = subprocess.run([str(producer), str(entrypoint), "--script", str(script), "--check"],
                              check=True, capture_output=True, text=True)
     result = json.loads(checked.stdout)
     if result.get("valid") is not True or result.get("sha256") != hashlib.sha256(raw).hexdigest():
         raise ValueError("Lead timeline check did not confirm exact script bytes")
+    if sha(entrypoint) != entrypoint_digest:
+        raise ValueError("Lead entrypoint changed during timeline validation")
     user = private_path(record["user"], private_root)
     for name, digest in record["settings_sha256"].items():
         if sha(private_path(user / name, private_root)) != digest:
@@ -177,13 +204,21 @@ def attach_input(run_directory, profile, manifest, script, entrypoint, port=2676
     (user / "Config/DSUClient.ini").write_text(ini({"Server": {
         "Enabled": "True", "Entries": f"AladdinsCastle:127.0.0.1:{port}"}}), encoding="utf-8")
     script_copy.write_bytes(raw)
-    record["input_contract"] = {"profile_sha256": profile_digest, "manifest_sha256": sha(manifest),
+    if native_bytes is not None:
+        (run_directory / "native-control-reference.ini").write_bytes(native_bytes)
+    record["input_contract"] = {"profile_sha256": profile_digest, "profile_key": profile_key,
+                                "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+                                "native_profile_key": native_key,
+                                "native_profile_sha256": native_digest if native_key else None,
                                 "script": str(script_copy), "script_sha256": sha(script_copy),
-                                "entrypoint": str(entrypoint), "entrypoint_sha256": sha(entrypoint),
+                                "entrypoint": str(entrypoint), "entrypoint_sha256": entrypoint_digest,
+                                "ready_protocol": 1, "session_token": secrets.token_hex(16),
+                                "producer_executable": str(producer), "producer_executable_sha256": producer_digest,
                                 "port": port, "timeline_seconds": timeline["seconds"],
                                 "validation": "lead --check only; no socket, buttons or game progress"}
     record["settings_sha256"] = {str(p.relative_to(user)): sha(p) for p in user.rglob("*.ini")}
-    record["status"] = "prepared-unmeasured"
+    if native:
+        record["status"] = "prepared-unmeasured"
     record_path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     return record
 

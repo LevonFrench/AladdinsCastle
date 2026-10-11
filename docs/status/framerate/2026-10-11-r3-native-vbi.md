@@ -23,7 +23,7 @@ does not establish real game speed. The lead supervises capture and system
 prompts and owns the server; the collector sends no OS input and closes its own
 process.
 
-Twenty Python tests pass. Windows PowerShell 5.1 and 7 pass lease/legacy-code,
+Twenty-five Python tests pass. Windows PowerShell 5.1 and 7 pass lease/legacy-code,
 native admission, disabled-code, 28 active-build refusals, an idle control,
 argument-mode/quoting and hash checks. The 5.1 retry passed without a policy
 change after an initial sandbox denial. These prove source admission and
@@ -42,3 +42,19 @@ remaining measurement dependencies. Private profiles, scripts and receipts
 remain outside Git; recommendations about per-refresh gun/camera rendering
 remain open. No download, installation, system runtime change, mouse/keyboard
 input or account activity occurred.
+
+Independent PR 51 review found that ready=true/port and an arbitrary live lease
+PID could admit stale DSU readiness. The correction binds the producer PID,
+timeline hash, port and a fresh per-run token to both attachment and lease, then
+checks the live interpreter path/hash. Two real-collector regressions reject the
+old receipt and unrelated PID; twenty additional mismatch cases and matching
+controls pass without launching anything. Old preparations lack this contract
+and remain historical. The lead owns the matching scripted.py protocol change;
+integration and runtime remain held pending review.
+
+Per-game attachment now verifies the exact game manifest paths and both generated
+control hashes, keeping scripted DSU active and the native pair as a reference.
+Dead Space's fresh private identity receipt matches RZJE69 revision 0. Its native
+Off baseline and disabled-code preview are staged; attachment does not activate
+the code or make its unavailable primary source verified. Canonical bytes must
+come from the corrected Guns checkpoint before future runtime.
