@@ -118,8 +118,52 @@ float rounding and validates the actual supplied matrix against this recipe.
 The standalone metre-valued view/near/far may reproduce an old board-unit test's
 screen pixels, but those matrices have different bytes and must be recorded as used.
 
-Contract review accepts this envelope; source review must also accept the exact
-snapshot/composition serialization and oracle manifest before a run. A CPU
+### Frozen common-composition preimage
+
+ARC-PR61-01: `composition_sha256` is SHA-256 of the following **178 bytes**,
+concatenated in this order. No JSON text, field names, lengths, separators,
+padding or trailing newline are hashed. This defines the common composition
+only; it is not the scene snapshot or an eye/presentation digest.
+
+| Offset / bytes | Receipt input | Encoding |
+| --- | --- | --- |
+| 0 / 21 | Fixed domain tag | ASCII `ACN22-COMPOSITION-V1` followed by exactly one NUL byte; hex `41434e32322d434f4d504f534954494f4e2d563100`. |
+| 21 / 64 | `head_from_anchor` | Elements 0 through 15, column-major, each IEEE-754 binary32 little-endian. |
+| 85 / 64 | `anchor_from_scene` | Same matrix encoding. |
+| 149 / 4 | `scene_units_per_metre` | Positive finite IEEE-754 binary32 little-endian. Hash the scale input, not the derived reciprocal. |
+| 153 / 1 | `scale_provisional` | JSON boolean true -> `01`, false -> `00`; integers/strings are invalid. |
+| 154 / 8 | `pose_revision` | Unsigned 64-bit little-endian integer. |
+| 162 / 8 | `anchor_revision` | Unsigned 64-bit little-endian integer. |
+| 170 / 8 | `scale_revision` | Unsigned 64-bit little-endian integer. |
+
+Revision JSON strings use canonical decimal grammar `0|[1-9][0-9]*`, range
+0..18446744073709551615; no sign, whitespace, exponent or leading zero. Floating
+inputs are the recorded binary32 values: parse JSON decimal numbers by correctly
+rounding to binary32, nearest with ties to even. Preserve negative zero, reject
+NaN/infinity/overflow and boolean-as-number. The producer's decimal output must
+round-trip to the actual supplied binary32 bits; a receiver may not silently
+canonicalize signed zero. Matrix component order is never sorted/transposed.
+
+No other fields enter this digest: run/lease/frame/display/target IDs, timestamps,
+eye offsets, eye view/projection, their hashes, clip convention and image bytes
+are excluded and independently validated/bound in the pair record. The fixed
+domain identifies v1's handedness/composition recipe; any change of recipe,
+encoding, field set or domain requires a new schema/domain and new vectors.
+Receipt key order/JSON formatting have no effect; do not use a struct-memory hash.
+
+[composition-vectors.json](composition-vectors.json) freezes four receipt-input,
+preimage-hex and SHA-256 vectors: baseline, provisional flag toggle, posed input
+with signed zero and large revisions, and its positive-zero twin. Expected bytes
+were constructed separately from explicit IEEE integer words, not from the
+checker's encoder. [check_composition_vectors.py](check_composition_vectors.py)
+independently rebuilds them from receipt fields using Python standard-library
+packing and checks rejection/mutation cases. This small CPU fixture is not a
+producer or Viewer receipt implementation; it does not validate scene physics,
+pixel correlation or all general-purpose decimal parser edge cases.
+
+Lead closure of ARC-PR61-01 is required BEFORE producer or Viewer implementation.
+Source review must also freeze exact snapshot serialization and oracle manifest
+before a producer run; that snapshot format is still unspecified here. A CPU
 validator can reject structural inconsistency first, but may claim synthetic
 stereo only after independently checking the pinned scenario's pixel features.
 

@@ -5,6 +5,10 @@ defines exact eye pixels, lease/pose/projection correlation and capture limits.
 The bounded [GPU proof-driver plan](GPU-PROOF-DRIVER-PLAN.md) depends on review
 before source implementation or execution. Both are source-only specifications;
 no receipt, Viewer admission, GPU result or draw-gate change is claimed.
+The common composition digest now has a fixed byte encoding and
+[CPU hash vectors](composition-vectors.json); run
+`python -B check_composition_vectors.py` from this directory to verify them.
+This does not implement a producer/Viewer or enable any rendering path.
 
 The next [native batch proof plan](NATIVE-BATCH-PLAN.md) connects the clipped
 packets to guarded upstream batching, with a CPU capture seam in actual `bb_emit`.

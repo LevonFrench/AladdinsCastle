@@ -88,18 +88,23 @@ One diagnosis and one separately coordinated retry at most. Retain failed receip
 
 ## Review and handoff sequence
 
-1. Lead agrees receipt semantics, fixture case/oracle bounds and source-only scope.
-   Viewer then implements a pure CPU validator against this exact contract hash;
-   its Dolphin live admission and schema-1 receipts remain untouched.
+1. Close ARC-PR61-01: lead independently verifies the frozen 178-byte common
+   composition encoding and four hash vectors in the producer contract. Only
+   after closure assign producer or Viewer implementation against that exact
+   contract hash; Dolphin live admission and schema-1 receipts stay untouched.
 2. Assign producer/driver source; review isolated proof gate and resource preflight.
    CPU checks cover lifecycle/serialization/correlation adversaries without SDL
    video/GL. A scheduled native compile uses only approved cached inputs, no run.
-3. Lead independently reviews source and oracle, then coordinates an explicitly
-   authorized bounded GPU slot for the exact executable/hash and scenario.
+3. Freeze the snapshot field serialization, independent byte/hash vectors and
+   fixture oracle/tolerances in source review BEFORE any producer run. Lead then
+   coordinates an explicitly authorized bounded GPU slot for the exact
+   executable/hash and scenario. Common-composition vectors do not freeze the
+   separate snapshot serialization or prove scene/pose correctness.
 4. Record producer paired candidate and synthetic stereo separately. Only a later
    specific Viewer source/run assignment can establish compositor delivery.
 5. Lead decides whether native GPU proof is accepted and what source integration
    follows. Do not turn on `begin_eye` or public capability automatically.
 
-At this checkpoint only steps' specification exists. No executable, image,
-receipt serializer, Viewer validator, new runtime permission or measured result.
+At this checkpoint only the plan and CPU composition hash fixture exist. No
+producer executable, image, receipt serializer, Viewer validator, new runtime
+permission or measured rendering result.
