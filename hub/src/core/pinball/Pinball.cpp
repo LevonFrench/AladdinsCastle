@@ -38,7 +38,8 @@ class Compound {
   if(size){require(quint64(out.size())>=size);out.truncate(qsizetype(size));}return out;
  }
  void tree(quint32 id,const QString &prefix,QSet<quint32> &seen,int depth){
-  if(id==Free)return;require(depth<40&&id<quint32(dirs.size()/128)&&!seen.contains(id));seen.insert(id);
+  if(id==Free) return;
+  require(depth<40&&id<quint32(dirs.size()/128)&&!seen.contains(id));seen.insert(id);
   const auto e=dirs.mid(qsizetype(id)*128,128);const auto type=quint8(e[66]);
   require(type==1||type==2);const auto len=qFromLittleEndian<quint16>(e.constData()+64);require(len>=2&&len<=64&&len%2==0);
   const auto name=QString::fromUtf16(reinterpret_cast<const char16_t*>(e.constData()),len/2-1);
@@ -73,7 +74,8 @@ QString scriptFrom(const QByteArray &data){
   const auto len=word(data,p);require(len>=4&&len<=quint64(data.size()-p-4));auto tag=data.mid(p+4,4);
   if(tag=="SECB")throw std::runtime_error("Protected script metadata is not classified");
   if(tag=="CODE"){require(len==4&&p+12<=data.size());const auto n=word(data,p+8);require(n<=2*1024*1024&&n<=quint64(data.size()-p-12));return QString::fromUtf8(data.mid(p+12,n));}
-  if(tag=="ENDB")return {};p+=4+len;
+  if(tag=="ENDB") return {};
+  p+=4+len;
  }throw std::runtime_error("No bounded script record was found");
 }
 }
@@ -124,7 +126,8 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
  for(const auto &value:db){auto m=value.toObject();machineIndex.insert(key(m["name"].toString())+"|"+key(m["manufacturer"].toString())+"|"+QString::number(m["year"].toInt()),m);}
  QDir dir(folder);require(dir.exists());int ready=0;
  for(const auto &file:dir.entryInfoList({"*.vpx","*.VPX"},QDir::Files|QDir::NoDotAndDotDot,QDir::Name)){
-  if(link(file))continue;auto row=inspect(file.absoluteFilePath());
+  if(link(file)) continue;
+  auto row=inspect(file.absoluteFilePath());
   // Explicit roots, exact stems, metadata only. No recursion or remote artwork.
   QStringList artRoots{folder};if(!mediaFolder.isEmpty())artRoots.prepend(mediaFolder);
   for(const auto &root:artRoots){
@@ -146,7 +149,8 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
    if(files.size()==1){QStringList features;for(const auto &f:files.first()["features"].toArray())features<<display(f.toString());row["features"]=features;row["type"]=display(machine["type"].toString());row["players"]=machine["players"].toInt();row["theme"]=display(machine["theme"].toString());if(features.contains("VR")&&row.value("error").toString().isEmpty()){auto evidence=row["evidence"].toStringList();evidence<<"VPS: VR";row["evidence"]=evidence;row["vrReady"]=true;}}
   }
   row["id"]=QString::fromLatin1(QCryptographicHash::hash(file.absoluteFilePath().toUtf8(),QCryptographicHash::Sha256).toHex());
-  if(row["vrReady"].toBool())++ready;rows<<row;
+  if(row["vrReady"].toBool()) ++ready;
+  rows<<row;
  }
  return {{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
 }
