@@ -6,11 +6,11 @@ AladdinsCastle is an open-source desktop Hub being built to install and launch V
 
 > **Status: M2 development.** The Qt Hub builds on Windows and Linux, with catalog, scanning, installation and flat-launch paths covered by software tests. The shared VR runtime and System 22 renderer are under development. There is no accepted Hub-to-headset Time Crisis build yet; public OpenXR runtime creation remains unsupported.
 
-Catalog capability, an available recipe, detected launch requirements and a verified owned installation are separate states. None proves that a game has passed headset or gameplay acceptance. Runtime/renderer CPU checks and offscreen Hub tests also do not establish GPU correctness, comfort or performance. Actual gun assets, runtime profiles, dual-gun play and racing controls remain unfinished. See the [runtime implementation and limits](docs/libacvr-runtime-core.md) and [lead checkpoint reports](docs/status/lead/) for current evidence. The [Quest 3 quickstart](docs/quest3-quickstart.md) covers separate existing projects.
+Catalog capability, an available recipe, detected launch requirements and a verified owned installation are separate states. None proves that a game has passed headset or gameplay acceptance. Runtime/renderer CPU checks and offscreen Hub tests also do not establish GPU correctness, comfort or performance. Actual gun assets, runtime profiles, dual-gun play and racing controls remain unfinished. See the [runtime implementation and limits](docs/libacvr-runtime-core.md) and [lead checkpoint reports](docs/status/lead/) for current evidence. The [PCVR and standalone quickstart](docs/quest3-quickstart.md) covers separate existing projects.
 
 ## What it will do
 
-- **A desktop Hub** (modelled on [PCVR Mods Installer Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub)): a library with art, detection of your ROMs and PC games, one-click install of each game's VR setup from original sources, updates, launch, SteamVR library shortcuts, and **Install to Quest** for standalone setups. No VR lobby: games open straight into VR.
+- **A desktop Hub** (modelled on [PCVR Mods Installer Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub)): a library with art, detection of your ROMs and PC games, one-click install of each game's VR setup from original sources, updates, launch, SteamVR library shortcuts, and **Install to standalone headset** for standalone setups. No VR lobby: games open straight into VR.
 - **True 3D** wherever a stereo setup exists: our own setups (decompilations and emulators plus our shared VR runtime, libacvr), plus existing VR ports installed by recipe.
 - **Theatre mode** for everything else: the emulator on a virtual screen with motion-controller aiming.
 - **Motion-controller light guns** with parallax-correct aim, off-screen reload, cover on a button, recoil haptics, and two-gun co-op.
@@ -46,7 +46,7 @@ Catalog capability, an available recipe, detected launch requirements and a veri
 | [Scaler depth probe](docs/scaler-depth-probe.md) | MAME Lua measurement of OutRun sprite scale vs road depth |
 | [Roadmap](docs/roadmap.md) | Milestones M0-M8 |
 | [Workshop](docs/workshop.md) | Open decisions and recommendations |
-| [Quest 3 quickstart](docs/quest3-quickstart.md) | Play Time Crisis VR, Virtua Cop 2 VR and PS2 games in VR now |
+| [PCVR and standalone quickstart](docs/quest3-quickstart.md) | Play Time Crisis VR, Virtua Cop 2 VR and PS2 games in VR now |
 | [Legal](docs/legal.md) | No ROMs, ever; licences; trademarks |
 
 ## Standing on shoulders

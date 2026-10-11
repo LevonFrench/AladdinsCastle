@@ -65,7 +65,7 @@ No typed text is logged. Software tests cover actual hit geometry under both Y s
 ## 5. What the owner reported (2026-10-10)
 
 - The letters that failed were the **keys drawn on the panel**, not SteamVR's keyboard.
-- Controllers: stock Meta Quest Touch controllers (through ALVR and SteamVR).
+- Controllers: SteamVR motion controllers.
 - Failed clicks were **everywhere**: only some of the top bar worked, and only some of everything else.
 
 Because the failures were not limited to the scrolling grid, pointer position and press/release stability come first, the drag threshold second:

@@ -742,7 +742,7 @@ Overflow buttons are one visible "⋯" control (44 in overlay mode) placed where
 
 - Dashboard distance and overlay width (1.5 m, 2.0 m): measured from the user's SteamVR settings.
 - Laser jitter (1.0 degree): measured with the owner's controllers in Desktop+ and in a native overlay.
-- Text legibility at 16 px body: check on the Steam Frame and Quest 3 paths.
+- Text legibility at 16 px body: check on a SteamVR headset and each supported standalone platform.
 
 ### 9.7 In-headset checks (acceptance for the overlay)
 

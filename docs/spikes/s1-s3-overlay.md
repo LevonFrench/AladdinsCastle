@@ -42,7 +42,7 @@ Earlier interaction feedback recorded in [the controls design](../ui/06-vr-menu-
 
 ## Owner run procedure
 
-Use a build containing the reviewed correctness source above with matching Qt DLLs. These are acceptance instructions, not authorization to run them. GPU/SteamVR/headset use and manifest writes require their own specific owner approval. Start SteamVR/ALVR through the owner's normal workflow; no account or runtime-selection operation is part of this procedure.
+Use a build containing the reviewed correctness source above with matching Qt DLLs. These are acceptance instructions, not authorization to run them. GPU/SteamVR/headset use and manifest writes require their own specific owner approval. Connect a SteamVR headset through the normal workflow; no account or runtime-selection operation is part of this procedure.
 
 Executable: `<HubDir>/aladdinscastle-hub.exe` in the selected portable folder (or `<BuildDir>/bin/aladdinscastle-hub.exe` for development).
 

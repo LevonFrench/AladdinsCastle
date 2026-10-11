@@ -21,16 +21,24 @@ void DetailControlsController::resetView(){
 void DetailControlsController::configure(const QString &root,const QStringList &packs){
   root_=root;packs_=packs;++libraryEpoch_;library_.reset();resolve();
 }
-void DetailControlsController::selectGame(const QString &game,const QString &variant){
-  game_=game;variant_=variant;resolve();
+void DetailControlsController::selectGame(const QString &game,const QString &variant,const QString &hardware,const QString &controlsRoute){
+  game_=game;variant_=variant;hardware_=hardware;route_=controlsRoute.isEmpty()?variant:controlsRoute;resolve();
 }
 void DetailControlsController::refresh(){++libraryEpoch_;library_.reset();resolve();}
 void DetailControlsController::setOptionsSource(OptionsSource source){options_=std::move(source);resolve();}
-void DetailControlsController::clear(){game_.clear();variant_.clear();++*generation_;resetView();emit changed();}
+void DetailControlsController::clear(){game_.clear();variant_.clear();hardware_.clear();route_.clear();++*generation_;resetView();emit changed();}
 void DetailControlsController::resolve(){
   const auto generation=++*generation_;
   resetView();
   if(game_.isEmpty()){emit changed();return;}
+  if(hardware_=="nintendo-wii" && route_=="dolphinxr"){
+    status_="Native controller mapping is configured inside DolphinXR.";
+    emit changed();return;
+  }
+  if(hardware_=="nintendo-wii" && route_!="flat-dolphin"){
+    status_="No controls mapping is available for this Wii route.";
+    emit changed();return;
+  }
   if(root_.isEmpty()){status_="Controls configuration is unavailable.";emit changed();return;}
   ControlsResolveOptions options;
   try {if(options_)options=options_(game_,variant_);}
@@ -48,7 +56,11 @@ void DetailControlsController::resolve(){
     if(epoch==libraryEpoch_ && prepared.library)library_=prepared.library;
     if(generation!=generation_->load())return;
     loading_=false;
+    const auto data=prepared.result.value("data").toMap();
     if(!prepared.error.isEmpty())status_=prepared.error;
+    else if((hardware_=="nintendo-wii" || data.value("family").toString()=="wii") &&
+            (route_!="flat-dolphin" || data.value("route").toString()!="flat-dolphin"))
+      status_="No controls mapping matches this Wii route. Reload after updating the controls catalog.";
     else if(!model_.loadResolved(prepared.result,QDir(root_).filePath("assets/guns/preview")))status_=model_.lastError();
     else {resolved_=prepared.result;status_.clear();}
     emit changed();

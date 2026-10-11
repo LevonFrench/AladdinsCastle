@@ -38,7 +38,7 @@ Stand inside the original Time Crisis: the arcade game's own 3D world in stereo 
 ## Requirements
 
 - Your own `timecris` set: Time Crisis World TS2 Ver.B (MAME 0.271+), matched by hash.
-- PCVR through SteamVR (Steam Frame streaming, Quest 3 via ALVR / Link / Virtual Desktop / Steam Link).
+- PCVR through SteamVR with a SteamVR headset.
 
 ## Credits
 

@@ -67,7 +67,9 @@ void UiController::selectVariant(const QString &id){auto g=m_games->find(m_detai
 void UiController::refreshDetailControls(){
  m_detailControlsVisible=true;
  const auto game=m_games->find(m_detailId);const auto selected=game?variant(*game):nullptr;
- m_detailControls.selectGame(game?game->id:QString(),selected?selected->id:QString());
+ const auto hardware=game?str(game->raw,"hardware"):QString();
+ const auto route=selected&&hardware=="nintendo-wii"&&selected->generated&&selected->id=="dolphin"?QString("flat-dolphin"):selected?selected->id:QString();
+ m_detailControls.selectGame(game?game->id:QString(),selected?selected->id:QString(),hardware,route);
 }
 const Variant *UiController::variant(const GameRecord &g) const{for(const auto &v:g.variants)if(g.id==m_detailId&&v.id==m_variantId)return &v;for(const auto &v:g.variants)if(v.id==g.runtime.selectedVariantId)return &v;for(const auto &v:g.variants)if(v.id==g.roles.value("preferredVariantId").toString())return &v;for(const auto &v:g.variants)if(v.generated)return &v;for(const auto &v:g.variants)if(v.status!="planned")return &v;return g.variants.isEmpty()?nullptr:&g.variants.first();}
 QString UiController::safeMarkdown(QString text){
@@ -96,7 +98,9 @@ QVariantMap UiController::detail()const{
  if(v->raw.contains("step")&&v->raw["step"].is_array())for(const auto &step:v->raw["step"])if(str(step,"do")=="write-config"&&step.contains("set")&&step["set"].is_array())for(const auto &entry:step["set"])supported<<str(entry,"from");
  components<<QVariantMap{{"name",v->title},{"license",str(v->raw,"license")},{"upstream",str(v->raw,"upstream")},{"version",str(v->raw,"version")},{"role",v->generated?"Flat emulator route":authoredLaunchSupported(*v)?"Authored setup (experimental)":"Authored setup recipe (Hub launch unavailable)"}};
  }
- if(g.setup.is_object())for(const auto &setup:g.setup.items()){const auto &value=setup.value();if(!value.is_object())continue;if(value.contains("element")&&value["element"].is_array())for(const auto &e:value["element"])controls<<QVariantMap{{"action",str(e,"id")},{"input",str(e,"source").isEmpty()?str(e,"type"):str(e,"source")},{"notes",e.contains("output")?QString::fromStdString(e["output"].dump()):QString()}};}
+ const bool wii=str(g.raw,"hardware")=="nintendo-wii";
+ if(wii)controls<<QVariantMap{{"action","Controller mapping"},{"input",v&&v->id=="dolphinxr"?"DolphinXR input settings":"Selected route"},{"notes",v&&v->id=="dolphinxr"?"Configure native controller mapping inside DolphinXR.":"Only route-matched controls are shown above."}};
+ else if(g.setup.is_object())for(const auto &setup:g.setup.items()){const auto &value=setup.value();if(!value.is_object())continue;if(value.contains("element")&&value["element"].is_array())for(const auto &e:value["element"])controls<<QVariantMap{{"action",str(e,"id")},{"input",str(e,"source").isEmpty()?str(e,"type"):str(e,"source")},{"notes",e.contains("output")?QString::fromStdString(e["output"].dump()):QString()}};}
  if(controls.isEmpty())controls<<QVariantMap{{"action",g.roles.value("controlsLabel")},{"input","Emulator bindings"},{"notes","Use the emulator's input settings. No per-game control set yet."}};
  QVector<QPair<int,QString>> scores; QHash<QString,QString> titles;
  for(const auto &other:m_games->records()){titles.insert(other.id,other.roles.value("title").toString());if(other.id==g.id)continue;int score=0;auto match=[&](const char *key,int weight){auto a=g.roles.value(key).toString();if(!a.isEmpty()&&a==other.roles.value(key).toString())score+=weight;};match("series",6);match("hardwareFamily",4);match("manufacturerId",2);match("controlsType",2);int y=qAbs(g.roles.value("year").toInt()-other.roles.value("year").toInt());score+=y<=3?2:y<=8?1:0;int sub=0;for(const auto &s:g.roles.value("subgenreIds").toStringList())if(other.roles.value("subgenreIds").toStringList().contains(s))sub+=2;score+=std::min(4,sub);if(score)scores<<qMakePair(score,other.id);}

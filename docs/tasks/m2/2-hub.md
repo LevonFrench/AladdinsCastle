@@ -21,7 +21,7 @@ Fix these first, each with a test that fails before the fix. Ids are from the ag
 
 ## The VR menu controls
 
-Spec: [ui/06-vr-menu-controls.md](../../ui/06-vr-menu-controls.md). The owner's first headset session: clicks failed all over the panel, the stick did not scroll, on-panel letter keys failed (digits worked), on stock Quest Touch controllers.
+Spec: [ui/06-vr-menu-controls.md](../../ui/06-vr-menu-controls.md). The owner's first headset session: clicks failed all over the panel, the stick did not scroll, on-panel letter keys failed (digits worked), with SteamVR motion controllers.
 
 1. A patch of unbuilt, untested overlay input changes from the previous session is saved on the owner's machine (`.local/handoffs/2026-10-10-stop/overlay-wip.patch`, with the XR reviewer's findings XR-01 to XR-05). Treat it as a candidate to read, not as working code.
 2. Build the **diagnostic page** first (§3 of the spec), then the input contract: button events at the last move position per cursor; pointer frozen from trigger-down; a release within the click slop counts as a click on the pressed control; overlay drag threshold; smooth scroll × 2880 and discrete × 120, sent to the list under the scrolling controller; cancel without click on focus loss or hide.

@@ -25,7 +25,7 @@ synthetic temporary directories; set TEMP/TMP to an owned local test directory
 when the host sandbox's default temporary location is inaccessible.
 
 The tool writes DSUClient.ini, WiimoteNew.ini, named profiles, GFX.ini and
-per-game selectors for the approved PAL releases RBUP08 and SBDP08. Cheats are
+per-game selectors for the PAL profile selectors RBUP08 and SBDP08. Cheats are
 disabled; no 60fps research codes are included. Analytics and the automatic
 update track are disabled in fresh profiles, with the analytics permission
 question marked answered. This does not modify a currently running profile.
@@ -57,10 +57,10 @@ profile's DSU Options-to-Remote+ mapping is authored, but a usable physical
 menu/Start binding is pending; do not claim the application-menu button works.
 
 To print (never execute) an isolated launch command, supply explicit executable
-and approved game paths using `command --user ... --dolphin ... --game-file ...`.
+and selected game paths using `command --user ... --dolphin ... --game-file ...`.
 Omit `--game-file` to print a controller-configuration launch. Keep that output
 private. The actual command is `Dolphin.exe --user <isolatedUser> -b -e
-<approvedDisc>`. Launch coordination belongs to the lead.
+<gameFile>`. Launch coordination belongs to the lead.
 
 GFX uses side-by-side stereo, depth20, convergence20 and unswapped eyes. This is
 **3D theatre**, a fallback to the project's true-3D scene target. SteamVR
@@ -76,5 +76,5 @@ Binary key presence and source matching are not runtime acceptance.
 
 ## SBS theatre helper
 
-See theatre/README.md. Builds use only the supplied existing OpenVR SDK and
+See theatre/README.md. Builds use only the existing OpenVR SDK and
 toolchain. No game or VR launch is part of the CPU test commands.

@@ -18,7 +18,7 @@ Status: 2026-10-10, decided with the owner. One lead session and three lane sess
 
 - **Main thrust:** the first true-3D game played from a Hub install. The game comes from lane 4's first board: **Time Crisis** on Namco System 22.
 - **Board order for lane 4:** Namco System 22, then Sega Model 3 (Supermodel), then NAOMI / Dreamcast (Flycast), then Namco System 23. Lane 4 moves to the next board when one is done.
-- **Linux and Steam Frame:** not exercised until someone with the hardware can test. CI keeps building and testing on Linux. Windows with SteamVR (Quest over ALVR) is the working target.
+- **Linux and Steam Frame:** not exercised until someone with the hardware can test. CI keeps building and testing on Linux. Windows with a SteamVR headset is the working target.
 - **The lead directs.** The owner gives the lead three other sessions to get reports from and to steer.
 - **Controls view:** one data model, drawn on the desktop detail page first and in VR's Control Mapping mode when libacvr can draw it.
 - **Racing control sets:** lane 3, after the guns.

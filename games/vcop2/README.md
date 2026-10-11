@@ -34,7 +34,7 @@ The real Virtua Cop 2 levels around you in full 6DoF, with your motion controlle
 ## Requirements
 
 - Your own Virtua Cop 2 for Windows (1997).
-- Windows x64, any OpenXR runtime (SteamVR, Meta Quest Link, Virtual Desktop).
+- Windows x64 and an OpenXR runtime. For the SteamVR path, connect a SteamVR headset.
 
 ## Troubleshooting
 

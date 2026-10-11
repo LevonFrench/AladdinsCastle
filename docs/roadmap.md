@@ -3,8 +3,8 @@
 Each milestone ends with something you can do in the headset or the Hub. Dates are not set.
 
 ## M0: Play now
-- [Quest 3 quickstart](quest3-quickstart.md): DR-89 Time Crisis VR, VC2VR, PenguinScreen2.
-- **Done when (optional):** the owner has played Time Crisis VR or VC2VR on PCVR (ALVR + SteamVR) and noted what feels right and wrong. Not a blocker for M1.
+- [PCVR and standalone quickstart](quest3-quickstart.md): DR-89 Time Crisis VR, VC2VR, PenguinScreen2.
+- **Done when (optional):** the owner has played Time Crisis VR or VC2VR on PCVR with a SteamVR headset and noted what feels right and wrong. Not a blocker for M1.
 
 ## M1: Hub + emulators, flat launch
 - Spikes from hub-architecture.md: S1 QML → SteamVR dashboard overlay, S2 400-card grid performance.
@@ -27,7 +27,7 @@ Each milestone ends with something you can do in the headset or the Hub. Dates a
 - **Gun models:** libacvr loads and draws our own gun models in the hand ([guns.md](guns.md)); tier 1 models are built ahead of M2 ([tasks/m2/guns-models.md](tasks/m2/guns-models.md)). A gun in each hand follows with the first two-player setups (M3 theatre, M4 Model 3).
 - Installed by the Hub as `acvr` variants; the Hub dashboard overlay from spike S1 becomes the in-VR Hub.
 - Contribute generic changes upstream to namco22-decompile.
-- **Done when:** both games play start to finish in true 3D at the headset's refresh rate on the owner's PC (ALVR + SteamVR), installed and launched from the Hub.
+- **Done when:** both games play start to finish in true 3D at the headset's refresh rate on a PC with a SteamVR headset, installed and launched from the Hub.
 
 ## M3: Theatre setups + input bridges
 - acvr-theatre (window capture to a VR screen) with libacvr guns and ghost controls.
