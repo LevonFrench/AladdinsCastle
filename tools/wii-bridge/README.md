@@ -1,7 +1,9 @@
 # Wii controller bridge
 
 Live SteamVR action poses, physical velocity/rotation and buttons become two
-loopback DSU devices in ordinary Dolphin. Slot0 is right, slot1 left. This is
+loopback DSU devices in ordinary Dolphin. The canonical generated route sends
+slot 0 as Remote and slot 1 as Nunchuk, with the physical hands selected by the
+profile. The explicit legacy route retains slot 0 right and slot 1 left. This is
 the input bridge for **3D theatre**, not evidence of the true-3D target.
 
 Build the small C++ pose reader using an existing pinned OpenVR SDK; no network
@@ -11,28 +13,44 @@ visible status/calibration window and UDP server, with no pip dependencies.
 ```powershell
 cmake -S tools/wii-bridge -B .local/build-wii-pose -DOPENVR_SOURCE=<existing-sdk>
 cmake --build .local/build-wii-pose --config Release
-python tools/wii-bridge/bridge.py --pose-reader .local/build-wii-pose/Release/acvr-wii-pose.exe
+python tools/wii-bridge/bridge.py --pose-reader .local/build-wii-pose/Release/acvr-wii-pose.exe --control-set wii-dead-space-extraction --primary-hand right --head-file .local/theatre-head.json
 python -m unittest discover -s tools/wii-bridge -p test_bridge.py -v
 ```
 
-Connect a SteamVR headset first. Face the middle of the intended
-Dolphin screen, then click **Centre pointer plane**. The reference plane is
+The canonical route reads only the selected generated
+`data/controls/wii/generated/games/<control-set>/scripted-dsu-<hand>.json`,
+checks that JSON and its companion INI against `generated-files.json` SHA-256,
+and rejects game, hand, role, slot, server or action contract mismatches before
+starting Tk, the reader or the socket. It also requires the producer's
+`canonical-dsu/1` capability declaration to mark `canonical_live` and
+`live_bridge_compatible` true. The current producer marks them false, so the
+live canonical route intentionally refuses until its separate source review
+and readiness flip; synthetic CPU tests do not override that gate. The generated INI must be installed by
+the separate profile preparation; the bridge does not install it. Historical
+hard-coded buttons require explicit `--legacy-input`. Connect a SteamVR headset
+first. Face the middle of the intended Dolphin screen, then use the theatre's
+Ctrl+Alt+C recenter when `--head-file` is shared. The reference plane is
 2m away,3.2m wide and1.8m high. It stays fixed until recalibrated. Actual screen
 size/yaw/pitch must be matched during the sitting. Displayed dots use the aim
 pose's forward ray; DSU right-stick axes carry its absolute coordinates.
 When the ray misses, the pointer clamps to the nearest plane edge and trigger
-still passes through, so a game can use off-screen fire for reload. A game
-launch can choose `--offscreen-pointer hide`: this holds DSU Square off-screen,
-which hides Dolphin's Point cursor only if that game's Dolphin profile binds
-`IR/Hide` to `Square`. Edge mode is the default until that profile is present.
+still passes through, so a game can use off-screen fire for reload. Canonical
+profiles reserve DSU Square for Remote 1 and reject `--offscreen-pointer hide`.
+The explicit legacy route can choose hide only with a matching Dolphin Point
+profile; otherwise edge clamp remains the safe policy.
 Closing the window stops its reader and server. `--seconds N` bounds a test.
 
-Buttons: trigger→R2, primary(A/X)→Cross, grip→L2, secondary(B/Y)→Circle,
-application menu→Options. The right Touch system button does not provide this
-application-menu action; a usable Remote + binding is still needed. Thumbstick remains the left stick. DSU provider name
-is determined by Dolphin's server description: use **AladdinsCastle**.
-Thumbstick click is read but not sent as a Wii button; visible laser toggle is
-not implemented yet. Wii profile generation belongs to tools/wii-dolphin-profile.
+Canonical buttons follow the generated action expressions: for example,
+unmodified firing-hand trigger sends Remote B/R2, primary sends Remote A/Cross,
+and grip modifies primary to Remote plus/Options. The opposite hand drives
+Nunchuk Z/L2, C/Circle and its analog stick. Remote Home/PS remains explicitly
+unsupported and emits no button. Both thumbstick clicks reserve recenter and
+suppress game buttons and fallback actions. With a shared head file, the chord
+does not recenter the pointer alone: use the theatre's Ctrl+Alt+C until a
+theatre command consumer is implemented. The bridge follows the theatre's
+published revision. The physical application-menu action is not a substitute
+for the generated Remote plus chord. Generated game action labels are proposed
+until option-screen evidence confirms them.
 
 The reader emits poses at about120 Hz. A dedicated Python reader thread maps
 each sample before the UI can skip it; a separate120 Hz thread owns the DSU
@@ -68,9 +86,11 @@ Sources checked for this implementation:
 - https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.cpp
 - Existing OpenVR2.15.6 header/API at commit0924064316de3effbcd1acf1e309182a2deb1c05.
 
-The native pose reader has a previous MSVC build. The current 13 protocol/motion
-tests pass, including two real UDP clients, expiry, and a short pulse surviving
-Dolphin's newest-packet drain. These tests do not establish tracking, controller
+The native pose reader has a previous MSVC build. CPU regressions cover
+generated-source hashing, both physical hand roles, actual DSU button packets,
+modifier suppression, unsupported Home, tracking loss and the reserved recenter
+chord. Existing protocol tests cover two real UDP clients, expiry and a short
+pulse surviving Dolphin's newest-packet drain. These tests do not establish tracking, controller
 feel, game motion recognition, stereo viewing, co-op or headset acceptance. The
 first live probe reported Hmd Not Found before the headset connection was ready.
 

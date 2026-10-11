@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Windows PowerShell 5.1. Preparing settings never launches Dolphin or VR.
 Set-StrictMode -Version 2.0
+$script:Product = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../data/product.json') -Raw | ConvertFrom-Json
+if ($script:Product.schema -ne 1 -or $script:Product.dsu_server_name -notmatch '^[A-Za-z0-9_-]+$' -or
+    $script:Product.display_name -notmatch '^[A-Za-z0-9 _-]+$') { throw 'Invalid product identity.' }
+$script:SittingMarker = $script:Product.display_name + ' sitting settings v2'
 
 function Write-AcText([string]$Path, [string]$Text) {
     $null = Assert-AcPrivatePath $Path
@@ -74,12 +78,44 @@ function Get-AcVRSwitches {
     }
 }
 
+function Assert-AcGeneratedProfile {
+    param([string]$Path, [ValidateSet('Native','DSU')][string]$Role,
+          [string]$ControlSet = '')
+    $full = [IO.Path]::GetFullPath($Path)
+    $folder = Split-Path $full
+    $leaf = Split-Path $full -Leaf
+    $parent = Split-Path $folder -Leaf
+    if ((Split-Path (Split-Path $folder) -Leaf) -eq 'games') {
+        if ($parent -cnotmatch '^[a-z0-9]+(?:-[a-z0-9]+)*$' -or
+            ($ControlSet -and $parent -cne $ControlSet)) { throw 'Game control-set identity differs.' }
+        $allowed = if ($Role -eq 'Native') { @('dolphinxr-right.ini') } else { @('scripted-dsu-right.ini','flat-dolphin-right.ini') }
+        if ($leaf -cnotin $allowed) { throw 'Expected the generated right-primary game profile.' }
+        $generated = Split-Path (Split-Path $folder)
+        $key = "games/$parent/$leaf"
+    } else {
+        $expected = if ($Role -eq 'Native') { 'dolphinxr' } else { 'flat-dolphin' }
+        if ($ControlSet -or $parent -cne $expected -or $leaf -cne 'split-right.ini') {
+            throw 'Expected the generated split-right profile or a matching per-game profile.'
+        }
+        $generated = Split-Path $folder
+        $key = "$parent/$leaf"
+    }
+    $manifest = Get-Content -LiteralPath (Join-Path $generated 'generated-files.json') -Raw | ConvertFrom-Json
+    $entry = $manifest.files.PSObject.Properties[$key]
+    if ($manifest.version -ne 'shell-stick/1' -or $null -eq $entry -or
+        $entry.Value -ne (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash) {
+        throw 'Profile does not match the shared generated manifest.'
+    }
+    return $key
+}
+
 function Initialize-AcSitting {
     param([Parameter(Mandatory=$true)][string]$UserDirectory,
           [Parameter(Mandatory=$true)][string]$NativeProfile,
           [ValidateSet('Default','Eager','Desktop')][string]$Mode = 'Default',
           [ValidateSet('Native','Sharp','SharpAA')][string]$Quality = 'Sharp',
           [string]$DsuProfile='', [ValidateRange(1024,65535)][int]$DsuPort=26760,
+          [string]$ControlSet='',
           [ValidateSet('Auto','Off','72','90','120')][string]$ForcedVBI='Off',
           [ValidateSet('Both','Left','Right','None')][string]$Mirror='Both',
           [bool]$ControllerAnchor=$false, [bool]$CameraAnchor=$false,
@@ -88,6 +124,7 @@ function Initialize-AcSitting {
         throw 'Dolphin is running; settings cannot be prepared or changed during a session.'
     }
     $userPath = Assert-AcPrivatePath $UserDirectory
+    if ($ControlSet) { $null = Assert-AcGeneratedProfile $NativeProfile Native $ControlSet }
     $profileBytes = [IO.File]::ReadAllBytes($NativeProfile)
     $profile = [Text.Encoding]::UTF8.GetString($profileBytes)
     $sections = [regex]::Matches($profile, '(?m)^\[([^\r\n]+)\]\r?\n([\s\S]*?)(?=^\[|\z)')
@@ -110,19 +147,15 @@ function Initialize-AcSitting {
     if ($DsuProfile) {
         $dsuBytes = [IO.File]::ReadAllBytes($DsuProfile)
         $dsuText = [Text.Encoding]::UTF8.GetString($dsuBytes)
-        if ($dsuText -notmatch '(?m)^Device = DSUClient/0/AladdinsCastle\r?$' -or
-            $dsuText -notmatch '(?m)^Source = 1\r?$') { throw 'Expected generated split-right DSU profile.' }
-        $dsuManifest = Get-Content -LiteralPath (Join-Path (Split-Path (Split-Path $DsuProfile)) 'generated-files.json') -Raw | ConvertFrom-Json
-        if ((Split-Path $DsuProfile -Leaf) -ne 'split-right.ini' -or $dsuManifest.version -ne 'shell-stick/1' -or
-            $dsuManifest.files.'flat-dolphin/split-right.ini' -ne (Get-FileHash -LiteralPath $DsuProfile -Algorithm SHA256).Hash) {
-            throw 'DSU profile does not match shared generated manifest.'
-        }
+        if ($dsuText -notmatch ('(?m)^Device = DSUClient/0/' + [regex]::Escape($script:Product.dsu_server_name) + '\r?$') -or
+            $dsuText -notmatch '(?m)^Source = 1\r?$') { throw 'Expected generated slot-zero DSU profile.' }
+        $null = Assert-AcGeneratedProfile $DsuProfile DSU $ControlSet
     }
     $marker = Join-Path $userPath 'ac-sitting-v2.txt'
     $null = Assert-AcPrivatePath $marker
     if ((Test-Path -LiteralPath $userPath) -and
         (-not (Test-Path -LiteralPath $marker) -or
-         [IO.File]::ReadAllText($marker) -ne 'AladdinsCastle sitting settings v2')) {
+         [IO.File]::ReadAllText($marker) -ne $script:SittingMarker)) {
         throw 'Existing unowned User directory refused; choose a fresh sitting-v2 directory.'
     }
     $config = Join-Path $userPath 'Config'
@@ -132,7 +165,7 @@ function Initialize-AcSitting {
     New-Item -ItemType Directory -Path $config -Force | Out-Null
     # Pinned DolphinXR creates many user folders, but omits Logs before opening its file listener.
     New-Item -ItemType Directory -Path (Join-Path $userPath 'Logs') -Force | Out-Null
-    Write-AcText $marker 'AladdinsCastle sitting settings v2'
+    Write-AcText $marker $script:SittingMarker
     $backup = Join-Path $userPath ('ConfigBackups/' + [Guid]::NewGuid().ToString('N'))
     $existing = @(Get-ChildItem -LiteralPath $config -Filter '*.ini' -File)
     if ($existing.Count) {
@@ -170,7 +203,7 @@ function Initialize-AcSitting {
     if ($null -ne $dsuBytes) {
         Write-AcText (Join-Path $config 'WiimoteNew.ini') $dsuText
         Set-AcIniValues (Join-Path $config 'DSUClient.ini') ([ordered]@{
-            Server=[ordered]@{Enabled='True';Entries="AladdinsCastle:127.0.0.1:$DsuPort"}
+            Server=[ordered]@{Enabled='True';Entries="$($script:Product.dsu_server_name):127.0.0.1:$DsuPort"}
         })
         Set-AcIniValues (Join-Path $config 'Dolphin.ini') ([ordered]@{Input=[ordered]@{BackgroundInput='True'}})
     } elseif ($Mode -eq 'Desktop') {
@@ -215,6 +248,7 @@ Source = 0
 
 function Assert-AcSittingInputs([string]$Executable, [string]$ExecutableSHA256,
                                [string]$Disc, [string]$GameID) {
+    if ($GameID -cnotmatch '^[A-Z0-9]{6}$') { throw 'Expected a six-character Wii game ID.' }
     if ($ExecutableSHA256 -notmatch '^[a-fA-F0-9]{64}$' -or
         (Get-FileHash -LiteralPath $Executable -Algorithm SHA256).Hash -ne $ExecutableSHA256) {
         throw 'Pinned DolphinXR executable hash differs.'
@@ -223,6 +257,29 @@ function Assert-AcSittingInputs([string]$Executable, [string]$ExecutableSHA256,
     try {
         $header = New-Object byte[] 32
         if ($stream.Read($header, 0, 32) -ne 32) { throw 'Disc header is truncated.' }
+        if ([Text.Encoding]::ASCII.GetString($header,0,4) -ceq 'WBFS') {
+            # Copied disc header follows the host sector, not a fixed 512-byte offset.
+            # Match the Hub's bounded single-disc metadata reader. This does not
+            # validate the payload/block map or inspect companion files.
+            $hostShift = [int]$header[8]; $wbfsShift = [int]$header[9]
+            if ($hostShift -lt 9 -or $hostShift -gt 12 -or $wbfsShift -lt 15 -or
+                $wbfsShift -gt 31 -or $wbfsShift -lt $hostShift) { throw 'Invalid WBFS sector sizes.' }
+            $hostSize = 1 -shl $hostShift
+            $sectors = [uint64]$header[4]*16777216 + [uint64]$header[5]*65536 + [uint64]$header[6]*256 + [uint64]$header[7]
+            if ($sectors -eq 0 -or $sectors*$hostSize -lt $hostSize+32 -or $stream.Length -lt $hostSize+32) {
+                throw 'Truncated WBFS disc information.'
+            }
+            $container = New-Object byte[] $hostSize
+            $stream.Position = 0
+            if ($stream.Read($container,0,$hostSize) -ne $hostSize -or $container[12] -eq 0) {
+                throw 'WBFS has no first disc slot.'
+            }
+            for ($i=13; $i -lt $hostSize; $i++) {
+                if ($container[$i] -ne 0) { throw 'Multiple WBFS disc slots are unsupported.' }
+            }
+            $stream.Position = $hostSize
+            if ($stream.Read($header,0,32) -ne 32) { throw 'Copied Wii header is truncated.' }
+        }
     } finally { $stream.Dispose() }
     if ([Text.Encoding]::ASCII.GetString($header,0,6) -cne $GameID -or
         [BitConverter]::ToString($header[24..27]) -ne '5D-1C-9E-A3') {
@@ -236,4 +293,4 @@ function Test-AcOpenXRLog([string]$LogPath) {
     return [bool](Select-String -LiteralPath $LogPath -Pattern '[NEWID]\[OpenXR\]:' -Quiet)
 }
 
-Export-ModuleMember -Function Initialize-AcSitting, Assert-AcSittingInputs, Assert-AcPrivatePath, Test-AcOpenXRLog, Get-AcQuality, Get-AcVRSwitches
+Export-ModuleMember -Function Initialize-AcSitting, Assert-AcSittingInputs, Assert-AcPrivatePath, Test-AcOpenXRLog, Get-AcQuality, Get-AcVRSwitches, Assert-AcGeneratedProfile

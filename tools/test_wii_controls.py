@@ -8,7 +8,8 @@ from control_sets import Resolver
 class WiiControlsTests(unittest.TestCase):
     def test_compiled_catalog_matches_sources(self):
         self.assertEqual(json.loads((ROOT/'data/controls/wii/view-catalog.json').read_text(encoding='utf-8')),compile_library())
-        self.assertEqual(len(compile_library()['games']),5)
+        from pathlib import Path
+        self.assertEqual({r['game_id'] for r in compile_library()['games']},{p.stem for p in (ROOT/'data/controls/wii/games').glob('*.toml')})
     def test_each_game_has_both_route_variants_from_same_actions(self):
         for game in compile_library()['games']:
             self.assertEqual(set(game['route_variants']),{'flat-dolphin','dolphinxr'})

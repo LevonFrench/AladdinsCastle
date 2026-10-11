@@ -1,0 +1,59 @@
+version = "hand-assembly/1"
+id = "grip-hand-left"
+asset_kind = "hand"
+model = "assets/hands/grip-hand-left.glb"
+source = "assets/hands/src/grip_hand.py"
+hand = "left"
+units = "metres"
+axes = "+Y up, -Z forward, right-handed"
+quaternion_order = "xyzw"
+root = "grip"
+length_mm = 110
+length_axis = "y"
+features = []
+
+[tints]
+default = "glove"
+p1 = "glove"
+p2 = "glove"
+glove = { body = "#8293a8", accent = "#a9b8c9" }
+
+[motion.index]
+node="pivot_index"
+kind="rotate"
+axis=[-1,0,0]
+range=[0,0.17]
+drive="trigger"
+lod_nodes=["pivot_index","pivot_index_lod1"]
+
+[motion.middle]
+node="pivot_middle"
+kind="rotate"
+axis=[-1,0,0]
+range=[0,0.17]
+drive="grip"
+lod_nodes=["pivot_middle","pivot_middle_lod1"]
+
+[motion.ring]
+node="pivot_ring"
+kind="rotate"
+axis=[-1,0,0]
+range=[0,0.17]
+drive="grip"
+lod_nodes=["pivot_ring","pivot_ring_lod1"]
+
+[motion.pinky]
+node="pivot_pinky"
+kind="rotate"
+axis=[-1,0,0]
+range=[0,0.17]
+drive="grip"
+lod_nodes=["pivot_pinky","pivot_pinky_lod1"]
+
+[motion.thumb]
+node="pivot_thumb"
+kind="rotate"
+axis=[-1,0,0]
+range=[0,0.17]
+drive="primary"
+lod_nodes=["pivot_thumb","pivot_thumb_lod1"]

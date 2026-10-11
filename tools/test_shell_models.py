@@ -7,6 +7,32 @@ ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'assets/guns
 from common import plan,metadata
 from check_gun_assets import check_asset,check_previews
 class ShellModelsTests(unittest.TestCase):
+    def test_original_hand_exports_and_assembly_references(self):
+        import json,math
+        from check_hand_assets import check
+        from hand_assembly import compile_assembly
+        from check_gun_assets import read_glb
+        self.assertEqual(set(check()),{'right','left'})
+        assembly=compile_assembly();self.assertEqual(assembly,json.loads((ROOT/'assets/hands/assembly.json').read_text()))
+        self.assertEqual(assembly['quaternion_order'],'xyzw')
+        for mid,row in assembly['models'].items():
+            doc,_=read_glb(ROOT/metadata(mid)['model']);nodes={n['name'] for n in doc['nodes']}
+            for anchor in row['label_anchors'].values():self.assertIn(anchor['node'],nodes)
+            for hand,pose in row['hands'].items():
+                self.assertTrue((ROOT/pose['asset']).is_file());self.assertIn(pose['node'],nodes)
+                self.assertAlmostEqual(sum(v*v for v in pose['rotation_xyzw']),1)
+                self.assertTrue(all(math.isfinite(v) for v in pose['translation']))
+                for override in pose['finger_pose'].values():
+                    self.assertEqual(override['translation_offset'],[0,0,0])
+                    self.assertTrue(all(v>0 for v in override.get('scale',[1,1,1])))
+                    self.assertAlmostEqual(sum(v*v for v in override['rotation_xyzw']),1)
+    def test_hand_anatomy_is_mirrored_without_negative_scale(self):
+        import runpy
+        module=runpy.run_path(str(ROOT/'assets/hands/src/grip_hand.py'))
+        right=module['make_design']('right').result('right');left=module['make_design']('left').result('left')
+        for a,b in zip(right['parts'],left['parts']):
+            if a['shape']=='sweep':
+                for p,q in zip(a['points'],b['points']):self.assertEqual((-p[0],p[1],p[2]),q)
     def test_both_models_have_valid_exported_lods_materials_and_callouts(self):
         for mid in ('con-remote-shell','con-stick-grip'):
             meta=metadata(mid);result=check_asset(ROOT/meta['model'],meta)

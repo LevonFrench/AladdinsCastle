@@ -27,7 +27,7 @@ jobs:
         run: python -m unittest discover -s tools/wii-bridge -p "test_*.py" -v
       - name: Isolated Dolphin profile checks
         if: hashFiles('tools/wii-dolphin-profile/test_profile.py') != ''
-        run: python -m unittest discover -s tools/wii-dolphin-profile -p test_profile.py -v
+        run: python -m unittest discover -s tools/wii-dolphin-profile -p 'test_*.py' -v
       - name: Shared Wii shell and stick profiles
         if: hashFiles('tools/test_wii_shell_stick.py') != ''
         run: python -m unittest discover -s tools -p test_wii_shell_stick.py -v
@@ -64,6 +64,16 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: ./tools/dolphinxr-sitting/Test-Sitting.ps1
+      - name: Read package identity
+        shell: python
+        run: |
+          import json, os, pathlib, re
+          identity = json.loads(pathlib.Path('data/product.json').read_text(encoding='utf-8'))
+          folder = identity['user_data_folder']
+          if identity['schema'] != 1 or not re.fullmatch(r'[A-Za-z0-9_-]+', folder):
+              raise SystemExit('Invalid product package directory')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
+              stream.write(f'AC_PRODUCT_DIR={folder}\nAC_PRODUCT_ARTIFACT={folder}-Windows-x64\n')
       - name: Synthetic frame-rate lease and quiet-machine refusal checks
         if: runner.os == 'Windows' && hashFiles('data/performance/test_collector_gates.ps1') != ''
         shell: pwsh
@@ -91,6 +101,12 @@ jobs:
           cmake -S setups/dolphin-vr/facing -B build-dolphin-facing -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TRY_COMPILE_CONFIGURATION=Release
           cmake --build build-dolphin-facing --target ac-dolphin-facing-test
           ctest --test-dir build-dolphin-facing --output-on-failure
+      - name: Dolphin route diagnostics (synthetic CPU only)
+        if: hashFiles('setups/dolphin-vr/route-diagnostic/CMakeLists.txt') != ''
+        run: |
+          cmake -S setups/dolphin-vr/route-diagnostic -B build-dolphin-route -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TRY_COMPILE_CONFIGURATION=Release
+          cmake --build build-dolphin-route --target ac-dolphin-route-trace-test
+          ctest --test-dir build-dolphin-route --output-on-failure
       - run: cmake -S hub -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
       - name: Compile native Wii pose reader (no VR initialization)
         run: |
@@ -132,16 +148,17 @@ jobs:
       - name: Build Windows portable folder and ZIP
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./hub/packaging/portable-windows.ps1 -BuildDir build -QtDir "$env:QT_ROOT_DIR" -OutputDir "$env:GITHUB_WORKSPACE/out/AladdinsCastle"
+        run: ./hub/packaging/portable-windows.ps1 -BuildDir build -QtDir "$env:QT_ROOT_DIR" -OutputDir "$env:GITHUB_WORKSPACE/out/$env:AC_PRODUCT_DIR"
       - name: Portable catalog count
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          & ./out/AladdinsCastle/hubtool.exe --data-root ./out/AladdinsCastle count
+          $package = Join-Path ./out $env:AC_PRODUCT_DIR
+          & (Join-Path $package 'hubtool.exe') --data-root $package count
           if ($LASTEXITCODE -ne 0) { throw 'Portable catalog count failed' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: runner.os == 'Windows'
         with:
-          name: AladdinsCastle-Windows-x64
-          path: out/AladdinsCastle.zip
+          name: ${{ env.AC_PRODUCT_ARTIFACT }}
+          path: out/${{ env.AC_PRODUCT_DIR }}.zip
           if-no-files-found: error

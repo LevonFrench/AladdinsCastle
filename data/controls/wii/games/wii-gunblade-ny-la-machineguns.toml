@@ -1,0 +1,23 @@
+version = "0.1"
+game_id = "wii-gunblade-ny-la-machineguns"
+control_set = "shell-and-stick"
+layout = { state = "question", name = "", question = "Which game option-screen layout is selected?" }
+questions = ["Confirm stick attachment, button actions and motion prompts in the selected game layout."]
+sources = []
+
+[gun_proposal]
+state = "proposed"
+model = "mnt-mg-heavy"
+rationale = "The catalog describes mounted machine guns; the built heavy model already has paired rear grips for two-handed aim."
+
+[hold]
+default = "docked"
+state = "provisional"
+
+[reload]
+choices = ["shake", "flick-down", "offscreen", "button"]
+selected = "button"
+state = "question"
+question = "Automatic-fire presentation suggests a button convenience option; first confirm whether this game has an explicit reload action."
+target_action = "remote-shake"
+button_fallback = "remote-shake"

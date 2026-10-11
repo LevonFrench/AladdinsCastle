@@ -1,0 +1,127 @@
+{
+  "version": "0.1",
+  "model": "grip-hand-left",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "grip-hand-left-front.png",
+      "nodes": {
+        "pivot_index": [
+          0.444891,
+          0.299078
+        ],
+        "pivot_middle": [
+          0.444891,
+          0.437418
+        ],
+        "pivot_ring": [
+          0.484417,
+          0.555995
+        ],
+        "pivot_pinky": [
+          0.523943,
+          0.661397
+        ],
+        "pivot_thumb": [
+          0.543706,
+          0.259552
+        ],
+        "grip": [
+          0.510768,
+          0.272727
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "grip-hand-left.png",
+      "nodes": {
+        "pivot_index": [
+          0.55826,
+          0.364263
+        ],
+        "pivot_middle": [
+          0.55826,
+          0.492217
+        ],
+        "pivot_ring": [
+          0.585552,
+          0.591024
+        ],
+        "pivot_pinky": [
+          0.603313,
+          0.674186
+        ],
+        "pivot_thumb": [
+          0.593133,
+          0.288429
+        ],
+        "grip": [
+          0.465556,
+          0.271632
+        ]
+      }
+    },
+    "held": {
+      "image": "grip-hand-left-held.png",
+      "nodes": {
+        "pivot_index": [
+          0.358205,
+          0.308211
+        ],
+        "pivot_middle": [
+          0.358205,
+          0.432505
+        ],
+        "pivot_ring": [
+          0.366574,
+          0.556002
+        ],
+        "pivot_pinky": [
+          0.38782,
+          0.666437
+        ],
+        "pivot_thumb": [
+          0.424196,
+          0.310811
+        ],
+        "grip": [
+          0.558863,
+          0.295042
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
+  },
+  "silhouette": "grip-hand-left-silhouette.png",
+  "asset_kind": "hand",
+  "sight_reviews": {},
+  "silhouette_scale_m": 0.82
+}

@@ -2,7 +2,7 @@
 
 > **Source references:** `namco22-decompile/...`, `time-crisis-vr/...`, `Supermodel/...` and `Rea-Virtua-Cop-2-VR/...` paths are relative to [namco22-decompile](https://github.com/spacestate1/namco22-decompile), [time-crisis-vr](https://github.com/DR-89/time-crisis-vr), [Supermodel](https://github.com/trzy/Supermodel), [Rea-Virtua-Cop-2-VR](https://github.com/NeuralF/Rea-Virtua-Cop-2-VR) as cloned on 2026-10-08 (shallow clones; line numbers may drift). Other paths are in this repo.
 
-Initial design: 2026-10-08; v0.1 and v0.2 published 2026-10-10. Public header: `libacvr/include/acvr.h`. This is the in-process ABI. The shared frame core is implemented with recorded-host checks (docs/libacvr-runtime-core.md); the OpenXR provider and real-game integration remain unimplemented. No upstream ABI compatibility is implied. libacvr code and public header are MIT; board adapters outside libacvr and the Hub are GPL-3.0-only unless explicitly licensed otherwise. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied and no game content is included.
+Initial design: 2026-10-08; v0.1 and v0.2 published 2026-10-10. Public header: `libacvr/include/acvr.h`. This is the in-process ABI. The shared frame core has recorded-host checks, and an optional Windows OpenXR desktop-GL provider implements public creation for the synthetic gun room (docs/libacvr-runtime-core.md). Real-game integration and headset acceptance remain open. No upstream ABI compatibility is implied. libacvr code and public header are MIT; board adapters outside libacvr and the Hub are GPL-3.0-only unless explicitly licensed otherwise. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied for this contract and no game content is included.
 
 ## Evidence and scope
 
@@ -89,10 +89,10 @@ The table explains each type and its concrete seam. Struct field semantics in th
 | `game_raycast` | Optional for racers; required capability for a true-3D gun setup. Finds nearest visible shootable scene geometry within ray range, returning original camera ID and canonical hit position; misses return OK/found=0. Replaces private `qvr_aim` intersection step at `time-crisis-vr/quest/quest_scene.c:119`. No generic shared mesh ABI is needed. |
 | `game_draw_hud` | Optional separate-HUD capability. Receives target and timing with view_count=0/views=NULL, draws premultiplied RGBA, transparent outside HUD, no world/cabinet/UI. Cache once per frame, composite separately per display. Text and mixed sprites at `namco22-decompile/engine/ss22_gl.c:505` and `:530`; Supermodel tile layers at `Supermodel/Src/Model3/Model3.cpp:2171` and `:2173`. Classification needs new work. |
 | `game_flush_persistent` | Optional, after pausing/releasing lease, before close; saves only backend settings/NVRAM under the open storage root, reporting failures. EEPROM at `namco22-decompile/engine/ss22_board.c:461`, RR EEPROM at `namco22-decompile/raverace/src/rr_hw.c:192`, Model 3 NVRAM at `Supermodel/Src/Model3/Model3.cpp:1917`. Arbitrary save-state ABI is deferred. |
-| `acvr_runtime_create` | Proposed runtime export: validate table/config, choose an API supported by the backend, create XR/device, call open, validate capabilities and controls, start unpaused. Mirrors XR initialization responsibility at `time-crisis-vr/quest/quest_host.c:394`. A missing required callback/capability fails creation. |
-| `acvr_runtime_tick` | Proposed export: handles one display iteration, pacing/poses/input, 0..N native ticks and outputs, replay draw, submit or zero layers, return. Based on `time-crisis-vr/quest/quest_host.c:585` and deadline helper `time-crisis-vr/quest/quest_clock.h:8`. The shared core implements the timing path with a recorded host; production OpenXR creation remains unsupported. |
-| `acvr_runtime_set_paused` | Proposed export forwards neutralization and pause, resets deadline on resume; based on focus/pause paths at `time-crisis-vr/quest/quest_host.c:305` and `:325`. |
-| `acvr_runtime_destroy` | Proposed export: pause, drain/cancel haptics, release lease, optional flush, close backend, destroy graphics/XR. NULL succeeds; returns first failure while finishing cleanup. Mirrors DR-89 cleanup at `time-crisis-vr/quest/quest_host.c:716`. |
+| `acvr_runtime_create` | Runtime export: validate table/config, choose an API supported by the backend, create XR/device, call open, validate capabilities and controls, start unpaused. Mirrors XR initialization responsibility at `time-crisis-vr/quest/quest_host.c:394`. A missing required callback/capability fails creation. |
+| `acvr_runtime_tick` | Runtime export: handles one display iteration, pacing/poses/input, 0..N native ticks and outputs, replay draw, submit or zero layers, return. Based on `time-crisis-vr/quest/quest_host.c:585` and deadline helper `time-crisis-vr/quest/quest_clock.h:8`. The shared core implements the timing path with a recorded host; optional Windows desktop-GL creation is implemented, with runtime acceptance tracked separately. |
+| `acvr_runtime_set_paused` | Runtime export forwards neutralization and pause, resets deadline on resume; based on focus/pause paths at `time-crisis-vr/quest/quest_host.c:305` and `:325`. |
+| `acvr_runtime_destroy` | Runtime export: pause, drain/cancel haptics, release lease, optional flush, close backend, destroy graphics/XR. NULL succeeds; returns first failure while finishing cleanup. Mirrors DR-89 cleanup at `time-crisis-vr/quest/quest_host.c:716`. |
 
 Optional capabilities require their matching non-NULL callbacks; a callback alone does not enable a capability. New unknown capability bits are ignored. No global maximum N guns is baked into the header: open reports the actual count and controls list; runtime can reject an unsupported count with `UNSUPPORTED`. Time Crisis reports one, Lost World two. Slot-to-player mapping is fixed by `ACVR_CONTROL_GUN` declarations.
 
@@ -336,7 +336,11 @@ layout; a future expansion needs a new parent contract. The outer tracking recor
 may have an unknown tail, which remains untouched. No callback
 recursion or cross-thread calls. Matrices supplied to the backend already include
 these poses, the anchor and scale: do not apply them again. The shared core implements tick/pause/tracking/destroy through a private provider seam.
-Public XR creation still returns UNSUPPORTED. The private configured-model path
+Public XR creation returns UNSUPPORTED in the default build. The optional
+Windows desktop-GL provider implements creation with already-local OpenXR headers
+and an existing loader/runtime; Vulkan and other platform providers remain open.
+Its synthetic gun room is separate from real-game or headset acceptance.
+The private configured-model path
 now supports validated gun-event preview animation when model dependencies and
 a gun-capable host are provided; automatic input/output motion mapping remains
 pending. See

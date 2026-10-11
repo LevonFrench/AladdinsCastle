@@ -7,6 +7,7 @@
 #include "native_dpi.h"
 #include "d3d_upload.h"
 #include "wgc_capture.h"
+#include "product_title.h"
 #include <winrt/base.h>
 #include <atomic>
 #include <chrono>
@@ -48,11 +49,15 @@ static void vrCheck(vr::EVROverlayError error,const char* operation) {
             overlay?overlay->GetOverlayErrorNameFromEnum(error):nullptr));
     }
 }
-struct ClientWindows { DWORD pid; std::vector<HWND> candidates; };
+struct ClientWindows { DWORD pid; std::vector<HWND> candidates; std::wstring gameId; };
 static BOOL CALLBACK enumerate(HWND window,LPARAM value) {
     auto& found=*reinterpret_cast<ClientWindows*>(value);
     DWORD pid=0; GetWindowThreadProcessId(window,&pid);
     if(theatre::eligible(pid,found.pid,IsWindowVisible(window)!=FALSE,GetWindow(window,GW_OWNER)!=nullptr)) {
+        if(!found.gameId.empty()) {
+            wchar_t title[2048]{};
+            if(!GetWindowTextW(window,title,2048) || !theatre::gameWindowTitle(title,found.gameId)) return TRUE;
+        }
         RECT rectangle{};
         if(GetClientRect(window,&rectangle) && rectangle.right>0 && rectangle.bottom>0)
             found.candidates.push_back(window);
@@ -106,13 +111,16 @@ static fs::path calibrationPath(const std::wstring& text) {
 }
 int wmain(int argc,wchar_t** argv) {
     try {
-        unsigned pid=0,seconds=0; fs::path headFile,proofDir; bool captureOnly=false;
+        unsigned pid=0,seconds=0,startupSeconds=30; fs::path headFile,proofDir; bool captureOnly=false;
+        std::wstring gameId;
         for(int i=1;i<argc;++i) {
             const std::wstring flag=argv[i];
             if(flag==L"--capture-only") { captureOnly=true; continue; }
             if(i+1>=argc) fail("Options need values");
             if(flag==L"--pid") pid=theatre::number(argv[++i],MAXDWORD);
             else if(flag==L"--seconds") seconds=theatre::number(argv[++i],600);
+            else if(flag==L"--startup-seconds") startupSeconds=theatre::number(argv[++i],90);
+            else if(flag==L"--game-id") gameId=argv[++i];
             else if(flag==L"--head-file") headFile=calibrationPath(argv[++i]);
             else if(flag==L"--proof-dir") proofDir=calibrationPath(argv[++i]);
             else fail("Unknown option");
@@ -120,6 +128,8 @@ int wmain(int argc,wchar_t** argv) {
         if(!pid || seconds<3 || (captureOnly?proofDir.empty():headFile.empty()))
             fail("Use --pid <Dolphin PID> --seconds <3..600>, plus --capture-only --proof-dir <fresh .local directory> OR --head-file <fresh .local JSON>");
         if(!captureOnly && !proofDir.empty()) fail("Proof directory is for capture-only mode");
+        if(captureOnly && !theatre::validGameId(gameId)) fail("Capture-only needs --game-id <six-character disc header ID>");
+        if(!gameId.empty() && !theatre::validGameId(gameId)) fail("Invalid game header ID");
         PhysicalPixels physicalPixels;
         Handle process{OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,pid)};
         if(!process.value) fail("Cannot open the selected Dolphin process");
@@ -127,30 +137,45 @@ int wmain(int argc,wchar_t** argv) {
         if(!QueryFullProcessImageNameW(process.value,0,image,&length) ||
            _wcsicmp(fs::path(image).filename().c_str(),L"Dolphin.exe")!=0)
             fail("Selected PID is not Dolphin.exe");
-        ClientWindows windows{pid,{}};
-        EnumWindows(enumerate,reinterpret_cast<LPARAM>(&windows));
-        if(windows.candidates.size()!=1) fail("Expected one visible unowned Dolphin window; close dialogs first");
+        const auto startupDeadline=Clock::now()+std::chrono::seconds(startupSeconds);
+        ClientWindows windows{pid,{},gameId};
+        SetConsoleCtrlHandler(stop,TRUE);
+        do {
+            if(!running || WaitForSingleObject(process.value,0)!=WAIT_TIMEOUT) fail("Stopped before game render window appeared");
+            windows.candidates.clear();
+            EnumWindows(enumerate,reinterpret_cast<LPARAM>(&windows));
+            if(windows.candidates.size()>1) fail("Ambiguous game render windows; stop for owner");
+            if(windows.candidates.size()==1) break;
+            if(Clock::now()>=startupDeadline) fail("No owned game render window before startup timeout");
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        } while(true);
         HWND window=windows.candidates.front();
         validWindow(window,pid,process.value);
         CaptureApartment apartment;
-        const auto deadline=Clock::now()+std::chrono::seconds(seconds);
+        auto deadline=startupDeadline;
         theatre::WindowCapture capture(window);
-        SetConsoleCtrlHandler(stop,TRUE);
         auto nextFrame=[&]() {
             while(running && Clock::now()<deadline) {
                 validWindow(window,pid,process.value);
                 auto frame=capture.take();
-                if(frame) return *frame;
+                if(frame && theatre::spatialCandidate({frame->width,frame->height,frame->pixels.data(),frame->pixels.size(),frame->timeMs}))
+                    return *frame;
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-            fail("No fresh WGC frame before bounded run ended");
+            fail("No spatially varied WGC client frame before bounded wait ended");
             return theatre::CapturedFrame{};
         };
-        auto first=nextFrame(),second=nextFrame();
-        while(second.timeMs-first.timeMs<1000) second=nextFrame();
-        const bool changed=theatre::framesDiffer(
+        auto first=nextFrame();
+        deadline=Clock::now()+std::chrono::seconds(seconds);
+        auto second=nextFrame();
+        bool changed=false;
+        while(!changed) {
+            if(second.timeMs-first.timeMs<1000) { second=nextFrame(); continue; }
+            changed=theatre::framesDiffer(
             {first.width,first.height,first.pixels.data(),first.pixels.size(),first.timeMs},
             {second.width,second.height,second.pixels.data(),second.pixels.size(),second.timeMs});
+            if(!changed) second=nextFrame();
+        }
         if(captureOnly) {
             if(!fs::create_directory(proofDir)) fail("Cannot create fresh private proof directory");
             theatre::writeFramePng(proofDir/L"frame-1.png",first);
@@ -158,7 +183,8 @@ int wmain(int argc,wchar_t** argv) {
             std::ofstream receipt(proofDir/L"capture.json");
             receipt << "{\"schema\":1,\"capture\":\"Windows.Graphics.Capture\",\"width\":" << first.width
                     << ",\"height\":" << first.height << ",\"interval_ms\":" << second.timeMs-first.timeMs
-                    << ",\"different_rgb\":" << (changed?"true":"false") << ",\"sbs_visual_check\":\"required\"}\n";
+                    << ",\"different_rgb\":" << (changed?"true":"false")
+                    << ",\"spatial_candidate\":true,\"game_window_selected\":true,\"sbs_visual_check\":\"required\"}\n";
             receipt.close(); if(!receipt) fail("Cannot write capture receipt");
         }
         if(!changed) fail("WGC frames one second apart have identical client RGB; gate failed");
@@ -184,7 +210,7 @@ int wmain(int argc,wchar_t** argv) {
         int32_t adapter=-1; system->GetDXGIOutputInfo(&adapter);
         session.upload=theatre::D3DUpload::onAdapter(adapter);
         std::string key="aladdinscastle.dolphin.theatre."+std::to_string(GetCurrentProcessId());
-        vrCheck(session.overlay->CreateOverlay(key.c_str(),"AladdinsCastle 3D theatre",&session.handle),"create overlay");
+        vrCheck(session.overlay->CreateOverlay(key.c_str(),theatre::productTitle,&session.handle),"create overlay");
         vrCheck(session.overlay->SetOverlayFlag(session.handle,vr::VROverlayFlags_SideBySide_Parallel,true),"SBS parallel");
         vrCheck(session.overlay->SetOverlayWidthInMeters(session.handle,static_cast<float>(theatre::width)),"plane width");
         session.hotkey=RegisterHotKey(nullptr,1,MOD_CONTROL|MOD_ALT|MOD_NOREPEAT,'C')!=0;

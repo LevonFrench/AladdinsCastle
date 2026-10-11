@@ -10,6 +10,8 @@ import os
 from pathlib import Path
 import shutil
 import tempfile
+from product import load as load_product
+from product import snapshot as product_snapshot
 
 ROOT = Path(__file__).resolve().parents[2]
 GAME_IDS = ("RBUP08", "SBDP08")
@@ -28,15 +30,17 @@ def ini(sections):
     return stream.getvalue().encode("utf-8")
 
 
-def binding(slot, control, default):
-    qualifier = "" if slot == default else f"DSUClient/{slot}/AladdinsCastle:"
+def binding(slot, control, default, server_name=None):
+    server_name = server_name or load_product(ROOT / "data/product.json")["dsu_server_name"]
+    qualifier = "" if slot == default else f"DSUClient/{slot}/{server_name}:"
     return f"`{qualifier}{control}`"
 
 
-def profile(remote, nunchuk):
-    b = lambda control: binding(remote, control, remote)
-    n = lambda control: binding(nunchuk, control, remote)
-    result = {"Device": f"DSUClient/{remote}/AladdinsCastle",
+def profile(remote, nunchuk, server_name=None):
+    server_name = server_name or load_product(ROOT / "data/product.json")["dsu_server_name"]
+    b = lambda control: binding(remote, control, remote, server_name)
+    n = lambda control: binding(nunchuk, control, remote, server_name)
+    result = {"Device": f"DSUClient/{remote}/{server_name}",
               "Extension": "Nunchuk", "Extension/Attach MotionPlus": "False",
               "IR/Relative Input": "False", "IR/Auto-Hide": "False",
               "IR/Total Yaw": f"{POINTER_YAW:.6f}", "IR/Total Pitch": f"{POINTER_PITCH:.6f}",
@@ -66,17 +70,19 @@ def profile(remote, nunchuk):
     return result
 
 
-def render(mode):
+def render(mode, labels=None, _prefix=None):
     if mode not in ("one-gun", "two-remotes"):
         raise ValueError("Unknown profile mode")
     count = 1 if mode == "one-gun" else 2
-    remotes = [profile(i, 1 if mode == "one-gun" else i) for i in range(count)]
-    names = [f"AladdinsCastle-{mode}-{i+1}" for i in range(count)]
+    labels = labels or load_product(ROOT / "data/product.json")
+    remotes = [profile(i, 1 if mode == "one-gun" else i, labels["dsu_server_name"]) for i in range(count)]
+    prefix = _prefix or labels["short_id"]
+    names = [f"{prefix}-{mode}-{i+1}" for i in range(count)]
     wiimotes = {f"Wiimote{i+1}": ({"Source": "1", **remotes[i]} if i < count else {"Source": "0"})
                 for i in range(4)}
     wiimotes["BalanceBoard"] = {"Source": "0"}
     files = {
-        "Config/DSUClient.ini": ini({"Server": {"Enabled": "True", "Entries": "AladdinsCastle:127.0.0.1:26760"}}),
+        "Config/DSUClient.ini": ini({"Server": {"Enabled": "True", "Entries": f"{labels['dsu_server_name']}:127.0.0.1:26760"}}),
         "Config/WiimoteNew.ini": ini(wiimotes),
         "Config/GFX.ini": ini({"Stereoscopy": {"StereoMode": "1", "StereoDepth": "20", "StereoConvergence": "20", "StereoSwapEyes": "False"}}),
         "Config/Dolphin.ini": ini({"Core": {"EnableCheats": "False"},
@@ -89,6 +95,26 @@ def render(mode):
     for game in GAME_IDS:
         files[f"GameSettings/{game}.ini"] = ini({"Controls": {f"WiimoteProfile{i+1}": name for i, name in enumerate(names)}})
     return files
+
+
+def legacy_templates(mode):
+    """Exact pre-D62 identities are historical data, not current label defaults."""
+    legacy = render(mode, {"short_id": "aladdinscastle", "dsu_server_name": "AladdinsCastle"}, _prefix="AladdinsCastle")
+    previous = dict(legacy)
+    for name, data in previous.items():
+        if name == "Config/WiimoteNew.ini" or name.startswith("Config/Profiles/Wiimote/"):
+            parsed = configparser.ConfigParser(interpolation=None)
+            parsed.optionxform = str
+            parsed.read_string(data.decode("utf-8"))
+            for section in parsed.sections():
+                for key in ("IR/Total Yaw", "IR/Total Pitch", "IR/Hide"):
+                    parsed.remove_option(section, key)
+            previous[name] = ini({section: dict(parsed[section]) for section in parsed.sections()})
+    previous["Config/Dolphin.ini"] = ini({"Core": {"EnableCheats": "False"},
+        "Analytics": {"Enabled": "False", "PermissionAsked": "True"}, "AutoUpdate": {"UpdateTrack": ""}})
+    initial = dict(previous)
+    initial["Config/Dolphin.ini"] = ini({"Core": {"EnableCheats": "False"}})
+    return (legacy, previous, initial)
 
 
 def safe_user(user, root=ROOT):
@@ -112,9 +138,12 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def envelope(mode, files):
-    return {"schema": 1, "mode": mode, "source_pin": PIN, "games": list(GAME_IDS),
+def envelope(mode, files, labels=None):
+    result = {"schema": 1, "mode": mode, "source_pin": PIN, "games": list(GAME_IDS),
             "files": {name: digest(data) for name, data in files.items()}}
+    if labels is not None:
+        result["product_labels"] = product_snapshot(labels)
+    return result
 
 
 def admit(user, root=ROOT):
@@ -129,26 +158,15 @@ def admit(user, root=ROOT):
     if not isinstance(manifest, dict) or not isinstance(manifest.get("mode"), str):
         raise ValueError("Invalid profile manifest")
     mode = manifest["mode"]
-    expected = render(mode)
-    if manifest != envelope(mode, expected):
-        # Recognize the two published pre-R2 templates without weakening the
-        # manifest/path gate or migrating any runtime-edited configuration.
-        previous = dict(expected)
-        for name, data in previous.items():
-            if name == "Config/WiimoteNew.ini" or name.startswith("Config/Profiles/Wiimote/"):
-                parsed = configparser.ConfigParser(interpolation=None)
-                parsed.optionxform = str
-                parsed.read_string(data.decode("utf-8"))
-                for section in parsed.sections():
-                    for key in ("IR/Total Yaw", "IR/Total Pitch", "IR/Hide"):
-                        parsed.remove_option(section,key)
-                previous[name] = ini({section: dict(parsed[section]) for section in parsed.sections()})
-        previous["Config/Dolphin.ini"] = ini({"Core": {"EnableCheats": "False"},
-            "Analytics": {"Enabled": "False", "PermissionAsked": "True"}, "AutoUpdate": {"UpdateTrack": ""}})
-        initial = dict(previous)
-        initial["Config/Dolphin.ini"] = ini({"Core": {"EnableCheats": "False"}})
-        if manifest == envelope(mode, previous): expected = previous
-        elif manifest == envelope(mode, initial): expected = initial
+    if "product_labels" in manifest:
+        labels = product_snapshot(manifest["product_labels"])
+        expected = render(mode, labels)
+        if manifest != envelope(mode, expected, labels):
+            raise ValueError("Profile manifest has unexpected contents")
+    else:
+        for expected in legacy_templates(mode):
+            if manifest == envelope(mode, expected):
+                break
         else:
             raise ValueError("Profile manifest has unexpected contents")
     for name in expected:
@@ -170,11 +188,12 @@ def check(user, root=ROOT):
 
 def create(user, mode, root=ROOT):
     user = safe_user(user, root)
-    files = render(mode)
     if user.exists():
         if check(user, root)["mode"] != mode:
             raise ValueError("Use a fresh --user directory to change modes")
         return user
+    labels = load_product(ROOT / "data/product.json")
+    files = render(mode, labels)
     user.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix=".profile-stage-", dir=user.parent))
     try:
@@ -182,7 +201,7 @@ def create(user, mode, root=ROOT):
             target = stage / name
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
-        (stage / MANIFEST).write_text(json.dumps(envelope(mode, files), indent=2)+"\n", encoding="utf-8")
+        (stage / MANIFEST).write_text(json.dumps(envelope(mode, files, labels), indent=2)+"\n", encoding="utf-8")
         # rename (rather than replace) cannot overwrite an existing directory on Windows.
         # Recheck on all platforms and never touch an existing user's contents.
         if user.exists():

@@ -28,6 +28,29 @@ Matrix multiply(const Matrix &a,const Matrix &b) {
     for(unsigned c=0;c<4;++c) for(unsigned r=0;r<4;++r) for(unsigned k=0;k<4;++k) m[c*4+r]+=a[k*4+r]*b[c*4+k];
     return m;
 }
+bool invert_affine(const Matrix &m,Matrix &out) {
+    for(float v:m)if(!std::isfinite(v))return false;
+    if(std::abs(m[3])>1e-5||std::abs(m[7])>1e-5||std::abs(m[11])>1e-5||
+       std::abs(m[15]-1)>1e-5)return false;
+    using V=std::array<double,3>;
+    const V a{m[0],m[1],m[2]},b{m[4],m[5],m[6]},c{m[8],m[9],m[10]};
+    const auto cross=[](V x,V y)->V{return {x[1]*y[2]-x[2]*y[1],
+        x[2]*y[0]-x[0]*y[2],x[0]*y[1]-x[1]*y[0]};};
+    const V r0=cross(b,c),r1=cross(c,a),r2=cross(a,b);
+    const double determinant=a[0]*r0[0]+a[1]*r0[1]+a[2]*r0[2];
+    if(!std::isfinite(determinant)||std::abs(determinant)<1e-8)return false;
+    out=identity();
+    for(unsigned i=0;i<3;++i){out[i*4]=float(r0[i]/determinant);
+        out[i*4+1]=float(r1[i]/determinant);out[i*4+2]=float(r2[i]/determinant);}
+    for(unsigned row=0;row<3;++row)out[12+row]=-(out[row]*m[12]+out[4+row]*m[13]+out[8+row]*m[14]);
+    for(float v:out)if(!std::isfinite(v))return false;
+    return true;
+}
+const GunNode *named_node(const GunAsset &asset,std::string_view name){
+    const auto it=std::find_if(asset.nodes.begin(),asset.nodes.end(),
+        [&](const GunNode &node){return node.name==name;});
+    return it==asset.nodes.end()?nullptr:&*it;
+}
 bool pose_ok(const acvr_pose &p) {
     if(p.size<sizeof(p)||p.version!=ACVR_STRUCT_VERSION) return false;
     float norm=0;
@@ -43,6 +66,17 @@ Matrix pose_matrix(const acvr_pose &p) {
         float(2*x*z+2*y*w),float(2*y*z-2*x*w),float(1-2*x*x-2*y*y),0,
         p.position_m[0],p.position_m[1],p.position_m[2],1};
 }
+bool mount_world(const GunAsset &asset,const GunMount &mount,Matrix &out) {
+    const auto *node=named_node(asset,mount.node);
+    if(!node)return false;
+    acvr_pose local{};ACVR_INIT(&local);
+    std::copy(mount.translation.begin(),mount.translation.end(),local.position_m);
+    std::copy(mount.rotation_xyzw.begin(),mount.rotation_xyzw.end(),local.orientation_xyzw);
+    if(!pose_ok(local))return false;
+    out=multiply(node->bind_world,pose_matrix(local));
+    for(float value:out)if(!std::isfinite(value))return false;
+    return true;
+}
 std::vector<uint8_t> read(const std::string &path,size_t limit) {
     require(!path.empty(),"empty gun asset path");
     std::ifstream stream(std::filesystem::u8path(path),std::ios::binary|std::ios::ate); require(bool(stream),"cannot open gun asset");
@@ -51,6 +85,18 @@ std::vector<uint8_t> read(const std::string &path,size_t limit) {
     stream.read(reinterpret_cast<char *>(bytes.data()),static_cast<std::streamsize>(bytes.size()));
     require(bool(stream),"cannot read complete gun asset"); return bytes;
 }
+}
+bool gun_relative_node_position(const GunAsset &asset,std::string_view primary,
+                                std::string_view support,std::array<float,3> &out) noexcept {
+    return gun_relative_mount_position(asset,GunMount{primary},GunMount{support},out);
+}
+bool gun_relative_mount_position(const GunAsset &asset,const GunMount &primary,
+                                 const GunMount &support,std::array<float,3> &out) noexcept {
+    Matrix a{},b{},inverse{};
+    if(!mount_world(asset,primary,a)||!mount_world(asset,support,b)||!invert_affine(a,inverse))return false;
+    const auto relative=multiply(inverse,b);
+    for(unsigned i=0;i<3;++i)if(!std::isfinite(relative[12+i]))return false;
+    out={relative[12],relative[13],relative[14]};return true;
 }
 bool decode_gun_model(const std::vector<uint8_t> &glb,std::string_view metadata,
                       std::string_view expected,GunModel &out,std::string &error) noexcept {
@@ -191,7 +237,7 @@ acvr_result GunOutputRouter::consume(const acvr_output_event &e,int64_t now,bool
     return ACVR_OK;
 }
 acvr_result GunInstance::draw(const acvr_pose &anchor,const acvr_pose &grip,const acvr_gun_slot_config &config,
-                             float scale,float distance,int64_t now,GunDraw &out) const {
+                             float scale,float distance,int64_t now,GunDraw &out,GunMount primary_mount) const {
     auto angle=grip; for(unsigned i=0;i<3;++i) angle.position_m[i]=0;
     std::copy_n(config.angle_xyzw,4,angle.orientation_xyzw);
     if(!pose_ok(anchor)||!pose_ok(grip)||!pose_ok(angle)||!std::isfinite(scale)||scale<=0||
@@ -199,7 +245,12 @@ acvr_result GunInstance::draw(const acvr_pose &anchor,const acvr_pose &grip,cons
     GunDraw result; result.asset=&model.asset; result.slot=config.slot; result.hand=config.hand;
     result.visible=config.show_gun!=0; result.laser_mode=config.laser_mode;
     std::copy_n(config.body_rgba,4,result.body.begin()); std::copy_n(config.accent_rgba,4,result.accent.begin());
-    const auto placement=multiply(multiply(pose_matrix(anchor),pose_matrix(grip)),pose_matrix(angle));
+    auto placement=multiply(multiply(pose_matrix(anchor),pose_matrix(grip)),pose_matrix(angle));
+    if(!primary_mount.node.empty()){
+        Matrix world{},inverse{};
+        if(!mount_world(model.asset,primary_mount,world)||!invert_affine(world,inverse))return ACVR_BAD_ARGUMENT;
+        placement=multiply(placement,inverse);
+    }
     auto scene_placement=placement;
     // Scale every spatial row, including translation; affine bottom row stays 1.
     for(unsigned c=0;c<4;++c) for(unsigned r=0;r<3;++r) scene_placement[c*4+r]*=scale;

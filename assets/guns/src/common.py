@@ -172,6 +172,27 @@ def geometry(part, lod):
                 a=ring*n+i;b=ring*n+(i+1)%n
                 faces.append((a,b,b+n,a+n))
         return vertices,faces
+    if shape == 'sweep':
+        # Authored finger volumes: closed swept rings, without skin weights or
+        # Blender-only deformation. Stable frames follow the local tangent.
+        points=part['points'];n=16 if lod==0 else 8;vertices=[]
+        def unit(v):
+            length=math.sqrt(sum(x*x for x in v));return tuple(x/length for x in v)
+        def cross(a,b):return (a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0])
+        for i,p in enumerate(points):
+            a=points[max(0,i-1)];b=points[min(len(points)-1,i+1)]
+            tangent=unit(tuple(y-x for x,y in zip(a,b)))
+            reference=(0,1,0) if abs(tangent[1])<.9 else (1,0,0)
+            side=unit(cross(tangent,reference));up=cross(side,tangent)
+            radius=part['radii'][i]
+            for j in range(n):
+                angle=j*math.tau/n
+                vertices.append(tuple(p[k]+radius*(side[k]*math.cos(angle)+up[k]*math.sin(angle)) for k in range(3)))
+        faces=[tuple(reversed(range(n))),tuple(range(len(vertices)-n,len(vertices)))]
+        for ring in range(len(points)-1):
+            for i in range(n):
+                a=ring*n+i;b=ring*n+(i+1)%n;faces.append((a,b,b+n,a+n))
+        return vertices,faces
     if shape == 'notched_sight':
         x,y,z=(v/2 for v in part['size']); gap=part['notch_width']/2
         floor=y-part['notch_depth']
@@ -239,7 +260,7 @@ def geometry(part, lod):
     raise ValueError('Unknown authored primitive: '+shape)
 
 
-def blender_run(model_id, parameters):
+def blender_run(model_id, parameters, spec=None, meta=None):
     import bpy
     import bmesh
     from mathutils import Vector
@@ -256,7 +277,8 @@ def blender_run(model_id, parameters):
     scene=bpy.context.scene
     for obj in list(bpy.data.objects): bpy.data.objects.remove(obj,do_unlink=True)
     scene.unit_settings.system='METRIC'
-    spec,meta=plan(model_id,parameters),metadata(model_id)
+    if spec is None: spec=plan(model_id,parameters)
+    if meta is None: meta=metadata(model_id)
     def vec(g): return Vector((g[0],-g[2],g[1]))
     def empty(name,at=(0,0,0),parent=None):
         obj=bpy.data.objects.new(name,None); scene.collection.objects.link(obj)
@@ -273,7 +295,7 @@ def blender_run(model_id, parameters):
         mats[name]=mat
     grip=empty('grip'); grip['asset_id']=model_id; grip['units']='metres'
     grip['asset_kind']=meta.get('asset_kind','gun')
-    if meta.get('asset_kind')!='controller': grip['bore']='-Z'
+    if meta.get('asset_kind','gun')=='gun': grip['bore']='-Z'
     if 'sights' in spec: grip['functional_sights']=spec['sights']
     fixed={name:empty(name,data['at'],grip) for name,data in spec['nodes'].items()
            if name in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear','grip_two','limit_recoil')}
@@ -299,7 +321,7 @@ def blender_run(model_id, parameters):
             mesh.from_pydata([vec(v) for v in verts],[],faces); mesh.validate(); mesh.update()
             bm=bmesh.new(); bm.from_mesh(mesh); bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces))
             bm.to_mesh(mesh); bm.free(); mesh.update()
-            if part['shape']=='loft':
+            if part['shape'] in ('loft','sweep'):
                 for polygon in mesh.polygons: polygon.use_smooth=len(polygon.vertices)==4
             obj=bpy.data.objects.new(mesh.name,mesh); scene.collection.objects.link(obj)
             parent=objects.get(part['parent'],group); obj.parent=parent

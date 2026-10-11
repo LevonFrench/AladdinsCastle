@@ -27,6 +27,7 @@ struct Receipt {
     bool offscreen_reload=false,project_hit=false;
     float hit_x=.5f,hit_y=.5f;
     unsigned model_draws=0;
+    unsigned support_draws=0;
     std::vector<acvr::Matrix> model_nodes;
     acvr_ray model_ray{};
     std::vector<uint32_t> hand_changes;
@@ -35,6 +36,7 @@ struct Receipt {
     uint64_t drop_tick=0;
     unsigned opened=0,closed=0,released=0,draws=0,paused=0,cancelled=0,ends=0,submitted=0,outputs=0;
     bool leased=false, fail_right=false, fail_step=false, fail_flush=false, bad_outputs=false;
+    bool fail_open=false,context_active=false,require_context_pause=false;
     uint32_t rate=60,den=1;
     std::vector<acvr_step_info> steps;
     std::vector<acvr_gun_input> guns;
@@ -58,10 +60,10 @@ acvr_result ACVR_CALL open(const acvr_open_info *in,acvr_backend **out,acvr_back
     controls[1].kind=ACVR_CONTROL_BUTTON; controls[1].semantic=ACVR_BUTTON_COIN; controls[1].maximum=1;
     controls[2].kind=ACVR_CONTROL_AXIS; controls[2].semantic=ACVR_AXIS_COVER_PEDAL; controls[2].maximum=1;
     info->controls=controls; info->control_count=3; info->control_stride=sizeof(controls[0]);
-    return ACVR_OK;
+    return current->fail_open?ACVR_ERROR:ACVR_OK;
 }
-void ACVR_CALL close(acvr_backend *b) { ++b->r->closed; delete b; }
-acvr_result ACVR_CALL pause(acvr_backend *b,uint32_t) { ++b->r->paused; return ACVR_OK; }
+void ACVR_CALL close(acvr_backend *b) { if(b->r->fail_open)check(b->r->context_active); ++b->r->closed; delete b; }
+acvr_result ACVR_CALL pause(acvr_backend *b,uint32_t) { if(b->r->require_context_pause)check(b->r->context_active); ++b->r->paused; return ACVR_OK; }
 acvr_result ACVR_CALL inputs(acvr_backend *b,const acvr_inputs *in) {
     check(!b->r->leased); check(in->tick_id==b->r->steps.size()+1);
     check(in->gun_count==1 && in->axis_count==1 && in->button_count==1);
@@ -121,15 +123,19 @@ struct Sample { int64_t time; bool trigger=false,coin=false,focused=true,render=
 struct Recorded final:acvr::Host {
     acvr_pose anchor=pose();
     Receipt &r; std::vector<Sample> samples; size_t index=0; acvr_eye eyes[2];
+    bool wait_once=false;
     Recorded(Receipt &receipt,std::vector<Sample> values):r(receipt),samples(std::move(values)) {
         for(unsigned i=0;i<2;++i) { eyes[i]=init<acvr_eye>(); eyes[i].eye_index=i; }
     }
     acvr_graphics_device device() const override { return init<acvr_graphics_device>(); }
     bool headless() const noexcept override { return true; }
+    acvr_result activate() override {r.context_active=true;return ACVR_OK;}
+    void deactivate() noexcept override {r.context_active=false;}
     acvr_result configure(float units,uint32_t mode) override {
         check(units==10 && mode==ACVR_ANCHOR_RAIL); return ACVR_OK;
     }
     acvr_result begin(acvr::Display &d) override {
+        if(wait_once) {wait_once=false;return ACVR_MORE;}
         if(index==samples.size()) return ACVR_STOPPED;
         auto s=samples[index++]; d.tracking=tracking(); d.tracking.sample_time_ns=d.tracking.predicted_display_time_ns=s.time;
         d.focused=s.focused; d.should_render=s.render; d.trigger[0]=s.trigger; d.scene_from_stage=anchor;
@@ -163,6 +169,7 @@ struct Recorded final:acvr::Host {
         check(r.drawn_frames.back()==info.frame_id); // world eye was drawn first
         check(gun.asset && gun.slot==0 && gun.lod==0 && gun.body[0]==.5f);
         ++r.model_draws; r.model_nodes=gun.scene_from_node; r.model_ray=gun.muzzle;
+        if(gun.support_grip)++r.support_draws;
         return r.fail_model?ACVR_ERROR:ACVR_OK;
     }
 };
@@ -193,6 +200,39 @@ void timing_and_edges() {
     check(acvr_runtime_tick(p)==ACVR_STOPPED); check(acvr_runtime_destroy(p)==ACVR_OK);
     check(r.closed==1 && r.released==r.steps.size());
 }
+void provider_wait_and_orderly_stop() {
+    Receipt r;current=&r;auto c=config();auto a=api();acvr_runtime *p=nullptr;
+    auto host=std::make_unique<Recorded>(r,std::vector<Sample>{{0},{17000000}});
+    host->wait_once=true;
+    check(acvr::create_with_host(&c,&a,std::move(host),&p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_MORE && r.ends==0 && r.steps.empty());
+    check(acvr_runtime_tick(p)==ACVR_OK && r.ends==1);
+    check(acvr_runtime_tick(p)==ACVR_OK && r.ends==2);
+    check(acvr_runtime_tick(p)==ACVR_STOPPED && r.ends==2);
+    check(acvr_runtime_tick(p)==ACVR_STOPPED && r.ends==2);
+    check(acvr_runtime_destroy(p)==ACVR_OK && r.closed==1);
+}
+void failed_open_closes_with_context() {
+    Receipt r;r.fail_open=true;current=&r;auto c=config();auto a=api();acvr_runtime *p=nullptr;
+    check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,std::vector<Sample>{}),&p)==ACVR_ERROR);
+    check(!p && r.opened==1 && r.closed==1 && !r.context_active);
+}
+void explicit_pause_uses_context() {
+    Receipt r;r.require_context_pause=true;
+    auto p=create(r,{});
+    check(acvr_runtime_set_paused(p,1)==ACVR_OK && !r.context_active && r.paused==1);
+    check(acvr_runtime_destroy(p)==ACVR_OK && r.closed==1);
+}
+#ifdef ACVR_OPENXR_GL
+void public_preflight_never_opens_xr() {
+    auto c=config();auto a=api();a.supported_graphics=ACVR_GRAPHICS_BIT(ACVR_GRAPHICS_GL);
+    c.graphics_api=ACVR_GRAPHICS_GL;c.max_catchup_ticks=0;
+    acvr_runtime *p=reinterpret_cast<acvr_runtime *>(uintptr_t(1));
+    check(acvr_runtime_create(&c,&a,&p)==ACVR_BAD_ARGUMENT && p==nullptr);
+    c.max_catchup_ticks=4;a.game_draw_eye=nullptr;p=reinterpret_cast<acvr_runtime *>(uintptr_t(1));
+    check(acvr_runtime_create(&c,&a,&p)==ACVR_BAD_ARGUMENT && p==nullptr);
+}
+#endif
 void rational_and_budget() {
     Receipt r; r.rate=59906; r.den=1000;
     auto p=create(r,{{0},{100000000},{101000000},{400000000}},2);
@@ -233,7 +273,12 @@ void failures_and_ownership() {
     auto c=config(); auto a=api(); acvr_runtime *p=reinterpret_cast<acvr_runtime *>(uintptr_t(1));
     check(acvr_runtime_create(&c,&a,&p)==ACVR_UNSUPPORTED && p==nullptr);
     Receipt r; current=&r; c.gun_slot_count=1;
-    check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,std::vector<Sample>{}),&p)==ACVR_UNSUPPORTED && r.opened==0);
+    const auto unsupported_slot=acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,std::vector<Sample>{}),&p);
+#ifdef ACVR_GUN_MODELS
+    check(unsupported_slot==ACVR_BAD_ARGUMENT && r.opened==0);
+#else
+    check(unsupported_slot==ACVR_UNSUPPORTED && r.opened==0);
+#endif
     c=config(); a.game_step=nullptr;
     check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,std::vector<Sample>{}),&p)==ACVR_BAD_ARGUMENT);
     check(acvr_runtime_destroy(nullptr)==ACVR_OK);
@@ -412,6 +457,29 @@ void configured_model() {
     check(acvr_runtime_gun_event(p,&e)==ACVR_BAD_STATE);
     check(acvr_runtime_destroy(p)==ACVR_OK && r.closed==1);
 }
+void authored_second_grip_in_render_payload() {
+    const auto dir=std::filesystem::current_path()/"synthetic-runtime-support-tests";
+    std::filesystem::create_directories(dir);const auto path=dir/"model.glb",meta=dir/"model.toml";
+    Fixture fixture;fixture.doc["nodes"][0]["children"].push_back(6);
+    fixture.doc["nodes"].push_back({{"name","grip_two"},{"translation",{1,0,0}}});
+    {const auto bytes=fixture.bytes();std::ofstream f(path,std::ios::binary);
+        f.write(reinterpret_cast<const char *>(bytes.data()),std::streamsize(bytes.size()));}
+    {std::ofstream f(meta);f<<"id='synthetic'\n";}
+    auto slot=init<acvr_gun_slot_config>();const auto file=path.string(),metadata=meta.string();
+    slot.model_id_utf8="synthetic";slot.model_path_utf8=file.c_str();slot.metadata_path_utf8=metadata.c_str();
+    slot.grip_node_utf8="grip";slot.muzzle_node_utf8="muzzle";slot.hand=ACVR_HAND_RIGHT;
+    slot.show_gun=1;slot.angle_xyzw[3]=1;
+    for(unsigned i=0;i<4;++i){slot.body_rgba[i]=.5f;slot.accent_rgba[i]=1;}
+    auto c=config();c.gun_slots=&slot;c.gun_slot_count=1;c.gun_slot_stride=sizeof(slot);
+    c.gun_policy=init<acvr_gun_policy>();c.gun_policy.p1_hand=ACVR_HAND_RIGHT;
+    Receipt r;r.model_support=true;current=&r;auto a=api();acvr_runtime *p=nullptr;
+    std::vector<Sample> samples{{0},{17000000},{34000000}};samples[0].pedal=1;
+    check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,samples),&p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.support_draws==2);
+    check(acvr_runtime_tick(p)==ACVR_OK&&r.support_draws==2);
+    check(acvr_runtime_destroy(p)==ACVR_OK);
+    std::filesystem::remove(path);std::filesystem::remove(meta);std::filesystem::remove(dir);
+}
 void mapped_model_motion_and_handoff() {
     const auto dir=std::filesystem::current_path()/"synthetic-mapped-model";std::filesystem::create_directories(dir);
     const auto path=dir/"model.glb",meta=dir/"model.toml",controls_path=dir/"controls.toml";
@@ -514,12 +582,17 @@ void runtime_output_routes() {
 }
 #endif
 int main() {
-    try { timing_and_edges(); rational_and_budget(); pause_loss_and_zero_layers(); failures_and_ownership(); muzzle_math(); anchored_aim(); long_replay_and_invalid_samples(); reload_edges();
+#define RUN(test) do { try { test(); } catch(...) { std::cerr << #test << ": "; throw; } } while(false)
+    try { RUN(timing_and_edges); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(failures_and_ownership); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
+#ifdef ACVR_OPENXR_GL
+        public_preflight_never_opens_xr();
+#endif
 #ifdef ACVR_GUN_MODELS
         alternate_button_bindings();
         mapped_pause_stops_current_frame();
         configured_controls();
         configured_model();
+        authored_second_grip_in_render_payload();
         mapped_model_motion_and_handoff();
         handoff_and_recoil();
         runtime_output_routes();

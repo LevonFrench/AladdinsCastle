@@ -7,7 +7,7 @@
 #include <vector>
 
 namespace acvr {
-// Internal platform boundary. The production OpenXR provider will own wait/begin,
+// Internal platform boundary. The optional OpenXR provider owns wait/begin,
 // image acquisition, predicted poses and submission. Tests use a recorded provider.
 // This is not part of the C ABI and must never be passed across a module boundary.
 struct Display {
@@ -28,12 +28,20 @@ struct Host {
     virtual ~Host() = default;
     virtual acvr_graphics_device device() const = 0;
     virtual bool headless() const noexcept = 0;
+    // Own the graphics context for each core callback span. A provider may
+    // restore a caller's context after the span; recorded hosts are no-ops.
+    virtual acvr_result activate() { return ACVR_OK; }
+    virtual void deactivate() noexcept {}
     virtual acvr_result configure(float scene_units_per_metre, uint32_t anchor_mode) = 0;
     virtual acvr_result begin(Display &) = 0; // OK creates exactly one end obligation
     virtual acvr_result end(bool rendered) = 0; // false submits zero layers
     virtual void output(const acvr_output_event &) = 0;
     virtual void cancel_effects() noexcept = 0;
     virtual bool supports_guns() const noexcept { return false; }
+    virtual GunMount primary_anchor_mount(uint32_t) const noexcept { return {"grip"}; }
+    // Null disables two-hand capture. Native hosts may choose an authored
+    // support anchor for the current primary hand; recorded hosts keep v0.1.
+    virtual GunMount support_anchor_mount(uint32_t) const noexcept { return {"grip_two"}; }
     // Resolved binding policy only; false unless explicitly configured.
     virtual bool offscreen_reload(uint32_t) const noexcept { return false; }
     virtual bool supports_controller_samples() const noexcept { return false; }

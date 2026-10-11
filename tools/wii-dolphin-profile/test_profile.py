@@ -185,7 +185,7 @@ class Profiles(unittest.TestCase):
             root=Path(tmp)
             user=root/".local/user"
             setup.create(user,"one-gun",root)
-            initial=setup.render("one-gun")
+            initial=setup.legacy_templates("one-gun")[0]
             for name,data in initial.items():
                 if name == "Config/WiimoteNew.ini" or name.startswith("Config/Profiles/Wiimote/"):
                     parsed=parse(data)
