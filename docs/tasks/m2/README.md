@@ -12,6 +12,7 @@ Status: 2026-10-10, decided with the owner. One lead session and three lane sess
 | 2 | **Hub** | Point at a folder and everything lights up; the VR menu controls; the M1 review backlog | `hub/` except the controls view | [2-hub.md](2-hub.md) |
 | 3 | **Guns and controls** | Gun and control models, moving parts, a control set for every game, and the universal controls view | `assets/`, `data/guns/`, `data/controls/`, `hub/qml/controls/`, `hub/src/controls/` | [3-guns-controls.md](3-guns-controls.md) |
 | 4 | **Stereo boards** | Per-eye rendering, one arcade board family at a time, starting with Namco System 22 | `setups/<board>-vr/` | [4-stereo-boards.md](4-stereo-boards.md) |
+| 5 | **Frame rate and presets** (added 2026-10-10) | Each tier 1 Wii game at the headset's refresh rate, and starting presets per class of headset | `data/performance/`, `docs/status/framerate/` | [W-wii-framerate-presets.md](W-wii-framerate-presets.md) |
 
 ## Decisions (owner, 2026-10-10)
 
