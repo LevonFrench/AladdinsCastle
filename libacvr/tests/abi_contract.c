@@ -21,7 +21,7 @@ typedef struct old_config {
 } old_config;
 
 CHECK(ACVR_ABI_VERSION == 1u);
-CHECK(ACVR_CONTRACT_MINOR >= 3u);
+CHECK(ACVR_CONTRACT_MINOR >= 4u);
 CHECK(sizeof(float) == 4);
 CHECK(sizeof(acvr_result) == 4);
 CHECK(sizeof(old_hit) == ACVR_HIT_V1_SIZE);
@@ -29,6 +29,7 @@ CHECK(sizeof(old_config) == ACVR_RUNTIME_CONFIG_V1_SIZE);
 CHECK(offsetof(old_hit, distance_scene) == offsetof(acvr_hit, distance_scene));
 CHECK(offsetof(old_config, backend_options_utf8) == offsetof(acvr_runtime_config, backend_options_utf8));
 CHECK(offsetof(acvr_backend_api, game_open) == 16);
+CHECK(ACVR_BACKEND_API_V1_SIZE == offsetof(acvr_backend_api, game_flush_persistent) + sizeof(((acvr_backend_api *)0)->game_flush_persistent));
 CHECK(offsetof(acvr_gun_slot_config, size) == 0);
 CHECK(offsetof(acvr_tracking, version) == 4);
 CHECK(offsetof(acvr_controller_sample, version) == 4);
@@ -39,6 +40,11 @@ CHECK(ACVR_AXIS_COVER_PEDAL == 9u);
 static acvr_result ACVR_CALL draw(acvr_backend *b, const acvr_frame *f,
                                   const acvr_draw_info *d) {
     (void)b; (void)f; (void)d;
+    return ACVR_UNSUPPORTED;
+}
+static acvr_result ACVR_CALL prepare(acvr_backend *b,const acvr_frame *f,uint32_t count,
+                                    uint32_t stride,const acvr_draw_info *draws) {
+    (void)b; (void)f; (void)count; (void)stride; (void)draws;
     return ACVR_UNSUPPORTED;
 }
 int main(void) {
@@ -54,6 +60,7 @@ int main(void) {
     memset(&angle_update, 0, sizeof(angle_update)); ACVR_INIT(&angle_update);
     ACVR_INIT(&config.gun_policy);
     api.game_draw_eye = draw;
+    api.game_prepare_display = prepare;
     config.gun_slots = slots;
     config.gun_slot_count = 2;
     config.gun_slot_stride = (uint32_t)sizeof(slots[0]);
@@ -66,5 +73,6 @@ int main(void) {
         config.gun_policy.size != sizeof(acvr_gun_policy) ||
         (const unsigned char *)&slots[1] - (const unsigned char *)config.gun_slots != config.gun_slot_stride)
         return 1;
-    return api.game_draw_eye(NULL, NULL, NULL) == ACVR_UNSUPPORTED ? 0 : 1;
+    return api.game_draw_eye(NULL, NULL, NULL) == ACVR_UNSUPPORTED &&
+           api.game_prepare_display(NULL,NULL,0,0,NULL)==ACVR_UNSUPPORTED ? 0 : 1;
 }
