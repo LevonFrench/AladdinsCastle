@@ -25,6 +25,7 @@
 #include <QAtomicInteger>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QImageReader>
 #include <ctime>
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
@@ -91,9 +92,35 @@ class UiTest:public QObject {
   auto model=view->property("controlsModel").value<QObject *>();QVERIFY(model);
   QCOMPARE(model->property("gameId").toString(),QString("timecris"));
   QVERIFY(!model->property("rows").toList().isEmpty());
-  QVERIFY(!model->property("previewAvailable").toBool());
+  QVERIFY(model->property("previewAvailable").toBool());
+  QCOMPARE(model->property("modelId").toString(),QString("arc-pistol-slide"));
+  const auto preview=QDir(AC_CATALOG_ROOT).absoluteFilePath("assets/guns/preview/arc-pistol-slide.png");
+  QCOMPARE(model->property("previewImage").toUrl(),QUrl::fromLocalFile(preview));
+  QImageReader reader(preview);QVERIFY(reader.canRead());QCOMPARE(reader.size(),QSize(512,512));
+  QVERIFY(!reader.read().isNull());
+  const auto images=namedItems(view,"gunPreviewImage");QCOMPARE(images.size(),1);
+  QTRY_VERIFY(images.first()->isVisible());
+  QCOMPARE(images.first()->property("source").toUrl(),model->property("previewImage").toUrl());
+  QVERIFY(!model->property("markers").toList().isEmpty());
   root->setProperty("view","List");
   QTRY_VERIFY(model->property("gameId").toString().isEmpty());
+ }
+ void desktopControlsKeepMappingsWhenPreviewIsMissing(){
+  ui->openDetail("timecris");root->setProperty("view","Detail");
+  auto controls=ui->controlsController();
+  QTRY_COMPARE_WITH_TIMEOUT(controls->model()->gameId(),QString("timecris"),10000);
+  QTemporaryDir emptyPreviews(user.filePath("empty-previews-XXXXXX"));QVERIFY(emptyPreviews.isValid());
+  ac::ControlsViewModel missingPreview;
+  QVERIFY(missingPreview.loadResolved(controls->resolved(),emptyPreviews.path()));
+  QVERIFY(!missingPreview.previewAvailable());QVERIFY(missingPreview.previewImage().isEmpty());
+  QVERIFY(missingPreview.markers().isEmpty());QVERIFY(!missingPreview.rows().isEmpty());
+  for(const auto &row:missingPreview.rows())QVERIFY(!row.toMap().value("anchorAvailable").toBool());
+  QQmlComponent component(engine.get(),QUrl("qrc:/controls/ControlsView.qml"));
+  std::unique_ptr<QObject> object(component.createWithInitialProperties({{"controlsModel",QVariant::fromValue(&missingPreview)}}));
+  QVERIFY2(object,qPrintable(component.errorString()));auto view=qobject_cast<QQuickItem *>(object.get());QVERIFY(view);
+  QCOMPARE(namedItems(view,"controlsCallout").size(),missingPreview.rows().size());
+  const auto images=namedItems(view,"gunPreviewImage");QCOMPARE(images.size(),1);QVERIFY(!images.first()->isVisible());
+  root->setProperty("view","List");QTRY_VERIFY(controls->model()->gameId().isEmpty());
  }
  void catalogBadgesDescribeMetadata(){
   QCOMPARE(ui->vrLabel(1),QString("TRUE 3D · CATALOG"));
