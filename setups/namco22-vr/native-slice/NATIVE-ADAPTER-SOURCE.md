@@ -24,7 +24,10 @@ target/cache FNV fingerprints are correlation checks, not cryptographic receipts
 
 Each draw revalidates its fresh target/lease/source/cache and expected eye order,
 draws native packets into that FBO, and flushes native batching before state/target
-restoration. The GL state scope preserves the caller and default VAO, legacy client
+restoration. Its call-local guard preserves every borrowed FBO draw-buffer selection
+on success and failure, restoring that target before entry FBO restoration. Colour
+attachments must use mip level0; unsupported attached levels fail before level0
+dimension/format queries. The GL state scope preserves the caller and default VAO, legacy client
 arrays, server texture/matrix/env state, sampler/program/buffer bindings, FBO/buffers,
 pixel transfer/store/PBO state and masks/enables. Unproved imaging transforms are
 rejected. Colour clears respect the eye rectangle. Depth remains untouched; world
@@ -36,6 +39,8 @@ two-scene CPU staging, bad-right transactional refusal, shared-target rejection
 even with disjoint rectangles, target/display/frame/order drift and unknown eye
 tails. They are NOT compiled or executed here. Existing standard-library producer
 tests and pinned patch-boundary tests were run without native/GL/window activity.
+Additional authored fake-dispatch tests cover both target selection lists, failed
+selection/draw exits and attached mip rejection; these also remain unexecuted.
 
 Next gates: independent adapter source review, coordinated compilation and actual
 CPU test execution; then a separately authorized borrowed-context desktop proof

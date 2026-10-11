@@ -12,6 +12,7 @@
 #include "native_adapter_support.h"
 #include "native_display.h"
 #include "native_fixture.h"
+#include "native_target_state.h"
 #include "native_batch.h"
 #include "paired_proof_support.h"
 #include "n22_api_table.h"
@@ -29,6 +30,7 @@
  X(buffer,void,(GLenum,GLuint),"glBindBuffer") \
  X(sampler,void,(GLuint,GLuint),"glBindSampler") \
  X(fbo,void,(GLenum,GLuint),"glBindFramebuffer") \
+ X(draw_buffers,void,(GLsizei,const GLenum *),"glDrawBuffers") \
  X(status,GLenum,(GLenum),"glCheckFramebufferStatus") \
  X(attachment,void,(GLenum,GLenum,GLenum,GLint *),"glGetFramebufferAttachmentParameteriv")
 typedef struct {
@@ -207,6 +209,9 @@ static acvr_result target(struct acvr_backend *b,const acvr_render_target *t)
     b->gl.attachment(0x8d40,0x8ce0,0x8cd0,&type);
     b->gl.attachment(0x8d40,0x8ce0,0x8cd1,&name);
     if(type!=GL_TEXTURE || (GLuint)name!=t->colour_image)return ACVR_BAD_ARGUMENT;
+    const acn22_target_ops ops={glGetIntegerv,b->gl.draw_buffers,b->gl.attachment,glGetError};
+    acvr_result level=acn22_target_level_zero(&ops);
+    if(level!=ACVR_OK)return level; /* no unsupported mip may reach level0 queries */
     glBindTexture(GL_TEXTURE_2D,(GLuint)t->colour_image);
     GLint width=0,height=0,format=0;
     glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_WIDTH,&width);
@@ -404,10 +409,13 @@ static acvr_result ACVR_CALL draw(acvr_backend *b,const acvr_frame *f,const acvr
        acn22_adapter_cache_fingerprint()!=b->cache_fingerprint){memset(&b->pair,0,sizeof b->pair);return ACVR_BAD_STATE;}
     saved s;r=scope_begin(b,&s);
     if(r!=ACVR_OK){memset(&b->pair,0,sizeof b->pair);return r;}
+    const acn22_target_ops ops={glGetIntegerv,b->gl.draw_buffers,b->gl.attachment,glGetError};
+    acn22_target_selection selection={0};
     r=target(b,&in->target);
+    if(r==ACVR_OK)r=acn22_target_colour_begin(&ops,&selection);
     if(r==ACVR_OK){
         const acvr_eye *e=in->views;
-        glDrawBuffer(0x8ce0);glViewport(e->rect_x,e->rect_y,e->rect_width,e->rect_height);
+        glViewport(e->rect_x,e->rect_y,e->rect_width,e->rect_height);
         glEnable(GL_SCISSOR_TEST);glScissor(e->rect_x,e->rect_y,e->rect_width,e->rect_height);
         glClearColor(12.f/255,18.f/255,28.f/255,1);glClear(GL_COLOR_BUFFER_BIT);glDisable(GL_SCISSOR_TEST);
         eng_draw_begin();
@@ -417,6 +425,12 @@ static acvr_result ACVR_CALL draw(acvr_backend *b,const acvr_frame *f,const acvr
         eng_draw_end(); /* always flush native batch BEFORE target/state restoration */
         if(glGetError()!=GL_NO_ERROR || !resources(b) || !acn22_proof_cache_ready() ||
            acn22_adapter_cache_fingerprint()!=b->cache_fingerprint)r=ACVR_ERROR;
+    }
+    if(selection.restore_pending){
+        /* Restore ALL target selections while this same borrowed FBO is bound,
+         * including failed selection, draw and post-draw/resource exits. */
+        b->gl.fbo(0x8ca9,(GLuint)in->target.framebuffer);
+        if(acn22_target_colour_restore(&ops,&selection)!=ACVR_OK)r=ACVR_ERROR;
     }
     if(!scope_end(b,&s))r=ACVR_ERROR;
     if(r==ACVR_OK && ++b->pair.next_eye<2)return r;
