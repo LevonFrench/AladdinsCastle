@@ -840,16 +840,25 @@ private slots:
       QStringList args;for(const auto &arg:native["launch"]["args"])args<<QString::fromStdString(arg.get<std::string>());
       QVERIFY(args.contains("Graphics.VR.EnableOpenXR=True"));QVERIFY(args.contains("Graphics.Stereoscopy.StereoMode=0"));
       QVERIFY(args.contains("Graphics.VR.EagerHeartbeat=False"));
+      QVERIFY(args.contains("Graphics.VR.ResolutionScale=1.0"));
       QVERIFY(!args.join(' ').contains("GFX."));
       bool shared=false,logs=false;
+      bool resolutionScale=false;
       for(const auto &step:native["step"]){
+        if(string(step,"id")=="vr"){
+          QVERIFY(step.value("only_if_missing",false));
+          for(const auto &entry:step["set"])
+            if(string(entry,"section")=="VR"&&string(entry,"key")=="ResolutionScale"){
+              QVERIFY(entry["value"].is_number());QCOMPARE(entry["value"].get<double>(),1.0);resolutionScale=true;
+            }
+        }
         if(string(step,"id")=="remote"){
           QCOMPARE(string(step,"source"),QString("data/controls/wii/generated/dolphinxr/split-right.ini"));
           QCOMPARE(string(step,"source_sha256"),hashFile(root+"/"+string(step,"source")));QVERIFY(step.value("only_if_missing",false));QVERIFY(!step.contains("set"));shared=true;
         }
         if(string(step,"do")=="create-directory"&&string(step,"to")=="${install_dir}/User/Logs")logs=true;
       }
-      QVERIFY(shared);QVERIFY(logs);
+      QVERIFY(shared);QVERIFY(logs);QVERIFY(resolutionScale);
     }
   }
   void freshOnlyConfigSeedsThenPreservesRuntimeTuning_data() {

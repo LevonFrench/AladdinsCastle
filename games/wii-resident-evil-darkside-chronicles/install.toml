@@ -65,6 +65,7 @@ set = [
   { section = "Settings", key = "SSAA", value = "False" },
   { section = "Enhancements", key = "MaxAnisotropy", value = 3 },
   { section = "VR", key = "EnableOpenXR", value = "True" },
+  { section = "VR", key = "ResolutionScale", value = 1.0 },
   { section = "VR", key = "FlatScreen", value = "False" },
   { section = "VR", key = "VirtualScreen", value = "True" },
   { section = "VR", key = "DisableCPUCull", value = "True" },
@@ -123,6 +124,6 @@ set = [
 [variant.dolphinxr.launch]
 exe = "${install_dir}/Dolphin.exe"
 exe_sha256 = "2a21141c760af5925a28da2cbbe19115ef497d4d5e24350b2bb5ed1a68b9639a"
-args = ["--user", "${install_dir}/User", "-C", "Graphics.VR.EnableOpenXR=True", "-C", "Graphics.VR.EagerHeartbeat=False", "-C", "Graphics.Stereoscopy.StereoMode=0", "--exec", "${media.disc.path}"]
+args = ["--user", "${install_dir}/User", "-C", "Graphics.VR.EnableOpenXR=True", "-C", "Graphics.VR.ResolutionScale=1.0", "-C", "Graphics.VR.EagerHeartbeat=False", "-C", "Graphics.Stereoscopy.StereoMode=0", "--exec", "${media.disc.path}"]
 cwd = "${install_dir}"
 runtime = "steamvr"
