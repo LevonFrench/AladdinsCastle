@@ -43,6 +43,8 @@ def main():
     edit('engine/geo_hw.c', '                    d->z  = (int32_t)llround(Z);',
          '                    d->z  = (int32_t)llround(Z);\n                    d->acn_view[0] = P[i][0]; d->acn_view[1] = P[i][1]; d->acn_view[2] = Z;')
     edit('engine/ss22_gl.c', '#include "hud_edges.h"', '#include "hud_edges.h"\n#include "eye.h"')
+    edit('engine/ss22_gl.c', '        if (!nb) return;',
+         '        if (!nb) { acn22_invalidate_frame(); return; } /* reject partial capture */')
     edit('engine/ss22_gl.c', '    fog_load_regs(r->mixer, r->czattr, r->czram);',
          '    acn22_latch_regs(r);\n    fog_load_regs(r->mixer, r->czattr, r->czram);')
     edit('engine/ss22_gl.c', '    qn = 0; qorder = 0;', '    acn22_end_eye();\n    qn = 0; qorder = 0;')

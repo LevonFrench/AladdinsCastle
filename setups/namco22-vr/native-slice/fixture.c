@@ -12,6 +12,7 @@
 #include "geo_hw.h"
 #include "ss22_gl.h"
 #include "eye.h"
+#include "product_title.h"
 
 static int32_t points[1024];
 static uint32_t poly[0x8000];
@@ -137,6 +138,22 @@ static void checks(void)
     altered=q[0]; altered.behind=1; CHECK(!acn22_project(&altered,&l,&left));
     altered=q[0]; altered.ndv=4; CHECK(!acn22_project(&altered,&l,&left));
     CHECK(memcmp(snapshot,q,sizeof snapshot)==0); CHECK(g_eng_frame==1);
+    /* New CPU-only pose stage consumes this actual upstream prepared queue. */
+    acn22_pose_fragment fragments[12],untouched[12]; uint32_t staged=0;
+    r=eye(1);r.view_from_scene[14]=600;
+    CHECK(acn22_stage_prepared(&r,fragments,12,&staged)==ACVR_OK);CHECK(staged>0);
+    for(uint32_t i=0;i<staged;i++) {
+        CHECK(fragments[i].painter_key==q[fragments[i].source_index].zsort);
+        CHECK(fragments[i].emission_order==q[fragments[i].source_index].order);
+    }
+    CHECK(memcmp(snapshot,q,sizeof snapshot)==0);CHECK(g_eng_frame==1);
+    memset(fragments,0xa5,sizeof fragments);memcpy(untouched,fragments,sizeof fragments);
+    acn22_invalidate_frame();
+    CHECK(acn22_stage_prepared(&r,fragments,12,&staged)==ACVR_UNSUPPORTED);
+    CHECK(staged==0 && memcmp(fragments,untouched,sizeof fragments)==0);
+    l=eye(0);CHECK(acn22_begin_eye(&l)==ACVR_UNSUPPORTED);
+    /* Restore fixture-only layer admission without advancing simulation. */
+    ss22_regs blank={0};blank.cgram=cg;blank.textram=text;acn22_latch_regs(&blank);
 }
 static int draw(const char *path)
 {
@@ -155,7 +172,7 @@ static int draw(const char *path)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
-    SDL_Window *w=SDL_CreateWindow("AladdinsCastle - SYNTHETIC native System22 SBS",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,1280,480,SDL_WINDOW_OPENGL);
+    SDL_Window *w=SDL_CreateWindow(ACN22_FIXTURE_TITLE,SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,1280,480,SDL_WINDOW_OPENGL);
     SDL_GLContext ctx=w?SDL_GL_CreateContext(w):NULL;
     if(!ctx){fprintf(stderr,"SDL GL: %s\n",SDL_GetError());fclose(out);if(w)SDL_DestroyWindow(w);SDL_Quit();return 3;}
     printf("GL vendor=%s renderer=%s version=%s\n",glGetString(GL_VENDOR),glGetString(GL_RENDERER),glGetString(GL_VERSION));
