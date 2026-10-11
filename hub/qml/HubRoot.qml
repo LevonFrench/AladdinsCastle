@@ -14,6 +14,7 @@ FocusScope {
  property bool reduceMotion:(uiSettings.values,uiSettings.get("reduceMotion",false))
  property string sizeValue:Object.keys(uiSettings.values).length>=0 ? (uiSettings.values,uiSettings.get("size"+view,vrOverlayMode?"L":"S")) : "S"
  property var previewGame:({})
+ Connections {target:header;function onPinballRequested(){root.navigate("Pinball")}}
  onActiveFocusChanged:if(!activeFocus)uiController.clearDetailControlStates()
  function navigate(page,id){history=history.concat([view]);view=page;if(id)uiController.openDetail(id);preview.visible=false}
  function back(){if(history.length){view=history[history.length-1];history=history.slice(0,-1)}else view="List";preview.visible=false}
@@ -25,6 +26,8 @@ FocusScope {
   Header{id:header;Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:implicitHeight;Layout.maximumHeight:implicitHeight;vrOverlayMode:root.vrOverlayMode;onLibraryRequested:root.navigate(root.view==="Library"?"List":"Library");onHelpRequested:{sort.close();filters.close();help.open()} onOrderRequested:{help.close();filters.close();sort.open()} onQueryEdited:text=>{gameFilter.query=text;if(root.view==="Detail")root.view="List"}}
   FilterBar{Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:implicitHeight;Layout.maximumHeight:implicitHeight;vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;onBackPressed:root.back();onFiltersRequested:{sort.close();help.close();filters.open()} onScanRequested:if(uiController.scanning)uiController.cancelScan();else scanDialog.open();onSizeChosen:value=>uiSettings.set("size"+root.view,value)}
   Item{id:content;Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:0;Layout.preferredHeight:0;clip:true
+   NowPlayingCard {anchors.fill:parent;vrOverlayMode:root.vrOverlayMode;z:900;visible:uiController.nowPlaying.gameId!==undefined}
+   Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Pinball";sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode}}}
    GameGrid{id:grid;anchors.fill:parent;visible:root.view==="List"||root.view==="Library";view:root.view;sizeValue:root.sizeValue;vrOverlayMode:root.vrOverlayMode;reduceMotion:root.reduceMotion;effectsEnabled:!(uiSettings.values,uiSettings.get("cheapEffects",true));onDetailRequested:id=>root.showDetail(id);onActionRequested:id=>{root.showDetail(id);uiController.primary(id)} onExploreRequested:root.navigate("Explore");onPreviewRequested:(game,item)=>{if(root.vrOverlayMode)return;root.previewGame=game;let p=item.mapToItem(content,0,0);preview.x=Math.max(0,Math.min(content.width-preview.width,p.x-(preview.width-item.width)/2));preview.y=Math.max(0,Math.min(content.height-preview.height,p.y-(preview.height-item.height)/2));preview.visible=true} onPreviewClosed:preview.visible=false}
    Loader{anchors.fill:parent;anchors.margins:24;active:root.view==="Detail";sourceComponent:Component{DetailPage{vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;onDetailRequested:id=>uiController.openDetail(id)}}}
    Loader{anchors.fill:parent;anchors.margins:20;active:root.view==="Explore";sourceComponent:Component{ExplorePage{sizeValue:root.sizeValue;vrOverlayMode:root.vrOverlayMode;onDetailRequested:id=>root.showDetail(id)}}}

@@ -59,7 +59,7 @@ public:
         }
         m_initialized = true;
         if (!vr::VROverlay()) { *error = "SteamVR IVROverlay is unavailable."; shutdown(); return false; }
-        auto result = vr::VROverlay()->CreateDashboardOverlay(overlayKey, "AladdinsCastle", &m_main, &m_thumbnail);
+        auto result = vr::VROverlay()->CreateDashboardOverlay(overlayKey, product::display_name, &m_main, &m_thumbnail);
         if (result != vr::VROverlayError_None) { *error = "CreateDashboardOverlay: " + overlayError(result); shutdown(); return false; }
         const vr::HmdVector2_t scale{{static_cast<float>(size.width()), static_cast<float>(size.height())}};
         // The reversed V bounds inverted the owner's dashboard image.
@@ -107,7 +107,7 @@ public:
         const auto result = vr::VROverlay()->ShowKeyboardForOverlay(m_main,
             vr::k_EGamepadTextInputModeNormal, vr::k_EGamepadTextInputLineModeSingleLine,
             vr::KeyboardFlag_Minimal | vr::KeyboardFlag_Modal | vr::KeyboardFlag_ShowArrowKeys,
-            "AladdinsCastle overlay input", 256, text.toUtf8().constData(), token);
+            product::display_name, 256, text.toUtf8().constData(), token);
         if (result == vr::VROverlayError_None) return true;
         *error = "SteamVR keyboard: " + overlayError(result); return false;
     }

@@ -28,6 +28,7 @@ struct Request {
   QString runtime = "none";
   RuntimeInputs runtimeInputs;
   bool prepareProfile = true, materializeAliases = false;
+  QMap<QString,QString> discIdentities;
 };
 Json normalizeBindings(const Json &bindings, const QString &gameId);
 Request flatRequest(const CatalogData &catalog, const QString &gameId,
@@ -49,6 +50,7 @@ public:
   bool busy() const { return playing() || completing_ || !persistence_.isEmpty(); }
   bool start(const Request &request);
   Q_INVOKABLE void stop();
+  Q_INVOKABLE void requestClose();
   void
   setRuntimeStateSource(std::function<RuntimeState(const QString &)> source);
 signals:

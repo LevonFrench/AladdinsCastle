@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QTemporaryDir>
 #include <QProcess>
+#include "ProductIdentity.h"
 #include <QProcessEnvironment>
 #include <QtTest>
 #include <cstring>
@@ -161,7 +162,8 @@ private slots:
 #ifdef Q_OS_WIN
         QTemporaryDir temp;QVERIFY(temp.isValid());const auto appDir=QCoreApplication::applicationDirPath();
         const auto copy=temp.filePath("aladdinscastle-hub.exe");QVERIFY(QFile::copy(appDir+"/aladdinscastle-hub.exe",copy));
-        QVERIFY(QDir().mkpath(temp.filePath("resources")));QVERIFY(QFile::copy(appDir+"/resources/aladdinscastle.vrmanifest",temp.filePath("resources/aladdinscastle.vrmanifest")));
+        const auto manifest=QString("resources/")+ac::product::short_id+".vrmanifest";
+        QVERIFY(QDir().mkpath(temp.filePath("resources")));QVERIFY(QFile::copy(appDir+"/"+manifest,temp.filePath(manifest)));
         QVERIFY(QDir().mkpath(temp.filePath("games/synthetic")));QFile metadata(temp.filePath("games/synthetic/game.toml"));QVERIFY(metadata.open(QIODevice::WriteOnly));metadata.write("id='synthetic'\ntitle='Synthetic'\n");metadata.close();
         auto env=QProcessEnvironment::systemEnvironment();QStringList qtDirs;for(const auto &dir:env.value("PATH").split(';'))if(QFileInfo(QDir(dir).filePath("Qt6Core.dll")).isFile())qtDirs<<dir;
         QVERIFY(!qtDirs.isEmpty());qtDirs<<env.value("SystemRoot")+"/System32";env.insert("PATH",qtDirs.join(';'));env.insert("QT_QPA_PLATFORM","offscreen");env.insert("QT_QUICK_BACKEND","software");env.insert("QT_OPENGL","software");

@@ -1,0 +1,14 @@
+{
+  "source": "builtin",
+  "applications": [{
+    "app_key": "@AC_PRODUCT_overlay_key@",
+    "launch_type": "binary",
+    "binary_path_windows": "../@AC_PRODUCT_program_name@.exe",
+    "binary_path_linux": "../@AC_PRODUCT_program_name@",
+    "working_directory": "..",
+    "arguments": "--overlay --steamvr-started",
+    "is_dashboard_overlay": true,
+    "image_path": "overlay-thumbnail.png",
+    "strings": {"en_us": {"name": "@AC_PRODUCT_display_name@", "description": "@AC_PRODUCT_display_name@ Hub dashboard overlay"}}
+  }]
+}

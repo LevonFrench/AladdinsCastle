@@ -465,7 +465,27 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
       break;
     }
   const auto ext = info.suffix().toLower();
-  if (ext == "zip") {
+  if (ext == "wbfs") {
+    // Single-disc WBFS: the copied Wii header follows the host-sector header.
+    // Identification is metadata only; split payloads and block maps are not read.
+    const auto reject=[&]{r.error="Unsupported or invalid single-disc WBFS metadata";};
+    if (header.size()<12 || !header.startsWith("WBFS")) { reject(); return r; }
+    const auto hd=static_cast<unsigned char>(header[8]);
+    const auto wb=static_cast<unsigned char>(header[9]);
+    if(hd<9 || hd>12 || wb<15 || wb>31 || wb<hd) {reject();return r;}
+    const qint64 sector=qint64(1)<<hd;
+    const auto wbfsHeader=readAt(f,0,sector);
+    if(wbfsHeader.size()!=sector || wbfsHeader[12]==0 ||
+       qFromBigEndian<quint32>(wbfsHeader.constData()+4)==0) {reject();return r;}
+    for(qsizetype i=13;i<wbfsHeader.size();++i)
+      if(wbfsHeader[i]!=0) {reject();return r;}
+    const auto disc=readAt(f,sector,32);
+    if(disc.size()!=32 || qFromBigEndian<quint32>(disc.constData()+24)!=0x5d1c9ea3 ||
+       !QRegularExpression("^[A-Z0-9]{6}$").match(QString::fromLatin1(disc.left(6))).hasMatch()) {
+      reject();return r;
+    }
+    r.kind="disc-id";r.identity=QString::fromLatin1(disc.left(6));
+  } else if (ext == "zip") {
     r.kind = "archive-crc";
     zip(f, r, cancel);
   } else if (ext == "7z") {

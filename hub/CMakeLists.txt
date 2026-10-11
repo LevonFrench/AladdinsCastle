@@ -3,6 +3,7 @@ project(AladdinsCastleHub VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+include(cmake/ProductIdentity.cmake)
 include(CTest)
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS
     Core Network Concurrent Quick QuickControls2 OpenGL ShaderTools)
@@ -38,6 +39,8 @@ add_library(hubcore STATIC
     src/core/scan/Scan.h
     src/core/scan/Scan.cpp
     src/core/scan/Headers.cpp
+    src/core/pinball/Pinball.cpp
+    src/core/pinball/Pinball.h
     src/core/scan/HeaderSafety.cpp
     src/core/scan/HeaderSafety.h
     src/core/scan/ScanController.cpp
@@ -62,7 +65,7 @@ add_library(hubcore STATIC
     src/core/art/Art.h
     src/core/art/Art.cpp)
 target_compile_features(hubcore PUBLIC cxx_std_20)
-target_include_directories(hubcore PUBLIC src)
+target_include_directories(hubcore PUBLIC src "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent
     tomlplusplus::tomlplusplus nlohmann_json::nlohmann_json
     nlohmann_json_schema_validator::validator)
@@ -83,7 +86,7 @@ add_library(huboverlay STATIC
     src/overlay/OverlayRuntime.cpp src/overlay/OverlayRuntime.h
     src/overlay/OverlayKeyboard.cpp src/overlay/OverlayKeyboard.h
     src/overlay/OverlayHost.cpp src/overlay/OverlayHost.h src/overlay/SpikeState.h)
-target_include_directories(huboverlay PUBLIC src)
+target_include_directories(huboverlay PUBLIC src "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(huboverlay PUBLIC Qt6::Quick Qt6::OpenGL OpenVR::OpenVR)
 ac_project_warnings(huboverlay)
 
@@ -114,7 +117,7 @@ qt_add_resources(aladdinscastle-hub theme
     PREFIX /resources BASE "${CMAKE_CURRENT_BINARY_DIR}/resources"
     FILES "${CMAKE_CURRENT_BINARY_DIR}/resources/theme.toml")
 file(MAKE_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources")
-configure_file(resources/aladdinscastle.vrmanifest "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/aladdinscastle.vrmanifest" COPYONLY)
+configure_file(resources/dashboard.vrmanifest.in "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${AC_PRODUCT_short_id}.vrmanifest" @ONLY)
 configure_file(resources/overlay-thumbnail.png "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/overlay-thumbnail.png" COPYONLY)
 ac_project_warnings(aladdinscastle-hub)
 add_custom_command(TARGET aladdinscastle-hub POST_BUILD
@@ -126,6 +129,7 @@ if(MSVC)
     target_link_libraries(aladdinscastle-hub PRIVATE delayimp)
 endif()
 set_target_properties(aladdinscastle-hub PROPERTIES
+    OUTPUT_NAME "${AC_PRODUCT_program_name}"
     BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN" WIN32_EXECUTABLE TRUE)
 
 qt_add_executable(hubtool src/app/hubtool.cpp)
@@ -141,6 +145,8 @@ set_target_properties(steamtool PROPERTIES WIN32_EXECUTABLE FALSE)
 
 if(BUILD_TESTING)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
+    add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})
     add_test(NAME serial-index-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/build_serial_index.py --test)
     add_test(NAME catalog-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/validate_catalog.py --test)
     add_test(NAME build-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/check_build_policy.py)

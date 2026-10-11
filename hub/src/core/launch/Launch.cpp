@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Launch.h"
+#include "ProductIdentity.h"
 #include "core/install/Support.h"
 #include "core/scan/Scan.h"
 #include <QDateTime>
@@ -12,6 +13,14 @@
 namespace ac::launch {
 using install::Error;
 using install::string;
+namespace {
+void verifyDisc(const QString &path,const QString &expected){
+  std::atomic_bool cancel=false;const auto current=scan::Scanner::inspect(path,cancel);
+  if(QFileInfo(path).isSymLink()||QFileInfo(path).isJunction()||!current.error.isEmpty()||current.kind!="disc-id"||current.identity!=expected||expected.isEmpty())
+    throw Error("E_MEDIA_CHANGED","Disc header identity changed or is unreadable; scan again");
+}
+QMap<QString,QString> discChecks(const Json &bindings){QMap<QString,QString> result;for(const auto &b:bindings.value("media",Json::object()))if(b.value("verified",false)&&string(b,"proof")=="disc-id")result[string(b,"path")]=string(b,"identity");return result;}
+}
 Json normalizeBindings(const Json &source, const QString &gameId) {
   Json result{{"media", Json::object()}, {"tools", Json::object()}};
   if (source.contains("media"))
@@ -59,6 +68,7 @@ Json normalizeBindings(const Json &source, const QString &gameId) {
                       "Scanned media or support file changed; scan again");
     };
     check(string(b, "path"));
+    if(string(b,"proof")=="disc-id")verifyDisc(string(b,"path"),string(b,"identity"));
     for (const auto &support : b.value("supportPaths", Json::array()))
       check(support.is_string()
                 ? QString::fromStdString(support.get<std::string>())
@@ -90,6 +100,7 @@ Request flatRequest(const CatalogData &catalog, const QString &gameId,
       r.root = root;
       r.gameId = gameId;
       r.variantId = v.id;
+      r.discIdentities=discChecks(bindings);
       r.plan = install::makeFlatLaunchPlan(
           *game, catalog.emulators[v.tools.first().toStdString()], root,
           bindings);
@@ -182,6 +193,7 @@ Request gameRequest(const CatalogData &catalog,const QString &gameId,const QStri
   }
   const auto authored=install::expandJson(plan.variant["launch"],vars);
   Request request;request.root=root;request.gameId=gameId;request.variantId=variantId;request.runtime=install::string(authored,"runtime");request.prepareProfile=false;
+  request.discIdentities=discChecks(installed.bindings);
   auto &launch=request.plan;launch.executable=install::scopedPath(install::string(authored,"exe"),plan.installDir);
   launch.cwd=install::scopedPath(install::string(authored,"cwd",plan.installDir),plan.installDir);
   if(!QFileInfo(launch.executable).isFile()||install::hashFile(launch.executable)!=install::string(authored,"exe_sha256"))
@@ -337,7 +349,7 @@ bool LaunchService::start(const Request &request) {
             QDateTime::currentDateTimeUtc().toString("yyyyMMdd-HHmmss-zzz") +
             "-" + QUuid::createUuid().toString(QUuid::Id128).left(8) + ".log",
         request.root);
-    install::atomicWrite(logPath_, "AladdinsCastle launch\nruntime=" +
+    install::atomicWrite(logPath_, QByteArray(product::display_name)+" launch\nruntime=" +
                                        request.runtime.toUtf8() + "\n");
     for (const auto &message : rotationWarnings)
       emit warning(request.gameId, message);
@@ -405,6 +417,8 @@ void LaunchService::launchReady() {
 void LaunchService::beginChild() {
   if (!busy_ || preparationCancelled_)
     return;
+  try{for(auto i=request_.discIdentities.cbegin();i!=request_.discIdentities.cend();++i)verifyDisc(i.key(),i.value());}
+  catch(const std::exception &e){complete(1,QString::fromUtf8(e.what()));return;}
   auto environment = request_.runtimeInputs.environment;
   if (request_.runtime == "steamvr")
     environment.insert("XR_RUNTIME_JSON", runtime_.steamVrManifest);
@@ -420,6 +434,13 @@ void LaunchService::beginChild() {
     complete(1,QString::fromUtf8(error.what()));return;
   }
   process_.start(request_.plan.executable, request_.plan.args);
+}
+void LaunchService::requestClose() {
+  // Windows QProcess::terminate posts WM_CLOSE to this child's windows.
+  // No force timer: scores/settings must get their ordinary shutdown path.
+#ifdef Q_OS_WIN
+  if(childStarted_ && process_.state()!=QProcess::NotRunning)process_.terminate();
+#endif
 }
 void LaunchService::stop() {
   if (!busy_)

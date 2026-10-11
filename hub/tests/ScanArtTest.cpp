@@ -3,6 +3,7 @@
 #include "core/scan/HeaderSafety.h"
 #include "core/scan/Scan.h"
 #include "core/scan/ScanController.h"
+#include "core/launch/Launch.h"
 #include <QDir>
 #include <QCryptographicHash>
 #include <QFile>
@@ -289,11 +290,51 @@ private slots:
     QCOMPARE(result.files.size(),1); QCOMPARE(result.files[0].identity,QString::fromLatin1(id));
     QCOMPARE(result.bindings.size(),1); QVERIFY(result.bindings[0].verified);
     QCOMPARE(result.bindings[0].identity,QString::fromLatin1(id));
+    const auto stamp=QFileInfo(t.filePath("unrelated.iso")).lastModified();
+    auto changed=header;changed.replace(0,6,"OTHER0");save(t.filePath("unrelated.iso"),changed);
+    QFile sameStamp(t.filePath("unrelated.iso"));QVERIFY(sameStamp.open(QIODevice::ReadWrite));QVERIFY(sameStamp.setFileTime(stamp,QFileDevice::FileModificationTime));sameStamp.close();
+    const auto rescanned=ac::scan::Scanner::run(c,options,stop);
+    QCOMPARE(rescanned.files[0].identity,QString("OTHER0"));QVERIFY(!rescanned.files[0].cacheHit);QVERIFY(!rescanned.bindings[0].verified);
+    save(t.filePath("unrelated.iso"),header);
     // A wrong platform and a different title must not borrow this identity.
     c.games[0].raw["hardware"]="sony-ps2";
     QVERIFY(!ac::scan::Scanner::run(c,options,stop).bindings[0].verified);
     c.games[0].raw["hardware"]="nintendo-wii";c.games[0].id="different-title";
     QVERIFY(!ac::scan::Scanner::run(c,options,stop).bindings[0].verified);
+  }
+  void launchRereadsDiscDespitePreservedStamp() {
+    QTemporaryDir t;const auto path=t.filePath("renamed.iso");QByteArray header(32,'\0');header.replace(0,6,"RBUP08");qToBigEndian<quint32>(0x5d1c9ea3,header.data()+24);save(path,header);
+    const auto stamp=QFileInfo(path).lastModified();
+    ac::Json binding{{"path",path.toStdString()},{"verified",true},{"identity","RBUP08"},{"proof","disc-id"}};
+    ac::Json source{{"media",{{"disc",binding}}},{"files",ac::Json::array({{{"path",path.toStdString()},{"size",32},{"mtime",stamp.toMSecsSinceEpoch()}}})}};
+    QVERIFY(ac::launch::normalizeBindings(source,"synthetic")["media"]["disc"]["verified"].get<bool>());
+    header.replace(0,6,"SBDE08");save(path,header);QFile file(path);QVERIFY(file.open(QIODevice::ReadWrite));QVERIFY(file.setFileTime(stamp,QFileDevice::FileModificationTime));file.close();
+    QCOMPARE(QFileInfo(path).lastModified().toMSecsSinceEpoch(),stamp.toMSecsSinceEpoch());
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::launch::normalizeBindings(source,"synthetic"));
+  }
+  void wbfsHeaderIdentityAndRefusals() {
+    QTemporaryDir t; std::atomic_bool stop=false;
+    QByteArray b(1024, '\0'); b.replace(0,4,"WBFS");
+    qToBigEndian<quint32>(2, b.data()+4); b[8]=9; b[9]=21; b[12]=1;
+    b.replace(512,6,"R2VE01"); qToBigEndian<quint32>(0x5d1c9ea3,b.data()+536);
+    const auto path=t.filePath("renamed.wbfs"); save(path,b);
+    const auto original=ac::scan::Scanner::inspect(path,stop);
+    QCOMPARE(original.identity,QString("R2VE01")); QCOMPARE(original.kind,QString("disc-id"));
+    auto c=catalog("disc"); c.games[0].id="wii-sin-and-punishment-star-successor";
+    c.games[0].raw["hardware"]="nintendo-wii"; c.games[0].raw["media"][0].erase("set");
+    ac::scan::ScanOptions o; o.mediaRoots={path}; o.userRoot=t.filePath("user");
+    auto result=ac::scan::Scanner::run(c,o,stop); QCOMPARE(result.files.size(),1);
+    QVERIFY(result.bindings[0].verified);
+    for (const auto mode : {0,1,2,3,4}) {
+      auto broken=b;
+      if(mode==0) broken[8]=31;
+      if(mode==1) broken[12]=0;
+      if(mode==2) broken[13]=1;
+      if(mode==3) broken[536]=0;
+      if(mode==4) broken.truncate(530);
+      save(path,broken); const auto r=ac::scan::Scanner::inspect(path,stop);
+      QVERIFY(r.identity.isEmpty()); QVERIFY(!r.error.isEmpty());
+    }
   }
   void otherDiscHeaders() {
     QTemporaryDir t;

@@ -3,6 +3,7 @@
 #include "models/FilterSortModel.h"
 #include "UiSettings.h"
 #include "DetailControlsController.h"
+#include "ProductIdentity.h"
 #include <QObject>
 #include <QUrl>
 namespace ac {
@@ -49,6 +50,14 @@ class UiController : public QObject {
  Q_PROPERTY(int artRevision READ artRevision WRITE setArtRevision NOTIFY artRevisionChanged)
  Q_PROPERTY(bool artProviderReady READ artProviderReady WRITE setArtProviderReady NOTIFY artProviderChanged)
  Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
+ Q_PROPERTY(QString appName READ appName CONSTANT)
+ Q_PROPERTY(QVariantMap nowPlaying READ nowPlaying NOTIFY nowPlayingChanged)
+ Q_PROPERTY(QVariantMap pinballData READ pinballData NOTIFY pinballChanged)
+ Q_PROPERTY(QVariantMap pinballSelection READ pinballSelection NOTIFY pinballChanged)
+ Q_PROPERTY(QString pinballPlan READ pinballPlan NOTIFY pinballChanged)
+ Q_PROPERTY(bool pinballScanning READ pinballScanning NOTIFY pinballChanged)
+ Q_PROPERTY(QObject *pinballControls READ pinballControls CONSTANT)
+ Q_PROPERTY(QString pinballControlsStatus READ pinballControlsStatus CONSTANT)
  public:
  UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent=nullptr);
  QObject *detailControls(){return m_detailControls.model();}
@@ -71,6 +80,25 @@ class UiController : public QObject {
  QVariantList consoleEvents() const{return m_events;} QVariantMap recovery() const{return m_recovery;}
  bool installing() const{return m_installing;} bool scanning() const{return m_scanning;}
  QString status() const{return m_status;} QString appVersion() const;
+ QString appName()const{return QString::fromUtf8(product::display_name);}
+ QVariantMap nowPlaying()const{return m_nowPlaying;}
+ Q_INVOKABLE void launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable);
+ Q_INVOKABLE void closeLaunch();
+ Q_INVOKABLE void restartLaunch();
+ QVariantMap pinballData()const{return m_pinballData;}
+ QVariantMap pinballSelection()const{return m_pinballSelection;}
+ QString pinballPlan()const{return m_pinballPlan;}
+ bool pinballScanning()const{return m_pinballScanning;}
+ QObject *pinballControls(){return &m_pinballControls;}
+ QString pinballControlsStatus()const{return m_pinballControlsStatus;}
+ Q_INVOKABLE void pinballLoaded(const QVariantMap &data);
+ Q_INVOKABLE void selectPinball(const QString &id);
+ Q_INVOKABLE void scanPinball();
+ Q_INVOKABLE void markPinball(bool ready);
+ Q_INVOKABLE void favouritePinball();
+ Q_INVOKABLE void planPinball();
+ void pinballFailed(const QString &error);
+ void setPinballPlan(const QString &plan){m_pinballPlan=plan;emit pinballChanged();}
  Q_INVOKABLE QString localPath(const QUrl &url)const{return url.isLocalFile()?url.toLocalFile():QString();}
  Q_INVOKABLE QString vrLabel(int badge) const;
  Q_INVOKABLE QString primaryLabel(const QString &gameId) const;
@@ -116,6 +144,11 @@ class UiController : public QObject {
  void installRequested(const QString &gameId,const QString &variantId); void playRequested(const QString &gameId,const QString &variantId);
  void cancelInstallRequested(); void retryInstallRequested(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
  void stopLaunchRequested();
+ void closeLaunchRequested();
+ void nowPlayingChanged();
+ void pinballChanged();
+ void pinballScanRequested(const QString &folder,const QString &database,const QString &roms);
+ void pinballPlanRequested(const QString &table,const QString &executable,const QString &id);
  void retryToolInstallRequested(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
  void promptAnswered(bool proceed); void skipStepRequested(); void uninstallPreviewRequested(const QString &gameId,const QString &variantId);
  void locationRequested(const QString &kind); void writeConfigRequested(const QString &gameId,const QVariantMap &settings);
@@ -134,5 +167,12 @@ class UiController : public QObject {
  int m_artRevision=0;
  bool m_artProviderReady=false;
  bool m_installing=false,m_scanning=false;
+ QVariantMap m_nowPlaying;
+ bool m_restartAfterClose=false;
+ QVariantMap m_pinballData,m_pinballRaw,m_pinballSelection;
+ QString m_pinballPlan;
+ bool m_pinballScanning=false;
+ ControlsViewModel m_pinballControls;
+ QString m_pinballControlsStatus;
 };
 }

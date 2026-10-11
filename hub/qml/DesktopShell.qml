@@ -8,7 +8,7 @@ ApplicationWindow {
  height:720
  Component.onCompleted:{width=uiSettings.get("winWidth",1120);height=uiSettings.get("winHeight",720)}
  minimumWidth:500;minimumHeight:400
- visible:true;title:"AladdinsCastle"
+ visible:true;title:uiController.appName
  color:Theme.get("color.surface.window")
  Loader{anchors.fill:parent;source:typeof overlaySpikeEnabled!=="undefined"&&overlaySpikeEnabled?"SpikeRoot.qml":"HubRoot.qml"}
  onClosing:close=>{if(uiController.installing){close.accepted=false;confirm.open()}else if(uiController.scanning){close.accepted=false;uiController.cancelScan()}else {uiSettings.set("winWidth",width);uiSettings.set("winHeight",height)}}

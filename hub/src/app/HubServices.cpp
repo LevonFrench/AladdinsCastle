@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "HubServices.h"
 #include "core/install/Support.h"
+#include "core/pinball/Pinball.h"
 #include <QDir>
 #include <QCoreApplication>
 #include <QFile>
@@ -50,6 +51,14 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         catch(const std::exception &){return QStringList{"Finished media cleanup could not complete; retained files will be retried at the next startup."};}
     }));
     connect(ui_,&UiController::writeConfigRequested,this,[this](const QString &id,const QVariantMap &){ui_->settingsSaved(id);});
+    connect(ui_,&UiController::pinballScanRequested,this,[this](const QString &folder,const QString &database,const QString &roms){
+        auto *watcher=new QFutureWatcher<QVariantMap>(this);
+        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{const auto result=watcher->result();watcher->deleteLater();if(result.contains("error"))ui_->pinballFailed(result["error"].toString());else ui_->pinballLoaded(result);});
+        watcher->setFuture(QtConcurrent::run([folder,database,roms]{try{return pinball::scan(folder,database,roms);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}}));
+    });
+    connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &id){
+        try{const auto plan=pinball::launchPlan(table,executable,install::scopedPath("user/pinball/sessions/"+id,root_),true);ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
+    });
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
     connect(&scanner_,&scan::ScanController::scanStarted,ui_,&UiController::scanStarted);
@@ -89,9 +98,18 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     });
     connect(ui_,&UiController::playRequested,this,[this](const QString &id,const QString &variant){
         if(launchBusy()){ui_->scanProgress({{"text","Play refused: a game is already running or a launch is being prepared. Use Stop first."}});return;}
-        try{launcher_.start(launch::gameRequest(games_->catalog(),id,root_,bindings_,variant));}catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
+        try{
+            const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
+#ifdef Q_OS_WIN
+            ui_->launchQueued(id,variant,QString());
+#else
+            ui_->launchQueued(id,variant,"Clean window close is not supported on this platform yet.");
+#endif
+            launcher_.start(request);
+        }catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
     connect(ui_,&UiController::stopLaunchRequested,&launcher_,&launch::LaunchService::stop);
+    connect(ui_,&UiController::closeLaunchRequested,&launcher_,&launch::LaunchService::requestClose);
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
     connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){childPlaying_=false;emit playingChanged();ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();});

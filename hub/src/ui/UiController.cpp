@@ -48,6 +48,10 @@ void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<Se
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_detailControls(this),m_games(games),m_filter(filter),m_settings(settings){
  connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
  m_detailControls.configure(games->catalog().root,games->catalog().packIds);
+ ControlsResolver pinballLibrary;QVariantMap pinballResolved;
+ if(!pinballLibrary.loadLibrary(games->catalog().root,m_pinballControlsStatus)||
+    !pinballLibrary.resolveRoute("vpx-openxr",pinballResolved,m_pinballControlsStatus)||
+    !m_pinballControls.loadResolved(pinballResolved))m_pinballControls.clear();
  connect(filter,&FilterSortModel::facetsChanged,this,&UiController::scheduleFacetsChanged);
  connect(filter,&FilterSortModel::visibleCountChanged,this,&UiController::scheduleFacetsChanged);
  connect(games,&QAbstractItemModel::dataChanged,this,[this]{if(m_detailControlsVisible)syncDetailControls(false);emit detailChanged();scheduleFacetsChanged();});
@@ -199,7 +203,40 @@ void UiController::installStarted(){m_installing=true;m_recovery.clear();emit in
 void UiController::installEvent(const QVariantMap &event){auto e=event;e["line"]=eventText(e);m_events<<e;if(e.value("kind")=="step"){m_installing=true;m_recovery.clear();}if(e.value("kind")=="fail"){m_installing=false;m_recovery=e;}emit installChanged();}
 void UiController::installFinished(bool success,const QString &text){m_installing=false;if(success)m_recovery.clear();else if(m_recovery.isEmpty())m_recovery={{"text",text},{"kind","fail"}};emit installChanged();message(text);}
 void UiController::launchPreparing(const QString &id,const QString &text){message("Preparing "+game(id).value("title").toString()+": "+text);}
-void UiController::launchStarted(const QString &id){message("Playing "+game(id).value("title").toString());}
-void UiController::launchFinished(const QString &,const QString &error){clearDetailControlStates();message(error.isEmpty()?"Game closed.":error);}
+void UiController::pinballLoaded(const QVariantMap &data){
+ m_pinballRaw=data;m_pinballData=data;m_pinballScanning=false;m_pinballSelection.clear();m_pinballPlan.clear();
+ auto overrides=m_settings->get("pinballOverrides",QVariantMap{}).toMap();auto favourites=m_settings->get("pinballFavourites",QVariantMap{}).toMap();
+ QVariantList rows;int ready=0;for(auto value:data.value("tables").toList()){
+  auto row=value.toMap();const auto id=row.value("id").toString();
+  if(overrides.contains(id)){row["vrReady"]=overrides[id].toBool();row["evidence"]=overrides[id].toBool()?QStringList{"marked by you"}:QStringList{};}
+  row["favourite"]=favourites.value(id).toBool();if(row.value("vrReady").toBool())++ready;rows<<row;
+ }m_pinballData["tables"]=rows;m_pinballData["vrReady"]=ready;emit pinballChanged();
+}
+void UiController::selectPinball(const QString &id){m_pinballSelection.clear();m_pinballPlan.clear();for(const auto &value:m_pinballData.value("tables").toList()){auto row=value.toMap();if(row.value("id")==id){m_pinballSelection=row;break;}}emit pinballChanged();}
+void UiController::scanPinball(){if(m_pinballScanning)return;const auto folder=m_settings->get("pinballFolder",QString()).toString();if(folder.isEmpty()){message("Choose your Pinball table folder first.");return;}m_pinballScanning=true;emit pinballChanged();emit pinballScanRequested(folder,m_settings->get("pinballDatabase",QString()).toString(),m_settings->get("pinballRoms",QString()).toString());}
+void UiController::pinballFailed(const QString &error){m_pinballScanning=false;emit pinballChanged();message(error);}
+void UiController::markPinball(bool ready){const auto id=m_pinballSelection.value("id").toString();if(id.isEmpty())return;auto overrides=m_settings->get("pinballOverrides",QVariantMap{}).toMap();overrides[id]=ready;m_settings->set("pinballOverrides",overrides);pinballLoaded(m_pinballRaw);selectPinball(id);}
+void UiController::favouritePinball(){const auto id=m_pinballSelection.value("id").toString();if(id.isEmpty())return;auto favourites=m_settings->get("pinballFavourites",QVariantMap{}).toMap();favourites[id]=!favourites.value(id).toBool();m_settings->set("pinballFavourites",favourites);pinballLoaded(m_pinballRaw);selectPinball(id);}
+void UiController::planPinball(){if(m_pinballSelection.isEmpty())return;emit pinballPlanRequested(m_pinballSelection.value("path").toString(),m_settings->get("pinballExecutable",QString()).toString(),m_pinballSelection.value("id").toString());}
+void UiController::launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable){
+ m_restartAfterClose=false;
+ m_nowPlaying={{"gameId",id},{"variantId",variant},{"title",game(id).value("title",QString("Pinball"))},{"running",false},{"closing",false},{"closeUnavailable",closeUnavailable}};
+ emit nowPlayingChanged();
+}
+void UiController::closeLaunch(){
+ if(!m_nowPlaying.value("running").toBool()||m_nowPlaying.value("closing").toBool()||!m_nowPlaying.value("closeUnavailable").toString().isEmpty())return;
+ m_nowPlaying["closing"]=true;emit nowPlayingChanged();emit closeLaunchRequested();
+}
+void UiController::restartLaunch(){
+ if(!m_nowPlaying.value("running").toBool()||m_nowPlaying.value("closing").toBool()||!m_nowPlaying.value("closeUnavailable").toString().isEmpty())return;
+ m_restartAfterClose=true;closeLaunch();
+}
+void UiController::launchStarted(const QString &id){if(m_nowPlaying.value("gameId")==id){m_nowPlaying["running"]=true;emit nowPlayingChanged();}message("Playing "+game(id).value("title").toString());}
+void UiController::launchFinished(const QString &id,const QString &error){
+ if(!m_nowPlaying.isEmpty()&&m_nowPlaying.value("gameId")!=id)return;
+ const auto variant=m_nowPlaying.value("variantId").toString();const bool restart=m_restartAfterClose&&error.isEmpty();
+ m_restartAfterClose=false;m_nowPlaying.clear();emit nowPlayingChanged();clearDetailControlStates();message(error.isEmpty()?"Game closed.":error);
+ if(restart)emit playRequested(id,variant);
+}
 void UiController::applyRuntimeStates(const QVector<RuntimeState> &states){m_games->queueRuntimeStates(states);}
 }

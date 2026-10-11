@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "ProductIdentity.h"
 #include "Support.h"
 #include "core/catalog/CatalogLoader.h"
 #include <QCryptographicHash>
@@ -150,7 +151,7 @@ QString sharedLockRoot() {
     throw Error("E_WRITE_DENIED","OS per-user shared-lock location is unavailable");
   const auto freeFolder=qScopeGuard([&]{CoTaskMemFree(folder);});
   const auto base=QString::fromWCharArray(folder);
-  const auto root=scopedPath(base+"/AladdinsCastle-shared-locks",base);
+  const auto root=scopedPath(base+"/"+product::user_data_folder+"-shared-locks",base);
   privateDirectory(root); return root;
 }
 #else

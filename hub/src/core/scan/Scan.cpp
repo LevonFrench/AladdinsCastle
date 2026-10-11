@@ -758,7 +758,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
     } catch (const std::exception &) {
     }
   const auto paths = enumerate(o.mediaRoots,
-                               {"zip", "7z", "iso", "chd", "bin", "img", "rom",
+                               {"zip", "7z", "iso", "wbfs", "chd", "bin", "img", "rom",
                                 "rom0", "rom1", "exe", "gcm"},
                                o.maxDepth, cancel);
   int completed = 0;
@@ -767,7 +767,8 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
       break;
     QFileInfo info(path);
     FileIdentity f;
-    if (cache.contains(path) && cache[path].size == info.size() &&
+    const bool freshDisc=QStringList{"iso","gcm","wbfs"}.contains(info.suffix().toLower())||cache.value(path).kind=="disc-id";
+    if (!freshDisc && cache.contains(path) && cache[path].size == info.size() &&
         cache[path].mtime == info.lastModified().toMSecsSinceEpoch()) {
       f = cache[path];
       f.cacheHit = true;

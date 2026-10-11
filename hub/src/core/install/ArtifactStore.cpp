@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "ProductIdentity.h"
 #include "ArtifactStore.h"
 #include <QDateTime>
 #include <QDir>
@@ -95,7 +96,7 @@ Json ArtifactStore::request(const QString &input, const QString &method,
     QNetworkRequest req(url);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::ManualRedirectPolicy);
-    req.setRawHeader("User-Agent", "AladdinsCastle-Hub/0.1");
+    req.setRawHeader("User-Agent", QByteArray(product::program_name)+"/0.1");
     req.setTransferTimeout(120000);
     auto ssl = QSslConfiguration::defaultConfiguration();
     ssl.setProtocol(QSsl::TlsV1_2OrLater);
