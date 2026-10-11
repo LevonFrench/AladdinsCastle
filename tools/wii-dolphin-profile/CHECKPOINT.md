@@ -13,7 +13,7 @@ stale windows, bounds image memory/run duration, checks black pixels, and
 cleans up its fixed overlay. Explicit recenter publishes a shared HMD matrix
 for the lead's bridge. It is a3D theatre fallback, not the true-3D scene target.
 
-Verified: eight Python profile tests; MSVC Release build with warnings treated
+Verified: thirteen Python profile tests; MSVC Release build with warnings treated
 as errors; six headless CTests covering plane/aspect/selection/pixel bounds,
 invalid run requests, missing/present native DLL probes and scoped physical-pixel
 DPI context. Occlusion diagnostics report PID/class/rect only, skip positively
@@ -21,6 +21,11 @@ DWM-cloaked windows and preserve the guard on unknown state. An explicit per-run
 cursor-overlay PID exception requires exact class plus all three verified
 layered/transparent/no-activate styles; each mismatch is tested. No VR_Init, game
 launch, headset run or actual game capture was performed by this lane.
+
+Command printing admits known managed manifests and safe paths after runtime
+config edits without changing files; create/inspect retain pristine protection.
+Unowned/tampered/linked profiles are refused. Touch's usable menu mapping is
+explicitly pending. This lane is held; real occluders remain blocked.
 
 Open: bridge consumption of shared calibration; actual Dolphin config loading,
 GPU-render capture through GDI, colour/eye order/orientation, headset stereo,

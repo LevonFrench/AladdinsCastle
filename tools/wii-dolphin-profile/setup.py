@@ -106,17 +106,43 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def check(user, root=ROOT):
+def envelope(mode, files):
+    return {"schema": 1, "mode": mode, "source_pin": PIN, "games": list(GAME_IDS),
+            "files": {name: digest(data) for name, data in files.items()}}
+
+
+def admit(user, root=ROOT):
+    """Admit only known generated manifests and safe regular config paths.
+
+    Runtime-edited config bytes are allowed here; nothing is written/read from
+    those configs. The initial delivered template is explicitly recognized too.
+    """
     user = safe_user(user, root)
-    manifest = json.loads((user / MANIFEST).read_text(encoding="utf-8"))
-    expected = render(manifest["mode"])
-    hashes = {name: digest(data) for name, data in expected.items()}
-    if manifest != {"schema": 1, "mode": manifest["mode"], "source_pin": PIN, "games": list(GAME_IDS), "files": hashes}:
-        raise ValueError("Profile manifest has unexpected contents")
+    manifest_path = safe_user(user / MANIFEST, root)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("mode"), str):
+        raise ValueError("Invalid profile manifest")
+    mode = manifest["mode"]
+    expected = render(mode)
+    if manifest != envelope(mode, expected):
+        initial = dict(expected)
+        initial["Config/Dolphin.ini"] = ini({"Core": {"EnableCheats": "False"}})
+        if manifest != envelope(mode, initial):
+            raise ValueError("Profile manifest has unexpected contents")
+        expected = initial
+    for name in expected:
+        path = safe_user(user / name, root)
+        if not path.is_file():
+            raise ValueError(f"Managed configuration missing: {name}")
+    return manifest, expected
+
+
+def check(user, root=ROOT):
+    manifest, expected = admit(user, root)
+    user = safe_user(user, root)
     for name, data in expected.items():
-        path = user / name
-        safe_user(path, root)
-        if not path.is_file() or path.read_bytes() != data:
+        path = safe_user(user / name, root)
+        if path.read_bytes() != data:
             raise ValueError(f"Generated configuration changed: {name}")
     return manifest
 
@@ -135,8 +161,7 @@ def create(user, mode, root=ROOT):
             target = stage / name
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
-        (stage / MANIFEST).write_text(json.dumps({"schema": 1, "mode": mode, "source_pin": PIN,
-            "games": list(GAME_IDS), "files": {name: digest(data) for name, data in files.items()}}, indent=2)+"\n", encoding="utf-8")
+        (stage / MANIFEST).write_text(json.dumps(envelope(mode, files), indent=2)+"\n", encoding="utf-8")
         # rename (rather than replace) cannot overwrite an existing directory on Windows.
         # Recheck on all platforms and never touch an existing user's contents.
         if user.exists():
@@ -149,34 +174,35 @@ def create(user, mode, root=ROOT):
 
 
 def command(user, dolphin, game_file=None, root=ROOT):
-    check(user, root)
+    admit(user, root)
     args = [str(Path(dolphin).resolve()), "--user", str(safe_user(user, root))]
     if game_file:
         args += ["-b", "-e", str(Path(game_file).resolve())]
     return args
 
 
-def main():
+def main(argv=None, root=ROOT):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("create", "inspect", "command"))
     parser.add_argument("--user", required=True, type=Path)
     parser.add_argument("--mode", choices=("one-gun", "two-remotes"), default="one-gun")
     parser.add_argument("--dolphin", type=Path)
     parser.add_argument("--game-file", type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         if args.action == "create":
-            create(args.user, args.mode)
-        manifest = check(args.user)
+            create(args.user, args.mode, root)
         if args.action == "command":
             if args.dolphin is None:
                 parser.error("command requires --dolphin")
-            argv = command(args.user, args.dolphin, args.game_file)
+            argv = command(args.user, args.dolphin, args.game_file, root)
             print(json.dumps(argv))
             print("& " + " ".join("'"+s.replace("'", "''")+"'" for s in argv))
         else:
+            manifest = check(args.user, root)
             print(json.dumps(manifest, indent=2))
-            print("Right hand: fire trigger, interact primary, Start menu; absolute aim pointer.")
+            print("Right hand: fire trigger, interact primary; absolute aim pointer.")
+            print("Remote + uses DSU Options; Touch application-menu input is unavailable, so its usable mapping is pending.")
             print("Nunchuk: stick, grip Z, secondary C; physical acceleration, no simulated Shake/Swing.")
             print("one-gun: right Remote + left Nunchuk; two-remotes: each hand owns both attachments.")
             print("Side-by-side 3D theatre requires an SBS viewer. True 3D and live acceptance remain separate.")
