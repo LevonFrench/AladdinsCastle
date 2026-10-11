@@ -12,6 +12,9 @@
 namespace theatre {
 constexpr double width = 3.2, height = 1.8, distance = 2.0;
 using Matrix = std::array<float, 12>;
+inline std::string overlayFailure(const char* operation,int code,const char* name) {
+    return std::string(operation)+": "+(name?name:"UnknownOverlayError")+" ("+std::to_string(code)+")";
+}
 struct Rect { long left,top,right,bottom; };
 inline bool cursorException(std::uint32_t optedPid,std::uint32_t actualPid,
         const std::wstring& className,bool layered,bool transparent,bool noActivate) {

@@ -12,6 +12,8 @@ int main() {
     using namespace theatre;
     try {
         require(number(L"123",1000)==123);
+        require(overlayFailure("submit",23,"VROverlayError_RequestFailed")=="submit: VROverlayError_RequestFailed (23)");
+        require(overlayFailure("submit",99,nullptr)=="submit: UnknownOverlayError (99)");
         require(eligible(12,12,true,false));
         require(!eligible(13,12,true,false));
         require(!eligible(12,12,false,false));

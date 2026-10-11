@@ -1,5 +1,12 @@
 # Ordinary Dolphin fallback checkpoint
 
+D3D11 upload follow-up: the full guarded GDI client is now submitted as a
+shared BGRA8 texture on SteamVR's nominated adapter, with Gamma colour space.
+No capture guard/scope change, raw retry or image reduction. Seven headless
+CTests pass, including full-size software-WARP readback and resource/error
+regressions. The raw RequestFailed23 cause is unknown; no accepted headset
+frame is claimed by this lane. Lead coordinates live retry.
+
 Fresh isolated one-gun and two-Remote profiles, per-game PAL selectors,
 loopback DSU, absolute aim and physical Motion Input are implemented. One gun
 uses the opposite hand for Nunchuk; two Remotes use separate hand feeds with
@@ -14,7 +21,7 @@ cleans up its fixed overlay. Explicit recenter publishes a shared HMD matrix
 for the lead's bridge. It is a3D theatre fallback, not the true-3D scene target.
 
 Verified: thirteen Python profile tests; MSVC Release build with warnings treated
-as errors; six headless CTests covering plane/aspect/selection/pixel bounds,
+as errors; seven headless CTests covering plane/aspect/selection/pixel bounds,
 invalid run requests, missing/present native DLL probes and scoped physical-pixel
 DPI context. Occlusion diagnostics report PID/class/rect only, skip positively
 DWM-cloaked windows and preserve the guard on unknown state. An explicit per-run
@@ -25,7 +32,7 @@ launch, headset run or actual game capture was performed by this lane.
 Command printing admits known managed manifests and safe paths after runtime
 config edits without changing files; create/inspect retain pristine protection.
 Unowned/tampered/linked profiles are refused. Touch's usable menu mapping is
-explicitly pending. This lane is held; real occluders remain blocked.
+explicitly pending. Source delivery is ready; real occluders remain blocked.
 
 Open: bridge consumption of shared calibration; actual Dolphin config loading,
 GPU-render capture through GDI, colour/eye order/orientation, headset stereo,
