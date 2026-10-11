@@ -81,6 +81,47 @@ def color_fixture(components=4,component=5126,normalized=False):
 
 
 class GunAssetTests(unittest.TestCase):
+    def test_rear_notch_is_open_on_both_lods_and_not_a_solid_substitute(self):
+        def box(at,size):
+            x,y,z=(v/2 for v in size)
+            vertices=[(a+at[0],b+at[1],c+at[2]) for a,b,c in
+                [(-x,-y,-z),(-x,-y,z),(-x,y,z),(-x,y,-z),(x,-y,-z),(x,-y,z),(x,y,z),(x,y,-z)]]
+            faces=[(0,3,2,1),(4,5,6,7),(0,1,5,4),(3,7,6,2),(0,4,7,3),(1,2,6,5)]
+            return [tuple(vertices[i] for i in tri) for a,b,c,d in faces for tri in ((a,b,c),(a,c,d))]
+        front,rear=(0,.006,-.148),(0,.006,-.005)
+        blade=box((0,.003,front[2]),(.003,.006,.008))
+        notch=box((0,.0015,rear[2]),(.018,.003,.008))
+        notch+=box((-.006,.0045,rear[2]),(.006,.003,.008))+box((.006,.0045,rear[2]),(.006,.003,.008))
+        meshes={lod:{'front_sight_geometry_lod'+lod[-1]:blade,'rear_sight_geometry_lod'+lod[-1]:notch} for lod in ('LOD0','LOD1')}
+        self.assertEqual(set(checker.check_functional_sights(front,rear,meshes)),{'LOD0','LOD1'})
+        solid=deepcopy(meshes); solid['LOD1']['rear_sight_geometry_lod1']=box((0,.003,rear[2]),(.018,.006,.008))
+        with self.assertRaisesRegex(ValueError,'LOD1 rear notch is blocked'):
+            checker.check_functional_sights(front,rear,solid)
+        with self.assertRaisesRegex(ValueError,'parallel'):
+            checker.check_functional_sights((0,.007,front[2]),rear,meshes)
+        wide=deepcopy(meshes); wide['LOD0']['front_sight_geometry_lod0']=box((0,.003,front[2]),(.01,.006,.008))
+        with self.assertRaisesRegex(ValueError,'too wide'):
+            checker.check_functional_sights(front,rear,wide)
+        blocked=deepcopy(meshes); blocked['LOD1']['intervening-roof']=box((0,.0045,-.08),(.01,.003,.01))
+        with self.assertRaisesRegex(ValueError,'LOD1 sight path is blocked'):
+            checker.check_functional_sights(front,rear,blocked)
+
+    def test_runtime_lighting_normal_layout_and_unit_vectors(self):
+        doc,binary,meta=fixture(); binary+=b'\0'*(-len(binary)%4); offset=len(binary)
+        binary+=struct.pack('<9f',*([0,1,0]*3))
+        doc['buffers'][0]['byteLength']=len(binary)
+        doc['bufferViews'].append({'buffer':0,'byteOffset':offset,'byteLength':36})
+        doc['accessors'].append({'bufferView':2,'componentType':5126,'count':3,'type':'VEC3'})
+        for primitive in doc['meshes'][0]['primitives']: primitive['attributes']['NORMAL']=2
+        self.check(doc,binary,meta)
+        for values in ((0,0,0),(0,2,0),(0,float('nan'),0)):
+            malformed=binary[:offset]+struct.pack('<3f',*values)+binary[offset+12:]
+            with self.subTest(normal=values),self.assertRaisesRegex(ValueError,'finite unit|non-finite'):
+                self.check(doc,malformed,meta)
+        doc['accessors'][2]['count']=2
+        with self.assertRaisesRegex(ValueError,'normal layout/count'):
+            self.check(doc,binary,meta)
+
     def check(self,doc,binary,meta):
         local = checker.ROOT/'.local/gun-tests'
         local.mkdir(parents=True,exist_ok=True)

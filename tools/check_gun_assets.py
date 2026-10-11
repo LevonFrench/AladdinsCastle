@@ -139,6 +139,49 @@ def check_part_touches(parts, lod):
         demand(bool(neighbors), f'{lod} floating mesh bounds: {name}')
 
 
+def ray_hits_triangles(origin, triangles, max_distance=None):
+    """Two-sided Moller-Trumbore test along the authored -Z sight direction."""
+    def sub(a,b): return tuple(x-y for x,y in zip(a,b))
+    def cross(a,b): return (a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0])
+    def dot(a,b): return sum(x*y for x,y in zip(a,b))
+    for a,b,c in triangles:
+        edge1,edge2=sub(b,a),sub(c,a); p=cross((0,0,-1),edge2); determinant=dot(edge1,p)
+        if abs(determinant)<1e-12: continue
+        offset=sub(origin,a); u=dot(offset,p)/determinant
+        q=cross(offset,edge1); v=dot((0,0,-1),q)/determinant
+        t=dot(edge2,q)/determinant
+        if u>=-1e-6 and v>=-1e-6 and u+v<=1+1e-6 and t>1e-9 and (max_distance is None or t<max_distance): return True
+    return False
+
+
+def check_functional_sights(front, rear, mesh_triangles):
+    """Test exported surfaces, not accessor min/max or a claimed notch flag."""
+    demand(rear[2]>front[2] and abs(front[0]-rear[0])<1e-6 and abs(front[1]-rear[1])<1e-6,
+           'sight line must be parallel to the -Z bore')
+    result={}
+    for lod in ('LOD0','LOD1'):
+        suffix='_lod'+lod[-1]
+        f=mesh_triangles[lod].get('front_sight_geometry'+suffix)
+        r=mesh_triangles[lod].get('rear_sight_geometry'+suffix)
+        demand(bool(f) and bool(r),lod+' requires visible front blade and rear notch')
+        flo,fhi=part_bounds([p for triangle in f for p in triangle])
+        rlo,rhi=part_bounds([p for triangle in r for p in triangle])
+        demand(abs(fhi[1]-front[1])<1e-6 and abs(rhi[1]-rear[1])<1e-6,lod+' sight tops must match anchors')
+        demand(0<fhi[0]-flo[0]<=.004,lod+' front blade is too wide for the notch')
+        for x in (0,-.002,.002):
+            demand(not ray_hits_triangles((rear[0]+x,rear[1]-.0015,rear[2]+.01),r),lod+' rear notch is blocked')
+        for x in (-.006,.006):
+            demand(ray_hits_triangles((rear[0]+x,rear[1]-.0015,rear[2]+.01),r),lod+' rear notch cheek is missing')
+        demand(ray_hits_triangles((rear[0],rear[1]-.0045,rear[2]+.01),r),lod+' rear notch base is missing')
+        demand(ray_hits_triangles((front[0],front[1]-.0015,front[2]+.01),f),lod+' front blade is missing')
+        sight_origin=(rear[0],rear[1]-.0015,rear[2]+.01)
+        for name,triangles in mesh_triangles[lod].items():
+            if name=='front_sight_geometry'+suffix: continue
+            demand(not ray_hits_triangles(sight_origin,triangles,rear[2]-front[2]+.0059),lod+' sight path is blocked by '+name)
+        result[lod]=dict(bore_parallel=True,rear_open=True,clear_between_sights=True,front_width_mm=round((fhi[0]-flo[0])*1000,4))
+    return result
+
+
 def check_asset(path, meta):
     doc, binary = read_glb(path)
     demand(not doc.get('images') and not doc.get('textures'), 'tier 1 must have no images/textures')
@@ -174,6 +217,9 @@ def check_asset(path, meta):
     visit(root,IDENTITY)
     demand(len(worlds)==len(nodes), 'unreachable/extra root nodes')
     demand(all(abs(a-b)<1e-6 for a,b in zip(worlds[root],IDENTITY)), 'grip must be identity at origin')
+    functional=nodes[root].get('extras',{}).get('functional_sights')
+    if meta.get('tier')==1:
+        demand(isinstance(functional,dict) and functional.get('kind')=='notch-blade','tier 1 functional sight declaration required')
     for marker in ('muzzle','fx_muzzle','fx_laser'):
         demand(parents.get(names.index(marker))==root, marker+' must not inherit visual recoil')
     muzzle = worlds[names.index('muzzle')]
@@ -190,6 +236,7 @@ def check_asset(path, meta):
     totals, positions = {'LOD0':0,'LOD1':0}, {'LOD0':[],'LOD1':[]}
     used_materials, used_meshes = set(),set()
     mesh_bounds = {'LOD0':{}, 'LOD1':{}}
+    mesh_triangles = {'LOD0':{}, 'LOD1':{}}
     for index,node in enumerate(nodes):
         if 'mesh' not in node:
             continue
@@ -199,12 +246,20 @@ def check_asset(path, meta):
         demand(isinstance(mi,int) and 0 <= mi < len(doc.get('meshes',[])), 'invalid mesh index')
         used_meshes.add(mi)
         instance_points = []
+        triangles=[]
         for prim in doc['meshes'][mi].get('primitives',[]):
             demand(prim.get('mode',4)==4 and not prim.get('extensions'), 'expected uncompressed triangles')
             demand(not prim.get('targets'), 'morph targets unsupported for tier 1')
             pi = prim.get('attributes',{}).get('POSITION')
             points = accessor(doc,binary,pi)
             demand(doc['accessors'][pi]['type']=='VEC3' and doc['accessors'][pi]['componentType']==5126, 'POSITION must be float VEC3')
+            ni=prim.get('attributes',{}).get('NORMAL')
+            if ni is not None or meta.get('tier')==1:
+                demand(type(ni) is int and 0<=ni<len(doc['accessors']),'runtime lighting requires NORMAL')
+                na=doc['accessors'][ni]
+                demand(na.get('type')=='VEC3' and na.get('componentType')==5126 and na.get('count')==len(points),'normal layout/count must match POSITION')
+                for normal in accessor(doc,binary,ni):
+                    demand(all(finite_number(v) for v in normal) and abs(sum(v*v for v in normal)-1)<1e-3,'normals must be finite unit vectors')
             if 'COLOR_0' in prim.get('attributes',{}):
                 ci = prim['attributes']['COLOR_0']
                 demand(type(ci) is int and 0<=ci<len(doc['accessors']), 'invalid vertex color accessor')
@@ -227,10 +282,12 @@ def check_asset(path, meta):
             referenced = [transform(worlds[index],points[i]) for i in set(indices)]
             positions[lod].extend(referenced)
             instance_points.extend(referenced)
+            triangles.extend(tuple(transform(worlds[index],points[j]) for j in indices[i:i+3]) for i in range(0,len(indices),3))
             material = prim.get('material')
             demand(isinstance(material,int) and 0 <= material < len(materials), 'invalid material index')
             used_materials.add(material)
         mesh_bounds[lod][node['name']] = part_bounds(instance_points)
+        mesh_triangles[lod][node['name']]=triangles
     demand(used_meshes==set(range(len(doc.get('meshes',[])))), 'unreferenced meshes')
     demand(used_materials==set(range(4)), 'all material slots must be used')
     bounds = {}
@@ -284,8 +341,12 @@ def check_asset(path, meta):
         start = transform(worlds[names.index('slide_recoil')],(0,0,0))
         stop = transform(worlds[names.index('limit_recoil')],(0,0,0))
         demand(all(abs(a-b)<1e-5 for a,b in zip(stop,(start[0],start[1],start[2]+.015))), 'limit_recoil stop must be 15 mm behind slide')
-    return {'triangles':totals,'length_mm':bounds,'nodes':len(nodes),
+    result={'triangles':totals,'length_mm':bounds,'nodes':len(nodes),
             'touch_checked_parts':{lod:len(parts) for lod,parts in mesh_bounds.items()}}
+    if functional:
+        result['sights']=check_functional_sights(transform(worlds[names.index('sight_front')],(0,0,0)),
+            transform(worlds[names.index('sight_rear')],(0,0,0)),mesh_triangles)
+    return result
 
 
 def check_previews(directory, mid, meta):
@@ -300,6 +361,13 @@ def check_previews(directory, mid, meta):
            data['render'].get('denoiser')=='OPENIMAGEDENOISE' and
            data['render'].get('view_transform')=='Standard' and
            data['render'].get('denoising_use_gpu') is False, 'CPU 64-sample denoised previews required')
+    lighting=json.loads((ROOT/'assets/guns/runtime-lighting.json').read_text(encoding='utf-8'))
+    demand(data['render'].get('lighting')==lighting and data['render'].get('exposure')==0,'preview must match R2 runtime camera-space lighting')
+    demand(set(data.get('sight_reviews',{}))=={'LOD0','LOD1'},'sight-through reviews required for both LODs')
+    for filename in data['sight_reviews'].values():
+        demand(Path(filename).name==filename and filename.endswith('.png'),'invalid sight-through review path')
+        png=(directory/filename).read_bytes()
+        demand(png[:8]==b'\x89PNG\r\n\x1a\n' and png[12:16]==b'IHDR' and struct.unpack_from('>II',png,16)==(512,512),'invalid sight-through review image')
     demand(data.get('silhouette_scale_m')==.82, 'uniform metric silhouette scale required')
     silhouette = directory/(mid+'-silhouette.png')
     png = silhouette.read_bytes()

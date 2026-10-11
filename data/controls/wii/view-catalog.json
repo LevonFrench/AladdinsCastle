@@ -15,6 +15,7 @@
       "data": {
         "version": "0.1",
         "family": "wii",
+        "route": "flat-dolphin",
         "id": "wii-dead-space-extraction-controls",
         "title": "Dead Space: Extraction controls",
         "gun_model": "generic-pistol",
@@ -604,6 +605,7 @@
       "data": {
         "version": "0.1",
         "family": "wii",
+        "route": "flat-dolphin",
         "id": "wii-house-of-the-dead-overkill-controls",
         "title": "The House of the Dead: Overkill controls",
         "gun_model": "generic-pistol",
@@ -1661,6 +1663,7 @@
       "data": {
         "version": "0.1",
         "family": "wii",
+        "route": "flat-dolphin",
         "id": "wii-resident-evil-darkside-chronicles-controls",
         "title": "Resident Evil: The Darkside Chronicles controls",
         "gun_model": "generic-pistol",
@@ -2718,6 +2721,7 @@
       "data": {
         "version": "0.1",
         "family": "wii",
+        "route": "flat-dolphin",
         "id": "wii-resident-evil-umbrella-chronicles-controls",
         "title": "Resident Evil: The Umbrella Chronicles controls",
         "gun_model": "generic-pistol",
@@ -3775,6 +3779,7 @@
       "data": {
         "version": "0.1",
         "family": "wii",
+        "route": "flat-dolphin",
         "id": "wii-sin-and-punishment-star-successor-controls",
         "title": "Sin & Punishment: Star Successor controls",
         "gun_model": "generic-pistol",

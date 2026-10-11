@@ -13,6 +13,14 @@ class WiiControlsTests(unittest.TestCase):
         self.assertEqual(actual,expected)
         self.assertEqual(len(expected['games']),5)
 
+    def test_dsu_controls_are_keyed_to_the_flat_dolphin_route(self):
+        for game in compile_library()['games']:
+            with self.subTest(game=game['game_id']):
+                self.assertEqual(game['data']['route'],'flat-dolphin')
+                resolved=Resolver().resolve_game(game['game_id'])
+                self.assertEqual(resolved['data']['route'],'flat-dolphin')
+                self.assertNotEqual(resolved['data']['route'],'dolphinxr')
+
     def test_pointer_stick_and_real_motion_are_separate(self):
         for game in compile_library()['games']:
             transport=game['data']['transport']

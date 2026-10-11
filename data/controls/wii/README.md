@@ -10,6 +10,11 @@ Run without `--write` to check that the committed catalog matches its sources.
 Both the native Hub resolver and Python export consume the same compiled data.
 Wii semantics remain outside the arcade libacvr input vocabulary.
 
+`data.route = "flat-dolphin"` identifies these DSU mappings. The selected
+`dolphinxr` route configures native controller mapping inside DolphinXR and
+must not display these rows. The Hub owns selected-route gating; missing,
+unknown or mismatched route keys clear the DSU view with an explanation.
+
 | Part | VR input | DSU / Dolphin input |
 |---|---|---|
 | Remote pointer | Gun aim ray | Right stick, absolute pointer |
@@ -45,7 +50,7 @@ as active inputs. DSU IDs and implementation reasons stay in data/docs; the
 one-gun notice reads "Right hand: Wii Remote. Left hand: Nunchuk."
 Physical axis signs, fallback waveform recognition and game actions still need
 separate bridge/profile checks. The profile lane's current game auto-selectors
-cover the two approved PAL Chronicles releases, not acceptance of all five sets.
+cover the two Chronicles game IDs, not acceptance of all five sets.
 
 Dolphin Motion Input is the single motion source: leave simulated Shake and
 Swing bindings empty. Relative pointer input and auto-hide are off. DSU's pointer

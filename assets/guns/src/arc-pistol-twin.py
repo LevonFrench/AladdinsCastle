@@ -25,7 +25,7 @@ def make_design():
     d.ring('trigger_guard',[(-122,13),(-36,13),(-25,1),(-20,-37),(-33,-49),(-102,-49),(-121,-36),(-130,-7)],
            [(-113,3),(-46,3),(-37,-4),(-32,-29),(-41,-39),(-99,-39),(-111,-29),(-119,-7)],24,parent='visual_kick')
     d.markers((0,54,-180),(0,88,-144),(0,76,36),(0,14,-43),'visual_kick')
-    d.sights((0,88,-144),(0,76,36),'visual_kick')
+    d.functional_sights((0,88,-144),(0,76,36),'visual_kick')
     d.outline('trigger',[(-47,18),(-38,18),(-37,7),(-43,-6),(-52,-25),(-50,-30),(-58,-26),(-58,-17),(-51,-2),(-47,8)],12,'accent','pivot_trigger',bevel=1)
     d.cylinder('muzzle_lens',(0,54,-178),12,4,'glass','visual_kick')
     d.cylinder('cable_boss',(0,-94,20),10,14,'accent','visual_kick',axis='y')

@@ -27,6 +27,7 @@ def compile_library(root=ROOT):
     root=Path(root); directory=root/'data/controls/wii'
     base=load(directory/'remote-nunchuk.toml')
     require(base['version']=='0.1','Wii version must be 0.1')
+    require(base.get('route')=='flat-dolphin','DSU Wii mappings require the flat-dolphin route')
     require(base['transport']['pointer']=='right_stick' and base['transport']['nunchuk_stick']=='left_stick','DSU axes must remain separate')
     require(base['transport']['motion_input'] and not base['transport']['shake_binding'] and not base['transport']['swing_binding'], 'Motion Input must not be double-counted')
     rows=[]
@@ -80,7 +81,7 @@ def compile_library(root=ROOT):
                     row['binding_label']='Unavailable: keyboard fallback is player 1 only'
                 row.setdefault('node',''); generated.append(row)
         model=load(root/'data/guns/generic-pistol.toml')
-        data=dict(version='0.1',family='wii',id=gid+'-controls',title=game['title']+' controls',gun_model='generic-pistol',
+        data=dict(version='0.1',family='wii',route=base['route'],id=gid+'-controls',title=game['title']+' controls',gun_model='generic-pistol',
                   element=generated,policy=dict(p1_hand='right',two_guns='on_join',supported_primary_hands=['right'],
                       nunchuk_hand_by_mode=dict(one_gun='other',two_remotes='same'),custom_setup=custom),
                   transport=base['transport'],questions=profile.get('questions',[]),sources=profile.get('sources',[]),

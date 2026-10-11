@@ -17,6 +17,43 @@ TIERS = ('generic-pistol', 'arc-pistol-slide', 'arc-pistol-twin',
          'con-pistol-slim', 'con-pistol-dpad', 'con-revolver-chunky', 'mnt-mg-heavy')
 MATERIAL_RGBA = {'body':(.55,.55,.55,1), 'accent':(.32,.32,.34,1),
                  'dark':(.012,.012,.018,1), 'glass':(.025,.10,.16,1)}
+RUNTIME_LIGHTING=json.loads((ROOT/'assets/guns/runtime-lighting.json').read_text(encoding='utf-8'))
+
+
+def runtime_preview_rgba(normal_view, color):
+    """Reference camera-space Lambert result before display encoding/premultiply."""
+    n=math.sqrt(sum(v*v for v in normal_view)); light=RUNTIME_LIGHTING['direction_to_light']
+    l=math.sqrt(sum(v*v for v in light))
+    if not n or not l: raise ValueError('Lighting normal and direction must be nonzero')
+    factor=RUNTIME_LIGHTING['ambient']+RUNTIME_LIGHTING['directional']*max(sum(a*b for a,b in zip(normal_view,light))/(n*l),0)
+    return tuple(v*factor for v in color[:3])+(color[3],)
+
+
+def runtime_preview_material(mat, color):
+    """Emission-only shader: no Cycles lights, BSDF, specular or shadows."""
+    tree=mat.node_tree; tree.nodes.clear()
+    geometry_node=tree.nodes.new('ShaderNodeNewGeometry')
+    view=tree.nodes.new('ShaderNodeVectorTransform'); view.vector_type='NORMAL'
+    view.convert_from='WORLD'; view.convert_to='CAMERA'
+    tree.links.new(geometry_node.outputs['Normal'],view.inputs['Vector'])
+    normal=tree.nodes.new('ShaderNodeVectorMath'); normal.operation='NORMALIZE'
+    tree.links.new(view.outputs['Vector'],normal.inputs[0])
+    dot=tree.nodes.new('ShaderNodeVectorMath'); dot.operation='DOT_PRODUCT'
+    light=RUNTIME_LIGHTING['direction_to_light']; length=math.sqrt(sum(v*v for v in light))
+    dot.inputs[1].default_value=tuple(v/length for v in light)
+    tree.links.new(normal.outputs['Vector'],dot.inputs[0])
+    positive=tree.nodes.new('ShaderNodeMath'); positive.operation='MAXIMUM'; positive.inputs[1].default_value=0
+    tree.links.new(dot.outputs['Value'],positive.inputs[0])
+    diffuse=tree.nodes.new('ShaderNodeMath'); diffuse.operation='MULTIPLY'; diffuse.inputs[1].default_value=RUNTIME_LIGHTING['directional']
+    tree.links.new(positive.outputs[0],diffuse.inputs[0])
+    ambient=tree.nodes.new('ShaderNodeMath'); ambient.operation='ADD'; ambient.inputs[1].default_value=RUNTIME_LIGHTING['ambient']
+    tree.links.new(diffuse.outputs[0],ambient.inputs[0])
+    emission=tree.nodes.new('ShaderNodeEmission'); emission.inputs['Color'].default_value=color
+    tree.links.new(ambient.outputs[0],emission.inputs['Strength'])
+    transparent=tree.nodes.new('ShaderNodeBsdfTransparent')
+    mix=tree.nodes.new('ShaderNodeMixShader'); mix.inputs[0].default_value=color[3]
+    tree.links.new(transparent.outputs[0],mix.inputs[1]); tree.links.new(emission.outputs[0],mix.inputs[2])
+    output=tree.nodes.new('ShaderNodeOutputMaterial'); tree.links.new(mix.outputs[0],output.inputs['Surface'])
 
 
 def preview_material_rgba(tint):
@@ -84,12 +121,30 @@ class Design:
         self.part(name,'vented_tube',at,'accent',parent,0,radius=radius/1000,
                   inner=inner/1000,depth=depth/1000)
 
-    def sights(self, front, rear, parent=None):
-        self.box('front_sight_geometry',front,(10,6,12),'dark',parent,1)
-        self.box('rear_sight_geometry',rear,(18,6,12),'dark',parent,1)
+    def functional_sights(self, front, rear, parent=None):
+        """Seated bases, level blade/notch tops and an open bore-parallel line.
+
+        Inputs retain the authored mounting centres. Raise the shorter sight
+        instead of lifting its base off the sloping roof. Both LODs retain the
+        complete U profile; no boolean or low-detail solid-block substitute.
+        """
+        top=max(front[1],rear[1])+3
+        for name,at,width in (('front_sight_geometry',front,3),('rear_sight_geometry',rear,18)):
+            bottom=at[1]-3; height=top-bottom
+            centre=(at[0],(bottom+top)/2,at[2])
+            if name.startswith('front'):
+                self.box(name,centre,(width,height,8),'dark',parent,.25)
+            else:
+                self.part(name,'notched_sight',centre,'dark',parent,0,
+                          size=(width/1000,height/1000,.008),notch_width=.006,notch_depth=.003)
+        self.node('sight_front',(front[0],top,front[2]))
+        self.node('sight_rear',(rear[0],top,rear[2]))
+        self.sight_setup=dict(kind='notch-blade',notch_width_m=.006,notch_depth_m=.003,front_width_m=.003)
 
     def result(self, mid):
-        return dict(id=mid,length_m=self.length/1000,nodes=self.nodes,parts=self.parts)
+        result=dict(id=mid,length_m=self.length/1000,nodes=self.nodes,parts=self.parts)
+        if hasattr(self,'sight_setup'): result['sights']=self.sight_setup
+        return result
 
 
 def plan(model_id, parameters):
@@ -102,6 +157,13 @@ def plan(model_id, parameters):
 def geometry(part, lod):
     """Return glTF-local vertices/faces; also usable by pure-Python source checks."""
     shape = part['shape']
+    if shape == 'notched_sight':
+        x,y,z=(v/2 for v in part['size']); gap=part['notch_width']/2
+        floor=y-part['notch_depth']
+        profile=[(-x,-y),(x,-y),(x,y),(gap,y),(gap,floor),(-gap,floor),(-gap,y),(-x,y)]
+        verts=[(a,b,c) for c in (-z,z) for a,b in profile]
+        n=len(profile)
+        return verts,[tuple(reversed(range(n))),tuple(range(n,2*n))]+[(i,(i+1)%n,(i+1)%n+n,i+n) for i in range(n)]
     if shape == 'box':
         x,y,z = (v/2 for v in part['size'])
         return ([(-x,-y,-z),(-x,-y,z),(-x,y,z),(-x,y,-z),
@@ -195,6 +257,7 @@ def blender_run(model_id, parameters):
         bsdf.inputs['Roughness'].default_value=.32 if name=='glass' else .58
         mats[name]=mat
     grip=empty('grip'); grip['asset_id']=model_id; grip['units']='metres'; grip['bore']='-Z'
+    if 'sights' in spec: grip['functional_sights']=spec['sights']
     fixed={name:empty(name,data['at'],grip) for name,data in spec['nodes'].items()
            if name in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear','grip_two','limit_recoil')}
     lod_objects,semantic={},{}
@@ -241,37 +304,28 @@ def blender_run(model_id, parameters):
         args.preview_dir.mkdir(parents=True,exist_ok=True)
         for obj in lod_objects[1]: obj.hide_render=True
         for name,color in preview_material_rgba(meta['tints'][meta['tints']['p1']]).items():
-            mats[name].node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value=color
+            runtime_preview_material(mats[name],color)
         scene.render.engine='CYCLES'; scene.cycles.device='CPU'; scene.cycles.samples=64
         scene.cycles.use_denoising=True; scene.cycles.denoiser='OPENIMAGEDENOISE'
         scene.cycles.denoising_use_gpu=False; scene.cycles.preview_denoising_use_gpu=False
         scene.render.resolution_x=scene.render.resolution_y=512; scene.render.resolution_percentage=100
         scene.render.image_settings.file_format='PNG'; scene.render.film_transparent=False
         scene.view_settings.view_transform='Standard'; scene.view_settings.look='None'
-        # Dark peripheral palettes need more exposure; bright orange must retain
-        # headroom. This changes the camera, never the exported linear factors.
-        exposure=-1.0 if max(preview_material_rgba(meta['tints'][meta['tints']['p1']])['body'][:3])<.05 else -2.0
+        exposure=0
         scene.view_settings.exposure=exposure; scene.view_settings.gamma=1
         scene.world.use_nodes=True
         background=scene.world.node_tree.nodes['Background']
-        background.inputs['Color'].default_value=(.18,.18,.18,1); background.inputs['Strength'].default_value=.85
+        background.inputs['Color'].default_value=(.04,.04,.04,1); background.inputs['Strength'].default_value=1
         points=[obj.matrix_world@Vector(v) for obj in lod_objects[0] for v in obj.bound_box]
         lo=Vector(tuple(min(p[i] for p in points) for i in range(3)))
         hi=Vector(tuple(max(p[i] for p in points) for i in range(3)))
         target=(lo+hi)/2; length=spec['length_m']
-        lights=[]
-        for name,offset,energy,size in (('key',(-1.8,1,2.6),225,1.5),('fill',(1.5,1,1),140,2),('rim',(0,-2,2),120,1.5)):
-            light=bpy.data.lights.new(name,'AREA'); light.energy=energy*length*length
-            light.shape='DISK'; light.size=size*length
-            obj=bpy.data.objects.new(name,light); scene.collection.objects.link(obj)
-            obj.location=target+Vector(offset)*length
-            obj.rotation_euler=(target-obj.location).to_track_quat('-Z','Y').to_euler(); lights.append(obj)
         camera_data=bpy.data.cameras.new('preview_camera'); camera=bpy.data.objects.new('preview_camera',camera_data)
         scene.collection.objects.link(camera); scene.camera=camera; camera_data.type='ORTHO'
         camera_data.ortho_scale=max(length,hi.z-lo.z,hi.x-lo.x)*1.38
         callouts=dict(version='0.1',model=model_id,size=[512,512],views={},
                       render=dict(device='CPU',samples=64,denoiser='OPENIMAGEDENOISE',denoising_use_gpu=False,
-                                  view_transform='Standard',exposure=exposure),silhouette=model_id+'-silhouette.png')
+                                  view_transform='Standard',exposure=exposure,lighting=RUNTIME_LIGHTING),silhouette=model_id+'-silhouette.png')
         # Side: -X makes -Z bore read left. Held: behind (+Z) and above in the
         # model's bore frame; no grip-pose orientation is baked into this view.
         for view,offset in {'front':(-3,0,0),'threequarter':(-2.1,2.2,1.25),'held':(-.65,-3,1.5)}.items():
@@ -285,6 +339,21 @@ def blender_run(model_id, parameters):
                 screen=world_to_camera_view(scene,camera,obj.matrix_world.translation)
                 anchors[name]=[round(screen.x,6),round(1-screen.y,6)]
             callouts['views'][view]=dict(image=filename,nodes=anchors)
+        callouts['sight_reviews']={}
+        camera_data.ortho_scale=.035
+        for lod in (0,1):
+            for group,objects in lod_objects.items():
+                for obj in objects: obj.hide_render=group!=lod
+            rear=fixed['sight_rear'].matrix_world.translation
+            camera.location=rear+vec((0,0,.12))
+            target=rear+vec((0,0,-.10))
+            camera.rotation_euler=(target-camera.location).to_track_quat('-Z','Y').to_euler()
+            bpy.context.view_layer.update()
+            filename=model_id+'-sight-lod'+str(lod)+'.png'
+            scene.render.filepath=str((args.preview_dir/filename).resolve()); bpy.ops.render.render(write_still=True)
+            callouts['sight_reviews']['LOD'+str(lod)]=filename
+        for obj in lod_objects[0]: obj.hide_render=False
+        for obj in lod_objects[1]: obj.hide_render=True
         # Uniform metric scale across all seven, white background, black unlit
         # material. This is an actual side projection, not a scaled thumbnail.
         black=bpy.data.materials.new('silhouette_black')
@@ -292,7 +361,6 @@ def blender_run(model_id, parameters):
         emission=black.node_tree.nodes.new('ShaderNodeEmission'); emission.inputs['Color'].default_value=(0,0,0,1)
         black.node_tree.links.new(emission.outputs[0],output.inputs['Surface'])
         for obj in lod_objects[0]: obj.data.materials[0]=black
-        for obj in lights: obj.hide_render=True
         background.inputs['Color'].default_value=(1,1,1,1); background.inputs['Strength'].default_value=1
         scene.view_settings.exposure=0; camera_data.ortho_scale=.82
         camera.location=target+Vector((-3,0,0))*length

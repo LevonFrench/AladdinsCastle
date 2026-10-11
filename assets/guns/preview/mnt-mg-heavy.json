@@ -27,11 +27,11 @@
         ],
         "sight_front": [
           0.491081,
-          0.355351
+          0.352007
         ],
         "sight_rear": [
           0.732999,
-          0.358696
+          0.352007
         ],
         "pivot_yaw": [
           0.505574,
@@ -76,11 +76,11 @@
         ],
         "sight_front": [
           0.493842,
-          0.368662
+          0.365569
         ],
         "sight_rear": [
           0.66088,
-          0.305234
+          0.299047
         ],
         "pivot_yaw": [
           0.503848,
@@ -125,11 +125,11 @@
         ],
         "sight_front": [
           0.498111,
-          0.366212
+          0.363207
         ],
         "sight_rear": [
           0.549338,
-          0.473021
+          0.467011
         ],
         "pivot_yaw": [
           0.50118,
@@ -160,8 +160,30 @@
     "denoiser": "OPENIMAGEDENOISE",
     "denoising_use_gpu": false,
     "view_transform": "Standard",
-    "exposure": -2.0
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
   },
   "silhouette": "mnt-mg-heavy-silhouette.png",
+  "sight_reviews": {
+    "LOD0": "mnt-mg-heavy-sight-lod0.png",
+    "LOD1": "mnt-mg-heavy-sight-lod1.png"
+  },
   "silhouette_scale_m": 0.82
 }

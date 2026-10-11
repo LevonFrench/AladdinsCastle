@@ -23,11 +23,11 @@
         ],
         "sight_front": [
           0.240741,
-          0.260064
+          0.205314
         ],
         "sight_rear": [
           0.717391,
-          0.214976
+          0.205314
         ],
         "pivot_trigger": [
           0.566022,
@@ -80,11 +80,11 @@
         ],
         "sight_front": [
           0.320987,
-          0.349368
+          0.298728
         ],
         "sight_rear": [
           0.650103,
-          0.176595
+          0.167659
         ],
         "pivot_trigger": [
           0.545586,
@@ -137,11 +137,11 @@
         ],
         "sight_front": [
           0.445101,
-          0.173182
+          0.12399
         ],
         "sight_rear": [
           0.546033,
-          0.337197
+          0.328516
         ],
         "pivot_trigger": [
           0.51398,
@@ -184,8 +184,30 @@
     "denoiser": "OPENIMAGEDENOISE",
     "denoising_use_gpu": false,
     "view_transform": "Standard",
-    "exposure": -2.0
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
   },
   "silhouette": "con-pistol-dpad-silhouette.png",
+  "sight_reviews": {
+    "LOD0": "con-pistol-dpad-sight-lod0.png",
+    "LOD1": "con-pistol-dpad-sight-lod1.png"
+  },
   "silhouette_scale_m": 0.82
 }

@@ -58,6 +58,10 @@ guard and cable boss stay stationary. The twin's whole-body visual
 kick carries all visible furniture while its aim/reference anchors stay fixed.
 Visible sight parts are `front_sight_geometry`/`rear_sight_geometry`; the static
 `sight_front`/`sight_rear` names and transforms stay reserved for reference nodes.
+Both anchors share one height parallel to the bore. The front is a 3 mm blade;
+the rear is a 6 mm open notch with level top edges. Bases retain their original
+seated positions; a taller sight bridges any roof-height difference. Both LODs
+retain the complete notch profile. Mounted yaw/pitch intent remains unchanged.
 
 Canonical animated names appear in LOD0; LOD1 equivalents have `_lod1` suffixes.
 Both carry `extras.semantic_node`. Metadata `[motion.<id>]` includes `lod_nodes`,
@@ -69,11 +73,20 @@ The lead accepted this convention for the v0.1 controls contract.
 The CPU batch writes 512×512 `<id>.png` (three-quarter, p1 tint),
 `<id>-front.png` (left-side elevation for part labels) and `<id>-held.png`
 (behind and slightly above in the model's aim frame). CPU Cycles uses 64 samples
-and OpenImageDenoise with GPU denoising disabled, Standard transform and reduced
-exposure. `<id>.json` has version,
+and OpenImageDenoise with GPU denoising disabled, Standard transform, no look,
+gamma 1 and exposure 0. The emission-only preview shader matches
+`runtime-lighting.json`: normalized camera-space light `(0.36, 0.70, 0.62)` and
+factor `0.35 + 0.65 * max(dot(normal_view, light), 0)`, applied to the exported
+linear base factors and linear P1 tint. There are no physical lamps, specular,
+shadows or tone mapping. The PNG encodes linear colour to sRGB. This is the R2
+runtime lighting contract at each preview camera angle, not scene matching or
+evidence of an accepted headset render. Product alpha is retained.
+`<id>.json` has version,
 model, image size and `views.front/threequarter/held`: each supplies an image basename
 and every semantic node's normalized `[x,y]` position (origin top left).
 These are camera projections computed from the actual model, not guessed labels.
+`sight_reviews.LOD0/LOD1` names two additional 512-pixel views looking straight
+through the rear notch along the bore; inspect both before acceptance.
 `sheet.png` is a 4×2 contact sheet in model order:
 generic, slide, twin, slim, dpad, chunky, mounted. `silhouette-sheet.png` combines
 flat black side projections on white at a shared 0.82 m square camera scale.
@@ -91,6 +104,11 @@ The checker reads real vertex/index buffers and node transforms to measure each
 LOD; declared accessor bounds cannot fool it. It checks file/chunk/buffer bounds,
 scene roots, unique names, bore direction, triangle/material limits, buttons,
 motion aliases/limits, all three PNG dimensions and every required callout anchor.
+Tier 1 also requires finite unit vertex normals and actual exported notch/blade
+geometry on both LODs. Ray tests check an open notch, both rear cheeks and base,
+a narrow front blade and a clear path between the sights. These tests use world
+triangles, not only claimed anchors or accessor bounds. Preview receipts must
+match the runtime-lighting contract and include both sight-through images.
 For each LOD separately, every mesh instance's world bounds must touch or overlap
 another's, measured from referenced vertices. This is an AABB contact check;
 visual inspection still checks that actual surfaces meet.
