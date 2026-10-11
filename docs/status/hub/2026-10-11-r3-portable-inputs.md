@@ -27,8 +27,10 @@ cover override/default cache layouts and reject generated/bin junctions before
 any configure call, with external sentinels unchanged. No product compiler, real
 native executable, game/Steam/runtime or actual candidate package was run.
 
-Final repair freeze and reconciliation with integrated consumer/calibration
-await independent closure. Real four-EXE lineage and deployed Qt notice
+Reconciled once with integrated next source 64680ef, without conflicts or
+portable-file overlaps; the inherited Hub delta is the reviewed launcher
+logging wrapper. Final repair freeze awaits independent closure before a real
+candidate build. Real four-EXE lineage and deployed Qt notice
 inventory remain execution/release gates. Consumer/calibration final hosted
 checks passed and are integrated; the earlier launcher failure remains unknown.
 Parent owns candidate approval, coordinated build slot, publication and merges.
