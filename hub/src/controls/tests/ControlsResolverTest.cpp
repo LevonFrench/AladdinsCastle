@@ -108,6 +108,13 @@ private slots:
         QVERIFY(!out.value("data").toMap().value("policy").toMap().value("native_two_remotes").toBool());
         options.route="flat-dolphin";QVERIFY(resolver.resolveGame("wii-resident-evil-umbrella-chronicles",options,out,error));
         QCOMPARE(out.value("data").toMap().value("route").toString(),QString("flat-dolphin"));
+        options.profileDefaults={{"policy",Map{{"p1_hand","left"}}}};
+        QVERIFY(resolver.resolveGame("wii-resident-evil-umbrella-chronicles",options,out,error));
+        auto data=out.value("data").toMap();
+        QVERIFY(data.value("profiles").toMap().value("dsu").toString().endsWith("/scripted-dsu-left.ini"));
+        QCOMPARE(data.value("transport").toMap().value("device_slots").toMap(),Map({{"remote",0},{"nunchuk",1}}));
+        options.route="dolphinxr";QVERIFY(resolver.resolveGame("wii-resident-evil-umbrella-chronicles",options,out,error));
+        QVERIFY(out.value("data").toMap().value("profiles").toMap().value("native").toString().endsWith("/dolphinxr-left.ini"));
         options.route="unknown";QVERIFY(!resolver.resolveGame("wii-resident-evil-umbrella-chronicles",options,out,error));
     }
     void callerModelDefaultsAreProvisionalAndDoNotOverrideGameModel() {

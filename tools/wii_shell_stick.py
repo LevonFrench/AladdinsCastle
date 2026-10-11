@@ -12,6 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 MODES=('split','docked','two-remotes')
 ROUTES=('dolphinxr','flat-dolphin')
 TOKENS={'trigger','grip','click','primary','secondary','up','down','left','right'}
+CANONICAL_LIVE_SOURCE_TESTED=True # Lead's 18 CPU/loopback checks and independent source review.
 
 def source(root=ROOT):
     with (Path(root)/'data/controls/wii/shell-and-stick.toml').open('rb') as f: data=tomllib.load(f)
@@ -46,6 +47,11 @@ def hands(mode,primary,slot=0):
 
 def expression(action,mode): return action['dual' if mode=='two-remotes' else 'split']
 
+def dsu_action_supported(action,data):
+    # Current Pad payload emits its 16-bit button mask and analog sticks.
+    # PS/Home is a separate byte which this producer always writes as zero.
+    return action['wire'] in data['dsu']['scripted_buttons'] or action['wire'] in ('Left X+','Left X-','Left Y+','Left Y-')
+
 def native_expression(expr,hand,data):
     def token(n):
         if n in ('primary','secondary'): return '`'+data['native'][hand+'_'+n]+'`'
@@ -72,7 +78,7 @@ def render_profile(route='dolphinxr',mode='split',primary_hand='right',root=ROOT
         for a in data['action']:
             hand=firing if a['role']=='remote' else other
             device=remote if a['role']=='remote' else stick
-            profile[a['ini']]=native_expression(expression(a,mode),hand,data) if route=='dolphinxr' else dsu(a['wire'],device)
+            profile[a['ini']]=native_expression(expression(a,mode),hand,data) if route=='dolphinxr' else dsu(a['wire'],device) if dsu_action_supported(a,data) else ''
         for direction in ('Up','Down','Left','Right','Forward','Backward'):
             for prefix,hand,device in (('',firing,remote),('Nunchuk/',other,stick)):
                 name=data['native']['accel'].format(hand=hand.title(),direction=direction)
@@ -88,15 +94,17 @@ def render_profile(route='dolphinxr',mode='split',primary_hand='right',root=ROOT
     config=configparser.ConfigParser(interpolation=None); config.optionxform=str; config.read_dict(sections)
     output=io.StringIO(); config.write(output)
     # Preserve canonical bytes: existing installer recipes pin these hashes.
-    return output.getvalue().encode('utf-8')
+    text=output.getvalue()
+    if route=='flat-dolphin':text=text.replace('Buttons/Home = \n','Buttons/Home =\n')
+    return text.encode('utf-8')
 
 def bridge_profile(mode='split',primary_hand='right',root=ROOT):
     data=source(root); players=[]
     for slot in range(2 if mode=='two-remotes' else 1):
         firing,other=hands(mode,primary_hand,slot)
-        players.append(dict(player=slot,remote_hand=firing,stick_hand=other,actions=[dict(id=a['id'],role=a['role'],wire=a['wire'],expression=expression(a,mode),hand=firing if a['role']=='remote' else other) for a in data['action']]))
+        players.append(dict(player=slot,remote_hand=firing,stick_hand=other,actions=[dict(id=a['id'],role=a['role'],wire=a['wire'],expression=expression(a,mode),hand=firing if a['role']=='remote' else other,supported=dsu_action_supported(a,data)) for a in data['action']]))
     return dict(version=data['version'],route='flat-dolphin',mode=mode,primary_hand=primary_hand,players=players,
-                recenter_chord=data['recenter_chord'],recenter_suppresses_game_buttons=True,
+                recenter_chord=data['recenter_chord'],recenter_suppresses_game_buttons=True,live_bridge_compatible=False,live_bridge_reason='Legacy Mapper does not consume the canonical action policy or reserved recenter chord',recenter_supported=False,
                 motion=dict(physical=True,button_fallback=True,button_transport='Shake/Swing bindings',units=dict(accel='g',gyro='degrees_per_second')))
 
 def game_policy(game_id,root=ROOT):
@@ -119,10 +127,27 @@ def render_scripted_profile(game_id,primary_hand='right',root=ROOT):
     if primary_hand not in ('left','right'): raise ValueError('Invalid primary hand')
     return render_profile('flat-dolphin',game_policy(game_id,root)['hold']['default'],'right',root)
 
+def render_producer_profile(game_id,producer,primary_hand='right',root=ROOT):
+    if producer=='native-openxr':return render_game_profile(game_id,'dolphinxr',primary_hand,root)
+    if producer=='scripted-dsu':return render_scripted_profile(game_id,primary_hand,root)
+    if producer=='canonical-live':
+        if not CANONICAL_LIVE_SOURCE_TESTED:raise ValueError('Canonical live consumer has not passed source review')
+        return render_scripted_profile(game_id,primary_hand,root)
+    if producer=='legacy-steamvr':raise ValueError('Legacy live bridge is incompatible: button roles, modifier policy and recenter chord are not adopted')
+    raise ValueError('Unknown input producer')
+
 def scripted_bridge_profile(game_id,primary_hand='right',root=ROOT):
     policy=game_policy(game_id,root); mode=policy['hold']['default']
     descriptor=bridge_profile(mode,primary_hand,root)
     descriptor.update(schema='scripted-dsu/1',game_id=game_id,device_slots=dict(remote=0,nunchuk=1),server=dict(name=source(root)['dsu']['server'],host='127.0.0.1',port=26760),reload=policy['reload'])
+    descriptor['live_bridge_compatible']=CANONICAL_LIVE_SOURCE_TESTED
+    descriptor['live_bridge_reason']='Canonical per-game role-slot transport; game/headset validation pending' if CANONICAL_LIVE_SOURCE_TESTED else 'Canonical live consumer implementation and source review pending'
+    descriptor['producer_policy']=dict(schema='canonical-dsu/1',expression_tokens=sorted(TOKENS),
+        slots=dict(remote=0,nunchuk=1),unsupported_actions=['home'],offscreen_hide_supported=False,
+        recenter=dict(chord=descriptor['recenter_chord'],suppress_game_buttons=True,shared_theatre_calibration=True),
+        producers=dict(scripted_dsu=dict(supported=True,tracked_recenter=False),
+            legacy_steamvr=dict(supported=False,reason='Legacy Mapper does not consume the canonical action policy or reserved recenter chord'),
+            canonical_live=dict(supported=CANONICAL_LIVE_SOURCE_TESTED,state='source-tested' if CANONICAL_LIVE_SOURCE_TESTED else 'consumer-implementation-pending')))
     buttons=source(root)['dsu']['scripted_buttons']
     for player in descriptor['players']:
         for action in player['actions']:
@@ -154,7 +179,7 @@ def generated_files(root=ROOT):
     result['scripted-dsu/DSUClient.ini']=f'[Server]\nEnabled = True\nEntries = {source(root)["dsu"]["server"]}:127.0.0.1:26760\n'.encode()
     hashes={name:hashlib.sha256(data).hexdigest() for name,data in result.items()}
     result['generated-files.json']=(json.dumps(dict(version='shell-stick/1',source='data/controls/wii/shell-and-stick.toml',files=hashes,
-        capabilities=dict(dolphinxr=dict(split=True,docked=True,two_remotes=False,left_hand_requires='Android/QuestLeftHanded'),flat_dolphin=dict(split=True,docked=True,two_remotes=True))),indent=2)+'\n').encode()
+        capabilities=dict(dolphinxr=dict(split=True,docked=True,two_remotes=False,left_hand_requires='Android/QuestLeftHanded'),flat_dolphin=dict(split=True,docked=True,two_remotes=True,home=False,live_bridge_compatible=False,scripted_single_player=True,recenter=False),canonical_live=dict(single_player=CANONICAL_LIVE_SOURCE_TESTED,two_remotes=False,home=False,recenter=False))),indent=2)+'\n').encode()
     return result
 
 def write_generated(root=ROOT,check=False):

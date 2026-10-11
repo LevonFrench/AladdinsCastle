@@ -49,7 +49,7 @@ class WiiControlsTests(unittest.TestCase):
         self.assertEqual(row['model'],'con-remote-shell');self.assertFalse(any('coin' in e['id'] for e in row['data']['element']))
         for e in row['data']['element']:
             if e['target'] in ('pointer','accelerometer_gyro','nunchuk_acceleration'):continue
-            self.assertEqual(e['availability']['state'],'planned')
+            self.assertEqual(e['availability']['state'],'unavailable' if e['id'].endswith('-home') else 'planned')
         with self.assertRaisesRegex(ValueError,'unsupported layers'):Resolver().resolve_game(row['game_id'],user_override={'policy':{'p1_hand':'left'}})
     def test_variants_cannot_repair_missing_or_mismatched_baseline_route(self):
         from pathlib import Path

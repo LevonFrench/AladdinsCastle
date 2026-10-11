@@ -15,6 +15,7 @@
           "wire": "R2",
           "expression": "trigger & !grip",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -28,6 +29,7 @@
           "wire": "Cross",
           "expression": "primary & !grip",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -41,6 +43,7 @@
           "wire": "Pad N",
           "expression": "up & !grip",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -54,6 +57,7 @@
           "wire": "Pad S",
           "expression": "down & !grip",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -67,6 +71,7 @@
           "wire": "Pad W",
           "expression": "left & !grip",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -80,6 +85,7 @@
           "wire": "Pad E",
           "expression": "right & !grip",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -93,6 +99,7 @@
           "wire": "Options",
           "expression": "grip & primary",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -106,6 +113,7 @@
           "wire": "Share",
           "expression": "grip & secondary",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -119,6 +127,7 @@
           "wire": "Square",
           "expression": "grip & up",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -132,6 +141,7 @@
           "wire": "Triangle",
           "expression": "grip & down",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -145,6 +155,7 @@
           "wire": "PS",
           "expression": "grip & click",
           "hand": "left",
+          "supported": false,
           "slot": 0,
           "script": {
             "supported": false,
@@ -157,6 +168,7 @@
           "wire": "L2",
           "expression": "trigger",
           "hand": "right",
+          "supported": true,
           "slot": 1,
           "script": {
             "supported": true,
@@ -170,6 +182,7 @@
           "wire": "Circle",
           "expression": "grip",
           "hand": "right",
+          "supported": true,
           "slot": 1,
           "script": {
             "supported": true,
@@ -183,6 +196,7 @@
           "wire": "Left Y+",
           "expression": "up",
           "hand": "right",
+          "supported": true,
           "slot": 1,
           "script": {
             "supported": true,
@@ -197,6 +211,7 @@
           "wire": "Left Y-",
           "expression": "down",
           "hand": "right",
+          "supported": true,
           "slot": 1,
           "script": {
             "supported": true,
@@ -211,6 +226,7 @@
           "wire": "Left X-",
           "expression": "left",
           "hand": "right",
+          "supported": true,
           "slot": 1,
           "script": {
             "supported": true,
@@ -225,6 +241,7 @@
           "wire": "Left X+",
           "expression": "right",
           "hand": "right",
+          "supported": true,
           "slot": 1,
           "script": {
             "supported": true,
@@ -239,6 +256,7 @@
           "wire": "R1",
           "expression": "secondary & !grip",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -252,6 +270,7 @@
           "wire": "L1",
           "expression": "click & !grip",
           "hand": "left",
+          "supported": true,
           "slot": 0,
           "script": {
             "supported": true,
@@ -265,6 +284,7 @@
           "wire": "R3",
           "expression": "primary",
           "hand": "right",
+          "supported": true,
           "slot": 1,
           "script": {
             "supported": true,
@@ -278,6 +298,7 @@
           "wire": "L3",
           "expression": "secondary",
           "hand": "right",
+          "supported": true,
           "slot": 1,
           "script": {
             "supported": true,
@@ -293,6 +314,9 @@
     "left.click"
   ],
   "recenter_suppresses_game_buttons": true,
+  "live_bridge_compatible": true,
+  "live_bridge_reason": "Canonical per-game role-slot transport; game/headset validation pending",
+  "recenter_supported": false,
   "motion": {
     "physical": true,
     "button_fallback": true,
@@ -326,5 +350,49 @@
     "target_action": "remote-shake",
     "button_fallback": "remote-shake",
     "enabled": false
+  },
+  "producer_policy": {
+    "schema": "canonical-dsu/1",
+    "expression_tokens": [
+      "click",
+      "down",
+      "grip",
+      "left",
+      "primary",
+      "right",
+      "secondary",
+      "trigger",
+      "up"
+    ],
+    "slots": {
+      "remote": 0,
+      "nunchuk": 1
+    },
+    "unsupported_actions": [
+      "home"
+    ],
+    "offscreen_hide_supported": false,
+    "recenter": {
+      "chord": [
+        "right.click",
+        "left.click"
+      ],
+      "suppress_game_buttons": true,
+      "shared_theatre_calibration": true
+    },
+    "producers": {
+      "scripted_dsu": {
+        "supported": true,
+        "tracked_recenter": false
+      },
+      "legacy_steamvr": {
+        "supported": false,
+        "reason": "Legacy Mapper does not consume the canonical action policy or reserved recenter chord"
+      },
+      "canonical_live": {
+        "supported": true,
+        "state": "source-tested"
+      }
+    }
   }
 }
