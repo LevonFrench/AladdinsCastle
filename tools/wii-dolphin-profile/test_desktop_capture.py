@@ -38,7 +38,7 @@ class CaptureTest(unittest.TestCase):
         inputs = {}
         for key, name in (("dolphin", "Dolphin.exe"), ("capture", "acvr-dolphin-theatre.exe"), ("disc", "synthetic-disc.bin")):
             path = self.local / name
-            path.write_bytes(b"RBUP08" + bytes(26) if key == "disc" else b"synthetic binary, not executable")
+            path.write_bytes(b"RBUP08" + bytes(18) + b"\x5d\x1c\x9e\xa3" + bytes(4) if key == "disc" else b"synthetic binary, not executable")
             inputs[key] = str(path)
             inputs[key + ("_header_sha256" if key == "disc" else "_sha256")] = capture.sha256(path, key == "disc")
         self.config = self.local / "inputs.json"
@@ -83,7 +83,7 @@ class CaptureTest(unittest.TestCase):
 
     def test_unscoped_disc_and_outside_config_reject(self):
         path = Path(self.inputs["disc"])
-        path.write_bytes(b"ZZZZZZ" + bytes(26))
+        path.write_bytes(b"zzzzzz" + bytes(26))
         with self.assertRaises(ValueError):
             capture.sha256(path, True)
         with self.assertRaises(ValueError):
