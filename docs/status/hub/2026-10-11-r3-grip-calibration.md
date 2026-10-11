@@ -24,9 +24,12 @@ control and shared restart, retaining the original hand/action after form edits.
 Heavy slot released. Independent source review closed checkpoint `541b6be`.
 The accepted consumer report correction is inherited; the unchanged public
 privacy policy passes, with all reviewed Hub source/test bytes preserved.
-Hosted verification is pending;
+Frozen `0eaa6de` passed all three hosted push checks. Calibration is reconciled
+with the reviewed consumer `32ec410` and pinned `next` `4cd0c1d`, preserving
+all Hub-owned source/test bytes. Independent merge review and actual PR merge CI
+remain pending;
 no native room, XR, GPU, physical input, calibration save or headset acceptance
 was executed. QML uses an inert service probe; actual HubServices/native runtime
-and controller/save behavior remain unproved. Next: lead publication checkpoint,
+and controller/save behavior remain unproved. Next: lead merge publication checkpoint,
 native lane's matching
 capability receipt, then the lead's next task. Parent owns AGENCY/KB and merges.
