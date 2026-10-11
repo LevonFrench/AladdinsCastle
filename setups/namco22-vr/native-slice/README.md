@@ -1,5 +1,12 @@
 # Native synthetic System 22 slice
 
+The [two-scene proof source](PAIRED-PROOF-SOURCE.md) adds a separate default-OFF
+target and private producer/controller protocol. Its [Viewer interface](PAIRED-PRODUCER-INTERFACE.md)
+fixes role/key/ROI semantics; the serializer example is explicitly source-synthetic.
+CPU checks: `python -B paired_proof_tests.py`. Native compilation and any run
+remain deferred to independent review and a coordinated slot. The production
+library and backend capabilities remain unchanged.
+
 The proposed [snapshot/oracle freeze](SNAPSHOT-ORACLE-FREEZE.md) fixes the
 resolved native input root and bounded numeric scene manifest. Verify its CPU
 fixtures with `python -B check_scene_vectors.py` from this directory. It covers

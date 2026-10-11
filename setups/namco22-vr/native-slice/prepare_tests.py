@@ -45,6 +45,12 @@ def main():
         assert 'glTexParameteri(GL_TEXTURE_1D,GL_TEXTURE_MIN_FILTER,GL_NEAREST)' in batch
         assert 'glTexParameteri(GL_TEXTURE_1D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE)' in batch
         assert '!st_buf.pose && !bb_run.pose' in batch
+        assert 'int acn22_proof_prime(' in batch
+        assert 'glGetTexImage(GL_TEXTURE_1D,0,GL_ALPHA,GL_UNSIGNED_BYTE,actual)' in batch
+        tex = (out/'engine/tex_bake.c').read_text()
+        assert '#if ACN22_NATIVE_GPU_PROOF' in tex
+        assert 'if (acn22_proof_cache_locked())' in tex
+        assert 'out_su,out_sv,out_ou,out_ov,0,1); /* lookup ONLY */' in tex
         sentinel = out/'sentinel'
         sentinel.write_text('keep')
         def refused(output, pin=module.PIN):
