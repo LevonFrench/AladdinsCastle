@@ -101,6 +101,8 @@ class CaptureTest(unittest.TestCase):
         self.assertEqual(result["capture_exit"], 1)
         self.assertFalse(result["rgb_gate"])
         self.assertEqual([r["pid"] for r in result["owned_cleanup"]], [456, 123])
+        self.assertEqual([r["termination"] for r in result["owned_cleanup"]], ["already-exited", "terminate"])
+        self.assertFalse(result["normal_exit"])
         self.assertTrue((self.run / "result.json").is_file())
         self.assertTrue((self.run / "capture.log").is_file())
 
@@ -108,7 +110,7 @@ class CaptureTest(unittest.TestCase):
         plan = self.plan()
         dolphin, viewer = Child(123), Child(456)
         children = iter((dolphin, viewer))
-        ticks = iter((0, 0, 100))
+        ticks = iter((0, 0, 200))
         result = capture.supervise(plan, popen=lambda *a, **k: next(children), window_count=lambda pid: 1,
                                    clock=lambda: next(ticks), sleep=lambda t: None)
         self.assertIn("exceeded bound", result["error"])
@@ -125,7 +127,7 @@ class CaptureTest(unittest.TestCase):
                 for name in ("frame-1.png", "frame-2.png"):
                     (proof / name).write_bytes(b"\x89PNG\r\n\x1a\n" + b"synthetic")
                 (proof / "capture.json").write_text(json.dumps({"capture": "Windows.Graphics.Capture",
-                    "different_rgb": True, "interval_ms": 1100}))
+                    "different_rgb": True, "spatial_candidate": True, "game_window_selected": True, "interval_ms": 1100}))
             return next(children)
         result = capture.supervise(plan, popen=start, window_count=lambda pid: 1)
         self.assertTrue(result["rgb_gate"])
@@ -157,6 +159,46 @@ class CaptureTest(unittest.TestCase):
             self.assertIn("Incomplete capture receipt", result["error"])
             self.assertFalse(result["rgb_gate"])
             self.assertEqual(len(result["owned_cleanup"]), 2)
+
+    def test_settle_delays_capture_and_stops_if_window_changes(self):
+        plan = self.plan()
+        for changed in (False, True):
+            dolphin = Child(123)
+            calls = []
+            ticks = iter((0, 0, 1, 8, 8))
+            counts = iter((1, 2 if changed else 1))
+            def start(argv, **kwargs):
+                calls.append(argv)
+                return dolphin if len(calls) == 1 else Child(456, 1)
+            result = capture.supervise(plan, settle=7, popen=start, clock=lambda: next(ticks),
+                window_count=lambda pid: next(counts), sleep=lambda t: None)
+            self.assertEqual(len(calls), 1 if changed else 2)
+            if changed:
+                self.assertIn("window changed during settle", result["error"])
+            else:
+                self.assertEqual(result["settle_seconds"], 7)
+            self.assertTrue(dolphin.terminated)
+        with self.assertRaises(ValueError):
+            capture.supervise(plan, settle=31)
+
+    def test_canonical_dsu_manifest_preserved_and_named_override_removed(self):
+        generated = self.local / "generated"
+        profile = generated / "flat-dolphin/split-right.ini"
+        profile.parent.mkdir(parents=True)
+        profile.write_bytes(b"[Wiimote1]\nSource = 1\nDevice = DSUClient/0/AladdinsCastle\n")
+        (generated / "generated-files.json").write_text(json.dumps({"version":"shell-stick/1",
+            "files":{"flat-dolphin/split-right.ini":capture.sha256(profile)}}))
+        self.inputs.update(dsu_profile=str(profile), dsu_profile_sha256=capture.sha256(profile))
+        self.config.write_text(json.dumps(self.inputs))
+        self.plan()
+        self.assertEqual((self.run / "User/Config/WiimoteNew.ini").read_bytes(), profile.read_bytes())
+        ini = configparser.ConfigParser()
+        ini.read(self.run / "User/Config/Dolphin.ini")
+        self.assertEqual(ini["Input"]["BackgroundInput"], "True")
+        self.assertNotIn("WiimoteProfile", (self.run / "User/GameSettings/RBUP08.ini").read_text())
+        profile.write_bytes(b"tampered")
+        with self.assertRaises(ValueError):
+            capture.admit(self.config,self.root)
 
 
 if __name__ == "__main__":

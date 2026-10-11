@@ -45,6 +45,14 @@ def admit(config, root=setup.ROOT):
         expected = state[key + ("_header_sha256" if key == "disc" else "_sha256")]
         if not isinstance(expected, str) or sha256(path, header=key == "disc") != expected.lower():
             raise ValueError("Input identity changed: " + key)
+    if "dsu_profile" in state:
+        profile = Path(state["dsu_profile"])
+        manifest = json.loads((profile.parent.parent / "generated-files.json").read_text(encoding="utf-8"))
+        if (not profile.is_absolute() or profile.parent.name != "flat-dolphin" or profile.name != "split-right.ini"
+                or manifest.get("version") != "shell-stick/1"
+                or manifest.get("files", {}).get("flat-dolphin/split-right.ini") != sha256(profile)
+                or state.get("dsu_profile_sha256") != sha256(profile)):
+            raise ValueError("DSU profile does not match the canonical generated manifest")
     return state
 
 
@@ -59,12 +67,20 @@ def prepare(config, run, root=setup.ROOT):
     ini.optionxform = str
     ini.read_string(path.read_text(encoding="utf-8"))
     ini["Display"]["RenderToMain"] = "False"
+    if "dsu_profile" in state:
+        ini["Input"] = {"BackgroundInput": "True"}
+        (user / "Config/WiimoteNew.ini").write_bytes(Path(state["dsu_profile"]).read_bytes())
+        # Fresh per-game named profiles otherwise override the canonical global DSU bindings.
+        for game_id in setup.GAME_IDS:
+            (user / "GameSettings" / (game_id + ".ini")).write_bytes(setup.ini({"Controls": {}}))
     path.write_bytes(setup.ini({section: dict(ini[section]) for section in ini.sections()}))
     # Logs and all emulator outputs use the fresh user/cwd, not the installed User.
     (user / "Logs").mkdir()
     result = {"schema": 1, "config": str(config), "run": str(run), "user": str(user),
               "dolphin": setup.command(user, state["dolphin"], state["disc"], root),
               "capture": state["capture"], "inputs": state, "state": "prepared", "live_proof": False}
+    with Path(state["disc"]).open("rb") as stream:
+        result["game_id"] = stream.read(6).decode("ascii")
     (run / "prepared.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
 
@@ -95,20 +111,23 @@ def owned_window_count(pid):
 
 
 def stop_owned(process):
+    termination = "already-exited"
     if process.poll() is None:
+        termination = "terminate"
         process.terminate()
         try:
             process.wait(timeout=3)
         except subprocess.TimeoutExpired:
+            termination = "kill"
             process.kill()
             process.wait(timeout=3)
-    return process.returncode
+    return {"exit": process.returncode, "termination": termination}
 
 
-def supervise(plan, seconds=15, startup=30, popen=subprocess.Popen,
+def supervise(plan, seconds=15, startup=90, settle=0, popen=subprocess.Popen,
               window_count=owned_window_count, clock=time.monotonic, sleep=time.sleep):
     """Keep both owned children alive until capture completes; always reap them."""
-    if not 3 <= seconds <= 60 or not 1 <= startup <= 30:
+    if not 3 <= seconds <= 60 or not 1 <= startup <= 90 or not 0 <= settle <= 30:
         raise ValueError("Invalid bounded timing")
     run = Path(plan["run"])
     receipt = {"schema": 1, "state": "failed", "live_proof": False,
@@ -119,7 +138,7 @@ def supervise(plan, seconds=15, startup=30, popen=subprocess.Popen,
             dolphin = popen(plan["dolphin"], cwd=plan["user"], stdout=log, stderr=subprocess.STDOUT)
             children.append(dolphin)
             receipt["dolphin_pid"] = dolphin.pid
-            deadline = clock() + startup
+            deadline = clock() + min(startup, 30)
             while True:
                 if dolphin.poll() is not None:
                     raise RuntimeError("Owned Dolphin exited before capture")
@@ -132,11 +151,23 @@ def supervise(plan, seconds=15, startup=30, popen=subprocess.Popen,
                     raise TimeoutError("No owned game window; stop and diagnose without input")
                 sleep(0.1)
             args = [plan["capture"], "--pid", str(dolphin.pid), "--seconds", str(seconds),
-                    "--capture-only", "--proof-dir", str(run / "proof")]
+                    "--capture-only", "--game-id", plan["game_id"], "--startup-seconds", str(startup),
+                    "--proof-dir", str(run / "proof")]
+            # An HWND can predate real rendering. Delay only by an explicit,
+            # bounded setting; never treat elapsed time as game/SBS proof.
+            if settle:
+                ready_at = clock() + settle
+                while clock() < ready_at:
+                    if dolphin.poll() is not None:
+                        raise RuntimeError("Owned Dolphin exited during settle")
+                    if window_count(dolphin.pid) != 1:
+                        raise RuntimeError("Owned window changed during settle; stop for owner")
+                    sleep(0.1)
+            receipt["settle_seconds"] = settle
             capture = popen(args, cwd=run, stdout=capture_log, stderr=subprocess.STDOUT)
             children.append(capture)
             receipt["capture_pid"] = capture.pid
-            deadline = clock() + seconds + 5
+            deadline = clock() + startup + seconds + 5
             while capture.poll() is None:
                 if dolphin.poll() is not None:
                     raise RuntimeError("Owned Dolphin exited during capture")
@@ -150,6 +181,7 @@ def supervise(plan, seconds=15, startup=30, popen=subprocess.Popen,
             data = json.loads((proof / "capture.json").read_text(encoding="utf-8"))
             if (not isinstance(data, dict) or data.get("capture") != "Windows.Graphics.Capture"
                     or data.get("different_rgb") is not True
+                    or data.get("spatial_candidate") is not True or data.get("game_window_selected") is not True
                     or type(data.get("interval_ms")) is not int or data["interval_ms"] < 1000):
                 raise RuntimeError("Incomplete capture receipt")
             for name in ("frame-1.png", "frame-2.png"):
@@ -163,10 +195,12 @@ def supervise(plan, seconds=15, startup=30, popen=subprocess.Popen,
         # Reverse order: release WGC before stopping its selected Dolphin process.
         for child in reversed(children):
             try:
-                receipt["owned_cleanup"].append({"pid": child.pid, "exit": stop_owned(child)})
+                receipt["owned_cleanup"].append({"pid": child.pid, **stop_owned(child)})
             except (OSError, subprocess.TimeoutExpired) as error:
                 receipt["cleanup_error"] = str(error)
                 receipt["state"] = "cleanup-failed"
+        receipt["normal_exit"] = bool(children) and len(receipt["owned_cleanup"]) == len(children) and all(
+            item["termination"] == "already-exited" and item["exit"] == 0 for item in receipt["owned_cleanup"])
         (run / "result.json").write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     return receipt
 
@@ -177,12 +211,14 @@ def main(argv=None):
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--run-dir", required=True, type=Path)
     parser.add_argument("--seconds", type=int, default=15)
+    parser.add_argument("--settle-seconds", type=int, default=0)
+    parser.add_argument("--startup-seconds", type=int, default=90)
     args = parser.parse_args(argv)
     try:
         if args.action == "run" and os.name != "nt":
             raise ValueError("Live WGC capture requires Windows")
-        if not 3 <= args.seconds <= 60:
-            raise ValueError("Capture bound must be 3..60 seconds")
+        if not 3 <= args.seconds <= 60 or not 0 <= args.settle_seconds <= 30 or not 1 <= args.startup_seconds <= 90:
+            raise ValueError("Capture bound must be 3..60 and settle 0..30 seconds")
         plan = prepare(args.config, args.run_dir)
         if args.action == "prepare":
             print("Prepared private isolated run; no application launched")
@@ -190,7 +226,7 @@ def main(argv=None):
         # Recheck identities immediately before process creation, after writes.
         if admit(args.config) != plan["inputs"]:
             raise ValueError("Configuration changed after preparation")
-        result = supervise(plan, args.seconds)
+        result = supervise(plan, args.seconds, startup=args.startup_seconds, settle=args.settle_seconds)
         print(result["state"] + "; inspect private result.json and client PNGs")
         return 0 if result["state"] == "captured-awaiting-inspection" else 1
     except (OSError, ValueError, KeyError) as error:

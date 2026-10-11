@@ -1,7 +1,10 @@
 # Dolphin SBS capture and theatre
 
 The Windows helper uses Windows.Graphics.Capture for one explicit Dolphin.exe
-PID and its single visible unowned window. It crops the captured window to the
+PID and one explicitly admitted visible unowned window. In capture-only mode,
+its caption must contain the exact selected disc header ID in parentheses;
+the initial Qt main window is not accepted just because it is the only HWND.
+It crops the captured window to the
 client area using matching physical bounds. It never captures a monitor or the
 desktop. Overlapping windows do not block capture and their pixels are not read.
 The selected process/window disappearing, changing identity or minimising stops
@@ -37,14 +40,25 @@ all output outside Git. `prepare` validates inputs and writes fresh settings
 without launching; `run` requires a different fresh output directory and the
 lead's runtime slot:
 
+Optional `dsu_profile` and `dsu_profile_sha256` select the canonical generated
+`flat-dolphin/split-right.ini`. Its shared manifest must match exactly. The
+supervisor copies those bytes to its fresh User, enables background input and
+clears its own named game-profile overrides. The lead's separately supervised
+scripted DSU server must start before Dolphin; it is not launched by this tool.
+
 ```powershell
 python tools/wii-dolphin-profile/desktop_capture.py prepare --config .local/capture-inputs.json --run-dir .local/capture-prepared
 python tools/wii-dolphin-profile/desktop_capture.py run --config .local/capture-inputs.json --run-dir .local/capture-run --seconds 15
 ```
 
-The supervisor waits up to 30 seconds for exactly one owned visible window,
-bounds capture to the requested 3–60 seconds plus 5 seconds for exit, then
-reaps capture before Dolphin. No automatic retry occurs. An ambiguous owned
+The supervisor waits up to 30 seconds for an owned visible window, then starts
+the helper. The helper has a separate 1–90 second startup bound for game-window
+selection and the first spatial candidate, followed by the requested 3–60
+seconds for a changing second frame. The supervisor allows 5 seconds for exit.
+Optional `--settle-seconds 0..30` adds a bounded delay before starting the helper;
+elapsed time alone never establishes game readiness. Cleanup receipts distinguish
+an already exited child from terminate/kill, and report `normal_exit` separately.
+Forced cleanup never proves a normal game exit. No automatic retry occurs. An ambiguous owned
 window set or timeout fails without input. A successful RGB gate still leaves
 `live_proof` false and `sbs_visual_check` required in the private result: inspect
 the PNGs for actual game/SBS content before claiming desktop proof. Headset
@@ -57,14 +71,17 @@ boot. Start Dolphin with a fresh isolated profile (1280 x 720, auto-size off),
 then provide its explicit PID. No SteamVR initialization occurs in this mode:
 
 ```powershell
-& .local/build-theatre/Release/acvr-dolphin-theatre.exe --pid <DolphinPID> --seconds 15 --capture-only --proof-dir .local/capture-example
+& .local/build-theatre/Release/acvr-dolphin-theatre.exe --pid <DolphinPID> --seconds 15 --startup-seconds 90 --game-id <disc-header-ID> --capture-only --proof-dir .local/capture-example
 ```
 
 The output directory must be fresh, under .local with existing unlinked parents.
 Two client frames at least 1 second apart in compositor time must differ in RGB.
-Identical grey or black frames and alpha-only noise do not pass. Resizing during
-that comparison is an error. The two PNGs and capture.json remain private even
-when the gate fails. Inspect the PNGs for the actual game and its SBS halves:
+Uniform white, grey or black frames and alpha-only noise do not pass. The
+spatial filter ignores a five-percent perimeter and rejects an interior with
+over 99 percent one RGB colour, so rounded startup-window corners cannot qualify.
+Resizing during comparison is an error. The two candidate PNGs and capture.json
+remain private; a startup/content timeout may produce logs without PNGs.
+Inspect the PNGs for the actual game and its SBS halves:
 frame differences alone cannot establish either. Capture size is bounded;
 unknown window/frame geometry is refused instead of guessing a crop. A failed
 live attempt gets one diagnosis and one retry, then stop and report. Close every
