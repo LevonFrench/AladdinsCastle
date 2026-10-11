@@ -169,3 +169,33 @@ references, overlay resources and temporary hotkeys are released on exit.
 Sources: [Microsoft HWND capture](https://learn.microsoft.com/en-us/windows/win32/api/windows.graphics.capture.interop/nf-windows-graphics-capture-interop-igraphicscaptureiteminterop-createforwindow),
 [free-threaded frame pool](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.direct3d11captureframepool.createfreethreaded),
 [compositor frame time](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.direct3d11captureframe.systemrelativetime).
+
+## Opt-in failure diagnostics
+
+For an explicitly authorized capture-only attempt, add
+`--failure-diagnostic-dir <absolute fresh private directory under .local>`.
+Its existing parent must have no linked ancestors; the directory is reserved
+before capture and held against replacement/write access. It must differ from
+the accepted proof directory. The option is rejected for live-overlay runs.
+No diagnostic files are written on success; the reserved directory stays empty.
+
+On failure, `failure.json` records `accepted: false`, the original error, parsed
+startup/comparison bounds, exact stage, admitted PID/HWND and title-match boolean,
+client/source/crop dimensions, poll/resize/raw-frame/content/comparison counters,
+and compositor timestamps. No window title is recorded. A first spatial candidate
+(or first raw frame when none qualifies) and the latest raw frame are retained,
+at most two images, as `first-candidate.png`/`first-raw.png` and `latest-raw.png`.
+Their metadata also says `accepted: false`. Samples remain private diagnostics;
+they are never accepted `frame-1.png`, `frame-2.png` or `capture.json` evidence.
+Metadata precedes exclusive image writes; `sample_export` describes requested
+exports, and partial export errors leave the original failure and exit 1 intact.
+Existing files are never overwritten. No raw frames produces metadata only.
+
+Admission, candidate threshold, excluded border/alpha, minimum interval, RGB
+change gate and accepted proof bytes remain unchanged. Poll counters distinguish
+no delivery, pool resize, readback failure, uniform content, too-soon timestamps
+and RGB-identical candidates; scalar statistics and samples do not establish
+gameplay, stereoscopic depth or headset acceptance. The CPU diagnostic fixture
+checks phase/counters, the exact 1% boundary, alpha/border exclusion, immutable
+two-sample retention and independent JSON parsing. Software readback tests cover
+exclusive failure PNG writes and preservation of existing files.
