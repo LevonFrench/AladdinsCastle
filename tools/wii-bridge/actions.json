@@ -1,0 +1,96 @@
+{
+  "action_sets": [
+    {
+      "name": "/actions/wii",
+      "usage": "leftright"
+    }
+  ],
+  "actions": [
+    {
+      "name": "/actions/wii/in/pose_left",
+      "type": "pose",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/stick_left",
+      "type": "vector2",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/trigger_left",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/grip_left",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/a_left",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/b_left",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/menu_left",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/click_left",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/pose_right",
+      "type": "pose",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/stick_right",
+      "type": "vector2",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/trigger_right",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/grip_right",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/a_right",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/b_right",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/menu_right",
+      "type": "boolean",
+      "requirement": "optional"
+    },
+    {
+      "name": "/actions/wii/in/click_right",
+      "type": "boolean",
+      "requirement": "optional"
+    }
+  ],
+  "default_bindings": [
+    {
+      "controller_type": "oculus_touch",
+      "binding_url": "binding-touch.json"
+    }
+  ]
+}

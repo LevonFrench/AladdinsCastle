@@ -23,6 +23,8 @@ jobs:
           python-version: '3.12'
       - run: python tools/validate_catalog.py
       - run: python tools/validate_catalog.py --test
+      - name: Wii DSU packet, hand isolation and motion checks
+        run: python -m unittest discover -s tools/wii-bridge -p test_bridge.py -v
       - name: Parse all catalog and theme TOML
         shell: python
         run: |
