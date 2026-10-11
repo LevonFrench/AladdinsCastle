@@ -113,7 +113,7 @@ int wmain(int argc,wchar_t** argv) {
     fs::path diagnosticDir;
     Handle diagnosticDirectory;
     std::unique_ptr<theatre::FailureDiagnostic> diagnostic;
-    auto failed=[&](const std::string& error) {
+    auto failed=[&](const std::string& error,const char* prefix="Theatre: ") {
         if(diagnostic) {
             try {
                 // Metadata precedes samples; partial export is never proof.
@@ -125,7 +125,7 @@ int wmain(int argc,wchar_t** argv) {
             } catch(const std::exception& outputError) { std::cerr << "Failure diagnostic export: " << outputError.what() << '\n'; }
               catch(...) { std::cerr << "Failure diagnostic export failed; original error retained\n"; }
         }
-        std::cerr << "Theatre: " << error << '\n'; return 1;
+        std::cerr << prefix << error << '\n'; return 1;
     };
     try {
         unsigned pid=0,seconds=0,startupSeconds=30; fs::path headFile,proofDir; bool captureOnly=false;
@@ -314,8 +314,10 @@ int wmain(int argc,wchar_t** argv) {
         std::cout << "Stopped; submitted=" << frames << "; capture/overlay cleanup on exit\n";
         return 0;
     } catch(const winrt::hresult_error& error) {
-        std::cerr << "WGC: HRESULT=0x" << std::hex << static_cast<unsigned long>(error.code())
-                  << ' ' << winrt::to_string(error.message()) << '\n'; return 1;
-    } catch(const winrt::hresult_error& error) { return failed(winrt::to_string(error.message())+" (HRESULT "+std::to_string(error.code().value)+")"); }
+        std::ostringstream message;
+        message << "HRESULT=0x" << std::hex << static_cast<unsigned long>(error.code())
+                << ' ' << winrt::to_string(error.message());
+        return failed(message.str(),"WGC: ");
+    }
       catch(const std::exception& error) { return failed(error.what()); }
 }

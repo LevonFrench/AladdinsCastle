@@ -16,7 +16,7 @@ static void observe(FailureDiagnostic& diagnostic,const std::vector<std::uint8_t
     const bool candidate=spatialCandidate(f,&stats);
     diagnostic.observeFrame(f,stats,candidate);
 }
-int main() {
+int main(int argc,char**) {
     try {
         std::vector<std::uint8_t> uniform(imageBytes(100,100),0);
         SpatialStatistics statistics;
@@ -41,8 +41,21 @@ int main() {
         FailureDiagnostic empty(40,15);
         empty.observePoll({CapturePoll::NoFrame});
         empty.observePoll({CapturePoll::PoolRecreated});
-        empty.observePoll({CapturePoll::ReadbackError});
-        require(empty.polls==3 && empty.noFrames==1 && empty.recreates==1 && empty.pollErrors==1);
+        CaptureObservation observation;
+        try {
+            acquireCaptureFrame(observation,[argc]()->std::optional<int>{
+                if(argc>0) throw std::runtime_error("synthetic acquisition failure");
+                return std::nullopt;
+            });
+            require(false);
+        } catch(const std::runtime_error&) { require(observation.kind==CapturePoll::AcquisitionError); }
+        empty.observePoll(observation);
+        require(!acquireCaptureFrame(observation,[]{ return std::optional<int>{}; }));
+        require(observation.kind==CapturePoll::NoFrame);
+        require(acquireCaptureFrame(observation,[]{ return std::optional<int>{7}; })==7);
+        require(observation.kind==CapturePoll::ReadbackError); // Until readback completes.
+        empty.observePoll(observation);
+        require(empty.polls==4 && empty.noFrames==1 && empty.recreates==1 && empty.acquisitionErrors==1 && empty.readbackErrors==1);
         require(empty.rawFrames==0 && !empty.anchor && !empty.latest);
         require(empty.json("no frames").find("\"samples\":[]")!=std::string::npos);
         require(empty.json("no frames").find("\"first\":null")!=std::string::npos);

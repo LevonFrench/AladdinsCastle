@@ -30,8 +30,20 @@ and exclusive-write rejection without changing existing proof images. Relative
 diagnostic directories have a pre-admission rejection check.
 
 Verified at source checkpoint: whitespace check, Python wrapper syntax and nine
-privacy regressions pass. Native compilation and CTest are pending the lead's
-explicit CPU slot release after calibration; authored C++ fixtures are not yet
-claimed executed. No build, game/helper capture, SteamVR, headset, input takeover,
-media read or system change in this lane. Runtime diagnostics and the one retry
-remain unverified and require parent review/scheduling.
+privacy regressions pass. Pinned-base source comparison also confirms the
+accepted PNG writer/receipt block and spatial predicate are preserved.
+
+After the lead released the CPU slot, the first local build stalled before
+target compilation and only its verified owned build tree was stopped.
+Hosted compilation independently diagnosed a duplicate WinRT catch and encoder
+parameter shadowing under /WX; review also identified acquisition exceptions
+miscounted as empty polls. A combined repair preserves original HRESULT text/
+exit 1, uses distinct acquisition/readback failure states, and renames parameters.
+Its elevated build compiled the production helper and software readback target,
+then the deterministic fixture's always-throwing mock triggered C4702 under /WX.
+The mock now has a runtime-conditioned failure/return path. Focused rebuild and
+CTest await explicit lead continuation; no authored C++ fixture is claimed run.
+
+No game/helper capture, SteamVR, headset, input takeover, media read or system
+change in this lane. Runtime diagnostics and the one retry remain unverified
+and require parent independent review/scheduling. Warning policy is unchanged.

@@ -51,8 +51,8 @@ CapturedFrame readClientPixels(ID3D11Device* device,ID3D11DeviceContext* context
     context->Unmap(staging.Get(),0);
     return result;
 }
-static void encodePng(IStream* stream,unsigned width,unsigned height,const std::vector<std::uint8_t>& pixels) {
-    if(pixels.size()!=imageBytes(width,height)) throw std::runtime_error("PNG requires exact client pixels");
+static void encodePng(IStream* stream,unsigned imageWidth,unsigned imageHeight,const std::vector<std::uint8_t>& pixels) {
+    if(pixels.size()!=imageBytes(imageWidth,imageHeight)) throw std::runtime_error("PNG requires exact client pixels");
     ComPtr<IWICImagingFactory> factory;
     d3dCheck(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(factory.GetAddressOf())),"WIC factory");
     ComPtr<IWICBitmapEncoder> encoder;
@@ -61,11 +61,11 @@ static void encodePng(IStream* stream,unsigned width,unsigned height,const std::
     ComPtr<IWICBitmapFrameEncode> output;
     d3dCheck(encoder->CreateNewFrame(output.GetAddressOf(),nullptr),"PNG frame");
     d3dCheck(output->Initialize(nullptr),"PNG frame initialize");
-    d3dCheck(output->SetSize(width,height),"PNG size");
+    d3dCheck(output->SetSize(imageWidth,imageHeight),"PNG size");
     auto format=GUID_WICPixelFormat32bppBGRA;
     d3dCheck(output->SetPixelFormat(&format),"PNG BGRA format");
     if(format!=GUID_WICPixelFormat32bppBGRA) throw std::runtime_error("PNG encoder changed pixel format");
-    d3dCheck(output->WritePixels(height,width*4,static_cast<UINT>(pixels.size()),
+    d3dCheck(output->WritePixels(imageHeight,imageWidth*4,static_cast<UINT>(pixels.size()),
         const_cast<BYTE*>(pixels.data())),"PNG pixels");
     d3dCheck(output->Commit(),"PNG frame commit"); d3dCheck(encoder->Commit(),"PNG commit");
 }
@@ -165,11 +165,9 @@ WindowCapture::WindowCapture(HWND window):m(std::make_unique<Impl>()) {
 WindowCapture::~WindowCapture()=default;
 CaptureObservation WindowCapture::lastObservation() const { return m->observation; }
 std::optional<CapturedFrame> WindowCapture::take() {
-    m->observation.kind=CapturePoll::NoFrame;
-    auto frame=m->pool.TryGetNextFrame();
-    if(!frame) return std::nullopt;
-    m->observation.kind=CapturePoll::ReadbackError;
     m->observation.cropValid=false;
+    auto frame=acquireCaptureFrame(m->observation,[&]{ return m->pool.TryGetNextFrame(); });
+    if(!frame) return std::nullopt;
     auto size=frame.ContentSize(); captureSize(size.Width,size.Height);
     m->observation.sourceWidth=static_cast<unsigned>(size.Width);
     m->observation.sourceHeight=static_cast<unsigned>(size.Height);

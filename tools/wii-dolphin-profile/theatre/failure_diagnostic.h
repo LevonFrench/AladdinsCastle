@@ -9,13 +9,21 @@
 
 namespace theatre {
 enum class FailureStage { SelectWindow, CaptureStart, FirstCandidate, CompareChange };
-enum class CapturePoll { NotPolled, NoFrame, PoolRecreated, Frame, ReadbackError };
+enum class CapturePoll { NotPolled, NoFrame, PoolRecreated, Frame, AcquisitionError, ReadbackError };
 struct CaptureObservation {
     CapturePoll kind=CapturePoll::NotPolled;
     unsigned sourceWidth=0,sourceHeight=0;
     Rect crop{};
     bool cropValid=false;
 };
+template<class Acquire> auto acquireCaptureFrame(CaptureObservation& observation,Acquire acquire) {
+    // A throwing acquisition is not an empty poll. Preserve this state until
+    // the API actually returns a frame or an explicit null frame.
+    observation.kind=CapturePoll::AcquisitionError;
+    auto frame=acquire();
+    observation.kind=frame?CapturePoll::ReadbackError:CapturePoll::NoFrame;
+    return frame;
+}
 struct DiagnosticSample {
     unsigned width=0,height=0;
     std::int64_t timeMs=0;
@@ -42,7 +50,7 @@ class FailureDiagnostic {
 public:
     unsigned startupSeconds,comparisonSeconds;
     FailureStage stage=FailureStage::SelectWindow;
-    std::uint64_t pid=0,hwnd=0,polls=0,noFrames=0,recreates=0,pollErrors=0,rawFrames=0;
+    std::uint64_t pid=0,hwnd=0,polls=0,noFrames=0,recreates=0,acquisitionErrors=0,readbackErrors=0,rawFrames=0;
     std::uint64_t candidates=0,rejections=0,timestampAdvances=0,timestampRegressions=0;
     std::uint64_t tooSoon=0,identicalRgb=0,differentRgb=0;
     unsigned clientWidth=0,clientHeight=0;
@@ -62,7 +70,8 @@ public:
         ++polls; capture=observation;
         if(observation.kind==CapturePoll::NoFrame) ++noFrames;
         if(observation.kind==CapturePoll::PoolRecreated) ++recreates;
-        if(observation.kind==CapturePoll::ReadbackError) ++pollErrors;
+        if(observation.kind==CapturePoll::AcquisitionError) ++acquisitionErrors;
+        if(observation.kind==CapturePoll::ReadbackError) ++readbackErrors;
     }
     void observeFrame(const FrameView& f,const SpatialStatistics& statistics,bool candidate) {
         if(!f.pixels || f.bytes!=imageBytes(f.width,f.height))
@@ -107,7 +116,8 @@ public:
             << ",\"crop_valid\":" << (capture.cropValid?"true":"false")
             << ",\"crop\":[" << capture.crop.left << ',' << capture.crop.top << ',' << capture.crop.right << ',' << capture.crop.bottom << "]}"
             << ",\"counts\":{\"polls\":" << polls << ",\"no_frames\":" << noFrames << ",\"pool_recreations\":" << recreates
-            << ",\"poll_errors\":" << pollErrors << ",\"raw_frames\":" << rawFrames << ",\"spatial_candidates\":" << candidates << ",\"spatial_rejections\":" << rejections
+            << ",\"acquisition_errors\":" << acquisitionErrors << ",\"readback_errors\":" << readbackErrors
+            << ",\"raw_frames\":" << rawFrames << ",\"spatial_candidates\":" << candidates << ",\"spatial_rejections\":" << rejections
             << ",\"timestamp_advances\":" << timestampAdvances << ",\"timestamp_regressions\":" << timestampRegressions
             << ",\"too_soon\":" << tooSoon << ",\"identical_rgb\":" << identicalRgb << ",\"different_rgb\":" << differentRgb << "}"
             << ",\"last_spatial\":{\"majority_vote_rgb\":" << spatial.majorityVoteRgb << ",\"interior_pixels\":" << spatial.interiorPixels
