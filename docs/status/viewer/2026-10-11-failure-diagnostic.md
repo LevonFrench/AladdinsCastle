@@ -41,8 +41,12 @@ miscounted as empty polls. A combined repair preserves original HRESULT text/
 exit 1, uses distinct acquisition/readback failure states, and renames parameters.
 Its elevated build compiled the production helper and software readback target,
 then the deterministic fixture's always-throwing mock triggered C4702 under /WX.
-The mock now has a runtime-conditioned failure/return path. Focused rebuild and
-CTest await explicit lead continuation; no authored C++ fixture is claimed run.
+The mock now has a runtime-conditioned failure/return path. The lead explicitly
+authorized focused continuation at source `2f4558a`; Release compilation passes
+with /W4 /WX, two workers and node reuse disabled. All 11 theatre headless tests
+pass in 0.33 seconds, including the deterministic diagnostic/JSON fixture and
+software PNG round-trip/exclusive-write coverage. No build workers remain; the
+CPU slot is released to the lead. Both failed attempts are retained privately.
 
 No game/helper capture, SteamVR, headset, input takeover, media read or system
 change in this lane. Runtime diagnostics and the one retry remain unverified
