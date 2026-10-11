@@ -1,5 +1,11 @@
 # Native synthetic System 22 slice
 
+The follow-on [head-pose contract](HEADPOSE-CONTRACT.md) adds a CPU-only clipped
+attribute stage for rotation, XYZ translation and uniform scale. It does not
+broaden the GPU entry point below. The accepted PR53 image/executable stay frozen;
+this branch has no new GPU result. The fixture window title now derives from
+canonical `data/product.json` during configure, without a label-only rerun.
+
 This restart uses the pinned upstream renderer: formula-built point packets,
 polygon display list, palette, checker tile and mixer go through `ss22_prepare`
 once and the resulting native painter queue through `ss22_draw` twice. No game
@@ -69,7 +75,12 @@ Copy-Item -LiteralPath "$SDK/bin/SDL2.dll" -Destination "$BUILD/SDL2.dll"
 & "$CTEST" --test-dir "$BUILD" --output-on-failure
 ```
 
-CTest runs `--check` without SDL initialization, window, GPU or game files.
+CTest runs the native formula `--check` and the head-pose clipping suite without
+SDL initialization, window, GPU or game files. The latter stages two original
+fan triangles per native polygon, preserves painter key/ties, and checks5878
+adversarial assertions plus the actual prepared-queue bridge. It consumes only
+explicitly supplied pinned sources/local SDK; ordinary hosted Hub/catalog checks
+do not by themselves establish these native test results.
 `--draw` is a separately authorized GPU check, not a CI test:
 
 ```powershell

@@ -39,6 +39,7 @@ def main():
         assert (out/'LICENSE').exists()
         assert 'acn_view' in (out/'engine/geo_hw.h').read_text()
         assert 'ACN22_SYNTHETIC_SLICE' in (out/'engine/ss22_gl.c').read_text()
+        assert 'if (!nb) { acn22_invalidate_frame(); return; }' in (out/'engine/ss22_gl.c').read_text()
         sentinel = out/'sentinel'
         sentinel.write_text('keep')
         def refused(output, pin=module.PIN):
