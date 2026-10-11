@@ -25,6 +25,9 @@ jobs:
       - run: python tools/validate_catalog.py --test
       - name: Wii DSU packet, hand isolation and motion checks
         run: python -m unittest discover -s tools/wii-bridge -p test_bridge.py -v
+      - name: Isolated Dolphin profile checks
+        if: hashFiles('tools/wii-dolphin-profile/test_profile.py') != ''
+        run: python -m unittest discover -s tools/wii-dolphin-profile -p test_profile.py -v
       - name: Parse all catalog and theme TOML
         shell: python
         run: |
@@ -66,6 +69,16 @@ jobs:
       - name: Pin CMake and Ninja
         run: python -m pip install cmake==3.31.10 ninja==1.13.0
       - run: cmake -S hub -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+      - name: Compile native Wii pose reader (no VR initialization)
+        run: |
+          cmake -S tools/wii-bridge -B build-wii-bridge -G Ninja -DCMAKE_BUILD_TYPE=Release -DOPENVR_SOURCE=${{ github.workspace }}/build/_deps/openvr-src
+          cmake --build build-wii-bridge --parallel 2
+      - name: Dolphin theatre build and headless checks
+        if: hashFiles('tools/wii-dolphin-profile/theatre/CMakeLists.txt') != ''
+        run: |
+          cmake -S tools/wii-dolphin-profile/theatre -B build-wii-theatre -G Ninja -DCMAKE_BUILD_TYPE=Release -DOPENVR_SOURCE=${{ github.workspace }}/build/_deps/openvr-src
+          cmake --build build-wii-theatre --parallel 2
+          ctest --test-dir build-wii-theatre --output-on-failure
       - name: Build libacvr runtime and ABI checks (no XR or graphics)
         run: |
           cmake -S libacvr -B build-contract -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DACVR_JSON_INCLUDE_DIR=${{ github.workspace }}/build/_deps/nlohmann_json-src/include -DACVR_TOML_INCLUDE_DIR=${{ github.workspace }}/build/_deps/tomlplusplus-src/include -DACVR_BUILD_GL_GUN_RENDERER=ON
