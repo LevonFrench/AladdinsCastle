@@ -15,6 +15,7 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[3]
 TIERS = ('generic-pistol', 'arc-pistol-slide', 'arc-pistol-twin',
          'con-pistol-slim', 'con-pistol-dpad', 'con-revolver-chunky', 'mnt-mg-heavy')
+BUILT_MODELS = TIERS + ('con-remote-shell','con-stick-grip')
 MATERIAL_RGBA = {'body':(.55,.55,.55,1), 'accent':(.32,.32,.34,1),
                  'dark':(.012,.012,.018,1), 'glass':(.025,.10,.16,1)}
 RUNTIME_LIGHTING=json.loads((ROOT/'assets/guns/runtime-lighting.json').read_text(encoding='utf-8'))
@@ -121,6 +122,10 @@ class Design:
         self.part(name,'vented_tube',at,'accent',parent,0,radius=radius/1000,
                   inner=inner/1000,depth=depth/1000)
 
+    def loft(self,name,rings,material='body',parent=None):
+        self.part(name,'loft',(0,0,0),material,parent,0,
+                  rings=[tuple(v/1000 for v in ring) for ring in rings])
+
     def functional_sights(self, front, rear, parent=None):
         """Seated bases, level blade/notch tops and an open bore-parallel line.
 
@@ -157,6 +162,16 @@ def plan(model_id, parameters):
 def geometry(part, lod):
     """Return glTF-local vertices/faces; also usable by pure-Python source checks."""
     shape = part['shape']
+    if shape == 'loft':
+        n=24 if lod==0 else 12
+        vertices=[(rx*math.cos(i*math.tau/n),y,z+rz*math.sin(i*math.tau/n))
+                  for y,rx,rz,z in part['rings'] for i in range(n)]
+        faces=[tuple(reversed(range(n))),tuple(range(len(vertices)-n,len(vertices)))]
+        for ring in range(len(part['rings'])-1):
+            for i in range(n):
+                a=ring*n+i;b=ring*n+(i+1)%n
+                faces.append((a,b,b+n,a+n))
+        return vertices,faces
     if shape == 'notched_sight':
         x,y,z=(v/2 for v in part['size']); gap=part['notch_width']/2
         floor=y-part['notch_depth']
@@ -256,7 +271,9 @@ def blender_run(model_id, parameters):
         bsdf.inputs['Base Color'].default_value=color
         bsdf.inputs['Roughness'].default_value=.32 if name=='glass' else .58
         mats[name]=mat
-    grip=empty('grip'); grip['asset_id']=model_id; grip['units']='metres'; grip['bore']='-Z'
+    grip=empty('grip'); grip['asset_id']=model_id; grip['units']='metres'
+    grip['asset_kind']=meta.get('asset_kind','gun')
+    if meta.get('asset_kind')!='controller': grip['bore']='-Z'
     if 'sights' in spec: grip['functional_sights']=spec['sights']
     fixed={name:empty(name,data['at'],grip) for name,data in spec['nodes'].items()
            if name in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear','grip_two','limit_recoil')}
@@ -282,6 +299,8 @@ def blender_run(model_id, parameters):
             mesh.from_pydata([vec(v) for v in verts],[],faces); mesh.validate(); mesh.update()
             bm=bmesh.new(); bm.from_mesh(mesh); bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces))
             bm.to_mesh(mesh); bm.free(); mesh.update()
+            if part['shape']=='loft':
+                for polygon in mesh.polygons: polygon.use_smooth=len(polygon.vertices)==4
             obj=bpy.data.objects.new(mesh.name,mesh); scene.collection.objects.link(obj)
             parent=objects.get(part['parent'],group); obj.parent=parent
             obj.location=vec(part['at'])-parent.matrix_world.translation
@@ -339,9 +358,10 @@ def blender_run(model_id, parameters):
                 screen=world_to_camera_view(scene,camera,obj.matrix_world.translation)
                 anchors[name]=[round(screen.x,6),round(1-screen.y,6)]
             callouts['views'][view]=dict(image=filename,nodes=anchors)
+        callouts['asset_kind']=meta.get('asset_kind','gun')
         callouts['sight_reviews']={}
         camera_data.ortho_scale=.035
-        for lod in (0,1):
+        for lod in ((0,1) if 'sights' in spec else ()):
             for group,objects in lod_objects.items():
                 for obj in objects: obj.hide_render=group!=lod
             rear=fixed['sight_rear'].matrix_world.translation

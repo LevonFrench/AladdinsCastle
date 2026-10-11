@@ -1,0 +1,238 @@
+{
+  "version": "0.1",
+  "model": "con-remote-shell",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "con-remote-shell-front.png",
+      "nodes": {
+        "muzzle": [
+          0.136084,
+          0.350496
+        ],
+        "fx_muzzle": [
+          0.136084,
+          0.350496
+        ],
+        "fx_laser": [
+          0.136084,
+          0.350496
+        ],
+        "sight_front": [
+          0.172315,
+          0.302186
+        ],
+        "sight_rear": [
+          0.508064,
+          0.302186
+        ],
+        "grip_two": [
+          0.742364,
+          0.572718
+        ],
+        "pivot_trigger": [
+          0.351059,
+          0.45436
+        ],
+        "button_a": [
+          0.314828,
+          0.314264
+        ],
+        "button_minus": [
+          0.367968,
+          0.314264
+        ],
+        "button_plus": [
+          0.367968,
+          0.314264
+        ],
+        "button_home": [
+          0.4042,
+          0.314264
+        ],
+        "button_one": [
+          0.447678,
+          0.314264
+        ],
+        "button_two": [
+          0.486325,
+          0.314264
+        ],
+        "button_dpad": [
+          0.235117,
+          0.314264
+        ],
+        "grip": [
+          0.4042,
+          0.502669
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "con-remote-shell.png",
+      "nodes": {
+        "muzzle": [
+          0.248724,
+          0.461788
+        ],
+        "fx_muzzle": [
+          0.248724,
+          0.461788
+        ],
+        "fx_laser": [
+          0.248724,
+          0.461788
+        ],
+        "sight_front": [
+          0.273742,
+          0.407143
+        ],
+        "sight_rear": [
+          0.505568,
+          0.314819
+        ],
+        "grip_two": [
+          0.667346,
+          0.500614
+        ],
+        "pivot_trigger": [
+          0.39716,
+          0.498742
+        ],
+        "button_a": [
+          0.372143,
+          0.379126
+        ],
+        "button_minus": [
+          0.428054,
+          0.371487
+        ],
+        "button_plus": [
+          0.389615,
+          0.357539
+        ],
+        "button_home": [
+          0.433852,
+          0.35455
+        ],
+        "button_one": [
+          0.463873,
+          0.342595
+        ],
+        "button_two": [
+          0.490558,
+          0.331968
+        ],
+        "button_dpad": [
+          0.317105,
+          0.401044
+        ],
+        "grip": [
+          0.433852,
+          0.528812
+        ]
+      }
+    },
+    "held": {
+      "image": "con-remote-shell-held.png",
+      "nodes": {
+        "muzzle": [
+          0.422939,
+          0.209524
+        ],
+        "fx_muzzle": [
+          0.422939,
+          0.209524
+        ],
+        "fx_laser": [
+          0.422939,
+          0.209524
+        ],
+        "sight_front": [
+          0.430612,
+          0.181666
+        ],
+        "sight_rear": [
+          0.501708,
+          0.325732
+        ],
+        "grip_two": [
+          0.551321,
+          0.669331
+        ],
+        "pivot_trigger": [
+          0.468461,
+          0.395086
+        ],
+        "button_a": [
+          0.460789,
+          0.253668
+        ],
+        "button_minus": [
+          0.446074,
+          0.27894
+        ],
+        "button_plus": [
+          0.498009,
+          0.273999
+        ],
+        "button_home": [
+          0.479714,
+          0.292016
+        ],
+        "button_one": [
+          0.488921,
+          0.310672
+        ],
+        "button_two": [
+          0.497104,
+          0.327255
+        ],
+        "button_dpad": [
+          0.44391,
+          0.219465
+        ],
+        "grip": [
+          0.479714,
+          0.461292
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
+  },
+  "silhouette": "con-remote-shell-silhouette.png",
+  "asset_kind": "gun",
+  "sight_reviews": {
+    "LOD0": "con-remote-shell-sight-lod0.png",
+    "LOD1": "con-remote-shell-sight-lod1.png"
+  },
+  "silhouette_scale_m": 0.82
+}

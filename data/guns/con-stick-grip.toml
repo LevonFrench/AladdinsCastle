@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: GPL-3.0-only
+id = "con-stick-grip"
+name = "Analog stick grip"
+family = "console"
+asset_kind = "controller"
+hold = "one-hand"
+tier = 1
+model = "assets/guns/con-stick-grip.glb"
+source = "assets/guns/src/con-stick-grip.py"
+resembles = "A small one-hand grip with top analog stick and two front buttons"
+shape = "Rounded tapered grip, analog stick on top, C and Z on the front; no cable or muzzle"
+length_mm = 120
+length_axis = "y"
+features = ["analog_stick"]
+notes = "Grip anchor at the web of the off hand; controller follows its grip pose. No bore, muzzle or gun effects. Stored alongside gun assembly assets but never selected as a firing gun."
+
+[tints]
+default = "white"
+p1 = "white"
+p2 = "white"
+white = { body = "#eef0f3", accent = "#aeb5bd" }
+
+[[button]]
+id = "stick"
+label = "Analog stick"
+node = "button_stick"
+
+[[button]]
+id = "c"
+label = "C"
+node = "button_c"
+
+[[button]]
+id = "z"
+label = "Z"
+node = "button_z"
+
+[motion.stick-x]
+node = "pivot_stick_x"
+kind = "rotate"
+axis = [0, 0, -1]
+range = [-0.35, 0.35]
+drive = "stick_x"
+lod_nodes = ["pivot_stick_x", "pivot_stick_x_lod1"]
+
+[motion.stick-y]
+node = "pivot_stick_y"
+kind = "rotate"
+axis = [-1, 0, 0]
+range = [-0.35, 0.35]
+drive = "stick_y"
+lod_nodes = ["pivot_stick_y", "pivot_stick_y_lod1"]
+
+[motion.button-stick]
+node = "button_stick"
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.002]
+drive = "button:stick"
+lod_nodes = ["button_stick", "button_stick_lod1"]
+
+[motion.button-c]
+node = "button_c"
+kind = "slide"
+axis = [0, 0, 1]
+range = [0, 0.002]
+drive = "button:c"
+lod_nodes = ["button_c", "button_c_lod1"]
+
+[motion.button-z]
+node = "button_z"
+kind = "slide"
+axis = [0, 0, 1]
+range = [0, 0.002]
+drive = "button:z"
+lod_nodes = ["button_z", "button_z_lod1"]

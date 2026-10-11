@@ -1,69 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
+# Await owner-selected option/instruction screens. No inferred game actions.
 version = "0.1"
 game_id = "wii-sin-and-punishment-star-successor"
-custom_setup = true
-game_profile = "character-and-pointer"
-instruction = "Dedicated character-and-pointer setup: choose dodge, melee, lock-on and charge controls with the owner in the headset."
-sources = ["docs/tasks/m2/W-wii-chronicles.md", "https://en-americas-support.nintendo.com/app/answers/detail/a_id/16890/p/172"]
-questions = ["Place the character and pointer in the 3D scene with the owner.", "Confirm the chosen in-game controller layout before binding dodge, melee, lock-on and charged shots."]
-
-[[element]]
-id = "move"
-part = "Nunchuk stick"
-label = "Move the on-screen character"
-control = "thumbstick"
-target = "left_stick"
-role = "nunchuk"
-mode = "hold"
-
-[[element]]
-id = "aim"
-part = "Remote pointer"
-label = "Aim independently of character movement"
-control = "pointer"
-target = "right_stick"
-role = "remote"
-node = "muzzle"
-mode = "hold"
-
-[[element]]
-id = "fire"
-part = "Remote fire input"
-label = "Shoot: confirm the selected game layout"
-control = "trigger"
-target = "r2"
-role = "remote"
-node = "pivot_trigger"
-mode = "hold"
-
-[[element]]
-id = "dodge"
-part = "Character dodge"
-label = "Dodge"
-control = "owner_setup"
-target = "owner:dodge"
-role = "local"
-
-[[element]]
-id = "melee"
-part = "Character melee"
-label = "Melee"
-control = "owner_setup"
-target = "owner:melee"
-role = "local"
-
-[[element]]
-id = "lock-on"
-part = "Character lock-on"
-label = "Lock-on"
-control = "owner_setup"
-target = "owner:lock-on"
-role = "local"
-
-[[element]]
-id = "charged-shot"
-part = "Character charged shot"
-label = "Charged shot"
-control = "owner_setup"
-target = "owner:charged-shot"
-role = "local"
+control_set = "shell-and-stick"
+layout = { state = "question", name = "", question = "Which game option-screen layout is selected for shell and stick?" }
+questions = ["Place the character and pointer in the 3D scene with the owner.", "Confirm the chosen in-game controller layout before binding dodge, melee, lock-on and charged shots.", "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."]
+sources = []

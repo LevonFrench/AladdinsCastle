@@ -118,3 +118,8 @@ control_set = "gun-rifle-sniper-scope"
 id = "model-spc-hose-nozzle"
 gun_model = "spc-hose-nozzle"
 control_set = "gun-spc-hose-nozzle"
+
+[[rule]]
+id = "con-stick-grip"
+gun_model = "con-stick-grip"
+control_set = "gun-con-stick-grip"

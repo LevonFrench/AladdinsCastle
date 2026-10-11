@@ -28,6 +28,9 @@ qt_add_resources(accontrols controls_views PREFIX /controls
     BASE "${AC_CONTROLS_ROOT}/hub/qml/controls"
     FILES "${AC_CONTROLS_ROOT}/hub/qml/controls/ControlsView.qml"
           "${AC_CONTROLS_ROOT}/hub/qml/controls/ControllerOutline.qml")
+qt_add_resources(accontrols assembly_view PREFIX /controls
+    BASE "${AC_CONTROLS_ROOT}/hub/qml/controls"
+    FILES "${AC_CONTROLS_ROOT}/hub/qml/controls/PartPreview.qml")
 qt_add_resources(accontrols controls_icons PREFIX /controls/icons
     BASE "${AC_CONTROLS_ROOT}/assets/controls/controllers"
     FILES "${AC_CONTROLS_ROOT}/assets/controls/controllers/touch-left.svg"
@@ -39,6 +42,8 @@ if(BUILD_TESTING)
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_test(NAME wii-controls-data COMMAND ${Python3_EXECUTABLE} "${AC_CONTROLS_ROOT}/tools/wii_controls.py")
+    add_test(NAME shell-stick-profile-data COMMAND ${Python3_EXECUTABLE} "${AC_CONTROLS_ROOT}/tools/test_wii_shell_stick.py")
+    add_test(NAME shell-stick-assets COMMAND ${Python3_EXECUTABLE} "${AC_CONTROLS_ROOT}/tools/test_shell_models.py")
     set_tests_properties(wii-controls-data PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1;PYTHONIOENCODING=utf-8")
     qt_add_executable(controls-view-tests tests/ControlsViewTest.cpp)
     target_link_libraries(controls-view-tests PRIVATE accontrols Qt6::Test)

@@ -100,6 +100,16 @@ private slots:
         options.useUserOverrides=false;
         QVERIFY(!resolver.resolveGame("../timecris",options,out,error));
     }
+    void wiiSelectedRouteMatchesProfileAndRejectsUnknownRoutes() {
+        ac::ControlsResolveOptions options; options.useUserOverrides=false; options.route="dolphinxr";
+        Map out;QString error;QVERIFY2(resolver.resolveGame("wii-resident-evil-umbrella-chronicles",options,out,error),qPrintable(error));
+        QCOMPARE(out.value("data").toMap().value("route").toString(),QString("dolphinxr"));
+        QCOMPARE(out.value("model").toString(),QString("con-remote-shell"));
+        QVERIFY(!out.value("data").toMap().value("policy").toMap().value("native_two_remotes").toBool());
+        options.route="flat-dolphin";QVERIFY(resolver.resolveGame("wii-resident-evil-umbrella-chronicles",options,out,error));
+        QCOMPARE(out.value("data").toMap().value("route").toString(),QString("flat-dolphin"));
+        options.route="unknown";QVERIFY(!resolver.resolveGame("wii-resident-evil-umbrella-chronicles",options,out,error));
+    }
     void callerModelDefaultsAreProvisionalAndDoNotOverrideGameModel() {
         ac::ControlsResolveOptions options; options.useUserOverrides=false; options.profileModel="generic-pistol";
         options.profileDefaults={{"policy",Map{{"p1_hand","left"},{"two_guns","off"}}},{"future",Map{{"key","retained"}}}};
