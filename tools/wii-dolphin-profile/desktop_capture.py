@@ -17,6 +17,7 @@ import time
 
 import setup
 import disc_header
+import canonical_dsu
 
 
 def sha256(path, header=False):
@@ -29,7 +30,7 @@ def sha256(path, header=False):
         return digest.hexdigest()
 
 
-def profile_key(state):
+def profile_data(state):
     """Sitting's generated DSU path contract; inspect no other profile files."""
     value = state.get("dsu_profile")
     if not isinstance(value, str):
@@ -61,22 +62,19 @@ def profile_key(state):
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), dict):
         raise ValueError("Invalid generated profile manifest")
-    digest = sha256(profile)
+    payload = profile.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
     entry_hash, caller_hash = manifest["files"].get(key), state.get("dsu_profile_sha256")
     if (manifest.get("version") != "shell-stick/1" or not isinstance(entry_hash, str) or entry_hash.lower() != digest
             or not isinstance(caller_hash, str) or caller_hash.lower() != digest):
         raise ValueError("DSU profile does not match the canonical generated manifest")
-    parsed = configparser.ConfigParser(interpolation=None)
-    try:
-        parsed.read_string(profile.read_text(encoding="utf-8"))
-    except configparser.Error as error:
-        raise ValueError("Invalid generated DSU profile syntax") from error
     server = setup.load_product(setup.ROOT / "data/product.json")["dsu_server_name"]
-    if parsed.get("Wiimote1", "Device", fallback="") != f"DSUClient/0/{server}":
-        raise ValueError("Canonical DSU profile label differs from product metadata; regenerate it")
-    if parsed.get("Wiimote1", "Source", fallback="") != "1":
-        raise ValueError("Canonical profile must use emulated DSU Source 1")
-    return key
+    canonical_dsu.validate(payload, server, allow_legacy=key == "flat-dolphin/split-right.ini")
+    return key, payload
+
+
+def profile_key(state):
+    return profile_data(state)[0]
 
 
 def admit(config, root=setup.ROOT):
@@ -114,6 +112,7 @@ def prepare(config, run, root=setup.ROOT):
     config = setup.safe_user(config, root)
     config_hash = sha256(config)
     state = admit(config, root)
+    selected_profile = profile_data(state) if "dsu_profile" in state else None
     run = setup.safe_user(run, root)
     # Never resume or overwrite a previous run, including failed proofs.
     run.mkdir(parents=True, exist_ok=False)
@@ -129,7 +128,7 @@ def prepare(config, run, root=setup.ROOT):
     ini["Interface"] = {"OnScreenDisplayMessages": "False", "ShowActiveTitle": "True"}
     if "dsu_profile" in state:
         ini["Input"] = {"BackgroundInput": "True"}
-        (user / "Config/WiimoteNew.ini").write_bytes(Path(state["dsu_profile"]).read_bytes())
+        (user / "Config/WiimoteNew.ini").write_bytes(selected_profile[1])
         # Fresh per-game named profiles otherwise override the canonical global DSU bindings.
         for game_id in ([state["game_id"]] if "game_id" in state else setup.GAME_IDS):
             (user / "GameSettings" / (game_id + ".ini")).write_bytes(setup.ini({"Controls": {}}))
@@ -140,7 +139,7 @@ def prepare(config, run, root=setup.ROOT):
               "dolphin": setup.command(user, state["dolphin"], state["disc"], root),
               "capture": state["capture"], "inputs": state, "state": "prepared", "live_proof": False,
               "config_sha256": config_hash, "disc_header": selected, "game_id": selected["game_id"],
-              "profile_key": profile_key(state) if "dsu_profile" in state else None}
+              "profile_key": selected_profile[0] if selected_profile else None}
     verify_prepared(result, root)
     (run / "prepared.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result

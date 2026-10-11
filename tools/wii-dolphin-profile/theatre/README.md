@@ -56,6 +56,20 @@ game/control-set folder identifier, matching the sitting runner's `ControlSet`;
 it is never inferred from media filenames. Only that game's selector is created.
 The canonical global split-right profile remains supported for legacy recipes.
 Native Source 3, wrong slugs, linked profiles and malformed INI are refused.
+An adjacent manifest and caller hash are integrity checks, not proof of canonical
+controls. Admission compares the entire payload to the scoped, hash-pinned
+one-remote producer template, using the selected product DSU label. It requires
+exactly Wiimote1–4 and BalanceBoard sections, no defaults, and every non-selected
+slot strictly disabled. Changed buttons, axes or extra settings fail even if
+both untrusted hashes are recomputed. Preparation copies the validated bytes
+without reopening the source profile.
+
+The current template is pinned to Guns' committed `6b1874` output with Home blank
+because its DSU byte is unsupported. Both per-game right-primary DSU roles use
+that complete contract. Only the legacy global split-right path additionally
+accepts the complete historical template; generic profiles cannot use it. Native
+seed and historical profiles/receipts remain untouched. Future producer changes
+need a reviewed consumer-template update and fail closed in the meantime.
 
 `disc_header_sha256` always hashes the selected 32-byte Wii header: offset zero
 for ISO, or the copied header after the bounded host sector for single-disc WBFS.

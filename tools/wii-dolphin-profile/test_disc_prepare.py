@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 import desktop_capture as capture
+import canonical_dsu
 import setup
 from test_disc_header import synthetic_header, synthetic_wbfs
 
@@ -22,7 +23,7 @@ class SelectedDiscPreparation(unittest.TestCase):
         self.generated = self.local / "generated"
         self.profile = self.generated / "games/synthetic-game/scripted-dsu-right.ini"
         self.profile.parent.mkdir(parents=True)
-        self.profile.write_bytes(b"[Wiimote1]\nSource = 1\nDevice = DSUClient/0/AladdinsCastle\nButtons/A = `Cross`\n")
+        self.profile.write_bytes(canonical_dsu.render("AladdinsCastle"))
         self.profile_manifest = self.generated / "generated-files.json"
         self.profile_manifest.write_text(json.dumps({"version":"shell-stick/1",
             "files":{"games/synthetic-game/scripted-dsu-right.ini":capture.sha256(self.profile)}}))
@@ -40,6 +41,15 @@ class SelectedDiscPreparation(unittest.TestCase):
 
     def save(self):
         self.config.write_text(json.dumps(self.state))
+
+    def forge_profile(self, payload):
+        """An attacker can rewrite both untrusted hashes; those are not provenance."""
+        self.profile.write_bytes(payload)
+        digest = capture.sha256(self.profile)
+        self.profile_manifest.write_text(json.dumps({"version":"shell-stick/1",
+            "files":{"games/synthetic-game/scripted-dsu-right.ini":digest}}))
+        self.state["dsu_profile_sha256"] = digest
+        self.save()
 
     def test_iso_and_wbfs_prepare_only_selected_game_without_launch(self):
         for suffix, disc in (("iso", synthetic_header()), ("wbfs", synthetic_wbfs(shift=12))):
@@ -66,7 +76,7 @@ class SelectedDiscPreparation(unittest.TestCase):
             with self.assertRaises(ValueError):
                 capture.prepare(self.config, self.run, self.root)
             self.assertFalse(self.run.exists())
-        self.profile.write_bytes(b"[Wiimote1]\nSource = 3\nDevice = DSUClient/0/AladdinsCastle\n")
+        self.profile.write_bytes(canonical_dsu.render("AladdinsCastle").replace(b"Source = 1", b"Source = 3", 1))
         digest = capture.sha256(self.profile)
         self.profile_manifest.write_text(json.dumps({"version":"shell-stick/1",
             "files":{"games/synthetic-game/scripted-dsu-right.ini":digest}}))
@@ -156,6 +166,53 @@ class SelectedDiscPreparation(unittest.TestCase):
         before = self.config.read_bytes()
         self.assertEqual(capture.admit(self.config, self.root), self.state)
         self.assertEqual(self.config.read_bytes(), before)
+
+    def test_forged_manifest_and_caller_hash_cannot_change_controls(self):
+        trusted = canonical_dsu.render("AladdinsCastle")
+        for old, new in ((b"Buttons/B = `R2`", b"Buttons/B = `Cross`"),
+                         (b"IR/Up = `Right Y+`", b"IR/Up = `Right X+`"),
+                         (b"Nunchuk/Buttons/Z = `DSUClient/1/AladdinsCastle:L2`",
+                          b"Nunchuk/Buttons/Z = `DSUClient/1/AladdinsCastle:L1`"),
+                         (b"Buttons/Home =\n", b"Buttons/Home = `PS`\n")):
+            payload = trusted.replace(old, new)
+            self.assertNotEqual(payload, trusted)
+            self.forge_profile(payload)
+            with self.assertRaisesRegex(ValueError, "trusted one-remote"):
+                capture.prepare(self.config, self.run, self.root)
+            self.assertFalse(self.run.exists())
+
+    def test_forged_enabled_secondary_native_slot_or_board_is_refused(self):
+        trusted = canonical_dsu.render("AladdinsCastle")
+        for section, source in (("Wiimote2","1"), ("Wiimote2","3"), ("Wiimote3","3"),
+                                ("Wiimote4","2"), ("BalanceBoard","1")):
+            old = f"[{section}]\nSource = 0".encode()
+            payload = trusted.replace(old, f"[{section}]\nSource = {source}".encode())
+            self.assertNotEqual(payload, trusted)
+            self.forge_profile(payload)
+            with self.assertRaisesRegex(ValueError, "slots must be disabled"):
+                capture.prepare(self.config, self.run, self.root)
+            self.assertFalse(self.run.exists())
+
+    def test_missing_unknown_and_default_slots_are_refused(self):
+        trusted = canonical_dsu.render("AladdinsCastle")
+        for payload in (trusted.replace(b"[Wiimote4]\nSource = 0\n\n", b""),
+                        trusted+b"[Wiimote5]\nSource = 0\n",
+                        b"[DEFAULT]\nButtons/B = `Cross`\n\n"+trusted):
+            self.forge_profile(payload)
+            with self.assertRaisesRegex(ValueError, "exactly all five slots"):
+                capture.prepare(self.config, self.run, self.root)
+            self.assertFalse(self.run.exists())
+
+    def test_validated_bytes_are_copied_and_changed_source_aborts_preparation(self):
+        trusted = self.profile.read_bytes()
+        original_create = setup.create
+        def change_after_admission(*args, **kwargs):
+            user = original_create(*args, **kwargs)
+            self.profile.write_bytes(trusted.replace(b"Buttons/B = `R2`", b"Buttons/B = `Cross`"))
+            return user
+        with patch.object(setup, "create", side_effect=change_after_admission), self.assertRaises(ValueError):
+            capture.prepare(self.config, self.run, self.root)
+        self.assertEqual((self.run / "User/Config/WiimoteNew.ini").read_bytes(), trusted)
 
 
 if __name__ == "__main__":
