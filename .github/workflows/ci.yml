@@ -143,8 +143,17 @@ jobs:
           cmake -S hub/src/controls -B build-controls -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DAC_CONTROLS_TOML_INCLUDE_DIR=${{ github.workspace }}/build/_deps/tomlplusplus-src/include
           cmake --build build-controls --parallel 2
           ctest --test-dir build-controls --output-on-failure
+      - name: Build Windows targets and record four-EXE provenance
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./hub/packaging/build-portable-inputs.ps1 -BuildDir build -RepoRoot "$env:GITHUB_WORKSPACE" -AllTargets
       - run: cmake --build build --parallel 2
+        if: runner.os != 'Windows'
       - run: ctest --test-dir build --output-on-failure
+      - name: Portable provenance and opt-in staging (synthetic PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./hub/packaging/tests/Test-Portable.ps1 -FixtureRoot "$env:GITHUB_WORKSPACE/.local/portable-fixtures"
       - name: Build Windows portable folder and ZIP
         if: runner.os == 'Windows'
         shell: pwsh
