@@ -53,6 +53,11 @@ def admit(config, root=setup.ROOT):
                 or manifest.get("files", {}).get("flat-dolphin/split-right.ini") != sha256(profile)
                 or state.get("dsu_profile_sha256") != sha256(profile)):
             raise ValueError("DSU profile does not match the canonical generated manifest")
+        parsed = configparser.ConfigParser(interpolation=None)
+        parsed.read_string(profile.read_text(encoding="utf-8"))
+        server = setup.load_product(setup.ROOT / "data/product.json")["dsu_server_name"]
+        if parsed.get("Wiimote1", "Device", fallback="") != f"DSUClient/0/{server}":
+            raise ValueError("Canonical DSU profile label differs from product metadata; regenerate it")
     return state
 
 

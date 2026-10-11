@@ -1,0 +1,117 @@
+{
+  "one-gun": [
+    {
+      "schema": 1,
+      "mode": "one-gun",
+      "source_pin": "85c4266b29eb308d173fefa0f21f5cb77df3516a",
+      "games": [
+        "RBUP08",
+        "SBDP08"
+      ],
+      "files": {
+        "Config/DSUClient.ini": "6af4bd1c5c4580607cd8f2eee308fe5ee5b49d8946300861f6d416b02ff86760",
+        "Config/WiimoteNew.ini": "27af718fe295b81281433d339d5d710cf794d9f2d5b1d6df882378b54e0601e1",
+        "Config/GFX.ini": "759016fd895f833f1faef13a4b92d9118187151e54f42050513cb1d1b9dacf12",
+        "Config/Dolphin.ini": "473148eb5918eebb1f6f6b64b1522422c2cc0eb85e941b4e0fa46362e5e0d914",
+        "Config/Profiles/Wiimote/AladdinsCastle-one-gun-1.ini": "e89772b020e0f33631207664473c72cda65974fd82e0f8b677f9e0b0aa33c33e",
+        "GameSettings/RBUP08.ini": "9c8b3bd66d3326b2fde9c429ccbd861a9675c31a3725e3cea643977bd92bc8ff",
+        "GameSettings/SBDP08.ini": "9c8b3bd66d3326b2fde9c429ccbd861a9675c31a3725e3cea643977bd92bc8ff"
+      }
+    },
+    {
+      "schema": 1,
+      "mode": "one-gun",
+      "source_pin": "85c4266b29eb308d173fefa0f21f5cb77df3516a",
+      "games": [
+        "RBUP08",
+        "SBDP08"
+      ],
+      "files": {
+        "Config/DSUClient.ini": "6af4bd1c5c4580607cd8f2eee308fe5ee5b49d8946300861f6d416b02ff86760",
+        "Config/WiimoteNew.ini": "c6b991752dfbaa4bc52d71a8cf5acf008958190488536ac525158703fc6aab23",
+        "Config/GFX.ini": "759016fd895f833f1faef13a4b92d9118187151e54f42050513cb1d1b9dacf12",
+        "Config/Dolphin.ini": "4ef57347204ee56a111e54b5ec27d1ce43d2bc7e0490230c6b6000fb7e322c6e",
+        "Config/Profiles/Wiimote/AladdinsCastle-one-gun-1.ini": "74b40c58a86aec09c6998795b8d2bb9b371ff6eda4f8c3a9fc965dc1957ccde7",
+        "GameSettings/RBUP08.ini": "9c8b3bd66d3326b2fde9c429ccbd861a9675c31a3725e3cea643977bd92bc8ff",
+        "GameSettings/SBDP08.ini": "9c8b3bd66d3326b2fde9c429ccbd861a9675c31a3725e3cea643977bd92bc8ff"
+      }
+    },
+    {
+      "schema": 1,
+      "mode": "one-gun",
+      "source_pin": "85c4266b29eb308d173fefa0f21f5cb77df3516a",
+      "games": [
+        "RBUP08",
+        "SBDP08"
+      ],
+      "files": {
+        "Config/DSUClient.ini": "6af4bd1c5c4580607cd8f2eee308fe5ee5b49d8946300861f6d416b02ff86760",
+        "Config/WiimoteNew.ini": "c6b991752dfbaa4bc52d71a8cf5acf008958190488536ac525158703fc6aab23",
+        "Config/GFX.ini": "759016fd895f833f1faef13a4b92d9118187151e54f42050513cb1d1b9dacf12",
+        "Config/Dolphin.ini": "53d34ec3c44a84df3358d1aefbcf3784bc7734fdb138f17cc686a2c4b6cfbe0d",
+        "Config/Profiles/Wiimote/AladdinsCastle-one-gun-1.ini": "74b40c58a86aec09c6998795b8d2bb9b371ff6eda4f8c3a9fc965dc1957ccde7",
+        "GameSettings/RBUP08.ini": "9c8b3bd66d3326b2fde9c429ccbd861a9675c31a3725e3cea643977bd92bc8ff",
+        "GameSettings/SBDP08.ini": "9c8b3bd66d3326b2fde9c429ccbd861a9675c31a3725e3cea643977bd92bc8ff"
+      }
+    }
+  ],
+  "two-remotes": [
+    {
+      "schema": 1,
+      "mode": "two-remotes",
+      "source_pin": "85c4266b29eb308d173fefa0f21f5cb77df3516a",
+      "games": [
+        "RBUP08",
+        "SBDP08"
+      ],
+      "files": {
+        "Config/DSUClient.ini": "6af4bd1c5c4580607cd8f2eee308fe5ee5b49d8946300861f6d416b02ff86760",
+        "Config/WiimoteNew.ini": "e6fc7228bff978a2d79df4cd8eec7ca104fe71e32af1f8b93dae556b5360b44a",
+        "Config/GFX.ini": "759016fd895f833f1faef13a4b92d9118187151e54f42050513cb1d1b9dacf12",
+        "Config/Dolphin.ini": "473148eb5918eebb1f6f6b64b1522422c2cc0eb85e941b4e0fa46362e5e0d914",
+        "Config/Profiles/Wiimote/AladdinsCastle-two-remotes-1.ini": "ce65c391bda665867b99791aa353c2eb7dea11265bcafd52f9e371eefcd321d3",
+        "Config/Profiles/Wiimote/AladdinsCastle-two-remotes-2.ini": "6a34265074633330bc5267c54f5034b6f7329ae5e36ecf7f808dccfae9c96695",
+        "GameSettings/RBUP08.ini": "133f4000d765b4b784addb3241aa6735270828c40ffe54b96976cb98a87e0cef",
+        "GameSettings/SBDP08.ini": "133f4000d765b4b784addb3241aa6735270828c40ffe54b96976cb98a87e0cef"
+      }
+    },
+    {
+      "schema": 1,
+      "mode": "two-remotes",
+      "source_pin": "85c4266b29eb308d173fefa0f21f5cb77df3516a",
+      "games": [
+        "RBUP08",
+        "SBDP08"
+      ],
+      "files": {
+        "Config/DSUClient.ini": "6af4bd1c5c4580607cd8f2eee308fe5ee5b49d8946300861f6d416b02ff86760",
+        "Config/WiimoteNew.ini": "c1c799fa3cb1fdf9cda423f08074491b924cb82e38452a568529cc51843f4b8b",
+        "Config/GFX.ini": "759016fd895f833f1faef13a4b92d9118187151e54f42050513cb1d1b9dacf12",
+        "Config/Dolphin.ini": "4ef57347204ee56a111e54b5ec27d1ce43d2bc7e0490230c6b6000fb7e322c6e",
+        "Config/Profiles/Wiimote/AladdinsCastle-two-remotes-1.ini": "a33481c5772aae7e468080ca29b5e0d54d5ac53740d7caa36b18d649f47c0c99",
+        "Config/Profiles/Wiimote/AladdinsCastle-two-remotes-2.ini": "a541dcf7081c87c222a4246b3e97060aaaa07f782424fabeeb52841c30ed60cb",
+        "GameSettings/RBUP08.ini": "133f4000d765b4b784addb3241aa6735270828c40ffe54b96976cb98a87e0cef",
+        "GameSettings/SBDP08.ini": "133f4000d765b4b784addb3241aa6735270828c40ffe54b96976cb98a87e0cef"
+      }
+    },
+    {
+      "schema": 1,
+      "mode": "two-remotes",
+      "source_pin": "85c4266b29eb308d173fefa0f21f5cb77df3516a",
+      "games": [
+        "RBUP08",
+        "SBDP08"
+      ],
+      "files": {
+        "Config/DSUClient.ini": "6af4bd1c5c4580607cd8f2eee308fe5ee5b49d8946300861f6d416b02ff86760",
+        "Config/WiimoteNew.ini": "c1c799fa3cb1fdf9cda423f08074491b924cb82e38452a568529cc51843f4b8b",
+        "Config/GFX.ini": "759016fd895f833f1faef13a4b92d9118187151e54f42050513cb1d1b9dacf12",
+        "Config/Dolphin.ini": "53d34ec3c44a84df3358d1aefbcf3784bc7734fdb138f17cc686a2c4b6cfbe0d",
+        "Config/Profiles/Wiimote/AladdinsCastle-two-remotes-1.ini": "a33481c5772aae7e468080ca29b5e0d54d5ac53740d7caa36b18d649f47c0c99",
+        "Config/Profiles/Wiimote/AladdinsCastle-two-remotes-2.ini": "a541dcf7081c87c222a4246b3e97060aaaa07f782424fabeeb52841c30ed60cb",
+        "GameSettings/RBUP08.ini": "133f4000d765b4b784addb3241aa6735270828c40ffe54b96976cb98a87e0cef",
+        "GameSettings/SBDP08.ini": "133f4000d765b4b784addb3241aa6735270828c40ffe54b96976cb98a87e0cef"
+      }
+    }
+  ]
+}
