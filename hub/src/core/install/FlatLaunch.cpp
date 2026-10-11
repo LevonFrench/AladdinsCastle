@@ -143,6 +143,19 @@ LaunchPlan makeFlatLaunchPlan(const GameRecord &game, const Json &emulator,
   }
   if (plan.args.isEmpty())
     throw Error("E_PLAN_INVALID", "Manifest launch arguments missing");
+  if (tool == "dolphin") {
+    // Explicit user routing takes priority over Dolphin's portable marker.
+    // Never read or clone a located Dolphin's existing User/config/NAND.
+    for (const auto &arg : plan.args) {
+      if (arg == "-u" || arg == "--user" || arg.startsWith("--user=") ||
+          arg.startsWith("-u"))
+        throw Error("E_PLAN_INVALID", "Dolphin user path is owned by the Hub");
+    }
+    const auto user = profile + "/User";
+    plan.args.prepend(user); plan.args.prepend("--user");
+    plan.cwd = profile;
+    plan.writableDirs << user;
+  }
   if (tool == "mame" && !selectedBios.isEmpty()) {
     if (!QRegularExpression("\\A[a-zA-Z0-9][a-zA-Z0-9_.-]*\\z").match(selectedBios).hasMatch())
       throw Error("E_PLAN_INVALID", "Invalid MAME BIOS selection");

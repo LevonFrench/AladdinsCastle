@@ -60,9 +60,11 @@ struct DiagnosticScene {
     QQuickItem *root=nullptr;
     explicit DiagnosticScene(bool controlled=false,quint64 handle=42,ac::OverlayInput::Clock clock={})
         :input({1280,800},std::move(clock)),renderControl(controlled?std::make_unique<QQuickRenderControl>():nullptr),window(renderControl.get()) {
+        input.setTuning({0,0,0,120,true}); // Explicit flag-capable protocol fixture, separate from production single pointer.
         runtime.overlay=handle;
         input.setDiagnosticObserver([this](const auto &event,const auto &value){state.recordInput(event,value);});
         QObject::connect(&state,&ac::SpikeState::flipYChanged,&host,[this]{input.setFlipY(state.flipY());});
+        QObject::connect(&state,&ac::SpikeState::tuningChanged,&host,[this]{input.setTuning(state.tuning());});
         engine.rootContext()->setContextProperty("spikeState",&state);
         engine.rootContext()->setContextProperty("overlayHost",&host);
         engine.rootContext()->setContextProperty("surfaceColor","#10131c");
@@ -103,6 +105,8 @@ Item {
     }
     bool click(QQuickItem *target,quint32 cursor=0){
         if(!target)return false;
+        QTest::qWait(50);if(renderControl){renderControl->polishItems();QCoreApplication::processEvents();renderControl->polishItems();}
+        QList<QQuickItem *> parents;for(auto p=target;p;p=p->parentItem())parents.prepend(p);for(auto p:parents)p->ensurePolished();
         const auto center=target->mapToScene({target->width()/2,target->height()/2});
         const auto ok=point(center,cursor)&&point(center,cursor,vr::VREvent_MouseButtonDown)&&point(center,cursor,vr::VREvent_MouseButtonUp);
         QCoreApplication::processEvents();return ok;
@@ -116,6 +120,62 @@ Item {
 class OverlaySceneTest:public QObject {
     Q_OBJECT
 private slots:
+    void validMoveRestoresFocusAndLostUpDoesNotSwallowClick_data() {
+        QTest::addColumn<bool>("loseFocus");QTest::newRow("focus left")<<true;QTest::newRow("up dropped")<<false;
+    }
+    void validMoveRestoresFocusAndLostUpDoesNotSwallowClick() {
+        QFETCH(bool,loseFocus);DiagnosticScene scene;scene.input.setTuning({100,40,40,2880});
+        auto target=item(scene.root,"spikeCorner0");QVERIFY(target);const auto where=target->mapToScene({50,30});
+        QVERIFY(scene.point(where));QVERIFY(scene.point(where,0,vr::VREvent_MouseButtonDown));
+        if(loseFocus){vr::VREvent_t event{};event.eventType=vr::VREvent_FocusLeave;QVERIFY(scene.deliver(event));}
+        QCOMPARE(scene.state.clickCount(),0);
+        QVERIFY(scene.point(where));QVERIFY(scene.point(where,0,vr::VREvent_MouseButtonDown));
+        QCOMPARE(scene.state.clickCount(),0);
+        QVERIFY(scene.point(where,0,vr::VREvent_MouseButtonUp));QCOMPARE(scene.state.clickCount(),1);
+        scene.input.setVisible(false);QVERIFY(!scene.point(where));QVERIFY(!scene.point(where,0,vr::VREvent_MouseButtonDown));QCOMPARE(scene.state.clickCount(),1);
+    }
+    void tunedPressFreezeSlopAndFlickableDrag() {
+        qint64 now=1000;DiagnosticScene scene(false,42,[&]{return now;});scene.contractScene();
+        scene.input.setTuning({100,40,40,2880});
+        auto button=item(scene.root,"contractFlickButton"),list=item(scene.root,"contractLeftList");QVERIFY(button);QVERIFY(list);
+        const auto start=button->mapToScene({150,50});
+        QVERIFY(scene.point(start));QVERIFY(scene.point(start,0,vr::VREvent_MouseButtonDown));
+        now+=99;QVERIFY(scene.point(start-QPointF(0,30)));QCOMPARE(scene.input.position(),start);
+        now+=1;QVERIFY(scene.point(start-QPointF(0,30)));QCOMPARE(scene.input.position(),start);
+        QVERIFY(scene.point(start-QPointF(0,30),0,vr::VREvent_MouseButtonUp));
+        QCOMPARE(scene.root->property("activations").toInt(),1);QCOMPARE(list->property("contentY").toDouble(),0.0);
+        now+=100;QVERIFY(scene.point(start));QVERIFY(scene.point(start,0,vr::VREvent_MouseButtonDown));
+        now+=101;
+        for(const auto delta:{41,70,110}){++now;QVERIFY(scene.point(start-QPointF(0,delta)));QCoreApplication::processEvents();}
+        QTRY_VERIFY(list->property("contentY").toDouble()>0);
+        QVERIFY(scene.point(start-QPointF(0,110),0,vr::VREvent_MouseButtonUp));
+        QCOMPARE(scene.root->property("activations").toInt(),1);
+    }
+    void tunedSmoothScaleStillLeavesDiscreteAt120() {
+        DiagnosticScene scene;scene.contractScene();scene.input.setTuning({0,0,0,2880});
+        auto list=item(scene.root,"contractLeftList");QVERIFY(list);QVERIFY(scene.point(list->mapToScene({150,250})));
+        vr::VREvent_t event{};event.eventType=vr::VREvent_ScrollSmooth;event.data.scroll.ydelta=-0.1F;
+        QVERIFY(scene.deliver(event));QTRY_VERIFY(list->property("contentY").toDouble()>0);
+        QCOMPARE(scene.state.cursors()[0].toMap().value("smoothQtY").toInt(),-288);
+        event.eventType=vr::VREvent_ScrollDiscrete;event.data.scroll.ydelta=-1;
+        QVERIFY(scene.deliver(event));QCOMPARE(scene.state.cursors()[0].toMap().value("discreteQtY").toInt(),-120);
+    }
+    void diagnosticHasLiveTuningAndTwentyEventHistory() {
+        DiagnosticScene scene;
+        for (const auto *name : {"freezeMs","clickSlop","dragThreshold","smoothScale"}) {
+            QVERIFY2(scene.state.property(name).isValid(),name);
+        }
+        QVERIFY(scene.root->findChild<QQuickItem *>("spikeFreeze"));
+        QVERIFY(scene.root->findChild<QQuickItem *>("spikeSlop"));
+        QVERIFY(scene.root->findChild<QQuickItem *>("spikeDrag"));
+        QVERIFY(scene.root->findChild<QQuickItem *>("spikeSmooth"));
+        for(int i=0;i<25;++i)QVERIFY(scene.point({300.0+i,150.0}));
+        QCOMPARE(scene.state.property("events").toList().size(),20);
+        auto freeze=scene.root->findChild<QQuickItem *>("spikeFreeze");freeze->forceActiveFocus();
+        QTest::keyClick(&scene.window,Qt::Key_Up);QCOMPARE(scene.state.freezeMs(),125);
+        const auto history=scene.root->findChild<QQuickItem *>("spikeInputHistory");
+        QVERIFY(history);QVERIFY(history->property("count").toInt()==20);
+    }
     void focusHideCancellationCannotActivateAndFreshClickRecovers_data(){QTest::addColumn<int>("kind");QTest::newRow("focus leave")<<int(vr::VREvent_FocusLeave);QTest::newRow("hidden")<<int(vr::VREvent_OverlayHidden);}
     void focusHideCancellationCannotActivateAndFreshClickRecovers(){
         QFETCH(int,kind);DiagnosticScene scene;auto target=item(scene.root,"spikeCorner0");QVERIFY(target);
@@ -231,13 +291,13 @@ private slots:
         QVERIFY(item(scene.root,"spikeInputObservations"));QVERIFY(item(scene.root,"spikeScrollPosition"));QCOMPARE(scene.runtime.initializations,0);
     }
     void focusAloneDoesNotRequestSteamVrKeyboard(){
-        DiagnosticScene scene;auto editor=item(scene.root,"spikeTextInput");QVERIFY(editor);
+        DiagnosticScene scene;QVERIFY(scene.click(item(scene.root,"spikeKeyboardTab")));auto editor=item(scene.root,"spikeTextInput");QVERIFY(editor);
         editor->forceActiveFocus();QCoreApplication::processEvents();QCOMPARE(scene.runtime.requests,0);
         QVERIFY(scene.click(item(scene.root,"spikeKeyboardRequest")));QCOMPARE(scene.runtime.requests,1);QCOMPARE(scene.runtime.initializations,0);
     }
     void everyPanelKeyAndDoneByGeometry_data(){QTest::addColumn<bool>("flip");QTest::newRow("bottom-left packets")<<true;QTest::newRow("top-left packets")<<false;}
     void everyPanelKeyAndDoneByGeometry(){
-        QFETCH(bool,flip);DiagnosticScene scene;scene.state.setFlipY(flip);
+        QFETCH(bool,flip);DiagnosticScene scene;scene.state.setFlipY(flip);QVERIFY(scene.click(item(scene.root,"spikeKeyboardTab")));
         const auto keys=visualItems(scene.root,"spikePanelKey");QCOMPARE(keys.size(),qsizetype(39));
         for(auto key:keys){const auto label=key->property("modelData").toString();
             const auto center=key->mapToScene({key->width()/2,key->height()/2});QVERIFY(center.x()>0&&center.x()<1280&&center.y()>0&&center.y()<800);QVERIFY(key->height()>=48);
@@ -265,7 +325,7 @@ private slots:
         QVERIFY(item(scene.root,"spikeScrollPosition")->property("text").toString().contains(QString::number(grid->property("contentY").toDouble(),'f',1)));
     }
     void matchingStaleWrongAndClosedKeyboardSessionsThroughScene(){
-        DiagnosticScene scene;auto request=item(scene.root,"spikeKeyboardRequest");QVERIFY(request);QVERIFY(scene.click(request));
+        DiagnosticScene scene;QVERIFY(scene.click(item(scene.root,"spikeKeyboardTab")));auto request=item(scene.root,"spikeKeyboardRequest");QVERIFY(request);QVERIFY(scene.click(request));
         const auto old=scene.runtime.token;scene.packet(vr::VREvent_KeyboardCharInput,old,42,"a");QCOMPARE(scene.state.text(),QString("a"));
         for(const auto type:{vr::VREvent_KeyboardCharInput,vr::VREvent_KeyboardDone,vr::VREvent_KeyboardClosed,vr::VREvent_KeyboardClosed_Global}){
             scene.packet(type,old-1,42,"b");scene.packet(type,old,43,"b");QCOMPARE(scene.state.text(),QString("a"));QCOMPARE(scene.runtime.hides,0);
@@ -285,9 +345,11 @@ private slots:
     void twoIndependentScenesHaveIndependentTextTargetsAndObservations(){
         DiagnosticScene first(true,42),second(false,84);first.activate();
         QVERIFY(first.click(item(first.root,"spikeCorner0")));QCOMPARE(first.state.clickCount(),1);QCOMPARE(second.state.clickCount(),0);QVERIFY(second.state.cursors().isEmpty());
+        QVERIFY(first.click(item(first.root,"spikeKeyboardTab")));
         QVERIFY(first.click(item(first.root,"spikeKeyboardRequest")));first.packet(vr::VREvent_KeyboardCharInput,first.runtime.token,42,"one");
         QCOMPARE(first.state.text(),QString("one"));QVERIFY(second.state.text().isEmpty());
         second.activate();QVERIFY(second.click(item(second.root,"spikeCorner3"),1));QCOMPARE(first.state.cornerHits()[3].toInt(),0);QCOMPARE(second.state.cornerHits()[3].toInt(),1);
+        QVERIFY(second.click(item(second.root,"spikeKeyboardTab")));
         QVERIFY(second.click(item(second.root,"spikeKeyboardRequest")));second.packet(vr::VREvent_KeyboardCharInput,second.runtime.token,42,"x");QVERIFY(second.state.text().isEmpty());
         second.packet(vr::VREvent_KeyboardCharInput,second.runtime.token,84,"two");QCOMPARE(second.state.text(),QString("two"));QCOMPARE(first.state.text(),QString("one"));
         QCOMPARE(first.runtime.initializations,0);QCOMPARE(second.runtime.initializations,0);

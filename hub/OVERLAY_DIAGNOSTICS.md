@@ -1,76 +1,50 @@
-# Overlay diagnostics and correctness
+# Overlay diagnostics and Wii sitting
 
-The `--spike` scene has four off-centre hit targets on its 1280 × 800 canvas,
-a marker for the dispatched Qt position, and a long synthetic list with visible
-`contentY`. All content is synthetic. Raw observations are grouped by cursor ID:
-mouse coordinates, separate smooth/discrete counts and deltas, cached position,
-Qt event/position/buttons, receipt/press timestamps, owner and fixed
-rejection/cancellation reasons. Raw counts and dispatched Qt counts are separate.
-Typed text never enters these rows or a log.
+Run `aladdinscastle-hub --overlay --window --spike` only in the lead-coordinated
+owner sitting. Desktop-only `--spike` uses the same page without a VR session.
+Four off-centre targets and the yellow Qt marker expose Y orientation. The
+Keyboard/Cards switch leaves enough space to test both the list and all 39 keys.
+Live controls select Flip Y, press freeze0–500ms, click slop0–200px, drag
+threshold0–200px and smooth-scroll scale120/2880. Initial overlay values are
+100ms/40px/40px/2880, the design defaults; they are not headset-calibrated.
+Changing a setting cancels the current click. Values are transient, not saved.
 
-## Overlay-only input contract
+The last20 numeric events show raw packet/Qt types, positions, rejection reason,
+press position, release/move position, drift and separate smooth/discrete deltas.
+No keyboard payload is recorded. The long card list exposes contentY. Keyboard
+focus alone never requests SteamVR text; the explicit button uses the existing
+session/token/UTF-8 guards. All39 panel keys and Done are tested by hit geometry
+under both Y settings. Desktop mouse routing remains native.
 
-Only a finite in-panel mouse move establishes position authority. Button packet
-coordinates, even divergent/nonfinite ones, do not supply it. Raw moves outside
-[0,width) × [0,height) invalidate before the diagnostic mapper clamps anything.
-Each cursor owns its last valid move and fractional wheel remainder; wheel events
-use that cursor's position. Both smooth and discrete factors remain ×120, with
-the existing ±100 delta clamp. At most 64 admitted IDs are retained for a
-translator lifetime; over-budget IDs never become a late gesture. Diagnostic
-rows retain 16 IDs and count additional observations as dropped.
+## Input behavior
 
-The first admitted down owns the entire accepted button chord. Other cursors may
-refresh cached moves but cannot steer, release or scroll the held gesture.
-Rejected/canceled held chords remain suppressed until their physical ups; no
-press or scroll is queued for replay. Unowned ups do not generate Qt releases.
+Only finite in-panel moves establish position; button coordinates are ignored.
+The production dashboard does not enable the multiple-cursor overlay flag and
+uses one logical pointer/left trigger. Raw cursor IDs remain observable; the
+flag-enabled protocol path has explicit test opt-in. A valid move restores focus
+only while both host and event visibility gates are open. A repeated down after
+a missing up cancels the old Qt grab before beginning one new click. Hidden
+packets cannot rearm the pointer or activate controls.
 
-Freshness is receiver/visibility/focus epoch validity, with no elapsed-age
-expiry. A stationary controller can keep a valid position indefinitely. Hide,
-focus loss, receiver/orientation changes and owner/target loss invalidate it.
-Inactive packets cannot establish a new valid position or activate anything;
-ups still acknowledge suppressed buttons. Genuine show/focus resume (including
-host visibility and Qt window transitions) plus a new move permits admission.
-The host sets visibility before draining queued packets. Its external visibility
-gate is separate from event visibility: queued Shown cannot override a false
-host sample, and an unchanged true host sample cannot erase a queued Hidden.
-A genuine host-visible transition restores admission only after a fresh move.
+The pointer stays at its press point during the freeze interval. After that,
+movement remains withheld until it exceeds the drag threshold; crossing it feeds
+the actual QML drag. A nondrag release within click slop returns to the press
+point; a nondrag release outside slop cancels. Smooth packets use the live scale;
+discrete packets always use120. Fractional wheel units and the ±100 raw delta
+clamp remain. Freeze/slop work only in the synthetic overlay path.
 
-One injected monotonic receipt sample per input packet stamps Qt events in
-milliseconds. External lifecycle samples also advance the same high-water mark.
-Regressing/negative packet clocks cancel and reject input until the clock catches
-up; cleanup timestamps never regress. OpenVR `eventAgeSeconds` is not treated as
-an occurrence clock. Press point/time are observable snapshots, not a freeze or
-slop policy. Production freeze is zero; Qt's native drag/slop behavior, desktop
-routing and all scaling/filter settings remain unchanged.
+Receiver/visibility epochs have no elapsed-position expiry. One monotonic receipt
+sample per packet stamps Qt events; external samples advance the same high-water
+mark. Regressing clocks cancel/reject until they catch up. OpenVR eventAgeSeconds
+is not an occurrence clock. Receiver/target destruction uses weak references and
+queued cleanup generations; cancellation clears the overlay's dedicated mouse
+device grab and releases off-panel, separate from the native desktop device.
 
-## Cancellation and lifetime
+## Acceptance
 
-The overlay uses its own Qt mouse device, separate from the native desktop
-mouse. Cancellation immediately clears logical ownership, invalidates caches,
-and suppresses held buttons. Public Qt point-grab cleanup precedes off-panel
-release/move/leave; an ordinary release at the pressed control is never used.
-
-QObject target/window teardown cannot receive synthetic input safely. These
-paths defer Qt cleanup while invalidating logical state immediately. Cleanup
-holds weak receiver/device references and a generation guard, and is flushed
-before any subsequent packet/rebind. Old queued callbacks cannot affect a later
-gesture. Tests cover surviving and replaced receivers, target/window destruction,
-shutdown, and native desktop presses held during synthetic-device cancellation.
-
-## Text and acceptance
-
-Focus alone never opens SteamVR's keyboard. The explicit button asks an already
-initialized host; it is disabled in desktop presentation. All 39 on-panel keys
-and Done remain usable. Text exists only on screen/in process memory until reset
-or process exit. The shared `OverlayKeyboard` keeps existing target/token/UTF-8
-session guards. Software tests supply a fake adapter and initialize no XR runtime
-or renderer graphics context.
-
-Real-QML checks cover four corners and every key/Done under both Y settings,
-independent contexts, matching/stale/wrong/closed sessions, Unicode/backspace,
-two separate scroll lists, native drag, and cancellation/recovery across Button,
-MouseArea, TapHandler and Flickable. They establish source/software behavior.
-Actual packet ordering, orientation, readability and controller feel still need
-an approved headset sitting. ×2880, nonzero freeze/slop/drag thresholds, speed,
-dead-zone and One Euro filtering remain separate candidates; no saved WIP was
-applied. Shared hardware instructions and acceptance belong to the lead.
+Software checks cover real QML Button/MouseArea/TapHandler/Flickable cancellation,
+press drift versus drag, focus/dropped-up recovery, smooth/discrete scaling,
+keyboard geometry and independent hidden/visible scenes. A desktop capture has
+been inspected. Actual Y direction, packet ordering, controller feel, readability,
+ten consecutive card selections and every key remain for the owner sitting.
+Speed/dead-zone and pointer filtering are not part of this checkpoint.

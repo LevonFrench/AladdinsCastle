@@ -7,6 +7,7 @@ Item {
     id: root
     property bool overlayPresentation: false
     property int selectedCard: -1
+    property bool keyboardPage: false
     Rectangle { anchors.fill: parent; color: surfaceColor }
     Repeater {
         model: 4
@@ -15,14 +16,14 @@ Item {
             objectName: "spikeCorner" + index
             x: index % 2 ? root.width - width - 24 : 24
             y: index < 2 ? 24 : root.height - height - 24
-            width: 164; height: 56
+            width: 180; height: 56; font.pixelSize:18
             text: ["TOP LEFT", "TOP RIGHT", "BOTTOM LEFT", "BOTTOM RIGHT"][index] + " · " + spikeState.cornerHits[index]
             onClicked: spikeState.hitCorner(index)
         }
     }
     Label {
         x: 212; y: 28; width: root.width - 424; height: 56
-        text: "AladdinsCastle · input diagnostics\n1280 × 800 · " + (root.overlayPresentation ? "DASHBOARD" : "DESKTOP") + " · observations, not routing fixes"
+        text: "AladdinsCastle · input diagnostics\n1280 × 800 · " + (root.overlayPresentation ? "DASHBOARD" : "DESKTOP") + " · live orientation and click tuning"
         color: primaryTextColor; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 18
     }
     ColumnLayout {
@@ -30,28 +31,54 @@ Item {
         anchors.topMargin: 96; anchors.bottomMargin: 96; spacing: 8
         RowLayout {
             spacing: 8
-            Button { implicitHeight:48; text:"Reset text"; onClicked:spikeState.text="" }
-            CheckBox { implicitHeight:48; text:"Flip mouse Y"; checked:spikeState.flipY; onToggled:spikeState.flipY=checked }
-            CheckBox { implicitHeight:48; text:"50 glows"; checked:spikeState.glow; onToggled:spikeState.glow=checked }
-            CheckBox { implicitHeight:48; text:"Animate glows"; checked:spikeState.animate; onToggled:spikeState.animate=checked }
+            Button { objectName:"spikeKeyboardTab";implicitHeight:48;font.pixelSize:20;text:root.keyboardPage?"Cards / pointer":"Keyboard";onClicked:root.keyboardPage=!root.keyboardPage }
+            Button { visible:root.keyboardPage;implicitHeight:48; text:"Reset text"; onClicked:spikeState.text="" }
+            CheckBox { objectName:"spikeFlipY"; implicitHeight:48; font.pixelSize:22; palette.windowText:primaryTextColor; text:"Flip Y"; checked:spikeState.flipY; onToggled:spikeState.flipY=checked }
+            CheckBox { implicitHeight:48; font.pixelSize:18; palette.windowText:primaryTextColor; text:"50 glows"; checked:spikeState.glow; onToggled:spikeState.glow=checked }
+            CheckBox { implicitHeight:48; font.pixelSize:18; palette.windowText:primaryTextColor; text:"Animate glows"; checked:spikeState.animate; onToggled:spikeState.animate=checked }
             Label { Layout.fillWidth:true; text:"Last Qt pointer: cursor " + spikeState.pointerCursor + " (" + spikeState.pointerPosition.x.toFixed(1) + ", " + spikeState.pointerPosition.y.toFixed(1) + ")"; color:primaryTextColor }
         }
-        ListView {
-            objectName:"spikeInputObservations"
-            Layout.fillWidth:true; Layout.preferredHeight:88; clip:true
-            model:spikeState.cursors
-            ScrollBar.vertical:ScrollBar {}
-            delegate:Label {
-                required property var modelData
-                width:ListView.view.width; height:44; color:"#b9c0d0"; font.pixelSize:11
-                text:"Cursor " + modelData.cursor + " raw event " + modelData.rawEvent + " → Qt " + modelData.qtEvent
-                     + " last mouse raw (" + (modelData.rawX||0) + ", " + (modelData.rawY||0) + ") → Qt (" + modelData.qtX + ", " + modelData.qtY + ") buttons " + modelData.qtButtons
-                     + " cache (" + modelData.cachedX + ", " + modelData.cachedY + ") valid " + modelData.valid + " owner " + modelData.owner + "\n" + modelData.reason + " @ " + modelData.receiptMs + "ms · sent " + modelData.dispatched + " ignored " + (modelData.ignored||0) + " cancel " + (modelData.cancels||0) + " · move " + (modelData.moves||0) + " / press " + (modelData.presses||0) + " / release " + (modelData.releases||0)
-                     + "\nSmooth " + (modelData.smooth||0) + " raw Δ(" + (modelData.smoothRawX||0) + ", " + (modelData.smoothRawY||0) + ") Qt angle Δ(" + (modelData.smoothQtX||0) + ", " + (modelData.smoothQtY||0) + ")"
-                     + " · discrete " + (modelData.discrete||0) + " raw Δ(" + (modelData.discreteRawX||0) + ", " + (modelData.discreteRawY||0) + ") Qt angle Δ(" + (modelData.discreteQtX||0) + ", " + (modelData.discreteQtY||0) + ")"
+        RowLayout {
+            visible:!root.keyboardPage
+            Layout.fillWidth:true;spacing:12
+            ColumnLayout {
+                Label {text:"Press freeze · ms";color:primaryTextColor;font.pixelSize:20}
+                SpinBox {objectName:"spikeFreeze";from:0;to:500;stepSize:25;value:spikeState.freezeMs;font.pixelSize:22;onValueModified:spikeState.freezeMs=value}
+            }
+            ColumnLayout {
+                Label {text:"Click slop · px";color:primaryTextColor;font.pixelSize:20}
+                SpinBox {objectName:"spikeSlop";from:0;to:200;stepSize:5;value:spikeState.clickSlop;font.pixelSize:22;onValueModified:spikeState.clickSlop=value}
+            }
+            ColumnLayout {
+                Label {text:"Drag threshold · px";color:primaryTextColor;font.pixelSize:20}
+                SpinBox {objectName:"spikeDrag";from:0;to:200;stepSize:5;value:spikeState.dragThreshold;font.pixelSize:22;onValueModified:spikeState.dragThreshold=value}
+            }
+            ColumnLayout {
+                Label {text:"Smooth scroll scale";color:primaryTextColor;font.pixelSize:20}
+                ComboBox {objectName:"spikeSmooth";model:[120,2880];currentIndex:spikeState.smoothScale===2880?1:0;font.pixelSize:22;onActivated:spikeState.smoothScale=Number(currentText)}
+            }
+            Label {Layout.fillWidth:true;text:"Discrete ×120\nChanging a setting cancels the held click";color:primaryTextColor;font.pixelSize:18;wrapMode:Text.Wrap}
+        }
+        Item {
+            objectName:"spikeInputObservations";visible:!root.keyboardPage
+            Layout.fillWidth:true;Layout.preferredHeight:72
+            ListView {
+                objectName:"spikeInputHistory";anchors.fill:parent;clip:true
+                model:spikeState.events
+                ScrollBar.vertical:ScrollBar {}
+                delegate:Label {
+                    required property var modelData
+                    width:ListView.view.width;height:64;color:"#b9c0d0";font.pixelSize:18
+                    elide:Text.ElideRight
+                    text:modelData.receiptMs + "ms · packet cursor " + modelData.packetCursor + " → pointer " + modelData.cursor + " · " + modelData.reason + " · raw " + modelData.rawEvent + " → Qt " + modelData.qtEvent
+                        + " · raw (" + (modelData.rawX||0) + ", " + (modelData.rawY||0) + ") → Qt (" + modelData.qtX + ", " + modelData.qtY + ")"
+                        + "\nPress (" + modelData.pressX.toFixed(1) + ", " + modelData.pressY.toFixed(1) + ") · release/move (" + modelData.releaseX.toFixed(1) + ", " + modelData.releaseY.toFixed(1) + ") · drift " + modelData.drift.toFixed(1) + "px"
+                        + " · smooth raw Δ" + (modelData.smoothRawY||0) + " → " + (modelData.smoothQtY||0) + " · discrete raw Δ" + (modelData.discreteRawY||0) + " → " + (modelData.discreteQtY||0)
+                }
             }
         }
         RowLayout {
+            visible:root.keyboardPage
             Layout.fillWidth:true; spacing:8
             Rectangle {
                 Layout.fillWidth:true; Layout.preferredHeight:54; radius:6
@@ -72,19 +99,21 @@ Item {
                 onClicked:overlayHost.requestKeyboard(editor)
             }
         }
-        Label { Layout.fillWidth:true; text:spikeState.status + (spikeState.droppedPackets?" · Dropped packet observations: "+spikeState.droppedPackets:""); color:"#b9c0d0"; elide:Text.ElideRight }
+        Label { visible:root.keyboardPage;Layout.fillWidth:true;font.pixelSize:20; text:spikeState.status + (spikeState.droppedPackets?" · Dropped packet observations: "+spikeState.droppedPackets:""); color:"#b9c0d0"; elide:Text.ElideRight }
         RowLayout {
+            visible:root.keyboardPage
             Layout.fillWidth:true; spacing:8
             Label { Layout.fillWidth:true; text:"On-panel keyboard · every key updates the transient field above"; color:primaryTextColor }
             Button { objectName:"spikeKeyboardDone"; implicitHeight:48; text:"Done"; onClicked:{editor.focus=false;if(root.overlayPresentation)overlayHost.dismissKeyboard()} }
         }
         Flow {
+            visible:root.keyboardPage
             Layout.fillWidth:true; Layout.preferredHeight:implicitHeight; spacing:8
             Repeater {
                 model:"abcdefghijklmnopqrstuvwxyz0123456789".split("").concat(["-", "Space", "⌫"])
                 Button {
                     required property string modelData
-                    objectName:"spikePanelKey"; text:modelData
+                    objectName:"spikePanelKey"; text:modelData; font.pixelSize:22
                     width:modelData==="Space"?76:44; height:56
                     onClicked:{
                         if(modelData==="⌫")spikeState.text=Array.from(spikeState.text).slice(0,-1).join("")
@@ -93,9 +122,9 @@ Item {
                 }
             }
         }
-        Label { objectName:"spikeScrollPosition"; text:"Long list · contentY " + scroll.contentY.toFixed(1) + " / " + Math.max(0,scroll.contentHeight-scroll.height).toFixed(1); color:primaryTextColor }
+        Label { visible:!root.keyboardPage;font.pixelSize:20;objectName:"spikeScrollPosition"; text:"Long list · contentY " + scroll.contentY.toFixed(1) + " / " + Math.max(0,scroll.contentHeight-scroll.height).toFixed(1); color:primaryTextColor }
         Flickable {
-            id: scroll; objectName: "spikeGrid"
+            id: scroll; objectName: "spikeGrid";visible:!root.keyboardPage
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
             contentWidth: width; contentHeight: cards.height + 24
             boundsBehavior: Flickable.StopAtBounds
@@ -141,6 +170,6 @@ Item {
         objectName:"spikePointer"; z:20; visible:spikeState.hasPointer
         width:16; height:16; radius:8; color:"transparent"; border.width:2; border.color:"#ffff66"
         x:spikeState.pointerPosition.x-width/2; y:spikeState.pointerPosition.y-height/2
-        Label { x:18; text:"Qt · " + spikeState.pointerCursor; color:"#ffff66"; font.pixelSize:12 }
+        Label { x:18; text:"Qt · " + spikeState.pointerCursor; color:"#ffff66"; font.pixelSize:18 }
     }
 }

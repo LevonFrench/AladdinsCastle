@@ -71,6 +71,7 @@ private slots:
   void steamCopiesShareTargetLock_data();
   void steamCopiesShareTargetLock();
   void managedToolUsersExcludeMutation();
+  void dolphinUserDirectoryIsolated();
   void flatPlanRetainsOriginalPayload();
   void sharedResourceUseMutationRaceAndCrash();
   void sortedResourcesRefuseWithoutPartialReservation();
@@ -215,6 +216,26 @@ void LaunchSteamTest::managedToolUsersExcludeMutation() {
   second.stop(); QTRY_VERIFY_WITH_TIMEOUT(!second.busy(),7000);
   QVERIFY(install::Engine(options).uninstall(request).success);
   QVERIFY(!QFileInfo(payload+"/synthetic-tool.exe").exists());
+}
+void LaunchSteamTest::dolphinUserDirectoryIsolated() {
+  QTemporaryDir t;
+  const auto exe=t.filePath("existing/Dolphin.exe"),disc=t.filePath("renamed.iso");
+  write(exe,"synthetic executable; never run");write(disc,"synthetic disc");
+  write(t.filePath("existing/portable.txt"),"");
+  write(t.filePath("existing/User/Config/Dolphin.ini"),"existing settings");
+  GameRecord game;game.id="wii-synthetic";
+  game.raw={{"hardware","nintendo-wii"},{"media",Json::array({{{"kind","disc"},{"id","disc"}}})}};
+  Json emulator{{"id","dolphin"},{"launch",{{"args",Json::array({"-b","-e","${media.iso}"})},{"cwd","${tool_dir}"}}}};
+  Json bindings{{"tools",{{"dolphin",{{"path",exe.toStdString()}}}}},{"media",{{"disc",{{"path",disc.toStdString()},{"verified",true}}}}}};
+  const auto plan=install::makeFlatLaunchPlan(game,emulator,t.path(),bindings);
+  const auto user=t.filePath("user/emulator-profiles/dolphin/wii-synthetic/User");
+  QCOMPARE(plan.executable,exe);QCOMPARE(plan.args,QStringList({"--user",user,"-b","-e",disc}));
+  QCOMPARE(plan.cwd,QFileInfo(user).absolutePath());QVERIFY(plan.writableDirs.contains(user));
+  QVERIFY(plan.data["copy_resources"].empty());QVERIFY(plan.data["initial_files"].empty());
+  QCOMPARE(install::readBytes(t.filePath("existing/User/Config/Dolphin.ini")),QByteArray("existing settings"));
+  // An authored manifest cannot inject a second user path to escape isolation.
+  emulator["launch"]["args"].push_back("--user=/unsafe");
+  QVERIFY_THROWS_EXCEPTION(install::Error,install::makeFlatLaunchPlan(game,emulator,t.path(),bindings));
 }
 void LaunchSteamTest::flatPlanRetainsOriginalPayload() {
   QTemporaryDir temp;

@@ -1,0 +1,42 @@
+{
+  "RBUE08": {
+    "gameId": "wii-resident-evil-umbrella-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Umbrella_Chronicles"
+  },
+  "RBUP08": {
+    "gameId": "wii-resident-evil-umbrella-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Umbrella_Chronicles"
+  },
+  "RBUJ08": {
+    "gameId": "wii-resident-evil-umbrella-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Umbrella_Chronicles"
+  },
+  "RBUK08": {
+    "gameId": "wii-resident-evil-umbrella-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Umbrella_Chronicles"
+  },
+  "SBDE08": {
+    "gameId": "wii-resident-evil-darkside-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Darkside_Chronicles"
+  },
+  "SBDP08": {
+    "gameId": "wii-resident-evil-darkside-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Darkside_Chronicles"
+  },
+  "SBDJ08": {
+    "gameId": "wii-resident-evil-darkside-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Darkside_Chronicles"
+  },
+  "SBDK08": {
+    "gameId": "wii-resident-evil-darkside-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Darkside_Chronicles"
+  }
+}
