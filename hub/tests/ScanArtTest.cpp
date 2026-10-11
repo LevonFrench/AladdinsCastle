@@ -342,6 +342,34 @@ private slots:
       QVERIFY(r.identity.isEmpty()); QVERIFY(!r.error.isEmpty());
     }
   }
+  void wbfsDeclaredExtentRefusals() {
+    QTemporaryDir t;
+    std::atomic_bool stop = false;
+    const auto path = t.filePath("extent.wbfs");
+    // Both accepted host-sector sizes must locate the copied header by geometry.
+    for (const auto shift : {9, 12}) {
+      const auto sector = 1 << shift;
+      QByteArray bytes(sector * 2, '\0');
+      bytes.replace(0, 4, "WBFS");
+      qToBigEndian<quint32>(2, bytes.data() + 4);
+      bytes[8] = static_cast<char>(shift);
+      bytes[9] = 21;
+      bytes[12] = 1;
+      bytes.replace(sector, 6, "R2VE01");
+      qToBigEndian<quint32>(0x5d1c9ea3, bytes.data() + sector + 24);
+      save(path, bytes);
+      QCOMPARE(ac::scan::Scanner::inspect(path, stop).identity, QString("R2VE01"));
+      // Physical bytes must not be borrowed beyond the declared extent. Nor
+      // may a declaration extend beyond the physical file (including huge counts).
+      for (const quint32 count : {quint32(1), quint32(3), quint32(0xffffffffU)}) {
+        qToBigEndian<quint32>(count, bytes.data() + 4);
+        save(path, bytes);
+        const auto metadata = ac::scan::Scanner::inspect(path, stop);
+        QVERIFY2(metadata.identity.isEmpty(), qPrintable(QString("shift=%1 count=%2").arg(shift).arg(count)));
+        QVERIFY(!metadata.error.isEmpty());
+      }
+    }
+  }
   void otherDiscHeaders() {
     QTemporaryDir t;
     std::atomic_bool stop = false;

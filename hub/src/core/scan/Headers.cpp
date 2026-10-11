@@ -475,8 +475,14 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
     if(hd<9 || hd>12 || wb<15 || wb>31 || wb<hd) {reject();return r;}
     const qint64 sector=qint64(1)<<hd;
     const auto wbfsHeader=readAt(f,0,sector);
-    if(wbfsHeader.size()!=sector || wbfsHeader[12]==0 ||
-       qFromBigEndian<quint32>(wbfsHeader.constData()+4)==0) {reject();return r;}
+    if(wbfsHeader.size()!=sector || wbfsHeader[12]==0) {reject();return r;}
+    // hd is bounded to 9..12 above: a 32-bit count times this sector size
+    // fits in 64 bits. Require both the copied header and the declared extent
+    // to fit, without reading payloads or split companion files.
+    const quint64 declaredBytes = quint64(qFromBigEndian<quint32>(
+        wbfsHeader.constData() + 4)) * quint64(sector);
+    if (declaredBytes < quint64(sector) + 32 ||
+        declaredBytes > quint64(f.size())) {reject();return r;}
     for(qsizetype i=13;i<wbfsHeader.size();++i)
       if(wbfsHeader[i]!=0) {reject();return r;}
     const auto disc=readAt(f,sector,32);
