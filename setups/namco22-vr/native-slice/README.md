@@ -1,5 +1,11 @@
 # Native synthetic System 22 slice
 
+The next [native batch proof plan](NATIVE-BATCH-PLAN.md) connects the clipped
+packets to guarded upstream batching, with a CPU capture seam in actual `bb_emit`.
+The new draw and noncapture binding gates are compile-time OFF. The legacy fixture
+and `begin_eye` remain unchanged; no new GPU image exists for this source branch.
+Native CZ bytes use the upstream helper and a separate board-depth varying.
+
 The follow-on [head-pose contract](HEADPOSE-CONTRACT.md) adds a CPU-only clipped
 attribute stage for rotation, XYZ translation and uniform scale. It does not
 broaden the GPU entry point below. The accepted PR53 image/executable stay frozen;
@@ -75,10 +81,12 @@ Copy-Item -LiteralPath "$SDK/bin/SDL2.dll" -Destination "$BUILD/SDL2.dll"
 & "$CTEST" --test-dir "$BUILD" --output-on-failure
 ```
 
-CTest runs the native formula `--check` and the head-pose clipping suite without
+CTest runs the native formula `--check`, head-pose clipping and native batch CPU suites without
 SDL initialization, window, GPU or game files. The latter stages two original
 fan triangles per native polygon, preserves painter key/ties, and checks5878
-adversarial assertions plus the actual prepared-queue bridge. It consumes only
+adversarial assertions plus the actual prepared-queue bridge. Native batching adds
+143 checks, including rotated/Z-translated clipping, discrete CZ endpoints and
+unchanged legacy fan/attribute copies. It consumes only
 explicitly supplied pinned sources/local SDK; ordinary hosted Hub/catalog checks
 do not by themselves establish these native test results.
 `--draw` is a separately authorized GPU check, not a CI test:
