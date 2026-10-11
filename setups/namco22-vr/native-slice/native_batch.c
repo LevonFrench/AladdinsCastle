@@ -4,6 +4,9 @@
 #include "native_batch.h"
 #include "tex_bake.h"
 #include "eng_gl.h"
+#if ACN22_NATIVE_ADAPTER && defined(_WIN32)
+#include <windows.h>
+#endif
 #ifndef ACN22_NATIVE_GPU_PROOF
 #define ACN22_NATIVE_GPU_PROOF 0
 #endif
@@ -133,4 +136,31 @@ acvr_result acn22_native_draw_fragment(const acn22_pose_fragment *f,const eng_dr
     if(g_scene_x0!=0 || g_scene_x1!=640 || (g_eng_quad_dx && g_eng_quad_dx(&q)))return ACVR_UNSUPPORTED;
     result=acn22_native_bind(f,NULL,0,NULL);if(result!=ACVR_OK)return result;
     eng_draw_quad(&q,cfg);return acn22_native_unbind();
+}
+acvr_result acn22_native_draw_fragment_borrowed(const acn22_pose_fragment *f,
+    const eng_draw_cfg *cfg,uint64_t context,uint32_t owner_thread)
+{
+#if ACN22_NATIVE_ADAPTER && ACN22_NATIVE_GPU_PROOF && defined(_WIN32)
+    if(GetCurrentThreadId()!=owner_thread || !context ||
+       (uint64_t)(uintptr_t)wglGetCurrentContext()!=context)return ACVR_BAD_STATE;
+    geo_quad q;acvr_result r=acn22_native_prepare(f,&q);if(r!=ACVR_OK)return r;
+    if(!cfg || cfg->flat_white || cfg->flat_quad || cfg->depth_test || cfg->write_prio_alpha ||
+       cfg->fog_before_shade || cfg->wide_backdrop || g_tex_opaque!=1)return ACVR_UNSUPPORTED;
+    GLint program=0,buffer=0,vao=0;
+    glGetIntegerv(0x8b8d,&program);glGetIntegerv(0x8894,&buffer);glGetIntegerv(0x85b5,&vao);
+    if(program || buffer || vao || glIsEnabled(GL_DEPTH_TEST) || glIsEnabled(GL_LIGHTING) ||
+       glIsEnabled(GL_FOG) || glIsEnabled(GL_CULL_FACE))return ACVR_UNSUPPORTED;
+    GLfloat projection[16],model[16];
+    glGetFloatv(GL_PROJECTION_MATRIX,projection);glGetFloatv(GL_MODELVIEW_MATRIX,model);
+    for(int i=0;i<16;i++){
+        double expected=i==0?2.0/640:(i==5?-2.0/480:(i==10?-1:(i==12?-1:(i==13||i==15?1:0))));
+        if(!isfinite(projection[i]) || fabs(projection[i]-expected)>1e-7 ||
+           !isfinite(model[i]) || fabs(model[i]-(i%5==0?1:0))>1e-7)return ACVR_UNSUPPORTED;
+    }
+    if(g_scene_x0!=0 || g_scene_x1!=640 || (g_eng_quad_dx && g_eng_quad_dx(&q)))return ACVR_UNSUPPORTED;
+    r=acn22_native_bind(f,NULL,0,NULL);if(r!=ACVR_OK)return r;
+    eng_draw_quad(&q,cfg);return acn22_native_unbind();
+#else
+    (void)f;(void)cfg;(void)context;(void)owner_thread;return ACVR_UNSUPPORTED;
+#endif
 }
