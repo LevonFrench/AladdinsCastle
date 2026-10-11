@@ -4,6 +4,7 @@
 #include "core/scan/ScanController.h"
 #include "core/install/Install.h"
 #include "core/launch/Launch.h"
+#include "core/gunroom/GunRoom.h"
 #include "core/steam/Steam.h"
 #include "ui/UiController.h"
 namespace ac {
@@ -19,16 +20,21 @@ class HubServices : public QObject {
     Q_PROPERTY(QStringList steamAccounts READ steamAccounts NOTIFY steamPreviewChanged)
     Q_PROPERTY(QString steamPreview READ steamPreview NOTIFY steamPreviewChanged)
     Q_PROPERTY(bool steamWriteReady READ steamWriteReady NOTIFY steamPreviewChanged)
+    Q_PROPERTY(QVariantList gunRoomModels READ gunRoomModels CONSTANT)
+    Q_PROPERTY(bool gunRoomAvailable READ gunRoomAvailable NOTIFY gunRoomChanged)
+    Q_PROPERTY(QString gunRoomReason READ gunRoomReason NOTIFY gunRoomChanged)
+    Q_PROPERTY(bool gunRoomBusy READ gunRoomBusy NOTIFY playingChanged)
 public:
     HubServices(GameListModel *games, FilterSortModel *filter, UiController *ui,
                 UiSettings *settings, QString root, QObject *parent=nullptr,
                 std::function<QString()> steamRootSource = {},
                 std::function<bool()> steamRunningProbe = {});
+    ~HubServices() override;
     QString toolPlan() const;
     QString removalPlan() const { return removalText_; }
     bool playing() const { return childPlaying_; }
-    bool launchBusy() const { return launcher_.busy(); }
-    bool preparing() const { return launcher_.playing() && !playing(); }
+    bool launchBusy() const { return launcher_.busy() || gunRoom_.busy(); }
+    bool preparing() const { return launchBusy() && !playing(); }
     bool canRemoveSteam() const { return games_->find(pendingRemoval_.gameId) != nullptr; }
     bool steamRemoving() const { return steamRequest_.remove; }
     std::shared_ptr<art::Resolver> artResolver() const { return art_; }
@@ -43,7 +49,16 @@ public:
     Q_INVOKABLE bool confirmRemoval(bool removeSteam=false);
     const Json &bindings() const { return bindings_; }
     launch::LaunchService *launcher() { return &launcher_; }
+    QVariantList gunRoomModels()const{return gunRoomModels_;}
+    bool gunRoomAvailable()const{return gunRoomAvailable_;}
+    QString gunRoomReason()const{return gunRoomReason_;}
+    bool gunRoomBusy()const{return gunRoom_.busy();}
+    Q_INVOKABLE void previewGunRoom(const QString &model,const QString &hand,const QString &executable);
+    Q_INVOKABLE void launchGunRoom(const QString &model,const QString &hand,const QString &executable);
+    Q_INVOKABLE void requestHubExit(int code=0);
 signals:
+    void gunRoomChanged();
+    void hubExitReady(int code);
     void removalPlanChanged();
     void steamPreviewChanged();
     void playingChanged();
@@ -59,6 +74,7 @@ private:
     QVariantMap retryContext() const;
     void startInstallRequest(const install::Request &request,const QString &kind);
     void installTool(const QString &gameId,const QString &variantId,const QString &handover={});
+    void startGunRoom(const gunroom::Inputs &inputs);
     GameListModel *games_; FilterSortModel *filter_; UiController *ui_;
     UiSettings *settings_; QString root_, removalText_;
     scan::ScanController scanner_;
@@ -75,5 +91,11 @@ private:
     bool rescanPending_=false, steamPreviewReady_=false;
     QStringList steamAccounts_;QString steamText_;
     steam::WriteRequest steamRequest_;steam::Preview steamPreview_;
+    QVariantList gunRoomModels_;
+    QString gunRoomReason_;
+    bool gunRoomAvailable_=false, hubExitPending_=false;
+    int hubExitCode_=0;
+    gunroom::Inputs retainedGunRoom_;
+    gunroom::Service gunRoom_;
 };
 }

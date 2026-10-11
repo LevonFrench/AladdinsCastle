@@ -63,6 +63,23 @@ bool softwareFrame(QQuickWindow *window){
  QSignalSpy rendered(window,&QQuickWindow::afterRendering);
  window->update();return QTest::qWaitFor([&]{return !rendered.isEmpty();},2000);
 }
+bool withinClips(QQuickItem *item){
+ if(item->width()<=0||item->height()<=0||!item->isVisible())return false;
+ const auto point=item->mapToScene({item->width()/2,item->height()/2});
+ for(auto parent=item;parent;parent=parent->parentItem())
+  if(parent->clip()&&!parent->contains(parent->mapFromScene(point)))return false;
+ return true;
+}
+void hitSnapshot(QQuickWindow *window,const QPointF &point){
+ if(!diagnosticEnabled())return;
+ QJsonArray path;auto item=window->contentItem();
+ for(int depth=0;item&&depth<32;++depth){
+  path<<QJsonObject{{"name",item->objectName()},{"type",item->metaObject()->className()},{"z",item->z()}};
+  const auto local=item->mapFromScene(point);item=item->childAt(local.x(),local.y());
+ }
+ const auto grabber=window->mouseGrabberItem();
+ qInfo().noquote()<<"HIT "+QString::fromUtf8(QJsonDocument(QJsonObject{{"path",path},{"grabber",grabber?grabber->objectName():QString()}}).toJson(QJsonDocument::Compact));
+}
 int cardCount(QQuickItem *item,bool visibleOnly=false){if(!item)return 0;int count=0;if(item->objectName()=="cardPrimary"){auto p=item->mapToScene(QPointF());if(!visibleOnly||(item->isVisible()&&p.y()>100&&p.y()<690))++count;}for(auto child:item->childItems())count+=cardCount(child,visibleOnly);return count;}
 QList<QQuickItem *> namedItems(QQuickItem *item,const QString &name){QList<QQuickItem *> result;if(!item)return result;if(item->objectName()==name)result<<item;for(auto child:item->childItems())result.append(namedItems(child,name));return result;}
 void logMessage(QtMsgType type,const QMessageLogContext &,const QString &message){if(type==QtWarningMsg||type==QtCriticalMsg)warnings<<message;fprintf(stderr,"%s\n",qPrintable(message));}
@@ -121,6 +138,24 @@ public:
  Q_INVOKABLE void approveSteamWrite() {}
 signals:
  void removalPlanChanged();
+};
+class GunRoomProbe:public SteamPreparationProbe {
+ Q_OBJECT
+ Q_PROPERTY(QVariantList gunRoomModels MEMBER choices CONSTANT)
+ Q_PROPERTY(bool gunRoomAvailable READ available NOTIFY gunRoomChanged)
+ Q_PROPERTY(QString gunRoomReason READ reason NOTIFY gunRoomChanged)
+ Q_PROPERTY(bool gunRoomBusy MEMBER inactive CONSTANT)
+public:
+ QVariantList choices{QVariantMap{{"id","synthetic-pistol"},{"title","Synthetic pistol"}}};
+ QString model,hand,binary,explanation="Choose a hand.";
+ bool admitted=false;int launches=0;
+ bool available()const{return admitted;}QString reason()const{return explanation;}
+ Q_INVOKABLE void previewGunRoom(const QString &m,const QString &h,const QString &b){
+  model=m;hand=h;binary=b;admitted=!model.isEmpty()&&(hand=="left"||hand=="right")&&!binary.isEmpty();
+  explanation=admitted?QString():"Choose a gun model and a hand; a reviewed executable is required.";emit gunRoomChanged();
+ }
+ Q_INVOKABLE void launchGunRoom(const QString &m,const QString &h,const QString &b){previewGunRoom(m,h,b);if(admitted)++launches;}
+signals:void gunRoomChanged();
 };
 class UiTest:public QObject {
  Q_OBJECT
@@ -214,6 +249,52 @@ class UiTest:public QObject {
   QVERIFY(QMetaObject::invokeMethod(ui.get(),"restartLaunch"));
   ui->launchFinished("timecris",QString()); QCOMPARE(replay.size(),1);
   QCOMPARE(replay[0][1].toString(),QString("flat")); root->setProperty("vrOverlayMode",false);
+ }
+ void gunRoomDesktopRealScene(){
+  QTemporaryDir temporary;ac::UiSettings localSettings(temporary.path());
+  localSettings.set("gunRoomExecutable",temporary.filePath("reviewed room.exe"));
+  ac::UiController localUi(games.get(),&filter,&localSettings);GunRoomProbe probe;
+  QQmlContext context(engine->rootContext());context.setContextProperty("hubServices",&probe);
+  context.setContextProperty("uiController",&localUi);context.setContextProperty("uiSettings",&localSettings);
+  QQmlComponent component(engine.get());component.setData("import QtQuick; import AladdinsCastle.Hub; HubRoot {width:1120;height:720;view: \"List\"}",QUrl());
+  std::unique_ptr<QQuickItem> scene(qobject_cast<QQuickItem *>(component.create(&context)));
+  QVERIFY2(scene,qPrintable(component.errorString()));scene->setParentItem(window->contentItem());scene->setZ(100);
+  auto help=scene->findChild<QObject *>("helpPanel");QVERIFY(help);QVERIFY(QMetaObject::invokeMethod(help,"open"));
+  auto entry=scene->findChild<QQuickItem *>("helpGunRoom");QVERIFY(entry);QTRY_VERIFY(entry->isVisible());
+  auto entryPoint=entry->mapToScene({entry->width()/2,entry->height()/2});
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,entryPoint.toPoint());
+  QTRY_COMPARE(scene->property("view").toString(),QString("GunRoom"));
+  QTRY_VERIFY(!help->property("visible").toBool());
+  QTRY_VERIFY(scene->findChild<QQuickItem *>("gunRoomLaunch"));
+  auto launch=scene->findChild<QQuickItem *>("gunRoomLaunch");
+  auto model=scene->findChild<QObject *>("gunRoomModel"),hand=scene->findChild<QObject *>("gunRoomHand");
+  QVERIFY(model);QVERIFY(hand);QCOMPARE(hand->property("currentIndex").toInt(),-1);QVERIFY(!launch->isEnabled());
+  model->setProperty("currentIndex",0);QVERIFY(!launch->isEnabled());hand->setProperty("currentIndex",0);
+  QTRY_VERIFY(launch->isEnabled());
+  snapshot("gun-room-before-frame",launch);
+  QVERIFY(softwareFrame(window));snapshot("gun-room-after-frame",launch);
+  auto point=launch->mapToScene({launch->width()/2,launch->height()/2});
+  auto page=scene->findChild<QQuickItem *>("gunRoomPage");QVERIFY(page);
+  page->setProperty("contentY",qMax(0.0,point.y()-window->height()/2));
+  QVERIFY(softwareFrame(window));snapshot("gun-room-after-scroll",launch);
+  QTRY_VERIFY(withinClips(launch));
+  point=launch->mapToScene({launch->width()/2,launch->height()/2});
+  QSignalSpy presses(launch,SIGNAL(pressed())),releases(launch,SIGNAL(released())),clicks(launch,SIGNAL(clicked()));
+  hitSnapshot(window,point);
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  if(diagnosticEnabled())qInfo()<<"DISPATCH"<<presses.size()<<releases.size()<<clicks.size()<<probe.launches;
+  QCOMPARE(probe.launches,1);QCOMPARE(probe.model,QString("synthetic-pistol"));QCOMPARE(probe.hand,QString("left"));
+  QCOMPARE(probe.binary,localSettings.get("gunRoomExecutable").toString());
+  QVERIFY(QMetaObject::invokeMethod(&localUi,"launchRoomQueued",Q_ARG(QString,probe.model),Q_ARG(QString,probe.hand)));
+  localUi.launchStarted("__gun_room");
+  auto exit=scene->findChild<QQuickItem *>("nowPlayingExit");QVERIFY(exit);QTRY_VERIFY(exit->isVisible());
+  QSignalSpy close(&localUi,&ac::UiController::closeLaunchRequested);
+  point=exit->mapToScene({exit->width()/2,exit->height()/2});QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  QCOMPARE(close.size(),1);QVERIFY(!exit->isEnabled());
+  QVERIFY(localUi.nowPlaying().value("closing").toBool());
+  localUi.launchFinished("__gun_room",QString());QTRY_VERIFY(!exit->isVisible());
+  scene->setProperty("vrOverlayMode",true);QTRY_VERIFY(!scene->findChild<QQuickItem *>("gunRoomLaunch"));
+  QVERIFY(!entry->isVisible());
  }
  void desktopDetailEmbedsNativeControls(){
   ui->openDetail("timecris");root->setProperty("view","Detail");

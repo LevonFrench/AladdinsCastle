@@ -19,6 +19,25 @@ include(cmake/ChdMetadata.cmake)
 include(cmake/ProjectWarnings.cmake)
 qt_standard_project_setup(REQUIRES 6.8)
 
+get_filename_component(_ac_hand_root "${CMAKE_CURRENT_SOURCE_DIR}/../libacvr" ABSOLUTE)
+add_library(hubhandmetadata STATIC "${_ac_hand_root}/src/hand_assembly.cpp")
+target_compile_features(hubhandmetadata PUBLIC cxx_std_20)
+set_target_properties(hubhandmetadata PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(hubhandmetadata PUBLIC "${_ac_hand_root}/src")
+target_link_libraries(hubhandmetadata PRIVATE
+    tomlplusplus::tomlplusplus nlohmann_json::nlohmann_json)
+ac_project_warnings(hubhandmetadata)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/licenses")
+configure_file("${_ac_hand_root}/LICENSE" "licenses/libacvr-MIT.txt" COPYONLY)
+set(_ac_hand_receipt "Project source: https://github.com/LevonFrench/AladdinsCastle\nApplication source commit: see ../BUILD-INFO.txt\n")
+foreach(_ac_hand_file src/hand_assembly.cpp src/hand_assembly.hpp src/gun_asset.hpp LICENSE)
+    set(_ac_hand_path "${_ac_hand_root}/${_ac_hand_file}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_ac_hand_path}")
+    file(SHA256 "${_ac_hand_path}" _ac_hand_sha256)
+    string(APPEND _ac_hand_receipt "libacvr/${_ac_hand_file}: ${_ac_hand_sha256}\n")
+endforeach()
+file(WRITE "${CMAKE_BINARY_DIR}/licenses/libacvr-source.txt" "${_ac_hand_receipt}")
+
 add_library(hubcore STATIC
     src/core/catalog/CatalogLoader.cpp
     src/core/catalog/GameRecord.cpp
@@ -58,6 +77,8 @@ add_library(hubcore STATIC
     src/core/launch/Launch.h
     src/core/launch/Launch.cpp
     src/core/launch/Runtime.cpp
+    src/core/gunroom/GunRoom.cpp
+    src/core/gunroom/GunRoom.h
     src/core/steam/Steam.h
     src/core/steam/Steam.cpp
     src/core/steam/BinaryVdf.cpp
@@ -72,6 +93,7 @@ target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concur
 target_link_libraries(hubcore PUBLIC archive_static)
 target_compile_definitions(hubcore PUBLIC NOMINMAX)
 target_link_libraries(hubcore PRIVATE ac7zmetadata)
+target_link_libraries(hubcore PRIVATE hubhandmetadata)
 target_link_libraries(hubcore PRIVATE chdr-static)
 target_link_libraries(hubcore PUBLIC Qt6::Quick)
 if(WIN32)
@@ -144,6 +166,10 @@ ac_project_warnings(steamtool)
 set_target_properties(steamtool PROPERTIES WIN32_EXECUTABLE FALSE)
 
 if(BUILD_TESTING)
+    qt_add_executable(gun-room-tests tests/GunRoomTest.cpp)
+    target_link_libraries(gun-room-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(gun-room-tests)
+    add_test(NAME hub-gun-room COMMAND gun-room-tests)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})
@@ -227,7 +253,11 @@ if(BUILD_TESTING)
     target_compile_definitions(launch-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(launch-tests)
     set_target_properties(launch-tests PROPERTIES WIN32_EXECUTABLE FALSE)
-    add_test(NAME hub-launch-steam COMMAND launch-tests)
+    add_test(NAME hub-launch-steam COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:launch-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-launch-steam.txt
+        -DTEST_TIMEOUT=120
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     if(NOT WIN32)
         set_tests_properties(hub-launch-steam PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     endif()
