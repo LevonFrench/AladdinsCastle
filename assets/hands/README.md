@@ -23,6 +23,16 @@ nodes with local offsets and authored bind positions. Bind positions are a
 static review aid; a runtime consumer must transform the node and offset after
 motion rather than freeze a label at its bind position.
 
+`primary_mount_by_hand[hand]` selects the gun mounting node independently of
+the glove's anatomical rest rotation. Place that node at the controller by
+applying its inverse world transform to the model root. On the heavy mounted
+model, right-primary selects `grip`, left-primary selects `grip_two`.
+`support_by_primary[primary_hand]` selects the opposite hand's attachment:
+heavy right-primary uses `grip_two`; heavy left-primary uses `grip`.
+Prefer that selector over `support_grip`, which retains the right-primary
+compatibility default. Shell support uses the canonical dock rotation from
+the Wii control policy. These choices do not mirror or rescale a gun mesh.
+
 No existing gun mesh is changed to attach these hands. The CPU review poses
 are provisional: they prove export, shading and rigid finger motion, not
 physical comfort, controller calibration, gesture recognition or headset fit.

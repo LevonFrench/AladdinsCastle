@@ -17,6 +17,13 @@ struct Rect { long left,top,right,bottom; };
 inline bool eligible(std::uint32_t pid,std::uint32_t selected,bool visible,bool owned) {
     return selected != 0 && pid == selected && visible && !owned;
 }
+inline bool validGameId(const std::wstring& id) {
+    return id.size()==6 && id.find_first_not_of(L"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")==std::wstring::npos;
+}
+inline bool gameWindowTitle(const std::wstring& title,const std::wstring& id) {
+    if(!validGameId(id)) throw std::runtime_error("Expected six-character game header ID");
+    return title.find(L"("+id+L")")!=std::wstring::npos;
+}
 inline void selectedWindow(bool processLive,bool exists,std::uint32_t actual,std::uint32_t selected,bool minimized) {
     if(!processLive || !exists || !selected || actual!=selected)
         throw std::runtime_error("Selected Dolphin process/window closed or became stale");
@@ -45,6 +52,30 @@ inline void validateCrop(const Rect& crop,unsigned w,unsigned h) {
     imageBytes(static_cast<unsigned>(crop.right-crop.left),static_cast<unsigned>(crop.bottom-crop.top));
 }
 struct FrameView { unsigned width,height; const std::uint8_t* pixels; std::size_t bytes; std::int64_t timeMs; };
+inline bool spatialCandidate(const FrameView& frame) {
+    if(!frame.pixels || frame.bytes!=imageBytes(frame.width,frame.height))
+        throw std::runtime_error("Content gate requires exact client pixels");
+    // Ignore a five-percent perimeter, including rounded startup-window corners.
+    // Reject >99% one RGB colour in the interior; alpha noise cannot qualify.
+    // Remaining variation is candidate evidence only, never game/SBS acceptance.
+    const auto mx=frame.width/20,my=frame.height/20;
+    auto rgb=[&](unsigned x,unsigned y) {
+        const auto i=(static_cast<std::size_t>(y)*frame.width+x)*4;
+        return static_cast<unsigned>(frame.pixels[i]) |
+            (static_cast<unsigned>(frame.pixels[i+1])<<8) |
+            (static_cast<unsigned>(frame.pixels[i+2])<<16);
+    };
+    unsigned candidate=0; std::size_t votes=0,total=0,different=0;
+    for(unsigned y=my;y<frame.height-my;++y) for(unsigned x=mx;x<frame.width-mx;++x) {
+        const auto value=rgb(x,y); ++total;
+        if(!votes) { candidate=value; votes=1; }
+        else if(value==candidate) ++votes;
+        else --votes;
+    }
+    for(unsigned y=my;y<frame.height-my;++y) for(unsigned x=mx;x<frame.width-mx;++x)
+        if(rgb(x,y)!=candidate) ++different;
+    return different>total/100;
+}
 inline bool framesDiffer(const FrameView& a,const FrameView& b) {
     if(!a.pixels || !b.pixels || a.bytes!=imageBytes(a.width,a.height) || b.bytes!=imageBytes(b.width,b.height))
         throw std::runtime_error("Frame gate requires exact client pixels");

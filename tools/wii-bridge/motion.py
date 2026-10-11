@@ -71,11 +71,15 @@ class MotionLatch:
 
 
 class Mapper:
-    def __init__(self, width=3.2, height=1.8, distance=2.0, offscreen='edge'):
+    def __init__(self, width=3.2, height=1.8, distance=2.0, offscreen='edge', policy=None):
         if offscreen not in ('edge', 'hide'):
             raise ValueError('unknown off-screen pointer policy')
+        if policy is not None and offscreen != 'edge':
+            raise ValueError('canonical Square/Remote 1 conflicts with pointer hide')
         self.width, self.height, self.distance = width, height, distance
         self.offscreen = offscreen
+        self.policy = policy
+        self.recenter_requested = False
         self.center = None
         self.velocity = [deque(), deque()]
         self.pads = [Pad(), Pad()]
@@ -114,8 +118,36 @@ class Mapper:
 
     def update(self, frame):
         t = frame['time']
-        # Reader supplies left then right; Dolphin slot0 is right, slot1 left.
-        for slot, hand in enumerate(reversed(frame['hands'])):
+        if isinstance(t, bool) or not isinstance(t, (int, float)) or not math.isfinite(t) or t < 0:
+            raise ValueError('invalid pose sample time')
+        if not isinstance(frame['hands'], list) or len(frame['hands']) != 2:
+            raise ValueError('pose sample needs two hands')
+        safe_hands = []
+        for hand in frame['hands']:
+            if not isinstance(hand, dict) or hand.get('valid') is not True:
+                safe_hands.append({'valid': False, 'buttons': [False]*6, 'stick': (0., 0.)})
+                continue
+            vectors = (('pose', 12), ('velocity', 3), ('omega', 3), ('stick', 2))
+            numeric = all(isinstance(hand.get(name), (list, tuple)) and len(hand[name]) == size and
+                          all(not isinstance(v, bool) and isinstance(v, (int, float)) and math.isfinite(v)
+                              for v in hand[name]) for name, size in vectors)
+            buttons = hand.get('buttons')
+            if (not numeric or any(abs(v) > 1 for v in hand['stick']) or
+                    not isinstance(buttons, (list, tuple)) or len(buttons) != 6 or any(type(v) is not bool for v in buttons)):
+                safe_hands.append({'valid': False, 'buttons': [False]*6, 'stick': (0., 0.)})
+            else:
+                safe_hands.append(hand)
+        # Reader supplies left then right. Canonical DSU slots are roles:
+        # Remote 0 and Nunchuk 1, regardless of their physical hands.
+        if self.policy is None:
+            sources, mapped_buttons, mapped_sticks = (1, 0), None, None
+            self.recenter_requested = False
+        else:
+            mapped_buttons, mapped_sticks, _, self.recenter_requested = self.policy.evaluate(safe_hands)
+            sources = (1 if self.policy.remote_hand == 'right' else 0,
+                       1 if self.policy.stick_hand == 'right' else 0)
+        for slot, source in enumerate(sources):
+            hand = safe_hands[source]
             if not hand['valid']:
                 self.pads[slot] = Pad()
                 self.velocity[slot].clear()
@@ -177,8 +209,15 @@ class Mapper:
             trigger, grip, primary, secondary, menu, click = hand['buttons']
             # Square is reserved for Dolphin Point/Hide when the game profile
             # opts into the hide policy. Trigger is always passed for reloads.
-            buttons = ((int(trigger and self.center is not None)<<9) | (int(grip)<<8) |
-                       (int(self.offscreen == 'hide' and not on_plane)<<15) |
-                       (int(primary)<<13) | (int(secondary)<<14) | (int(menu)<<3))
-            self.pads[slot] = Pad(True,pointer,tuple(hand['stick']),buttons,accel,gyro,int(t*1_000_000))
+            if self.policy is None:
+                buttons = ((int(trigger and self.center is not None)<<9) | (int(grip)<<8) |
+                           (int(self.offscreen == 'hide' and not on_plane)<<15) |
+                           (int(primary)<<13) | (int(secondary)<<14) | (int(menu)<<3))
+                stick = tuple(hand['stick'])
+            else:
+                buttons = mapped_buttons[slot]
+                if self.center is None:
+                    buttons &= ~self.policy.fire_masks[slot] # no calibrated aim, no fire
+                stick = tuple(mapped_sticks[slot])
+            self.pads[slot] = Pad(True,pointer,stick,buttons,accel,gyro,int(t*1_000_000))
         return self.pads

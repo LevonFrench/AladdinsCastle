@@ -1,4 +1,10 @@
-# Chronicles monitor experiments
+# Phase 1 performance experiments
+
+**R3 current:** [native Forced VBI plan](NATIVE-VBI.md), without cheats, using
+the lead's scripted DSU input and quiet-machine runtime slot. The collector and
+its pure helpers support Windows PowerShell 5.1. Legacy candidate-code runtime
+is parked. The material below records the earlier R2 preparation and measurement
+limits; it does not authorize a legacy code run.
 
 Phase 1 preparation for RBUP08, then SBDP08. No rates or preset performance are
 measured yet. The three experiments are baseline, candidate 60 code, then the

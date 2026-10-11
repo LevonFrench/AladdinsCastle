@@ -1,9 +1,18 @@
-# Namco System 22 stereo: CPU foundation
+# Namco System 22 stereo
+
+The current R3 restart is the [native synthetic slice](native-slice/README.md):
+one upstream prepare and native painter queue, two eye draws, raw XYZ captured
+before projection. It is separately built and does not link the old CPU renderer.
+Its source/build/visible-image evidence and narrow admission are recorded there.
+
+The foundation below is historical scaffolding retained during the restart.
 
 This block proves synthetic scene reconstruction and the published libacvr v0.1
 frame/camera/raycast interface. It does **not** run Time Crisis or any other game.
 All geometry comes from formulas in the synthetic fixture; no game content,
-textures, captures, upstream source or third-party binaries are included.
+textures, captures or third-party binaries are included. Guarded patch anchors
+and the earlier material sampler include attributed upstream source fragments;
+the full upstream engine is not vendored.
 
 `acvr_backend_query` reports `supported_graphics=0`; a real libacvr graphics
 runtime must reject it. `game_draw_eye` returns `ACVR_UNSUPPORTED` without

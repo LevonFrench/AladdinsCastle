@@ -94,7 +94,7 @@ struct Accessor {
 };
 }
 
-bool decode_gun_glb(const std::vector<uint8_t> &bytes,GunAsset &out,std::string &error) noexcept {
+bool decode_rigid_glb(const std::vector<uint8_t> &bytes,GunAsset &out,std::string &error,bool hand) noexcept {
     try {
         require(bytes.size()>=28 && bytes.size()<=32u*1024u*1024u,"GLB size out of bounds");
         require(word(bytes,0)==0x46546c67 && word(bytes,4)==2 && word(bytes,8)==bytes.size(),"invalid GLB header");
@@ -119,7 +119,8 @@ bool decode_gun_glb(const std::vector<uint8_t> &bytes,GunAsset &out,std::string 
             require(!n.name.empty() && n.name.size()<=128 && names.emplace(n.name,i).second,"missing/duplicate node name");
             require(!j.contains("skin") && !j.contains("weights"),"deforming gun node unsupported"); n.local=transform(j);
         }
-        require(names.count("grip") && names.count("muzzle"),"grip/muzzle required"); asset.grip=names.at("grip"); asset.muzzle=names.at("muzzle");
+        require(names.count("grip") && (hand||names.count("muzzle")),"grip/muzzle required");
+        asset.grip=names.at("grip");asset.muzzle=hand?asset.grip:names.at("muzzle");
         const auto &scenes=doc.at("scenes"); const auto scene=value(doc,"scene"); require(scene<scenes.size(),"scene index out of range");
         const auto &roots=scenes.at(scene).at("nodes"); require(roots.size()==1 && number(roots[0])==asset.grip,"grip must be the sole root");
         const auto id=identity(); for(unsigned i=0;i<16;++i) require(std::abs(asset.nodes[asset.grip].local[i]-id[i])<.00001f,"grip root must preserve metre units");
@@ -137,9 +138,11 @@ bool decode_gun_glb(const std::vector<uint8_t> &bytes,GunAsset &out,std::string 
             if(nodes[i].contains("children")) for(const auto &c:nodes[i].at("children")) order.push_back(number(c));
         }
         require(order.size()==nodes.size(),"unreachable nodes");
-        require(asset.nodes[asset.muzzle].parent==int32_t(asset.grip),"muzzle must be independent of animated geometry");
-        const auto &muzzle=asset.nodes[asset.muzzle].bind_world;
-        require(muzzle[14]<0 && std::abs(muzzle[8])<.001f && std::abs(muzzle[9])<.001f && std::abs(muzzle[10]-1)<.001f,"muzzle bore must point -Z");
+        if(!hand){
+            require(asset.nodes[asset.muzzle].parent==int32_t(asset.grip),"muzzle must be independent of animated geometry");
+            const auto &muzzle=asset.nodes[asset.muzzle].bind_world;
+            require(muzzle[14]<0 && std::abs(muzzle[8])<.001f && std::abs(muzzle[9])<.001f && std::abs(muzzle[10]-1)<.001f,"muzzle bore must point -Z");
+        }
         const auto &materials=doc.at("materials"); require(materials.is_array() && !materials.empty() && materials.size()<=64,"material count out of bounds");
         for(const auto &j:materials) {
             GunMaterial m; m.name=j.at("name").get<std::string>();
@@ -201,5 +204,11 @@ bool decode_gun_glb(const std::vector<uint8_t> &bytes,GunAsset &out,std::string 
         out=std::move(asset); error.clear(); return true;
     } catch(const std::exception &e) { try { error=e.what(); } catch(...) {} return false; }
       catch(...) { try { error="gun decode failed"; } catch(...) {} return false; }
+}
+bool decode_gun_glb(const std::vector<uint8_t> &bytes,GunAsset &out,std::string &error) noexcept {
+    return decode_rigid_glb(bytes,out,error,false);
+}
+bool decode_hand_glb(const std::vector<uint8_t> &bytes,GunAsset &out,std::string &error) noexcept {
+    return decode_rigid_glb(bytes,out,error,true);
 }
 }

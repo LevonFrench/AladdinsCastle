@@ -1,4 +1,5 @@
-# Run only after the lead grants BOTH QUIET MACHINE and DESKTOP.
+#Requires -Version 5.1
+# Run only in the lead's quiet-machine/project-runtime slot. Never sends OS input.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$RunDirectory,
@@ -8,6 +9,7 @@ param(
     [string]$PredecessorRun
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'collector-common.ps1')
 $defaultRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../.local'))
 $selectedRoot = if ($PrivateOutputRoot) { [IO.Path]::GetFullPath($PrivateOutputRoot) } else { $defaultRoot }
 if ($selectedRoot -ne $defaultRoot -and
@@ -24,29 +26,60 @@ function PrivatePath([string]$Value) {
 }
 $runRoot = PrivatePath $RunDirectory
 $lease = Get-Content -LiteralPath (PrivatePath $LeaseFile) -Raw | ConvertFrom-Json
-if ($lease.quiet_machine -ne $true -or $lease.desktop -ne $true -or
+$run = Get-Content -LiteralPath (Join-Path $runRoot 'run.json') -Raw | ConvertFrom-Json
+$nativeModes = @{'native-off'=0;'native-auto'=-1;'native-72'=72;'native-90'=90;'native-120'=120}
+$native = $nativeModes.ContainsKey([string]$run.experiment)
+$slotGranted = if ($native) { $lease.runtime_slot -eq $true } else { $lease.desktop -eq $true }
+if ($lease.quiet_machine -ne $true -or -not $slotGranted -or
     $lease.granted_by -ne 'lead' -or
     [DateTimeOffset]::Parse($lease.expires_utc) -le [DateTimeOffset]::UtcNow.AddSeconds($Seconds + 20)) {
     throw 'Missing or expired lead QUIET MACHINE + DESKTOP grant'
 }
-$run = Get-Content -LiteralPath (Join-Path $runRoot 'run.json') -Raw | ConvertFrom-Json
 if ($lease.run_directory -ne $runRoot) { throw 'Lease does not name this exact run directory' }
 if (Test-Path -LiteralPath (Join-Path $runRoot 'execution.json')) { throw 'Run already attempted; prepare a fresh retry profile' }
-if ($run.game_id -notin @('RBUP08','SBDP08') -or $run.experiment -notin @('baseline','code','code-vbi90')) {
+$admittedGame = if ($native) { $run.game_id -in @('RBUP08','SBDP08','RHOP8P','RZJE69','RZPP01','SQDE8P') } else { $run.game_id -in @('RBUP08','SBDP08') }
+if (-not $admittedGame -or (-not $native -and $run.experiment -notin @('baseline','code','code-vbi90'))) {
     throw 'Outside bounded Chronicles Phase 1 scope'
 }
-if ($run.experiment -ne 'baseline') {
+if ($run.experiment -in @('code','code-vbi90')) { throw 'Legacy candidate-code runtime parked under R3; use native VBI without cheats' }
+if ($native) {
+    if ($lease.xr_session_authorized -ne $true) { throw 'Native VBI requires the lead-approved XR session conditions' }
+    if ($run.route -ne 'native-vbi' -or $run.forced_vbi_value -ne $nativeModes[$run.experiment] -or -not $run.input_contract) {
+        throw 'Native VBI profile requires verified scripted input before runtime'
+    }
+    if ($Seconds -gt 180) { throw 'Native VBI attempts are bounded to 180 seconds' }
+    foreach ($name in @('script','entrypoint')) {
+        $path = $run.input_contract.$name
+        if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $run.input_contract.($name + '_sha256')) {
+            throw 'Scripted input source or timeline changed'
+        }
+    }
+    $readyPath = PrivatePath $lease.dsu_ready_file
+    $ready = Get-Content -LiteralPath $readyPath | Select-Object -First 1 | ConvertFrom-Json
+    $producer = $null
+    $producerHash = $null
+    if (($lease.dsu_server_pid -is [int] -or $lease.dsu_server_pid -is [long]) -and $lease.dsu_server_pid -gt 0) {
+        $producer = Get-Process -Id $lease.dsu_server_pid -ErrorAction SilentlyContinue
+        if ($producer -and $producer.Path) {
+            $producerHash = (Get-FileHash -LiteralPath $producer.Path -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+    }
+    Assert-AcPhase1DsuBinding $ready $run.input_contract $lease $producer $producerHash
+}
+if ($native -and $run.experiment -ne 'native-off') {
     if (-not $PredecessorRun) { throw 'Code runs require the previous same-stretch normal-speed receipt' }
     $previous = Get-Content -LiteralPath (Join-Path (PrivatePath $PredecessorRun) 'observations.json') -Raw | ConvertFrom-Json
     $previousExecution = Get-Content -LiteralPath (Join-Path (PrivatePath $PredecessorRun) 'execution.json') -Raw | ConvertFrom-Json
-    $expected = if ($run.experiment -eq 'code') { 'baseline' } else { 'code' }
+    $expected = 'native-off'
     if ($previous.game_id -ne $run.game_id -or $previous.revision -ne $run.revision -or
         $previous.experiment -ne $expected -or $previous.counter_confirmed -ne $true -or
         $previous.normal_speed_verified -ne $true -or $previous.shader_warmup_discarded -ne $true -or
         -not $previous.stretch -or -not $previous.counter_evidence -or
         $previous.busiest_core_full -ne $false -or $previousExecution.owned_process_absent -ne $true -or
         $previousExecution.game_id -ne $run.game_id -or $previousExecution.revision -ne $run.revision -or
-        $previousExecution.executable_sha256 -ne $run.executable_sha256) { throw 'Predecessor did not establish counters, same stretch and normal speed with CPU headroom' }
+        $previousExecution.executable_sha256 -ne $run.executable_sha256 -or
+        $previousExecution.input_script_sha256 -ne $run.input_contract.script_sha256 -or
+        $previousExecution.dsu_profile_sha256 -ne $run.input_contract.profile_sha256) { throw 'Predecessor did not establish same-input counters, scene and normal speed with CPU headroom' }
 }
 $buildProcessNames = @(
     'cmake','MSBuild','ninja','cl','link','blender','Dolphin',
@@ -75,22 +108,20 @@ try {
     $header = [byte[]]::new(32)
     if ($stream.Read($header,0,32) -ne 32) { throw 'Short disc header' }
 } finally { $stream.Dispose() }
-$headerHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($header)).ToLowerInvariant()
+$headerHash = Get-AcPhase1ByteHash $header
 if ($headerHash -ne $run.header_sha256 -or (Get-Item -LiteralPath $run.disc).Length -ne $run.disc_bytes) {
     throw 'Disc differs from preparation snapshot'
 }
 # Fixed launch parameters come from validated experiment, not editable run.arguments.
-$argsList = @('--user', $userRoot, '--batch', '--exec', $run.disc,
-    '-C','GFX.VR.EnableOpenXR=False', '-C','GFX.Hardware.VSync=False',
-    '-C','Dolphin.Core.EmulationSpeed=1.0', '-C','Dolphin.Core.OverclockEnable=False',
-    '-C','Dolphin.Core.Overclock=1.0', '-C','SYSCONF.IPL.E60=True', '-C','Dolphin.Core.GFXBackend=D3D')
-$code = if ($run.experiment -eq 'baseline') { 'False' } else { 'True' }
-$vbi = if ($run.experiment -eq 'code-vbi90') { 'True' } else { 'False' }
-$ratio = if ($vbi -eq 'True') { '1.5' } else { '1.0' }
-$argsList += @('-C',"Dolphin.Core.EnableCheats=$code",'-C',"Dolphin.Core.VIOverclockEnable=$vbi",'-C',"Dolphin.Core.VIOverclock=$ratio")
+$argsList = @(Get-AcPhase1Arguments $run $userRoot)
 $receipt = [ordered]@{ status='starting'; start_utc=[DateTimeOffset]::UtcNow.ToString('o');
     game_id=$run.game_id; revision=$run.revision; experiment=$run.experiment;
     release=$run.release; executable_sha256=$pin.executable_sha256; lease=$lease;
+    input_script_sha256=$(if ($native) { $run.input_contract.script_sha256 } else { $null });
+    dsu_profile_sha256=$(if ($native) { $run.input_contract.profile_sha256 } else { $null });
+    dsu_producer_pid=$(if ($native) { $ready.producer_pid } else { $null });
+    dsu_session_token=$(if ($native) { $ready.session_token } else { $null });
+    dsu_producer_executable_sha256=$(if ($native) { $producerHash } else { $null });
     required_stretch=$(if ($previous) { $previous.stretch } else { $null });
     other_processes=@(Get-Process | Select-Object ProcessName,Id,CPU); telemetry_errors=@();
     stop_reason='bounded-duration'; owned_process_absent=$false }
@@ -100,10 +131,11 @@ $process = $null
 $cpuRows = [Collections.Generic.List[object]]::new()
 $gpuRows = [Collections.Generic.List[object]]::new()
 try {
-    $start = [Diagnostics.ProcessStartInfo]::new($run.executable)
+    $start = New-Object Diagnostics.ProcessStartInfo
+    $start.FileName = $run.executable
     $start.WorkingDirectory = $runRoot
     $start.UseShellExecute = $false
-    foreach ($arg in $argsList) { $start.ArgumentList.Add($arg) }
+    $start.Arguments = Join-AcPhase1Arguments $argsList
     $process = [Diagnostics.Process]::Start($start)
     $receipt.pid = $process.Id
     $receipt.status = 'running'
@@ -112,6 +144,9 @@ try {
     while ($clock.Elapsed.TotalSeconds -lt $Seconds) {
         $process.Refresh()
         if ($process.HasExited) { $receipt.stop_reason='application-exited'; break }
+        if (Test-Path -LiteralPath (Join-Path $runRoot 'stop-requested.txt')) {
+            $receipt.stop_reason='lead-stop-requested'; break
+        }
         $elapsed = $clock.Elapsed.TotalSeconds
         try {
             $cores = @(Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor | Where-Object Name -ne '_Total')
@@ -121,7 +156,7 @@ try {
             }
             $busy = ($cores | Measure-Object PercentProcessorTime -Maximum).Maximum
             $fullSamples = if ($busy -ge 95) { $fullSamples + 1 } else { 0 }
-            if ($run.experiment -ne 'baseline' -and $fullSamples -ge 3) {
+            if ($run.experiment -notin @('baseline','native-off') -and $fullSamples -ge 3) {
                 $receipt.stop_reason='busiest-logical-core-at-least-95-percent-for-three-samples'; break
             }
         } catch {

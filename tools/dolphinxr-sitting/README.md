@@ -3,14 +3,29 @@
 Windows PowerShell 5.1 is the supported operator shell. The public runner takes
 explicit executable/hash/disc/private-state paths; owner-specific wrappers stay
 under `.local`. Nothing installs, downloads, changes Steam, or chooses a system
-runtime. `-CheckOnly` checks the executable and a 32-byte Wii header without
-writing settings. `-PrepareOnly` prepares settings without starting any process.
+runtime. `-CheckOnly` checks the executable and Wii identity without writing
+settings. Raw ISO and single-disc WBFS headers are supported. WBFS host-sector
+size determines the copied header offset; malformed or multiple-disc containers
+are refused. This bounded metadata check does not verify the WBFS block map,
+payload or split companions. `-GameID` must match the exact six-character header
+ID. A matching header is not a boot result or permission to access a collection.
+`-PrepareOnly` prepares settings without starting any process.
 
 Default and Eager modes consume the exact shared `shell-stick/1` native
 `split-right.ini` bytes and verify their generated manifest hash. The pinned
 native route uses one right-hand Remote and a left-hand attachment. Left-hand
 and multiple-player routing require separate native admission; swapping button
 expressions alone does not change the source's IR override.
+
+To select authored per-game controls, use `-ControlSet <catalog-game-id>`.
+The runner resolves `generated/games/<catalog-game-id>/dolphinxr-right.ini`
+and checks its entry in the shared generated manifest. For scripted input,
+also pass that game's `scripted-dsu-right.ini` as `-DsuProfile`. Native and DSU
+files must name the same control set, and all hashes are checked before writing.
+`-GameID` remains the independent exact disc-header check: the catalog slug is
+a control policy, not proof that a disc is the selected game. Existing explicit
+split-right profiles remain supported. Game gun/hold proposals remain provisional;
+this installs their generated input bindings without claiming held-model rendering.
 
 Settings live in new, explicitly managed `User-v2-<Mode>` directories. Older
 sitting directories are not migrated. Before each preparation, Dolphin must be

@@ -29,4 +29,7 @@ struct GunAsset {
 // Decodes an in-memory, self-contained GLB. No filesystem, network or graphics.
 // Output remains unchanged on failure. Named bind transforms never animate.
 bool decode_gun_glb(const std::vector<uint8_t> &, GunAsset &, std::string &error) noexcept;
+// Same bounded rigid geometry decoder for the authored hand assets. Hands have
+// a grip root but no muzzle/bore contract.
+bool decode_hand_glb(const std::vector<uint8_t> &, GunAsset &, std::string &error) noexcept;
 }

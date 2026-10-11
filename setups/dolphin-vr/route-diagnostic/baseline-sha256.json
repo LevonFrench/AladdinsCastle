@@ -1,0 +1,7 @@
+{
+  "VideoCommon/VertexManagerBase.cpp": "c37c91e8b340789d35f659cfb9d8276ecbe5b7bc81459e557f4f19d0cf6a159d",
+  "VideoCommon/VertexManagerBase.h": "e47ba1de818faa541ef19242e06efc0901469afbef3b219d1c7126b55cf90259",
+  "VideoCommon/TextureCacheBase.cpp": "f83106e0e59e2bb8d04c6104d246ebf7a07a6679a62f5f1783f420993fee2029",
+  "VideoCommon/TextureCacheBase.h": "c4c97685836d1f349ad30f4c9737546a0ec8e66c75d12828b8fda1d21fcf9ea7",
+  "VideoCommon/GeometryShaderManager.h": "862935457a0b58d7a0f7a3796b401b9909f9953ce4a31244a707ef75bc08990d"
+}

@@ -1,7 +1,7 @@
 {
   "controller_type": "oculus_touch",
   "description": "Wii Remotes with full tracked motion",
-  "name": "AladdinsCastle Wii",
+  "name": "Wii controller bindings",
   "bindings": {
     "/actions/wii": {
       "poses": [

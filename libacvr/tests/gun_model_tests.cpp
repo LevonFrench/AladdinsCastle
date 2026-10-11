@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 #include "gun_model.hpp"
+#include "hand_assembly.hpp"
 #include "gun_fixture.hpp"
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -144,8 +146,183 @@ void mounted_neutral_rest() {
     check(gun.pulse_motion("swivel",1,100,1)==ACVR_OK);
     check(gun.draw(p,p,c,1,5,100000001,moved)==ACVR_OK && moved.scene_from_node==base.scene_from_node);
 }
-int main() {
-    try { load_and_motion(); invalid_metadata_and_files(); logical_drives(); routed_outputs(); mounted_neutral_rest(); }
+void alternate_primary_mount() {
+    Fixture f;acvr::GunInstance gun;std::string error;
+    check(acvr::decode_gun_model(f.bytes(),metadata,"synthetic",gun.model,error));
+    acvr::GunNode second;second.name="grip_two";second.parent=0;
+    for(unsigned i=0;i<4;++i)second.local[i*5]=second.bind_world[i*5]=1;
+    second.local[12]=second.bind_world[12]=-.26f;
+    gun.model.asset.nodes.push_back(second);gun.reset();
+    std::array<float,3> relative{};
+    check(acvr::gun_relative_node_position(gun.model.asset,"grip_two","grip",relative));
+    check(std::abs(relative[0]-.26f)<.0001f&&relative[1]==0&&relative[2]==0);
+    check(!acvr::gun_relative_node_position(gun.model.asset,"grip_two","missing",relative));
+    auto p=pose();auto c=config();acvr::GunDraw draw;
+    check(gun.draw(p,p,c,1,5,0,draw,{"grip_two"})==ACVR_OK);
+    check(std::abs(draw.scene_from_node.back()[12])<.0001f);
+    check(std::abs(draw.scene_from_node[0][12]-.26f)<.0001f);
+    check(gun.draw(p,p,c,1,5,0,draw,{"missing"})==ACVR_BAD_ARGUMENT);
+    // The glove can attach to grip while the gun mounts at grip_two plus an
+    // authored rotated/translated local frame. Two-hand aiming uses that same
+    // frame and the support attachment offset, not either bare node origin.
+    const acvr::GunMount primary{"grip_two",{0,0,.1f},{0,.70710678f,0,.70710678f}};
+    const acvr::GunMount support{"grip",{.04f,0,0},{0,0,0,1}};
+    check(acvr::gun_relative_mount_position(gun.model.asset,primary,support,relative));
+    check(std::abs(relative[0]-.1f)<.0001f&&std::abs(relative[2]-.3f)<.0001f);
+    check(gun.draw(p,p,c,1,5,0,draw,primary)==ACVR_OK);
+    check(std::abs(draw.scene_from_node.back()[12]-.1f)<.0001f);
+    check(std::abs(draw.scene_from_node.back()[8]+1.f)<.0001f);
+    check(std::abs(draw.scene_from_node[0][12]-relative[0])<.0001f&&
+          std::abs(draw.scene_from_node[0][14]+.04f-relative[2])<.0001f);
+    auto invalid=primary;invalid.rotation_xyzw={0,0,0,2};
+    check(!acvr::gun_relative_mount_position(gun.model.asset,invalid,support,relative));
+    check(gun.draw(p,p,c,1,5,0,draw,invalid)==ACVR_BAD_ARGUMENT);
+}
+void authored_hand_contract() {
+    const std::string data=R"({"schema":"hand-assembly/1","units":"metres","axes":{"up":"+Y","forward":"-Z","handedness":"right"},"quaternion_order":"xyzw","hand_root":"grip","models":{"synthetic":{"hands":{"right":{"asset":"assets/hands/grip-hand-right.glb","node":"grip","translation":[0,0,0],"rotation_xyzw":[0,0,0,1]},"left":{"asset":"assets/hands/grip-hand-left.glb","node":"grip","translation":[0,0,0],"rotation_xyzw":[0,0,0,1]}},"primary_mount_by_hand":{"right":{"node":"grip","translation":[0,0,0],"rotation_xyzw":[0,0,0,1]},"left":{"node":"grip","translation":[0,0,0],"rotation_xyzw":[0,0,0,1]}},"label_anchors":{"grip_two":{"node":"grip_two","local_offset":[0,0,0],"bind_position":[0,0,-0.3]}}}}})";
+    acvr::HandAssembly assembly;std::string error;
+    check(acvr::decode_hand_assembly(data,"synthetic",assembly,error));
+    check(assembly.hands[0].node=="grip"&&assembly.labels.size()==1&&assembly.labels[0].semantic=="grip_two");
+    auto bad=nlohmann::json::parse(data);bad["models"]["synthetic"]["hands"]["right"]["asset"]="../escape.glb";
+    check(!acvr::decode_hand_assembly(bad.dump(),"synthetic",assembly,error));
+    check(assembly.hands[0].asset=="assets/hands/grip-hand-right.glb");
+    acvr::GunAsset hand_asset;acvr::GunNode grip;grip.name="grip";hand_asset.nodes.push_back(grip);
+    acvr::HandMount mount;acvr::HandMount::FingerPose finger;finger.node="grip";
+    mount.finger_pose.push_back(finger);
+    check(acvr::validate_hand_pose_nodes(mount,hand_asset,error));
+    mount.finger_pose[0].node="typo_pivot";
+    check(!acvr::validate_hand_pose_nodes(mount,hand_asset,error)&&error.find("finger-pose")!=std::string::npos);
+    acvr::Matrix identity{};for(unsigned i=0;i<4;++i)identity[i*5]=1;
+    std::vector<acvr::Matrix> posed;
+    check(!acvr::pose_hand_nodes(hand_asset,mount,{}, {},identity,posed));
+    const std::string defaults="version='0.1'\n[[rule]]\ngun_model='synthetic'\ncontrol_set='gun-synthetic'\n";
+    std::string set_id;
+    check(acvr::select_shared_control_set(defaults,"synthetic",set_id,error)&&set_id=="gun-synthetic");
+    check(!acvr::select_shared_control_set(defaults,"other",set_id,error));
+    check(!acvr::select_shared_control_set("version='0.1'\n[[rule]]\ngun_model='synthetic'\ncontrol_set='../escape'\n",
+                                           "synthetic",set_id,error));
+    assembly.labels.push_back({"button_a","button_a",{}, {}});
+    const std::string controls="version='0.1'\ngun_model='synthetic'\n"
+        "[[element]]\nslot=0\nnode='grip_two'\npart='support grip'\nlabel='Cover'\n"
+        "binding={control='grip'}\n[[unmapped_part]]\nslot=0\nnode='button_a'\nlabel='A'\n";
+    std::vector<acvr::InspectionLabel> labels;
+    check(acvr::describe_inspection_labels(assembly,controls,"synthetic",labels,error));
+    check(labels.size()==2&&labels[0].part=="support grip"&&
+          labels[0].game_action=="Cover (UNCONFIRMED)"&&
+          labels[0].controller_button=="GRIP (CANDIDATE)");
+    check(labels[1].part=="A"&&labels[1].game_action=="UNCONFIRMED"&&
+          labels[1].controller_button=="UNCONFIRMED");
+    check(!acvr::describe_inspection_labels(assembly,controls,"other",labels,error));
+    auto alternate=nlohmann::json::parse(data);
+    auto &model=alternate["models"]["synthetic"];
+    model["primary_mount_by_hand"]["left"]={{"node","grip_two"},
+        {"translation",{0,0,.1}},{"rotation_xyzw",{0,.7071067811865476,0,.7071067811865476}}};
+    model["support_by_primary"]={{"right",{{"node","grip_two"},{"translation",{0,0,0}},
+                                                  {"rotation_xyzw",{0,0,0,1}}}},
+                                  {"left",{{"node","grip"},{"translation",{.04,0,0}},
+                                                  {"rotation_xyzw",{0,0,0,1}}}}};
+    check(acvr::decode_hand_assembly(alternate.dump(),"synthetic",assembly,error));
+    check(assembly.hands[1].node=="grip"&&assembly.primary_mount_by_hand[1].node=="grip_two"&&
+          std::abs(assembly.primary_mount_by_hand[1].translation[2]-.1f)<.0001f&&
+          assembly.support_by_primary[0].node=="grip_two"&&assembly.support_by_primary[1].node=="grip");
+    Fixture fixture;acvr::GunInstance mounted;
+    check(acvr::decode_gun_model(fixture.bytes(),metadata,"synthetic",mounted.model,error));
+    acvr::GunNode second_gun;second_gun.name="grip_two";second_gun.parent=0;
+    for(unsigned i=0;i<4;++i)second_gun.local[i*5]=second_gun.bind_world[i*5]=1;
+    second_gun.local[12]=second_gun.bind_world[12]=-.26f;
+    mounted.model.asset.nodes.push_back(second_gun);mounted.reset();
+    const auto &selected=assembly.primary_mount_by_hand[1],&supported=assembly.support_by_primary[1];
+    const acvr::GunMount primary{selected.node,selected.translation,selected.rotation_xyzw};
+    const acvr::GunMount support{supported.node,supported.translation,supported.rotation_xyzw};
+    std::array<float,3> relative{};
+    check(acvr::gun_relative_mount_position(mounted.model.asset,primary,support,relative));
+    check(std::abs(relative[0]-.1f)<.0001f&&std::abs(relative[2]-.3f)<.0001f);
+    acvr::GunDraw placed;auto tracked=pose();auto slot=config();
+    check(mounted.draw(tracked,tracked,slot,1,5,0,placed,primary)==ACVR_OK);
+    check(std::abs(placed.scene_from_node.back()[12]-.1f)<.0001f&&
+          std::abs(placed.scene_from_node[0][12]-.1f)<.0001f);
+    acvr::GunNode second;second.name="grip_two";hand_asset.nodes.push_back(second);
+    check(acvr::validate_hand_gun_nodes(assembly,hand_asset,error));
+    hand_asset.nodes.pop_back();
+    check(!acvr::validate_hand_gun_nodes(assembly,hand_asset,error));
+    auto invalid=alternate;invalid["models"]["synthetic"]["primary_mount_by_hand"].erase("left");
+    check(!acvr::decode_hand_assembly(invalid.dump(),"synthetic",assembly,error));
+    invalid=alternate;invalid["models"]["synthetic"]["primary_mount_by_hand"]["left"]["node"]="unknown_primary";
+    check(!acvr::decode_hand_assembly(invalid.dump(),"synthetic",assembly,error));
+    invalid=alternate;invalid["models"]["synthetic"]["primary_mount_by_hand"]["left"]["rotation_xyzw"]={0,0,0,2};
+    check(!acvr::decode_hand_assembly(invalid.dump(),"synthetic",assembly,error));
+    model["support_by_primary"]["left"]["node"]="unknown_support";
+    check(!acvr::decode_hand_assembly(alternate.dump(),"synthetic",assembly,error));
+}
+void authored_hand_source(const std::filesystem::path &root,const std::string &model){
+    auto read=[&](const std::filesystem::path &path){
+        std::ifstream in(path,std::ios::binary);check(bool(in));
+        return std::string(std::istreambuf_iterator<char>(in),{});
+    };
+    acvr::HandAssembly assembly;std::string error;
+    const bool assembled=acvr::decode_hand_assembly(read(root/"assets"/"hands"/"assembly.json"),model,assembly,error);
+    if(!assembled)throw std::runtime_error("hand assembly: "+error);
+    check(assembled);
+    std::string set_id;std::vector<acvr::InspectionLabel> labels;
+    const bool selected=acvr::select_shared_control_set(read(root/"data"/"controls"/"defaults.toml"),model,set_id,error);
+    if(!selected)throw std::runtime_error("control defaults: "+error);
+    check(selected);
+    const bool described=acvr::describe_inspection_labels(assembly,read(root/"data"/"controls"/(set_id+".toml")),
+                                                           model,labels,error);
+    if(!described)throw std::runtime_error("inspection labels: "+error);
+    check(described);
+    check(labels.size()==assembly.labels.size());
+    for(size_t i=0;i<labels.size();++i){
+        check(labels[i].node==assembly.labels[i].node&&!labels[i].part.empty()&&
+              !labels[i].game_action.empty()&&!labels[i].controller_button.empty());
+        check(labels[i].game_action.find("UNCONFIRMED")!=std::string::npos);
+    }
+    if(model=="con-pistol-dpad"){
+        const auto find=[&](const std::string &node)->const acvr::InspectionLabel &{
+            const auto it=std::find_if(labels.begin(),labels.end(),[&](const auto &label){return label.node==node;});
+            check(it!=labels.end());return *it;
+        };
+        for(const auto *node:{"button_a","button_b","button_c"})
+            check(find(node).game_action=="UNCONFIRMED"&&find(node).controller_button=="UNCONFIRMED");
+        check(find("button_start").controller_button=="A/X (CANDIDATE)");
+    }
+    const auto gun_bytes=read(root/"assets"/"guns"/(model+".glb"));acvr::GunAsset gun;
+    const bool gun_ok=acvr::decode_gun_glb(std::vector<uint8_t>(gun_bytes.begin(),gun_bytes.end()),gun,error);
+    if(gun_ok){
+        check(acvr::validate_hand_gun_nodes(assembly,gun,error));
+    }
+    for(const auto &hand:assembly.hands){
+        const auto path=root/std::filesystem::u8path(hand.asset);
+        const auto glb=read(path);acvr::GunAsset asset;
+        check(acvr::decode_hand_glb(std::vector<uint8_t>(glb.begin(),glb.end()),asset,error));
+        auto meta=path;meta.replace_extension(".toml");std::vector<acvr::HandMotion> motions;
+        check(acvr::decode_hand_motions(read(meta),asset,path.stem().string(),
+                                        &hand==&assembly.hands[0]?"right":"left",motions,error));
+        check(!acvr::decode_hand_motions(read(meta),asset,"wrong-hand", "right",motions,error));
+        check(motions.size()==5);
+        check(acvr::validate_hand_pose_nodes(hand,asset,error));
+        if(!hand.finger_pose.empty()){
+            auto typo=hand;typo.finger_pose.front().node="missing_pivot";
+            check(!acvr::validate_hand_pose_nodes(typo,asset,error));
+        }
+        acvr::Matrix identity{};for(unsigned i=0;i<4;++i)identity[i*5]=1;
+        std::vector<acvr::Matrix> neutral,pressed;
+        check(acvr::pose_hand_nodes(asset,hand,motions,{},identity,neutral));
+        check(acvr::pose_hand_nodes(asset,hand,motions,{1,1,1},identity,pressed));
+        check(neutral.size()==asset.nodes.size()&&pressed.size()==neutral.size());
+        const auto index=std::find_if(asset.nodes.begin(),asset.nodes.end(),[](const acvr::GunNode &n){return n.name=="pivot_index";});
+        check(index!=asset.nodes.end()&&neutral[size_t(index-asset.nodes.begin())]!=pressed[size_t(index-asset.nodes.begin())]);
+        for(const auto &pose:hand.finger_pose)if(pose.scale[0]>1.01f){
+            const auto node=std::find_if(asset.nodes.begin(),asset.nodes.end(),[&](const acvr::GunNode &n){return n.name==pose.node;});
+            const auto &m=neutral[size_t(node-asset.nodes.begin())];
+            check(std::hypot(m[0],m[1],m[2])>1.2f);
+        }
+    }
+}
+int main(int argc,char **argv) {
+    try { load_and_motion(); invalid_metadata_and_files(); logical_drives(); routed_outputs(); mounted_neutral_rest();
+        alternate_primary_mount(); authored_hand_contract();
+        if(argc==3)authored_hand_source(argv[1],argv[2]); }
     catch(const std::exception &e) {std::cerr<<e.what()<<'\n';return 1;}
     std::cout<<checks<<" model checks passed\n";
 }

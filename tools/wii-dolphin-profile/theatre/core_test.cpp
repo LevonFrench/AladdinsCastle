@@ -19,6 +19,10 @@ int main() {
         require(!eligible(12,12,false,false));
         require(!eligible(12,12,true,true));
         require(!eligible(0,0,true,false));
+        require(gameWindowTitle(L"Dolphin | Synthetic (DEMO01)",L"DEMO01"));
+        require(!gameWindowTitle(L"Dolphin main window",L"DEMO01"));
+        require(!gameWindowTitle(L"Dolphin | Synthetic (DEMO02)",L"DEMO01"));
+        rejects([]{ gameWindowTitle(L"Dolphin",L"demo01"); });
         selectedWindow(true,true,12,12,false);
         rejects([]{ selectedWindow(false,true,12,12,false); });
         rejects([]{ selectedWindow(true,false,12,12,false); });
@@ -50,8 +54,23 @@ int main() {
         std::vector<std::uint8_t> first(32,100),second=first;
         FrameView fa{4,2,first.data(),first.size(),1000},fb{4,2,second.data(),second.size(),2000};
         require(!framesDiffer(fa,fb)); // A nonblack grey panel is insufficient.
+        require(!spatialCandidate(fa));
         second[3]=0; require(!framesDiffer(fa,fb)); // Ignore alpha-only noise.
         second[0]=50; require(framesDiffer(fa,fb));
+        require(spatialCandidate(fb));
+        std::vector<std::uint8_t> blank(100*100*4,255);
+        FrameView blankView{100,100,blank.data(),blank.size(),0};
+        require(!spatialCandidate(blankView)); // White then black is not game evidence.
+        for(auto& channel:blank) channel=0;
+        require(!spatialCandidate(blankView));
+        for(auto& channel:blank) channel=127;
+        require(!spatialCandidate(blankView));
+        for(std::size_t i=3;i<blank.size();i+=4) blank[i]=static_cast<std::uint8_t>(i%255);
+        require(!spatialCandidate(blankView)); // Alpha-only variation.
+        for(unsigned y=0;y<4;++y) for(unsigned x=0;x<100;++x) blank[(y*100+x)*4]=0;
+        require(!spatialCandidate(blankView)); // Border decoration cannot qualify.
+        for(unsigned y=40;y<50;++y) for(unsigned x=40;x<50;++x) blank[(y*100+x)*4]=0;
+        require(spatialCandidate(blankView)); // Varied candidate, not acceptance.
         fb.timeMs=1999; rejects([&]{ framesDiffer(fa,fb); });
         fb.timeMs=500; rejects([&]{ framesDiffer(fa,fb); });
         fb.timeMs=2000; fb.bytes=31; rejects([&]{ framesDiffer(fa,fb); });

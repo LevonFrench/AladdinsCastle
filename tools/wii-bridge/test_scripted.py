@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 import copy
 import io
+import os
 import json
 import socket
 import struct
@@ -20,6 +21,30 @@ def fixture():
 
 
 class Scripted(unittest.TestCase):
+    def test_bound_ready_identifies_current_producer_and_input(self):
+        class Idle:
+            sent=0
+            subscriptions={}
+            socket=type('Socket',(),{'getsockname':lambda self:('127.0.0.1',12345)})()
+            def tick(self,*args):pass
+            def close(self):pass
+        output=io.StringIO(); receipt=io.StringIO()
+        with patch('scripted.Server',return_value=Idle()), patch('scripted.time.sleep'), patch('sys.stdout',output):
+            run(Timeline(fixture()),12345,0,receipt,'a'*64,'b'*32)
+        ready=json.loads(output.getvalue().splitlines()[0]); result=json.loads(receipt.getvalue())
+        for data in (ready,result):
+            self.assertEqual(data['producer_pid'],os.getpid())
+            self.assertEqual(data['script_sha256'],'a'*64)
+            self.assertEqual(data['session_token'],'b'*32)
+        self.assertTrue(ready['ready']); self.assertEqual(ready['port'],12345)
+
+    def test_invalid_session_identity_fails_before_socket(self):
+        with patch('scripted.Server') as server:
+            for token,digest in [('x'*32,'a'*64),('a'*31,'b'*64),('a'*32,None),('a'*32,'bad')]:
+                with self.subTest(token=token,digest=digest),self.assertRaises(ValueError):
+                    run(Timeline(fixture()),12345,0,io.StringIO(),digest,token)
+            server.assert_not_called()
+
     def test_traversal_refused_and_existing_receipt_preserved(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)

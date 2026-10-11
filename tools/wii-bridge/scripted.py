@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 import os
+import re
 from pathlib import Path
 import time
 from dsu import Pad, Server
@@ -80,14 +81,21 @@ def fresh_receipt(path):
     return path.open('x', encoding='utf-8')
 
 
-def run(timeline, port, wait_seconds, receipt, script_sha256=None):
+def run(timeline, port, wait_seconds, receipt, script_sha256=None, session_token=None):
+    if session_token is not None and (not isinstance(session_token, str) or not re.fullmatch('[0-9a-f]{32}', session_token)):
+        raise ValueError('Session token must be 32 lowercase hexadecimal characters')
+    if session_token is not None and (not isinstance(script_sha256, str) or not re.fullmatch('[0-9a-f]{64}', script_sha256)):
+        raise ValueError('A bound session requires the actual script SHA-256')
     server = None
     summary = dict(version=1, outcome='error', timeline_started=False, sent=0, peak_subscriptions=0,
                    script_sha256=script_sha256, seconds=timeline.seconds, port=port,
+                   producer_pid=os.getpid(), session_token=session_token,
                    acceptance='DSU transport only; game progress requires captured evidence')
     try:
         server = Server(port)
-        print(json.dumps(dict(ready=True, port=server.socket.getsockname()[1])), flush=True)
+        print(json.dumps(dict(ready=True, port=server.socket.getsockname()[1],
+                              producer_pid=summary['producer_pid'], script_sha256=script_sha256,
+                              session_token=session_token)), flush=True)
         deadline = time.monotonic() + wait_seconds
         started = None
         while True:
@@ -141,9 +149,12 @@ def main():
     parser.add_argument('--port', type=int, default=26760)
     parser.add_argument('--wait-for-client', type=float, default=30)
     parser.add_argument('--check', action='store_true')
+    parser.add_argument('--session-token', help='Fresh supervisor token: 32 lowercase hex characters')
     args = parser.parse_args()
     if not 1024 <= args.port <= 65535:
         parser.error('Port must be 1024..65535')
+    if args.session_token is not None and not re.fullmatch('[0-9a-f]{32}', args.session_token):
+        parser.error('Session token must be 32 lowercase hexadecimal characters')
     number(args.wait_for_client, .1, 120)
     if args.script.stat().st_size > 1024*1024:
         parser.error('Script exceeds 1 MiB')
@@ -155,7 +166,7 @@ def main():
     if args.receipt is None:
         parser.error('--receipt is required for a live DSU run')
     with fresh_receipt(args.receipt) as receipt:
-        return run(timeline, args.port, args.wait_for_client, receipt, hashlib.sha256(raw).hexdigest())
+        return run(timeline, args.port, args.wait_for_client, receipt, hashlib.sha256(raw).hexdigest(), args.session_token)
 
 
 if __name__ == '__main__':
