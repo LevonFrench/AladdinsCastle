@@ -41,6 +41,28 @@
 #endif
 namespace {
 QStringList warnings;
+bool diagnosticEnabled(){return qEnvironmentVariableIsSet("AC_UI_GEOMETRY_DIAGNOSTIC");}
+QJsonObject geometry(QQuickItem *item){
+ const auto point=item->mapToScene({item->width()/2,item->height()/2});
+ QJsonArray chain;
+ for(auto parent=item;parent;parent=parent->parentItem()){
+  const auto local=parent->mapFromScene(point);
+  chain<<QJsonObject{{"name",parent->objectName()},{"type",parent->metaObject()->className()},
+   {"width",parent->width()},{"height",parent->height()},{"implicitHeight",parent->implicitHeight()},
+   {"clip",parent->clip()},{"containsPoint",parent->contains(local)},
+   {"visible",parent->isVisible()},{"enabled",parent->isEnabled()}};
+ }
+ return {{"pointX",point.x()},{"pointY",point.y()},
+  {"mode",QJsonValue::fromVariant(item->property("vrOverlayMode"))},
+  {"targetHeight",QJsonValue::fromVariant(item->property("targetHeight"))},{"chain",chain}};
+}
+void snapshot(const QString &tag,QQuickItem *item){
+ if(diagnosticEnabled())qInfo().noquote()<<"GEOMETRY "+tag+" "+QString::fromUtf8(QJsonDocument(geometry(item)).toJson(QJsonDocument::Compact));
+}
+bool softwareFrame(QQuickWindow *window){
+ QSignalSpy rendered(window,&QQuickWindow::afterRendering);
+ window->update();return QTest::qWaitFor([&]{return !rendered.isEmpty();},2000);
+}
 int cardCount(QQuickItem *item,bool visibleOnly=false){if(!item)return 0;int count=0;if(item->objectName()=="cardPrimary"){auto p=item->mapToScene(QPointF());if(!visibleOnly||(item->isVisible()&&p.y()>100&&p.y()<690))++count;}for(auto child:item->childItems())count+=cardCount(child,visibleOnly);return count;}
 QList<QQuickItem *> namedItems(QQuickItem *item,const QString &name){QList<QQuickItem *> result;if(!item)return result;if(item->objectName()==name)result<<item;for(auto child:item->childItems())result.append(namedItems(child,name));return result;}
 void logMessage(QtMsgType type,const QMessageLogContext &,const QString &message){if(type==QtWarningMsg||type==QtCriticalMsg)warnings<<message;fprintf(stderr,"%s\n",qPrintable(message));}
@@ -124,6 +146,75 @@ class UiTest:public QObject {
   if(!qEnvironmentVariable("AC_UI_BENCH_OUTPUT").isEmpty()){auto out=QFileInfo(qEnvironmentVariable("AC_UI_BENCH_OUTPUT")).dir();QVERIFY(window->grabWindow().save(out.filePath("d-startup.png")));}
  }
  void themeAndSettings(){QCOMPARE(theme->get("motion.hover_dwell").toInt(),600);QCOMPARE(theme->get("motion.preview_scale").toDouble(),1.4);QVERIFY(theme->get("gradient.explore_banner_fade.stop").toList().size()==8);QVERIFY(settings->set("reduceMotion",true));QVERIFY(settings->saveGame("synthetic",{{"laser","on"},{"gun_pitch",-10}}));ac::UiSettings copy(user.path());QCOMPARE(copy.get("reduceMotion").toBool(),true);QCOMPARE(copy.game("synthetic").value("gun_pitch").toInt(),-10);settings->set("reduceMotion",false);}
+ void emptyArtModelDuringNavigation(){
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameArt.qml"));
+  std::unique_ptr<QObject> art(component.create());QVERIFY(art);const auto before=warnings.size();
+  QVERIFY(art->setProperty("game",QVariant()));QTest::qWait(40);
+  QStringList invalid;for(const auto &warning:warnings.mid(before))if(warning.contains("TypeError")||warning.contains("ReferenceError"))invalid<<warning;
+  QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
+ }
+ void pinballTabRealScene(){
+  const auto previousView=root->property("view"),previousMode=root->property("vrOverlayMode");
+  const auto cleanup=qScopeGuard([&]{ui->selectPinball(QString());root->setProperty("view",previousView);root->setProperty("vrOverlayMode",previousMode);});
+  root->setProperty("view","List");root->setProperty("vrOverlayMode",true);
+  const auto tabs=namedItems(window->contentItem(),"pinballTab");QCOMPARE(tabs.size(),1);
+  const auto tab=tabs.first();snapshot("pinball-before-frame",tab);
+  QVERIFY(softwareFrame(window));snapshot("pinball-after-frame",tab);
+  QVERIFY(tab->height()>=48);
+  auto p=tab->mapToScene(QPointF(tab->width()/2,tab->height()/2));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
+  QCOMPARE(root->property("view").toString(),QString("Pinball"));
+  QVariantList rows;for(int i=0;i<25;++i)rows<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"maker","Synthetic"},{"year",2000},{"vrReady",i!=24},{"evidence",QStringList{"marked by you"}},{"romState","needs no ROM"}};
+  QVariantMap data{{"total",25},{"vrReady",24},{"tables",rows}};
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,data)));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"pinballGrid").isEmpty());
+  auto grid=namedItems(window->contentItem(),"pinballGrid").first();QTRY_COMPARE(grid->property("count").toInt(),24);
+  auto tiles=namedItems(window->contentItem(),"pinballTile");QVERIFY(!tiles.isEmpty());
+  auto tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,tile->height()/2));
+  QTest::mousePress(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTest::mouseMove(window,p.toPoint()-QPoint(0,140),80);QTest::mouseRelease(window,Qt::LeftButton,Qt::NoModifier,p.toPoint()-QPoint(0,140));
+  QVERIFY(namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
+  grid->setProperty("contentY",0);QTest::qWait(40);tiles=namedItems(window->contentItem(),"pinballTile");tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,tile->height()/2));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTRY_VERIFY(!namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
+  QCOMPARE(ui->property("pinballSelection").toMap().value("romState").toString(),QString("needs no ROM"));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  auto model=ui->property("pinballControls").value<QObject *>();QVERIFY(model);
+  QCOMPARE(model->property("gameId").toString(),QString("pinball-vpx-openxr"));
+  QVERIFY(!model->property("rows").toList().isEmpty());
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"selectPinball",Q_ARG(QString,"")));
+  root->setProperty("vrOverlayMode",false);root->setProperty("view","List");
+ }
+ void sharedNowPlayingRealScene(){
+  const auto previousView=root->property("view"),previousMode=root->property("vrOverlayMode");
+  const auto cleanup=qScopeGuard([&]{ui->launchFinished("timecris","Synthetic fixture cleanup");root->setProperty("view",previousView);root->setProperty("vrOverlayMode",previousMode);});
+  root->setProperty("view","List"); root->setProperty("vrOverlayMode",true);
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"launchQueued",Q_ARG(QString,"timecris"),Q_ARG(QString,"flat"),Q_ARG(QString,"")));
+  ui->launchStarted("timecris");
+  QTRY_VERIFY(!namedItems(window->contentItem(),"nowPlayingExit").isEmpty());
+  auto exit=namedItems(window->contentItem(),"nowPlayingExit").first();
+  QVERIFY(exit->isVisible());snapshot("card-before-frame",exit);
+  QVERIFY(softwareFrame(window));snapshot("card-after-frame",exit);
+  QVERIFY(exit->height()>=48);
+  auto recentre=namedItems(window->contentItem(),"nowPlayingRecentre").first();
+  QVERIFY(!recentre->isEnabled());
+  QSignalSpy close(ui.get(),SIGNAL(closeLaunchRequested()));
+  auto p=exit->mapToScene(QPointF(exit->width()/2,exit->height()/2));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
+  QCOMPARE(close.size(),1); QVERIFY(!exit->isEnabled());
+  ui->launchFinished("unrelated",QString()); QVERIFY(!ui->property("nowPlaying").toMap().isEmpty());
+  ui->launchFinished("timecris",QString()); QTRY_VERIFY(!exit->isVisible());
+  QCOMPARE(root->property("view").toString(),QString("List"));
+  QSignalSpy replay(ui.get(),&ac::UiController::playRequested);
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"launchQueued",Q_ARG(QString,"timecris"),Q_ARG(QString,"flat"),Q_ARG(QString,"")));
+  ui->launchStarted("timecris");
+  auto restart=namedItems(window->contentItem(),"nowPlayingRestart").first();
+  p=restart->mapToScene(QPointF(restart->width()/2,restart->height()/2));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
+  ui->launchFinished("timecris","Close failed"); QCOMPARE(replay.size(),0);
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"launchQueued",Q_ARG(QString,"timecris"),Q_ARG(QString,"flat"),Q_ARG(QString,"")));
+  ui->launchStarted("timecris");
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"restartLaunch"));
+  ui->launchFinished("timecris",QString()); QCOMPARE(replay.size(),1);
+  QCOMPARE(replay[0][1].toString(),QString("flat")); root->setProperty("vrOverlayMode",false);
+ }
  void desktopDetailEmbedsNativeControls(){
   ui->openDetail("timecris");root->setProperty("view","Detail");
   QTRY_VERIFY_WITH_TIMEOUT(!namedItems(window->contentItem(),"universalControlsView").isEmpty(),3000);

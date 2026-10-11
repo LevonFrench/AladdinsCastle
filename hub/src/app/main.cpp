@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/app/LaunchOptions.h"
+#include "ProductIdentity.h"
 #include "core/app/LaunchFailure.h"
 #include "core/app/NetworkPolicy.h"
 #include "core/catalog/CatalogLoader.h"
@@ -35,11 +36,11 @@ int main(int argc,char **argv){
         if(options.mode==ac::Mode::Launch){QCoreApplication app(argc,argv);QString log;try{log=ac::writeLaunchFailureLog(options.installRoot.isEmpty()?app.applicationDirPath():options.installRoot,options.gameId,options.error);}catch(const std::exception &){}ac::showLaunchFailure(options.error,log);}
         return 2;
     }
-    if(options.help){out<<"AladdinsCastle Hub\nUsage: aladdinscastle-hub [--overlay [--window] | --launch <game-id>]\n  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default on)\n  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;}
-    if(options.version){out<<"AladdinsCastle Hub 0.1.0\n";return 0;}
+    if(options.help){out<<ac::product::display_name<<" Hub\nUsage: "<<ac::product::program_name<<" [--overlay [--window] | --launch <game-id>]\n  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default on)\n  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;}
+    if(options.version){out<<ac::product::display_name<<" Hub 0.1.0\n";return 0;}
     if(options.mode==ac::Mode::RegisterOverlay||options.mode==ac::Mode::UnregisterOverlay){
         QCoreApplication app(argc,argv);QString error;
-        if(!ac::changeOverlayRegistration(QDir(app.applicationDirPath()).filePath("resources/aladdinscastle.vrmanifest"),options.mode==ac::Mode::RegisterOverlay,&error)){err<<error<<'\n';return 3;}
+        if(!ac::changeOverlayRegistration(QDir(app.applicationDirPath()).filePath(QString("resources/")+ac::product::short_id+".vrmanifest"),options.mode==ac::Mode::RegisterOverlay,&error)){err<<error<<'\n';return 3;}
         out<<"Overlay manifest action completed.\n";return 0;
     }
     if(options.mode==ac::Mode::Launch){
@@ -62,7 +63,7 @@ int main(int argc,char **argv){
     }
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
-    QCoreApplication::setApplicationName("AladdinsCastle");QCoreApplication::setApplicationVersion("0.1.0");
+    QCoreApplication::setApplicationName(ac::product::user_data_folder);QGuiApplication::setApplicationDisplayName(ac::product::display_name);QCoreApplication::setApplicationVersion("0.1.0");
     const auto catalogRoot=ac::findCatalogRoot(app.applicationDirPath(),QDir::currentPath(),options.dataRoot);
     if(catalogRoot.isEmpty()){err<<"Catalog missing.\n";return 2;}
     auto catalog=QtConcurrent::run([catalogRoot]{return ac::CatalogLoader().load(catalogRoot);}).result();
@@ -108,7 +109,7 @@ int main(int argc,char **argv){
         for(const auto &game:games.records())if(game.runtime.playing)receipt["games"].push_back({{"id",game.id.toStdString()},{"playing",true},{"stateLabel",game.roles.value("stateLabel").toString().toStdString()}});
         ac::install::atomicWrite(capture+".json",QByteArray::fromStdString(receipt.dump(2)));
     });
-    out<<"AladdinsCastle: "<<count<<" games\n";out.flush();
+    out<<ac::product::display_name<<": "<<count<<" games\n";out.flush();
     if(options.quitAfterMs>0)QTimer::singleShot(options.quitAfterMs,&app,&QCoreApplication::quit);
     return app.exec();
 }

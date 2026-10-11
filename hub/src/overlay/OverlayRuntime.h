@@ -4,6 +4,7 @@
 #include <QSize>
 #include <openvr.h>
 #include <memory>
+#include "ProductIdentity.h"
 namespace ac {
 inline constexpr bool overlayMirrorVertically=false;
 // Preserve the Qt target's recorded corner ordering. Pointer coordinates use
@@ -14,7 +15,7 @@ inline vr::VRTextureBounds_t overlayPictureBounds(bool flipY){
     if(flipY){bounds.vMin=1;bounds.vMax=0;}
     return bounds;
 }
-inline constexpr char overlayKey[] = "org.aladdinscastle.hub";
+inline constexpr auto &overlayKey = product::overlay_key;
 // A narrow adapter keeps lifecycle tests independent of the SteamVR service.
 class OverlayRuntime {
 public:

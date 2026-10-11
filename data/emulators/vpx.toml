@@ -1,0 +1,32 @@
+id = "vpx"
+name = "Visual Pinball X (BGFX OpenXR)"
+kind = "emulator"
+upstream = "https://github.com/vpinball/vpinball"
+license = "mixed"
+license_note = "Upstream describes migration from its historical license to GPLv3 or later; no engine source is copied or redistributed by this manifest."
+redistribution = "manual-only"
+gate = "Located BGFX executable only; no automatic installation or table/ROM downloads. Runtime launch awaits verified writable-output isolation."
+platforms = []
+unverified_platforms = ["windows-x64", "linux-x64"]
+
+[locate]
+exe = ["VPinballX_BGFX64.exe", "VPinballX_BGFX"]
+version = { from = "file-version" }
+min = "10.8.1"
+
+[search]
+paths = []
+
+[launch]
+args = ["-Play", "${media.vpx}", "-Ini", "${profile_dir}/VPinballX.ini", "-TableIni", "${profile_dir}/table.ini"]
+cwd = "${profile_dir}"
+exits_on_game_end = true
+note = "Exact tag v10.8.1-5436-af26b2d93: direct PlayTableCommand exits after GameLoop; Minimized/ExtMinimized reject this command. This template is descriptive and not generic game-launch admission."
+
+[config]
+files = []
+
+[verification]
+source = "https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/core/AppCommands.cpp"
+checked = "2026-10-11"
+confidence = "high"

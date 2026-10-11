@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "ProductIdentity.h"
 #include "LaunchFailure.h"
 #include "core/install/Support.h"
 #include <QDateTime>
@@ -32,7 +33,7 @@ QString writeLaunchFailureLog(const QString &root,const QString &gameId,const QS
     const auto stamp=QDateTime::currentDateTimeUtc().toString("yyyyMMdd-HHmmss-zzz")+"-"+QUuid::createUuid().toString(QUuid::Id128).left(8);
     const auto file=install::scopedPath("user/logs/launch-"+safeId+"-"+stamp+".log",root);
     QDir().mkpath(QFileInfo(file).absolutePath());
-    install::atomicWrite(file,"AladdinsCastle launch failed\n"+message.toUtf8()+"\n");
+    install::atomicWrite(file,QByteArray(product::display_name)+" launch failed\n"+message.toUtf8()+"\n");
     // Bound only this game's generated preflight history; deletion is advisory.
     const QRegularExpression owned("^launch-"+QRegularExpression::escape(safeId)+"-\\d{8}-\\d{6}-\\d{3}-[a-f0-9]{8}\\.log$");
     auto history=QDir(QFileInfo(file).absolutePath()).entryInfoList(QDir::Files|QDir::NoSymLinks,QDir::Time|QDir::Reversed);
@@ -49,8 +50,9 @@ void showLaunchFailure(const QString &message,const QString &logPath){
     const auto platform=qEnvironmentVariable("QT_QPA_PLATFORM");
     if(platform=="offscreen"||platform=="minimal")return;
     const auto text=message+"\n\n"+(logPath.isEmpty()?"A portable launch log could not be written.":"Log: "+logPath);
-    runTimedLaunchFailurePresentation([&]{MessageBoxW(nullptr,reinterpret_cast<LPCWSTR>(text.utf16()),L"AladdinsCastle launch failed",MB_OK|MB_ICONERROR|MB_SETFOREGROUND);},[]{
-        EnumThreadWindows(GetCurrentThreadId(),[](HWND window,LPARAM)->BOOL{wchar_t title[128]{};GetWindowTextW(window,title,128);if(wcscmp(title,L"AladdinsCastle launch failed")==0)PostMessageW(window,WM_COMMAND,IDOK,0);return TRUE;},0);
+    const auto caption=QString::fromUtf8(product::display_name)+" launch failed";
+    runTimedLaunchFailurePresentation([&]{MessageBoxW(nullptr,reinterpret_cast<LPCWSTR>(text.utf16()),reinterpret_cast<LPCWSTR>(caption.utf16()),MB_OK|MB_ICONERROR|MB_SETFOREGROUND);},[&]{
+        EnumThreadWindows(GetCurrentThreadId(),[](HWND window,LPARAM context)->BOOL{wchar_t title[256]{};GetWindowTextW(window,title,256);if(wcscmp(title,reinterpret_cast<LPCWSTR>(context))==0)PostMessageW(window,WM_COMMAND,IDOK,0);return TRUE;},reinterpret_cast<LPARAM>(caption.utf16()));
     });
 #else
     Q_UNUSED(message);Q_UNUSED(logPath);

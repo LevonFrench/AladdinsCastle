@@ -1,4 +1,9 @@
 {
+  "R2VE01": {
+    "gameId": "wii-sin-and-punishment-star-successor",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Sin_%26_Punishment:_Star_Successor"
+  },
   "RBUE08": {
     "gameId": "wii-resident-evil-umbrella-chronicles",
     "hardware": "nintendo-wii",

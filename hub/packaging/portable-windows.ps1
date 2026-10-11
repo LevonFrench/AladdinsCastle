@@ -4,13 +4,23 @@ param(
     [Parameter(Mandatory)][string]$BuildDir,
     [Parameter(Mandatory)][string]$QtDir,
     [Parameter(Mandatory)][string]$OutputDir,
-    [string]$RepoRoot = (Join-Path $PSScriptRoot '../..'),
+    [string]$RepoRoot = '',
     [string]$VsRedistDir = $env:VCToolsRedistDir
 )
 $ErrorActionPreference = 'Stop'
+if (-not $RepoRoot) { $RepoRoot = Join-Path $PSScriptRoot '../..' }
 $BuildDir = (Resolve-Path -LiteralPath $BuildDir).Path
 $QtDir = (Resolve-Path -LiteralPath $QtDir).Path
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+$product = Get-Content -LiteralPath (Join-Path $RepoRoot 'data/product.json') -Raw | ConvertFrom-Json
+if ($product.schema -ne 1 -or $product.program_name -notmatch '^[a-z0-9][a-z0-9.-]*$') { throw 'Invalid product identity' }
+$hubProgram = "$($product.program_name).exe"
+$buildIdentity = Join-Path $BuildDir 'generated/product.json'
+if (-not (Test-Path -LiteralPath $buildIdentity) -or
+    (Get-FileHash -LiteralPath $buildIdentity -Algorithm SHA256).Hash -ne
+    (Get-FileHash -LiteralPath (Join-Path $RepoRoot 'data/product.json') -Algorithm SHA256).Hash) {
+    throw 'Product identity changed since the build; rebuild before packaging.'
+}
 . (Join-Path $PSScriptRoot 'BuildInfo.ps1')
 $checkoutRevision = if (-not $env:GITHUB_SHA) { (& git -C $RepoRoot rev-parse HEAD) } else { '' }
 $buildRevision = Get-PackageBuildRevision -CiRevision $env:GITHUB_SHA -CheckoutRevision $checkoutRevision
@@ -29,12 +39,12 @@ foreach ($required in @('msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll'))
     if ($required -notin $crtFiles.Name) { throw "Official VS redist is missing $required" }
 }
 New-Item -ItemType Directory -Path $OutputDir | Out-Null
-foreach ($binary in @('aladdinscastle-hub.exe','hubtool.exe','arttool.exe','steamtool.exe','openvr_api.dll')) {
+foreach ($binary in @($hubProgram,'hubtool.exe','arttool.exe','steamtool.exe','openvr_api.dll')) {
     Copy-Item -LiteralPath (Join-Path $BuildDir "bin/$binary") -Destination $OutputDir
 }
 Copy-Item -LiteralPath (Join-Path $BuildDir 'bin/resources') -Destination (Join-Path $OutputDir 'resources') -Recurse
 $deploy = Join-Path $QtDir 'bin/windeployqt.exe'
-& $deploy --release --no-translations --no-compiler-runtime --qmldir (Join-Path $RepoRoot 'hub/qml') --dir $OutputDir (Join-Path $OutputDir 'aladdinscastle-hub.exe')
+& $deploy --release --no-translations --no-compiler-runtime --qmldir (Join-Path $RepoRoot 'hub/qml') --dir $OutputDir (Join-Path $OutputDir $hubProgram)
 if ($LASTEXITCODE -ne 0) { throw "windeployqt failed ($LASTEXITCODE)" }
 & $deploy --release --no-translations --no-compiler-runtime --dir $OutputDir (Join-Path $OutputDir 'hubtool.exe')
 if ($LASTEXITCODE -ne 0) { throw "windeployqt hubtool failed ($LASTEXITCODE)" }
@@ -47,7 +57,9 @@ foreach ($directory in @('games','data','schemas','recipes')) {
         New-Item -ItemType Directory -Path $target | Out-Null
         foreach ($file in Get-ChildItem -LiteralPath $source -Recurse -File) {
             if ($file.Extension -notin @('.toml','.json','.md','.csv','.tsv')) { continue }
-            $relative = [IO.Path]::GetRelativePath($source, $file.FullName)
+            $prefix = [IO.Path]::GetFullPath($source).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+            if (-not $file.FullName.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Metadata file escaped its source directory' }
+            $relative = $file.FullName.Substring($prefix.Length)
             $destination = Join-Path $target $relative
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
             Copy-Item -LiteralPath $file.FullName -Destination $destination

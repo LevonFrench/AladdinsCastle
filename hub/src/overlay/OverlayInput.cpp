@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "ProductIdentity.h"
 #include "OverlayInput.h"
 #include <QCoreApplication>
 #include <QKeyEvent>
@@ -35,7 +36,7 @@ QPointF OverlayInput::mapPosition(float x, float y) const {
                        qreal(0), qreal(m_size.height()))};
 }
 OverlayInput::OverlayInput(QSize size,Clock clock)
-    :m_size(size),m_clock(std::move(clock)),m_device("AladdinsCastle overlay",qint64(reinterpret_cast<quintptr>(this)),
+    :m_size(size),m_clock(std::move(clock)),m_device(QString::fromUtf8(product::display_name)+" overlay",qint64(reinterpret_cast<quintptr>(this)),
       QInputDevice::DeviceType::Mouse,QPointingDevice::PointerType::Generic,QInputDevice::Capability::Position,1,3) {
     m_elapsed.start();if(!m_clock)m_clock=[this]{return m_elapsed.elapsed();};
 }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Steam.h"
+#include "ProductIdentity.h"
 #include "core/install/Support.h"
 #include "core/launch/Launch.h"
 #include <QBuffer>
@@ -79,8 +80,8 @@ const Node *ownedShortcut(const QByteArray &bytes, const QString &gameId,
   for (const auto &root : document.roots)
     if (root.key == "shortcuts")
       for (const auto &n : root.children)
-        if (tagged(n, "AladdinsCastle") &&
-            tagged(n, QByteArray("AladdinsCastle:") + gameId.toUtf8()))
+        if (tagged(n, QByteArray(product::steam_shortcut_name)) &&
+            tagged(n, (QByteArray(product::steam_shortcut_name)+":") + gameId.toUtf8()))
           return &n;
   return nullptr;
 }
@@ -184,10 +185,10 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
     d.roots << n;
     root = &d.roots.last();
   }
-  const auto marker = QByteArray("AladdinsCastle:") + s.gameId.toUtf8();
+  const auto marker = (QByteArray(product::steam_shortcut_name)+":") + s.gameId.toUtf8();
   Node *owned = nullptr;
   for (auto &n : root->children)
-    if (n.type == 0 && tagged(n, "AladdinsCastle") && tagged(n, marker)) {
+    if (n.type == 0 && tagged(n, QByteArray(product::steam_shortcut_name)) && tagged(n, marker)) {
       if (owned)
         throw Error("E_VDF", "Duplicate owned game entries");
       owned = &n;
@@ -198,7 +199,7 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
   if (owned && !r.id)
     throw Error("E_VDF", "Owned shortcut has an invalid AppId");
   if (!r.id)
-    r.id = appId(quote(s.executable), s.title + "\nAladdinsCastle:" + s.gameId);
+    r.id = appId(quote(s.executable), s.title + "\n" + product::steam_shortcut_name + ":" + s.gameId);
   if (remove && !owned) {
     r.bytes = before;
     return r;
@@ -276,7 +277,7 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
     tags.type = 0;
     tags.key = "tags";
     tags.raw.clear();
-    for (const auto &tag : {QByteArray("AladdinsCastle"), marker}) {
+    for (const auto &tag : {QByteArray(product::steam_shortcut_name), marker}) {
       bool present = false;
       for (const auto &c : tags.children)
         if (c.type == 1 && c.payload == tag)
