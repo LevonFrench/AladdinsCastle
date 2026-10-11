@@ -80,7 +80,9 @@ Without a headset: it builds, its maths and drawing pass headless tests, and its
 
 ### 7. Link's Crossbow Training (D58)
 
-Only if the owner has the disc and says so. Then: catalog entry, control set and profile beside Umbrella Chronicles. Until then no session spends time on it.
+Active: a disc is available for testing as of 2026-10-11. Catalog entry, control set and profile beside Umbrella Chronicles.
+
+**Which games get test time.** Only games a tester has a disc for. That list is kept in the lead's private notes, never here, and it sets the order within a tier. A game nobody can test keeps its catalog entry and waits.
 
 ### 8. Later, most per-game work
 
@@ -91,6 +93,13 @@ Only if the owner has the disc and says so. Then: catalog entry, control set and
 ### 9. When all of the above is blocked (D61)
 
 The arcade boards, in the D49 order. System 22 first: pick up where [4-stereo-boards.md](4-stereo-boards.md) and [R1-redirect.md](R1-redirect.md) left it. Then Model 3, NAOMI and Dreamcast, System 23. The same rule applies there: real picture first, headset acceptance later.
+
+## Release name (D62)
+
+The release will be called **ACVR** and will ship from a new repository. Aladdin's Castle stays the working name here. Nothing is renamed now. What to do now, because it is cheap now and expensive later:
+
+- **One place for the name.** The display name, short id, program name, SteamVR overlay key, Steam shortcut name and user data folder name come from one definition. No other code, test or script spells the name out.
+- **Nothing private in what will ship.** The new repository will take the product's source, data and user documents. Status reports, task briefs and branch history stay behind, so write user documents that stand on their own.
 
 ## The next sitting, when the owner is back
 
