@@ -41,6 +41,28 @@
 #endif
 namespace {
 QStringList warnings;
+bool diagnosticEnabled(){return qEnvironmentVariableIsSet("AC_UI_GEOMETRY_DIAGNOSTIC");}
+QJsonObject geometry(QQuickItem *item){
+ const auto point=item->mapToScene({item->width()/2,item->height()/2});
+ QJsonArray chain;
+ for(auto parent=item;parent;parent=parent->parentItem()){
+  const auto local=parent->mapFromScene(point);
+  chain<<QJsonObject{{"name",parent->objectName()},{"type",parent->metaObject()->className()},
+   {"width",parent->width()},{"height",parent->height()},{"implicitHeight",parent->implicitHeight()},
+   {"clip",parent->clip()},{"containsPoint",parent->contains(local)},
+   {"visible",parent->isVisible()},{"enabled",parent->isEnabled()}};
+ }
+ return {{"pointX",point.x()},{"pointY",point.y()},
+  {"mode",QJsonValue::fromVariant(item->property("vrOverlayMode"))},
+  {"targetHeight",QJsonValue::fromVariant(item->property("targetHeight"))},{"chain",chain}};
+}
+void snapshot(const QString &tag,QQuickItem *item){
+ if(diagnosticEnabled())qInfo().noquote()<<"GEOMETRY "+tag+" "+QString::fromUtf8(QJsonDocument(geometry(item)).toJson(QJsonDocument::Compact));
+}
+bool softwareFrame(QQuickWindow *window){
+ QSignalSpy rendered(window,&QQuickWindow::afterRendering);
+ window->update();return QTest::qWaitFor([&]{return !rendered.isEmpty();},2000);
+}
 int cardCount(QQuickItem *item,bool visibleOnly=false){if(!item)return 0;int count=0;if(item->objectName()=="cardPrimary"){auto p=item->mapToScene(QPointF());if(!visibleOnly||(item->isVisible()&&p.y()>100&&p.y()<690))++count;}for(auto child:item->childItems())count+=cardCount(child,visibleOnly);return count;}
 QList<QQuickItem *> namedItems(QQuickItem *item,const QString &name){QList<QQuickItem *> result;if(!item)return result;if(item->objectName()==name)result<<item;for(auto child:item->childItems())result.append(namedItems(child,name));return result;}
 void logMessage(QtMsgType type,const QMessageLogContext &,const QString &message){if(type==QtWarningMsg||type==QtCriticalMsg)warnings<<message;fprintf(stderr,"%s\n",qPrintable(message));}
@@ -132,9 +154,13 @@ class UiTest:public QObject {
   QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
  }
  void pinballTabRealScene(){
+  const auto previousView=root->property("view"),previousMode=root->property("vrOverlayMode");
+  const auto cleanup=qScopeGuard([&]{ui->selectPinball(QString());root->setProperty("view",previousView);root->setProperty("vrOverlayMode",previousMode);});
   root->setProperty("view","List");root->setProperty("vrOverlayMode",true);
   const auto tabs=namedItems(window->contentItem(),"pinballTab");QCOMPARE(tabs.size(),1);
-  const auto tab=tabs.first();QVERIFY(tab->height()>=48);
+  const auto tab=tabs.first();snapshot("pinball-before-frame",tab);
+  QVERIFY(softwareFrame(window));snapshot("pinball-after-frame",tab);
+  QVERIFY(tab->height()>=48);
   auto p=tab->mapToScene(QPointF(tab->width()/2,tab->height()/2));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
   QCOMPARE(root->property("view").toString(),QString("Pinball"));
   QVariantList rows;for(int i=0;i<25;++i)rows<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"maker","Synthetic"},{"year",2000},{"vrReady",i!=24},{"evidence",QStringList{"marked by you"}},{"romState","needs no ROM"}};
@@ -157,12 +183,16 @@ class UiTest:public QObject {
   root->setProperty("vrOverlayMode",false);root->setProperty("view","List");
  }
  void sharedNowPlayingRealScene(){
+  const auto previousView=root->property("view"),previousMode=root->property("vrOverlayMode");
+  const auto cleanup=qScopeGuard([&]{ui->launchFinished("timecris","Synthetic fixture cleanup");root->setProperty("view",previousView);root->setProperty("vrOverlayMode",previousMode);});
   root->setProperty("view","List"); root->setProperty("vrOverlayMode",true);
   QVERIFY(QMetaObject::invokeMethod(ui.get(),"launchQueued",Q_ARG(QString,"timecris"),Q_ARG(QString,"flat"),Q_ARG(QString,"")));
   ui->launchStarted("timecris");
   QTRY_VERIFY(!namedItems(window->contentItem(),"nowPlayingExit").isEmpty());
   auto exit=namedItems(window->contentItem(),"nowPlayingExit").first();
-  QVERIFY(exit->isVisible()); QVERIFY(exit->height()>=48);
+  QVERIFY(exit->isVisible());snapshot("card-before-frame",exit);
+  QVERIFY(softwareFrame(window));snapshot("card-after-frame",exit);
+  QVERIFY(exit->height()>=48);
   auto recentre=namedItems(window->contentItem(),"nowPlayingRecentre").first();
   QVERIFY(!recentre->isEnabled());
   QSignalSpy close(ui.get(),SIGNAL(closeLaunchRequested()));
