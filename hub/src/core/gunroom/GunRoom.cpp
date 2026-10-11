@@ -39,6 +39,7 @@ QJsonObject object(const QString &path,qint64 limit) {
 QVariantList models(const QString &root) {
   QVariantList out;
   try {
+    require(QDir::isAbsolutePath(root)&&QFileInfo(root).isDir(),"Gun-room data root is unavailable.");
     const auto document=object(install::scopedPath("assets/hands/assembly.json",root),1024*1024);
     require(document.value("schema")=="hand-assembly/1","Unsupported hand assembly.");
     const auto entries=document.value("models").toObject();

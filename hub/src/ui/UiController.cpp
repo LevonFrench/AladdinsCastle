@@ -240,7 +240,7 @@ void UiController::restartLaunch(){
  if(!m_nowPlaying.value("running").toBool()||m_nowPlaying.value("closing").toBool()||!m_nowPlaying.value("closeUnavailable").toString().isEmpty())return;
  m_restartAfterClose=true;closeLaunch();
 }
-void UiController::launchStarted(const QString &id){if(m_nowPlaying.value("gameId")==id){m_nowPlaying["running"]=true;emit nowPlayingChanged();}message("Playing "+m_nowPlaying.value("title",game(id).value("title")).toString());}
+void UiController::launchStarted(const QString &id){if(m_nowPlaying.value("gameId")==id){m_nowPlaying["running"]=true;emit nowPlayingChanged();}message((id=="__gun_room"?"Opening ":"Playing ")+m_nowPlaying.value("title",game(id).value("title")).toString());}
 void UiController::launchFinished(const QString &id,const QString &error){
  if(!m_nowPlaying.isEmpty()&&m_nowPlaying.value("gameId")!=id)return;
  const auto variant=m_nowPlaying.value("variantId").toString();const bool restart=m_restartAfterClose&&error.isEmpty();

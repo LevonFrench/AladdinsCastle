@@ -192,8 +192,13 @@ private slots:
     QTRY_COMPARE_WITH_TIMEOUT(QDir(removals).entryList(QDir::Dirs|QDir::NoDotAndDotDot),QStringList{"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"},5000);QCOMPARE(ac::install::readBytes(orphan),QByteArray("synthetic unrecorded file"));
  }
  void emptyCatalogToolActionsFailSafely(){
-    QTemporaryDir temp;ac::CatalogData catalog;ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
-    QVERIFY(services.toolPlan().contains("Catalog has no games"));services.installSupermodel();QVERIFY(ui.status().contains("Catalog has no games"));QVERIFY(!ui.installing());services.previewSupermodelRemoval();QVERIFY(ui.status().startsWith("Hub:"));QVERIFY(ui.status().contains("Catalog has no games"));QVERIFY(!QFileInfo::exists(temp.filePath("emulators")));
+    QTemporaryDir temp;ac::CatalogData catalog;ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);
+    std::unique_ptr<ac::HubServices> services;
+    try{services=std::make_unique<ac::HubServices>(&games,&filter,&ui,&settings,temp.path());}
+    catch(const std::exception &error){QFAIL(qPrintable(QString("Empty-catalog service construction threw: ")+error.what()));}
+    QVERIFY(services->toolPlan().contains("Catalog has no games"));services->installSupermodel();QVERIFY(ui.status().contains("Catalog has no games"));QVERIFY(!ui.installing());services->previewSupermodelRemoval();QVERIFY(ui.status().startsWith("Hub:"));QVERIFY(ui.status().contains("Catalog has no games"));QVERIFY(!QFileInfo::exists(temp.filePath("emulators")));
+    QVERIFY(services->gunRoomModels().isEmpty());services->previewGunRoom("synthetic-pistol","left",temp.filePath("absent-room.exe"));
+    QVERIFY(!services->gunRoomAvailable());QVERIFY(!services->gunRoomReason().isEmpty());
  }
  void changedMediaIsNotReadyOnRestore(){
     QTemporaryDir temp;const auto media=temp.filePath("fixture.zip");ac::install::atomicWrite(media,"before");receipt(temp.path(),media);ac::install::atomicWrite(media,"different size after proof");

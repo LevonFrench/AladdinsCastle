@@ -37,7 +37,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
       scanner_(games,scanOptions(root_)),art_(std::make_shared<art::Resolver>(games->catalog(),art::ArtOptions{root_+"/user",{}})) {
     steamRootSource_=steamRootSource?std::move(steamRootSource):[] { return launch::systemRuntimeInputs().steamPath; };
     steamRunningProbe_=std::move(steamRunningProbe);
-    gunRoomModels_=gunroom::models(catalogRoot());
+    gunRoomModels_=gunroom::models(games_->catalog().root);
     connect(&gunRoom_,&gunroom::Service::changed,this,[this]{
         if(gunRoom_.closing())ui_->launchClosing();
         emit playingChanged();
@@ -201,7 +201,7 @@ HubServices::~HubServices(){
     gunRoom_.close();
 }
 void HubServices::previewGunRoom(const QString &model,const QString &hand,const QString &executable){
-    auto inputs=gunroom::systemInputs(catalogRoot(),executable,model,hand);
+    auto inputs=gunroom::systemInputs(games_->catalog().root,executable,model,hand);
     const auto loader=settings_->get("gunRoomLoader",QString()).toString();
     if(!loader.isEmpty())inputs.loader=loader;
     const auto candidate=gunroom::plan(inputs);
@@ -211,7 +211,7 @@ void HubServices::previewGunRoom(const QString &model,const QString &hand,const 
     emit gunRoomChanged();
 }
 void HubServices::launchGunRoom(const QString &model,const QString &hand,const QString &executable){
-    auto inputs=gunroom::systemInputs(catalogRoot(),executable,model,hand);
+    auto inputs=gunroom::systemInputs(games_->catalog().root,executable,model,hand);
     const auto loader=settings_->get("gunRoomLoader",QString()).toString();
     if(!loader.isEmpty())inputs.loader=loader;
     startGunRoom(inputs);

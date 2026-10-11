@@ -9,6 +9,7 @@
 #include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QScopeGuard>
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -67,6 +68,13 @@ private slots:
     QVERIFY(!ac::gunroom::plan(f.inputs).available());
     save(f.folder.filePath("assets/hands/assembly.json"),R"({"schema":"hand-assembly/1","models":{"synthetic-pistol":{}}})");
     QVERIFY(ac::gunroom::models(f.root).isEmpty());
+  }
+  void missingRootNeverBorrowsCurrentDirectory() {
+    Fixture f;const auto previous=QDir::currentPath();
+    const auto restore=qScopeGuard([&]{QDir::setCurrent(previous);});
+    QVERIFY(QDir::setCurrent(f.root));
+    QVERIFY(ac::gunroom::models(QString()).isEmpty());
+    auto inputs=f.inputs;inputs.root.clear();QVERIFY(!ac::gunroom::plan(inputs).available());
   }
   void retainedPipeCloseAndConfirmedExit() {
     ac::gunroom::Service service;
