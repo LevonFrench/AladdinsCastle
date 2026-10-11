@@ -1,0 +1,92 @@
+format = 1
+default = "dolphinxr"
+
+[variant.dolphinxr]
+title = "DolphinXR (experimental VR)"
+quality = "true3d"
+status = "wip"
+version = "v0.4"
+upstream = "https://github.com/iChris4/dolphinXR"
+license = "GPL-2.0-or-later; aggregate GPLv3-compatible; bundled notices retained"
+needs = { media = ["disc"], tools = [] }
+installed_when = "file:${install_dir}/Dolphin.exe"
+# Runtime User files are retained by update staging; seed configs only when absent.
+
+[[variant.dolphinxr.step]]
+id = "release"
+do = "github-release"
+repo = "iChris4/dolphinXR"
+tag = "v0.4"
+asset = "Dolphin-Redux-Windows.zip"
+sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+bytes = 45691100
+
+[[variant.dolphinxr.step]]
+id = "app"
+do = "extract"
+from = "${steps.release.path}"
+to = "${install_dir}"
+
+[[variant.dolphinxr.step]]
+id = "disc"
+do = "require-media"
+media = "disc"
+verify = "none"
+note = "Use the Hub's verified Wii title binding; the disc stays in its original location."
+
+[[variant.dolphinxr.step]]
+id = "private-user"
+do = "write-config"
+file = "${install_dir}/User/Config/Dolphin.ini"
+format = "ini"
+create = true
+only_if_missing = true
+set = [
+  { section = "Core", key = "GFXBackend", value = "D3D" },
+  { section = "General", key = "ISOPaths", value = 0 },
+  { section = "General", key = "RecursiveISOPaths", value = "False" },
+  { section = "Analytics", key = "Enabled", value = "False" },
+  { section = "Analytics", key = "PermissionAsked", value = "True" },
+  { section = "AutoUpdate", key = "UpdateTrack", value = "" },
+]
+
+[[variant.dolphinxr.step]]
+id = "vr"
+do = "write-config"
+file = "${install_dir}/User/Config/GFX.ini"
+format = "ini"
+create = true
+only_if_missing = true
+set = [
+  { section = "VR", key = "EnableOpenXR", value = "True" },
+  { section = "VR", key = "FlatScreen", value = "False" },
+  { section = "VR", key = "VirtualScreen", value = "True" },
+  { section = "VR", key = "DisableCPUCull", value = "True" },
+  { section = "VR", key = "ScreenDistance", value = 1.5 },
+  { section = "VR", key = "ScreenSize", value = 1.5 },
+  { section = "VR", key = "HudThickness", value = 0.0 },
+  { section = "VR", key = "EnableCameraAnchor", value = "False" },
+  { section = "VR", key = "EnableControllerAnchor", value = "False" },
+]
+
+[[variant.dolphinxr.step]]
+id = "remote"
+do = "write-config"
+file = "${install_dir}/User/Config/WiimoteNew.ini"
+format = "ini"
+create = true
+only_if_missing = true
+set = [
+  { section = "Wiimote1", key = "Source", value = 3 },
+  { section = "Wiimote2", key = "Source", value = 0 },
+  { section = "Wiimote3", key = "Source", value = 0 },
+  { section = "Wiimote4", key = "Source", value = 0 },
+  { section = "BalanceBoard", key = "Source", value = 0 },
+]
+
+[variant.dolphinxr.launch]
+exe = "${install_dir}/Dolphin.exe"
+exe_sha256 = "2a21141c760af5925a28da2cbbe19115ef497d4d5e24350b2bb5ed1a68b9639a"
+args = ["--user", "${install_dir}/User", "-C", "GFX.VR.EnableOpenXR=True", "--exec", "${media.disc.path}"]
+cwd = "${install_dir}"
+runtime = "steamvr"
