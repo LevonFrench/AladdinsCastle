@@ -1,0 +1,24 @@
+{
+  "version": "shell-stick/1",
+  "source": "data/controls/wii/shell-and-stick.toml",
+  "files": {
+    "dolphinxr/split-right.ini": "edfcccec10a8226ee5366b0fedf500a57a3674dd7b91b72c6bf200e55fc27ebe",
+    "flat-dolphin/split-right.ini": "6e3ab876ee5f38d2560e169b5f725bcec67e64759928622a31d7ea7fec5efbde",
+    "flat-dolphin/split-right.json": "c8904cfa7fa14b9ce7e5670519cbbcaa473ad44d476ca75c3847940a1d9a2246",
+    "dolphinxr/split-left.ini": "48a9664d3fccd7602e8637f4800ccd8b055c2be35adc41216acfce3f890197df",
+    "flat-dolphin/split-left.ini": "54aaf63a9e852050654fa64d7672851a342933d56b2dfd82f09f0a9d74c12262",
+    "flat-dolphin/split-left.json": "ac9795f0a72ae62c328d8659c0516366944707ecdfe1299d6a71c598f573b347",
+    "dolphinxr/docked-right.ini": "edfcccec10a8226ee5366b0fedf500a57a3674dd7b91b72c6bf200e55fc27ebe",
+    "flat-dolphin/docked-right.ini": "6e3ab876ee5f38d2560e169b5f725bcec67e64759928622a31d7ea7fec5efbde",
+    "flat-dolphin/docked-right.json": "c0313a1c42b4612ee5a73fd8298bad45122bd38997be7fd0a5adc802b470245d",
+    "dolphinxr/docked-left.ini": "48a9664d3fccd7602e8637f4800ccd8b055c2be35adc41216acfce3f890197df",
+    "flat-dolphin/docked-left.ini": "54aaf63a9e852050654fa64d7672851a342933d56b2dfd82f09f0a9d74c12262",
+    "flat-dolphin/docked-left.json": "ee28581aca1d458d78a7be02767a4f2a0a4019a3154bab9bbbe5f843db3f21ae",
+    "dolphinxr/two-remotes-right.ini": "0d9f837d0285fc88c93b49ae509541bf73b74695f79c83986c61f65892e4fc41",
+    "flat-dolphin/two-remotes-right.ini": "47cb82ee0181b4e3f2c32c8590e0ed1d260f5912f37188900d05b44b17be66c0",
+    "flat-dolphin/two-remotes-right.json": "d4d4697639594753cac13c9dc003dafc94ee40fdc9d010e325b4d2cead5320ac",
+    "dolphinxr/two-remotes-left.ini": "a42d83748cf771ea62b76699809da2056fdb93da3ba01b38fb14e77c535bf0b1",
+    "flat-dolphin/two-remotes-left.ini": "b2a9288597cfa15a4eb50f5b8c073d0171bde2810b18fc2b6a7f45ec08e2e9e7",
+    "flat-dolphin/two-remotes-left.json": "5cddc12acfad30c271580857b7b3d3ec6545c68a7e44c053b2d8a5fa17c32cf8"
+  }
+}

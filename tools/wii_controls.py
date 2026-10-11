@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 import re
 import tomllib
+from wii_shell_stick import render_profile
 
 ROOT=Path(__file__).resolve().parents[1]
 ID=re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')

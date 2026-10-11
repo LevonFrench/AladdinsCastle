@@ -1,0 +1,176 @@
+{
+  "version": "shell-stick/1",
+  "route": "flat-dolphin",
+  "mode": "docked",
+  "primary_hand": "left",
+  "players": [
+    {
+      "player": 0,
+      "remote_hand": "left",
+      "stick_hand": "right",
+      "actions": [
+        {
+          "id": "fire",
+          "role": "remote",
+          "wire": "R2",
+          "expression": "trigger & !grip",
+          "hand": "left"
+        },
+        {
+          "id": "interact",
+          "role": "remote",
+          "wire": "Cross",
+          "expression": "primary & !grip",
+          "hand": "left"
+        },
+        {
+          "id": "dpad-up",
+          "role": "remote",
+          "wire": "Pad N",
+          "expression": "up & !grip",
+          "hand": "left"
+        },
+        {
+          "id": "dpad-down",
+          "role": "remote",
+          "wire": "Pad S",
+          "expression": "down & !grip",
+          "hand": "left"
+        },
+        {
+          "id": "dpad-left",
+          "role": "remote",
+          "wire": "Pad W",
+          "expression": "left & !grip",
+          "hand": "left"
+        },
+        {
+          "id": "dpad-right",
+          "role": "remote",
+          "wire": "Pad E",
+          "expression": "right & !grip",
+          "hand": "left"
+        },
+        {
+          "id": "menu",
+          "role": "remote",
+          "wire": "Options",
+          "expression": "grip & primary",
+          "hand": "left"
+        },
+        {
+          "id": "minus",
+          "role": "remote",
+          "wire": "Share",
+          "expression": "grip & secondary",
+          "hand": "left"
+        },
+        {
+          "id": "one",
+          "role": "remote",
+          "wire": "Square",
+          "expression": "grip & up",
+          "hand": "left"
+        },
+        {
+          "id": "two",
+          "role": "remote",
+          "wire": "Triangle",
+          "expression": "grip & down",
+          "hand": "left"
+        },
+        {
+          "id": "home",
+          "role": "remote",
+          "wire": "PS",
+          "expression": "grip & click",
+          "hand": "left"
+        },
+        {
+          "id": "z",
+          "role": "nunchuk",
+          "wire": "L2",
+          "expression": "trigger",
+          "hand": "right"
+        },
+        {
+          "id": "c",
+          "role": "nunchuk",
+          "wire": "Circle",
+          "expression": "grip",
+          "hand": "right"
+        },
+        {
+          "id": "stick-up",
+          "role": "nunchuk",
+          "wire": "Left Y+",
+          "expression": "up",
+          "hand": "right"
+        },
+        {
+          "id": "stick-down",
+          "role": "nunchuk",
+          "wire": "Left Y-",
+          "expression": "down",
+          "hand": "right"
+        },
+        {
+          "id": "stick-left",
+          "role": "nunchuk",
+          "wire": "Left X-",
+          "expression": "left",
+          "hand": "right"
+        },
+        {
+          "id": "stick-right",
+          "role": "nunchuk",
+          "wire": "Left X+",
+          "expression": "right",
+          "hand": "right"
+        },
+        {
+          "id": "remote-shake",
+          "role": "remote",
+          "wire": "R1",
+          "expression": "secondary & !grip",
+          "hand": "left"
+        },
+        {
+          "id": "remote-swing",
+          "role": "remote",
+          "wire": "L1",
+          "expression": "click & !grip",
+          "hand": "left"
+        },
+        {
+          "id": "stick-shake",
+          "role": "nunchuk",
+          "wire": "R3",
+          "expression": "primary",
+          "hand": "right"
+        },
+        {
+          "id": "stick-swing",
+          "role": "nunchuk",
+          "wire": "L3",
+          "expression": "secondary",
+          "hand": "right"
+        }
+      ]
+    }
+  ],
+  "recenter_chord": [
+    "right.click",
+    "left.click"
+  ],
+  "recenter_suppresses_game_buttons": true,
+  "motion": {
+    "physical": true,
+    "button_fallback": true,
+    "button_transport": "Shake/Swing bindings",
+    "units": {
+      "accel": "g",
+      "gyro": "degrees_per_second"
+    }
+  }
+}
