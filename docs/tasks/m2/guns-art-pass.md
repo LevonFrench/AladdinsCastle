@@ -47,3 +47,27 @@ Lookalike rule unchanged ([guns.md](../../guns.md) §2.2): evoke the type, keep 
 - The seven models rebuilt from side outlines, grip raked back, nothing floating, checker at 0 errors including the new touch check.
 - `sheet.png` and the silhouette sheet committed with the models, previews and callout files.
 - An outside look at the sheets says each model reads as its type and no two are confused.
+
+## Verdict on the second batch (outside review, 2026-10-10)
+
+Looked at the colour sheet, the silhouette sheet and all seven side and as-held views of the uncommitted `codex/m2-guns-art-pass` candidates; ran the checker independently (0 errors, touch check included).
+
+**Accepted as the tier 1 baseline. Commit it and open the pull request into `next` now.** These read as pistols and a mounted gun, the grips rake back, parts are joined, the d-pad is on the back face, the slide has its seam and serrations, and the previews are correctly exposed. That is enough for the lead to draw a gun in the hand and for the controls view to use the preview images and callout files. The points below are a third, smaller pass on top of the committed baseline, not a reason to hold it.
+
+| Model | Verdict | Fix in pass three |
+|---|---|---|
+| `generic-pistol` | Reads as a pistol, but too close to `con-pistol-slim` in silhouette | Make it clearly compact: about 195 mm overall with a short barrel (change `length_mm` to match). Remove the pointed lower lip under the muzzle and the open gap between slide and frame at the front |
+| `arc-pistol-slide` | Good. The clearest of the set | Nothing required |
+| `arc-pistol-twin` | Reads as a stocky arcade pistol | Keep the cylinder as a shallow moulded relief and the barrel block long and flat-sided, to separate it from the chunky revolver |
+| `con-pistol-slim` | Right proportions, rail and side button visible | Thinner barrel than frame so the outline differs from the generic pistol. Preview: black on a dark backdrop is hard to read (see below) |
+| `con-pistol-dpad` | Good: rear hump and d-pad read at once in the held view | Move the two side buttons down to just above the trigger guard |
+| `con-revolver-chunky` | Too close to `arc-pistol-twin` | Shorter barrel, a cylinder that bulges wider than the frame on both sides, a raised rear hump, a larger trigger guard |
+| `mnt-mg-heavy` | Reads as a mounted gun; the caged shroud works | Make the yoke arms visibly hold the body on both sides; thicker rear handles |
+
+All models: sink the sight bases into the top surface (the lane measured gaps of 0.5 to 1.5 mm that the bounds check cannot see), and add that as a surface-contact check if it is cheap.
+
+**Silhouette test:** five of seven pass. Generic against slim fails; twin against chunky is borderline.
+
+**Previews:** render dark tints on a lighter backdrop, or add a rim light, so a black model is legible. Otherwise the three views and both sheets are what was asked for.
+
+Next for the lane after the commit: pass three above, then the control sets ([R1-redirect.md](R1-redirect.md), "Guns and controls" items 2 to 5), which are still at four rows per game.
