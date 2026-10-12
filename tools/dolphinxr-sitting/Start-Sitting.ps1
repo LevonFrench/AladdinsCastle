@@ -7,6 +7,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Disc,
     [ValidatePattern('^[A-Z0-9]{6}$')][string]$GameID = 'RBUP08',
     [Parameter(Mandatory=$true)][string]$StateDirectory,
+    [string]$InitialState = '',
     [string]$NativeProfile = '',
     [string]$ControlSet = '',
     [ValidateSet('Default','Eager','Desktop')][string]$Mode = 'Default',
@@ -25,8 +26,9 @@ param(
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Sitting.psm1') -Force
 Assert-AcSittingInputs $Executable $ExecutableSHA256 $Disc $GameID
+if ($InitialState) { $InitialState = Assert-AcInitialState $InitialState $GameID }
 $state = Assert-AcPrivatePath $StateDirectory
-if ($CheckOnly) { Write-Output 'Executable hash and exact Wii header match. No settings changed or process started.'; return }
+if ($CheckOnly) { Write-Output 'Executable hash, Wii header and optional initial-state game ID match. No settings changed or process started.'; return }
 if ($ControlSet -and $ControlSet -cnotmatch '^[a-z0-9]+(?:-[a-z0-9]+)*$') { throw 'Invalid control-set identifier.' }
 if (-not $NativeProfile) {
     $relativeProfile = if ($ControlSet) { "games/$ControlSet/dolphinxr-right.ini" } else { 'dolphinxr/split-right.ini' }
@@ -67,12 +69,13 @@ $launchArgs = @('--user', ('"' + $userPath + '"'), '-v', 'D3D',
     '-C', "Graphics.Settings.MSAA=$($qualitySettings.MSAA)", '-C', 'Graphics.Settings.SSAA=False',
     '-C', "Graphics.Enhancements.MaxAnisotropy=$($qualitySettings.MaxAnisotropy)",
     '-C', 'Graphics.Stereoscopy.StereoMode=0', '--exec', ('"' + $Disc + '"'))
+if ($InitialState) { $launchArgs += @('--save_state', ('"' + $InitialState + '"')) }
 $vrSwitches = Get-AcVRSwitches $ForcedVBI $Mirror ([bool]$ControllerAnchor) ([bool]$CameraAnchor) $CameraSmoothing
 foreach ($key in $vrSwitches.Keys) { $launchArgs += @('-C', "Graphics.VR.$key=$($vrSwitches[$key])") }
 @{ mode=$Mode; quality=$Quality; quality_settings=(Get-AcQuality $Quality); executable=$Executable;
    executable_sha256=$ExecutableSHA256; game_id=$GameID; user_dir=$userPath; args=$launchArgs;
    profile_sha256=(Get-FileHash -LiteralPath $NativeProfile -Algorithm SHA256).Hash;
-   control_set=$ControlSet; generated_profile=$profileKey;
+   control_set=$ControlSet; generated_profile=$profileKey; initial_state=$InitialState;
    dsu_profile=$DsuProfile; dsu_port=$DsuPort; vr_switches=$vrSwitches;
    powershell=$PSVersionTable.PSVersion.ToString(); acceptance='Runtime and owner observation required' } |
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $run 'launch.json') -Encoding UTF8

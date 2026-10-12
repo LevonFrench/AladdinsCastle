@@ -145,6 +145,21 @@ try {
     Assert ($LASTEXITCODE -eq 0 -and (Test-Path "$root/game-cli/User-v2-Default/Config/WiimoteNew.ini")) 'Actual PS5.1 per-game prepare path must succeed.'
     Assert ((Get-FileHash "$root/game-cli/User-v2-Default/GameSettingsVR/RBUP08.ini").Hash -eq (Get-FileHash $authoredGameProfile).Hash) 'Native-mode runner must retain authored shader-profile bytes independently of the controls slug.'
     Assert ((Get-Content "$root/game-cli/User-v2-Default/GameSettingsVR/RBUP08.ini" -Raw) -match '(?m)^UnitsPerMeter = 10\r?$') 'Fresh native prepare-only setup must receive measured world scale 10.'
+    $initial = Join-Path $root 'initial mission.sav'
+    $stateBytes = New-Object byte[] 32
+    [Text.Encoding]::ASCII.GetBytes('RBUP08').CopyTo($stateBytes,0)
+    [IO.File]::WriteAllBytes($initial,$stateBytes)
+    $stateHash = (Get-FileHash -LiteralPath $initial).Hash
+    Assert ((Assert-AcInitialState $initial RBUP08) -eq $initial) 'Initial-state path with spaces must resolve.'
+    MustFail { Assert-AcInitialState $initial SBDP08 } 'Wrong-game initial state must be rejected.'
+    MustFail { Assert-AcInitialState "$root/absent.sav" RBUP08 } 'Missing initial state must be rejected.'
+    & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/Start-Sitting.ps1" `
+        -Executable $exe -ExecutableSHA256 $hash -Disc $disc -GameID RBUP08 -StateDirectory "$root/mission-cli" `
+        -ControlSet synthetic-wii -NativeProfile "$gameFolder/dolphinxr-right.ini" -InitialState $initial -PrepareOnly
+    Assert ($LASTEXITCODE -eq 0) 'Actual PS5.1 initial-state prepare path must succeed without launching.'
+    Assert ((Get-FileHash -LiteralPath $initial).Hash -eq $stateHash) 'Initial-state preparation must not change saved bytes.'
+    [IO.File]::WriteAllBytes($initial,$stateBytes[0..5])
+    MustFail { Assert-AcInitialState $initial RBUP08 } 'Truncated state header must be rejected.'
     Add-Content -LiteralPath $dsu -Value '# tampered'
     MustFail { Initialize-AcSitting "$root/tampered-dsu" $profile -DsuProfile $dsu } 'DSU manifest mismatch must fail before writes.'
     Assert (-not (Test-Path "$root/tampered-dsu")) 'Rejected DSU profile must not write settings.'
