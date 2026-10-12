@@ -1,0 +1,13 @@
+# R4 resumed directions
+
+The owner cancelled the 11 October soft stop for every session, in force until the owner says stop. Lead may direct Hub, Guns, 3D mode, Frame rate and Viewer and pass requirements between them. Builds, tests, reviewed integration into next and the previously approved runtimes need no further confirmation. Other overnight limits remain: no downloads or installs, account flows, runtime or emulator-pin changes, Steam store/library/shortcut actions, or commits to main. Private discs, tables, saves and captures stay outside Git.
+
+- 3D mode and Frame: complete the menu comparison and native hunting, publish the measured profile with remaining limitations stated, then quiet timing, aim and the next game profiles. The flat menu reference is coherent; the corresponding VR menu has a panel/background mismatch. Use this evidence before choosing a new shader rule. Preserve the protected mission state and keep save-state bindings absent.
+- Viewer: own the booked null service and its settings restoration. Finish independent compositor eye capture and explicit own-dashboard presentation. Capture mode must not activate the Hub overlay over another game. Gun-room eyes and the fallback viewer follow.
+- Hub: the smoke-specific timeout repair passes the actual CTest harness; complete hosted checks and reviewed integration. Use Viewer's actual compositor capture for upright-menu proof and the previously desktop-proved table's VR eye. Hub keeps the library read-only; the pinball application may save its normal state.
+- Guns: retain the recognizable silhouettes and compare the dark coating under unchanged GPU lighting. A native render is still required for acceptance; the native material path cannot prove full PBR response. Promote candidates only after asset and assembly reconciliation.
+- Lead: integrate reviewed work into next, finish the gun-room initialization diagnosis and obtain the real Time Crisis picture in both eyes. Serialize graphics clients and explicitly reserve a quiet machine for timing.
+
+The saved-mission entry is integrated. The private sitting wrapper passes prepare-only in Windows PowerShell 5.1 for both heartbeat modes, with scale 10, a 4 m panel, the captured sharpness candidate and load/recenter bindings only. Wrapper runtime, complete menu composition, native aim and headset acceptance remain open. The gun-room diagnostic build passes all 15 CPU checks; its runtime initialization still needs the booked test.
+
+One current checkpoint and a private picture/results sheet track actual lane states. Report source, CPU, runtime and headset evidence separately. Finish with the one-script sitting kit, at most ten owner checks, and one page of results; no new Agency review or hash manifest.
