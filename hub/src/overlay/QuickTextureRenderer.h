@@ -9,14 +9,16 @@ class QQuickRenderControl;
 class QQuickWindow;
 class QQuickItem;
 class QQmlEngine;
+class QImage;
 namespace ac {
 class QuickTextureRenderer : public QObject {
     Q_OBJECT
 public:
     explicit QuickTextureRenderer(QObject *parent = nullptr);
     ~QuickTextureRenderer() override;
-    bool initialize(QQmlEngine &engine, QSize size, QString *error);
+    bool initialize(QQmlEngine &engine, QSize size, QString *error,bool captureMarkers=false);
     bool render(QString *error);
+    bool readbackCurrentTexture(QImage *image,QString *error);
     void doneCurrent();
     void setVisible(bool visible);
     QQuickWindow *window() const { return m_window.get(); }

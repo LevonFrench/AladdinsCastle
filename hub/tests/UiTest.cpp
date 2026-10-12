@@ -210,6 +210,22 @@ class UiTest:public QObject {
    QCOMPARE(labels.first()->property("text").toString(),installer?QString("Synthetic Product installer · Last install"):QString("Synthetic Product: 413 games"));
   }
  }
+ void captureMarkersAreOptInInRealHubScene(){
+  const auto previous=root->property("captureMarkers");const auto cleanup=qScopeGuard([&]{root->setProperty("captureMarkers",previous);});
+  QVERIFY(!previous.toBool());QVERIFY(namedItems(window->contentItem(),"overlayCaptureCorner0").isEmpty());
+  QVERIFY(root->setProperty("captureMarkers",true));QVERIFY(softwareFrame(window));
+  const auto scene=qobject_cast<QQuickItem *>(root);QVERIFY(scene);
+  const QStringList labels{"TL 1","TR 2","BL 3","BR 4"};
+  const QStringList colors{"#ff00ff","#00ff00","#0000ff","#ff8800"};
+  for(int i=0;i<4;++i){
+   const auto corners=namedItems(scene,"overlayCaptureCorner"+QString::number(i));QCOMPARE(corners.size(),1);const auto corner=corners.first();
+   QCOMPARE(corner->x(),i%2?scene->width()-corner->width()-12:12.0);
+   QCOMPARE(corner->y(),i<2?12.0:scene->height()-corner->height()-12);QVERIFY(corner->isVisible());
+   QCOMPARE(corner->property("color").value<QColor>(),QColor(colors[i]));
+   const auto texts=namedItems(corner,"overlayCaptureLabel"+QString::number(i));QCOMPARE(texts.size(),1);QCOMPARE(texts.first()->property("text").toString(),labels[i]);
+  }
+  QVERIFY(root->setProperty("captureMarkers",false));QVERIFY(softwareFrame(window));QVERIFY(namedItems(scene,"overlayCaptureCorner0").isEmpty());
+ }
  void emptyArtModelDuringNavigation(){
   QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameArt.qml"));
   std::unique_ptr<QObject> art(component.create());QVERIFY(art);const auto before=warnings.size();

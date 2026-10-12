@@ -95,11 +95,13 @@ public:
         }
         return false;
     }
-    bool submit(unsigned int texture, QString *error) override {
+    bool submit(unsigned int texture, QString *error,OverlaySubmitStatus *status=nullptr) override {
+        if(status)*status={};
         if (!isVisible()) return true; // guard even if hidden between poll and submit
         const vr::Texture_t submitted{reinterpret_cast<void *>(static_cast<uintptr_t>(texture)),
                                       vr::TextureType_OpenGL, vr::ColorSpace_Auto};
         const auto result = vr::VROverlay()->SetOverlayTexture(m_main, &submitted);
+        if(status)*status={true,int(result)};
         if (result == vr::VROverlayError_None) return true;
         *error = "SetOverlayTexture: " + overlayError(result); return false;
     }

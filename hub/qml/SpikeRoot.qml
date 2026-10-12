@@ -4,9 +4,11 @@ import QtQuick.Controls
 Item {
     id: root
     property bool overlayPresentation: false
+    property bool captureMarkers: false
     implicitWidth: 1000
     implicitHeight: 700
     Rectangle { anchors.fill: parent; color: surfaceColor }
+    Loader { anchors.fill:parent;z:10000;active:root.captureMarkers&&!overlaySpikeEnabled;sourceComponent:Component{OverlayCaptureMarkers{}} }
     Column {
         visible: !overlaySpikeEnabled
         anchors.centerIn: parent
@@ -29,6 +31,6 @@ Item {
         anchors.fill: parent
         active: overlaySpikeEnabled
         source: "spike/OverlayTest.qml"
-        onLoaded: item.overlayPresentation = root.overlayPresentation
+        onLoaded: {item.overlayPresentation=root.overlayPresentation;item.captureMarkers=Qt.binding(()=>root.captureMarkers)}
     }
 }

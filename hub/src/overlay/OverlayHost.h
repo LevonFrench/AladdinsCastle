@@ -3,6 +3,7 @@
 #include "OverlayInput.h"
 #include "OverlayKeyboard.h"
 #include "OverlayRuntime.h"
+#include "OverlayCapture.h"
 #include <QElapsedTimer>
 #include <QTimer>
 class QQmlEngine;
@@ -16,6 +17,7 @@ public:
     OverlayHost(SpikeState &state, std::unique_ptr<OverlayRuntime> runtime = makeOpenVrRuntime(), QObject *parent = nullptr);
     ~OverlayHost() override;
     bool initialize(QQmlEngine &engine, const QString &thumbnail, QString *error);
+    bool configureCapture(const QString &catalogRoot,const QString &directory,bool pictureFlipY,QString *error){return m_capture.configure(catalogRoot,directory,pictureFlipY,error);}
     Q_INVOKABLE void requestKeyboard(QQuickItem *item);
     Q_INVOKABLE void dismissKeyboard();
     // Public input boundary: tests inject synthetic events through the same path.
@@ -32,6 +34,7 @@ private:
     OverlayInput m_input;
     OverlayFrameGate m_gate;
     OverlayKeyboard m_keyboard;
+    OverlayCapture m_capture;
     bool m_quitSeen = false;
     bool m_running = false;
     QTimer m_timer;

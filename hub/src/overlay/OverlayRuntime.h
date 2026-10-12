@@ -16,6 +16,10 @@ inline vr::VRTextureBounds_t overlayPictureBounds(bool flipY){
     return bounds;
 }
 inline constexpr auto &overlayKey = product::overlay_key;
+struct OverlaySubmitStatus {
+    bool apiCalled=false;
+    int apiResult=-1;
+};
 // A narrow adapter keeps lifecycle tests independent of the SteamVR service.
 class OverlayRuntime {
 public:
@@ -24,7 +28,7 @@ public:
     virtual bool isVisible() const = 0;
     virtual vr::VROverlayHandle_t handle() const = 0;
     virtual bool pollEvent(vr::VREvent_t *event) = 0;
-    virtual bool submit(unsigned int texture, QString *error) = 0;
+    virtual bool submit(unsigned int texture, QString *error,OverlaySubmitStatus *status=nullptr) = 0;
     virtual bool showKeyboard(const QString &text, quint64 token, QString *error) = 0;
     virtual void hideKeyboard() = 0;
     virtual void acknowledgeQuit() = 0;

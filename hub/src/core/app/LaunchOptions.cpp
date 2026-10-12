@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "LaunchOptions.h"
 #include <QRegularExpression>
+#include <QDir>
 namespace ac {
 bool wantsParentConsole(const LaunchOptions &options){
-    return options.help||options.version||options.quitAfterMs>0||options.mode==Mode::Launch||options.mode==Mode::RegisterOverlay||options.mode==Mode::UnregisterOverlay;
+    return options.help||options.version||options.quitAfterMs>0||!options.overlayCaptureDir.isEmpty()||options.mode==Mode::Launch||options.mode==Mode::RegisterOverlay||options.mode==Mode::UnregisterOverlay;
 }
 bool shouldOpenDesktop(const LaunchOptions &options, bool overlayInitialized) {
     if (options.mode == Mode::Overlay && options.steamVrStarted && !overlayInitialized) return false;
@@ -22,6 +23,11 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
         else if (arg == "--steamvr-started") options.steamVrStarted = true;
         else if (arg == "--window") options.window = true;
         else if (arg == "--spike") options.spike = true;
+        else if(arg=="--overlay-capture-dir"){
+            if(!options.overlayCaptureDir.isEmpty()){options.error="Only one source texture capture directory may be requested.";break;}
+            if(++i>=arguments.size()||!QDir::isAbsolutePath(arguments.at(i))){options.error="--overlay-capture-dir requires an absolute fresh directory under the selected catalog's .local.";break;}
+            options.overlayCaptureDir=arguments.at(i);
+        }
         else if(arg=="--overlay-picture-flip-y"||arg=="--overlay-pointer-flip-y"){
             orientationSeen=true;
             if(++i>=arguments.size()||!QStringList{"on","off"}.contains(arguments.at(i))){options.error=arg+" requires on or off.";break;}
@@ -54,6 +60,8 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
     }
     if(options.error.isEmpty()&&orientationSeen&&options.mode!=Mode::Overlay)
         options.error="Overlay orientation options require --overlay.";
+    if(options.error.isEmpty()&&!options.overlayCaptureDir.isEmpty()&&options.mode!=Mode::Overlay)
+        options.error="Source texture capture requires --overlay.";
     if (options.error.isEmpty() && options.steamVrStarted && options.mode != Mode::Overlay)
         options.error = "--steamvr-started requires --overlay.";
     if (options.error.isEmpty() && options.window && options.mode != Mode::Overlay)
