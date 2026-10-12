@@ -819,9 +819,10 @@ private slots:
     for(const auto &source:{"data/profiles/dolphinxr/GameSettingsVR/SYN001.ini","data/profiles/dolphinxr/GameSettingsVR/rbup08.ini","data/profiles/dolphinxr/GameSettings/RBUP08.ini","data/profiles/dolphinxr/GameSettingsVR/../RBUP08.ini"})QTest::newRow(source)<<QString(source);
   }
   void nativeGameSeedRefusesUnrelatedPaths(){
-    QFETCH(QString,source);QTemporaryDir t;auto r=fixture(t.path());atomicWrite(t.filePath(source),"; synthetic unrelated profile\n");
+    QFETCH(QString,source);QTemporaryDir t;auto r=fixture(t.path());
+    const auto fixtureSource=t.filePath(QDir::cleanPath(source));atomicWrite(fixtureSource,"; synthetic unrelated profile\n");
     auto &step=r.recipe["variant"]["flat"]["step"][1];step.erase("set");step["source"]=source.toStdString();
-    step["source_sha256"]=hashFile(t.filePath(source)).toStdString();step["only_if_missing"]=true;
+    step["source_sha256"]=hashFile(fixtureSource).toStdString();step["only_if_missing"]=true;
     try{Engine().plan(r);QFAIL("Unrelated native profile admitted");}
     catch(const Error &error){QCOMPARE(error.code,QString("E_SOURCE_OUT_OF_SCOPE"));}
     QVERIFY(!QFileInfo(t.filePath("installed/synthetic/flat/settings.ini")).exists());
