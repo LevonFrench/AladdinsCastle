@@ -235,7 +235,14 @@ int wmain(int argc,wchar_t** argv) {
             receipt << "{\"schema\":1,\"capture\":\"Windows.Graphics.Capture\",\"width\":" << first.width
                     << ",\"height\":" << first.height << ",\"interval_ms\":" << second.timeMs-first.timeMs
                     << ",\"different_rgb\":" << (changed?"true":"false")
-                    << ",\"spatial_candidate\":true,\"game_window_selected\":true,\"sbs_visual_check\":\"required\"}\n";
+                    << ",\"spatial_candidate\":true,\"game_window_selected\":true,\"sbs_visual_check\":\"required\""
+                    << ",\"clock_metadata\":{\"schema\":1,\"compositor_unit\":\"100ns-qpc\",\"exact_gpu_frame_sync\":false,\"frames\":[";
+            const auto clockFrame=[&](const theatre::CapturedFrame& frame) {
+                receipt << "{\"compositor_time_100ns\":" << frame.compositorTime100ns << ',';
+                ACTraceClock::Fields(receipt,frame.acquisitionClock);
+                receipt << '}';
+            };
+            clockFrame(first); receipt << ','; clockFrame(second); receipt << "]}}\n";
             receipt.close(); if(!receipt) fail("Cannot write capture receipt");
         }
         if(!changed) fail("WGC frames one second apart have identical client RGB; gate failed");
