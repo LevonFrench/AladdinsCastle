@@ -30,6 +30,7 @@ bool OverlayHost::initialize(QQmlEngine &engine, const QString &thumbnail, QStri
     connect(m_renderer.get(), &QuickTextureRenderer::dirty, this, [this] { m_gate.markDirty(); });
     if (!m_renderer->initialize(engine, {1280, 800}, error,m_capture.requested())) { m_runtime->shutdown(); return false; }
     m_running = true;
+    m_gate.requestInitialFrame();
     m_input.bindReceiver(m_renderer->window());
     m_keyboard.setWindow(m_renderer->window());
     m_clock.start(); m_timer.start();
@@ -56,7 +57,10 @@ void OverlayHost::handleRuntimeEvent(const vr::VREvent_t &event) {
 }
 void OverlayHost::tick() {
     const bool visible = m_runtime->isVisible();
-    m_renderer->setVisible(visible);m_input.setVisible(visible);
+    const bool initialFrame=m_gate.initialFramePending();
+    // Only the offscreen QML item is made renderable for bootstrap. Native
+    // visibility remains authoritative for input and keyboard cancellation.
+    m_renderer->setVisible(visible||initialFrame);m_input.setVisible(visible);
     vr::VREvent_t event{};
     // Bound work per tick; an input flood must not starve Qt's event loop.
     for (int count = 0; count < 256 && m_runtime->pollEvent(&event); ++count) {
@@ -68,17 +72,26 @@ void OverlayHost::tick() {
     QString error;
     if (!m_renderer->render(&error)) { m_timer.stop(); emit failed(error); return; }
     OverlaySubmitStatus submission;
-    const bool submitted = m_runtime->submit(m_renderer->texture(), &error,m_capture.requested()?&submission:nullptr);
+    const bool submitted = m_runtime->submit(m_renderer->texture(), &error,(m_capture.requested()||initialFrame)?&submission:nullptr);
     {
         const auto release=qScopeGuard([this]{m_renderer->doneCurrent();});
         if(m_capture.requested()){
             QString captureError;
-            const auto captured=m_capture.attempt([this](QImage *image,QString *message){return m_renderer->readbackCurrentTexture(image,message);},m_renderer->texture(),submission,m_state.flipY(),&captureError);
+            const auto captured=m_capture.attempt([this](QImage *image,QString *message){return m_renderer->readbackCurrentTexture(image,message);},m_renderer->texture(),submission,m_state.flipY(),&captureError,
+                [this](QImage *image,QJsonObject *metadata,QString *message){
+                    const bool result=m_runtime->readNativeImage(image,metadata,message);
+                    if(result)QTextStream(stdout)<<"Native overlay image read; source orientation requires review, compositor/headset unverified.\n";
+                    else QTextStream(stderr)<<"Native overlay image read failed: "<<(message?*message:QString())<<'\n';
+                    return result;
+                });
             if(captured==CaptureAttempt::Captured)QTextStream(stdout)<<"Source texture capture written; compositor display and pointer acceptance remain unverified.\n";
             else if(captured==CaptureAttempt::Failed)QTextStream(stderr)<<"Source texture capture failed: "<<captureError<<'\n';
         }
     }
     if (!submitted) { m_timer.stop(); emit failed(error); return; }
+    if(initialFrame&&(!submission.apiCalled||submission.apiResult!=int(vr::VROverlayError_None))){
+        m_timer.stop();emit failed("Initial overlay texture was not submitted.");return;
+    }
     m_gate.submitted(m_clock.elapsed());
     ++m_frames; m_cpuSum += m_renderer->lastCpuMs(); m_cpuMax = std::max(m_cpuMax, m_renderer->lastCpuMs());
     if (m_clock.elapsed() - m_reportTime >= 5000) {

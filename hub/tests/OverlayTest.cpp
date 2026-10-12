@@ -249,6 +249,26 @@ private slots:
         QVERIFY(gate.shouldRender(true, 16)); gate.submitted(16);
         QVERIFY(!gate.shouldRender(true, 32));
     }
+    void coldStartRequestsOneFrameWhileStillHidden(){
+        ac::OverlayFrameGate gate;gate.requestInitialFrame();
+        QVERIFY(gate.initialFramePending());QVERIFY(gate.shouldRender(false,0));gate.submitted(0);
+        QVERIFY(!gate.initialFramePending());gate.markDirty();QVERIFY(!gate.shouldRender(false,16));
+        QVERIFY(gate.shouldRender(true,32));gate.submitted(32);QVERIFY(!gate.shouldRender(false,48));
+        gate.stop();gate.requestInitialFrame();QVERIFY(!gate.shouldRender(false,1000));
+    }
+    void coldStartSubmissionDoesNotBecomeContinuousHiddenRendering(){
+        ac::OverlayTextureSubmitGate gate;QVERIFY(gate.shouldSubmit(false));gate.submitted();
+        QVERIFY(!gate.shouldSubmit(false));QVERIFY(gate.shouldSubmit(true));
+        gate.reset();QVERIFY(gate.shouldSubmit(false));
+    }
+    void initialFrameDoesNotGrantHiddenInput(){
+        ac::OverlayFrameGate gate;gate.requestInitialFrame();QVERIFY(gate.shouldRender(false,0));
+        ac::OverlayInput input;Recorder receiver;input.setVisible(false);
+        vr::VREvent_t event{};event.eventType=vr::VREvent_MouseMove;event.data.mouse={30,750,vr::VRMouseButton_Left,0};
+        QVERIFY(!input.dispatch(event,&receiver));event.eventType=vr::VREvent_MouseButtonDown;
+        QVERIFY(!input.dispatch(event,&receiver));QCOMPARE(input.buttons(),Qt::NoButton);
+        QVERIFY(!receiver.types.contains(QEvent::MouseButtonPress));QVERIFY(!receiver.types.contains(QEvent::MouseMove));
+    }
     void hiddenFramesRetainDirtyWorkAndQuitStopsFrames() {
         ac::OverlayFrameGate gate;
         QVERIFY(!gate.shouldRender(false, 0)); QVERIFY(gate.shouldRender(true, 0)); gate.submitted(0);

@@ -15,6 +15,24 @@
 #include <cstring>
 #include <utility>
 #include <filesystem>
+#include <limits>
+class MockNativeReadback final:public ac::NativeOverlayReadbackOps {
+public:
+    vr::VRTextureBounds_t before{0,1,1,0},after=before;
+    vr::EVROverlayError beforeCode=vr::VROverlayError_None,afterCode=vr::VROverlayError_None;
+    vr::EVROverlayError queryCode=vr::VROverlayError_ArrayTooSmall,readCode=vr::VROverlayError_None;
+    uint32_t width=3,height=2,returnedWidth=3,returnedHeight=2,bufferBytes=0;
+    int boundCalls=0,queries=0,copies=0;
+    vr::EVROverlayError bounds(vr::VRTextureBounds_t *value)override{
+        *value=boundCalls?after:before;return boundCalls++?afterCode:beforeCode;
+    }
+    vr::EVROverlayError image(void *buffer,uint32_t bytes,uint32_t *w,uint32_t *h)override{
+        if(!buffer){++queries;*w=width;*h=height;return queryCode;}
+        ++copies;bufferBytes=bytes;*w=returnedWidth;*h=returnedHeight;
+        if(bytes==24){QImage pixels(3,2,QImage::Format_RGBA8888);pixels.fill(Qt::green);pixels.setPixelColor(0,1,Qt::blue);std::memcpy(buffer,pixels.constBits(),24);}
+        return readCode;
+    }
+};
 class MockReadback final:public ac::TextureReadbackOps {
 public:
     std::array<int,7> state{17,29,31,8,23,3,7};
@@ -50,6 +68,38 @@ public:
 class OverlayCaptureTest:public QObject {
     Q_OBJECT
 private slots:
+    void nativeApiPreservesRowsAndReversedBounds(){
+        MockNativeReadback ops;QImage image;QJsonObject metadata;QString error;
+        QVERIFY2(ac::readNativeOverlayImage(ops,&image,&metadata,&error),qPrintable(error));
+        QCOMPARE(image.pixelColor(0,0),QColor(Qt::green));QCOMPARE(image.pixelColor(0,1),QColor(Qt::blue));
+        QCOMPARE(ops.bufferBytes,24u);QCOMPARE(ops.queries,1);QCOMPARE(ops.copies,1);QCOMPARE(ops.boundCalls,2);
+        QCOMPARE(metadata.value("texture_bounds").toObject().value("vMin").toDouble(),1.0);
+        QCOMPARE(metadata.value("texture_bounds").toObject().value("vMax").toDouble(),0.0);
+        QCOMPARE(metadata.value("query_result").toInt(),22);QCOMPARE(metadata.value("read_result").toInt(),0);
+        QVERIFY(!metadata.value("compositor_display_verified").toBool());QVERIFY(!metadata.value("exact_submission_frame_verified").toBool());
+    }
+    void nativeApiErrorsReturnNoImage_data(){
+        QTest::addColumn<QString>("kind");
+        for(const auto *name:{"bounds","query","read","after","zero","oversized","overflow","budget","changed-size","changed-bounds","nan"})QTest::newRow(name)<<QString(name);
+    }
+    void nativeApiErrorsReturnNoImage(){
+        QFETCH(QString,kind);MockNativeReadback ops;QImage image(1,1,QImage::Format_RGBA8888);QJsonObject metadata;QString error;
+        if(kind=="bounds")ops.beforeCode=vr::VROverlayError_InvalidHandle;
+        if(kind=="query")ops.queryCode=vr::VROverlayError_RequestFailed;
+        if(kind=="read")ops.readCode=vr::VROverlayError_ArrayTooSmall;
+        if(kind=="after")ops.afterCode=vr::VROverlayError_RequestFailed;
+        if(kind=="zero")ops.width=0;
+        if(kind=="oversized")ops.width=4097;
+        if(kind=="overflow")ops.width=ops.height=std::numeric_limits<uint32_t>::max();
+        if(kind=="budget")ops.width=ops.height=4096;
+        if(kind=="changed-size")ops.returnedHeight=3;
+        if(kind=="changed-bounds")ops.after.vMin=0.5F;
+        if(kind=="nan")ops.before.uMin=std::numeric_limits<float>::quiet_NaN();
+        QVERIFY(!ac::readNativeOverlayImage(ops,&image,&metadata,&error));QVERIFY(image.isNull());QVERIFY(!error.isEmpty());
+        const bool copied=kind=="read"||kind=="after"||kind=="changed-size"||kind=="changed-bounds";
+        QCOMPARE(ops.copies,copied?1:0);
+        if(!copied)QVERIFY(metadata.value("read_result").isNull());
+    }
     void oneRowConversionUsesExactTextureAndRestoresState(){
         MockReadback gl;const auto before=gl.state;QImage image;QString error;
         QVERIFY2(ac::readSourceTexture(gl,41,{3,2},&image,&error),qPrintable(error));
@@ -122,6 +172,38 @@ private slots:
         if(code){QSKIP("Directory symlink creation is unavailable; no privilege change attempted.");}
         ac::OverlayCapture capture;QString error;QVERIFY(!capture.configure(t.path(),link+"/fresh",false,&error));
         QVERIFY(!QFileInfo::exists(outside+"/fresh"));
+    }
+    void nativeDiagnosticKeepsEvidenceSeparate_data(){
+        QTest::addColumn<QString>("kind");
+        for(const auto *name:{"success","native-error","not-submitted","native-invalid-image"})QTest::newRow(name)<<QString(name);
+    }
+    void nativeDiagnosticKeepsEvidenceSeparate(){
+        QFETCH(QString,kind);QTemporaryDir t;ac::OverlayCapture capture;QString error;
+        const auto path=t.filePath(".local/native");QVERIFY(capture.configure(t.path(),path,false,&error));
+        MockReadback gl;int nativeReads=0;
+        const auto qtReader=[&](QImage *image,QString *message){return ac::readSourceTexture(gl,41,{3,2},image,message);};
+        const auto nativeReader=[&](QImage *image,QJsonObject *metadata,QString *message){
+            ++nativeReads;*metadata={{"texture_type","OpenGL"},{"query_result",22},{"read_result",kind=="native-error"?23:0}};
+            if(kind=="native-error"){*message="Synthetic unsupported native image";return false;}
+            *image=QImage(kind=="native-invalid-image"?0:3,2,QImage::Format_RGBA8888);
+            if(!image->isNull()){image->fill(Qt::green);image->setPixelColor(0,1,Qt::blue);}return true;
+        };
+        const bool submitted=kind!="not-submitted";
+        QCOMPARE(capture.attempt(qtReader,41,{submitted,0},true,&error,nativeReader),ac::CaptureAttempt::Captured);
+        QCOMPARE(nativeReads,submitted?1:0);
+        const QImage source(path+"/texture.png");QCOMPARE(source.pixelColor(0,0),QColor(Qt::magenta));
+        QFile file(path+"/receipt.json");QVERIFY(file.open(QIODevice::ReadOnly));
+        const auto receipt=QJsonDocument::fromJson(file.readAll()).object();
+        const auto native=receipt.value("native_overlay").toObject();
+        QCOMPARE(native.value("status").toString(),kind=="success"?QString("captured"):submitted?QString("failed"):QString("not-attempted"));
+        QVERIFY(!receipt.value("compositor_display_verified").toBool());
+        const QImage nativePng(path+"/native.png");
+        if(kind=="success"){
+            QCOMPARE(nativePng.pixelColor(0,0),QColor(Qt::green));QCOMPARE(nativePng.pixelColor(0,1),QColor(Qt::blue));
+            QCOMPARE(native.value("read_result").toInt(),0);QVERIFY(!native.value("compositor_display_verified").toBool());
+        }else{QVERIFY(nativePng.isNull());QVERIFY(!native.value("error").toString().isEmpty());}
+        QCOMPARE(capture.attempt(qtReader,41,{submitted,0},true,&error,nativeReader),ac::CaptureAttempt::Disabled);
+        QCOMPARE(nativeReads,submitted?1:0);
     }
     void confinedFreshPathsAreCheckedAgainBeforeWriting(){
         QTemporaryDir t;QString error;ac::OverlayCapture outside,existing,raced;

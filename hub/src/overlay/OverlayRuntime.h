@@ -5,6 +5,8 @@
 #include <openvr.h>
 #include <memory>
 #include "ProductIdentity.h"
+class QImage;
+class QJsonObject;
 namespace ac {
 inline constexpr bool overlayMirrorVertically=false;
 // Preserve the Qt target's recorded corner ordering. Pointer coordinates use
@@ -20,6 +22,14 @@ struct OverlaySubmitStatus {
     bool apiCalled=false;
     int apiResult=-1;
 };
+class OverlayTextureSubmitGate {
+public:
+    bool shouldSubmit(bool visible)const{return visible||!m_hasTexture;}
+    void submitted(){m_hasTexture=true;}
+    void reset(){m_hasTexture=false;}
+private:
+    bool m_hasTexture=false;
+};
 // A narrow adapter keeps lifecycle tests independent of the SteamVR service.
 class OverlayRuntime {
 public:
@@ -31,6 +41,7 @@ public:
     virtual bool submit(unsigned int texture, QString *error,OverlaySubmitStatus *status=nullptr) = 0;
     // An explicit request, not proof that the dashboard has rendered.
     virtual bool showDashboard(QString *error){if(error)*error="Dashboard presentation is unavailable.";return false;}
+    virtual bool readNativeImage(QImage *,QJsonObject *,QString *error){if(error)*error="Native overlay image readback is unavailable.";return false;}
     virtual bool showKeyboard(const QString &text, quint64 token, QString *error) = 0;
     virtual void hideKeyboard() = 0;
     virtual void acknowledgeQuit() = 0;

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "OverlayCapture.h"
+#include <cmath>
 #include "core/install/Support.h"
 #include <QDir>
 #include <QFile>
@@ -46,6 +47,45 @@ bool readSourceTexture(TextureReadbackOps &ops,unsigned int texture,QSize size,Q
     if(topFirst.isNull())return fail(error,"Cannot convert source texture row order.");
     *image=std::move(topFirst);return true;
 }
+bool readNativeOverlayImage(NativeOverlayReadbackOps &ops,QImage *image,QJsonObject *metadata,QString *error){
+    if(!image||!metadata)return fail(error,"Native image output is unavailable.");
+    *image={};*metadata={{"evidence","native-overlay-image-readback"},{"texture_type","OpenGL"},
+        {"texture_type_value",int(vr::TextureType_OpenGL)},{"color_space","Auto"},
+        {"row_conversion","None: native API rows preserved"},{"row_origin","unspecified by SDK"},
+        {"bounds_before_result",QJsonValue()},{"query_result",QJsonValue()},{"read_result",QJsonValue()},{"bounds_after_result",QJsonValue()},
+        {"compositor_display_verified",false},{"exact_submission_frame_verified",false}};
+    const auto asJson=[](const vr::VRTextureBounds_t &b){return QJsonObject{{"uMin",b.uMin},{"uMax",b.uMax},{"vMin",b.vMin},{"vMax",b.vMax}};};
+    const auto valid=[](const vr::VRTextureBounds_t &b){
+        for(float value:{b.uMin,b.uMax,b.vMin,b.vMax})if(!std::isfinite(value)||value<0||value>1)return false;
+        return b.uMin!=b.uMax&&b.vMin!=b.vMax;
+    };
+    vr::VRTextureBounds_t before{};auto code=ops.bounds(&before);(*metadata)["bounds_before_result"]=int(code);
+    if(code!=vr::VROverlayError_None)return fail(error,QString("GetOverlayTextureBounds failed (%1).").arg(int(code)));
+    (*metadata)["texture_bounds"]=asJson(before);
+    if(!valid(before))return fail(error,"Native overlay texture bounds are invalid.");
+    uint32_t width=0,height=0;code=ops.image(nullptr,0,&width,&height);
+    (*metadata)["query_result"]=int(code);(*metadata)["width"]=qint64(width);(*metadata)["height"]=qint64(height);
+    if(code!=vr::VROverlayError_None&&code!=vr::VROverlayError_ArrayTooSmall)
+        return fail(error,QString("GetOverlayImageData size query failed (%1).").arg(int(code)));
+    if(!width||!height||width>4096||height>4096)
+        return fail(error,"Native overlay dimensions exceed the bounded RGBA budget.");
+    const quint64 bytes=quint64(width)*quint64(height)*4;
+    if(bytes>16*1024*1024)return fail(error,"Native overlay dimensions exceed the bounded RGBA budget.");
+    QImage pixels(int(width),int(height),QImage::Format_RGBA8888);
+    if(pixels.isNull()||quint64(pixels.sizeInBytes())!=bytes)return fail(error,"Cannot allocate native RGBA image.");
+    uint32_t returnedWidth=width,returnedHeight=height;
+    code=ops.image(pixels.bits(),uint32_t(bytes),&returnedWidth,&returnedHeight);
+    (*metadata)["read_result"]=int(code);(*metadata)["returned_width"]=qint64(returnedWidth);(*metadata)["returned_height"]=qint64(returnedHeight);
+    (*metadata)["buffer_bytes"]=qint64(bytes);
+    if(code!=vr::VROverlayError_None)return fail(error,QString("GetOverlayImageData failed (%1).").arg(int(code)));
+    if(returnedWidth!=width||returnedHeight!=height)return fail(error,"Native image dimensions changed during readback.");
+    vr::VRTextureBounds_t after{};code=ops.bounds(&after);(*metadata)["bounds_after_result"]=int(code);
+    if(code!=vr::VROverlayError_None)return fail(error,QString("GetOverlayTextureBounds recheck failed (%1).").arg(int(code)));
+    (*metadata)["texture_bounds_after"]=asJson(after);
+    if(!valid(after)||before.uMin!=after.uMin||before.uMax!=after.uMax||before.vMin!=after.vMin||before.vMax!=after.vMax)
+        return fail(error,"Native overlay bounds changed during readback.");
+    *image=std::move(pixels);return true;
+}
 bool OverlayCapture::configure(const QString &catalogRoot,const QString &directory,bool pictureFlipY,QString *error){
     if(!m_directory.isEmpty()||m_attempted)return fail(error,"Source texture capture is already configured.");
     if(!QDir::isAbsolutePath(directory))return fail(error,"Source texture capture requires an absolute fresh directory.");
@@ -55,7 +95,7 @@ bool OverlayCapture::configure(const QString &catalogRoot,const QString &directo
         m_root=root;m_directory=target;m_pictureFlipY=pictureFlipY;return true;
     }catch(const std::exception &exception){return fail(error,QString::fromUtf8(exception.what()));}
 }
-CaptureAttempt OverlayCapture::attempt(const Reader &reader,unsigned int texture,const OverlaySubmitStatus &submission,bool pointerFlipY,QString *error){
+CaptureAttempt OverlayCapture::attempt(const Reader &reader,unsigned int texture,const OverlaySubmitStatus &submission,bool pointerFlipY,QString *error,const NativeReader &nativeReader){
     if(!requested())return CaptureAttempt::Disabled;
     m_attempted=true;
     QImage image;
@@ -68,9 +108,9 @@ CaptureAttempt OverlayCapture::attempt(const Reader &reader,unsigned int texture
         if(QFileInfo::exists(target)||!QDir().mkpath(QFileInfo(target).absolutePath())||!QDir().mkdir(target)){
             fail(error,"Source texture capture directory is no longer fresh or cannot be created.");return CaptureAttempt::Failed;
         }
-        const auto imagePath=install::scopedPath("texture.png",target),receiptPath=install::scopedPath("receipt.json",target);
-        bool complete=false,imageCreated=false,receiptCreated=false;
-        const auto cleanup=qScopeGuard([&]{if(!complete){if(receiptCreated)QFile::remove(receiptPath);if(imageCreated)QFile::remove(imagePath);}});
+        const auto imagePath=install::scopedPath("texture.png",target),receiptPath=install::scopedPath("receipt.json",target),nativePath=install::scopedPath("native.png",target);
+        bool complete=false,imageCreated=false,receiptCreated=false,nativeCreated=false;
+        const auto cleanup=qScopeGuard([&]{if(!complete){if(receiptCreated)QFile::remove(receiptPath);if(imageCreated)QFile::remove(imagePath);if(nativeCreated)QFile::remove(nativePath);}});
         QFile pixels(imagePath);
         if(!pixels.open(QIODevice::WriteOnly|QIODevice::NewOnly)){
             fail(error,"Cannot create a fresh source texture PNG.");return CaptureAttempt::Failed;
@@ -81,7 +121,7 @@ CaptureAttempt OverlayCapture::attempt(const Reader &reader,unsigned int texture
         }
         pixels.close();
         const auto bounds=overlayPictureBounds(m_pictureFlipY);
-        const QJsonObject receipt{{"schema",1},{"status","captured"},{"evidence","source-texture-readback"},
+        QJsonObject receipt{{"schema",1},{"status","captured"},{"evidence","source-texture-readback"},
             {"image","texture.png"},{"width",image.width()},{"height",image.height()},{"texture_format","RGBA8"},
             {"row_conversion","GL bottom-first to PNG top-first: one row reversal"},
             {"render_target_mirror_vertically",overlayMirrorVertically},{"picture_flip_y",m_pictureFlipY},{"pointer_flip_y",pointerFlipY},
@@ -90,6 +130,30 @@ CaptureAttempt OverlayCapture::attempt(const Reader &reader,unsigned int texture
             {"submission_api_result",submission.apiCalled?QJsonValue(submission.apiResult):QJsonValue()},
             {"submission_api_succeeded",submission.apiCalled&&submission.apiResult==int(vr::VROverlayError_None)},
             {"compositor_display_verified",false}};
+        QJsonObject native;QString nativeError;QImage nativeImage;bool nativeOk=false;
+        if(!nativeReader)nativeError="Native image reader is unavailable.";
+        else if(!submission.apiCalled||submission.apiResult!=int(vr::VROverlayError_None))nativeError="No successful texture submission; native readback not attempted.";
+        else{
+            try{nativeOk=nativeReader(&nativeImage,&native,&nativeError);}catch(const std::exception &exception){nativeError=QString::fromUtf8(exception.what());}
+            if(nativeOk&&(nativeImage.isNull()||nativeImage.format()!=QImage::Format_RGBA8888||nativeImage.width()>4096||nativeImage.height()>4096||nativeImage.sizeInBytes()>16*1024*1024)){
+                nativeOk=false;nativeError="Native reader returned an invalid bounded RGBA image.";
+            }
+            if(nativeOk){
+                QFile nativePixels(nativePath);
+                if(!nativePixels.open(QIODevice::WriteOnly|QIODevice::NewOnly)){nativeOk=false;nativeError="Cannot create a fresh native overlay PNG.";}
+                else{
+                    nativeCreated=true;nativeOk=nativeImage.save(&nativePixels,"PNG")&&nativePixels.flush();nativePixels.close();
+                    if(!nativeOk){nativeError="Cannot write native overlay PNG.";QFile::remove(nativePath);nativeCreated=false;}
+                }
+            }
+            if(!nativeOk&&nativeError.isEmpty())nativeError="Native overlay image readback failed.";
+        }
+        const bool nativeAttempted=bool(nativeReader)&&submission.apiCalled&&submission.apiResult==int(vr::VROverlayError_None);
+        native["status"]=nativeOk?"captured":nativeAttempted?"failed":"not-attempted";
+        native["evidence"]="native-overlay-image-readback";native["compositor_display_verified"]=false;
+        if(nativeOk){native["image"]="native.png";native["width"]=nativeImage.width();native["height"]=nativeImage.height();}
+        else native["error"]=nativeError;
+        receipt["native_overlay"]=native;
         const auto bytes=QJsonDocument(receipt).toJson();QFile metadata(receiptPath);
         if(!metadata.open(QIODevice::WriteOnly|QIODevice::NewOnly)){
             fail(error,"Cannot create a fresh source texture receipt.");return CaptureAttempt::Failed;
