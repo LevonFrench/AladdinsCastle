@@ -87,6 +87,8 @@ try {
     & "$PSScriptRoot/Start-Sitting.ps1" -Executable $exe -ExecutableSHA256 $hash -Disc $disc -GameID RBUP08 `
         -StateDirectory "$root/runner" -NativeProfile "$generated/split-right.ini" -Mode Desktop -PrepareOnly
     Assert (Test-Path "$root/runner/User-v2-Desktop/Logs") 'Actual runner prepare path failed.'
+    $authoredGameProfile = Join-Path $PSScriptRoot '../../data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini'
+    Assert ((Get-FileHash "$root/runner/User-v2-Desktop/GameSettingsVR/RBUP08.ini").Hash -eq (Get-FileHash $authoredGameProfile).Hash) 'Actual runner must seed the exact published rendering profile for the checked disc ID.'
     foreach ($setting in @(@('Auto','-1'),@('Off','0'),@('72','72'),@('90','90'),@('120','120'))) {
         $switches = Get-AcVRSwitches -ForcedVBI $setting[0]
         Assert ($switches.ForcedVBIFrequency -eq $setting[1] -and $switches.AutoVBIFromHMD -eq 'False') 'Native VBI enum and Off fallback guard.'
@@ -137,6 +139,7 @@ try {
         -Executable $exe -ExecutableSHA256 $hash -Disc $disc -GameID RBUP08 -StateDirectory "$root/game-cli" `
         -ControlSet synthetic-wii -NativeProfile "$gameFolder/dolphinxr-right.ini" -PrepareOnly
     Assert ($LASTEXITCODE -eq 0 -and (Test-Path "$root/game-cli/User-v2-Default/Config/WiimoteNew.ini")) 'Actual PS5.1 per-game prepare path must succeed.'
+    Assert ((Get-FileHash "$root/game-cli/User-v2-Default/GameSettingsVR/RBUP08.ini").Hash -eq (Get-FileHash $authoredGameProfile).Hash) 'Native-mode runner must retain authored shader-profile bytes independently of the controls slug.'
     Add-Content -LiteralPath $dsu -Value '# tampered'
     MustFail { Initialize-AcSitting "$root/tampered-dsu" $profile -DsuProfile $dsu } 'DSU manifest mismatch must fail before writes.'
     Assert (-not (Test-Path "$root/tampered-dsu")) 'Rejected DSU profile must not write settings.'
