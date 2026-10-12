@@ -14,6 +14,12 @@ the known MSVC PDB-manager mismatch before placement assertions; those logs are
 preserved separately. The tiny fixture uses embedded debug info, with no change
 to production compiler settings.
 
+Review found the extra test initially required Ninja for all testing builds.
+A failing-first no-Ninja discovery configuration reproduces that regression;
+conditional registration now keeps ordinary configuration working with an
+explicit skip message. Existing three resource layouts remain covered when
+Ninja is available. This adds no required tool to ordinary Hub configuration.
+
 A bounded built-resource-only correction also put the existing reviewed assets
 beside the existing diagnostic executable; binary bytes are unchanged. No runtime,
 registration or Steam write followed. This closes a concrete startup prerequisite,

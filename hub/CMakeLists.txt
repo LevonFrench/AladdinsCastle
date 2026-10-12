@@ -177,14 +177,18 @@ ac_project_warnings(steamtool)
 set_target_properties(steamtool PROPERTIES WIN32_EXECUTABLE FALSE)
 
 if(BUILD_TESTING)
-    find_program(_ac_resource_ninja NAMES ninja REQUIRED)
-    add_test(NAME hub-runtime-resources COMMAND ${CMAKE_COMMAND}
-        "-DHUB_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}"
-        "-DTEST_ROOT=${CMAKE_BINARY_DIR}/Testing/runtime-resources"
-        "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
-        "-DNINJA=${_ac_resource_ninja}"
-        "-DEXE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RuntimeResources.cmake)
+    find_program(_ac_resource_ninja NAMES ninja)
+    if(_ac_resource_ninja)
+        add_test(NAME hub-runtime-resources COMMAND ${CMAKE_COMMAND}
+            "-DHUB_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}"
+            "-DTEST_ROOT=${CMAKE_BINARY_DIR}/Testing/runtime-resources"
+            "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+            "-DNINJA=${_ac_resource_ninja}"
+            "-DEXE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RuntimeResources.cmake)
+    else()
+        message(STATUS "Skipping hub-runtime-resources: Ninja is unavailable for the extra generator regression.")
+    endif()
     qt_add_executable(gun-room-tests tests/GunRoomTest.cpp)
     target_link_libraries(gun-room-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(gun-room-tests)

@@ -75,3 +75,26 @@ endforeach()
 if(failures)
     message(FATAL_ERROR "Runtime resource placement failed:${failures}")
 endif()
+
+# Exercise the real extra-test registration with program discovery disabled.
+# A non-Ninja build must not require Ninja merely to configure Hub tests.
+string(FIND "${source}" "    find_program(_ac_resource_ninja" registration_begin)
+string(FIND "${source}" "    qt_add_executable(gun-room-tests" registration_end)
+math(EXPR registration_length "${registration_end}-${registration_begin}")
+string(SUBSTRING "${source}" ${registration_begin} ${registration_length} registration)
+set(no_ninja "${root}/no-ninja-source")
+file(MAKE_DIRECTORY "${no_ninja}")
+file(WRITE "${no_ninja}/CMakeLists.txt" "cmake_minimum_required(VERSION 3.28)\nproject(NoNinjaDiscovery LANGUAGES NONE)\nenable_testing()\n${registration}\n")
+execute_process(COMMAND "${CMAKE_COMMAND}" -S "${no_ninja}" -B "${root}/no-ninja-build"
+    -G Ninja "-DCMAKE_MAKE_PROGRAM=${NINJA}"
+    -DCMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH=FALSE -DCMAKE_FIND_USE_CMAKE_PATH=FALSE
+    -DCMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH=FALSE -DCMAKE_FIND_USE_CMAKE_SYSTEM_PATH=FALSE
+    -DCMAKE_FIND_USE_INSTALL_PREFIX=FALSE
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "No-Ninja discovery configuration failed: ${output}${error}")
+endif()
+if(NOT output MATCHES "Skipping hub-runtime-resources")
+    message(FATAL_ERROR "No-Ninja configuration must explain the skipped extra regression: ${output}")
+endif()
+message(STATUS "PASS no-Ninja discovery: configure succeeds with explicit extra-test skip")
