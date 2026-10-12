@@ -76,7 +76,7 @@ Item {
     PillButton {text:"Locate VPX";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballExecutable";file.nameFilters=["Program (*.exe)"];file.open()}}
     PillButton {text:"Launch plan";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.planPinball()}
    }
-   UiText {width:parent.width;wrapMode:Text.Wrap;text:"Launch is waiting for verified isolation of scores, ROM nvram and table/plugin writes."}
+   UiText {objectName:"pinballLaunchHelp";width:parent.width;wrapMode:Text.Wrap;text:uiController.pinballLaunchHelp}
    TextArea {width:parent.width;text:uiController.pinballPlan;readOnly:true;wrapMode:Text.Wrap}
   }
  }}}

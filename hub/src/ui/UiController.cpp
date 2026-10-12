@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "UiController.h"
+#include "core/pinball/Pinball.h"
 #include <QCoreApplication>
 #include <QFile>
 #include <QDir>
@@ -11,6 +12,7 @@
 #include <QTimer>
 #include <algorithm>
 namespace ac {
+QString UiController::pinballLaunchHelp()const{return pinball::launchGuidance().value("help").toString();}
 namespace {
 QString str(const Json &j,const char *key){return j.contains(key)&&j[key].is_string()?QString::fromStdString(j[key].get<std::string>()):QString();}
 QString eventText(const QVariantMap &e){auto kind=e.value("kind").toString(), text=e.value("text").toString();if(kind=="step")return QString("--- [%1/%2] %3 ---").arg(e.value("index",e.value("step")).toInt()).arg(e.value("total").toInt()).arg(text);const QMap<QString,QString> prefixes{{"ok"," [OK] "},{"warn"," [!!] "},{"fail"," [XX] "},{"work"," [..] "},{"detail","  "},{"prompt"," >>> "},{"done"," >>> "}};return prefixes.value(kind,"  ")+text;}

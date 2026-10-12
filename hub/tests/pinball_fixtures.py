@@ -42,6 +42,34 @@ def table(path, title, author, version, script, mini=False):
     path.write_bytes(raw)
 
 class Checks(unittest.TestCase):
+    def helper_json(self, *arguments):
+        completed=subprocess.run([HUB,*arguments],capture_output=True,text=True)
+        self.assertEqual(completed.returncode,0,'Diagnostic helper failed: '+completed.stderr)
+        value=json.loads(completed.stdout)
+        self.assertIsInstance(value,dict,'Diagnostic helper must return a JSON object')
+        return value
+    def test_blocked_plan_explains_actual_isolation_gaps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=pathlib.Path(tmp); f=p/'ready.vpx'
+            table(f,'Ready (Synthetic 2000)','Test','1.0','Const VRRoom=1\nVRRoomCabinet.Visible=True')
+            original=f.read_bytes()
+            row=self.helper_json('scan-pinball',str(p))['tables'][0]
+            self.assertTrue(row['vrReady']);self.assertEqual(row['romState'],'needs no ROM')
+            for mode in ('desktop','vr'):
+                plan=self.helper_json('plan-pinball',str(f),HUB,str(p/'owned'),mode)
+                self.assertIs(plan.get('launchAllowed'),False)
+                self.assertIn('isolationBlockers',plan,'PINBALL_ISOLATION_BLOCKERS_MISSING')
+                self.assertIsInstance(plan['isolationBlockers'],list)
+                blockers={x['id']:x['text'] for x in plan['isolationBlockers']}
+                self.assertEqual(set(blockers),{'preferences','table-data','scripts-and-plugins'})
+                self.assertIn('settings folder',blockers['preferences'])
+                self.assertIn('beside your tables',blockers['table-data'])
+                self.assertIn('scripts',blockers['scripts-and-plugins']);self.assertIn('plugins',blockers['scripts-and-plugins'])
+                self.assertTrue(plan['help'].startswith(plan['reason']))
+                for text in blockers.values():self.assertIn(text,plan['help'])
+                self.assertNotIn('https://',plan['help'])
+                self.assertFalse((p/'owned').exists());self.assertEqual(f.read_bytes(),original)
+            self.assertEqual({x.name for x in p.iterdir()},{'ready.vpx'})
     def test_minifat_and_directory_cycle(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp);f=p/'mini.vpx';table(f,'Mini (Synthetic 2000)','Test','1.0','Const VRRoom=1\nVRRoomCabinet.Visible=True',mini=True)

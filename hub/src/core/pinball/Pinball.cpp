@@ -154,9 +154,26 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
  }
  return {{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
 }
+QVariantMap launchGuidance() {
+ const QString reason="Pinball launch is unavailable until all saved files can be kept in a separate folder.";
+ const QVariantList blockers{
+  QVariantMap{{"id","preferences"},{"text","VPX may write to its usual settings folder during startup."}},
+  QVariantMap{{"id","table-data"},{"text","Scores and other saved table data can be written beside your tables."}},
+  QVariantMap{{"id","scripts-and-plugins"},{"text","Table scripts, ROM tools and plugins can write outside the separate folder."}}
+ };
+ QStringList help{reason};
+ for(const auto &blocker:blockers)help<<QString("• %1").arg(blocker.toMap().value("text").toString());
+ help<<"Scanning stays read-only. Choosing VPX or marking a table VR-ready does not enable launch.";
+ return {{"launchAllowed",false},{"reason",reason},{"isolationBlockers",blockers},{"help",help.join('\n')}};
+}
 QVariantMap launchPlan(const QString &table,const QString &executable,const QString &ownedRoot,bool vr) {
  const auto root=QFileInfo(ownedRoot).absoluteFilePath();
  require(QFileInfo(table).isFile()&&QFileInfo(table).suffix().compare("vpx",Qt::CaseInsensitive)==0&&!link(QFileInfo(table))&&QFileInfo(executable).isFile()&&!link(QFileInfo(executable)));
- return {{"executable",QFileInfo(executable).absoluteFilePath()},{"cwd",root},{"args",QStringList{"-Play",QFileInfo(table).absoluteFilePath(),"-Ini",QDir(root).filePath("VPinballX.ini"),"-TableIni",QDir(root).filePath("table.ini")}},{"settings",QString("[PlayerVR]\nAskToTurnOn=%1\n").arg(vr?0:2)},{"launchAllowed",false},{"reason","Table script, ROM nvram, plugins and table-relative cache/user writes require verified isolation before launching."}};
+ auto plan=launchGuidance();
+ plan.insert("executable",QFileInfo(executable).absoluteFilePath());
+ plan.insert("cwd",root);
+ plan.insert("args",QStringList{"-Play",QFileInfo(table).absoluteFilePath(),"-Ini",QDir(root).filePath("VPinballX.ini"),"-TableIni",QDir(root).filePath("table.ini")});
+ plan.insert("settings",QString("[PlayerVR]\nAskToTurnOn=%1\n").arg(vr?0:2));
+ return plan;
 }
 }
