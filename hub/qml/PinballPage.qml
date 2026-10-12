@@ -74,6 +74,7 @@ Item {
     PillButton {text:"Mark VR-ready";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(true)}
     PillButton {text:"Exclude";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(false)}
     PillButton {text:"Locate VPX";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballExecutable";file.nameFilters=["Program (*.exe)"];file.open()}}
+    PillButton {objectName:"pinballPlay";text:"Play";vrOverlayMode:page.vrOverlayMode;enabled:page.selected.vrReady===true&&!page.selected.error&&page.selected.romState!=="ROM missing"&&Object.keys(uiController.nowPlaying).length===0;onClicked:uiController.playPinball()}
     PillButton {text:"Launch plan";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.planPinball()}
    }
    UiText {objectName:"pinballLaunchHelp";width:parent.width;wrapMode:Text.Wrap;text:uiController.pinballLaunchHelp}

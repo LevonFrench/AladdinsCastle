@@ -48,28 +48,21 @@ class Checks(unittest.TestCase):
         value=json.loads(completed.stdout)
         self.assertIsInstance(value,dict,'Diagnostic helper must return a JSON object')
         return value
-    def test_blocked_plan_explains_actual_isolation_gaps(self):
+    def test_normal_plan_preserves_vpx_settings_and_library(self):
         with tempfile.TemporaryDirectory() as tmp:
-            p=pathlib.Path(tmp); f=p/'ready.vpx'
+            p=pathlib.Path(tmp); f=p/'ready table.vpx'
             table(f,'Ready (Synthetic 2000)','Test','1.0','Const VRRoom=1\nVRRoomCabinet.Visible=True')
             original=f.read_bytes()
-            row=self.helper_json('scan-pinball',str(p))['tables'][0]
-            self.assertTrue(row['vrReady']);self.assertEqual(row['romState'],'needs no ROM')
             for mode in ('desktop','vr'):
-                plan=self.helper_json('plan-pinball',str(f),HUB,str(p/'owned'),mode)
-                self.assertIs(plan.get('launchAllowed'),False)
-                self.assertIn('isolationBlockers',plan,'PINBALL_ISOLATION_BLOCKERS_MISSING')
-                self.assertIsInstance(plan['isolationBlockers'],list)
-                blockers={x['id']:x['text'] for x in plan['isolationBlockers']}
-                self.assertEqual(set(blockers),{'preferences','table-data','scripts-and-plugins'})
-                self.assertIn('settings folder',blockers['preferences'])
-                self.assertIn('beside your tables',blockers['table-data'])
-                self.assertIn('scripts',blockers['scripts-and-plugins']);self.assertIn('plugins',blockers['scripts-and-plugins'])
-                self.assertTrue(plan['help'].startswith(plan['reason']))
-                for text in blockers.values():self.assertIn(text,plan['help'])
-                self.assertNotIn('https://',plan['help'])
-                self.assertFalse((p/'owned').exists());self.assertEqual(f.read_bytes(),original)
-            self.assertEqual({x.name for x in p.iterdir()},{'ready.vpx'})
+                plan=self.helper_json('plan-pinball',str(f),HUB,str(p/'unused'),mode)
+                self.assertIs(plan.get('launchAllowed'),True)
+                self.assertEqual(plan['args'],['-Play',f.as_posix()])
+                self.assertEqual(pathlib.Path(plan['cwd']),pathlib.Path(HUB).parent)
+                self.assertNotIn('settings',plan)
+                self.assertIn('normal settings',plan['help'])
+                self.assertIn('scores',plan['help'])
+                self.assertFalse((p/'unused').exists());self.assertEqual(f.read_bytes(),original)
+            self.assertEqual({x.name for x in p.iterdir()},{'ready table.vpx'})
     def test_minifat_and_directory_cycle(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp);f=p/'mini.vpx';table(f,'Mini (Synthetic 2000)','Test','1.0','Const VRRoom=1\nVRRoomCabinet.Visible=True',mini=True)
@@ -119,7 +112,7 @@ class Checks(unittest.TestCase):
             self.assertEqual(rows['dynamic']['romState'],'unknown');self.assertNotIn('invalid.example',json.dumps(result))
             self.assertEqual(before,{x.name:x.read_bytes() for x in lib.glob('*.vpx')})
             plan=json.loads(subprocess.check_output([HUB,'plan-pinball',str(lib/'script.vpx'),HUB,str(p/'owned'),'desktop']))
-            self.assertIn('-Ini',plan['args']);self.assertIn('-TableIni',plan['args']);self.assertFalse(plan['launchAllowed'])
+            self.assertEqual(plan['args'],['-Play',(lib/'script.vpx').as_posix()]);self.assertTrue(plan['launchAllowed'])
             self.assertFalse((p/'owned').exists())
 
 if __name__=='__main__':

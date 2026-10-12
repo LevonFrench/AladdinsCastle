@@ -36,6 +36,11 @@ struct Receipt {
     bool requires_depth=false;
     bool display_depth=false;
     RightEyeFault right_eye_fault=RightEyeFault::None;
+    bool require_prepare=false,fail_prepare=false;
+    int fail_bind_eye=-1;
+    unsigned prepares=0;
+    uint64_t prepared_display=0;
+    std::vector<uint32_t> bound_eyes;
     bool offscreen_reload=false,project_hit=false;
     float hit_x=.5f,hit_y=.5f;
     unsigned model_draws=0;
@@ -114,8 +119,23 @@ acvr_result ACVR_CALL raycast(acvr_backend *b,const acvr_frame *,const acvr_ray 
     h->found=0; h->camera_id=ACVR_NO_CAMERA; return ACVR_OK; // exercise camera fallback
 }
 acvr_result ACVR_CALL draw(acvr_backend *b,const acvr_frame *f,const acvr_draw_info *d) {
+    check(!b->r->bound_eyes.empty() && b->r->bound_eyes.back()==d->views->eye_index);
+    if(b->r->require_prepare) check(b->r->prepared_display==d->display_id);
     check(b->r->leased && d->frame_id==f->id); ++b->r->draws; b->r->drawn_frames.push_back(f->id);
     return b->r->fail_right && d->views->eye_index==1 ? ACVR_ERROR : ACVR_OK;
+}
+acvr_result ACVR_CALL prepare_display(acvr_backend *b,const acvr_frame *f,uint32_t count,
+                                     uint32_t stride,const acvr_draw_info *draws) {
+    check(b->r->context_active && b->r->leased && count==2 && stride==sizeof(acvr_draw_info));
+    check(b->r->draws==b->r->bound_eyes.size()); // no target binding or draw before preparation
+    for(unsigned i=0;i<2;++i) {
+        check(draws[i].frame_id==f->id && draws[i].view_count==1 && draws[i].views->eye_index==i);
+        check(draws[i].display_id==draws[0].display_id &&
+              draws[i].predicted_display_time_ns==draws[0].predicted_display_time_ns);
+        check(draws[i].target.framebuffer==11u+i);
+    }
+    ++b->r->prepares;b->r->prepared_display=draws[0].display_id;
+    return b->r->fail_prepare?ACVR_ERROR:ACVR_OK;
 }
 acvr_result ACVR_CALL outputs(acvr_backend *b,acvr_outputs *out) {
     if(b->r->bad_outputs) { out->count=0; return ACVR_MORE; }
@@ -184,6 +204,7 @@ struct Recorded final:acvr::Host {
         auto a=init<acvr_axis_input>(); a.semantic=ACVR_AXIS_COVER_PEDAL; a.value=s.pedal; d.axes.push_back(a);
         for(unsigned i=0;i<2;++i) { d.eyes[i]=init<acvr_draw_info>(); d.eyes[i].target=init<acvr_render_target>();
             d.eyes[i].view_count=1; d.eyes[i].view_stride=sizeof(acvr_eye); d.eyes[i].views=&eyes[i];
+            d.eyes[i].target.framebuffer=11u+i;
             if(r.display_depth) {d.eyes[i].target.depth_image=1;d.eyes[i].target.depth_format=1;} }
         auto &right=d.eyes[1];
         switch(r.right_eye_fault) {
@@ -198,6 +219,11 @@ struct Recorded final:acvr::Host {
         case RightEyeFault::DepthFormat: right.target.depth_format=0; break;
         }
         return ACVR_OK;
+    }
+    acvr_result bind_world_target(const acvr_draw_info &info) override {
+        check(r.context_active && info.target.framebuffer==11u+info.views->eye_index);
+        r.bound_eyes.push_back(info.views->eye_index);
+        return int(info.views->eye_index)==r.fail_bind_eye?ACVR_ERROR:ACVR_OK;
     }
     acvr_result end(bool rendered) override { ++r.ends; if(rendered) ++r.submitted; return ACVR_OK; }
     void output(const acvr_output_event &) override { ++r.outputs; }
@@ -382,6 +408,49 @@ void both_eyes_validate_before_drawing() {
         check(acvr_runtime_tick(p)==(good?ACVR_OK:(missing_depth?ACVR_UNSUPPORTED:ACVR_BAD_ARGUMENT)));
         check(r.draws==(good?2u:0u) && r.model_draws==0 && r.ends==1 && r.submitted==(good?1u:0u));
         check(acvr_runtime_destroy(p)==ACVR_OK && !r.leased && r.released==1 && r.closed==1);
+    }
+}
+void display_preparation_and_target_binding() {
+    for(unsigned mode=0;mode<6;++mode) {
+        Receipt r;r.require_prepare=true;r.fail_prepare=mode==1;
+        r.fail_bind_eye=mode==2?0:(mode==3?1:-1);
+        if(mode==4)r.right_eye_fault=RightEyeFault::NullView;
+        current=&r;auto c=config();auto a=api();a.game_prepare_display=prepare_display;
+        acvr_runtime *p=nullptr;
+        check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,
+            std::vector<Sample>{{0,false,false,true,mode!=5},{4000000}}),&p)==ACVR_OK);
+        const auto expected=mode==0||mode==5?ACVR_OK:(mode==4?ACVR_BAD_ARGUMENT:ACVR_ERROR);
+        check(acvr_runtime_tick(p)==expected);
+        check(r.prepares==(mode<4?1u:0u));
+        check(r.draws==(mode==0?2u:(mode==3?1u:0u)));
+        check(r.bound_eyes.size()==(mode==0||mode==3?2u:(mode==2?1u:0u)));
+        check(r.ends==1 && r.submitted==(mode==0?1u:0u));
+        if(mode==0) {
+            check(acvr_runtime_tick(p)==ACVR_OK && r.prepares==2 && r.draws==4);
+            check(r.steps.size()==1 && r.drawn_frames.front()==r.drawn_frames.back()); // prepare per display, not lease
+        }
+        check(acvr_runtime_destroy(p)==ACVR_OK && r.released==1 && r.closed==1 && !r.leased);
+    }
+}
+void backend_table_prefix_compatibility() {
+    // Nonzero bytes after an old complete prefix must never become a callback.
+    for(const uint32_t size:{ACVR_BACKEND_API_V1_SIZE,uint32_t(sizeof(acvr_backend_api)),
+            uint32_t(sizeof(acvr_backend_api)+16),ACVR_BACKEND_API_V1_SIZE-1,
+            ACVR_BACKEND_API_V1_SIZE+1}) {
+        Receipt r;current=&r;auto c=config();
+        struct Extended { acvr_backend_api table; unsigned char canary[16]; } ext{};
+        ext.table=api();ext.table.size=size;ext.table.game_prepare_display=prepare_display;
+        std::memset(ext.canary,0xa5,sizeof(ext.canary));
+        acvr_runtime *p=nullptr;
+        const bool good=size==ACVR_BACKEND_API_V1_SIZE||size>=sizeof(acvr_backend_api);
+        check(acvr::create_with_host(&c,&ext.table,std::make_unique<Recorded>(r,std::vector<Sample>{{0}}),&p)==
+              (good?ACVR_OK:ACVR_BAD_ARGUMENT));
+        if(good) {
+            check(acvr_runtime_tick(p)==ACVR_OK && r.prepares==(size==ACVR_BACKEND_API_V1_SIZE?0u:1u));
+            check(acvr_runtime_destroy(p)==ACVR_OK);
+        } else check(p==nullptr && r.opened==0);
+        check(ext.table.size==size);
+        for(const auto byte:ext.canary)check(byte==0xa5);
     }
 }
 void muzzle_math() {
@@ -704,7 +773,7 @@ void runtime_output_routes() {
 #endif
 int main() {
 #define RUN(test) do { try { test(); } catch(...) { std::cerr << #test << ": "; throw; } } while(false)
-    try { RUN(timing_and_edges); RUN(calibration_sample_contract); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(failures_and_ownership); RUN(both_eyes_validate_before_drawing); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
+    try { RUN(timing_and_edges); RUN(calibration_sample_contract); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(failures_and_ownership); RUN(both_eyes_validate_before_drawing); RUN(display_preparation_and_target_binding); RUN(backend_table_prefix_compatibility); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
 #ifdef ACVR_OPENXR_GL
         public_preflight_never_opens_xr();
 #endif

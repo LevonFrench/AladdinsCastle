@@ -1,0 +1,9 @@
+# Optional whole-display preparation checkpoint
+
+An optional callback prepares both validated eye records once per renderable display before either eye draws. Old complete API tables remain accepted, partial new tails are rejected, and unknown caller bytes remain untouched. The runtime owns a bounded zero-initialized copy. Each world pass asks the provider to bind its validated owned target immediately before drawing; this removes reliance on the framebuffer left by preparation or the previous eye.
+
+The callback borrows records and handles only for its call. It must not step the game, change input, draw or present. A preparation failure prevents both eye draws and ends the frame unsuccessfully. Existing backends with no callback keep their prior behavior.
+
+Independent source review found no blocker. GNU16.2 CPU-only compilation passed all eight CTest suites; an independent runtime rerun passed 12,777 checks. Cases cover old/full/oversized/partial tables, input canaries, call order, replay, malformed right-eye records and preparation/binding failures.
+
+Native verification is incomplete. The first MSBuild worker startup stalled and its owned processes were closed. The serial retry reached compilation and found an existing unguarded controller assignment in the OpenXR-on/gun-renderer-off configuration. The assignment now matches its declaration guard, but no third native build or XR run occurred. CPU-only results do not verify that provider. The Stereo production factory prefix-compatibility change is now included and independently reviewed. Its CPU build passes all 11 setup CTest suites, including the actual factory canaries; its graphics mask remains zero and optional preparation callback null. Native provider verification remains an integration gate, so this draft is not yet a published API or headset acceptance.

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT  (libacvr/ is MIT-licensed: see libacvr/LICENSE; the rest of AladdinsCastle is GPL-3.0)
- * Contract v0.3, 2026-10-11. Shared frame core implemented; optional Windows
+ * Contract v0.4, 2026-10-11. Shared frame core implemented; optional Windows
  * OpenXR desktop-GL provider is available when enabled at build time.
  * Normative semantics and source evidence: docs/libacvr-contract.md.
  */
@@ -23,7 +23,7 @@ extern "C" {
 
 #define ACVR_ABI_VERSION 1u
 #define ACVR_CONTRACT_MAJOR 0u
-#define ACVR_CONTRACT_MINOR 3u
+#define ACVR_CONTRACT_MINOR 4u
 #define ACVR_STRUCT_VERSION 1u
 #define ACVR_INIT(p) do { (p)->size = (uint32_t)sizeof(*(p)); \
                          (p)->version = ACVR_STRUCT_VERSION; } while (0)
@@ -272,7 +272,9 @@ typedef struct acvr_outputs {
 
 /* Runtime -> backend. All calls serialized on the runtime/graphics owner thread.
  * Mandatory through game_poll_outputs (which may return an empty batch).
- * Later callbacks are optional and gated by capabilities. No exceptions cross C.
+ * Later callbacks are optional; drawing/query features are capability-gated.
+ * game_prepare_display is optional by table size and non-null pointer alone.
+ * No exceptions cross C.
  * Exactly one frame lease at a time: release it before the next game_step.
  */
 typedef struct acvr_backend_api {
@@ -298,7 +300,22 @@ typedef struct acvr_backend_api {
     acvr_result (ACVR_CALL *game_draw_hud)(acvr_backend *, const acvr_frame *,
                                          const acvr_draw_info *);
     acvr_result (ACVR_CALL *game_flush_persistent)(acvr_backend *);
+    /* At most once per renderable display, after BOTH records are validated and
+     * stamped, before either draw. Exactly two one-view records with independent
+     * targets; current owner context, no promised entry FBO. Borrowed pointers
+     * and target handles are valid for this call only. Retain copied packet/
+     * non-handle identity data only. No draw, step, input, output or presentation.
+     * Failure invokes no eye draws and ends this display with zero layers.
+     * Null/absent preserves sequential game_draw_eye behavior. */
+    acvr_result (ACVR_CALL *game_prepare_display)(acvr_backend *, const acvr_frame *,
+        uint32_t draw_count, uint32_t draw_stride, const acvr_draw_info *draws);
 } acvr_backend_api;
+
+/* Complete table through v0.3. Accept this exact size or >= current full size;
+ * reject a partial new tail. Copy only min(size, sizeof(acvr_backend_api)), into
+ * zeroed runtime storage. Factories preserve caller size/version and unknown
+ * tail bytes while writing only the covered known payload. */
+#define ACVR_BACKEND_API_V1_SIZE ((uint32_t)offsetof(acvr_backend_api, game_prepare_display))
 
 /* Setup factory: fills only caller-supported table bytes, validates ABI version.
  * Multiple statically linked backends use setup-local factories of this signature.

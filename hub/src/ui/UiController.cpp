@@ -2,6 +2,7 @@
 #include "UiController.h"
 #include "core/pinball/Pinball.h"
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QFile>
 #include <QDir>
 #include <QClipboard>
@@ -208,9 +209,11 @@ void UiController::launchPreparing(const QString &id,const QString &text){messag
 void UiController::pinballLoaded(const QVariantMap &data){
  m_pinballRaw=data;m_pinballData=data;m_pinballScanning=false;m_pinballSelection.clear();m_pinballPlan.clear();
  auto overrides=m_settings->get("pinballOverrides",QVariantMap{}).toMap();auto favourites=m_settings->get("pinballFavourites",QVariantMap{}).toMap();
+ const auto recent=m_settings->get("pinballRecent",QVariantMap{}).toMap();
  QVariantList rows;int ready=0;for(auto value:data.value("tables").toList()){
   auto row=value.toMap();const auto id=row.value("id").toString();
   if(overrides.contains(id)){row["vrReady"]=overrides[id].toBool();row["evidence"]=overrides[id].toBool()?QStringList{"marked by you"}:QStringList{};}
+  row["lastPlayed"]=recent.value(id,0);
   row["favourite"]=favourites.value(id).toBool();if(row.value("vrReady").toBool())++ready;rows<<row;
  }m_pinballData["tables"]=rows;m_pinballData["vrReady"]=ready;emit pinballChanged();
 }
@@ -220,6 +223,11 @@ void UiController::pinballFailed(const QString &error){m_pinballScanning=false;e
 void UiController::markPinball(bool ready){const auto id=m_pinballSelection.value("id").toString();if(id.isEmpty())return;auto overrides=m_settings->get("pinballOverrides",QVariantMap{}).toMap();overrides[id]=ready;m_settings->set("pinballOverrides",overrides);pinballLoaded(m_pinballRaw);selectPinball(id);}
 void UiController::favouritePinball(){const auto id=m_pinballSelection.value("id").toString();if(id.isEmpty())return;auto favourites=m_settings->get("pinballFavourites",QVariantMap{}).toMap();favourites[id]=!favourites.value(id).toBool();m_settings->set("pinballFavourites",favourites);pinballLoaded(m_pinballRaw);selectPinball(id);}
 void UiController::planPinball(){if(m_pinballSelection.isEmpty())return;emit pinballPlanRequested(m_pinballSelection.value("path").toString(),m_settings->get("pinballExecutable",QString()).toString(),m_pinballSelection.value("id").toString());}
+void UiController::playPinball(){if(!m_pinballSelection.isEmpty())emit pinballPlayRequested(m_pinballSelection.value("id").toString());}
+void UiController::launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable){
+ launchQueued("pinball-"+row.value("id").toString(),"vpx",closeUnavailable);
+ m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");emit nowPlayingChanged();
+}
 void UiController::launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable){
  m_restartAfterClose=false;
  m_nowPlaying={{"gameId",id},{"variantId",variant},{"title",game(id).value("title",QString("Pinball"))},{"running",false},{"closing",false},{"closeUnavailable",closeUnavailable}};
@@ -243,7 +251,19 @@ void UiController::restartLaunch(){
  if(!m_nowPlaying.value("running").toBool()||m_nowPlaying.value("closing").toBool()||!m_nowPlaying.value("closeUnavailable").toString().isEmpty())return;
  m_restartAfterClose=true;closeLaunch();
 }
-void UiController::launchStarted(const QString &id){if(m_nowPlaying.value("gameId")==id){m_nowPlaying["running"]=true;emit nowPlayingChanged();}message((id=="__gun_room"?"Opening ":"Playing ")+m_nowPlaying.value("title",game(id).value("title")).toString());}
+void UiController::launchStarted(const QString &id){
+ if(m_nowPlaying.value("gameId")==id){
+  m_nowPlaying["running"]=true;emit nowPlayingChanged();
+  const auto tableId=m_nowPlaying.value("pinballId").toString();
+  if(!tableId.isEmpty()){
+   auto recent=m_settings->get("pinballRecent",QVariantMap{}).toMap();const auto now=QDateTime::currentSecsSinceEpoch();
+   recent[tableId]=now;m_settings->set("pinballRecent",recent);
+   auto rows=m_pinballData.value("tables").toList();for(auto &value:rows){auto row=value.toMap();if(row.value("id")==tableId){row["lastPlayed"]=now;value=row;}}
+   m_pinballData["tables"]=rows;if(m_pinballSelection.value("id")==tableId)m_pinballSelection["lastPlayed"]=now;emit pinballChanged();
+  }
+ }
+ message((id=="__gun_room"?"Opening ":"Playing ")+m_nowPlaying.value("title",game(id).value("title")).toString());
+}
 void UiController::launchFinished(const QString &id,const QString &error){
  if(!m_nowPlaying.isEmpty()&&m_nowPlaying.value("gameId")!=id)return;
  const auto variant=m_nowPlaying.value("variantId").toString();const bool restart=m_restartAfterClose&&error.isEmpty();

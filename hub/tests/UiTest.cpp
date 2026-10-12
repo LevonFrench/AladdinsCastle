@@ -218,8 +218,14 @@ class UiTest:public QObject {
   QTRY_VERIFY(!namedItems(window->contentItem(),"pinballLaunchHelp").isEmpty());
   const auto launchHelp=namedItems(window->contentItem(),"pinballLaunchHelp").first();
   const auto helpText=ui->property("pinballLaunchHelp").toString();
-  QVERIFY(helpText.contains("settings folder"));QVERIFY(helpText.contains("beside your tables"));QVERIFY(helpText.contains("scripts"));QVERIFY(helpText.contains("plugins"));
+  QVERIFY(helpText.contains("normal settings"));QVERIFY(helpText.contains("scores"));
   QCOMPARE(launchHelp->property("text").toString(),helpText);
+  QSignalSpy play(ui.get(),SIGNAL(pinballPlayRequested(QString)));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"pinballPlay").isEmpty());
+  const auto playButton=namedItems(window->contentItem(),"pinballPlay").first();
+  QVERIFY(playButton->height()>=48);QVERIFY(playButton->isEnabled());
+  QVERIFY(QMetaObject::invokeMethod(playButton,"clicked"));QCOMPARE(play.size(),1);
+  QCOMPARE(play[0][0].toString(),ui->pinballSelection()["id"].toString());
   root->setProperty("vrOverlayMode",false);QVERIFY(softwareFrame(window));
   QCOMPARE(launchHelp->property("text").toString(),helpText);
   root->setProperty("vrOverlayMode",true);QVERIFY(softwareFrame(window));

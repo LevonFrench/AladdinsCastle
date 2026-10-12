@@ -35,6 +35,9 @@ struct Host {
     virtual void deactivate() noexcept {}
     virtual acvr_result configure(float scene_units_per_metre, uint32_t anchor_mode) = 0;
     virtual acvr_result begin(Display &) = 0; // OK creates exactly one end obligation
+    // Bind the validated provider-owned target immediately before its world draw.
+    // The owner context is current; default is for recorded/headless hosts only.
+    virtual acvr_result bind_world_target(const acvr_draw_info &) { return ACVR_OK; }
     virtual acvr_result end(bool rendered) = 0; // false submits zero layers
     virtual void output(const acvr_output_event &) = 0;
     virtual void cancel_effects() noexcept = 0;
