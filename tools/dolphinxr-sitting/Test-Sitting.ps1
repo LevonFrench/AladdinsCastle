@@ -144,6 +144,7 @@ try {
         -ControlSet synthetic-wii -NativeProfile "$gameFolder/dolphinxr-right.ini" -PrepareOnly
     Assert ($LASTEXITCODE -eq 0 -and (Test-Path "$root/game-cli/User-v2-Default/Config/WiimoteNew.ini")) 'Actual PS5.1 per-game prepare path must succeed.'
     Assert ((Get-FileHash "$root/game-cli/User-v2-Default/GameSettingsVR/RBUP08.ini").Hash -eq (Get-FileHash $authoredGameProfile).Hash) 'Native-mode runner must retain authored shader-profile bytes independently of the controls slug.'
+    Assert ((Get-Content "$root/game-cli/User-v2-Default/GameSettingsVR/RBUP08.ini" -Raw) -match '(?m)^UnitsPerMeter = 10\r?$') 'Fresh native prepare-only setup must receive measured world scale 10.'
     Add-Content -LiteralPath $dsu -Value '# tampered'
     MustFail { Initialize-AcSitting "$root/tampered-dsu" $profile -DsuProfile $dsu } 'DSU manifest mismatch must fail before writes.'
     Assert (-not (Test-Path "$root/tampered-dsu")) 'Rejected DSU profile must not write settings.'
