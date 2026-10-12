@@ -1,5 +1,7 @@
 # Hub cleanup checkpoint
 
+Historical hold record; the later [resume and harness validation](2026-10-12-r4-hub-resume.md) supersedes its active stop state.
+
 Lead directed cleanup and status only after automatic approval review rejected continued coordination/build/integration under the historical wind-down reason. No further implementation, build or runtime starts were made after that direction. Hub and its installed VPX child are closed, with no remaining owned client process. The GPU booking is released; Viewer owns null-service closure and restoration.
 
 The bounded desktop run exercised the real retained-table path with explicit private desktop settings. The Hub's own Qt image was inspected and showed the correct running title/card. Current-run native log entries report renderer/script startup, startup completion and normal player closure. Hub and the observed child both exited with code zero, and installed preference bytes remained unchanged. The game was paused on focus loss; this is launch/card/closure evidence, not input or game-frame acceptance. VPX reported recoverable texture metadata errors and created its own adjacent table-cache folder. That folder was left untouched. The same-table VR run was held pending write-scope direction and then stopped by the cleanup instruction. The overlay attempt did not run; upright compositor and pointer acceptance remain unproved.
