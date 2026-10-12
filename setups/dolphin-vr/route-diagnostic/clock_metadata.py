@@ -1,6 +1,8 @@
 """Validate bounded private clock records; correlate host clocks, never GPU frames."""
 import json
 import math
+import re
+from decimal import Decimal
 from fractions import Fraction
 
 I64_MIN, I64_MAX, U64_MAX = -(1 << 63), (1 << 63) - 1, (1 << 64) - 1
@@ -97,11 +99,34 @@ def route_qpc_seconds(value, elapsed_ms, *, same_host_boot=False):
     if not same_host_boot:
         raise ValueError("Same host boot provenance must be supplied independently")
     frequency, before, after = validate_clock(value)
-    elapsed = number(elapsed_ms, 0, 1e15)
-    if elapsed > number(value["stop_elapsed_ms"], 0, 1e15):
+    lower, upper = elapsed_ms_interval(elapsed_ms)
+    if lower > number(value["stop_elapsed_ms"], 0, 1e15):
         raise ValueError("Row beyond recorded stop")
-    delta = elapsed / 1000 - Fraction(value["logger_elapsed_at_anchor_ns"], 1_000_000_000)
-    return Fraction(before, frequency) + delta, Fraction(after, frequency) + delta
+    anchor = Fraction(value["logger_elapsed_at_anchor_ns"], 1_000_000_000)
+    # duration_cast truncates the positive anchor offset to integer nanoseconds.
+    # Its actual value may be up to one nanosecond above the serialized integer.
+    return (Fraction(before, frequency) + lower / 1000 - anchor - Fraction(1, 1_000_000_000),
+            Fraction(after, frequency) + upper / 1000 - anchor)
+
+def elapsed_ms_interval(value):
+    """Conservative preimage of unchanged ostream setprecision(9) elapsed_ms."""
+    if type(value) not in (int, float, str):
+        raise ValueError("Invalid CSV elapsed token")
+    text = str(value)
+    if len(text) > 64 or not re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d{1,3})?", text):
+        raise ValueError("Invalid bounded CSV elapsed token")
+    decimal = Decimal(text)
+    if not decimal.is_finite() or not 0 <= decimal <= Decimal("1e15") or (decimal and decimal.adjusted() < -324):
+        raise ValueError("Invalid finite CSV elapsed value")
+    center = Fraction(decimal)
+    if not center:
+        return Fraction(0), Fraction(0)
+    # Use a full quantum, not a half quantum: also covers directed rounding and
+    # a carry into a new decimal decade. Exact decimal parsing retains the token.
+    quantum = Fraction(10) ** (decimal.adjusted() - 8)
+    # Conservative binary64 conversion/multiplication allowance before printing.
+    margin = quantum + (center + quantum) / (1 << 50)
+    return max(Fraction(0), center - margin), center + margin
 
 def compositor_qpc_seconds(frame):
     validate_clock(frame)

@@ -11,6 +11,7 @@
 void Require(bool ok, const char* message) { if (!ok) throw std::runtime_error(message); }
 std::string Read(const std::filesystem::path& path)
 { std::ifstream file(path, std::ios::binary); return {std::istreambuf_iterator<char>(file),{}}; }
+std::size_t FailHeader(const void*, std::size_t, std::size_t, std::FILE*) { return 0; }
 struct CommaDecimal : std::numpunct<char> { char do_decimal_point() const override { return ','; } };
 struct MetadataEnvironment
 {
@@ -167,6 +168,16 @@ int main(int argc, char** argv)
       Require(logger.Record(s),"Metadata collision must not change existing CSV admission");
     }
     Require(Read(metadata_sentinel)=="synthetic metadata sentinel","Metadata exclusive create preserves earlier evidence");
+    {
+      MetadataEnvironment metadata(std::filesystem::absolute(root/"header-error-metadata.json"));
+      ACVRRouteTrace::Logger logger(root/"header-error.csv",{},&FailHeader);
+      Require(!logger.IsSampling() && !logger.Record(s),"Header failure preserves failed CSV admission");
+    }
+    const auto header_failure=Read(root/"header-error-metadata.json");
+    Require(header_failure.find("\"stop_reason\":\"header-write-error\"")!=std::string::npos,"Opened CSV header failure must emit its actual stop cause");
+    Require(header_failure.find("\"complete_rows\":0")!=std::string::npos &&
+            header_failure.find("\"complete_csv_bytes\":0")!=std::string::npos,"Header failure has no complete rows/header bytes");
+    Require(Read(root/"header-error.csv").empty(),"Injected header failure writes no substitute CSV bytes");
     std::cout<<"Synthetic route decisions, CSV and bounded opt-in checks passed\n";
     return 0;
   }

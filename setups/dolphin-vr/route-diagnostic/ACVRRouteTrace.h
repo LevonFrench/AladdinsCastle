@@ -135,8 +135,12 @@ struct Limits
 class Logger
 {
 public:
+  // Tiny IO seam for deterministic CPU header-failure verification. The normal
+  // path still makes the same fwrite call with unchanged header bytes.
+  using HeaderWriter = std::size_t (*)(const void*, std::size_t, std::size_t, std::FILE*);
   Logger() : Logger(EnvironmentPath(), EnvironmentLimits()) {}
-  explicit Logger(const std::filesystem::path& path, Limits limits = {}) : m_limits(limits)
+  explicit Logger(const std::filesystem::path& path, Limits limits = {},
+                  HeaderWriter header_writer = &std::fwrite) : m_limits(limits)
   {
     if (path.empty()) return;
     if (!m_limits.interval || m_limits.interval > 600 || !m_limits.rows || m_limits.rows > 100000 ||
@@ -162,9 +166,6 @@ public:
       if (!m_file) ::close(descriptor);
     }
 #endif
-    if (m_file && std::fwrite(header.data(), 1, header.size(), m_file) == header.size())
-      m_bytes = header.size();
-    else Close("header-write-error");
     if (m_file)
     {
       m_origin = ACTraceClock::Now();
@@ -174,6 +175,11 @@ public:
       try { OpenMetadata(); }
       catch (...) { /* Optional metadata cannot change renderer/CSV admission. */ }
     }
+    // Reserve origin metadata once the CSV stream exists, before a header IO
+    // failure can close it. Failed CSV opens still create no metadata sidecar.
+    if (m_file && header_writer && header_writer(header.data(), 1, header.size(), m_file) == header.size())
+      m_bytes = header.size();
+    else Close("header-write-error");
   }
   ~Logger() { Close("logger-destroyed"); }
   Logger(const Logger&) = delete;

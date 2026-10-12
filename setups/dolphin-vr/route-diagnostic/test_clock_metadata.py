@@ -19,8 +19,8 @@ class ClockMetadataTests(unittest.TestCase):
     def test_roundtrip_and_bounded_host_clock_join(self):
         value=clock.load_route(json.dumps(origin()))
         before,after=clock.route_qpc_seconds(value,1200,same_host_boot=True)
-        self.assertEqual(before,Fraction(11))
-        self.assertEqual(after-before,Fraction(2,1_000_000))
+        self.assertLess(before,Fraction(11))
+        self.assertGreater(after-before,Fraction(2,1_000_000))
         frame={key:value[key] for key in clock.CLOCK_FIELDS}
         frame["compositor_time_100ns"]=110_000_010
         self.assertTrue(before <= clock.compositor_qpc_seconds(frame) <= after)
@@ -36,7 +36,7 @@ class ClockMetadataTests(unittest.TestCase):
         value=origin();value.update(qpc_before=clock.I64_MAX-20,qpc_after=clock.I64_MAX)
         decoded=clock.load_route(json.dumps(value))
         self.assertEqual(decoded["qpc_after"],clock.I64_MAX)
-        self.assertEqual(clock.route_qpc_seconds(decoded,200,same_host_boot=True)[1],Fraction(clock.I64_MAX,10_000_000))
+        self.assertGreater(clock.route_qpc_seconds(decoded,200,same_host_boot=True)[1],Fraction(clock.I64_MAX,10_000_000))
         for field,bad in (("qpc_after",clock.I64_MAX+1),("utc_filetime_100ns",clock.U64_MAX+1),
                 ("completed_frame_events",clock.U64_MAX+1),("complete_rows",True)):
             value=origin();value[field]=bad
@@ -72,5 +72,32 @@ class ClockMetadataTests(unittest.TestCase):
         self.assertEqual(clock.compositor_qpc_seconds(second)-clock.compositor_qpc_seconds(frame),1)
         second["compositor_time_100ns"]=frame["compositor_time_100ns"]-1
         with self.assertRaises(ValueError): clock.validate_capture(capture)
+
+    def test_csv_rounding_preimages_and_decimal_carries(self):
+        pairs=(("239220.175", "239220.17451"), ("239220.175", "239220.17549"),
+               ("100000", "99999.99996"), ("100000", "100000.0004"),
+               ("1e+06", "999999.9996"), ("1e-06", "0.0000009999999996"))
+        for token, actual in pairs:
+            with self.subTest(token=token,actual=actual):
+                low,high=clock.elapsed_ms_interval(token)
+                self.assertLessEqual(low,Fraction(actual));self.assertGreaterEqual(high,Fraction(actual))
+        self.assertEqual(clock.elapsed_ms_interval("0"),(0,0))
+        for token in ("NA","nan","-1","1e999999","1e-999",True):
+            with self.subTest(token=token),self.assertRaises(ValueError): clock.elapsed_ms_interval(token)
+
+    def test_rounded_last_row_and_qpc_event_inclusion(self):
+        value=origin();value["stop_elapsed_ms"]=239220.1749
+        low,high=clock.route_qpc_seconds(value,"239220.175",same_host_boot=True)
+        actual=Fraction(value["qpc_before"],value["qpc_frequency_hz"])+Fraction("239220.17451")/1000-Fraction(200_000_001,1_000_000_000)
+        self.assertLessEqual(low,actual);self.assertGreaterEqual(high,actual)
+        with self.assertRaises(ValueError): clock.route_qpc_seconds(value,"239220.18",same_host_boot=True)
+
+    def test_near_duration_regression_with_zero_width_anchor(self):
+        value=origin();value.update(qpc_after=value["qpc_before"],logger_elapsed_at_anchor_ns=0,stop_elapsed_ms=600000)
+        actual=Fraction(value["qpc_before"],value["qpc_frequency_hz"])+Fraction("599999.51234")/1000
+        old_nominal=Fraction(value["qpc_before"],value["qpc_frequency_hz"])+Fraction("599999.512")/1000
+        self.assertEqual(actual-old_nominal,Fraction(340,1_000_000_000))
+        low,high=clock.route_qpc_seconds(value,"599999.512",same_host_boot=True)
+        self.assertLessEqual(low,actual);self.assertGreaterEqual(high,actual)
 
 if __name__=="__main__": unittest.main()
