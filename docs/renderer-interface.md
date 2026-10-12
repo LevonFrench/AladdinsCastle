@@ -1,7 +1,7 @@
-# Renderer interface v0.2
+# Renderer interface v0.4
 
 Published 2026-10-10. Normative ABI: `libacvr/include/acvr.h`; lifecycle and
-graphics synchronization: `docs/libacvr-contract.md`. The shared core is described in `docs/libacvr-runtime-core.md`; the XR provider is pending.
+graphics synchronization: `docs/libacvr-contract.md`. The shared core and optional Windows OpenXR provider are described in `docs/libacvr-runtime-core.md`; real-game and headset acceptance remain open.
 
 The board implements `acvr_backend_query` and `acvr_backend_api`. Query opens
 no game files and creates no graphics or XR session. Required callbacks remain
@@ -70,3 +70,26 @@ requirements. Vulkan support and native texture/composition parity are separate.
 
 This minor contract revision adds constants only; struct sizes, ABI major and
 v0.1 tails are unchanged. The control-set data format remains version 0.1.
+
+## v0.4 optional display preparation
+
+`game_prepare_display` is an optional appended API-table field. It receives the
+backend, immutable frame lease, draw count, byte stride and draw-record array.
+The runtime passes exactly two stamped, validated one-view records with separate
+targets before either eye draws; it repeats preparation for each renderable
+display, including replay of the same lease. Null/absent preserves prior behavior.
+This is distinct from the multiview callback's shared target.
+
+Preparation may stage packets and validate resources under the current owner
+context, but cannot draw, step, consume input, emit output or present. Restore
+graphics state changed during preparation. Pointers and target handles are
+call-borrowed; retain copied packet/non-handle identity data only. Failure calls
+no eye renderer and ends the display with zero layers. The host binds the supplied
+FBO immediately before each world callback; backend drawing restores it.
+
+Factories and runtime accept exactly `ACVR_BACKEND_API_V1_SIZE` (the old complete
+table), or at least the new full size. Reject a partial new tail. Zero runtime
+storage before bounded copying; factories write only covered known payload bytes,
+preserving caller prefixes and unknown tails. Existing ABI major and callback
+signatures stay unchanged. These source contracts do not enable production
+graphics or establish native rendering, gun occlusion or headset acceptance.

@@ -1,8 +1,16 @@
-# libacvr backend contract — v0.3
+# libacvr backend contract — v0.4
 
 > **Source references:** `namco22-decompile/...`, `time-crisis-vr/...`, `Supermodel/...` and `Rea-Virtua-Cop-2-VR/...` paths are relative to [namco22-decompile](https://github.com/spacestate1/namco22-decompile), [time-crisis-vr](https://github.com/DR-89/time-crisis-vr), [Supermodel](https://github.com/trzy/Supermodel), [Rea-Virtua-Cop-2-VR](https://github.com/NeuralF/Rea-Virtua-Cop-2-VR) as cloned on 2026-10-08 (shallow clones; line numbers may drift). Other paths are in this repo.
 
 Initial design: 2026-10-08; v0.1 and v0.2 published 2026-10-10; additive v0.3 published 2026-10-11. Public header: `libacvr/include/acvr.h`. This is the in-process ABI. The shared frame core has recorded-host checks, and an optional Windows OpenXR desktop-GL provider implements public creation for the synthetic gun room (docs/libacvr-runtime-core.md). Real-game integration and headset acceptance remain open. No upstream ABI compatibility is implied. libacvr code and public header are MIT; board adapters outside libacvr and the Hub are GPL-3.0-only unless explicitly licensed otherwise. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied for this contract and no game content is included.
+
+## v0.4 whole-display preparation
+
+The optional `game_prepare_display(backend, frame, draw_count, draw_stride, draws)` tail is appended after `game_flush_persistent`; ABI major and existing callback signatures remain unchanged. `ACVR_BACKEND_API_V1_SIZE` is the complete pre-v0.4 table prefix. Runtime and factories accept that exact prefix or a full/oversized new table, reject a partial new tail, and copy only the covered known bytes. Runtime storage is zero-initialized, so an old table has no prepare callback. Factories preserve the caller's size/version and unknown tail bytes. The callback requires no capability bit.
+
+For a renderable display, the runtime first validates and stamps both draw records, then calls prepare once with exactly two one-view records, each carrying its own target. This occurs again when the same immutable frame lease is replayed at a newer display pose. The owner context is current; no particular entry FBO is promised during preparation. The backend may stage copied packets and validate resources, restoring graphics state it changes. It may not draw, advance simulation, consume input, emit output, or present. Array/view pointers and target handles are borrowed for this call only; retain copied packet and non-handle identity data only. Failure ends the display with zero layers and invokes no eye draw. A null or absent callback retains sequential drawing.
+
+Immediately before each world callback, the provider binds that eye's validated target. The OpenXR GL provider checks the current owner context and acquired image identity before binding its FBO. The backend restores the supplied entry FBO after drawing. Acquisition, release and presentation remain provider-owned. This does not make a later backend failure atomic, add multiview, establish native adapter support, or prove GPU/headset correctness.
 
 ## v0.3 controller samples and grip calibration
 

@@ -347,7 +347,9 @@ acvr_result validate_create_arguments(const acvr_runtime_config *config,const ac
     if (!config || config->size < ACVR_RUNTIME_CONFIG_V1_SIZE) return ACVR_BAD_ARGUMENT;
     if (config->version != ACVR_STRUCT_VERSION) return ACVR_BAD_VERSION;
     if (config->size != ACVR_RUNTIME_CONFIG_V1_SIZE && config->size < sizeof(*config)) return ACVR_BAD_ARGUMENT;
-    auto result = valid(api); if (result != ACVR_OK) return result;
+    if (!api || api->size < ACVR_BACKEND_API_V1_SIZE) return ACVR_BAD_ARGUMENT;
+    if (api->version != ACVR_STRUCT_VERSION) return ACVR_BAD_VERSION;
+    if (api->size != ACVR_BACKEND_API_V1_SIZE && api->size < sizeof(*api)) return ACVR_BAD_ARGUMENT;
     if (api->abi_version != ACVR_ABI_VERSION) return ACVR_BAD_VERSION;
     if (!api->game_open || !api->game_close || !api->game_pause || !api->game_set_inputs || !api->game_step ||
         !api->game_release_frame || !api->game_camera || !api->game_draw_eye || !api->game_poll_outputs) return ACVR_BAD_ARGUMENT;
@@ -389,7 +391,9 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
     if(models&&!host->supports_guns())return ACVR_UNSUPPORTED;
 #endif
     try {
-        auto r = std::make_unique<acvr_runtime>(); r->api = *api; r->host = std::move(host);
+        auto r = std::make_unique<acvr_runtime>();
+        std::memcpy(&r->api,api,std::min<size_t>(api->size,sizeof(r->api)));
+        r->api.size=sizeof(r->api); r->host = std::move(host);
 #ifdef ACVR_GUN_MODELS
         if(models) {
             r->gun_config=*config->gun_slots; auto &c=r->gun_config;
@@ -705,8 +709,14 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
 #endif
             info.frame_id = r->frame_info.frame_id; info.display_id = r->display_id; info.predicted_display_time_ns = now;
         }
+        if (draw && r->api.game_prepare_display) {
+            result=r->api.game_prepare_display(r->backend,r->frame,2,sizeof(acvr_draw_info),d.eyes);
+            if(result!=ACVR_OK) return finish(result,false);
+        }
         if (draw) for (unsigned eye = 0; eye < 2; ++eye) {
             const auto &info = d.eyes[eye];
+            result=r->host->bind_world_target(info);
+            if(result!=ACVR_OK) return finish(result,false);
             result = r->api.game_draw_eye(r->backend, r->frame, &info);
             if (result != ACVR_OK) return finish(result, false);
 #ifdef ACVR_GUN_MODELS

@@ -147,7 +147,7 @@ void abi_lifecycle() {
     auto api=record<acvr_backend_api>();
     check(acvr_backend_query(99,&api)==ACVR_BAD_VERSION,"factory rejects ABI mismatch");
     api.size=sizeof(api)-1;
-    check(acvr_backend_query(ACVR_ABI_VERSION,&api)==ACVR_BAD_VERSION,"factory rejects undersized callback table");
+    check(acvr_backend_query(ACVR_ABI_VERSION,&api)==ACVR_BAD_ARGUMENT,"factory rejects undersized callback table");
     api=record<acvr_backend_api>();
     check(acvr_backend_query(ACVR_ABI_VERSION,&api)==ACVR_OK && !api.supported_graphics && api.game_draw_eye,"CPU query cannot be accepted as graphics backend");
     auto in=record<acvr_open_info>();ACVR_INIT(&in.graphics);in.game_id_utf8="timecris";
