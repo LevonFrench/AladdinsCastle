@@ -47,10 +47,15 @@ def main():
         assert '!st_buf.pose && !bb_run.pose' in batch
         assert 'int acn22_proof_prime(' in batch
         assert 'glGetTexImage(GL_TEXTURE_1D,0,GL_ALPHA,GL_UNSIGNED_BYTE,actual)' in batch
+        assert 'ACN22_NATIVE_PROC("glActiveTexture")' in batch
+        assert 'acn22_adapter_quad_shutdown(void)' in batch
+        assert '#else\n'+__import__('native_patch').POSE_TEXTURE in batch
         tex = (out/'engine/tex_bake.c').read_text()
         assert '#if ACN22_NATIVE_GPU_PROOF' in tex
         assert 'if (acn22_proof_cache_locked())' in tex
         assert 'out_su,out_sv,out_ou,out_ov,0,1); /* lookup ONLY */' in tex
+        assert 'acn22_adapter_cache_shutdown(void)' in tex
+        assert 'Exclude legitimate hit ref bit and all C padding' in tex
         sentinel = out/'sentinel'
         sentinel.write_text('keep')
         def refused(output, pin=module.PIN):
