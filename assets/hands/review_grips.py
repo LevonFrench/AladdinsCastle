@@ -10,8 +10,8 @@ from common import metadata,preview_material_rgba,runtime_preview_material,RUNTI
 
 def cases(root=ROOT):
     assembly=json.loads((root/'assets/hands/assembly.json').read_text())
-    proposals=json.loads((root/'assets/guns/preview/wii-proposal-sheet.json').read_text())
-    ids=sorted({r['model'] for r in proposals['games']});result=[]
+    policies=[tomllib.loads(p.read_text()) for p in (root/'data/controls/wii/games').glob('*.toml')]
+    ids=sorted({p['gun_proposal']['model'] for p in policies}|{'con-remote-shell'});result=[]
     for mid in ids+['con-stick-grip']:
         for hand in ('right','left'):
             result.append(dict(id=mid+'-'+hand+'-primary',model=mid,primary_hand=hand,hold='primary',hands=[dict(hand=hand,pose=assembly['models'][mid]['hands'][hand])]))
@@ -32,6 +32,7 @@ def cases(root=ROOT):
 def main():
     import bpy
     from mathutils import Quaternion,Vector
+    from bpy_extras.object_utils import world_to_camera_view
     parser=argparse.ArgumentParser();parser.add_argument('--out',type=Path,required=True);parser.add_argument('--only',action='append',default=[]);args=parser.parse_args(sys.argv[sys.argv.index('--')+1:]);args.out=args.out.resolve()
     if not bpy.app.background or bpy.app.version[:2]!=(5,2) or not args.out.is_relative_to(ROOT):raise ValueError('Confined headless Blender5.2 CPU review required')
     args.out.mkdir(parents=True,exist_ok=True);scene=bpy.context.scene;records=[];all_cases=cases()
@@ -92,7 +93,13 @@ def main():
             camdata.ortho_scale=max(hi-lo)*1.35 if view=='assembly' else .22 if len(hand_roots)==1 else .36
             offset=(0,-3,.5) if mid=='mnt-mg-heavy' and case['hold']=='support' else ((-side if mid=='con-remote-shell' and case['hold']=='support' and view=='grip' else side)*2.1,2.2,1.25)
             cam.location=target+Vector(offset)*.3;cam.rotation_euler=(target-cam.location).to_track_quat('-Z','Y').to_euler()
-            filename=case['id']+'-'+view+'.png';scene.render.filepath=str(args.out/filename);bpy.ops.render.render(write_still=True);records.append(dict(case=case['id'],view=view,image=filename))
-    (args.out/'coverage.json').write_text(json.dumps(dict(schema='hand-grip-review/1',cases=all_cases,images=records,lighting=RUNTIME_LIGHTING,device='CPU',samples=64,acceptance='Visual CPU fit coverage only; no physical acceptance'),indent=2)+'\n')
+            filename=case['id']+'-'+view+'.png';scene.render.filepath=str(args.out/filename);bpy.ops.render.render(write_still=True)
+            anchors={}
+            assembly=json.loads((ROOT/'assets/hands/assembly.json').read_text())
+            for name in assembly['models'][mid]['label_anchors']:
+                point=world_to_camera_view(scene,cam,nodes[name].matrix_world.translation)
+                anchors[name]=[round(point.x*512,3),round((1-point.y)*512,3)]
+            records.append(dict(case=case['id'],view=view,image=filename,label_points=anchors))
+    (args.out/'coverage.json').write_text(json.dumps(dict(schema='hand-grip-review/1',cases=all_cases,images=records,label_point_units='pixels',label_point_origin='top-left',lighting=RUNTIME_LIGHTING,device='CPU',samples=64,acceptance='Visual CPU fit coverage only; no physical acceptance'),indent=2)+'\n')
     print('RESULT bounded grip coverage complete: '+str(len(records))+' CPU images')
 if __name__=='__main__':main()

@@ -15,7 +15,8 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[3]
 TIERS = ('generic-pistol', 'arc-pistol-slide', 'arc-pistol-twin',
          'con-pistol-slim', 'con-pistol-dpad', 'con-revolver-chunky', 'mnt-mg-heavy')
-BUILT_MODELS = TIERS + ('con-remote-shell','con-stick-grip')
+GAME_MODELS = ('game-pistol-service','game-revolver-heavy','game-tool-cutter','game-crossbow','game-energy-gun')
+BUILT_MODELS = TIERS + ('con-remote-shell','con-stick-grip') + GAME_MODELS
 MATERIAL_RGBA = {'body':(.55,.55,.55,1), 'accent':(.32,.32,.34,1),
                  'dark':(.012,.012,.018,1), 'glass':(.025,.10,.16,1)}
 RUNTIME_LIGHTING=json.loads((ROOT/'assets/guns/runtime-lighting.json').read_text(encoding='utf-8'))
@@ -187,7 +188,7 @@ def geometry(part, lod):
             radius=part['radii'][i]
             for j in range(n):
                 angle=j*math.tau/n
-                vertices.append(tuple(p[k]+radius*(side[k]*math.cos(angle)+up[k]*math.sin(angle)) for k in range(3)))
+                vertices.append(tuple(p[k]+radius*(side[k]*math.cos(angle)+up[k]*math.sin(angle)*part.get('flatten',1)) for k in range(3)))
         faces=[tuple(reversed(range(n))),tuple(range(len(vertices)-n,len(vertices)))]
         for ring in range(len(points)-1):
             for i in range(n):
@@ -292,6 +293,10 @@ def blender_run(model_id, parameters, spec=None, meta=None):
         bsdf=mat.node_tree.nodes['Principled BSDF']
         bsdf.inputs['Base Color'].default_value=color
         bsdf.inputs['Roughness'].default_value=.32 if name=='glass' else .58
+        finish=meta.get('finish',{}).get(name,{})
+        if finish:
+            bsdf.inputs['Roughness'].default_value=finish['roughness']
+            bsdf.inputs['Metallic'].default_value=finish['metallic']
         mats[name]=mat
     grip=empty('grip'); grip['asset_id']=model_id; grip['units']='metres'
     grip['asset_kind']=meta.get('asset_kind','gun')
@@ -309,7 +314,7 @@ def blender_run(model_id, parameters, spec=None, meta=None):
                 if data['parent'] and data['parent'] not in objects: continue
                 obj=empty(name+('_lod1' if lod else ''),data['at'],objects.get(data['parent'],group))
                 obj['semantic_node']=name
-                if name=='slide_recoil': obj['limit_recoil']=.015
+                if name=='slide_recoil': obj['limit_recoil']=meta.get('motion',{}).get('recoil',{}).get('range',[0,.015])[1]
                 objects[name]=obj
                 if not lod: semantic[name]=obj
                 del pending[name]; progressed=True
@@ -333,6 +338,9 @@ def blender_run(model_id, parameters, spec=None, meta=None):
             if bevel:
                 modifier=obj.modifiers.new('rounded_edges','BEVEL'); modifier.width=bevel
                 modifier.segments=2 if not lod else 1; modifier.limit_method='ANGLE'
+                if model_id in GAME_MODELS:
+                    modifier.harden_normals=True
+                    normal_modifier=obj.modifiers.new('weighted_surface_normals','WEIGHTED_NORMAL');normal_modifier.keep_sharp=True
             meshes.append(obj)
         lod_objects[lod]=meshes
     bpy.context.view_layer.update()
@@ -405,6 +413,7 @@ def blender_run(model_id, parameters, spec=None, meta=None):
         for obj in lod_objects[0]: obj.data.materials[0]=black
         background.inputs['Color'].default_value=(1,1,1,1); background.inputs['Strength'].default_value=1
         scene.view_settings.exposure=0; camera_data.ortho_scale=.82
+        if model_id in GAME_MODELS:target=(lo+hi)/2
         camera.location=target+Vector((-3,0,0))*length
         camera.rotation_euler=(target-camera.location).to_track_quat('-Z','Y').to_euler()
         scene.render.filepath=str((args.preview_dir/callouts['silhouette']).resolve())

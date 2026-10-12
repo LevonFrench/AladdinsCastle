@@ -7,7 +7,7 @@ import sys
 import tomllib
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'assets/guns/src'))
-from common import BUILT_MODELS,plan
+from common import BUILT_MODELS,GAME_MODELS,plan,metadata
 
 def between(a,b):
     la=math.sqrt(sum(x*x for x in a));lb=math.sqrt(sum(x*x for x in b))
@@ -32,6 +32,10 @@ def compile_assembly():
                 pose['finger_pose']={'pivot_thumb':dict(translation_offset=[0,0,0],rotation_xyzw=between([-sign*.037,-.010,.011],[-sign*.022,.045,-.024]),scale=[1.25,1.25,1.25])}
         anchors={n:dict(node=n,local_offset=[0,0,0],bind_position=list(d['at'])) for n,d in spec['nodes'].items() if n in ('muzzle','grip_two','pivot_trigger') or n.startswith('button_')}
         anchors['grip']=dict(node='grip',local_offset=[0,0,0],bind_position=[0,0,0])
+        if mid in GAME_MODELS:
+            for motion in metadata(mid).get('motion',{}).values():
+                node=motion['node']
+                anchors[node]=dict(node=node,local_offset=[0,0,0],bind_position=list(spec['nodes'][node]['at']))
         models[mid]=dict(hands=hands,label_anchors=anchors,primary_mount_by_hand={hand:dict(node=pose['node'],translation=[0,0,0],rotation_xyzw=[0,0,0,1]) for hand,pose in hands.items()})
         if 'grip_two' in spec['nodes']:
             models[mid]['support_grip']=dict(node='grip_two',translation=[0,0,0],rotation_xyzw=[0,0,0,1],state='provisional')
@@ -48,5 +52,5 @@ def main():
     path=ROOT/'assets/hands/assembly.json';payload=json.dumps(compile_assembly(),indent=2)+'\n'
     if args.write:path.write_text(payload,encoding='utf-8')
     elif path.read_text(encoding='utf-8')!=payload:raise ValueError('Stale hand assembly data')
-    print('hand-assembly/1: nine unchanged models, original left/right hands, semantic label anchors')
+    print('hand-assembly/1: authored model grips, original left/right hands, semantic label anchors')
 if __name__=='__main__':main()

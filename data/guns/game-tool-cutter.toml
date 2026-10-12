@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-3.0-only
+id="game-tool-cutter"
+name="Industrial tool gun"
+family="special"
+hold="one-hand"
+tier=1
+model="assets/guns/game-tool-cutter.glb"
+source="assets/guns/src/game-tool-cutter.py"
+resembles="An original working tool with a broad head, not an extracted game mesh"
+shape="Broad three-socket working head, battery panel, separate service panels and practical pistol grip"
+length_mm=260
+features=["recoil_slide","tool_head"]
+notes="Dead Space weapon-spirit proposal; exact starting-tool match remains an owner choice. Neutral worn-metal colour separation without baked wear textures, small player-colour inlays. Game-event movement and fit unverified."
+[tints]
+default="red"
+p1="red"
+p2="blue"
+red={body="#a0a5aa",accent="#c5484f"}
+blue={body="#a0a5aa",accent="#4276bf"}
+[finish.body]
+metallic=0.7
+roughness=0.42
+[finish.accent]
+metallic=0.3
+roughness=0.65
+[finish.dark]
+metallic=0
+roughness=0.9
+[motion.trigger]
+node="pivot_trigger"
+kind="rotate"
+axis=[-1,0,0]
+range=[0,0.35]
+drive="trigger"
+lod_nodes=["pivot_trigger","pivot_trigger_lod1"]
+[motion.reload_control]
+node="button_reload"
+kind="slide"
+axis=[-1,0,0]
+range=[0,0.0015]
+drive="selector"
+lod_nodes=["button_reload","button_reload_lod1"]
+[motion.recoil]
+node="slide_recoil"
+kind="slide"
+axis=[0,0,1]
+range=[0,0.015]
+drive="recoil"
+lod_nodes=["slide_recoil","slide_recoil_lod1"]
+duration_ms=75
+[[button]]
+id="reload"
+label="Tool release (game mapping pending)"
+node="button_reload"

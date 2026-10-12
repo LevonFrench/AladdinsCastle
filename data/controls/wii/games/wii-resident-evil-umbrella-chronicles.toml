@@ -9,8 +9,8 @@ sources = []
 
 [gun_proposal]
 state = "proposed"
-model = "arc-pistol-slide"
-rationale = "Readable semi-automatic silhouette and slide; a provisional handgun stand-in, not an assertion about the selected in-game weapon."
+model = "game-pistol-service"
+rationale = "Original service pistol shared by both Resident Evil games; neutral metal and dark grip with small player-colour inlays. Exact weapon and fit remain owner choices."
 
 [hold]
 default = "split"

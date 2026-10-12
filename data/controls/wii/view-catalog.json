@@ -58,8 +58,8 @@
         },
         "gun_proposal": {
           "state": "proposed",
-          "model": "con-pistol-slim",
-          "rationale": "Slim angular tool-like silhouette keeps the sight area open. A provisional stand-in for the science-fiction setting; selected in-game weapon matching remains open."
+          "model": "game-tool-cutter",
+          "rationale": "Original industrial tool gun with a broad working head and battery panels; neutral metal with small player-colour inlays. Exact starting tool and physical fit remain owner choices."
         },
         "reload": {
           "choices": [
@@ -1105,8 +1105,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "con-pistol-slim",
-            "rationale": "Slim angular tool-like silhouette keeps the sight area open. A provisional stand-in for the science-fiction setting; selected in-game weapon matching remains open."
+            "model": "game-tool-cutter",
+            "rationale": "Original industrial tool gun with a broad working head and battery panels; neutral metal with small player-colour inlays. Exact starting tool and physical fit remain owner choices."
           },
           "reload": {
             "choices": [
@@ -2148,8 +2148,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "con-pistol-slim",
-            "rationale": "Slim angular tool-like silhouette keeps the sight area open. A provisional stand-in for the science-fiction setting; selected in-game weapon matching remains open."
+            "model": "game-tool-cutter",
+            "rationale": "Original industrial tool gun with a broad working head and battery panels; neutral metal with small player-colour inlays. Exact starting tool and physical fit remain owner choices."
           },
           "reload": {
             "choices": [
@@ -7084,8 +7084,8 @@
         },
         "gun_proposal": {
           "state": "proposed",
-          "model": "con-revolver-chunky",
-          "rationale": "Exaggerated chunky toy silhouette gives this arcade rail-shooter its own visual identity; owner choice and weapon matching remain open."
+          "model": "game-revolver-heavy",
+          "rationale": "Original heavy revolver with an exposed cylinder and long underlug; neutral metal, dark grip and small player-colour accents. Exact weapon and fit remain owner choices."
         },
         "reload": {
           "choices": [
@@ -9044,8 +9044,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "con-revolver-chunky",
-            "rationale": "Exaggerated chunky toy silhouette gives this arcade rail-shooter its own visual identity; owner choice and weapon matching remain open."
+            "model": "game-revolver-heavy",
+            "rationale": "Original heavy revolver with an exposed cylinder and long underlug; neutral metal, dark grip and small player-colour accents. Exact weapon and fit remain owner choices."
           },
           "reload": {
             "choices": [
@@ -11000,8 +11000,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "con-revolver-chunky",
-            "rationale": "Exaggerated chunky toy silhouette gives this arcade rail-shooter its own visual identity; owner choice and weapon matching remain open."
+            "model": "game-revolver-heavy",
+            "rationale": "Original heavy revolver with an exposed cylinder and long underlug; neutral metal, dark grip and small player-colour accents. Exact weapon and fit remain owner choices."
           },
           "reload": {
             "choices": [
@@ -13339,8 +13339,8 @@
         },
         "gun_proposal": {
           "state": "proposed",
-          "model": "con-remote-shell",
-          "rationale": "A training-shell proxy with an open sight line and second grip for two-handed target practice. A crossbow silhouette is a separate future design choice; this does not claim weapon matching."
+          "model": "game-crossbow",
+          "rationale": "Original crossbow with swept limbs, a separate string, bolt rail and foregrip; neutral finish with small player-colour accents. Support hold and reload remain provisional."
         },
         "reload": {
           "choices": [
@@ -14385,8 +14385,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "con-remote-shell",
-            "rationale": "A training-shell proxy with an open sight line and second grip for two-handed target practice. A crossbow silhouette is a separate future design choice; this does not claim weapon matching."
+            "model": "game-crossbow",
+            "rationale": "Original crossbow with swept limbs, a separate string, bolt rail and foregrip; neutral finish with small player-colour accents. Support hold and reload remain provisional."
           },
           "reload": {
             "choices": [
@@ -15427,8 +15427,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "con-remote-shell",
-            "rationale": "A training-shell proxy with an open sight line and second grip for two-handed target practice. A crossbow silhouette is a separate future design choice; this does not claim weapon matching."
+            "model": "game-crossbow",
+            "rationale": "Original crossbow with swept limbs, a separate string, bolt rail and foregrip; neutral finish with small player-colour accents. Support hold and reload remain provisional."
           },
           "reload": {
             "choices": [
@@ -16852,8 +16852,8 @@
         },
         "gun_proposal": {
           "state": "proposed",
-          "model": "generic-pistol",
-          "rationale": "Compact form with little visual clutter keeps the sight picture clear during camera motion; exact weapon matching awaits review."
+          "model": "game-pistol-service",
+          "rationale": "The shared original service pistol keeps the two Resident Evil games consistent; separate slide, neutral finish and small player-colour accents. Physical fit remains provisional."
         },
         "reload": {
           "choices": [
@@ -18812,8 +18812,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "generic-pistol",
-            "rationale": "Compact form with little visual clutter keeps the sight picture clear during camera motion; exact weapon matching awaits review."
+            "model": "game-pistol-service",
+            "rationale": "The shared original service pistol keeps the two Resident Evil games consistent; separate slide, neutral finish and small player-colour accents. Physical fit remains provisional."
           },
           "reload": {
             "choices": [
@@ -20768,8 +20768,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "generic-pistol",
-            "rationale": "Compact form with little visual clutter keeps the sight picture clear during camera motion; exact weapon matching awaits review."
+            "model": "game-pistol-service",
+            "rationale": "The shared original service pistol keeps the two Resident Evil games consistent; separate slide, neutral finish and small player-colour accents. Physical fit remains provisional."
           },
           "reload": {
             "choices": [
@@ -23107,8 +23107,8 @@
         },
         "gun_proposal": {
           "state": "proposed",
-          "model": "arc-pistol-slide",
-          "rationale": "Readable semi-automatic silhouette and slide; a provisional handgun stand-in, not an assertion about the selected in-game weapon."
+          "model": "game-pistol-service",
+          "rationale": "Original service pistol shared by both Resident Evil games; neutral metal and dark grip with small player-colour inlays. Exact weapon and fit remain owner choices."
         },
         "reload": {
           "choices": [
@@ -25096,8 +25096,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "arc-pistol-slide",
-            "rationale": "Readable semi-automatic silhouette and slide; a provisional handgun stand-in, not an assertion about the selected in-game weapon."
+            "model": "game-pistol-service",
+            "rationale": "Original service pistol shared by both Resident Evil games; neutral metal and dark grip with small player-colour inlays. Exact weapon and fit remain owner choices."
           },
           "reload": {
             "choices": [
@@ -27081,8 +27081,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "arc-pistol-slide",
-            "rationale": "Readable semi-automatic silhouette and slide; a provisional handgun stand-in, not an assertion about the selected in-game weapon."
+            "model": "game-pistol-service",
+            "rationale": "Original service pistol shared by both Resident Evil games; neutral metal and dark grip with small player-colour inlays. Exact weapon and fit remain owner choices."
           },
           "reload": {
             "choices": [
@@ -29449,8 +29449,8 @@
         },
         "gun_proposal": {
           "state": "proposed",
-          "model": "con-pistol-dpad",
-          "rationale": "Angular pointer-gun form distinguishes character movement plus pointer aiming; retain the free analog-stick hand."
+          "model": "game-energy-gun",
+          "rationale": "Original fictional energy gun with a protected emitter and underslung guard; neutral finish with small player-colour accents. Keep the free analog-stick hand; exact weapon and fit remain owner choices."
         },
         "reload": {
           "choices": [
@@ -30496,8 +30496,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "con-pistol-dpad",
-            "rationale": "Angular pointer-gun form distinguishes character movement plus pointer aiming; retain the free analog-stick hand."
+            "model": "game-energy-gun",
+            "rationale": "Original fictional energy gun with a protected emitter and underslung guard; neutral finish with small player-colour accents. Keep the free analog-stick hand; exact weapon and fit remain owner choices."
           },
           "reload": {
             "choices": [
@@ -31539,8 +31539,8 @@
           },
           "gun_proposal": {
             "state": "proposed",
-            "model": "con-pistol-dpad",
-            "rationale": "Angular pointer-gun form distinguishes character movement plus pointer aiming; retain the free analog-stick hand."
+            "model": "game-energy-gun",
+            "rationale": "Original fictional energy gun with a protected emitter and underslung guard; neutral finish with small player-colour accents. Keep the free analog-stick hand; exact weapon and fit remain owner choices."
           },
           "reload": {
             "choices": [

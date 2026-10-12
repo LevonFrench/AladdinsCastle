@@ -14,9 +14,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--blender', type=Path, required=True)
     parser.add_argument('--owner-approved-cpu-batch', action='store_true', required=True)
-    parser.add_argument('--model', action='append', choices=(
-        'generic-pistol','arc-pistol-slide','arc-pistol-twin','con-pistol-slim',
-        'con-pistol-dpad','con-revolver-chunky','mnt-mg-heavy','con-remote-shell','con-stick-grip'))
+    parser.add_argument('--model', action='append', choices=BUILT_MODELS)
     parser.add_argument('--samples', type=int, default=64)
     args = parser.parse_args()
     if not args.blender.is_file():

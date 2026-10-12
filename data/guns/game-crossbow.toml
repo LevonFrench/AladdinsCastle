@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-3.0-only
+id="game-crossbow"
+name="Stock-and-rail crossbow"
+family="special"
+hold="two-hand"
+tier=1
+model="assets/guns/game-crossbow.glb"
+source="assets/guns/src/game-crossbow.py"
+resembles="An original crossbow with a stock, recurve limbs and separate string"
+shape="Long bolt rail and shoulder stock, broad flattened limbs, pistol grip and second foregrip"
+length_mm=580
+features=["string_draw","two_hand"]
+notes="Link weapon-spirit proposal. String movement is a visual reload option, not a mechanical simulation or confirmed game reload. Original primitives; neutral metal/rubber and small player-colour accents. Fit remains unverified."
+[tints]
+default="red"
+p1="red"
+p2="blue"
+red={body="#a0a5aa",accent="#c5484f"}
+blue={body="#a0a5aa",accent="#4276bf"}
+[finish.body]
+metallic=0.7
+roughness=0.42
+[finish.accent]
+metallic=0.3
+roughness=0.65
+[finish.dark]
+metallic=0
+roughness=0.9
+[motion.trigger]
+node="pivot_trigger"
+kind="rotate"
+axis=[-1,0,0]
+range=[0,0.35]
+drive="trigger"
+lod_nodes=["pivot_trigger","pivot_trigger_lod1"]
+[motion.reload_control]
+node="button_reload"
+kind="slide"
+axis=[-1,0,0]
+range=[0,0.0015]
+drive="selector"
+lod_nodes=["button_reload","button_reload_lod1"]
+[motion.string]
+node="string_draw"
+kind="slide"
+axis=[0,0,1]
+range=[0,0.04]
+drive="pump"
+lod_nodes=["string_draw","string_draw_lod1"]
+[[button]]
+id="reload"
+label="String latch (game mapping pending)"
+node="button_reload"

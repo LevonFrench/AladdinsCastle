@@ -1,0 +1,178 @@
+{
+  "version": "0.1",
+  "model": "game-pistol-service",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "game-pistol-service-front.png",
+      "nodes": {
+        "limit_recoil": [
+          0.537467,
+          0.30267
+        ],
+        "muzzle": [
+          0.135623,
+          0.299376
+        ],
+        "fx_muzzle": [
+          0.135623,
+          0.299376
+        ],
+        "fx_laser": [
+          0.135623,
+          0.299376
+        ],
+        "sight_front": [
+          0.247612,
+          0.223618
+        ],
+        "sight_rear": [
+          0.807559,
+          0.223618
+        ],
+        "slide_recoil": [
+          0.48806,
+          0.30267
+        ],
+        "button_reload": [
+          0.708745,
+          0.490417
+        ],
+        "pivot_trigger": [
+          0.590168,
+          0.414659
+        ],
+        "grip": [
+          0.731802,
+          0.44101
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "game-pistol-service.png",
+      "nodes": {
+        "limit_recoil": [
+          0.528252,
+          0.308046
+        ],
+        "muzzle": [
+          0.250789,
+          0.415498
+        ],
+        "fx_muzzle": [
+          0.250789,
+          0.415498
+        ],
+        "fx_laser": [
+          0.250789,
+          0.415498
+        ],
+        "sight_front": [
+          0.328114,
+          0.314633
+        ],
+        "sight_rear": [
+          0.714744,
+          0.160659
+        ],
+        "slide_recoil": [
+          0.494138,
+          0.321632
+        ],
+        "button_reload": [
+          0.603629,
+          0.419038
+        ],
+        "pivot_trigger": [
+          0.564641,
+          0.397136
+        ],
+        "grip": [
+          0.662436,
+          0.382562
+        ]
+      }
+    },
+    "held": {
+      "image": "game-pistol-service-held.png",
+      "nodes": {
+        "limit_recoil": [
+          0.504715,
+          0.339089
+        ],
+        "muzzle": [
+          0.419623,
+          0.163703
+        ],
+        "fx_muzzle": [
+          0.419623,
+          0.163703
+        ],
+        "fx_laser": [
+          0.419623,
+          0.163703
+        ],
+        "sight_front": [
+          0.443337,
+          0.143691
+        ],
+        "sight_rear": [
+          0.561908,
+          0.383958
+        ],
+        "slide_recoil": [
+          0.494253,
+          0.317889
+        ],
+        "button_reload": [
+          0.598927,
+          0.575755
+        ],
+        "pivot_trigger": [
+          0.515874,
+          0.462321
+        ],
+        "grip": [
+          0.545866,
+          0.54677
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
+  },
+  "silhouette": "game-pistol-service-silhouette.png",
+  "asset_kind": "gun",
+  "sight_reviews": {
+    "LOD0": "game-pistol-service-sight-lod0.png",
+    "LOD1": "game-pistol-service-sight-lod1.png"
+  },
+  "silhouette_scale_m": 0.82
+}

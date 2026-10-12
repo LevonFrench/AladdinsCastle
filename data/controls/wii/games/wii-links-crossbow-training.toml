@@ -7,8 +7,8 @@ sources = []
 
 [gun_proposal]
 state = "proposed"
-model = "con-remote-shell"
-rationale = "A training-shell proxy with an open sight line and second grip for two-handed target practice. A crossbow silhouette is a separate future design choice; this does not claim weapon matching."
+model = "game-crossbow"
+rationale = "Original crossbow with swept limbs, a separate string, bolt rail and foregrip; neutral finish with small player-colour accents. Support hold and reload remain provisional."
 
 [hold]
 default = "docked"
