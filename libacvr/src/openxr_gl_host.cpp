@@ -13,6 +13,7 @@
 #include "openxr_gl_host.hpp"
 #include "view_math.hpp"
 #include "stereo_capture.hpp"
+#include "fixed_capture_pose.hpp"
 #ifdef ACVR_GUN_GL
 #include "gun_gl.hpp"
 #include "hand_assembly.hpp"
@@ -266,6 +267,8 @@ private:
     std::array<CapturedEye,2> captured_{};
     std::string assembly_hash_,gun_hash_,right_hand_hash_,left_hand_hash_;
     bool capture_enabled_=false,capture_done_=false,capture_failed_=false;
+    bool fixed_capture_=false,fixed_capture_ready_=false;
+    std::array<acvr_pose,2> fixed_capture_hands_{};
     bool gun_drawn_[2]{};
     HWND window_=nullptr;HDC dc_=nullptr;HGLRC context_=nullptr;
     Gl gl_{};
@@ -592,6 +595,24 @@ acvr_result OpenXrGlHost::fill_tracking(Display &d) {
         hand_controls_[i]=(hand.grip_flags&3u)==3u?d.controllers[i]:ControllerButtons{};
 #endif
     }
+    if(fixed_capture_){
+        // Diagnostic mode must never silently fall back to live hands or input.
+        if(d.tracking.head_flags!=3)return ACVR_ERROR;
+        if(!fixed_capture_ready_){
+            if(!fixed_capture_poses(d.tracking.head,fixed_capture_hands_))return ACVR_ERROR;
+            fixed_capture_ready_=true;
+        }
+        for(unsigned i=0;i<2;++i){
+            auto &hand=i==0?d.tracking.right:d.tracking.left;
+            hand.grip=hand.aim=fixed_capture_hands_[i];
+            hand.grip_flags=hand.aim_flags=ACVR_POSE_POSITION_VALID|ACVR_POSE_ORIENTATION_VALID;
+            d.trigger[i]=d.reload[i]=false;d.controllers[i]={};
+#ifdef ACVR_GUN_GL
+            hand_controls_[i]={};
+#endif
+        }
+        d.calibration=record<acvr_controller_sample>();
+    }
     uint32_t view_count=0;XrViewLocateInfo locate{XR_TYPE_VIEW_LOCATE_INFO};
     locate.viewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
     locate.displayTime=frame_.predictedDisplayTime;locate.space=stage_;
@@ -673,7 +694,8 @@ acvr_result OpenXrGlHost::end(bool rendered) {
     if(!in_frame_)return ACVR_BAD_STATE;
     bool good=true;
     glFlush();
-    const bool capture_now=capture_enabled_&&!capture_done_&&!capture_failed_&&rendered&&submit_;
+    const bool capture_now=capture_enabled_&&!capture_done_&&!capture_failed_&&rendered&&submit_&&
+                           (!fixed_capture_||(fixed_capture_ready_&&gun_drawn_[0]&&gun_drawn_[1]));
     bool read_ok=true;
     if(capture_now)for(unsigned i=0;i<2;++i)read_ok=read_capture_eye(i)&&read_ok;
     for(auto &s:eyes_)if(s.acquired) {
@@ -700,8 +722,12 @@ acvr_result OpenXrGlHost::end(bool rendered) {
 }
 
 acvr_result OpenXrGlHost::configure_capture() {
+    wchar_t fixed[3]{};
+    const DWORD fixed_length=GetEnvironmentVariableW(L"ACVR_GUN_ROOM_FIXED_POSES",fixed,3);
+    if(fixed_length&&(fixed_length!=1||fixed[0]!=L'1'))return ACVR_BAD_ARGUMENT;
+    fixed_capture_=fixed_length==1;
     const DWORD length=GetEnvironmentVariableW(L"ACVR_GUN_ROOM_CAPTURE_DIR",nullptr,0);
-    if(!length)return GetLastError()==ERROR_ENVVAR_NOT_FOUND?ACVR_OK:ACVR_BAD_ARGUMENT;
+    if(!length)return !fixed_capture_&&GetLastError()==ERROR_ENVVAR_NOT_FOUND?ACVR_OK:ACVR_BAD_ARGUMENT;
     if(length>1024||content_root_.empty()||model_id_.empty())return ACVR_BAD_ARGUMENT;
     std::vector<wchar_t> value(length);
     if(GetEnvironmentVariableW(L"ACVR_GUN_ROOM_CAPTURE_DIR",value.data(),length)!=length-1)return ACVR_BAD_ARGUMENT;
@@ -772,7 +798,9 @@ bool OpenXrGlHost::write_capture_receipt(const char *status,const char *reason) 
         std::ostringstream json;
         json<<"{\"schema\":1,\"status\":\""<<status<<"\",\"reason\":\""<<reason
             <<"\",\"model\":\""<<model_id_<<"\",\"actual_openxr_eye_readback\":"
-            <<(std::strcmp(status,"captured")==0?"true":"false");
+            <<(std::strcmp(status,"captured")==0?"true":"false")
+            <<",\"controller_pose_source\":\""<<(fixed_capture_?"fixed-authoring-poses":"openxr-actions")
+            <<"\",\"controller_tracking_verified\":false";
         for(const auto &view:kStereoCaptureViews){
             const auto index=view.view_index;
             json<<",\""<<view.name<<"\":{\"width\":"<<captured_[index].width

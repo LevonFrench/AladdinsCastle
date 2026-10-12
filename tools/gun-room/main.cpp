@@ -135,7 +135,7 @@ struct Options {
     int seconds=0;
     bool xr=false,have_right=false,have_left=false,replace_preview=false,update_angles=false;
     bool save_angles=false,control_stdin=false;
-    bool calibrate_grip=false;
+    bool calibrate_grip=false,fixed_poses=false;
 };
 bool filename(const std::filesystem::path &p,const char *extension){
     if(p.empty()||p.has_parent_path()||p.extension()!=extension)return false;
@@ -193,6 +193,7 @@ bool parse(int argc,char **argv,Options &o){
     for(int i=1;i<argc;++i){
         const std::string key=argv[i];
         if(key=="--xr")o.xr=true;
+        else if(key=="--fixed-poses")o.fixed_poses=true;
         else if(key=="--calibrate-grip")o.calibrate_grip=true;
         else if(key=="--control-stdin")o.control_stdin=true;
         else if(key=="--replace-preview")o.replace_preview=true;
@@ -220,6 +221,7 @@ bool parse(int argc,char **argv,Options &o){
     }
     if(!o.xr&&o.preview.empty())return false;
     if(o.control_stdin&&!o.xr)return false;
+    if(o.fixed_poses&&(!o.xr||o.capture_name.empty()||o.calibrate_grip))return false;
     if(o.calibrate_grip&&(!o.xr||!o.preview.empty()||!o.capture_name.empty()||
                           !o.angle_file.empty()||o.have_right||o.have_left||o.update_angles))return false;
     if(o.seconds&&!o.xr)return false;
@@ -278,7 +280,7 @@ int main(int argc,char **argv){
         std::cerr<<"Usage: acvr_gun_room --root ABS_PATH [--xr] [--preview-svg NAME.svg] "
                  "[--replace-preview] [--model ID] [--hand right|left] [--angle-file NAME.txt] "
                  "[--right-angle-deg N] [--left-angle-deg N] [--update-angle-file] "
-                 "[--capture-eyes FRESH_NAME (requires --xr)] [--seconds 5..60] "
+                 "[--capture-eyes FRESH_NAME (requires --xr)] [--fixed-poses (capture only)] [--seconds 5..60] "
                  "[--control-stdin (requires --xr and a pipe on stdin)] "
                  "[--calibrate-grip (requires --xr; no capture or legacy angle options)]\n";return 2;
     }
@@ -310,6 +312,7 @@ int main(int argc,char **argv){
     }
     if(!SetEnvironmentVariableW(L"ACVR_GUN_ROOM_CAPTURE_DIR",
                                 o.capture_name.empty()?nullptr:o.capture_dir.c_str()))return 3;
+    if(!SetEnvironmentVariableW(L"ACVR_GUN_ROOM_FIXED_POSES",o.fixed_poses?L"1":nullptr))return 3;
     const auto error_receipt=[&](const char *reason){
         if(o.capture_name.empty()||std::filesystem::exists(o.capture_dir/"receipt.json"))return;
         const auto body="{\"schema\":1,\"status\":\"error\",\"reason\":\""+
