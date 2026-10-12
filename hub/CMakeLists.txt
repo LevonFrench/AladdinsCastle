@@ -191,8 +191,12 @@ if(BUILD_TESTING)
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(hub-tests tests/SmokeTest.cpp)
     target_link_libraries(hub-tests PRIVATE hubcore Qt6::Test)
+    add_dependencies(hub-tests aladdinscastle-hub hubtool)
     ac_project_warnings(hub-tests)
-    add_test(NAME hub-smoke COMMAND hub-tests)
+    add_test(NAME hub-smoke COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:hub-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-smoke.txt
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(catalog-tests tests/CatalogTest.cpp)
     target_link_libraries(catalog-tests PRIVATE hubcore Qt6::Test)
     target_compile_definitions(catalog-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/.." AC_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}")
