@@ -24,8 +24,12 @@ Existing tuning is preserved, including on repeated preparation; another title
 or region never inherits the profile. Native shader enable lists retain their
 bare names. Runs save the selected file before and after alongside the configs.
 To try a newly published profile without replacing existing tuning, choose a
-fresh private state directory. For the R4 mission comparison use `-Quality Native`:
-the reviewed both-eye result was measured at 1x; 4x with that profile is untested.
+fresh private state directory. The published R4 profile includes scale 10 and a
+4 m HUD plane with matching apparent size. Both-eye mission comparisons cover
+`-Quality Native` and 4x resolution, followed by 4x MSAA and 16x filtering.
+`-Quality SharpAA` selects that sharper candidate; quiet-machine timing, complete
+menu composition and owner headset review remain open. See the native profile
+README for the measurements and their limits.
 
 Default and Eager modes consume the exact shared `shell-stick/1` native
 `split-right.ini` bytes and verify their generated manifest hash. The pinned
