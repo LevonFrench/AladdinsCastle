@@ -5,13 +5,13 @@ in both eyes. Five **DRAFT** per-game VR profile seeds preserve the settings use
 for those pictures. They add no shader, texture or element overrides and remain
 outside active profile seeding.
 
-| Proposal | Observed title picture | Profile decision |
+| Catalog game | Observed title picture | Profile decision |
 |---|---|---|
-| R2VE01 | Readable title with displaced strips and overlapping layers | Preserve baseline as a comparison seed; routing fix unresolved |
-| RHOP8P | Readable title and start prompt | Preserve baseline; no justified override |
-| RZJE69 | Very small, dark start panel | Preserve baseline as a comparison seed; scale fix unresolved |
-| RZPP01 | Readable title panel with a room background | Preserve baseline; no justified override |
-| SQDE8P | Readable title and start prompt | Preserve baseline; no justified override |
+| wii-dead-space-extraction | Very small, dark start panel | Preserve baseline as a comparison seed; scale fix unresolved |
+| wii-gunblade-ny-la-machineguns | Readable title and start prompt | Preserve baseline; no justified override |
+| wii-house-of-the-dead-overkill | Readable title and start prompt | Preserve baseline; no justified override |
+| wii-links-crossbow-training | Readable title panel with a room background | Preserve baseline; no justified override |
+| wii-sin-and-punishment-star-successor | Readable title with displaced strips and overlapping layers | Preserve baseline as a comparison seed; routing fix unresolved |
 
 The shared proposal uses the upstream per-game section, rather than copying the
 global GFX.ini section name:
