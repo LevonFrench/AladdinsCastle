@@ -18,19 +18,20 @@ preview. Screen overrides put the HUD labels, health fill, weapon/grenade icons,
 ammunition digits, and both reticle components back on the panel. A fresh run
 with hunting disabled showed a continuous world and a coherent smaller HUD.
 
-Evidence uses the fixed first-mission scene at 1x and 4x internal resolution,
-selected UI states, and both-eye desktop mirrors using SteamVR's null driver. This is not headset,
-head-motion, gun tracking, aiming, performance, other-region, or later-scene
-acceptance. Controls and any measured calibration are separate from this native
-rendering profile. Private saves and captures remain outside the repository.
+Measured evidence uses the fixed first-mission scene at 1x and 4x internal
+resolution, selected UI states, and both-eye desktop mirrors using SteamVR's
+null driver. The separate owner-reported live sitting is recorded below.
+Controls and any measured calibration are separate from this native rendering
+profile. Private saves and captures remain outside the repository.
 
 UnitsPerMeter = 10 carries the measured human-scale candidate. Both-eye disparity,
 actual 63 mm null-driver eye spacing and mirror-axis correction give an estimated
 standing-figure height of 1.64–1.82 m. This is compatible with an approximately
 1.75 m reference; pose and occlusion prevent an exact stature claim. Complete
-UI composition, quiet timing, native aim and owner headset acceptance remain open.
-Keep the profile in upstream-native INI format; an upstream offer follows owner
-headset review. Existing installed tuning is preserved by create-only seeding.
+UI composition, quiet timing, other-region/later-scene coverage and systematic
+aim/tracking measurements remain open. Keep the profile in upstream-native INI
+format and carry these evidence limits with any upstream offer. Existing
+installed tuning is preserved by create-only seeding.
 
 ScreenDistance = 4 and ScreenSize = 4 retain the previous angular HUD size while
 moving its fixed plane from 1.5 m to 4 m. In fresh paused both-eye comparisons,
@@ -46,7 +47,20 @@ does not impose physical foreground masking. Native layer offsets are retired;
 element_depth is a legacy ordering value, not a per-reticle distance in metres.
 At this distance, captured title, save prompt, loading and movie/subtitle screens
 are readable. Scenario/chapter/character/equipment menus retain a panel/background
-seam that still needs a flat reference and native hunting. The mission's 4x,
-4x MSAA and 16x filtering comparison is captured; quality remains provisional
-until quiet timing and owner review. The published 4m profile is a measured
-candidate; the menu seam, native aim and headset review remain open.
+seam. The flat reference is coherent; native hunting confirms reuse of mission
+HUD shader families, while individual texture isolation remains pending.
+The mission's 4x, 4x MSAA and 16x filtering comparison is captured; quantitative
+performance remains pending quiet timing. The published 4m profile retains the
+measured evidence and remaining menu/scene coverage limits.
+
+On 2026-10-12 the owner reported that the live Default/SharpAA sitting passed:
+the inner window was gone, depth felt right, shots landed at the visible reticle,
+the image was clear and smooth, and the HUD was steady and readable. This is a
+bounded owner-reported headset observation for that sitting. It supplies no
+numerical frame-time, tracking, hit-rate or later-scene measurements.
+
+On the pinned D3D backend, `D3DOpenXR::SupportsDetachedFrameLoop()` returns false.
+Lead's live log reports an inline frame loop without a pacing thread.
+`EagerHeartbeat=True` therefore does not establish distinct detached heartbeat
+behavior on this renderer. Eager sitting conclusions must retain that backend
+limitation; no backend or emulator pin change is included here.
