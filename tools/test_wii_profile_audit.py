@@ -49,13 +49,14 @@ class ProfileAuditTests(unittest.TestCase):
 
     def test_producer_selection_refuses_legacy_and_unknown(self):
         gid='wii-resident-evil-umbrella-chronicles'
+        from wii_shell_stick import render_scripted_profile
         for producer in ('legacy-steamvr','automatic'):
             with self.assertRaises(ValueError):render_producer_profile(gid,producer)
-        if CANONICAL_LIVE_SOURCE_TESTED:self.assertEqual(render_producer_profile(gid,'canonical-live','left'),render_profile('flat-dolphin'))
+        if CANONICAL_LIVE_SOURCE_TESTED:self.assertEqual(render_producer_profile(gid,'canonical-live','left'),render_scripted_profile(gid,'left'))
         else:
             with self.assertRaisesRegex(ValueError,'source review'):render_producer_profile(gid,'canonical-live')
         self.assertEqual(render_producer_profile(gid,'native-openxr'),render_profile())
-        self.assertEqual(render_producer_profile(gid,'scripted-dsu'),render_profile('flat-dolphin'))
+        self.assertEqual(render_producer_profile(gid,'scripted-dsu'),render_scripted_profile(gid))
         self.assertEqual(hashlib.sha256(render_profile()).hexdigest(),'edfcccec10a8226ee5366b0fedf500a57a3674dd7b91b72c6bf200e55fc27ebe')
 
     def test_descriptor_roles_requirements_and_unsupported_home(self):

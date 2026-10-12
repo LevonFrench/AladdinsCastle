@@ -43,8 +43,9 @@ class ShellProfilesTests(unittest.TestCase):
             policy=game_policy(path.stem)
             for hand in ('right','left'):
                 for route in ('flat-dolphin','dolphinxr'):
-                    self.assertEqual(render_game_profile(path.stem,route,hand),render_profile(route,policy['hold']['default'],hand))
-                self.assertEqual(render_scripted_profile(path.stem,hand),render_profile('flat-dolphin',policy['hold']['default'],'right'))
+                    calibration=policy.get('aim_calibration') if route=='flat-dolphin' else None
+                    self.assertEqual(render_game_profile(path.stem,route,hand),render_profile(route,policy['hold']['default'],hand,calibration=calibration))
+                self.assertEqual(render_scripted_profile(path.stem,hand),render_game_profile(path.stem,'flat-dolphin','right'))
                 descriptor=scripted_bridge_profile(path.stem,hand)
                 self.assertEqual(descriptor['device_slots'],{'remote':0,'nunchuk':1})
                 self.assertEqual(descriptor['players'][0]['remote_hand'],hand)

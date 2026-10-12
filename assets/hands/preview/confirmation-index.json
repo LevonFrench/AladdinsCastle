@@ -3297,7 +3297,7 @@
     "data/controls/wii/games/wii-resident-evil-umbrella-chronicles.toml": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "7b111e1a741e2203921162b8e5b7a7af3b4e25aa31f34fbdaf8bdf0d3a599f28"
+      "sha256": "81e4ede76cc78b7fd421ebd808a850eb9d50e4ea90a69e6d2ee7333b6f63e4ce"
     },
     "data/controls/wii/games/wii-sin-and-punishment-star-successor.toml": {
       "kind": "source",
@@ -3397,12 +3397,12 @@
     "tools/wii_controls.py": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "f067c742bc137aaab13f1ca97b79544bc42bdba7256edc4f89cd7cfff5c299a9"
+      "sha256": "a73fc096b65254db81cf915eeca86e65a37293c388ae9712ff533c93a7d27789"
     },
     "tools/wii_shell_stick.py": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "d9d2b85b402afe9faebdc62fec70bbd53e73c31380e97e882b18d77e2aa44f02"
+      "sha256": "821f09475ffa00f3e6c84064b3f4bb4ad5a0764f20dd4f0ad8d014a2e603e3e8"
     }
   }
 }

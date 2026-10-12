@@ -4,6 +4,7 @@ import configparser
 import hashlib
 import io
 import json
+import math
 from pathlib import Path
 import re
 import tomllib
@@ -13,6 +14,36 @@ MODES=('split','docked','two-remotes')
 ROUTES=('dolphinxr','flat-dolphin')
 TOKENS={'trigger','grip','click','primary','secondary','up','down','left','right'}
 CANONICAL_LIVE_SOURCE_TESTED=True # Lead's 18 CPU/loopback checks and independent source review.
+
+def aim_calibration(value):
+    """Validate game-specific desktop measurements; never imply native acceptance."""
+    if value is None:return None
+    if not isinstance(value,dict) or value.get('version')!='wii-aim/1':raise ValueError('Unknown Wii aim schema')
+    if set(value)-{'version','state','total_yaw_degrees','total_pitch_degrees','vertical_offset_cm','emulated_distance_m','native','evidence'}:
+        raise ValueError('Unknown Wii aim field')
+    if value.get('state') not in ('candidate','desktop-verified'):raise ValueError('Invalid Wii aim evidence state')
+    for name,low,high in (('total_yaw_degrees',0,360),('total_pitch_degrees',0,360),('vertical_offset_cm',-100,100)):
+        number=value.get(name)
+        if type(number) not in (int,float) or not math.isfinite(number) or not low<=number<=high or (low==0 and number==0):
+            raise ValueError('Invalid Wii aim '+name)
+    if value.get('emulated_distance_m')!=2 or value.get('native')!='provisional-opt-in':
+        raise ValueError('Wii aim calibration must distinguish fixed-distance DSU from provisional native input')
+    evidence=value.get('evidence',{})
+    if not isinstance(evidence,dict):raise ValueError('Invalid Wii aim evidence')
+    if value['state']=='desktop-verified' and (evidence.get('method')!='nine-point' or type(evidence.get('samples')) is not int or evidence['samples']!=9 or evidence.get('independent_review') is not True or evidence.get('scope')!='approximate-desktop-dsu'):
+        raise ValueError('Verified Wii aim needs independent nine-point evidence')
+    for name in ('pointer_extent','target_rms_px','target_max_error_px'):
+        number=evidence.get(name)
+        if value['state']=='desktop-verified' or number is not None:
+            if type(number) not in (int,float) or not math.isfinite(number) or number<0 or (name=='pointer_extent' and not 0<number<=1):
+                raise ValueError('Invalid Wii aim evidence '+name)
+    if value['state']=='desktop-verified' and evidence.get('input_domain')!=[-evidence['pointer_extent'],evidence['pointer_extent']]:
+        raise ValueError('Verified Wii aim must declare the measured symmetric input domain')
+    return deepcopy(value)
+
+def aim_fields(calibration):
+    return {key:format(calibration[name],'.15g') for key,name in (
+        ('IR/Total Yaw','total_yaw_degrees'),('IR/Total Pitch','total_pitch_degrees'),('IR/Vertical Offset','vertical_offset_cm'))}
 
 def source(root=ROOT):
     with (Path(root)/'data/controls/wii/shell-and-stick.toml').open('rb') as f: data=tomllib.load(f)
@@ -61,9 +92,15 @@ def native_expression(expr,hand,data):
     result=' & '.join(('!' if neg else '')+token(n) for n,neg in terms(expr))
     return '('+result+') & !(`Right Button Thumbstick` & `Left Button Thumbstick`)'
 
-def render_profile(route='dolphinxr',mode='split',primary_hand='right',root=ROOT):
+def render_profile(route='dolphinxr',mode='split',primary_hand='right',root=ROOT,calibration=None,provisional_native_aim=False):
     if route not in ROUTES: raise ValueError('Unknown input route')
     if route=='dolphinxr' and mode=='two-remotes': raise ValueError('Native two-remotes unsupported: aim routing is global, not per slot')
+    if type(provisional_native_aim) is not bool or (provisional_native_aim and (route!='dolphinxr' or calibration is None)):
+        raise ValueError('Provisional native aim must be an explicit calibrated native-only opt-in')
+    if calibration is not None:
+        calibration=aim_calibration(calibration)
+        if calibration['state']!='desktop-verified':raise ValueError('Candidate aim is not independently verified')
+        if route=='dolphinxr' and not provisional_native_aim:raise ValueError('Native aim calibration requires provisional opt-in')
     data=source(root); count=2 if mode=='two-remotes' else 1
     sections={}
     for slot in range(count):
@@ -88,6 +125,7 @@ def render_profile(route='dolphinxr',mode='split',primary_hand='right',root=ROOT
         if route=='flat-dolphin':
             profile.update({'IR/Relative Input':'False','IR/Auto-Hide':'False','IR/Total Yaw':'77.319617','IR/Total Pitch':'48.455491'})
             for direction,suffix in {'Up':'Y+','Down':'Y-','Left':'X-','Right':'X+'}.items(): profile['IR/'+direction]=dsu('Right '+suffix,remote)
+        if calibration is not None:profile.update(aim_fields(calibration))
         sections['Wiimote'+str(slot+1)]=profile
     for i in range(count,4): sections['Wiimote'+str(i+1)]={'Source':'0'}
     sections['BalanceBoard']={'Source':'0'}
@@ -116,16 +154,25 @@ def game_policy(game_id,root=ROOT):
     reload=data.get('reload',dict(choices=['shake','flick-down','offscreen','button'],selected='button',state='question',question='Does this game use reload?'))
     if reload['choices']!=['shake','flick-down','offscreen','button'] or reload['selected'] not in reload['choices']: raise ValueError('Invalid reload choices')
     if reload['state'] not in ('question','confirmed'): raise ValueError('Invalid reload evidence')
-    return dict(hold=hold,reload=reload,gun_proposal=data.get('gun_proposal',{}))
+    result=dict(hold=hold,reload=reload,gun_proposal=data.get('gun_proposal',{}))
+    calibration=aim_calibration(data.get('aim_calibration'))
+    if calibration is not None:result['aim_calibration']=calibration
+    return result
 
-def render_game_profile(game_id,route='dolphinxr',primary_hand='right',root=ROOT):
-    return render_profile(route,game_policy(game_id,root)['hold']['default'],primary_hand,root)
+def render_game_profile(game_id,route='dolphinxr',primary_hand='right',root=ROOT,provisional_native_aim=False):
+    policy=game_policy(game_id,root);calibration=policy.get('aim_calibration')
+    if type(provisional_native_aim) is not bool or (provisional_native_aim and route!='dolphinxr'):
+        raise ValueError('Provisional native aim must be an explicit native-only opt-in')
+    if provisional_native_aim and (not calibration or calibration['state']!='desktop-verified'):
+        raise ValueError('No independently verified desktop measurement for provisional native aim')
+    apply=calibration if calibration and calibration['state']=='desktop-verified' and (route=='flat-dolphin' or provisional_native_aim) else None
+    return render_profile(route,policy['hold']['default'],primary_hand,root,apply,provisional_native_aim)
 
 def render_scripted_profile(game_id,primary_hand='right',root=ROOT):
     # Scripted bridge slots are roles: slot0 Remote, slot1 stick. Handedness
     # belongs to the producer descriptor, not a physical device-slot swap.
     if primary_hand not in ('left','right'): raise ValueError('Invalid primary hand')
-    return render_profile('flat-dolphin',game_policy(game_id,root)['hold']['default'],'right',root)
+    return render_game_profile(game_id,'flat-dolphin','right',root)
 
 def render_producer_profile(game_id,producer,primary_hand='right',root=ROOT):
     if producer=='native-openxr':return render_game_profile(game_id,'dolphinxr',primary_hand,root)
@@ -140,6 +187,7 @@ def scripted_bridge_profile(game_id,primary_hand='right',root=ROOT):
     policy=game_policy(game_id,root); mode=policy['hold']['default']
     descriptor=bridge_profile(mode,primary_hand,root)
     descriptor.update(schema='scripted-dsu/1',game_id=game_id,device_slots=dict(remote=0,nunchuk=1),server=dict(name=source(root)['dsu']['server'],host='127.0.0.1',port=26760),reload=policy['reload'])
+    if 'aim_calibration' in policy:descriptor['aim_calibration']=policy['aim_calibration']
     descriptor['live_bridge_compatible']=CANONICAL_LIVE_SOURCE_TESTED
     descriptor['live_bridge_reason']='Canonical per-game role-slot transport; game/headset validation pending' if CANONICAL_LIVE_SOURCE_TESTED else 'Canonical live consumer implementation and source review pending'
     descriptor['producer_policy']=dict(schema='canonical-dsu/1',expression_tokens=sorted(TOKENS),
@@ -174,6 +222,9 @@ def generated_files(root=ROOT):
             for route in ROUTES:
                 result[f'games/{gid}/{route}-{hand}.ini']=render_game_profile(gid,route,hand,root)
             result[f'games/{gid}/dolphinxr-{hand}.Dolphin.ini']=f'[Android]\nQuestLeftHanded = {"True" if hand=="left" else "False"}\n'.encode()
+            if policy.get('aim_calibration',{}).get('state')=='desktop-verified':
+                result[f'games/{gid}/dolphinxr-aim-provisional-{hand}.ini']=render_game_profile(gid,'dolphinxr',hand,root,provisional_native_aim=True)
+                result[f'games/{gid}/dolphinxr-aim-provisional-{hand}.Dolphin.ini']=result[f'games/{gid}/dolphinxr-{hand}.Dolphin.ini']
             result[f'games/{gid}/scripted-dsu-{hand}.ini']=render_scripted_profile(gid,hand,root)
             result[f'games/{gid}/scripted-dsu-{hand}.json']=(json.dumps(scripted_bridge_profile(gid,hand,root),indent=2)+'\n').encode()
     # Dolphin ConfigChanged serializes every entry with a trailing semicolon,

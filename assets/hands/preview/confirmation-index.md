@@ -459,7 +459,7 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [data/controls/wii/games/wii-house-of-the-dead-overkill.toml](../../../data/controls/wii/games/wii-house-of-the-dead-overkill.toml) | `5c94d700626822b8189dcbaf7dbe44f7a8cdfc98c0341e6583578e1eb9c0f247` |
 | [data/controls/wii/games/wii-links-crossbow-training.toml](../../../data/controls/wii/games/wii-links-crossbow-training.toml) | `a5f0853c9903aea8a4447f76197a03264cdfb21926cef3ccdf6000f3755d0d9f` |
 | [data/controls/wii/games/wii-resident-evil-darkside-chronicles.toml](../../../data/controls/wii/games/wii-resident-evil-darkside-chronicles.toml) | `b326ef4e2808a0d46bcacec8897d45adf0f6ab499d002002eadd7039c4ddfee5` |
-| [data/controls/wii/games/wii-resident-evil-umbrella-chronicles.toml](../../../data/controls/wii/games/wii-resident-evil-umbrella-chronicles.toml) | `7b111e1a741e2203921162b8e5b7a7af3b4e25aa31f34fbdaf8bdf0d3a599f28` |
+| [data/controls/wii/games/wii-resident-evil-umbrella-chronicles.toml](../../../data/controls/wii/games/wii-resident-evil-umbrella-chronicles.toml) | `81e4ede76cc78b7fd421ebd808a850eb9d50e4ea90a69e6d2ee7333b6f63e4ce` |
 | [data/controls/wii/games/wii-sin-and-punishment-star-successor.toml](../../../data/controls/wii/games/wii-sin-and-punishment-star-successor.toml) | `adefc9984ef84bfa1c6b64db93d3cf1201de0938a55ab74b75fd9630c2afe549` |
 | [data/controls/wii/shell-and-stick.toml](../../../data/controls/wii/shell-and-stick.toml) | `fb196a2f10e4e83839de694b72f0933d9b149b1ba583fcc1973fa761ea108c43` |
 | [data/guns/arc-pistol-slide.toml](../../../data/guns/arc-pistol-slide.toml) | `19352254d98f4540ad7a41c800ae94343abcaacd35f77d55a203e61b532a8677` |
@@ -479,5 +479,5 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [games/wii-sin-and-punishment-star-successor/game.toml](../../../games/wii-sin-and-punishment-star-successor/game.toml) | `1066e052911fa6d1ceaa5359a7bf65953c1e7fdbda5834383b10b71633832144` |
 | [tools/gun_confirmation.py](../../../tools/gun_confirmation.py) | `6bfe61fcf6601275c9df908489e7800452ef98893de146e3180c7d13020b7a9e` |
 | [tools/hand_assembly.py](../../../tools/hand_assembly.py) | `11979c9c25c9c2a84b5bb0f487b19307e5c714425384cdbedcf1f4ee85f91fe0` |
-| [tools/wii_controls.py](../../../tools/wii_controls.py) | `f067c742bc137aaab13f1ca97b79544bc42bdba7256edc4f89cd7cfff5c299a9` |
-| [tools/wii_shell_stick.py](../../../tools/wii_shell_stick.py) | `d9d2b85b402afe9faebdc62fec70bbd53e73c31380e97e882b18d77e2aa44f02` |
+| [tools/wii_controls.py](../../../tools/wii_controls.py) | `a73fc096b65254db81cf915eeca86e65a37293c388ae9712ff533c93a7d27789` |
+| [tools/wii_shell_stick.py](../../../tools/wii_shell_stick.py) | `821f09475ffa00f3e6c84064b3f4bb4ad5a0764f20dd4f0ad8d014a2e603e3e8` |

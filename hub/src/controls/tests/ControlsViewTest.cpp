@@ -234,6 +234,7 @@ private slots:
         sample["data"]=sample.value("route_variants").toMap().value("dolphinxr");
         QVERIFY(model.loadResolved(sample,QDir(AC_CONTROLS_ROOT).filePath("assets/guns/preview")));
         QVERIFY(model.wiiControls()); QVERIFY(model.previewAvailable()); QVERIFY(model.accessoryPreviewAvailable());
+        QVERIFY(model.notice().contains("Native aim calibration remains provisional"));
         QCOMPARE(model.modelId(),QString("con-remote-shell")); QCOMPARE(model.accessoryId(),QString("con-stick-grip"));
         QCOMPARE(model.holdMode(),QString("split"));
         QCOMPARE(rowWithId(model,"p1-fire").value("hand").toString(),QString("right"));
@@ -271,6 +272,8 @@ private slots:
         QCOMPARE(rowWithId(model,"p1-home").value("availability").toString(),QString("unavailable"));
         QVERIFY(rowWithId(model,"p1-home").value("reason").toString().contains("PS/Home"));
         QVERIFY(model.notice().contains("Tracked recentre unavailable"));
+        QVERIFY(model.notice().contains("4.525 px RMS"));
+        QVERIFY(model.notice().contains("9.964 px maximum"));
         QCOMPARE(rowWithId(model,"p1-fire").value("physicalDsuSlot").toInt(),0);
         QCOMPARE(rowWithId(model,"p1-z").value("physicalDsuSlot").toInt(),1);
         model.setPrimaryHand("left");

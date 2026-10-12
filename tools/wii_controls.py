@@ -47,6 +47,12 @@ def compile_library(root=ROOT):
                 game_profile=layout.get('name') or 'Question: selected game layout',custom_setup=False,instruction='Shell in firing hand; stick controller in other hand. '+('Both stick clicks recenter through the installed native hotkey. ' if route=='dolphinxr' else 'Canonical DSU uses Remote slot 0 and stick slot 1; tracked recentre is unavailable. ')+'Game actions are questions until the option/instruction screens are recorded.')
             profiles={hand:dict(native=f'data/controls/wii/generated/games/{gid}/dolphinxr-{hand}.ini',dsu=f'data/controls/wii/generated/games/{gid}/scripted-dsu-{hand}.ini',scripted_dsu=f'data/controls/wii/generated/games/{gid}/scripted-dsu-{hand}.ini',legacy_physical_dsu=f'data/controls/wii/generated/games/{gid}/flat-dolphin-{hand}.ini') for hand in ('right','left')}
             data.update(profiles_by_hand=profiles,profiles=profiles['right'])
+            if 'aim_calibration' in policy:
+                data['aim_calibration']=policy['aim_calibration']
+                if policy['aim_calibration']['state']=='desktop-verified':
+                    for hand in ('right','left'):
+                        profiles[hand]['native_aim_provisional']=f'data/controls/wii/generated/games/{gid}/dolphinxr-aim-provisional-{hand}.ini'
+                        profiles[hand]['native_aim_provisional_companion']=f'data/controls/wii/generated/games/{gid}/dolphinxr-aim-provisional-{hand}.Dolphin.ini'
             variants[route]=data
         rows.append(dict(game_id=gid,model=base['shell'],model_provenance='Owner shell-and-stick Wii rule',shape_review=False,control_set=gid+'-shell-and-stick',layers=['data/controls/wii/shell-and-stick.toml',path.relative_to(root).as_posix()],data=variants['flat-dolphin'],route_variants=variants,model_metadata=model,accessory_metadata=accessory,two_gun_eligible=slots==2,separate_views=False,configured_slots=slots,declared_active_slots=0,node_validation='not-decoded',gaps=[dict(category='runtime-acceptance',id='wii-input',reason='Native/bridge/held-model/headset acceptance remain separate')]))
     authored={r['game_id'] for r in rows}
