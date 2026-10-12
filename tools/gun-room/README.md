@@ -82,6 +82,16 @@ receipt with real eye images establishes a captured frame. Polling cannot
 interrupt an OpenXR call already blocked inside the runtime; the Hub still
 needs an external timeout for a hung native process.
 
+For the owner's null-driver model review, add `--fixed-poses` to an XR eye
+capture. It places the selected gun and authored hands at fixed poses frozen
+from the first valid head sample (18 cm to each side, 18 cm below, 55 cm ahead).
+The eyes still come from OpenXR; these controller poses are authored fixtures,
+not tracking measurements. Trigger/reload/controller levels are neutral in this
+mode, and grip calibration is refused. The receipt says
+`controller_pose_source=fixed-authoring-poses` and never claims verified
+controller tracking. This option requires `--xr --capture-eyes`; ordinary room
+launches explicitly clear its process flag and retain native tracked behavior.
+
 The authored off-hand `grip_two` anchor is connected to the native gun
 overlay and ballistic ray while the off-hand grip action is held near the
 anchor. The original hand assets are checked in under `assets/hands`. When

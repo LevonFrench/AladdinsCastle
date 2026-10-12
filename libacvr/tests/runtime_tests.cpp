@@ -365,12 +365,38 @@ void pause_loss_and_zero_layers() {
     auto p=create(r,{{0},{17000000,true,true,false},{34000000,true,true,true,false},{51000000,false,false,true,false},
                      {68000000,true,true,true,true,false,1},{85000000,true,true},{102000000,false,false},{119000000,true,true}});
     for(int i=0;i<8;++i) check(acvr_runtime_tick(p)==ACVR_OK);
-    check(r.ends==8 && r.submitted==5 && r.steps.size()==7);
+    check(r.ends==8 && r.submitted==6 && r.steps.size()==7); // frozen lease still draws without input focus
     check(r.guns[1].trigger==0); // focus resume requires release before rearm
     check(r.guns[3].trigger==0 && r.axes[3].value==0 && !(r.guns[3].flags&ACVR_GUN_TRACKED));
     check(r.guns[4].trigger==0); // tracking recovery does not fire a held trigger
     check(r.guns.back().trigger==(ACVR_INPUT_HELD|ACVR_INPUT_PRESSED));
     check(acvr_runtime_set_paused(p,1)==ACVR_OK); check(acvr_runtime_set_paused(p,2)==ACVR_BAD_ARGUMENT);
+    check(acvr_runtime_destroy(p)==ACVR_OK);
+}
+void unfocused_initial_picture() {
+    Receipt r;
+    auto p=create(r,{{0,true,true,false,false,true,1},
+                     {17000000,true,true,false,true,true,1},
+                     {34000000,true,true,false,true,true,1},
+                     {51000000,true,true,true,true,true,1},
+                     {68000000,false,false},{85000000,true,true}});
+    check(acvr_runtime_tick(p)==ACVR_OK && r.steps.empty() && r.submitted==0);
+    check(acvr_runtime_tick(p)==ACVR_OK && r.steps.size()==1 && r.draws==2 && r.submitted==1);
+    check(r.outputs==0 && r.guns[0].trigger==0 && r.buttons[0].state==0 && r.axes[0].value==0);
+    check(acvr_runtime_tick(p)==ACVR_OK && r.steps.size()==1 && r.draws==4 && r.outputs==0);
+    check(r.drawn_frames[0]==r.drawn_frames[3]); // frozen, actual backend lease
+    check(acvr_runtime_tick(p)==ACVR_OK && r.steps.size()==2);
+    check(r.guns.back().trigger==0 && r.buttons.back().state==0); // held focus recovery is not a new press
+    check(acvr_runtime_tick(p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK);
+    check(r.guns.back().trigger==(ACVR_INPUT_HELD|ACVR_INPUT_PRESSED));
+    check(r.outputs==3 && r.ends==6 && r.submitted==5);
+    check(acvr_runtime_destroy(p)==ACVR_OK && r.closed==1 && !r.leased);
+
+    Receipt paused;
+    p=create(paused,{{0,true,true,false}});
+    check(acvr_runtime_set_paused(p,1)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK && paused.steps.empty() && paused.draws==0);
     check(acvr_runtime_destroy(p)==ACVR_OK);
 }
 void failures_and_ownership() {
@@ -623,6 +649,18 @@ void configured_model() {
         check(acvr_runtime_destroy(bad)==ACVR_OK && invalid.released==1 && invalid.closed==1 && !invalid.leased);
         current=&r;
     }
+    {
+        Receipt unfocused;unfocused.model_support=true;current=&unfocused;
+        acvr_runtime *visible=nullptr;
+        check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(unfocused,
+            std::vector<Sample>{{0,true,true,false},{17000000,true,true,false}}),&visible)==ACVR_OK);
+        check(acvr_runtime_tick(visible)==ACVR_OK && unfocused.model_draws==2 && unfocused.outputs==0);
+        check(unfocused.guns[0].trigger==0 && unfocused.steps.size()==1);
+        check(acvr_runtime_tick(visible)==ACVR_OK && unfocused.model_draws==4 && unfocused.steps.size()==1);
+        check(unfocused.outputs==0 && std::abs(unfocused.model_ray.origin_scene[0]-10)<.001f);
+        check(acvr_runtime_destroy(visible)==ACVR_OK);
+        current=&r;
+    }
     slot.body_rgba[0]=0;file.clear();metadata.clear();std::filesystem::remove(path);std::filesystem::remove(meta);std::filesystem::remove(dir);
     check(acvr_runtime_tick(p)==ACVR_OK && r.model_draws==2);
     check(r.model_ray.origin_scene[0]==10 && std::abs(r.model_ray.origin_scene[2]+2)<.001f);
@@ -840,7 +878,7 @@ void runtime_output_routes() {
 #endif
 int main() {
 #define RUN(test) do { try { test(); } catch(...) { std::cerr << #test << ": "; throw; } } while(false)
-    try { RUN(timing_and_edges); RUN(calibration_sample_contract); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(failures_and_ownership); RUN(both_eyes_validate_before_drawing); RUN(display_preparation_and_target_binding); RUN(backend_table_prefix_compatibility); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
+    try { RUN(timing_and_edges); RUN(calibration_sample_contract); RUN(provider_wait_and_orderly_stop); RUN(failed_open_closes_with_context); RUN(explicit_pause_uses_context); RUN(rational_and_budget); RUN(pause_loss_and_zero_layers); RUN(unfocused_initial_picture); RUN(failures_and_ownership); RUN(both_eyes_validate_before_drawing); RUN(display_preparation_and_target_binding); RUN(backend_table_prefix_compatibility); RUN(muzzle_math); RUN(anchored_aim); RUN(long_replay_and_invalid_samples); RUN(reload_edges);
 #ifdef ACVR_OPENXR_GL
         public_preflight_never_opens_xr();
 #endif

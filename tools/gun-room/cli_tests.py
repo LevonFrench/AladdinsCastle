@@ -70,6 +70,9 @@ def main() -> None:
         assert run("--preview-svg", "safe.svg", "--seconds", "10") == 2
         assert run("--preview-svg", "safe.svg", "--control-stdin") == 2
         assert run("--preview-svg", "safe.svg", "--calibrate-grip") == 2
+        assert run("--preview-svg", "safe.svg", "--fixed-poses") == 2
+        assert run("--xr", "--fixed-poses") == 2
+        assert run("--xr", "--fixed-poses", "--capture-eyes", "fixed", "--calibrate-grip") == 2
         assert run("--xr", "--calibrate-grip", "--capture-eyes", "eyes-two") == 2
         assert run("--xr", "--calibrate-grip", "--angle-file", "old.txt") == 2
         assert not (root / ".local").exists(), "invalid capture options wrote output directory"
