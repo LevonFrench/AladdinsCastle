@@ -14,6 +14,7 @@
 #include "view_math.hpp"
 #include "stereo_capture.hpp"
 #include "fixed_capture_pose.hpp"
+#include "gl_swapchain_format.hpp"
 #ifdef ACVR_GUN_GL
 #include "gun_gl.hpp"
 #include "hand_assembly.hpp"
@@ -48,8 +49,6 @@ uint32_t flags(XrSpaceLocationFlags in) {
     return ((in&XR_SPACE_LOCATION_POSITION_VALID_BIT)?ACVR_POSE_POSITION_VALID:0u)|
            ((in&XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)?ACVR_POSE_ORIENTATION_VALID:0u);
 }
-// Keep the GL target format constrained to a tested, non-multisampled format.
-constexpr int64_t kColour=0x8058; // GL_RGBA8 (Windows GL 1.1 headers omit this token)
 constexpr GLenum kDepth=0x81A6; // GL_DEPTH_COMPONENT24
 constexpr GLenum kMajor=0x821B,kMinor=0x821C;
 using CreateContextFn=HGLRC (WINAPI *)(HDC,HGLRC,const int *);
@@ -58,12 +57,7 @@ using DeleteFramebuffersFn=void (APIENTRY *)(GLsizei,const GLuint *);
 using BindFramebufferFn=void (APIENTRY *)(GLenum,GLuint);
 using FramebufferTexture2DFn=void (APIENTRY *)(GLenum,GLenum,GLenum,GLuint,GLint);
 using CheckFramebufferStatusFn=GLenum (APIENTRY *)(GLenum);
-using GenRenderbuffersFn=void (APIENTRY *)(GLsizei,GLuint *);
-using DeleteRenderbuffersFn=void (APIENTRY *)(GLsizei,const GLuint *);
-using BindRenderbufferFn=void (APIENTRY *)(GLenum,GLuint);
-using RenderbufferStorageFn=void (APIENTRY *)(GLenum,GLenum,GLsizei,GLsizei);
-using FramebufferRenderbufferFn=void (APIENTRY *)(GLenum,GLenum,GLenum,GLuint);
-constexpr GLenum kFrame=0x8D40,kRender=0x8D41,kColourAttachment=0x8CE0,kDepthAttachment=0x8D00,
+constexpr GLenum kFrame=0x8D40,kColourAttachment=0x8CE0,kDepthAttachment=0x8D00,
                  kComplete=0x8CD5;
 constexpr GLenum kReadFramebuffer=0x8CA8,kDrawFramebuffer=0x8CA9,
                  kReadFramebufferBinding=0x8CAA,kDrawFramebufferBinding=0x8CA6,
@@ -71,8 +65,6 @@ constexpr GLenum kReadFramebuffer=0x8CA8,kDrawFramebuffer=0x8CA9,
 struct Gl {
     GenFramebuffersFn gen_fbo{};DeleteFramebuffersFn delete_fbo{};BindFramebufferFn bind_fbo{};
     FramebufferTexture2DFn attach_colour{};CheckFramebufferStatusFn check_fbo{};
-    GenRenderbuffersFn gen_depth{};DeleteRenderbuffersFn delete_depth{};BindRenderbufferFn bind_depth{};
-    RenderbufferStorageFn depth_storage{};FramebufferRenderbufferFn attach_depth{};
 };
 void *gl_proc(void *,const char *name) {
     auto value=reinterpret_cast<void *>(wglGetProcAddress(name));
@@ -291,6 +283,7 @@ private:
     XrAction trigger_=XR_NULL_HANDLE,select_=XR_NULL_HANDLE,squeeze_=XR_NULL_HANDLE,primary_=XR_NULL_HANDLE;
     XrAction secondary_=XR_NULL_HANDLE,stick_x_=XR_NULL_HANDLE,stick_y_=XR_NULL_HANDLE;
     XrPath hand_paths_[2]{};XrSpace grip_spaces_[2]{},aim_spaces_[2]{};
+    int64_t colour_format_=0;
     EyeSwapchain eyes_[2]{};std::array<acvr_eye,2> acvr_eyes_{};
     std::array<XrCompositionLayerProjectionView,2> layer_eyes_{};
     XrView xr_views_[2]{{XR_TYPE_VIEW},{XR_TYPE_VIEW}};
@@ -336,9 +329,7 @@ acvr_result OpenXrGlHost::init_context() {
     if(!context_||!wglMakeCurrent(dc_,context_))return ACVR_UNSUPPORTED;
     return (resolve(gl_.gen_fbo,"glGenFramebuffers")&&resolve(gl_.delete_fbo,"glDeleteFramebuffers")&&
         resolve(gl_.bind_fbo,"glBindFramebuffer")&&resolve(gl_.attach_colour,"glFramebufferTexture2D")&&
-        resolve(gl_.check_fbo,"glCheckFramebufferStatus")&&resolve(gl_.gen_depth,"glGenRenderbuffers")&&
-        resolve(gl_.delete_depth,"glDeleteRenderbuffers")&&resolve(gl_.bind_depth,"glBindRenderbuffer")&&
-        resolve(gl_.depth_storage,"glRenderbufferStorage")&&resolve(gl_.attach_depth,"glFramebufferRenderbuffer"))?
+        resolve(gl_.check_fbo,"glCheckFramebufferStatus"))?
         ACVR_OK:ACVR_UNSUPPORTED;
 }
 
@@ -407,7 +398,10 @@ acvr_result OpenXrGlHost::init_xr() {
     if(XR_FAILED(CreateReferenceSpace_(session_,&reference,&stage_)))return ACVR_ERROR;
     reference.referenceSpaceType=XR_REFERENCE_SPACE_TYPE_VIEW;
     if(XR_FAILED(CreateReferenceSpace_(session_,&reference,&view_space_)))return ACVR_ERROR;
-    if(init_swapchains()!=ACVR_OK||init_actions()!=ACVR_OK)return ACVR_ERROR;
+    const auto swapchains=init_swapchains();
+    if(swapchains!=ACVR_OK){std::fprintf(stderr,"libacvr: swapchain initialization failed (%d)\n",int(swapchains));return swapchains;}
+    const auto actions=init_actions();
+    if(actions!=ACVR_OK){std::fprintf(stderr,"libacvr: action initialization failed (%d)\n",int(actions));return actions;}
     return ACVR_OK;
 }
 
@@ -420,14 +414,21 @@ acvr_result OpenXrGlHost::init_swapchains() {
     count=0;if(XR_FAILED(EnumerateSwapchainFormats_(session_,0,&count,nullptr))||!count)return ACVR_ERROR;
     std::vector<int64_t> formats(count);
     if(XR_FAILED(EnumerateSwapchainFormats_(session_,count,&count,formats.data())))return ACVR_ERROR;
-    if(std::find(formats.begin(),formats.end(),kColour)==formats.end())return ACVR_UNSUPPORTED;
+    colour_format_=select_gl_swapchain_format(formats.data(),formats.size());
+    if(!colour_format_){
+        std::fprintf(stderr,"libacvr: no supported RGBA8/sRGB8-alpha8 swapchain; runtime formats:");
+        for(const auto format:formats)std::fprintf(stderr," %lld",static_cast<long long>(format));
+        std::fprintf(stderr,"\n");return ACVR_UNSUPPORTED;
+    }
+    std::fprintf(stderr,"libacvr: selected swapchain format 0x%llx\n",static_cast<long long>(colour_format_));
     for(unsigned eye=0;eye<2;++eye) {
         auto &s=eyes_[eye];s.width=views[eye].recommendedImageRectWidth;s.height=views[eye].recommendedImageRectHeight;
         if(!s.width||!s.height)return ACVR_ERROR;
         XrSwapchainCreateInfo info{XR_TYPE_SWAPCHAIN_CREATE_INFO};info.usageFlags=XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
-        info.format=kColour;info.sampleCount=1;info.width=s.width;info.height=s.height;
+        info.format=colour_format_;info.sampleCount=1;info.width=s.width;info.height=s.height;
         info.faceCount=1;info.arraySize=1;info.mipCount=1;
-        if(XR_FAILED(CreateSwapchain_(session_,&info,&s.handle)))return ACVR_ERROR;
+        const auto created=CreateSwapchain_(session_,&info,&s.handle);
+        if(XR_FAILED(created)){std::fprintf(stderr,"libacvr: eye %u xrCreateSwapchain failed (%d)\n",eye,int(created));return ACVR_ERROR;}
         count=0;if(XR_FAILED(EnumerateSwapchainImages_(s.handle,0,&count,nullptr))||!count)return ACVR_ERROR;
         s.images.resize(count);s.targets.resize(count);
         for(auto &image:s.images)image.type=XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR;
@@ -435,15 +436,21 @@ acvr_result OpenXrGlHost::init_swapchains() {
             reinterpret_cast<XrSwapchainImageBaseHeader *>(s.images.data()))))return ACVR_ERROR;
         for(uint32_t i=0;i<count;++i) {
             auto &target=s.targets[i];target.colour=s.images[i].image;
-            gl_.gen_fbo(1,&target.fbo);gl_.gen_depth(1,&target.depth);
+            gl_.gen_fbo(1,&target.fbo);glGenTextures(1,&target.depth);
             gl_.bind_fbo(kFrame,target.fbo);
             gl_.attach_colour(kFrame,kColourAttachment,GL_TEXTURE_2D,target.colour,0);
-            gl_.bind_depth(kRender,target.depth);gl_.depth_storage(kRender,kDepth,s.width,s.height);
-            gl_.attach_depth(kFrame,kDepthAttachment,kRender,target.depth);
-            if(gl_.check_fbo(kFrame)!=kComplete)return ACVR_ERROR;
+            // acvr_render_target defines depth_image as a texture name, and
+            // GunGlRenderer verifies the borrowed attachment type and identity.
+            glBindTexture(GL_TEXTURE_2D,target.depth);
+            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+            glTexImage2D(GL_TEXTURE_2D,0,kDepth,s.width,s.height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,nullptr);
+            gl_.attach_colour(kFrame,kDepthAttachment,GL_TEXTURE_2D,target.depth,0);
+            const auto status=gl_.check_fbo(kFrame);
+            if(status!=kComplete){std::fprintf(stderr,"libacvr: eye %u image %u framebuffer incomplete (0x%x), GL error 0x%x\n",eye,i,unsigned(status),unsigned(glGetError()));return ACVR_ERROR;}
         }
     }
-    gl_.bind_fbo(kFrame,0);return ACVR_OK;
+    glBindTexture(GL_TEXTURE_2D,0);gl_.bind_fbo(kFrame,0);return ACVR_OK;
 }
 
 acvr_result OpenXrGlHost::init_actions() {
@@ -458,7 +465,9 @@ acvr_result OpenXrGlHost::init_actions() {
         std::snprintf(info.actionName,sizeof(info.actionName),"%s",name);
         std::snprintf(info.localizedActionName,sizeof(info.localizedActionName),"%s",name);
         info.countSubactionPaths=2;info.subactionPaths=hand_paths_;
-        return XR_SUCCEEDED(CreateAction_(actions_,&info,&out));
+        const auto result=CreateAction_(actions_,&info,&out);
+        if(XR_FAILED(result))std::fprintf(stderr,"libacvr: xrCreateAction %s failed (%d)\n",name,int(result));
+        return XR_SUCCEEDED(result);
     };
     if(!create(XR_ACTION_TYPE_POSE_INPUT,"grip_pose",grip_)||!create(XR_ACTION_TYPE_POSE_INPUT,"aim_pose",aim_)||
        !create(XR_ACTION_TYPE_FLOAT_INPUT,"trigger_value",trigger_)||
@@ -510,7 +519,9 @@ acvr_result OpenXrGlHost::init_actions() {
         }
         XrInteractionProfileSuggestedBinding suggested{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
         suggested.interactionProfile=profile;suggested.countSuggestedBindings=n;suggested.suggestedBindings=bindings.data();
-        return XR_SUCCEEDED(SuggestInteractionProfileBindings_(instance_,&suggested))||!required;
+        const auto result=SuggestInteractionProfileBindings_(instance_,&suggested);
+        if(XR_FAILED(result)&&required)std::fprintf(stderr,"libacvr: required bindings %s failed (%d)\n",profile_path,int(result));
+        return XR_SUCCEEDED(result)||!required;
     };
     if(!suggest("/interaction_profiles/khr/simple_controller","/input/select/click",select_,nullptr,true))return ACVR_ERROR;
     suggest("/interaction_profiles/oculus/touch_controller","/input/trigger/value",trigger_,"/input/squeeze/value",false);
@@ -521,7 +532,9 @@ acvr_result OpenXrGlHost::init_actions() {
     suggest("/interaction_profiles/meta/touch_controller_plus","/input/trigger/value",trigger_,"/input/squeeze/value",false);
     XrSessionActionSetsAttachInfo attach{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
     attach.countActionSets=1;attach.actionSets=&actions_;
-    return XR_SUCCEEDED(AttachSessionActionSets_(session_,&attach))?ACVR_OK:ACVR_ERROR;
+    const auto attached=AttachSessionActionSets_(session_,&attach);
+    if(XR_FAILED(attached))std::fprintf(stderr,"libacvr: xrAttachSessionActionSets failed (%d)\n",int(attached));
+    return XR_SUCCEEDED(attached)?ACVR_OK:ACVR_ERROR;
 }
 
 acvr_result OpenXrGlHost::fill_tracking(Display &d) {
@@ -651,6 +664,7 @@ acvr_result OpenXrGlHost::begin(Display &d) {
         if(event.type==XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED) {
             const auto &state=*reinterpret_cast<XrEventDataSessionStateChanged *>(&event);
             if(state.session==session_) {
+                std::fprintf(stderr,"libacvr: OpenXR session state %d\n",int(state.state));
                 session_state_=state.state;
                 if(state.state==XR_SESSION_STATE_READY && !running_) {
                     XrSessionBeginInfo info{XR_TYPE_SESSION_BEGIN_INFO};
@@ -688,7 +702,7 @@ acvr_result OpenXrGlHost::begin(Display &d) {
         if(s.index>=s.targets.size())return abort_frame();
         const auto &target=s.targets[s.index];
         auto t=record<acvr_render_target>();t.api=ACVR_GRAPHICS_GL;t.width=s.width;t.height=s.height;
-        t.array_layers=t.sample_count=1;t.colour_format=kColour;t.depth_format=kDepth;
+        t.array_layers=t.sample_count=1;t.colour_format=colour_format_;t.depth_format=kDepth;
         t.colour_image=target.colour;t.depth_image=target.depth;t.framebuffer=target.fbo;
         auto draw=record<acvr_draw_info>();draw.target=t;draw.view_count=1;
         draw.view_stride=sizeof(acvr_eye);draw.views=&acvr_eyes_[i];d.eyes[i]=draw;
@@ -957,7 +971,7 @@ void OpenXrGlHost::shutdown() noexcept {
     for(auto &s:eyes_) {
         for(auto &target:s.targets) {
             if(target.fbo&&gl_.delete_fbo&&bound)gl_.delete_fbo(1,&target.fbo);
-            if(target.depth&&gl_.delete_depth&&bound)gl_.delete_depth(1,&target.depth);
+            if(target.depth&&bound)glDeleteTextures(1,&target.depth);
         }
         if(s.handle&&DestroySwapchain_)DestroySwapchain_(s.handle);
     }

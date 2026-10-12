@@ -2,6 +2,7 @@
 // Explicit CPU mock dispatch. No GL library/context, GPU or rendered-pixel claim.
 #include "gun_gl.hpp"
 #include "gun_fixture.hpp"
+#include "gl_swapchain_format.hpp"
 #include <cmath>
 #include <iostream>
 #include <map>
@@ -163,4 +164,13 @@ void packing() {
     check(vertices[0].position[2]==-2 && vertices[3].position[2]==0); // translucent triangles sorted far to near per eye
     p.lod=0;gun.model.asset.primitives[0].indices[0]=999;check(acvr::pack_gun_vertices(p,e,vertices,opaque)==ACVR_BAD_ARGUMENT);
 }
-int main() {try {renderer();packing();} catch(const std::exception &e) {std::cerr<<e.what()<<'\n';return 1;}std::cout<<checks<<" GL mock checks passed (no GPU)\n";}
+void swapchain_formats() {
+    // Actual SteamVR null-driver advertised list that previously prevented startup.
+    const int64_t steamvr[]{32859,34842,34843,35905,35907,33189,33190,36012};
+    check(acvr::select_gl_swapchain_format(steamvr,8)==0x8c43);
+    const int64_t linear[]{0x8c43,0x8058};
+    check(acvr::select_gl_swapchain_format(linear,2)==0x8058);
+    check(acvr::select_gl_swapchain_format(steamvr,4)==0);
+    check(acvr::select_gl_swapchain_format(nullptr,0)==0);
+}
+int main() {try {renderer();packing();swapchain_formats();} catch(const std::exception &e) {std::cerr<<e.what()<<'\n';return 1;}std::cout<<checks<<" GL mock checks passed (no GPU)\n";}

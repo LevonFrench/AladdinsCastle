@@ -98,6 +98,9 @@ void draw_disc(float x,float y,float z,float radius,bool hit){
 acvr_result ACVR_CALL draw(acvr_backend *b,const acvr_frame *,const acvr_draw_info *d){
     if(!b||!d||d->view_count!=1||!d->views||!d->target.framebuffer)return ACVR_BAD_ARGUMENT;
     b->bind_fbo(0x8D40,static_cast<GLuint>(d->target.framebuffer));
+    // Room colours are linear, just like the gun overlay's material output.
+    if(d->target.colour_format==0x8c43)glEnable(0x8db9); // FRAMEBUFFER_SRGB
+    else glDisable(0x8db9);
     glViewport(0,0,static_cast<GLsizei>(d->target.width),static_cast<GLsizei>(d->target.height));
     glEnable(GL_DEPTH_TEST);glDepthFunc(GL_LESS);glDepthMask(GL_TRUE);
     glClearColor(.07f,.10f,.17f,1);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
