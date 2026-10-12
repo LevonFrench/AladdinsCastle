@@ -55,10 +55,11 @@ The focused fake-dispatch target-state regression passed with strict compiler
 warnings: matching declared host depth is admitted; smaller depth, format/sample
 mismatches, undeclared/extra attachments and query/bind failures are refused with
 query bindings restored. No GL driver/context was used. The corrected adapter
-translation unit also passes the same strict syntax check; the full corrected
-library has not been rebuilt.
+translation unit also passes the same strict syntax check. The corrected adapter
+library and factory then rebuilt incrementally with two workers: four compile/link
+steps, exit0. The factory query/canary check passed once without a GL context.
 
-Remaining gates: staging CPU regressions and corrected full-library build, then a separately
+Remaining gates: staging CPU regressions, then a separately
 authorized borrowed-context desktop proof
 with both-eye FBO/state/flush/replay/resource/lease and close/reopen receipts using
 the same frozen scenes/criteria. GL state/error cleanup, in-flight resource lifetime

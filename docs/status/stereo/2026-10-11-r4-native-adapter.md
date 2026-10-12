@@ -40,5 +40,9 @@ The existing focused fake-dispatch CPU regression compiled with strict warnings
 and passed, and the corrected adapter translation unit passed strict syntax checking.
 The first compiler invocation failed without diagnostics; adding the existing GCC
 runtime directory to process PATH allowed the same source to compile/run. Private
-logs retain that limitation. No corrected full-library rebuild or GL driver test
-has run. Production gates and default build options remain unchanged.
+logs retain that limitation. Exact source correction30b56c6 subsequently rebuilt
+the full adapter library and factory in the existing cache with two workers:
+four steps, exit0. The corrected factory ran once, exit0, query/canaries only
+without GL/context creation. The original checkout and branch were restored;
+scoped process inspection found no adapter compiler processes. CPU slot released.
+No GL driver test has run. Production gates and default options remain unchanged.
