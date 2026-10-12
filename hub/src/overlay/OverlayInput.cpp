@@ -294,7 +294,7 @@ bool OverlayFrameGate::shouldRender(bool visible, qint64 nowMs) {
     if (m_stopped) return false;
     if (visible && !m_visible) m_dirty = true;
     m_visible = visible;
-    if (!visible || !m_dirty || nowMs - m_lastFrame < 16) return false;
+    if ((!visible && !m_initialPending) || !m_dirty || nowMs - m_lastFrame < 16) return false;
     m_dirty = false; // changes signaled during rendering remain pending
     return true;
 }

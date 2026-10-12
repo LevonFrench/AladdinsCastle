@@ -128,6 +128,17 @@ Item {
 class OverlaySceneTest:public QObject {
     Q_OBJECT
 private slots:
+    void bootstrapRenderableSceneStillRejectsHiddenInput(){
+        DiagnosticScene scene(true);ac::OverlayFrameGate gate;gate.requestInitialFrame();
+        scene.root->setVisible(gate.initialFramePending());scene.input.setVisible(false);
+        QVERIFY(scene.root->isVisible());QVERIFY(gate.shouldRender(false,0));
+        auto target=item(scene.root,"spikeCorner0");QVERIFY(target);const auto where=target->mapToScene({50,30});
+        QVERIFY(!scene.point(where));QVERIFY(!scene.point(where,0,vr::VREvent_MouseButtonDown));
+        QVERIFY(!scene.point(where,0,vr::VREvent_MouseButtonUp));QCOMPARE(scene.state.clickCount(),0);
+        gate.submitted(0);scene.root->setVisible(false);gate.markDirty();QVERIFY(!gate.shouldRender(false,16));
+        scene.root->setVisible(true);scene.input.setVisible(true);QVERIFY(gate.shouldRender(true,32));
+        QVERIFY(scene.click(target));QCOMPARE(scene.state.clickCount(),1);
+    }
     void alternateProductNameInRealDiagnosticScene() {
         DiagnosticScene scene;
         auto title=item(scene.root,"spikeDiagnosticTitle");QVERIFY(title);

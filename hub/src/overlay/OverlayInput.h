@@ -104,13 +104,16 @@ private:
 class OverlayFrameGate {
 public:
     void markDirty() { m_dirty = true; }
+    void requestInitialFrame() { if(!m_stopped){m_initialPending=true;m_dirty=true;} }
+    bool initialFramePending()const{return m_initialPending;}
     bool shouldRender(bool visible, qint64 nowMs);
-    void submitted(qint64 nowMs) { m_lastFrame = nowMs; }
-    void stop() { m_stopped = true; }
+    void submitted(qint64 nowMs) { m_lastFrame = nowMs; m_initialPending=false; }
+    void stop() { m_stopped = true; m_initialPending=false; }
 private:
     bool m_dirty = true;
     bool m_visible = false;
     bool m_stopped = false;
+    bool m_initialPending = false;
     qint64 m_lastFrame = -16;
 };
 }
