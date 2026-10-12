@@ -8,6 +8,7 @@ struct LaunchOptions {
     QString gameId;
     QString dataRoot;
     QString installRoot, bindingsFile, variantId;
+    QString overlayCaptureDir;
     QString error;
     bool steamVrStarted = false;
     bool window = false;

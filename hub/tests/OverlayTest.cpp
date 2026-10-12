@@ -45,7 +45,7 @@ public:
     bool isVisible() const override { return false; }
     vr::VROverlayHandle_t handle() const override { return 42; }
     bool pollEvent(vr::VREvent_t *) override { return false; }
-    bool submit(unsigned int, QString *) override { return true; }
+    bool submit(unsigned int, QString *,ac::OverlaySubmitStatus *status=nullptr) override { if(status)*status={};return true; }
     bool showKeyboard(const QString &, quint64, QString *) override { return false; }
     void hideKeyboard() override { ++m_receipt.hides; }
     void acknowledgeQuit() override { ++m_receipt.acknowledgements; }
@@ -89,6 +89,10 @@ private slots:
         QVERIFY(!ac::parseLaunchOptions({"--overlay","--overlay-picture-flip-y"}).error.isEmpty());
         QVERIFY(!ac::parseLaunchOptions({"--overlay","--overlay-pointer-flip-y","maybe"}).error.isEmpty());
         QVERIFY(!ac::parseLaunchOptions({"--launch","synthetic","--overlay-picture-flip-y","on"}).error.isEmpty());
+    }
+    void hiddenSubmitSuccessDoesNotClaimAnApiCall(){
+        RuntimeReceipt receipt;FakeRuntime runtime(receipt);ac::OverlaySubmitStatus status{true,0};QString error;
+        QVERIFY(runtime.submit(41,&error,&status));QVERIFY(!status.apiCalled);QCOMPARE(status.apiResult,-1);
     }
     void coordinateContractAndDiagnosticOverride() {
         ac::OverlayInput input({1280, 800});input.setTuning({0,0,0,120,true});

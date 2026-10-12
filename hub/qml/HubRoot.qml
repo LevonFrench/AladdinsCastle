@@ -10,6 +10,7 @@ FocusScope {
  property string view:"List"
  property var history:[]
  property bool vrOverlayMode:false
+ property bool captureMarkers:false
  property alias overlayPresentation: root.vrOverlayMode
  property bool reduceMotion:(uiSettings.values,uiSettings.get("reduceMotion",false))
  property string sizeValue:Object.keys(uiSettings.values).length>=0 ? (uiSettings.values,uiSettings.get("size"+view,vrOverlayMode?"L":"S")) : "S"
@@ -20,6 +21,7 @@ FocusScope {
  function back(){if(history.length){view=history[history.length-1];history=history.slice(0,-1)}else view="List";preview.visible=false}
  function closeTop(){if(filters.opened)filters.close();else if(sort.opened)sort.close();else if(help.opened)help.close();else if(gameFilter.query.length)gameFilter.query="";else back()}
  function showDetail(id){navigate("Detail",id)}
+ Loader{anchors.fill:parent;z:10000;active:root.captureMarkers;sourceComponent:Component{OverlayCaptureMarkers{}}}
  Rectangle{anchors.fill:parent;color:Theme.get("color.surface.window")}
  Canvas{anchors.fill:parent;layer.enabled:true;onPaint:{let c=getContext("2d");c.fillStyle=Theme.get("color.surface.dot_grid");for(let x=0;x<width;x+=24)for(let y=0;y<height;y+=24){c.beginPath();c.arc(x,y,0.9,0,2*Math.PI);c.fill()}} onWidthChanged:requestPaint();onHeightChanged:requestPaint()}
  ColumnLayout{anchors.fill:parent;spacing:0
