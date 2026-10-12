@@ -102,6 +102,8 @@ class UiController : public QObject {
  Q_INVOKABLE void markPinball(bool ready);
  Q_INVOKABLE void favouritePinball();
  Q_INVOKABLE void planPinball();
+ Q_INVOKABLE void playPinball();
+ void launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable);
  void pinballFailed(const QString &error);
  void setPinballPlan(const QString &plan){m_pinballPlan=plan;emit pinballChanged();}
  Q_INVOKABLE QString localPath(const QUrl &url)const{return url.isLocalFile()?url.toLocalFile():QString();}
@@ -152,6 +154,7 @@ class UiController : public QObject {
  void closeLaunchRequested();
  void nowPlayingChanged();
  void pinballChanged();
+ void pinballPlayRequested(const QString &id);
  void pinballScanRequested(const QString &folder,const QString &database,const QString &roms,const QString &media);
  void pinballPlanRequested(const QString &table,const QString &executable,const QString &id);
  void retryToolInstallRequested(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);

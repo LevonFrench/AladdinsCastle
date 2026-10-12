@@ -14,6 +14,8 @@
 #include <QUrl>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
+#include <QCryptographicHash>
 namespace ac {
 namespace {
 scan::ScanOptions scanOptions(const QString &root) {
@@ -69,8 +71,15 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{const auto result=watcher->result();watcher->deleteLater();if(result.contains("error"))ui_->pinballFailed(result["error"].toString());else ui_->pinballLoaded(result);});
         watcher->setFuture(QtConcurrent::run([folder,database,roms,media]{try{return pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}}));
     });
-    connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &id){
-        try{const auto plan=pinball::launchPlan(table,executable,install::scopedPath("user/pinball/sessions/"+id,root_),true);ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
+    connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &){
+        try{const auto plan=pinball::launchPlan(table,executable,QString(),true);ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
+    });
+    connect(ui_,&UiController::pinballPlayRequested,this,[this](const QString &id){
+        if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
+        for(const auto &value:ui_->pinballData().value("tables").toList()){
+            const auto row=value.toMap();if(row.value("id")==id){startPinball(row,settings_->get("pinballExecutable",QString()).toString());return;}
+        }
+        ui_->showError("Pinball","Table is no longer in the scan; scan again.");
     });
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
@@ -115,6 +124,10 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             if(variant!=retainedGunRoom_.model+"|"+retainedGunRoom_.hand+(retainedGunRoom_.calibrateGrip?"|calibrate":"")){ui_->showError("Gun room","The retained model, hand and action differ from this restart request.");return;}
             startGunRoom(retainedGunRoom_);return;
         }
+        if(id.startsWith("pinball-")){
+            if(id!="pinball-"+retainedPinball_.value("id").toString()||variant!="vpx"){ui_->showError("Pinball","Restart does not match the retained table.");return;}
+            startPinball(retainedPinball_,retainedPinballExecutable_);return;
+        }
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
 #ifdef Q_OS_WIN
@@ -129,7 +142,11 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else launcher_.requestClose();});
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
-    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){childPlaying_=false;emit playingChanged();ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();});
+    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){
+        childPlaying_=false;emit playingChanged();
+        if(hubExitPending_&&id.startsWith("pinball-")){ui_->cancelPendingRestart();ui_->launchFinished(id,error);emit hubExitReady(hubExitCode_);return;}
+        ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
+    });
     connect(&launcher_,&launch::LaunchService::runtimeStateReady,this,[this](const RuntimeState &state){games_->applyRuntimeStates({state});});
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::playingChanged);
     connect(&launcher_,&launch::LaunchService::raiseHubRequested,this,&HubServices::raiseHubRequested);
@@ -201,6 +218,28 @@ HubServices::~HubServices(){
     disconnect(&gunRoom_,nullptr,this,nullptr);
     gunRoom_.close();
 }
+void HubServices::startPinball(const QVariantMap &row,const QString &executable){
+    if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
+    try{
+        const auto id=row.value("id").toString(),table=row.value("path").toString();const QFileInfo file(table);
+        const auto identity=QString::fromLatin1(QCryptographicHash::hash(file.absoluteFilePath().toUtf8(),QCryptographicHash::Sha256).toHex());
+        if(!QRegularExpression("^[a-f0-9]{64}$").match(id).hasMatch()||id!=identity||!file.isFile()||
+           file.size()!=row.value("size",-1).toLongLong()||file.lastModified().toMSecsSinceEpoch()!=row.value("mtime",-1).toLongLong())
+            throw install::Error("E_PINBALL_CHANGED","Table changed or is no longer available; scan again.");
+        if(!row.value("vrReady").toBool()||!row.value("error").toString().isEmpty()||row.value("romState")=="ROM missing")
+            throw install::Error("E_PINBALL_NOT_READY","Choose a VR-ready table with no scan error or missing known ROM.");
+        const auto plan=pinball::launchPlan(table,executable,QString(),true);
+        launch::Request request;request.root=root_;request.gameId="pinball-"+id;request.variantId="vpx";request.prepareProfile=false;
+        request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+        retainedPinball_=row;retainedPinballExecutable_=request.plan.executable;
+#ifdef Q_OS_WIN
+        ui_->launchPinballQueued(row,QString());
+#else
+        ui_->launchPinballQueued(row,"Clean window close is not supported on this platform yet.");
+#endif
+        launcher_.start(request);
+    }catch(const std::exception &error){ui_->showError("Pinball",QString::fromUtf8(error.what()));}
+}
 gunroom::Inputs HubServices::gunRoomInputs(const QString &model,const QString &hand,const QString &executable) const{
     auto inputs=gunroom::systemInputs(games_->catalog().root,executable,model,hand);
     const auto loader=settings_->get("gunRoomLoader",QString()).toString();
@@ -235,6 +274,14 @@ void HubServices::startGunRoom(const gunroom::Inputs &inputs){
     if(!gunRoom_.start(candidate))ui_->launchFinished("__gun_room","Gun-room process could not be queued.");
 }
 void HubServices::requestHubExit(int code){
+    if(launcher_.busy()&&ui_->nowPlaying().contains("pinballId")){
+#ifdef Q_OS_WIN
+        hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();ui_->launchClosing();launcher_.requestClose();
+#else
+        ui_->showError("Pinball","Exit the table in VPX before closing Hub on this platform.");
+#endif
+        return;
+    }
     if(!gunRoom_.busy()){emit hubExitReady(code);return;}
     hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();gunRoom_.close();
 }

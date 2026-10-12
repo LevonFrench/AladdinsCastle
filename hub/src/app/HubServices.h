@@ -80,6 +80,7 @@ private:
     void startInstallRequest(const install::Request &request,const QString &kind);
     void installTool(const QString &gameId,const QString &variantId,const QString &handover={});
     void startGunRoom(const gunroom::Inputs &inputs);
+    void startPinball(const QVariantMap &row,const QString &executable);
     gunroom::Inputs gunRoomInputs(const QString &model,const QString &hand,const QString &executable) const;
     GameListModel *games_; FilterSortModel *filter_; UiController *ui_;
     UiSettings *settings_; QString root_, removalText_;
@@ -103,6 +104,7 @@ private:
     bool gunRoomCalibrationAvailable_=false;
     bool gunRoomAvailable_=false, hubExitPending_=false;
     int hubExitCode_=0;
+    QVariantMap retainedPinball_;QString retainedPinballExecutable_;
     gunroom::Inputs retainedGunRoom_;
     gunroom::Service gunRoom_;
 };
