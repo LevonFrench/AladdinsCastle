@@ -11,6 +11,16 @@ payload or split companions. `-GameID` must match the exact six-character header
 ID. A matching header is not a boot result or permission to access a collection.
 `-PrepareOnly` prepares settings without starting any process.
 
+The exact `-GameID` also selects an optional native rendering profile from
+`data/profiles/dolphinxr/GameSettingsVR/<GameID>.ini`. Preparation copies its
+bytes to the managed User's `GameSettingsVR` folder only when that file is absent.
+Existing tuning is preserved, including on repeated preparation; another title
+or region never inherits the profile. Native shader enable lists retain their
+bare names. Runs save the selected file before and after alongside the configs.
+To try a newly published profile without replacing existing tuning, choose a
+fresh private state directory. For the R4 mission comparison use `-Quality Native`:
+the reviewed both-eye result was measured at 1x; 4x with that profile is untested.
+
 Default and Eager modes consume the exact shared `shell-stick/1` native
 `split-right.ini` bytes and verify their generated manifest hash. The pinned
 native route uses one right-hand Remote and a left-hand attachment. Left-hand

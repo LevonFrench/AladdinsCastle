@@ -5,6 +5,7 @@ $script:Product = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../data/
 if ($script:Product.schema -ne 1 -or $script:Product.dsu_server_name -notmatch '^[A-Za-z0-9_-]+$' -or
     $script:Product.display_name -notmatch '^[A-Za-z0-9 _-]+$') { throw 'Invalid product identity.' }
 $script:SittingMarker = $script:Product.display_name + ' sitting settings v2'
+$script:GameProfileDirectory = Join-Path $PSScriptRoot '../../data/profiles/dolphinxr/GameSettingsVR'
 
 function Write-AcText([string]$Path, [string]$Text) {
     $null = Assert-AcPrivatePath $Path
@@ -119,11 +120,25 @@ function Initialize-AcSitting {
           [ValidateSet('Auto','Off','72','90','120')][string]$ForcedVBI='Off',
           [ValidateSet('Both','Left','Right','None')][string]$Mirror='Both',
           [bool]$ControllerAnchor=$false, [bool]$CameraAnchor=$false,
-          [ValidateRange(0.0,1.0)][double]$CameraSmoothing=0.85)
+          [ValidateRange(0.0,1.0)][double]$CameraSmoothing=0.85,
+          [string]$GameID='')
     if (@(Get-Process -Name Dolphin -ErrorAction SilentlyContinue).Count) {
         throw 'Dolphin is running; settings cannot be prepared or changed during a session.'
     }
     $userPath = Assert-AcPrivatePath $UserDirectory
+    if ($GameID -and $GameID -cnotmatch '^[A-Z0-9]{6}$') { throw 'Expected a six-character Wii game ID.' }
+    $gameProfileBytes = $null
+    $gameProfileTarget = $null
+    if ($GameID) {
+        $gameProfileSource = Join-Path $script:GameProfileDirectory "$GameID.ini"
+        $gameProfileTarget = Assert-AcPrivatePath (Join-Path $userPath "GameSettingsVR/$GameID.ini")
+        if (Test-Path -LiteralPath $gameProfileTarget -PathType Container) { throw 'Game profile target is a directory.' }
+        if (-not (Test-Path -LiteralPath $gameProfileTarget) -and
+            (Test-Path -LiteralPath $gameProfileSource -PathType Leaf)) {
+            # Native shader enable lists contain bare names. Never parse/reserialize them.
+            $gameProfileBytes = [IO.File]::ReadAllBytes($gameProfileSource)
+        }
+    }
     if ($ControlSet) { $null = Assert-AcGeneratedProfile $NativeProfile Native $ControlSet }
     $profileBytes = [IO.File]::ReadAllBytes($NativeProfile)
     $profile = [Text.Encoding]::UTF8.GetString($profileBytes)
@@ -165,6 +180,12 @@ function Initialize-AcSitting {
     New-Item -ItemType Directory -Path $config -Force | Out-Null
     # Pinned DolphinXR creates many user folders, but omits Logs before opening its file listener.
     New-Item -ItemType Directory -Path (Join-Path $userPath 'Logs') -Force | Out-Null
+    if ($null -ne $gameProfileBytes) {
+        New-Item -ItemType Directory -Path (Split-Path $gameProfileTarget) -Force | Out-Null
+        # Create only: an existing user's tuned profile is never replaced.
+        $stream = [IO.File]::Open($gameProfileTarget, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write)
+        try { $stream.Write($gameProfileBytes, 0, $gameProfileBytes.Length) } finally { $stream.Dispose() }
+    }
     Write-AcText $marker $script:SittingMarker
     $backup = Join-Path $userPath ('ConfigBackups/' + [Guid]::NewGuid().ToString('N'))
     $existing = @(Get-ChildItem -LiteralPath $config -Filter '*.ini' -File)

@@ -46,6 +46,25 @@ try {
     MustFail { Initialize-AcSitting "$root/wrong-slot" $profile } 'Wiimote2 bindings must not admit a disabled Wiimote1.'
     [IO.File]::WriteAllBytes($profile,$bytes)
     $module = Get-Module Sitting
+    $gameProfileLibrary = Join-Path $root 'native-game-profiles'
+    New-Item -ItemType Directory $gameProfileLibrary | Out-Null
+    $shaderBytes = [Text.Encoding]::UTF8.GetBytes("[Graphics.VR]`r`nVirtualScreen = False`r`n[ShaderOverride_Enable]`r`nSynthetic HUD`r`n[ShaderOverride]`r`nname = Synthetic HUD`r`nhandling = screen`r`n")
+    [IO.File]::WriteAllBytes("$gameProfileLibrary/SYN001.ini", $shaderBytes)
+    $originalLibrary = & $module { $script:GameProfileDirectory }
+    & $module { param($path) $script:GameProfileDirectory = $path } $gameProfileLibrary
+    try {
+        foreach ($gameMode in @('Default','Eager','Desktop')) {
+            $seeded = Initialize-AcSitting "$root/profile-$gameMode" $profile -Mode $gameMode -GameID SYN001
+            Assert ((Get-FileHash "$seeded/GameSettingsVR/SYN001.ini").Hash -eq (Get-FileHash "$gameProfileLibrary/SYN001.ini").Hash) 'Shader profile bytes/bare enabled names must survive in every mode.'
+            [IO.File]::WriteAllText("$seeded/GameSettingsVR/SYN001.ini", 'user tuning')
+            $null = Initialize-AcSitting $seeded $profile -Mode $gameMode -GameID SYN001
+            Assert ([IO.File]::ReadAllText("$seeded/GameSettingsVR/SYN001.ini") -ceq 'user tuning') 'Preparation must preserve an existing tuned game profile.'
+        }
+        $unmatched = Initialize-AcSitting "$root/profile-other" $profile -GameID SYN002
+        Assert (-not (Test-Path "$unmatched/GameSettingsVR")) 'A profile must never be borrowed for another region or title.'
+        MustFail { Initialize-AcSitting "$root/profile-invalid" $profile -GameID '../SYN001' } 'Invalid game identity must be rejected.'
+        Assert (-not (Test-Path "$root/profile-invalid")) 'Invalid game identity must fail before writes.'
+    } finally { & $module { param($path) $script:GameProfileDirectory = $path } $originalLibrary }
     & $module { function script:Get-Process { param($Name,$ErrorAction) [pscustomobject]@{Id=999999} } }
     try {
         MustFail { Initialize-AcSitting "$root/running-session" $profile } 'Must refuse configuration writes while Dolphin runs.'
