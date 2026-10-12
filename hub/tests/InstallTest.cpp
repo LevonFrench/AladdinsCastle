@@ -794,6 +794,40 @@ private slots:
     QVERIFY(Engine(o).install(r).success);QCOMPARE(readBytes(file),tuned);
     QVERIFY(Engine(o).uninstall(r).success);QCOMPARE(readBytes(file),tuned);
   }
+  void pinnedNativeGameSeedRetainsShaderBytesAndUserProfile_data(){
+    QTest::addColumn<bool>("preexisting");QTest::newRow("fresh profile")<<false;QTest::newRow("existing profile")<<true;
+  }
+  void pinnedNativeGameSeedRetainsShaderBytesAndUserProfile(){
+    QFETCH(bool,preexisting);QTemporaryDir t;auto r=fixture(t.path());Options o;o.survivalMs=0;
+    const QString source="data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini";
+    const QString target="installed/synthetic/flat/User/GameSettingsVR/RBUP08.ini";
+    const QByteArray seed="; synthetic native profile\r\n[Graphics.VR]\r\nVirtualScreen = False\r\n[ShaderOverride_Enable]\r\n$synthetic HUD\r\n[ShaderOverride]\r\n$synthetic HUD\r\nHash=0000000000000000\r\nType=PS\r\nmatch_mode=shader_family\r\nhandling=screen\r\n";
+    const QByteArray tuned="; user native profile\n[Graphics.VR]\nVirtualScreen = True\n[ShaderOverride_Enable]\n$user HUD\n[ShaderOverride]\n$user HUD\nHash=1111111111111111\nType=PS\nhandling=skip\nunknown = mine\n";
+    atomicWrite(t.filePath(source),seed);if(preexisting)atomicWrite(t.filePath(target),tuned);
+    auto &step=r.recipe["variant"]["flat"]["step"][1];step.erase("set");
+    step["file"]="${install_dir}/User/GameSettingsVR/RBUP08.ini";step["source"]=source.toStdString();
+    step["source_sha256"]=hashFile(t.filePath(source)).toStdString();step["only_if_missing"]=true;
+    const auto installed=Engine(o).install(r);QVERIFY2(installed.success,qPrintable(installed.message));
+    QCOMPARE(readBytes(t.filePath(target)),preexisting?tuned:seed);
+    atomicWrite(t.filePath(target),tuned);
+    r.operation="repair";const auto repaired=Engine(o).install(r);QVERIFY2(repaired.success,qPrintable(repaired.message));QCOMPARE(readBytes(t.filePath(target)),tuned);
+    r.operation="update";r.recipe["variant"]["flat"]["version"]="v2";
+    const auto updated=Engine(o).install(r);QVERIFY2(updated.success,qPrintable(updated.message));QCOMPARE(readBytes(t.filePath(target)),tuned);
+    QVERIFY(Engine(o).uninstall(r).success);QCOMPARE(readBytes(t.filePath(target)),tuned);
+  }
+  void nativeGameSeedRefusesUnrelatedPaths_data(){
+    QTest::addColumn<QString>("source");
+    for(const auto &source:{"data/profiles/dolphinxr/GameSettingsVR/SYN001.ini","data/profiles/dolphinxr/GameSettingsVR/rbup08.ini","data/profiles/dolphinxr/GameSettings/RBUP08.ini","data/profiles/dolphinxr/GameSettingsVR/../RBUP08.ini"})QTest::newRow(source)<<QString(source);
+  }
+  void nativeGameSeedRefusesUnrelatedPaths(){
+    QFETCH(QString,source);QTemporaryDir t;auto r=fixture(t.path());
+    const auto fixtureSource=t.filePath(QDir::cleanPath(source));atomicWrite(fixtureSource,"; synthetic unrelated profile\n");
+    auto &step=r.recipe["variant"]["flat"]["step"][1];step.erase("set");step["source"]=source.toStdString();
+    step["source_sha256"]=hashFile(fixtureSource).toStdString();step["only_if_missing"]=true;
+    try{Engine().plan(r);QFAIL("Unrelated native profile admitted");}
+    catch(const Error &error){QCOMPARE(error.code,QString("E_SOURCE_OUT_OF_SCOPE"));}
+    QVERIFY(!QFileInfo(t.filePath("installed/synthetic/flat/settings.ini")).exists());
+  }
   void generatedSeedPolicyRefusals_data(){
     QTest::addColumn<QString>("caseId");
     for(const auto &id:{"outside","traversal","two-remotes","bad-pin","changed-bytes","missing-source","overwrite","merge","wrong-format","string-boolean","directory-outside","media-alias","oversize"})QTest::newRow(id)<<QString(id);
@@ -883,6 +917,33 @@ private slots:
     else QVERIFY(QString::fromUtf8(readBytes(path)).contains(QRegularExpression("(?m)^BackgroundInput\\s*=\\s*True\\s*$")));
     atomicWrite(path,tuned);r.operation="repair";QVERIFY(Engine(o).install(r).success);QCOMPARE(readBytes(path),tuned);
     r.operation="update";r.recipe["variant"]["flat"]["version"]="v2";QVERIFY(Engine(o).install(r).success);QCOMPARE(readBytes(path),tuned);
+  }
+  void umbrellaNativeGameProfileUsesExactPinnedAbsentOnlyBytes(){
+    const auto root=catalogFixtureRoot();const auto catalog=CatalogLoader().load(root);
+    const auto game=catalog.find("wii-resident-evil-umbrella-chronicles");QVERIFY(game);
+    bool found=false;
+    for(const auto &step:game->install["variant"]["dolphinxr"]["step"]){
+      if(string(step,"id")!="native-game-profile")continue;
+      QVERIFY(!found);found=true;QCOMPARE(string(step,"do"),QString("write-config"));
+      QCOMPARE(string(step,"file"),QString("${install_dir}/User/GameSettingsVR/RBUP08.ini"));
+      QCOMPARE(string(step,"format"),QString("ini"));QVERIFY(step.value("create",false));QVERIFY(step.value("only_if_missing",false));QVERIFY(!step.contains("set"));
+      QCOMPARE(string(step,"source"),QString("data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini"));
+      QCOMPARE(string(step,"source_sha256"),hashFile(root+"/"+string(step,"source")));
+    }
+    QVERIFY2(found,"Umbrella native profile is not seeded by its authored recipe");
+  }
+  void authoredNativeGameProfileCopiesUnmodifiedBytes(){
+    const auto root=catalogFixtureRoot();const auto catalog=CatalogLoader().load(root);
+    const auto game=catalog.find("wii-resident-evil-umbrella-chronicles");QVERIFY(game);
+    Json nativeSeed;
+    for(const auto &step:game->install["variant"]["dolphinxr"]["step"])
+      if(string(step,"id")=="native-game-profile")nativeSeed=step;
+    QVERIFY(nativeSeed.is_object());const auto source=string(nativeSeed,"source");
+    const auto bytes=readBytes(root+"/"+source);QVERIFY(bytes.contains("[ShaderOverride_Enable]\n$HUD "));
+    QTemporaryDir t;auto r=fixture(t.path());atomicWrite(t.filePath(source),bytes);
+    r.recipe["variant"]["flat"]["step"][1]=nativeSeed;Options o;o.survivalMs=0;
+    const auto result=Engine(o).install(r);QVERIFY2(result.success,qPrintable(result.message));
+    QCOMPARE(readBytes(t.filePath("installed/synthetic/flat/User/GameSettingsVR/RBUP08.ini")),bytes);
   }
   void freshOnlyConfigSeedsThenPreservesRuntimeTuning_data() {
     QTest::addColumn<QString>("operation");QTest::addColumn<bool>("freshOnly");QTest::addColumn<bool>("tuned");
