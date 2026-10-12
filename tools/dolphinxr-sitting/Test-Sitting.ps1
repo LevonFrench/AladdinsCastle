@@ -23,6 +23,7 @@ try {
     $null = Initialize-AcSitting $user $profile Default Sharp
     Assert (Test-Path "$user/Logs" -PathType Container) 'Logs must exist before any executable starts.'
     Assert ((Get-FileHash "$user/Config/WiimoteNew.ini").Hash -eq (Get-FileHash $profile).Hash) 'Native bytes differ.'
+    Assert ((Get-Content "$user/Config/Dolphin.ini" -Raw) -match 'BackgroundInput = True') 'Default native input must not require window focus.'
     $gfx = [IO.File]::ReadAllText("$user/Config/GFX.ini")
     Assert ($gfx -match 'InternalResolution = 4' -and $gfx -match 'MSAA = 1' -and $gfx -match 'MaxAnisotropy = 3' -and $gfx -match 'ResolutionScale = 1\.0') 'Sharp quality or runtime eye resolution wrong.'
     $hotkeys = [IO.File]::ReadAllText("$user/Config/Hotkeys.ini")
@@ -32,10 +33,12 @@ try {
     $gfx = [IO.File]::ReadAllText("$user/Config/GFX.ini")
     Assert ($gfx -match 'OwnerValue = Keep' -and $gfx -match 'EagerHeartbeat = True' -and $gfx -match 'MSAA = 4' -and $gfx -match 'MaxAnisotropy = 4') 'Update lost custom keys or quality.'
     Assert (([regex]::Matches($gfx,'InternalResolution =')).Count -eq 1) 'Duplicate owned INI key.'
+    Assert ((Get-Content "$user/Config/Dolphin.ini" -Raw) -match 'BackgroundInput = True') 'Eager native input must not require window focus.'
     Assert (@(Get-ChildItem "$user/ConfigBackups" -Recurse -Filter GFX.ini).Count -eq 1) 'Previous configuration not backed up.'
     $null = Initialize-AcSitting $user $profile Desktop Native
     Assert ((Get-Content "$user/Config/WiimoteNew.ini" -Raw) -match 'Source = 1') 'Desktop keyboard profile missing.'
     Assert ((Get-Content "$user/Config/GFX.ini" -Raw) -match 'EnableOpenXR = False') 'Desktop enabled XR.'
+    Assert ((Get-Content "$user/Config/Dolphin.ini" -Raw) -match 'BackgroundInput = False') 'Desktop keyboard/mouse must return to focused input after native preparation.'
     New-Item -ItemType Directory "$root/unowned" | Out-Null
     MustFail { Initialize-AcSitting "$root/unowned" $profile } 'Must refuse existing unowned user folder.'
     MustFail { Assert-AcPrivatePath (Join-Path ([IO.Path]::GetTempPath()) 'outside') } 'Must refuse non-private output.'
@@ -46,6 +49,25 @@ try {
     MustFail { Initialize-AcSitting "$root/wrong-slot" $profile } 'Wiimote2 bindings must not admit a disabled Wiimote1.'
     [IO.File]::WriteAllBytes($profile,$bytes)
     $module = Get-Module Sitting
+    $gameProfileLibrary = Join-Path $root 'native-game-profiles'
+    New-Item -ItemType Directory $gameProfileLibrary | Out-Null
+    $shaderBytes = [Text.Encoding]::UTF8.GetBytes("[Graphics.VR]`r`nVirtualScreen = False`r`n[ShaderOverride_Enable]`r`nSynthetic HUD`r`n[ShaderOverride]`r`nname = Synthetic HUD`r`nhandling = screen`r`n")
+    [IO.File]::WriteAllBytes("$gameProfileLibrary/SYN001.ini", $shaderBytes)
+    $originalLibrary = & $module { $script:GameProfileDirectory }
+    & $module { param($path) $script:GameProfileDirectory = $path } $gameProfileLibrary
+    try {
+        foreach ($gameMode in @('Default','Eager','Desktop')) {
+            $seeded = Initialize-AcSitting "$root/profile-$gameMode" $profile -Mode $gameMode -GameID SYN001
+            Assert ((Get-FileHash "$seeded/GameSettingsVR/SYN001.ini").Hash -eq (Get-FileHash "$gameProfileLibrary/SYN001.ini").Hash) 'Shader profile bytes/bare enabled names must survive in every mode.'
+            [IO.File]::WriteAllText("$seeded/GameSettingsVR/SYN001.ini", 'user tuning')
+            $null = Initialize-AcSitting $seeded $profile -Mode $gameMode -GameID SYN001
+            Assert ([IO.File]::ReadAllText("$seeded/GameSettingsVR/SYN001.ini") -ceq 'user tuning') 'Preparation must preserve an existing tuned game profile.'
+        }
+        $unmatched = Initialize-AcSitting "$root/profile-other" $profile -GameID SYN002
+        Assert (-not (Test-Path "$unmatched/GameSettingsVR")) 'A profile must never be borrowed for another region or title.'
+        MustFail { Initialize-AcSitting "$root/profile-invalid" $profile -GameID '../SYN001' } 'Invalid game identity must be rejected.'
+        Assert (-not (Test-Path "$root/profile-invalid")) 'Invalid game identity must fail before writes.'
+    } finally { & $module { param($path) $script:GameProfileDirectory = $path } $originalLibrary }
     & $module { function script:Get-Process { param($Name,$ErrorAction) [pscustomobject]@{Id=999999} } }
     try {
         MustFail { Initialize-AcSitting "$root/running-session" $profile } 'Must refuse configuration writes while Dolphin runs.'
@@ -68,6 +90,8 @@ try {
     & "$PSScriptRoot/Start-Sitting.ps1" -Executable $exe -ExecutableSHA256 $hash -Disc $disc -GameID RBUP08 `
         -StateDirectory "$root/runner" -NativeProfile "$generated/split-right.ini" -Mode Desktop -PrepareOnly
     Assert (Test-Path "$root/runner/User-v2-Desktop/Logs") 'Actual runner prepare path failed.'
+    $authoredGameProfile = Join-Path $PSScriptRoot '../../data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini'
+    Assert ((Get-FileHash "$root/runner/User-v2-Desktop/GameSettingsVR/RBUP08.ini").Hash -eq (Get-FileHash $authoredGameProfile).Hash) 'Actual runner must seed the exact published rendering profile for the checked disc ID.'
     foreach ($setting in @(@('Auto','-1'),@('Off','0'),@('72','72'),@('90','90'),@('120','120'))) {
         $switches = Get-AcVRSwitches -ForcedVBI $setting[0]
         Assert ($switches.ForcedVBIFrequency -eq $setting[1] -and $switches.AutoVBIFromHMD -eq 'False') 'Native VBI enum and Off fallback guard.'
@@ -84,6 +108,7 @@ try {
     Assert ($gfx -match 'MirrorView = 2' -and $gfx -match 'ForcedVBIFrequency = 90') 'Selected mirror and VBI must be written.'
     Assert ($gfx -match 'EnableCameraAnchor = True' -and $gfx -match 'CameraAnchorSmoothing = 0.7') 'Camera anchor switch and invariant smoothing.'
     Assert ((Get-Content -LiteralPath "$scripted/Config/DSUClient.ini" -Raw) -match '127.0.0.1:28760') 'DSU stays loopback at selected port.'
+    Assert ((Get-Content "$scripted/Config/Dolphin.ini" -Raw) -match 'BackgroundInput = True') 'Scripted desktop DSU must retain background input.'
     # Dolphin ConfigChanged reconstructs every parsed entry with a trailing semicolon.
     # A differing raw string restarts its DSU backend on every configuration write.
     $entryLine = @(Get-Content -LiteralPath "$scripted/Config/DSUClient.ini" | Where-Object { $_ -match '^Entries\s*=' })[0]
@@ -118,6 +143,7 @@ try {
         -Executable $exe -ExecutableSHA256 $hash -Disc $disc -GameID RBUP08 -StateDirectory "$root/game-cli" `
         -ControlSet synthetic-wii -NativeProfile "$gameFolder/dolphinxr-right.ini" -PrepareOnly
     Assert ($LASTEXITCODE -eq 0 -and (Test-Path "$root/game-cli/User-v2-Default/Config/WiimoteNew.ini")) 'Actual PS5.1 per-game prepare path must succeed.'
+    Assert ((Get-FileHash "$root/game-cli/User-v2-Default/GameSettingsVR/RBUP08.ini").Hash -eq (Get-FileHash $authoredGameProfile).Hash) 'Native-mode runner must retain authored shader-profile bytes independently of the controls slug.'
     Add-Content -LiteralPath $dsu -Value '# tampered'
     MustFail { Initialize-AcSitting "$root/tampered-dsu" $profile -DsuProfile $dsu } 'DSU manifest mismatch must fail before writes.'
     Assert (-not (Test-Path "$root/tampered-dsu")) 'Rejected DSU profile must not write settings.'

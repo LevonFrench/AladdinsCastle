@@ -12,7 +12,8 @@ Item {
         anchors.centerIn: parent
         spacing: 20
         Label {
-            text: "AladdinsCastle: " + catalogGameCount + " games"
+            objectName: "spikeFoundationTitle"
+            text: uiController.appName + ": " + catalogGameCount + " games"
             color: primaryTextColor
             font.pixelSize: 32
             font.bold: true
