@@ -6,7 +6,7 @@ Status: 2026-10-11, outside review of `next` at 1f53e44 after the owner's second
 
 The stop is clean, the branch is published and its combined checks pass. The second sitting was real progress: buttons, facing, recentre and the save prompt work, and the owner reached the first mission.
 
-**The first mission's picture is wrong, and that is now the only thing that matters:** the world shows in a flat window with a hard edge, the scene splits into displaced bands, the stereo is wrong and shots land off target. Since the sitting, about 74,000 lines went into the branch. Almost none of it went at this problem: it got one source note and no experiment.
+**The first mission's picture is wrong, and that is now the top priority:** the world shows in a flat window with a hard edge, the scene splits into displaced bands, the stereo is wrong and shots land off target. Since the sitting, about 74,000 lines went into the branch. Almost none of it went at this problem: it got one source note and no experiment.
 
 ## What was checked
 
@@ -65,15 +65,19 @@ DolphinXR aims by intersecting the controller's ray with its flat screen plane, 
 | **Private run plans** | The list of which discs are tested, in which formats and in what order is the tester's library. It is in tracked files under `data/performance/` and a status report. Move it under `.local/` and make the tracked files game-neutral. The release will ship from a new repository (D62), so history need not be rewritten unless the owner asks |
 | **Reports** | A stop needs one page. No hash manifests, no review of the review |
 
-## Lanes until the picture is right
+## Lanes: every session has real work
+
+The mission picture is the top priority, not the only work. No session waits for it. (Corrected 2026-10-11 at the owner's request: the first version of this table idled most lanes.)
 
 | Lane | Do |
 |---|---|
-| Lead and 3D mode | The experiments above, together. Nothing else |
-| Frame rate | The capture and measurement hands for those experiments, then the nine-point aim check. Its own measurements wait for a picture worth measuring |
-| Hub | Finish the Pinball tab with launch allowed. Move the private run plan out of tracked files with the frame rate lane. The VR menu's headset check waits for a sitting |
-| Guns | The proposal sheet is with the owner. Meanwhile nothing new; answer the lead's questions about bindings |
-| Viewer, System 22 validators, packaging | Paused. The never-stall rule sends work to the arcade boards only when the Wii work is blocked, and it is not blocked: every experiment above runs on the desktop |
+| 3D mode | Owns the mission picture: the experiments above, the game's profile, then the same for Darkside Chronicles |
+| Frame rate | Captures and the results table for those experiments, then the nine-point aim measurement. In parallel: boot every other disc on the list to its title screen on the desktop, and run the 60 fps code route on the one disc whose code matches its region. Timing numbers only on a quiet machine |
+| Viewer | **Eyes without the owner.** Test the null driver plainly, then run it as a service the other sessions book, one at a time: the DolphinXR mirror for the mission experiments, an eye capture of the gun test room, a readback of the Hub's menu to prove it is upright, and the fallback viewer shown end to end |
+| Lead | Directs and integrates. Gets the gun test room seen in a VR session. Reviews the game profile. Un-parks the native builds |
+| Hub | The Pinball tab to the end: a private scan of a real collection, one table started on the desktop, the "now playing" card. Disc identification for WBFS. The product name behind one definition (D62). The private run plan out of tracked files |
+| Guns | **Real guns per game (D54).** The current sheet uses library models as stand-ins. Design an original gun for each game in the spirit of its default weapon, with a realistic finish and the player colour as an accent only: a service pistol for the two Resident Evil games, a heavy revolver for Overkill, a tool-like gun for Dead Space: Extraction, a crossbow for Link's Crossbow Training, and one for Sin & Punishment. Then hands on each, reload choices and label points |
+| Whoever finishes or is blocked | The arcade track (D61): Time Crisis on System 22, the real game drawn for both eyes on the desktop. Build what was parked; skip the validators and packaging work until there is a picture to validate |
 
 ## Done when
 
