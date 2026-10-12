@@ -48,12 +48,19 @@ public:
 private:
     ac::OverlayKeyboard &session;
 };
+class DiagnosticIdentityProbe:public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QString appName READ appName CONSTANT)
+public:
+    QString appName()const{return QStringLiteral("Synthetic Product");}
+};
 struct DiagnosticScene {
     ac::SpikeState state;
     KeyboardAdapter runtime;
     ac::OverlayInput input;
     ac::OverlayKeyboard keyboard{state,input,runtime};
     DiagnosticHostProbe host{keyboard};
+    DiagnosticIdentityProbe identity;
     QQmlEngine engine;
     std::unique_ptr<QQuickRenderControl> renderControl;
     QQuickWindow window;
@@ -67,6 +74,7 @@ struct DiagnosticScene {
         QObject::connect(&state,&ac::SpikeState::tuningChanged,&host,[this]{input.setTuning(state.tuning());});
         engine.rootContext()->setContextProperty("spikeState",&state);
         engine.rootContext()->setContextProperty("overlayHost",&host);
+        engine.rootContext()->setContextProperty("uiController",&identity);
         engine.rootContext()->setContextProperty("surfaceColor","#10131c");
         engine.rootContext()->setContextProperty("primaryTextColor","#ffffff");
         engine.rootContext()->setContextProperty("brandColor","#ee892a");
@@ -120,6 +128,11 @@ Item {
 class OverlaySceneTest:public QObject {
     Q_OBJECT
 private slots:
+    void alternateProductNameInRealDiagnosticScene() {
+        DiagnosticScene scene;
+        auto title=item(scene.root,"spikeDiagnosticTitle");QVERIFY(title);
+        QCOMPARE(title->property("text").toString(),QString("Synthetic Product · input diagnostics\n1280 × 800 · DASHBOARD · live orientation and click tuning"));
+    }
     void validMoveRestoresFocusAndLostUpDoesNotSwallowClick_data() {
         QTest::addColumn<bool>("loseFocus");QTest::newRow("focus left")<<true;QTest::newRow("up dropped")<<false;
     }

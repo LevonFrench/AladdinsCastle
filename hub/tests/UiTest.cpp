@@ -162,6 +162,13 @@ public:
  Q_INVOKABLE void calibrateGunRoom(const QString &m,const QString &h,const QString &b){previewGunRoom(m,h,b);if(calibrationAvailable())++calibrations;}
 signals:void gunRoomChanged();
 };
+class IdentityUiProbe:public ac::UiController {
+ Q_OBJECT
+ Q_PROPERTY(QString appName READ syntheticName CONSTANT)
+public:
+ using ac::UiController::UiController;
+ QString syntheticName()const{return QStringLiteral("Synthetic Product");}
+};
 class UiTest:public QObject {
  Q_OBJECT
  QTemporaryDir user;
@@ -186,6 +193,23 @@ class UiTest:public QObject {
   if(!qEnvironmentVariable("AC_UI_BENCH_OUTPUT").isEmpty()){auto out=QFileInfo(qEnvironmentVariable("AC_UI_BENCH_OUTPUT")).dir();QVERIFY(window->grabWindow().save(out.filePath("d-startup.png")));}
  }
  void themeAndSettings(){QCOMPARE(theme->get("motion.hover_dwell").toInt(),600);QCOMPARE(theme->get("motion.preview_scale").toDouble(),1.4);QVERIFY(theme->get("gradient.explore_banner_fade.stop").toList().size()==8);QVERIFY(settings->set("reduceMotion",true));QVERIFY(settings->saveGame("synthetic",{{"laser","on"},{"gun_pitch",-10}}));ac::UiSettings copy(user.path());QCOMPARE(copy.get("reduceMotion").toBool(),true);QCOMPARE(copy.game("synthetic").value("gun_pitch").toInt(),-10);settings->set("reduceMotion",false);}
+ void alternateProductNameInInstallerAndFoundationScenes(){
+  IdentityUiProbe alternate(games.get(),&filter,settings.get());
+  alternate.installEvent({{"kind","step"},{"step",1},{"total",1},{"text","Synthetic event"}});
+  QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&alternate);
+  context.setContextProperty("surfaceColor","#10131c");context.setContextProperty("primaryTextColor","#ffffff");
+  context.setContextProperty("brandColor","#ee892a");context.setContextProperty("overlaySpikeEnabled",false);
+  for(const auto &file:{QStringLiteral("InstallConsole.qml"),QStringLiteral("SpikeRoot.qml")}){
+   QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/"+file));
+   std::unique_ptr<QQuickItem> scene(qobject_cast<QQuickItem *>(component.create(&context)));
+   QVERIFY2(scene,qPrintable(component.errorString()));scene->setParentItem(window->contentItem());scene->setSize({1000,700});
+   QVERIFY(softwareFrame(window));
+   const bool installer=file=="InstallConsole.qml";
+   const auto labels=namedItems(scene.get(),installer?"installConsoleTitle":"spikeFoundationTitle");
+   QCOMPARE(labels.size(),1);
+   QCOMPARE(labels.first()->property("text").toString(),installer?QString("Synthetic Product installer · Last install"):QString("Synthetic Product: 413 games"));
+  }
+ }
  void emptyArtModelDuringNavigation(){
   QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameArt.qml"));
   std::unique_ptr<QObject> art(component.create());QVERIFY(art);const auto before=warnings.size();
