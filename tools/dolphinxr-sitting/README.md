@@ -35,7 +35,11 @@ The kit creates `Logs` before launch, because the pinned logger opens its file
 once and does not create that parent directory.
 
 Both stick clicks request recenter; Shift+R remains available. Isolated hotkeys
-do not require the desktop window to have focus. The 15-second startup delay is
+do not require the desktop window to have focus. Native and scripted DSU modes
+also set Dolphin's `Input.BackgroundInput=True`, so controller button expressions
+remain enabled outside the render window. Desktop keyboard/mouse mode sets it
+to False; switching modes repairs that setting. Actual native button response
+after changing window focus still needs a headset check. The 15-second startup delay is
 time to put on the headset, not wear detection. The original release's immersive
 recenter does not reset yaw; a separately identified source candidate is needed
 for that fix. Normal head turns must never continuously reanchor the world.
