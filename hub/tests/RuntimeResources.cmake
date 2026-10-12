@@ -76,6 +76,36 @@ if(failures)
     message(FATAL_ERROR "Runtime resource placement failed:${failures}")
 endif()
 
+# Changing only an asset must update adjacent copies without source relinking.
+file(APPEND "${fixture}/resources/overlay-thumbnail.png" "synthetic asset update")
+file(SHA256 "${fixture}/resources/overlay-thumbnail.png" updated_thumbnail)
+set(update_failures "")
+foreach(layout IN ITEMS "Ninja/Release" "Ninja-Multi-Config/Release" "Ninja-Multi-Config/Debug")
+    string(REPLACE "/" ";" parts "${layout}")
+    list(GET parts 0 directory)
+    list(GET parts 1 config)
+    set(build "${root}/${directory}")
+    execute_process(COMMAND "${CMAKE_COMMAND}" --build "${build}" --config "${config}"
+        --target aladdinscastle-hub RESULT_VARIABLE result
+        OUTPUT_VARIABLE output ERROR_VARIABLE error)
+    if(NOT result EQUAL 0)
+        message(FATAL_ERROR "${layout} asset-only build failed: ${output}${error}")
+    endif()
+    set(executable_dir "${build}/bin")
+    if(directory STREQUAL "Ninja-Multi-Config")
+        string(APPEND executable_dir "/${config}")
+    endif()
+    file(SHA256 "${executable_dir}/resources/overlay-thumbnail.png" actual_thumbnail)
+    if(NOT actual_thumbnail STREQUAL updated_thumbnail)
+        string(APPEND update_failures "\n${layout}: adjacent thumbnail stale after asset-only build")
+    else()
+        message(STATUS "PASS ${layout}: asset-only update copied byte-exactly")
+    endif()
+endforeach()
+if(update_failures)
+    message(FATAL_ERROR "Incremental runtime resource update failed:${update_failures}")
+endif()
+
 # Exercise the real extra-test registration with program discovery disabled.
 # A non-Ninja build must not require Ninja merely to configure Hub tests.
 string(FIND "${source}" "    find_program(_ac_resource_ninja" registration_begin)

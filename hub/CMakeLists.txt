@@ -143,7 +143,7 @@ qt_add_resources(aladdinscastle-hub theme
 file(MAKE_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources")
 configure_file(resources/dashboard.vrmanifest.in "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${AC_PRODUCT_short_id}.vrmanifest" @ONLY)
 configure_file(resources/overlay-thumbnail.png "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/overlay-thumbnail.png" COPYONLY)
-add_custom_command(TARGET aladdinscastle-hub POST_BUILD
+add_custom_target(ac-hub-runtime-resources
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:aladdinscastle-hub>/resources"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${AC_PRODUCT_short_id}.vrmanifest"
@@ -152,6 +152,7 @@ add_custom_command(TARGET aladdinscastle-hub POST_BUILD
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/overlay-thumbnail.png"
         "$<TARGET_FILE_DIR:aladdinscastle-hub>/resources/overlay-thumbnail.png"
     VERBATIM)
+add_dependencies(aladdinscastle-hub ac-hub-runtime-resources)
 ac_project_warnings(aladdinscastle-hub)
 add_custom_command(TARGET aladdinscastle-hub POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
