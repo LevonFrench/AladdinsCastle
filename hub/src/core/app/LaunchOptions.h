@@ -2,17 +2,19 @@
 #pragma once
 #include <QStringList>
 namespace ac {
-enum class Mode { Desktop, Overlay, Launch, RegisterOverlay, UnregisterOverlay };
+enum class Mode { Desktop, Overlay, Launch, RegisterOverlay, UnregisterOverlay, CompositorCapture };
 struct LaunchOptions {
     Mode mode = Mode::Desktop;
     QString gameId;
     QString dataRoot;
     QString installRoot, bindingsFile, variantId;
     QString overlayCaptureDir;
+    QString compositorCaptureDir,compositorDashboard="any";
     QString error;
     bool steamVrStarted = false;
     bool window = false;
     bool spike = false;
+    bool showDashboard = false;
     bool pictureFlipY = false;
     bool pointerFlipY = true;
     bool help = false;

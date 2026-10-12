@@ -17,6 +17,7 @@ public:
     OverlayHost(SpikeState &state, std::unique_ptr<OverlayRuntime> runtime = makeOpenVrRuntime(), QObject *parent = nullptr);
     ~OverlayHost() override;
     bool initialize(QQmlEngine &engine, const QString &thumbnail, QString *error);
+    bool showDashboard(QString *error){return m_running&&m_runtime->showDashboard(error);}
     bool configureCapture(const QString &catalogRoot,const QString &directory,bool pictureFlipY,QString *error){return m_capture.configure(catalogRoot,directory,pictureFlipY,error);}
     Q_INVOKABLE void requestKeyboard(QQuickItem *item);
     Q_INVOKABLE void dismissKeyboard();

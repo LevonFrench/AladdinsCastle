@@ -29,6 +29,8 @@ public:
     virtual vr::VROverlayHandle_t handle() const = 0;
     virtual bool pollEvent(vr::VREvent_t *event) = 0;
     virtual bool submit(unsigned int texture, QString *error,OverlaySubmitStatus *status=nullptr) = 0;
+    // An explicit request, not proof that the dashboard has rendered.
+    virtual bool showDashboard(QString *error){if(error)*error="Dashboard presentation is unavailable.";return false;}
     virtual bool showKeyboard(const QString &text, quint64 token, QString *error) = 0;
     virtual void hideKeyboard() = 0;
     virtual void acknowledgeQuit() = 0;

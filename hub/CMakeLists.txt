@@ -107,6 +107,7 @@ add_library(huboverlay STATIC
     src/overlay/QuickTextureRenderer.cpp src/overlay/QuickTextureRenderer.h
     src/overlay/OverlayRuntime.cpp src/overlay/OverlayRuntime.h
     src/overlay/OverlayCapture.cpp src/overlay/OverlayCapture.h
+    src/overlay/CompositorCapture.cpp src/overlay/CompositorCapture.h
     src/overlay/OverlayKeyboard.cpp src/overlay/OverlayKeyboard.h
     src/overlay/OverlayHost.cpp src/overlay/OverlayHost.h src/overlay/SpikeState.h)
 target_include_directories(huboverlay PUBLIC src "${CMAKE_BINARY_DIR}/generated")
@@ -240,6 +241,11 @@ if(BUILD_TESTING)
     ac_project_warnings(overlay-capture-tests)
     set_target_properties(overlay-capture-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME overlay-capture-cpu COMMAND overlay-capture-tests -o -,txt)
+    qt_add_executable(compositor-capture-tests tests/CompositorCaptureTest.cpp)
+    target_link_libraries(compositor-capture-tests PRIVATE huboverlay Qt6::Test)
+    ac_project_warnings(compositor-capture-tests)
+    set_target_properties(compositor-capture-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME compositor-capture-cpu COMMAND compositor-capture-tests -o -,txt)
     qt_add_executable(overlay-scene-tests tests/OverlaySceneTest.cpp)
     target_link_libraries(overlay-scene-tests PRIVATE huboverlay Qt6::Test Qt6::QuickControls2)
     target_compile_definitions(overlay-scene-tests PRIVATE AC_SPIKE_SCENE="${CMAKE_CURRENT_SOURCE_DIR}/qml/spike/OverlayTest.qml")
