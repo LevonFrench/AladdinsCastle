@@ -143,6 +143,16 @@ qt_add_resources(aladdinscastle-hub theme
 file(MAKE_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources")
 configure_file(resources/dashboard.vrmanifest.in "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${AC_PRODUCT_short_id}.vrmanifest" @ONLY)
 configure_file(resources/overlay-thumbnail.png "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/overlay-thumbnail.png" COPYONLY)
+add_custom_target(ac-hub-runtime-resources
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:aladdinscastle-hub>/resources"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${AC_PRODUCT_short_id}.vrmanifest"
+        "$<TARGET_FILE_DIR:aladdinscastle-hub>/resources/${AC_PRODUCT_short_id}.vrmanifest"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/overlay-thumbnail.png"
+        "$<TARGET_FILE_DIR:aladdinscastle-hub>/resources/overlay-thumbnail.png"
+    VERBATIM)
+add_dependencies(aladdinscastle-hub ac-hub-runtime-resources)
 ac_project_warnings(aladdinscastle-hub)
 add_custom_command(TARGET aladdinscastle-hub POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -168,6 +178,18 @@ ac_project_warnings(steamtool)
 set_target_properties(steamtool PROPERTIES WIN32_EXECUTABLE FALSE)
 
 if(BUILD_TESTING)
+    find_program(_ac_resource_ninja NAMES ninja)
+    if(_ac_resource_ninja)
+        add_test(NAME hub-runtime-resources COMMAND ${CMAKE_COMMAND}
+            "-DHUB_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}"
+            "-DTEST_ROOT=${CMAKE_BINARY_DIR}/Testing/runtime-resources"
+            "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+            "-DNINJA=${_ac_resource_ninja}"
+            "-DEXE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RuntimeResources.cmake)
+    else()
+        message(STATUS "Skipping hub-runtime-resources: Ninja is unavailable for the extra generator regression.")
+    endif()
     qt_add_executable(gun-room-tests tests/GunRoomTest.cpp)
     target_link_libraries(gun-room-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(gun-room-tests)
