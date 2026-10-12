@@ -23,3 +23,11 @@ and both-eye desktop mirrors using SteamVR's null driver. This is not headset,
 head-motion, gun tracking, aiming, performance, other-region, or later-scene
 acceptance. Controls and any measured calibration are separate from this native
 rendering profile. Private saves and captures remain outside the repository.
+
+UnitsPerMeter = 10 carries the measured human-scale candidate. Both-eye disparity,
+actual 63 mm null-driver eye spacing and mirror-axis correction give an estimated
+standing-figure height of 1.64–1.82 m. This is compatible with an approximately
+1.75 m reference; pose and occlusion prevent an exact stature claim. Remaining
+UI states, 4x quality, native aim and owner headset acceptance are still open.
+Keep the profile in upstream-native INI format; an upstream offer follows owner
+headset review. Existing installed tuning is preserved by create-only seeding.
