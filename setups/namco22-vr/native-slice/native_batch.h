@@ -29,6 +29,9 @@ acvr_result acn22_upstream_batch_capture(const geo_quad *native,
  * begin_eye never call it. Caller must establish the native GL pass/ortho,
  * stage the whole queue and abandon the target on any failure. */
 acvr_result acn22_native_draw_fragment(const acn22_pose_fragment *fragment,const eng_draw_cfg *cfg);
+/* Private adapter-only borrowed WGL path; does not broaden the SDL proof entry. */
+acvr_result acn22_native_draw_fragment_borrowed(const acn22_pose_fragment *,
+    const eng_draw_cfg *,uint64_t context,uint32_t owner_thread);
 
 /* Renderer-private serial binding/capture helpers. No emulation changes. */
 const acn22_pose_fragment *acn22_native_active(void);
