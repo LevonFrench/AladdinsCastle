@@ -8,6 +8,17 @@
 #include <string>
 
 namespace theatre {
+enum class RecenterInput { StartupOnly, DesktopHotkey };
+inline RecenterInput recenterInput(const std::wstring& value) {
+    if(value==L"off") return RecenterInput::StartupOnly;
+    if(value==L"on") return RecenterInput::DesktopHotkey;
+    throw std::runtime_error("Desktop recenter hotkey requires on or off");
+}
+template<class Register> bool reserveRecenterHotkey(RecenterInput input,Register registration) {
+    if(input==RecenterInput::StartupOnly) return false;
+    if(!registration()) throw std::runtime_error("Ctrl+Alt+C recenter hotkey unavailable");
+    return true;
+}
 constexpr double width = 3.2, height = 1.8, distance = 2.0;
 using Matrix = std::array<float, 12>;
 inline std::string overlayFailure(const char* operation,int code,const char* name) {
