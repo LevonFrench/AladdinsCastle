@@ -281,6 +281,16 @@ QString ControlsViewModel::proposalNotice() const {
 QString ControlsViewModel::notice() const {
     if (!m_error.isEmpty()) return m_error;
     if (wiiControls()) {
+        QString aimNotice;
+        const auto calibration=m_data.value("aim_calibration").toMap();
+        if(!calibration.isEmpty()) {
+            if(m_data.value("route").toString()=="flat-dolphin" && calibration.value("state").toString()=="desktop-verified") {
+                const auto evidence=calibration.value("evidence").toMap();
+                aimNotice=" Desktop DSU aim measured approximately over ±"+QString::number(evidence.value("pointer_extent").toDouble())+
+                    "; target error "+QString::number(evidence.value("target_rms_px").toDouble())+" px RMS, "+QString::number(evidence.value("target_max_error_px").toDouble())+
+                    " px maximum. Full range and shot impacts remain unverified.";
+            } else aimNotice=" Native aim calibration remains provisional and opt-in; the normal native profile is unchanged.";
+        }
         if(m_data.value("schema").toString()=="shell-stick/1") return
             "Route: "+m_data.value("route").toString()+" · Hold: "+holdMode()+" · Firing hand: "+m_primaryHand+
             (m_twoGunsActive ? ". A shell at each controller; no separate stick." : m_holdMode=="docked" ? ". Stick seated at the shell's rear grip; two-handed aim." : ". Shell in firing hand; stick in the other.")+
@@ -288,7 +298,7 @@ QString ControlsViewModel::notice() const {
                 " Canonical DSU: Remote slot 0, stick slot 1. Tracked recentre unavailable."+
                 QString(m_data.value("transport").toMap().value("live_bridge_compatible").toBool() ? " Transport source-tested; gameplay validation pending." : " Live producer unavailable pending source review.")+
                 QString(m_twoGunsActive ? " Two-remotes producer remains planned." : ""))+
-            " Game layout/actions remain questions. Native two-player aim is unsupported; native left aim requires its matching installed hand setting.";
+            " Game layout/actions remain questions. Native two-player aim is unsupported; native left aim requires its matching installed hand setting."+aimNotice;
         if (!m_data.value("policy").toMap().value("supported_primary_hands").toStringList().contains(m_primaryHand))
             return "Left-hand Wii Remote setup is not available yet. Right hand: Wii Remote. Left hand: Nunchuk.";
         return (m_twoGunsActive ? QString("Player 1: right hand. Player 2: left hand. Each hand controls its own Wii Remote and Nunchuk.") :

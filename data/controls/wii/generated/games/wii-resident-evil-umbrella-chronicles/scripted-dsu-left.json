@@ -351,6 +351,29 @@
     "button_fallback": "remote-shake",
     "enabled": false
   },
+  "aim_calibration": {
+    "version": "wii-aim/1",
+    "state": "desktop-verified",
+    "total_yaw_degrees": 15.46,
+    "total_pitch_degrees": 11.51,
+    "vertical_offset_cm": 15,
+    "emulated_distance_m": 2,
+    "native": "provisional-opt-in",
+    "evidence": {
+      "method": "nine-point",
+      "samples": 9,
+      "independent_review": true,
+      "scope": "approximate-desktop-dsu",
+      "pointer_extent": 0.8,
+      "input_domain": [
+        -0.8,
+        0.8
+      ],
+      "target_rms_px": 4.525,
+      "target_max_error_px": 9.964,
+      "notes": "All measured points visible; lower-corner residual nonlinearity remains. Full range, shot impacts and native headset/controller geometry are unverified."
+    }
+  },
   "producer_policy": {
     "schema": "canonical-dsu/1",
     "expression_tokens": [

@@ -25004,20 +25004,49 @@
             "native": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-right.ini",
             "dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
             "scripted_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
-            "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini"
+            "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini",
+            "native_aim_provisional": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.ini",
+            "native_aim_provisional_companion": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.Dolphin.ini"
           },
           "left": {
             "native": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-left.ini",
             "dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-left.ini",
             "scripted_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-left.ini",
-            "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-left.ini"
+            "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-left.ini",
+            "native_aim_provisional": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-left.ini",
+            "native_aim_provisional_companion": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-left.Dolphin.ini"
           }
         },
         "profiles": {
           "native": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-right.ini",
           "dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
           "scripted_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
-          "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini"
+          "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini",
+          "native_aim_provisional": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.ini",
+          "native_aim_provisional_companion": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.Dolphin.ini"
+        },
+        "aim_calibration": {
+          "version": "wii-aim/1",
+          "state": "desktop-verified",
+          "total_yaw_degrees": 15.46,
+          "total_pitch_degrees": 11.51,
+          "vertical_offset_cm": 15,
+          "emulated_distance_m": 2,
+          "native": "provisional-opt-in",
+          "evidence": {
+            "method": "nine-point",
+            "samples": 9,
+            "independent_review": true,
+            "scope": "approximate-desktop-dsu",
+            "pointer_extent": 0.8,
+            "input_domain": [
+              -0.8,
+              0.8
+            ],
+            "target_rms_px": 4.525,
+            "target_max_error_px": 9.964,
+            "notes": "All measured points visible; lower-corner residual nonlinearity remains. Full range, shot impacts and native headset/controller geometry are unverified."
+          }
         }
       },
       "route_variants": {
@@ -26961,20 +26990,49 @@
               "native": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-right.ini",
               "dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
               "scripted_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
-              "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini"
+              "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini",
+              "native_aim_provisional": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.ini",
+              "native_aim_provisional_companion": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.Dolphin.ini"
             },
             "left": {
               "native": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-left.ini",
               "dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-left.ini",
               "scripted_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-left.ini",
-              "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-left.ini"
+              "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-left.ini",
+              "native_aim_provisional": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-left.ini",
+              "native_aim_provisional_companion": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-left.Dolphin.ini"
             }
           },
           "profiles": {
             "native": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-right.ini",
             "dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
             "scripted_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
-            "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini"
+            "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini",
+            "native_aim_provisional": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.ini",
+            "native_aim_provisional_companion": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.Dolphin.ini"
+          },
+          "aim_calibration": {
+            "version": "wii-aim/1",
+            "state": "desktop-verified",
+            "total_yaw_degrees": 15.46,
+            "total_pitch_degrees": 11.51,
+            "vertical_offset_cm": 15,
+            "emulated_distance_m": 2,
+            "native": "provisional-opt-in",
+            "evidence": {
+              "method": "nine-point",
+              "samples": 9,
+              "independent_review": true,
+              "scope": "approximate-desktop-dsu",
+              "pointer_extent": 0.8,
+              "input_domain": [
+                -0.8,
+                0.8
+              ],
+              "target_rms_px": 4.525,
+              "target_max_error_px": 9.964,
+              "notes": "All measured points visible; lower-corner residual nonlinearity remains. Full range, shot impacts and native headset/controller geometry are unverified."
+            }
           }
         },
         "flat-dolphin": {
@@ -28920,20 +28978,49 @@
               "native": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-right.ini",
               "dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
               "scripted_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
-              "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini"
+              "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini",
+              "native_aim_provisional": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.ini",
+              "native_aim_provisional_companion": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.Dolphin.ini"
             },
             "left": {
               "native": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-left.ini",
               "dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-left.ini",
               "scripted_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-left.ini",
-              "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-left.ini"
+              "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-left.ini",
+              "native_aim_provisional": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-left.ini",
+              "native_aim_provisional_companion": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-left.Dolphin.ini"
             }
           },
           "profiles": {
             "native": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-right.ini",
             "dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
             "scripted_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/scripted-dsu-right.ini",
-            "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini"
+            "legacy_physical_dsu": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/flat-dolphin-right.ini",
+            "native_aim_provisional": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.ini",
+            "native_aim_provisional_companion": "data/controls/wii/generated/games/wii-resident-evil-umbrella-chronicles/dolphinxr-aim-provisional-right.Dolphin.ini"
+          },
+          "aim_calibration": {
+            "version": "wii-aim/1",
+            "state": "desktop-verified",
+            "total_yaw_degrees": 15.46,
+            "total_pitch_degrees": 11.51,
+            "vertical_offset_cm": 15,
+            "emulated_distance_m": 2,
+            "native": "provisional-opt-in",
+            "evidence": {
+              "method": "nine-point",
+              "samples": 9,
+              "independent_review": true,
+              "scope": "approximate-desktop-dsu",
+              "pointer_extent": 0.8,
+              "input_domain": [
+                -0.8,
+                0.8
+              ],
+              "target_rms_px": 4.525,
+              "target_max_error_px": 9.964,
+              "notes": "All measured points visible; lower-corner residual nonlinearity remains. Full range, shot impacts and native headset/controller geometry are unverified."
+            }
           }
         }
       },
