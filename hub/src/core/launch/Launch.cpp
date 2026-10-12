@@ -10,10 +10,31 @@
 #include <QRegularExpression>
 #include <QUuid>
 #include <QtConcurrent/QtConcurrentRun>
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 namespace ac::launch {
 using install::Error;
 using install::string;
 namespace {
+#ifdef Q_OS_WIN
+struct CloseWindowSearch { DWORD pid; bool found=false; };
+BOOL CALLBACK findCloseWindow(HWND window,LPARAM parameter){
+  auto &search=*reinterpret_cast<CloseWindowSearch *>(parameter);DWORD pid=0;
+  GetWindowThreadProcessId(window,&pid);
+  if(pid==search.pid&&(IsWindowVisible(window)||(GetWindowLongPtrW(window,GWL_STYLE)&WS_CAPTION)!=0)){
+    search.found=true;return FALSE;
+  }
+  return TRUE;
+}
+bool hasCloseWindow(qint64 pid){
+  CloseWindowSearch search{static_cast<DWORD>(pid)};
+  EnumWindows(findCloseWindow,reinterpret_cast<LPARAM>(&search));return search.found;
+}
+#endif
 void verifyDisc(const QString &path,const QString &expected){
   std::atomic_bool cancel=false;const auto current=scan::Scanner::inspect(path,cancel);
   if(QFileInfo(path).isSymLink()||QFileInfo(path).isJunction()||!current.error.isEmpty()||current.kind!="disc-id"||current.identity!=expected||expected.isEmpty())
@@ -193,6 +214,9 @@ Request gameRequest(const CatalogData &catalog,const QString &gameId,const QStri
   }
   const auto authored=install::expandJson(plan.variant["launch"],vars);
   Request request;request.root=root;request.gameId=gameId;request.variantId=variantId;request.runtime=install::string(authored,"runtime");request.prepareProfile=false;
+  // An unpinned OpenXR route uses the current selection; only SteamVR overrides
+  // the child's runtime environment.
+  if(request.runtime=="openxr")request.runtime="any";
   request.discIdentities=discChecks(installed.bindings);
   auto &launch=request.plan;launch.executable=install::scopedPath(install::string(authored,"exe"),plan.installDir);
   launch.cwd=install::scopedPath(install::string(authored,"cwd",plan.installDir),plan.installDir);
@@ -264,6 +288,11 @@ LaunchService::LaunchService(QObject *parent) : QObject(parent) {
     } else if ((waitedMs_ += 250) >= 60000)
       complete(1, "SteamVR did not start within 60 seconds");
   });
+  closeTimer_.setInterval(100);
+  connect(&closeTimer_,&QTimer::timeout,this,[this]{if(closeRequested_)requestClose();else closeTimer_.stop();});
+  connect(&process_, &QProcess::stateChanged, this, [this](QProcess::ProcessState state) {
+    if(state==QProcess::Starting)emit starting(request_.gameId,"Creating game process");
+  });
   connect(&process_, &QProcess::started, this, [this] {
     childStarted_ = true;
     try {if(payload_) payload_->trackChild(process_.processId());}
@@ -271,6 +300,7 @@ LaunchService::LaunchService(QObject *parent) : QObject(parent) {
       emit warning(request_.gameId,"Could not preserve child usage evidence; stopping this launch for safety.");
       stop(); return;
     }
+    if(closeRequested_){requestClose();return;}
     auto state =
         runtimeSource_ ? runtimeSource_(request_.gameId) : RuntimeState{};
     state.gameId = request_.gameId;
@@ -293,6 +323,7 @@ LaunchService::LaunchService(QObject *parent) : QObject(parent) {
 }
 LaunchService::~LaunchService() {
   runtimeTimer_.stop();
+  closeTimer_.stop();
   preparation_.disconnect(this);
   process_.disconnect(this);
   preparation_.waitForFinished();
@@ -319,6 +350,7 @@ bool LaunchService::start(const Request &request) {
   if (busy())
     return false;
   const auto generation = ++generation_;
+  closeTimer_.stop();closeRequested_=false;
   preparationCancelled_ = false;
   request_ = request;
   logPath_.clear();
@@ -436,10 +468,25 @@ void LaunchService::beginChild() {
   process_.start(request_.plan.executable, request_.plan.args);
 }
 void LaunchService::requestClose() {
+  if(!busy_)return;
+  closeRequested_=true;
+  if(process_.state()==QProcess::NotRunning) {
+    if(childStarted_)return; // Let the queued child-finished signal own completion.
+    preparationCancelled_=true;
+    runtimeTimer_.stop();
+    // Preparation still owns the payload until its finished callback unwinds.
+    if(!preparation_.isRunning())complete(1,"Launch cancelled");
+    return;
+  }
   // Windows QProcess::terminate posts WM_CLOSE to this child's windows.
   // No force timer: scores/settings must get their ordinary shutdown path.
 #ifdef Q_OS_WIN
-  if(childStarted_ && process_.state()!=QProcess::NotRunning)process_.terminate();
+  if(childStarted_&&process_.state()==QProcess::Running){
+    // Process creation can precede its first window. Retain the close intent
+    // and usage lease until that owned window can receive the normal request.
+    if(hasCloseWindow(process_.processId())){closeTimer_.stop();process_.terminate();}
+    else if(!closeTimer_.isActive())closeTimer_.start();
+  }
 #endif
 }
 void LaunchService::stop() {
@@ -469,6 +516,7 @@ void LaunchService::complete(int code, const QString &error) {
   completing_ = true;
   const auto generation = generation_;
   runtimeTimer_.stop();
+  closeTimer_.stop();closeRequested_=false;
   lock_.reset();
   if(payload_ && process_.state()==QProcess::NotRunning) payload_->clearPendingChildLaunch();
   payload_.reset();

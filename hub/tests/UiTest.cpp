@@ -82,7 +82,7 @@ void hitSnapshot(QQuickWindow *window,const QPointF &point){
 }
 int cardCount(QQuickItem *item,bool visibleOnly=false){if(!item)return 0;int count=0;if(item->objectName()=="cardPrimary"){auto p=item->mapToScene(QPointF());if(!visibleOnly||(item->isVisible()&&p.y()>100&&p.y()<690))++count;}for(auto child:item->childItems())count+=cardCount(child,visibleOnly);return count;}
 QList<QQuickItem *> namedItems(QQuickItem *item,const QString &name){QList<QQuickItem *> result;if(!item)return result;if(item->objectName()==name)result<<item;for(auto child:item->childItems())result.append(namedItems(child,name));return result;}
-void logMessage(QtMsgType type,const QMessageLogContext &,const QString &message){if(type==QtWarningMsg||type==QtCriticalMsg)warnings<<message;fprintf(stderr,"%s\n",qPrintable(message));}
+void logMessage(QtMsgType type,const QMessageLogContext &,const QString &message){if(type==QtWarningMsg||type==QtCriticalMsg)warnings<<message;fprintf(stderr,"%s: %s\n",QTest::currentTestFunction()?QTest::currentTestFunction():"teardown",qPrintable(message));}
 double cpuSeconds(){
 #ifdef Q_OS_WIN
  FILETIME creation{},exit{},kernel{},user{};if(GetProcessTimes(GetCurrentProcess(),&creation,&exit,&kernel,&user)){ULARGE_INTEGER k{},u{};k.LowPart=kernel.dwLowDateTime;k.HighPart=kernel.dwHighDateTime;u.LowPart=user.dwLowDateTime;u.HighPart=user.dwHighDateTime;return static_cast<double>(k.QuadPart+u.QuadPart)/10000000.0;}
@@ -161,6 +161,15 @@ public:
  Q_INVOKABLE void launchGunRoom(const QString &m,const QString &h,const QString &b){previewGunRoom(m,h,b);if(admitted)++launches;}
  Q_INVOKABLE void calibrateGunRoom(const QString &m,const QString &h,const QString &b){previewGunRoom(m,h,b);if(calibrationAvailable())++calibrations;}
 signals:void gunRoomChanged();
+};
+class LaunchLifecycleProbe:public GunRoomProbe {
+ Q_OBJECT
+ Q_PROPERTY(bool launchBusy READ busy CONSTANT)
+ Q_PROPERTY(bool preparing READ isPreparing CONSTANT)
+public:
+ bool startup=false;
+ bool busy()const{return true;}
+ bool isPreparing()const{return startup;}
 };
 class IdentityUiProbe:public ac::UiController {
  Q_OBJECT
@@ -275,6 +284,45 @@ class UiTest:public QObject {
   QVERIFY(!model->property("rows").toList().isEmpty());
   QVERIFY(QMetaObject::invokeMethod(ui.get(),"selectPinball",Q_ARG(QString,"")));
   root->setProperty("vrOverlayMode",false);root->setProperty("view","List");
+ }
+ void pinballGlobalStopRealScene_data(){
+  QTest::addColumn<QString>("phase");
+  for(const auto &phase:{"preparing","running","restart-pending","unsupported-close","ordinary"})
+   QTest::newRow(phase)<<QString::fromLatin1(phase);
+ }
+ void pinballGlobalStopRealScene(){
+  QFETCH(QString,phase);
+  QTemporaryDir temporary;ac::UiSettings localSettings(temporary.path());
+  ac::UiController localUi(games.get(),&filter,&localSettings);
+  LaunchLifecycleProbe probe;probe.startup=phase=="preparing";
+  QQmlContext context(engine->rootContext());context.setContextProperty("hubServices",&probe);
+  context.setContextProperty("uiController",&localUi);context.setContextProperty("uiSettings",&localSettings);
+  QQmlComponent component(engine.get());component.setData("import QtQuick; import AladdinsCastle.Hub; HubRoot {width:1120;height:720;view: \"List\"}",QUrl());
+  std::unique_ptr<QQuickItem> scene(qobject_cast<QQuickItem *>(component.create(&context)));
+  QVERIFY2(scene,qPrintable(component.errorString()));scene->setParentItem(window->contentItem());scene->setZ(100);
+  const auto id=phase=="ordinary"?QString("timecris"):QString("pinball-synthetic");
+  if(phase=="ordinary")localUi.launchQueued(id,"flat",QString());
+  else localUi.launchPinballQueued({{"id","synthetic"},{"title","Synthetic table"}},phase=="unsupported-close"?QString("Close is unavailable here"):QString());
+  if(!probe.startup)localUi.launchStarted(id);
+  QSignalSpy close(&localUi,&ac::UiController::closeLaunchRequested),forced(&localUi,&ac::UiController::stopLaunchRequested);
+  QSignalSpy replay(&localUi,&ac::UiController::playRequested);
+  if(phase=="restart-pending")localUi.restartLaunch();
+  auto stop=scene->findChild<QQuickItem *>("globalStop");QVERIFY(stop);QTRY_VERIFY(stop->isVisible());
+  QVERIFY(softwareFrame(window));QVERIFY(withinClips(stop));
+  const auto point=stop->mapToScene({stop->width()/2,stop->height()/2});
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  if(phase=="ordinary"){
+   QCOMPARE(forced.count(),1);QCOMPARE(close.count(),0);QVERIFY(localUi.status().contains("forced"));
+  }else if(phase=="unsupported-close"){
+   QCOMPARE(forced.count(),0);QCOMPARE(close.count(),0);QVERIFY(!localUi.nowPlaying().value("closing").toBool());
+   QVERIFY(localUi.status().contains("VPX"));
+  }else{
+   QCOMPARE(close.count(),1);QCOMPARE(forced.count(),0);QVERIFY(localUi.nowPlaying().value("closing").toBool());
+   QVERIFY(!localUi.status().contains("forced"));
+   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+   QCOMPARE(close.count(),1);QCOMPARE(forced.count(),0);
+  }
+  localUi.launchFinished(id,QString());QVERIFY(localUi.nowPlaying().isEmpty());QCOMPARE(replay.count(),0);
  }
  void sharedNowPlayingRealScene(){
   const auto previousView=root->property("view"),previousMode=root->property("vrOverlayMode");
@@ -794,6 +842,23 @@ class UiTest:public QObject {
   ui->openDetail("timecris");for(const auto &view:{"List","Detail","Explore","Settings"}){root->setProperty("view",view);QTest::qWait(60);inspect(window->contentItem());}
   for(const auto &name:{"scanDialog","toolDialog","steamDialog","removeDialog"}){auto dialog=window->findChild<QObject *>(name);QVERIFY(dialog);QVERIFY(QMetaObject::invokeMethod(dialog,"open"));QTest::qWait(60);inspect(window->contentItem());QVERIFY(QMetaObject::invokeMethod(dialog,"close"));}
   QVERIFY(checked>50);root->setProperty("view","List");root->setProperty("vrOverlayMode",false);
+ }
+ void artDelayedRecordKeepsFallbackSafe(){
+  const auto before=warnings.size();QQmlComponent component(engine.get());
+  component.setData("import QtQuick; import AladdinsCastle.Hub; GameArt { property bool recordReady:false; readonly property var safeGame: recordReady ? ({accent: \"#123456\"}) : undefined }",QUrl());
+  std::unique_ptr<QQuickItem> art(qobject_cast<QQuickItem *>(component.create(engine->rootContext())));
+  QVERIFY2(art,qPrintable(component.errorString()));art->setParentItem(window->contentItem());art->setSize({160,120});
+  QVERIFY(softwareFrame(window));QVERIFY(art->setProperty("recordReady",true));
+  QVERIFY(art->property("recordReady").toBool());
+  QCOMPARE(art->property("safeGame").toMap().value("accent").toString(),QString("#123456"));
+  QVERIFY(softwareFrame(window));
+  QColor expected("#123456");expected.setAlphaF(0.17f);int checked=0;
+  for(auto child:art->childItems())if(child->property("rotation").toDouble()==28){
+   QCOMPARE(child->property("color").value<QColor>(),expected);++checked;
+  }
+  QCOMPARE(checked,8);
+  QStringList invalid;for(qsizetype i=before;i<warnings.size();++i)if(warnings[i].contains("TypeError"))invalid<<warnings[i];
+  QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
  }
  void sceneWarnings(){QTest::qWait(100);QStringList invalid;for(const auto &w:warnings)if(w.contains("ReferenceError")||w.contains("TypeError")||w.contains("Unable to assign")||w.contains("Binding loop")||w.contains("is not a type"))invalid<<w;QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));}
  void selfBenchmark(){

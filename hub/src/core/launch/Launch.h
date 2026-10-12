@@ -71,6 +71,7 @@ private:
   std::unique_ptr<install::ResourceLocks> payload_;
   QProcess process_;
   QTimer runtimeTimer_;
+  QTimer closeTimer_;
   QFutureWatcher<QString> preparation_;
   QList<QFutureWatcher<QString> *> persistence_;
   QThreadPool persistencePool_;
@@ -83,5 +84,6 @@ private:
   bool busy_ = false, childStarted_ = false, completing_ = false;
   quint64 generation_ = 0;
   bool preparationCancelled_ = false;
+  bool closeRequested_ = false;
 };
 } // namespace ac::launch

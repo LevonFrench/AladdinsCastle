@@ -18,6 +18,12 @@
 #include <cstdlib>
 #include <limits>
 #include <optional>
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 using namespace ac;
 namespace {
 void write(const QString &path, const QByteArray &bytes) {
@@ -73,6 +79,7 @@ private slots:
   void steamCopiesShareTargetLock_data();
   void steamCopiesShareTargetLock();
   void managedToolUsersExcludeMutation();
+  void authoredOwnedLaunchAdmission_data();
   void authoredOwnedLaunchAdmission();
   void steamShortcutAdmission_data();
   void steamShortcutAdmission();
@@ -129,6 +136,9 @@ private slots:
   void hungChildCanBeStopped();
   void immediateCancel_data();
   void immediateCancel();
+  void cooperativeCloseDuringStarting_data();
+  void cooperativeCloseDuringStarting();
+  void cooperativeCloseDuringQueuedPreparation();
 };
 void LaunchSteamTest::steamCopiesShareTargetLock_data() {
   QTest::addColumn<bool>("distinctTarget"); QTest::addColumn<bool>("caseAlias");
@@ -269,7 +279,16 @@ void LaunchSteamTest::steamShortcutAdmission() {
   QCOMPARE(find(entry,"LaunchOptions")->payload,("--launch wii-synthetic --variant "+variant).toUtf8());
   QCOMPARE(qFromLittleEndian<quint32>(find(entry,"OpenVR")->payload.constData()),change=="flat"?0u:1u);
 }
+void LaunchSteamTest::authoredOwnedLaunchAdmission_data() {
+  QTest::addColumn<QString>("declaredRuntime");
+  QTest::addColumn<QString>("launchRuntime");
+  QTest::newRow("pinned-steamvr") << QString("steamvr") << QString("steamvr");
+  QTest::newRow("ordinary-runtime") << QString("none") << QString("none");
+  QTest::newRow("current-openxr-runtime") << QString("openxr") << QString("any");
+}
 void LaunchSteamTest::authoredOwnedLaunchAdmission() {
+  QFETCH(QString, declaredRuntime);
+  QFETCH(QString, launchRuntime);
   QTemporaryDir t;write(t.filePath("data/content-guard.toml"),install::readBytes(QString(AC_CATALOG_ROOT)+"/data/content-guard.toml"));
   const auto dir=t.filePath("installed/wii-synthetic/dolphinxr"),exe=dir+"/Dolphin.exe",disc=t.filePath("renamed.iso");
   write(exe,"synthetic application; never run");write(disc,"synthetic disc");QDir().mkpath(dir+"/User");
@@ -280,7 +299,7 @@ void LaunchSteamTest::authoredOwnedLaunchAdmission() {
     {"installed_when","file:${install_dir}/Dolphin.exe"},{"step",Json::array({{{"id","disc"},{"do","require-media"},{"media","disc"},{"verify","none"}}})},
     {"launch",{{"exe","${install_dir}/Dolphin.exe"},{"exe_sha256",hash.toStdString()},
       {"args",Json::array({"--user","${install_dir}/User","-C","GFX.VR.EnableOpenXR=True","--exec","${media.disc.path}"})},
-      {"cwd","${install_dir}"},{"runtime","steamvr"}}}};
+      {"cwd","${install_dir}"},{"runtime",declaredRuntime.toStdString()}}}};
   game.install={{"format",1},{"variant",{{"dolphinxr",raw}}}};
   Variant v;v.id="dolphinxr";v.status="wip";v.quality="true3d";v.media={"disc"};v.raw=raw;game.variants<<v;
   CatalogData catalog;catalog.games<<game;
@@ -298,7 +317,7 @@ void LaunchSteamTest::authoredOwnedLaunchAdmission() {
   catch(const install::Error &) {}
   QVERIFY2(accepted.has_value(),"Installed owned authored route refused");
   const auto &request=*accepted;
-  QCOMPARE(request.runtime,QString("steamvr"));QCOMPARE(request.plan.executable,exe);
+  QCOMPARE(request.runtime,launchRuntime);QCOMPARE(request.plan.executable,exe);
   QCOMPARE(request.plan.args,QStringList({"--user",dir+"/User","-C","GFX.VR.EnableOpenXR=True","--exec",disc}));
   QVERIFY(!request.prepareProfile);QVERIFY(request.plan.payloadRoots.contains(dir));
   Json withStaleTool=bindings;
@@ -1210,19 +1229,23 @@ void LaunchSteamTest::generatedFlatReadyOverridesLegacyRecipe() {
 void LaunchSteamTest::childLaunchAndLogs_data() {
   QTest::addColumn<int>("exitCode");
   QTest::addColumn<bool>("prepare");
-  QTest::newRow("normal") << 0 << false;
-  QTest::newRow("nonzero") << 7 << false;
-  QTest::newRow("prepared-profile") << 0 << true;
+  QTest::addColumn<QString>("runtime");
+  QTest::newRow("normal") << 0 << false << QString("none");
+  QTest::newRow("nonzero") << 7 << false << QString("none");
+  QTest::newRow("prepared-profile") << 0 << true << QString("none");
+  QTest::newRow("current-runtime-preserved") << 0 << false << QString("any");
 }
 void LaunchSteamTest::childLaunchAndLogs() {
   QFETCH(int, exitCode);
   QFETCH(bool, prepare);
+  QFETCH(QString, runtime);
   QTemporaryDir temp;
   launch::Request r;
   r.root = temp.path();
   r.gameId = "test-game";
   r.variantId = "flat-test";
   r.prepareProfile = prepare;
+  r.runtime = runtime;
   r.plan.executable = QCoreApplication::applicationFilePath();
   r.plan.cwd = temp.path();
   r.plan.args = {"--synthetic-child", QString::number(exitCode)};
@@ -1439,11 +1462,18 @@ void LaunchSteamTest::sameGameLock() {
 }
 void LaunchSteamTest::immediateCancel_data() {
   QTest::addColumn<bool>("prepare");
-  QTest::newRow("direct") << false;
-  QTest::newRow("preparation") << true;
+  QTest::addColumn<bool>("cooperative");
+  QTest::addColumn<bool>("atPreparation");
+  QTest::newRow("direct") << false << false << false;
+  QTest::newRow("preparation") << true << false << false;
+  QTest::newRow("cooperative-direct") << false << true << false;
+  QTest::newRow("cooperative-preparation") << true << true << false;
+  QTest::newRow("cooperative-preparing-notice") << true << true << true;
 }
 void LaunchSteamTest::immediateCancel() {
   QFETCH(bool, prepare);
+  QFETCH(bool, cooperative);
+  QFETCH(bool, atPreparation);
   QTemporaryDir temp;
   launch::Request r;
   r.root = temp.path();
@@ -1453,20 +1483,133 @@ void LaunchSteamTest::immediateCancel() {
   r.plan.executable = QCoreApplication::applicationFilePath();
   r.plan.cwd = temp.path();
   r.plan.args = {"--synthetic-child", "0"};
+  const auto payload = temp.filePath("payload");
+  write(payload + "/owned.txt", "unchanged synthetic payload");
+  r.plan.payloadRoots << payload;
   launch::LaunchService service;
   QSignalSpy started(&service, &launch::LaunchService::started),
       done(&service, &launch::LaunchService::finished);
-  connect(&service, &launch::LaunchService::playingChanged, &service, [&] {
-    if (service.playing())
-      service.stop();
-  });
+  const auto cancel = [&] {
+    if (!service.playing()) return;
+    if (cooperative) service.requestClose(); else service.stop();
+  };
+  if (atPreparation)
+    connect(&service, &launch::LaunchService::starting, &service,
+            [&](const QString &, const QString &) { cancel(); });
+  else
+    connect(&service, &launch::LaunchService::playingChanged, &service, cancel);
   QVERIFY(!service.start(r));
   QTest::qWait(100);
   QCOMPARE(started.count(), 0);
   QCOMPARE(done.count(), 1);
+  QVERIFY(done[0][2].toString().startsWith("Launch cancelled"));
   QVERIFY(!service.playing());
+  service.requestClose(); // Repeated close after cancellation must remain idle.
+  QCOMPARE(done.count(), 1);
+  bool released = false;
+  try {
+    install::ResourceLocks mutation({payload}, install::ResourceAccess::Mutation);
+    released = true;
+  } catch (const install::Error &) {}
+  QVERIFY2(released, "Cancelled startup retained its payload usage lease");
+  QCOMPARE(install::readBytes(payload + "/owned.txt"), QByteArray("unchanged synthetic payload"));
 }
+void LaunchSteamTest::cooperativeCloseDuringQueuedPreparation() {
+  QTemporaryDir temp;QSemaphore entered,release;
+  const auto payload=temp.filePath("payload");write(payload+"/owned.txt","unchanged synthetic payload");
+  launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=true;
+  r.plan.executable=QCoreApplication::applicationFilePath();r.plan.args={"--synthetic-child","0"};
+  r.plan.cwd=temp.filePath("user/emulator-profiles/synthetic/test-game");r.plan.writableDirs={r.plan.cwd};
+  r.plan.payloadRoots={payload};r.plan.data={{"variant","synthetic"},{"game","test-game"}};
+  launch::LaunchService service;
+  auto *pool=QThreadPool::globalInstance();const int previousThreads=pool->maxThreadCount();QFuture<void> blocker;
+  auto cleanup=qScopeGuard([&]{release.release();blocker.waitForFinished();pool->setMaxThreadCount(previousThreads);});
+  pool->setMaxThreadCount(1);
+  blocker=QtConcurrent::run([&]{entered.release();release.acquire();});
+  QVERIFY(entered.tryAcquire(1,5000));
+  QSignalSpy started(&service,&launch::LaunchService::started),done(&service,&launch::LaunchService::finished);
+  QVERIFY(service.start(r));service.requestClose();service.requestClose();
+  QCOMPARE(done.count(),0);QVERIFY(service.busy());QVERIFY(!service.start(r));
+  QVERIFY_THROWS_EXCEPTION(install::Error,install::ResourceLocks({payload},install::ResourceAccess::Mutation));
+  release.release();blocker.waitForFinished();
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(),1,10000);
+  QVERIFY(done[0][2].toString().startsWith("Launch cancelled"));QCOMPARE(started.count(),0);
+  QVERIFY(QFileInfo::exists(r.plan.cwd+"/preparation.journal.jsonl"));
+  QTRY_VERIFY_WITH_TIMEOUT(!service.busy(),5000);
+  install::ResourceLocks mutation({payload},install::ResourceAccess::Mutation);
+  QCOMPARE(install::readBytes(payload+"/owned.txt"),QByteArray("unchanged synthetic payload"));
+}
+void LaunchSteamTest::cooperativeCloseDuringStarting_data() {
+  QTest::addColumn<bool>("duringStarting");
+  QTest::newRow("native-starting-notice")<<true;
+  QTest::newRow("after-start-return-before-window")<<false;
+}
+void LaunchSteamTest::cooperativeCloseDuringStarting() {
+#ifndef Q_OS_WIN
+  QSKIP("Native cooperative window closure is implemented on Windows only.");
+#else
+  QFETCH(bool,duringStarting);
+  QTemporaryDir temp;
+  const auto payload=temp.filePath("payload"),receipt=temp.filePath("child-close.txt");
+  write(payload+"/owned.txt","unchanged synthetic payload");
+  launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=false;
+  r.plan.executable=QCoreApplication::applicationFilePath();r.plan.cwd=temp.path();
+  r.plan.args={"--synthetic-cooperative-child",receipt};r.plan.payloadRoots={payload};
+  // Hidden native window only: no scene graph, GPU, focus, input or VR service.
+  launch::LaunchService service;
+  QSignalSpy started(&service,&launch::LaunchService::started),done(&service,&launch::LaunchService::finished),states(&service,&launch::LaunchService::runtimeStateReady);
+  bool sawStarting=false;
+  connect(&service,&launch::LaunchService::starting,&service,[&](const QString &,const QString &message){
+    if(message!="Creating game process")return;
+    sawStarting=true;if(duringStarting){service.requestClose();service.requestClose();}
+  });
+  QVERIFY(service.start(r));QVERIFY(sawStarting);
+  const auto previousStarted=duringStarting?0:started.count();
+  const auto previousStates=duringStarting?0:states.count();
+  if(!duringStarting){service.requestClose();service.requestClose();}
+  QVERIFY(service.busy());QVERIFY(!service.start(r));
+  QVERIFY_THROWS_EXCEPTION(install::Error,install::ResourceLocks({payload},install::ResourceAccess::Mutation));
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(),1,10000);
+  QCOMPARE(done[0][1].toInt(),0);QVERIFY(done[0][2].toString().isEmpty());
+  QCOMPARE(install::readBytes(receipt),QByteArray("closed normally"));
+  QVERIFY(QFileInfo::exists(receipt+".ready"));QCOMPARE(started.count(),previousStarted);
+  for(qsizetype i=previousStates;i<states.size();++i)QVERIFY(!qvariant_cast<RuntimeState>(states[i][0]).playing);
+  QTRY_VERIFY_WITH_TIMEOUT(!service.busy(),5000);
+  install::ResourceLocks mutation({payload},install::ResourceAccess::Mutation);
+  QCOMPARE(install::readBytes(payload+"/owned.txt"),QByteArray("unchanged synthetic payload"));
+  service.requestClose();QCOMPARE(done.count(),1);
+#endif
+}
+#ifdef Q_OS_WIN
+LRESULT CALLBACK syntheticCloseWindow(HWND window,UINT message,WPARAM wparam,LPARAM lparam){
+  if(message==WM_NCCREATE){
+    const auto *create=reinterpret_cast<const CREATESTRUCTW *>(lparam);
+    SetWindowLongPtrW(window,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(create->lpCreateParams));
+  }
+  if(message==WM_CLOSE){
+    const auto *receipt=reinterpret_cast<const QString *>(GetWindowLongPtrW(window,GWLP_USERDATA));
+    if(receipt){write(*receipt,"closed normally");DestroyWindow(window);QCoreApplication::exit(0);return 0;}
+  }
+  return DefWindowProcW(window,message,wparam,lparam);
+}
+#endif
 int main(int argc, char **argv) {
+  if(argc==3&&QByteArray(argv[1])=="--synthetic-cooperative-child"){
+#ifdef Q_OS_WIN
+    QCoreApplication app(argc,argv);const auto receipt=app.arguments()[2];HWND window=nullptr;
+    WNDCLASSW type{};type.lpfnWndProc=syntheticCloseWindow;type.hInstance=GetModuleHandleW(nullptr);type.lpszClassName=L"AC-Synthetic-Cooperative-Close";
+    if(!RegisterClassW(&type))return 18;
+    QTimer::singleShot(350,&app,[&]{
+      window=CreateWindowExW(WS_EX_NOACTIVATE,type.lpszClassName,L"Synthetic cooperative close",WS_OVERLAPPEDWINDOW,0,0,320,200,nullptr,nullptr,type.hInstance,const_cast<QString *>(&receipt));
+      if(!window){write(receipt,"window creation failed");app.exit(18);return;}
+      write(receipt+".ready","ready");
+    });
+    QTimer::singleShot(6000,&app,[&]{write(receipt,"normal-close timeout");if(window&&IsWindow(window))DestroyWindow(window);app.exit(17);});
+    return app.exec();
+#else
+    return 18;
+#endif
+  }
   if((argc==6 || argc==7) && QByteArray(argv[1])=="--synthetic-resource-user") {
     QCoreApplication app(argc,argv);const auto args=app.arguments();QTextStream out(stdout);
     try {
