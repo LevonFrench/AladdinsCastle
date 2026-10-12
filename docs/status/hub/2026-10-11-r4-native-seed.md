@@ -1,0 +1,9 @@
+# R4 native profile seeding
+
+The existing pinned-byte installer seed policy admitted generated controller profiles but rejected the authored native game profile. A failing-first, CPU-only `hubtool plan` with synthetic shader bytes reproduced `E_SOURCE_OUT_OF_SCOPE`; no installation or executable launch occurred.
+
+The source change admits exactly `data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini`. Existing SHA256, byte-cap, path/link/media-alias, explicit-create, absent-only and no-key-merge checks still apply. Synthetic engine tests cover exact CRLF/comment/bare shader-name preservation, a preexisting user profile, repair/update/uninstall preservation and four unrelated-path refusals. Native compilation/execution is pending hosted checks or the coordinated CPU slot.
+
+Recipe integration awaits the reviewed profile PR75 on published `next`; use its exact tracked byte pin after integration. The lead owns the sitting-kit copy separately. This branch has no install, download, game-file access or GPU/runtime result.
+
+After seeding, the minimal Hub orientation capture proposal is an explicit one-shot diagnostic request handled after successful `OverlayRuntime::submit` and before `QuickTextureRenderer::doneCurrent`. Read the exact submitted texture through a temporary framebuffer, preserve framebuffer/pixel-pack state, report readback failure explicitly and keep captures in private state. Record the render-target mirror flag and actual compositor picture bounds separately from pointer Flip Y; retain raw pixels and label any derived orientation conversion. A desktop/software screenshot or a synthetic submit callback cannot establish actual submitted-texture or headset orientation. Viewer acceptance and implementation details remain to be coordinated through the lead; this is source inspection only.
