@@ -894,6 +894,33 @@ private slots:
       QVERIFY(shared);QVERIFY(logs);QVERIFY(resolutionScale);
     }
   }
+  void umbrellaNativeGameProfileUsesExactPinnedAbsentOnlyBytes(){
+    const auto root=catalogFixtureRoot();const auto catalog=CatalogLoader().load(root);
+    const auto game=catalog.find("wii-resident-evil-umbrella-chronicles");QVERIFY(game);
+    bool found=false;
+    for(const auto &step:game->install["variant"]["dolphinxr"]["step"]){
+      if(string(step,"id")!="native-game-profile")continue;
+      QVERIFY(!found);found=true;QCOMPARE(string(step,"do"),QString("write-config"));
+      QCOMPARE(string(step,"file"),QString("${install_dir}/User/GameSettingsVR/RBUP08.ini"));
+      QCOMPARE(string(step,"format"),QString("ini"));QVERIFY(step.value("create",false));QVERIFY(step.value("only_if_missing",false));QVERIFY(!step.contains("set"));
+      QCOMPARE(string(step,"source"),QString("data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini"));
+      QCOMPARE(string(step,"source_sha256"),hashFile(root+"/"+string(step,"source")));
+    }
+    QVERIFY2(found,"Umbrella native profile is not seeded by its authored recipe");
+  }
+  void authoredNativeGameProfileCopiesUnmodifiedBytes(){
+    const auto root=catalogFixtureRoot();const auto catalog=CatalogLoader().load(root);
+    const auto game=catalog.find("wii-resident-evil-umbrella-chronicles");QVERIFY(game);
+    Json nativeSeed;
+    for(const auto &step:game->install["variant"]["dolphinxr"]["step"])
+      if(string(step,"id")=="native-game-profile")nativeSeed=step;
+    QVERIFY(nativeSeed.is_object());const auto source=string(nativeSeed,"source");
+    const auto bytes=readBytes(root+"/"+source);QVERIFY(bytes.contains("[ShaderOverride_Enable]\n$HUD "));
+    QTemporaryDir t;auto r=fixture(t.path());atomicWrite(t.filePath(source),bytes);
+    r.recipe["variant"]["flat"]["step"][1]=nativeSeed;Options o;o.survivalMs=0;
+    const auto result=Engine(o).install(r);QVERIFY2(result.success,qPrintable(result.message));
+    QCOMPARE(readBytes(t.filePath("installed/synthetic/flat/User/GameSettingsVR/RBUP08.ini")),bytes);
+  }
   void freshOnlyConfigSeedsThenPreservesRuntimeTuning_data() {
     QTest::addColumn<QString>("operation");QTest::addColumn<bool>("freshOnly");QTest::addColumn<bool>("tuned");
     QTest::newRow("repair preserves")<<QString("repair")<<true<<true;

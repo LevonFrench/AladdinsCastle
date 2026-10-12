@@ -87,6 +87,16 @@ source = "data/controls/wii/generated/dolphinxr/split-right.ini"
 source_sha256 = "edfcccec10a8226ee5366b0fedf500a57a3674dd7b91b72c6bf200e55fc27ebe"
 
 [[variant.dolphinxr.step]]
+id = "native-game-profile"
+do = "write-config"
+file = "${install_dir}/User/GameSettingsVR/RBUP08.ini"
+format = "ini"
+create = true
+only_if_missing = true
+source = "data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini"
+source_sha256 = "8357bc208ae46273ea3f7d8d604cad7b5345df9c9f0bfdee7836812948307ec7"
+
+[[variant.dolphinxr.step]]
 id = "logs-directory"
 do = "create-directory"
 to = "${install_dir}/User/Logs"
