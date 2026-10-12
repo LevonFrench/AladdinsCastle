@@ -10,6 +10,8 @@
 #include <QWindow>
 #include <QtTest>
 #include <optional>
+#include <QtEndian>
+#include "core/pinball/Pinball.h"
 namespace {
 ac::CatalogData syntheticCatalog(const QString &root){
     auto data=ac::CatalogLoader().load(AC_CATALOG_ROOT);
@@ -34,6 +36,56 @@ void receipt(const QString &root,const QString &media){
 class IntegrationTest:public QObject{
  Q_OBJECT
 private slots:
+ void pinballLaunchUsesRetainedTableAndRecordsRecent(){
+    QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
+    // Synthetic CFB contains only an empty script terminator, no playable content.
+    QByteArray cfb(5632,'\0');cfb.replace(0,8,QByteArray::fromHex("d0cf11e0a1b11ae1"));
+    auto u16=[&](int at,quint16 n){qToLittleEndian(n,cfb.data()+at);};
+    auto u32=[&](int at,quint32 n){qToLittleEndian(n,cfb.data()+at);};
+    u16(26,3);u16(28,0xfffe);u16(30,9);u16(32,6);u32(44,1);u32(48,0);u32(56,4096);u32(60,0xfffffffe);u32(68,0xfffffffe);
+    for(int i=0;i<109;++i)u32(76+4*i,i==0?9:0xffffffff);
+    cfb[512+66]=5;u32(512+76,1);u32(512+116,0xfffffffe);
+    for(int e=1;e<3;++e){const auto at=512+e*128;const QString name=e==1?"GameStg":"GameData";
+        for(int i=0;i<name.size();++i){u16(at+2*i,name[i].unicode());}
+        u16(at+64,static_cast<quint16>((name.size()+1)*2));
+        cfb[at+66]=e==1?1:2;u32(at+68,0xffffffff);u32(at+72,0xffffffff);u32(at+76,e==1?2:0xffffffff);
+        u32(at+116,e==1?0xfffffffe:1);u32(at+120,e==1?0:4096);
+    }
+    u32(1024,4);cfb.replace(1028,4,"ENDB");
+    for(int i=0;i<128;++i)u32(5120+4*i,i==0||i==8?0xfffffffe:i==9?0xfffffffd:i<8?static_cast<quint32>(i+1):0xffffffff);
+    const auto table=folder+"/synthetic table.vpx";ac::install::atomicWrite(table,cfb);
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",QCoreApplication::applicationFilePath());
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    auto data=ac::pinball::scan(folder);auto row=data["tables"].toList()[0].toMap();QVERIFY(!row.contains("error"));
+    ui.pinballLoaded(data);ui.selectPinball(row["id"].toString());ui.markPinball(true);
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    QVERIFY(QMetaObject::invokeMethod(&ui,"playPinball"));
+    QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,5000);
+    QCOMPARE(ui.nowPlaying()["title"].toString(),QString("synthetic table"));
+    ui.selectPinball("");ui.restartLaunch();
+#ifdef Q_OS_WIN
+    QTRY_COMPARE_WITH_TIMEOUT(started.size(),2,5000);
+#else
+    // Clean close is explicitly unavailable on the non-Windows route.
+    QCOMPARE(started.size(),1);
+#endif
+    QTRY_VERIFY_WITH_TIMEOUT(!services.launcher()->busy(),5000);
+    QVERIFY(finished.size()>=1);QVERIFY(ui.nowPlaying().isEmpty());
+    const auto recent=settings.get("pinballRecent",QVariantMap{}).toMap();QVERIFY(recent[row["id"].toString()].toLongLong()>0);
+    ui.pinballLoaded(data);ui.selectPinball(row["id"].toString());QVERIFY(ui.pinballSelection()["lastPlayed"].toLongLong()>0);
+    QCOMPARE(ac::install::readBytes(table),cfb);QCOMPARE(QDir(folder).entryList(QDir::Files),QStringList{"synthetic table.vpx"});
+    ac::install::atomicWrite(table,"changed synthetic metadata");
+    QVERIFY(QMetaObject::invokeMethod(&ui,"playPinball"));QCOMPARE(started.size(),finished.size());
+    QVERIFY(!services.launcher()->busy());QVERIFY(ui.status().contains("scan again",Qt::CaseInsensitive));
+#ifdef Q_OS_WIN
+    ac::install::atomicWrite(table,cfb);data=ac::pinball::scan(folder);ui.pinballLoaded(data);ui.selectPinball(row["id"].toString());
+    QVERIFY(QMetaObject::invokeMethod(&ui,"playPinball"));QTRY_COMPARE_WITH_TIMEOUT(started.size(),3,5000);
+    QSignalSpy exitReady(&services,&ac::HubServices::hubExitReady);services.requestHubExit(7);
+    QCOMPARE(exitReady.size(),0);QTRY_COMPARE_WITH_TIMEOUT(exitReady.size(),1,5000);QCOMPARE(exitReady[0][0].toInt(),7);
+    QVERIFY(!services.launcher()->busy());QCOMPARE(ac::install::readBytes(table),cfb);
+#endif
+ }
  void requiredM1GamesOfferFlatRoutes(){
     const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
     for(const auto &pair:QList<QPair<QString,QString>>{{"timecris","mame"},{"scud","supermodel"},{"ps2-time-crisis-2","pcsx2"}}){
@@ -208,6 +260,10 @@ private slots:
 };
 int main(int argc,char **argv){
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
+    if(argc==3&&QByteArray(argv[1])=="-Play"){
+        QGuiApplication child(argc,argv);QWindow window;window.show();
+        QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
+    }
     QGuiApplication app(argc,argv);IntegrationTest test;return QTest::qExec(&test,argc,argv);
 }
 #include "IntegrationTest.moc"

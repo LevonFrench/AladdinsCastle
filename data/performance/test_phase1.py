@@ -14,6 +14,13 @@ import phase1
 
 class Phase1Tests(unittest.TestCase):
     def setUp(self):
+        native=json.loads((phase1.HERE / "native-vbi-phase1.json").read_text())
+        legacy={"experiments":["baseline","code","code-vbi90"],"games":{
+            k:{"code_name":"Synthetic inactive fixture","code":"00000000 00000000"}
+            for k in ("SYN001","SYN002")}}
+        candidate=dict(phase1.DSE_CANDIDATE,required_game_id="SYN004",code="00000000 00000000")
+        for name,value in (("NATIVE_PLAN",native),("PLAN",legacy),("DSE_CANDIDATE",candidate)):
+            patcher=patch.object(phase1,name,value);patcher.start();self.addCleanup(patcher.stop)
         root = phase1.REPO / ".local" / "synthetic-framerate"
         root.mkdir(parents=True, exist_ok=True)
         self.tmp = tempfile.TemporaryDirectory(dir=root)
@@ -23,22 +30,37 @@ class Phase1Tests(unittest.TestCase):
         self.exe.write_bytes(b"synthetic, never executable")
         self.disc = self.root / "synthetic-header.fixture"
         header = bytearray(32)
-        header[:6] = b"RBUP08"
+        header[:6] = b"SYN001"
         header[7] = 3
         header[24:28] = bytes.fromhex("5d1c9ea3")
         self.disc.write_bytes(header)
         self.pin = dict(phase1.PIN, executable_sha256=hashlib.sha256(self.exe.read_bytes()).hexdigest())
 
-    def prepare(self, experiment="baseline", output="run", game_id="RBUP08"):
+    def prepare(self, experiment="baseline", output="run", game_id="SYN001"):
         with patch.object(phase1, "PIN", self.pin):
             return phase1.prepare(self.exe, self.disc, game_id, experiment, self.root / output)
+
+    def test_selected_plan_is_private_and_shared_by_consumers(self):
+        folder=self.root / "plans";folder.mkdir()
+        (folder / "native-vbi-phase1.json").write_text('{"games":{"SYN099":{"format":"iso"}}}')
+        with patch.dict("os.environ", {"AC_PERFORMANCE_PLAN_DIR":str(folder)}):
+            self.assertEqual(list(phase1.read_plan("native-vbi-phase1.json")["games"]),["SYN099"])
+        with patch.dict("os.environ", {"AC_PERFORMANCE_PLAN_DIR":str(phase1.HERE)}):
+            with self.assertRaisesRegex(ValueError,"private under .local"):
+                phase1.read_plan("native-vbi-phase1.json")
+
+    def test_public_templates_are_synthetic(self):
+        plan=json.loads((phase1.HERE / "native-vbi-phase1.json").read_text())
+        self.assertTrue(plan.get("synthetic_only"))
+        self.assertTrue(all(k.startswith("SYN") for k in plan["games"]))
+        self.assertFalse(any("priority" in r for r in plan["games"].values()))
 
     def test_baseline_private_revision_no_cheat(self):
         result = self.prepare()
         self.assertEqual(result["revision"], 3)
         self.assertIsNone(result["measured_results"])
         self.assertEqual(result["status"], "prepared-unmeasured")
-        self.assertEqual((self.root / "run/User/GameSettings/RBUP08.ini").read_text(), "")
+        self.assertEqual((self.root / "run/User/GameSettings/SYN001.ini").read_text(), "")
         self.assertIn("Graphics.VR.EnableOpenXR=False", result["arguments"])
         self.assertIn("SYSCONF.IPL.E60=True", result["arguments"])
         self.assertIn("Dolphin.Core.EnableCheats=False", result["arguments"])
@@ -48,8 +70,8 @@ class Phase1Tests(unittest.TestCase):
         higher = self.prepare("code-vbi90", "higher")
         self.assertIn("Dolphin.Core.VIOverclock=1.5", higher["arguments"])
         self.assertIn("Dolphin.Core.VIOverclock=1.0", code["arguments"])
-        self.assertEqual((self.root / "code/User/GameSettings/RBUP08.ini").read_text(),
-                         (self.root / "higher/User/GameSettings/RBUP08.ini").read_text())
+        self.assertEqual((self.root / "code/User/GameSettings/SYN001.ini").read_text(),
+                         (self.root / "higher/User/GameSettings/SYN001.ini").read_text())
 
     def test_existing_profile_untouched(self):
         self.prepare()
@@ -64,7 +86,7 @@ class Phase1Tests(unittest.TestCase):
 
     def test_exact_disc_id_mismatch(self):
         with self.assertRaisesRegex(ValueError, "Disc ID"):
-            self.prepare(game_id="SBDP08")
+            self.prepare(game_id="SYN002")
         self.assertFalse((self.root / "run").exists())
 
     def test_wrong_executable_rejected(self):
@@ -121,12 +143,12 @@ class Phase1Tests(unittest.TestCase):
                 self.assertIn("Graphics.VR.EnableOpenXR=True", record["arguments"])
                 self.assertIn("Dolphin.Core.VIOverclockEnable=False", record["arguments"])
                 self.assertIn("Dolphin.Core.EnableCheats=False", record["arguments"])
-                self.assertEqual((self.root / experiment / "User/GameSettings/RBUP08.ini").read_text(), "")
+                self.assertEqual((self.root / experiment / "User/GameSettings/SYN001.ini").read_text(), "")
                 self.assertFalse(any(arg.startswith("GFX.") for arg in record["arguments"]))
 
     def test_wbfs_waits_on_hub_before_file_access(self):
         with self.assertRaisesRegex(ValueError, "Hub identity"):
-            self.prepare("native-off", "wbfs", "R2VE01")
+            self.prepare("native-off", "wbfs", "SYN005")
         self.assertFalse((self.root / "wbfs").exists())
 
     def test_baseline_command_namespace(self):
@@ -188,14 +210,14 @@ class Phase1Tests(unittest.TestCase):
 
     def test_other_game_path_rejected_even_with_identical_bytes(self):
         self.prepare("native-off")
-        paths = self.input_fixture("RZJE69")
+        paths = self.input_fixture("SYN004")
         with patch.object(phase1.subprocess, "run") as checker, self.assertRaisesRegex(ValueError, "exact game's"):
             phase1.attach_input(self.root / "run", *paths)
         checker.assert_not_called()
 
     def test_paired_native_profile_mismatch_rejected_before_check(self):
         self.prepare("native-off")
-        paths = self.input_fixture("RBUP08")
+        paths = self.input_fixture("SYN001")
         paths[0].with_name("dolphinxr-right.ini").write_text("changed pair")
         with patch.object(phase1.subprocess, "run") as checker, self.assertRaisesRegex(ValueError, "Paired native"):
             phase1.attach_input(self.root / "run", *paths)
@@ -213,11 +235,11 @@ class Phase1Tests(unittest.TestCase):
 
     def test_disabled_preview_attaches_exact_game_pair_without_enabling_code(self):
         raw = bytearray(self.disc.read_bytes())
-        raw[:6], raw[7] = b"RZJE69", 0
+        raw[:6], raw[7] = b"SYN004", 0
         self.disc.write_bytes(raw)
         with patch.object(phase1, "PIN", self.pin):
             phase1.prepare_deadspace_candidate(self.exe, self.disc, self.root / "dse")
-        paths = self.input_fixture("RZJE69")
+        paths = self.input_fixture("SYN004")
         checked = subprocess.CompletedProcess([], 0, json.dumps({"valid": True, "sha256": phase1.sha(paths[2])}))
         with patch.object(phase1.subprocess, "run", return_value=checked):
             record = phase1.attach_input(self.root / "dse", *paths)
@@ -225,10 +247,10 @@ class Phase1Tests(unittest.TestCase):
         self.assertEqual(record["route"], "disabled-code-candidate")
         self.assertIn("Dolphin.Core.EnableCheats=False", record["arguments"])
         self.assertIn("Graphics.VR.EnableOpenXR=False", record["arguments"])
-        self.assertIn("[ActionReplay_Disabled]", (self.root / "dse/User/GameSettings/RZJE69.ini").read_text())
+        self.assertIn("[ActionReplay_Disabled]", (self.root / "dse/User/GameSettings/SYN004.ini").read_text())
         self.assertEqual((self.root / "dse/User/Config/WiimoteNew.ini").read_bytes(), paths[0].read_bytes())
         self.assertEqual((self.root / "dse/native-control-reference.ini").read_bytes(), paths[0].with_name("dolphinxr-right.ini").read_bytes())
-        self.assertTrue(record["input_contract"]["profile_key"].startswith("games/wii-dead-space-extraction/"))
+        self.assertTrue(record["input_contract"]["profile_key"].startswith("games/synthetic-syn004/"))
         with self.assertRaises(ValueError):
             phase1.attach_input(self.root / "dse", *paths)
 
@@ -251,15 +273,15 @@ class Phase1Tests(unittest.TestCase):
 
     def test_deadspace_preview_has_disabled_code_and_exact_region(self):
         raw = bytearray(self.disc.read_bytes())
-        raw[:6] = b"RZJE69"
+        raw[:6] = b"SYN004"
         raw[7] = 0
         self.disc.write_bytes(raw)
         with patch.object(phase1, "PIN", self.pin):
             record = phase1.prepare_deadspace_candidate(self.exe, self.disc, self.root / "dse")
-        game_ini = (self.root / "dse/User/GameSettings/RZJE69.ini").read_text()
+        game_ini = (self.root / "dse/User/GameSettings/SYN004.ini").read_text()
         self.assertIn("[ActionReplay_Disabled]", game_ini)
         self.assertNotIn("[ActionReplay_Enabled]", game_ini)
-        self.assertIn("04603B44 42700000", game_ini)
+        self.assertIn("00000000 00000000", game_ini)
         self.assertIn("Dolphin.Core.EnableCheats=False", record["arguments"])
         self.assertIn("Graphics.VR.EnableOpenXR=False", record["arguments"])
         self.assertEqual(record["status"], "prepared-disabled-code-candidate")
@@ -267,11 +289,11 @@ class Phase1Tests(unittest.TestCase):
         self.assertIsNone(record["measured_results"])
 
     def test_deadspace_wrong_id_or_revision_never_writes(self):
-        for game_id, revision in ((b"RZJP69", 0), (b"RZJE69", 1), (b"RBUP08", 0)):
+        for game_id, revision in ((b"RZJP69", 0), (b"SYN004", 1), (b"SYN001", 0)):
             raw = bytearray(self.disc.read_bytes())
             raw[:6], raw[7] = game_id, revision
             self.disc.write_bytes(raw)
-            with self.assertRaisesRegex(ValueError, "exact RZJE69 revision 0"):
+            with self.assertRaisesRegex(ValueError, "exact selected game ID and revision"):
                 phase1.prepare_deadspace_candidate(self.exe, self.disc, self.root / "dse")
             self.assertFalse((self.root / "dse").exists())
 

@@ -37,9 +37,17 @@ if ($lease.quiet_machine -ne $true -or -not $slotGranted -or
 }
 if ($lease.run_directory -ne $runRoot) { throw 'Lease does not name this exact run directory' }
 if (Test-Path -LiteralPath (Join-Path $runRoot 'execution.json')) { throw 'Run already attempted; prepare a fresh retry profile' }
-$admittedGame = if ($native) { $run.game_id -in @('RBUP08','SBDP08','RHOP8P','RZJE69','RZPP01','SQDE8P') } else { $run.game_id -in @('RBUP08','SBDP08') }
+$planRoot = if ($env:AC_PERFORMANCE_PLAN_DIR) { [IO.Path]::GetFullPath($env:AC_PERFORMANCE_PLAN_DIR) } else { $PSScriptRoot }
+$planParts = $planRoot -split '[/\\]'
+$privatePlan = $false
+for ($i=0; $i -lt $planParts.Count-1; $i++) { if ($planParts[$i] -eq '.local' -and $planParts[$i+1] -ne 'worktrees') { $privatePlan=$true } }
+if ($env:AC_PERFORMANCE_PLAN_DIR -and -not $privatePlan) { throw 'Selected run plans must be private under .local' }
+$planName = if ($native) { 'native-vbi-phase1.json' } else { 'chronicles-phase1.json' }
+$selectedPlan = Get-Content -LiteralPath (Join-Path $planRoot $planName) -Raw | ConvertFrom-Json
+$admittedGame = $run.game_id -in @($selectedPlan.games.PSObject.Properties.Name)
+if ($native -and $admittedGame) { $admittedGame = $selectedPlan.games.($run.game_id).format -eq 'iso' }
 if (-not $admittedGame -or (-not $native -and $run.experiment -notin @('baseline','code','code-vbi90'))) {
-    throw 'Outside bounded Chronicles Phase 1 scope'
+    throw 'Outside selected Phase 1 plan'
 }
 if ($run.experiment -in @('code','code-vbi90')) { throw 'Legacy candidate-code runtime parked under R3; use native VBI without cheats' }
 if ($native) {

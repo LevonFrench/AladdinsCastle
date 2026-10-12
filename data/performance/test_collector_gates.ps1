@@ -3,10 +3,14 @@ $ErrorActionPreference = 'Stop'
 $privateRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../.local'))
 $fixture = Join-Path $privateRoot ('synthetic-framerate-gates-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $fixture | Out-Null
+$oldPlanDirectory = $env:AC_PERFORMANCE_PLAN_DIR
+$env:AC_PERFORMANCE_PLAN_DIR = $fixture
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'native-vbi-phase1.json') -Destination $fixture
+'{"games":{"SYN001":{},"SYN002":{}},"experiments":["baseline","code","code-vbi90"]}' | Set-Content -LiteralPath (Join-Path $fixture 'chronicles-phase1.json')
 $leasePath = Join-Path $fixture 'lease.json'
 $runPath = Join-Path $fixture 'run.json'
 $sentinel = Join-Path $fixture 'execution.json'
-@{game_id='RBUP08';experiment='baseline'} | ConvertTo-Json | Set-Content -LiteralPath $runPath
+@{game_id='SYN001';experiment='baseline'} | ConvertTo-Json | Set-Content -LiteralPath $runPath
 '{"synthetic":true}' | Set-Content -LiteralPath $sentinel
 
 function CheckRefusal([hashtable]$Lease, [string]$Expected) {
@@ -41,10 +45,10 @@ CheckRefusal $changed '*Lease does not name this exact run directory*'
 
 # Remove only this newly created exact synthetic sentinel, then check the predecessor gate.
 Remove-Item -LiteralPath $sentinel
-@{game_id='RBUP08';experiment='code'} | ConvertTo-Json | Set-Content -LiteralPath $runPath
+@{game_id='SYN001';experiment='code'} | ConvertTo-Json | Set-Content -LiteralPath $runPath
 CheckRefusal $lease '*Legacy candidate-code runtime parked under R3*'
 
-@{game_id='RBUP08';experiment='native-off';route='native-vbi';forced_vbi_value=0;input_contract=$null} |
+@{game_id='SYN001';experiment='native-off';route='native-vbi';forced_vbi_value=0;input_contract=$null} |
     ConvertTo-Json | Set-Content -LiteralPath $runPath
 $nativeLease = $lease.Clone()
 $nativeLease.desktop = $false
@@ -52,12 +56,12 @@ $nativeLease.runtime_slot = $true
 CheckRefusal $nativeLease '*lead-approved XR session conditions*'
 $nativeLease.xr_session_authorized = $true
 CheckRefusal $nativeLease '*requires verified scripted input*'
-@{game_id='RZJE69';experiment='deadspace-code-candidate'} | ConvertTo-Json | Set-Content -LiteralPath $runPath
-CheckRefusal $lease '*Outside bounded Chronicles Phase 1 scope*'
+@{game_id='SYN004';experiment='deadspace-code-candidate'} | ConvertTo-Json | Set-Content -LiteralPath $runPath
+CheckRefusal $lease '*Outside selected Phase 1 plan*'
 
 # Mock only process discovery; exercise the real collector's active-build refusal.
 # The baseline fixture has no executable field, so a missed build cannot launch.
-@{game_id='RBUP08';experiment='baseline'} | ConvertTo-Json | Set-Content -LiteralPath $runPath
+@{game_id='SYN001';experiment='baseline'} | ConvertTo-Json | Set-Content -LiteralPath $runPath
 function Get-Process {
     [CmdletBinding()]
     param([string[]]$Name, [int]$Id)
@@ -82,7 +86,7 @@ foreach ($mockProcessName in $mockProcessNames) {
 $mockProcessName = 'idle-helper'
 $syntheticExe = Join-Path $fixture 'never-executed.fixture'
 'synthetic data, not an executable' | Set-Content -LiteralPath $syntheticExe
-@{game_id='RBUP08';experiment='baseline';executable=$syntheticExe} | ConvertTo-Json | Set-Content -LiteralPath $runPath
+@{game_id='SYN001';experiment='baseline';executable=$syntheticExe} | ConvertTo-Json | Set-Content -LiteralPath $runPath
 CheckRefusal $lease '*Pinned executable changed*'
 Write-Output "7 lease/legacy-code, $($mockProcessNames.Count) active-build and 1 idle-control checks passed; no application launched."
 
@@ -98,7 +102,7 @@ $nativeLease.dsu_ready_file = $readyPath
 $nativeLease.dsu_server_pid = 2222
 $nativeLease.dsu_session_token = 'a'*32
 $mockDsuProducer = [pscustomobject]@{Id=2222;Path=$syntheticExe}
-@{game_id='RBUP08';experiment='native-off';route='native-vbi';forced_vbi_value=0;input_contract=$inputContract} |
+@{game_id='SYN001';experiment='native-off';route='native-vbi';forced_vbi_value=0;input_contract=$inputContract} |
     ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $runPath
 # The previous gate accepted this old ready receipt with any live lease PID.
 @{ready=$true;port=26760} | ConvertTo-Json -Compress | Set-Content -LiteralPath $readyPath
@@ -161,3 +165,5 @@ $quoted = Join-AcPhase1Arguments @('test path\','x=y')
 if ($quoted -ne '"test path\\" "x=y"') { throw 'Windows native argument quoting failed' }
 if ((Get-AcPhase1ByteHash ([byte[]]@(97,98,99))) -ne 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad') { throw 'Portable byte hash failed' }
 Write-Output '2 native admission and 1 disabled-code refusal, 5 native argument modes, quoting and byte-hash checks passed.'
+
+$env:AC_PERFORMANCE_PLAN_DIR = $oldPlanDirectory

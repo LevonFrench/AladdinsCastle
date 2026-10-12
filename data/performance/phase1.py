@@ -3,6 +3,7 @@ import argparse
 import configparser
 import hashlib
 import json
+import os
 import math
 from pathlib import Path
 import secrets
@@ -12,9 +13,18 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
-PLAN = json.loads((HERE / "chronicles-phase1.json").read_text())
-NATIVE_PLAN = json.loads((HERE / "native-vbi-phase1.json").read_text())
-DSE_CANDIDATE = json.loads((HERE / "deadspace-code-candidate.json").read_text())
+def read_plan(name):
+    selected = os.environ.get("AC_PERFORMANCE_PLAN_DIR")
+    root = Path(selected).resolve() if selected else HERE
+    if selected and not any(part == ".local" and i + 1 < len(root.parts) and root.parts[i + 1] != "worktrees"
+                            for i, part in enumerate(root.parts)):
+        raise ValueError("Selected run plans must be private under .local")
+    return json.loads((root / name).read_text())
+
+
+PLAN = read_plan("chronicles-phase1.json")
+NATIVE_PLAN = read_plan("native-vbi-phase1.json")
+DSE_CANDIDATE = read_plan("deadspace-code-candidate.json")
 PIN = json.loads((REPO / "setups/dolphin-vr/upstream-pin.json").read_text())
 
 
@@ -145,7 +155,7 @@ def attach_input(run_directory, profile, manifest, script, entrypoint, port=2676
     if entrypoint.name != "scripted.py":
         raise ValueError("Expected the lead scripted.py")
     game_key = NATIVE_PLAN["games"][record["game_id"]]["control_key"]
-    if profile.name == "split-right.ini" and record["game_id"] in ("RBUP08", "SBDP08"):
+    if profile.name == "split-right.ini" and NATIVE_PLAN["games"][record["game_id"]].get("legacy_split_profile", False):
         profile_key, native_key = "flat-dolphin/split-right.ini", None
     else:
         profile_key = f"games/{game_key}/scripted-dsu-right.ini"
@@ -226,12 +236,12 @@ def attach_input(run_directory, profile, manifest, script, entrypoint, port=2676
 def prepare_deadspace_candidate(executable, disc, output, private_root=None):
     identity = header(disc)
     if identity["game_id"] != DSE_CANDIDATE["required_game_id"] or identity["revision"] != DSE_CANDIDATE["required_revision"]:
-        raise ValueError("Dead Space candidate requires exact RZJE69 revision 0; no other region or revision")
-    record = prepare(executable, disc, "RZJE69", "native-off", output, private_root)
+        raise ValueError("Candidate requires exact selected game ID and revision; no other region or revision")
+    record = prepare(executable, disc, DSE_CANDIDATE["required_game_id"], "native-off", output, private_root)
     run = private_path(output, private_root)
     user = Path(record["user"])
     candidate = DSE_CANDIDATE
-    (user / "GameSettings/RZJE69.ini").write_text(
+    (user / f"GameSettings/{DSE_CANDIDATE['required_game_id']}.ini").write_text(
         f"[ActionReplay]\n${candidate['name']}\n{candidate['code']}\n\n[ActionReplay_Disabled]\n${candidate['name']}\n", encoding="utf-8")
     parsed = configparser.ConfigParser(interpolation=None)
     parsed.optionxform = str

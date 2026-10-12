@@ -204,6 +204,19 @@ public:
         scale_=scale;anchor_mode_=mode;return ACVR_OK;
     }
     acvr_result begin(Display &) override;
+    acvr_result bind_world_target(const acvr_draw_info &info) override {
+        if(!active_||!in_frame_||wglGetCurrentContext()!=context_||wglGetCurrentDC()!=dc_)
+            return ACVR_BAD_STATE;
+        if(info.view_count!=1||!info.views||info.views->eye_index>=2) return ACVR_BAD_ARGUMENT;
+        const auto &s=eyes_[info.views->eye_index];
+        if(!s.acquired||s.index>=s.targets.size()) return ACVR_BAD_STATE;
+        const auto &target=s.targets[s.index];
+        if(info.target.api!=ACVR_GRAPHICS_GL||info.target.framebuffer!=target.fbo||
+           info.target.colour_image!=target.colour||info.target.depth_image!=target.depth||
+           info.target.width!=s.width||info.target.height!=s.height) return ACVR_BAD_ARGUMENT;
+        gl_.bind_fbo(kFrame,target.fbo);
+        return ACVR_OK;
+    }
     acvr_result end(bool) override;
     void output(const acvr_output_event &) override {}
     void cancel_effects() noexcept override {}
@@ -575,7 +588,9 @@ acvr_result OpenXrGlHost::fill_tracking(Display &d) {
                 (pair.second==ACVR_CALIB_STICK_X_ACTIVE?d.calibration.stick_x[i]:d.calibration.stick_y[i])=axis.currentState;
             }
         }
+#ifdef ACVR_GUN_GL
         hand_controls_[i]=(hand.grip_flags&3u)==3u?d.controllers[i]:ControllerButtons{};
+#endif
     }
     uint32_t view_count=0;XrViewLocateInfo locate{XR_TYPE_VIEW_LOCATE_INFO};
     locate.viewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;

@@ -14,7 +14,6 @@
   "source_review_complete": false,
   "enable_cheats": false,
   "tested_on": null,
-  "after": "native VBI Phase 1 comparison",
   "runtime_dependencies": ["source transcription review", "exact ID/revision header match", "same-scene code-off baseline", "scripted input evidence", "lead quiet-machine runtime slot"],
   "watch_list": ["changed game speed", "cutscene drop that does not recover", "audio sync and pitch", "QTE timing", "HUD", "EFB effects"],
   "results": []
