@@ -46,7 +46,8 @@ private slots:
     for(int i=0;i<109;++i)u32(76+4*i,i==0?9:0xffffffff);
     cfb[512+66]=5;u32(512+76,1);u32(512+116,0xfffffffe);
     for(int e=1;e<3;++e){const auto at=512+e*128;const QString name=e==1?"GameStg":"GameData";
-        for(int i=0;i<name.size();++i)u16(at+2*i,name[i].unicode());u16(at+64,static_cast<quint16>((name.size()+1)*2));
+        for(int i=0;i<name.size();++i){u16(at+2*i,name[i].unicode());}
+        u16(at+64,static_cast<quint16>((name.size()+1)*2));
         cfb[at+66]=e==1?1:2;u32(at+68,0xffffffff);u32(at+72,0xffffffff);u32(at+76,e==1?2:0xffffffff);
         u32(at+116,e==1?0xfffffffe:1);u32(at+120,e==1?0:4096);
     }
