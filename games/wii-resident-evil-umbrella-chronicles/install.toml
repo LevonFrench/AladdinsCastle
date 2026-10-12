@@ -95,7 +95,7 @@ format = "ini"
 create = true
 only_if_missing = true
 source = "data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini"
-source_sha256 = "995d7f88bd2f992fbe363feca1865a539e39e6798dcf30c8482fc0e05fbbf2f1"
+source_sha256 = "b3c7794ca0a0c00e763547e2d8b317da97e95ce6a5161412d0eb0639f1ad5553"
 
 [[variant.dolphinxr.step]]
 id = "logs-directory"
