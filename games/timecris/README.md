@@ -1,24 +1,21 @@
 # Time Crisis (Namco, 1995) - VR
 
-Stand inside the original Time Crisis: the arcade game's own 3D world in stereo around you, a tracked pistol in your hand, and the cover pedal on a button.
+The intended VR setup renders the original arcade world in stereo, with a tracked pistol and a controller button for the cover pedal.
 
-**Status:** planned for milestone M2 (AladdinsCastle's own true-3D setup on namco22-decompile + libacvr). Until then the Hub offers "Play in MAME" (flat window).
+**Status:** the owned namco22-vr Hub setup is planned and cannot yet be installed or launched from the Hub. Real-game left/right desktop captures have been produced, but they do not prove a headset connection, tracked aim or a playable Hub VR route. The newer native adapter remains experimental. The Hub can offer "Play in MAME" as a flat route when its emulator and media requirements are met.
 
-## Features
+## Planned VR features
 
 - True 3D: the original arcade game, rebuilt by the namco22-decompile project, rendered per eye by libacvr.
 - Tracked pistol with optional laser and adjustable gun angle; aim is projected through the arcade camera, so off-centre shots land where you point.
 - Cover pedal on a button: hold either grip to stay out and shoot, release it to take cover and reload (inverted and toggle modes in settings).
 - Left- or right-handed play; pulling a trigger picks that gun hand.
 
-## How to use
+## Current launch options
 
-1. **Find my files**: point the Hub at your `timecris` set, or let it search.
-2. **Install**, then **Start in VR ▶** (or start it from your SteamVR library).
-3. In game: **A** (right) inserts credits, then either trigger starts.
-4. Use **Map controls** (Control Mapping mode) to adjust the gun angle, laser and cover mode while you watch the pistol move 1:1.
+Use the available flat MAME route in the Hub. There is no supported **Install → Start in VR** sequence for the owned setup yet. Desktop stereo diagnostics are separate experiments; they do not enable the planned Hub route.
 
-## Controls
+## Planned VR controls
 
 | Action | Control |
 |---|---|
@@ -30,12 +27,12 @@ Stand inside the original Time Crisis: the arcade game's own 3D world in stereo 
 | Pause / options | Left menu button |
 | Recenter | Hold both grips |
 
-## What it installs
+## Planned components
 
 - **namco22-decompile** by spacestate1 and contributors, https://github.com/spacestate1/namco22-decompile (MIT)
-- **AladdinsCastle namco22-vr** host with libacvr (MIT)
+- **AladdinsCastle namco22-vr** adapter with libacvr; see each component's included licence.
 
-## Requirements
+## Intended VR requirements
 
 - Your own `timecris` set: Time Crisis World TS2 Ver.B (MAME 0.271+), matched by hash.
 - PCVR through SteamVR with a SteamVR headset.
