@@ -11,6 +11,8 @@ class QQuickItem;
 class QQmlEngine;
 class QImage;
 namespace ac {
+// Shared current-context readback; preserves the same GL state as source capture.
+bool readCurrentGlTexture(unsigned int texture,QSize size,QImage *image,QString *error);
 class QuickTextureRenderer : public QObject {
     Q_OBJECT
 public:

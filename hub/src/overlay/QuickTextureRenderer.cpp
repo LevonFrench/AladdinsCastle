@@ -70,6 +70,11 @@ private:
     QOpenGLExtraFunctions *f;
 };
 }
+bool readCurrentGlTexture(unsigned int texture,QSize size,QImage *image,QString *error){
+    auto *context=QOpenGLContext::currentContext();
+    if(!context){if(error)*error="Texture readback requires a current GL context.";return false;}
+    CurrentTextureReadback ops(context);return readSourceTexture(ops,texture,size,image,error);
+}
 QuickTextureRenderer::QuickTextureRenderer(QObject *parent) : QObject(parent) {}
 QuickTextureRenderer::~QuickTextureRenderer() {
     // Scenegraph and texture must die while their external context is current.
@@ -170,7 +175,7 @@ bool QuickTextureRenderer::readbackCurrentTexture(QImage *image,QString *error){
         if(error){*error="Source texture readback requires the initialized renderer's current context.";}
         return false;
     }
-    CurrentTextureReadback ops(m_context.get());return readSourceTexture(ops,m_texture,m_size,image,error);
+    return readCurrentGlTexture(m_texture,m_size,image,error);
 }
 void QuickTextureRenderer::doneCurrent() { if (m_context) m_context->doneCurrent(); }
 QString QuickTextureRenderer::graphicsDescription() const { return m_graphics; }

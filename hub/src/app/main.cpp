@@ -9,6 +9,7 @@
 #include "core/launch/Launch.h"
 #include "app/HubServices.h"
 #include "overlay/OverlayHost.h"
+#include "overlay/CompositorCapture.h"
 #include "overlay/SpikeState.h"
 #include "ui/Theme.h"
 #include <QCoreApplication>
@@ -39,7 +40,16 @@ int main(int argc,char **argv){
         if(options.mode==ac::Mode::Launch){QCoreApplication app(argc,argv);QString log;try{log=ac::writeLaunchFailureLog(options.installRoot.isEmpty()?app.applicationDirPath():options.installRoot,options.gameId,options.error);}catch(const std::exception &){}ac::showLaunchFailure(options.error,log);}
         return 2;
     }
-    if(options.help){out<<ac::product::display_name<<" Hub\nUsage: "<<ac::product::program_name<<" [--overlay [--window] | --launch <game-id>]\n  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default on)\n  --overlay-capture-dir <absolute fresh directory>  One source texture PNG/receipt under catalog .local (requires --overlay)\n  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;}
+    if(options.help){
+        out<<ac::product::display_name<<" Hub\nUsage: "<<ac::product::program_name<<" [--overlay [--window] | --launch <game-id> | --capture-compositor-dir <directory>]\n"
+           <<"  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n"
+           <<"  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default on)\n"
+           <<"  --overlay-capture-dir <absolute fresh directory>  One source texture PNG/receipt under catalog .local (requires --overlay)\n"
+           <<"  --show-dashboard  Explicitly select this Hub's dashboard (requires --overlay)\n"
+           <<"  --capture-compositor-dir <absolute fresh directory>  One compositor eye pair under catalog .local; existing service required\n"
+           <<"  --compositor-dashboard any|visible|hidden  Snapshot visibility requirement (default any); never changes dashboard state\n"
+           <<"  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;
+    }
     if(options.version){out<<ac::product::display_name<<" Hub 0.1.0\n";return 0;}
     if(options.mode==ac::Mode::RegisterOverlay||options.mode==ac::Mode::UnregisterOverlay){
         QCoreApplication app(argc,argv);QString error;
@@ -69,6 +79,11 @@ int main(int argc,char **argv){
     QCoreApplication::setApplicationName(ac::product::user_data_folder);QGuiApplication::setApplicationDisplayName(ac::product::display_name);QCoreApplication::setApplicationVersion("0.1.0");
     const auto catalogRoot=ac::findCatalogRoot(app.applicationDirPath(),QDir::currentPath(),options.dataRoot);
     if(catalogRoot.isEmpty()){err<<"Catalog missing.\n";return 2;}
+    if(options.mode==ac::Mode::CompositorCapture){
+        QString error;
+        if(!ac::captureCompositorEyes(catalogRoot,options.compositorCaptureDir,options.compositorDashboard,&error)){err<<error<<'\n';return 3;}
+        out<<"Compositor eye snapshot written; inspect content and orientation. No physical headset or exact frame-sync acceptance.\n";return 0;
+    }
     auto catalog=QtConcurrent::run([catalogRoot]{return ac::CatalogLoader().load(catalogRoot);}).result();
     const auto count=catalog.report.records;
     ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);
@@ -149,6 +164,10 @@ int main(int argc,char **argv){
         for(const auto &game:games.records())if(game.runtime.playing)receipt["games"].push_back({{"id",game.id.toStdString()},{"playing",true},{"stateLabel",game.roles.value("stateLabel").toString().toStdString()}});
         ac::install::atomicWrite(capture+".json",QByteArray::fromStdString(receipt.dump(2)));
     });
+    if(overlayInitialized&&options.showDashboard){
+        QString error;if(!overlay.showDashboard(&error)){err<<error<<'\n';overlay.shutdown();return 3;}
+        out<<"Own dashboard show requested; compositor presentation requires verification.\n";
+    }
     out<<ac::product::display_name<<": "<<count<<" games\n";out.flush();
     if(options.quitAfterMs>0)QTimer::singleShot(options.quitAfterMs,&services,[&services]{services.requestHubExit();});
     return app.exec();

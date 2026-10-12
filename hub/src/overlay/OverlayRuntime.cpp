@@ -105,6 +105,10 @@ public:
         if (result == vr::VROverlayError_None) return true;
         *error = "SetOverlayTexture: " + overlayError(result); return false;
     }
+    bool showDashboard(QString *error) override {
+        if(!m_initialized||m_main==vr::k_ulOverlayHandleInvalid){if(error)*error="Dashboard overlay is not initialized.";return false;}
+        vr::VROverlay()->ShowDashboard(overlayKey);return true;
+    }
     bool showKeyboard(const QString &text, quint64 token, QString *error) override {
         const auto result = vr::VROverlay()->ShowKeyboardForOverlay(m_main,
             vr::k_EGamepadTextInputModeNormal, vr::k_EGamepadTextInputLineModeSingleLine,

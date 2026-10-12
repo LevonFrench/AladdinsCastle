@@ -4,7 +4,7 @@
 #include <QDir>
 namespace ac {
 bool wantsParentConsole(const LaunchOptions &options){
-    return options.help||options.version||options.quitAfterMs>0||!options.overlayCaptureDir.isEmpty()||options.mode==Mode::Launch||options.mode==Mode::RegisterOverlay||options.mode==Mode::UnregisterOverlay;
+    return options.help||options.version||options.quitAfterMs>0||!options.overlayCaptureDir.isEmpty()||options.mode==Mode::CompositorCapture||options.mode==Mode::Launch||options.mode==Mode::RegisterOverlay||options.mode==Mode::UnregisterOverlay;
 }
 bool shouldOpenDesktop(const LaunchOptions &options, bool overlayInitialized) {
     if (options.mode == Mode::Overlay && options.steamVrStarted && !overlayInitialized) return false;
@@ -16,6 +16,7 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
     LaunchOptions options;
     bool modeSeen = false;
     bool orientationSeen = false;
+    bool compositorDashboardSeen = false;
     for (qsizetype i = 0; i < arguments.size(); ++i) {
         const auto &arg = arguments.at(i);
         if (arg == "--help" || arg == "-h") options.help = true;
@@ -23,6 +24,17 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
         else if (arg == "--steamvr-started") options.steamVrStarted = true;
         else if (arg == "--window") options.window = true;
         else if (arg == "--spike") options.spike = true;
+        else if (arg == "--show-dashboard") options.showDashboard = true;
+        else if(arg=="--capture-compositor-dir"){
+            if(modeSeen){options.error="Choose only one execution mode.";break;}
+            modeSeen=true;options.mode=Mode::CompositorCapture;
+            if(++i>=arguments.size()||!QDir::isAbsolutePath(arguments.at(i))){options.error="--capture-compositor-dir requires an absolute fresh directory under catalog .local.";break;}
+            options.compositorCaptureDir=arguments.at(i);
+        }
+        else if(arg=="--compositor-dashboard"){
+            if(compositorDashboardSeen||++i>=arguments.size()||!QStringList{"any","visible","hidden"}.contains(arguments.at(i))){options.error="--compositor-dashboard requires one of any, visible or hidden, once.";break;}
+            compositorDashboardSeen=true;options.compositorDashboard=arguments.at(i);
+        }
         else if(arg=="--overlay-capture-dir"){
             if(!options.overlayCaptureDir.isEmpty()){options.error="Only one source texture capture directory may be requested.";break;}
             if(++i>=arguments.size()||!QDir::isAbsolutePath(arguments.at(i))){options.error="--overlay-capture-dir requires an absolute fresh directory under the selected catalog's .local.";break;}
@@ -62,6 +74,12 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
         options.error="Overlay orientation options require --overlay.";
     if(options.error.isEmpty()&&!options.overlayCaptureDir.isEmpty()&&options.mode!=Mode::Overlay)
         options.error="Source texture capture requires --overlay.";
+    if(options.error.isEmpty()&&options.showDashboard&&options.mode!=Mode::Overlay)
+        options.error="--show-dashboard requires --overlay.";
+    if(options.error.isEmpty()&&compositorDashboardSeen&&options.mode!=Mode::CompositorCapture)
+        options.error="--compositor-dashboard requires --capture-compositor-dir.";
+    if(options.error.isEmpty()&&options.mode==Mode::CompositorCapture&&options.quitAfterMs)
+        options.error="Compositor snapshot is one-shot; supervise blocking driver calls externally.";
     if (options.error.isEmpty() && options.steamVrStarted && options.mode != Mode::Overlay)
         options.error = "--steamvr-started requires --overlay.";
     if (options.error.isEmpty() && options.window && options.mode != Mode::Overlay)
