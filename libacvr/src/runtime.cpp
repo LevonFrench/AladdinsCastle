@@ -151,7 +151,7 @@ struct acvr_runtime {
         paused = value; clear_inputs(); host->cancel_effects(); clock_started = false;
         return ACVR_OK;
     }
-    acvr_result outputs(int64_t now) {
+    acvr_result outputs(int64_t now, bool deliver = true) {
 #ifndef ACVR_GUN_MODELS
         (void)now;
 #endif
@@ -177,6 +177,9 @@ struct acvr_runtime {
                 if (valid(&e) != ACVR_OK || e.sequence <= sequence || e.tick_id > tick ||
                     e.player >= info.player_count || !std::isfinite(e.strength)) return ACVR_BAD_STATE;
                 sequence = e.sequence;
+                // Initial unfocused presentation drains native events without
+                // sending haptics or starting gun motion from the bootstrap tick.
+                if(!deliver) continue;
 #ifdef ACVR_GUN_MODELS
                 if(gun_model) {
                     const auto motion=gun_outputs.consume(e,now,gun_tracked,*gun_model);
@@ -262,7 +265,7 @@ struct acvr_runtime {
             gun.flags &= ~ACVR_GUN_OFFSCREEN;
         return known_offscreen();
     }
-    acvr_result advance(const acvr::Display &d) {
+    acvr_result advance(const acvr::Display &d, bool deliver_outputs = true) {
         std::vector<acvr_gun_input> guns(gun_count);
         for (uint32_t slot = 0; slot < gun_count; ++slot) {
             auto result = aim(slot, d, guns[slot]); if (result != ACVR_OK) return result;
@@ -301,11 +304,11 @@ struct acvr_runtime {
         remainder %= info.native_rate_num;
         if (interval > uint64_t(INT64_MAX - simulation_ns) || due_ns > INT64_MAX - int64_t(interval)) return ACVR_BAD_STATE;
         simulation_ns += int64_t(interval); due_ns += int64_t(interval);
-        result=outputs(d.tracking.predicted_display_time_ns);
+        result=outputs(d.tracking.predicted_display_time_ns,deliver_outputs);
 #ifdef ACVR_GUN_MODELS
         // A declared real recoil route is authoritative even when no output
         // arrives this tick (empty ammo/reload). Never layer a fire fallback on it.
-        if(result==ACVR_OK && gun_model && !gun_outputs.owns_recoil() && !guns.empty() && (guns[0].trigger&ACVR_INPUT_PRESSED))
+        if(deliver_outputs && result==ACVR_OK && gun_model && !gun_outputs.owns_recoil() && !guns.empty() && (guns[0].trigger&ACVR_INPUT_PRESSED))
             result=gun_model->drive("recoil",1,true,d.tracking.predicted_display_time_ns);
 #endif
         return result;
@@ -546,7 +549,8 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
         if (valid(&d.tracking) != ACVR_OK || !pose_ok(d.scene_from_stage) || now < 0 || d.tracking.sample_time_ns < 0 ||
             (r->have_tracking && now <= r->last_display_ns)) return finish(ACVR_BAD_ARGUMENT, false);
         r->tracking = d.tracking; r->tracking.display_id = r->display_id; r->have_tracking = true;
-        const bool active = d.focused && (d.tracking.head_flags & 3u) == 3u && pose_ok(d.tracking.head) && !r->user_paused;
+        const bool view_valid = (d.tracking.head_flags & 3u) == 3u && pose_ok(d.tracking.head);
+        const bool active = d.focused && view_valid && !r->user_paused;
         if(r->host->supports_calibration_samples()) {
             r->calibration=d.calibration;r->calibration.size=sizeof(r->calibration);
             r->calibration.version=ACVR_STRUCT_VERSION;
@@ -554,6 +558,22 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             r->calibration.sample_time_ns=d.tracking.sample_time_ns;
             r->calibration.focused=active?1u:0u;
             r->have_calibration=true;
+        }
+        // OpenXR may request a visible picture before granting input focus.
+        // The backend opens unpaused and has no lease until its first tick.
+        // Publish exactly one neutral tick, then freeze that drawable lease;
+        // never invent focus or consume controller levels to initialize it.
+        if(!active && view_valid && d.should_render && !r->user_paused && !r->frame) {
+            auto neutral=d;
+            neutral.axes.clear();neutral.buttons.clear();
+            for(unsigned hand=0;hand<2;++hand) {
+                neutral.trigger[hand]=neutral.reload[hand]=false;
+                neutral.controllers[hand]={};
+            }
+            r->clear_inputs();r->host->cancel_effects();
+            result=r->pause(false);if(result!=ACVR_OK)return finish(result,false);
+            r->due_ns=now;
+            result=r->advance(neutral,false);if(result!=ACVR_OK)return finish(result,false);
         }
         result = r->pause(!active); if (result != ACVR_OK) return finish(result, false);
         if (active) {
@@ -683,8 +703,16 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
             }
         }
         r->last_display_ns = now;
-        const bool draw = d.should_render && r->frame && active;
+        const bool draw = d.should_render && r->frame && view_valid && !r->user_paused;
 #ifdef ACVR_GUN_MODELS
+        // Pose rendering is independent of action focus. Keep input/motion
+        // neutral and use only valid poses, including explicit authoring poses.
+        if(draw && r->gun_model && !active) {
+            const auto &hand=r->hand(d,0);
+            r->gun_tracked=r->tracked(hand);
+            r->support_grip=false;
+            if(r->gun_tracked)r->effective_grip=hand.grip;
+        }
         // Refresh once after native outputs/fallback pulses, then share exactly
         // the same model state between eyes. Neither draw may advance motion.
         if(draw && r->gun_model && r->gun_tracked) {
