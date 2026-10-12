@@ -15,7 +15,10 @@
 #include <QDir>
 #include <QGuiApplication>
 #include <QImage>
+#include <QFile>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickWindow>
@@ -74,7 +77,11 @@ int main(int argc,char **argv){
     try{ac::install::scopedPath("user/hub-settings.toml",portableRoot);ac::install::scopedPath("user/scan-folders.json",portableRoot);ac::install::scopedPath("user/cache/scan-bindings.json",portableRoot);}catch(const std::exception &e){err<<e.what()<<'\n';return 2;}
     ac::UiSettings settings(portableRoot+"/user");ac::UiController ui(&games,&filter,&settings);
     ac::HubServices services(&games,&filter,&ui,&settings,portableRoot);
-    QObject::connect(&services,&ac::HubServices::hubExitReady,&app,[&app](int code){app.exit(code);});
+    const auto capture=qEnvironmentVariable("AC_UI_CAPTURE");
+    QObject::connect(&services,&ac::HubServices::hubExitReady,&app,[&app,capture](int code){
+        if(capture.isEmpty())app.exit(code);
+        else QTimer::singleShot(0,&app,[&app,code]{app.exit(code);}); // Finish observers before writing the exit receipt.
+    });
     QObject::connect(&app,&QGuiApplication::applicationStateChanged,&ui,[&](Qt::ApplicationState state){if(state!=Qt::ApplicationActive)ui.clearDetailControlStates();});
     qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",&theme);
     ac::SpikeState spike;spike.setFlipY(options.pointerFlipY);ac::LocalQmlNetworkFactory localNetwork;QQmlApplicationEngine engine;engine.setNetworkAccessManagerFactory(&localNetwork);ac::OverlayHost overlay(spike,ac::makeOpenVrRuntime(options.pictureFlipY));
@@ -104,13 +111,41 @@ int main(int argc,char **argv){
     // Explicit operator diagnostics capture this application's own Qt surface.
     // Private owner captures are never included in packaging.
     const auto qaGame=qEnvironmentVariable("AC_UI_PLAY");
-    if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});
-    const auto capture=qEnvironmentVariable("AC_UI_CAPTURE");
-    if(!capture.isEmpty())QTimer::singleShot(6000,&app,[&engine,&ui,&games,capture]{
-        for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow*>(object)){
-            QDir().mkpath(QFileInfo(capture).absolutePath());window->grabWindow().save(capture);break;
+    const auto qaPinballRow=qEnvironmentVariable("AC_UI_PINBALL_ROW");
+    const auto qaPinballIni=qEnvironmentVariable("AC_UI_PINBALL_INI");
+    if(!qaPinballIni.isEmpty()&&qaPinballRow.isEmpty())ui.showError("Diagnostic","AC_UI_PINBALL_INI requires AC_UI_PINBALL_ROW.");
+    else if(!qaGame.isEmpty()&&!qaPinballRow.isEmpty())ui.showError("Diagnostic","Choose either a catalog game or one Pinball diagnostic row.");
+    else if(!qaPinballRow.isEmpty())QTimer::singleShot(1000,&ui,[&ui,&services,qaPinballRow,qaPinballIni]{
+        QFile file(qaPinballRow);QJsonParseError error;
+        const auto document=file.open(QIODevice::ReadOnly)?QJsonDocument::fromJson(file.readAll(),&error):QJsonDocument{};
+        if(error.error!=QJsonParseError::NoError||!document.isObject()){
+            ui.showError("Diagnostic","Invalid Pinball diagnostic row; expected one cached JSON object.");return;
         }
-        ac::Json receipt{{"status",ui.status().toStdString()},{"games",ac::Json::array()}};
+        const auto row=document.object().toVariantMap();
+        if(row.value("id").toString().isEmpty()||row.value("path").toString().isEmpty()){
+            ui.showError("Diagnostic","Invalid Pinball diagnostic row; missing table identity or path.");return;
+        }
+        try{if(!qaPinballIni.isEmpty())services.setPinballDiagnosticIni(qaPinballIni);}
+        catch(const std::exception &exception){ui.showError("Diagnostic","Pinball diagnostic settings refused: "+QString::fromUtf8(exception.what()));return;}
+        ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball();
+    });
+    else if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});
+    ac::Json diagnosticFinished=ac::Json::array();
+    if(!capture.isEmpty()){
+        QObject::connect(services.launcher(),&ac::launch::LaunchService::finished,&app,[&diagnosticFinished](const QString &id,int code,const QString &error,const QString &){
+            diagnosticFinished.push_back({{"gameId",id.toStdString()},{"exitCode",code},{"error",error.toStdString()}});
+        });
+        QObject::connect(&app,&QCoreApplication::aboutToQuit,&app,[&ui,&services,&diagnosticFinished,capture]{
+            const ac::Json receipt{{"launcherBusy",services.launchBusy()},{"nowPlaying",ac::Json::parse(QJsonDocument::fromVariant(ui.nowPlaying()).toJson(QJsonDocument::Compact).toStdString())},{"finished",diagnosticFinished}};
+            ac::install::atomicWrite(capture+".exit.json",QByteArray::fromStdString(receipt.dump(2)));
+        });
+    }
+    if(!capture.isEmpty())QTimer::singleShot(6000,&app,[&engine,&ui,&games,&services,capture]{
+        bool imageSaved=false;
+        for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow*>(object)){
+            QDir().mkpath(QFileInfo(capture).absolutePath());imageSaved=window->grabWindow().save(capture);break;
+        }
+        ac::Json receipt{{"status",ui.status().toStdString()},{"imageSaved",imageSaved},{"launcherBusy",services.launchBusy()},{"nowPlaying",ac::Json::parse(QJsonDocument::fromVariant(ui.nowPlaying()).toJson(QJsonDocument::Compact).toStdString())},{"games",ac::Json::array()}};
         for(const auto &game:games.records())if(game.runtime.playing)receipt["games"].push_back({{"id",game.id.toStdString()},{"playing",true},{"stateLabel",game.roles.value("stateLabel").toString().toStdString()}});
         ac::install::atomicWrite(capture+".json",QByteArray::fromStdString(receipt.dump(2)));
     });

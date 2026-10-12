@@ -18,6 +18,13 @@
 #include <QCryptographicHash>
 namespace ac {
 namespace {
+QString privatePinballIni(const QString &path,const QString &root) {
+    if(!QDir::isAbsolutePath(path))throw install::Error("E_PINBALL_DIAGNOSTIC_INI","Use an absolute private settings path");
+    const auto candidate=install::scopedPath(path,QDir(root).filePath(".local"));
+    const QFileInfo file(candidate);
+    if(!file.isFile()||!file.isReadable())throw install::Error("E_PINBALL_DIAGNOSTIC_INI","Private settings file is missing or unreadable");
+    return candidate;
+}
 scan::ScanOptions scanOptions(const QString &root) {
     install::scopedPath("user/scan-folders.json",root);
     install::scopedPath("user/cache/scan.toml",root);
@@ -218,6 +225,9 @@ HubServices::~HubServices(){
     disconnect(&gunRoom_,nullptr,this,nullptr);
     gunRoom_.close();
 }
+void HubServices::setPinballDiagnosticIni(const QString &path){
+    pinballDiagnosticIni_=path.isEmpty()?QString():privatePinballIni(path,root_);
+}
 void HubServices::startPinball(const QVariantMap &row,const QString &executable){
     if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
     try{
@@ -231,6 +241,7 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable)
         const auto plan=pinball::launchPlan(table,executable,QString(),true);
         launch::Request request;request.root=root_;request.gameId="pinball-"+id;request.variantId="vpx";request.prepareProfile=false;
         request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+        if(!pinballDiagnosticIni_.isEmpty())request.plan.args<<"-Ini"<<privatePinballIni(pinballDiagnosticIni_,root_);
         retainedPinball_=row;retainedPinballExecutable_=request.plan.executable;
 #ifdef Q_OS_WIN
         ui_->launchPinballQueued(row,QString());

@@ -196,6 +196,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-smoke COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:hub-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-smoke.txt
+        -DTEST_TIMEOUT=120
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(catalog-tests tests/CatalogTest.cpp)
     target_link_libraries(catalog-tests PRIVATE hubcore Qt6::Test)
@@ -255,6 +256,7 @@ if(BUILD_TESTING)
     target_link_libraries(integration-tests PRIVATE hubapp Qt6::Test)
     target_compile_definitions(integration-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(integration-tests)
+    add_dependencies(hub-tests integration-tests)
     add_test(NAME hub-integration COMMAND integration-tests -o -,txt)
     set_tests_properties(hub-integration PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     qt_add_executable(launch-tests tests/LaunchSteamTest.cpp)
