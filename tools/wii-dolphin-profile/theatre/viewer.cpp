@@ -129,6 +129,8 @@ int wmain(int argc,wchar_t** argv) {
     };
     try {
         unsigned pid=0,seconds=0,startupSeconds=30; fs::path headFile,proofDir; bool captureOnly=false;
+        auto recenterInput=theatre::RecenterInput::StartupOnly;
+        bool recenterOptionSeen=false;
         std::wstring gameId;
         for(int i=1;i<argc;++i) {
             const std::wstring flag=argv[i];
@@ -138,6 +140,10 @@ int wmain(int argc,wchar_t** argv) {
             else if(flag==L"--seconds") seconds=theatre::number(argv[++i],600);
             else if(flag==L"--startup-seconds") startupSeconds=theatre::number(argv[++i],90);
             else if(flag==L"--game-id") gameId=argv[++i];
+            else if(flag==L"--desktop-recenter-hotkey") {
+                if(recenterOptionSeen) fail("Desktop recenter hotkey may be specified only once");
+                recenterOptionSeen=true;recenterInput=theatre::recenterInput(argv[++i]);
+            }
             else if(flag==L"--head-file") headFile=calibrationPath(argv[++i]);
             else if(flag==L"--proof-dir") proofDir=calibrationPath(argv[++i]);
             else if(flag==L"--failure-diagnostic-dir") {
@@ -146,6 +152,8 @@ int wmain(int argc,wchar_t** argv) {
             }
             else fail("Unknown option");
         }
+        if(captureOnly && recenterInput==theatre::RecenterInput::DesktopHotkey)
+            fail("Desktop recenter hotkey is only available in live mode");
         if(!pid || seconds<3 || (captureOnly?proofDir.empty():headFile.empty()))
             fail("Use --pid <Dolphin PID> --seconds <3..600>, plus --capture-only --proof-dir <fresh .local directory> OR --head-file <fresh .local JSON>");
         if(!captureOnly && !proofDir.empty()) fail("Proof directory is for capture-only mode");
@@ -271,8 +279,10 @@ int wmain(int argc,wchar_t** argv) {
         vrCheck(session.overlay->CreateOverlay(key.c_str(),theatre::productTitle,&session.handle),"create overlay");
         vrCheck(session.overlay->SetOverlayFlag(session.handle,vr::VROverlayFlags_SideBySide_Parallel,true),"SBS parallel");
         vrCheck(session.overlay->SetOverlayWidthInMeters(session.handle,static_cast<float>(theatre::width)),"plane width");
-        session.hotkey=RegisterHotKey(nullptr,1,MOD_CONTROL|MOD_ALT|MOD_NOREPEAT,'C')!=0;
-        if(!session.hotkey) fail("Ctrl+Alt+C recenter hotkey unavailable");
+        session.hotkey=theatre::reserveRecenterHotkey(recenterInput,[] {
+            return RegisterHotKey(nullptr,1,MOD_CONTROL|MOD_ALT|MOD_NOREPEAT,'C')!=0;
+        });
+        std::cout << "Desktop recenter hotkey=" << (session.hotkey?"on":"off") << '\n';
         auto recenter=[&](unsigned revision) {
             const auto head=pose(system); const auto fixed=theatre::plane(head);
             vr::HmdMatrix34_t transform{}; std::memcpy(transform.m,fixed.data(),sizeof(transform.m));
@@ -302,7 +312,7 @@ int wmain(int argc,wchar_t** argv) {
             validWindow(window,pid,process.value);
             MSG message{};
             while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE))
-                if(message.message==WM_HOTKEY && message.wParam==1) recenter(++revision);
+                if(session.hotkey && message.message==WM_HOTKEY && message.wParam==1) recenter(++revision);
             vr::VREvent_t event{};
             while(system->PollNextEvent(&event,sizeof(event))) if(event.eventType==vr::VREvent_Quit) running=false;
             if(!running) break;

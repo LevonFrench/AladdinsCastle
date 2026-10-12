@@ -11,6 +11,20 @@ template<class F> static void rejects(F operation) {
 int main() {
     using namespace theatre;
     try {
+        int registrations=0;
+        bool registrationSucceeded=false;
+        auto registration=[&]{++registrations;return registrationSucceeded;};
+        require(!reserveRecenterHotkey(RecenterInput::StartupOnly,registration));
+        require(registrations==0);
+        require(recenterInput(L"off")==RecenterInput::StartupOnly);
+        require(recenterInput(L"on")==RecenterInput::DesktopHotkey);
+        for(const auto* invalid:{L"",L"true",L"ON",L"maybe"}) rejects([&]{recenterInput(invalid);});
+        registrationSucceeded=true;
+        require(reserveRecenterHotkey(RecenterInput::DesktopHotkey,registration));
+        require(registrations==1);
+        registrationSucceeded=false;
+        rejects([&]{reserveRecenterHotkey(RecenterInput::DesktopHotkey,registration);});
+        require(registrations==2);
         require(number(L"123",1000)==123);
         require(overlayFailure("submit",23,"VROverlayError_RequestFailed")=="submit: VROverlayError_RequestFailed (23)");
         require(overlayFailure("submit",99,nullptr)=="submit: UnknownOverlayError (99)");

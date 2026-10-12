@@ -153,8 +153,11 @@ The same WGC capture and two-frame gate precede overlay initialization. Captured
 packed BGRA bytes are uploaded at full client size through the reviewed D3D11
 BGRA8/Gamma texture path on SteamVR's nominated adapter. Hardware interoperability
 and headset output remain live gates. No raw upload or alternative capture is
-used. The fixed plane is 2 m away, 3.2 m wide and 1.8 m high. Ctrl+Alt+C publishes
-its exact HMD matrix/revision for bridge calibration. The inherited SBS aspect
+used. The fixed plane is 2 m away, 3.2 m wide and 1.8 m high. Startup centering
+publishes its exact HMD matrix/revision for bridge calibration. The viewer
+reserves no global keyboard shortcut by default. Explicit live-mode
+`--desktop-recenter-hotkey on` registers Ctrl+Alt+C for later recentering;
+`off` is the default and capture-only mode refuses `on`. The inherited SBS aspect
 factor is provisional until its proportions are checked in a headset image.
 The second proven frame is submitted before the overlay is shown. After the
 startup gate, an empty frame pool leaves that last submitted texture
