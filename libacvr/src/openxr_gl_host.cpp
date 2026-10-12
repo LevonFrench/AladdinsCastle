@@ -293,6 +293,8 @@ private:
     bool running_=false,exiting_=false,in_frame_=false,submit_=false,first_anchor_=true;
     HDC previous_dc_=nullptr;HGLRC previous_context_=nullptr;bool active_=false;
     XrSessionState session_state_=XR_SESSION_STATE_UNKNOWN;
+    uint64_t waited_frames_=0,render_requested_frames_=0,focused_frames_=0,submitted_frames_=0;
+    bool have_render_request_=false,last_render_request_=false;
     bool xr_time_known_=false;XrTime last_xr_time_=0;int64_t monotonic_time_=0;
 #ifdef ACVR_GUN_GL
     GunGlRenderer gun_gl_;bool gun_ready_=false;
@@ -688,6 +690,14 @@ acvr_result OpenXrGlHost::begin(Display &d) {
     XrFrameBeginInfo begin_info{XR_TYPE_FRAME_BEGIN_INFO};
     if(XR_FAILED(BeginFrame_(session_,&begin_info)))return ACVR_ERROR;
     in_frame_=true;submit_=frame_.shouldRender!=0;
+    ++waited_frames_;
+    if(submit_)++render_requested_frames_;
+    if(session_state_==XR_SESSION_STATE_FOCUSED)++focused_frames_;
+    if(!have_render_request_||last_render_request_!=submit_) {
+        std::fprintf(stderr,"libacvr: OpenXR shouldRender=%d at session state %d\n",
+                     int(submit_),int(session_state_));
+        have_render_request_=true;last_render_request_=submit_;
+    }
     gun_drawn_[0]=gun_drawn_[1]=false;
     const auto abort_frame=[&]() {end(false);return ACVR_ERROR;};
     d.focused=session_state_==XR_SESSION_STATE_FOCUSED;d.should_render=submit_;
@@ -730,6 +740,7 @@ acvr_result OpenXrGlHost::end(bool rendered) {
     info.environmentBlendMode=XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
     info.layerCount=rendered&&submit_&&good?1u:0u;info.layers=info.layerCount?layers:nullptr;
     const auto result=EndFrame_(session_,&info);in_frame_=false;
+    if(XR_SUCCEEDED(result)&&info.layerCount)++submitted_frames_;
     if(capture_now){
         if(!read_ok||!good||XR_FAILED(result)||!write_capture_pair()){
             capture_failed_=true;
@@ -964,6 +975,12 @@ void OpenXrGlHost::shutdown() noexcept {
     const auto caller_dc=wglGetCurrentDC();const auto caller_context=wglGetCurrentContext();
     const bool bound=context_&&dc_&&wglMakeCurrent(dc_,context_);
     if(in_frame_&&bound)end(false);
+    if(waited_frames_)std::fprintf(stderr,
+        "libacvr: OpenXR frames waited=%llu render_requested=%llu focused=%llu submitted=%llu\n",
+        static_cast<unsigned long long>(waited_frames_),
+        static_cast<unsigned long long>(render_requested_frames_),
+        static_cast<unsigned long long>(focused_frames_),
+        static_cast<unsigned long long>(submitted_frames_));
 #ifdef ACVR_GUN_GL
     if(gun_ready_&&bound)gun_gl_.shutdown();
     if(label_font_&&bound)glDeleteLists(label_font_,128);
