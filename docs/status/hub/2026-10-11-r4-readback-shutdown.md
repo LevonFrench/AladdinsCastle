@@ -1,0 +1,9 @@
+# Hub readback shutdown checkpoint
+
+The owner requested a soft shutdown through the lead. The owned two-thread build was stopped and its process tree closed; no further tests or runtime were started. Source is preserved as unvalidated WIP on `codex/m2-hub-r4-overlay-readback`, based on inspected combined `next` checkpoint `7d217ac`. No readback PR was opened.
+
+The draft adds an overlay-only opt-in for one source-texture PNG and receipt in a fresh confined private directory, current-context desktop GL3 readback, read-FBO/PBO/pack-state restoration, one explicit row reversal, actual texture-submission API status and passive lazy QML corner markers. GPU-free tests are written for pixels/state/error paths, hidden submission no-ops, output freshness/reparse refusal and real Hub/diagnostic marker scenes. The draft is not compiler-, software-scene-, live-GL-, compositor- or headset-accepted.
+
+Completed before shutdown: the old CLI reproduced the absent opt-in in pre-GUI parsing; alternate-product configure and privacy regression checks passed. Offline configure succeeded and the partial build reached logged step 341/492 before cancellation. The new readback/scene test executables were not run. Build log, cached objects and the detailed private handoff remain in ignored state. Resume only on owner/lead direction and a renewed CPU/runtime booking.
+
+Earlier source work is integrated: canonical Hub headings (PR76), absent-only authored native profile seeding (PR77) and fresh native background input (PR81). The corrected installer build passed all 25 focused cases, and the combined test insertion resolution was independently checked against all four original method bodies. Actual native focus behavior, Pinball launch/title-card/score persistence and upright compositor/pointer acceptance remain later booked checks.

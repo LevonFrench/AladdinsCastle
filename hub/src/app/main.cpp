@@ -36,7 +36,7 @@ int main(int argc,char **argv){
         if(options.mode==ac::Mode::Launch){QCoreApplication app(argc,argv);QString log;try{log=ac::writeLaunchFailureLog(options.installRoot.isEmpty()?app.applicationDirPath():options.installRoot,options.gameId,options.error);}catch(const std::exception &){}ac::showLaunchFailure(options.error,log);}
         return 2;
     }
-    if(options.help){out<<ac::product::display_name<<" Hub\nUsage: "<<ac::product::program_name<<" [--overlay [--window] | --launch <game-id>]\n  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default on)\n  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;}
+    if(options.help){out<<ac::product::display_name<<" Hub\nUsage: "<<ac::product::program_name<<" [--overlay [--window] | --launch <game-id>]\n  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default on)\n  --overlay-capture-dir <absolute fresh directory>  One source texture PNG/receipt under catalog .local (requires --overlay)\n  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;}
     if(options.version){out<<ac::product::display_name<<" Hub 0.1.0\n";return 0;}
     if(options.mode==ac::Mode::RegisterOverlay||options.mode==ac::Mode::UnregisterOverlay){
         QCoreApplication app(argc,argv);QString error;
@@ -78,6 +78,10 @@ int main(int argc,char **argv){
     QObject::connect(&app,&QGuiApplication::applicationStateChanged,&ui,[&](Qt::ApplicationState state){if(state!=Qt::ApplicationActive)ui.clearDetailControlStates();});
     qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",&theme);
     ac::SpikeState spike;spike.setFlipY(options.pointerFlipY);ac::LocalQmlNetworkFactory localNetwork;QQmlApplicationEngine engine;engine.setNetworkAccessManagerFactory(&localNetwork);ac::OverlayHost overlay(spike,ac::makeOpenVrRuntime(options.pictureFlipY));
+    if(!options.overlayCaptureDir.isEmpty()){
+        QString error;
+        if(!overlay.configureCapture(catalogRoot,options.overlayCaptureDir,options.pictureFlipY,&error)){err<<error<<'\n';return 2;}
+    }
     engine.addImageProvider("art",new ac::art::Provider(services.artResolver()));ui.setArtProviderReady(true);
     auto *context=engine.rootContext();context->setContextProperty("catalogGameCount",count);
     context->setContextProperty("gameModel",&games);context->setContextProperty("gameFilter",&filter);

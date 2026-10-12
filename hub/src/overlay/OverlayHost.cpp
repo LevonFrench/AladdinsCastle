@@ -6,6 +6,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QTextStream>
+#include <QScopeGuard>
 #include <algorithm>
 namespace ac {
 OverlayHost::OverlayHost(SpikeState &state, std::unique_ptr<OverlayRuntime> runtime, QObject *parent)
@@ -27,7 +28,7 @@ bool OverlayHost::initialize(QQmlEngine &engine, const QString &thumbnail, QStri
     if (!m_runtime->initialize({1280, 800}, thumbnail, error)) return false;
     m_renderer = std::make_unique<QuickTextureRenderer>();
     connect(m_renderer.get(), &QuickTextureRenderer::dirty, this, [this] { m_gate.markDirty(); });
-    if (!m_renderer->initialize(engine, {1280, 800}, error)) { m_runtime->shutdown(); return false; }
+    if (!m_renderer->initialize(engine, {1280, 800}, error,m_capture.requested())) { m_runtime->shutdown(); return false; }
     m_running = true;
     m_input.bindReceiver(m_renderer->window());
     m_keyboard.setWindow(m_renderer->window());
@@ -66,8 +67,17 @@ void OverlayHost::tick() {
     if (!m_gate.shouldRender(visible, m_clock.elapsed())) return;
     QString error;
     if (!m_renderer->render(&error)) { m_timer.stop(); emit failed(error); return; }
-    const bool submitted = m_runtime->submit(m_renderer->texture(), &error);
-    m_renderer->doneCurrent();
+    OverlaySubmitStatus submission;
+    const bool submitted = m_runtime->submit(m_renderer->texture(), &error,m_capture.requested()?&submission:nullptr);
+    {
+        const auto release=qScopeGuard([this]{m_renderer->doneCurrent();});
+        if(m_capture.requested()){
+            QString captureError;
+            const auto captured=m_capture.attempt([this](QImage *image,QString *message){return m_renderer->readbackCurrentTexture(image,message);},m_renderer->texture(),submission,m_state.flipY(),&captureError);
+            if(captured==CaptureAttempt::Captured)QTextStream(stdout)<<"Source texture capture written; compositor display and pointer acceptance remain unverified.\n";
+            else if(captured==CaptureAttempt::Failed)QTextStream(stderr)<<"Source texture capture failed: "<<captureError<<'\n';
+        }
+    }
     if (!submitted) { m_timer.stop(); emit failed(error); return; }
     m_gate.submitted(m_clock.elapsed());
     ++m_frames; m_cpuSum += m_renderer->lastCpuMs(); m_cpuMax = std::max(m_cpuMax, m_renderer->lastCpuMs());
@@ -80,6 +90,10 @@ void OverlayHost::tick() {
 }
 void OverlayHost::shutdown() {
     m_timer.stop(); m_gate.stop();
+    if(m_capture.requested()){
+        QTextStream(stderr)<<"Source texture capture was not attempted: no rendered overlay frame.\n";
+        m_capture.cancel();
+    }
     if(m_renderer)m_input.releaseButtons(m_renderer->window());
     m_keyboard.close(false, true);
     // Clear compositor references before deleting the GL texture/context.

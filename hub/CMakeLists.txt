@@ -106,10 +106,11 @@ add_library(huboverlay STATIC
     src/overlay/OverlayInput.cpp src/overlay/OverlayInput.h
     src/overlay/QuickTextureRenderer.cpp src/overlay/QuickTextureRenderer.h
     src/overlay/OverlayRuntime.cpp src/overlay/OverlayRuntime.h
+    src/overlay/OverlayCapture.cpp src/overlay/OverlayCapture.h
     src/overlay/OverlayKeyboard.cpp src/overlay/OverlayKeyboard.h
     src/overlay/OverlayHost.cpp src/overlay/OverlayHost.h src/overlay/SpikeState.h)
 target_include_directories(huboverlay PUBLIC src "${CMAKE_BINARY_DIR}/generated")
-target_link_libraries(huboverlay PUBLIC Qt6::Quick Qt6::OpenGL OpenVR::OpenVR)
+target_link_libraries(huboverlay PUBLIC hubcore Qt6::Quick Qt6::OpenGL OpenVR::OpenVR)
 ac_project_warnings(huboverlay)
 
 qt_add_library(hubui STATIC)
@@ -230,6 +231,11 @@ if(BUILD_TESTING)
         -DTEST_EXECUTABLE=$<TARGET_FILE:overlay-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/overlay-synthetic.txt
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
+    qt_add_executable(overlay-capture-tests tests/OverlayCaptureTest.cpp)
+    target_link_libraries(overlay-capture-tests PRIVATE huboverlay Qt6::Test)
+    ac_project_warnings(overlay-capture-tests)
+    set_target_properties(overlay-capture-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME overlay-capture-cpu COMMAND overlay-capture-tests -o -,txt)
     qt_add_executable(overlay-scene-tests tests/OverlaySceneTest.cpp)
     target_link_libraries(overlay-scene-tests PRIVATE huboverlay Qt6::Test Qt6::QuickControls2)
     target_compile_definitions(overlay-scene-tests PRIVATE AC_SPIKE_SCENE="${CMAKE_CURRENT_SOURCE_DIR}/qml/spike/OverlayTest.qml")

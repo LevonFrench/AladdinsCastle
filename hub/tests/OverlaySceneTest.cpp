@@ -32,7 +32,7 @@ public:
     bool isVisible()const override{return false;}
     vr::VROverlayHandle_t handle()const override{return overlay;}
     bool pollEvent(vr::VREvent_t *)override{return false;}
-    bool submit(unsigned int,QString *)override{return false;}
+    bool submit(unsigned int,QString *,ac::OverlaySubmitStatus *status=nullptr)override{if(status)*status={};return false;}
     bool showKeyboard(const QString &,quint64 value,QString *)override{++requests;token=value;return true;}
     void hideKeyboard()override{++hides;}
     void acknowledgeQuit()override{}
@@ -132,6 +132,20 @@ private slots:
         DiagnosticScene scene;
         auto title=item(scene.root,"spikeDiagnosticTitle");QVERIFY(title);
         QCOMPARE(title->property("text").toString(),QString("Synthetic Product · input diagnostics\n1280 × 800 · DASHBOARD · live orientation and click tuning"));
+    }
+    void passiveCaptureMarkersInRealDiagnosticScene(){
+        DiagnosticScene scene;QVERIFY(!item(scene.root,"overlayCaptureCorner0"));
+        QVERIFY(scene.root->setProperty("captureMarkers",true));QCoreApplication::processEvents();
+        const QStringList labels{"TL 1","TR 2","BL 3","BR 4"};
+        for(int i=0;i<4;++i){
+            auto corner=item(scene.root,"overlayCaptureCorner"+QString::number(i));QVERIFY(corner);
+            QCOMPARE(corner->x(),i%2?1280.0-corner->width()-12:12.0);QCOMPARE(corner->y(),i<2?12.0:800.0-corner->height()-12);
+            auto text=item(scene.root,"overlayCaptureLabel"+QString::number(i));QVERIFY(text);QCOMPARE(text->property("text").toString(),labels[i]);
+        }
+        // This point is inside both the passive marker and the real top-left button.
+        QVERIFY(scene.point({40,40}));QVERIFY(scene.point({40,40},0,vr::VREvent_MouseButtonDown));QVERIFY(scene.point({40,40},0,vr::VREvent_MouseButtonUp));
+        QCoreApplication::processEvents();QCOMPARE(scene.state.clickCount(),1);
+        QVERIFY(scene.root->setProperty("captureMarkers",false));QCoreApplication::processEvents();QVERIFY(!item(scene.root,"overlayCaptureCorner0"));
     }
     void validMoveRestoresFocusAndLostUpDoesNotSwallowClick_data() {
         QTest::addColumn<bool>("loseFocus");QTest::newRow("focus left")<<true;QTest::newRow("up dropped")<<false;

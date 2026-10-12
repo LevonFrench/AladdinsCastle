@@ -6,9 +6,11 @@ import QtQuick.Effects
 Item {
     id: root
     property bool overlayPresentation: false
+    property bool captureMarkers: false
     property int selectedCard: -1
     property bool keyboardPage: false
     Rectangle { anchors.fill: parent; color: surfaceColor }
+    Loader {anchors.fill:parent;z:10000;active:root.captureMarkers;source:"../OverlayCaptureMarkers.qml"}
     Repeater {
         model: 4
         Button {
