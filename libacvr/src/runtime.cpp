@@ -139,7 +139,8 @@ struct acvr_runtime {
     }
     bool tracked(const acvr_hand_tracking &h) const {
 #ifdef ACVR_GUN_MODELS
-        if(gun_model) return (h.grip_flags&3u)==3u && pose_ok(h.grip);
+        if(gun_model) return (h.grip_flags&3u)==3u && pose_ok(h.grip) &&
+                            (h.aim_flags&3u)==3u && pose_ok(h.aim);
 #endif
         return (h.aim_flags&3u)==3u && pose_ok(h.aim);
     }
@@ -581,6 +582,10 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                 r->support_grip=false;
                 if(r->gun_tracked) {
                     r->effective_grip=h.grip;
+                    // The model sits at the grip position, but its bore follows
+                    // aim -Z. OpenXR grip orientation follows the handle.
+                    std::copy(std::begin(h.aim.orientation_xyzw),std::end(h.aim.orientation_xyzw),
+                              r->effective_grip.orientation_xyzw);
                     const uint32_t off_hand=1-r->gun_hand;
                     const auto &off=off_hand==ACVR_HAND_RIGHT?d.tracking.right:d.tracking.left;
                     const auto &asset=r->gun_model->model.asset;
@@ -595,7 +600,8 @@ acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *r) {
                         std::array<float,3> local{};
                         if(primary.node.empty()||!acvr::gun_relative_mount_position(asset,primary,support,local))
                             return finish(ACVR_BAD_ARGUMENT,false);
-                        r->support_grip=acvr::solve_two_hand_grip(h.grip,off.grip,r->gun_config.angle_xyzw,local,.18f,r->effective_grip);
+                        const auto primary_pose=r->effective_grip;
+                        r->support_grip=acvr::solve_two_hand_grip(primary_pose,off.grip,r->gun_config.angle_xyzw,local,.18f,r->effective_grip);
                     }
                 }
                 if(!r->gun_tracked) {r->gun_model->clear_motion();r->gun_outputs.cancel();r->host->cancel_effects();}

@@ -47,6 +47,7 @@ struct Receipt {
     unsigned support_draws=0;
     std::vector<acvr::Matrix> model_nodes;
     acvr_ray model_ray{};
+    std::vector<acvr_tracking> tracking_samples;
     std::vector<uint32_t> hand_changes;
     std::vector<acvr::GunOutputRoute> motion_routes;
     std::vector<float> output_levels;
@@ -199,6 +200,10 @@ struct Recorded final:acvr::Host {
         for(auto &controller:d.controllers) {controller.grip=s.pedal;controller.secondary=s.coin;controller.primary=s.primary;}
         if(!s.tracked) d.tracking.right.aim_flags=d.tracking.right.grip_flags=d.tracking.left.grip_flags=0;
         if(r.model_support) {d.tracking.left.grip.position_m[0]=1;d.tracking.left.aim.position_m[0]=9;d.trigger[1]=s.left_trigger;}
+        if(!r.tracking_samples.empty()) {
+            d.tracking=r.tracking_samples.at(index-1);
+            d.tracking.sample_time_ns=d.tracking.predicted_display_time_ns=s.time;
+        }
         if(r.omit_legacy_triggers) d.trigger[0]=d.trigger[1]=false;
         auto b=init<acvr_button_input>(); b.semantic=ACVR_BUTTON_COIN; b.state=s.coin?ACVR_INPUT_HELD:0; d.buttons.push_back(b);
         auto a=init<acvr_axis_input>(); a.semantic=ACVR_AXIS_COVER_PEDAL; a.value=s.pedal; d.axes.push_back(a);
@@ -647,6 +652,68 @@ void configured_model() {
     check(acvr_runtime_gun_event(p,&e)==ACVR_BAD_STATE);
     check(acvr_runtime_destroy(p)==ACVR_OK && r.closed==1);
 }
+void model_uses_grip_position_and_aim_orientation() {
+    const auto dir=std::filesystem::current_path()/"synthetic-grip-aim-tests";
+    std::filesystem::create_directories(dir);const auto path=dir/"model.glb",meta=dir/"model.toml";
+    Fixture fixture;fixture.doc["nodes"][0]["children"].push_back(6);
+    fixture.doc["nodes"].push_back({{"name","grip_two"},{"translation",{0,0,-.3}}});
+    {const auto bytes=fixture.bytes();std::ofstream f(path,std::ios::binary);
+        f.write(reinterpret_cast<const char *>(bytes.data()),std::streamsize(bytes.size()));}
+    {std::ofstream f(meta);f<<"id='synthetic'\n";}
+    auto slot=init<acvr_gun_slot_config>();const auto file=path.string(),metadata=meta.string();
+    slot.model_id_utf8="synthetic";slot.model_path_utf8=file.c_str();slot.metadata_path_utf8=metadata.c_str();
+    slot.grip_node_utf8="grip";slot.muzzle_node_utf8="muzzle";slot.show_gun=1;slot.angle_xyzw[3]=1;
+    for(unsigned i=0;i<4;++i){slot.body_rgba[i]=.5f;slot.accent_rgba[i]=1;}
+    auto c=config();c.gun_slots=&slot;c.gun_slot_count=1;c.gun_slot_stride=sizeof(slot);
+    c.gun_policy=init<acvr_gun_policy>();c.gun_policy.hand_switch=1;
+    auto t=tracking();const float half=static_cast<float>(std::sqrt(.5));
+    t.right.grip.position_m[0]=2;t.left.grip.position_m[0]=-2;
+    // Grip -Z points up; aim -Z points forward (right) or left (left).
+    t.right.grip.orientation_xyzw[0]=t.left.grip.orientation_xyzw[0]=half;
+    t.right.grip.orientation_xyzw[3]=t.left.grip.orientation_xyzw[3]=half;
+    t.left.aim.orientation_xyzw[1]=t.left.aim.orientation_xyzw[3]=half;
+    t.right.aim.position_m[0]=9;t.left.aim.position_m[0]=8;
+    Receipt r;r.model_support=true;current=&r;auto a=api();acvr_runtime *p=nullptr;
+    std::vector<Sample> samples(12);
+    for(size_t i=0;i<samples.size();++i)samples[i].time=static_cast<int64_t>(i)*17000000;
+    for(unsigned i=1;i<=5;++i)samples[i].trigger=true;
+    samples[7].left_trigger=samples[8].left_trigger=samples[9].left_trigger=samples[11].left_trigger=true;
+    r.tracking_samples.assign(samples.size(),t);
+    r.tracking_samples[2].right.aim_flags=1; // partial tracking must not admit a gun
+    r.tracking_samples[3].right.aim.orientation_xyzw[3]=2;
+    r.tracking_samples[4].right.grip_flags=0;
+    r.tracking_samples[8].left.aim_flags=0;
+    check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(r,samples),&p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK && r.model_draws==2);
+    check(std::abs(r.model_ray.direction_scene[2]+1)<.001f);
+    check(std::abs(r.model_ray.direction_scene[1])<.001f);
+    check(std::abs(r.model_ray.origin_scene[0]-20)<.001f && std::abs(r.model_ray.origin_scene[2]+2)<.001f);
+    check(acvr_runtime_tick(p)==ACVR_OK && (r.guns.back().trigger&ACVR_INPUT_PRESSED));
+    for(unsigned i=0;i<3;++i){
+        check(acvr_runtime_tick(p)==ACVR_OK && r.model_draws==4);
+        check(!(r.guns.back().flags&ACVR_GUN_TRACKED) && !(r.guns.back().trigger&ACVR_INPUT_HELD));
+    }
+    check(acvr_runtime_tick(p)==ACVR_OK && r.guns.back().trigger==0); // held on recovery
+    check(acvr_runtime_tick(p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK && r.hand_changes.back()==ACVR_HAND_LEFT);
+    check(std::abs(r.model_ray.direction_scene[0]+1)<.001f && std::abs(r.model_ray.direction_scene[2])<.001f);
+    check(std::abs(r.model_ray.origin_scene[0]+22)<.001f && std::abs(r.model_ray.origin_scene[2])<.001f);
+    const unsigned draws=r.model_draws;
+    check(acvr_runtime_tick(p)==ACVR_OK && r.model_draws==draws && !(r.guns.back().flags&ACVR_GUN_TRACKED));
+    check(acvr_runtime_tick(p)==ACVR_OK && r.guns.back().trigger==0);
+    check(acvr_runtime_tick(p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK && (r.guns.back().trigger&ACVR_INPUT_PRESSED));
+    check(acvr_runtime_destroy(p)==ACVR_OK);
+    // The second-hand solver must begin from the same aim-oriented gun pose.
+    Receipt supported;supported.model_support=true;current=&supported;
+    t.left.grip.position_m[0]=2;t.left.grip.position_m[2]=-.3f;
+    supported.tracking_samples={t};Sample held{0};held.pedal=1;
+    check(acvr::create_with_host(&c,&a,std::make_unique<Recorded>(supported,std::vector<Sample>{held}),&p)==ACVR_OK);
+    check(acvr_runtime_tick(p)==ACVR_OK && supported.support_draws==2);
+    check(std::abs(supported.model_ray.direction_scene[2]+1)<.001f);
+    check(acvr_runtime_destroy(p)==ACVR_OK);
+    std::filesystem::remove(path);std::filesystem::remove(meta);std::filesystem::remove(dir);
+}
 void authored_second_grip_in_render_payload() {
     const auto dir=std::filesystem::current_path()/"synthetic-runtime-support-tests";
     std::filesystem::create_directories(dir);const auto path=dir/"model.glb",meta=dir/"model.toml";
@@ -782,6 +849,7 @@ int main() {
         mapped_pause_stops_current_frame();
         configured_controls();
         configured_model();
+        model_uses_grip_position_and_aim_orientation();
         authored_second_grip_in_render_payload();
         mapped_model_motion_and_handoff();
         handoff_and_recoil();
