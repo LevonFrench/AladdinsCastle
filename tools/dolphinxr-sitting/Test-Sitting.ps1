@@ -46,6 +46,25 @@ try {
     MustFail { Initialize-AcSitting "$root/wrong-slot" $profile } 'Wiimote2 bindings must not admit a disabled Wiimote1.'
     [IO.File]::WriteAllBytes($profile,$bytes)
     $module = Get-Module Sitting
+    $gameProfileLibrary = Join-Path $root 'native-game-profiles'
+    New-Item -ItemType Directory $gameProfileLibrary | Out-Null
+    $shaderBytes = [Text.Encoding]::UTF8.GetBytes("[Graphics.VR]`r`nVirtualScreen = False`r`n[ShaderOverride_Enable]`r`nSynthetic HUD`r`n[ShaderOverride]`r`nname = Synthetic HUD`r`nhandling = screen`r`n")
+    [IO.File]::WriteAllBytes("$gameProfileLibrary/SYN001.ini", $shaderBytes)
+    $originalLibrary = & $module { $script:GameProfileDirectory }
+    & $module { param($path) $script:GameProfileDirectory = $path } $gameProfileLibrary
+    try {
+        foreach ($gameMode in @('Default','Eager','Desktop')) {
+            $seeded = Initialize-AcSitting "$root/profile-$gameMode" $profile -Mode $gameMode -GameID SYN001
+            Assert ((Get-FileHash "$seeded/GameSettingsVR/SYN001.ini").Hash -eq (Get-FileHash "$gameProfileLibrary/SYN001.ini").Hash) 'Shader profile bytes/bare enabled names must survive in every mode.'
+            [IO.File]::WriteAllText("$seeded/GameSettingsVR/SYN001.ini", 'user tuning')
+            $null = Initialize-AcSitting $seeded $profile -Mode $gameMode -GameID SYN001
+            Assert ([IO.File]::ReadAllText("$seeded/GameSettingsVR/SYN001.ini") -ceq 'user tuning') 'Preparation must preserve an existing tuned game profile.'
+        }
+        $unmatched = Initialize-AcSitting "$root/profile-other" $profile -GameID SYN002
+        Assert (-not (Test-Path "$unmatched/GameSettingsVR")) 'A profile must never be borrowed for another region or title.'
+        MustFail { Initialize-AcSitting "$root/profile-invalid" $profile -GameID '../SYN001' } 'Invalid game identity must be rejected.'
+        Assert (-not (Test-Path "$root/profile-invalid")) 'Invalid game identity must fail before writes.'
+    } finally { & $module { param($path) $script:GameProfileDirectory = $path } $originalLibrary }
     & $module { function script:Get-Process { param($Name,$ErrorAction) [pscustomobject]@{Id=999999} } }
     try {
         MustFail { Initialize-AcSitting "$root/running-session" $profile } 'Must refuse configuration writes while Dolphin runs.'
@@ -68,6 +87,8 @@ try {
     & "$PSScriptRoot/Start-Sitting.ps1" -Executable $exe -ExecutableSHA256 $hash -Disc $disc -GameID RBUP08 `
         -StateDirectory "$root/runner" -NativeProfile "$generated/split-right.ini" -Mode Desktop -PrepareOnly
     Assert (Test-Path "$root/runner/User-v2-Desktop/Logs") 'Actual runner prepare path failed.'
+    $authoredGameProfile = Join-Path $PSScriptRoot '../../data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini'
+    Assert ((Get-FileHash "$root/runner/User-v2-Desktop/GameSettingsVR/RBUP08.ini").Hash -eq (Get-FileHash $authoredGameProfile).Hash) 'Actual runner must seed the exact published rendering profile for the checked disc ID.'
     foreach ($setting in @(@('Auto','-1'),@('Off','0'),@('72','72'),@('90','90'),@('120','120'))) {
         $switches = Get-AcVRSwitches -ForcedVBI $setting[0]
         Assert ($switches.ForcedVBIFrequency -eq $setting[1] -and $switches.AutoVBIFromHMD -eq 'False') 'Native VBI enum and Off fallback guard.'
@@ -118,6 +139,7 @@ try {
         -Executable $exe -ExecutableSHA256 $hash -Disc $disc -GameID RBUP08 -StateDirectory "$root/game-cli" `
         -ControlSet synthetic-wii -NativeProfile "$gameFolder/dolphinxr-right.ini" -PrepareOnly
     Assert ($LASTEXITCODE -eq 0 -and (Test-Path "$root/game-cli/User-v2-Default/Config/WiimoteNew.ini")) 'Actual PS5.1 per-game prepare path must succeed.'
+    Assert ((Get-FileHash "$root/game-cli/User-v2-Default/GameSettingsVR/RBUP08.ini").Hash -eq (Get-FileHash $authoredGameProfile).Hash) 'Native-mode runner must retain authored shader-profile bytes independently of the controls slug.'
     Add-Content -LiteralPath $dsu -Value '# tampered'
     MustFail { Initialize-AcSitting "$root/tampered-dsu" $profile -DsuProfile $dsu } 'DSU manifest mismatch must fail before writes.'
     Assert (-not (Test-Path "$root/tampered-dsu")) 'Rejected DSU profile must not write settings.'

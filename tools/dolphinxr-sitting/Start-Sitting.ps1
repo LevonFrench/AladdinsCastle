@@ -38,7 +38,7 @@ $profileKey = Assert-AcGeneratedProfile $NativeProfile Native $ControlSet
 if (-not $ControlSet -and $profileKey.StartsWith('games/')) { $ControlSet = $profileKey.Split('/')[1] }
 $userPath = Initialize-AcSitting -UserDirectory (Join-Path $state "User-v2-$Mode") -NativeProfile $NativeProfile -Mode $Mode -Quality $Quality `
     -DsuProfile $DsuProfile -DsuPort $DsuPort -ControlSet $ControlSet -ForcedVBI $ForcedVBI -Mirror $Mirror `
-    -ControllerAnchor ([bool]$ControllerAnchor) -CameraAnchor ([bool]$CameraAnchor) -CameraSmoothing $CameraSmoothing
+    -ControllerAnchor ([bool]$ControllerAnchor) -CameraAnchor ([bool]$CameraAnchor) -CameraSmoothing $CameraSmoothing -GameID $GameID
 if ($PrepareOnly) { Write-Output "Prepared $Mode / $Quality at $userPath. No process started."; return }
 if (@(Get-Process -Name Dolphin -ErrorAction SilentlyContinue).Count) {
     throw 'Dolphin is already running. Close the existing session before starting this sitting.'
@@ -46,6 +46,10 @@ if (@(Get-Process -Name Dolphin -ErrorAction SilentlyContinue).Count) {
 $run = Join-Path $state ('runs/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff') + "-$Mode-$Quality")
 New-Item -ItemType Directory -Path $run -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $userPath 'Config') -Destination (Join-Path $run 'Config-before') -Recurse
+$gameProfile = Join-Path $userPath "GameSettingsVR/$GameID.ini"
+if (Test-Path -LiteralPath $gameProfile -PathType Leaf) {
+    Copy-Item -LiteralPath $gameProfile -Destination (Join-Path $run "$GameID-before.vr.ini")
+}
 $liveLog = Join-Path $userPath 'Logs/dolphin.log'
 if (Test-Path -LiteralPath $liveLog) {
     Move-Item -LiteralPath $liveLog -Destination (Join-Path $run 'previous-dolphin.log')
@@ -102,6 +106,9 @@ try {
 } finally {
     if ($null -ne $owned -and -not $owned.HasExited) { $owned.Kill(); $owned.WaitForExit() }
     Copy-Item -LiteralPath (Join-Path $userPath 'Config') -Destination (Join-Path $run 'Config-after') -Recurse
+    if (Test-Path -LiteralPath $gameProfile -PathType Leaf) {
+        Copy-Item -LiteralPath $gameProfile -Destination (Join-Path $run "$GameID-after.vr.ini")
+    }
     if (Test-Path -LiteralPath $liveLog) { Copy-Item -LiteralPath $liveLog -Destination (Join-Path $run 'dolphin.log') }
     $logExists = Test-Path -LiteralPath (Join-Path $run 'dolphin.log')
     @{log_exists=$logExists; openxr_lines=(Test-AcOpenXRLog (Join-Path $run 'dolphin.log'));
