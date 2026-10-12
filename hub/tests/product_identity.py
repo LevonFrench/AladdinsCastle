@@ -1,7 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-only
-"""Prove an alternate identity changes generated artifacts together, without XR."""
-import json, pathlib, shutil, subprocess, sys, tempfile
+"""Reject hardcoded QML names and prove generated identity agreement without XR."""
+import json, pathlib, re, shutil, subprocess, sys, tempfile
 root=pathlib.Path(__file__).resolve().parents[2]
+display_name=json.loads((root/'data/product.json').read_text(encoding='utf-8'))['display_name']
+hardcoded_labels=[]
+for qml in sorted((root/'hub/qml').rglob('*.qml')):
+    for number,line in enumerate(qml.read_text(encoding='utf-8').splitlines(),1):
+        if re.search(r'\btext\s*:\s*[\"\']'+re.escape(display_name),line):
+            hardcoded_labels.append(f'{qml.relative_to(root)}:{number}')
+assert not hardcoded_labels,'Hardcoded product display labels: '+', '.join(hardcoded_labels)
 with tempfile.TemporaryDirectory() as temp:
     p=pathlib.Path(temp); hub=p/'hub';data=p/'data';data.mkdir();(hub/'cmake').mkdir(parents=True)
     for relative in ['cmake/ProductIdentity.cmake','src/core/app/ProductIdentity.h.in','resources/dashboard.vrmanifest.in']:
@@ -20,4 +27,4 @@ with tempfile.TemporaryDirectory() as temp:
     assert (p/'build/generated/product.json').read_bytes()==(data/'product.json').read_bytes()
     product['schema']=2;(data/'product.json').write_text(json.dumps(product))
     result=subprocess.run(command,capture_output=True,text=True);assert result.returncode!=0,'Unsupported identity schema admitted'
-print('PASS alternate product identity, manifest/program agreement, exact snapshot and invalid-schema refusal')
+print('PASS QML display-name guard, alternate product identity, manifest/program agreement, exact snapshot and invalid-schema refusal')
