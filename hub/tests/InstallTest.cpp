@@ -11,6 +11,7 @@
 #include <QLockFile>
 #include <QUuid>
 #include <QTemporaryDir>
+#include <QRegularExpression>
 #include <QtTest>
 #include <archive.h>
 #include <filesystem>
@@ -860,6 +861,28 @@ private slots:
       }
       QVERIFY(shared);QVERIFY(logs);QVERIFY(resolutionScale);
     }
+  }
+  void freshNativeBackgroundInputPreservesUserSettings_data(){
+    QTest::addColumn<QString>("gameId");QTest::addColumn<bool>("preexisting");
+    for(const auto &id:{"wii-resident-evil-umbrella-chronicles","wii-resident-evil-darkside-chronicles"})
+      for(const auto existing:{false,true})QTest::newRow(qPrintable(QString(id)+(existing?" existing":" fresh")))<<QString(id)<<existing;
+  }
+  void freshNativeBackgroundInputPreservesUserSettings(){
+    QFETCH(QString,gameId);QFETCH(bool,preexisting);const auto catalog=CatalogLoader().load(catalogFixtureRoot());
+    const auto game=catalog.find(gameId);QVERIFY(game);Json userSeed;
+    for(const auto &step:game->install["variant"]["dolphinxr"]["step"])
+      if(string(step,"id")=="private-user")userSeed=step;
+    QVERIFY(userSeed.is_object());QVERIFY(userSeed.value("only_if_missing",false));
+    QTemporaryDir t;auto r=fixture(t.path());r.recipe["variant"]["flat"]["step"][1]=userSeed;
+    const auto path=t.filePath("installed/synthetic/flat/User/Config/Dolphin.ini");
+    const QByteArray tuned="; user input setting\n[Input]\nBackgroundInput=False\nunknown=mine\n";
+    if(preexisting){atomicWrite(path,tuned);}
+    Options o;o.survivalMs=0;
+    const auto installed=Engine(o).install(r);QVERIFY2(installed.success,qPrintable(installed.message));
+    if(preexisting)QCOMPARE(readBytes(path),tuned);
+    else QVERIFY(QString::fromUtf8(readBytes(path)).contains(QRegularExpression("(?m)^BackgroundInput\\s*=\\s*True\\s*$")));
+    atomicWrite(path,tuned);r.operation="repair";QVERIFY(Engine(o).install(r).success);QCOMPARE(readBytes(path),tuned);
+    r.operation="update";r.recipe["variant"]["flat"]["version"]="v2";QVERIFY(Engine(o).install(r).success);QCOMPARE(readBytes(path),tuned);
   }
   void freshOnlyConfigSeedsThenPreservesRuntimeTuning_data() {
     QTest::addColumn<QString>("operation");QTest::addColumn<bool>("freshOnly");QTest::addColumn<bool>("tuned");
