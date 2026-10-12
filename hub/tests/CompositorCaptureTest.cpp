@@ -13,12 +13,13 @@
 namespace {
 class FakeMirrors final:public ac::CompositorReadbackOps {
 public:
-    int failAcquire=-1,failRead=-1,failRelease=-1,throwRead=-1;
+    int failAcquire=-1,failRead=-1,failRelease=-1,throwRead=-1,invalidAcquire=-1,invalidRead=-1;
     bool partialAcquire=false;
     QList<unsigned int> acquired,locked,unlocked,released;
     bool acquire(unsigned int eye,ac::CompositorMirror *mirror,QString *error)override{
         acquired<<eye;
         if(int(eye)!=failAcquire||partialAcquire)*mirror={41+eye,81+eye};
+        if(int(eye)==invalidAcquire)mirror->sharedHandle=0;
         if(int(eye)==failAcquire){*error="synthetic acquisition failure";return false;}
         return true;
     }
@@ -27,7 +28,7 @@ public:
         const auto eye=mirror.texture-41;
         if(int(eye)==throwRead)throw std::runtime_error("synthetic read exception");
         if(int(eye)==failRead){*error="synthetic read failure";return false;}
-        *image=QImage(3,2,QImage::Format_RGBA8888);image->fill(eye?Qt::magenta:Qt::green);return true;
+        *image=QImage(3,2,int(eye)==invalidRead?QImage::Format_RGB888:QImage::Format_RGBA8888);image->fill(eye?Qt::magenta:Qt::green);return true;
     }
     void unlock(const ac::CompositorMirror &mirror)noexcept override{unlocked<<mirror.texture-41;}
     bool release(const ac::CompositorMirror &mirror)noexcept override{const auto eye=mirror.texture-41;released<<eye;return int(eye)!=failRelease;}
@@ -57,6 +58,22 @@ private slots:
             std::array<QImage,2> eyes;QString error;
             QVERIFY(!ac::readCompositorEyes(ops,&eyes,&error));QVERIFY(eyes[0].isNull()&&eyes[1].isNull());
             QCOMPARE(ops.unlocked,ops.locked);QCOMPARE(ops.released,QList<unsigned int>({1,0}));
+        }
+    }
+    void invalidSuccessfulApiResultsFailWithErrorAndCleanup(){
+        for(int eye:{0,1}){
+            FakeMirrors ops;ops.invalidAcquire=eye;std::array<QImage,2> eyes;QString error;
+            QVERIFY(!ac::readCompositorEyes(ops,&eyes,&error));
+            QCOMPARE(error,QString("Compositor acquisition returned an invalid mirror."));
+            QVERIFY(eyes[0].isNull()&&eyes[1].isNull());QVERIFY(ops.locked.isEmpty());
+            QCOMPARE(ops.released,eye?QList<unsigned int>({1,0}):QList<unsigned int>({0}));
+        }
+        for(int eye:{0,1}){
+            FakeMirrors ops;ops.invalidRead=eye;std::array<QImage,2> eyes;QString error;
+            QVERIFY(!ac::readCompositorEyes(ops,&eyes,&error));
+            QCOMPARE(error,QString("Compositor mirror returned invalid pixels."));
+            QVERIFY(eyes[0].isNull()&&eyes[1].isNull());QCOMPARE(ops.unlocked,ops.locked);
+            QCOMPARE(ops.released,QList<unsigned int>({1,0}));
         }
     }
     void releaseErrorNeverPublishesPair(){

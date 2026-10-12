@@ -88,14 +88,20 @@ bool readCompositorEyes(CompositorReadbackOps &ops,std::array<QImage,2> *eyes,QS
     try{
         for(unsigned int i=0;i<2;++i){
             if(!ops.acquire(i,&mirrors[i],error)||!mirrors[i].texture||!mirrors[i].sharedHandle){
-                if(error&&error->isEmpty())*error="Compositor acquisition returned an invalid mirror.";return false;
+                if(error&&error->isEmpty()) {
+                    *error="Compositor acquisition returned an invalid mirror.";
+                }
+                return false;
             }
         }
         // Lock/read each separately. The API does not promise an atomic stereo pair.
         for(unsigned int i=0;i<2;++i){
             ops.lock(mirrors[i]);locked[i]=true;
             if(!ops.read(mirrors[i],&candidate[i],error)||!imageValid(candidate[i])){
-                if(error&&error->isEmpty())*error="Compositor mirror returned invalid pixels.";return false;
+                if(error&&error->isEmpty()) {
+                    *error="Compositor mirror returned invalid pixels.";
+                }
+                return false;
             }
             ops.unlock(mirrors[i]);locked[i]=false;
         }

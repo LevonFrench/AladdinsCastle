@@ -9,3 +9,7 @@ The exporter rejects partial/invalid reads, cleanup failures, unsupported format
 Live gates remain: OpenVR mirror availability under the existing null service; actual mirror format and dimensions; correct content/orientation in both exported eyes; Pinball with dashboard hidden, then the Hub with its own dashboard visible. The accepted format is bounded desktop GL linear RGBA8; sRGB/HDR mirrors are currently refused. Sequential eye reads do not guarantee an atomic stereo frame. A supervisor must bound blocking native calls.
 
 Independent Hub draft review found no source blocker; final review must use the frozen candidate head and these test results. Lead owns runtime booking and integration. Main and the frozen runtime candidates remain outside this change.
+
+## Ubuntu compiler follow-up
+
+Hosted GCC rejected two error branches with `-Werror=misleading-indentation`. Explicit braces and separate unconditional returns preserve their behavior. An added CPU regression supplies invalid successful API results for each eye and verifies fallback error messages, discarded output, and release/unlock cleanup. The rebuilt native Hub and compositor tests succeed; the updated compositor suite reports 12 passed, zero failed/skipped. Whitespace and public privacy checks pass. The earlier 16 source-capture and 29 overlay cases remain the regression evidence for unchanged paths. Fresh hosted GCC validation is required after this repair.
