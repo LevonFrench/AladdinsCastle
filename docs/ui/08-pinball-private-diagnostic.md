@@ -1,0 +1,11 @@
+# One-table Pinball diagnostic
+
+The existing in-process desktop diagnostic can exercise ordinary Pinball Play without a collection rescan or desktop input automation. Set `AC_UI_PINBALL_ROW` to a private JSON file containing exactly one previously scanned table object. Its identity, path, size, modification time and readiness fields pass through the same retained-table checks and normal Play action used by the UI. It does not replace inspection or bypass a refusal. Configure the installed executable through the ordinary portable `pinballExecutable` setting.
+
+Use either this row or `AC_UI_PLAY` for a catalog game. Setting both reports a diagnostic error and launches neither. Missing or malformed JSON reports an error without falling back to another table. No server or remote input channel is added.
+
+With `AC_UI_CAPTURE` set to a private image destination, the existing six-second capture writes the application's own Qt surface and a JSON snapshot containing `imageSaved`, `nowPlaying`, `launcherBusy`, status and catalog playing rows. The sibling `.exit.json` records the final now-playing/busy state and observed child-finished events, including exit code and error. Diagnostic shutdown yields one event-loop turn so the finished observers run before that receipt is written. Without this opt-in, the existing exit path is unchanged.
+
+Use the existing `--quit-after-ms` bound to request normal Hub shutdown. Pinball shutdown cooperatively closes and waits for its child; the diagnostic adds no forced termination deadline. A still-running child, application prompt, launch error or missing image is not a successful result. Keep all images, row metadata and receipts private.
+
+Normal Play still passes only `-Play` and the absolute table path, using the installed executable's directory. Ordinary VPX preferences determine desktop or VR mode. The diagnostic does not alter those preferences, override display mode, install dependencies or write into the collection. VPX may persist its ordinary settings and scores when authorized. A running process/card alone does not prove loaded gameplay, upright VR pixels, headset input or hit accuracy; inspect those separately during the booked runtime session.

@@ -262,7 +262,8 @@ int main(int argc,char **argv){
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
     if(argc==3&&QByteArray(argv[1])=="-Play"){
         QGuiApplication child(argc,argv);QWindow window;window.show();
-        QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
+        const auto duration=qEnvironmentVariableIntValue("AC_SYNTHETIC_PINBALL_CHILD_MS");
+        QTimer::singleShot(duration>0?duration:600,&child,&QCoreApplication::quit);return child.exec();
     }
     QGuiApplication app(argc,argv);IntegrationTest test;return QTest::qExec(&test,argc,argv);
 }
