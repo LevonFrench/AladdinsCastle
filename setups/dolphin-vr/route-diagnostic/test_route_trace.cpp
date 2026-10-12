@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -15,22 +16,31 @@ std::size_t FailHeader(const void*, std::size_t, std::size_t, std::FILE*) { retu
 struct CommaDecimal : std::numpunct<char> { char do_decimal_point() const override { return ','; } };
 struct MetadataEnvironment
 {
+#ifdef _WIN32
+  std::wstring old;
+#else
   std::string old;
+#endif
   bool existed = false;
   explicit MetadataEnvironment(const std::filesystem::path& path)
   {
-    const auto* previous = std::getenv("AC_DOLPHIN_VR_ROUTE_METADATA");
-    existed = previous != nullptr; if (previous) old = previous;
 #ifdef _WIN32
+    wchar_t* previous = nullptr; std::size_t length = 0;
+    const auto status = _wdupenv_s(&previous,&length,L"AC_DOLPHIN_VR_ROUTE_METADATA");
+    const std::unique_ptr<wchar_t,decltype(&std::free)> previous_owner(previous,&std::free);
+    Require(status == 0,"Read prior synthetic metadata environment");
+    existed = previous != nullptr; if (previous) old = previous;
     Require(_wputenv_s(L"AC_DOLPHIN_VR_ROUTE_METADATA", path.c_str()) == 0,"Synthetic metadata environment");
 #else
+    const auto* previous = std::getenv("AC_DOLPHIN_VR_ROUTE_METADATA");
+    existed = previous != nullptr; if (previous) old = previous;
     Require(setenv("AC_DOLPHIN_VR_ROUTE_METADATA",path.c_str(),1) == 0,"Synthetic metadata environment");
 #endif
   }
   ~MetadataEnvironment()
   {
 #ifdef _WIN32
-    _putenv_s("AC_DOLPHIN_VR_ROUTE_METADATA",existed ? old.c_str() : "");
+    _wputenv_s(L"AC_DOLPHIN_VR_ROUTE_METADATA",existed ? old.c_str() : L"");
 #else
     if (existed) setenv("AC_DOLPHIN_VR_ROUTE_METADATA",old.c_str(),1);
     else unsetenv("AC_DOLPHIN_VR_ROUTE_METADATA");
@@ -114,7 +124,7 @@ int main(int argc, char** argv)
     }
     const auto rows_path=root/"rows.csv";
     {
-      MetadataEnvironment metadata(std::filesystem::absolute(root/"rows-metadata.json"));
+      MetadataEnvironment rows_environment(std::filesystem::absolute(root/"rows-metadata.json"));
       ACVRRouteTrace::Logger logger(rows_path,{2,2,1024*1024,0,600});
       Require(logger.Record(s),"First sampled frame");
       logger.EndFrame();Require(!logger.Record(s),"Interval skips intervening frame");
@@ -123,15 +133,15 @@ int main(int argc, char** argv)
     }
     const auto rows=Read(rows_path);
     Require(std::count(rows.begin(),rows.end(),'\n')==3,"Header plus exactly two rows");
-    const auto metadata=Read(root/"rows-metadata.json");
-    Require(metadata.size()<=4096 && std::count(metadata.begin(),metadata.end(),'\n')==1,"One bounded final origin record");
-    Require(metadata.find("\"stop_reason\":\"row-limit\"")!=std::string::npos,"Destructor cannot overwrite row-limit cause");
-    Require(metadata.find("\"complete_rows\":2")!=std::string::npos,"Actual completed row counter");
-    Require(metadata.find("\"anchor_elapsed_unit\":\"nanoseconds\"")!=std::string::npos,"Explicit origin offset unit");
-    Require(metadata.find("\"exact_gpu_frame_sync\":false")!=std::string::npos,"Clock record cannot claim GPU-frame sync");
+    const auto rows_metadata=Read(root/"rows-metadata.json");
+    Require(rows_metadata.size()<=4096 && std::count(rows_metadata.begin(),rows_metadata.end(),'\n')==1,"One bounded final origin record");
+    Require(rows_metadata.find("\"stop_reason\":\"row-limit\"")!=std::string::npos,"Destructor cannot overwrite row-limit cause");
+    Require(rows_metadata.find("\"complete_rows\":2")!=std::string::npos,"Actual completed row counter");
+    Require(rows_metadata.find("\"anchor_elapsed_unit\":\"nanoseconds\"")!=std::string::npos,"Explicit origin offset unit");
+    Require(rows_metadata.find("\"exact_gpu_frame_sync\":false")!=std::string::npos,"Clock record cannot claim GPU-frame sync");
     const auto bytes_path=root/"bytes.csv";
     {
-      MetadataEnvironment metadata(std::filesystem::absolute(root/"bytes-metadata.json"));
+      MetadataEnvironment bytes_environment(std::filesystem::absolute(root/"bytes-metadata.json"));
       ACVRRouteTrace::Logger logger(bytes_path,{1,20,static_cast<std::uint64_t>(header.size()+10),0,600});
       Require(!logger.Record(s)&&!logger.IsSampling(),"Byte cap stops before partial row");
     }
@@ -155,7 +165,7 @@ int main(int argc, char** argv)
       Require(!logger.Record(s),"Delayed capture emits no premature row");
     }
     {
-      MetadataEnvironment metadata(std::filesystem::absolute(root/"expired-metadata.json"));
+      MetadataEnvironment expired_environment(std::filesystem::absolute(root/"expired-metadata.json"));
       ACVRRouteTrace::Logger logger(root/"expired.csv",{1,10,1024*1024,0,1e-12});
       Require(!logger.IsSampling()&&!logger.Record(s),"Time bound stops without sleep");
     }
@@ -163,13 +173,13 @@ int main(int argc, char** argv)
     const auto metadata_sentinel=root/"metadata-sentinel.json";
     { std::ofstream output(metadata_sentinel); output << "synthetic metadata sentinel"; }
     {
-      MetadataEnvironment metadata(std::filesystem::absolute(metadata_sentinel));
+      MetadataEnvironment collision_environment(std::filesystem::absolute(metadata_sentinel));
       ACVRRouteTrace::Logger logger(root/"metadata-refused.csv",{1,1,1024*1024,0,600});
       Require(logger.Record(s),"Metadata collision must not change existing CSV admission");
     }
     Require(Read(metadata_sentinel)=="synthetic metadata sentinel","Metadata exclusive create preserves earlier evidence");
     {
-      MetadataEnvironment metadata(std::filesystem::absolute(root/"header-error-metadata.json"));
+      MetadataEnvironment header_failure_environment(std::filesystem::absolute(root/"header-error-metadata.json"));
       ACVRRouteTrace::Logger logger(root/"header-error.csv",{},&FailHeader);
       Require(!logger.IsSampling() && !logger.Record(s),"Header failure preserves failed CSV admission");
     }
