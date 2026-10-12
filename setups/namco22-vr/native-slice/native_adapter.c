@@ -32,7 +32,9 @@
  X(fbo,void,(GLenum,GLuint),"glBindFramebuffer") \
  X(draw_buffers,void,(GLsizei,const GLenum *),"glDrawBuffers") \
  X(status,GLenum,(GLenum),"glCheckFramebufferStatus") \
- X(attachment,void,(GLenum,GLenum,GLenum,GLint *),"glGetFramebufferAttachmentParameteriv")
+ X(attachment,void,(GLenum,GLenum,GLenum,GLint *),"glGetFramebufferAttachmentParameteriv") \
+ X(renderbuffer,void,(GLenum,GLuint),"glBindRenderbuffer") \
+ X(renderbuffer_parameter,void,(GLenum,GLenum,GLint *),"glGetRenderbufferParameteriv")
 typedef struct {
 #define FIELD(n,r,a,s) r (APIENTRY *n)a;
  GLX_FUNCTIONS(FIELD)
@@ -205,27 +207,9 @@ static acvr_result target(struct acvr_backend *b,const acvr_render_target *t)
 {
     b->gl.fbo(0x8d40,(GLuint)t->framebuffer);
     if(b->gl.status(0x8d40)!=0x8cd5)return ACVR_UNSUPPORTED;
-    GLint type=0,name=0;
-    b->gl.attachment(0x8d40,0x8ce0,0x8cd0,&type);
-    b->gl.attachment(0x8d40,0x8ce0,0x8cd1,&name);
-    if(type!=GL_TEXTURE || (GLuint)name!=t->colour_image)return ACVR_BAD_ARGUMENT;
-    const acn22_target_ops ops={glGetIntegerv,b->gl.draw_buffers,b->gl.attachment,glGetError};
-    acvr_result level=acn22_target_level_zero(&ops);
-    if(level!=ACVR_OK)return level; /* no unsupported mip may reach level0 queries */
-    glBindTexture(GL_TEXTURE_2D,(GLuint)t->colour_image);
-    GLint width=0,height=0,format=0;
-    glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_WIDTH,&width);
-    glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_HEIGHT,&height);
-    glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_INTERNAL_FORMAT,&format);
-    if(width!=(GLint)t->width || height!=(GLint)t->height || format!=0x8058)
-        return ACVR_UNSUPPORTED;
-    if(t->depth_image){
-        b->gl.attachment(0x8d40,0x8d00,0x8cd0,&type);
-        b->gl.attachment(0x8d40,0x8d00,0x8cd1,&name);
-        if((type!=GL_TEXTURE && type!=0x8d41) || (GLuint)name!=t->depth_image)
-            return ACVR_BAD_ARGUMENT;
-    }
-    return glGetError()==GL_NO_ERROR?ACVR_OK:ACVR_ERROR;
+    const acn22_target_ops ops={glGetIntegerv,b->gl.draw_buffers,b->gl.attachment,glGetError,
+        glBindTexture,glGetTexLevelParameteriv,b->gl.renderbuffer,b->gl.renderbuffer_parameter};
+    return acn22_target_images(&ops,t);
 }
 static int fog(const geo_quad *q,eng_fog *out);
 static int resources(const struct acvr_backend *b)
@@ -409,7 +393,8 @@ static acvr_result ACVR_CALL draw(acvr_backend *b,const acvr_frame *f,const acvr
        acn22_adapter_cache_fingerprint()!=b->cache_fingerprint){memset(&b->pair,0,sizeof b->pair);return ACVR_BAD_STATE;}
     saved s;r=scope_begin(b,&s);
     if(r!=ACVR_OK){memset(&b->pair,0,sizeof b->pair);return r;}
-    const acn22_target_ops ops={glGetIntegerv,b->gl.draw_buffers,b->gl.attachment,glGetError};
+    const acn22_target_ops ops={.integer=glGetIntegerv,.draw_buffers=b->gl.draw_buffers,
+        .attachment=b->gl.attachment,.error=glGetError};
     acn22_target_selection selection={0};
     r=target(b,&in->target);
     if(r==ACVR_OK)r=acn22_target_colour_begin(&ops,&selection);

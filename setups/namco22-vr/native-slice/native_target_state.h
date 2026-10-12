@@ -11,6 +11,10 @@ typedef struct {
     void (APIENTRY *draw_buffers)(GLsizei,const GLenum *);
     void (APIENTRY *attachment)(GLenum,GLenum,GLenum,GLint *);
     GLenum (APIENTRY *error)(void);
+    void (APIENTRY *texture)(GLenum,GLuint);
+    void (APIENTRY *texture_parameter)(GLenum,GLint,GLenum,GLint *);
+    void (APIENTRY *renderbuffer)(GLenum,GLuint);
+    void (APIENTRY *renderbuffer_parameter)(GLenum,GLenum,GLint *);
 } acn22_target_ops;
 typedef struct {
     GLenum selections[32];
@@ -21,4 +25,7 @@ typedef struct {
 acvr_result acn22_target_colour_begin(const acn22_target_ops *,acn22_target_selection *);
 acvr_result acn22_target_colour_restore(const acn22_target_ops *,acn22_target_selection *);
 acvr_result acn22_target_level_zero(const acn22_target_ops *);
+/* Single colour0 plus optional declared depth. Query bindings are restored;
+ * attachments are never changed. Other colour/stencil layouts are unsupported. */
+acvr_result acn22_target_images(const acn22_target_ops *,const acvr_render_target *);
 #endif

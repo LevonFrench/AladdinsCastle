@@ -3,7 +3,8 @@
 Separate default-OFF `ACN22_BUILD_NATIVE_ADAPTER` consumes the lead's reviewed
 v0.4 appended `game_prepare_display` contract. The production query stays mask0
 with null preparation; the accepted SDL proof executable/scene/oracle/interface
-stay frozen. This adapter is source-only and uncompiled at this checkpoint.
+stay frozen. The adapter library/factory have CPU compile evidence below;
+borrowed-context runtime acceptance remains open.
 
 The private factory accepts the old complete prefix with graphics mask0, or a
 full current table with GL and its mandatory preparation callback. Partial tails
@@ -27,7 +28,12 @@ draws native packets into that FBO, and flushes native batching before state/tar
 restoration. Its call-local guard preserves every borrowed FBO draw-buffer selection
 on success and failure, restoring that target before entry FBO restoration. Colour
 attachments must use mip level0; unsupported attached levels fail before level0
-dimension/format queries. The GL state scope preserves the caller and default VAO, legacy client
+dimension/format queries. Optional declared depth textures/renderbuffers must
+match the target width, height and depth format; renderbuffers must be single-sample.
+Temporary texture/renderbuffer query bindings are restored on all query/bind exits.
+Undeclared depth, stencil, extra colour attachments (even inactive ones), layered
+and cube textures are refused without changing attachments. Completeness alone
+cannot prove the full eye extent. The GL state scope preserves the caller and default VAO, legacy client
 arrays, server texture/matrix/env state, sampler/program/buffer bindings, FBO/buffers,
 pixel transfer/store/PBO state and masks/enables. Unproved imaging transforms are
 rejected. Colour clears respect the eye rectangle. Depth remains untouched; world
@@ -44,9 +50,15 @@ with no open/step, GL/context initialization or game access. The full-adapter
 compile did not build or run the staging/target-state test executables. Existing
 standard-library producer tests and pinned patch-boundary tests are separate CPU evidence.
 Additional authored fake-dispatch tests cover both target selection lists, failed
-selection/draw exits and attached mip rejection; these also remain unexecuted.
+selection/draw exits, attached mip rejection and attachment extent admission.
+The focused fake-dispatch target-state regression passed with strict compiler
+warnings: matching declared host depth is admitted; smaller depth, format/sample
+mismatches, undeclared/extra attachments and query/bind failures are refused with
+query bindings restored. No GL driver/context was used. The corrected adapter
+translation unit also passes the same strict syntax check; the full corrected
+library has not been rebuilt.
 
-Remaining gates: staging/target-state CPU regressions, then a separately
+Remaining gates: staging CPU regressions and corrected full-library build, then a separately
 authorized borrowed-context desktop proof
 with both-eye FBO/state/flush/replay/resource/lease and close/reopen receipts using
 the same frozen scenes/criteria. GL state/error cleanup, in-flight resource lifetime

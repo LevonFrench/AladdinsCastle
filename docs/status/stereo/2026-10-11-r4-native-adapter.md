@@ -26,3 +26,19 @@ board polygon/camera feed plus a caller using the borrowed-context two-eye
 prepare/draw path. This is an entry-point gap, not a request for more validators.
 Owner holds GPU/runtime; Guns owns the heavy CPU slot. Darkside source preflight
 is retained until runtime becomes available.
+
+PR82 review correction: framebuffer completeness did not prove the expected
+eye extent when smaller depth/extra attachments were present. The target helper
+now validates declared depth texture/renderbuffer dimensions and format, including
+single-sample renderbuffers; the integrated host's matching depth remains admitted.
+Undeclared depth and unsupported additional colour/stencil attachments are refused,
+including inactive high-number colour attachments. Layered/cube textures are refused.
+Borrowed images are never detached, resized or rewritten. Temporary query bindings
+are restored on success, refusal, and injected query/bind errors.
+
+The existing focused fake-dispatch CPU regression compiled with strict warnings
+and passed, and the corrected adapter translation unit passed strict syntax checking.
+The first compiler invocation failed without diagnostics; adding the existing GCC
+runtime directory to process PATH allowed the same source to compile/run. Private
+logs retain that limitation. No corrected full-library rebuild or GL driver test
+has run. Production gates and default build options remain unchanged.
