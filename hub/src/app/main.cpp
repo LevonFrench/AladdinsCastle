@@ -112,8 +112,10 @@ int main(int argc,char **argv){
     // Private owner captures are never included in packaging.
     const auto qaGame=qEnvironmentVariable("AC_UI_PLAY");
     const auto qaPinballRow=qEnvironmentVariable("AC_UI_PINBALL_ROW");
-    if(!qaGame.isEmpty()&&!qaPinballRow.isEmpty())ui.showError("Diagnostic","Choose either a catalog game or one Pinball diagnostic row.");
-    else if(!qaPinballRow.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaPinballRow]{
+    const auto qaPinballIni=qEnvironmentVariable("AC_UI_PINBALL_INI");
+    if(!qaPinballIni.isEmpty()&&qaPinballRow.isEmpty())ui.showError("Diagnostic","AC_UI_PINBALL_INI requires AC_UI_PINBALL_ROW.");
+    else if(!qaGame.isEmpty()&&!qaPinballRow.isEmpty())ui.showError("Diagnostic","Choose either a catalog game or one Pinball diagnostic row.");
+    else if(!qaPinballRow.isEmpty())QTimer::singleShot(1000,&ui,[&ui,&services,qaPinballRow,qaPinballIni]{
         QFile file(qaPinballRow);QJsonParseError error;
         const auto document=file.open(QIODevice::ReadOnly)?QJsonDocument::fromJson(file.readAll(),&error):QJsonDocument{};
         if(error.error!=QJsonParseError::NoError||!document.isObject()){
@@ -123,6 +125,8 @@ int main(int argc,char **argv){
         if(row.value("id").toString().isEmpty()||row.value("path").toString().isEmpty()){
             ui.showError("Diagnostic","Invalid Pinball diagnostic row; missing table identity or path.");return;
         }
+        try{if(!qaPinballIni.isEmpty())services.setPinballDiagnosticIni(qaPinballIni);}
+        catch(const std::exception &exception){ui.showError("Diagnostic","Pinball diagnostic settings refused: "+QString::fromUtf8(exception.what()));return;}
         ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball();
     });
     else if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});

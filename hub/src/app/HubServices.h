@@ -61,6 +61,7 @@ public:
     Q_INVOKABLE void launchGunRoom(const QString &model,const QString &hand,const QString &executable);
     Q_INVOKABLE void calibrateGunRoom(const QString &model,const QString &hand,const QString &executable);
     Q_INVOKABLE void requestHubExit(int code=0);
+    void setPinballDiagnosticIni(const QString &path);
 signals:
     void gunRoomChanged();
     void hubExitReady(int code);
@@ -105,6 +106,7 @@ private:
     bool gunRoomAvailable_=false, hubExitPending_=false;
     int hubExitCode_=0;
     QVariantMap retainedPinball_;QString retainedPinballExecutable_;
+    QString pinballDiagnosticIni_;
     gunroom::Inputs retainedGunRoom_;
     gunroom::Service gunRoom_;
 };

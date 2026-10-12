@@ -33,6 +33,9 @@ private slots:
         QTest::newRow("current-table") << QString("current");
         QTest::newRow("changed-table-refused") << QString("changed");
         QTest::newRow("invalid-cache-refused") << QString("invalid");
+        QTest::newRow("private-ini") << QString("private-ini");
+        QTest::newRow("outside-ini-refused") << QString("outside-ini");
+        QTest::newRow("ini-without-row-refused") << QString("ini-without-row");
     }
     void cachedPinballDiagnosticUsesNormalPlay() {
         QFETCH(QString, shape);
@@ -61,6 +64,9 @@ private slots:
         const auto id=QString::fromLatin1(QCryptographicHash::hash(tableInfo.absoluteFilePath().toUtf8(),QCryptographicHash::Sha256).toHex());
         const QJsonObject row{{"id",id},{"path",table},{"title","Synthetic diagnostic table"},{"vrReady",true},{"romState","unknown"},{"size",tableInfo.size()},{"mtime",tableInfo.lastModified().toMSecsSinceEpoch()+(shape=="changed"?1:0)}};
         QVERIFY(write(cache,shape=="invalid"?QByteArray("["):QJsonDocument(row).toJson()));
+        QVERIFY(QDir().mkpath(root+"/.local"));
+        const auto ini=temp.filePath(shape=="outside-ini"?"outside.ini":".local/mode settings.ini"),arguments=temp.filePath("child-arguments.json");
+        QVERIFY(write(ini,"[PlayerVR]\nAskToTurnOn=2\n"));
         auto hub=QCoreApplication::applicationDirPath()+"/aladdinscastle-hub", child=QCoreApplication::applicationDirPath()+"/integration-tests";
 #ifdef Q_OS_WIN
         hub+=".exe"; child+=".exe";
@@ -72,21 +78,28 @@ private slots:
         QVERIFY(QFileInfo::exists(child)); QVERIFY(QDir().mkpath(root+"/user"));
         QVERIFY(write(root+"/user/hub-settings.toml",("[ui]\npinballExecutable='"+QDir::fromNativeSeparators(child)+"'\n").toUtf8()));
         auto env=QProcessEnvironment::systemEnvironment();
-        env.remove("AC_UI_PLAY");env.insert("AC_UI_PINBALL_ROW",cache);env.insert("AC_UI_CAPTURE",capture);env.insert("AC_SYNTHETIC_PINBALL_CHILD_MS","9000");
+        env.remove("AC_UI_PLAY");env.remove("AC_UI_PINBALL_INI");env.insert("AC_UI_PINBALL_ROW",cache);env.insert("AC_UI_CAPTURE",capture);env.insert("AC_SYNTHETIC_PINBALL_CHILD_MS","9000");env.insert("AC_SYNTHETIC_PINBALL_ARGUMENTS",arguments);
+        if(shape.contains("ini"))env.insert("AC_UI_PINBALL_INI",ini);
+        if(shape=="ini-without-row")env.remove("AC_UI_PINBALL_ROW");
         env.insert("QT_QPA_PLATFORM","offscreen");env.insert("QT_QUICK_BACKEND","software");env.insert("QT_OPENGL","software");
         QProcess process;process.setProcessEnvironment(env);process.start(hub,{"--data-root",root,"--install-root",root,"--quit-after-ms",quitAfter});
         QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(16000));QCOMPARE(process.exitStatus(),QProcess::NormalExit);QCOMPARE(process.exitCode(),0);
         QFile receipt(capture+".json");QVERIFY(receipt.open(QIODevice::ReadOnly));const auto captured=QJsonDocument::fromJson(receipt.readAll()).object();
         QVERIFY(!QImage(capture).isNull());QVERIFY(captured["imageSaved"].toBool());
-        if(shape=="current"){
+        if(shape=="current"||shape=="private-ini"){
             const auto playing=captured["nowPlaying"].toObject();QVERIFY(playing["running"].toBool());QCOMPARE(playing["title"].toString(),QString("Synthetic diagnostic table"));QCOMPARE(playing["pinballId"].toString(),id);QVERIFY(captured["launcherBusy"].toBool());
             QFile exitFile(capture+".exit.json");QVERIFY(exitFile.open(QIODevice::ReadOnly));const auto exited=QJsonDocument::fromJson(exitFile.readAll()).object();QVERIFY(!exited["launcherBusy"].toBool());QVERIFY(!exited["nowPlaying"].toObject()["running"].toBool());
             const auto finished=exited["finished"].toArray();QCOMPARE(finished.size(),1);QCOMPARE(finished[0].toObject()["gameId"].toString(),"pinball-"+id);QCOMPARE(finished[0].toObject()["exitCode"].toInt(),0);QVERIFY(finished[0].toObject()["error"].toString().isEmpty());
+            QFile actualArguments(arguments);QVERIFY(actualArguments.open(QIODevice::ReadOnly));
+            auto expected=QStringList{"-Play",table};if(shape=="private-ini")expected<<"-Ini"<<ini;
+            QCOMPARE(QJsonDocument::fromJson(actualArguments.readAll()).toVariant().toStringList(),expected);
         }else{
             QVERIFY(!captured["launcherBusy"].toBool());QVERIFY(!captured["nowPlaying"].toObject()["running"].toBool());
-            QVERIFY(captured["status"].toString().contains(shape=="changed"?"Table changed":"Invalid Pinball diagnostic row"));
+            const auto expected=shape=="changed"?"Table changed":shape=="outside-ini"?"Pinball diagnostic settings refused":shape=="ini-without-row"?"requires AC_UI_PINBALL_ROW":"Invalid Pinball diagnostic row";
+            QVERIFY(captured["status"].toString().contains(expected));QVERIFY(!QFileInfo::exists(arguments));
         }
         QFile unchanged(table);QVERIFY(unchanged.open(QIODevice::ReadOnly));QCOMPARE(unchanged.readAll(),tableBytes);
+        QFile settingsUnchanged(ini);QVERIFY(settingsUnchanged.open(QIODevice::ReadOnly));QCOMPARE(settingsUnchanged.readAll(),QByteArray("[PlayerVR]\nAskToTurnOn=2\n"));
     }
     void countOnlyDirectGameMetadata() {
         QTemporaryDir temp; QVERIFY(temp.isValid());
