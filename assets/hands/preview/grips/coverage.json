@@ -2,168 +2,6 @@
   "schema": "hand-grip-review/1",
   "cases": [
     {
-      "id": "arc-pistol-slide-right-primary",
-      "model": "arc-pistol-slide",
-      "primary_hand": "right",
-      "hold": "primary",
-      "hands": [
-        {
-          "hand": "right",
-          "pose": {
-            "asset": "assets/hands/grip-hand-right.glb",
-            "node": "grip",
-            "translation": [
-              0,
-              0,
-              0
-            ],
-            "rotation_xyzw": [
-              0.13052619222005157,
-              0,
-              0,
-              0.9914448613738104
-            ],
-            "finger_pose": {}
-          }
-        }
-      ]
-    },
-    {
-      "id": "arc-pistol-slide-left-primary",
-      "model": "arc-pistol-slide",
-      "primary_hand": "left",
-      "hold": "primary",
-      "hands": [
-        {
-          "hand": "left",
-          "pose": {
-            "asset": "assets/hands/grip-hand-left.glb",
-            "node": "grip",
-            "translation": [
-              0,
-              0,
-              0
-            ],
-            "rotation_xyzw": [
-              0.13052619222005157,
-              0,
-              0,
-              0.9914448613738104
-            ],
-            "finger_pose": {}
-          }
-        }
-      ]
-    },
-    {
-      "id": "con-pistol-dpad-right-primary",
-      "model": "con-pistol-dpad",
-      "primary_hand": "right",
-      "hold": "primary",
-      "hands": [
-        {
-          "hand": "right",
-          "pose": {
-            "asset": "assets/hands/grip-hand-right.glb",
-            "node": "grip",
-            "translation": [
-              0,
-              0,
-              0
-            ],
-            "rotation_xyzw": [
-              0.13052619222005157,
-              0,
-              0,
-              0.9914448613738104
-            ],
-            "finger_pose": {}
-          }
-        }
-      ]
-    },
-    {
-      "id": "con-pistol-dpad-left-primary",
-      "model": "con-pistol-dpad",
-      "primary_hand": "left",
-      "hold": "primary",
-      "hands": [
-        {
-          "hand": "left",
-          "pose": {
-            "asset": "assets/hands/grip-hand-left.glb",
-            "node": "grip",
-            "translation": [
-              0,
-              0,
-              0
-            ],
-            "rotation_xyzw": [
-              0.13052619222005157,
-              0,
-              0,
-              0.9914448613738104
-            ],
-            "finger_pose": {}
-          }
-        }
-      ]
-    },
-    {
-      "id": "con-pistol-slim-right-primary",
-      "model": "con-pistol-slim",
-      "primary_hand": "right",
-      "hold": "primary",
-      "hands": [
-        {
-          "hand": "right",
-          "pose": {
-            "asset": "assets/hands/grip-hand-right.glb",
-            "node": "grip",
-            "translation": [
-              0,
-              0,
-              0
-            ],
-            "rotation_xyzw": [
-              0.13052619222005157,
-              0,
-              0,
-              0.9914448613738104
-            ],
-            "finger_pose": {}
-          }
-        }
-      ]
-    },
-    {
-      "id": "con-pistol-slim-left-primary",
-      "model": "con-pistol-slim",
-      "primary_hand": "left",
-      "hold": "primary",
-      "hands": [
-        {
-          "hand": "left",
-          "pose": {
-            "asset": "assets/hands/grip-hand-left.glb",
-            "node": "grip",
-            "translation": [
-              0,
-              0,
-              0
-            ],
-            "rotation_xyzw": [
-              0.13052619222005157,
-              0,
-              0,
-              0.9914448613738104
-            ],
-            "finger_pose": {}
-          }
-        }
-      ]
-    },
-    {
       "id": "con-remote-shell-right-primary",
       "model": "con-remote-shell",
       "primary_hand": "right",
@@ -218,8 +56,8 @@
       ]
     },
     {
-      "id": "con-revolver-chunky-right-primary",
-      "model": "con-revolver-chunky",
+      "id": "game-crossbow-right-primary",
+      "model": "game-crossbow",
       "primary_hand": "right",
       "hold": "primary",
       "hands": [
@@ -245,8 +83,8 @@
       ]
     },
     {
-      "id": "con-revolver-chunky-left-primary",
-      "model": "con-revolver-chunky",
+      "id": "game-crossbow-left-primary",
+      "model": "game-crossbow",
       "primary_hand": "left",
       "hold": "primary",
       "hands": [
@@ -272,8 +110,8 @@
       ]
     },
     {
-      "id": "generic-pistol-right-primary",
-      "model": "generic-pistol",
+      "id": "game-energy-gun-right-primary",
+      "model": "game-energy-gun",
       "primary_hand": "right",
       "hold": "primary",
       "hands": [
@@ -299,8 +137,170 @@
       ]
     },
     {
-      "id": "generic-pistol-left-primary",
-      "model": "generic-pistol",
+      "id": "game-energy-gun-left-primary",
+      "model": "game-energy-gun",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "game-pistol-service-right-primary",
+      "model": "game-pistol-service",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "game-pistol-service-left-primary",
+      "model": "game-pistol-service",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "game-revolver-heavy-right-primary",
+      "model": "game-revolver-heavy",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "game-revolver-heavy-left-primary",
+      "model": "game-revolver-heavy",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "game-tool-cutter-right-primary",
+      "model": "game-tool-cutter",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "game-tool-cutter-left-primary",
+      "model": "game-tool-cutter",
       "primary_hand": "left",
       "hold": "primary",
       "hands": [
@@ -564,6 +564,98 @@
       ]
     },
     {
+      "id": "game-crossbow-right-support",
+      "model": "game-crossbow",
+      "primary_hand": "right",
+      "hold": "support",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        },
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip_two",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "game-crossbow-left-support",
+      "model": "game-crossbow",
+      "primary_hand": "left",
+      "hold": "support",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        },
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip_two",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
       "id": "mnt-mg-heavy-right-support",
       "model": "mnt-mg-heavy",
       "primary_hand": "right",
@@ -804,226 +896,1608 @@
   ],
   "images": [
     {
-      "case": "arc-pistol-slide-right-primary",
-      "view": "assembly",
-      "image": "arc-pistol-slide-right-primary-assembly.png"
-    },
-    {
-      "case": "arc-pistol-slide-right-primary",
-      "view": "grip",
-      "image": "arc-pistol-slide-right-primary-grip.png"
-    },
-    {
-      "case": "arc-pistol-slide-left-primary",
-      "view": "assembly",
-      "image": "arc-pistol-slide-left-primary-assembly.png"
-    },
-    {
-      "case": "arc-pistol-slide-left-primary",
-      "view": "grip",
-      "image": "arc-pistol-slide-left-primary-grip.png"
-    },
-    {
-      "case": "con-pistol-dpad-right-primary",
-      "view": "assembly",
-      "image": "con-pistol-dpad-right-primary-assembly.png"
-    },
-    {
-      "case": "con-pistol-dpad-right-primary",
-      "view": "grip",
-      "image": "con-pistol-dpad-right-primary-grip.png"
-    },
-    {
-      "case": "con-pistol-dpad-left-primary",
-      "view": "assembly",
-      "image": "con-pistol-dpad-left-primary-assembly.png"
-    },
-    {
-      "case": "con-pistol-dpad-left-primary",
-      "view": "grip",
-      "image": "con-pistol-dpad-left-primary-grip.png"
-    },
-    {
-      "case": "con-pistol-slim-right-primary",
-      "view": "assembly",
-      "image": "con-pistol-slim-right-primary-assembly.png"
-    },
-    {
-      "case": "con-pistol-slim-right-primary",
-      "view": "grip",
-      "image": "con-pistol-slim-right-primary-grip.png"
-    },
-    {
-      "case": "con-pistol-slim-left-primary",
-      "view": "assembly",
-      "image": "con-pistol-slim-left-primary-assembly.png"
-    },
-    {
-      "case": "con-pistol-slim-left-primary",
-      "view": "grip",
-      "image": "con-pistol-slim-left-primary-grip.png"
-    },
-    {
       "case": "con-remote-shell-right-primary",
       "view": "assembly",
-      "image": "con-remote-shell-right-primary-assembly.png"
+      "image": "con-remote-shell-right-primary-assembly.png",
+      "label_points": {
+        "muzzle": [
+          395.829,
+          225.148
+        ],
+        "pivot_trigger": [
+          317.966,
+          244.532
+        ],
+        "grip_two": [
+          176.236,
+          245.514
+        ],
+        "button_a": [
+          331.089,
+          181.786
+        ],
+        "button_minus": [
+          321.923,
+          170.462
+        ],
+        "button_plus": [
+          301.76,
+          177.779
+        ],
+        "button_home": [
+          298.718,
+          168.895
+        ],
+        "button_one": [
+          282.971,
+          162.623
+        ],
+        "button_two": [
+          268.973,
+          157.049
+        ],
+        "button_dpad": [
+          359.96,
+          193.284
+        ],
+        "grip": [
+          298.718,
+          260.306
+        ]
+      }
     },
     {
       "case": "con-remote-shell-right-primary",
       "view": "grip",
-      "image": "con-remote-shell-right-primary-grip.png"
+      "image": "con-remote-shell-right-primary-grip.png",
+      "label_points": {
+        "muzzle": [
+          450.438,
+          133.246
+        ],
+        "pivot_trigger": [
+          307.422,
+          168.85
+        ],
+        "grip_two": [
+          47.1,
+          170.654
+        ],
+        "button_a": [
+          331.526,
+          53.601
+        ],
+        "button_minus": [
+          314.691,
+          32.803
+        ],
+        "button_plus": [
+          277.655,
+          46.242
+        ],
+        "button_home": [
+          272.069,
+          29.923
+        ],
+        "button_one": [
+          243.145,
+          18.404
+        ],
+        "button_two": [
+          217.434,
+          8.165
+        ],
+        "button_dpad": [
+          384.554,
+          74.72
+        ],
+        "grip": [
+          272.069,
+          197.823
+        ]
+      }
     },
     {
       "case": "con-remote-shell-left-primary",
       "view": "assembly",
-      "image": "con-remote-shell-left-primary-assembly.png"
+      "image": "con-remote-shell-left-primary-assembly.png",
+      "label_points": {
+        "muzzle": [
+          116.171,
+          225.148
+        ],
+        "pivot_trigger": [
+          194.034,
+          244.532
+        ],
+        "grip_two": [
+          335.764,
+          245.514
+        ],
+        "button_a": [
+          180.911,
+          181.786
+        ],
+        "button_minus": [
+          210.24,
+          177.779
+        ],
+        "button_plus": [
+          190.077,
+          170.462
+        ],
+        "button_home": [
+          213.282,
+          168.895
+        ],
+        "button_one": [
+          229.029,
+          162.623
+        ],
+        "button_two": [
+          243.027,
+          157.049
+        ],
+        "button_dpad": [
+          152.04,
+          193.284
+        ],
+        "grip": [
+          213.282,
+          260.306
+        ]
+      }
     },
     {
       "case": "con-remote-shell-left-primary",
       "view": "grip",
-      "image": "con-remote-shell-left-primary-grip.png"
+      "image": "con-remote-shell-left-primary-grip.png",
+      "label_points": {
+        "muzzle": [
+          61.562,
+          133.246
+        ],
+        "pivot_trigger": [
+          204.578,
+          168.85
+        ],
+        "grip_two": [
+          464.9,
+          170.654
+        ],
+        "button_a": [
+          180.474,
+          53.601
+        ],
+        "button_minus": [
+          234.345,
+          46.242
+        ],
+        "button_plus": [
+          197.309,
+          32.803
+        ],
+        "button_home": [
+          239.931,
+          29.923
+        ],
+        "button_one": [
+          268.855,
+          18.404
+        ],
+        "button_two": [
+          294.566,
+          8.165
+        ],
+        "button_dpad": [
+          127.446,
+          74.72
+        ],
+        "grip": [
+          239.931,
+          197.823
+        ]
+      }
     },
     {
-      "case": "con-revolver-chunky-right-primary",
+      "case": "game-crossbow-right-primary",
       "view": "assembly",
-      "image": "con-revolver-chunky-right-primary-assembly.png"
+      "image": "game-crossbow-right-primary-assembly.png",
+      "label_points": {
+        "grip_two": [
+          295.85,
+          262.469
+        ],
+        "button_reload": [
+          206.196,
+          242.452
+        ],
+        "muzzle": [
+          388.756,
+          265.915
+        ],
+        "pivot_trigger": [
+          231.179,
+          231.834
+        ],
+        "grip": [
+          211.596,
+          228.916
+        ],
+        "string_draw": [
+          254.861,
+          216.863
+        ]
+      }
     },
     {
-      "case": "con-revolver-chunky-right-primary",
+      "case": "game-crossbow-right-primary",
       "view": "grip",
-      "image": "con-revolver-chunky-right-primary-grip.png"
+      "image": "game-crossbow-right-primary-grip.png",
+      "label_points": {
+        "grip_two": [
+          569.351,
+          316.214
+        ],
+        "button_reload": [
+          253.016,
+          245.586
+        ],
+        "muzzle": [
+          897.163,
+          328.373
+        ],
+        "pivot_trigger": [
+          341.167,
+          208.12
+        ],
+        "grip": [
+          272.069,
+          197.823
+        ],
+        "string_draw": [
+          424.727,
+          155.295
+        ]
+      }
     },
     {
-      "case": "con-revolver-chunky-left-primary",
+      "case": "game-crossbow-left-primary",
       "view": "assembly",
-      "image": "con-revolver-chunky-left-primary-assembly.png"
+      "image": "game-crossbow-left-primary-assembly.png",
+      "label_points": {
+        "grip_two": [
+          216.15,
+          262.469
+        ],
+        "button_reload": [
+          288.628,
+          236.22
+        ],
+        "muzzle": [
+          123.244,
+          265.915
+        ],
+        "pivot_trigger": [
+          280.821,
+          231.834
+        ],
+        "grip": [
+          300.404,
+          228.916
+        ],
+        "string_draw": [
+          257.139,
+          216.863
+        ]
+      }
     },
     {
-      "case": "con-revolver-chunky-left-primary",
+      "case": "game-crossbow-left-primary",
       "view": "grip",
-      "image": "con-revolver-chunky-left-primary-grip.png"
+      "image": "game-crossbow-left-primary-grip.png",
+      "label_points": {
+        "grip_two": [
+          -57.351,
+          316.214
+        ],
+        "button_reload": [
+          198.38,
+          223.595
+        ],
+        "muzzle": [
+          -385.163,
+          328.373
+        ],
+        "pivot_trigger": [
+          170.833,
+          208.12
+        ],
+        "grip": [
+          239.931,
+          197.823
+        ],
+        "string_draw": [
+          87.273,
+          155.295
+        ]
+      }
     },
     {
-      "case": "generic-pistol-right-primary",
+      "case": "game-energy-gun-right-primary",
       "view": "assembly",
-      "image": "generic-pistol-right-primary-assembly.png"
+      "image": "game-energy-gun-right-primary-assembly.png",
+      "label_points": {
+        "button_reload": [
+          172.504,
+          233.434
+        ],
+        "muzzle": [
+          395.689,
+          240.214
+        ],
+        "pivot_trigger": [
+          220.733,
+          212.936
+        ],
+        "grip": [
+          182.928,
+          207.302
+        ],
+        "slide_recoil": [
+          313.046,
+          206.124
+        ]
+      }
     },
     {
-      "case": "generic-pistol-right-primary",
+      "case": "game-energy-gun-right-primary",
       "view": "grip",
-      "image": "generic-pistol-right-primary-grip.png"
+      "image": "game-energy-gun-right-primary-grip.png",
+      "label_points": {
+        "button_reload": [
+          253.016,
+          245.586
+        ],
+        "muzzle": [
+          660.945,
+          257.978
+        ],
+        "pivot_trigger": [
+          341.167,
+          208.12
+        ],
+        "grip": [
+          272.069,
+          197.823
+        ],
+        "slide_recoil": [
+          509.894,
+          195.67
+        ]
+      }
     },
     {
-      "case": "generic-pistol-left-primary",
+      "case": "game-energy-gun-left-primary",
       "view": "assembly",
-      "image": "generic-pistol-left-primary-assembly.png"
+      "image": "game-energy-gun-left-primary-assembly.png",
+      "label_points": {
+        "button_reload": [
+          306.339,
+          221.402
+        ],
+        "muzzle": [
+          116.311,
+          240.214
+        ],
+        "pivot_trigger": [
+          291.267,
+          212.936
+        ],
+        "grip": [
+          329.072,
+          207.302
+        ],
+        "slide_recoil": [
+          198.954,
+          206.124
+        ]
+      }
     },
     {
-      "case": "generic-pistol-left-primary",
+      "case": "game-energy-gun-left-primary",
       "view": "grip",
-      "image": "generic-pistol-left-primary-grip.png"
+      "image": "game-energy-gun-left-primary-grip.png",
+      "label_points": {
+        "button_reload": [
+          198.38,
+          223.595
+        ],
+        "muzzle": [
+          -148.945,
+          257.978
+        ],
+        "pivot_trigger": [
+          170.833,
+          208.12
+        ],
+        "grip": [
+          239.931,
+          197.823
+        ],
+        "slide_recoil": [
+          2.106,
+          195.67
+        ]
+      }
+    },
+    {
+      "case": "game-pistol-service-right-primary",
+      "view": "assembly",
+      "image": "game-pistol-service-right-primary-assembly.png",
+      "label_points": {
+        "button_reload": [
+          170.185,
+          225.899
+        ],
+        "muzzle": [
+          398.112,
+          207.885
+        ],
+        "pivot_trigger": [
+          235.018,
+          198.344
+        ],
+        "grip": [
+          184.199,
+          190.771
+        ],
+        "slide_recoil": [
+          271.655,
+          159.108
+        ]
+      }
+    },
+    {
+      "case": "game-pistol-service-right-primary",
+      "view": "grip",
+      "image": "game-pistol-service-right-primary-grip.png",
+      "label_points": {
+        "button_reload": [
+          253.016,
+          245.586
+        ],
+        "muzzle": [
+          562.923,
+          221.094
+        ],
+        "pivot_trigger": [
+          341.167,
+          208.12
+        ],
+        "grip": [
+          272.069,
+          197.823
+        ],
+        "slide_recoil": [
+          390.982,
+          154.772
+        ]
+      }
+    },
+    {
+      "case": "game-pistol-service-left-primary",
+      "view": "assembly",
+      "image": "game-pistol-service-left-primary-assembly.png",
+      "label_points": {
+        "button_reload": [
+          297.242,
+          209.725
+        ],
+        "muzzle": [
+          113.888,
+          207.885
+        ],
+        "pivot_trigger": [
+          276.982,
+          198.344
+        ],
+        "grip": [
+          327.801,
+          190.771
+        ],
+        "slide_recoil": [
+          240.345,
+          159.108
+        ]
+      }
+    },
+    {
+      "case": "game-pistol-service-left-primary",
+      "view": "grip",
+      "image": "game-pistol-service-left-primary-grip.png",
+      "label_points": {
+        "button_reload": [
+          198.38,
+          223.595
+        ],
+        "muzzle": [
+          -50.923,
+          221.094
+        ],
+        "pivot_trigger": [
+          170.833,
+          208.12
+        ],
+        "grip": [
+          239.931,
+          197.823
+        ],
+        "slide_recoil": [
+          121.018,
+          154.772
+        ]
+      }
+    },
+    {
+      "case": "game-revolver-heavy-right-primary",
+      "view": "assembly",
+      "image": "game-revolver-heavy-right-primary-assembly.png",
+      "label_points": {
+        "button_reload": [
+          159.295,
+          228.685
+        ],
+        "muzzle": [
+          395.862,
+          239.17
+        ],
+        "pivot_trigger": [
+          208.478,
+          207.781
+        ],
+        "grip": [
+          169.925,
+          202.036
+        ],
+        "cylinder_spin": [
+          227.306,
+          178.048
+        ]
+      }
+    },
+    {
+      "case": "game-revolver-heavy-right-primary",
+      "view": "grip",
+      "image": "game-revolver-heavy-right-primary-grip.png",
+      "label_points": {
+        "button_reload": [
+          253.016,
+          245.586
+        ],
+        "muzzle": [
+          677.015,
+          264.378
+        ],
+        "pivot_trigger": [
+          341.167,
+          208.12
+        ],
+        "grip": [
+          272.069,
+          197.823
+        ],
+        "cylinder_spin": [
+          374.913,
+          154.83
+        ]
+      }
+    },
+    {
+      "case": "game-revolver-heavy-left-primary",
+      "view": "assembly",
+      "image": "game-revolver-heavy-left-primary-assembly.png",
+      "label_points": {
+        "button_reload": [
+          318.892,
+          216.415
+        ],
+        "muzzle": [
+          116.138,
+          239.17
+        ],
+        "pivot_trigger": [
+          303.522,
+          207.781
+        ],
+        "grip": [
+          342.075,
+          202.036
+        ],
+        "cylinder_spin": [
+          284.694,
+          178.048
+        ]
+      }
+    },
+    {
+      "case": "game-revolver-heavy-left-primary",
+      "view": "grip",
+      "image": "game-revolver-heavy-left-primary-grip.png",
+      "label_points": {
+        "button_reload": [
+          198.38,
+          223.595
+        ],
+        "muzzle": [
+          -165.015,
+          264.378
+        ],
+        "pivot_trigger": [
+          170.833,
+          208.12
+        ],
+        "grip": [
+          239.931,
+          197.823
+        ],
+        "cylinder_spin": [
+          137.087,
+          154.83
+        ]
+      }
+    },
+    {
+      "case": "game-tool-cutter-right-primary",
+      "view": "assembly",
+      "image": "game-tool-cutter-right-primary-assembly.png",
+      "label_points": {
+        "button_reload": [
+          177.608,
+          238.55
+        ],
+        "muzzle": [
+          387.932,
+          235.841
+        ],
+        "pivot_trigger": [
+          232.327,
+          215.293
+        ],
+        "grip": [
+          189.436,
+          208.901
+        ],
+        "slide_recoil": [
+          345.041,
+          217.424
+        ]
+      }
+    },
+    {
+      "case": "game-tool-cutter-right-primary",
+      "view": "grip",
+      "image": "game-tool-cutter-right-primary-grip.png",
+      "label_points": {
+        "button_reload": [
+          253.016,
+          245.586
+        ],
+        "muzzle": [
+          591.848,
+          241.223
+        ],
+        "pivot_trigger": [
+          341.167,
+          208.12
+        ],
+        "grip": [
+          272.069,
+          197.823
+        ],
+        "slide_recoil": [
+          522.75,
+          211.553
+        ]
+      }
+    },
+    {
+      "case": "game-tool-cutter-left-primary",
+      "view": "assembly",
+      "image": "game-tool-cutter-left-primary-assembly.png",
+      "label_points": {
+        "button_reload": [
+          296.773,
+          224.899
+        ],
+        "muzzle": [
+          124.068,
+          235.841
+        ],
+        "pivot_trigger": [
+          279.673,
+          215.293
+        ],
+        "grip": [
+          322.564,
+          208.901
+        ],
+        "slide_recoil": [
+          166.959,
+          217.424
+        ]
+      }
+    },
+    {
+      "case": "game-tool-cutter-left-primary",
+      "view": "grip",
+      "image": "game-tool-cutter-left-primary-grip.png",
+      "label_points": {
+        "button_reload": [
+          198.38,
+          223.595
+        ],
+        "muzzle": [
+          -79.848,
+          241.223
+        ],
+        "pivot_trigger": [
+          170.833,
+          208.12
+        ],
+        "grip": [
+          239.931,
+          197.823
+        ],
+        "slide_recoil": [
+          -10.75,
+          211.553
+        ]
+      }
     },
     {
       "case": "mnt-mg-heavy-right-primary",
       "view": "assembly",
-      "image": "mnt-mg-heavy-right-primary-assembly.png"
+      "image": "mnt-mg-heavy-right-primary-assembly.png",
+      "label_points": {
+        "grip_two": [
+          199.151,
+          156.285
+        ],
+        "muzzle": [
+          390.369,
+          273.447
+        ],
+        "pivot_trigger": [
+          94.102,
+          192.337
+        ],
+        "button_special": [
+          163.945,
+          155.475
+        ],
+        "grip": [
+          94.102,
+          194.403
+        ]
+      }
     },
     {
       "case": "mnt-mg-heavy-right-primary",
       "view": "grip",
-      "image": "mnt-mg-heavy-right-primary-grip.png"
-    },
-    {
-      "case": "con-stick-grip-right-primary",
-      "view": "assembly",
-      "image": "con-stick-grip-right-primary-assembly.png"
-    },
-    {
-      "case": "con-stick-grip-right-primary",
-      "view": "grip",
-      "image": "con-stick-grip-right-primary-grip.png"
-    },
-    {
-      "case": "con-stick-grip-left-primary",
-      "view": "assembly",
-      "image": "con-stick-grip-left-primary-assembly.png"
-    },
-    {
-      "case": "con-stick-grip-left-primary",
-      "view": "grip",
-      "image": "con-stick-grip-left-primary-grip.png"
-    },
-    {
-      "case": "con-remote-shell-right-docked",
-      "view": "assembly",
-      "image": "con-remote-shell-right-docked-assembly.png"
-    },
-    {
-      "case": "con-remote-shell-right-docked",
-      "view": "grip",
-      "image": "con-remote-shell-right-docked-grip.png"
-    },
-    {
-      "case": "con-remote-shell-left-docked",
-      "view": "assembly",
-      "image": "con-remote-shell-left-docked-assembly.png"
-    },
-    {
-      "case": "con-remote-shell-left-docked",
-      "view": "grip",
-      "image": "con-remote-shell-left-docked-grip.png"
+      "image": "mnt-mg-heavy-right-primary-grip.png",
+      "label_points": {
+        "grip_two": [
+          709.765,
+          38.999
+        ],
+        "muzzle": [
+          1506.494,
+          527.165
+        ],
+        "pivot_trigger": [
+          272.069,
+          189.213
+        ],
+        "button_special": [
+          563.076,
+          35.625
+        ],
+        "grip": [
+          272.069,
+          197.823
+        ]
+      }
     },
     {
       "case": "mnt-mg-heavy-left-primary",
       "view": "assembly",
-      "image": "mnt-mg-heavy-left-primary-assembly.png"
+      "image": "mnt-mg-heavy-left-primary-assembly.png",
+      "label_points": {
+        "grip_two": [
+          417.898,
+          194.403
+        ],
+        "muzzle": [
+          121.631,
+          273.447
+        ],
+        "pivot_trigger": [
+          312.849,
+          154.218
+        ],
+        "button_special": [
+          380.378,
+          167.204
+        ],
+        "grip": [
+          312.849,
+          156.285
+        ]
+      }
     },
     {
       "case": "mnt-mg-heavy-left-primary",
       "view": "grip",
-      "image": "mnt-mg-heavy-left-primary-grip.png"
+      "image": "mnt-mg-heavy-left-primary-grip.png",
+      "label_points": {
+        "grip_two": [
+          239.931,
+          197.823
+        ],
+        "muzzle": [
+          -994.494,
+          527.165
+        ],
+        "pivot_trigger": [
+          -197.765,
+          30.389
+        ],
+        "button_special": [
+          83.6,
+          84.493
+        ],
+        "grip": [
+          -197.765,
+          38.999
+        ]
+      }
+    },
+    {
+      "case": "con-stick-grip-right-primary",
+      "view": "assembly",
+      "image": "con-stick-grip-right-primary-assembly.png",
+      "label_points": {
+        "button_stick": [
+          302.771,
+          157.115
+        ],
+        "button_c": [
+          345.013,
+          202.23
+        ],
+        "button_z": [
+          346.773,
+          243.013
+        ],
+        "grip": [
+          290.45,
+          220.583
+        ]
+      }
+    },
+    {
+      "case": "con-stick-grip-right-primary",
+      "view": "grip",
+      "image": "con-stick-grip-right-primary-grip.png",
+      "label_points": {
+        "button_stick": [
+          302.601,
+          136.795
+        ],
+        "button_c": [
+          341.167,
+          177.984
+        ],
+        "button_z": [
+          342.774,
+          215.218
+        ],
+        "grip": [
+          291.353,
+          194.739
+        ]
+      }
+    },
+    {
+      "case": "con-stick-grip-left-primary",
+      "view": "assembly",
+      "image": "con-stick-grip-left-primary-assembly.png",
+      "label_points": {
+        "button_stick": [
+          209.229,
+          157.115
+        ],
+        "button_c": [
+          166.987,
+          202.23
+        ],
+        "button_z": [
+          165.227,
+          243.013
+        ],
+        "grip": [
+          221.55,
+          220.583
+        ]
+      }
+    },
+    {
+      "case": "con-stick-grip-left-primary",
+      "view": "grip",
+      "image": "con-stick-grip-left-primary-grip.png",
+      "label_points": {
+        "button_stick": [
+          209.399,
+          136.795
+        ],
+        "button_c": [
+          170.833,
+          177.984
+        ],
+        "button_z": [
+          169.226,
+          215.218
+        ],
+        "grip": [
+          220.647,
+          194.739
+        ]
+      }
     },
     {
       "case": "con-remote-shell-right-support",
       "view": "assembly",
-      "image": "con-remote-shell-right-support-assembly.png"
+      "image": "con-remote-shell-right-support-assembly.png",
+      "label_points": {
+        "muzzle": [
+          387.697,
+          238.325
+        ],
+        "pivot_trigger": [
+          319.816,
+          255.224
+        ],
+        "grip_two": [
+          196.256,
+          256.08
+        ],
+        "button_a": [
+          331.257,
+          200.522
+        ],
+        "button_minus": [
+          323.266,
+          190.65
+        ],
+        "button_plus": [
+          305.687,
+          197.029
+        ],
+        "button_home": [
+          303.036,
+          189.283
+        ],
+        "button_one": [
+          289.307,
+          183.816
+        ],
+        "button_two": [
+          277.104,
+          178.956
+        ],
+        "button_dpad": [
+          356.426,
+          210.546
+        ],
+        "grip": [
+          303.036,
+          268.976
+        ]
+      }
     },
     {
       "case": "con-remote-shell-right-support",
       "view": "grip",
-      "image": "con-remote-shell-right-support-grip.png"
+      "image": "con-remote-shell-right-support-grip.png",
+      "label_points": {
+        "muzzle": [
+          68.436,
+          189.285
+        ],
+        "pivot_trigger": [
+          155.835,
+          211.044
+        ],
+        "grip_two": [
+          314.92,
+          212.146
+        ],
+        "button_a": [
+          141.105,
+          140.614
+        ],
+        "button_minus": [
+          174.025,
+          136.116
+        ],
+        "button_plus": [
+          151.392,
+          127.903
+        ],
+        "button_home": [
+          177.439,
+          126.144
+        ],
+        "button_one": [
+          195.115,
+          119.104
+        ],
+        "button_two": [
+          210.827,
+          112.847
+        ],
+        "button_dpad": [
+          108.698,
+          153.519
+        ],
+        "grip": [
+          177.439,
+          228.749
+        ]
+      }
     },
     {
       "case": "con-remote-shell-left-support",
       "view": "assembly",
-      "image": "con-remote-shell-left-support-assembly.png"
+      "image": "con-remote-shell-left-support-assembly.png",
+      "label_points": {
+        "muzzle": [
+          124.303,
+          238.325
+        ],
+        "pivot_trigger": [
+          192.184,
+          255.224
+        ],
+        "grip_two": [
+          315.744,
+          256.08
+        ],
+        "button_a": [
+          180.743,
+          200.522
+        ],
+        "button_minus": [
+          206.313,
+          197.029
+        ],
+        "button_plus": [
+          188.734,
+          190.65
+        ],
+        "button_home": [
+          208.964,
+          189.283
+        ],
+        "button_one": [
+          222.693,
+          183.816
+        ],
+        "button_two": [
+          234.896,
+          178.956
+        ],
+        "button_dpad": [
+          155.574,
+          210.546
+        ],
+        "grip": [
+          208.964,
+          268.976
+        ]
+      }
     },
     {
       "case": "con-remote-shell-left-support",
       "view": "grip",
-      "image": "con-remote-shell-left-support-grip.png"
+      "image": "con-remote-shell-left-support-grip.png",
+      "label_points": {
+        "muzzle": [
+          443.564,
+          189.285
+        ],
+        "pivot_trigger": [
+          356.165,
+          211.044
+        ],
+        "grip_two": [
+          197.08,
+          212.146
+        ],
+        "button_a": [
+          370.895,
+          140.614
+        ],
+        "button_minus": [
+          360.608,
+          127.903
+        ],
+        "button_plus": [
+          337.975,
+          136.116
+        ],
+        "button_home": [
+          334.561,
+          126.144
+        ],
+        "button_one": [
+          316.885,
+          119.104
+        ],
+        "button_two": [
+          301.173,
+          112.847
+        ],
+        "button_dpad": [
+          403.302,
+          153.519
+        ],
+        "grip": [
+          334.561,
+          228.749
+        ]
+      }
+    },
+    {
+      "case": "game-crossbow-right-support",
+      "view": "assembly",
+      "image": "game-crossbow-right-support-assembly.png",
+      "label_points": {
+        "grip_two": [
+          295.85,
+          262.469
+        ],
+        "button_reload": [
+          206.196,
+          242.452
+        ],
+        "muzzle": [
+          388.756,
+          265.915
+        ],
+        "pivot_trigger": [
+          231.179,
+          231.834
+        ],
+        "grip": [
+          211.596,
+          228.916
+        ],
+        "string_draw": [
+          254.861,
+          216.863
+        ]
+      }
+    },
+    {
+      "case": "game-crossbow-right-support",
+      "view": "grip",
+      "image": "game-crossbow-right-support-grip.png",
+      "label_points": {
+        "grip_two": [
+          356.656,
+          256.622
+        ],
+        "button_reload": [
+          163.34,
+          213.461
+        ],
+        "muzzle": [
+          556.986,
+          264.053
+        ],
+        "pivot_trigger": [
+          217.211,
+          190.565
+        ],
+        "grip": [
+          174.984,
+          184.272
+        ],
+        "string_draw": [
+          268.275,
+          158.283
+        ]
+      }
+    },
+    {
+      "case": "game-crossbow-left-support",
+      "view": "assembly",
+      "image": "game-crossbow-left-support-assembly.png",
+      "label_points": {
+        "grip_two": [
+          216.15,
+          262.469
+        ],
+        "button_reload": [
+          288.628,
+          236.22
+        ],
+        "muzzle": [
+          123.244,
+          265.915
+        ],
+        "pivot_trigger": [
+          280.821,
+          231.834
+        ],
+        "grip": [
+          300.404,
+          228.916
+        ],
+        "string_draw": [
+          257.139,
+          216.863
+        ]
+      }
+    },
+    {
+      "case": "game-crossbow-left-support",
+      "view": "grip",
+      "image": "game-crossbow-left-support-grip.png",
+      "label_points": {
+        "grip_two": [
+          155.344,
+          256.622
+        ],
+        "button_reload": [
+          311.624,
+          200.022
+        ],
+        "muzzle": [
+          -44.986,
+          264.053
+        ],
+        "pivot_trigger": [
+          294.789,
+          190.565
+        ],
+        "grip": [
+          337.016,
+          184.272
+        ],
+        "string_draw": [
+          243.725,
+          158.283
+        ]
+      }
     },
     {
       "case": "mnt-mg-heavy-right-support",
       "view": "assembly",
-      "image": "mnt-mg-heavy-right-support-assembly.png"
+      "image": "mnt-mg-heavy-right-support-assembly.png",
+      "label_points": {
+        "grip_two": [
+          183.388,
+          246.083
+        ],
+        "muzzle": [
+          256.0,
+          189.151
+        ],
+        "pivot_trigger": [
+          328.612,
+          243.879
+        ],
+        "button_special": [
+          233.658,
+          230.381
+        ],
+        "grip": [
+          328.612,
+          246.083
+        ]
+      }
     },
     {
       "case": "mnt-mg-heavy-right-support",
       "view": "grip",
-      "image": "mnt-mg-heavy-right-support-grip.png"
+      "image": "mnt-mg-heavy-right-support-grip.png",
+      "label_points": {
+        "grip_two": [
+          71.111,
+          211.576
+        ],
+        "muzzle": [
+          256.0,
+          66.612
+        ],
+        "pivot_trigger": [
+          440.889,
+          205.964
+        ],
+        "button_special": [
+          199.111,
+          171.594
+        ],
+        "grip": [
+          440.889,
+          211.576
+        ]
+      }
     },
     {
       "case": "mnt-mg-heavy-left-support",
       "view": "assembly",
-      "image": "mnt-mg-heavy-left-support-assembly.png"
+      "image": "mnt-mg-heavy-left-support-assembly.png",
+      "label_points": {
+        "grip_two": [
+          183.388,
+          246.083
+        ],
+        "muzzle": [
+          256.0,
+          189.151
+        ],
+        "pivot_trigger": [
+          328.612,
+          243.879
+        ],
+        "button_special": [
+          233.658,
+          230.381
+        ],
+        "grip": [
+          328.612,
+          246.083
+        ]
+      }
     },
     {
       "case": "mnt-mg-heavy-left-support",
       "view": "grip",
-      "image": "mnt-mg-heavy-left-support-grip.png"
+      "image": "mnt-mg-heavy-left-support-grip.png",
+      "label_points": {
+        "grip_two": [
+          71.111,
+          211.576
+        ],
+        "muzzle": [
+          256.0,
+          66.612
+        ],
+        "pivot_trigger": [
+          440.889,
+          205.964
+        ],
+        "button_special": [
+          199.111,
+          171.594
+        ],
+        "grip": [
+          440.889,
+          211.576
+        ]
+      }
+    },
+    {
+      "case": "con-remote-shell-right-docked",
+      "view": "assembly",
+      "image": "con-remote-shell-right-docked-assembly.png",
+      "label_points": {
+        "muzzle": [
+          387.672,
+          236.604
+        ],
+        "pivot_trigger": [
+          322.086,
+          252.932
+        ],
+        "grip_two": [
+          202.706,
+          253.759
+        ],
+        "button_a": [
+          333.14,
+          200.08
+        ],
+        "button_minus": [
+          325.42,
+          190.542
+        ],
+        "button_plus": [
+          308.436,
+          196.705
+        ],
+        "button_home": [
+          305.874,
+          189.222
+        ],
+        "button_one": [
+          292.61,
+          183.939
+        ],
+        "button_two": [
+          280.819,
+          179.244
+        ],
+        "button_dpad": [
+          357.458,
+          209.765
+        ],
+        "grip": [
+          305.874,
+          266.218
+        ]
+      }
+    },
+    {
+      "case": "con-remote-shell-right-docked",
+      "view": "grip",
+      "image": "con-remote-shell-right-docked-grip.png",
+      "label_points": {
+        "muzzle": [
+          449.466,
+          194.891
+        ],
+        "pivot_trigger": [
+          362.067,
+          216.65
+        ],
+        "grip_two": [
+          202.982,
+          217.752
+        ],
+        "button_a": [
+          376.798,
+          146.22
+        ],
+        "button_minus": [
+          366.51,
+          133.51
+        ],
+        "button_plus": [
+          343.877,
+          141.722
+        ],
+        "button_home": [
+          340.463,
+          131.75
+        ],
+        "button_one": [
+          322.787,
+          124.71
+        ],
+        "button_two": [
+          307.075,
+          118.453
+        ],
+        "button_dpad": [
+          409.204,
+          159.125
+        ],
+        "grip": [
+          340.463,
+          234.355
+        ]
+      }
+    },
+    {
+      "case": "con-remote-shell-left-docked",
+      "view": "assembly",
+      "image": "con-remote-shell-left-docked-assembly.png",
+      "label_points": {
+        "muzzle": [
+          124.328,
+          236.604
+        ],
+        "pivot_trigger": [
+          189.914,
+          252.932
+        ],
+        "grip_two": [
+          309.294,
+          253.759
+        ],
+        "button_a": [
+          178.86,
+          200.08
+        ],
+        "button_minus": [
+          203.564,
+          196.705
+        ],
+        "button_plus": [
+          186.58,
+          190.542
+        ],
+        "button_home": [
+          206.126,
+          189.222
+        ],
+        "button_one": [
+          219.39,
+          183.939
+        ],
+        "button_two": [
+          231.181,
+          179.244
+        ],
+        "button_dpad": [
+          154.542,
+          209.765
+        ],
+        "grip": [
+          206.126,
+          266.218
+        ]
+      }
+    },
+    {
+      "case": "con-remote-shell-left-docked",
+      "view": "grip",
+      "image": "con-remote-shell-left-docked-grip.png",
+      "label_points": {
+        "muzzle": [
+          62.534,
+          194.891
+        ],
+        "pivot_trigger": [
+          149.933,
+          216.65
+        ],
+        "grip_two": [
+          309.018,
+          217.752
+        ],
+        "button_a": [
+          135.202,
+          146.22
+        ],
+        "button_minus": [
+          168.123,
+          141.722
+        ],
+        "button_plus": [
+          145.49,
+          133.51
+        ],
+        "button_home": [
+          171.537,
+          131.75
+        ],
+        "button_one": [
+          189.213,
+          124.71
+        ],
+        "button_two": [
+          204.925,
+          118.453
+        ],
+        "button_dpad": [
+          102.796,
+          159.125
+        ],
+        "grip": [
+          171.537,
+          234.355
+        ]
+      }
     }
   ],
+  "label_point_units": "pixels",
+  "label_point_origin": "top-left",
   "lighting": {
     "id": "gun_lighting_r2",
     "normal_space": "camera-view",
@@ -1046,49 +2520,53 @@
   "samples": 64,
   "acceptance": "Visual CPU fit coverage only; no physical acceptance",
   "source_sha256": {
-    "arc-pistol-slide-right-primary-assembly.png": "e4abd2b9a0a13e42246ce354f659571819ab4c3d66e1aad3d85ef5025a4fb1f3",
-    "arc-pistol-slide-right-primary-grip.png": "0fd529bd2da9a1941b5c5489ceb9188e515bd1929c4479b44c0b1ad75551a997",
-    "arc-pistol-slide-left-primary-assembly.png": "848a617661379ae6eed42a9691cf4d4755a483f0a25d2573dd3f10d14386fde0",
-    "arc-pistol-slide-left-primary-grip.png": "b1884174419e5d60e832772f7687ecca7b9400bed9486749e031855565e2c8c8",
-    "con-pistol-dpad-right-primary-assembly.png": "30d95f9502f7c3ca110a65d6a5d2c2bfd39c3aaafc89af2fb1d3a14bcacff887",
-    "con-pistol-dpad-right-primary-grip.png": "592e1ab9132ce4ccf2e7e7afe86459b9722924a306c9a81bd5582a78b06f6740",
-    "con-pistol-dpad-left-primary-assembly.png": "5aac990a6c4eaf20875956acc3eead13688bd7e0889bdf3bc5730fc0548fe91a",
-    "con-pistol-dpad-left-primary-grip.png": "60c6539e4322fef9b48bc19f3c0c35da8017deb269a48920fbc3d9f5c330a65e",
-    "con-pistol-slim-right-primary-assembly.png": "21af239bb83632c8c12c8ec35d7746a16b2ad27c47816e45cd7e4fe84710bff7",
-    "con-pistol-slim-right-primary-grip.png": "bd1efdb6c98cdc63e5fd160c3d48a1106a55af80d467b0017aae6fece8d42326",
-    "con-pistol-slim-left-primary-assembly.png": "210bc337bb75143085228eb128c8b93aba2692dd999bee5ade4a1f015886006d",
-    "con-pistol-slim-left-primary-grip.png": "707bc60f4de5a1e2ad8b011a01929f1da7c253dc2f42f693399d941982b8672e",
-    "con-remote-shell-right-primary-assembly.png": "c202c255cc84109e14844b21521703b18191a4ca0806bfdadc2027e49b1506c2",
-    "con-remote-shell-right-primary-grip.png": "5ac815e6da1218aeffb49d4d0d85976053b439e27e30f4b1f293cc9bb339e6ad",
-    "con-remote-shell-left-primary-assembly.png": "ab4b6d248485a535695b2cf3dac6a6899b94c69c6cb48570e693b9323f18321d",
-    "con-remote-shell-left-primary-grip.png": "f8ebff99605e81816b28028005ef56004ca76dcb518f9ff0b6f94dfae49f0a40",
-    "con-revolver-chunky-right-primary-assembly.png": "12880712d70cfd1bd8a94a08f8f2c08bc5faaa5784e1afd138367cefad166cb1",
-    "con-revolver-chunky-right-primary-grip.png": "4d95817a3c223ac2f74ca4562ff2f7d708332f5a21866f77d0c29ed82e5e6069",
-    "con-revolver-chunky-left-primary-assembly.png": "e190d2ee8d8b57e6bdb3672ee7fb9cfd801a1fb86c7a40b5c2d58b978749f82f",
-    "con-revolver-chunky-left-primary-grip.png": "0ed4b773f6b6a3c2ed1b2a43907117a0a631f5d6e736d2be0db7a1305ae61f8a",
-    "generic-pistol-right-primary-assembly.png": "9acddc41ef1819d4f1ead9cf73b4a0c242aefd7a0a1596d8b8f91eb7ea61a3cb",
-    "generic-pistol-right-primary-grip.png": "2e235c57adebe1eab418abcc3301a498e0c1c94cb093e63e721cbe72576bef62",
-    "generic-pistol-left-primary-assembly.png": "b6359b02c0c2ec277641294c8a6a3a1174c81c8fda48f1486c6aafd66e570f06",
-    "generic-pistol-left-primary-grip.png": "5e67521bc609f21feb47fce3b4e5a962e94d81f2ad88506534d73795cd3430a8",
-    "mnt-mg-heavy-right-primary-assembly.png": "9622c33c72f1124d7789c6075714ad211fb436384be9ab856d1697e402f80e26",
-    "mnt-mg-heavy-right-primary-grip.png": "e4c2df9ca735f0b9ca202181ba067fcf4cb4dae8c82105953f124f287fa18986",
-    "con-stick-grip-right-primary-assembly.png": "c2a76a9bde0650995d71a76d86a1860c122302c417ad179cb15b820ffb8c4cec",
-    "con-stick-grip-right-primary-grip.png": "9bf461e493d1df4fee75e1a0f3c97a1b58112a32b9e81aff9b3fae82e5ce578f",
-    "con-stick-grip-left-primary-assembly.png": "72d04fbd970d47245be12c685ed270892d59697b3b3e1c366f5508c8d996afc7",
-    "con-stick-grip-left-primary-grip.png": "c27dd3d10a6a8f1ca9467851a22bce4ede8067daa7fe45cb91865ea5fd3e9657",
-    "con-remote-shell-right-docked-assembly.png": "da86e79ab9168406f0487791f608481634c5c0e9e49b00922ee119f676408586",
-    "con-remote-shell-right-docked-grip.png": "02cc0595c870a5f6966991dca25a3b7783a08926225f7373fbc16f949cc90c60",
-    "con-remote-shell-left-docked-assembly.png": "542818705a1939ab679cc581a71bf3f9156748f91fae296cd2494d2276112b15",
-    "con-remote-shell-left-docked-grip.png": "b9df350ae437aec2613a245eed0022e4c1611a85eb5e7c1f29bc574fe2023ba5",
-    "mnt-mg-heavy-left-primary-assembly.png": "058f50ae31cfc93b3746f5ddb0a0c24d5df65ae47f30323358a2d595e2cb5e38",
-    "mnt-mg-heavy-left-primary-grip.png": "4e60e67e1d5f0a9b1ead53e4db76f7db0f69f40519cb00a33914afe48ab07913",
-    "con-remote-shell-right-support-assembly.png": "9f834e94367971abeeaf5ab599c63f62318f4be4db97218620117f1e482a5d9f",
-    "con-remote-shell-right-support-grip.png": "b9719fb7ca884071678158e7a9a8dbc4358ace777b0e68ea5a933c3b879ddbc8",
-    "con-remote-shell-left-support-assembly.png": "10e8fa37859770d9bc2df94563508fe79085b08ea88b42afd43547da1f278a25",
-    "con-remote-shell-left-support-grip.png": "c4442f586294243c1503f3b42fa127bc5d4ff01d5281e47134ad67b8c38d0958",
-    "mnt-mg-heavy-right-support-assembly.png": "5b915ac86965bdede21236ce32697e6ee5865f7c342aba92691fac5137d4c699",
-    "mnt-mg-heavy-right-support-grip.png": "109543ae2b3fbe7a12eadc29ce42fed534b26d96f954e523084812a383f78083",
-    "mnt-mg-heavy-left-support-assembly.png": "bd00a785209eff97b6b50c5f363207656c6dc186fff40304659eeab4bf973d67",
-    "mnt-mg-heavy-left-support-grip.png": "02449ca5b13d7986df17724b67af0c922d994a6e1621cc3d536824b93d628888"
+    "con-remote-shell-right-primary-assembly.png": "5aa1477dfbe389447205220981d9919c23788f3197c55357d8f98038ae9def9a",
+    "con-remote-shell-right-primary-grip.png": "e9a393f11e34fa8f071aa92e07f5fe450b7c2530dcf5f239412e9c211e106fd5",
+    "con-remote-shell-left-primary-assembly.png": "325a18d778204b85e3d8648ce81190823312dee7ae1595410812cd9ef212a977",
+    "con-remote-shell-left-primary-grip.png": "c5792df9d8f7462a265518ad1fbece2171c77944317df6cb6862109cc1e1a2f6",
+    "game-crossbow-right-primary-assembly.png": "306dfd6935c916ecb27fa85ca3770eac908cf8f5ab3a53c7540ace446fce971e",
+    "game-crossbow-right-primary-grip.png": "03b16851314505490179ec571e948559bbb2b0f667112ebff28f8abb769a8f37",
+    "game-crossbow-left-primary-assembly.png": "93648be2e67a13e541ece3d3b87afeb87c92943162d648fb57ff90e56cac62a3",
+    "game-crossbow-left-primary-grip.png": "6197bfa2cebed7f8a27a9d578940de98c6a115924c8feb8c48db455ff6b6eca8",
+    "game-energy-gun-right-primary-assembly.png": "d0cd0b2d732f3a325df08cc70581703fdafdcd47ade0d0a48b26876cc426acb1",
+    "game-energy-gun-right-primary-grip.png": "6b3436ad2b4020fd131fc5ff50da2f0228c174e815e559123b2a7b0d1b60ac96",
+    "game-energy-gun-left-primary-assembly.png": "16d85dacd91a48b8bc5218e330424d5aa20f9b2fe58c1d67524ccd56acebd65c",
+    "game-energy-gun-left-primary-grip.png": "f3a5ac7b382ad5fe64437796bec3604141408b746a1cc3e175fe37ccb6c8f0ae",
+    "game-pistol-service-right-primary-assembly.png": "2d45d2e609d0d32ef9b52afd9cca2d6ee7365004e4414e304db93ece5c93db08",
+    "game-pistol-service-right-primary-grip.png": "0d3f35fbb3f47442a805dbd25142bd93a6197f7aa7e32cc46878c077ef227607",
+    "game-pistol-service-left-primary-assembly.png": "ea582bcf5b4ea350057d98eb5d4d3dfb2434e6f19862e0a2534cabd8ac332149",
+    "game-pistol-service-left-primary-grip.png": "0eeccadb8fae6d2e3600de6ca987d424b085d3159ae8c7b5676ba029b79ac5dd",
+    "game-revolver-heavy-right-primary-assembly.png": "1cde1cf96b3044451586ed2e41c270203e892d520fd37f87f12139fc8cd8e397",
+    "game-revolver-heavy-right-primary-grip.png": "068ea166d3e3d69c26b8d9397b4dc61c5d3f99648004cd995d7e2dd243846809",
+    "game-revolver-heavy-left-primary-assembly.png": "ae6a68d51308c04652183e753a3196ca872f5aab643042913c055d852ae93470",
+    "game-revolver-heavy-left-primary-grip.png": "a146ec586f75452884bfc2236762c8bf822a1f85044f12a06815c27fa641f0e9",
+    "game-tool-cutter-right-primary-assembly.png": "72b36de9944f6578a6c49dfd8fa293b456b9722b4f18377b1c6ce127d36e2769",
+    "game-tool-cutter-right-primary-grip.png": "4b1c6c2cbe8cbfb0a61785123da348362ea5b4c03a560e90070b2a3d81f19a6d",
+    "game-tool-cutter-left-primary-assembly.png": "edfa2b73f9d6e31729849d918fe6a5b6ece4b326d49b1ec8dd15421e029d3933",
+    "game-tool-cutter-left-primary-grip.png": "8f081af01fe02d8c61fe96aa9c3ce1236865c7d69ad56e00961487be6f5bcf18",
+    "mnt-mg-heavy-right-primary-assembly.png": "b4abd9d54577d116e910333d70b06441cc8cc89d67c01f9923aa7a23b99f44e9",
+    "mnt-mg-heavy-right-primary-grip.png": "178fcadac7c489ed908378a8fbfe5d0fcad24051be090051a40b4c9872ae7990",
+    "mnt-mg-heavy-left-primary-assembly.png": "fdd9d23fcb9b8909e9a39d2041114cb4ce3c9d1e7b66452f172a812326574ed9",
+    "mnt-mg-heavy-left-primary-grip.png": "c02216dcc1b673c369f2bc0509860501e31225803e49d8a04f78ac7264be7356",
+    "con-stick-grip-right-primary-assembly.png": "d26521bbf72f4b572ab764927f854ef741e3e1476ddcd0a2e6c8c779bf2aeee1",
+    "con-stick-grip-right-primary-grip.png": "3a87364b2c39c7fb4f230cc958bceec506c4f1b5352e9d4c0116c0ab45b244e0",
+    "con-stick-grip-left-primary-assembly.png": "9c964fcc4f86b8f557bd9e0c1bce6d5b3dedc7cad352ec38803e59b138be4169",
+    "con-stick-grip-left-primary-grip.png": "fbd92f5c8bacf33ff2e19c1af2d8c0ed9259ebf9565ab25ca15e3fb6664310a5",
+    "con-remote-shell-right-support-assembly.png": "8e09455aaa654e7b3b22afd5b9150d722b3051731b3912e5c72412c9f4a3c6d4",
+    "con-remote-shell-right-support-grip.png": "fd1d7573e43f19f862c648739d22d459804c57828e81ffbdf0c1b4df914c470e",
+    "con-remote-shell-left-support-assembly.png": "f995044131fe8d68cb4e4efeedccaffd99ad2757bfb6230f7b60136d58205cac",
+    "con-remote-shell-left-support-grip.png": "effaa24113b41f36895de19e2a99ef4e8d3ad90e08129ecca8ad8a65b655f538",
+    "game-crossbow-right-support-assembly.png": "4631ab87e61fc7fd43344dbffcdea460290c008c1ef11494f796f831d6592932",
+    "game-crossbow-right-support-grip.png": "d4f1b238ddcee0e3d3789bf53f9a04f829fd5683c26f057acb4410e2781a203d",
+    "game-crossbow-left-support-assembly.png": "c66a38638d89dc1956c2d8d67f4b45198ee5ebecfb2e232a29112d3724fb1446",
+    "game-crossbow-left-support-grip.png": "87c38adc1354a7bc07ae0170355c2b4a8faf54683ec2c6529956b0cfac5cd0a4",
+    "mnt-mg-heavy-right-support-assembly.png": "2fd3719f673c2647a19e112e2b1fac439c6f2d75f176ee637411a3373103ff8d",
+    "mnt-mg-heavy-right-support-grip.png": "056400e8e978699ac8d9718e7ac22fde672a67ab8d8d638f8f686771182857a0",
+    "mnt-mg-heavy-left-support-assembly.png": "2b71fd66323ad6a00130987f8daf63b38531381862496c84f4fcf16e3262b186",
+    "mnt-mg-heavy-left-support-grip.png": "4addad8765cffdbef48ed152cb77ccc6902f86b495ad8a2c67aacc8d88fb0dd9",
+    "con-remote-shell-right-docked-assembly.png": "8a1a321ff0945c3f9ea027fc88bdbe646fff10f1651bab3ef6a8277dbfe2ab09",
+    "con-remote-shell-right-docked-grip.png": "5d2a1bf77e1d6dbc65087bba7ce7cd0b2b1c15bb0133197750be1b230c20befa",
+    "con-remote-shell-left-docked-assembly.png": "766570528269c3cf36691ca928ba22958e3da993b68af07afddf2865a1ec47c7",
+    "con-remote-shell-left-docked-grip.png": "c0a8632f186a3fa2d2a223f7bcb688bd47ab1eeaa456920bd7e6ee36d150b67f"
   }
 }

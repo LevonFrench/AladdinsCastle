@@ -22,5 +22,5 @@ def main():
             for col,view in enumerate(('assembly','grip')):family.paste(Image.open(directory/(case['id']+'-'+view+'.png')).convert('RGB'),(col*512,row*552+40))
         family.save(directory/(mid+'-review-sheet.png'))
     data['source_sha256']={item['image']:hashlib.sha256((directory/item['image']).read_bytes()).hexdigest() for item in data['images']}
-    (directory/'coverage.json').write_text(json.dumps(data,indent=2)+'\n');print('CPU overview and eight grip-family sheets saved')
+    (directory/'coverage.json').write_text(json.dumps(data,indent=2)+'\n');print('CPU grip overview and model family sheets saved')
 if __name__=='__main__':main()

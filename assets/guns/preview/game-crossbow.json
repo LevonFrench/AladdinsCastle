@@ -1,0 +1,190 @@
+{
+  "version": "0.1",
+  "model": "game-crossbow",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "game-crossbow-front.png",
+      "nodes": {
+        "grip_two": [
+          0.39068,
+          0.480748
+        ],
+        "muzzle": [
+          0.135807,
+          0.412032
+        ],
+        "fx_muzzle": [
+          0.135807,
+          0.412032
+        ],
+        "fx_laser": [
+          0.135807,
+          0.412032
+        ],
+        "sight_front": [
+          0.204523,
+          0.392042
+        ],
+        "sight_rear": [
+          0.654298,
+          0.392042
+        ],
+        "string_draw": [
+          0.503123,
+          0.420778
+        ],
+        "bolt_release": [
+          0.340705,
+          0.41578
+        ],
+        "button_reload": [
+          0.613068,
+          0.499489
+        ],
+        "pivot_trigger": [
+          0.568091,
+          0.470753
+        ],
+        "grip": [
+          0.621814,
+          0.480748
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "game-crossbow.png",
+      "nodes": {
+        "grip_two": [
+          0.424517,
+          0.512254
+        ],
+        "muzzle": [
+          0.248533,
+          0.518782
+        ],
+        "fx_muzzle": [
+          0.248533,
+          0.518782
+        ],
+        "fx_laser": [
+          0.248533,
+          0.518782
+        ],
+        "sight_front": [
+          0.29598,
+          0.481397
+        ],
+        "sight_rear": [
+          0.606539,
+          0.357719
+        ],
+        "string_draw": [
+          0.502156,
+          0.425867
+        ],
+        "bolt_release": [
+          0.39001,
+          0.465906
+        ],
+        "button_reload": [
+          0.561803,
+          0.462533
+        ],
+        "pivot_trigger": [
+          0.547015,
+          0.454225
+        ],
+        "grip": [
+          0.584109,
+          0.448697
+        ]
+      }
+    },
+    "held": {
+      "image": "game-crossbow-held.png",
+      "nodes": {
+        "grip_two": [
+          0.476851,
+          0.435795
+        ],
+        "muzzle": [
+          0.422881,
+          0.264693
+        ],
+        "fx_muzzle": [
+          0.422881,
+          0.264693
+        ],
+        "fx_laser": [
+          0.422881,
+          0.264693
+        ],
+        "sight_front": [
+          0.437432,
+          0.276218
+        ],
+        "sight_rear": [
+          0.532673,
+          0.469212
+        ],
+        "string_draw": [
+          0.500661,
+          0.430162
+        ],
+        "bolt_release": [
+          0.466269,
+          0.35598
+        ],
+        "button_reload": [
+          0.545921,
+          0.545967
+        ],
+        "pivot_trigger": [
+          0.514418,
+          0.50294
+        ],
+        "grip": [
+          0.525795,
+          0.534972
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
+  },
+  "silhouette": "game-crossbow-silhouette.png",
+  "asset_kind": "gun",
+  "sight_reviews": {
+    "LOD0": "game-crossbow-sight-lod0.png",
+    "LOD1": "game-crossbow-sight-lod1.png"
+  },
+  "silhouette_scale_m": 0.82
+}

@@ -9,8 +9,8 @@ sources = []
 
 [gun_proposal]
 state = "proposed"
-model = "con-revolver-chunky"
-rationale = "Exaggerated chunky toy silhouette gives this arcade rail-shooter its own visual identity; owner choice and weapon matching remain open."
+model = "game-revolver-heavy"
+rationale = "Original heavy revolver with an exposed cylinder and long underlug; neutral metal, dark grip and small player-colour accents. Exact weapon and fit remain owner choices."
 
 [hold]
 default = "split"

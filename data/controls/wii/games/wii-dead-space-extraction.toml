@@ -9,8 +9,8 @@ sources = []
 
 [gun_proposal]
 state = "proposed"
-model = "con-pistol-slim"
-rationale = "Slim angular tool-like silhouette keeps the sight area open. A provisional stand-in for the science-fiction setting; selected in-game weapon matching remains open."
+model = "game-tool-cutter"
+rationale = "Original industrial tool gun with a broad working head and battery panels; neutral metal with small player-colour inlays. Exact starting tool and physical fit remain owner choices."
 
 [hold]
 default = "split"

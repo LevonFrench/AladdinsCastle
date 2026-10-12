@@ -150,3 +150,28 @@ in its model script, metadata/motion in `data/guns/`, and include the id in the 
 Rebuild, run both tools, inspect the previews and report budgets/bounds. Structural
 reproducibility means the same nodes, bounds and budgets, not byte equality.
 Shape-source review flags remain until manuals/photos provide evidence.
+
+R4 weapon proposals add five original designs: `game-pistol-service` (shared
+by both Resident Evil games), `game-revolver-heavy`, `game-tool-cutter`,
+`game-crossbow` and `game-energy-gun`. Their neutral metal body colour is
+identical for both players; only small inlays use the player colour. Exported
+PBR finish values distinguish metal from the dark grip. CPU previews match
+the current runtime's diffuse formula, which has no metallic/specular term;
+they do not establish a headset finish or fit. The pistol, revolver and crossbow
+have a seated optical front-sight bead; the other two have working/emitter
+lenses. No imported or traced shape is used.
+
+The authored trigger, reload-control and recoil/cylinder/string nodes retain
+both LOD aliases. Recoil travel follows the existing 15 mm asset contract;
+cylinder cycling and string draw are visual proposals. Game event wiring and
+reload recognition remain unverified. `assets/hands/assembly.json` provides
+both hand mounts and semantic label anchors; per-game reload questions live
+in `data/controls/wii/games/`. The faithful shell-and-stick control illustration
+and generated bindings remain separate from these proposed weapon choices.
+
+The single `preview/wii-proposal-sheet.png` combines the actual CPU weapon/hand
+assemblies, trigger/aim label points and each game's unconfirmed reload choice.
+Rebuild the selected models, compile hand assembly data, render the bounded
+grip cases, then run `assets/hands/grip_sheets.py` and
+`assets/guns/propose_wii.py --write` to refresh that sheet. Blender approval and
+the shared CPU booking still apply; these steps never install a tool or use GPU.

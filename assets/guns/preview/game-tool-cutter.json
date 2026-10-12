@@ -1,0 +1,178 @@
+{
+  "version": "0.1",
+  "model": "game-tool-cutter",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "game-tool-cutter-front.png",
+      "nodes": {
+        "limit_recoil": [
+          0.293014,
+          0.34557
+        ],
+        "muzzle": [
+          0.131364,
+          0.348357
+        ],
+        "fx_muzzle": [
+          0.131364,
+          0.348357
+        ],
+        "fx_laser": [
+          0.131364,
+          0.348357
+        ],
+        "sight_front": [
+          0.251208,
+          0.259171
+        ],
+        "sight_rear": [
+          0.747306,
+          0.259171
+        ],
+        "slide_recoil": [
+          0.251208,
+          0.34557
+        ],
+        "button_reload": [
+          0.666481,
+          0.498859
+        ],
+        "pivot_trigger": [
+          0.566146,
+          0.434756
+        ],
+        "grip": [
+          0.68599,
+          0.457053
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "game-tool-cutter.png",
+      "nodes": {
+        "limit_recoil": [
+          0.357081,
+          0.41408
+        ],
+        "muzzle": [
+          0.245466,
+          0.461108
+        ],
+        "fx_muzzle": [
+          0.245466,
+          0.461108
+        ],
+        "fx_laser": [
+          0.245466,
+          0.461108
+        ],
+        "sight_front": [
+          0.328215,
+          0.345663
+        ],
+        "sight_rear": [
+          0.670759,
+          0.209247
+        ],
+        "slide_recoil": [
+          0.328215,
+          0.425576
+        ],
+        "button_reload": [
+          0.578663,
+          0.439998
+        ],
+        "pivot_trigger": [
+          0.545673,
+          0.421465
+        ],
+        "grip": [
+          0.628422,
+          0.409134
+        ]
+      }
+    },
+    "held": {
+      "image": "game-tool-cutter-held.png",
+      "nodes": {
+        "limit_recoil": [
+          0.45617,
+          0.272435
+        ],
+        "muzzle": [
+          0.42194,
+          0.205577
+        ],
+        "fx_muzzle": [
+          0.42194,
+          0.205577
+        ],
+        "fx_laser": [
+          0.42194,
+          0.205577
+        ],
+        "sight_front": [
+          0.447317,
+          0.17687
+        ],
+        "sight_rear": [
+          0.552368,
+          0.38974
+        ],
+        "slide_recoil": [
+          0.447317,
+          0.254497
+        ],
+        "button_reload": [
+          0.584282,
+          0.565746
+        ],
+        "pivot_trigger": [
+          0.514007,
+          0.469764
+        ],
+        "grip": [
+          0.539384,
+          0.54122
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
+  },
+  "silhouette": "game-tool-cutter-silhouette.png",
+  "asset_kind": "gun",
+  "sight_reviews": {
+    "LOD0": "game-tool-cutter-sight-lod0.png",
+    "LOD1": "game-tool-cutter-sight-lod1.png"
+  },
+  "silhouette_scale_m": 0.82
+}

@@ -9,8 +9,8 @@ sources = []
 
 [gun_proposal]
 state = "proposed"
-model = "generic-pistol"
-rationale = "Compact form with little visual clutter keeps the sight picture clear during camera motion; exact weapon matching awaits review."
+model = "game-pistol-service"
+rationale = "The shared original service pistol keeps the two Resident Evil games consistent; separate slide, neutral finish and small player-colour accents. Physical fit remains provisional."
 
 [hold]
 default = "split"

@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-3.0-only
+id="game-pistol-service"
+name="Service pistol"
+family="special"
+hold="one-hand"
+tier=1
+model="assets/guns/game-pistol-service.glb"
+source="assets/guns/src/game-pistol-service.py"
+resembles="An original full-size service pistol, without a maker or model identity"
+shape="Straight moving slide, compact lower rail, exposed trigger guard and dark grip panels"
+length_mm=220
+features=["recoil_slide"]
+notes="Weapon-spirit proposal for both Resident Evil games. Original primitives; not a traced or extracted game weapon. Neutral metal finish, player colour only on small inlays. Native fit and game-event recoil remain unverified."
+[tints]
+default="red"
+p1="red"
+p2="blue"
+red={body="#a0a5aa",accent="#c5484f"}
+blue={body="#a0a5aa",accent="#4276bf"}
+[finish.body]
+metallic=0.7
+roughness=0.42
+[finish.accent]
+metallic=0.3
+roughness=0.65
+[finish.dark]
+metallic=0
+roughness=0.9
+[motion.trigger]
+node="pivot_trigger"
+kind="rotate"
+axis=[-1,0,0]
+range=[0,0.35]
+drive="trigger"
+lod_nodes=["pivot_trigger","pivot_trigger_lod1"]
+[motion.reload_control]
+node="button_reload"
+kind="slide"
+axis=[-1,0,0]
+range=[0,0.0015]
+drive="selector"
+lod_nodes=["button_reload","button_reload_lod1"]
+[motion.recoil]
+node="slide_recoil"
+kind="slide"
+axis=[0,0,1]
+range=[0,0.015]
+drive="recoil"
+lod_nodes=["slide_recoil","slide_recoil_lod1"]
+duration_ms=75
+[[button]]
+id="reload"
+label="Magazine release (game mapping pending)"
+node="button_reload"

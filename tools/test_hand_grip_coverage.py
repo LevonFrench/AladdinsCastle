@@ -12,7 +12,7 @@ class HandGripCoverageTests(unittest.TestCase):
     def test_every_proposal_and_stick_has_both_primary_hands(self):
         cases=runpy.run_path(str(ROOT/'assets/hands/review_grips.py'))['cases']()
         proposals=json.loads((ROOT/'assets/guns/preview/wii-proposal-sheet.json').read_text())
-        models={p['model'] for p in proposals['games']}|{'con-stick-grip'}
+        models={p['model'] for p in proposals['games']}|{'con-stick-grip','con-remote-shell'}
         self.assertEqual({(c['model'],c['primary_hand']) for c in cases if c['hold']=='primary'},set(itertools.product(models,('left','right'))))
         self.assertEqual({c['primary_hand'] for c in cases if c['hold']=='docked'},{'left','right'})
     def test_heavy_mirror_mounts_swap_actual_handles_without_mesh_mirroring(self):
@@ -28,10 +28,19 @@ class HandGripCoverageTests(unittest.TestCase):
             for group in ('primary_mount_by_hand','support_by_primary'):
                 for pose in row.get(group,{}).values():
                     self.assertIn(pose['node'],nodes);self.assertAlmostEqual(sum(q*q for q in pose['rotation_xyzw']),1,places=8)
+            for label in row['label_anchors'].values():self.assertIn(label['node'],nodes)
     def test_review_manifest_matches_inputs_and_exported_image_bytes(self):
         directory=ROOT/'assets/hands/preview/grips';manifest=json.loads((directory/'coverage.json').read_text())
         cases=runpy.run_path(str(ROOT/'assets/hands/review_grips.py'))['cases']()
         self.assertEqual(manifest['cases'],cases)
         self.assertEqual({(i['case'],i['view']) for i in manifest['images']},set(itertools.product((c['id'] for c in cases),('assembly','grip'))))
+        for image in manifest['images']:
+            if image['view']=='assembly':
+                model=next(c['model'] for c in cases if c['id']==image['case'])
+                expected=compile_assembly()['models'][model]['label_anchors']
+                self.assertEqual(set(image['label_points']),set(expected))
+                for point in image['label_points'].values():
+                    self.assertEqual(len(point),2)
+                    self.assertTrue(all(0<=v<=512 for v in point))
         for name,digest in manifest['source_sha256'].items():self.assertEqual(hashlib.sha256((directory/name).read_bytes()).hexdigest(),digest)
 if __name__=='__main__':unittest.main()

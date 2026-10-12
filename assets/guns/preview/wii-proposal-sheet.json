@@ -10,12 +10,27 @@
       "game_id": "wii-dead-space-extraction",
       "title": "Dead Space: Extraction",
       "state": "proposed",
-      "model": "con-pistol-slim",
-      "rationale": "Slim angular tool-like silhouette keeps the sight area open. A provisional stand-in for the science-fiction setting; selected in-game weapon matching remains open.",
+      "model": "game-tool-cutter",
+      "rationale": "Original industrial tool gun with a broad working head and battery panels; neutral metal with small player-colour inlays. Exact starting tool and physical fit remain owner choices.",
       "default_hold": "split",
       "hold_state": "provisional",
-      "preview": "assets/guns/preview/con-pistol-slim.png",
-      "preview_sha256": "902c77f82473e32564de7128da41feb59db7d0303b96259233b58862e89564cd"
+      "prop_hold": "primary",
+      "preview_case": "game-tool-cutter-right-primary",
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "flick-down",
+        "state": "question",
+        "question": "Confirm the selected reload and active-reload instruction before enabling the proposed flick.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake"
+      },
+      "preview": "assets/hands/preview/grips/game-tool-cutter-right-primary-assembly.png",
+      "preview_sha256": "72b36de9944f6578a6c49dfd8fa293b456b9722b4f18377b1c6ce127d36e2769"
     },
     {
       "game_id": "wii-gunblade-ny-la-machineguns",
@@ -25,63 +40,153 @@
       "rationale": "The catalog describes mounted machine guns; the built heavy model already has paired rear grips for two-handed aim.",
       "default_hold": "docked",
       "hold_state": "provisional",
-      "preview": "assets/guns/preview/mnt-mg-heavy.png",
-      "preview_sha256": "0eb273537681948dc2acf3dff2493da64dacff549a361997bdf0d745924a72f4"
+      "prop_hold": "support",
+      "preview_case": "mnt-mg-heavy-right-support",
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "button",
+        "state": "question",
+        "question": "Automatic-fire presentation suggests a button convenience option; first confirm whether this game has an explicit reload action.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake"
+      },
+      "preview": "assets/hands/preview/grips/mnt-mg-heavy-right-support-assembly.png",
+      "preview_sha256": "2fd3719f673c2647a19e112e2b1fac439c6f2d75f176ee637411a3373103ff8d"
     },
     {
       "game_id": "wii-house-of-the-dead-overkill",
       "title": "The House of the Dead: Overkill",
       "state": "proposed",
-      "model": "con-revolver-chunky",
-      "rationale": "Exaggerated chunky toy silhouette gives this arcade rail-shooter its own visual identity; owner choice and weapon matching remain open.",
+      "model": "game-revolver-heavy",
+      "rationale": "Original heavy revolver with an exposed cylinder and long underlug; neutral metal, dark grip and small player-colour accents. Exact weapon and fit remain owner choices.",
       "default_hold": "split",
       "hold_state": "provisional",
-      "preview": "assets/guns/preview/con-revolver-chunky.png",
-      "preview_sha256": "871efcbda77a3f2fad21c729e0a020e12a7608e3d662d6ff46e3766dbeeb6bc3"
+      "prop_hold": "primary",
+      "preview_case": "game-revolver-heavy-right-primary",
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "flick-down",
+        "state": "question",
+        "question": "A one-hand flick is proposed for convenience; verify the game reload action before enabling it.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake"
+      },
+      "preview": "assets/hands/preview/grips/game-revolver-heavy-right-primary-assembly.png",
+      "preview_sha256": "1cde1cf96b3044451586ed2e41c270203e892d520fd37f87f12139fc8cd8e397"
     },
     {
       "game_id": "wii-links-crossbow-training",
       "title": "Link's Crossbow Training",
       "state": "proposed",
-      "model": "con-remote-shell",
-      "rationale": "A training-shell proxy with an open sight line and second grip for two-handed target practice. A crossbow silhouette is a separate future design choice; this does not claim weapon matching.",
+      "model": "game-crossbow",
+      "rationale": "Original crossbow with swept limbs, a separate string, bolt rail and foregrip; neutral finish with small player-colour accents. Support hold and reload remain provisional.",
       "default_hold": "docked",
       "hold_state": "provisional",
-      "preview": "assets/guns/preview/con-remote-shell.png",
-      "preview_sha256": "eef10b470c9941e0f3244ee88ecb7594c16074cf45aab82e6a569f4f3a5dbed5"
+      "prop_hold": "support",
+      "preview_case": "game-crossbow-right-support",
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "button",
+        "state": "question",
+        "question": "Does the selected target-training layout have any reload action?",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake"
+      },
+      "preview": "assets/hands/preview/grips/game-crossbow-right-support-assembly.png",
+      "preview_sha256": "4631ab87e61fc7fd43344dbffcdea460290c008c1ef11494f796f831d6592932"
     },
     {
       "game_id": "wii-resident-evil-darkside-chronicles",
       "title": "Resident Evil: The Darkside Chronicles",
       "state": "proposed",
-      "model": "generic-pistol",
-      "rationale": "Compact form with little visual clutter keeps the sight picture clear during camera motion; exact weapon matching awaits review.",
+      "model": "game-pistol-service",
+      "rationale": "The shared original service pistol keeps the two Resident Evil games consistent; separate slide, neutral finish and small player-colour accents. Physical fit remains provisional.",
       "default_hold": "split",
       "hold_state": "provisional",
-      "preview": "assets/guns/preview/generic-pistol.png",
-      "preview_sha256": "57b3c2e547b75c48e0adde8d42ca4ed9a3fa7ddc7979922bb192f6867bc2359d"
+      "prop_hold": "primary",
+      "preview_case": "game-pistol-service-right-primary",
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "button",
+        "state": "question",
+        "question": "Seated button is the provisional convenience choice; reload input/layout still needs confirmation.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake"
+      },
+      "preview": "assets/hands/preview/grips/game-pistol-service-right-primary-assembly.png",
+      "preview_sha256": "2d45d2e609d0d32ef9b52afd9cca2d6ee7365004e4414e304db93ece5c93db08"
     },
     {
       "game_id": "wii-resident-evil-umbrella-chronicles",
       "title": "Resident Evil: The Umbrella Chronicles",
       "state": "proposed",
-      "model": "arc-pistol-slide",
-      "rationale": "Readable semi-automatic silhouette and slide; a provisional handgun stand-in, not an assertion about the selected in-game weapon.",
+      "model": "game-pistol-service",
+      "rationale": "Original service pistol shared by both Resident Evil games; neutral metal and dark grip with small player-colour inlays. Exact weapon and fit remain owner choices.",
       "default_hold": "split",
       "hold_state": "provisional",
-      "preview": "assets/guns/preview/arc-pistol-slide.png",
-      "preview_sha256": "b7bf6d9cf8535a79828844c248d51e09086f0c8eabda5ad5b0ef177bd1ffd696"
+      "prop_hold": "primary",
+      "preview_case": "game-pistol-service-right-primary",
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "shake",
+        "state": "question",
+        "question": "Shake is the documented starting choice; confirm the selected game layout.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake"
+      },
+      "preview": "assets/hands/preview/grips/game-pistol-service-right-primary-assembly.png",
+      "preview_sha256": "2d45d2e609d0d32ef9b52afd9cca2d6ee7365004e4414e304db93ece5c93db08"
     },
     {
       "game_id": "wii-sin-and-punishment-star-successor",
       "title": "Sin & Punishment: Star Successor",
       "state": "proposed",
-      "model": "con-pistol-dpad",
-      "rationale": "Angular pointer-gun form distinguishes character movement plus pointer aiming; retain the free analog-stick hand.",
+      "model": "game-energy-gun",
+      "rationale": "Original fictional energy gun with a protected emitter and underslung guard; neutral finish with small player-colour accents. Keep the free analog-stick hand; exact weapon and fit remain owner choices.",
       "default_hold": "split",
       "hold_state": "provisional",
-      "preview": "assets/guns/preview/con-pistol-dpad.png",
-      "preview_sha256": "804c4429fc52bfefec13f87945b6d7fcd5572561d87e53806c8235e3e780c9fe"
+      "prop_hold": "primary",
+      "preview_case": "game-energy-gun-right-primary",
+      "reload": {
+        "choices": [
+          "shake",
+          "flick-down",
+          "offscreen",
+          "button"
+        ],
+        "selected": "button",
+        "state": "question",
+        "question": "No generic magazine reload is asserted for the character-control game. Confirm whether a reload action exists.",
+        "target_action": "remote-shake",
+        "button_fallback": "remote-shake"
+      },
+      "preview": "assets/hands/preview/grips/game-energy-gun-right-primary-assembly.png",
+      "preview_sha256": "d0cd0b2d732f3a325df08cc70581703fdafdcd47ade0d0a48b26876cc426acb1"
     }
   ]
 }

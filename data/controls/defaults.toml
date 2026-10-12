@@ -123,3 +123,28 @@ control_set = "gun-spc-hose-nozzle"
 id = "con-stick-grip"
 gun_model = "con-stick-grip"
 control_set = "gun-con-stick-grip"
+
+[[rule]]
+id = "model-game-pistol-service"
+gun_model = "game-pistol-service"
+control_set = "gun-game-pistol-service"
+
+[[rule]]
+id = "model-game-revolver-heavy"
+gun_model = "game-revolver-heavy"
+control_set = "gun-game-revolver-heavy"
+
+[[rule]]
+id = "model-game-tool-cutter"
+gun_model = "game-tool-cutter"
+control_set = "gun-game-tool-cutter"
+
+[[rule]]
+id = "model-game-crossbow"
+gun_model = "game-crossbow"
+control_set = "gun-game-crossbow"
+
+[[rule]]
+id = "model-game-energy-gun"
+gun_model = "game-energy-gun"
+control_set = "gun-game-energy-gun"
