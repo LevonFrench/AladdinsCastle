@@ -22,8 +22,9 @@ Item {
         }
     }
     Label {
+        objectName: "spikeDiagnosticTitle"
         x: 212; y: 28; width: root.width - 424; height: 56
-        text: "AladdinsCastle · input diagnostics\n1280 × 800 · " + (root.overlayPresentation ? "DASHBOARD" : "DESKTOP") + " · live orientation and click tuning"
+        text: uiController.appName + " · input diagnostics\n1280 × 800 · " + (root.overlayPresentation ? "DASHBOARD" : "DESKTOP") + " · live orientation and click tuning"
         color: primaryTextColor; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 18
     }
     ColumnLayout {
