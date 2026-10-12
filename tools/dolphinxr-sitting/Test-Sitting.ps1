@@ -23,6 +23,7 @@ try {
     $null = Initialize-AcSitting $user $profile Default Sharp
     Assert (Test-Path "$user/Logs" -PathType Container) 'Logs must exist before any executable starts.'
     Assert ((Get-FileHash "$user/Config/WiimoteNew.ini").Hash -eq (Get-FileHash $profile).Hash) 'Native bytes differ.'
+    Assert ((Get-Content "$user/Config/Dolphin.ini" -Raw) -match 'BackgroundInput = True') 'Default native input must not require window focus.'
     $gfx = [IO.File]::ReadAllText("$user/Config/GFX.ini")
     Assert ($gfx -match 'InternalResolution = 4' -and $gfx -match 'MSAA = 1' -and $gfx -match 'MaxAnisotropy = 3' -and $gfx -match 'ResolutionScale = 1\.0') 'Sharp quality or runtime eye resolution wrong.'
     $hotkeys = [IO.File]::ReadAllText("$user/Config/Hotkeys.ini")
@@ -32,10 +33,12 @@ try {
     $gfx = [IO.File]::ReadAllText("$user/Config/GFX.ini")
     Assert ($gfx -match 'OwnerValue = Keep' -and $gfx -match 'EagerHeartbeat = True' -and $gfx -match 'MSAA = 4' -and $gfx -match 'MaxAnisotropy = 4') 'Update lost custom keys or quality.'
     Assert (([regex]::Matches($gfx,'InternalResolution =')).Count -eq 1) 'Duplicate owned INI key.'
+    Assert ((Get-Content "$user/Config/Dolphin.ini" -Raw) -match 'BackgroundInput = True') 'Eager native input must not require window focus.'
     Assert (@(Get-ChildItem "$user/ConfigBackups" -Recurse -Filter GFX.ini).Count -eq 1) 'Previous configuration not backed up.'
     $null = Initialize-AcSitting $user $profile Desktop Native
     Assert ((Get-Content "$user/Config/WiimoteNew.ini" -Raw) -match 'Source = 1') 'Desktop keyboard profile missing.'
     Assert ((Get-Content "$user/Config/GFX.ini" -Raw) -match 'EnableOpenXR = False') 'Desktop enabled XR.'
+    Assert ((Get-Content "$user/Config/Dolphin.ini" -Raw) -match 'BackgroundInput = False') 'Desktop keyboard/mouse must return to focused input after native preparation.'
     New-Item -ItemType Directory "$root/unowned" | Out-Null
     MustFail { Initialize-AcSitting "$root/unowned" $profile } 'Must refuse existing unowned user folder.'
     MustFail { Assert-AcPrivatePath (Join-Path ([IO.Path]::GetTempPath()) 'outside') } 'Must refuse non-private output.'
@@ -105,6 +108,7 @@ try {
     Assert ($gfx -match 'MirrorView = 2' -and $gfx -match 'ForcedVBIFrequency = 90') 'Selected mirror and VBI must be written.'
     Assert ($gfx -match 'EnableCameraAnchor = True' -and $gfx -match 'CameraAnchorSmoothing = 0.7') 'Camera anchor switch and invariant smoothing.'
     Assert ((Get-Content -LiteralPath "$scripted/Config/DSUClient.ini" -Raw) -match '127.0.0.1:28760') 'DSU stays loopback at selected port.'
+    Assert ((Get-Content "$scripted/Config/Dolphin.ini" -Raw) -match 'BackgroundInput = True') 'Scripted desktop DSU must retain background input.'
     # Dolphin ConfigChanged reconstructs every parsed entry with a trailing semicolon.
     # A differing raw string restarts its DSU backend on every configuration write.
     $entryLine = @(Get-Content -LiteralPath "$scripted/Config/DSUClient.ini" | Where-Object { $_ -match '^Entries\s*=' })[0]

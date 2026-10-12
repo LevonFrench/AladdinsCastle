@@ -196,8 +196,12 @@ function Initialize-AcSitting {
             Copy-Item -LiteralPath $file.FullName -Destination $backup
         }
     }
+    # Native/DSU buttons must remain active when the headset or another window has focus.
+    # Desktop keyboard/mouse input stays focus-gated.
+    $backgroundInput = if ($Mode -ne 'Desktop' -or $null -ne $dsuBytes) { 'True' } else { 'False' }
     Set-AcIniValues (Join-Path $config 'Dolphin.ini') ([ordered]@{
         Core = [ordered]@{GFXBackend='D3D';EnableCheats='False'}
+        Input = [ordered]@{BackgroundInput=$backgroundInput}
         Display = [ordered]@{RenderToMain='False';RenderWindowWidth='1280';RenderWindowHeight='720';RenderWindowAutoSize='False'}
         General = [ordered]@{ISOPaths='0';RecursiveISOPaths='False';HotkeysRequireFocus='False'}
         Android = [ordered]@{QuestLeftHanded='False'}
@@ -226,7 +230,6 @@ function Initialize-AcSitting {
         Set-AcIniValues (Join-Path $config 'DSUClient.ini') ([ordered]@{
             Server=[ordered]@{Enabled='True';Entries="$($script:Product.dsu_server_name):127.0.0.1:$DsuPort;"}
         })
-        Set-AcIniValues (Join-Path $config 'Dolphin.ini') ([ordered]@{Input=[ordered]@{BackgroundInput='True'}})
     } elseif ($Mode -eq 'Desktop') {
         Write-AcText (Join-Path $config 'WiimoteNew.ini') @'
 [Wiimote1]
