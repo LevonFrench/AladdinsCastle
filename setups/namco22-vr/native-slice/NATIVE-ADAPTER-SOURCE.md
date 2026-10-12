@@ -37,15 +37,33 @@ Close frees/reset native cache/CZ/batch resources under the borrowed owner conte
 Authored C tests cover actual private factory/canaries and no-backend early errors,
 two-scene CPU staging, bad-right transactional refusal, shared-target rejection
 even with disjoint rectangles, target/display/frame/order drift and unknown eye
-tails. They are NOT compiled or executed here. Existing standard-library producer
-tests and pinned patch-boundary tests were run without native/GL/window activity.
+tails. The adapter static library and factory test executable now compile/link
+with the installed GCC/SDL2 dependencies and current reviewed header. The factory
+test passed once: table/canary/function exports and null-backend early errors only,
+with no open/step, GL/context initialization or game access. The full-adapter
+compile did not build or run the staging/target-state test executables. Existing
+standard-library producer tests and pinned patch-boundary tests are separate CPU evidence.
 Additional authored fake-dispatch tests cover both target selection lists, failed
 selection/draw exits and attached mip rejection; these also remain unexecuted.
 
-Next gates: independent adapter source review, coordinated compilation and actual
-CPU test execution; then a separately authorized borrowed-context desktop proof
+Remaining gates: staging/target-state CPU regressions, then a separately
+authorized borrowed-context desktop proof
 with both-eye FBO/state/flush/replay/resource/lease and close/reopen receipts using
 the same frozen scenes/criteria. GL state/error cleanup, in-flight resource lifetime
 and native integration behavior remain unverified. Full game composition/capture,
 input/output/raycast, world depth/guns, scale, Viewer/compositor/OpenXR/headset gates
 remain separate. The lead owns API/core/provider integration and admission.
+
+## Real Time Crisis entry-point gap
+
+`n22_native_adapter` is a static library, not a runnable game renderer. Its private
+factory `acn22_native_adapter_query` accepts only `synthetic-system22-native` with
+empty content/storage paths; `game_step` builds the two authored formula fixtures.
+The existing `n22_native_batch_proof` executable also draws those synthetic scenes.
+The production backend still reports graphics mask0 and does not draw a game.
+Real Time Crisis needs its live board polygon/camera stream connected to the
+native packet/lease path and a caller that opens the private renderer with a
+borrowed compatible GL context, prepares both eye targets, and invokes
+`game_draw_eye`. This PR supplies neither game loading nor a real-game executable.
+No game material or new validation framework is added. GPU/runtime work remains
+held until the owner restores availability.
