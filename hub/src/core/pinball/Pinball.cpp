@@ -2,6 +2,7 @@
 #include "Pinball.h"
 #include <QFile>
 #include <QFileInfo>
+#include <QDateTime>
 #include <QDir>
 #include <QSet>
 #include <QMap>
@@ -128,6 +129,7 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
  for(const auto &file:dir.entryInfoList({"*.vpx","*.VPX"},QDir::Files|QDir::NoDotAndDotDot,QDir::Name)){
   if(link(file)) continue;
   auto row=inspect(file.absoluteFilePath());
+  row["size"]=file.size();row["mtime"]=file.lastModified().toMSecsSinceEpoch();
   // Explicit roots, exact stems, metadata only. No recursion or remote artwork.
   QStringList artRoots{folder};if(!mediaFolder.isEmpty())artRoots.prepend(mediaFolder);
   for(const auto &root:artRoots){
@@ -155,25 +157,17 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
  return {{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
 }
 QVariantMap launchGuidance() {
- const QString reason="Pinball launch is unavailable until all saved files can be kept in a separate folder.";
- const QVariantList blockers{
-  QVariantMap{{"id","preferences"},{"text","VPX may write to its usual settings folder during startup."}},
-  QVariantMap{{"id","table-data"},{"text","Scores and other saved table data can be written beside your tables."}},
-  QVariantMap{{"id","scripts-and-plugins"},{"text","Table scripts, ROM tools and plugins can write outside the separate folder."}}
- };
- QStringList help{reason};
- for(const auto &blocker:blockers)help<<QString("• %1").arg(blocker.toMap().value("text").toString());
- help<<"Scanning stays read-only. Choosing VPX or marking a table VR-ready does not enable launch.";
- return {{"launchAllowed",false},{"reason",reason},{"isolationBlockers",blockers},{"help",help.join('\n')}};
+ return {{"launchAllowed",true},{"help","Play uses your selected VPX installation's normal settings, including VR and ROM setup. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables."}};
 }
 QVariantMap launchPlan(const QString &table,const QString &executable,const QString &ownedRoot,bool vr) {
- const auto root=QFileInfo(ownedRoot).absoluteFilePath();
+ // Retained diagnostic CLI parameters; ordinary VPX settings control display mode.
+ Q_UNUSED(ownedRoot);Q_UNUSED(vr);
  require(QFileInfo(table).isFile()&&QFileInfo(table).suffix().compare("vpx",Qt::CaseInsensitive)==0&&!link(QFileInfo(table))&&QFileInfo(executable).isFile()&&!link(QFileInfo(executable)));
+ require(!inspect(table).contains("error"));
  auto plan=launchGuidance();
  plan.insert("executable",QFileInfo(executable).absoluteFilePath());
- plan.insert("cwd",root);
- plan.insert("args",QStringList{"-Play",QFileInfo(table).absoluteFilePath(),"-Ini",QDir(root).filePath("VPinballX.ini"),"-TableIni",QDir(root).filePath("table.ini")});
- plan.insert("settings",QString("[PlayerVR]\nAskToTurnOn=%1\n").arg(vr?0:2));
+ plan.insert("cwd",QFileInfo(executable).absolutePath());
+ plan.insert("args",QStringList{"-Play",QFileInfo(table).absoluteFilePath()});
  return plan;
 }
 }

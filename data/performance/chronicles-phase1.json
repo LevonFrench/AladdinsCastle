@@ -1,11 +1,10 @@
 {
   "schema_version": 1,
-  "status": "prepared-unmeasured",
+  "status": "public-source-candidates-unmeasured",
   "build_source_commit": "85c4266b29eb308d173fefa0f21f5cb77df3516a",
   "experiments": ["baseline", "code", "code-vbi90"],
   "games": {
     "RBUP08": {
-      "read_only_disc_identity": {"region": "PAL", "revision": 0, "inspected_on": "2026-10-10"},
       "code_name": "60FPS [Nick Reynolds]",
       "code": "04158204 60000000",
       "source": "https://raw.githubusercontent.com/dolphin-emu/dolphin/master/Data/Sys/GameSettings/RBU.ini",
@@ -14,7 +13,6 @@
       "results": []
     },
     "SBDP08": {
-      "read_only_disc_identity": {"region": "PAL", "revision": 0, "inspected_on": "2026-10-10"},
       "code_name": "60FPS [solitarius]",
       "code": "04736D44 00000001",
       "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Darkside_Chronicles",

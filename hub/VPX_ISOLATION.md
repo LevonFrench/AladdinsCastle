@@ -1,11 +1,10 @@
-# VPX write isolation: launch stays unavailable
+# VPX write isolation: historical audit
 
 Read-only audit of official tag `v10.8.1-5436-af26b2d93`, commit
 `af26b2d9392b4c9ec3e3edff4bbd69562085a44c`. No VPX execution, build,
 download, collection access or registry inspection occurred. Supported options
 isolate some outputs; they do not confine every write. The Hub's diagnostic
-plans remain `launchAllowed=false` in desktop and VR modes, including tables
-classified VR-ready and needing no ROM.
+plans previously remained blocked by that requirement. R4 supersedes it: Hub writes no library files, while VPX may save its normal scores and settings. Launch now uses the selected VPX installation directly; the findings below document behavior, not a launch gate.
 
 | Sink | Supported option or restriction | Unresolved condition |
 |---|---|---|
@@ -24,13 +23,4 @@ Primary source citations, all at the immutable audited commit:
 - [CacheMode definition](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/core/Settings_properties.inl#L198), [exit scripts/settings/cache](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/core/player.cpp#L867), [capture output](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/core/player.cpp#L1791), [external script save](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/parts/pintable.cpp#L1378).
 - [Plugin enable admission](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/core/player.cpp#L160), [PinMAME common root](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/plugins/pinmame/PinMAMEPlugin.cpp#L213), [script object policy](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/core/ScriptInterpreter.cpp#L493), [editor registry save](https://github.com/vpinball/vpinball/blob/af26b2d9392b4c9ec3e3edff4bbd69562085a44c/src/ui/win/WinEditor.cpp#L1420).
 
-No bounded live-launch plan is supplied: the startup preferences, table user
-storage and external script/COM/component sinks are still unresolved. No
-collection copy, ACL/registry change, installation edit or engine patch is
-proposed. Future launch admission needs evidence for every writable sink.
-The read-only scan and existing now-playing behavior are unchanged.
-
-`launchGuidance()` supplies one reason, three stable blocker IDs and plain help
-to both diagnostic JSON and the detail page. It checks no additional files and
-performs no settings or process action. Choosing VPX, marking VR-ready or
-changing the requested display mode cannot remove those blockers.
+R4 no longer requires confinement of every VPX writable sink. The direct launch does not supply replacement INIs, disable plugins, alter library permissions or patch the engine. The runtime acceptance still needs one approved table launch, cooperative exit and ordinary score/settings persistence.

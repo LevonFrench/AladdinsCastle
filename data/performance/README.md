@@ -1,17 +1,8 @@
-# Phase 1 performance experiments
+# Performance experiment harness
 
-**R3 current:** [native Forced VBI plan](NATIVE-VBI.md), without cheats, using
-the lead's scripted DSU input and quiet-machine runtime slot. The collector and
-its pure helpers support Windows PowerShell 5.1. Legacy candidate-code runtime
-is parked. The material below records the earlier R2 preparation and measurement
-limits; it does not authorize a legacy code run.
+R4 keeps owner disc lists, formats, order and inspected revisions private under .local. The tracked native plan contains synthetic fixtures only. Public candidate documents describe source applicability, not owned or tested discs. Nothing here is a measurement or permission to launch.
 
-Phase 1 preparation for RBUP08, then SBDP08. No rates or preset performance are
-measured yet. The three experiments are baseline, candidate 60 code, then the
-same code with a 1.5 VBI override. 90 is a requested target, not a measured rate.
-These are private experiment profiles; nothing changes shipped profiles.
-Read-only header inspection found PAL revision 0 for both discs; this establishes
-disc identity only. Neither candidate has been run on these revisions.
+Set AC_PERFORMANCE_PLAN_DIR to a private directory under .local containing chronicles-phase1.json, native-vbi-phase1.json and deadspace-code-candidate.json. Preparation, input attachment and collection use the same selected plan. Unset it for synthetic tests. Runtime still requires the lead's desktop/quiet-machine slot; offline engineering retries are unrestricted.
 
 Use `python data/performance/phase1.py prepare --executable <pinned-release-exe>
 --disc <exact-ISO> --game-id <id> --experiment <experiment> --output <new-run>
@@ -21,7 +12,7 @@ hashes, and writes a fresh isolated User folder and private run.json. It never
 starts Dolphin. All real profiles and receipts go into the lead-designated
 framerate directory under .local; no library enumeration or existing NAND/config
 copy. Baseline disables cheats. Code profiles contain one candidate Gecko entry.
-Shipped game settings remain inherited, including Darkside's EFB-to-RAM setting.
+Shipped game settings remain inherited, including each upstream game's graphics settings.
 
 The lead must grant both QUIET MACHINE and DESKTOP for an exact run before
 `collect-phase1.ps1` is invoked. The private lease JSON has `quiet_machine: true`,
@@ -87,7 +78,7 @@ Source inspection uses DolphinXR commit 85c4266:
 
 Umbrella's candidate matches Dolphin's upstream RBU.ini. Darkside's candidate is
 copied from the task brief: the direct source fetch returned a challenge page.
-Neither code has been tried on either PAL revision. No headset-class preset,
+No compatibility or runtime result is claimed. No headset-class preset,
 per-refresh gun/camera recommendation, code compatibility or game-speed class
 can be promoted until measurements exist. Phase 2 and the other three titles
 remain outside this overnight lane.
