@@ -44,6 +44,7 @@ only_if_missing = true
 set = [
   { section = "Core", key = "GFXBackend", value = "D3D" },
   { section = "General", key = "HotkeysRequireFocus", value = "False" },
+  { section = "Input", key = "BackgroundInput", value = "True" },
   { section = "Android", key = "QuestLeftHanded", value = "False" },
   { section = "General", key = "ISOPaths", value = 0 },
   { section = "General", key = "RecursiveISOPaths", value = "False" },
