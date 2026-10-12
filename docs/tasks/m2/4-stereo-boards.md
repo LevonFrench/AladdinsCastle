@@ -16,6 +16,8 @@ Running any game needs the owner's own game files and the GPU: ask first, one ga
 
 ## Board 1: Namco System 22 (Time Crisis first, then the racers)
 
+**Replaced 2026-10-12 by [S-system22-vr.md](S-system22-vr.md) (D63).** The text below is kept for the projection and aim notes only.
+
 - Base: [namco22-decompile](https://github.com/spacestate1/namco22-decompile) (MIT), built from upstream with guarded build-time patches kept in `setups/namco22-vr/`. Never vendor game data. Its host interface and projection are described in [architecture.md](../../architecture.md), [libacvr-contract.md](../../libacvr-contract.md) ("Namco22 integration plan") and the hub wiki article `true-3d-stereo-techniques`.
 - The board projects before the renderer sees the geometry (screen x, y and depth, `sx = cx + X·zoom/Z`), so rebuild eye-space positions from the projected polygons and draw them per eye. DR-89's Time Crisis VR does this on the same base and is the reference for what works.
 - **Aim:** cast the gun's ray into the rebuilt scene, project the hit through the game's own camera, and convert to the gun input the game reads ([controls.md](../../controls.md) §1.1). Per-game calibration constants are yours.
