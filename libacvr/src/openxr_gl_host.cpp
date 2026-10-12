@@ -369,9 +369,15 @@ acvr_result OpenXrGlHost::init_xr() {
     XrInstanceCreateInfo info{XR_TYPE_INSTANCE_CREATE_INFO};
     std::memcpy(info.applicationInfo.applicationName,application_name_.c_str(),application_name_.size()+1);
     std::memcpy(info.applicationInfo.engineName,"libacvr",sizeof("libacvr"));
-    info.applicationInfo.apiVersion=XR_CURRENT_API_VERSION;
+    // This provider uses core 1.0 plus explicitly enabled extensions. A newer
+    // header must not silently raise the runtime's minimum core requirement.
+    info.applicationInfo.apiVersion=XR_MAKE_VERSION(1,0,0);
     info.enabledExtensionCount=extension_count;info.enabledExtensionNames=extensions;
-    if(XR_FAILED(CreateInstance_(&info,&instance_)))return ACVR_UNSUPPORTED;
+    const auto created=CreateInstance_(&info,&instance_);
+    if(XR_FAILED(created)){
+        std::fprintf(stderr,"libacvr: xrCreateInstance failed (%d), requested OpenXR 1.0\n",int(created));
+        return ACVR_UNSUPPORTED;
+    }
 #define LOAD(name) if(!proc("xr" #name,name##_))return ACVR_UNSUPPORTED
     LOAD(DestroyInstance);LOAD(GetSystem);LOAD(EnumerateViewConfigurationViews);
     LOAD(GetOpenGLGraphicsRequirementsKHR);LOAD(CreateSession);LOAD(DestroySession);
