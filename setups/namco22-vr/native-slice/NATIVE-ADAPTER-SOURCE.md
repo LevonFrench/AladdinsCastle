@@ -46,8 +46,8 @@ even with disjoint rectangles, target/display/frame/order drift and unknown eye
 tails. The adapter static library and factory test executable now compile/link
 with the installed GCC/SDL2 dependencies and current reviewed header. The factory
 test passed once: table/canary/function exports and null-backend early errors only,
-with no open/step, GL/context initialization or game access. The full-adapter
-compile did not build or run the staging/target-state test executables. Existing
+with no open/step, GL/context initialization or game access. That factory-only
+build did not build or run the staging/target-state test executables. Existing
 standard-library producer tests and pinned patch-boundary tests are separate CPU evidence.
 Additional authored fake-dispatch tests cover both target selection lists, failed
 selection/draw exits, attached mip rejection and attachment extent admission.
@@ -59,7 +59,18 @@ translation unit also passes the same strict syntax check. The corrected adapter
 library and factory then rebuilt incrementally with two workers: four compile/link
 steps, exit0. The factory query/canary check passed once without a GL context.
 
-Remaining gates: staging CPU regressions, then a separately
+On 2026-10-12, Viewer independently built `n22_native_display_tests` with the
+existing GCC/SDL2 dependencies and cached native source overlay: 20 compile/link
+steps completed, exit0. `native_display_cpu` passed 1/1 under its 15-second CTest
+bound. The display, pose, fixture and ABI header inputs matched `next` at
+`1888ba5`. The actual test stages both synthetic scenes, checks transactional
+bad-right refusal, shared-target rejection, frame/display/eye identity and
+unknown-tail handling. It does not initialize SDL or GL, read game media, open
+the adapter or render pixels. Private logs remain with the Viewer lane; no
+runtime or physical-device acceptance follows from this CPU result.
+
+Remaining gates beyond display-staging CPU: adapter/source/cache/lease
+integration and a separately
 authorized borrowed-context desktop proof
 with both-eye FBO/state/flush/replay/resource/lease and close/reopen receipts using
 the same frozen scenes/criteria. GL state/error cleanup, in-flight resource lifetime
