@@ -1,5 +1,7 @@
 # Pinball software boundary
 
+For the ordinary user flow, see [Playing Pinball from Hub](PINBALL.md).
+
 The tab scans one explicitly selected folder in place. It never recurses into subfolders, follows linked child entries, copies tables, extracts assets, downloads media or reads download addresses into its table model. An optional local VPS JSON file, ROM folder and media folder are selected separately. Exact same-stem raster wheels and `.directb2s` files are associated locally; absent art uses a title tile.
 
 The independently implemented CFB reader supports regular FAT and mini-FAT streams, with bounds, cycles, directory identities and metadata budgets checked. Reads are limited to table information and `GameStg/GameData`; geometry/textures/sounds are not extracted. Metadata streams are capped at 8 MiB, script text at 2 MiB and total reads per table at 32 MiB. Protected or unsupported script records remain unclassified, with an explicit error. Table names, paths and inventory receipts stay in the user's data, not the catalog.
@@ -12,7 +14,7 @@ ROM readiness means a single static ROM reference has a same-named local ZIP, no
 
 The detail's Play button uses the shared launch service. A changed or unreadable scanned table requires a rescan; a missing known ROM or excluded table is refused. The now-playing card retains the exact table/executable independently of later navigation. Recent-play metadata belongs to Hub settings. A table that is VR-ready by metadata still needs the selected VPX installation configured for VR; Hub does not start SteamVR or change the OpenXR runtime for this route.
 
-The controls card consumes the Guns lane's `vpx-openxr` route through `resolveRoute` and the existing universal view. Its Y-exit warning is retained; planned/unavailable execution labels do not imply a running bridge. The shared now-playing card preserves the current tab and exact route, requests a Windows child-window close without a force timer, and restarts only after successful process completion. Recentre stays disabled. Linux clean close and actual score-saving behavior are unaccepted.
+The controls card consumes the Guns lane's `vpx-openxr` route through `resolveRoute` and the existing universal view. Its Y-exit warning is retained; planned/unavailable execution labels do not imply a running bridge. The shared now-playing card preserves the current tab and exact route. Global Stop cancels preparation or requests the same normal Windows child-window close as Exit, retaining close intent through child startup without a force timer. Restart runs only after successful process completion; Stop cancels a pending restart. Recentre stays disabled. Linux clean close and actual score-saving behavior are unaccepted.
 
 The detail and diagnostic plan explain that VPX uses its normal settings and saves scores. [The earlier isolation audit](VPX_ISOLATION.md) remains historical source evidence; its all-output-confinement requirement was superseded by R4. Real VPX launch, clean exit, score saving and headset behavior still require the owner's runtime slot.
 
