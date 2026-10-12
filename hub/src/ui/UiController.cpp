@@ -153,7 +153,19 @@ void UiController::retryFailedTool(bool fromStart,const QString &handover){
  if(!retryToolAvailable()){message("There is no identified failed tool installation to retry.");return;}
  emit retryToolInstallRequested(m_recovery.value("retryGameId").toString(),m_recovery.value("retryVariantId").toString(),fromStart,handover);
 }
-void UiController::stopLaunch(){emit stopLaunchRequested();message("Stop requested; the game is asked to close, then forced to stop after the timeout.");}
+void UiController::stopLaunch(){
+ if(m_nowPlaying.contains("pinballId")){
+  cancelPendingRestart();
+  if(!m_nowPlaying.value("closeUnavailable").toString().isEmpty()){
+   message("Close the table in VPX; normal close is unavailable from this Hub.");return;
+  }
+  if(m_nowPlaying.value("closing").toBool())return;
+  const bool running=m_nowPlaying.value("running").toBool();
+  launchClosing();emit closeLaunchRequested();
+  message(running?"Close requested; waiting for VPX to exit.":"Pinball launch cancellation requested.");return;
+ }
+ emit stopLaunchRequested();message("Stop requested; the game is asked to close, then forced to stop after the timeout.");
+}
 void UiController::answerPrompt(bool proceed){emit promptAnswered(proceed);}
 void UiController::skipStep(){if(m_recovery.value("canSkip").toBool())emit skipStepRequested();}
 void UiController::uninstall(const QString &id,const QString &variantId){message("Waiting for the ownership manifest preview before removal.");emit uninstallPreviewRequested(id,variantId);}
