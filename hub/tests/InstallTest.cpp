@@ -793,6 +793,39 @@ private slots:
     QVERIFY(Engine(o).install(r).success);QCOMPARE(readBytes(file),tuned);
     QVERIFY(Engine(o).uninstall(r).success);QCOMPARE(readBytes(file),tuned);
   }
+  void pinnedNativeGameSeedRetainsShaderBytesAndUserProfile_data(){
+    QTest::addColumn<bool>("preexisting");QTest::newRow("fresh profile")<<false;QTest::newRow("existing profile")<<true;
+  }
+  void pinnedNativeGameSeedRetainsShaderBytesAndUserProfile(){
+    QFETCH(bool,preexisting);QTemporaryDir t;auto r=fixture(t.path());Options o;o.survivalMs=0;
+    const QString source="data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini";
+    const QString target="installed/synthetic/flat/User/GameSettingsVR/RBUP08.ini";
+    const QByteArray seed="; synthetic native profile\r\n[Graphics.VR]\r\nVirtualScreen = False\r\n[ShaderOverride_Enable]\r\n$synthetic HUD\r\n[ShaderOverride]\r\n$synthetic HUD\r\nHash=0000000000000000\r\nType=PS\r\nmatch_mode=shader_family\r\nhandling=screen\r\n";
+    const QByteArray tuned="; user native profile\n[Graphics.VR]\nVirtualScreen = True\n[ShaderOverride_Enable]\n$user HUD\n[ShaderOverride]\n$user HUD\nHash=1111111111111111\nType=PS\nhandling=skip\nunknown = mine\n";
+    atomicWrite(t.filePath(source),seed);if(preexisting)atomicWrite(t.filePath(target),tuned);
+    auto &step=r.recipe["variant"]["flat"]["step"][1];step.erase("set");
+    step["file"]="${install_dir}/User/GameSettingsVR/RBUP08.ini";step["source"]=source.toStdString();
+    step["source_sha256"]=hashFile(t.filePath(source)).toStdString();step["only_if_missing"]=true;
+    const auto installed=Engine(o).install(r);QVERIFY2(installed.success,qPrintable(installed.message));
+    QCOMPARE(readBytes(t.filePath(target)),preexisting?tuned:seed);
+    atomicWrite(t.filePath(target),tuned);
+    r.operation="repair";const auto repaired=Engine(o).install(r);QVERIFY2(repaired.success,qPrintable(repaired.message));QCOMPARE(readBytes(t.filePath(target)),tuned);
+    r.operation="update";r.recipe["variant"]["flat"]["version"]="v2";
+    const auto updated=Engine(o).install(r);QVERIFY2(updated.success,qPrintable(updated.message));QCOMPARE(readBytes(t.filePath(target)),tuned);
+    QVERIFY(Engine(o).uninstall(r).success);QCOMPARE(readBytes(t.filePath(target)),tuned);
+  }
+  void nativeGameSeedRefusesUnrelatedPaths_data(){
+    QTest::addColumn<QString>("source");
+    for(const auto &source:{"data/profiles/dolphinxr/GameSettingsVR/SYN001.ini","data/profiles/dolphinxr/GameSettingsVR/rbup08.ini","data/profiles/dolphinxr/GameSettings/RBUP08.ini","data/profiles/dolphinxr/GameSettingsVR/../RBUP08.ini"})QTest::newRow(source)<<QString(source);
+  }
+  void nativeGameSeedRefusesUnrelatedPaths(){
+    QFETCH(QString,source);QTemporaryDir t;auto r=fixture(t.path());atomicWrite(t.filePath(source),"; synthetic unrelated profile\n");
+    auto &step=r.recipe["variant"]["flat"]["step"][1];step.erase("set");step["source"]=source.toStdString();
+    step["source_sha256"]=hashFile(t.filePath(source)).toStdString();step["only_if_missing"]=true;
+    try{Engine().plan(r);QFAIL("Unrelated native profile admitted");}
+    catch(const Error &error){QCOMPARE(error.code,QString("E_SOURCE_OUT_OF_SCOPE"));}
+    QVERIFY(!QFileInfo(t.filePath("installed/synthetic/flat/settings.ini")).exists());
+  }
   void generatedSeedPolicyRefusals_data(){
     QTest::addColumn<QString>("caseId");
     for(const auto &id:{"outside","traversal","two-remotes","bad-pin","changed-bytes","missing-source","overwrite","merge","wrong-format","string-boolean","directory-outside","media-alias","oversize"})QTest::newRow(id)<<QString(id);

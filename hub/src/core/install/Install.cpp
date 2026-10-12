@@ -111,8 +111,9 @@ QStringList strings(const Json &v) {
 }
 QByteArray generatedSeedBytes(const Request &r,const Json &step,const Json &guard){
   const auto source=string(step,"source");
-  if(!QRegularExpression("\\Adata/controls/wii/generated/dolphinxr/(split|docked)-(right|left)\\.ini\\z").match(source).hasMatch())
-    throw Error("E_SOURCE_OUT_OF_SCOPE","Config seed must use a literal generated native profile");
+  const bool authoredGameProfile=source=="data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini";
+  if(!authoredGameProfile&&!QRegularExpression("\\Adata/controls/wii/generated/dolphinxr/(split|docked)-(right|left)\\.ini\\z").match(source).hasMatch())
+    throw Error("E_SOURCE_OUT_OF_SCOPE","Config seed must use a literal approved native profile");
   const auto pin=string(step,"source_sha256");
   if(!QRegularExpression("\\A[a-f0-9]{64}\\z").match(pin).hasMatch())
     throw Error("E_PLAN_INVALID","Generated seed requires a SHA256 pin");
