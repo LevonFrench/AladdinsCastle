@@ -11,6 +11,12 @@ payload or split companions. `-GameID` must match the exact six-character header
 ID. A matching header is not a boot result or permission to access a collection.
 `-PrepareOnly` prepares settings without starting any process.
 
+`-InitialState` takes an existing saved mission file and passes it to Dolphin's
+native `--save_state` **load** option. Its header must match the selected game;
+Dolphin validates state-version compatibility when it loads. This reads the
+original file without copying, rewriting, or binding a save-state command.
+Both check-only and prepare-only validate the state without launching Dolphin.
+
 The exact `-GameID` also selects an optional native rendering profile from
 `data/profiles/dolphinxr/GameSettingsVR/<GameID>.ini`. Preparation copies its
 bytes to the managed User's `GameSettingsVR` folder only when that file is absent.

@@ -311,10 +311,22 @@ function Assert-AcSittingInputs([string]$Executable, [string]$ExecutableSHA256,
     }
 }
 
+function Assert-AcInitialState([string]$Path, [string]$GameID) {
+    if ($Path.Contains('"') -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'Initial save state must be an existing file without quotation marks in its path.' }
+    $full = (Resolve-Path -LiteralPath $Path).ProviderPath
+    $stream = [IO.File]::OpenRead($full)
+    try {
+        # Native StateHeaderLegacy plus StateHeaderVersion; Dolphin validates the rest.
+        $header = New-Object byte[] 32
+        if ($stream.Read($header,0,32) -ne 32 -or [Text.Encoding]::ASCII.GetString($header,0,6) -cne $GameID) { throw 'Initial save state is truncated or belongs to a different game.' }
+    } finally { $stream.Dispose() }
+    return $full
+}
+
 function Test-AcOpenXRLog([string]$LogPath) {
     if (-not (Test-Path -LiteralPath $LogPath -PathType Leaf)) { return $false }
     # Require the actual native logger category, not a path or arbitrary mention.
     return [bool](Select-String -LiteralPath $LogPath -Pattern '[NEWID]\[OpenXR\]:' -Quiet)
 }
 
-Export-ModuleMember -Function Initialize-AcSitting, Assert-AcSittingInputs, Assert-AcPrivatePath, Test-AcOpenXRLog, Get-AcQuality, Get-AcVRSwitches, Assert-AcGeneratedProfile
+Export-ModuleMember -Function Initialize-AcSitting, Assert-AcSittingInputs, Assert-AcPrivatePath, Test-AcOpenXRLog, Get-AcQuality, Get-AcVRSwitches, Assert-AcGeneratedProfile, Assert-AcInitialState
