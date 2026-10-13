@@ -101,6 +101,7 @@ class UiController : public QObject {
  Q_INVOKABLE void pinballLoaded(const QVariantMap &data);
  Q_INVOKABLE void selectPinball(const QString &id);
  Q_INVOKABLE void scanPinball();
+ Q_INVOKABLE void openPinball(); // Shows the last scan of the chosen folder, or scans it.
  Q_INVOKABLE void markPinball(bool ready);
  Q_INVOKABLE void favouritePinball();
  Q_INVOKABLE void planPinball();
@@ -168,6 +169,7 @@ class UiController : public QObject {
  void model3PlayRequested(const QString &id,const QString &view);
  void pinballScanRequested(const QString &folder,const QString &database,const QString &roms,const QString &media);
  void pinballPlanRequested(const QString &table,const QString &executable,const QString &id);
+ void pinballRestoreRequested(const QString &folder,const QString &database,const QString &roms,const QString &media);
  void retryToolInstallRequested(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
  void promptAnswered(bool proceed); void skipStepRequested(); void uninstallPreviewRequested(const QString &gameId,const QString &variantId);
  void locationRequested(const QString &kind); void writeConfigRequested(const QString &gameId,const QVariantMap &settings);

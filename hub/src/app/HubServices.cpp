@@ -76,11 +76,26 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::writeConfigRequested,this,[this](const QString &id,const QVariantMap &){ui_->settingsSaved(id);});
     connect(ui_,&UiController::pinballScanRequested,this,[this](const QString &folder,const QString &database,const QString &roms,const QString &media){
         auto *watcher=new QFutureWatcher<QVariantMap>(this);
-        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{const auto result=watcher->result();watcher->deleteLater();if(result.contains("error"))ui_->pinballFailed(result["error"].toString());else ui_->pinballLoaded(result);});
+        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher,folder,database,roms,media]{
+            const auto result=watcher->result();watcher->deleteLater();
+            if(result.contains("error")){ui_->pinballFailed(result["error"].toString());return;}
+            // Kept in Hub's own data so the tab opens at once next time; a table is still rechecked when it is started.
+            try{install::atomicWrite(install::scopedPath("user/cache/pinball-scan.json",root_),QJsonDocument::fromVariant(QVariantMap{{"folder",folder},{"database",database},{"roms",roms},{"media",media},{"result",result}}).toJson(QJsonDocument::Compact));}
+            catch(const std::exception &){ui_->showError("Pinball","The scan could not be saved; the next start scans again.");}
+            ui_->pinballLoaded(result);
+        });
         watcher->setFuture(QtConcurrent::run([folder,database,roms,media]{try{return pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}}));
     });
+    connect(ui_,&UiController::pinballRestoreRequested,this,[this](const QString &folder,const QString &database,const QString &roms,const QString &media){
+        QVariantMap saved;
+        try{QFile file(install::scopedPath("user/cache/pinball-scan.json",root_));if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();}catch(const std::exception &){}
+        const auto result=saved.value("result").toMap();
+        if(saved.value("folder")==folder&&saved.value("database")==database&&saved.value("roms")==roms&&saved.value("media")==media&&result.contains("tables")){
+            ui_->pinballLoaded(result);ui_->showError("Pinball","Showing your last scan. Use Scan after adding or changing tables.");
+        }else ui_->scanPinball();
+    });
     connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &){
-        try{const auto plan=pinball::launchPlan(table,executable,QString(),true);ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
+        try{const auto plan=pinball::launchPlan(table,executable,pinballVrRoot(),true);ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
     });
     connect(ui_,&UiController::pinballPlayRequested,this,[this](const QString &id){
         if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
@@ -231,6 +246,7 @@ HubServices::~HubServices(){
 void HubServices::setPinballDiagnosticIni(const QString &path){
     pinballDiagnosticIni_=path.isEmpty()?QString():privatePinballIni(path,root_);
 }
+QString HubServices::pinballVrRoot()const{return settings_->get("pinballHeadset",true).toBool()?root_:QString();}
 void HubServices::startPinball(const QVariantMap &row,const QString &executable){
     if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
     try{
@@ -241,7 +257,10 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable)
             throw install::Error("E_PINBALL_CHANGED","Table changed or is no longer available; scan again.");
         if(!row.value("vrReady").toBool()||!row.value("error").toString().isEmpty()||row.value("romState")=="ROM missing")
             throw install::Error("E_PINBALL_NOT_READY","Choose a VR-ready table with no scan error or missing known ROM.");
-        const auto plan=pinball::launchPlan(table,executable,QString(),true);
+        // Headset on is asked for explicitly, through a Hub-owned settings file for this table.
+        // A diagnostic settings file chooses its own mode, so nothing is layered over it.
+        const auto plan=pinball::launchPlan(table,executable,pinballDiagnosticIni_.isEmpty()?pinballVrRoot():QString(),true);
+        pinball::writeVrSettings(plan);
         launch::Request request;request.root=root_;request.gameId="pinball-"+id;request.variantId="vpx";request.prepareProfile=false;
         request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
         if(!pinballDiagnosticIni_.isEmpty())request.plan.args<<"-Ini"<<privatePinballIni(pinballDiagnosticIni_,root_);

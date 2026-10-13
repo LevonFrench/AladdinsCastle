@@ -20,6 +20,10 @@ Item {
    &&(!favourites.checked||r.favourite===true)&&(!recent.checked||Number(r.lastPlayed)>0)
  }).sort(function(a,b){return sort.currentText==="Recent"?Number(b.lastPlayed||0)-Number(a.lastPlayed||0):String(a.title).localeCompare(String(b.title))})
  property string locationKey:"pinballFolder"
+ property bool headset:(uiSettings.values,uiSettings.get("pinballHeadset",true))
+ // A folder chosen earlier shows its last scan when the tab opens, so the tables are there without a desktop step.
+ property string startItem:""
+ Component.onCompleted:{uiController.openPinball();if(startItem.length)uiController.selectPinball(startItem)}
  FolderDialog {id:folder;onAccepted:{uiSettings.set(page.locationKey,uiController.localPath(selectedFolder));uiController.scanPinball()}}
  FileDialog {id:file;onAccepted:{uiSettings.set(page.locationKey,uiController.localPath(selectedFile));if(page.locationKey!=="pinballExecutable")uiController.scanPinball()}}
  ColumnLayout {anchors.fill:parent;spacing:8;visible:!page.selected.id
@@ -48,8 +52,9 @@ Item {
   }
   GridView {id:grid;objectName:"pinballGrid";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;cellWidth:Math.max(210,width/Math.max(1,Math.floor(width/210)));cellHeight:196;model:page.filtered;boundsBehavior:Flickable.StopAtBounds
    ScrollBar.vertical:ScrollBar{}
-   delegate:Button {objectName:"pinballTile";required property var modelData;width:grid.cellWidth-8;height:grid.cellHeight-8;Accessible.name:modelData.title;onClicked:uiController.selectPinball(modelData.id)
-    contentItem:Column {spacing:8;Image{width:parent.width;height:visible?64:0;visible:!!modelData.wheelUrl;source:modelData.wheelUrl||"";sourceSize.width:256;sourceSize.height:64;fillMode:Image.PreserveAspectFit}UiText{width:parent.width;text:modelData.title;wrapMode:Text.Wrap;font.pixelSize:18}UiText{width:parent.width;text:(modelData.maker||"")+" "+(modelData.year||"");wrapMode:Text.Wrap}UiText{width:parent.width;text:modelData.romState;wrapMode:Text.Wrap}}
+   delegate:Button {id:tile;objectName:"pinballTile";required property var modelData;width:grid.cellWidth-8;height:grid.cellHeight-8;padding:12;Accessible.name:modelData.title;onClicked:uiController.selectPinball(modelData.id)
+    background:Rectangle {radius:Theme.get("size.card.radius");color:tile.down?Theme.get("color.surface.menu_hover"):Theme.get("color.surface.card");border.width:tile.activeFocus?2:1;border.color:tile.activeFocus?Theme.get("color.glass.ring"):tile.hovered?Theme.get("color.line.button"):Theme.get("color.line.strong")}
+    contentItem:Column {spacing:8;Image{width:parent.width;height:visible?64:0;visible:!!modelData.wheelUrl;source:modelData.wheelUrl||"";sourceSize.width:256;sourceSize.height:64;fillMode:Image.PreserveAspectFit}UiText{width:parent.width;text:modelData.title;wrapMode:Text.Wrap;font.pixelSize:18;color:Theme.get("color.text.primary");maximumLineCount:3;elide:Text.ElideRight}UiText{width:parent.width;text:(modelData.maker||"")+" "+(modelData.year||"");wrapMode:Text.Wrap}UiText{width:parent.width;text:modelData.romState;wrapMode:Text.Wrap}}
    }
   }
   RowLayout {spacing:8;visible:page.vrOverlayMode
@@ -57,25 +62,27 @@ Item {
    PillButton {text:"Next page";vrOverlayMode:true;onClicked:grid.contentY=Math.min(Math.max(0,grid.contentHeight-grid.height),grid.contentY+grid.height)}
   }
  }
- Loader {anchors.fill:parent;active:!!page.selected.id;sourceComponent:Component{ScrollView {clip:true
-  Column {width:parent.width;spacing:12
+ Loader {anchors.fill:parent;active:!!page.selected.id;sourceComponent:Component{ScrollView {id:detail;clip:true;contentWidth:availableWidth
+  Column {width:detail.availableWidth;spacing:12
    PillButton {text:"Back to tables";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.selectPinball("")}
    UiText {objectName:"pinballDetailTitle";width:parent.width;text:page.selected.title||"";font.pixelSize:24;wrapMode:Text.Wrap}
    UiText {width:parent.width;wrapMode:Text.Wrap;text:[page.selected.maker||"",page.selected.year||"",page.selected.authors||"",page.selected.version||""].join(" · ")}
-   UiText {width:parent.width;wrapMode:Text.Wrap;text:(page.selected.evidence||[]).join(", ")+"\n"+(page.selected.features||[]).join(", ")+"\n"+(page.selected.error||page.selected.romState||"")}
+   UiText {width:parent.width;wrapMode:Text.Wrap;text:Array.from(page.selected.evidence||[]).join(", ")+"\n"+Array.from(page.selected.features||[]).join(", ")+"\n"+(page.selected.error||page.selected.romState||"")}
+   // Actions come first so Play needs no scrolling, in the headset least of all.
+   Flow {width:parent.width;spacing:8
+    PillButton {objectName:"pinballPlay";neon:true;accent:Theme.get("color.state.ready_neon");text:page.headset?"Play in headset":"Play";vrOverlayMode:page.vrOverlayMode;enabled:page.selected.vrReady===true&&!page.selected.error&&page.selected.romState!=="ROM missing"&&Object.keys(uiController.nowPlaying).length===0;onClicked:uiController.playPinball()}
+    PillButton {objectName:"pinballHeadset";text:page.headset?"Headset: on":"Headset: as VPX is set";selected:page.headset;vrOverlayMode:page.vrOverlayMode;onClicked:uiSettings.set("pinballHeadset",!page.headset)}
+    PillButton {text:page.selected.favourite?"Unfavourite":"Favourite";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.favouritePinball()}
+    PillButton {text:"Mark VR-ready";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(true)}
+    PillButton {text:"Exclude";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(false)}
+    PillButton {text:"Locate VPX";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballExecutable";file.nameFilters=["Program (*.exe)"];file.open()}}
+    PillButton {text:"Launch plan";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.planPinball()}
+   }
    UiText {width:parent.width;wrapMode:Text.Wrap;text:"Y exits the table. X opens the in-game menu."}
    UiText {width:parent.width;wrapMode:Text.Wrap;text:uiController.pinballControlsStatus;visible:text.length>0}
    Loader {width:parent.width;active:uiController.pinballControls.rows.length>0;visible:active;height:item?item.implicitHeight:0;source:"qrc:/controls/ControlsView.qml"
     onLoaded:{item.width=width;item.controlsModel=uiController.pinballControls;item.textSize=page.vrOverlayMode?18:14}
     onWidthChanged:if(item)item.width=width
-   }
-   Row {spacing:8
-    PillButton {text:page.selected.favourite?"Unfavourite":"Favourite";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.favouritePinball()}
-    PillButton {text:"Mark VR-ready";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(true)}
-    PillButton {text:"Exclude";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(false)}
-    PillButton {text:"Locate VPX";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballExecutable";file.nameFilters=["Program (*.exe)"];file.open()}}
-    PillButton {objectName:"pinballPlay";text:"Play";vrOverlayMode:page.vrOverlayMode;enabled:page.selected.vrReady===true&&!page.selected.error&&page.selected.romState!=="ROM missing"&&Object.keys(uiController.nowPlaying).length===0;onClicked:uiController.playPinball()}
-    PillButton {text:"Launch plan";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.planPinball()}
    }
    UiText {objectName:"pinballLaunchHelp";width:parent.width;wrapMode:Text.Wrap;text:uiController.pinballLaunchHelp}
    TextArea {width:parent.width;text:uiController.pinballPlan;readOnly:true;wrapMode:Text.Wrap}

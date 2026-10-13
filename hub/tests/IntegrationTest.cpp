@@ -38,13 +38,8 @@ void receipt(const QString &root,const QString &media){
     ac::install::atomicWrite(root+"/user/cache/scan-bindings.json",QByteArray::fromStdString(json.dump()));
     ac::install::atomicWrite(root+"/user/last-played.json","{\"synthetic\":12345}");
 }
-}
-class IntegrationTest:public QObject{
- Q_OBJECT
-private slots:
- void pinballLaunchUsesRetainedTableAndRecordsRecent(){
-    QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
-    // Synthetic CFB contains only an empty script terminator, no playable content.
+// Synthetic CFB contains only an empty script terminator, no playable content.
+QByteArray syntheticTable(){
     QByteArray cfb(5632,'\0');cfb.replace(0,8,QByteArray::fromHex("d0cf11e0a1b11ae1"));
     auto u16=[&](int at,quint16 n){qToLittleEndian(n,cfb.data()+at);};
     auto u32=[&](int at,quint32 n){qToLittleEndian(n,cfb.data()+at);};
@@ -59,6 +54,15 @@ private slots:
     }
     u32(1024,4);cfb.replace(1028,4,"ENDB");
     for(int i=0;i<128;++i)u32(5120+4*i,i==0||i==8?0xfffffffe:i==9?0xfffffffd:i<8?static_cast<quint32>(i+1):0xffffffff);
+    return cfb;
+}
+}
+class IntegrationTest:public QObject{
+ Q_OBJECT
+private slots:
+ void pinballLaunchUsesRetainedTableAndRecordsRecent(){
+    QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
+    const auto cfb=syntheticTable();
     const auto table=folder+"/synthetic table.vpx";ac::install::atomicWrite(table,cfb);
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",QCoreApplication::applicationFilePath());
@@ -69,6 +73,9 @@ private slots:
     QVERIFY(QMetaObject::invokeMethod(&ui,"playPinball"));
     QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,5000);
     QCOMPARE(ui.nowPlaying()["title"].toString(),QString("synthetic table"));
+    // The headset is asked for in a Hub-owned file, never beside the table.
+    const auto owned=t.filePath("user/pinball/"+row["id"].toString()+".ini");
+    QVERIFY(ac::install::readBytes(owned).contains("[PlayerVR]"));QVERIFY(ac::install::readBytes(owned).contains("AskToTurnOn = 0"));
     ui.selectPinball("");ui.restartLaunch();
 #ifdef Q_OS_WIN
     QTRY_COMPARE_WITH_TIMEOUT(started.size(),2,5000);
@@ -119,6 +126,30 @@ private slots:
     QCOMPARE(seen["env"].toObject().toVariantMap(),(QVariantMap{{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"}}));
     QCOMPARE(listing(),before);
     ui.playModel3("daytona2");QCOMPARE(started.size(),1);QVERIFY(ui.status().contains("daytona2.zip"));QVERIFY(!services.launchBusy());
+ }
+ void pinballTabShowsTheLastScanWithoutScanningAgain(){
+    QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
+    ac::install::atomicWrite(folder+"/synthetic table.vpx",syntheticTable());
+    {
+        ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+        ac::UiSettings settings(t.filePath("user"));settings.set("pinballFolder",folder);
+        ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+        QSignalSpy scans(&ui,&ac::UiController::pinballScanRequested);
+        ui.openPinball();QCOMPARE(scans.size(),1); // Nothing saved yet: the folder is scanned.
+        QTRY_COMPARE_WITH_TIMEOUT(ui.pinballData()["tables"].toList().size(),1,10000);
+        QVERIFY(QFileInfo::exists(t.filePath("user/cache/pinball-scan.json")));
+    }
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QSignalSpy scans(&ui,&ac::UiController::pinballScanRequested);
+    ui.openPinball();QCOMPARE(scans.size(),0);
+    QCOMPARE(ui.pinballData()["tables"].toList().size(),1);QVERIFY(ui.status().contains("last scan"));
+    // Another folder is never answered from the saved scan.
+    QDir().mkpath(t.filePath("other"));settings.set("pinballFolder",t.filePath("other"));
+    ui.pinballLoaded({});ui.openPinball();QCOMPARE(scans.size(),1);
+    QTRY_VERIFY_WITH_TIMEOUT(!ui.pinballScanning(),10000);
+    QCOMPARE(QDir(folder).entryList(QDir::Files),QStringList{"synthetic table.vpx"});
  }
  void requiredM1GamesOfferFlatRoutes(){
     const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
@@ -302,7 +333,7 @@ int main(int argc,char **argv){
         file.write(QJsonDocument(QJsonObject{{"cwd",QDir::currentPath()},{"args",QJsonArray::fromStringList(child.arguments().mid(1))},{"env",variables}}).toJson());file.close();
         QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
     }
-    if((argc==3||(argc==5&&QByteArray(argv[3])=="-Ini"))&&QByteArray(argv[1])=="-Play"){
+    if(argc>=3&&QByteArray(argv[1])=="-Play"){
         QGuiApplication child(argc,argv);QWindow window;window.show();
         const auto arguments=qEnvironmentVariable("AC_SYNTHETIC_PINBALL_ARGUMENTS");
         if(!arguments.isEmpty()){

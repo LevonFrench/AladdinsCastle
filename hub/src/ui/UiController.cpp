@@ -233,6 +233,7 @@ void UiController::pinballLoaded(const QVariantMap &data){
 }
 void UiController::selectPinball(const QString &id){m_pinballSelection.clear();m_pinballPlan.clear();for(const auto &value:m_pinballData.value("tables").toList()){auto row=value.toMap();if(row.value("id")==id){m_pinballSelection=row;break;}}emit pinballChanged();}
 void UiController::scanPinball(){if(m_pinballScanning)return;const auto folder=m_settings->get("pinballFolder",QString()).toString();if(folder.isEmpty()){message("Choose your Pinball table folder first.");return;}m_pinballScanning=true;emit pinballChanged();emit pinballScanRequested(folder,m_settings->get("pinballDatabase",QString()).toString(),m_settings->get("pinballRoms",QString()).toString(),m_settings->get("pinballMedia",QString()).toString());}
+void UiController::openPinball(){const auto folder=m_settings->get("pinballFolder",QString()).toString();if(m_pinballScanning||m_pinballRaw.contains("tables")||folder.isEmpty())return;emit pinballRestoreRequested(folder,m_settings->get("pinballDatabase",QString()).toString(),m_settings->get("pinballRoms",QString()).toString(),m_settings->get("pinballMedia",QString()).toString());}
 void UiController::pinballFailed(const QString &error){m_pinballScanning=false;emit pinballChanged();message(error);}
 void UiController::markPinball(bool ready){const auto id=m_pinballSelection.value("id").toString();if(id.isEmpty())return;auto overrides=m_settings->get("pinballOverrides",QVariantMap{}).toMap();overrides[id]=ready;m_settings->set("pinballOverrides",overrides);pinballLoaded(m_pinballRaw);selectPinball(id);}
 void UiController::favouritePinball(){const auto id=m_pinballSelection.value("id").toString();if(id.isEmpty())return;auto favourites=m_settings->get("pinballFavourites",QVariantMap{}).toMap();favourites[id]=!favourites.value(id).toBool();m_settings->set("pinballFavourites",favourites);pinballLoaded(m_pinballRaw);selectPinball(id);}
@@ -240,7 +241,9 @@ void UiController::planPinball(){if(m_pinballSelection.isEmpty())return;emit pin
 void UiController::playPinball(){if(!m_pinballSelection.isEmpty())emit pinballPlayRequested(m_pinballSelection.value("id").toString());}
 void UiController::launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable){
  launchQueued("pinball-"+row.value("id").toString(),"vpx",closeUnavailable);
- m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");emit nowPlayingChanged();
+ m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");
+ if(m_settings->get("pinballHeadset",true).toBool())m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table, Y exits and X opens the menu.";
+ emit nowPlayingChanged();
 }
 QVariantList UiController::model3Views()const{return model3::views();}
 QVariantList UiController::model3Games()const{

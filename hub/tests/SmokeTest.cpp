@@ -92,6 +92,8 @@ private slots:
             const auto finished=exited["finished"].toArray();QCOMPARE(finished.size(),1);QCOMPARE(finished[0].toObject()["gameId"].toString(),"pinball-"+id);QCOMPARE(finished[0].toObject()["exitCode"].toInt(),0);QVERIFY(finished[0].toObject()["error"].toString().isEmpty());
             QFile actualArguments(arguments);QVERIFY(actualArguments.open(QIODevice::ReadOnly));
             auto expected=QStringList{"-Play",table};if(shape=="private-ini")expected<<"-Ini"<<ini;
+            // Without a diagnostic file the Hub asks for the headset through its own table settings file.
+            else{const auto owned=root+"/user/pinball/"+id+".ini";expected<<"-TableIni"<<QDir::toNativeSeparators(owned);QFile settings(owned);QVERIFY(settings.open(QIODevice::ReadOnly));QVERIFY(settings.readAll().contains("AskToTurnOn = 0"));}
             QCOMPARE(QJsonDocument::fromJson(actualArguments.readAll()).toVariant().toStringList(),expected);
         }else{
             QVERIFY(!captured["launcherBusy"].toBool());QVERIFY(!captured["nowPlaying"].toObject()["running"].toBool());
