@@ -37,11 +37,19 @@ def snapshot(data):
 
 
 def viewer_header(path):
-    # Hex-escape every UTF-8 byte: quotes cannot inject C++, emoji do not become
-    # invalid surrogate UCNs, and MSVC's current source codepage is irrelevant.
-    raw = (load(path)["display_name"] + " 3D theatre").encode("utf-8")
-    title = '"' + ''.join('\\x' + format(byte, '02x') for byte in raw) + '"'
-    return '#pragma once\nnamespace theatre { inline constexpr const char* productTitle = ' + title + '; }\n'
+    labels = load(path)
+
+    def literal(text):
+        # Hex-escape UTF-8 bytes: quotes cannot inject C++ and MSVC's current
+        # source codepage cannot change the generated label.
+        return '"' + ''.join('\\x' + format(byte, '02x') for byte in text.encode('utf-8')) + '"'
+
+    title = literal(labels["display_name"] + " 3D theatre")
+    prefix = literal(labels["short_id"] + ".dolphin.theatre.")
+    return ('#pragma once\nnamespace theatre {\n'
+            'inline constexpr const char* productTitle = ' + title + ';\n'
+            'inline constexpr const char* productOverlayKeyPrefix = ' + prefix + ';\n'
+            '}\n')
 
 
 if __name__ == "__main__":
