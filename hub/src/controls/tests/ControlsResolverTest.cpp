@@ -64,6 +64,28 @@ private slots:
             QVERIFY2(native==python,qPrintable(it.key()+" differs from Python"));
         }
     }
+    void system22SourceRouteMatchesPythonForBothSavedLayouts() {
+        for (const auto &gid:QStringList{"timecris","raverace","acedrive","dirtdash","tokyowar","propcycl","adillor"}) {
+            for (const auto &hand:QStringList{"right","left"}) {
+                QProcess process; process.start(AC_CONTROLS_PYTHON,{QDir(AC_CONTROLS_ROOT).filePath("tools/system22_controls.py"),"--game",gid,"--primary-hand",hand});
+                QVERIFY(process.waitForFinished(30000)); QCOMPARE(process.exitCode(),0);
+                const auto sourceExpected=QJsonDocument::fromJson(process.readAllStandardOutput()).object().toVariantMap().value("games").toList().front();
+                ac::ControlsResolveOptions options; options.route="namco22-vr"; options.useUserOverrides=false;
+                options.profileDefaults=Map{{"policy",Map{{"p1_hand",hand}}}}; Map actual; QString error;
+                QVERIFY2(resolver.resolveGame(gid,options,actual,error),qPrintable(gid+": "+error));
+                QCOMPARE(QJsonDocument::fromVariant(actual),QJsonDocument::fromVariant(sourceExpected));
+                if (gid!="timecris") QVERIFY(actual.value("model").toString().isEmpty());
+                QVERIFY(!actual.value("two_gun_eligible").toBool());
+            }
+        }
+    }
+    void system22DoesNotIgnoreUnsupportedLayersOrSubstituteGuns() {
+        ac::ControlsResolveOptions options; options.route="namco22-vr"; options.useUserOverrides=false; Map actual; QString error;
+        QVERIFY(!resolver.resolveGame("hotd2",options,actual,error));
+        options.profileModel="generic-pistol"; QVERIFY(!resolver.resolveGame("raverace",options,actual,error));
+        options.profileModel.clear(); options.profileDefaults=Map{{"policy",Map{{"two_guns","always"}}}};
+        QVERIFY(!resolver.resolveGame("timecris",options,actual,error));
+    }
     void mergePreservesExtensionsDeletionAndArrayOrder() {
         const Map base{{"future",Map{{"keep",1},{"remove",2}}},{"element",List{Map{{"id","fire"},{"binding",Map{{"hand","slot"},{"control","trigger"}}}}}}};
         const Map later{{"future",Map{{"remove","!delete"},{"add",3}}},{"element",List{Map{{"id","fire"},{"binding",Map{{"mode","hold"}}}},Map{{"id","coin"},{"extra",4}}}}};
