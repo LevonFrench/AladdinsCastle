@@ -9,6 +9,9 @@ for qml in sorted((root/'hub/qml').rglob('*.qml')):
         if re.search(r'\btext\s*:\s*[\"\']'+re.escape(display_name),line):
             hardcoded_labels.append(f'{qml.relative_to(root)}:{number}')
 assert not hardcoded_labels,'Hardcoded product display labels: '+', '.join(hardcoded_labels)
+# The POSIX shared-lock namespace is a shipping product folder, like its Windows peer.
+lock_source=(root/'hub/src/core/install/Support.cpp').read_text(encoding='utf-8')
+assert re.search(r"""["']/tmp/[A-Za-z][^"']*-shared-locks""",lock_source) is None, 'Hardcoded POSIX shared-lock product namespace'
 with tempfile.TemporaryDirectory() as temp:
     p=pathlib.Path(temp); hub=p/'hub';data=p/'data';data.mkdir();(hub/'cmake').mkdir(parents=True)
     for relative in ['cmake/ProductIdentity.cmake','src/core/app/ProductIdentity.h.in','resources/dashboard.vrmanifest.in']:
