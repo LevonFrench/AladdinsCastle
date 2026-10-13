@@ -275,7 +275,7 @@ int wmain(int argc,wchar_t** argv) {
         if(!system || !session.overlay) fail("SteamVR overlay interfaces unavailable");
         int32_t adapter=-1; system->GetDXGIOutputInfo(&adapter);
         session.upload=theatre::D3DUpload::onAdapter(adapter);
-        std::string key="aladdinscastle.dolphin.theatre."+std::to_string(GetCurrentProcessId());
+        std::string key=std::string(theatre::productOverlayKeyPrefix)+std::to_string(GetCurrentProcessId());
         vrCheck(session.overlay->CreateOverlay(key.c_str(),theatre::productTitle,&session.handle),"create overlay");
         vrCheck(session.overlay->SetOverlayFlag(session.handle,vr::VROverlayFlags_SideBySide_Parallel,true),"SBS parallel");
         vrCheck(session.overlay->SetOverlayWidthInMeters(session.handle,static_cast<float>(theatre::width)),"plane width");

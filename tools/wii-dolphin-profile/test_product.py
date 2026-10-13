@@ -151,5 +151,21 @@ class ProductLabels(unittest.TestCase):
         self.assertEqual(decoded, self.labels["display_name"] + " 3D theatre")
 
 
+    def test_ephemeral_viewer_key_uses_short_id_and_preserves_default(self):
+        for short_id in ("aladdinscastle", "synthetic-gallery", "other-gallery"):
+            with self.subTest(short_id=short_id):
+                self.labels["short_id"] = short_id
+                self.path.write_text(json.dumps(self.labels))
+                header = product.viewer_header(self.path)
+                literal = header.split('productOverlayKeyPrefix = "', 1)[1].split('";', 1)[0]
+                prefix = bytes(int(part, 16) for part in literal.split("\\x")[1:]).decode("utf-8")
+                self.assertEqual(prefix, short_id + ".dolphin.theatre.")
+                # Key namespace is independent of the visible Unicode title.
+                self.labels["display_name"] = 'Other "Gallery" ' + chr(0x1f3ae)
+                self.path.write_text(json.dumps(self.labels))
+                self.assertIn('productOverlayKeyPrefix = "' + literal + '";',
+                              product.viewer_header(self.path))
+
+
 if __name__ == "__main__":
     unittest.main()

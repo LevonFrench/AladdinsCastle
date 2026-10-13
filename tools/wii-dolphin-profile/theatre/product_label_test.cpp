@@ -7,6 +7,7 @@ int main() {
     // regardless of the compiler's source codepage. No runtime/window created.
     const char* expected="Synthetic \"Gallery\" \xf0\x9f\x8e\xae 3D theatre";
     if(std::strcmp(theatre::productTitle,expected)!=0) return 1;
-    std::cout << "compiled product title bytes passed\n";
+    if(std::strcmp(theatre::productOverlayKeyPrefix,"synthetic-gallery.dolphin.theatre.")!=0) return 2;
+    std::cout << "compiled product title and overlay key bytes passed\n";
     return 0;
 }
