@@ -16,7 +16,14 @@ struct LaunchOptions {
     bool spike = false;
     bool showDashboard = false;
     bool pictureFlipY = false;
+    // SteamVR on Windows reports overlay pointer positions from the top-left of
+    // an OpenGL overlay as shown, like Valve's own Qt sample; the header's
+    // bottom-left convention is kept elsewhere until a headset there says otherwise.
+#ifdef _WIN32
+    bool pointerFlipY = false;
+#else
     bool pointerFlipY = true;
+#endif
     bool help = false;
     bool version = false;
     int quitAfterMs = 0;

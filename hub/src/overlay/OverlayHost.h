@@ -5,6 +5,7 @@
 #include "OverlayRuntime.h"
 #include "OverlayCapture.h"
 #include <QElapsedTimer>
+#include <QFile>
 #include <QTimer>
 class QQmlEngine;
 class QQuickItem;
@@ -19,6 +20,8 @@ public:
     bool initialize(QQmlEngine &engine, const QString &thumbnail, QString *error);
     bool showDashboard(QString *error){return m_running&&m_runtime->showDashboard(error);}
     bool configureCapture(const QString &catalogRoot,const QString &directory,bool pictureFlipY,QString *error){return m_capture.configure(catalogRoot,directory,pictureFlipY,error);}
+    // Appends one line per pointer packet of interest to a fresh file (positions and outcomes only).
+    void setInputLog(const QString &path);
     Q_INVOKABLE void requestKeyboard(QQuickItem *item);
     Q_INVOKABLE void dismissKeyboard();
     // Public input boundary: tests inject synthetic events through the same path.
@@ -36,6 +39,10 @@ private:
     OverlayFrameGate m_gate;
     OverlayKeyboard m_keyboard;
     OverlayCapture m_capture;
+    void logInput(const vr::VREvent_t &event,const OverlayObservation &value);
+    QFile m_inputLog;
+    int m_inputLines = 0, m_inputMoves = 0;
+    bool m_loggedVisible = false;
     bool m_quitSeen = false;
     bool m_running = false;
     QTimer m_timer;

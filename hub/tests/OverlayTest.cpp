@@ -82,7 +82,12 @@ private slots:
     }
     void independentOrientationCommandLine(){
         const auto defaults=ac::parseLaunchOptions({"--overlay"});
-        QVERIFY(!defaults.pictureFlipY);QVERIFY(defaults.pointerFlipY);
+        QVERIFY(!defaults.pictureFlipY);
+#ifdef Q_OS_WIN
+        QVERIFY(!defaults.pointerFlipY);
+#else
+        QVERIFY(defaults.pointerFlipY);
+#endif
         const auto options=ac::parseLaunchOptions({"--overlay","--window","--spike","--overlay-picture-flip-y","on","--overlay-pointer-flip-y","off"});
         QVERIFY2(options.error.isEmpty(),qPrintable(options.error));
         QVERIFY(options.pictureFlipY);QVERIFY(!options.pointerFlipY);

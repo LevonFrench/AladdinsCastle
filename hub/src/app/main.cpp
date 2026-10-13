@@ -43,7 +43,7 @@ int main(int argc,char **argv){
     if(options.help){
         out<<ac::product::display_name<<" Hub\nUsage: "<<ac::product::program_name<<" [--overlay [--window] | --launch <game-id> | --capture-compositor-dir <directory>]\n"
            <<"  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n"
-           <<"  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default on)\n"
+           <<"  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default off on Windows, on elsewhere)\n"
            <<"  --overlay-capture-dir <absolute fresh directory>  One source texture PNG/receipt under catalog .local (requires --overlay)\n"
            <<"  --show-dashboard  Explicitly select this Hub's dashboard (requires --overlay)\n"
            <<"  --capture-compositor-dir <absolute fresh directory>  One compositor eye pair under catalog .local; existing service required\n"
@@ -100,6 +100,10 @@ int main(int argc,char **argv){
     QObject::connect(&app,&QGuiApplication::applicationStateChanged,&ui,[&](Qt::ApplicationState state){if(state!=Qt::ApplicationActive)ui.clearDetailControlStates();});
     qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",&theme);
     ac::SpikeState spike;spike.setFlipY(options.pointerFlipY);ac::LocalQmlNetworkFactory localNetwork;QQmlApplicationEngine engine;engine.setNetworkAccessManagerFactory(&localNetwork);ac::OverlayHost overlay(spike,ac::makeOpenVrRuntime(options.pictureFlipY));
+    if(options.mode==ac::Mode::Overlay){
+        // What the headset pointer sent and what became of it, for a sitting that goes wrong.
+        try{const auto log=ac::install::scopedPath("user/logs/overlay-input.log",portableRoot);QDir().mkpath(QFileInfo(log).absolutePath());overlay.setInputLog(log);}catch(const std::exception &){}
+    }
     if(!options.overlayCaptureDir.isEmpty()){
         QString error;
         if(!overlay.configureCapture(catalogRoot,options.overlayCaptureDir,options.pictureFlipY,&error)){err<<error<<'\n';return 2;}
