@@ -1,0 +1,153 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Existing versionless cabinet format from config-spec section 5.
+id = "cab-wheel-h-tilt-wheel-lever"
+title = "Tilt one controller / grabbed shifter"
+seat = { height_m = 0.55, posture = "seated" }
+
+[[element]]
+id = "wheel"
+label = "Steering"
+type = "wheel"
+source = "left_hand"
+node = "pivot_wheel"
+output = { axis = "Steering", range = [0, 255], centre = 128, invert = false }
+model = "wheel-three-spoke"
+position = [0, 0.78, -0.42]
+tilt_deg = 25
+radius_m = 0.176
+range_deg = 270
+extractor = "grip_twist"
+axes = { component = "wheel_normal", positive = "clockwise/right" }
+calibration = { centre = "before_launch", range = [-45, 45] }
+grab = { required = true, button = "grip", radius_m = 0.06, soft_lock = true, preserve_current_angle = true, one_hand_fallback = "angle_about_hub", anchors = ["grab_left", "grab_right"] }
+curve = { deadzone = 0.025, gamma = 1 }
+spring = { return_speed = 6 }
+tracking_loss = "freeze_then_neutral"
+haptics = { centre_detent = 0.2 }
+model_instance = "wheel-three-spoke-p1"
+label_node = "label_steering"
+
+[[element]]
+id = "accelerator"
+label = "Accelerator"
+type = "pedal"
+source = "right_trigger"
+node = "pivot_accelerator"
+output = { axis = "Accelerator", range = [0, 255], invert = false }
+model = "pedals-dual"
+position = [0, 0.1, -0.48]
+extractor = "trigger"
+curve = { deadzone = 0.04, gamma = 1.4 }
+axes = { positive = "squeeze" }
+grab = { required = false }
+model_instance = "pedals-dual-p1"
+label_node = "label_accelerator"
+
+[[element]]
+id = "brake"
+label = "Brake"
+type = "pedal"
+source = "left_trigger"
+node = "pivot_brake"
+output = { axis = "Brake", range = [0, 255], invert = false }
+model = "pedals-dual"
+position = [0, 0.1, -0.48]
+extractor = "trigger"
+curve = { deadzone = 0.04, gamma = 1.4 }
+axes = { positive = "squeeze" }
+grab = { required = false }
+model_instance = "pedals-dual-p1"
+label_node = "label_brake"
+
+[[element]]
+id = "shifter"
+label = "Four-speed gear"
+type = "shifter_h"
+source = "right_hand"
+node = "pivot_shift"
+output = { gear_1 = "GearShift1", gear_2 = "GearShift2", gear_3 = "GearShift3", gear_4 = "GearShift4", neutral = "GearShiftN" }
+model = "shifter-four-gate"
+position = [0.26, 0.55, -0.25]
+extractor = "lever_slide"
+axes = { plane = "xz", forward = "negative_z" }
+range_m = { x = [-0.037, 0.037], z = [-0.054, 0.054] }
+grab = { required = true, button = "right_grip", radius_m = 0.055, soft_lock = true, anchors = ["grab_knob"] }
+gate = { forward_left = 1, back_left = 2, forward_right = 3, back_right = 4, neutral_band_m = 0.012, snap = true, latch_on_release = true }
+binding = { mode = "hold" }
+haptics = { gear_detent = 0.25 }
+model_instance = "shifter-four-gate-p1"
+label_node = "label_shifter"
+
+[[element]]
+id = "view-1"
+label = "View 1"
+type = "button"
+source = "right_thumbstick"
+node = "button_view_1"
+output = { button = "VR1" }
+model = "panel-view-four"
+position = [0, 0.92, -0.49]
+binding = { direction = "up", threshold = 0.65, modifier = "right_grip_released", mode = "press" }
+axes = { positive = "up" }
+model_instance = "panel-view-four-p1"
+label_node = "label_view_1"
+
+[[element]]
+id = "view-2"
+label = "View 2"
+type = "button"
+source = "right_thumbstick"
+node = "button_view_2"
+output = { button = "VR2" }
+model = "panel-view-four"
+position = [0, 0.92, -0.49]
+binding = { direction = "right", threshold = 0.65, modifier = "right_grip_released", mode = "press" }
+axes = { positive = "right" }
+model_instance = "panel-view-four-p1"
+label_node = "label_view_2"
+
+[[element]]
+id = "view-3"
+label = "View 3"
+type = "button"
+source = "right_thumbstick"
+node = "button_view_3"
+output = { button = "VR3" }
+model = "panel-view-four"
+position = [0, 0.92, -0.49]
+binding = { direction = "down", threshold = 0.65, modifier = "right_grip_released", mode = "press" }
+axes = { positive = "down" }
+model_instance = "panel-view-four-p1"
+label_node = "label_view_3"
+
+[[element]]
+id = "view-4"
+label = "View 4"
+type = "button"
+source = "right_thumbstick"
+node = "button_view_4"
+output = { button = "VR4" }
+model = "panel-view-four"
+position = [0, 0.92, -0.49]
+binding = { direction = "left", threshold = 0.65, modifier = "right_grip_released", mode = "press" }
+axes = { positive = "left" }
+model_instance = "panel-view-four-p1"
+label_node = "label_view_4"
+
+[[element]]
+id = "start"
+label = "Start"
+type = "button"
+source = "right_primary"
+node = ""
+output = { button = "Start1" }
+binding = { mode = "press" }
+
+[[element]]
+id = "coin"
+label = "Insert credit"
+type = "button"
+source = "right_secondary"
+node = ""
+output = { button = "Coin1" }
+binding = { mode = "press" }

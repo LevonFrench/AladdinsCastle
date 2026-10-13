@@ -1,0 +1,18 @@
+id = "panel-view-one"
+model = "assets/controls/panel-view-one.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.view]
+node = "button_view"
+lod_nodes = ["button_view", "button_view_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "ViewChange"

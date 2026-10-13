@@ -1,0 +1,18 @@
+id = "pedal-single"
+model = "assets/controls/pedal-single.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.pedal]
+node = "pivot_pedal"
+lod_nodes = ["pivot_pedal", "pivot_pedal_lod1"]
+kind = "rotate"
+axis = [1, 0, 0]
+range = [0, 0.25]
+drive = "RearBrake"

@@ -1,0 +1,19 @@
+id = "wheel-three-spoke"
+title = "Wheel, rubber rim and brushed-metal spokes"
+model = "assets/controls/wheel-three-spoke.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.steering]
+node = "pivot_wheel"
+lod_nodes = ["pivot_wheel", "pivot_wheel_lod1"]
+kind = "rotate"
+axis = [0, 0, -1]
+range = [-2.35619449, 2.35619449]
+drive = "Steering"

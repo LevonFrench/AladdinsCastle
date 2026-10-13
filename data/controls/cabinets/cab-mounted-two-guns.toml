@@ -1,0 +1,217 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Existing versionless cabinet format from config-spec section 5.
+id = "cab-mounted-two-guns"
+title = "Mounted / two guns"
+seat = { height_m = 0.55, posture = "seated" }
+
+[[element]]
+id = "p1-aim-x"
+label = "Aim horizontal"
+type = "mounted_gun"
+source = "right_hand"
+node = "pivot_yaw"
+output = { axis = "AnalogGunX", range = [0, 255], centre = 128, invert = false }
+model = "mnt-mg-heavy"
+player = 0
+slot = 0
+position = [0.24, 0.75, -0.4]
+grab = { required = true, button = "grip", soft_lock = true, anchors = ["grip", "grip_two"] }
+tracking_loss = "freeze_then_neutral"
+axes = { component = "x", positive = "right" }
+extractor = "stick_tilt"
+calibration = { centre = "before_grab", range_deg = [-40, 40] }
+range_m = []
+mount = { anchor = "seat", yaw_limit_deg = 40, pitch_limit_deg = 23, one_controller_per_mount = true }
+model_instance = "mnt-mg-heavy-p1"
+label_node = "pivot_yaw"
+
+[[element]]
+id = "p1-aim-y"
+label = "Aim vertical"
+type = "mounted_gun"
+source = "right_hand"
+node = "pivot_pitch"
+output = { axis = "AnalogGunY", range = [0, 255], centre = 128, invert = false }
+model = "mnt-mg-heavy"
+player = 0
+slot = 0
+position = [0.24, 0.75, -0.4]
+grab = { required = true, button = "grip", soft_lock = true, anchors = ["grip", "grip_two"] }
+tracking_loss = "freeze_then_neutral"
+axes = { component = "y", positive = "up" }
+extractor = "stick_tilt"
+calibration = { centre = "before_grab", range_deg = [-23, 23] }
+range_m = []
+mount = { anchor = "seat", yaw_limit_deg = 40, pitch_limit_deg = 23, one_controller_per_mount = true }
+model_instance = "mnt-mg-heavy-p1"
+label_node = "pivot_pitch"
+
+[[element]]
+id = "p1-main-trigger"
+label = "Main trigger"
+type = "button"
+source = "right_trigger"
+node = "pivot_trigger"
+output = { button = "AnalogTriggerLeft", range = [0, 1] }
+player = 0
+slot = 0
+model = "mnt-mg-heavy"
+binding = { mode = "hold", threshold = 0.55 }
+game_action_question = "Confirm each trigger switch caption in the game instructions."
+model_instance = "mnt-mg-heavy-p1"
+position = [0.24, 0.75, -0.4]
+label_node = "pivot_trigger"
+
+[[element]]
+id = "p1-second-trigger"
+label = "Second trigger"
+type = "button"
+source = "right_primary"
+node = "button_special"
+output = { button = "AnalogTriggerRight", range = [0, 1] }
+player = 0
+slot = 0
+model = "mnt-mg-heavy"
+binding = { mode = "hold", threshold = 0.55 }
+game_action_question = "Confirm each trigger switch caption in the game instructions."
+model_instance = "mnt-mg-heavy-p1"
+position = [0.24, 0.75, -0.4]
+label_node = "button_special"
+
+[[element]]
+id = "p1-start"
+label = "Start"
+type = "button"
+source = "right_thumbstick_click"
+node = ""
+output = { button = "Start1", range = [0, 1] }
+player = 0
+slot = 0
+model = "mnt-mg-heavy"
+binding = { mode = "press", threshold = 0.55 }
+game_action_question = ""
+model_instance = "mnt-mg-heavy-p1"
+position = [0.24, 0.75, -0.4]
+label_node = ""
+
+[[element]]
+id = "p1-coin"
+label = "Insert credit"
+type = "button"
+source = "right_secondary"
+node = ""
+output = { button = "Coin1", range = [0, 1] }
+player = 0
+slot = 0
+model = "mnt-mg-heavy"
+binding = { mode = "press", threshold = 0.55 }
+game_action_question = ""
+model_instance = "mnt-mg-heavy-p1"
+position = [0.24, 0.75, -0.4]
+label_node = ""
+
+[[element]]
+id = "p2-aim-x"
+label = "Aim horizontal"
+type = "mounted_gun"
+source = "left_hand"
+node = "pivot_yaw"
+output = { axis = "AnalogGunX2", range = [0, 255], centre = 128, invert = false }
+model = "mnt-mg-heavy"
+player = 1
+slot = 1
+position = [-0.24, 0.75, -0.4]
+grab = { required = true, button = "grip", soft_lock = true, anchors = ["grip", "grip_two"] }
+tracking_loss = "freeze_then_neutral"
+axes = { component = "x", positive = "right" }
+extractor = "stick_tilt"
+calibration = { centre = "before_grab", range_deg = [-40, 40] }
+range_m = []
+mount = { anchor = "seat", yaw_limit_deg = 40, pitch_limit_deg = 23, one_controller_per_mount = true }
+model_instance = "mnt-mg-heavy-p2"
+label_node = "pivot_yaw"
+
+[[element]]
+id = "p2-aim-y"
+label = "Aim vertical"
+type = "mounted_gun"
+source = "left_hand"
+node = "pivot_pitch"
+output = { axis = "AnalogGunY2", range = [0, 255], centre = 128, invert = false }
+model = "mnt-mg-heavy"
+player = 1
+slot = 1
+position = [-0.24, 0.75, -0.4]
+grab = { required = true, button = "grip", soft_lock = true, anchors = ["grip", "grip_two"] }
+tracking_loss = "freeze_then_neutral"
+axes = { component = "y", positive = "up" }
+extractor = "stick_tilt"
+calibration = { centre = "before_grab", range_deg = [-23, 23] }
+range_m = []
+mount = { anchor = "seat", yaw_limit_deg = 40, pitch_limit_deg = 23, one_controller_per_mount = true }
+model_instance = "mnt-mg-heavy-p2"
+label_node = "pivot_pitch"
+
+[[element]]
+id = "p2-main-trigger"
+label = "Main trigger"
+type = "button"
+source = "left_trigger"
+node = "pivot_trigger"
+output = { button = "AnalogTriggerLeft2", range = [0, 1] }
+player = 1
+slot = 1
+model = "mnt-mg-heavy"
+binding = { mode = "hold", threshold = 0.55 }
+game_action_question = "Confirm each trigger switch caption in the game instructions."
+model_instance = "mnt-mg-heavy-p2"
+position = [-0.24, 0.75, -0.4]
+label_node = "pivot_trigger"
+
+[[element]]
+id = "p2-second-trigger"
+label = "Second trigger"
+type = "button"
+source = "left_primary"
+node = "button_special"
+output = { button = "AnalogTriggerRight2", range = [0, 1] }
+player = 1
+slot = 1
+model = "mnt-mg-heavy"
+binding = { mode = "hold", threshold = 0.55 }
+game_action_question = "Confirm each trigger switch caption in the game instructions."
+model_instance = "mnt-mg-heavy-p2"
+position = [-0.24, 0.75, -0.4]
+label_node = "button_special"
+
+[[element]]
+id = "p2-start"
+label = "Start"
+type = "button"
+source = "left_thumbstick_click"
+node = ""
+output = { button = "Start2", range = [0, 1] }
+player = 1
+slot = 1
+model = "mnt-mg-heavy"
+binding = { mode = "press", threshold = 0.55 }
+game_action_question = ""
+model_instance = "mnt-mg-heavy-p2"
+position = [-0.24, 0.75, -0.4]
+label_node = ""
+
+[[element]]
+id = "p2-coin"
+label = "Insert credit"
+type = "button"
+source = "left_secondary"
+node = ""
+output = { button = "Coin2", range = [0, 1] }
+player = 1
+slot = 1
+model = "mnt-mg-heavy"
+binding = { mode = "press", threshold = 0.55 }
+game_action_question = ""
+model_instance = "mnt-mg-heavy-p2"
+position = [-0.24, 0.75, -0.4]
+label_node = ""
