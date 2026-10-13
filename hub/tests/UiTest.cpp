@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/catalog/CatalogLoader.h"
+#include "core/steam/Steam.h"
+#include "AuthoredSteamFixture.h"
+#include <optional>
 #include "ui/Theme.h"
 #include "ui/UiController.h"
 #include "ui/UiSettings.h"
@@ -7,6 +10,8 @@
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlContext>
+#include <QQmlIncubationController>
+#include <QScopeGuard>
 #include <QQuickWindow>
 #include <QQuickItem>
 #include <QQuickStyle>
@@ -18,9 +23,14 @@
 #include <QJSValue>
 #include <QQuickImageProvider>
 #include <QPainter>
+#include <QFocusEvent>
+#include <QFontMetricsF>
 #include <QAtomicInteger>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
+#include <QDirIterator>
+#include <QImageReader>
 #include <ctime>
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
@@ -31,9 +41,48 @@
 #endif
 namespace {
 QStringList warnings;
+bool diagnosticEnabled(){return qEnvironmentVariableIsSet("AC_UI_GEOMETRY_DIAGNOSTIC");}
+QJsonObject geometry(QQuickItem *item){
+ const auto point=item->mapToScene({item->width()/2,item->height()/2});
+ QJsonArray chain;
+ for(auto parent=item;parent;parent=parent->parentItem()){
+  const auto local=parent->mapFromScene(point);
+  chain<<QJsonObject{{"name",parent->objectName()},{"type",parent->metaObject()->className()},
+   {"width",parent->width()},{"height",parent->height()},{"implicitHeight",parent->implicitHeight()},
+   {"clip",parent->clip()},{"containsPoint",parent->contains(local)},
+   {"visible",parent->isVisible()},{"enabled",parent->isEnabled()}};
+ }
+ return {{"pointX",point.x()},{"pointY",point.y()},
+  {"mode",QJsonValue::fromVariant(item->property("vrOverlayMode"))},
+  {"targetHeight",QJsonValue::fromVariant(item->property("targetHeight"))},{"chain",chain}};
+}
+void snapshot(const QString &tag,QQuickItem *item){
+ if(diagnosticEnabled())qInfo().noquote()<<"GEOMETRY "+tag+" "+QString::fromUtf8(QJsonDocument(geometry(item)).toJson(QJsonDocument::Compact));
+}
+bool softwareFrame(QQuickWindow *window){
+ QSignalSpy rendered(window,&QQuickWindow::afterRendering);
+ window->update();return QTest::qWaitFor([&]{return !rendered.isEmpty();},2000);
+}
+bool withinClips(QQuickItem *item){
+ if(item->width()<=0||item->height()<=0||!item->isVisible())return false;
+ const auto point=item->mapToScene({item->width()/2,item->height()/2});
+ for(auto parent=item;parent;parent=parent->parentItem())
+  if(parent->clip()&&!parent->contains(parent->mapFromScene(point)))return false;
+ return true;
+}
+void hitSnapshot(QQuickWindow *window,const QPointF &point){
+ if(!diagnosticEnabled())return;
+ QJsonArray path;auto item=window->contentItem();
+ for(int depth=0;item&&depth<32;++depth){
+  path<<QJsonObject{{"name",item->objectName()},{"type",item->metaObject()->className()},{"z",item->z()}};
+  const auto local=item->mapFromScene(point);item=item->childAt(local.x(),local.y());
+ }
+ const auto grabber=window->mouseGrabberItem();
+ qInfo().noquote()<<"HIT "+QString::fromUtf8(QJsonDocument(QJsonObject{{"path",path},{"grabber",grabber?grabber->objectName():QString()}}).toJson(QJsonDocument::Compact));
+}
 int cardCount(QQuickItem *item,bool visibleOnly=false){if(!item)return 0;int count=0;if(item->objectName()=="cardPrimary"){auto p=item->mapToScene(QPointF());if(!visibleOnly||(item->isVisible()&&p.y()>100&&p.y()<690))++count;}for(auto child:item->childItems())count+=cardCount(child,visibleOnly);return count;}
 QList<QQuickItem *> namedItems(QQuickItem *item,const QString &name){QList<QQuickItem *> result;if(!item)return result;if(item->objectName()==name)result<<item;for(auto child:item->childItems())result.append(namedItems(child,name));return result;}
-void logMessage(QtMsgType type,const QMessageLogContext &,const QString &message){if(type==QtWarningMsg||type==QtCriticalMsg)warnings<<message;fprintf(stderr,"%s\n",qPrintable(message));}
+void logMessage(QtMsgType type,const QMessageLogContext &,const QString &message){if(type==QtWarningMsg||type==QtCriticalMsg)warnings<<message;fprintf(stderr,"%s: %s\n",QTest::currentTestFunction()?QTest::currentTestFunction():"teardown",qPrintable(message));}
 double cpuSeconds(){
 #ifdef Q_OS_WIN
  FILETIME creation{},exit{},kernel{},user{};if(GetProcessTimes(GetCurrentProcess(),&creation,&exit,&kernel,&user)){ULARGE_INTEGER k{},u{};k.LowPart=kernel.dwLowDateTime;k.HighPart=kernel.dwHighDateTime;u.LowPart=user.dwLowDateTime;u.HighPart=user.dwHighDateTime;return static_cast<double>(k.QuadPart+u.QuadPart)/10000000.0;}
@@ -55,6 +104,79 @@ class OwnedArtProvider:public QQuickImageProvider {
   requests.fetchAndAddRelaxed(1);QImage image(requested.isValid()?requested:QSize(320,160),QImage::Format_ARGB32_Premultiplied);image.fill(accent);QPainter painter(&image);painter.setPen(accent.lighter(160));painter.drawEllipse(image.rect().adjusted(20,20,-20,-20));if(size)*size=image.size();return image;
  }
  private:QColor accent;
+};
+// Observe the real QML call and run the production preparation seam. Steam
+// discovery/account enumeration and file preview are deliberately absent here.
+class SteamPreparationProbe:public QObject {
+ Q_OBJECT
+ Q_PROPERTY(QString toolPlan MEMBER empty CONSTANT)
+ Q_PROPERTY(QString removalPlan MEMBER empty CONSTANT)
+ Q_PROPERTY(bool canRemoveSteam MEMBER inactive CONSTANT)
+ Q_PROPERTY(bool launchBusy MEMBER inactive CONSTANT)
+ Q_PROPERTY(bool preparing MEMBER inactive CONSTANT)
+ Q_PROPERTY(bool steamRemoving MEMBER inactive CONSTANT)
+ Q_PROPERTY(QStringList steamAccounts MEMBER accounts CONSTANT)
+ Q_PROPERTY(QString steamPreview MEMBER preview CONSTANT)
+ Q_PROPERTY(bool steamWriteReady MEMBER inactive CONSTANT)
+public:
+ bool inactive=false;
+ QString empty;
+ QStringList accounts;
+ QString preview="Synthetic shortcut preparation only";
+ ac::test::AuthoredSteamFixture *fixture=nullptr;
+ QString requestedGame,requestedVariant,error;
+ std::optional<ac::steam::Shortcut> prepared;
+ Q_INVOKABLE bool beginSteam(const QString &gameId,const QString &variantId) {
+  requestedGame=gameId;requestedVariant=variantId;
+  try {
+   prepared=ac::steam::prepareGameShortcut(fixture->catalog,gameId,variantId,
+       fixture->temp.path(),fixture->hubExecutable,fixture->bindings);
+  } catch(const ac::install::Error &e) { error=e.code; }
+  return prepared.has_value();
+ }
+ Q_INVOKABLE void previewSteam(const QString &) {}
+ Q_INVOKABLE void approveSteamWrite() {}
+signals:
+ void removalPlanChanged();
+};
+class GunRoomProbe:public SteamPreparationProbe {
+ Q_OBJECT
+ Q_PROPERTY(QVariantList gunRoomModels MEMBER choices CONSTANT)
+ Q_PROPERTY(bool gunRoomAvailable READ available NOTIFY gunRoomChanged)
+ Q_PROPERTY(QString gunRoomReason READ reason NOTIFY gunRoomChanged)
+ Q_PROPERTY(bool gunRoomCalibrationAvailable READ calibrationAvailable NOTIFY gunRoomChanged)
+ Q_PROPERTY(QString gunRoomCalibrationReason READ calibrationReason NOTIFY gunRoomChanged)
+ Q_PROPERTY(bool gunRoomBusy MEMBER inactive CONSTANT)
+public:
+ QVariantList choices{QVariantMap{{"id","synthetic-pistol"},{"title","Synthetic pistol"}}};
+ QString model,hand,binary,explanation="Choose a hand.";
+ bool admitted=false,calibrationCapability=false;int launches=0,calibrations=0;
+ bool calibrationAvailable()const{return admitted&&calibrationCapability;}
+ QString calibrationReason()const{return "This reviewed build does not admit grip calibration.";}
+ bool available()const{return admitted;}QString reason()const{return explanation;}
+ Q_INVOKABLE void previewGunRoom(const QString &m,const QString &h,const QString &b){
+  model=m;hand=h;binary=b;admitted=!model.isEmpty()&&(hand=="left"||hand=="right")&&!binary.isEmpty();
+  explanation=admitted?QString():"Choose a gun model and a hand; a reviewed executable is required.";emit gunRoomChanged();
+ }
+ Q_INVOKABLE void launchGunRoom(const QString &m,const QString &h,const QString &b){previewGunRoom(m,h,b);if(admitted)++launches;}
+ Q_INVOKABLE void calibrateGunRoom(const QString &m,const QString &h,const QString &b){previewGunRoom(m,h,b);if(calibrationAvailable())++calibrations;}
+signals:void gunRoomChanged();
+};
+class LaunchLifecycleProbe:public GunRoomProbe {
+ Q_OBJECT
+ Q_PROPERTY(bool launchBusy READ busy CONSTANT)
+ Q_PROPERTY(bool preparing READ isPreparing CONSTANT)
+public:
+ bool startup=false;
+ bool busy()const{return true;}
+ bool isPreparing()const{return startup;}
+};
+class IdentityUiProbe:public ac::UiController {
+ Q_OBJECT
+ Q_PROPERTY(QString appName READ syntheticName CONSTANT)
+public:
+ using ac::UiController::UiController;
+ QString syntheticName()const{return QStringLiteral("Synthetic Product");}
 };
 class UiTest:public QObject {
  Q_OBJECT
@@ -80,6 +202,466 @@ class UiTest:public QObject {
   if(!qEnvironmentVariable("AC_UI_BENCH_OUTPUT").isEmpty()){auto out=QFileInfo(qEnvironmentVariable("AC_UI_BENCH_OUTPUT")).dir();QVERIFY(window->grabWindow().save(out.filePath("d-startup.png")));}
  }
  void themeAndSettings(){QCOMPARE(theme->get("motion.hover_dwell").toInt(),600);QCOMPARE(theme->get("motion.preview_scale").toDouble(),1.4);QVERIFY(theme->get("gradient.explore_banner_fade.stop").toList().size()==8);QVERIFY(settings->set("reduceMotion",true));QVERIFY(settings->saveGame("synthetic",{{"laser","on"},{"gun_pitch",-10}}));ac::UiSettings copy(user.path());QCOMPARE(copy.get("reduceMotion").toBool(),true);QCOMPARE(copy.game("synthetic").value("gun_pitch").toInt(),-10);settings->set("reduceMotion",false);}
+ void alternateProductNameInInstallerAndFoundationScenes(){
+  IdentityUiProbe alternate(games.get(),&filter,settings.get());
+  alternate.installEvent({{"kind","step"},{"step",1},{"total",1},{"text","Synthetic event"}});
+  QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&alternate);
+  context.setContextProperty("surfaceColor","#10131c");context.setContextProperty("primaryTextColor","#ffffff");
+  context.setContextProperty("brandColor","#ee892a");context.setContextProperty("overlaySpikeEnabled",false);
+  for(const auto &file:{QStringLiteral("InstallConsole.qml"),QStringLiteral("SpikeRoot.qml")}){
+   QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/"+file));
+   std::unique_ptr<QQuickItem> scene(qobject_cast<QQuickItem *>(component.create(&context)));
+   QVERIFY2(scene,qPrintable(component.errorString()));scene->setParentItem(window->contentItem());scene->setSize({1000,700});
+   QVERIFY(softwareFrame(window));
+   const bool installer=file=="InstallConsole.qml";
+   const auto labels=namedItems(scene.get(),installer?"installConsoleTitle":"spikeFoundationTitle");
+   QCOMPARE(labels.size(),1);
+   QCOMPARE(labels.first()->property("text").toString(),installer?QString("Synthetic Product installer · Last install"):QString("Synthetic Product: 413 games"));
+  }
+ }
+ void captureMarkersAreOptInInRealHubScene(){
+  const auto previous=root->property("captureMarkers");const auto cleanup=qScopeGuard([&]{root->setProperty("captureMarkers",previous);});
+  QVERIFY(!previous.toBool());QVERIFY(namedItems(window->contentItem(),"overlayCaptureCorner0").isEmpty());
+  QVERIFY(root->setProperty("captureMarkers",true));QVERIFY(softwareFrame(window));
+  const auto scene=qobject_cast<QQuickItem *>(root);QVERIFY(scene);
+  const QStringList labels{"TL 1","TR 2","BL 3","BR 4"};
+  const QStringList colors{"#ff00ff","#00ff00","#0000ff","#ff8800"};
+  for(int i=0;i<4;++i){
+   const auto corners=namedItems(scene,"overlayCaptureCorner"+QString::number(i));QCOMPARE(corners.size(),1);const auto corner=corners.first();
+   QCOMPARE(corner->x(),i%2?scene->width()-corner->width()-12:12.0);
+   QCOMPARE(corner->y(),i<2?12.0:scene->height()-corner->height()-12);QVERIFY(corner->isVisible());
+   QCOMPARE(corner->property("color").value<QColor>(),QColor(colors[i]));
+   const auto texts=namedItems(corner,"overlayCaptureLabel"+QString::number(i));QCOMPARE(texts.size(),1);QCOMPARE(texts.first()->property("text").toString(),labels[i]);
+  }
+  QVERIFY(root->setProperty("captureMarkers",false));QVERIFY(softwareFrame(window));QVERIFY(namedItems(scene,"overlayCaptureCorner0").isEmpty());
+ }
+ void emptyArtModelDuringNavigation(){
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameArt.qml"));
+  std::unique_ptr<QObject> art(component.create());QVERIFY(art);const auto before=warnings.size();
+  QVERIFY(art->setProperty("game",QVariant()));QTest::qWait(40);
+  QStringList invalid;for(const auto &warning:warnings.mid(before))if(warning.contains("TypeError")||warning.contains("ReferenceError"))invalid<<warning;
+  QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
+ }
+ void pinballTabRealScene(){
+  const auto previousView=root->property("view"),previousMode=root->property("vrOverlayMode");
+  const auto cleanup=qScopeGuard([&]{ui->selectPinball(QString());root->setProperty("view",previousView);root->setProperty("vrOverlayMode",previousMode);});
+  root->setProperty("view","List");root->setProperty("vrOverlayMode",true);
+  const auto tabs=namedItems(window->contentItem(),"pinballTab");QCOMPARE(tabs.size(),1);
+  const auto tab=tabs.first();snapshot("pinball-before-frame",tab);
+  QVERIFY(softwareFrame(window));snapshot("pinball-after-frame",tab);
+  QVERIFY(tab->height()>=48);
+  auto p=tab->mapToScene(QPointF(tab->width()/2,tab->height()/2));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
+  QCOMPARE(root->property("view").toString(),QString("Pinball"));
+  QVariantList rows;for(int i=0;i<25;++i)rows<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"maker","Synthetic"},{"year",2000},{"vrReady",i!=24},{"evidence",QStringList{"marked by you"}},{"romState","needs no ROM"}};
+  QVariantMap data{{"total",25},{"vrReady",24},{"tables",rows}};
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,data)));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"pinballGrid").isEmpty());
+  auto grid=namedItems(window->contentItem(),"pinballGrid").first();QTRY_COMPARE(grid->property("count").toInt(),24);
+  auto tiles=namedItems(window->contentItem(),"pinballTile");QVERIFY(!tiles.isEmpty());
+  auto tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,tile->height()/2));
+  QTest::mousePress(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTest::mouseMove(window,p.toPoint()-QPoint(0,140),80);QTest::mouseRelease(window,Qt::LeftButton,Qt::NoModifier,p.toPoint()-QPoint(0,140));
+  QVERIFY(namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
+  grid->setProperty("contentY",0);QTest::qWait(40);tiles=namedItems(window->contentItem(),"pinballTile");tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,tile->height()/2));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTRY_VERIFY(!namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
+  QCOMPARE(ui->property("pinballSelection").toMap().value("romState").toString(),QString("needs no ROM"));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"pinballLaunchHelp").isEmpty());
+  const auto launchHelp=namedItems(window->contentItem(),"pinballLaunchHelp").first();
+  const auto helpText=ui->property("pinballLaunchHelp").toString();
+  QVERIFY(helpText.contains("normal settings"));QVERIFY(helpText.contains("scores"));
+  QCOMPARE(launchHelp->property("text").toString(),helpText);
+  QSignalSpy play(ui.get(),SIGNAL(pinballPlayRequested(QString)));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"pinballPlay").isEmpty());
+  const auto playButton=namedItems(window->contentItem(),"pinballPlay").first();
+  QVERIFY(playButton->height()>=48);QVERIFY(playButton->isEnabled());
+  QVERIFY(QMetaObject::invokeMethod(playButton,"clicked"));QCOMPARE(play.size(),1);
+  QCOMPARE(play[0][0].toString(),ui->pinballSelection()["id"].toString());
+  root->setProperty("vrOverlayMode",false);QVERIFY(softwareFrame(window));
+  QCOMPARE(launchHelp->property("text").toString(),helpText);
+  root->setProperty("vrOverlayMode",true);QVERIFY(softwareFrame(window));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  auto model=ui->property("pinballControls").value<QObject *>();QVERIFY(model);
+  QCOMPARE(model->property("gameId").toString(),QString("pinball-vpx-openxr"));
+  QVERIFY(!model->property("rows").toList().isEmpty());
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"selectPinball",Q_ARG(QString,"")));
+  root->setProperty("vrOverlayMode",false);root->setProperty("view","List");
+ }
+ void pinballGlobalStopRealScene_data(){
+  QTest::addColumn<QString>("phase");
+  for(const auto &phase:{"preparing","running","restart-pending","unsupported-close","ordinary"})
+   QTest::newRow(phase)<<QString::fromLatin1(phase);
+ }
+ void pinballGlobalStopRealScene(){
+  QFETCH(QString,phase);
+  QTemporaryDir temporary;ac::UiSettings localSettings(temporary.path());
+  ac::UiController localUi(games.get(),&filter,&localSettings);
+  LaunchLifecycleProbe probe;probe.startup=phase=="preparing";
+  QQmlContext context(engine->rootContext());context.setContextProperty("hubServices",&probe);
+  context.setContextProperty("uiController",&localUi);context.setContextProperty("uiSettings",&localSettings);
+  QQmlComponent component(engine.get());component.setData("import QtQuick; import AladdinsCastle.Hub; HubRoot {width:1120;height:720;view: \"List\"}",QUrl());
+  std::unique_ptr<QQuickItem> scene(qobject_cast<QQuickItem *>(component.create(&context)));
+  QVERIFY2(scene,qPrintable(component.errorString()));scene->setParentItem(window->contentItem());scene->setZ(100);
+  const auto id=phase=="ordinary"?QString("timecris"):QString("pinball-synthetic");
+  if(phase=="ordinary")localUi.launchQueued(id,"flat",QString());
+  else localUi.launchPinballQueued({{"id","synthetic"},{"title","Synthetic table"}},phase=="unsupported-close"?QString("Close is unavailable here"):QString());
+  if(!probe.startup)localUi.launchStarted(id);
+  QSignalSpy close(&localUi,&ac::UiController::closeLaunchRequested),forced(&localUi,&ac::UiController::stopLaunchRequested);
+  QSignalSpy replay(&localUi,&ac::UiController::playRequested);
+  if(phase=="restart-pending")localUi.restartLaunch();
+  auto stop=scene->findChild<QQuickItem *>("globalStop");QVERIFY(stop);QTRY_VERIFY(stop->isVisible());
+  QVERIFY(softwareFrame(window));QVERIFY(withinClips(stop));
+  const auto point=stop->mapToScene({stop->width()/2,stop->height()/2});
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  if(phase=="ordinary"){
+   QCOMPARE(forced.count(),1);QCOMPARE(close.count(),0);QVERIFY(localUi.status().contains("forced"));
+  }else if(phase=="unsupported-close"){
+   QCOMPARE(forced.count(),0);QCOMPARE(close.count(),0);QVERIFY(!localUi.nowPlaying().value("closing").toBool());
+   QVERIFY(localUi.status().contains("VPX"));
+  }else{
+   QCOMPARE(close.count(),1);QCOMPARE(forced.count(),0);QVERIFY(localUi.nowPlaying().value("closing").toBool());
+   QVERIFY(!localUi.status().contains("forced"));
+   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+   QCOMPARE(close.count(),1);QCOMPARE(forced.count(),0);
+  }
+  localUi.launchFinished(id,QString());QVERIFY(localUi.nowPlaying().isEmpty());QCOMPARE(replay.count(),0);
+ }
+ void sharedNowPlayingRealScene(){
+  const auto previousView=root->property("view"),previousMode=root->property("vrOverlayMode");
+  const auto cleanup=qScopeGuard([&]{ui->launchFinished("timecris","Synthetic fixture cleanup");root->setProperty("view",previousView);root->setProperty("vrOverlayMode",previousMode);});
+  root->setProperty("view","List"); root->setProperty("vrOverlayMode",true);
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"launchQueued",Q_ARG(QString,"timecris"),Q_ARG(QString,"flat"),Q_ARG(QString,"")));
+  ui->launchStarted("timecris");
+  QTRY_VERIFY(!namedItems(window->contentItem(),"nowPlayingExit").isEmpty());
+  auto exit=namedItems(window->contentItem(),"nowPlayingExit").first();
+  QVERIFY(exit->isVisible());snapshot("card-before-frame",exit);
+  QVERIFY(softwareFrame(window));snapshot("card-after-frame",exit);
+  QVERIFY(exit->height()>=48);
+  auto recentre=namedItems(window->contentItem(),"nowPlayingRecentre").first();
+  QVERIFY(!recentre->isEnabled());
+  QSignalSpy close(ui.get(),SIGNAL(closeLaunchRequested()));
+  auto p=exit->mapToScene(QPointF(exit->width()/2,exit->height()/2));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
+  QCOMPARE(close.size(),1); QVERIFY(!exit->isEnabled());
+  ui->launchFinished("unrelated",QString()); QVERIFY(!ui->property("nowPlaying").toMap().isEmpty());
+  ui->launchFinished("timecris",QString()); QTRY_VERIFY(!exit->isVisible());
+  QCOMPARE(root->property("view").toString(),QString("List"));
+  QSignalSpy replay(ui.get(),&ac::UiController::playRequested);
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"launchQueued",Q_ARG(QString,"timecris"),Q_ARG(QString,"flat"),Q_ARG(QString,"")));
+  ui->launchStarted("timecris");
+  auto restart=namedItems(window->contentItem(),"nowPlayingRestart").first();
+  p=restart->mapToScene(QPointF(restart->width()/2,restart->height()/2));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
+  ui->launchFinished("timecris","Close failed"); QCOMPARE(replay.size(),0);
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"launchQueued",Q_ARG(QString,"timecris"),Q_ARG(QString,"flat"),Q_ARG(QString,"")));
+  ui->launchStarted("timecris");
+  QVERIFY(QMetaObject::invokeMethod(ui.get(),"restartLaunch"));
+  ui->launchFinished("timecris",QString()); QCOMPARE(replay.size(),1);
+  QCOMPARE(replay[0][1].toString(),QString("flat")); root->setProperty("vrOverlayMode",false);
+ }
+ void gunRoomDesktopRealScene(){
+  QTemporaryDir temporary;ac::UiSettings localSettings(temporary.path());
+  localSettings.set("gunRoomExecutable",temporary.filePath("reviewed room.exe"));
+  ac::UiController localUi(games.get(),&filter,&localSettings);GunRoomProbe probe;
+  QQmlContext context(engine->rootContext());context.setContextProperty("hubServices",&probe);
+  context.setContextProperty("uiController",&localUi);context.setContextProperty("uiSettings",&localSettings);
+  QQmlComponent component(engine.get());component.setData("import QtQuick; import AladdinsCastle.Hub; HubRoot {width:1120;height:720;view: \"List\"}",QUrl());
+  std::unique_ptr<QQuickItem> scene(qobject_cast<QQuickItem *>(component.create(&context)));
+  QVERIFY2(scene,qPrintable(component.errorString()));scene->setParentItem(window->contentItem());scene->setZ(100);
+  auto help=scene->findChild<QObject *>("helpPanel");QVERIFY(help);QVERIFY(QMetaObject::invokeMethod(help,"open"));
+  auto entry=scene->findChild<QQuickItem *>("helpGunRoom");QVERIFY(entry);QTRY_VERIFY(entry->isVisible());
+  auto entryPoint=entry->mapToScene({entry->width()/2,entry->height()/2});
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,entryPoint.toPoint());
+  QTRY_COMPARE(scene->property("view").toString(),QString("GunRoom"));
+  QTRY_VERIFY(!help->property("visible").toBool());
+  QTRY_VERIFY(scene->findChild<QQuickItem *>("gunRoomLaunch"));
+  auto launch=scene->findChild<QQuickItem *>("gunRoomLaunch");
+  auto model=scene->findChild<QObject *>("gunRoomModel"),hand=scene->findChild<QObject *>("gunRoomHand");
+  QVERIFY(model);QVERIFY(hand);QCOMPARE(hand->property("currentIndex").toInt(),-1);QVERIFY(!launch->isEnabled());
+  model->setProperty("currentIndex",0);QVERIFY(!launch->isEnabled());hand->setProperty("currentIndex",0);
+  QTRY_VERIFY(launch->isEnabled());
+  snapshot("gun-room-before-frame",launch);
+  QVERIFY(softwareFrame(window));snapshot("gun-room-after-frame",launch);
+  auto point=launch->mapToScene({launch->width()/2,launch->height()/2});
+  auto page=scene->findChild<QQuickItem *>("gunRoomPage");QVERIFY(page);
+  page->setProperty("contentY",qMax(0.0,point.y()-window->height()/2));
+  QVERIFY(softwareFrame(window));snapshot("gun-room-after-scroll",launch);
+  QTRY_VERIFY(withinClips(launch));
+  point=launch->mapToScene({launch->width()/2,launch->height()/2});
+  QSignalSpy presses(launch,SIGNAL(pressed())),releases(launch,SIGNAL(released())),clicks(launch,SIGNAL(clicked()));
+  hitSnapshot(window,point);
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  if(diagnosticEnabled())qInfo()<<"DISPATCH"<<presses.size()<<releases.size()<<clicks.size()<<probe.launches;
+  QCOMPARE(probe.launches,1);QCOMPARE(probe.model,QString("synthetic-pistol"));QCOMPARE(probe.hand,QString("left"));
+  QCOMPARE(probe.binary,localSettings.get("gunRoomExecutable").toString());
+  auto calibrate=scene->findChild<QQuickItem *>("gunRoomCalibrate");QVERIFY(calibrate);
+  QVERIFY(!calibrate->isVisible());QCOMPARE(probe.calibrations,0);
+  probe.calibrationCapability=true;emit probe.gunRoomChanged();
+  QTRY_VERIFY(calibrate->isVisible());QTRY_VERIFY(calibrate->isEnabled());
+  QVERIFY(softwareFrame(window));point=calibrate->mapToScene({calibrate->width()/2,calibrate->height()/2});
+  page->setProperty("contentY",page->property("contentY").toReal()+point.y()-window->height()/2);
+  QVERIFY(softwareFrame(window));QTRY_VERIFY(withinClips(calibrate));
+  point=calibrate->mapToScene({calibrate->width()/2,calibrate->height()/2});
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  QCOMPARE(probe.calibrations,1);QCOMPARE(probe.launches,1);
+  QCOMPARE(probe.hand,QString("left"));
+  probe.calibrationCapability=false;emit probe.gunRoomChanged();QTRY_VERIFY(!calibrate->isVisible());
+  QVERIFY(QMetaObject::invokeMethod(&localUi,"launchRoomQueued",Q_ARG(QString,probe.model),Q_ARG(QString,probe.hand)));
+  localUi.launchStarted("__gun_room");
+  auto exit=scene->findChild<QQuickItem *>("nowPlayingExit");QVERIFY(exit);QTRY_VERIFY(exit->isVisible());
+  QSignalSpy close(&localUi,&ac::UiController::closeLaunchRequested);
+  point=exit->mapToScene({exit->width()/2,exit->height()/2});QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  QCOMPARE(close.size(),1);QVERIFY(!exit->isEnabled());
+  QVERIFY(localUi.nowPlaying().value("closing").toBool());
+  localUi.launchFinished("__gun_room",QString());QTRY_VERIFY(!exit->isVisible());
+  QVERIFY(QMetaObject::invokeMethod(&localUi,"launchRoomQueued",Q_ARG(QString,probe.model),Q_ARG(QString,probe.hand),Q_ARG(bool,true)));
+  localUi.launchStarted("__gun_room");
+  QVERIFY(localUi.nowPlaying().value("calibrateGrip").toBool());
+  // A later form edit must not change the retained card/restart action.
+  hand->setProperty("currentIndex",1);QCOMPARE(localUi.nowPlaying().value("variantId").toString(),QString("synthetic-pistol|left|calibrate"));
+  QSignalSpy replay(&localUi,&ac::UiController::playRequested);
+  auto restart=scene->findChild<QQuickItem *>("nowPlayingRestart");QVERIFY(restart);
+  QTRY_VERIFY(restart->isVisible());QVERIFY(softwareFrame(window));QVERIFY(withinClips(restart));
+  point=restart->mapToScene({restart->width()/2,restart->height()/2});
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  QVERIFY(localUi.nowPlaying().value("closing").toBool());QCOMPARE(replay.size(),0);
+  localUi.launchFinished("__gun_room",QString());QCOMPARE(replay.size(),1);
+  QCOMPARE(replay[0][1].toString(),QString("synthetic-pistol|left|calibrate"));
+  scene->setProperty("vrOverlayMode",true);QTRY_VERIFY(!scene->findChild<QQuickItem *>("gunRoomLaunch"));
+  QVERIFY(!entry->isVisible());
+ }
+ void desktopDetailEmbedsNativeControls(){
+  ui->openDetail("timecris");root->setProperty("view","Detail");
+  QTRY_VERIFY_WITH_TIMEOUT(!namedItems(window->contentItem(),"universalControlsView").isEmpty(),3000);
+  const auto view=namedItems(window->contentItem(),"universalControlsView").first();
+  auto model=view->property("controlsModel").value<QObject *>();QVERIFY(model);
+  QCOMPARE(model->property("gameId").toString(),QString("timecris"));
+  QVERIFY(!model->property("rows").toList().isEmpty());
+  QVERIFY(model->property("previewAvailable").toBool());
+  QCOMPARE(model->property("modelId").toString(),QString("arc-pistol-slide"));
+  const auto preview=QDir(AC_CATALOG_ROOT).absoluteFilePath("assets/guns/preview/arc-pistol-slide.png");
+  QCOMPARE(model->property("previewImage").toUrl(),QUrl::fromLocalFile(preview));
+  QImageReader reader(preview);QVERIFY(reader.canRead());QCOMPARE(reader.size(),QSize(512,512));
+  QVERIFY(!reader.read().isNull());
+  const auto images=namedItems(view,"gunPreviewImage");QCOMPARE(images.size(),1);
+  QTRY_VERIFY(images.first()->isVisible());
+  QCOMPARE(images.first()->property("source").toUrl(),model->property("previewImage").toUrl());
+  QVERIFY(!model->property("markers").toList().isEmpty());
+  root->setProperty("view","List");
+  QTRY_VERIFY(model->property("gameId").toString().isEmpty());
+ }
+ void desktopControlsKeepMappingsWhenPreviewIsMissing(){
+  ui->openDetail("timecris");root->setProperty("view","Detail");
+  auto controls=ui->controlsController();
+  QTRY_COMPARE_WITH_TIMEOUT(controls->model()->gameId(),QString("timecris"),10000);
+  QTemporaryDir emptyPreviews(user.filePath("empty-previews-XXXXXX"));QVERIFY(emptyPreviews.isValid());
+  ac::ControlsViewModel missingPreview;
+  QVERIFY(missingPreview.loadResolved(controls->resolved(),emptyPreviews.path()));
+  QVERIFY(!missingPreview.previewAvailable());QVERIFY(missingPreview.previewImage().isEmpty());
+  QVERIFY(missingPreview.markers().isEmpty());QVERIFY(!missingPreview.rows().isEmpty());
+  for(const auto &row:missingPreview.rows())QVERIFY(!row.toMap().value("anchorAvailable").toBool());
+  QQmlComponent component(engine.get(),QUrl("qrc:/controls/ControlsView.qml"));
+  std::unique_ptr<QObject> object(component.createWithInitialProperties({{"controlsModel",QVariant::fromValue(&missingPreview)}}));
+  QVERIFY2(object,qPrintable(component.errorString()));auto view=qobject_cast<QQuickItem *>(object.get());QVERIFY(view);
+  QCOMPARE(namedItems(view,"controlsCallout").size(),missingPreview.rows().size());
+  const auto images=namedItems(view,"gunPreviewImage");QCOMPARE(images.size(),1);QVERIFY(!images.first()->isVisible());
+  root->setProperty("view","List");QTRY_VERIFY(controls->model()->gameId().isEmpty());
+ }
+ void selectedNativeWiiRouteExplainsMappingOnRealPage(){
+  QTemporaryDir fixture;
+  const QString game="wii-resident-evil-umbrella-chronicles";
+  const auto originalRuntime=games->find(game)->runtime;
+  const auto restoreRuntime=qScopeGuard([&]{games->applyRuntimeStates({originalRuntime});});
+  for(const auto &folder:{QString("data"),QString("games/timecris"),QString("games/vcop"),"games/"+game}){
+   QDirIterator files(QString(AC_CATALOG_ROOT)+"/"+folder,{"*.toml"},QDir::Files,QDirIterator::Subdirectories);
+   while(files.hasNext()){
+    const auto source=files.next(),target=QDir(fixture.path()).filePath(QDir(AC_CATALOG_ROOT).relativeFilePath(source));
+    QVERIFY(QDir().mkpath(QFileInfo(target).absolutePath()));QVERIFY(QFile::copy(source,target));
+   }
+  }
+  QFile catalog(QString(AC_CATALOG_ROOT)+"/data/controls/wii/view-catalog.json");QVERIFY(catalog.open(QIODevice::ReadOnly));
+  QJsonObject selected;
+  for(const auto &row:QJsonDocument::fromJson(catalog.readAll()).object().value("games").toArray())
+   if(row.toObject().value("game_id").toString()==game)selected=row.toObject();
+  QVERIFY(!selected.isEmpty());auto data=selected.value("data").toObject();data["route"]="flat-dolphin";selected["data"]=data;
+  QFile output(QDir(fixture.path()).filePath("data/controls/wii/view-catalog.json"));QVERIFY(output.open(QIODevice::WriteOnly));
+  output.write(QJsonDocument(QJsonObject{{"version","0.1"},{"games",QJsonArray{selected}}}).toJson());output.close();
+  ui->controlsController()->configure(fixture.path(),{});
+  const auto restore=qScopeGuard([&]{root->setProperty("view","List");ui->controlsController()->configure(AC_CATALOG_ROOT,{});});
+  ui->openDetail("wii-resident-evil-umbrella-chronicles");ui->selectVariant("dolphin");
+  root->setProperty("view","Detail");
+  QTRY_VERIFY2_WITH_TIMEOUT(!ui->controlsController()->model()->rows().isEmpty(),qPrintable(ui->detailControlsStatus()),10000);
+  QTRY_COMPARE(namedItems(window->contentItem(),"universalControlsView").size(),1);
+  QQuickItem *native=nullptr;
+  QTRY_VERIFY(!namedItems(window->contentItem(),"detailVariant").isEmpty());
+  for(auto *item:namedItems(window->contentItem(),"detailVariant"))
+    if(item->property("modelData").toMap().value("id")=="dolphinxr")native=item;
+  QVERIFY(native);QVERIFY(native->isVisible());
+  auto page=window->findChild<QQuickItem *>("detailPage");QVERIFY(page);
+  auto flick=page->property("contentItem").value<QQuickItem *>();QVERIFY(flick);
+  auto click=[&](QQuickItem *button){
+   const auto before=button->mapToScene(QPointF(button->width()/2,button->height()/2));
+   flick->setProperty("contentY",qMax(0.0,before.y()+flick->property("contentY").toDouble()-window->height()/2));
+   QTest::qWait(50);
+   const auto point=button->mapToScene(QPointF(button->width()/2,button->height()/2));
+   QVERIFY(point.y()>0&&point.y()<window->height());
+   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  };
+  click(native);
+  QTRY_COMPARE(ui->detail().value("variantId").toString(),QString("dolphinxr"));
+  QTRY_VERIFY_WITH_TIMEOUT(!ui->detailControlsLoading(),10000);
+  QVERIFY2(ui->controlsController()->model()->rows().isEmpty(),"Native route displays DSU bridge rows");
+  QTRY_VERIFY(window->findChild<QObject *>("detailControlsStatus"));
+  auto explanation=window->findChild<QObject *>("detailControlsStatus");
+  QVERIFY(explanation->property("visible").toBool());
+  QVERIFY(explanation->property("text").toString().contains("inside DolphinXR"));
+  QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  const auto rows=ui->detail().value("controls").toList();QCOMPARE(rows.size(),1);
+  QVERIFY(rows.first().toMap().value("notes").toString().contains("inside DolphinXR"));
+  auto clickRoute=[&](const QString &id){
+   for(auto *item:namedItems(window->contentItem(),"detailVariant"))
+    if(item->property("modelData").toMap().value("id").toString()==id){
+     click(item);return;
+    }
+   QFAIL("Route button not found");
+  };
+  clickRoute("dolphin");QTRY_COMPARE(ui->detail().value("variantId").toString(),QString("dolphin"));
+  QTRY_VERIFY_WITH_TIMEOUT(!ui->detailControlsLoading(),10000);QVERIFY(!ui->controlsController()->model()->rows().isEmpty());
+  QTRY_COMPARE(namedItems(window->contentItem(),"universalControlsView").size(),1);
+  clickRoute("dolphinxr");QTRY_COMPARE(ui->detail().value("variantId").toString(),QString("dolphinxr"));
+  QTRY_VERIFY(ui->controlsController()->model()->rows().isEmpty());QVERIFY(ui->detailControlsStatus().contains("inside DolphinXR"));
+  QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  ui->openDetail(game); // Clear the explicit choice: follow effective runtime selection.
+  QTRY_VERIFY_WITH_TIMEOUT(!ui->controlsController()->model()->rows().isEmpty(),10000);
+  auto runtime=originalRuntime;runtime.selectedVariantId="dolphinxr";games->applyRuntimeStates({runtime});
+  QTRY_COMPARE(ui->detail().value("variantId").toString(),QString("dolphinxr"));
+  QTRY_VERIFY(ui->controlsController()->model()->rows().isEmpty());
+  QTRY_VERIFY(explanation->property("text").toString().contains("inside DolphinXR"));
+  QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  root->setProperty("view","List");
+ }
+ void catalogBadgesDescribeMetadata(){
+  QCOMPARE(ui->vrLabel(1),QString("TRUE 3D · CATALOG"));
+  QCOMPARE(ui->vrLabel(2),QString("THEATRE · CATALOG"));
+ }
+ void catalogMetadataFitsSmallCard(){
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameCard.qml"));
+  std::unique_ptr<QObject> object(component.create());QVERIFY2(object,qPrintable(component.errorString()));
+  auto card=qobject_cast<QQuickItem *>(object.get());QVERIFY(card);card->setParentItem(window->contentItem());
+  card->setProperty("sizeValue","S");card->setWidth(card->implicitWidth());card->setHeight(card->implicitHeight());
+  const auto pad=theme->get("space.card_inner_pad").toDouble()*card->property("factor").toDouble();
+  double furthest=0;QString longest;int qualified=0;
+  for(const auto &game:games->records()){
+   const auto badge=game.roles.value("vrBadge").toInt();if(badge!=1&&badge!=2)continue;
+   ++qualified;card->setProperty("game",game.roles);QCoreApplication::processEvents();
+   const auto players=game.roles.value("players").toInt();
+   const auto text=ui->vrLabel(badge)+"  "+(players>1?QString::number(players)+"P":QString())+"  "+game.roles.value("controlsLabel").toString();
+   QQuickItem *metadata=nullptr;for(auto item:namedItems(card,QString()))if(item->property("text").toString()==text){metadata=item;break;}
+   QVERIFY(metadata);const auto right=metadata->mapToItem(card,QPointF(metadata->width(),0)).x();
+   if(right>furthest){furthest=right;longest=game.id+": "+text;}
+   QVERIFY(QFontMetricsF(metadata->property("font").value<QFont>()).horizontalAdvance(ui->vrLabel(badge))<=card->width()-2*pad);
+  }
+  QVERIFY(qualified>0);qInfo().noquote()<<"Furthest qualified small-card metadata:"<<longest<<"right edge"<<furthest<<"inner edge"<<card->width()-pad;
+  QVERIFY2(furthest<=card->width()-pad+0.5,qPrintable(longest));
+ }
+ void pinnedAuthoredSetupIsAvailableOnRealDetailPage(){
+  auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
+  auto game=*catalog.find("wii-resident-evil-umbrella-chronicles");
+  ac::Variant authored;authored.id="dolphinxr";authored.title="DolphinXR (experimental VR)";authored.status="wip";authored.quality="true3d";authored.media={"disc"};
+  authored.raw={{"status","wip"},{"quality","true3d"},{"version","v0.4"},{"launch",{{"exe","${install_dir}/Dolphin.exe"},{"exe_sha256",std::string(64,'a')},{"args",ac::Json::array({"--user","${install_dir}/User"})},{"runtime","steamvr"}}}};
+  game.variants.prepend(authored);game.install={{"format",1},{"variant",{{"dolphinxr",authored.raw}}}};game.hasRecipe=true;game.runtime.mediaFound={"disc"};
+  catalog.games={game};ac::GameListModel model(catalog);ac::FilterSortModel localFilter;localFilter.setSourceModel(&model);
+  ac::UiController localUi(&model,&localFilter,settings.get());localUi.openDetail(game.id);localUi.selectVariant(authored.id);
+  QVERIFY(localUi.detail().value("m1Available").toBool());
+  QSignalSpy install(&localUi,&ac::UiController::installRequested),play(&localUi,&ac::UiController::playRequested);
+  QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&localUi);
+  QQmlComponent component(engine.get());component.setData("import QtQuick; import AladdinsCastle.Hub; DetailPage {width:1120;height:720}",QUrl());
+  std::unique_ptr<QQuickItem> page(qobject_cast<QQuickItem *>(component.create(&context)));QVERIFY2(page,qPrintable(component.errorString()));
+  page->setParentItem(window->contentItem());page->setZ(100);QTest::qWait(50);
+  auto primary=page->findChild<QQuickItem *>("detailPrimary");QVERIFY(primary);QVERIFY(primary->isEnabled());
+  auto flick=page->property("contentItem").value<QQuickItem *>();QVERIFY(flick);QVERIFY(flick->property("contentY").isValid());
+  const auto initial=primary->mapToScene({primary->width()/2,primary->height()/2});
+  flick->setProperty("contentY",qMax(0.0,initial.y()-window->height()/2));QTest::qWait(50);
+  const auto point=primary->mapToScene({primary->width()/2,primary->height()/2});
+  QVERIFY(point.x()>0&&point.x()<window->width()&&point.y()>0&&point.y()<window->height());
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  QCOMPARE(install.count(),1);localUi.play(game.id,authored.id);QCOMPARE(play.count(),1);
+ }
+ void authoredSteamActionUsesActualQmlSelection(){
+  ac::test::AuthoredSteamFixture fixture;
+  ac::GameListModel localGames(fixture.catalog);ac::FilterSortModel localFilter;localFilter.setSourceModel(&localGames);
+  ac::UiSettings localSettings(fixture.temp.filePath("user"));ac::UiController localUi(&localGames,&localFilter,&localSettings);
+  localUi.openDetail("wii-synthetic");localUi.selectVariant("flat-dolphin");
+  SteamPreparationProbe probe;probe.fixture=&fixture;
+  QQmlContext context(engine->rootContext());
+  context.setContextProperty("gameModel",&localGames);context.setContextProperty("gameFilter",&localFilter);
+  context.setContextProperty("uiController",&localUi);context.setContextProperty("uiSettings",&localSettings);
+  context.setContextProperty("hubServices",&probe);context.setContextProperty("catalogGameCount",1);
+  QQmlComponent component(engine.get());
+  component.setData("import QtQuick; import AladdinsCastle.Hub; HubRoot {width:1120;height:720;view: \"Detail\"}",QUrl());
+  std::unique_ptr<QQuickItem> scene(qobject_cast<QQuickItem *>(component.create(&context)));
+  QVERIFY2(scene,qPrintable(component.errorString()));scene->setParentItem(window->contentItem());scene->setZ(100);
+  QTRY_VERIFY(scene->findChild<QQuickItem *>("detailPage"));
+  auto page=scene->findChild<QQuickItem *>("detailPage");
+  auto flick=page->property("contentItem").value<QQuickItem *>();QVERIFY(flick);
+  const auto click=[&](QQuickItem *button){
+   const auto before=button->mapToScene({button->width()/2,button->height()/2});
+   flick->setProperty("contentY",qMax(0.0,before.y()+flick->property("contentY").toDouble()-window->height()/2));
+   QTest::qWait(50);
+   const auto point=button->mapToScene({button->width()/2,button->height()/2});
+   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
+  };
+  QQuickItem *variantButton=nullptr;
+  for(auto item:namedItems(page,QString()))
+   if(item->property("text").toString().startsWith("DolphinXR (experimental VR)")) { variantButton=item;break; }
+  QVERIFY(variantButton);click(variantButton);
+  QTRY_COMPARE(localUi.detail().value("variantId").toString(),QString("dolphinxr"));
+  QCOMPARE(localUi.detail().value("state").toInt(),int(ac::GameState::Installed));
+  QQuickItem *steamButton=nullptr;
+  for(auto item:namedItems(page,QString()))
+   if(item->property("text").toString()=="Add to Steam library") { steamButton=item;break; }
+  QVERIFY(steamButton);QVERIFY(steamButton->isVisible());click(steamButton);
+  QTRY_COMPARE(probe.requestedVariant,QString("dolphinxr"));
+  QCOMPARE(probe.requestedGame,QString("wii-synthetic"));
+  QVERIFY2(probe.prepared.has_value(),qPrintable("Selected authored Steam shortcut refused: "+probe.error));
+  QVERIFY(probe.prepared->vr);QCOMPARE(probe.prepared->executable,fixture.hubExecutable);
+  auto dialog=scene->findChild<QObject *>("steamDialog");QVERIFY(dialog);
+  QTRY_VERIFY(dialog->property("opened").toBool());QVERIFY(QMetaObject::invokeMethod(dialog,"close"));
+ }
+ void authoredVrCopyKeepsInstallAndPlayBlocked(){
+  ui->openDetail("timecris");ui->selectVariant("dr89-pcvr");
+  QVERIFY(!ui->detail().value("m1Available").toBool());
+  QSignalSpy install(ui.get(),&ac::UiController::installRequested),play(ui.get(),&ac::UiController::playRequested);
+  ui->startInstall("timecris","dr89-pcvr");QCOMPARE(install.count(),0);QVERIFY(ui->status().contains("not enabled"));
+  ui->play("timecris","dr89-pcvr");QCOMPARE(play.count(),0);QVERIFY(ui->status().contains("not enabled"));
+  const auto components=ui->detail().value("components").toList();QVERIFY(!components.isEmpty());
+  QVERIFY(components.first().toMap().value("role").toString().contains("recipe"));
+  root->setProperty("view","Detail");QTRY_VERIFY(window->findChild<QObject *>("detailStateReason"));
+  const auto reason=window->findChild<QObject *>("detailStateReason")->property("text").toString();
+  QVERIFY(reason.contains("not enabled"));QVERIFY(!reason.contains("M1"));
+  root->setProperty("view","List");
+ }
+ void desktopControlsSwitchClearAndKeepEvidenceHonest(){
+  ui->openDetail("timecris");root->setProperty("view","Detail");
+  auto controls=ui->controlsController();auto model=controls->model();
+  QTRY_COMPARE_WITH_TIMEOUT(model->gameId(),QString("timecris"),10000);
+  QCOMPARE(controls->resolved().value("node_validation").toString(),QString("not-built"));
+  for(const auto &row:model->rows())QVERIFY(row.toMap().value("availability").toString()!="available");
+  const auto policy=controls->resolved().value("data").toMap().value("policy").toMap();
+  QVERIFY(settings->saveGame("timecris",{{"left_handed",true}}));
+  QTRY_VERIFY_WITH_TIMEOUT(!controls->loading(),10000);
+  QCOMPARE(controls->resolved().value("data").toMap().value("policy").toMap(),policy);
+  auto pressed=[&]{for(const auto &row:model->rows())if(row.toMap().value("pressed").toBool())return true;return false;};
+  QFocusEvent focusIn(QEvent::FocusIn,Qt::OtherFocusReason);QCoreApplication::sendEvent(window,&focusIn);qobject_cast<QQuickItem *>(root)->forceActiveFocus();
+  model->setBindingState("right","trigger",true);QVERIFY(pressed());
+  QFocusEvent focusOut(QEvent::FocusOut,Qt::OtherFocusReason);QCoreApplication::sendEvent(window,&focusOut);QTRY_VERIFY(!pressed());
+  QCoreApplication::sendEvent(window,&focusIn);
+  model->setBindingState("right","trigger",true);QVERIFY(pressed());ui->launchFinished("timecris",{});QVERIFY(!pressed());
+  ui->openDetail("vcop");QTRY_COMPARE_WITH_TIMEOUT(model->gameId(),QString("vcop"),10000);QVERIFY(!pressed());
+  QCOMPARE(controls->resolved().value("node_validation").toString(),QString("not-built"));
+  QString racing;for(const auto &game:games->records())if(game.roles.value("genreId")=="racing"){racing=game.id;break;}QVERIFY(!racing.isEmpty());
+  ui->openDetail(racing);QTRY_VERIFY_WITH_TIMEOUT(!controls->loading(),10000);QVERIFY(model->rows().isEmpty());QVERIFY(!ui->detailControlsStatus().isEmpty());
+  QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
+  root->setProperty("view","List");QTRY_VERIFY(model->gameId().isEmpty());
+ }
  void componentLoading(){
   const QStringList components{"PillButton","UiText","GameArt","GradientText","GameCard","SectionHeader","FeaturedBanner","Header","FilterBar","ScanProgress","FiltersDrawer","GameGrid","LibraryTile","RecentlyPlayedRow","ExplorePage","DetailPage","InstallConsole","RecoveryPanel","SettingsPage","SortMenu","HelpPanel"};
   for(const auto &name:components){QQmlComponent c(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/"+name+".qml"));QVERIFY2(c.isReady(),qPrintable(c.errorString()));std::unique_ptr<QObject> o(c.create());QVERIFY2(o!=nullptr,qPrintable(c.errorString()));}
@@ -135,8 +717,51 @@ class UiTest:public QObject {
  void recentReordersWhenLastPlayedChanges(){
   filter.setSortMode("recent");const auto id=games->records().last().id;const auto original=games->find(id)->runtime;auto state=original;state.lastPlayed=123456;games->applyRuntimeStates({state});QTRY_COMPARE(ui->filteredGame(0).value("gameId").toString(),id);games->applyRuntimeStates({original});filter.setSortMode("title");
  }
+ void exploreTilesBindLocalArt_data(){
+  QTest::addColumn<bool>("delayedIncubation");
+  QTest::newRow("window-incubation")<<false;
+  QTest::newRow("delayed-delegate-incubation")<<true;
+ }
  void exploreTilesBindLocalArt(){
-  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/ExplorePage.qml"));std::unique_ptr<QObject> object(component.create());QVERIFY(object);auto page=qobject_cast<QQuickItem *>(object.get());QVERIFY(page);page->setParentItem(window->contentItem());page->setWidth(1000);page->setHeight(650);QTest::qWait(100);const auto tiles=namedItems(page,"libraryTile");QVERIFY(!tiles.isEmpty());for(auto tile:tiles){const auto source=tile->property("source").toUrl().toString();QVERIFY(source.startsWith("image://art/"));QVERIFY(source.contains("/portrait"));}page->setParentItem(nullptr);
+  QFETCH(bool,delayedIncubation);
+  QQmlIncubationController incubation;
+  auto original=engine->incubationController();
+  if(delayedIncubation) engine->setIncubationController(&incubation);
+  const auto restore=qScopeGuard([&]{if(delayedIncubation)engine->setIncubationController(original);});
+  QTimer frames;frames.setInterval(5);
+  connect(&frames,&QTimer::timeout,this,[&]{incubation.incubateFor(2);});
+  if(delayedIncubation) QTimer::singleShot(250,&frames,qOverload<>(&QTimer::start));
+  // Sorting queues facetsChanged; exercise a model refresh during incubation.
+  QSignalSpy refreshed(ui.get(),&ac::UiController::facetsChanged);
+  if(delayedIncubation){filter.setSortMode("recent");filter.setSortMode("title");}
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/ExplorePage.qml"));
+  std::unique_ptr<QObject> object(component.create());QVERIFY2(object,qPrintable(component.errorString()));
+  auto page=qobject_cast<QQuickItem *>(object.get());QVERIFY(page);
+  page->setParentItem(window->contentItem());page->setWidth(1000);page->setHeight(650);
+  if(delayedIncubation) QTRY_VERIFY(refreshed.count()>0);
+  else QCoreApplication::processEvents();
+  QString diagnostic;
+  auto boundTiles=[&]{
+   // Model replacement/incubation can destroy items between event turns.
+   // Reacquire all delegates each time instead of retaining transient pointers.
+   const auto tiles=namedItems(page,"libraryTile");
+   if(tiles.isEmpty()){diagnostic="ExplorePage has no libraryTile delegates yet";return false;}
+   for(auto tile:tiles){
+    const auto value=tile->property("game");
+    const auto game=value.metaType().id()==qMetaTypeId<QJSValue>()?value.value<QJSValue>().toVariant().toMap():value.toMap();
+    const auto id=game.value("gameId").toString();
+    const auto source=tile->property("source").toUrl().toString();
+    const auto expected="image://art/"+id+"/portrait";
+    if(id.isEmpty()||!games->find(id)||source!=expected){
+     diagnostic=QString("item=%1 game=%2 source=%3 expected=%4 tiles=%5 incubating=%6")
+         .arg(tile->objectName(),id,source,expected).arg(tiles.size()).arg(engine->incubationController()?engine->incubationController()->incubatingObjectCount():0);
+     return false;
+    }
+   }
+   return true;
+  };
+  QTRY_VERIFY2(boundTiles(),qPrintable(diagnostic));
+  page->setParentItem(nullptr);
  }
  void nonInstallErrorsHaveNoInstallRecovery(){
   ui->installFinished(true,"Synthetic completion");ui->showError("Steam","Synthetic failure");QCOMPARE(ui->status(),QString("Steam: Synthetic failure"));QVERIFY(ui->recovery().isEmpty());QVERIFY(!ui->installing());
@@ -217,6 +842,23 @@ class UiTest:public QObject {
   ui->openDetail("timecris");for(const auto &view:{"List","Detail","Explore","Settings"}){root->setProperty("view",view);QTest::qWait(60);inspect(window->contentItem());}
   for(const auto &name:{"scanDialog","toolDialog","steamDialog","removeDialog"}){auto dialog=window->findChild<QObject *>(name);QVERIFY(dialog);QVERIFY(QMetaObject::invokeMethod(dialog,"open"));QTest::qWait(60);inspect(window->contentItem());QVERIFY(QMetaObject::invokeMethod(dialog,"close"));}
   QVERIFY(checked>50);root->setProperty("view","List");root->setProperty("vrOverlayMode",false);
+ }
+ void artDelayedRecordKeepsFallbackSafe(){
+  const auto before=warnings.size();QQmlComponent component(engine.get());
+  component.setData("import QtQuick; import AladdinsCastle.Hub; GameArt { property bool recordReady:false; readonly property var safeGame: recordReady ? ({accent: \"#123456\"}) : undefined }",QUrl());
+  std::unique_ptr<QQuickItem> art(qobject_cast<QQuickItem *>(component.create(engine->rootContext())));
+  QVERIFY2(art,qPrintable(component.errorString()));art->setParentItem(window->contentItem());art->setSize({160,120});
+  QVERIFY(softwareFrame(window));QVERIFY(art->setProperty("recordReady",true));
+  QVERIFY(art->property("recordReady").toBool());
+  QCOMPARE(art->property("safeGame").toMap().value("accent").toString(),QString("#123456"));
+  QVERIFY(softwareFrame(window));
+  QColor expected("#123456");expected.setAlphaF(0.17f);int checked=0;
+  for(auto child:art->childItems())if(child->property("rotation").toDouble()==28){
+   QCOMPARE(child->property("color").value<QColor>(),expected);++checked;
+  }
+  QCOMPARE(checked,8);
+  QStringList invalid;for(qsizetype i=before;i<warnings.size();++i)if(warnings[i].contains("TypeError"))invalid<<warnings[i];
+  QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
  }
  void sceneWarnings(){QTest::qWait(100);QStringList invalid;for(const auto &w:warnings)if(w.contains("ReferenceError")||w.contains("TypeError")||w.contains("Unable to assign")||w.contains("Binding loop")||w.contains("is not a type"))invalid<<w;QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));}
  void selfBenchmark(){

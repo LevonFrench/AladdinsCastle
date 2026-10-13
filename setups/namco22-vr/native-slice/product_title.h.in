@@ -1,0 +1,2 @@
+/* Configure-time consumer of canonical data/product.json; not a second name. */
+#define ACN22_FIXTURE_TITLE "@ac_display_name@ - SYNTHETIC native System22 SBS"

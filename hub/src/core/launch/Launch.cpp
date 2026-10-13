@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Launch.h"
+#include "ProductIdentity.h"
 #include "core/install/Support.h"
 #include "core/scan/Scan.h"
 #include <QDateTime>
@@ -9,9 +10,38 @@
 #include <QRegularExpression>
 #include <QUuid>
 #include <QtConcurrent/QtConcurrentRun>
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 namespace ac::launch {
 using install::Error;
 using install::string;
+namespace {
+#ifdef Q_OS_WIN
+struct CloseWindowSearch { DWORD pid; bool found=false; };
+BOOL CALLBACK findCloseWindow(HWND window,LPARAM parameter){
+  auto &search=*reinterpret_cast<CloseWindowSearch *>(parameter);DWORD pid=0;
+  GetWindowThreadProcessId(window,&pid);
+  if(pid==search.pid&&(IsWindowVisible(window)||(GetWindowLongPtrW(window,GWL_STYLE)&WS_CAPTION)!=0)){
+    search.found=true;return FALSE;
+  }
+  return TRUE;
+}
+bool hasCloseWindow(qint64 pid){
+  CloseWindowSearch search{static_cast<DWORD>(pid)};
+  EnumWindows(findCloseWindow,reinterpret_cast<LPARAM>(&search));return search.found;
+}
+#endif
+void verifyDisc(const QString &path,const QString &expected){
+  std::atomic_bool cancel=false;const auto current=scan::Scanner::inspect(path,cancel);
+  if(QFileInfo(path).isSymLink()||QFileInfo(path).isJunction()||!current.error.isEmpty()||current.kind!="disc-id"||current.identity!=expected||expected.isEmpty())
+    throw Error("E_MEDIA_CHANGED","Disc header identity changed or is unreadable; scan again");
+}
+QMap<QString,QString> discChecks(const Json &bindings){QMap<QString,QString> result;for(const auto &b:bindings.value("media",Json::object()))if(b.value("verified",false)&&string(b,"proof")=="disc-id")result[string(b,"path")]=string(b,"identity");return result;}
+}
 Json normalizeBindings(const Json &source, const QString &gameId) {
   Json result{{"media", Json::object()}, {"tools", Json::object()}};
   if (source.contains("media"))
@@ -59,6 +89,7 @@ Json normalizeBindings(const Json &source, const QString &gameId) {
                       "Scanned media or support file changed; scan again");
     };
     check(string(b, "path"));
+    if(string(b,"proof")=="disc-id")verifyDisc(string(b,"path"),string(b,"identity"));
     for (const auto &support : b.value("supportPaths", Json::array()))
       check(support.is_string()
                 ? QString::fromStdString(support.get<std::string>())
@@ -90,6 +121,7 @@ Request flatRequest(const CatalogData &catalog, const QString &gameId,
       r.root = root;
       r.gameId = gameId;
       r.variantId = v.id;
+      r.discIdentities=discChecks(bindings);
       r.plan = install::makeFlatLaunchPlan(
           *game, catalog.emulators[v.tools.first().toStdString()], root,
           bindings);
@@ -101,6 +133,108 @@ Request flatRequest(const CatalogData &catalog, const QString &gameId,
   }
   throw Error("E_FLAT_NOT_READY", "No flat variant has verified media and an "
                                   "emulator; scan or locate files first");
+}
+Request gameRequest(const CatalogData &catalog,const QString &gameId,const QString &root,const Json &source,const QString &variantId) {
+  const auto *game=catalog.find(gameId);
+  if(!game||!game->errors.isEmpty())throw Error("E_GAME_INVALID","Game is missing or invalid");
+  if(variantId.isEmpty()) {
+    QStringList choices;
+    const auto preferred=install::string(game->install,"default");
+    if(!preferred.isEmpty())choices<<preferred;
+    for(const auto &v:game->variants)
+      if(authoredLaunchSupported(v)&&!choices.contains(v.id))choices<<v.id;
+    for(const auto &id:choices) {
+      bool supported=false;
+      for(const auto &v:game->variants)if(v.id==id)supported=authoredLaunchSupported(v);
+      if(!supported)continue;
+      install::Request saved;saved.root=root;saved.gameId=gameId;saved.variantId=id;
+      const auto state=install::readEnvelope(install::stateBase(saved)+".toml");
+      if(install::string(state,"state").startsWith("installed"))
+        return gameRequest(catalog,gameId,root,source,id);
+    }
+    return flatRequest(catalog,gameId,root,source);
+  }
+  const Variant *variant=nullptr;
+  for(const auto &v:game->variants)if(v.id==variantId&&!v.generated){variant=&v;break;}
+  if(!variant)return flatRequest(catalog,gameId,root,source,variantId);
+  if(!authoredLaunchSupported(*variant))throw Error("E_SETUP_UNSUPPORTED","This authored setup has no pinned launch contract");
+  install::Request installed;installed.root=root;installed.catalogRoot=catalog.root;installed.gameId=gameId;installed.variantId=variantId;installed.recipe=game->install;
+  // Scope before normalization: stale files from another route must not affect
+  // this variant's admission, including media metadata validation.
+  Json scoped=source;
+  scoped["media"]=Json::object();
+  scoped["bindings"]=Json::array();
+  scoped["tools"]=Json::object();
+  for(const auto &id:variant->media) {
+    const auto key=id.toStdString();
+    if(source.contains("media")&&source["media"].is_object()&&source["media"].contains(key))
+      scoped["media"][key]=source["media"][key];
+  }
+  for(const auto &binding:source.value("bindings",Json::array()))
+    if(string(binding,"gameId")==gameId&&variant->media.contains(string(binding,"requirementId")))
+      scoped["bindings"].push_back(binding);
+  const auto tools=source.value("tools",Json::object());
+  if(tools.is_object()) {
+    for(const auto &id:variant->tools)
+      if(tools.contains(id.toStdString()))scoped["tools"][id.toStdString()]=tools[id.toStdString()];
+  } else if(tools.is_array()) {
+    for(const auto &tool:tools)
+      if(variant->tools.contains(string(tool,"id")))scoped["tools"][string(tool,"id").toStdString()]=tool;
+  }
+  installed.bindings=normalizeBindings(scoped,gameId);
+  for(const auto *space:{"media","tools"}) {
+    const auto &required=QString(space)=="media"?variant->media:variant->tools;
+    for(const auto &id:required) {
+      const auto binding=installed.bindings[space].value(id.toStdString(),Json::object());
+      if(!binding.value("verified",false)||!QFileInfo(string(binding,"path")).isFile())
+        throw Error("E_MEDIA_MISSING","Locate verified files required by this setup first");
+    }
+  }
+  const auto plan=install::Engine().plan(installed);
+  const auto base=install::stateBase(installed);
+  const auto state=install::readEnvelope(base+".toml"),manifest=install::readEnvelope(base+".manifest.toml");
+  const auto recipeHash=install::sha256(QByteArray::fromStdString(game->install.dump()));
+  if(!install::string(state,"state").startsWith("installed")||install::string(state,"installed_version")!=plan.version||
+     install::string(manifest,"recipe_sha256")!=recipeHash||install::string(state,"recipe_sha256")!=recipeHash||
+     install::string(manifest,"game")!=gameId||install::string(manifest,"variant")!=variantId||
+     install::string(state,"game")!=gameId||install::string(state,"variant")!=variantId||
+     install::string(manifest,"install_dir")!=QDir(root).relativeFilePath(plan.installDir))
+    throw Error("E_SETUP_NOT_INSTALLED","Install or repair this exact authored setup before launching");
+  const auto runtime=install::Engine().runtimeState(installed);
+  bool ready=false;for(const auto &v:runtime.variants)if(v.id==variantId)ready=v.verified&&v.manifestExists&&v.installedWhenExists;
+  if(!ready)throw Error("E_SETUP_NOT_INSTALLED","Owned setup files are missing; repair first");
+  QMap<QString,QString> vars{{"install_dir",plan.installDir},{"install_root",QDir(root).absolutePath()},{"game.id",gameId}};
+  for(const auto *space:{"media","tools"}) {
+    const auto group=installed.bindings.value(space,Json::object());
+    for(const auto &entry:group.items()){
+    const auto path=install::string(entry.value(),"path");
+    if(!entry.value().value("verified",false)||!QFileInfo(path).isFile())throw Error("E_MEDIA_MISSING","Locate verified launch files first");
+    const auto key=QString(space)+"."+QString::fromStdString(entry.key());vars[key+".path"]=path;vars[key+".dir"]=QFileInfo(path).absolutePath();
+  }
+  }
+  const auto authored=install::expandJson(plan.variant["launch"],vars);
+  Request request;request.root=root;request.gameId=gameId;request.variantId=variantId;request.runtime=install::string(authored,"runtime");request.prepareProfile=false;
+  // An unpinned OpenXR route uses the current selection; only SteamVR overrides
+  // the child's runtime environment.
+  if(request.runtime=="openxr")request.runtime="any";
+  request.discIdentities=discChecks(installed.bindings);
+  auto &launch=request.plan;launch.executable=install::scopedPath(install::string(authored,"exe"),plan.installDir);
+  launch.cwd=install::scopedPath(install::string(authored,"cwd",plan.installDir),plan.installDir);
+  if(!QFileInfo(launch.executable).isFile()||install::hashFile(launch.executable)!=install::string(authored,"exe_sha256"))
+    throw Error("E_SETUP_IDENTITY","Authored executable identity changed; repair first");
+  bool owned=false;for(const auto &file:manifest.value("file",Json::array()))
+    if(install::scopedPath(install::string(file,"path"),plan.installDir)==launch.executable&&install::string(file,"sha256")==install::string(authored,"exe_sha256"))owned=true;
+  if(!owned)throw Error("E_SETUP_IDENTITY","The pinned executable has no matching ownership receipt");
+  for(const auto &arg:authored["args"]){if(!arg.is_string())throw Error("E_PLAN_INVALID","Launch arguments must be strings");launch.args<<QString::fromStdString(arg.get<std::string>());}
+  const auto user=install::scopedPath("User",plan.installDir);
+  int userOptions=0;for(qsizetype i=0;i<launch.args.size();++i){const auto &arg=launch.args[i];
+    if(arg=="--user"){++userOptions;if(i+1>=launch.args.size()||QDir::cleanPath(launch.args[i+1])!=user)throw Error("E_PLAN_INVALID","Authored User directory must be isolated");}
+    else if(arg.startsWith("--user=")||arg.startsWith("-u"))throw Error("E_PLAN_INVALID","Use one explicit owned --user directory");
+  }
+  if(userOptions!=1||!QFileInfo(user).isDir())throw Error("E_PLAN_INVALID","Authored User directory is missing or ambiguous");
+  launch.payloadRoots<<plan.installDir;launch.writableDirs<<user;
+  launch.data={{"game",gameId.toStdString()},{"variant",variantId.toStdString()},{"quality",variant->quality.toStdString()},{"runtime",request.runtime.toStdString()}};
+  return request;
 }
 QString lastLines(const QString &path, int count) {
   QFile f(path);
@@ -154,8 +288,19 @@ LaunchService::LaunchService(QObject *parent) : QObject(parent) {
     } else if ((waitedMs_ += 250) >= 60000)
       complete(1, "SteamVR did not start within 60 seconds");
   });
+  closeTimer_.setInterval(100);
+  connect(&closeTimer_,&QTimer::timeout,this,[this]{if(closeRequested_)requestClose();else closeTimer_.stop();});
+  connect(&process_, &QProcess::stateChanged, this, [this](QProcess::ProcessState state) {
+    if(state==QProcess::Starting)emit starting(request_.gameId,"Creating game process");
+  });
   connect(&process_, &QProcess::started, this, [this] {
     childStarted_ = true;
+    try {if(payload_) payload_->trackChild(process_.processId());}
+    catch(const std::exception &) {
+      emit warning(request_.gameId,"Could not preserve child usage evidence; stopping this launch for safety.");
+      stop(); return;
+    }
+    if(closeRequested_){requestClose();return;}
     auto state =
         runtimeSource_ ? runtimeSource_(request_.gameId) : RuntimeState{};
     state.gameId = request_.gameId;
@@ -178,6 +323,7 @@ LaunchService::LaunchService(QObject *parent) : QObject(parent) {
 }
 LaunchService::~LaunchService() {
   runtimeTimer_.stop();
+  closeTimer_.stop();
   preparation_.disconnect(this);
   process_.disconnect(this);
   preparation_.waitForFinished();
@@ -193,6 +339,7 @@ LaunchService::~LaunchService() {
       process_.waitForFinished(1000);
     }
   }
+  if(payload_ && process_.state()==QProcess::NotRunning) payload_->clearPendingChildLaunch();
 }
 bool LaunchService::playing() const { return busy_; }
 void LaunchService::setRuntimeStateSource(
@@ -203,6 +350,7 @@ bool LaunchService::start(const Request &request) {
   if (busy())
     return false;
   const auto generation = ++generation_;
+  closeTimer_.stop();closeRequested_=false;
   preparationCancelled_ = false;
   request_ = request;
   logPath_.clear();
@@ -214,6 +362,7 @@ bool LaunchService::start(const Request &request) {
       throw Error("E_ID", "Invalid launch identifier");
     if (!QStringList{"none", "any", "steamvr"}.contains(request.runtime))
       throw Error("E_RUNTIME", "Unsupported runtime");
+    payload_=std::make_unique<install::ResourceLocks>(request.plan.payloadRoots,install::ResourceAccess::Use);
     const auto folder = install::scopedPath("user/locks", request.root);
     if (!QDir().mkpath(folder))
       throw Error("E_WRITE_DENIED", "Cannot create launch lock folder");
@@ -232,7 +381,7 @@ bool LaunchService::start(const Request &request) {
             QDateTime::currentDateTimeUtc().toString("yyyyMMdd-HHmmss-zzz") +
             "-" + QUuid::createUuid().toString(QUuid::Id128).left(8) + ".log",
         request.root);
-    install::atomicWrite(logPath_, "AladdinsCastle launch\nruntime=" +
+    install::atomicWrite(logPath_, QByteArray(product::display_name)+" launch\nruntime=" +
                                        request.runtime.toUtf8() + "\n");
     for (const auto &message : rotationWarnings)
       emit warning(request.gameId, message);
@@ -300,6 +449,8 @@ void LaunchService::launchReady() {
 void LaunchService::beginChild() {
   if (!busy_ || preparationCancelled_)
     return;
+  try{for(auto i=request_.discIdentities.cbegin();i!=request_.discIdentities.cend();++i)verifyDisc(i.key(),i.value());}
+  catch(const std::exception &e){complete(1,QString::fromUtf8(e.what()));return;}
   auto environment = request_.runtimeInputs.environment;
   if (request_.runtime == "steamvr")
     environment.insert("XR_RUNTIME_JSON", runtime_.steamVrManifest);
@@ -307,7 +458,36 @@ void LaunchService::beginChild() {
   process_.setWorkingDirectory(request_.plan.cwd);
   process_.setProcessChannelMode(QProcess::MergedChannels);
   process_.setStandardOutputFile(logPath_, QIODevice::Append);
+  try {if(payload_) payload_->prepareChildLaunch();}
+  catch(const std::exception &error) {
+    // No OS spawn has been attempted. Only this live holder can clear a
+    // partially written reservation before reporting the failed launch.
+    if(payload_) payload_->clearPendingChildLaunch();
+    complete(1,QString::fromUtf8(error.what()));return;
+  }
   process_.start(request_.plan.executable, request_.plan.args);
+}
+void LaunchService::requestClose() {
+  if(!busy_)return;
+  closeRequested_=true;
+  if(process_.state()==QProcess::NotRunning) {
+    if(childStarted_)return; // Let the queued child-finished signal own completion.
+    preparationCancelled_=true;
+    runtimeTimer_.stop();
+    // Preparation still owns the payload until its finished callback unwinds.
+    if(!preparation_.isRunning())complete(1,"Launch cancelled");
+    return;
+  }
+  // Windows QProcess::terminate posts WM_CLOSE to this child's windows.
+  // No force timer: scores/settings must get their ordinary shutdown path.
+#ifdef Q_OS_WIN
+  if(childStarted_&&process_.state()==QProcess::Running){
+    // Process creation can precede its first window. Retain the close intent
+    // and usage lease until that owned window can receive the normal request.
+    if(hasCloseWindow(process_.processId())){closeTimer_.stop();process_.terminate();}
+    else if(!closeTimer_.isActive())closeTimer_.start();
+  }
+#endif
 }
 void LaunchService::stop() {
   if (!busy_)
@@ -336,7 +516,10 @@ void LaunchService::complete(int code, const QString &error) {
   completing_ = true;
   const auto generation = generation_;
   runtimeTimer_.stop();
+  closeTimer_.stop();closeRequested_=false;
   lock_.reset();
+  if(payload_ && process_.state()==QProcess::NotRunning) payload_->clearPendingChildLaunch();
+  payload_.reset();
   const auto root = request_.root, gameId = request_.gameId,
              variantId = request_.variantId, logPath = logPath_;
   QString message = error;

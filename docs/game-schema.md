@@ -32,6 +32,8 @@ regions      = ["world", "jp", "us"]      # optional
 type    = "gun"                           # gun | wheel | handlebars | bike | ski | joystick | yoke | boat | other
 guns    = 1                               # gun games: guns per cabinet
 gun     = "Namco blue gun (recoil)"       # free text
+gun_model = "arc-pistol-slide"            # optional model id; resolved via data/guns defaults when absent
+two_guns = "off"                         # optional: on_join | always | off (Time Crisis is one-player)
 shifter = ""                              # racing: none | hl | h4 | h6 | seq
 pedals  = ["cover-pedal"]                 # gun: cover-pedal; racing: accel, brake, clutch
 extras  = []                              # e.g. view-change button, nitro, sniper scope, shake
@@ -71,6 +73,17 @@ Every `install.toml` variant's `needs.media` must resolve to a `[[media]]` requi
 MAME scan receipts preserve the selected machine BIOS and launch supplies `-bios <name>`. Device BIOS requirements use their metadata default because their alternative selection has no independent launch option. Merged clone disks may resolve in the parent's folder; folder matching is case insensitive on Windows and case sensitive on Linux. CHD map and metadata ranges must fit the physical file before header SHA evidence is used, even when sparse decoding is unsupported. Persisted CHD bindings without current bounds provenance require a new scan. This does not claim a payload audit. Disk-only machines bind the CHD itself rather than an unrelated archive.
 
 ## 3. Hub filters
+
+`controls.gun_model` is a lowercase kebab-case identifier, never a file path.
+It may name a pack/user model; validators do not require a built-in file to exist.
+`controls.two_guns` is a policy string: `on_join` (default when eligible), `always`,
+or `off`. It is not a boolean or a readiness claim. At runtime intersect policy
+with the game's gun/player counts, shared-view eligibility in gun defaults, and
+the installed backend's independent-input capability. One-player and separate-view
+games remain one-gun even when an override requests `always`. Unknown keys remain
+preserved. Both Python CI and the C++ warn-mode catalog loader reject malformed
+known fields; existing catalogs omitting these fields retain their behavior.
+Control-set resolution and bindings: [control-set-format.md](control-set-format.md).
 
 | Filter | Field | UI |
 |---|---|---|

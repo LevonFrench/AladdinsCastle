@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/iChris4/dolphinXR",
+  "release": "v0.4",
+  "release_name": "DolphinVR Redux v0.4",
+  "release_published_utc": "2026-07-31T12:52:51Z",
+  "source_commit": "85c4266b29eb308d173fefa0f21f5cb77df3516a",
+  "archive": "Dolphin-Redux-Windows.zip",
+  "url": "https://github.com/iChris4/dolphinXR/releases/download/v0.4/Dolphin-Redux-Windows.zip",
+  "bytes": 45691100,
+  "sha256": "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9",
+  "executable_sha256": "2a21141c760af5925a28da2cbbe19115ef497d4d5e24350b2bb5ed1a68b9639a",
+  "checked_on": "2026-10-10"
+}

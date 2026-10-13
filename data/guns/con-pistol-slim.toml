@@ -29,3 +29,29 @@ node  = "button_a"
 id    = "b"
 label = "B"
 node  = "button_b"
+
+# Motion ranges use metres (slide) or radians (rotate). Visual recoil never moves the aim anchors.
+
+[motion.trigger]
+node = "pivot_trigger"
+kind = "rotate"
+axis = [-1,0,0]
+range = [0,0.35]
+drive = "trigger"
+lod_nodes = ["pivot_trigger", "pivot_trigger_lod1"]
+
+[motion.button-a]
+node = "button_a"
+kind = "slide"
+axis = [1,0,0]
+range = [0,0.002]
+drive = "button:a"
+lod_nodes = ["button_a", "button_a_lod1"]
+
+[motion.button-b]
+node = "button_b"
+kind = "slide"
+axis = [-1,0,0]
+range = [0,0.002]
+drive = "button:b"
+lod_nodes = ["button_b", "button_b_lod1"]

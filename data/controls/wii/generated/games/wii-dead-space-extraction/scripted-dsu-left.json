@@ -1,0 +1,398 @@
+{
+  "version": "shell-stick/1",
+  "route": "flat-dolphin",
+  "mode": "split",
+  "primary_hand": "left",
+  "players": [
+    {
+      "player": 0,
+      "remote_hand": "left",
+      "stick_hand": "right",
+      "actions": [
+        {
+          "id": "fire",
+          "role": "remote",
+          "wire": "R2",
+          "expression": "trigger & !grip",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "R2"
+          }
+        },
+        {
+          "id": "interact",
+          "role": "remote",
+          "wire": "Cross",
+          "expression": "primary & !grip",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "Cross"
+          }
+        },
+        {
+          "id": "dpad-up",
+          "role": "remote",
+          "wire": "Pad N",
+          "expression": "up & !grip",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "Pad N"
+          }
+        },
+        {
+          "id": "dpad-down",
+          "role": "remote",
+          "wire": "Pad S",
+          "expression": "down & !grip",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "Pad S"
+          }
+        },
+        {
+          "id": "dpad-left",
+          "role": "remote",
+          "wire": "Pad W",
+          "expression": "left & !grip",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "Pad W"
+          }
+        },
+        {
+          "id": "dpad-right",
+          "role": "remote",
+          "wire": "Pad E",
+          "expression": "right & !grip",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "Pad E"
+          }
+        },
+        {
+          "id": "menu",
+          "role": "remote",
+          "wire": "Options",
+          "expression": "grip & primary",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "Options"
+          }
+        },
+        {
+          "id": "minus",
+          "role": "remote",
+          "wire": "Share",
+          "expression": "grip & secondary",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "Share"
+          }
+        },
+        {
+          "id": "one",
+          "role": "remote",
+          "wire": "Square",
+          "expression": "grip & up",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "Square"
+          }
+        },
+        {
+          "id": "two",
+          "role": "remote",
+          "wire": "Triangle",
+          "expression": "grip & down",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "Triangle"
+          }
+        },
+        {
+          "id": "home",
+          "role": "remote",
+          "wire": "PS",
+          "expression": "grip & click",
+          "hand": "left",
+          "supported": false,
+          "slot": 0,
+          "script": {
+            "supported": false,
+            "reason": "Not accepted by the bounded scripted DSU schema"
+          }
+        },
+        {
+          "id": "z",
+          "role": "nunchuk",
+          "wire": "L2",
+          "expression": "trigger",
+          "hand": "right",
+          "supported": true,
+          "slot": 1,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "L2"
+          }
+        },
+        {
+          "id": "c",
+          "role": "nunchuk",
+          "wire": "Circle",
+          "expression": "grip",
+          "hand": "right",
+          "supported": true,
+          "slot": 1,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "Circle"
+          }
+        },
+        {
+          "id": "stick-up",
+          "role": "nunchuk",
+          "wire": "Left Y+",
+          "expression": "up",
+          "hand": "right",
+          "supported": true,
+          "slot": 1,
+          "script": {
+            "supported": true,
+            "field": "stick",
+            "axis": 1,
+            "value": 1
+          }
+        },
+        {
+          "id": "stick-down",
+          "role": "nunchuk",
+          "wire": "Left Y-",
+          "expression": "down",
+          "hand": "right",
+          "supported": true,
+          "slot": 1,
+          "script": {
+            "supported": true,
+            "field": "stick",
+            "axis": 1,
+            "value": -1
+          }
+        },
+        {
+          "id": "stick-left",
+          "role": "nunchuk",
+          "wire": "Left X-",
+          "expression": "left",
+          "hand": "right",
+          "supported": true,
+          "slot": 1,
+          "script": {
+            "supported": true,
+            "field": "stick",
+            "axis": 0,
+            "value": -1
+          }
+        },
+        {
+          "id": "stick-right",
+          "role": "nunchuk",
+          "wire": "Left X+",
+          "expression": "right",
+          "hand": "right",
+          "supported": true,
+          "slot": 1,
+          "script": {
+            "supported": true,
+            "field": "stick",
+            "axis": 0,
+            "value": 1
+          }
+        },
+        {
+          "id": "remote-shake",
+          "role": "remote",
+          "wire": "R1",
+          "expression": "secondary & !grip",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "R1"
+          }
+        },
+        {
+          "id": "remote-swing",
+          "role": "remote",
+          "wire": "L1",
+          "expression": "click & !grip",
+          "hand": "left",
+          "supported": true,
+          "slot": 0,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "L1"
+          }
+        },
+        {
+          "id": "stick-shake",
+          "role": "nunchuk",
+          "wire": "R3",
+          "expression": "primary",
+          "hand": "right",
+          "supported": true,
+          "slot": 1,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "R3"
+          }
+        },
+        {
+          "id": "stick-swing",
+          "role": "nunchuk",
+          "wire": "L3",
+          "expression": "secondary",
+          "hand": "right",
+          "supported": true,
+          "slot": 1,
+          "script": {
+            "supported": true,
+            "field": "buttons",
+            "button": "L3"
+          }
+        }
+      ]
+    }
+  ],
+  "recenter_chord": [
+    "right.click",
+    "left.click"
+  ],
+  "recenter_suppresses_game_buttons": true,
+  "live_bridge_compatible": true,
+  "live_bridge_reason": "Canonical per-game role-slot transport; game/headset validation pending",
+  "recenter_supported": false,
+  "motion": {
+    "physical": true,
+    "button_fallback": true,
+    "button_transport": "Shake/Swing bindings",
+    "units": {
+      "accel": "g",
+      "gyro": "degrees_per_second"
+    }
+  },
+  "schema": "scripted-dsu/1",
+  "game_id": "wii-dead-space-extraction",
+  "device_slots": {
+    "remote": 0,
+    "nunchuk": 1
+  },
+  "server": {
+    "name": "AladdinsCastle",
+    "host": "127.0.0.1",
+    "port": 26760
+  },
+  "reload": {
+    "choices": [
+      "shake",
+      "flick-down",
+      "offscreen",
+      "button"
+    ],
+    "selected": "flick-down",
+    "state": "question",
+    "question": "Confirm the selected reload and active-reload instruction before enabling the proposed flick.",
+    "target_action": "remote-shake",
+    "button_fallback": "remote-shake",
+    "enabled": false
+  },
+  "producer_policy": {
+    "schema": "canonical-dsu/1",
+    "expression_tokens": [
+      "click",
+      "down",
+      "grip",
+      "left",
+      "primary",
+      "right",
+      "secondary",
+      "trigger",
+      "up"
+    ],
+    "slots": {
+      "remote": 0,
+      "nunchuk": 1
+    },
+    "unsupported_actions": [
+      "home"
+    ],
+    "offscreen_hide_supported": false,
+    "recenter": {
+      "chord": [
+        "right.click",
+        "left.click"
+      ],
+      "suppress_game_buttons": true,
+      "shared_theatre_calibration": true
+    },
+    "producers": {
+      "scripted_dsu": {
+        "supported": true,
+        "tracked_recenter": false
+      },
+      "legacy_steamvr": {
+        "supported": false,
+        "reason": "Legacy Mapper does not consume the canonical action policy or reserved recenter chord"
+      },
+      "canonical_live": {
+        "supported": true,
+        "state": "source-tested"
+      }
+    }
+  }
+}

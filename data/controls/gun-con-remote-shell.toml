@@ -1,0 +1,172 @@
+version = "0.1"
+id = "gun-con-remote-shell"
+title = "con-remote-shell controls"
+gun_model = "con-remote-shell"
+
+[policy]
+p1_hand = "right"
+two_guns = "on_join"
+
+[[element]]
+id="p1-trigger"
+label="Fire"
+part="trigger"
+node="pivot_trigger"
+slot=0
+player=0
+input={kind="gun", semantic="trigger"}
+binding={hand="slot",control="trigger",mode="hold"}
+
+[[unmapped_part]]
+id="p1-a"
+slot=0
+player=0
+node="button_a"
+label="A"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="a"
+
+[[unmapped_part]]
+id="p1-dpad"
+slot=0
+player=0
+node="button_dpad"
+label="D-pad"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="dpad"
+
+[[unmapped_part]]
+id="p1-plus"
+slot=0
+player=0
+node="button_plus"
+label="+"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="plus"
+
+[[unmapped_part]]
+id="p1-minus"
+slot=0
+player=0
+node="button_minus"
+label="-"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="minus"
+
+[[unmapped_part]]
+id="p1-one"
+slot=0
+player=0
+node="button_one"
+label="1"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="one"
+
+[[unmapped_part]]
+id="p1-two"
+slot=0
+player=0
+node="button_two"
+label="2"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="two"
+
+[[unmapped_part]]
+id="p1-home"
+slot=0
+player=0
+node="button_home"
+label="Home"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="home"
+
+[[unmapped_part]]
+id="p1-rear-hold"
+slot=0
+player=0
+node="grip_two"
+label="Rear docking hold"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="rear-hold"
+
+[[element]]
+id="p2-trigger"
+label="Fire"
+part="trigger"
+node="pivot_trigger"
+slot=1
+player=1
+input={kind="gun", semantic="trigger"}
+binding={hand="slot",control="trigger",mode="hold"}
+
+[[unmapped_part]]
+id="p2-a"
+slot=1
+player=1
+node="button_a"
+label="A"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="a"
+
+[[unmapped_part]]
+id="p2-dpad"
+slot=1
+player=1
+node="button_dpad"
+label="D-pad"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="dpad"
+
+[[unmapped_part]]
+id="p2-plus"
+slot=1
+player=1
+node="button_plus"
+label="+"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="plus"
+
+[[unmapped_part]]
+id="p2-minus"
+slot=1
+player=1
+node="button_minus"
+label="-"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="minus"
+
+[[unmapped_part]]
+id="p2-one"
+slot=1
+player=1
+node="button_one"
+label="1"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="one"
+
+[[unmapped_part]]
+id="p2-two"
+slot=1
+player=1
+node="button_two"
+label="2"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="two"
+
+[[unmapped_part]]
+id="p2-home"
+slot=1
+player=1
+node="button_home"
+label="Home"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="home"
+
+[[unmapped_part]]
+id="p2-rear-hold"
+slot=1
+player=1
+node="grip_two"
+label="Rear docking hold"
+reason="Use the dedicated shell-and-stick Wii set; other game meanings remain questions"
+requested_semantic="rear-hold"

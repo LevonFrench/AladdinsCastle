@@ -83,6 +83,10 @@ files = ["${setup_dir}/Play VR.cmd"]
 
 ## 5. Control sets
 
+M2 gun sets use the published [v0.1 control-set contract](control-set-format.md)
+and `data/controls/`. The versionless racing example below is legacy and remains
+accepted as such; do not migrate it implicitly.
+
 A game's own cabinet controls live in `games/<id>/setup/controls.toml`. Control sets shared by many games (a generic 1-gun pedal cabinet, a generic wheel + H-shifter) live in `controls/<id>.toml`. `game.toml` refers to either; the per-game file wins. Same format in both places:
 
 ```toml

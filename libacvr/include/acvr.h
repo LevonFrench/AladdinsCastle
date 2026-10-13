@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: MIT  (libacvr/ is MIT-licensed: see libacvr/LICENSE; the rest of AladdinsCastle is GPL-3.0)
- * Draft 1, 2026-10-08. Contract only; no libacvr implementation is supplied.
+ * Contract v0.4, 2026-10-11. Shared frame core implemented; optional Windows
+ * OpenXR desktop-GL provider is available when enabled at build time.
  * Normative semantics and source evidence: docs/libacvr-contract.md.
  */
 #ifndef ACVR_H_INCLUDED
@@ -21,6 +22,8 @@ extern "C" {
 #endif
 
 #define ACVR_ABI_VERSION 1u
+#define ACVR_CONTRACT_MAJOR 0u
+#define ACVR_CONTRACT_MINOR 4u
 #define ACVR_STRUCT_VERSION 1u
 #define ACVR_INIT(p) do { (p)->size = (uint32_t)sizeof(*(p)); \
                          (p)->version = ACVR_STRUCT_VERSION; } while (0)
@@ -45,12 +48,14 @@ typedef int32_t acvr_result;
 #define ACVR_GRAPHICS_D3D11    3u
 #define ACVR_GRAPHICS_BIT(api) (1u << (api))
 #define ACVR_DEVICE_GLES       1u
+#define ACVR_DEVICE_GL_COMPATIBILITY 2u /* desktop compatibility profile, never GLES */
 
 #define ACVR_CAP_MULTIVIEW     0x0001u
 #define ACVR_CAP_SEPARATE_HUD  0x0002u
 #define ACVR_CAP_RAYCAST       0x0004u
 #define ACVR_CAP_OUTPUTS       0x0008u
 #define ACVR_CAP_PERSISTENCE   0x0010u
+#define ACVR_CAP_REQUIRES_SHARED_DEPTH 0x0020u /* supplied depth survives world draw for runtime overlays */
 
 #define ACVR_CONTROL_AXIS     1u
 #define ACVR_CONTROL_BUTTON   2u
@@ -200,7 +205,12 @@ typedef struct acvr_hit {
     uint32_t size, version;
     uint32_t found, camera_id;      /* no hit: found=0, camera_id=NO_CAMERA */
     float position_scene[3], distance_scene;
+    /* v0.1 optional tail. Read/write only when size covers the entire tail. */
+    uint32_t flags;
+    float screen_x, screen_y;       /* normalized native raster, NOT cabinet ADCs */
 } acvr_hit;
+#define ACVR_HIT_V1_SIZE ((uint32_t)offsetof(acvr_hit, flags))
+#define ACVR_HIT_GUN_COORDS 1u      /* hit coordinates valid; may be outside [0,1] */
 
 typedef struct acvr_render_target {
     uint32_t size, version;
@@ -262,7 +272,9 @@ typedef struct acvr_outputs {
 
 /* Runtime -> backend. All calls serialized on the runtime/graphics owner thread.
  * Mandatory through game_poll_outputs (which may return an empty batch).
- * Later callbacks are optional and gated by capabilities. No exceptions cross C.
+ * Later callbacks are optional; drawing/query features are capability-gated.
+ * game_prepare_display is optional by table size and non-null pointer alone.
+ * No exceptions cross C.
  * Exactly one frame lease at a time: release it before the next game_step.
  */
 typedef struct acvr_backend_api {
@@ -288,7 +300,22 @@ typedef struct acvr_backend_api {
     acvr_result (ACVR_CALL *game_draw_hud)(acvr_backend *, const acvr_frame *,
                                          const acvr_draw_info *);
     acvr_result (ACVR_CALL *game_flush_persistent)(acvr_backend *);
+    /* At most once per renderable display, after BOTH records are validated and
+     * stamped, before either draw. Exactly two one-view records with independent
+     * targets; current owner context, no promised entry FBO. Borrowed pointers
+     * and target handles are valid for this call only. Retain copied packet/
+     * non-handle identity data only. No draw, step, input, output or presentation.
+     * Failure invokes no eye draws and ends this display with zero layers.
+     * Null/absent preserves sequential game_draw_eye behavior. */
+    acvr_result (ACVR_CALL *game_prepare_display)(acvr_backend *, const acvr_frame *,
+        uint32_t draw_count, uint32_t draw_stride, const acvr_draw_info *draws);
 } acvr_backend_api;
+
+/* Complete table through v0.3. Accept this exact size or >= current full size;
+ * reject a partial new tail. Copy only min(size, sizeof(acvr_backend_api)), into
+ * zeroed runtime storage. Factories preserve caller size/version and unknown
+ * tail bytes while writing only the covered known payload. */
+#define ACVR_BACKEND_API_V1_SIZE ((uint32_t)offsetof(acvr_backend_api, game_prepare_display))
 
 /* Setup factory: fills only caller-supported table bytes, validates ABI version.
  * Multiple statically linked backends use setup-local factories of this signature.
@@ -299,6 +326,88 @@ ACVR_API acvr_result ACVR_CALL acvr_backend_query(uint32_t abi_version,
 
 #define ACVR_ANCHOR_RAIL       1u
 #define ACVR_ANCHOR_COCKPIT    2u
+
+#define ACVR_HAND_RIGHT 0u
+#define ACVR_HAND_LEFT  1u
+#define ACVR_TWO_GUNS_OFF     0u
+#define ACVR_TWO_GUNS_ON_JOIN 1u
+#define ACVR_TWO_GUNS_ALWAYS  2u
+#define ACVR_LASER_OFF  0u
+#define ACVR_LASER_LINE 1u
+#define ACVR_LASER_DOT  2u
+
+typedef struct acvr_pose {
+    uint32_t size, version;
+    float position_m[3], orientation_xyzw[4]; /* unit quaternion; RH, +Y up, -Z forward */
+} acvr_pose;
+
+typedef struct acvr_gun_slot_config {
+    uint32_t size, version;
+    uint32_t slot, player, hand;
+    const char *model_id_utf8, *model_path_utf8, *metadata_path_utf8;
+    const char *grip_node_utf8, *muzzle_node_utf8; /* required named glTF nodes */
+    float body_rgba[4], accent_rgba[4]; /* linear RGBA, each channel 0..1 */
+    float angle_xyzw[4];            /* unit quaternion, calibrated gun-in-grip rotation */
+    uint32_t show_gun, laser_mode;   /* show_gun: 0/1; laser independent of model visibility */
+} acvr_gun_slot_config;
+
+typedef struct acvr_gun_policy {
+    uint32_t size, version;
+    uint32_t two_guns, p1_hand, hand_switch; /* hand_switch: 0 off, 1 other trigger */
+    uint32_t shared_view;           /* 0 forces one gun, even if policy requests two */
+    float unjoined_alpha;          /* 0..1; faint off-hand model, never active input */
+} acvr_gun_policy;
+
+#define ACVR_POSE_POSITION_VALID    1u
+#define ACVR_POSE_ORIENTATION_VALID 2u
+typedef struct acvr_hand_tracking {
+    uint32_t size, version;
+    uint32_t hand, grip_flags, aim_flags;
+    acvr_pose grip, aim;            /* stage-space metres, predicted for this display */
+} acvr_hand_tracking;
+
+typedef struct acvr_tracking {
+    uint32_t size, version;
+    uint64_t display_id;
+    int64_t sample_time_ns, predicted_display_time_ns;
+    uint32_t head_flags;
+    acvr_pose head;
+    acvr_hand_tracking right, left; /* same prediction/time domain as acvr_draw_info */
+} acvr_tracking;
+
+/* Optional room calibration sample from the latest OpenXR display, after tick.
+ * Right=0, left=1. Inactive controls have zero values, but are not usable.
+ * A repeated display_id is not a fresh sample. No gameplay mapping is implied. */
+#define ACVR_CALIB_SECONDARY_ACTIVE 1u
+#define ACVR_CALIB_STICK_X_ACTIVE   2u
+#define ACVR_CALIB_STICK_Y_ACTIVE   4u
+#define ACVR_CALIB_TRIGGER_ACTIVE   8u
+typedef struct acvr_controller_sample {
+    uint32_t size, version;
+    uint64_t display_id;
+    int64_t sample_time_ns;
+    uint32_t focused;
+    uint32_t active[2], secondary_down[2];
+    float stick_x[2], stick_y[2], trigger[2];
+} acvr_controller_sample;
+typedef struct acvr_gun_angle_update {
+    uint32_t size, version;
+    uint32_t slot;
+    float angle_xyzw[4]; /* finite unit gun-in-grip rotation */
+} acvr_gun_angle_update;
+
+#define ACVR_GUN_EVENT_RECOIL 1u
+#define ACVR_GUN_EVENT_BUTTON 2u
+#define ACVR_GUN_EVENT_AXIS   3u
+typedef struct acvr_gun_event {
+    uint32_t size, version;
+    uint64_t sequence, tick_id;     /* monotonically increasing per slot; never per-eye */
+    uint32_t slot, kind;
+    const char *node_utf8;          /* named motion node in model metadata */
+    float value;                   /* normalized motion 0..1; recoil amplitude */
+    uint32_t duration_ms;           /* recoil pulse; 0 for button/axis levels */
+} acvr_gun_event;
+
 typedef struct acvr_runtime_config {
     uint32_t size, version;
     uint32_t graphics_api, anchor_mode;
@@ -308,18 +417,40 @@ typedef struct acvr_runtime_config {
     const char *game_id_utf8, *content_root_utf8, *storage_root_utf8;
     const char *merged_controls_path_utf8; /* runtime owns TOML ghost/binding parsing */
     const char *backend_options_utf8;
+    /* v0.1 optional tail; old prefix selects no models and one gun. */
+    uint32_t gun_slot_count, gun_slot_stride;
+    const acvr_gun_slot_config *gun_slots;
+    acvr_gun_policy gun_policy;
 } acvr_runtime_config;
+#define ACVR_RUNTIME_CONFIG_V1_SIZE ((uint32_t)offsetof(acvr_runtime_config, gun_slot_count))
 
-/* Proposed libacvr exports, declarations only. Create owns XR/device initialization
+/* libacvr exports. Create will own XR/device initialization
  * and calls game_open; tick handles one XR frame (0..N native ticks, 0..2 draws);
  * destroy releases the frame, flushes if supported, closes backend then graphics.
  * All exports are owner-thread-only, including pause; destroy accepts NULL.
+ * Without the optional XR provider, public create returns UNSUPPORTED with NULL.
+ * With it, only desktop GL is currently supported by public creation.
  */
 ACVR_API acvr_result ACVR_CALL acvr_runtime_create(const acvr_runtime_config *,
                                                   const acvr_backend_api *,
                                                   acvr_runtime **);
 ACVR_API acvr_result ACVR_CALL acvr_runtime_tick(acvr_runtime *);
 ACVR_API acvr_result ACVR_CALL acvr_runtime_set_paused(acvr_runtime *, uint32_t paused);
+/* Host-side inspection after tick; BAD_STATE before a valid tracking sample.
+ * Backend callbacks must not recursively call these exports. */
+ACVR_API acvr_result ACVR_CALL acvr_runtime_get_tracking(acvr_runtime *, acvr_tracking *);
+/* Owner-thread-only after a completed display tick. Unsupported providers
+ * return UNSUPPORTED. ACVR_MORE leaves the last sample intact; consumers must
+ * require a new display_id and bound elapsed time before using control levels. */
+ACVR_API acvr_result ACVR_CALL acvr_runtime_get_controller_sample(acvr_runtime *, acvr_controller_sample *);
+/* Changes the copied slot calibration for the NEXT tick. This is a general
+ * loaded-gun-model capability, independent of controller-sample availability.
+ * Call only between runtime operations, never from a backend callback. It
+ * does not write calibration files. */
+ACVR_API acvr_result ACVR_CALL acvr_runtime_set_gun_angle(acvr_runtime *, const acvr_gun_angle_update *);
+/* Optional host preview/test injection, not required from a board backend.
+ * Runtime normally derives these events from controls and backend outputs. */
+ACVR_API acvr_result ACVR_CALL acvr_runtime_gun_event(acvr_runtime *, const acvr_gun_event *);
 /* Frees the runtime even on flush failure; returns that failure for reporting. */
 ACVR_API acvr_result ACVR_CALL acvr_runtime_destroy(acvr_runtime *);
 

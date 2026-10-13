@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "status": "disabled-unmeasured-candidate",
+  "required_game_id": "RZJE69",
+  "required_revision": 0,
+  "region": "NTSC-U",
+  "kind": "ActionReplay",
+  "name": "60fps",
+  "author": "maratnugmanov",
+  "code": "04603B44 42700000",
+  "source": "https://forums.dolphin-emu.org/Thread-game-modification-60-fps-hacks-and-patches?pid=534681",
+  "secondary_source": "https://wiki.dolphin-emu.org/index.php?title=Dead_Space:_Extraction",
+  "transcription": "W-wii-framerate-presets.md; direct primary fetch unavailable on 2026-10-11",
+  "source_review_complete": false,
+  "enable_cheats": false,
+  "tested_on": null,
+  "runtime_dependencies": ["source transcription review", "exact ID/revision header match", "same-scene code-off baseline", "scripted input evidence", "lead quiet-machine runtime slot"],
+  "watch_list": ["changed game speed", "cutscene drop that does not recover", "audio sync and pitch", "QTE timing", "HUD", "EFB effects"],
+  "results": []
+}

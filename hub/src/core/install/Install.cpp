@@ -109,6 +109,30 @@ QStringList strings(const Json &v) {
         out << QString::fromStdString(x.get<std::string>());
   return out;
 }
+QByteArray generatedSeedBytes(const Request &r,const Json &step,const Json &guard){
+  const auto source=string(step,"source");
+  const bool authoredGameProfile=source=="data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini";
+  if(!authoredGameProfile&&!QRegularExpression("\\Adata/controls/wii/generated/dolphinxr/(split|docked)-(right|left)\\.ini\\z").match(source).hasMatch())
+    throw Error("E_SOURCE_OUT_OF_SCOPE","Config seed must use a literal approved native profile");
+  const auto pin=string(step,"source_sha256");
+  if(!QRegularExpression("\\A[a-f0-9]{64}\\z").match(pin).hasMatch())
+    throw Error("E_PLAN_INVALID","Generated seed requires a SHA256 pin");
+  const auto path=scopedPath(source,r.catalogRoot.isEmpty()?r.root:r.catalogRoot);
+  const QFileInfo info(path);
+  if(!info.isFile()||info.size()<=0||info.size()>1024*1024)
+    throw Error("E_SOURCE_OUT_OF_SCOPE","Generated config seed is missing or exceeds its byte cap");
+  for(const auto &media:r.bindings.value("media",Json::object())){
+    const auto bound=string(media,"path");
+    if(!bound.isEmpty()&&QFileInfo(bound).isFile()&&fileIdentity(path)==fileIdentity(bound))
+      throw Error("E_SOURCE_OUT_OF_SCOPE","Bound media or its hard-link alias cannot be a config seed");
+  }
+  contentGuard(source,guard);
+  QFile file(path);if(!file.open(QIODevice::ReadOnly))throw Error("E_READ","Generated seed cannot be read");
+  const auto bytes=file.read(1024*1024+1);
+  if(bytes.isEmpty()||bytes.size()>1024*1024)throw Error("E_SOURCE_OUT_OF_SCOPE","Generated seed exceeds its byte cap");
+  if(sha256(bytes)!=pin)throw Error("E_HASH_MISMATCH","Generated config seed changed");
+  return bytes;
+}
 QMap<QString, QString> variables(const Request &r, const QString &dir) {
   QMap<QString, QString> vars{
       {"install_root", QDir(r.root).absolutePath()},
@@ -203,6 +227,7 @@ void event(const Options &o, const QString &run, const QString &kind,
 }
 struct Lock {
   QLockFile global, variant;
+  std::unique_ptr<ResourceLocks> payload;
   explicit Lock(const Request &r)
       : global(scopedPath("user/state/locks/global.lock", r.root)),
         variant(scopedPath("user/state/locks/" + r.gameId + "--" + r.variantId +
@@ -215,6 +240,9 @@ struct Lock {
     if (!global.tryLock(0) || !variant.tryLock(0))
       throw Error("E_LOCKED", "Another install is active; queued service can "
                               "retry after it completes");
+    const auto relative=r.gameId.startsWith("tool-") ? "emulators/"+r.gameId.mid(5)
+                                                   : "installed/"+r.gameId+"/"+r.variantId;
+    payload=std::make_unique<ResourceLocks>(QStringList{scopedPath(relative,r.root)},ResourceAccess::Mutation);
   }
 };
 void fault(const Options &o, const QString &point) {
@@ -603,6 +631,7 @@ Json loadJournal(const QString &path) {
 }
 bool rollback(const Request &r, const Json &records, const Options &options,
               const QString &errorCode = "E_INTERRUPTED") {
+  event(options, {}, "rollback", "Reversing interrupted changes");
   bool complete = true;
   if (!records.empty())
     cleanStaging(r, string(records[0], "run"));
@@ -614,7 +643,7 @@ bool rollback(const Request &r, const Json &records, const Options &options,
     try {
       const auto path = scopedPath(string(j, "path"), r.root);
       if (op == "rename") {
-        const auto to = string(j, "to");
+        const auto to = scopedPath(string(j, "to"), r.root);
         if (QFileInfo::exists(to) && !QFileInfo::exists(path)) {
           if (!QDir().rename(to, path))
             throw Error("E_ROLLBACK_INCOMPLETE", "Cannot reverse swap");
@@ -790,7 +819,8 @@ Plan Engine::plan(const Request &r) const {
        {"from", "to", "strip", "include", "exclude", "max_entries",
         "max_expanded", "overwrite"}},
       {"copy", {"from", "to", "include", "exclude"}},
-      {"write-config", {"file", "format", "create", "set"}},
+      {"write-config", {"file", "format", "create", "set", "only_if_missing", "source", "source_sha256"}},
+      {"create-directory", {"to"}},
       {"shortcut", {"targets", "name", "exe", "args", "cwd", "icon"}}};
   const QSet<QString> common{"id", "do", "what", "optional", "when", "note"};
   for (const auto &step : steps) {
@@ -930,9 +960,16 @@ Plan Engine::plan(const Request &r) const {
     if (kind == "require-media" || kind == "copy-media")
       mediaOutputs.insert(id);
     if (kind == "write-config") {
+      if (step.contains("only_if_missing") && !step["only_if_missing"].is_boolean())
+        throw Error("E_PLAN_INVALID", "only_if_missing requires an explicit boolean");
       if (!QSet<QString>{"ini", "cfg", "toml", "json"}.contains(
               string(step, "format")))
         throw Error("E_PLAN_INVALID", "Unknown config format");
+      if(step.contains("source")||step.contains("source_sha256")){
+        if(!step.value("only_if_missing",false)||!step.contains("create")||!step["create"].is_boolean()||!step["create"].get<bool>()||string(step,"format")!="ini"||step.contains("set"))
+          throw Error("E_PLAN_INVALID","Generated config seeds require create/only_if_missing and cannot merge keys");
+        generatedSeedBytes(r,step,guard);
+      }
       for (const auto &entry : step.value("set", Json::array())) {
         if (entry.contains("from"))
           dotted(Json{{"settings", r.settings}, {"profile", r.profile}},
@@ -982,10 +1019,12 @@ Plan Engine::plan(const Request &r) const {
   return p;
 }
 Result Engine::install(const Request &r) {
+  // Exclusion must outlive the try block and every automatic rollback handler.
+  std::unique_ptr<Lock> lock;
   std::unique_ptr<Transaction> tx;
   try {
     auto p = plan(r);
-    Lock lock(r);
+    lock = std::make_unique<Lock>(r);
     const auto guard = guardFor(r);
     tx = std::make_unique<Transaction>(r, options_, p);
     tx->guard = guard;
@@ -1182,11 +1221,28 @@ Result Engine::install(const Request &r) {
           }
         }
         output["dir"] = dest.toStdString();
+      } else if(kind=="create-directory"){
+        const auto path=scopedPath(string(step,"to"),tx->dir);
+        tx->mkdir(path);output["dir"]=path.toStdString();
       } else if (kind == "write-config") {
         const auto path = scopedPath(string(step, "file"), tx->dir);
+        if (step.value("only_if_missing", false) && QFileInfo::exists(path)) {
+          // The runtime owns an existing seed. Do not read, merge or remove it.
+          // Relinquish earlier seed ownership, including during staged updates.
+          const auto relative=QDir(tx->dir).relativeFilePath(path).toStdString();
+          auto &oldFiles=tx->baseline["file"];
+          for(auto it=oldFiles.begin();it!=oldFiles.end();)
+            if(it->value("path",std::string())==relative)it=oldFiles.erase(it);else ++it;
+          output["path"]=path.toStdString();output["seed_skipped"]=true;
+          event(tx->options,tx->run,"ok","Existing config retained; seed skipped",{},id);
+        } else {
         if (!QFileInfo::exists(path) && !step.value("create", false))
           throw Error("E_CONFIG_PARSE",
                       "Config missing; create must be explicit");
+        if(step.contains("source")){
+          const auto bytes=generatedSeedBytes(r,step,guard);
+          tx->write(path,bytes,"written",id,Json::array(),"ini");
+        }else{
         const auto edit =
             editConfig(QFileInfo::exists(path) ? readBytes(path) : QByteArray(),
                        string(step, "format"), step.value("set", Json::array()),
@@ -1197,6 +1253,8 @@ Result Engine::install(const Request &r) {
           tx->warning = true;
           event(tx->options, tx->run, "warn",
                 "Config was reserialized; comments were not preserved");
+        }
+        }
         }
       } else if (kind == "shortcut") {
         if (options_.shortcut) {
@@ -1308,9 +1366,11 @@ Json Engine::uninstallPreview(const Request &r) const {
                Json::array({"user media", "unowned files", "user profiles"})}};
 }
 Result Engine::uninstall(const Request &r) {
+  // Exclusion must outlive the try block and every automatic rollback handler.
+  std::unique_ptr<Lock> lock;
   std::unique_ptr<Transaction> tx;
   try {
-    Lock lock(r);
+    lock = std::make_unique<Lock>(r);
     const auto base = stateBase(r);
     const auto old = readEnvelope(base + ".manifest.toml");
     if (old.empty())

@@ -8,7 +8,11 @@
 #include <QGuiApplication>
 #include <QTimer>
 #include <QWindow>
+#include <QJsonDocument>
 #include <QtTest>
+#include <optional>
+#include <QtEndian>
+#include "core/pinball/Pinball.h"
 namespace {
 ac::CatalogData syntheticCatalog(const QString &root){
     auto data=ac::CatalogLoader().load(AC_CATALOG_ROOT);
@@ -33,6 +37,56 @@ void receipt(const QString &root,const QString &media){
 class IntegrationTest:public QObject{
  Q_OBJECT
 private slots:
+ void pinballLaunchUsesRetainedTableAndRecordsRecent(){
+    QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
+    // Synthetic CFB contains only an empty script terminator, no playable content.
+    QByteArray cfb(5632,'\0');cfb.replace(0,8,QByteArray::fromHex("d0cf11e0a1b11ae1"));
+    auto u16=[&](int at,quint16 n){qToLittleEndian(n,cfb.data()+at);};
+    auto u32=[&](int at,quint32 n){qToLittleEndian(n,cfb.data()+at);};
+    u16(26,3);u16(28,0xfffe);u16(30,9);u16(32,6);u32(44,1);u32(48,0);u32(56,4096);u32(60,0xfffffffe);u32(68,0xfffffffe);
+    for(int i=0;i<109;++i)u32(76+4*i,i==0?9:0xffffffff);
+    cfb[512+66]=5;u32(512+76,1);u32(512+116,0xfffffffe);
+    for(int e=1;e<3;++e){const auto at=512+e*128;const QString name=e==1?"GameStg":"GameData";
+        for(int i=0;i<name.size();++i){u16(at+2*i,name[i].unicode());}
+        u16(at+64,static_cast<quint16>((name.size()+1)*2));
+        cfb[at+66]=e==1?1:2;u32(at+68,0xffffffff);u32(at+72,0xffffffff);u32(at+76,e==1?2:0xffffffff);
+        u32(at+116,e==1?0xfffffffe:1);u32(at+120,e==1?0:4096);
+    }
+    u32(1024,4);cfb.replace(1028,4,"ENDB");
+    for(int i=0;i<128;++i)u32(5120+4*i,i==0||i==8?0xfffffffe:i==9?0xfffffffd:i<8?static_cast<quint32>(i+1):0xffffffff);
+    const auto table=folder+"/synthetic table.vpx";ac::install::atomicWrite(table,cfb);
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",QCoreApplication::applicationFilePath());
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    auto data=ac::pinball::scan(folder);auto row=data["tables"].toList()[0].toMap();QVERIFY(!row.contains("error"));
+    ui.pinballLoaded(data);ui.selectPinball(row["id"].toString());ui.markPinball(true);
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    QVERIFY(QMetaObject::invokeMethod(&ui,"playPinball"));
+    QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,5000);
+    QCOMPARE(ui.nowPlaying()["title"].toString(),QString("synthetic table"));
+    ui.selectPinball("");ui.restartLaunch();
+#ifdef Q_OS_WIN
+    QTRY_COMPARE_WITH_TIMEOUT(started.size(),2,5000);
+#else
+    // Clean close is explicitly unavailable on the non-Windows route.
+    QCOMPARE(started.size(),1);
+#endif
+    QTRY_VERIFY_WITH_TIMEOUT(!services.launcher()->busy(),5000);
+    QVERIFY(finished.size()>=1);QVERIFY(ui.nowPlaying().isEmpty());
+    const auto recent=settings.get("pinballRecent",QVariantMap{}).toMap();QVERIFY(recent[row["id"].toString()].toLongLong()>0);
+    ui.pinballLoaded(data);ui.selectPinball(row["id"].toString());QVERIFY(ui.pinballSelection()["lastPlayed"].toLongLong()>0);
+    QCOMPARE(ac::install::readBytes(table),cfb);QCOMPARE(QDir(folder).entryList(QDir::Files),QStringList{"synthetic table.vpx"});
+    ac::install::atomicWrite(table,"changed synthetic metadata");
+    QVERIFY(QMetaObject::invokeMethod(&ui,"playPinball"));QCOMPARE(started.size(),finished.size());
+    QVERIFY(!services.launcher()->busy());QVERIFY(ui.status().contains("scan again",Qt::CaseInsensitive));
+#ifdef Q_OS_WIN
+    ac::install::atomicWrite(table,cfb);data=ac::pinball::scan(folder);ui.pinballLoaded(data);ui.selectPinball(row["id"].toString());
+    QVERIFY(QMetaObject::invokeMethod(&ui,"playPinball"));QTRY_COMPARE_WITH_TIMEOUT(started.size(),3,5000);
+    QSignalSpy exitReady(&services,&ac::HubServices::hubExitReady);services.requestHubExit(7);
+    QCOMPARE(exitReady.size(),0);QTRY_COMPARE_WITH_TIMEOUT(exitReady.size(),1,5000);QCOMPARE(exitReady[0][0].toInt(),7);
+    QVERIFY(!services.launcher()->busy());QCOMPARE(ac::install::readBytes(table),cfb);
+#endif
+ }
  void requiredM1GamesOfferFlatRoutes(){
     const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
     for(const auto &pair:QList<QPair<QString,QString>>{{"timecris","mame"},{"scud","supermodel"},{"ps2-time-crisis-2","pcsx2"}}){
@@ -40,6 +94,33 @@ private slots:
         for(const auto &v:game->variants)if(v.generated&&v.quality=="flat"&&v.tools.contains(pair.second))offered=true;
         QVERIFY2(offered,qPrintable("Required M1 flat route missing: "+pair.first));
     }
+ }
+ void authoredInstallationRestoresAfterHubRestart(){
+    QTemporaryDir t;auto catalog=syntheticCatalog(t.path());auto &game=catalog.games[0];
+    game.raw["hardware"]="nintendo-wii";game.raw["media"]=ac::Json::array({{{"kind","disc"},{"id","disc"}}});
+    ac::Variant v;v.id="dolphinxr";v.title="DolphinXR (experimental VR)";v.status="wip";v.quality="true3d";v.media={"disc"};
+    const auto dir=t.filePath("installed/synthetic/dolphinxr"),exe=dir+"/Dolphin.exe";
+    ac::install::atomicWrite(exe,"synthetic application; never run");QDir().mkpath(dir+"/User");
+    const auto hash=ac::install::hashFile(exe);
+    v.raw={{"status","wip"},{"quality","true3d"},{"version","v0.4"},{"installed_when","file:${install_dir}/Dolphin.exe"},{"step",ac::Json::array()},
+      {"launch",{{"exe","${install_dir}/Dolphin.exe"},{"exe_sha256",hash.toStdString()},{"args",ac::Json::array({"--user","${install_dir}/User"})},{"runtime","none"}}}};
+    game.variants.prepend(v);game.install={{"format",1},{"default","dolphinxr"},{"variant",{{"dolphinxr",v.raw}}}};game.hasRecipe=true;
+    const auto media=t.filePath("synthetic.iso");ac::install::atomicWrite(media,"synthetic disc");receipt(t.path(),media);
+    auto bindings=ac::Json::parse(ac::install::readBytes(t.filePath("user/cache/scan-bindings.json")).toStdString());bindings["bindings"][0]["requirementId"]="disc";
+    ac::install::atomicWrite(t.filePath("user/cache/scan-bindings.json"),QByteArray::fromStdString(bindings.dump()));
+    ac::install::Request r;r.root=t.path();r.gameId=game.id;r.variantId=v.id;
+    const auto base=ac::install::stateBase(r),recipeHash=ac::install::sha256(QByteArray::fromStdString(game.install.dump()));
+    ac::install::writeEnvelope(base+".toml",{{"game","synthetic"},{"variant","dolphinxr"},{"state","installed"},{"installed_version","v0.4"},{"recipe_sha256",recipeHash.toStdString()}});
+    ac::install::writeEnvelope(base+".manifest.toml",{{"game","synthetic"},{"variant","dolphinxr"},{"install_dir","installed/synthetic/dolphinxr"},{"installed_when","file:${install_dir}/Dolphin.exe"},{"recipe_sha256",recipeHash.toStdString()},{"file",ac::Json::array({{{"path","Dolphin.exe"},{"sha256",hash.toStdString()}}})}});
+    ac::GameListModel model(catalog);ac::FilterSortModel filter;filter.setSourceModel(&model);ac::UiSettings settings(t.filePath("user"));ac::UiController ui(&model,&filter,&settings);
+    ac::HubServices services(&model,&filter,&ui,&settings,t.path());
+    QCOMPARE(model.find("synthetic")->runtime.selectedVariantId,QString("dolphinxr"));
+    QCOMPARE(model.find("synthetic")->roles.value("stateLabel").toString(),QString("Setup installed"));
+    ui.openDetail("synthetic");QCOMPARE(ui.detail().value("variantId").toString(),QString("dolphinxr"));
+    std::optional<ac::launch::Request> launch;
+    try { launch=ac::launch::gameRequest(catalog,"synthetic",t.path(),bindings); }catch(const ac::install::Error &) {}
+    QVERIFY2(launch.has_value(),"Default launch did not retain the installed authored setup");
+    QCOMPARE(launch->variantId,QString("dolphinxr"));
  }
  void restoreArtAndScanSignals(){
     QTemporaryDir temp;const auto media=temp.filePath("fixture.zip");ac::install::atomicWrite(media,"synthetic metadata only");receipt(temp.path(),media);
@@ -99,7 +180,7 @@ private slots:
     QVERIFY(services.beginSteam("synthetic","flat-mame",true));services.previewSteam("123");QVERIFY(services.steamWriteReady());QVERIFY(services.steamPreview().contains("--variant flat-mame"));QCOMPARE(ac::install::readBytes(target),before);
     shortcut.variantId="retired-vr";shortcut.vr=true;const auto legacy=ac::steam::edit(before,shortcut).bytes;ac::install::atomicWrite(target,legacy);
     QVERIFY(services.beginSteam("synthetic","retired-vr",true));services.previewSteam("123");QVERIFY(services.steamWriteReady());QVERIFY(services.steamPreview().contains("--variant retired-vr"));QCOMPARE(ac::install::readBytes(target),legacy);
-    QVERIFY(!services.beginSteam("synthetic","unavailable-route",false));QVERIFY(!services.steamWriteReady());QVERIFY(services.steamPreview().contains("available M1 flat variant"));QCOMPARE(ac::install::readBytes(target),legacy);
+    QVERIFY(!services.beginSteam("synthetic","unavailable-route",false));QVERIFY(!services.steamWriteReady());QVERIFY(services.steamPreview().contains("available flat or pinned authored SteamVR variant"));QCOMPARE(ac::install::readBytes(target),legacy);
  }
  void shippedFlatHasNothingToRetryAndFailedToolIsExplicit(){
     QTemporaryDir temp;auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);catalog.emulators["supermodel"]["gate"]="locate-only";
@@ -164,8 +245,13 @@ private slots:
     QTRY_COMPARE_WITH_TIMEOUT(QDir(removals).entryList(QDir::Dirs|QDir::NoDotAndDotDot),QStringList{"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"},5000);QCOMPARE(ac::install::readBytes(orphan),QByteArray("synthetic unrecorded file"));
  }
  void emptyCatalogToolActionsFailSafely(){
-    QTemporaryDir temp;ac::CatalogData catalog;ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
-    QVERIFY(services.toolPlan().contains("Catalog has no games"));services.installSupermodel();QVERIFY(ui.status().contains("Catalog has no games"));QVERIFY(!ui.installing());services.previewSupermodelRemoval();QVERIFY(ui.status().startsWith("Hub:"));QVERIFY(ui.status().contains("Catalog has no games"));QVERIFY(!QFileInfo::exists(temp.filePath("emulators")));
+    QTemporaryDir temp;ac::CatalogData catalog;ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);
+    std::unique_ptr<ac::HubServices> services;
+    try{services=std::make_unique<ac::HubServices>(&games,&filter,&ui,&settings,temp.path());}
+    catch(const std::exception &error){QFAIL(qPrintable(QString("Empty-catalog service construction threw: ")+error.what()));}
+    QVERIFY(services->toolPlan().contains("Catalog has no games"));services->installSupermodel();QVERIFY(ui.status().contains("Catalog has no games"));QVERIFY(!ui.installing());services->previewSupermodelRemoval();QVERIFY(ui.status().startsWith("Hub:"));QVERIFY(ui.status().contains("Catalog has no games"));QVERIFY(!QFileInfo::exists(temp.filePath("emulators")));
+    QVERIFY(services->gunRoomModels().isEmpty());services->previewGunRoom("synthetic-pistol","left",temp.filePath("absent-room.exe"));
+    QVERIFY(!services->gunRoomAvailable());QVERIFY(!services->gunRoomReason().isEmpty());
  }
  void changedMediaIsNotReadyOnRestore(){
     QTemporaryDir temp;const auto media=temp.filePath("fixture.zip");ac::install::atomicWrite(media,"before");receipt(temp.path(),media);ac::install::atomicWrite(media,"different size after proof");
@@ -175,6 +261,16 @@ private slots:
 };
 int main(int argc,char **argv){
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
+    if((argc==3||(argc==5&&QByteArray(argv[3])=="-Ini"))&&QByteArray(argv[1])=="-Play"){
+        QGuiApplication child(argc,argv);QWindow window;window.show();
+        const auto arguments=qEnvironmentVariable("AC_SYNTHETIC_PINBALL_ARGUMENTS");
+        if(!arguments.isEmpty()){
+            QFile file(arguments);if(!file.open(QIODevice::WriteOnly))return 3;
+            file.write(QJsonDocument::fromVariant(child.arguments().mid(1)).toJson(QJsonDocument::Compact));
+        }
+        const auto duration=qEnvironmentVariableIntValue("AC_SYNTHETIC_PINBALL_CHILD_MS");
+        QTimer::singleShot(duration>0?duration:600,&child,&QCoreApplication::quit);return child.exec();
+    }
     QGuiApplication app(argc,argv);IntegrationTest test;return QTest::qExec(&test,argc,argv);
 }
 #include "IntegrationTest.moc"

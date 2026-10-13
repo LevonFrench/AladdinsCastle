@@ -1,0 +1,204 @@
+# Dolphin SBS capture and theatre
+
+The Windows helper uses Windows.Graphics.Capture for one explicit Dolphin.exe
+PID and one explicitly admitted visible unowned window. In capture-only mode,
+its caption must contain the exact selected disc header ID in parentheses;
+the initial Qt main window is not accepted just because it is the only HWND.
+It crops the captured window to the
+client area using matching physical bounds. It never captures a monitor or the
+desktop. Overlapping windows do not block capture and their pixels are not read.
+The selected process/window disappearing, changing identity or minimising stops
+capture. GDI and the former overlap/cursor exceptions have been removed.
+
+Build with existing Python 3, Windows SDK, C++/WinRT headers and OpenVR SDK:
+
+```powershell
+cmake -S tools/wii-dolphin-profile/theatre -B .local/build-theatre -DOPENVR_SOURCE=<existing-sdk>
+cmake --build .local/build-theatre --config Release
+ctest --test-dir .local/build-theatre -C Release --output-on-failure
+```
+
+Missing headers/runtime are a blocker to report; the project downloads nothing.
+Headless checks use software WARP and synthetic pixels, not a capture session,
+hardware adapter, game, window or VR initialization.
+The build derives the theatre's visible title from `data/product.json` through
+the scoped Python reader. Invalid metadata fails configuration. Generated C++
+uses escaped UTF-8 bytes, including quotes and supplementary Unicode; a native
+CPU test checks the compiled result. Overlay ownership keys, calibration and
+receipt schemas remain stable. Updating product labels requires rebuilding the
+title, and never modifies existing user files.
+
+## Desktop proof
+
+For a coordinated input-free R3 turn, `desktop_capture.py` supervises both
+processes, creates a fresh private User directory and retains logs, proof PNGs
+and cleanup receipts. It performs no mouse/keyboard input, Computer Use,
+SteamVR initialization or system-setting changes. Scripted DSU input is supplied
+separately by the lead. A system prompt stops the item for the owner; this
+harness cannot detect unrelated prompts or authorize a runtime slot.
+
+Supply a private JSON configuration under this checkout's `.local` containing
+absolute `dolphin`, `capture` and `disc` paths, exact `dolphin_sha256` and
+`capture_sha256` hashes, and `disc_header_sha256` (the first 32 bytes). The
+header ID must belong to the historical default pair when `game_id` is omitted,
+preserving existing recipes. Generic recipes
+add explicit `game_id` (six uppercase letters/digits), selected `game_slug`,
+`dsu_profile` and `dsu_profile_sha256`. These are explicit selection fields,
+not an owner-title allow-list or permission to access/run a game.
+Hexadecimal SHA-256 text accepts either case, matching PowerShell's `Get-FileHash`;
+the original private recipe/manifest bytes are retained.
+
+Generic profiles must be canonical
+`games/<game_slug>/scripted-dsu-right.ini` or
+`games/<game_slug>/flat-dolphin-right.ini`, with an exact
+`generated-files.json` entry and caller hash. The slug is the selected generated
+game/control-set folder identifier, matching the sitting runner's `ControlSet`;
+it is never inferred from media filenames. Only that game's selector is created.
+The canonical global split-right profile remains supported for legacy recipes.
+Native Source 3, wrong slugs, linked profiles and malformed INI are refused.
+An adjacent manifest and caller hash are integrity checks, not proof of canonical
+controls. Admission compares the entire payload to the scoped, hash-pinned
+one-remote producer template, using the selected product DSU label. It requires
+exactly Wiimote1–4 and BalanceBoard sections, no defaults, and every non-selected
+slot strictly disabled. Changed buttons, axes or extra settings fail even if
+both untrusted hashes are recomputed. Preparation copies the validated bytes
+without reopening the source profile.
+
+The current template is pinned to Guns' committed `6b1874` output with Home blank
+because its DSU byte is unsupported. Both per-game right-primary DSU roles use
+that complete contract. Only the legacy global split-right path additionally
+accepts the complete historical template; generic profiles cannot use it. Native
+seed and historical profiles/receipts remain untouched. Future producer changes
+need a reviewed consumer-template update and fail closed in the meantime.
+
+`disc_header_sha256` always hashes the selected 32-byte Wii header: offset zero
+for ISO, or the copied header after the bounded host sector for single-disc WBFS.
+Wii magic and the selected ID must match. WBFS host shifts 9–12 and block shifts
+15–31 are bounded before allocation; a missing first slot, extra disc slots,
+invalid declared size or truncated copied header fails. This checks metadata
+only, not payload/block-map integrity. No collection/companion traversal or
+content copy occurs. Keep this JSON and
+all output outside Git. `prepare` validates inputs and writes fresh settings
+without launching; `run` requires a different fresh output directory and the
+lead's runtime slot:
+
+Fresh settings explicitly disable `Interface/OnScreenDisplayMessages` and enable
+`Interface/ShowActiveTitle`, as verified against the pinned source. Diagnostic
+OSD must not qualify as game content. The default settle is 20 seconds; both
+this and those isolated settings reproduce the successful safety-screen phase.
+New prepared receipts retain the exact config fingerprint, header metadata and
+selected profile key. The tool rechecks them after preparation and immediately
+before launching; even a same-size header change or config whitespace edit fails.
+Historical receipts/configurations are not rewritten or resumed.
+
+Optional `dsu_profile` and `dsu_profile_sha256` select the canonical generated
+`flat-dolphin/split-right.ini`. Its shared manifest must match exactly. The
+supervisor copies those bytes to its fresh User, enables background input and
+clears its own named game-profile overrides. The lead's separately supervised
+scripted DSU server must start before Dolphin; it is not launched by this tool.
+
+```powershell
+python tools/wii-dolphin-profile/desktop_capture.py prepare --config .local/capture-inputs.json --run-dir .local/capture-prepared
+python tools/wii-dolphin-profile/desktop_capture.py run --config .local/capture-inputs.json --run-dir .local/capture-run --seconds 15
+```
+
+The supervisor waits up to 30 seconds for an owned visible window, then starts
+the helper. The helper has a separate 1–90 second startup bound for game-window
+selection and the first spatial candidate, followed by the requested 3–60
+seconds for a changing second frame. The supervisor allows 5 seconds for exit.
+Optional `--settle-seconds 0..30` overrides the default 20-second delay before starting the helper;
+elapsed time alone never establishes game readiness. Cleanup receipts distinguish
+an already exited child from terminate/kill, and report `normal_exit` separately.
+Forced cleanup never proves a normal game exit. No automatic retry occurs. An ambiguous owned
+window set or timeout fails without input. A successful RGB gate still leaves
+`live_proof` false and `sbs_visual_check` required in the private result: inspect
+the PNGs for actual game/SBS content before claiming desktop proof. Headset
+acceptance is a separate owner sitting. The new synthetic harness tests cover
+identity rejection, fresh output isolation, failed/hung capture cleanup and
+reaping a real CPU-only child when the second spawn fails.
+Private receipts also record Unix timestamps bracketing Dolphin/capture creation
+and completion. These are supervisor launch timestamps, not an exact DSU
+timeline start; that belongs in the separately owned scripted server receipt.
+
+Use this only in a coordinated desktop turn, after the native DolphinXR first
+boot. Start Dolphin with a fresh isolated profile (1280 x 720, auto-size off),
+then provide its explicit PID. No SteamVR initialization occurs in this mode:
+
+```powershell
+& .local/build-theatre/Release/acvr-dolphin-theatre.exe --pid <DolphinPID> --seconds 15 --startup-seconds 90 --game-id <disc-header-ID> --capture-only --proof-dir .local/capture-example
+```
+
+The output directory must be fresh, under .local with existing unlinked parents.
+Two client frames at least 1 second apart in compositor time must differ in RGB.
+Uniform white, grey or black frames and alpha-only noise do not pass. The
+spatial filter ignores a five-percent perimeter and rejects an interior with
+over 99 percent one RGB colour, so rounded startup-window corners cannot qualify.
+Resizing during comparison is an error. The two candidate PNGs and capture.json
+remain private; a startup/content timeout may produce logs without PNGs.
+Inspect the PNGs for the actual game and its SBS halves:
+frame differences alone cannot establish either. Capture size is bounded;
+unknown window/frame geometry is refused instead of guessing a crop. A failed
+live attempt gets one diagnosis and one retry, then stop and report. Close every
+program started for the turn. Do not retry on an observation timeout.
+
+## Theatre, in a later headset sitting
+
+Use a SteamVR headset only when that sitting is separately authorized:
+
+```powershell
+& .local/build-theatre/Release/acvr-dolphin-theatre.exe --pid <DolphinPID> --seconds 120 --head-file .local/theatre-head.json
+```
+
+The same WGC capture and two-frame gate precede overlay initialization. Captured
+packed BGRA bytes are uploaded at full client size through the reviewed D3D11
+BGRA8/Gamma texture path on SteamVR's nominated adapter. Hardware interoperability
+and headset output remain live gates. No raw upload or alternative capture is
+used. The fixed plane is 2 m away, 3.2 m wide and 1.8 m high. Startup centering
+publishes its exact HMD matrix/revision for bridge calibration. The viewer
+reserves no global keyboard shortcut by default. Explicit live-mode
+`--desktop-recenter-hotkey on` registers Ctrl+Alt+C for later recentering;
+`off` is the default and capture-only mode refuses `on`. The inherited SBS aspect
+factor is provisional until its proportions are checked in a headset image.
+The second proven frame is submitted before the overlay is shown. After the
+startup gate, an empty frame pool leaves that last submitted texture
+visible while the loop continues to handle recenter, SteamVR quit and the run
+deadline. Stop or deadline exits normally. Failure to prove the two fresh,
+different startup frames remains an error. The headless tests cover this loop
+decision and synthetic pixels; earlier live attempts failed to establish an
+accepted game SBS capture or headset image.
+All runs are bounded to 3-600 seconds. Capture sessions, frame pools, device
+references, overlay resources and temporary hotkeys are released on exit.
+
+Sources: [Microsoft HWND capture](https://learn.microsoft.com/en-us/windows/win32/api/windows.graphics.capture.interop/nf-windows-graphics-capture-interop-igraphicscaptureiteminterop-createforwindow),
+[free-threaded frame pool](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.direct3d11captureframepool.createfreethreaded),
+[compositor frame time](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.direct3d11captureframe.systemrelativetime).
+
+## Opt-in failure diagnostics
+
+For an explicitly authorized capture-only attempt, add
+`--failure-diagnostic-dir <absolute fresh private directory under .local>`.
+Its existing parent must have no linked ancestors; the directory is reserved
+before capture and held against replacement/write access. It must differ from
+the accepted proof directory. The option is rejected for live-overlay runs.
+No diagnostic files are written on success; the reserved directory stays empty.
+
+On failure, `failure.json` records `accepted: false`, the original error, parsed
+startup/comparison bounds, exact stage, admitted PID/HWND and title-match boolean,
+client/source/crop dimensions, poll/resize/raw-frame/content/comparison counters,
+and compositor timestamps. No window title is recorded. A first spatial candidate
+(or first raw frame when none qualifies) and the latest raw frame are retained,
+at most two images, as `first-candidate.png`/`first-raw.png` and `latest-raw.png`.
+Their metadata also says `accepted: false`. Samples remain private diagnostics;
+they are never accepted `frame-1.png`, `frame-2.png` or `capture.json` evidence.
+Metadata precedes exclusive image writes; `sample_export` describes requested
+exports, and partial export errors leave the original failure and exit 1 intact.
+Existing files are never overwritten. No raw frames produces metadata only.
+
+Admission, candidate threshold, excluded border/alpha, minimum interval, RGB
+change gate and accepted proof bytes remain unchanged. Poll counters distinguish
+no delivery, pool resize, readback failure, uniform content, too-soon timestamps
+and RGB-identical candidates; scalar statistics and samples do not establish
+gameplay, stereoscopic depth or headset acceptance. The CPU diagnostic fixture
+checks phase/counters, the exact 1% boundary, alpha/border exclusion, immutable
+two-sample retention and independent JSON parsing. Software readback tests cover
+exclusive failure PNG writes and preservation of existing files.

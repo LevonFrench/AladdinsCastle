@@ -40,6 +40,16 @@ QList<ArchiveEntry> walk(const QString &path, ArchiveLimits limits,
                          const Json &guard, const QString &stage = {},
                          int strip = 0, const QStringList &include = {},
                          const QStringList &exclude = {}) {
+  // Validate the ordinary archive source and policy before opening it. Pins
+  // only affect members; a caller cannot turn a game/BIOS source into a tool.
+  contentGuard(QFileInfo(path).fileName(), guard);
+  const auto supportPins = guard.value("archive_support",Json::array());
+  const auto archiveSha = supportPins.empty() ? QString() : hashFile(path);
+  for (const auto &blocked : guard["sha256"]) {
+    if (!archiveSha.isEmpty() && QString::fromStdString(blocked.get<std::string>()).compare(archiveSha,Qt::CaseInsensitive) == 0) {
+      throw Error("E_CONTENT_GUARD", "Known game content archive hash refused");
+    }
+  }
   Reader r(path);
   QList<ArchiveEntry> result;
   QSet<QString> names;
@@ -60,7 +70,23 @@ QList<ArchiveEntry> walk(const QString &path, ArchiveLimits limits,
     while (name.endsWith('/'))
       name.chop(1);
     validateRelative(name);
-    contentGuard(name, guard);
+    const Json *support = nullptr;
+    for (const auto &row : supportPins) {
+      if (string(row,"archive_sha256") == archiveSha && string(row,"path") == name) {
+        support = &row;
+        break;
+      }
+    }
+    if (!support) {
+      contentGuard(name, guard);
+    } else {
+      // Do not defer named game/BIOS denials while checking support bytes.
+      for (const auto &blocked : guard["names"]) {
+        if (QFileInfo(name).fileName().compare(QString::fromStdString(blocked.get<std::string>()),Qt::CaseInsensitive) == 0) {
+          throw Error("E_CONTENT_GUARD", "Known game/BIOS file refused");
+        }
+      }
+    }
     if (names.contains(name.toCaseFolded()))
       throw Error("E_ARCHIVE_UNSAFE", "Archive case collision");
     names.insert(name.toCaseFolded());
@@ -74,6 +100,9 @@ QList<ArchiveEntry> walk(const QString &path, ArchiveLimits limits,
     const auto size = static_cast<qint64>(archive_entry_size(entry));
     if (size < 0 || size > max - total)
       throw Error("E_ARCHIVE_LIMITS", "Expanded archive exceeds cap");
+    if (support && (type != AE_IFREG || size != support->value("bytes",int64_t(0)))) {
+      throw Error("E_CONTENT_GUARD", "Pinned support member type or size differs");
+    }
     total += size;
     result.push_back({name, size, type == AE_IFDIR});
     auto parts = name.split('/');
@@ -110,6 +139,7 @@ QList<ArchiveEntry> walk(const QString &path, ArchiveLimits limits,
       throw Error("E_ARCHIVE_CORRUPT",
                   "Archive CRC, size or truncation failure");
     const auto entryHash = QString::fromLatin1(contentHash.result().toHex());
+    contentGuard(name, guard, archiveSha, entryHash);
     for (const auto &blocked :
          (guard.is_object() ? guard.value("sha256", Json::array())
                             : Json::array()))

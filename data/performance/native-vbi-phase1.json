@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "status": "synthetic-template-unmeasured",
+  "source_commit": "85c4266b29eb308d173fefa0f21f5cb77df3516a",
+  "cli_setting": "Graphics.VR.ForcedVBIFrequency",
+  "modes": {
+    "Auto": -1,
+    "Off": 0,
+    "72": 72,
+    "90": 90,
+    "120": 120
+  },
+  "experiments": {
+    "native-off": "Off",
+    "native-auto": "Auto",
+    "native-72": "72",
+    "native-90": "90",
+    "native-120": "120"
+  },
+  "run_order": [
+    "native-off",
+    "native-auto",
+    "native-72",
+    "native-90",
+    "native-120"
+  ],
+  "games": {
+    "SYN001": {
+      "format": "iso",
+      "control_key": "synthetic-syn001",
+      "legacy_split_profile": true
+    },
+    "SYN002": {
+      "format": "iso",
+      "control_key": "synthetic-syn002",
+      "legacy_split_profile": true
+    },
+    "SYN003": {
+      "format": "iso",
+      "control_key": "synthetic-syn003"
+    },
+    "SYN004": {
+      "format": "iso",
+      "control_key": "synthetic-syn004"
+    },
+    "SYN005": {
+      "format": "wbfs",
+      "control_key": "synthetic-syn005"
+    },
+    "SYN006": {
+      "format": "iso",
+      "control_key": "synthetic-syn006"
+    },
+    "SYN007": {
+      "format": "iso",
+      "control_key": "synthetic-syn007"
+    }
+  },
+  "constant_overrides": {
+    "Graphics.VR.EnableOpenXR": "True",
+    "Graphics.VR.AutoVBIFromHMD": "False",
+    "Graphics.VR.EagerHeartbeat": "False",
+    "Graphics.VR.MirrorView": "0",
+    "Graphics.Hardware.VSync": "False",
+    "Dolphin.Core.EnableCheats": "False",
+    "Dolphin.Core.VIOverclockEnable": "False",
+    "Dolphin.Core.VIOverclock": "1.0",
+    "Dolphin.Core.OverclockEnable": "False",
+    "Dolphin.Core.Overclock": "1.0",
+    "Dolphin.Core.EmulationSpeed": "1.0",
+    "SYSCONF.IPL.E60": "True"
+  },
+  "runtime_dependencies": [
+    "lead quiet-machine runtime slot",
+    "lead scripted DSU/profile contract",
+    "approved XR session conditions",
+    "same scene cues and counter evidence"
+  ],
+  "measurement_window_seconds": 60,
+  "maximum_attempt_seconds": 180,
+  "stop_conditions": [
+    "system prompt",
+    "changed game speed",
+    "CPU at conservative saturation threshold",
+    "missing counters",
+    "crash or hang",
+    "scene cannot be reached with scripted input"
+  ],
+  "attempt_policy": "Owner desktop/headset attempts: one diagnosis and one retry; offline engineering iterates normally.",
+  "unreached": [
+    "effective native switch in a run",
+    "Auto startup refresh capture",
+    "PAL video mode",
+    "scripted mission",
+    "FPS/VPS/speed counters",
+    "same-stretch stopwatch",
+    "CPU/GPU telemetry",
+    "audio and cutscene sync",
+    "headset behavior"
+  ],
+  "results": [],
+  "recommendation": null,
+  "synthetic_only": true
+}

@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Await owner-selected option/instruction screens. No inferred game actions.
+version = "0.1"
+game_id = "wii-house-of-the-dead-overkill"
+control_set = "shell-and-stick"
+layout = { state = "question", name = "", question = "Which game option-screen layout is selected for shell and stick?" }
+questions = ["Confirm A reload, Z weapon switch, C grenade and danger-camera stick in the chosen layout.", "Confirm the Remote plus/minus actions before assigning a gameplay label.", "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."]
+sources = []
+
+[gun_proposal]
+state = "proposed"
+model = "con-revolver-chunky"
+rationale = "Exaggerated chunky toy silhouette gives this arcade rail-shooter its own visual identity; owner choice and weapon matching remain open."
+
+[hold]
+default = "split"
+state = "provisional"
+
+[reload]
+choices = ["shake", "flick-down", "offscreen", "button"]
+selected = "flick-down"
+state = "question"
+question = "A one-hand flick is proposed for convenience; verify the game reload action before enabling it."
+target_action = "remote-shake"
+button_fallback = "remote-shake"

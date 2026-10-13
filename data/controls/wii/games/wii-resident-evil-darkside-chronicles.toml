@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Await owner-selected option/instruction screens. No inferred game actions.
+version = "0.1"
+game_id = "wii-resident-evil-darkside-chronicles"
+control_set = "shell-and-stick"
+layout = { state = "question", name = "", question = "Which game option-screen layout is selected for shell and stick?" }
+questions = ["Confirm reload gesture, melee-enable input and timed prompts during the first sitting.", "Confirm directional and stick weapon selection in this control layout.", "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."]
+sources = []
+
+[gun_proposal]
+state = "proposed"
+model = "generic-pistol"
+rationale = "Compact form with little visual clutter keeps the sight picture clear during camera motion; exact weapon matching awaits review."
+
+[hold]
+default = "split"
+state = "provisional"
+
+[reload]
+choices = ["shake", "flick-down", "offscreen", "button"]
+selected = "button"
+state = "question"
+question = "Seated button is the provisional convenience choice; reload input/layout still needs confirmation."
+target_action = "remote-shake"
+button_fallback = "remote-shake"

@@ -1,0 +1,165 @@
+{
+  "version": "0.1",
+  "model": "arc-pistol-slide",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "arc-pistol-slide-front.png",
+      "nodes": {
+        "limit_recoil": [
+          0.578147,
+          0.329497
+        ],
+        "muzzle": [
+          0.137681,
+          0.320972
+        ],
+        "fx_muzzle": [
+          0.137681,
+          0.320972
+        ],
+        "fx_laser": [
+          0.137681,
+          0.320972
+        ],
+        "sight_front": [
+          0.222933,
+          0.252771
+        ],
+        "sight_rear": [
+          0.802643,
+          0.252771
+        ],
+        "slide_recoil": [
+          0.535521,
+          0.329497
+        ],
+        "pivot_trigger": [
+          0.569622,
+          0.41759
+        ],
+        "grip": [
+          0.691816,
+          0.451691
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "arc-pistol-slide.png",
+      "nodes": {
+        "limit_recoil": [
+          0.553959,
+          0.320808
+        ],
+        "muzzle": [
+          0.249828,
+          0.434042
+        ],
+        "fx_muzzle": [
+          0.249828,
+          0.434042
+        ],
+        "fx_laser": [
+          0.249828,
+          0.434042
+        ],
+        "sight_front": [
+          0.308692,
+          0.347518
+        ],
+        "sight_rear": [
+          0.708968,
+          0.188111
+        ],
+        "slide_recoil": [
+          0.524527,
+          0.33253
+        ],
+        "pivot_trigger": [
+          0.548072,
+          0.404632
+        ],
+        "grip": [
+          0.632444,
+          0.402572
+        ]
+      }
+    },
+    "held": {
+      "image": "arc-pistol-slide-held.png",
+      "nodes": {
+        "limit_recoil": [
+          0.516548,
+          0.380342
+        ],
+        "muzzle": [
+          0.423278,
+          0.183683
+        ],
+        "fx_muzzle": [
+          0.423278,
+          0.183683
+        ],
+        "fx_laser": [
+          0.423278,
+          0.183683
+        ],
+        "sight_front": [
+          0.44133,
+          0.158987
+        ],
+        "sight_rear": [
+          0.564086,
+          0.407734
+        ],
+        "slide_recoil": [
+          0.507522,
+          0.362051
+        ],
+        "pivot_trigger": [
+          0.514743,
+          0.455832
+        ],
+        "grip": [
+          0.540618,
+          0.538903
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
+  },
+  "silhouette": "arc-pistol-slide-silhouette.png",
+  "sight_reviews": {
+    "LOD0": "arc-pistol-slide-sight-lod0.png",
+    "LOD1": "arc-pistol-slide-sight-lod1.png"
+  },
+  "silhouette_scale_m": 0.82
+}

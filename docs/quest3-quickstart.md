@@ -1,4 +1,4 @@
-# Play now on Quest 3 (before AladdinsCastle exists)
+# PCVR and standalone quickstart (historical references)
 
 These existing projects already run 3D light gun games in true VR today. The AladdinsCastle Hub will install and launch them for you. Until then, here is how to run them directly. Status checked 2026-10-08.
 
@@ -23,7 +23,7 @@ Standalone (Quest 3):
 
 Game content: the README says the release APK bundles the Time Crisis ROM set. The project also documents a ROM-free build that takes your own dump (`timecris.zip`, Time Crisis World TS2 Ver.B, checked by SHA-256). If you want to play only from your own dump, use the ROM-free build route.
 
-PCVR: extract the Windows zip, start Quest Link, Air Link or Virtual Desktop, then run `Play VR.cmd` (or `Play SteamVR.cmd`).
+PCVR: extract the Windows zip, connect a SteamVR headset, then run `Play SteamVR.cmd`. Other OpenXR runtime compatibility belongs to the upstream project.
 
 Controls: either trigger fires and selects the hand; either grip is the pedal (leave cover); or switch to physical ducking in options. Hold still and press **X** (left) to recenter and set standing height.
 
@@ -32,7 +32,7 @@ Controls: either trigger fires and selects the hand; either grip is the pedal (l
 - Repo: https://github.com/NeuralF/Rea-Virtua-Cop-2-VR (MIT, v1.0 beta)
 - Needs: your own **Virtua Cop 2 PC (1997)** install, Windows x64, any OpenXR runtime.
 - Effort: about 10 minutes if the PC game already runs. The 1997 installer can be fiddly on modern Windows; the README explains the `PROJECT` folder workaround.
-- Copy the mod next to `PPJ2DD.EXE`, start your VR runtime, run `VC2VR.exe`. Two controllers give two guns: player 2 joins with A or X.
+- Copy the mod next to `PPJ2DD.EXE`, connect a SteamVR headset and start SteamVR, then run `VC2VR.exe`. Two controllers give two guns: player 2 joins with A or X.
 
 ## PenguinScreen2: PS2 in VR (Linux PC or Steam Deck)
 

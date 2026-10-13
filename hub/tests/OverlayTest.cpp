@@ -3,6 +3,7 @@
 #include "overlay/OverlayHost.h"
 #include "overlay/SpikeState.h"
 #include <QKeyEvent>
+#include <QFocusEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QProcess>
@@ -23,14 +24,15 @@ public:
     QString typed;
     QPointF position;
     QPoint wheel;
+    QList<quint64> timestamps;
     bool event(QEvent *event) override {
         types.append(event->type());
         if (event->type() == QEvent::MouseMove || event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease) {
             const auto *mouse = static_cast<QMouseEvent *>(event);
-            position = mouse->position(); buttonStates.append(mouse->buttons()); changedButtons.append(mouse->button());
-        } else if (event->type() == QEvent::Wheel) { wheel += static_cast<QWheelEvent *>(event)->angleDelta(); }
+            timestamps.append(mouse->timestamp());position = mouse->position(); buttonStates.append(mouse->buttons()); changedButtons.append(mouse->button());
+        } else if (event->type() == QEvent::Wheel) { const auto *mapped=static_cast<QWheelEvent *>(event);timestamps.append(mapped->timestamp());wheel += mapped->angleDelta();position=mapped->position(); }
         else if (event->type() == QEvent::KeyPress) {
-            const auto *key = static_cast<QKeyEvent *>(event); keys.append(key->key()); typed += key->text();
+            const auto *key = static_cast<QKeyEvent *>(event);timestamps.append(key->timestamp()); keys.append(key->key()); typed += key->text();
         }
         return true;
     }
@@ -43,7 +45,7 @@ public:
     bool isVisible() const override { return false; }
     vr::VROverlayHandle_t handle() const override { return 42; }
     bool pollEvent(vr::VREvent_t *) override { return false; }
-    bool submit(unsigned int, QString *) override { return true; }
+    bool submit(unsigned int, QString *,ac::OverlaySubmitStatus *status=nullptr) override { if(status)*status={};return true; }
     bool showKeyboard(const QString &, quint64, QString *) override { return false; }
     void hideKeyboard() override { ++m_receipt.hides; }
     void acknowledgeQuit() override { ++m_receipt.acknowledgements; }
@@ -63,8 +65,37 @@ private slots:
         QSKIP("Portable DLL probe is Windows-specific; no runtime initialization is permitted.");
 #endif
     }
+    void textureAndInputCornerContracts() {
+        const auto bounds=ac::overlayTextureBounds;
+        ac::OverlayInput input({1280,800});
+        for(const QPointF corner:QList<QPointF>{{0,0},{1,0},{0,1},{1,1}}){
+            QPointF sampled(bounds.uMin+corner.x()*(bounds.uMax-bounds.uMin),
+                            bounds.vMin+corner.y()*(bounds.vMax-bounds.vMin));
+            if(ac::overlayMirrorVertically)sampled.setY(1-sampled.y());
+            QCOMPARE(sampled,corner);
+            const auto flipped=ac::overlayPictureBounds(true);
+            QCOMPARE(QPointF(flipped.uMin+corner.x()*(flipped.uMax-flipped.uMin),
+                             flipped.vMin+corner.y()*(flipped.vMax-flipped.vMin)),QPointF(corner.x(),1-corner.y()));
+            QCOMPARE(input.mapPosition(float(corner.x()*1280),float((1-corner.y())*800)),
+                     QPointF(corner.x()*1280,corner.y()*800));
+        }
+    }
+    void independentOrientationCommandLine(){
+        const auto defaults=ac::parseLaunchOptions({"--overlay"});
+        QVERIFY(!defaults.pictureFlipY);QVERIFY(defaults.pointerFlipY);
+        const auto options=ac::parseLaunchOptions({"--overlay","--window","--spike","--overlay-picture-flip-y","on","--overlay-pointer-flip-y","off"});
+        QVERIFY2(options.error.isEmpty(),qPrintable(options.error));
+        QVERIFY(options.pictureFlipY);QVERIFY(!options.pointerFlipY);
+        QVERIFY(!ac::parseLaunchOptions({"--overlay","--overlay-picture-flip-y"}).error.isEmpty());
+        QVERIFY(!ac::parseLaunchOptions({"--overlay","--overlay-pointer-flip-y","maybe"}).error.isEmpty());
+        QVERIFY(!ac::parseLaunchOptions({"--launch","synthetic","--overlay-picture-flip-y","on"}).error.isEmpty());
+    }
+    void hiddenSubmitSuccessDoesNotClaimAnApiCall(){
+        RuntimeReceipt receipt;FakeRuntime runtime(receipt);ac::OverlaySubmitStatus status{true,0};QString error;
+        QVERIFY(runtime.submit(41,&error,&status));QVERIFY(!status.apiCalled);QCOMPARE(status.apiResult,-1);
+    }
     void coordinateContractAndDiagnosticOverride() {
-        ac::OverlayInput input({1280, 800});
+        ac::OverlayInput input({1280, 800});input.setTuning({0,0,0,120,true});
         QCOMPARE(input.mapPosition(0, 0), QPointF(0, 800));
         QCOMPARE(input.mapPosition(1280, 800), QPointF(1280, 0));
         QCOMPARE(input.mapPosition(640, 400), QPointF(640, 400));
@@ -72,9 +103,10 @@ private slots:
         input.setFlipY(false); QCOMPARE(input.mapPosition(25, 40), QPointF(25, 40));
     }
     void dragButtonStateAndHideRelease() {
-        ac::OverlayInput input; Recorder receiver;
+        ac::OverlayInput input;input.setTuning({0,0,0,120,true}); Recorder receiver;
         vr::VREvent_t event{}; event.eventType = vr::VREvent_MouseButtonDown;
         event.data.mouse = {30, 750, vr::VRMouseButton_Left, 0};
+        event.eventType=vr::VREvent_MouseMove;QVERIFY(input.dispatch(event,&receiver));event.eventType=vr::VREvent_MouseButtonDown;
         QVERIFY(input.dispatch(event, &receiver));
         QCOMPARE(receiver.position, QPointF(30, 50)); QCOMPARE(input.buttons(), Qt::LeftButton);
         event.eventType = vr::VREvent_MouseMove; event.data.mouse.x = 50;
@@ -83,12 +115,13 @@ private slots:
         QVERIFY(input.dispatch(event, &receiver)); QCOMPARE(input.buttons(), Qt::LeftButton | Qt::RightButton);
         event.eventType = vr::VREvent_OverlayHidden; QVERIFY(input.dispatch(event, &receiver));
         QCOMPARE(input.buttons(), Qt::NoButton); QCOMPARE(receiver.types.last(), QEvent::Leave);
-        QCOMPARE(receiver.changedButtons.last(), Qt::RightButton); QCOMPARE(receiver.buttonStates.last(), Qt::NoButton);
+        QCOMPARE(receiver.changedButtons.at(receiver.changedButtons.size()-2), Qt::RightButton); QCOMPARE(receiver.buttonStates.last(), Qt::NoButton);QCOMPARE(receiver.position,QPointF(-1,-1));
     }
     void releaseDoesNotPressAndUnsupportedInputIsRejected() {
-        ac::OverlayInput input; Recorder receiver;
+        ac::OverlayInput input;input.setTuning({0,0,0,120,true}); Recorder receiver;
         vr::VREvent_t event{}; event.eventType = vr::VREvent_MouseButtonDown;
         event.data.mouse.button = 123; QVERIFY(!input.dispatch(event, &receiver)); QVERIFY(receiver.types.isEmpty());
+        event.eventType=vr::VREvent_MouseMove;QVERIFY(input.dispatch(event,&receiver));event.eventType=vr::VREvent_MouseButtonDown;
         event.data.mouse.button = vr::VRMouseButton_Middle; QVERIFY(input.dispatch(event, &receiver));
         event.eventType = vr::VREvent_MouseButtonUp; QVERIFY(input.dispatch(event, &receiver));
         QCOMPARE(receiver.changedButtons.last(), Qt::MiddleButton); QCOMPARE(input.buttons(), Qt::NoButton);
@@ -96,16 +129,98 @@ private slots:
         QVERIFY(!input.dispatch(event, &receiver)); QVERIFY(!input.dispatch(event, nullptr));
     }
     void smoothWheelKeepsFractionalUnits() {
-        ac::OverlayInput input; Recorder receiver;
-        vr::VREvent_t event{}; event.eventType = vr::VREvent_ScrollSmooth;
+        ac::OverlayInput input;input.setTuning({0,0,0,120,true}); Recorder receiver;
+        vr::VREvent_t event{};event.eventType=vr::VREvent_MouseMove;event.data.mouse={100,700,0,0};QVERIFY(input.dispatch(event,&receiver));event={};event.eventType = vr::VREvent_ScrollSmooth;
         event.data.scroll.ydelta = 0.001F;
         for (int i = 0; i < 1000; ++i) QVERIFY(input.dispatch(event, &receiver));
         QCOMPARE(receiver.wheel, QPoint(0, 120));
         event.eventType = vr::VREvent_ScrollDiscrete; event.data.scroll.xdelta = -1; event.data.scroll.ydelta = 0;
         QVERIFY(input.dispatch(event, &receiver)); QCOMPARE(receiver.wheel, QPoint(-120, 120));
     }
+    void numericObservationsRemainBoundedAndDoNotChangeDispatch() {
+        ac::SpikeState state;ac::OverlayInput plain,observed;plain.setTuning({0,0,0,120,true});observed.setTuning({0,0,0,120,true});Recorder first,second;
+        observed.setObserver([&](const auto &event,auto position,auto angle,int type,auto buttons){state.recordInput(event,position,angle,type,buttons);});
+        vr::VREvent_t event{};event.eventType=vr::VREvent_MouseMove;
+        for(quint32 cursor=0;cursor<20;++cursor){event.data.mouse={float(cursor*10),float(600+cursor),0,cursor};QVERIFY(plain.dispatch(event,&first));QVERIFY(observed.dispatch(event,&second));}
+        QCOMPARE(first.types,second.types);QCOMPARE(first.position,second.position);QCOMPARE(plain.position(),observed.position());
+        QCOMPARE(state.cursors().size(),16);QCOMPARE(state.droppedPackets(),4);QCOMPARE(state.pointerPosition(),observed.position());
+        event.data.mouse.x=std::numeric_limits<float>::quiet_NaN();QVERIFY(!observed.dispatch(event,&second));QCOMPARE(state.droppedPackets(),4);
+        event={};event.eventType=vr::VREvent_KeyboardCharInput;event.data.keyboard.cNewInput[0]='q';
+        state.recordInput(event,{1,2},{},int(QEvent::KeyPress),Qt::NoButton);QCOMPARE(state.pointerPosition(),observed.position());QCOMPARE(state.cursors().size(),16);
+    }
+    void buttonAuthorityOwnershipAndSuppressedChord() {
+        ac::OverlayInput input;input.setTuning({0,0,0,120,true});input.setFlipY(false);Recorder receiver;vr::VREvent_t event{};
+        event.eventType=vr::VREvent_MouseMove;event.data.mouse={100,100,0,0};QVERIFY(input.dispatch(event,&receiver));
+        event.data.mouse={900,600,0,1};QVERIFY(input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse={999,700,vr::VRMouseButton_Left,0};QVERIFY(input.dispatch(event,&receiver));
+        QCOMPARE(receiver.position,QPointF(100,100));
+        event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse.x=std::numeric_limits<float>::quiet_NaN();event.data.mouse.button=vr::VRMouseButton_Right;QVERIFY(input.dispatch(event,&receiver));QCOMPARE(receiver.position,QPointF(100,100));event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(input.dispatch(event,&receiver));event.data.mouse.button=vr::VRMouseButton_Left;event.eventType=vr::VREvent_MouseButtonDown;
+        event.data.mouse.cursorIndex=1;QVERIFY(!input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(!input.dispatch(event,&receiver));QCOMPARE(input.buttons(),Qt::LeftButton);
+        event.data.mouse.cursorIndex=0;QVERIFY(input.dispatch(event,&receiver));QCOMPARE(input.buttons(),Qt::NoButton);
+    }
+    void missingMoveAndOffPanelInvalidateBeforeClamp() {
+        ac::OverlayInput input;input.setTuning({0,0,0,120,true});Recorder receiver;vr::VREvent_t event{};
+        event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse={100,700,vr::VRMouseButton_Left,0};QVERIFY(!input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseMove;QVERIFY(input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(!input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseMove;event.data.mouse.x=-1;QVERIFY(!input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse.x=100;QVERIFY(!input.dispatch(event,&receiver));
+    }
+    void wheelRemainderAndPositionBelongToCursor() {
+        ac::OverlayInput input;input.setTuning({0,0,0,120,true});input.setFlipY(false);Recorder receiver;vr::VREvent_t event{};
+        event.eventType=vr::VREvent_MouseMove;event.data.mouse={100,100,0,0};QVERIFY(input.dispatch(event,&receiver));
+        event.data.mouse={900,600,0,1};QVERIFY(input.dispatch(event,&receiver));
+        event={};event.eventType=vr::VREvent_ScrollSmooth;event.data.scroll.ydelta=0.002F;event.data.scroll.cursorIndex=0;
+        QVERIFY(input.dispatch(event,&receiver));QCOMPARE(receiver.position,QPointF(100,100));
+        event.data.scroll.cursorIndex=1;QVERIFY(input.dispatch(event,&receiver));
+        event.data.scroll.cursorIndex=0;QVERIFY(input.dispatch(event,&receiver));QCOMPARE(receiver.wheel,QPoint(0,0));
+    }
+    void receiptClockEpochAndZeroTuningBoundaries() {
+        qint64 now=1000;int samples=0;QList<ac::OverlayObservation> observed;ac::OverlayInput input({1280,800},[&]{++samples;return now;});input.setFlipY(false);samples=0;Recorder first,second;
+        input.setDiagnosticObserver([&](const auto &,const auto &value){observed<<value;});
+        vr::VREvent_t event{};event.eventType=vr::VREvent_MouseMove;event.data.mouse={100,100,0,0};QVERIFY(input.dispatch(event,&first));QCOMPARE(samples,1);QCOMPARE(first.timestamps.last(),quint64(1000));
+        now=1000000;event.eventAgeSeconds=std::numeric_limits<float>::quiet_NaN();event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse.button=vr::VRMouseButton_Left;QVERIFY(input.dispatch(event,&first));QCOMPARE(samples,2);QCOMPARE(observed.last().pressMs,now);
+        for(const auto step:{0,99,100,101}){now=1000000+step;event.eventType=vr::VREvent_MouseMove;event.data.mouse.x=float(100+step*0.4);QVERIFY(input.dispatch(event,&first));QCOMPARE(first.position,QPointF(event.data.mouse.x,100));QCOMPARE(first.timestamps.last(),quint64(now));QCOMPARE(observed.last().pressPosition,QPointF(100,100));}
+        now=1000000+100;QVERIFY(!input.dispatch(event,&first));QCOMPARE(input.buttons(),Qt::NoButton);QCOMPARE(observed.last().reason,QString("clock-regressed"));
+        now=1000000+101;event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(!input.dispatch(event,&first));
+        event.eventType=vr::VREvent_MouseButtonDown;QVERIFY(!input.dispatch(event,&first));event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(!input.dispatch(event,&first));
+        event.eventType=vr::VREvent_MouseMove;QVERIFY(input.dispatch(event,&first));event.eventType=vr::VREvent_MouseButtonDown;QVERIFY(!input.dispatch(event,&second));
+        event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(!input.dispatch(event,&second));event.eventType=vr::VREvent_MouseMove;QVERIFY(input.dispatch(event,&second));event.eventType=vr::VREvent_MouseButtonDown;QVERIFY(input.dispatch(event,&second));
+        event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(input.dispatch(event,&second));
+        const auto before=samples;input.sendText("abc",&second);QCOMPARE(samples,before+1);for(const auto stamp:second.timestamps)QVERIFY(stamp<=quint64(now));
+    }
+    void rejectedAndCanceledButtonsStaySuppressedUntilUp() {
+        ac::OverlayInput input;input.setTuning({0,0,0,120,true});input.setFlipY(false);Recorder receiver;vr::VREvent_t event{};
+        event.eventType=vr::VREvent_MouseMove;event.data.mouse={100,100,0,0};QVERIFY(input.dispatch(event,&receiver));event.data.mouse.cursorIndex=1;QVERIFY(input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse={100,100,vr::VRMouseButton_Left,0};QVERIFY(input.dispatch(event,&receiver));event.data.mouse.cursorIndex=1;QVERIFY(!input.dispatch(event,&receiver));
+        event.data.mouse.cursorIndex=0;event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(input.dispatch(event,&receiver));event.data.mouse.cursorIndex=1;event.eventType=vr::VREvent_MouseButtonDown;QVERIFY(!input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(!input.dispatch(event,&receiver));event.eventType=vr::VREvent_MouseButtonDown;QVERIFY(input.dispatch(event,&receiver));
+        event={};event.eventType=vr::VREvent_FocusLeave;QVERIFY(input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_FocusEnter;QVERIFY(input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseMove;event.data.mouse={200,200,0,1};QVERIFY(input.dispatch(event,&receiver));event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse.button=vr::VRMouseButton_Left;QVERIFY(!input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(!input.dispatch(event,&receiver));event.eventType=vr::VREvent_MouseButtonDown;QVERIFY(input.dispatch(event,&receiver));event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(input.dispatch(event,&receiver));
+    }
+    void aSuppressedChordCannotRestartOnAnotherButton() {
+        ac::OverlayInput input;input.setTuning({0,0,0,120,true});Recorder receiver;vr::VREvent_t event{};event.eventType=vr::VREvent_MouseMove;event.data.mouse={100,700,0,0};QVERIFY(input.dispatch(event,&receiver));event.data.mouse.cursorIndex=1;QVERIFY(input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse={100,700,vr::VRMouseButton_Left,0};QVERIFY(input.dispatch(event,&receiver));event.data.mouse.cursorIndex=1;QVERIFY(!input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonUp;event.data.mouse.cursorIndex=0;QVERIFY(input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse={100,700,vr::VRMouseButton_Right,1};QVERIFY(!input.dispatch(event,&receiver));QCOMPARE(input.buttons(),Qt::NoButton);
+        event.eventType=vr::VREvent_MouseButtonUp;event.data.mouse.button=vr::VRMouseButton_Left;QVERIFY(!input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonDown;QVERIFY(!input.dispatch(event,&receiver));event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(!input.dispatch(event,&receiver));event.data.mouse.button=vr::VRMouseButton_Right;QVERIFY(!input.dispatch(event,&receiver));
+        event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse.button=vr::VRMouseButton_Left;QVERIFY(input.dispatch(event,&receiver));event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(input.dispatch(event,&receiver));
+    }
+    void externalCancellationAdvancesClockHighWater_data(){QTest::addColumn<int>("kind");QTest::newRow("host cancel")<<0;QTest::newRow("orientation")<<1;QTest::newRow("receiver bind")<<2;QTest::newRow("focus out")<<3;}
+    void externalCancellationAdvancesClockHighWater(){
+        QFETCH(int,kind);qint64 now=100;int samples=0;ac::OverlayObservation last;ac::OverlayInput input({1280,800},[&]{++samples;return now;});input.setFlipY(false);input.setDiagnosticObserver([&](const auto &,const auto &value){last=value;});Recorder first,second;
+        vr::VREvent_t event{};event.eventType=vr::VREvent_MouseMove;event.data.mouse={100,100,0,0};QVERIFY(input.dispatch(event,&first));now=101;event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse.button=vr::VRMouseButton_Left;QVERIFY(input.dispatch(event,&first));
+        now=200;if(kind==0)input.releaseButtons(&first);else if(kind==1)input.setFlipY(true);else if(kind==2)input.bindReceiver(&second);else{QFocusEvent focus(QEvent::FocusOut,Qt::OtherFocusReason);QCoreApplication::sendEvent(&first,&focus);}
+        QCOMPARE(first.timestamps.last(),quint64(200));now=150;event.eventType=vr::VREvent_MouseMove;const auto before=samples;QVERIFY(!input.dispatch(event,&first));QCOMPARE(samples,before+1);QCOMPARE(last.reason,QString("clock-regressed"));
+        now=201;event.eventType=vr::VREvent_FocusEnter;QVERIFY(input.dispatch(event,&first));event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(!input.dispatch(event,&first));event.eventType=vr::VREvent_MouseMove;QVERIFY(input.dispatch(event,&first));now=202;event.eventType=vr::VREvent_MouseButtonDown;QVERIFY(input.dispatch(event,&first));event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(input.dispatch(event,&first));
+        quint64 previous=0;for(const auto stamp:first.timestamps){QVERIFY(stamp>=previous);previous=stamp;}
+    }
     void keyboardUnicodeAndSpecialKeys() {
-        ac::OverlayInput input; Recorder receiver;
+        ac::OverlayInput input;input.setTuning({0,0,0,120,true}); Recorder receiver;
         input.sendText(QString::fromUtf8("é漢😀"), &receiver);
         QCOMPARE(receiver.typed, QString::fromUtf8("é漢😀")); QCOMPARE(receiver.keys.size(), 3);
         input.sendText("\b", &receiver); QCOMPARE(receiver.keys.last(), int(Qt::Key_Backspace));
@@ -133,6 +248,26 @@ private slots:
         gate.markDirty(); gate.submitted(0); // renderRequested during sync/render
         QVERIFY(gate.shouldRender(true, 16)); gate.submitted(16);
         QVERIFY(!gate.shouldRender(true, 32));
+    }
+    void coldStartRequestsOneFrameWhileStillHidden(){
+        ac::OverlayFrameGate gate;gate.requestInitialFrame();
+        QVERIFY(gate.initialFramePending());QVERIFY(gate.shouldRender(false,0));gate.submitted(0);
+        QVERIFY(!gate.initialFramePending());gate.markDirty();QVERIFY(!gate.shouldRender(false,16));
+        QVERIFY(gate.shouldRender(true,32));gate.submitted(32);QVERIFY(!gate.shouldRender(false,48));
+        gate.stop();gate.requestInitialFrame();QVERIFY(!gate.shouldRender(false,1000));
+    }
+    void coldStartSubmissionDoesNotBecomeContinuousHiddenRendering(){
+        ac::OverlayTextureSubmitGate gate;QVERIFY(gate.shouldSubmit(false));gate.submitted();
+        QVERIFY(!gate.shouldSubmit(false));QVERIFY(gate.shouldSubmit(true));
+        gate.reset();QVERIFY(gate.shouldSubmit(false));
+    }
+    void initialFrameDoesNotGrantHiddenInput(){
+        ac::OverlayFrameGate gate;gate.requestInitialFrame();QVERIFY(gate.shouldRender(false,0));
+        ac::OverlayInput input;Recorder receiver;input.setVisible(false);
+        vr::VREvent_t event{};event.eventType=vr::VREvent_MouseMove;event.data.mouse={30,750,vr::VRMouseButton_Left,0};
+        QVERIFY(!input.dispatch(event,&receiver));event.eventType=vr::VREvent_MouseButtonDown;
+        QVERIFY(!input.dispatch(event,&receiver));QCOMPARE(input.buttons(),Qt::NoButton);
+        QVERIFY(!receiver.types.contains(QEvent::MouseButtonPress));QVERIFY(!receiver.types.contains(QEvent::MouseMove));
     }
     void hiddenFramesRetainDirtyWorkAndQuitStopsFrames() {
         ac::OverlayFrameGate gate;

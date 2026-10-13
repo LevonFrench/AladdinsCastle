@@ -80,6 +80,29 @@ It does not copy existing
 INI, account, authentication or credential data. Supermodel uses `-window`, a
 read-only Games.xml path and isolated Config/NVRAM/Saves/log paths.
 
+## Authored Dolphin launch contract
+
+Authored Wii installations use an explicit executable pin:
+`launch.exe_sha256` is the lowercase SHA-256 of the installed executable.
+The executable and working directory must resolve inside the managed variant
+directory. Admission checks the installed version, recipe hash, game/variant
+identity and executable ownership receipt before building a launch request.
+The Dolphin-shaped contract requires exactly one `--user` argument naming that
+variant's existing `User` directory. A missing or modified executable requires
+repair; runtime-edited configuration is preserved. Generated flat routes retain
+their separate preparation path.
+
+`write-config` accepts `only_if_missing = true` to seed configuration once.
+It must be a TOML boolean and defaults to false. An existing target skips the
+whole step without merging or reading its settings, and earlier ownership of
+that seed is relinquished. Repair/update therefore preserves runtime tuning;
+update staging also retains unowned runtime files. This is explicit step
+behavior, not implementation of arbitrary `preserve` globs. Recipes must still
+use `create = true` when the initial configuration file may be absent.
+
+Recipe planning, software tests and receipt checks do not prove that an emulator starts
+or that a headset game is playable.
+
 ## Scope and remaining acceptance
 
 The nine M1 step kinds are implemented. `run`, `adb-install`, `registry`,

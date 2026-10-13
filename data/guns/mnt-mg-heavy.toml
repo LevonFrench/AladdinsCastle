@@ -24,3 +24,37 @@ blue = { body = "#2f66cc", accent = "#1c1c20" }
 id    = "special"
 label = "Special weapon"
 node  = "button_special"
+
+# Motion ranges use metres (slide) or radians (rotate). Visual recoil never moves the aim anchors.
+
+[motion.trigger]
+node = "pivot_trigger"
+kind = "rotate"
+axis = [-1,0,0]
+range = [0,0.35]
+drive = "trigger"
+lod_nodes = ["pivot_trigger", "pivot_trigger_lod1"]
+
+[motion.yaw]
+node = "pivot_yaw"
+kind = "rotate"
+axis = [0,1,0]
+range = [-0.7,0.7]
+drive = "yaw"
+lod_nodes = ["pivot_yaw", "pivot_yaw_lod1"]
+
+[motion.pitch]
+node = "pivot_pitch"
+kind = "rotate"
+axis = [1,0,0]
+range = [-0.4,0.4]
+drive = "pitch"
+lod_nodes = ["pivot_pitch", "pivot_pitch_lod1"]
+
+[motion.button-special]
+node = "button_special"
+kind = "slide"
+axis = [-1,0,0]
+range = [0,0.002]
+drive = "button:special"
+lod_nodes = ["button_special", "button_special_lod1"]

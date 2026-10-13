@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "OverlayRuntime.h"
+#include "OverlayCapture.h"
 #include <QFile>
 #include <QCoreApplication>
 #include <QDir>
@@ -42,13 +43,23 @@ bool probeOpenVrLibrary(QString *error) {
     return true;
 }
 namespace {
+class NativeImageOps final:public NativeOverlayReadbackOps {
+public:
+    NativeImageOps(vr::IVROverlay &overlay,vr::VROverlayHandle_t handle):overlay_(overlay),handle_(handle){}
+    vr::EVROverlayError bounds(vr::VRTextureBounds_t *value)override{return overlay_.GetOverlayTextureBounds(handle_,value);}
+    vr::EVROverlayError image(void *buffer,uint32_t bytes,uint32_t *width,uint32_t *height)override{return overlay_.GetOverlayImageData(handle_,buffer,bytes,width,height);}
+private:
+    vr::IVROverlay &overlay_;vr::VROverlayHandle_t handle_;
+};
 QString overlayError(vr::EVROverlayError error) {
     return QString::fromLatin1(vr::VROverlay()->GetOverlayErrorNameFromEnum(error));
 }
 class OpenVrRuntime final : public OverlayRuntime {
 public:
+    explicit OpenVrRuntime(bool pictureFlipY):m_pictureFlipY(pictureFlipY){}
     ~OpenVrRuntime() override { shutdown(); }
     bool initialize(QSize size, const QString &thumbnail, QString *error) override {
+        m_submitGate.reset();
         if (!probeOpenVrLibrary(error)) return false;
         vr::EVRInitError initError = vr::VRInitError_None;
         m_system = vr::VR_Init(&initError, vr::VRApplication_Overlay);
@@ -58,12 +69,12 @@ public:
         }
         m_initialized = true;
         if (!vr::VROverlay()) { *error = "SteamVR IVROverlay is unavailable."; shutdown(); return false; }
-        auto result = vr::VROverlay()->CreateDashboardOverlay(overlayKey, "AladdinsCastle", &m_main, &m_thumbnail);
+        auto result = vr::VROverlay()->CreateDashboardOverlay(overlayKey, product::display_name, &m_main, &m_thumbnail);
         if (result != vr::VROverlayError_None) { *error = "CreateDashboardOverlay: " + overlayError(result); shutdown(); return false; }
         const vr::HmdVector2_t scale{{static_cast<float>(size.width()), static_cast<float>(size.height())}};
-        // Qt's GL target contains the image in GL orientation. OpenVR samples
-        // flipped V bounds so the dashboard image is upright. Verify S1 in VR.
-        const vr::VRTextureBounds_t bounds{0, 1, 1, 0};
+        // The reversed V bounds inverted the owner's dashboard image.
+        // Preserve the recorded M1 correction; pointer Y is separate.
+        const auto bounds=overlayPictureBounds(m_pictureFlipY);
         for (const auto status : {
                 vr::VROverlay()->SetOverlayWidthInMeters(m_main, 2.0F),
                 vr::VROverlay()->SetOverlayInputMethod(m_main, vr::VROverlayInputMethod_Mouse),
@@ -94,25 +105,48 @@ public:
         }
         return false;
     }
-    bool submit(unsigned int texture, QString *error) override {
-        if (!isVisible()) return true; // guard even if hidden between poll and submit
+    bool submit(unsigned int texture, QString *error,OverlaySubmitStatus *status=nullptr) override {
+        if(status)*status={};
+        if(!m_initialized||m_main==vr::k_ulOverlayHandleInvalid){
+            if(error)*error="Dashboard overlay is not initialized.";
+            return false;
+        }
+        // A dashboard may need its first texture before it becomes visible.
+        // Once submitted, preserve the hidden-between-poll-and-submit guard.
+        if (!m_submitGate.shouldSubmit(isVisible())) return true;
         const vr::Texture_t submitted{reinterpret_cast<void *>(static_cast<uintptr_t>(texture)),
                                       vr::TextureType_OpenGL, vr::ColorSpace_Auto};
         const auto result = vr::VROverlay()->SetOverlayTexture(m_main, &submitted);
-        if (result == vr::VROverlayError_None) return true;
+        if(status)*status={true,int(result)};
+        if (result == vr::VROverlayError_None) {m_submitGate.submitted();return true;}
         *error = "SetOverlayTexture: " + overlayError(result); return false;
+    }
+    bool showDashboard(QString *error) override {
+        if(!m_initialized||m_main==vr::k_ulOverlayHandleInvalid){if(error)*error="Dashboard overlay is not initialized.";return false;}
+        vr::VROverlay()->ShowDashboard(overlayKey);return true;
+    }
+    bool readNativeImage(QImage *image,QJsonObject *metadata,QString *error)override{
+        if(!m_initialized||m_main==vr::k_ulOverlayHandleInvalid||!vr::VROverlay()){
+            if(error)*error="Native overlay handle is unavailable.";
+            return false;
+        }
+        NativeImageOps ops(*vr::VROverlay(),m_main);
+        const bool result=readNativeOverlayImage(ops,image,metadata,error);
+        if(metadata)(*metadata)["overlay_handle_hex"]=QString::number(m_main,16);
+        return result;
     }
     bool showKeyboard(const QString &text, quint64 token, QString *error) override {
         const auto result = vr::VROverlay()->ShowKeyboardForOverlay(m_main,
             vr::k_EGamepadTextInputModeNormal, vr::k_EGamepadTextInputLineModeSingleLine,
             vr::KeyboardFlag_Minimal | vr::KeyboardFlag_Modal | vr::KeyboardFlag_ShowArrowKeys,
-            "AladdinsCastle overlay input", 256, text.toUtf8().constData(), token);
+            product::display_name, 256, text.toUtf8().constData(), token);
         if (result == vr::VROverlayError_None) return true;
         *error = "SteamVR keyboard: " + overlayError(result); return false;
     }
     void hideKeyboard() override { if (m_initialized) vr::VROverlay()->HideKeyboard(); }
     void acknowledgeQuit() override { if (m_system) m_system->AcknowledgeQuit_Exiting(); }
     void shutdown() override {
+        m_submitGate.reset();
         if (!m_initialized) return;
         if (m_main != vr::k_ulOverlayHandleInvalid) {
             vr::VROverlay()->ClearOverlayTexture(m_main);
@@ -123,13 +157,15 @@ public:
         vr::VR_Shutdown(); m_system = nullptr; m_initialized = false;
     }
 private:
+    OverlayTextureSubmitGate m_submitGate;
+    bool m_pictureFlipY=false;
     vr::IVRSystem *m_system = nullptr;
     vr::VROverlayHandle_t m_main = vr::k_ulOverlayHandleInvalid;
     vr::VROverlayHandle_t m_thumbnail = vr::k_ulOverlayHandleInvalid;
     bool m_initialized = false;
 };
 }
-std::unique_ptr<OverlayRuntime> makeOpenVrRuntime() { return std::make_unique<OpenVrRuntime>(); }
+std::unique_ptr<OverlayRuntime> makeOpenVrRuntime(bool pictureFlipY) { return std::make_unique<OpenVrRuntime>(pictureFlipY); }
 bool changeOverlayRegistration(const QString &manifest, bool add, QString *error) {
     QFile file(manifest);
     if (!file.open(QIODevice::ReadOnly)) { *error = "Overlay manifest is missing from the portable resources folder."; return false; }

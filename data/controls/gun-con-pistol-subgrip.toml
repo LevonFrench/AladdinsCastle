@@ -1,0 +1,259 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Candidate bindings require actual backend declarations before emitting input.
+version = "0.1"
+id = "gun-con-pistol-subgrip"
+title = "Console pistol with side sub-grip controls"
+gun_model = "con-pistol-subgrip"
+
+[policy]
+p1_hand = "right"
+two_guns = "on_join"
+hand_switch = "trigger"
+join = "button"
+per_hand_angle = true
+mirror_left_angle = true
+grab_modes = ["hold", "toggle"]
+seated_reload = true
+# Policy expresses desired behavior, not a live implementation.
+
+[[element]]
+id = "p1-trigger"
+label = "Fire"
+part = "trigger"
+node = "pivot_trigger"
+slot = 0
+player = 0
+input = { kind = "gun", semantic = "trigger" }
+binding = { hand = "slot", control = "trigger", mode = "hold" }
+
+[[element]]
+id = "p1-reload"
+label = "Reload"
+part = "aim-offscreen"
+node = "muzzle"
+slot = 0
+player = 0
+input = { kind = "gun", semantic = "reload" }
+binding = { hand = "slot", control = "offscreen_trigger", mode = "press" }
+
+[[element]]
+id = "p1-coin"
+label = "Insert credit"
+part = "coin-button"
+node = ""
+slot = 0
+player = 0
+input = { kind = "button", semantic = "coin" }
+binding = { hand = "slot", control = "secondary", mode = "press" }
+
+[[element]]
+id = "p1-laser"
+label = "Toggle laser"
+part = "laser"
+node = "fx_laser"
+slot = 0
+player = 0
+input = { kind = "runtime", semantic = "laser_toggle" }
+binding = { hand = "slot", control = "thumbstick_click", mode = "toggle" }
+
+[[unmapped_part]]
+id = "p1-b1"
+slot = 0
+player = 0
+node = "button_b1"
+label = "B1"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_b1"
+
+[[unmapped_part]]
+id = "p1-b2"
+slot = 0
+player = 0
+node = "button_b2"
+label = "B2"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_b2"
+
+[[unmapped_part]]
+id = "p1-c1"
+slot = 0
+player = 0
+node = "button_c1"
+label = "C1"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_c1"
+
+[[unmapped_part]]
+id = "p1-c2"
+slot = 0
+player = 0
+node = "button_c2"
+label = "C2"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_c2"
+
+[[unmapped_part]]
+id = "p1-stick-rear"
+slot = 0
+player = 0
+node = "button_stick_rear"
+label = "Rear thumbstick"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "stick_rear"
+
+[[unmapped_part]]
+id = "p1-stick-sub"
+slot = 0
+player = 0
+node = "button_stick_sub"
+label = "Sub-grip thumbstick"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "stick_sub"
+
+[[unmapped_part]]
+id = "p1-sub-l1"
+slot = 0
+player = 0
+node = "button_sub_l1"
+label = "Sub-grip upper button"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_sub_l1"
+
+[[unmapped_part]]
+id = "p1-sub-l2"
+slot = 0
+player = 0
+node = "button_sub_l2"
+label = "Sub-grip lower button"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_sub_l2"
+
+[[element]]
+id = "p2-trigger"
+label = "Fire"
+part = "trigger"
+node = "pivot_trigger"
+slot = 1
+player = 1
+input = { kind = "gun", semantic = "trigger" }
+binding = { hand = "slot", control = "trigger", mode = "hold" }
+
+[[element]]
+id = "p2-reload"
+label = "Reload"
+part = "aim-offscreen"
+node = "muzzle"
+slot = 1
+player = 1
+input = { kind = "gun", semantic = "reload" }
+binding = { hand = "slot", control = "offscreen_trigger", mode = "press" }
+
+[[element]]
+id = "p2-coin"
+label = "Insert credit"
+part = "coin-button"
+node = ""
+slot = 1
+player = 1
+input = { kind = "button", semantic = "coin" }
+binding = { hand = "slot", control = "secondary", mode = "press" }
+
+[[element]]
+id = "p2-laser"
+label = "Toggle laser"
+part = "laser"
+node = "fx_laser"
+slot = 1
+player = 1
+input = { kind = "runtime", semantic = "laser_toggle" }
+binding = { hand = "slot", control = "thumbstick_click", mode = "toggle" }
+
+[[unmapped_part]]
+id = "p2-b1"
+slot = 1
+player = 1
+node = "button_b1"
+label = "B1"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_b1"
+
+[[unmapped_part]]
+id = "p2-b2"
+slot = 1
+player = 1
+node = "button_b2"
+label = "B2"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_b2"
+
+[[unmapped_part]]
+id = "p2-c1"
+slot = 1
+player = 1
+node = "button_c1"
+label = "C1"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_c1"
+
+[[unmapped_part]]
+id = "p2-c2"
+slot = 1
+player = 1
+node = "button_c2"
+label = "C2"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_c2"
+
+[[unmapped_part]]
+id = "p2-stick-rear"
+slot = 1
+player = 1
+node = "button_stick_rear"
+label = "Rear thumbstick"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "stick_rear"
+
+[[unmapped_part]]
+id = "p2-stick-sub"
+slot = 1
+player = 1
+node = "button_stick_sub"
+label = "Sub-grip thumbstick"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "stick_sub"
+
+[[unmapped_part]]
+id = "p2-sub-l1"
+slot = 1
+player = 1
+node = "button_sub_l1"
+label = "Sub-grip upper button"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_sub_l1"
+
+[[unmapped_part]]
+id = "p2-sub-l2"
+slot = 1
+player = 1
+node = "button_sub_l2"
+label = "Sub-grip lower button"
+reason = "Per-game meaning and a collision-free v0.1 binding are not established"
+requested_semantic = "auxiliary_sub_l2"
+
+[[unmapped_part]]
+id = "p1-fore-grip"
+slot = 0
+player = 0
+node = "grip_two"
+label = "Second-hand grip"
+reason = "v0.1 grab/pose binding is not published; hold/toggle remain policy"
+requested_semantic = "grab"
+
+[[unmapped_part]]
+id = "p2-fore-grip"
+slot = 1
+player = 1
+node = "grip_two"
+label = "Second-hand grip"
+reason = "v0.1 grab/pose binding is not published; hold/toggle remain policy"
+requested_semantic = "grab"

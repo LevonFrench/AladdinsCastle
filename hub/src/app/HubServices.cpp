@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "HubServices.h"
 #include "core/install/Support.h"
+#include "core/pinball/Pinball.h"
 #include <QDir>
 #include <QCoreApplication>
 #include <QFile>
@@ -13,8 +14,17 @@
 #include <QUrl>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
+#include <QCryptographicHash>
 namespace ac {
 namespace {
+QString privatePinballIni(const QString &path,const QString &root) {
+    if(!QDir::isAbsolutePath(path))throw install::Error("E_PINBALL_DIAGNOSTIC_INI","Use an absolute private settings path");
+    const auto candidate=install::scopedPath(path,QDir(root).filePath(".local"));
+    const QFileInfo file(candidate);
+    if(!file.isFile()||!file.isReadable())throw install::Error("E_PINBALL_DIAGNOSTIC_INI","Private settings file is missing or unreadable");
+    return candidate;
+}
 scan::ScanOptions scanOptions(const QString &root) {
     install::scopedPath("user/scan-folders.json",root);
     install::scopedPath("user/cache/scan.toml",root);
@@ -36,6 +46,19 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
       scanner_(games,scanOptions(root_)),art_(std::make_shared<art::Resolver>(games->catalog(),art::ArtOptions{root_+"/user",{}})) {
     steamRootSource_=steamRootSource?std::move(steamRootSource):[] { return launch::systemRuntimeInputs().steamPath; };
     steamRunningProbe_=std::move(steamRunningProbe);
+    gunRoomModels_=gunroom::models(games_->catalog().root);
+    connect(&gunRoom_,&gunroom::Service::changed,this,[this]{
+        if(gunRoom_.closing())ui_->launchClosing();
+        emit playingChanged();
+        emit gunRoomChanged();
+    });
+    connect(&gunRoom_,&gunroom::Service::started,this,[this]{childPlaying_=true;emit playingChanged();ui_->launchStarted("__gun_room");});
+    connect(&gunRoom_,&gunroom::Service::finished,this,[this](const QString &error){
+        childPlaying_=false;emit playingChanged();
+        // Shutdown consumes a pending restart before notifying the shared card.
+        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished("__gun_room",error);emit hubExitReady(hubExitCode_);return;}
+        ui_->launchFinished("__gun_room",error);if(!error.isEmpty())ui_->showError("Gun room",error);
+    });
     installer_.setRuntimeStateSource([this](const QString &id){return current(id);});
     connect(&launcher_,&launch::LaunchService::warning,ui_,[this](const QString &,const QString &text){ui_->showError("Launch notice",text);});
     launcher_.setRuntimeStateSource([this](const QString &id){return current(id);});
@@ -50,11 +73,27 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         catch(const std::exception &){return QStringList{"Finished media cleanup could not complete; retained files will be retried at the next startup."};}
     }));
     connect(ui_,&UiController::writeConfigRequested,this,[this](const QString &id,const QVariantMap &){ui_->settingsSaved(id);});
+    connect(ui_,&UiController::pinballScanRequested,this,[this](const QString &folder,const QString &database,const QString &roms,const QString &media){
+        auto *watcher=new QFutureWatcher<QVariantMap>(this);
+        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{const auto result=watcher->result();watcher->deleteLater();if(result.contains("error"))ui_->pinballFailed(result["error"].toString());else ui_->pinballLoaded(result);});
+        watcher->setFuture(QtConcurrent::run([folder,database,roms,media]{try{return pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}}));
+    });
+    connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &){
+        try{const auto plan=pinball::launchPlan(table,executable,QString(),true);ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
+    });
+    connect(ui_,&UiController::pinballPlayRequested,this,[this](const QString &id){
+        if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
+        for(const auto &value:ui_->pinballData().value("tables").toList()){
+            const auto row=value.toMap();if(row.value("id")==id){startPinball(row,settings_->get("pinballExecutable",QString()).toString());return;}
+        }
+        ui_->showError("Pinball","Table is no longer in the scan; scan again.");
+    });
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
     connect(&scanner_,&scan::ScanController::scanStarted,ui_,&UiController::scanStarted);
     connect(&scanner_,&scan::ScanController::progress,ui_,&UiController::scanProgress);
     connect(&scanner_,&scan::ScanController::scanFinished,this,[this](bool cancelled){ui_->scanFinished(!cancelled);if(rescanPending_){rescanPending_=false;QTimer::singleShot(0,this,[this]{scan({});});}});
+    connect(&scanner_,&scan::ScanController::scanFailed,ui_,[this](const QString &message){ui_->showError("Scan failed",message);});
     connect(&scanner_,&scan::ScanController::resultsReady,this,[this](const scan::ScanResult &result){
         bindings_=result.toJson(); art_->setBindings(result.bindings);
         auto roots=scanner_.options().artRoots+scanner_.options().mediaRoots;
@@ -72,7 +111,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::retryInstallRequested,this,[this](const QString &id,const QString &variant,bool,const QString &handover){
         try{
             const auto *game=games_->find(id);bool available=false;
-            if(game)for(const auto &v:game->variants)if(v.id==variant&&v.generated)available=true;
+            if(game)for(const auto &v:game->variants)if(v.id==variant&&(v.generated||authoredLaunchSupported(v)))available=true;
             if(!available||!game->install.contains("variant")||!game->install["variant"].contains(variant.toStdString())){ui_->scanProgress({{"text","Nothing to retry: the selected game and variant have no M1 owned installation recipe."}});return;}
             auto request=gameRequest(id,variant);request.handover=handover;
             startInstallRequest(request,"game");
@@ -88,12 +127,33 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     });
     connect(ui_,&UiController::playRequested,this,[this](const QString &id,const QString &variant){
         if(launchBusy()){ui_->scanProgress({{"text","Play refused: a game is already running or a launch is being prepared. Use Stop first."}});return;}
-        try{launcher_.start(launch::flatRequest(games_->catalog(),id,root_,bindings_,variant));}catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
+        if(id=="__gun_room"){
+            if(variant!=retainedGunRoom_.model+"|"+retainedGunRoom_.hand+(retainedGunRoom_.calibrateGrip?"|calibrate":"")){ui_->showError("Gun room","The retained model, hand and action differ from this restart request.");return;}
+            startGunRoom(retainedGunRoom_);return;
+        }
+        if(id.startsWith("pinball-")){
+            if(id!="pinball-"+retainedPinball_.value("id").toString()||variant!="vpx"){ui_->showError("Pinball","Restart does not match the retained table.");return;}
+            startPinball(retainedPinball_,retainedPinballExecutable_);return;
+        }
+        try{
+            const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
+#ifdef Q_OS_WIN
+            ui_->launchQueued(id,variant,QString());
+#else
+            ui_->launchQueued(id,variant,"Clean window close is not supported on this platform yet.");
+#endif
+            launcher_.start(request);
+        }catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
-    connect(ui_,&UiController::stopLaunchRequested,&launcher_,&launch::LaunchService::stop);
+    connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else launcher_.stop();});
+    connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else launcher_.requestClose();});
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
-    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){childPlaying_=false;emit playingChanged();ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();});
+    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){
+        childPlaying_=false;emit playingChanged();
+        if(hubExitPending_&&id.startsWith("pinball-")){ui_->cancelPendingRestart();ui_->launchFinished(id,error);emit hubExitReady(hubExitCode_);return;}
+        ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
+    });
     connect(&launcher_,&launch::LaunchService::runtimeStateReady,this,[this](const RuntimeState &state){games_->applyRuntimeStates({state});});
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::playingChanged);
     connect(&launcher_,&launch::LaunchService::raiseHubRequested,this,&HubServices::raiseHubRequested);
@@ -108,14 +168,11 @@ bool HubServices::beginSteam(const QString &id,const QString &variantId,bool rem
     try{
         const auto *game=games_->find(id);if(!game)throw install::Error("E_GAME_INVALID","Unknown game");
         if(!remove){
-            bool supported=false;for(const auto &v:game->variants)if(v.id==variantId&&v.generated)supported=true;
-            if(!supported)throw install::Error("E_VARIANT_INVALID","Select an available M1 flat variant for this game");
-            if(QDir(root_).absolutePath()!=QDir(QCoreApplication::applicationDirPath()).absolutePath())throw install::Error("E_PORTABLE_ROOT","Create Steam entries from the portable Hub folder");
-            launch::flatRequest(games_->catalog(),id,root_,bindings_,variantId);
+            steamRequest_.shortcut=steam::prepareGameShortcut(games_->catalog(),id,variantId,root_,QCoreApplication::applicationFilePath(),bindings_);
         }
         steamRequest_.steamRoot=steamRootSource_();
         steamRequest_.userRoot=install::scopedPath("user",root_);
-        steamRequest_.shortcut={id,game->roles.value("title").toString(),QCoreApplication::applicationFilePath(),root_,false,0,game->runtime.lastPlayed,variantId};
+        if(remove)steamRequest_.shortcut={id,game->roles.value("title").toString(),QCoreApplication::applicationFilePath(),root_,false,0,game->runtime.lastPlayed,variantId};
         if(!remove){
         steamRequest_.art["header"]=art_->resolve(id,"banner",{460,215}).image;
         steamRequest_.art["capsule"]=art_->resolve(id,"portrait",{600,900}).image;
@@ -161,8 +218,83 @@ void HubServices::scan(const QStringList &folders){
 install::Request HubServices::gameRequest(const QString &id,const QString &variant){
     auto game=games_->find(id);if(!game)throw install::Error("E_GAME_INVALID","Unknown game");
     install::Request request;request.root=root_;request.catalogRoot=QDir::cleanPath(QFileInfo(game->folder).dir().absolutePath()+"/..");
-    request.gameId=id;request.variantId=variant;request.recipe=game->install;request.runtime=current(id);
+    request.gameId=id;request.variantId=variant;request.recipe=game->install;request.runtime=current(id);request.runtime.selectedVariantId=variant;
     request.bindings=launch::normalizeBindings(bindings_,id);request.settings=Json::parse(QJsonDocument(QJsonObject::fromVariantMap(settings_->game(id))).toJson(QJsonDocument::Compact).toStdString());return request;
+}
+HubServices::~HubServices(){
+    disconnect(&gunRoom_,nullptr,this,nullptr);
+    gunRoom_.close();
+}
+void HubServices::setPinballDiagnosticIni(const QString &path){
+    pinballDiagnosticIni_=path.isEmpty()?QString():privatePinballIni(path,root_);
+}
+void HubServices::startPinball(const QVariantMap &row,const QString &executable){
+    if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
+    try{
+        const auto id=row.value("id").toString(),table=row.value("path").toString();const QFileInfo file(table);
+        const auto identity=QString::fromLatin1(QCryptographicHash::hash(file.absoluteFilePath().toUtf8(),QCryptographicHash::Sha256).toHex());
+        if(!QRegularExpression("^[a-f0-9]{64}$").match(id).hasMatch()||id!=identity||!file.isFile()||
+           file.size()!=row.value("size",-1).toLongLong()||file.lastModified().toMSecsSinceEpoch()!=row.value("mtime",-1).toLongLong())
+            throw install::Error("E_PINBALL_CHANGED","Table changed or is no longer available; scan again.");
+        if(!row.value("vrReady").toBool()||!row.value("error").toString().isEmpty()||row.value("romState")=="ROM missing")
+            throw install::Error("E_PINBALL_NOT_READY","Choose a VR-ready table with no scan error or missing known ROM.");
+        const auto plan=pinball::launchPlan(table,executable,QString(),true);
+        launch::Request request;request.root=root_;request.gameId="pinball-"+id;request.variantId="vpx";request.prepareProfile=false;
+        request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+        if(!pinballDiagnosticIni_.isEmpty())request.plan.args<<"-Ini"<<privatePinballIni(pinballDiagnosticIni_,root_);
+        retainedPinball_=row;retainedPinballExecutable_=request.plan.executable;
+#ifdef Q_OS_WIN
+        ui_->launchPinballQueued(row,QString());
+#else
+        ui_->launchPinballQueued(row,"Clean window close is not supported on this platform yet.");
+#endif
+        launcher_.start(request);
+    }catch(const std::exception &error){ui_->showError("Pinball",QString::fromUtf8(error.what()));}
+}
+gunroom::Inputs HubServices::gunRoomInputs(const QString &model,const QString &hand,const QString &executable) const{
+    auto inputs=gunroom::systemInputs(games_->catalog().root,executable,model,hand);
+    const auto loader=settings_->get("gunRoomLoader",QString()).toString();
+    if(!loader.isEmpty())inputs.loader=loader;
+    return inputs;
+}
+void HubServices::previewGunRoom(const QString &model,const QString &hand,const QString &executable){
+    const auto candidate=gunroom::plan(gunRoomInputs(model,hand,executable));
+    gunRoomAvailable_=candidate.available()&&!launchBusy()&&!hubExitPending_;
+    gunRoomReason_=candidate.error;
+    if(candidate.available()&&!gunRoomAvailable_)gunRoomReason_="Close the current session before opening the gun room.";
+    gunRoomCalibrationAvailable_=gunRoomAvailable_&&candidate.calibrationCapable;
+    gunRoomCalibrationReason_=!gunRoomAvailable_?gunRoomReason_:candidate.calibrationCapable?QString():
+        QString("This reviewed build does not admit grip calibration. Normal room launch is available.");
+    emit gunRoomChanged();
+}
+void HubServices::launchGunRoom(const QString &model,const QString &hand,const QString &executable){
+    const auto inputs=gunRoomInputs(model,hand,executable);
+    startGunRoom(inputs);
+}
+void HubServices::calibrateGunRoom(const QString &model,const QString &hand,const QString &executable){
+    auto inputs=gunRoomInputs(model,hand,executable);inputs.calibrateGrip=true;
+    startGunRoom(inputs);
+}
+void HubServices::startGunRoom(const gunroom::Inputs &inputs){
+    if(launchBusy()||hubExitPending_){ui_->showError("Gun room","Close the current session before opening the gun room.");return;}
+    // Revalidate the selected paths and frozen bytes at the actual click/restart.
+    const auto candidate=gunroom::plan(inputs);
+    if(!candidate.available()){gunRoomAvailable_=false;gunRoomCalibrationAvailable_=false;gunRoomReason_=candidate.error;gunRoomCalibrationReason_=candidate.error;emit gunRoomChanged();ui_->showError("Gun room",candidate.error);return;}
+    retainedGunRoom_=inputs;
+    ui_->launchRoomQueued(inputs.model,inputs.hand,inputs.calibrateGrip);
+    if(!gunRoom_.start(candidate))ui_->launchFinished("__gun_room","Gun-room process could not be queued.");
+}
+void HubServices::requestHubExit(int code){
+    if(launcher_.busy()&&ui_->nowPlaying().contains("pinballId")){
+#ifdef Q_OS_WIN
+        hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();ui_->launchClosing();launcher_.requestClose();
+#else
+        ui_->showError("Pinball","Exit the table in VPX before closing Hub on this platform.");
+#endif
+        return;
+    }
+    if(!gunRoom_.busy()){emit hubExitReady(code);return;}
+    hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();gunRoom_.close();
 }
 QString HubServices::catalogRoot()const{
     if(games_->records().isEmpty())throw install::Error("E_CATALOG_EMPTY","Catalog has no games. Load a valid catalog before installing or removing emulator tools.");
@@ -234,6 +366,13 @@ void HubServices::restore(){
             for(const auto &tool:bindings_.value("tools",Json::array())) {
                 const QFileInfo executable(text(tool,"path"));
                 if(tool.value("verified",false)&&executable.isFile()&&(!tool.contains("size")||tool["size"].get<qint64>()==executable.size())&&(!tool.contains("mtime")||tool["mtime"].get<qint64>()==executable.lastModified().toMSecsSinceEpoch()))state.toolsOk<<text(tool,"id");
+            }
+            for(const auto &variant:game.variants)if(authoredLaunchSupported(variant)) {
+                install::Request saved;saved.root=root_;saved.gameId=game.id;saved.variantId=variant.id;saved.recipe=game.install;saved.runtime=state;
+                state=install::Engine().runtimeState(saved);
+                for(const auto &installed:state.variants)
+                    if(installed.id==variant.id&&installed.verified&&installed.manifestExists&&installed.installedWhenExists&&state.selectedVariantId.isEmpty())
+                        state.selectedVariantId=variant.id;
             }
             states<<state;
         }

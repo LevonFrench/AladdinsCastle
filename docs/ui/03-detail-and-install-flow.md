@@ -488,11 +488,11 @@ The primary button is chosen by precedence, as in [02 section 2.3](02-game-cards
 | Coming soon (planned) | **Coming soon** (grey `#8a93a6`, disabled, opens the roadmap item) | Upstream page | Install, Start, Reinstall, Uninstall |
 | Update available | **Update to <version>** (blue `#2563eb`) | **Start in VR ▶** (green), Reinstall, What's new (upstream release notes), Uninstall | Install |
 | Installed (PCVR) | **Start in VR ▶** (green, 1.5 px) | Reinstall (`#5a6aa8`), Open folder, Settings, Uninstall (`#cc6655`), Upstream page, Open in Steam (if any) | Install |
-| Installed (Quest) | **Start in VR ▶** when the headset is connected; **Connect your Quest** when not | Reinstall on Quest, Uninstall from Quest, Open folder | Install to Quest (until uninstalled) |
+| Installed (Quest) | **Start in VR ▶** when the headset is connected; **Connect your standalone headset** when not | Reinstall on standalone headset, Uninstall from standalone headset, Open folder | Install to standalone headset (until uninstalled) |
 | Needs your files | **Find my files** (amber `#f59e0b`) | Search drives, Upstream page | Install, Start |
 | Needs an emulator | **Install emulator** (info blue `#7ab5ff`) | Locate, Search | Install, Start |
 | Ready to install | **Install** (accent neon, tint 0.06, as 02) | Upstream page | Start, Reinstall |
-| Ready to install (Quest) | **Install to Quest** (accent neon) when connected; **Connect your Quest** when not | Upstream page | Start |
+| Ready to install (Quest) | **Install to standalone headset** (accent neon) when connected; **Connect your standalone headset** when not | Upstream page | Start |
 | Installing | Progress button, "Installing 3 of 5" (disabled) | **Cancel** (only between steps; see 2.8) | Everything else |
 | Last install failed | **Retry install** (border amber `#e0b060`) | Open log, Open install folder, Discard partial | Start |
 
@@ -587,7 +587,7 @@ Rules:
 | `copy-media` | Set up your <media> | ok: "matches the set (hash ok)". ok: "Linked ..." or "Copied ..." (copy or link, whichever the variant asks for) |
 | `write-config` | Write <file> | ok: "Wrote N settings". Unrelated lines are kept (the Hub's INI helper keeps comments and other settings, `Core/Modules/DetailView.Actions.ps1:131-180`) |
 | `shortcut` | Create shortcuts | ok: each shortcut. warn: "could not create" (not fatal, as the Hub's Alba) |
-| `adb-install` | Install on the headset | detail: the `adb` command. ok: "Installed on Quest 3". fail: the adb message, with the log |
+| `adb-install` | Install on the headset | detail: the `adb` command. ok: "Installed on standalone headset". fail: the adb message, with the log |
 | `run` | Run <tool> | prompt first: "This runs <tool>. Continue?" (frontend.md section 3) |
 | verify | Check the install | ok: `installed_when` is true. fail: not verified, and the install is not marked installed |
 
@@ -626,7 +626,7 @@ Note the verify step: the sample passes `installed_when`, so it is marked **Inst
 
 ```
 --- [1/3] Check the headset ---
- [OK] Quest 3 connected (adb state: device)
+ [OK] Standalone headset connected (adb state: device)
 --- [2/3] Install on the headset ---
  [..] adb install TimeCrisisVR-quest.apk
  [XX] The headset refused the install. See the log for the reason.
@@ -690,7 +690,7 @@ Shown as a strip under the action row (the Elden Ring pattern, section 1.20). Fo
 ### 2.11 Launch: Start in VR
 
 1. **Runtime check** (new; the Hub has none, section 1.21). Look for an active OpenXR runtime, and for SteamVR or Meta Link processes as a hint. If nothing is running: "No VR runtime is running. Start SteamVR (or Meta Link) first." [Start SteamVR] [Start anyway].
-2. **Quest variants.** `adb devices` must show `device`. Otherwise "Connect your Quest with the USB cable, or start Air Link" (the Quest is still connected over Link in PCVR).
+2. **Quest variants.** `adb devices` must show `device`. Otherwise "Connect the compatible standalone headset with a USB cable." For the PCVR route, connect a SteamVR headset instead.
 3. **Recently played.** Recorded first, the latest 8 kept (`Core/Modules/DetailView.Launch.ps1:99-118`).
 4. **Hub window.** Minimised, so the game takes focus. Restored when the game exits (PROPOSAL). The Hub restores its window only on failure paths (`Core/Modules/DetailView.Launch.ps1:595-600`, `:751`, `:787`), so after a normal launch the user has to find it again.
 5. **Start.** The variant's `launch.exe` in `launch.cwd` from `install.toml`. For Quest: start the activity over adb. Track the process and show "Playing <title>" while it runs.

@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Generated from data/product.json; do not edit the generated header.
+#pragma once
+namespace ac::product {
+inline constexpr char display_name[]="@AC_PRODUCT_display_name@";
+inline constexpr char short_id[]="@AC_PRODUCT_short_id@";
+inline constexpr char program_name[]="@AC_PRODUCT_program_name@";
+inline constexpr char overlay_key[]="@AC_PRODUCT_overlay_key@";
+inline constexpr char steam_shortcut_name[]="@AC_PRODUCT_steam_shortcut_name@";
+inline constexpr char user_data_folder[]="@AC_PRODUCT_user_data_folder@";
+inline constexpr char dsu_server_name[]="@AC_PRODUCT_dsu_server_name@";
+}

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "ProductIdentity.h"
 #include "ArtifactStore.h"
 #include <QDateTime>
 #include <QDir>
@@ -95,7 +96,7 @@ Json ArtifactStore::request(const QString &input, const QString &method,
     QNetworkRequest req(url);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::ManualRedirectPolicy);
-    req.setRawHeader("User-Agent", "AladdinsCastle-Hub/0.1");
+    req.setRawHeader("User-Agent", QByteArray(product::program_name)+"/0.1");
     req.setTransferTimeout(120000);
     auto ssl = QSslConfiguration::defaultConfiguration();
     ssl.setProtocol(QSsl::TlsV1_2OrLater);
@@ -415,15 +416,21 @@ QString ArtifactStore::acquire(const Json &step, const Json &guard) {
     throw Error("E_FORMAT", "Artifact magic differs from declared type");
   if (QSet<QString>{"zip", "7z", "tar", "tar.gz"}.contains(kind))
     Archive::inspect(part, {}, guard);
+  // The digest becomes known only after a first-record download. A preexisting
+  // object at that name is not evidence that its bytes were verified.
+  const auto final = scopedPath(dir + actual, root_);
+  if (QFileInfo::exists(final)) {
+    if (hashFile(final) != actual)
+      throw Error("E_HASH_MISMATCH", "Existing promoted artifact cache object is corrupt");
+  } else if (!QFile::rename(part, final))
+    throw Error("E_WRITE_DENIED", "Cannot promote artifact cache");
   if (record && pin.isEmpty()) {
     pins[key] =
         Json{{"url", url.toStdString()}, {"sha256", actual.toStdString()}};
     writeEnvelope(pinsPath, pins);
   }
-  if (!QFileInfo::exists(dir + actual) && !QFile::rename(part, dir + actual))
-    throw Error("E_WRITE_DENIED", "Cannot promote artifact cache");
   QFile::remove(part + ".validator");
   if (QFileInfo::exists(part)) QFile::remove(part);
-  return dir + actual;
+  return final;
 }
 } // namespace ac::install

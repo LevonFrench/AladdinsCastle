@@ -33,7 +33,7 @@ One component, driven only by data, for any game:
 
 - The control's picture with a callout on each part.
 - Each callout reads **part → what it does in this game → your controller's button**, for example "Pump → Reload → flick up" or "A / B → Pedal → right grip".
-- A second panel shows the player's controller (start with Quest Touch, left and right) with the same bindings highlighted from its side. Draw our own simple controller outlines as SVG; no vendor art.
+- A second panel shows the player's controller (start with left and right SteamVR motion controllers) with the same bindings highlighted from its side. Draw our own simple controller outlines as SVG; no vendor art.
 - Pressing a bound button highlights the part and its callout.
 - **Desktop first, and GPU-free:** each model's build exports preview images (front and three-quarter) and a small file with every node's 2D position in each image, so the view is an image plus callouts and needs no 3D runtime. It lives in `hub/qml/controls/` with its model in `hub/src/controls/`; lane 2 places it on the detail page.
 - **In VR** the same data labels the real 3D model in Control Mapping mode ([controls-catalog.md](../../controls-catalog.md) §7). The lead's libacvr draws it; you supply the data and the label layout.

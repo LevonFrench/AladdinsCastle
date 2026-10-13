@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "status": "public-source-candidates-unmeasured",
+  "build_source_commit": "85c4266b29eb308d173fefa0f21f5cb77df3516a",
+  "experiments": ["baseline", "code", "code-vbi90"],
+  "games": {
+    "RBUP08": {
+      "code_name": "60FPS [Nick Reynolds]",
+      "code": "04158204 60000000",
+      "source": "https://raw.githubusercontent.com/dolphin-emu/dolphin/master/Data/Sys/GameSettings/RBU.ini",
+      "source_status": "matches upstream settings; PAL revision compatibility untested",
+      "tested_on": null,
+      "results": []
+    },
+    "SBDP08": {
+      "code_name": "60FPS [solitarius]",
+      "code": "04736D44 00000001",
+      "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Darkside_Chronicles",
+      "source_status": "candidate transcribed from task brief; direct page blocked; compatibility untested",
+      "tested_on": null,
+      "results": []
+    }
+  },
+  "unreached": ["FPS/VPS/speed counter confirmation", "matching timed stretch", "warm shader pass", "baseline", "60 code", "90 override", "audio and cutscene sync", "busy gameplay", "QTE", "reload/slash", "pointer", "HUD", "stereo bloom", "headset pacing", "other refresh rates"],
+  "recommendation": null
+}

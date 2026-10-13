@@ -1,0 +1,9 @@
+# Hub resumed: actual harness validation
+
+The human explicitly ended the R4 stop and reaffirmed continuation under the overnight approvals and limits. The earlier [cleanup checkpoint](2026-10-12-r4-hub-cleanup.md) remains historical evidence. Reviewer N2's timeout repair was prepared by the lead and verified by Hub as one additional argument on the smoke test only: `TEST_TIMEOUT=120`. No application behavior changed for this repair.
+
+The regenerated CTest command includes that limit. The actual `hub-smoke` CTest path passed in 57.8 seconds, with all 22 offscreen/software Qt cases passing and no skips. This corrects the validation gap between the direct executable run and the inherited 30-second harness cap. The original hosted failures and private direct/harness receipts are retained. The build/test jobs closed, and the CPU slot was released before another lane's work. The PR remains subject to refreshed hosted checks.
+
+The prior installed desktop-table launch, correct Hub title/card, normal child and Hub exit, unchanged installed preferences, cache-write observation and separately audited timestamp correction are preserved privately. The owner clarified that VPX's ordinary settings/cache persistence is permitted; Hub collection writes remain forbidden. The same approved table will be used for the later null-VR run with fresh private settings, once the lead grants its runtime slot.
+
+Viewer is preparing the actual compositor exporter and dashboard-show contract. Frame has the first GPU booking. Hub has started no new GPU consumer during this validation. Source pixels and API visibility/submission remain insufficient for upright acceptance; actual compositor content in both eyes and the intended markers must be inspected separately. Physical input and headset acceptance remain additional gates.

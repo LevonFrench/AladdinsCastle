@@ -11,6 +11,7 @@
 #include <QLockFile>
 #include <QUuid>
 #include <QTemporaryDir>
+#include <QRegularExpression>
 #include <QtTest>
 #include <archive.h>
 #include <filesystem>
@@ -184,6 +185,145 @@ void archiveFile(const QString &path, const QStringList &names,
 class InstallTest : public QObject {
   Q_OBJECT
 private slots:
+  void automaticRollbackRetainsLock_data() {
+    QTest::addColumn<bool>("uninstall");
+    QTest::newRow("install") << false;
+    QTest::newRow("uninstall") << true;
+  }
+  void automaticRollbackRetainsLock() {
+    QFETCH(bool, uninstall);
+    QTemporaryDir temp;
+    auto request = fixture(temp.path());
+    Options normal; normal.survivalMs = 0;
+    const auto live = temp.path() + "/installed/synthetic/flat/example.exe";
+    if (uninstall) {
+      atomicWrite(live, "synthetic prior executable");
+      QVERIFY(Engine(normal).install(request).success);
+      const auto manifest = readEnvelope(stateBase(request) + ".manifest.toml");
+      for (const auto &row : manifest["file"])
+        if (string(row, "path") == "example.exe")
+          QVERIFY(QFile::remove(temp.path() + "/user/state/backups/" + string(row, "backup")));
+    }
+    bool atStart = false, atEnd = false, excluded = true, unchanged = true;
+    auto options = normal;
+    options.event = [&](const QVariantMap &v) {
+      if (!uninstall && v.value("kind") == "verify")
+        throw Error("E_VERIFY", "Synthetic verification failure");
+      const bool start = v.value("kind") == "rollback";
+      const bool end = v.value("text") == "Changes rolled back";
+      if (!start && !end) return;
+      atStart |= start; atEnd |= end;
+      const auto journal = readBytes(stateBase(request) + ".journal.jsonl");
+      QProcess competitor;
+      competitor.start(QCoreApplication::applicationDirPath() + "/hubtool",
+          {"--data-root", catalogFixtureRoot(), "--install-root", temp.path(),
+           "recover", "synthetic", "flat"});
+      const bool finished = competitor.waitForFinished(10000);
+      excluded &= finished && competitor.exitStatus() == QProcess::NormalExit &&
+          competitor.exitCode() != 0 && competitor.readAllStandardOutput().contains("Another install is active");
+      unchanged &= journal == readBytes(stateBase(request) + ".journal.jsonl");
+    };
+    const auto failed = uninstall ? Engine(options).uninstall(request) : Engine(options).install(request);
+    QVERIFY(!failed.success);
+    QVERIFY(atStart); QVERIFY(atEnd);
+    QVERIFY2(excluded, "Second process acquired the operation lock during automatic rollback");
+    QVERIFY(unchanged);
+    QVERIFY(readBytes(stateBase(request) + ".journal.jsonl").contains("rollback-complete"));
+    QVERIFY(Engine(normal).recover(request).success);
+    if (uninstall) {
+      QCOMPARE(readBytes(live), QByteArray("synthetic binary v1"));
+      QVERIFY(QFileInfo(temp.path() + "/installed/synthetic/flat/settings.ini").isFile());
+    } else QVERIFY(!QFileInfo(live).exists());
+  }
+  void recoveryRejectsExternalInverseRename_data() {
+    QTest::addColumn<QString>("operand");
+    QTest::newRow("external-absolute") << QString("absolute");
+    QTest::newRow("external-relative") << QString("relative");
+    QTest::newRow("linked-ancestor") << QString("linked");
+  }
+  void recoveryRejectsExternalInverseRename() {
+    QFETCH(QString, operand);
+    QTemporaryDir temp, external;
+    auto request = fixture(temp.path());
+    const auto destination = temp.path() + "/installed/stolen";
+    const auto source = external.path() + "/unrelated";
+    atomicWrite(source + "/sentinel", "synthetic unrelated bytes");
+    QVERIFY(QDir().mkpath(temp.path() + "/installed"));
+    QString to = source;
+    if (operand == "relative") to = QDir(temp.path()).relativeFilePath(source);
+    if (operand == "linked") {
+      const auto link = temp.path() + "/linked";
+#ifdef Q_OS_WIN
+      QProcess process;
+      process.start("cmd.exe", {"/c", "mklink", "/J", QDir::toNativeSeparators(link), QDir::toNativeSeparators(external.path())});
+      QVERIFY(process.waitForFinished(10000)); QCOMPARE(process.exitCode(), 0);
+#else
+      std::error_code error;
+      std::filesystem::create_directory_symlink(external.path().toStdString(), link.toStdString(), error);
+      QVERIFY2(!error, error.message().c_str());
+#endif
+      to = link + "/unrelated";
+    }
+    const auto journal = stateBase(request) + ".journal.jsonl";
+    QDir().mkpath(QFileInfo(journal).absolutePath());
+    durableAppend(journal, Json{{"kind", "begin"}, {"run", QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString()},
+        {"manifest_before", Json::object()}, {"state_before", Json::object()}});
+    durableAppend(journal, Json{{"kind", "intent"}, {"op", "rename"},
+        {"path", destination.toStdString()}, {"to", to.toStdString()}});
+    const auto recovered = Engine().recover(request);
+    QVERIFY2(!recovered.success, "Recovery moved an unrelated tree into the portable root");
+    QCOMPARE(recovered.state, QString("rollback-incomplete"));
+    QCOMPARE(readBytes(source + "/sentinel"), QByteArray("synthetic unrelated bytes"));
+    QVERIFY(!QFileInfo(destination).exists());
+    QVERIFY(!readBytes(journal).contains("rollback-complete"));
+  }
+  void recoveryAllowsContainedInverseRename() {
+    QTemporaryDir temp;
+    auto request = fixture(temp.path());
+    const auto original = temp.path() + "/installed/original";
+    const auto moved = temp.path() + "/installed/previous";
+    atomicWrite(moved + "/sentinel", "synthetic contained bytes");
+    const auto journal = stateBase(request) + ".journal.jsonl";
+    QDir().mkpath(QFileInfo(journal).absolutePath());
+    durableAppend(journal, Json{{"kind", "begin"}, {"run", QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString()},
+        {"manifest_before", Json::object()}, {"state_before", Json::object()}});
+    durableAppend(journal, Json{{"kind", "intent"}, {"op", "rename"},
+        {"path", original.toStdString()}, {"to", moved.toStdString()}});
+    QVERIFY(Engine().recover(request).success);
+    QCOMPARE(readBytes(original + "/sentinel"), QByteArray("synthetic contained bytes"));
+    QVERIFY(!QFileInfo(moved).exists());
+  }
+  void artifactPromotionVerifiesExistingObject_data() {
+    QTest::addColumn<bool>("corrupt");
+    QTest::newRow("corrupt") << true;
+    QTest::newRow("valid") << false;
+  }
+  void artifactPromotionVerifiesExistingObject() {
+    QFETCH(bool, corrupt);
+    QTemporaryDir temp;
+    HttpsServer server;
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    TestTrust trust{QSslCertificate::fromPath(QString(AC_TEST_FIXTURES) + "/tls/localhost-cert.pem"),
+                    {"localhost"}, server.url()};
+    const auto hash = sha256(server.payload);
+    const auto final = temp.path() + "/user/cache/artifacts/" + hash;
+    atomicWrite(final, corrupt ? QByteArray("synthetic corrupt cache object") : server.payload);
+    ArtifactStore store(temp.path(), {}, trust);
+    // First-record mode learns the digest only after fetching. The final object
+    // therefore bypasses the known-pin cache lookup at entry.
+    const Json step{{"do", "download"}, {"url", "https://github.com/artifact"},
+                    {"name", "tool.dat"}, {"record_sha256", true}};
+    bool refused = false;
+    try { QCOMPARE(hashFile(store.acquire(step, testGuard())), hash); }
+    catch (const Error &) { refused = true; }
+    QVERIFY(server.requests.size() == 1);
+    QVERIFY(!refused || corrupt);
+    if (refused) {
+      QCOMPARE(readBytes(final), QByteArray("synthetic corrupt cache object"));
+      QVERIFY(QFileInfo(final + ".part").exists() ||
+              !QDir(temp.path() + "/user/cache/artifacts").entryList({"*.part"}).isEmpty());
+    }
+  }
   void canonical() {
     const Json j{{"z", 1}, {"a", "\n\t\"\\"}, {"b", true}};
     QCOMPARE(
@@ -493,6 +633,63 @@ private slots:
       QVERIFY_THROWS_EXCEPTION(Error, contentGuard(QString("synthetic.") + extension, guard));
     QVERIFY_THROWS_EXCEPTION(Error, contentGuard("tool.exe", Json::object()));
   }
+  void pinnedArchiveSupportFiles_data() {
+    QTest::addColumn<QString>("change");
+    QTest::newRow("exact archive path and content") << QString("exact");
+    for(const auto &change:QStringList{"archive","path","content","name-denial","hash-denial","archive-hash-denial","size","no-pin","duplicate","traversal"}) {
+      QTest::newRow(qPrintable(change)) << change;
+    }
+  }
+  void pinnedArchiveSupportFiles() {
+    QFETCH(QString,change);
+    QTemporaryDir temp;
+    const auto path=temp.filePath("support.zip"),stage=temp.filePath("stage");
+    const auto entry=change=="name-denial"?QString("Sys/scph1001.bin"):QString("Sys/synthetic-support.bin");
+    archiveFile(path,{entry});
+    auto guard=testGuard();
+    guard["archive_support"]=Json::array({{{"archive_sha256",hashFile(path).toStdString()},
+      {"path",entry.toStdString()},{"sha256",sha256("test").toStdString()},{"bytes",4}}});
+    if(change=="archive") { QFile file(path);QVERIFY(file.open(QIODevice::Append));QCOMPARE(file.write("changed"),qint64(7)); }
+    if(change=="path") { guard["archive_support"][0]["path"]="Sys/different.bin"; }
+    if(change=="content") { guard["archive_support"][0]["sha256"]=std::string(64,'0'); }
+    if(change=="hash-denial") { guard["sha256"].push_back(sha256("test").toStdString()); }
+    if(change=="archive-hash-denial") { guard["sha256"].push_back(hashFile(path).toStdString()); }
+    if(change=="size") { guard["archive_support"][0]["bytes"]=5; }
+    if(change=="no-pin") { guard.erase("archive_support"); }
+    if(change=="duplicate") { guard["archive_support"].push_back(guard["archive_support"][0]); }
+    if(change=="traversal") { guard["archive_support"][0]["path"]="../Sys/synthetic-support.bin"; }
+    QString error;
+    QStringList files;
+    try { files=Archive::extract(path,stage,{1024,10},guard); }
+    catch(const Error &e) { error=e.code; }
+    if(change=="exact") {
+      QVERIFY2(error.isEmpty(),qPrintable("Pinned upstream support file refused: "+error));
+      QCOMPARE(files,QStringList({entry}));QCOMPARE(readBytes(stage+"/"+entry),QByteArray("test"));
+      // The ordinary file/copy guard still refuses the same extension.
+      QVERIFY_THROWS_EXCEPTION(Error,contentGuard(entry,guard));
+    } else {
+      QCOMPARE(error,QString("E_CONTENT_GUARD"));
+      QVERIFY(!QFileInfo::exists(stage));
+    }
+  }
+  void localPinnedDolphinArchivePreflight() {
+    const auto path=qEnvironmentVariable("AC_PINNED_DOLPHIN_ARCHIVE");
+    if(path.isEmpty()) { QSKIP("Explicit local pinned archive preflight; never downloads or installs."); }
+    const auto guard=testGuard();
+    QCOMPARE(hashFile(path),QString("d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"));
+    QList<ArchiveEntry> entries;
+    QString error;
+    try { entries=Archive::inspect(path,{},guard); }catch(const Error &e) { error=e.code; }
+    QVERIFY2(error.isEmpty(),qPrintable("Pinned release preflight refused: "+error));
+    QVERIFY(entries.size()>9);
+    for(const auto &support:guard["archive_support"]) {
+      bool found=false;
+      for(const auto &entry:entries) {
+        if(entry.path==string(support,"path")) { found=true;QCOMPARE(entry.bytes,qint64(support["bytes"].get<int64_t>())); }
+      }
+      QVERIFY(found);
+    }
+  }
   void setupExtractSourcePlanning() {
     QTemporaryDir temp;
     auto request = fixture(temp.path());
@@ -580,6 +777,212 @@ private slots:
     QVERIFY(Engine(o).uninstall(r).success);
     QVERIFY(!QFileInfo(temp.path() + "/installed/synthetic/flat/settings.ini")
                  .exists());
+  }
+  void pinnedGeneratedSeedRetainsExactBytesAndUserSettings(){
+    QTemporaryDir t;auto r=fixture(t.path());Options o;o.survivalMs=0;
+    const QString relative="data/controls/wii/generated/dolphinxr/split-right.ini";
+    const QByteArray seed="# synthetic generated bytes\r\n[Wiimote1]\r\nSource = 3\r\nDevice = synthetic\r\n";
+    atomicWrite(t.filePath(relative),seed);
+    auto &step=r.recipe["variant"]["flat"]["step"][1];step.erase("set");
+    step["source"]=relative.toStdString();step["source_sha256"]=hashFile(t.filePath(relative)).toStdString();
+    step["only_if_missing"]=true;
+    const auto installed=Engine(o).install(r);QVERIFY2(installed.success,qPrintable(installed.message));
+    const auto file=t.filePath("installed/synthetic/flat/settings.ini");QCOMPARE(readBytes(file),seed);
+    const QByteArray tuned="# user settings preserved\n[Wiimote1]\nSource = 0\nunknown = mine\n";atomicWrite(file,tuned);
+    r.operation="repair";QVERIFY(Engine(o).install(r).success);QCOMPARE(readBytes(file),tuned);
+    r.operation="update";r.recipe["variant"]["flat"]["version"]="v2";
+    QVERIFY(Engine(o).install(r).success);QCOMPARE(readBytes(file),tuned);
+    QVERIFY(Engine(o).uninstall(r).success);QCOMPARE(readBytes(file),tuned);
+  }
+  void pinnedNativeGameSeedRetainsShaderBytesAndUserProfile_data(){
+    QTest::addColumn<bool>("preexisting");QTest::newRow("fresh profile")<<false;QTest::newRow("existing profile")<<true;
+  }
+  void pinnedNativeGameSeedRetainsShaderBytesAndUserProfile(){
+    QFETCH(bool,preexisting);QTemporaryDir t;auto r=fixture(t.path());Options o;o.survivalMs=0;
+    const QString source="data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini";
+    const QString target="installed/synthetic/flat/User/GameSettingsVR/RBUP08.ini";
+    const QByteArray seed="; synthetic native profile\r\n[Graphics.VR]\r\nVirtualScreen = False\r\n[ShaderOverride_Enable]\r\n$synthetic HUD\r\n[ShaderOverride]\r\n$synthetic HUD\r\nHash=0000000000000000\r\nType=PS\r\nmatch_mode=shader_family\r\nhandling=screen\r\n";
+    const QByteArray tuned="; user native profile\n[Graphics.VR]\nVirtualScreen = True\n[ShaderOverride_Enable]\n$user HUD\n[ShaderOverride]\n$user HUD\nHash=1111111111111111\nType=PS\nhandling=skip\nunknown = mine\n";
+    atomicWrite(t.filePath(source),seed);if(preexisting)atomicWrite(t.filePath(target),tuned);
+    auto &step=r.recipe["variant"]["flat"]["step"][1];step.erase("set");
+    step["file"]="${install_dir}/User/GameSettingsVR/RBUP08.ini";step["source"]=source.toStdString();
+    step["source_sha256"]=hashFile(t.filePath(source)).toStdString();step["only_if_missing"]=true;
+    const auto installed=Engine(o).install(r);QVERIFY2(installed.success,qPrintable(installed.message));
+    QCOMPARE(readBytes(t.filePath(target)),preexisting?tuned:seed);
+    atomicWrite(t.filePath(target),tuned);
+    r.operation="repair";const auto repaired=Engine(o).install(r);QVERIFY2(repaired.success,qPrintable(repaired.message));QCOMPARE(readBytes(t.filePath(target)),tuned);
+    r.operation="update";r.recipe["variant"]["flat"]["version"]="v2";
+    const auto updated=Engine(o).install(r);QVERIFY2(updated.success,qPrintable(updated.message));QCOMPARE(readBytes(t.filePath(target)),tuned);
+    QVERIFY(Engine(o).uninstall(r).success);QCOMPARE(readBytes(t.filePath(target)),tuned);
+  }
+  void nativeGameSeedRefusesUnrelatedPaths_data(){
+    QTest::addColumn<QString>("source");
+    for(const auto &source:{"data/profiles/dolphinxr/GameSettingsVR/SYN001.ini","data/profiles/dolphinxr/GameSettingsVR/rbup08.ini","data/profiles/dolphinxr/GameSettings/RBUP08.ini","data/profiles/dolphinxr/GameSettingsVR/../RBUP08.ini"})QTest::newRow(source)<<QString(source);
+  }
+  void nativeGameSeedRefusesUnrelatedPaths(){
+    QFETCH(QString,source);QTemporaryDir t;auto r=fixture(t.path());
+    const auto fixtureSource=t.filePath(QDir::cleanPath(source));atomicWrite(fixtureSource,"; synthetic unrelated profile\n");
+    auto &step=r.recipe["variant"]["flat"]["step"][1];step.erase("set");step["source"]=source.toStdString();
+    step["source_sha256"]=hashFile(fixtureSource).toStdString();step["only_if_missing"]=true;
+    try{Engine().plan(r);QFAIL("Unrelated native profile admitted");}
+    catch(const Error &error){QCOMPARE(error.code,QString("E_SOURCE_OUT_OF_SCOPE"));}
+    QVERIFY(!QFileInfo(t.filePath("installed/synthetic/flat/settings.ini")).exists());
+  }
+  void generatedSeedPolicyRefusals_data(){
+    QTest::addColumn<QString>("caseId");
+    for(const auto &id:{"outside","traversal","two-remotes","bad-pin","changed-bytes","missing-source","overwrite","merge","wrong-format","string-boolean","directory-outside","media-alias","oversize"})QTest::newRow(id)<<QString(id);
+  }
+  void generatedSeedPolicyRefusals(){
+    QFETCH(QString,caseId);QTemporaryDir t;auto r=fixture(t.path());
+    const QString source="data/controls/wii/generated/dolphinxr/split-right.ini";atomicWrite(t.filePath(source),"# synthetic seed\n");
+    auto &step=r.recipe["variant"]["flat"]["step"][1];step.erase("set");step["source"]=source.toStdString();step["source_sha256"]=hashFile(t.filePath(source)).toStdString();step["only_if_missing"]=true;
+    if(caseId=="outside")step["source"]="user/private.ini";
+    if(caseId=="traversal")step["source"]="data/controls/wii/generated/dolphinxr/../../private.ini";
+    if(caseId=="two-remotes")step["source"]="data/controls/wii/generated/dolphinxr/two-remotes-right.ini";
+    if(caseId=="bad-pin")step["source_sha256"]="not-a-hash";
+    if(caseId=="changed-bytes")atomicWrite(t.filePath(source),"# changed seed\n");
+    if(caseId=="missing-source")QVERIFY(QFile::remove(t.filePath(source)));
+    if(caseId=="overwrite")step["only_if_missing"]=false;
+    if(caseId=="merge")step["set"]=Json::array();
+    if(caseId=="wrong-format")step["format"]="json";
+    if(caseId=="string-boolean")step["only_if_missing"]="true";
+    if(caseId=="directory-outside")r.recipe["variant"]["flat"]["step"].push_back(Json{{"id","logs"},{"do","create-directory"},{"to",t.filePath("foreign").toStdString()}});
+    if(caseId=="media-alias"){
+      const auto media=t.filePath("synthetic-disc.bin");
+      std::filesystem::create_hard_link(t.filePath(source).toStdWString(),media.toStdWString());
+      r.bindings=Json{{"media",{{"disc",{{"path",media.toStdString()}}}}}};
+    }
+    if(caseId=="oversize"){atomicWrite(t.filePath(source),QByteArray(1024*1024+1,'x'));step["source_sha256"]=hashFile(t.filePath(source)).toStdString();}
+    QVERIFY_THROWS_EXCEPTION(Error,Engine().plan(r));QVERIFY(!QFileInfo(t.filePath("foreign")).exists());QVERIFY(!QFileInfo(t.filePath("installed/synthetic/flat/settings.ini")).exists());
+  }
+  void explicitLogDirectoryRepairAndRollback(){
+    QTemporaryDir t;auto r=fixture(t.path());Options o;o.survivalMs=0;
+    r.recipe["variant"]["flat"]["step"].push_back(Json{{"id","logs"},{"do","create-directory"},{"to","${install_dir}/User/Logs"}});
+    const auto result=Engine(o).install(r);QVERIFY2(result.success,qPrintable(result.message));
+    const auto logs=t.filePath("installed/synthetic/flat/User/Logs");QVERIFY(QFileInfo(logs).isDir());
+    QVERIFY(QDir().rmdir(logs));r.operation="repair";QVERIFY(Engine(o).install(r).success);QVERIFY(QFileInfo(logs).isDir());
+    atomicWrite(logs+"/synthetic.log","synthetic log bytes");QVERIFY(Engine(o).uninstall(r).success);QCOMPARE(readBytes(logs+"/synthetic.log"),QByteArray("synthetic log bytes"));
+    QTemporaryDir failed;auto broken=fixture(failed.path());broken.recipe["variant"]["flat"]["step"].push_back(Json{{"id","logs"},{"do","create-directory"},{"to","${install_dir}/User/Logs"}});
+    broken.recipe["variant"]["flat"]["step"].push_back(Json{{"id","stop"},{"do","shortcut"},{"exe","${install_dir}/app.exe"},{"name","synthetic"},{"targets",Json::array({"desktop"})}});
+    bool reached=false;Options faulted;faulted.survivalMs=0;
+    faulted.shortcut=[&](const Json &)->Json{reached=QFileInfo(failed.filePath("installed/synthetic/flat/User/Logs")).isDir();throw Error("E_TEST","Synthetic failure after directory creation");};
+    QVERIFY(!Engine(faulted).install(broken).success);QVERIFY(reached);QVERIFY(!QFileInfo(failed.filePath("installed/synthetic/flat/User/Logs")).exists());
+  }
+  void nativeRecipesUseGraphicsSystemAndSharedGeneratedSeed(){
+    const auto root=QDir(QString(AC_TEST_FIXTURES)+"/../../..").absolutePath();const auto catalog=CatalogLoader().load(root);
+    for(const auto &id:{"wii-resident-evil-umbrella-chronicles","wii-resident-evil-darkside-chronicles"}){
+      const auto game=catalog.find(id);QVERIFY(game);const auto native=game->install["variant"]["dolphinxr"];
+      QStringList args;for(const auto &arg:native["launch"]["args"])args<<QString::fromStdString(arg.get<std::string>());
+      QVERIFY(args.contains("Graphics.VR.EnableOpenXR=True"));QVERIFY(args.contains("Graphics.Stereoscopy.StereoMode=0"));
+      QVERIFY(args.contains("Graphics.VR.EagerHeartbeat=False"));
+      QVERIFY(args.contains("Graphics.VR.ResolutionScale=1.0"));
+      QVERIFY(!args.join(' ').contains("GFX."));
+      bool shared=false,logs=false;
+      bool resolutionScale=false;
+      for(const auto &step:native["step"]){
+        if(string(step,"id")=="vr"){
+          QVERIFY(step.value("only_if_missing",false));
+          for(const auto &entry:step["set"])
+            if(string(entry,"section")=="VR"&&string(entry,"key")=="ResolutionScale"){
+              QVERIFY(entry["value"].is_number());QCOMPARE(entry["value"].get<double>(),1.0);resolutionScale=true;
+            }
+        }
+        if(string(step,"id")=="remote"){
+          QCOMPARE(string(step,"source"),QString("data/controls/wii/generated/dolphinxr/split-right.ini"));
+          QCOMPARE(string(step,"source_sha256"),hashFile(root+"/"+string(step,"source")));QVERIFY(step.value("only_if_missing",false));QVERIFY(!step.contains("set"));shared=true;
+        }
+        if(string(step,"do")=="create-directory"&&string(step,"to")=="${install_dir}/User/Logs")logs=true;
+      }
+      QVERIFY(shared);QVERIFY(logs);QVERIFY(resolutionScale);
+    }
+  }
+  void freshNativeBackgroundInputPreservesUserSettings_data(){
+    QTest::addColumn<QString>("gameId");QTest::addColumn<bool>("preexisting");
+    for(const auto &id:{"wii-resident-evil-umbrella-chronicles","wii-resident-evil-darkside-chronicles"})
+      for(const auto existing:{false,true})QTest::newRow(qPrintable(QString(id)+(existing?" existing":" fresh")))<<QString(id)<<existing;
+  }
+  void freshNativeBackgroundInputPreservesUserSettings(){
+    QFETCH(QString,gameId);QFETCH(bool,preexisting);const auto catalog=CatalogLoader().load(catalogFixtureRoot());
+    const auto game=catalog.find(gameId);QVERIFY(game);Json userSeed;
+    for(const auto &step:game->install["variant"]["dolphinxr"]["step"])
+      if(string(step,"id")=="private-user")userSeed=step;
+    QVERIFY(userSeed.is_object());QVERIFY(userSeed.value("only_if_missing",false));
+    QTemporaryDir t;auto r=fixture(t.path());r.recipe["variant"]["flat"]["step"][1]=userSeed;
+    const auto path=t.filePath("installed/synthetic/flat/User/Config/Dolphin.ini");
+    const QByteArray tuned="; user input setting\n[Input]\nBackgroundInput=False\nunknown=mine\n";
+    if(preexisting){atomicWrite(path,tuned);}
+    Options o;o.survivalMs=0;
+    const auto installed=Engine(o).install(r);QVERIFY2(installed.success,qPrintable(installed.message));
+    if(preexisting)QCOMPARE(readBytes(path),tuned);
+    else QVERIFY(QString::fromUtf8(readBytes(path)).contains(QRegularExpression("(?m)^BackgroundInput\\s*=\\s*True\\s*$")));
+    atomicWrite(path,tuned);r.operation="repair";QVERIFY(Engine(o).install(r).success);QCOMPARE(readBytes(path),tuned);
+    r.operation="update";r.recipe["variant"]["flat"]["version"]="v2";QVERIFY(Engine(o).install(r).success);QCOMPARE(readBytes(path),tuned);
+  }
+  void umbrellaNativeGameProfileUsesExactPinnedAbsentOnlyBytes(){
+    const auto root=catalogFixtureRoot();const auto catalog=CatalogLoader().load(root);
+    const auto game=catalog.find("wii-resident-evil-umbrella-chronicles");QVERIFY(game);
+    bool found=false;
+    for(const auto &step:game->install["variant"]["dolphinxr"]["step"]){
+      if(string(step,"id")!="native-game-profile")continue;
+      QVERIFY(!found);found=true;QCOMPARE(string(step,"do"),QString("write-config"));
+      QCOMPARE(string(step,"file"),QString("${install_dir}/User/GameSettingsVR/RBUP08.ini"));
+      QCOMPARE(string(step,"format"),QString("ini"));QVERIFY(step.value("create",false));QVERIFY(step.value("only_if_missing",false));QVERIFY(!step.contains("set"));
+      QCOMPARE(string(step,"source"),QString("data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini"));
+      QCOMPARE(string(step,"source_sha256"),hashFile(root+"/"+string(step,"source")));
+    }
+    QVERIFY2(found,"Umbrella native profile is not seeded by its authored recipe");
+  }
+  void authoredNativeGameProfileCopiesUnmodifiedBytes(){
+    const auto root=catalogFixtureRoot();const auto catalog=CatalogLoader().load(root);
+    const auto game=catalog.find("wii-resident-evil-umbrella-chronicles");QVERIFY(game);
+    Json nativeSeed;
+    for(const auto &step:game->install["variant"]["dolphinxr"]["step"])
+      if(string(step,"id")=="native-game-profile")nativeSeed=step;
+    QVERIFY(nativeSeed.is_object());const auto source=string(nativeSeed,"source");
+    const auto bytes=readBytes(root+"/"+source);QVERIFY(bytes.contains("[ShaderOverride_Enable]\n$HUD "));
+    QTemporaryDir t;auto r=fixture(t.path());atomicWrite(t.filePath(source),bytes);
+    r.recipe["variant"]["flat"]["step"][1]=nativeSeed;Options o;o.survivalMs=0;
+    const auto result=Engine(o).install(r);QVERIFY2(result.success,qPrintable(result.message));
+    QCOMPARE(readBytes(t.filePath("installed/synthetic/flat/User/GameSettingsVR/RBUP08.ini")),bytes);
+  }
+  void freshOnlyConfigSeedsThenPreservesRuntimeTuning_data() {
+    QTest::addColumn<QString>("operation");QTest::addColumn<bool>("freshOnly");QTest::addColumn<bool>("tuned");
+    QTest::newRow("repair preserves")<<QString("repair")<<true<<true;
+    QTest::newRow("update preserves")<<QString("update")<<true<<true;
+    QTest::newRow("legacy repair remerges")<<QString("repair")<<false<<true;
+    QTest::newRow("unchanged seed survives update")<<QString("update")<<true<<false;
+  }
+  void freshOnlyConfigSeedsThenPreservesRuntimeTuning() {
+    QFETCH(QString,operation);QFETCH(bool,freshOnly);QFETCH(bool,tuned);
+    QTemporaryDir t;auto r=fixture(t.path());Options o;o.survivalMs=0;
+    auto &settings=r.recipe["variant"]["flat"]["step"][1];
+    if (freshOnly) {
+      settings["only_if_missing"] = true;
+    }
+    QVERIFY(Engine(o).install(r).success);
+    const auto file=t.filePath("installed/synthetic/flat/settings.ini");
+    QVERIFY(readBytes(file).contains("enabled = 1"));
+    const QByteArray kept=tuned?QByteArray("# private runtime tuning\n[Global]\nenabled = 9\nunknown = mine\n"):readBytes(file);
+    if (tuned) {
+      atomicWrite(file, kept);
+    }
+    r.operation = operation;
+    if (operation == "update") {
+      r.recipe["variant"]["flat"]["version"] = "v2";
+    }
+    const auto result=Engine(o).install(r);QVERIFY2(result.success,qPrintable(result.message));
+    if(freshOnly){
+      QCOMPARE(readBytes(file),kept);
+      Engine(o).uninstall(r);
+      QCOMPARE(readBytes(file), kept);
+    } else {
+      QVERIFY(readBytes(file).contains("enabled = 1"));
+    }
+  }
+  void freshOnlyRequiresAnExplicitBoolean() {
+    QTemporaryDir t;auto r=fixture(t.path());
+    r.recipe["variant"]["flat"]["step"][1]["only_if_missing"]="true";
+    QVERIFY_THROWS_EXCEPTION(Error,Engine().plan(r));
   }
   void repairRemergesManagedKeysKeepsUserFields() {
     QTemporaryDir temp;

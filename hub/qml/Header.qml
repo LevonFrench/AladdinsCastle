@@ -7,6 +7,7 @@ Rectangle {
  id:header
  property bool vrOverlayMode:false
  signal libraryRequested()
+ signal pinballRequested()
  signal helpRequested()
  signal orderRequested()
  signal queryEdited(string text)
@@ -16,10 +17,11 @@ Rectangle {
  RowLayout {anchors.fill:parent;anchors.margins:14;spacing:10
   UiText {visible:header.width>=620;text:"◉";font.pixelSize:32;color:Theme.get("color.brand.orange")}
   Column {visible:header.width>=620;Layout.fillWidth:true;spacing:3
-   Row {spacing:8;GradientText {text:"AladdinsCastle";pixelSize:22} UiText {visible:header.width>=780;text:"v"+uiController.appVersion;font.pixelSize:10;color:Theme.get("color.text.faint")} }
+   Row {spacing:8;GradientText {text:uiController.appName;pixelSize:22} UiText {visible:header.width>=780;text:"v"+uiController.appVersion;font.pixelSize:10;color:Theme.get("color.text.faint")} }
    UiText {visible:header.width>=780;text:"3D light gun & racing games in true VR";font.pixelSize:11;color:Theme.get("color.text.faint")}
   }
   Item {visible:header.width<620;Layout.fillWidth:true}
+  PillButton {objectName:"pinballTab";text:"Pinball";vrOverlayMode:header.vrOverlayMode;onClicked:header.pinballRequested()}
   PillButton {text:"▦";width:vrOverlayMode?44:40;vrOverlayMode:header.vrOverlayMode;Accessible.name:"Open library";onClicked:header.libraryRequested()}
   PillButton {text:"···";width:vrOverlayMode?44:40;vrOverlayMode:header.vrOverlayMode;Accessible.name:"Help and settings";onClicked:header.helpRequested()}
   PillButton {text:(header.width>=620?"ORDER  ":"")+gameFilter.sortMode+" ▾";Layout.preferredWidth:header.width>=780?144:112;vrOverlayMode:header.vrOverlayMode;onClicked:header.orderRequested()}

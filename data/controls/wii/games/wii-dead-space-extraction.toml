@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Await owner-selected option/instruction screens. No inferred game actions.
+version = "0.1"
+game_id = "wii-dead-space-extraction"
+control_set = "shell-and-stick"
+layout = { state = "question", name = "", question = "Which game option-screen layout is selected for shell and stick?" }
+questions = ["Confirm reload timing, kinesis, stasis, alternate fire and glow-worm motions in the game.", "Seated R/V waveforms need game-specific tuning; they are not alternate-fire or stasis buttons.", "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."]
+sources = []
+
+[gun_proposal]
+state = "proposed"
+model = "con-pistol-slim"
+rationale = "Slim angular tool-like silhouette keeps the sight area open. A provisional stand-in for the science-fiction setting; selected in-game weapon matching remains open."
+
+[hold]
+default = "split"
+state = "provisional"
+
+[reload]
+choices = ["shake", "flick-down", "offscreen", "button"]
+selected = "flick-down"
+state = "question"
+question = "Confirm the selected reload and active-reload instruction before enabling the proposed flick."
+target_action = "remote-shake"
+button_fallback = "remote-shake"

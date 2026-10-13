@@ -18,6 +18,7 @@ gun  = "Wii Remote IR pointer (Zapper support unverified)"
 
 [[media]]
 kind = "disc"
+id = "disc"
 note = "Your own Wii disc image (ISO/WBFS). Game ids: SBDE08, SBDP08, SBDJ08, SBDK08"
 
 [routes]

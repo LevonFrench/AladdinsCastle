@@ -1,0 +1,127 @@
+{
+  "version": "0.1",
+  "model": "con-stick-grip",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "con-stick-grip-front.png",
+      "nodes": {
+        "pivot_stick_x": [
+          0.480456,
+          0.230892
+        ],
+        "pivot_stick_y": [
+          0.480456,
+          0.230892
+        ],
+        "button_stick": [
+          0.480456,
+          0.230892
+        ],
+        "button_c": [
+          0.33613,
+          0.303055
+        ],
+        "button_z": [
+          0.330116,
+          0.405286
+        ],
+        "grip": [
+          0.522551,
+          0.405286
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "con-stick-grip.png",
+      "nodes": {
+        "pivot_stick_x": [
+          0.486505,
+          0.256469
+        ],
+        "pivot_stick_y": [
+          0.486505,
+          0.256469
+        ],
+        "button_stick": [
+          0.486505,
+          0.256469
+        ],
+        "button_c": [
+          0.386851,
+          0.362901
+        ],
+        "button_z": [
+          0.382699,
+          0.459111
+        ],
+        "grip": [
+          0.515571,
+          0.406195
+        ]
+      }
+    },
+    "held": {
+      "image": "con-stick-grip-held.png",
+      "nodes": {
+        "pivot_stick_x": [
+          0.495861,
+          0.24983
+        ],
+        "pivot_stick_y": [
+          0.495861,
+          0.24983
+        ],
+        "button_stick": [
+          0.495861,
+          0.24983
+        ],
+        "button_c": [
+          0.4653,
+          0.252737
+        ],
+        "button_z": [
+          0.464026,
+          0.342008
+        ],
+        "grip": [
+          0.504775,
+          0.42458
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
+  },
+  "silhouette": "con-stick-grip-silhouette.png",
+  "asset_kind": "controller",
+  "sight_reviews": {},
+  "silhouette_scale_m": 0.82
+}

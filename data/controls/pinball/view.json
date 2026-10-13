@@ -1,0 +1,334 @@
+{
+  "game_id": "pinball-vpx-openxr",
+  "model": "quest-controllers",
+  "model_provenance": "Controller illustration only",
+  "control_set": "vpx-openxr",
+  "layers": [
+    "data/controls/pinball/vpx-openxr.toml"
+  ],
+  "data": {
+    "version": "0.1",
+    "schema": "pinball-controls/1",
+    "family": "pinball",
+    "route": "vpx-openxr",
+    "id": "vpx-openxr",
+    "title": "Pinball controls \u2014 VPX OpenXR",
+    "element": [
+      {
+        "id": "left-flipper",
+        "part": "Left trigger",
+        "label": "Left flipper",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "left",
+          "control": "trigger"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "LeftFlipper"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+        },
+        "threshold": 0.3,
+        "staged_threshold": 0.6,
+        "scale": 1
+      },
+      {
+        "id": "right-flipper",
+        "part": "Right trigger",
+        "label": "Right flipper",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "right",
+          "control": "trigger"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "RightFlipper"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+        },
+        "threshold": 0.3,
+        "staged_threshold": 0.6,
+        "scale": 1
+      },
+      {
+        "id": "left-magnasave",
+        "part": "Left grip",
+        "label": "Left MagnaSave (if table supports it)",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "left",
+          "control": "grip"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "LeftMagnaSave"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      },
+      {
+        "id": "right-magnasave",
+        "part": "Right grip",
+        "label": "Right MagnaSave (if table supports it)",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "right",
+          "control": "grip"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "RightMagnaSave"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      },
+      {
+        "id": "start",
+        "part": "A",
+        "label": "Start",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "right",
+          "control": "primary"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "StartGame"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      },
+      {
+        "id": "coin",
+        "part": "B",
+        "label": "Insert coin",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "right",
+          "control": "secondary"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "AddCredit"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      },
+      {
+        "id": "menu",
+        "part": "X",
+        "label": "Open menu",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "left",
+          "control": "primary"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "OpenInGameUI"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      },
+      {
+        "id": "exit",
+        "part": "Y \u2014 EXIT",
+        "label": "WARNING: exits the current table",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": true,
+        "binding": {
+          "hand": "left",
+          "control": "secondary"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "ExitGame"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      },
+      {
+        "id": "nudge",
+        "part": "Left stick",
+        "label": "Nudge (X/Y)",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "left",
+          "control": "thumbstick"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "nudgeDisplacementX/nudgeDisplacementY"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Native XR nudge sensors are mapped; this tag clears plugin stateMask. Host analog bridge pending."
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      },
+      {
+        "id": "recenter",
+        "part": "Left stick click",
+        "label": "Recenter \u2014 unavailable",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "left",
+          "control": "click"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "VRRecenter"
+        },
+        "availability": {
+          "state": "unavailable",
+          "reason": "Enum exists, but this tag comments out the plugin action map. No callable recenter bridge."
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      },
+      {
+        "id": "plunger",
+        "part": "Right stick",
+        "label": "Plunger (Y)",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "right",
+          "control": "thumbstick"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "plungerPosition"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Native XR plunger sensor is mapped; this tag clears plugin stateMask. Host analog bridge pending."
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": -1.0
+      },
+      {
+        "id": "launch",
+        "part": "Right stick click",
+        "label": "Launch ball",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "right",
+          "control": "click"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "LaunchBall"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      }
+    ],
+    "policy": {
+      "p1_hand": "right",
+      "supported_primary_hands": [
+        "right",
+        "left"
+      ]
+    },
+    "sources": [
+      "src/input/XRInputHandler.h:54",
+      "src/input/XRInputHandler.h:125",
+      "src/core/VPXPluginAPIImpl.cpp:135",
+      "src/core/VPXPluginAPIImpl.cpp:558",
+      "plugins/plugins/VPXPlugin.h:243"
+    ],
+    "source_commit": "af26b2d9392b4c9ec3e3edff4bbd69562085a44c"
+  },
+  "model_metadata": {},
+  "configured_slots": 1,
+  "two_gun_eligible": false,
+  "declared_active_slots": 0,
+  "node_validation": "not-applicable",
+  "gaps": [
+    {
+      "category": "runtime-acceptance",
+      "id": "vpx-bridge",
+      "reason": "No reviewed execution bridge; recenter is not callable"
+    }
+  ]
+}

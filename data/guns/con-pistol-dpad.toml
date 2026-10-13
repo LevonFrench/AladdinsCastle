@@ -48,3 +48,61 @@ node  = "button_start"
 id    = "dpad"
 label = "D-pad"
 node  = "button_dpad"
+
+# Motion ranges use metres (slide) or radians (rotate). Visual recoil never moves the aim anchors.
+
+[motion.trigger]
+node = "pivot_trigger"
+kind = "rotate"
+axis = [-1,0,0]
+range = [0,0.35]
+drive = "trigger"
+lod_nodes = ["pivot_trigger", "pivot_trigger_lod1"]
+
+[motion.button-a]
+node = "button_a"
+kind = "slide"
+axis = [1,0,0]
+range = [0,0.002]
+drive = "button:a"
+lod_nodes = ["button_a", "button_a_lod1"]
+
+[motion.button-b]
+node = "button_b"
+kind = "slide"
+axis = [-1,0,0]
+range = [0,0.002]
+drive = "button:b"
+lod_nodes = ["button_b", "button_b_lod1"]
+
+[motion.button-c]
+node = "button_c"
+kind = "slide"
+axis = [0,1,0]
+range = [0,0.002]
+drive = "button:c"
+lod_nodes = ["button_c", "button_c_lod1"]
+
+[motion.button-select]
+node = "button_select"
+kind = "slide"
+axis = [1,0,0]
+range = [0,0.002]
+drive = "button:select"
+lod_nodes = ["button_select", "button_select_lod1"]
+
+[motion.button-start]
+node = "button_start"
+kind = "slide"
+axis = [1,0,0]
+range = [0,0.002]
+drive = "button:start"
+lod_nodes = ["button_start", "button_start_lod1"]
+
+[motion.button-dpad]
+node = "button_dpad"
+kind = "slide"
+axis = [0,0,-1]
+range = [0,0.002]
+drive = "button:dpad"
+lod_nodes = ["button_dpad", "button_dpad_lod1"]

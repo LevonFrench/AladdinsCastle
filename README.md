@@ -1,14 +1,16 @@
 # AladdinsCastle
 
-**Install and play 3D light gun and racing games in true VR. Step into the game, not in front of it.**
+**A desktop Hub for light gun and racing games, with true 3D VR in development.**
 
-AladdinsCastle is an open-source desktop hub that installs and launches VR setups for arcade and console 3D light gun games (Time Crisis, Virtua Cop, House of the Dead...) and racing games (Rave Racer, Daytona USA, Scud Race...) in **true 3D VR**. The game's own world is drawn around you in stereo, the gun is your motion controller, and racing cabinets appear as **ghost controls** you grab to drive. Analog triggers act as the pedals.
+AladdinsCastle is an open-source desktop Hub being built to install and launch VR setups for arcade and console 3D light gun games (Time Crisis, Virtua Cop, House of the Dead...) and racing games (Rave Racer, Daytona USA, Scud Race...). The goal is **true 3D VR**: the game's own world drawn around you in stereo, a tracked gun in your hand, and **ghost controls** you grab to drive, with analog triggers as pedals.
 
-> **Status: design phase.** No playable build yet. This repository holds the design docs. To play 3D light gun games in VR on a Quest 3 **today**, see [docs/quest3-quickstart.md](docs/quest3-quickstart.md).
+> **Status: M2 development.** The Qt Hub builds on Windows and Linux, with catalog, scanning, installation and flat-launch paths covered by software tests. The shared VR runtime and System 22 renderer are under development. There is no accepted Hub-to-headset Time Crisis build yet; public OpenXR runtime creation remains unsupported.
+
+Catalog capability, an available recipe, detected launch requirements and a verified owned installation are separate states. None proves that a game has passed headset or gameplay acceptance. Runtime/renderer CPU checks and offscreen Hub tests also do not establish GPU correctness, comfort or performance. Actual gun assets, runtime profiles, dual-gun play and racing controls remain unfinished. See the [runtime implementation and limits](docs/libacvr-runtime-core.md) and [lead checkpoint reports](docs/status/lead/) for current evidence. The [PCVR and standalone quickstart](docs/quest3-quickstart.md) covers separate existing projects.
 
 ## What it will do
 
-- **A desktop Hub** (modelled on [PCVR Mods Installer Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub)): a library with art, detection of your ROMs and PC games, one-click install of each game's VR setup from original sources, updates, launch, SteamVR library shortcuts, and **Install to Quest** for standalone setups. No VR lobby: games open straight into VR.
+- **A desktop Hub** (modelled on [PCVR Mods Installer Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub)): a library with art, detection of your ROMs and PC games, one-click install of each game's VR setup from original sources, updates, launch, SteamVR library shortcuts, and **Install to standalone headset** for standalone setups. No VR lobby: games open straight into VR.
 - **True 3D** wherever a stereo setup exists: our own setups (decompilations and emulators plus our shared VR runtime, libacvr), plus existing VR ports installed by recipe.
 - **Theatre mode** for everything else: the emulator on a virtual screen with motion-controller aiming.
 - **Motion-controller light guns** with parallax-correct aim, off-screen reload, cover on a button, recoil haptics, and two-gun co-op.
@@ -24,7 +26,7 @@ AladdinsCastle is an open-source desktop hub that installs and launches VR setup
 | [Architecture](docs/architecture.md) | Hub, VR setups, libacvr shared runtime, stereo techniques, input bridge |
 | [Controls](docs/controls.md) | Gun aim math, cover, reload, ghost controls for racing, comfort |
 | [3D mode target](docs/3d-mode-target.md) | What true 3D must look like: HUD on a steady panel, a wide frame, the gun in the world |
-| [Guns](docs/guns.md) | A gun in each hand for two-player games; our own library of 23 gun models and which game gets which |
+| [Guns](docs/guns.md) | Planned gun library, two-player policy and game-to-model assignments |
 | [Config spec](docs/config-spec.md) | Open-ended, layered TOML for games, setups, recipes, controls, guns |
 | [Front end](docs/frontend.md) | The Hub: library, recipes, install, launch, art, technology choice |
 | [Game packages](docs/game-packages.md) | One folder per game, like one mod in the Installer Hub ([examples](games/)) |
@@ -44,7 +46,7 @@ AladdinsCastle is an open-source desktop hub that installs and launches VR setup
 | [Scaler depth probe](docs/scaler-depth-probe.md) | MAME Lua measurement of OutRun sprite scale vs road depth |
 | [Roadmap](docs/roadmap.md) | Milestones M0-M8 |
 | [Workshop](docs/workshop.md) | Open decisions and recommendations |
-| [Quest 3 quickstart](docs/quest3-quickstart.md) | Play Time Crisis VR, Virtua Cop 2 VR and PS2 games in VR now |
+| [PCVR and standalone quickstart](docs/quest3-quickstart.md) | Play Time Crisis VR, Virtua Cop 2 VR and PS2 games in VR now |
 | [Legal](docs/legal.md) | No ROMs, ever; licences; trademarks |
 
 ## Standing on shoulders

@@ -89,6 +89,29 @@ QStringList visible(ac::FilterSortModel &proxy) {
 class CatalogTest : public QObject {
     Q_OBJECT
   private slots:
+    void readinessLabelsSeparateDetectedAndOwnedEvidence() {
+        ac::GameRecord flat;flat.id="synthetic-flat";flat.roles["title"]="Synthetic flat";
+        ac::Variant route;route.id="flat";route.quality="flat";route.status="stable";route.generated=true;
+        route.media={"synthetic-media"};route.tools={"synthetic-tool"};flat.variants={route};
+        flat.runtime.mediaFound=route.media;flat.runtime.toolsOk=route.tools;ac::resolveState(flat);
+        auto owned=flat;owned.id="synthetic-owned";owned.hasRecipe=true;owned.variants[0].generated=false;owned.variants[0].quality="true3d";
+        ac::VariantRuntimeState proof;proof.id="flat";proof.verified=true;proof.installedWhenExists=true;proof.manifestExists=true;
+        owned.runtime.variants={proof};ac::resolveState(owned);
+        QCOMPARE(flat.roles.value("state").toInt(),int(ac::GameState::Installed));
+        QCOMPARE(owned.roles.value("state").toInt(),int(ac::GameState::Installed));
+        QCOMPARE(flat.roles.value("statePill"),owned.roles.value("statePill"));
+        QVERIFY(flat.roles.value("inLibrary").toBool());QVERIFY(owned.roles.value("inLibrary").toBool());
+        QCOMPARE(flat.roles.value("stateLabel").toString(),QString("Flat launch ready"));
+        QCOMPARE(owned.roles.value("stateLabel").toString(),QString("Setup installed"));
+        QVERIFY(flat.roles.value("stateReason").toString().contains("detected"));
+        QVERIFY(owned.roles.value("stateReason").toString().contains("Owned"));
+        QVERIFY(!flat.roles.contains("accepted"));QVERIFY(!owned.roles.contains("accepted"));
+        ac::CatalogData data;data.games={flat,owned};ac::GameListModel model(data);ac::FilterSortModel filter;filter.setSourceModel(&model);
+        filter.setFacet("statePills",QStringList{"ready"});QCOMPARE(filter.rowCount(),2);
+        owned.runtime.variants[0].verified=false;ac::resolveState(owned);
+        QVERIFY(owned.roles.value("state").toInt()!=int(ac::GameState::Installed));
+        QVERIFY(owned.roles.value("stateReason").toString().contains("recipe"));
+    }
     void realCatalog() {
         const auto data = ac::CatalogLoader().load(QStringLiteral(AC_CATALOG_ROOT));
         QCOMPARE(data.games.size(), 413);
@@ -256,15 +279,37 @@ class CatalogTest : public QObject {
         QVERIFY(data.find("fake")->errors.isEmpty());
         QVERIFY(data.find("fake")->warnings.join('\n').contains("TOML error"));
     }
+    void validAuthoredVariantKeepsPrecedence() {
+        QTemporaryDir temp; vocab(temp.path()); game(temp.path(), "fake", "Synthetic");
+        QFile file(temp.path() + "/games/fake/game.toml"); QVERIFY(file.open(QIODevice::Append));
+        file.write("\n[[media]]\nkind='mame-romset'\nset='test'\n[routes]\nmame='working'\n"); file.close();
+        write(temp.path(), "data/emulators/mame.toml", "id='mame'\nname='Synthetic Tool'\n[launch]\nargs=['${rom.set}']\n");
+        write(temp.path(), "games/fake/install.toml",
+              "[variant.mame]\ntitle='Authored choice'\nquality='flat'\nstatus='stable'\n"
+              "needs={media=['test'],tools=['mame']}\nx-extension={preserved=true}\n");
+        const auto data=ac::CatalogLoader().load(temp.path());
+        const auto *record=data.find("fake"); QVERIFY(record); QCOMPARE(record->variants.size(),1);
+        QCOMPARE(record->variants[0].id,QString("mame"));
+        QCOMPARE(record->variants[0].title,QString("Authored choice"));
+        QVERIFY(!record->variants[0].generated);
+        QVERIFY(record->variants[0].raw["x-extension"]["preserved"].get<bool>());
+    }
+    void malformedRecipeKeepsReadyFlatRoute_data() {
+        QTest::addColumn<QString>("recipe");
+        QTest::newRow("syntax-error") << QString("[variant.broken\n");
+        QTest::newRow("same-id-scalar") << QString("[variant]\nmame=7\n");
+        QTest::newRow("same-id-array") << QString("[variant]\nmame=['bad']\n");
+    }
     void malformedRecipeKeepsReadyFlatRoute() {
+        QFETCH(QString, recipe);
         QTemporaryDir temp; vocab(temp.path()); game(temp.path(), "fake", "Synthetic");
         QFile f(temp.path() + "/games/fake/game.toml"); QVERIFY(f.open(QIODevice::Append));
         f.write("\n[[media]]\nkind='mame-romset'\nset='test'\n[routes]\nmame='working'\n"); f.close();
         write(temp.path(), "data/emulators/mame.toml", "id='mame'\nname='Synthetic Tool'\n[launch]\nargs=['${rom.set}']\n");
-        write(temp.path(), "games/fake/install.toml", "[variant.broken\n");
+        write(temp.path(), "games/fake/install.toml", recipe.toUtf8());
         ac::GameListModel model(ac::CatalogLoader().load(temp.path()));
         const auto *game = model.find("fake"); QVERIFY(game); QVERIFY(game->errors.isEmpty());
-        QVERIFY(game->warnings.join('\n').contains("install.toml")); QCOMPARE(game->variants.size(),1);
+        QVERIFY(game->warnings.join('\n').contains(recipe.startsWith("[variant.broken") ? "TOML error" : "variant.mame must be a table")); QCOMPARE(game->variants.size(),1);
         QVERIFY(game->variants[0].generated); QCOMPARE(game->variants[0].id,QString("mame"));
         ac::RuntimeState state; state.gameId="fake"; state.mediaFound={"test"}; state.toolsOk={"mame"};
         model.applyRuntimeStates({state});
@@ -348,6 +393,39 @@ class CatalogTest : public QObject {
             QVERIFY(cpp.find("fake")->validationErrors.contains(expected));
             QVERIFY(QString::fromUtf8(output).contains(expected));
         }
+    }
+    void gunContractParity_data() {
+        QTest::addColumn<QString>("fields"); QTest::addColumn<QString>("expected");
+        for (const auto *policy : {"on_join", "always", "off"})
+            QTest::newRow(policy) << QString("gun_model='user-model-1'\ntwo_guns='%1'\nextension='keep'\n").arg(policy) << QString();
+        QTest::newRow("missing") << QString() << QString();
+        for (const auto *value : {"true", "1", "[]", "{}", "''", "'../gun'", "'Gun'", "'gun.glb'", "\"gun\\n\""})
+            QTest::newRow(qPrintable(QString("model-%1").arg(value))) << QString("gun_model=%1\n").arg(value)
+                << QString("controls.gun_model must be a lowercase kebab-case id");
+        for (const auto *value : {"true", "1", "[]", "{}", "''", "'on-join'"})
+            QTest::newRow(qPrintable(QString("policy-%1").arg(value))) << QString("two_guns=%1\n").arg(value)
+                << QString("controls.two_guns must be on_join|always|off");
+    }
+    void gunContractParity() {
+        QFETCH(QString, fields); QFETCH(QString, expected);
+        QTemporaryDir temp; vocab(temp.path()); game(temp.path(), "fake", "Synthetic");
+        const auto path = temp.path() + "/games/fake/game.toml";
+        auto metadata = ac::install::readBytes(path);
+        metadata.replace("[controls]\n", "[controls]\n" + fields.toUtf8());
+        ac::install::atomicWrite(path, metadata);
+        const auto cpp = ac::CatalogLoader().load(temp.path());
+        const auto *record = cpp.find("fake"); QVERIFY(record);
+        QProcess python;
+        python.start(QStringLiteral(AC_PYTHON_EXECUTABLE),
+            {QStringLiteral(AC_CATALOG_ROOT) + "/tools/validate_catalog.py", "--root", temp.path(), "--json"});
+        QVERIFY(python.waitForStarted(5000)); QVERIFY(python.waitForFinished(10000));
+        QCOMPARE(python.exitStatus(), QProcess::NormalExit);
+        QCOMPARE(python.exitCode(), expected.isEmpty() ? 0 : 1);
+        const auto report = ac::Json::parse(python.readAllStandardOutput().toStdString());
+        QCOMPARE(int(report["errors"].size()), expected.isEmpty() ? 0 : 1);
+        QCOMPARE(record->validationErrors.size(), expected.isEmpty() ? 0 : 1);
+        if (!expected.isEmpty()) QVERIFY(record->validationErrors.contains(expected));
+        if (fields.contains("extension")) QCOMPARE(record->raw["controls"]["extension"].get<std::string>(), std::string("keep"));
     }
     void layeringAndProvenance() {
         try {

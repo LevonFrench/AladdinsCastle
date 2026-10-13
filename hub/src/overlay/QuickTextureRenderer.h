@@ -9,14 +9,18 @@ class QQuickRenderControl;
 class QQuickWindow;
 class QQuickItem;
 class QQmlEngine;
+class QImage;
 namespace ac {
+// Shared current-context readback; preserves the same GL state as source capture.
+bool readCurrentGlTexture(unsigned int texture,QSize size,QImage *image,QString *error);
 class QuickTextureRenderer : public QObject {
     Q_OBJECT
 public:
     explicit QuickTextureRenderer(QObject *parent = nullptr);
     ~QuickTextureRenderer() override;
-    bool initialize(QQmlEngine &engine, QSize size, QString *error);
+    bool initialize(QQmlEngine &engine, QSize size, QString *error,bool captureMarkers=false);
     bool render(QString *error);
+    bool readbackCurrentTexture(QImage *image,QString *error);
     void doneCurrent();
     void setVisible(bool visible);
     QQuickWindow *window() const { return m_window.get(); }

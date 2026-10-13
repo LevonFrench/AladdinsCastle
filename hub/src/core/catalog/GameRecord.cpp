@@ -6,6 +6,15 @@
 #include <QSet>
 #include <algorithm>
 namespace ac {
+bool authoredLaunchSupported(const Variant &v) {
+    if(v.generated||v.status=="planned"||!v.raw.is_object())return false;
+    const auto it=v.raw.find("launch");if(it==v.raw.end()||!it->is_object())return false;
+    const auto &launch=*it;
+    const auto text=[&](const char *key){auto value=launch.find(key);return value!=launch.end()&&value->is_string()?QString::fromStdString(value->get<std::string>()):QString();};
+    return !text("exe").isEmpty()&&launch.contains("args")&&launch["args"].is_array()&&!launch["args"].empty()&&
+        QRegularExpression("\\A[0-9a-f]{64}\\z").match(text("exe_sha256")).hasMatch()&&
+        QStringList{"none","openxr","steamvr"}.contains(text("runtime"));
+}
 QString mediaRequirementId(const Json &media, const QString &gameId, qsizetype index) {
     if (media.is_object()) {
         for (const char *key : {"set", "serial", "id"}) {
@@ -170,10 +179,25 @@ void resolveState(GameRecord &game) {
     r["baseState"] = static_cast<int>(base);
     r["state"] = static_cast<int>(display);
     r["playing"] = runtime.playing;
-    r["stateLabel"] = runtime.playing ? QString("Playing") : labels.at(static_cast<int>(display)) +
+    const auto label=display==GameState::Installed
+        ? (installedId.isEmpty()?QString("Flat launch ready"):QString("Setup installed"))
+        : labels.at(static_cast<int>(display));
+    r["stateLabel"] = runtime.playing ? QString("Playing") : label +
                       (display == GameState::Installing && !runtime.jobProgress.isEmpty()
                            ? " " + runtime.jobProgress
                            : "");
+    // Evidence wording does not change admission, filter states or acceptance.
+    QString reason;
+    if(display==GameState::DataError)reason="Catalog or recipe data needs correction. Review its diagnostics before installing.";
+    else if(display==GameState::Installing)reason="Installation is running; completion will refresh its recorded checks.";
+    else if(display==GameState::InstallFailed)reason="An installation attempt needs attention. Review the recovery details before retrying.";
+    else if(!installedId.isEmpty())reason="Owned files passed the recorded installation checks. Runtime and gameplay acceptance are separate.";
+    else if(base==GameState::Installed && best && best->generated)
+        reason="Required media and emulator were detected for this flat route. Launch preflight runs when you play.";
+    else if(best && best->generated)reason="A catalog flat route is available. Locate its required media and emulator to prepare a launch.";
+    else if(game.hasRecipe)reason="Authored recipe metadata is present. An owned installation still needs its recorded checks.";
+    else reason="Catalog capabilities describe recorded routes. No owned installation has been established for this entry.";
+    r["stateReason"]=reason;
     r["stateColour"] =
         display == GameState::ReadyToInstall
             ? r.value("accent")

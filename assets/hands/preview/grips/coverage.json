@@ -1,0 +1,1094 @@
+{
+  "schema": "hand-grip-review/1",
+  "cases": [
+    {
+      "id": "arc-pistol-slide-right-primary",
+      "model": "arc-pistol-slide",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "arc-pistol-slide-left-primary",
+      "model": "arc-pistol-slide",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-pistol-dpad-right-primary",
+      "model": "con-pistol-dpad",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-pistol-dpad-left-primary",
+      "model": "con-pistol-dpad",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-pistol-slim-right-primary",
+      "model": "con-pistol-slim",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-pistol-slim-left-primary",
+      "model": "con-pistol-slim",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-remote-shell-right-primary",
+      "model": "con-remote-shell",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-remote-shell-left-primary",
+      "model": "con-remote-shell",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-revolver-chunky-right-primary",
+      "model": "con-revolver-chunky",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-revolver-chunky-left-primary",
+      "model": "con-revolver-chunky",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "generic-pistol-right-primary",
+      "model": "generic-pistol",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "generic-pistol-left-primary",
+      "model": "generic-pistol",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "mnt-mg-heavy-right-primary",
+      "model": "mnt-mg-heavy",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.0,
+              0,
+              0,
+              1.0
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "mnt-mg-heavy-left-primary",
+      "model": "mnt-mg-heavy",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip_two",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.0,
+              0,
+              0,
+              1.0
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-stick-grip-right-primary",
+      "model": "con-stick-grip",
+      "primary_hand": "right",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              -0.005,
+              0.012
+            ],
+            "rotation_xyzw": [
+              0.0,
+              0,
+              0,
+              1.0
+            ],
+            "finger_pose": {
+              "pivot_thumb": {
+                "translation_offset": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation_xyzw": [
+                  -0.07963598865745387,
+                  -0.35289673405067806,
+                  -0.5886817200756886,
+                  0.72289407028668
+                ],
+                "scale": [
+                  1.25,
+                  1.25,
+                  1.25
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-stick-grip-left-primary",
+      "model": "con-stick-grip",
+      "primary_hand": "left",
+      "hold": "primary",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              -0.005,
+              0.012
+            ],
+            "rotation_xyzw": [
+              0.0,
+              0,
+              0,
+              1.0
+            ],
+            "finger_pose": {
+              "pivot_thumb": {
+                "translation_offset": [
+                  0,
+                  0,
+                  0
+                ],
+                "rotation_xyzw": [
+                  -0.07963598865745387,
+                  0.35289673405067806,
+                  0.5886817200756886,
+                  0.72289407028668
+                ],
+                "scale": [
+                  1.25,
+                  1.25,
+                  1.25
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-remote-shell-right-support",
+      "model": "con-remote-shell",
+      "primary_hand": "right",
+      "hold": "support",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        },
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip_two",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              -0.3826834324,
+              0.0,
+              0.0,
+              0.9238795325
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-remote-shell-left-support",
+      "model": "con-remote-shell",
+      "primary_hand": "left",
+      "hold": "support",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        },
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip_two",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              -0.3826834324,
+              0.0,
+              0.0,
+              0.9238795325
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "mnt-mg-heavy-right-support",
+      "model": "mnt-mg-heavy",
+      "primary_hand": "right",
+      "hold": "support",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.0,
+              0,
+              0,
+              1.0
+            ],
+            "finger_pose": {}
+          }
+        },
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip_two",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "mnt-mg-heavy-left-support",
+      "model": "mnt-mg-heavy",
+      "primary_hand": "left",
+      "hold": "support",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip_two",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.0,
+              0,
+              0,
+              1.0
+            ],
+            "finger_pose": {}
+          }
+        },
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "finger_pose": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": "con-remote-shell-right-docked",
+      "model": "con-remote-shell",
+      "primary_hand": "right",
+      "hold": "docked",
+      "hands": [
+        {
+          "hand": "right",
+          "pose": {
+            "asset": "assets/hands/grip-hand-right.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ],
+      "accessory": {
+        "model": "con-stick-grip",
+        "node": "grip_two",
+        "rotation_xyzw": [
+          -0.3826834324,
+          0.0,
+          0.0,
+          0.9238795325
+        ],
+        "hand": "left",
+        "pose": {
+          "asset": "assets/hands/grip-hand-left.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            -0.005,
+            0.012
+          ],
+          "rotation_xyzw": [
+            0.0,
+            0,
+            0,
+            1.0
+          ],
+          "finger_pose": {
+            "pivot_thumb": {
+              "translation_offset": [
+                0,
+                0,
+                0
+              ],
+              "rotation_xyzw": [
+                -0.07963598865745387,
+                0.35289673405067806,
+                0.5886817200756886,
+                0.72289407028668
+              ],
+              "scale": [
+                1.25,
+                1.25,
+                1.25
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "con-remote-shell-left-docked",
+      "model": "con-remote-shell",
+      "primary_hand": "left",
+      "hold": "docked",
+      "hands": [
+        {
+          "hand": "left",
+          "pose": {
+            "asset": "assets/hands/grip-hand-left.glb",
+            "node": "grip",
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0.13052619222005157,
+              0,
+              0,
+              0.9914448613738104
+            ],
+            "finger_pose": {}
+          }
+        }
+      ],
+      "accessory": {
+        "model": "con-stick-grip",
+        "node": "grip_two",
+        "rotation_xyzw": [
+          -0.3826834324,
+          0.0,
+          0.0,
+          0.9238795325
+        ],
+        "hand": "right",
+        "pose": {
+          "asset": "assets/hands/grip-hand-right.glb",
+          "node": "grip",
+          "translation": [
+            0,
+            -0.005,
+            0.012
+          ],
+          "rotation_xyzw": [
+            0.0,
+            0,
+            0,
+            1.0
+          ],
+          "finger_pose": {
+            "pivot_thumb": {
+              "translation_offset": [
+                0,
+                0,
+                0
+              ],
+              "rotation_xyzw": [
+                -0.07963598865745387,
+                -0.35289673405067806,
+                -0.5886817200756886,
+                0.72289407028668
+              ],
+              "scale": [
+                1.25,
+                1.25,
+                1.25
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "images": [
+    {
+      "case": "arc-pistol-slide-right-primary",
+      "view": "assembly",
+      "image": "arc-pistol-slide-right-primary-assembly.png"
+    },
+    {
+      "case": "arc-pistol-slide-right-primary",
+      "view": "grip",
+      "image": "arc-pistol-slide-right-primary-grip.png"
+    },
+    {
+      "case": "arc-pistol-slide-left-primary",
+      "view": "assembly",
+      "image": "arc-pistol-slide-left-primary-assembly.png"
+    },
+    {
+      "case": "arc-pistol-slide-left-primary",
+      "view": "grip",
+      "image": "arc-pistol-slide-left-primary-grip.png"
+    },
+    {
+      "case": "con-pistol-dpad-right-primary",
+      "view": "assembly",
+      "image": "con-pistol-dpad-right-primary-assembly.png"
+    },
+    {
+      "case": "con-pistol-dpad-right-primary",
+      "view": "grip",
+      "image": "con-pistol-dpad-right-primary-grip.png"
+    },
+    {
+      "case": "con-pistol-dpad-left-primary",
+      "view": "assembly",
+      "image": "con-pistol-dpad-left-primary-assembly.png"
+    },
+    {
+      "case": "con-pistol-dpad-left-primary",
+      "view": "grip",
+      "image": "con-pistol-dpad-left-primary-grip.png"
+    },
+    {
+      "case": "con-pistol-slim-right-primary",
+      "view": "assembly",
+      "image": "con-pistol-slim-right-primary-assembly.png"
+    },
+    {
+      "case": "con-pistol-slim-right-primary",
+      "view": "grip",
+      "image": "con-pistol-slim-right-primary-grip.png"
+    },
+    {
+      "case": "con-pistol-slim-left-primary",
+      "view": "assembly",
+      "image": "con-pistol-slim-left-primary-assembly.png"
+    },
+    {
+      "case": "con-pistol-slim-left-primary",
+      "view": "grip",
+      "image": "con-pistol-slim-left-primary-grip.png"
+    },
+    {
+      "case": "con-remote-shell-right-primary",
+      "view": "assembly",
+      "image": "con-remote-shell-right-primary-assembly.png"
+    },
+    {
+      "case": "con-remote-shell-right-primary",
+      "view": "grip",
+      "image": "con-remote-shell-right-primary-grip.png"
+    },
+    {
+      "case": "con-remote-shell-left-primary",
+      "view": "assembly",
+      "image": "con-remote-shell-left-primary-assembly.png"
+    },
+    {
+      "case": "con-remote-shell-left-primary",
+      "view": "grip",
+      "image": "con-remote-shell-left-primary-grip.png"
+    },
+    {
+      "case": "con-revolver-chunky-right-primary",
+      "view": "assembly",
+      "image": "con-revolver-chunky-right-primary-assembly.png"
+    },
+    {
+      "case": "con-revolver-chunky-right-primary",
+      "view": "grip",
+      "image": "con-revolver-chunky-right-primary-grip.png"
+    },
+    {
+      "case": "con-revolver-chunky-left-primary",
+      "view": "assembly",
+      "image": "con-revolver-chunky-left-primary-assembly.png"
+    },
+    {
+      "case": "con-revolver-chunky-left-primary",
+      "view": "grip",
+      "image": "con-revolver-chunky-left-primary-grip.png"
+    },
+    {
+      "case": "generic-pistol-right-primary",
+      "view": "assembly",
+      "image": "generic-pistol-right-primary-assembly.png"
+    },
+    {
+      "case": "generic-pistol-right-primary",
+      "view": "grip",
+      "image": "generic-pistol-right-primary-grip.png"
+    },
+    {
+      "case": "generic-pistol-left-primary",
+      "view": "assembly",
+      "image": "generic-pistol-left-primary-assembly.png"
+    },
+    {
+      "case": "generic-pistol-left-primary",
+      "view": "grip",
+      "image": "generic-pistol-left-primary-grip.png"
+    },
+    {
+      "case": "mnt-mg-heavy-right-primary",
+      "view": "assembly",
+      "image": "mnt-mg-heavy-right-primary-assembly.png"
+    },
+    {
+      "case": "mnt-mg-heavy-right-primary",
+      "view": "grip",
+      "image": "mnt-mg-heavy-right-primary-grip.png"
+    },
+    {
+      "case": "con-stick-grip-right-primary",
+      "view": "assembly",
+      "image": "con-stick-grip-right-primary-assembly.png"
+    },
+    {
+      "case": "con-stick-grip-right-primary",
+      "view": "grip",
+      "image": "con-stick-grip-right-primary-grip.png"
+    },
+    {
+      "case": "con-stick-grip-left-primary",
+      "view": "assembly",
+      "image": "con-stick-grip-left-primary-assembly.png"
+    },
+    {
+      "case": "con-stick-grip-left-primary",
+      "view": "grip",
+      "image": "con-stick-grip-left-primary-grip.png"
+    },
+    {
+      "case": "con-remote-shell-right-docked",
+      "view": "assembly",
+      "image": "con-remote-shell-right-docked-assembly.png"
+    },
+    {
+      "case": "con-remote-shell-right-docked",
+      "view": "grip",
+      "image": "con-remote-shell-right-docked-grip.png"
+    },
+    {
+      "case": "con-remote-shell-left-docked",
+      "view": "assembly",
+      "image": "con-remote-shell-left-docked-assembly.png"
+    },
+    {
+      "case": "con-remote-shell-left-docked",
+      "view": "grip",
+      "image": "con-remote-shell-left-docked-grip.png"
+    },
+    {
+      "case": "mnt-mg-heavy-left-primary",
+      "view": "assembly",
+      "image": "mnt-mg-heavy-left-primary-assembly.png"
+    },
+    {
+      "case": "mnt-mg-heavy-left-primary",
+      "view": "grip",
+      "image": "mnt-mg-heavy-left-primary-grip.png"
+    },
+    {
+      "case": "con-remote-shell-right-support",
+      "view": "assembly",
+      "image": "con-remote-shell-right-support-assembly.png"
+    },
+    {
+      "case": "con-remote-shell-right-support",
+      "view": "grip",
+      "image": "con-remote-shell-right-support-grip.png"
+    },
+    {
+      "case": "con-remote-shell-left-support",
+      "view": "assembly",
+      "image": "con-remote-shell-left-support-assembly.png"
+    },
+    {
+      "case": "con-remote-shell-left-support",
+      "view": "grip",
+      "image": "con-remote-shell-left-support-grip.png"
+    },
+    {
+      "case": "mnt-mg-heavy-right-support",
+      "view": "assembly",
+      "image": "mnt-mg-heavy-right-support-assembly.png"
+    },
+    {
+      "case": "mnt-mg-heavy-right-support",
+      "view": "grip",
+      "image": "mnt-mg-heavy-right-support-grip.png"
+    },
+    {
+      "case": "mnt-mg-heavy-left-support",
+      "view": "assembly",
+      "image": "mnt-mg-heavy-left-support-assembly.png"
+    },
+    {
+      "case": "mnt-mg-heavy-left-support",
+      "view": "grip",
+      "image": "mnt-mg-heavy-left-support-grip.png"
+    }
+  ],
+  "lighting": {
+    "id": "gun_lighting_r2",
+    "normal_space": "camera-view",
+    "direction_to_light": [
+      0.36,
+      0.7,
+      0.62
+    ],
+    "normalize_normal_and_direction": true,
+    "ambient": 0.35,
+    "directional": 0.65,
+    "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+    "alpha": "product alpha preserved; runtime premultiplies after lighting",
+    "output": "linear-to-sRGB",
+    "specular": false,
+    "shadows": false,
+    "tone_mapping": false
+  },
+  "device": "CPU",
+  "samples": 64,
+  "acceptance": "Visual CPU fit coverage only; no physical acceptance",
+  "source_sha256": {
+    "arc-pistol-slide-right-primary-assembly.png": "e4abd2b9a0a13e42246ce354f659571819ab4c3d66e1aad3d85ef5025a4fb1f3",
+    "arc-pistol-slide-right-primary-grip.png": "0fd529bd2da9a1941b5c5489ceb9188e515bd1929c4479b44c0b1ad75551a997",
+    "arc-pistol-slide-left-primary-assembly.png": "848a617661379ae6eed42a9691cf4d4755a483f0a25d2573dd3f10d14386fde0",
+    "arc-pistol-slide-left-primary-grip.png": "b1884174419e5d60e832772f7687ecca7b9400bed9486749e031855565e2c8c8",
+    "con-pistol-dpad-right-primary-assembly.png": "30d95f9502f7c3ca110a65d6a5d2c2bfd39c3aaafc89af2fb1d3a14bcacff887",
+    "con-pistol-dpad-right-primary-grip.png": "592e1ab9132ce4ccf2e7e7afe86459b9722924a306c9a81bd5582a78b06f6740",
+    "con-pistol-dpad-left-primary-assembly.png": "5aac990a6c4eaf20875956acc3eead13688bd7e0889bdf3bc5730fc0548fe91a",
+    "con-pistol-dpad-left-primary-grip.png": "60c6539e4322fef9b48bc19f3c0c35da8017deb269a48920fbc3d9f5c330a65e",
+    "con-pistol-slim-right-primary-assembly.png": "21af239bb83632c8c12c8ec35d7746a16b2ad27c47816e45cd7e4fe84710bff7",
+    "con-pistol-slim-right-primary-grip.png": "bd1efdb6c98cdc63e5fd160c3d48a1106a55af80d467b0017aae6fece8d42326",
+    "con-pistol-slim-left-primary-assembly.png": "210bc337bb75143085228eb128c8b93aba2692dd999bee5ade4a1f015886006d",
+    "con-pistol-slim-left-primary-grip.png": "707bc60f4de5a1e2ad8b011a01929f1da7c253dc2f42f693399d941982b8672e",
+    "con-remote-shell-right-primary-assembly.png": "c202c255cc84109e14844b21521703b18191a4ca0806bfdadc2027e49b1506c2",
+    "con-remote-shell-right-primary-grip.png": "5ac815e6da1218aeffb49d4d0d85976053b439e27e30f4b1f293cc9bb339e6ad",
+    "con-remote-shell-left-primary-assembly.png": "ab4b6d248485a535695b2cf3dac6a6899b94c69c6cb48570e693b9323f18321d",
+    "con-remote-shell-left-primary-grip.png": "f8ebff99605e81816b28028005ef56004ca76dcb518f9ff0b6f94dfae49f0a40",
+    "con-revolver-chunky-right-primary-assembly.png": "12880712d70cfd1bd8a94a08f8f2c08bc5faaa5784e1afd138367cefad166cb1",
+    "con-revolver-chunky-right-primary-grip.png": "4d95817a3c223ac2f74ca4562ff2f7d708332f5a21866f77d0c29ed82e5e6069",
+    "con-revolver-chunky-left-primary-assembly.png": "e190d2ee8d8b57e6bdb3672ee7fb9cfd801a1fb86c7a40b5c2d58b978749f82f",
+    "con-revolver-chunky-left-primary-grip.png": "0ed4b773f6b6a3c2ed1b2a43907117a0a631f5d6e736d2be0db7a1305ae61f8a",
+    "generic-pistol-right-primary-assembly.png": "9acddc41ef1819d4f1ead9cf73b4a0c242aefd7a0a1596d8b8f91eb7ea61a3cb",
+    "generic-pistol-right-primary-grip.png": "2e235c57adebe1eab418abcc3301a498e0c1c94cb093e63e721cbe72576bef62",
+    "generic-pistol-left-primary-assembly.png": "b6359b02c0c2ec277641294c8a6a3a1174c81c8fda48f1486c6aafd66e570f06",
+    "generic-pistol-left-primary-grip.png": "5e67521bc609f21feb47fce3b4e5a962e94d81f2ad88506534d73795cd3430a8",
+    "mnt-mg-heavy-right-primary-assembly.png": "9622c33c72f1124d7789c6075714ad211fb436384be9ab856d1697e402f80e26",
+    "mnt-mg-heavy-right-primary-grip.png": "e4c2df9ca735f0b9ca202181ba067fcf4cb4dae8c82105953f124f287fa18986",
+    "con-stick-grip-right-primary-assembly.png": "c2a76a9bde0650995d71a76d86a1860c122302c417ad179cb15b820ffb8c4cec",
+    "con-stick-grip-right-primary-grip.png": "9bf461e493d1df4fee75e1a0f3c97a1b58112a32b9e81aff9b3fae82e5ce578f",
+    "con-stick-grip-left-primary-assembly.png": "72d04fbd970d47245be12c685ed270892d59697b3b3e1c366f5508c8d996afc7",
+    "con-stick-grip-left-primary-grip.png": "c27dd3d10a6a8f1ca9467851a22bce4ede8067daa7fe45cb91865ea5fd3e9657",
+    "con-remote-shell-right-docked-assembly.png": "da86e79ab9168406f0487791f608481634c5c0e9e49b00922ee119f676408586",
+    "con-remote-shell-right-docked-grip.png": "02cc0595c870a5f6966991dca25a3b7783a08926225f7373fbc16f949cc90c60",
+    "con-remote-shell-left-docked-assembly.png": "542818705a1939ab679cc581a71bf3f9156748f91fae296cd2494d2276112b15",
+    "con-remote-shell-left-docked-grip.png": "b9df350ae437aec2613a245eed0022e4c1611a85eb5e7c1f29bc574fe2023ba5",
+    "mnt-mg-heavy-left-primary-assembly.png": "058f50ae31cfc93b3746f5ddb0a0c24d5df65ae47f30323358a2d595e2cb5e38",
+    "mnt-mg-heavy-left-primary-grip.png": "4e60e67e1d5f0a9b1ead53e4db76f7db0f69f40519cb00a33914afe48ab07913",
+    "con-remote-shell-right-support-assembly.png": "9f834e94367971abeeaf5ab599c63f62318f4be4db97218620117f1e482a5d9f",
+    "con-remote-shell-right-support-grip.png": "b9719fb7ca884071678158e7a9a8dbc4358ace777b0e68ea5a933c3b879ddbc8",
+    "con-remote-shell-left-support-assembly.png": "10e8fa37859770d9bc2df94563508fe79085b08ea88b42afd43547da1f278a25",
+    "con-remote-shell-left-support-grip.png": "c4442f586294243c1503f3b42fa127bc5d4ff01d5281e47134ad67b8c38d0958",
+    "mnt-mg-heavy-right-support-assembly.png": "5b915ac86965bdede21236ce32697e6ee5865f7c342aba92691fac5137d4c699",
+    "mnt-mg-heavy-right-support-grip.png": "109543ae2b3fbe7a12eadc29ce42fed534b26d96f954e523084812a383f78083",
+    "mnt-mg-heavy-left-support-assembly.png": "bd00a785209eff97b6b50c5f363207656c6dc186fff40304659eeab4bf973d67",
+    "mnt-mg-heavy-left-support-grip.png": "02449ca5b13d7986df17724b67af0c922d994a6e1621cc3d536824b93d628888"
+  }
+}

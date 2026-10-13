@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Await owner-selected option/instruction screens. No inferred game actions.
+version = "0.1"
+game_id = "wii-sin-and-punishment-star-successor"
+control_set = "shell-and-stick"
+layout = { state = "question", name = "", question = "Which game option-screen layout is selected for shell and stick?" }
+questions = ["Place the character and pointer in the 3D scene with the owner.", "Confirm the chosen in-game controller layout before binding dodge, melee, lock-on and charged shots.", "Confirm every Remote button, stick/C/Z action and shake/swing prompt in that selected layout."]
+sources = []
+
+[gun_proposal]
+state = "proposed"
+model = "con-pistol-dpad"
+rationale = "Angular pointer-gun form distinguishes character movement plus pointer aiming; retain the free analog-stick hand."
+
+[hold]
+default = "split"
+state = "provisional"
+
+[reload]
+choices = ["shake", "flick-down", "offscreen", "button"]
+selected = "button"
+state = "question"
+question = "No generic magazine reload is asserted for the character-control game. Confirm whether a reload action exists."
+target_action = "remote-shake"
+button_fallback = "remote-shake"

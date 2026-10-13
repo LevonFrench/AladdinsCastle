@@ -1,0 +1,7 @@
+<!-- Original schematic, authored from simple geometric shapes; CC0-1.0. No vendor artwork. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="300" viewBox="0 0 240 300">
+  <ellipse cx="118" cy="85" rx="94" ry="68" fill="none" stroke="#555568" stroke-width="12"/>
+  <path d="M68 110 Q47 124 62 169 L108 263 Q117 282 142 270 L160 257 Q177 246 166 226 L142 178 Q167 152 169 128 Q125 92 68 110Z" fill="#222230" stroke="#8a8f99" stroke-width="3"/>
+  <path d="M80 190 L109 245" fill="none" stroke="#555568" stroke-width="8" stroke-linecap="round"/>
+  <ellipse cx="127" cy="139" rx="58" ry="37" fill="#2a2a35" stroke="#555568" stroke-width="3"/>
+</svg>

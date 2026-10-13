@@ -1,8 +1,24 @@
-# libacvr backend contract — draft 1
+# libacvr backend contract — v0.4
 
 > **Source references:** `namco22-decompile/...`, `time-crisis-vr/...`, `Supermodel/...` and `Rea-Virtua-Cop-2-VR/...` paths are relative to [namco22-decompile](https://github.com/spacestate1/namco22-decompile), [time-crisis-vr](https://github.com/DR-89/time-crisis-vr), [Supermodel](https://github.com/trzy/Supermodel), [Rea-Virtua-Cop-2-VR](https://github.com/NeuralF/Rea-Virtua-Cop-2-VR) as cloned on 2026-10-08 (shallow clones; line numbers may drift). Other paths are in this repo.
 
-Design date: 2026-10-08. Public header: `libacvr/include/acvr.h`. This is a proposed in-process ABI, not an implemented runtime or an assertion that either reference already supports it. Our new code is GPL-3.0-only. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied and no game content is included.
+Initial design: 2026-10-08; v0.1 and v0.2 published 2026-10-10; additive v0.3 published 2026-10-11. Public header: `libacvr/include/acvr.h`. This is the in-process ABI. The shared frame core has recorded-host checks, and an optional Windows OpenXR desktop-GL provider implements public creation for the synthetic gun room (docs/libacvr-runtime-core.md). Real-game integration and headset acceptance remain open. No upstream ABI compatibility is implied. libacvr code and public header are MIT; board adapters outside libacvr and the Hub are GPL-3.0-only unless explicitly licensed otherwise. The namco22 and DR-89 reference projects are MIT; Supermodel is GPL. No source was copied for this contract and no game content is included.
+
+## v0.4 whole-display preparation
+
+The optional `game_prepare_display(backend, frame, draw_count, draw_stride, draws)` tail is appended after `game_flush_persistent`; ABI major and existing callback signatures remain unchanged. `ACVR_BACKEND_API_V1_SIZE` is the complete pre-v0.4 table prefix. Runtime and factories accept that exact prefix or a full/oversized new table, reject a partial new tail, and copy only the covered known bytes. Runtime storage is zero-initialized, so an old table has no prepare callback. Factories preserve the caller's size/version and unknown tail bytes. The callback requires no capability bit.
+
+For a renderable display, the runtime first validates and stamps both draw records, then calls prepare once with exactly two one-view records, each carrying its own target. This occurs again when the same immutable frame lease is replayed at a newer display pose. The owner context is current; no particular entry FBO is promised during preparation. The backend may stage copied packets and validate resources, restoring graphics state it changes. It may not draw, advance simulation, consume input, emit output, or present. Array/view pointers and target handles are borrowed for this call only; retain copied packet and non-handle identity data only. Failure ends the display with zero layers and invokes no eye draw. A null or absent callback retains sequential drawing.
+
+Immediately before each world callback, the provider binds that eye's validated target. The OpenXR GL provider checks the current owner context and acquired image identity before binding its FBO. The backend restores the supplied entry FBO after drawing. Acquisition, release and presentation remain provider-owned. This does not make a later backend failure atomic, add multiview, establish native adapter support, or prove GPU/headset correctness.
+
+## v0.3 controller samples and grip calibration
+
+The additive v0.3 exports preserve earlier public struct layouts. `acvr_controller_sample` and `acvr_gun_angle_update` both carry `size` and `version`; callers initialize them before passing the records. The sample getter is an optional provider capability and returns `ACVR_UNSUPPORTED` when absent. Its right/left slots are 0/1; active bits, focus, display ID and sample time accompany the levels. A repeated display ID is not new input, and inactive zero values must not be interpreted as usable controls. This is calibration input, not a general gameplay mapper.
+
+`acvr_runtime_set_gun_angle` is a general loaded-model capability, independent of controller-sample support. It copies a validated finite unit gun-in-grip quaternion into the selected slot for the next tick and does not persist files. Missing model support returns `ACVR_UNSUPPORTED`. Tracking, controller-sample and angle-update calls are owner-thread-only and reject reentry during runtime operations or backend callbacks, including pause and destruction.
+
+The gun room owns its opt-in controller workflow and bounded per-model/per-hand persistence. CPU checks cover tagged ABI admission, lifecycle guards, sample freshness, edit/save/cancel transitions, panel bounds and persistence failure preservation. The native checkpoint passes 14 headless tests. Actual controller bindings, stereo readability, held fit and native persisted reload still need runtime evidence; see `tools/gun-room/CALIBRATION_CHECKPOINT.md`.
 
 ## Evidence and scope
 
@@ -23,7 +39,7 @@ Read first: `docs/architecture.md` §2, `docs/controls.md` §1.1 and §2, `docs/
 2. Supermodel's simulation and rendering are coupled; New3D rendering also changes the emulated line-of-sight results. A per-eye projection replacement alone is insufficient.
 3. Lost World uses analog guns, while other Supermodel games use its light-gun serial registers. The adapter must select the route from the loaded game's input flags.
 
-This task changes only this document and the header. Concurrent edits to other documents and game setups are outside this commit. No AGENCY.md update is made because the owner's explicit deliverable-path restriction takes precedence; its “docs only; no code” status should eventually become “draft header; runtime unimplemented.”
+M2 lane contract entrypoints: `docs/renderer-interface.md` and `docs/control-set-format.md`. These supersede older draft examples where stated; no runtime implementation is claimed.
 
 ## Roles and ABI rules
 
@@ -31,7 +47,7 @@ The setup supplies `acvr_backend_query`; libacvr calls the returned `game_*` fun
 
 `acvr_runtime`, `acvr_backend` and `acvr_frame` are opaque pointers. Private C++ classes are legal behind them, but exceptions, STL objects, SDL types and native API structs never cross the ABI. There is no public wire/shared-memory format. This follows the in-process DR-89 host model; VC2VR's separate seqlocks (`Rea-Virtua-Cop-2-VR/src/vc2_share.h:13` and `:82`) belong in a later transport adapter. Copying this pointer-bearing ABI into shared memory would be invalid.
 
-Every concrete struct starts with `uint32_t size, version`. Initialize the **entire** struct to zero, then use `ACVR_INIT`; that macro sets only the prefix. All input and output slots, nested graphics/target records and callback tables carry their own prefix. V1 requires at least the complete v1 prefix and fields of each type in this header. A future append-only extension may accept larger sizes under version 1; it must neither read nor write beyond the advertised size. Unknown versions return `ACVR_BAD_VERSION`. Factory/API major mismatch also returns `ACVR_BAD_VERSION` before any callback is used. For output structs the caller supplies size/version; the writer preserves them, writes known payload fields only, and leaves unknown tail bytes unchanged. Query initializes unknown optional pointers in its supported payload to NULL.
+Every concrete struct starts with `uint32_t size, version`. Initialize the **entire** struct to zero, then use `ACVR_INIT`; that macro sets only the prefix. All input and output slots, nested graphics/target records and callback tables carry their own prefix. V1 requires the complete original record for existing types; the v0.1 compatibility section below defines the accepted original sizes and appended tails. New v0.1 types require their complete record. A future append-only extension may accept larger sizes under version 1; it must neither read nor write beyond the advertised size. Unknown versions return `ACVR_BAD_VERSION`. Factory/API major mismatch also returns `ACVR_BAD_VERSION` before any callback is used. For output structs the caller supplies size/version; the writer preserves them, writes known payload fields only, and leaves unknown tail bytes unchanged. Query initializes unknown optional pointers in its supported payload to NULL.
 
 Array strides are bytes, at least the supported element size, aligned for that element and at least each element's advertised size. Elements may have larger tails. Iterate by byte arithmetic and stride, never `array[i]` when the caller's stride differs from `sizeof`. Count 0 permits NULL; a nonzero count requires a pointer. Validate count × stride for overflow before accessing it. No packing pragmas: standard platform C layout, the same pointer width, endianness, alignment and calling convention on both sides. Supported builds need 32-bit IEEE binary32 `float`, 64-bit native-handle storage and pointers no wider than 64 bits. Windows functions/callbacks use `__cdecl`; platform builds separately negotiate desktop GL versus GLES. This is a C99 source interface and a same-platform ABI, not a universal binary across x86, x64 and ARM64.
 
@@ -89,16 +105,16 @@ The table explains each type and its concrete seam. Struct field semantics in th
 | `game_raycast` | Optional for racers; required capability for a true-3D gun setup. Finds nearest visible shootable scene geometry within ray range, returning original camera ID and canonical hit position; misses return OK/found=0. Replaces private `qvr_aim` intersection step at `time-crisis-vr/quest/quest_scene.c:119`. No generic shared mesh ABI is needed. |
 | `game_draw_hud` | Optional separate-HUD capability. Receives target and timing with view_count=0/views=NULL, draws premultiplied RGBA, transparent outside HUD, no world/cabinet/UI. Cache once per frame, composite separately per display. Text and mixed sprites at `namco22-decompile/engine/ss22_gl.c:505` and `:530`; Supermodel tile layers at `Supermodel/Src/Model3/Model3.cpp:2171` and `:2173`. Classification needs new work. |
 | `game_flush_persistent` | Optional, after pausing/releasing lease, before close; saves only backend settings/NVRAM under the open storage root, reporting failures. EEPROM at `namco22-decompile/engine/ss22_board.c:461`, RR EEPROM at `namco22-decompile/raverace/src/rr_hw.c:192`, Model 3 NVRAM at `Supermodel/Src/Model3/Model3.cpp:1917`. Arbitrary save-state ABI is deferred. |
-| `acvr_runtime_create` | Proposed runtime export: validate table/config, choose an API supported by the backend, create XR/device, call open, validate capabilities and controls, start unpaused. Mirrors XR initialization responsibility at `time-crisis-vr/quest/quest_host.c:394`. A missing required callback/capability fails creation. |
-| `acvr_runtime_tick` | Proposed export: handles one display iteration, pacing/poses/input, 0..N native ticks and outputs, replay draw, submit or zero layers, return. Based on `time-crisis-vr/quest/quest_host.c:585` and deadline helper `time-crisis-vr/quest/quest_clock.h:8`. No runtime code exists yet. |
-| `acvr_runtime_set_paused` | Proposed export forwards neutralization and pause, resets deadline on resume; based on focus/pause paths at `time-crisis-vr/quest/quest_host.c:305` and `:325`. |
-| `acvr_runtime_destroy` | Proposed export: pause, drain/cancel haptics, release lease, optional flush, close backend, destroy graphics/XR. NULL succeeds; returns first failure while finishing cleanup. Mirrors DR-89 cleanup at `time-crisis-vr/quest/quest_host.c:716`. |
+| `acvr_runtime_create` | Runtime export: validate table/config, choose an API supported by the backend, create XR/device, call open, validate capabilities and controls, start unpaused. Mirrors XR initialization responsibility at `time-crisis-vr/quest/quest_host.c:394`. A missing required callback/capability fails creation. |
+| `acvr_runtime_tick` | Runtime export: handles one display iteration, pacing/poses/input, 0..N native ticks and outputs, replay draw, submit or zero layers, return. Based on `time-crisis-vr/quest/quest_host.c:585` and deadline helper `time-crisis-vr/quest/quest_clock.h:8`. The shared core implements the timing path with a recorded host; optional Windows desktop-GL creation is implemented, with runtime acceptance tracked separately. |
+| `acvr_runtime_set_paused` | Runtime export forwards neutralization and pause, resets deadline on resume; based on focus/pause paths at `time-crisis-vr/quest/quest_host.c:305` and `:325`. |
+| `acvr_runtime_destroy` | Runtime export: pause, drain/cancel haptics, release lease, optional flush, close backend, destroy graphics/XR. NULL succeeds; returns first failure while finishing cleanup. Mirrors DR-89 cleanup at `time-crisis-vr/quest/quest_host.c:716`. |
 
 Optional capabilities require their matching non-NULL callbacks; a callback alone does not enable a capability. New unknown capability bits are ignored. No global maximum N guns is baked into the header: open reports the actual count and controls list; runtime can reject an unsupported count with `UNSUPPORTED`. Time Crisis reports one, Lost World two. Slot-to-player mapping is fixed by `ACVR_CONTROL_GUN` declarations.
 
 ### One frame, several displays
 
-1. On first active tick, start at native tick 1/simulation time 0, apply neutral or sampled inputs, step and obtain a lease. No callback accesses a nonexistent initial frame; initial unprojectable guns are off-screen with `NO_CAMERA`.
+1. On first active tick, start at native tick 1/simulation time 0, apply neutral or sampled inputs, step and obtain a lease. If XR requests a picture with valid head tracking before input focus, publish one neutral native tick, drain its outputs without haptics or gun motion, then pause simulation and render that frozen lease. An explicit user pause prevents this bootstrap. No callback accesses a nonexistent initial frame; initial unprojectable guns are off-screen with `NO_CAMERA`.
 2. Convert XR predicted time into the runtime monotonic domain. Compute due ticks with an integer rational accumulator from `native_rate_num/native_rate_den`, retaining fractional nanoseconds. Time Crisis/RR initially report 59906/1000. Do not round to 60 or derive game speed from headset refresh.
 3. Locate/sync newest poses/actions. While the current lease is valid, raycast/project gun aim. Queue short digital transitions since the last native tick. These screen coordinates intentionally describe the last displayed/prepared frame; carry its frame/camera IDs as provenance. Backend consumes the coordinates directly, never reprojects using a new camera.
 4. For each due tick up to the configured budget: build a complete input snapshot, consume each queued edge once, release the previous lease, set inputs, step, read new cameras and drain outputs. Reuse latest analog levels on catch-up ticks; recompute aim against each newly published lease if needed. All source pointers from a lease cease to be valid on release. Backend may retain copied camera history only for diagnostics; it must not require old leases to apply gun coordinates.
@@ -142,7 +158,7 @@ STEERING/LEAN/STICK_X/STICK_Y range −1..1; accelerator/brake/rear-brake/lever/
 
 HELD is a level. PRESSED/RELEASED are edges emitted only on the consuming native tick. A press has HELD|PRESSED; a release has RELEASED without HELD. To retain a tap between native ticks, the runtime queues press then release on distinct native ticks, never collapses both into one state. Catch-up cannot repeat PRESSED. Opposing H-gate gear states and low/high cannot be active together. Gears remain selected after releasing the grip, while wheel spring returns are computed by libacvr. Sequential up/down, coin and view gestures are at least one-native-tick pulses; low/high and H-gate are latched levels. On controller handoff while firing, queue a released tick before a new press as DR-89 does (`time-crisis-vr/quest/quest_host.c:685`). Reload is a one-tick **request**; each backend translates it to its own off-screen/trigger sequence and must not apply a second auto-trigger state machine accidentally.
 
-TRACKED means a valid controller ray was available, independently of whether projection is off-screen. Loss clears trigger edges, sends untracked/off-screen and neutral axes/buttons. `COVER_PEDAL=1` means depressed/exposed, not ducked. Physical ducking with enter drop 0.20 m / leave drop 0.12 m hysteresis follows `time-crisis-vr/quest/quest_cover.c:7`; uncalibrated/untracked yields 0/covered. Cover works per player; Time Crisis converts at its existing >0.55 threshold.
+TRACKED means a valid controller ray was available, independently of whether projection is off-screen. Loss clears trigger edges, sends untracked/off-screen and neutral axes/buttons. `COVER_PEDAL=1` means depressed/exposed, not ducked. Owner decision D43 supersedes the historical physical-ducking reference: cover is button-only, never head height. One gun defaults to either grip; two guns use each player's own grip. Hold = 1/exposed, release = 0/covered; invert/toggle are explicit options. Untracked input yields 0/covered. Cover works per player; Time Crisis converts at its existing >0.55 threshold.
 
 ### Time Crisis device mapping
 
@@ -195,7 +211,7 @@ Graphics records use **borrowed process-local handles**, never handles for anoth
 
 Targets exist only for the callback. Backend may cache its own resources but cannot retain XR textures/RTVs/FBOs/command buffers beyond callback lifetime. Runtime acquires/waits XR images before draw, submits required GPU work safely before release/presentation, and owns final image layout/state. Call completion means work was recorded, not GPU completion. GPU resources referenced by work remain alive until runtime synchronization permits reuse/destruction; release of a CPU frame lease alone cannot free an in-flight VBO. Single-queue/owner-context sequencing permits updates for the next native frame in order. Backend sets all graphics state it needs; runtime reestablishes its own state before shared overlays. Format negotiation, sRGB writes and arcade gamma must avoid double correction. These are required future implementation checks; the supplied clones only prove the GL seams.
 
-`acvr_eye` rectangles use lower-left GL origin, upper-left Vulkan/D3D target origin. Runtime provides matching projection, viewport and layer selection; backend must not apply another Y flip or viewport centre correction. Depth is optional in the ABI; if its renderer needs depth and none is supplied, the backend creates a private matching attachment. No compositor depth submission capability is claimed. New3D uses reversed depth (clear 0, GREATER: `Supermodel/Src/Graphics/New3D/New3D.cpp:519` and `:530`); the adapter must produce a matching eye projection and clear/test policy internally, or explicitly convert to the supplied projection/depth convention. It cannot reuse FrustumRZ while the eye matrix uses an incompatible convention.
+`acvr_eye` rectangles use lower-left GL origin, upper-left Vulkan/D3D target origin. Runtime provides matching projection, viewport and layer selection; backend must not apply another Y flip or viewport centre correction. Depth is optional in the ABI; if its renderer needs depth and none is supplied, the backend creates a private matching attachment, except when v0.2 ACVR_CAP_REQUIRES_SHARED_DEPTH is declared (see docs/renderer-interface.md). A shared-depth backend rejects missing depth before drawing and leaves the runtime-owned attachment intact for gun/overlay drawing. No compositor depth submission capability is claimed. New3D uses reversed depth (clear 0, GREATER: `Supermodel/Src/Graphics/New3D/New3D.cpp:519` and `:530`); the adapter must produce a matching eye projection and clear/test policy internally, or explicitly convert to the supplied projection/depth convention. It cannot reuse FrustumRZ while the eye matrix uses an incompatible convention.
 
 Both adapters initially support GL single-eye draws. Multiview is negotiated independently and is an optimization, not an ABI requirement. DR-89 renders to an internal multiview array then blits each eye (`time-crisis-vr/quest/quest_gl.c:100`, `time-crisis-vr/quest/quest_host.c:640`). A runtime with separate XR swapchains can similarly supply an intermediate array target, then copy/blit; a shared XR array can be supplied directly. This contract does not promise Vulkan/D3D11 ports of GL-only backends.
 
@@ -205,7 +221,7 @@ Separate HUD is opt-in. Without it, backend keeps screen-space graphics merged a
 
 SOLENOID/LAMP events are normalized level changes on setup-declared channels. A 0-duration value persists until the next change; a timed pulse automatically ends. Time Crisis recoil channel 1 follows MCU bit 1, recoil_mask=0x0002 (`namco22-decompile/timecris/src/tc_game.c:207`). Queue the real rise/fall once per native tick; runtime synthesizes haptics on rising edges. DR-89's 45 ms rumble at `time-crisis-vr/quest/quest_host.c:709` is a reference profile, not a fixed ABI duration. Replaying geometry cannot fire another solenoid pulse.
 
-FFB channel is the axis semantic (normally STEERING); effect distinguishes constant signed force, spring, friction, vibration and stop. A change replaces that effect for that player/axis; STOP cancels all of them. Supermodel emits separate effects at `Supermodel/Src/Model3/DriveBoard/WheelBoard.cpp:581`, `:601`, `:622`, `:641`. Preserve those distinctions; controller vibration cannot faithfully reproduce wheel torque. Runtime policy maps magnitude/effect to bounded haptics and may feed an optional physical wheel later. On pause, device/session loss and close it cancels all active effects independently of backend events.
+FFB channel is the axis semantic (normally STEERING); effect distinguishes constant signed force, spring, friction, vibration and stop. A change replaces that effect for that player/axis; STOP cancels all of them. Supermodel emits separate effects at `Supermodel/Src/Model3/DriveBoard/WheelBoard.cpp:581`, `:601`, `:622`, `:641`. Preserve those distinctions; controller vibration cannot faithfully reproduce wheel torque. Runtime policy maps magnitude/effect to bounded haptics and does not support physical accessories (D39). On pause, device/session loss and close it cancels all active effects independently of backend events.
 
 SCORE carries a signed 64-bit value and per-game channel; STATE carries a standard boot/attract/playing/game-over ID or setup extension ID. Unknown state is absence of an event, not a fabricated “playing.” TC has comments for mode/lives/timer at `namco22-decompile/timecris/src/tc_game.c:146`; that is limited evidence, not a shared scoring API. Supermodel COutputs explicitly describes mainly driving outputs (`Supermodel/Src/OSD/Outputs.h:35`); gun recoil/score is not assumed to exist. Add per-game verified readers before advertising events.
 
@@ -221,7 +237,7 @@ Output sequences start at 1 and increase within an open backend, including pause
 6. Supply TC input conversion above, intercept `ss22_out_poll` and decoded motor hooks before SDL rumble/network output, queue events and expose flush-persistent. `ss22_host_frame` no longer submits/paces; its adapter boundary serves the worker rendezvous. Existing host callbacks `input_update`, `input_neutral`, `snd_set_output`, `paused_tick` at `namco22-decompile/engine/ss22_host.h:17` are reusable concepts, not the full new ABI.
 7. Rave Racer: implement a separate private adapter around `namco22-decompile/raverace/src/rr_main.c:228` and nonreturning entry at `:531`. Its preparation/draw seam is `rr_gl_prepare`/`rr_gl_draw` (`namco22-decompile/raverace/src/rr_gl.c:291` and `:363`), with input and EEPROM/motor through rr_hw. Reuse geometry capture in shared geo_hw/quad_gl, but add collection hooks to rr_gl as well as ss22_gl. Preserve RR direct-polygons, fog/gamma and priority text behavior. Do not substitute the Super 22 register path for RR MCU/shared-RAM updates.
 8. Keep future guarded patches under the setup's own build tooling, not existing shared tools in this task. Require a known base commit, exact expected old fragments with occurrence counts, per-edit markers and idempotent verification; abort on drift rather than fuzzy replacement. DR-89 `edit` at `time-crisis-vr/tools/patch_upstream.py:5` checks old text and markers, but multiple edits to one file share markers; stronger per-edit receipts prevent silently skipping later additions. Its TC explosion dispatcher patch at `:17` is game-correctness work, not required by the ABI; audit separately before porting it.
-9. Verify CPU frame counts/inputs/output edges first with a synthetic/no-content fixture. When the owner supplies a real local game run, compare native register aim at centre/corners, translated gun origins, per-camera hits, missed rays, cover hysteresis and short taps. Compare paired/replayed eye pixels against a single-view reference and confirm native logic/NVRAM are unaffected by display cadence. Headset refresh/performance/comfort remain separate hardware acceptance gates.
+9. Verify CPU frame counts/inputs/output edges first with a synthetic/no-content fixture. When the owner supplies a real local game run, compare native register aim at centre/corners, translated gun origins, per-camera hits, missed rays, button-only cover and short taps. Compare paired/replayed eye pixels against a single-view reference and confirm native logic/NVRAM are unaffected by display cadence. Headset refresh/performance/comfort remain separate hardware acceptance gates.
 
 ## Supermodel integration plan
 
@@ -272,3 +288,76 @@ cl /nologo /std:c11 /Zs /TC /W4 /WX "libacvr/include/acvr.h"
 ```
 
 An automated read-only citation audit checked all explicit absolute file:line references for existence/range and verified every public typedef has a named rationale entry. Source claims and callback semantics were also reviewed against the cited local seams, including reverse-Z matrix construction at `Supermodel/Src/Graphics/New3D/Mat4.cpp:185`. No runtime linking, graphics execution, binary-layout comparison, engine patch application or headset acceptance was tested. No reference-source edits, engine launches, game-content access, push or main-branch commit occurred. The optional fake backend is omitted; it would not prove the real scheduling/LOS/stereo seams.
+
+
+## v0.1 additions and compatibility
+
+The ABI major and struct version remain 1. All existing field offsets and
+callback signatures are unchanged. `ACVR_HIT_V1_SIZE` and
+`ACVR_RUNTIME_CONFIG_V1_SIZE` identify the complete original records. Accept
+these original sizes, the complete new size, or larger future tails; reject
+partial v0.1 tails with BAD_ARGUMENT. Never read/write beyond caller size.
+A reader of the old prefix ignores the tail; a new producer writing an old hit
+returns position/camera only. An old producer leaves a new caller's zeroed hit
+flags untouched, so the runtime uses camera projection. Initialize output tails
+to zero before each query. New type records require their complete v0.1 size.
+`ACVR_INIT` still sets only size/version, so zero the entire object first.
+
+The runtime config tail optionally supplies stride-aware gun slots and a policy.
+Count zero permits NULL and selects the single-gun, no-model compatibility
+path; zero-filled tail is accepted in this case. Nonzero count requires complete
+policy, unique slots and players, valid hand IDs, model strings and nodes,
+finite 0..1 tints, unit quaternions, and backend-supported counts. Runtime copies
+all retained strings/config during create; no array or string pointer is retained.
+Models use metres and one root grip; model-to-stage is tracked grip multiplied
+by calibrated angle and inverse model grip. The muzzle ray uses the bind-pose
+muzzle transform and local -Z, independently of rendered recoil/pump animation.
+Scale to scene units exactly once. Runtime draws the model after the world,
+depth-tested, with optional laser/dot and per-slot linear body/accent tints.
+
+Slot 0/player 0 defaults right; slot 1/player 1 defaults left. Changing p1_hand
+swaps assignments. `two_guns=ON_JOIN` shows the off hand faint until a Start/join
+request is confirmed by a backend player state; a button alone does not prove
+joining. `ALWAYS` requests join when the game's declared inputs support it,
+without inventing credits or gameplay state. Without reliable player state,
+keep it unconfirmed and report the limitation. A setup may use STATE events
+with player and PLAYING/GAME_OVER only when it has verified per-player readers.
+`OFF`, separate views or a one-gun backend suppress slot 1. Single-gun hand
+switch happens only on the other trigger's rising edge; that edge changes hands
+without also firing. Two active guns disable hand switching and two-hand reload.
+Start/coin are distinct bound actions. Time Crisis declares no invented Start
+port: its initial control set uses existing trigger/pedal/coin behavior.
+
+Cover is `ACVR_AXIS_COVER_PEDAL` for each player, value 0..1, using D43 above.
+Lost pose validity suppresses that gun's fire/pedal, cancels its haptics, and
+requires a fresh release/press before firing after recovery. Model visibility
+and tracking validity are independent; hidden models can still aim when tracked.
+
+Named-node gun events drive visual motion from metadata; button/axis values
+interpolate the defined range, recoil pulses are finite. Sequences increase per
+slot across all input/output-derived events. Duplicate/out-of-order host preview
+injections return BAD_ARGUMENT; negative/nonfinite values or unknown nodes do
+likewise. The host preview export is optional for consumers; board adapters only
+publish existing output events. Runtime arbitrates output-based versus fallback
+trigger recoil once, so stereo replay cannot duplicate animation or haptics.
+Pause/close/loss clears motion levels and active haptics. No animated node may
+change the aim ray. Motion/LOD metadata is defined in the control-set contract.
+
+`acvr_runtime_get_tracking` copies stage-space head and both hands after a tick,
+with explicit validity bits and the same monotonic prediction time used for eye
+draws. The runtime preserves all output prefixes and caller-owned tail bytes.
+Nested pose/hand records require their own initialized prefixes and exactly the
+published embedded size. They cannot grow in place without changing the parent
+layout; a future expansion needs a new parent contract. The outer tracking record
+may have an unknown tail, which remains untouched. No callback
+recursion or cross-thread calls. Matrices supplied to the backend already include
+these poses, the anchor and scale: do not apply them again. The shared core implements tick/pause/tracking/destroy through a private provider seam.
+Public XR creation returns UNSUPPORTED in the default build. The optional
+Windows desktop-GL provider implements creation with already-local OpenXR headers
+and an existing loader/runtime; Vulkan and other platform providers remain open.
+Its synthetic gun room is separate from real-game or headset acceptance.
+The private configured-model path
+now supports validated gun-event preview animation when model dependencies and
+a gun-capable host are provided; automatic input/output motion mapping remains
+pending. See
+`docs/libacvr-runtime-core.md` for the implementation boundary.

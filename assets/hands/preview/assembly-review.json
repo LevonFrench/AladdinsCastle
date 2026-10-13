@@ -1,0 +1,82 @@
+{
+  "schema": "hand-review/1",
+  "lighting": {
+    "id": "gun_lighting_r2",
+    "normal_space": "camera-view",
+    "direction_to_light": [
+      0.36,
+      0.7,
+      0.62
+    ],
+    "normalize_normal_and_direction": true,
+    "ambient": 0.35,
+    "directional": 0.65,
+    "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+    "alpha": "product alpha preserved; runtime premultiplies after lighting",
+    "output": "linear-to-sRGB",
+    "specular": false,
+    "shadows": false,
+    "tone_mapping": false
+  },
+  "device": "CPU",
+  "samples": 64,
+  "images": [
+    {
+      "model": "arc-pistol-slide",
+      "hand": "right",
+      "state": "rest",
+      "view": "side",
+      "image": "arc-pistol-slide-right-rest-side.png"
+    },
+    {
+      "model": "arc-pistol-slide",
+      "hand": "right",
+      "state": "rest",
+      "view": "threequarter",
+      "image": "arc-pistol-slide-right-rest-threequarter.png"
+    },
+    {
+      "model": "arc-pistol-slide",
+      "hand": "right",
+      "state": "stress",
+      "view": "side",
+      "image": "arc-pistol-slide-right-stress-side.png"
+    },
+    {
+      "model": "arc-pistol-slide",
+      "hand": "right",
+      "state": "stress",
+      "view": "threequarter",
+      "image": "arc-pistol-slide-right-stress-threequarter.png"
+    },
+    {
+      "model": "con-stick-grip",
+      "hand": "left",
+      "state": "rest",
+      "view": "side",
+      "image": "con-stick-grip-left-rest-side.png"
+    },
+    {
+      "model": "con-stick-grip",
+      "hand": "left",
+      "state": "rest",
+      "view": "threequarter",
+      "image": "con-stick-grip-left-rest-threequarter.png"
+    },
+    {
+      "model": "con-stick-grip",
+      "hand": "left",
+      "state": "stress",
+      "view": "side",
+      "image": "con-stick-grip-left-stress-side.png"
+    },
+    {
+      "model": "con-stick-grip",
+      "hand": "left",
+      "state": "stress",
+      "view": "threequarter",
+      "image": "con-stick-grip-left-stress-threequarter.png"
+    }
+  ],
+  "acceptance": "CPU pose review; physical fit pending"
+}

@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.20)
+project(ac_dolphin_facing_tests LANGUAGES CXX)
+
+enable_testing()
+add_executable(ac-dolphin-facing-test test_facing.cpp)
+target_compile_features(ac-dolphin-facing-test PRIVATE cxx_std_20)
+if(MSVC)
+  target_compile_options(ac-dolphin-facing-test PRIVATE /W4 /WX /EHsc)
+else()
+  target_compile_options(ac-dolphin-facing-test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+add_test(NAME ac-dolphin-facing-synthetic COMMAND ac-dolphin-facing-test)

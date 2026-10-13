@@ -4,37 +4,75 @@ param(
     [Parameter(Mandatory)][string]$BuildDir,
     [Parameter(Mandatory)][string]$QtDir,
     [Parameter(Mandatory)][string]$OutputDir,
-    [string]$RepoRoot = (Join-Path $PSScriptRoot '../..'),
-    [string]$VsRedistDir = $env:VCToolsRedistDir
+    [string]$RepoRoot = '',
+    [string]$VsRedistDir = $env:VCToolsRedistDir,
+    [string]$NativeRoomExecutable = '',
+    [string]$NativeRoomSourceCommit = '',
+    [string]$NativeRoomSha256 = ''
 )
 $ErrorActionPreference = 'Stop'
+if (-not $RepoRoot) { $RepoRoot = Join-Path $PSScriptRoot '../..' }
+. (Join-Path $PSScriptRoot 'PortablePolicy.ps1')
+foreach ($path in @($BuildDir,$QtDir,$RepoRoot,$OutputDir)) { Assert-PlainPortablePath $path | Out-Null }
 $BuildDir = (Resolve-Path -LiteralPath $BuildDir).Path
 $QtDir = (Resolve-Path -LiteralPath $QtDir).Path
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+$productFile = Assert-PlainPortablePath (Join-Path $RepoRoot 'data/product.json')
+$product = Get-Content -LiteralPath $productFile -Raw | ConvertFrom-Json
+if ($product.schema -ne 1 -or $product.program_name -notmatch '^[a-z0-9][a-z0-9.-]*$') { throw 'Invalid product identity' }
+$hubProgram = "$($product.program_name).exe"
+$buildIdentity = Join-Path $BuildDir 'generated/product.json'
+Assert-PlainPortablePath $buildIdentity | Out-Null
+if (-not (Test-Path -LiteralPath $buildIdentity) -or
+    (Get-FileHash -LiteralPath $buildIdentity -Algorithm SHA256).Hash -ne
+    (Get-FileHash -LiteralPath (Join-Path $RepoRoot 'data/product.json') -Algorithm SHA256).Hash) {
+    throw 'Product identity changed since the build; rebuild before packaging.'
+}
 . (Join-Path $PSScriptRoot 'BuildInfo.ps1')
 $checkoutRevision = if (-not $env:GITHUB_SHA) { (& git -C $RepoRoot rev-parse HEAD) } else { '' }
 $buildRevision = Get-PackageBuildRevision -CiRevision $env:GITHUB_SHA -CheckoutRevision $checkoutRevision
+if ((Get-PortableSourceRevision $RepoRoot) -cne $buildRevision) { throw 'Package revision differs from its clean source tree.' }
+Assert-PortableBuildReceipt -BuildDir $BuildDir -Revision $buildRevision -ProductFile (Join-Path $RepoRoot 'data/product.json') -Binaries @($hubProgram,'hubtool.exe','arttool.exe','steamtool.exe')
+$metadataFiles = Get-TrackedPortableMetadata $RepoRoot
+foreach ($noticeFile in @((Join-Path $RepoRoot 'LICENSE'),(Join-Path $PSScriptRoot 'THIRD-PARTY-NOTICES.md'),(Join-Path $PSScriptRoot 'licenses/LGPL-3.0-only.txt'))) { Assert-PlainPortablePath $noticeFile | Out-Null }
+$deploy = Assert-PlainPortablePath (Join-Path $QtDir 'bin/windeployqt.exe')
+$nativeRoom = $null
+if ($NativeRoomExecutable) {
+    $nativeRoom = Get-OptionalPortableRoomInputs -RepoRoot $RepoRoot -Executable $NativeRoomExecutable -SourceCommit $NativeRoomSourceCommit -Sha256 $NativeRoomSha256
+} elseif ($NativeRoomSourceCommit -or $NativeRoomSha256) { throw 'Native room hashes require an explicitly selected executable.' }
+# Check every recursively copied input before creating output. Never follow links.
+foreach ($inputTree in @((Join-Path $BuildDir 'bin/resources'),(Join-Path $BuildDir 'licenses'))) { @(Get-PlainPortableFiles $inputTree) | Out-Null }
+foreach ($noticeTree in @('LICENSES','licenses','sbom')) {
+    $noticePath = Join-Path $QtDir $noticeTree
+    if (Test-Path -LiteralPath $noticePath -PathType Container) { @(Get-PlainPortableFiles $noticePath) | Out-Null }
+}
 $OutputDir = [IO.Path]::GetFullPath($OutputDir)
+$zip = "$OutputDir.zip"
 if (Test-Path -LiteralPath $OutputDir) {
     throw "Output must be a new folder: $OutputDir"
 }
+if (Test-Path -LiteralPath $zip) { throw "ZIP already exists: $zip" }
 if (-not $VsRedistDir) {
     throw 'Use a VS developer shell, or pass the official VS VC/Redist/MSVC version directory.'
 }
 $VsRedistDir = (Resolve-Path -LiteralPath $VsRedistDir).Path
+Assert-PlainPortablePath $VsRedistDir | Out-Null
+Assert-PlainPortablePath (Join-Path $VsRedistDir 'x64') | Out-Null
 $crtDirectories = @(Get-ChildItem -LiteralPath (Join-Path $VsRedistDir 'x64') -Directory -Filter 'Microsoft.VC*.CRT')
 if ($crtDirectories.Count -ne 1) { throw 'Expected one official VS x64 CRT redistribution directory.' }
+Assert-PlainPortablePath $crtDirectories[0].FullName | Out-Null
 $crtFiles = @(Get-ChildItem -LiteralPath $crtDirectories[0].FullName -File -Filter '*.dll')
+foreach ($file in $crtFiles) { Assert-PlainPortablePath $file.FullName | Out-Null }
 foreach ($required in @('msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll')) {
     if ($required -notin $crtFiles.Name) { throw "Official VS redist is missing $required" }
 }
 New-Item -ItemType Directory -Path $OutputDir | Out-Null
-foreach ($binary in @('aladdinscastle-hub.exe','hubtool.exe','arttool.exe','steamtool.exe','openvr_api.dll')) {
+foreach ($binary in @($hubProgram,'hubtool.exe','arttool.exe','steamtool.exe','openvr_api.dll')) {
+    Assert-PlainPortablePath (Join-Path $BuildDir "bin/$binary") | Out-Null
     Copy-Item -LiteralPath (Join-Path $BuildDir "bin/$binary") -Destination $OutputDir
 }
 Copy-Item -LiteralPath (Join-Path $BuildDir 'bin/resources') -Destination (Join-Path $OutputDir 'resources') -Recurse
-$deploy = Join-Path $QtDir 'bin/windeployqt.exe'
-& $deploy --release --no-translations --no-compiler-runtime --qmldir (Join-Path $RepoRoot 'hub/qml') --dir $OutputDir (Join-Path $OutputDir 'aladdinscastle-hub.exe')
+& $deploy --release --no-translations --no-compiler-runtime --qmldir (Join-Path $RepoRoot 'hub/qml') --dir $OutputDir (Join-Path $OutputDir $hubProgram)
 if ($LASTEXITCODE -ne 0) { throw "windeployqt failed ($LASTEXITCODE)" }
 & $deploy --release --no-translations --no-compiler-runtime --dir $OutputDir (Join-Path $OutputDir 'hubtool.exe')
 if ($LASTEXITCODE -ne 0) { throw "windeployqt hubtool failed ($LASTEXITCODE)" }
@@ -45,12 +83,10 @@ foreach ($directory in @('games','data','schemas','recipes')) {
         # Stage only project metadata, never local user/library directories or art.
         $target = Join-Path $OutputDir $directory
         New-Item -ItemType Directory -Path $target | Out-Null
-        foreach ($file in Get-ChildItem -LiteralPath $source -Recurse -File) {
-            if ($file.Extension -notin @('.toml','.json','.md','.csv','.tsv')) { continue }
-            $relative = [IO.Path]::GetRelativePath($source, $file.FullName)
-            $destination = Join-Path $target $relative
+        foreach ($relative in @($metadataFiles.Keys | Where-Object { $_.StartsWith($directory+'/',[StringComparison]::Ordinal) } | Sort-Object)) {
+            $destination = Join-Path $OutputDir $relative
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
-            Copy-Item -LiteralPath $file.FullName -Destination $destination
+            Copy-Item -LiteralPath $metadataFiles[$relative] -Destination $destination
         }
     }
 }
@@ -77,7 +113,31 @@ Application source: https://github.com/LevonFrench/AladdinsCastle
 Source commit: $buildRevision
 Qt source and module notices: see THIRD-PARTY-NOTICES.md.
 "@ | Set-Content -LiteralPath (Join-Path $OutputDir 'BUILD-INFO.txt') -Encoding utf8
-$zip = "$OutputDir.zip"
-if (Test-Path -LiteralPath $zip) { throw "ZIP already exists: $zip" }
+if ($nativeRoom) {
+    $nativeTarget = Join-Path $OutputDir 'optional/gun-room-calibration'
+    New-Item -ItemType Directory -Path $nativeTarget | Out-Null
+    $nativeBinary = Join-Path $nativeTarget 'acvr_gun_room.exe'
+    Copy-Item -LiteralPath $nativeRoom.Executable -Destination $nativeBinary
+    Copy-Item -LiteralPath $nativeRoom.Receipt -Destination ($nativeBinary+'.launch.json')
+    $crtFiles | Copy-Item -Destination $nativeTarget
+    foreach ($relative in @($nativeRoom.Assets.Keys | Sort-Object)) {
+        $destination = if ($relative -ceq 'libacvr/LICENSE') { Join-Path $nativeTarget 'LICENSE-MIT.txt' } else { Join-Path $OutputDir $relative }
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination) | Out-Null
+        Copy-Item -LiteralPath $nativeRoom.Assets[$relative] -Destination $destination
+    }
+    Get-OptionalPortableRoomInputs -RepoRoot $RepoRoot -Executable $nativeBinary -SourceCommit $nativeRoom.SourceCommit -Sha256 $nativeRoom.Sha256 | Out-Null
+    @"
+Optional native gun room; explicit executable selection only.
+Source commit: $($nativeRoom.SourceCommit)
+Executable SHA-256: $($nativeRoom.Sha256)
+Calibration persistence remains native-owned. This package does not select a loader or XR runtime.
+"@ | Set-Content -LiteralPath (Join-Path $nativeTarget 'BUILD-INFO.txt') -Encoding utf8
+}
+if ((Get-PortableSourceRevision $RepoRoot) -cne $buildRevision) { throw 'Source changed during staging; archive is refused.' }
+# The helper hashes the source inputs; also prove the actual copied four EXEs.
+foreach ($binary in @($hubProgram,'hubtool.exe','arttool.exe','steamtool.exe')) {
+    if ((Get-FileHash (Join-Path $OutputDir $binary)).Hash -ne (Get-FileHash (Join-Path $BuildDir "bin/$binary")).Hash) { throw 'Staged shipping binary differs from its input.' }
+}
+Assert-PortableBuildReceipt -BuildDir $BuildDir -Revision $buildRevision -ProductFile (Join-Path $RepoRoot 'data/product.json') -Binaries @($hubProgram,'hubtool.exe','arttool.exe','steamtool.exe')
 Compress-Archive -LiteralPath $OutputDir -DestinationPath $zip
 Write-Output $zip

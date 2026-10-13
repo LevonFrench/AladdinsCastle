@@ -11,6 +11,26 @@ void atomicWrite(const QString &path, const QByteArray &bytes);
 void durableAppend(const QString &path, const Json &record);
 void validateRelative(const QString &path);
 QString scopedPath(const QString &path, const QString &root);
+// Cooperative same-OS-user exclusion; independent of portable roots and TEMP.
+enum class ResourceAccess { Use, Mutation };
+class ResourceLocks {
+public:
+  ResourceLocks(QStringList resources, ResourceAccess access);
+  ~ResourceLocks();
+  // Persist for every payload before OS spawn. An orphaned pending launch is
+  // deliberately not reclaimed: its unregistered child could still be alive.
+  void prepareChildLaunch();
+  // Caller must prove no child was started or QProcess is no longer running.
+  void clearPendingChildLaunch();
+  void trackChild(qint64 processId);
+  ResourceLocks(const ResourceLocks &) = delete;
+  ResourceLocks &operator=(const ResourceLocks &) = delete;
+private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+QString resourceLockDirectory(const QString &resource);
+QString toolPayloadRoot(const QString &executable, const QString &toolId);
 QString stateBase(const Request &r);
 Json dotted(const Json &value, const QString &path);
 QString expand(const QString &text, const QMap<QString, QString> &vars,
@@ -49,6 +69,9 @@ public:
                              const QStringList &exclude = {});
 };
 Json loadContentGuard(const QString &catalogRoot);
-void contentGuard(const QString &name, const Json &guard);
+// Archive proof arguments must be computed from the actual archive/member bytes.
+// Ordinary callers omit them and retain every extension denial.
+void contentGuard(const QString &name, const Json &guard,
+                  const QString &archiveSha256 = {}, const QString &entrySha256 = {});
 bool verifyPe64(const QString &path);
 } // namespace ac::install

@@ -4,6 +4,9 @@
 #include "core/scan/Scan.h"
 #include "core/install/Install.h"
 #include "core/install/Support.h"
+#include "core/launch/Launch.h"
+#include "core/pinball/Pinball.h"
+#include <QJsonDocument>
 #include <QCoreApplication>
 #include <QDir>
 #include <QTextStream>
@@ -45,9 +48,9 @@ int main(int argc, char **argv) {
   const QString usage =
       "Usage: hubtool [--data-root <folder>] [--install-root <folder>] "
       "[--bindings <JSON>] [--settings <JSON>] [--recipe <TOML>] [--handover <path>] count | "
-      "explain <game> | plan/install/repair/update/uninstall/recover <game> "
+      "explain <game> | plan-launch <game> <variant> | plan/install/repair/update/uninstall/recover <game> "
       "<variant> | plan-tool/install-tool/uninstall-tool <tool> | locate-tool "
-      "<tool> <exe>\n";
+      "<tool> <exe> | identify-disc <file> | scan-pinball <folder> [<database> [<roms> [<media>]]] | plan-pinball <table> <exe> <owned-session> <vr|desktop>\n";
   if (args == QStringList{"--help"}) {
     out << usage;
     return 0;
@@ -55,6 +58,13 @@ int main(int argc, char **argv) {
   if (args.isEmpty()) {
     err << usage;
     return 2;
+  }
+  if(args[0]=="scan-pinball" && args.size()>=2 && args.size()<=5) {
+    try{out<<QJsonDocument::fromVariant(ac::pinball::scan(args[1],args.value(2),args.value(3),args.value(4))).toJson();return 0;}catch(const std::exception &e){err<<e.what()<<"\n";return 2;}
+  }
+  if(args[0]=="identify-disc"&&args.size()==2){std::atomic_bool cancel=false;const auto id=ac::scan::Scanner::inspect(args[1],cancel);const bool valid=id.kind=="disc-id"&&!id.identity.isEmpty()&&id.error.isEmpty();out<<QJsonDocument::fromVariant(QVariantMap{{"kind",id.kind},{"identity",id.identity},{"error",id.error},{"valid",valid}}).toJson();return valid?0:2;}
+  if(args[0]=="plan-pinball" && args.size()==5 && QStringList{"vr","desktop"}.contains(args[4])) {
+    try{out<<QJsonDocument::fromVariant(ac::pinball::launchPlan(args[1],args[2],args[3],args[4]=="vr")).toJson();return 0;}catch(const std::exception &e){err<<e.what()<<"\n";return 2;}
   }
   const auto root = ac::findCatalogRoot(app.applicationDirPath(),
                                         QDir::currentPath(), overrideRoot);
@@ -89,6 +99,17 @@ int main(int argc, char **argv) {
   if (installRoot.isEmpty())
     installRoot = root;
   installRoot = QDir(installRoot).absolutePath();
+  if (args.size()==3 && args[0]=="plan-launch") {
+    try {
+      const auto bindings=ac::Json::parse(ac::install::readBytes(bindingsPath).toStdString());
+      const auto request=ac::launch::gameRequest(catalog,args[1],installRoot,bindings,args[2]);
+      ac::Json receipt{{"exe",request.plan.executable.toStdString()},{"cwd",request.plan.cwd.toStdString()},
+        {"runtime",request.runtime.toStdString()},{"args",ac::Json::array()}};
+      for(const auto &arg:request.plan.args)receipt["args"].push_back(arg.toStdString());
+      out<<QString::fromStdString(receipt.dump(2))<<'\n';return 0;
+    } catch(const ac::install::Error &e){err<<e.code<<": "<<e.what()<<'\n';return 64;}
+      catch(const std::exception &e){err<<e.what()<<'\n';return 64;}
+  }
   if (args[0] != "count" && args[0] != "explain") {
     try {
       using namespace ac::install;

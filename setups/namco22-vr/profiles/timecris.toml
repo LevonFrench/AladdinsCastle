@@ -1,0 +1,39 @@
+# Provisional integration notes, not an enabled game-loading profile.
+id = "timecris"
+status = "source-contract-only"
+native_rate_num = 59906
+native_rate_den = 1000
+scene_space = "view-local"
+
+[projection]
+raster_width = 640
+raster_height = 480
+initial_focal_px = 772.5625
+initial_centre_px = [320.0, 240.0]
+initial_source = "docs/libacvr-contract.md: measured DR-89 startup fallback, not a generic System 22 constant"
+rule = "Capture focal/centre per polygon; retain last valid camera on empty frames."
+
+[world_scale]
+status = "unconfigured-owner-calibration-required"
+derivation = "No game geometry measured in this block; no physical scale claimed. Synthetic tests use metre-space and scale 1."
+
+[gun]
+x_offset = 68
+x_span = 626
+y_offset = 43
+y_span = 241
+rounding = "floor-after-clamp"
+source = "docs/libacvr-contract.md: Time Crisis device mapping"
+calibration_status = "synthetic-conversion-only-real-calibration-pending"
+
+[layers]
+hud = "Explicit per-game classification required; CPU test tags flatten to configured depth."
+backdrop = "Direction geometry ignores translation; source classification pending."
+gun_flash = "Discard only explicitly classified flash primitives; do not remove ordinary full-screen fades."
+
+[known_limits]
+engine_adapter = "not-implemented"
+textures_and_composition = "not-implemented"
+fov_culling_expansion = "not-implemented; only submitted source polygons can be reconstructed"
+near_face_comfort = "not-implemented; CPU clip-plane tests are not a comfort policy"
+real_game_and_headset_acceptance = "not-performed"

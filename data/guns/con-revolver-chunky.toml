@@ -23,3 +23,21 @@ blue = { body = "#2459c4", accent = "#2a2a2e" }
 id    = "start"
 label = "Start"
 node  = "button_start"
+
+# Motion ranges use metres (slide) or radians (rotate). Visual recoil never moves the aim anchors.
+
+[motion.trigger]
+node = "pivot_trigger"
+kind = "rotate"
+axis = [-1,0,0]
+range = [0,0.35]
+drive = "trigger"
+lod_nodes = ["pivot_trigger", "pivot_trigger_lod1"]
+
+[motion.button-start]
+node = "button_start"
+kind = "slide"
+axis = [1,0,0]
+range = [0,0.002]
+drive = "button:start"
+lod_nodes = ["button_start", "button_start_lod1"]

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="270" viewBox="0 0 500 270">
+<!-- Original schematic, CC0. No imported/traced hardware art or vendor logos. -->
+<rect width="500" height="270" rx="8" fill="#16161a"/>
+<g stroke="#a3a8b2" stroke-width="2" fill="#32343c">
+<rect x="128" y="34" width="62" height="211" rx="14"/>
+<rect x="138" y="39" width="42" height="8" rx="3" fill="#71bfd6"/>
+<path d="M149 59h19v11h11v19h-11v11h-19V89h-11V70h11z"/>
+<circle cx="159" cy="120" r="12"/>
+<circle cx="145" cy="155" r="6"/><circle cx="175" cy="155" r="6"/>
+<circle cx="159" cy="187" r="9"/><circle cx="159" cy="218" r="9"/>
+<path d="M190 109l15 4v42l-15 5z"/>
+<path d="M340 97c-38 0-44 31-43 75 0 34 15 64 38 64s35-38 35-74c0-41-3-65-30-65z"/>
+<circle cx="336" cy="127" r="19"/><circle cx="336" cy="127" r="10" fill="#7f8491"/>
+<rect x="365" y="149" width="16" height="22" rx="5"/>
+<rect x="365" y="178" width="18" height="34" rx="5"/>
+</g>
+<g font-family="sans-serif" fill="#d9dce4" text-anchor="middle" font-size="13">
+<text x="159" y="125">A</text><text x="145" y="160">-</text><text x="175" y="160">+</text>
+<text x="159" y="192">1</text><text x="159" y="223">2</text><text x="199" y="138">B</text>
+<text x="373" y="165">C</text><text x="374" y="200">Z</text>
+<text x="159" y="22">REMOTE</text><text x="338" y="80">NUNCHUK</text>
+</g>
+<g stroke="#d97928" fill="none"><path d="M140 43H57M137 79H57M190 131h44M319 127h-65M381 160h58M383 193h56"/></g>
+<g font-family="sans-serif" font-size="11" fill="#c8c8d4">
+<text x="14" y="39">IR: aim</text><text x="14" y="75">D-pad</text><text x="214" y="146">Trigger</text>
+<text x="258" y="115">Stick</text><text x="395" y="153">C button</text><text x="395" y="187">Z button</text>
+<text x="220" y="258" text-anchor="middle">Both devices carry physical motion input</text>
+</g></svg>

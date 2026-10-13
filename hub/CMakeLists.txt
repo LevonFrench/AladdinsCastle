@@ -3,6 +3,7 @@ project(AladdinsCastleHub VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+include(cmake/ProductIdentity.cmake)
 include(CTest)
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS
     Core Network Concurrent Quick QuickControls2 OpenGL ShaderTools)
@@ -17,6 +18,25 @@ include(cmake/SevenZip.cmake)
 include(cmake/ChdMetadata.cmake)
 include(cmake/ProjectWarnings.cmake)
 qt_standard_project_setup(REQUIRES 6.8)
+
+get_filename_component(_ac_hand_root "${CMAKE_CURRENT_SOURCE_DIR}/../libacvr" ABSOLUTE)
+add_library(hubhandmetadata STATIC "${_ac_hand_root}/src/hand_assembly.cpp")
+target_compile_features(hubhandmetadata PUBLIC cxx_std_20)
+set_target_properties(hubhandmetadata PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(hubhandmetadata PUBLIC "${_ac_hand_root}/src")
+target_link_libraries(hubhandmetadata PRIVATE
+    tomlplusplus::tomlplusplus nlohmann_json::nlohmann_json)
+ac_project_warnings(hubhandmetadata)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/licenses")
+configure_file("${_ac_hand_root}/LICENSE" "licenses/libacvr-MIT.txt" COPYONLY)
+set(_ac_hand_receipt "Project source: https://github.com/LevonFrench/AladdinsCastle\nApplication source commit: see ../BUILD-INFO.txt\n")
+foreach(_ac_hand_file src/hand_assembly.cpp src/hand_assembly.hpp src/gun_asset.hpp LICENSE)
+    set(_ac_hand_path "${_ac_hand_root}/${_ac_hand_file}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_ac_hand_path}")
+    file(SHA256 "${_ac_hand_path}" _ac_hand_sha256)
+    string(APPEND _ac_hand_receipt "libacvr/${_ac_hand_file}: ${_ac_hand_sha256}\n")
+endforeach()
+file(WRITE "${CMAKE_BINARY_DIR}/licenses/libacvr-source.txt" "${_ac_hand_receipt}")
 
 add_library(hubcore STATIC
     src/core/catalog/CatalogLoader.cpp
@@ -38,6 +58,8 @@ add_library(hubcore STATIC
     src/core/scan/Scan.h
     src/core/scan/Scan.cpp
     src/core/scan/Headers.cpp
+    src/core/pinball/Pinball.cpp
+    src/core/pinball/Pinball.h
     src/core/scan/HeaderSafety.cpp
     src/core/scan/HeaderSafety.h
     src/core/scan/ScanController.cpp
@@ -55,6 +77,8 @@ add_library(hubcore STATIC
     src/core/launch/Launch.h
     src/core/launch/Launch.cpp
     src/core/launch/Runtime.cpp
+    src/core/gunroom/GunRoom.cpp
+    src/core/gunroom/GunRoom.h
     src/core/steam/Steam.h
     src/core/steam/Steam.cpp
     src/core/steam/BinaryVdf.cpp
@@ -62,32 +86,37 @@ add_library(hubcore STATIC
     src/core/art/Art.h
     src/core/art/Art.cpp)
 target_compile_features(hubcore PUBLIC cxx_std_20)
-target_include_directories(hubcore PUBLIC src)
+target_include_directories(hubcore PUBLIC src "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent
     tomlplusplus::tomlplusplus nlohmann_json::nlohmann_json
     nlohmann_json_schema_validator::validator)
 target_link_libraries(hubcore PUBLIC archive_static)
 target_compile_definitions(hubcore PUBLIC NOMINMAX)
 target_link_libraries(hubcore PRIVATE ac7zmetadata)
+target_link_libraries(hubcore PRIVATE hubhandmetadata)
 target_link_libraries(hubcore PRIVATE chdr-static)
 target_link_libraries(hubcore PUBLIC Qt6::Quick)
 if(WIN32)
-    target_link_libraries(hubcore PRIVATE version)
+    target_link_libraries(hubcore PRIVATE version shell32 ole32 advapi32 uuid)
 endif()
 ac_project_warnings(hubcore)
-qt_add_resources(hubcore scan_metadata PREFIX /scan BASE resources FILES resources/serial-index.json)
+qt_add_resources(hubcore scan_metadata PREFIX /scan BASE resources FILES resources/serial-index.json resources/wii-disc-index.json)
 
 add_library(huboverlay STATIC
     src/overlay/OverlayInput.cpp src/overlay/OverlayInput.h
     src/overlay/QuickTextureRenderer.cpp src/overlay/QuickTextureRenderer.h
     src/overlay/OverlayRuntime.cpp src/overlay/OverlayRuntime.h
+    src/overlay/OverlayCapture.cpp src/overlay/OverlayCapture.h
+    src/overlay/CompositorCapture.cpp src/overlay/CompositorCapture.h
+    src/overlay/OverlayKeyboard.cpp src/overlay/OverlayKeyboard.h
     src/overlay/OverlayHost.cpp src/overlay/OverlayHost.h src/overlay/SpikeState.h)
-target_include_directories(huboverlay PUBLIC src)
-target_link_libraries(huboverlay PUBLIC Qt6::Quick Qt6::OpenGL OpenVR::OpenVR)
+target_include_directories(huboverlay PUBLIC src "${CMAKE_BINARY_DIR}/generated")
+target_link_libraries(huboverlay PUBLIC hubcore Qt6::Quick Qt6::OpenGL OpenVR::OpenVR)
 ac_project_warnings(huboverlay)
 
 qt_add_library(hubui STATIC)
-target_link_libraries(hubui PUBLIC hubcore Qt6::Quick Qt6::QuickControls2)
+add_subdirectory(src/controls)
+target_link_libraries(hubui PUBLIC hubcore accontrols Qt6::Quick Qt6::QuickControls2)
 file(GLOB AC_QML_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
 foreach(qml_file IN LISTS AC_QML_FILES)
     get_filename_component(qml_name "${qml_file}" NAME)
@@ -98,7 +127,8 @@ qt_add_qml_module(hubui URI AladdinsCastle.Hub VERSION 1.0 NO_PLUGIN
     RESOURCE_PREFIX /qt/qml OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml/AladdinsCastle/Hub"
     QML_FILES ${AC_QML_FILES} qml/spike/OverlayTest.qml
     SOURCES src/ui/Theme.h src/ui/Theme.cpp src/ui/UiSettings.h src/ui/UiSettings.cpp
-        src/ui/UiController.h src/ui/UiController.cpp)
+        src/ui/UiController.h src/ui/UiController.cpp
+        src/ui/DetailControlsController.h src/ui/DetailControlsController.cpp)
 ac_project_warnings(hubui)
 add_library(hubapp STATIC src/app/HubServices.cpp src/app/HubServices.h)
 target_link_libraries(hubapp PUBLIC hubui)
@@ -111,8 +141,18 @@ qt_add_resources(aladdinscastle-hub theme
     PREFIX /resources BASE "${CMAKE_CURRENT_BINARY_DIR}/resources"
     FILES "${CMAKE_CURRENT_BINARY_DIR}/resources/theme.toml")
 file(MAKE_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources")
-configure_file(resources/aladdinscastle.vrmanifest "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/aladdinscastle.vrmanifest" COPYONLY)
+configure_file(resources/dashboard.vrmanifest.in "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${AC_PRODUCT_short_id}.vrmanifest" @ONLY)
 configure_file(resources/overlay-thumbnail.png "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/overlay-thumbnail.png" COPYONLY)
+add_custom_target(ac-hub-runtime-resources
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:aladdinscastle-hub>/resources"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${AC_PRODUCT_short_id}.vrmanifest"
+        "$<TARGET_FILE_DIR:aladdinscastle-hub>/resources/${AC_PRODUCT_short_id}.vrmanifest"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/overlay-thumbnail.png"
+        "$<TARGET_FILE_DIR:aladdinscastle-hub>/resources/overlay-thumbnail.png"
+    VERBATIM)
+add_dependencies(aladdinscastle-hub ac-hub-runtime-resources)
 ac_project_warnings(aladdinscastle-hub)
 add_custom_command(TARGET aladdinscastle-hub POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -123,6 +163,7 @@ if(MSVC)
     target_link_libraries(aladdinscastle-hub PRIVATE delayimp)
 endif()
 set_target_properties(aladdinscastle-hub PROPERTIES
+    OUTPUT_NAME "${AC_PRODUCT_program_name}"
     BUILD_RPATH "$ORIGIN" INSTALL_RPATH "$ORIGIN" WIN32_EXECUTABLE TRUE)
 
 qt_add_executable(hubtool src/app/hubtool.cpp)
@@ -137,17 +178,49 @@ ac_project_warnings(steamtool)
 set_target_properties(steamtool PROPERTIES WIN32_EXECUTABLE FALSE)
 
 if(BUILD_TESTING)
+    find_program(_ac_resource_ninja NAMES ninja)
+    if(_ac_resource_ninja)
+        add_test(NAME hub-runtime-resources COMMAND ${CMAKE_COMMAND}
+            "-DHUB_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}"
+            "-DTEST_ROOT=${CMAKE_BINARY_DIR}/Testing/runtime-resources"
+            "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+            "-DNINJA=${_ac_resource_ninja}"
+            "-DEXE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}"
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RuntimeResources.cmake)
+    else()
+        message(STATUS "Skipping hub-runtime-resources: Ninja is unavailable for the extra generator regression.")
+    endif()
+    qt_add_executable(gun-room-tests tests/GunRoomTest.cpp)
+    target_link_libraries(gun-room-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(gun-room-tests)
+    add_test(NAME hub-gun-room COMMAND gun-room-tests)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
+    add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})
     add_test(NAME serial-index-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/build_serial_index.py --test)
     add_test(NAME catalog-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/validate_catalog.py --test)
     add_test(NAME build-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/check_build_policy.py)
     add_test(NAME public-privacy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/check_public_privacy.py --test)
 
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
+    qt_add_executable(detail-controls-tests tests/DetailControlsTest.cpp)
+    target_link_libraries(detail-controls-tests PRIVATE hubui Qt6::Test)
+    target_compile_definitions(detail-controls-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    ac_project_warnings(detail-controls-tests)
+    set_target_properties(detail-controls-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-detail-controls COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:detail-controls-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/detail-controls.txt
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(hub-tests tests/SmokeTest.cpp)
     target_link_libraries(hub-tests PRIVATE hubcore Qt6::Test)
+    add_dependencies(hub-tests aladdinscastle-hub hubtool)
     ac_project_warnings(hub-tests)
-    add_test(NAME hub-smoke COMMAND hub-tests)
+    add_test(NAME hub-smoke COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:hub-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-smoke.txt
+        -DTEST_TIMEOUT=120
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(catalog-tests tests/CatalogTest.cpp)
     target_link_libraries(catalog-tests PRIVATE hubcore Qt6::Test)
     target_compile_definitions(catalog-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/.." AC_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}")
@@ -166,7 +239,11 @@ if(BUILD_TESTING)
     endif()
     target_compile_definitions(ui-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(ui-tests)
-    add_test(NAME hub-ui COMMAND ui-tests -o -,txt)
+    add_test(NAME hub-ui COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:ui-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-ui.txt
+        -DTEST_TIMEOUT=90
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(hub-ui PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     qt_add_executable(scan-art-tests tests/ScanArtTest.cpp)
     target_link_libraries(scan-art-tests PRIVATE hubcore Qt6::Test)
@@ -182,6 +259,16 @@ if(BUILD_TESTING)
         -DTEST_EXECUTABLE=$<TARGET_FILE:overlay-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/overlay-synthetic.txt
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
+    qt_add_executable(overlay-capture-tests tests/OverlayCaptureTest.cpp)
+    target_link_libraries(overlay-capture-tests PRIVATE huboverlay Qt6::Test)
+    ac_project_warnings(overlay-capture-tests)
+    set_target_properties(overlay-capture-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME overlay-capture-cpu COMMAND overlay-capture-tests -o -,txt)
+    qt_add_executable(compositor-capture-tests tests/CompositorCaptureTest.cpp)
+    target_link_libraries(compositor-capture-tests PRIVATE huboverlay Qt6::Test)
+    ac_project_warnings(compositor-capture-tests)
+    set_target_properties(compositor-capture-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME compositor-capture-cpu COMMAND compositor-capture-tests -o -,txt)
     qt_add_executable(overlay-scene-tests tests/OverlaySceneTest.cpp)
     target_link_libraries(overlay-scene-tests PRIVATE huboverlay Qt6::Test Qt6::QuickControls2)
     target_compile_definitions(overlay-scene-tests PRIVATE AC_SPIKE_SCENE="${CMAKE_CURRENT_SOURCE_DIR}/qml/spike/OverlayTest.qml")
@@ -197,14 +284,20 @@ if(BUILD_TESTING)
     target_link_libraries(integration-tests PRIVATE hubapp Qt6::Test)
     target_compile_definitions(integration-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(integration-tests)
+    add_dependencies(hub-tests integration-tests)
     add_test(NAME hub-integration COMMAND integration-tests -o -,txt)
     set_tests_properties(hub-integration PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     qt_add_executable(launch-tests tests/LaunchSteamTest.cpp)
     target_link_libraries(launch-tests PRIVATE hubcore Qt6::Test)
-    add_dependencies(launch-tests steamtool)
+    add_dependencies(launch-tests steamtool hubtool)
+    target_compile_definitions(launch-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(launch-tests)
     set_target_properties(launch-tests PROPERTIES WIN32_EXECUTABLE FALSE)
-    add_test(NAME hub-launch-steam COMMAND launch-tests)
+    add_test(NAME hub-launch-steam COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:launch-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-launch-steam.txt
+        -DTEST_TIMEOUT=120
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     if(NOT WIN32)
         set_tests_properties(hub-launch-steam PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     endif()

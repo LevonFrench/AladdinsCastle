@@ -76,13 +76,34 @@ def media_errors(game, recipe=None):
 
 
 def controls_errors(game):
-    return ["controls must be a table"] if "controls" in game and not isinstance(game["controls"], dict) else []
+    controls = game.get("controls", {})
+    if not isinstance(controls, dict):
+        return ["controls must be a table"]
+    errors = []
+    if "gun_model" in controls and (not isinstance(controls["gun_model"], str) or
+            not re.fullmatch(r"[a-z0-9][a-z0-9-]*", controls["gun_model"])):
+        errors.append("controls.gun_model must be a lowercase kebab-case id")
+    if "two_guns" in controls and (not isinstance(controls["two_guns"], str) or
+            controls["two_guns"] not in {"on_join", "always", "off"}):
+        errors.append("controls.two_guns must be on_join|always|off")
+    return errors
 
 
 def self_test():
     import unittest
 
     class MediaContract(unittest.TestCase):
+        def test_gun_contract(self):
+            for policy in ("on_join", "always", "off"):
+                self.assertEqual(controls_errors({"controls": {"gun_model": "custom-1",
+                    "two_guns": policy, "extension": {"keep": True}}}), [])
+            for value in (None, True, 1, [], {}, "", "../gun", "Gun", "gun.glb", "gun\n"):
+                self.assertEqual(controls_errors({"controls": {"gun_model": value}}),
+                    ["controls.gun_model must be a lowercase kebab-case id"])
+            for value in (None, True, 1, [], {}, "", "on-join"):
+                self.assertEqual(controls_errors({"controls": {"two_guns": value}}),
+                    ["controls.two_guns must be on_join|always|off"])
+
         def test_optional_boolean(self):
             for value in (True, False):
                 self.assertEqual(media_errors({"media": [{"kind": "bios", "optional": value}]}), [])

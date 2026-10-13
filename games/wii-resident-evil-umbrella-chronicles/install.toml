@@ -1,0 +1,140 @@
+format = 1
+default = "dolphinxr"
+
+[variant.dolphinxr]
+title = "DolphinXR (experimental VR)"
+quality = "true3d"
+status = "wip"
+version = "v0.4"
+upstream = "https://github.com/iChris4/dolphinXR"
+license = "GPL-2.0-or-later; aggregate GPLv3-compatible; bundled notices retained"
+needs = { media = ["disc"], tools = [] }
+installed_when = "file:${install_dir}/Dolphin.exe"
+# Runtime User files are retained by update staging; seed configs only when absent.
+
+[[variant.dolphinxr.step]]
+id = "release"
+do = "github-release"
+repo = "iChris4/dolphinXR"
+tag = "v0.4"
+asset = "Dolphin-Redux-Windows.zip"
+sha256 = "d1d99ff2760b1520d7022598e7fa5f26c7cd8b3ce2dacaa22c48db1e12ace1e9"
+bytes = 45691100
+
+[[variant.dolphinxr.step]]
+id = "app"
+do = "extract"
+from = "${steps.release.path}"
+to = "${install_dir}"
+
+[[variant.dolphinxr.step]]
+id = "disc"
+do = "require-media"
+media = "disc"
+verify = "none"
+note = "Use the Hub's verified Wii title binding; the disc stays in its original location."
+
+[[variant.dolphinxr.step]]
+id = "private-user"
+do = "write-config"
+file = "${install_dir}/User/Config/Dolphin.ini"
+format = "ini"
+create = true
+only_if_missing = true
+set = [
+  { section = "Core", key = "GFXBackend", value = "D3D" },
+  { section = "General", key = "HotkeysRequireFocus", value = "False" },
+  { section = "Input", key = "BackgroundInput", value = "True" },
+  { section = "Android", key = "QuestLeftHanded", value = "False" },
+  { section = "General", key = "ISOPaths", value = 0 },
+  { section = "General", key = "RecursiveISOPaths", value = "False" },
+  { section = "Analytics", key = "Enabled", value = "False" },
+  { section = "Analytics", key = "PermissionAsked", value = "True" },
+  { section = "AutoUpdate", key = "UpdateTrack", value = "" },
+]
+
+[[variant.dolphinxr.step]]
+id = "vr"
+do = "write-config"
+file = "${install_dir}/User/Config/GFX.ini"
+format = "ini"
+create = true
+only_if_missing = true
+set = [
+  { section = "Settings", key = "InternalResolution", value = 4 },
+  { section = "Settings", key = "MSAA", value = 1 },
+  { section = "Settings", key = "SSAA", value = "False" },
+  { section = "Enhancements", key = "MaxAnisotropy", value = 3 },
+  { section = "VR", key = "EnableOpenXR", value = "True" },
+  { section = "VR", key = "ResolutionScale", value = 1.0 },
+  { section = "VR", key = "FlatScreen", value = "False" },
+  { section = "VR", key = "VirtualScreen", value = "True" },
+  { section = "VR", key = "DisableCPUCull", value = "True" },
+  { section = "VR", key = "ScreenDistance", value = 1.5 },
+  { section = "VR", key = "ScreenSize", value = 1.5 },
+  { section = "VR", key = "HudThickness", value = 0.0 },
+  { section = "VR", key = "EnableCameraAnchor", value = "False" },
+  { section = "VR", key = "EnableControllerAnchor", value = "False" },
+]
+
+[[variant.dolphinxr.step]]
+id = "remote"
+do = "write-config"
+file = "${install_dir}/User/Config/WiimoteNew.ini"
+format = "ini"
+create = true
+only_if_missing = true
+source = "data/controls/wii/generated/dolphinxr/split-right.ini"
+source_sha256 = "edfcccec10a8226ee5366b0fedf500a57a3674dd7b91b72c6bf200e55fc27ebe"
+
+[[variant.dolphinxr.step]]
+id = "native-game-profile"
+do = "write-config"
+file = "${install_dir}/User/GameSettingsVR/RBUP08.ini"
+format = "ini"
+create = true
+only_if_missing = true
+source = "data/profiles/dolphinxr/GameSettingsVR/RBUP08.ini"
+source_sha256 = "b3c7794ca0a0c00e763547e2d8b317da97e95ce6a5161412d0eb0639f1ad5553"
+
+[[variant.dolphinxr.step]]
+id = "logs-directory"
+do = "create-directory"
+to = "${install_dir}/User/Logs"
+
+[[variant.dolphinxr.step]]
+id = "logger"
+do = "write-config"
+file = "${install_dir}/User/Config/Logger.ini"
+format = "ini"
+create = true
+only_if_missing = true
+set = [
+  { section = "Options", key = "WriteToFile", value = "True" },
+  { section = "Options", key = "WriteToConsole", value = "False" },
+  { section = "Options", key = "Verbosity", value = 4 },
+  { section = "Logs", key = "OpenXR", value = "True" },
+  { section = "Logs", key = "Video", value = "True" },
+  { section = "Logs", key = "CORE", value = "True" },
+  { section = "Logs", key = "Wiimote", value = "True" },
+  { section = "Logs", key = "CI", value = "True" },
+]
+
+[[variant.dolphinxr.step]]
+id = "hotkeys"
+do = "write-config"
+file = "${install_dir}/User/Config/Hotkeys.ini"
+format = "ini"
+create = true
+only_if_missing = true
+set = [
+  { section = "Hotkeys", key = "Device", value = "DInput/0/Keyboard Mouse" },
+  { section = "Hotkeys", key = "VR/Reset VR Position", value = "@(Shift+R) | (`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`)" },
+]
+
+[variant.dolphinxr.launch]
+exe = "${install_dir}/Dolphin.exe"
+exe_sha256 = "2a21141c760af5925a28da2cbbe19115ef497d4d5e24350b2bb5ed1a68b9639a"
+args = ["--user", "${install_dir}/User", "-C", "Graphics.VR.EnableOpenXR=True", "-C", "Graphics.VR.ResolutionScale=1.0", "-C", "Graphics.VR.EagerHeartbeat=False", "-C", "Graphics.Stereoscopy.StereoMode=0", "--exec", "${media.disc.path}"]
+cwd = "${install_dir}"
+runtime = "steamvr"

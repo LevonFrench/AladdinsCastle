@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Steam.h"
+#include "ProductIdentity.h"
 #include "core/install/Support.h"
 #include "core/launch/Launch.h"
 #include <QBuffer>
@@ -79,8 +80,8 @@ const Node *ownedShortcut(const QByteArray &bytes, const QString &gameId,
   for (const auto &root : document.roots)
     if (root.key == "shortcuts")
       for (const auto &n : root.children)
-        if (tagged(n, "AladdinsCastle") &&
-            tagged(n, QByteArray("AladdinsCastle:") + gameId.toUtf8()))
+        if (tagged(n, QByteArray(product::steam_shortcut_name)) &&
+            tagged(n, (QByteArray(product::steam_shortcut_name)+":") + gameId.toUtf8()))
           return &n;
   return nullptr;
 }
@@ -130,6 +131,36 @@ QStringList accounts(const QString &root) {
   }
   return out;
 }
+Shortcut prepareGameShortcut(const CatalogData &catalog, const QString &gameId,
+                             const QString &variantId, const QString &root,
+                             const QString &hubExecutable, const Json &bindings) {
+  const auto *game = catalog.find(gameId);
+  if (!game) {
+    throw Error("E_GAME_INVALID", "Unknown game");
+  }
+  const Variant *selected = nullptr;
+  for (const auto &variant : game->variants) {
+    if (variant.id == variantId &&
+        (variant.generated ||
+         (authoredLaunchSupported(variant) &&
+          install::string(variant.raw["launch"], "runtime") == "steamvr"))) {
+      selected = &variant;
+      break;
+    }
+  }
+  if (!selected) {
+    throw Error("E_VARIANT_INVALID", "Select an available flat or pinned authored SteamVR variant for this game");
+  }
+  if (QDir(root).absolutePath() != QFileInfo(hubExecutable).absolutePath()) {
+    throw Error("E_PORTABLE_ROOT", "Create Steam entries from the portable Hub folder");
+  }
+  const auto request = launch::gameRequest(catalog, gameId, root, bindings, variantId);
+  if (!selected->generated && request.runtime != "steamvr") {
+    throw Error("E_VARIANT_INVALID", "The authored Steam shortcut requires its pinned SteamVR runtime");
+  }
+  return {gameId, game->roles.value("title").toString(), hubExecutable, root,
+          request.runtime == "steamvr", 0, game->runtime.lastPlayed, variantId};
+}
 Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
   if (!QRegularExpression("\\A[a-z0-9]+(?:-[a-z0-9]+)*\\z")
            .match(s.gameId)
@@ -154,10 +185,10 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
     d.roots << n;
     root = &d.roots.last();
   }
-  const auto marker = QByteArray("AladdinsCastle:") + s.gameId.toUtf8();
+  const auto marker = (QByteArray(product::steam_shortcut_name)+":") + s.gameId.toUtf8();
   Node *owned = nullptr;
   for (auto &n : root->children)
-    if (n.type == 0 && tagged(n, "AladdinsCastle") && tagged(n, marker)) {
+    if (n.type == 0 && tagged(n, QByteArray(product::steam_shortcut_name)) && tagged(n, marker)) {
       if (owned)
         throw Error("E_VDF", "Duplicate owned game entries");
       owned = &n;
@@ -168,7 +199,7 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
   if (owned && !r.id)
     throw Error("E_VDF", "Owned shortcut has an invalid AppId");
   if (!r.id)
-    r.id = appId(quote(s.executable), s.title + "\nAladdinsCastle:" + s.gameId);
+    r.id = appId(quote(s.executable), s.title + "\n" + product::steam_shortcut_name + ":" + s.gameId);
   if (remove && !owned) {
     r.bytes = before;
     return r;
@@ -246,7 +277,7 @@ Edit edit(const QByteArray &before, const Shortcut &s, bool remove) {
     tags.type = 0;
     tags.key = "tags";
     tags.raw.clear();
-    for (const auto &tag : {QByteArray("AladdinsCastle"), marker}) {
+    for (const auto &tag : {QByteArray(product::steam_shortcut_name), marker}) {
       bool present = false;
       for (const auto &c : tags.children)
         if (c.type == 1 && c.payload == tag)
@@ -372,11 +403,14 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
   if (running())
     throw Error("E_STEAM_RUNNING",
                 "Close Steam to update its library. Nothing has changed");
-  const auto locks = install::scopedPath("locks", r.userRoot);
-  QDir().mkpath(locks);
-  QLockFile lock(install::scopedPath("steam-" + r.accountId + ".lock", locks));
-  if (!lock.tryLock(0))
-    throw Error("E_BUSY", "Another Hub Steam update is running");
+  // Cooperating copies share the actual target, regardless of portable roots.
+  const auto target=install::scopedPath("userdata/"+r.accountId+"/config/shortcuts.vdf",r.steamRoot);
+  std::unique_ptr<install::ResourceLocks> lock;
+  try {lock=std::make_unique<install::ResourceLocks>(QStringList{target},install::ResourceAccess::Mutation);}
+  catch(const Error &error) {
+    if(error.code=="E_LOCKED") throw Error("E_BUSY","Another Hub Steam update is running");
+    throw;
+  }
   const auto p = preview(r);
   if (p.json != approved.json || p.edit.bytes != approved.edit.bytes)
     throw Error("E_PREVIEW_CHANGED",
@@ -399,6 +433,7 @@ WriteResult apply(const WriteRequest &r, const Preview &approved,
     if (install::sha256(current).toStdString() != p.json["beforeSha256"].get<std::string>())
       throw Error("E_PREVIEW_CHANGED",
                   "Steam library changed before replacement; review a fresh preview");
+    if (r.beforeReplace) r.beforeReplace();
     install::atomicWrite(p.target, p.edit.bytes);
   }
   const QStringList roles{"header", "capsule", "hero", "logo"};
