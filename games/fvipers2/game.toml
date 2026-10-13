@@ -1,0 +1,35 @@
+id = "fvipers2"
+title = "Fighting Vipers 2"
+genre = "fighting"
+subgenre = ["arena-fighter"]
+year = 1998
+manufacturer = "sega"
+hardware = "sega-model-3"
+graphics = "polygon-3d"
+players = 2
+series = "Fighting Vipers"
+
+[controls]
+type = "joystick"
+extras = ["punch", "kick", "guard"]
+
+[[media]]
+kind = "mame-romset"
+set = "fvipers2"
+note = "Supermodel parent set"
+
+[routes]
+supermodel = "working"
+vr = { best = "true3d", via = "Supermodel VR" }
+
+[hub]
+pill = "FVIPERS2"
+colour = "#182025"
+accent = "#31c8bb"
+blurb = "An arcade stick with separate Punch, Kick and Guard buttons."
+badges = ["2-players"]
+
+[meta]
+sources = ["https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/trzy/Supermodel/blob/master/Src/Inputs/Inputs.cpp"]
+confidence = "medium"
+checked = "2026-10-13"

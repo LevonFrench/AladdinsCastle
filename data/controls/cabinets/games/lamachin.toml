@@ -15,7 +15,7 @@ model = "mnt-mg-heavy"
 player = 0
 slot = 0
 position = [0, 0.75, -0.4]
-grab = { required = true, button = "grip", soft_lock = true, anchors = ["grip", "grip_two"] }
+grab = { required = true, button = "grip", soft_lock = true, anchors = ["grab_right", "grab_left"] }
 tracking_loss = "freeze_then_neutral"
 axes = { component = "x", positive = "right" }
 extractor = "bar_yaw"
@@ -36,7 +36,7 @@ model = "mnt-mg-heavy"
 player = 0
 slot = 0
 position = [0, 0.75, -0.4]
-grab = { required = true, button = "grip", soft_lock = true, anchors = ["grip", "grip_two"] }
+grab = { required = true, button = "grip", soft_lock = true, anchors = ["grab_right", "grab_left"] }
 tracking_loss = "freeze_then_neutral"
 axes = { component = "y", positive = "up" }
 extractor = "bar_lift"

@@ -1,0 +1,35 @@
+id = "vf3"
+title = "Virtua Fighter 3"
+genre = "fighting"
+subgenre = ["arena-fighter"]
+year = 1996
+manufacturer = "sega"
+hardware = "sega-model-3"
+graphics = "polygon-3d"
+players = 2
+series = "Virtua Fighter"
+
+[controls]
+type = "joystick"
+extras = ["punch", "kick", "guard", "escape", "start-first-person-view"]
+
+[[media]]
+kind = "mame-romset"
+set = "vf3"
+note = "Supermodel parent set"
+
+[routes]
+supermodel = "working"
+vr = { best = "true3d", via = "Supermodel VR" }
+
+[hub]
+pill = "VF3"
+colour = "#182025"
+accent = "#31c8bb"
+blurb = "Four distinct fighting buttons; Start during a fight switches to first-person view."
+badges = ["2-players"]
+
+[meta]
+sources = ["https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/trzy/Supermodel/blob/master/Src/Inputs/Inputs.cpp"]
+confidence = "medium"
+checked = "2026-10-13"

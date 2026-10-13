@@ -1,0 +1,43 @@
+id = "stick-flight"
+title = "Flight stick with trigger and event button"
+model = "assets/controls/stick-flight.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.stick_x]
+node = "pivot_stick_x"
+lod_nodes = ["pivot_stick_x", "pivot_stick_x_lod1"]
+kind = "rotate"
+axis = [0, 0, -1]
+range = [-0.349066, 0.349066]
+drive = "AnalogJoyX"
+
+[motion.stick_y]
+node = "pivot_stick_y"
+lod_nodes = ["pivot_stick_y", "pivot_stick_y_lod1"]
+kind = "rotate"
+axis = [1, 0, 0]
+range = [-0.349066, 0.349066]
+drive = "AnalogJoyY"
+
+[motion.trigger]
+node = "pivot_trigger"
+lod_nodes = ["pivot_trigger", "pivot_trigger_lod1"]
+kind = "rotate"
+axis = [-1, 0, 0]
+range = [0, 0.2]
+drive = "AnalogJoyTrigger"
+
+[motion.event]
+node = "button_event"
+lod_nodes = ["button_event", "button_event_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "AnalogJoyEvent"

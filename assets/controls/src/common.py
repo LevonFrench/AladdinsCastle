@@ -90,12 +90,12 @@ def export(root,out):
     bpy.ops.export_scene.gltf(filepath=str(out),export_format='GLB',use_selection=True,export_yup=True,
                               export_apply=True,export_cameras=False,export_lights=False)
 
-def render(root,lods,out,size=640,view=(1.4,-2.6,1.7)):
+def render(root,lods,out,size=640,view=(1.4,-2.6,1.7),wide=False):
     for o in descendants(lods[1]):o.hide_render=True
     scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.device='CPU'
     scene.cycles.samples=32;scene.cycles.use_denoising=True
     scene.render.threads_mode='FIXED';scene.render.threads=2
-    scene.render.resolution_x=size;scene.render.resolution_y=size;scene.render.resolution_percentage=100
+    scene.render.resolution_x=size*(2 if wide else 1);scene.render.resolution_y=size;scene.render.resolution_percentage=100
     scene.world.color=(.12,.12,.12);scene.view_settings.view_transform='AgX'
     scene.view_settings.look='AgX - Medium High Contrast';scene.view_settings.exposure=0
     bpy.context.view_layer.update()
@@ -110,7 +110,7 @@ def render(root,lods,out,size=640,view=(1.4,-2.6,1.7)):
         l=bpy.data.lights.new(name,'AREA');l.energy=energy*extent*extent*.25;l.shape='DISK';l.size=area*extent
         o=bpy.data.objects.new(name,l);scene.collection.objects.link(o);o.location=centre+Vector(pos)*extent
         o.rotation_euler=(centre-o.location).to_track_quat('-Z','Y').to_euler()
-    c=bpy.data.cameras.new('review');c.type='ORTHO';c.ortho_scale=extent*1.65
+    c=bpy.data.cameras.new('review');c.type='ORTHO';c.ortho_scale=extent*(1.30 if wide else 1.65)
     camera=bpy.data.objects.new('review',c);scene.collection.objects.link(camera)
     camera.location=centre+Vector(view)*extent
     camera.rotation_euler=(centre-camera.location).to_track_quat('-Z','Y').to_euler();scene.camera=camera

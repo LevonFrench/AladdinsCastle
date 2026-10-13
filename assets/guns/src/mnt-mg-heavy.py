@@ -19,6 +19,10 @@ def make_design():
     d=Design(650,origin=(130,112,102))
     d.node('pivot_yaw',(0,-60,-200)); d.node('pivot_pitch',(0,60,-200),'pivot_yaw')
     d.node('grip_two',(-130,112,102))
+    # Physical hold points articulate with the handles in each LOD.
+    # Keep grip/grip_two and the fixed aim/recoil markers as their existing contract.
+    d.node('grab_right',(130,112,102),'pivot_pitch')
+    d.node('grab_left',(-130,112,102),'pivot_pitch')
     d.outline('receiver',BODY_OUTLINE,140,parent='pivot_pitch',bevel=4)
     d.tube('barrel_shroud',(0,110,-405),60,50,250,'pivot_pitch')
     d.cylinder('muzzle_lens',(0,110,-527),51,6,'glass','pivot_pitch')

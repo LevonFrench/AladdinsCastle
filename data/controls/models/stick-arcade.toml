@@ -1,0 +1,29 @@
+id = "stick-arcade"
+title = "Ball-top arcade stick"
+model = "assets/controls/stick-arcade.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+# Virtual pose drives, derived from the paired JoyLeft/Right and JoyUp/Down rows.
+# Opposing directions cancel; digital diagonals remain possible.
+[motion.stick_x]
+node = "pivot_stick_x"
+lod_nodes = ["pivot_stick_x", "pivot_stick_x_lod1"]
+kind = "rotate"
+axis = [0, 0, -1]
+range = [-0.261799, 0.261799]
+drive = "joy_x"
+
+[motion.stick_y]
+node = "pivot_stick_y"
+lod_nodes = ["pivot_stick_y", "pivot_stick_y_lod1"]
+kind = "rotate"
+axis = [-1, 0, 0]
+range = [-0.261799, 0.261799]
+drive = "joy_y"
