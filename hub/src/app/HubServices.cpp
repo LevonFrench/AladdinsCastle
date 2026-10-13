@@ -2,6 +2,7 @@
 #include "HubServices.h"
 #include "core/install/Support.h"
 #include "core/pinball/Pinball.h"
+#include "core/model3/Model3.h"
 #include <QDir>
 #include <QCoreApplication>
 #include <QFile>
@@ -88,6 +89,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         }
         ui_->showError("Pinball","Table is no longer in the scan; scan again.");
     });
+    connect(ui_,&UiController::model3PlayRequested,this,&HubServices::startModel3);
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
     connect(&scanner_,&scan::ScanController::scanStarted,ui_,&UiController::scanStarted);
@@ -135,6 +137,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             if(id!="pinball-"+retainedPinball_.value("id").toString()||variant!="vpx"){ui_->showError("Pinball","Restart does not match the retained table.");return;}
             startPinball(retainedPinball_,retainedPinballExecutable_);return;
         }
+        if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
 #ifdef Q_OS_WIN
@@ -250,6 +253,26 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable)
 #endif
         launcher_.start(request);
     }catch(const std::exception &error){ui_->showError("Pinball",QString::fromUtf8(error.what()));}
+}
+void HubServices::startModel3(const QString &id,const QString &view){
+    if(launchBusy()||hubExitPending_){ui_->showError("Model 3","Close the current session before starting a game.");return;}
+    try{
+        // The same program, working folder, arguments and variables as the user's
+        // own launcher files. Nothing is written beside the emulator or game files.
+        const auto plan=model3::launchPlan(id,view,settings_->get("model3Executable",QString()).toString(),settings_->get("model3GameFolder",QString()).toString());
+        launch::Request request;request.root=root_;request.gameId="model3-"+id;request.variantId=view;request.prepareProfile=false;
+        request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+        auto &environment=request.runtimeInputs.environment;
+        for(const auto &name:environment.keys())if(name.startsWith("ACVR_",Qt::CaseInsensitive))environment.remove(name);
+        const auto variables=plan.value("env").toMap();
+        for(auto it=variables.begin();it!=variables.end();++it)environment.insert(it.key(),it.value().toString());
+#ifdef Q_OS_WIN
+        ui_->launchModel3Queued(id,view,QString());
+#else
+        ui_->launchModel3Queued(id,view,"Clean window close is not supported on this platform yet.");
+#endif
+        launcher_.start(request);
+    }catch(const std::exception &error){ui_->showError("Model 3",QString::fromUtf8(error.what()));}
 }
 gunroom::Inputs HubServices::gunRoomInputs(const QString &model,const QString &hand,const QString &executable) const{
     auto inputs=gunroom::systemInputs(games_->catalog().root,executable,model,hand);

@@ -9,6 +9,11 @@
 #include <QTimer>
 #include <QWindow>
 #include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QDirIterator>
+#include <QProcessEnvironment>
+#include <QScopeGuard>
 #include <QtTest>
 #include <optional>
 #include <QtEndian>
@@ -86,6 +91,34 @@ private slots:
     QCOMPARE(exitReady.size(),0);QTRY_COMPARE_WITH_TIMEOUT(exitReady.size(),1,5000);QCOMPARE(exitReady[0][0].toInt(),7);
     QVERIFY(!services.launcher()->busy());QCOMPARE(ac::install::readBytes(table),cfb);
 #endif
+ }
+ void model3LaunchUsesTheChosenViewAndLeavesFoldersAlone(){
+    // The stand-in emulator is this test program: it reports what it was started with, then exits.
+    QTemporaryDir t;const auto emulator=t.filePath("emu"),media=t.filePath("my games"),report=t.filePath("report.json");
+    QVERIFY(QDir().mkpath(emulator+"/Config"));QVERIFY(QDir().mkpath(emulator+"/out/x64"));QVERIFY(QDir().mkpath(media));
+    ac::install::atomicWrite(emulator+"/Config/Games.xml","synthetic");ac::install::atomicWrite(media+"/scud.zip","synthetic");
+    const auto program=emulator+"/out/x64/program.exe";QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model3Executable",program);settings.set("model3GameFolder",media);
+    qputenv("AC_SYNTHETIC_MODEL3_REPORT",report.toUtf8());qputenv("ACVR_STALE","1");
+    const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL3_REPORT");qunsetenv("ACVR_STALE");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    const auto listing=[&]{QStringList names;for(const auto &folder:{emulator,media}){QDirIterator it(folder,QDir::AllEntries|QDir::NoDotAndDotDot,QDirIterator::Subdirectories);while(it.hasNext())names<<it.next();}names.sort();return names;};
+    const auto before=listing();
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    ui.chooseModel3View("scud","inside");ui.playModel3("scud");
+    QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,5000);
+    QCOMPARE(ui.nowPlaying()["title"].toString(),QString("Scud Race ")+QChar(0xb7)+" Inside the game");
+    QVERIFY(ui.nowPlaying()["running"].toBool());QVERIFY(services.launchBusy());
+    ui.playModel3("scud");QCOMPARE(started.size(),1);QVERIFY(ui.status().contains("current session"));
+    QTRY_VERIFY_WITH_TIMEOUT(!services.launcher()->busy(),10000);
+    QCOMPARE(finished.size(),1);QVERIFY2(finished[0][2].toString().isEmpty(),qPrintable(finished[0][2].toString()));QVERIFY(ui.nowPlaying().isEmpty());
+    const auto seen=QJsonDocument::fromJson(ac::install::readBytes(report)).object();
+    QCOMPARE(QFileInfo(seen["cwd"].toString()).canonicalFilePath(),QFileInfo(emulator).canonicalFilePath());
+    QCOMPARE(seen["args"].toVariant().toStringList(),(QStringList{QDir::toNativeSeparators(media+"/scud.zip"),"-window","-res=1344,1344","-stretch","-ss=2","-input-system=xinput"}));
+    QCOMPARE(seen["env"].toObject().toVariantMap(),(QVariantMap{{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"}}));
+    QCOMPARE(listing(),before);
+    ui.playModel3("daytona2");QCOMPARE(started.size(),1);QVERIFY(ui.status().contains("daytona2.zip"));QVERIFY(!services.launchBusy());
  }
  void requiredM1GamesOfferFlatRoutes(){
     const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
@@ -261,6 +294,14 @@ private slots:
 };
 int main(int argc,char **argv){
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
+    for(int i=1;i<argc;++i)if(QByteArray(argv[i]).startsWith("-input-system=")){
+        QCoreApplication child(argc,argv);QJsonObject variables;
+        const auto environment=QProcessEnvironment::systemEnvironment();
+        for(const auto &name:environment.keys())if(name.startsWith("ACVR_"))variables[name]=environment.value(name);
+        QFile file(qEnvironmentVariable("AC_SYNTHETIC_MODEL3_REPORT"));if(!file.open(QIODevice::WriteOnly))return 3;
+        file.write(QJsonDocument(QJsonObject{{"cwd",QDir::currentPath()},{"args",QJsonArray::fromStringList(child.arguments().mid(1))},{"env",variables}}).toJson());file.close();
+        QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
+    }
     if((argc==3||(argc==5&&QByteArray(argv[3])=="-Ini"))&&QByteArray(argv[1])=="-Play"){
         QGuiApplication child(argc,argv);QWindow window;window.show();
         const auto arguments=qEnvironmentVariable("AC_SYNTHETIC_PINBALL_ARGUMENTS");

@@ -242,6 +242,39 @@ class UiTest:public QObject {
   QStringList invalid;for(const auto &warning:warnings.mid(before))if(warning.contains("TypeError")||warning.contains("ReferenceError"))invalid<<warning;
   QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
  }
+ void model3TabRealScene(){
+  const auto previousView=root->property("view");
+  const auto cleanup=qScopeGuard([&]{settings->set("model3Executable",QString());settings->set("model3GameFolder",QString());settings->set("model3Views",QVariantMap{});root->setProperty("view",previousView);});
+  // A synthetic emulator folder and one synthetic game file: one card can start, the others name what is missing.
+  QTemporaryDir fixture;QVERIFY(QDir().mkpath(fixture.filePath("emu/Config")));QVERIFY(QDir().mkpath(fixture.filePath("games")));
+  for(const auto &name:{"emu/program.exe","emu/Config/Games.xml","games/scud.zip"}){QFile file(fixture.filePath(name));QVERIFY(file.open(QIODevice::WriteOnly));file.write("synthetic");}
+  const auto centre=[](QQuickItem *item){return item->mapToScene(QPointF(item->width()/2,item->height()/2)).toPoint();};
+  root->setProperty("view","List");QVERIFY(softwareFrame(window));
+  const auto tabs=namedItems(window->contentItem(),"model3Tab");QCOMPARE(tabs.size(),1);
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(tabs.first()));
+  QCOMPARE(root->property("view").toString(),QString("Model3"));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"model3Grid").isEmpty());
+  QCOMPARE(namedItems(window->contentItem(),"model3Grid").first()->property("count").toInt(),10);
+  for(const auto &row:ui->model3Games())QVERIFY(row.toMap().value("problem").toString().contains("Locate emulator"));
+  QVERIFY(settings->set("model3Executable",fixture.filePath("emu/program.exe")));QVERIFY(settings->set("model3GameFolder",fixture.filePath("games")));
+  auto rows=ui->model3Games();QCOMPARE(rows.size(),10);
+  QCOMPARE(rows[0].toMap().value("view").toString(),QString("screen"));
+  QVERIFY(rows[0].toMap().value("problem").toString().isEmpty());QVERIFY(rows[1].toMap().value("problem").toString().contains("daytona2.zip"));
+  QVERIFY(softwareFrame(window));QTRY_VERIFY(!namedItems(window->contentItem(),"model3Card").isEmpty());
+  const auto card=namedItems(window->contentItem(),"model3Card").first();
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,card->mapToScene(QPointF(card->width()/2,20)).toPoint());
+  QTRY_COMPARE(namedItems(window->contentItem(),"model3View").size(),3);
+  QCOMPARE(namedItems(window->contentItem(),"model3Title").first()->property("text").toString(),QString("Scud Race"));
+  QVERIFY(softwareFrame(window));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(namedItems(window->contentItem(),"model3View").last()));
+  QTRY_COMPARE(ui->model3Games()[0].toMap().value("view").toString(),QString("inside"));
+  ac::UiSettings saved(user.path());QCOMPARE(saved.get("model3Views").toMap().value("scud").toString(),QString("inside"));
+  QSignalSpy play(ui.get(),SIGNAL(model3PlayRequested(QString,QString)));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"model3Start").isEmpty());
+  const auto start=namedItems(window->contentItem(),"model3Start").first();QTRY_VERIFY(start->isEnabled());
+  QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(start));
+  QCOMPARE(play.size(),1);QCOMPARE(play[0][0].toString(),QString("scud"));QCOMPARE(play[0][1].toString(),QString("inside"));
+ }
  void pinballTabRealScene(){
   const auto previousView=root->property("view"),previousMode=root->property("vrOverlayMode");
   const auto cleanup=qScopeGuard([&]{ui->selectPinball(QString());root->setProperty("view",previousView);root->setProperty("vrOverlayMode",previousMode);});

@@ -59,6 +59,8 @@ class UiController : public QObject {
  Q_PROPERTY(bool pinballScanning READ pinballScanning NOTIFY pinballChanged)
  Q_PROPERTY(QObject *pinballControls READ pinballControls CONSTANT)
  Q_PROPERTY(QString pinballControlsStatus READ pinballControlsStatus CONSTANT)
+ Q_PROPERTY(QVariantList model3Games READ model3Games NOTIFY model3Changed)
+ Q_PROPERTY(QVariantList model3Views READ model3Views CONSTANT)
  public:
  UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent=nullptr);
  QObject *detailControls(){return m_detailControls.model();}
@@ -105,6 +107,13 @@ class UiController : public QObject {
  Q_INVOKABLE void playPinball();
  void launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable);
  void pinballFailed(const QString &error);
+ // Model 3: one row per game with its remembered view and any set-up problem.
+ QVariantList model3Games()const;
+ QVariantList model3Views()const;
+ Q_INVOKABLE void chooseModel3View(const QString &id,const QString &view);
+ Q_INVOKABLE void playModel3(const QString &id);
+ Q_INVOKABLE void refreshModel3(){emit model3Changed();}
+ void launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable);
  void setPinballPlan(const QString &plan){m_pinballPlan=plan;emit pinballChanged();}
  Q_INVOKABLE QString localPath(const QUrl &url)const{return url.isLocalFile()?url.toLocalFile():QString();}
  Q_INVOKABLE QString vrLabel(int badge) const;
@@ -155,6 +164,8 @@ class UiController : public QObject {
  void nowPlayingChanged();
  void pinballChanged();
  void pinballPlayRequested(const QString &id);
+ void model3Changed();
+ void model3PlayRequested(const QString &id,const QString &view);
  void pinballScanRequested(const QString &folder,const QString &database,const QString &roms,const QString &media);
  void pinballPlanRequested(const QString &table,const QString &executable,const QString &id);
  void retryToolInstallRequested(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
