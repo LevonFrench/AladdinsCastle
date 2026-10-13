@@ -11,8 +11,19 @@ bool authoredLaunchSupported(const Variant &v) {
     const auto it=v.raw.find("launch");if(it==v.raw.end()||!it->is_object())return false;
     const auto &launch=*it;
     const auto text=[&](const char *key){auto value=launch.find(key);return value!=launch.end()&&value->is_string()?QString::fromStdString(value->get<std::string>()):QString();};
+    bool localBuild=false;
+    if(text("exe_identity")=="user-local-build" && text("user_mode")=="executable-directory") {
+        int count=0;
+        for(const auto &step:v.raw.value("step",Json::array()))
+            if(step.value("do",std::string())=="locate-package" && step.value("kind",std::string())=="local-build") {
+                const QRegularExpression pin("\\A[0-9a-f]{40}\\z");
+                if(pin.match(QString::fromStdString(step.value("port_commit",std::string()))).hasMatch() &&
+                   pin.match(QString::fromStdString(step.value("engine_commit",std::string()))).hasMatch()) ++count;
+            }
+        localBuild=count==1;
+    }
     return !text("exe").isEmpty()&&launch.contains("args")&&launch["args"].is_array()&&!launch["args"].empty()&&
-        QRegularExpression("\\A[0-9a-f]{64}\\z").match(text("exe_sha256")).hasMatch()&&
+        (QRegularExpression("\\A[0-9a-f]{64}\\z").match(text("exe_sha256")).hasMatch()||localBuild)&&
         QStringList{"none","openxr","steamvr"}.contains(text("runtime"));
 }
 QString mediaRequirementId(const Json &media, const QString &gameId, qsizetype index) {

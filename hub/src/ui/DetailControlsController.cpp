@@ -44,6 +44,8 @@ void DetailControlsController::resolve(){
   try {if(options_)options=options_(game_,variant_);}
   catch(...){status_="Controls context could not be read.";emit changed();return;}
   options.packIds=packs_; // The catalog's actual registry/priority order wins.
+  options.route=route_;
+  if(route_=="namco22-vr")options.useUserOverrides=false; // Adopted source labels have no admitted user-override layer yet.
   loading_=true;status_="Loading controls…";emit changed();
   const auto epoch=libraryEpoch_;
   auto *watcher=new QFutureWatcher<PreparedControls>(this);
@@ -58,6 +60,10 @@ void DetailControlsController::resolve(){
     loading_=false;
     const auto data=prepared.result.value("data").toMap();
     if(!prepared.error.isEmpty())status_=prepared.error;
+    else if((route_=="namco22-vr" || data.value("route").toString()=="namco22-vr") &&
+            (route_!="namco22-vr" || data.value("route").toString()!="namco22-vr" ||
+             data.value("schema").toString()!="system22-native/1" || data.value("family").toString()!="system22"))
+      status_="No controls mapping matches this adopted System22 route. Reload after updating the controls catalog.";
     else if((hardware_=="nintendo-wii" || data.value("family").toString()=="wii") &&
             (route_!="flat-dolphin" || data.value("route").toString()!="flat-dolphin"))
       status_="No controls mapping matches this Wii route. Reload after updating the controls catalog.";

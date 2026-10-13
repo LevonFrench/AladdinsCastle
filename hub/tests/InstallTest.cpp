@@ -3,6 +3,7 @@
 #include "core/catalog/CatalogLoader.h"
 #include "core/install/ArtifactStore.h"
 #include "core/install/Support.h"
+#include "core/scan/Scan.h"
 #include <QDirIterator>
 #include <QProcess>
 #include <QSslKey>
@@ -155,7 +156,7 @@ QMap<QString, QByteArray> tree(const QString &root) {
   return out;
 }
 void archiveFile(const QString &path, const QStringList &names,
-                 const QString &format = "zip", bool symlink = false) {
+                 const QString &format = "zip", bool symlink = false, const QByteArray &payload = QByteArray("test")) {
   auto *a = archive_write_new();
   if (format == "zip")
     archive_write_set_format_zip(a);
@@ -168,14 +169,14 @@ void archiveFile(const QString &path, const QStringList &names,
   for (const auto &name : names) {
     auto *e = archive_entry_new();
     archive_entry_set_pathname(e, name.toUtf8().constData());
-    archive_entry_set_size(e, symlink ? 0 : 4);
+    archive_entry_set_size(e, symlink ? 0 : payload.size());
     archive_entry_set_filetype(e, symlink ? AE_IFLNK : AE_IFREG);
     archive_entry_set_perm(e, 0644);
     if (symlink)
       archive_entry_set_symlink(e, "../escape");
     QVERIFY(archive_write_header(a, e) == ARCHIVE_OK);
     if (!symlink)
-      QVERIFY(archive_write_data(a, "test", 4) == 4);
+      QVERIFY(archive_write_data(a, payload.constData(), static_cast<size_t>(payload.size())) == payload.size());
     archive_entry_free(e);
   }
   archive_write_close(a);
@@ -185,6 +186,90 @@ void archiveFile(const QString &path, const QStringList &names,
 class InstallTest : public QObject {
   Q_OBJECT
 private slots:
+  void localBuildNomination_data() {
+    QTest::addColumn<QString>("fault");
+    QTest::newRow("separate-private-build-and-support")<<QString();
+    QTest::newRow("changed-local-executable")<<QString("changed");
+    QTest::newRow("different-source-pin")<<QString("source");
+    QTest::newRow("support-without-local-build")<<QString("missing");
+  }
+  void localBuildNomination() {
+    QFETCH(QString,fault); QTemporaryDir temp; auto r=fixture(temp.path());
+    const auto input=temp.filePath("private-input"), exe=input+"/private.exe", nomination=input+"/local-build.json";
+    atomicWrite(exe,"private synthetic executable");
+    const auto originalHash=hashFile(exe), sourcePin=QString(40,'a'), enginePin=QString(40,'b');
+    Json receipt{{"nomination_only",true},{"source_executable",exe.toStdString()},{"sha256",originalHash.toStdString()},
+      {"bytes",QFileInfo(exe).size()},{"port_commit",sourcePin.toStdString()},{"engine_commit",enginePin.toStdString()},
+      {"contains_generated_original_game_program",true},{"public_distribution_approved",false}};
+    if(fault=="changed") atomicWrite(exe,"changed synthetic executable");
+    if(fault=="source") receipt["port_commit"]=std::string(40,'c');
+    if(fault=="missing") receipt.erase("source_executable");
+    atomicWrite(nomination,QByteArray::fromStdString(receipt.dump())); r.handover=nomination;
+    const auto support=input+"/runtime-support.zip"; archiveFile(support,{"support.dat"});
+    auto &variant=r.recipe["variant"]["flat"]; variant["installed_when"]="file:${install_dir}/User/example.exe";
+    variant["step"]=Json::array({
+      {{"id","build"},{"do","locate-package"},{"kind","local-build"},{"pattern","*.json"},
+       {"port_commit",sourcePin.toStdString()},{"engine_commit",enginePin.toStdString()}},
+      {{"id","application"},{"do","copy"},{"from","${steps.build.path}"},{"to","${install_dir}/User/example.exe"}},
+      {{"id","support"},{"do","locate-package"},{"kind","archive"},{"use_handover",false},
+       {"path","${steps.build.dir}/runtime-support.zip"},{"pattern","runtime-support.zip"},{"sha256",hashFile(support).toStdString()}},
+      {{"id","support-files"},{"do","extract"},{"from","support"},{"to","${install_dir}/User"}}
+    });
+    Options options;options.survivalMs=0;const auto result=Engine(options).install(r);
+    if(fault.isEmpty()) {
+      QVERIFY2(result.success,qPrintable(result.code+": "+result.message));
+      QCOMPARE(readBytes(temp.filePath("installed/synthetic/flat/User/example.exe")),QByteArray("private synthetic executable"));
+      QCOMPARE(readBytes(temp.filePath("installed/synthetic/flat/User/support.dat")),QByteArray("test"));
+      QCOMPARE(string(result.manifest["local_build"],"sha256"),originalHash);
+    } else {QVERIFY(!result.success);QVERIFY(!QFileInfo::exists(temp.filePath("installed/synthetic/flat/User/example.exe")));}
+    QCOMPARE(readBytes(support),readBytes(input+"/runtime-support.zip"));
+  }
+  void prepareNativeRomset_data() {
+    QTest::addColumn<QString>("fault");
+    QTest::addColumn<QString>("error");
+    QTest::newRow("renamed-archive-and-member") << QString() << QString();
+    QTest::newRow("one-member-two-chip-roles") << QString("shared") << QString();
+    QTest::newRow("missing-chip") << QString("missing") << QString("E_MEDIA_MISSING");
+    QTest::newRow("changed-member-payload") << QString("crc") << QString("E_MEDIA_MISMATCH");
+    QTest::newRow("wrong-chip-size") << QString("size") << QString("E_MEDIA_MISMATCH");
+    QTest::newRow("different-set") << QString("set") << QString("E_MEDIA_MISMATCH");
+    QTest::newRow("unverified-binding") << QString("unverified") << QString("E_MEDIA_MISMATCH");
+    QTest::newRow("ambiguous-chip") << QString("duplicate") << QString("E_MEDIA_MISMATCH");
+  }
+  void prepareNativeRomset() {
+    QFETCH(QString,fault); QFETCH(QString,error);
+    QTemporaryDir temp; auto r=fixture(temp.path());
+    const auto library=temp.filePath("library"), source=library+"/arbitrary-name.zip";
+    QDir().mkpath(library); archiveFile(source,{"renamed-member.dat"});
+    std::atomic_bool cancel=false; const auto archive=scan::Scanner::inspect(source,cancel);
+    QVERIFY(archive.error.isEmpty()); QCOMPARE(archive.entries.size(),1);
+    Json entry{{"sourceName","renamed-member.dat"},{"targetName","metadata-program.1"},
+      {"size",4},{"crc32",archive.entries[0].crc}};
+    Json requirements=Json::array({{{"set","synthetic-native"},{"sourcePath",source.toStdString()},
+      {"entries",Json::array({entry})}}});
+    if(fault=="missing") requirements[0]["entries"]=Json::array();
+    if(fault=="crc") archiveFile(source,{"renamed-member.dat"},"zip",false,"evil");
+    if(fault=="size") requirements[0]["entries"][0]["size"]=5;
+    if(fault=="duplicate") requirements[0]["entries"].push_back(entry);
+    if(fault=="shared") {auto second=entry;second["targetName"]="second-role.2";requirements[0]["entries"].push_back(second);}
+    const auto original=readBytes(source);
+    r.bindings={{"media",{{"native-set",{{"path",source.toStdString()},
+      {"proof","mame-header-crc"},{"identity",fault=="set"?"other-set":"synthetic-native"},
+      {"verified",fault!="unverified"},{"supportRequirements",requirements}}}}}};
+    r.recipe["variant"]["flat"]["step"].push_back({{"id","native-media"},{"do","prepare-romset"},
+      {"media","native-set"},{"set","synthetic-native"},{"to","${install_dir}/User/roms"},
+      {"files",Json::array({{{"name","engine-program.1"},{"size",4},
+        {"aliases",Json::array({"metadata-program.1"})}}})}});
+    if(fault=="shared") r.recipe["variant"]["flat"]["step"].back()["files"].push_back({{"name","second-role.2"},{"size",4}});
+    Options options; options.survivalMs=0; const auto result=Engine(options).install(r);
+    QCOMPARE(result.code,error);
+    const auto target=temp.filePath("installed/synthetic/flat/User/roms/engine-program.1");
+    if(error.isEmpty()) { QCOMPARE(result.exitCode,0); QCOMPARE(readBytes(target),QByteArray("test")); }
+    else { QVERIFY(result.exitCode!=0); QVERIFY(!QFileInfo::exists(target)); }
+    if(fault=="shared") QCOMPARE(readBytes(temp.filePath("installed/synthetic/flat/User/roms/second-role.2")),QByteArray("test"));
+    QCOMPARE(readBytes(source),original);
+    QCOMPARE(QDir(library).entryList(QDir::Files),QStringList{"arbitrary-name.zip"});
+  }
   void automaticRollbackRetainsLock_data() {
     QTest::addColumn<bool>("uninstall");
     QTest::newRow("install") << false;

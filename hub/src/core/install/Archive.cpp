@@ -159,19 +159,26 @@ QList<ArchiveEntry> walk(const QString &path, ArchiveLimits limits,
   return result;
 }
 } // namespace
-void Archive::makeUserMediaAlias(const Json &requirements,
-                                 const QString &destination) {
+namespace {
+void materializeUserMedia(const Json &requirements, const QString &destination, bool directory) {
   // Only confirmed local user media reaches this API; never called by artifact
   // downloads.
-  const auto temp = destination + ".staging";
-  QDir().mkpath(QFileInfo(temp).absolutePath());
-  archive *writer = archive_write_new();
+  const auto temp = directory ? destination : destination + ".staging";
+  if (directory && QFileInfo(temp).exists() &&
+      (!QFileInfo(temp).isDir() || !QDir(temp).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).isEmpty()))
+    throw Error("E_WRITE_DENIED", "Native media staging must be empty");
+  if (!QDir().mkpath(directory ? temp : QFileInfo(temp).absolutePath()))
+    throw Error("E_WRITE_DENIED", "Cannot create local media staging");
+  archive *writer = nullptr;
+  if (!directory) {
+  writer = archive_write_new();
   archive_write_set_format_zip(writer);
   archive_write_set_options(writer, "zip:compression=store");
   if (archive_write_open_filename(
           writer, QFile::encodeName(temp).constData()) != ARCHIVE_OK) {
     archive_write_free(writer);
     throw Error("E_WRITE_DENIED", "Cannot create local media alias");
+  }
   }
   QSet<QString> targets;
   try {
@@ -187,24 +194,15 @@ void Archive::makeUserMediaAlias(const Json &requirements,
         validateRelative(name);
         if (archive_entry_symlink(entry) || archive_entry_hardlink(entry))
           throw Error("E_ARCHIVE_UNSAFE", "Media archive link refused");
-        const Json *match = nullptr;
+        QVector<const Json *> matches;
         for (const auto &candidate : expected)
-          if (string(candidate, "sourceName") == name) {
-            match = &candidate;
-            break;
-          }
-        if (!match) {
+          if (string(candidate, "sourceName") == name) matches.push_back(&candidate);
+        if (matches.isEmpty()) {
           archive_read_data_skip(reader.a);
           continue;
         }
-        const auto target = string(*match, "targetName");
-        validateRelative(target);
-        if (targets.contains(target.toCaseFolded()))
-          throw Error("E_ARCHIVE_UNSAFE", "Alias target collision");
-        targets.insert(target.toCaseFolded());
-        const auto expectedSize = match->value("size", int64_t(0));
-        if (expectedSize < 0 || expectedSize > 512LL * 1024 * 1024 ||
-            archive_entry_size(entry) != expectedSize)
+        const auto expectedSize = matches.first()->value("size", int64_t(0));
+        if (expectedSize < 0 || expectedSize > 512LL * 1024 * 1024 || archive_entry_size(entry) != expectedSize)
           throw Error("E_MEDIA_MISMATCH", "Alias media size differs");
         QByteArray data;
         char buffer[128 * 1024];
@@ -224,9 +222,20 @@ void Archive::makeUserMediaAlias(const Json &requirements,
           data.append(buffer, static_cast<qsizetype>(n));
         }
         if (n < 0 || data.size() != expectedSize ||
-            (crc ^ 0xffffffffU) != match->value("crc32", quint32(0)))
+            (crc ^ 0xffffffffU) != matches.first()->value("crc32", quint32(0)))
           throw Error("E_MEDIA_MISMATCH",
                       "Alias media CRC differs from confirmed identity");
+        for (const auto *match : matches) {
+          if (match->value("size",int64_t(-1)) != data.size() ||
+              match->value("crc32",quint32(0)) != (crc ^ 0xffffffffU))
+            throw Error("E_MEDIA_MISMATCH", "Content-identical aliases require matching size and CRC");
+          const auto target = string(*match, "targetName");
+          validateRelative(target);
+          if (targets.contains(target.toCaseFolded())) throw Error("E_ARCHIVE_UNSAFE", "Alias target collision");
+          targets.insert(target.toCaseFolded());
+        if (directory) {
+          atomicWrite(scopedPath(target, destination), data);
+        } else {
         auto *out = archive_entry_new();
         archive_entry_set_pathname(out, target.toUtf8().constData());
         archive_entry_set_size(out, data.size());
@@ -240,12 +249,15 @@ void Archive::makeUserMediaAlias(const Json &requirements,
           throw Error("E_WRITE_DENIED", "Cannot write local media alias");
         }
         archive_entry_free(out);
-        found.insert(name);
+        }
+          found.insert(target.toCaseFolded());
+        }
       }
       if (status != ARCHIVE_EOF ||
           found.size() != static_cast<qsizetype>(expected.size()))
         throw Error("E_MEDIA_MISMATCH", "Required alias entries missing");
     }
+    if (!directory) {
     if (archive_write_close(writer) != ARCHIVE_OK)
       throw Error("E_ARCHIVE_CORRUPT", "Cannot finish local media alias");
     archive_write_free(writer);
@@ -254,12 +266,49 @@ void Archive::makeUserMediaAlias(const Json &requirements,
       throw Error("E_WRITE_CONFLICT", "Alias target already exists");
     if (!QFile::rename(temp, destination))
       throw Error("E_WRITE_DENIED", "Cannot publish local media alias");
+    }
   } catch (...) {
     if (writer)
       archive_write_free(writer);
     QFile::remove(temp);
     throw;
   }
+}
+} // namespace
+void Archive::makeUserMediaAlias(const Json &requirements, const QString &destination) {
+  materializeUserMedia(requirements, destination, false);
+}
+QStringList Archive::prepareRomset(const Json &binding, const Json &files,
+                                  const QString &set, const QString &destination) {
+  if (!binding.value("verified", false) || string(binding,"proof") != "mame-header-crc" ||
+      string(binding,"identity") != set)
+    throw Error("E_MEDIA_MISMATCH", "Scan and verify the exact native game set before installing");
+  Json selected=Json::array(); QMap<QString,qsizetype> sources; QStringList names;
+  for (const auto &file : files) {
+    const auto name=string(file,"name"); QStringList aliases{name};
+    for (const auto &alias : file.value("aliases",Json::array())) aliases<<QString::fromStdString(alias.get<std::string>());
+    Json match=Json::object(); QString path; int matches=0;
+    for (const auto &requirement : binding.value("supportRequirements",Json::array()))
+      for (const auto &entry : requirement.value("entries",Json::array()))
+        if (aliases.contains(string(entry,"targetName"))) {
+          if (entry.value("size",int64_t(-1)) != file.value("size",int64_t(0)))
+            throw Error("E_MEDIA_MISMATCH", "Native chip size differs: " + name);
+          match=entry; path=string(requirement,"sourcePath"); ++matches;
+        }
+    if (!matches) throw Error("E_MEDIA_MISSING", "Required native chip missing: " + name + "; scan the matching game files");
+    if (matches != 1) throw Error("E_MEDIA_MISMATCH", "Native chip admission is ambiguous: " + name);
+    const QFileInfo source(path);
+    if (!source.isFile() || source.isSymLink() || source.isJunction())
+      throw Error("E_MEDIA_CHANGED", "Verified native source archive is missing or linked; scan again");
+    match["targetName"]=name.toStdString();
+    if (!sources.contains(path)) {
+      sources[path]=static_cast<qsizetype>(selected.size());
+      selected.push_back({{"sourcePath",path.toStdString()},{"entries",Json::array()}});
+    }
+    selected[static_cast<size_t>(sources[path])]["entries"].push_back(match); names<<name;
+  }
+  materializeUserMedia(selected,destination,true);
+  return names;
 }
 QList<ArchiveEntry> Archive::inspect(const QString &path, ArchiveLimits limits,
                                      const Json &guard) {

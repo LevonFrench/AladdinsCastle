@@ -78,7 +78,8 @@ void UiController::refreshDetailControls(){
 void UiController::syncDetailControls(bool force){
  const auto game=m_games->find(m_detailId);const auto selected=game?variant(*game):nullptr;
  const auto hardware=game?str(game->raw,"hardware"):QString();
- const auto route=selected&&hardware=="nintendo-wii"&&selected->generated&&selected->id=="dolphin"?QString("flat-dolphin"):selected?selected->id:QString();
+ auto route=selected&&hardware=="nintendo-wii"&&selected->generated&&selected->id=="dolphin"?QString("flat-dolphin"):selected?selected->id:QString();
+ if(selected&&!selected->generated){const auto explicitRoute=str(selected->raw,"controls_route");if(!explicitRoute.isEmpty())route=explicitRoute;}
  const auto gameId=game?game->id:QString(),variantId=selected?selected->id:QString();
  if(force||!m_detailControls.selectionMatches(gameId,variantId,hardware,route))
    m_detailControls.selectGame(gameId,variantId,hardware,route);

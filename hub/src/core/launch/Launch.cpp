@@ -220,20 +220,56 @@ Request gameRequest(const CatalogData &catalog,const QString &gameId,const QStri
   request.discIdentities=discChecks(installed.bindings);
   auto &launch=request.plan;launch.executable=install::scopedPath(install::string(authored,"exe"),plan.installDir);
   launch.cwd=install::scopedPath(install::string(authored,"cwd",plan.installDir),plan.installDir);
-  if(!QFileInfo(launch.executable).isFile()||install::hashFile(launch.executable)!=install::string(authored,"exe_sha256"))
+  auto executableHash=install::string(authored,"exe_sha256");
+  if(install::string(authored,"exe_identity")=="user-local-build") {
+    const auto local=manifest.value("local_build",Json::object()); int matches=0;
+    for(const auto &step:plan.steps) if(install::string(step,"do")=="locate-package" && install::string(step,"kind")=="local-build")
+      if(install::string(local,"port_commit")==install::string(step,"port_commit") &&
+         install::string(local,"engine_commit")==install::string(step,"engine_commit")) ++matches;
+    executableHash=install::string(local,"sha256");
+    if(matches!=1 || !QRegularExpression("\\A[0-9a-f]{64}\\z").match(executableHash).hasMatch())
+      throw Error("E_SETUP_IDENTITY","The private local build has no matching source/ownership receipt; install it first");
+  }
+  if(!QFileInfo(launch.executable).isFile()||install::hashFile(launch.executable)!=executableHash)
     throw Error("E_SETUP_IDENTITY","Authored executable identity changed; repair first");
   bool owned=false;for(const auto &file:manifest.value("file",Json::array()))
-    if(install::scopedPath(install::string(file,"path"),plan.installDir)==launch.executable&&install::string(file,"sha256")==install::string(authored,"exe_sha256"))owned=true;
+    if(install::scopedPath(install::string(file,"path"),plan.installDir)==launch.executable&&install::string(file,"sha256")==executableHash)owned=true;
   if(!owned)throw Error("E_SETUP_IDENTITY","The pinned executable has no matching ownership receipt");
   for(const auto &arg:authored["args"]){if(!arg.is_string())throw Error("E_PLAN_INVALID","Launch arguments must be strings");launch.args<<QString::fromStdString(arg.get<std::string>());}
   const auto user=install::scopedPath("User",plan.installDir);
-  int userOptions=0;for(qsizetype i=0;i<launch.args.size();++i){const auto &arg=launch.args[i];
-    if(arg=="--user"){++userOptions;if(i+1>=launch.args.size()||QDir::cleanPath(launch.args[i+1])!=user)throw Error("E_PLAN_INVALID","Authored User directory must be isolated");}
-    else if(arg.startsWith("--user=")||arg.startsWith("-u"))throw Error("E_PLAN_INVALID","Use one explicit owned --user directory");
-  }
-  if(userOptions!=1||!QFileInfo(user).isDir())throw Error("E_PLAN_INVALID","Authored User directory is missing or ambiguous");
+  const auto userMode=install::string(authored,"user_mode","argument");
+  if(userMode=="executable-directory") {
+    const auto nativeMedia=install::scopedPath("roms",user);
+    if(launch.cwd!=user || QFileInfo(launch.executable).absolutePath()!=user || !QFileInfo(nativeMedia).isDir() ||
+       launch.args!=QStringList{"--no-dialog",nativeMedia})
+      throw Error("E_PLAN_INVALID","Native host must run from its owned User executable directory with explicit media");
+    for(const auto &file:manifest.value("file",Json::array())) if(install::string(file,"origin")=="extracted") {
+      const auto path=install::scopedPath(install::string(file,"path"),plan.installDir);
+      if(install::hashFile(path)!=install::string(file,"sha256"))
+        throw Error("E_SETUP_IDENTITY","Owned native runtime support changed; repair this setup first");
+    }
+    for(const auto &step:plan.steps) if(install::string(step,"do")=="prepare-romset") {
+      if(install::string(install::expandJson(step,vars),"to")!=nativeMedia)
+        throw Error("E_PLAN_INVALID","Native prepared media must belong to the owned User directory");
+      for(const auto &file:step["files"]) {
+        const auto path=install::scopedPath(install::string(file,"name"),nativeMedia); QString expected;
+        for(const auto &receipt:manifest.value("file",Json::array()))
+          if(install::scopedPath(install::string(receipt,"path"),plan.installDir)==path) expected=install::string(receipt,"sha256");
+        if(expected.isEmpty() || install::hashFile(path)!=expected)
+          throw Error("E_MEDIA_CHANGED","Owned native media changed or has no installation receipt; repair first");
+      }
+    }
+  } else if(userMode=="argument") {
+    int userOptions=0;for(qsizetype i=0;i<launch.args.size();++i){const auto &arg=launch.args[i];
+      if(arg=="--user"){++userOptions;if(i+1>=launch.args.size()||QDir::cleanPath(launch.args[i+1])!=user)throw Error("E_PLAN_INVALID","Authored User directory must be isolated");}
+      else if(arg.startsWith("--user=")||arg.startsWith("-u"))throw Error("E_PLAN_INVALID","Use one explicit owned --user directory");
+    }
+    if(userOptions!=1||!QFileInfo(user).isDir())throw Error("E_PLAN_INVALID","Authored User directory is missing or ambiguous");
+  } else throw Error("E_PLAN_INVALID","Unknown authored User directory contract");
   launch.payloadRoots<<plan.installDir;launch.writableDirs<<user;
   launch.data={{"game",gameId.toStdString()},{"variant",variantId.toStdString()},{"quality",variant->quality.toStdString()},{"runtime",request.runtime.toStdString()}};
+  launch.data["user_dir"]=user.toStdString();
+  if(userMode=="executable-directory")launch.data["media_dir"]=install::scopedPath("roms",user).toStdString();
   return request;
 }
 QString lastLines(const QString &path, int count) {

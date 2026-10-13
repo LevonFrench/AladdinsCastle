@@ -59,6 +59,8 @@ struct ArchiveEntry {
 class Archive {
 public:
   static void makeUserMediaAlias(const Json &requirements, const QString &destination);
+  static QStringList prepareRomset(const Json &binding, const Json &files,
+                                  const QString &set, const QString &destination);
   static QList<ArchiveEntry> inspect(const QString &path,
                                      ArchiveLimits limits = {},
                                      const Json &guard = Json::object());
