@@ -71,7 +71,9 @@ bool ControlsViewModel::loadResolved(const QVariantMap &result, const QString &d
     clear();
     const auto data = result.value("data").toMap();
     static const QRegularExpression id("^[a-z0-9]+(?:-[a-z0-9]+)*$");
-    if (data.value("version").toString() != "0.1" || !id.match(result.value("model").toString()).hasMatch() ||
+    const bool cabinetWithoutModel=data.value("schema")=="system22-native/1"&&data.value("family")=="system22"&&
+        QStringList{"wheel","handlebars","trackball"}.contains(result.value("control_type").toString())&&result.value("model").toString().isEmpty();
+    if (data.value("version").toString() != "0.1" || (!cabinetWithoutModel&&!id.match(result.value("model").toString()).hasMatch()) ||
         result.value("game_id").toString().isEmpty() || data.value("title").toString().isEmpty()) {
         m_error = "Controls data is unavailable"; emit changed(); return false;
     }
@@ -159,6 +161,11 @@ void ControlsViewModel::loadPreview() {
 }
 
 QString ControlsViewModel::elementHand(const QVariantMap &element, const QVariantMap &binding) const {
+    if (m_data.value("schema")=="system22-native/1"&&m_data.value("family")=="system22") {
+        const auto role=binding.value("role").toString();
+        if (role=="saved-primary") return m_primaryHand;
+        if (role=="saved-off") return m_primaryHand=="right"?"left":"right";
+    }
     if (wiiControls()) {
         if(m_data.value("schema").toString()=="shell-stick/1") {
             const QString firing=element.value("slot").toInt()==0 ? m_primaryHand : (m_primaryHand=="right"?"left":"right");
@@ -192,7 +199,7 @@ QString ControlsViewModel::bindingLabel(const QVariantMap &binding, const QStrin
     else if (control == "thumbstick_click") label = side + " thumbstick click";
     else if (control == "menu_chord") label = "Menu chord";
     else if (control == "pointer") label = side + " gun direction";
-    else if (control == "thumbstick") label = side + " thumbstick";
+    else if (control == "thumbstick") label = side + " thumbstick" + (binding.value("component")=="x" ? " left/right" : binding.value("component")=="y" ? " forward/back" : "");
     else if (control == "click") label = side + " thumbstick click";
     else if (control == "up" || control == "down" || control == "left" || control == "right") label = side + " thumbstick " + control;
     else if (control == "menu") label = side + " menu button";

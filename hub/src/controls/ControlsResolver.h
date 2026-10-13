@@ -37,6 +37,6 @@ public:
     static bool readConfinedToml(const QString &root,const QString &relative,QVariantMap &out,QString &error,bool optional=false);
 private:
     QString m_root;
-    QVariantMap m_games,m_models,m_sets,m_gunDefaults,m_defaults,m_hardware,m_wii;
+    QVariantMap m_games,m_models,m_sets,m_gunDefaults,m_defaults,m_hardware,m_wii,m_system22;
 };
 }

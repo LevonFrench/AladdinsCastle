@@ -250,7 +250,16 @@ class Resolver:
                         mid+': invalid motion drive')
 
     def resolve_game(self,gid,backend=None,pack_overrides=(),user_override=None,proposed_override=None,
-                     game_overrides=(),profile_defaults=None,profile_model=None,model_overrides=()):
+                     game_overrides=(),profile_defaults=None,profile_model=None,model_overrides=(),route=None):
+        if route is not None:
+            require(route=='namco22-vr','Unknown explicit native controls route')
+            require(not (backend is not None or pack_overrides or user_override is not None or proposed_override is not None or
+                         game_overrides or model_overrides or profile_model),'System22 source route requires its dedicated authored mapping')
+            require(not profile_defaults or set(profile_defaults)=={'policy'},'Unsupported System22 profile defaults')
+            policy=(profile_defaults or {}).get('policy',{})
+            require(not policy or set(policy)=={'p1_hand'},'Only saved primary hand is supported by System22 source data')
+            from system22_controls import resolve_game
+            return resolve_game(self.root,gid,policy.get('p1_hand','right'))
         # Wii uses emulator-native parts/DSU inputs, not the arcade ABI vocabulary.
         # One compiled mapping is consumed by both the Python export and native UI.
         wii_catalog=self.root/'data/controls/wii/view-catalog.json'
