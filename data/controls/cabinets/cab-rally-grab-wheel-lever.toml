@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Existing versionless cabinet format from config-spec section 5.
+id = "cab-rally-grab-wheel-lever"
+title = "Rally / grab wheel / lever"
+seat = { height_m = 0.55, posture = "seated" }
+
+[[element]]
+id = "wheel"
+label = "Steering"
+type = "wheel"
+source = "both_hands"
+node = "pivot_wheel"
+output = { axis = "Steering", range = [0, 255], centre = 128, invert = false }
+model = "wheel-three-spoke"
+position = [0, 0.78, -0.42]
+tilt_deg = 25
+radius_m = 0.176
+range_deg = 270
+extractor = "bar_roll"
+axes = { component = "wheel_normal", positive = "clockwise/right" }
+calibration = { centre = "before_launch", range = [-135, 135] }
+grab = { required = true, button = "grip", radius_m = 0.06, soft_lock = true, preserve_current_angle = true, one_hand_fallback = "angle_about_hub", anchors = ["grab_left", "grab_right"] }
+curve = { deadzone = 0.025, gamma = 1 }
+spring = { return_speed = 6 }
+tracking_loss = "freeze_then_neutral"
+haptics = { centre_detent = 0.2 }
+model_instance = "wheel-three-spoke-p1"
+label_node = "label_steering"
+
+[[element]]
+id = "accelerator"
+label = "Accelerator"
+type = "pedal"
+source = "right_trigger"
+node = "pivot_accelerator"
+output = { axis = "Accelerator", range = [0, 255], invert = false }
+model = "pedals-dual"
+position = [0, 0.1, -0.48]
+extractor = "trigger"
+curve = { deadzone = 0.04, gamma = 1.4 }
+axes = { positive = "squeeze" }
+grab = { required = false }
+model_instance = "pedals-dual-p1"
+label_node = "label_accelerator"
+
+[[element]]
+id = "brake"
+label = "Brake"
+type = "pedal"
+source = "left_trigger"
+node = "pivot_brake"
+output = { axis = "Brake", range = [0, 255], invert = false }
+model = "pedals-dual"
+position = [0, 0.1, -0.48]
+extractor = "trigger"
+curve = { deadzone = 0.04, gamma = 1.4 }
+axes = { positive = "squeeze" }
+grab = { required = false }
+model_instance = "pedals-dual-p1"
+label_node = "label_brake"
+
+[[element]]
+id = "shifter"
+label = "Four-speed gear"
+type = "shifter_h"
+source = "right_hand"
+node = "pivot_shift"
+output = { gear_1 = "GearShift1", gear_2 = "GearShift2", gear_3 = "GearShift3", gear_4 = "GearShift4", neutral = "GearShiftN" }
+model = "shifter-four-gate"
+position = [0.26, 0.55, -0.25]
+extractor = "lever_slide"
+axes = { plane = "xz", forward = "negative_z" }
+range_m = { x = [-0.037, 0.037], z = [-0.054, 0.054] }
+grab = { required = true, button = "right_grip", radius_m = 0.055, soft_lock = true, anchors = ["grab_knob"] }
+gate = { forward_left = 1, back_left = 2, forward_right = 3, back_right = 4, neutral_band_m = 0.012, snap = true, latch_on_release = true }
+binding = { mode = "hold" }
+haptics = { gear_detent = 0.25 }
+model_instance = "shifter-four-gate-p1"
+label_node = "label_shifter"
+
+[[element]]
+id = "start"
+label = "Start"
+type = "button"
+source = "right_primary"
+node = ""
+output = { button = "Start1" }
+binding = { mode = "press" }
+
+[[element]]
+id = "coin"
+label = "Insert credit"
+type = "button"
+source = "right_secondary"
+node = ""
+output = { button = "Coin1" }
+binding = { mode = "press" }
+
+[[element]]
+id = "view"
+label = "Change view"
+type = "button"
+source = "right_thumbstick_click"
+node = "button_view"
+output = { button = "ViewChange" }
+model = "panel-view-one"
+binding = { mode = "press", modifier = "right_grip_released" }
+model_instance = "panel-view-one-p1"
+position = [0, 0.85, -0.4]
+label_node = "label_view"
+
+[[element]]
+id = "handbrake"
+label = "Handbrake"
+type = "lever"
+source = "right_hand"
+node = "pivot_handbrake"
+output = { button = "HandBrake", range = [0, 1] }
+model = "handbrake-lever"
+position = [0.32, 0.53, -0.2]
+extractor = "lever_slide"
+range_m = [0, 0.15]
+axes = { positive = "pull_up/back" }
+grab = { required = true, button = "grip", soft_lock = true, anchors = ["grab_handle"] }
+binding = { threshold = 0.55, mode = "hold" }
+fallback_binding = { hand = "left", control = "primary", mode = "hold" }
+model_instance = "handbrake-lever-p1"
+label_node = "label_handbrake"

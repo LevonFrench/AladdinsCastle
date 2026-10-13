@@ -1,0 +1,43 @@
+id = "panel-view-four"
+title = "Four view buttons"
+model = "assets/controls/panel-view-four.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.view_1]
+node = "button_view_1"
+lod_nodes = ["button_view_1", "button_view_1_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "VR1"
+
+[motion.view_2]
+node = "button_view_2"
+lod_nodes = ["button_view_2", "button_view_2_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "VR2"
+
+[motion.view_3]
+node = "button_view_3"
+lod_nodes = ["button_view_3", "button_view_3_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "VR3"
+
+[motion.view_4]
+node = "button_view_4"
+lod_nodes = ["button_view_4", "button_view_4_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "VR4"

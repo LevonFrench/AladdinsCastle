@@ -1,0 +1,18 @@
+id = "handbrake-lever"
+model = "assets/controls/handbrake-lever.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.handbrake]
+node = "pivot_handbrake"
+lod_nodes = ["pivot_handbrake", "pivot_handbrake_lod1"]
+kind = "rotate"
+axis = [1, 0, 0]
+range = [0, 0.7]
+drive = "HandBrake"

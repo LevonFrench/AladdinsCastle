@@ -1,0 +1,27 @@
+id = "pedals-dual"
+title = "Gas and brake pedals"
+model = "assets/controls/pedals-dual.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.accelerator]
+node = "pivot_accelerator"
+lod_nodes = ["pivot_accelerator", "pivot_accelerator_lod1"]
+kind = "rotate"
+axis = [1, 0, 0]
+range = [0, 0.25]
+drive = "Accelerator"
+
+[motion.brake]
+node = "pivot_brake"
+lod_nodes = ["pivot_brake", "pivot_brake_lod1"]
+kind = "rotate"
+axis = [1, 0, 0]
+range = [0, 0.25]
+drive = "Brake"

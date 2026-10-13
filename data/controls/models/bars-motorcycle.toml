@@ -1,0 +1,36 @@
+id = "bars-motorcycle"
+model = "assets/controls/bars-motorcycle.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.steering]
+node = "pivot_steering"
+lod_nodes = ["pivot_steering", "pivot_steering_lod1"]
+kind = "rotate"
+axis = [0, -1, 0]
+range = [-0.523599, 0.523599]
+drive = "Steering"
+
+[motion.throttle]
+node = "pivot_throttle"
+lod_nodes = ["pivot_throttle", "pivot_throttle_lod1"]
+kind = "rotate"
+axis = [1, 0, 0]
+range = [0, 1.047198]
+drive = "Accelerator"
+
+[motion.front_brake]
+node = "pivot_front_brake"
+lod_nodes = ["pivot_front_brake", "pivot_front_brake_lod1"]
+kind = "rotate"
+axis = [0, -1, 0]
+range = [0, 0.3]
+drive = "Brake"
+
+# Left clutch lever is visible cabinet hardware; Supermodel declares no Clutch input.

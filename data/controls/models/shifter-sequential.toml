@@ -1,0 +1,18 @@
+id = "shifter-sequential"
+model = "assets/controls/shifter-sequential.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.shift]
+node = "pivot_shift"
+lod_nodes = ["pivot_shift", "pivot_shift_lod1"]
+kind = "rotate"
+axis = [-1, 0, 0]
+range = [-0.4, 0.4]
+drive = "shift"

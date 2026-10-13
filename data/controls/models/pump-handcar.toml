@@ -1,0 +1,42 @@
+id = "pump-handcar"
+model = "assets/controls/pump-handcar.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.pump_1]
+node = "pivot_pump_1"
+lod_nodes = ["pivot_pump_1", "pivot_pump_1_lod1"]
+kind = "rotate"
+axis = [-1, 0, 0]
+range = [-0.52, 0.52]
+drive = "MagicalLever1"
+
+[motion.pump_2]
+node = "pivot_pump_2"
+lod_nodes = ["pivot_pump_2", "pivot_pump_2_lod1"]
+kind = "rotate"
+axis = [-1, 0, 0]
+range = [-0.52, 0.52]
+drive = "MagicalLever2"
+
+[motion.pedal_1]
+node = "button_pedal_1"
+lod_nodes = ["button_pedal_1", "button_pedal_1_lod1"]
+kind = "rotate"
+axis = [1, 0, 0]
+range = [0, 0.18]
+drive = "MagicalPedal1"
+
+[motion.pedal_2]
+node = "button_pedal_2"
+lod_nodes = ["button_pedal_2", "button_pedal_2_lod1"]
+kind = "rotate"
+axis = [1, 0, 0]
+range = [0, 0.18]
+drive = "MagicalPedal2"

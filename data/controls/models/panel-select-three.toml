@@ -1,0 +1,34 @@
+id = "panel-select-three"
+model = "assets/controls/panel-select-three.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.select_1]
+node = "button_select_1"
+lod_nodes = ["button_select_1", "button_select_1_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "SkiSelect1"
+
+[motion.select_2]
+node = "button_select_2"
+lod_nodes = ["button_select_2", "button_select_2_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "SkiSelect2"
+
+[motion.select_3]
+node = "button_select_3"
+lod_nodes = ["button_select_3", "button_select_3_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "SkiSelect3"

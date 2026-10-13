@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Existing versionless cabinet format from config-spec section 5.
+id = "model3-harley"
+title = "Harley-Davidson and L.A. Riders cabinet"
+seat = { height_m = 0.55, posture = "seated" }
+
+[[element]]
+id = "bars"
+label = "Steer/bank"
+type = "handlebars"
+source = "both_hands"
+node = "pivot_steering"
+output = { axis = "Steering", range = [0, 255], centre = 128, invert = false }
+model = "bars-motorcycle"
+position = [0, 0.78, -0.4]
+extractor = "bar_yaw"
+range_deg = 60
+calibration = { centre = "before_launch", range_m = [-0.18, 0.18] }
+axes = { component = "x", positive = "right" }
+grab = { required = true, button = "grip", soft_lock = true, anchors = ["grip_left", "grab_right"] }
+spring = { return_speed = 6 }
+model_instance = "bars-motorcycle-p1"
+label_node = "label_steering"
+
+[[element]]
+id = "throttle"
+label = "Throttle"
+type = "lever"
+source = "right_trigger"
+node = "pivot_throttle"
+output = { axis = "Accelerator", range = [0, 255], invert = false }
+model = "bars-motorcycle"
+extractor = "trigger"
+range_deg = 60
+curve = { deadzone = 0.04, gamma = 1.4 }
+axes = { positive = "squeeze" }
+model_instance = "bars-motorcycle-p1"
+position = [0, 0.78, -0.4]
+label_node = "label_throttle"
+
+[[element]]
+id = "front-brake"
+label = "Front brake"
+type = "lever"
+source = "left_trigger"
+node = "pivot_front_brake"
+output = { axis = "Brake", range = [0, 255], invert = false }
+model = "bars-motorcycle"
+extractor = "trigger"
+curve = { deadzone = 0.04, gamma = 1.4 }
+model_instance = "bars-motorcycle-p1"
+position = [0, 0.78, -0.4]
+label_node = "label_front_brake"
+
+[[element]]
+id = "rear-brake"
+label = "Rear brake"
+type = "pedal"
+source = "right_primary"
+node = "pivot_pedal"
+output = { axis = "RearBrake", range = [0, 255], invert = false }
+model = "pedal-single"
+extractor = "button"
+position = [0.12, 0.1, -0.35]
+curve = { deadzone = 0.04, gamma = 1 }
+model_instance = "pedal-single-p1"
+label_node = "label_pedal"
+
+[[element]]
+id = "up"
+label = "Shift up"
+type = "button"
+source = "right_thumbstick_up"
+node = ""
+output = { button = "GearShiftUp" }
+binding = { mode = "press" }
+
+[[element]]
+id = "down"
+label = "Shift down"
+type = "button"
+source = "right_thumbstick_down"
+node = ""
+output = { button = "GearShiftDown" }
+binding = { mode = "press" }
+
+[[element]]
+id = "view"
+label = "Change view"
+type = "button"
+source = "left_primary"
+node = ""
+output = { button = "ViewChange" }
+binding = { mode = "press" }
+
+[[element]]
+id = "music"
+label = "Music select"
+type = "button"
+source = "left_secondary"
+node = ""
+output = { button = "MusicSelect" }
+binding = { mode = "press" }
+
+[[element]]
+id = "start"
+label = "Start"
+type = "button"
+source = "right_thumbstick_click"
+node = ""
+output = { button = "Start1" }
+binding = { mode = "press" }
+
+[[element]]
+id = "coin"
+label = "Insert credit"
+type = "button"
+source = "right_secondary"
+node = ""
+output = { button = "Coin1" }
+binding = { mode = "press" }
+
+[hold]
+default = "cab-motorcycle-grab-bars"
+
+[holds.cab-motorcycle-grab-bars]
+title = "Motorcycle / grab bars"
+description = "Turn grabbed handlebars; triggers work the gas and front brake."
+control_set = "cab-motorcycle-grab-bars"
+default = true
+picture_light = "assets/controls/cards/cab-motorcycle-grab-bars-light.svg"
+picture_dark = "assets/controls/cards/cab-motorcycle-grab-bars-dark.svg"
+
+[holds.cab-motorcycle-thumbstick]
+title = "Motorcycle / thumbstick"
+description = "Steer with a thumbstick while triggers work the gas and front brake."
+control_set = "cab-motorcycle-thumbstick"
+default = false
+picture_light = "assets/controls/cards/cab-motorcycle-thumbstick-light.svg"
+picture_dark = "assets/controls/cards/cab-motorcycle-thumbstick-dark.svg"
+
+[holds.cab-motorcycle-body-lean]
+title = "Motorcycle / body lean"
+description = "Choose seated head lean to steer, with trigger gas and brakes."
+control_set = "cab-motorcycle-body-lean"
+default = false
+picture_light = "assets/controls/cards/cab-motorcycle-body-lean-light.svg"
+picture_dark = "assets/controls/cards/cab-motorcycle-body-lean-dark.svg"
+
+[holds.cab-motorcycle-twist-throttle]
+title = "Motorcycle / twist throttle"
+description = "Turn the bars and twist the right grip for throttle, like a motorcycle."
+control_set = "cab-motorcycle-twist-throttle"
+default = false
+picture_light = "assets/controls/cards/cab-motorcycle-twist-throttle-light.svg"
+picture_dark = "assets/controls/cards/cab-motorcycle-twist-throttle-dark.svg"

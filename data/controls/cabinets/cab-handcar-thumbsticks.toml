@@ -1,0 +1,113 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Existing versionless cabinet format from config-spec section 5.
+id = "cab-handcar-thumbsticks"
+title = "Handcar / thumbsticks"
+seat = { height_m = 0.55, posture = "seated" }
+
+[[element]]
+id = "pump-1"
+label = "Player 1 pump"
+type = "pump"
+source = "right_thumbstick"
+node = "pivot_pump_1"
+output = { axis = "MagicalLever1", range = [0, 255], centre = 128, invert = false }
+model = "pump-handcar"
+player = 0
+extractor = "stick"
+axes = { component = "y", positive = "up" }
+range_m = [-0.16, 0.16]
+grab = { required = false, button = "grip", radius_m = 0.06, soft_lock = true }
+calibration = { centre = "before_grab" }
+tracking_loss = "neutral"
+model_instance = "pump-handcar-p1"
+position = [0, 0.85, -0.4]
+label_node = "label_pump_1"
+
+[[element]]
+id = "pedal-1"
+label = "Player 1 pedal"
+type = "pedal"
+source = "right_trigger"
+node = "button_pedal_1"
+output = { button = "MagicalPedal1", range = [0, 1] }
+model = "pump-handcar"
+player = 0
+extractor = "trigger"
+binding = { threshold = 0.55, mode = "hold" }
+model_instance = "pump-handcar-p1"
+position = [0, 0.85, -0.4]
+label_node = "button_pedal_1"
+
+[[element]]
+id = "p1-start"
+label = "Start"
+type = "button"
+source = "right_primary"
+node = ""
+output = { button = "Start1", range = [0, 1] }
+player = 0
+binding = { mode = "press" }
+
+[[element]]
+id = "p1-coin"
+label = "Insert credit"
+type = "button"
+source = "right_secondary"
+node = ""
+output = { button = "Coin1", range = [0, 1] }
+player = 0
+binding = { mode = "press" }
+
+[[element]]
+id = "pump-2"
+label = "Player 2 pump"
+type = "pump"
+source = "left_thumbstick"
+node = "pivot_pump_2"
+output = { axis = "MagicalLever2", range = [0, 255], centre = 128, invert = false }
+model = "pump-handcar"
+player = 1
+extractor = "stick"
+axes = { component = "y", positive = "up" }
+range_m = [-0.16, 0.16]
+grab = { required = false, button = "grip", radius_m = 0.06, soft_lock = true }
+calibration = { centre = "before_grab" }
+tracking_loss = "neutral"
+model_instance = "pump-handcar-p2"
+position = [0, 0.85, -0.4]
+label_node = "label_pump_2"
+
+[[element]]
+id = "pedal-2"
+label = "Player 2 pedal"
+type = "pedal"
+source = "left_trigger"
+node = "button_pedal_2"
+output = { button = "MagicalPedal2", range = [0, 1] }
+model = "pump-handcar"
+player = 1
+extractor = "trigger"
+binding = { threshold = 0.55, mode = "hold" }
+model_instance = "pump-handcar-p2"
+position = [0, 0.85, -0.4]
+label_node = "button_pedal_2"
+
+[[element]]
+id = "p2-start"
+label = "Start"
+type = "button"
+source = "left_primary"
+node = ""
+output = { button = "Start2", range = [0, 1] }
+player = 1
+binding = { mode = "press" }
+
+[[element]]
+id = "p2-coin"
+label = "Insert credit"
+type = "button"
+source = "left_secondary"
+node = ""
+output = { button = "Coin2", range = [0, 1] }
+player = 1
+binding = { mode = "press" }

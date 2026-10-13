@@ -1,0 +1,122 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Existing versionless cabinet format from config-spec section 5.
+id = "cab-ski-body-controls"
+title = "Ski platform / body controls"
+seat = { height_m = 0.55, posture = "seated" }
+
+[[element]]
+id = "ski-x"
+label = "Swing left/right"
+type = "lean_body"
+source = "head"
+node = "pivot_swing"
+output = { axis = "SkiX", range = [0, 255], centre = 128, invert = true }
+model = "platform-ski"
+position = [0, 0, -0.2]
+extractor = "body_lean"
+axes = { component = "x", positive = "right" }
+calibration = { range_m = [-0.18, 0.18], centre = "before_launch" }
+curve = { deadzone = 0.06, gamma = 1 }
+tracking_loss = "neutral"
+model_instance = "platform-ski-p1"
+label_node = "label_swing"
+
+[[element]]
+id = "ski-y"
+label = "Edge forward/back"
+type = "lean_body"
+source = "head"
+node = "pivot_edge"
+output = { axis = "SkiY", range = [0, 255], centre = 128, invert = false }
+model = "platform-ski"
+position = [0, 0, -0.2]
+extractor = "body_rock"
+axes = { component = "z", positive = "back" }
+calibration = { range_m = [-0.18, 0.18], centre = "before_launch" }
+curve = { deadzone = 0.06, gamma = 1 }
+tracking_loss = "neutral"
+model_instance = "platform-ski-p1"
+label_node = "label_edge"
+
+[[element]]
+id = "pole-left"
+label = "Jab left pole"
+type = "button"
+source = "left_trigger"
+node = "button_pole_1"
+output = { button = "SkiPollLeft", range = [0, 1] }
+model = "platform-ski"
+binding = { threshold = 0.55, mode = "hold" }
+model_instance = "platform-ski-p1"
+position = [0, 0, -0.2]
+label_node = "button_pole_1"
+
+[[element]]
+id = "pole-right"
+label = "Jab right pole"
+type = "button"
+source = "right_trigger"
+node = "button_pole_2"
+output = { button = "SkiPollRight", range = [0, 1] }
+model = "platform-ski"
+binding = { threshold = 0.55, mode = "hold" }
+model_instance = "platform-ski-p1"
+position = [0, 0, -0.2]
+label_node = "button_pole_2"
+
+[[element]]
+id = "select-1"
+label = "Select 1"
+type = "button"
+source = "right_primary"
+node = "button_select_1"
+output = { button = "SkiSelect1", range = [0, 1] }
+model = "panel-select-three"
+binding = { mode = "press" }
+model_instance = "panel-select-three-p1"
+position = [0, 0.85, -0.4]
+label_node = "label_select_1"
+
+[[element]]
+id = "select-2"
+label = "Select 2"
+type = "button"
+source = "right_secondary"
+node = "button_select_2"
+output = { button = "SkiSelect2", range = [0, 1] }
+model = "panel-select-three"
+binding = { mode = "press" }
+model_instance = "panel-select-three-p1"
+position = [0, 0.85, -0.4]
+label_node = "label_select_2"
+
+[[element]]
+id = "select-3"
+label = "Select 3"
+type = "button"
+source = "left_primary"
+node = "button_select_3"
+output = { button = "SkiSelect3", range = [0, 1] }
+model = "panel-select-three"
+binding = { mode = "press" }
+model_instance = "panel-select-three-p1"
+position = [0, 0.85, -0.4]
+label_node = "label_select_3"
+
+[[element]]
+id = "start"
+label = "Start"
+type = "button"
+source = "right_thumbstick_click"
+node = ""
+output = { button = "Start1", range = [0, 1] }
+binding = { mode = "press" }
+
+[[element]]
+id = "coin"
+label = "Insert credit"
+type = "button"
+source = "left_secondary"
+node = ""
+output = { button = "Coin1", range = [0, 1] }
+binding = { mode = "press" }

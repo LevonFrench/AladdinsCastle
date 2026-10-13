@@ -1,0 +1,42 @@
+id = "platform-ski"
+model = "assets/controls/platform-ski.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.swing]
+node = "pivot_swing"
+lod_nodes = ["pivot_swing", "pivot_swing_lod1"]
+kind = "rotate"
+axis = [0, 1, 0]
+range = [-0.35, 0.35]
+drive = "SkiX"
+
+[motion.edge]
+node = "pivot_edge"
+lod_nodes = ["pivot_edge", "pivot_edge_lod1"]
+kind = "rotate"
+axis = [1, 0, 0]
+range = [-0.26, 0.26]
+drive = "SkiY"
+
+[motion.pole_1]
+node = "button_pole_1"
+lod_nodes = ["button_pole_1", "button_pole_1_lod1"]
+kind = "slide"
+axis = [0, 0, -1]
+range = [0, 0.003]
+drive = "SkiPollLeft"
+
+[motion.pole_2]
+node = "button_pole_2"
+lod_nodes = ["button_pole_2", "button_pole_2_lod1"]
+kind = "slide"
+axis = [0, 0, -1]
+range = [0, 0.003]
+drive = "SkiPollRight"

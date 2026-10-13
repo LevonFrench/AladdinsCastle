@@ -1,0 +1,27 @@
+id = "shifter-four-gate"
+title = "Four-speed H gate and lever"
+model = "assets/controls/shifter-four-gate.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[motion.gate_x]
+node = "pivot_shift"
+lod_nodes = ["pivot_shift", "pivot_shift_lod1"]
+kind = "rotate"
+axis = [0, 0, -1]
+range = [-0.3, 0.3]
+drive = "gate_x"
+
+[motion.gate_z]
+node = "pivot_shift"
+lod_nodes = ["pivot_shift", "pivot_shift_lod1"]
+kind = "rotate"
+axis = [1, 0, 0]
+range = [-0.4, 0.4]
+drive = "gate_z"
