@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "UiController.h"
 #include "core/pinball/Pinball.h"
+#include "core/model3/Model3.h"
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
@@ -50,6 +51,7 @@ QObject *UiController::createGridModel(int columns){return new SectionedGridMode
 void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<SectionedGridModel *>(model);grid&&grid->parent()==this)grid->deleteLater();}
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_detailControls(this),m_games(games),m_filter(filter),m_settings(settings){
  connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
+ connect(settings,&UiSettings::changed,this,&UiController::model3Changed);
  m_detailControls.configure(games->catalog().root,games->catalog().packIds);
  ControlsResolver pinballLibrary;QVariantMap pinballResolved;
  if(!pinballLibrary.loadLibrary(games->catalog().root,m_pinballControlsStatus)||
@@ -239,6 +241,36 @@ void UiController::playPinball(){if(!m_pinballSelection.isEmpty())emit pinballPl
 void UiController::launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable){
  launchQueued("pinball-"+row.value("id").toString(),"vpx",closeUnavailable);
  m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");emit nowPlayingChanged();
+}
+QVariantList UiController::model3Views()const{return model3::views();}
+QVariantList UiController::model3Games()const{
+ const auto executable=m_settings->get("model3Executable",QString()).toString(),folder=m_settings->get("model3GameFolder",QString()).toString();
+ const auto chosen=m_settings->get("model3Views",QVariantMap{}).toMap();
+ QVariantList rows;
+ for(const auto &value:model3::games()){
+  auto row=value.toMap();const auto id=row.value("id").toString();
+  auto view=chosen.value(id).toString();if(model3::viewLabel(view).isEmpty())view="screen";
+  row["view"]=view;row["viewLabel"]=model3::viewLabel(view);
+  row["problem"]=model3::problem(id,executable,folder);
+  row["card"]=game(id); // Catalog colours and art where the catalog has this title.
+  rows<<row;
+ }
+ return rows;
+}
+void UiController::chooseModel3View(const QString &id,const QString &view){
+ if(model3::viewLabel(view).isEmpty())return;
+ auto chosen=m_settings->get("model3Views",QVariantMap{}).toMap();
+ if(chosen.value(id)==view)return;
+ chosen[id]=view;m_settings->set("model3Views",chosen);
+}
+void UiController::playModel3(const QString &id){
+ for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,row.value("view").toString());return;}}
+}
+void UiController::launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable){
+ launchQueued("model3-"+id,view,closeUnavailable);
+ for(const auto &value:model3::games())if(value.toMap().value("id")==id)m_nowPlaying["title"]=value.toMap().value("title").toString()+" · "+model3::viewLabel(view);
+ m_nowPlaying["hint"]="Home = set straight ahead. 1 = start, 3 = coin, Esc = quit. The picture is also on the PC monitor.";
+ emit nowPlayingChanged();
 }
 void UiController::launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable){
  m_restartAfterClose=false;

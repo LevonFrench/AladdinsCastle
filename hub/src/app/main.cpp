@@ -109,6 +109,7 @@ int main(int argc,char **argv){
     context->setContextProperty("gameModel",&games);context->setContextProperty("gameFilter",&filter);
     context->setContextProperty("uiSettings",&settings);context->setContextProperty("uiController",&ui);
     context->setContextProperty("hubServices",&services);context->setContextProperty("overlayHost",&overlay);
+    context->setContextProperty("startView",qEnvironmentVariable("AC_UI_VIEW"));
     context->setContextProperty("spikeState",&spike);context->setContextProperty("overlaySpikeEnabled",options.spike);
     context->setContextProperty("surfaceColor",theme.get("color.surface.window"));
     context->setContextProperty("primaryTextColor",theme.get("color.text.primary"));context->setContextProperty("brandColor",theme.get("color.brand.orange"));

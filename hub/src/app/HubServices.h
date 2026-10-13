@@ -82,6 +82,7 @@ private:
     void installTool(const QString &gameId,const QString &variantId,const QString &handover={});
     void startGunRoom(const gunroom::Inputs &inputs);
     void startPinball(const QVariantMap &row,const QString &executable);
+    void startModel3(const QString &id,const QString &view);
     gunroom::Inputs gunRoomInputs(const QString &model,const QString &hand,const QString &executable) const;
     GameListModel *games_; FilterSortModel *filter_; UiController *ui_;
     UiSettings *settings_; QString root_, removalText_;

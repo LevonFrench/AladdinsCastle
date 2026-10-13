@@ -60,6 +60,8 @@ add_library(hubcore STATIC
     src/core/scan/Headers.cpp
     src/core/pinball/Pinball.cpp
     src/core/pinball/Pinball.h
+    src/core/model3/Model3.cpp
+    src/core/model3/Model3.h
     src/core/scan/HeaderSafety.cpp
     src/core/scan/HeaderSafety.h
     src/core/scan/ScanController.cpp
@@ -194,6 +196,11 @@ if(BUILD_TESTING)
     target_link_libraries(gun-room-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(gun-room-tests)
     add_test(NAME hub-gun-room COMMAND gun-room-tests)
+    qt_add_executable(model3-tests tests/Model3Test.cpp)
+    target_link_libraries(model3-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(model3-tests)
+    set_target_properties(model3-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-model3 COMMAND model3-tests -o -,txt)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})
