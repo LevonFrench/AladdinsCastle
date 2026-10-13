@@ -1,0 +1,2184 @@
+{
+  "version": "0.1",
+  "schema": "system22-native/1",
+  "route": "namco22-vr",
+  "source_only": true,
+  "games": [
+    {
+      "game_id": "timecris",
+      "model": "arc-pistol-slide",
+      "model_provenance": "existing gun defaults",
+      "shape_review": false,
+      "control_set": "system22-tc-single-gun",
+      "control_type": "gun",
+      "layers": [
+        "data/controls/system22/controls.toml:sets.tc-single-gun",
+        "data/controls/system22/controls.toml:assignments.timecris"
+      ],
+      "data": {
+        "title": "Time Crisis controls",
+        "element": [
+          {
+            "id": "fire-left",
+            "label": "Select this firing hand / fire",
+            "part": "trigger",
+            "node": "pivot_trigger",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "gun",
+              "semantic": "trigger"
+            },
+            "binding": {
+              "role": "left",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "left",
+              "source_openxr_path": "/user/hand/left/input/trigger/value"
+            },
+            "source_action": "trigger",
+            "when": "playing",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "gun-node",
+              "node": "pivot_trigger",
+              "hand_role": "active-gun"
+            },
+            "source_rule": "Armed below0.2; press above0.55; latest fresh trigger edge selects ONE active gun; exact ties keep its hand.",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "fire-right",
+            "label": "Select this firing hand / fire",
+            "part": "trigger",
+            "node": "pivot_trigger",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "gun",
+              "semantic": "trigger"
+            },
+            "binding": {
+              "role": "right",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "right",
+              "source_openxr_path": "/user/hand/right/input/trigger/value"
+            },
+            "source_action": "trigger",
+            "when": "playing",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "gun-node",
+              "node": "pivot_trigger",
+              "hand_role": "active-gun"
+            },
+            "source_rule": "Armed below0.2; press above0.55; latest fresh trigger edge selects ONE active gun; exact ties keep its hand.",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "cover-left",
+            "label": "Pedal down / expose; release to cover",
+            "part": "cover-pedal",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "cover_pedal"
+            },
+            "binding": {
+              "role": "left",
+              "control": "grip",
+              "mode": "hold",
+              "hand": "left",
+              "source_openxr_path": "/user/hand/left/input/squeeze/value"
+            },
+            "source_action": "grip_cover",
+            "when": "playing",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "left"
+            },
+            "source_rule": "Grip cover mode only: maximum of either squeeze; game pedal bit above0.55. Release returns to cover.",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "cover-right",
+            "label": "Pedal down / expose; release to cover",
+            "part": "cover-pedal",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "cover_pedal"
+            },
+            "binding": {
+              "role": "right",
+              "control": "grip",
+              "mode": "hold",
+              "hand": "right",
+              "source_openxr_path": "/user/hand/right/input/squeeze/value"
+            },
+            "source_action": "grip_cover",
+            "when": "playing",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "right"
+            },
+            "source_rule": "Grip cover mode only: maximum of either squeeze; game pedal bit above0.55. Release returns to cover.",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "coin",
+            "label": "Insert credit",
+            "part": "coin-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "coin"
+            },
+            "binding": {
+              "role": "saved-primary",
+              "control": "primary",
+              "mode": "press",
+              "hand": "right",
+              "source_openxr_path": "/user/hand/right/input/a/click"
+            },
+            "source_action": "lower_button",
+            "when": "focused",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "saved-primary"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "laser",
+            "label": "Toggle laser",
+            "part": "laser",
+            "node": "fx_laser",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "runtime",
+              "semantic": "laser_toggle"
+            },
+            "binding": {
+              "role": "saved-primary",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "right",
+              "source_openxr_path": "/user/hand/right/input/b/click"
+            },
+            "source_action": "upper_button",
+            "when": "focused",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "gun-node",
+              "node": "fx_laser",
+              "hand_role": "active-gun"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "recenter",
+            "label": "Recenter",
+            "part": "recenter-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "runtime",
+              "semantic": "recenter"
+            },
+            "binding": {
+              "role": "saved-off",
+              "control": "primary",
+              "mode": "press",
+              "hand": "left",
+              "source_openxr_path": "/user/hand/left/input/x/click"
+            },
+            "source_action": "lower_button",
+            "when": "focused",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "saved-off"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "cover-mode",
+            "label": "Change cover mode in options",
+            "part": "cover-mode-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-host",
+              "semantic": "cover_mode"
+            },
+            "binding": {
+              "role": "saved-off",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "left",
+              "source_openxr_path": "/user/hand/left/input/y/click"
+            },
+            "source_action": "upper_button",
+            "when": "paused",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "saved-off"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "pause",
+            "label": "Pause / options",
+            "part": "menu-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "runtime",
+              "semantic": "pause"
+            },
+            "binding": {
+              "role": "left",
+              "control": "menu",
+              "mode": "press",
+              "hand": "left",
+              "source_openxr_path": "/user/hand/left/input/menu/click"
+            },
+            "source_action": "pause",
+            "when": "focused",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "left"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "weapon-hand",
+            "label": "Change saved primary hand in options",
+            "part": "hand-option",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-host",
+              "semantic": "weapon_hand"
+            },
+            "binding": {
+              "role": "right",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "hand": "right",
+              "source_openxr_path": "/user/hand/right/input/thumbstick/click"
+            },
+            "source_action": "weapon_hand",
+            "when": "paused",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "right"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "gun-angle",
+            "label": "Adjust gun angle in options",
+            "part": "angle-option",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-host",
+              "semantic": "gun_angle"
+            },
+            "binding": {
+              "role": "right",
+              "control": "thumbstick",
+              "mode": "hold",
+              "component": "y",
+              "hand": "right",
+              "source_openxr_path": "/user/hand/right/input/thumbstick"
+            },
+            "source_action": "gun_angle",
+            "when": "paused",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "right"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "gun-angle-reset",
+            "label": "Reset gun angle in options",
+            "part": "angle-reset",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-host",
+              "semantic": "gun_angle_reset"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "hand": "left",
+              "source_openxr_path": "/user/hand/left/input/thumbstick/click"
+            },
+            "source_action": "gun_angle_reset",
+            "when": "paused",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "left"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          },
+          {
+            "id": "view-distance",
+            "label": "Adjust view distance in options",
+            "part": "distance-option",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-host",
+              "semantic": "view_distance"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick",
+              "mode": "hold",
+              "component": "y",
+              "hand": "left",
+              "source_openxr_path": "/user/hand/left/input/thumbstick"
+            },
+            "source_action": "view_distance",
+            "when": "paused",
+            "binding_evidence": "source",
+            "anchor": {
+              "kind": "controller",
+              "node": "",
+              "hand_role": "left"
+            },
+            "availability": {
+              "state": "unavailable",
+              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+            }
+          }
+        ],
+        "attachment": {
+          "model_anchor": "grip",
+          "hand_role": "active-gun",
+          "target_pose": "tracked grip position with aim orientation and measured hand calibration",
+          "state": "pending-adopted-host-grip-pose-model-conversion-and-label-consumer"
+        },
+        "label": [
+          {
+            "id": "aim",
+            "part": "barrel",
+            "label": "Aim",
+            "node": "muzzle",
+            "hand_role": "active-gun",
+            "source_action": "aim"
+          },
+          {
+            "id": "fire",
+            "part": "trigger",
+            "label": "Fire",
+            "node": "pivot_trigger",
+            "hand_role": "active-gun",
+            "element_by_hand": {
+              "left": "fire-left",
+              "right": "fire-right"
+            }
+          },
+          {
+            "id": "laser",
+            "part": "laser",
+            "label": "Toggle laser",
+            "node": "fx_laser",
+            "hand_role": "active-gun",
+            "element": "laser"
+          }
+        ],
+        "control_set": "tc-single-gun",
+        "control_type": "gun",
+        "gun_model": "arc-pistol-slide",
+        "source_project": "tc1",
+        "source_files": [
+          "quest/quest_host.c:225-261",
+          "quest/quest_host.c:373-441",
+          "quest/quest_host.c:740-755"
+        ],
+        "source_pin": "e5a5f7d204e4be8e96ed2396ebea3886c833f021",
+        "questions": [
+          "Confirm game instruction-screen captions at the next owner sitting.",
+          "Adopted host still needs our model conversion, a grip pose and the hand-label draw consumer."
+        ],
+        "source_inputs": {
+          "fire_bit": 16,
+          "pedal_bit": 32,
+          "coin_bit": 1
+        },
+        "options": {
+          "requested_cover_mode": "grip",
+          "physical_crouch_is_optional_source_mode": true
+        },
+        "version": "0.1",
+        "schema": "system22-native/1",
+        "family": "system22",
+        "route": "namco22-vr",
+        "id": "system22-tc-single-gun",
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "off",
+          "native_players": 1,
+          "hand_switch": "trigger"
+        }
+      },
+      "model_metadata": {
+        "id": "arc-pistol-slide",
+        "name": "Arcade pistol with blowback slide",
+        "family": "arcade",
+        "hold": "one-hand",
+        "tier": 1,
+        "model": "assets/guns/arc-pistol-slide.glb",
+        "source": "assets/guns/src/arc-pistol-slide.py",
+        "resembles": "Namco's tethered cabinet pistols (Time Crisis series, with recoil; Point Blank series; Ninja Assault; Vampire Night)",
+        "shape": "Full-size semi-automatic with a separate slide that travels back about 15 mm, chunky rounded grip, cable boss under the grip.",
+        "length_mm": 255,
+        "features": [
+          "recoil_slide",
+          "laser"
+        ],
+        "notes": "Optional node button_select for games with a weapon-select button on the gun (Time Crisis 4; to verify), hidden otherwise.",
+        "tints": {
+          "default": "red",
+          "p1": "red",
+          "p2": "blue",
+          "red": {
+            "body": "#d2362e",
+            "accent": "#1c1c20"
+          },
+          "blue": {
+            "body": "#2f6fd6",
+            "accent": "#1c1c20"
+          },
+          "pink": {
+            "body": "#e86aa6",
+            "accent": "#1c1c20"
+          },
+          "orange": {
+            "body": "#f07a1a",
+            "accent": "#1c1c20"
+          }
+        },
+        "motion": {
+          "trigger": {
+            "node": "pivot_trigger",
+            "kind": "rotate",
+            "axis": [
+              -1,
+              0,
+              0
+            ],
+            "range": [
+              0,
+              0.35
+            ],
+            "drive": "trigger",
+            "lod_nodes": [
+              "pivot_trigger",
+              "pivot_trigger_lod1"
+            ]
+          },
+          "recoil": {
+            "node": "slide_recoil",
+            "kind": "slide",
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "range": [
+              0,
+              0.015
+            ],
+            "drive": "recoil",
+            "lod_nodes": [
+              "slide_recoil",
+              "slide_recoil_lod1"
+            ],
+            "duration_ms": 45
+          }
+        }
+      },
+      "two_gun_eligible": false,
+      "separate_views": false,
+      "configured_slots": 1,
+      "declared_active_slots": 0,
+      "node_validation": "source-built-references-checked",
+      "gaps": [
+        {
+          "category": "runtime-integration",
+          "id": "adopted-hand-model-labels",
+          "reason": "pending-adopted-host-grip-pose-model-conversion-and-label-consumer"
+        },
+        {
+          "category": "route-binding",
+          "id": "fire-left",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "fire-right",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "cover-left",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "cover-right",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "coin",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "laser",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "recenter",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "cover-mode",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "pause",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "weapon-hand",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "gun-angle",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "gun-angle-reset",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        },
+        {
+          "category": "route-binding",
+          "id": "view-distance",
+          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+        }
+      ]
+    },
+    {
+      "game_id": "raverace",
+      "model": "",
+      "model_provenance": "cabinet control type from pinned source",
+      "shape_review": false,
+      "control_set": "system22-wheel-sequential",
+      "control_type": "wheel",
+      "layers": [
+        "data/controls/system22/controls.toml:sets.wheel-sequential",
+        "data/controls/system22/controls.toml:assignments.raverace"
+      ],
+      "data": {
+        "title": "Rave Racer controls",
+        "element": [
+          {
+            "id": "steering",
+            "label": "Steer",
+            "part": "wheel",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "steering"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick",
+              "mode": "hold",
+              "component": "x",
+              "hand": "left"
+            },
+            "source_action": "joy_steer",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "accelerator",
+            "label": "Accelerate",
+            "part": "accelerator-pedal",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "accelerator"
+            },
+            "binding": {
+              "role": "right",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "right"
+            },
+            "source_action": "gas",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "brake",
+            "label": "Brake",
+            "part": "brake-pedal",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "brake"
+            },
+            "binding": {
+              "role": "left",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "left"
+            },
+            "source_action": "brake",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "shift-up",
+            "label": "Shift up",
+            "part": "shifter-up",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "shift_up"
+            },
+            "binding": {
+              "role": "right",
+              "control": "primary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "shift_up",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "shift-down",
+            "label": "Shift down",
+            "part": "shifter-down",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "shift_down"
+            },
+            "binding": {
+              "role": "left",
+              "control": "primary",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "shift_down",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "view",
+            "label": "Change view / select",
+            "part": "view-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "view"
+            },
+            "binding": {
+              "role": "right",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "view",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "coin",
+            "label": "Insert credit",
+            "part": "coin-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "coin"
+            },
+            "binding": {
+              "role": "left",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "coin1",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          }
+        ],
+        "control_set": "wheel-sequential",
+        "control_type": "wheel",
+        "gun_model": "",
+        "source_project": "engine",
+        "source_files": [
+          "raverace/src/rr_input.c:57-96",
+          "raverace/src/rr_host.c:774-802",
+          "raverace/src/rr_game.c:19-20"
+        ],
+        "source_pin": "a9dab183eb29e941629b473e4172b16835576d94",
+        "questions": [
+          "Verify cabinet shifter geometry; catalog hl differs from the host shift-up/down interface.",
+          "VR wheel pose, labels and controller bridge are not implemented."
+        ],
+        "source_inputs": {
+          "steering_range": [
+            640,
+            3456
+          ],
+          "accelerator_max": 1552,
+          "brake_max": 1552
+        },
+        "version": "0.1",
+        "schema": "system22-native/1",
+        "family": "system22",
+        "route": "namco22-vr",
+        "id": "system22-wheel-sequential",
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "off",
+          "native_players": 1,
+          "hand_switch": "off"
+        }
+      },
+      "model_metadata": {},
+      "two_gun_eligible": false,
+      "separate_views": false,
+      "configured_slots": 0,
+      "declared_active_slots": 0,
+      "node_validation": "not-applicable-no-control-model",
+      "gaps": [
+        {
+          "category": "control-model",
+          "id": "wheel",
+          "reason": "Appropriate cabinet model not built; no gun substitute"
+        },
+        {
+          "category": "route-binding",
+          "id": "steering",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "accelerator",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "brake",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "shift-up",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "shift-down",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "view",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "coin",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        }
+      ]
+    },
+    {
+      "game_id": "acedrive",
+      "model": "",
+      "model_provenance": "cabinet control type from pinned source",
+      "shape_review": false,
+      "control_set": "system22-wheel-sequential",
+      "control_type": "wheel",
+      "layers": [
+        "data/controls/system22/controls.toml:sets.wheel-sequential",
+        "data/controls/system22/controls.toml:assignments.acedrive"
+      ],
+      "data": {
+        "title": "Ace Driver controls",
+        "element": [
+          {
+            "id": "steering",
+            "label": "Steer",
+            "part": "wheel",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "steering"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick",
+              "mode": "hold",
+              "component": "x",
+              "hand": "left"
+            },
+            "source_action": "joy_steer",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "accelerator",
+            "label": "Accelerate",
+            "part": "accelerator-pedal",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "accelerator"
+            },
+            "binding": {
+              "role": "right",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "right"
+            },
+            "source_action": "gas",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "brake",
+            "label": "Brake",
+            "part": "brake-pedal",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "brake"
+            },
+            "binding": {
+              "role": "left",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "left"
+            },
+            "source_action": "brake",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "shift-up",
+            "label": "Shift up",
+            "part": "shifter-up",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "shift_up"
+            },
+            "binding": {
+              "role": "right",
+              "control": "primary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "shift_up",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "shift-down",
+            "label": "Shift down",
+            "part": "shifter-down",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "shift_down"
+            },
+            "binding": {
+              "role": "left",
+              "control": "primary",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "shift_down",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "view",
+            "label": "Change view / select",
+            "part": "view-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "view"
+            },
+            "binding": {
+              "role": "right",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "view",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "coin",
+            "label": "Insert credit",
+            "part": "coin-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "coin"
+            },
+            "binding": {
+              "role": "left",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "coin1",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          }
+        ],
+        "control_set": "wheel-sequential",
+        "control_type": "wheel",
+        "gun_model": "",
+        "source_project": "engine",
+        "source_files": [
+          "acedriver/src/ad_game.c:61-64",
+          "raverace/src/rr_input.c:57-96"
+        ],
+        "source_pin": "a9dab183eb29e941629b473e4172b16835576d94",
+        "questions": [
+          "Verify per-game View/shift behavior on its own instruction screen.",
+          "VR wheel pose, labels and controller bridge are not implemented."
+        ],
+        "source_inputs": {
+          "steering_range": [
+            512,
+            3584
+          ],
+          "accelerator_max": 1152,
+          "brake_max": 576
+        },
+        "version": "0.1",
+        "schema": "system22-native/1",
+        "family": "system22",
+        "route": "namco22-vr",
+        "id": "system22-wheel-sequential",
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "off",
+          "native_players": 1,
+          "hand_switch": "off"
+        }
+      },
+      "model_metadata": {},
+      "two_gun_eligible": false,
+      "separate_views": false,
+      "configured_slots": 0,
+      "declared_active_slots": 0,
+      "node_validation": "not-applicable-no-control-model",
+      "gaps": [
+        {
+          "category": "control-model",
+          "id": "wheel",
+          "reason": "Appropriate cabinet model not built; no gun substitute"
+        },
+        {
+          "category": "route-binding",
+          "id": "steering",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "accelerator",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "brake",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "shift-up",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "shift-down",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "view",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "coin",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        }
+      ]
+    },
+    {
+      "game_id": "dirtdash",
+      "model": "",
+      "model_provenance": "cabinet control type from pinned source",
+      "shape_review": false,
+      "control_set": "system22-wheel-sequential",
+      "control_type": "wheel",
+      "layers": [
+        "data/controls/system22/controls.toml:sets.wheel-sequential",
+        "data/controls/system22/controls.toml:assignments.dirtdash"
+      ],
+      "data": {
+        "title": "Dirt Dash controls",
+        "element": [
+          {
+            "id": "steering",
+            "label": "Steer",
+            "part": "wheel",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "steering"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick",
+              "mode": "hold",
+              "component": "x",
+              "hand": "left"
+            },
+            "source_action": "joy_steer",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "accelerator",
+            "label": "Accelerate",
+            "part": "accelerator-pedal",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "accelerator"
+            },
+            "binding": {
+              "role": "right",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "right"
+            },
+            "source_action": "gas",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "brake",
+            "label": "Brake",
+            "part": "brake-pedal",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "brake"
+            },
+            "binding": {
+              "role": "left",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "left"
+            },
+            "source_action": "brake",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "shift-up",
+            "label": "Shift up",
+            "part": "shifter-up",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "shift_up"
+            },
+            "binding": {
+              "role": "right",
+              "control": "primary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "shift_up",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "shift-down",
+            "label": "Shift down",
+            "part": "shifter-down",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "shift_down"
+            },
+            "binding": {
+              "role": "left",
+              "control": "primary",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "shift_down",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "view",
+            "label": "Change view / select",
+            "part": "view-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "view"
+            },
+            "binding": {
+              "role": "right",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "view",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "coin",
+            "label": "Insert credit",
+            "part": "coin-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "coin"
+            },
+            "binding": {
+              "role": "left",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "coin",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "motion-stop",
+            "label": "Cabinet motion-stop request (mapping question)",
+            "part": "motion-stop-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-cabinet",
+              "semantic": "motion_stop"
+            },
+            "binding": {
+              "role": "right",
+              "control": "thumbstick_click",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "motion_stop",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          }
+        ],
+        "control_set": "wheel-sequential",
+        "control_type": "wheel",
+        "gun_model": "",
+        "source_project": "engine",
+        "source_files": [
+          "dirtdash/src/dd_game.c:84-123"
+        ],
+        "source_pin": "a9dab183eb29e941629b473e4172b16835576d94",
+        "questions": [
+          "Motion-stop controller choice is a proposal, not a live cabinet safety control.",
+          "VR wheel pose, labels and controller bridge are not implemented."
+        ],
+        "source_inputs": {
+          "steering_range": [
+            1,
+            1023
+          ],
+          "accelerator_max": 320,
+          "brake_max": 256
+        },
+        "version": "0.1",
+        "schema": "system22-native/1",
+        "family": "system22",
+        "route": "namco22-vr",
+        "id": "system22-wheel-sequential",
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "off",
+          "native_players": 1,
+          "hand_switch": "off"
+        }
+      },
+      "model_metadata": {},
+      "two_gun_eligible": false,
+      "separate_views": false,
+      "configured_slots": 0,
+      "declared_active_slots": 0,
+      "node_validation": "not-applicable-no-control-model",
+      "gaps": [
+        {
+          "category": "control-model",
+          "id": "wheel",
+          "reason": "Appropriate cabinet model not built; no gun substitute"
+        },
+        {
+          "category": "route-binding",
+          "id": "steering",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "accelerator",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "brake",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "shift-up",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "shift-down",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "view",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "coin",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "motion-stop",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        }
+      ]
+    },
+    {
+      "game_id": "tokyowar",
+      "model": "",
+      "model_provenance": "cabinet control type from pinned source",
+      "shape_review": false,
+      "control_set": "system22-tank-wheel-pedals",
+      "control_type": "wheel",
+      "layers": [
+        "data/controls/system22/controls.toml:sets.tank-wheel-pedals",
+        "data/controls/system22/controls.toml:assignments.tokyowar"
+      ],
+      "data": {
+        "title": "Tokyo Wars controls",
+        "element": [
+          {
+            "id": "steering",
+            "label": "Steer",
+            "part": "wheel",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "steering"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick",
+              "mode": "hold",
+              "component": "x",
+              "hand": "left"
+            },
+            "source_action": "joy_steer",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "forward",
+            "label": "Move forward",
+            "part": "forward-pedal",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "accelerator"
+            },
+            "binding": {
+              "role": "right",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "right"
+            },
+            "source_action": "pedal_forward",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "backward",
+            "label": "Move backward",
+            "part": "backward-pedal",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-cabinet",
+              "semantic": "pedal_backward"
+            },
+            "binding": {
+              "role": "left",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "left"
+            },
+            "source_action": "pedal_backward",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "coin",
+            "label": "Insert credit",
+            "part": "coin-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "coin"
+            },
+            "binding": {
+              "role": "left",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "coin",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "start",
+            "label": "Start / change view",
+            "part": "start-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "start"
+            },
+            "binding": {
+              "role": "right",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "start",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "trigger-left",
+            "label": "Left cabinet trigger (game action question)",
+            "part": "wheel-left-trigger",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-cabinet",
+              "semantic": "trigger_left"
+            },
+            "binding": {
+              "role": "left",
+              "control": "primary",
+              "mode": "press",
+              "hand": "left"
+            },
+            "source_action": "trigger_left",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "trigger-right",
+            "label": "Right cabinet trigger (game action question)",
+            "part": "wheel-right-trigger",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-cabinet",
+              "semantic": "trigger_right"
+            },
+            "binding": {
+              "role": "right",
+              "control": "primary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "trigger_right",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          }
+        ],
+        "control_set": "tank-wheel-pedals",
+        "control_type": "wheel",
+        "gun_model": "",
+        "source_project": "engine",
+        "source_files": [
+          "tokyowar/src/tw_game.c:90-121"
+        ],
+        "source_pin": "a9dab183eb29e941629b473e4172b16835576d94",
+        "questions": [
+          "Confirm the game action of each handle trigger.",
+          "Linked cabinet players are not two handheld guns or a demonstrated shared-view route.",
+          "VR tank wheel/forward-backward pedal bridge remains unimplemented."
+        ],
+        "source_inputs": {
+          "steering_range": [
+            256,
+            768
+          ],
+          "forward_max": 256,
+          "backward_max": 256
+        },
+        "version": "0.1",
+        "schema": "system22-native/1",
+        "family": "system22",
+        "route": "namco22-vr",
+        "id": "system22-tank-wheel-pedals",
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "off",
+          "native_players": 1,
+          "hand_switch": "off"
+        }
+      },
+      "model_metadata": {},
+      "two_gun_eligible": false,
+      "separate_views": false,
+      "configured_slots": 0,
+      "declared_active_slots": 0,
+      "node_validation": "not-applicable-no-control-model",
+      "gaps": [
+        {
+          "category": "control-model",
+          "id": "wheel",
+          "reason": "Appropriate cabinet model not built; no gun substitute"
+        },
+        {
+          "category": "route-binding",
+          "id": "steering",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "forward",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "backward",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "coin",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "start",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "trigger-left",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "trigger-right",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        }
+      ]
+    },
+    {
+      "game_id": "propcycl",
+      "model": "",
+      "model_provenance": "cabinet control type from pinned source",
+      "shape_review": false,
+      "control_set": "system22-cycle-bars-pedals",
+      "control_type": "handlebars",
+      "layers": [
+        "data/controls/system22/controls.toml:sets.cycle-bars-pedals",
+        "data/controls/system22/controls.toml:assignments.propcycl"
+      ],
+      "data": {
+        "title": "Prop Cycle controls",
+        "element": [
+          {
+            "id": "steering",
+            "label": "Steer handlebars",
+            "part": "handlebars",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "steering"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick",
+              "mode": "hold",
+              "component": "x",
+              "hand": "left"
+            },
+            "source_action": "joy_steer",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "lean",
+            "label": "Tilt handlebars forward / back",
+            "part": "handlebar-pitch",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "stick_y"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick",
+              "mode": "hold",
+              "component": "y",
+              "hand": "left"
+            },
+            "source_action": "joy_lean",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "pedal-speed",
+            "label": "Pedal harder",
+            "part": "cycle-pedals",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "axis",
+              "semantic": "pedal_speed"
+            },
+            "binding": {
+              "role": "right",
+              "control": "trigger",
+              "mode": "hold",
+              "hand": "right"
+            },
+            "source_action": "joy_pedal",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "start",
+            "label": "Start",
+            "part": "start-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "start"
+            },
+            "binding": {
+              "role": "right",
+              "control": "primary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "start",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "coin",
+            "label": "Insert credit",
+            "part": "coin-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "coin"
+            },
+            "binding": {
+              "role": "right",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "coin",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          }
+        ],
+        "control_set": "cycle-bars-pedals",
+        "control_type": "handlebars",
+        "gun_model": "",
+        "source_project": "engine",
+        "source_files": [
+          "src/input.c:96-119",
+          "src/input.c:550-567",
+          "src/input.c:850-876"
+        ],
+        "source_pin": "a9dab183eb29e941629b473e4172b16835576d94",
+        "questions": [
+          "Confirm handlebars pitch captions and comfort with the owner.",
+          "Cadence normalization and VR handlebar/pedal bridge remain unimplemented."
+        ],
+        "source_inputs": {
+          "steering_range": [
+            191,
+            831
+          ],
+          "steering_axis_sign": -1,
+          "pitch_range": [
+            191,
+            831
+          ],
+          "pedal_level_range": [
+            0,
+            127
+          ]
+        },
+        "version": "0.1",
+        "schema": "system22-native/1",
+        "family": "system22",
+        "route": "namco22-vr",
+        "id": "system22-cycle-bars-pedals",
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "off",
+          "native_players": 1,
+          "hand_switch": "off"
+        }
+      },
+      "model_metadata": {},
+      "two_gun_eligible": false,
+      "separate_views": false,
+      "configured_slots": 0,
+      "declared_active_slots": 0,
+      "node_validation": "not-applicable-no-control-model",
+      "gaps": [
+        {
+          "category": "control-model",
+          "id": "handlebars",
+          "reason": "Appropriate cabinet model not built; no gun substitute"
+        },
+        {
+          "category": "route-binding",
+          "id": "steering",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "lean",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "pedal-speed",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "start",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "coin",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        }
+      ]
+    },
+    {
+      "game_id": "adillor",
+      "model": "",
+      "model_provenance": "cabinet control type from pinned source",
+      "shape_review": false,
+      "control_set": "system22-trackball",
+      "control_type": "trackball",
+      "layers": [
+        "data/controls/system22/controls.toml:sets.trackball",
+        "data/controls/system22/controls.toml:assignments.adillor"
+      ],
+      "data": {
+        "title": "Armadillo Racing controls",
+        "element": [
+          {
+            "id": "trackball-x",
+            "label": "Roll ball horizontally",
+            "part": "trackball",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-cabinet",
+              "semantic": "trackball_x"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick",
+              "mode": "hold",
+              "component": "x",
+              "hand": "left"
+            },
+            "source_action": "ss22_snd_trackball.dx",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "trackball-y",
+            "label": "Roll ball forward / back",
+            "part": "trackball",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "native-cabinet",
+              "semantic": "trackball_y"
+            },
+            "binding": {
+              "role": "left",
+              "control": "thumbstick",
+              "mode": "hold",
+              "component": "y",
+              "hand": "left"
+            },
+            "source_action": "ss22_snd_trackball.dy",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "start",
+            "label": "Start",
+            "part": "start-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "start"
+            },
+            "binding": {
+              "role": "right",
+              "control": "primary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "start",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          },
+          {
+            "id": "coin",
+            "label": "Insert credit",
+            "part": "coin-button",
+            "node": "",
+            "slot": 0,
+            "player": 0,
+            "input": {
+              "kind": "button",
+              "semantic": "coin"
+            },
+            "binding": {
+              "role": "right",
+              "control": "secondary",
+              "mode": "press",
+              "hand": "right"
+            },
+            "source_action": "coin",
+            "when": "playing",
+            "binding_evidence": "question",
+            "availability": {
+              "state": "unavailable",
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+            }
+          }
+        ],
+        "control_set": "trackball",
+        "control_type": "trackball",
+        "gun_model": "",
+        "source_project": "engine",
+        "source_files": [
+          "adillor/src/am_game.c:63-84",
+          "engine/ss22_input.h:39-42"
+        ],
+        "source_pin": "a9dab183eb29e941629b473e4172b16835576d94",
+        "questions": [
+          "Confirm roll direction and sensitivity in the game instruction screen.",
+          "Trackball deltas have no claimed VR axis-to-pulse bridge or built model."
+        ],
+        "version": "0.1",
+        "schema": "system22-native/1",
+        "family": "system22",
+        "route": "namco22-vr",
+        "id": "system22-trackball",
+        "policy": {
+          "p1_hand": "right",
+          "two_guns": "off",
+          "native_players": 1,
+          "hand_switch": "off"
+        }
+      },
+      "model_metadata": {},
+      "two_gun_eligible": false,
+      "separate_views": false,
+      "configured_slots": 0,
+      "declared_active_slots": 0,
+      "node_validation": "not-applicable-no-control-model",
+      "gaps": [
+        {
+          "category": "control-model",
+          "id": "trackball",
+          "reason": "Appropriate cabinet model not built; no gun substitute"
+        },
+        {
+          "category": "route-binding",
+          "id": "trackball-x",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "trackball-y",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "start",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        },
+        {
+          "category": "route-binding",
+          "id": "coin",
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
+        }
+      ]
+    }
+  ],
+  "deferred_tc2": {
+    "game_id": "timecrs2",
+    "after": "raverace-steerable",
+    "gun_model": "arc-pistol-slide",
+    "separate_views": true,
+    "two_guns_ready": false
+  }
+}

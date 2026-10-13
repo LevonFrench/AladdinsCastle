@@ -322,7 +322,37 @@ bool ControlsResolver::loadLibrary(const QString &root,QString &error) {
                 wii[gid]=row;
             }
         }
-        m_root=canonical; m_games=games; m_models=models; m_sets=sets; m_defaults=defaults; m_gunDefaults=guns; m_hardware=hardware; m_wii=wii; error.clear(); return true;
+        Map system22;
+        const auto system22Path=confined(canonical,"data/controls/system22/view-catalog.json",true);
+        if (!system22Path.isEmpty()) {
+            QFile catalog(system22Path); check(catalog.open(QIODevice::ReadOnly)&&catalog.size()<4*1024*1024,"System22 view catalog unreadable");
+            QJsonParseError parse;
+            const auto document=QJsonDocument::fromJson(catalog.readAll(),&parse).toVariant().toMap();
+            check(parse.error==QJsonParseError::NoError&&document.value("version")=="0.1"&&document.value("schema")=="system22-native/1"&&
+                  document.value("route")=="namco22-vr"&&document.value("source_only").toBool(),"Invalid System22 source catalog");
+            for (const auto &value:list(document,"games")) {
+                const auto row=value.toMap(),data=row.value("data").toMap(); const auto gid=row.value("game_id").toString();
+                check(games.contains(gid)&&!system22.contains(gid),"Invalid System22 game identity");
+                const auto systemHardware=games.value(gid).toMap().value("hardware").toString();
+                check(systemHardware=="namco-system-22"||systemHardware=="namco-super-system-22","Wrong System22 hardware");
+                const auto type=row.value("control_type").toString(),model=row.value("model").toString();
+                check((type=="gun"&&model=="arc-pistol-slide")||((type=="wheel"||type=="handlebars"||type=="trackball")&&model.isEmpty()),"Gun substitute for cabinet controls rejected");
+                check(data.value("version")=="0.1"&&data.value("schema")=="system22-native/1"&&data.value("family")=="system22"&&data.value("route")=="namco22-vr", "Invalid System22 data namespace");
+                check(row.value("declared_active_slots").toInt()==0&&!row.value("two_gun_eligible").toBool()&&
+                      data.value("policy").toMap().value("two_guns")=="off","Source handoff is not two-player readiness");
+                indexed(list(data,"element"),"System22 element");
+                for (const auto &item:list(data,"element")) {
+                    const auto element=item.toMap(); const auto binding=element.value("binding").toMap();
+                    check(integer(element.value("slot"))&&element.value("slot").toInt()==0&&integer(element.value("player"))&&element.value("player").toInt()==0,"One System22 cabinet/player only");
+                    check(element.value("availability").toMap().value("state")=="unavailable","Source catalog cannot claim live input availability");
+                    check(QStringList{"left","right","saved-primary","saved-off"}.contains(binding.value("role").toString()),"Invalid System22 saved-hand role");
+                    check(type=="gun"||element.value("node").toString().isEmpty(),"Nongun control cannot use gun nodes");
+                }
+                if (!model.isEmpty()) check(models.contains(model)&&models.value(model)==row.value("model_metadata"),"System22 compiled model metadata mismatch");
+                system22[gid]=row;
+            }
+        }
+        m_root=canonical; m_games=games; m_models=models; m_sets=sets; m_defaults=defaults; m_gunDefaults=guns; m_hardware=hardware; m_wii=wii; m_system22=system22; error.clear(); return true;
     } catch (const std::exception &e) { error=QString::fromUtf8(e.what()); return false; }
 }
 bool ControlsResolver::resolveRoute(const QString &route,Map &out,QString &error) const {
@@ -347,6 +377,36 @@ bool ControlsResolver::resolveRoute(const QString &route,Map &out,QString &error
 bool ControlsResolver::resolveGame(const QString &id,const ControlsResolveOptions &options,Map &out,QString &error) const {
     try {
         check(!m_root.isEmpty()&&identifier(id)&&m_games.contains(id),"Unknown/invalid gun game");
+        if (options.route=="namco22-vr") {
+            check(m_system22.contains(id),"Game not assigned to adopted System22 controls");
+            check(options.packIds.isEmpty()&&options.profileModel.isEmpty()&&!options.backend,"System22 source route requires its dedicated authored mapping");
+            check(options.profileDefaults.isEmpty()||options.profileDefaults.keys()==QStringList{"policy"},"Unsupported System22 profile defaults");
+            const auto defaults=options.profileDefaults.value("policy").toMap();
+            check(defaults.isEmpty()||defaults.keys()==QStringList{"p1_hand"},"Only saved primary hand is supported for System22 source data");
+            if (options.useUserOverrides) {
+                check(confined(m_root,options.userOverrideDirectory+"/games/"+id+"/game.toml",true).isEmpty()&&
+                      confined(m_root,options.userOverrideDirectory+"/games/"+id+"/setup/controls.toml",true).isEmpty(),"System22 user layers require its dedicated mapping");
+            }
+            Map row=m_system22.value(id).toMap(),data=row.value("data").toMap(),policy=data.value("policy").toMap();
+            const QString hand=defaults.value("p1_hand","right").toString(); check(hand=="left"||hand=="right","Invalid saved primary hand");
+            policy["p1_hand"]=hand; data["policy"]=policy; List elements;
+            for (const auto &item:list(data,"element")) {
+                auto element=item.toMap(),binding=element.value("binding").toMap(); const QString role=binding.value("role").toString();
+                const QString physical=role=="saved-primary"?hand:role=="saved-off"?(hand=="right"?"left":"right"):role;
+                binding["hand"]=physical;
+                if (element.value("binding_evidence")=="source") {
+                    const auto control=binding.value("control").toString(); QString token;
+                    if (control=="trigger") token="trigger/value"; else if (control=="grip") token="squeeze/value";
+                    else if (control=="primary") token=(physical=="right"?"a":"x")+QString("/click");
+                    else if (control=="secondary") token=(physical=="right"?"b":"y")+QString("/click");
+                    else if (control=="menu") token="menu/click"; else if (control=="thumbstick_click") token="thumbstick/click";
+                    else if (control=="thumbstick") token="thumbstick";
+                    check(!token.isEmpty(),"Unsupported source controller binding"); binding["source_openxr_path"]="/user/hand/"+physical+"/input/"+token;
+                }
+                element["binding"]=binding; elements.append(element);
+            }
+            data["element"]=elements; row["data"]=data; out=row; error.clear(); return true;
+        }
         if (m_wii.contains(id)) {
             check(options.packIds.isEmpty(),"Wii view pack layers require its dedicated mapping");
             if (options.useUserOverrides) {

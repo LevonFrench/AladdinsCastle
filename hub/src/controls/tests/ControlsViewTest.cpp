@@ -80,6 +80,23 @@ private slots:
             }
         }
     }
+    void system22SavedButtonsSwapWithoutInventingSecondGunOrRacerModel() {
+        QFile file(QDir(AC_CONTROLS_ROOT).filePath("data/controls/system22/view-catalog.json")); QVERIFY(file.open(QIODevice::ReadOnly));
+        const auto catalog=file.readAll(); ac::ControlsViewModel model;
+        QVERIFY(model.loadCatalogGame(catalog,"timecris"));
+        QVERIFY(!model.twoGunsSupported()); QCOMPARE(rowWithId(model,"coin").value("bindingLabel").toString(),QString("A (right)"));
+        QCOMPARE(rowWithId(model,"laser").value("bindingLabel").toString(),QString("B (right)"));
+        model.setPrimaryHand("left"); QCOMPARE(rowWithId(model,"coin").value("bindingLabel").toString(),QString("X (left)"));
+        QCOMPARE(rowWithId(model,"laser").value("bindingLabel").toString(),QString("Y (left)"));
+        QCOMPARE(rowWithId(model,"recenter").value("bindingLabel").toString(),QString("A (right)"));
+        QCOMPARE(rowWithId(model,"pause").value("hand").toString(),QString("left"));
+        QCOMPARE(rowWithId(model,"gun-angle").value("hand").toString(),QString("right"));
+        for (const auto &gid:QStringList{"raverace","acedrive","dirtdash","tokyowar","propcycl","adillor"}) {
+            QVERIFY2(model.loadCatalogGame(catalog,gid),qPrintable(model.lastError()));
+            QVERIFY(model.modelId().isEmpty()); QVERIFY(!model.previewAvailable()); QVERIFY(!model.twoGunsSupported()); QVERIFY(!model.rows().isEmpty());
+            for (const auto &row:model.rows()) { QVERIFY(row.toMap().value("node").toString().isEmpty()); QCOMPARE(row.toMap().value("availability").toString(),QString("unavailable")); }
+        }
+    }
     void timeCrisisAndMirroredControllerLabels() {
         ac::ControlsViewModel model;
         QVERIFY(model.loadResolved(samples["timecris"]));
