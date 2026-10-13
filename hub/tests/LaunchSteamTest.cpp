@@ -81,6 +81,7 @@ private slots:
   void managedToolUsersExcludeMutation();
   void authoredOwnedLaunchAdmission_data();
   void authoredOwnedLaunchAdmission();
+  void authoredExecutableDirectoryUser();
   void steamShortcutAdmission_data();
   void steamShortcutAdmission();
   void dolphinUserDirectoryIsolated();
@@ -352,6 +353,75 @@ void LaunchSteamTest::authoredOwnedLaunchAdmission() {
   install::writeEnvelope(base+".toml",goodState);install::writeEnvelope(base+".manifest.toml",goodManifest);
   write(exe,"modified application");
   QVERIFY_THROWS_EXCEPTION(install::Error,launch::gameRequest(catalog,game.id,t.path(),bindings,"dolphinxr"));
+}
+void LaunchSteamTest::authoredExecutableDirectoryUser() {
+  QTemporaryDir t; write(t.filePath("data/content-guard.toml"),install::readBytes(QString(AC_CATALOG_ROOT)+"/data/content-guard.toml"));
+  const auto dir=t.filePath("installed/native-synthetic/native"), user=dir+"/User", exe=user+"/native.exe";
+  write(exe,"synthetic application; never run"); QDir().mkpath(user+"/roms");
+  const auto hash=install::hashFile(exe), support=user+"/openxr_loader.dll", chip=user+"/roms/chip.1";
+  write(support,"original runtime support"); write(chip,"test");
+  const auto supportHash=install::hashFile(support), chipHash=install::hashFile(chip);
+  GameRecord game; game.id="native-synthetic"; game.hasRecipe=true;
+  Variant variant; variant.id="native"; variant.status="wip"; variant.quality="true3d";
+  Json raw{{"status","wip"},{"version","v1"},{"quality","true3d"},{"step",Json::array()},
+    {"installed_when","file:${install_dir}/User/native.exe"},
+    {"launch",{{"exe","${install_dir}/User/native.exe"},{"exe_sha256",hash.toStdString()},
+      {"cwd","${install_dir}/User"},{"runtime","none"},{"user_mode","executable-directory"},
+      {"args",Json::array({"--no-dialog","${install_dir}/User/roms"})}}}};
+  raw["step"]=Json::array({{{"id","media"},{"do","prepare-romset"},{"media","native-set"},{"set","native-synthetic"},
+    {"to","${install_dir}/User/roms"},{"files",Json::array({{{"name","chip.1"},{"size",4}}})}}});
+  variant.raw=raw; game.variants<<variant;
+  CatalogData catalog; catalog.games<<game;
+  install::Request installed; installed.root=t.path(); installed.gameId=game.id; installed.variantId=variant.id;
+  const auto base=install::stateBase(installed);
+  auto receipt=[&](const Json &definition) {
+    catalog.games[0].install={{"format",1},{"variant",{{"native",definition}}}};
+    catalog.games[0].variants[0].raw=definition;
+    const auto recipeHash=install::sha256(QByteArray::fromStdString(catalog.games[0].install.dump()));
+    install::writeEnvelope(base+".toml",{{"game",game.id.toStdString()},{"variant","native"},{"state","installed"},
+      {"installed_version","v1"},{"recipe_sha256",recipeHash.toStdString()}});
+    install::writeEnvelope(base+".manifest.toml",{{"game",game.id.toStdString()},{"variant","native"},
+      {"install_dir","installed/native-synthetic/native"},{"installed_when","file:${install_dir}/User/native.exe"},
+      {"recipe_sha256",recipeHash.toStdString()},
+      {"file",Json::array({{{"path","User/native.exe"},{"sha256",hash.toStdString()}},
+        {{"path","User/openxr_loader.dll"},{"sha256",supportHash.toStdString()},{"origin","extracted"}},
+        {{"path","User/roms/chip.1"},{"sha256",chipHash.toStdString()},{"origin","user-media-copy"}}})}});
+  };
+  receipt(raw);
+  std::optional<launch::Request> accepted;
+  try {accepted=launch::gameRequest(catalog,game.id,t.path(),Json::object(),variant.id);} catch(const install::Error &) {}
+  QVERIFY2(accepted.has_value(),"An executable-directory host could not use its actual owned User root");
+  QCOMPARE(accepted->plan.cwd,user); QCOMPARE(accepted->plan.executable,exe);
+  QCOMPARE(accepted->plan.args,QStringList({"--no-dialog",user+"/roms"}));
+  QVERIFY(accepted->plan.writableDirs.contains(user));
+  // A private user-local executable uses its installation receipt, not a public binary pin.
+  auto local=raw; local["launch"].erase("exe_sha256"); local["launch"]["exe_identity"]="user-local-build";
+  local["step"].push_back({{"id","build"},{"do","locate-package"},{"kind","local-build"},
+    {"port_commit",std::string(40,'a')},{"engine_commit",std::string(40,'b')}});
+  receipt(local); auto manifest=install::readEnvelope(base+".manifest.toml");
+  manifest["local_build"]={{"sha256",hash.toStdString()},{"port_commit",std::string(40,'a')},{"engine_commit",std::string(40,'b')}};
+  install::writeEnvelope(base+".manifest.toml",manifest);
+  std::optional<launch::Request> privateBuild;
+  try {privateBuild=launch::gameRequest(catalog,game.id,t.path(),Json::object(),variant.id);}catch(const install::Error &) {}
+  QVERIFY2(privateBuild.has_value(),"Explicit user-local build could not use its private executable receipt");
+  manifest["local_build"]["engine_commit"]=std::string(40,'c'); install::writeEnvelope(base+".manifest.toml",manifest);
+  QVERIFY_THROWS_EXCEPTION(install::Error,launch::gameRequest(catalog,game.id,t.path(),Json::object(),variant.id));
+  receipt(raw); write(support,"changed runtime support"); QString tamperedSupport;
+  try {launch::gameRequest(catalog,game.id,t.path(),Json::object(),variant.id);}catch(const install::Error &e){tamperedSupport=e.code;}
+  QCOMPARE(tamperedSupport,QString("E_SETUP_IDENTITY")); write(support,"original runtime support");
+  write(chip,"evil"); QString tamperedMedia;
+  try {launch::gameRequest(catalog,game.id,t.path(),Json::object(),variant.id);}catch(const install::Error &e){tamperedMedia=e.code;}
+  QCOMPARE(tamperedMedia,QString("E_MEDIA_CHANGED")); write(chip,"test");
+  for(const auto &fault:QStringList{"cwd","ignored-user-flag","external-media","unknown-mode"}) {
+    auto bad=raw;
+    if(fault=="cwd") bad["launch"]["cwd"]="${install_dir}";
+    if(fault=="ignored-user-flag") bad["launch"]["args"]=Json::array({"--user","${install_dir}/User"});
+    if(fault=="external-media") bad["launch"]["args"]=Json::array({"--no-dialog",t.path().toStdString()});
+    if(fault=="unknown-mode") bad["launch"]["user_mode"]="ignore-user";
+    receipt(bad); QString code;
+    try {launch::gameRequest(catalog,game.id,t.path(),Json::object(),variant.id);} catch(const install::Error &e){code=e.code;}
+    QCOMPARE(code,QString("E_PLAN_INVALID"));
+  }
 }
 void LaunchSteamTest::dolphinUserDirectoryIsolated() {
   QTemporaryDir t;

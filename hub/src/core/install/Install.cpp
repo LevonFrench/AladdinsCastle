@@ -812,9 +812,10 @@ Plan Engine::plan(const Request &r) const {
       {"download",
        {"url", "sha256", "record_sha256", "version", "name", "archive", "bytes",
         "to", "hosts", "max_bytes", "kind"}},
-      {"locate-package", {"pattern", "kind", "sha256", "search", "path"}},
+      {"locate-package", {"pattern", "kind", "sha256", "search", "path", "use_handover", "port_commit", "engine_commit"}},
       {"require-media", {"media", "verify", "set", "sha256"}},
       {"copy-media", {"media", "to", "mode"}},
+      {"prepare-romset", {"media", "to", "set", "files"}},
       {"extract",
        {"from", "to", "strip", "include", "exclude", "max_entries",
         "max_expanded", "overwrite"}},
@@ -957,7 +958,35 @@ Plan Engine::plan(const Request &r) const {
       if (verify == "name" && string(step, "set").isEmpty())
         throw Error("E_PLAN_INVALID", "Name verification requires a set name");
     }
-    if (kind == "require-media" || kind == "copy-media")
+    if (kind == "locate-package") {
+      if (step.contains("use_handover") && !step["use_handover"].is_boolean())
+        throw Error("E_PLAN_INVALID","Package handover selection must be explicit");
+      if (string(step,"kind")=="local-build")
+        for (const auto *pin : {"port_commit","engine_commit"})
+          if (!QRegularExpression("\\A[0-9a-f]{40}\\z").match(string(step,pin)).hasMatch())
+            throw Error("E_PLAN_INVALID","User-local builds require exact source pins");
+    }
+    if (kind == "prepare-romset") {
+      const auto files=step.value("files",Json::array()); QSet<QString> names; int64_t total=0;
+      if (string(step,"media").isEmpty() || string(step,"set").isEmpty() || !files.is_array() || files.empty())
+        throw Error("E_PLAN_INVALID", "Native media preparation needs an explicit set and chip list");
+      for (const auto &file : files) {
+        const auto name=string(file,"name"); validateRelative(name);
+        if (name.contains('/') || name.contains('\\') || names.contains(name.toCaseFolded()) ||
+            !file.contains("size") || !file["size"].is_number_integer())
+          throw Error("E_PLAN_INVALID", "Native chip names/sizes must be unique and explicit");
+        const auto size=file["size"].get<int64_t>();
+        if (size <= 0 || size > 512LL*1024*1024 || total > 512LL*1024*1024-size)
+          throw Error("E_PLAN_INVALID", "Native media preparation exceeds its size limit");
+        total+=size; names.insert(name.toCaseFolded());
+        for (const auto &alias : file.value("aliases",Json::array())) {
+          if (!alias.is_string()) throw Error("E_PLAN_INVALID", "Native chip aliases must be names");
+          const auto value=QString::fromStdString(alias.get<std::string>()); validateRelative(value);
+          if (value.contains('/') || value.contains('\\')) throw Error("E_PLAN_INVALID", "Native chip aliases must be leaf names");
+        }
+      }
+    }
+    if (kind == "require-media" || kind == "copy-media" || kind == "prepare-romset")
       mediaOutputs.insert(id);
     if (kind == "write-config") {
       if (step.contains("only_if_missing") && !step["only_if_missing"].is_boolean())
@@ -1104,8 +1133,34 @@ Result Engine::install(const Request &r) {
                   string(step, "tag", string(step, "version")).toStdString()}};
       } else if (kind == "locate-package") {
         const auto path =
-            r.handover.isEmpty() ? string(step, "path") : r.handover;
+            r.handover.isEmpty() || !step.value("use_handover",true) ? string(step, "path") : r.handover;
         const auto info = QFileInfo(path);
+        if (string(step,"kind")=="local-build") {
+          if (!info.isFile() || info.isSymLink() || info.size()>16*1024)
+            throw Error("E_MEDIA_MISSING","Choose your private local-build receipt; the support archive has no application");
+          Json nomination;
+          try {nomination=Json::parse(readBytes(path).toStdString());}
+          catch (const std::exception &) {throw Error("E_MEDIA_MISMATCH","Local-build receipt is not valid JSON");}
+          if (!nomination.is_object() || !nomination.value("nomination_only",false) ||
+              nomination.value("public_distribution_approved",true) ||
+              string(nomination,"port_commit")!=string(step,"port_commit") ||
+              string(nomination,"engine_commit")!=string(step,"engine_commit"))
+            throw Error("E_MEDIA_MISMATCH","Select a private local build matching this setup's source pins");
+          const QFileInfo executable(string(nomination,"source_executable"));
+          const auto expected=string(nomination,"sha256").toLower();
+          if (!executable.isFile() || !executable.isAbsolute() || executable.isSymLink() ||
+              executable.suffix().compare("exe",Qt::CaseInsensitive)!=0 ||
+              !QRegularExpression("\\A[0-9a-f]{64}\\z").match(expected).hasMatch())
+            throw Error("E_MEDIA_MISMATCH","Local-build receipt needs its explicit private executable and hash");
+          if (executable.size()!=nomination.value("bytes",int64_t(-1)) || hashFile(executable.filePath())!=expected)
+            throw Error("E_HASH_MISMATCH","Your nominated local executable changed; select the current build receipt");
+          output={{"path",executable.canonicalFilePath().toStdString()},{"dir",info.absolutePath().toStdString()},
+            {"sha256",expected.toStdString()},{"bytes",executable.size()},{"verified",true}};
+          tx->manifest["local_build"]={{"source_executable",executable.canonicalFilePath().toStdString()},
+            {"sha256",expected.toStdString()},{"bytes",executable.size()},
+            {"port_commit",string(step,"port_commit").toStdString()},{"engine_commit",string(step,"engine_commit").toStdString()},
+            {"nomination_sha256",hashFile(path).toStdString()},{"private",true}};
+        } else {
         if (!info.exists() ||
             QSet<QString>{"part", "tmp", "crdownload", "opdownload"}.contains(
                 info.suffix().toLower()))
@@ -1122,6 +1177,13 @@ Result Engine::install(const Request &r) {
                       {"sha256", hash.toStdString()},
                       {"bytes", info.size()},
                       {"verified", !pin.isEmpty()}};
+        }
+      } else if (kind == "prepare-romset") {
+        const auto media=r.bindings.value("media",Json::object()).value(string(step,"media").toStdString(),Json::object());
+        const auto staging=scopedPath(id,extractRoot), destination=scopedPath(string(step,"to"),tx->dir);
+        const auto names=Archive::prepareRomset(media,step["files"],string(step,"set"),staging);
+        for (const auto &name : names) tx->copy(scopedPath(name,staging),scopedPath(name,destination),"user-media-copy",id);
+        output={{"dir",destination.toStdString()},{"files",names.size()},{"verified",true}};
       } else if (kind == "require-media" || kind == "copy-media") {
         const auto key = string(step, "media").toStdString();
         const auto media = r.bindings.value("media", Json::object())
@@ -1203,7 +1265,9 @@ Result Engine::install(const Request &r) {
         scopedPath(from, QFileInfo(from).absolutePath());
         if (QFileInfo(from).isFile()) {
           contentGuard(from, guard);
-          tx->copy(from, dest, "copied", id);
+          const bool localBuild=tx->manifest.contains("local_build") &&
+            string(tx->manifest["local_build"],"source_executable")==from;
+          tx->copy(from, dest, localBuild ? "user-media-copy" : "copied", id);
         } else {
           QDirIterator files(from, QDir::Files | QDir::NoSymLinks,
                              QDirIterator::Subdirectories);

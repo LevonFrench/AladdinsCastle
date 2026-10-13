@@ -481,6 +481,28 @@ class UiTest:public QObject {
   root->setProperty("view","List");
   QTRY_VERIFY(model->property("gameId").toString().isEmpty());
  }
+ void adoptedTimeCrisisControlsOnRealPage(){
+  const auto restore=qScopeGuard([&]{root->setProperty("view","List");});
+  ui->openDetail("timecris"); ui->selectVariant("dr89-pcvr"); root->setProperty("view","Detail");
+  auto controls=ui->controlsController();
+  QTRY_VERIFY_WITH_TIMEOUT(!controls->loading(),10000);
+  QTRY_VERIFY_WITH_TIMEOUT(!namedItems(window->contentItem(),"universalControlsView").isEmpty(),3000);
+  const auto data=controls->resolved().value("data").toMap();
+  QCOMPARE(data.value("schema").toString(),QString("system22-native/1"));
+  QCOMPARE(data.value("route").toString(),QString("namco22-vr"));
+  QCOMPARE(data.value("policy").toMap().value("native_players").toInt(),1);
+  QCOMPARE(data.value("policy").toMap().value("two_guns").toString(),QString("off"));
+  QVERIFY(!controls->model()->rows().isEmpty());
+  for(const auto &value:controls->model()->rows()) {
+    const auto row=value.toMap(); QCOMPARE(row.value("player").toInt(),0);
+    QVERIFY(row.contains("runtimeValidated")); QVERIFY(!row.value("runtimeValidated").toBool());
+    QVERIFY(!row.value("action").toString().contains("offscreen",Qt::CaseInsensitive));
+  }
+  ui->selectVariant("mame");
+  QVERIFY2(controls->model()->rows().isEmpty(),"Adopted native rows survived the immediate flat-route switch");
+  QTRY_VERIFY_WITH_TIMEOUT(!controls->loading(),10000);
+  QVERIFY(controls->resolved().value("data").toMap().value("route").toString()!="namco22-vr");
+ }
  void desktopControlsKeepMappingsWhenPreviewIsMissing(){
   ui->openDetail("timecris");root->setProperty("view","Detail");
   auto controls=ui->controlsController();

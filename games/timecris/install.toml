@@ -1,85 +1,117 @@
-default = "namco22-vr"   # our own setup (M2); the DR-89 variants below are out of scope (D42) and kept only as data
+format = 1
+default = "dr89-pcvr"
 
-# ---------------------------------------------------------------------------
-# Our own true-3D setup: namco22-decompile + libacvr. Planned (roadmap M3).
-# ---------------------------------------------------------------------------
+# The historical standalone host stays parked; D63 uses the pinned upstream host.
 [variant.namco22-vr]
-title   = "AladdinsCastle true 3D (namco22-decompile + libacvr)"
+title = "Owned native host (parked)"
 quality = "true3d"
-status  = "planned"
-needs   = { media = ["timecris"], tools = [] }
+status = "planned"
+needs = { media = ["timecris"], tools = [] }
 
-# ---------------------------------------------------------------------------
-# DR-89 Time Crisis VR, PCVR build.
-# The upstream release zip ships a roms/ folder with game files, so the Hub
-# never downloads it. The user points to a ROM-free build they made or obtained.
-# ---------------------------------------------------------------------------
+# Private user-local application, plus a separate support-only archive.
+# Neither input is downloaded. The executable/ROMs never become shipped assets.
 [variant.dr89-pcvr]
-title    = "Time Crisis VR by DR-89 (PCVR)"
-quality  = "true3d"
-status   = "stable"
+title = "Time Crisis VR (experimental local build)"
+quality = "true3d"
+status = "wip"
+version = "e5a5f7d-6aaa90b4-local"
+controls_route = "namco22-vr"
 upstream = "https://github.com/DR-89/time-crisis-vr"
-license  = "MIT (port code)"
-needs    = { media = ["timecris"], tools = [] }
-installed_when = "${install_dir}/TimeCrisisVR.exe"
+license = "MIT (port/engine code; original game content remains user-owned)"
+needs = { media = ["timecris"], tools = [] }
+installed_when = "file:${install_dir}/User/TimeCrisisVR.exe"
 
 [[variant.dr89-pcvr.step]]
-do      = "locate-package"
-what    = "Time Crisis VR Windows build without game files"
-pattern = "TimeCrisisVR-*-windows-x64*.zip"
+id = "local-build"
+do = "locate-package"
+kind = "local-build"
+what = "Your private local Time Crisis build receipt; the support archive does not include the application"
+pattern = "*.json"
+port_commit = "e5a5f7d204e4be8e96ed2396ebea3886c833f021"
+engine_commit = "6aaa90b4cbc7a23733e1c9f5f9a5e772a19fe23d"
 
 [[variant.dr89-pcvr.step]]
+id = "application"
+do = "copy"
+from = "${steps.local-build.path}"
+to = "${install_dir}/User/TimeCrisisVR.exe"
+
+[[variant.dr89-pcvr.step]]
+id = "support"
+do = "locate-package"
+kind = "archive"
+what = "The separate runtime-support.zip beside your local build receipt"
+pattern = "runtime-support.zip"
+use_handover = false
+path = "${steps.local-build.dir}/runtime-support.zip"
+sha256 = "4d20170e7f62d0c4db9fa8816a80a2b215b7ddbb83eac22b4c69543aa10da4bd"
+
+[[variant.dr89-pcvr.step]]
+id = "support-files"
 do = "extract"
-to = "${install_dir}"
+from = "support"
+to = "${install_dir}/User"
+max_entries = 18
+max_expanded = 4194304
+include = ["openxr_loader.dll", "models/player-gun.tcgun", "models/player-gun.json", "LICENSE", "NOTICE.md", "licenses/namco22.txt", "licenses/SDL2.txt", "licenses/zlib.txt", "licenses/OpenXR.txt", "licenses/glad.txt", "licenses/LLVM.txt", "licenses/COPYING", "licenses/COPYING.MinGW-w64-runtime.txt", "licenses/COPYING.MinGW-w64.txt", "licenses/COPYING.winpthreads.txt", "licenses/COPYING.winstorecompat.txt", "support-manifest.json", "README-SUPPORT.md"]
 
 [[variant.dr89-pcvr.step]]
-do    = "copy-media"
+id = "media"
+do = "prepare-romset"
 media = "timecris"
-to    = "${install_dir}/roms/"
-
-[[variant.dr89-pcvr.step]]
-id     = "cfg"
-do     = "write-config"
-file   = "${install_dir}/quest-options.cfg"
-format = "cfg"                              # key=value lines (see docs/install-engine.md)
-set = [
-  { key = "physical_crouch", from = "settings.cover",      map = { hold_to_shoot = 0, hold_to_cover = 0, toggle = 0 }, default = 0 },   # no physical ducking (D43)
-  { key = "laser_enabled",   from = "settings.laser",      bool = { on = 1, off = 0 } },
-  { key = "gun_pitch",       from = "settings.gun_pitch",  type = "int" },
-  { key = "left_handed",     from = "profile.left_handed", bool = { on = 1, off = 0 } },
+set = "timecris"
+to = "${install_dir}/User/roms"
+# Names/lengths from exact engine pin's timecris/src/tc_game.c; no chip bytes/hashes shipped.
+files = [
+  { name = "ts2verb.1", size = 1048576, aliases = ["ts2ver-b.1"] },
+  { name = "ts2verb.2", size = 1048576, aliases = ["ts2ver-b.2"] },
+  { name = "ts2verb.3", size = 1048576, aliases = ["ts2ver-b.3"] },
+  { name = "ts2verb.4", size = 1048576, aliases = ["ts2ver-b.4"] },
+  { name = "ts1data.8k", size = 524288 },
+  { name = "ts1scg0.12f", size = 2097152 },
+  { name = "ts1scg1.10f", size = 2097152 },
+  { name = "ts1scg2.8f", size = 2097152 },
+  { name = "ts1scg3.7f", size = 2097152 },
+  { name = "ts1scg4.5f", size = 2097152 },
+  { name = "ts1scg5.3f", size = 2097152 },
+  { name = "ts1cg0.8d", size = 2097152 },
+  { name = "ts1cg1.10d", size = 2097152 },
+  { name = "ts1cg2.12d", size = 2097152 },
+  { name = "ts1cg3.13d", size = 2097152 },
+  { name = "ts1cg4.14d", size = 2097152 },
+  { name = "ts1cg5.16d", size = 2097152 },
+  { name = "ts1cg6.18d", size = 2097152 },
+  { name = "ts1ccrl.3d", size = 2097152 },
+  { name = "ts1ccrh.1d", size = 524288 },
+  { name = "ts1ptrl0.18k", size = 524288 },
+  { name = "ts1ptrl1.16k", size = 524288 },
+  { name = "ts1ptrl2.15k", size = 524288 },
+  { name = "ts1ptrm0.18j", size = 524288 },
+  { name = "ts1ptrm1.16j", size = 524288 },
+  { name = "ts1ptrm2.15j", size = 524288 },
+  { name = "ts1ptru0.18f", size = 524288 },
+  { name = "ts1ptru1.16f", size = 524288 },
+  { name = "ts1ptru2.15f", size = 524288 },
+  { name = "ts1wavea.2l", size = 4194304 },
+  { name = "ts1waveb.1l", size = 2097152 },
 ]
 
 [[variant.dr89-pcvr.step]]
-do      = "shortcut"
-targets = ["steam"]                         # target is the Hub: --launch timecris (docs/launch-and-runtime.md)
+id = "options"
+do = "write-config"
+file = "${install_dir}/User/quest-options.cfg"
+format = "cfg"
+create = true
+only_if_missing = true
+set = [
+  { key = "physical_crouch", value = 0 },
+  { key = "laser_enabled", value = 1 },
+]
 
 [variant.dr89-pcvr.launch]
-exe     = "${install_dir}/TimeCrisisVR.exe"  # not the generated Play SteamVR.cmd: the Hub pins the runtime itself
-cwd     = "${install_dir}"
-runtime = "steamvr"
-
-# ---------------------------------------------------------------------------
-# DR-89 Time Crisis VR, Quest standalone (sideloaded over USB with adb).
-# Package id from upstream quest/AndroidManifest.xml: org.timecrisis.quest
-# ---------------------------------------------------------------------------
-[variant.dr89-quest]
-title    = "Time Crisis VR by DR-89 (Quest 3 standalone)"
-quality  = "true3d"
-status   = "stable"
-upstream = "https://github.com/DR-89/time-crisis-vr"
-needs    = { media = ["timecris"], tools = ["adb"], headset = "developer-mode" }
-installed_when = "adb:package:org.timecrisis.quest"
-
-[[variant.dr89-quest.step]]
-do      = "locate-package"
-what    = "Time Crisis VR ROM-free APK (build it with the upstream build tools)"
-pattern = "TimeCrisisVR-*.apk"
-
-[[variant.dr89-quest.step]]
-do = "adb-install"
-
-[[variant.dr89-quest.step]]
-do     = "run"
-exe    = "${tools.powershell}"
-args   = ["-File", "${upstream_dir}/Install-ROM.ps1", "-Rom", "${media.timecris}"]
-note   = "Upstream's own ROM importer copies your timecris.zip to the headset."
+exe = "${install_dir}/User/TimeCrisisVR.exe"
+exe_identity = "user-local-build"
+user_mode = "executable-directory"
+cwd = "${install_dir}/User"
+args = ["--no-dialog", "${install_dir}/User/roms"]
+runtime = "openxr"
