@@ -168,7 +168,7 @@ void privateDirectory(const QString &path) {
 }
 QString sharedLockRoot() {
   // Fixed system temporary base, not TMPDIR/TEMP/TMP; UID comes from the kernel.
-  const auto root=QString("/tmp/aladdinscastle-shared-locks-%1").arg(::geteuid());
+  const auto root=QString("/tmp/%1-shared-locks-%2").arg(QString::fromUtf8(product::short_id)).arg(::geteuid());
   privateDirectory(root); return root;
 }
 #endif
