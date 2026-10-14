@@ -89,6 +89,7 @@ private:
     QString pinballVrRoot()const; // Empty when the user left the headset choice to VPX.
     void startModel3(const QString &id,const QString &view);
     void refreshSteamVr(const QString &error={});
+    void scanSetup(const QStringList &systems);
     gunroom::Inputs gunRoomInputs(const QString &model,const QString &hand,const QString &executable) const;
     GameListModel *games_; FilterSortModel *filter_; UiController *ui_;
     UiSettings *settings_; QString root_, removalText_;

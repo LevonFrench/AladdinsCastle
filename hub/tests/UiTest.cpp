@@ -249,7 +249,7 @@ class UiTest:public QObject {
   const auto one=[&](const QString &name){const auto items=namedItems(window->contentItem(),name);return items.size()==1?items.first():nullptr;};
   root->setProperty("view","Setup");QVERIFY(softwareFrame(window));
   QTRY_VERIFY(one("setupWelcome"));QVERIFY(one("setupWelcome")->property("text").toString().contains(ui->appName()));
-  // Four pages, reached with Next; the choices are saved as they are made.
+  // Five pages, reached with Next; the choices are saved as they are made.
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
   QTRY_VERIFY(one("setupKind-arcade"));QVERIFY(!ui->setupKinds()["arcade"].toBool());
@@ -262,8 +262,19 @@ class UiTest:public QObject {
   QTRY_VERIFY(one("setupFolder-model3"));QVERIFY(!one("setupFolder-model2"));
   QVERIFY(one("setupFolder-model3")->property("text").toString().contains("not chosen"));
   QVERIFY(!settings->get("setupDone",false).toBool());
+  // Leaving the folders page asks for one read of the ticked systems, then shows what came back.
+  QSignalSpy scans(ui.get(),SIGNAL(setupScanRequested(QStringList)));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QCOMPARE(scans.size(),1);QCOMPARE(scans[0][0].toStringList(),(QStringList{"model3","system22"}));
+  QTRY_VERIFY(one("setupProgress"));QVERIFY(one("setupProgress")->isVisible());QVERIFY(!one("setupResult-model3"));
+  const QVariantMap entry{{"id","scud"},{"title","Synthetic Racer"},{"detail","Checked."},{"reason","Two files differ."},{"expected","synthetic.zip"}};
+  ui->setSetupReport({{"scanned","today"},{"systems",QVariantList{QVariantMap{{"id","model3"},{"title","Sega Model 3"},{"note",""},{"ready",QVariantList{entry}},{"notRight",QVariantList{entry}},{"missing",QVariantList{entry}}}}}});
+  QVERIFY(softwareFrame(window));QTRY_VERIFY(one("setupResult-model3"));QVERIFY(!one("setupProgress")->isVisible());
+  // The same finding greys the game on its own tab, with the reason.
+  QVERIFY(ui->model3Games()[0].toMap()["problem"].toString().isEmpty()==false);
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));
   QTRY_COMPARE(root->property("view").toString(),QString("List"));QVERIFY(settings->get("setupDone").toBool());
+  ui->setSetupReport({});
  }
  void model3TabRealScene(){
   const auto previousView=root->property("view");

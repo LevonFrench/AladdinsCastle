@@ -4,6 +4,7 @@
 #include "core/pinball/Pinball.h"
 #include "core/model3/Model3.h"
 #include "core/setup/Setup.h"
+#include "core/setup/Report.h"
 #include "ProductIdentity.h"
 #include <QDir>
 #include <QCoreApplication>
@@ -19,6 +20,7 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QCryptographicHash>
+#include <QPointer>
 namespace ac {
 namespace {
 QString privatePinballIni(const QString &path,const QString &root) {
@@ -110,6 +112,8 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     // The Hub never registers itself unasked: the set-up page asks, and whoever owns the VR runtime call answers.
     connect(ui_,&UiController::steamVrRequested,this,[this]{emit steamVrRegistrationRequested(steamVrManifest());});
     refreshSteamVr();
+    connect(ui_,&UiController::setupScanRequested,this,&HubServices::scanSetup);
+    try{QFile saved(install::scopedPath("user/cache/setup-report.json",root_));if(saved.size()<=64*1024*1024&&saved.open(QIODevice::ReadOnly))ui_->setSetupReport(QJsonDocument::fromJson(saved.readAll()).toVariant().toMap());}catch(const std::exception &){}
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
     connect(&scanner_,&scan::ScanController::scanStarted,ui_,&UiController::scanStarted);
@@ -250,6 +254,33 @@ HubServices::~HubServices(){
 }
 void HubServices::setPinballDiagnosticIni(const QString &path){
     pinballDiagnosticIni_=path.isEmpty()?QString():privatePinballIni(path,root_);
+}
+void HubServices::scanSetup(const QStringList &systems){
+    // Off the GUI thread; only the user's folders are read, and only Hub's own cache is written.
+    const auto values=settings_->values();const auto root=root_;const QPointer<UiController> ui=ui_;
+    const QStringList pinballKey{values.value("pinballFolder").toString(),values.value("pinballDatabase").toString(),values.value("pinballRoms").toString(),values.value("pinballMedia").toString()};
+    auto *watcher=new QFutureWatcher<QVariantMap>(this);
+    connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{const auto report=watcher->result();watcher->deleteLater();ui_->setSetupReport(report);if(!report.value("error").toString().isEmpty())ui_->showError("Set-up",report.value("error").toString());});
+    watcher->setFuture(QtConcurrent::run([systems,values,root,ui,pinballKey]{
+        QVariantMap report;QVariantList results;std::atomic_bool cancel=false;
+        try{
+            const auto cachePath=install::scopedPath("user/cache/pinball-scan.json",root);
+            QVariantMap context;
+            {QFile file(cachePath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly)){const auto saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();
+                if(QStringList{saved.value("folder").toString(),saved.value("database").toString(),saved.value("roms").toString(),saved.value("media").toString()}==pinballKey)context["pinballScan"]=saved.value("result");}}
+            for(const auto &id:systems){
+                QString title=id;for(const auto &value:setup::systems())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
+                const auto progress=[ui,title](const QString &text){if(ui)QMetaObject::invokeMethod(ui.data(),"setupScanProgress",Qt::QueuedConnection,Q_ARG(QString,title+": "+text));};
+                auto result=setup::scanSystem(id,values,context,progress,cancel);
+                const auto tables=result.take("pinballScan").toMap();
+                if(tables.contains("tables")&&!context.contains("pinballScan"))install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",pinballKey[0]},{"database",pinballKey[1]},{"roms",pinballKey[2]},{"media",pinballKey[3]},{"result",tables}}).toJson(QJsonDocument::Compact));
+                results<<result;
+            }
+            report={{"scanned",QDateTime::currentDateTime().toString("d MMMM yyyy, HH:mm")},{"systems",results}};
+            install::atomicWrite(install::scopedPath("user/cache/setup-report.json",root),QJsonDocument::fromVariant(report).toJson(QJsonDocument::Compact));
+        }catch(const std::exception &e){report["systems"]=results;report["error"]=QString::fromUtf8(e.what());}
+        return report;
+    }));
 }
 QString HubServices::steamVrManifest()const{return QDir(QCoreApplication::applicationDirPath()).filePath(QString("resources/")+product::short_id+".vrmanifest");}
 void HubServices::steamVrAnswered(const QString &error){refreshSteamVr(error);}

@@ -64,6 +64,8 @@ add_library(hubcore STATIC
     src/core/model3/Model3.h
     src/core/setup/Setup.cpp
     src/core/setup/Setup.h
+    src/core/setup/Report.cpp
+    src/core/setup/Report.h
     src/core/scan/HeaderSafety.cpp
     src/core/scan/HeaderSafety.h
     src/core/scan/ScanController.cpp

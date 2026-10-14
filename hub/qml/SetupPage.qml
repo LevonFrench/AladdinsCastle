@@ -9,7 +9,8 @@ Item {
  property bool vrOverlayMode:false
  property int step:0
  signal finished()
- property var names:["Welcome","SteamVR","What you have","Where it is"]
+ property var names:["Welcome","SteamVR","What you have","Where it is","Report"]
+ property var report:uiController.setupReport
  property var systems:uiController.setupSystems
  property var kinds:uiController.setupKinds
  property var steam:uiController.steamVr
@@ -18,7 +19,9 @@ Item {
  property color warn:Theme.get("color.state.needs_neon")
  property int body:vrOverlayMode?18:15
  property string pendingId:""
- function go(to){if(step===3&&to>step)uiController.acceptSetupGuesses();if(to>=names.length){uiController.finishSetup();page.finished()}else step=Math.max(0,to)}
+ // Leaving "Where it is" forwards accepts the suggested folders and reads them; the report page shows the result.
+ function go(to){if(step===3&&to>step){uiController.acceptSetupGuesses();uiController.scanSetup()} if(to>=names.length){uiController.finishSetup();page.finished()}else step=Math.max(0,to)}
+ function names_of(list){return Array.from(list||[]).map(e=>e.title).join(",  ")}
  FolderDialog {id:folder;title:"Choose the folder holding your own files";onAccepted:uiController.setSetupFolder(page.pendingId,uiController.localPath(selectedFolder))}
  FileDialog {id:program;title:"Choose the program";nameFilters:["Program (*.exe)","All files (*)"];onAccepted:uiController.setSetupProgram(page.pendingId,uiController.localPath(selectedFile))}
  component Tick:PillButton {property bool on:false;text:(on?"● ":"○ ")+label;property string label:"";selected:on;vrOverlayMode:page.vrOverlayMode}
@@ -91,6 +94,36 @@ Item {
           color:card.modelData.program?page.good:page.warn}
          PillButton {text:"Locate program";visible:!page.vrOverlayMode;onClicked:{page.pendingId=card.modelData.id;program.open()}}
         }
+       }
+      }
+     }
+    }
+    ColumnLayout {spacing:10
+     RowLayout {spacing:10
+      UiText {Layout.fillWidth:true;text:"What you have";font.pixelSize:20;color:Theme.get("color.text.primary")}
+      UiText {text:page.report.scanned?"Read on "+page.report.scanned:"";font.pixelSize:page.body-2;color:Theme.get("color.text.muted_detail")}
+      PillButton {objectName:"setupRescan";text:uiController.setupScanning?"Reading…":"Rescan";enabled:!uiController.setupScanning;vrOverlayMode:page.vrOverlayMode;onClicked:uiController.scanSetup()}
+     }
+     Para {objectName:"setupProgress";visible:uiController.setupScanning;color:page.warn;text:"Reading your folders. Nothing in them is changed.  "+uiController.setupProgress}
+     Para {visible:!uiController.setupScanning&&!(page.report.systems||[]).length;text:"Nothing has been read yet. Tick what you have, say where it is, then use Rescan."}
+     Para {visible:(page.report.systems||[]).length>0;text:"Ready games can be started. Not right means the file was found but cannot be used as it is. Missing means the Hub knows the game but did not find it; only the name it looks for is shown."}
+     Repeater {model:uiController.setupScanning?[]:(page.report.systems||[])
+      Rectangle {id:result;required property var modelData;objectName:"setupResult-"+modelData.id;Layout.fillWidth:true;implicitHeight:lines.implicitHeight+20;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.color:Theme.get("color.line.strong")
+       ColumnLayout {id:lines;anchors.fill:parent;anchors.margins:10;spacing:6
+        RowLayout {spacing:14
+         UiText {text:result.modelData.title;font.pixelSize:17;color:Theme.get("color.text.primary")}
+         UiText {text:"Ready "+result.modelData.ready.length;font.pixelSize:page.body;color:page.good}
+         UiText {text:"Not right "+result.modelData.notRight.length;font.pixelSize:page.body;color:result.modelData.notRight.length?page.warn:Theme.get("color.text.muted_detail")}
+         UiText {text:"Missing "+result.modelData.missing.length;font.pixelSize:page.body;color:Theme.get("color.text.muted_detail")}
+         Item {Layout.fillWidth:true}
+        }
+        Para {visible:!!result.modelData.note;text:result.modelData.note||"";color:Theme.get("color.text.muted_detail")}
+        Para {visible:result.modelData.ready.length>0;text:"Ready:  "+page.names_of(result.modelData.ready);color:page.good;font.pixelSize:page.body-1}
+        Repeater {model:result.modelData.notRight
+         Para {required property var modelData;text:"Not right:  "+modelData.title+".  "+modelData.reason;color:page.warn;font.pixelSize:page.body-1}
+        }
+        Para {visible:result.modelData.missing.length>0;font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")
+         text:"Missing:  "+Array.from(result.modelData.missing).map(e=>e.title+" ("+e.expected+")").join(",  ")}
        }
       }
      }

@@ -276,6 +276,11 @@ void UiController::setSetupFolder(const QString &id,const QString &folder){for(c
 void UiController::setSetupProgram(const QString &id,const QString &program){for(const auto &value:setup::systems())if(value.toMap().value("id")==id)m_settings->set(value.toMap().value("programKey").toString(),program);}
 void UiController::acceptSetupGuesses(){for(const auto &value:setupSystems()){const auto row=value.toMap();if(row.value("chosen").toBool()&&!row.value("guess").toString().isEmpty())setSetupFolder(row.value("id").toString(),row.value("guess").toString());}}
 void UiController::finishSetup(){m_settings->set("setupDone",true);}
+void UiController::scanSetup(){
+ if(m_setupScanning)return;
+ QStringList ids;for(const auto &value:setupSystems())if(value.toMap().value("chosen").toBool())ids<<value.toMap().value("id").toString();
+ m_setupScanning=true;m_setupProgress="Starting";emit setupChanged();emit setupScanRequested(ids);
+}
 QVariantList UiController::model3Views()const{return model3::views();}
 QVariantList UiController::model3Games()const{
  const auto executable=m_settings->get("model3Executable",QString()).toString(),folder=m_settings->get("model3GameFolder",QString()).toString();
@@ -286,6 +291,9 @@ QVariantList UiController::model3Games()const{
   auto view=chosen.value(id).toString();if(model3::viewLabel(view).isEmpty())view="screen";
   row["view"]=view;row["viewLabel"]=model3::viewLabel(view);
   row["problem"]=model3::problem(id,executable,folder);
+  // A file that is there but wrong for this emulator is known only from the last scan.
+  if(row.value("problem").toString().isEmpty())for(const auto &system:m_setupReport.value("systems").toList())if(system.toMap().value("id")=="model3")
+   for(const auto &entry:system.toMap().value("notRight").toList())if(entry.toMap().value("id")==id)row["problem"]="The game file is not right. "+entry.toMap().value("reason").toString();
   row["card"]=game(id); // Catalog colours and art where the catalog has this title.
   rows<<row;
  }

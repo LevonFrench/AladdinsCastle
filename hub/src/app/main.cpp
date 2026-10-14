@@ -156,6 +156,8 @@ int main(int argc,char **argv){
         ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball();
     });
     else if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});
+    // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.
+    if(qEnvironmentVariableIsSet("AC_UI_SETUP_SCAN"))QTimer::singleShot(500,&ui,[&ui]{ui.scanSetup();});
     ac::Json diagnosticFinished=ac::Json::array();
     if(!capture.isEmpty()){
         QObject::connect(services.launcher(),&ac::launch::LaunchService::finished,&app,[&diagnosticFinished](const QString &id,int code,const QString &error,const QString &){

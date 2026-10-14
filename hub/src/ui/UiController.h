@@ -64,6 +64,9 @@ class UiController : public QObject {
  Q_PROPERTY(QVariantList setupSystems READ setupSystems NOTIFY setupChanged)
  Q_PROPERTY(QVariantMap setupKinds READ setupKinds NOTIFY setupChanged)
  Q_PROPERTY(QVariantMap steamVr READ steamVr NOTIFY setupChanged)
+ Q_PROPERTY(QVariantMap setupReport READ setupReport NOTIFY setupChanged)
+ Q_PROPERTY(bool setupScanning READ setupScanning NOTIFY setupChanged)
+ Q_PROPERTY(QString setupProgress READ setupProgress NOTIFY setupChanged)
  public:
  UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent=nullptr);
  QObject *detailControls(){return m_detailControls.model();}
@@ -130,6 +133,13 @@ class UiController : public QObject {
  Q_INVOKABLE void acceptSetupGuesses();
  Q_INVOKABLE void finishSetup();
  Q_INVOKABLE void addToSteamVr(){emit steamVrRequested();}
+ // The report of what was found: {scanned, systems:[{id,title,note,ready,notRight,missing}]}.
+ QVariantMap setupReport()const{return m_setupReport;}
+ bool setupScanning()const{return m_setupScanning;}
+ QString setupProgress()const{return m_setupProgress;}
+ Q_INVOKABLE void scanSetup();
+ Q_INVOKABLE void setupScanProgress(const QString &text){m_setupProgress=text;emit setupChanged();}
+ Q_INVOKABLE void setSetupReport(const QVariantMap &report){m_setupReport=report;m_setupScanning=false;m_setupProgress.clear();emit setupChanged();emit model3Changed();}
  void setPinballPlan(const QString &plan){m_pinballPlan=plan;emit pinballChanged();}
  Q_INVOKABLE QString localPath(const QUrl &url)const{return url.isLocalFile()?url.toLocalFile():QString();}
  Q_INVOKABLE QString vrLabel(int badge) const;
@@ -183,6 +193,7 @@ class UiController : public QObject {
  void model3Changed();
  void setupChanged();
  void steamVrRequested();
+ void setupScanRequested(const QStringList &systems);
  void model3PlayRequested(const QString &id,const QString &view);
  void pinballScanRequested(const QString &folder,const QString &database,const QString &roms,const QString &media);
  void pinballPlanRequested(const QString &table,const QString &executable,const QString &id);
@@ -206,7 +217,9 @@ class UiController : public QObject {
  bool m_artProviderReady=false;
  bool m_installing=false,m_scanning=false;
  QVariantMap m_nowPlaying;
- QVariantMap m_steamVr;
+ QVariantMap m_steamVr,m_setupReport;
+ QString m_setupProgress;
+ bool m_setupScanning=false;
  bool m_restartAfterClose=false;
  QVariantMap m_pinballData,m_pinballRaw,m_pinballSelection;
  QString m_pinballPlan;
