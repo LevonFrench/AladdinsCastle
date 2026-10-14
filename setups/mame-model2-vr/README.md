@@ -63,7 +63,13 @@ quad's rotation. Coordinates run from the top left `(0,0)` to bottom right
 uses the game's existing reload behavior. Lost aim tracking suppresses shots;
 loss of session focus or a stale/disconnected viewer releases input overrides.
 
-Shared-memory protocol version 2 carries controller states back to MAME.
+Shared-memory protocol version 3 carries controller states back to MAME and
+returns a monotonically increasing acknowledgement from the game's P1 button
+port read. Each fresh controller-trigger edge requests a strong 30 ms pulse on
+the right-hand haptic output. Holding the trigger cannot repeat it. Stage
+selection and off-screen reload edges use the same feedback path; this does not
+inspect game RAM or claim that a bullet hit an enemy. Late attachment, stale
+events, duplicate frames and loss of focus do not replay old pulses.
 The patch updates the existing P1 gun and button fields, keeping the serial
 gun mux and native border test. Virtua Cop 2 retains X 137–630 and Y 36–425;
 the original 5% edge border remains active. Player 2 fields are untouched.
@@ -85,6 +91,46 @@ For that development proof, run the viewer with `--scripted-input` and enable
 stage selection, fixed shots and reload. Snapshot requests are honored only
 with that explicit MAME test switch. Normal launchers use the live XR actions.
 The scripted viewer does not create a graphics context or open an XR session.
+
+The viewer's one shared stereo texture slot completes producer copies before
+publication and consumer reads before returning ownership. The producer waits
+for that consumer completion before overwriting or resizing the slot. Both
+transfers currently use `glFinish` under the slot mutex for correctness; no
+throughput or latency improvement is claimed. Swapchain acquisition/waits run
+outside that mutex. Every image wait is limited to 10 ms, checks stop between
+retries, and yields after a 250 ms retry budget. An expired wait does not imply
+readiness: its acquired image is retained for retry and is never released before
+a successful wait. A resize race declines the pair rather than mixing eyes.
+
+Stop activates each owning context before graphics cleanup. If activation
+fails, it skips those destructive callbacks and retains the resources for a
+later Stop retry. The viewer skips its own graphics destruction on failure.
+Successful Stop clears texture/FBO identities, dimensions, serials, session
+handles, input and haptic state so a same-size restart begins empty. Partial
+initialization is also reclaimed by Stop. Core `xrWaitFrame`, other XR calls
+without a timeout parameter, and GL driver completion cannot be given an API
+timeout here; the existing launcher's process deadline remains the fallback.
+The finite image waits do not establish universally bounded driver shutdown.
+
+`test-presenter.ps1` builds and runs hidden, below-normal-priority checks with
+time limits using existing OpenXR headers and compiler tools. Pass
+`OpenXRInclude` and a private `OutputDirectory`. It starts no XR loader/runtime.
+It uses the actual presenter start/stop, texture handoff and copy paths with
+an offline consumer, and injects only context failures and runtime API results.
+Acceptance passed for 48 exact stereo pairs with alternating frame IDs,
+repeated resizes and a deliberately delayed consumer; 46 attempted slot reuses
+waited for completed consumer GPU work. Both same-size restart cycles passed.
+Context activation failures preserved an unrelated context's texture, skipped
+destruction and recovered on retry. Image timeouts/stops preserved acquisition
+order and resumed with a complete pair. Haptic tests exercised both suggested
+output bindings and game acknowledgement through the 30 ms API dispatch,
+including duplicate/stale/attach/focus-regain cases. These are correctness
+checks; GPU readback and injected delays make them unsuitable for timing claims.
+
+The rebuilt game also acknowledged all 11 scripted trigger edges in a fresh
+44-second run, with OpenXR disabled and MAME snapshots kept private. Physical
+vibration, live profile bindings, headset visibility and real-runtime stop and
+relaunch still require headset testing.
 
 The `presenter` directory is a separate GPL-3.0-or-later program adapted from
 the owner-provided ACVR screen presenter. It is not linked into MAME. Its

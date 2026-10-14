@@ -23,7 +23,7 @@ index dcc98198..4952de80 100644
  		"shcore",
  		"shlwapi",
 diff --git a/src/mame/sega/model2.cpp b/src/mame/sega/model2.cpp
-index 21b42076..c32b794d 100644
+index 21b42076..70cdde53 100644
 --- a/src/mame/sega/model2.cpp
 +++ b/src/mame/sega/model2.cpp
 @@ -2528,6 +2528,20 @@ void model2_state::model2_screen(machine_config &config)
@@ -47,8 +47,16 @@ index 21b42076..c32b794d 100644
  	PALETTE(config, m_palette).set_entries(8192);
  }
  
+@@ -2795,6 +2809,7 @@ void model2a_state::vcop2(machine_config &config)
+ 	model2a(config);
+ 
+ 	sega_315_5649_device &io(*subdevice<sega_315_5649_device>("io"));
++	io.in_pc_callback().set(FUNC(model2a_state::stereo_gun_buttons_r));
+ 	io.serial_ch2_rd_callback().set(FUNC(model2a_state::lightgun_mux_r));
+ 	io.serial_ch2_wr_callback().set(FUNC(model2a_state::lightgun_mux_w));
+ }
 diff --git a/src/mame/sega/model2.h b/src/mame/sega/model2.h
-index 9dba100c..9e82b5a7 100644
+index 9dba100c..cf2d3b30 100644
 --- a/src/mame/sega/model2.h
 +++ b/src/mame/sega/model2.h
 @@ -28,11 +28,13 @@
@@ -81,7 +89,7 @@ index 9dba100c..9e82b5a7 100644
  	required_device<palette_device> m_palette;
  	optional_device<scsp_device> m_scsp;
  	required_device_array<timer_device, 4> m_timers;
-@@ -153,6 +157,15 @@ protected:
+@@ -153,6 +157,17 @@ protected:
  	std::unique_ptr<raster_state> m_raster;
  	std::unique_ptr<geo_state> m_geo;
  	bitmap_rgb32 m_sys24_bitmap;
@@ -90,6 +98,8 @@ index 9dba100c..9e82b5a7 100644
 +	bool m_stereo_measure_done = false;
 +	std::shared_ptr<model2_frames::publisher> m_stereo_stream;
 +	bool m_stereo_controls_active = false;
++	bool m_stereo_controller_trigger = false, m_stereo_trigger_latched = false;
++	u64 m_stereo_shot_serial = 0;
 +	u32 m_stereo_snapshot_seen = 0;
 +	float m_stereo_tangents[4] = {-0.3f, 0.3f, -0.225f, 0.225f};
 +	bitmap_rgb32 m_stereo_scene[2];
@@ -97,16 +107,17 @@ index 9dba100c..9e82b5a7 100644
  	u8 m_gearsel = 0;
  	u8 m_lightgun_mux = 0;
  
-@@ -229,6 +242,8 @@ protected:
+@@ -229,6 +244,9 @@ protected:
  	void push_geo_data(u32 data);
  	void reset_model2_scsp();
  	u32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 +	u32 stereo_screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 +	void stereo_controls_update();
++	u8 stereo_gun_buttons_r();
  	void screen_vblank(int state);
  	void sound_ready_w(int state);
  	template <int TNum> TIMER_DEVICE_CALLBACK_MEMBER(model2_timer_cb);
-@@ -240,6 +255,8 @@ protected:
+@@ -240,6 +258,8 @@ protected:
  	void render_frame_start();
  	void geo_parse();
  	void render_polygons(bitmap_rgb32 &bitmap, const rectangle &cliprect);
@@ -115,7 +126,7 @@ index 9dba100c..9e82b5a7 100644
  	void draw_framebuffer(bitmap_rgb32 &bitmap, const rectangle &cliprect);
  
  	void model2_timers(machine_config &config) ATTR_COLD;
-@@ -751,6 +768,9 @@ struct model2_state::polygon
+@@ -751,6 +771,9 @@ struct model2_state::polygon
  	int16_t         viewport[4] = { 0, 0, 0, 0 };
  	int16_t         center[2] = { 0, 0 };
  	u8              window = 0;
@@ -126,7 +137,7 @@ index 9dba100c..9e82b5a7 100644
  
  struct model2_state::quad_m2
 diff --git a/src/mame/sega/model2_v.cpp b/src/mame/sega/model2_v.cpp
-index 3a5bfa51..77d76ded 100644
+index 3a5bfa51..6dd4c871 100644
 --- a/src/mame/sega/model2_v.cpp
 +++ b/src/mame/sega/model2_v.cpp
 @@ -90,6 +90,10 @@
@@ -365,7 +376,7 @@ index 3a5bfa51..77d76ded 100644
  	else
  		render_polygons(bitmap, cliprect);
  
-@@ -2448,5 +2623,63 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
+@@ -2448,5 +2623,81 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
  
  	copybitmap_trans(bitmap, m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
  
@@ -389,7 +400,7 @@ index 3a5bfa51..77d76ded 100644
 +				m_stereo_tangents[3] = cy / poly.focal_y;
 +			}
 +			if (m_stereo_stream->publish(&m_stereo_eye[0].pix(0), &m_stereo_eye[1].pix(0),
-+				m_stereo_eye[0].rowpixels(), m_stereo_eye[1].rowpixels(), m_stereo_tangents, m_stereo.zero_m, machine().time().as_double()))
++				m_stereo_eye[0].rowpixels(), m_stereo_eye[1].rowpixels(), m_stereo_tangents, m_stereo.zero_m, machine().time().as_double(), m_stereo_shot_serial))
 +				machine().schedule_exit();
 +		}
 +	}
@@ -420,6 +431,7 @@ index 3a5bfa51..77d76ded 100644
 +		x->clear_value(); y->clear_value(); trigger->clear_value(); start->clear_value(); coin->clear_value();
 +	}
 +	m_stereo_controls_active = active;
++	m_stereo_controller_trigger = active && input.trigger;
 +	// Only an explicit development switch permits scripted snapshot requests.
 +	if (active && input.snapshot_request != m_stereo_snapshot_seen && model2_stereo::setting("ACVR_M2_INPUT_TEST", 0, 0, 1) == 1)
 +	{
@@ -429,11 +441,28 @@ index 3a5bfa51..77d76ded 100644
 +			input.snapshot_request, machine().time().as_double(), ioport("IN0")->read(), ioport("IN1")->read(), xport->read(), yport->read(), input.off_screen);
 +	}
 +}
++
++// The actual VCop2 I/O port read acknowledges controller trigger edges. Held
++// triggers cannot repeat feedback, and an absent/inactive mapping changes no bits.
++u8 model2_state::stereo_gun_buttons_r()
++{
++	const u8 buttons = ioport("IN1")->read();
++	const bool pressed = m_stereo_controller_trigger && !(buttons & 0x01);
++	if (pressed && !m_stereo_trigger_latched)
++	{
++		++m_stereo_shot_serial;
++		if (model2_stereo::setting("ACVR_M2_INPUT_TEST", 0, 0, 1) == 1)
++			std::printf("VCop2 controller trigger acknowledged at %.3f s: serial=%llu offscreen=%u\n",
++				machine().time().as_double(), static_cast<unsigned long long>(m_stereo_shot_serial), lightgun_offscreen_r(0) & 1);
++	}
++	m_stereo_trigger_latched = pressed;
++	return buttons;
++}
 diff --git a/src/mame/sega/model2_frames.h b/src/mame/sega/model2_frames.h
 new file mode 100644
 --- /dev/null
 +++ b/src/mame/sega/model2_frames.h
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,96 @@
 +// license:BSD-3-Clause
 +#ifndef MAME_SEGA_MODEL2_FRAMES_H
 +#define MAME_SEGA_MODEL2_FRAMES_H
@@ -449,7 +478,7 @@ new file mode 100644
 +
 +namespace model2_frames {
 +constexpr unsigned width = 496, height = 384, magic = 0x4d325352;
-+constexpr unsigned protocol_version = 2;
++constexpr unsigned protocol_version = 3;
 +struct controls
 +{
 +	std::uint64_t heartbeat_ms;
@@ -463,6 +492,7 @@ new file mode 100644
 +	float tan_l, tan_r, tan_b, tan_t, distance;
 +	std::uint32_t exit_request;
 +	double emulated_seconds;
++	std::uint64_t shot_serial, shot_time_ms;
 +	controls input;
 +	std::uint32_t pixels[2][height][width];
 +};
@@ -484,7 +514,7 @@ new file mode 100644
 +		if (m_lock) ReleaseMutex(m_lock);
 +	}
 +	~publisher() { if (m_frame) UnmapViewOfFile(m_frame); if (m_mapping) CloseHandle(m_mapping); if (m_lock) CloseHandle(m_lock); }
-+	bool publish(const std::uint32_t *left, const std::uint32_t *right, unsigned stride_l, unsigned stride_r, const float *tangents, float distance, double seconds)
++	bool publish(const std::uint32_t *left, const std::uint32_t *right, unsigned stride_l, unsigned stride_r, const float *tangents, float distance, double seconds, std::uint64_t shots)
 +	{
 +		if (!m_frame || !m_lock) return false;
 +		const DWORD result = WaitForSingleObject(m_lock, 0);
@@ -497,6 +527,7 @@ new file mode 100644
 +		m_frame->tan_l = tangents[0]; m_frame->tan_r = tangents[1];
 +		m_frame->tan_b = tangents[2]; m_frame->tan_t = tangents[3]; m_frame->distance = distance;
 +		m_frame->emulated_seconds = seconds;
++		if (m_frame->shot_serial != shots) { m_frame->shot_serial = shots; m_frame->shot_time_ms = GetTickCount64(); }
 +		++m_frame->serial;
 +		const bool exit = m_frame->exit_request != 0;
 +		ReleaseMutex(m_lock);
@@ -521,7 +552,7 @@ new file mode 100644
 +	frame *m_frame = nullptr;
 +	controls m_last_input{};
 +#else
-+	bool publish(const std::uint32_t *, const std::uint32_t *, unsigned, unsigned, const float *, float, double) { return false; }
++	bool publish(const std::uint32_t *, const std::uint32_t *, unsigned, unsigned, const float *, float, double, std::uint64_t) { return false; }
 +	bool read_controls(controls &) { return false; }
 +	static bool fresh(const controls &) { return false; }
 +#endif

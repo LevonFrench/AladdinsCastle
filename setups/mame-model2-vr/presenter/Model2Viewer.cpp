@@ -2,6 +2,7 @@
 #include "WinGL.h"
 #include "ACVRStereo.h"
 #include "model2_frames.h"
+#include "ShotFeedback.h"
 #include <vector>
 #include <memory>
 #include <stdexcept>
@@ -50,6 +51,7 @@ int main(int argc, char **argv)
 	std::vector<unsigned> flipped(model2_frames::width * model2_frames::height), readback(flipped.size());
 	Host_Window *window = nullptr; GLuint tex[2] = {}, fbo[2] = {};
 	bool started = false, checked = false; unsigned frames = 0; std::uint64_t serial = 0; int result = 0;
+	ShotFeedback feedback;
 	try
 	{
 		while (WaitForSingleObject(parent, 0) == WAIT_TIMEOUT && GetTickCount64() - start < limit)
@@ -72,6 +74,7 @@ int main(int argc, char **argv)
 				throw std::runtime_error("Unexpected frame transport format");
 			if (!local->serial || local->serial == serial) { Sleep(5); continue; }
 			serial = local->serial;
+			feedback.observe(local->shot_serial,local->shot_time_ms,GetTickCount64(),started,[] { ACVR_XR_QueueShotPulse(); });
 			if (scripted) { ++frames; Sleep(1); continue; }
 			if (!window)
 			{
@@ -107,9 +110,12 @@ int main(int argc, char **argv)
 		std::printf("Received %u stereo frames; serial=%llu; bitmap roundtrip=%s; scripted return=%s; XR=%s; FOV tangents=(%.6f,%.6f,%.6f,%.6f)\n",
 			frames, static_cast<unsigned long long>(serial), checked ? "passed" : "not used", scripted ? "enabled" : "disabled", no_xr ? "disabled" : "owner test", local->tan_l, local->tan_r, local->tan_b, local->tan_t);
 		if (!frames) result = 4;
+		std::printf("Game-acknowledged trigger edges=%llu; queued XR pulses=%llu\n",static_cast<unsigned long long>(feedback.acknowledged),static_cast<unsigned long long>(feedback.queued));
 	}
 	catch (const std::exception &error) { std::fprintf(stderr, "%s\n", error.what()); result = 5; }
-	if (started) ACVR_XR_Stop();
+	if (!ACVR_XR_Stop() || (window && Host_GL_MakeCurrent(window,window->context)!=0)) {
+		std::fprintf(stderr,"Context unavailable: skipped graphics destruction; resources retained until process exit\n"); window=nullptr; result=6;
+	}
 	if (window) { glDeleteFramebuffers(2, fbo); glDeleteTextures(2, tex); Host_DestroyWindow(window); }
 	if (WaitForSingleObject(mutex, 100)==WAIT_OBJECT_0) { shared->input={}; ReleaseMutex(mutex); }
 	UnmapViewOfFile(shared); CloseHandle(mutex); CloseHandle(mapping); CloseHandle(parent);

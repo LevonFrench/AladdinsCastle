@@ -24,6 +24,9 @@ inline bool Host_LoadGL()
 struct Host_Window { HWND window = nullptr; HDC dc = nullptr; HGLRC context = nullptr; };
 using Host_GLContext = HGLRC;
 using Uint8 = unsigned char;
+#ifdef ACVR_VIEWER_TEST
+inline bool (*Host_TestAllowCurrent)(HGLRC) = nullptr;
+#endif
 constexpr int Host_GL_SHARE_WITH_CURRENT_CONTEXT = 1, Host_WINDOWPOS_UNDEFINED = 0;
 constexpr unsigned Host_WINDOW_OPENGL = 1, Host_WINDOW_HIDDEN = 2, Host_SCANCODE_HOME = 0;
 inline HGLRC host_share = nullptr;
@@ -55,7 +58,12 @@ inline Host_GLContext Host_GL_CreateContext(Host_Window *window)
 	return window->context;
 }
 inline int Host_GL_MakeCurrent(Host_Window *window, Host_GLContext context)
-{ return wglMakeCurrent(context ? window->dc : nullptr, context) ? 0 : -1; }
+{
+#ifdef ACVR_VIEWER_TEST
+	if (Host_TestAllowCurrent && !Host_TestAllowCurrent(context)) return -1;
+#endif
+	return wglMakeCurrent(context ? window->dc : nullptr, context) ? 0 : -1;
+}
 inline void Host_DestroyWindow(Host_Window *window)
 {
 	if (!window) return;
