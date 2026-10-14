@@ -171,6 +171,8 @@ void UiController::stopLaunch(){
   launchClosing();emit closeLaunchRequested();
   message(running?"Close requested; waiting for VPX to exit.":"Pinball launch cancellation requested.");return;
  }
+ // Shown at once: the card says the game is being stopped before the game has reacted.
+ if(!m_nowPlaying.isEmpty()){m_nowPlaying["closing"]=true;m_nowPlaying["stopping"]=true;emit nowPlayingChanged();}
  emit stopLaunchRequested();message("Stop requested; the game is asked to close, then forced to stop after the timeout.");
 }
 void UiController::answerPrompt(bool proceed){emit promptAnswered(proceed);}
@@ -364,7 +366,7 @@ void UiController::launchModel3Queued(const QString &id,const QString &view,cons
  emit nowPlayingChanged();
 }
 void UiController::launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable){
- m_restartAfterClose=false;
+ m_restartAfterClose=false;m_lastSession.clear();
  m_nowPlaying={{"gameId",id},{"variantId",variant},{"title",game(id).value("title",QString("Pinball"))},{"running",false},{"closing",false},{"closeUnavailable",closeUnavailable}};
  emit nowPlayingChanged();
 }
@@ -399,8 +401,21 @@ void UiController::launchStarted(const QString &id){
  }
  message((id=="__gun_room"?"Opening ":"Playing ")+m_nowPlaying.value("title",game(id).value("title")).toString());
 }
-void UiController::launchFinished(const QString &id,const QString &error){
+void UiController::launchFinished(const QString &id,const QString &error,int exitCode){
  if(!m_nowPlaying.isEmpty()&&m_nowPlaying.value("gameId")!=id)return;
+ {
+  // Said plainly at once, and kept on screen until dismissed or the next game starts.
+  const auto title=m_nowPlaying.value("title",game(id).value("title",QString("The game"))).toString();
+  auto lines=error.split('\n',Qt::SkipEmptyParts);const auto first=lines.isEmpty()?QString():lines.takeFirst();
+  QString outcome,text;
+  if(m_nowPlaying.value("stopping").toBool()){outcome="stopped";text=m_nowPlaying.value("running").toBool()?title+" was stopped.":title+" was stopped before it started.";}
+  else if(error.isEmpty()){outcome="closed";text=title+" has closed.";}
+  else if(first.startsWith("The game stopped unexpectedly")){outcome="crashed";text=QString("%1 stopped unexpectedly (exit code %2).").arg(title).arg(exitCode);}
+  else if(!m_nowPlaying.value("running").toBool()){outcome="failed";text=title+" could not start: "+first;}
+  else{outcome="crashed";text=title+" ended with an error: "+first;}
+  // The end of the game's own output, which usually says why.
+  m_lastSession={{"gameId",id},{"title",title},{"outcome",outcome},{"text",text},{"details",lines.mid(qMax(qsizetype(0),lines.size()-6)).join('\n')},{"exitCode",exitCode}};
+ }
  const auto variant=m_nowPlaying.value("variantId").toString();const bool restart=m_restartAfterClose&&error.isEmpty();
  m_restartAfterClose=false;m_nowPlaying.clear();emit nowPlayingChanged();clearDetailControlStates();message(error.isEmpty()?"Game closed.":error);
  if(restart)emit playRequested(id,variant);

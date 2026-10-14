@@ -180,11 +180,11 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else launcher_.requestClose();});
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
-    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){
+    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int code,const QString &error,const QString &){
         childPlaying_=false;emit playingChanged();
         // A Hub exit waiting on this game goes ahead only now that the game has finished by itself.
-        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished(id,error);finishPendingExit();return;}
-        ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
+        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished(id,error,code);finishPendingExit();return;}
+        ui_->launchFinished(id,error,code);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
     });
     connect(&launcher_,&launch::LaunchService::runtimeStateReady,this,[this](const RuntimeState &state){games_->applyRuntimeStates({state});});
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::playingChanged);

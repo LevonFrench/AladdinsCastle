@@ -276,6 +276,32 @@ class UiTest:public QObject {
   QTRY_COMPARE(root->property("view").toString(),QString("List"));QVERIFY(settings->get("setupDone").toBool());
   ui->setSetupReport({});
  }
+ // Starting, stopping and ending are shown at once, with the reason when a game crashed.
+ void lifecycleIsShownAtOnce(){
+  const auto one=[&](const QString &name){const auto items=namedItems(window->contentItem(),name);return items.size()==1?items.first():nullptr;};
+  const auto cleanup=qScopeGuard([&]{ui->dismissLastSession();});
+  ui->launchQueued("synthetic-game","flat",QString());QVERIFY(softwareFrame(window));
+  QTRY_VERIFY(one("nowPlayingPhase"));QVERIFY(one("nowPlayingPhase")->property("text").toString().startsWith("Starting: "));
+  ui->launchStarted("synthetic-game");QVERIFY(softwareFrame(window));QVERIFY(one("nowPlayingPhase")->property("text").toString().startsWith("Now playing: "));
+  QSignalSpy stops(ui.get(),SIGNAL(stopLaunchRequested()));ui->stopLaunch();QCOMPARE(stops.size(),1);
+  QVERIFY(ui->nowPlaying()["stopping"].toBool());QVERIFY(softwareFrame(window));QVERIFY(one("nowPlayingPhase")->property("text").toString().startsWith("Stopping: "));
+  ui->launchFinished("synthetic-game","The game stopped unexpectedly\nsynthetic first line\nsynthetic last line",3);
+  QCOMPARE(ui->lastSession()["outcome"].toString(),QString("stopped"));
+  // A crash, not asked for: the exit code and the end of the game's output.
+  ui->launchQueued("synthetic-game","flat",QString());QVERIFY(ui->lastSession().isEmpty());ui->launchStarted("synthetic-game");
+  ui->launchFinished("synthetic-game","The game stopped unexpectedly\nsynthetic first line\nsynthetic last line",3);
+  QCOMPARE(ui->lastSession()["outcome"].toString(),QString("crashed"));
+  QVERIFY(softwareFrame(window));QTRY_VERIFY(one("lastSessionText"));QVERIFY(one("lastSession")->isVisible());
+  const auto shown=one("lastSessionText")->property("text").toString();
+  QVERIFY(shown.contains("stopped unexpectedly (exit code 3)"));QVERIFY(shown.contains("synthetic last line"));
+  // An ordinary close, and a start that failed.
+  ui->launchQueued("synthetic-game","flat",QString());ui->launchStarted("synthetic-game");ui->launchFinished("synthetic-game",QString(),0);
+  QCOMPARE(ui->lastSession()["outcome"].toString(),QString("closed"));QVERIFY(ui->lastSession()["text"].toString().endsWith("has closed."));
+  ui->launchQueued("synthetic-game","flat",QString());ui->launchFinished("synthetic-game","Launch executable or working directory missing",1);
+  QCOMPARE(ui->lastSession()["outcome"].toString(),QString("failed"));QVERIFY(ui->lastSession()["text"].toString().contains("could not start"));
+  QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,one("lastSessionDismiss")->mapToScene(QPointF(10,10)).toPoint());
+  QTRY_VERIFY(ui->lastSession().isEmpty());
+ }
  void model3TabRealScene(){
   const auto previousView=root->property("view");
   const auto cleanup=qScopeGuard([&]{settings->set("model3Executable",QString());settings->set("model3GameFolder",QString());settings->set("model3Views",QVariantMap{});root->setProperty("view",previousView);});

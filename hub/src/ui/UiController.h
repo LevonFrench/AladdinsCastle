@@ -52,6 +52,8 @@ class UiController : public QObject {
  Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
  Q_PROPERTY(QString appName READ appName CONSTANT)
  Q_PROPERTY(QVariantMap nowPlaying READ nowPlaying NOTIFY nowPlayingChanged)
+ // How the last game ended: {title, outcome (closed|stopped|crashed|failed), text, details}. Empty once dismissed.
+ Q_PROPERTY(QVariantMap lastSession READ lastSession NOTIFY nowPlayingChanged)
  Q_PROPERTY(QVariantMap pinballData READ pinballData NOTIFY pinballChanged)
  Q_PROPERTY(QVariantMap pinballSelection READ pinballSelection NOTIFY pinballChanged)
  Q_PROPERTY(QString pinballPlan READ pinballPlan NOTIFY pinballChanged)
@@ -92,6 +94,8 @@ class UiController : public QObject {
  QString status() const{return m_status;} QString appVersion() const;
  QString appName()const{return QString::fromUtf8(product::display_name);}
  QVariantMap nowPlaying()const{return m_nowPlaying;}
+ QVariantMap lastSession()const{return m_lastSession;}
+ Q_INVOKABLE void dismissLastSession(){m_lastSession.clear();emit nowPlayingChanged();}
  Q_INVOKABLE void launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable);
  Q_INVOKABLE void launchRoomQueued(const QString &model,const QString &hand,bool calibrateGrip=false);
  void launchClosing();
@@ -184,7 +188,7 @@ class UiController : public QObject {
  void scanStarted(); void scanProgress(const QVariantMap &progress); void scanFinished(bool success);
  void installStarted(); void installEvent(const QVariantMap &event); void installFinished(bool success,const QString &message);
  void launchPreparing(const QString &gameId,const QString &message);
- void launchStarted(const QString &gameId); void launchFinished(const QString &gameId,const QString &error);
+ void launchStarted(const QString &gameId); void launchFinished(const QString &gameId,const QString &error,int exitCode=0);
  void applyRuntimeStates(const QVector<RuntimeState> &states);
  signals:
  void detailControlsChanged();
@@ -224,7 +228,7 @@ class UiController : public QObject {
  int m_artRevision=0;
  bool m_artProviderReady=false;
  bool m_installing=false,m_scanning=false;
- QVariantMap m_nowPlaying;
+ QVariantMap m_nowPlaying,m_lastSession;
  QVariantMap m_steamVr,m_setupReport;
  QString m_setupProgress;
  bool m_setupScanning=false;
