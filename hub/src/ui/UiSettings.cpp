@@ -3,6 +3,7 @@
 #include "core/catalog/CatalogLoader.h"
 #include <QDir>
 #include <QSaveFile>
+#include <QFileInfo>
 #include <toml++/toml.hpp>
 #include <sstream>
 namespace ac {
@@ -31,7 +32,31 @@ toml::table table(const QVariantMap &values) {
 }
 }
 UiSettings::UiSettings(QString userDir,QObject *parent):QObject(parent),m_path(QDir(userDir).filePath("hub-settings.toml")) {
+ if(QFile::exists(acceptedPath()))try{m_accepted=jsonVariant(CatalogLoader::parseToml(acceptedPath()).value("accepted",Json::object())).toMap();}catch(...){}
  if(QFile::exists(m_path))try{auto data=CatalogLoader::parseToml(m_path);m_values=jsonVariant(data.value("ui",Json::object())).toMap();m_games=jsonVariant(data.value("game",Json::object())).toMap();}catch(...) {emit error("Settings could not be read; defaults are in use.");}
+}
+QString UiSettings::acceptedPath()const{return QFileInfo(m_path).absoluteDir().filePath("accepted.toml");}
+void UiSettings::reloadAccepted(){
+ m_accepted.clear();
+ if(QFile::exists(acceptedPath()))try{m_accepted=jsonVariant(CatalogLoader::parseToml(acceptedPath()).value("accepted",Json::object())).toMap();}catch(...){emit error("The accepted-games list could not be read.");}
+ emit changed();
+}
+QString UiSettings::acceptedOn(const QString &id,const QString &title)const{
+ for(auto it=m_accepted.begin();it!=m_accepted.end();++it)
+  if(it.key()==id||(!title.isEmpty()&&it.key().compare(title,Qt::CaseInsensitive)==0)){const auto when=it.value().toString();return when.isEmpty()?QString("yes"):when;}
+ return {};
+}
+bool UiSettings::createAcceptedList()const{
+ if(QFile::exists(acceptedPath()))return true;
+ QDir().mkpath(QFileInfo(acceptedPath()).absolutePath());QSaveFile file(acceptedPath());
+ if(!file.open(QIODevice::WriteOnly))return false;
+ file.write("# Games you have tried in the headset and are happy with.\n"
+            "# The Hub shows a game as accepted only when it is listed here; it never adds to this list itself.\n"
+            "# One line per game: its id or its title, then the date, for example\n"
+            "#   \"model3-scud\" = \"2026-10-14\"\n"
+            "#   \"The House of the Dead 2\" = \"2026-10-14\"\n"
+            "[accepted]\n");
+ return file.commit();
 }
 bool UiSettings::set(const QString &key,const QVariant &value){m_values[key]=value;const bool ok=save();emit changed();return ok;}
 bool UiSettings::saveGame(const QString &id,const QVariantMap &value){auto merged=m_games.value(id).toMap();for(auto it=value.begin();it!=value.end();++it)merged[it.key()]=it.value();m_games[id]=merged;const bool ok=save();if(ok)emit gameSaved(id,merged);emit changed();return ok;}

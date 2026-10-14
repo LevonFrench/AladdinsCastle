@@ -7,6 +7,7 @@
 #include "core/setup/Report.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
+#include "core/ps2/Ps2.h"
 #include "ProductIdentity.h"
 #include <QDir>
 #include <QCoreApplication>
@@ -165,7 +166,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             startPinball(retainedPinball_,retainedPinballExecutable_);return;
         }
         if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
-        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
+        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
 #ifdef Q_OS_WIN
@@ -176,15 +177,16 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             launcher_.start(request);
         }catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
-    connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else launcher_.stop();});
-    connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else launcher_.requestClose();});
+    // A PS2 game has no window to close: both Exit and Stop ask it to quit through its stop file, and the Hub waits.
+    connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit())launcher_.stop();});
+    connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit())launcher_.requestClose();});
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
-    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){
+    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int code,const QString &error,const QString &){
         childPlaying_=false;emit playingChanged();
         // A Hub exit waiting on this game goes ahead only now that the game has finished by itself.
-        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished(id,error);finishPendingExit();return;}
-        ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
+        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished(id,error,code);finishPendingExit();return;}
+        ui_->launchFinished(id,error,code);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
     });
     connect(&launcher_,&launch::LaunchService::runtimeStateReady,this,[this](const RuntimeState &state){games_->applyRuntimeStates({state});});
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::playingChanged);
@@ -289,6 +291,15 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(!libraries.isEmpty())environment.insert("PATH",QDir::toNativeSeparators(libraries)+QDir::listSeparator()+environment.value("PATH"));
             for(const auto &value:model2::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · 3D screen";hint=value.toMap().value("controls").toString();}
             hint+=" Home = put the screen in front of you again. Use Stop game here to end it.";
+        }else if(id.startsWith("ps2-")){
+            // The launcher refuses without SteamVR; say so here instead of starting it to fail.
+            if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
+                throw install::Error("E_STEAMVR_NOT_RUNNING","Start SteamVR first, with the headset connected, then start the game again.");
+            const auto game=id.mid(4);
+            const auto plan=ps2::launchPlan(game,settings_->get("ps2Launcher",QString()).toString(),settings_->get("ps2Python",QString()).toString(),settings_->get("ps2StopFile",QString()).toString());
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            for(const auto &value:ps2::games())if(value.toMap().value("id")==game)title=value.toMap().value("title").toString()+" · 3D screen";
+            hint="Gamepad: Start, A = Cross, B = Circle. Home recentres the screen. Use Exit game here to quit: the game is asked to close and the Hub waits for it.";
         }else if(id=="system22-timecris"){
             const QFileInfo program(settings_->get("system22Executable",QString()).toString());
             if(!program.isFile())throw install::Error("E_SYSTEM22_SETUP","The Time Crisis VR build is not set up. Choose its program in Set-up.");
@@ -437,6 +448,13 @@ void HubServices::requestHubExit(int code){
     }
     if(!gunRoom_.busy()){emit hubExitReady(code);return;}
     hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();gunRoom_.close();
+}
+bool HubServices::askPs2ToQuit(){
+    if(!ui_->nowPlaying().value("gameId").toString().startsWith("ps2-")||!launcher_.busy())return false;
+    const auto stopFile=settings_->get("ps2StopFile",QString()).toString();
+    QFile request(stopFile);
+    if(stopFile.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS2","The stop request could not be written. Use the launcher's own stop to quit the game.");return true;}
+    request.close();ui_->launchClosing();return true;
 }
 void HubServices::finishPendingExit(){
     if(!hubExitPending_||launcher_.busy()||gunRoom_.busy())return;

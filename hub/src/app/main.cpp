@@ -95,6 +95,7 @@ int main(int argc,char **argv){
     const auto portableRoot=options.installRoot.isEmpty()?app.applicationDirPath():QDir(options.installRoot).absolutePath();
     try{ac::install::scopedPath("user/hub-settings.toml",portableRoot);ac::install::scopedPath("user/scan-folders.json",portableRoot);ac::install::scopedPath("user/cache/scan-bindings.json",portableRoot);}catch(const std::exception &e){err<<e.what()<<'\n';return 2;}
     ac::UiSettings settings(portableRoot+"/user");ac::UiController ui(&games,&filter,&settings);
+    settings.createAcceptedList(); // The owner's own list of games accepted in the headset, empty to begin with.
     ac::HubServices services(&games,&filter,&ui,&settings,portableRoot);
     const auto capture=qEnvironmentVariable("AC_UI_CAPTURE");
     // Asked for on the set-up page only. Registration adds the manifest; it never switches on automatic start.

@@ -107,24 +107,24 @@ Item {
      }
      Para {objectName:"setupProgress";visible:uiController.setupScanning;color:page.warn;text:"Reading your folders. Nothing in them is changed.  "+uiController.setupProgress}
      Para {visible:!uiController.setupScanning&&!(page.report.systems||[]).length;text:"Nothing has been read yet. Tick what you have, say where it is, then use Rescan."}
-     Para {visible:(page.report.systems||[]).length>0;text:"Ready games can be started. Not right means the file was found but cannot be used as it is. Missing means the Hub knows the game but did not find it; only the name it looks for is shown."}
+     Para {visible:(page.report.systems||[]).length>0;text:"Found, can start: the game's files and its program are on this PC. Found, not right: the file is there but cannot be used as it is. Not found: the Hub knows the game but did not find it; only the name it looks for is shown. None of this says a game works well in the headset: only you can say that, in your list of accepted games."}
      Repeater {model:uiController.setupScanning?[]:(page.report.systems||[])
       Rectangle {id:result;required property var modelData;objectName:"setupResult-"+modelData.id;Layout.fillWidth:true;implicitHeight:lines.implicitHeight+20;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.color:Theme.get("color.line.strong")
        ColumnLayout {id:lines;anchors.fill:parent;anchors.margins:10;spacing:6
         RowLayout {spacing:14
          UiText {text:result.modelData.title;font.pixelSize:17;color:Theme.get("color.text.primary")}
-         UiText {text:"Ready "+result.modelData.ready.length;font.pixelSize:page.body;color:page.good}
-         UiText {text:"Not right "+result.modelData.notRight.length;font.pixelSize:page.body;color:result.modelData.notRight.length?page.warn:Theme.get("color.text.muted_detail")}
-         UiText {text:"Missing "+result.modelData.missing.length;font.pixelSize:page.body;color:Theme.get("color.text.muted_detail")}
+         UiText {text:"Found, can start "+result.modelData.ready.length;font.pixelSize:page.body;color:page.good}
+         UiText {text:"Found, not right "+result.modelData.notRight.length;font.pixelSize:page.body;color:result.modelData.notRight.length?page.warn:Theme.get("color.text.muted_detail")}
+         UiText {text:"Not found "+result.modelData.missing.length;font.pixelSize:page.body;color:Theme.get("color.text.muted_detail")}
          Item {Layout.fillWidth:true}
         }
         Para {visible:!!result.modelData.note;text:result.modelData.note||"";color:Theme.get("color.text.muted_detail")}
-        Para {visible:result.modelData.ready.length>0;text:"Ready:  "+page.names_of(result.modelData.ready);color:page.good;font.pixelSize:page.body-1}
+        Para {visible:result.modelData.ready.length>0;text:"Found, can start:  "+page.names_of(result.modelData.ready);color:page.good;font.pixelSize:page.body-1}
         Repeater {model:result.modelData.notRight
-         Para {required property var modelData;text:"Not right:  "+modelData.title+".  "+modelData.reason;color:page.warn;font.pixelSize:page.body-1}
+         Para {required property var modelData;text:"Found, not right:  "+modelData.title+".  "+modelData.reason;color:page.warn;font.pixelSize:page.body-1}
         }
         Para {visible:result.modelData.missing.length>0;font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")
-         text:"Missing:  "+Array.from(result.modelData.missing).map(e=>e.title+" ("+e.expected+")").join(",  ")}
+         text:"Not found:  "+Array.from(result.modelData.missing).map(e=>e.title+" ("+e.expected+")").join(",  ")}
         Para {objectName:"setupOther-"+result.modelData.id;visible:(result.modelData.other||[]).length>0;font.pixelSize:page.body-2;color:Theme.get("color.text.muted_detail")
          text:{let all=Array.from(result.modelData.other||[]);return "Found, not in the Hub's list ("+all.length+"):  "+all.slice(0,6).map(e=>e.title+" ("+e.detail+")").join(",  ")+(all.length>6?",  and "+(all.length-6)+" more":"")}}
        }

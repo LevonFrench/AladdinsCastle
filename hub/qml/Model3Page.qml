@@ -18,6 +18,8 @@ Item {
  property var selected:{for(let row of rows)if(row.id===selectedId)return row;return ({})}
  property bool idle:Object.keys(uiController.nowPlaying).length===0
  property real factor:Theme.get("size.card.scale."+sizeValue)
+ // The owner may have edited the accepted list since the tab was last open.
+ Component.onCompleted:uiSettings.reloadAccepted()
  property color readyColour:Theme.get("color.state.ready_neon")
  property color needsColour:Theme.get("color.state.needs_neon")
  function card(row){
@@ -25,7 +27,7 @@ Item {
   c.gameId=row.id;c.title=row.title;c.year=row.year;c.pill=row.pill||"MODEL 3";c.manufacturerShort=row.system==="system22"?"Namco":"Sega"
   c.hardwareLabel=row.system==="dreamcast"?"Dreamcast":row.system==="system22"?"System 22":"Model 3";c.developerShown=false;c.isWip=false
   let trouble=row.problem||row.warning
-  c.blurb=trouble?trouble.split(". ")[0].replace(/\.$/,"")+".":"Your own file, real 3D in VR.";c.stateColour=trouble?needsColour:readyColour
+  c.blurb=trouble?trouble.split(". ")[0].replace(/\.$/,"")+".":"Found on this PC.";c.stateColour=trouble?needsColour:readyColour
   return c
  }
  function play(row){if(row.system)uiController.playOtherGame(row.id);else uiController.playModel3(row.id)}
@@ -57,7 +59,7 @@ Item {
    UiText {text:"VR games";font.pixelSize:24;Layout.fillWidth:true}
    PillButton {objectName:"model3Locate";text:"Model 3 emulator";visible:!page.vrOverlayMode;onClicked:file.open()}
    PillButton {objectName:"model3Folder";text:"Model 3 folder";visible:!page.vrOverlayMode;onClicked:folder.open()}
-   PillButton {text:"Check again";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.refreshModel3()}
+   PillButton {text:"Check again";vrOverlayMode:page.vrOverlayMode;onClicked:{uiSettings.reloadAccepted();uiController.refreshModel3()}}
   }
   UiText {Layout.fillWidth:true;text:"Your own emulator builds and your own game files, in the headset. Start SteamVR with the headset connected first, then pick a game to choose how you see it. Other systems are added in Set-up."+(page.vrOverlayMode?" The emulator and the game folder are chosen on the desktop.":"")}
   UiText {objectName:"model3Setup";Layout.fillWidth:true;visible:text.length>0;text:page.setupProblem;font.pixelSize:16;color:page.needsColour}
@@ -69,7 +71,8 @@ Item {
     GameCard {objectName:"model3Card";width:parent.width-8;height:parent.height-8;game:page.card(cell.modelData);sizeValue:page.sizeValue;vrOverlayMode:page.vrOverlayMode
      effectsEnabled:!(uiSettings.values,uiSettings.get("cheapEffects",true))
      primaryText:cell.modelData.problem?"Not ready":cell.modelData.warning?"Read first":"Start · "+cell.modelData.viewLabel
-     footText:cell.modelData.system==="dreamcast"?"VR · new, untested":cell.modelData.system?"TRUE VR":"TRUE 3D · 3 views"
+     // Acceptance is the owner's word only; finding a game is not the same thing.
+     footText:cell.modelData.accepted?"Accepted in the headset":"Not yet accepted in the headset"
      onDetailRequested:page.selectedId=cell.modelData.id
      // A game that is not ready, or starts only behind a warning, opens its page instead of starting.
      onActionRequested:if(cell.modelData.problem||cell.modelData.warning||!page.idle)page.selectedId=cell.modelData.id;else page.play(cell.modelData)
@@ -102,6 +105,9 @@ Item {
     }
    }
   }
+  // The four facts kept apart: listed, how to start it, found here, accepted by the owner.
+  UiText {objectName:"model3Status";Layout.fillWidth:true;font.pixelSize:14;color:Theme.get("color.text.muted_detail")
+   text:"In the Hub's list: yes.   How to start it: known.   On this PC: "+(page.selected.found?"found":"not ready")+".   In the headset: "+(page.selected.accepted?"accepted by you ("+page.selected.accepted+")":"not yet accepted by you")+"."}
   UiText {objectName:"model3Problem";Layout.fillWidth:true;visible:!!page.selected.problem;text:page.selected.problem||"";font.pixelSize:16;color:page.needsColour}
   UiText {objectName:"model3Warning";Layout.fillWidth:true;visible:!!page.selected.warning;text:"Before you start: "+(page.selected.warning||"");font.pixelSize:16;color:page.needsColour}
   RowLayout {spacing:12

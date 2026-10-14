@@ -5,6 +5,7 @@
 #include "core/setup/Setup.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
+#include "core/ps2/Ps2.h"
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -172,6 +173,8 @@ void UiController::stopLaunch(){
   launchClosing();emit closeLaunchRequested();
   message(running?"Close requested; waiting for VPX to exit.":"Pinball launch cancellation requested.");return;
  }
+ // Shown at once: the card says the game is being stopped before the game has reacted.
+ if(!m_nowPlaying.isEmpty()){m_nowPlaying["closing"]=true;m_nowPlaying["stopping"]=true;emit nowPlayingChanged();}
  emit stopLaunchRequested();message("Stop requested; the game is asked to close, then forced to stop after the timeout.");
 }
 void UiController::answerPrompt(bool proceed){emit promptAnswered(proceed);}
@@ -287,7 +290,10 @@ QVariantList UiController::otherGames()const{
   for(const auto &value:views)if(value.toMap().value("id")==view)known=true;
   if(!known)view=views.first().toMap().value("id").toString();
   for(const auto &value:views)if(value.toMap().value("id")==view)row["viewLabel"]=value.toMap().value("label");
-  row["view"]=view;row["views"]=views;rows<<row;
+  row["view"]=view;row["views"]=views;
+  row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
+  row["accepted"]=m_settings->acceptedOn(row.value("id").toString(),row.value("title").toString());
+  rows<<row;
  };
  // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
  const auto model2Program=m_settings->get("model2Executable",QString()).toString(),model2Folder=m_settings->get("model2GameFolder",QString()).toString();
@@ -296,6 +302,14 @@ QVariantList UiController::otherGames()const{
   add({{"id","model2-"+game.value("id").toString()},{"system","model2"},{"pill","MODEL 2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},
    {"warning",game.value("controls").toString()},{"problem",model2::problem(game.value("id").toString(),model2Program,model2Folder)}},
    {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
+ }
+ // PS2: through the user's launcher, checked as it is now. Controls and depth are said on each game's page.
+ const auto ps2Launcher=m_settings->get("ps2Launcher",QString()).toString();
+ if(!ps2Launcher.isEmpty())for(const auto &value:ps2::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString();
+  add({{"id","ps2-"+id},{"system","ps2"},{"pill","PS2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
+   {"problem",ps2::problem(id,ps2Launcher,m_settings->get("ps2Python",QString()).toString(),m_settings->get("ps2StopFile",QString()).toString())}},
+   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset. Start SteamVR first."}}});
  }
  // Time Crisis: one native program, checked as it is now.
  const auto program=m_settings->get("system22Executable",QString()).toString();
@@ -339,6 +353,9 @@ QVariantList UiController::model3Games()const{
   if(row.value("problem").toString().isEmpty())for(const auto &system:m_setupReport.value("systems").toList())if(system.toMap().value("id")=="model3")
    for(const auto &entry:system.toMap().value("notRight").toList())if(entry.toMap().value("id")==id)row["problem"]="The game file is not right. "+entry.toMap().value("reason").toString();
   row["card"]=game(id); // Catalog colours and art where the catalog has this title.
+  // Four separate facts: in the Hub's list, launch line known, found on this PC, accepted by the owner.
+  row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
+  row["accepted"]=m_settings->acceptedOn("model3-"+id,row.value("title").toString());
   rows<<row;
  }
  return rows;
@@ -359,7 +376,7 @@ void UiController::launchModel3Queued(const QString &id,const QString &view,cons
  emit nowPlayingChanged();
 }
 void UiController::launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable){
- m_restartAfterClose=false;
+ m_restartAfterClose=false;m_lastSession.clear();
  m_nowPlaying={{"gameId",id},{"variantId",variant},{"title",game(id).value("title",QString("Pinball"))},{"running",false},{"closing",false},{"closeUnavailable",closeUnavailable}};
  emit nowPlayingChanged();
 }
@@ -394,8 +411,21 @@ void UiController::launchStarted(const QString &id){
  }
  message((id=="__gun_room"?"Opening ":"Playing ")+m_nowPlaying.value("title",game(id).value("title")).toString());
 }
-void UiController::launchFinished(const QString &id,const QString &error){
+void UiController::launchFinished(const QString &id,const QString &error,int exitCode){
  if(!m_nowPlaying.isEmpty()&&m_nowPlaying.value("gameId")!=id)return;
+ {
+  // Said plainly at once, and kept on screen until dismissed or the next game starts.
+  const auto title=m_nowPlaying.value("title",game(id).value("title",QString("The game"))).toString();
+  auto lines=error.split('\n',Qt::SkipEmptyParts);const auto first=lines.isEmpty()?QString():lines.takeFirst();
+  QString outcome,text;
+  if(m_nowPlaying.value("stopping").toBool()){outcome="stopped";text=m_nowPlaying.value("running").toBool()?title+" was stopped.":title+" was stopped before it started.";}
+  else if(error.isEmpty()){outcome="closed";text=title+" has closed.";}
+  else if(first.startsWith("The game stopped unexpectedly")){outcome="crashed";text=QString("%1 stopped unexpectedly (exit code %2).").arg(title).arg(exitCode);}
+  else if(!m_nowPlaying.value("running").toBool()){outcome="failed";text=title+" could not start: "+first;}
+  else{outcome="crashed";text=title+" ended with an error: "+first;}
+  // The end of the game's own output, which usually says why.
+  m_lastSession={{"gameId",id},{"title",title},{"outcome",outcome},{"text",text},{"details",lines.mid(qMax(qsizetype(0),lines.size()-6)).join('\n')},{"exitCode",exitCode}};
+ }
  const auto variant=m_nowPlaying.value("variantId").toString();const bool restart=m_restartAfterClose&&error.isEmpty();
  m_restartAfterClose=false;m_nowPlaying.clear();emit nowPlayingChanged();clearDetailControlStates();message(error.isEmpty()?"Game closed.":error);
  if(restart)emit playRequested(id,variant);
