@@ -49,9 +49,9 @@ private slots:
   void steamVrListIsReadAsWritten() {
     QTemporaryDir t;const auto file=t.filePath("config/appconfig.json"),manifest=t.filePath("hub/resources/product.vrmanifest");
     QVERIFY(!ac::setup::steamVrLists(file,manifest)); // No file yet.
-    write(file,list({"C:/other/app.vrmanifest"}));QVERIFY(!ac::setup::steamVrLists(file,manifest));
+    write(file,list({"/other/app.vrmanifest"}));QVERIFY(!ac::setup::steamVrLists(file,manifest));
     // SteamVR may store the path with other separators or letter case.
-    write(file,list({"C:/other/app.vrmanifest",QDir::toNativeSeparators(manifest).toUpper()}));
+    write(file,list({"/other/app.vrmanifest",QDir::toNativeSeparators(manifest).toUpper()}));
     QVERIFY(ac::setup::steamVrLists(file,manifest));
     write(file,"not json");QVERIFY(!ac::setup::steamVrLists(file,manifest));
     QVERIFY(!ac::setup::steamVrLists(file,QString()));
