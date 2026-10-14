@@ -3,6 +3,13 @@
 Status: baseline incomplete. There is no stereo patch or accepted image yet.
 No headset presentation or gun aiming is implemented by this experiment.
 
+Current dependency gate: use a Windows dependency pack matched to v2.8.2.
+The rolling pack and header-precedence workaround from the historical attempts
+below are excluded from resumed builds. The matched archive has not been located
+in the official release assets or pinned CI artifact inventories. No resumed
+build or game run has occurred. A verified archive URL or supplied local archive
+is required before continuing.
+
 `upstream-pin.json` records the stable emulator, reference source and dependency
 archive revisions. The stable PCSX2 source was left unchanged. Its Windows
 frontend compiled with MSVC v145; the dump runner has not compiled or replayed a
@@ -19,10 +26,11 @@ Three bounded build attempts were made; work stopped at the three-failure limit:
    property sheet: core and frontend compiled, followed by
    `MSB4057: The target "pcsx2-gsrunner" does not exist in the project.`
 
-The last failure was a build-target invocation error. A future resume should
-build the runner project directly with `SolutionDir` set to the source root,
-using the same stable bundled-header include precedence. That correction has
-not been executed. Do not count this checkpoint as completion of step 1.
+The last failure was a build-target invocation error. The resumed build must use
+the runner's own `.vcxproj` with `SolutionDir` set to the source root, outside the
+sandbox with v145 only. Once the matched dependency pack is installed privately,
+remove the header-precedence workaround. This correction has not been executed.
+Do not count this checkpoint as completion of step 1.
 
 The dependency archive is a rolling release, not an immutable pack tied to the
 stable tag. It supplies Qt 6.12.0 and libavcodec 63, while the stable tree vendors

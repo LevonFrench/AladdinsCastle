@@ -10,12 +10,18 @@
     "use": "Source study only; no bundled profiles reused"
   },
   "windows_dependencies": {
+    "required_pcsx2_tag": "v2.8.2",
+    "status": "Matching archive not located; resumed builds blocked",
+    "url": null,
+    "sha256": null
+  },
+  "rejected_rolling_dependency_pack": {
     "repository": "https://github.com/PCSX2/pcsx2-windows-dependencies",
     "tag": "latest-windows-dependencies",
     "commit": "6a4efb8ffbdd79c89c1bd4cc0fde1718d9fc3a18",
     "url": "https://github.com/PCSX2/pcsx2-windows-dependencies/releases/download/latest-windows-dependencies/pcsx2-windows-dependencies.7z",
     "sha256": "a3133c7841e8fbdab6f4d1d5ad8efec31fb1ecda95ffed39f4d1f36bb7eb0007",
     "published": "2026-10-07T21:33:59Z",
-    "compatibility": "Rolling pack, not a tag-specific archive. Qt 6.12.0 and libavcodec 63. Stable source bundles libavcodec 62 headers; prefer those at compile time. Video encoding remains outside this experiment."
+    "compatibility": "Historical download only; excluded from resumed builds. Rolling pack, not a tag-specific archive. Qt 6.12.0 and libavcodec 63 caused stable-source header incompatibility."
   }
 }
