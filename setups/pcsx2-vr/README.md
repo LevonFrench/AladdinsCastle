@@ -318,3 +318,71 @@ own child. No-headset checks exercise the same fixed-size sRGB blit and verify
 the used region against the vertically flipped published images. They do not
 prove runtime swapchains or visible headset output. The corrected headset
 picture remains an owner acceptance check.
+
+### Right-hand GunCon 2 and controller model
+
+The optional live gun path is gated by `PCSX2_VR_GUN=1`. A gun-game launcher
+selects USB port 1 `guncon2`; racer launchers select `None`. Pad 1 retains
+PCSX2's normal XInput DualShock 2 bindings. USB gun menu bindings additionally
+accept the pad's Start, Back, D-pad and face buttons. Alternatives for a gun
+button are combined before dispatch, so a released VR button cannot erase a
+held pad button. Relative gun bindings must be absent: the absolute GunCon 2
+path reads pointer 0.
+
+The presenter creates right-hand aim/grip poses, analog trigger/squeeze, A/B
+and haptic actions with Touch and Index suggestions. Only focused, tracked
+poses publish input. Its aim ray intersects the exact placed screen quad;
+coordinates outside that quad produce an off-screen shot. The emulation
+thread uses the inverse GS display rectangle to update InputManager pointer 0
+and normal input events, including hidden 640x480 surfaces at 3x. No operating
+system mouse movement is used. A 500ms publication lease and tracking/focus
+loss release the gun. Built-in GunCon per-game scanline/calibration parameters
+remain in use. Normalized calibration is centered:
+`u'=(u-.5)*scale_x+.5+offset_x`, likewise for y.
+
+Gun profile settings provide offset/scale, aim-dot/model toggles and grip
+mapping. `PCSX2_VR_GUN_OFFSET_X/Y` default to 0 and `SCALE_X/Y` to 1.
+`PCSX2_VR_GUN_DOT` and `PCSX2_VR_GUN_SHOW_MODEL` default to 1.
+Grip maps to A for cover-game profiles and C for the other gun profiles;
+`PCSX2_VR_GUN_GRIP_BINDING` selects that mapping. The screen-depth dot is drawn
+at the same quad UV in each eye after the game-picture copy.
+
+The renderer reads the owner's existing `con-pistol-dpad.glb` and matching
+TOML through `PCSX2_VR_GUN_MODEL` and `PCSX2_VR_GUN_TOML`. It aligns the GLB grip
+anchor with the tracked grip pose, validates the muzzle anchor and renders a
+transparent per-eye projection layer over the game screen. The model uses
+metres, +Y up and -Z forward. Trigger input rotates both named trigger pivots
+about the TOML axis over its specified range; the supplied metadata uses
+`pivot_trigger`, `pivot_trigger_lod1`, axis [-1,0,0], and 0..0.35 radians.
+A delivered USB trigger edge requests a 35ms strong pulse and a visual-only
+2cm backward/1cm upward kick decaying over 100ms. Recoil never enters aim math.
+The original model and its CC0 material stay in the existing project asset
+library; no proprietary game geometry is used by the controller model.
+
+With OpenXR disabled, `PCSX2_VR_GUN_SCRIPT` accepts
+`seconds:u:v:trigger;seconds:u:v:trigger` on the diagnostic 60Hz presentation
+clock. Each event holds aim and trigger for 15 ticks. It passes through the
+same ray intersection, mailbox, InputManager binding, GunCon position and USB
+packet paths. Nonfinite/invalid entries and scripts with OpenXR enabled are
+rejected. `PCSX2_CAPTURE_PAD` supplies native menu button pulses.
+`PCSX2_CAPTURE_INTERVAL` plus `PCSX2_LIVE_DUMP_PATH` saves internal live
+checkpoints; all file arguments and environment paths use native Windows
+backslashes. `PCSX2_VR_GUN_MODEL_PROOF` selects a private prefix for the same
+renderer to save trigger-0/1 GPU pictures without loading OpenXR.
+
+Hardware tracking, actual Touch/Index bindings, visible controller placement,
+haptic feel, and all five games' in-headset calibration still require the
+owner's headset. A game-generated calibration cross is distinct from a combat
+hit or a live-headset acceptance result; private evidence records each gate.
+
+No-headset validation for this input/model change: Virtua Cop's own calibration
+crosses matched three normalized points within 0..3 upscaled pixels at 3x,
+without the presenter dot. A live File 1 frame showed the game's blue shot
+effect at the requested center and a spent round. Shared-thread eye readbacks
+and the exact SBS row join passed on that frame. GPU trigger-0/1 renders
+changed only the trigger region. Four other gun profiles passed bounded
+startup/USB automatic-configuration checks; their firing/calibration remain
+unaccepted. No connected physical XInput pad was available at final checking;
+scripted XInput events proved hidden menu dispatch. No OpenXR runtime was
+started, so physical tracking, haptics, model fit, dot and sustained headset
+performance remain owner checks.

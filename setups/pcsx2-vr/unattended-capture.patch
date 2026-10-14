@@ -337,7 +337,7 @@ index 03879ca..3b7c870 100644
  	MTGS::RunOnGSThread([frame_number = GSDumpReplayer::GetFrameNumber()]() { s_dump_frame_number = frame_number; });
  	MTGS::RunOnGSThread([loop_number = GSDumpReplayer::GetLoopCount()]() { s_loop_number = loop_number; });
 diff --git a/pcsx2-qt/QtHost.cpp b/pcsx2-qt/QtHost.cpp
-index 5c28f91..0619035 100644
+index 5c28f91..2323e14 100644
 --- a/pcsx2-qt/QtHost.cpp
 +++ b/pcsx2-qt/QtHost.cpp
 @@ -915,7 +915,13 @@ void EmuThread::releaseRenderWindow()
@@ -355,12 +355,19 @@ index 5c28f91..0619035 100644
  }
  
  void Host::ReleaseRenderWindow()
-@@ -925,6 +931,14 @@ void Host::ReleaseRenderWindow()
+@@ -925,6 +931,21 @@ void Host::ReleaseRenderWindow()
  
  void Host::BeginPresentFrame()
  {
 + static unsigned frame = 0;
 + frame++;
++ if (const char* interval = std::getenv("PCSX2_CAPTURE_INTERVAL"))
++ {
++  const unsigned every=std::strtoul(interval,nullptr,10);
++  if (every && frame%every==0)
++   if (const char* path=std::getenv("PCSX2_LIVE_DUMP_PATH"))
++    GSQueueSnapshot(fmt::format("{}-{:05}.png",path,frame));
++ }
 + if (const char* target = std::getenv("PCSX2_LIVE_DUMP_FRAME"); target && frame == std::strtoul(target, nullptr, 10))
 +  if (const char* path = std::getenv("PCSX2_LIVE_DUMP_PATH")) GSQueueSnapshot(path, 3);
 + bool stop = false;
@@ -370,8 +377,22 @@ index 5c28f91..0619035 100644
  }
  
  void Host::RequestResizeHostDisplay(s32 width, s32 height)
+diff --git a/pcsx2/CMakeLists.txt b/pcsx2/CMakeLists.txt
+index 4c8ce81..65a6ba4 100644
+--- a/pcsx2/CMakeLists.txt
++++ b/pcsx2/CMakeLists.txt
+@@ -1215,6 +1215,9 @@ target_include_directories(PCSX2_FLAGS INTERFACE
+ 	"${FFMPEG_INCLUDE_DIRS}"
+ )
+ 
++# The optional presenter GLB parser contains scoped error handling.
++set_source_files_properties(GS/GS.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON COMPILE_OPTIONS
++    "$<$<CXX_COMPILER_ID:MSVC>:/EHsc>;$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fexceptions>")
+ set_source_files_properties(PrecompiledHeader.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
+ if(COMMAND target_precompile_headers)
+ 	message("Using precompiled headers.")
 diff --git a/pcsx2/GS/GS.cpp b/pcsx2/GS/GS.cpp
-index a0b988f..2803155 100644
+index a0b988f..4138526 100644
 --- a/pcsx2/GS/GS.cpp
 +++ b/pcsx2/GS/GS.cpp
 @@ -54,9 +54,12 @@
@@ -497,7 +518,7 @@ index a0b988f..2803155 100644
  
  void GSvsync(u32 field, bool registers_written)
  {
-+ if (PS2Live::enabled && !PS2StereoSecondary()) PS2Live::ticks++;
++ if (PS2Live::enabled && !PS2StereoSecondary()) PS2VRGun::Tick(++PS2Live::ticks);
 + if (!PS2StereoSecondary())
 +  PS2StereoOther([&]() { GSvsync(field, registers_written); });
  	// Update this here because we need to check if the pending draw affects the current frame, so our regs need to be updated.
@@ -577,7 +598,7 @@ index a0b988f..2803155 100644
  
  #else
 diff --git a/pcsx2/GS/GS.h b/pcsx2/GS/GS.h
-index f931d74..468fe26 100644
+index f931d74..ea6d3be 100644
 --- a/pcsx2/GS/GS.h
 +++ b/pcsx2/GS/GS.h
 @@ -3,6 +3,11 @@
@@ -592,6 +613,13 @@ index f931d74..468fe26 100644
  #include "common/WindowInfo.h"
  #include "SaveState.h"
  #include "pcsx2/Config.h"
+@@ -139,3 +144,6 @@ namespace Host
+ }
+ 
+ extern Pcsx2Config::GSOptions GSConfig;
++
++// Inverse display mapping; false until a nonempty present rectangle exists.
++bool GSTranslateDisplayToWindowCoordinates(float u, float v, float* x, float* y);
 diff --git a/pcsx2/GS/Renderers/Common/GSDevice.cpp b/pcsx2/GS/Renderers/Common/GSDevice.cpp
 index 1ee50ac..93bb61a 100644
 --- a/pcsx2/GS/Renderers/Common/GSDevice.cpp
@@ -634,10 +662,27 @@ index 2481edd..3cdd102 100644
  	
  	void Recycle(GSTexture* t);
 diff --git a/pcsx2/GS/Renderers/Common/GSRenderer.cpp b/pcsx2/GS/Renderers/Common/GSRenderer.cpp
-index b5c7cc6..9b9dd2c 100644
+index b5c7cc6..7d2d319 100644
 --- a/pcsx2/GS/Renderers/Common/GSRenderer.cpp
 +++ b/pcsx2/GS/Renderers/Common/GSRenderer.cpp
-@@ -632,6 +632,10 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
+@@ -45,6 +45,7 @@ std::unique_ptr<GSRenderer> g_gs_renderer;
+ 
+ // Since we read this on the EE thread, we can't put it in the renderer, because
+ // we might be switching while the other thread reads it.
++static std::mutex s_draw_rect_mutex;
+ static GSVector4 s_last_draw_rect;
+ 
+ // Last time we reset the renderer due to a GPU crash, if any.
+@@ -56,7 +57,7 @@ static GSDisplayAlignment s_display_alignment = GSDisplayAlignment::Center;
+ GSRenderer::GSRenderer()
+ 	: m_shader_time_start(Common::Timer::GetCurrentValue())
+ {
+-	s_last_draw_rect = GSVector4::zero();
++	{ std::lock_guard<std::mutex> lock(s_draw_rect_mutex); s_last_draw_rect = GSVector4::zero(); }
+ }
+ 
+ GSRenderer::~GSRenderer() = default;
+@@ -632,6 +633,10 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
  	}
  
  	const bool blank_frame = !Merge(field);
@@ -648,6 +693,50 @@ index b5c7cc6..9b9dd2c 100644
  
  	m_last_draw_n = s_n;
  	m_last_transfer_n = s_transfer_n;
+@@ -665,7 +670,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
+ 			draw_rect = CalculateDrawDstRect(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight(),
+ 				src_rect, current->GetSize(), s_display_alignment, g_gs_device->UsesLowerLeftOrigin(),
+ 				GetVideoMode() == GSVideoMode::SDTV_480P);
+-			s_last_draw_rect = draw_rect;
++			{ std::lock_guard<std::mutex> lock(s_draw_rect_mutex); s_last_draw_rect = draw_rect; }
+ 
+ 			if (GSConfig.CASMode != GSCASMode::Disabled)
+ 			{
+@@ -995,7 +1000,7 @@ void GSRenderer::PresentCurrentFrame()
+ 			const GSVector4 draw_rect(CalculateDrawDstRect(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight(),
+ 				src_rect, current->GetSize(), s_display_alignment, g_gs_device->UsesLowerLeftOrigin(),
+ 				GetVideoMode() == GSVideoMode::SDTV_480P));
+-			s_last_draw_rect = draw_rect;
++			{ std::lock_guard<std::mutex> lock(s_draw_rect_mutex); s_last_draw_rect = draw_rect; }
+ 
+ 			const u64 current_time = Common::Timer::GetCurrentValue();
+ 			const float shader_time = static_cast<float>(Common::Timer::ConvertValueToSeconds(current_time - m_shader_time_start));
+@@ -1010,11 +1015,12 @@ void GSRenderer::PresentCurrentFrame()
+ 
+ void GSTranslateWindowToDisplayCoordinates(float window_x, float window_y, float* display_x, float* display_y)
+ {
++ std::lock_guard<std::mutex> lock(s_draw_rect_mutex);
+ 	const float draw_width = s_last_draw_rect.z - s_last_draw_rect.x;
+ 	const float draw_height = s_last_draw_rect.w - s_last_draw_rect.y;
+ 	const float rel_x = window_x - s_last_draw_rect.x;
+ 	const float rel_y = window_y - s_last_draw_rect.y;
+-	if (rel_x < 0 || rel_x > draw_width || rel_y < 0 || rel_y > draw_height)
++	if (draw_width <= 0 || draw_height <= 0 || rel_x < 0 || rel_x > draw_width || rel_y < 0 || rel_y > draw_height)
+ 	{
+ 		*display_x = -1.0f;
+ 		*display_y = -1.0f;
+@@ -1251,3 +1257,11 @@ void DumpGSPrivRegs(const GSPrivRegSet& r, const std::string& filename)
+ 
+ 	std::fprintf(fp.get(), "EXTWRITE: { EN: %u }\n", r.EXTWRITE.WRITE);
+ }
++
++bool GSTranslateDisplayToWindowCoordinates(float u, float v, float* x, float* y)
++{
++ std::lock_guard<std::mutex> lock(s_draw_rect_mutex);
++ const float w=s_last_draw_rect.z-s_last_draw_rect.x, h=s_last_draw_rect.w-s_last_draw_rect.y;
++ if (w<=0 || h<=0) { *x=-1; *y=-1; return false; }
++ *x=s_last_draw_rect.x+u*w; *y=s_last_draw_rect.y+v*h; return true;
++}
 diff --git a/pcsx2/GS/Renderers/HW/GSRendererHW.cpp b/pcsx2/GS/Renderers/HW/GSRendererHW.cpp
 index 564f12e..d6403d2 100644
 --- a/pcsx2/GS/Renderers/HW/GSRendererHW.cpp
@@ -878,6 +967,164 @@ index 562b136..240baee 100644
  	using VSSelector = GSHWDrawConfig::VSSelector;
  	using PSSelector = GSHWDrawConfig::PSSelector;
  	using PSSamplerSelector = GSHWDrawConfig::SamplerSelector;
+diff --git a/pcsx2/Input/InputManager.cpp b/pcsx2/Input/InputManager.cpp
+index 813b6da..0a05d8f 100644
+--- a/pcsx2/Input/InputManager.cpp
++++ b/pcsx2/Input/InputManager.cpp
+@@ -3,6 +3,8 @@
+ 
+ #include "ImGui/ImGuiManager.h"
+ #include "Input/InputManager.h"
++#include "Input/PS2VRGun.h"
++#include "GS/GS.h"
+ #include "Input/InputSource.h"
+ #include "SIO/Pad/Pad.h"
+ #include "SIO/Sio.h"
+@@ -19,6 +21,8 @@
+ 
+ #include "fmt/format.h"
+ 
++#include <algorithm>
++#include <cmath>
+ #include <array>
+ #include <atomic>
+ #include <memory>
+@@ -1022,9 +1026,18 @@ void InputManager::AddUSBBindings(SettingsInterface& si, u32 port, bool is_profi
+ 				{
+ 					const float sensitivity = si.GetFloatValue(section.c_str(), fmt::format("{}Scale", bi.name).c_str(), 1.0f);
+ 					const float deadzone = si.GetFloatValue(section.c_str(), fmt::format("{}Deadzone", bi.name).c_str(), 0.0f);
++                    // VR gun pointer and native gamepad are alternatives, not last-writer-wins.
++                    const bool combine_gun = PS2VRGun::Enabled() && port == 0 && device == "guncon2" && bi.bind_type == InputBindingInfo::Type::Button;
++                    auto source_values = std::make_shared<std::unordered_map<u64, float>>();
+ 					AddBindings(
+-						bindings, InputAxisEventHandler{[port, bind_index = bi.bind_index, sensitivity, deadzone](InputBindingKey key, float value) {
+-							USB::SetDeviceBindValue(port, bind_index, ApplySingleBindingScale(sensitivity, deadzone, value));
++						bindings, InputAxisEventHandler{[port, bind_index = bi.bind_index, sensitivity, deadzone, combine_gun, source_values](InputBindingKey key, float value) {
++                            float combined = value;
++                            if (combine_gun) {
++                                (*source_values)[key.bits] = value;
++                                combined = 0;
++                                for (const auto& source : *source_values) combined = std::max(combined, source.second);
++                            }
++							USB::SetDeviceBindValue(port, bind_index, ApplySingleBindingScale(sensitivity, deadzone, combined));
+ 						}},
+ 						bi.bind_type, si, section.c_str(), bind_name.c_str(), is_profile);
+ 				}
+@@ -1245,7 +1258,8 @@ void InputManager::ClearBindStateFromSource(InputBindingKey key)
+ 			if (binding->keys[i].MaskDirection() != match_key)
+ 				continue;
+ 
+-			std::get<InputAxisEventHandler>(binding->handler)(key, 0.0f);
++			// Preserve the actual source key so combined alternatives clear on disconnect.
++			std::get<InputAxisEventHandler>(binding->handler)(binding->keys[i], 0.0f);
+ 			break;
+ 		}
+ 	}
+@@ -1448,6 +1462,16 @@ void InputManager::OnInputDeviceConnected(const std::string_view identifier, con
+ 
+ void InputManager::OnInputDeviceDisconnected(const InputBindingKey key, const std::string_view identifier)
+ {
++    if (PS2VRGun::Enabled())
++    {
++        // Clear cached alternatives before their source disappears. Ordinary
++        // VR publications can then continue without a latched pad trigger.
++        InputBindingKey released=key;
++        released.source_subtype=InputSubclass::ControllerButton;
++        ClearBindStateFromSource(released);
++        released.source_subtype=InputSubclass::ControllerAxis;
++        ClearBindStateFromSource(released);
++    }
+ 	if (VMManager::HasValidVM())
+ 		USB::InputDeviceDisconnected(identifier);
+ 
+@@ -1712,12 +1736,62 @@ void InputManager::CloseSources()
+ 
+ void InputManager::PollSources()
+ {
++ if (PS2VRGun::Enabled())
++ {
++  auto sample=PS2VRGun::Snapshot();
++  static const float ox=PS2VRGun::Setting("PCSX2_VR_GUN_OFFSET_X",0), oy=PS2VRGun::Setting("PCSX2_VR_GUN_OFFSET_Y",0);
++  static const float sx=PS2VRGun::Setting("PCSX2_VR_GUN_SCALE_X",1), sy=PS2VRGun::Setting("PCSX2_VR_GUN_SCALE_Y",1);
++  const float u=(sample.u-0.5f)*sx+0.5f+ox, v=(sample.v-0.5f)*sy+0.5f+oy;
++  float x=-1, y=-1;
++  if (sample.active && sample.on_screen && std::isfinite(u) && std::isfinite(v) && u>=0 && u<=1 && v>=0 && v<=1)
++   GSTranslateDisplayToWindowCoordinates(u,v,&x,&y);
++  UpdatePointerAbsolutePosition(0,x,y);
++  static bool last_trigger=false;
++  const bool trigger=sample.active && sample.trigger>=0.5f;
++  if (trigger && !last_trigger) { float back_u,back_v; GSTranslateWindowToDisplayCoordinates(x,y,&back_u,&back_v); Console.WriteLn("VR gun CPU sample uv=(%.6f,%.6f) on=%d pointer=(%.3f,%.3f) inverse=(%.6f,%.6f)",u,v,int(sample.on_screen),x,y,back_u,back_v); }
++  last_trigger=trigger;
++  static const std::string grip_binding=[] { const char* value=std::getenv("PCSX2_VR_GUN_GRIP_BINDING"); return std::string(value ? value : "C"); }();
++  const bool grip_a=grip_binding=="A", grip_b=grip_binding=="B";
++  // Merge shared controls before dispatch: separate zero-valued bindings overwrite USB bits.
++  const float values[]={sample.active ? sample.trigger : 0.0f, float(sample.active && (sample.a || (sample.grip && grip_a))), float(sample.active && (sample.b || (sample.grip && grip_b))), float(sample.active && sample.grip && !grip_a && !grip_b)};
++  for (u32 i=0;i<4;i++) InvokeEvents(MakePointerButtonKey(0,8+i),values[i]);
++ }
++
+ 	for (u32 i = FIRST_EXTERNAL_INPUT_SOURCE; i < LAST_EXTERNAL_INPUT_SOURCE; i++)
+ 	{
+ 		if (s_input_sources[i]->IsInitialized())
+ 			s_input_sources[i]->PollEvents();
+ 	}
+ 
++ // Private diagnostic: same 15-tick native Pad1 pulses as gsrunner.
++ static const auto pad_events=[] {
++  struct Event { std::uint64_t frame; u32 bind; float value; InputBindingKey key; };
++  std::vector<Event> events;
++  const char* script=std::getenv("PCSX2_CAPTURE_PAD"); if (!script) return events;
++  std::istringstream input(script); std::string entry;
++  while (std::getline(input,entry,';')) {
++   const auto split=entry.find(':'); if (split==std::string::npos) continue;
++   const auto seconds=StringUtil::FromChars<double>(std::string_view(entry).substr(0,split));
++   std::string name=entry.substr(split+1); if (name.starts_with("DPad")) name=name.substr(4);
++   const bool allowed=name=="Cross" || name=="Circle" || name=="Triangle" || name=="Start" || name=="Up" || name=="Down" || name=="Left" || name=="Right";
++   const auto bind=Pad::GetControllerInfo(Pad::ControllerType::DualShock2)->GetBindIndex(name);
++   if (!seconds || !std::isfinite(*seconds) || *seconds<0 || *seconds>7200 || !allowed || !bind || events.size()>=512) { Console.Error("Invalid native capture pad event: %s",entry.c_str()); continue; }
++   const auto frame=static_cast<std::uint64_t>(std::ceil(*seconds*60));
++   std::string xname=name;
++   if (name=="Cross") xname="A"; else if (name=="Circle") xname="B"; else if (name=="Triangle") xname="Y";
++   else if (name=="Up" || name=="Down" || name=="Left" || name=="Right") xname="DPad"+name;
++   const auto key=ParseInputBindingKey("XInput-0/"+xname);
++   if (!key) { Console.Error("Native capture cannot parse XInput event: %s",xname.c_str()); continue; }
++   events.push_back({frame,*bind,1,*key}); events.push_back({frame+15,*bind,0,*key});
++  }
++  std::stable_sort(events.begin(),events.end(),[](const auto& a,const auto& b){return a.frame<b.frame;}); return events;
++ }();
++ static size_t next_pad_event=0;
++ const auto frame=PS2VRGun::frame_clock.load(std::memory_order_acquire);
++ while (next_pad_event<pad_events.size() && frame>=pad_events[next_pad_event].frame) {
++  const auto& event=pad_events[next_pad_event++]; InvokeEvents(event.key,event.value);
++  Console.WriteLn("Native capture XInput dispatch Pad1+USB frame=%llu bind=%u value=%.0f",static_cast<unsigned long long>(frame),event.bind,event.value);
++ }
+ 	GenerateRelativeMouseEvents();
+ 
+ 	if (VMManager::GetState() == VMState::Running && !s_pad_vibration_array.empty())
+diff --git a/pcsx2/Input/XInputSource.cpp b/pcsx2/Input/XInputSource.cpp
+index 30a0bf1..e6fd7c5 100644
+--- a/pcsx2/Input/XInputSource.cpp
++++ b/pcsx2/Input/XInputSource.cpp
+@@ -13,6 +13,7 @@
+ #include "fmt/format.h"
+ 
+ #include <cmath>
++#include <cstdlib>
+ 
+ static const char* s_axis_setting_names[XInputSource::NUM_AXES] = {
+ 	"LeftX", // AXIS_LEFTX
+@@ -256,6 +257,12 @@ void XInputSource::PollEvents()
+ 				if (!was_connected)
+ 					HandleControllerConnection(i);
+ 
++                static unsigned hidden_logged=0;
++                if (const char* hidden=std::getenv("PCSX2_LIVE_HIDDEN"); hidden && *hidden=='1' && !(hidden_logged&(1u<<i)))
++                {
++                    hidden_logged|=1u<<i;
++                    INFO_LOG("XInput hidden background poll succeeded: controller {} (no window-focus gate)",i);
++                }
+ 				CheckForStateChanges(i, new_state);
+ 			}
+ 			else
 diff --git a/pcsx2/MTGS.cpp b/pcsx2/MTGS.cpp
 index 59f5aa0..fe5c298 100644
 --- a/pcsx2/MTGS.cpp
@@ -904,11 +1151,63 @@ index 59f5aa0..fe5c298 100644
  	{
  		if (EmuConfig.GS.HWDownloadMode == GSHardwareDownloadMode::Unsynchronized)
  			GSReadLocalMemoryUnsync(mem, qwc, vif1.BITBLTBUF._u64, vif1.TRXPOS._u64, vif1.TRXREG._u64);
+diff --git a/pcsx2/USB/usb-lightgun/guncon2.cpp b/pcsx2/USB/usb-lightgun/guncon2.cpp
+index ad40a8d..884c098 100644
+--- a/pcsx2/USB/usb-lightgun/guncon2.cpp
++++ b/pcsx2/USB/usb-lightgun/guncon2.cpp
+@@ -6,6 +6,7 @@
+ #include "IconsPromptFont.h"
+ #include "ImGui/ImGuiManager.h"
+ #include "Input/InputManager.h"
++#include "Input/PS2VRGun.h"
+ #include "StateWrapper.h"
+ #include "USB/USB.h"
+ #include "USB/deviceproxy.h"
+@@ -144,6 +145,7 @@ namespace usb_lightgun
+ 		// Host State (Not Saved)
+ 		//////////////////////////////////////////////////////////////////////////
+ 		u32 button_state = 0;
++		bool vr_delivered_trigger = false;
+ 		std::string cursor_path;
+ 		float cursor_scale = 1.0f;
+ 		u32 cursor_color = 0xFFFFFFFF;
+@@ -313,6 +315,15 @@ namespace usb_lightgun
+ 					}
+ 
+ 					usb_packet_copy(p, &out, sizeof(out));
++                    if (us->port == 0 && PS2VRGun::Enabled())
++                    {
++                        const bool down = (out.buttons & (1u << BID_TRIGGER)) == 0;
++                        if (down && !us->vr_delivered_trigger) {
++                            PS2VRGun::AcknowledgeShot();
++                            Console.WriteLn("VR gun USB1 delivered shot=%llu buttons=0x%04x pos=(%d,%d)",static_cast<unsigned long long>(PS2VRGun::ShotSerial()),unsigned(out.buttons),int(out.pos_x),int(out.pos_y));
++                        }
++                        us->vr_delivered_trigger = down;
++                    }
+ 					break;
+ 				}
+ 			}
+diff --git a/pcsx2/pcsx2.vcxproj b/pcsx2/pcsx2.vcxproj
+index f7d9924..25adbee 100644
+--- a/pcsx2/pcsx2.vcxproj
++++ b/pcsx2/pcsx2.vcxproj
+@@ -419,7 +419,10 @@
+     <ClCompile Include="GS\Renderers\OpenGL\GLState.cpp">
+       <ExcludedFromBuild Condition="'$(Platform)'=='ARM64'">true</ExcludedFromBuild>
+     </ClCompile>
+-    <ClCompile Include="GS\GS.cpp" />
++    <ClCompile Include="GS\GS.cpp">
++      <ExceptionHandling>Sync</ExceptionHandling>
++      <PrecompiledHeader>NotUsing</PrecompiledHeader>
++    </ClCompile>
+     <ClCompile Include="GS\GSBlock.cpp" />
+     <ClCompile Include="GS\GSCapture.cpp" />
+     <ClCompile Include="GS\GSClut.cpp" />
 diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,512 @@
+@@ -0,0 +1,546 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
@@ -919,6 +1218,9 @@ new file mode 100644
 +#include "common/Error.h"
 +#include "common/Image.h"
 +#include "PerformanceMetrics.h"
++#include "Input/PS2VRGun.h"
++#include "GS/PS2VRAim.h"
++#include "GS/PS2VRGunModel.h"
 +#include <atomic>
 +#include <algorithm>
 +#include <chrono>
@@ -1016,6 +1318,14 @@ new file mode 100644
 + {
 +  if (!context->MakeCurrent()) { LiveLog("Proof shared context MakeCurrent failed"); return; }
 +  LiveLog("OpenXR-disabled presenter thread has shared OpenGL context; no loader/runtime calls");
++  if (PS2VRGun::Enabled() && std::getenv("PCSX2_VR_GUN_MODEL_PROOF"))
++  {
++   PS2VRGun::Renderer model; std::string error;
++   DrainGL("before","gun model proof");
++   if (model.Init(error) && model.SaveProof(std::getenv("PCSX2_VR_GUN_MODEL_PROOF"),error)) LiveLog("Gun model trigger 0/1 GPU renders saved");
++   else LiveLog(("Gun model proof failed: "+error).c_str());
++   model.Shutdown(); DrainGL("after","gun model proof");
++  }
 +  while (!stop)
 +  {
 +   std::unique_lock lock(mutex);
@@ -1076,7 +1386,11 @@ new file mode 100644
 + X(xrCreateSwapchain) X(xrDestroySwapchain) X(xrEnumerateSwapchainImages) \
 + X(xrAcquireSwapchainImage) X(xrWaitSwapchainImage) X(xrReleaseSwapchainImage) \
 + X(xrPollEvent) X(xrBeginSession) X(xrEndSession) X(xrWaitFrame) X(xrBeginFrame) \
-+ X(xrEndFrame) X(xrLocateSpace) X(xrGetOpenGLGraphicsRequirementsKHR)
++ X(xrEndFrame) X(xrLocateSpace) X(xrGetOpenGLGraphicsRequirementsKHR) \
++ X(xrStringToPath) X(xrCreateActionSet) X(xrDestroyActionSet) X(xrCreateAction) \
++ X(xrSuggestInteractionProfileBindings) X(xrAttachSessionActionSets) X(xrCreateActionSpace) \
++ X(xrSyncActions) X(xrGetActionStatePose) X(xrGetActionStateFloat) X(xrGetActionStateBoolean) \
++ X(xrApplyHapticFeedback) X(xrStopHapticFeedback) X(xrLocateViews)
 + #define X(name) static PFN_##name p_##name = nullptr;
 + PS2_XR_FUNCS(X)
 + #undef X
@@ -1108,6 +1422,7 @@ new file mode 100644
 +  for (int eye=0; eye<2; eye++) { if (chains[eye]) XRGL("xrDestroySwapchain", p_xrDestroySwapchain, chains[eye]); chains[eye]=XR_NULL_HANDLE; images[eye].clear(); }
 +  chains_attempted=false;
 + }
++ #include "GS/PS2VRControllers.h"
 + static bool InitXR()
 + {
 +  // Never reached with PCSX2_OPENXR=0: no loader/runtime discovery in proofs.
@@ -1140,6 +1455,7 @@ new file mode 100644
 +  if (!Check(XRGL("xrCreateReferenceSpace", p_xrCreateReferenceSpace, session,&rs,&space),"local space")) return false;
 +  rs.referenceSpaceType=XR_REFERENCE_SPACE_TYPE_VIEW;
 +  if (!Check(XRGL("xrCreateReferenceSpace", p_xrCreateReferenceSpace, session,&rs,&view),"view space")) return false;
++  if (PS2VRGun::Enabled() && !InitGunActions()) LiveLog("Gun actions unavailable; gamepad remains active");
 +  u32 n=0;
 +  if (!Check(XRGL("xrEnumerateSwapchainFormats", p_xrEnumerateSwapchainFormats, session,0,&n,nullptr),"swapchain formats")) return false;
 +  std::vector<int64_t> formats(n);
@@ -1190,7 +1506,7 @@ new file mode 100644
 +  {
 +   LiveLog("OpenXR session created on presenter thread");
 +   GLuint fbos[2]{}; glGenFramebuffers(2,fbos);
-+   bool running=false, placed=false, home_down=false;
++   bool running=false, placed=false, home_down=false, focused=false;
 +   XrPosef pose{};
 +   while (!stop)
 +   {
@@ -1200,6 +1516,8 @@ new file mode 100644
 +     if (ev.type==XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED)
 +     {
 +      auto state=reinterpret_cast<XrEventDataSessionStateChanged*>(&ev)->state;
++      focused=state==XR_SESSION_STATE_FOCUSED;
++      if (!focused) ReleaseGunInput();
 +      if (state==XR_SESSION_STATE_READY) { XrSessionBeginInfo bi{XR_TYPE_SESSION_BEGIN_INFO}; bi.primaryViewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO; running=Check(XRGL("xrBeginSession", p_xrBeginSession, session,&bi),"xrBeginSession"); }
 +      if (state==XR_SESSION_STATE_STOPPING) { XRGL("xrEndSession", p_xrEndSession, session); running=false; }
 +      if (state==XR_SESSION_STATE_EXITING || state==XR_SESSION_STATE_LOSS_PENDING) stop=true;
@@ -1215,8 +1533,12 @@ new file mode 100644
 +    const bool home=(GetAsyncKeyState(VK_HOME)&0x8000)!=0;
 +    if (!placed || (home && !home_down)) placed=PlaceScreen(fs.predictedDisplayTime,pose);
 +    home_down=home;
++    float screen_width=0;
++    { std::lock_guard guard(mutex); screen_width=Env("PCSX2_OPENXR_DISTANCE_M",2.5f)*native_width/Env("PCSX2_STEREO_FOCAL_PX",320); }
++    const float screen_height=screen_width/Env("PCSX2_OPENXR_ASPECT",4.0f/3.0f);
++    PollGunActions(fs.predictedDisplayTime,focused && placed && fs.shouldRender,pose,screen_width,screen_height);
 +    XrCompositionLayerQuad quads[2]{};
-+    const XrCompositionLayerBaseHeader* layers[2]{};
++    const XrCompositionLayerBaseHeader* layers[3]{};
 +    u32 count=0;
 +    if (fs.shouldRender && placed)
 +    {
@@ -1235,6 +1557,7 @@ new file mode 100644
 +       const XrResult waited=XRGL("xrWaitSwapchainImage", p_xrWaitSwapchainImage, chains[eye],&swi);
 +       if (waited!=XR_SUCCESS) { Check(waited,"xrWaitSwapchainImage"); LiveLog("Swapchain image wait did not complete; stopping presenter"); stop=true; break; }
 +       const bool copied=BlitEye(eye,images[eye][index].image,fbos[0],fbos[1],used);
++       if (copied) DrawAimDot(used);
 +       XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
 +       if (!Check(XRGL("xrReleaseSwapchainImage", p_xrReleaseSwapchainImage, chains[eye],&ri),"xrReleaseSwapchainImage")) break;
 +       if (!copied) break;
@@ -1242,31 +1565,40 @@ new file mode 100644
 +       q.eyeVisibility=eye ? XR_EYE_VISIBILITY_RIGHT : XR_EYE_VISIBILITY_LEFT;
 +       q.subImage.swapchain=chains[eye]; q.subImage.imageRect.extent={used.x,used.y};
 +       q.pose=pose;
-+       q.size.width=Env("PCSX2_OPENXR_DISTANCE_M",2.5f)*native_width/Env("PCSX2_STEREO_FOCAL_PX",320);
-+       q.size.height=q.size.width/Env("PCSX2_OPENXR_ASPECT",4.0f/3.0f);
++       q.size.width=screen_width;
++       q.size.height=screen_height;
 +       layers[count++]=reinterpret_cast<XrCompositionLayerBaseHeader*>(&q);
 +      }
 +     }
 +    }
 +    XrFrameEndInfo ei{XR_TYPE_FRAME_END_INFO}; ei.displayTime=fs.predictedDisplayTime; ei.environmentBlendMode=XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
 +    if (count!=2) count=0; // submit a complete eye pair or no picture
++    XrCompositionLayerProjection gun_layer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
++    XrCompositionLayerProjectionView gun_views[2]{};
++    if (count==2 && DrawTrackedGun(fs.predictedDisplayTime,gun_layer,gun_views))
++     layers[count++]=reinterpret_cast<XrCompositionLayerBaseHeader*>(&gun_layer);
 +    ei.layerCount=count; ei.layers=count ? layers : nullptr;
 +    const XrResult ended=XRGL("xrEndFrame", p_xrEndFrame, session,&ei);
 +    if (!Check(ended,"xrEndFrame")) break;
-+    if (count==2 && ended==XR_SUCCESS)
++    if (count>=2 && ended==XR_SUCCESS)
 +    {
 +     frames_with_layers++;
-+     if (frames_with_layers==1) LiveLog("First successful xrEndFrame with layers: layers=2");
++     if (frames_with_layers==1 && live_log) { std::fprintf(live_log,"First successful xrEndFrame with layers: layers=%u\n",count); std::fflush(live_log); }
 +     if (frames_with_layers%300==0 && live_log) { std::fprintf(live_log,"XR progress: frames_with_layers=%llu gl_errors_drained=%llu\n",frames_with_layers,drained_errors); std::fflush(live_log); }
 +    }
 +    if (retry_window) break;
 +   }
 +   glDeleteFramebuffers(2,fbos);
 +  }
++  ReleaseGunInput();
++  DestroyGunGraphics();
++  DestroyGunActions();
 +  DestroyChains();
 +  if (view && p_xrDestroySpace) XRGL("xrDestroySpace", p_xrDestroySpace, view);
 +  if (space && p_xrDestroySpace) XRGL("xrDestroySpace", p_xrDestroySpace, space);
 +  if (session && p_xrDestroySession) XRGL("xrDestroySession", p_xrDestroySession, session);
++  if (gun_actions && p_xrDestroyActionSet) XRGL("xrDestroyActionSet",p_xrDestroyActionSet,gun_actions);
++  gun_actions=XR_NULL_HANDLE;
 +  if (instance && p_xrDestroyInstance) XRGL("xrDestroyInstance", p_xrDestroyInstance, instance);
 +  view=space=XR_NULL_HANDLE; session=XR_NULL_HANDLE; instance=XR_NULL_HANDLE;
 +  if (loader) { FreeLibrary(loader); loader=nullptr; }
@@ -1365,6 +1697,7 @@ new file mode 100644
 + glDeleteTextures(2,eyes); glDeleteTextures(2,pending);
 + eyes[0]=eyes[1]=pending[0]=pending[1]=0; width=height=pending_width=pending_height=0;
 + enabled=false; other=false;
++ PS2VRGun::Publish({});
 + LiveLog("Live stereo closed"); if (live_log) { std::fclose(live_log); live_log=nullptr; }
 +}
 +void PS2StereoScanout()
@@ -1420,4 +1753,444 @@ new file mode 100644
 +   }
 +  }
 + }
++}
+diff --git a/pcsx2/GS/PS2VRAim.h b/pcsx2/GS/PS2VRAim.h
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/GS/PS2VRAim.h
+@@ -0,0 +1,27 @@
++// SPDX-License-Identifier: GPL-3.0+
++#pragma once
++#include <cmath>
++namespace PS2VRAim
++{
++struct V { float x=0,y=0,z=0; V operator+(V b)const{return {x+b.x,y+b.y,z+b.z};} V operator-(V b)const{return {x-b.x,y-b.y,z-b.z};} V operator*(float s)const{return{x*s,y*s,z*s};} };
++struct Q { float x=0,y=0,z=0,w=1; };
++inline float Dot(V a,V b){return a.x*b.x+a.y*b.y+a.z*b.z;}
++inline V Cross(V a,V b){return{a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};}
++inline V Rotate(Q q,V p){V v{q.x,q.y,q.z}; return p+Cross(v,Cross(v,p)+p*q.w)*2;}
++struct Hit {float u=-1,v=-1; bool on_screen=false;};
++// Quad +Z faces the viewer; the tracked aim pose points down its local -Z.
++// Work in quad-local metres. No visual gun/recoil transform enters this path.
++inline Hit Intersect(V origin,V direction,V center,Q rotation,float width,float height)
++{
++ if (!(width>0 && height>0)) return {};
++ Q inverse{-rotation.x,-rotation.y,-rotation.z,rotation.w};
++ V o=Rotate(inverse,origin-center),d=Rotate(inverse,direction);
++ if (!std::isfinite(o.x+o.y+o.z+d.x+d.y+d.z) || d.z>=-1e-6f) return {};
++ float t=-o.z/d.z;
++ if (t<=0 || !std::isfinite(t)) return {};
++ V p=o+d*t;
++ Hit hit{p.x/width+.5f,.5f-p.y/height,false};
++ hit.on_screen=hit.u>=0 && hit.u<=1 && hit.v>=0 && hit.v<=1;
++ return hit;
++}
++}
+diff --git a/pcsx2/GS/PS2VRControllers.h b/pcsx2/GS/PS2VRControllers.h
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/GS/PS2VRControllers.h
+@@ -0,0 +1,211 @@
++// SPDX-License-Identifier: GPL-3.0+
++// Included inside PS2Live after the runtime function table. Presenter-thread only.
++static XrActionSet gun_actions=XR_NULL_HANDLE;
++static XrAction gun_aim=XR_NULL_HANDLE,gun_grip_pose=XR_NULL_HANDLE,gun_trigger=XR_NULL_HANDLE;
++static XrAction gun_a=XR_NULL_HANDLE,gun_b=XR_NULL_HANDLE,gun_squeeze=XR_NULL_HANDLE,gun_haptic=XR_NULL_HANDLE;
++static XrPath right_hand=XR_NULL_PATH;
++static XrSpace aim_space=XR_NULL_HANDLE,grip_space=XR_NULL_HANDLE;
++static bool gun_attached=false,grip_valid=false;
++static XrPosef grip_pose{};
++static uint64_t seen_shot=0;
++static auto recoil_start=std::chrono::steady_clock::time_point{};
++static PS2VRGun::Renderer gun_model;
++static XrPath Path(const char* name)
++{
++ XrPath p=XR_NULL_PATH;
++ Check(XRGL("xrStringToPath",p_xrStringToPath,instance,name,&p),name);
++ return p;
++}
++static bool InitGunActions()
++{
++ gun_attached=false; seen_shot=PS2VRGun::ShotSerial();
++ XrActionSetCreateInfo ci{XR_TYPE_ACTION_SET_CREATE_INFO};
++ std::strcpy(ci.actionSetName,"ps2_gun"); std::strcpy(ci.localizedActionSetName,"PS2 GunCon 2");
++ if (!Check(XRGL("xrCreateActionSet",p_xrCreateActionSet,instance,&ci,&gun_actions),"gun action set")) return false;
++ right_hand=Path("/user/hand/right"); if (!right_hand) return false;
++ const auto action=[](const char* name,const char* label,XrActionType type,XrAction& handle)
++ {
++  XrActionCreateInfo info{XR_TYPE_ACTION_CREATE_INFO}; std::strcpy(info.actionName,name); std::strcpy(info.localizedActionName,label);
++  info.actionType=type; info.countSubactionPaths=1; info.subactionPaths=&right_hand;
++  return Check(XRGL("xrCreateAction",p_xrCreateAction,gun_actions,&info,&handle),name);
++ };
++ if (!action("aim","Aim",XR_ACTION_TYPE_POSE_INPUT,gun_aim) ||
++     !action("grip_pose","Grip pose",XR_ACTION_TYPE_POSE_INPUT,gun_grip_pose) ||
++     !action("trigger","Trigger",XR_ACTION_TYPE_FLOAT_INPUT,gun_trigger) ||
++     !action("button_a","GunCon A",XR_ACTION_TYPE_BOOLEAN_INPUT,gun_a) ||
++     !action("button_b","GunCon B",XR_ACTION_TYPE_BOOLEAN_INPUT,gun_b) ||
++     !action("squeeze","Grip",XR_ACTION_TYPE_FLOAT_INPUT,gun_squeeze) ||
++     !action("haptic","Shot pulse",XR_ACTION_TYPE_VIBRATION_OUTPUT,gun_haptic)) return false;
++ for (const char* profile:{"/interaction_profiles/oculus/touch_controller","/interaction_profiles/valve/index_controller"})
++ {
++  const XrActionSuggestedBinding bindings[]={
++   {gun_aim,Path("/user/hand/right/input/aim/pose")},
++   {gun_grip_pose,Path("/user/hand/right/input/grip/pose")},
++   {gun_trigger,Path("/user/hand/right/input/trigger/value")},
++   {gun_a,Path("/user/hand/right/input/a/click")},
++   {gun_b,Path("/user/hand/right/input/b/click")},
++   {gun_squeeze,Path("/user/hand/right/input/squeeze/value")},
++   {gun_haptic,Path("/user/hand/right/output/haptic")}};
++  XrInteractionProfileSuggestedBinding suggested{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
++  suggested.interactionProfile=Path(profile); suggested.countSuggestedBindings=std::size(bindings); suggested.suggestedBindings=bindings;
++  if (!Check(XRGL("xrSuggestInteractionProfileBindings",p_xrSuggestInteractionProfileBindings,instance,&suggested),profile)) return false;
++ }
++ XrSessionActionSetsAttachInfo attach{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO}; attach.countActionSets=1; attach.actionSets=&gun_actions;
++ if (!Check(XRGL("xrAttachSessionActionSets",p_xrAttachSessionActionSets,session,&attach),"attach gun actions")) return false;
++ XrActionSpaceCreateInfo asi{XR_TYPE_ACTION_SPACE_CREATE_INFO}; asi.subactionPath=right_hand; asi.poseInActionSpace.orientation.w=1;
++ asi.action=gun_aim; if (!Check(XRGL("xrCreateActionSpace",p_xrCreateActionSpace,session,&asi,&aim_space),"aim action space")) return false;
++ asi.action=gun_grip_pose; if (!Check(XRGL("xrCreateActionSpace",p_xrCreateActionSpace,session,&asi,&grip_space),"grip action space")) return false;
++ gun_attached=true;
++ LiveLog("GunCon actions attached: right aim/grip, trigger/A/B/squeeze/haptics; Touch + Index bindings");
++ return true;
++}
++static void ReleaseGunInput()
++{
++ if (!PS2VRGun::Enabled()) return;
++ PS2VRGun::Publish({}); grip_valid=false; seen_shot=PS2VRGun::ShotSerial();
++}
++static void DestroyGunActions()
++{
++ ReleaseGunInput();
++ if (gun_attached && session)
++ {
++  XrHapticActionInfo hi{XR_TYPE_HAPTIC_ACTION_INFO}; hi.action=gun_haptic; hi.subactionPath=right_hand;
++  XRGL("xrStopHapticFeedback",p_xrStopHapticFeedback,session,&hi);
++ }
++ if (aim_space) XRGL("xrDestroySpace",p_xrDestroySpace,aim_space);
++ if (grip_space) XRGL("xrDestroySpace",p_xrDestroySpace,grip_space);
++ aim_space=grip_space=XR_NULL_HANDLE; gun_attached=false;
++}
++static void PollGunActions(XrTime time,bool focused,const XrPosef& screen,float sw,float sh)
++{
++ if (!gun_attached || !focused) { ReleaseGunInput(); return; }
++ XrActiveActionSet active{gun_actions,XR_NULL_PATH};
++ XrActionsSyncInfo sync{XR_TYPE_ACTIONS_SYNC_INFO}; sync.countActiveActionSets=1; sync.activeActionSets=&active;
++ if (XRGL("xrSyncActions",p_xrSyncActions,session,&sync)!=XR_SUCCESS) { ReleaseGunInput(); return; }
++ auto pose_active=[](XrAction action)
++ {
++  XrActionStateGetInfo gi{XR_TYPE_ACTION_STATE_GET_INFO}; gi.action=action; gi.subactionPath=right_hand;
++  XrActionStatePose state{XR_TYPE_ACTION_STATE_POSE};
++  return XR_SUCCEEDED(XRGL("xrGetActionStatePose",p_xrGetActionStatePose,session,&gi,&state)) && state.isActive;
++ };
++ XrSpaceLocation loc{XR_TYPE_SPACE_LOCATION};
++ constexpr XrSpaceLocationFlags valid=XR_SPACE_LOCATION_POSITION_VALID_BIT|XR_SPACE_LOCATION_ORIENTATION_VALID_BIT|XR_SPACE_LOCATION_POSITION_TRACKED_BIT|XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT;
++ if (!pose_active(gun_aim) || XR_FAILED(XRGL("xrLocateSpace",p_xrLocateSpace,aim_space,space,time,&loc)) || (loc.locationFlags&valid)!=valid)
++ { ReleaseGunInput(); return; }
++ auto scalar=[](XrAction action)
++ {
++  XrActionStateGetInfo gi{XR_TYPE_ACTION_STATE_GET_INFO}; gi.action=action; gi.subactionPath=right_hand;
++  XrActionStateFloat state{XR_TYPE_ACTION_STATE_FLOAT};
++  return XR_SUCCEEDED(XRGL("xrGetActionStateFloat",p_xrGetActionStateFloat,session,&gi,&state)) && state.isActive ? state.currentState : 0.f;
++ };
++ auto button=[](XrAction action)
++ {
++  XrActionStateGetInfo gi{XR_TYPE_ACTION_STATE_GET_INFO}; gi.action=action; gi.subactionPath=right_hand;
++  XrActionStateBoolean state{XR_TYPE_ACTION_STATE_BOOLEAN};
++  return XR_SUCCEEDED(XRGL("xrGetActionStateBoolean",p_xrGetActionStateBoolean,session,&gi,&state)) && state.isActive && state.currentState;
++ };
++ const auto& p=loc.pose.position; const auto& q=loc.pose.orientation;
++ const auto& sp=screen.position; const auto& sq=screen.orientation;
++ const auto ray=PS2VRAim::Rotate({q.x,q.y,q.z,q.w},{0,0,-1});
++ const auto hit=PS2VRAim::Intersect({p.x,p.y,p.z},ray,{sp.x,sp.y,sp.z},{sq.x,sq.y,sq.z,sq.w},sw,sh);
++ PS2VRGun::Sample sample; sample.active=true; sample.on_screen=hit.on_screen;
++ sample.u=hit.u; sample.v=hit.v; sample.trigger=std::clamp(scalar(gun_trigger),0.f,1.f);
++ sample.a=button(gun_a); sample.b=button(gun_b); sample.grip=scalar(gun_squeeze)>.5f;
++ PS2VRGun::Publish(sample);
++ loc={XR_TYPE_SPACE_LOCATION};
++ grip_valid=pose_active(gun_grip_pose) && XR_SUCCEEDED(XRGL("xrLocateSpace",p_xrLocateSpace,grip_space,space,time,&loc)) && (loc.locationFlags&valid)==valid;
++ if (grip_valid) grip_pose=loc.pose;
++ const uint64_t shot=PS2VRGun::ShotSerial();
++ if (shot!=seen_shot)
++ {
++  seen_shot=shot; recoil_start=std::chrono::steady_clock::now();
++  XrHapticActionInfo hi{XR_TYPE_HAPTIC_ACTION_INFO}; hi.action=gun_haptic; hi.subactionPath=right_hand;
++  XrHapticVibration vibration{XR_TYPE_HAPTIC_VIBRATION}; vibration.duration=35000000; vibration.frequency=XR_FREQUENCY_UNSPECIFIED; vibration.amplitude=1.f;
++  if (Check(XRGL("xrApplyHapticFeedback",p_xrApplyHapticFeedback,session,&hi,reinterpret_cast<const XrHapticBaseHeader*>(&vibration)),"shot haptic") && live_log)
++  { std::fprintf(live_log,"Delivered GunCon shot %llu: 35ms haptic and visual recoil\n",static_cast<unsigned long long>(shot)); std::fflush(live_log); }
++ }
++}
++static void DrawAimDot(const GSVector2i& used)
++{
++ if (!PS2VRGun::Enabled() || Env("PCSX2_VR_GUN_DOT",1)==0) return;
++ const auto s=PS2VRGun::Snapshot(); if (!s.active || !s.on_screen) return;
++ const int radius=std::max(2,used.x/500);
++ const int x=std::clamp(static_cast<int>(s.u*used.x),0,used.x-1),y=std::clamp(static_cast<int>((1-s.v)*used.y),0,used.y-1);
++ glEnable(GL_SCISSOR_TEST); glScissor(std::max(0,x-radius),std::max(0,y-radius),std::min(2*radius+1,used.x-x+radius),std::min(2*radius+1,used.y-y+radius));
++ glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE); glClearColor(1,.15f,.05f,1); glClear(GL_COLOR_BUFFER_BIT); glDisable(GL_SCISSOR_TEST);
++ glFinish(); DrainGL("after","screen-depth aim dot");
++}
++// Gun projection graphics follow below. The model never changes the aim space.
++
++static XrSwapchain gun_chains[2]{};
++static std::vector<XrSwapchainImageOpenGLKHR> gun_images[2];
++static GLuint gun_fbo=0;
++static bool gun_graphics_attempted=false,gun_graphics_ready=false;
++static constexpr int GUN_RES=1024;
++static void DestroyGunGraphics()
++{
++ gun_model.Shutdown();
++ if (gun_fbo) glDeleteFramebuffers(1,&gun_fbo); gun_fbo=0;
++ for (int eye=0;eye<2;eye++) { if (gun_chains[eye]) XRGL("xrDestroySwapchain",p_xrDestroySwapchain,gun_chains[eye]); gun_chains[eye]=XR_NULL_HANDLE; gun_images[eye].clear(); }
++ gun_graphics_attempted=gun_graphics_ready=false;
++ DrainGL("after","gun graphics cleanup");
++}
++static bool InitGunGraphics()
++{
++ if (gun_graphics_attempted) return gun_graphics_ready;
++ gun_graphics_attempted=true;
++ std::string error;
++ DrainGL("before","gun model initialization");
++ if (!gun_model.Init(error)) { LiveLog(("Gun model load failed: "+error).c_str()); return false; }
++ for (int eye=0;eye<2;eye++)
++ {
++  XrSwapchainCreateInfo ci{XR_TYPE_SWAPCHAIN_CREATE_INFO}; ci.usageFlags=XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
++  ci.format=format; ci.sampleCount=1; ci.width=ci.height=GUN_RES; ci.faceCount=ci.arraySize=ci.mipCount=1;
++  if (!Check(XRGL("xrCreateSwapchain",p_xrCreateSwapchain,session,&ci,&gun_chains[eye]),"gun swapchain")) return false;
++  u32 count=0;
++  if (!Check(XRGL("xrEnumerateSwapchainImages",p_xrEnumerateSwapchainImages,gun_chains[eye],0,&count,nullptr),"gun images") || !count) return false;
++  gun_images[eye].resize(count,{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
++  if (!Check(XRGL("xrEnumerateSwapchainImages",p_xrEnumerateSwapchainImages,gun_chains[eye],count,&count,reinterpret_cast<XrSwapchainImageBaseHeader*>(gun_images[eye].data())),"gun images")) return false;
++ }
++ glGenFramebuffers(1,&gun_fbo); gun_graphics_ready=true;
++ LiveLog("Gun projection layer ready: GLB grip/muzzle anchors, TOML trigger + LOD, two 1024 targets");
++ return true;
++}
++static bool DrawTrackedGun(XrTime time,XrCompositionLayerProjection& layer,XrCompositionLayerProjectionView* projections)
++{
++ if (!gun_attached || !grip_valid || Env("PCSX2_VR_GUN_SHOW_MODEL",1)==0 || !InitGunGraphics()) return false;
++ XrViewLocateInfo vi{XR_TYPE_VIEW_LOCATE_INFO}; vi.viewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO; vi.displayTime=time; vi.space=space;
++ XrViewState state{XR_TYPE_VIEW_STATE}; XrView views[2]{{XR_TYPE_VIEW},{XR_TYPE_VIEW}}; u32 count=0;
++ const auto valid=XR_VIEW_STATE_POSITION_VALID_BIT|XR_VIEW_STATE_ORIENTATION_VALID_BIT;
++ if (!Check(XRGL("xrLocateViews",p_xrLocateViews,session,&vi,&state,2,&count,views),"gun eye poses") || count!=2 || (state.viewStateFlags&valid)!=valid) return false;
++ const auto sample=PS2VRGun::Snapshot();
++ const auto grip=PS2VRGun::Mat4::FromPose(&grip_pose.position.x,&grip_pose.orientation.x);
++ const float recoil=recoil_start.time_since_epoch().count() ? std::chrono::duration<float>(std::chrono::steady_clock::now()-recoil_start).count() : -1;
++ bool pair=true;
++ for (int eye=0;eye<2;eye++)
++ {
++  u32 index=0; XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
++  if (!Check(XRGL("xrAcquireSwapchainImage",p_xrAcquireSwapchainImage,gun_chains[eye],&ai,&index),"acquire gun image")) { pair=false; break; }
++  XrSwapchainImageWaitInfo wi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO}; wi.timeout=1000000000;
++  const XrResult waited=XRGL("xrWaitSwapchainImage",p_xrWaitSwapchainImage,gun_chains[eye],&wi);
++  if (waited!=XR_SUCCESS) { Check(waited,"wait gun image"); stop=true; pair=false; break; }
++  const auto& v=views[eye];
++  const auto projection=PS2VRGun::Mat4::Projection(std::tan(v.fov.angleLeft),std::tan(v.fov.angleRight),std::tan(v.fov.angleDown),std::tan(v.fov.angleUp));
++  const auto view_matrix=PS2VRGun::Mat4::FromPose(&v.pose.position.x,&v.pose.orientation.x).RigidInverse();
++  glBindFramebuffer(GL_FRAMEBUFFER,gun_fbo); glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,gun_images[eye][index].image,0);
++  std::string error;
++  DrainGL("before","gun render");
++  bool drawn=gun_model.Draw(gun_fbo,GUN_RES,GUN_RES,projection,view_matrix,grip,sample.trigger,recoil,error);
++  glFinish(); if (DrainGL("after","gun render / completion")) drawn=false;
++  glDisable(GL_DEPTH_TEST); glDisable(GL_SCISSOR_TEST); glDisable(GL_FRAMEBUFFER_SRGB);
++  XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
++  const bool released=Check(XRGL("xrReleaseSwapchainImage",p_xrReleaseSwapchainImage,gun_chains[eye],&ri),"release gun image");
++  if (!drawn || !released) { LiveLog(("Gun frame failed: "+error).c_str()); pair=false; break; }
++  projections[eye]={XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW}; projections[eye].pose=v.pose; projections[eye].fov=v.fov;
++  projections[eye].subImage.swapchain=gun_chains[eye]; projections[eye].subImage.imageRect.extent={GUN_RES,GUN_RES};
++ }
++ layer.space=space;
++ layer.layerFlags=XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT|XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
++ layer.viewCount=2; layer.views=projections;
++ return pair;
++}
+diff --git a/pcsx2/GS/PS2VRGunModel.h b/pcsx2/GS/PS2VRGunModel.h
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/GS/PS2VRGunModel.h
+@@ -0,0 +1,129 @@
++// SPDX-License-Identifier: GPL-3.0-or-later
++// Private PCSX2 presenter gun renderer. Requires a current OpenGL 4.5 context and glad.
++// Model coordinates: metres, +Y up, -Z forward. No gameplay/aim state is modified.
++#pragma once
++#include "common/Image.h"
++#include "../../3rdparty/rapidjson/include/rapidjson/document.h"
++#include <array>
++#include <vector>
++#include <string>
++#include <fstream>
++#include <sstream>
++#include <regex>
++#include <stdexcept>
++#include <cmath>
++#include <cstring>
++#include <cstdlib>
++#include <algorithm>
++
++namespace PS2VRGun {
++struct Mat4 {
++ std::array<float,16> m{};
++ const float* data() const { return m.data(); }
++ static Mat4 Identity() { Mat4 r; r.m={1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}; return r; }
++ static Mat4 Translation(float x,float y,float z) { auto r=Identity();r.m[12]=x;r.m[13]=y;r.m[14]=z;return r; }
++ static Mat4 Rotation(float x,float y,float z,float a) {
++  float n=std::sqrt(x*x+y*y+z*z); if(n<1e-8f) throw std::runtime_error("zero motion axis"); x/=n;y/=n;z/=n;
++  float c=std::cos(a),s=std::sin(a),t=1-c; auto r=Identity();
++  r.m[0]=t*x*x+c;r.m[4]=t*x*y-s*z;r.m[8]=t*x*z+s*y;
++  r.m[1]=t*x*y+s*z;r.m[5]=t*y*y+c;r.m[9]=t*y*z-s*x;
++  r.m[2]=t*x*z-s*y;r.m[6]=t*y*z+s*x;r.m[10]=t*z*z+c;return r;
++ }
++ static Mat4 FromPose(const float* p,const float* q) {
++  float x=q[0],y=q[1],z=q[2],w=q[3]; float n=x*x+y*y+z*z+w*w;
++  if(n<1e-8f) throw std::runtime_error("zero pose quaternion"); float k=2/n; auto r=Identity();
++  r.m[0]=1-k*(y*y+z*z);r.m[4]=k*(x*y-z*w);r.m[8]=k*(x*z+y*w);
++  r.m[1]=k*(x*y+z*w);r.m[5]=1-k*(x*x+z*z);r.m[9]=k*(y*z-x*w);
++  r.m[2]=k*(x*z-y*w);r.m[6]=k*(y*z+x*w);r.m[10]=1-k*(x*x+y*y);
++  r.m[12]=p[0];r.m[13]=p[1];r.m[14]=p[2];return r;
++ }
++ Mat4 RigidInverse() const { auto r=Identity(); for(int c=0;c<3;c++)for(int row=0;row<3;row++)r.m[c*4+row]=m[row*4+c];for(int row=0;row<3;row++)r.m[12+row]=-(r.m[row]*m[12]+r.m[4+row]*m[13]+r.m[8+row]*m[14]);return r; }
++ // OpenGL clip-depth [-1,1]; arguments are tangents of OpenXR FOV angles.
++ static Mat4 Projection(float left,float right,float down,float up,float nearZ=.02f,float farZ=20.f) {
++  Mat4 r; r.m[0]=2/(right-left);r.m[5]=2/(up-down);r.m[8]=(right+left)/(right-left);r.m[9]=(up+down)/(up-down);
++  r.m[10]=-(farZ+nearZ)/(farZ-nearZ);r.m[11]=-1;r.m[14]=-2*farZ*nearZ/(farZ-nearZ);return r;
++ }
++};
++inline Mat4 operator*(const Mat4&a,const Mat4&b) { Mat4 r; for(int c=0;c<4;c++)for(int row=0;row<4;row++)for(int k=0;k<4;k++)r.m[c*4+row]+=a.m[k*4+row]*b.m[c*4+k];return r; }
++
++class Renderer {
++ struct Primitive { GLuint vao=0,vbo=0,ibo=0; GLsizei count=0; std::array<float,4> color{1,1,1,1}; };
++ struct Node { std::string name; Mat4 local=Mat4::Identity(); int mesh=-1,parent=-1; std::vector<int> children; };
++ std::vector<Node> nodes; std::vector<std::vector<Primitive>> meshes;
++ std::vector<unsigned char> bin; rapidjson::Document doc;
++ GLuint program=0,depth=0; int dw=0,dh=0,grip=-1,muzzle=-1,lod0=-1;
++ std::array<int,2> triggers{-1,-1}; std::array<float,3> axis{}; std::array<float,2> range{};
++ std::array<float,4> body{.1f,.1f,.12f,1},accent{.3f,.3f,.32f,1};
++ static std::string Read(const char* p) { std::ifstream f(p,std::ios::binary); if(!f)throw std::runtime_error(std::string("cannot read ")+p);return {std::istreambuf_iterator<char>(f),{}}; }
++ static uint32_t U32(const char* p) {uint32_t v;std::memcpy(&v,p,4);return v;}
++ int Find(const std::string& s)const { for(size_t i=0;i<nodes.size();i++)if(nodes[i].name==s)return int(i); throw std::runtime_error("missing gun node: "+s); }
++ static std::string Value(const std::string& section,const std::string& key) {
++  std::smatch m;std::regex re("(?:^|\\n)\\s*"+key+"\\s*=\\s*([^\\r\\n]+)");if(!std::regex_search(section,m,re))throw std::runtime_error("missing TOML key: "+key);return m[1].str();
++ }
++ static std::vector<float> Numbers(const std::string&s,size_t count) { auto l=s.find('['),r=s.find(']');if(l==s.npos||r==s.npos)throw std::runtime_error("invalid TOML numeric array");std::string t=s.substr(l+1,r-l-1);std::replace(t.begin(),t.end(),',',' ');std::istringstream in(t);std::vector<float> v;float n;while(in>>n)v.push_back(n);if(v.size()!=count)throw std::runtime_error("wrong TOML numeric array length");return v; }
++ void Metadata(const char* path) {
++  std::string t=Read(path);auto start=t.find("[motion.trigger]");if(start==t.npos)throw std::runtime_error("missing [motion.trigger]");start+=16;auto end=t.find("\n[",start);auto s=t.substr(start,end-start);
++  if(Value(s,"kind").find("\"rotate\"")==s.npos||Value(s,"drive").find("\"trigger\"")==s.npos)throw std::runtime_error("unsupported trigger motion");
++  auto a=Numbers(Value(s,"axis"),3),r=Numbers(Value(s,"range"),2);std::copy(a.begin(),a.end(),axis.begin());std::copy(r.begin(),r.end(),range.begin());
++  auto names=Value(s,"lod_nodes");std::regex re("\"([^\"]+)\"");int i=0;for(auto it=std::sregex_iterator(names.begin(),names.end(),re);it!=std::sregex_iterator();++it){if(i>=2)throw std::runtime_error("expected two trigger LOD nodes");triggers[i++]=Find((*it)[1].str());}if(i!=2)throw std::runtime_error("expected two trigger LOD nodes");
++  auto ts=t.find("[tints]");if(ts==t.npos)throw std::runtime_error("missing tints");auto te=t.find("\n[",ts+7);auto palette=t.substr(ts+7,te-ts-7);auto def=Value(palette,"default");std::smatch match;if(!std::regex_search(def,match,re))throw std::runtime_error("invalid default tint");auto line=Value(palette,match[1].str());
++  for(auto pair:{std::make_pair("body",&body),std::make_pair("accent",&accent)}) { std::regex hex(std::string(pair.first)+"\\s*=\\s*\"#([0-9a-fA-F]{6})\"");if(!std::regex_search(line,match,hex))throw std::runtime_error("invalid gun tint");unsigned rgb=unsigned(std::stoul(match[1].str(),nullptr,16));for(int c=0;c<3;c++){float srgb=float((rgb>>(16-8*c))&255)/255;(*pair.second)[c]=std::pow(srgb,2.2f);} }
++ }
++ struct Access { const unsigned char* ptr;size_t stride,count;int component; };
++ Access Accessor(unsigned idx,size_t elementBytes) {
++  auto&a=doc["accessors"][idx];if(a.HasMember("sparse"))throw std::runtime_error("sparse gun accessor unsupported");auto&v=doc["bufferViews"][a["bufferView"].GetUint()];if(v.HasMember("buffer")&&v["buffer"].GetUint()!=0)throw std::runtime_error("external gun buffer unsupported");
++  size_t off=(v.HasMember("byteOffset")?v["byteOffset"].GetUint64():0)+(a.HasMember("byteOffset")?a["byteOffset"].GetUint64():0),stride=v.HasMember("byteStride")?v["byteStride"].GetUint64():elementBytes,count=a["count"].GetUint64();
++  if(!count||stride<elementBytes||off>bin.size()||elementBytes>bin.size()-off||(count-1)>(bin.size()-off-elementBytes)/stride)throw std::runtime_error("gun accessor out of bounds");return {bin.data()+off,stride,count,a["componentType"].GetInt()};
++ }
++ Mat4 World(int i,float trigger) const {auto local=nodes[i].local;if(i==triggers[0]||i==triggers[1])local=local*Mat4::Rotation(axis[0],axis[1],axis[2],range[0]+std::clamp(trigger,0.f,1.f)*(range[1]-range[0]));return nodes[i].parent<0?local:World(nodes[i].parent,trigger)*local;}
++ static GLuint Shader(GLenum type,const char* source) {GLuint s=glCreateShader(type);glShaderSource(s,1,&source,nullptr);glCompileShader(s);GLint ok;glGetShaderiv(s,GL_COMPILE_STATUS,&ok);if(!ok){char log[2048]{};glGetShaderInfoLog(s,sizeof(log),nullptr,log);glDeleteShader(s);throw std::runtime_error(std::string("gun shader: ")+log);}return s;}
++ void Load(const char* path) {
++  auto b=Read(path);if(b.size()<28||U32(b.data())!=0x46546c67||U32(b.data()+4)!=2||U32(b.data()+8)!=b.size())throw std::runtime_error("invalid gun GLB header");size_t n=U32(b.data()+12);if(U32(b.data()+16)!=0x4e4f534a||n>b.size()-28)throw std::runtime_error("invalid gun JSON chunk");doc.Parse(b.data()+20,n);if(doc.HasParseError()||!doc.IsObject())throw std::runtime_error("invalid gun JSON");size_t bo=20+n;if(U32(b.data()+bo+4)!=0x004e4942||U32(b.data()+bo)>b.size()-bo-8)throw std::runtime_error("invalid gun binary chunk");bin.assign(b.begin()+bo+8,b.begin()+bo+8+U32(b.data()+bo));
++  for(auto& j:doc["nodes"].GetArray()){Node node;if(j.HasMember("name"))node.name=j["name"].GetString();if(j.HasMember("mesh"))node.mesh=j["mesh"].GetInt();if(j.HasMember("children"))for(auto&c:j["children"].GetArray())node.children.push_back(c.GetInt());
++   if(j.HasMember("matrix")){for(int k=0;k<16;k++)node.local.m[k]=j["matrix"][k].GetFloat();}else{float p[3]{},q[4]{0,0,0,1};if(j.HasMember("translation"))for(int k=0;k<3;k++)p[k]=j["translation"][k].GetFloat();if(j.HasMember("rotation"))for(int k=0;k<4;k++)q[k]=j["rotation"][k].GetFloat();node.local=Mat4::FromPose(p,q);if(j.HasMember("scale"))for(int c=0;c<3;c++)for(int row=0;row<3;row++)node.local.m[c*4+row]*=j["scale"][c].GetFloat();}nodes.push_back(node);
++  }
++  for(size_t i=0;i<nodes.size();i++)for(int c:nodes[i].children){if(c<0||size_t(c)>=nodes.size()||nodes[c].parent>=0)throw std::runtime_error("invalid gun hierarchy");nodes[c].parent=int(i);}for(size_t i=0;i<nodes.size();i++){int p=int(i),steps=0;while(p>=0){if(++steps>int(nodes.size()))throw std::runtime_error("cyclic gun hierarchy");p=nodes[p].parent;}}
++  grip=Find("grip");muzzle=Find("muzzle");lod0=Find("LOD0");
++ }
++ void Upload() {
++  meshes.resize(doc["meshes"].Size());for(unsigned mi=0;mi<meshes.size();mi++)for(auto& p:doc["meshes"][mi]["primitives"].GetArray()) {
++   if(p.HasMember("mode")&&p["mode"].GetInt()!=4)throw std::runtime_error("gun primitive is not triangles");auto pos=Accessor(p["attributes"]["POSITION"].GetUint(),12),norm=Accessor(p["attributes"]["NORMAL"].GetUint(),12);if(pos.component!=5126||norm.component!=5126||pos.count!=norm.count)throw std::runtime_error("unsupported gun vertices");
++   auto&ia=doc["accessors"][p["indices"].GetUint()];int ct=ia["componentType"].GetInt();size_t bytes=ct==5121?1:ct==5123?2:ct==5125?4:0;if(!bytes)throw std::runtime_error("unsupported gun indices");auto ix=Accessor(p["indices"].GetUint(),bytes);
++   std::vector<float> vertices(pos.count*6);for(size_t k=0;k<pos.count;k++){std::memcpy(vertices.data()+k*6,pos.ptr+k*pos.stride,12);std::memcpy(vertices.data()+k*6+3,norm.ptr+k*norm.stride,12);}std::vector<uint32_t> indices(ix.count);for(size_t k=0;k<ix.count;k++){uint32_t v=0;std::memcpy(&v,ix.ptr+k*ix.stride,bytes);if(v>=pos.count)throw std::runtime_error("gun index out of bounds");indices[k]=v;}
++   meshes[mi].emplace_back();auto&out=meshes[mi].back();out.count=GLsizei(ix.count);if(p.HasMember("material")){auto&mat=doc["materials"][p["material"].GetUint()];std::string name=mat.HasMember("name")?mat["name"].GetString():"";if(name=="body")out.color=body;else if(name=="accent")out.color=accent;else if(mat.HasMember("pbrMetallicRoughness")&&mat["pbrMetallicRoughness"].HasMember("baseColorFactor"))for(int c=0;c<4;c++)out.color[c]=mat["pbrMetallicRoughness"]["baseColorFactor"][c].GetFloat();}
++   glGenVertexArrays(1,&out.vao);glBindVertexArray(out.vao);glGenBuffers(1,&out.vbo);glBindBuffer(GL_ARRAY_BUFFER,out.vbo);glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(float),vertices.data(),GL_STATIC_DRAW);glGenBuffers(1,&out.ibo);glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,out.ibo);glBufferData(GL_ELEMENT_ARRAY_BUFFER,indices.size()*4,indices.data(),GL_STATIC_DRAW);glEnableVertexAttribArray(0);glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,24,nullptr);glEnableVertexAttribArray(1);glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,24,reinterpret_cast<void*>(12));
++  }
++ }
++ void DrawNode(int index,const Mat4& root,const Mat4& vp,float trigger) {auto&n=nodes[index];if(n.mesh>=0){auto model=root*World(index,trigger);auto mvp=vp*model;glUniformMatrix4fv(glGetUniformLocation(program,"mvp"),1,GL_FALSE,mvp.data());glUniformMatrix4fv(glGetUniformLocation(program,"model"),1,GL_FALSE,model.data());for(auto&p:meshes.at(n.mesh)){glUniform4fv(glGetUniformLocation(program,"base"),1,p.color.data());glBindVertexArray(p.vao);glDrawElements(GL_TRIANGLES,p.count,GL_UNSIGNED_INT,nullptr);}}for(int c:n.children)DrawNode(c,root,vp,trigger); }
++public:
++ // Init/Draw/SaveProof/Shutdown must all run on the SAME owning current context.
++ bool Init(std::string& error) {try{const char* model=std::getenv("PCSX2_VR_GUN_MODEL"),*meta=std::getenv("PCSX2_VR_GUN_TOML");if(!model||!meta)throw std::runtime_error("PCSX2_VR_GUN_MODEL and PCSX2_VR_GUN_TOML are required");Load(model);Metadata(meta);
++  const char* vs="#version 330 core\nlayout(location=0)in vec3 p;layout(location=1)in vec3 n;uniform mat4 mvp,model;out vec3 N;void main(){gl_Position=mvp*vec4(p,1);N=transpose(inverse(mat3(model)))*n;}";
++  const char* fs="#version 330 core\nin vec3 N;uniform vec4 base;out vec4 o;void main(){vec3 n=normalize(N);float l=.32+.68*max(dot(n,normalize(vec3(-.4,.8,.6))),0.);vec3 c=base.rgb*l+vec3(.035)*pow(1.-abs(n.z),3.);o=vec4(pow(c,vec3(1./2.2)),base.a);}";
++  GLuint v=Shader(GL_VERTEX_SHADER,vs),f=Shader(GL_FRAGMENT_SHADER,fs);program=glCreateProgram();glAttachShader(program,v);glAttachShader(program,f);glLinkProgram(program);glDeleteShader(v);glDeleteShader(f);GLint ok;glGetProgramiv(program,GL_LINK_STATUS,&ok);if(!ok)throw std::runtime_error("gun program link failed");Upload();glGenRenderbuffers(1,&depth);return true;
++ }catch(const std::exception&e){error=e.what();Shutdown();return false;}}
++ void Shutdown(){for(auto&mesh:meshes)for(auto&p:mesh){glDeleteVertexArrays(1,&p.vao);glDeleteBuffers(1,&p.vbo);glDeleteBuffers(1,&p.ibo);}meshes.clear();nodes.clear();bin.clear();if(program)glDeleteProgram(program);if(depth)glDeleteRenderbuffers(1,&depth);program=depth=0;dw=dh=0;}
++ // Caller provides a COLOR_ATTACHMENT0 texture. Color is straight alpha (background 0).
++ // recoilSeconds is time since an ACCEPTED shot; negative disables recoil. Render-only.
++ // Sets GL state explicitly; caller must restore presenter state after return.
++ bool Draw(GLuint fbo,int width,int height,const Mat4& projection,const Mat4& view,const Mat4& gripWorld,float trigger,float recoilSeconds,std::string& error) {try {
++  if(!program||width<=0||height<=0)throw std::runtime_error("gun renderer not initialized or invalid target");
++  glBindFramebuffer(GL_FRAMEBUFFER,fbo);glBindRenderbuffer(GL_RENDERBUFFER,depth);if(dw!=width||dh!=height){glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT24,width,height);dw=width;dh=height;}glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_RENDERBUFFER,depth);glDrawBuffer(GL_COLOR_ATTACHMENT0);if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE)throw std::runtime_error("gun framebuffer incomplete");
++  glViewport(0,0,width,height);glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);glDisable(GL_RASTERIZER_DISCARD);glDisable(GL_STENCIL_TEST);glDisable(GL_SCISSOR_TEST);glDisable(GL_BLEND);glDisable(GL_COLOR_LOGIC_OP);glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);glDisable(GL_POLYGON_OFFSET_FILL);glDisable(GL_PRIMITIVE_RESTART);glDisable(GL_PRIMITIVE_RESTART_FIXED_INDEX);glDisable(GL_CULL_FACE);glDisable(GL_FRAMEBUFFER_SRGB);glEnable(GL_DEPTH_TEST);glDepthFunc(GL_LESS);glDepthRange(0,1);glDepthMask(GL_TRUE);glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);glClearColor(0,0,0,0);glClearDepth(1);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);glUseProgram(program);
++  float kick=recoilSeconds>=0?std::max(0.f,1.f-recoilSeconds/.1f):0.f;auto root=gripWorld*Mat4::Translation(0,.01f*kick,.02f*kick)*World(grip,0).RigidInverse();DrawNode(lod0,root,projection*view,trigger);return true;
++ }catch(const std::exception&e){error=e.what();return false;}}
++ Mat4 TriggerWorld(int lod,float trigger)const {return World(triggers.at(lod),trigger);}
++ Mat4 GripAnchor()const{return World(grip,0);} Mat4 MuzzleAnchor()const{return World(muzzle,0);}
++ bool SaveProof(const std::string& prefix,std::string& error) {
++  GLuint fbo=0,tex=0;glGenFramebuffers(1,&fbo);glGenTextures(1,&tex);glBindTexture(GL_TEXTURE_2D,tex);glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,1024,1024,0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);glBindFramebuffer(GL_FRAMEBUFFER,fbo);glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,tex,0);bool ok=true;
++  // Fixed three-quarter left view exposes the trigger, grip, and barrel silhouette.
++  auto pose=Mat4::Translation(0,0,-.43f)*Mat4::Rotation(0,1,0,-.82f)*Mat4::Rotation(1,0,0,.10f);auto projection=Mat4::Projection(-.46f,.46f,-.46f,.46f);
++  for(int t=0;t<2&&ok;t++){ok=Draw(fbo,1024,1024,projection,Mat4::Identity(),pose,float(t),-1,error);if(ok){std::vector<u32> pixels(1024*1024),flip(pixels.size());glReadBuffer(GL_COLOR_ATTACHMENT0);glPixelStorei(GL_PACK_ALIGNMENT,4);glPixelStorei(GL_PACK_ROW_LENGTH,0);glPixelStorei(GL_PACK_SKIP_ROWS,0);glPixelStorei(GL_PACK_SKIP_PIXELS,0);glBindBuffer(GL_PIXEL_PACK_BUFFER,0);glReadPixels(0,0,1024,1024,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());for(int y=0;y<1024;y++)std::copy_n(pixels.data()+(1023-y)*1024,1024,flip.data()+y*1024);RGBA8Image image(1024,1024,std::move(flip));ok=image.SaveToFile((prefix+"-trigger"+std::to_string(t)+".png").c_str());if(!ok)error="cannot save gun proof PNG";}}
++  if(ok){std::ofstream receipt(prefix+"-transforms.txt");for(int lod=0;lod<2;lod++)for(int t=0;t<2;t++){receipt<<"lod="<<lod<<" trigger="<<t;for(float v:TriggerWorld(lod,float(t)).m)receipt<<' '<<v;receipt<<'\n';}if(!receipt){error="cannot save trigger transform receipt";ok=false;}}
++  glBindFramebuffer(GL_FRAMEBUFFER,0);glDeleteFramebuffers(1,&fbo);glDeleteTextures(1,&tex);return ok;
++ }
++};
++}
++
++
++
+diff --git a/pcsx2/Input/PS2VRGun.h b/pcsx2/Input/PS2VRGun.h
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/Input/PS2VRGun.h
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier: GPL-3.0+
++#pragma once
++#include <atomic>
++#include <chrono>
++#include <cstdint>
++#include <cstdlib>
++#include <cstdio>
++#include <cmath>
++#include <mutex>
++#include <sstream>
++#include <string>
++#include <vector>
++#include "GS/PS2VRAim.h"
++namespace PS2VRGun {
++struct Sample { float u=0.5f, v=0.5f, trigger=0; bool on_screen=false, active=false, a=false, b=false, grip=false; };
++inline std::mutex mailbox_mutex;
++inline Sample mailbox;
++inline std::chrono::steady_clock::time_point published_at;
++inline std::atomic<std::uint64_t> frame_clock{0}, shot_serial{0};
++inline bool Enabled() { static const bool enabled=[] { const char* e=std::getenv("PCSX2_VR_GUN"); return e && std::string(e)=="1"; }(); return enabled; }
++inline void Publish(const Sample& sample) { std::lock_guard<std::mutex> lock(mailbox_mutex); mailbox=sample; published_at=std::chrono::steady_clock::now(); }
++// Parent ticks the 60 Hz emulation/presentation timeline, never wall time.
++inline void Tick(std::uint64_t frame) { frame_clock.store(frame, std::memory_order_release); }
++inline std::uint64_t ShotSerial() { return shot_serial.load(std::memory_order_acquire); }
++inline void AcknowledgeShot() { shot_serial.fetch_add(1, std::memory_order_release); }
++inline Sample Snapshot() {
++ Sample s; { std::lock_guard<std::mutex> lock(mailbox_mutex); s=mailbox; if (std::chrono::steady_clock::now()-published_at>std::chrono::milliseconds(500)) s={}; }
++ struct Event { double seconds; float u,v,trigger; };
++ static const auto events=[] {
++  std::vector<Event> result;
++  const char* text=std::getenv("PCSX2_VR_GUN_SCRIPT"); if (!text || !*text) return result;
++  const char* xr=std::getenv("PCSX2_OPENXR");
++  if (!xr || std::string(xr)!="0") { std::fprintf(stderr,"VR gun script rejected: requires PCSX2_OPENXR=0.\n"); return result; }
++  std::istringstream input(text); std::string entry;
++  while (std::getline(input,entry,';')) {
++   Event e; char trailing;
++   if (std::sscanf(entry.c_str(),"%lf:%f:%f:%f %c",&e.seconds,&e.u,&e.v,&e.trigger,&trailing)!=4 || !std::isfinite(e.seconds) || e.seconds<0 || e.seconds>7200 || !std::isfinite(e.u) || !std::isfinite(e.v) || !std::isfinite(e.trigger) || e.trigger<0 || e.trigger>1 || result.size()>=256) { std::fprintf(stderr,"Invalid VR gun script event: %s\n",entry.c_str()); continue; }
++   result.push_back(e);
++  }
++  std::fprintf(stderr,"VR gun script: %zu quarter-second ray pulses on 60-Hz frame clock.\n",result.size()); return result;
++ }();
++ if (!events.empty()) {
++  s={}; const double now=frame_clock.load(std::memory_order_acquire)/60.0;
++  for (const auto& e:events) if (now>=e.seconds && now<e.seconds+0.25) {
++   const auto hit=PS2VRAim::Intersect({}, {(e.u-.5f)*5,(.5f-e.v)*3.75f,-2.5f},{0,0,-2.5f},{},5,3.75f);
++   s.u=hit.u; s.v=hit.v; s.on_screen=hit.on_screen; s.trigger=e.trigger; s.active=true;
++  }
++ }
++
++ return s;
++}
++inline float Setting(const char* key, float fallback) { const char* e=std::getenv(key); if (!e) return fallback; char* end; float v=std::strtof(e,&end); return end!=e && *end==0 && std::isfinite(v) ? v : fallback; }
 +}
