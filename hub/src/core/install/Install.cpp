@@ -1199,12 +1199,15 @@ Result Engine::install(const Request &r) {
           if (dest.endsWith('/') || QFileInfo(dest).isDir())
             dest += QFileInfo(path).fileName();
           dest = scopedPath(dest, tx->dir);
-          const auto mode = string(step, "mode", "auto");
+          // An independent copy unless the recipe opts in to a link. A hard link shares the
+          // original's bytes, so a later write to the installed file would change the user's own.
+          const auto mode = string(step, "mode", "copy");
           if (!QSet<QString>{"auto", "link", "copy"}.contains(mode))
             throw Error("E_PLAN_INVALID", "Unknown media mode");
           const bool linked = mode != "copy" && tx->linkMedia(path, dest, id);
           if (!linked) {
-            if (mode == "link" || !r.allowMediaCopy)
+            // A recipe that asked for a link falls back to a full second copy only when that is allowed.
+            if (mode == "link" || (mode == "auto" && !r.allowMediaCopy))
               throw Error(
                   "E_LINK_UNSUPPORTED",
                   "Hard link unavailable; confirm the extra media copy first");

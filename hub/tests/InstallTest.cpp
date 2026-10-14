@@ -1288,6 +1288,25 @@ private slots:
     QCOMPARE(string(state, "last_error"), removed.code);
     QVERIFY(Engine(options).runtimeState(r).variants[0].verified);
   }
+  // Without an explicit link in the recipe the installed media is an independent copy: writing to it
+  // leaves the user's original unchanged. No extra consent is needed, as the copy is what the recipe asks for.
+  void mediaIsAnIndependentCopyByDefault() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options options; options.survivalMs = 0;
+    const auto source = temp.path() + "/my media/synthetic.media"; atomicWrite(source, "synthetic original medium");
+    const auto hash = hashFile(source);
+    r.bindings["media"]["disc"] = Json{{"path", source.toStdString()}, {"sha256", hash.toStdString()}, {"verified", true}};
+    r.recipe["variant"]["flat"]["step"].push_back(Json{{"id", "media"}, {"do", "copy-media"}, {"media", "disc"}, {"to", "${install_dir}/disc.media"}});
+    QVERIFY(!r.allowMediaCopy);
+    QVERIFY(Engine(options).install(r).success);
+    const auto installed = temp.path() + "/installed/synthetic/flat/disc.media";
+    QCOMPARE(hashFile(installed), hash);
+    QFile write(installed);QVERIFY(write.open(QIODevice::ReadWrite));QVERIFY(write.seek(0));QVERIFY(write.write("XXXX") == 4);write.close();
+    QCOMPARE(readBytes(source), QByteArray("synthetic original medium"));QCOMPARE(hashFile(source), hash);
+    // Its record says it is the Hub's copy, so uninstall removes only that.
+    const auto manifest = readEnvelope(stateBase(r) + ".manifest.toml");bool recorded = false;
+    for (const auto &row : manifest["file"]) if (string(row, "path") == "disc.media") recorded = string(row, "origin") == "user-media-copy";
+    QVERIFY(recorded);
+  }
   void missingOriginalMediaLinkRemains() {
     QTemporaryDir temp; auto r = fixture(temp.path()); Options options; options.survivalMs = 0;
     const auto source = temp.path() + "/synthetic.media"; atomicWrite(source, "synthetic medium");

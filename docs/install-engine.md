@@ -440,7 +440,8 @@ Undo records are written to the journal and copied into the manifest (§9.1). Th
 
 ### 6.5 `copy-media`
 
-- **Inputs:** `media`, `to` (inside the install dir), `mode` (`link`, `copy` or `auto`; default `auto`).
+- **Inputs:** `media`, `to` (inside the install dir), `mode` (`copy`, `link` or `auto`; default `copy`).
+- **Default `copy`:** an independent copy, so the user's original stays byte-for-byte untouched whatever later happens to the installed file. A hard link cannot promise that: it is the same file under a second name. A recipe opts in to a link with `link` or `auto`.
 - **Behaviour in `auto`:** a hard link when the source and target are on the same volume. FAT and exFAT have no hard links, so copy there. Windows symbolic links need Developer Mode or elevation, so the engine never creates them. If linking fails and a copy would need a second full-size file, ask first (`E_LINK_UNSUPPORTED`).
 - **Output:** `path`, `mode_used`.
 - **Idempotency:** the target is the same file (same file id for a link), or has the same hash for a copy. The console says "[OK] Already in place (linked)".
@@ -614,7 +615,7 @@ PLAN  timecris / dr89-pcvr   format 1   installs as: install-dir   license: MIT 
   needs     media: <set key>   tools: none   headset: none
   1/4  Find the VR build        locate-package  pattern TimeCrisisVR-*-windows-x64*.zip   (no download)
   2/4  Extract                  extract -> installed/timecris/dr89-pcvr/   inspect: ok, no link entries
-  3/4  Set up your files        copy-media -> installed/timecris/dr89-pcvr/roms/   mode auto (hard link)
+  3/4  Set up your files        copy-media -> installed/timecris/dr89-pcvr/roms/   mode copy (independent)
   4/4  Write settings           write-config quest-options.cfg (4 managed keys)
        Create shortcut          shortcut steam -> installed/timecris/dr89-pcvr/Play SteamVR.cmd
   verify  installed/timecris/dr89-pcvr/TimeCrisisVR.exe
