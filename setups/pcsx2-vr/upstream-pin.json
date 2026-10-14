@@ -1,8 +1,9 @@
 {
   "pcsx2": {
     "repository": "https://github.com/PCSX2/pcsx2",
-    "tag": "v2.8.2",
-    "commit": "fd9d310ccbb6b8b62c976da8886a3c8fd3a10ff3"
+    "ref": "master snapshot matched to preserved dependency pack",
+    "commit": "904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2",
+    "dependency_recipe": {"qt": "6.12.0", "ffmpeg": "9.0.1", "sdl3": "3.4.18"}
   },
   "reference": {
     "repository": "https://github.com/PenguinVRLab/PenguinScreen2",
@@ -10,18 +11,14 @@
     "use": "Source study only; no bundled profiles reused"
   },
   "windows_dependencies": {
-    "required_pcsx2_tag": "v2.8.2",
-    "status": "Matching archive not located; resumed builds blocked",
-    "url": null,
-    "sha256": null
-  },
-  "rejected_rolling_dependency_pack": {
     "repository": "https://github.com/PCSX2/pcsx2-windows-dependencies",
     "tag": "latest-windows-dependencies",
     "commit": "6a4efb8ffbdd79c89c1bd4cc0fde1718d9fc3a18",
     "url": "https://github.com/PCSX2/pcsx2-windows-dependencies/releases/download/latest-windows-dependencies/pcsx2-windows-dependencies.7z",
     "sha256": "a3133c7841e8fbdab6f4d1d5ad8efec31fb1ecda95ffed39f4d1f36bb7eb0007",
+    "archive": "pcsx2-windows-dependencies.7z",
+    "size_bytes": 172750623,
     "published": "2026-10-07T21:33:59Z",
-    "compatibility": "Historical download only; excluded from resumed builds. Rolling pack, not a tag-specific archive. Qt 6.12.0 and libavcodec 63 caused stable-source header incompatibility."
+    "compatibility": "No per-release-tag pack exists. Rolling release is overwritten on rebuild; preserve this hash-verified archive rather than fetching latest again. Matches the selected master snapshot. Header-precedence workaround removed."
   }
 }

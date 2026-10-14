@@ -1,87 +1,88 @@
 # PCSX2 stereo experiment
 
-Status: baseline incomplete. There is no stereo patch or accepted image yet.
-No headset presentation or gun aiming is implemented by this experiment.
+Status: unchanged emulator and GS runner build successfully. The unattended
+capture patch compiles, but capture has not succeeded. No GS dump, replay PNG,
+stereo renderer or accepted side-by-side pair exists. Headset output and gun
+aiming are outside this work.
 
-Current dependency gate: use a Windows dependency pack matched to v2.8.2.
-The rolling pack and header-precedence workaround from the historical attempts
-below are excluded from resumed builds. The matched archive has not been located
-in the official release assets or pinned CI artifact inventories. No resumed
-build or game run has occurred. A verified archive URL or supplied local archive
-is required before continuing.
+## Source and dependency pin
 
-`upstream-pin.json` records the stable emulator, reference source and dependency
-archive revisions. The stable PCSX2 source was left unchanged. Its Windows
-frontend compiled with MSVC v145; the dump runner has not compiled or replayed a
-dump. Emulator compilation alone does not establish graphics correctness.
+`upstream-pin.json` pairs PCSX2 master commit
+`904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2` with the preserved official Windows
+archive's exact size and SHA-256. The source recipe and archive headers agree on
+Qt 6.12.0, FFmpeg 9.0.1 and SDL3 3.4.18. No per-release-tag dependency pack exists.
+The rolling archive is overwritten on rebuild: preserve the recorded bytes
+instead of downloading latest again. The earlier stable header workaround is
+removed; that stable-tag experiment is historical.
 
-## Baseline build checkpoint
+Unchanged frontend and runner built outside the sandbox with v145, the same
+explicit tool version and x64 host tools. Build each project's own `.vcxproj`
+with `/t:Build` and `/p:SolutionDir` set to the source root with a trailing
+separator. Keep runs hidden, bounded, below normal and silent. Preserve unchanged
+binaries separately for the eventual stereo-off comparison.
 
-Three bounded build attempts were made; work stopped at the three-failure limit:
+## Compiled capture patch, pending runtime acceptance
 
-1. Sandboxed Release build: `C1902: Program database manager mismatch` in fmt.
-2. Same build outside the sandbox: incompatible rolling dependency headers,
-   `C2039: 'pix_fmts'` and `'sample_fmts'` are not members of `AVCodec`.
-3. Prefer the stable tree's bundled FFmpeg headers through an external MSBuild
-   property sheet: core and frontend compiled, followed by
-   `MSB4057: The target "pcsx2-gsrunner" does not exist in the project.`
+Apply `unattended-capture.patch` to the pinned source. Its runner arguments are:
 
-The last failure was a build-target invocation error. The resumed build must use
-the runner's own `.vcxproj` with `SolutionDir` set to the source root, outside the
-sandbox with v145 only. Once the matched dependency pack is installed privately,
-remove the header-precedence workaround. This correction has not been executed.
-Do not count this checkpoint as completion of step 1.
+- `-capture-frame <N>`: presentation frame from 1 to 36000.
+- `-capture-output <output.png>`: internal PNG and uncompressed GS dump.
+- `-capture-bios <private-ROM0-copy>`: copied BIOS, with copied disc as the final
+  positional argument.
 
-The dependency archive is a rolling release, not an immutable pack tied to the
-stable tag. It supplies Qt 6.12.0 and libavcodec 63, while the stable tree vendors
-libavcodec 62 headers. The compile-only header selection does not validate video
-encoding; encoding is outside this experiment.
+Capture forces a surfaceless renderer, fast boot, null/muted audio, disabled
+input sources, memory cards and network devices. A GS-thread frame counter queues
+the snapshot/dump. An atomic completion flag lets the CPU drain work and stop
+twelve presentations later. Startup errors are printed directly to stderr.
+Ordinary dump replay remains available without these capture arguments.
 
-## Reference study and planned reuse
+Use **native Windows backslashes** in file arguments. PCSX2 uses
+`PathCchCanonicalizeEx` with an extended-path flag; forward-slash drive paths are
+retained inside the extended prefix and fail `GetFileAttributesW`. A read-only
+native API reproduction found the backslash spelling resolves the same file.
 
-[PenguinScreen2](https://github.com/PenguinVRLab/PenguinScreen2) adds vertex-buffer
-stereo parameters in its hardware GS renderer. Its active Vulkan shader uses
-multiview eye signs and Q-based disparity, with linear, piecewise and logarithmic
-depth maps. Uniform-Q perspective draws can be pinned to the screen. An optional
+Three capture runs failed before a frame was produced. The first two lacked an
+actionable console error; the third returned "Requested filename ... does not
+exist". The launcher's forward-slash argument caused this failure. Work stopped
+at the three-failure limit. No fourth game run occurred. The pathname correction
+has filesystem evidence, not successful game-capture evidence.
+
+## PenguinScreen2 source study and planned reuse
+
+[PenguinScreen2](https://github.com/PenguinVRLab/PenguinScreen2) supplies GS vertex
+stereo parameters and implements its active geometric shift in the Vulkan
+shader. Multiview chooses the eye sign. Q drives linear, logarithmic or piecewise
+depth maps; uniform-Q perspective draws can be pinned to the screen. An optional
 Z/Q estimator derives inverse depth from varying textured, depth-tested draws.
-The linear shader clamps its result, so it is not this experiment's required
-signed parallel-camera pixel formula.
+Its clamped linear formula differs from the signed parallel-camera pixel
+displacement required here.
 
 Its texture cache promotes display-chain targets into two layers, follows
-render-to-texture feed edges and matches depth-target layer counts. Source views
-are retargeted when a target is promoted. Temporary depth targets and right-eye
-DATE stencil operations have documented gaps. At the pinned revision, OpenGL
-declares stereo fields but does not apply the geometric shift; Vulkan advertises
-stereo target support through multiview.
+render-to-texture feed edges, matches depth-target layer counts and retargets
+source views. Temporary depth and right-eye DATE stencil operations have known
+gaps. At the reference pin, OpenGL declares stereo fields without applying the
+geometric shift; Vulkan provides multiview target support.
 
-Planned reuse, with PenguinVRLab credit, is Q-driven perspective displacement,
-conservative screen-space classification and an evidence-based Z fallback.
-Bundled profiles have a separate license and are not reused. Initial OpenGL work
-would replay the complete frozen dump independently for each eye, preserving all
-color, depth and feedback histories through separate target/cache lifetimes.
-That avoids importing display-chain-only target promotion. This remains a plan,
-not implemented or visually checked stereo.
-
-Relevant upstream files: `pcsx2/GS/Renderers/HW/GSRendererHW.cpp`,
-`pcsx2/GS/Renderers/HW/GSTextureCache.cpp`,
-`pcsx2/GS/Renderers/Vulkan/GSDeviceVK.cpp`,
-`bin/resources/shaders/vulkan/tfx.glsl`, and
-`bin/resources/shaders/opengl/tfx_vgs.glsl`.
+Planned reuse, credited to PenguinVRLab, is Q-driven displacement, conservative
+screen-space classification and evidence-based Z fallback. Separately licensed
+bundled profiles are not reused. Initial OpenGL work would replay the complete
+frozen dump independently for each eye, preserving every intermediate color,
+depth and feedback history through separate target/cache lifetimes. This is a
+plan; no stereo code or visual acceptance exists yet.
 
 ## Remaining acceptance
 
-First obtain a hidden chosen-frame dump and replay it surfaceless in the unchanged
-runner to a PNG. Then implement environment-controlled stereo and log actual
-Q/Z vertex pairs. Fit `Z = A + B*Q`, reject poor fits and preserve zero disparity
-for sprites, constant-depth primitives, HUD and text. Use independent targets for
-every eye, including intermediate color/depth targets and feedback operations.
+On renewed resume, capture with native Windows paths. Replay the dump surfaceless
+in the unchanged runner to an internal PNG. Then implement environment-controlled
+stereo, log actual Q/Z pairs and fit `Z=A+B*Q` with residual checks. Keep sprites,
+constant depth, HUD and text at zero disparity; keep all intermediate color,
+depth and feedback histories per eye. Stereo-off pixels must match the baseline.
 
-Stereo-off pixels must match the unchanged runner. The first gun-game scene must
-pass near/far disparity and identical-HUD checks before another game starts. The
-first racing test follows immediately after that gate; race scenes must report
-cockpit/first-person availability and failures from blur, bloom and speed effects.
-Per-game scales, convergence, focal calibration and effects remain unmeasured.
+Virtua Cop must pass near/far disparity and identical-HUD checks before OutRun
+2006 starts. The racing capture must show a race or attract race, report cockpit/
+first-person availability, and identify blur, bloom and speed-effect failures.
+Per-game constants, images and effects remain unmeasured.
 
-Private game, BIOS, dump, log, image and executable artifacts must remain under
-the ignored job directory. Run `tools/check_public_privacy.py` before every
-commit. Nothing in this setup supplies copyrighted game or BIOS data.
+All game, BIOS, dump, log, image and executable artifacts stay private in the
+ignored job directory. Run `tools/check_public_privacy.py` before every commit.
+This setup includes no game/BIOS data and changes no VR services.

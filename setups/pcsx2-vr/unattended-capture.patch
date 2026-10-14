@@ -1,0 +1,151 @@
+diff --git a/pcsx2-gsrunner/Main.cpp b/pcsx2-gsrunner/Main.cpp
+index 03879ca..0a77852 100644
+--- a/pcsx2-gsrunner/Main.cpp
++++ b/pcsx2-gsrunner/Main.cpp
+@@ -19,6 +19,7 @@
+ #include "common/CocoaTools.h"
+ #include "common/Console.h"
+ #include "common/CrashHandler.h"
++#include "common/Error.h"
+ #include "common/FileSystem.h"
+ #include "common/MemorySettingsInterface.h"
+ #include "common/Path.h"
+@@ -80,6 +81,12 @@ static s32 s_loop_count = 1;
+ static std::optional<bool> s_use_window;
+ static bool s_no_console = false;
+ static bool s_perf_enable = false;
++// Opt-in unattended capture uses normal emulation only until the frozen dump exists.
++static u32 s_capture_frame = 0;
++static u32 s_capture_ticks = 0;
++static std::string s_capture_output;
++static std::string s_capture_bios;
++static std::atomic<bool> s_capture_finished{false};
+ 
+ // Owned by the GS thread.
+ static u32 s_dump_frame_number = 0;
+@@ -173,6 +180,9 @@ void Host::ReportInfoAsync(const std::string_view title, const std::string_view
+ 
+ void Host::ReportErrorAsync(const std::string_view title, const std::string_view message)
+ {
++	if (s_capture_frame > 0)
++		std::fprintf(stderr, "Capture error: %.*s: %.*s\n", static_cast<int>(title.size()), title.data(),
++			static_cast<int>(message.size()), message.data());
+ 	if (!title.empty() && !message.empty())
+ 		ERROR_LOG("ReportErrorAsync: {}: {}", title, message);
+ 	else if (!message.empty())
+@@ -236,6 +246,19 @@ void Host::ReleaseRenderWindow()
+ 
+ void Host::BeginPresentFrame()
+ {
++	if (s_capture_frame > 0)
++	{
++		// This counter belongs to the GS thread; the CPU only reads the completion flag.
++		++s_capture_ticks;
++		if (s_capture_ticks == s_capture_frame)
++		{
++			GSQueueSnapshot(s_capture_output, 1);
++			std::fprintf(stderr, "Unattended capture queued at present frame %u.\n", s_capture_ticks);
++		}
++		if (s_capture_ticks >= s_capture_frame + 12)
++			s_capture_finished.store(true, std::memory_order_release);
++		return;
++	}
+ 	if (s_loop_number == 0 && !s_output_prefix.empty())
+ 	{
+ 		// when we wrap around, don't race other files
+@@ -472,6 +495,23 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
+ 				PrintCommandLineVersion();
+ 				return false;
+ 			}
++			else if (CHECK_ARG_PARAM("-capture-frame"))
++			{
++				s_capture_frame = StringUtil::FromChars<u32>(argv[++i]).value_or(0);
++				if (s_capture_frame == 0 || s_capture_frame > 36000)
++					return false;
++				continue;
++			}
++			else if (CHECK_ARG_PARAM("-capture-output"))
++			{
++				s_capture_output = argv[++i];
++				continue;
++			}
++			else if (CHECK_ARG_PARAM("-capture-bios"))
++			{
++				s_capture_bios = argv[++i];
++				continue;
++			}
+ 			else if (CHECK_ARG_PARAM("-dumpdir"))
+ 			{
+ 				dumpdir = s_output_prefix = StringUtil::StripWhitespace(argv[++i]);
+@@ -762,7 +802,27 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
+ 		return false;
+ 	}
+ 
+-	if (!VMManager::IsGSDumpFileName(params.filename))
++	if (s_capture_frame > 0)
++	{
++		if (s_capture_output.empty() || s_capture_bios.empty() ||
++			!StringUtil::EndsWithNoCase(s_capture_output, ".png"))
++		{
++			Console.Error("Capture requires -capture-output <png> and -capture-bios <copied ROM0>.");
++			return false;
++		}
++		s_use_window = false;
++		params.fast_boot = true;
++		s_settings_interface.SetStringValue("Folders", "Bios", std::string(Path::GetDirectory(s_capture_bios)).c_str());
++		s_settings_interface.SetStringValue("Filenames", "BIOS", std::string(Path::GetFileName(s_capture_bios)).c_str());
++		s_settings_interface.SetIntValue("EmuCore/GS", "GSDumpCompression", 0);
++		s_settings_interface.SetIntValue("EmuCore/GS", "ScreenshotSize", 3);
++		s_settings_interface.SetBoolValue("EmuCore/GS", "SkipDuplicateFrames", false);
++		s_settings_interface.SetBoolValue("Achievements", "Enabled", false);
++		s_settings_interface.SetBoolValue("EmuCore/DEV9/Eth", "EthEnable", false);
++		s_settings_interface.SetBoolValue("EmuCore/DEV9/Hdd", "HddEnable", false);
++		EmuFolders::LoadConfig(s_settings_interface);
++	}
++	else if (!VMManager::IsGSDumpFileName(params.filename))
+ 	{
+ 		Console.Error("Provided filename is not a GS dump.");
+ 		return false;
+@@ -811,6 +871,9 @@ void GSRunner::SettingsOverride()
+ 
+ 	// we don't need any sound output
+ 	s_settings_interface.SetStringValue("SPU2/Output", "OutputModule", "nullout");
++	s_settings_interface.SetStringValue("SPU2/Output", "Backend", "Null");
++	s_settings_interface.SetBoolValue("SPU2/Output", "OutputMuted", true);
++	s_settings_interface.SetBoolValue("InputSources", "DInput", false);
+ 
+ 	// none of the bindings are going to resolve to anything
+ 	Pad::ClearPortBindings(s_settings_interface, 0);
+@@ -847,9 +910,13 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
+ 	{
+ 		// apply new settings (e.g. pick up renderer change)
+ 		VMManager::ApplySettings();
+-		GSDumpReplayer::SetIsDumpRunner(true, s_perf_enable);
++		GSDumpReplayer::SetIsDumpRunner(s_capture_frame == 0, s_perf_enable);
+ 
+-		if (VMManager::Initialize(*params) == VMBootResult::StartupSuccess)
++		Error boot_error;
++		const VMBootResult boot_result = VMManager::Initialize(*params, s_capture_frame > 0 ? &boot_error : nullptr);
++		if (s_capture_frame > 0)
++			std::fprintf(stderr, "Capture startup result: %d: %s\n", static_cast<int>(boot_result), boot_error.GetDescription().c_str());
++		if (boot_result == VMBootResult::StartupSuccess)
+ 		{
+ 			// run until end
+ 			VMManager::SetState(VMState::Running);
+@@ -905,6 +972,16 @@ int main(int argc, char* argv[])
+ 
+ void Host::PumpMessagesOnCPUThread()
+ {
++	if (s_capture_frame > 0)
++	{
++		if (s_capture_finished.load(std::memory_order_acquire))
++		{
++			MTGS::WaitGS();
++			GSJoinSnapshotThreads();
++			VMManager::SetState(VMState::Stopping);
++		}
++		return;
++	}
+ 	// update GS thread copy of frame number
+ 	MTGS::RunOnGSThread([frame_number = GSDumpReplayer::GetFrameNumber()]() { s_dump_frame_number = frame_number; });
+ 	MTGS::RunOnGSThread([loop_number = GSDumpReplayer::GetLoopCount()]() { s_loop_number = loop_number; });
