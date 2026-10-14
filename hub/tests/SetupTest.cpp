@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/setup/Setup.h"
 #include "core/setup/Report.h"
+#include "core/dreamcast/Dreamcast.h"
+#include "core/install/Install.h"
 #include <QtTest>
 #include <QDir>
 #include <QFile>
@@ -56,9 +58,10 @@ private slots:
     QSet<QString> ids,keys;QStringList kinds;
     for(const auto &value:ac::setup::systems()){
       const auto system=value.toMap();
-      for(const auto &field:{"id","kind","title","detail","folderKey","programKey","programLabel"})QVERIFY2(!system.value(field).toString().isEmpty(),field);
+      // A program that keeps its game files beside itself has no folder setting.
+      for(const auto &field:{"id","kind","title","detail","programKey","programLabel"})QVERIFY2(!system.value(field).toString().isEmpty(),field);
       QVERIFY(!ids.contains(system["id"].toString()));ids<<system["id"].toString();
-      for(const auto &key:{system["folderKey"].toString(),system["programKey"].toString()}){QVERIFY(!keys.contains(key));keys<<key;}
+      for(const auto &key:{system["folderKey"].toString(),system["programKey"].toString()}){if(key.isEmpty())continue;QVERIFY(!keys.contains(key));keys<<key;}
       if(!kinds.contains(system["kind"].toString()))kinds<<system["kind"].toString();
     }
     QCOMPARE(kinds,(QStringList{"arcade","pinball","consoles"}));
@@ -154,9 +157,52 @@ private slots:
     result=ac::setup::scanSystem("pinball",settings,{{"pinballScan",tables}},{},cancel);
     QVERIFY(result["ready"].toList().isEmpty());QVERIFY(entry(result,"notRight","a")["reason"].toString().contains("not set up"));
   }
-  void anUnknownSystemSaysSo() {
+  void aSystemWithoutACheckSaysSo() {
     std::atomic_bool cancel=false;
-    QVERIFY(ac::setup::scanSystem("dreamcast",{},{},{},cancel)["note"].toString().contains("cannot check"));
+    QVERIFY(ac::setup::scanSystem("model2",{},{},{},cancel)["note"].toString().contains("cannot check"));
+  }
+  void timeCrisisNeedsItsProgramAndTheFilesBesideIt() {
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto program=t.filePath("build/game.exe");
+    const auto scan=[&](const QString &path){return ac::setup::scanSystem("system22",{{"system22Executable",path}},{},{},cancel);};
+    QVERIFY(entry(scan(QString()),"notRight","timecris")["reason"].toString().contains("not set up"));
+    write(program,"synthetic");QVERIFY(entry(scan(program),"notRight","timecris")["reason"].toString().contains("roms folder"));
+    write(t.filePath("build/roms/set.bin"),"synthetic");QVERIFY(!entry(scan(program),"ready","timecris").isEmpty());
+  }
+  void dreamcastStartsFromTheEmulatorsOwnFolder() {
+    QTemporaryDir t;const auto program=t.filePath("emu/program.exe"),disc=t.filePath("my discs/game.chd");write(program,"synthetic");write(disc,"synthetic");
+    const auto plan=ac::dreamcast::launchPlan(disc,"headset",program);
+    QCOMPARE(plan["cwd"].toString(),QDir::toNativeSeparators(t.filePath("emu")));
+    QCOMPARE(plan["args"].toStringList(),(QStringList{"-config","config:vr.Xr=yes",QDir::toNativeSeparators(disc)}));
+    QCOMPARE(ac::dreamcast::launchPlan(disc,"monitor",program)["args"].toStringList()[1],QString("config:vr.Xr=no"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::dreamcast::launchPlan(disc,"sideways",program));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::dreamcast::launchPlan(disc,"headset",t.filePath("gone.exe")));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::dreamcast::launchPlan(t.filePath("gone.chd"),"headset",program));
+  }
+  // A raw track is enough for the disc's own number: the header marker, then the number 64 bytes on.
+  void dreamcastDiscsAreToldApartByTheirOwnNumber() {
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto folder=t.filePath("discs"),program=t.filePath("emu/program.exe");write(program,"synthetic");
+    const auto track=[](const QByteArray &product){QByteArray bytes(2352,'\0');bytes.replace(16,15,"SEGA SEGAKATANA");bytes.replace(16+64,10,product.leftJustified(10,' '));return bytes;};
+    write(folder+"/first.gdi",("3\n1 0 4 2352 a.bin 0\n2 600 0 2352 b.raw 0\n3 45000 4 2352 \"game track.bin\" 0\n"));write(folder+"/game track.bin",track("MK-51002"));
+    write(folder+"/Confidential Mission.cdi",QByteArray(3000,'x')+track("MK-51160"));
+    write(folder+"/house of the dead 2 other.cdi",track("HDR-0000"));
+    write(folder+"/Death Crimson 2.cue","FILE \"none.bin\" BINARY\n");
+    write(folder+"/unrelated.cdi",track("T-99999"));
+    const QVariantMap settings{{"dreamcastGameFolder",folder},{"dreamcastExecutable",program}};
+    auto result=ac::setup::scanSystem("dreamcast",settings,{},{},cancel);
+    // The US release has the full profile even though a second, unprofiled disc of the same game is present.
+    QVERIFY(entry(result,"ready","hotd2")["detail"].toString().contains("US release"));QVERIFY(entry(result,"ready","hotd2")["file"].toString().endsWith("first.gdi"));
+    QVERIFY(entry(result,"notRight","confmiss")["reason"].toString().contains("no VR profile"));QVERIFY(entry(result,"notRight","confmiss")["startable"].toBool());
+    QVERIFY(entry(result,"notRight","dcrimson2")["reason"].toString().contains("not checked"));
+    QVERIFY(!entry(result,"missing","vcop2").isEmpty());QVERIFY(!entry(result,"missing","dcox").isEmpty());
+    QVERIFY(result["note"].toString().contains("not yet tried"));
+    // Only the unprofiled release of the main game: found, not right, still startable.
+    QVERIFY(QFile::remove(folder+"/first.gdi"));
+    result=ac::setup::scanSystem("dreamcast",settings,{},{},cancel);
+    QVERIFY(entry(result,"notRight","hotd2")["reason"].toString().contains("HDR-0000"));QVERIFY(entry(result,"notRight","hotd2")["startable"].toBool());
+    // Without the emulator build nothing is startable.
+    result=ac::setup::scanSystem("dreamcast",{{"dreamcastGameFolder",folder}},{},{},cancel);
+    QVERIFY(entry(result,"notRight","confmiss")["reason"].toString().contains("not set up"));QVERIFY(!entry(result,"notRight","confmiss")["startable"].toBool());
+    QCOMPARE(QDir(folder).entryList(QDir::Files).size(),5);
   }
 };
 QTEST_APPLESS_MAIN(SetupTest)

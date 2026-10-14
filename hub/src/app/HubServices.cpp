@@ -5,6 +5,7 @@
 #include "core/model3/Model3.h"
 #include "core/setup/Setup.h"
 #include "core/setup/Report.h"
+#include "core/dreamcast/Dreamcast.h"
 #include "ProductIdentity.h"
 #include <QDir>
 #include <QCoreApplication>
@@ -113,6 +114,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::steamVrRequested,this,[this]{emit steamVrRegistrationRequested(steamVrManifest());});
     refreshSteamVr();
     connect(ui_,&UiController::setupScanRequested,this,&HubServices::scanSetup);
+    connect(ui_,&UiController::otherPlayRequested,this,&HubServices::startOtherGame);
     try{QFile saved(install::scopedPath("user/cache/setup-report.json",root_));if(saved.size()<=64*1024*1024&&saved.open(QIODevice::ReadOnly))ui_->setSetupReport(QJsonDocument::fromJson(saved.readAll()).toVariant().toMap());}catch(const std::exception &){}
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
@@ -162,6 +164,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             startPinball(retainedPinball_,retainedPinballExecutable_);return;
         }
         if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
+        if(id.startsWith("dreamcast-")||id.startsWith("system22-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
 #ifdef Q_OS_WIN
@@ -254,6 +257,31 @@ HubServices::~HubServices(){
 }
 void HubServices::setPinballDiagnosticIni(const QString &path){
     pinballDiagnosticIni_=path.isEmpty()?QString():privatePinballIni(path,root_);
+}
+void HubServices::startOtherGame(const QString &id,const QString &view,const QString &file){
+    if(launchBusy()||hubExitPending_){ui_->showError("Launch","Close the current session before starting a game.");return;}
+    try{
+        launch::Request request;request.root=root_;request.gameId=id;request.variantId=view;request.prepareProfile=false;
+        QString title,hint;
+        if(id.startsWith("dreamcast-")){
+            // The emulator keeps its settings beside itself, so its own folder is the working folder.
+            const auto plan=dreamcast::launchPlan(file,view,settings_->get("dreamcastExecutable",QString()).toString());
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            for(const auto &value:dreamcast::games())if("dreamcast-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · "+dreamcast::viewLabel(view);
+            hint=view=="headset"?"New and not yet tried in a headset. The picture is also on the PC monitor.":"The mouse is the gun.";
+        }else if(id=="system22-timecris"){
+            const QFileInfo program(settings_->get("system22Executable",QString()).toString());
+            if(!program.isFile())throw install::Error("E_SYSTEM22_SETUP","The Time Crisis VR build is not set up. Choose its program in Set-up.");
+            request.plan.executable=QDir::toNativeSeparators(program.absoluteFilePath());request.plan.cwd=QDir::toNativeSeparators(program.absolutePath());
+            title="Time Crisis · In the headset";hint="A = credits, either trigger = start and fire, hold a grip to leave cover, X = recentre. Close its window on the PC to quit.";
+        }else throw install::Error("E_ID","Unknown game");
+#ifdef Q_OS_WIN
+        ui_->launchOtherQueued(id,view,title,hint,QString());
+#else
+        ui_->launchOtherQueued(id,view,title,hint,"Clean window close is not supported on this platform yet.");
+#endif
+        launcher_.start(request);
+    }catch(const std::exception &error){ui_->showError("Launch",QString::fromUtf8(error.what()));}
 }
 void HubServices::scanSetup(const QStringList &systems){
     // Off the GUI thread; only the user's folders are read, and only Hub's own cache is written.

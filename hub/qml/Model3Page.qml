@@ -8,11 +8,13 @@ Item {
  id:page
  property bool vrOverlayMode:false
  property string sizeValue:"S"
- property var rows:uiController.model3Games
- property var views:uiController.model3Views
+ // Model 3 first, then the games of the other systems; a row with "system" belongs to one of those.
+ property var model3Rows:uiController.model3Games
+ property var rows:model3Rows.concat(uiController.otherGames)
+ property var views:selected.views||uiController.model3Views
  property string selectedId:""
  // The same set-up problem on every card is said once, in full, above the cards.
- property string setupProblem:{let first=rows.length?rows[0].problem:"";for(let row of rows)if(row.problem!==first)return "";return first}
+ property string setupProblem:{let first=model3Rows.length?model3Rows[0].problem:"";for(let row of model3Rows)if(row.problem!==first)return "";return first}
  property var selected:{for(let row of rows)if(row.id===selectedId)return row;return ({})}
  property bool idle:Object.keys(uiController.nowPlaying).length===0
  property real factor:Theme.get("size.card.scale."+sizeValue)
@@ -20,10 +22,14 @@ Item {
  property color needsColour:Theme.get("color.state.needs_neon")
  function card(row){
   let c=Object.assign({},row.card||{})
-  c.gameId=row.id;c.title=row.title;c.year=row.year;c.pill="MODEL 3";c.manufacturerShort="Sega";c.hardwareLabel="Model 3";c.developerShown=false;c.isWip=false
-  c.blurb=row.problem?row.problem.split(". ")[0].replace(/\.$/,"")+".":"Your own file, real 3D in VR.";c.stateColour=row.problem?needsColour:readyColour
+  c.gameId=row.id;c.title=row.title;c.year=row.year;c.pill=row.pill||"MODEL 3";c.manufacturerShort=row.system==="system22"?"Namco":"Sega"
+  c.hardwareLabel=row.system==="dreamcast"?"Dreamcast":row.system==="system22"?"System 22":"Model 3";c.developerShown=false;c.isWip=false
+  let trouble=row.problem||row.warning
+  c.blurb=trouble?trouble.split(". ")[0].replace(/\.$/,"")+".":"Your own file, real 3D in VR.";c.stateColour=trouble?needsColour:readyColour
   return c
  }
+ function play(row){if(row.system)uiController.playOtherGame(row.id);else uiController.playModel3(row.id)}
+ function choose(row,view){if(row.system)uiController.chooseGameView(row.id,view);else uiController.chooseModel3View(row.id,view)}
  FileDialog {id:file;title:"Choose your Model 3 emulator program";nameFilters:["Program (*.exe)","All files (*)"];onAccepted:uiSettings.set("model3Executable",uiController.localPath(selectedFile))}
  FolderDialog {id:folder;title:"Choose the folder holding your own Model 3 game files";onAccepted:uiSettings.set("model3GameFolder",uiController.localPath(selectedFolder))}
  // One picture per view, seen from above: you, what you look at, and how much of your view it fills.
@@ -48,12 +54,12 @@ Item {
  }
  ColumnLayout {anchors.fill:parent;spacing:8;visible:!page.selectedId
   RowLayout {spacing:8
-   UiText {text:"Sega Model 3";font.pixelSize:24;Layout.fillWidth:true}
-   PillButton {objectName:"model3Locate";text:"Locate emulator";visible:!page.vrOverlayMode;onClicked:file.open()}
-   PillButton {objectName:"model3Folder";text:"Game folder";visible:!page.vrOverlayMode;onClicked:folder.open()}
+   UiText {text:"VR games";font.pixelSize:24;Layout.fillWidth:true}
+   PillButton {objectName:"model3Locate";text:"Model 3 emulator";visible:!page.vrOverlayMode;onClicked:file.open()}
+   PillButton {objectName:"model3Folder";text:"Model 3 folder";visible:!page.vrOverlayMode;onClicked:folder.open()}
    PillButton {text:"Check again";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.refreshModel3()}
   }
-  UiText {Layout.fillWidth:true;text:"Your own emulator build and your own game files, drawn in real 3D for the headset. Start SteamVR with the headset connected first, then pick a game to choose how you see it."+(page.vrOverlayMode?" The emulator and the game folder are chosen on the desktop.":"")}
+  UiText {Layout.fillWidth:true;text:"Your own emulator builds and your own game files, in the headset. Start SteamVR with the headset connected first, then pick a game to choose how you see it. Other systems are added in Set-up."+(page.vrOverlayMode?" The emulator and the game folder are chosen on the desktop.":"")}
   UiText {objectName:"model3Setup";Layout.fillWidth:true;visible:text.length>0;text:page.setupProblem;font.pixelSize:16;color:page.needsColour}
   GridView {id:grid;objectName:"model3Grid";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:page.rows;boundsBehavior:Flickable.StopAtBounds
    cellWidth:Math.floor(width/Math.max(1,Math.floor(width/(Theme.get("size.card.base_w")*page.factor+8))))
@@ -62,10 +68,11 @@ Item {
    delegate:Item {id:cell;required property var modelData;width:grid.cellWidth;height:grid.cellHeight
     GameCard {objectName:"model3Card";width:parent.width-8;height:parent.height-8;game:page.card(cell.modelData);sizeValue:page.sizeValue;vrOverlayMode:page.vrOverlayMode
      effectsEnabled:!(uiSettings.values,uiSettings.get("cheapEffects",true))
-     primaryText:cell.modelData.problem?"Not ready":"Start · "+cell.modelData.viewLabel
-     footText:"TRUE 3D · 3 views"
+     primaryText:cell.modelData.problem?"Not ready":cell.modelData.warning?"Read first":"Start · "+cell.modelData.viewLabel
+     footText:cell.modelData.system==="dreamcast"?"VR · new, untested":cell.modelData.system?"TRUE VR":"TRUE 3D · 3 views"
      onDetailRequested:page.selectedId=cell.modelData.id
-     onActionRequested:if(cell.modelData.problem||!page.idle)page.selectedId=cell.modelData.id;else uiController.playModel3(cell.modelData.id)
+     // A game that is not ready, or starts only behind a warning, opens its page instead of starting.
+     onActionRequested:if(cell.modelData.problem||cell.modelData.warning||!page.idle)page.selectedId=cell.modelData.id;else page.play(cell.modelData)
     }
    }
   }
@@ -85,10 +92,10 @@ Item {
     Button {id:option;objectName:"model3View";required property var modelData;property bool chosen:page.selected.view===modelData.id
      Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:1;Layout.maximumHeight:340;padding:14
      Accessible.name:modelData.label;Accessible.checked:chosen
-     onClicked:uiController.chooseModel3View(page.selectedId,modelData.id)
+     onClicked:page.choose(page.selected,modelData.id)
      background:Rectangle {radius:Theme.get("size.card.radius");color:Theme.mix(Theme.get("color.surface.card"),page.readyColour,option.chosen?0.12:0.03);border.width:option.chosen||option.activeFocus?2:1;border.color:option.chosen?page.readyColour:option.hovered?Theme.get("color.line.button"):Theme.get("color.line.strong")}
      contentItem:ColumnLayout {spacing:8
-      ViewPicture {Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:70;kind:option.modelData.id;accent:option.chosen?page.readyColour:Theme.get("color.text.muted_detail")}
+      ViewPicture {Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:70;kind:option.modelData.id==="headset"||option.modelData.id==="vr"?"inside":option.modelData.id==="monitor"?"screen":option.modelData.id;accent:option.chosen?page.readyColour:Theme.get("color.text.muted_detail")}
       UiText {Layout.fillWidth:true;text:(option.chosen?"● ":"○ ")+option.modelData.label;font.pixelSize:page.vrOverlayMode?22:18;color:option.chosen?page.readyColour:Theme.get("color.text.primary")}
       UiText {Layout.fillWidth:true;text:option.modelData.help;font.pixelSize:page.vrOverlayMode?16:13}
      }
@@ -96,9 +103,10 @@ Item {
    }
   }
   UiText {objectName:"model3Problem";Layout.fillWidth:true;visible:!!page.selected.problem;text:page.selected.problem||"";font.pixelSize:16;color:page.needsColour}
+  UiText {objectName:"model3Warning";Layout.fillWidth:true;visible:!!page.selected.warning;text:"Before you start: "+(page.selected.warning||"");font.pixelSize:16;color:page.needsColour}
   RowLayout {spacing:12
-   PillButton {objectName:"model3Start";text:"Start "+(page.selected.title||"")+" · "+(page.selected.viewLabel||"");neon:true;accent:page.selected.problem?page.needsColour:page.readyColour;vrOverlayMode:page.vrOverlayMode;enabled:!page.selected.problem&&page.idle;onClicked:uiController.playModel3(page.selectedId)}
-   UiText {Layout.fillWidth:true;text:"In the game: Home = set straight ahead, 1 = start, 3 = coin, Esc = quit."}
+   PillButton {objectName:"model3Start";text:"Start "+(page.selected.title||"")+" · "+(page.selected.viewLabel||"");neon:true;accent:page.selected.problem?page.needsColour:page.readyColour;vrOverlayMode:page.vrOverlayMode;enabled:!page.selected.problem&&page.idle;onClicked:page.play(page.selected)}
+   UiText {Layout.fillWidth:true;visible:!page.selected.system;text:"In the game: Home = set straight ahead, 1 = start, 3 = coin, Esc = quit."}
   }
  }}}
 }

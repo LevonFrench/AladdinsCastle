@@ -2,6 +2,7 @@
 #include "HeaderSafety.h"
 #include "Scan.h"
 #include <QDateTime>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
@@ -355,8 +356,9 @@ struct ChdInput {
     return in->file->seek(base + offset) ? 0 : -1;
   }
 };
+using ChdReader = std::function<QString(const Reader &, chd_file *)>;
 QString chdSerial(QFile &f, const QByteArray &header, std::atomic_bool &cancel,
-                  QString &error) {
+                  QString &error, const ChdReader &custom = {}) {
   const auto logical = qFromBigEndian<quint64>(header.constData() + 32),
              mapOffset = qFromBigEndian<quint64>(header.constData() + 40);
   const auto hunk = qFromBigEndian<quint32>(header.constData() + 56),
@@ -437,11 +439,94 @@ QString chdSerial(QFile &f, const QByteArray &header, std::atomic_bool &cancel,
     }
     return out;
   };
-  const auto identity = isoReader(read, cancel);
+  const auto identity = custom ? custom(read, chd) : isoReader(read, cancel);
   chd_close(chd);
   return identity;
 }
+// "SEGA SEGAKATANA" opens the boot header; the product number sits 64 bytes on.
+QString katanaProduct(const QByteArray &bytes) {
+  const auto at = bytes.indexOf("SEGA SEGAKATANA");
+  return at < 0 || bytes.size() < at + 74 ? QString() : QString::fromLatin1(bytes.mid(at + 64, 10)).trimmed();
+}
+// The first megabytes of a file, searched in overlapping pieces.
+QString katanaScan(const QString &path, qint64 limit, std::atomic_bool &cancel) {
+  QFile f(path);
+  if (!f.open(QIODevice::ReadOnly)) return {};
+  QByteArray tail;
+  for (qint64 done = 0; done < limit && !f.atEnd() && !cancel;) {
+    const auto piece = f.read(1024 * 1024);
+    if (piece.isEmpty()) break;
+    done += piece.size();
+    const auto product = katanaProduct(tail + piece);
+    if (!product.isEmpty()) return product;
+    tail = piece.right(128);
+  }
+  return {};
+}
 } // namespace
+QString Scanner::dreamcastProduct(const QString &path, std::atomic_bool &cancel) {
+  const QFileInfo info(path);
+  const auto ext = info.suffix().toLower();
+  if (ext == "chd") {
+    // The disc's game area starts at its third track; the tracks before it are
+    // stored first, each rounded up to four frames.
+    const auto checked = inspect(path, cancel);
+    if (!checked.error.isEmpty() || !checked.chdHeaderBoundsOk) return {};
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    const auto header = readAt(f, 0, 124);
+    QString error;
+    return chdSerial(f, header, cancel, error, [](const Reader &read, chd_file *chd) {
+      const auto *about = chd_get_header(chd);
+      if (!about || about->unitbytes < 2048) return QString();
+      static const QRegularExpression fields("TRACK:(\\d+).*FRAMES:(\\d+)");
+      quint64 frame = 0;
+      for (uint32_t index = 0; index < 99; ++index) {
+        char text[257] = {};
+        uint32_t length = 0, tag = 0;
+        uint8_t flags = 0;
+        if (chd_get_metadata(chd, GDROM_TRACK_METADATA_TAG, index, text, 256, &length, &tag, &flags) != CHDERR_NONE)
+          return QString();
+        const auto match = fields.match(QString::fromLatin1(text));
+        if (!match.hasMatch()) return QString();
+        if (match.captured(1).toInt() >= 3) break;
+        frame += (match.captured(2).toULongLong() + 3) & ~3ULL;
+      }
+      return katanaProduct(read(static_cast<qint64>(frame * about->unitbytes), 2352));
+    });
+  }
+  if (ext == "gdi") {
+    // Track 3 is named on its own line: number, start, type, sector size, file, offset.
+    QFile list(path);
+    if (list.size() > 64 * 1024 || !list.open(QIODevice::ReadOnly)) return {};
+    for (const auto &line : QString::fromUtf8(list.readAll()).split('\n')) {
+      static const QRegularExpression track("^\\s*3\\s+\\d+\\s+\\d+\\s+\\d+\\s+(\"[^\"]+\"|\\S+)");
+      const auto match = track.match(line);
+      if (!match.hasMatch()) continue;
+      auto name = match.captured(1);
+      name.remove('"');
+      const QFileInfo file(info.absoluteDir().filePath(name));
+      if (file.absoluteDir() != info.absoluteDir()) return {};
+      return katanaScan(file.absoluteFilePath(), 1024 * 1024, cancel);
+    }
+    return {};
+  }
+  if (ext == "cue") {
+    QFile sheet(path);
+    if (sheet.size() > 64 * 1024 || !sheet.open(QIODevice::ReadOnly)) return {};
+    static const QRegularExpression entry("FILE\\s+\"([^\"]+)\"");
+    auto files = entry.globalMatch(QString::fromUtf8(sheet.readAll()));
+    while (files.hasNext() && !cancel) {
+      const QFileInfo file(info.absoluteDir().filePath(files.next().captured(1)));
+      if (file.absoluteDir() != info.absoluteDir()) continue;
+      const auto product = katanaScan(file.absoluteFilePath(), 4 * 1024 * 1024, cancel);
+      if (!product.isEmpty()) return product;
+    }
+    return {};
+  }
+  // A .cdi keeps a short first session before the game's own; a raw track starts with the header.
+  return katanaScan(path, ext == "cdi" ? 96 * 1024 * 1024 : 1024 * 1024, cancel);
+}
 FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
   QFileInfo info(path);
   FileIdentity r;

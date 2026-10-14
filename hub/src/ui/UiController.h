@@ -61,6 +61,7 @@ class UiController : public QObject {
  Q_PROPERTY(QString pinballControlsStatus READ pinballControlsStatus CONSTANT)
  Q_PROPERTY(QVariantList model3Games READ model3Games NOTIFY model3Changed)
  Q_PROPERTY(QVariantList model3Views READ model3Views CONSTANT)
+ Q_PROPERTY(QVariantList otherGames READ otherGames NOTIFY model3Changed)
  Q_PROPERTY(QVariantList setupSystems READ setupSystems NOTIFY setupChanged)
  Q_PROPERTY(QVariantMap setupKinds READ setupKinds NOTIFY setupChanged)
  Q_PROPERTY(QVariantMap steamVr READ steamVr NOTIFY setupChanged)
@@ -121,6 +122,12 @@ class UiController : public QObject {
  Q_INVOKABLE void playModel3(const QString &id);
  Q_INVOKABLE void refreshModel3(){emit model3Changed();}
  void launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable);
+ // Games of the other systems, in the same row shape as model3Games plus system,
+ // pill, views and warning. Ids carry the system: "dreamcast-hotd2", "system22-timecris".
+ QVariantList otherGames()const;
+ Q_INVOKABLE void chooseGameView(const QString &id,const QString &view);
+ Q_INVOKABLE void playOtherGame(const QString &id);
+ void launchOtherQueued(const QString &id,const QString &view,const QString &title,const QString &hint,const QString &closeUnavailable);
  // First-run set-up: what the user has, and where each system's files and program are.
  QVariantList setupSystems()const;
  QVariantMap setupKinds()const;
@@ -195,6 +202,7 @@ class UiController : public QObject {
  void steamVrRequested();
  void setupScanRequested(const QStringList &systems);
  void model3PlayRequested(const QString &id,const QString &view);
+ void otherPlayRequested(const QString &id,const QString &view,const QString &file);
  void pinballScanRequested(const QString &folder,const QString &database,const QString &roms,const QString &media);
  void pinballPlanRequested(const QString &table,const QString &executable,const QString &id);
  void pinballRestoreRequested(const QString &folder,const QString &database,const QString &roms,const QString &media);

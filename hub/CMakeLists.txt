@@ -62,6 +62,8 @@ add_library(hubcore STATIC
     src/core/pinball/Pinball.h
     src/core/model3/Model3.cpp
     src/core/model3/Model3.h
+    src/core/dreamcast/Dreamcast.cpp
+    src/core/dreamcast/Dreamcast.h
     src/core/setup/Setup.cpp
     src/core/setup/Setup.h
     src/core/setup/Report.cpp

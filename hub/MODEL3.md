@@ -1,6 +1,6 @@
 # Playing Sega Model 3 games from Hub
 
-Open **Model 3**. The tab lists ten games that the stereo Supermodel build
+Open **VR games**. The tab lists ten Model 3 games that the stereo Supermodel build
 draws in real 3D for the headset. Hub ships no emulator and no game files: you
 point it at your own.
 

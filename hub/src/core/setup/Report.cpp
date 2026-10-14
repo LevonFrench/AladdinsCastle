@@ -2,6 +2,7 @@
 #include "Report.h"
 #include "Setup.h"
 #include "core/model3/Model3.h"
+#include "core/dreamcast/Dreamcast.h"
 #include "core/pinball/Pinball.h"
 #include "core/scan/Scan.h"
 #include <QDir>
@@ -118,7 +119,38 @@ QVariantMap scanPinball(const QVariantMap &settings,const QVariantMap &context,c
  result["pinballScan"]=tables; // Handed back so the caller can keep it for the Pinball tab.
  return result;
 }
-const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball}};return table;}
+QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
+ const auto folder=settings.value("dreamcastGameFolder").toString();
+ const bool programReady=QFileInfo(settings.value("dreamcastExecutable").toString()).isFile();
+ Groups groups;
+ progress("Reading the disc images");
+ const auto found=dreamcast::discs(folder,cancel);
+ for(const auto &value:dreamcast::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
+  // The best disc of this game: one with a VR profile, then one whose number was read.
+  QVariantMap disc;int rank=-1;
+  for(const auto &candidate:found){const auto c=candidate.toMap();if(c.value("game")!=id)continue;const int r=c.value("profile").toBool()?2:c.value("verified").toBool()?1:0;if(r>rank){rank=r;disc=c;}}
+  if(rank<0){groups.missing<<item(id,title,"expected",id=="hotd2"?title+" (US or PAL disc image)":title+" (disc image)");continue;}
+  QVariantMap entry{{"id",id},{"title",title},{"file",disc.value("file")},{"startable",programReady}};
+  const auto product=disc.value("product").toString();
+  if(!programReady){entry["reason"]="The disc was found, but the Dreamcast VR build is not set up on this PC.";groups.notRight<<entry;}
+  else if(disc.value("profile").toBool()){entry["detail"]=QString("Full VR profile (%1 release).").arg(disc.value("region").toString());groups.ready<<entry;}
+  else if(id=="hotd2"&&product.isEmpty()){entry["detail"]="Found by its file name. The release could not be read from the disc, so its VR profile is not confirmed.";groups.ready<<entry;}
+  else if(id=="hotd2"){entry["reason"]=QString("This release (disc number %1) has no VR profile; only the US and PAL releases do. It still starts, with the wrong view and no hands.").arg(product);groups.notRight<<entry;}
+  else{entry["reason"]=QString("It starts, but there is no VR profile for it yet: the view, the HUD and the hands will be wrong.")+(disc.value("verified").toBool()?QString():QString(" Found by its file name, not checked."));groups.notRight<<entry;}
+ }
+ return groups.result("dreamcast",folder.isEmpty()?"No folder chosen for this system.":"New: not yet tried in a headset.");
+}
+QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const Progress &,std::atomic_bool &){
+ // The native build carries its game files in a "roms" folder beside the program.
+ const auto program=settings.value("system22Executable").toString();const QFileInfo info(program);
+ Groups groups;const QString id="timecris",title="Time Crisis";
+ if(program.isEmpty()||!info.isFile())groups.notRight<<item(id,title,"reason","The Time Crisis VR build is not set up on this PC.");
+ else if(QDir(info.absoluteDir().filePath("roms")).entryList(QDir::AllEntries|QDir::NoDotAndDotDot).isEmpty())groups.notRight<<item(id,title,"reason","The program was found, but the roms folder beside it is empty: the game files it plays are not there.");
+ else groups.ready<<item(id,title,"detail","The program and the game files beside it were found.");
+ return groups.result("system22",QString());
+}
+const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"dreamcast",scanDreamcast},{"system22",scanSystem22}};return table;}
 }
 QVariantMap supermodelFiles(const QString &gamesXml,const QString &game){
  const auto sets=supermodelSets(gamesXml);

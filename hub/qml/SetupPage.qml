@@ -81,7 +81,8 @@ Item {
       Rectangle {id:card;required property var modelData;Layout.fillWidth:true;implicitHeight:inner.implicitHeight+20;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.color:Theme.get("color.line.strong")
        ColumnLayout {id:inner;anchors.fill:parent;anchors.margins:10;spacing:6
         UiText {text:card.modelData.title;font.pixelSize:17;color:Theme.get("color.text.primary")}
-        RowLayout {spacing:8
+        Para {visible:!card.modelData.folderKey;text:"This program keeps its game files in a folder beside itself, so there is no folder to choose.";font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")}
+        RowLayout {spacing:8;visible:!!card.modelData.folderKey
          UiText {Layout.fillWidth:true;objectName:"setupFolder-"+card.modelData.id;font.pixelSize:page.body-1;elide:Text.ElideMiddle;wrapMode:Text.NoWrap
           text:"Your files:  "+(card.modelData.folder||(card.modelData.guess?card.modelData.guess+"   (found, used unless you change it)":"not chosen"))
           color:card.modelData.folder?page.good:card.modelData.guess?Theme.get("color.text.body"):page.warn}
