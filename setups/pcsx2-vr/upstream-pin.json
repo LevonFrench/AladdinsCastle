@@ -3,12 +3,16 @@
     "repository": "https://github.com/PCSX2/pcsx2",
     "ref": "master snapshot matched to preserved dependency pack",
     "commit": "904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2",
-    "dependency_recipe": {"qt": "6.12.0", "ffmpeg": "9.0.1", "sdl3": "3.4.18"}
+    "dependency_recipe": {
+      "qt": "6.12.0",
+      "ffmpeg": "9.0.1",
+      "sdl3": "3.4.18"
+    }
   },
   "reference": {
     "repository": "https://github.com/PenguinVRLab/PenguinScreen2",
     "commit": "f1eb4c813af0eba2ea6cedcd3dbb8d125b589c07",
-    "use": "Source study only; no bundled profiles reused"
+    "use": "Source study and conceptual Q-depth/draw-classification credit; no bundled profiles or reference binaries reused"
   },
   "windows_dependencies": {
     "repository": "https://github.com/PCSX2/pcsx2-windows-dependencies",

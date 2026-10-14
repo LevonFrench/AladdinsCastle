@@ -1,5 +1,5 @@
 diff --git a/bin/resources/shaders/opengl/tfx_vgs.glsl b/bin/resources/shaders/opengl/tfx_vgs.glsl
-index a836c8a..e0a0ab4 100644
+index a836c8a..b8a6b77 100644
 --- a/bin/resources/shaders/opengl/tfx_vgs.glsl
 +++ b/bin/resources/shaders/opengl/tfx_vgs.glsl
 @@ -3,6 +3,12 @@
@@ -15,7 +15,7 @@ index a836c8a..e0a0ab4 100644
  layout(std140, binding = 1) uniform cb20
  {
  	vec2  VertexScale;
-@@ -43,6 +49,17 @@ out SHADER
+@@ -43,6 +49,21 @@ out SHADER
  
  const float exp_min32 = exp2(-32.0f);
  
@@ -24,7 +24,11 @@ index a836c8a..e0a0ab4 100644
 +#if VS_PS2_STEREO
 +	if (PS2Stereo.w == 0.0) return 0.0;
 +	float inv_w = PS2Stereo.w == 2.0 ? (float(z) - PS2ZFit.x) / PS2ZFit.y : q;
-+	return 16.0 * VertexScale.x * PS2Stereo.x * (inv_w * PS2Stereo.z - PS2Stereo.y);
++	float scaled_inv_w = inv_w * PS2Stereo.z;
++	// A per-game signed Q convention must give positive camera distance.
++	// Other projective-texture passes cannot be assigned camera depth from it.
++	if (scaled_inv_w <= 0.0) return 0.0;
++	return 16.0 * VertexScale.x * PS2Stereo.x * (scaled_inv_w - PS2Stereo.y);
 +#else
 +	return 0.0;
 +#endif
@@ -33,7 +37,7 @@ index a836c8a..e0a0ab4 100644
  #if VS_EXPAND == VS_EXPAND_NONE
  
  layout(location = 0) in vec2  i_st;
-@@ -92,6 +109,9 @@ void vs_main()
+@@ -92,6 +113,9 @@ void vs_main()
  	#endif
  
  	gl_Position.w = 1.0f;
@@ -43,7 +47,7 @@ index a836c8a..e0a0ab4 100644
  
  	texture_coord();
  
-@@ -175,6 +195,9 @@ ProcessedVertex load_vertex(uint index)
+@@ -175,6 +199,9 @@ ProcessedVertex load_vertex(uint index)
  	#endif
  
  	vtx.p.w = 1.0f;
@@ -54,7 +58,7 @@ index a836c8a..e0a0ab4 100644
  	vec2 uv = vec2(i_uv) - TextureOffset;
  	vec2 st = i_st - TextureOffset;
 diff --git a/pcsx2-gsrunner/Main.cpp b/pcsx2-gsrunner/Main.cpp
-index 03879ca..a265c07 100644
+index 03879ca..3b7c870 100644
 --- a/pcsx2-gsrunner/Main.cpp
 +++ b/pcsx2-gsrunner/Main.cpp
 @@ -3,11 +3,14 @@
@@ -81,13 +85,14 @@ index 03879ca..a265c07 100644
  #include "common/FileSystem.h"
  #include "common/MemorySettingsInterface.h"
  #include "common/Path.h"
-@@ -80,6 +85,17 @@ static s32 s_loop_count = 1;
+@@ -80,6 +85,18 @@ static s32 s_loop_count = 1;
  static std::optional<bool> s_use_window;
  static bool s_no_console = false;
  static bool s_perf_enable = false;
 +// Opt-in unattended capture uses normal emulation only until the frozen dump exists.
 +static u32 s_capture_frame = 0;
 +static u32 s_capture_ticks = 0;
++static u32 s_capture_interval = 0;
 +static std::string s_capture_output;
 +static std::string s_capture_bios;
 +static std::atomic<bool> s_capture_finished{false};
@@ -99,7 +104,7 @@ index 03879ca..a265c07 100644
  
  // Owned by the GS thread.
  static u32 s_dump_frame_number = 0;
-@@ -173,6 +189,9 @@ void Host::ReportInfoAsync(const std::string_view title, const std::string_view
+@@ -173,6 +190,9 @@ void Host::ReportInfoAsync(const std::string_view title, const std::string_view
  
  void Host::ReportErrorAsync(const std::string_view title, const std::string_view message)
  {
@@ -109,7 +114,7 @@ index 03879ca..a265c07 100644
  	if (!title.empty() && !message.empty())
  		ERROR_LOG("ReportErrorAsync: {}: {}", title, message);
  	else if (!message.empty())
-@@ -236,6 +255,20 @@ void Host::ReleaseRenderWindow()
+@@ -236,6 +256,23 @@ void Host::ReleaseRenderWindow()
  
  void Host::BeginPresentFrame()
  {
@@ -118,9 +123,12 @@ index 03879ca..a265c07 100644
 +		// The CPU receives presentation progress through the atomic copy.
 +		++s_capture_ticks;
 +		s_capture_present.store(s_capture_ticks, std::memory_order_release);
-+		if (s_capture_ticks == s_capture_frame)
++		if (s_capture_ticks == s_capture_frame ||
++			(s_capture_interval > 0 && s_capture_ticks < s_capture_frame && s_capture_ticks % s_capture_interval == 0))
 +		{
-+			GSQueueSnapshot(s_capture_output, 1);
++			const std::string path = s_capture_ticks == s_capture_frame ? s_capture_output :
++				fmt::format("{}_{:05}.png", s_capture_output.substr(0, s_capture_output.size() - 4), s_capture_ticks);
++			GSQueueSnapshot(path, 1);
 +			std::fprintf(stderr, "Unattended capture queued at present frame %u.\n", s_capture_ticks);
 +		}
 +		if (s_capture_ticks >= s_capture_frame + 12)
@@ -130,7 +138,7 @@ index 03879ca..a265c07 100644
  	if (s_loop_number == 0 && !s_output_prefix.empty())
  	{
  		// when we wrap around, don't race other files
-@@ -472,6 +505,28 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
+@@ -472,6 +509,28 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
  				PrintCommandLineVersion();
  				return false;
  			}
@@ -159,13 +167,63 @@ index 03879ca..a265c07 100644
  			else if (CHECK_ARG_PARAM("-dumpdir"))
  			{
  				dumpdir = s_output_prefix = StringUtil::StripWhitespace(argv[++i]);
-@@ -762,7 +817,46 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
+@@ -762,7 +821,96 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
  		return false;
  	}
  
 -	if (!VMManager::IsGSDumpFileName(params.filename))
 +	if (s_capture_frame > 0)
 +	{
++		if (const char* interval = std::getenv("PCSX2_CAPTURE_INTERVAL"))
++		{
++			const auto value = StringUtil::FromChars<u32>(interval);
++			if (!value || *value > s_capture_frame)
++			{
++				Console.Error("Invalid PCSX2_CAPTURE_INTERVAL presentation count.");
++				return false;
++			}
++			s_capture_interval = *value;
++		}
++		if (const char* script = std::getenv("PCSX2_CAPTURE_PAD"); script && *script)
++		{
++			if (!s_capture_pad_file.empty())
++			{
++				Console.Error("Use either PCSX2_CAPTURE_PAD or the legacy CSV, not both.");
++				return false;
++			}
++			// Seconds are measured on the capture's 60-Hz presentation timeline.
++			// Apply quarter-second pulses directly to port 1, never to OS input.
++			std::istringstream events(script);
++			std::string event;
++			u32 count = 0;
++			while (std::getline(events, event, ';'))
++			{
++				const size_t split = event.find(':');
++				const auto seconds = split == std::string::npos ? std::nullopt :
++					StringUtil::FromChars<double>(StringUtil::StripWhitespace(std::string_view(event).substr(0, split)));
++				std::string name = split == std::string::npos ? "" :
++					std::string(StringUtil::StripWhitespace(std::string_view(event).substr(split + 1)));
++				if (name == "DPadUp") name = "Up";
++				if (name == "DPadDown") name = "Down";
++				if (name == "DPadLeft") name = "Left";
++				if (name == "DPadRight") name = "Right";
++				const bool allowed = name == "Cross" || name == "Circle" || name == "Start" || name == "Triangle" ||
++					name == "Up" || name == "Down" || name == "Left" || name == "Right";
++				const auto bind = Pad::GetControllerInfo(Pad::ControllerType::DualShock2)->GetBindIndex(name);
++				if (!seconds || !std::isfinite(*seconds) || *seconds < 0 ||
++					*seconds * 60 + 15 > s_capture_frame || !allowed || !bind || ++count > 256)
++				{
++					Console.Error("Invalid PCSX2_CAPTURE_PAD event '%s': expected seconds:button before the capture frame.", event.c_str());
++					return false;
++				}
++				const u32 frame = static_cast<u32>(std::ceil(*seconds * 60));
++				s_capture_pad_events.push_back({frame, *bind, 1});
++				s_capture_pad_events.push_back({frame + 15, *bind, 0});
++			}
++			std::stable_sort(s_capture_pad_events.begin(), s_capture_pad_events.end(),
++				[](const auto& a, const auto& b) { return a.frame < b.frame; });
++			std::fprintf(stderr, "Capture pad script: %u quarter-second pulses, port 1, 60-Hz timeline.\n", count);
++		}
 +		if (!s_capture_pad_file.empty())
 +		{
 +			// In-emulator pad pressure only: never send OS keyboard/mouse input.
@@ -207,7 +265,7 @@ index 03879ca..a265c07 100644
  	{
  		Console.Error("Provided filename is not a GS dump.");
  		return false;
-@@ -811,6 +905,9 @@ void GSRunner::SettingsOverride()
+@@ -811,6 +959,9 @@ void GSRunner::SettingsOverride()
  
  	// we don't need any sound output
  	s_settings_interface.SetStringValue("SPU2/Output", "OutputModule", "nullout");
@@ -217,7 +275,7 @@ index 03879ca..a265c07 100644
  
  	// none of the bindings are going to resolve to anything
  	Pad::ClearPortBindings(s_settings_interface, 0);
-@@ -847,9 +944,13 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
+@@ -847,9 +998,13 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
  	{
  		// apply new settings (e.g. pick up renderer change)
  		VMManager::ApplySettings();
@@ -233,7 +291,7 @@ index 03879ca..a265c07 100644
  		{
  			// run until end
  			VMManager::SetState(VMState::Running);
-@@ -871,6 +972,20 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
+@@ -871,6 +1026,20 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
  
  int main(int argc, char* argv[])
  {
@@ -254,7 +312,7 @@ index 03879ca..a265c07 100644
  	CrashHandler::Install();
  	GSRunner::InitializeConsole();
  
-@@ -905,6 +1020,23 @@ int main(int argc, char* argv[])
+@@ -905,6 +1074,23 @@ int main(int argc, char* argv[])
  
  void Host::PumpMessagesOnCPUThread()
  {
@@ -278,8 +336,43 @@ index 03879ca..a265c07 100644
  	// update GS thread copy of frame number
  	MTGS::RunOnGSThread([frame_number = GSDumpReplayer::GetFrameNumber()]() { s_dump_frame_number = frame_number; });
  	MTGS::RunOnGSThread([loop_number = GSDumpReplayer::GetLoopCount()]() { s_loop_number = loop_number; });
+diff --git a/pcsx2/GS/Renderers/HW/GSRendererHW.cpp b/pcsx2/GS/Renderers/HW/GSRendererHW.cpp
+index 564f12e..d6403d2 100644
+--- a/pcsx2/GS/Renderers/HW/GSRendererHW.cpp
++++ b/pcsx2/GS/Renderers/HW/GSRendererHW.cpp
+@@ -11,6 +11,7 @@
+ #include "common/BitUtils.h"
+ #include "common/StringUtil.h"
+ #include <bit>
++#include <cstdlib>
+ 
+ using PS_ATST  = GSShader::PS_ATST;
+ using PS_AFAIL = GSShader::PS_AFAIL;
+@@ -9636,13 +9637,20 @@ __ri void GSRendererHW::DrawPrims(GSTextureCache::Target* rt, GSTextureCache::Ta
+ 	const GSVector4i hacked_scissor = m_channel_shuffle ? GSVector4i::cxpr(0, 0, 1024, 1024) : m_context->scissor.in;
+ 	const GSVector4i scissor(GSVector4i(GSVector4(rtscale) * GSVector4(hacked_scissor)).rintersect(GSVector4i::loadh(rtsize)));
+ 
+-	m_conf.drawarea = m_channel_shuffle ? scissor : scissor.rintersect(ComputeBoundingBoxRT(rtsize, rtscale));
++	static const bool stereo_requested = []() {
++		const char* value = std::getenv("PCSX2_STEREO");
++		return value && StringUtil::FromChars<float>(value).value_or(0) != 0;
++	}();
++	const bool stereo_gl = stereo_requested && g_gs_device->GetRenderAPI() == RenderAPI::OpenGL;
++	// Shifted vertices can leave the original box. DATE initialization, stencil,
++	// feedback copies and color-clip resolves must cover the true GS scissor.
++	m_conf.drawarea = (m_channel_shuffle || stereo_gl) ? scissor : scissor.rintersect(ComputeBoundingBoxRT(rtsize, rtscale));
+ 
+ 	const GSVector4i tex_region = tex ? tex->GetRegionRect() : GSVector4i::zero();
+ 	m_conf.samplearea = m_channel_shuffle ? scissor :
+ 		GSVector4i::loadh(texsize).rintersect(ComputeBoundingBoxTex(texsize, tmm.coverage, tex_region, texscale));
+ 
+-	m_conf.scissor = (date_options.enabled && !date_options.barrier) ? m_conf.drawarea : scissor;
++	m_conf.scissor = (!stereo_gl && date_options.enabled && !date_options.barrier) ? m_conf.drawarea : scissor;
+ 
+ 	HandleFlatShadedVertices();
+ 
 diff --git a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
-index 2174fa3..9af47df 100644
+index 2174fa3..38365e6 100644
 --- a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 +++ b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 @@ -19,6 +19,8 @@
@@ -291,7 +384,7 @@ index 2174fa3..9af47df 100644
  #include <fstream>
  #include <sstream>
  
-@@ -35,6 +37,31 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
+@@ -35,6 +37,34 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
  static constexpr u32 VERTEX_PUSH_CONSTANT_BUFFER_SIZE = 1024 * 1024;
  static constexpr u32 TEXTURE_UPLOAD_BUFFER_SIZE = 128 * 1024 * 1024;
  
@@ -315,6 +408,9 @@ index 2174fa3..9af47df 100644
 +		float qscale = StereoEnv("PCSX2_STEREO_Q_SCALE", 1);
 +		float za = StereoEnv("PCSX2_STEREO_Z_A", 0);
 +		float zb = StereoEnv("PCSX2_STEREO_Z_B", 0);
++		float zwidth = StereoEnv("PCSX2_STEREO_Z_MODEL_WIDTH", 0);
++		float hudwidth = StereoEnv("PCSX2_STEREO_HUD_TARGET_WIDTH", 0);
++		bool hide_displaced = StereoEnv("PCSX2_STEREO_HIDE_DISPLACED", 0) != 0;
 +	};
 +	const StereoParams s_stereo;
 +	float s_stereo_draw_mode = 0;
@@ -323,7 +419,7 @@ index 2174fa3..9af47df 100644
  namespace ReplaceGL
  {
  	static void GLAPIENTRY ScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height)
-@@ -1835,6 +1862,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
+@@ -1835,6 +1865,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
  		+ fmt::format("#define VS_IIP {}\n", static_cast<u32>(sel.iip))
  		+ fmt::format("#define VS_POINT_SIZE {}\n", static_cast<u32>(sel.point_size))
  		+ fmt::format("#define VS_EXPAND {}\n", static_cast<int>(sel.expand));
@@ -331,7 +427,7 @@ index 2174fa3..9af47df 100644
  
  	std::string src = GenGlslHeader("vs_main", GL_VERTEX_SHADER, macro);
  	src += m_shader_tfx_vgs;
-@@ -2995,6 +3023,12 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -2995,6 +3026,12 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	if (it != m_programs.end())
  	{
  		it->second.Bind();
@@ -344,7 +440,7 @@ index 2174fa3..9af47df 100644
  		return;
  	}
  
-@@ -3005,6 +3039,12 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -3005,6 +3042,12 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	m_shader_cache.GetProgram(&prog, vs, ps);
  	it = m_programs.emplace(psel, std::move(prog)).first;
  	it->second.Bind();
@@ -357,14 +453,14 @@ index 2174fa3..9af47df 100644
  }
  
  void GSDeviceOGL::SetupSampler(PSSamplerSelector ssel)
-@@ -3036,6 +3076,40 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
+@@ -3036,6 +3079,62 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
  
  void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
  {
 +	static FILE* trace = []() {
 +		const char* path = std::getenv("PCSX2_STEREO_TRACE");
 +		FILE* f = path ? std::fopen(path, "w") : nullptr;
-+		if (f) std::fprintf(f, "draw,vertex,tme,fst,expand,q,z,x,y,mode,ztst,zwe\n");
++		if (f) std::fprintf(f, "draw,vertex,tme,fst,expand,q,z,x,y,mode,ztst,zwe,maxdepth,r,g,b,a,s,t,tw,th,frame,native_width\n");
 +		return f;
 +	}();
 +	static u64 draw = 0;
@@ -381,18 +477,40 @@ index 2174fa3..9af47df 100644
 +	const bool world = config.topology == GSHWDrawConfig::Topology::Triangle &&
 +		config.vs.expand != GSHWDrawConfig::VSExpand::Sprite && zhi > zlo &&
 +		config.depth.ztst >= ZTST_GEQUAL;
-+	s_stereo_draw_mode = world && config.vs.tme && !config.vs.fst && qhi > qlo ? 1.0f :
-+		(world && !config.vs.tme && std::isfinite(s_stereo.zb) && s_stereo.zb != 0 ? 2.0f : 0.0f);
++	const float native_width = config.cb_vs.vertex_scale.x > 0 ? 2.0f / (16.0f * config.cb_vs.vertex_scale.x) : 0;
++	const bool hud_target = s_stereo.hudwidth > 0 && std::abs(native_width - s_stereo.hudwidth) < 1;
++	const bool z_model = std::isfinite(s_stereo.zb) && s_stereo.zb != 0 &&
++		(s_stereo.zwidth <= 0 || std::abs(native_width - s_stereo.zwidth) < 1);
++	const bool perspective_q = config.vs.tme && !config.vs.fst && qhi > qlo;
++	bool camera_q = perspective_q;
++	if (camera_q && z_model)
++	{
++		// Projective environment-map Q can differ from camera 1/w. A checked
++		// target-specific depth model keeps overlapping material passes aligned.
++		for (u32 i = 0; i < config.nverts; ++i)
++			camera_q &= std::abs(static_cast<double>(config.verts[i].XYZ.Z) -
++				(s_stereo.za + static_cast<double>(s_stereo.zb) * config.verts[i].RGBAQ.Q)) <= 64;
++	}
++	s_stereo_draw_mode = (!world || hud_target) ? 0.0f :
++		(camera_q ? 1.0f : (z_model ? 2.0f : 0.0f));
 +	if (trace)
 +	{
 +		for (u32 i = 0; i < config.nverts; ++i)
-+			std::fprintf(trace, "%llu,%u,%u,%u,%u,%.9g,%u,%u,%u,%.0f,%u,%u\n",
++			std::fprintf(trace, "%llu,%u,%u,%u,%u,%.9g,%u,%u,%u,%.0f,%u,%u,%u,%u,%u,%u,%u,%.9g,%.9g,%d,%d,%u,%.3f\n",
 +				static_cast<unsigned long long>(draw), i, config.vs.tme, config.vs.fst,
 +				static_cast<unsigned>(config.vs.expand), config.verts[i].RGBAQ.Q,
 +				config.verts[i].XYZ.Z, config.verts[i].XYZ.X, config.verts[i].XYZ.Y, s_stereo_draw_mode,
-+				config.depth.ztst, config.depth.zwe);
++				config.depth.ztst, config.depth.zwe, config.cb_vs.max_depth,
++				config.verts[i].RGBAQ.R, config.verts[i].RGBAQ.G, config.verts[i].RGBAQ.B, config.verts[i].RGBAQ.A,
++				config.verts[i].ST.S, config.verts[i].ST.T,
++				config.tex ? config.tex->GetWidth() : 0, config.tex ? config.tex->GetHeight() : 0,
++				static_cast<u32>(g_perfmon.GetFrame()), native_width);
 +		std::fflush(trace);
 +	}
++	// Opt-in diagnostic: compare HUD and other pinned draws over identical
++	// backgrounds, rather than counting changed world pixels behind translucent UI.
++	if (s_stereo.enabled && s_stereo.hide_displaced && s_stereo_draw_mode != 0)
++		return;
 +	if (s_stereo.enabled && s_stereo.units > 0 && s_stereo.convergence > 0)
 +		config.vs.key |= 0x80;
  	if (!GLState::scissor.eq(config.scissor))
