@@ -182,11 +182,14 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
     connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){
         childPlaying_=false;emit playingChanged();
-        if(hubExitPending_&&id.startsWith("pinball-")){ui_->cancelPendingRestart();ui_->launchFinished(id,error);emit hubExitReady(hubExitCode_);return;}
+        // A Hub exit waiting on this game goes ahead only now that the game has finished by itself.
+        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished(id,error);finishPendingExit();return;}
         ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
     });
     connect(&launcher_,&launch::LaunchService::runtimeStateReady,this,[this](const RuntimeState &state){games_->applyRuntimeStates({state});});
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::playingChanged);
+    // A companion program can end after the main one; the exit waits for it too.
+    connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::finishPendingExit);
     connect(&launcher_,&launch::LaunchService::raiseHubRequested,this,&HubServices::raiseHubRequested);
     connect(ui_,&UiController::locationRequested,this,[this](const QString &kind){
         QString path;if(kind=="log")path=root_+"/user/logs/install";else if(kind=="install")path=root_+"/emulators";else if(kind=="downloads")path=root_+"/user/cache";else return;
@@ -425,8 +428,19 @@ void HubServices::requestHubExit(int code){
 #endif
         return;
     }
+    if(launcher_.busy()){
+        // Any other game keeps its lease: the Hub exits once the game has ended by itself, so a slow
+        // save or close dialog is never cut short. Ending it now is the explicit Stop action, not this.
+        hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();
+        ui_->showError("Closing","The Hub closes when the running game has ended. Use Stop game to end it now.");
+        return;
+    }
     if(!gunRoom_.busy()){emit hubExitReady(code);return;}
     hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();gunRoom_.close();
+}
+void HubServices::finishPendingExit(){
+    if(!hubExitPending_||launcher_.busy()||gunRoom_.busy())return;
+    hubExitPending_=false;emit hubExitReady(hubExitCode_);
 }
 QString HubServices::catalogRoot()const{
     if(games_->records().isEmpty())throw install::Error("E_CATALOG_EMPTY","Catalog has no games. Load a valid catalog before installing or removing emulator tools.");

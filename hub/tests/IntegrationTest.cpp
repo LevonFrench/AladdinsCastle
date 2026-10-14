@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDirIterator>
+#include <QElapsedTimer>
 #include <QProcessEnvironment>
 #include <QScopeGuard>
 #include <QtTest>
@@ -214,6 +215,33 @@ private slots:
     QCOMPARE(QDir(sets).entryList(QDir::Files,QDir::Name),QStringList{"vcop2.zip"});
     QVERIFY(QDir(build+"/runtime").isEmpty());QVERIFY(!QFileInfo::exists(build+"/captures"));
  }
+ // Hub exit while a game runs: the exit waits for the game to finish by itself, however it was asked for.
+ void hubExitWaitsForARunningGameToFinish_data(){QTest::addColumn<int>("code");QTest::newRow("normal exit")<<0;QTest::newRow("overlay failure")<<3;}
+ void hubExitWaitsForARunningGameToFinish(){
+    QFETCH(int,code);
+    QTemporaryDir t;const auto emulator=t.filePath("emu"),media=t.filePath("games"),marker=t.filePath("saved.marker");
+    QVERIFY(QDir().mkpath(emulator+"/Config"));QVERIFY(QDir().mkpath(media));
+    ac::install::atomicWrite(emulator+"/Config/Games.xml","synthetic");ac::install::atomicWrite(media+"/scud.zip","synthetic");
+    const auto program=emulator+"/program.exe";QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model3Executable",program);settings.set("model3GameFolder",media);
+    // The stand-in game needs 1.8 s before it has written its completion marker and ended.
+    qputenv("AC_SYNTHETIC_MODEL3_REPORT",t.filePath("report.json").toUtf8());qputenv("AC_SYNTHETIC_CHILD_MS","1800");qputenv("AC_SYNTHETIC_MARKER",marker.toUtf8());
+    const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL3_REPORT");qunsetenv("AC_SYNTHETIC_CHILD_MS");qunsetenv("AC_SYNTHETIC_MARKER");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started);
+    QList<bool> markerAtExit;QList<int> codes;QElapsedTimer clock;
+    connect(&services,&ac::HubServices::hubExitReady,this,[&](int value){markerAtExit<<QFileInfo::exists(marker);codes<<value;});
+    ui.playModel3("scud");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,5000);
+    clock.start();services.requestHubExit(code);
+    QVERIFY(codes.isEmpty());QVERIFY(services.launchBusy());QVERIFY(!QFileInfo::exists(marker));
+    // No new game while the exit waits.
+    ui.playModel3("scud");QCOMPARE(started.size(),1);
+    QTRY_COMPARE_WITH_TIMEOUT(codes.size(),1,15000);
+    QCOMPARE(codes,QList<int>{code});QCOMPARE(markerAtExit,QList<bool>{true});QVERIFY(clock.elapsed()>1000);
+    QVERIFY(!services.launchBusy());QCOMPARE(ac::install::readBytes(marker),QByteArray("complete"));
+    QTest::qWait(200);QCOMPARE(codes.size(),1); // Exactly once.
+ }
  void requiredM1GamesOfferFlatRoutes(){
     const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
     for(const auto &pair:QList<QPair<QString,QString>>{{"timecris","mame"},{"scud","supermodel"},{"ps2-time-crisis-2","pcsx2"}}){
@@ -409,7 +437,10 @@ int main(int argc,char **argv){
         for(const auto &name:environment.keys())if(name.startsWith("ACVR_"))variables[name]=environment.value(name);
         QFile file(qEnvironmentVariable("AC_SYNTHETIC_MODEL3_REPORT"));if(!file.open(QIODevice::WriteOnly))return 3;
         file.write(QJsonDocument(QJsonObject{{"cwd",QDir::currentPath()},{"args",QJsonArray::fromStringList(child.arguments().mid(1))},{"env",variables}}).toJson());file.close();
-        QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
+        // A slow game: it writes its completion marker only after the given time, then ends.
+        const auto duration=qEnvironmentVariableIntValue("AC_SYNTHETIC_CHILD_MS");const auto marker=qEnvironmentVariable("AC_SYNTHETIC_MARKER");
+        QTimer::singleShot(duration>0?duration:600,&child,[&child,marker]{if(!marker.isEmpty()){QFile done(marker);if(done.open(QIODevice::WriteOnly))done.write("complete");}child.quit();});
+        return child.exec();
     }
     if(argc>=3&&QByteArray(argv[1])=="-Play"){
         QGuiApplication child(argc,argv);QWindow window;window.show();
