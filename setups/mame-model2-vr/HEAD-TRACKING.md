@@ -46,4 +46,6 @@ offset 8 supplies offscreen flags using a 5% border. A VR pointing ray should
 map into these original calibrated screen-coordinate ports and preserve the
 trigger/reload behavior. Virtua Cop 2 instead uses the 315-5649 serial-channel-2
 multiplexer with `lightgun_mux_r/w`, `lightgun_data_r` and `lightgun_offscreen_r`
-in the same Model 2 driver. None of these input paths was changed.
+in the same Model 2 driver. The controller return path overrides the existing
+P1 gun, trigger, Start and Coin input fields; the serial mux and its original
+border/reload calculations remain unchanged.

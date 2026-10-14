@@ -36,4 +36,11 @@ void  ACVR_XR_Publish(unsigned leftFbo, unsigned rightFbo, unsigned w, unsigned 
 void  ACVR_XR_Stop();
 void  ACVR_XR_UpdateFov(float left, float right, float bottom, float top);
 
+struct ACVRControllerInput
+{
+  float u = .5f, v = .5f;
+  bool active = false, offScreen = true, trigger = false, start = false, coin = false;
+};
+ACVRControllerInput ACVR_XR_ControllerInput();
+
 #endif  // INCLUDED_ACVRSTEREO_H

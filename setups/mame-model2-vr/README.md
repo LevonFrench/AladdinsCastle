@@ -54,6 +54,38 @@ readback comparison with OpenXR disabled. The viewer and its PowerShell 5.1
 build script compiled successfully. Headset visibility, fusion, colour and
 Home behavior have not been tested; owner acceptance remains pending.
 
+The viewer now has a right-hand action set with aim pose, analog trigger and
+A/B clicks. Suggested bindings cover the Oculus Touch and Valve Index
+interaction profiles: trigger shoots, A starts, and B inserts a coin. Aim is
+intersected with the submitted quad in its local coordinates, including the
+quad's rotation. Coordinates run from the top left `(0,0)` to bottom right
+`(1,1)`; a miss of the quad supplies an off-screen input. Triggering off screen
+uses the game's existing reload behavior. Lost aim tracking suppresses shots;
+loss of session focus or a stale/disconnected viewer releases input overrides.
+
+Shared-memory protocol version 2 carries controller states back to MAME.
+The patch updates the existing P1 gun and button fields, keeping the serial
+gun mux and native border test. Virtua Cop 2 retains X 137–630 and Y 36–425;
+the original 5% edge border remains active. Player 2 fields are untouched.
+Without the optional publisher or an active fresh controller, native inputs
+remain selected. The MAME publisher and viewer must be rebuilt together.
+
+A hidden, silent, below-normal-priority scripted run passed without OpenXR:
+Coin increased credit from 0 to 1, Start consumed it and entered stage
+selection, fixed-point shots produced visible game bullet impacts, and an
+off-screen trigger refilled the empty revolver. The second run completed at
+44 emulated seconds with both processes exiting successfully. MAME itself
+saved the intermediate pictures; they remain private. The first attempt's
+shots were too late, after the player had died. Both runs used the same private
+development billboard substitute described above. This proves the shared
+memory and original game-input path, not headset tracking or runtime bindings.
+
+For that development proof, run the viewer with `--scripted-input` and enable
+`ACVR_M2_INPUT_TEST=1` in MAME. The viewer uses emulated time for Coin/Start,
+stage selection, fixed shots and reload. Snapshot requests are honored only
+with that explicit MAME test switch. Normal launchers use the live XR actions.
+The scripted viewer does not create a graphics context or open an XR session.
+
 The `presenter` directory is a separate GPL-3.0-or-later program adapted from
 the owner-provided ACVR screen presenter. It is not linked into MAME. Its
 Win32/WGL adapter replaces SDL/GLEW dependencies; no additional installation
@@ -69,6 +101,9 @@ game submission and late-redraw changes, and Virtua Cop's gun input path.
 symmetry, zero/double separation and equivalent world-unit scales against
 the patched `model2_stereo.h`. Compile with that header's directory on the
 include path, and keep the executable outside the repository.
+`controller_math_test.cpp` covers rotated quad intersections, corners, misses,
+parallel/backward/invalid rays and original gun-port endpoints. It includes
+the viewer's `AimMath.h` and patched MAME's `model2_input.h`.
 
 MAME as a whole is GPL-2.0; the new MAME-side source files are BSD-3-Clause.
 The source checkout's `COPYING` and `docs/legal` retain the upstream licence

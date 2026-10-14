@@ -41,11 +41,15 @@
 
 
 #include "ACVRStereo.h"
+#include "AimMath.h"
 
 namespace
 {
   // ---- shared between the game thread and the XR thread
   std::mutex        s_mutex;                 // guards the published textures
+  std::mutex        s_inputMutex;
+  ACVRControllerInput s_input;
+  ULONGLONG s_inputTime = 0;
   GLuint            s_pubTex[2] = { 0, 0 };  // shared textures holding the newest finished eye pictures
   GLuint            s_pubFboMain[2] = { 0, 0 }; // game-thread framebuffers on those textures
   unsigned          s_pubW = 0, s_pubH = 0;
@@ -83,7 +87,10 @@ namespace
   X(xrEnumerateSwapchainImages) X(xrAcquireSwapchainImage) X(xrWaitSwapchainImage) X(xrReleaseSwapchainImage) \
   X(xrPollEvent) X(xrBeginSession) X(xrEndSession) X(xrRequestExitSession) X(xrWaitFrame) X(xrBeginFrame) \
   X(xrEndFrame) X(xrResultToString) X(xrGetInstanceProperties) X(xrGetSystemProperties) \
-  X(xrLocateSpace) X(xrGetOpenGLGraphicsRequirementsKHR)
+  X(xrLocateSpace) X(xrGetOpenGLGraphicsRequirementsKHR) \
+  X(xrStringToPath) X(xrCreateActionSet) X(xrDestroyActionSet) X(xrCreateAction) \
+  X(xrSuggestInteractionProfileBindings) X(xrAttachSessionActionSets) X(xrCreateActionSpace) \
+  X(xrSyncActions) X(xrGetActionStatePose) X(xrGetActionStateFloat) X(xrGetActionStateBoolean)
 #define X(name) PFN_##name p_##name = nullptr;
   ACVR_XR_FUNCS(X)
 #undef X
@@ -99,6 +106,10 @@ namespace
   std::vector<XrSwapchainImageOpenGLKHR> s_images[2];
   unsigned    s_chainW = 0, s_chainH = 0;
   int64_t     s_format = 0;
+  XrActionSet s_actions = XR_NULL_HANDLE;
+  XrAction s_aim = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_start = XR_NULL_HANDLE, s_coin = XR_NULL_HANDLE;
+  XrSpace s_aimSpace = XR_NULL_HANDLE;
+  XrPath s_right = XR_NULL_PATH;
 
   const char *Res(XrResult r)
   {
@@ -114,6 +125,76 @@ namespace
     if (XR_SUCCEEDED(r)) return true;
     Log("FAILED %s: %s", what, Res(r));
     return false;
+  }
+
+  bool InitActions()
+  {
+    if (!Check(p_xrStringToPath(s_instance, "/user/hand/right", &s_right), "right hand path")) return false;
+    XrActionSetCreateInfo set = { XR_TYPE_ACTION_SET_CREATE_INFO };
+    std::strcpy(set.actionSetName, "model2_game"); std::strcpy(set.localizedActionSetName, "Model 2 Game");
+    if (!Check(p_xrCreateActionSet(s_instance, &set, &s_actions), "xrCreateActionSet")) return false;
+    auto action = [](const char *name, const char *label, XrActionType type, XrAction &out) {
+      XrActionCreateInfo info = { XR_TYPE_ACTION_CREATE_INFO };
+      std::strcpy(info.actionName, name); std::strcpy(info.localizedActionName, label);
+      info.actionType = type; info.countSubactionPaths = 1; info.subactionPaths = &s_right;
+      return Check(p_xrCreateAction(s_actions, &info, &out), name);
+    };
+    if (!action("aim", "Right gun aim", XR_ACTION_TYPE_POSE_INPUT, s_aim) ||
+        !action("trigger", "Shoot and offscreen reload", XR_ACTION_TYPE_FLOAT_INPUT, s_trigger) ||
+        !action("start", "Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_start) ||
+        !action("coin", "Coin", XR_ACTION_TYPE_BOOLEAN_INPUT, s_coin)) return false;
+    const char *profiles[] = { "/interaction_profiles/oculus/touch_controller", "/interaction_profiles/valve/index_controller" };
+    const char *paths[] = { "/user/hand/right/input/aim/pose", "/user/hand/right/input/trigger/value",
+                           "/user/hand/right/input/a/click", "/user/hand/right/input/b/click" };
+    const XrAction actions[] = { s_aim, s_trigger, s_start, s_coin };
+    XrActionSuggestedBinding bindings[4]{};
+    for (unsigned i=0; i<4; ++i) {
+      bindings[i].action = actions[i];
+      if (!Check(p_xrStringToPath(s_instance, paths[i], &bindings[i].binding), "controller binding path")) return false;
+    }
+    for (const char *profile : profiles) {
+      XrInteractionProfileSuggestedBinding suggested = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
+      if (!Check(p_xrStringToPath(s_instance, profile, &suggested.interactionProfile), "interaction profile")) return false;
+      suggested.countSuggestedBindings = 4; suggested.suggestedBindings = bindings;
+      Check(p_xrSuggestInteractionProfileBindings(s_instance, &suggested), profile);
+    }
+    XrSessionActionSetsAttachInfo attach = { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
+    attach.countActionSets = 1; attach.actionSets = &s_actions;
+    if (!Check(p_xrAttachSessionActionSets(s_session, &attach), "xrAttachSessionActionSets")) return false;
+    XrActionSpaceCreateInfo space = { XR_TYPE_ACTION_SPACE_CREATE_INFO };
+    space.action = s_aim; space.subactionPath = s_right; space.poseInActionSpace.orientation.w = 1;
+    return Check(p_xrCreateActionSpace(s_session, &space, &s_aimSpace), "xrCreateActionSpace aim");
+  }
+
+  void ReadController(XrTime time, float width, float height)
+  {
+    ACVRControllerInput input;
+    XrActiveActionSet active{ s_actions, s_right };
+    XrActionsSyncInfo sync = { XR_TYPE_ACTIONS_SYNC_INFO };
+    sync.countActiveActionSets = 1; sync.activeActionSets = &active;
+    if (p_xrSyncActions(s_session, &sync) == XR_SUCCESS) {
+      XrActionStateGetInfo get = { XR_TYPE_ACTION_STATE_GET_INFO }; get.subactionPath = s_right;
+      XrActionStatePose aim = { XR_TYPE_ACTION_STATE_POSE };
+      XrActionStateFloat trigger = { XR_TYPE_ACTION_STATE_FLOAT };
+      XrActionStateBoolean start = { XR_TYPE_ACTION_STATE_BOOLEAN }, coin = { XR_TYPE_ACTION_STATE_BOOLEAN };
+      get.action=s_aim; const bool aimOK=XR_SUCCEEDED(p_xrGetActionStatePose(s_session, &get, &aim));
+      get.action=s_trigger; const bool triggerOK=XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &trigger));
+      get.action=s_start; const bool startOK=XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &start));
+      get.action=s_coin; const bool coinOK=XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &coin));
+      input.active = (aimOK && aim.isActive) || (startOK && start.isActive) || (coinOK && coin.isActive);
+      input.start=startOK && start.isActive && start.currentState;
+      input.coin=coinOK && coin.isActive && coin.currentState;
+      XrSpaceLocation pose = { XR_TYPE_SPACE_LOCATION };
+      const auto need=XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
+      if (width>0 && height>0 && s_poseSet && aimOK && aim.isActive && XR_SUCCEEDED(p_xrLocateSpace(s_aimSpace, s_space, time, &pose)) && (pose.locationFlags & need)==need) {
+        const auto &p=pose.pose.position, &c=s_quadPose.position;
+        const auto &q=pose.pose.orientation, &s=s_quadPose.orientation;
+        const auto hit=acvr_aim::intersect({p.x,p.y,p.z},{q.x,q.y,q.z,q.w},{c.x,c.y,c.z},{s.x,s.y,s.z,s.w},width,height);
+        input.u=hit.u; input.v=hit.v; input.offScreen=!hit.on_screen;
+        input.trigger=triggerOK && trigger.isActive && trigger.currentState>=.55f;
+      }
+    }
+    std::lock_guard<std::mutex> guard(s_inputMutex); s_input=input; s_inputTime=GetTickCount64();
   }
 
   bool InitXR()
@@ -168,6 +249,7 @@ namespace
     if (!Check(p_xrCreateReferenceSpace(s_session, &rs, &s_space), "xrCreateReferenceSpace")) return false;
     rs.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
     if (!Check(p_xrCreateReferenceSpace(s_session, &rs, &s_viewSpace), "xrCreateReferenceSpace (view)")) return false;
+    if (!InitActions()) return false;
 
     uint32_t n = 0;
     p_xrEnumerateSwapchainFormats(s_session, 0, &n, nullptr);
@@ -249,7 +331,7 @@ namespace
     return true;
   }
 
-  // Puts the screen straight ahead of where the player is looking now (level, yaw only).
+  // Puts the screen straight ahead of the player's current gaze.
   // Returns false while the headset pose is not known yet.
   bool PlaceScreen(XrTime time)
   {
@@ -334,6 +416,7 @@ namespace
       XrCompositionLayerQuad quads[2];
       const XrCompositionLayerBaseHeader *layers[2];
       uint32_t layerCount = 0;
+      float width = 0, height = 0;
       if (fs.shouldRender && CopyEyes(readFbo, drawFbo, shownSerial))
       {
         // Screen sized to the game's own field of view at the chosen distance
@@ -344,8 +427,8 @@ namespace
         const Uint8 *keys = Host_GetKeyboardState(nullptr);
         if (!s_poseSet || (keys && keys[Host_SCANCODE_HOME]))
           s_poseSet = PlaceScreen(fs.predictedDisplayTime);
-        const float width  = s_distance * (tr - tl) * s_sizeScale;
-        const float height = s_distance * (tt - tb) * s_sizeScale;
+        width  = s_distance * (tr - tl) * s_sizeScale;
+        height = s_distance * (tt - tb) * s_sizeScale;
         for (int i = 0; i < 2; i++)
         {
           XrCompositionLayerQuad q = { XR_TYPE_COMPOSITION_LAYER_QUAD };
@@ -366,6 +449,7 @@ namespace
         if (frames == 0) Log("first picture shown: screen %.2f x %.2f m at %.2f m", width, height, s_distance);
         frames++;
       }
+      ReadController(fs.predictedDisplayTime, width, height);
       XrFrameEndInfo ei = { XR_TYPE_FRAME_END_INFO };
       ei.displayTime = fs.predictedDisplayTime;
       ei.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
@@ -376,9 +460,11 @@ namespace
 
     Log("presenter stopping after %lu shown frames", frames);
     DestroyChains();
+    if (s_aimSpace != XR_NULL_HANDLE) p_xrDestroySpace(s_aimSpace);
     if (s_viewSpace != XR_NULL_HANDLE) p_xrDestroySpace(s_viewSpace);
     if (s_space != XR_NULL_HANDLE) p_xrDestroySpace(s_space);
     if (s_session != XR_NULL_HANDLE) p_xrDestroySession(s_session);
+    if (s_actions != XR_NULL_HANDLE) p_xrDestroyActionSet(s_actions);
     if (s_instance != XR_NULL_HANDLE) p_xrDestroyInstance(s_instance);
     glDeleteFramebuffers(1, &readFbo);
     glDeleteFramebuffers(1, &drawFbo);
@@ -473,12 +559,19 @@ void ACVR_XR_UpdateFov(float left, float right, float bottom, float top)
   g_acvrStereo.tanB = bottom; g_acvrStereo.tanT = top;
 }
 
+ACVRControllerInput ACVR_XR_ControllerInput()
+{
+  std::lock_guard<std::mutex> guard(s_inputMutex);
+  return GetTickCount64()-s_inputTime < 250 ? s_input : ACVRControllerInput{};
+}
+
 #else   // not Windows: the presenter is not built
 
 float ACVR_XR_DistanceMetres() { return 2.5f; }
 bool ACVR_XR_Start(void *) { return false; }
 void ACVR_XR_Publish(unsigned, unsigned, unsigned, unsigned) {}
 void ACVR_XR_Stop() {}
+ACVRControllerInput ACVR_XR_ControllerInput() { return {}; }
 
 #endif
 
