@@ -1,0 +1,35 @@
+id = "swtrilgy"
+title = "Star Wars Trilogy Arcade"
+genre = "shooting"
+subgenre = ["stick-shooter"]
+year = 1998
+manufacturer = "sega"
+hardware = "sega-model-3"
+graphics = "polygon-3d"
+players = 1
+series = "Star Wars Trilogy"
+
+[controls]
+type = "joystick"
+extras = ["analog-stick", "trigger", "event-button"]
+
+[[media]]
+kind = "mame-romset"
+set = "swtrilgy"
+note = "Supermodel parent set"
+
+[routes]
+supermodel = "working"
+vr = { best = "true3d", via = "Supermodel VR" }
+
+[hub]
+pill = "SWTRILGY"
+colour = "#101b27"
+accent = "#31c8bb"
+blurb = "A flight stick, a trigger and an event button for the trilogy's arcade battles."
+badges = ["seated"]
+
+[meta]
+sources = ["https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/trzy/Supermodel/blob/master/Src/Inputs/Inputs.cpp"]
+confidence = "medium"
+checked = "2026-10-13"

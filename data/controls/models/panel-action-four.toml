@@ -1,0 +1,63 @@
+id = "panel-action-four"
+title = "4-button arcade action panel"
+model = "assets/controls/panel-action-four.glb"
+license = "CC0-1.0"
+units = "metres"
+up = "+Y"
+forward = "-Z"
+anchor = "control_root"
+materials = ["body", "accent", "dark", "glass"]
+lod0_budget = 8000
+lod1_budget = 2000
+
+[[button]]
+id = "action-1"
+node = "button_action_1"
+label_node = "label_action_1"
+
+[motion.action_1]
+node = "button_action_1"
+lod_nodes = ["button_action_1", "button_action_1_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "button:action-1"
+
+[[button]]
+id = "action-2"
+node = "button_action_2"
+label_node = "label_action_2"
+
+[motion.action_2]
+node = "button_action_2"
+lod_nodes = ["button_action_2", "button_action_2_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "button:action-2"
+
+[[button]]
+id = "action-3"
+node = "button_action_3"
+label_node = "label_action_3"
+
+[motion.action_3]
+node = "button_action_3"
+lod_nodes = ["button_action_3", "button_action_3_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "button:action-3"
+
+[[button]]
+id = "action-4"
+node = "button_action_4"
+label_node = "label_action_4"
+
+[motion.action_4]
+node = "button_action_4"
+lod_nodes = ["button_action_4", "button_action_4_lod1"]
+kind = "slide"
+axis = [0, -1, 0]
+range = [0, 0.003]
+drive = "button:action-4"

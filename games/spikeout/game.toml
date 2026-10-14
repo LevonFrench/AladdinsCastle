@@ -1,0 +1,35 @@
+id = "spikeout"
+title = "Spikeout"
+genre = "action"
+subgenre = ["beat-em-up"]
+year = 1998
+manufacturer = "sega"
+hardware = "sega-model-3"
+graphics = "polygon-3d"
+players = 1
+series = "Spikeout"
+
+[controls]
+type = "joystick"
+extras = ["beat", "charge", "jump", "shift"]
+
+[[media]]
+kind = "mame-romset"
+set = "spikeout"
+note = "Supermodel parent set; additional players use linked cabinets"
+
+[routes]
+supermodel = "working"
+vr = { best = "true3d", via = "Supermodel VR" }
+
+[hub]
+pill = "SPIKEOUT"
+colour = "#202019"
+accent = "#31c8bb"
+blurb = "Beat, Charge, Jump and Shift on a four-button arcade panel."
+badges = []
+
+[meta]
+sources = ["https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/trzy/Supermodel/blob/master/Src/Inputs/Inputs.cpp"]
+confidence = "medium"
+checked = "2026-10-13"

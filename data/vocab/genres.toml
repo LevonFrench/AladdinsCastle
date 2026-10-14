@@ -6,6 +6,28 @@ label = "Light gun"
 [genre.racing]
 label = "Racing"
 
+[genre.shooting]
+label = "Shooting"
+[genre.fighting]
+label = "Fighting"
+[genre.action]
+label = "Action"
+[genre.sports]
+label = "Sports"
+
+[subgenre.stick-shooter]
+genre = "shooting"
+label = "Stick-controlled shooter"
+[subgenre.arena-fighter]
+genre = "fighting"
+label = "Arena fighter"
+[subgenre.beat-em-up]
+genre = "action"
+label = "Beat 'em up"
+[subgenre.soccer]
+genre = "sports"
+label = "Soccer"
+
 # Gun subgenres
 [subgenre.rail-shooter]
 genre = "gun"

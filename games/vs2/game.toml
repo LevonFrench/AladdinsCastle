@@ -1,0 +1,35 @@
+id = "vs2"
+title = "Virtua Striker 2"
+genre = "sports"
+subgenre = ["soccer"]
+year = 1997
+manufacturer = "sega"
+hardware = "sega-model-3"
+graphics = "polygon-3d"
+players = 2
+series = "Virtua Striker"
+
+[controls]
+type = "joystick"
+extras = ["short-pass", "long-pass", "shoot"]
+
+[[media]]
+kind = "mame-romset"
+set = "vs2"
+note = "Supermodel parent set"
+
+[routes]
+supermodel = "working"
+vr = { best = "true3d", via = "Supermodel VR" }
+
+[hub]
+pill = "VS2"
+colour = "#10261d"
+accent = "#31c8bb"
+blurb = "An arcade stick with Short Pass, Long Pass and Shoot."
+badges = ["2-players"]
+
+[meta]
+sources = ["https://github.com/trzy/Supermodel/blob/master/Config/Games.xml", "https://github.com/trzy/Supermodel/blob/master/Src/Inputs/Inputs.cpp"]
+confidence = "medium"
+checked = "2026-10-13"
