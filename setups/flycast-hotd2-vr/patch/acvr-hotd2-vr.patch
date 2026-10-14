@@ -1,0 +1,227 @@
+diff --git a/core/rend/vr/debug_shots.cpp b/core/rend/vr/debug_shots.cpp
+index 417e6c9..4fa77ad 100644
+--- a/core/rend/vr/debug_shots.cpp
++++ b/core/rend/vr/debug_shots.cpp
+@@ -10,10 +10,13 @@
+ #include "hw/pvr/Renderer_if.h"
+ #include "hw/sh4/sh4_sched.h"
+ #include "ui/gui.h"
++#include "input/gamepad_device.h"
+ #include "stdclass.h"
+ #include <stb_image_write.h>
+ 
+ #include <cstdio>
++#include <cstdlib>
++#include <utility>
+ #include <vector>
+ 
+ namespace vr
+@@ -36,6 +39,37 @@ void onEvent(Event event, void *)
+ 		lastShot = -1;
+ 		return;
+ 	}
++	// ACVR: scripted button presses for unattended test runs, so no key or mouse is needed.
++	// ACVR_PRESS="6:8;14:8" presses mask 8 (Start) on port 0 at 6 s and 14 s of game time,
++	// each held for a quarter of a second.
++	{
++		static std::vector<std::pair<double, u32>> presses;
++		static bool parsed = false;
++		if (!parsed)
++		{
++			parsed = true;
++			if (const char *s = getenv("ACVR_PRESS"))
++			{
++				double at; unsigned mask; int used;
++				while (sscanf(s, "%lf:%u%n", &at, &mask, &used) == 2)
++				{
++					presses.emplace_back(at, (u32)mask);
++					s += used;
++					if (*s != ';')
++						break;
++					s++;
++				}
++			}
++		}
++		const double now = gameSeconds() - startedAt;
++		for (const auto& press : presses)
++		{
++			if (now >= press.first && now < press.first + 0.25)
++				kcode[0] &= ~press.second;
++			else if (now >= press.first + 0.25 && now < press.first + 0.35)
++				kcode[0] |= press.second;
++		}
++	}
+ 	const int every = config::VrDebugShots;
+ 	if (every <= 0)
+ 		return;
+diff --git a/core/rend/vr/xr_gun.cpp b/core/rend/vr/xr_gun.cpp
+index e4ddf02..f66049b 100644
+--- a/core/rend/vr/xr_gun.cpp
++++ b/core/rend/vr/xr_gun.cpp
+@@ -59,6 +59,7 @@ GLuint modelVbo, modelIbo, modelVao;
+ GLuint glowVbo, glowVao;
+ GLuint modelProgram;
+ GLint mMvp = -1, mModel = -1, mEye = -1, mColor = -1, mSpecular = -1, mShininess = -1, mEmissive = -1, mLight = -1;
++GLint mTrigger = -1;	// ACVR
+ 
+ // Glowing bits (aim line, dot, muzzle flash): client-side, a few quads
+ struct GlowVertex
+@@ -100,13 +101,29 @@ in highp vec3 in_pos;
+ in highp vec3 in_normal;
+ uniform highp mat4 mvp;
+ uniform highp mat4 model;
++uniform highp float triggerPull;	// ACVR: 0 at rest, 1 pulled all the way
+ out highp vec3 vtx_pos;
+ out highp vec3 vtx_normal;
+ void main()
+ {
+-	vtx_pos = (model * vec4(in_pos, 1.0)).xyz;
+-	vtx_normal = mat3(model) * in_normal;
+-	gl_Position = mvp * vec4(in_pos, 1.0);
++	highp vec3 p = in_pos;
++	highp vec3 nrm = in_normal;
++	// ACVR: the trigger blade (inside the guard, on the centre line, measured from the mesh)
++	// swings back towards the grip about a pin above it, up to 15 degrees.
++	if (triggerPull > 0.0 && abs(p.x) <= 0.0065 && p.z >= 0.0010 && p.z <= 0.0168
++			&& p.y >= 0.0140 && p.y <= 0.0386)
++	{
++		highp float a = -0.26 * triggerPull;
++		highp float c = cos(a);
++		highp float s = sin(a);
++		highp vec2 pivot = vec2(0.035, 0.010);	// y, z in metres
++		highp vec2 d = p.yz - pivot;
++		p.yz = pivot + vec2(d.x * c - d.y * s, d.x * s + d.y * c);
++		nrm.yz = vec2(nrm.y * c - nrm.z * s, nrm.y * s + nrm.z * c);
++	}
++	vtx_pos = (model * vec4(p, 1.0)).xyz;
++	vtx_normal = mat3(model) * nrm;
++	gl_Position = mvp * vec4(p, 1.0);
+ }
+ )");
+ 	OpenGlSource fragment;
+@@ -160,6 +177,7 @@ void main()
+ 	mShininess = glGetUniformLocation(modelProgram, "shininess");
+ 	mEmissive = glGetUniformLocation(modelProgram, "emissive");
+ 	mLight = glGetUniformLocation(modelProgram, "muzzleLight");
++	mTrigger = glGetUniformLocation(modelProgram, "triggerPull");
+ 
+ 	// interleaved position, normal
+ 	std::vector<float> verts(gunmodel::VertexCount * 6);
+@@ -257,7 +275,8 @@ void main()
+ 	return true;
+ }
+ 
+-void drawModel(const glm::mat4& viewProj, const glm::vec3& eyePos, const glm::mat4& pose, const glm::vec4& muzzleLight)
++void drawModel(const glm::mat4& viewProj, const glm::vec3& eyePos, const glm::mat4& pose, const glm::vec4& muzzleLight,
++		float trigger)
+ {
+ 	glcache.UseProgram(modelProgram);
+ 	const glm::mat4 mvp = viewProj * pose;
+@@ -265,6 +284,7 @@ void drawModel(const glm::mat4& viewProj, const glm::vec3& eyePos, const glm::ma
+ 	glUniformMatrix4fv(mModel, 1, GL_FALSE, &pose[0][0]);
+ 	glUniform3f(mEye, eyePos.x, eyePos.y, eyePos.z);
+ 	glUniform4f(mLight, muzzleLight.x, muzzleLight.y, muzzleLight.z, muzzleLight.w);
++	glUniform1f(mTrigger, std::clamp(trigger, 0.f, 1.f));
+ 	bindVertexArray(modelVao);
+ 	glEnableVertexAttribArray(VERTEX_POS_ARRAY);
+ 	glEnableVertexAttribArray(VERTEX_NORM_ARRAY);
+@@ -396,14 +416,20 @@ void drawGunModel(const glm::mat4& viewProj, const glm::vec3& eyePos, const GunV
+ 	{
+ 		HandsView hands;
+ 		hands.gunPose = gun.pose;
+-		hands.slide = gun.slide;
++		// ACVR: blowback on every shot: the slide snaps all the way back in 25 ms and runs home
++		// by 90 ms, on top of where the other hand may be holding it.
++		float blowback = 0.f;
++		if (gun.sinceShot >= 0.f && gun.sinceShot < 0.09f && handsModel() != nullptr)
++			blowback = handsModel()->travel * (gun.sinceShot < 0.025f ? gun.sinceShot / 0.025f
++					: 1.f - (gun.sinceShot - 0.025f) / 0.065f);
++		hands.slide = std::max(gun.slide, blowback);
+ 		hands.otherHand = gun.otherHand;
+ 		hands.handPose = gun.handPose;
+ 		hands.muzzleLight = muzzleLight;
+ 		drawHands(viewProj, eyePos, hands);
+ 	}
+ 	else
+-		drawModel(viewProj, eyePos, gun.pose, muzzleLight);
++		drawModel(viewProj, eyePos, gun.pose, muzzleLight, gun.trigger);
+ 	logGlErrors("gun");
+ }
+ 
+@@ -541,7 +567,7 @@ void termGun()
+ 	modelProgram = glowProgram = 0;
+ 	modelVbo = modelIbo = 0;
+ 	modelVao = glowVao = glowVbo = 0;
+-	mMvp = mModel = mEye = mColor = mSpecular = mShininess = mEmissive = mLight = -1;
++	mMvp = mModel = mEye = mColor = mSpecular = mShininess = mEmissive = mLight = mTrigger = -1;
+ 	gMvp = gShape = gStarAngle = -1;
+ 	smoke.clear();
+ 	lastShot[0] = lastShot[1] = 0;
+diff --git a/core/rend/vr_reproject.cpp b/core/rend/vr_reproject.cpp
+index 6314981..f4e4ba0 100644
+--- a/core/rend/vr_reproject.cpp
++++ b/core/rend/vr_reproject.cpp
+@@ -343,6 +343,14 @@ static std::vector<GameProfile> makeProfiles()
+ 	p.model.file = "staff-mok.bin";
+ 	p.model.staff = { { { 0xC1C000, 0xCB0800 }, { 0xD87000, 0xDA9800 } } };
+ 	list.push_back(p);
++	// ACVR: Death Crimson OX (Dreamcast, US). Only its black bars so far: opaque untextured
++	// black quads across the top (y 0-50) and bottom (y 384 down) at W 1.6667, in its cutscenes
++	// and in play (measured from a rip of the intro, 2026-10-14). Its 2D plane stays at W 1.0.
++	// Focal, field of view and hands are not profiled yet.
++	p = GameProfile();
++	p.gameId = "T2401N";
++	p.letterboxW = 1.6667f;
++	list.push_back(p);
+ 	return list;
+ }
+ static const std::vector<GameProfile> profiles = makeProfiles();
+@@ -688,11 +696,34 @@ static void hideLetterbox(rend_context& ctx, const std::vector<PolyParam>& list,
+ {
+ 	if (activeProfile != nullptr && activeProfile->letterboxW > 0.f)
+ 		hudW = activeProfile->letterboxW;
++	// ACVR: with ACVR_LOG_BLACK set, log each new W at which the game draws a flat, opaque
++	// black polygon, to find a game's letterbox W for its profile.
++	static const bool logBlack = getenv("ACVR_LOG_BLACK") != nullptr;
++	static std::vector<int> loggedW;
+ 	for (u32 n = from; n < to && n < list.size(); n++)
+ 	{
+ 		const PolyParam& pp = list[n];
+ 		if (pp.count < 3 || pp.first + pp.count > ctx.verts.size())
+ 			continue;
++		if (logBlack && ctx.verts[pp.first].z > 0.f)
++		{
++			const float w0 = 1.f / ctx.verts[pp.first].z;
++			bool flatBlack = true;
++			float x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f;
++			for (u32 j = pp.first; j < pp.first + pp.count && flatBlack; j++)
++			{
++				const Vertex& v = ctx.verts[j];
++				flatBlack = v.z > 0.f && std::abs(1.f / v.z - w0) < 0.002f && opaqueBlack(v);
++				x0 = std::min(x0, v.x); x1 = std::max(x1, v.x); y0 = std::min(y0, v.y); y1 = std::max(y1, v.y);
++			}
++			const int key = (int)std::lround(w0 * 1000.f);
++			if (flatBlack && std::find(loggedW.begin(), loggedW.end(), key) == loggedW.end())
++			{
++				loggedW.push_back(key);
++				NOTICE_LOG(RENDERER, "VR: opaque black polygon at W %.4f (2D plane W %.4f), box %.0f,%.0f - %.0f,%.0f",
++						w0, hudW, x0, y0, x1, y1);
++			}
++		}
+ 		u32 i = pp.first;
+ 		while (i < pp.first + pp.count && onOverlay(ctx.verts[i], hudW) && opaqueBlack(ctx.verts[i]))
+ 			i++;
+diff --git a/core/sdl/sdl.cpp b/core/sdl/sdl.cpp
+index 3568d4b..a1b8e14 100644
+--- a/core/sdl/sdl.cpp
++++ b/core/sdl/sdl.cpp
+@@ -872,6 +872,9 @@ bool sdl_recreate_window(u32 flags)
+ #else
+ 	flags |= SDL_WINDOW_FULLSCREEN;
+ #endif
++	// ACVR: unattended test runs keep the window off the desktop
++	if (SDL_getenv("ACVR_HIDDEN") != nullptr)
++		flags = (flags & ~(SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_MAXIMIZED)) | SDL_WINDOW_HIDDEN;
+ 
+ 	window = SDL_CreateWindow("Flycast", windowPos.x, windowPos.y,
+ 			windowPos.w * hdpiScaling, windowPos.h * hdpiScaling, flags);

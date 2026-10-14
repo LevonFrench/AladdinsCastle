@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/mikermak/hotd2-vr",
+  "branch": "hotd2-vr",
+  "source_commit": "f0c7a2fd864b6134cecac8f63dcf9b401d960ef5",
+  "licence": "GPL-2.0-or-later (Flycast); arcade gun model CC BY 4.0",
+  "openxr_sdk": "Khronos OpenXR-SDK release-1.1.43, fetched by the upstream CMakeLists with its SHA-256",
+  "checked_on": "2026-10-14"
+}
