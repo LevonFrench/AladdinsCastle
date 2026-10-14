@@ -64,6 +64,56 @@ void cleanStaging(const Request &r, const QString &run) {
   if (QFileInfo(staging).exists() && !QFileInfo(staging).isSymLink())
     QDir(staging).removeRecursively();
 }
+// The one folder a request may own, relative to the portable root. Installation
+// already insists on it; uninstall, rollback and recovery hold receipts and
+// journals to the same folder, so bad bookkeeping cannot reach another variant
+// or the user's own files.
+QString managedRelative(const Request &r) {
+  return r.gameId.startsWith("tool-") ? "emulators/" + r.gameId.mid(5)
+                                      : "installed/" + r.gameId + "/" + r.variantId;
+}
+QString cleanPath(const QString &path) { return QDir::cleanPath(QDir::fromNativeSeparators(path)); }
+void requireOwnReceipt(const Request &r, const Json &manifest) {
+  if (manifest.empty())
+    return;
+  if (cleanPath(string(manifest, "install_dir")) != managedRelative(r) ||
+      (manifest.contains("game") && string(manifest, "game") != r.gameId) ||
+      (manifest.contains("variant") && string(manifest, "variant") != r.variantId))
+    throw Error("E_RECEIPT_SCOPE", "The installation record names another game, variant or folder; nothing was changed");
+}
+// Where a journal entry may point: the managed folder, its run-local staging and
+// previous siblings, the Hub's own staging and media-removal folders, and, for
+// creating or removing an empty folder only, the parents of the managed folder.
+bool journalTarget(const Request &r, const QString &path, const QString &op) {
+  const auto clean = cleanPath(path), dir = cleanPath(QDir(r.root).absoluteFilePath(managedRelative(r)));
+  const auto under = [&](const QString &base) { return clean == base || clean.startsWith(base + "/"); };
+  if (under(dir)) return true;
+  static const QRegularExpression sibling("^\\.(staging|previous)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(/.*)?$");
+  if (clean.startsWith(dir) && sibling.match(clean.mid(dir.size())).hasMatch()) return true;
+  for (const auto *internal : {"user/state/media-removals", "user/state/staging"})
+    if (under(cleanPath(QDir(r.root).absoluteFilePath(internal)))) return true;
+  return (op == "mkdir" || op == "rmdir") && dir.startsWith(clean + "/") && under(cleanPath(QDir(r.root).absolutePath()));
+}
+// Every entry of a journal, and the records it would restore, must belong to this request.
+bool journalInScope(const Request &r, const Json &records) {
+  for (const auto &j : records) {
+    const auto kind = string(j, "kind");
+    if (kind == "begin" && !j.value("manifest_before", Json::object()).empty()) {
+      try { requireOwnReceipt(r, j["manifest_before"]); } catch (const Error &) { return false; }
+    }
+    if (kind == "commit") {
+      try { requireOwnReceipt(r, j.value("manifest", Json::object())); } catch (const Error &) { return false; }
+      const auto state = j.value("state", Json::object());
+      if ((state.contains("game") && string(state, "game") != r.gameId) || (state.contains("variant") && string(state, "variant") != r.variantId))
+        return false;
+    }
+    if (kind != "intent" && kind != "done") continue;
+    const auto op = string(j, "op");
+    if (j.contains("path") && !journalTarget(r, string(j, "path"), op)) return false;
+    if (j.contains("to") && !journalTarget(r, string(j, "to"), op)) return false;
+  }
+  return true;
+}
 bool runId(const QString &value) {
   return QRegularExpression("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z").match(value).hasMatch();
 }
@@ -631,6 +681,11 @@ Json loadJournal(const QString &path) {
 }
 bool rollback(const Request &r, const Json &records, const Options &options,
               const QString &errorCode = "E_INTERRUPTED") {
+  // A journal pointing outside this request's folder is refused before anything is touched.
+  if (!journalInScope(r, records)) {
+    event(options, {}, "fail", "The interrupted-run record points outside this installation; nothing was changed", "E_RECEIPT_SCOPE");
+    return false;
+  }
   event(options, {}, "rollback", "Reversing interrupted changes");
   bool complete = true;
   if (!records.empty())
@@ -1350,6 +1405,7 @@ Result Engine::install(const Request &r) {
 }
 Json Engine::uninstallPreview(const Request &r) const {
   const auto manifest = readEnvelope(stateBase(r) + ".manifest.toml");
+  requireOwnReceipt(r, manifest);
   const auto dir = QDir(r.root).filePath(string(manifest, "install_dir"));
   Json rows = Json::array();
   for (const auto &row : manifest.value("file", Json::array())) {
@@ -1375,6 +1431,7 @@ Result Engine::uninstall(const Request &r) {
     const auto old = readEnvelope(base + ".manifest.toml");
     if (old.empty())
       return {true, 4, "not-installed", {}, "Nothing to uninstall", old};
+    requireOwnReceipt(r, old);
     Plan p;
     p.installDir = scopedPath(string(old, "install_dir"), r.root);
     p.version = string(readEnvelope(base + ".toml"), "installed_version");
@@ -1564,6 +1621,8 @@ Result Engine::recover(const Request &r) {
     const auto records = loadJournal(base + ".journal.jsonl");
     if (records.empty())
       return {true, 4, {}, {}, "No interrupted run", Json::object()};
+    if (!journalInScope(r, records))
+      throw Error("E_RECEIPT_SCOPE", "The interrupted-run record names another game, variant or folder; nothing was changed");
     for (auto it = records.rbegin(); it != records.rend(); ++it) {
       if (string(*it, "kind") == "rollback-complete") {
         cleanMediaRemovals(r, string(records[0], "run"), options_);

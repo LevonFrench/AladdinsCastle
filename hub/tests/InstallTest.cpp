@@ -277,15 +277,31 @@ private slots:
     QVERIFY(!QFileInfo(destination).exists());
     QVERIFY(!readBytes(journal).contains("rollback-complete"));
   }
-  void recoveryAllowsContainedInverseRename() {
+  // A rename between two folders of the root that are not this request's own is refused, untouched.
+  void recoveryRefusesARenameBetweenOtherFolders() {
     QTemporaryDir temp;
     auto request = fixture(temp.path());
-    const auto original = temp.path() + "/installed/original";
-    const auto moved = temp.path() + "/installed/previous";
+    const auto original = temp.path() + "/installed/original", moved = temp.path() + "/installed/previous";
     atomicWrite(moved + "/sentinel", "synthetic contained bytes");
     const auto journal = stateBase(request) + ".journal.jsonl";
     QDir().mkpath(QFileInfo(journal).absolutePath());
     durableAppend(journal, Json{{"kind", "begin"}, {"run", QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString()},
+        {"manifest_before", Json::object()}, {"state_before", Json::object()}});
+    durableAppend(journal, Json{{"kind", "intent"}, {"op", "rename"}, {"path", original.toStdString()}, {"to", moved.toStdString()}});
+    QCOMPARE(Engine().recover(request).code, QString("E_RECEIPT_SCOPE"));
+    QCOMPARE(readBytes(moved + "/sentinel"), QByteArray("synthetic contained bytes"));QVERIFY(!QFileInfo::exists(original));
+  }
+  void recoveryAllowsContainedInverseRename() {
+    QTemporaryDir temp;
+    auto request = fixture(temp.path());
+    // The request's own folder and its run-local previous copy: the swap an update makes.
+    const auto run = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    const auto original = temp.path() + "/installed/synthetic/flat";
+    const auto moved = original + ".previous-" + run;
+    atomicWrite(moved + "/sentinel", "synthetic contained bytes");
+    const auto journal = stateBase(request) + ".journal.jsonl";
+    QDir().mkpath(QFileInfo(journal).absolutePath());
+    durableAppend(journal, Json{{"kind", "begin"}, {"run", run.toStdString()},
         {"manifest_before", Json::object()}, {"state_before", Json::object()}});
     durableAppend(journal, Json{{"kind", "intent"}, {"op", "rename"},
         {"path", original.toStdString()}, {"to", moved.toStdString()}});
@@ -1212,6 +1228,52 @@ private slots:
     QCOMPARE(string(state, "last_error"), QString("E_VERIFY_FAILED"));
     QCOMPARE(string(state, "installed_version"), QString("v1"));
     QCOMPARE(readBytes(temp.path() + "/installed/synthetic/flat/example.exe"), QByteArray("synthetic binary v1"));
+  }
+  // Receipts and journals are held to the request's own folder: a checksum-valid record that
+  // names another variant or a user's file is refused before anything changes.
+  void uninstallRefusesAReceiptForAnotherVariant() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options options; options.survivalMs = 0;
+    QVERIFY(Engine(options).install(r).success);
+    const auto other = temp.path() + "/installed/synthetic/other/keep.bin";atomicWrite(other, "another variant's file");
+    auto manifest = readEnvelope(stateBase(r) + ".manifest.toml");
+    manifest["install_dir"] = "installed/synthetic/other";
+    manifest["file"] = Json::array({Json{{"path", "keep.bin"}, {"sha256", hashFile(other).toStdString()}}});
+    writeEnvelope(stateBase(r) + ".manifest.toml", manifest);
+    const auto stateBytes = readBytes(stateBase(r) + ".toml"), manifestBytes = readBytes(stateBase(r) + ".manifest.toml");
+    const auto removed = Engine(options).uninstall(r);
+    QVERIFY(!removed.success); QCOMPARE(removed.code, QString("E_RECEIPT_SCOPE"));
+    QCOMPARE(readBytes(other), QByteArray("another variant's file"));
+    QCOMPARE(readBytes(stateBase(r) + ".toml"), stateBytes); QCOMPARE(readBytes(stateBase(r) + ".manifest.toml"), manifestBytes);
+    QVERIFY(QFileInfo(temp.path() + "/installed/synthetic/flat/example.exe").isFile());
+    try { Engine(options).uninstallPreview(r); QFAIL("Foreign receipt previewed"); } catch (const Error &e) { QCOMPARE(e.code, QString("E_RECEIPT_SCOPE")); }
+    // A receipt that names another game in its own fields is refused the same way.
+    manifest = readEnvelope(stateBase(r) + ".manifest.toml");manifest["install_dir"] = "installed/synthetic/flat";manifest["game"] = "someone-else";
+    writeEnvelope(stateBase(r) + ".manifest.toml", manifest);
+    QCOMPARE(Engine(options).uninstall(r).code, QString("E_RECEIPT_SCOPE"));
+  }
+  void recoveryRefusesAJournalAimedAtAUserSave() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options options; options.survivalMs = 0;
+    QVERIFY(Engine(options).install(r).success);
+    const auto save = temp.path() + "/user/saves/synthetic.sav";atomicWrite(save, "the player's save");
+    const auto run = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    const auto journal = stateBase(r) + ".journal.jsonl";
+    QVERIFY(QFile::remove(journal) || !QFileInfo::exists(journal));
+    durableAppend(journal, Json{{"kind", "begin"}, {"run", run.toStdString()}, {"state_before", readEnvelope(stateBase(r) + ".toml")}, {"manifest_before", readEnvelope(stateBase(r) + ".manifest.toml")}});
+    // Rolled back, this intent would delete the save as a file the run had created.
+    durableAppend(journal, Json{{"kind", "intent"}, {"op", "file"}, {"path", save.toStdString()}, {"prior", ""}, {"after", hashFile(save).toStdString()}, {"remove", false}});
+    const auto stateBytes = readBytes(stateBase(r) + ".toml"), journalBytes = readBytes(journal);
+    const auto result = Engine(options).recover(r);
+    QVERIFY(!result.success); QCOMPARE(result.code, QString("E_RECEIPT_SCOPE"));
+    QCOMPARE(readBytes(save), QByteArray("the player's save"));
+    QCOMPARE(readBytes(stateBase(r) + ".toml"), stateBytes); QCOMPARE(readBytes(journal), journalBytes);
+    // A committed record that would install another variant's receipt is refused too.
+    auto foreign = readEnvelope(stateBase(r) + ".manifest.toml");foreign["install_dir"] = "installed/synthetic/other";
+    atomicWrite(journal, {});
+    durableAppend(journal, Json{{"kind", "begin"}, {"run", run.toStdString()}, {"state_before", Json::object()}, {"manifest_before", Json::object()}});
+    durableAppend(journal, Json{{"kind", "commit"}, {"state", readEnvelope(stateBase(r) + ".toml")}, {"manifest", foreign}});
+    const auto manifestBytes = readBytes(stateBase(r) + ".manifest.toml");
+    QCOMPARE(Engine(options).recover(r).code, QString("E_RECEIPT_SCOPE"));
+    QCOMPARE(readBytes(stateBase(r) + ".manifest.toml"), manifestBytes);
   }
   void uninstallErrorPreservesInstallAndActualCode() {
     QTemporaryDir temp; auto r = fixture(temp.path()); Options options; options.survivalMs = 0;
