@@ -16,6 +16,13 @@ using Progress=std::function<void(const QString &)>;
 // with the parent set's files where the game does not replace them. "parent" is
 // set when there is one. Empty when the game is not listed.
 QVariantMap supermodelFiles(const QString &gamesXml,const QString &game);
+// One game checked against a MAME build's own "-listxml" output for it: {ok,
+// reason, standIns}. The game's files are looked for by checksum in <folder>/
+// <game>.zip and its parent's zip; each device set that has files of its own, in
+// the game's zip, in <folder>/<device>.zip or in a folder of that name. A device
+// in "cosmetic" whose files are present but different is accepted and named in
+// standIns; for any other device that is a reason. Read-only.
+QVariantMap mameCheck(const QByteArray &listXml,const QString &game,const QString &folder,const QStringList &cosmetic,std::atomic_bool &cancel);
 // settings: the Hub's own settings values (folders and programs per system).
 // context: data a system needs beside them, such as a saved table scan.
 QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel);

@@ -2,6 +2,7 @@
 #include "Report.h"
 #include "Setup.h"
 #include "core/model3/Model3.h"
+#include "core/model2/Model2.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/pinball/Pinball.h"
 #include "core/scan/Scan.h"
@@ -11,6 +12,8 @@
 #include <QHash>
 #include <QSet>
 #include <QXmlStreamReader>
+#include <QProcess>
+#include <QProcessEnvironment>
 namespace ac::setup {
 namespace {
 using Scanner=QVariantMap(*)(const QVariantMap &,const QVariantMap &,const Progress &,std::atomic_bool &);
@@ -119,6 +122,44 @@ QVariantMap scanPinball(const QVariantMap &settings,const QVariantMap &context,c
  result["pinballScan"]=tables; // Handed back so the caller can keep it for the Pinball tab.
  return result;
 }
+quint32 crc32(const QByteArray &data){
+ quint32 crc=0xffffffffU;
+ for(const auto byte:data){crc^=quint8(byte);for(int bit=0;bit<8;++bit)crc=(crc>>1)^(0xedb88320U&(0U-(crc&1U)));}
+ return ~crc;
+}
+// The emulator's own description of one game, printed to its output. No window, nothing written.
+QByteArray mameListXml(const QString &program,const QString &workingFolder,const QString &libraries,const QString &game){
+ QProcess emulator;auto environment=QProcessEnvironment::systemEnvironment();
+ if(!libraries.isEmpty())environment.insert("PATH",QDir::toNativeSeparators(libraries)+QDir::listSeparator()+environment.value("PATH"));
+ emulator.setProcessEnvironment(environment);emulator.setWorkingDirectory(workingFolder);emulator.setStandardErrorFile(QProcess::nullDevice());
+ emulator.start(program,{"-noreadconfig","-listxml",game});
+ if(!emulator.waitForFinished(30000)){emulator.kill();emulator.waitForFinished(2000);return {};}
+ return emulator.exitStatus()==QProcess::NormalExit&&emulator.exitCode()==0?emulator.readAllStandardOutput():QByteArray();
+}
+QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
+ const auto folder=settings.value("model2GameFolder").toString(),program=settings.value("model2Executable").toString();
+ Groups groups;QStringList standIns;bool unchecked=false;
+ for(const auto &value:model2::games()){
+  if(cancel)break;
+  const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
+  progress(title);
+  if(folder.isEmpty()||!QFileInfo(QDir(folder).filePath(id+".zip")).isFile()){groups.missing<<item(id,title,"expected",id+".zip");continue;}
+  const auto issue=model2::problem(id,program,folder);
+  if(!issue.isEmpty()){groups.notRight<<item(id,title,"reason","The game file was found by its name, but the emulator build for this system is not set up on this PC. "+issue);continue;}
+  // What this game needs, files and device sets, is asked of the emulator build itself.
+  const auto xml=mameListXml(program,QDir::cleanPath(QFileInfo(program).absoluteDir().filePath("../runtime")),settings.value("model2RuntimePath").toString(),id);
+  if(xml.isEmpty()){unchecked=true;groups.ready<<item(id,title,"detail","Found by its set name. The emulator did not give its list, so the files inside were not checked.");continue;}
+  // The billboard set only drives the cabinet's sign, so a stand-in for it is accepted and said.
+  const auto check=mameCheck(xml,id,folder,{"segabill"},cancel);
+  for(const auto &name:check.value("standIns").toStringList())if(!standIns.contains(name))standIns<<name;
+  if(check.value("ok").toBool())groups.ready<<item(id,title,"detail","Checked against the emulator's own list.");
+  else groups.notRight<<item(id,title,"reason",check.value("reason").toString());
+ }
+ QString note="View only for now: no controls yet.";
+ if(!standIns.isEmpty())note+=QString(" The %1 set here is a stand-in, which only leaves the cabinet's sign blank.").arg(standIns.join(", "));
+ if(unchecked)note+=" Some games could not be checked against the emulator.";
+ return groups.result("model2",folder.isEmpty()?"No folder chosen for this system.":note);
+}
 QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
  const auto folder=settings.value("dreamcastGameFolder").toString();
  const bool programReady=QFileInfo(settings.value("dreamcastExecutable").toString()).isFile();
@@ -154,7 +195,46 @@ QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const P
  else groups.ready<<item(id,title,"detail","The program and the game files beside it were found.");
  return groups.result("system22",QString());
 }
-const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"dreamcast",scanDreamcast},{"system22",scanSystem22}};return table;}
+const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"dreamcast",scanDreamcast},{"system22",scanSystem22}};return table;}
+}
+QVariantMap mameCheck(const QByteArray &listXml,const QString &game,const QString &folder,const QStringList &cosmetic,std::atomic_bool &cancel){
+ // Every machine in the output with the files it loads; the game itself names its parent and its devices.
+ struct Machine {QString parent;QStringList devices;QList<quint32> files;};
+ QHash<QString,Machine> machines;QXmlStreamReader xml(listXml);QString current;
+ while(!xml.atEnd()){
+  xml.readNext();if(!xml.isStartElement())continue;
+  const auto attributes=xml.attributes();
+  if(xml.name()==u"machine"){current=attributes.value("name").toString();machines[current].parent=attributes.value("romof").toString();}
+  else if(xml.name()==u"device_ref"&&!current.isEmpty())machines[current].devices<<attributes.value("name").toString();
+  else if(xml.name()==u"rom"&&!current.isEmpty()&&attributes.value("status")!=u"nodump"&&attributes.hasAttribute("crc")){
+   bool ok=false;const auto crc=attributes.value("crc").toUInt(&ok,16);if(ok)machines[current].files<<crc;
+  }
+ }
+ const auto fail=[](const QString &reason){return QVariantMap{{"ok",false},{"reason",reason},{"standIns",QStringList{}}};};
+ if(xml.hasError()||!machines.contains(game))return fail("This emulator build does not list this game.");
+ const auto &wanted=machines[game];
+ bool readable=false;auto have=checksums(QDir(folder).filePath(game+".zip"),cancel,&readable);
+ if(!readable)return fail("The file is not a zip the Hub can read.");
+ bool parentFound=true;
+ if(!wanted.parent.isEmpty()){const auto parentZip=QDir(folder).filePath(wanted.parent+".zip");parentFound=QFileInfo(parentZip).isFile();if(parentFound){bool ok=false;have.unite(checksums(parentZip,cancel,&ok));}}
+ int absent=0;for(const auto crc:wanted.files)if(!have.contains(crc))++absent;
+ if(absent&&!parentFound)return fail(QString("It also needs %1.zip beside it, which was not found.").arg(wanted.parent));
+ if(absent)return fail(QString("%1 of the %2 files this emulator expects inside are missing or different. This is usually an older or newer version of the set.").arg(absent).arg(wanted.files.size()));
+ QStringList standIns,devices=wanted.devices;devices.removeDuplicates();devices.sort();
+ for(const auto &device:devices){
+  const auto files=machines.value(device).files;
+  if(files.isEmpty())continue; // Most devices are chips with nothing to load.
+  auto found=have;bool present=false;
+  const auto zip=QDir(folder).filePath(device+".zip");const QDir loose(QDir(folder).filePath(device));
+  if(QFileInfo(zip).isFile()){present=true;bool ok=false;found.unite(checksums(zip,cancel,&ok));}
+  if(loose.exists()){present=true;for(const auto &entry:loose.entryInfoList(QDir::Files)){QFile file(entry.absoluteFilePath());if(entry.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))found<<crc32(file.readAll());}}
+  bool complete=true;for(const auto crc:files)complete=complete&&found.contains(crc);
+  if(complete)continue;
+  if(!present)return fail(QString("The game file is right, but it needs the device set %1 beside it, which was not found.").arg(device));
+  if(cosmetic.contains(device))standIns<<device;
+  else return fail(QString("The game file is right, but the device set %1 beside it is not the one this emulator expects.").arg(device));
+ }
+ return {{"ok",true},{"reason",QString()},{"standIns",standIns}};
 }
 QVariantMap supermodelFiles(const QString &gamesXml,const QString &game){
  const auto sets=supermodelSets(gamesXml);

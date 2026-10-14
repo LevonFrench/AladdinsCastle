@@ -2,6 +2,7 @@
 #include "core/setup/Setup.h"
 #include "core/setup/Report.h"
 #include "core/dreamcast/Dreamcast.h"
+#include "core/model2/Model2.h"
 #include "core/install/Install.h"
 #include <QtTest>
 #include <QDir>
@@ -159,7 +160,61 @@ private slots:
   }
   void aSystemWithoutACheckSaysSo() {
     std::atomic_bool cancel=false;
-    QVERIFY(ac::setup::scanSystem("model2",{},{},{},cancel)["note"].toString().contains("cannot check"));
+    QVERIFY(ac::setup::scanSystem("not-a-system",{},{},{},cancel)["note"].toString().contains("cannot check"));
+  }
+  // A stand-in Model 2 build: emulator, viewer and working folder side by side, as the real build keeps them.
+  void model2StartsTheEmulatorThenTheViewer() {
+    QTemporaryDir t;const auto program=t.filePath("build/mame/emulator.exe"),sets=t.filePath("my sets");
+    write(program,"synthetic");write(t.filePath("build/presenter/model2-viewer.exe"),"synthetic");QVERIFY(QDir().mkpath(t.filePath("build/runtime")));
+    write(sets+"/vcop2.zip","synthetic");
+    QVERIFY(ac::model2::problem("vcop2",program,sets).isEmpty());QVERIFY(ac::model2::problem("vf2",program,sets).contains("vf2.zip"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::model2::launchPlan("vf2",program,sets));
+    const auto plan=ac::model2::launchPlan("vcop2",program,sets);const auto emulator=plan["companion"].toMap();
+    const auto native=[](const QString &path){return QDir::toNativeSeparators(path);};
+    // The viewer is the program the Hub watches; its one argument is the emulator's process id.
+    QCOMPARE(plan["executable"].toString(),native(t.filePath("build/presenter/model2-viewer.exe")));QCOMPARE(plan["cwd"].toString(),native(t.filePath("build/presenter")));
+    QCOMPARE(plan["args"].toStringList(),QStringList{"${companion_pid}"});
+    QCOMPARE(emulator["executable"].toString(),native(program));QCOMPARE(emulator["cwd"].toString(),native(t.filePath("build/runtime")));
+    QCOMPARE(emulator["args"].toStringList(),(QStringList{"vcop2","-rompath",native(sets),"-video","none","-sound","none","-numprocessors","2","-skip_gameinfo","-noreadconfig","-nowriteconfig",
+      "-seconds_to_run","3600","-snapview","Screen 1","-snapshot_directory",native(t.filePath("build/captures/headset-vcop2")),"-snapname","vcop2-%i",
+      "-nvram_directory","nvram","-cfg_directory","cfg","-state_directory","sta","-diff_directory","diff","-background_input"}));
+    QCOMPARE(plan["env"].toMap(),(QVariantMap{{"ACVR_M2_STEREO","1"},{"ACVR_M2_STREAM","1"},{"ACVR_M2_INPUT_TEST","0"},{"ACVR_M2_IPD_M","0.064"},{"ACVR_M2_UNITS_PER_M","0.949387005"},{"ACVR_M2_ZERO_M","4"},{"ACVR_XR_SIZE","1"},{"ACVR_XR_HEIGHT","0"}}));
+    QVERIFY(!QFileInfo::exists(t.filePath("build/captures"))); // Planning creates nothing.
+  }
+  // The emulator's own list decides what a game needs: its files, and device sets that have files of their own.
+  void model2IsCheckedAgainstTheEmulatorsOwnList() {
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto sets=t.filePath("my sets");
+    const auto rom=[](const QByteArray &name,const QByteArray &data){return "<rom name=\""+name+"\" crc=\""+QByteArray::number(crc32(data),16)+"\"/>";};
+    const QByteArray xml="<mame><machine name=\"vcop2\" romof=\"base\"><rom name=\"none\" status=\"nodump\"/>"+rom("a","one")+rom("b","shared")
+      +"<device_ref name=\"chip\"/><device_ref name=\"sign\"/><device_ref name=\"board\"/></machine>"
+      "<machine name=\"chip\" isdevice=\"yes\"/><machine name=\"sign\" isdevice=\"yes\">"+rom("s","sign data")+"</machine>"
+      "<machine name=\"board\" isdevice=\"yes\">"+rom("io","board data")+"</machine></mame>";
+    const auto check=[&]{return ac::setup::mameCheck(xml,"vcop2",sets,{"sign"},cancel);};
+    write(sets+"/vcop2.zip",zip({{"a","one"}}));
+    QVERIFY(check()["reason"].toString().contains("base.zip")); // Its parent holds the shared file.
+    write(sets+"/base.zip",zip({{"b","shared"}}));
+    QVERIFY(check()["reason"].toString().contains("device set board")); // Devices are asked for only when they have files.
+    write(sets+"/board.zip",zip({{"io","wrong"}}));QVERIFY(check()["reason"].toString().contains("not the one"));
+    write(sets+"/board.zip",zip({{"io","board data"}}));
+    QVERIFY(check()["reason"].toString().contains("device set sign"));
+    // A stand-in for the sign's set, as loose files in a folder: accepted and named.
+    write(sets+"/sign/s","blank");
+    QVERIFY(check()["ok"].toBool());QCOMPARE(check()["standIns"].toStringList(),QStringList{"sign"});
+    // The real thing, loose or zipped, is no stand-in.
+    write(sets+"/sign/s","sign data");QVERIFY(check()["ok"].toBool());QVERIFY(check()["standIns"].toStringList().isEmpty());
+    write(sets+"/vcop2.zip",zip({{"a","changed"}}));QVERIFY(check()["reason"].toString().startsWith("1 of the 2 files"));
+    QVERIFY(ac::setup::mameCheck(xml,"vf2",sets,{},cancel)["reason"].toString().contains("does not list"));
+  }
+  // With no emulator build the game is found by name and cannot start; with one that gives no list it is found, unchecked.
+  void model2WithoutAUsableEmulatorIsFoundButNotChecked() {
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto program=t.filePath("build/mame/emulator.exe"),sets=t.filePath("my sets");
+    write(program,"synthetic");write(t.filePath("build/presenter/model2-viewer.exe"),"synthetic");QVERIFY(QDir().mkpath(t.filePath("build/runtime")));
+    write(sets+"/vcop2.zip","synthetic");
+    auto result=ac::setup::scanSystem("model2",{{"model2GameFolder",sets}},{},{},cancel);
+    QVERIFY(entry(result,"notRight","vcop2")["reason"].toString().contains("not set up"));QCOMPARE(entry(result,"missing","vf2")["expected"].toString(),QString("vf2.zip"));
+    result=ac::setup::scanSystem("model2",{{"model2GameFolder",sets},{"model2Executable",program}},{},{},cancel);
+    QVERIFY(entry(result,"ready","vcop2")["detail"].toString().contains("not checked"));
+    QVERIFY(result["note"].toString().contains("no controls yet"));QVERIFY(result["note"].toString().contains("could not be checked"));
   }
   void timeCrisisNeedsItsProgramAndTheFilesBesideIt() {
     QTemporaryDir t;std::atomic_bool cancel=false;const auto program=t.filePath("build/game.exe");

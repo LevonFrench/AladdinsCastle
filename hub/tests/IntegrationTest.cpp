@@ -17,6 +17,9 @@
 #include <QtTest>
 #include <optional>
 #include <QtEndian>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 #include "core/pinball/Pinball.h"
 namespace {
 ac::CatalogData syntheticCatalog(const QString &root){
@@ -182,6 +185,34 @@ private slots:
     QCOMPARE(asked,QStringList{services.steamVrManifest()});QCOMPARE(ui.steamVr()["state"].toString(),QString("absent"));QVERIFY(ui.steamVr()["error"].toString().contains("not running"));
     refuse=false;ui.addToSteamVr();QCOMPARE(asked.size(),2);
     QCOMPARE(ui.steamVr()["state"].toString(),QString("added"));QVERIFY(ui.steamVr()["error"].toString().isEmpty());
+ }
+ void model2StartsTwoProgramsAndEndsBoth(){
+    // Both stand-ins are this test program: the emulator waits, the viewer reports what it was given and leaves.
+    QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets"),report=t.filePath("viewer.json");
+    for(const auto &folder:{"build/mame","build/presenter","build/runtime","my sets","libraries"})QVERIFY(QDir(t.path()).mkpath(folder));
+    const auto emulator=build+"/mame/emulator.exe",viewer=build+"/presenter/model2-viewer.exe";
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),emulator));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),viewer));
+    ac::install::atomicWrite(sets+"/vcop2.zip","synthetic");
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",emulator);settings.set("model2GameFolder",sets);settings.set("model2RuntimePath",t.filePath("libraries"));
+    qputenv("AC_SYNTHETIC_MODEL2_REPORT",report.toUtf8());const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL2_REPORT");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    ui.playOtherGame("model2-vf2");QCOMPARE(started.size(),0); // Its game file is not there: nothing starts.
+    ui.playOtherGame("model2-vcop2");
+    QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
+    QCOMPARE(ui.nowPlaying()["title"].toString(),QString("Virtua Cop 2 ")+QChar(0xb7)+" 3D screen");
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),1,10000);QVERIFY2(finished[0][2].toString().isEmpty(),qPrintable(finished[0][2].toString()));
+    const auto seen=QJsonDocument::fromJson(ac::install::readBytes(report)).object();
+    // The viewer was handed a live process id: the emulator's, which was still running then.
+    QVERIFY(seen["companion"].toInt()>0);QVERIFY(seen["companionAlive"].toBool());
+    QCOMPARE(QFileInfo(seen["cwd"].toString()).canonicalFilePath(),QFileInfo(build+"/presenter").canonicalFilePath());
+    QCOMPARE(seen["env"].toObject()["ACVR_M2_STEREO"].toString(),QString("1"));QCOMPARE(seen["env"].toObject()["ACVR_M2_UNITS_PER_M"].toString(),QString("0.949387005"));
+    QVERIFY(seen["path"].toString().startsWith(QDir::toNativeSeparators(t.filePath("libraries"))));
+    // When the viewer has gone the emulator is ended too, and only then is the Hub free again.
+    QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),12000);QVERIFY(ui.nowPlaying().isEmpty());
+    QCOMPARE(QDir(sets).entryList(QDir::Files,QDir::Name),QStringList{"vcop2.zip"});
+    QVERIFY(QDir(build+"/runtime").isEmpty());QVERIFY(!QFileInfo::exists(build+"/captures"));
  }
  void requiredM1GamesOfferFlatRoutes(){
     const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
@@ -357,6 +388,21 @@ private slots:
 };
 int main(int argc,char **argv){
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
+    // Model 2 stand-ins. The emulator: any "-rompath" run, which waits to be ended. The viewer: one numeric argument.
+    for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="-rompath"){QCoreApplication child(argc,argv);QTimer::singleShot(30000,&child,&QCoreApplication::quit);return child.exec();}
+    if(argc==2&&QByteArray(argv[1]).toLongLong()>0){
+        QCoreApplication child(argc,argv);QJsonObject variables;const auto environment=QProcessEnvironment::systemEnvironment();
+        for(const auto &name:environment.keys())if(name.startsWith("ACVR_"))variables[name]=environment.value(name);
+        const auto id=QByteArray(argv[1]).toLongLong();bool alive=false;
+#ifdef Q_OS_WIN
+        if(const auto handle=OpenProcess(SYNCHRONIZE,FALSE,static_cast<DWORD>(id))){alive=WaitForSingleObject(handle,0)==WAIT_TIMEOUT;CloseHandle(handle);}
+#else
+        alive=QFileInfo::exists("/proc/"+QString::number(id));
+#endif
+        QFile file(qEnvironmentVariable("AC_SYNTHETIC_MODEL2_REPORT"));if(!file.open(QIODevice::WriteOnly))return 3;
+        file.write(QJsonDocument(QJsonObject{{"companion",id},{"companionAlive",alive},{"cwd",QDir::currentPath()},{"env",variables},{"path",environment.value("PATH")}}).toJson());file.close();
+        QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
+    }
     for(int i=1;i<argc;++i)if(QByteArray(argv[i]).startsWith("-input-system=")){
         QCoreApplication child(argc,argv);QJsonObject variables;
         const auto environment=QProcessEnvironment::systemEnvironment();

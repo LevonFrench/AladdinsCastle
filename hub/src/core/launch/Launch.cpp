@@ -288,6 +288,18 @@ LaunchService::LaunchService(QObject *parent) : QObject(parent) {
     } else if ((waitedMs_ += 250) >= 60000)
       complete(1, "SteamVR did not start within 60 seconds");
   });
+  // The companion ending first means the session is over: close the main
+  // program the ordinary way, and insist only if it stays.
+  connect(&helper_, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this, [this] {
+    if (busy_ && process_.state() == QProcess::Running) {
+      process_.terminate();
+      const auto generation = generation_;
+      QTimer::singleShot(10000, &process_, [this, generation] {
+        if (generation_ == generation && process_.state() != QProcess::NotRunning) process_.kill();
+      });
+    }
+    emit playingChanged();
+  });
   closeTimer_.setInterval(100);
   connect(&closeTimer_,&QTimer::timeout,this,[this]{if(closeRequested_)requestClose();else closeTimer_.stop();});
   connect(&process_, &QProcess::stateChanged, this, [this](QProcess::ProcessState state) {
@@ -326,6 +338,8 @@ LaunchService::~LaunchService() {
   closeTimer_.stop();
   preparation_.disconnect(this);
   process_.disconnect(this);
+  helper_.disconnect(this);
+  if (helper_.state() != QProcess::NotRunning) { helper_.kill(); helper_.waitForFinished(1000); }
   preparation_.waitForFinished();
   for (auto *watcher : persistence_) {
     watcher->disconnect(this);
@@ -414,7 +428,9 @@ void LaunchService::launchReady() {
   try {
     const auto &request = request_;
     if (!QFileInfo(request.plan.executable).isFile() ||
-        !QFileInfo(request.plan.cwd).isDir())
+        !QFileInfo(request.plan.cwd).isDir() ||
+        (!request.companion.executable.isEmpty() &&
+         (!QFileInfo(request.companion.executable).isFile() || !QFileInfo(request.companion.cwd).isDir())))
       throw Error("E_LAUNCH_PATH",
                   "Launch executable or working directory missing");
     // Flat launches never inspect or start VR processes.
@@ -465,7 +481,23 @@ void LaunchService::beginChild() {
     if(payload_) payload_->clearPendingChildLaunch();
     complete(1,QString::fromUtf8(error.what()));return;
   }
-  process_.start(request_.plan.executable, request_.plan.args);
+  auto arguments = request_.plan.args;
+  if (!request_.companion.executable.isEmpty()) {
+    helper_.setProcessEnvironment(environment);
+    helper_.setWorkingDirectory(request_.companion.cwd);
+    helper_.setProcessChannelMode(QProcess::MergedChannels);
+    auto helperLog = logPath_;
+    helperLog.replace(QRegularExpression("\\.log$"), "-companion.log");
+    helper_.setStandardOutputFile(helperLog, QIODevice::Append);
+    helper_.start(request_.companion.executable, request_.companion.args);
+    if (!helper_.waitForStarted(5000)) {
+      if (payload_) payload_->clearPendingChildLaunch();
+      complete(1, "Could not start the companion program: " + helper_.errorString());
+      return;
+    }
+    for (auto &argument : arguments) argument.replace("${companion_pid}", QString::number(helper_.processId()));
+  }
+  process_.start(request_.plan.executable, arguments);
 }
 void LaunchService::requestClose() {
   if(!busy_)return;
@@ -518,6 +550,11 @@ void LaunchService::complete(int code, const QString &error) {
   runtimeTimer_.stop();
   closeTimer_.stop();closeRequested_=false;
   lock_.reset();
+  // A companion has no window to close, so it is given a moment and then ended.
+  if (helper_.state() != QProcess::NotRunning) {
+    helper_.terminate();
+    QTimer::singleShot(4000, &helper_, [this] { if (helper_.state() != QProcess::NotRunning) helper_.kill(); });
+  }
   if(payload_ && process_.state()==QProcess::NotRunning) payload_->clearPendingChildLaunch();
   payload_.reset();
   const auto root = request_.root, gameId = request_.gameId,

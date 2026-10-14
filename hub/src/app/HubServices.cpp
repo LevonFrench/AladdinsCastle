@@ -6,6 +6,7 @@
 #include "core/setup/Setup.h"
 #include "core/setup/Report.h"
 #include "core/dreamcast/Dreamcast.h"
+#include "core/model2/Model2.h"
 #include "ProductIdentity.h"
 #include <QDir>
 #include <QCoreApplication>
@@ -164,7 +165,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             startPinball(retainedPinball_,retainedPinballExecutable_);return;
         }
         if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
-        if(id.startsWith("dreamcast-")||id.startsWith("system22-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
+        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
 #ifdef Q_OS_WIN
@@ -269,6 +270,22 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             for(const auto &value:dreamcast::games())if("dreamcast-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · "+dreamcast::viewLabel(view);
             hint=view=="headset"?"New and not yet tried in a headset. The picture is also on the PC monitor.":"The mouse is the gun.";
+        }else if(id.startsWith("model2-")){
+            // Two programs: the emulator first, then the viewer given the emulator's process id.
+            const auto game=id.mid(7);
+            const auto plan=model2::launchPlan(game,settings_->get("model2Executable",QString()).toString(),settings_->get("model2GameFolder",QString()).toString());
+            const auto emulator=plan.value("companion").toMap();
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            request.companion.executable=emulator.value("executable").toString();request.companion.cwd=emulator.value("cwd").toString();request.companion.args=emulator.value("args").toStringList();
+            auto &environment=request.runtimeInputs.environment;
+            for(const auto &name:environment.keys())if(name.startsWith("ACVR_",Qt::CaseInsensitive))environment.remove(name);
+            const auto variables=plan.value("env").toMap();
+            for(auto it=variables.begin();it!=variables.end();++it)environment.insert(it.key(),it.value().toString());
+            // The build's own runtime libraries, when the user's set-up names where they are.
+            const auto libraries=settings_->get("model2RuntimePath",QString()).toString();
+            if(!libraries.isEmpty())environment.insert("PATH",QDir::toNativeSeparators(libraries)+QDir::listSeparator()+environment.value("PATH"));
+            for(const auto &value:model2::games())if(value.toMap().value("id")==game)title=value.toMap().value("title").toString()+" · 3D screen";
+            hint="View only for now: no controls yet. Home = put the screen in front of you again. Use Stop game here to end it.";
         }else if(id=="system22-timecris"){
             const QFileInfo program(settings_->get("system22Executable",QString()).toString());
             if(!program.isFile())throw install::Error("E_SYSTEM22_SETUP","The Time Crisis VR build is not set up. Choose its program in Set-up.");
