@@ -187,6 +187,7 @@ private slots:
     write(folder+"/house of the dead 2 other.cdi",track("HDR-0000"));
     write(folder+"/Death Crimson 2.cue","FILE \"none.bin\" BINARY\n");
     write(folder+"/unrelated.cdi",track("T-99999"));
+    write(folder+"/no header.cdi",QByteArray(4096,'x'));
     const QVariantMap settings{{"dreamcastGameFolder",folder},{"dreamcastExecutable",program}};
     auto result=ac::setup::scanSystem("dreamcast",settings,{},{},cancel);
     // The US release has the full profile even though a second, unprofiled disc of the same game is present.
@@ -195,6 +196,9 @@ private slots:
     QVERIFY(entry(result,"notRight","dcrimson2")["reason"].toString().contains("not checked"));
     QVERIFY(!entry(result,"missing","vcop2").isEmpty());QVERIFY(!entry(result,"missing","dcox").isEmpty());
     QVERIFY(result["note"].toString().contains("not yet tried"));
+    // Discs the Hub does not list are still named, with their own number where it was read.
+    QStringList others;for(const auto &value:result["other"].toList())others<<value.toMap()["title"].toString()+"|"+value.toMap()["detail"].toString();
+    QCOMPARE(others,(QStringList{"no header|number not read","unrelated|disc number T-99999"}));
     // Only the unprofiled release of the main game: found, not right, still startable.
     QVERIFY(QFile::remove(folder+"/first.gdi"));
     result=ac::setup::scanSystem("dreamcast",settings,{},{},cancel);
@@ -202,7 +206,22 @@ private slots:
     // Without the emulator build nothing is startable.
     result=ac::setup::scanSystem("dreamcast",{{"dreamcastGameFolder",folder}},{},{},cancel);
     QVERIFY(entry(result,"notRight","confmiss")["reason"].toString().contains("not set up"));QVERIFY(!entry(result,"notRight","confmiss")["startable"].toBool());
-    QCOMPARE(QDir(folder).entryList(QDir::Files).size(),5);
+    QCOMPARE(QDir(folder).entryList(QDir::Files).size(),6);
+  }
+  // The numbers read from real Japanese discs: found whatever the file is called, never reported missing.
+  void dreamcastJapaneseGunDiscsAreFoundByTheirNumbers() {
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto folder=t.filePath("discs"),program=t.filePath("emu/program.exe");write(program,"synthetic");
+    const auto track=[](const QByteArray &product){QByteArray bytes(2352,'\0');bytes.replace(16,15,"SEGA SEGAKATANA");bytes.replace(16+64,10,product.leftJustified(10,' '));return bytes;};
+    write(folder+"/disc a.cdi",track("T23201M"));write(folder+"/disc b.cdi",track("HDR-0061"));
+    // A .cdi keeps the game's header after its first session: here past the quick read, in a file named for the game.
+    write(folder+"/Confidential Mission (late header).cdi",QByteArray(17*1024*1024,'x')+track("MK-51160"));
+    const auto result=ac::setup::scanSystem("dreamcast",{{"dreamcastGameFolder",folder},{"dreamcastExecutable",program}},{},{},cancel);
+    for(const auto &id:{"dcrimson2","vcop2","confmiss"}){
+      QVERIFY2(entry(result,"missing",id).isEmpty(),id);
+      const auto reason=entry(result,"notRight",id)["reason"].toString();
+      QVERIFY2(reason.contains("no VR profile"),id);QVERIFY2(!reason.contains("not checked"),id);
+    }
+    QVERIFY(result["other"].toList().isEmpty());
   }
 };
 QTEST_APPLESS_MAIN(SetupTest)

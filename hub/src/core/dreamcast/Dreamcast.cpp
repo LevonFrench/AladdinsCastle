@@ -15,8 +15,8 @@ const QList<Game> &table(){
   {"hotd2","The House of the Dead 2",1999,{{"MK-51002","US",true},{"MK-5100250","PAL",true}},{"houseofthedead2","hotd2"}},
   {"confmiss","Confidential Mission",2001,{{"MK-51160","US",false}},{"confidentialmission","confmission","confmiss"}},
   {"dcox","Death Crimson OX",2001,{{"T2401N","US",false}},{"deathcrimsonox","crimsonox"}},
-  {"dcrimson2","Death Crimson 2",1999,{},{"deathcrimson2","deathcrimsonii"}},
-  {"vcop2","Virtua Cop 2",2000,{},{"virtuacop2","vcop2"}},
+  {"dcrimson2","Death Crimson 2",1999,{{"T23201M","Japan",false}},{"deathcrimson2","deathcrimsonii"}},
+  {"vcop2","Virtua Cop 2",2000,{{"HDR-0061","Japan",false}},{"virtuacop2","vcop2"}},
  };
  return games;
 }
@@ -34,7 +34,10 @@ QVariantList views(){
 QString viewLabel(const QString &view){for(const auto &value:views())if(value.toMap().value("id")==view)return value.toMap().value("label").toString();return {};}
 QVariantMap identify(const QString &file,std::atomic_bool &cancel){
  const QFileInfo info(file);
- const auto product=scan::Scanner::dreamcastProduct(info.absoluteFilePath(),cancel);
+ auto product=scan::Scanner::dreamcastProduct(info.absoluteFilePath(),cancel);
+ // A file named like one of the listed games is worth the longer read for its number.
+ if(product.isEmpty()){const auto name=squeezed(info.completeBaseName());bool named=false;for(const auto &game:table())for(const auto &word:game.words)named=named||name.contains(word);
+  if(named)product=scan::Scanner::dreamcastProduct(info.absoluteFilePath(),cancel,true);}
  QVariantMap disc{{"file",QDir::fromNativeSeparators(info.absoluteFilePath())},{"product",product},{"game",QString()},{"title",QString()},{"region",QString()},{"verified",false},{"profile",false}};
  const auto set=[&](const Game &game){disc["game"]=QString::fromLatin1(game.id);disc["title"]=QString::fromUtf8(game.title);};
  // The disc's own number decides when it can be read; the file name only suggests.

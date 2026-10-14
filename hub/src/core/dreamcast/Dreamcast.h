@@ -13,6 +13,7 @@ QVariantList views(); // id, label, help
 QString viewLabel(const QString &view);
 // What one disc image is: {file, game, title, product, region, verified, profile}.
 // "game" is empty when it is none of the listed games. Read-only.
+// A disc whose own number is listed is that game whatever its file is called.
 QVariantMap identify(const QString &file,std::atomic_bool &cancel);
 // The disc images directly inside a folder, identified. Subfolders are not entered.
 QVariantList discs(const QString &folder,std::atomic_bool &cancel);

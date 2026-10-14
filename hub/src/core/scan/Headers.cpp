@@ -464,7 +464,7 @@ QString katanaScan(const QString &path, qint64 limit, std::atomic_bool &cancel) 
   return {};
 }
 } // namespace
-QString Scanner::dreamcastProduct(const QString &path, std::atomic_bool &cancel) {
+QString Scanner::dreamcastProduct(const QString &path, std::atomic_bool &cancel, bool thorough) {
   const QFileInfo info(path);
   const auto ext = info.suffix().toLower();
   if (ext == "chd") {
@@ -525,7 +525,7 @@ QString Scanner::dreamcastProduct(const QString &path, std::atomic_bool &cancel)
     return {};
   }
   // A .cdi keeps a short first session before the game's own; a raw track starts with the header.
-  return katanaScan(path, ext == "cdi" ? 96 * 1024 * 1024 : 1024 * 1024, cancel);
+  return katanaScan(path, ext != "cdi" ? 1024 * 1024 : thorough ? 2048LL * 1024 * 1024 : 16 * 1024 * 1024, cancel);
 }
 FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
   QFileInfo info(path);

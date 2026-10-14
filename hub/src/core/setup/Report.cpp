@@ -16,10 +16,10 @@ namespace {
 using Scanner=QVariantMap(*)(const QVariantMap &,const QVariantMap &,const Progress &,std::atomic_bool &);
 QVariantMap item(const QString &id,const QString &title,const char *key,const QString &text){return {{"id",id},{"title",title},{QString::fromLatin1(key),text}};}
 struct Groups {
- QVariantList ready,notRight,missing;
+ QVariantList ready,notRight,missing,other;
  QVariantMap result(const QString &id,const QString &note)const{
   QString title;for(const auto &value:systems())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
-  return {{"id",id},{"title",title},{"note",note},{"ready",ready},{"notRight",notRight},{"missing",missing}};
+  return {{"id",id},{"title",title},{"note",note},{"ready",ready},{"notRight",notRight},{"missing",missing},{"other",other}};
  }
 };
 // The emulator's own list: per game, its parent and the files it must have, keyed
@@ -139,6 +139,10 @@ QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &,const 
   else if(id=="hotd2"){entry["reason"]=QString("This release (disc number %1) has no VR profile; only the US and PAL releases do. It still starts, with the wrong view and no hands.").arg(product);groups.notRight<<entry;}
   else{entry["reason"]=QString("It starts, but there is no VR profile for it yet: the view, the HUD and the hands will be wrong.")+(disc.value("verified").toBool()?QString():QString(" Found by its file name, not checked."));groups.notRight<<entry;}
  }
+ // Every other disc is named with its own number where that could be read, so a game that is there is never passed over in silence.
+ for(const auto &candidate:found){const auto c=candidate.toMap();if(!c.value("game").toString().isEmpty())continue;
+  const auto product=c.value("product").toString();
+  groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",product.isEmpty()?QString("number not read"):"disc number "+product}};}
  return groups.result("dreamcast",folder.isEmpty()?"No folder chosen for this system.":"New: not yet tried in a headset.");
 }
 QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const Progress &,std::atomic_bool &){

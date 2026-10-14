@@ -9,6 +9,7 @@ namespace ac::setup {
 //   ready    [{id,title,detail}]   the game, everything it needs and its program were found
 //   notRight [{id,title,reason}]   found but unusable, with the reason in plain words
 //   missing  [{id,title,expected}] in the Hub's list but not found; only the expected name is given
+//   other    [{title,detail}]      found in the folder but not in the Hub's list, so nothing present is hidden
 // plus id, title and an optional note. Scanning only reads the user's folders.
 using Progress=std::function<void(const QString &)>;
 // The files a game needs according to a Supermodel Games.xml: crc -> file name,

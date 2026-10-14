@@ -125,6 +125,8 @@ Item {
         }
         Para {visible:result.modelData.missing.length>0;font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")
          text:"Missing:  "+Array.from(result.modelData.missing).map(e=>e.title+" ("+e.expected+")").join(",  ")}
+        Para {objectName:"setupOther-"+result.modelData.id;visible:(result.modelData.other||[]).length>0;font.pixelSize:page.body-2;color:Theme.get("color.text.muted_detail")
+         text:{let all=Array.from(result.modelData.other||[]);return "Found, not in the Hub's list ("+all.length+"):  "+all.slice(0,6).map(e=>e.title+" ("+e.detail+")").join(",  ")+(all.length>6?",  and "+(all.length-6)+" more":"")}}
        }
       }
      }
