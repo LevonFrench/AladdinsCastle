@@ -1,0 +1,614 @@
+diff --git a/scripts/src/osd/modules.lua b/scripts/src/osd/modules.lua
+index 3b6cede8..a7c43502 100644
+--- a/scripts/src/osd/modules.lua
++++ b/scripts/src/osd/modules.lua
+@@ -152,6 +152,7 @@ function osdmodulesbuild()
+ 		MAME_DIR .. "src/osd/modules/sound/coreaudio_sound.cpp",
+ 		MAME_DIR .. "src/osd/modules/sound/js_sound.cpp",
+ 		MAME_DIR .. "src/osd/modules/sound/mmdevice_helpers.cpp",
++		MAME_DIR .. "src/osd/modules/sound/windows_audio_guids.cpp",
+ 		MAME_DIR .. "src/osd/modules/sound/mmdevice_helpers.h",
+ 		MAME_DIR .. "src/osd/modules/sound/none.cpp",
+ 		MAME_DIR .. "src/osd/modules/sound/pa_sound.cpp",
+diff --git a/scripts/src/osd/windows.lua b/scripts/src/osd/windows.lua
+index dcc98198..4952de80 100644
+--- a/scripts/src/osd/windows.lua
++++ b/scripts/src/osd/windows.lua
+@@ -44,6 +44,7 @@ function maintargetosdoptions(_target,_subtarget)
+ 		"comdlg32",
+ 		"dinput8",
+ 		"ole32",
++		"ksguid",
+ 		"psapi",
+ 		"shcore",
+ 		"shlwapi",
+diff --git a/src/mame/sega/model2.cpp b/src/mame/sega/model2.cpp
+index 21b42076..c32b794d 100644
+--- a/src/mame/sega/model2.cpp
++++ b/src/mame/sega/model2.cpp
+@@ -2528,6 +2528,20 @@ void model2_state::model2_screen(machine_config &config)
+ 	m_screen->set_screen_update(FUNC(model2_state::screen_update));
+ 	m_screen->screen_vblank().set(FUNC(model2_state::screen_vblank));
+ 
++	if (m_stereo.enabled)
++	{
++		m_screen->set_video_attributes(VIDEO_UPDATE_AFTER_VBLANK | VIDEO_ALWAYS_UPDATE);
++		// Presentation only: the original screen still supplies all hardware
++		// timing and interrupts. Both eyes use the same emulated frame.
++		SCREEN(config, m_stereo_screen);
++		m_stereo_screen->set_refresh_hz(16000000.0 / (656.0 * 424.0));
++		m_stereo_screen->set_size(992, 384);
++		m_stereo_screen->set_visarea_full();
++		m_stereo_screen->set_physical_aspect(992, 384);
++		m_stereo_screen->set_video_attributes(VIDEO_UPDATE_AFTER_VBLANK | VIDEO_ALWAYS_UPDATE);
++		m_stereo_screen->set_screen_update(FUNC(model2_state::stereo_screen_update));
++	}
++
+ 	PALETTE(config, m_palette).set_entries(8192);
+ }
+ 
+diff --git a/src/mame/sega/model2.h b/src/mame/sega/model2.h
+index 9dba100c..9e82b5a7 100644
+--- a/src/mame/sega/model2.h
++++ b/src/mame/sega/model2.h
+@@ -28,11 +28,13 @@
+ 
+ #include "emupal.h"
+ #include "screen.h"
++#include "model2_stereo.h"
+ 
+ #include <algorithm>
+ 
+ 
+ class model2_renderer;
++namespace model2_frames { class publisher; }
+ 
+ class model2_state : public driver_device
+ {
+@@ -66,6 +68,7 @@ public:
+ 		m_eeprom(*this, "eeprom"),
+ 		m_tiles(*this, "tile"),
+ 		m_screen(*this, "screen"),
++		m_stereo_screen(*this, "stereo"),
+ 		m_palette(*this, "palette"),
+ 		m_scsp(*this, "scsp"),
+ 		m_timers(*this, "timer%u", 0U),
+@@ -127,6 +130,7 @@ protected:
+ 	optional_device<eeprom_serial_93cxx_device> m_eeprom;
+ 	required_device<segas24_tile_device> m_tiles;
+ 	required_device<screen_device> m_screen;
++	optional_device<screen_device> m_stereo_screen;
+ 	required_device<palette_device> m_palette;
+ 	optional_device<scsp_device> m_scsp;
+ 	required_device_array<timer_device, 4> m_timers;
+@@ -153,6 +157,15 @@ protected:
+ 	std::unique_ptr<raster_state> m_raster;
+ 	std::unique_ptr<geo_state> m_geo;
+ 	bitmap_rgb32 m_sys24_bitmap;
++	model2_stereo::settings m_stereo;
++	render_target *m_stereo_target = nullptr;
++	bool m_stereo_measure_done = false;
++	std::shared_ptr<model2_frames::publisher> m_stereo_stream;
++	bool m_stereo_controls_active = false;
++	u32 m_stereo_snapshot_seen = 0;
++	float m_stereo_tangents[4] = {-0.3f, 0.3f, -0.225f, 0.225f};
++	bitmap_rgb32 m_stereo_scene[2];
++	bitmap_rgb32 m_stereo_eye[2];
+ 	u8 m_gearsel = 0;
+ 	u8 m_lightgun_mux = 0;
+ 
+@@ -229,6 +242,8 @@ protected:
+ 	void push_geo_data(u32 data);
+ 	void reset_model2_scsp();
+ 	u32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
++	u32 stereo_screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
++	void stereo_controls_update();
+ 	void screen_vblank(int state);
+ 	void sound_ready_w(int state);
+ 	template <int TNum> TIMER_DEVICE_CALLBACK_MEMBER(model2_timer_cb);
+@@ -240,6 +255,8 @@ protected:
+ 	void render_frame_start();
+ 	void geo_parse();
+ 	void render_polygons(bitmap_rgb32 &bitmap, const rectangle &cliprect);
++	void render_stereo_polygons(bitmap_rgb32 &left, bitmap_rgb32 &right, const rectangle &cliprect);
++	void measure_stereo_reference();
+ 	void draw_framebuffer(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+ 
+ 	void model2_timers(machine_config &config) ATTR_COLD;
+@@ -751,6 +768,9 @@ struct model2_state::polygon
+ 	int16_t         viewport[4] = { 0, 0, 0, 0 };
+ 	int16_t         center[2] = { 0, 0 };
+ 	u8              window = 0;
++	float           focal_x = 0;
++	float           focal_y = 0;
++	plane           eye_clip[4];
+ };
+ 
+ struct model2_state::quad_m2
+diff --git a/src/mame/sega/model2_v.cpp b/src/mame/sega/model2_v.cpp
+index 3a5bfa51..77d76ded 100644
+--- a/src/mame/sega/model2_v.cpp
++++ b/src/mame/sega/model2_v.cpp
+@@ -90,6 +90,10 @@
+ 
+ #include "emu.h"
+ #include "model2.h"
++#include "render.h"
++#include "model2_frames.h"
++#include "model2_input.h"
++#include "video.h"
+ #include "model2rd.ipp"
+ 
+ #include "corefloat.h"
+@@ -200,6 +204,8 @@ inline u16 model2_state::float_to_zval(float floatval, s32 z_adjust)
+ 
+ static int32_t clip_polygon(poly_vertex *v, int32_t num_vertices, poly_vertex *vout, model2_state::plane clip_plane)
+ {
++	if (!num_vertices)
++		return 0;
+ 	int32_t outcount = 0;
+ 
+ 	const poly_vertex *cur = v;
+@@ -458,12 +464,12 @@ void model2_state::model2_3d_process_polygon(raster_state *raster, u32 attr)
+ 		poly_vertex verts_in[8], verts_out[8];
+ 
+ 		for (int i = 0; i < NumVerts; i++)
+-			verts_in[i] = object.v[i];
++			verts_in[i] = verts_out[i] = object.v[i];
+ 
+ 		clipped_verts = NumVerts;
+ 
+ 		/* do clipping */
+-		for (int i = 0; i < 4; i++)
++		for (int i = 0; !m_stereo.enabled && i < 4; i++)
+ 		{
+ 			clipped_verts = clip_polygon(verts_in, clipped_verts, verts_out, raster->clip_plane[raster->center_sel][i]);
+ 			for (int j = 0; j < clipped_verts; j++)
+@@ -509,6 +515,10 @@ void model2_state::model2_3d_process_polygon(raster_state *raster, u32 attr)
+ 
+ 			/* set the window */
+ 			poly->window = raster->cur_window;
++			poly->focal_x = m_geo->focus.x;
++			poly->focal_y = m_geo->focus.y;
++			std::copy(std::begin(raster->clip_plane[raster->center_sel]),
++				std::end(raster->clip_plane[raster->center_sel]), poly->eye_clip);
+ 
+ 			poly->num_vertices = clipped_verts;
+ 
+@@ -740,6 +750,141 @@ void model2_state::render_polygons(bitmap_rgb32 &bitmap, const rectangle &clipre
+ 	m_render_done = true;
+ }
+ 
++void model2_state::measure_stereo_reference()
++{
++	const double seconds = model2_stereo::setting("ACVR_M2_MEASURE_SECOND", -1, 0, 10000000);
++	if (m_stereo_measure_done || seconds < 0 || machine().time().as_double() < seconds)
++		return;
++	const double target[2][2] = {
++		{ model2_stereo::setting("ACVR_M2_MEASURE_AX", 0, -10000, 10000), model2_stereo::setting("ACVR_M2_MEASURE_AY", 0, -10000, 10000) },
++		{ model2_stereo::setting("ACVR_M2_MEASURE_BX", 0, -10000, 10000), model2_stereo::setting("ACVR_M2_MEASURE_BY", 0, -10000, 10000) }
++	};
++	struct sample { double x = 0, y = 0, z = 0, error = 1e30, px = 0, py = 0, fx = 0, fy = 0; } picked[2];
++	for (int which = 0; which < 2; ++which)
++		for (unsigned p = 0; p < m_raster->poly_list_index; ++p)
++		{
++			const polygon &poly = m_raster->poly_list[p];
++			if (poly.focal_x <= 0 || poly.focal_y <= 0)
++				continue;
++			for (int v = 0; v < poly.num_vertices; ++v)
++			{
++				const poly_vertex &vertex = poly.v[v];
++				if (vertex.pz <= 0 || (which && std::abs(vertex.pz - picked[0].z) > 0.2 * picked[0].z))
++					continue;
++				const double x = m_crtc_xoffset + poly.center[0] + model2_stereo::focused_x(vertex.x,
++					vertex.pz, poly.focal_x, m_stereo.eye(0), m_stereo.zero()) / vertex.pz;
++				const double y = 384 - poly.center[1] + m_crtc_yoffset - vertex.y / vertex.pz;
++				const double error = std::hypot(x - target[which][0], y - target[which][1]);
++				if (error < picked[which].error)
++					picked[which] = {vertex.x / poly.focal_x, vertex.y / poly.focal_y, vertex.pz,
++						error, x, y, poly.focal_x, poly.focal_y};
++			}
++		}
++	const double span = std::sqrt(std::pow(picked[1].x - picked[0].x, 2) +
++		std::pow(picked[1].y - picked[0].y, 2) + std::pow(picked[1].z - picked[0].z, 2));
++	const double reference_m = model2_stereo::setting("ACVR_M2_REFERENCE_M", 1, 0.001, 1000000);
++	if (model2_stereo::setting("ACVR_M2_MEASURE_BODY", 0, 0, 1) == 1)
++	{
++		sample low, high;
++		low.y = 1e30;
++		high.y = -1e30;
++		const double xmin = model2_stereo::setting("ACVR_M2_MEASURE_XMIN", 0, -10000, 10000);
++		const double xmax = model2_stereo::setting("ACVR_M2_MEASURE_XMAX", 496, -10000, 10000);
++		const double ymin = model2_stereo::setting("ACVR_M2_MEASURE_YMIN", 0, -10000, 10000);
++		const double ymax = model2_stereo::setting("ACVR_M2_MEASURE_YMAX", 384, -10000, 10000);
++		for (unsigned p = 0; p < m_raster->poly_list_index; ++p)
++		{
++			const polygon &poly = m_raster->poly_list[p];
++			if (poly.focal_x <= 0 || poly.focal_y <= 0)
++				continue;
++			for (int v = 0; v < poly.num_vertices; ++v)
++			{
++				const poly_vertex &vertex = poly.v[v];
++				if (vertex.pz <= 0 || std::abs(vertex.pz - picked[0].z) > 0.1 * picked[0].z)
++					continue;
++				const double px = m_crtc_xoffset + poly.center[0] + model2_stereo::focused_x(vertex.x,
++					vertex.pz, poly.focal_x, m_stereo.eye(0), m_stereo.zero()) / vertex.pz;
++				const double py = 384 - poly.center[1] + m_crtc_yoffset - vertex.y / vertex.pz;
++				if (px < xmin || px > xmax || py < ymin || py > ymax)
++					continue;
++				const sample current = {vertex.x / poly.focal_x, vertex.y / poly.focal_y, vertex.pz,
++					0, px, py, poly.focal_x, poly.focal_y};
++				if (current.y < low.y) low = current;
++				if (current.y > high.y) high = current;
++			}
++		}
++		osd_printf_info("M2 upright reference: y=[%.9g,%.9g], bottom pixel=(%.3f,%.3f), top pixel=(%.3f,%.3f), height=%.9g world units, assumed height=%.9g metres, estimated units/metre=%.9g\n",
++			low.y, high.y, low.px, low.py, high.px, high.py, high.y - low.y, reference_m, (high.y - low.y) / reference_m);
++		m_stereo_measure_done = true;
++		return;
++	}
++	for (int i = 0; i < 2; ++i)
++		osd_printf_info("M2 reference %c: pixel=(%.3f,%.3f), error=%.3f px, view=(%.9g,%.9g,%.9g), focal=(%.9g,%.9g)\n",
++			'A' + i, picked[i].px, picked[i].py, picked[i].error, picked[i].x, picked[i].y, picked[i].z, picked[i].fx, picked[i].fy);
++	osd_printf_info("M2 reference: span=%.9g world units, assumed length=%.9g metres, estimated units/metre=%.9g\n",
++		span, reference_m, span / reference_m);
++	m_stereo_measure_done = true;
++}
++
++void model2_state::render_stereo_polygons(bitmap_rgb32 &left, bitmap_rgb32 &right, const rectangle &cliprect)
++{
++	raster_state *raster = m_raster.get();
++	if (!m_render_done)
++	{
++		measure_stereo_reference();
++		const rectangle scene_rect = m_screen->visible_area();
++		for (int eye = 0; eye < 2; ++eye)
++		{
++			m_renderer->destmap().fill(0);
++			m_renderer->fillmap().fill(0);
++			for (int window = raster->cur_window; window >= 0; --window)
++				for (int z = raster->min_z; z <= raster->max_z; ++z)
++					for (polygon *source = raster->poly_sorted_list[z]; source; source = static_cast<polygon *>(source->next))
++					{
++						if (source->window != window)
++							continue;
++						// Projection and texturing mutate vertices. Keep the shared
++						// view-space list intact for the other eye and later redraws.
++						polygon poly = *source;
++						poly_vertex input[8], output[8];
++						int count = poly.num_vertices;
++						for (int i = 0; i < count; ++i)
++						{
++							input[i] = poly.v[i];
++							input[i].x = model2_stereo::focused_x(input[i].x, input[i].pz,
++								poly.focal_x, m_stereo.eye(eye), m_stereo.zero());
++						}
++						// Clip separately for each shifted, parallel camera, before
++						// the perspective divide. No central-frustum edge loss.
++						for (int plane = 0; plane < 4 && count; ++plane)
++						{
++							count = clip_polygon(input, count, output, poly.eye_clip[plane]);
++							std::copy_n(output, count, input);
++						}
++						if (count < 3)
++							continue;
++						poly.num_vertices = count;
++						std::copy_n(input, count, poly.v);
++						model2_3d_project(&poly);
++						m_renderer->model2_3d_render(&poly, scene_rect);
++					}
++			m_renderer->wait("End of stereo eye");
++			copybitmap(m_stereo_scene[eye], m_renderer->destmap(), 0, 0, 0, 0, scene_rect);
++		}
++		m_render_done = true;
++	}
++	copybitmap_trans(left, m_stereo_scene[0], 0, 0, 0, 0, cliprect, 0);
++	copybitmap_trans(right, m_stereo_scene[1], 0, 0, 0, 0, cliprect, 0);
++}
++
++u32 model2_state::stereo_screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
++{
++	bitmap.fill(0, cliprect);
++	copybitmap(bitmap, m_stereo_eye[0], 0, 0, 0, 0, cliprect);
++	copybitmap(bitmap, m_stereo_eye[1], 0, 0, m_screen->visible_area().width(), 0, cliprect);
++	return 0;
++}
++
+ // direct framebuffer drawing (enabled with render test mode, Last Bronx title screen)
+ // pretty sure test mode cuts off DSP framebuffer drawing/clear, according to the manual description too
+ void model2_state::draw_framebuffer(bitmap_rgb32 &bitmap, const rectangle &cliprect)
+@@ -2368,6 +2513,25 @@ void model2_state::video_start()
+ 	int height = visarea.height();
+ 
+ 	m_sys24_bitmap.allocate(width, height+4);
++	if (m_stereo.enabled)
++	{
++		for (int eye = 0; eye < 2; ++eye)
++		{
++			m_stereo_scene[eye].allocate(512, 512);
++			m_stereo_scene[eye].fill(0);
++			m_stereo_eye[eye].allocate(width, height);
++			m_stereo_eye[eye].fill(0);
++		}
++		// A logical live target publishes this screen's texture even with
++		// -video none. Render targets themselves do not create OS windows.
++		m_stereo_target = machine().render().target_alloc();
++		m_stereo_target->set_view(m_stereo_target->configured_view("Screen 1", 0, 1));
++		if (model2_stereo::setting("ACVR_M2_STREAM", 0, 0, 1) == 1)
++		{
++			m_stereo_stream = std::make_shared<model2_frames::publisher>();
++			machine().add_notifier(MACHINE_NOTIFY_FRAME, machine_notify_delegate(&model2_state::stereo_controls_update, this));
++		}
++	}
+ 
+ 	m_renderer = std::make_unique<model2_renderer>(*this);
+ 
+@@ -2434,10 +2598,21 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
+ 		m_tiles->draw(screen, m_sys24_bitmap, cliprect, layer << 1, 0, 0);
+ 
+ 	copybitmap_trans(bitmap, m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
++	if (m_stereo.enabled)
++	{
++		m_stereo_eye[1].fill(m_palette->pen(0), cliprect);
++		copybitmap_trans(m_stereo_eye[1], m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
++	}
+ 
+ 	/* tell the rasterizer we're starting a frame */
+ 	if (m_render_test_mode == true)
++	{
+ 		draw_framebuffer(bitmap, cliprect);
++		if (m_stereo.enabled)
++			copybitmap(m_stereo_eye[1], bitmap, 0, 0, 0, 0, cliprect);
++	}
++	else if (m_stereo.enabled)
++		render_stereo_polygons(bitmap, m_stereo_eye[1], cliprect);
+ 	else
+ 		render_polygons(bitmap, cliprect);
+ 
+@@ -2448,5 +2623,63 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
+ 
+ 	copybitmap_trans(bitmap, m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
+ 
++	if (m_stereo.enabled)
++	{
++		copybitmap_trans(m_stereo_eye[1], m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
++		copybitmap(m_stereo_eye[0], bitmap, 0, 0, 0, 0, cliprect);
++		if (m_stereo_stream && cliprect.max_y == m_screen->visible_area().max_y)
++		{
++			int largest = -1;
++			for (unsigned p = 0; p < m_raster->poly_list_index; ++p)
++			{
++				const polygon &poly = m_raster->poly_list[p];
++				const int area = (poly.viewport[2] - poly.viewport[0]) * (poly.viewport[3] - poly.viewport[1]);
++				if (area <= largest || poly.focal_x <= 0 || poly.focal_y <= 0) continue;
++				largest = area;
++				const float cx = m_crtc_xoffset + poly.center[0], cy = 384 - poly.center[1] + m_crtc_yoffset;
++				m_stereo_tangents[0] = -cx / poly.focal_x;
++				m_stereo_tangents[1] = (496 - cx) / poly.focal_x;
++				m_stereo_tangents[2] = (cy - 384) / poly.focal_y;
++				m_stereo_tangents[3] = cy / poly.focal_y;
++			}
++			if (m_stereo_stream->publish(&m_stereo_eye[0].pix(0), &m_stereo_eye[1].pix(0),
++				m_stereo_eye[0].rowpixels(), m_stereo_eye[1].rowpixels(), m_stereo_tangents, m_stereo.zero_m, machine().time().as_double()))
++				machine().schedule_exit();
++		}
++	}
++
+ 	return 0;
+ }
++
++// Override the original input fields; the serial mux and border/reload logic
++// still read those ports normally. No mapping/viewer means no overrides.
++void model2_state::stereo_controls_update()
++{
++	ioport_port *xport = ioport("P1_X"), *yport = ioport("P1_Y");
++	if (!xport || !yport) return;
++	ioport_field *x = xport->field(0x3ff), *y = yport->field(0x3ff);
++	ioport_field *trigger = ioport("IN1")->field(0x01);
++	ioport_field *start = ioport("IN0")->field(0x10), *coin = ioport("IN0")->field(0x01);
++	if (!x || !y || !trigger || !start || !coin || x->type()!=IPT_LIGHTGUN_X || y->type()!=IPT_LIGHTGUN_Y) return;
++	model2_frames::controls input{};
++	const bool active = m_stereo_stream->read_controls(input) && model2_frames::publisher::fresh(input);
++	if (active)
++	{
++		x->set_value(model2_input::coordinate(input.u, x->minval(), x->maxval(), input.off_screen));
++		y->set_value(model2_input::coordinate(input.v, y->minval(), y->maxval(), input.off_screen));
++		trigger->set_value(input.trigger); start->set_value(input.start); coin->set_value(input.coin);
++	}
++	else if (m_stereo_controls_active)
++	{
++		x->clear_value(); y->clear_value(); trigger->clear_value(); start->clear_value(); coin->clear_value();
++	}
++	m_stereo_controls_active = active;
++	// Only an explicit development switch permits scripted snapshot requests.
++	if (active && input.snapshot_request != m_stereo_snapshot_seen && model2_stereo::setting("ACVR_M2_INPUT_TEST", 0, 0, 1) == 1)
++	{
++		m_stereo_snapshot_seen = input.snapshot_request;
++		machine().video().save_active_screen_snapshots();
++		std::printf("Controller proof snapshot %u at %.3f s: IN0=%02x IN1=%02x gun=(%u,%u) offscreen=%u\n",
++			input.snapshot_request, machine().time().as_double(), ioport("IN0")->read(), ioport("IN1")->read(), xport->read(), yport->read(), input.off_screen);
++	}
++}
+diff --git a/src/mame/sega/model2_frames.h b/src/mame/sega/model2_frames.h
+new file mode 100644
+--- /dev/null
++++ b/src/mame/sega/model2_frames.h
+@@ -0,0 +1,94 @@
++// license:BSD-3-Clause
++#ifndef MAME_SEGA_MODEL2_FRAMES_H
++#define MAME_SEGA_MODEL2_FRAMES_H
++#include <cstdint>
++#include <cstring>
++#ifdef _WIN32
++#ifndef NOMINMAX
++#define NOMINMAX
++#endif
++#include <windows.h>
++#include <cstdio>
++#endif
++
++namespace model2_frames {
++constexpr unsigned width = 496, height = 384, magic = 0x4d325352;
++constexpr unsigned protocol_version = 2;
++struct controls
++{
++	std::uint64_t heartbeat_ms;
++	std::uint32_t valid, off_screen, trigger, start, coin, snapshot_request;
++	float u, v;
++};
++struct frame
++{
++	std::uint32_t tag, version, w, h;
++	std::uint64_t serial;
++	float tan_l, tan_r, tan_b, tan_t, distance;
++	std::uint32_t exit_request;
++	double emulated_seconds;
++	controls input;
++	std::uint32_t pixels[2][height][width];
++};
++
++// Plain bitmap transport to a separate viewer, not a linked OpenXR module.
++class publisher
++{
++public:
++#ifdef _WIN32
++	publisher()
++	{
++		char name[80];
++		std::snprintf(name, sizeof(name), "Local\\ACVRM2-%lu", GetCurrentProcessId());
++		char lock_name[96]; std::snprintf(lock_name, sizeof(lock_name), "%s-lock", name);
++		m_lock = CreateMutexA(nullptr, TRUE, lock_name);
++		m_mapping = CreateFileMappingA(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(frame), name);
++		if (m_mapping) m_frame = static_cast<frame *>(MapViewOfFile(m_mapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(frame)));
++		if (m_frame) { std::memset(m_frame, 0, sizeof(frame)); m_frame->tag = magic; m_frame->version = protocol_version; m_frame->w = width; m_frame->h = height; }
++		if (m_lock) ReleaseMutex(m_lock);
++	}
++	~publisher() { if (m_frame) UnmapViewOfFile(m_frame); if (m_mapping) CloseHandle(m_mapping); if (m_lock) CloseHandle(m_lock); }
++	bool publish(const std::uint32_t *left, const std::uint32_t *right, unsigned stride_l, unsigned stride_r, const float *tangents, float distance, double seconds)
++	{
++		if (!m_frame || !m_lock) return false;
++		const DWORD result = WaitForSingleObject(m_lock, 0);
++		if (result != WAIT_OBJECT_0 && result != WAIT_ABANDONED) return false;
++		for (unsigned y = 0; y < height; ++y)
++		{
++			std::memcpy(m_frame->pixels[0][y], left + y * stride_l, width * 4);
++			std::memcpy(m_frame->pixels[1][y], right + y * stride_r, width * 4);
++		}
++		m_frame->tan_l = tangents[0]; m_frame->tan_r = tangents[1];
++		m_frame->tan_b = tangents[2]; m_frame->tan_t = tangents[3]; m_frame->distance = distance;
++		m_frame->emulated_seconds = seconds;
++		++m_frame->serial;
++		const bool exit = m_frame->exit_request != 0;
++		ReleaseMutex(m_lock);
++		return exit;
++	}
++	bool read_controls(controls &input)
++	{
++		if (!m_frame || !m_lock) return false;
++		const DWORD result = WaitForSingleObject(m_lock, 0);
++		if (result != WAIT_OBJECT_0 && result != WAIT_ABANDONED) { input = m_last_input; return true; }
++		input = m_last_input = m_frame->input;
++		ReleaseMutex(m_lock);
++		return true;
++	}
++	static bool fresh(const controls &input)
++	{
++		const auto now = GetTickCount64();
++		return input.valid && input.heartbeat_ms <= now && now - input.heartbeat_ms < 250;
++	}
++private:
++	HANDLE m_mapping = nullptr, m_lock = nullptr;
++	frame *m_frame = nullptr;
++	controls m_last_input{};
++#else
++	bool publish(const std::uint32_t *, const std::uint32_t *, unsigned, unsigned, const float *, float, double) { return false; }
++	bool read_controls(controls &) { return false; }
++	static bool fresh(const controls &) { return false; }
++#endif
++};
++}
++#endif
+diff --git a/src/mame/sega/model2_input.h b/src/mame/sega/model2_input.h
+new file mode 100644
+--- /dev/null
++++ b/src/mame/sega/model2_input.h
+@@ -0,0 +1,13 @@
++// license:BSD-3-Clause
++#ifndef MAME_SEGA_MODEL2_INPUT_H
++#define MAME_SEGA_MODEL2_INPUT_H
++#include <algorithm>
++#include <cmath>
++namespace model2_input {
++inline unsigned coordinate(float normalized, unsigned minimum, unsigned maximum, bool off_screen)
++{
++ if (off_screen || !std::isfinite(normalized)) return minimum;
++ return minimum + unsigned(std::lround(std::clamp(normalized,0.0f,1.0f)*(maximum-minimum)));
++}
++}
++#endif
+diff --git a/src/mame/sega/model2_stereo.h b/src/mame/sega/model2_stereo.h
+new file mode 100644
+--- /dev/null
++++ b/src/mame/sega/model2_stereo.h
+@@ -0,0 +1,40 @@
++// license:BSD-3-Clause
++#ifndef MAME_SEGA_MODEL2_STEREO_H
++#define MAME_SEGA_MODEL2_STEREO_H
++
++#include <cmath>
++#include <cstdlib>
++
++namespace model2_stereo {
++
++inline double setting(const char *name, double fallback, double minimum, double maximum)
++{
++	const char *text = std::getenv(name);
++	if (!text || !*text)
++		return fallback;
++	char *end = nullptr;
++	const double value = std::strtod(text, &end);
++	return end != text && !*end && std::isfinite(value) && value >= minimum && value <= maximum ? value : fallback;
++}
++
++struct settings
++{
++	bool enabled = setting("ACVR_M2_STEREO", 0, 0, 1) == 1;
++	double separation_m = setting("ACVR_M2_IPD_M", 0.064, 0, 0.2);
++	double units_per_m = setting("ACVR_M2_UNITS_PER_M", 1, 0.001, 1000000);
++	double zero_m = setting("ACVR_M2_ZERO_M", 4, 0.01, 1000000);
++
++	double eye(int index) const { return (index ? 0.5 : -0.5) * separation_m * units_per_m; }
++	double zero() const { return zero_m * units_per_m; }
++};
++
++// x has already been multiplied by the game's focal length. Translate the
++// parallel camera before dividing by z; the last term shifts the frustum so
++// points on the zero-parallax plane stay in the same screen position.
++inline float focused_x(float x, float z, float focal, double eye, double zero)
++{
++	return float(x + focal * eye * (z / zero - 1.0));
++}
++
++} // namespace model2_stereo
++#endif
+diff --git a/src/osd/modules/sound/windows_audio_guids.cpp b/src/osd/modules/sound/windows_audio_guids.cpp
+new file mode 100644
+--- /dev/null
++++ b/src/osd/modules/sound/windows_audio_guids.cpp
+@@ -0,0 +1,16 @@
++// license:BSD-3-Clause
++
++#if defined(_WIN32)
++
++// Emits storage for the audio property keys that MinGW-w64's headers only
++// declare unless INITGUID is set.
++#define INITGUID
++#include <windows.h>
++#include <initguid.h>
++#include <mmreg.h>
++#include <ks.h>
++#include <ksmedia.h>
++#include <mmdeviceapi.h>
++#include <functiondiscoverykeys_devpkey.h>
++
++#endif
