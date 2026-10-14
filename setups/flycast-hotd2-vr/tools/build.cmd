@@ -2,7 +2,7 @@
 rem Builds the patched hotd2-vr Flycast fork for Windows PC VR with the MSVC compiler.
 rem   build.cmd <source folder> <vcvars64.bat> <cmake.exe> <ninja.exe> [MSYS2 prefix to ignore]
 rem The CMake and Ninja are called by full path and never put on PATH. With an MSYS2 CMake, pass
-rem its prefix (for example C:/msys64/ucrt64, forward slashes) as the fifth argument:
+rem its prefix (its ucrt64 folder, with forward slashes) as the fifth argument:
 rem   CMAKE_IGNORE_PREFIX_PATH      keeps MSYS2's own zlib, jsoncpp and headers out of an MSVC build
 rem   PkgConfig disabled            for the same reason
 rem CMAKE_NINJA_CMCLDEPS_RC=OFF is always set: MSYS2's CMake has no cmcldeps for resource builds,
