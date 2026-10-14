@@ -286,7 +286,10 @@ QVariantList UiController::otherGames()const{
   for(const auto &value:views)if(value.toMap().value("id")==view)known=true;
   if(!known)view=views.first().toMap().value("id").toString();
   for(const auto &value:views)if(value.toMap().value("id")==view)row["viewLabel"]=value.toMap().value("label");
-  row["view"]=view;row["views"]=views;rows<<row;
+  row["view"]=view;row["views"]=views;
+  row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
+  row["accepted"]=m_settings->acceptedOn(row.value("id").toString(),row.value("title").toString());
+  rows<<row;
  };
  // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
  const auto model2Program=m_settings->get("model2Executable",QString()).toString(),model2Folder=m_settings->get("model2GameFolder",QString()).toString();
@@ -338,6 +341,9 @@ QVariantList UiController::model3Games()const{
   if(row.value("problem").toString().isEmpty())for(const auto &system:m_setupReport.value("systems").toList())if(system.toMap().value("id")=="model3")
    for(const auto &entry:system.toMap().value("notRight").toList())if(entry.toMap().value("id")==id)row["problem"]="The game file is not right. "+entry.toMap().value("reason").toString();
   row["card"]=game(id); // Catalog colours and art where the catalog has this title.
+  // Four separate facts: in the Hub's list, launch line known, found on this PC, accepted by the owner.
+  row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
+  row["accepted"]=m_settings->acceptedOn("model3-"+id,row.value("title").toString());
   rows<<row;
  }
  return rows;

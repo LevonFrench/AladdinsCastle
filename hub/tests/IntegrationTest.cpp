@@ -242,6 +242,25 @@ private slots:
     QVERIFY(!services.launchBusy());QCOMPARE(ac::install::readBytes(marker),QByteArray("complete"));
     QTest::qWait(200);QCOMPARE(codes.size(),1); // Exactly once.
  }
+ // Accepted in the headset is the owner's word only: an empty list accepts nothing, a found game included.
+ void acceptanceComesOnlyFromTheOwnersList(){
+    QTemporaryDir t;const auto emulator=t.filePath("emu"),media=t.filePath("games");
+    QVERIFY(QDir().mkpath(emulator+"/Config"));QVERIFY(QDir().mkpath(media));
+    ac::install::atomicWrite(emulator+"/Config/Games.xml","synthetic");ac::install::atomicWrite(emulator+"/program.exe","synthetic");ac::install::atomicWrite(media+"/scud.zip","synthetic");
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model3Executable",emulator+"/program.exe");settings.set("model3GameFolder",media);
+    QVERIFY(settings.createAcceptedList());const auto empty=ac::install::readBytes(settings.acceptedPath());
+    ac::UiController ui(&games,&filter,&settings);
+    const auto row=[&](const QString &id){for(const auto &value:ui.model3Games())if(value.toMap()["id"]==id)return value.toMap();return QVariantMap{};};
+    QVERIFY(row("scud")["found"].toBool());QVERIFY(row("scud")["launchKnown"].toBool());QVERIFY(row("scud")["accepted"].toString().isEmpty());
+    QVERIFY(!row("daytona2")["found"].toBool());
+    QVERIFY(settings.createAcceptedList());QCOMPARE(ac::install::readBytes(settings.acceptedPath()),empty); // Never overwritten.
+    ac::install::atomicWrite(settings.acceptedPath(),empty+"\"model3-scud\" = \"2026-10-14\"\n\"daytona usa 2\" = \"2026-10-15\"\n");
+    QVERIFY(row("scud")["accepted"].toString().isEmpty()); // Read again only when asked.
+    settings.reloadAccepted();
+    QCOMPARE(row("scud")["accepted"].toString(),QString("2026-10-14"));QCOMPARE(row("daytona2")["accepted"].toString(),QString("2026-10-15"));
+    QVERIFY(!row("daytona2")["found"].toBool()); // Accepted and found stay separate facts.
+ }
  void requiredM1GamesOfferFlatRoutes(){
     const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
     for(const auto &pair:QList<QPair<QString,QString>>{{"timecris","mame"},{"scud","supermodel"},{"ps2-time-crisis-2","pcsx2"}}){

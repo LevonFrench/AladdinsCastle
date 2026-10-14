@@ -184,7 +184,7 @@ QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &,const 
  for(const auto &candidate:found){const auto c=candidate.toMap();if(!c.value("game").toString().isEmpty())continue;
   const auto product=c.value("product").toString();
   groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",product.isEmpty()?QString("number not read"):"disc number "+product}};}
- return groups.result("dreamcast",folder.isEmpty()?"No folder chosen for this system.":"New: not yet tried in a headset.");
+ return groups.result("dreamcast",folder.isEmpty()?"No folder chosen for this system.":QString());
 }
 QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const Progress &,std::atomic_bool &){
  // The native build carries its game files in a "roms" folder beside the program.

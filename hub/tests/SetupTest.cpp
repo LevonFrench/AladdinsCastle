@@ -254,7 +254,7 @@ private slots:
     QVERIFY(entry(result,"notRight","confmiss")["reason"].toString().contains("no VR profile"));QVERIFY(entry(result,"notRight","confmiss")["startable"].toBool());
     QVERIFY(entry(result,"notRight","dcrimson2")["reason"].toString().contains("not checked"));
     QVERIFY(!entry(result,"missing","vcop2").isEmpty());QVERIFY(!entry(result,"missing","dcox").isEmpty());
-    QVERIFY(result["note"].toString().contains("not yet tried"));
+    QVERIFY(!result["note"].toString().contains("headset")); // Headset acceptance is the owner's list, not the scan's.
     // Discs the Hub does not list are still named, with their own number where it was read.
     QStringList others;for(const auto &value:result["other"].toList())others<<value.toMap()["title"].toString()+"|"+value.toMap()["detail"].toString();
     QCOMPARE(others,(QStringList{"no header|number not read","unrelated|disc number T-99999"}));

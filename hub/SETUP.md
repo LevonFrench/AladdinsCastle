@@ -41,6 +41,15 @@ Systems and their settings are listed in `src/core/setup/Setup.cpp`. Each check
 is one function in `src/core/setup/Report.cpp`; a system without one reports
 that it cannot be checked yet.
 
+## Four separate facts
+
+For each game Hub keeps apart: it is in Hub's list; how to start it is known;
+it was found on this PC (the report's "Found, can start"); and the owner has
+accepted it in the headset. Only the last needs a person: Hub reads it from
+`user/accepted.toml`, which it creates empty and never writes to again. Each
+line names a game by its id (such as `model3-scud`) or its title, with a date.
+Finding a game is never shown as accepting it.
+
 ## Starting
 
 **VR games** lists Model 3 (see [MODEL3.md](MODEL3.md)), Model 2, Time Crisis and
