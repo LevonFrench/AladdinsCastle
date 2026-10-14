@@ -61,6 +61,11 @@ namespace
   unsigned long     s_pubSerial = 0;
   ACVRPublish       s_pubInfo;                  // mode, poses and origin of the published frame
   bool              s_pubHasHud = false;
+  // GPU hand-off between the two contexts (sync objects are shared like the textures):
+  // s_pubReady is signalled when the game thread's copies into s_pubTex are complete,
+  // s_readDone when the XR thread has finished reading them. Each side waits on the other's.
+  GLsync            s_pubReady = nullptr;
+  GLsync            s_readDone = nullptr;
   ACVREyeView       s_latestViews[2];           // newest eye poses from the headset, for the game thread
   bool              s_latestValid = false;
   std::atomic<bool> s_stop(false);
@@ -416,35 +421,76 @@ namespace
   };
 
   // Copies the newest published pictures into the swapchains. Returns false when nothing can be shown.
+  // The swapchain images are acquired and waited for without holding the publication lock (a slow
+  // runtime cannot stall the game thread), in bounded waits that give up when the presenter stops.
   bool CopyPictures(GLuint readFbo, GLuint drawFbo, Shown &shown)
   {
-    std::lock_guard<std::mutex> guard(s_mutex);
-    if (s_pubSerial == 0 || !s_pubTex[0] || s_pubW == 0) return false;
-    if (!EnsureChains(s_pubW, s_pubH)) return false;
-    if (shown.serial == s_pubSerial) return true;      // the last released images are still right
+    unsigned w, h;
+    unsigned long serial;
+    bool hasHud;
+    {
+      std::lock_guard<std::mutex> guard(s_mutex);
+      if (s_pubSerial == 0 || !s_pubTex[0] || s_pubW == 0) return false;
+      w = s_pubW; h = s_pubH; serial = s_pubSerial; hasHud = s_pubHasHud;
+    }
+    if (!EnsureChains(w, h)) return false;
+    if (shown.serial == serial) return true;      // the last released images are still right
+
+    uint32_t index[CHAINS] = { 0, 0, 0 };
+    bool acquired[CHAINS] = { false, false, false };
+    bool ok = true;
+    for (int i = 0; i < CHAINS && ok; i++)
+    {
+      if (i == HUD && !hasHud) continue;
+      XrSwapchainImageAcquireInfo ai = { XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO };
+      if (!Check(p_xrAcquireSwapchainImage(s_chain[i], &ai, &index[i]), "xrAcquireSwapchainImage")) { ok = false; break; }
+      XrSwapchainImageWaitInfo wi = { XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO };
+      wi.timeout = 100000000;     // 100 ms, repeated until the image is ready or the presenter stops
+      XrResult r;
+      while ((r = p_xrWaitSwapchainImage(s_chain[i], &wi)) == XR_TIMEOUT_EXPIRED && !s_stop) {}
+      if (r != XR_SUCCESS)
+      {
+        // (an image that was acquired but never waited for cannot be released: the presenter is
+        // stopping or the runtime failed, and the swapchains are destroyed on the way out)
+        if (r != XR_TIMEOUT_EXPIRED) Check(r, "xrWaitSwapchainImage");
+        return false;
+      }
+      acquired[i] = true;
+    }
+
+    if (ok)
+    {
+      std::lock_guard<std::mutex> guard(s_mutex);
+      if (s_pubW != w || s_pubH != h)
+        ok = false;                               // resized meanwhile: the next frame picks it up
+      else
+      {
+        if (s_pubReady) glWaitSync(s_pubReady, 0, GL_TIMEOUT_IGNORED);   // the game thread's copies first
+        for (int i = 0; i < CHAINS; i++)
+        {
+          if (!acquired[i]) continue;
+          glBindFramebuffer(GL_READ_FRAMEBUFFER, readFbo);
+          glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_pubTex[i], 0);
+          glBindFramebuffer(GL_DRAW_FRAMEBUFFER, drawFbo);
+          glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_images[i][index[i]].image, 0);
+          glBlitFramebuffer(0, 0, w, h, 0, 0, s_chainW, s_chainH, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        if (s_readDone) glDeleteSync(s_readDone);
+        s_readDone = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);     // the game thread waits on this
+        glFlush();
+        shown.serial = s_pubSerial;
+        shown.info = s_pubInfo;
+        shown.hasHud = acquired[HUD];
+      }
+    }
     for (int i = 0; i < CHAINS; i++)
     {
-      if (i == HUD && !s_pubHasHud) continue;
-      uint32_t index = 0;
-      XrSwapchainImageAcquireInfo ai = { XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO };
-      if (!Check(p_xrAcquireSwapchainImage(s_chain[i], &ai, &index), "xrAcquireSwapchainImage")) return false;
-      XrSwapchainImageWaitInfo wi = { XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO };
-      wi.timeout = XR_INFINITE_DURATION;
-      if (!Check(p_xrWaitSwapchainImage(s_chain[i], &wi), "xrWaitSwapchainImage")) return false;
-      glBindFramebuffer(GL_READ_FRAMEBUFFER, readFbo);
-      glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_pubTex[i], 0);
-      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, drawFbo);
-      glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_images[i][index].image, 0);
-      glBlitFramebuffer(0, 0, s_pubW, s_pubH, 0, 0, s_chainW, s_chainH, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
-      glFlush();
+      if (!acquired[i]) continue;
       XrSwapchainImageReleaseInfo ri = { XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO };
-      if (!Check(p_xrReleaseSwapchainImage(s_chain[i], &ri), "xrReleaseSwapchainImage")) return false;
+      if (!Check(p_xrReleaseSwapchainImage(s_chain[i], &ri), "xrReleaseSwapchainImage")) ok = false;
     }
-    shown.serial = s_pubSerial;
-    shown.info = s_pubInfo;
-    shown.hasHud = s_pubHasHud;
-    return true;
+    return ok;
   }
 
   XrPosef PoseAhead(const float origin[3], float yaw, float up, float distance)
@@ -722,6 +768,14 @@ void ACVR_XR_Publish(const ACVRPublish &p)
 {
   if (!s_started || p.w == 0 || p.h == 0) return;
   std::lock_guard<std::mutex> guard(s_mutex);
+  // The XR thread must have finished reading the textures before they are overwritten or deleted
+  if (s_readDone)
+  {
+    if (!s_pubTex[0] || s_pubW != p.w || s_pubH != p.h)
+      glClientWaitSync(s_readDone, GL_SYNC_FLUSH_COMMANDS_BIT, 50000000);   // deleting: wait here, up to 50 ms
+    else
+      glWaitSync(s_readDone, 0, GL_TIMEOUT_IGNORED);                       // overwriting: the GPU waits
+  }
   if (!s_pubTex[0] || s_pubW != p.w || s_pubH != p.h)
   {
     if (s_pubTex[0]) { glDeleteFramebuffers(CHAINS, s_pubFboMain); glDeleteTextures(CHAINS, s_pubTex); }
@@ -751,7 +805,9 @@ void ACVR_XR_Publish(const ACVRPublish &p)
   }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   if (scissor) glEnable(GL_SCISSOR_TEST);
-  glFlush();            // make the copies visible to the other context
+  if (s_pubReady) glDeleteSync(s_pubReady);
+  s_pubReady = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);    // the XR thread waits on this before reading
+  glFlush();            // make the copies and the fence visible to the other context
   s_pubInfo = p;
   s_pubHasHud = p.hudFbo != 0;
   s_pubSerial++;
@@ -763,6 +819,13 @@ void ACVR_XR_Stop()
   s_stop = true;
   if (s_thread.joinable()) s_thread.join();
   s_started = false;
+  // Leave nothing behind for a later start: the fences, the XR thread's context and its window
+  if (s_pubReady) { glDeleteSync(s_pubReady); s_pubReady = nullptr; }
+  if (s_readDone) { glDeleteSync(s_readDone); s_readDone = nullptr; }
+  if (s_xrContext) { SDL_GL_DeleteContext(s_xrContext); s_xrContext = nullptr; }
+  if (s_xrWindow) { SDL_DestroyWindow(s_xrWindow); s_xrWindow = nullptr; }
+  s_poseSet = false;
+  s_latestValid = false;
   if (s_log) { fclose(s_log); s_log = nullptr; }
 }
 
