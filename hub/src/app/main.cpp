@@ -93,6 +93,11 @@ int main(int argc,char **argv){
     ac::UiSettings settings(portableRoot+"/user");ac::UiController ui(&games,&filter,&settings);
     ac::HubServices services(&games,&filter,&ui,&settings,portableRoot);
     const auto capture=qEnvironmentVariable("AC_UI_CAPTURE");
+    // Asked for on the set-up page only. Registration adds the manifest; it never switches on automatic start.
+    QObject::connect(&services,&ac::HubServices::steamVrRegistrationRequested,&app,[&services](const QString &manifest){
+        QString error;if(ac::changeOverlayRegistration(manifest,true,&error))error.clear();else if(error.isEmpty())error="SteamVR did not accept the request.";
+        services.steamVrAnswered(error);
+    });
     QObject::connect(&services,&ac::HubServices::hubExitReady,&app,[&app,capture](int code){
         if(capture.isEmpty())app.exit(code);
         else QTimer::singleShot(0,&app,[&app,code]{app.exit(code);}); // Finish observers before writing the exit receipt.
@@ -113,7 +118,8 @@ int main(int argc,char **argv){
     context->setContextProperty("gameModel",&games);context->setContextProperty("gameFilter",&filter);
     context->setContextProperty("uiSettings",&settings);context->setContextProperty("uiController",&ui);
     context->setContextProperty("hubServices",&services);context->setContextProperty("overlayHost",&overlay);
-    context->setContextProperty("startView",qEnvironmentVariable("AC_UI_VIEW"));
+    // The first start opens the set-up; AC_UI_VIEW names another first page for shortcuts and diagnostics.
+    context->setContextProperty("startView",qEnvironmentVariableIsSet("AC_UI_VIEW")?qEnvironmentVariable("AC_UI_VIEW"):settings.get("setupDone",false).toBool()?QString():QString("Setup"));
     context->setContextProperty("spikeState",&spike);context->setContextProperty("overlaySpikeEnabled",options.spike);
     context->setContextProperty("surfaceColor",theme.get("color.surface.window"));
     context->setContextProperty("primaryTextColor",theme.get("color.text.primary"));context->setContextProperty("brandColor",theme.get("color.brand.orange"));

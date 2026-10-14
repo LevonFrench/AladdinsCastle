@@ -62,6 +62,8 @@ add_library(hubcore STATIC
     src/core/pinball/Pinball.h
     src/core/model3/Model3.cpp
     src/core/model3/Model3.h
+    src/core/setup/Setup.cpp
+    src/core/setup/Setup.h
     src/core/scan/HeaderSafety.cpp
     src/core/scan/HeaderSafety.h
     src/core/scan/ScanController.cpp
@@ -201,6 +203,11 @@ if(BUILD_TESTING)
     ac_project_warnings(model3-tests)
     set_target_properties(model3-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-model3 COMMAND model3-tests -o -,txt)
+    qt_add_executable(setup-tests tests/SetupTest.cpp)
+    target_link_libraries(setup-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(setup-tests)
+    set_target_properties(setup-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-setup COMMAND setup-tests -o -,txt)
     qt_add_executable(pinball-settings-tests tests/PinballSettingsTest.cpp)
     target_link_libraries(pinball-settings-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(pinball-settings-tests)

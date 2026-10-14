@@ -151,6 +151,38 @@ private slots:
     QTRY_VERIFY_WITH_TIMEOUT(!ui.pinballScanning(),10000);
     QCOMPARE(QDir(folder).entryList(QDir::Files),QStringList{"synthetic table.vpx"});
  }
+ void setupRemembersChoicesAndAddsToSteamVrOnlyWhenAsked(){
+    QTemporaryDir t;const auto steam=t.filePath("steam"),list=steam+"/config/appconfig.json";
+    for(const auto &name:{"roms/model3","roms/model2","steam/config"})QVERIFY(QDir(t.path()).mkpath(name));
+    ac::install::atomicWrite(list,QJsonDocument(QJsonObject{{"manifest_paths",QJsonArray{}}}).toJson());
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));ac::UiController ui(&games,&filter,&settings);
+    ac::HubServices services(&games,&filter,&ui,&settings,t.path(),nullptr,[&]{return steam;});
+    const auto system=[&](const QString &id){for(const auto &value:ui.setupSystems())if(value.toMap()["id"]==id)return value.toMap();return QVariantMap{};};
+    // Nothing is ticked on a fresh start.
+    QCOMPARE(ui.setupKinds(),(QVariantMap{{"arcade",false},{"pinball",false},{"consoles",false}}));QVERIFY(!system("model3")["chosen"].toBool());
+    ui.setSetupKind("arcade",true);QVERIFY(system("model3")["chosen"].toBool());QVERIFY(system("model2")["chosen"].toBool());QVERIFY(!system("pinball")["chosen"].toBool());
+    ui.setSetupSystem("system22",false);QVERIFY(!system("system22")["chosen"].toBool());
+    // One folder chosen: the neighbour is found and used unless skipped.
+    ui.setSetupFolder("model3",t.filePath("roms/model3"));
+    QCOMPARE(system("model2")["guess"].toString(),QDir(t.filePath("roms/model2")).absolutePath());QVERIFY(system("model2")["folder"].toString().isEmpty());
+    ui.acceptSetupGuesses();QCOMPARE(settings.get("model2GameFolder").toString(),QDir(t.filePath("roms/model2")).absolutePath());
+    ui.finishSetup();ac::UiSettings saved(t.filePath("user"));
+    QVERIFY(saved.get("setupDone").toBool());QCOMPARE(saved.get("model3GameFolder").toString(),t.filePath("roms/model3"));
+    QCOMPARE(QDir(t.filePath("roms/model3")).entryList(QDir::AllEntries|QDir::NoDotAndDotDot),QStringList{});
+    // SteamVR: read from its list; the stand-in registrar is called only on request and only with this Hub's manifest.
+    QCOMPARE(ui.steamVr()["state"].toString(),QString("absent"));
+    QStringList asked;bool refuse=true;
+    connect(&services,&ac::HubServices::steamVrRegistrationRequested,this,[&](const QString &manifest){
+        asked<<manifest;
+        if(refuse){services.steamVrAnswered("SteamVR is not running.");return;}
+        ac::install::atomicWrite(list,QJsonDocument(QJsonObject{{"manifest_paths",QJsonArray{manifest}}}).toJson());services.steamVrAnswered(QString());
+    });
+    QVERIFY(asked.isEmpty());ui.addToSteamVr();
+    QCOMPARE(asked,QStringList{services.steamVrManifest()});QCOMPARE(ui.steamVr()["state"].toString(),QString("absent"));QVERIFY(ui.steamVr()["error"].toString().contains("not running"));
+    refuse=false;ui.addToSteamVr();QCOMPARE(asked.size(),2);
+    QCOMPARE(ui.steamVr()["state"].toString(),QString("added"));QVERIFY(ui.steamVr()["error"].toString().isEmpty());
+ }
  void requiredM1GamesOfferFlatRoutes(){
     const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
     for(const auto &pair:QList<QPair<QString,QString>>{{"timecris","mame"},{"scud","supermodel"},{"ps2-time-crisis-2","pcsx2"}}){

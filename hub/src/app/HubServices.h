@@ -62,6 +62,9 @@ public:
     Q_INVOKABLE void calibrateGunRoom(const QString &model,const QString &hand,const QString &executable);
     Q_INVOKABLE void requestHubExit(int code=0);
     void setPinballDiagnosticIni(const QString &path);
+    // SteamVR dashboard: the manifest this Hub would add, and the result of adding it.
+    QString steamVrManifest() const;
+    void steamVrAnswered(const QString &error);
 signals:
     void gunRoomChanged();
     void hubExitReady(int code);
@@ -69,6 +72,7 @@ signals:
     void steamPreviewChanged();
     void playingChanged();
     void raiseHubRequested();
+    void steamVrRegistrationRequested(const QString &manifest);
 private:
     QString catalogRoot() const;
     RuntimeState current(const QString &id) const;
@@ -84,6 +88,7 @@ private:
     void startPinball(const QVariantMap &row,const QString &executable);
     QString pinballVrRoot()const; // Empty when the user left the headset choice to VPX.
     void startModel3(const QString &id,const QString &view);
+    void refreshSteamVr(const QString &error={});
     gunroom::Inputs gunRoomInputs(const QString &model,const QString &hand,const QString &executable) const;
     GameListModel *games_; FilterSortModel *filter_; UiController *ui_;
     UiSettings *settings_; QString root_, removalText_;

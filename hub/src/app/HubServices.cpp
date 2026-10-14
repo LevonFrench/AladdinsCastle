@@ -3,6 +3,8 @@
 #include "core/install/Support.h"
 #include "core/pinball/Pinball.h"
 #include "core/model3/Model3.h"
+#include "core/setup/Setup.h"
+#include "ProductIdentity.h"
 #include <QDir>
 #include <QCoreApplication>
 #include <QFile>
@@ -105,6 +107,9 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         ui_->showError("Pinball","Table is no longer in the scan; scan again.");
     });
     connect(ui_,&UiController::model3PlayRequested,this,&HubServices::startModel3);
+    // The Hub never registers itself unasked: the set-up page asks, and whoever owns the VR runtime call answers.
+    connect(ui_,&UiController::steamVrRequested,this,[this]{emit steamVrRegistrationRequested(steamVrManifest());});
+    refreshSteamVr();
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
     connect(&scanner_,&scan::ScanController::scanStarted,ui_,&UiController::scanStarted);
@@ -245,6 +250,15 @@ HubServices::~HubServices(){
 }
 void HubServices::setPinballDiagnosticIni(const QString &path){
     pinballDiagnosticIni_=path.isEmpty()?QString():privatePinballIni(path,root_);
+}
+QString HubServices::steamVrManifest()const{return QDir(QCoreApplication::applicationDirPath()).filePath(QString("resources/")+product::short_id+".vrmanifest");}
+void HubServices::steamVrAnswered(const QString &error){refreshSteamVr(error);}
+void HubServices::refreshSteamVr(const QString &error){
+    // Read from SteamVR's own application list; AC_STEAMVR_APPCONFIG names another file for diagnostics.
+    auto list=qEnvironmentVariable("AC_STEAMVR_APPCONFIG");const auto steam=steamRootSource_();
+    if(list.isEmpty()&&!steam.isEmpty())list=QDir(steam).filePath("config/appconfig.json");
+    const auto state=list.isEmpty()?"no-steam":setup::steamVrLists(list,steamVrManifest())?"added":"absent";
+    ui_->setSteamVr({{"state",QString::fromLatin1(state)},{"error",error}});
 }
 QString HubServices::pinballVrRoot()const{return settings_->get("pinballHeadset",true).toBool()?root_:QString();}
 void HubServices::startPinball(const QVariantMap &row,const QString &executable){

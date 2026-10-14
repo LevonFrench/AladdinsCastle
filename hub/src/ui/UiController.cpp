@@ -2,6 +2,7 @@
 #include "UiController.h"
 #include "core/pinball/Pinball.h"
 #include "core/model3/Model3.h"
+#include "core/setup/Setup.h"
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
@@ -52,6 +53,7 @@ void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<Se
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_detailControls(this),m_games(games),m_filter(filter),m_settings(settings){
  connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
  connect(settings,&UiSettings::changed,this,&UiController::model3Changed);
+ connect(settings,&UiSettings::changed,this,&UiController::setupChanged);
  m_detailControls.configure(games->catalog().root,games->catalog().packIds);
  ControlsResolver pinballLibrary;QVariantMap pinballResolved;
  if(!pinballLibrary.loadLibrary(games->catalog().root,m_pinballControlsStatus)||
@@ -245,6 +247,35 @@ void UiController::launchPinballQueued(const QVariantMap &row,const QString &clo
  if(m_settings->get("pinballHeadset",true).toBool())m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table, Y exits and X opens the menu.";
  emit nowPlayingChanged();
 }
+QVariantMap UiController::setupKinds()const{
+ // Until the user says otherwise, a kind is ticked when one of its systems already has a folder.
+ const auto saved=m_settings->get("setupKinds",QVariantMap{}).toMap();
+ QVariantMap kinds{{"arcade",false},{"pinball",false},{"consoles",false}};
+ for(const auto &value:setup::systems()){const auto s=value.toMap();if(!m_settings->get(s.value("folderKey").toString(),QString()).toString().isEmpty())kinds[s.value("kind").toString()]=true;}
+ for(auto it=saved.begin();it!=saved.end();++it)if(kinds.contains(it.key()))kinds[it.key()]=it.value().toBool();
+ return kinds;
+}
+QVariantList UiController::setupSystems()const{
+ const auto kinds=setupKinds();const auto saved=m_settings->get("setupSystems",QVariantMap{}).toMap();
+ QStringList known;for(const auto &value:setup::systems())known<<m_settings->get(value.toMap().value("folderKey").toString(),QString()).toString();
+ QVariantList rows;
+ for(const auto &value:setup::systems()){
+  auto row=value.toMap();const auto id=row.value("id").toString();
+  row["folder"]=m_settings->get(row.value("folderKey").toString(),QString()).toString();
+  row["program"]=m_settings->get(row.value("programKey").toString(),QString()).toString();
+  // A system follows its kind unless the user ticked or cleared it itself.
+  row["chosen"]=kinds.value(row.value("kind").toString()).toBool()&&saved.value(id,true).toBool();
+  row["guess"]=row.value("folder").toString().isEmpty()?setup::guessFolder(id,known):QString();
+  rows<<row;
+ }
+ return rows;
+}
+void UiController::setSetupKind(const QString &kind,bool on){auto kinds=m_settings->get("setupKinds",QVariantMap{}).toMap();kinds[kind]=on;m_settings->set("setupKinds",kinds);}
+void UiController::setSetupSystem(const QString &id,bool on){auto systems=m_settings->get("setupSystems",QVariantMap{}).toMap();systems[id]=on;m_settings->set("setupSystems",systems);}
+void UiController::setSetupFolder(const QString &id,const QString &folder){for(const auto &value:setup::systems())if(value.toMap().value("id")==id)m_settings->set(value.toMap().value("folderKey").toString(),folder);}
+void UiController::setSetupProgram(const QString &id,const QString &program){for(const auto &value:setup::systems())if(value.toMap().value("id")==id)m_settings->set(value.toMap().value("programKey").toString(),program);}
+void UiController::acceptSetupGuesses(){for(const auto &value:setupSystems()){const auto row=value.toMap();if(row.value("chosen").toBool()&&!row.value("guess").toString().isEmpty())setSetupFolder(row.value("id").toString(),row.value("guess").toString());}}
+void UiController::finishSetup(){m_settings->set("setupDone",true);}
 QVariantList UiController::model3Views()const{return model3::views();}
 QVariantList UiController::model3Games()const{
  const auto executable=m_settings->get("model3Executable",QString()).toString(),folder=m_settings->get("model3GameFolder",QString()).toString();

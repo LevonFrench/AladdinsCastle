@@ -8,10 +8,12 @@ Popup{
  property bool vrOverlayMode:false
  signal settingsRequested()
  signal gunRoomRequested()
+ signal setupRequested()
  width:300;padding:12;modal:true;closePolicy:Popup.CloseOnEscape|Popup.CloseOnPressOutside
  background:Rectangle{color:Theme.get("color.surface.panel");radius:8;border.color:Theme.get("color.line.button")}
  Column{width:parent.width;spacing:8;UiText{text:"HELP & FEEDBACK";font.pixelSize:10;color:Theme.get("color.text.menu_caption")}
   PillButton{vrOverlayMode:panel.vrOverlayMode;text:"Settings";width:parent.width;onClicked:{panel.close();panel.settingsRequested()}}
+  PillButton{objectName:"helpSetup";vrOverlayMode:panel.vrOverlayMode;text:"Set-up";width:parent.width;onClicked:{panel.close();panel.setupRequested()}}
   PillButton{objectName:"helpGunRoom";text:"Gun room";visible:!panel.vrOverlayMode;width:parent.width;onClicked:{panel.close();panel.gunRoomRequested()}}
   PillButton{vrOverlayMode:panel.vrOverlayMode;text:"Suggest a game";width:parent.width;onClicked:uiController.openLink("https://github.com/LevonFrench/AladdinsCastle/issues/new")}
   PillButton{vrOverlayMode:panel.vrOverlayMode;text:"Logs and report a problem";width:parent.width;onClicked:uiController.openLocation("log")}
