@@ -240,11 +240,13 @@ are left +1/right -1: nearby geometry moves toward the opposite eye's side.
 
 Two completed GPU textures are retained at the full internal resolution. A
 staging pair and publication mutex prevent mixed-frame eyes. GPU fences protect
-handoff to a shared, surfaceless WGL context on the presenter's own thread.
+handoff to a shared WGL context on the presenter's own thread.
 The screen presenter adapts the ACVR implementation pinned in
 `upstream-pin.json`; no VR controller input or camera tracking is added.
 `PCSX2_OPENXR=1` runtime-loads the existing `openxr_loader.dll` and creates two
-OpenGL swapchains, matching the published dimensions. Each is submitted as a
+fixed 1920x1536 OpenGL swapchains, once per session. Output-size changes never
+recreate them: each eye is scaled to fit while preserving its pixel aspect,
+and the quad's image rectangle covers only that used region. Each is submitted as a
 quad visible only to its corresponding eye. The GL-to-quad copy flips rows;
 actual runtime orientation remains a headset acceptance check.
 
@@ -258,9 +260,10 @@ Portable live runs use `-portable -nogui -fastboot <native-disc-copy-path>` and
 `PCSX2_LIVE_HIDDEN=1`, with their own fresh configuration, BIOS and disc copies.
 Use OpenGL, `upscale_multiplier=3`, null/muted audio and native XInput default
 mapping for pad 1. Do not inherit an existing emulator configuration. Memory
-cards may remain disabled for menu/attract experiments. Escape requests graceful
-shutdown. `PCSX2_LIVE_STOP_FILE` supplies an optional private file-based shutdown
-request. Launchers require an already-running runtime; they must never start or
+cards may remain disabled for menu/attract experiments. Stop PS2.cmd writes
+`PCSX2_LIVE_STOP_FILE` for graceful shutdown from the program's frame loop.
+Launchers clear stale session files when no PCSX2 process is running and use a
+Windows mutex for launch coordination. They require an already-running runtime; they must never start or
 reconfigure SteamVR. All launcher/runtime files remain private.
 
 With `PCSX2_OPENXR=0`, no loader or runtime call occurs. The presenter thread
@@ -293,3 +296,25 @@ submission, Home recentring, physical gamepad play and speed with OpenXR active
 remain untested. The two measured game profiles above remain provisional; other
 launchers use an unvalidated generic Q-only profile. They do not constitute
 whole-game stereo acceptance.
+
+### Headset black-picture diagnostics
+
+The owner's first headset run reached an OpenXR session but failed swapchain
+creation with result -2. Output-size changes had repeatedly recreated the
+chains, and the runtime reported GL error 0x0501 (`GL_INVALID_VALUE`). The fix
+drains and logs GL errors before and after XR calls, including creation,
+acquire/wait/release and frame submission. Both blit FBO statuses are logged;
+only complete, successfully copied pairs are submitted. The first successful
+`xrEndFrame` containing two layers and the final counters are explicit log lines.
+If fixed-chain creation fails on the surfaceless context, the presenter destroys
+that session and retries once on a shared context with a real, never-shown 1x1
+Win32 window DC. It does not retry on every frame or output-size change.
+
+The private `00 PS2 headset check.cmd` requires the owner's already-running
+runtime, launches the first game, requests stop after 30 seconds, and records
+swapchain success, submitted frames, drained GL errors and new runtime client
+log lines. Graceful shutdown has a 15-second bound before terminating only its
+own child. No-headset checks exercise the same fixed-size sRGB blit and verify
+the used region against the vertically flipped published images. They do not
+prove runtime swapchains or visible headset output. The corrected headset
+picture remains an owner acceptance check.

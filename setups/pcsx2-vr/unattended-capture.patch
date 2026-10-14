@@ -337,7 +337,7 @@ index 03879ca..3b7c870 100644
  	MTGS::RunOnGSThread([frame_number = GSDumpReplayer::GetFrameNumber()]() { s_dump_frame_number = frame_number; });
  	MTGS::RunOnGSThread([loop_number = GSDumpReplayer::GetLoopCount()]() { s_loop_number = loop_number; });
 diff --git a/pcsx2-qt/QtHost.cpp b/pcsx2-qt/QtHost.cpp
-index 5c28f91..39f2e11 100644
+index 5c28f91..0619035 100644
 --- a/pcsx2-qt/QtHost.cpp
 +++ b/pcsx2-qt/QtHost.cpp
 @@ -915,7 +915,13 @@ void EmuThread::releaseRenderWindow()
@@ -355,7 +355,7 @@ index 5c28f91..39f2e11 100644
  }
  
  void Host::ReleaseRenderWindow()
-@@ -925,6 +931,17 @@ void Host::ReleaseRenderWindow()
+@@ -925,6 +931,14 @@ void Host::ReleaseRenderWindow()
  
  void Host::BeginPresentFrame()
  {
@@ -366,9 +366,6 @@ index 5c28f91..39f2e11 100644
 + bool stop = false;
 + if (const char* limit = std::getenv("PCSX2_LIVE_STOP_FRAME")) stop = frame >= std::strtoul(limit, nullptr, 10);
 + if (const char* request = std::getenv("PCSX2_LIVE_STOP_FILE")) stop |= FileSystem::FileExists(request);
-+#ifdef _WIN32
-+ stop |= (std::getenv("PCSX2_STEREO_LIVE") && (GetAsyncKeyState(VK_ESCAPE) & 0x8000));
-+#endif
 + if (stop) Host::RunOnCPUThread([]() { Host::RequestVMShutdown(false, false, false); });
  }
  
@@ -911,11 +908,11 @@ diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,369 @@
+@@ -0,0 +1,512 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
-+// explicit GPU hand-off fences, dynamic size and an OpenXR-disabled proof path.
++// explicit GPU hand-off fences, fixed swapchains and an OpenXR-disabled proof path.
 +// Included by GS.cpp; all renderer switching happens only on the GS thread.
 +#include "GS/Renderers/OpenGL/GLContext.h"
 +#include "GS/Renderers/HW/GSTextureCache.h"
@@ -923,6 +920,7 @@ new file mode 100644
 +#include "common/Image.h"
 +#include "PerformanceMetrics.h"
 +#include <atomic>
++#include <algorithm>
 +#include <chrono>
 +#include <mutex>
 +#include <condition_variable>
@@ -943,6 +941,15 @@ new file mode 100644
 + static std::unique_ptr<GSTextureCache> cache;
 + static std::array<GSTexture*, 7> scanout{};
 + static std::unique_ptr<GLContext> context;
++ static std::unique_ptr<GLContext> window_context;
++#ifdef _WIN32
++ static HWND presenter_window = nullptr;
++#endif
++ static constexpr u32 CHAIN_WIDTH = 1920, CHAIN_HEIGHT = 1536;
++ static unsigned long long drained_errors = 0, frames_with_layers = 0;
++ static bool swapchain_pair_created = false;
++ static bool fbo_logged[2] = {};
++ static bool using_window_dc = false;
 + static std::mutex mutex;
 + static std::condition_variable ready;
 + static bool proof_pending=false;
@@ -963,6 +970,48 @@ new file mode 100644
 +  return value ? StringUtil::FromChars<float>(value).value_or(fallback) : fallback;
 + }
 + static void LiveLog(const char* message) { if (live_log) { std::fprintf(live_log, "%s\n", message); std::fflush(live_log); } }
++ // Errors belong to a GL context. Drain at both sides of the boundary so a
++ // stale application error cannot be attributed to the runtime's next GL call.
++ static unsigned DrainGL(const char* phase, const char* operation)
++ {
++  unsigned count=0;
++  for (GLenum error; count<64 && (error=glGetError())!=GL_NO_ERROR; count++)
++  {
++   drained_errors++;
++   if (live_log) { std::fprintf(live_log,"GL error drained %s %s: 0x%04X (total=%llu)\n",phase,operation,error,drained_errors); std::fflush(live_log); }
++  }
++  if (count==64) LiveLog("GL error drain limit reached; context may be lost");
++  return count;
++ }
++ static GSVector2i UsedExtent()
++ {
++  const double scale=std::min({1.0,static_cast<double>(CHAIN_WIDTH)/width,static_cast<double>(CHAIN_HEIGHT)/height});
++  return GSVector2i(std::max(1,static_cast<int>(width*scale)),std::max(1,static_cast<int>(height*scale)));
++ }
++ static bool BlitEye(int eye, GLuint target, GLuint read_fbo, GLuint draw_fbo, const GSVector2i& used)
++ {
++  DrainGL("before","blit attachment setup");
++  glBindFramebuffer(GL_READ_FRAMEBUFFER,read_fbo);
++  glFramebufferTexture2D(GL_READ_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,eyes[eye],0);
++  glReadBuffer(GL_COLOR_ATTACHMENT0);
++  glBindFramebuffer(GL_DRAW_FRAMEBUFFER,draw_fbo);
++  glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,target,0);
++  glDrawBuffer(GL_COLOR_ATTACHMENT0);
++  const GLenum read_status=glCheckFramebufferStatus(GL_READ_FRAMEBUFFER);
++  const GLenum draw_status=glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
++  const bool complete=read_status==GL_FRAMEBUFFER_COMPLETE && draw_status==GL_FRAMEBUFFER_COMPLETE;
++  if (!fbo_logged[eye] || !complete)
++  {
++   if (live_log) { std::fprintf(live_log,"Blit FBO eye=%d read=0x%04X draw=0x%04X source=%ux%u used=%dx%d fixed=%ux%u\n",eye,read_status,draw_status,width,height,used.x,used.y,CHAIN_WIDTH,CHAIN_HEIGHT); std::fflush(live_log); }
++   fbo_logged[eye]=complete;
++  }
++  const unsigned attachment_errors=DrainGL("after","blit attachment setup / framebuffer status");
++  if (!complete || attachment_errors) return false;
++  // Source row zero is the GS picture top; GL OpenXR quads use bottom-left.
++  glBlitFramebuffer(0,height,width,0,0,0,used.x,used.y,GL_COLOR_BUFFER_BIT,GL_NEAREST);
++  glFinish(); // publication mutex protects GPU completion, not just submission
++  return DrainGL("after","glBlitFramebuffer / glFinish")==0;
++ }
 + static void SaveSharedProof()
 + {
 +  if (!context->MakeCurrent()) { LiveLog("Proof shared context MakeCurrent failed"); return; }
@@ -973,6 +1022,7 @@ new file mode 100644
 +   ready.wait(lock, []() { return stop || proof_pending; });
 +   if (stop) break;
 +   if (fence) glWaitSync(fence,0,GL_TIMEOUT_IGNORED);
++   DrainGL("after","shared fence wait");
 +   const char* path=std::getenv("PCSX2_LIVE_SAVE_PATH");
 +   if (path)
 +   {
@@ -984,6 +1034,35 @@ new file mode 100644
 +     image.SaveToFile(fmt::format("{}-shared-{}.png",path,eye ? "right" : "left").c_str());
 +    }
 +    LiveLog("Presenter-thread readback saved from both shared GPU textures");
++   }
++   if (path && Env("PCSX2_OPENXR_TEST_BLIT",0)!=0)
++   {
++    // Exercise the actual fixed-size, sRGB swapchain-copy path without loading
++    // OpenXR. Compare the used GPU region to the flipped published pixels.
++    GLuint targets[2]{}, fbos[2]{};
++    glCreateTextures(GL_TEXTURE_2D,2,targets); glGenFramebuffers(2,fbos);
++    for (GLuint target:targets) glTextureStorage2D(target,1,GL_SRGB8_ALPHA8,CHAIN_WIDTH,CHAIN_HEIGHT);
++    glDisable(GL_FRAMEBUFFER_SRGB); glDisable(GL_SCISSOR_TEST);
++    const GSVector2i used=UsedExtent();
++    for (int eye=0;eye<2;eye++)
++    {
++     const bool copied=BlitEye(eye,targets[eye],fbos[0],fbos[1],used);
++     std::vector<u32> result(static_cast<size_t>(CHAIN_WIDTH)*CHAIN_HEIGHT);
++     std::vector<u32> original(static_cast<size_t>(width)*height);
++     glGetTextureImage(targets[eye],0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<GLsizei>(result.size()*4),result.data());
++     glGetTextureImage(eyes[eye],0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<GLsizei>(original.size()*4),original.data());
++     bool exact=copied && used.x==static_cast<int>(width) && used.y==static_cast<int>(height);
++     std::vector<u32> crop(static_cast<size_t>(used.x)*used.y);
++     for (int y=0;y<used.y;y++)
++     {
++      std::copy_n(result.data()+static_cast<size_t>(y)*CHAIN_WIDTH,used.x,crop.data()+static_cast<size_t>(y)*used.x);
++      if (exact) exact=std::equal(crop.data()+static_cast<size_t>(y)*used.x,crop.data()+static_cast<size_t>(y+1)*used.x,original.data()+static_cast<size_t>(height-1-y)*width);
++     }
++     RGBA8Image image(used.x,used.y,std::move(crop)); image.SaveToFile(fmt::format("{}-blit-{}.png",path,eye ? "right" : "left").c_str());
++     if (live_log) { std::fprintf(live_log,"Fixed-target blit proof eye=%d copied=%d exact_vertical_flip=%d GL_errors_drained=%llu\n",eye,copied,exact,drained_errors); std::fflush(live_log); }
++    }
++    glDeleteFramebuffers(2,fbos); glDeleteTextures(2,targets);
++    DrainGL("after","fixed-target proof cleanup");
 +   }
 +   proof_pending=false; ready.notify_all();
 +  }
@@ -1008,9 +1087,16 @@ new file mode 100644
 + static XrSpace space = XR_NULL_HANDLE, view = XR_NULL_HANDLE;
 + static XrSwapchain chains[2]{};
 + static std::vector<XrSwapchainImageOpenGLKHR> images[2];
-+ static u32 chain_width = 0, chain_height = 0;
++ static bool chains_attempted = false;
 + static int64_t format = 0;
 + static HMODULE loader = nullptr;
++ template<class F, class... Args> static XrResult XRGL(const char* name, F function, Args... args)
++ {
++  DrainGL("before",name);
++  const XrResult result=function(args...);
++  DrainGL("after",name);
++  return result;
++ }
 + static bool Check(XrResult result, const char* operation)
 + {
 +  if (XR_SUCCEEDED(result)) return true;
@@ -1019,8 +1105,8 @@ new file mode 100644
 + }
 + static void DestroyChains()
 + {
-+  for (int eye=0; eye<2; eye++) { if (chains[eye]) p_xrDestroySwapchain(chains[eye]); chains[eye]=XR_NULL_HANDLE; images[eye].clear(); }
-+  chain_width=chain_height=0;
++  for (int eye=0; eye<2; eye++) { if (chains[eye]) XRGL("xrDestroySwapchain", p_xrDestroySwapchain, chains[eye]); chains[eye]=XR_NULL_HANDLE; images[eye].clear(); }
++  chains_attempted=false;
 + }
 + static bool InitXR()
 + {
@@ -1036,54 +1122,56 @@ new file mode 100644
 +  std::strcpy(ci.applicationInfo.engineName,"PCSX2");
 +  ci.applicationInfo.apiVersion=XR_MAKE_VERSION(1,0,0);
 +  ci.enabledExtensionCount=1; ci.enabledExtensionNames=extensions;
-+  if (!Check(createInstance(&ci,&instance),"xrCreateInstance")) return false;
++  if (!Check(XRGL("xrCreateInstance", createInstance, &ci,&instance),"xrCreateInstance")) return false;
 +  #define X(name) if (XR_FAILED(getProc(instance,#name,reinterpret_cast<PFN_xrVoidFunction*>(&p_##name))) || !p_##name) return false;
 +  PS2_XR_FUNCS(X)
 +  #undef X
 +  XrSystemGetInfo si{XR_TYPE_SYSTEM_GET_INFO}; si.formFactor=XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
 +  XrSystemId system{};
-+  if (!Check(p_xrGetSystem(instance,&si,&system),"xrGetSystem")) return false;
++  if (!Check(XRGL("xrGetSystem", p_xrGetSystem, instance,&si,&system),"xrGetSystem")) return false;
 +  XrGraphicsRequirementsOpenGLKHR req{XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR};
-+  if (!Check(p_xrGetOpenGLGraphicsRequirementsKHR(instance,system,&req),"OpenGL requirements")) return false;
++  if (!Check(XRGL("xrGetOpenGLGraphicsRequirementsKHR", p_xrGetOpenGLGraphicsRequirementsKHR, instance,system,&req),"OpenGL requirements")) return false;
 +  XrGraphicsBindingOpenGLWin32KHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR};
 +  binding.hDC=wglGetCurrentDC(); binding.hGLRC=wglGetCurrentContext();
 +  XrSessionCreateInfo sci{XR_TYPE_SESSION_CREATE_INFO}; sci.next=&binding; sci.systemId=system;
-+  if (!Check(p_xrCreateSession(instance,&sci,&session),"xrCreateSession")) return false;
++  if (!Check(XRGL("xrCreateSession", p_xrCreateSession, instance,&sci,&session),"xrCreateSession")) return false;
 +  XrReferenceSpaceCreateInfo rs{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
 +  rs.referenceSpaceType=XR_REFERENCE_SPACE_TYPE_LOCAL; rs.poseInReferenceSpace.orientation.w=1;
-+  if (!Check(p_xrCreateReferenceSpace(session,&rs,&space),"local space")) return false;
++  if (!Check(XRGL("xrCreateReferenceSpace", p_xrCreateReferenceSpace, session,&rs,&space),"local space")) return false;
 +  rs.referenceSpaceType=XR_REFERENCE_SPACE_TYPE_VIEW;
-+  if (!Check(p_xrCreateReferenceSpace(session,&rs,&view),"view space")) return false;
++  if (!Check(XRGL("xrCreateReferenceSpace", p_xrCreateReferenceSpace, session,&rs,&view),"view space")) return false;
 +  u32 n=0;
-+  if (!Check(p_xrEnumerateSwapchainFormats(session,0,&n,nullptr),"swapchain formats")) return false;
++  if (!Check(XRGL("xrEnumerateSwapchainFormats", p_xrEnumerateSwapchainFormats, session,0,&n,nullptr),"swapchain formats")) return false;
 +  std::vector<int64_t> formats(n);
-+  if (!n || !Check(p_xrEnumerateSwapchainFormats(session,n,&n,formats.data()),"swapchain formats")) return false;
++  if (!n || !Check(XRGL("xrEnumerateSwapchainFormats", p_xrEnumerateSwapchainFormats, session,n,&n,formats.data()),"swapchain formats")) return false;
 +  for (int64_t wanted : {static_cast<int64_t>(GL_SRGB8_ALPHA8),static_cast<int64_t>(GL_RGBA8)})
 +  { for (int64_t f:formats) if (f==wanted) { format=wanted; break; } if (format) break; }
 +  return format != 0;
 + }
 + static bool EnsureChains()
 + {
-+  if (chain_width==width && chain_height==height) return true;
-+  DestroyChains();
++  if (chains_attempted) return chains[0] && chains[1];
++  chains_attempted=true; // one creation attempt per session, independent of output size
 +  for (int eye=0; eye<2; eye++)
 +  {
 +   XrSwapchainCreateInfo ci{XR_TYPE_SWAPCHAIN_CREATE_INFO};
 +   ci.usageFlags=XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT|XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT;
-+   ci.format=format; ci.sampleCount=1; ci.width=width; ci.height=height; ci.faceCount=1; ci.arraySize=1; ci.mipCount=1;
-+   if (!Check(p_xrCreateSwapchain(session,&ci,&chains[eye]),"xrCreateSwapchain")) return false;
++   ci.format=format; ci.sampleCount=1; ci.width=CHAIN_WIDTH; ci.height=CHAIN_HEIGHT; ci.faceCount=1; ci.arraySize=1; ci.mipCount=1;
++   if (!Check(XRGL("xrCreateSwapchain", p_xrCreateSwapchain, session,&ci,&chains[eye]),"xrCreateSwapchain")) return false;
 +   u32 n=0;
-+   if (!Check(p_xrEnumerateSwapchainImages(chains[eye],0,&n,nullptr),"swapchain images")) return false;
++   if (!Check(XRGL("xrEnumerateSwapchainImages", p_xrEnumerateSwapchainImages, chains[eye],0,&n,nullptr),"swapchain images")) return false;
 +   images[eye].resize(n,{XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR});
-+   if (!n || !Check(p_xrEnumerateSwapchainImages(chains[eye],n,&n,reinterpret_cast<XrSwapchainImageBaseHeader*>(images[eye].data())),"swapchain images")) return false;
++   if (!n || !Check(XRGL("xrEnumerateSwapchainImages", p_xrEnumerateSwapchainImages, chains[eye],n,&n,reinterpret_cast<XrSwapchainImageBaseHeader*>(images[eye].data())),"swapchain images")) return false;
 +  }
-+  chain_width=width; chain_height=height; return true;
++  swapchain_pair_created=true;
++  if (live_log) { std::fprintf(live_log,"Swapchain pair created: fixed=%ux%u context=%s\n",CHAIN_WIDTH,CHAIN_HEIGHT,using_window_dc ? "hidden-window DC" : "surfaceless"); std::fflush(live_log); }
++  return true;
 + }
 + static bool PlaceScreen(XrTime time, XrPosef& pose)
 + {
 +  XrSpaceLocation loc{XR_TYPE_SPACE_LOCATION};
 +  const auto valid=XR_SPACE_LOCATION_POSITION_VALID_BIT|XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
-+  if (XR_FAILED(p_xrLocateSpace(view,space,time,&loc)) || (loc.locationFlags&valid)!=valid) return false;
++  if (XR_FAILED(XRGL("xrLocateSpace", p_xrLocateSpace, view,space,time,&loc)) || (loc.locationFlags&valid)!=valid) return false;
 +  const auto q=loc.pose.orientation;
 +  const float yaw=std::atan2(2*(q.x*q.z+q.w*q.y),1-2*(q.x*q.x+q.y*q.y));
 +  const float distance=Env("PCSX2_OPENXR_DISTANCE_M",2.5f);
@@ -1091,9 +1179,12 @@ new file mode 100644
 +  pose.position={loc.pose.position.x-std::sin(yaw)*distance,loc.pose.position.y,loc.pose.position.z-std::cos(yaw)*distance};
 +  LiveLog("Screen recentered at current head position/yaw"); return true;
 + }
-+ static void ThreadXR()
++ static bool PresentContext()
 + {
-+  if (!context->MakeCurrent()) { LiveLog("Shared GL context MakeCurrent failed"); return; }
++  if (!context->MakeCurrent()) { LiveLog("Shared GL context MakeCurrent failed"); return false; }
++  bool retry_window=false;
++  fbo_logged[0]=fbo_logged[1]=false;
++  LiveLog(using_window_dc ? "XR context attempt: hidden 1x1 window DC" : "XR context attempt: surfaceless");
 +  glDisable(GL_FRAMEBUFFER_SRGB); glDisable(GL_SCISSOR_TEST);
 +  if (InitXR())
 +  {
@@ -1104,13 +1195,13 @@ new file mode 100644
 +   while (!stop)
 +   {
 +    XrEventDataBuffer ev{XR_TYPE_EVENT_DATA_BUFFER};
-+    while (p_xrPollEvent(instance,&ev)==XR_SUCCESS)
++    while (XRGL("xrPollEvent", p_xrPollEvent, instance,&ev)==XR_SUCCESS)
 +    {
 +     if (ev.type==XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED)
 +     {
 +      auto state=reinterpret_cast<XrEventDataSessionStateChanged*>(&ev)->state;
-+      if (state==XR_SESSION_STATE_READY) { XrSessionBeginInfo bi{XR_TYPE_SESSION_BEGIN_INFO}; bi.primaryViewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO; running=Check(p_xrBeginSession(session,&bi),"xrBeginSession"); }
-+      if (state==XR_SESSION_STATE_STOPPING) { p_xrEndSession(session); running=false; }
++      if (state==XR_SESSION_STATE_READY) { XrSessionBeginInfo bi{XR_TYPE_SESSION_BEGIN_INFO}; bi.primaryViewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO; running=Check(XRGL("xrBeginSession", p_xrBeginSession, session,&bi),"xrBeginSession"); }
++      if (state==XR_SESSION_STATE_STOPPING) { XRGL("xrEndSession", p_xrEndSession, session); running=false; }
 +      if (state==XR_SESSION_STATE_EXITING || state==XR_SESSION_STATE_LOSS_PENDING) stop=true;
 +     }
 +     if (ev.type==XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING) stop=true;
@@ -1119,8 +1210,8 @@ new file mode 100644
 +    if (stop) break;
 +    if (!running) { std::this_thread::sleep_for(std::chrono::milliseconds(25)); continue; }
 +    XrFrameWaitInfo wi{XR_TYPE_FRAME_WAIT_INFO}; XrFrameState fs{XR_TYPE_FRAME_STATE};
-+    if (!Check(p_xrWaitFrame(session,&wi,&fs),"xrWaitFrame")) break;
-+    XrFrameBeginInfo bi{XR_TYPE_FRAME_BEGIN_INFO}; if (!Check(p_xrBeginFrame(session,&bi),"xrBeginFrame")) break;
++    if (!Check(XRGL("xrWaitFrame", p_xrWaitFrame, session,&wi,&fs),"xrWaitFrame")) break;
++    XrFrameBeginInfo bi{XR_TYPE_FRAME_BEGIN_INFO}; if (!Check(XRGL("xrBeginFrame", p_xrBeginFrame, session,&bi),"xrBeginFrame")) break;
 +    const bool home=(GetAsyncKeyState(VK_HOME)&0x8000)!=0;
 +    if (!placed || (home && !home_down)) placed=PlaceScreen(fs.predictedDisplayTime,pose);
 +    home_down=home;
@@ -1130,25 +1221,26 @@ new file mode 100644
 +    if (fs.shouldRender && placed)
 +    {
 +     std::lock_guard guard(mutex);
-+     if (serial && EnsureChains())
++     if (serial && !EnsureChains()) retry_window=true;
++     if (serial && !retry_window)
 +     {
 +      if (fence) glWaitSync(fence,0,GL_TIMEOUT_IGNORED);
++      DrainGL("after","shared fence wait");
++      const GSVector2i used=UsedExtent();
 +      for (int eye=0; eye<2; eye++)
 +      {
 +       u32 index=0; XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
-+       if (!Check(p_xrAcquireSwapchainImage(chains[eye],&ai,&index),"xrAcquireSwapchainImage")) break;
++       if (!Check(XRGL("xrAcquireSwapchainImage", p_xrAcquireSwapchainImage, chains[eye],&ai,&index),"xrAcquireSwapchainImage")) break;
 +       XrSwapchainImageWaitInfo swi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO}; swi.timeout=1000000000;
-+       if (!Check(p_xrWaitSwapchainImage(chains[eye],&swi),"xrWaitSwapchainImage")) break;
-+       glBindFramebuffer(GL_READ_FRAMEBUFFER,fbos[0]); glFramebufferTexture2D(GL_READ_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,eyes[eye],0);
-+       glBindFramebuffer(GL_DRAW_FRAMEBUFFER,fbos[1]); glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,images[eye][index].image,0);
-+       // GS texture row zero is the top of the picture; OpenXR GL quads use bottom-left.
-+       glBlitFramebuffer(0,height,width,0,0,0,width,height,GL_COLOR_BUFFER_BIT,GL_NEAREST);
-+       glFinish(); // publication mutex protects GPU use, not just submission
++       const XrResult waited=XRGL("xrWaitSwapchainImage", p_xrWaitSwapchainImage, chains[eye],&swi);
++       if (waited!=XR_SUCCESS) { Check(waited,"xrWaitSwapchainImage"); LiveLog("Swapchain image wait did not complete; stopping presenter"); stop=true; break; }
++       const bool copied=BlitEye(eye,images[eye][index].image,fbos[0],fbos[1],used);
 +       XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-+       if (!Check(p_xrReleaseSwapchainImage(chains[eye],&ri),"xrReleaseSwapchainImage")) break;
++       if (!Check(XRGL("xrReleaseSwapchainImage", p_xrReleaseSwapchainImage, chains[eye],&ri),"xrReleaseSwapchainImage")) break;
++       if (!copied) break;
 +       auto& q=quads[eye]; q.type=XR_TYPE_COMPOSITION_LAYER_QUAD; q.space=space;
 +       q.eyeVisibility=eye ? XR_EYE_VISIBILITY_RIGHT : XR_EYE_VISIBILITY_LEFT;
-+       q.subImage.swapchain=chains[eye]; q.subImage.imageRect.extent={static_cast<int32_t>(width),static_cast<int32_t>(height)};
++       q.subImage.swapchain=chains[eye]; q.subImage.imageRect.extent={used.x,used.y};
 +       q.pose=pose;
 +       q.size.width=Env("PCSX2_OPENXR_DISTANCE_M",2.5f)*native_width/Env("PCSX2_STEREO_FOCAL_PX",320);
 +       q.size.height=q.size.width/Env("PCSX2_OPENXR_ASPECT",4.0f/3.0f);
@@ -1157,19 +1249,56 @@ new file mode 100644
 +     }
 +    }
 +    XrFrameEndInfo ei{XR_TYPE_FRAME_END_INFO}; ei.displayTime=fs.predictedDisplayTime; ei.environmentBlendMode=XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
++    if (count!=2) count=0; // submit a complete eye pair or no picture
 +    ei.layerCount=count; ei.layers=count ? layers : nullptr;
-+    if (!Check(p_xrEndFrame(session,&ei),"xrEndFrame")) break;
++    const XrResult ended=XRGL("xrEndFrame", p_xrEndFrame, session,&ei);
++    if (!Check(ended,"xrEndFrame")) break;
++    if (count==2 && ended==XR_SUCCESS)
++    {
++     frames_with_layers++;
++     if (frames_with_layers==1) LiveLog("First successful xrEndFrame with layers: layers=2");
++     if (frames_with_layers%300==0 && live_log) { std::fprintf(live_log,"XR progress: frames_with_layers=%llu gl_errors_drained=%llu\n",frames_with_layers,drained_errors); std::fflush(live_log); }
++    }
++    if (retry_window) break;
 +   }
 +   glDeleteFramebuffers(2,fbos);
 +  }
 +  DestroyChains();
-+  if (view && p_xrDestroySpace) p_xrDestroySpace(view);
-+  if (space && p_xrDestroySpace) p_xrDestroySpace(space);
-+  if (session && p_xrDestroySession) p_xrDestroySession(session);
-+  if (instance && p_xrDestroyInstance) p_xrDestroyInstance(instance);
++  if (view && p_xrDestroySpace) XRGL("xrDestroySpace", p_xrDestroySpace, view);
++  if (space && p_xrDestroySpace) XRGL("xrDestroySpace", p_xrDestroySpace, space);
++  if (session && p_xrDestroySession) XRGL("xrDestroySession", p_xrDestroySession, session);
++  if (instance && p_xrDestroyInstance) XRGL("xrDestroyInstance", p_xrDestroyInstance, instance);
 +  view=space=XR_NULL_HANDLE; session=XR_NULL_HANDLE; instance=XR_NULL_HANDLE;
 +  if (loader) { FreeLibrary(loader); loader=nullptr; }
 +  context->DoneCurrent();
++  format=0;
++  return retry_window;
++ }
++ static void ThreadXR()
++ {
++  const bool retry=PresentContext();
++  if (retry && window_context && !using_window_dc && !stop)
++  {
++   LiveLog("Fixed swapchain creation failed; retrying one new session on hidden 1x1 window DC");
++   context.swap(window_context); using_window_dc=true;
++   PresentContext();
++  }
++  if (live_log) { std::fprintf(live_log,"OpenXR summary: swapchains_created=%s frames_with_layers=%llu gl_errors_drained=%llu context=%s\n",swapchain_pair_created ? "yes" : "no",frames_with_layers,drained_errors,using_window_dc ? "hidden-window DC" : "surfaceless"); std::fflush(live_log); }
++ }
++ static std::unique_ptr<GLContext> CreateWindowContext(GLContext* parent, Error* error)
++ {
++  const wchar_t* name=L"PCSX2StereoPresenter";
++  WNDCLASSW wc{}; wc.style=CS_OWNDC; wc.lpfnWndProc=DefWindowProcW;
++  wc.hInstance=GetModuleHandleW(nullptr); wc.lpszClassName=name;
++  if (!RegisterClassW(&wc) && GetLastError()!=ERROR_CLASS_ALREADY_EXISTS) return nullptr;
++  presenter_window=CreateWindowExW(0,name,L"PCSX2 stereo presenter",WS_POPUP,0,0,1,1,nullptr,nullptr,wc.hInstance,nullptr);
++  if (!presenter_window) return nullptr;
++  WindowInfo wi; wi.type=WindowInfo::Type::Win32; wi.window_handle=presenter_window;
++  wi.surface_width=wi.surface_height=1;
++  auto result=parent->CreateSharedContext(wi,error);
++  parent->MakeCurrent();
++  if (!result) { DestroyWindow(presenter_window); presenter_window=nullptr; }
++  return result;
 + }
 +#endif
 + static void Switch()
@@ -1195,7 +1324,8 @@ new file mode 100644
 + g_gs_renderer=std::make_unique<GSRendererHW>();
 + g_gs_renderer->SetRegsMem(basemem); g_gs_renderer->ResetPCRTC(); g_gs_renderer->UpdateRenderFixes();
 + std::swap(g_texture_cache,cache); std::swap(g_gs_renderer,renderer);
-+ enabled=true; other=false; stop=false; serial=0; ticks=0; proof_pending=false; GSDeviceOGL::SetStereoEye(1);
++ enabled=true; other=false; stop=false; serial=0; ticks=0; proof_pending=false;
++ drained_errors=frames_with_layers=0; swapchain_pair_created=false; using_window_dc=false; GSDeviceOGL::SetStereoEye(1);
 + g_gs_device->ResetStereoInterlacePhase();
 + live_log=std::fopen("pcsx2-live-stereo.log","w");
 + LiveLog("Live stereo: independent GS RAM, paths, render/depth caches and scanout history per eye");
@@ -1204,6 +1334,13 @@ new file mode 100644
 +  WindowInfo wi; wi.type=WindowInfo::Type::Surfaceless; wi.surface_width=16; wi.surface_height=16;
 +  auto* gl=static_cast<GSDeviceOGL*>(g_gs_device.get())->GetGLContext();
 +  context=gl->CreateSharedContext(wi,&error); gl->MakeCurrent();
++  if (Env("PCSX2_OPENXR",0)!=0 || Env("PCSX2_OPENXR_WINDOW_DC",0)!=0)
++  {
++   window_context=CreateWindowContext(gl,&error);
++   if (!window_context) LiveLog("Could not prepare hidden-window DC fallback");
++  }
++  if (Env("PCSX2_OPENXR_WINDOW_DC",0)!=0 && window_context)
++  { context.swap(window_context); using_window_dc=true; }
 +  if (context) thread=std::thread(Env("PCSX2_OPENXR",0)!=0 ? ThreadXR : SaveSharedProof);
 +  else { LiveLog(error.GetDescription().c_str()); Host::ReportErrorAsync("PCSX2 OpenXR","Could not create shared OpenGL context. See private live live_log."); }
 +#endif
@@ -1216,7 +1353,10 @@ new file mode 100644
 + stop=true;
 + ready.notify_all();
 + if (thread.joinable()) thread.join();
-+ context.reset();
++ context.reset(); window_context.reset();
++#ifdef _WIN32
++ if (presenter_window) { DestroyWindow(presenter_window); presenter_window=nullptr; }
++#endif
 + // Right-eye renderer destruction must occur with its own cache selected.
 + Switch(); g_gs_renderer->Destroy(); g_gs_renderer.reset();
 + g_gs_device->ClearCurrent();
