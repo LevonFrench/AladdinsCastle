@@ -4,6 +4,14 @@ The first start opens **Set-up**; later it is under **···**, **Set-up**. Hub
 ships no emulator and no game files. Everything it starts is the user's own, found
 through Hub's `user/hub-settings.toml`, which is never part of the repository.
 
+## In the headset
+
+Started from the desktop while SteamVR is running, Hub also opens as its
+SteamVR dashboard panel and shows the dashboard on it; its window stays on the
+monitor. `--desktop` keeps it a window only. Started while SteamVR is not running,
+it is a window only, as before. Adding Hub to SteamVR (below) does not by itself
+start it: SteamVR starts it only once "Choose Startup Overlay Apps" lists it as on.
+
 ## Pages
 
 1. **Welcome**: what Hub is, and that the user's folders are only read.

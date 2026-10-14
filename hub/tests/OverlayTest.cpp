@@ -80,6 +80,20 @@ private slots:
                      QPointF(corner.x()*1280,corner.y()*800));
         }
     }
+    void desktopStartBecomesAPanelOnlyWhileSteamVrRuns(){
+        auto options=ac::parseLaunchOptions({});
+        QVERIFY(!ac::applyAutoPanel(options,false,false));QCOMPARE(options.mode,ac::Mode::Desktop);
+        QVERIFY(!ac::applyAutoPanel(options,true,true));QCOMPARE(options.mode,ac::Mode::Desktop); // No display to share.
+        QVERIFY(ac::applyAutoPanel(options,true,false));
+        QCOMPARE(options.mode,ac::Mode::Overlay);QVERIFY(options.window);QVERIFY(options.showDashboard);QVERIFY(options.autoPanel);
+        QVERIFY(ac::shouldOpenDesktop(options,true));QVERIFY(ac::shouldOpenDesktop(options,false)); // The window stays either way.
+        auto desktop=ac::parseLaunchOptions({"--desktop"});QVERIFY(desktop.error.isEmpty());
+        QVERIFY(!ac::applyAutoPanel(desktop,true,false));QCOMPARE(desktop.mode,ac::Mode::Desktop);
+        // A Hub that SteamVR itself starts, or a launch, is left as it was asked for.
+        for(const auto &arguments:{QStringList{"--overlay","--steamvr-started"},QStringList{"--launch","synthetic"},QStringList{"--register-overlay"}}){
+            auto other=ac::parseLaunchOptions(arguments);const auto mode=other.mode;QVERIFY(!ac::applyAutoPanel(other,true,false));QCOMPARE(other.mode,mode);QVERIFY(!other.autoPanel);
+        }
+    }
     void independentOrientationCommandLine(){
         const auto defaults=ac::parseLaunchOptions({"--overlay"});
         QVERIFY(!defaults.pictureFlipY);

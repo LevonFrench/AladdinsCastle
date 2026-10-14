@@ -45,7 +45,7 @@ int main(int argc,char **argv){
            <<"  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n"
            <<"  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default off on Windows, on elsewhere)\n"
            <<"  --overlay-capture-dir <absolute fresh directory>  One source texture PNG/receipt under catalog .local (requires --overlay)\n"
-           <<"  --show-dashboard  Explicitly select this Hub's dashboard (requires --overlay)\n"
+           <<"  --show-dashboard  Explicitly select this Hub's dashboard (requires --overlay)\n  --desktop  Window only, even while SteamVR is running (by default the Hub then also opens as its dashboard panel)\n"
            <<"  --capture-compositor-dir <absolute fresh directory>  One compositor eye pair under catalog .local; existing service required\n"
            <<"  --compositor-dashboard any|visible|hidden  Snapshot visibility requirement (default any); never changes dashboard state\n"
            <<"  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;
@@ -74,6 +74,10 @@ int main(int argc,char **argv){
             return app.exec();
         }catch(const std::exception &e){failure(QString::fromUtf8(e.what()));return 2;}
     }
+    // Started from the desktop while SteamVR runs: also open as the dashboard panel. Diagnostic
+    // and offscreen runs never attach to SteamVR on their own.
+    if(qEnvironmentVariable("QT_QPA_PLATFORM")!="offscreen"&&!qEnvironmentVariableIsSet("AC_UI_CAPTURE"))
+        ac::applyAutoPanel(options,ac::launch::processRunning({"vrserver.exe","vrserver"}),false);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
     QCoreApplication::setApplicationName(ac::product::user_data_folder);QGuiApplication::setApplicationDisplayName(ac::product::display_name);QCoreApplication::setApplicationVersion("0.1.0");
@@ -178,7 +182,7 @@ int main(int argc,char **argv){
         ac::install::atomicWrite(capture+".json",QByteArray::fromStdString(receipt.dump(2)));
     });
     if(overlayInitialized&&options.showDashboard){
-        QString error;if(!overlay.showDashboard(&error)){err<<error<<'\n';overlay.shutdown();return 3;}
+        QString error;if(!overlay.showDashboard(&error)){err<<error<<'\n';if(!options.autoPanel){overlay.shutdown();return 3;}}
         out<<"Own dashboard show requested; compositor presentation requires verification.\n";
     }
     out<<ac::product::display_name<<": "<<count<<" games\n";out.flush();
