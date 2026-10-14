@@ -7,14 +7,15 @@
 namespace ac::model2 {
 // Sega Model 2 games through the user's own stereo MAME build and its viewer.
 // Two programs run together: the emulator, with no window of its own, and the
-// viewer that shows its picture in the headset. View only for now: the viewer
-// has no controls yet. Locations come from Hub settings, never the repository.
+// viewer that shows its picture in the headset. Controls exist for Virtua Cop 2
+// only, new and untested with real controllers; the other games are view only
+// for now. Locations come from Hub settings, never the repository.
 //
 // The build's folders, relative to the emulator program's folder:
 //   ../presenter/model2-viewer.exe   the viewer
 //   ../runtime                       the emulator's working folder
 //   ../captures                      where the emulator keeps its own snapshots
-QVariantList games(); // id (= set name), title, year
+QVariantList games(); // id (= set name), title, year, controls (a plain sentence about the controls)
 // Empty when the game can start; otherwise "What is wrong. What to do." Which
 // device sets a game needs beside it is the emulator's own knowledge: the set-up
 // scan asks the emulator (see setup::mameCheck) instead of keeping a list here.

@@ -5,8 +5,11 @@
 #include <QFileInfo>
 namespace ac::model2 {
 namespace {
-struct Game {const char *id,*title;int year;};
-const Game kGames[]={{"vcop2","Virtua Cop 2",1995},{"gunblade","Gunblade NY",1995},{"vf2","Virtua Fighter 2",1994}};
+struct Game {const char *id,*title;int year;const char *controls;};
+const char *const viewOnly="View only for now: no controls yet.";
+const Game kGames[]={
+ {"vcop2","Virtua Cop 2",1995,"Controls new, untested: aim with the right controller, the trigger shoots, shoot off the screen to reload, A = Start, B = Coin."},
+ {"gunblade","Gunblade NY",1995,viewOnly},{"vf2","Virtua Fighter 2",1994,viewOnly}};
 const Game *findGame(const QString &id){for(const auto &game:kGames)if(id==QLatin1String(game.id))return &game;return nullptr;}
 QString beside(const QString &program,const QString &path){return QDir::cleanPath(QFileInfo(program).absoluteDir().filePath("../"+path));}
 // Stereo and scale settings of the build. The scale was measured in one game and is used for all three.
@@ -18,7 +21,7 @@ const QList<QPair<QString,QString>> &settings(){
 }
 QVariantList games(){
  QVariantList result;
- for(const auto &game:kGames)result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year}};
+ for(const auto &game:kGames)result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",QString::fromUtf8(game.controls)}};
  return result;
 }
 QString problem(const QString &game,const QString &program,const QString &gameFolder){

@@ -288,13 +288,13 @@ QVariantList UiController::otherGames()const{
   for(const auto &value:views)if(value.toMap().value("id")==view)row["viewLabel"]=value.toMap().value("label");
   row["view"]=view;row["views"]=views;rows<<row;
  };
- // Model 2: checked as it is now, like Model 3. One view, and no controls yet.
+ // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
  const auto model2Program=m_settings->get("model2Executable",QString()).toString(),model2Folder=m_settings->get("model2GameFolder",QString()).toString();
  if(!model2Program.isEmpty()||!model2Folder.isEmpty())for(const auto &value:model2::games()){
   const auto game=value.toMap();
   add({{"id","model2-"+game.value("id").toString()},{"system","model2"},{"pill","MODEL 2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},
-   {"warning","View only for now: the game plays its attract sequence and there are no controls yet."},{"problem",model2::problem(game.value("id").toString(),model2Program,model2Folder)}},
-   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset. View only for now: no controls yet."}}});
+   {"warning",game.value("controls").toString()},{"problem",model2::problem(game.value("id").toString(),model2Program,model2Folder)}},
+   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
  }
  // Time Crisis: one native program, checked as it is now.
  const auto program=m_settings->get("system22Executable",QString()).toString();

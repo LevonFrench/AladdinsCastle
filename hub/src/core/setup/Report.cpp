@@ -152,10 +152,10 @@ QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &,const Pro
   // The billboard set only drives the cabinet's sign, so a stand-in for it is accepted and said.
   const auto check=mameCheck(xml,id,folder,{"segabill"},cancel);
   for(const auto &name:check.value("standIns").toStringList())if(!standIns.contains(name))standIns<<name;
-  if(check.value("ok").toBool())groups.ready<<item(id,title,"detail","Checked against the emulator's own list.");
+  if(check.value("ok").toBool())groups.ready<<item(id,title,"detail","Checked against the emulator's own list. "+game.value("controls").toString());
   else groups.notRight<<item(id,title,"reason",check.value("reason").toString());
  }
- QString note="View only for now: no controls yet.";
+ QString note="Virtua Cop 2: controls new, untested. Gunblade NY and Virtua Fighter 2: view only for now.";
  if(!standIns.isEmpty())note+=QString(" The %1 set here is a stand-in, which only leaves the cabinet's sign blank.").arg(standIns.join(", "));
  if(unchecked)note+=" Some games could not be checked against the emulator.";
  return groups.result("model2",folder.isEmpty()?"No folder chosen for this system.":note);

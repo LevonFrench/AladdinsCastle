@@ -284,8 +284,8 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             // The build's own runtime libraries, when the user's set-up names where they are.
             const auto libraries=settings_->get("model2RuntimePath",QString()).toString();
             if(!libraries.isEmpty())environment.insert("PATH",QDir::toNativeSeparators(libraries)+QDir::listSeparator()+environment.value("PATH"));
-            for(const auto &value:model2::games())if(value.toMap().value("id")==game)title=value.toMap().value("title").toString()+" · 3D screen";
-            hint="View only for now: no controls yet. Home = put the screen in front of you again. Use Stop game here to end it.";
+            for(const auto &value:model2::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · 3D screen";hint=value.toMap().value("controls").toString();}
+            hint+=" Home = put the screen in front of you again. Use Stop game here to end it.";
         }else if(id=="system22-timecris"){
             const QFileInfo program(settings_->get("system22Executable",QString()).toString());
             if(!program.isFile())throw install::Error("E_SYSTEM22_SETUP","The Time Crisis VR build is not set up. Choose its program in Set-up.");

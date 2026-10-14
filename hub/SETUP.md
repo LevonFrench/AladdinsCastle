@@ -24,7 +24,7 @@ through Hub's `user/hub-settings.toml`, which is never part of the repository.
 | System | Folder setting | Program setting | How a game is checked |
 |---|---|---|---|
 | Sega Model 3 | `model3GameFolder` | `model3Executable` | Zip directory checksums against the emulator's own `Config/Games.xml`; optional regions ignored; another version of the same game inside the zip is accepted, as the emulator does |
-| Sega Model 2 | `model2GameFolder` | `model2Executable` (the emulator; its viewer and working folder sit beside its folder), optional `model2RuntimePath` for the build's own libraries | The emulator build is asked for its own list of the game (`-listxml`, no window, nothing written): the game's files by checksum, and each device set that has files of its own. A stand-in for the billboard set is accepted and said. View only: no controls yet |
+| Sega Model 2 | `model2GameFolder` | `model2Executable` (the emulator; its viewer and working folder sit beside its folder), optional `model2RuntimePath` for the build's own libraries | The emulator build is asked for its own list of the game (`-listxml`, no window, nothing written): the game's files by checksum, and each device set that has files of its own. A stand-in for the billboard set is accepted and said. Controls on Virtua Cop 2 only, new and untested; the others are view only |
 | Namco System 22 | none | `system22Executable` | The native build and a non-empty `roms` folder beside it |
 | Visual Pinball | `pinballFolder` | `pinballExecutable` | The table scan: VR-ready, readable, ROM present |
 | Sega Dreamcast | `dreamcastGameFolder` | `dreamcastExecutable` | The disc's own product number, read from `.chd`, `.gdi`, `.cdi` or `.cue` images; the file name only when the number cannot be read |

@@ -214,7 +214,11 @@ private slots:
     QVERIFY(entry(result,"notRight","vcop2")["reason"].toString().contains("not set up"));QCOMPARE(entry(result,"missing","vf2")["expected"].toString(),QString("vf2.zip"));
     result=ac::setup::scanSystem("model2",{{"model2GameFolder",sets},{"model2Executable",program}},{},{},cancel);
     QVERIFY(entry(result,"ready","vcop2")["detail"].toString().contains("not checked"));
-    QVERIFY(result["note"].toString().contains("no controls yet"));QVERIFY(result["note"].toString().contains("could not be checked"));
+    QVERIFY(result["note"].toString().contains("could not be checked"));
+    // Controls were proven on one game only: the others stay view only.
+    QVERIFY(result["note"].toString().contains("Virtua Cop 2: controls new, untested"));QVERIFY(result["note"].toString().contains("view only for now"));
+    for(const auto &value:ac::model2::games()){const auto game=value.toMap();
+      QCOMPARE(game["controls"].toString().startsWith("Controls new, untested"),game["id"].toString()=="vcop2");}
   }
   void timeCrisisNeedsItsProgramAndTheFilesBesideIt() {
     QTemporaryDir t;std::atomic_bool cancel=false;const auto program=t.filePath("build/game.exe");
