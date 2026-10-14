@@ -56,7 +56,13 @@ class Checks(unittest.TestCase):
             for mode in ('desktop','vr'):
                 plan=self.helper_json('plan-pinball',str(f),HUB,str(p/'unused'),mode)
                 self.assertIs(plan.get('launchAllowed'),True)
-                self.assertEqual(plan['args'],['-Play',f.as_posix()])
+                self.assertEqual(plan['args'][:2],['-Play',f.as_posix()])
+                if mode=='vr':
+                    # The headset is asked for through a Hub-owned file under the owned root; planning creates nothing.
+                    self.assertEqual(plan['args'][2],'-TableIni');owned=pathlib.Path(plan['args'][3])
+                    self.assertEqual(owned.parent,p/'unused'/'user'/'pinball');self.assertRegex(owned.name,r'^[0-9a-f]{64}[.]ini$')
+                    self.assertEqual(len(plan['args']),4);self.assertEqual(plan['tableSettingsSeed'],'')
+                else:self.assertEqual(len(plan['args']),2)
                 self.assertEqual(pathlib.Path(plan['cwd']),pathlib.Path(HUB).parent)
                 self.assertNotIn('settings',plan)
                 self.assertIn('normal settings',plan['help'])

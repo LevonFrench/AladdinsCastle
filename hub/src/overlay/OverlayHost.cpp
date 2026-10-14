@@ -11,7 +11,7 @@
 namespace ac {
 OverlayHost::OverlayHost(SpikeState &state, std::unique_ptr<OverlayRuntime> runtime, QObject *parent)
     : QObject(parent), m_state(state), m_runtime(std::move(runtime)), m_keyboard(state,m_input,*m_runtime) {
-    m_input.setDiagnosticObserver([this](const auto &event,const auto &value){m_state.recordInput(event,value);});
+    m_input.setDiagnosticObserver([this](const auto &event,const auto &value){m_state.recordInput(event,value);logInput(event,value);});
     connect(&m_keyboard,&OverlayKeyboard::dirty,this,[this]{m_gate.markDirty();});
     m_timer.setTimerType(Qt::PreciseTimer); m_timer.setInterval(16);
     connect(&m_timer, &QTimer::timeout, this, &OverlayHost::tick);
@@ -23,6 +23,22 @@ OverlayHost::OverlayHost(SpikeState &state, std::unique_ptr<OverlayRuntime> runt
     });
 }
 OverlayHost::~OverlayHost() { shutdown(); }
+void OverlayHost::setInputLog(const QString &path) {
+    m_inputLog.close();m_inputLog.setFileName(path);m_inputLines=m_inputMoves=0;
+    if(m_inputLog.open(QIODevice::WriteOnly|QIODevice::Truncate|QIODevice::Text))
+        m_inputLog.write(QByteArray("ms type rawX rawY panelX panelY outcome | pointer flip ")+(m_state.flipY()?"on":"off")+", panel 1280x800\n");
+}
+void OverlayHost::logInput(const vr::VREvent_t &event,const OverlayObservation &value) {
+    if(!m_inputLog.isOpen()||m_inputLines>=4000)return;
+    // Plain moves are sampled; every press, release, scroll and refusal is kept.
+    const bool move=event.eventType==vr::VREvent_MouseMove&&value.reason=="move";
+    if(move&&(m_inputMoves++%15)!=0)return;
+    const bool mouse=event.eventType==vr::VREvent_MouseMove||event.eventType==vr::VREvent_MouseButtonDown||event.eventType==vr::VREvent_MouseButtonUp;
+    const auto line=QString("%1 %2 %3 %4 %5 %6 %7\n").arg(value.receiptMs).arg(event.eventType)
+        .arg(mouse?double(event.data.mouse.x):-1.0,0,'f',0).arg(mouse?double(event.data.mouse.y):-1.0,0,'f',0)
+        .arg(value.position.x(),0,'f',0).arg(value.position.y(),0,'f',0).arg(value.reason);
+    m_inputLog.write(line.toUtf8());m_inputLog.flush();++m_inputLines;
+}
 bool OverlayHost::initialize(QQmlEngine &engine, const QString &thumbnail, QString *error) {
     // Runtime failure is handled before allocating a rendering context.
     if (!m_runtime->initialize({1280, 800}, thumbnail, error)) return false;
@@ -61,6 +77,9 @@ void OverlayHost::tick() {
     // Only the offscreen QML item is made renderable for bootstrap. Native
     // visibility remains authoritative for input and keyboard cancellation.
     m_renderer->setVisible(visible||initialFrame);m_input.setVisible(visible);
+    if(m_inputLog.isOpen()&&visible!=m_loggedVisible&&m_inputLines<4000){
+        m_loggedVisible=visible;m_inputLog.write(QByteArray::number(m_clock.elapsed())+(visible?" panel-visible\n":" panel-hidden\n"));m_inputLog.flush();++m_inputLines;
+    }
     vr::VREvent_t event{};
     // Bound work per tick; an input flood must not starve Qt's event loop.
     for (int count = 0; count < 256 && m_runtime->pollEvent(&event); ++count) {

@@ -2,6 +2,10 @@
 #include "UiController.h"
 #include "core/pinball/Pinball.h"
 #include "core/model3/Model3.h"
+#include "core/setup/Setup.h"
+#include "core/dreamcast/Dreamcast.h"
+#include "core/model2/Model2.h"
+#include <QFileInfo>
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
@@ -52,6 +56,7 @@ void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<Se
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_detailControls(this),m_games(games),m_filter(filter),m_settings(settings){
  connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
  connect(settings,&UiSettings::changed,this,&UiController::model3Changed);
+ connect(settings,&UiSettings::changed,this,&UiController::setupChanged);
  m_detailControls.configure(games->catalog().root,games->catalog().packIds);
  ControlsResolver pinballLibrary;QVariantMap pinballResolved;
  if(!pinballLibrary.loadLibrary(games->catalog().root,m_pinballControlsStatus)||
@@ -234,6 +239,7 @@ void UiController::pinballLoaded(const QVariantMap &data){
 }
 void UiController::selectPinball(const QString &id){m_pinballSelection.clear();m_pinballPlan.clear();for(const auto &value:m_pinballData.value("tables").toList()){auto row=value.toMap();if(row.value("id")==id){m_pinballSelection=row;break;}}emit pinballChanged();}
 void UiController::scanPinball(){if(m_pinballScanning)return;const auto folder=m_settings->get("pinballFolder",QString()).toString();if(folder.isEmpty()){message("Choose your Pinball table folder first.");return;}m_pinballScanning=true;emit pinballChanged();emit pinballScanRequested(folder,m_settings->get("pinballDatabase",QString()).toString(),m_settings->get("pinballRoms",QString()).toString(),m_settings->get("pinballMedia",QString()).toString());}
+void UiController::openPinball(){const auto folder=m_settings->get("pinballFolder",QString()).toString();if(m_pinballScanning||m_pinballRaw.contains("tables")||folder.isEmpty())return;emit pinballRestoreRequested(folder,m_settings->get("pinballDatabase",QString()).toString(),m_settings->get("pinballRoms",QString()).toString(),m_settings->get("pinballMedia",QString()).toString());}
 void UiController::pinballFailed(const QString &error){m_pinballScanning=false;emit pinballChanged();message(error);}
 void UiController::markPinball(bool ready){const auto id=m_pinballSelection.value("id").toString();if(id.isEmpty())return;auto overrides=m_settings->get("pinballOverrides",QVariantMap{}).toMap();overrides[id]=ready;m_settings->set("pinballOverrides",overrides);pinballLoaded(m_pinballRaw);selectPinball(id);}
 void UiController::favouritePinball(){const auto id=m_pinballSelection.value("id").toString();if(id.isEmpty())return;auto favourites=m_settings->get("pinballFavourites",QVariantMap{}).toMap();favourites[id]=!favourites.value(id).toBool();m_settings->set("pinballFavourites",favourites);pinballLoaded(m_pinballRaw);selectPinball(id);}
@@ -241,7 +247,83 @@ void UiController::planPinball(){if(m_pinballSelection.isEmpty())return;emit pin
 void UiController::playPinball(){if(!m_pinballSelection.isEmpty())emit pinballPlayRequested(m_pinballSelection.value("id").toString());}
 void UiController::launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable){
  launchQueued("pinball-"+row.value("id").toString(),"vpx",closeUnavailable);
- m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");emit nowPlayingChanged();
+ m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");
+ if(m_settings->get("pinballHeadset",true).toBool())m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table, Y exits and X opens the menu.";
+ emit nowPlayingChanged();
+}
+QVariantMap UiController::setupKinds()const{
+ // Until the user says otherwise, a kind is ticked when one of its systems already has a folder.
+ const auto saved=m_settings->get("setupKinds",QVariantMap{}).toMap();
+ QVariantMap kinds{{"arcade",false},{"pinball",false},{"consoles",false}};
+ for(const auto &value:setup::systems()){const auto s=value.toMap();const auto key=s.value("folderKey").toString().isEmpty()?s.value("programKey").toString():s.value("folderKey").toString();if(!m_settings->get(key,QString()).toString().isEmpty())kinds[s.value("kind").toString()]=true;}
+ for(auto it=saved.begin();it!=saved.end();++it)if(kinds.contains(it.key()))kinds[it.key()]=it.value().toBool();
+ return kinds;
+}
+QVariantList UiController::setupSystems()const{
+ const auto kinds=setupKinds();const auto saved=m_settings->get("setupSystems",QVariantMap{}).toMap();
+ QStringList known;for(const auto &value:setup::systems())if(!value.toMap().value("folderKey").toString().isEmpty())known<<m_settings->get(value.toMap().value("folderKey").toString(),QString()).toString();
+ QVariantList rows;
+ for(const auto &value:setup::systems()){
+  auto row=value.toMap();const auto id=row.value("id").toString();
+  row["folder"]=row.value("folderKey").toString().isEmpty()?QString():m_settings->get(row.value("folderKey").toString(),QString()).toString();
+  row["program"]=m_settings->get(row.value("programKey").toString(),QString()).toString();
+  // A system follows its kind unless the user ticked or cleared it itself.
+  row["chosen"]=kinds.value(row.value("kind").toString()).toBool()&&saved.value(id,true).toBool();
+  row["guess"]=row.value("folder").toString().isEmpty()&&!row.value("folderKey").toString().isEmpty()?setup::guessFolder(id,known):QString();
+  rows<<row;
+ }
+ return rows;
+}
+void UiController::setSetupKind(const QString &kind,bool on){auto kinds=m_settings->get("setupKinds",QVariantMap{}).toMap();kinds[kind]=on;m_settings->set("setupKinds",kinds);}
+void UiController::setSetupSystem(const QString &id,bool on){auto systems=m_settings->get("setupSystems",QVariantMap{}).toMap();systems[id]=on;m_settings->set("setupSystems",systems);}
+void UiController::setSetupFolder(const QString &id,const QString &folder){for(const auto &value:setup::systems())if(value.toMap().value("id")==id&&!value.toMap().value("folderKey").toString().isEmpty())m_settings->set(value.toMap().value("folderKey").toString(),folder);}
+void UiController::setSetupProgram(const QString &id,const QString &program){for(const auto &value:setup::systems())if(value.toMap().value("id")==id)m_settings->set(value.toMap().value("programKey").toString(),program);}
+void UiController::acceptSetupGuesses(){for(const auto &value:setupSystems()){const auto row=value.toMap();if(row.value("chosen").toBool()&&!row.value("guess").toString().isEmpty())setSetupFolder(row.value("id").toString(),row.value("guess").toString());}}
+void UiController::finishSetup(){m_settings->set("setupDone",true);}
+QVariantList UiController::otherGames()const{
+ const auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();QVariantList rows;
+ const auto add=[&](QVariantMap row,const QVariantList &views){
+  auto view=chosen.value(row.value("id").toString()).toString();bool known=false;
+  for(const auto &value:views)if(value.toMap().value("id")==view)known=true;
+  if(!known)view=views.first().toMap().value("id").toString();
+  for(const auto &value:views)if(value.toMap().value("id")==view)row["viewLabel"]=value.toMap().value("label");
+  row["view"]=view;row["views"]=views;rows<<row;
+ };
+ // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
+ const auto model2Program=m_settings->get("model2Executable",QString()).toString(),model2Folder=m_settings->get("model2GameFolder",QString()).toString();
+ if(!model2Program.isEmpty()||!model2Folder.isEmpty())for(const auto &value:model2::games()){
+  const auto game=value.toMap();
+  add({{"id","model2-"+game.value("id").toString()},{"system","model2"},{"pill","MODEL 2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},
+   {"warning",game.value("controls").toString()},{"problem",model2::problem(game.value("id").toString(),model2Program,model2Folder)}},
+   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
+ }
+ // Time Crisis: one native program, checked as it is now.
+ const auto program=m_settings->get("system22Executable",QString()).toString();
+ if(!program.isEmpty())add({{"id","system22-timecris"},{"system","system22"},{"pill","SYSTEM 22"},{"title","Time Crisis"},{"year",1996},{"file",QString()},{"warning",QString()},
+  {"problem",QFileInfo(program).isFile()?QString():QString("Time Crisis VR build not found. Use Set-up.")}},
+  {QVariantMap{{"id","vr"},{"label","In the headset"},{"help","The whole game around you, with a tracked gun. Start your headset's runtime first."}}});
+ // Dreamcast: the discs of the last scan. A disc without a VR profile starts behind a warning.
+ const auto dreamcastProgram=m_settings->get("dreamcastExecutable",QString()).toString();
+ for(const auto &system:m_setupReport.value("systems").toList()){
+  if(system.toMap().value("id")!="dreamcast")continue;
+  QHash<QString,int> years;for(const auto &value:dreamcast::games())years.insert(value.toMap().value("id").toString(),value.toMap().value("year").toInt());
+  const auto row=[&](const QVariantMap &entry){return QVariantMap{{"id","dreamcast-"+entry.value("id").toString()},{"system","dreamcast"},{"pill","DREAMCAST"},{"title",entry.value("title")},{"year",years.value(entry.value("id").toString())},{"file",entry.value("file")},{"warning",QString()},{"problem",QString()}};};
+  for(const auto &value:system.toMap().value("ready").toList()){auto r=row(value.toMap());if(!QFileInfo(dreamcastProgram).isFile())r["problem"]="Dreamcast VR build not found. Use Set-up.";add(r,dreamcast::views());}
+  for(const auto &value:system.toMap().value("notRight").toList()){const auto entry=value.toMap();auto r=row(entry);
+   if(entry.value("startable").toBool()&&QFileInfo(dreamcastProgram).isFile())r["warning"]=entry.value("reason");else r["problem"]=entry.value("reason");add(r,dreamcast::views());}
+  for(const auto &value:system.toMap().value("missing").toList()){const auto entry=value.toMap();auto r=row(entry);r["problem"]="Not found. The Hub looks for: "+entry.value("expected").toString();add(r,dreamcast::views());}
+ }
+ return rows;
+}
+void UiController::chooseGameView(const QString &id,const QString &view){auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();if(chosen.value(id)==view)return;chosen[id]=view;m_settings->set("gameViews",chosen);}
+void UiController::playOtherGame(const QString &id){for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}}
+void UiController::launchOtherQueued(const QString &id,const QString &view,const QString &title,const QString &hint,const QString &closeUnavailable){
+ launchQueued(id,view,closeUnavailable);m_nowPlaying["title"]=title;if(!hint.isEmpty())m_nowPlaying["hint"]=hint;emit nowPlayingChanged();
+}
+void UiController::scanSetup(){
+ if(m_setupScanning)return;
+ QStringList ids;for(const auto &value:setupSystems())if(value.toMap().value("chosen").toBool())ids<<value.toMap().value("id").toString();
+ m_setupScanning=true;m_setupProgress="Starting";emit setupChanged();emit setupScanRequested(ids);
 }
 QVariantList UiController::model3Views()const{return model3::views();}
 QVariantList UiController::model3Games()const{
@@ -253,6 +335,9 @@ QVariantList UiController::model3Games()const{
   auto view=chosen.value(id).toString();if(model3::viewLabel(view).isEmpty())view="screen";
   row["view"]=view;row["viewLabel"]=model3::viewLabel(view);
   row["problem"]=model3::problem(id,executable,folder);
+  // A file that is there but wrong for this emulator is known only from the last scan.
+  if(row.value("problem").toString().isEmpty())for(const auto &system:m_setupReport.value("systems").toList())if(system.toMap().value("id")=="model3")
+   for(const auto &entry:system.toMap().value("notRight").toList())if(entry.toMap().value("id")==id)row["problem"]="The game file is not right. "+entry.toMap().value("reason").toString();
   row["card"]=game(id); // Catalog colours and art where the catalog has this title.
   rows<<row;
  }

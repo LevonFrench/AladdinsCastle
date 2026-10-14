@@ -12,8 +12,12 @@ Picture and pointer overrides are independent and accessible before the panel:
 aladdinscastle-hub --overlay --window --spike --overlay-picture-flip-y off --overlay-pointer-flip-y on
 ```
 
-Picture defaults to `off`. Pointer defaults to `on`, retaining OpenVR's
-bottom-left to Qt top-left conversion. The desktop diagnostic's compact **Flip Y**
+Picture defaults to `off`. Pointer defaults to `off` on Windows, where SteamVR
+reports positions from the top-left of the panel as shown (Valve's own Qt overlay
+sample uses them unchanged), and to `on` elsewhere, which is the OpenVR header's
+bottom-left to Qt top-left conversion. An overlay run also writes
+`user/logs/overlay-input.log`: sampled pointer positions and the outcome of every
+press, release and refusal, no text. The desktop diagnostic's compact **Flip Y**
 checkbox has the accessible name **Pointer Flip Y** and a pointer-only tooltip; it changes only pointer coordinates; it never changes the picture. Verify
 upright corner labels first, then both controllers at all four corners. Toggle
 only the pointer setting for cursor comparison. A picture override requires a

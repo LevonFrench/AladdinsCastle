@@ -22,7 +22,7 @@ Rectangle {
    UiText {visible:header.width>=780;text:"3D light gun & racing games in true VR";font.pixelSize:11;color:Theme.get("color.text.faint")}
   }
   Item {visible:header.width<620;Layout.fillWidth:true}
-  PillButton {objectName:"model3Tab";text:"Model 3";vrOverlayMode:header.vrOverlayMode;onClicked:header.model3Requested()}
+  PillButton {objectName:"model3Tab";text:"VR games";vrOverlayMode:header.vrOverlayMode;onClicked:header.model3Requested()}
   PillButton {objectName:"pinballTab";text:"Pinball";vrOverlayMode:header.vrOverlayMode;onClicked:header.pinballRequested()}
   PillButton {text:"▦";width:vrOverlayMode?44:40;vrOverlayMode:header.vrOverlayMode;Accessible.name:"Open library";onClicked:header.libraryRequested()}
   PillButton {text:"···";width:vrOverlayMode?44:40;vrOverlayMode:header.vrOverlayMode;Accessible.name:"Help and settings";onClicked:header.helpRequested()}

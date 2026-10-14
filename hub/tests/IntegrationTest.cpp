@@ -12,11 +12,15 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDirIterator>
+#include <QElapsedTimer>
 #include <QProcessEnvironment>
 #include <QScopeGuard>
 #include <QtTest>
 #include <optional>
 #include <QtEndian>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 #include "core/pinball/Pinball.h"
 namespace {
 ac::CatalogData syntheticCatalog(const QString &root){
@@ -38,13 +42,8 @@ void receipt(const QString &root,const QString &media){
     ac::install::atomicWrite(root+"/user/cache/scan-bindings.json",QByteArray::fromStdString(json.dump()));
     ac::install::atomicWrite(root+"/user/last-played.json","{\"synthetic\":12345}");
 }
-}
-class IntegrationTest:public QObject{
- Q_OBJECT
-private slots:
- void pinballLaunchUsesRetainedTableAndRecordsRecent(){
-    QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
-    // Synthetic CFB contains only an empty script terminator, no playable content.
+// Synthetic CFB contains only an empty script terminator, no playable content.
+QByteArray syntheticTable(){
     QByteArray cfb(5632,'\0');cfb.replace(0,8,QByteArray::fromHex("d0cf11e0a1b11ae1"));
     auto u16=[&](int at,quint16 n){qToLittleEndian(n,cfb.data()+at);};
     auto u32=[&](int at,quint32 n){qToLittleEndian(n,cfb.data()+at);};
@@ -59,6 +58,15 @@ private slots:
     }
     u32(1024,4);cfb.replace(1028,4,"ENDB");
     for(int i=0;i<128;++i)u32(5120+4*i,i==0||i==8?0xfffffffe:i==9?0xfffffffd:i<8?static_cast<quint32>(i+1):0xffffffff);
+    return cfb;
+}
+}
+class IntegrationTest:public QObject{
+ Q_OBJECT
+private slots:
+ void pinballLaunchUsesRetainedTableAndRecordsRecent(){
+    QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
+    const auto cfb=syntheticTable();
     const auto table=folder+"/synthetic table.vpx";ac::install::atomicWrite(table,cfb);
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",QCoreApplication::applicationFilePath());
@@ -69,6 +77,9 @@ private slots:
     QVERIFY(QMetaObject::invokeMethod(&ui,"playPinball"));
     QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,5000);
     QCOMPARE(ui.nowPlaying()["title"].toString(),QString("synthetic table"));
+    // The headset is asked for in a Hub-owned file, never beside the table.
+    const auto owned=t.filePath("user/pinball/"+row["id"].toString()+".ini");
+    QVERIFY(ac::install::readBytes(owned).contains("[PlayerVR]"));QVERIFY(ac::install::readBytes(owned).contains("AskToTurnOn = 0"));
     ui.selectPinball("");ui.restartLaunch();
 #ifdef Q_OS_WIN
     QTRY_COMPARE_WITH_TIMEOUT(started.size(),2,5000);
@@ -119,6 +130,117 @@ private slots:
     QCOMPARE(seen["env"].toObject().toVariantMap(),(QVariantMap{{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"}}));
     QCOMPARE(listing(),before);
     ui.playModel3("daytona2");QCOMPARE(started.size(),1);QVERIFY(ui.status().contains("daytona2.zip"));QVERIFY(!services.launchBusy());
+ }
+ void pinballTabShowsTheLastScanWithoutScanningAgain(){
+    QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
+    ac::install::atomicWrite(folder+"/synthetic table.vpx",syntheticTable());
+    {
+        ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+        ac::UiSettings settings(t.filePath("user"));settings.set("pinballFolder",folder);
+        ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+        QSignalSpy scans(&ui,&ac::UiController::pinballScanRequested);
+        ui.openPinball();QCOMPARE(scans.size(),1); // Nothing saved yet: the folder is scanned.
+        QTRY_COMPARE_WITH_TIMEOUT(ui.pinballData()["tables"].toList().size(),1,10000);
+        QVERIFY(QFileInfo::exists(t.filePath("user/cache/pinball-scan.json")));
+    }
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QSignalSpy scans(&ui,&ac::UiController::pinballScanRequested);
+    ui.openPinball();QCOMPARE(scans.size(),0);
+    QCOMPARE(ui.pinballData()["tables"].toList().size(),1);QVERIFY(ui.status().contains("last scan"));
+    // Another folder is never answered from the saved scan.
+    QDir().mkpath(t.filePath("other"));settings.set("pinballFolder",t.filePath("other"));
+    ui.pinballLoaded({});ui.openPinball();QCOMPARE(scans.size(),1);
+    QTRY_VERIFY_WITH_TIMEOUT(!ui.pinballScanning(),10000);
+    QCOMPARE(QDir(folder).entryList(QDir::Files),QStringList{"synthetic table.vpx"});
+ }
+ void setupRemembersChoicesAndAddsToSteamVrOnlyWhenAsked(){
+    QTemporaryDir t;const auto steam=t.filePath("steam"),list=steam+"/config/appconfig.json";
+    for(const auto &name:{"roms/model3","roms/model2","steam/config"})QVERIFY(QDir(t.path()).mkpath(name));
+    ac::install::atomicWrite(list,QJsonDocument(QJsonObject{{"manifest_paths",QJsonArray{}}}).toJson());
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));ac::UiController ui(&games,&filter,&settings);
+    ac::HubServices services(&games,&filter,&ui,&settings,t.path(),nullptr,[&]{return steam;});
+    const auto system=[&](const QString &id){for(const auto &value:ui.setupSystems())if(value.toMap()["id"]==id)return value.toMap();return QVariantMap{};};
+    // Nothing is ticked on a fresh start.
+    QCOMPARE(ui.setupKinds(),(QVariantMap{{"arcade",false},{"pinball",false},{"consoles",false}}));QVERIFY(!system("model3")["chosen"].toBool());
+    ui.setSetupKind("arcade",true);QVERIFY(system("model3")["chosen"].toBool());QVERIFY(system("model2")["chosen"].toBool());QVERIFY(!system("pinball")["chosen"].toBool());
+    ui.setSetupSystem("system22",false);QVERIFY(!system("system22")["chosen"].toBool());
+    // One folder chosen: the neighbour is found and used unless skipped.
+    ui.setSetupFolder("model3",t.filePath("roms/model3"));
+    QCOMPARE(system("model2")["guess"].toString(),QDir(t.filePath("roms/model2")).absolutePath());QVERIFY(system("model2")["folder"].toString().isEmpty());
+    ui.acceptSetupGuesses();QCOMPARE(settings.get("model2GameFolder").toString(),QDir(t.filePath("roms/model2")).absolutePath());
+    ui.finishSetup();ac::UiSettings saved(t.filePath("user"));
+    QVERIFY(saved.get("setupDone").toBool());QCOMPARE(saved.get("model3GameFolder").toString(),t.filePath("roms/model3"));
+    QCOMPARE(QDir(t.filePath("roms/model3")).entryList(QDir::AllEntries|QDir::NoDotAndDotDot),QStringList{});
+    // SteamVR: read from its list; the stand-in registrar is called only on request and only with this Hub's manifest.
+    QCOMPARE(ui.steamVr()["state"].toString(),QString("absent"));
+    QStringList asked;bool refuse=true;
+    connect(&services,&ac::HubServices::steamVrRegistrationRequested,this,[&](const QString &manifest){
+        asked<<manifest;
+        if(refuse){services.steamVrAnswered("SteamVR is not running.");return;}
+        ac::install::atomicWrite(list,QJsonDocument(QJsonObject{{"manifest_paths",QJsonArray{manifest}}}).toJson());services.steamVrAnswered(QString());
+    });
+    QVERIFY(asked.isEmpty());ui.addToSteamVr();
+    QCOMPARE(asked,QStringList{services.steamVrManifest()});QCOMPARE(ui.steamVr()["state"].toString(),QString("absent"));QVERIFY(ui.steamVr()["error"].toString().contains("not running"));
+    refuse=false;ui.addToSteamVr();QCOMPARE(asked.size(),2);
+    QCOMPARE(ui.steamVr()["state"].toString(),QString("added"));QVERIFY(ui.steamVr()["error"].toString().isEmpty());
+ }
+ void model2StartsTwoProgramsAndEndsBoth(){
+    // Both stand-ins are this test program: the emulator waits, the viewer reports what it was given and leaves.
+    QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets"),report=t.filePath("viewer.json");
+    for(const auto &folder:{"build/mame","build/presenter","build/runtime","my sets","libraries"})QVERIFY(QDir(t.path()).mkpath(folder));
+    const auto emulator=build+"/mame/emulator.exe",viewer=build+"/presenter/model2-viewer.exe";
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),emulator));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),viewer));
+    ac::install::atomicWrite(sets+"/vcop2.zip","synthetic");
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",emulator);settings.set("model2GameFolder",sets);settings.set("model2RuntimePath",t.filePath("libraries"));
+    qputenv("AC_SYNTHETIC_MODEL2_REPORT",report.toUtf8());const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL2_REPORT");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    ui.playOtherGame("model2-vf2");QCOMPARE(started.size(),0); // Its game file is not there: nothing starts.
+    ui.playOtherGame("model2-vcop2");
+    QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
+    QCOMPARE(ui.nowPlaying()["title"].toString(),QString("Virtua Cop 2 ")+QChar(0xb7)+" 3D screen");
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),1,10000);QVERIFY2(finished[0][2].toString().isEmpty(),qPrintable(finished[0][2].toString()));
+    const auto seen=QJsonDocument::fromJson(ac::install::readBytes(report)).object();
+    // The viewer was handed a live process id: the emulator's, which was still running then.
+    QVERIFY(seen["companion"].toInt()>0);QVERIFY(seen["companionAlive"].toBool());
+    QCOMPARE(QFileInfo(seen["cwd"].toString()).canonicalFilePath(),QFileInfo(build+"/presenter").canonicalFilePath());
+    QCOMPARE(seen["env"].toObject()["ACVR_M2_STEREO"].toString(),QString("1"));QCOMPARE(seen["env"].toObject()["ACVR_M2_UNITS_PER_M"].toString(),QString("0.949387005"));
+    QVERIFY(seen["path"].toString().startsWith(QDir::toNativeSeparators(t.filePath("libraries"))));
+    // When the viewer has gone the emulator is ended too, and only then is the Hub free again.
+    QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),12000);QVERIFY(ui.nowPlaying().isEmpty());
+    QCOMPARE(QDir(sets).entryList(QDir::Files,QDir::Name),QStringList{"vcop2.zip"});
+    QVERIFY(QDir(build+"/runtime").isEmpty());QVERIFY(!QFileInfo::exists(build+"/captures"));
+ }
+ // Hub exit while a game runs: the exit waits for the game to finish by itself, however it was asked for.
+ void hubExitWaitsForARunningGameToFinish_data(){QTest::addColumn<int>("code");QTest::newRow("normal exit")<<0;QTest::newRow("overlay failure")<<3;}
+ void hubExitWaitsForARunningGameToFinish(){
+    QFETCH(int,code);
+    QTemporaryDir t;const auto emulator=t.filePath("emu"),media=t.filePath("games"),marker=t.filePath("saved.marker");
+    QVERIFY(QDir().mkpath(emulator+"/Config"));QVERIFY(QDir().mkpath(media));
+    ac::install::atomicWrite(emulator+"/Config/Games.xml","synthetic");ac::install::atomicWrite(media+"/scud.zip","synthetic");
+    const auto program=emulator+"/program.exe";QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model3Executable",program);settings.set("model3GameFolder",media);
+    // The stand-in game needs 1.8 s before it has written its completion marker and ended.
+    qputenv("AC_SYNTHETIC_MODEL3_REPORT",t.filePath("report.json").toUtf8());qputenv("AC_SYNTHETIC_CHILD_MS","1800");qputenv("AC_SYNTHETIC_MARKER",marker.toUtf8());
+    const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL3_REPORT");qunsetenv("AC_SYNTHETIC_CHILD_MS");qunsetenv("AC_SYNTHETIC_MARKER");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started);
+    QList<bool> markerAtExit;QList<int> codes;QElapsedTimer clock;
+    connect(&services,&ac::HubServices::hubExitReady,this,[&](int value){markerAtExit<<QFileInfo::exists(marker);codes<<value;});
+    ui.playModel3("scud");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,5000);
+    clock.start();services.requestHubExit(code);
+    QVERIFY(codes.isEmpty());QVERIFY(services.launchBusy());QVERIFY(!QFileInfo::exists(marker));
+    // No new game while the exit waits.
+    ui.playModel3("scud");QCOMPARE(started.size(),1);
+    QTRY_COMPARE_WITH_TIMEOUT(codes.size(),1,15000);
+    QCOMPARE(codes,QList<int>{code});QCOMPARE(markerAtExit,QList<bool>{true});QVERIFY(clock.elapsed()>1000);
+    QVERIFY(!services.launchBusy());QCOMPARE(ac::install::readBytes(marker),QByteArray("complete"));
+    QTest::qWait(200);QCOMPARE(codes.size(),1); // Exactly once.
  }
  void requiredM1GamesOfferFlatRoutes(){
     const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
@@ -294,15 +416,33 @@ private slots:
 };
 int main(int argc,char **argv){
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
+    // Model 2 stand-ins. The emulator: any "-rompath" run, which waits to be ended. The viewer: one numeric argument.
+    for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="-rompath"){QCoreApplication child(argc,argv);QTimer::singleShot(30000,&child,&QCoreApplication::quit);return child.exec();}
+    if(argc==2&&QByteArray(argv[1]).toLongLong()>0){
+        QCoreApplication child(argc,argv);QJsonObject variables;const auto environment=QProcessEnvironment::systemEnvironment();
+        for(const auto &name:environment.keys())if(name.startsWith("ACVR_"))variables[name]=environment.value(name);
+        const auto id=QByteArray(argv[1]).toLongLong();bool alive=false;
+#ifdef Q_OS_WIN
+        if(const auto handle=OpenProcess(SYNCHRONIZE,FALSE,static_cast<DWORD>(id))){alive=WaitForSingleObject(handle,0)==WAIT_TIMEOUT;CloseHandle(handle);}
+#else
+        alive=QFileInfo::exists("/proc/"+QString::number(id));
+#endif
+        QFile file(qEnvironmentVariable("AC_SYNTHETIC_MODEL2_REPORT"));if(!file.open(QIODevice::WriteOnly))return 3;
+        file.write(QJsonDocument(QJsonObject{{"companion",id},{"companionAlive",alive},{"cwd",QDir::currentPath()},{"env",variables},{"path",environment.value("PATH")}}).toJson());file.close();
+        QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
+    }
     for(int i=1;i<argc;++i)if(QByteArray(argv[i]).startsWith("-input-system=")){
         QCoreApplication child(argc,argv);QJsonObject variables;
         const auto environment=QProcessEnvironment::systemEnvironment();
         for(const auto &name:environment.keys())if(name.startsWith("ACVR_"))variables[name]=environment.value(name);
         QFile file(qEnvironmentVariable("AC_SYNTHETIC_MODEL3_REPORT"));if(!file.open(QIODevice::WriteOnly))return 3;
         file.write(QJsonDocument(QJsonObject{{"cwd",QDir::currentPath()},{"args",QJsonArray::fromStringList(child.arguments().mid(1))},{"env",variables}}).toJson());file.close();
-        QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
+        // A slow game: it writes its completion marker only after the given time, then ends.
+        const auto duration=qEnvironmentVariableIntValue("AC_SYNTHETIC_CHILD_MS");const auto marker=qEnvironmentVariable("AC_SYNTHETIC_MARKER");
+        QTimer::singleShot(duration>0?duration:600,&child,[&child,marker]{if(!marker.isEmpty()){QFile done(marker);if(done.open(QIODevice::WriteOnly))done.write("complete");}child.quit();});
+        return child.exec();
     }
-    if((argc==3||(argc==5&&QByteArray(argv[3])=="-Ini"))&&QByteArray(argv[1])=="-Play"){
+    if(argc>=3&&QByteArray(argv[1])=="-Play"){
         QGuiApplication child(argc,argv);QWindow window;window.show();
         const auto arguments=qEnvironmentVariable("AC_SYNTHETIC_PINBALL_ARGUMENTS");
         if(!arguments.isEmpty()){

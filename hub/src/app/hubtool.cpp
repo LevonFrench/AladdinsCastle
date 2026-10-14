@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
       "[--bindings <JSON>] [--settings <JSON>] [--recipe <TOML>] [--handover <path>] count | "
       "explain <game> | plan-launch <game> <variant> | plan/install/repair/update/uninstall/recover <game> "
       "<variant> | plan-tool/install-tool/uninstall-tool <tool> | locate-tool "
-      "<tool> <exe> | identify-disc <file> | scan-pinball <folder> [<database> [<roms> [<media>]]] | plan-pinball <table> <exe> <owned-session> <vr|desktop>\n";
+      "<tool> <exe> | identify-disc <file> | dreamcast-product <file> | scan-pinball <folder> [<database> [<roms> [<media>]]] | plan-pinball <table> <exe> <owned-session> <vr|desktop>\n";
   if (args == QStringList{"--help"}) {
     out << usage;
     return 0;
@@ -63,6 +63,7 @@ int main(int argc, char **argv) {
     try{out<<QJsonDocument::fromVariant(ac::pinball::scan(args[1],args.value(2),args.value(3),args.value(4))).toJson();return 0;}catch(const std::exception &e){err<<e.what()<<"\n";return 2;}
   }
   if(args[0]=="identify-disc"&&args.size()==2){std::atomic_bool cancel=false;const auto id=ac::scan::Scanner::inspect(args[1],cancel);const bool valid=id.kind=="disc-id"&&!id.identity.isEmpty()&&id.error.isEmpty();out<<QJsonDocument::fromVariant(QVariantMap{{"kind",id.kind},{"identity",id.identity},{"error",id.error},{"valid",valid}}).toJson();return valid?0:2;}
+  if(args[0]=="dreamcast-product"&&args.size()==2){std::atomic_bool cancel=false;const auto product=ac::scan::Scanner::dreamcastProduct(args[1],cancel);out<<product<<'\n';return product.isEmpty()?2:0;}
   if(args[0]=="plan-pinball" && args.size()==5 && QStringList{"vr","desktop"}.contains(args[4])) {
     try{out<<QJsonDocument::fromVariant(ac::pinball::launchPlan(args[1],args[2],args[3],args[4]=="vr")).toJson();return 0;}catch(const std::exception &e){err<<e.what()<<"\n";return 2;}
   }

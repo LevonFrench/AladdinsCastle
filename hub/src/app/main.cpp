@@ -43,9 +43,9 @@ int main(int argc,char **argv){
     if(options.help){
         out<<ac::product::display_name<<" Hub\nUsage: "<<ac::product::program_name<<" [--overlay [--window] | --launch <game-id> | --capture-compositor-dir <directory>]\n"
            <<"  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n"
-           <<"  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default on)\n"
+           <<"  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default off on Windows, on elsewhere)\n"
            <<"  --overlay-capture-dir <absolute fresh directory>  One source texture PNG/receipt under catalog .local (requires --overlay)\n"
-           <<"  --show-dashboard  Explicitly select this Hub's dashboard (requires --overlay)\n"
+           <<"  --show-dashboard  Explicitly select this Hub's dashboard (requires --overlay)\n  --desktop  Window only, even while SteamVR is running (by default the Hub then also opens as its dashboard panel)\n"
            <<"  --capture-compositor-dir <absolute fresh directory>  One compositor eye pair under catalog .local; existing service required\n"
            <<"  --compositor-dashboard any|visible|hidden  Snapshot visibility requirement (default any); never changes dashboard state\n"
            <<"  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;
@@ -74,6 +74,10 @@ int main(int argc,char **argv){
             return app.exec();
         }catch(const std::exception &e){failure(QString::fromUtf8(e.what()));return 2;}
     }
+    // Started from the desktop while SteamVR runs: also open as the dashboard panel. Diagnostic
+    // and offscreen runs never attach to SteamVR on their own.
+    if(qEnvironmentVariable("QT_QPA_PLATFORM")!="offscreen"&&!qEnvironmentVariableIsSet("AC_UI_CAPTURE"))
+        ac::applyAutoPanel(options,ac::launch::processRunning({"vrserver.exe","vrserver"}),false);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
     QCoreApplication::setApplicationName(ac::product::user_data_folder);QGuiApplication::setApplicationDisplayName(ac::product::display_name);QCoreApplication::setApplicationVersion("0.1.0");
@@ -93,6 +97,11 @@ int main(int argc,char **argv){
     ac::UiSettings settings(portableRoot+"/user");ac::UiController ui(&games,&filter,&settings);
     ac::HubServices services(&games,&filter,&ui,&settings,portableRoot);
     const auto capture=qEnvironmentVariable("AC_UI_CAPTURE");
+    // Asked for on the set-up page only. Registration adds the manifest; it never switches on automatic start.
+    QObject::connect(&services,&ac::HubServices::steamVrRegistrationRequested,&app,[&services](const QString &manifest){
+        QString error;if(ac::changeOverlayRegistration(manifest,true,&error))error.clear();else if(error.isEmpty())error="SteamVR did not accept the request.";
+        services.steamVrAnswered(error);
+    });
     QObject::connect(&services,&ac::HubServices::hubExitReady,&app,[&app,capture](int code){
         if(capture.isEmpty())app.exit(code);
         else QTimer::singleShot(0,&app,[&app,code]{app.exit(code);}); // Finish observers before writing the exit receipt.
@@ -100,6 +109,10 @@ int main(int argc,char **argv){
     QObject::connect(&app,&QGuiApplication::applicationStateChanged,&ui,[&](Qt::ApplicationState state){if(state!=Qt::ApplicationActive)ui.clearDetailControlStates();});
     qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",&theme);
     ac::SpikeState spike;spike.setFlipY(options.pointerFlipY);ac::LocalQmlNetworkFactory localNetwork;QQmlApplicationEngine engine;engine.setNetworkAccessManagerFactory(&localNetwork);ac::OverlayHost overlay(spike,ac::makeOpenVrRuntime(options.pictureFlipY));
+    if(options.mode==ac::Mode::Overlay){
+        // What the headset pointer sent and what became of it, for a sitting that goes wrong.
+        try{const auto log=ac::install::scopedPath("user/logs/overlay-input.log",portableRoot);QDir().mkpath(QFileInfo(log).absolutePath());overlay.setInputLog(log);}catch(const std::exception &){}
+    }
     if(!options.overlayCaptureDir.isEmpty()){
         QString error;
         if(!overlay.configureCapture(catalogRoot,options.overlayCaptureDir,options.pictureFlipY,&error)){err<<error<<'\n';return 2;}
@@ -109,7 +122,8 @@ int main(int argc,char **argv){
     context->setContextProperty("gameModel",&games);context->setContextProperty("gameFilter",&filter);
     context->setContextProperty("uiSettings",&settings);context->setContextProperty("uiController",&ui);
     context->setContextProperty("hubServices",&services);context->setContextProperty("overlayHost",&overlay);
-    context->setContextProperty("startView",qEnvironmentVariable("AC_UI_VIEW"));
+    // The first start opens the set-up; AC_UI_VIEW names another first page for shortcuts and diagnostics.
+    context->setContextProperty("startView",qEnvironmentVariableIsSet("AC_UI_VIEW")?qEnvironmentVariable("AC_UI_VIEW"):settings.get("setupDone",false).toBool()?QString():QString("Setup"));
     context->setContextProperty("spikeState",&spike);context->setContextProperty("overlaySpikeEnabled",options.spike);
     context->setContextProperty("surfaceColor",theme.get("color.surface.window"));
     context->setContextProperty("primaryTextColor",theme.get("color.text.primary"));context->setContextProperty("brandColor",theme.get("color.brand.orange"));
@@ -146,6 +160,8 @@ int main(int argc,char **argv){
         ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball();
     });
     else if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});
+    // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.
+    if(qEnvironmentVariableIsSet("AC_UI_SETUP_SCAN"))QTimer::singleShot(500,&ui,[&ui]{ui.scanSetup();});
     ac::Json diagnosticFinished=ac::Json::array();
     if(!capture.isEmpty()){
         QObject::connect(services.launcher(),&ac::launch::LaunchService::finished,&app,[&diagnosticFinished](const QString &id,int code,const QString &error,const QString &){
@@ -166,7 +182,7 @@ int main(int argc,char **argv){
         ac::install::atomicWrite(capture+".json",QByteArray::fromStdString(receipt.dump(2)));
     });
     if(overlayInitialized&&options.showDashboard){
-        QString error;if(!overlay.showDashboard(&error)){err<<error<<'\n';overlay.shutdown();return 3;}
+        QString error;if(!overlay.showDashboard(&error)){err<<error<<'\n';if(!options.autoPanel){overlay.shutdown();return 3;}}
         out<<"Own dashboard show requested; compositor presentation requires verification.\n";
     }
     out<<ac::product::display_name<<": "<<count<<" games\n";out.flush();

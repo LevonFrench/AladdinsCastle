@@ -3,6 +3,11 @@
 #include "core/install/Support.h"
 #include "core/pinball/Pinball.h"
 #include "core/model3/Model3.h"
+#include "core/setup/Setup.h"
+#include "core/setup/Report.h"
+#include "core/dreamcast/Dreamcast.h"
+#include "core/model2/Model2.h"
+#include "ProductIdentity.h"
 #include <QDir>
 #include <QCoreApplication>
 #include <QFile>
@@ -17,6 +22,7 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <QCryptographicHash>
+#include <QPointer>
 namespace ac {
 namespace {
 QString privatePinballIni(const QString &path,const QString &root) {
@@ -76,11 +82,26 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::writeConfigRequested,this,[this](const QString &id,const QVariantMap &){ui_->settingsSaved(id);});
     connect(ui_,&UiController::pinballScanRequested,this,[this](const QString &folder,const QString &database,const QString &roms,const QString &media){
         auto *watcher=new QFutureWatcher<QVariantMap>(this);
-        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{const auto result=watcher->result();watcher->deleteLater();if(result.contains("error"))ui_->pinballFailed(result["error"].toString());else ui_->pinballLoaded(result);});
+        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher,folder,database,roms,media]{
+            const auto result=watcher->result();watcher->deleteLater();
+            if(result.contains("error")){ui_->pinballFailed(result["error"].toString());return;}
+            // Kept in Hub's own data so the tab opens at once next time; a table is still rechecked when it is started.
+            try{install::atomicWrite(install::scopedPath("user/cache/pinball-scan.json",root_),QJsonDocument::fromVariant(QVariantMap{{"folder",folder},{"database",database},{"roms",roms},{"media",media},{"result",result}}).toJson(QJsonDocument::Compact));}
+            catch(const std::exception &){ui_->showError("Pinball","The scan could not be saved; the next start scans again.");}
+            ui_->pinballLoaded(result);
+        });
         watcher->setFuture(QtConcurrent::run([folder,database,roms,media]{try{return pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}}));
     });
+    connect(ui_,&UiController::pinballRestoreRequested,this,[this](const QString &folder,const QString &database,const QString &roms,const QString &media){
+        QVariantMap saved;
+        try{QFile file(install::scopedPath("user/cache/pinball-scan.json",root_));if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();}catch(const std::exception &){}
+        const auto result=saved.value("result").toMap();
+        if(saved.value("folder")==folder&&saved.value("database")==database&&saved.value("roms")==roms&&saved.value("media")==media&&result.contains("tables")){
+            ui_->pinballLoaded(result);ui_->showError("Pinball","Showing your last scan. Use Scan after adding or changing tables.");
+        }else ui_->scanPinball();
+    });
     connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &){
-        try{const auto plan=pinball::launchPlan(table,executable,QString(),true);ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
+        try{const auto plan=pinball::launchPlan(table,executable,pinballVrRoot(),true);ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
     });
     connect(ui_,&UiController::pinballPlayRequested,this,[this](const QString &id){
         if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
@@ -90,6 +111,12 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         ui_->showError("Pinball","Table is no longer in the scan; scan again.");
     });
     connect(ui_,&UiController::model3PlayRequested,this,&HubServices::startModel3);
+    // The Hub never registers itself unasked: the set-up page asks, and whoever owns the VR runtime call answers.
+    connect(ui_,&UiController::steamVrRequested,this,[this]{emit steamVrRegistrationRequested(steamVrManifest());});
+    refreshSteamVr();
+    connect(ui_,&UiController::setupScanRequested,this,&HubServices::scanSetup);
+    connect(ui_,&UiController::otherPlayRequested,this,&HubServices::startOtherGame);
+    try{QFile saved(install::scopedPath("user/cache/setup-report.json",root_));if(saved.size()<=64*1024*1024&&saved.open(QIODevice::ReadOnly))ui_->setSetupReport(QJsonDocument::fromJson(saved.readAll()).toVariant().toMap());}catch(const std::exception &){}
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
     connect(&scanner_,&scan::ScanController::scanStarted,ui_,&UiController::scanStarted);
@@ -138,6 +165,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             startPinball(retainedPinball_,retainedPinballExecutable_);return;
         }
         if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
+        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
 #ifdef Q_OS_WIN
@@ -154,11 +182,14 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
     connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int,const QString &error,const QString &){
         childPlaying_=false;emit playingChanged();
-        if(hubExitPending_&&id.startsWith("pinball-")){ui_->cancelPendingRestart();ui_->launchFinished(id,error);emit hubExitReady(hubExitCode_);return;}
+        // A Hub exit waiting on this game goes ahead only now that the game has finished by itself.
+        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished(id,error);finishPendingExit();return;}
         ui_->launchFinished(id,error);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
     });
     connect(&launcher_,&launch::LaunchService::runtimeStateReady,this,[this](const RuntimeState &state){games_->applyRuntimeStates({state});});
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::playingChanged);
+    // A companion program can end after the main one; the exit waits for it too.
+    connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::finishPendingExit);
     connect(&launcher_,&launch::LaunchService::raiseHubRequested,this,&HubServices::raiseHubRequested);
     connect(ui_,&UiController::locationRequested,this,[this](const QString &kind){
         QString path;if(kind=="log")path=root_+"/user/logs/install";else if(kind=="install")path=root_+"/emulators";else if(kind=="downloads")path=root_+"/user/cache";else return;
@@ -231,6 +262,84 @@ HubServices::~HubServices(){
 void HubServices::setPinballDiagnosticIni(const QString &path){
     pinballDiagnosticIni_=path.isEmpty()?QString():privatePinballIni(path,root_);
 }
+void HubServices::startOtherGame(const QString &id,const QString &view,const QString &file){
+    if(launchBusy()||hubExitPending_){ui_->showError("Launch","Close the current session before starting a game.");return;}
+    try{
+        launch::Request request;request.root=root_;request.gameId=id;request.variantId=view;request.prepareProfile=false;
+        QString title,hint;
+        if(id.startsWith("dreamcast-")){
+            // The emulator keeps its settings beside itself, so its own folder is the working folder.
+            const auto plan=dreamcast::launchPlan(file,view,settings_->get("dreamcastExecutable",QString()).toString());
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            for(const auto &value:dreamcast::games())if("dreamcast-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · "+dreamcast::viewLabel(view);
+            hint=view=="headset"?"New and not yet tried in a headset. The picture is also on the PC monitor.":"The mouse is the gun.";
+        }else if(id.startsWith("model2-")){
+            // Two programs: the emulator first, then the viewer given the emulator's process id.
+            const auto game=id.mid(7);
+            const auto plan=model2::launchPlan(game,settings_->get("model2Executable",QString()).toString(),settings_->get("model2GameFolder",QString()).toString());
+            const auto emulator=plan.value("companion").toMap();
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            request.companion.executable=emulator.value("executable").toString();request.companion.cwd=emulator.value("cwd").toString();request.companion.args=emulator.value("args").toStringList();
+            auto &environment=request.runtimeInputs.environment;
+            for(const auto &name:environment.keys())if(name.startsWith("ACVR_",Qt::CaseInsensitive))environment.remove(name);
+            const auto variables=plan.value("env").toMap();
+            for(auto it=variables.begin();it!=variables.end();++it)environment.insert(it.key(),it.value().toString());
+            // The build's own runtime libraries, when the user's set-up names where they are.
+            const auto libraries=settings_->get("model2RuntimePath",QString()).toString();
+            if(!libraries.isEmpty())environment.insert("PATH",QDir::toNativeSeparators(libraries)+QDir::listSeparator()+environment.value("PATH"));
+            for(const auto &value:model2::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · 3D screen";hint=value.toMap().value("controls").toString();}
+            hint+=" Home = put the screen in front of you again. Use Stop game here to end it.";
+        }else if(id=="system22-timecris"){
+            const QFileInfo program(settings_->get("system22Executable",QString()).toString());
+            if(!program.isFile())throw install::Error("E_SYSTEM22_SETUP","The Time Crisis VR build is not set up. Choose its program in Set-up.");
+            request.plan.executable=QDir::toNativeSeparators(program.absoluteFilePath());request.plan.cwd=QDir::toNativeSeparators(program.absolutePath());
+            title="Time Crisis · In the headset";hint="A = credits, either trigger = start and fire, hold a grip to leave cover, X = recentre. Close its window on the PC to quit.";
+        }else throw install::Error("E_ID","Unknown game");
+#ifdef Q_OS_WIN
+        ui_->launchOtherQueued(id,view,title,hint,QString());
+#else
+        ui_->launchOtherQueued(id,view,title,hint,"Clean window close is not supported on this platform yet.");
+#endif
+        launcher_.start(request);
+    }catch(const std::exception &error){ui_->showError("Launch",QString::fromUtf8(error.what()));}
+}
+void HubServices::scanSetup(const QStringList &systems){
+    // Off the GUI thread; only the user's folders are read, and only Hub's own cache is written.
+    const auto values=settings_->values();const auto root=root_;const QPointer<UiController> ui=ui_;
+    const QStringList pinballKey{values.value("pinballFolder").toString(),values.value("pinballDatabase").toString(),values.value("pinballRoms").toString(),values.value("pinballMedia").toString()};
+    auto *watcher=new QFutureWatcher<QVariantMap>(this);
+    connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{const auto report=watcher->result();watcher->deleteLater();ui_->setSetupReport(report);if(!report.value("error").toString().isEmpty())ui_->showError("Set-up",report.value("error").toString());});
+    watcher->setFuture(QtConcurrent::run([systems,values,root,ui,pinballKey]{
+        QVariantMap report;QVariantList results;std::atomic_bool cancel=false;
+        try{
+            const auto cachePath=install::scopedPath("user/cache/pinball-scan.json",root);
+            QVariantMap context;
+            {QFile file(cachePath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly)){const auto saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();
+                if(QStringList{saved.value("folder").toString(),saved.value("database").toString(),saved.value("roms").toString(),saved.value("media").toString()}==pinballKey)context["pinballScan"]=saved.value("result");}}
+            for(const auto &id:systems){
+                QString title=id;for(const auto &value:setup::systems())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
+                const auto progress=[ui,title](const QString &text){if(ui)QMetaObject::invokeMethod(ui.data(),"setupScanProgress",Qt::QueuedConnection,Q_ARG(QString,title+": "+text));};
+                auto result=setup::scanSystem(id,values,context,progress,cancel);
+                const auto tables=result.take("pinballScan").toMap();
+                if(tables.contains("tables")&&!context.contains("pinballScan"))install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",pinballKey[0]},{"database",pinballKey[1]},{"roms",pinballKey[2]},{"media",pinballKey[3]},{"result",tables}}).toJson(QJsonDocument::Compact));
+                results<<result;
+            }
+            report={{"scanned",QDateTime::currentDateTime().toString("d MMMM yyyy, HH:mm")},{"systems",results}};
+            install::atomicWrite(install::scopedPath("user/cache/setup-report.json",root),QJsonDocument::fromVariant(report).toJson(QJsonDocument::Compact));
+        }catch(const std::exception &e){report["systems"]=results;report["error"]=QString::fromUtf8(e.what());}
+        return report;
+    }));
+}
+QString HubServices::steamVrManifest()const{return QDir(QCoreApplication::applicationDirPath()).filePath(QString("resources/")+product::short_id+".vrmanifest");}
+void HubServices::steamVrAnswered(const QString &error){refreshSteamVr(error);}
+void HubServices::refreshSteamVr(const QString &error){
+    // Read from SteamVR's own application list; AC_STEAMVR_APPCONFIG names another file for diagnostics.
+    auto list=qEnvironmentVariable("AC_STEAMVR_APPCONFIG");const auto steam=steamRootSource_();
+    if(list.isEmpty()&&!steam.isEmpty())list=QDir(steam).filePath("config/appconfig.json");
+    const auto state=list.isEmpty()?"no-steam":setup::steamVrLists(list,steamVrManifest())?"added":"absent";
+    ui_->setSteamVr({{"state",QString::fromLatin1(state)},{"error",error}});
+}
+QString HubServices::pinballVrRoot()const{return settings_->get("pinballHeadset",true).toBool()?root_:QString();}
 void HubServices::startPinball(const QVariantMap &row,const QString &executable){
     if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
     try{
@@ -241,7 +350,10 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable)
             throw install::Error("E_PINBALL_CHANGED","Table changed or is no longer available; scan again.");
         if(!row.value("vrReady").toBool()||!row.value("error").toString().isEmpty()||row.value("romState")=="ROM missing")
             throw install::Error("E_PINBALL_NOT_READY","Choose a VR-ready table with no scan error or missing known ROM.");
-        const auto plan=pinball::launchPlan(table,executable,QString(),true);
+        // Headset on is asked for explicitly, through a Hub-owned settings file for this table.
+        // A diagnostic settings file chooses its own mode, so nothing is layered over it.
+        const auto plan=pinball::launchPlan(table,executable,pinballDiagnosticIni_.isEmpty()?pinballVrRoot():QString(),true);
+        pinball::writeVrSettings(plan);
         launch::Request request;request.root=root_;request.gameId="pinball-"+id;request.variantId="vpx";request.prepareProfile=false;
         request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
         if(!pinballDiagnosticIni_.isEmpty())request.plan.args<<"-Ini"<<privatePinballIni(pinballDiagnosticIni_,root_);
@@ -316,8 +428,19 @@ void HubServices::requestHubExit(int code){
 #endif
         return;
     }
+    if(launcher_.busy()){
+        // Any other game keeps its lease: the Hub exits once the game has ended by itself, so a slow
+        // save or close dialog is never cut short. Ending it now is the explicit Stop action, not this.
+        hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();
+        ui_->showError("Closing","The Hub closes when the running game has ended. Use Stop game to end it now.");
+        return;
+    }
     if(!gunRoom_.busy()){emit hubExitReady(code);return;}
     hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();gunRoom_.close();
+}
+void HubServices::finishPendingExit(){
+    if(!hubExitPending_||launcher_.busy()||gunRoom_.busy())return;
+    hubExitPending_=false;emit hubExitReady(hubExitCode_);
 }
 QString HubServices::catalogRoot()const{
     if(games_->records().isEmpty())throw install::Error("E_CATALOG_EMPTY","Catalog has no games. Load a valid catalog before installing or removing emulator tools.");

@@ -242,6 +242,40 @@ class UiTest:public QObject {
   QStringList invalid;for(const auto &warning:warnings.mid(before))if(warning.contains("TypeError")||warning.contains("ReferenceError"))invalid<<warning;
   QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
  }
+ void setupPagesRealScene(){
+  const auto previousView=root->property("view");
+  const auto cleanup=qScopeGuard([&]{settings->set("setupKinds",QVariantMap{});settings->set("setupSystems",QVariantMap{});settings->set("setupDone",false);root->setProperty("view",previousView);});
+  const auto centre=[](QQuickItem *item){return item->mapToScene(QPointF(item->width()/2,item->height()/2)).toPoint();};
+  const auto one=[&](const QString &name){const auto items=namedItems(window->contentItem(),name);return items.size()==1?items.first():nullptr;};
+  root->setProperty("view","Setup");QVERIFY(softwareFrame(window));
+  QTRY_VERIFY(one("setupWelcome"));QVERIFY(one("setupWelcome")->property("text").toString().contains(ui->appName()));
+  // Five pages, reached with Next; the choices are saved as they are made.
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QTRY_VERIFY(one("setupKind-arcade"));QVERIFY(!ui->setupKinds()["arcade"].toBool());
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupKind-arcade")));
+  QTRY_VERIFY(ui->setupKinds()["arcade"].toBool());
+  ac::UiSettings saved(user.path());QVERIFY(saved.get("setupKinds").toMap()["arcade"].toBool());
+  QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupSystem-model2")));
+  QTRY_VERIFY(!ui->setupSystems()[1].toMap()["chosen"].toBool());
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QTRY_VERIFY(one("setupFolder-model3"));QVERIFY(!one("setupFolder-model2"));
+  QVERIFY(one("setupFolder-model3")->property("text").toString().contains("not chosen"));
+  QVERIFY(!settings->get("setupDone",false).toBool());
+  // Leaving the folders page asks for one read of the ticked systems, then shows what came back.
+  QSignalSpy scans(ui.get(),SIGNAL(setupScanRequested(QStringList)));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QCOMPARE(scans.size(),1);QCOMPARE(scans[0][0].toStringList(),(QStringList{"model3","system22"}));
+  QTRY_VERIFY(one("setupProgress"));QVERIFY(one("setupProgress")->isVisible());QVERIFY(!one("setupResult-model3"));
+  const QVariantMap entry{{"id","scud"},{"title","Synthetic Racer"},{"detail","Checked."},{"reason","Two files differ."},{"expected","synthetic.zip"}};
+  ui->setSetupReport({{"scanned","today"},{"systems",QVariantList{QVariantMap{{"id","model3"},{"title","Sega Model 3"},{"note",""},{"ready",QVariantList{entry}},{"notRight",QVariantList{entry}},{"missing",QVariantList{entry}}}}}});
+  QVERIFY(softwareFrame(window));QTRY_VERIFY(one("setupResult-model3"));QVERIFY(!one("setupProgress")->isVisible());
+  // The same finding greys the game on its own tab, with the reason.
+  QVERIFY(ui->model3Games()[0].toMap()["problem"].toString().isEmpty()==false);
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));
+  QTRY_COMPARE(root->property("view").toString(),QString("List"));QVERIFY(settings->get("setupDone").toBool());
+  ui->setSetupReport({});
+ }
  void model3TabRealScene(){
   const auto previousView=root->property("view");
   const auto cleanup=qScopeGuard([&]{settings->set("model3Executable",QString());settings->set("model3GameFolder",QString());settings->set("model3Views",QVariantMap{});root->setProperty("view",previousView);});

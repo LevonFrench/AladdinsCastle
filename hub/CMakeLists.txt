@@ -62,6 +62,14 @@ add_library(hubcore STATIC
     src/core/pinball/Pinball.h
     src/core/model3/Model3.cpp
     src/core/model3/Model3.h
+    src/core/model2/Model2.cpp
+    src/core/model2/Model2.h
+    src/core/dreamcast/Dreamcast.cpp
+    src/core/dreamcast/Dreamcast.h
+    src/core/setup/Setup.cpp
+    src/core/setup/Setup.h
+    src/core/setup/Report.cpp
+    src/core/setup/Report.h
     src/core/scan/HeaderSafety.cpp
     src/core/scan/HeaderSafety.h
     src/core/scan/ScanController.cpp
@@ -201,6 +209,16 @@ if(BUILD_TESTING)
     ac_project_warnings(model3-tests)
     set_target_properties(model3-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-model3 COMMAND model3-tests -o -,txt)
+    qt_add_executable(setup-tests tests/SetupTest.cpp)
+    target_link_libraries(setup-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(setup-tests)
+    set_target_properties(setup-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-setup COMMAND setup-tests -o -,txt)
+    qt_add_executable(pinball-settings-tests tests/PinballSettingsTest.cpp)
+    target_link_libraries(pinball-settings-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(pinball-settings-tests)
+    set_target_properties(pinball-settings-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-pinball-settings COMMAND pinball-settings-tests -o -,txt)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})

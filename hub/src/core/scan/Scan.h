@@ -63,6 +63,12 @@ using Progress = std::function<void(const QVariantMap &)>;
 class Scanner {
 public:
   static FileIdentity inspect(const QString &path, std::atomic_bool &cancel);
+  // The product number in a Dreamcast disc image's own header (.chd, .gdi, .cdi,
+  // .cue or a raw track), or empty when it cannot be read cheaply. Bounded reads
+  // only; the image is never written or unpacked to disk. A .cdi keeps the game's
+  // header anywhere after its first session: the quick read looks at the start,
+  // "thorough" reads on to the end of the file.
+  static QString dreamcastProduct(const QString &path, std::atomic_bool &cancel, bool thorough = false);
   static ScanResult run(const CatalogData &catalog, const ScanOptions &options,
                         std::atomic_bool &cancel,
                         const Progress &progress = {});

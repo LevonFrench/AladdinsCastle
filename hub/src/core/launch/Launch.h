@@ -25,6 +25,11 @@ bool processRunning(const QStringList &names);
 struct Request {
   QString root, gameId, variantId;
   install::LaunchPlan plan;
+  // A second program some setups need running first, such as an emulator that
+  // feeds a separate viewer. It is started before the main program with the
+  // same environment, "${companion_pid}" in the main arguments becomes its
+  // process id, and it is stopped when the main program ends. Empty = none.
+  install::LaunchPlan companion;
   QString runtime = "none";
   RuntimeInputs runtimeInputs;
   bool prepareProfile = true, materializeAliases = false;
@@ -47,7 +52,7 @@ public:
   explicit LaunchService(QObject *parent = nullptr);
   ~LaunchService() override;
   bool playing() const;
-  bool busy() const { return playing() || completing_ || !persistence_.isEmpty(); }
+  bool busy() const { return playing() || completing_ || !persistence_.isEmpty() || helper_.state() != QProcess::NotRunning; }
   bool start(const Request &request);
   Q_INVOKABLE void stop();
   Q_INVOKABLE void requestClose();
@@ -70,6 +75,7 @@ private:
   // Member ordering retains use through QProcess destruction on teardown.
   std::unique_ptr<install::ResourceLocks> payload_;
   QProcess process_;
+  QProcess helper_;
   QTimer runtimeTimer_;
   QTimer closeTimer_;
   QFutureWatcher<QString> preparation_;

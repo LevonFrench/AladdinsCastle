@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Pinball.h"
+#include "core/install/Support.h"
 #include <QFile>
 #include <QFileInfo>
 #include <QDateTime>
@@ -157,17 +158,62 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
  return {{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
 }
 QVariantMap launchGuidance() {
- return {{"launchAllowed",true},{"help","Play uses your selected VPX installation's normal settings, including VR and ROM setup. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables."}};
+ return {{"launchAllowed",true},{"help","Play asks Visual Pinball to start the table in the headset. Hub does this with a small settings file of its own for that table, layered over your normal settings, which it never changes. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables."}};
 }
 QVariantMap launchPlan(const QString &table,const QString &executable,const QString &ownedRoot,bool vr) {
- // Retained diagnostic CLI parameters; ordinary VPX settings control display mode.
- Q_UNUSED(ownedRoot);Q_UNUSED(vr);
  require(QFileInfo(table).isFile()&&QFileInfo(table).suffix().compare("vpx",Qt::CaseInsensitive)==0&&!link(QFileInfo(table))&&QFileInfo(executable).isFile()&&!link(QFileInfo(executable)));
  require(!inspect(table).contains("error"));
  auto plan=launchGuidance();
  plan.insert("executable",QFileInfo(executable).absoluteFilePath());
  plan.insert("cwd",QFileInfo(executable).absolutePath());
- plan.insert("args",QStringList{"-Play",QFileInfo(table).absoluteFilePath()});
+ QStringList args{"-Play",QFileInfo(table).absoluteFilePath()};
+ if(vr&&!ownedRoot.isEmpty()){
+  // The id is the scan's table id, so no table name reaches a Hub file name.
+  const auto id=QString::fromLatin1(QCryptographicHash::hash(QFileInfo(table).absoluteFilePath().toUtf8(),QCryptographicHash::Sha256).toHex());
+  const auto settings=QDir::toNativeSeparators(install::scopedPath("user/pinball/"+id+".ini",ownedRoot));
+  args<<"-TableIni"<<settings;plan.insert("tableSettings",settings);
+  // VPX's own choice when no file is given: beside the table, named after it or after its folder.
+  const QFileInfo file(table);QString seed;
+  for(const auto &name:{file.completeBaseName()+".ini",file.absoluteDir().dirName()+".ini"}){
+   const QFileInfo candidate(file.absoluteDir().filePath(name));
+   if(seed.isEmpty()&&candidate.isFile()&&!link(candidate))seed=candidate.absoluteFilePath();
+  }
+  plan.insert("tableSettingsSeed",seed);
+ }
+ plan.insert("args",args);
  return plan;
+}
+QByteArray vrOnSettings(const QByteArray &settings) {
+ // Line edit only: comments, order, other keys and the file's line endings stay as they are.
+ const QByteArray eol=settings.contains("\r\n")?"\r\n":"\n",wanted="AskToTurnOn = 0";
+ auto lines=settings.split('\n');
+ for(auto &line:lines)if(line.endsWith('\r'))line.chop(1);
+ if(!lines.isEmpty()&&lines.last().isEmpty())lines.removeLast();
+ qsizetype section=-1;bool done=false;
+ for(qsizetype i=0;i<lines.size()&&!done;++i){
+  const auto text=lines[i].trimmed();
+  if(text.startsWith('[')){if(section>=0)break;if(text.toLower()=="[playervr]")section=i;continue;}
+  if(section<0)continue;
+  const auto equals=text.indexOf('=');
+  if(equals>0&&text.left(equals).trimmed().toLower()=="asktoturnon"){lines[i]=wanted;done=true;}
+ }
+ if(!done){
+  if(section>=0)lines.insert(section+1,wanted);
+  else{if(!lines.isEmpty()&&!lines.last().trimmed().isEmpty())lines<<QByteArray();lines<<"[PlayerVR]"<<wanted;}
+ }
+ return lines.join(eol)+eol;
+}
+void writeVrSettings(const QVariantMap &plan) {
+ const auto path=plan.value("tableSettings").toString();
+ if(path.isEmpty())return;
+ const auto seed=plan.value("tableSettingsSeed").toString();
+ const bool exists=QFileInfo(path).isFile();
+ QByteArray current;
+ if(exists)current=install::readBytes(path);
+ else if(!seed.isEmpty()&&QFileInfo(seed).size()<=1024*1024)current=install::readBytes(seed);
+ const auto updated=vrOnSettings(current);
+ if(exists&&updated==current)return;
+ if(!QDir().mkpath(QFileInfo(path).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's Pinball settings folder");
+ install::atomicWrite(path,updated);
 }
 }

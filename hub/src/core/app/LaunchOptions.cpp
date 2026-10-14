@@ -10,6 +10,11 @@ bool shouldOpenDesktop(const LaunchOptions &options, bool overlayInitialized) {
     if (options.mode == Mode::Overlay && options.steamVrStarted && !overlayInitialized) return false;
     return options.mode == Mode::Desktop || options.window || (options.mode == Mode::Overlay && !overlayInitialized);
 }
+bool applyAutoPanel(LaunchOptions &options, bool steamVrRunning, bool offscreenDisplay) {
+    if (options.mode != Mode::Desktop || options.desktopOnly || !steamVrRunning || offscreenDisplay || options.help || options.version || !options.error.isEmpty()) return false;
+    options.mode = Mode::Overlay; options.window = true; options.showDashboard = true; options.autoPanel = true;
+    return true;
+}
 bool shouldQuitAfterLastWindow(bool launchBusy) { return !launchBusy; }
 bool shouldQuitAfterLaunch(bool overlayInitialized,bool launchBusy,bool desktopVisible){return !overlayInitialized&&!launchBusy&&!desktopVisible;}
 LaunchOptions parseLaunchOptions(const QStringList &arguments) {
@@ -25,6 +30,7 @@ LaunchOptions parseLaunchOptions(const QStringList &arguments) {
         else if (arg == "--window") options.window = true;
         else if (arg == "--spike") options.spike = true;
         else if (arg == "--show-dashboard") options.showDashboard = true;
+        else if (arg == "--desktop") options.desktopOnly = true;
         else if(arg=="--capture-compositor-dir"){
             if(modeSeen){options.error="Choose only one execution mode.";break;}
             modeSeen=true;options.mode=Mode::CompositorCapture;
