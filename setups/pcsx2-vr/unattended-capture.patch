@@ -1,16 +1,87 @@
+diff --git a/bin/resources/shaders/opengl/tfx_vgs.glsl b/bin/resources/shaders/opengl/tfx_vgs.glsl
+index a836c8a..e0a0ab4 100644
+--- a/bin/resources/shaders/opengl/tfx_vgs.glsl
++++ b/bin/resources/shaders/opengl/tfx_vgs.glsl
+@@ -3,6 +3,12 @@
+ 
+ //#version 420 // Keep it for text editor detection
+ 
++#if VS_PS2_STEREO
++#extension GL_ARB_explicit_uniform_location : require
++layout(location = 30) uniform vec4 PS2Stereo;
++layout(location = 31) uniform vec4 PS2ZFit;
++#endif
++
+ layout(std140, binding = 1) uniform cb20
+ {
+ 	vec2  VertexScale;
+@@ -43,6 +49,17 @@ out SHADER
+ 
+ const float exp_min32 = exp2(-32.0f);
+ 
++float stereo_offset(float q, uint z)
++{
++#if VS_PS2_STEREO
++	if (PS2Stereo.w == 0.0) return 0.0;
++	float inv_w = PS2Stereo.w == 2.0 ? (float(z) - PS2ZFit.x) / PS2ZFit.y : q;
++	return 16.0 * VertexScale.x * PS2Stereo.x * (inv_w * PS2Stereo.z - PS2Stereo.y);
++#else
++	return 0.0;
++#endif
++}
++
+ #if VS_EXPAND == VS_EXPAND_NONE
+ 
+ layout(location = 0) in vec2  i_st;
+@@ -92,6 +109,9 @@ void vs_main()
+ 	#endif
+ 
+ 	gl_Position.w = 1.0f;
++#if VS_PS2_STEREO
++	gl_Position.x += stereo_offset(i_q, i_z);
++#endif
+ 
+ 	texture_coord();
+ 
+@@ -175,6 +195,9 @@ ProcessedVertex load_vertex(uint index)
+ 	#endif
+ 
+ 	vtx.p.w = 1.0f;
++#if VS_PS2_STEREO
++	vtx.p.x += stereo_offset(i_q, i_z);
++#endif
+ 
+ 	vec2 uv = vec2(i_uv) - TextureOffset;
+ 	vec2 st = i_st - TextureOffset;
 diff --git a/pcsx2-gsrunner/Main.cpp b/pcsx2-gsrunner/Main.cpp
-index 03879ca..0a77852 100644
+index 03879ca..a265c07 100644
 --- a/pcsx2-gsrunner/Main.cpp
 +++ b/pcsx2-gsrunner/Main.cpp
-@@ -19,6 +19,7 @@
+@@ -3,11 +3,14 @@
+ 
+ #include <atomic>
+ #include <chrono>
++#include <cmath>
+ #include <csignal>
+ #include <cstdlib>
+ #include <condition_variable>
+ #include <mutex>
+ #include <thread>
++#include <fstream>
++#include <sstream>
+ 
+ #ifdef _WIN32
+ #include "common/RedtapeWindows.h"
+@@ -19,6 +22,8 @@
  #include "common/CocoaTools.h"
  #include "common/Console.h"
  #include "common/CrashHandler.h"
 +#include "common/Error.h"
++#include "common/Image.h"
  #include "common/FileSystem.h"
  #include "common/MemorySettingsInterface.h"
  #include "common/Path.h"
-@@ -80,6 +81,12 @@ static s32 s_loop_count = 1;
+@@ -80,6 +85,17 @@ static s32 s_loop_count = 1;
  static std::optional<bool> s_use_window;
  static bool s_no_console = false;
  static bool s_perf_enable = false;
@@ -20,10 +91,15 @@ index 03879ca..0a77852 100644
 +static std::string s_capture_output;
 +static std::string s_capture_bios;
 +static std::atomic<bool> s_capture_finished{false};
++static std::atomic<u32> s_capture_present{0};
++struct CapturePadEvent { u32 frame; u32 bind; float value; };
++static std::vector<CapturePadEvent> s_capture_pad_events;
++static std::string s_capture_pad_file;
++static size_t s_capture_pad_cursor = 0;
  
  // Owned by the GS thread.
  static u32 s_dump_frame_number = 0;
-@@ -173,6 +180,9 @@ void Host::ReportInfoAsync(const std::string_view title, const std::string_view
+@@ -173,6 +189,9 @@ void Host::ReportInfoAsync(const std::string_view title, const std::string_view
  
  void Host::ReportErrorAsync(const std::string_view title, const std::string_view message)
  {
@@ -33,14 +109,15 @@ index 03879ca..0a77852 100644
  	if (!title.empty() && !message.empty())
  		ERROR_LOG("ReportErrorAsync: {}: {}", title, message);
  	else if (!message.empty())
-@@ -236,6 +246,19 @@ void Host::ReleaseRenderWindow()
+@@ -236,6 +255,20 @@ void Host::ReleaseRenderWindow()
  
  void Host::BeginPresentFrame()
  {
 +	if (s_capture_frame > 0)
 +	{
-+		// This counter belongs to the GS thread; the CPU only reads the completion flag.
++		// The CPU receives presentation progress through the atomic copy.
 +		++s_capture_ticks;
++		s_capture_present.store(s_capture_ticks, std::memory_order_release);
 +		if (s_capture_ticks == s_capture_frame)
 +		{
 +			GSQueueSnapshot(s_capture_output, 1);
@@ -53,7 +130,7 @@ index 03879ca..0a77852 100644
  	if (s_loop_number == 0 && !s_output_prefix.empty())
  	{
  		// when we wrap around, don't race other files
-@@ -472,6 +495,23 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
+@@ -472,6 +505,28 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
  				PrintCommandLineVersion();
  				return false;
  			}
@@ -62,6 +139,11 @@ index 03879ca..0a77852 100644
 +				s_capture_frame = StringUtil::FromChars<u32>(argv[++i]).value_or(0);
 +				if (s_capture_frame == 0 || s_capture_frame > 36000)
 +					return false;
++				continue;
++			}
++			else if (CHECK_ARG_PARAM("-capture-pad-events"))
++			{
++				s_capture_pad_file = argv[++i];
 +				continue;
 +			}
 +			else if (CHECK_ARG_PARAM("-capture-output"))
@@ -77,13 +159,32 @@ index 03879ca..0a77852 100644
  			else if (CHECK_ARG_PARAM("-dumpdir"))
  			{
  				dumpdir = s_output_prefix = StringUtil::StripWhitespace(argv[++i]);
-@@ -762,7 +802,27 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
+@@ -762,7 +817,46 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
  		return false;
  	}
  
 -	if (!VMManager::IsGSDumpFileName(params.filename))
 +	if (s_capture_frame > 0)
 +	{
++		if (!s_capture_pad_file.empty())
++		{
++			// In-emulator pad pressure only: never send OS keyboard/mouse input.
++			std::ifstream events(s_capture_pad_file);
++			if (!events.is_open()) return false;
++			std::string line;
++			while (std::getline(events, line))
++			{
++				std::istringstream row(line);
++				std::string frame, name, pressure;
++				if (!std::getline(row, frame, ',') || !std::getline(row, name, ',') || !std::getline(row, pressure)) return false;
++				const auto f = StringUtil::FromChars<u32>(frame);
++				const auto v = StringUtil::FromChars<float>(pressure);
++				const auto bind = Pad::GetControllerInfo(Pad::ControllerType::DualShock2)->GetBindIndex(name);
++				if (!f || !v || !bind || *f > s_capture_frame || !std::isfinite(*v) || *v < 0 || *v > 1 ||
++					(!s_capture_pad_events.empty() && *f < s_capture_pad_events.back().frame)) return false;
++				s_capture_pad_events.push_back({*f, *bind, *v});
++			}
++		}
 +		if (s_capture_output.empty() || s_capture_bios.empty() ||
 +			!StringUtil::EndsWithNoCase(s_capture_output, ".png"))
 +		{
@@ -106,7 +207,7 @@ index 03879ca..0a77852 100644
  	{
  		Console.Error("Provided filename is not a GS dump.");
  		return false;
-@@ -811,6 +871,9 @@ void GSRunner::SettingsOverride()
+@@ -811,6 +905,9 @@ void GSRunner::SettingsOverride()
  
  	// we don't need any sound output
  	s_settings_interface.SetStringValue("SPU2/Output", "OutputModule", "nullout");
@@ -116,7 +217,7 @@ index 03879ca..0a77852 100644
  
  	// none of the bindings are going to resolve to anything
  	Pad::ClearPortBindings(s_settings_interface, 0);
-@@ -847,9 +910,13 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
+@@ -847,9 +944,13 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
  	{
  		// apply new settings (e.g. pick up renderer change)
  		VMManager::ApplySettings();
@@ -132,12 +233,40 @@ index 03879ca..0a77852 100644
  		{
  			// run until end
  			VMManager::SetState(VMState::Running);
-@@ -905,6 +972,16 @@ int main(int argc, char* argv[])
+@@ -871,6 +972,20 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
+ 
+ int main(int argc, char* argv[])
+ {
++	if (argc == 5 && std::strcmp(argv[1], "-sbs") == 0)
++	{
++		RGBA8Image left, right;
++		if (!left.LoadFromFile(argv[2]) || !right.LoadFromFile(argv[3]) ||
++			left.GetWidth() != right.GetWidth() || left.GetHeight() != right.GetHeight())
++			return EXIT_FAILURE;
++		RGBA8Image pair(left.GetWidth() * 2, left.GetHeight());
++		for (u32 y = 0; y < left.GetHeight(); ++y)
++		{
++			std::memcpy(pair.GetRowPixels(y), left.GetRowPixels(y), left.GetPitch());
++			std::memcpy(pair.GetRowPixels(y) + left.GetWidth(), right.GetRowPixels(y), right.GetPitch());
++		}
++		return pair.SaveToFile(argv[4]) ? EXIT_SUCCESS : EXIT_FAILURE;
++	}
+ 	CrashHandler::Install();
+ 	GSRunner::InitializeConsole();
+ 
+@@ -905,6 +1020,23 @@ int main(int argc, char* argv[])
  
  void Host::PumpMessagesOnCPUThread()
  {
 +	if (s_capture_frame > 0)
 +	{
++		const u32 frame = s_capture_present.load(std::memory_order_acquire);
++		while (s_capture_pad_cursor < s_capture_pad_events.size() && s_capture_pad_events[s_capture_pad_cursor].frame <= frame)
++		{
++			const auto& event = s_capture_pad_events[s_capture_pad_cursor++];
++			Pad::SetControllerState(0, event.bind, event.value);
++			std::fprintf(stderr, "Capture pad event at frame %u: bind %u pressure %.0f.\n", frame, event.bind, event.value);
++		}
 +		if (s_capture_finished.load(std::memory_order_acquire))
 +		{
 +			MTGS::WaitGS();
@@ -149,3 +278,123 @@ index 03879ca..0a77852 100644
  	// update GS thread copy of frame number
  	MTGS::RunOnGSThread([frame_number = GSDumpReplayer::GetFrameNumber()]() { s_dump_frame_number = frame_number; });
  	MTGS::RunOnGSThread([loop_number = GSDumpReplayer::GetLoopCount()]() { s_loop_number = loop_number; });
+diff --git a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
+index 2174fa3..9af47df 100644
+--- a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
++++ b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
+@@ -19,6 +19,8 @@
+ #include "IconsFontAwesome.h"
+ 
+ #include <cinttypes>
++#include <cmath>
++#include <cstdlib>
+ #include <fstream>
+ #include <sstream>
+ 
+@@ -35,6 +37,31 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
+ static constexpr u32 VERTEX_PUSH_CONSTANT_BUFFER_SIZE = 1024 * 1024;
+ static constexpr u32 TEXTURE_UPLOAD_BUFFER_SIZE = 128 * 1024 * 1024;
+ 
++// Parallel-eye reconstruction of projected GS vertices. Inspired by PenguinVRLab;
++// each runner eye replays the whole dump with independent device/cache lifetimes.
++namespace
++{
++	float StereoEnv(const char* name, float fallback)
++	{
++		const char* value = std::getenv(name);
++		return value ? StringUtil::FromChars<float>(value).value_or(fallback) : fallback;
++	}
++	struct StereoParams
++	{
++		bool enabled = StereoEnv("PCSX2_STEREO", 0) != 0;
++		float eye = StereoEnv("PCSX2_STEREO_EYE", -1);
++		float separation = StereoEnv("PCSX2_STEREO_SEPARATION_M", 0.063f);
++		float units = StereoEnv("PCSX2_STEREO_UNITS_PER_M", 1);
++		float convergence = StereoEnv("PCSX2_STEREO_CONVERGENCE_M", 3);
++		float focal = StereoEnv("PCSX2_STEREO_FOCAL_PX", 320);
++		float qscale = StereoEnv("PCSX2_STEREO_Q_SCALE", 1);
++		float za = StereoEnv("PCSX2_STEREO_Z_A", 0);
++		float zb = StereoEnv("PCSX2_STEREO_Z_B", 0);
++	};
++	const StereoParams s_stereo;
++	float s_stereo_draw_mode = 0;
++}
++
+ namespace ReplaceGL
+ {
+ 	static void GLAPIENTRY ScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height)
+@@ -1835,6 +1862,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
+ 		+ fmt::format("#define VS_IIP {}\n", static_cast<u32>(sel.iip))
+ 		+ fmt::format("#define VS_POINT_SIZE {}\n", static_cast<u32>(sel.point_size))
+ 		+ fmt::format("#define VS_EXPAND {}\n", static_cast<int>(sel.expand));
++	macro += fmt::format("\n#define VS_PS2_STEREO {}\n", (sel.key & 0x80) ? 1 : 0);
+ 
+ 	std::string src = GenGlslHeader("vs_main", GL_VERTEX_SHADER, macro);
+ 	src += m_shader_tfx_vgs;
+@@ -2995,6 +3023,12 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+ 	if (it != m_programs.end())
+ 	{
+ 		it->second.Bind();
++		if (psel.vs.key & 0x80)
++		{
++			glUniform4f(30, s_stereo.eye * 0.5f * s_stereo.separation * s_stereo.units * s_stereo.focal,
++				1.0f / (s_stereo.convergence * s_stereo.units), s_stereo.qscale, s_stereo_draw_mode);
++			glUniform4f(31, s_stereo.za, s_stereo.zb, 0, 0);
++		}
+ 		return;
+ 	}
+ 
+@@ -3005,6 +3039,12 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+ 	m_shader_cache.GetProgram(&prog, vs, ps);
+ 	it = m_programs.emplace(psel, std::move(prog)).first;
+ 	it->second.Bind();
++	if (psel.vs.key & 0x80)
++	{
++		glUniform4f(30, s_stereo.eye * 0.5f * s_stereo.separation * s_stereo.units * s_stereo.focal,
++			1.0f / (s_stereo.convergence * s_stereo.units), s_stereo.qscale, s_stereo_draw_mode);
++		glUniform4f(31, s_stereo.za, s_stereo.zb, 0, 0);
++	}
+ }
+ 
+ void GSDeviceOGL::SetupSampler(PSSamplerSelector ssel)
+@@ -3036,6 +3076,40 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
+ 
+ void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
+ {
++	static FILE* trace = []() {
++		const char* path = std::getenv("PCSX2_STEREO_TRACE");
++		FILE* f = path ? std::fopen(path, "w") : nullptr;
++		if (f) std::fprintf(f, "draw,vertex,tme,fst,expand,q,z,x,y,mode,ztst,zwe\n");
++		return f;
++	}();
++	static u64 draw = 0;
++	++draw;
++	u32 zlo = UINT32_MAX, zhi = 0;
++	float qlo = INFINITY, qhi = -INFINITY;
++	for (u32 i = 0; i < config.nverts; ++i)
++	{
++		zlo = std::min(zlo, config.verts[i].XYZ.Z);
++		zhi = std::max(zhi, config.verts[i].XYZ.Z);
++		qlo = std::min(qlo, config.verts[i].RGBAQ.Q);
++		qhi = std::max(qhi, config.verts[i].RGBAQ.Q);
++	}
++	const bool world = config.topology == GSHWDrawConfig::Topology::Triangle &&
++		config.vs.expand != GSHWDrawConfig::VSExpand::Sprite && zhi > zlo &&
++		config.depth.ztst >= ZTST_GEQUAL;
++	s_stereo_draw_mode = world && config.vs.tme && !config.vs.fst && qhi > qlo ? 1.0f :
++		(world && !config.vs.tme && std::isfinite(s_stereo.zb) && s_stereo.zb != 0 ? 2.0f : 0.0f);
++	if (trace)
++	{
++		for (u32 i = 0; i < config.nverts; ++i)
++			std::fprintf(trace, "%llu,%u,%u,%u,%u,%.9g,%u,%u,%u,%.0f,%u,%u\n",
++				static_cast<unsigned long long>(draw), i, config.vs.tme, config.vs.fst,
++				static_cast<unsigned>(config.vs.expand), config.verts[i].RGBAQ.Q,
++				config.verts[i].XYZ.Z, config.verts[i].XYZ.X, config.verts[i].XYZ.Y, s_stereo_draw_mode,
++				config.depth.ztst, config.depth.zwe);
++		std::fflush(trace);
++	}
++	if (s_stereo.enabled && s_stereo.units > 0 && s_stereo.convergence > 0)
++		config.vs.key |= 0x80;
+ 	if (!GLState::scissor.eq(config.scissor))
+ 	{
+ 		glScissor(config.scissor.x, config.scissor.y, config.scissor.width(), config.scissor.height());
