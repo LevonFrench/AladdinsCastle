@@ -65,6 +65,8 @@ public:
     // SteamVR dashboard: the manifest this Hub would add, and the result of adding it.
     QString steamVrManifest() const;
     void steamVrAnswered(const QString &error);
+    // Whether SteamVR's server is running; tests replace it.
+    void setVrServerProbe(std::function<bool()> probe){vrServerProbe_=std::move(probe);}
 signals:
     void gunRoomChanged();
     void hubExitReady(int code);
@@ -119,5 +121,7 @@ private:
     QString pinballDiagnosticIni_;
     gunroom::Inputs retainedGunRoom_;
     gunroom::Service gunRoom_;
+    std::function<bool()> vrServerProbe_;
+    bool askPs2ToQuit();
 };
 }

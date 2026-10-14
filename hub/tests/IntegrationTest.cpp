@@ -261,6 +261,25 @@ private slots:
     QCOMPARE(row("scud")["accepted"].toString(),QString("2026-10-14"));QCOMPARE(row("daytona2")["accepted"].toString(),QString("2026-10-15"));
     QVERIFY(!row("daytona2")["found"].toBool()); // Accepted and found stay separate facts.
  }
+ // PS2 has no window to close: Exit and Stop write the launcher's stop file, and the Hub waits for the game to end.
+ void ps2StopsThroughItsStopFile(){
+    QTemporaryDir t;const auto play=t.filePath("play"),launcher=play+"/launch_ps2.py",python=t.filePath("python/pythonw.exe"),stop=t.filePath("runtime/quit.request");
+    QVERIFY(QDir().mkpath(play));QVERIFY(QDir().mkpath(t.filePath("python")));QVERIFY(QDir().mkpath(t.filePath("runtime")));
+    ac::install::atomicWrite(launcher,"synthetic");ac::install::atomicWrite(play+"/games.json","{\"virtua-cop\":{}}");
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),python));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("ps2Launcher",launcher);settings.set("ps2Python",python);settings.set("ps2StopFile",stop);
+    qputenv("AC_SYNTHETIC_PS2_STOP",stop.toUtf8());const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_PS2_STOP");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    bool vr=false;services.setVrServerProbe([&]{return vr;});
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    ui.playOtherGame("ps2-virtua-cop");QCOMPARE(started.size(),0);QVERIFY(ui.status().contains("Start SteamVR first"));
+    vr=true;ui.playOtherGame("ps2-virtua-cop");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
+    QVERIFY(!QFileInfo::exists(stop));ui.stopLaunch();
+    QVERIFY(QFileInfo::exists(stop)); // Asked to quit, not killed:
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),1,15000);QCOMPARE(finished[0][1].toInt(),0);QVERIFY(finished[0][2].toString().isEmpty());
+    QCOMPARE(ui.lastSession()["outcome"].toString(),QString("stopped"));QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),5000);
+ }
  void requiredM1GamesOfferFlatRoutes(){
     const auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);
     for(const auto &pair:QList<QPair<QString,QString>>{{"timecris","mame"},{"scud","supermodel"},{"ps2-time-crisis-2","pcsx2"}}){
@@ -435,6 +454,12 @@ private slots:
 };
 int main(int argc,char **argv){
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
+    // PS2 stand-in for the Python running the launcher: it waits for the stop file, then ends normally.
+    if(argc==3&&QByteArray(argv[1]).endsWith("launch_ps2.py")){
+        QCoreApplication child(argc,argv);const auto stop=qEnvironmentVariable("AC_SYNTHETIC_PS2_STOP");QTimer poll;
+        QObject::connect(&poll,&QTimer::timeout,&child,[&]{if(QFileInfo::exists(stop))child.exit(0);});poll.start(100);
+        QTimer::singleShot(20000,&child,[&]{child.exit(7);});return child.exec();
+    }
     // Model 2 stand-ins. The emulator: any "-rompath" run, which waits to be ended. The viewer: one numeric argument.
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="-rompath"){QCoreApplication child(argc,argv);QTimer::singleShot(30000,&child,&QCoreApplication::quit);return child.exec();}
     if(argc==2&&QByteArray(argv[1]).toLongLong()>0){

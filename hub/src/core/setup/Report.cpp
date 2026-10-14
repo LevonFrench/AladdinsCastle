@@ -3,6 +3,7 @@
 #include "Setup.h"
 #include "core/model3/Model3.h"
 #include "core/model2/Model2.h"
+#include "core/ps2/Ps2.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/pinball/Pinball.h"
 #include "core/scan/Scan.h"
@@ -160,6 +161,27 @@ QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &,const Pro
  if(unchecked)note+=" Some games could not be checked against the emulator.";
  return groups.result("model2",folder.isEmpty()?"No folder chosen for this system.":note);
 }
+QVariantMap scanPs2(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
+ const auto folder=settings.value("ps2GameFolder").toString(),launcher=settings.value("ps2Launcher").toString();
+ Groups groups;progress("Reading the disc images");
+ const auto found=ps2::discs(folder,cancel);const auto keys=ps2::launcherKeys(launcher);
+ for(const auto &value:ps2::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
+  // The best disc of this game: one whose serial was read, then one found by its name.
+  QVariantMap disc;int rank=-1;
+  for(const auto &candidate:found){const auto c=candidate.toMap();if(c.value("game")!=id)continue;const int r=c.value("verified").toBool()?1:0;if(r>rank){rank=r;disc=c;}}
+  if(rank<0){groups.missing<<item(id,title,"expected",title+" (disc image)");continue;}
+  const auto checked=disc.value("verified").toBool()?QString("Disc %1.").arg(disc.value("serial").toString()):QString("Found by its file name; the disc's serial was not read.");
+  const auto issue=ps2::problem(id,launcher,settings.value("ps2Python").toString(),settings.value("ps2StopFile").toString());
+  if(!issue.isEmpty())groups.notRight<<item(id,title,"reason","The disc was found, but the game cannot be started from the Hub yet. "+issue);
+  else groups.ready<<item(id,title,"detail",checked+" "+game.value("controls").toString());
+ }
+ for(const auto &candidate:found){const auto c=candidate.toMap();if(!c.value("game").toString().isEmpty())continue;
+  const auto serial=c.value("serial").toString();
+  groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",serial.isEmpty()?QString("serial not read"):"disc "+serial}};}
+ Q_UNUSED(keys);
+ return groups.result("ps2",folder.isEmpty()?"No folder chosen for this system.":"The Hub starts these through your PS2 launcher, which plays its own copies of the discs.");
+}
 QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
  const auto folder=settings.value("dreamcastGameFolder").toString();
  const bool programReady=QFileInfo(settings.value("dreamcastExecutable").toString()).isFile();
@@ -195,7 +217,7 @@ QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const P
  else groups.ready<<item(id,title,"detail","The program and the game files beside it were found.");
  return groups.result("system22",QString());
 }
-const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"dreamcast",scanDreamcast},{"system22",scanSystem22}};return table;}
+const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps2",scanPs2},{"dreamcast",scanDreamcast},{"system22",scanSystem22}};return table;}
 }
 QVariantMap mameCheck(const QByteArray &listXml,const QString &game,const QString &folder,const QStringList &cosmetic,std::atomic_bool &cancel){
  // Every machine in the output with the files it loads; the game itself names its parent and its devices.

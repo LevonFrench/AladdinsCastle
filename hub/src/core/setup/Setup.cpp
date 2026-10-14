@@ -15,6 +15,7 @@ const QList<System> &table(){
   {"model2","arcade","Sega Model 2","Three games on a 3D screen in the headset. Virtua Cop 2 has new, untested controls; the others are view only for now.","model2GameFolder","model2Executable","MAME VR build",{"model2","Model 2","Sega Model 2"}},
   {"system22","arcade","Namco System 22","Time Crisis in true VR through its own native build, which keeps its game files beside it.","","system22Executable","Time Crisis VR build",{}},
   {"pinball","pinball","Visual Pinball","VR-ready tables from your own collection.","pinballFolder","pinballExecutable","Visual Pinball (OpenXR build)",{"tables","Tables","pinball/tables","Visual Pinball/Tables"}},
+  {"ps2","consoles","Sony PlayStation 2","Eleven games on a 3D screen in the headset through your PS2 launcher. Played with a gamepad for now.","ps2GameFolder","ps2Launcher","PS2 VR launcher",{"ps2","PS2","PlayStation 2","Sony PlayStation 2"}},
   {"dreamcast","consoles","Sega Dreamcast","The House of the Dead 2 with a full VR profile; other gun games start without one.","dreamcastGameFolder","dreamcastExecutable","Dreamcast VR build",{"dreamcast","Dreamcast","Sega Dreamcast","dc"}},
  };
  return systems;

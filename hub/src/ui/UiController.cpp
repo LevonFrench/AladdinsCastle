@@ -5,6 +5,7 @@
 #include "core/setup/Setup.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
+#include "core/ps2/Ps2.h"
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -300,6 +301,14 @@ QVariantList UiController::otherGames()const{
   add({{"id","model2-"+game.value("id").toString()},{"system","model2"},{"pill","MODEL 2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},
    {"warning",game.value("controls").toString()},{"problem",model2::problem(game.value("id").toString(),model2Program,model2Folder)}},
    {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
+ }
+ // PS2: through the user's launcher, checked as it is now. Controls and depth are said on each game's page.
+ const auto ps2Launcher=m_settings->get("ps2Launcher",QString()).toString();
+ if(!ps2Launcher.isEmpty())for(const auto &value:ps2::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString();
+  add({{"id","ps2-"+id},{"system","ps2"},{"pill","PS2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
+   {"problem",ps2::problem(id,ps2Launcher,m_settings->get("ps2Python",QString()).toString(),m_settings->get("ps2StopFile",QString()).toString())}},
+   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset. Start SteamVR first."}}});
  }
  // Time Crisis: one native program, checked as it is now.
  const auto program=m_settings->get("system22Executable",QString()).toString();

@@ -3,6 +3,7 @@
 #include "core/setup/Report.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
+#include "core/ps2/Ps2.h"
 #include "core/install/Install.h"
 #include <QtTest>
 #include <QDir>
@@ -219,6 +220,33 @@ private slots:
     QVERIFY(result["note"].toString().contains("Virtua Cop 2: controls new, untested"));QVERIFY(result["note"].toString().contains("view only for now"));
     for(const auto &value:ac::model2::games()){const auto game=value.toMap();
       QCOMPARE(game["controls"].toString().startsWith("Controls new, untested"),game["id"].toString()=="vcop2");}
+  }
+  // PS2: serials read from real discs, file names when a serial cannot be read, and the user's launcher's own keys.
+  void ps2GamesAreKnownBySerialAndStartedThroughTheLauncher() {
+    QCOMPARE(ac::ps2::games().size(),11);
+    QCOMPARE(ac::ps2::gameForSerial("SLES_512.29"),QString("virtua-cop"));QCOMPARE(ac::ps2::gameForSerial("SLUS-21274"),QString("outrun-2006"));
+    QVERIFY(ac::ps2::gameForSerial("SLUS-20219").isEmpty()); // Time Crisis II: a real disc, not in the list.
+    for(const auto &value:ac::ps2::games()){const auto game=value.toMap();QVERIFY(game["controls"].toString().contains("amepad"));}
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto launcher=t.filePath("play/launcher.py"),python=t.filePath("python/pythonw.exe"),stop=t.filePath("runtime/quit.request");
+    write(launcher,"synthetic");write(python,"synthetic");QVERIFY(QDir().mkpath(t.filePath("runtime")));
+    QVERIFY(ac::ps2::problem("virtua-cop",launcher,python,stop).contains("no entry"));
+    write(t.filePath("play/games.json"),"{\"virtua-cop\":{},\"outrun-2006\":{}}");
+    QVERIFY(ac::ps2::problem("virtua-cop",launcher,python,stop).isEmpty());
+    QVERIFY(ac::ps2::problem("virtua-cop",launcher,python,QString()).contains("stop file"));
+    QVERIFY(ac::ps2::problem("virtua-cop",launcher,QString(),stop).contains("Python"));
+    const auto plan=ac::ps2::launchPlan("outrun-2006",launcher,python,stop);
+    QCOMPARE(plan["executable"].toString(),QDir::toNativeSeparators(python));QCOMPARE(plan["cwd"].toString(),QDir::toNativeSeparators(t.filePath("play")));
+    QCOMPARE(plan["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"outrun-2006"}));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("xgra",launcher,python,stop));
+    // A compressed image is matched by its name only; the longer name wins.
+    const auto folder=t.filePath("discs");
+    write(folder+"/OutRun 2006 (copy).gz","synthetic");write(folder+"/XGRA - Extreme G Racing Association (USA).gz","synthetic");write(folder+"/Something Else (USA).gz","synthetic");
+    const QVariantMap settings{{"ps2GameFolder",folder},{"ps2Launcher",launcher},{"ps2Python",python},{"ps2StopFile",stop}};
+    const auto result=ac::setup::scanSystem("ps2",settings,{},{},cancel);
+    QVERIFY(entry(result,"ready","outrun-2006")["detail"].toString().contains("serial was not read"));
+    QVERIFY(entry(result,"notRight","xgra")["reason"].toString().contains("no entry")); // Found, but the launcher does not know it.
+    QCOMPARE(entry(result,"missing","virtua-cop")["expected"].toString(),QString("Virtua Cop Elite Edition (disc image)"));
+    QCOMPARE(result["other"].toList().size(),1);QCOMPARE(result["other"].toList()[0].toMap()["title"].toString(),QString("Something Else (USA)"));
   }
   void timeCrisisNeedsItsProgramAndTheFilesBesideIt() {
     QTemporaryDir t;std::atomic_bool cancel=false;const auto program=t.filePath("build/game.exe");
