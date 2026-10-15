@@ -2,7 +2,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 import AladdinsCastle.Hub
 Item {
  id:page
@@ -24,16 +23,17 @@ Item {
  property color needsColour:Theme.get("color.state.needs_neon")
  function card(row){
   let c=Object.assign({},row.card||{})
-  c.gameId=row.id;c.title=row.title;c.year=row.year;c.pill=row.pill||"MODEL 3";c.manufacturerShort=row.system==="system22"?"Namco":"Sega"
-  c.hardwareLabel=row.system==="dreamcast"?"Dreamcast":row.system==="system22"?"System 22":"Model 3";c.developerShown=false;c.isWip=false
+  c.gameId=row.id;c.title=row.title;c.year=row.year;c.pill=row.pill||"MODEL 3"
+  // Arcade boards have one maker; console games do not, so none is claimed for them.
+  c.manufacturerShort=row.system==="system22"?"Namco":(!row.system||row.system==="model2")?"Sega":""
+  c.hardwareLabel={dreamcast:"Dreamcast",system22:"System 22",model2:"Model 2",ps2:"PlayStation 2"}[row.system]||"Model 3";c.developerShown=false;c.isWip=false
   let trouble=row.problem||row.warning
   c.blurb=trouble?trouble.split(". ")[0].replace(/\.$/,"")+".":"Found on this PC.";c.stateColour=trouble?needsColour:readyColour
   return c
  }
  function play(row){if(row.system)uiController.playOtherGame(row.id);else uiController.playModel3(row.id)}
  function choose(row,view){if(row.system)uiController.chooseGameView(row.id,view);else uiController.chooseModel3View(row.id,view)}
- FileDialog {id:file;title:"Choose your Model 3 emulator program";nameFilters:["Program (*.exe)","All files (*)"];onAccepted:uiSettings.set("model3Executable",uiController.localPath(selectedFile))}
- FolderDialog {id:folder;title:"Choose the folder holding your own Model 3 game files";onAccepted:uiSettings.set("model3GameFolder",uiController.localPath(selectedFolder))}
+ signal setupRequested()
  // One picture per view, seen from above: you, what you look at, and how much of your view it fills.
  component ViewPicture:Canvas {
   property string kind:"screen"
@@ -57,22 +57,21 @@ Item {
  ColumnLayout {anchors.fill:parent;spacing:8;visible:!page.selectedId
   RowLayout {spacing:8
    UiText {text:"VR games";font.pixelSize:24;Layout.fillWidth:true}
-   PillButton {objectName:"model3Locate";text:"Model 3 emulator";visible:!page.vrOverlayMode;onClicked:file.open()}
-   PillButton {objectName:"model3Folder";text:"Model 3 folder";visible:!page.vrOverlayMode;onClicked:folder.open()}
+   PillButton {objectName:"model3SetupButton";text:"Set-up";vrOverlayMode:page.vrOverlayMode;onClicked:page.setupRequested()}
    PillButton {text:"Check again";vrOverlayMode:page.vrOverlayMode;onClicked:{uiSettings.reloadAccepted();uiController.refreshModel3()}}
   }
-  UiText {Layout.fillWidth:true;text:"Your own emulator builds and your own game files, in the headset. Start SteamVR with the headset connected first, then pick a game to choose how you see it. Other systems are added in Set-up."+(page.vrOverlayMode?" The emulator and the game folder are chosen on the desktop.":"")}
+  UiText {Layout.fillWidth:true;text:page.vrOverlayMode?"Pick a game to choose how you see it.":"Your own emulator builds and your own game files, in the headset. Start SteamVR with the headset connected first, then pick a game to choose how you see it. Systems are added in Set-up."}
   UiText {objectName:"model3Setup";Layout.fillWidth:true;visible:text.length>0;text:page.setupProblem;font.pixelSize:16;color:page.needsColour}
   GridView {id:grid;objectName:"model3Grid";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:page.rows;boundsBehavior:Flickable.StopAtBounds
    cellWidth:Math.floor(width/Math.max(1,Math.floor(width/(Theme.get("size.card.base_w")*page.factor+8))))
-   cellHeight:Math.max(Theme.get("size.card.base_h")*page.factor,page.vrOverlayMode?248:0)+8
+   cellHeight:page.vrOverlayMode?Math.max(184,Math.floor(height/Math.max(1,Math.floor(height/192)))):Theme.get("size.card.base_h")*page.factor+8
    ScrollBar.vertical:ScrollBar{}
    delegate:Item {id:cell;required property var modelData;width:grid.cellWidth;height:grid.cellHeight
     GameCard {objectName:"model3Card";width:parent.width-8;height:parent.height-8;game:page.card(cell.modelData);sizeValue:page.sizeValue;vrOverlayMode:page.vrOverlayMode
      effectsEnabled:!(uiSettings.values,uiSettings.get("cheapEffects",true))
      primaryText:cell.modelData.problem?"Not ready":cell.modelData.warning?"Read first":"Start · "+cell.modelData.viewLabel
      // Acceptance is the owner's word only; finding a game is not the same thing.
-     footText:cell.modelData.accepted?"Accepted in the headset":"Not yet accepted in the headset"
+     footText:cell.modelData.accepted?"✓ Accepted in the headset":" "
      onDetailRequested:page.selectedId=cell.modelData.id
      // A game that is not ready, or starts only behind a warning, opens its page instead of starting.
      onActionRequested:if(cell.modelData.problem||cell.modelData.warning||!page.idle)page.selectedId=cell.modelData.id;else page.play(cell.modelData)
@@ -80,8 +79,10 @@ Item {
    }
   }
   RowLayout {spacing:8;visible:page.vrOverlayMode
-   PillButton {text:"Previous page";vrOverlayMode:true;onClicked:grid.contentY=Math.max(0,grid.contentY-grid.height)}
-   PillButton {text:"Next page";vrOverlayMode:true;onClicked:grid.contentY=Math.min(Math.max(0,grid.contentHeight-grid.height),grid.contentY+grid.height)}
+   property real step:Math.max(1,Math.floor(grid.height/grid.cellHeight))*grid.cellHeight
+   PillButton {objectName:"model3PreviousPage";text:"Previous page";vrOverlayMode:true;enabled:grid.contentY>0;onClicked:grid.contentY=Math.max(0,grid.contentY-parent.step)}
+   PillButton {objectName:"model3NextPage";text:"Next page";vrOverlayMode:true;enabled:grid.contentY+grid.height<grid.contentHeight-1;onClicked:grid.contentY=Math.min(Math.max(0,grid.contentHeight-grid.height),grid.contentY+parent.step)}
+   UiText {text:grid.count?"Page "+(Math.round(grid.contentY/Math.max(1,parent.step))+1)+" of "+Math.max(1,Math.ceil(grid.contentHeight/Math.max(1,parent.step))):""}
   }
  }
  Loader {anchors.fill:parent;active:!!page.selectedId;sourceComponent:Component{ColumnLayout {spacing:12

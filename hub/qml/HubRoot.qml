@@ -9,7 +9,14 @@ FocusScope {
  objectName:"hubRoot"
  // Diagnostics and shortcuts may name a first page, and an item on it: "Model3" or "Model3/scud".
  property var startAt:typeof startView!=="undefined"&&startView?startView.split("/"):[]
- property string view:startAt.length?startAt[0]:"List"
+ // Off by default: only games with a working setup on this PC are shown. The catalog, its filters,
+ // search, sort and catalog-only dialogs come back with Settings, "Show games without a setup".
+ property bool showAll:(typeof forceShowAll!=="undefined"&&forceShowAll)||(uiSettings.values,uiSettings.get("showAllGames",false))===true
+ property string home:showAll?"List":"Model3"
+ readonly property var catalogPages:["List","Library","Explore","Detail","GunRoom"]
+ onShowAllChanged:Qt.callLater(leaveCatalog)
+ function leaveCatalog(){if(!showAll&&catalogPages.indexOf(view)>=0){history=[];view=home}}
+ property string view:startAt.length?startAt[0]:((typeof forceShowAll!=="undefined"&&forceShowAll)||uiSettings.get("showAllGames",false)===true?"List":"Model3")
  property var history:[]
  property bool vrOverlayMode:false
  property bool captureMarkers:false
@@ -19,16 +26,19 @@ FocusScope {
  property var previewGame:({})
  Connections {target:header;function onPinballRequested(){root.navigate("Pinball")} function onModel3Requested(){root.navigate("Model3")}}
  onActiveFocusChanged:if(!activeFocus)uiController.clearDetailControlStates()
- function navigate(page,id){history=history.concat([view]);view=page;if(id)uiController.openDetail(id);preview.visible=false}
- function back(){if(history.length){view=history[history.length-1];history=history.slice(0,-1)}else view="List";preview.visible=false}
- function closeTop(){if(filters.opened)filters.close();else if(sort.opened)sort.close();else if(help.opened)help.close();else if(gameFilter.query.length)gameFilter.query="";else back()}
+ // Any page change closes every menu and dialog, so nothing is left open over the new page.
+ function closeMenus(){filters.close();sort.close();help.close();scanDialog.close();toolDialog.close();steamDialog.close();removeDialog.close();preview.visible=false}
+ function navigate(page,id){closeMenus();history=history.concat([view]);view=page;if(id)uiController.openDetail(id)}
+ function back(){closeMenus();if(history.length){view=history[history.length-1];history=history.slice(0,-1)}else view=home}
+ function closeTop(){for(const open of [removeDialog,steamDialog,toolDialog,scanDialog,filters,sort,help])if(open.opened){open.close();return}
+  if(showAll&&gameFilter.query.length)gameFilter.query="";else back()}
  function showDetail(id){navigate("Detail",id)}
  Loader{anchors.fill:parent;z:10000;active:root.captureMarkers;sourceComponent:Component{OverlayCaptureMarkers{}}}
  Rectangle{anchors.fill:parent;color:Theme.get("color.surface.window")}
  Canvas{anchors.fill:parent;layer.enabled:true;onPaint:{let c=getContext("2d");c.fillStyle=Theme.get("color.surface.dot_grid");for(let x=0;x<width;x+=24)for(let y=0;y<height;y+=24){c.beginPath();c.arc(x,y,0.9,0,2*Math.PI);c.fill()}} onWidthChanged:requestPaint();onHeightChanged:requestPaint()}
  ColumnLayout{anchors.fill:parent;spacing:0
-  Header{id:header;Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:implicitHeight;Layout.maximumHeight:implicitHeight;vrOverlayMode:root.vrOverlayMode;onLibraryRequested:root.navigate(root.view==="Library"?"List":"Library");onHelpRequested:{sort.close();filters.close();help.open()} onOrderRequested:{help.close();filters.close();sort.open()} onQueryEdited:text=>{gameFilter.query=text;if(root.view==="Detail")root.view="List"}}
-  FilterBar{Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:implicitHeight;Layout.maximumHeight:implicitHeight;vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;onBackPressed:root.back();onFiltersRequested:{sort.close();help.close();filters.open()} onScanRequested:if(uiController.scanning)uiController.cancelScan();else scanDialog.open();onSizeChosen:value=>uiSettings.set("size"+root.view,value)}
+  Header{id:header;Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:implicitHeight;Layout.maximumHeight:implicitHeight;vrOverlayMode:root.vrOverlayMode;showAll:root.showAll;onLibraryRequested:root.navigate(root.view==="Library"?"List":"Library");onHelpRequested:{sort.close();filters.close();help.open()} onOrderRequested:{help.close();filters.close();sort.open()} onQueryEdited:text=>{gameFilter.query=text;if(root.view==="Detail")root.view="List"}}
+  FilterBar{objectName:"filterBar";visible:root.showAll&&["List","Library","Explore","Detail"].indexOf(root.view)>=0;Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:visible?implicitHeight:0;Layout.maximumHeight:visible?implicitHeight:0;vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;onBackPressed:root.back();onFiltersRequested:{sort.close();help.close();filters.open()} onScanRequested:if(uiController.scanning)uiController.cancelScan();else scanDialog.open();onSizeChosen:value=>uiSettings.set("size"+root.view,value)}
   Item{id:content;Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:0;Layout.preferredHeight:0;clip:true
    NowPlayingCard {anchors.fill:parent;vrOverlayMode:root.vrOverlayMode;z:900;visible:uiController.nowPlaying.gameId!==undefined}
    // How the last game ended, until dismissed or the next one starts: closed, stopped, or why it crashed.
@@ -43,8 +53,8 @@ FocusScope {
     }
    }
    Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Pinball";sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode;startItem:root.startAt.length>1&&root.startAt[0]==="Pinball"?root.startAt[1]:""}}}
-   Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Setup";sourceComponent:Component{SetupPage{vrOverlayMode:root.vrOverlayMode;step:root.startAt.length>1&&root.startAt[0]==="Setup"?Number(root.startAt[1]):0;onFinished:{root.history=[];root.view="List"}}}}
-   Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Model3";sourceComponent:Component{Model3Page{vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;selectedId:root.startAt.length>1&&root.startAt[0]==="Model3"?root.startAt[1]:""}}}
+   Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Setup";sourceComponent:Component{SetupPage{vrOverlayMode:root.vrOverlayMode;step:root.startAt.length>1&&root.startAt[0]==="Setup"?Number(root.startAt[1]):0;onFinished:{root.history=[];root.view=root.home}}}}
+   Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Model3";sourceComponent:Component{Model3Page{onSetupRequested:root.navigate("Setup");vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;selectedId:root.startAt.length>1&&root.startAt[0]==="Model3"?root.startAt[1]:""}}}
    Loader {anchors.fill:parent;anchors.margins:24;active:root.view==="GunRoom"&&!root.vrOverlayMode;sourceComponent:Component{GunRoomPage{}}}
    GameGrid{id:grid;anchors.fill:parent;visible:root.view==="List"||root.view==="Library";view:root.view;sizeValue:root.sizeValue;vrOverlayMode:root.vrOverlayMode;reduceMotion:root.reduceMotion;effectsEnabled:!(uiSettings.values,uiSettings.get("cheapEffects",true));onDetailRequested:id=>root.showDetail(id);onActionRequested:id=>{root.showDetail(id);uiController.primary(id)} onExploreRequested:root.navigate("Explore");onPreviewRequested:(game,item)=>{if(root.vrOverlayMode)return;root.previewGame=game;let p=item.mapToItem(content,0,0);preview.x=Math.max(0,Math.min(content.width-preview.width,p.x-(preview.width-item.width)/2));preview.y=Math.max(0,Math.min(content.height-preview.height,p.y-(preview.height-item.height)/2));preview.visible=true} onPreviewClosed:preview.visible=false}
    Loader{anchors.fill:parent;anchors.margins:24;active:root.view==="Detail";sourceComponent:Component{DetailPage{vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;onDetailRequested:id=>uiController.openDetail(id)}}}
@@ -56,19 +66,19 @@ FocusScope {
    }
   }
   PillButton{objectName:"globalStop";text:typeof hubServices!=="undefined"&&hubServices.gunRoomBusy?"Close gun room":typeof hubServices!=="undefined"&&hubServices.preparing?"Stop preparing launch":"Stop game";visible:typeof hubServices!=="undefined"&&hubServices.launchBusy;vrOverlayMode:root.vrOverlayMode;onClicked:uiController.stopLaunch()}
-  UiText{Layout.fillWidth:true;Layout.leftMargin:14;Layout.bottomMargin:6;text:uiController.status||gameFilter.visibleCount+" / "+catalogGameCount+" games · Local art only";font.pixelSize:11;color:Theme.get("color.text.muted_detail")}
+  UiText{Layout.fillWidth:true;Layout.leftMargin:14;Layout.bottomMargin:6;text:uiController.status||(root.showAll?gameFilter.visibleCount+" / "+catalogGameCount+" games · Local art only":"");font.pixelSize:11;color:Theme.get("color.text.muted_detail")}
  }
  FiltersDrawer{id:filters;parent:root;x:Math.max(0,Math.min(root.width-width,160));y:Math.min(140,root.height-height);vrOverlayMode:root.vrOverlayMode}
  SortMenu{id:sort;parent:root;x:Math.max(0,root.width-width-180);y:60;vrOverlayMode:root.vrOverlayMode}
- HelpPanel{vrOverlayMode:root.vrOverlayMode;id:help;parent:root;x:Math.max(0,root.width-width-200);y:60;onSettingsRequested:root.navigate("Settings");onSetupRequested:root.navigate("Setup");onGunRoomRequested:root.navigate("GunRoom")}
- Dialog{id:scanDialog;objectName:"scanDialog";parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,520);modal:true;title:"Scan my files";standardButtons:Dialog.Ok|Dialog.Cancel
+ HelpPanel{vrOverlayMode:root.vrOverlayMode;showAll:root.showAll;id:help;parent:root;x:Math.max(0,root.width-width-200);y:60;onSettingsRequested:root.navigate("Settings");onSetupRequested:root.navigate("Setup");onGunRoomRequested:root.navigate("GunRoom")}
+ Dialog{id:scanDialog;objectName:"scanDialog";parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,520);modal:true;focus:true;title:"Scan my files";standardButtons:Dialog.Ok|Dialog.Cancel
   footer:DialogButtonBox{standardButtons:scanDialog.standardButtons;delegate:PillButton{vrOverlayMode:root.vrOverlayMode}}
   Column{width:parent.width;spacing:10;UiText{width:parent.width;text:"Choose folders containing your own game files. The scanner identifies media locally; no game content is downloaded."} TextField{id:roots;objectName:"scanRoots";width:parent.width;placeholderText:"Folders separated by ;";text:(uiSettings.values,uiSettings.get("scanRoots",""));color:Theme.get("color.text.primary");background:Rectangle{color:Theme.get("color.surface.pill");border.color:Theme.get("color.line.button");radius:4}} PillButton{vrOverlayMode:root.vrOverlayMode;text:"Browse folder";onClicked:folder.open()}}
   onAccepted:{uiSettings.set("scanRoots",roots.text);uiController.startScan(roots.text.split(/\n|;/).filter(p=>p.trim().length>0))}
   background:Rectangle{color:Theme.get("color.surface.panel");border.color:Theme.get("color.line.button");radius:8}
  }
  Connections {target:uiController;function onLocationRequested(kind){if(kind==="tool")toolDialog.open();else if(kind==="media")scanDialog.open();else if(kind==="steam-shortcut"&&typeof hubServices!=="undefined"){hubServices.beginSteam(uiController.detail.gameId,uiController.detail.variantId);steamDialog.open()}}}
- Dialog {id:toolDialog;objectName:"toolDialog";parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;title:"Emulators";standardButtons:Dialog.Close
+ Dialog {id:toolDialog;objectName:"toolDialog";parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;focus:true;title:"Emulators";standardButtons:Dialog.Close
   footer:DialogButtonBox{standardButtons:toolDialog.standardButtons;delegate:PillButton{vrOverlayMode:root.vrOverlayMode}}
   Column {width:parent.width;spacing:12
    UiText {width:parent.width;text:"Locate your existing MAME or PCSX2 folder with Find my files. Supermodel can be installed from its pinned official release.";wrapMode:Text.Wrap}
@@ -78,7 +88,7 @@ FocusScope {
    PillButton {vrOverlayMode:root.vrOverlayMode;text:"Preview Supermodel removal";enabled:typeof hubServices!=="undefined"&&!uiController.installing;onClicked:{hubServices.previewSupermodelRemoval();toolDialog.close()}}
   }
  }
- Dialog {id:steamDialog;objectName:"steamDialog";parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,680);modal:true;title:typeof hubServices!=="undefined"&&hubServices.steamRemoving?"Review Steam shortcut removal":"Review Steam shortcut changes";standardButtons:Dialog.Close
+ Dialog {id:steamDialog;objectName:"steamDialog";parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,680);modal:true;focus:true;title:typeof hubServices!=="undefined"&&hubServices.steamRemoving?"Review Steam shortcut removal":"Review Steam shortcut changes";standardButtons:Dialog.Close
   footer:DialogButtonBox{standardButtons:steamDialog.standardButtons;delegate:PillButton{vrOverlayMode:root.vrOverlayMode}}
   Column {width:parent.width;spacing:12
    UiText {width:parent.width;wrapMode:Text.Wrap;text:"Choose the account folder and review the exact files below. Save authorizes this displayed change. Steam must be fully closed; custom art is preserved."}
@@ -88,7 +98,7 @@ FocusScope {
    PillButton {vrOverlayMode:root.vrOverlayMode;text:typeof hubServices!=="undefined"&&hubServices.steamRemoving?"Approve the reviewed Steam removal":"Save the reviewed Steam shortcut";enabled:typeof hubServices!=="undefined"&&hubServices.steamWriteReady;onClicked:hubServices.approveSteamWrite()}
   }
  }
- Dialog {id:removeDialog;objectName:"removeDialog";parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;title:"Remove owned installation files?";standardButtons:Dialog.Ok|Dialog.Cancel
+ Dialog {id:removeDialog;objectName:"removeDialog";parent:root;anchors.centerIn:parent;width:Math.min(root.width-32,600);modal:true;focus:true;title:"Remove owned installation files?";standardButtons:Dialog.Ok|Dialog.Cancel
   footer:DialogButtonBox{standardButtons:removeDialog.standardButtons;delegate:PillButton{vrOverlayMode:root.vrOverlayMode}}
   onOpened:removeSteam.selected=false
   Column {width:parent.width;spacing:10
@@ -105,5 +115,7 @@ FocusScope {
  Shortcut{sequence:"Escape";onActivated:root.closeTop()}
  Shortcut{sequence:"Alt+Left";onActivated:root.back()}
  Connections{target:uiSettings;function onChanged(){root.previewGame=root.previewGame}}
- Component.onCompleted:if((uiSettings.values,uiSettings.get("scanOnStartup",false))&&(uiSettings.values,uiSettings.get("scanRoots","")).length)uiController.startScan((uiSettings.values,uiSettings.get("scanRoots","")).split(/\n|;/))
+ // Diagnostics may open one menu at start, for pictures taken by the Hub itself.
+ Timer{interval:300;running:typeof startMenu!=="undefined"&&startMenu.length>0;onTriggered:{if(startMenu==="help")help.open();else if(startMenu==="sort")sort.open();else if(startMenu==="filters")filters.open()}}
+ Component.onCompleted:if(root.showAll&&(uiSettings.values,uiSettings.get("scanOnStartup",false))&&(uiSettings.values,uiSettings.get("scanRoots","")).length)uiController.startScan((uiSettings.values,uiSettings.get("scanRoots","")).split(/\n|;/))
 }

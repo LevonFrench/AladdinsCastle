@@ -10,7 +10,7 @@ ApplicationWindow {
  minimumWidth:500;minimumHeight:400
  visible:true;title:uiController.appName
  color:Theme.get("color.surface.window")
- Loader{anchors.fill:parent;source:typeof overlaySpikeEnabled!=="undefined"&&overlaySpikeEnabled?"SpikeRoot.qml":"HubRoot.qml"}
+ Loader{anchors.fill:parent;source:typeof overlaySpikeEnabled!=="undefined"&&overlaySpikeEnabled?"SpikeRoot.qml":"HubRoot.qml";onLoaded:if(typeof panelLook!=="undefined"&&panelLook&&item.hasOwnProperty("vrOverlayMode"))item.vrOverlayMode=true}
  onClosing:close=>{if(uiController.installing){close.accepted=false;confirm.open()}else if(uiController.scanning){close.accepted=false;uiController.cancelScan()}else if(typeof hubServices!=="undefined"&&hubServices.gunRoomBusy){close.accepted=false;hubServices.requestHubExit()}else {uiSettings.set("winWidth",width);uiSettings.set("winHeight",height)}}
  Dialog{id:confirm;anchors.centerIn:parent;modal:true;title:"Stop the install after this step?";standardButtons:Dialog.Cancel|Dialog.Ok;onAccepted:uiController.cancelInstall()}
 }

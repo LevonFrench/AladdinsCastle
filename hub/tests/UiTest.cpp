@@ -194,7 +194,7 @@ class UiTest:public QObject {
   qInstallMessageHandler(logMessage);
   auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);QCOMPARE(catalog.games.size(),413);
   theme=std::make_unique<ac::Theme>(catalog.theme);qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",theme.get());
-  games=std::make_unique<ac::GameListModel>(std::move(catalog));filter.setSourceModel(games.get());settings=std::make_unique<ac::UiSettings>(user.path());ui=std::make_unique<ac::UiController>(games.get(),&filter,settings.get());engine=std::make_unique<QQmlApplicationEngine>();
+  games=std::make_unique<ac::GameListModel>(std::move(catalog));filter.setSourceModel(games.get());settings=std::make_unique<ac::UiSettings>(user.path());settings->set("showAllGames",true); /* the catalog tests below need the whole catalog */ui=std::make_unique<ac::UiController>(games.get(),&filter,settings.get());engine=std::make_unique<QQmlApplicationEngine>();
   auto context=engine->rootContext();context->setContextProperty("catalogGameCount",413);context->setContextProperty("gameModel",games.get());context->setContextProperty("gameFilter",&filter);context->setContextProperty("uiSettings",settings.get());context->setContextProperty("uiController",ui.get());
   engine->load(QUrl("qrc:/qt/qml/AladdinsCastle/Hub/DesktopShell.qml"));QVERIFY(!engine->rootObjects().isEmpty());window=qobject_cast<QQuickWindow *>(engine->rootObjects().first());QVERIFY(window);root=window->findChild<QObject *>("hubRoot");QVERIFY(root);QTest::qWait(300);
   auto list=window->findChild<QQuickItem *>("sectionedGrid");QVERIFY(list);QVERIFY(list->mapToScene(QPointF()).y()<200);QVERIFY(list->height()>400);
@@ -277,6 +277,63 @@ class UiTest:public QObject {
   ui->setSetupReport({});
  }
  // Starting, stopping and ending are shown at once, with the reason when a game crashed.
+ // Only playable games by default, and every menu opens and goes away again.
+ void playableOnlyAndEveryMenuCloses(){
+  const auto previousView=root->property("view");
+  const auto cleanup=qScopeGuard([&]{QMetaObject::invokeMethod(root,"closeMenus");settings->set("showAllGames",true);root->setProperty("history",QVariantList{});root->setProperty("view",previousView);});
+  const auto one=[&](const QString &name){const auto items=namedItems(window->contentItem(),name);return items.size()==1?items.first():nullptr;};
+  const auto centre=[](QQuickItem *item){return item->mapToScene(QPointF(item->width()/2,item->height()/2)).toPoint();};
+  const auto click=[&](QQuickItem *item){QVERIFY(item);QVERIFY(item->isVisible());QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(item));};
+  const auto popup=[&](const QString &name){return root->findChild<QObject *>(name);};
+  // Switching the catalog off leaves the catalog page for the playable list and hides what leads to it.
+  root->setProperty("view","List");QVERIFY(softwareFrame(window));
+  settings->set("showAllGames",false);QVERIFY(softwareFrame(window));
+  QTRY_COMPARE(root->property("view").toString(),QString("Model3"));QVERIFY(softwareFrame(window));
+  for(const auto &hidden:{"filterBar","libraryButton","orderButton","searchField"})QVERIFY2(!one(hidden)->isVisible(),hidden);
+  QVERIFY(one("model3Tab")->isVisible());QVERIFY(one("pinballTab")->isVisible());QVERIFY(one("helpButton")->isVisible());
+  // Pinball lists only tables that can be started; the excluded and not-ready ones stay hidden.
+  QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Pinball"),Q_ARG(QVariant,QVariant())));
+  {QVariantList tables;const QStringList states{"ready","needs no ROM","ROM missing","unknown"};
+   for(int i=0;i<8;++i)tables<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"vrReady",i<6},{"romState",states[i%4]}};
+   QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,(QVariantMap{{"total",8},{"vrReady",6},{"tables",tables}}))));}
+  QTRY_VERIFY(one("pinballGrid"));QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),4); // 0, 1, 4 and 5: VR-ready and startable.
+  QVERIFY(!one("pinballExcluded")->isVisible());QVERIFY(!one("pinballReady")->isVisible());QCOMPARE(one("pinballCount")->property("text").toString(),QString("4 tables ready to play"));
+  QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Model3"),Q_ARG(QVariant,QVariant())));QVERIFY(softwareFrame(window));
+  // The help menu: closed by its Close button, by Escape and by a click outside it; only items that work are shown.
+  const auto help=popup("helpPanel");QVERIFY(help);
+  for(int way=0;way<3;++way){
+   click(one("helpButton"));QTRY_VERIFY(help->property("opened").toBool());
+   QVERIFY(one("helpSettings")->isVisible());QVERIFY(!one("helpGunRoom")->isVisible());QVERIFY(!one("helpSuggest")->isVisible());
+   if(way==0)click(one("helpClose"));
+   else if(way==1){QVERIFY(softwareFrame(window));QTest::keyClick(window,Qt::Key_Escape);}
+   else{QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,QPoint(20,window->height()-20));}
+   QTRY_VERIFY2(!help->property("visible").toBool(),qPrintable(QString::number(way)));
+  }
+  // Scrolling over the help menu leaves it open; it used to close it.
+  click(one("helpButton"));QTRY_VERIFY(help->property("opened").toBool());
+  {const auto inside=centre(one("helpSettings"));QWheelEvent wheel(inside,window->mapToGlobal(inside),{},QPoint(0,-120),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);QCoreApplication::sendEvent(window,&wheel);}
+  QTest::qWait(100);QVERIFY(help->property("opened").toBool());click(one("helpClose"));QTRY_VERIFY(!help->property("visible").toBool());
+  // A help item closes the menu and opens its page.
+  click(one("helpButton"));QTRY_VERIFY(help->property("opened").toBool());click(one("helpSettings"));
+  QTRY_VERIFY(!help->property("visible").toBool());QCOMPARE(root->property("view").toString(),QString("Settings"));
+  // The setting brings the catalog back, with its filters, sort and search; each of those menus closes too.
+  click(one("settingShowAll"));QTRY_VERIFY(settings->get("showAllGames").toBool());
+  root->setProperty("view","List");QVERIFY(softwareFrame(window));QVERIFY(one("filterBar")->isVisible());QVERIFY(one("orderButton")->isVisible());
+  const auto sort=popup("sortMenu"),filters=popup("filtersDrawer");QVERIFY(sort);QVERIFY(filters);
+  click(one("orderButton"));QTRY_VERIFY(sort->property("opened").toBool());click(one("sortClose"));QTRY_VERIFY(!sort->property("visible").toBool());
+  QVERIFY(QMetaObject::invokeMethod(filters,"open"));QTRY_VERIFY(filters->property("opened").toBool());
+  // Scrolling inside the drawer scrolls it; it used to close it.
+  QVERIFY(softwareFrame(window));const auto inside=window->contentItem()->mapFromItem(qobject_cast<QQuickItem *>(filters->property("contentItem").value<QObject *>()),QPointF(40,40)).toPoint();
+  QWheelEvent wheel(inside,window->mapToGlobal(inside),{},QPoint(0,-120),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);QCoreApplication::sendEvent(window,&wheel);
+  QTest::qWait(100);QVERIFY(filters->property("opened").toBool());
+  click(one("filtersDone"));QTRY_VERIFY(!filters->property("visible").toBool());
+  // Escape closes a dialog and stays on the page under it.
+  const auto scan=popup("scanDialog");QVERIFY(scan);QVERIFY(QMetaObject::invokeMethod(scan,"open"));QTRY_VERIFY(scan->property("opened").toBool());
+  QVERIFY(softwareFrame(window));QTest::keyClick(window,Qt::Key_Escape);QTRY_VERIFY(!scan->property("visible").toBool());QCOMPARE(root->property("view").toString(),QString("List"));
+  // Changing page closes whatever is open.
+  click(one("orderButton"));QTRY_VERIFY(sort->property("opened").toBool());QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Model3"),Q_ARG(QVariant,QVariant())));
+  QTRY_VERIFY(!sort->property("visible").toBool());
+ }
  void lifecycleIsShownAtOnce(){
   const auto one=[&](const QString &name){const auto items=namedItems(window->contentItem(),name);return items.size()==1?items.first():nullptr;};
   const auto cleanup=qScopeGuard([&]{ui->dismissLastSession();});
@@ -315,7 +372,7 @@ class UiTest:public QObject {
   QCOMPARE(root->property("view").toString(),QString("Model3"));
   QTRY_VERIFY(!namedItems(window->contentItem(),"model3Grid").isEmpty());
   QCOMPARE(namedItems(window->contentItem(),"model3Grid").first()->property("count").toInt(),10);
-  for(const auto &row:ui->model3Games())QVERIFY(row.toMap().value("problem").toString().contains("Locate emulator"));
+  for(const auto &row:ui->model3Games())QVERIFY(row.toMap().value("problem").toString().contains("Choose it in Set-up"));
   QVERIFY(settings->set("model3Executable",fixture.filePath("emu/program.exe")));QVERIFY(settings->set("model3GameFolder",fixture.filePath("games")));
   auto rows=ui->model3Games();QCOMPARE(rows.size(),10);
   QCOMPARE(rows[0].toMap().value("view").toString(),QString("screen"));
@@ -385,7 +442,7 @@ class UiTest:public QObject {
  }
  void pinballGlobalStopRealScene(){
   QFETCH(QString,phase);
-  QTemporaryDir temporary;ac::UiSettings localSettings(temporary.path());
+  QTemporaryDir temporary;ac::UiSettings localSettings(temporary.path());localSettings.set("showAllGames",true);
   ac::UiController localUi(games.get(),&filter,&localSettings);
   LaunchLifecycleProbe probe;probe.startup=phase=="preparing";
   QQmlContext context(engine->rootContext());context.setContextProperty("hubServices",&probe);
@@ -428,8 +485,7 @@ class UiTest:public QObject {
   QVERIFY(exit->isVisible());snapshot("card-before-frame",exit);
   QVERIFY(softwareFrame(window));snapshot("card-after-frame",exit);
   QVERIFY(exit->height()>=48);
-  auto recentre=namedItems(window->contentItem(),"nowPlayingRecentre").first();
-  QVERIFY(!recentre->isEnabled());
+  QVERIFY(namedItems(window->contentItem(),"nowPlayingRecentre").isEmpty()); // A button that did nothing is gone, not greyed out.
   QSignalSpy close(ui.get(),SIGNAL(closeLaunchRequested()));
   auto p=exit->mapToScene(QPointF(exit->width()/2,exit->height()/2));
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
@@ -451,7 +507,7 @@ class UiTest:public QObject {
   QCOMPARE(replay[0][1].toString(),QString("flat")); root->setProperty("vrOverlayMode",false);
  }
  void gunRoomDesktopRealScene(){
-  QTemporaryDir temporary;ac::UiSettings localSettings(temporary.path());
+  QTemporaryDir temporary;ac::UiSettings localSettings(temporary.path());localSettings.set("showAllGames",true);
   localSettings.set("gunRoomExecutable",temporary.filePath("reviewed room.exe"));
   ac::UiController localUi(games.get(),&filter,&localSettings);GunRoomProbe probe;
   QQmlContext context(engine->rootContext());context.setContextProperty("hubServices",&probe);
@@ -703,7 +759,7 @@ class UiTest:public QObject {
  void authoredSteamActionUsesActualQmlSelection(){
   ac::test::AuthoredSteamFixture fixture;
   ac::GameListModel localGames(fixture.catalog);ac::FilterSortModel localFilter;localFilter.setSourceModel(&localGames);
-  ac::UiSettings localSettings(fixture.temp.filePath("user"));ac::UiController localUi(&localGames,&localFilter,&localSettings);
+  ac::UiSettings localSettings(fixture.temp.filePath("user"));localSettings.set("showAllGames",true);ac::UiController localUi(&localGames,&localFilter,&localSettings);
   localUi.openDetail("wii-synthetic");localUi.selectVariant("flat-dolphin");
   SteamPreparationProbe probe;probe.fixture=&fixture;
   QQmlContext context(engine->rootContext());

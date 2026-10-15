@@ -6,6 +6,7 @@ import AladdinsCastle.Hub
 Rectangle {
  id:header
  property bool vrOverlayMode:false
+ property bool showAll:false
  signal libraryRequested()
  signal pinballRequested()
  signal model3Requested()
@@ -24,10 +25,10 @@ Rectangle {
   Item {visible:header.width<620;Layout.fillWidth:true}
   PillButton {objectName:"model3Tab";text:"VR games";vrOverlayMode:header.vrOverlayMode;onClicked:header.model3Requested()}
   PillButton {objectName:"pinballTab";text:"Pinball";vrOverlayMode:header.vrOverlayMode;onClicked:header.pinballRequested()}
-  PillButton {text:"▦";width:vrOverlayMode?44:40;vrOverlayMode:header.vrOverlayMode;Accessible.name:"Open library";onClicked:header.libraryRequested()}
-  PillButton {text:"···";width:vrOverlayMode?44:40;vrOverlayMode:header.vrOverlayMode;Accessible.name:"Help and settings";onClicked:header.helpRequested()}
-  PillButton {text:(header.width>=620?"ORDER  ":"")+gameFilter.sortMode+" ▾";Layout.preferredWidth:header.width>=780?144:112;vrOverlayMode:header.vrOverlayMode;onClicked:header.orderRequested()}
-  TextField {id:search;objectName:"searchField";Layout.preferredWidth:header.width>=780?165:115;Layout.preferredHeight:header.vrOverlayMode?56:40;text:gameFilter.query;placeholderText:"Search";color:Theme.get("color.text.primary");placeholderTextColor:Theme.get("color.text.faint");font.family:Theme.get("font.family");font.pixelSize:header.vrOverlayMode?16:12;selectByMouse:true;Accessible.name:"Search games";onActiveFocusChanged:if(activeFocus&&header.vrOverlayMode&&typeof overlayHost!=="undefined")overlayHost.requestKeyboard(search);onTextEdited:header.queryEdited(text);Keys.onEscapePressed:if(text.length){clear();header.queryEdited("")}else focus=false
+  PillButton {objectName:"libraryButton";visible:header.showAll;text:"▦";width:vrOverlayMode?44:40;vrOverlayMode:header.vrOverlayMode;Accessible.name:"Open library";onClicked:header.libraryRequested()}
+  PillButton {objectName:"helpButton";text:"···";width:vrOverlayMode?44:40;vrOverlayMode:header.vrOverlayMode;Accessible.name:"Help and settings";onClicked:header.helpRequested()}
+  PillButton {objectName:"orderButton";visible:header.showAll;text:(header.width>=620?"ORDER  ":"")+gameFilter.sortMode+" ▾";Layout.preferredWidth:header.width>=780?144:112;vrOverlayMode:header.vrOverlayMode;onClicked:header.orderRequested()}
+  TextField {id:search;objectName:"searchField";visible:header.showAll;Layout.preferredWidth:header.width>=780?165:115;Layout.preferredHeight:header.vrOverlayMode?56:40;text:gameFilter.query;placeholderText:"Search";color:Theme.get("color.text.primary");placeholderTextColor:Theme.get("color.text.faint");font.family:Theme.get("font.family");font.pixelSize:header.vrOverlayMode?16:12;selectByMouse:true;Accessible.name:"Search games";onActiveFocusChanged:if(activeFocus&&header.vrOverlayMode&&typeof overlayHost!=="undefined")overlayHost.requestKeyboard(search);onTextEdited:header.queryEdited(text);Keys.onEscapePressed:if(text.length){clear();header.queryEdited("")}else focus=false
    background:Rectangle {radius:6;color:Theme.get("color.surface.pill");border.color:search.activeFocus?Theme.get("color.glass.ring"):Theme.get("color.line.strong")}
   }
  }

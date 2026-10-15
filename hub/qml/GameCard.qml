@@ -48,7 +48,7 @@ FocusScope {
    UiText { text:card.game.isWip?"WIP":"";font.pixelSize:8*card.factor;color:Theme.get("color.badge.wip") }
   }
   GradientText { width:parent.width;text:card.game.title||"";pixelSize:Math.round(Theme.get("type.card_title.size")*card.factor);bottomColor:Theme.get("type.gradient.card_title_bottom") }
-  UiText { visible:!card.preview;width:parent.width;text:(card.game.manufacturerShort||"")+" · "+(card.game.hardwareLabel||"")+" · "+(card.game.year||"");font.pixelSize:9*card.factor;color:card.game.accent||Theme.get("color.brand.orange");elide:Text.ElideRight;wrapMode:Text.NoWrap }
+  UiText { visible:!card.preview;width:parent.width;text:[card.game.manufacturerShort,card.game.hardwareLabel,card.game.year].filter(part=>!!part).join(" · ");font.pixelSize:9*card.factor;color:card.game.accent||Theme.get("color.brand.orange");elide:Text.ElideRight;wrapMode:Text.NoWrap }
   UiText { visible:!card.preview&&card.game.developerShown===true;width:parent.width;text:"by "+(card.game.developer||"");font.pixelSize:9*card.factor;color:Theme.get("color.text.author");elide:Text.ElideRight;wrapMode:Text.NoWrap }
   UiText { visible:!card.preview;width:parent.width;height:20*card.factor;text:card.game.blurb||"Catalog metadata · supply your own game files";font.pixelSize:10*card.factor;color:Theme.get("color.text.note");maximumLineCount:2;elide:Text.ElideRight }
   UiText { visible:!card.preview;width:parent.width;elide:Text.ElideRight;wrapMode:Text.NoWrap;text:card.footText||uiController.vrLabel(card.game.vrBadge||0)+"  "+(card.game.players>1?card.game.players+"P":"")+"  "+(card.game.controlsLabel||"");font.pixelSize:8*card.factor;color:Theme.get("color.text.muted_detail") }

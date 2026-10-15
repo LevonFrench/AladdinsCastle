@@ -6,18 +6,18 @@ Popup{
  id:panel
  objectName:"helpPanel"
  property bool vrOverlayMode:false
+ property bool showAll:false
  signal settingsRequested()
  signal gunRoomRequested()
  signal setupRequested()
- width:300;padding:12;modal:true;closePolicy:Popup.CloseOnEscape|Popup.CloseOnPressOutside
+ width:300;padding:12;modal:true;focus:true;closePolicy:Popup.CloseOnEscape|Popup.CloseOnPressOutside
  background:Rectangle{color:Theme.get("color.surface.panel");radius:8;border.color:Theme.get("color.line.button")}
  Column{width:parent.width;spacing:8;UiText{text:"HELP & FEEDBACK";font.pixelSize:10;color:Theme.get("color.text.menu_caption")}
-  PillButton{vrOverlayMode:panel.vrOverlayMode;text:"Settings";width:parent.width;onClicked:{panel.close();panel.settingsRequested()}}
+  PillButton{objectName:"helpSettings";vrOverlayMode:panel.vrOverlayMode;text:"Settings";width:parent.width;onClicked:{panel.close();panel.settingsRequested()}}
   PillButton{objectName:"helpSetup";vrOverlayMode:panel.vrOverlayMode;text:"Set-up";width:parent.width;onClicked:{panel.close();panel.setupRequested()}}
-  PillButton{objectName:"helpGunRoom";text:"Gun room";visible:!panel.vrOverlayMode;width:parent.width;onClicked:{panel.close();panel.gunRoomRequested()}}
-  PillButton{vrOverlayMode:panel.vrOverlayMode;text:"Suggest a game";width:parent.width;onClicked:uiController.openLink("https://github.com/LevonFrench/AladdinsCastle/issues/new")}
-  PillButton{vrOverlayMode:panel.vrOverlayMode;text:"Logs and report a problem";width:parent.width;onClicked:uiController.openLocation("log")}
-  UiText{width:parent.width;text:"Supply your own game files. M1 supports flat emulator routes. VR setups and sideloading follow in later milestones.";font.pixelSize:12}
+  PillButton{objectName:"helpGunRoom";text:"Gun room";visible:!panel.vrOverlayMode&&panel.showAll;width:parent.width;onClicked:{panel.close();panel.gunRoomRequested()}}
+  PillButton{objectName:"helpSuggest";visible:!panel.vrOverlayMode&&panel.showAll;vrOverlayMode:panel.vrOverlayMode;text:"Suggest a game";width:parent.width;onClicked:uiController.openLink("https://github.com/LevonFrench/AladdinsCastle/issues/new")}
+  PillButton{objectName:"helpLogs";visible:!panel.vrOverlayMode;vrOverlayMode:panel.vrOverlayMode;text:"Logs and report a problem";width:parent.width;onClicked:{panel.close();uiController.openLocation("log")}}
+  PillButton{objectName:"helpClose";vrOverlayMode:panel.vrOverlayMode;text:"Close";width:parent.width;onClicked:panel.close()}
  }
- WheelHandler{onWheel:panel.close()}
 }
