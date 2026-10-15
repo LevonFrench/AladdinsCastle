@@ -839,3 +839,9 @@ Private play launchers have no session time cap. Offline runs require an explici
 time limit or bounded check/replay mode. A requested stop allows 15 seconds
 for graceful shutdown before the verified owned-process fallback. CPU policy
 fixtures cover play beyond two hours, timed exit and an externally requested stop.
+
+Play enables one private 8 MB file card per game. Offline and diagnostic runs
+disable every slot and select a separate unused card directory. Xbox bindings
+are preserved. Normal VM shutdown closes the card and flushes its C file;
+the save-state boolean does not disable memory-card persistence. Forced
+termination may still lose an unfinished write; in-game save/load needs owner testing.
