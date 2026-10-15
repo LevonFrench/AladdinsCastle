@@ -158,16 +158,23 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
  return {{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
 }
 QVariantMap launchGuidance() {
- return {{"launchAllowed",true},{"help","Play asks Visual Pinball to start the table in the headset. Hub does this with a small settings file of its own for that table, layered over your normal settings, which it never changes. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables."}};
+ return {{"launchAllowed",true},{"help","Launch on desktop starts the table with VR off; Launch in headset asks Visual Pinball for VR. Hub does this with a small settings file of its own for that table, layered over your normal settings, which it never changes. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables."}};
 }
 QVariantMap launchPlan(const QString &table,const QString &executable,const QString &ownedRoot,bool vr) {
+ return launchPlan(table,executable,ownedRoot,vr?QString("headset"):QString());
+}
+QVariantMap launchPlan(const QString &table,const QString &executable,const QString &ownedRoot,const QString &view,const QString &appSettings) {
  require(QFileInfo(table).isFile()&&QFileInfo(table).suffix().compare("vpx",Qt::CaseInsensitive)==0&&!link(QFileInfo(table))&&QFileInfo(executable).isFile()&&!link(QFileInfo(executable)));
  require(!inspect(table).contains("error"));
  auto plan=launchGuidance();
  plan.insert("executable",QFileInfo(executable).absoluteFilePath());
  plan.insert("cwd",QFileInfo(executable).absolutePath());
- QStringList args{"-Play",QFileInfo(table).absoluteFilePath()};
- if(vr&&!ownedRoot.isEmpty()){
+ require(view.isEmpty()||view=="headset"||view=="desktop");
+ QStringList args;
+ if(!appSettings.isEmpty()){args<<"-Ini"<<QDir::toNativeSeparators(appSettings);plan.insert("appSettings",QDir::toNativeSeparators(appSettings));}
+ args<<"-Play"<<QFileInfo(table).absoluteFilePath();
+ if(!view.isEmpty()&&!ownedRoot.isEmpty()){
+  plan.insert("view",view);plan.insert("vrMode",view=="headset"?0:2);
   // The id is the scan's table id, so no table name reaches a Hub file name.
   const auto id=QString::fromLatin1(QCryptographicHash::hash(QFileInfo(table).absoluteFilePath().toUtf8(),QCryptographicHash::Sha256).toHex());
   const auto settings=QDir::toNativeSeparators(install::scopedPath("user/pinball/"+id+".ini",ownedRoot));
@@ -183,9 +190,10 @@ QVariantMap launchPlan(const QString &table,const QString &executable,const QStr
  plan.insert("args",args);
  return plan;
 }
-QByteArray vrOnSettings(const QByteArray &settings) {
+QByteArray vrOnSettings(const QByteArray &settings) {return vrModeSettings(settings,0);}
+QByteArray vrModeSettings(const QByteArray &settings,int mode) {
  // Line edit only: comments, order, other keys and the file's line endings stay as they are.
- const QByteArray eol=settings.contains("\r\n")?"\r\n":"\n",wanted="AskToTurnOn = 0";
+ const QByteArray eol=settings.contains("\r\n")?"\r\n":"\n",wanted="AskToTurnOn = "+QByteArray::number(qBound(0,mode,2));
  auto lines=settings.split('\n');
  for(auto &line:lines)if(line.endsWith('\r'))line.chop(1);
  if(!lines.isEmpty()&&lines.last().isEmpty())lines.removeLast();
@@ -211,7 +219,7 @@ void writeVrSettings(const QVariantMap &plan) {
  QByteArray current;
  if(exists)current=install::readBytes(path);
  else if(!seed.isEmpty()&&QFileInfo(seed).size()<=1024*1024)current=install::readBytes(seed);
- const auto updated=vrOnSettings(current);
+ const auto updated=vrModeSettings(current,plan.value("vrMode",0).toInt());
  if(exists&&updated==current)return;
  if(!QDir().mkpath(QFileInfo(path).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's Pinball settings folder");
  install::atomicWrite(path,updated);
