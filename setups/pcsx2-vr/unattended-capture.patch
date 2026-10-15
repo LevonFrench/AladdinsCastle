@@ -1065,7 +1065,7 @@ index 81110bb..39dd2d9 100644
  
  void GSTextureCache::ReadbackAll()
 diff --git a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
-index 2174fa3..8bdf8dc 100644
+index 2174fa3..ad626f3 100644
 --- a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 +++ b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 @@ -5,6 +5,8 @@
@@ -1086,7 +1086,7 @@ index 2174fa3..8bdf8dc 100644
  #include <fstream>
  #include <sstream>
  
-@@ -35,6 +39,58 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
+@@ -35,6 +39,60 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
  static constexpr u32 VERTEX_PUSH_CONSTANT_BUFFER_SIZE = 1024 * 1024;
  static constexpr u32 TEXTURE_UPLOAD_BUFFER_SIZE = 128 * 1024 * 1024;
  
@@ -1112,6 +1112,8 @@ index 2174fa3..8bdf8dc 100644
 +		float zb = StereoEnv("PCSX2_STEREO_Z_B", 0);
 +		float zwidth = StereoEnv("PCSX2_STEREO_Z_MODEL_WIDTH", 0);
 +		float hudwidth = StereoEnv("PCSX2_STEREO_HUD_TARGET_WIDTH", 0);
++		// Opt-in, measured near-camera HUD cluster in reciprocal game units.
++		float hud_near_q = StereoEnv("PCSX2_STEREO_HUD_NEAR_Q", 0);
 +		bool hide_displaced = StereoEnv("PCSX2_STEREO_HIDE_DISPLACED", 0) != 0;
 +	};
 +	StereoParams s_stereo;
@@ -1145,7 +1147,7 @@ index 2174fa3..8bdf8dc 100644
  namespace ReplaceGL
  {
  	static void GLAPIENTRY ScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height)
-@@ -215,7 +271,10 @@ namespace Emulate_DSA
+@@ -215,7 +273,10 @@ namespace Emulate_DSA
  	}
  } // namespace Emulate_DSA
  
@@ -1157,7 +1159,7 @@ index 2174fa3..8bdf8dc 100644
  
  GSDeviceOGL::~GSDeviceOGL()
  {
-@@ -1835,6 +1894,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
+@@ -1835,6 +1896,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
  		+ fmt::format("#define VS_IIP {}\n", static_cast<u32>(sel.iip))
  		+ fmt::format("#define VS_POINT_SIZE {}\n", static_cast<u32>(sel.point_size))
  		+ fmt::format("#define VS_EXPAND {}\n", static_cast<int>(sel.expand));
@@ -1165,7 +1167,7 @@ index 2174fa3..8bdf8dc 100644
  
  	std::string src = GenGlslHeader("vs_main", GL_VERTEX_SHADER, macro);
  	src += m_shader_tfx_vgs;
-@@ -2995,6 +3055,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -2995,6 +3057,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	if (it != m_programs.end())
  	{
  		it->second.Bind();
@@ -1179,7 +1181,7 @@ index 2174fa3..8bdf8dc 100644
  		return;
  	}
  
-@@ -3005,6 +3072,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -3005,6 +3074,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	m_shader_cache.GetProgram(&prog, vs, ps);
  	it = m_programs.emplace(psel, std::move(prog)).first;
  	it->second.Bind();
@@ -1193,7 +1195,7 @@ index 2174fa3..8bdf8dc 100644
  }
  
  void GSDeviceOGL::SetupSampler(PSSamplerSelector ssel)
-@@ -3036,6 +3110,120 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
+@@ -3036,6 +3112,135 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
  
  void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
  {
@@ -1231,7 +1233,22 @@ index 2174fa3..8bdf8dc 100644
 +			camera_q &= std::abs(static_cast<double>(config.verts[i].XYZ.Z) -
 +				(s_stereo.za + static_cast<double>(s_stereo.zb) * config.verts[i].RGBAQ.Q)) <= 64;
 +	}
-+	s_stereo_draw_mode = (!world || hud_target) ? 0.0f :
++	// Some games render their 3D ammunition/life HUD with the same Q/Z camera
++	// relation as the world, but in a separate extremely near depth range.
++	// Require every vertex to be in that per-profile range on the fitted target;
++	// mixed world/HUD draws stay untouched. No threshold is enabled by default.
++	bool near_hud = s_stereo.hud_near_q > 0 && z_model && config.nverts > 0;
++	if (near_hud)
++	{
++		for (u32 i = 0; i < config.nverts; ++i)
++		{
++			const auto& v = config.verts[i];
++			const double inverse_depth = (camera_q ? static_cast<double>(v.RGBAQ.Q) :
++				(static_cast<double>(std::min(v.XYZ.Z, config.cb_vs.max_depth)) - s_stereo.za) / s_stereo.zb) * s_stereo.qscale;
++			near_hud &= std::isfinite(inverse_depth) && inverse_depth >= s_stereo.hud_near_q;
++		}
++	}
++	s_stereo_draw_mode = (!world || hud_target || near_hud) ? 0.0f :
 +		(camera_q ? 1.0f : (z_model ? 2.0f : 0.0f));
 + // Conservative target-only prototype: intermediate passes retain GS projection.
 + if (PS2VRInside::Enabled())

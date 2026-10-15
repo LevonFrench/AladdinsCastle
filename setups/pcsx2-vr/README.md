@@ -688,3 +688,24 @@ muzzle-flash planes tilt across geometry and culling/disocclusion gaps remain.
 Whole-title effects, physical calibration and live/headset speed are untested.
 The game's own controller page shows Release reload mode: hold Reload/action
 to attack, release to cover/reload. Five generic depth profiles remain.
+
+### Vampire Night measured combat and near HUD
+
+Village combat gives three training dumps plus an independent fourth. On640-wide
+camera targets, `Z=-3.0600161980837584+167772.14645252345*Q`, Qscale+1.
+Training87169 rows have RMS0.3321038441; held-out22012 have RMS0.3349568146,
+maximum1.344388458. Native scanout640x224 displays640x448, rasterY2. Provisional
+units/m10,convergence1000m,fx320,fy298.6667,canvas640x448; lens/metres unmeasured.
+
+The perspective life/ammo HUD follows the same Q/Z relation but sits in a
+separate extreme-near range45.19..51.73, versus world Q up to1.0135. An opt-in
+`PCSX2_STEREO_HUD_NEAR_Q=10` pins draws only when every vertex qualifies on the
+fitted target, using camera Q or Z fallback. Default0 disables this policy.
+Native before/after pictures show the life models restored to the flat HUD;
+all3 isolated HUD eyes match, and all3 stereo-off frames equal unchanged replay.
+Near armour19px versus distant building2px. Actual launcher fake30/shared/SBS
+and exact-zero RGBA pass at3x1920x1344. Hit flares/radial streaks remain flat and
+may ghost; culling holes persist. Physical calibration/headset/live FPS remain
+unverified. The latest executable also passes screen/INSIDE final gun/dot layer
+order, transparent-black background and stale-pixel checks without OpenXR.
+Four generic profiles remain: Ninja Assault, OutRun2, Wipeout Pulse and XGIII.

@@ -81,5 +81,12 @@
     "heldout": "26819 rows RMS0.295139967 max3.543243138",
     "proof": "Near18px/far5px, unchanged stereo-off, classified HUD eye equality; native fake30/shared/SBS/exact-zero pass.",
     "limits": "Some INSIDE HUD pieces on inconsistent planes; flash planes and culling gaps; physical calibration/live speed pending;5 generic profiles remain."
+  },
+  "vampire_night_combat_profile_validation": {
+    "fit": "A=-3.0600161980837584 B=167772.14645252345 Qscale=+1 target640",
+    "heldout": "22012 rows RMS0.3349568146 max1.344388458",
+    "hud": "Opt-in near-Q10 between measured world<=1.0135 and perspective HUD>=45.19; all vertices required, default disabled.",
+    "proof": "Near19px/far2px, isolated HUD exact, stereo-off unchanged, actual launcher fake30/shared/SBS/exact-zero pass.",
+    "limits": "Flat hit flares/streaks, culling holes; physical calibration and live/headset FPS not established;4 generic profiles remain."
   }
 }
