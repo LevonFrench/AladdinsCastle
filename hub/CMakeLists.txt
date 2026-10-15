@@ -102,7 +102,9 @@ add_library(hubcore STATIC
     src/core/steam/BinaryVdf.cpp
     src/core/settings/Settings.h
     src/core/art/Art.h
-    src/core/art/Art.cpp)
+    src/core/art/Art.cpp
+    src/core/art/Download.h
+    src/core/art/Download.cpp)
 target_compile_features(hubcore PUBLIC cxx_std_20)
 target_include_directories(hubcore PUBLIC src "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent
@@ -227,6 +229,11 @@ if(BUILD_TESTING)
     ac_project_warnings(setup-tests)
     set_target_properties(setup-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-setup COMMAND setup-tests -o -,txt)
+    qt_add_executable(art-download-tests tests/ArtDownloadTest.cpp)
+    target_link_libraries(art-download-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(art-download-tests)
+    set_target_properties(art-download-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-art-download COMMAND art-download-tests -o -,txt)
     qt_add_executable(pinball-settings-tests tests/PinballSettingsTest.cpp)
     target_link_libraries(pinball-settings-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(pinball-settings-tests)
