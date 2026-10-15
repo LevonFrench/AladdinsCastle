@@ -68,5 +68,12 @@
     "sampling": "3x/4x GS samples scaled into exact recommended eye grid; per-profile cap and one-way sustained-speed fallback3x.",
     "offline": "Virtua Cop4x gameplay sampled100%; exact shared/SBS and synthetic eye-grid comparison pass. OutRun full-speed gate unmet in three trials, including zero-pose control; capped3x pending profiling.",
     "headset": "No runtime started; actual query/allocation and physical performance unverified."
+  },
+  "additional_combat_profile_validation": {
+    "title": "Time Crisis3",
+    "fit": "A=-2559.855954779021 B=1677955.5163746427 Qscale=+1 target640",
+    "heldout": "106090 rows RMS0.2891932036 max0.5239128587",
+    "proof": "Near enemy17px/far palms2px; HUD and stereo-off exact; native launcher fake30/shared/SBS/exact-zero pass.",
+    "limits": "Cover blur wrong flat layer; sparks pinned; physical calibration and headset/live speed not established;6 generic profiles remain."
   }
 }

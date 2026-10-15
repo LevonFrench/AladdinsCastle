@@ -650,3 +650,21 @@ independent nearest-sample comparison, allowing only adjacent texels at exact
 floating-point texel-boundary ties. All other pixels match exactly. Real
 runtime query/allocation, tracked overlay visibility and headset frame rate
 still require owner testing. No headset runtime was started.
+
+
+### Time Crisis3 measured combat checkpoint
+
+Actual one-player Arcade Stage1 supplies three training GS dumps plus an
+independent fourth. On640-wide camera targets the fit is
+`Z=-2559.855954779021+1677955.5163746427*Q`, Qscale+1. Held-out106090 rows have
+RMS0.2891932036 and maximum residual0.5239128587, all within guard64. Source
+scanout640x256 displays640x512, vertical scale2. Lens and metric scale remain
+provisional: fx320,fy341.3333,canvas640x512,units/m1,convergence1000m.
+
+Near enemy image disparity is17px versus2px for distant palms. All replay
+stereo-off RGBA pixels equal the unchanged runner; HUD-only eyes are identical.
+Actual private launcher dump proofs pass fake-left30, exact-zero vs screen,
+shared GPU eyes and native SBS, at3x/1920x1536. This is depth/replay acceptance,
+not physical GunCon calibration or live/headset speed acceptance. Blurred cover
+remains a wrong flat layer in INSIDE, small sparks stay pinned, and culling/sky
+pass edges are visible. Six other generic profiles remain unmeasured.
