@@ -859,3 +859,12 @@ Spare Start is emitted as a 250 ms pulse only after a short release (under
 400 ms). Holding Index left B for quit never sends Start. The Touch spare
 menu button follows the same tap rule; focus loss resets pending taps.
 CPU fixtures cover the short tap, long hold, cutoff boundary and focus reset.
+
+Depth review only: nine profiles retain inherited 1000 m screen convergence;
+Virtua Cop and the generic OutRun 2 profile use 10 m. These are provisional,
+not measured physical distances. INSIDE uses runtime eye poses and bypasses
+the screen convergence shift; its HUD distance is explicitly 2.5 m. No profile
+constants changed. A future approved screen trial should compare convergence
+with the physical quad distance, retaining the current reference. Screen-mode
+separation could come from the runtime eye baseline; fake-pose proofs retain
+a fixed baseline. Physical scale, comfort and actual save/load need owner checks.
