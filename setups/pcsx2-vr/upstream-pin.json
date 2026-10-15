@@ -37,5 +37,13 @@
     "sha256": "2ad93d0206f5519f871702ed47d940e0ff2e37604c3c5718d28f5120243ec929",
     "downloaded": false,
     "note": "Reuse the existing locally built loader; no SDK or loader download/installation in this session."
+  },
+  "capture_checkpoint_extension": {
+    "options": [
+      "-capture-load-state",
+      "-capture-save-state"
+    ],
+    "scope": "Opt-in capture runner VM state; memory cards remain disabled.",
+    "validation": "v145 own-project build; successful menu save/resume; missing-load and failed-save nonzero exits; normal stereo-off replay unchanged."
   }
 }

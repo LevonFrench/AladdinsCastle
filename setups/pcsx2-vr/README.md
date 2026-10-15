@@ -294,8 +294,9 @@ and live race-emulation speed remain unmeasured.
 
 The final live scene and no-headset proof are recorded privately. Headset
 submission, Home recentring, physical gamepad play and speed with OpenXR active
-remain untested. The two measured game profiles above remain provisional; other
-launchers use an unvalidated generic Q-only profile. They do not constitute
+remain untested. The original two measured game profiles remain provisional. The later
+measurement checkpoint below records two additional fits; the remaining seven
+launchers still use unvalidated generic Q-only profiles. They do not constitute
 whole-game stereo acceptance.
 
 ### Headset black-picture diagnostics
@@ -465,3 +466,50 @@ constants. Generic profiles remain unvalidated. Native source/math tests,
 internal GPU images and physical headset acceptance are distinct gates;
 the latter is not established by an OpenXR-disabled proof. No runtime is
 started or configured by diagnostic runs.
+
+
+### Additional gameplay depth measurements
+
+The capture runner accepts `-capture-save-state <private-state>` and
+`-capture-load-state <private-state>` only together with capture mode. These
+opt-in VM checkpoints shorten scripted menu navigation; they are separate
+from memory-card saves. Keep cards disabled. A checkpoint follows completion
+of the requested picture/dump plus at least twelve further presentations, so
+it is a resume aid rather than the exact pictured state. Save/load errors
+return failure; normal dump replay retains the previous behavior.
+
+Scripted native pad input reached actual arcade races for the following games.
+Both use the observed 512-wide camera target and 512x448 display canvas.
+Numbers below fit `Z = A + B*Q`; residuals are in GS depth units, not metres.
+
+| Game | A | B | Fit RMS | Offline validation |
+| --- | ---: | ---: | ---: | --- |
+| Wipeout Fusion | -1043.5043267045985 | 8350519.785445882 | 1.7562 | Near ship19px versus distant sign2px; flat HUD; zero-pose exact; fake-left30 rendered |
+| XGRA | -32.49576158036507 | 1073741.6504301124 | 0.2958 | Near bike24px versus distant sign1px; flat HUD; INSIDE proof incomplete |
+
+XGRA's separate high-speed race sample supports the same relation: held-out
+RMS0.2943 with99.52% inliers. Unchanged-runner versus stereo-off comparisons
+are exact in all three saved frames for both games. Initial GS-state scanout
+buffers can remain mono until a complete redraw; use the completed final
+frame for stereo acceptance. Isolated pinned draws include the visible HUD
+and match exactly between eyes. Wipeout's exhaust glow and sparks can remain
+flat and separate from the displaced ship; XGRA's fast rider trails remain
+a temporal-effects acceptance limit.
+
+Wipeout's launcher-engine dump replays passed screen/zero equality (including
+alpha), both shared-context readbacks, exact SBS joining and a30-degree fake
+head turn. XGRA's first launcher proof saved a blank startup buffer. A later
+screen proof succeeded, but its zero-pose run exceeded the180-second bound;
+a shorter-warm-up retry also exceeded that bound, leaving one shared-readback
+PNG unfinished. Native testing stopped after these three unsuccessful proof
+attempts. The root cause is unresolved; no GL error was logged. This is not
+headset or live race speed acceptance.
+
+Time Crisis3, Crisis Zone, Vampire Night, Ninja Assault, OutRun2, Wipeout Pulse
+and XGIII have not been measured in this checkpoint and retain generic profiles.
+All original and INSIDE launcher wrappers remain in place; only the two
+measured private profiles and common offline diagnostic arguments changed.
+Focal length/centre, convergence and game-units-per-metre remain provisional
+visual choices. The Z/Q fit does not recover physical scale or lens calibration.
+No game data, private configuration, dumps, pictures, VM checkpoints, logs or
+built programs are included here. No OpenXR runtime was started and nothing was pushed.

@@ -199,7 +199,7 @@ index a836c8a..26708a5 100644
  
  #endif // VS_EXPAND
 diff --git a/pcsx2-gsrunner/Main.cpp b/pcsx2-gsrunner/Main.cpp
-index 03879ca..3b7c870 100644
+index 03879ca..3aed53b 100644
 --- a/pcsx2-gsrunner/Main.cpp
 +++ b/pcsx2-gsrunner/Main.cpp
 @@ -3,11 +3,14 @@
@@ -226,7 +226,7 @@ index 03879ca..3b7c870 100644
  #include "common/FileSystem.h"
  #include "common/MemorySettingsInterface.h"
  #include "common/Path.h"
-@@ -80,6 +85,18 @@ static s32 s_loop_count = 1;
+@@ -80,6 +85,20 @@ static s32 s_loop_count = 1;
  static std::optional<bool> s_use_window;
  static bool s_no_console = false;
  static bool s_perf_enable = false;
@@ -236,6 +236,8 @@ index 03879ca..3b7c870 100644
 +static u32 s_capture_interval = 0;
 +static std::string s_capture_output;
 +static std::string s_capture_bios;
++static std::string s_capture_save_state;
++static std::atomic<bool> s_capture_state_error{false};
 +static std::atomic<bool> s_capture_finished{false};
 +static std::atomic<u32> s_capture_present{0};
 +struct CapturePadEvent { u32 frame; u32 bind; float value; };
@@ -245,7 +247,7 @@ index 03879ca..3b7c870 100644
  
  // Owned by the GS thread.
  static u32 s_dump_frame_number = 0;
-@@ -173,6 +190,9 @@ void Host::ReportInfoAsync(const std::string_view title, const std::string_view
+@@ -173,6 +192,9 @@ void Host::ReportInfoAsync(const std::string_view title, const std::string_view
  
  void Host::ReportErrorAsync(const std::string_view title, const std::string_view message)
  {
@@ -255,7 +257,7 @@ index 03879ca..3b7c870 100644
  	if (!title.empty() && !message.empty())
  		ERROR_LOG("ReportErrorAsync: {}: {}", title, message);
  	else if (!message.empty())
-@@ -236,6 +256,23 @@ void Host::ReleaseRenderWindow()
+@@ -236,6 +258,23 @@ void Host::ReleaseRenderWindow()
  
  void Host::BeginPresentFrame()
  {
@@ -279,7 +281,17 @@ index 03879ca..3b7c870 100644
  	if (s_loop_number == 0 && !s_output_prefix.empty())
  	{
  		// when we wrap around, don't race other files
-@@ -472,6 +509,28 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
+@@ -286,6 +325,9 @@ void Host::OnSaveStateLoading(const std::string_view filename)
+ 
+ void Host::OnSaveStateLoaded(const std::string_view filename, bool was_successful)
+ {
++	if (s_capture_frame > 0)
++		std::fprintf(stderr, "Capture checkpoint load %s: %.*s\n", was_successful ? "succeeded" : "failed",
++			static_cast<int>(filename.size()), filename.data());
+ }
+ 
+ void Host::OnSaveStateSaved(const std::string_view filename)
+@@ -472,6 +514,38 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
  				PrintCommandLineVersion();
  				return false;
  			}
@@ -295,6 +307,16 @@ index 03879ca..3b7c870 100644
 +				s_capture_pad_file = argv[++i];
 +				continue;
 +			}
++			else if (CHECK_ARG_PARAM("-capture-load-state"))
++			{
++				params.save_state = argv[++i];
++				continue;
++			}
++			else if (CHECK_ARG_PARAM("-capture-save-state"))
++			{
++				s_capture_save_state = argv[++i];
++				continue;
++			}
 +			else if (CHECK_ARG_PARAM("-capture-output"))
 +			{
 +				s_capture_output = argv[++i];
@@ -308,11 +330,13 @@ index 03879ca..3b7c870 100644
  			else if (CHECK_ARG_PARAM("-dumpdir"))
  			{
  				dumpdir = s_output_prefix = StringUtil::StripWhitespace(argv[++i]);
-@@ -762,7 +821,96 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
+@@ -762,7 +836,98 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
  		return false;
  	}
  
 -	if (!VMManager::IsGSDumpFileName(params.filename))
++	if (s_capture_frame == 0 && (!s_capture_save_state.empty() || !params.save_state.empty()))
++		return false;
 +	if (s_capture_frame > 0)
 +	{
 +		if (const char* interval = std::getenv("PCSX2_CAPTURE_INTERVAL"))
@@ -406,7 +430,7 @@ index 03879ca..3b7c870 100644
  	{
  		Console.Error("Provided filename is not a GS dump.");
  		return false;
-@@ -811,6 +959,9 @@ void GSRunner::SettingsOverride()
+@@ -811,6 +976,9 @@ void GSRunner::SettingsOverride()
  
  	// we don't need any sound output
  	s_settings_interface.SetStringValue("SPU2/Output", "OutputModule", "nullout");
@@ -416,7 +440,7 @@ index 03879ca..3b7c870 100644
  
  	// none of the bindings are going to resolve to anything
  	Pad::ClearPortBindings(s_settings_interface, 0);
-@@ -847,9 +998,13 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
+@@ -847,9 +1015,13 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
  	{
  		// apply new settings (e.g. pick up renderer change)
  		VMManager::ApplySettings();
@@ -432,7 +456,16 @@ index 03879ca..3b7c870 100644
  		{
  			// run until end
  			VMManager::SetState(VMState::Running);
-@@ -871,6 +1026,20 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
+@@ -861,7 +1033,7 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
+ 			while (VMManager::GetState() == VMState::Running)
+ 				VMManager::Execute();
+ 			VMManager::Shutdown(false);
+-			ret->store(EXIT_SUCCESS);
++			ret->store(s_capture_state_error.load(std::memory_order_acquire) ? EXIT_FAILURE : EXIT_SUCCESS);
+ 		}
+ 	}
+ 
+@@ -871,6 +1043,20 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
  
  int main(int argc, char* argv[])
  {
@@ -453,7 +486,7 @@ index 03879ca..3b7c870 100644
  	CrashHandler::Install();
  	GSRunner::InitializeConsole();
  
-@@ -905,6 +1074,23 @@ int main(int argc, char* argv[])
+@@ -905,6 +1091,36 @@ int main(int argc, char* argv[])
  
  void Host::PumpMessagesOnCPUThread()
  {
@@ -466,10 +499,23 @@ index 03879ca..3b7c870 100644
 +			Pad::SetControllerState(0, event.bind, event.value);
 +			std::fprintf(stderr, "Capture pad event at frame %u: bind %u pressure %.0f.\n", frame, event.bind, event.value);
 +		}
-+		if (s_capture_finished.load(std::memory_order_acquire))
++		if (s_capture_finished.exchange(false, std::memory_order_acq_rel))
 +		{
 +			MTGS::WaitGS();
 +			GSJoinSnapshotThreads();
++			if (!s_capture_save_state.empty())
++			{
++				// CPU-thread checkpoint, after the dump/picture jobs finish. Cards
++				// remain disabled; this stores only the emulator's private VM state.
++				VMManager::SaveState(s_capture_save_state.c_str(), false, false,
++					[](const std::string& message) {
++						s_capture_state_error.store(true, std::memory_order_release);
++						std::fprintf(stderr, "Capture checkpoint error: %s\n", message.c_str());
++					});
++				VMManager::WaitForSaveStateFlush();
++				if (!s_capture_state_error.load(std::memory_order_acquire))
++					std::fprintf(stderr, "Capture checkpoint saved: %s\n", s_capture_save_state.c_str());
++			}
 +			VMManager::SetState(VMState::Stopping);
 +		}
 +		return;
