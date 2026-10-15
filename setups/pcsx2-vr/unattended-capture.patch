@@ -1065,7 +1065,7 @@ index 81110bb..39dd2d9 100644
  
  void GSTextureCache::ReadbackAll()
 diff --git a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
-index 2174fa3..ad626f3 100644
+index 2174fa3..ec129e6 100644
 --- a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 +++ b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 @@ -5,6 +5,8 @@
@@ -1195,7 +1195,7 @@ index 2174fa3..ad626f3 100644
  }
  
  void GSDeviceOGL::SetupSampler(PSSamplerSelector ssel)
-@@ -3036,6 +3112,135 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
+@@ -3036,6 +3112,169 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
  
  void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
  {
@@ -1270,10 +1270,44 @@ index 2174fa3..ad626f3 100644
 + const float ch=PS2VRInside::Env("PCSX2_INSIDE_CANVAS_HEIGHT",448);
 + const bool full_coverage=native_width>0 && s_inside_height>0 &&
 +  minx<=-0.95f && miny<=-0.95f && maxx>=1.95f*cw/native_width-1.0f && maxy>=1.95f*ch/s_inside_height-1.0f;
-+ const bool full_canvas=full_coverage && (config.vs.tme || zhi==zlo);
++ const bool scanout_policy=PS2VRInside::Env("PCSX2_INSIDE_FEEDBACK_PASSTHROUGH",0)!=0;
++ const bool legacy_full_canvas=full_coverage && (config.vs.tme || zhi==zlo);
++ // A large varying-depth batch is still world geometry, even when its bounds
++ // cover the viewport. Never turn it into an unprojected screen copy.
++ const bool full_canvas=legacy_full_canvas && (!scanout_policy || s_stereo_draw_mode==0);
++ // Sprite expansion takes depth from the bottom/right vertex of each pair;
++ // the other endpoint can contain wrapped XY and an irrelevant UINT_MAX Z.
++ bool flat_depth=zhi==zlo;
++ if(config.vs.expand==GSHWDrawConfig::VSExpand::Sprite && config.nverts>=2 && (config.nverts%2)==0) {
++  flat_depth=true;const u32 sprite_z=config.verts[1].XYZ.Z;
++  for(u32 i=3;i<config.nverts;i+=2)flat_depth&=config.verts[i].XYZ.Z==sprite_z;
++ }
 + // Camera depth classifier remains provisional; nonworld geometry becomes a
 + // fixed recenter panel only on the camera target, except fullscreen backgrounds.
-+ s_inside_draw_mode=!main_camera || full_canvas ? 0.0f : s_stereo_draw_mode!=0 ? 1.0f : 2.0f;
++ // A half-height/interlaced screen copy can cover the final picture even
++ // when it does not span the virtual canvas in raw GS target coordinates.
++ // Reprojecting its already-rendered eye texture again creates a second HUD
++ // panel containing the whole scene. Opt in only for dump-verified profiles.
++ const auto& raster=PS2VRInside::raster;
++ const float pixel_minx=(minx+1)*.5f*native_width*raster[0]+raster[2];
++ const float pixel_miny=(miny+1)*.5f*s_inside_height*raster[1]+raster[3];
++ const float pixel_maxx=(maxx+1)*.5f*native_width*raster[0]+raster[2];
++ const float pixel_maxy=(maxy+1)*.5f*s_inside_height*raster[1]+raster[3];
++ const bool scanout_full=cw>0 && ch>0 && pixel_minx<=cw*.025f && pixel_miny<=ch*.025f &&
++  pixel_maxx>=cw*.975f && pixel_maxy>=ch*.975f;
++ const bool screen_feedback=scanout_policy &&
++  main_camera && config.vs.tme && config.tex && config.tex->IsRenderTarget() && !world && flat_depth && scanout_full;
++ s_inside_draw_mode=!main_camera || full_canvas || screen_feedback ? 0.0f : s_stereo_draw_mode!=0 ? 1.0f : 2.0f;
++ static FILE* pass_trace=[](){const char* path=std::getenv("PCSX2_INSIDE_PASS_TRACE");FILE* f=path?std::fopen(path,"w"):nullptr;
++  if(f)std::fprintf(f,"draw,frame,eye,tex_rt,tex_w,tex_h,constant_z,legacy_full,scanout_full,screen_feedback,inside_mode,stereo_mode,minx,miny,maxx,maxy,canvas_w,canvas_h,target_w,target_h,raster_x,raster_y,raster_bx,raster_by\n");return f;}();
++ if(pass_trace) {
++  std::fprintf(pass_trace,"%llu,%u,%.0f,%d,%d,%d,%d,%d,%d,%d,%.0f,%.0f,%.6f,%.6f,%.6f,%.6f,%.3f,%.3f,%.3f,%.3f,%.6f,%.6f,%.6f,%.6f\n",
++   static_cast<unsigned long long>(draw),static_cast<u32>(g_perfmon.GetFrame()),s_stereo.eye,config.tex&&config.tex->IsRenderTarget(),
++   config.tex?config.tex->GetWidth():0,config.tex?config.tex->GetHeight():0,flat_depth,legacy_full_canvas,scanout_full,screen_feedback,
++   s_inside_draw_mode,s_stereo_draw_mode,pixel_minx,pixel_miny,pixel_maxx,pixel_maxy,cw,ch,native_width,s_inside_height,raster[0],raster[1],raster[2],raster[3]);
++  std::fflush(pass_trace);
++ }
++
 + // Retain only the same main-camera perspective triangles, once per pair.
 + // Their positions are in the game's ORIGINAL recentered camera, in metres.
 + if(s_inside_draw_mode==1 && s_stereo.eye>0 && StereoEnv("PCSX2_VR_GUN",0)!=0 && s_stereo.units>0 && s_stereo.focal>0 && config.indices) {

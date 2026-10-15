@@ -94,7 +94,7 @@
     "heldout": "9150/9310 within64,inlier RMS0.2756298509;all-row RMS21.14779286 max191.77111686",
     "guard": "All160 held-out non-camera-Q vertices use fitted-Z mode2 in native replay.",
     "proof": "Screen near36px/far7px, isolated HUD exact, stereo-off unchanged; native shared/SBS/exact-zero pass.",
-    "limits": "Turned INSIDE visual failure: duplicate enemy/HUD image and dark regions; cause unresolved. Physical calibration/live FPS pending;3 generic profiles remain."
+    "limits": "Initial turned duplicate-image defect repaired in inspected left/right by scanout-aware screen-copy follow-up;frustum holes remain;physical/live FPS pending."
   },
   "outrun2_sp_fit_stop": {
     "gameplay": "Actual Arcade race,F50/AT,163km/h,progressive scan.",
@@ -113,20 +113,29 @@
     "heldout": "57050/96768 within64,inlierRMS1.610554283;allRMS7405726.596,max300380984.762",
     "guard": "All39718 outside-guard world vertices use fitted-Z mode2 in native replay.",
     "proof": "Near barrier19/tail31px vs farbridge3px,imperfect near registration;HUD/off3frames exact;native shared/SBS/exact-zero pass.",
-    "limits": "Turned INSIDE visual failure:duplicate HUD/scenery and detached effects;cause unresolved. Select internal view confirmed;no physical/live speed acceptance."
+    "limits": "Initial turned duplicate HUD/scenery repaired in inspected left/right by scanout-aware screen-copy follow-up;flat light/trail planes,culling holes remain. Internal view confirmed;physical/live speed pending."
   },
   "current_offline_status": {
     "additional_titles_reached_gameplay": 9,
     "additional_measured_camera_models": 8,
     "generic_after_three_fit_stop": "OutRun2 SP",
-    "inside_visual_unaccepted": [
-      "Ninja Assault",
-      "XGIII"
-    ],
+    "inside_visual_unaccepted": [],
     "inside_proof_stopped_after_three": "XGRA",
     "inside_hud_classification_incomplete": "Crisis Zone",
     "full_speed_gate_unmet": "OutRun2006 after3trials",
     "controller_overlay": "Same compositor:base scene/HUD then source-alpha controller projection,transparent-black background. Native screen/INSIDE alpha/order proof matches installed build;headset retest required.",
-    "scope": "Offline proofs only;no headset runtime starts;metric/lens constants provisional."
+    "scope": "Offline proofs only;no headset runtime starts;metric/lens constants provisional.",
+    "inside_screen_copy_followup": "Ninja Assault/XGIII inspected duplicate-image defect repaired;effects/culling limits remain."
+  },
+  "inside_screen_pass_validation": {
+    "policy": "Opt-in per-profile:scanout coverage,semantic sprite depth,render-target nonworld screen copies;retain classified large world batches.",
+    "profiles": [
+      "Ninja Assault",
+      "XGIII"
+    ],
+    "ninja_assault": "108wrong HUD copy records->0;144screen-copy records pass through;duplicate enemy/score removed in inspected left/right.",
+    "xgiii": "72wrong HUD copies->0;232large world draws retained;duplicate scenery/HUD removed;flat light/trail planes remain.",
+    "proof": "Same-build matched GS tick31 fake-left30,exact-zero RGBA,shared/SBS;new runner stereo-off baseline exact3frames;both gun overlay alpha/order modes pass.",
+    "limits": "Original-view holes/effects remain;dump-specific classification;no whole-title/physical/live-speed acceptance."
   }
 }

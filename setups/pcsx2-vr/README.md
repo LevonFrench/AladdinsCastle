@@ -27,10 +27,10 @@ OutRun2 SP remains generic after three failed fitting approaches.
 | Time Crisis3 | Passed combat | Offline zero/30 pass, cover-blur defect |
 | Crisis Zone | Depth/off/classified HUD pass | Zero/copies pass; complete HUD classification incomplete |
 | Vampire Night | Passed combat with near-HUD policy | Offline zero/30 pass, flat flare effects |
-| Ninja Assault | Measured combat; screen checks pass | VISUAL FAIL:duplicate enemy/HUD,dark regions |
+| Ninja Assault | Measured combat; screen checks pass | Offline zero/30 pass after screen-copy correction; frustum holes |
 | OutRun2 SP | Fit gate failed3approaches; generic retained | Unvalidated |
 | Wipeout Pulse | Measured race; screen checks pass | Offline zero/30 pass, exhaust/blur artifacts |
-| XGIII | Measured camera consensus; material artifacts remain | VISUAL FAIL:duplicate HUD/scenery,effect planes |
+| XGIII | Measured camera consensus; material artifacts remain | Offline zero/30 pass after screen-copy correction; flat light/trail effects |
 
 These are frozen-scene and native copy/alpha/ordering proofs. No physical
 headset composition, tracking, GunCon calibration, haptic feel or runtime
@@ -805,3 +805,30 @@ Fake30 INSIDE is VISUALLY UNACCEPTED: duplicate HUD/scenery,detached translucent
 light/trail planes,dark cutouts beyond frustum holes. No unique cause assigned.
 Select confirms bike-free internal/first-person view, without visible cockpit;
 proofs use chase, not every camera preset. Physical/live FPS untested.
+
+### INSIDE scanout-aware screen-copy follow-up
+
+The initial Ninja Assault/XGIII duplicate-image defects above are repaired in
+the inspected frozen scenes. `PCSX2_INSIDE_FEEDBACK_PASSTHROUGH=1` is enabled
+for these two profiles only; default0 preserves earlier policy. Main-camera
+nonworld flat-depth draws sampling a render target stay in picture space if
+scanout-mapped bounds cover97.5%of the canvas. Sprite depth uses each pair's
+bottom/right endpoint, matching GS expansion; ignored wrapped endpoint Z is
+not a second camera depth. Classified varying-depth world batches retain
+head reprojection even when their bounds cover the viewport.
+
+Native same-build,matched-GS-tick31 legacy/corrected comparisons show Ninja
+Assault108 screen-copy records wrongly classified as HUD become0;all144
+identified copies pass through. XGIII72wrong HUD copies become0;232large
+world draws now stay under reprojection. Both eyes inspected:duplicate
+enemy/scenery/HUD removed. Original-frustum holes remain;XGIII translucent
+light/trail planes still detach. This is frozen-scene acceptance only.
+
+Both profiles have exact-zero RGBA versus matched screen,exact shared GPU
+eyes/native SBS,and no GL errors. An initial XGIII comparison used different
+recorded ticks/timer values and is rejected;matched tick31 passes. Frontend
+and own-project runner v145 builds pass;new runner stereo-off equals the
+unchanged pinned baseline in3frames. Gun/dot final-order and transparent
+background proofs also pass the new executable in both launcher modes.
+`PCSX2_INSIDE_PASS_TRACE` optionally records the classifier/raster decisions;
+normal play leaves tracing off. Physical runtime/performance remains untested.
