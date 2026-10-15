@@ -11,6 +11,32 @@ exact stereo-off RGBA equality to unchanged replay, and exact HUD equality in a
 diagnostic that suppresses displaced world draws. The depth-test guard pins
 Virtua Cop's lock-on marker at zero disparity while retaining world depth.
 
+
+## Current offline acceptance (supersedes older checkpoint counts)
+
+All eleven profiles have been exercised; all nine additional titles reached
+real gameplay. Eight of those nine have measured camera depth relations;
+OutRun2 SP remains generic after three failed fitting approaches.
+
+| Game | Screen depth/HUD/off | Turned INSIDE |
+|---|---|---|
+| Virtua Cop | Passed prototype scene | Offline scene aiming and projection pass |
+| OutRun2006 | Passed prototype race | Replay pass; live full-speed gate failed3trials |
+| Wipeout Fusion | Passed race | Offline zero/30 pass, effects limits |
+| XGRA | Passed race | Stopped after3 launcher-proof failures |
+| Time Crisis3 | Passed combat | Offline zero/30 pass, cover-blur defect |
+| Crisis Zone | Depth/off/classified HUD pass | Zero/copies pass; complete HUD classification incomplete |
+| Vampire Night | Passed combat with near-HUD policy | Offline zero/30 pass, flat flare effects |
+| Ninja Assault | Measured combat; screen checks pass | Offline zero/30 pass after screen-copy correction; frustum holes |
+| OutRun2 SP | Fit gate failed3approaches; generic retained | Unvalidated |
+| Wipeout Pulse | Measured race; screen checks pass | Offline zero/30 pass, exhaust/blur artifacts |
+| XGIII | Measured camera consensus; material artifacts remain | Offline zero/30 pass after screen-copy correction; flat light/trail effects |
+
+These are frozen-scene and native copy/alpha/ordering proofs. No physical
+headset composition, tracking, GunCon calibration, haptic feel or runtime
+performance is accepted from offline tests. Camera/metre constants remain
+provisional; original game FOV was not recovered by fitting Q against Z.
+
 ## Source and build
 
 `upstream-pin.json` records PCSX2 commit
@@ -513,3 +539,296 @@ Focal length/centre, convergence and game-units-per-metre remain provisional
 visual choices. The Z/Q fit does not recover physical scale or lens calibration.
 No game data, private configuration, dumps, pictures, VM checkpoints, logs or
 built programs are included here. No OpenXR runtime was started and nothing was pushed.
+
+
+### Controller overlays above the game image
+
+The frame composer constructs a single ordered list for both presentation
+modes. Screen mode submits left and right game quads, then a controller
+projection. INSIDE submits the reconstructed scene (including its fixed HUD
+panel), then the controller projection. No game/HUD layer follows that overlay;
+no composition-depth extension is attached to it. Its flags include
+`XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT` and straight-alpha input.
+
+The overlay is cleared to transparent black every frame. The gun draws first,
+then the aim dot draws with depth testing disabled into the same overlay. The
+dot therefore stays above the screen and HUD, including when the gun model
+toggle is off; neither visual is baked into the opaque game swapchain.
+The INSIDE dot uses the retained scene intersection (or far fallback), through
+the same projection as controller input. Classified HUD draws use near reversed
+depth and an unconditional depth test so the world cannot hide that panel.
+The model/dot projection remains after the game/HUD image.
+
+`PCSX2_VR_LAYER_PROOF=<private-prefix>` with OpenXR disabled exercises that same
+overlay renderer on the live shared GL context. It saves per-eye gun RGBA and
+alpha PNGs, dot-only PNGs after clearing the model, and both composition plans
+as JSON. Plans explicitly say `submitted_to_runtime: false`. With OpenXR on,
+the first successfully submitted controller frame logs actual back-to-front
+layer names/types/flags, and optionally saves the corresponding plan. Private
+hidden/muted/below-normal timed runs passed in screen and INSIDE modes: opaque
+gun silhouettes, alpha/RGB zero outside the model, only25 opaque dot pixels on
+the subsequent frame, and no GL errors. These checks do not prove physical
+SteamVR composition; the owner must retest that in the headset.
+
+
+### INSIDE controller ray and original game camera
+
+INSIDE input does not use the screen quad intersection. Main-camera perspective
+triangles are retained once per completed pair, using the same Q/Z classifier,
+inverse-distance scale and focal lengths as the vertex shader. The right aim
+ray is transformed into the recentered game camera, intersected with the
+nearest retained triangle, then projected into original-picture UV for GunCon2
+pointer0. A miss uses a100m point along the ray. UV outside the original picture
+remains off screen for reload. Geometry snapshots expire after500ms and have a
+32768-triangle cap; only gun profiles collect them. Pass classification, hidden
+surfaces, source-game culling and provisional metric scale remain limits.
+
+The original scanout is part of this camera conversion. The GS target can be
+cropped, offset or stretched when forming the game picture. Reconstruction now
+maps target pixels through that source/display rectangle, and applies its
+inverse after eye projection. The CPU scene triangles use the same mapping.
+The tested Virtua Cop scene reads512x256 and displays512x512, so its vertical
+scale is2. Assuming an identity mapping displaced HUD markers and shots.
+
+Hidden native tests with fake head-left20 reached actual gameplay, acknowledged
+an accepted scene-hit shot and off-screen reload, and saved the game's own
+shot graphic/spent round. Two visible game calibration crosses matched their
+independently projected positions within2upscaled pixels at3x. The third sampled
+point lies beyond that turned view. Exact-zero INSIDE and screen dump replays
+match in every RGBA channel for both eyes; shared-context copies and SBS joins
+are exact, with no GL errors. These are offline checks, not headset acceptance.
+
+`PCSX2_VR_GUN_SCRIPT` retains original-picture target points for calibration;
+INSIDE scripts traverse the same triangle query and camera projection as live
+input. `PCSX2_VR_GUN_SCRIPT_SPACE=head` instead supplies head-relative angular
+points from a deterministic turned-hand pose. Both require OpenXR disabled.
+Native tests cover translated origins, nearest hit, fallback, invalid/backward
+rays, head-relative20-degree projection, and input pulse release. Physical
+tracking, game-specific calibration beyond the sampled title, muzzle fit and
+haptics still require the owner's headset check.
+
+
+The overlay proof also exercises the scene-distance dot consumer with a0.8m
+fixture and the actual fake-head20 eye matrices. Independently projected UV
+matches the native dot centre to less than1pixel; left/right dots are53pixels
+apart in1024px eye images. The trigger/recoil fixture moves the gun while the
+dot pixels remain identical. Separate native side/rear trigger0/1 renders check
+the supplied model, both trigger-node transforms and muzzle/aim alignment;
+the trigger is occluded from the rear. Alpha/RGB is zero outside the gun/dot.
+This is a deterministic visual fixture, separate from the real game shot proof.
+Live recoil/haptic dispatch remains keyed to the GunCon USB accepted-shot serial,
+with35ms amplitude1 feedback; actual vibration and tracked fit require a headset.
+
+
+### Reliable controller quit and private Stop helper
+
+Touch left Y (Index left B) held for3seconds requests graceful VM shutdown
+through the ordinary CPU-thread stop route, in every game. It remains available
+when gun aim tracking is absent. Release/focus loss resets the monotonic hold;
+a held button fires once. The Index button also retains its tap-to-Start role.
+Xbox mapping is unchanged. The offline-only injected hold exercises the same
+timer and gracefully exits the actual native program even with a frame limit.
+
+The private Stop launcher writes the stop file first, waits5seconds, then forces
+only the exact private executable and a creation-time-verified launcher helper.
+It holds process handles and rechecks creation time on the terminate handle.
+Missing/wrong helper timestamps are reported and left running. Startup, Stop
+selection and lease changes share a short gate; waits happen outside it. A
+still-live stamped launcher retains its shared logs until receipt capture ends.
+Hidden native checks passed graceful Stop and hold-to-quit, stubborn fallback,
+foreign same-basename exclusion, wrong/missing stamps, and deterministic
+startup/replacement interleavings. Independent source review and two repair
+rounds found no remaining ownership issue within scope. Physical action delivery
+still needs an owner test. Play audio remains on; offline checks remain muted.
+
+
+### Recommended INSIDE eye grid and bounded upscale policy
+
+INSIDE queries both primary-stereo view recommendations with
+`xrEnumerateViewConfigurationViews`, validates the sizes against runtime and GL
+limits, and creates each eye chain once at that size for the session. The gun
+projection uses those eye sizes too. Each complete reconstructed GS eye is
+blit-scaled into the entire recommended rectangle. This final grid is distinct
+from GS geometry sampling: GS retains3x/4x render/depth targets, so a larger
+recommended grid still scales those samples. Screen mode keeps its existing
+fixed1920x1536 chains and used rectangles.
+
+The smallest permitted GS scale that covers the recommendation is selected,
+capped at4x and by `PCSX2_INSIDE_MAX_UPSCALE`. CPU-thread application uses the
+existing MTGS settings route without persisting an owner setting. After30seconds,
+five consecutive speed samples below99.5% at least2seconds apart request3x;
+it never oscillates back to4x. A fresh game-setting reload can reapply the
+selected scale while the chains remain fixed. These timings/thresholds passed
+native tests. The offline-only synthetic-eye switch never loads OpenXR and is
+explicitly labelled as injected evidence.
+
+Actual hidden gameplay at fake head-left20 sampled100% in Virtua Cop at4x,
+with2048x2048 GS eyes. OutRun2006 did not meet full-speed acceptance: a4x-to3x
+trial timed out at240seconds; fresh3x race samples were13.98–22.42%, and a3x
+zero-pose control without periodic screenshots was12.30–21.76%. The zero-pose
+control also being slow prevents assigning the cause solely to head projection
+or screenshot pauses. No GL error was logged. Three full-speed gate attempts
+are retained; further OutRun speed tests stop at this checkpoint.
+
+The successful runs saved both shared GPU eyes and exact RGBA SBS joins.
+A synthetic2592x2688 final grid passed the same native blit/FBO path and an
+independent nearest-sample comparison, allowing only adjacent texels at exact
+floating-point texel-boundary ties. All other pixels match exactly. Real
+runtime query/allocation, tracked overlay visibility and headset frame rate
+still require owner testing. No headset runtime was started.
+
+
+### Time Crisis3 measured combat checkpoint
+
+Actual one-player Arcade Stage1 supplies three training GS dumps plus an
+independent fourth. On640-wide camera targets the fit is
+`Z=-2559.855954779021+1677955.5163746427*Q`, Qscale+1. Held-out106090 rows have
+RMS0.2891932036 and maximum residual0.5239128587, all within guard64. Source
+scanout640x256 displays640x512, vertical scale2. Lens and metric scale remain
+provisional: fx320,fy341.3333,canvas640x512,units/m1,convergence1000m.
+
+Near enemy image disparity is17px versus2px for distant palms. All replay
+stereo-off RGBA pixels equal the unchanged runner; HUD-only eyes are identical.
+Actual private launcher dump proofs pass fake-left30, exact-zero vs screen,
+shared GPU eyes and native SBS, at3x/1920x1536. This is depth/replay acceptance,
+not physical GunCon calibration or live/headset speed acceptance. Blurred cover
+remains a wrong flat layer in INSIDE, small sparks stay pinned, and culling/sky
+pass edges are visible. Six other generic profiles remain unmeasured.
+
+### Crisis Zone measured combat checkpoint
+
+Story-mode Garland Square combat provides three training dumps and an independent
+fourth. Main512-wide-camera depth is
+`Z=-40.4565262660617+3355399.411392285*Q`, Qscale+1. Training77497 rows have
+RMS0.294305203; held-out26819 rows have RMS0.295139967 and maximum3.543243138,
+all within guard64. Four alpha-textured32x32 vertices have larger residuals;
+they remain included, with no assigned cause. Scanout512x512 is unscaled.
+Lens/metric settings remain provisional: fx320,fy426.6667,canvas512x512,
+units/m1,convergence1000m.
+
+Near enemy18px versus distant books5px. Stereo-off equals the unchanged runner;
+classified-HUD-only eyes match exactly. Native launcher fake30/shared/SBS and
+exact-zero RGBA checks pass at3x1536x1536. Complete HUD classification is not
+accepted: some score/ammo/frame pieces occupy inconsistent INSIDE planes;
+muzzle-flash planes tilt across geometry and culling/disocclusion gaps remain.
+Whole-title effects, physical calibration and live/headset speed are untested.
+The game's own controller page shows Release reload mode: hold Reload/action
+to attack, release to cover/reload. Five generic depth profiles remain.
+
+### Vampire Night measured combat and near HUD
+
+Village combat gives three training dumps plus an independent fourth. On640-wide
+camera targets, `Z=-3.0600161980837584+167772.14645252345*Q`, Qscale+1.
+Training87169 rows have RMS0.3321038441; held-out22012 have RMS0.3349568146,
+maximum1.344388458. Native scanout640x224 displays640x448, rasterY2. Provisional
+units/m10,convergence1000m,fx320,fy298.6667,canvas640x448; lens/metres unmeasured.
+
+The perspective life/ammo HUD follows the same Q/Z relation but sits in a
+separate extreme-near range45.19..51.73, versus world Q up to1.0135. An opt-in
+`PCSX2_STEREO_HUD_NEAR_Q=10` pins draws only when every vertex qualifies on the
+fitted target, using camera Q or Z fallback. Default0 disables this policy.
+Native before/after pictures show the life models restored to the flat HUD;
+all3 isolated HUD eyes match, and all3 stereo-off frames equal unchanged replay.
+Near armour19px versus distant building2px. Actual launcher fake30/shared/SBS
+and exact-zero RGBA pass at3x1920x1344. Hit flares/radial streaks remain flat and
+may ghost; culling holes persist. Physical calibration/headset/live FPS remain
+unverified. The latest executable also passes screen/INSIDE final gun/dot layer
+order, transparent-black background and stale-pixel checks without OpenXR.
+Four generic profiles remain: Ninja Assault, OutRun2, Wipeout Pulse and XGIII.
+
+### Ninja Assault measured depth; INSIDE visual defect
+
+Guren Chapter actual combat fits `Z=-7.219639211177309+16777004.43017631*Q`
+on512-wide targets,Qscale+1. Train25517/25639 inliers,RMS0.2801723065.
+Held-out9150/9310 within64,inlierRMS0.2756298509,max0.5019095387; ALL-row
+RMS21.14779286,max191.77111686. The160 outlier vertices use128x128 texture
+and disable depth writes; a native traced replay confirms fitted-Z mode2 for
+all160. No unique material/effect identity is assigned. Scanout512x224 displays
+512x448,rasterY2. Provisional units/m1000,fx320,fy373.3333,convergence1000m.
+
+Screen stereo near armour36px/far stone7px, isolated full HUD eye equality,
+and unchanged stereo-off RGBA checks pass. Private launcher shared/SBS and
+exact-zero RGBA checks pass at3x1536x1344. The30-degree INSIDE picture is
+VISUALLY UNACCEPTED: duplicate enemy/HUD image and dark regions remain,
+beyond ordinary missing-view holes. A feedback/history/pass interaction is
+only a hypothesis. No physical calibration or live/headset speed claim.
+Red sword trails/whole-title effects remain unvalidated. Three generic
+profiles remain: OutRun2,Wipeout Pulse,XGIII. Normal screen mode is the
+accepted stereo result for this scene; INSIDE retains its experimental status.
+
+### OutRun2 SP fit stop
+
+The slot labelled OutRun2 identifies as Special Tours. Actual Arcade race,
+F50/AT,progressive scan,163km/h reached with cards disabled. Three fitting
+approaches failed the existing camera eligibility check: all640-wide negative-Q
+candidates,depth-writing subset,tighter1-unit fitting consensus. Selected inlier
+fractions remain about65%,with guard64 RMS15.9..16.7. These are inlier metrics,
+not universal residuals. The tight64-wide group does not identify the main
+camera and is not substituted. No fourth fit or Z model/profile promotion;
+generic state and stereo/INSIDE proof remain unaccepted. Only third-person
+chase view observed; first-person/cockpit and stereo effects unverified.
+
+### Wipeout Pulse measured race checkpoint
+
+Actual Racebox Talons Junction race supplies three training dumps plus held-out
+fourth. Main640-wide negative-Q fit is
+`Z=8.530184893672867-182357.79064065573*Q`,Qscale-1. Training
+161563/175029 within64,inlierRMS7.41891. Held-out44866/51774 within64
+(86.6574%),inlierRMS10.23815; ALL-row RMS49.75422,max328.47261.
+This is a dominant approximation, not a universal affine relation. Native
+traced replay confirms all6908 outside-guard world vertices use fitted-Z.
+Provisional units/m10,fx320,fy298.6667,canvas640x448,convergence1000m.
+
+Near ship90px/far gate1px; one completed replay PNG per eye has exact
+stereo-off/baseline RGBA and isolated HUD equality. Native launcher fake30,
+shared/SBS and exact-zero pass at3x1920x1344. Exhaust/blur cutouts or
+stippling and flat sparks remain; culling holes expected. Close/Far chase
+views confirmed in own options, first-person/cockpit unconfirmed. Physical
+headset,live FPS and whole-title effects untested. OutRun2 remains generic
+after its fit stop; XGIII is the last unattempted profile.
+
+### XGIII measured camera; INSIDE visual defect
+
+Actual Palus/Lithium/Muon Harbor race reached. All-candidate fit was ineligible;
+depth-writing training subset gives corroborated main640 camera consensus:
+`Z=-43008.36301120091+687194966.8812681*Q`,Qscale+1. Train182673/288882
+within64,inlierRMS1.685744. Held-out including nonwriting passes:57050/96768
+within64(58.9554%),inlierRMS1.610554,max62.5823; ALL-row RMS7405726.596,
+max300380984.762. This is not universal texture Q. Native39718 outside-guard
+world vertices all use fitted-Z. Provisional units/m10,fx320,fy341.3333,
+virtualcanvas640x512,convergence1000m; output640x448,source640x256.
+
+Near barrier19px/tail31px versus far bridge3px, with imperfect near registration
+and remaining material artifacts. All3 stereo-off/unchanged and isolated-HUD
+RGBA comparisons pass. Native launcher shared/SBS/exact-zero pass at3x1920x1344.
+Fake30 INSIDE is VISUALLY UNACCEPTED: duplicate HUD/scenery,detached translucent
+light/trail planes,dark cutouts beyond frustum holes. No unique cause assigned.
+Select confirms bike-free internal/first-person view, without visible cockpit;
+proofs use chase, not every camera preset. Physical/live FPS untested.
+
+### INSIDE scanout-aware screen-copy follow-up
+
+The initial Ninja Assault/XGIII duplicate-image defects above are repaired in
+the inspected frozen scenes. `PCSX2_INSIDE_FEEDBACK_PASSTHROUGH=1` is enabled
+for these two profiles only; default0 preserves earlier policy. Main-camera
+nonworld flat-depth draws sampling a render target stay in picture space if
+scanout-mapped bounds cover97.5%of the canvas. Sprite depth uses each pair's
+bottom/right endpoint, matching GS expansion; ignored wrapped endpoint Z is
+not a second camera depth. Classified varying-depth world batches retain
+head reprojection even when their bounds cover the viewport.
+
+Native same-build,matched-GS-tick31 legacy/corrected comparisons show Ninja
+Assault108 screen-copy records wrongly classified as HUD become0;all144
+identified copies pass through. XGIII72wrong HUD copies become0;232large
+world draws now stay under reprojection. Both eyes inspected:duplicate
+enemy/scenery/HUD removed. Original-frustum holes remain;XGIII translucent
+light/trail planes still detach. This is frozen-scene acceptance only.
+
+Both profiles have exact-zero RGBA versus matched screen,exact shared GPU
+eyes/native SBS,and no GL errors. An initial XGIII comparison used different
+recorded ticks/timer values and is rejected;matched tick31 passes. Frontend
+and own-project runner v145 builds pass;new runner stereo-off equals the
+unchanged pinned baseline in3frames. Gun/dot final-order and transparent
+background proofs also pass the new executable in both launcher modes.
+`PCSX2_INSIDE_PASS_TRACE` optionally records the classifier/raster decisions;
+normal play leaves tracing off. Physical runtime/performance remains untested.

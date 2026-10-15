@@ -45,5 +45,97 @@
     ],
     "scope": "Opt-in capture runner VM state; memory cards remain disabled.",
     "validation": "v145 own-project build; successful menu save/resume; missing-load and failed-save nonzero exits; normal stereo-off replay unchanged."
+  },
+  "controller_overlay_validation": {
+    "composition": "Base screen quads or INSIDE scene/HUD, then alpha-blended gun/dot projection; no composition depth.",
+    "offline": "Live shared-context per-eye alpha and stale-pixel proof; common composition builder recorded for both modes.",
+    "headset": "Owner retest required; no runtime started.",
+    "scene_dot": "Native fake-head20 projection fixture at0.8m:53px eye disparity, subpixel centroid agreement, transparent background, trigger/recoil with invariant dot; physical tracking/haptic acceptance pending."
+  },
+  "inside_controller_aim": {
+    "method": "Nearest retained camera triangle or100m fallback; original-picture UV through the same scanout-aware camera used by reconstruction.",
+    "offline_validation": "Virtua Cop gameplay at fake head-left20; accepted scene hit and off-screen reload; two native game calibration crosses within2upscaled pixels; exact zero-pose RGBA and GPU shared/SBS copies.",
+    "limits": "Provisional depth/classification/metric scale; capped expiring geometry snapshots; no physical headset test."
+  },
+  "controller_quit_validation": {
+    "input": "Touch left Y / Index left B held3seconds, monotonic release-reset one-shot, CPU graceful shutdown.",
+    "stop": "Private stop-file grace5seconds; exact executable path plus helper creation-time verification; short shared startup/lease gate; preserved finishing-helper receipt window.",
+    "offline": "Actual native hold and launcher Stop exit0, stubborn verified fixture forced after5seconds, foreign/missing/wrong stamp negatives and deterministic gate tests pass.",
+    "review": "Independent ownership review, two bounded repair rounds; no remaining scoped finding. Physical controller/headset acceptance pending."
+  },
+  "inside_eye_resolution": {
+    "runtime": "Fresh per-eye primary-stereo recommendation; fixed chains once per session, also used by controller overlay.",
+    "sampling": "3x/4x GS samples scaled into exact recommended eye grid; per-profile cap and one-way sustained-speed fallback3x.",
+    "offline": "Virtua Cop4x gameplay sampled100%; exact shared/SBS and synthetic eye-grid comparison pass. OutRun full-speed gate unmet in three trials, including zero-pose control; capped3x pending profiling.",
+    "headset": "No runtime started; actual query/allocation and physical performance unverified."
+  },
+  "additional_combat_profile_validation": {
+    "title": "Time Crisis3",
+    "fit": "A=-2559.855954779021 B=1677955.5163746427 Qscale=+1 target640",
+    "heldout": "106090 rows RMS0.2891932036 max0.5239128587",
+    "proof": "Near enemy17px/far palms2px; HUD and stereo-off exact; native launcher fake30/shared/SBS/exact-zero pass.",
+    "limits": "Cover blur wrong flat layer; sparks pinned; physical calibration and headset/live speed not established;6 generic profiles remain."
+  },
+  "crisis_zone_combat_profile_validation": {
+    "fit": "A=-40.4565262660617 B=3355399.411392285 Qscale=+1 target512",
+    "heldout": "26819 rows RMS0.295139967 max3.543243138",
+    "proof": "Near18px/far5px, unchanged stereo-off, classified HUD eye equality; native fake30/shared/SBS/exact-zero pass.",
+    "limits": "Some INSIDE HUD pieces on inconsistent planes; flash planes and culling gaps; physical calibration/live speed pending;5 generic profiles remain."
+  },
+  "vampire_night_combat_profile_validation": {
+    "fit": "A=-3.0600161980837584 B=167772.14645252345 Qscale=+1 target640",
+    "heldout": "22012 rows RMS0.3349568146 max1.344388458",
+    "hud": "Opt-in near-Q10 between measured world<=1.0135 and perspective HUD>=45.19; all vertices required, default disabled.",
+    "proof": "Near19px/far2px, isolated HUD exact, stereo-off unchanged, actual launcher fake30/shared/SBS/exact-zero pass.",
+    "limits": "Flat hit flares/streaks, culling holes; physical calibration and live/headset FPS not established;4 generic profiles remain."
+  },
+  "ninja_assault_combat_profile_validation": {
+    "fit": "A=-7.219639211177309 B=16777004.43017631 Qscale=+1 target512",
+    "heldout": "9150/9310 within64,inlier RMS0.2756298509;all-row RMS21.14779286 max191.77111686",
+    "guard": "All160 held-out non-camera-Q vertices use fitted-Z mode2 in native replay.",
+    "proof": "Screen near36px/far7px, isolated HUD exact, stereo-off unchanged; native shared/SBS/exact-zero pass.",
+    "limits": "Initial turned duplicate-image defect repaired in inspected left/right by scanout-aware screen-copy follow-up;frustum holes remain;physical/live FPS pending."
+  },
+  "outrun2_sp_fit_stop": {
+    "gameplay": "Actual Arcade race,F50/AT,163km/h,progressive scan.",
+    "result": "Three fitting approaches ineligible;no model or stereo/INSIDE proof promoted.",
+    "limits": "Generic profile retained;only chase view observed;camera/material cause unassigned."
+  },
+  "wipeout_pulse_race_validation": {
+    "fit": "A=8.530184893672867 B=-182357.79064065573 Qscale=-1 target640",
+    "heldout": "44866/51774 within64,inlierRMS10.23815106;allRMS49.75422162,max328.4726116",
+    "guard": "All6908 non-camera-Q world vertices use fitted-Z mode2 in native replay.",
+    "proof": "Near90px/far1px;HUD/off exact for one completed replay frame;native fake30/shared/SBS/exact-zero pass.",
+    "limits": "Exhaust/blur cutouts,flat sparks,culling holes;Close/Far chase only confirmed;physical/live speed pending."
+  },
+  "xgiii_race_validation": {
+    "fit": "A=-43008.36301120091 B=687194966.8812681 Qscale=+1 target640;depth-writing training subset",
+    "heldout": "57050/96768 within64,inlierRMS1.610554283;allRMS7405726.596,max300380984.762",
+    "guard": "All39718 outside-guard world vertices use fitted-Z mode2 in native replay.",
+    "proof": "Near barrier19/tail31px vs farbridge3px,imperfect near registration;HUD/off3frames exact;native shared/SBS/exact-zero pass.",
+    "limits": "Initial turned duplicate HUD/scenery repaired in inspected left/right by scanout-aware screen-copy follow-up;flat light/trail planes,culling holes remain. Internal view confirmed;physical/live speed pending."
+  },
+  "current_offline_status": {
+    "additional_titles_reached_gameplay": 9,
+    "additional_measured_camera_models": 8,
+    "generic_after_three_fit_stop": "OutRun2 SP",
+    "inside_visual_unaccepted": [],
+    "inside_proof_stopped_after_three": "XGRA",
+    "inside_hud_classification_incomplete": "Crisis Zone",
+    "full_speed_gate_unmet": "OutRun2006 after3trials",
+    "controller_overlay": "Same compositor:base scene/HUD then source-alpha controller projection,transparent-black background. Native screen/INSIDE alpha/order proof matches installed build;headset retest required.",
+    "scope": "Offline proofs only;no headset runtime starts;metric/lens constants provisional.",
+    "inside_screen_copy_followup": "Ninja Assault/XGIII inspected duplicate-image defect repaired;effects/culling limits remain."
+  },
+  "inside_screen_pass_validation": {
+    "policy": "Opt-in per-profile:scanout coverage,semantic sprite depth,render-target nonworld screen copies;retain classified large world batches.",
+    "profiles": [
+      "Ninja Assault",
+      "XGIII"
+    ],
+    "ninja_assault": "108wrong HUD copy records->0;144screen-copy records pass through;duplicate enemy/score removed in inspected left/right.",
+    "xgiii": "72wrong HUD copies->0;232large world draws retained;duplicate scenery/HUD removed;flat light/trail planes remain.",
+    "proof": "Same-build matched GS tick31 fake-left30,exact-zero RGBA,shared/SBS;new runner stereo-off baseline exact3frames;both gun overlay alpha/order modes pass.",
+    "limits": "Original-view holes/effects remain;dump-specific classification;no whole-title/physical/live-speed acceptance."
   }
 }
