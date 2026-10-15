@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QStringList>
 #include <QVector>
+#include <atomic>
 #include <functional>
 #include <memory>
 class QNetworkAccessManager;
@@ -25,6 +26,38 @@ QString bestLibretroMatch(const QStringList &wanted, const QStringList &listing)
 QString libretroSystem(const QString &system);
 // File names (without ".png") from a thumbnail server folder listing.
 QStringList parseListing(const QByteArray &html);
+// Arcade boards show a flyer first; consoles show their box.
+bool isArcade(const QString &system);
+// What a picture in an artwork pack is, from its folders: flyer, marquee, boxart, title, snap,
+// hero, logo, or "other" when the folders do not say.
+QString pictureKind(const QString &relativePath);
+
+// "Folders of artwork you already have": pictures on this PC, read in place and never copied.
+// Matched by file name: a set name or disc name exactly, then the same title loosely.
+class LocalIndex {
+public:
+  static LocalIndex scan(const QStringList &folders, const std::atomic_bool *cancel = nullptr);
+  // The first picture of the first kind that has one, for any of these names.
+  QString find(const QStringList &names, const QStringList &kinds) const;
+  int files() const { return files_; }
+
+private:
+  QHash<QString, QVector<QPair<QString, QString>>> byKey_; // name -> (kind, path)
+  int files_ = 0;
+};
+
+// The pictures a game's card and banner show, in this order:
+// card: the user's own art for it, then folders of artwork on this PC, then downloads;
+//   arcade games a flyer first, then the title screen, then a gameplay shot;
+//   console games the box, then the title screen.
+// banner: a hero picture (own, local, then SteamGridDB), then a gameplay shot, otherwise
+//   the card picture blurred.
+struct Picks {
+  QString card, hero;
+  bool heroBlurred = false;
+};
+Picks choosePictures(const QString &userRoot, const QString &id, const QString &system,
+                     const QString &title, const QStringList &names, const LocalIndex *local);
 
 // What to look for: the game's id and system, its title, and its own names on this PC (a disc's
 // file name, its folder). Those names are used for matching on this PC only and never stored.
@@ -66,9 +99,6 @@ public:
   void cancel() { cancelled_ = true; }
   bool busy() const { return busy_; }
   int requestsMade() const { return requests_; }
-  // The picture to show for a game: the user's own art for it first, then a downloaded one.
-  // use is "tile" (a wide card) or "hero" (the wide banner). Empty when there is none.
-  static QString pictureFor(const QString &userRoot, const QString &id, const QString &use);
   static QString downloadFolder(const QString &userRoot);
   static QString userAgent();
   static constexpr int missDays = 30, listingDays = 30;
@@ -81,6 +111,7 @@ private:
   void libretroStep(const Target &target, int kind, std::function<void()> next);
   void steamGridStep(const Target &target, std::function<void()> next);
   void steamGridAsset(const Target &target, int gameId, int kind, std::function<void()> next);
+  bool hasLibretroPicture(const QString &id) const;
   void withListing(const QString &system, const QString &folder,
                    std::function<void(bool ok, QStringList names)> done);
   void fetch(const QUrl &url, bool steamGridApi, std::function<void(int, QByteArray)> done);

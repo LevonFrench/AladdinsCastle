@@ -147,6 +147,9 @@ private:
     // NVRAM and settings. Stop forces both programs only if nothing has ended well after that.
     bool askModel2ToQuit(bool forceLater);
     std::unique_ptr<art::Downloader> artDownloader_;
+    // Folders of artwork already on this PC: indexed off the main thread whenever the list changes.
+    void scanLocalArt();
+    QStringList localArtFolders_;bool localArtScanned_=false;std::shared_ptr<std::atomic_bool> localArtCancel_;
     QString model2StopFile_;quint64 model2Session_=0;
 };
 }

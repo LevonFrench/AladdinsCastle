@@ -118,8 +118,9 @@ private slots:
       QVERIFY(!downloader.start(targets)); // One run at a time.
       QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 5000);
       QCOMPARE(done.first()[1].toStringList(), QStringList({"system22-timecris", "model2-vcop2"}));
-      // Three folder lists, one snap; one search, a grid and a hero with their pictures.
-      QCOMPARE(stub->seen.size(), 9);
+      // Three folder lists and one snap; then SteamGridDB, which has a key: a search for Time Crisis's hero
+      // (not there), and for Virtua Cop 2 a search, a grid and a hero with their pictures.
+      QCOMPARE(stub->seen.size(), 10);
     }
     const auto folder = ac::art::Downloader::downloadFolder(t.path());
     QVERIFY(QFileInfo::exists(folder + "/system22-timecris/snap.png"));
@@ -153,12 +154,64 @@ private slots:
     QVERIFY(stub->seen.isEmpty());
     QVERIFY(done.first()[0].toString().contains("no new pictures"));
     // What a card shows: the downloaded picture, until the user's own is there.
-    QCOMPARE(ac::art::Downloader::pictureFor(t.path(), "model2-vcop2", "tile"), QFileInfo(folder + "/model2-vcop2/grid.png").absoluteFilePath());
-    QCOMPARE(ac::art::Downloader::pictureFor(t.path(), "model2-vcop2", "hero"), QFileInfo(folder + "/model2-vcop2/hero.png").absoluteFilePath());
+    const auto pick = [&](const QString &id, const QString &system, const QString &title) {
+      return ac::art::choosePictures(t.path(), id, system, title, {}, nullptr);
+    };
+    QCOMPARE(pick("model2-vcop2", "model2", "Virtua Cop 2").card, QFileInfo(folder + "/model2-vcop2/grid.png").absoluteFilePath());
+    QCOMPARE(pick("model2-vcop2", "model2", "Virtua Cop 2").hero, QFileInfo(folder + "/model2-vcop2/hero.png").absoluteFilePath());
+    // Time Crisis has only a gameplay shot: it is the card, and the banner too.
+    QCOMPARE(pick("system22-timecris", "system22", "Time Crisis").card, QFileInfo(folder + "/system22-timecris/snap.png").absoluteFilePath());
+    QVERIFY(!pick("system22-timecris", "system22", "Time Crisis").heroBlurred);
     QVERIFY(QDir().mkpath(t.filePath("art/model2-vcop2")));
     QImage(32, 18, QImage::Format_RGB32).save(t.filePath("art/model2-vcop2/banner.jpg"));
-    QCOMPARE(ac::art::Downloader::pictureFor(t.path(), "model2-vcop2", "tile"), QFileInfo(t.filePath("art/model2-vcop2/banner.jpg")).absoluteFilePath());
-    QVERIFY(ac::art::Downloader::pictureFor(t.path(), "../escape", "tile").isEmpty());
+    QCOMPARE(pick("model2-vcop2", "model2", "Virtua Cop 2").card, QFileInfo(t.filePath("art/model2-vcop2/banner.jpg")).absoluteFilePath());
+    QVERIFY(pick("../escape", "model2", "x").card.isEmpty());
+  }
+  // Card and banner order per system, and folders of artwork on this PC before any download.
+  void picturesInOrder() {
+    QTemporaryDir t;
+    const auto save = [&](const QString &relative, int w, int h) -> QString {
+      QDir().mkpath(QFileInfo(t.filePath(relative)).absolutePath());
+      QImage image(w, h, QImage::Format_RGB32);
+      image.fill(Qt::gray);
+      return image.save(t.filePath(relative)) ? QFileInfo(t.filePath(relative)).absoluteFilePath() : QString("not saved");
+    };
+    const auto got = "user/art-downloaded/";
+    // Arcade: the flyer (libretro's arcade box art), then the title screen, then a gameplay shot.
+    const auto flyer = save(got + QString("model3-scud/boxart.png"), 30, 40), title = save(got + QString("model3-scud/title.png"), 40, 30),
+               snap = save(got + QString("model3-scud/snap.png"), 40, 30);
+    auto picks = ac::art::choosePictures(t.filePath("user"), "model3-scud", "model3", "Scud Race", {"scud"}, nullptr);
+    QCOMPARE(picks.card, flyer);
+    QCOMPARE(picks.hero, snap);
+    QFile::remove(flyer);
+    QCOMPARE(ac::art::choosePictures(t.filePath("user"), "model3-scud", "model3", "Scud Race", {"scud"}, nullptr).card, title);
+    // Console: the box, then the title screen; the banner falls back to the card, blurred.
+    const auto box = save(got + QString("ps2-tc3/boxart.png"), 30, 42);
+    picks = ac::art::choosePictures(t.filePath("user"), "ps2-tc3", "ps2", "Time Crisis 3", {"tc3"}, nullptr);
+    QCOMPARE(picks.card, box);
+    QCOMPARE(picks.hero, box);
+    QVERIFY(picks.heroBlurred);
+    // A SteamGridDB hero, when there is one, is the banner.
+    const auto hero = save(got + QString("ps2-tc3/hero.png"), 96, 31);
+    QCOMPARE(ac::art::choosePictures(t.filePath("user"), "ps2-tc3", "ps2", "Time Crisis 3", {"tc3"}, nullptr).hero, hero);
+    // Folders of artwork already on this PC: by set name, by disc name, or loosely by title; they win over downloads.
+    const auto packFlyer = save("packs/MAME Flyers/scud.png", 30, 40);
+    const auto packMarquee = save("packs/arcade/marquees/scud.jpg", 70, 20);
+    const auto discCover = save("packs/consoles/Covers/Time Crisis 3 (USA).png", 30, 42);
+    save("packs/arcade/wheel/scud.png", 50, 20); // A logo is never a card.
+    const auto pack = ac::art::LocalIndex::scan({t.filePath("packs/MAME Flyers"), t.filePath("packs/arcade"), t.filePath("packs/consoles")});
+    QCOMPARE(pack.files(), 3);
+    picks = ac::art::choosePictures(t.filePath("user"), "model3-scud", "model3", "Scud Race", {"scud"}, &pack);
+    QCOMPARE(picks.card, packFlyer);
+    QCOMPARE(pack.find({"scud"}, {"marquee"}), packMarquee);
+    QCOMPARE(ac::art::choosePictures(t.filePath("user"), "ps2-tc3", "ps2", "Time Crisis 3", {"tc3"}, &pack).card, discCover);
+    QCOMPARE(ac::art::pictureKind("Named_Boxarts/x.png"), QString("boxart"));
+    QCOMPARE(ac::art::pictureKind("snaps/x.png"), QString("snap"));
+    QCOMPARE(ac::art::pictureKind("misc/x.png"), QString("other"));
+    // The user's own art for a game still comes first of all.
+    const auto own = save("user/art/model3-scud/flyer.png", 30, 40);
+    QCOMPARE(ac::art::choosePictures(t.filePath("user"), "model3-scud", "model3", "Scud Race", {"scud"}, &pack).card, own);
+    Q_UNUSED(title);
   }
   void onlyRealPicturesAreKept() {
     QTemporaryDir t;
@@ -174,7 +227,7 @@ private slots:
     QSignalSpy done(&downloader, &ac::art::Downloader::finished);
     QVERIFY(downloader.start({{"ps2-tc2", "ps2", "Time Crisis II", {}}}));
     QTRY_COMPARE(done.size(), 1);
-    QVERIFY(ac::art::Downloader::pictureFor(t.path(), "ps2-tc2", "tile").isEmpty());
+    QVERIFY(ac::art::choosePictures(t.path(), "ps2-tc2", "ps2", "Time Crisis II", {}, nullptr).card.isEmpty());
     QVERIFY(done.first()[0].toString().contains("failed"));
     // No key: SteamGridDB is never asked.
     for (const auto &request : stub->seen)

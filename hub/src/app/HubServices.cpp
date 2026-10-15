@@ -197,6 +197,8 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     });
     connect(artDownloader_.get(),&art::Downloader::progress,this,[this](const QString &text){ui_->setArtwork(true,text);});
     connect(artDownloader_.get(),&art::Downloader::finished,this,[this](const QString &summary,const QStringList &){ui_->setArtwork(false,summary);});
+    connect(settings_,&UiSettings::changed,this,[this]{scanLocalArt();});
+    scanLocalArt();
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
     connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int code,const QString &error,const QString &){
@@ -276,6 +278,7 @@ install::Request HubServices::gameRequest(const QString &id,const QString &varia
 }
 HubServices::~HubServices(){
     if(artCancel_)*artCancel_=true;
+    if(localArtCancel_)localArtCancel_->store(true);
     artPool_.waitForDone();
     disconnect(&gunRoom_,nullptr,this,nullptr);
     gunRoom_.close();
@@ -391,6 +394,7 @@ void HubServices::refreshSteamVr(const QString &error){
 QString HubServices::pinballVrRoot()const{return settings_->get("pinballHeadset",true).toBool()?root_:QString();}
 void HubServices::startPinballArt(const QVariantMap &scan){
     if(artCancel_)*artCancel_=true;
+    if(localArtCancel_)localArtCancel_->store(true);
     auto cancel=std::make_shared<std::atomic_bool>(false);artCancel_=cancel;
     QString cache;try{cache=install::scopedPath("user/cache/pinball-art/x",root_);cache=QFileInfo(cache).absolutePath();}catch(const std::exception &){return;}
     // Tables that can be started first, so the pictures that are seen come first.
@@ -545,6 +549,20 @@ bool HubServices::askPs2ToQuit(){
     QFile request(stopFile);
     if(stopFile.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS2","The stop request could not be written. Use the launcher's own stop to quit the game.");return true;}
     request.close();ui_->launchClosing();return true;
+}
+void HubServices::scanLocalArt(){
+    const auto folders=settings_->get("artFolders",QVariantList{}).toStringList();
+    if(localArtScanned_&&folders==localArtFolders_)return;
+    localArtScanned_=true;localArtFolders_=folders;
+    if(localArtCancel_)localArtCancel_->store(true);
+    if(folders.isEmpty()){localArtCancel_.reset();ui_->setLocalArt({});return;}
+    auto cancel=std::make_shared<std::atomic_bool>(false);localArtCancel_=cancel;
+    QPointer<HubServices> self(this);
+    // Read in place: only names and paths are kept, and nothing is copied.
+    QThreadPool::globalInstance()->start([self,folders,cancel]{
+        auto index=std::make_shared<const art::LocalIndex>(art::LocalIndex::scan(folders,cancel.get()));
+        QMetaObject::invokeMethod(qApp,[self,index,cancel]{if(self&&!cancel->load())self->ui_->setLocalArt(index);});
+    });
 }
 bool HubServices::askModel2ToQuit(bool forceLater){
     if(!ui_->nowPlaying().value("gameId").toString().startsWith("model2-")||!launcher_.busy()||model2StopFile_.isEmpty())return false;

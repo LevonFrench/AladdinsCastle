@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
+#include "core/art/Download.h"
 #include "models/FilterSortModel.h"
 #include "UiSettings.h"
 #include "DetailControlsController.h"
@@ -145,6 +146,10 @@ class UiController : public QObject {
  bool artworkBusy()const{return m_artworkBusy;}
  QString artworkStatus()const{return m_artworkStatus;}
  void setArtwork(bool busy,const QString &status);
+ // The folders of artwork on this PC, indexed in the background; rows show them at once.
+ Q_PROPERTY(int localArtFiles READ localArtFiles NOTIFY artworkChanged)
+ int localArtFiles()const{return m_localArt?m_localArt->files():0;}
+ void setLocalArt(std::shared_ptr<const art::LocalIndex> index){m_localArt=std::move(index);emit artworkChanged();emit model3Changed();}
  void launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable);
  // Games of the other systems, in the same row shape as model3Games plus system,
  // pill, views and warning. Ids carry the system: "dreamcast-hotd2", "system22-timecris".
@@ -257,7 +262,9 @@ class UiController : public QObject {
  int m_artRevision=0;
  bool m_artworkBusy=false;QString m_artworkStatus;
  // A row's pictures: the user's own art for it first, then a downloaded one.
- void addArt(QVariantMap &row,const QString &artId)const;
+ void addArt(QVariantMap &row,const QString &artId,const QString &system)const;
+ static QStringList artNames(const QVariantMap &row,const QString &artId);
+ std::shared_ptr<const art::LocalIndex> m_localArt;
  bool m_artProviderReady=false;
  bool m_installing=false,m_scanning=false;
  QVariantMap m_nowPlaying,m_lastSession;

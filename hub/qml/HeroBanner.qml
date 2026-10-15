@@ -12,6 +12,8 @@ Item {
  property color metaColour:Theme.get("color.text.muted")
  property string system:"model3"
  property url art:""
+ // No banner picture of its own: the card picture, blurred and cropped, as a backdrop.
+ property bool artBlurred:false
  property bool vrOverlayMode:false
  default property alias actions:actionRow.data
  property alias extra:extraRow.data
@@ -20,7 +22,8 @@ Item {
  Rectangle {anchors.fill:parent;visible:hero.art=="";gradient:Gradient{orientation:Gradient.Horizontal
   GradientStop{position:0;color:Qt.darker(hero.tone,1.3)} GradientStop{position:1;color:Qt.darker(hero.tone,3.4)}}}
  Repeater {model:hero.art==""?4:0;Rectangle {width:hero.height*(0.9+index*0.45);height:width;radius:width/2;color:"transparent";border.width:Math.max(1,hero.height*0.02);border.color:"white";opacity:0.07;x:hero.width*0.72-width/2;y:hero.height*0.5-height/2}}
- Image {anchors.right:parent.right;width:parent.width*0.62;height:parent.height;visible:hero.art!="";source:hero.art;fillMode:Image.PreserveAspectCrop;asynchronous:true}
+ Image {anchors.right:parent.right;width:parent.width*0.62;height:parent.height;visible:hero.art!=""&&!hero.artBlurred;source:hero.art;fillMode:Image.PreserveAspectCrop;asynchronous:true}
+ Image {objectName:"heroBlurred";anchors.right:parent.right;width:parent.width*0.62;height:parent.height;visible:hero.art!=""&&hero.artBlurred;source:hero.artBlurred?hero.art:"";fillMode:Image.PreserveAspectCrop;asynchronous:true;sourceSize.width:40;smooth:true;opacity:0.75}
  Rectangle {anchors.fill:parent;gradient:Gradient{orientation:Gradient.Horizontal
   GradientStop{position:0;color:Theme.get("color.surface.window")} GradientStop{position:0.38;color:Theme.alpha(Theme.get("color.surface.window"),0.86)} GradientStop{position:0.78;color:"transparent"}}}
  Rectangle {anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;height:parent.height*0.35

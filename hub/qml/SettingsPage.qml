@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
+import QtQuick.Layouts
 import AladdinsCastle.Hub
 ScrollView{
  id:page
@@ -8,6 +10,8 @@ ScrollView{
  readonly property real side:vrOverlayMode?28:40
  readonly property bool catalogOn:(uiSettings.values,uiSettings.get("showAllGames",false))===true
  readonly property bool artOn:(uiSettings.values,uiSettings.get("artDownload",false))===true
+ readonly property var artFolders:(uiSettings.values,uiSettings.get("artFolders",[]))||[]
+ FolderDialog {id:artFolderDialog;title:"Choose a folder of artwork";onAccepted:{const path=uiController.localPath(selectedFolder);if(page.artFolders.indexOf(path)<0)uiSettings.set("artFolders",page.artFolders.concat([path]))}}
  readonly property var artSystems:[{key:"model3",label:"Sega Model 3"},{key:"model2",label:"Sega Model 2"},{key:"system22",label:"Namco System 22"},{key:"dreamcast",label:"Sega Dreamcast"},{key:"ps2",label:"PlayStation 2"}]
  clip:true
  contentWidth:availableWidth
@@ -32,6 +36,20 @@ ScrollView{
     Repeater{model:page.artSystems
      PillButton{required property var modelData;objectName:"artGet_"+modelData.key;text:"Get artwork · "+modelData.label;vrOverlayMode:page.vrOverlayMode;enabled:!uiController.artworkBusy;onClicked:uiController.getArtwork("system:"+modelData.key)}}}
    UiText{objectName:"artworkStatus";width:parent.width-parent.leftPadding;visible:text.length>0;text:uiController.artworkStatus;font.pixelSize:page.vrOverlayMode?15:13}
+  }
+  // Pictures already on this PC: read where they are, never copied, and always before downloads.
+  Rectangle{objectName:"artFolders";width:parent.width;radius:Theme.get("radius.card");color:Theme.get("color.surface.card");height:artFolderColumn.implicitHeight+(page.vrOverlayMode?40:32)
+   Column{id:artFolderColumn;x:page.vrOverlayMode?20:16;y:page.vrOverlayMode?20:16;width:parent.width-2*x;spacing:8
+    Text{text:"Folders of artwork you already have";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?20:17}
+    Text{width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?16:14
+     text:"Marquee, flyer or box-art packs on this PC, matched by set name or disc name. The Hub only reads them where they are: nothing is copied and nothing leaves this PC. They always come before downloaded pictures."+(page.artFolders.length?"  "+uiController.localArtFiles+(uiController.localArtFiles===1?" picture found.":" pictures found."):"")}
+    Repeater{model:page.artFolders
+     RowLayout{required property string modelData;width:artFolderColumn.width;spacing:10
+      UiText{Layout.fillWidth:true;text:modelData;elide:Text.ElideMiddle;font.pixelSize:page.vrOverlayMode?15:13}
+      PillButton{objectName:"artFolderRemove";text:"Remove";vrOverlayMode:page.vrOverlayMode;onClicked:uiSettings.set("artFolders",page.artFolders.filter(f=>f!==modelData))}}}
+    PillButton{objectName:"artFolderAdd";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;text:"Add a folder…";onClicked:artFolderDialog.open()}
+    UiText{visible:page.vrOverlayMode;text:"Add folders on the desktop.";font.pixelSize:15}
+   }
   }
   Repeater{model:[{key:"reduceMotion",label:"Reduce motion",detail:"Rows and pictures change without moving."},{key:"cheapEffects",label:"Use cheaper card effects",detail:"Plainer cards, lighter on the graphics card."},{key:"scanOnStartup",label:"Scan remembered folders on startup",catalog:true},{key:"bannerListDisabled",label:"Hide list banner",catalog:true},{key:"bannerLibDisabled",label:"Hide library banner",catalog:true},{key:"recentlyPlayedHidden",label:"Hide recently played",catalog:true}].filter(m=>!m.catalog||page.catalogOn)
    SettingRow{required property var modelData;width:parent.width;vrOverlayMode:page.vrOverlayMode;label:modelData.label;detail:modelData.detail||""

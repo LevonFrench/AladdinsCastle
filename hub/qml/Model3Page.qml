@@ -88,7 +88,7 @@ Item {
  Keys.onSpacePressed:primaryAction(focusedRow)
  ColumnLayout {anchors.fill:parent;spacing:0;visible:!page.selectedId
   HeroBanner {id:hero;objectName:"model3Hero";Layout.fillWidth:true;Layout.preferredHeight:page.height*(page.vrOverlayMode?0.42:0.46);vrOverlayMode:page.vrOverlayMode
-   system:page.focusedRow.system||"model3";art:page.focusedRow.heroArt||page.tileOf(page.focusedRow).art
+   system:page.focusedRow.system||"model3";art:page.focusedRow.heroArt||page.tileOf(page.focusedRow).art;artBlurred:!!page.focusedRow.heroBlur
    eyebrow:(page.hardwareLabel(page.focusedRow)+(page.focusedRow.year?"  ·  "+page.focusedRow.year:"")).toUpperCase()
    title:page.focusedRow.title||"VR games"
    meta:page.setupProblem||page.focusedRow.problem||page.focusedRow.warning||(page.focusedRow.system==="catalog"?"Set up and ready on this PC.":page.focusedRow.title?"Found on this PC. Choose how you see it, then start.":"Add your systems in Set-up.")
@@ -112,7 +112,7 @@ Item {
  // A game's own page: the hero with Start and Back, then how to see it, then what it needs.
  Loader {anchors.fill:parent;active:!!page.selectedId;sourceComponent:Component{ColumnLayout {spacing:0
   HeroBanner {Layout.fillWidth:true;Layout.preferredHeight:page.height*(page.vrOverlayMode?0.4:0.44);vrOverlayMode:page.vrOverlayMode
-   system:page.selected.system||"model3";art:page.selected.heroArt||""
+   system:page.selected.system||"model3";art:page.selected.heroArt||"";artBlurred:!!page.selected.heroBlur
    eyebrow:(page.hardwareLabel(page.selected)+(page.selected.year?"  ·  "+page.selected.year:"")).toUpperCase()
    title:page.selected.title||""
    meta:page.selected.problem||(page.selected.warning?"Before you start: "+page.selected.warning:"Found on this PC. The view you choose below is remembered for this game.")

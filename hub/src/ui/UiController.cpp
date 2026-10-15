@@ -320,7 +320,7 @@ QVariantList UiController::otherGames()const{
   row["view"]=view;row["views"]=views;
   row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
   row["accepted"]=m_settings->acceptedOn(row.value("id").toString(),row.value("title").toString());
-  row["artId"]=row.value("id");addArt(row,row.value("id").toString());
+  row["artId"]=row.value("id");addArt(row,row.value("id").toString(),row.value("system").toString());
   rows<<row;
  };
  // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
@@ -384,16 +384,22 @@ QVariantList UiController::model3Games()const{
   // Four separate facts: in the Hub's list, launch line known, found on this PC, accepted by the owner.
   row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
   row["accepted"]=m_settings->acceptedOn("model3-"+id,row.value("title").toString());
-  row["artId"]="model3-"+id;addArt(row,"model3-"+id);
+  row["artId"]="model3-"+id;addArt(row,"model3-"+id,"model3");
   rows<<row;
  }
  return rows;
 }
-void UiController::addArt(QVariantMap &row,const QString &artId)const{
- const auto root=m_settings->userDir();
- const auto tile=art::Downloader::pictureFor(root,artId,"tile"),hero=art::Downloader::pictureFor(root,artId,"hero");
- row["art"]=tile.isEmpty()?QString():QUrl::fromLocalFile(tile).toString();
- row["heroArt"]=hero.isEmpty()?row.value("art").toString():QUrl::fromLocalFile(hero).toString();
+QStringList UiController::artNames(const QVariantMap &row,const QString &artId){
+ // The set name (the part of the id after the system) and the game's own file and folder names.
+ QStringList names{artId.section('-',1)};
+ if(const auto file=row.value("file").toString();!file.isEmpty()){const QFileInfo info(file);names<<info.completeBaseName()<<info.dir().dirName();}
+ return names;
+}
+void UiController::addArt(QVariantMap &row,const QString &artId,const QString &system)const{
+ const auto picks=art::choosePictures(m_settings->userDir(),artId,system,row.value("title").toString(),artNames(row,artId),m_localArt.get());
+ row["art"]=picks.card.isEmpty()?QString():QUrl::fromLocalFile(picks.card).toString();
+ row["heroArt"]=picks.hero.isEmpty()?QString():QUrl::fromLocalFile(picks.hero).toString();
+ row["heroBlur"]=picks.heroBlurred;
 }
 void UiController::setArtwork(bool busy,const QString &status){
  const bool done=m_artworkBusy&&!busy;m_artworkBusy=busy;m_artworkStatus=status;emit artworkChanged();message(status);
@@ -411,8 +417,7 @@ void UiController::getArtwork(const QString &scope){
   const auto row=value.toMap();const auto id=row.value("artId",row.value("id")).toString();
   if(system.isEmpty()?id!=scope:row.value("system")!=system)continue;
   // The game's own file and folder names match libretro's disc names best; they stay on this PC.
-  QStringList names;const QFileInfo file(row.value("file").toString());
-  if(!row.value("file").toString().isEmpty())names<<file.completeBaseName()<<file.dir().dirName();
+  const auto names=artNames(row,id);
   targets<<QVariantMap{{"id",id},{"system",row.value("system")},{"title",row.value("title")},{"names",names}};
  }
  if(targets.isEmpty()){message("No game to fetch artwork for.");return;}

@@ -20,6 +20,45 @@ Nothing downloads by itself. With the switch on:
 Pinball tables keep the pictures made from their own backglass files; no
 service has pictures for them.
 
+## What each card and banner shows
+
+Every card has the same 16:9 frame as the pinball tables. A picture close to
+that shape is cropped, as a backglass is. A flyer, box or marquee is shown
+whole over a blurred, darkened copy of itself. Nothing is stretched. The blur is
+the picture decoded tiny and scaled up, so it needs no graphics effects.
+
+| | Card | Banner across the top |
+|---|---|---|
+| Pinball | the table's own `.directb2s` backglass | the backglass |
+| Arcade (Model 2, Model 3, System 22, NAOMI) | flyer, then title screen, then a gameplay shot (libretro's arcade box art is mostly flyers) | a hero picture (yours, a local folder's, then SteamGridDB's), then a gameplay shot, otherwise the card picture blurred |
+| Console (Dreamcast, PS2) | box cover, then title screen | the same as arcade |
+
+For each picture the Hub looks in this order:
+
+1. The user's own pictures for that game.
+2. Folders of artwork already on the PC.
+3. Downloaded pictures.
+
+## Folders of artwork you already have
+
+Settings has a list of folders: marquee, flyer or box-art packs already on the
+PC. The Hub indexes them in the background when the list changes. It reads the
+pictures where they are and keeps only names and paths. Nothing is copied,
+nothing leaves the PC, and it needs no internet, so it works with the download
+switch off.
+
+A picture matches a game by:
+
+- the set name (`scud`, `vcop2`, `timecris`);
+- the disc's own file or folder name;
+- the title, loosely, so `Time Crisis 3 (USA).png` fits Time Crisis 3.
+
+What a picture is comes from its folders. `flyers`, `marquees`, `box` or `covers`,
+`titles` and `snaps` or `screenshots` say what they hold. `Named_Boxarts`,
+`Named_Titles` and `Named_Snaps` count too. A folder you chose called
+`MAME Flyers` holds flyers. Wheels and logos are skipped. A picture in a folder
+that says nothing comes after the known kinds.
+
 ## Sources, in order
 
 1. **libretro thumbnails**, `https://thumbnails.libretro.com/<system>/Named_Snaps|Named_Titles|Named_Boxarts/<name>.png`.
@@ -32,8 +71,8 @@ service has pictures for them.
    demo or bootleg when there is another. MAME has pictures for few Model 2 and
    Model 3 games.
 2. **SteamGridDB**, only with the user's own API key (Settings, under the switch;
-   kept in the Hub's settings on this PC). It is asked only for games libretro
-   had nothing for. The Hub searches by title and takes only an exact title
+   kept in the Hub's settings on this PC). It is asked for every game's hero
+   (the banner). A card picture is asked for only when libretro had nothing. The Hub searches by title and takes only an exact title
    match. It then takes one 920×430 or 460×215 grid for the card and one hero
    for the banner, still pictures only, with adult, joke and flashing pictures
    filtered out. The key goes in the `Authorization` header to
@@ -69,10 +108,11 @@ source, its address and when it was fetched. It also records the "not there"
 answers and SteamGridDB's id for each game. Folder lists are in `listings/`.
 Delete the folder to start again.
 
-**The user's own pictures always win.** `user/art/<game id>/` with `banner`,
-`hero`, `fanart`, `snap` or `boxart` (`.png`, `.jpg`, `.jpeg`, `.webp` or
-`.bmp`) is used before anything downloaded. Catalog games keep their local art
-order ([docs/art-pipeline.md](../docs/art-pipeline.md) §0).
+**The user's own pictures always win.** `user/art/<game id>/` is used before
+anything else. A card takes `banner`, then the kinds above (`flyer`, `boxart`,
+`title`, `marquee`, `snap`). A banner takes `hero` or `fanart`, then `snap`. Any
+of `.png`, `.jpg`, `.jpeg`, `.webp` or `.bmp` works. Catalog games keep their
+local art order ([docs/art-pipeline.md](../docs/art-pipeline.md) §0).
 
 ## Privacy and copyright
 

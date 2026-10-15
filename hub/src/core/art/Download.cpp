@@ -4,6 +4,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -98,7 +99,129 @@ QString bestLibretroMatch(const QStringList &wanted, const QStringList &listing)
   }
   return {};
 }
+bool isArcade(const QString &system) {
+  return system == "model2" || system == "model3" || system == "system22" || system == "naomi";
+}
+QString pictureKind(const QString &relativePath) {
+  const auto parts = relativePath.toLower().split('/', Qt::SkipEmptyParts);
+  // The nearest folder that says what it holds wins: "pack/flyers/vcop2.png" is a flyer.
+  for (auto it = parts.crbegin() + (parts.isEmpty() ? 0 : 1); it != parts.crend(); ++it) {
+    const auto &p = *it;
+    if (p.contains("flyer"))
+      return "flyer";
+    if (p.contains("marquee"))
+      return "marquee";
+    if (p.contains("box") || p.contains("cover"))
+      return "boxart";
+    if (p.contains("title"))
+      return "title";
+    if (p.contains("snap") || p.contains("screenshot"))
+      return "snap";
+    if (p.contains("fanart") || p.contains("hero") || p.contains("background"))
+      return "hero";
+    if (p.contains("wheel") || p.contains("logo"))
+      return "logo";
+  }
+  return "other";
+}
+LocalIndex LocalIndex::scan(const QStringList &folders, const std::atomic_bool *cancel) {
+  LocalIndex index;
+  for (const auto &folder : folders) {
+    const QDir root(folder);
+    if (folder.isEmpty() || !root.exists())
+      continue;
+    QDirIterator it(root.absolutePath(), {"*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp"},
+                    QDir::Files | QDir::Readable, QDirIterator::Subdirectories);
+    while (it.hasNext() && index.files_ < 300000) {
+      if (cancel && cancel->load())
+        return index;
+      const QFileInfo info(it.next());
+      if (info.isSymLink())
+        continue;
+      // The pack's own folder name counts too: a folder chosen as ".../Flyers" holds flyers.
+      const auto kind = pictureKind(root.dirName() + "/" + root.relativeFilePath(info.absoluteFilePath()));
+      if (kind == "logo")
+        continue;
+      const auto base = info.completeBaseName();
+      index.byKey_[base.toLower()] << qMakePair(kind, info.absoluteFilePath());
+      if (const auto loose = matchKey(base); !loose.isEmpty())
+        index.byKey_["~" + loose] << qMakePair(kind, info.absoluteFilePath());
+      ++index.files_;
+    }
+  }
+  return index;
+}
+QString LocalIndex::find(const QStringList &names, const QStringList &kinds) const {
+  for (const auto &kind : kinds)
+    for (const bool loose : {false, true})
+      for (const auto &name : names) {
+        if (name.trimmed().isEmpty())
+          continue;
+        const auto key = loose ? "~" + matchKey(name) : libretroName(name.trimmed()).toLower();
+        for (const auto &entry : byKey_.value(key))
+          if (entry.first == kind)
+            return entry.second;
+        if (!loose)
+          for (const auto &entry : byKey_.value(name.trimmed().toLower()))
+            if (entry.first == kind)
+              return entry.second;
+      }
+  return {};
+}
+Picks choosePictures(const QString &userRoot, const QString &id, const QString &system,
+                     const QString &title, const QStringList &names, const LocalIndex *local) {
+  Picks picks;
+  if (!safeId(id))
+    return picks;
+  const bool arcade = isArcade(system);
+  const auto own = [&](const QString &role) {
+    return userRoot.isEmpty() ? QString() : picture(userRoot + "/art/" + id + "/" + role);
+  };
+  const auto fetched = [&](const QString &kind) {
+    if (userRoot.isEmpty())
+      return QString();
+    const QFileInfo f(Downloader::downloadFolder(userRoot) + "/" + id + "/" + kind + ".png");
+    return f.isFile() && !f.isSymLink() ? f.absoluteFilePath() : QString();
+  };
+  const auto keys = QStringList(names) << title;
+  const auto first = [](std::initializer_list<std::function<QString()>> ways) {
+    for (const auto &way : ways)
+      if (auto path = way(); !path.isEmpty())
+        return path;
+    return QString();
+  };
+  const QStringList cardKinds = arcade ? QStringList{"flyer", "boxart", "title", "marquee", "snap"}
+                                       : QStringList{"boxart", "title", "snap"};
+  picks.card = first({
+      [&] {
+        for (const auto &role : QStringList{"banner"} + cardKinds)
+          if (auto p = own(role); !p.isEmpty())
+            return p;
+        return QString();
+      },
+      [&] { return local ? local->find(keys, QStringList(cardKinds) << "other") : QString(); },
+      [&] {
+        // libretro's arcade box art is mostly the flyer.
+        for (const auto &kind : arcade ? QStringList{"boxart", "title", "snap", "grid"}
+                                       : QStringList{"boxart", "title", "grid", "snap"})
+          if (auto p = fetched(kind); !p.isEmpty())
+            return p;
+        return QString();
+      }});
+  picks.hero = first({[&] { return own("hero").isEmpty() ? own("fanart") : own("hero"); },
+                      [&] { return local ? local->find(keys, {"hero"}) : QString(); },
+                      [&] { return fetched("hero"); }, [&] { return own("snap"); },
+                      [&] { return local ? local->find(keys, {"snap"}) : QString(); },
+                      [&] { return fetched("snap"); }});
+  if (picks.hero.isEmpty() && !picks.card.isEmpty()) {
+    picks.hero = picks.card;
+    picks.heroBlurred = true;
+  }
+  return picks;
+}
 QString libretroSystem(const QString &system) {
+  if (system == "naomi")
+    return "Sega - Naomi";
   if (system == "dreamcast")
     return "Sega - Dreamcast";
   if (system == "ps2")
@@ -158,24 +281,6 @@ QString Downloader::userAgent() {
     version = "0.1";
   return QString("%1/%2 (+https://github.com/LevonFrench/AladdinsCastle; artwork on request)")
       .arg(QString::fromLatin1(product::program_name), version);
-}
-QString Downloader::pictureFor(const QString &userRoot, const QString &id,
-                               const QString &use) {
-  if (userRoot.isEmpty() || !safeId(id))
-    return {};
-  const bool hero = use == "hero";
-  // The user's own pictures first, as for every catalog game.
-  for (const auto &role : hero ? QStringList{"hero", "fanart", "banner", "snap", "boxart"}
-                               : QStringList{"banner", "hero", "fanart", "snap", "boxart"})
-    if (const auto path = picture(userRoot + "/art/" + id + "/" + role); !path.isEmpty())
-      return path;
-  for (const auto &kind : hero ? QStringList{"hero", "grid", "snap", "title", "boxart"}
-                               : QStringList{"grid", "snap", "title", "hero", "boxart"}) {
-    const QFileInfo f(downloadFolder(userRoot) + "/" + id + "/" + kind + ".png");
-    if (f.isFile() && !f.isSymLink())
-      return f.absoluteFilePath();
-  }
-  return {};
 }
 bool Downloader::start(const QVector<Target> &targets) {
   // The switch is checked first: off means no request of any kind.
@@ -298,15 +403,22 @@ void Downloader::withListing(const QString &system, const QString &folder,
     done(true, names);
   });
 }
+bool Downloader::hasLibretroPicture(const QString &id) const {
+  for (const auto *kind : libretroKinds)
+    if (QFileInfo::exists(downloadFolder(root_) + "/" + id + "/" + kind + ".png"))
+      return true;
+  return false;
+}
 void Downloader::steamGridStep(const Target &target, std::function<void()> next) {
   if (steamGridKey_.isEmpty() || cancelled_)
     return next();
-  // libretro first: a game it had pictures for keeps them.
+  // With a key, SteamGridDB gives the banner's hero for every game, and a card picture only
+  // for games libretro had nothing for.
   const auto folder = downloadFolder(root_) + "/" + target.id + "/";
-  for (const auto *kind : libretroKinds)
-    if (QFileInfo::exists(folder + kind + ".png"))
-      return next();
-  if (QFileInfo::exists(folder + "grid.png") && QFileInfo::exists(folder + "hero.png"))
+  const bool needGrid = !hasLibretroPicture(target.id) && !QFileInfo::exists(folder + "grid.png") &&
+                        !missFresh(target.id + "|steamgriddb|grid");
+  const bool needHero = !QFileInfo::exists(folder + "hero.png") && !missFresh(target.id + "|steamgriddb|hero");
+  if (!needGrid && !needHero)
     return next();
   const auto miss = target.id + "|steamgriddb";
   if (missFresh(miss))
@@ -357,7 +469,7 @@ void Downloader::steamGridAsset(const Target &target, int gameId, int kind,
   const QString name = kind == 0 ? "grid" : "hero";
   const auto file = downloadFolder(root_) + "/" + target.id + "/" + name + ".png";
   const auto miss = target.id + "|steamgriddb|" + name;
-  if (QFileInfo::exists(file) || missFresh(miss))
+  if (QFileInfo::exists(file) || missFresh(miss) || (kind == 0 && hasLibretroPicture(target.id)))
     return cont();
   // Still pictures only, and nothing marked adult, joke or flashing.
   QUrl url(QString(steamGridApi) + (kind == 0 ? "/grids/game/" : "/heroes/game/") +
