@@ -57,6 +57,8 @@ void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<Se
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_detailControls(this),m_games(games),m_filter(filter),m_settings(settings){
  connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
  connect(settings,&UiSettings::changed,this,&UiController::model3Changed);
+ connect(games,&QAbstractItemModel::dataChanged,this,&UiController::catalogReadyChanged);
+ connect(games,&QAbstractItemModel::modelReset,this,&UiController::catalogReadyChanged);
  connect(settings,&UiSettings::changed,this,&UiController::setupChanged);
  m_detailControls.configure(games->catalog().root,games->catalog().packIds);
  ControlsResolver pinballLibrary;QVariantMap pinballResolved;
@@ -282,6 +284,14 @@ void UiController::setSetupFolder(const QString &id,const QString &folder){for(c
 void UiController::setSetupProgram(const QString &id,const QString &program){for(const auto &value:setup::systems())if(value.toMap().value("id")==id)m_settings->set(value.toMap().value("programKey").toString(),program);}
 void UiController::acceptSetupGuesses(){for(const auto &value:setupSystems()){const auto row=value.toMap();if(row.value("chosen").toBool()&&!row.value("guess").toString().isEmpty())setSetupFolder(row.value("id").toString(),row.value("guess").toString());}}
 void UiController::finishSetup(){m_settings->set("setupDone",true);}
+QVariantList UiController::readyCatalogGames()const{
+ QVariantList rows;
+ for(const auto &record:m_games->records()){
+  const auto &roles=record.roles;if(roles.value("statePill")!="ready")continue;
+  rows<<QVariantMap{{"id",record.id},{"title",roles.value("title")},{"year",roles.value("year")},{"system","catalog"},{"card",roles}};
+ }
+ return rows;
+}
 QVariantList UiController::otherGames()const{
  const auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();QVariantList rows;
  const auto add=[&](QVariantMap row,const QVariantList &views){

@@ -9,7 +9,8 @@ Item {
  property string sizeValue:"S"
  // Model 3 first, then the games of the other systems; a row with "system" belongs to one of those.
  property var model3Rows:uiController.model3Games
- property var rows:model3Rows.concat(uiController.otherGames)
+ property var rows:model3Rows.concat(uiController.otherGames,uiController.readyCatalogGames)
+ signal detailRequested(string id)
  property var views:selected.views||uiController.model3Views
  property string selectedId:""
  // The same set-up problem on every card is said once, in full, above the cards.
@@ -23,7 +24,10 @@ Item {
  property color needsColour:Theme.get("color.state.needs_neon")
  function card(row){
   let c=Object.assign({},row.card||{})
-  c.gameId=row.id;c.title=row.title;c.year=row.year;c.pill=row.pill||"MODEL 3"
+  c.gameId=row.id;c.title=row.title;c.year=row.year
+  // A ready catalog game keeps its own catalog card.
+  if(row.system==="catalog"){c.blurb="Set up and ready on this PC.";c.stateColour=readyColour;return c}
+  c.pill=row.pill||"MODEL 3"
   // Arcade boards have one maker; console games do not, so none is claimed for them.
   c.manufacturerShort=row.system==="system22"?"Namco":(!row.system||row.system==="model2")?"Sega":""
   c.hardwareLabel={dreamcast:"Dreamcast",system22:"System 22",model2:"Model 2",ps2:"PlayStation 2"}[row.system]||"Model 3";c.developerShown=false;c.isWip=false
@@ -31,7 +35,7 @@ Item {
   c.blurb=trouble?trouble.split(". ")[0].replace(/\.$/,"")+".":"Found on this PC.";c.stateColour=trouble?needsColour:readyColour
   return c
  }
- function play(row){if(row.system)uiController.playOtherGame(row.id);else uiController.playModel3(row.id)}
+ function play(row){if(row.system==="catalog")uiController.primary(row.id);else if(row.system)uiController.playOtherGame(row.id);else uiController.playModel3(row.id)}
  function choose(row,view){if(row.system)uiController.chooseGameView(row.id,view);else uiController.chooseModel3View(row.id,view)}
  signal setupRequested()
  // One picture per view, seen from above: you, what you look at, and how much of your view it fills.
@@ -69,10 +73,10 @@ Item {
    delegate:Item {id:cell;required property var modelData;width:grid.cellWidth;height:grid.cellHeight
     GameCard {objectName:"model3Card";width:parent.width-8;height:parent.height-8;game:page.card(cell.modelData);sizeValue:page.sizeValue;vrOverlayMode:page.vrOverlayMode
      effectsEnabled:!(uiSettings.values,uiSettings.get("cheapEffects",true))
-     primaryText:cell.modelData.problem?"Not ready":cell.modelData.warning?"Read first":"Start · "+cell.modelData.viewLabel
+     primaryText:cell.modelData.problem?"Not ready":cell.modelData.warning?"Read first":cell.modelData.system==="catalog"?"Start":"Start · "+cell.modelData.viewLabel
      // Acceptance is the owner's word only; finding a game is not the same thing.
      footText:cell.modelData.accepted?"✓ Accepted in the headset":" "
-     onDetailRequested:page.selectedId=cell.modelData.id
+     onDetailRequested:if(cell.modelData.system==="catalog")page.detailRequested(cell.modelData.id);else page.selectedId=cell.modelData.id
      // A game that is not ready, or starts only behind a warning, opens its page instead of starting.
      onActionRequested:if(cell.modelData.problem||cell.modelData.warning||!page.idle)page.selectedId=cell.modelData.id;else page.play(cell.modelData)
     }
