@@ -64,6 +64,8 @@ class UiController : public QObject {
  Q_PROPERTY(QVariantList model3Games READ model3Games NOTIFY model3Changed)
  Q_PROPERTY(QVariantList model3Views READ model3Views CONSTANT)
  Q_PROPERTY(QVariantList otherGames READ otherGames NOTIFY model3Changed)
+ // Catalog games set up and ready on this PC: shown on the VR games page even with the catalog switched off.
+ Q_PROPERTY(QVariantList readyCatalogGames READ readyCatalogGames NOTIFY catalogReadyChanged)
  Q_PROPERTY(QVariantList setupSystems READ setupSystems NOTIFY setupChanged)
  Q_PROPERTY(QVariantMap setupKinds READ setupKinds NOTIFY setupChanged)
  Q_PROPERTY(QVariantMap steamVr READ steamVr NOTIFY setupChanged)
@@ -97,6 +99,7 @@ class UiController : public QObject {
  QVariantMap lastSession()const{return m_lastSession;}
  Q_INVOKABLE void dismissLastSession(){m_lastSession.clear();emit nowPlayingChanged();}
  Q_INVOKABLE void launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable);
+ void queueSession(const QString &id,const QString &variant,const QString &closeUnavailable);
  Q_INVOKABLE void launchRoomQueued(const QString &model,const QString &hand,bool calibrateGrip=false);
  void launchClosing();
  void cancelPendingRestart(){m_restartAfterClose=false;}
@@ -129,6 +132,7 @@ class UiController : public QObject {
  // Games of the other systems, in the same row shape as model3Games plus system,
  // pill, views and warning. Ids carry the system: "dreamcast-hotd2", "system22-timecris".
  QVariantList otherGames()const;
+ QVariantList readyCatalogGames()const;
  Q_INVOKABLE void chooseGameView(const QString &id,const QString &view);
  Q_INVOKABLE void playOtherGame(const QString &id);
  void launchOtherQueued(const QString &id,const QString &view,const QString &title,const QString &hint,const QString &closeUnavailable);
@@ -202,6 +206,7 @@ class UiController : public QObject {
  void pinballChanged();
  void pinballPlayRequested(const QString &id);
  void model3Changed();
+ void catalogReadyChanged();
  void setupChanged();
  void steamVrRequested();
  void setupScanRequested(const QStringList &systems);

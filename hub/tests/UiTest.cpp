@@ -289,6 +289,7 @@ class UiTest:public QObject {
   root->setProperty("view","List");QVERIFY(softwareFrame(window));
   settings->set("showAllGames",false);QVERIFY(softwareFrame(window));
   QTRY_COMPARE(root->property("view").toString(),QString("Model3"));QVERIFY(softwareFrame(window));
+  QTRY_VERIFY(one("model3Grid"));QCOMPARE(one("model3Grid")->property("count").toInt(),int(ui->model3Games().size()+ui->otherGames().size()+ui->readyCatalogGames().size()));
   for(const auto &hidden:{"filterBar","libraryButton","orderButton","searchField"})QVERIFY2(!one(hidden)->isVisible(),hidden);
   QVERIFY(one("model3Tab")->isVisible());QVERIFY(one("pinballTab")->isVisible());QVERIFY(one("helpButton")->isVisible());
   // Pinball lists only tables that can be started; the excluded and not-ready ones stay hidden.
@@ -344,6 +345,11 @@ class UiTest:public QObject {
   QVERIFY(ui->nowPlaying()["stopping"].toBool());QVERIFY(softwareFrame(window));QVERIFY(one("nowPlayingPhase")->property("text").toString().startsWith("Stopping: "));
   ui->launchFinished("synthetic-game","The game stopped unexpectedly\nsynthetic first line\nsynthetic last line",3);
   QCOMPARE(ui->lastSession()["outcome"].toString(),QString("stopped"));
+  // A stop the player asked for is not reported as a crash on the status line either.
+  QVERIFY(ui->status().endsWith("was stopped."));QVERIFY(!ui->status().contains("unexpectedly"));
+  // A queued game is named from the start, never as another game for a moment.
+  {QSignalSpy cards(ui.get(),SIGNAL(nowPlayingChanged()));ui->launchOtherQueued("synthetic-game","flat","Synthetic title","hint",QString());
+   QCOMPARE(cards.size(),1);QCOMPARE(ui->nowPlaying()["title"].toString(),QString("Synthetic title"));ui->launchFinished("synthetic-game",QString(),0);}
   // A crash, not asked for: the exit code and the end of the game's output.
   ui->launchQueued("synthetic-game","flat",QString());QVERIFY(ui->lastSession().isEmpty());ui->launchStarted("synthetic-game");
   ui->launchFinished("synthetic-game","The game stopped unexpectedly\nsynthetic first line\nsynthetic last line",3);
@@ -786,6 +792,8 @@ class UiTest:public QObject {
   QVERIFY(variantButton);click(variantButton);
   QTRY_COMPARE(localUi.detail().value("variantId").toString(),QString("dolphinxr"));
   QCOMPARE(localUi.detail().value("state").toInt(),int(ac::GameState::Installed));
+  // Set up and ready here: listed on the VR games page even with the catalog switched off.
+  {bool listed=false;for(const auto &row:localUi.readyCatalogGames())listed=listed||row.toMap().value("id")=="wii-synthetic";QVERIFY(listed);}
   QQuickItem *steamButton=nullptr;
   for(auto item:namedItems(page,QString()))
    if(item->property("text").toString()=="Add to Steam library") { steamButton=item;break; }

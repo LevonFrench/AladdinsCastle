@@ -264,11 +264,24 @@ HubServices::~HubServices(){
 void HubServices::setPinballDiagnosticIni(const QString &path){
     pinballDiagnosticIni_=path.isEmpty()?QString():privatePinballIni(path,root_);
 }
+void HubServices::applyDiagnosticChild(launch::Request &request) const{
+    for(const auto &pair:diagnosticEnv_.split(';',Qt::SkipEmptyParts)){
+        const auto name=pair.section('=',0,0).trimmed(),value=pair.section('=',1);
+        if(name.isEmpty())continue;
+        if(value.isEmpty())request.runtimeInputs.environment.remove(name);else request.runtimeInputs.environment.insert(name,value);
+    }
+    for(const auto &argument:diagnosticArgs_.split(';',Qt::SkipEmptyParts))request.plan.args<<argument;
+}
+void HubServices::startForDiagnostic(const QString &id,const QString &view){
+    if(id.startsWith("model3-")){startModel3(id.mid(7),view);return;}
+    for(const auto &value:ui_->otherGames()){const auto row=value.toMap();if(row.value("id")==id){startOtherGame(id,view,row.value("file").toString());return;}}
+    ui_->showError("Launch","This game is not in the VR games list on this PC.");
+}
 void HubServices::startOtherGame(const QString &id,const QString &view,const QString &file){
     if(launchBusy()||hubExitPending_){ui_->showError("Launch","Close the current session before starting a game.");return;}
     try{
         launch::Request request;request.root=root_;request.gameId=id;request.variantId=view;request.prepareProfile=false;
-        QString title,hint;
+        QString title,hint,closeNote;
         if(id.startsWith("dreamcast-")){
             // The emulator keeps its settings beside itself, so its own folder is the working folder.
             const auto plan=dreamcast::launchPlan(file,view,settings_->get("dreamcastExecutable",QString()).toString());
@@ -291,6 +304,8 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(!libraries.isEmpty())environment.insert("PATH",QDir::toNativeSeparators(libraries)+QDir::listSeparator()+environment.value("PATH"));
             for(const auto &value:model2::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · 3D screen";hint=value.toMap().value("controls").toString();}
             hint+=" Home = put the screen in front of you again. Use Stop game here to end it.";
+            // Neither program has a window to close, so Exit would wait for ever; Stop is the way out.
+            closeNote="Model 2 has no game window to close. Use Stop game.";
         }else if(id.startsWith("ps2-")){
             // The launcher refuses without SteamVR; say so here instead of starting it to fail.
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
@@ -307,10 +322,11 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             title="Time Crisis · In the headset";hint="A = credits, either trigger = start and fire, hold a grip to leave cover, X = recentre. Close its window on the PC to quit.";
         }else throw install::Error("E_ID","Unknown game");
 #ifdef Q_OS_WIN
-        ui_->launchOtherQueued(id,view,title,hint,QString());
+        ui_->launchOtherQueued(id,view,title,hint,closeNote);
 #else
         ui_->launchOtherQueued(id,view,title,hint,"Clean window close is not supported on this platform yet.");
 #endif
+        applyDiagnosticChild(request);
         launcher_.start(request);
     }catch(const std::exception &error){ui_->showError("Launch",QString::fromUtf8(error.what()));}
 }
@@ -394,6 +410,7 @@ void HubServices::startModel3(const QString &id,const QString &view){
 #else
         ui_->launchModel3Queued(id,view,"Clean window close is not supported on this platform yet.");
 #endif
+        applyDiagnosticChild(request);
         launcher_.start(request);
     }catch(const std::exception &error){ui_->showError("Model 3",QString::fromUtf8(error.what()));}
 }

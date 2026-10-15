@@ -142,7 +142,7 @@ qt_add_qml_module(hubui URI AladdinsCastle.Hub VERSION 1.0 NO_PLUGIN
         src/ui/UiController.h src/ui/UiController.cpp
         src/ui/DetailControlsController.h src/ui/DetailControlsController.cpp)
 ac_project_warnings(hubui)
-add_library(hubapp STATIC src/app/HubServices.cpp src/app/HubServices.h)
+add_library(hubapp STATIC src/app/HubServices.cpp src/app/HubServices.h src/app/LaunchProof.cpp src/app/LaunchProof.h)
 target_link_libraries(hubapp PUBLIC hubui)
 ac_project_warnings(hubapp)
 qt_add_executable(aladdinscastle-hub src/app/main.cpp)

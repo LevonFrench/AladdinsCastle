@@ -62,6 +62,11 @@ public:
     Q_INVOKABLE void calibrateGunRoom(const QString &model,const QString &hand,const QString &executable);
     Q_INVOKABLE void requestHubExit(int code=0);
     void setPinballDiagnosticIni(const QString &path);
+    // Launch proof only: variables ("NAME=value;NAME=" removes) and extra arguments for the next game's program,
+    // so a check can keep the game hidden, silent and off the headset. Never used by a player's launch.
+    void setDiagnosticChild(const QString &environment,const QString &arguments){diagnosticEnv_=environment;diagnosticArgs_=arguments;}
+    // Starts a VR games tab entry with a given view, as its Start button does, without changing the remembered view.
+    void startForDiagnostic(const QString &id,const QString &view);
     // SteamVR dashboard: the manifest this Hub would add, and the result of adding it.
     QString steamVrManifest() const;
     void steamVrAnswered(const QString &error);
@@ -95,6 +100,8 @@ private:
     void scanSetup(const QStringList &systems);
     void startOtherGame(const QString &id,const QString &view,const QString &file);
     gunroom::Inputs gunRoomInputs(const QString &model,const QString &hand,const QString &executable) const;
+    void applyDiagnosticChild(launch::Request &request) const;
+    QString diagnosticEnv_,diagnosticArgs_;
     GameListModel *games_; FilterSortModel *filter_; UiController *ui_;
     UiSettings *settings_; QString root_, removalText_;
     scan::ScanController scanner_;
