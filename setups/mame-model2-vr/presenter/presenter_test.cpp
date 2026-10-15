@@ -4,6 +4,7 @@
 #define ACVR_VIEWER_TEST
 #include "ACVRXR.cpp"
 #include "ShotFeedback.h"
+#include "CleanQuit.h"
 #include <cassert>
 #include <chrono>
 #include <map>
@@ -80,14 +81,30 @@ XrResult XRAPI_CALL ActionSet(XrInstance,const XrActionSetCreateInfo*,XrActionSe
 XrResult XRAPI_CALL Action(XrActionSet,const XrActionCreateInfo *info,XrAction *out) {
  static std::uintptr_t next=10; *out=reinterpret_cast<XrAction>(++next);
  if(std::string(info->actionName)=="shot_pulse") assert(info->actionType==XR_ACTION_TYPE_VIBRATION_OUTPUT);
+ if(std::string(info->actionName)=="clean_quit") assert(info->actionType==XR_ACTION_TYPE_BOOLEAN_INPUT && info->countSubactionPaths==1 && info->subactionPaths[0]==s_left);
  return XR_SUCCESS;
 }
 XrResult XRAPI_CALL Suggest(XrInstance,const XrInteractionProfileSuggestedBinding *info) {
- assert(info->countSuggestedBindings==5);
+ assert(info->countSuggestedBindings==6);
  assert(info->suggestedBindings[4].action==s_haptic);
- assert(info->suggestedBindings[4].binding==paths.at("/user/hand/right/output/haptic")); ++suggestedProfiles; return XR_SUCCESS;
+ assert(info->suggestedBindings[4].binding==paths.at("/user/hand/right/output/haptic"));
+ assert(info->suggestedBindings[5].action==s_quit);
+ const auto expected=paths.at(suggestedProfiles==0?"/user/hand/left/input/y/click":"/user/hand/left/input/b/click");
+ assert(info->suggestedBindings[5].binding==expected); ++suggestedProfiles; return XR_SUCCESS;
 }
 XrResult XRAPI_CALL Attach(XrSession,const XrSessionActionSetsAttachInfo*) { return XR_SUCCESS; }
+bool focused=true;
+XrResult XRAPI_CALL Sync(XrSession,const XrActionsSyncInfo *info) {
+ assert(info->countActiveActionSets==1 && info->activeActionSets[0].subactionPath==XR_NULL_PATH);
+ return focused?XR_SUCCESS:XR_SESSION_NOT_FOCUSED;
+}
+XrResult XRAPI_CALL PoseState(XrSession,const XrActionStateGetInfo*,XrActionStatePose *state) { state->isActive=false; return XR_SUCCESS; }
+XrResult XRAPI_CALL FloatState(XrSession,const XrActionStateGetInfo*,XrActionStateFloat *state) { state->isActive=false; return XR_SUCCESS; }
+XrResult XRAPI_CALL BooleanState(XrSession,const XrActionStateGetInfo *info,XrActionStateBoolean *state) {
+ state->isActive=state->currentState=info->action==s_quit;
+ if(info->action==s_quit) assert(info->subactionPath==s_left);
+ return XR_SUCCESS;
+}
 XrResult XRAPI_CALL ActionSpace(XrSession,const XrActionSpaceCreateInfo*,XrSpace *out) { *out=reinterpret_cast<XrSpace>(2); return XR_SUCCESS; }
 XrResult XRAPI_CALL Haptic(XrSession,const XrHapticActionInfo *info,const XrHapticBaseHeader *base) {
  assert(info->action==s_haptic && info->subactionPath==s_right);
@@ -99,6 +116,16 @@ XrResult XRAPI_CALL Haptic(XrSession,const XrHapticActionInfo *info,const XrHapt
 
 int main()
 {
+ CleanQuit held;
+ held.poll(1000,true,false); held.poll(3999,true,false); assert(!held.requested());
+ held.poll(4000,true,false); assert(held.requested());
+ held.poll(4001,false,false); assert(held.requested()); // exit request stays latched
+ CleanQuit interrupted;
+ interrupted.poll(1000,true,false); interrupted.poll(3999,false,false);
+ interrupted.poll(5000,true,false); interrupted.poll(7999,true,false); assert(!interrupted.requested());
+ interrupted.poll(8000,true,false); assert(interrupted.requested());
+ CleanQuit file; file.poll(1,false,true); assert(file.requested());
+ std::puts("PASS clean quit: 3-second monotonic hold, interrupted/stale-input reset, latched request, stop-file request");
  SetPriorityClass(GetCurrentProcess(),BELOW_NORMAL_PRIORITY_CLASS);
  auto *owner=Host_CreateWindow("Hidden presenter test",0,0,16,16,Host_WINDOW_HIDDEN);
  assert(owner && Host_GL_CreateContext(owner) && Host_LoadGL());
@@ -180,7 +207,12 @@ int main()
  feedback.observe(14,510,510,true,ACVR_XR_QueueShotPulse); DispatchHaptics(false);
  feedback.observe(14,510,520,true,ACVR_XR_QueueShotPulse); DispatchHaptics(true); assert(hapticCalls==3);
  assert(feedback.acknowledged==4 && feedback.queued==2); s_started=false;
- s_session=XR_NULL_HANDLE; s_actions=XR_NULL_HANDLE; s_aimSpace=XR_NULL_HANDLE; s_haptic=XR_NULL_HANDLE;
+ p_xrSyncActions=Sync; p_xrGetActionStatePose=PoseState; p_xrGetActionStateFloat=FloatState; p_xrGetActionStateBoolean=BooleanState;
+ ReadController(0,0,0); assert(ACVR_XR_ControllerInput().quitHeld);
+ focused=false; ReadController(0,0,0); assert(!ACVR_XR_ControllerInput().quitHeld);
+ focused=true;
+ std::puts("PASS quit actions: both-hand synchronization, left Y/equivalent bindings, focus loss releases hold");
+ s_session=XR_NULL_HANDLE; s_actions=XR_NULL_HANDLE; s_aimSpace=XR_NULL_HANDLE; s_haptic=s_quit=XR_NULL_HANDLE;
  std::puts("PASS haptics: both output bindings, game serial to right-hand 30 ms/strong API call, no duplicate/stale/attach/focus-regain replay (injected API only)");
  glDeleteFramebuffers(2,fbos); glDeleteTextures(2,textures);
  assert(Host_GL_MakeCurrent(foreign,foreign->context)==0); glDeleteTextures(1,&sentinel); Host_DestroyWindow(foreign);

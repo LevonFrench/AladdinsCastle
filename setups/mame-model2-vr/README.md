@@ -49,6 +49,47 @@ two eye-specific quad layers. The quad size follows the game's focal lengths
 at the zero-parallax distance. Initial placement and Home use current gaze;
 Esc requests a graceful emulator exit. Owner launchers are outside the repository.
 
+For Hub-owned clean shutdown, set `ACVR_M2_STOP_FILE` to an absolute, unique
+file path for that launch. Create its parent directory and remove a stale file
+before starting the viewer; to stop, create a regular file at that exact path.
+Its contents do not matter. The viewer also honors a file created during
+startup, leaves the file in place, and logs the resolved absolute path. If the
+variable is absent, the default is `model2-<MAME-PID>.stop` in the viewer's
+working directory. The private game launchers use `runtime/stop/<game>.stop`
+under their private Model 2 work directory and clear it before each launch.
+
+The viewer sets the existing shared-memory exit request, which MAME processes
+through `machine().schedule_exit()`. It releases controller inputs and waits
+for the MAME process to exit, allowing normal NVRAM/settings persistence before
+the viewer exits. The Hub should wait for that exit instead of force-closing
+either process when requesting a normal stop. If MAME has not exited within
+30 seconds after the request, the viewer reports failure without terminating
+MAME; the launcher's existing bounded failure path remains a last resort.
+Escape and the viewer's own time limit use this same clean request path.
+
+Holding left Y on Touch for three continuous real-time seconds requests the
+same clean exit. The corresponding binding on Index is left B, its upper face
+button (that controller has no Y-labelled button). Both hands' actions are
+synchronized; existing right-hand Start/Coin/shoot mappings remain intact.
+Release, lost focus or stale XR input resets an incomplete hold. A completed
+request stays latched. `--scripted-input --scripted-y-hold` is the explicit
+headset-free proof switch; it synthesizes the hold after 65 emulated seconds,
+using the production three-second timer and exit path.
+
+Hidden save proofs passed for both stop-file and scripted-Y requests. Each
+run sent a real Coin input and set an explicitly scripted high-score entry in
+emulated backup RAM; the test never wrote the save file itself. MAME's normal
+exit persisted the coin audit and scripted score, changed the NVRAM timestamp
+and contents, and exited successfully before the viewer. The stop-file run
+changed 30 bytes; the hold run changed 25. The hold run first cold-loaded the
+stop-file run's saved score and audit successfully. A separate cold boot also
+reloaded the hold run's final score, coin audit and initials. The test scores are labelled
+data for persistence testing, not earned gameplay scores. The original play
+saves, proof Lua scripts, byte comparisons, logs and MAME snapshots stay private.
+Timer, interrupted hold, both-hand action synchronization, binding and focus-loss
+checks also passed without starting an XR runtime. Physical Y/Index-button
+operation still requires the headset.
+
 The final transport/upload test received 1,263 pairs and passed a GPU texture
 readback comparison with OpenXR disabled. The viewer and its PowerShell 5.1
 build script compiled successfully. Headset visibility, fusion, colour and
