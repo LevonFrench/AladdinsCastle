@@ -3,11 +3,13 @@
 #include "ACVRStereo.h"
 #include "model2_frames.h"
 #include "ShotFeedback.h"
+#include "CleanQuit.h"
 #include <vector>
 #include <memory>
 #include <stdexcept>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 
 ACVRStereoState g_acvrStereo;
 
@@ -26,7 +28,7 @@ model2_frames::controls ScriptedInput(double seconds)
 		input.trigger=1; input.u=points[i][0]; input.v=points[i][1];
 	}
 	if (pulse(40.5)) { input.trigger=1; input.off_screen=1; }
-	const double pictures[] = {19.5,21,23,25,32,34.9,35.10,35.9,36.10,36.9,37.10,37.9,38.10,39.10,40.10,40.60,40.9,41.10,42.10,43.10};
+	const double pictures[] = {19.5,21,23,25,32,34.9,35.10,35.9,36.10,36.9,37.10,37.9,38.10,39.10,40.10,40.60,40.9,41.10,42.10,43.10,50,55,60,65,70};
 	for (double time : pictures) if (seconds>=time) ++input.snapshot_request;
 	return input;
 }
@@ -35,12 +37,25 @@ int main(int argc, char **argv)
 {
 	if (argc < 2) return 2;
 	const DWORD pid = std::strtoul(argv[1], nullptr, 10);
-	const bool scripted = argc > 2 && !std::strcmp(argv[2], "--scripted-input");
-	const bool no_xr = scripted || (argc > 2 && !std::strcmp(argv[2], "--no-xr"));
+	bool scripted=false,no_xr=false,scriptedY=false;
+	for(int i=2;i<argc;++i) {
+		if(!std::strcmp(argv[i],"--scripted-input")) scripted=true;
+		else if(!std::strcmp(argv[i],"--no-xr")) no_xr=true;
+		else if(!std::strcmp(argv[i],"--scripted-y-hold")) scriptedY=true;
+		else { std::fprintf(stderr,"Unknown viewer switch\n"); return 2; }
+	}
+	if(scriptedY && !scripted) { std::fprintf(stderr,"Scripted Y requires scripted input\n"); return 2; }
+	no_xr=no_xr || scripted;
 	const DWORD limit = scripted ? 240000 : no_xr ? 20000 : 3600000;
 	SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
 	char name[80]; std::snprintf(name, sizeof(name), "Local\\ACVRM2-%lu", pid);
-	HANDLE parent = OpenProcess(SYNCHRONIZE, FALSE, pid), mapping = nullptr, mutex = nullptr;
+	char defaultStop[80]; std::snprintf(defaultStop,sizeof(defaultStop),"model2-%lu.stop",pid);
+	const char *configuredStop=std::getenv("ACVR_M2_STOP_FILE");
+	char absoluteStop[32768];
+	const DWORD pathLength=GetFullPathNameA(configuredStop && *configuredStop?configuredStop:defaultStop,sizeof(absoluteStop),absoluteStop,nullptr);
+	if(!pathLength || pathLength>=sizeof(absoluteStop)) { std::fprintf(stderr,"Invalid stop-file path\n"); return 2; }
+	std::printf("Clean stop file: %s\n",absoluteStop); std::fflush(stdout);
+	HANDLE parent = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid), mapping = nullptr, mutex = nullptr;
 	const ULONGLONG start = GetTickCount64();
 	while (!mapping && GetTickCount64() - start < 15000 && parent && WaitForSingleObject(parent, 0) == WAIT_TIMEOUT)
 	{ mapping = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, name); if (!mapping) Sleep(20); }
@@ -52,19 +67,39 @@ int main(int argc, char **argv)
 	Host_Window *window = nullptr; GLuint tex[2] = {}, fbo[2] = {};
 	bool started = false, checked = false; unsigned frames = 0; std::uint64_t serial = 0; int result = 0;
 	ShotFeedback feedback;
+	CleanQuit quit;
+	ULONGLONG exitRequestedAt=0; bool exitSent=false,yLogged=false;
 	try
 	{
-		while (WaitForSingleObject(parent, 0) == WAIT_TIMEOUT && GetTickCount64() - start < limit)
+		while (WaitForSingleObject(parent, 0) == WAIT_TIMEOUT)
 		{
+			const auto now=GetTickCount64();
+			const DWORD stopAttributes=GetFileAttributesA(absoluteStop);
+			auto controller=ACVR_XR_ControllerInput();
+			if(scriptedY && local->serial && local->emulated_seconds>=65) {
+				controller.quitHeld=true;
+				if(!yLogged) { std::printf("Scripted Y hold began at %.3f emulated seconds\n",local->emulated_seconds); std::fflush(stdout); yLogged=true; }
+			}
+			quit.poll(now,controller.quitHeld,stopAttributes!=INVALID_FILE_ATTRIBUTES && !(stopAttributes&FILE_ATTRIBUTE_DIRECTORY));
+			if(!scripted && (GetAsyncKeyState(VK_ESCAPE) & 1)) quit.request(CleanQuit::Reason::escape);
+			if(now-start>=limit) quit.request(CleanQuit::Reason::time_limit);
+			if(exitSent) {
+				if(now-exitRequestedAt>=30000) throw std::runtime_error("MAME did not finish its clean exit within 30 seconds; viewer did not force it");
+				WaitForSingleObject(parent,10); continue; // keep viewer alive through MAME's save/exit
+			}
 			MSG message; while (PeekMessageA(&message, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&message); DispatchMessageA(&message); }
 			const DWORD lock = WaitForSingleObject(mutex, 20);
 			if (lock != WAIT_OBJECT_0 && lock != WAIT_ABANDONED) continue;
-			if (GetAsyncKeyState(VK_ESCAPE) & 1) { shared->exit_request = 1; ReleaseMutex(mutex); break; }
 			if (shared->tag != model2_frames::magic || shared->version != model2_frames::protocol_version) { ReleaseMutex(mutex); throw std::runtime_error("Unexpected frame transport format"); }
+			if(quit.requested()) {
+				shared->input={}; shared->exit_request=1; ReleaseMutex(mutex);
+				exitSent=true; exitRequestedAt=GetTickCount64();
+				std::printf("Clean exit requested: %s; waiting for MAME persistence and process exit\n",quit.reason()); std::fflush(stdout);
+				continue;
+			}
 			model2_frames::controls input{};
 			if (scripted) input=ScriptedInput(shared->emulated_seconds);
 			else if (!no_xr) {
-				const auto controller=ACVR_XR_ControllerInput();
 				input.valid=controller.active; input.off_screen=controller.offScreen; input.u=controller.u; input.v=controller.v;
 				input.trigger=controller.trigger; input.start=controller.start; input.coin=controller.coin;
 			}
@@ -107,9 +142,12 @@ int main(int argc, char **argv)
 			if (started) { ACVR_XR_UpdateFov(local->tan_l, local->tan_r, local->tan_b, local->tan_t); ACVR_XR_Publish(fbo[0], fbo[1], local->w, local->h); }
 			++frames;
 		}
+		DWORD parentCode=0;
+		if(!GetExitCodeProcess(parent,&parentCode) || parentCode!=0) throw std::runtime_error("MAME exited unsuccessfully");
+		std::printf("MAME process exited successfully; clean request=%s; save completion precedes viewer exit\n",exitSent?quit.reason():"not requested");
 		std::printf("Received %u stereo frames; serial=%llu; bitmap roundtrip=%s; scripted return=%s; XR=%s; FOV tangents=(%.6f,%.6f,%.6f,%.6f)\n",
 			frames, static_cast<unsigned long long>(serial), checked ? "passed" : "not used", scripted ? "enabled" : "disabled", no_xr ? "disabled" : "owner test", local->tan_l, local->tan_r, local->tan_b, local->tan_t);
-		if (!frames) result = 4;
+		if (!frames && !exitSent) result = 4; // stopping during startup is still a successful clean quit
 		std::printf("Game-acknowledged trigger edges=%llu; queued XR pulses=%llu\n",static_cast<unsigned long long>(feedback.acknowledged),static_cast<unsigned long long>(feedback.queued));
 	}
 	catch (const std::exception &error) { std::fprintf(stderr, "%s\n", error.what()); result = 5; }

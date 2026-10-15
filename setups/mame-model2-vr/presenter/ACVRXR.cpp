@@ -116,9 +116,9 @@ namespace
   unsigned    s_chainW = 0, s_chainH = 0;
   int64_t     s_format = 0;
   XrActionSet s_actions = XR_NULL_HANDLE;
-  XrAction s_aim = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_start = XR_NULL_HANDLE, s_coin = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE;
+  XrAction s_aim = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_start = XR_NULL_HANDLE, s_coin = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE, s_quit = XR_NULL_HANDLE;
   XrSpace s_aimSpace = XR_NULL_HANDLE;
-  XrPath s_right = XR_NULL_PATH;
+  XrPath s_right = XR_NULL_PATH, s_left = XR_NULL_PATH;
   bool s_acquired[2]{},s_imageReady[2]{};
   uint32_t s_imageIndex[2]{};
 
@@ -141,33 +141,40 @@ namespace
   bool InitActions()
   {
     if (!Check(p_xrStringToPath(s_instance, "/user/hand/right", &s_right), "right hand path")) return false;
+    if (!Check(p_xrStringToPath(s_instance, "/user/hand/left", &s_left), "left hand path")) return false;
     XrActionSetCreateInfo set = { XR_TYPE_ACTION_SET_CREATE_INFO };
     std::strcpy(set.actionSetName, "model2_game"); std::strcpy(set.localizedActionSetName, "Model 2 Game");
     if (!Check(p_xrCreateActionSet(s_instance, &set, &s_actions), "xrCreateActionSet")) return false;
-    auto action = [](const char *name, const char *label, XrActionType type, XrAction &out) {
+    auto action = [](const char *name, const char *label, XrActionType type, XrAction &out, XrPath hand=XR_NULL_PATH) {
       XrActionCreateInfo info = { XR_TYPE_ACTION_CREATE_INFO };
       std::strcpy(info.actionName, name); std::strcpy(info.localizedActionName, label);
-      info.actionType = type; info.countSubactionPaths = 1; info.subactionPaths = &s_right;
+      if(hand==XR_NULL_PATH) hand=s_right;
+      info.actionType = type; info.countSubactionPaths = 1; info.subactionPaths = &hand;
       return Check(p_xrCreateAction(s_actions, &info, &out), name);
     };
     if (!action("aim", "Right gun aim", XR_ACTION_TYPE_POSE_INPUT, s_aim) ||
         !action("trigger", "Shoot and offscreen reload", XR_ACTION_TYPE_FLOAT_INPUT, s_trigger) ||
         !action("start", "Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_start) ||
         !action("coin", "Coin", XR_ACTION_TYPE_BOOLEAN_INPUT, s_coin) ||
-        !action("shot_pulse", "Shot vibration", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic)) return false;
+        !action("shot_pulse", "Shot vibration", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic) ||
+        !action("clean_quit", "Hold Y for clean quit", XR_ACTION_TYPE_BOOLEAN_INPUT, s_quit, s_left)) return false;
     const char *profiles[] = { "/interaction_profiles/oculus/touch_controller", "/interaction_profiles/valve/index_controller" };
     const char *paths[] = { "/user/hand/right/input/aim/pose", "/user/hand/right/input/trigger/value",
                            "/user/hand/right/input/a/click", "/user/hand/right/input/b/click", "/user/hand/right/output/haptic" };
     const XrAction actions[] = { s_aim, s_trigger, s_start, s_coin, s_haptic };
-    XrActionSuggestedBinding bindings[5]{};
+    XrActionSuggestedBinding bindings[6]{};
     for (unsigned i=0; i<5; ++i) {
       bindings[i].action = actions[i];
       if (!Check(p_xrStringToPath(s_instance, paths[i], &bindings[i].binding), "controller binding path")) return false;
     }
+    unsigned profileIndex=0;
+    const char *quitPaths[]={"/user/hand/left/input/y/click","/user/hand/left/input/b/click"};
     for (const char *profile : profiles) {
       XrInteractionProfileSuggestedBinding suggested = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
       if (!Check(p_xrStringToPath(s_instance, profile, &suggested.interactionProfile), "interaction profile")) return false;
-      suggested.countSuggestedBindings = 5; suggested.suggestedBindings = bindings;
+      bindings[5].action=s_quit;
+      if(!Check(p_xrStringToPath(s_instance,quitPaths[profileIndex++],&bindings[5].binding),"clean quit button path")) return false;
+      suggested.countSuggestedBindings = 6; suggested.suggestedBindings = bindings;
       Check(p_xrSuggestInteractionProfileBindings(s_instance, &suggested), profile);
     }
     XrSessionActionSetsAttachInfo attach = { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
@@ -192,7 +199,7 @@ namespace
   void ReadController(XrTime time, float width, float height)
   {
     ACVRControllerInput input;
-    XrActiveActionSet active{ s_actions, s_right };
+    XrActiveActionSet active{ s_actions, XR_NULL_PATH }; // both hands, including left-hand quit
     XrActionsSyncInfo sync = { XR_TYPE_ACTIONS_SYNC_INFO };
     sync.countActiveActionSets = 1; sync.activeActionSets = &active;
     if (p_xrSyncActions(s_session, &sync) == XR_SUCCESS) {
@@ -207,6 +214,9 @@ namespace
       input.active = (aimOK && aim.isActive) || (startOK && start.isActive) || (coinOK && coin.isActive);
       input.start=startOK && start.isActive && start.currentState;
       input.coin=coinOK && coin.isActive && coin.currentState;
+      XrActionStateBoolean quit={XR_TYPE_ACTION_STATE_BOOLEAN};
+      get.action=s_quit; get.subactionPath=s_left;
+      input.quitHeld=XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session,&get,&quit)) && quit.isActive && quit.currentState;
       XrSpaceLocation pose = { XR_TYPE_SPACE_LOCATION };
       const auto need=XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
       if (width>0 && height>0 && s_poseSet && aimOK && aim.isActive && XR_SUCCEEDED(p_xrLocateSpace(s_aimSpace, s_space, time, &pose)) && (pose.locationFlags & need)==need) {
@@ -401,8 +411,8 @@ namespace
     if(s_instance && p_xrDestroyInstance) p_xrDestroyInstance(s_instance);
     s_aimSpace=s_viewSpace=s_space=XR_NULL_HANDLE;
     s_session=XR_NULL_HANDLE; s_actions=XR_NULL_HANDLE; s_instance=XR_NULL_HANDLE;
-    s_aim=s_trigger=s_start=s_coin=s_haptic=XR_NULL_HANDLE;
-    s_system=XR_NULL_SYSTEM_ID; s_right=XR_NULL_PATH; s_format=0;
+    s_aim=s_trigger=s_start=s_coin=s_haptic=s_quit=XR_NULL_HANDLE;
+    s_system=XR_NULL_SYSTEM_ID; s_right=s_left=XR_NULL_PATH; s_format=0;
     s_quadPose={}; s_poseSet=false;
     glDeleteFramebuffers(1,&s_readFbo); glDeleteFramebuffers(1,&s_drawFbo);
     s_readFbo=s_drawFbo=0;

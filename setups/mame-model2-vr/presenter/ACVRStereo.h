@@ -41,7 +41,7 @@ void  ACVR_XR_UpdateFov(float left, float right, float bottom, float top);
 struct ACVRControllerInput
 {
   float u = .5f, v = .5f;
-  bool active = false, offScreen = true, trigger = false, start = false, coin = false;
+  bool active = false, offScreen = true, trigger = false, start = false, coin = false, quitHeld = false;
 };
 ACVRControllerInput ACVR_XR_ControllerInput();
 
