@@ -832,3 +832,10 @@ unchanged pinned baseline in3frames. Gun/dot final-order and transparent
 background proofs also pass the new executable in both launcher modes.
 `PCSX2_INSIDE_PASS_TRACE` optionally records the classifier/raster decisions;
 normal play leaves tracing off. Physical runtime/performance remains untested.
+
+### Backend lifecycle corrections
+
+Private play launchers have no session time cap. Offline runs require an explicit
+time limit or bounded check/replay mode. A requested stop allows 15 seconds
+for graceful shutdown before the verified owned-process fallback. CPU policy
+fixtures cover play beyond two hours, timed exit and an externally requested stop.
