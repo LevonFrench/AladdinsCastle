@@ -136,6 +136,31 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
   ACVRControllers c;
   if (!ACVR_XR_GetControllers(c))
     return;
+
+  // Hold Y for 3 seconds (about 180 frames) to quit the game
+  static int yHeld = 0;
+  yHeld = c.y ? yHeld + 1 : 0;
+  if (yHeld == 180)
+  {
+    printf("ACVR: Y held for 3 seconds; quitting\n");
+    s_acvrQuit = true;
+  }
+
+  // Once a second, note whether the controllers' pointing poses arrive (acvr-input.log in the working folder)
+  {
+    static int logFrames = 0, logLines = 0;
+    if (++logFrames >= 60 && logLines < 120)
+    {
+      logFrames = 0;
+      if (FILE *lf = fopen("acvr-input.log", logLines == 0 ? "w" : "a"))
+      {
+        fprintf(lf, "valid %d aim L %d R %d grip L %d R %d trigger R %.2f\n", c.valid ? 1 : 0, c.aimValid[0] ? 1 : 0,
+                c.aimValid[1] ? 1 : 0, c.gripValid[0] ? 1 : 0, c.gripValid[1] ? 1 : 0, c.trigger[1]);
+        fclose(lf);
+      }
+      logLines++;
+    }
+  }
   auto set = [&](const char *id, int value) { auto input = (*inputs)[id]; if (input) input->value = value; };
   auto press = [&](const char *id, bool down) { if (down) set(id, 1); };
   auto clampf = [](float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); };
@@ -181,7 +206,10 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
   }
   else if (gameInputs & Game::INPUT_ANALOG_JOYSTICK)
   {
-    // The analog stick by pointing the right controller: 25 degrees to a side or 20 up or down is full deflection
+    // The analog stick by pointing the right controller: 25 degrees to a side or 20 up or down is full deflection.
+    // While the controllers are connected the mouse never drives it: centred when the controller isn't pointing.
+    set("AnalogJoyX", 128);
+    set("AnalogJoyY", 128);
     if (c.aimValid[1])
     {
       const float *q = c.aimRot[1];
