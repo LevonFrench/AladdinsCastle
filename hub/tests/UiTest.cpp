@@ -291,6 +291,14 @@ class UiTest:public QObject {
   QTRY_COMPARE(root->property("view").toString(),QString("Model3"));QVERIFY(softwareFrame(window));
   for(const auto &hidden:{"filterBar","libraryButton","orderButton","searchField"})QVERIFY2(!one(hidden)->isVisible(),hidden);
   QVERIFY(one("model3Tab")->isVisible());QVERIFY(one("pinballTab")->isVisible());QVERIFY(one("helpButton")->isVisible());
+  // Pinball lists only tables that can be started; the excluded and not-ready ones stay hidden.
+  QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Pinball"),Q_ARG(QVariant,QVariant())));
+  {QVariantList tables;const QStringList states{"ready","needs no ROM","ROM missing","unknown"};
+   for(int i=0;i<8;++i)tables<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"vrReady",i<6},{"romState",states[i%4]}};
+   QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,(QVariantMap{{"total",8},{"vrReady",6},{"tables",tables}}))));}
+  QTRY_VERIFY(one("pinballGrid"));QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),4); // 0, 1, 4 and 5: VR-ready and startable.
+  QVERIFY(!one("pinballExcluded")->isVisible());QVERIFY(!one("pinballReady")->isVisible());QCOMPARE(one("pinballCount")->property("text").toString(),QString("4 tables ready to play"));
+  QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Model3"),Q_ARG(QVariant,QVariant())));QVERIFY(softwareFrame(window));
   // The help menu: closed by its Close button, by Escape and by a click outside it; only items that work are shown.
   const auto help=popup("helpPanel");QVERIFY(help);
   for(int way=0;way<3;++way){

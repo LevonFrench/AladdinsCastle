@@ -10,6 +10,9 @@ Item {
  property var scanData:uiController.pinballData
  property var selected:uiController.pinballSelection
  property var rows:scanData.tables||[]
+ // With the catalog switch off, only tables that can be started are listed.
+ property bool showAll:(uiSettings.values,uiSettings.get("showAllGames",false))===true
+ function stateText(state){return {"ready":"Ready to play","needs no ROM":"Ready to play","ROM missing":"ROM missing","unknown":"ROM not checked"}[state]||state||""}
  function makerOptions(){let result=["All makers"];for(let row of rows)if(row.maker&&result.indexOf(row.maker)<0)result.push(row.maker);return result}
  property var filtered:rows.filter(function(r){
   return (excluded.checked||r.vrReady===true)&&(!query.text||r.title.toLowerCase().indexOf(query.text.toLowerCase())>=0)
@@ -35,31 +38,35 @@ Item {
    PillButton {text:"ROM folder";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballRoms";folder.open()}}
    PillButton {text:"Media folder";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballMedia";folder.open()}}
   }
-  UiText {text:String(page.scanData.vrReady||0)+" VR-ready of "+String(page.scanData.total||0)+" tables"}
+  UiText {objectName:"pinballCount";text:page.showAll?String(page.scanData.vrReady||0)+" VR-ready of "+String(page.scanData.total||0)+" tables":page.filtered.length+" tables ready to play"}
   RowLayout {spacing:8
-   TextField {id:query;objectName:"pinballSearch";Layout.fillWidth:true;Layout.preferredHeight:page.vrOverlayMode?56:40;placeholderText:"Search tables";Accessible.name:"Search Pinball tables"}
-   PillButton {text:"Keyboard";vrOverlayMode:page.vrOverlayMode;visible:page.vrOverlayMode;onClicked:if(typeof overlayHost!=="undefined")overlayHost.requestKeyboard(query)}
-   ComboBox {id:maker;Layout.preferredWidth:150;Layout.preferredHeight:page.vrOverlayMode?56:40;model:page.makerOptions();delegate:ItemDelegate{width:maker.width;height:page.vrOverlayMode?56:40;text:modelData}}
-   ComboBox {id:decade;Layout.preferredHeight:page.vrOverlayMode?56:40;model:["All decades","1950","1960","1970","1980","1990","2000","2010","2020"];delegate:ItemDelegate{width:decade.width;height:page.vrOverlayMode?56:40;text:modelData}}
-   ComboBox {id:type;Layout.preferredHeight:page.vrOverlayMode?56:40;model:["All types","SS","EM","Original"];delegate:ItemDelegate{width:type.width;height:page.vrOverlayMode?56:40;text:modelData}}
-   ComboBox {id:sort;Layout.preferredHeight:page.vrOverlayMode?56:40;model:["Title","Recent"];delegate:ItemDelegate{width:sort.width;height:page.vrOverlayMode?56:40;text:modelData}}
+   TextField {id:query;objectName:"pinballSearch";Layout.fillWidth:true;Layout.preferredHeight:page.vrOverlayMode?56:40;placeholderText:"Search tables";Accessible.name:"Search Pinball tables"
+    color:Theme.get("color.text.primary");placeholderTextColor:Theme.get("color.text.faint");font.family:Theme.get("font.family");font.pixelSize:page.vrOverlayMode?16:12;selectByMouse:true
+    onActiveFocusChanged:if(activeFocus&&page.vrOverlayMode&&typeof overlayHost!=="undefined")overlayHost.requestKeyboard(query)
+    background:Rectangle {radius:6;color:Theme.get("color.surface.pill");border.color:query.activeFocus?Theme.get("color.glass.ring"):Theme.get("color.line.strong")}}
+   UiCombo {id:maker;vrOverlayMode:page.vrOverlayMode;Layout.preferredWidth:150;Layout.preferredHeight:page.vrOverlayMode?56:40;model:page.makerOptions()}
+   UiCombo {id:decade;vrOverlayMode:page.vrOverlayMode;Layout.preferredHeight:page.vrOverlayMode?56:40;model:["All decades","1950","1960","1970","1980","1990","2000","2010","2020"]}
+   UiCombo {id:type;vrOverlayMode:page.vrOverlayMode;Layout.preferredHeight:page.vrOverlayMode?56:40;model:["All types","SS","EM","Original"]}
+   UiCombo {id:sort;vrOverlayMode:page.vrOverlayMode;Layout.preferredHeight:page.vrOverlayMode?56:40;model:["Title","Recent"]}
   }
   RowLayout {spacing:8
-   PillButton {id:ready;checkable:true;text:"Ready to play";selected:checked;vrOverlayMode:page.vrOverlayMode}
+   PillButton {id:ready;objectName:"pinballReady";checkable:true;checked:!page.showAll;visible:page.showAll;text:"Ready to play";selected:checked;vrOverlayMode:page.vrOverlayMode}
    PillButton {id:favourites;checkable:true;text:"Favourites";selected:checked;vrOverlayMode:page.vrOverlayMode}
    PillButton {id:recent;checkable:true;text:"Recently played";selected:checked;vrOverlayMode:page.vrOverlayMode}
-   PillButton {id:excluded;checkable:true;text:"Show excluded";selected:checked;vrOverlayMode:page.vrOverlayMode}
+   PillButton {id:excluded;objectName:"pinballExcluded";checkable:true;visible:page.showAll;text:"Show excluded";selected:checked;vrOverlayMode:page.vrOverlayMode}
   }
-  GridView {id:grid;objectName:"pinballGrid";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;cellWidth:Math.max(210,width/Math.max(1,Math.floor(width/210)));cellHeight:196;model:page.filtered;boundsBehavior:Flickable.StopAtBounds
+  GridView {id:grid;objectName:"pinballGrid";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;cellWidth:Math.max(210,width/Math.max(1,Math.floor(width/210)));cellHeight:page.vrOverlayMode?Math.max(130,Math.floor(height/Math.max(1,Math.floor(height/140)))):196;model:page.filtered;boundsBehavior:Flickable.StopAtBounds
    ScrollBar.vertical:ScrollBar{}
    delegate:Button {id:tile;objectName:"pinballTile";required property var modelData;width:grid.cellWidth-8;height:grid.cellHeight-8;padding:12;Accessible.name:modelData.title;onClicked:uiController.selectPinball(modelData.id)
     background:Rectangle {radius:Theme.get("size.card.radius");color:tile.down?Theme.get("color.surface.menu_hover"):Theme.get("color.surface.card");border.width:tile.activeFocus?2:1;border.color:tile.activeFocus?Theme.get("color.glass.ring"):tile.hovered?Theme.get("color.line.button"):Theme.get("color.line.strong")}
-    contentItem:Column {spacing:8;Image{width:parent.width;height:visible?64:0;visible:!!modelData.wheelUrl;source:modelData.wheelUrl||"";sourceSize.width:256;sourceSize.height:64;fillMode:Image.PreserveAspectFit}UiText{width:parent.width;text:modelData.title;wrapMode:Text.Wrap;font.pixelSize:18;color:Theme.get("color.text.primary");maximumLineCount:3;elide:Text.ElideRight}UiText{width:parent.width;text:(modelData.maker||"")+" "+(modelData.year||"");wrapMode:Text.Wrap}UiText{width:parent.width;text:modelData.romState;wrapMode:Text.Wrap}}
+    contentItem:Column {spacing:8;Image{width:parent.width;height:visible?64:0;visible:!!modelData.wheelUrl&&grid.cellHeight>=190;source:modelData.wheelUrl||"";sourceSize.width:256;sourceSize.height:64;fillMode:Image.PreserveAspectFit}UiText{width:parent.width;text:modelData.title;wrapMode:Text.Wrap;font.pixelSize:18;color:Theme.get("color.text.primary");maximumLineCount:grid.cellHeight>=190?3:2;elide:Text.ElideRight}UiText{width:parent.width;text:(modelData.maker||"")+" "+(modelData.year||"");wrapMode:Text.Wrap}UiText{width:parent.width;text:page.stateText(modelData.romState);wrapMode:Text.Wrap;color:modelData.romState==="ready"||modelData.romState==="needs no ROM"?Theme.get("color.state.ready_neon"):Theme.get("color.state.needs_neon")}}
    }
   }
   RowLayout {spacing:8;visible:page.vrOverlayMode
-   PillButton {text:"Previous page";vrOverlayMode:true;onClicked:grid.contentY=Math.max(0,grid.contentY-grid.height)}
-   PillButton {text:"Next page";vrOverlayMode:true;onClicked:grid.contentY=Math.min(Math.max(0,grid.contentHeight-grid.height),grid.contentY+grid.height)}
+   property real step:Math.max(1,Math.floor(grid.height/grid.cellHeight))*grid.cellHeight
+   PillButton {text:"Previous page";vrOverlayMode:true;enabled:grid.contentY>0;onClicked:grid.contentY=Math.max(0,grid.contentY-parent.step)}
+   PillButton {text:"Next page";vrOverlayMode:true;enabled:grid.contentY+grid.height<grid.contentHeight-1;onClicked:grid.contentY=Math.min(Math.max(0,grid.contentHeight-grid.height),grid.contentY+parent.step)}
+   UiText {text:grid.count?"Page "+(Math.round(grid.contentY/Math.max(1,parent.step))+1)+" of "+Math.max(1,Math.ceil(grid.contentHeight/Math.max(1,parent.step))):""}
   }
  }
  Loader {anchors.fill:parent;active:!!page.selected.id;sourceComponent:Component{ScrollView {id:detail;clip:true;contentWidth:availableWidth
