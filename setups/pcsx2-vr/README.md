@@ -2,7 +2,8 @@
 
 The runner can capture a GS dump without a window, replay it with OpenGL, and
 write a side-by-side PNG. The live Windows OpenGL frontend now renders both eyes
-and has an in-process OpenXR stereo-screen presenter. Gun aiming is deferred.
+and has an in-process OpenXR stereo-screen presenter, native VR GunCon aiming,
+and an experimental head-tracked projection mode.
 The OpenXR submission path is compiled but still requires headset testing.
 
 Virtua Cop and OutRun 2006 now have replay-validated pairs with near/far disparity,
@@ -242,7 +243,7 @@ Two completed GPU textures are retained at the full internal resolution. A
 staging pair and publication mutex prevent mixed-frame eyes. GPU fences protect
 handoff to a shared WGL context on the presenter's own thread.
 The screen presenter adapts the ACVR implementation pinned in
-`upstream-pin.json`; no VR controller input or camera tracking is added.
+`upstream-pin.json`; local controller and inside-camera extensions are described below.
 `PCSX2_OPENXR=1` runtime-loads the existing `openxr_loader.dll` and creates two
 fixed 1920x1536 OpenGL swapchains, once per session. Output-size changes never
 recreate them: each eye is scaled to fit while preserving its pixel aspect,
@@ -343,13 +344,14 @@ remain in use. Normalized calibration is centered:
 Gun profile settings provide offset/scale, aim-dot/model toggles and grip
 mapping. `PCSX2_VR_GUN_OFFSET_X/Y` default to 0 and `SCALE_X/Y` to 1.
 `PCSX2_VR_GUN_DOT` and `PCSX2_VR_GUN_SHOW_MODEL` default to 1.
-Grip maps to A for cover-game profiles and C for the other gun profiles;
-`PCSX2_VR_GUN_GRIP_BINDING` selects that mapping. The screen-depth dot is drawn
+Grip maps to C in every gun profile. Start and Select have separate inputs;
+A no longer doubles as Start. The screen-depth dot is drawn
 at the same quad UV in each eye after the game-picture copy.
 
 The renderer reads the owner's existing `con-pistol-dpad.glb` and matching
-TOML through `PCSX2_VR_GUN_MODEL` and `PCSX2_VR_GUN_TOML`. It aligns the GLB grip
-anchor with the tracked grip pose, validates the muzzle anchor and renders a
+TOML through `PCSX2_VR_GUN_MODEL` and `PCSX2_VR_GUN_TOML`. It locks the GLB grip
+anchor position to the tracked hand, aligns the real muzzle bore to the tracked
+aim direction, derives roll from grip-up projected around that direction, and renders a
 transparent per-eye projection layer over the game screen. The model uses
 metres, +Y up and -Z forward. Trigger input rotates both named trigger pivots
 about the TOML axis over its specified range; the supplied metadata uses
@@ -386,3 +388,80 @@ unaccepted. No connected physical XInput pad was available at final checking;
 scripted XInput events proved hidden menu dispatch. No OpenXR runtime was
 started, so physical tracking, haptics, model fit, dot and sustained headset
 performance remain owner checks.
+
+
+### Common VR layout and corrected gun orientation
+
+`PCSX2_VR_CONTROLLERS=1` enables the common menu controls in every profile.
+Actions require focus; menu inputs do not require a tracked aiming pose.
+Inputs use Pointer-0 buttons 12/13/14 through InputManager, with in-memory
+Pad1 alternatives and USB1 alternatives for gun profiles. Source aggregation
+preserves held Xbox buttons when a VR source releases. Pad1 INI bytes remain
+unchanged. The action set has Touch and Index suggestions:
+
+| VR control | PS2 input |
+|---|---|
+| Left stick click | Select |
+| Right stick click | Start |
+| Touch left menu / Index left B | Spare Start |
+| Gun profile: right trigger | GunCon trigger; off-screen aim reloads |
+| Gun profile: right A / B | GunCon A / B |
+| Gun profile: right grip | GunCon C |
+
+Index exposes no application menu button; its system button is reserved.
+`PCSX2_VR_MENU_SCRIPT=seconds:Select;seconds:Start;seconds:SpareStart`
+provides bounded diagnostic pulses only with OpenXR disabled. Focus loss or a
+500ms stale publication releases every VR control. Gun tracking loss releases
+gun input while preserving focused menu inputs.
+
+The gun model uses the muzzle anchor's actual -Z bore rather than assuming
+the GLB grip axes match OpenXR grip axes. Its grip position stays in the hand;
+trigger animation and recoil do not alter aim. The GPU proof writes side/rear
+trigger-0/1 views with cyan aim and orange muzzle rays. Rear occlusion can hide
+the trigger; side views and both pivot matrices establish its motion. Actual
+controller fit and haptic feel still require physical testing.
+
+### Experimental inside-game projection
+
+`PCSX2_INSIDE=1` selects GS vertex reconstruction and an OpenXR projection
+layer instead of the game-screen quad layers. Existing screen launchers keep
+their screen behavior. Separate INSIDE launchers share the same controls.
+
+For positively classified perspective draws, signed Q (or the target-specific
+Z/Q fit) supplies inverse game-camera distance. The vertex shader recovers
+view-space x/y/z using the canvas centre, focal lengths and game-units scale,
+then applies the recentered eye inverse pose and asymmetric OpenXR projection.
+Original screen-affine GS attributes are transported as attribute*original-W
+plus a smooth original-W weight; their fragment ratio preserves texture ST/Q,
+FST, smooth colour, fog and AA interpolation under the triangle homography.
+True new clip W permits homogeneous clipping. Depth uses infinite reversed-Z.
+
+The presenter publishes predicted eye poses/FOVs. The GS latches one immutable
+packet between completed pairs and publishes its exact packet with the GPU
+images. Projection views use those rendered poses, rather than newer poses.
+Home resets the origin position/yaw and the stationary HUD panel. Small
+nonperspective sprites, text and constant-depth primitives use that plane;
+the aim dot is projected at the plane separately for each eye. The optional
+tracked gun remains a transparent projection layer.
+
+Settings: `PCSX2_INSIDE_CANVAS_WIDTH/HEIGHT`, `TARGET_WIDTH`, `FY` and
+`HUD_DISTANCE_M` (private launchers select 2.5m). Existing focal, Q scale,
+Z coefficients and units/metre apply. An explicit `FAKE_YAW_DEG` diagnostic
+uses the original game FOV without a runtime; +30 turns left. At exactly zero
+the original stereo position branch is retained for bit-exact regression.
+This diagnostic does not assert that the physical headset FOV matches the game.
+
+Pass classification is provisional. Main camera targets are selected by
+native width; intermediate targets keep the original GS projection to avoid
+double-transforming textures later mapped into the reconstructed scene.
+Full-canvas clears and textured effects retain raster placement for the same
+reason. Large HUD, mirrors, blur/bloom, feedback, software depth tests and
+CPU readbacks can still break. Existing GS scissor/dirty/copy bounds and
+game-side culling limit retained geometry. No renderer can recover geometry
+the game never submitted; disocclusion and original-view holes remain.
+
+Virtua Cop and OutRun use measured depth fits but provisional focal/metric
+constants. Generic profiles remain unvalidated. Native source/math tests,
+internal GPU images and physical headset acceptance are distinct gates;
+the latter is not established by an OpenXR-disabled proof. No runtime is
+started or configured by diagnostic runs.
