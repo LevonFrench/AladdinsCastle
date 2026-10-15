@@ -29,11 +29,11 @@ Item {
  ColumnLayout {anchors.fill:parent;spacing:8;visible:!page.selected.id
   RowLayout {spacing:8
    UiText {text:"Pinball";font.pixelSize:24;Layout.fillWidth:true}
-   PillButton {text:"Choose folder";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballFolder";folder.open()}}
+   PillButton {text:"Choose folder";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballFolder";folder.open()}}
    PillButton {text:uiController.pinballScanning?"Scanning…":"Scan";vrOverlayMode:page.vrOverlayMode;enabled:!uiController.pinballScanning;onClicked:uiController.scanPinball()}
-   PillButton {text:"Database";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballDatabase";file.nameFilters=["JSON (*.json)"];file.open()}}
-   PillButton {text:"ROM folder";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballRoms";folder.open()}}
-   PillButton {text:"Media folder";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballMedia";folder.open()}}
+   PillButton {text:"Database";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballDatabase";file.nameFilters=["JSON (*.json)"];file.open()}}
+   PillButton {text:"ROM folder";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballRoms";folder.open()}}
+   PillButton {text:"Media folder";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballMedia";folder.open()}}
   }
   UiText {text:String(page.scanData.vrReady||0)+" VR-ready of "+String(page.scanData.total||0)+" tables"}
   RowLayout {spacing:8
@@ -75,8 +75,7 @@ Item {
     PillButton {text:page.selected.favourite?"Unfavourite":"Favourite";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.favouritePinball()}
     PillButton {text:"Mark VR-ready";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(true)}
     PillButton {text:"Exclude";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(false)}
-    PillButton {text:"Locate VPX";vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballExecutable";file.nameFilters=["Program (*.exe)"];file.open()}}
-    PillButton {text:"Launch plan";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.planPinball()}
+    PillButton {text:"Locate VPX";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballExecutable";file.nameFilters=["Program (*.exe)"];file.open()}}
    }
    UiText {objectName:"pinballAccepted";width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted_detail")
     text:{let when=(uiSettings.values,uiSettings.acceptedOn("pinball-"+(page.selected.id||""),page.selected.title||""));return "In the headset: "+(when?"accepted by you ("+when+")":"not yet accepted by you")+"."}}
@@ -87,7 +86,6 @@ Item {
     onWidthChanged:if(item)item.width=width
    }
    UiText {objectName:"pinballLaunchHelp";width:parent.width;wrapMode:Text.Wrap;text:uiController.pinballLaunchHelp}
-   TextArea {width:parent.width;text:uiController.pinballPlan;readOnly:true;wrapMode:Text.Wrap}
   }
  }}}
 }

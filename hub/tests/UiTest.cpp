@@ -428,8 +428,7 @@ class UiTest:public QObject {
   QVERIFY(exit->isVisible());snapshot("card-before-frame",exit);
   QVERIFY(softwareFrame(window));snapshot("card-after-frame",exit);
   QVERIFY(exit->height()>=48);
-  auto recentre=namedItems(window->contentItem(),"nowPlayingRecentre").first();
-  QVERIFY(!recentre->isEnabled());
+  QVERIFY(namedItems(window->contentItem(),"nowPlayingRecentre").isEmpty()); // A button that did nothing is gone, not greyed out.
   QSignalSpy close(ui.get(),SIGNAL(closeLaunchRequested()));
   auto p=exit->mapToScene(QPointF(exit->width()/2,exit->height()/2));
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());
