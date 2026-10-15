@@ -19,7 +19,7 @@ Item {
  property bool idle:Object.keys(uiController.nowPlaying).length===0
  property real factor:Theme.get("size.card.scale."+sizeValue)
  // The owner may have edited the accepted list since the tab was last open.
- Component.onCompleted:uiSettings.reloadAccepted()
+ Component.onCompleted:{uiSettings.reloadAccepted();page.forceActiveFocus()}
  property color readyColour:Theme.get("color.state.ready_neon")
  property color needsColour:Theme.get("color.state.needs_neon")
  function card(row){
@@ -58,35 +58,55 @@ Item {
    c.fillStyle=ink;c.beginPath();c.arc(x,y,6,0,2*Math.PI);c.fill()
   }
  }
- ColumnLayout {anchors.fill:parent;spacing:8;visible:!page.selectedId
-  RowLayout {spacing:8
-   UiText {text:"VR games";font.pixelSize:24;Layout.fillWidth:true}
-   PillButton {objectName:"model3SetupButton";text:"Set-up";vrOverlayMode:page.vrOverlayMode;onClicked:page.setupRequested()}
-   PillButton {text:"Check again";vrOverlayMode:page.vrOverlayMode;onClicked:{uiSettings.reloadAccepted();uiController.refreshModel3()}}
+ // Direction C: the focused game as a hero across the top, then one row of tiles per system.
+ // Left and right move along a row, up and down between rows; laser hover moves the focus too.
+ readonly property var shelfOrder:["model3","model2","system22","dreamcast","ps2","catalog"]
+ readonly property var shelfNames:({model3:"Sega Model 3",model2:"Sega Model 2",system22:"Namco System 22",dreamcast:"Sega Dreamcast",ps2:"PlayStation 2",catalog:"Set up on this PC"})
+ property var shelves:{let list=[];for(let key of shelfOrder){let items=rows.filter(r=>(r.system||"model3")===key);if(items.length)list.push({key:key,heading:shelfNames[key]+"  ·  "+items.length,items:items})}return list}
+ property int shelfIndex:0
+ property int tileIndex:0
+ readonly property var focusedRow:{const shelf=shelves[Math.min(shelfIndex,shelves.length-1)];return shelf?shelf.items[Math.min(tileIndex,shelf.items.length-1)]||({}):({})}
+ function hardwareLabel(row){return {dreamcast:"Sega Dreamcast",system22:"Namco System 22",model2:"Sega Model 2",ps2:"PlayStation 2",catalog:"On this PC"}[row.system]||"Sega Model 3"}
+ function badgeOf(row){return row.problem?"Not ready":row.warning?"Read first":row.accepted?"Accepted in the headset":""}
+ function tileOf(row){const art=row.system==="catalog"&&row.card?(row.card.artBanner||row.card.artCard||""):"";return {title:row.title,system:row.system||"model3",art:art,badge:badgeOf(row),badgeColour:row.accepted&&!row.problem&&!row.warning?readyColour:needsColour}}
+ function moveFocus(dShelf,dTile){
+  if(!shelves.length)return
+  shelfIndex=Math.max(0,Math.min(shelves.length-1,shelfIndex+dShelf))
+  tileIndex=Math.max(0,Math.min(shelves[shelfIndex].items.length-1,tileIndex+dTile))
+  shelfList.positionViewAtIndex(shelfIndex,ListView.Contain)
+ }
+ function openRow(row){if(!row||!row.id)return;if(row.system==="catalog")page.detailRequested(row.id);else page.selectedId=row.id}
+ // A game that is not ready, or starts only behind a warning, opens its page instead of starting.
+ function primaryAction(row){if(!row||!row.id)return;if(row.problem||row.warning||!page.idle||row.system==="catalog")openRow(row);else page.play(row)}
+ focus:!selectedId
+ Keys.onLeftPressed:moveFocus(0,-1)
+ Keys.onRightPressed:moveFocus(0,1)
+ Keys.onUpPressed:moveFocus(-1,0)
+ Keys.onDownPressed:moveFocus(1,0)
+ Keys.onReturnPressed:openRow(focusedRow)
+ Keys.onEnterPressed:openRow(focusedRow)
+ Keys.onSpacePressed:primaryAction(focusedRow)
+ ColumnLayout {anchors.fill:parent;spacing:0;visible:!page.selectedId
+  HeroBanner {id:hero;objectName:"model3Hero";Layout.fillWidth:true;Layout.preferredHeight:page.height*(page.vrOverlayMode?0.42:0.46);vrOverlayMode:page.vrOverlayMode
+   system:page.focusedRow.system||"model3";art:page.tileOf(page.focusedRow).art
+   eyebrow:(page.hardwareLabel(page.focusedRow)+(page.focusedRow.year?"  ·  "+page.focusedRow.year:"")).toUpperCase()
+   title:page.focusedRow.title||"VR games"
+   meta:page.setupProblem||page.focusedRow.problem||page.focusedRow.warning||(page.focusedRow.system==="catalog"?"Set up and ready on this PC.":page.focusedRow.title?"Found on this PC. Choose how you see it, then start.":"Add your systems in Set-up.")
+   metaColour:page.setupProblem||page.focusedRow.problem||page.focusedRow.warning?page.needsColour:Theme.get("color.text.muted")
+   PillButton {objectName:"model3HeroStart";visible:!!page.focusedRow.id;targetHeight:page.vrOverlayMode?56:48;vrOverlayMode:page.vrOverlayMode;neon:true;accent:page.focusedRow.problem||page.focusedRow.warning?page.needsColour:page.readyColour
+    text:page.focusedRow.problem?"Not ready":page.focusedRow.warning?"Read first":page.focusedRow.system==="catalog"?"Start":"Start · "+(page.focusedRow.viewLabel||"");onClicked:page.primaryAction(page.focusedRow)}
+   PillButton {objectName:"model3HeroDetails";visible:!!page.focusedRow.id;targetHeight:page.vrOverlayMode?56:48;vrOverlayMode:page.vrOverlayMode;text:"Details";onClicked:page.openRow(page.focusedRow)}
+   extra:[
+    PillButton {objectName:"model3SetupButton";text:"Set-up";vrOverlayMode:page.vrOverlayMode;onClicked:page.setupRequested()},
+    PillButton {text:"Check again";vrOverlayMode:page.vrOverlayMode;onClicked:{uiSettings.reloadAccepted();uiController.refreshModel3()}}]
   }
-  UiText {Layout.fillWidth:true;text:page.vrOverlayMode?"Pick a game to choose how you see it.":"Your own emulator builds and your own game files, in the headset. Start SteamVR with the headset connected first, then pick a game to choose how you see it. Systems are added in Set-up."}
-  UiText {objectName:"model3Setup";Layout.fillWidth:true;visible:text.length>0;text:page.setupProblem;font.pixelSize:16;color:page.needsColour}
-  GridView {id:grid;objectName:"model3Grid";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;model:page.rows;boundsBehavior:Flickable.StopAtBounds
-   cellWidth:Math.floor(width/Math.max(1,Math.floor(width/(Theme.get("size.card.base_w")*page.factor+8))))
-   cellHeight:page.vrOverlayMode?Math.max(184,Math.floor(height/Math.max(1,Math.floor(height/192)))):Theme.get("size.card.base_h")*page.factor+8
-   ScrollBar.vertical:ScrollBar{}
-   delegate:Item {id:cell;required property var modelData;width:grid.cellWidth;height:grid.cellHeight
-    GameCard {objectName:"model3Card";width:parent.width-8;height:parent.height-8;game:page.card(cell.modelData);sizeValue:page.sizeValue;vrOverlayMode:page.vrOverlayMode
-     effectsEnabled:!(uiSettings.values,uiSettings.get("cheapEffects",true))
-     primaryText:cell.modelData.problem?"Not ready":cell.modelData.warning?"Read first":cell.modelData.system==="catalog"?"Start":"Start · "+cell.modelData.viewLabel
-     // Acceptance is the owner's word only; finding a game is not the same thing.
-     footText:cell.modelData.accepted?"✓ Accepted in the headset":" "
-     onDetailRequested:if(cell.modelData.system==="catalog")page.detailRequested(cell.modelData.id);else page.selectedId=cell.modelData.id
-     // A game that is not ready, or starts only behind a warning, opens its page instead of starting.
-     onActionRequested:if(cell.modelData.problem||cell.modelData.warning||!page.idle)page.selectedId=cell.modelData.id;else page.play(cell.modelData)
-    }
-   }
-  }
-  RowLayout {spacing:8;visible:page.vrOverlayMode
-   property real step:Math.max(1,Math.floor(grid.height/grid.cellHeight))*grid.cellHeight
-   PillButton {objectName:"model3PreviousPage";text:"Previous page";vrOverlayMode:true;enabled:grid.contentY>0;onClicked:grid.contentY=Math.max(0,grid.contentY-parent.step)}
-   PillButton {objectName:"model3NextPage";text:"Next page";vrOverlayMode:true;enabled:grid.contentY+grid.height<grid.contentHeight-1;onClicked:grid.contentY=Math.min(Math.max(0,grid.contentHeight-grid.height),grid.contentY+parent.step)}
-   UiText {text:grid.count?"Page "+(Math.round(grid.contentY/Math.max(1,parent.step))+1)+" of "+Math.max(1,Math.ceil(grid.contentHeight/Math.max(1,parent.step))):""}
+  UiText {objectName:"model3Setup";visible:false;text:page.setupProblem}
+  ListView {id:shelfList;objectName:"model3Grid";property int count:page.rows.length;Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:page.vrOverlayMode?18:24;model:page.shelves
+   boundsBehavior:Flickable.StopAtBounds;topMargin:4;bottomMargin:24
+   delegate:ShelfRow {required property var modelData;required property int index;width:shelfList.width;vrOverlayMode:page.vrOverlayMode;tileName:"model3Card"
+    heading:modelData.heading;items:modelData.items;tileOf:page.tileOf;focusIndex:index===page.shelfIndex?page.tileIndex:-1
+    onHovered:i=>{page.shelfIndex=index;page.tileIndex=i}
+    onActivated:i=>{page.shelfIndex=index;page.tileIndex=i;page.openRow(modelData.items[i])}}
   }
  }
  Loader {anchors.fill:parent;active:!!page.selectedId;sourceComponent:Component{ColumnLayout {spacing:12
