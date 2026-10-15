@@ -180,6 +180,8 @@ class UiController : public QObject {
  Q_INVOKABLE void play(const QString &gameId,const QString &variantId);
  Q_INVOKABLE void cancelInstall();
  Q_INVOKABLE void stopLaunch();
+ // Ends the running game's whole process tree and anything left from games the Hub started.
+ Q_INVOKABLE void stopEverything(){emit stopEverythingRequested();message("Stop everything: every program the Hub started is being ended.");}
  Q_INVOKABLE void retryInstall(bool fromStart,const QString &handover);
  Q_INVOKABLE void retryFailedTool(bool fromStart,const QString &handover);
  Q_INVOKABLE void answerPrompt(bool proceed);
@@ -213,6 +215,7 @@ class UiController : public QObject {
  void pinballChanged();
  void pinballPlayRequested(const QString &id,const QString &view);
  void steamVrRunningChanged();
+ void stopEverythingRequested();
  void model3Changed();
  void catalogReadyChanged();
  void setupChanged();

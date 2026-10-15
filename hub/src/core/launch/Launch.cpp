@@ -264,6 +264,11 @@ QStringList rotateLaunchLogs(const QString &root, const QString &folder,
   return warnings;
 }
 LaunchService::LaunchService(QObject *parent) : QObject(parent) {
+#ifdef Q_OS_WIN
+  // Started suspended, so the program is in its process tree before it can start anything of its own.
+  const auto suspended=[](QProcess::CreateProcessArguments *arguments){arguments->flags|=CREATE_SUSPENDED;};
+  process_.setCreateProcessArgumentsModifier(suspended);helper_.setCreateProcessArgumentsModifier(suspended);
+#endif
   // Completion metadata must remain available while scans/installations occupy
   // Qt's global pool. This owned pool has at most one pending session task.
   persistencePool_.setMaxThreadCount(1);
@@ -295,7 +300,7 @@ LaunchService::LaunchService(QObject *parent) : QObject(parent) {
       process_.terminate();
       const auto generation = generation_;
       QTimer::singleShot(10000, &process_, [this, generation] {
-        if (generation_ == generation && process_.state() != QProcess::NotRunning) process_.kill();
+        if (generation_ == generation && process_.state() != QProcess::NotRunning) endTree();
       });
     }
     emit playingChanged();
@@ -340,6 +345,9 @@ LaunchService::~LaunchService() {
   process_.disconnect(this);
   helper_.disconnect(this);
   if (helper_.state() != QProcess::NotRunning) { helper_.kill(); helper_.waitForFinished(1000); }
+  // Whatever is left of every tree ends with the Hub.
+  if (tree_) tree_->endWithHub();
+  for (const auto &tree : leftovers_) tree->endWithHub();
   preparation_.waitForFinished();
   for (auto *watcher : persistence_) {
     watcher->disconnect(this);
@@ -481,6 +489,8 @@ void LaunchService::beginChild() {
     if(payload_) payload_->clearPendingChildLaunch();
     complete(1,QString::fromUtf8(error.what()));return;
   }
+  tree_ = std::make_unique<ProcessTree>();
+  sessionStartMs_ = QDateTime::currentMSecsSinceEpoch();
   auto arguments = request_.plan.args;
   if (!request_.companion.executable.isEmpty()) {
     helper_.setProcessEnvironment(environment);
@@ -490,6 +500,7 @@ void LaunchService::beginChild() {
     helperLog.replace(QRegularExpression("\\.log$"), "-companion.log");
     helper_.setStandardOutputFile(helperLog, QIODevice::Append);
     helper_.start(request_.companion.executable, request_.companion.args);
+    if (helper_.processId()) tree_->adopt(helper_.processId());
     if (!helper_.waitForStarted(5000)) {
       if (payload_) payload_->clearPendingChildLaunch();
       complete(1, "Could not start the companion program: " + helper_.errorString());
@@ -498,6 +509,7 @@ void LaunchService::beginChild() {
     for (auto &argument : arguments) argument.replace("${companion_pid}", QString::number(helper_.processId()));
   }
   process_.start(request_.plan.executable, arguments);
+  if (process_.processId()) tree_->adopt(process_.processId());
 }
 void LaunchService::requestClose() {
   if(!busy_)return;
@@ -536,9 +548,39 @@ void LaunchService::stop() {
     const auto generation = generation_;
     QTimer::singleShot(3000, &process_, [this, generation] {
       if (generation_ == generation && process_.state() != QProcess::NotRunning)
-        process_.kill();
+        endTree();
     });
   }
+}
+void LaunchService::endTree() {
+  if (tree_) tree_->end();
+  if (process_.state() != QProcess::NotRunning) process_.kill();
+  if (helper_.state() != QProcess::NotRunning) helper_.kill();
+}
+// The game has ended: anything it left running is asked to close, then ended.
+void LaunchService::retireTree() {
+  QList<qint64> strays = strayHelpers(request_.helperPrograms, sessionStartMs_);
+  std::shared_ptr<ProcessTree> tree(tree_.release());
+  if (tree && tree->members().isEmpty()) tree.reset();
+  if (!tree && strays.isEmpty()) return;
+  if (tree) { tree->endWithHub(); tree->closeWindows(); leftovers_ << tree; }
+  closeProcessWindows(strays);
+  QTimer::singleShot(3000, this, [this, tree, strays] {
+    if (tree) { tree->end(); leftovers_.removeOne(tree); }
+    endProcesses(strays);
+  });
+}
+void LaunchService::endEverything() {
+  if (busy_) { preparationCancelled_ = true; closeRequested_ = false; endTree(); }
+  for (const auto &tree : leftovers_) tree->end();
+  leftovers_.clear();
+  endProcesses(strayHelpers(request_.helperPrograms, sessionStartMs_));
+}
+QList<qint64> LaunchService::ownedProcesses() const {
+  QList<qint64> result;
+  if (tree_) result << tree_->members();
+  for (const auto &tree : leftovers_) result << tree->members();
+  return result;
 }
 void LaunchService::complete(int code, const QString &error) {
   if (completing_)
@@ -555,6 +597,7 @@ void LaunchService::complete(int code, const QString &error) {
     helper_.terminate();
     QTimer::singleShot(4000, &helper_, [this] { if (helper_.state() != QProcess::NotRunning) helper_.kill(); });
   }
+  retireTree();
   if(payload_ && process_.state()==QProcess::NotRunning) payload_->clearPendingChildLaunch();
   payload_.reset();
   const auto root = request_.root, gameId = request_.gameId,

@@ -105,6 +105,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &){
         try{const auto plan=pinball::launchPlan(table,executable,root_,QString("headset"));ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
     });
+    connect(ui_,&UiController::stopEverythingRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();launcher_.endEverything();});
     connect(ui_,&UiController::pinballPlayRequested,this,[this](const QString &id,const QString &view){
         if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
         for(const auto &value:ui_->pinballData().value("tables").toList()){
@@ -413,6 +414,8 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable,
         launch::Request request;request.root=root_;request.gameId="pinball-"+id;request.variantId="vpx";request.prepareProfile=false;
         request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
         if(!pinballDiagnosticIni_.isEmpty())request.plan.args<<"-Ini"<<privatePinballIni(pinballDiagnosticIni_,root_);
+        // Windows starts these for VPX outside its process tree; those started during the table end with it.
+        request.helperPrograms={"B2SBackglassServerEXE.exe","B2SBackglassServer.exe","dmdext.exe","PinUpDisplay.exe","DOF2DMD.exe"};
         retainedPinball_=row;retainedPinballExecutable_=request.plan.executable;retainedPinballView_=view;
 #ifdef Q_OS_WIN
         ui_->launchPinballQueued(row,QString(),diagnostic?QString():view,gamepad);

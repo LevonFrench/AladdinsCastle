@@ -413,6 +413,29 @@ private slots:
     services.launcher()->start(request);QVERIFY(prepared);QVERIFY(busyMessage);QVERIFY(!services.launchBusy());disconnect(connection);
     request.prepareProfile=false;QVERIFY(services.launcher()->start(request));QTRY_VERIFY_WITH_TIMEOUT(services.playing(),5000);QVERIFY(services.launchBusy());QVERIFY(!services.preparing());ui.stopLaunch();QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy()&&!services.playing(),6000);
  }
+ // Every process a game started ends with it: by Stop, when the game ends by itself, and by Stop everything.
+ void stopLeavesNoProcessOfTheGameRunning(){
+#ifndef Q_OS_WIN
+    QSKIP("Process trees are held in Windows job objects.");
+#else
+    for(const QString way:{"stop","leave","everything"}){
+        QTemporaryDir temp;const auto folder=temp.filePath("pids");QVERIFY(QDir().mkpath(folder));
+        ac::launch::LaunchService launcher;QSignalSpy finished(&launcher,&ac::launch::LaunchService::finished);
+        ac::launch::Request request;request.root=temp.path();request.gameId="synthetic-tree";request.variantId="flat";request.prepareProfile=false;
+        request.plan.executable=QCoreApplication::applicationFilePath();request.plan.cwd=temp.path();
+        request.plan.args={"--spawn-tree",folder,"launcher",way=="leave"?"leave":"stay"};
+        QVERIFY(launcher.start(request));
+        const auto pids=[&]{QList<qint64> list;for(const auto &name:{"launcher","child1","child2","grandchild"})list<<ac::install::readBytes(folder+"/"+name+".pid").toLongLong();return list;};
+        QTRY_VERIFY_WITH_TIMEOUT(QDir(folder).entryList(QDir::Files).size()==4,15000);
+        const auto all=pids();for(const auto pid:all)QVERIFY(pid>0);
+        if(way=="stop"){QVERIFY(ac::launch::processAlive(all[3]));const auto owned=launcher.ownedProcesses();for(const auto pid:all)QVERIFY(owned.contains(pid));launcher.stop();}
+        else if(way=="everything")launcher.endEverything();
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(),1,15000);
+        for(const auto pid:all)QTRY_VERIFY2_WITH_TIMEOUT(!ac::launch::processAlive(pid),qPrintable(way+" "+QString::number(pid)),10000);
+        QTRY_VERIFY_WITH_TIMEOUT(launcher.ownedProcesses().isEmpty(),10000);
+    }
+#endif
+ }
  void closedHubReopensOnLaunchFailure(){
     QTemporaryDir temp;ac::GameListModel games(syntheticCatalog(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
     QWindow window;window.show();window.hide();QVERIFY(!window.isVisible());QSignalSpy raised(&services,&ac::HubServices::raiseHubRequested);
@@ -511,6 +534,18 @@ private slots:
  }
 };
 int main(int argc,char **argv){
+    // A launcher that starts two children, the first of which starts a grandchild. Each writes its
+    // process id and waits; the launcher waits too ("stay") or ends after a moment ("leave").
+    if(argc>=4&&(QByteArray(argv[1])=="--spawn-tree"||QByteArray(argv[1])=="--tree-child")){
+        QCoreApplication child(argc,argv);const auto folder=QString::fromLocal8Bit(argv[2]),name=QString::fromLocal8Bit(argv[3]);
+        const auto self=QCoreApplication::applicationFilePath();
+        ac::install::atomicWrite(folder+"/"+name+".pid",QByteArray::number(QCoreApplication::applicationPid()));
+        if(QByteArray(argv[1])=="--spawn-tree"){
+            QProcess::startDetached(self,{"--tree-child",folder,"child1","grand"});QProcess::startDetached(self,{"--tree-child",folder,"child2"});
+            if(argc>=5&&QByteArray(argv[4])=="leave"){QTimer::singleShot(2500,&child,&QCoreApplication::quit);return child.exec();}
+        }else if(argc>=5&&QByteArray(argv[4])=="grand")QProcess::startDetached(self,{"--tree-child",folder,"grandchild"});
+        QTimer::singleShot(60000,&child,&QCoreApplication::quit);return child.exec();
+    }
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
     // PS2 stand-in for the Python running the launcher: it waits for the stop file, then ends normally.
     if(argc==3&&QByteArray(argv[1]).endsWith("launch_ps2.py")){

@@ -90,6 +90,8 @@ add_library(hubcore STATIC
     src/core/update/Update.h
     src/core/launch/Launch.h
     src/core/launch/Launch.cpp
+    src/core/launch/ProcessTree.cpp
+    src/core/launch/ProcessTree.h
     src/core/launch/Runtime.cpp
     src/core/gunroom/GunRoom.cpp
     src/core/gunroom/GunRoom.h
