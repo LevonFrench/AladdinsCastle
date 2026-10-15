@@ -88,5 +88,12 @@
     "hud": "Opt-in near-Q10 between measured world<=1.0135 and perspective HUD>=45.19; all vertices required, default disabled.",
     "proof": "Near19px/far2px, isolated HUD exact, stereo-off unchanged, actual launcher fake30/shared/SBS/exact-zero pass.",
     "limits": "Flat hit flares/streaks, culling holes; physical calibration and live/headset FPS not established;4 generic profiles remain."
+  },
+  "ninja_assault_combat_profile_validation": {
+    "fit": "A=-7.219639211177309 B=16777004.43017631 Qscale=+1 target512",
+    "heldout": "9150/9310 within64,inlier RMS0.2756298509;all-row RMS21.14779286 max191.77111686",
+    "guard": "All160 held-out non-camera-Q vertices use fitted-Z mode2 in native replay.",
+    "proof": "Screen near36px/far7px, isolated HUD exact, stereo-off unchanged; native shared/SBS/exact-zero pass.",
+    "limits": "Turned INSIDE visual failure: duplicate enemy/HUD image and dark regions; cause unresolved. Physical calibration/live FPS pending;3 generic profiles remain."
   }
 }

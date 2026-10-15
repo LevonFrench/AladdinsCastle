@@ -709,3 +709,23 @@ may ghost; culling holes persist. Physical calibration/headset/live FPS remain
 unverified. The latest executable also passes screen/INSIDE final gun/dot layer
 order, transparent-black background and stale-pixel checks without OpenXR.
 Four generic profiles remain: Ninja Assault, OutRun2, Wipeout Pulse and XGIII.
+
+### Ninja Assault measured depth; INSIDE visual defect
+
+Guren Chapter actual combat fits `Z=-7.219639211177309+16777004.43017631*Q`
+on512-wide targets,Qscale+1. Train25517/25639 inliers,RMS0.2801723065.
+Held-out9150/9310 within64,inlierRMS0.2756298509,max0.5019095387; ALL-row
+RMS21.14779286,max191.77111686. The160 outlier vertices use128x128 texture
+and disable depth writes; a native traced replay confirms fitted-Z mode2 for
+all160. No unique material/effect identity is assigned. Scanout512x224 displays
+512x448,rasterY2. Provisional units/m1000,fx320,fy373.3333,convergence1000m.
+
+Screen stereo near armour36px/far stone7px, isolated full HUD eye equality,
+and unchanged stereo-off RGBA checks pass. Private launcher shared/SBS and
+exact-zero RGBA checks pass at3x1536x1344. The30-degree INSIDE picture is
+VISUALLY UNACCEPTED: duplicate enemy/HUD image and dark regions remain,
+beyond ordinary missing-view holes. A feedback/history/pass interaction is
+only a hypothesis. No physical calibration or live/headset speed claim.
+Red sword trails/whole-title effects remain unvalidated. Three generic
+profiles remain: OutRun2,Wipeout Pulse,XGIII. Normal screen mode is the
+accepted stereo result for this scene; INSIDE retains its experimental status.
