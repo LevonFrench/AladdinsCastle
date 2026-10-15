@@ -11,6 +11,32 @@ exact stereo-off RGBA equality to unchanged replay, and exact HUD equality in a
 diagnostic that suppresses displaced world draws. The depth-test guard pins
 Virtua Cop's lock-on marker at zero disparity while retaining world depth.
 
+
+## Current offline acceptance (supersedes older checkpoint counts)
+
+All eleven profiles have been exercised; all nine additional titles reached
+real gameplay. Eight of those nine have measured camera depth relations;
+OutRun2 SP remains generic after three failed fitting approaches.
+
+| Game | Screen depth/HUD/off | Turned INSIDE |
+|---|---|---|
+| Virtua Cop | Passed prototype scene | Offline scene aiming and projection pass |
+| OutRun2006 | Passed prototype race | Replay pass; live full-speed gate failed3trials |
+| Wipeout Fusion | Passed race | Offline zero/30 pass, effects limits |
+| XGRA | Passed race | Stopped after3 launcher-proof failures |
+| Time Crisis3 | Passed combat | Offline zero/30 pass, cover-blur defect |
+| Crisis Zone | Depth/off/classified HUD pass | Zero/copies pass; complete HUD classification incomplete |
+| Vampire Night | Passed combat with near-HUD policy | Offline zero/30 pass, flat flare effects |
+| Ninja Assault | Measured combat; screen checks pass | VISUAL FAIL:duplicate enemy/HUD,dark regions |
+| OutRun2 SP | Fit gate failed3approaches; generic retained | Unvalidated |
+| Wipeout Pulse | Measured race; screen checks pass | Offline zero/30 pass, exhaust/blur artifacts |
+| XGIII | Measured camera consensus; material artifacts remain | VISUAL FAIL:duplicate HUD/scenery,effect planes |
+
+These are frozen-scene and native copy/alpha/ordering proofs. No physical
+headset composition, tracking, GunCon calibration, haptic feel or runtime
+performance is accepted from offline tests. Camera/metre constants remain
+provisional; original game FOV was not recovered by fitting Q against Z.
+
 ## Source and build
 
 `upstream-pin.json` records PCSX2 commit
