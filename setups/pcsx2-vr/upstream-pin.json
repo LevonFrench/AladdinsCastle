@@ -50,5 +50,10 @@
     "composition": "Base screen quads or INSIDE scene/HUD, then alpha-blended gun/dot projection; no composition depth.",
     "offline": "Live shared-context per-eye alpha and stale-pixel proof; common composition builder recorded for both modes.",
     "headset": "Owner retest required; no runtime started."
+  },
+  "inside_controller_aim": {
+    "method": "Nearest retained camera triangle or100m fallback; original-picture UV through the same scanout-aware camera used by reconstruction.",
+    "offline_validation": "Virtua Cop gameplay at fake head-left20; accepted scene hit and off-screen reload; two native game calibration crosses within2upscaled pixels; exact zero-pose RGBA and GPU shared/SBS copies.",
+    "limits": "Provisional depth/classification/metric scale; capped expiring geometry snapshots; no physical headset test."
   }
 }

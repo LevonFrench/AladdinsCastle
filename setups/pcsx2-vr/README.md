@@ -528,8 +528,10 @@ The overlay is cleared to transparent black every frame. The gun draws first,
 then the aim dot draws with depth testing disabled into the same overlay. The
 dot therefore stays above the screen and HUD, including when the gun model
 toggle is off; neither visual is baked into the opaque game swapchain.
-The INSIDE dot still uses the existing HUD-plane position in this checkpoint;
-scene-intersection aiming is a separate acceptance item.
+The INSIDE dot uses the retained scene intersection (or far fallback), through
+the same projection as controller input. Classified HUD draws use near reversed
+depth and an unconditional depth test so the world cannot hide that panel.
+The model/dot projection remains after the game/HUD image.
 
 `PCSX2_VR_LAYER_PROOF=<private-prefix>` with OpenXR disabled exercises that same
 overlay renderer on the live shared GL context. It saves per-eye gun RGBA and
@@ -541,3 +543,40 @@ hidden/muted/below-normal timed runs passed in screen and INSIDE modes: opaque
 gun silhouettes, alpha/RGB zero outside the model, only25 opaque dot pixels on
 the subsequent frame, and no GL errors. These checks do not prove physical
 SteamVR composition; the owner must retest that in the headset.
+
+
+### INSIDE controller ray and original game camera
+
+INSIDE input does not use the screen quad intersection. Main-camera perspective
+triangles are retained once per completed pair, using the same Q/Z classifier,
+inverse-distance scale and focal lengths as the vertex shader. The right aim
+ray is transformed into the recentered game camera, intersected with the
+nearest retained triangle, then projected into original-picture UV for GunCon2
+pointer0. A miss uses a100m point along the ray. UV outside the original picture
+remains off screen for reload. Geometry snapshots expire after500ms and have a
+32768-triangle cap; only gun profiles collect them. Pass classification, hidden
+surfaces, source-game culling and provisional metric scale remain limits.
+
+The original scanout is part of this camera conversion. The GS target can be
+cropped, offset or stretched when forming the game picture. Reconstruction now
+maps target pixels through that source/display rectangle, and applies its
+inverse after eye projection. The CPU scene triangles use the same mapping.
+The tested Virtua Cop scene reads512x256 and displays512x512, so its vertical
+scale is2. Assuming an identity mapping displaced HUD markers and shots.
+
+Hidden native tests with fake head-left20 reached actual gameplay, acknowledged
+an accepted scene-hit shot and off-screen reload, and saved the game's own
+shot graphic/spent round. Two visible game calibration crosses matched their
+independently projected positions within2upscaled pixels at3x. The third sampled
+point lies beyond that turned view. Exact-zero INSIDE and screen dump replays
+match in every RGBA channel for both eyes; shared-context copies and SBS joins
+are exact, with no GL errors. These are offline checks, not headset acceptance.
+
+`PCSX2_VR_GUN_SCRIPT` retains original-picture target points for calibration;
+INSIDE scripts traverse the same triangle query and camera projection as live
+input. `PCSX2_VR_GUN_SCRIPT_SPACE=head` instead supplies head-relative angular
+points from a deterministic turned-hand pose. Both require OpenXR disabled.
+Native tests cover translated origins, nearest hit, fallback, invalid/backward
+rays, head-relative20-degree projection, and input pulse release. Physical
+tracking, game-specific calibration beyond the sampled title, muzzle fit and
+haptics still require the owner's headset check.

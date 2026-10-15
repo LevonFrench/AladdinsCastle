@@ -43,10 +43,10 @@ index a119f85..7cc1d35 100644
  
  	// Must floor before depth testing.
 diff --git a/bin/resources/shaders/opengl/tfx_vgs.glsl b/bin/resources/shaders/opengl/tfx_vgs.glsl
-index a836c8a..26708a5 100644
+index a836c8a..b772b6c 100644
 --- a/bin/resources/shaders/opengl/tfx_vgs.glsl
 +++ b/bin/resources/shaders/opengl/tfx_vgs.glsl
-@@ -3,6 +3,17 @@
+@@ -3,6 +3,18 @@
  
  //#version 420 // Keep it for text editor detection
  
@@ -58,13 +58,14 @@ index a836c8a..26708a5 100644
 +layout(location = 36) uniform vec4 PS2InsideFov;
 +layout(location = 37) uniform vec4 PS2InsideCanvas; // width,height,fx,fy
 +layout(location = 38) uniform vec4 PS2InsideTarget; // width,height,units/m,mode
-+layout(location = 39) uniform vec4 PS2InsideMisc; // panel distance metres,near metres
++layout(location = 39) uniform vec4 PS2InsideMisc;
++layout(location = 40) uniform vec4 PS2InsideRaster; // original scanout scale.xy,bias.zw // panel distance metres,near metres
 +#endif
 +
  layout(std140, binding = 1) uniform cb20
  {
  	vec2  VertexScale;
-@@ -37,12 +48,77 @@ out SHADER
+@@ -37,12 +49,79 @@ out SHADER
  	#else
  		flat vec4 c;
  	#endif
@@ -112,6 +113,7 @@ index a836c8a..26708a5 100644
 + }
 + if (isnan(d)||isinf(d)||d<=0.0) { p=vec4(0,0,-2,1); return; }
 + vec2 pixel=(p.xy+vec2(1))*0.5*PS2InsideTarget.xy;
++ pixel=pixel*PS2InsideRaster.xy+PS2InsideRaster.zw;
 + vec2 slope=(pixel-PS2InsideCanvas.xy*0.5)/PS2InsideCanvas.zw;
 + vec4 eye=PS2InsideView*vec4(slope.x*d,-slope.y*d,-d,1);
 + if (any(isnan(eye)) || any(isinf(eye))) { p=vec4(0,0,-2,1); return; }
@@ -119,13 +121,14 @@ index a836c8a..26708a5 100644
 + vec2 span=vec2(PS2InsideFov.y-PS2InsideFov.x,PS2InsideFov.w-PS2InsideFov.z);
 + vec2 clip_xy=2.0*eye.xy/span-vec2(PS2InsideFov.y+PS2InsideFov.x,PS2InsideFov.w+PS2InsideFov.z)*clip_w/span;
 + clip_xy.y=-clip_xy.y;
-+ vec2 ratio=PS2InsideCanvas.xy/PS2InsideTarget.xy;
-+ p.xy=clip_xy*ratio+(ratio-vec2(1))*clip_w;
++ vec2 ratio=PS2InsideCanvas.xy/(PS2InsideRaster.xy*PS2InsideTarget.xy);
++ vec2 bias=2.0*PS2InsideRaster.zw/(PS2InsideRaster.xy*PS2InsideTarget.xy);
++ p.xy=clip_xy*ratio+(ratio-bias-vec2(1))*clip_w;
 + // Infinite reversed-Z projection; native GS depth tests still need audit.
 +#if HAS_CLIP_CONTROL
-+ p.z=PS2InsideMisc.y;
++ p.z=PS2InsideTarget.w==2.0 ? clip_w*0.999999 : PS2InsideMisc.y;
 +#else
-+ p.z=2.0*PS2InsideMisc.y-clip_w;
++ p.z=PS2InsideTarget.w==2.0 ? clip_w*0.999998 : 2.0*PS2InsideMisc.y-clip_w;
 +#endif
 + p.w=clip_w;
 + if (any(isnan(p)) || any(isinf(p))) { p=vec4(0,0,-2,1); return; }
@@ -142,7 +145,7 @@ index a836c8a..26708a5 100644
  #if VS_EXPAND == VS_EXPAND_NONE
  
  layout(location = 0) in vec2  i_st;
-@@ -75,6 +151,8 @@ void texture_coord()
+@@ -75,6 +154,8 @@ void texture_coord()
  
  void vs_main()
  {
@@ -151,7 +154,7 @@ index a836c8a..26708a5 100644
  	// Clamp to max depth, gs doesn't wrap
  	highp uint z = min(i_z, MaxDepth);
  
-@@ -92,12 +170,19 @@ void vs_main()
+@@ -92,12 +173,19 @@ void vs_main()
  	#endif
  
  	gl_Position.w = 1.0f;
@@ -171,7 +174,7 @@ index a836c8a..26708a5 100644
  	#if VS_POINT_SIZE
  		gl_PointSize = PointSize.x;
  	#endif
-@@ -175,6 +260,9 @@ ProcessedVertex load_vertex(uint index)
+@@ -175,6 +263,9 @@ ProcessedVertex load_vertex(uint index)
  	#endif
  
  	vtx.p.w = 1.0f;
@@ -181,7 +184,7 @@ index a836c8a..26708a5 100644
  
  	vec2 uv = vec2(i_uv) - TextureOffset;
  	vec2 st = i_st - TextureOffset;
-@@ -301,6 +389,8 @@ void extrapolate_aa1_triangle_edge(inout ProcessedVertex v0, ProcessedVertex v1,
+@@ -301,6 +392,8 @@ void extrapolate_aa1_triangle_edge(inout ProcessedVertex v0, ProcessedVertex v1,
  
  void main()
  {
@@ -190,7 +193,7 @@ index a836c8a..26708a5 100644
  	ProcessedVertex vtx;
  
  	uint vid = uint(gl_VertexID);
-@@ -463,6 +553,7 @@ void main()
+@@ -463,6 +556,7 @@ void main()
  	VSout.t_float = vtx.t_float;
  	VSout.t_int = vtx.t_int;
  	VSout.c = vtx.c;
@@ -859,10 +862,16 @@ index 2481edd..3cdd102 100644
  	
  	void Recycle(GSTexture* t);
 diff --git a/pcsx2/GS/Renderers/Common/GSRenderer.cpp b/pcsx2/GS/Renderers/Common/GSRenderer.cpp
-index b5c7cc6..7d2d319 100644
+index b5c7cc6..b4feb9a 100644
 --- a/pcsx2/GS/Renderers/Common/GSRenderer.cpp
 +++ b/pcsx2/GS/Renderers/Common/GSRenderer.cpp
-@@ -45,6 +45,7 @@ std::unique_ptr<GSRenderer> g_gs_renderer;
+@@ -1,3 +1,5 @@
++#include "common/Console.h"
++#include "GS/PS2VRInside.h"
+ // SPDX-FileCopyrightText: 2002-2026 PCSX2 Dev Team
+ // SPDX-License-Identifier: GPL-3.0+
+ 
+@@ -45,6 +47,7 @@ std::unique_ptr<GSRenderer> g_gs_renderer;
  
  // Since we read this on the EE thread, we can't put it in the renderer, because
  // we might be switching while the other thread reads it.
@@ -870,7 +879,7 @@ index b5c7cc6..7d2d319 100644
  static GSVector4 s_last_draw_rect;
  
  // Last time we reset the renderer due to a GPU crash, if any.
-@@ -56,7 +57,7 @@ static GSDisplayAlignment s_display_alignment = GSDisplayAlignment::Center;
+@@ -56,7 +59,7 @@ static GSDisplayAlignment s_display_alignment = GSDisplayAlignment::Center;
  GSRenderer::GSRenderer()
  	: m_shader_time_start(Common::Timer::GetCurrentValue())
  {
@@ -879,7 +888,36 @@ index b5c7cc6..7d2d319 100644
  }
  
  GSRenderer::~GSRenderer() = default;
-@@ -632,6 +633,10 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
+@@ -233,6 +236,28 @@ bool GSRenderer::Merge(int field)
+ 		tex[0] = nullptr;
+ 	}
+ 
++ // Reconstruct in the original GAME PICTURE camera, not in the allocation
++ // rectangle. Scanout can crop/offset/stretch the GS render target.
++ if(PS2VRInside::Enabled() && !PS2StereoSecondary()) {
++  const int circuit=tex[1]?1:0;
++  if(tex[circuit] && resolution.x>0 && resolution.y>0) {
++   const auto& display=PCRTCDisplays.PCRTCDisplays[circuit];
++   const auto& src=display.framebufferRect;const auto& dest=display.displayRect;
++   if(src.width()>0&&src.height()>0&&dest.width()>0&&dest.height()>0) {
++    const float cw=PS2VRInside::Env("PCSX2_INSIDE_CANVAS_WIDTH",640),ch=PS2VRInside::Env("PCSX2_INSIDE_CANVAS_HEIGHT",448);
++    const float sx=(cw/resolution.x)*static_cast<float>(dest.width())/src.width();
++    const float sy=(ch/resolution.y)*static_cast<float>(dest.height())/src.height();
++    const float bx=cw/resolution.x*dest.x-src.x*sx;
++    const float by=ch/resolution.y*dest.y-(src.y+y_offset[circuit])*sy;
++    PS2VRInside::SetRaster(sx,sy,bx,by);
++    static std::array<float,4> previous{};
++    if(previous!=PS2VRInside::raster) {
++     previous=PS2VRInside::raster;
++     Console.WriteLn("INSIDE original scanout: source=(%d,%d,%d,%d) y_offset=%d display=(%d,%d,%d,%d) resolution=%dx%d raster=(%.6f,%.6f,%.6f,%.6f)",src.x,src.y,src.z,src.w,y_offset[circuit],dest.x,dest.y,dest.z,dest.w,resolution.x,resolution.y,sx,sy,bx,by);
++    }
++   }
++  }
++ }
+ 	const u32 c = (m_regs->BGCOLOR.U32[0] & 0x00FFFFFFu) | (m_regs->PMODE.ALP << 24);
+ 	g_gs_device->Merge(tex, src_gs_read, dst, fs, m_regs->PMODE, m_regs->EXTBUF, c);
+ 
+@@ -632,6 +657,10 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
  	}
  
  	const bool blank_frame = !Merge(field);
@@ -890,7 +928,7 @@ index b5c7cc6..7d2d319 100644
  
  	m_last_draw_n = s_n;
  	m_last_transfer_n = s_transfer_n;
-@@ -665,7 +670,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
+@@ -665,7 +694,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
  			draw_rect = CalculateDrawDstRect(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight(),
  				src_rect, current->GetSize(), s_display_alignment, g_gs_device->UsesLowerLeftOrigin(),
  				GetVideoMode() == GSVideoMode::SDTV_480P);
@@ -899,7 +937,7 @@ index b5c7cc6..7d2d319 100644
  
  			if (GSConfig.CASMode != GSCASMode::Disabled)
  			{
-@@ -995,7 +1000,7 @@ void GSRenderer::PresentCurrentFrame()
+@@ -995,7 +1024,7 @@ void GSRenderer::PresentCurrentFrame()
  			const GSVector4 draw_rect(CalculateDrawDstRect(g_gs_device->GetWindowWidth(), g_gs_device->GetWindowHeight(),
  				src_rect, current->GetSize(), s_display_alignment, g_gs_device->UsesLowerLeftOrigin(),
  				GetVideoMode() == GSVideoMode::SDTV_480P));
@@ -908,7 +946,7 @@ index b5c7cc6..7d2d319 100644
  
  			const u64 current_time = Common::Timer::GetCurrentValue();
  			const float shader_time = static_cast<float>(Common::Timer::ConvertValueToSeconds(current_time - m_shader_time_start));
-@@ -1010,11 +1015,12 @@ void GSRenderer::PresentCurrentFrame()
+@@ -1010,11 +1039,12 @@ void GSRenderer::PresentCurrentFrame()
  
  void GSTranslateWindowToDisplayCoordinates(float window_x, float window_y, float* display_x, float* display_y)
  {
@@ -922,7 +960,7 @@ index b5c7cc6..7d2d319 100644
  	{
  		*display_x = -1.0f;
  		*display_y = -1.0f;
-@@ -1251,3 +1257,11 @@ void DumpGSPrivRegs(const GSPrivRegSet& r, const std::string& filename)
+@@ -1251,3 +1281,11 @@ void DumpGSPrivRegs(const GSPrivRegSet& r, const std::string& filename)
  
  	std::fprintf(fp.get(), "EXTWRITE: { EN: %u }\n", r.EXTWRITE.WRITE);
  }
@@ -1005,18 +1043,19 @@ index 81110bb..39dd2d9 100644
  
  void GSTextureCache::ReadbackAll()
 diff --git a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
-index 2174fa3..6bc0212 100644
+index 2174fa3..8bdf8dc 100644
 --- a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 +++ b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
-@@ -5,6 +5,7 @@
+@@ -5,6 +5,8 @@
  #include "GS/Renderers/OpenGL/GSDeviceOGL.h"
  #include "GS/Renderers/OpenGL/GLState.h"
  #include "GS/GSState.h"
 +#include "GS/PS2VRInside.h"
++#include "GS/PS2VRAim.h"
  #include "GS/GSGL.h"
  #include "GS/GSPerfMon.h"
  #include "GS/GSUtil.h"
-@@ -19,6 +20,8 @@
+@@ -19,6 +21,8 @@
  #include "IconsFontAwesome.h"
  
  #include <cinttypes>
@@ -1025,7 +1064,7 @@ index 2174fa3..6bc0212 100644
  #include <fstream>
  #include <sstream>
  
-@@ -35,6 +38,57 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
+@@ -35,6 +39,58 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
  static constexpr u32 VERTEX_PUSH_CONSTANT_BUFFER_SIZE = 1024 * 1024;
  static constexpr u32 TEXTURE_UPLOAD_BUFFER_SIZE = 128 * 1024 * 1024;
  
@@ -1075,6 +1114,7 @@ index 2174fa3..6bc0212 100644
 +  glUniform4f(37,cw,ch,s_stereo.focal,fy);
 +  glUniform4f(38,s_inside_width,s_inside_height,s_stereo.units,mode);
 +  glUniform4f(39,PS2VRInside::Env("PCSX2_INSIDE_HUD_DISTANCE_M",s_stereo.convergence),0.01f,0,0);
++  glUniform4fv(40,1,PS2VRInside::raster.data());
 + }
 +}
 +
@@ -1083,7 +1123,7 @@ index 2174fa3..6bc0212 100644
  namespace ReplaceGL
  {
  	static void GLAPIENTRY ScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height)
-@@ -215,7 +269,10 @@ namespace Emulate_DSA
+@@ -215,7 +271,10 @@ namespace Emulate_DSA
  	}
  } // namespace Emulate_DSA
  
@@ -1095,7 +1135,7 @@ index 2174fa3..6bc0212 100644
  
  GSDeviceOGL::~GSDeviceOGL()
  {
-@@ -1835,6 +1892,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
+@@ -1835,6 +1894,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
  		+ fmt::format("#define VS_IIP {}\n", static_cast<u32>(sel.iip))
  		+ fmt::format("#define VS_POINT_SIZE {}\n", static_cast<u32>(sel.point_size))
  		+ fmt::format("#define VS_EXPAND {}\n", static_cast<int>(sel.expand));
@@ -1103,7 +1143,7 @@ index 2174fa3..6bc0212 100644
  
  	std::string src = GenGlslHeader("vs_main", GL_VERTEX_SHADER, macro);
  	src += m_shader_tfx_vgs;
-@@ -2995,6 +3053,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -2995,6 +3055,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	if (it != m_programs.end())
  	{
  		it->second.Bind();
@@ -1117,7 +1157,7 @@ index 2174fa3..6bc0212 100644
  		return;
  	}
  
-@@ -3005,6 +3070,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -3005,6 +3072,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	m_shader_cache.GetProgram(&prog, vs, ps);
  	it = m_programs.emplace(psel, std::move(prog)).first;
  	it->second.Bind();
@@ -1131,7 +1171,7 @@ index 2174fa3..6bc0212 100644
  }
  
  void GSDeviceOGL::SetupSampler(PSSamplerSelector ssel)
-@@ -3036,6 +3108,87 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
+@@ -3036,6 +3110,120 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
  
  void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
  {
@@ -1195,6 +1235,39 @@ index 2174fa3..6bc0212 100644
 + // Camera depth classifier remains provisional; nonworld geometry becomes a
 + // fixed recenter panel only on the camera target, except fullscreen backgrounds.
 + s_inside_draw_mode=!main_camera || full_canvas ? 0.0f : s_stereo_draw_mode!=0 ? 1.0f : 2.0f;
++ // Retain only the same main-camera perspective triangles, once per pair.
++ // Their positions are in the game's ORIGINAL recentered camera, in metres.
++ if(s_inside_draw_mode==1 && s_stereo.eye>0 && StereoEnv("PCSX2_VR_GUN",0)!=0 && s_stereo.units>0 && s_stereo.focal>0 && config.indices) {
++  const float fy=PS2VRInside::Env("PCSX2_INSIDE_FY",s_stereo.focal*ch/(cw*.75f));
++  auto vertex=[&](u16 index,PS2VRAim::V& point) {
++   if(index>=config.nverts)return false;
++   const auto& v=config.verts[index];
++   const float inv_d=(s_stereo_draw_mode==2 ? (static_cast<float>(std::min(v.XYZ.Z,config.cb_vs.max_depth))-s_stereo.za)/s_stereo.zb : v.RGBAQ.Q)*s_stereo.qscale;
++   if(!(inv_d>1e-10f) || !std::isfinite(inv_d) || !(fy>0))return false;
++   const float d=1/(inv_d*s_stereo.units);
++   const float x=((v.XYZ.X-.05f)*config.cb_vs.vertex_scale.x-config.cb_vs.vertex_offset.x+1)*.5f*native_width;
++   const float y=((v.XYZ.Y-.05f)*config.cb_vs.vertex_scale.y-config.cb_vs.vertex_offset.y+1)*.5f*s_inside_height;
++   const auto& raster=PS2VRInside::raster;
++   point={(x*raster[0]+raster[2]-cw*.5f)/s_stereo.focal*d,(ch*.5f-y*raster[1]-raster[3])/fy*d,-d};return true;
++  };
++  for(u32 i=0;i+2<config.nindices;i+=3) {
++   PS2VRAim::Triangle triangle;
++   if(vertex(config.indices[i],triangle.a)&&vertex(config.indices[i+1],triangle.b)&&vertex(config.indices[i+2],triangle.c))PS2VRAim::AddTriangle(triangle);
++  }
++ }
++
++ }
++ // HUD is a composited panel: ignore world occlusion, but keep original HUD
++ // draw order. Near reversed depth protects it from later world geometry.
++ // Exactly-zero fake pose remains the legacy, byte-exact path.
++ const bool zero_inside=std::getenv("PCSX2_INSIDE_FAKE_YAW_DEG") && PS2VRInside::Env("PCSX2_INSIDE_FAKE_YAW_DEG",0)==0;
++ const bool overlay_hud=PS2VRInside::Enabled() && !zero_inside && PS2VRInside::Valid(PS2VRInside::Get()) && s_inside_draw_mode==2;
++ const auto saved_depth=config.depth;
++ const auto saved_alpha_depth=config.alpha_second_pass.depth;
++ ScopedGuard restore_hud_depth([&](){config.depth=saved_depth;config.alpha_second_pass.depth=saved_alpha_depth;});
++ if(overlay_hud) {
++  config.depth.ztst=ZTST_ALWAYS;config.depth.zwe=1;
++  if(config.alpha_second_pass.enable) {config.alpha_second_pass.depth.ztst=ZTST_ALWAYS;config.alpha_second_pass.depth.zwe=1;}
 + }
 +	if (trace)
 +	{
@@ -1233,7 +1306,7 @@ index 562b136..240baee 100644
  	using PSSelector = GSHWDrawConfig::PSSelector;
  	using PSSamplerSelector = GSHWDrawConfig::SamplerSelector;
 diff --git a/pcsx2/Input/InputManager.cpp b/pcsx2/Input/InputManager.cpp
-index 813b6da..d1c4aae 100644
+index 813b6da..5d2fbe4 100644
 --- a/pcsx2/Input/InputManager.cpp
 +++ b/pcsx2/Input/InputManager.cpp
 @@ -3,6 +3,8 @@
@@ -1332,7 +1405,7 @@ index 813b6da..d1c4aae 100644
  	if (VMManager::HasValidVM())
  		USB::InputDeviceDisconnected(identifier);
  
-@@ -1712,12 +1747,71 @@ void InputManager::CloseSources()
+@@ -1712,12 +1747,72 @@ void InputManager::CloseSources()
  
  void InputManager::PollSources()
  {
@@ -1360,6 +1433,7 @@ index 813b6da..d1c4aae 100644
 +  static bool last_trigger=false;
 +  const bool trigger=sample.active && sample.trigger>=0.5f;
 +  if (trigger && !last_trigger) { float back_u,back_v; GSTranslateWindowToDisplayCoordinates(x,y,&back_u,&back_v); Console.WriteLn("VR gun CPU sample uv=(%.6f,%.6f) on=%d pointer=(%.3f,%.3f) inverse=(%.6f,%.6f)",u,v,int(sample.on_screen),x,y,back_u,back_v); }
++  if(trigger && !last_trigger && sample.scene_point_valid)Console.WriteLn("VR inside aim point=(%.6f,%.6f,%.6f) geometry_hit=%d original_uv=(%.6f,%.6f)",sample.scene_point.x,sample.scene_point.y,sample.scene_point.z,int(sample.scene_hit),sample.u,sample.v);
 +  last_trigger=trigger;
 +  // Fixed layout in every gun game: trigger/A/B/grip-C.
 +  const float values[]={sample.active ? sample.trigger : 0.0f, float(sample.active && sample.a), float(sample.active && sample.b), float(sample.active && sample.grip)};
@@ -1511,7 +1585,7 @@ diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,636 @@
+@@ -0,0 +1,637 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
@@ -2048,7 +2122,7 @@ new file mode 100644
 + g_gs_renderer->SetRegsMem(basemem); g_gs_renderer->ResetPCRTC(); g_gs_renderer->UpdateRenderFixes();
 + std::swap(g_texture_cache,cache); std::swap(g_gs_renderer,renderer);
 + enabled=true; other=false; stop=false; serial=0; ticks=0; proof_pending=false;
-+ PS2VRInside::Reset(); published_inside={};
++ PS2VRInside::Reset(); PS2VRAim::ResetScene(); published_inside={};
 + drained_errors=frames_with_layers=0; swapchain_pair_created=false; using_window_dc=false; GSDeviceOGL::SetStereoEye(1);
 + g_gs_device->ResetStereoInterlacePhase();
 + live_log=std::fopen("pcsx2-live-stereo.log","w");
@@ -2116,6 +2190,7 @@ new file mode 100644
 + for (int eye=0; eye<2; eye++) glCopyImageSubData(pending[eye],GL_TEXTURE_2D,0,0,0,0,eyes[eye],GL_TEXTURE_2D,0,0,0,0,w,h,1);
 + native_width=static_cast<float>(w)/GSConfig.UpscaleMultiplier;
 + published_inside=PS2VRInside::Get();
++ if(PS2VRInside::Enabled() && PS2VRGun::Enabled())PS2VRAim::PublishScene();
 + if (fence) glDeleteSync(fence);
 + fence=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0); glFlush(); serial++;
 + if (serial==1 || serial%600==0)
@@ -2152,10 +2227,15 @@ diff --git a/pcsx2/GS/PS2VRAim.h b/pcsx2/GS/PS2VRAim.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRAim.h
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,75 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +#pragma once
 +#include <cmath>
++#include <array>
++#include <vector>
++#include <memory>
++#include <mutex>
++#include <chrono>
 +namespace PS2VRAim
 +{
 +struct V { float x=0,y=0,z=0; V operator+(V b)const{return {x+b.x,y+b.y,z+b.z};} V operator-(V b)const{return {x-b.x,y-b.y,z-b.z};} V operator*(float s)const{return{x*s,y*s,z*s};} };
@@ -2179,12 +2259,55 @@ new file mode 100644
 + hit.on_screen=hit.u>=0 && hit.u<=1 && hit.v>=0 && hit.v<=1;
 + return hit;
 +}
++// Immutable per-frame original-camera geometry. The GS thread owns staging;
++// input/presenter readers retain snapshots without blocking it during ray tests.
++struct Triangle { V a,b,c; };
++inline std::vector<Triangle> scene_staging;
++inline std::mutex scene_mutex;
++inline std::shared_ptr<const std::vector<Triangle>> scene_triangles;
++inline std::chrono::steady_clock::time_point scene_time;
++inline void AddTriangle(Triangle t) {
++ if(scene_staging.size()<32768 && std::isfinite(t.a.x+t.a.y+t.a.z+t.b.x+t.b.y+t.b.z+t.c.x+t.c.y+t.c.z))scene_staging.push_back(t);
++}
++inline void PublishScene() {
++ auto frame=std::make_shared<const std::vector<Triangle>>(std::move(scene_staging));
++ std::lock_guard lock(scene_mutex);scene_triangles=std::move(frame);scene_time=std::chrono::steady_clock::now();
++ scene_staging={};
++}
++inline void ResetScene() { scene_staging.clear();std::lock_guard lock(scene_mutex);scene_triangles.reset();scene_time={}; }
++struct Camera { float width=640,height=448,fx=320,fy=298.666667f; };
++struct SceneHit { Hit picture;V point;bool geometry=false;float distance=0;unsigned triangles=0; };
++inline SceneHit Inside(V origin,V direction,Camera camera,float fallback=100.f) {
++ SceneHit result;
++ const float length=std::sqrt(Dot(direction,direction));
++ if(!(length>1e-6f) || !std::isfinite(length) || !(camera.width>0&&camera.height>0&&camera.fx>0&&camera.fy>0&&fallback>.01f))return result;
++ direction=direction*(1/length);float nearest=fallback;
++ std::shared_ptr<const std::vector<Triangle>> triangles;
++ {std::lock_guard lock(scene_mutex);if(std::chrono::steady_clock::now()-scene_time<std::chrono::milliseconds(500))triangles=scene_triangles;}
++ if(triangles) {
++  result.triangles=static_cast<unsigned>(triangles->size());
++  for(const auto& triangle:*triangles) {
++   const V e1=triangle.b-triangle.a,e2=triangle.c-triangle.a,p=Cross(direction,e2);
++   const float det=Dot(e1,p);if(std::abs(det)<1e-8f)continue;
++   const float inverse=1/det;const V offset=origin-triangle.a;
++   const float u=Dot(offset,p)*inverse;if(u<0||u>1)continue;
++   const V q=Cross(offset,e1);const float v=Dot(direction,q)*inverse;if(v<0||u+v>1)continue;
++   const float distance=Dot(e2,q)*inverse;
++   if(distance>.01f&&distance<nearest){nearest=distance;result.geometry=true;}
++  }
++ }
++ result.point=origin+direction*nearest;result.distance=nearest;
++ if(!std::isfinite(result.point.x+result.point.y+result.point.z)||result.point.z>=-.001f)return result;
++ result.picture={.5f+camera.fx*result.point.x/(-result.point.z)/camera.width,.5f-camera.fy*result.point.y/(-result.point.z)/camera.height,false};
++ auto& h=result.picture;h.on_screen=std::isfinite(h.u+h.v)&&h.u>=0&&h.u<=1&&h.v>=0&&h.v<=1;
++ return result;
++}
 +}
 diff --git a/pcsx2/GS/PS2VRControllers.h b/pcsx2/GS/PS2VRControllers.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRControllers.h
-@@ -0,0 +1,307 @@
+@@ -0,0 +1,320 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// Included inside PS2Live after the runtime function table. Presenter-thread only.
 +static XrActionSet gun_actions=XR_NULL_HANDLE;
@@ -2308,6 +2431,18 @@ new file mode 100644
 + const auto hit=PS2VRAim::Intersect({p.x,p.y,p.z},ray,{sp.x,sp.y,sp.z},{sq.x,sq.y,sq.z,sq.w},sw,sh);
 + sample.active=true; sample.on_screen=hit.on_screen;
 + sample.u=hit.u; sample.v=hit.v; sample.trigger=std::clamp(scalar(gun_trigger),0.f,1.f);
++ if(PS2VRInside::Enabled()) {
++  const auto inverse=inside_origin.RigidInverse();
++  const float o[4]={p.x,p.y,p.z,1},d[4]={ray.x,ray.y,ray.z,0};
++  float local_o[3]{},local_d[3]{};
++  for(int row=0;row<3;row++)for(int col=0;col<4;col++){local_o[row]+=inverse.m[col*4+row]*o[col];local_d[row]+=inverse.m[col*4+row]*d[col];}
++  const float cw=Env("PCSX2_INSIDE_CANVAS_WIDTH",640),ch=Env("PCSX2_INSIDE_CANVAS_HEIGHT",448);
++  const float fx=Env("PCSX2_STEREO_FOCAL_PX",320),fy=Env("PCSX2_INSIDE_FY",fx*ch/(cw*.75f));
++  const auto scene=PS2VRAim::Inside({local_o[0],local_o[1],local_o[2]},{local_d[0],local_d[1],local_d[2]},{cw,ch,fx,fy});
++  sample.u=scene.picture.u;sample.v=scene.picture.v;sample.on_screen=scene.picture.on_screen;
++  sample.scene_point=scene.point;sample.scene_point_valid=std::isfinite(scene.point.x+scene.point.y+scene.point.z)&&scene.point.z<-.001f;sample.scene_hit=scene.geometry;
++ }
++
 + sample.a=button(gun_a,right_hand); sample.b=button(gun_b,right_hand); sample.grip=scalar(gun_squeeze)>.5f;
 + PS2VRGun::Publish(sample);
 + loc={XR_TYPE_SPACE_LOCATION};
@@ -2336,6 +2471,7 @@ new file mode 100644
 +  const float cw=Env("PCSX2_INSIDE_CANVAS_WIDTH",640),ch=Env("PCSX2_INSIDE_CANVAS_HEIGHT",448);
 +  const float fx=Env("PCSX2_STEREO_FOCAL_PX",320),fy=Env("PCSX2_INSIDE_FY",fx*ch/(cw*.75f));
 +  point[0]=(sample.u-.5f)*cw/fx*distance;point[1]=(.5f-sample.v)*ch/fy*distance;point[2]=-distance;
++  if(sample.scene_point_valid) {point[0]=sample.scene_point.x;point[1]=sample.scene_point.y;point[2]=sample.scene_point.z;}
 +  origin=inside_origin;
 + }
 + const auto transform=projection*view_matrix*origin;
@@ -2666,7 +2802,7 @@ diff --git a/pcsx2/GS/PS2VRInside.h b/pcsx2/GS/PS2VRInside.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRInside.h
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,75 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +#pragma once
 +#include <array>
@@ -2691,6 +2827,13 @@ new file mode 100644
 +};
 +inline std::mutex packet_mutex;
 +inline Packet pending_packet, latched_packet;
++// GS-thread only. Map a render-target pixel through the original scanout into
++// the game picture's canvas; reconstruction and its inverse must include crop,
++// display offsets and interlaced scaling, rather than assuming identity.
++inline std::array<float,4> raster{1,1,0,0};
++inline void SetRaster(float sx,float sy,float bx,float by) {
++ if(std::isfinite(sx+sy+bx+by)&&sx>0&&sy>0)raster={sx,sy,bx,by};
++}
 +inline float Env(const char* name,float fallback)
 +{
 + const char* value=std::getenv(name); if (!value) return fallback;
@@ -2739,7 +2882,7 @@ diff --git a/pcsx2/Input/PS2VRGun.h b/pcsx2/Input/PS2VRGun.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/Input/PS2VRGun.h
-@@ -0,0 +1,78 @@
+@@ -0,0 +1,95 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +#pragma once
 +#include <atomic>
@@ -2753,8 +2896,9 @@ new file mode 100644
 +#include <string>
 +#include <vector>
 +#include "GS/PS2VRAim.h"
++#include "GS/PS2VRInside.h"
 +namespace PS2VRGun {
-+struct Sample { float u=0.5f, v=0.5f, trigger=0; bool on_screen=false, active=false, a=false, b=false, grip=false, controls_active=false, select=false, start=false, spare_start=false; };
++struct Sample { PS2VRAim::V scene_point;bool scene_point_valid=false,scene_hit=false;float u=0.5f, v=0.5f, trigger=0; bool on_screen=false, active=false, a=false, b=false, grip=false, controls_active=false, select=false, start=false, spare_start=false; };
 +inline std::mutex mailbox_mutex;
 +inline Sample mailbox;
 +inline std::chrono::steady_clock::time_point published_at;
@@ -2787,6 +2931,22 @@ new file mode 100644
 +  for (const auto& e:events) if (now>=e.seconds && now<e.seconds+0.25) {
 +   const auto hit=PS2VRAim::Intersect({}, {(e.u-.5f)*5,(.5f-e.v)*3.75f,-2.5f},{0,0,-2.5f},{},5,3.75f);
 +   s.u=hit.u; s.v=hit.v; s.on_screen=hit.on_screen; s.trigger=e.trigger; s.active=true;
++   if(PS2VRInside::Enabled()) {
++    const float cw=PS2VRInside::Env("PCSX2_INSIDE_CANVAS_WIDTH",640),ch=PS2VRInside::Env("PCSX2_INSIDE_CANVAS_HEIGHT",448);
++    const float fx=PS2VRInside::Env("PCSX2_STEREO_FOCAL_PX",320),fy=PS2VRInside::Env("PCSX2_INSIDE_FY",fx*ch/(cw*.75f));
++    const float yaw=PS2VRInside::Env("PCSX2_INSIDE_FAKE_YAW_DEG",0)*.017453292519943295f;
++    const PS2VRAim::Q head{0,std::sin(yaw*.5f),0,std::cos(yaw*.5f)};
++    const char* script_space=std::getenv("PCSX2_VR_GUN_SCRIPT_SPACE");
++    const bool head_space=script_space && std::string(script_space)=="head";
++    const PS2VRAim::V origin=head_space ? PS2VRAim::Rotate(head,{.12f,-.13f,-.42f}) : PS2VRAim::V{};
++    PS2VRAim::V direction{(e.u-.5f)*cw/fx,(.5f-e.v)*ch/fy,-1};
++    if(head_space)direction=PS2VRAim::Rotate(head,direction);
++    else direction=direction*100.f-origin;
++    const auto scene=PS2VRAim::Inside(origin,direction,{cw,ch,fx,fy});
++    s.u=scene.picture.u;s.v=scene.picture.v;s.on_screen=scene.picture.on_screen;
++    s.scene_point=scene.point;s.scene_point_valid=std::isfinite(scene.point.x+scene.point.y+scene.point.z)&&scene.point.z<-.001f;s.scene_hit=scene.geometry;
++   }
++
 +  }
 + }
 +
