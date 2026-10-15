@@ -88,7 +88,9 @@ roots, RetroArch `thumbnails/<playlist>/Named_*` using normalized titles, PCSX2
 `covers/<serial>` (also a configured covers directory directly), then generated title/manufacturer art using hub colours. Regional cover serials must come from the bundled public serial-to-game index; separators may be normalized, but titles/filenames are never guessed. Generated logo/wheel output is transparent.
 Corrupt or oversize images fall through. Decode reads in place; thumbnail cache
 keys include source path/size/mtime and requested size under `user/cache/art/`.
-There is no network art fetch or account access. Every requested shape has a
+This resolver makes no network request and uses no account. The optional
+download of D66 ([hub/ARTWORK.md](../hub/ARTWORK.md)) is separate, off by default
+and runs only when the user asks. Every requested shape has a
 generated QImage fallback. MAME artwork ZIP bezel decoding and local video
 playback remain separate future media features.
 

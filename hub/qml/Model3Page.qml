@@ -68,7 +68,7 @@ Item {
  readonly property var focusedRow:{const shelf=shelves[Math.min(shelfIndex,shelves.length-1)];return shelf?shelf.items[Math.min(tileIndex,shelf.items.length-1)]||({}):({})}
  function hardwareLabel(row){return {dreamcast:"Sega Dreamcast",system22:"Namco System 22",model2:"Sega Model 2",ps2:"PlayStation 2",catalog:"On this PC"}[row.system]||"Sega Model 3"}
  function badgeOf(row){return row.problem?"Not ready":row.warning?"Read first":row.accepted?"Accepted in the headset":""}
- function tileOf(row){const art=row.system==="catalog"&&row.card?(row.card.artBanner||row.card.artCard||""):"";return {title:row.title,system:row.system||"model3",art:art,badge:badgeOf(row),badgeColour:row.accepted&&!row.problem&&!row.warning?readyColour:needsColour}}
+ function tileOf(row){const art=row.art||(row.system==="catalog"&&row.card?(row.card.artBanner||row.card.artCard||""):"");return {title:row.title,system:row.system||"model3",art:art,badge:badgeOf(row),badgeColour:row.accepted&&!row.problem&&!row.warning?readyColour:needsColour}}
  function moveFocus(dShelf,dTile){
   if(!shelves.length)return
   shelfIndex=Math.max(0,Math.min(shelves.length-1,shelfIndex+dShelf))
@@ -88,7 +88,7 @@ Item {
  Keys.onSpacePressed:primaryAction(focusedRow)
  ColumnLayout {anchors.fill:parent;spacing:0;visible:!page.selectedId
   HeroBanner {id:hero;objectName:"model3Hero";Layout.fillWidth:true;Layout.preferredHeight:page.height*(page.vrOverlayMode?0.42:0.46);vrOverlayMode:page.vrOverlayMode
-   system:page.focusedRow.system||"model3";art:page.tileOf(page.focusedRow).art
+   system:page.focusedRow.system||"model3";art:page.focusedRow.heroArt||page.tileOf(page.focusedRow).art
    eyebrow:(page.hardwareLabel(page.focusedRow)+(page.focusedRow.year?"  ·  "+page.focusedRow.year:"")).toUpperCase()
    title:page.focusedRow.title||"VR games"
    meta:page.setupProblem||page.focusedRow.problem||page.focusedRow.warning||(page.focusedRow.system==="catalog"?"Set up and ready on this PC.":page.focusedRow.title?"Found on this PC. Choose how you see it, then start.":"Add your systems in Set-up.")
@@ -112,13 +112,16 @@ Item {
  // A game's own page: the hero with Start and Back, then how to see it, then what it needs.
  Loader {anchors.fill:parent;active:!!page.selectedId;sourceComponent:Component{ColumnLayout {spacing:0
   HeroBanner {Layout.fillWidth:true;Layout.preferredHeight:page.height*(page.vrOverlayMode?0.4:0.44);vrOverlayMode:page.vrOverlayMode
-   system:page.selected.system||"model3"
+   system:page.selected.system||"model3";art:page.selected.heroArt||""
    eyebrow:(page.hardwareLabel(page.selected)+(page.selected.year?"  ·  "+page.selected.year:"")).toUpperCase()
    title:page.selected.title||""
    meta:page.selected.problem||(page.selected.warning?"Before you start: "+page.selected.warning:"Found on this PC. The view you choose below is remembered for this game.")
    metaColour:page.selected.problem||page.selected.warning?page.needsColour:Theme.get("color.text.muted")
    PillButton {objectName:"model3Start";targetHeight:page.vrOverlayMode?56:48;text:"Start "+(page.selected.title||"")+" · "+(page.selected.viewLabel||"");neon:true;accent:page.selected.problem?page.needsColour:page.readyColour;vrOverlayMode:page.vrOverlayMode;enabled:!page.selected.problem&&page.idle;onClicked:page.play(page.selected)}
    PillButton {objectName:"model3Back";targetHeight:page.vrOverlayMode?56:48;text:"‹ Back";vrOverlayMode:page.vrOverlayMode;onClicked:page.selectedId=""}
+   // Only with the artwork setting on; otherwise it says where to turn it on, and asks nothing.
+   extra:[PillButton {objectName:"model3GetArt";text:uiController.artworkBusy?"Getting artwork…":"Get artwork";vrOverlayMode:page.vrOverlayMode;enabled:!uiController.artworkBusy
+    onClicked:uiController.getArtwork(page.selected.artId||page.selected.id)}]
   }
   Text {objectName:"model3Title";visible:false;text:page.selected.title||""}
   Text {Layout.leftMargin:page.vrOverlayMode?28:40;Layout.topMargin:4;text:"How you see it";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?22:19}

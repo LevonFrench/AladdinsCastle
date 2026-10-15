@@ -8,6 +8,8 @@ This page covers the art the Hub shows for the 413 catalogued games (cards, bann
 
 No scraping in v1. The Hub uses art already on the user's disk, then generated fallback art. Scrapers (ScreenScraper, SteamGridDB, others in this doc) are deferred.
 
+**Since 2026-10-15 (D66):** an optional download, off by default and only when the user asks, from the libretro thumbnail server and then SteamGridDB with the user's own key. Downloaded pictures sit in `user/art-downloaded/<id>/` and come after every local source below. See [hub/ARTWORK.md](../hub/ARTWORK.md).
+
 Resolution order per game (first hit wins, per asset type):
 1. `user/art/<id>/` (art the user dropped in for this game).
 2. **Configured local art folders**, matched by the keys the media scanner already knows:

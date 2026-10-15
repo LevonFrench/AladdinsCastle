@@ -177,6 +177,18 @@ int main(int argc,char **argv){
     // Diagnostic, for pictures only: the now-playing screen with a sample session; nothing is started.
     if(qEnvironmentVariableIsSet("AC_UI_DEMO_NOWPLAYING"))QTimer::singleShot(400,&ui,[&ui]{
         ui.launchOtherQueued("model3-scud","screen","Scud Race · Screen","Home = set straight ahead. 1 = start, 3 = coin, hold Y for 3 seconds to quit.",QString());ui.launchStarted("model3-scud");});
+    // Diagnostic: Get artwork for these games ("id,id"), one after another, as their pages' buttons do.
+    // It still needs the setting on. With AC_UI_GET_ARTWORK_QUIT the Hub quits when the last one ends.
+    if(qEnvironmentVariableIsSet("AC_UI_GET_ARTWORK")){
+        auto queue=std::make_shared<QStringList>(qEnvironmentVariable("AC_UI_GET_ARTWORK").split(',',Qt::SkipEmptyParts));
+        QObject::connect(&ui,&ac::UiController::artworkChanged,&ui,[&ui,&out,queue]{
+            if(ui.artworkBusy())return;
+            out<<ui.artworkStatus()<<'\n';out.flush();
+            if(!queue->isEmpty())ui.getArtwork(queue->takeFirst());
+            else if(qEnvironmentVariableIsSet("AC_UI_GET_ARTWORK_QUIT"))QTimer::singleShot(0,qApp,[]{QCoreApplication::quit();});
+        });
+        QTimer::singleShot(800,&ui,[&ui,queue]{if(!queue->isEmpty())ui.getArtwork(queue->takeFirst());});
+    }
     // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.
     if(qEnvironmentVariableIsSet("AC_UI_SETUP_SCAN"))QTimer::singleShot(500,&ui,[&ui]{ui.scanSetup();});
     ac::Json diagnosticFinished=ac::Json::array();

@@ -7,13 +7,32 @@ ScrollView{
  property bool vrOverlayMode:false
  readonly property real side:vrOverlayMode?28:40
  readonly property bool catalogOn:(uiSettings.values,uiSettings.get("showAllGames",false))===true
+ readonly property bool artOn:(uiSettings.values,uiSettings.get("artDownload",false))===true
+ readonly property var artSystems:[{key:"model3",label:"Sega Model 3"},{key:"model2",label:"Sega Model 2"},{key:"system22",label:"Namco System 22"},{key:"dreamcast",label:"Sega Dreamcast"},{key:"ps2",label:"PlayStation 2"}]
  clip:true
  contentWidth:availableWidth
  Column{x:page.side;width:Math.min(page.availableWidth-2*page.side,880);spacing:12;topPadding:page.vrOverlayMode?20:28;bottomPadding:28
   Text{text:"Settings";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:900;font.pixelSize:page.vrOverlayMode?40:36}
-  Text{width:parent.width;wrapMode:Text.Wrap;bottomPadding:8;text:"Settings stay in the Hub's own folder on this PC. The Hub reads local art only.";color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?18:16}
+  Text{width:parent.width;wrapMode:Text.Wrap;bottomPadding:8;text:"Settings stay in the Hub's own folder on this PC. Pictures come from this PC unless you turn on artwork downloads below.";color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?18:16}
   SettingRow{objectName:"settingShowAll";width:parent.width;vrOverlayMode:page.vrOverlayMode;on:page.catalogOn;label:"Show games without a setup"
    detail:"Off: only games that can be played on this PC are listed. On: the whole catalog comes back, with its filters, search and order.";onClicked:uiSettings.set("showAllGames",!on)}
+  SettingRow{objectName:"settingArtDownload";width:parent.width;vrOverlayMode:page.vrOverlayMode;on:page.artOn;label:"Download artwork from the internet"
+   detail:"Off: the Hub asks the internet for nothing and shows only pictures on this PC. On: Get artwork, on a game's page or for a whole system below, fetches box art, title screens and screenshots from the libretro thumbnail server, then from SteamGridDB if you add your own key. Nothing downloads by itself. Pictures are kept in the Hub's own folder, and your own pictures always come first.";onClicked:uiSettings.set("artDownload",!on)}
+  Column{objectName:"artDownloadOptions";visible:page.artOn;width:parent.width;spacing:10;leftPadding:page.vrOverlayMode?20:16
+   Text{text:"SteamGridDB key (optional)";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?18:15}
+   TextField{id:steamGridKey;objectName:"settingSteamGridKey";width:Math.min(parent.width-parent.leftPadding,520);height:page.vrOverlayMode?52:40;echoMode:TextInput.Password;selectByMouse:true
+    placeholderText:"Your own key, from SteamGridDB: Preferences, API";Accessible.name:"SteamGridDB API key";text:(uiSettings.values,uiSettings.get("steamGridDbKey",""))
+    color:Theme.get("color.text.primary");placeholderTextColor:Theme.get("color.text.faint");font.family:Theme.get("font.family");font.pixelSize:page.vrOverlayMode?16:14
+    onEditingFinished:if(text.trim()!==uiSettings.get("steamGridDbKey",""))uiSettings.set("steamGridDbKey",text.trim())
+    leftPadding:16;rightPadding:16
+    background:Rectangle {radius:Theme.get("radius.pill");color:Theme.get("color.surface.pill");border.width:steamGridKey.activeFocus?2:0;border.color:Theme.get("color.glass.ring")}
+    onActiveFocusChanged:if(activeFocus&&page.vrOverlayMode&&typeof overlayHost!=="undefined")overlayHost.requestKeyboard(steamGridKey)}
+   Text{width:parent.width-parent.leftPadding;wrapMode:Text.Wrap;text:"Kept in the Hub's settings on this PC and sent only to SteamGridDB. Without a key, only libretro is asked.";color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?15:13}
+   Flow{width:parent.width-parent.leftPadding;spacing:10;topPadding:4
+    Repeater{model:page.artSystems
+     PillButton{required property var modelData;objectName:"artGet_"+modelData.key;text:"Get artwork · "+modelData.label;vrOverlayMode:page.vrOverlayMode;enabled:!uiController.artworkBusy;onClicked:uiController.getArtwork("system:"+modelData.key)}}}
+   UiText{objectName:"artworkStatus";width:parent.width-parent.leftPadding;visible:text.length>0;text:uiController.artworkStatus;font.pixelSize:page.vrOverlayMode?15:13}
+  }
   Repeater{model:[{key:"reduceMotion",label:"Reduce motion",detail:"Rows and pictures change without moving."},{key:"cheapEffects",label:"Use cheaper card effects",detail:"Plainer cards, lighter on the graphics card."},{key:"scanOnStartup",label:"Scan remembered folders on startup",catalog:true},{key:"bannerListDisabled",label:"Hide list banner",catalog:true},{key:"bannerLibDisabled",label:"Hide library banner",catalog:true},{key:"recentlyPlayedHidden",label:"Hide recently played",catalog:true}].filter(m=>!m.catalog||page.catalogOn)
    SettingRow{required property var modelData;width:parent.width;vrOverlayMode:page.vrOverlayMode;label:modelData.label;detail:modelData.detail||""
     on:Object.keys(uiSettings.values).length>=0&&(uiSettings.values,uiSettings.get(modelData.key,modelData.key==="cheapEffects"))===true;onClicked:uiSettings.set(modelData.key,!on)}}

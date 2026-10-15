@@ -19,6 +19,8 @@ class UiSettings : public QObject {
  Q_INVOKABLE QString acceptedOn(const QString &id,const QString &title) const;
  Q_INVOKABLE void reloadAccepted();
  QString acceptedPath() const;
+ // The Hub's user folder, where the settings live.
+ QString userDir() const;
  // Writes the empty list with its instructions when there is none yet.
  bool createAcceptedList() const;
  signals: void changed(); void error(const QString &message); void gameSaved(const QString &id,const QVariantMap &value);

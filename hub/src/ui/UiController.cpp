@@ -7,6 +7,7 @@
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
 #include "core/pinball/Gamepad.h"
+#include "core/art/Download.h"
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -319,6 +320,7 @@ QVariantList UiController::otherGames()const{
   row["view"]=view;row["views"]=views;
   row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
   row["accepted"]=m_settings->acceptedOn(row.value("id").toString(),row.value("title").toString());
+  row["artId"]=row.value("id");addArt(row,row.value("id").toString());
   rows<<row;
  };
  // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
@@ -382,9 +384,40 @@ QVariantList UiController::model3Games()const{
   // Four separate facts: in the Hub's list, launch line known, found on this PC, accepted by the owner.
   row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
   row["accepted"]=m_settings->acceptedOn("model3-"+id,row.value("title").toString());
+  row["artId"]="model3-"+id;addArt(row,"model3-"+id);
   rows<<row;
  }
  return rows;
+}
+void UiController::addArt(QVariantMap &row,const QString &artId)const{
+ const auto root=m_settings->userDir();
+ const auto tile=art::Downloader::pictureFor(root,artId,"tile"),hero=art::Downloader::pictureFor(root,artId,"hero");
+ row["art"]=tile.isEmpty()?QString():QUrl::fromLocalFile(tile).toString();
+ row["heroArt"]=hero.isEmpty()?row.value("art").toString():QUrl::fromLocalFile(hero).toString();
+}
+void UiController::setArtwork(bool busy,const QString &status){
+ const bool done=m_artworkBusy&&!busy;m_artworkBusy=busy;m_artworkStatus=status;emit artworkChanged();message(status);
+ if(done)emit model3Changed(); // New pictures show at once.
+}
+void UiController::getArtwork(const QString &scope){
+ if(m_settings->get("artDownload",false).toBool()!=true){
+  setArtwork(false,"Artwork download is off. Turn on \"Download artwork from the internet\" in Settings first.");return;}
+ if(m_artworkBusy){message("Artwork is already being fetched.");return;}
+ const auto system=scope.startsWith("system:")?scope.mid(7):QString();
+ QVariantList targets;
+ auto rows=model3Games();for(auto &value:rows){auto row=value.toMap();row["system"]="model3";value=row;}
+ rows+=otherGames();
+ for(const auto &value:rows){
+  const auto row=value.toMap();const auto id=row.value("artId",row.value("id")).toString();
+  if(system.isEmpty()?id!=scope:row.value("system")!=system)continue;
+  // The game's own file and folder names match libretro's disc names best; they stay on this PC.
+  QStringList names;const QFileInfo file(row.value("file").toString());
+  if(!row.value("file").toString().isEmpty())names<<file.completeBaseName()<<file.dir().dirName();
+  targets<<QVariantMap{{"id",id},{"system",row.value("system")},{"title",row.value("title")},{"names",names}};
+ }
+ if(targets.isEmpty()){message("No game to fetch artwork for.");return;}
+ setArtwork(true,QString("Artwork: asking for %1 game%2…").arg(targets.size()).arg(targets.size()==1?"":"s"));
+ emit artworkRequested(targets);
 }
 void UiController::chooseModel3View(const QString &id,const QString &view){
  if(model3::viewLabel(view).isEmpty())return;

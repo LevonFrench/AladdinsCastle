@@ -187,6 +187,16 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     // A PS2 game has no window to close: both Exit and Stop ask it to quit through its stop file, and the Hub waits.
     connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(true))launcher_.stop();});
     connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(false))launcher_.requestClose();});
+    // Artwork from the internet: read from the settings at each request, so off is off at once.
+    artDownloader_=std::make_unique<art::Downloader>(settings_->userDir(),[this]{return settings_->get("artDownload",false).toBool();},
+        [this]{return settings_->get("steamGridDbKey",QString()).toString();},this);
+    connect(ui_,&UiController::artworkRequested,this,[this](const QVariantList &rows){
+        QVector<art::Target> targets;
+        for(const auto &value:rows){const auto row=value.toMap();targets<<art::Target{row.value("id").toString(),row.value("system").toString(),row.value("title").toString(),row.value("names").toStringList()};}
+        if(!artDownloader_->start(targets))ui_->setArtwork(false,artDownloader_->busy()?"Artwork is already being fetched.":"Artwork download is off. Turn it on in Settings first.");
+    });
+    connect(artDownloader_.get(),&art::Downloader::progress,this,[this](const QString &text){ui_->setArtwork(true,text);});
+    connect(artDownloader_.get(),&art::Downloader::finished,this,[this](const QString &summary,const QStringList &){ui_->setArtwork(false,summary);});
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
     connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int code,const QString &error,const QString &){

@@ -137,6 +137,14 @@ class UiController : public QObject {
  Q_INVOKABLE void chooseModel3View(const QString &id,const QString &view);
  Q_INVOKABLE void playModel3(const QString &id);
  Q_INVOKABLE void refreshModel3(){emit model3Changed();}
+ // Optional artwork from the internet (D66): only when the setting is on, and only when asked.
+ // scope is a game's id ("model2-vcop2"; Model 3 games as "model3-<id>") or "system:<system>".
+ Q_INVOKABLE void getArtwork(const QString &scope);
+ Q_PROPERTY(bool artworkBusy READ artworkBusy NOTIFY artworkChanged)
+ Q_PROPERTY(QString artworkStatus READ artworkStatus NOTIFY artworkChanged)
+ bool artworkBusy()const{return m_artworkBusy;}
+ QString artworkStatus()const{return m_artworkStatus;}
+ void setArtwork(bool busy,const QString &status);
  void launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable);
  // Games of the other systems, in the same row shape as model3Games plus system,
  // pill, views and warning. Ids carry the system: "dreamcast-hotd2", "system22-timecris".
@@ -219,6 +227,9 @@ class UiController : public QObject {
  void steamVrRunningChanged();
  void stopEverythingRequested();
  void model3Changed();
+ void artworkChanged();
+ // Each target: id, system, title and names (the game's own file and folder names on this PC).
+ void artworkRequested(const QVariantList &targets);
  void catalogReadyChanged();
  void setupChanged();
  void steamVrRequested();
@@ -244,6 +255,9 @@ class UiController : public QObject {
  GameListModel *m_games; FilterSortModel *m_filter; UiSettings *m_settings;bool m_steamVrRunning=false;QVariantMap m_pinballArt;
  QString m_detailId,m_variantId,m_status; QVariantList m_events; QVariantMap m_recovery;
  int m_artRevision=0;
+ bool m_artworkBusy=false;QString m_artworkStatus;
+ // A row's pictures: the user's own art for it first, then a downloaded one.
+ void addArt(QVariantMap &row,const QString &artId)const;
  bool m_artProviderReady=false;
  bool m_installing=false,m_scanning=false;
  QVariantMap m_nowPlaying,m_lastSession;

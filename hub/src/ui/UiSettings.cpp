@@ -31,6 +31,7 @@ toml::table table(const QVariantMap &values) {
  } return t;
 }
 }
+QString UiSettings::userDir() const{return QFileInfo(m_path).absolutePath();}
 UiSettings::UiSettings(QString userDir,QObject *parent):QObject(parent),m_path(QDir(userDir).filePath("hub-settings.toml")) {
  if(QFile::exists(acceptedPath()))try{m_accepted=jsonVariant(CatalogLoader::parseToml(acceptedPath()).value("accepted",Json::object())).toMap();}catch(...){}
  if(QFile::exists(m_path))try{auto data=CatalogLoader::parseToml(m_path);m_values=jsonVariant(data.value("ui",Json::object())).toMap();m_games=jsonVariant(data.value("game",Json::object())).toMap();}catch(...) {emit error("Settings could not be read; defaults are in use.");}

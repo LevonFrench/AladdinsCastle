@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
 #include "core/art/Art.h"
+#include "core/art/Download.h"
 #include "core/scan/ScanController.h"
 #include "core/install/Install.h"
 #include "core/launch/Launch.h"
@@ -54,6 +55,8 @@ public:
     Q_INVOKABLE bool confirmRemoval(bool removeSteam=false);
     const Json &bindings() const { return bindings_; }
     launch::LaunchService *launcher() { return &launcher_; }
+    // The optional artwork download; the tests give it a stand-in network.
+    art::Downloader *artDownloader() { return artDownloader_.get(); }
     QVariantList gunRoomModels()const{return gunRoomModels_;}
     bool gunRoomAvailable()const{return gunRoomAvailable_;}
     QString gunRoomReason()const{return gunRoomReason_;}
@@ -143,6 +146,7 @@ private:
     // Model 2 quits cleanly through a Hub-owned stop file: the viewer asks MAME to exit, which saves its
     // NVRAM and settings. Stop forces both programs only if nothing has ended well after that.
     bool askModel2ToQuit(bool forceLater);
+    std::unique_ptr<art::Downloader> artDownloader_;
     QString model2StopFile_;quint64 model2Session_=0;
 };
 }

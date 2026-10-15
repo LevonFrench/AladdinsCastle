@@ -277,6 +277,24 @@ private slots:
     QCOMPARE(QDir(sets).entryList(QDir::Files,QDir::Name),QStringList{"vcop2.zip"});
     QVERIFY(QDir(build+"/runtime").isEmpty());QVERIFY(!QFileInfo::exists(build+"/captures"));
  }
+ // Get artwork in the Hub: with the setting off nothing reaches the network; on, the game is asked for.
+ void artworkAsksNothingWhileOff(){
+    struct Counting final:ac::art::Fetcher{QList<QUrl> urls;void get(const QNetworkRequest &request,std::function<void(int,QByteArray)> done)override{urls<<request.url();QTimer::singleShot(0,[done]{done(404,{});});}};
+    QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("my sets"));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2GameFolder",t.filePath("my sets"));
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    auto network=std::make_shared<Counting>();services.artDownloader()->setFetcher(network);services.artDownloader()->setInterval(0);
+    ui.getArtwork("system:model2");ui.getArtwork("model2-vcop2");QTest::qWait(300);
+    QVERIFY(network->urls.isEmpty());QVERIFY(!ui.artworkBusy());QVERIFY(ui.artworkStatus().contains("Settings"));
+    settings.set("artDownload",true);
+    ui.getArtwork("model2-vcop2");QVERIFY(ui.artworkBusy());
+    QTRY_VERIFY_WITH_TIMEOUT(!ui.artworkBusy(),5000);
+    // libretro's three MAME folders were asked for; no key, so not SteamGridDB.
+    QCOMPARE(network->urls.size(),3);for(const auto &url:network->urls)QCOMPARE(url.host(),QString("thumbnails.libretro.com"));
+    QVERIFY(ui.artworkStatus().contains("failed"));
+    settings.set("artDownload",false);network->urls.clear();ui.getArtwork("system:model2");QTest::qWait(200);QVERIFY(network->urls.isEmpty());
+ }
  // Exit and Stop ask Model 2 to quit through its stop file, so MAME saves; nothing is forced.
  void model2QuitsThroughItsStopFile(){
     QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");
