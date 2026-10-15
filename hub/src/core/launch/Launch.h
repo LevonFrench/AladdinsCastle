@@ -55,6 +55,12 @@ public:
   bool busy() const { return playing() || completing_ || !persistence_.isEmpty() || helper_.state() != QProcess::NotRunning; }
   bool start(const Request &request);
   Q_INVOKABLE void stop();
+  // What the Hub started, for diagnostics and the launch proof.
+  qint64 processId() const { return process_.processId(); }
+  QString processProgram() const { return process_.program(); }
+  qint64 companionProcessId() const { return helper_.processId(); }
+  bool childRunning() const { return process_.state() == QProcess::Running; }
+  bool companionRunning() const { return helper_.state() == QProcess::Running; }
   Q_INVOKABLE void requestClose();
   void
   setRuntimeStateSource(std::function<RuntimeState(const QString &)> source);

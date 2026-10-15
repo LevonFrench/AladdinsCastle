@@ -344,6 +344,11 @@ class UiTest:public QObject {
   QVERIFY(ui->nowPlaying()["stopping"].toBool());QVERIFY(softwareFrame(window));QVERIFY(one("nowPlayingPhase")->property("text").toString().startsWith("Stopping: "));
   ui->launchFinished("synthetic-game","The game stopped unexpectedly\nsynthetic first line\nsynthetic last line",3);
   QCOMPARE(ui->lastSession()["outcome"].toString(),QString("stopped"));
+  // A stop the player asked for is not reported as a crash on the status line either.
+  QVERIFY(ui->status().endsWith("was stopped."));QVERIFY(!ui->status().contains("unexpectedly"));
+  // A queued game is named from the start, never as another game for a moment.
+  {QSignalSpy cards(ui.get(),SIGNAL(nowPlayingChanged()));ui->launchOtherQueued("synthetic-game","flat","Synthetic title","hint",QString());
+   QCOMPARE(cards.size(),1);QCOMPARE(ui->nowPlaying()["title"].toString(),QString("Synthetic title"));ui->launchFinished("synthetic-game",QString(),0);}
   // A crash, not asked for: the exit code and the end of the game's output.
   ui->launchQueued("synthetic-game","flat",QString());QVERIFY(ui->lastSession().isEmpty());ui->launchStarted("synthetic-game");
   ui->launchFinished("synthetic-game","The game stopped unexpectedly\nsynthetic first line\nsynthetic last line",3);

@@ -8,6 +8,7 @@
 #include "core/install/Support.h"
 #include "core/launch/Launch.h"
 #include "app/HubServices.h"
+#include "app/LaunchProof.h"
 #include "overlay/OverlayHost.h"
 #include "overlay/CompositorCapture.h"
 #include "overlay/SpikeState.h"
@@ -165,6 +166,8 @@ int main(int argc,char **argv){
         ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball();
     });
     else if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});
+    // Diagnostic: one game started and ended through the Hub, written to AC_LAUNCH_PROOF.
+    if(const auto proof=ac::launchProofOptions();!proof.output.isEmpty())ac::runLaunchProof(proof,services,ui);
     // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.
     if(qEnvironmentVariableIsSet("AC_UI_SETUP_SCAN"))QTimer::singleShot(500,&ui,[&ui]{ui.scanSetup();});
     ac::Json diagnosticFinished=ac::Json::array();

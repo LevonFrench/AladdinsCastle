@@ -97,6 +97,7 @@ class UiController : public QObject {
  QVariantMap lastSession()const{return m_lastSession;}
  Q_INVOKABLE void dismissLastSession(){m_lastSession.clear();emit nowPlayingChanged();}
  Q_INVOKABLE void launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable);
+ void queueSession(const QString &id,const QString &variant,const QString &closeUnavailable);
  Q_INVOKABLE void launchRoomQueued(const QString &model,const QString &hand,bool calibrateGrip=false);
  void launchClosing();
  void cancelPendingRestart(){m_restartAfterClose=false;}

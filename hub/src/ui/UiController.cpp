@@ -248,7 +248,7 @@ void UiController::favouritePinball(){const auto id=m_pinballSelection.value("id
 void UiController::planPinball(){if(m_pinballSelection.isEmpty())return;emit pinballPlanRequested(m_pinballSelection.value("path").toString(),m_settings->get("pinballExecutable",QString()).toString(),m_pinballSelection.value("id").toString());}
 void UiController::playPinball(){if(!m_pinballSelection.isEmpty())emit pinballPlayRequested(m_pinballSelection.value("id").toString());}
 void UiController::launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable){
- launchQueued("pinball-"+row.value("id").toString(),"vpx",closeUnavailable);
+ queueSession("pinball-"+row.value("id").toString(),"vpx",closeUnavailable);
  m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");
  if(m_settings->get("pinballHeadset",true).toBool())m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table, Y exits and X opens the menu.";
  emit nowPlayingChanged();
@@ -331,7 +331,7 @@ QVariantList UiController::otherGames()const{
 void UiController::chooseGameView(const QString &id,const QString &view){auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();if(chosen.value(id)==view)return;chosen[id]=view;m_settings->set("gameViews",chosen);}
 void UiController::playOtherGame(const QString &id){for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}}
 void UiController::launchOtherQueued(const QString &id,const QString &view,const QString &title,const QString &hint,const QString &closeUnavailable){
- launchQueued(id,view,closeUnavailable);m_nowPlaying["title"]=title;if(!hint.isEmpty())m_nowPlaying["hint"]=hint;emit nowPlayingChanged();
+ queueSession(id,view,closeUnavailable);m_nowPlaying["title"]=title;if(!hint.isEmpty())m_nowPlaying["hint"]=hint;emit nowPlayingChanged();
 }
 void UiController::scanSetup(){
  if(m_setupScanning)return;
@@ -369,15 +369,16 @@ void UiController::playModel3(const QString &id){
  for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,row.value("view").toString());return;}}
 }
 void UiController::launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable){
- launchQueued("model3-"+id,view,closeUnavailable);
+ queueSession("model3-"+id,view,closeUnavailable);
  for(const auto &value:model3::games())if(value.toMap().value("id")==id)m_nowPlaying["title"]=value.toMap().value("title").toString()+" · "+model3::viewLabel(view);
  m_nowPlaying["hint"]="Home = set straight ahead. 1 = start, 3 = coin, Esc = quit. The picture is also on the PC monitor.";
  emit nowPlayingChanged();
 }
-void UiController::launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable){
+void UiController::launchQueued(const QString &id,const QString &variant,const QString &closeUnavailable){queueSession(id,variant,closeUnavailable);emit nowPlayingChanged();}
+// The card is filled in before it is first shown, so it never names another game for a moment.
+void UiController::queueSession(const QString &id,const QString &variant,const QString &closeUnavailable){
  m_restartAfterClose=false;m_lastSession.clear();
- m_nowPlaying={{"gameId",id},{"variantId",variant},{"title",game(id).value("title",QString("Pinball"))},{"running",false},{"closing",false},{"closeUnavailable",closeUnavailable}};
- emit nowPlayingChanged();
+ m_nowPlaying={{"gameId",id},{"variantId",variant},{"title",game(id).value("title",QString("The game"))},{"running",false},{"closing",false},{"closeUnavailable",closeUnavailable}};
 }
 void UiController::closeLaunch(){
  if(!m_nowPlaying.value("running").toBool()||m_nowPlaying.value("closing").toBool()||!m_nowPlaying.value("closeUnavailable").toString().isEmpty())return;
@@ -426,7 +427,8 @@ void UiController::launchFinished(const QString &id,const QString &error,int exi
   m_lastSession={{"gameId",id},{"title",title},{"outcome",outcome},{"text",text},{"details",lines.mid(qMax(qsizetype(0),lines.size()-6)).join('\n')},{"exitCode",exitCode}};
  }
  const auto variant=m_nowPlaying.value("variantId").toString();const bool restart=m_restartAfterClose&&error.isEmpty();
- m_restartAfterClose=false;m_nowPlaying.clear();emit nowPlayingChanged();clearDetailControlStates();message(error.isEmpty()?"Game closed.":error);
+ m_restartAfterClose=false;m_nowPlaying.clear();emit nowPlayingChanged();clearDetailControlStates();
+ const auto said=m_lastSession.value("text").toString();message(error.isEmpty()?"Game closed.":m_lastSession.value("outcome")=="stopped"?said:error);
  if(restart)emit playRequested(id,variant);
 }
 void UiController::applyRuntimeStates(const QVector<RuntimeState> &states){m_games->queueRuntimeStates(states);}
