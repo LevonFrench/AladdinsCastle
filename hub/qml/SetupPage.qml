@@ -17,34 +17,43 @@ Item {
  property var chosen:systems.filter(s=>s.chosen)
  property color good:Theme.get("color.state.ready_neon")
  property color warn:Theme.get("color.state.needs_neon")
- property int body:vrOverlayMode?18:15
+ property int body:vrOverlayMode?19:16
+ property int heading:vrOverlayMode?30:26
+ readonly property real side:vrOverlayMode?28:40
  property string pendingId:""
  // Leaving "Where it is" forwards accepts the suggested folders and reads them; the report page shows the result.
  function go(to){if(step===3&&to>step){uiController.acceptSetupGuesses();uiController.scanSetup()} if(to>=names.length){uiController.finishSetup();page.finished()}else step=Math.max(0,to)}
  function names_of(list){return Array.from(list||[]).map(e=>e.title).join(",  ")}
  FolderDialog {id:folder;title:"Choose the folder holding your own files";onAccepted:uiController.setSetupFolder(page.pendingId,uiController.localPath(selectedFolder))}
  FileDialog {id:program;title:"Choose the program";nameFilters:["Program (*.exe)","All files (*)"];onAccepted:uiController.setSetupProgram(page.pendingId,uiController.localPath(selectedFile))}
- component Tick:PillButton {property bool on:false;text:(on?"● ":"○ ")+label;property string label:"";selected:on;vrOverlayMode:page.vrOverlayMode}
+ component Tick:Button {id:tick;property bool on:false;property string label:"";readonly property bool selected:on;hoverEnabled:true;padding:10;leftPadding:12;rightPadding:16
+  implicitHeight:page.vrOverlayMode?56:44;Accessible.name:label;Accessible.checked:on
+  background:Rectangle {radius:Theme.get("radius.pill");color:tick.on?Theme.get("color.surface.pill"):Theme.get("color.surface.card");border.width:tick.activeFocus||(tick.hovered&&tick.enabled)?2:0;border.color:Theme.get("color.glass.ring")}
+  contentItem:Row {spacing:12
+   Rectangle {anchors.verticalCenter:parent.verticalCenter;width:page.vrOverlayMode?26:22;height:width;radius:6;color:tick.on?Theme.get("color.state.ready_neon"):"transparent";border.width:2;border.color:tick.on?Theme.get("color.state.ready_neon"):Theme.get("color.text.dim")
+    Canvas {anchors.fill:parent;visible:tick.on;onPaint:{const c=getContext("2d");c.reset();c.strokeStyle=Theme.get("color.surface.window");c.lineWidth=3;c.beginPath();c.moveTo(width*0.24,height*0.52);c.lineTo(width*0.43,height*0.72);c.lineTo(width*0.78,height*0.3);c.stroke()}}}
+   Text {anchors.verticalCenter:parent.verticalCenter;text:tick.label;color:tick.enabled?Theme.get("color.text.primary"):Theme.get("color.text.faint");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?18:15}}}
+ component Heading:Text {Layout.fillWidth:true;wrapMode:Text.Wrap;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:800;font.pixelSize:page.heading}
  component Para:UiText {Layout.fillWidth:true;font.pixelSize:page.body}
- ColumnLayout {anchors.fill:parent;spacing:12
+ ColumnLayout {anchors.fill:parent;anchors.leftMargin:page.side;anchors.rightMargin:page.side;anchors.topMargin:page.vrOverlayMode?16:24;anchors.bottomMargin:16;spacing:14
   RowLayout {spacing:8
-   UiText {text:"Set-up";font.pixelSize:24}
+   Text {text:"Set-up";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:900;font.pixelSize:page.vrOverlayMode?40:36;Layout.rightMargin:16}
    Repeater {model:page.names
-    PillButton {required property int index;required property string modelData;objectName:"setupStep"+index;text:(index+1)+"  "+modelData;selected:index===page.step;vrOverlayMode:page.vrOverlayMode;onClicked:page.go(index)}
+    PillButton {required property int index;required property string modelData;objectName:"setupStep"+index;text:(index+1)+"  "+modelData;neon:index===page.step;accent:Theme.get("color.text.primary");vrOverlayMode:page.vrOverlayMode;onClicked:page.go(index)}
    }
    Item {Layout.fillWidth:true}
   }
   ScrollView {id:scroll;Layout.fillWidth:true;Layout.fillHeight:true;clip:true;contentWidth:availableWidth
    StackLayout {width:scroll.availableWidth;currentIndex:page.step
     ColumnLayout {spacing:10
-     UiText {objectName:"setupWelcome";Layout.fillWidth:true;text:"Welcome to "+uiController.appName;font.pixelSize:22;color:Theme.get("color.text.primary")}
+     Heading {objectName:"setupWelcome";text:"Welcome to "+uiController.appName}
      Para {text:"The Hub starts arcade, pinball and console games in your headset, from one list."}
      Para {text:"It comes with no games. You show it where your own game files are."}
      Para {text:"Your files stay where they are. The Hub only reads those folders: it never moves, renames or changes anything in them."}
      Para {text:"The next steps ask whether to add the Hub to SteamVR, what you have, and where it is. You can skip any step and come back later from ··· then Set-up."}
     }
     ColumnLayout {spacing:10
-     UiText {Layout.fillWidth:true;text:page.steam.state==="added"?"The Hub is already added to SteamVR.":"Add the Hub to SteamVR so it appears in your dashboard?";font.pixelSize:20;color:page.steam.state==="added"?page.good:Theme.get("color.text.primary")}
+     Heading {text:page.steam.state==="added"?"The Hub is already added to SteamVR.":"Add the Hub to SteamVR so it appears in your dashboard?";color:page.steam.state==="added"?page.good:Theme.get("color.text.primary")}
      Para {visible:page.steam.state==="no-steam";color:page.warn;text:"Steam was not found on this PC, so there is nothing to add the Hub to yet."}
      RowLayout {spacing:8;visible:page.steam.state==="absent"
       PillButton {objectName:"setupSteamYes";text:"Yes, add it";neon:true;accent:page.good;vrOverlayMode:page.vrOverlayMode;onClicked:{uiSettings.set("setupSteam","yes");uiController.addToSteamVr()}}
@@ -52,7 +61,7 @@ Item {
      }
      Para {objectName:"setupSteamError";visible:!!page.steam.error;color:page.warn;text:"SteamVR did not add it: "+(page.steam.error||"")+" Start SteamVR first, then choose Yes again."}
      Para {text:"Adding it only tells SteamVR where the Hub is. It changes nothing else in Steam, and Not now leaves everything as it is."}
-     UiText {Layout.fillWidth:true;Layout.topMargin:8;text:"To use it in the headset";font.pixelSize:18;color:Theme.get("color.text.primary")}
+     Heading {Layout.topMargin:10;text:"To use it in the headset";font.pixelSize:page.heading-6}
      Para {text:"1.  Start SteamVR and put the headset on."}
      Para {text:"2.  Press the system button on a controller to open the dashboard."}
      Para {text:"3.  In the row of buttons along the bottom of the dashboard, choose "+uiController.appName+"."}
@@ -60,7 +69,7 @@ Item {
      Para {text:"If it does not show: start the Hub once more while SteamVR is running, or restart SteamVR."}
     }
     ColumnLayout {spacing:10
-     UiText {Layout.fillWidth:true;text:"What do you have?";font.pixelSize:20;color:Theme.get("color.text.primary")}
+     Heading {text:"What do you have?"}
      Para {text:"Tick what you own game files for. Under each are the systems the Hub can start today."}
      Repeater {model:[{id:"arcade",label:"Arcade"},{id:"pinball",label:"Pinball"},{id:"consoles",label:"Consoles"}]
       ColumnLayout {id:kind;required property var modelData;Layout.fillWidth:true;spacing:6
@@ -75,12 +84,12 @@ Item {
      }
     }
     ColumnLayout {spacing:10
-     UiText {Layout.fillWidth:true;text:"Where is it?";font.pixelSize:20;color:Theme.get("color.text.primary")}
+     Heading {text:"Where is it?"}
      Para {text:page.chosen.length?"One folder of your own files for each system, and the program that plays it. Leave any empty to skip it for now."+(page.vrOverlayMode?" Folders and programs are chosen on the desktop.":""):"Nothing is ticked on the page before, so there is nothing to find. Go back and tick what you have."}
      Repeater {model:page.chosen
-      Rectangle {id:card;required property var modelData;Layout.fillWidth:true;implicitHeight:inner.implicitHeight+20;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.color:Theme.get("color.line.strong")
-       ColumnLayout {id:inner;anchors.fill:parent;anchors.margins:10;spacing:6
-        UiText {text:card.modelData.title;font.pixelSize:17;color:Theme.get("color.text.primary")}
+      Rectangle {id:card;required property var modelData;Layout.fillWidth:true;implicitHeight:inner.implicitHeight+32;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.width:0
+       ColumnLayout {id:inner;anchors.fill:parent;anchors.margins:16;spacing:8
+        Text {text:card.modelData.title;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?21:18}
         Para {visible:!card.modelData.folderKey;text:"This program keeps its game files in a folder beside itself, so there is no folder to choose.";font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")}
         RowLayout {spacing:8;visible:!!card.modelData.folderKey
          UiText {Layout.fillWidth:true;objectName:"setupFolder-"+card.modelData.id;font.pixelSize:page.body-1;elide:Text.ElideMiddle;wrapMode:Text.NoWrap
@@ -101,7 +110,7 @@ Item {
     }
     ColumnLayout {spacing:10
      RowLayout {spacing:10
-      UiText {Layout.fillWidth:true;text:"What you have";font.pixelSize:20;color:Theme.get("color.text.primary")}
+      Heading {text:"What you have"}
       UiText {text:page.report.scanned?"Read on "+page.report.scanned:"";font.pixelSize:page.body-2;color:Theme.get("color.text.muted_detail")}
       PillButton {objectName:"setupRescan";text:uiController.setupScanning?"Reading…":"Rescan";enabled:!uiController.setupScanning;vrOverlayMode:page.vrOverlayMode;onClicked:uiController.scanSetup()}
      }
@@ -109,10 +118,10 @@ Item {
      Para {visible:!uiController.setupScanning&&!(page.report.systems||[]).length;text:"Nothing has been read yet. Tick what you have, say where it is, then use Rescan."}
      Para {visible:(page.report.systems||[]).length>0;text:"Found, can start: the game's files and its program are on this PC. Found, not right: the file is there but cannot be used as it is. Not found: the Hub knows the game but did not find it; only the name it looks for is shown. None of this says a game works well in the headset: only you can say that, in your list of accepted games."}
      Repeater {model:uiController.setupScanning?[]:(page.report.systems||[])
-      Rectangle {id:result;required property var modelData;objectName:"setupResult-"+modelData.id;Layout.fillWidth:true;implicitHeight:lines.implicitHeight+20;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.color:Theme.get("color.line.strong")
-       ColumnLayout {id:lines;anchors.fill:parent;anchors.margins:10;spacing:6
+      Rectangle {id:result;required property var modelData;objectName:"setupResult-"+modelData.id;Layout.fillWidth:true;implicitHeight:lines.implicitHeight+32;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.width:0
+       ColumnLayout {id:lines;anchors.fill:parent;anchors.margins:16;spacing:8
         RowLayout {spacing:14
-         UiText {text:result.modelData.title;font.pixelSize:17;color:Theme.get("color.text.primary")}
+         Text {text:result.modelData.title;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?21:18}
          UiText {text:"Found, can start "+result.modelData.ready.length;font.pixelSize:page.body;color:page.good}
          UiText {text:"Found, not right "+result.modelData.notRight.length;font.pixelSize:page.body;color:result.modelData.notRight.length?page.warn:Theme.get("color.text.muted_detail")}
          UiText {text:"Not found "+result.modelData.missing.length;font.pixelSize:page.body;color:Theme.get("color.text.muted_detail")}
@@ -134,9 +143,9 @@ Item {
    }
   }
   RowLayout {spacing:8
-   PillButton {objectName:"setupBack";text:"Back";enabled:page.step>0;vrOverlayMode:page.vrOverlayMode;onClicked:page.go(page.step-1)}
-   PillButton {objectName:"setupNext";text:page.step===page.names.length-1?"Finish":"Next";neon:true;accent:page.good;vrOverlayMode:page.vrOverlayMode;onClicked:page.go(page.step+1)}
-   PillButton {objectName:"setupSkipAll";text:"Skip set-up";visible:page.step<page.names.length-1;vrOverlayMode:page.vrOverlayMode;onClicked:{uiController.finishSetup();page.finished()}}
+   PillButton {objectName:"setupBack";targetHeight:page.vrOverlayMode?56:48;text:"‹ Back";enabled:page.step>0;vrOverlayMode:page.vrOverlayMode;onClicked:page.go(page.step-1)}
+   PillButton {objectName:"setupNext";targetHeight:page.vrOverlayMode?56:48;text:page.step===page.names.length-1?"Finish":"Next";neon:true;accent:page.good;vrOverlayMode:page.vrOverlayMode;onClicked:page.go(page.step+1)}
+   PillButton {objectName:"setupSkipAll";targetHeight:page.vrOverlayMode?56:48;text:"Skip set-up";visible:page.step<page.names.length-1;vrOverlayMode:page.vrOverlayMode;onClicked:{uiController.finishSetup();page.finished()}}
    Item {Layout.fillWidth:true}
   }
  }
