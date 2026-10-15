@@ -741,3 +741,22 @@ not universal residuals. The tight64-wide group does not identify the main
 camera and is not substituted. No fourth fit or Z model/profile promotion;
 generic state and stereo/INSIDE proof remain unaccepted. Only third-person
 chase view observed; first-person/cockpit and stereo effects unverified.
+
+### Wipeout Pulse measured race checkpoint
+
+Actual Racebox Talons Junction race supplies three training dumps plus held-out
+fourth. Main640-wide negative-Q fit is
+`Z=8.530184893672867-182357.79064065573*Q`,Qscale-1. Training
+161563/175029 within64,inlierRMS7.41891. Held-out44866/51774 within64
+(86.6574%),inlierRMS10.23815; ALL-row RMS49.75422,max328.47261.
+This is a dominant approximation, not a universal affine relation. Native
+traced replay confirms all6908 outside-guard world vertices use fitted-Z.
+Provisional units/m10,fx320,fy298.6667,canvas640x448,convergence1000m.
+
+Near ship90px/far gate1px; one completed replay PNG per eye has exact
+stereo-off/baseline RGBA and isolated HUD equality. Native launcher fake30,
+shared/SBS and exact-zero pass at3x1920x1344. Exhaust/blur cutouts or
+stippling and flat sparks remain; culling holes expected. Close/Far chase
+views confirmed in own options, first-person/cockpit unconfirmed. Physical
+headset,live FPS and whole-title effects untested. OutRun2 remains generic
+after its fit stop; XGIII is the last unattempted profile.

@@ -100,5 +100,12 @@
     "gameplay": "Actual Arcade race,F50/AT,163km/h,progressive scan.",
     "result": "Three fitting approaches ineligible;no model or stereo/INSIDE proof promoted.",
     "limits": "Generic profile retained;only chase view observed;camera/material cause unassigned."
+  },
+  "wipeout_pulse_race_validation": {
+    "fit": "A=8.530184893672867 B=-182357.79064065573 Qscale=-1 target640",
+    "heldout": "44866/51774 within64,inlierRMS10.23815106;allRMS49.75422162,max328.4726116",
+    "guard": "All6908 non-camera-Q world vertices use fitted-Z mode2 in native replay.",
+    "proof": "Near90px/far1px;HUD/off exact for one completed replay frame;native fake30/shared/SBS/exact-zero pass.",
+    "limits": "Exhaust/blur cutouts,flat sparks,culling holes;Close/Far chase only confirmed;physical/live speed pending."
   }
 }
