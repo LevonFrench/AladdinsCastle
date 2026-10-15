@@ -65,6 +65,8 @@ public:
   Q_INVOKABLE void endEverything();
   // Processes still alive from games the Hub started, the running one included.
   QList<qint64> ownedProcesses() const;
+  // The running game's own processes only: its tree, the program and its companion.
+  QList<qint64> sessionProcesses() const;
   // What the Hub started, for diagnostics and the launch proof.
   qint64 processId() const { return process_.processId(); }
   QString processProgram() const { return process_.program(); }

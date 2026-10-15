@@ -108,7 +108,9 @@ add_library(hubcore STATIC
     src/core/launch/SteamVrStart.h
     src/core/launch/SteamVrStart.cpp
     src/core/app/PanelAttacher.h
-    src/core/app/PanelAttacher.cpp)
+    src/core/app/PanelAttacher.cpp
+    src/core/launch/Watchdog.h
+    src/core/launch/Watchdog.cpp)
 target_compile_features(hubcore PUBLIC cxx_std_20)
 target_include_directories(hubcore PUBLIC src "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent
@@ -233,6 +235,11 @@ if(BUILD_TESTING)
     ac_project_warnings(setup-tests)
     set_target_properties(setup-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-setup COMMAND setup-tests -o -,txt)
+    qt_add_executable(watchdog-tests tests/WatchdogTest.cpp)
+    target_link_libraries(watchdog-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(watchdog-tests)
+    set_target_properties(watchdog-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-watchdog COMMAND watchdog-tests -o -,txt)
     qt_add_executable(art-download-tests tests/ArtDownloadTest.cpp)
     target_link_libraries(art-download-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(art-download-tests)

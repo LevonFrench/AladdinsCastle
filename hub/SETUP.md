@@ -37,6 +37,54 @@ If SteamVR cannot be started, takes over two minutes, or Cancel is pressed,
 nothing is started and the Hub says why. SteamVR is started only when that button
 is pressed, never by a diagnostic or offscreen run, and never by a test.
 
+## Watchdog
+
+The Hub watches the programs of the systems it has been set up for.
+
+**What it counts as a game program:** a program in a system's own program folder
+(the folder of the program chosen in Set-up), or a program with one of that
+system's known names in the folders around it:
+
+- Visual Pinball, PinMAME, the B2S backglass server, DMD hosts and DOF.
+- Supermodel.
+- The Model 2 MAME build and its viewer.
+- PCSX2.
+- Flycast.
+- Time Crisis VR.
+
+It goes by folder, never by name alone, so the same program anywhere else is
+never touched. SteamVR and Steam are never touched, wherever they are.
+
+**Running in the background:** on start and every 3 seconds, the Hub lists any
+of those programs running outside the game it is running now. That covers
+programs left behind by a crash or a closed window, and programs started some
+other way. They show on a strip in the window and the panel, with End and End
+all. Ending is graceful first: PS2's and Model 2's own stop files, and every
+window asked to close. After 4 seconds, the program and everything it started
+is ended, as long as it is still that same program.
+
+**Crashes:** a game the Hub started counts as crashed when it ends with a crash
+code (an access violation, a stack overflow, heap corruption and the like, said
+in words), or when Windows Error Reporting opens for it while it runs. The Hub
+then:
+
+- shows "<game> crashed: <why>" on the last-session banner;
+- ends the error report and the game;
+- ends what the game left running outside its own tree;
+- keeps a record in `user/logs/crashes.json`, at most the last 30.
+
+Each record holds the time, the game, the exit code and its meaning. It also
+holds the end of the emulator's own log where one exists (Supermodel.log,
+VPinballX.log, flycast.log), otherwise the Hub's launch log. Settings shows the
+last 10.
+
+**In the background:** a running game that is not responding, has no visible
+window, or is minimised for 5 seconds after its first 15 seconds is said on the
+Now Playing card. The card offers Bring to front (not for a hung game) and End
+game. A Model 2 game has no window of its own and is never called hidden. A
+headset game is judged by its processes and windows only: the Hub does not read
+SteamVR's own frame state.
+
 ## Pages
 
 1. **Welcome**: what Hub is, and that the user's folders are only read.

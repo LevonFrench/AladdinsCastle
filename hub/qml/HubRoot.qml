@@ -68,8 +68,9 @@ FocusScope {
     HoverHandler{id:previewHover;onHoveredChanged:if(!hovered)preview.visible=false}
    }
   }
+  BackgroundStrip{objectName:"backgroundStrip";Layout.fillWidth:true;Layout.preferredHeight:implicitHeight;Layout.bottomMargin:visible?6:0;vrOverlayMode:root.vrOverlayMode}
   PillButton{objectName:"globalStop";Layout.leftMargin:root.vrOverlayMode?28:40;Layout.bottomMargin:6;targetHeight:root.vrOverlayMode?56:44;neon:true;accent:Theme.get("color.state.uninstall");text:typeof hubServices!=="undefined"&&hubServices.gunRoomBusy?"Close gun room":typeof hubServices!=="undefined"&&hubServices.preparing?"Stop preparing launch":"Stop game";visible:typeof hubServices!=="undefined"&&hubServices.launchBusy;vrOverlayMode:root.vrOverlayMode;onClicked:uiController.stopLaunch()}
-  UiText{Layout.fillWidth:true;Layout.leftMargin:root.vrOverlayMode?28:40;Layout.bottomMargin:6;text:uiController.status||(root.showAll?gameFilter.visibleCount+" / "+catalogGameCount+" games · Local art only":"");font.pixelSize:11;color:Theme.get("color.text.muted_detail")}
+  UiText{Layout.fillWidth:true;Layout.leftMargin:root.vrOverlayMode?28:40;Layout.bottomMargin:6;text:uiController.status||(root.showAll?gameFilter.visibleCount+" / "+catalogGameCount+" games":"");font.pixelSize:11;color:Theme.get("color.text.muted_detail")}
  }
  FiltersDrawer{id:filters;parent:root;x:Math.max(0,Math.min(root.width-width,160));y:Math.min(140,root.height-height);vrOverlayMode:root.vrOverlayMode}
  SortMenu{id:sort;parent:root;x:Math.max(0,root.width-width-180);y:60;vrOverlayMode:root.vrOverlayMode}

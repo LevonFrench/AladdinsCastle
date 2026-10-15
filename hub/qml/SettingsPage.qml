@@ -37,6 +37,19 @@ ScrollView{
      PillButton{required property var modelData;objectName:"artGet_"+modelData.key;text:"Get artwork · "+modelData.label;vrOverlayMode:page.vrOverlayMode;enabled:!uiController.artworkBusy;onClicked:uiController.getArtwork("system:"+modelData.key)}}}
    UiText{objectName:"artworkStatus";width:parent.width-parent.leftPadding;visible:text.length>0;text:uiController.artworkStatus;font.pixelSize:page.vrOverlayMode?15:13}
   }
+  // What went wrong lately: each crash the watchdog saw, newest first, kept in the Hub's own folder.
+  Rectangle{objectName:"crashRecords";width:parent.width;radius:Theme.get("radius.card");color:Theme.get("color.surface.card");height:crashColumn.implicitHeight+(page.vrOverlayMode?40:32)
+   Column{id:crashColumn;x:page.vrOverlayMode?20:16;y:page.vrOverlayMode?20:16;width:parent.width-2*x;spacing:10
+    Text{text:"Crash records";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?20:17}
+    Text{width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?16:14
+     text:uiController.crashRecords.length?"The last "+Math.min(uiController.crashRecords.length,10)+" of the crashes the Hub saw, with the end of the emulator's own log where it keeps one. Kept in the Hub's folder on this PC.":"No crashes recorded. When a game the Hub started crashes, it is said here: when, which game, and why in words."}
+    Repeater{model:uiController.crashRecords.slice(0,10)
+     Column{required property var modelData;objectName:"crashRecord";width:crashColumn.width;spacing:4
+      Text{width:parent.width;wrapMode:Text.Wrap;text:modelData.title+"  ·  "+String(modelData.time||"").replace("T"," ")+"  ·  "+modelData.meaning;color:Theme.get("color.state.needs_neon");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?16:14}
+      Text{width:parent.width;visible:!!modelData.log;wrapMode:Text.WrapAnywhere;maximumLineCount:6;elide:Text.ElideRight;text:"From "+modelData.logFrom+":\n"+String(modelData.log||"").trim().split("\n").slice(-5).join("\n");color:Theme.get("color.text.muted");font.family:"Consolas";font.pixelSize:page.vrOverlayMode?14:12}
+     }}
+   }
+  }
   // Pictures already on this PC: read where they are, never copied, and always before downloads.
   Rectangle{objectName:"artFolders";width:parent.width;radius:Theme.get("radius.card");color:Theme.get("color.surface.card");height:artFolderColumn.implicitHeight+(page.vrOverlayMode?40:32)
    Column{id:artFolderColumn;x:page.vrOverlayMode?20:16;y:page.vrOverlayMode?20:16;width:parent.width-2*x;spacing:8

@@ -332,7 +332,8 @@ LaunchService::LaunchService(QObject *parent) : QObject(parent) {
           });
   connect(&process_, qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
           this, [this](int code, QProcess::ExitStatus status) {
-            complete(status == QProcess::CrashExit ? qMax(1, code) : code,
+            // A crash keeps its own code (0xC0000005 and the like) so it can be said in words.
+            complete(status == QProcess::CrashExit && code == 0 ? 1 : code,
                      status == QProcess::CrashExit || code != 0
                          ? "The game stopped unexpectedly"
                          : QString());
@@ -575,6 +576,13 @@ void LaunchService::endEverything() {
   for (const auto &tree : leftovers_) tree->end();
   leftovers_.clear();
   endProcesses(strayHelpers(request_.helperPrograms, sessionStartMs_));
+}
+QList<qint64> LaunchService::sessionProcesses() const {
+  QList<qint64> result;
+  if (tree_) result << tree_->members();
+  if (process_.state() != QProcess::NotRunning && !result.contains(process_.processId())) result << process_.processId();
+  if (helper_.state() != QProcess::NotRunning && !result.contains(helper_.processId())) result << helper_.processId();
+  return result;
 }
 QList<qint64> LaunchService::ownedProcesses() const {
   QList<qint64> result;

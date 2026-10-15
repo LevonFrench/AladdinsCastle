@@ -358,6 +358,10 @@ QVariantList UiController::otherGames()const{
  return rows;
 }
 void UiController::chooseGameView(const QString &id,const QString &view){auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();if(chosen.value(id)==view)return;chosen[id]=view;m_settings->set("gameViews",chosen);}
+void UiController::markCrash(const QString &id,const QString &text){
+ if(m_lastSession.value("gameId")!=id)return;
+ m_lastSession["outcome"]="crashed";m_lastSession["text"]=text;emit nowPlayingChanged();
+}
 void UiController::playGame(const QString &id,const QString &view){
  for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,view.isEmpty()?row.value("view").toString():view);return;}}
  for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,view.isEmpty()?row.value("view").toString():view,row.value("file").toString());return;}}

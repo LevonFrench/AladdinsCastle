@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/launch/Watchdog.h"
 #include "core/app/PanelAttacher.h"
 #include "app/HubServices.h"
 #include "core/app/LaunchOptions.h"
@@ -342,6 +343,66 @@ private slots:
     QTRY_VERIFY_WITH_TIMEOUT(ui.steamVrStarting().isEmpty(),3000);QVERIFY(ui.status().contains("did not start within"));
     QTest::qWait(200);QCOMPARE(started.size(),2);QCOMPARE(starts,4);
  }
+ // The watchdog with real programs. Programs of a set-up system that run outside any game are listed
+ // and ended; the same program in a folder the settings do not point at is never touched.
+ void watchdogEndsBackgroundProgramsAndLeavesOthersAlone(){
+    QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("emu"));QVERIFY(QDir(t.path()).mkpath("elsewhere"));
+    const auto program=t.filePath("emu/TimeCrisisVR.exe"),other=t.filePath("elsewhere/TimeCrisisVR.exe");
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),other));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("system22Executable",program);
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());services.watchdog()->setTimings(200,300,0,800);
+    qint64 stray=0,unrelated=0;
+    QVERIFY(QProcess::startDetached(program,{"--synthetic-child"},{},&stray));QVERIFY(QProcess::startDetached(other,{"--synthetic-child"},{},&unrelated));
+    const auto cleanup=qScopeGuard([&]{ac::launch::endProcesses({stray,unrelated});});
+    const auto listed=[&](qint64 pid){for(const auto &value:ui.backgroundPrograms())if(value.toMap().value("pid").toLongLong()==pid)return true;return false;};
+    QTRY_VERIFY_WITH_TIMEOUT(listed(stray),5000);QVERIFY(!listed(unrelated));
+    QVERIFY(ui.backgroundPrograms().first().toMap().value("label").toString().contains("TimeCrisisVR.exe"));
+    ui.endBackgroundProgram(stray);
+    QTRY_VERIFY_WITH_TIMEOUT(!ac::launch::processAlive(stray),5000);QTRY_VERIFY_WITH_TIMEOUT(ui.backgroundPrograms().isEmpty(),3000);
+    QTest::qWait(500);QVERIFY(ac::launch::processAlive(unrelated)); // Same name, another folder: left alone.
+    ui.endAllBackgroundPrograms();QTest::qWait(1200);QVERIFY(ac::launch::processAlive(unrelated));
+ }
+ // A game the Hub started: a crash is said in words and recorded; a window that never shows is
+ // reported; Windows Error Reporting opened for it is closed with it; a grandchild left behind ends.
+ void watchdogCatchesCrashesHiddenGamesAndLeftovers(){
+    QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("emu"));QVERIFY(QDir(t.path()).mkpath("wer"));
+    const auto program=t.filePath("emu/TimeCrisisVR.exe"),report=t.filePath("wer/WerFault.exe");
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),report));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("system22Executable",program);
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    services.setVrServerProbe([]{return true;});services.watchdog()->setTimings(200,400,500,800);
+    QSignalSpy finished(services.launcher(),&ac::launch::LaunchService::finished);
+    const auto pids=t.filePath("pids.txt");qputenv("AC_SYNTHETIC_PIDS",pids.toUtf8());qputenv("AC_SYNTHETIC_WERFAULT",report.toUtf8());
+    const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_GAME");qunsetenv("AC_SYNTHETIC_PIDS");qunsetenv("AC_SYNTHETIC_WERFAULT");});
+    const auto play=[&](const QByteArray &mode){qputenv("AC_SYNTHETIC_GAME",mode);const int before=finished.size();ui.playGame("system22-timecris","vr");qunsetenv("AC_SYNTHETIC_GAME");return before;};
+    // A crash: the exit code in words, on the banner and in the crash records.
+    int before=play("crash");
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,10000);QCOMPARE(quint32(finished.last()[1].toInt()),0xC0000005u);
+    QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    QVERIFY2(ui.lastSession().value("text").toString().contains("crashed: an access violation"),qPrintable(ui.lastSession().value("text").toString()));
+    QCOMPARE(ui.lastSession().value("outcome").toString(),QString("crashed"));
+    QCOMPARE(ui.crashRecords().size(),1);QCOMPARE(ui.crashRecords().first().toMap().value("exitCode").toString(),QString("0xC0000005"));
+    QVERIFY(QFileInfo::exists(t.filePath("user/logs/crashes.json")));
+    // No window on the monitor: said after a moment, with Bring to front and End.
+    before=play("hidden");
+    QTRY_COMPARE_WITH_TIMEOUT(ui.gameTrouble(),QString("hidden"),8000);
+    ui.stopLaunch();QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,15000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    QVERIFY(ui.gameTrouble().isEmpty());QCOMPARE(ui.crashRecords().size(),1); // A stop is not a crash.
+    // Windows Error Reporting (a stand-in of the same name) opened by the game: both are ended, and it counts as a crash.
+    before=play("werfault");
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,15000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    QVERIFY2(ui.lastSession().value("text").toString().contains("Windows Error Reporting"),qPrintable(ui.lastSession().value("text").toString()));
+    QCOMPARE(ui.crashRecords().size(),2);
+    QTRY_VERIFY_WITH_TIMEOUT([&]{for(const auto &p:ac::launch::listProcesses())if(QDir::fromNativeSeparators(p.path).compare(report,Qt::CaseInsensitive)==0)return false;return true;}(),5000);
+    // A grandchild left behind when the game closes: ended with its game, nothing left in the background.
+    before=play("grandchild");
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,10000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    qint64 grandchild=0;{QFile file(pids);QVERIFY(file.open(QIODevice::ReadOnly));for(const auto &line:file.readAll().split('\n'))if(line.startsWith("grandchild "))grandchild=line.mid(11).toLongLong();}
+    QVERIFY(grandchild>0);QTRY_VERIFY_WITH_TIMEOUT(!ac::launch::processAlive(grandchild),10000);
+    QTRY_VERIFY_WITH_TIMEOUT(ui.backgroundPrograms().isEmpty(),5000);QCOMPARE(ui.crashRecords().size(),2);
+ }
  // Exit and Stop ask Model 2 to quit through its stop file, so MAME saves; nothing is forced.
  void model2QuitsThroughItsStopFile(){
     QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");
@@ -665,6 +726,28 @@ private slots:
  }
 };
 int main(int argc,char **argv){
+    // Synthetic games for the watchdog, chosen by AC_SYNTHETIC_GAME (set only around one test):
+    // "crash" ends with an access violation's code (no real fault, so no error dialog ever shows),
+    // "hidden" runs with a window that is never shown, "werfault" starts a stand-in Windows Error
+    // Reporting program and waits, "grandchild" starts a copy of itself and leaves it behind.
+    if(const auto mode=qEnvironmentVariable("AC_SYNTHETIC_GAME");!mode.isEmpty()&&argc==1){
+        QCoreApplication game(argc,argv);
+        if(const auto pidFile=qEnvironmentVariable("AC_SYNTHETIC_PIDS");!pidFile.isEmpty()){QFile file(pidFile);if(file.open(QIODevice::Append))file.write(QByteArray::number(QCoreApplication::applicationPid())+"\n");}
+#ifdef Q_OS_WIN
+        if(mode=="crash")QTimer::singleShot(600,&game,[]{TerminateProcess(GetCurrentProcess(),0xC0000005);});
+        if(mode=="hidden"){
+            WNDCLASSW kind{};kind.lpfnWndProc=DefWindowProcW;kind.hInstance=GetModuleHandleW(nullptr);kind.lpszClassName=L"AcSyntheticGame";RegisterClassW(&kind);
+            CreateWindowExW(0,L"AcSyntheticGame",L"Synthetic game",WS_OVERLAPPEDWINDOW,0,0,64,64,nullptr,nullptr,kind.hInstance,nullptr); // Never shown.
+        }
+#endif
+        if(mode=="werfault")QProcess::startDetached(qEnvironmentVariable("AC_SYNTHETIC_WERFAULT"),{"--synthetic-child"});
+        if(mode=="grandchild"){
+            qint64 pid=0;QProcess::startDetached(QCoreApplication::applicationFilePath(),{"--synthetic-child"},{},&pid);
+            if(const auto pidFile=qEnvironmentVariable("AC_SYNTHETIC_PIDS");!pidFile.isEmpty()){QFile file(pidFile);if(file.open(QIODevice::Append))file.write("grandchild "+QByteArray::number(pid)+"\n");}
+            QTimer::singleShot(800,&game,&QCoreApplication::quit);
+        }
+        QTimer::singleShot(30000,&game,&QCoreApplication::quit);return game.exec();
+    }
     // A launcher that starts two children, the first of which starts a grandchild. Each writes its
     // process id and waits; the launcher waits too ("stay") or ends after a moment ("leave").
     if(argc>=4&&(QByteArray(argv[1])=="--spawn-tree"||QByteArray(argv[1])=="--tree-child")){

@@ -10,6 +10,7 @@
 #include "core/ps2/Ps2.h"
 #include "core/pinball/Gamepad.h"
 #include "core/pinball/Art.h"
+#include <QJsonArray>
 #include <QThread>
 #include "ProductIdentity.h"
 #include <QDir>
@@ -222,15 +223,63 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     });
     connect(artDownloader_.get(),&art::Downloader::progress,this,[this](const QString &text){ui_->setArtwork(true,text);});
     connect(artDownloader_.get(),&art::Downloader::finished,this,[this](const QString &summary,const QStringList &){ui_->setArtwork(false,summary);});
-    connect(settings_,&UiSettings::changed,this,[this]{scanLocalArt();});
+    connect(settings_,&UiSettings::changed,this,[this]{scanLocalArt();applyWatchdogRules();});
     scanLocalArt();
+    // The watchdog: on start and every few seconds, the set-up systems' programs outside any game.
+    applyWatchdogRules();
+    watchdog_.setGraceful([this](const QString &system,const QList<qint64> &pids){
+        // The system's own way to quit first, then every window asked to close; the tree ends after.
+        if(system=="ps2"){const auto stop=settings_->get("ps2StopFile",QString()).toString();if(!stop.isEmpty()){QFile file(stop);if(file.open(QIODevice::WriteOnly))file.write("stop\n");}}
+        if(system=="model2")for(const auto &value:model2::games())try{
+            const auto stop=install::scopedPath("user/runtime/model2-"+value.toMap().value("id").toString()+".stop",root_);
+            if(QDir().mkpath(QFileInfo(stop).absolutePath())){QFile file(stop);if(file.open(QIODevice::WriteOnly))file.write("stop\n");}
+        }catch(const std::exception &){}
+        launch::closeProcessWindows(pids);
+    });
+    connect(&watchdog_,&launch::Watchdog::straysChanged,this,[this]{ui_->setWatchdog(watchdog_.strays(),watchdog_.trouble());});
+    connect(&watchdog_,&launch::Watchdog::troubleChanged,this,[this]{ui_->setWatchdog(watchdog_.strays(),watchdog_.trouble());});
+    connect(ui_,&UiController::endBackgroundRequested,&watchdog_,&launch::Watchdog::end);
+    connect(ui_,&UiController::endAllBackgroundRequested,&watchdog_,&launch::Watchdog::endAll);
+    connect(ui_,&UiController::bringGameToFrontRequested,this,[this]{if(!watchdog_.bringSessionToFront())ui_->showError("Game","The game has no window to bring to the front.");});
+    connect(&watchdog_,&launch::Watchdog::errorReportSeen,this,[this](qint64 report,qint64 forPid,const QString &){
+        // Only the running game's: a background program's report shows on the strip instead.
+        if(!launcher_.busy()||crashReported_)return;
+        const auto own=launcher_.sessionProcesses();bool ours=own.contains(forPid);
+        if(!ours)for(const auto &p:launch::listProcesses())if(p.pid==forPid&&own.contains(p.parent))ours=true;
+        if(!ours)return;
+        crashReported_=true;
+        ui_->showError("Game",(sessionTitle_.isEmpty()?QString("The game"):sessionTitle_)+" crashed; Windows Error Reporting opened for it. Ending it.");
+        launch::endProcesses({report});
+        QTimer::singleShot(1500,this,[this]{if(launcher_.busy())launcher_.endEverything();});
+    });
+    try{QFile records(install::scopedPath("user/logs/crashes.json",root_));if(records.size()<=4*1024*1024&&records.open(QIODevice::ReadOnly))ui_->setCrashRecords(QJsonDocument::fromJson(records.readAll()).array().toVariantList());}catch(const std::exception &){}
+    QTimer::singleShot(0,this,[this]{watchdog_.start();});
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
-    connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
-    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int code,const QString &error,const QString &){
+    connect(&launcher_,&launch::LaunchService::starting,this,[this](const QString &id,const QString &){
+        if(sessionSystem_.isEmpty()||!launcher_.playing()){sessionStartMs_=QDateTime::currentMSecsSinceEpoch()-1000;crashReported_=false;}
+        static const QStringList systems{"pinball","model3","model2","ps2","dreamcast","system22"};
+        sessionSystem_="catalog";for(const auto &system:systems)if(id.startsWith(system+"-")||id==system)sessionSystem_=system;
+    });
+    connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){
+        childPlaying_=true;emit playingChanged();ui_->launchStarted(id);
+        sessionTitle_=ui_->nowPlaying().value("title",id).toString();
+        // The watchdog follows the running game: its own processes, and whether its window is all right.
+        watchdog_.beginSession({id,sessionTitle_,sessionSystem_,sessionStartMs_,sessionSystem_!="model2",[this]{return launcher_.sessionProcesses();}});
+    });
+    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int code,const QString &error,const QString &logPath){
         childPlaying_=false;emit playingChanged();
+        // A crash: a crash exit code, or Windows Error Reporting opened for it while it ran.
+        const bool crashCode=launch::isCrashCode(quint32(code)),crashed=crashCode||crashReported_;
+        const auto how=crashCode?launch::exitCodeText(code):QString("Windows Error Reporting opened for it");
+        const auto system=sessionSystem_;const auto since=sessionStartMs_;
+        if(crashed)recordCrash(id,code,how,logPath);
+        watchdog_.endSession();crashReported_=false;
+        // What it left running outside its own tree ends with it.
+        if(crashed)QTimer::singleShot(300,this,[this,system,since]{watchdog_.endSince(system,since);});
+        const auto said=[this,id,crashed,how]{if(crashed)ui_->markCrash(id,(sessionTitle_.isEmpty()?QString("The game"):sessionTitle_)+" crashed: "+how+".");};
         // A Hub exit waiting on this game goes ahead only now that the game has finished by itself.
-        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished(id,error,code);finishPendingExit();return;}
-        ui_->launchFinished(id,error,code);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
+        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished(id,error,code);said();finishPendingExit();return;}
+        ui_->launchFinished(id,error,code);said();if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
     });
     connect(&launcher_,&launch::LaunchService::runtimeStateReady,this,[this](const RuntimeState &state){games_->applyRuntimeStates({state});});
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::playingChanged);
@@ -594,6 +643,49 @@ void HubServices::endSteamVrWait(const QString &message,bool error){
     // Said on the status line either way; error only marks the ones that went wrong, for the log.
     if(!message.isEmpty())ui_->showError("SteamVR",message);
     if(error)qWarning("SteamVR wait ended: %s",qPrintable(message));
+}
+void HubServices::applyWatchdogRules(){
+    // Only what the settings point at: each system's program folder, and its known programs in the
+    // folders around it. Nothing else on the PC is ever the watchdog's to end.
+    const auto get=[this](const char *key){return settings_->get(key,QString()).toString();};
+    const auto folderOf=[](const QString &file){return file.isEmpty()?QString():QFileInfo(file).absolutePath();};
+    const auto parentOf=[](const QString &folder){return folder.isEmpty()?QString():QFileInfo(folder).absolutePath();};
+    QList<launch::SystemRule> rules;
+    const auto add=[&](const QString &system,const QString &label,const QString &own,const QStringList &folders,const QStringList &names){
+        if(own.isEmpty())return;rules<<launch::SystemRule{system,label,{own},folders,names};};
+    const auto pinball=folderOf(get("pinballExecutable"));
+    add("pinball","Visual Pinball",pinball,{get("pinballFolder"),parentOf(pinball)},
+        {"vpinball*","pinmame*","vpinmame*","b2sbackglassserver*","dmdext*","flexdmd*","ultradmd*","freezy*","pinupdisplay*","pupdmdcontrol*","dof*"});
+    add("model3","Sega Model 3",folderOf(get("model3Executable")),{},{"supermodel*"});
+    const auto model2=folderOf(get("model2Executable"));
+    add("model2","Sega Model 2",model2,{parentOf(model2)},{"mame*","model2*"});
+    const auto ps2=folderOf(get("ps2Launcher"));
+    add("ps2","PlayStation 2",ps2,{parentOf(ps2)},{"pcsx2*"});
+    add("dreamcast","Sega Dreamcast",folderOf(get("dreamcastExecutable")),{},{"flycast*"});
+    add("system22","Namco System 22",folderOf(get("system22Executable")),{},{"timecrisis*"});
+    watchdog_.setRules(rules);
+}
+void HubServices::recordCrash(const QString &id,int code,const QString &how,const QString &logPath){
+    // A short record in the Hub's folder: when, which game, the exit code in words, and the end of
+    // the emulator's own log when it keeps one (else the Hub's launch log).
+    const auto system=sessionSystem_;
+    QStringList candidates;
+    const auto beside=[this](const char *key,const QString &name){const auto file=settings_->get(key,QString()).toString();return file.isEmpty()?QString():QFileInfo(file).absolutePath()+"/"+name;};
+    if(system=="model3")candidates<<beside("model3Executable","Supermodel.log");
+    if(system=="pinball")candidates<<beside("pinballExecutable","VPinballX.log");
+    if(system=="dreamcast")candidates<<beside("dreamcastExecutable","flycast.log");
+    QString tail,from;
+    for(const auto &file:candidates){const QFileInfo info(file);if(!file.isEmpty()&&info.isFile()&&info.lastModified().toMSecsSinceEpoch()>=sessionStartMs_-5000){tail=launch::lastLines(file,12);from=info.fileName();break;}}
+    if(tail.isEmpty()&&!logPath.isEmpty()&&QFileInfo(logPath).isFile()){tail=launch::lastLines(logPath,12);from="the Hub's launch log";}
+    QJsonObject record{{"time",QDateTime::currentDateTime().toString(Qt::ISODate)},{"gameId",id},{"title",sessionTitle_.isEmpty()?id:sessionTitle_},{"system",system},
+        {"exitCode",QString("0x%1").arg(quint32(code),8,16,QLatin1Char('0')).toUpper().replace("0X","0x")},{"meaning",how},{"log",tail},{"logFrom",from}};
+    try{
+        const auto path=install::scopedPath("user/logs/crashes.json",root_);
+        QJsonArray list;{QFile file(path);if(file.size()<=4*1024*1024&&file.open(QIODevice::ReadOnly))list=QJsonDocument::fromJson(file.readAll()).array();}
+        list.prepend(record);while(list.size()>30)list.removeLast();
+        QDir().mkpath(QFileInfo(path).absolutePath());install::atomicWrite(path,QJsonDocument(list).toJson());
+        ui_->setCrashRecords(list.toVariantList());
+    }catch(const std::exception &e){ui_->showError("Crash record",QString::fromUtf8(e.what()));}
 }
 void HubServices::scanLocalArt(){
     const auto folders=settings_->get("artFolders",QVariantList{}).toStringList();

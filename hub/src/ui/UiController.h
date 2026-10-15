@@ -132,6 +132,21 @@ class UiController : public QObject {
  Q_INVOKABLE void cancelSteamVrStart(){if(!m_steamVrStarting.isEmpty())emit cancelSteamVrStartRequested();}
  // A game's own Play button: exactly this view ("monitor", or one of its headset views), not remembered.
  Q_INVOKABLE void playGame(const QString &id,const QString &view);
+ // The watchdog: programs of the set-up systems running outside any game (End, End all), the running
+ // game's trouble ("hung", "hidden", "minimized"), and the crash records kept in the Hub's folder.
+ Q_PROPERTY(QVariantList backgroundPrograms READ backgroundPrograms NOTIFY watchdogChanged)
+ Q_PROPERTY(QString gameTrouble READ gameTrouble NOTIFY watchdogChanged)
+ Q_PROPERTY(QVariantList crashRecords READ crashRecords NOTIFY crashRecordsChanged)
+ QVariantList backgroundPrograms()const{return m_background;}
+ QString gameTrouble()const{return m_gameTrouble;}
+ QVariantList crashRecords()const{return m_crashRecords;}
+ void setWatchdog(const QVariantList &background,const QString &trouble){if(background==m_background&&trouble==m_gameTrouble)return;m_background=background;m_gameTrouble=trouble;emit watchdogChanged();}
+ void setCrashRecords(const QVariantList &records){m_crashRecords=records;emit crashRecordsChanged();}
+ // A crash said in words on the last-session banner.
+ void markCrash(const QString &id,const QString &text);
+ Q_INVOKABLE void endBackgroundProgram(qint64 pid){emit endBackgroundRequested(pid);}
+ Q_INVOKABLE void endAllBackgroundPrograms(){emit endAllBackgroundRequested();}
+ Q_INVOKABLE void bringGameToFront(){emit bringGameToFrontRequested();}
  bool steamVrRunning()const{return m_steamVrRunning;}
  void setSteamVrRunning(bool running){if(running!=m_steamVrRunning){m_steamVrRunning=running;emit steamVrRunningChanged();}}
  void launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable,const QString &view={},const QString &gamepad={});
@@ -238,6 +253,11 @@ class UiController : public QObject {
  void pinballPlayRequested(const QString &id,const QString &view);
  void steamVrRunningChanged();
  void steamVrStartingChanged();
+ void watchdogChanged();
+ void crashRecordsChanged();
+ void endBackgroundRequested(qint64 pid);
+ void endAllBackgroundRequested();
+ void bringGameToFrontRequested();
  void cancelSteamVrStartRequested();
  void stopEverythingRequested();
  void model3Changed();
@@ -269,7 +289,7 @@ class UiController : public QObject {
  GameListModel *m_games; FilterSortModel *m_filter; UiSettings *m_settings;bool m_steamVrRunning=false;QVariantMap m_pinballArt;
  QString m_detailId,m_variantId,m_status; QVariantList m_events; QVariantMap m_recovery;
  int m_artRevision=0;
- bool m_artworkBusy=false;QString m_artworkStatus,m_steamVrStarting;
+ bool m_artworkBusy=false;QString m_artworkStatus,m_steamVrStarting,m_gameTrouble;QVariantList m_background,m_crashRecords;
  // A row's pictures: the user's own art for it first, then a downloaded one.
  void addArt(QVariantMap &row,const QString &artId,const QString &system)const;
  static QStringList artNames(const QVariantMap &row,const QString &artId);
