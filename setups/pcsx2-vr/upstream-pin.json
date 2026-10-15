@@ -62,5 +62,11 @@
     "stop": "Private stop-file grace5seconds; exact executable path plus helper creation-time verification; short shared startup/lease gate; preserved finishing-helper receipt window.",
     "offline": "Actual native hold and launcher Stop exit0, stubborn verified fixture forced after5seconds, foreign/missing/wrong stamp negatives and deterministic gate tests pass.",
     "review": "Independent ownership review, two bounded repair rounds; no remaining scoped finding. Physical controller/headset acceptance pending."
+  },
+  "inside_eye_resolution": {
+    "runtime": "Fresh per-eye primary-stereo recommendation; fixed chains once per session, also used by controller overlay.",
+    "sampling": "3x/4x GS samples scaled into exact recommended eye grid; per-profile cap and one-way sustained-speed fallback3x.",
+    "offline": "Virtua Cop4x gameplay sampled100%; exact shared/SBS and synthetic eye-grid comparison pass. OutRun full-speed gate unmet in three trials, including zero-pose control; capped3x pending profiling.",
+    "headset": "No runtime started; actual query/allocation and physical performance unverified."
   }
 }

@@ -527,18 +527,19 @@ index 03879ca..3aed53b 100644
  	MTGS::RunOnGSThread([frame_number = GSDumpReplayer::GetFrameNumber()]() { s_dump_frame_number = frame_number; });
  	MTGS::RunOnGSThread([loop_number = GSDumpReplayer::GetLoopCount()]() { s_loop_number = loop_number; });
 diff --git a/pcsx2-qt/QtHost.cpp b/pcsx2-qt/QtHost.cpp
-index 5c28f91..73f2ba2 100644
+index 5c28f91..7604c17 100644
 --- a/pcsx2-qt/QtHost.cpp
 +++ b/pcsx2-qt/QtHost.cpp
-@@ -29,6 +29,7 @@
+@@ -29,6 +29,8 @@
  #include "pcsx2/ImGui/ImGuiManager.h"
  #include "pcsx2/ImGui/ImGuiOverlays.h"
  #include "pcsx2/Input/InputManager.h"
 +#include "pcsx2/Input/PS2VRGun.h"
++#include "pcsx2/GS/PS2VRInside.h"
  #include "pcsx2/MTGS.h"
  #include "pcsx2/PerformanceMetrics.h"
  #include "pcsx2/SPU2/spu2.h"
-@@ -915,7 +916,13 @@ void EmuThread::releaseRenderWindow()
+@@ -915,7 +917,13 @@ void EmuThread::releaseRenderWindow()
  
  std::optional<WindowInfo> Host::AcquireRenderWindow(bool recreate_window)
  {
@@ -553,7 +554,7 @@ index 5c28f91..73f2ba2 100644
  }
  
  void Host::ReleaseRenderWindow()
-@@ -925,6 +932,25 @@ void Host::ReleaseRenderWindow()
+@@ -925,6 +933,34 @@ void Host::ReleaseRenderWindow()
  
  void Host::BeginPresentFrame()
  {
@@ -568,6 +569,15 @@ index 5c28f91..73f2ba2 100644
 + }
 + if (const char* target = std::getenv("PCSX2_LIVE_DUMP_FRAME"); target && frame == std::strtoul(target, nullptr, 10))
 +  if (const char* path = std::getenv("PCSX2_LIVE_DUMP_PATH")) GSQueueSnapshot(path, 3);
++ if(const int upscale=PS2VRInside::ConsumeUpscale();upscale==3 || upscale==4) {
++  Host::RunOnCPUThread([upscale]() {
++   if(!PS2VRInside::Enabled() || !VMManager::HasValidVM())return;
++   Console.WriteLn("INSIDE resolution policy: %dx GS sampling; eye swapchains keep headset recommendation.",upscale);
++   if(EmuConfig.GS.UpscaleMultiplier!=static_cast<float>(upscale)) {
++    EmuConfig.GS.UpscaleMultiplier=static_cast<float>(upscale);MTGS::ApplySettings();
++   }
++  });
++ }
 + // A deterministic no-runtime proof uses the SAME hold timer as the XR action.
 + const char* test_y=std::getenv("PCSX2_VR_QUIT_TEST_Y_HOLD");
 + const char* xr_mode=std::getenv("PCSX2_OPENXR");
@@ -1597,7 +1607,7 @@ diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,637 @@
+@@ -0,0 +1,667 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
@@ -1639,6 +1649,7 @@ new file mode 100644
 + static HWND presenter_window = nullptr;
 +#endif
 + static constexpr u32 CHAIN_WIDTH = 1920, CHAIN_HEIGHT = 1536;
++ static GSVector2i chain_extent[2]{{CHAIN_WIDTH,CHAIN_HEIGHT},{CHAIN_WIDTH,CHAIN_HEIGHT}};
 + static unsigned long long drained_errors = 0, frames_with_layers = 0;
 + static bool swapchain_pair_created = false;
 + static bool fbo_logged[2] = {};
@@ -1679,9 +1690,10 @@ new file mode 100644
 +  if (count==64) LiveLog("GL error drain limit reached; context may be lost");
 +  return count;
 + }
-+ static GSVector2i UsedExtent()
++ static GSVector2i UsedExtent(int eye=0)
 + {
-+  const double scale=std::min({1.0,static_cast<double>(CHAIN_WIDTH)/width,static_cast<double>(CHAIN_HEIGHT)/height});
++  if(PS2VRInside::Enabled() && PS2VRInside::Recommended()[eye].width)return chain_extent[eye];
++  const double scale=std::min({1.0,static_cast<double>(chain_extent[eye].x)/width,static_cast<double>(chain_extent[eye].y)/height});
 +  return GSVector2i(std::max(1,static_cast<int>(width*scale)),std::max(1,static_cast<int>(height*scale)));
 + }
 + static bool BlitEye(int eye, GLuint target, GLuint read_fbo, GLuint draw_fbo, const GSVector2i& used)
@@ -1698,7 +1710,7 @@ new file mode 100644
 +  const bool complete=read_status==GL_FRAMEBUFFER_COMPLETE && draw_status==GL_FRAMEBUFFER_COMPLETE;
 +  if (!fbo_logged[eye] || !complete)
 +  {
-+   if (live_log) { std::fprintf(live_log,"Blit FBO eye=%d read=0x%04X draw=0x%04X source=%ux%u used=%dx%d fixed=%ux%u\n",eye,read_status,draw_status,width,height,used.x,used.y,CHAIN_WIDTH,CHAIN_HEIGHT); std::fflush(live_log); }
++   if (live_log) { std::fprintf(live_log,"Blit FBO eye=%d read=0x%04X draw=0x%04X source=%ux%u used=%dx%d fixed=%ux%u\n",eye,read_status,draw_status,width,height,used.x,used.y,chain_extent[eye].x,chain_extent[eye].y); std::fflush(live_log); }
 +   fbo_logged[eye]=complete;
 +  }
 +  const unsigned attachment_errors=DrainGL("after","blit attachment setup / framebuffer status");
@@ -1748,6 +1760,15 @@ new file mode 100644
 + {
 +  if (!context->MakeCurrent()) { LiveLog("Proof shared context MakeCurrent failed"); return; }
 +  LiveLog("OpenXR-disabled presenter thread has shared OpenGL context; no loader/runtime calls");
++  // Synthetic recommendation is explicitly restricted to the no-loader path.
++  if(PS2VRInside::Enabled() && Env("PCSX2_OPENXR",0)==0 && Env("PCSX2_INSIDE_TEST_EYE_WIDTH",0)>0 && Env("PCSX2_INSIDE_TEST_EYE_HEIGHT",0)>0) {
++   GLint limit=0;glGetIntegerv(GL_MAX_TEXTURE_SIZE,&limit);
++   const unsigned w=static_cast<unsigned>(std::clamp(Env("PCSX2_INSIDE_TEST_EYE_WIDTH",1024),1.f,static_cast<float>(limit)));
++   const unsigned h=static_cast<unsigned>(std::clamp(Env("PCSX2_INSIDE_TEST_EYE_HEIGHT",1024),1.f,static_cast<float>(limit)));
++   chain_extent[0]=chain_extent[1]={static_cast<int>(w),static_cast<int>(h)};
++   PS2VRInside::SetRecommended({PS2VRInside::EyeSize{w,h},PS2VRInside::EyeSize{w,h}});
++   LiveLog("OFFLINE synthetic recommendation injected; NOT a headset measurement; no loader/runtime calls");
++  }
 +  if (PS2VRGun::Enabled() && std::getenv("PCSX2_VR_GUN_MODEL_PROOF"))
 +  {
 +   PS2VRGun::Renderer model; std::string error;
@@ -1784,13 +1805,13 @@ new file mode 100644
 +    // OpenXR. Compare the used GPU region to the flipped published pixels.
 +    GLuint targets[2]{}, fbos[2]{};
 +    glCreateTextures(GL_TEXTURE_2D,2,targets); glGenFramebuffers(2,fbos);
-+    for (GLuint target:targets) glTextureStorage2D(target,1,GL_SRGB8_ALPHA8,CHAIN_WIDTH,CHAIN_HEIGHT);
++    for(int eye=0;eye<2;eye++)glTextureStorage2D(targets[eye],1,GL_SRGB8_ALPHA8,chain_extent[eye].x,chain_extent[eye].y);
 +    glDisable(GL_FRAMEBUFFER_SRGB); glDisable(GL_SCISSOR_TEST);
-+    const GSVector2i used=UsedExtent();
 +    for (int eye=0;eye<2;eye++)
 +    {
++     const GSVector2i used=UsedExtent(eye);
 +     const bool copied=BlitEye(eye,targets[eye],fbos[0],fbos[1],used);
-+     std::vector<u32> result(static_cast<size_t>(CHAIN_WIDTH)*CHAIN_HEIGHT);
++     std::vector<u32> result(static_cast<size_t>(chain_extent[eye].x)*chain_extent[eye].y);
 +     std::vector<u32> original(static_cast<size_t>(width)*height);
 +     glGetTextureImage(targets[eye],0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<GLsizei>(result.size()*4),result.data());
 +     glGetTextureImage(eyes[eye],0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<GLsizei>(original.size()*4),original.data());
@@ -1798,7 +1819,7 @@ new file mode 100644
 +     std::vector<u32> crop(static_cast<size_t>(used.x)*used.y);
 +     for (int y=0;y<used.y;y++)
 +     {
-+      std::copy_n(result.data()+static_cast<size_t>(y)*CHAIN_WIDTH,used.x,crop.data()+static_cast<size_t>(y)*used.x);
++      std::copy_n(result.data()+static_cast<size_t>(y)*chain_extent[eye].x,used.x,crop.data()+static_cast<size_t>(y)*used.x);
 +      if (exact) exact=std::equal(crop.data()+static_cast<size_t>(y)*used.x,crop.data()+static_cast<size_t>(y+1)*used.x,original.data()+static_cast<size_t>(height-1-y)*width);
 +     }
 +     RGBA8Image image(used.x,used.y,std::move(crop)); image.SaveToFile(fmt::format("{}-blit-{}.png",path,eye ? "right" : "left").c_str());
@@ -1814,7 +1835,7 @@ new file mode 100644
 +
 +#ifdef _WIN32
 + #define PS2_XR_FUNCS(X) \
-+ X(xrDestroyInstance) X(xrGetSystem) X(xrCreateSession) X(xrDestroySession) \
++ X(xrDestroyInstance) X(xrGetSystem) X(xrEnumerateViewConfigurationViews) X(xrCreateSession) X(xrDestroySession) \
 + X(xrCreateReferenceSpace) X(xrDestroySpace) X(xrEnumerateSwapchainFormats) \
 + X(xrCreateSwapchain) X(xrDestroySwapchain) X(xrEnumerateSwapchainImages) \
 + X(xrAcquireSwapchainImage) X(xrWaitSwapchainImage) X(xrReleaseSwapchainImage) \
@@ -1899,6 +1920,21 @@ new file mode 100644
 +  XrSystemGetInfo si{XR_TYPE_SYSTEM_GET_INFO}; si.formFactor=XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
 +  XrSystemId system{};
 +  if (!Check(XRGL("xrGetSystem", p_xrGetSystem, instance,&si,&system),"xrGetSystem")) return false;
++  if(PS2VRInside::Enabled()) {
++   u32 count=0;
++   if(!Check(XRGL("xrEnumerateViewConfigurationViews",p_xrEnumerateViewConfigurationViews,instance,system,XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,0,&count,nullptr),"view recommendations") || count!=2)return false;
++   XrViewConfigurationView views[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW},{XR_TYPE_VIEW_CONFIGURATION_VIEW}};
++   if(!Check(XRGL("xrEnumerateViewConfigurationViews",p_xrEnumerateViewConfigurationViews,instance,system,XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,2,&count,views),"view recommendations") || count!=2)return false;
++   GLint gl_max=0;glGetIntegerv(GL_MAX_TEXTURE_SIZE,&gl_max);
++   std::array<PS2VRInside::EyeSize,2> sizes;
++   for(int eye=0;eye<2;eye++) {
++    const auto& v=views[eye];
++    if(!v.recommendedImageRectWidth || !v.recommendedImageRectHeight || v.recommendedImageRectWidth>v.maxImageRectWidth || v.recommendedImageRectHeight>v.maxImageRectHeight || v.recommendedImageRectWidth>static_cast<u32>(gl_max) || v.recommendedImageRectHeight>static_cast<u32>(gl_max)){LiveLog("Invalid/unsupported recommended eye size; presenter stopped");return false;}
++    sizes[eye]={v.recommendedImageRectWidth,v.recommendedImageRectHeight};chain_extent[eye]={static_cast<int>(sizes[eye].width),static_cast<int>(sizes[eye].height)};
++    if(live_log){std::fprintf(live_log,"Headset recommendation eye=%d %ux%u samples=%u; fixed once per session\n",eye,sizes[eye].width,sizes[eye].height,v.recommendedSwapchainSampleCount);std::fflush(live_log);}
++   }
++   PS2VRInside::SetRecommended(sizes);
++  }
 +  XrGraphicsRequirementsOpenGLKHR req{XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR};
 +  if (!Check(XRGL("xrGetOpenGLGraphicsRequirementsKHR", p_xrGetOpenGLGraphicsRequirementsKHR, instance,system,&req),"OpenGL requirements")) return false;
 +  XrGraphicsBindingOpenGLWin32KHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR};
@@ -1927,7 +1963,7 @@ new file mode 100644
 +  {
 +   XrSwapchainCreateInfo ci{XR_TYPE_SWAPCHAIN_CREATE_INFO};
 +   ci.usageFlags=XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT|XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT;
-+   ci.format=format; ci.sampleCount=1; ci.width=CHAIN_WIDTH; ci.height=CHAIN_HEIGHT; ci.faceCount=1; ci.arraySize=1; ci.mipCount=1;
++   ci.format=format; ci.sampleCount=1; ci.width=chain_extent[eye].x; ci.height=chain_extent[eye].y; ci.faceCount=1; ci.arraySize=1; ci.mipCount=1;
 +   if (!Check(XRGL("xrCreateSwapchain", p_xrCreateSwapchain, session,&ci,&chains[eye]),"xrCreateSwapchain")) return false;
 +   u32 n=0;
 +   if (!Check(XRGL("xrEnumerateSwapchainImages", p_xrEnumerateSwapchainImages, chains[eye],0,&n,nullptr),"swapchain images")) return false;
@@ -1935,7 +1971,7 @@ new file mode 100644
 +   if (!n || !Check(XRGL("xrEnumerateSwapchainImages", p_xrEnumerateSwapchainImages, chains[eye],n,&n,reinterpret_cast<XrSwapchainImageBaseHeader*>(images[eye].data())),"swapchain images")) return false;
 +  }
 +  swapchain_pair_created=true;
-+  if (live_log) { std::fprintf(live_log,"Swapchain pair created: fixed=%ux%u context=%s\n",CHAIN_WIDTH,CHAIN_HEIGHT,using_window_dc ? "hidden-window DC" : "surfaceless"); std::fflush(live_log); }
++  if (live_log) { std::fprintf(live_log,"Swapchain pair created: fixed left=%dx%d right=%dx%d context=%s\n",chain_extent[0].x,chain_extent[0].y,chain_extent[1].x,chain_extent[1].y,using_window_dc ? "hidden-window DC" : "surfaceless"); std::fflush(live_log); }
 +  return true;
 + }
 + static bool PlaceScreen(XrTime time, XrPosef& pose)
@@ -2008,9 +2044,9 @@ new file mode 100644
 +     {
 +      if (fence) glWaitSync(fence,0,GL_TIMEOUT_IGNORED);
 +      DrainGL("after","shared fence wait");
-+      const GSVector2i used=UsedExtent();
 +      for (int eye=0; eye<2; eye++)
 +      {
++       const GSVector2i used=UsedExtent(eye);
 +       u32 index=0; XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
 +       if (!Check(XRGL("xrAcquireSwapchainImage", p_xrAcquireSwapchainImage, chains[eye],&ai,&index),"xrAcquireSwapchainImage")) break;
 +       XrSwapchainImageWaitInfo swi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO}; swi.timeout=1000000000;
@@ -2134,6 +2170,8 @@ new file mode 100644
 + g_gs_renderer->SetRegsMem(basemem); g_gs_renderer->ResetPCRTC(); g_gs_renderer->UpdateRenderFixes();
 + std::swap(g_texture_cache,cache); std::swap(g_gs_renderer,renderer);
 + enabled=true; other=false; stop=false; serial=0; ticks=0; proof_pending=false;
++ PS2VRInside::ResetResolution();
++ chain_extent[0]=chain_extent[1]={CHAIN_WIDTH,CHAIN_HEIGHT};
 + PS2VRInside::Reset(); PS2VRAim::ResetScene(); published_inside={};
 + drained_errors=frames_with_layers=0; swapchain_pair_created=false; using_window_dc=false; GSDeviceOGL::SetStereoEye(1);
 + g_gs_device->ResetStereoInterlacePhase();
@@ -2200,6 +2238,8 @@ new file mode 100644
 +  width=w; height=h;
 + }
 + for (int eye=0; eye<2; eye++) glCopyImageSubData(pending[eye],GL_TEXTURE_2D,0,0,0,0,eyes[eye],GL_TEXTURE_2D,0,0,0,0,w,h,1);
++ if(PS2VRInside::Enabled())PS2VRInside::EnsureUpscale(GSConfig.UpscaleMultiplier);
++ if(PS2VRInside::Enabled() && PS2VRInside::MonitorSpeed(GSConfig.UpscaleMultiplier,PerformanceMetrics::GetSpeed()))LiveLog("INSIDE upscale fallback: sustained speed below99.5%; requesting3x, fixed eye chains unchanged");
 + native_width=static_cast<float>(w)/GSConfig.UpscaleMultiplier;
 + published_inside=PS2VRInside::Get();
 + if(PS2VRInside::Enabled() && PS2VRGun::Enabled())PS2VRAim::PublishScene();
@@ -2544,7 +2584,7 @@ new file mode 100644
 + for (int eye=0;eye<2;eye++)
 + {
 +  XrSwapchainCreateInfo ci{XR_TYPE_SWAPCHAIN_CREATE_INFO}; ci.usageFlags=XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
-+  ci.format=format; ci.sampleCount=1; ci.width=ci.height=GUN_RES; ci.faceCount=ci.arraySize=ci.mipCount=1;
++  ci.format=format; ci.sampleCount=1; ci.width=PS2VRInside::Enabled()?chain_extent[eye].x:GUN_RES; ci.height=PS2VRInside::Enabled()?chain_extent[eye].y:GUN_RES; ci.faceCount=ci.arraySize=ci.mipCount=1;
 +  if (!Check(XRGL("xrCreateSwapchain",p_xrCreateSwapchain,session,&ci,&gun_chains[eye]),"gun swapchain")) return false;
 +  u32 count=0;
 +  if (!Check(XRGL("xrEnumerateSwapchainImages",p_xrEnumerateSwapchainImages,gun_chains[eye],0,&count,nullptr),"gun images") || !count) return false;
@@ -2552,7 +2592,7 @@ new file mode 100644
 +  if (!Check(XRGL("xrEnumerateSwapchainImages",p_xrEnumerateSwapchainImages,gun_chains[eye],count,&count,reinterpret_cast<XrSwapchainImageBaseHeader*>(gun_images[eye].data())),"gun images")) return false;
 + }
 + glGenFramebuffers(1,&gun_fbo); gun_graphics_ready=true;
-+ LiveLog("Gun projection layer ready: GLB grip/muzzle anchors, TOML trigger + LOD, two 1024 targets");
++ LiveLog("Gun projection layer ready: GLB grip/muzzle anchors, TOML trigger + LOD, fixed per-eye targets (headset recommendation in INSIDE,1024 screen)");
 + return true;
 +}
 +static bool DrawTrackedGun(XrTime time,const XrPosef& screen_pose,float sw,float sh,XrCompositionLayerProjection& layer,XrCompositionLayerProjectionView* projections)
@@ -2585,14 +2625,14 @@ new file mode 100644
 +  const auto aim=PS2VRGun::Mat4::FromPose(&aim_pose.position.x,&aim_pose.orientation.x);
 +  const auto screen=PS2VRGun::Mat4::FromPose(&screen_pose.position.x,&screen_pose.orientation.x);
 +  float dot_u=0,dot_v=0;const bool dot=show_dot && AimDotPosition(sample,projection,view_matrix,screen,sw,sh,dot_u,dot_v);
-+  bool drawn=RenderControllerOverlay(gun_model,gun_fbo,GUN_RES,GUN_RES,projection,view_matrix,grip,aim,sample.trigger,recoil,show_model,dot,dot_u,dot_v,error);
++  bool drawn=RenderControllerOverlay(gun_model,gun_fbo,PS2VRInside::Enabled()?chain_extent[eye].x:GUN_RES,PS2VRInside::Enabled()?chain_extent[eye].y:GUN_RES,projection,view_matrix,grip,aim,sample.trigger,recoil,show_model,dot,dot_u,dot_v,error);
 +  glFinish(); if (DrainGL("after","gun render / completion")) drawn=false;
 +  glDisable(GL_DEPTH_TEST); glDisable(GL_SCISSOR_TEST); glDisable(GL_FRAMEBUFFER_SRGB);
 +  XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
 +  const bool released=Check(XRGL("xrReleaseSwapchainImage",p_xrReleaseSwapchainImage,gun_chains[eye],&ri),"release gun image");
 +  if (!drawn || !released) { LiveLog(("Gun frame failed: "+error).c_str()); pair=false; break; }
 +  projections[eye]={XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW}; projections[eye].pose=v.pose; projections[eye].fov=v.fov;
-+  projections[eye].subImage.swapchain=gun_chains[eye]; projections[eye].subImage.imageRect.extent={GUN_RES,GUN_RES};
++  projections[eye].subImage.swapchain=gun_chains[eye]; projections[eye].subImage.imageRect.extent=PS2VRInside::Enabled()?XrExtent2Di{chain_extent[eye].x,chain_extent[eye].y}:XrExtent2Di{GUN_RES,GUN_RES};
 + }
 + layer={XR_TYPE_COMPOSITION_LAYER_PROJECTION};
 + layer.space=space;
@@ -2831,10 +2871,13 @@ diff --git a/pcsx2/GS/PS2VRInside.h b/pcsx2/GS/PS2VRInside.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRInside.h
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,119 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +#pragma once
 +#include <array>
++#include <atomic>
++#include <algorithm>
++#include <chrono>
 +#include <cmath>
 +#include <cstdint>
 +#include <cstdlib>
@@ -2884,6 +2927,47 @@ new file mode 100644
 + }
 + return true;
 +}
++// Runtime recommendation is immutable for the session. Render the GS at3x/4x,
++// then resample the complete reconstructed eye into its exact recommended grid.
++struct EyeSize { unsigned width=0,height=0; };
++inline std::mutex resolution_mutex;
++inline std::array<EyeSize,2> recommended_sizes{};
++inline std::atomic<int> requested_upscale{0};
++inline int selected_upscale=0, slow_samples=0;
++inline std::chrono::steady_clock::time_point resolution_changed{}, speed_sample{};
++inline int ChooseUpscale(const std::array<EyeSize,2>& sizes,float canvas_w,float canvas_h,int cap=4) {
++ if(!(canvas_w>0 && canvas_h>0))return 3;
++ for(const auto& size:sizes)if(size.width>canvas_w*3 || size.height>canvas_h*3)return cap>=4?4:3;
++ return 3;
++}
++inline void ResetResolution() {
++ std::lock_guard guard(resolution_mutex);recommended_sizes={};selected_upscale=slow_samples=0;requested_upscale=0;
++ resolution_changed=speed_sample={};
++}
++inline void SetRecommended(const std::array<EyeSize,2>& sizes) {
++ if(!Enabled() || !sizes[0].width || !sizes[0].height || !sizes[1].width || !sizes[1].height)return;
++ std::lock_guard guard(resolution_mutex);recommended_sizes=sizes;
++ selected_upscale=ChooseUpscale(sizes,Env("PCSX2_INSIDE_CANVAS_WIDTH",640),Env("PCSX2_INSIDE_CANVAS_HEIGHT",448),static_cast<int>(Env("PCSX2_INSIDE_MAX_UPSCALE",4)));
++ requested_upscale=selected_upscale;slow_samples=0;resolution_changed=speed_sample=std::chrono::steady_clock::now();
++}
++inline std::array<EyeSize,2> Recommended() { std::lock_guard guard(resolution_mutex);return recommended_sizes; }
++inline bool MonitorSpeed(float current,float speed,std::chrono::steady_clock::time_point now=std::chrono::steady_clock::now()) {
++ std::lock_guard guard(resolution_mutex);
++ if(selected_upscale!=4 || current!=4 || now-resolution_changed<std::chrono::seconds(30) || now-speed_sample<std::chrono::seconds(2))return false;
++ speed_sample=now;
++ if(!std::isfinite(speed) || speed<=0)return false;
++ slow_samples=speed<99.5f?slow_samples+1:0;
++ if(slow_samples<5)return false;
++ selected_upscale=3;requested_upscale=3;slow_samples=0;resolution_changed=now;return true;
++}
++inline void EnsureUpscale(float current) {
++ static auto last=std::chrono::steady_clock::time_point{};
++ const auto now=std::chrono::steady_clock::now();
++ if(now-last<std::chrono::seconds(2))return;last=now;
++ std::lock_guard guard(resolution_mutex);
++ if((selected_upscale==3 || selected_upscale==4) && current!=selected_upscale)requested_upscale=selected_upscale;
++}
++inline int ConsumeUpscale() { return requested_upscale.exchange(0); }
 +inline Packet Fake()
 +{
 + Packet p;

@@ -614,3 +614,39 @@ foreign same-basename exclusion, wrong/missing stamps, and deterministic
 startup/replacement interleavings. Independent source review and two repair
 rounds found no remaining ownership issue within scope. Physical action delivery
 still needs an owner test. Play audio remains on; offline checks remain muted.
+
+
+### Recommended INSIDE eye grid and bounded upscale policy
+
+INSIDE queries both primary-stereo view recommendations with
+`xrEnumerateViewConfigurationViews`, validates the sizes against runtime and GL
+limits, and creates each eye chain once at that size for the session. The gun
+projection uses those eye sizes too. Each complete reconstructed GS eye is
+blit-scaled into the entire recommended rectangle. This final grid is distinct
+from GS geometry sampling: GS retains3x/4x render/depth targets, so a larger
+recommended grid still scales those samples. Screen mode keeps its existing
+fixed1920x1536 chains and used rectangles.
+
+The smallest permitted GS scale that covers the recommendation is selected,
+capped at4x and by `PCSX2_INSIDE_MAX_UPSCALE`. CPU-thread application uses the
+existing MTGS settings route without persisting an owner setting. After30seconds,
+five consecutive speed samples below99.5% at least2seconds apart request3x;
+it never oscillates back to4x. A fresh game-setting reload can reapply the
+selected scale while the chains remain fixed. These timings/thresholds passed
+native tests. The offline-only synthetic-eye switch never loads OpenXR and is
+explicitly labelled as injected evidence.
+
+Actual hidden gameplay at fake head-left20 sampled100% in Virtua Cop at4x,
+with2048x2048 GS eyes. OutRun2006 did not meet full-speed acceptance: a4x-to3x
+trial timed out at240seconds; fresh3x race samples were13.98–22.42%, and a3x
+zero-pose control without periodic screenshots was12.30–21.76%. The zero-pose
+control also being slow prevents assigning the cause solely to head projection
+or screenshot pauses. No GL error was logged. Three full-speed gate attempts
+are retained; further OutRun speed tests stop at this checkpoint.
+
+The successful runs saved both shared GPU eyes and exact RGBA SBS joins.
+A synthetic2592x2688 final grid passed the same native blit/FBO path and an
+independent nearest-sample comparison, allowing only adjacent texels at exact
+floating-point texel-boundary ties. All other pixels match exactly. Real
+runtime query/allocation, tracked overlay visibility and headset frame rate
+still require owner testing. No headset runtime was started.
