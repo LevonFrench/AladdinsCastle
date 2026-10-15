@@ -16,9 +16,10 @@ Button {
  padding: 10
  Accessible.name: text
  Accessible.checked: selected
- contentItem: Text { id: label; text: control.text; color: control.enabled ? (control.neon ? control.accent : Theme.get("color.text.inactive")) : Theme.get("color.text.faint"); font.family: Theme.get("font.family"); font.pixelSize: control.vrOverlayMode ? 16 : 12; font.weight: 600; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
+ contentItem: Text { id: label; text: control.text; color: !control.enabled ? Theme.get("color.text.faint") : control.neon ? Theme.get("color.surface.window") : Theme.get("color.text.inactive"); font.family: Theme.get("font.family"); font.pixelSize: control.vrOverlayMode ? 17 : 13; font.weight: 700; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight }
  background: Item {
- Rectangle { id:frame;anchors.fill:parent;color: control.down ? Theme.get("color.surface.menu_hover") : control.neon ? Theme.get("formula.neon.fill") : Theme.get("color.surface.pill"); radius: Theme.get("radius.pill"); border.width: control.selected||control.activeFocus?2:1; border.color: control.activeFocus||control.selected ? Theme.get("color.glass.ring") : control.neon ? control.accent : control.hovered ? Theme.get("color.line.button") : Theme.get("color.glass.hairline") }
- Loader{anchors.fill:frame;z:-1;active:control.neon&&!(uiSettings.values,uiSettings.get("cheapEffects",true));sourceComponent:Component{MultiEffect{source:frame;shadowEnabled:true;shadowColor:control.accent;shadowBlur:0.45;shadowOpacity:0.42;shadowHorizontalOffset:0;shadowVerticalOffset:0}}}
+ // Direction C: a filled pill; the primary action filled in its own colour; a white ring for focus, hover and the selected choice.
+ Rectangle { id:frame;anchors.fill:parent;color: control.neon ? (control.enabled ? (control.down ? Qt.darker(control.accent,1.2) : control.accent) : Theme.alpha(control.accent,0.18)) : control.down ? Theme.get("color.surface.menu_hover") : control.selected ? Theme.get("color.line.strong") : Theme.get("color.surface.pill"); radius: Theme.get("radius.pill")
+  border.width: control.activeFocus||control.selected||(control.hovered&&control.enabled)?2:0; border.color: Theme.get("color.glass.ring") }
  }
 }

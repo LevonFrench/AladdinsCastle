@@ -135,6 +135,8 @@ ac_project_warnings(huboverlay)
 qt_add_library(hubui STATIC)
 add_subdirectory(src/controls)
 target_link_libraries(hubui PUBLIC hubcore accontrols Qt6::Quick Qt6::QuickControls2)
+# Archivo (SIL Open Font License 1.1), shipped so the Hub looks the same everywhere and downloads nothing.
+qt_add_resources(hubui hub_fonts PREFIX /fonts BASE resources/fonts FILES resources/fonts/Archivo-Medium.ttf resources/fonts/Archivo-Bold.ttf resources/fonts/Archivo-Black.ttf resources/fonts/OFL.txt)
 file(GLOB AC_QML_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
 foreach(qml_file IN LISTS AC_QML_FILES)
     get_filename_component(qml_name "${qml_file}" NAME)

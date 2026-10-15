@@ -7,6 +7,8 @@ Rectangle {
  id:header
  property bool vrOverlayMode:false
  property bool showAll:false
+ // The page on show, so its tab is the filled one.
+ property string view:""
  signal libraryRequested()
  signal pinballRequested()
  signal model3Requested()
@@ -14,17 +16,17 @@ Rectangle {
  signal orderRequested()
  signal queryEdited(string text)
  property alias searchField:search
- implicitHeight:vrOverlayMode?88:78;height:implicitHeight;color:Theme.get("color.surface.header")
+ implicitHeight:vrOverlayMode?84:72;height:implicitHeight;color:Theme.get("color.surface.header")
  function focusSearch(){search.forceActiveFocus()}
- RowLayout {anchors.fill:parent;anchors.margins:14;spacing:10
-  UiText {visible:header.width>=620;text:"◉";font.pixelSize:32;color:Theme.get("color.brand.orange")}
-  Column {visible:header.width>=620;Layout.fillWidth:true;spacing:3
-   Row {spacing:8;GradientText {text:uiController.appName;pixelSize:22} UiText {visible:header.width>=780;text:"v"+uiController.appVersion;font.pixelSize:10;color:Theme.get("color.text.faint")} }
-   UiText {visible:header.width>=780;text:"3D light gun & racing games in true VR";font.pixelSize:11;color:Theme.get("color.text.faint")}
-  }
-  Item {visible:header.width<620;Layout.fillWidth:true}
-  PillButton {objectName:"model3Tab";text:"VR games";vrOverlayMode:header.vrOverlayMode;onClicked:header.model3Requested()}
-  PillButton {objectName:"pinballTab";text:"Pinball";vrOverlayMode:header.vrOverlayMode;onClicked:header.pinballRequested()}
+ RowLayout {anchors.fill:parent;anchors.leftMargin:header.vrOverlayMode?28:40;anchors.rightMargin:header.vrOverlayMode?28:40;spacing:8
+  // Direction C: the wordmark, then pill tabs, the page's own tab filled white.
+  Text {objectName:"brand";text:uiController.appName;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:900;font.pixelSize:header.vrOverlayMode?26:22;Layout.rightMargin:header.vrOverlayMode?18:28}
+  PillButton {objectName:"model3Tab";text:"VR games";vrOverlayMode:header.vrOverlayMode;neon:header.view==="Model3";accent:Theme.get("color.text.primary");onClicked:header.model3Requested()}
+  PillButton {objectName:"pinballTab";text:"Pinball";vrOverlayMode:header.vrOverlayMode;neon:header.view==="Pinball";accent:Theme.get("color.text.primary");onClicked:header.pinballRequested()}
+  Item {Layout.fillWidth:true}
+  Rectangle {objectName:"steamVrChip";Layout.preferredHeight:header.vrOverlayMode?44:34;Layout.preferredWidth:chip.implicitWidth+38;radius:height/2;color:Theme.alpha(Theme.get("color.text.primary"),0.08)
+   Rectangle {x:14;anchors.verticalCenter:parent.verticalCenter;width:9;height:9;radius:5;color:uiController.steamVrRunning?Theme.get("color.state.ready_neon"):Theme.get("color.text.dim")}
+   Text {id:chip;x:30;anchors.verticalCenter:parent.verticalCenter;text:uiController.steamVrRunning?"SteamVR":"SteamVR off";color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:header.vrOverlayMode?16:13}}
   PillButton {objectName:"libraryButton";visible:header.showAll;text:"▦";width:vrOverlayMode?44:40;vrOverlayMode:header.vrOverlayMode;Accessible.name:"Open library";onClicked:header.libraryRequested()}
   PillButton {objectName:"helpButton";text:"···";width:vrOverlayMode?44:40;vrOverlayMode:header.vrOverlayMode;Accessible.name:"Help and settings";onClicked:header.helpRequested()}
   PillButton {objectName:"orderButton";visible:header.showAll;text:(header.width>=620?"ORDER  ":"")+gameFilter.sortMode+" ▾";Layout.preferredWidth:header.width>=780?144:112;vrOverlayMode:header.vrOverlayMode;onClicked:header.orderRequested()}
