@@ -163,9 +163,15 @@ int main(int argc,char **argv){
         }
         try{if(!qaPinballIni.isEmpty())services.setPinballDiagnosticIni(qaPinballIni);}
         catch(const std::exception &exception){ui.showError("Diagnostic","Pinball diagnostic settings refused: "+QString::fromUtf8(exception.what()));return;}
-        ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball();
+        ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball(qEnvironmentVariable("AC_UI_PINBALL_VIEW","desktop")); // A diagnostic's settings file chooses VR itself.
     });
     else if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});
+    // In the headset, holding the left Y (B on Index) for 3 seconds closes a table launched in the headset, the ordinary way.
+    QObject::connect(&ui,&ac::UiController::nowPlayingChanged,&overlay,[&ui,&overlay]{
+        const auto session=ui.nowPlaying();
+        overlay.setCloseGesture(session.value("running").toBool()&&!session.value("closing").toBool()&&session.contains("pinballId")&&session.value("view")=="headset");
+    });
+    QObject::connect(&overlay,&ac::OverlayHost::closeGameRequested,&ui,[&ui]{ui.stopLaunch();});
     // Diagnostic: one game started and ended through the Hub, written to AC_LAUNCH_PROOF.
     if(const auto proof=ac::launchProofOptions();!proof.output.isEmpty())ac::runLaunchProof(proof,services,ui);
     // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.

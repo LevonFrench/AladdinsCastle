@@ -145,6 +145,29 @@ public:
     }
     void hideKeyboard() override { if (m_initialized) vr::VROverlay()->HideKeyboard(); }
     void acknowledgeQuit() override { if (m_system) m_system->AcknowledgeQuit_Exiting(); }
+    bool closeGameHeld(bool active) override {
+        if (!m_initialized || !vr::VRInput()) return false;
+        if (!m_actionsTried) {
+            m_actionsTried = true;
+            const auto manifest = QDir::toNativeSeparators(QCoreApplication::applicationDirPath() + "/resources/hub-actions.json");
+            m_actionsReady = QFileInfo(manifest).isFile()
+                && vr::VRInput()->SetActionManifestPath(manifest.toUtf8().constData()) == vr::VRInputError_None
+                && vr::VRInput()->GetActionSetHandle("/actions/hub", &m_actionSet) == vr::VRInputError_None
+                && vr::VRInput()->GetActionHandle("/actions/hub/in/close_game", &m_closeGame) == vr::VRInputError_None;
+        }
+        if (!m_actionsReady) return false;
+        if (!active) {
+            // Give the button back to the game.
+            if (m_actionsActive) { vr::VRActiveActionSet_t none{}; vr::VRInput()->UpdateActionState(&none, sizeof none, 0); m_actionsActive = false; }
+            return false;
+        }
+        vr::VRActiveActionSet_t set{};set.ulActionSet = m_actionSet;set.nPriority = vr::k_nActionSetOverlayGlobalPriorityMin;
+        if (vr::VRInput()->UpdateActionState(&set, sizeof set, 1) != vr::VRInputError_None) return false;
+        m_actionsActive = true;
+        vr::InputDigitalActionData_t data{};
+        if (vr::VRInput()->GetDigitalActionData(m_closeGame, &data, sizeof data, vr::k_ulInvalidInputValueHandle) != vr::VRInputError_None) return false;
+        return data.bActive && data.bState;
+    }
     void shutdown() override {
         m_submitGate.reset();
         if (!m_initialized) return;
@@ -163,6 +186,9 @@ private:
     vr::VROverlayHandle_t m_main = vr::k_ulOverlayHandleInvalid;
     vr::VROverlayHandle_t m_thumbnail = vr::k_ulOverlayHandleInvalid;
     bool m_initialized = false;
+    bool m_actionsTried = false, m_actionsReady = false, m_actionsActive = false;
+    vr::VRActionSetHandle_t m_actionSet = vr::k_ulInvalidActionSetHandle;
+    vr::VRActionHandle_t m_closeGame = vr::k_ulInvalidActionHandle;
 };
 }
 std::unique_ptr<OverlayRuntime> makeOpenVrRuntime(bool pictureFlipY) { return std::make_unique<OpenVrRuntime>(pictureFlipY); }

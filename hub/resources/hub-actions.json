@@ -1,0 +1,32 @@
+{
+  "default_bindings": [
+    {
+      "controller_type": "oculus_touch",
+      "binding_url": "hub-bindings-oculus_touch.json"
+    },
+    {
+      "controller_type": "knuckles",
+      "binding_url": "hub-bindings-knuckles.json"
+    }
+  ],
+  "actions": [
+    {
+      "name": "/actions/hub/in/close_game",
+      "type": "boolean",
+      "requirement": "optional"
+    }
+  ],
+  "action_sets": [
+    {
+      "name": "/actions/hub",
+      "usage": "single"
+    }
+  ],
+  "localization": [
+    {
+      "language_tag": "en_US",
+      "/actions/hub": "AladdinsCastle Hub",
+      "/actions/hub/in/close_game": "Hold for 3 seconds to close the game"
+    }
+  ]
+}

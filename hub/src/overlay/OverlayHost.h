@@ -24,11 +24,14 @@ public:
     void setInputLog(const QString &path);
     Q_INVOKABLE void requestKeyboard(QQuickItem *item);
     Q_INVOKABLE void dismissKeyboard();
+    // While a game the Hub started runs in the headset, holding the close button for 3 seconds asks it to close.
+    void setCloseGesture(bool active){m_gestureActive=active;}
     // Public input boundary: tests inject synthetic events through the same path.
     void handleRuntimeEvent(const vr::VREvent_t &event);
     void shutdown();
 signals:
     void quitRequested();
+    void closeGameRequested();
     void failed(const QString &error);
 private:
     void tick();
@@ -45,6 +48,8 @@ private:
     bool m_loggedVisible = false;
     bool m_quitSeen = false;
     bool m_running = false;
+    bool m_gestureActive = false;
+    HoldGesture m_closeHold;
     QTimer m_timer;
     QElapsedTimer m_clock;
     qint64 m_reportTime = 0;

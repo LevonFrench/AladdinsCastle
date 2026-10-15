@@ -21,6 +21,10 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
+#include "core/pinball/Art.h"
+#include <QBuffer>
+#include <QCryptographicHash>
+#include <QImage>
 #include "core/pinball/Pinball.h"
 namespace {
 ac::CatalogData syntheticCatalog(const QString &root){
@@ -66,11 +70,15 @@ class IntegrationTest:public QObject{
 private slots:
  void pinballLaunchUsesRetainedTableAndRecordsRecent(){
     QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
+    // VPX's own settings are looked for in a folder of the test's, never the PC's.
+    const auto previousAppData=qgetenv("APPDATA");qputenv("APPDATA",QDir::toNativeSeparators(t.filePath("appdata")).toUtf8());
+    const auto restoreAppData=qScopeGuard([previousAppData]{qputenv("APPDATA",previousAppData);});
     const auto cfb=syntheticTable();
     const auto table=folder+"/synthetic table.vpx";ac::install::atomicWrite(table,cfb);
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",QCoreApplication::applicationFilePath());
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    services.setVrServerProbe([]{return true;});services.setGamepadProbe([](const QString &){return QVariantList{};});
     auto data=ac::pinball::scan(folder);auto row=data["tables"].toList()[0].toMap();QVERIFY(!row.contains("error"));
     ui.pinballLoaded(data);ui.selectPinball(row["id"].toString());ui.markPinball(true);
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
@@ -102,6 +110,60 @@ private slots:
     QCOMPARE(exitReady.size(),0);QTRY_COMPARE_WITH_TIMEOUT(exitReady.size(),1,5000);QCOMPARE(exitReady[0][0].toInt(),7);
     QVERIFY(!services.launcher()->busy());QCOMPARE(ac::install::readBytes(table),cfb);
 #endif
+ }
+ // Launch on desktop or in headset, each exactly that; a gamepad gets the Hub's layout in a Hub-owned copy of the user's settings.
+ void pinballViewsAndGamepadReachVisualPinball(){
+    QTemporaryDir t;const auto folder=t.filePath("library");QVERIFY(QDir().mkpath(folder));
+    const auto table=folder+"/synthetic table.vpx";ac::install::atomicWrite(table,syntheticTable());
+    // The user's own VPX settings, where VPX keeps them; they must stay byte for byte.
+    const auto appData=t.filePath("appdata"),own=appData+"/VPinballX/10.8/VPinballX.ini";
+    const QByteArray mine="[Player]\r\nBallTrail = 1\r\n\r\n[Input]\r\nDevices = Key\r\nMapping.LeftFlipper = Key;225\r\nMapping.Start = Key;30\r\n\r\n[PlayerVR]\r\nAskToTurnOn = 1\r\n";
+    QVERIFY(QDir().mkpath(QFileInfo(own).absolutePath()));ac::install::atomicWrite(own,mine);
+    const auto previousAppData=qgetenv("APPDATA");qputenv("APPDATA",QDir::toNativeSeparators(appData).toUtf8());
+    const auto report=t.filePath("arguments.json");qputenv("AC_SYNTHETIC_PINBALL_ARGUMENTS",report.toUtf8());
+    const auto restore=qScopeGuard([previousAppData]{qputenv("APPDATA",previousAppData);qunsetenv("AC_SYNTHETIC_PINBALL_ARGUMENTS");});
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",QCoreApplication::applicationFilePath());
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QVariantList pads{QVariantMap{{"uid","SDLJoy_030000005e0400008e02000000007801_1"},{"name","Synthetic pad"},
+        {"elements",QVariantMap{{"A",0},{"B",1},{"X",2},{"Y",3},{"LeftShoulder",4},{"RightShoulder",5},{"Back",6},{"Start",7},{"LeftStick",8},{"RightStick",9},
+                                {"DPadLeft",0x100},{"DPadRight",0x101},{"DPadUp",0x102},{"DPadDown",0x103},{"LeftX",0x200},{"LeftY",0x201},{"LeftTrigger",0x202},{"RightX",0x203},{"RightY",0x204},{"RightTrigger",0x205}}}}};
+    QString probed;services.setGamepadProbe([&](const QString &library){probed=library;return pads;});
+    bool vr=false;services.setVrServerProbe([&]{return vr;});
+    auto data=ac::pinball::scan(folder);const auto row=data["tables"].toList()[0].toMap();const auto id=row["id"].toString();
+    ui.pinballLoaded(data);ui.selectPinball(id);ui.markPinball(true);
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started);
+    const auto hubCopy=QDir::toNativeSeparators(t.filePath("user/pinball/VPinballX.ini")),tableFile=QDir::toNativeSeparators(t.filePath("user/pinball/"+id+".ini"));
+    const auto run=[&](const QString &view){
+        const int before=started.size();ui.launchPinball(id,view);
+        QTRY_COMPARE_WITH_TIMEOUT(started.size(),before+1,5000);QTRY_VERIFY_WITH_TIMEOUT(!services.launcher()->busy(),5000);
+    };
+    // Without SteamVR, Launch in headset starts nothing and says why.
+    ui.launchPinball(id,"headset");QCOMPARE(started.size(),0);QVERIFY(ui.status().contains("Start SteamVR first"));
+    // On the desktop: VR off in the table's Hub file, the gamepad layout in the Hub's copy; SteamVR not needed.
+    run("desktop");
+    QCOMPARE(QJsonDocument::fromJson(ac::install::readBytes(report)).toVariant().toStringList(),(QStringList{"-Ini",hubCopy,"-Play",QFileInfo(table).absoluteFilePath(),"-TableIni",tableFile}));
+    QVERIFY(ac::install::readBytes(tableFile).contains("AskToTurnOn = 2"));
+    QVERIFY(probed.isEmpty()); // The stand-in has no SDL library beside it.
+    const auto copy=ac::install::readBytes(hubCopy);
+    for(const char *mapping:{"Mapping.LeftFlipper = Key;225 | SDLJoy_030000005e0400008e02000000007801_1;4 | SDLJoy_030000005e0400008e02000000007801_1;514;o;-0.300000",
+                             "Mapping.Start = Key;30 | SDLJoy_030000005e0400008e02000000007801_1;7",
+                             "Mapping.ExitGame = SDLJoy_030000005e0400008e02000000007801_1;7 & SDLJoy_030000005e0400008e02000000007801_1;6",
+                             "Mapping.Plunger0.Position = SDLJoy_030000005e0400008e02000000007801_1;516;P;0.100000;1.000000;1.000000",
+                             "Devices = Key;SDLJoy_030000005e0400008e02000000007801_1","[PlayerVR]\r\nAskToTurnOn = 1"})
+        QVERIFY2(copy.contains(mapping),mapping);
+    QCOMPARE(ac::install::readBytes(own),mine);
+    QVERIFY(ui.nowPlaying().isEmpty());
+    // In the headset: VR asked for; the same gamepad layout.
+    vr=true;run("headset");
+    QVERIFY(ac::install::readBytes(tableFile).contains("AskToTurnOn = 0"));QVERIFY(!ac::install::readBytes(tableFile).contains("AskToTurnOn = 2"));
+    QCOMPARE(QJsonDocument::fromJson(ac::install::readBytes(report)).toVariant().toStringList().first(),QString("-Ini"));
+    // No gamepad: VPX reads the user's own settings, so no -Ini.
+    pads.clear();vr=false;run("desktop");
+    QCOMPARE(QJsonDocument::fromJson(ac::install::readBytes(report)).toVariant().toStringList(),(QStringList{"-Play",QFileInfo(table).absoluteFilePath(),"-TableIni",tableFile}));
+    QCOMPARE(ac::install::readBytes(own),mine);
+    // Nothing is remembered: each button does its own launch every time.
+    QVERIFY(!settings.values().contains("pinballViews"));
  }
  void model3LaunchUsesTheChosenViewAndLeavesFoldersAlone(){
     // The stand-in emulator is this test program: it reports what it was started with, then exits.
@@ -355,6 +417,59 @@ private slots:
     services.launcher()->start(request);QVERIFY(prepared);QVERIFY(busyMessage);QVERIFY(!services.launchBusy());disconnect(connection);
     request.prepareProfile=false;QVERIFY(services.launcher()->start(request));QTRY_VERIFY_WITH_TIMEOUT(services.playing(),5000);QVERIFY(services.launchBusy());QVERIFY(!services.preparing());ui.stopLaunch();QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy()&&!services.playing(),6000);
  }
+ // Every process a game started ends with it: by Stop, when the game ends by itself, and by Stop everything.
+ // A table's backglass file gives its pictures, made once in the Hub's cache; the table's folder is only read.
+ void pinballPicturesComeFromTheBackglassFile(){
+    QTemporaryDir t;const auto folder=t.filePath("tables"),cache=t.filePath("hub/user/cache/pinball-art");QVERIFY(QDir().mkpath(folder));
+    const auto table=folder+"/Synthetic Table (Maker 1990).vpx";ac::install::atomicWrite(table,syntheticTable());
+    const auto image=[](const QColor &colour){QImage picture(64,48,QImage::Format_RGB32);picture.fill(colour);QByteArray bytes;QBuffer buffer(&bytes);buffer.open(QIODevice::WriteOnly);picture.save(&buffer,"PNG");return bytes.toBase64();};
+    const auto backglass=folder+"/Synthetic Table (Maker 1990).DirectB2S";
+    ac::install::atomicWrite(backglass,"<DirectB2SData Version=\"1.2\"><Name Value=\"Synthetic\" /><Images><ThumbnailImage Value=\""+image(Qt::blue)+"\" /><BackglassImage Value=\""+image(Qt::red)+"\" /></Images></DirectB2SData>");
+    const auto listing=[&]{auto names=QDir(folder).entryList(QDir::Files);names.sort();return names;};const auto before=listing();
+    QCOMPARE(ac::pinball::backglassFile(table),QFileInfo(backglass).absoluteFilePath());
+    const auto id=QString::fromLatin1(QCryptographicHash::hash(QFileInfo(table).absoluteFilePath().toUtf8(),QCryptographicHash::Sha256).toHex());
+    std::atomic_bool cancel=false;const auto art=ac::pinball::tableArt(table,id,cache,cancel);
+    QVERIFY(QFileInfo(art["thumb"].toString()).isFile());QVERIFY(QFileInfo(art["backglass"].toString()).isFile());
+    QVERIFY(art["backglass"].toString().startsWith(cache));
+    // The backglass picture, not the thumbnail: red.
+    const QImage made(art["backglass"].toString());QVERIFY(!made.isNull());QVERIFY(qRed(made.pixel(10,10))>200&&qBlue(made.pixel(10,10))<60);
+    QCOMPARE(listing(),before); // Nothing written beside the table.
+    // Made once: the same files are used again.
+    const auto stamp=QFileInfo(art["thumb"].toString()).lastModified();QCOMPARE(ac::pinball::tableArt(table,id,cache,cancel),art);QCOMPARE(QFileInfo(art["thumb"].toString()).lastModified(),stamp);
+    // A changed backglass file is read again and replaces the old pictures.
+    QTest::qWait(1100);ac::install::atomicWrite(backglass,"<DirectB2SData><Images><BackglassImage Value=\""+image(Qt::green)+"\" /></Images></DirectB2SData>");
+    const auto again=ac::pinball::tableArt(table,id,cache,cancel);QVERIFY(again["thumb"]!=art["thumb"]);QVERIFY(!QFileInfo::exists(art["thumb"].toString()));QCOMPARE(QDir(cache).entryList(QDir::Files).size(),2);
+    // No backglass file, or one without a picture: no pictures, and today's look stays.
+    const auto other=folder+"/Other.vpx";ac::install::atomicWrite(other,syntheticTable());QVERIFY(ac::pinball::tableArt(other,QString(64,'a'),cache,cancel).isEmpty());
+    ac::install::atomicWrite(folder+"/Other.directb2s","<DirectB2SData><Images><BackglassImage Value=\"bm90IGFuIGltYWdl\" /></Images></DirectB2SData>");
+    QVERIFY(ac::pinball::tableArt(other,QString(64,'a'),cache,cancel).isEmpty());
+    // The controller puts the pictures on the table's row.
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(t.filePath("user"));ac::UiController ui(&games,&filter,&settings);
+    ui.pinballLoaded(ac::pinball::scan(folder));ui.setPinballArt({{id,again}});ui.selectPinball(id);
+    QCOMPARE(ui.pinballSelection()["artBackglass"].toString(),again["backglass"].toString());
+ }
+ void stopLeavesNoProcessOfTheGameRunning(){
+#ifndef Q_OS_WIN
+    QSKIP("Process trees are held in Windows job objects.");
+#else
+    for(const QString way:{"stop","leave","everything"}){
+        QTemporaryDir temp;const auto folder=temp.filePath("pids");QVERIFY(QDir().mkpath(folder));
+        ac::launch::LaunchService launcher;QSignalSpy finished(&launcher,&ac::launch::LaunchService::finished);
+        ac::launch::Request request;request.root=temp.path();request.gameId="synthetic-tree";request.variantId="flat";request.prepareProfile=false;
+        request.plan.executable=QCoreApplication::applicationFilePath();request.plan.cwd=temp.path();
+        request.plan.args={"--spawn-tree",folder,"launcher",way=="leave"?"leave":"stay"};
+        QVERIFY(launcher.start(request));
+        const auto pids=[&]{QList<qint64> list;for(const auto &name:{"launcher","child1","child2","grandchild"})list<<ac::install::readBytes(folder+"/"+name+".pid").toLongLong();return list;};
+        QTRY_VERIFY_WITH_TIMEOUT(QDir(folder).entryList(QDir::Files).size()==4,15000);
+        const auto all=pids();for(const auto pid:all)QVERIFY(pid>0);
+        if(way=="stop"){QVERIFY(ac::launch::processAlive(all[3]));const auto owned=launcher.ownedProcesses();for(const auto pid:all)QVERIFY(owned.contains(pid));launcher.stop();}
+        else if(way=="everything")launcher.endEverything();
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(),1,15000);
+        for(const auto pid:all)QTRY_VERIFY2_WITH_TIMEOUT(!ac::launch::processAlive(pid),qPrintable(way+" "+QString::number(pid)),10000);
+        QTRY_VERIFY_WITH_TIMEOUT(launcher.ownedProcesses().isEmpty(),10000);
+    }
+#endif
+ }
  void closedHubReopensOnLaunchFailure(){
     QTemporaryDir temp;ac::GameListModel games(syntheticCatalog(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
     QWindow window;window.show();window.hide();QVERIFY(!window.isVisible());QSignalSpy raised(&services,&ac::HubServices::raiseHubRequested);
@@ -453,6 +568,18 @@ private slots:
  }
 };
 int main(int argc,char **argv){
+    // A launcher that starts two children, the first of which starts a grandchild. Each writes its
+    // process id and waits; the launcher waits too ("stay") or ends after a moment ("leave").
+    if(argc>=4&&(QByteArray(argv[1])=="--spawn-tree"||QByteArray(argv[1])=="--tree-child")){
+        QCoreApplication child(argc,argv);const auto folder=QString::fromLocal8Bit(argv[2]),name=QString::fromLocal8Bit(argv[3]);
+        const auto self=QCoreApplication::applicationFilePath();
+        ac::install::atomicWrite(folder+"/"+name+".pid",QByteArray::number(QCoreApplication::applicationPid()));
+        if(QByteArray(argv[1])=="--spawn-tree"){
+            QProcess::startDetached(self,{"--tree-child",folder,"child1","grand"});QProcess::startDetached(self,{"--tree-child",folder,"child2"});
+            if(argc>=5&&QByteArray(argv[4])=="leave"){QTimer::singleShot(2500,&child,&QCoreApplication::quit);return child.exec();}
+        }else if(argc>=5&&QByteArray(argv[4])=="grand")QProcess::startDetached(self,{"--tree-child",folder,"grandchild"});
+        QTimer::singleShot(60000,&child,&QCoreApplication::quit);return child.exec();
+    }
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
     // PS2 stand-in for the Python running the launcher: it waits for the stop file, then ends normally.
     if(argc==3&&QByteArray(argv[1]).endsWith("launch_ps2.py")){
@@ -486,7 +613,9 @@ int main(int argc,char **argv){
         QTimer::singleShot(duration>0?duration:600,&child,[&child,marker]{if(!marker.isEmpty()){QFile done(marker);if(done.open(QIODevice::WriteOnly))done.write("complete");}child.quit();});
         return child.exec();
     }
-    if(argc>=3&&QByteArray(argv[1])=="-Play"){
+    // VPX stand-in: any run with -Play, which -Ini may come before.
+    bool play=false;for(int i=1;i<argc;++i)play=play||QByteArray(argv[i])=="-Play";
+    if(play){
         QGuiApplication child(argc,argv);QWindow window;window.show();
         const auto arguments=qEnvironmentVariable("AC_SYNTHETIC_PINBALL_ARGUMENTS");
         if(!arguments.isEmpty()){

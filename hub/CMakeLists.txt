@@ -58,6 +58,10 @@ add_library(hubcore STATIC
     src/core/scan/Scan.h
     src/core/scan/Scan.cpp
     src/core/scan/Headers.cpp
+    src/core/pinball/Art.cpp
+    src/core/pinball/Art.h
+    src/core/pinball/Gamepad.cpp
+    src/core/pinball/Gamepad.h
     src/core/pinball/Pinball.cpp
     src/core/pinball/Pinball.h
     src/core/model3/Model3.cpp
@@ -88,6 +92,8 @@ add_library(hubcore STATIC
     src/core/update/Update.h
     src/core/launch/Launch.h
     src/core/launch/Launch.cpp
+    src/core/launch/ProcessTree.cpp
+    src/core/launch/ProcessTree.h
     src/core/launch/Runtime.cpp
     src/core/gunroom/GunRoom.cpp
     src/core/gunroom/GunRoom.h
@@ -155,6 +161,9 @@ qt_add_resources(aladdinscastle-hub theme
 file(MAKE_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources")
 configure_file(resources/dashboard.vrmanifest.in "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${AC_PRODUCT_short_id}.vrmanifest" @ONLY)
 configure_file(resources/overlay-thumbnail.png "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/overlay-thumbnail.png" COPYONLY)
+foreach(_ac_input hub-actions.json hub-bindings-oculus_touch.json hub-bindings-knuckles.json)
+    configure_file(resources/${_ac_input} "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${_ac_input}" COPYONLY)
+endforeach()
 add_custom_target(ac-hub-runtime-resources
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:aladdinscastle-hub>/resources"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

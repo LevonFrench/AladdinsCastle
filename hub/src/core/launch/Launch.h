@@ -10,6 +10,8 @@
 #include <QProcessEnvironment>
 #include <QTimer>
 #include <QThreadPool>
+#include "core/launch/ProcessTree.h"
+#include <memory>
 #include <functional>
 namespace ac::launch {
 struct RuntimeInputs {
@@ -34,6 +36,9 @@ struct Request {
   RuntimeInputs runtimeInputs;
   bool prepareProfile = true, materializeAliases = false;
   QMap<QString,QString> discIdentities;
+  // Helper programs Windows may start for the game outside its process tree (a
+  // backglass server, for one): those started during the session end with it.
+  QStringList helperPrograms;
 };
 Json normalizeBindings(const Json &bindings, const QString &gameId);
 Request flatRequest(const CatalogData &catalog, const QString &gameId,
@@ -55,6 +60,11 @@ public:
   bool busy() const { return playing() || completing_ || !persistence_.isEmpty() || helper_.state() != QProcess::NotRunning; }
   bool start(const Request &request);
   Q_INVOKABLE void stop();
+  // Ends the running game's whole process tree at once, and anything left over from
+  // earlier sessions the Hub started: the "Stop everything" button.
+  Q_INVOKABLE void endEverything();
+  // Processes still alive from games the Hub started, the running one included.
+  QList<qint64> ownedProcesses() const;
   // What the Hub started, for diagnostics and the launch proof.
   qint64 processId() const { return process_.processId(); }
   QString processProgram() const { return process_.program(); }
@@ -97,5 +107,11 @@ private:
   quint64 generation_ = 0;
   bool preparationCancelled_ = false;
   bool closeRequested_ = false;
+  // The running session's process tree, trees left over after their game ended, and when the session began.
+  std::unique_ptr<ProcessTree> tree_;
+  QList<std::shared_ptr<ProcessTree>> leftovers_;
+  qint64 sessionStartMs_ = 0;
+  void endTree();
+  void retireTree();
 };
 } // namespace ac::launch
