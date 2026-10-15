@@ -372,7 +372,7 @@ class UiTest:public QObject {
   QCOMPARE(root->property("view").toString(),QString("Model3"));
   QTRY_VERIFY(!namedItems(window->contentItem(),"model3Grid").isEmpty());
   QCOMPARE(namedItems(window->contentItem(),"model3Grid").first()->property("count").toInt(),10);
-  for(const auto &row:ui->model3Games())QVERIFY(row.toMap().value("problem").toString().contains("Locate emulator"));
+  for(const auto &row:ui->model3Games())QVERIFY(row.toMap().value("problem").toString().contains("Choose it in Set-up"));
   QVERIFY(settings->set("model3Executable",fixture.filePath("emu/program.exe")));QVERIFY(settings->set("model3GameFolder",fixture.filePath("games")));
   auto rows=ui->model3Games();QCOMPARE(rows.size(),10);
   QCOMPARE(rows[0].toMap().value("view").toString(),QString("screen"));

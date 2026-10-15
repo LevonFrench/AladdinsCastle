@@ -62,11 +62,11 @@ QString workingFolder(const QString &executable){
 QString problem(const QString &game,const QString &executable,const QString &gameFolder){
  const auto *found=findGame(game);
  if(!found)return "This game is not in the Model 3 list.";
- if(executable.isEmpty())return "Emulator not chosen. Use Locate emulator.";
- if(!QFileInfo(executable).isFile())return "Emulator program not found. Use Locate emulator.";
+ if(executable.isEmpty())return "Emulator not chosen. Choose it in Set-up.";
+ if(!QFileInfo(executable).isFile())return "Emulator program not found. Choose it again in Set-up.";
  if(workingFolder(executable).isEmpty())return "Emulator Config folder not found. Config/Games.xml must be beside or above the program.";
- if(gameFolder.isEmpty())return "Game folder not chosen. Use Game folder.";
- if(!QFileInfo(gameFolder).isDir())return "Game folder not found. Use Game folder.";
+ if(gameFolder.isEmpty())return "Game folder not chosen. Choose it in Set-up.";
+ if(!QFileInfo(gameFolder).isDir())return "Game folder not found. Choose it again in Set-up.";
  if(!QFileInfo(gameFile(*found,gameFolder)).isFile())return QString("%1.zip is missing. Put your own copy in the game folder.").arg(QLatin1String(found->id));
  return {};
 }

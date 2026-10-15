@@ -6,10 +6,12 @@ point it at your own.
 
 ## Set up, once, on the desktop
 
-- **Locate emulator**: choose your Supermodel program. Hub starts it from the
+**Set-up** on the VR games page (or ··· then Set-up) asks for both:
+
+- **The program**: your Supermodel program. Hub starts it from the
   folder that holds `Config/Games.xml`, which is the program's own folder or one
   above it (a source build keeps the program a few folders below).
-- **Game folder**: choose the folder holding your own game files, one
+- **The folder**: the folder holding your own game files, one
   `<set>.zip` per game, named as Supermodel names them.
 
 Both choices are saved in Hub's own `user/hub-settings.toml` (keys

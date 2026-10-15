@@ -66,7 +66,7 @@ private slots:
   void problemsAreNamedAndRefuseTheLaunch() {
     Fixture f;
     QVERIFY(ac::model3::problem("scud",f.program,f.media).isEmpty());
-    QVERIFY(ac::model3::problem("scud",QString(),f.media).contains("Locate emulator"));
+    QVERIFY(ac::model3::problem("scud",QString(),f.media).contains("Choose it in Set-up"));
     QVERIFY(ac::model3::problem("scud",f.folder.filePath("gone.exe"),f.media).contains("not found"));
     QVERIFY(ac::model3::problem("scud",f.program,QString()).contains("Game folder"));
     QVERIFY(ac::model3::problem("daytona2",f.program,f.media).contains("daytona2.zip"));

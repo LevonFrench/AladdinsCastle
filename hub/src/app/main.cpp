@@ -127,6 +127,7 @@ int main(int argc,char **argv){
     // Diagnostics: a menu to open at start, and the whole catalog without changing the user's settings.
     context->setContextProperty("startMenu",qEnvironmentVariable("AC_UI_OPEN"));
     context->setContextProperty("forceShowAll",qEnvironmentVariableIsSet("AC_UI_SHOW_ALL"));
+    context->setContextProperty("panelLook",qEnvironmentVariableIsSet("AC_UI_PANEL_LOOK")); // The SteamVR panel's larger controls, drawn in a desktop window.
     context->setContextProperty("startView",qEnvironmentVariableIsSet("AC_UI_VIEW")?qEnvironmentVariable("AC_UI_VIEW"):settings.get("setupDone",false).toBool()?QString():QString("Setup"));
     context->setContextProperty("spikeState",&spike);context->setContextProperty("overlaySpikeEnabled",options.spike);
     context->setContextProperty("surfaceColor",theme.get("color.surface.window"));
@@ -184,6 +185,8 @@ int main(int argc,char **argv){
         ac::Json receipt{{"status",ui.status().toStdString()},{"imageSaved",imageSaved},{"launcherBusy",services.launchBusy()},{"nowPlaying",ac::Json::parse(QJsonDocument::fromVariant(ui.nowPlaying()).toJson(QJsonDocument::Compact).toStdString())},{"games",ac::Json::array()}};
         for(const auto &game:games.records())if(game.runtime.playing)receipt["games"].push_back({{"id",game.id.toStdString()},{"playing",true},{"stateLabel",game.roles.value("stateLabel").toString().toStdString()}});
         ac::install::atomicWrite(capture+".json",QByteArray::fromStdString(receipt.dump(2)));
+        // Picture sheets: quit once the picture is saved, when nothing was started.
+        if(qEnvironmentVariableIsSet("AC_UI_CAPTURE_QUIT")&&!services.launchBusy())QTimer::singleShot(0,qApp,[]{QCoreApplication::quit();});
     });
     if(overlayInitialized&&options.showDashboard){
         QString error;if(!overlay.showDashboard(&error)){err<<error<<'\n';if(!options.autoPanel){overlay.shutdown();return 3;}}
