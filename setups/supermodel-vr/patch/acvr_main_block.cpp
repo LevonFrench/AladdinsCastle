@@ -420,7 +420,7 @@ bool ACVR_SkipBottomLayer()
 // player, turning with the steering the game receives. Models come from assets/controls, baked by
 // bake_control.py into Assets/acvr/*.acm. The control sits where the cabinet data puts it relative to a
 // seated player whose eyes were at the recentre point (ACVR_CONTROL_POS overrides, metres x,y,z).
-// ACVR_CONTROLS=0 turns it off; ACVR_TEST_STEER=-1..1 fixes the steering for unattended pictures.
+// Off unless ACVR_CONTROLS=1; ACVR_TEST_STEER=-1..1 fixes the steering for unattended pictures.
 
 struct ACVRControlPart { bool moving; float colour[3]; GLsizei count; GLsizei first; };
 static int      s_acvrControlLoaded = 0;    // which cabinet's model is in the buffers (0: none)
@@ -553,7 +553,7 @@ static void ACVR_DrawControls(int eye)
 {
   if (s_acvrCabinet == 0 || s_acvrControlFailed) return;
   static int enabled = -1;
-  if (enabled < 0) { const char *e = getenv("ACVR_CONTROLS"); enabled = !(e && e[0] == '0'); }
+  if (enabled < 0) { const char *e = getenv("ACVR_CONTROLS"); enabled = e && e[0] == '1'; }   // off unless asked for
   if (!enabled) return;
   if (s_acvrControlLoaded != s_acvrCabinet)
   {

@@ -78,7 +78,7 @@ The keyboard and gamepad keep working: a controller only overrides an input whil
 
 ### The cabinet's own controls in the headset
 
-Head-tracked mode draws the cabinet's wheel (driving games) or Harley-Davidson's handlebars in front of the player, turning with the steering the game receives, from whatever source: the controllers, a gamepad or the keyboard. The models are the repository's own `assets/controls/wheel-three-spoke.glb` and `bars-motorcycle.glb`, baked once into the format the patch reads:
+With `ACVR_CONTROLS=1`, head-tracked mode draws the cabinet's wheel (driving games) or Harley-Davidson's handlebars in front of the player, turning with the steering the game receives, from whatever source: the controllers, a gamepad or the keyboard. The models are the repository's own `assets/controls/wheel-three-spoke.glb` and `bars-motorcycle.glb`, baked once into the format the patch reads:
 
     python tools/bake_control.py <repo>/assets/controls/wheel-three-spoke.glb pivot_wheel <Supermodel source>/Assets/acvr/wheel-three-spoke.acm
     python tools/bake_control.py <repo>/assets/controls/bars-motorcycle.glb pivot_steering <Supermodel source>/Assets/acvr/bars-motorcycle.acm
@@ -87,7 +87,7 @@ The wheel sits about 0.4 m below and 0.45 m ahead of the eyes at the moment of r
 
 | Variable | Meaning |
 |---|---|
-| `ACVR_CONTROLS=0` | Do not draw the cabinet control |
+| `ACVR_CONTROLS=1` | Draw the cabinet control (off by default) |
 | `ACVR_CONTROL_POS` | Where it sits relative to the recentred eyes, metres `x,y,z` (for example `0,-0.38,-0.45`) |
 | `ACVR_TEST_STEER` | Fix the steering at -1 to 1, for unattended pictures |
 
