@@ -347,6 +347,11 @@ acvr_result muzzle_ray(const acvr_pose &grip, const acvr_pose &mount, const floa
     if (!finite(result.origin_scene, 3) || !std::isfinite(result.max_distance_scene)) return ACVR_BAD_ARGUMENT;
     payload(&out, result); return ACVR_OK;
 }
+// The optional gun tail exists only in records at least as large as the full struct;
+// a v1 caller's record ends before it, so nothing past its size may be read.
+static bool has_gun_tail(const acvr_runtime_config *config) {
+    return config->size >= sizeof(*config) && config->gun_slot_count != 0;
+}
 acvr_result validate_create_arguments(const acvr_runtime_config *config,const acvr_backend_api *api) {
     if (!config || config->size < ACVR_RUNTIME_CONFIG_V1_SIZE) return ACVR_BAD_ARGUMENT;
     if (config->version != ACVR_STRUCT_VERSION) return ACVR_BAD_VERSION;
@@ -361,7 +366,7 @@ acvr_result validate_create_arguments(const acvr_runtime_config *config,const ac
         config->fallback_aim_distance_m <= 0 || !config->game_id_utf8 || !*config->game_id_utf8 ||
         !std::isfinite(config->requested_refresh_hz) || config->requested_refresh_hz < 0 ||
         (config->anchor_mode != ACVR_ANCHOR_RAIL && config->anchor_mode != ACVR_ANCHOR_COCKPIT)) return ACVR_BAD_ARGUMENT;
-    const bool models=config->size>=sizeof(*config) && config->gun_slot_count;
+    const bool models=has_gun_tail(config);
 #ifndef ACVR_GUN_MODELS
     if(models||(config->merged_controls_path_utf8&&*config->merged_controls_path_utf8)) return ACVR_UNSUPPORTED;
 #else
@@ -390,7 +395,7 @@ acvr_result create_with_host(const acvr_runtime_config *config, const acvr_backe
     if(!host)return ACVR_BAD_ARGUMENT;
 #ifdef ACVR_GUN_MODELS
     const bool mapped=config->merged_controls_path_utf8 && *config->merged_controls_path_utf8;
-    const bool models=config->size>=sizeof(*config) && config->gun_slot_count;
+    const bool models=has_gun_tail(config);
     if(mapped&&!host->supports_controller_samples()) return ACVR_UNSUPPORTED;
     if(models&&!host->supports_guns())return ACVR_UNSUPPORTED;
 #endif
@@ -516,7 +521,7 @@ acvr_result ACVR_CALL acvr_runtime_create(const acvr_runtime_config *config, con
     std::unique_ptr<acvr::Host> host;
     const char *model_id=nullptr;
 #ifdef ACVR_GUN_MODELS
-    if(config->gun_slot_count)model_id=config->gun_slots[0].model_id_utf8;
+    if(acvr::has_gun_tail(config))model_id=config->gun_slots[0].model_id_utf8;   // review F1: v1 records end before the tail
 #endif
     const auto result = acvr::make_openxr_gl_host(config->game_id_utf8,config->content_root_utf8,model_id,host);
     return result == ACVR_OK ? acvr::create_with_host(config, api, std::move(host), out) : result;
