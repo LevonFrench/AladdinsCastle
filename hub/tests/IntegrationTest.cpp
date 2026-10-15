@@ -21,6 +21,10 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
+#include "core/pinball/Art.h"
+#include <QBuffer>
+#include <QCryptographicHash>
+#include <QImage>
 #include "core/pinball/Pinball.h"
 namespace {
 ac::CatalogData syntheticCatalog(const QString &root){
@@ -414,6 +418,36 @@ private slots:
     request.prepareProfile=false;QVERIFY(services.launcher()->start(request));QTRY_VERIFY_WITH_TIMEOUT(services.playing(),5000);QVERIFY(services.launchBusy());QVERIFY(!services.preparing());ui.stopLaunch();QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy()&&!services.playing(),6000);
  }
  // Every process a game started ends with it: by Stop, when the game ends by itself, and by Stop everything.
+ // A table's backglass file gives its pictures, made once in the Hub's cache; the table's folder is only read.
+ void pinballPicturesComeFromTheBackglassFile(){
+    QTemporaryDir t;const auto folder=t.filePath("tables"),cache=t.filePath("hub/user/cache/pinball-art");QVERIFY(QDir().mkpath(folder));
+    const auto table=folder+"/Synthetic Table (Maker 1990).vpx";ac::install::atomicWrite(table,syntheticTable());
+    const auto image=[](const QColor &colour){QImage picture(64,48,QImage::Format_RGB32);picture.fill(colour);QByteArray bytes;QBuffer buffer(&bytes);buffer.open(QIODevice::WriteOnly);picture.save(&buffer,"PNG");return bytes.toBase64();};
+    const auto backglass=folder+"/Synthetic Table (Maker 1990).DirectB2S";
+    ac::install::atomicWrite(backglass,"<DirectB2SData Version=\"1.2\"><Name Value=\"Synthetic\" /><Images><ThumbnailImage Value=\""+image(Qt::blue)+"\" /><BackglassImage Value=\""+image(Qt::red)+"\" /></Images></DirectB2SData>");
+    const auto listing=[&]{auto names=QDir(folder).entryList(QDir::Files);names.sort();return names;};const auto before=listing();
+    QCOMPARE(ac::pinball::backglassFile(table),QFileInfo(backglass).absoluteFilePath());
+    const auto id=QString::fromLatin1(QCryptographicHash::hash(QFileInfo(table).absoluteFilePath().toUtf8(),QCryptographicHash::Sha256).toHex());
+    std::atomic_bool cancel=false;const auto art=ac::pinball::tableArt(table,id,cache,cancel);
+    QVERIFY(QFileInfo(art["thumb"].toString()).isFile());QVERIFY(QFileInfo(art["backglass"].toString()).isFile());
+    QVERIFY(art["backglass"].toString().startsWith(cache));
+    // The backglass picture, not the thumbnail: red.
+    const QImage made(art["backglass"].toString());QVERIFY(!made.isNull());QVERIFY(qRed(made.pixel(10,10))>200&&qBlue(made.pixel(10,10))<60);
+    QCOMPARE(listing(),before); // Nothing written beside the table.
+    // Made once: the same files are used again.
+    const auto stamp=QFileInfo(art["thumb"].toString()).lastModified();QCOMPARE(ac::pinball::tableArt(table,id,cache,cancel),art);QCOMPARE(QFileInfo(art["thumb"].toString()).lastModified(),stamp);
+    // A changed backglass file is read again and replaces the old pictures.
+    QTest::qWait(1100);ac::install::atomicWrite(backglass,"<DirectB2SData><Images><BackglassImage Value=\""+image(Qt::green)+"\" /></Images></DirectB2SData>");
+    const auto again=ac::pinball::tableArt(table,id,cache,cancel);QVERIFY(again["thumb"]!=art["thumb"]);QVERIFY(!QFileInfo::exists(art["thumb"].toString()));QCOMPARE(QDir(cache).entryList(QDir::Files).size(),2);
+    // No backglass file, or one without a picture: no pictures, and today's look stays.
+    const auto other=folder+"/Other.vpx";ac::install::atomicWrite(other,syntheticTable());QVERIFY(ac::pinball::tableArt(other,QString(64,'a'),cache,cancel).isEmpty());
+    ac::install::atomicWrite(folder+"/Other.directb2s","<DirectB2SData><Images><BackglassImage Value=\"bm90IGFuIGltYWdl\" /></Images></DirectB2SData>");
+    QVERIFY(ac::pinball::tableArt(other,QString(64,'a'),cache,cancel).isEmpty());
+    // The controller puts the pictures on the table's row.
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(t.filePath("user"));ac::UiController ui(&games,&filter,&settings);
+    ui.pinballLoaded(ac::pinball::scan(folder));ui.setPinballArt({{id,again}});ui.selectPinball(id);
+    QCOMPARE(ui.pinballSelection()["artBackglass"].toString(),again["backglass"].toString());
+ }
  void stopLeavesNoProcessOfTheGameRunning(){
 #ifndef Q_OS_WIN
     QSKIP("Process trees are held in Windows job objects.");

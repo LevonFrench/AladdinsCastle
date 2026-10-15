@@ -71,6 +71,18 @@ Hub launch are not kept; change them in VPX started on its own. With no gamepad
 connected and a desktop launch, Hub passes no `-Ini` and VPX reads your
 settings as usual.
 
+## Pictures
+
+A table with a backglass file beside it (`<table name>.directb2s`) gets its
+backglass picture: on its tile on the desktop, at the top of its page, and in the
+row of backglasses across the top of the Pinball tab, which moves on one picture
+every few seconds (it stays still with Reduce motion). Hub reads the picture out
+of the backglass file in the background, at low priority, tables that can be
+played first, and keeps a copy in its own `user/cache/pinball-art/` folder, so it
+is read once; a changed backglass file is read again. The tables folder is only
+read. A table without a backglass keeps its wheel logo, if your media folder has
+one, or the plain tile.
+
 When you launch a table, the now-playing card keeps that table's title and
 launch route even if you navigate to another page. The status shows preparation.
 If you change or move a scanned table, use **Scan** again before playing.

@@ -58,6 +58,8 @@ add_library(hubcore STATIC
     src/core/scan/Scan.h
     src/core/scan/Scan.cpp
     src/core/scan/Headers.cpp
+    src/core/pinball/Art.cpp
+    src/core/pinball/Art.h
     src/core/pinball/Gamepad.cpp
     src/core/pinball/Gamepad.h
     src/core/pinball/Pinball.cpp

@@ -7,6 +7,9 @@
 #include "core/gunroom/GunRoom.h"
 #include "core/steam/Steam.h"
 #include "ui/UiController.h"
+#include <QThreadPool>
+#include <atomic>
+#include <memory>
 namespace ac {
 class HubServices : public QObject {
     Q_OBJECT
@@ -133,6 +136,9 @@ private:
     gunroom::Service gunRoom_;
     std::function<bool()> vrServerProbe_;
     std::function<QVariantList(const QString &)> gamepadProbe_;
+    // Pinball pictures from the tables' backglass files, made in the background into the Hub's cache.
+    void startPinballArt(const QVariantMap &scan);
+    QThreadPool artPool_;std::shared_ptr<std::atomic_bool> artCancel_;
     bool askPs2ToQuit();
 };
 }

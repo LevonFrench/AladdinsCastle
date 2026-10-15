@@ -9,6 +9,8 @@
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
 #include "core/pinball/Gamepad.h"
+#include "core/pinball/Art.h"
+#include <QThread>
 #include "ProductIdentity.h"
 #include <QDir>
 #include <QCoreApplication>
@@ -90,7 +92,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             // Kept in Hub's own data so the tab opens at once next time; a table is still rechecked when it is started.
             try{install::atomicWrite(install::scopedPath("user/cache/pinball-scan.json",root_),QJsonDocument::fromVariant(QVariantMap{{"folder",folder},{"database",database},{"roms",roms},{"media",media},{"result",result}}).toJson(QJsonDocument::Compact));}
             catch(const std::exception &){ui_->showError("Pinball","The scan could not be saved; the next start scans again.");}
-            ui_->pinballLoaded(result);
+            ui_->pinballLoaded(result);startPinballArt(result);
         });
         watcher->setFuture(QtConcurrent::run([folder,database,roms,media]{try{return pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}}));
     });
@@ -99,7 +101,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         try{QFile file(install::scopedPath("user/cache/pinball-scan.json",root_));if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();}catch(const std::exception &){}
         const auto result=saved.value("result").toMap();
         if(saved.value("folder")==folder&&saved.value("database")==database&&saved.value("roms")==roms&&saved.value("media")==media&&result.contains("tables")){
-            ui_->pinballLoaded(result);ui_->showError("Pinball","Showing your last scan. Use Scan after adding or changing tables.");
+            ui_->pinballLoaded(result);startPinballArt(result);ui_->showError("Pinball","Showing your last scan. Use Scan after adding or changing tables.");
         }else ui_->scanPinball();
     });
     connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &){
@@ -263,6 +265,8 @@ install::Request HubServices::gameRequest(const QString &id,const QString &varia
     request.bindings=launch::normalizeBindings(bindings_,id);request.settings=Json::parse(QJsonDocument(QJsonObject::fromVariantMap(settings_->game(id))).toJson(QJsonDocument::Compact).toStdString());return request;
 }
 HubServices::~HubServices(){
+    if(artCancel_)*artCancel_=true;
+    artPool_.waitForDone();
     disconnect(&gunRoom_,nullptr,this,nullptr);
     gunRoom_.close();
 }
@@ -372,6 +376,28 @@ void HubServices::refreshSteamVr(const QString &error){
     ui_->setSteamVr({{"state",QString::fromLatin1(state)},{"error",error}});
 }
 QString HubServices::pinballVrRoot()const{return settings_->get("pinballHeadset",true).toBool()?root_:QString();}
+void HubServices::startPinballArt(const QVariantMap &scan){
+    if(artCancel_)*artCancel_=true;
+    auto cancel=std::make_shared<std::atomic_bool>(false);artCancel_=cancel;
+    QString cache;try{cache=install::scopedPath("user/cache/pinball-art/x",root_);cache=QFileInfo(cache).absolutePath();}catch(const std::exception &){return;}
+    // Tables that can be started first, so the pictures that are seen come first.
+    QVariantList first,later;
+    for(const auto &value:scan.value("tables").toList()){const auto row=value.toMap();(row.value("error").toString().isEmpty()&&row.value("romState")!="ROM missing"&&row.value("romState")!="unknown"?first:later)<<row;}
+    const auto rows=first+later;const QPointer<UiController> ui=ui_;
+    artPool_.setMaxThreadCount(1);
+    artPool_.start([rows,cache,cancel,ui]{
+        QThread::currentThread()->setPriority(QThread::LowestPriority);
+        QVariantMap batch;
+        const auto send=[&]{if(batch.isEmpty()||!ui)return;QMetaObject::invokeMethod(ui.data(),[ui,batch]{if(ui)ui->setPinballArt(batch);},Qt::QueuedConnection);batch.clear();};
+        for(const auto &value:rows){
+            if(*cancel)return;
+            const auto row=value.toMap();
+            try{const auto art=pinball::tableArt(row.value("path").toString(),row.value("id").toString(),cache,*cancel);if(!art.isEmpty())batch[row.value("id").toString()]=art;}catch(const std::exception &){}
+            if(batch.size()>=6)send();
+        }
+        send();
+    });
+}
 bool HubServices::vrServerRunning()const{return vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"});}
 void HubServices::startPinball(const QVariantMap &row,const QString &executable,const QString &view){
     if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}

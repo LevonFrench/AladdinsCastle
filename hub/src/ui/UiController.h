@@ -128,6 +128,8 @@ class UiController : public QObject {
  void setSteamVrRunning(bool running){if(running!=m_steamVrRunning){m_steamVrRunning=running;emit steamVrRunningChanged();}}
  void launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable,const QString &view={},const QString &gamepad={});
  Q_INVOKABLE QVariantList pinballGamepadLayout()const;
+ // Pictures made from the tables' own backglass files: id -> {"thumb","backglass"} files in the Hub's cache.
+ void setPinballArt(const QVariantMap &art);
  void pinballFailed(const QString &error);
  // Model 3: one row per game with its remembered view and any set-up problem.
  QVariantList model3Games()const;
@@ -239,7 +241,7 @@ class UiController : public QObject {
  void scheduleFacetsChanged();
  void retryGameInstall(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
  bool m_facetsQueued=false;
- GameListModel *m_games; FilterSortModel *m_filter; UiSettings *m_settings;bool m_steamVrRunning=false;
+ GameListModel *m_games; FilterSortModel *m_filter; UiSettings *m_settings;bool m_steamVrRunning=false;QVariantMap m_pinballArt;
  QString m_detailId,m_variantId,m_status; QVariantList m_events; QVariantMap m_recovery;
  int m_artRevision=0;
  bool m_artProviderReady=false;

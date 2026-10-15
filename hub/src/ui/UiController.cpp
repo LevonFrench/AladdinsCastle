@@ -239,8 +239,19 @@ void UiController::pinballLoaded(const QVariantMap &data){
   auto row=value.toMap();const auto id=row.value("id").toString();
   if(overrides.contains(id)){row["vrReady"]=overrides[id].toBool();row["evidence"]=overrides[id].toBool()?QStringList{"marked by you"}:QStringList{};}
   row["lastPlayed"]=recent.value(id,0);
+  if(m_pinballArt.contains(id)){const auto art=m_pinballArt.value(id).toMap();row["artThumb"]=art.value("thumb");row["artBackglass"]=art.value("backglass");}
   row["favourite"]=favourites.value(id).toBool();if(row.value("vrReady").toBool())++ready;rows<<row;
  }m_pinballData["tables"]=rows;m_pinballData["vrReady"]=ready;emit pinballChanged();
+}
+void UiController::setPinballArt(const QVariantMap &art){
+ if(art.isEmpty())return;
+ for(auto it=art.cbegin();it!=art.cend();++it)m_pinballArt[it.key()]=it.value();
+ auto rows=m_pinballData.value("tables").toList();
+ for(auto &value:rows){auto row=value.toMap();const auto found=art.value(row.value("id").toString()).toMap();if(found.isEmpty())continue;row["artThumb"]=found.value("thumb");row["artBackglass"]=found.value("backglass");value=row;}
+ m_pinballData["tables"]=rows;
+ const auto selected=art.value(m_pinballSelection.value("id").toString()).toMap();
+ if(!selected.isEmpty()){m_pinballSelection["artThumb"]=selected.value("thumb");m_pinballSelection["artBackglass"]=selected.value("backglass");}
+ emit pinballChanged();
 }
 void UiController::selectPinball(const QString &id){m_pinballSelection.clear();m_pinballPlan.clear();for(const auto &value:m_pinballData.value("tables").toList()){auto row=value.toMap();if(row.value("id")==id){m_pinballSelection=row;break;}}emit pinballChanged();}
 void UiController::scanPinball(){if(m_pinballScanning)return;const auto folder=m_settings->get("pinballFolder",QString()).toString();if(folder.isEmpty()){message("Choose your Pinball table folder first.");return;}m_pinballScanning=true;emit pinballChanged();emit pinballScanRequested(folder,m_settings->get("pinballDatabase",QString()).toString(),m_settings->get("pinballRoms",QString()).toString(),m_settings->get("pinballMedia",QString()).toString());}
