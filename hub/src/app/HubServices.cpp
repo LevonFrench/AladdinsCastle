@@ -185,8 +185,8 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         }catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
     // A PS2 game has no window to close: both Exit and Stop ask it to quit through its stop file, and the Hub waits.
-    connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit())launcher_.stop();});
-    connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit())launcher_.requestClose();});
+    connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(true))launcher_.stop();});
+    connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(false))launcher_.requestClose();});
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
     connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int code,const QString &error,const QString &){
@@ -312,9 +312,12 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             const auto libraries=settings_->get("model2RuntimePath",QString()).toString();
             if(!libraries.isEmpty())environment.insert("PATH",QDir::toNativeSeparators(libraries)+QDir::listSeparator()+environment.value("PATH"));
             for(const auto &value:model2::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · 3D screen";hint=value.toMap().value("controls").toString();}
-            hint+=" Home = put the screen in front of you again. Use Stop game here to end it.";
-            // Neither program has a window to close, so Exit would wait for ever; Stop is the way out.
-            closeNote="Model 2 has no game window to close. Use Stop game.";
+            hint+=" Home = put the screen in front of you again. Exit game here, or hold Y for 3 seconds, quits and saves.";
+            // A stop file of the Hub's own for this launch, cleared first; the viewer watches for it.
+            model2StopFile_=install::scopedPath("user/runtime/model2-"+game+".stop",root_);
+            if(!QDir().mkpath(QFileInfo(model2StopFile_).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
+            if(QFileInfo::exists(model2StopFile_)&&!QFile::remove(model2StopFile_))throw install::Error("E_WRITE_DENIED","An old Model 2 stop request could not be cleared");
+            environment.insert("ACVR_M2_STOP_FILE",QDir::toNativeSeparators(model2StopFile_));++model2Session_;
         }else if(id.startsWith("ps2-")){
             // The launcher refuses without SteamVR; say so here instead of starting it to fail.
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
@@ -518,6 +521,8 @@ void HubServices::requestHubExit(int code){
         // Any other game keeps its lease: the Hub exits once the game has ended by itself, so a slow
         // save or close dialog is never cut short. Ending it now is the explicit Stop action, not this.
         hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();
+        // Model 2 can be asked to quit cleanly, so it is; the Hub still waits for it to save and end.
+        if(askModel2ToQuit(false))return;
         ui_->showError("Closing","The Hub closes when the running game has ended. Use Stop game to end it now.");
         return;
     }
@@ -530,6 +535,15 @@ bool HubServices::askPs2ToQuit(){
     QFile request(stopFile);
     if(stopFile.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS2","The stop request could not be written. Use the launcher's own stop to quit the game.");return true;}
     request.close();ui_->launchClosing();return true;
+}
+bool HubServices::askModel2ToQuit(bool forceLater){
+    if(!ui_->nowPlaying().value("gameId").toString().startsWith("model2-")||!launcher_.busy()||model2StopFile_.isEmpty())return false;
+    QFile request(model2StopFile_);
+    if(!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("Model 2","The stop request could not be written; the game is ended instead.");return false;}
+    request.close();ui_->launchClosing();
+    // The viewer waits up to 30 seconds for MAME to save and exit; only after that is the game forced.
+    if(forceLater){const auto session=model2Session_;QTimer::singleShot(40000,this,[this,session]{if(session==model2Session_&&launcher_.busy())launcher_.stop();});}
+    return true;
 }
 void HubServices::finishPendingExit(){
     if(!hubExitPending_||launcher_.busy()||gunRoom_.busy())return;

@@ -57,7 +57,12 @@ Finding a game is never shown as accepting it.
 the Dreamcast discs of the last report. Model 2 runs two programs: the emulator,
 which shows no window, and then its viewer, which is given the emulator's process
 id; when the viewer ends the emulator is ended too. Its whole launch line is in
-`src/core/model2/Model2.cpp`. A game that is not ready is greyed with its
+`src/core/model2/Model2.cpp`. Model 2 quits through a stop file the Hub owns,
+`user/runtime/model2-<game>.stop`, cleared before each launch and passed to the
+viewer as `ACVR_M2_STOP_FILE`: Exit game, Restart, Stop and closing the Hub write
+it, the viewer asks the emulator to quit, and the emulator saves its high scores
+and settings. Stop forces both programs only if they are still running 40 seconds
+later. A game that is not ready is greyed with its
 reason. A Dreamcast game without a VR profile opens its page with a warning
 before it can be started. Dreamcast starts the emulator from its own folder with
 `-config config:vr.Xr=yes|no <disc image>`; Time Crisis starts its program from

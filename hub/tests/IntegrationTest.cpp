@@ -277,6 +277,36 @@ private slots:
     QCOMPARE(QDir(sets).entryList(QDir::Files,QDir::Name),QStringList{"vcop2.zip"});
     QVERIFY(QDir(build+"/runtime").isEmpty());QVERIFY(!QFileInfo::exists(build+"/captures"));
  }
+ // Exit and Stop ask Model 2 to quit through its stop file, so MAME saves; nothing is forced.
+ void model2QuitsThroughItsStopFile(){
+    QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");
+    for(const auto &folder:{"build/mame","build/presenter","build/runtime","my sets"})QVERIFY(QDir(t.path()).mkpath(folder));
+    const auto emulator=build+"/mame/emulator.exe",viewer=build+"/presenter/model2-viewer.exe";
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),emulator));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),viewer));
+    ac::install::atomicWrite(sets+"/vcop2.zip","synthetic");
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",emulator);settings.set("model2GameFolder",sets);
+    qputenv("AC_SYNTHETIC_MODEL2_REPORT",t.filePath("viewer.json").toUtf8());qputenv("AC_SYNTHETIC_MODEL2_WAIT_STOP","1");
+    const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL2_REPORT");qunsetenv("AC_SYNTHETIC_MODEL2_WAIT_STOP");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    const auto stop=t.filePath("user/runtime/model2-vcop2.stop");
+    QSignalSpy exitReady(&services,&ac::HubServices::hubExitReady);
+    // Closing the Hub comes last: once asked, the Hub starts nothing more.
+    for(const QString way:{"exit","stop","hub"}){
+        const int before=finished.size();ui.playOtherGame("model2-vcop2");QTRY_COMPARE_WITH_TIMEOUT(started.size(),before+1,8000);
+        QVERIFY(!QFileInfo::exists(stop)); // Cleared before each launch.
+        QVERIFY(ui.nowPlaying()["closeUnavailable"].toString().isEmpty()); // Exit and Restart are offered again.
+        QTest::qWait(500);if(way=="exit")ui.closeLaunch();else if(way=="stop")ui.stopLaunch();else services.requestHubExit(3);
+        QVERIFY(QFileInfo::exists(stop));
+        // The viewer ends by itself, normally: the request was the stop file, not a kill.
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,15000);QCOMPARE(finished.last()[1].toInt(),0);QVERIFY2(finished.last()[2].toString().isEmpty(),qPrintable(finished.last()[2].toString()));
+        QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    }
+    QTRY_COMPARE_WITH_TIMEOUT(exitReady.size(),1,5000);QCOMPARE(exitReady.first()[0].toInt(),3);
+    const auto seen=QJsonDocument::fromJson(ac::install::readBytes(t.filePath("viewer.json"))).object();
+    QCOMPARE(QDir::fromNativeSeparators(seen["env"].toObject()["ACVR_M2_STOP_FILE"].toString()),QDir::fromNativeSeparators(stop));
+ }
  // Hub exit while a game runs: the exit waits for the game to finish by itself, however it was asked for.
  void hubExitWaitsForARunningGameToFinish_data(){QTest::addColumn<int>("code");QTest::newRow("normal exit")<<0;QTest::newRow("overlay failure")<<3;}
  void hubExitWaitsForARunningGameToFinish(){
@@ -600,6 +630,9 @@ int main(int argc,char **argv){
 #endif
         QFile file(qEnvironmentVariable("AC_SYNTHETIC_MODEL2_REPORT"));if(!file.open(QIODevice::WriteOnly))return 3;
         file.write(QJsonDocument(QJsonObject{{"companion",id},{"companionAlive",alive},{"cwd",QDir::currentPath()},{"env",variables},{"path",environment.value("PATH")}}).toJson());file.close();
+        // Like the real viewer: with AC_SYNTHETIC_MODEL2_WAIT_STOP it plays until its stop file appears, then ends normally.
+        if(qEnvironmentVariableIsSet("AC_SYNTHETIC_MODEL2_WAIT_STOP")){const auto stop=qEnvironmentVariable("ACVR_M2_STOP_FILE");QTimer poll;
+            QObject::connect(&poll,&QTimer::timeout,&child,[&]{if(QFileInfo::exists(stop))child.exit(0);});poll.start(100);QTimer::singleShot(20000,&child,[&]{child.exit(7);});return child.exec();}
         QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
     }
     for(int i=1;i<argc;++i)if(QByteArray(argv[i]).startsWith("-input-system=")){
