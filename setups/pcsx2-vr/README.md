@@ -513,3 +513,31 @@ Focal length/centre, convergence and game-units-per-metre remain provisional
 visual choices. The Z/Q fit does not recover physical scale or lens calibration.
 No game data, private configuration, dumps, pictures, VM checkpoints, logs or
 built programs are included here. No OpenXR runtime was started and nothing was pushed.
+
+
+### Controller overlays above the game image
+
+The frame composer constructs a single ordered list for both presentation
+modes. Screen mode submits left and right game quads, then a controller
+projection. INSIDE submits the reconstructed scene (including its fixed HUD
+panel), then the controller projection. No game/HUD layer follows that overlay;
+no composition-depth extension is attached to it. Its flags include
+`XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT` and straight-alpha input.
+
+The overlay is cleared to transparent black every frame. The gun draws first,
+then the aim dot draws with depth testing disabled into the same overlay. The
+dot therefore stays above the screen and HUD, including when the gun model
+toggle is off; neither visual is baked into the opaque game swapchain.
+The INSIDE dot still uses the existing HUD-plane position in this checkpoint;
+scene-intersection aiming is a separate acceptance item.
+
+`PCSX2_VR_LAYER_PROOF=<private-prefix>` with OpenXR disabled exercises that same
+overlay renderer on the live shared GL context. It saves per-eye gun RGBA and
+alpha PNGs, dot-only PNGs after clearing the model, and both composition plans
+as JSON. Plans explicitly say `submitted_to_runtime: false`. With OpenXR on,
+the first successfully submitted controller frame logs actual back-to-front
+layer names/types/flags, and optionally saves the corresponding plan. Private
+hidden/muted/below-normal timed runs passed in screen and INSIDE modes: opaque
+gun silhouettes, alpha/RGB zero outside the model, only25 opaque dot pixels on
+the subsequent frame, and no GL errors. These checks do not prove physical
+SteamVR composition; the owner must retest that in the headset.

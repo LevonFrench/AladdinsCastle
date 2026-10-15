@@ -45,5 +45,10 @@
     ],
     "scope": "Opt-in capture runner VM state; memory cards remain disabled.",
     "validation": "v145 own-project build; successful menu save/resume; missing-load and failed-save nonzero exits; normal stereo-off replay unchanged."
+  },
+  "controller_overlay_validation": {
+    "composition": "Base screen quads or INSIDE scene/HUD, then alpha-blended gun/dot projection; no composition depth.",
+    "offline": "Live shared-context per-eye alpha and stale-pixel proof; common composition builder recorded for both modes.",
+    "headset": "Owner retest required; no runtime started."
   }
 }
