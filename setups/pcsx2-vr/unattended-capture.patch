@@ -1658,7 +1658,7 @@ diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,667 @@
+@@ -0,0 +1,712 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
@@ -1673,6 +1673,7 @@ new file mode 100644
 +#include "GS/PS2VRAim.h"
 +#include "GS/PS2VRInside.h"
 +#include "GS/PS2VRGunModel.h"
++#include "GS/PS2VRBackendPolicy.h"
 +#include <atomic>
 +#include <algorithm>
 +#include <chrono>
@@ -1715,6 +1716,7 @@ new file mode 100644
 + static u32 pending_width=0, pending_height=0;
 + static u32 width = 0, height = 0;
 + static GLsync fence = nullptr;
++ static GLsync consumer_fence = nullptr;
 + static unsigned long serial = 0;
 + static unsigned long ticks = 0;
 + static FILE* live_log = nullptr;
@@ -1768,8 +1770,7 @@ new file mode 100644
 +  if (!complete || attachment_errors) return false;
 +  // Source row zero is the GS picture top; GL OpenXR quads use bottom-left.
 +  glBlitFramebuffer(0,height,width,0,0,0,used.x,used.y,GL_COLOR_BUFFER_BIT,GL_NEAREST);
-+  glFinish(); // publication mutex protects GPU completion, not just submission
-+  return DrainGL("after","glBlitFramebuffer / glFinish")==0;
++  return DrainGL("after","glBlitFramebuffer")==0;
 + }
 +#ifdef _WIN32
 + // This is also used by the no-runtime proof. The compositor blends in array
@@ -1811,6 +1812,17 @@ new file mode 100644
 + {
 +  if (!context->MakeCurrent()) { LiveLog("Proof shared context MakeCurrent failed"); return; }
 +  LiveLog("OpenXR-disabled presenter thread has shared OpenGL context; no loader/runtime calls");
++  if(Env("PCSX2_OPENXR_TEST_SLOW_WAIT",0)!=0) {
++   unsigned long before=0,after=0;
++   {std::unique_lock guard(mutex);ready.wait_for(guard,std::chrono::seconds(5),[] {return serial>0 || stop.load();});before=serial;}
++   const auto waited=PS2VRBackend::WaitImage([](long long timeout) {
++    std::this_thread::sleep_for(std::chrono::nanoseconds(timeout));return 1;
++   },[] {return stop.load();});
++   {std::lock_guard guard(mutex);after=serial;}
++   const auto resumed=PS2VRBackend::WaitImage([](long long) {return 0;},[] {return stop.load();});
++   if(live_log) {std::fprintf(live_log,"OFFLINE simulated swapchain timeout: before=%lu after=%lu deadline=%d resumed=%d; no runtime calls\n",before,after,waited==PS2VRBackend::WaitResult::deadline,resumed==PS2VRBackend::WaitResult::ready);std::fflush(live_log);}
++  }
++
 +  // Synthetic recommendation is explicitly restricted to the no-loader path.
 +  if(PS2VRInside::Enabled() && Env("PCSX2_OPENXR",0)==0 && Env("PCSX2_INSIDE_TEST_EYE_WIDTH",0)>0 && Env("PCSX2_INSIDE_TEST_EYE_HEIGHT",0)>0) {
 +   GLint limit=0;glGetIntegerv(GL_MAX_TEXTURE_SIZE,&limit);
@@ -1922,10 +1934,38 @@ new file mode 100644
 +  if (live_log) { std::fprintf(live_log, "%s failed: XrResult %d\n", operation, static_cast<int>(result)); std::fflush(live_log); }
 +  return false;
 + }
++ struct AcquiredImage { bool acquired=false, ready=false; u32 index=0; };
++ static AcquiredImage game_acquired[2];
++ static bool WaitChainImage(XrSwapchain chain, AcquiredImage& image)
++ {
++  // Presenter only. No publication lock may be held across acquire/wait.
++  if (!image.acquired) {
++   XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
++   if (!Check(XRGL("xrAcquireSwapchainImage",p_xrAcquireSwapchainImage,chain,&ai,&image.index),"acquire image")) return false;
++   image.acquired=true;
++  }
++  if (image.ready) return true;
++  const auto waited=PS2VRBackend::WaitImage([&](long long timeout) {
++   XrSwapchainImageWaitInfo wi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};wi.timeout=timeout;
++   return XRGL("xrWaitSwapchainImage",p_xrWaitSwapchainImage,chain,&wi);
++  },[] {return stop.load();});
++  if (waited!=PS2VRBackend::WaitResult::ready) {
++   LiveLog(waited==PS2VRBackend::WaitResult::deadline ? "Swapchain wait budget exhausted: skip frame, retain acquired image" : "Swapchain wait interrupted/error: skip frame");
++   return false;
++  }
++  image.ready=true;return true;
++ }
++ static bool ReleaseChainImage(XrSwapchain chain, AcquiredImage& image)
++ {
++  if (!image.acquired || !image.ready) return false;
++  XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
++  const bool ok=Check(XRGL("xrReleaseSwapchainImage",p_xrReleaseSwapchainImage,chain,&ri),"release image");
++  if(ok)image={};return ok;
++ }
 + static void DestroyChains()
 + {
 +  for (int eye=0; eye<2; eye++) { if (chains[eye]) XRGL("xrDestroySwapchain", p_xrDestroySwapchain, chains[eye]); chains[eye]=XR_NULL_HANDLE; images[eye].clear(); }
-+  chains_attempted=false;
++  chains_attempted=false;game_acquired[0]=game_acquired[1]={};
 + }
 + static PS2VRGun::Mat4 inside_origin=PS2VRGun::Mat4::Identity();
 + #include "GS/PS2VRControllers.h"
@@ -2089,44 +2129,46 @@ new file mode 100644
 +    std::uint64_t submitted_inside_sequence=0;
 +    if (fs.shouldRender && placed)
 +    {
-+     std::lock_guard guard(mutex);
-+     if (serial && !EnsureChains()) retry_window=true;
-+     if (serial && !retry_window)
++     bool available=false;
++     { std::lock_guard guard(mutex);available=serial!=0; }
++     if (available && !EnsureChains()) retry_window=true;
++     if (available && !retry_window && WaitChainImage(chains[0],game_acquired[0]) && WaitChainImage(chains[1],game_acquired[1]) && !stop)
 +     {
-+      if (fence) glWaitSync(fence,0,GL_TIMEOUT_IGNORED);
-+      DrainGL("after","shared fence wait");
-+      for (int eye=0; eye<2; eye++)
++      bool copied=true;
++      GSVector2i used[2];PS2VRInside::Packet pair_pose;
 +      {
-+       const GSVector2i used=UsedExtent(eye);
-+       u32 index=0; XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
-+       if (!Check(XRGL("xrAcquireSwapchainImage", p_xrAcquireSwapchainImage, chains[eye],&ai,&index),"xrAcquireSwapchainImage")) break;
-+       XrSwapchainImageWaitInfo swi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO}; swi.timeout=1000000000;
-+       const XrResult waited=XRGL("xrWaitSwapchainImage", p_xrWaitSwapchainImage, chains[eye],&swi);
-+       if (waited!=XR_SUCCESS) { Check(waited,"xrWaitSwapchainImage"); LiveLog("Swapchain image wait did not complete; stopping presenter"); stop=true; break; }
-+       const bool copied=BlitEye(eye,images[eye][index].image,fbos[0],fbos[1],used);
-+       XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-+       if (!Check(XRGL("xrReleaseSwapchainImage", p_xrReleaseSwapchainImage, chains[eye],&ri),"xrReleaseSwapchainImage")) break;
-+       if (!copied) break;
-+       auto& q=quads[eye]; q.type=XR_TYPE_COMPOSITION_LAYER_QUAD; q.space=space;
-+       q.eyeVisibility=eye ? XR_EYE_VISIBILITY_RIGHT : XR_EYE_VISIBILITY_LEFT;
-+       q.subImage.swapchain=chains[eye]; q.subImage.imageRect.extent={used.x,used.y};
-+       q.pose=pose;
-+       q.size.width=screen_width;
-+       q.size.height=screen_height;
-+       if (!PS2VRInside::Enabled()) layers[count++]=reinterpret_cast<XrCompositionLayerBaseHeader*>(&q);
-+       else if (published_inside.valid)
-+       {
-+        const auto& e=published_inside.eyes[eye]; auto& p=inside_views[eye];
-+        p.pose.position={e.pose[0],e.pose[1],e.pose[2]}; p.pose.orientation={e.pose[3],e.pose[4],e.pose[5],e.pose[6]};
-+        p.fov={std::atan(e.tangents[0]),std::atan(e.tangents[1]),std::atan(e.tangents[3]),std::atan(e.tangents[2])};
-+        p.subImage.swapchain=chains[eye]; p.subImage.imageRect.extent={used.x,used.y};
++       std::lock_guard guard(mutex);
++       pair_pose=published_inside;
++       if (fence) glWaitSync(fence,0,GL_TIMEOUT_IGNORED);
++       DrainGL("after","shared fence wait");
++       for(int eye=0;eye<2;eye++) {
++        used[eye]=UsedExtent(eye);
++        copied=BlitEye(eye,images[eye][game_acquired[eye].index].image,fbos[0],fbos[1],used[eye]) && copied;
++       }
++       // Protect source reuse with a GPU dependency, never CPU completion
++       // under the publication lock. GS queues a server-side wait next time.
++       if(consumer_fence)glDeleteSync(consumer_fence);
++       consumer_fence=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0);glFlush();
++      }
++      glFinish(); // runtime image completion outside the publication lock
++      copied=DrainGL("after","presenter completion outside lock")==0 && copied;
++      for(int eye=0;eye<2;eye++)copied=ReleaseChainImage(chains[eye],game_acquired[eye]) && copied;
++      if(copied)for(int eye=0;eye<2;eye++) {
++       auto& q=quads[eye];q.type=XR_TYPE_COMPOSITION_LAYER_QUAD;q.space=space;
++       q.eyeVisibility=eye?XR_EYE_VISIBILITY_RIGHT:XR_EYE_VISIBILITY_LEFT;
++       q.subImage.swapchain=chains[eye];q.subImage.imageRect.extent={used[eye].x,used[eye].y};
++       q.pose=pose;q.size.width=screen_width;q.size.height=screen_height;
++       if(!PS2VRInside::Enabled())layers[count++]=reinterpret_cast<XrCompositionLayerBaseHeader*>(&q);
++       else if(pair_pose.valid) {
++        const auto& e=pair_pose.eyes[eye];auto& v=inside_views[eye];
++        v.pose.position={e.pose[0],e.pose[1],e.pose[2]};v.pose.orientation={e.pose[3],e.pose[4],e.pose[5],e.pose[6]};
++        v.fov={std::atan(e.tangents[0]),std::atan(e.tangents[1]),std::atan(e.tangents[3]),std::atan(e.tangents[2])};
++        v.subImage.swapchain=chains[eye];v.subImage.imageRect.extent={used[eye].x,used[eye].y};
 +       }
 +      }
-+      if (PS2VRInside::Enabled() && published_inside.valid && inside_views[0].subImage.swapchain && inside_views[1].subImage.swapchain)
-+      {
-+       inside_layer.space=space; inside_layer.viewCount=2; inside_layer.views=inside_views;
-+       submitted_inside_sequence=published_inside.sequence;
-+       layers[count++]=reinterpret_cast<XrCompositionLayerBaseHeader*>(&inside_layer);
++      if(copied && PS2VRInside::Enabled() && pair_pose.valid) {
++       inside_layer.space=space;inside_layer.viewCount=2;inside_layer.views=inside_views;
++       submitted_inside_sequence=pair_pose.sequence;layers[count++]=reinterpret_cast<XrCompositionLayerBaseHeader*>(&inside_layer);
 +      }
 +     }
 +    }
@@ -2261,6 +2303,7 @@ new file mode 100644
 + g_gs_device->ClearCurrent();
 + Switch();
 + if (fence) { glDeleteSync(fence); fence=nullptr; }
++ if (consumer_fence) { glDeleteSync(consumer_fence); consumer_fence=nullptr; }
 + glDeleteTextures(2,eyes); glDeleteTextures(2,pending);
 + eyes[0]=eyes[1]=pending[0]=pending[1]=0; width=height=pending_width=pending_height=0;
 + enabled=false; other=false;
@@ -2273,6 +2316,7 @@ new file mode 100644
 + if (!enabled) return;
 + GSTexture* src=g_gs_device->GetCurrent(); if (!src) return;
 + std::unique_lock guard(mutex);
++ if(consumer_fence) {glWaitSync(consumer_fence,0,GL_TIMEOUT_IGNORED);glDeleteSync(consumer_fence);consumer_fence=nullptr;}
 + const u32 w=src->GetWidth(), h=src->GetHeight();
 + if (pending_width!=w || pending_height!=h)
 + {
@@ -2296,6 +2340,7 @@ new file mode 100644
 + if(PS2VRInside::Enabled() && PS2VRGun::Enabled())PS2VRAim::PublishScene();
 + if (fence) glDeleteSync(fence);
 + fence=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0); glFlush(); serial++;
++ if(Env("PCSX2_OPENXR_TEST_SLOW_WAIT",0)!=0)ready.notify_all();
 + if (serial==1 || serial%600==0)
 + {
 +  if (live_log) { std::fprintf(live_log,"Published pair %lu (GS tick %lu): textures %u/%u, %ux%u, upscale %.1fx, speed %.2f%%\n",serial,ticks,eyes[0],eyes[1],w,h,GSConfig.UpscaleMultiplier,PerformanceMetrics::GetSpeed()); std::fflush(live_log); }
@@ -2410,7 +2455,7 @@ diff --git a/pcsx2/GS/PS2VRControllers.h b/pcsx2/GS/PS2VRControllers.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRControllers.h
-@@ -0,0 +1,337 @@
+@@ -0,0 +1,334 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// Included inside PS2Live after the runtime function table. Presenter-thread only.
 +static XrActionSet gun_actions=XR_NULL_HANDLE;
@@ -2613,6 +2658,7 @@ new file mode 100644
 +// Gun projection graphics follow below. The model never changes the aim space.
 +
 +static XrSwapchain gun_chains[2]{};
++static AcquiredImage gun_acquired[2];
 +static std::vector<XrSwapchainImageOpenGLKHR> gun_images[2];
 +static GLuint gun_fbo=0;
 +static bool gun_graphics_attempted=false,gun_graphics_ready=false;
@@ -2621,7 +2667,7 @@ new file mode 100644
 +{
 + gun_model.Shutdown();
 + if (gun_fbo) glDeleteFramebuffers(1,&gun_fbo); gun_fbo=0;
-+ for (int eye=0;eye<2;eye++) { if (gun_chains[eye]) XRGL("xrDestroySwapchain",p_xrDestroySwapchain,gun_chains[eye]); gun_chains[eye]=XR_NULL_HANDLE; gun_images[eye].clear(); }
++ for (int eye=0;eye<2;eye++) { if (gun_chains[eye]) XRGL("xrDestroySwapchain",p_xrDestroySwapchain,gun_chains[eye]); gun_chains[eye]=XR_NULL_HANDLE; gun_images[eye].clear(); gun_acquired[eye]={}; }
 + gun_graphics_attempted=gun_graphics_ready=false;
 + DrainGL("after","gun graphics cleanup");
 +}
@@ -2662,11 +2708,8 @@ new file mode 100644
 + bool pair=true;
 + for (int eye=0;eye<2;eye++)
 + {
-+  u32 index=0; XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
-+  if (!Check(XRGL("xrAcquireSwapchainImage",p_xrAcquireSwapchainImage,gun_chains[eye],&ai,&index),"acquire gun image")) { pair=false; break; }
-+  XrSwapchainImageWaitInfo wi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO}; wi.timeout=1000000000;
-+  const XrResult waited=XRGL("xrWaitSwapchainImage",p_xrWaitSwapchainImage,gun_chains[eye],&wi);
-+  if (waited!=XR_SUCCESS) { Check(waited,"wait gun image"); stop=true; pair=false; break; }
++  if (!WaitChainImage(gun_chains[eye],gun_acquired[eye])) {pair=false;break;}
++  const u32 index=gun_acquired[eye].index;
 +  const auto& v=views[eye];
 +  const auto projection=PS2VRGun::Mat4::Projection(std::tan(v.fov.angleLeft),std::tan(v.fov.angleRight),std::tan(v.fov.angleDown),std::tan(v.fov.angleUp));
 +  const auto view_matrix=PS2VRGun::Mat4::FromPose(&v.pose.position.x,&v.pose.orientation.x).RigidInverse();
@@ -2679,8 +2722,7 @@ new file mode 100644
 +  bool drawn=RenderControllerOverlay(gun_model,gun_fbo,PS2VRInside::Enabled()?chain_extent[eye].x:GUN_RES,PS2VRInside::Enabled()?chain_extent[eye].y:GUN_RES,projection,view_matrix,grip,aim,sample.trigger,recoil,show_model,dot,dot_u,dot_v,error);
 +  glFinish(); if (DrainGL("after","gun render / completion")) drawn=false;
 +  glDisable(GL_DEPTH_TEST); glDisable(GL_SCISSOR_TEST); glDisable(GL_FRAMEBUFFER_SRGB);
-+  XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-+  const bool released=Check(XRGL("xrReleaseSwapchainImage",p_xrReleaseSwapchainImage,gun_chains[eye],&ri),"release gun image");
++  const bool released=ReleaseChainImage(gun_chains[eye],gun_acquired[eye]);
 +  if (!drawn || !released) { LiveLog(("Gun frame failed: "+error).c_str()); pair=false; break; }
 +  projections[eye]={XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW}; projections[eye].pose=v.pose; projections[eye].fov=v.fov;
 +  projections[eye].subImage.swapchain=gun_chains[eye]; projections[eye].subImage.imageRect.extent=PS2VRInside::Enabled()?XrExtent2Di{chain_extent[eye].x,chain_extent[eye].y}:XrExtent2Di{GUN_RES,GUN_RES};
@@ -3159,4 +3201,34 @@ new file mode 100644
 + return s;
 +}
 +inline float Setting(const char* key, float fallback) { const char* e=std::getenv(key); if (!e) return fallback; char* end; float v=std::strtof(e,&end); return end!=e && *end==0 && std::isfinite(v) ? v : fallback; }
++}
+diff --git a/pcsx2/GS/PS2VRBackendPolicy.h b/pcsx2/GS/PS2VRBackendPolicy.h
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/GS/PS2VRBackendPolicy.h
+@@ -0,0 +1,25 @@
++// SPDX-License-Identifier: GPL-3.0-or-later
++#pragma once
++#include <chrono>
++namespace PS2VRBackend {
++enum class WaitResult { ready, stopped, deadline, error };
++// Same finite-wait policy as the Model 2 viewer. An acquired image survives
++// timeout frames; it must not be released until a wait actually succeeds.
++template<class Wait, class Stop, class Clock>
++WaitResult WaitImage(Wait wait, Stop stop, Clock clock)
++{
++ const auto deadline=clock()+std::chrono::milliseconds(250);
++ while (!stop()) {
++  const auto result=wait(10000000LL);
++  if (result==0) return stop()?WaitResult::stopped:WaitResult::ready;
++  if (result!=1) return WaitResult::error;
++  if (clock()>=deadline) return WaitResult::deadline;
++ }
++ return WaitResult::stopped;
++}
++template<class Wait, class Stop>
++WaitResult WaitImage(Wait wait, Stop stop)
++{
++ return WaitImage(wait,stop,[] {return std::chrono::steady_clock::now();});
++}
 +}

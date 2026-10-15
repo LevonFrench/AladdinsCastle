@@ -845,3 +845,12 @@ disable every slot and select a separate unused card directory. Xbox bindings
 are preserved. Normal VM shutdown closes the card and flushes its C file;
 the save-state boolean does not disable memory-card persistence. Forced
 termination may still lose an unfinished write; in-game save/load needs owner testing.
+
+The OpenXR presenter acquires/waits outside the publication mutex, using
+10 ms waits within a 250 ms budget. A timeout skips the frame and retains
+the acquired image for retry. Game and gun chains use the same policy.
+Blits and the exact published poses are copied together under the lock;
+a consumer GL fence prevents source reuse, with CPU completion outside
+the lock. No extra swapchain wait is made during destruction.
+A native offline delay hook and a concurrent CPU fixture exercise timeout,
+publication progress, recovery and interruptible shutdown without OpenXR.
