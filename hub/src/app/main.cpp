@@ -124,6 +124,9 @@ int main(int argc,char **argv){
     context->setContextProperty("uiSettings",&settings);context->setContextProperty("uiController",&ui);
     context->setContextProperty("hubServices",&services);context->setContextProperty("overlayHost",&overlay);
     // The first start opens the set-up; AC_UI_VIEW names another first page for shortcuts and diagnostics.
+    // Diagnostics: a menu to open at start, and the whole catalog without changing the user's settings.
+    context->setContextProperty("startMenu",qEnvironmentVariable("AC_UI_OPEN"));
+    context->setContextProperty("forceShowAll",qEnvironmentVariableIsSet("AC_UI_SHOW_ALL"));
     context->setContextProperty("startView",qEnvironmentVariableIsSet("AC_UI_VIEW")?qEnvironmentVariable("AC_UI_VIEW"):settings.get("setupDone",false).toBool()?QString():QString("Setup"));
     context->setContextProperty("spikeState",&spike);context->setContextProperty("overlaySpikeEnabled",options.spike);
     context->setContextProperty("surfaceColor",theme.get("color.surface.window"));
