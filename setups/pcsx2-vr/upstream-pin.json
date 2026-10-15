@@ -75,5 +75,11 @@
     "heldout": "106090 rows RMS0.2891932036 max0.5239128587",
     "proof": "Near enemy17px/far palms2px; HUD and stereo-off exact; native launcher fake30/shared/SBS/exact-zero pass.",
     "limits": "Cover blur wrong flat layer; sparks pinned; physical calibration and headset/live speed not established;6 generic profiles remain."
+  },
+  "crisis_zone_combat_profile_validation": {
+    "fit": "A=-40.4565262660617 B=3355399.411392285 Qscale=+1 target512",
+    "heldout": "26819 rows RMS0.295139967 max3.543243138",
+    "proof": "Near18px/far5px, unchanged stereo-off, classified HUD eye equality; native fake30/shared/SBS/exact-zero pass.",
+    "limits": "Some INSIDE HUD pieces on inconsistent planes; flash planes and culling gaps; physical calibration/live speed pending;5 generic profiles remain."
   }
 }

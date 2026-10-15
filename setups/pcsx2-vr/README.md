@@ -668,3 +668,23 @@ shared GPU eyes and native SBS, at3x/1920x1536. This is depth/replay acceptance,
 not physical GunCon calibration or live/headset speed acceptance. Blurred cover
 remains a wrong flat layer in INSIDE, small sparks stay pinned, and culling/sky
 pass edges are visible. Six other generic profiles remain unmeasured.
+
+### Crisis Zone measured combat checkpoint
+
+Story-mode Garland Square combat provides three training dumps and an independent
+fourth. Main512-wide-camera depth is
+`Z=-40.4565262660617+3355399.411392285*Q`, Qscale+1. Training77497 rows have
+RMS0.294305203; held-out26819 rows have RMS0.295139967 and maximum3.543243138,
+all within guard64. Four alpha-textured32x32 vertices have larger residuals;
+they remain included, with no assigned cause. Scanout512x512 is unscaled.
+Lens/metric settings remain provisional: fx320,fy426.6667,canvas512x512,
+units/m1,convergence1000m.
+
+Near enemy18px versus distant books5px. Stereo-off equals the unchanged runner;
+classified-HUD-only eyes match exactly. Native launcher fake30/shared/SBS and
+exact-zero RGBA checks pass at3x1536x1536. Complete HUD classification is not
+accepted: some score/ammo/frame pieces occupy inconsistent INSIDE planes;
+muzzle-flash planes tilt across geometry and culling/disocclusion gaps remain.
+Whole-title effects, physical calibration and live/headset speed are untested.
+The game's own controller page shows Release reload mode: hold Reload/action
+to attack, release to cover/reload. Five generic depth profiles remain.
