@@ -527,10 +527,18 @@ index 03879ca..3aed53b 100644
  	MTGS::RunOnGSThread([frame_number = GSDumpReplayer::GetFrameNumber()]() { s_dump_frame_number = frame_number; });
  	MTGS::RunOnGSThread([loop_number = GSDumpReplayer::GetLoopCount()]() { s_loop_number = loop_number; });
 diff --git a/pcsx2-qt/QtHost.cpp b/pcsx2-qt/QtHost.cpp
-index 5c28f91..2323e14 100644
+index 5c28f91..73f2ba2 100644
 --- a/pcsx2-qt/QtHost.cpp
 +++ b/pcsx2-qt/QtHost.cpp
-@@ -915,7 +915,13 @@ void EmuThread::releaseRenderWindow()
+@@ -29,6 +29,7 @@
+ #include "pcsx2/ImGui/ImGuiManager.h"
+ #include "pcsx2/ImGui/ImGuiOverlays.h"
+ #include "pcsx2/Input/InputManager.h"
++#include "pcsx2/Input/PS2VRGun.h"
+ #include "pcsx2/MTGS.h"
+ #include "pcsx2/PerformanceMetrics.h"
+ #include "pcsx2/SPU2/spu2.h"
+@@ -915,7 +916,13 @@ void EmuThread::releaseRenderWindow()
  
  std::optional<WindowInfo> Host::AcquireRenderWindow(bool recreate_window)
  {
@@ -545,7 +553,7 @@ index 5c28f91..2323e14 100644
  }
  
  void Host::ReleaseRenderWindow()
-@@ -925,6 +931,21 @@ void Host::ReleaseRenderWindow()
+@@ -925,6 +932,25 @@ void Host::ReleaseRenderWindow()
  
  void Host::BeginPresentFrame()
  {
@@ -560,8 +568,12 @@ index 5c28f91..2323e14 100644
 + }
 + if (const char* target = std::getenv("PCSX2_LIVE_DUMP_FRAME"); target && frame == std::strtoul(target, nullptr, 10))
 +  if (const char* path = std::getenv("PCSX2_LIVE_DUMP_PATH")) GSQueueSnapshot(path, 3);
-+ bool stop = false;
-+ if (const char* limit = std::getenv("PCSX2_LIVE_STOP_FRAME")) stop = frame >= std::strtoul(limit, nullptr, 10);
++ // A deterministic no-runtime proof uses the SAME hold timer as the XR action.
++ const char* test_y=std::getenv("PCSX2_VR_QUIT_TEST_Y_HOLD");
++ const char* xr_mode=std::getenv("PCSX2_OPENXR");
++ if(test_y && std::strcmp(test_y,"1")==0 && xr_mode && std::strcmp(xr_mode,"0")==0)PS2VRGun::UpdateQuitHold(true);
++ bool stop = PS2VRGun::ConsumeQuit();
++ if (const char* limit = std::getenv("PCSX2_LIVE_STOP_FRAME")) stop |= frame >= std::strtoul(limit, nullptr, 10);
 + if (const char* request = std::getenv("PCSX2_LIVE_STOP_FILE")) stop |= FileSystem::FileExists(request);
 + if (stop) Host::RunOnCPUThread([]() { Host::RequestVMShutdown(false, false, false); });
  }
@@ -2307,14 +2319,14 @@ diff --git a/pcsx2/GS/PS2VRControllers.h b/pcsx2/GS/PS2VRControllers.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRControllers.h
-@@ -0,0 +1,334 @@
+@@ -0,0 +1,337 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// Included inside PS2Live after the runtime function table. Presenter-thread only.
 +static XrActionSet gun_actions=XR_NULL_HANDLE;
 +static XrAction gun_aim=XR_NULL_HANDLE,gun_grip_pose=XR_NULL_HANDLE,gun_trigger=XR_NULL_HANDLE;
 +static XrAction gun_a=XR_NULL_HANDLE,gun_b=XR_NULL_HANDLE,gun_squeeze=XR_NULL_HANDLE,gun_haptic=XR_NULL_HANDLE;
 +static XrPath right_hand=XR_NULL_PATH,left_hand=XR_NULL_PATH;
-+static XrAction menu_select=XR_NULL_HANDLE,menu_start=XR_NULL_HANDLE,menu_spare_start=XR_NULL_HANDLE;
++static XrAction menu_select=XR_NULL_HANDLE,menu_start=XR_NULL_HANDLE,menu_spare_start=XR_NULL_HANDLE,quit_y=XR_NULL_HANDLE;
 +static XrSpace aim_space=XR_NULL_HANDLE,grip_space=XR_NULL_HANDLE;
 +static bool gun_attached=false,grip_valid=false;
 +static XrPosef grip_pose{},aim_pose{};
@@ -2342,7 +2354,8 @@ new file mode 100644
 + };
 + if (!action("menu_select","Select",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_select,left_hand) ||
 +     !action("menu_start","Start",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_start,right_hand) ||
-+     !action("menu_spare_start","Spare Start",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_spare_start,left_hand)) return false;
++     !action("menu_spare_start","Spare Start",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_spare_start,left_hand) ||
++     !action("quit_y","Hold Y to quit",XR_ACTION_TYPE_BOOLEAN_INPUT,quit_y,left_hand)) return false;
 + if (!action("aim","Aim",XR_ACTION_TYPE_POSE_INPUT,gun_aim) ||
 +     !action("grip_pose","Grip pose",XR_ACTION_TYPE_POSE_INPUT,gun_grip_pose) ||
 +     !action("trigger","Trigger",XR_ACTION_TYPE_FLOAT_INPUT,gun_trigger) ||
@@ -2364,6 +2377,7 @@ new file mode 100644
 +  bindings.push_back({menu_start,Path("/user/hand/right/input/thumbstick/click")});
 +  // Index reserves the system button; left B is its exposed spare Start.
 +  bindings.push_back({menu_spare_start,Path(std::strcmp(profile,"/interaction_profiles/valve/index_controller")==0 ? "/user/hand/left/input/b/click" : "/user/hand/left/input/menu/click")});
++  bindings.push_back({quit_y,Path(std::strcmp(profile,"/interaction_profiles/valve/index_controller")==0 ? "/user/hand/left/input/b/click" : "/user/hand/left/input/y/click")});
 +  XrInteractionProfileSuggestedBinding suggested{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
 +  suggested.interactionProfile=Path(profile); suggested.countSuggestedBindings=std::size(bindings); suggested.suggestedBindings=bindings.data();
 +  if (!Check(XRGL("xrSuggestInteractionProfileBindings",p_xrSuggestInteractionProfileBindings,instance,&suggested),profile)) return false;
@@ -2379,7 +2393,7 @@ new file mode 100644
 +}
 +static void ReleaseGunInput()
 +{
-+ PS2VRGun::Publish({}); grip_valid=false; seen_shot=PS2VRGun::ShotSerial();
++ PS2VRGun::Publish({}); PS2VRGun::quit_hold.Reset(); grip_valid=false; seen_shot=PS2VRGun::ShotSerial();
 +}
 +static void DestroyGunActions()
 +{
@@ -2411,6 +2425,7 @@ new file mode 100644
 +  XrActionStateBoolean state{XR_TYPE_ACTION_STATE_BOOLEAN};
 +  return XR_SUCCEEDED(XRGL("xrGetActionStateBoolean",p_xrGetActionStateBoolean,session,&gi,&state)) && state.isActive && state.currentState;
 + };
++ if(PS2VRGun::UpdateQuitHold(button(quit_y,left_hand)))LiveLog("Controller Y hold completed: graceful VM quit requested");
 + PS2VRGun::Sample sample;
 + sample.controls_active=PS2VRGun::MenuEnabled();
 + sample.select=button(menu_select,left_hand); sample.start=button(menu_start,right_hand); sample.spare_start=button(menu_spare_start,left_hand);
@@ -2896,7 +2911,7 @@ diff --git a/pcsx2/Input/PS2VRGun.h b/pcsx2/Input/PS2VRGun.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/Input/PS2VRGun.h
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,113 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +#pragma once
 +#include <atomic>
@@ -2917,6 +2932,24 @@ new file mode 100644
 +inline Sample mailbox;
 +inline std::chrono::steady_clock::time_point published_at;
 +inline std::atomic<std::uint64_t> frame_clock{0}, shot_serial{0};
++struct QuitHold {
++ bool down=false,fired=false;std::chrono::steady_clock::time_point since{};
++ void Reset(){down=fired=false;since={};}
++ bool Update(bool pressed,std::chrono::steady_clock::time_point now) {
++  if(!pressed){Reset();return false;}
++  if(!down){down=true;since=now;}
++  if(!fired && now-since>=std::chrono::seconds(3)){fired=true;return true;}
++  return false;
++ }
++};
++inline QuitHold quit_hold;
++inline std::atomic<bool> quit_requested{false};
++inline bool UpdateQuitHold(bool pressed,std::chrono::steady_clock::time_point now=std::chrono::steady_clock::now()) {
++ if(!quit_hold.Update(pressed,now))return false;
++ quit_requested.store(true,std::memory_order_release);
++ std::fprintf(stderr,"VR Y held3seconds: graceful quit requested.\n");return true;
++}
++inline bool ConsumeQuit(){return quit_requested.exchange(false,std::memory_order_acq_rel);}
 +inline bool Enabled() { static const bool enabled=[] { const char* e=std::getenv("PCSX2_VR_GUN"); return e && std::string(e)=="1"; }(); return enabled; }
 +inline bool MenuEnabled() { const char* e=std::getenv("PCSX2_VR_CONTROLLERS"); return e ? std::string(e)=="1" : Enabled(); }
 +inline void Publish(const Sample& sample) { std::lock_guard<std::mutex> lock(mailbox_mutex); mailbox=sample; published_at=std::chrono::steady_clock::now(); }

@@ -592,3 +592,25 @@ the trigger is occluded from the rear. Alpha/RGB is zero outside the gun/dot.
 This is a deterministic visual fixture, separate from the real game shot proof.
 Live recoil/haptic dispatch remains keyed to the GunCon USB accepted-shot serial,
 with35ms amplitude1 feedback; actual vibration and tracked fit require a headset.
+
+
+### Reliable controller quit and private Stop helper
+
+Touch left Y (Index left B) held for3seconds requests graceful VM shutdown
+through the ordinary CPU-thread stop route, in every game. It remains available
+when gun aim tracking is absent. Release/focus loss resets the monotonic hold;
+a held button fires once. The Index button also retains its tap-to-Start role.
+Xbox mapping is unchanged. The offline-only injected hold exercises the same
+timer and gracefully exits the actual native program even with a frame limit.
+
+The private Stop launcher writes the stop file first, waits5seconds, then forces
+only the exact private executable and a creation-time-verified launcher helper.
+It holds process handles and rechecks creation time on the terminate handle.
+Missing/wrong helper timestamps are reported and left running. Startup, Stop
+selection and lease changes share a short gate; waits happen outside it. A
+still-live stamped launcher retains its shared logs until receipt capture ends.
+Hidden native checks passed graceful Stop and hold-to-quit, stubborn fallback,
+foreign same-basename exclusion, wrong/missing stamps, and deterministic
+startup/replacement interleavings. Independent source review and two repair
+rounds found no remaining ownership issue within scope. Physical action delivery
+still needs an owner test. Play audio remains on; offline checks remain muted.
