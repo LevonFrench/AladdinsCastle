@@ -71,6 +71,7 @@ namespace
   std::atomic<bool> s_stop(false);
   std::atomic<bool> s_started(false);
   std::thread       s_thread;
+  std::atomic<bool> s_threadDone(false);        // set by the XR thread as its very last step
   SDL_Window       *s_xrWindow = nullptr;
   SDL_GLContext     s_xrContext = nullptr;
 
@@ -210,6 +211,17 @@ namespace
 
   // ---- controllers
   ACVRControllers s_controllers;              // newest state, guarded by s_mutex
+  Uint32          s_controllersTicks = 0;     // SDL_GetTicks() when s_controllers was written, guarded by s_mutex
+  const Uint32    CONTROLLERS_MAX_AGE_MS = 250;
+
+  // No input: nothing held, nothing pressed. Used when the session loses focus, the sync fails or the thread ends.
+  void ClearControllers()
+  {
+    std::lock_guard<std::mutex> guard(s_mutex);
+    s_controllers = ACVRControllers();
+    s_controllersTicks = SDL_GetTicks();
+  }
+  bool s_focused = false;                     // XR thread only: the session is FOCUSED, so input is ours
   XrActionSet s_actionSet = XR_NULL_HANDLE;
   XrAction    s_actTrigger = XR_NULL_HANDLE, s_actGrip = XR_NULL_HANDLE, s_actStick = XR_NULL_HANDLE, s_actStickClick = XR_NULL_HANDLE;
   XrAction    s_actGripPose = XR_NULL_HANDLE, s_actAimPose = XR_NULL_HANDLE;
@@ -332,7 +344,7 @@ namespace
   void UpdateControllers(XrTime time)
   {
     ACVRControllers c;
-    if (s_inputReady)
+    if (s_inputReady && s_focused)
     {
       XrActiveActionSet active = { s_actionSet, XR_NULL_PATH };
       XrActionsSyncInfo si = { XR_TYPE_ACTIONS_SYNC_INFO };
@@ -373,8 +385,10 @@ namespace
         c.menu = ReadBool(s_actMenu, XR_NULL_PATH);
       }
     }
+    // Not focused, or the sync failed: c is still the empty, invalid state, so nothing stays held
     std::lock_guard<std::mutex> guard(s_mutex);
     s_controllers = c;
+    s_controllersTicks = SDL_GetTicks();
   }
 
   void DestroyChains()
@@ -559,7 +573,7 @@ namespace
     s.imageArrayIndex = 0;
   }
 
-  void ThreadMain()
+  void ThreadBody()
   {
     if (SDL_GL_MakeCurrent(s_xrWindow, s_xrContext) != 0) { Log("cannot use the XR OpenGL context: %s", SDL_GetError()); return; }
     glDisable(GL_FRAMEBUFFER_SRGB);       // copy values unchanged
@@ -588,6 +602,9 @@ namespace
         {
           const XrEventDataSessionStateChanged *e = (const XrEventDataSessionStateChanged *)&ev;
           Log("session state %d", (int)e->state);
+          const bool wasFocused = s_focused;
+          s_focused = (e->state == XR_SESSION_STATE_FOCUSED);
+          if (wasFocused && !s_focused) ClearControllers();   // left FOCUSED: drop every held control now
           if (e->state == XR_SESSION_STATE_READY)
           {
             XrSessionBeginInfo bi = { XR_TYPE_SESSION_BEGIN_INFO };
@@ -699,6 +716,8 @@ namespace
     }
 
     Log("presenter stopping after %lu shown frames", frames);
+    s_focused = false;
+    ClearControllers();
     DestroyChains();
     if (s_viewSpace != XR_NULL_HANDLE) p_xrDestroySpace(s_viewSpace);
     if (s_space != XR_NULL_HANDLE) p_xrDestroySpace(s_space);
@@ -707,6 +726,15 @@ namespace
     glDeleteFramebuffers(1, &readFbo);
     glDeleteFramebuffers(1, &drawFbo);
     SDL_GL_MakeCurrent(s_xrWindow, nullptr);
+  }
+
+  // Every way out of the XR thread leaves the controllers empty and says it is done
+  void ThreadMain()
+  {
+    ThreadBody();
+    s_focused = false;
+    ClearControllers();
+    s_threadDone = true;
   }
 }
 
@@ -738,6 +766,8 @@ bool ACVR_XR_Start(void *mainWindow)
   if (!s_xrWindow || !s_xrContext) { Log("cannot create the shared OpenGL context: %s", SDL_GetError()); return false; }
 
   s_stop = false;
+  s_threadDone = false;
+  ClearControllers();
   s_started = true;
   s_thread = std::thread(ThreadMain);
   return true;
@@ -759,6 +789,12 @@ bool ACVR_XR_GetControllers(ACVRControllers &out)
 {
   if (!s_started) return false;
   std::lock_guard<std::mutex> guard(s_mutex);
+  // Older than CONTROLLERS_MAX_AGE_MS (the XR thread stalled, stopped rendering or ended): no input at all
+  if (s_threadDone || (Uint32)(SDL_GetTicks() - s_controllersTicks) > CONTROLLERS_MAX_AGE_MS)
+  {
+    out = ACVRControllers();
+    return false;
+  }
   out = s_controllers;
   return out.valid;
 }
@@ -817,6 +853,16 @@ void ACVR_XR_Stop()
 {
   if (!s_started) return;
   s_stop = true;
+  // A hung OpenXR runtime (xrWaitFrame that never returns) must not hang the exit: wait up to 3 s, then let it go
+  const Uint32 waitStart = SDL_GetTicks();
+  while (!s_threadDone && (Uint32)(SDL_GetTicks() - waitStart) < 3000) SDL_Delay(5);
+  if (!s_threadDone)
+  {
+    Log("XR thread did not stop within 3 s; leaving it behind");
+    if (s_thread.joinable()) s_thread.detach();
+    s_started = false;
+    return;             // its context, window and log stay alive: the thread may still be using them
+  }
   if (s_thread.joinable()) s_thread.join();
   s_started = false;
   // Leave nothing behind for a later start: the fences, the XR thread's context and its window

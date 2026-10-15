@@ -198,9 +198,11 @@ s = rep(s, '  auto cmd_line = ParseCommandLine(argc, argv);',
 s = rep(s,
         '  // Emulate!' + nl,
         '  if (getenv("ACVR_XR"))' + nl + '    ACVR_XR_Start(s_window);' + nl + nl + '  // Emulate!' + nl)
+# The XR thread stops after NVRAM is saved, so a slow or hung XR join can never skip the save
 s = rep(s,
-        '  // Make sure all threads are paused before shutting down' + nl + '  Model3->PauseThreads();',
-        '  ACVR_XR_Stop();' + nl + nl + '  // Make sure all threads are paused before shutting down' + nl + '  Model3->PauseThreads();')
+        '  // Save NVRAM' + nl + '  SaveNVRAM(Model3);' + nl,
+        '  // Save NVRAM' + nl + '  SaveNVRAM(Model3);' + nl + nl +
+        '  // The XR thread stops only after NVRAM is safe (its join is bounded to 3 s)' + nl + '  ACVR_XR_Stop();' + nl)
 wr(p, s)
 
 # ---------------------------------------------------------------- project file

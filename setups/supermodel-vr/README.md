@@ -76,6 +76,8 @@ Read through OpenXR and turned into the emulator's own inputs, by cabinet type:
 
 The keyboard and gamepad keep working: a controller only overrides an input while it is being used.
 
+Hold Y for 3 seconds to quit; the game saves its NVRAM before the headset presenter stops (the presenter gets at most 3 s to stop). Y keeps its game input while held, so a 3-second hand-brake hold also quits. Controller input expires after 250 ms without a fresh reading, and is dropped when the headset session loses focus or the presenter stops, so nothing stays held.
+
 ### The cabinet's own controls in the headset
 
 With `ACVR_CONTROLS=1`, head-tracked mode draws the cabinet's wheel (driving games) or Harley-Davidson's handlebars in front of the player, turning with the steering the game receives, from whatever source: the controllers, a gamepad or the keyboard. The models are the repository's own `assets/controls/wheel-three-spoke.glb` and `bars-motorcycle.glb`, baked once into the format the patch reads:

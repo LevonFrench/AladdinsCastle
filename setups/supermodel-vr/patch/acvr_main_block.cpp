@@ -133,17 +133,26 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
 {
   s_acvrCabinet = (gameInputs & Game::INPUT_HARLEY) ? 2 : ((gameInputs & Game::INPUT_VEHICLE) ? 1 : 0);
   if (auto st = (*inputs)["Steering"]) s_acvrSteer = (st->value - 128) / 127.0f;
+  // Hold Y for 3 seconds of wall-clock time to quit the game. Y keeps its game mapping while held (driving:
+  // VR2 + HandBrake; stick games: Escape / Shift), so a 3 s hand-brake hold also quits.
+  static Uint32 yDownSince = 0;       // SDL_GetTicks() when Y went down, 0 = not held
   ACVRControllers c;
   if (!ACVR_XR_GetControllers(c))
-    return;
-
-  // Hold Y for 3 seconds (about 180 frames) to quit the game
-  static int yHeld = 0;
-  yHeld = c.y ? yHeld + 1 : 0;
-  if (yHeld == 180)
   {
-    printf("ACVR: Y held for 3 seconds; quitting\n");
-    s_acvrQuit = true;
+    yDownSince = 0;                   // no input (focus lost, thread stopped, stale): the hold starts again
+    return;
+  }
+  if (!c.y)
+    yDownSince = 0;
+  else
+  {
+    const Uint32 now = SDL_GetTicks();
+    if (yDownSince == 0) yDownSince = now ? now : 1;
+    else if (!s_acvrQuit && (Uint32)(now - yDownSince) >= 3000)
+    {
+      printf("ACVR: Y held for 3 seconds; quitting\n");
+      s_acvrQuit = true;
+    }
   }
 
   // Once a second, note whether the controllers' pointing poses arrive (acvr-input.log in the working folder)
