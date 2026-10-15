@@ -95,5 +95,10 @@
     "guard": "All160 held-out non-camera-Q vertices use fitted-Z mode2 in native replay.",
     "proof": "Screen near36px/far7px, isolated HUD exact, stereo-off unchanged; native shared/SBS/exact-zero pass.",
     "limits": "Turned INSIDE visual failure: duplicate enemy/HUD image and dark regions; cause unresolved. Physical calibration/live FPS pending;3 generic profiles remain."
+  },
+  "outrun2_sp_fit_stop": {
+    "gameplay": "Actual Arcade race,F50/AT,163km/h,progressive scan.",
+    "result": "Three fitting approaches ineligible;no model or stereo/INSIDE proof promoted.",
+    "limits": "Generic profile retained;only chase view observed;camera/material cause unassigned."
   }
 }

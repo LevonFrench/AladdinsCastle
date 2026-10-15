@@ -729,3 +729,15 @@ only a hypothesis. No physical calibration or live/headset speed claim.
 Red sword trails/whole-title effects remain unvalidated. Three generic
 profiles remain: OutRun2,Wipeout Pulse,XGIII. Normal screen mode is the
 accepted stereo result for this scene; INSIDE retains its experimental status.
+
+### OutRun2 SP fit stop
+
+The slot labelled OutRun2 identifies as Special Tours. Actual Arcade race,
+F50/AT,progressive scan,163km/h reached with cards disabled. Three fitting
+approaches failed the existing camera eligibility check: all640-wide negative-Q
+candidates,depth-writing subset,tighter1-unit fitting consensus. Selected inlier
+fractions remain about65%,with guard64 RMS15.9..16.7. These are inlier metrics,
+not universal residuals. The tight64-wide group does not identify the main
+camera and is not substituted. No fourth fit or Z model/profile promotion;
+generic state and stereo/INSIDE proof remain unaccepted. Only third-person
+chase view observed; first-person/cockpit and stereo effects unverified.
