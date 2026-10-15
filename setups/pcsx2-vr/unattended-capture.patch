@@ -2455,7 +2455,7 @@ diff --git a/pcsx2/GS/PS2VRControllers.h b/pcsx2/GS/PS2VRControllers.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRControllers.h
-@@ -0,0 +1,334 @@
+@@ -0,0 +1,335 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// Included inside PS2Live after the runtime function table. Presenter-thread only.
 +static XrActionSet gun_actions=XR_NULL_HANDLE;
@@ -2465,6 +2465,7 @@ new file mode 100644
 +static XrAction menu_select=XR_NULL_HANDLE,menu_start=XR_NULL_HANDLE,menu_spare_start=XR_NULL_HANDLE,quit_y=XR_NULL_HANDLE;
 +static XrSpace aim_space=XR_NULL_HANDLE,grip_space=XR_NULL_HANDLE;
 +static bool gun_attached=false,grip_valid=false;
++static PS2VRBackend::ShortTap spare_start_tap;
 +static XrPosef grip_pose{},aim_pose{};
 +static uint64_t seen_shot=0;
 +static auto recoil_start=std::chrono::steady_clock::time_point{};
@@ -2524,12 +2525,12 @@ new file mode 100644
 + asi.action=gun_aim; if (!Check(XRGL("xrCreateActionSpace",p_xrCreateActionSpace,session,&asi,&aim_space),"aim action space")) return false;
 + asi.action=gun_grip_pose; if (!Check(XRGL("xrCreateActionSpace",p_xrCreateActionSpace,session,&asi,&grip_space),"grip action space")) return false;
 + gun_attached=true;
-+ LiveLog("PS2 Controls attached: L-stick Select, R-stick Start, Touch L-menu / Index L-B spare Start; right gun trigger/A/B/grip-C; focus required, menus independent of aim tracking");
++ LiveLog("PS2 Controls attached: L-stick Select, R-stick Start, Touch L-menu / Index L-B short release (<0.4s) spare Start; right gun trigger/A/B/grip-C; focus required, menus independent of aim tracking");
 + return true;
 +}
 +static void ReleaseGunInput()
 +{
-+ PS2VRGun::Publish({}); PS2VRGun::quit_hold.Reset(); grip_valid=false; seen_shot=PS2VRGun::ShotSerial();
++ PS2VRGun::Publish({}); PS2VRGun::quit_hold.Reset(); spare_start_tap.Reset(); grip_valid=false; seen_shot=PS2VRGun::ShotSerial();
 +}
 +static void DestroyGunActions()
 +{
@@ -2564,7 +2565,7 @@ new file mode 100644
 + if(PS2VRGun::UpdateQuitHold(button(quit_y,left_hand)))LiveLog("Controller Y hold completed: graceful VM quit requested");
 + PS2VRGun::Sample sample;
 + sample.controls_active=PS2VRGun::MenuEnabled();
-+ sample.select=button(menu_select,left_hand); sample.start=button(menu_start,right_hand); sample.spare_start=button(menu_spare_start,left_hand);
++ sample.select=button(menu_select,left_hand); sample.start=button(menu_start,right_hand); sample.spare_start=spare_start_tap.Update(button(menu_spare_start,left_hand),std::chrono::steady_clock::now());
 + auto pose_active=[](XrAction action)
 + {
 +  XrActionStateGetInfo gi{XR_TYPE_ACTION_STATE_GET_INFO}; gi.action=action; gi.subactionPath=right_hand;
@@ -3206,7 +3207,7 @@ diff --git a/pcsx2/GS/PS2VRBackendPolicy.h b/pcsx2/GS/PS2VRBackendPolicy.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRBackendPolicy.h
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,44 @@
 +// SPDX-License-Identifier: GPL-3.0-or-later
 +#pragma once
 +#include <chrono>
@@ -3231,4 +3232,23 @@ new file mode 100644
 +{
 + return WaitImage(wait,stop,[] {return std::chrono::steady_clock::now();});
 +}
++// Spare Start is a pulse only after a short release. A held shared Index B
++// must never pause the game on its way to the separate three-second quit.
++struct ShortTap {
++ bool down=false;
++ std::chrono::steady_clock::time_point since{},until{};
++ void Reset(){down=false;since=until={};}
++ bool Update(bool pressed,std::chrono::steady_clock::time_point now) {
++  if(pressed) {
++   if(!down){down=true;since=now;until={};}
++   return false;
++  }
++  if(down) {
++   down=false;
++   until=now-since<std::chrono::milliseconds(400)?now+std::chrono::milliseconds(250):std::chrono::steady_clock::time_point{};
++  }
++  return now<until;
++ }
++};
++
 +}

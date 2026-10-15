@@ -854,3 +854,8 @@ a consumer GL fence prevents source reuse, with CPU completion outside
 the lock. No extra swapchain wait is made during destruction.
 A native offline delay hook and a concurrent CPU fixture exercise timeout,
 publication progress, recovery and interruptible shutdown without OpenXR.
+
+Spare Start is emitted as a 250 ms pulse only after a short release (under
+400 ms). Holding Index left B for quit never sends Start. The Touch spare
+menu button follows the same tap rule; focus loss resets pending taps.
+CPU fixtures cover the short tap, long hold, cutoff boundary and focus reset.
