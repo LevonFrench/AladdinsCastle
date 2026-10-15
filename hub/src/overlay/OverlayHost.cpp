@@ -85,6 +85,7 @@ void OverlayHost::tick() {
     for (int count = 0; count < 256 && m_runtime->pollEvent(&event); ++count) {
         handleRuntimeEvent(event); if (m_quitSeen) return;
     }
+    if (m_closeHold.update(m_runtime->closeGameHeld(m_gestureActive) && m_gestureActive, m_clock.elapsed())) emit closeGameRequested();
     m_timer.setInterval(visible ? 16 : 50);
     if (!visible) { m_input.releaseButtons(m_renderer->window()); m_keyboard.close(false, true); }
     if (!m_gate.shouldRender(visible, m_clock.elapsed())) return;

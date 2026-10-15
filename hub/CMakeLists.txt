@@ -159,6 +159,9 @@ qt_add_resources(aladdinscastle-hub theme
 file(MAKE_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources")
 configure_file(resources/dashboard.vrmanifest.in "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${AC_PRODUCT_short_id}.vrmanifest" @ONLY)
 configure_file(resources/overlay-thumbnail.png "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/overlay-thumbnail.png" COPYONLY)
+foreach(_ac_input hub-actions.json hub-bindings-oculus_touch.json hub-bindings-knuckles.json)
+    configure_file(resources/${_ac_input} "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${_ac_input}" COPYONLY)
+endforeach()
 add_custom_target(ac-hub-runtime-resources
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:aladdinscastle-hub>/resources"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

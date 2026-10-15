@@ -93,7 +93,7 @@ Item {
    }
    UiText {objectName:"pinballAccepted";width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted_detail")
     text:{let when=(uiSettings.values,uiSettings.acceptedOn("pinball-"+(page.selected.id||""),page.selected.title||""));return "In the headset: "+(when?"accepted by you ("+when+")":"not yet accepted by you")+"."}}
-   UiText {width:parent.width;wrapMode:Text.Wrap;text:(page.headsetReason?page.headsetReason+" ":"")+(page.selected.vrReady===true?"":"This table is not marked VR-ready, so it launches on the desktop only. ")+"On the desktop VR stays off and SteamVR is not needed. In the headset, VR controllers: X opens the in-game menu; Y together with the left stick click exits the table."}
+   UiText {width:parent.width;wrapMode:Text.Wrap;text:(page.headsetReason?page.headsetReason+" ":"")+(page.selected.vrReady===true?"":"This table is not marked VR-ready, so it launches on the desktop only. ")+"On the desktop VR stays off and SteamVR is not needed. In the headset, VR controllers: X opens the in-game menu; hold Y for 3 seconds to close the table (with the Hub open as the SteamVR panel), or press Y together with the left stick click."}
    // The gamepad layout the Hub sets for an Xbox-style controller, in both views.
    UiText {width:parent.width;text:"Gamepad";font.pixelSize:page.vrOverlayMode?20:16;font.weight:600}
    Grid {objectName:"pinballGamepad";columns:2;columnSpacing:16;rowSpacing:4

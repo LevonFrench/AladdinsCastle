@@ -22,6 +22,19 @@ struct OverlaySubmitStatus {
     bool apiCalled=false;
     int apiResult=-1;
 };
+// Held for the whole time, once: true on the update that reaches it, then not again until released.
+class HoldGesture {
+public:
+    explicit HoldGesture(qint64 holdMs=3000):m_holdMs(holdMs){}
+    bool update(bool pressed,qint64 nowMs){
+        if(!pressed){m_since=-1;m_fired=false;return false;}
+        if(m_since<0)m_since=nowMs;
+        if(m_fired||nowMs-m_since<m_holdMs)return false;
+        m_fired=true;return true;
+    }
+private:
+    qint64 m_holdMs,m_since=-1;bool m_fired=false;
+};
 class OverlayTextureSubmitGate {
 public:
     bool shouldSubmit(bool visible)const{return visible||!m_hasTexture;}
@@ -45,6 +58,9 @@ public:
     virtual bool showKeyboard(const QString &text, quint64 token, QString *error) = 0;
     virtual void hideKeyboard() = 0;
     virtual void acknowledgeQuit() = 0;
+    // Whether the "close the game" button is down now. While active, the Hub's action set
+    // runs above the game's own input, so the game does not see that button.
+    virtual bool closeGameHeld(bool active){Q_UNUSED(active);return false;}
     virtual void shutdown() = 0;
 };
 // Loads and checks exports only; never calls VR_Init or contacts SteamVR.

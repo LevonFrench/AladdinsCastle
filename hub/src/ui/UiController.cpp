@@ -253,7 +253,7 @@ void UiController::playPinball(const QString &view){if(!m_pinballSelection.isEmp
 void UiController::launchPinball(const QString &id,const QString &view){if(view!="desktop"&&view!="headset")return;selectPinball(id);playPinball(view);}
 void UiController::launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable,const QString &view,const QString &gamepad){
  queueSession("pinball-"+row.value("id").toString(),"vpx",closeUnavailable);
- m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");
+ m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");m_nowPlaying["view"]=view;
  const bool headset=view!="desktop";
  const QString pad=gamepad.isEmpty()?QString():" Gamepad ("+gamepad+"): LB/RB or the triggers are the flippers, pull the right stick down for the plunger, Start and Back together exit.";
  if(headset)m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table, Y exits and X opens the menu."+pad;

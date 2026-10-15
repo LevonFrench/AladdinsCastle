@@ -32,6 +32,14 @@ For the headset, have it connected and SteamVR running first. If VPX cannot
 reach the headset it asks on the PC monitor whether to retry; answering No plays
 on the monitor. Use the VPX build with OpenXR (the BGFX build of 10.8.1).
 
+In the headset a single tap of Y on the left VR controller no longer exits the
+table. Hold Y for 3 seconds instead (B on Index controllers): Hub closes the
+table the ordinary way, so scores and settings are saved. That needs the Hub open
+as the SteamVR panel, which it is when started with SteamVR running; while the
+table runs, Hub's own SteamVR input takes that one button. Pressing Y together
+with the left stick click also exits, inside VPX itself. For headset launches Hub
+always passes its settings copy (below) with that exit change.
+
 ## Gamepad
 
 An Xbox-style gamepad (one Windows sees as an XInput controller) plays
@@ -60,7 +68,8 @@ and VR controller bindings stay; VPX's own gamepad layout is turned off for that
 gamepad so it does not replace this one. Your own settings file is only read.
 The copy is made again at every start, so settings changed inside VPX during a
 Hub launch are not kept; change them in VPX started on its own. With no gamepad
-connected, Hub passes no `-Ini` and VPX reads your settings as usual.
+connected and a desktop launch, Hub passes no `-Ini` and VPX reads your
+settings as usual.
 
 When you launch a table, the now-playing card keeps that table's title and
 launch route even if you navigate to another page. The status shows preparation.
@@ -75,6 +84,13 @@ Once the table is running, **Exit game** or global **Stop** requests normal VPX
 closure. Repeated clicks do not start another close. Hub waits for VPX to exit
 without a forced-stop countdown. If clean close is unavailable on your platform,
 the card explains this and you must close the table in VPX.
+
+Everything VPX starts runs inside the table's process tree, which Hub holds in a
+Windows job object. When the table ends, anything it left running is asked to
+close and then ended, along with backglass and DMD helpers Windows started for it
+during the table (`B2SBackglassServerEXE`, `dmdext`, PinUP display, `DOF2DMD`).
+**Stop everything** in the ··· menu ends the running table's whole tree at once,
+and anything left over from games the Hub started.
 
 Closing Hub while a table is active on Windows also requests normal table close
 and waits. On a platform without that close support, exit the table in VPX first.

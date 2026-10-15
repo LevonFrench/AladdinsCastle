@@ -301,6 +301,16 @@ private slots:
         ac::SpikeState state;RuntimeReceipt receipt;receipt.rejectInit=true;QQmlEngine engine;ac::OverlayHost host(state,std::make_unique<FakeRuntime>(receipt));QString error;
         QVERIFY(!host.initialize(engine,{},&error));QCOMPARE(receipt.initializedSize,QSize(1280,800));QCOMPARE(error,QString("Synthetic runtime unavailable"));host.shutdown();
     }
+    // Holding the close button: once at 3 seconds of one unbroken hold, not before and not again until released.
+    void closeGestureNeedsAnUnbrokenThreeSecondHold() {
+        ac::HoldGesture hold;
+        QVERIFY(!hold.update(true,0));QVERIFY(!hold.update(true,2999));QVERIFY(hold.update(true,3000));QVERIFY(!hold.update(true,9000));
+        QVERIFY(!hold.update(false,9050));QVERIFY(!hold.update(true,9100));QVERIFY(!hold.update(true,12000));QVERIFY(hold.update(true,12100));
+        // Let go before 3 seconds: the count starts again.
+        ac::HoldGesture tap;QVERIFY(!tap.update(true,0));QVERIFY(!tap.update(false,2500));QVERIFY(!tap.update(true,2600));QVERIFY(!tap.update(true,5000));QVERIFY(tap.update(true,5600));
+        // A runtime without SteamVR input never reports the button.
+        RuntimeReceipt receipt;FakeRuntime runtime(receipt);QVERIFY(!runtime.closeGameHeld(true));
+    }
     void quitAcknowledgedOnceBeforeExitSignal() {
         ac::SpikeState state; RuntimeReceipt receipt;
         ac::OverlayHost host(state, std::make_unique<FakeRuntime>(receipt));
