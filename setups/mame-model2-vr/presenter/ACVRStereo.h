@@ -33,7 +33,9 @@ void ACVR_StereoPresent();
 float ACVR_XR_DistanceMetres();
 bool  ACVR_XR_Start(void *sdlWindow);
 void  ACVR_XR_Publish(unsigned leftFbo, unsigned rightFbo, unsigned w, unsigned h);
-void  ACVR_XR_Stop();
+// False retains resources for a later retry if their owning context is lost.
+bool  ACVR_XR_Stop();
+void  ACVR_XR_QueueShotPulse();
 void  ACVR_XR_UpdateFov(float left, float right, float bottom, float top);
 
 struct ACVRControllerInput

@@ -38,22 +38,31 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <functional>
 
 
 #include "ACVRStereo.h"
 #include "AimMath.h"
+#include "TextureHandoff.h"
+#include "ImageWait.h"
 
 namespace
 {
   // ---- shared between the game thread and the XR thread
-  std::mutex        s_mutex;                 // guards the published textures
+  std::mutex        s_mutex;                 // field of view only; never runtime waits
   std::mutex        s_inputMutex;
   ACVRControllerInput s_input;
   ULONGLONG s_inputTime = 0;
-  GLuint            s_pubTex[2] = { 0, 0 };  // shared textures holding the newest finished eye pictures
-  GLuint            s_pubFboMain[2] = { 0, 0 }; // game-thread framebuffers on those textures
-  unsigned          s_pubW = 0, s_pubH = 0;
-  unsigned long     s_pubSerial = 0;
+  TextureHandoff s_pair;
+  Host_Window *s_ownerWindow=nullptr;
+  HGLRC s_ownerContext=nullptr;
+  GLuint s_readFbo=0,s_drawFbo=0;
+  std::atomic<unsigned> s_shotPulses{0};
+  HMODULE s_loader=nullptr;
+  bool s_xrClean=false;
+#ifdef ACVR_VIEWER_TEST
+  struct TestHooks { bool offline=false; std::function<void()> frame,cleanup; } s_test;
+#endif
   std::atomic<bool> s_stop(false);
   std::atomic<bool> s_started(false);
   std::thread       s_thread;
@@ -90,7 +99,7 @@ namespace
   X(xrLocateSpace) X(xrGetOpenGLGraphicsRequirementsKHR) \
   X(xrStringToPath) X(xrCreateActionSet) X(xrDestroyActionSet) X(xrCreateAction) \
   X(xrSuggestInteractionProfileBindings) X(xrAttachSessionActionSets) X(xrCreateActionSpace) \
-  X(xrSyncActions) X(xrGetActionStatePose) X(xrGetActionStateFloat) X(xrGetActionStateBoolean)
+  X(xrSyncActions) X(xrGetActionStatePose) X(xrGetActionStateFloat) X(xrGetActionStateBoolean) X(xrApplyHapticFeedback)
 #define X(name) PFN_##name p_##name = nullptr;
   ACVR_XR_FUNCS(X)
 #undef X
@@ -107,9 +116,11 @@ namespace
   unsigned    s_chainW = 0, s_chainH = 0;
   int64_t     s_format = 0;
   XrActionSet s_actions = XR_NULL_HANDLE;
-  XrAction s_aim = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_start = XR_NULL_HANDLE, s_coin = XR_NULL_HANDLE;
+  XrAction s_aim = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_start = XR_NULL_HANDLE, s_coin = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE;
   XrSpace s_aimSpace = XR_NULL_HANDLE;
   XrPath s_right = XR_NULL_PATH;
+  bool s_acquired[2]{},s_imageReady[2]{};
+  uint32_t s_imageIndex[2]{};
 
   const char *Res(XrResult r)
   {
@@ -142,20 +153,21 @@ namespace
     if (!action("aim", "Right gun aim", XR_ACTION_TYPE_POSE_INPUT, s_aim) ||
         !action("trigger", "Shoot and offscreen reload", XR_ACTION_TYPE_FLOAT_INPUT, s_trigger) ||
         !action("start", "Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_start) ||
-        !action("coin", "Coin", XR_ACTION_TYPE_BOOLEAN_INPUT, s_coin)) return false;
+        !action("coin", "Coin", XR_ACTION_TYPE_BOOLEAN_INPUT, s_coin) ||
+        !action("shot_pulse", "Shot vibration", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic)) return false;
     const char *profiles[] = { "/interaction_profiles/oculus/touch_controller", "/interaction_profiles/valve/index_controller" };
     const char *paths[] = { "/user/hand/right/input/aim/pose", "/user/hand/right/input/trigger/value",
-                           "/user/hand/right/input/a/click", "/user/hand/right/input/b/click" };
-    const XrAction actions[] = { s_aim, s_trigger, s_start, s_coin };
-    XrActionSuggestedBinding bindings[4]{};
-    for (unsigned i=0; i<4; ++i) {
+                           "/user/hand/right/input/a/click", "/user/hand/right/input/b/click", "/user/hand/right/output/haptic" };
+    const XrAction actions[] = { s_aim, s_trigger, s_start, s_coin, s_haptic };
+    XrActionSuggestedBinding bindings[5]{};
+    for (unsigned i=0; i<5; ++i) {
       bindings[i].action = actions[i];
       if (!Check(p_xrStringToPath(s_instance, paths[i], &bindings[i].binding), "controller binding path")) return false;
     }
     for (const char *profile : profiles) {
       XrInteractionProfileSuggestedBinding suggested = { XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
       if (!Check(p_xrStringToPath(s_instance, profile, &suggested.interactionProfile), "interaction profile")) return false;
-      suggested.countSuggestedBindings = 4; suggested.suggestedBindings = bindings;
+      suggested.countSuggestedBindings = 5; suggested.suggestedBindings = bindings;
       Check(p_xrSuggestInteractionProfileBindings(s_instance, &suggested), profile);
     }
     XrSessionActionSetsAttachInfo attach = { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
@@ -164,6 +176,17 @@ namespace
     XrActionSpaceCreateInfo space = { XR_TYPE_ACTION_SPACE_CREATE_INFO };
     space.action = s_aim; space.subactionPath = s_right; space.poseInActionSpace.orientation.w = 1;
     return Check(p_xrCreateActionSpace(s_session, &space, &s_aimSpace), "xrCreateActionSpace aim");
+  }
+
+  void DispatchHaptics(bool focused)
+  {
+    const auto pulses=s_shotPulses.exchange(0);
+    if(!focused || !s_haptic || !s_session || !p_xrApplyHapticFeedback) return;
+    XrHapticActionInfo action={XR_TYPE_HAPTIC_ACTION_INFO}; action.action=s_haptic; action.subactionPath=s_right;
+    XrHapticVibration pulse={XR_TYPE_HAPTIC_VIBRATION};
+    pulse.duration=30000000; pulse.amplitude=1.0f; pulse.frequency=XR_FREQUENCY_UNSPECIFIED;
+    for(unsigned i=0;i<pulses;++i)
+      Check(p_xrApplyHapticFeedback(s_session,&action,reinterpret_cast<const XrHapticBaseHeader*>(&pulse)),"xrApplyHapticFeedback");
   }
 
   void ReadController(XrTime time, float width, float height)
@@ -194,12 +217,13 @@ namespace
         input.trigger=triggerOK && trigger.isActive && trigger.currentState>=.55f;
       }
     }
+    DispatchHaptics(input.active);
     std::lock_guard<std::mutex> guard(s_inputMutex); s_input=input; s_inputTime=GetTickCount64();
   }
 
   bool InitXR()
   {
-    HMODULE loader = LoadLibraryA("openxr_loader.dll");
+    HMODULE loader = s_loader = LoadLibraryA("openxr_loader.dll");
     if (!loader) { Log("openxr_loader.dll not found beside the program (error %lu)", GetLastError()); return false; }
     p_xrGetInstanceProcAddr = (PFN_xrGetInstanceProcAddr)GetProcAddress(loader, "xrGetInstanceProcAddr");
     p_xrCreateInstance      = (PFN_xrCreateInstance)GetProcAddress(loader, "xrCreateInstance");
@@ -274,6 +298,7 @@ namespace
       if (s_chain[i] != XR_NULL_HANDLE) p_xrDestroySwapchain(s_chain[i]);
       s_chain[i] = XR_NULL_HANDLE;
       s_images[i].clear();
+      s_acquired[i]=s_imageReady[i]=false; s_imageIndex[i]=0;
     }
     s_chainW = s_chainH = 0;
   }
@@ -302,33 +327,91 @@ namespace
     return true;
   }
 
-  // Copies the newest published eye pictures into the swapchains. Returns false when nothing can be shown.
-  bool CopyEyes(GLuint readFbo, GLuint drawFbo, unsigned long &shownSerial)
+  // This common GPU path is also used by the hidden delayed-consumer test.
+  bool CopyPair(const GLuint destination[2],unsigned w,unsigned h,std::uint64_t &serial,
+                const std::function<void(int)> &afterEye={})
   {
-    std::lock_guard<std::mutex> guard(s_mutex);
-    if (s_pubSerial == 0 || !s_pubTex[0] || s_pubW == 0) return false;
-    if (!EnsureChains(s_pubW, s_pubH)) return false;
-    if (shownSerial == s_pubSerial) return true;      // the last released images are still right
-    for (int i = 0; i < 2; i++)
-    {
-      uint32_t index = 0;
-      XrSwapchainImageAcquireInfo ai = { XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO };
-      if (!Check(p_xrAcquireSwapchainImage(s_chain[i], &ai, &index), "xrAcquireSwapchainImage")) return false;
-      XrSwapchainImageWaitInfo wi = { XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO };
-      wi.timeout = XR_INFINITE_DURATION;
-      if (!Check(p_xrWaitSwapchainImage(s_chain[i], &wi), "xrWaitSwapchainImage")) return false;
-      glBindFramebuffer(GL_READ_FRAMEBUFFER, readFbo);
-      glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_pubTex[i], 0);
-      glBindFramebuffer(GL_DRAW_FRAMEBUFFER, drawFbo);
-      glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_images[i][index].image, 0);
-      glBlitFramebuffer(0, 0, s_pubW, s_pubH, 0, 0, s_chainW, s_chainH, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
-      glFlush();
-      XrSwapchainImageReleaseInfo ri = { XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO };
-      if (!Check(p_xrReleaseSwapchainImage(s_chain[i], &ri), "xrReleaseSwapchainImage")) return false;
+    return s_pair.consume(w,h,[&](const GLuint *source,TextureHandoff::Info info) {
+      for(int eye=0;eye<2;++eye) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER,s_readFbo);
+        glFramebufferTexture2D(GL_READ_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,source[eye],0);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER,s_drawFbo);
+        glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,destination[eye],0);
+        glBlitFramebuffer(0,0,info.w,info.h,0,0,w,h,GL_COLOR_BUFFER_BIT,GL_NEAREST);
+        if(afterEye) afterEye(eye);
+      }
+      glBindFramebuffer(GL_FRAMEBUFFER,0);
+      return glGetError()==GL_NO_ERROR;
+    },serial); // completes consumer GPU work before allowing producer reuse
+  }
+
+  bool CopyEyes(std::uint64_t &shownSerial)
+  {
+    const auto info=s_pair.peek();
+    if(!info.serial || s_stop) return false;
+    if(!EnsureChains(info.w,info.h)) return false;
+    if(shownSerial==info.serial) return true;
+    // Runtime waits hold NO publication lock. Preserve acquired images across
+    // timeout retries; never release an image whose wait has not succeeded.
+    for(int eye=0;eye<2;++eye) {
+      if(!s_acquired[eye]) {
+        XrSwapchainImageAcquireInfo acquire={XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+        if(!Check(p_xrAcquireSwapchainImage(s_chain[eye],&acquire,&s_imageIndex[eye]),"xrAcquireSwapchainImage")) return false;
+        s_acquired[eye]=true;
+      }
+      if(s_imageReady[eye]) continue;
+      const auto waited=acvr_wait::image([&](long long timeout) {
+        XrSwapchainImageWaitInfo wait={XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO}; wait.timeout=timeout;
+        return p_xrWaitSwapchainImage(s_chain[eye],&wait);
+      },[] { return s_stop.load(); });
+      if(waited==acvr_wait::Result::error) { Log("swapchain image wait failed"); s_stop=true; return false; }
+      if(waited!=acvr_wait::Result::ready) return false;
+      s_imageReady[eye]=true;
     }
-    shownSerial = s_pubSerial;
-    return true;
+    if(s_stop) return false;
+    const GLuint destination[]={s_images[0][s_imageIndex[0]].image,s_images[1][s_imageIndex[1]].image};
+    std::uint64_t copied=0;
+    const bool complete=CopyPair(destination,info.w,info.h,copied);
+    // A resize before CopyPair takes ownership declines this frame atomically.
+    // Both images have completed their waits and may now be released safely.
+    bool released=true;
+    for(int eye=0;eye<2;++eye) {
+      XrSwapchainImageReleaseInfo release={XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+      released=Check(p_xrReleaseSwapchainImage(s_chain[eye],&release),"xrReleaseSwapchainImage") && released;
+      s_acquired[eye]=s_imageReady[eye]=false;
+    }
+    if(!released) { s_stop=true; return false; }
+    if(complete) shownSerial=copied;
+    return complete;
+  }
+
+  // Caller must have successfully activated the XR owning context first.
+  void DestroyXRResources()
+  {
+#ifdef ACVR_VIEWER_TEST
+    if(s_test.offline && s_test.cleanup) s_test.cleanup();
+#endif
+    glFinish();
+    DestroyChains();
+    if(s_aimSpace) p_xrDestroySpace(s_aimSpace);
+    if(s_viewSpace) p_xrDestroySpace(s_viewSpace);
+    if(s_space) p_xrDestroySpace(s_space);
+    if(s_session) p_xrDestroySession(s_session);
+    if(s_actions) p_xrDestroyActionSet(s_actions);
+    if(s_instance && p_xrDestroyInstance) p_xrDestroyInstance(s_instance);
+    s_aimSpace=s_viewSpace=s_space=XR_NULL_HANDLE;
+    s_session=XR_NULL_HANDLE; s_actions=XR_NULL_HANDLE; s_instance=XR_NULL_HANDLE;
+    s_aim=s_trigger=s_start=s_coin=s_haptic=XR_NULL_HANDLE;
+    s_system=XR_NULL_SYSTEM_ID; s_right=XR_NULL_PATH; s_format=0;
+    s_quadPose={}; s_poseSet=false;
+    glDeleteFramebuffers(1,&s_readFbo); glDeleteFramebuffers(1,&s_drawFbo);
+    s_readFbo=s_drawFbo=0;
+    if(s_loader) { FreeLibrary(s_loader); s_loader=nullptr; }
+#define X(name) p_##name=nullptr;
+    ACVR_XR_FUNCS(X)
+#undef X
+    p_xrGetInstanceProcAddr=nullptr; p_xrCreateInstance=nullptr;
+    s_xrClean=true;
   }
 
   // Puts the screen straight ahead of the player's current gaze.
@@ -361,18 +444,26 @@ namespace
     if (Host_GL_MakeCurrent(s_xrWindow, s_xrContext) != 0) { Log("cannot use the XR OpenGL context: %s", Host_GetError()); return; }
     glDisable(GL_FRAMEBUFFER_SRGB);       // copy values unchanged
     glDisable(GL_SCISSOR_TEST);
+#ifdef ACVR_VIEWER_TEST
+    if(s_test.offline) {
+      glGenFramebuffers(1,&s_readFbo); glGenFramebuffers(1,&s_drawFbo);
+      while(!s_stop) s_test.frame();
+      Host_GL_MakeCurrent(s_xrWindow,nullptr);
+      return; // same Stop cleanup path as a real session; no loader/runtime calls
+    }
+#endif
     if (!InitXR())
     {
       Log("VR presenter off; the emulator keeps running on the monitor");
       Host_GL_MakeCurrent(s_xrWindow, nullptr);
       return;
     }
-    GLuint readFbo = 0, drawFbo = 0;
-    glGenFramebuffers(1, &readFbo);
-    glGenFramebuffers(1, &drawFbo);
+    glGenFramebuffers(1, &s_readFbo);
+    glGenFramebuffers(1, &s_drawFbo);
 
     bool running = false;
-    unsigned long shownSerial = 0, frames = 0;
+    std::uint64_t shownSerial = 0;
+    unsigned long frames = 0;
     while (!s_stop)
     {
       XrEventDataBuffer ev = { XR_TYPE_EVENT_DATA_BUFFER };
@@ -410,6 +501,7 @@ namespace
       XrFrameWaitInfo wi = { XR_TYPE_FRAME_WAIT_INFO };
       XrFrameState fs = { XR_TYPE_FRAME_STATE };
       if (!Check(p_xrWaitFrame(s_session, &wi, &fs), "xrWaitFrame")) break;
+      if(s_stop) break;
       XrFrameBeginInfo bi = { XR_TYPE_FRAME_BEGIN_INFO };
       if (!Check(p_xrBeginFrame(s_session, &bi), "xrBeginFrame")) break;
 
@@ -417,7 +509,7 @@ namespace
       const XrCompositionLayerBaseHeader *layers[2];
       uint32_t layerCount = 0;
       float width = 0, height = 0;
-      if (fs.shouldRender && CopyEyes(readFbo, drawFbo, shownSerial))
+      if (fs.shouldRender && CopyEyes(shownSerial))
       {
         // Screen sized to the game's own field of view at the chosen distance
         float tl, tr, tb, tt;
@@ -459,15 +551,7 @@ namespace
     }
 
     Log("presenter stopping after %lu shown frames", frames);
-    DestroyChains();
-    if (s_aimSpace != XR_NULL_HANDLE) p_xrDestroySpace(s_aimSpace);
-    if (s_viewSpace != XR_NULL_HANDLE) p_xrDestroySpace(s_viewSpace);
-    if (s_space != XR_NULL_HANDLE) p_xrDestroySpace(s_space);
-    if (s_session != XR_NULL_HANDLE) p_xrDestroySession(s_session);
-    if (s_actions != XR_NULL_HANDLE) p_xrDestroyActionSet(s_actions);
-    if (s_instance != XR_NULL_HANDLE) p_xrDestroyInstance(s_instance);
-    glDeleteFramebuffers(1, &readFbo);
-    glDeleteFramebuffers(1, &drawFbo);
+    // Stop joins this worker, then activates each owning context before cleanup.
     Host_GL_MakeCurrent(s_xrWindow, nullptr);
   }
 }
@@ -480,7 +564,7 @@ float ACVR_XR_DistanceMetres()
 // Game thread, with the emulator's OpenGL context current
 bool ACVR_XR_Start(void *mainWindow)
 {
-  if (s_started) return true;
+  if (s_started) { if(!s_stop) return true; if(!ACVR_XR_Stop()) return false; }
   s_log = fopen("acvr-xr.log", "w");
   s_distance  = ACVR_XR_DistanceMetres();
   s_sizeScale = EnvFloat("ACVR_XR_SIZE", 1.0f);
@@ -489,16 +573,21 @@ bool ACVR_XR_Start(void *mainWindow)
 
   Host_Window *window = (Host_Window *)mainWindow;
   Host_GLContext mainContext = Host_GL_GetCurrentContext();
-  if (!window || !mainContext) { Log("no emulator OpenGL context"); return false; }
+  if (!window || !mainContext || window->context!=mainContext) {
+    Log("no owning OpenGL context"); if(s_log) { fclose(s_log); s_log=nullptr; } return false;
+  }
+  s_ownerWindow=window; s_ownerContext=mainContext;
+  s_started=true; s_stop=false; s_shotPulses=0; s_xrClean=false;
   Host_GL_SetAttribute(Host_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
   s_xrWindow = Host_CreateWindow("ACVR XR", Host_WINDOWPOS_UNDEFINED, Host_WINDOWPOS_UNDEFINED, 16, 16, Host_WINDOW_OPENGL | Host_WINDOW_HIDDEN);
   if (s_xrWindow) s_xrContext = Host_GL_CreateContext(s_xrWindow);
   Host_GL_SetAttribute(Host_GL_SHARE_WITH_CURRENT_CONTEXT, 0);
-  Host_GL_MakeCurrent(window, mainContext);     // creating a context makes it current: give the emulator its own back
-  if (!s_xrWindow || !s_xrContext) { Log("cannot create the shared OpenGL context: %s", Host_GetError()); return false; }
+  const bool restored=Host_GL_MakeCurrent(window, mainContext)==0;
+  if (!s_xrWindow || !s_xrContext || !restored) {
+    Log("cannot create/restore the shared OpenGL context: %s", Host_GetError());
+    s_stop=true; ACVR_XR_Stop(); return false;
+  }
 
-  s_stop = false;
-  s_started = true;
   s_thread = std::thread(ThreadMain);
   return true;
 }
@@ -507,50 +596,39 @@ bool ACVR_XR_Start(void *mainWindow)
 void ACVR_XR_Publish(unsigned leftFbo, unsigned rightFbo, unsigned w, unsigned h)
 {
   if (!s_started || w == 0 || h == 0) return;
-  std::lock_guard<std::mutex> guard(s_mutex);
-  if (!s_pubTex[0] || s_pubW != w || s_pubH != h)
-  {
-    if (s_pubTex[0]) { glDeleteFramebuffers(2, s_pubFboMain); glDeleteTextures(2, s_pubTex); }
-    glGenTextures(2, s_pubTex);
-    glGenFramebuffers(2, s_pubFboMain);
-    for (int i = 0; i < 2; i++)
-    {
-      glBindTexture(GL_TEXTURE_2D, s_pubTex[i]);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-      glBindFramebuffer(GL_FRAMEBUFFER, s_pubFboMain[i]);
-      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_pubTex[i], 0);
-    }
-    glBindTexture(GL_TEXTURE_2D, 0);
-    s_pubW = w; s_pubH = h;
-  }
-  const GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
-  glDisable(GL_SCISSOR_TEST);
+  if(s_stop || wglGetCurrentContext()!=s_ownerContext) return;
   const unsigned src[2] = { leftFbo, rightFbo };
-  for (int i = 0; i < 2; i++)
-  {
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, src[i]);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, s_pubFboMain[i]);
-    glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-  }
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  if (scissor) glEnable(GL_SCISSOR_TEST);
-  glFinish();           // finish GPU copies before publishing to the other context
-  s_pubSerial++;
+  s_pair.publish(src,w,h);
 }
 
-void ACVR_XR_Stop()
+bool ACVR_XR_Stop()
 {
-  if (!s_started) return;
+  if (!s_started) return true;
   s_stop = true;
   if (s_thread.joinable()) s_thread.join();
-  s_started = false;
-  glDeleteFramebuffers(2, s_pubFboMain);
-  glDeleteTextures(2, s_pubTex);
+  const auto previousDC=wglGetCurrentDC(); const auto previousContext=wglGetCurrentContext();
+  const auto retiringContext=s_xrContext;
+  struct Restore {
+    HDC dc; HGLRC context,retiring;
+    ~Restore() { if(context && context!=retiring) wglMakeCurrent(dc,context); else wglMakeCurrent(nullptr,nullptr); }
+  } restore{previousDC,previousContext,retiringContext};
+  // Activation failure consumes no graphics resources: retain everything for
+  // a retry, rather than invoking callbacks against an unrelated context.
+  if(s_xrWindow && s_xrContext && !s_xrClean) {
+    if(Host_GL_MakeCurrent(s_xrWindow,s_xrContext)!=0) { Log("XR cleanup deferred: context activation failed"); return false; }
+    DestroyXRResources();
+  }
+  if(Host_GL_MakeCurrent(s_ownerWindow,s_ownerContext)!=0) { Log("publication cleanup deferred: context activation failed"); return false; }
+  s_pair.reset();
   Host_DestroyWindow(s_xrWindow); s_xrWindow = nullptr; s_xrContext = nullptr;
+  s_ownerWindow=nullptr; s_ownerContext=nullptr;
+  { std::lock_guard<std::mutex> lock(s_inputMutex); s_input={}; s_inputTime=0; }
+  s_shotPulses=0; s_started=false;
   if (s_log) { fclose(s_log); s_log = nullptr; }
+  return true;
 }
+
+void ACVR_XR_QueueShotPulse() { if(s_started && !s_stop) ++s_shotPulses; }
 
 void ACVR_XR_UpdateFov(float left, float right, float bottom, float top)
 {
@@ -570,7 +648,8 @@ ACVRControllerInput ACVR_XR_ControllerInput()
 float ACVR_XR_DistanceMetres() { return 2.5f; }
 bool ACVR_XR_Start(void *) { return false; }
 void ACVR_XR_Publish(unsigned, unsigned, unsigned, unsigned) {}
-void ACVR_XR_Stop() {}
+bool ACVR_XR_Stop() { return true; }
+void ACVR_XR_QueueShotPulse() {}
 ACVRControllerInput ACVR_XR_ControllerInput() { return {}; }
 
 #endif
