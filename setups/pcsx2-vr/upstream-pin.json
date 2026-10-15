@@ -30,7 +30,7 @@
     "branch": "claude/supermodel-vr",
     "commit": "acb04cab53871e83f2c5b66bfac1ebf74d53ea52",
     "path": "setups/supermodel-vr/patch/ACVRXR.cpp",
-    "use": "In-process eye-specific screen layers adapted to PCSX2 GLContext sharing. The local fork adds right-hand controller actions, native GunCon 2 input and a separate per-eye gun-model projection layer; no head-controlled game camera."
+    "use": "In-process screen layers adapted to PCSX2 GLContext sharing. The local fork adds common VR menu controls, GunCon 2, muzzle-aligned controller gun rendering and opt-in GS vertex unprojection with exact-packet OpenXR projection submission."
   },
   "openxr_loader_reuse": {
     "filename": "openxr_loader.dll",
