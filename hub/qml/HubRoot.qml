@@ -52,7 +52,7 @@ FocusScope {
      PillButton {objectName:"lastSessionDismiss";text:"Dismiss";vrOverlayMode:root.vrOverlayMode;onClicked:uiController.dismissLastSession()}
     }
    }
-   Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Pinball";sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode;startItem:root.startAt.length>1&&root.startAt[0]==="Pinball"?root.startAt[1]:""}}}
+   Loader {anchors.fill:parent;active:root.view==="Pinball";focus:active;sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode;startItem:root.startAt.length>1&&root.startAt[0]==="Pinball"?root.startAt[1]:""}}}
    Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Setup";sourceComponent:Component{SetupPage{vrOverlayMode:root.vrOverlayMode;step:root.startAt.length>1&&root.startAt[0]==="Setup"?Number(root.startAt[1]):0;onFinished:{root.history=[];root.view=root.home}}}}
    Loader {anchors.fill:parent;active:root.view==="Model3";focus:active;sourceComponent:Component{Model3Page{onSetupRequested:root.navigate("Setup");onDetailRequested:id=>root.showDetail(id);vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;selectedId:root.startAt.length>1&&root.startAt[0]==="Model3"?root.startAt[1]:""}}}
    Loader {anchors.fill:parent;anchors.margins:24;active:root.view==="GunRoom"&&!root.vrOverlayMode;sourceComponent:Component{GunRoomPage{}}}
