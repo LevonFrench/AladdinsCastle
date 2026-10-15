@@ -76,6 +76,23 @@ Read through OpenXR and turned into the emulator's own inputs, by cabinet type:
 
 The keyboard and gamepad keep working: a controller only overrides an input while it is being used.
 
+### The cabinet's own controls in the headset
+
+Head-tracked mode draws the cabinet's wheel (driving games) or Harley-Davidson's handlebars in front of the player, turning with the steering the game receives, from whatever source: the controllers, a gamepad or the keyboard. The models are the repository's own `assets/controls/wheel-three-spoke.glb` and `bars-motorcycle.glb`, baked once into the format the patch reads:
+
+    python tools/bake_control.py <repo>/assets/controls/wheel-three-spoke.glb pivot_wheel <Supermodel source>/Assets/acvr/wheel-three-spoke.acm
+    python tools/bake_control.py <repo>/assets/controls/bars-motorcycle.glb pivot_steering <Supermodel source>/Assets/acvr/bars-motorcycle.acm
+
+The wheel sits about 0.4 m below and 0.45 m ahead of the eyes at the moment of recentring, tilted 25 degrees like the cabinet's, and turns 135 degrees each way; the bars turn 30 degrees each way. The game's picture is drawn first and the control over it, so it is always in front.
+
+| Variable | Meaning |
+|---|---|
+| `ACVR_CONTROLS=0` | Do not draw the cabinet control |
+| `ACVR_CONTROL_POS` | Where it sits relative to the recentred eyes, metres `x,y,z` (for example `0,-0.38,-0.45`) |
+| `ACVR_TEST_STEER` | Fix the steering at -1 to 1, for unattended pictures |
+
+Not yet: hands drawn on the wheel, grabbing the rim itself, the shifter and pedals.
+
 ## Getting three games past their start-up checks
 
 Found by scripting the test menus with `ACVR_INPUT_SCRIPT`. Frame numbers are from power-on.

@@ -25,6 +25,8 @@
 
 ACVRStereoState g_acvrStereo;
 
+static int      s_acvrCabinet = 0;          // 0 none, 1 wheel, 2 motorcycle bars
+static float    s_acvrSteer = 0.0f;         // -1 full left .. 1 full right
 static GLuint   s_acvrEyeFbo[2] = { 0, 0 };
 static GLuint   s_acvrEyeTex[2] = { 0, 0 };
 static GLuint   s_acvrHudFbo = 0, s_acvrHudTex = 0;
@@ -129,6 +131,8 @@ static void ACVR_ApplyInputScript(CInputs *inputs)
 //               first-person view during a fight); left stick click = coin
 static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
 {
+  s_acvrCabinet = (gameInputs & Game::INPUT_HARLEY) ? 2 : ((gameInputs & Game::INPUT_VEHICLE) ? 1 : 0);
+  if (auto st = (*inputs)["Steering"]) s_acvrSteer = (st->value - 128) / 127.0f;
   ACVRControllers c;
   if (!ACVR_XR_GetControllers(c))
     return;
@@ -164,6 +168,7 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
       steering = true;
     }
     if (steering) set("Steering", (int)clampf(128.0f + steer * 127.0f, 0.0f, 255.0f));
+    if (steering) s_acvrSteer = steer;
 
     press("Start1", c.a || c.menu);
     press("Coin1", c.b);
@@ -410,10 +415,232 @@ bool ACVR_SkipBottomLayer()
   return true;
 }
 
+// ---------------------------------------------------------------- ACVR: cabinet controls in the headset
+// Head-tracked mode draws the cabinet's own control (the wheel, or Harley's bars) in front of the
+// player, turning with the steering the game receives. Models come from assets/controls, baked by
+// bake_control.py into Assets/acvr/*.acm. The control sits where the cabinet data puts it relative to a
+// seated player whose eyes were at the recentre point (ACVR_CONTROL_POS overrides, metres x,y,z).
+// ACVR_CONTROLS=0 turns it off; ACVR_TEST_STEER=-1..1 fixes the steering for unattended pictures.
+
+struct ACVRControlPart { bool moving; float colour[3]; GLsizei count; GLsizei first; };
+static int      s_acvrControlLoaded = 0;    // which cabinet's model is in the buffers (0: none)
+static bool     s_acvrControlFailed = false;
+static GLuint   s_acvrControlProg = 0, s_acvrControlVao = 0, s_acvrControlVbo = 0, s_acvrControlIbo = 0;
+static GLint    s_acvrCtlMvp = -1, s_acvrCtlModel = -1, s_acvrCtlAngle = -1, s_acvrCtlMoving = -1, s_acvrCtlColour = -1, s_acvrCtlAxis = -1;
+static std::vector<ACVRControlPart> s_acvrControlParts;
+
+static GLuint ACVR_CompileControlShader()
+{
+  static const char *vs =
+    "#version 410 core\n"
+    "layout(location = 0) in vec3 inPos;\n"
+    "layout(location = 1) in vec3 inNormal;\n"
+    "uniform mat4 mvp;\n"
+    "uniform mat4 model;\n"
+    "uniform float angle;\n"
+    "uniform int moving;\n"
+    "uniform vec3 axis;\n"
+    "out vec3 vNormal;\n"
+    "vec3 turn(vec3 v) {\n"
+    "  if (moving == 0) return v;\n"
+    "  float c = cos(angle), s = sin(angle);\n"
+    "  return v * c + cross(axis, v) * s + axis * dot(axis, v) * (1.0 - c);\n"
+    "}\n"
+    "void main() {\n"
+    "  vec3 p = turn(inPos);\n"
+    "  vNormal = mat3(model) * turn(inNormal);\n"
+    "  gl_Position = mvp * vec4(p, 1.0);\n"
+    "}\n";
+  static const char *fs =
+    "#version 410 core\n"
+    "in vec3 vNormal;\n"
+    "uniform vec3 colour;\n"
+    "out vec4 outColour;\n"
+    "void main() {\n"
+    "  vec3 n = normalize(vNormal);\n"
+    "  float key = max(dot(n, normalize(vec3(0.3, 0.9, 0.4))), 0.0);\n"
+    "  float fill = max(dot(n, normalize(vec3(-0.5, 0.2, 0.8))), 0.0);\n"
+    "  vec3 c = colour * (0.35 + 0.75 * key + 0.25 * fill) + vec3(0.05);\n"
+    "  outColour = vec4(pow(c, vec3(1.0 / 2.2)), 1.0);\n"
+    "}\n";
+  auto compile = [](GLenum type, const char *src) {
+    GLuint s = glCreateShader(type);
+    glShaderSource(s, 1, &src, nullptr);
+    glCompileShader(s);
+    GLint ok = 0; glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
+    if (!ok) { char log[512]; glGetShaderInfoLog(s, sizeof(log), nullptr, log); printf("ACVR controls shader: %s\n", log); }
+    return s;
+  };
+  GLuint v = compile(GL_VERTEX_SHADER, vs), f = compile(GL_FRAGMENT_SHADER, fs);
+  GLuint p = glCreateProgram();
+  glAttachShader(p, v); glAttachShader(p, f);
+  glLinkProgram(p);
+  glDeleteShader(v); glDeleteShader(f);
+  GLint ok = 0; glGetProgramiv(p, GL_LINK_STATUS, &ok);
+  if (!ok) { glDeleteProgram(p); return 0; }
+  return p;
+}
+
+static bool ACVR_LoadControl(int cabinet)
+{
+  const char *file = cabinet == 2 ? "Assets/acvr/bars-motorcycle.acm" : "Assets/acvr/wheel-three-spoke.acm";
+  FILE *f = fopen(file, "rb");
+  if (!f) { printf("ACVR controls: %s not found\n", file); return false; }
+  char magic[4]; uint32_t parts = 0; float origin[3];
+  bool ok = fread(magic, 1, 4, f) == 4 && memcmp(magic, "ACM1", 4) == 0 && fread(&parts, 4, 1, f) == 1 && fread(origin, 4, 3, f) == 3;
+  std::vector<float> verts;
+  std::vector<uint32_t> indices;
+  s_acvrControlParts.clear();
+  for (uint32_t i = 0; ok && i < parts; i++)
+  {
+    uint32_t moving = 0, nv = 0, ni = 0; float colour[3];
+    ok = fread(&moving, 4, 1, f) == 1 && fread(colour, 4, 3, f) == 3 && fread(&nv, 4, 1, f) == 1 && fread(&ni, 4, 1, f) == 1;
+    if (!ok) break;
+    const uint32_t base = (uint32_t)(verts.size() / 6);
+    const size_t vstart = verts.size(), istart = indices.size();
+    verts.resize(vstart + (size_t)nv * 6);
+    indices.resize(istart + ni);
+    ok = fread(verts.data() + vstart, 4, (size_t)nv * 6, f) == (size_t)nv * 6 && fread(indices.data() + istart, 4, ni, f) == ni;
+    for (size_t k = istart; k < indices.size(); k++) indices[k] += base;
+    ACVRControlPart part = { moving != 0, { colour[0], colour[1], colour[2] }, (GLsizei)ni, (GLsizei)istart };
+    s_acvrControlParts.push_back(part);
+  }
+  fclose(f);
+  if (!ok || verts.empty()) { printf("ACVR controls: %s unreadable\n", file); return false; }
+  if (!s_acvrControlProg)
+  {
+    s_acvrControlProg = ACVR_CompileControlShader();
+    if (!s_acvrControlProg) return false;
+    s_acvrCtlMvp = glGetUniformLocation(s_acvrControlProg, "mvp");
+    s_acvrCtlModel = glGetUniformLocation(s_acvrControlProg, "model");
+    s_acvrCtlAngle = glGetUniformLocation(s_acvrControlProg, "angle");
+    s_acvrCtlMoving = glGetUniformLocation(s_acvrControlProg, "moving");
+    s_acvrCtlColour = glGetUniformLocation(s_acvrControlProg, "colour");
+    s_acvrCtlAxis = glGetUniformLocation(s_acvrControlProg, "axis");
+    glGenVertexArrays(1, &s_acvrControlVao);
+    glGenBuffers(1, &s_acvrControlVbo);
+    glGenBuffers(1, &s_acvrControlIbo);
+  }
+  GLint vao = 0, ab = 0;
+  glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
+  glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &ab);
+  glBindVertexArray(s_acvrControlVao);
+  glBindBuffer(GL_ARRAY_BUFFER, s_acvrControlVbo);
+  glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_acvrControlIbo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (const void *)0);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (const void *)(3 * sizeof(float)));
+  glBindVertexArray((GLuint)vao);
+  glBindBuffer(GL_ARRAY_BUFFER, (GLuint)ab);
+  printf("ACVR controls: %s, %u parts\n", file, (unsigned)s_acvrControlParts.size());
+  return true;
+}
+
+// Column-major 4x4 helpers
+static void ACVR_MatMul(const float *a, const float *b, float *out)
+{
+  float r[16];
+  for (int c = 0; c < 4; c++)
+    for (int row = 0; row < 4; row++)
+      r[c * 4 + row] = a[0 * 4 + row] * b[c * 4 + 0] + a[1 * 4 + row] * b[c * 4 + 1] + a[2 * 4 + row] * b[c * 4 + 2] + a[3 * 4 + row] * b[c * 4 + 3];
+  memcpy(out, r, sizeof(r));
+}
+
+static void ACVR_DrawControls(int eye)
+{
+  if (s_acvrCabinet == 0 || s_acvrControlFailed) return;
+  static int enabled = -1;
+  if (enabled < 0) { const char *e = getenv("ACVR_CONTROLS"); enabled = !(e && e[0] == '0'); }
+  if (!enabled) return;
+  if (s_acvrControlLoaded != s_acvrCabinet)
+  {
+    if (!ACVR_LoadControl(s_acvrCabinet)) { s_acvrControlFailed = true; return; }
+    s_acvrControlLoaded = s_acvrCabinet;
+  }
+
+  // Placement in the recentred room (metres): the cabinet's seat at 0.55 m with the wheel at 0.78 m and 0.42 m
+  // ahead puts it roughly 0.4 m below and 0.45 m ahead of a seated player's eyes; Harley's bars a little higher.
+  float pos[3] = { 0.0f, -0.38f, -0.45f };
+  float tiltDeg = 25.0f, range = 2.35619449f;
+  float axis[3] = { 0.0f, 0.0f, -1.0f };
+  if (s_acvrCabinet == 2) { pos[1] = -0.32f; pos[2] = -0.42f; tiltDeg = 0.0f; range = 0.523599f; axis[0] = 0.0f; axis[1] = -1.0f; axis[2] = 0.0f; }
+  if (const char *e = getenv("ACVR_CONTROL_POS")) sscanf(e, "%f,%f,%f", &pos[0], &pos[1], &pos[2]);
+  float steer = s_acvrSteer;
+  if (const char *e = getenv("ACVR_TEST_STEER")) steer = (float)atof(e);
+  steer = steer < -1.0f ? -1.0f : (steer > 1.0f ? 1.0f : steer);
+
+  // model = scale(units per metre) * translate(pos) * rotateX(-tilt)
+  const float u = s_acvrUnitsPerMetre;
+  const float t = -tiltDeg * 0.01745329f, ct = cosf(t), st = sinf(t);
+  const float model[16] = {
+    u, 0, 0, 0,
+    0, u * ct, u * st, 0,
+    0, -u * st, u * ct, 0,
+    pos[0] * u, pos[1] * u, pos[2] * u, 1 };
+  // projection from this eye's tangents, near 5 cm, far 100 m
+  const float *tn = g_acvrStereo.eyeTan[eye];
+  const float n = 0.05f * u, fa = 100.0f * u;
+  const float l = tn[0] * n, r = tn[1] * n, b = tn[2] * n, tp = tn[3] * n;
+  const float proj[16] = {
+    2 * n / (r - l), 0, 0, 0,
+    0, 2 * n / (tp - b), 0, 0,
+    (r + l) / (r - l), (tp + b) / (tp - b), -(fa + n) / (fa - n), -1,
+    0, 0, -2 * fa * n / (fa - n), 0 };
+  float vm[16], mvp[16];
+  ACVR_MatMul(g_acvrStereo.eyeView[eye], model, vm);
+  ACVR_MatMul(proj, vm, mvp);
+
+  // keep the emulator's GL state
+  GLint prog, vao, fb, vp[4]; GLboolean depth, cull, blend, scissor, depthMask;
+  glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+  glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
+  glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fb);
+  glGetIntegerv(GL_VIEWPORT, vp);
+  depth = glIsEnabled(GL_DEPTH_TEST); cull = glIsEnabled(GL_CULL_FACE); blend = glIsEnabled(GL_BLEND); scissor = glIsEnabled(GL_SCISSOR_TEST);
+  glGetBooleanv(GL_DEPTH_WRITEMASK, &depthMask);
+  GLint depthFunc; glGetIntegerv(GL_DEPTH_FUNC, &depthFunc);
+  GLfloat clearDepth; glGetFloatv(GL_DEPTH_CLEAR_VALUE, &clearDepth);
+  GLint elementBuffer; glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &elementBuffer);
+
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, s_acvrAATarget);
+  glViewport(0, 0, (GLsizei)s_acvrEyeW, (GLsizei)s_acvrEyeH);
+  glDisable(GL_SCISSOR_TEST); glDisable(GL_BLEND); glDisable(GL_CULL_FACE);
+  glEnable(GL_DEPTH_TEST); glDepthMask(GL_TRUE); glDepthFunc(GL_LESS); glClearDepth(1.0);
+  glClear(GL_DEPTH_BUFFER_BIT);      // the game's picture is finished; the control is nearest anyway
+  glUseProgram(s_acvrControlProg);
+  glUniformMatrix4fv(s_acvrCtlMvp, 1, GL_FALSE, mvp);
+  glUniformMatrix4fv(s_acvrCtlModel, 1, GL_FALSE, model);
+  glUniform1f(s_acvrCtlAngle, steer * range);
+  glUniform3f(s_acvrCtlAxis, axis[0], axis[1], axis[2]);
+  glBindVertexArray(s_acvrControlVao);
+  for (const ACVRControlPart &p : s_acvrControlParts)
+  {
+    glUniform1i(s_acvrCtlMoving, p.moving ? 1 : 0);
+    glUniform3f(s_acvrCtlColour, p.colour[0], p.colour[1], p.colour[2]);
+    glDrawElements(GL_TRIANGLES, p.count, GL_UNSIGNED_INT, (const void *)(size_t)(p.first * sizeof(uint32_t)));
+  }
+
+  glBindVertexArray((GLuint)vao);
+  glUseProgram((GLuint)prog);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)fb);
+  glViewport(vp[0], vp[1], vp[2], vp[3]);
+  glDepthMask(depthMask);
+  glDepthFunc((GLenum)depthFunc);
+  glClearDepth(clearDepth);
+  if (!depth) glDisable(GL_DEPTH_TEST);
+  if (cull) glEnable(GL_CULL_FACE);
+  if (blend) glEnable(GL_BLEND);
+  if (scissor) glEnable(GL_SCISSOR_TEST);
+}
+
 void ACVR_StereoEyeDone(int eye)
 {
   if (eye < 0 || eye > 1) return;
   ACVR_EnsureTargets();
+  if (g_acvrStereo.vr) ACVR_DrawControls(eye);
   const GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
   glDisable(GL_SCISSOR_TEST);       // blits obey the scissor box
   glBindFramebuffer(GL_READ_FRAMEBUFFER, s_acvrAATarget);
