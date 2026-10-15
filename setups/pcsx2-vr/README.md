@@ -629,7 +629,7 @@ a held button fires once. The Index button also retains its tap-to-Start role.
 Xbox mapping is unchanged. The offline-only injected hold exercises the same
 timer and gracefully exits the actual native program even with a frame limit.
 
-The private Stop launcher writes the stop file first, waits5seconds, then forces
+The private Stop launcher writes the stop file first, waits15seconds, then forces
 only the exact private executable and a creation-time-verified launcher helper.
 It holds process handles and rechecks creation time on the terminate handle.
 Missing/wrong helper timestamps are reported and left running. Startup, Stop
@@ -868,3 +868,11 @@ constants changed. A future approved screen trial should compare convergence
 with the physical quad distance, retaining the current reference. Screen-mode
 separation could come from the runtime eye baseline; fake-pose proofs retain
 a fixed baseline. Physical scale, comfort and actual save/load need owner checks.
+
+Backend offline verification: the v145 live build boots with OpenXR disabled.
+During an injected swapchain wait, real emulation advances published pairs1
+to6, then the same wait policy resumes; the timed stop exits gracefully.
+Matched dump replays have exact shared-texture/SBS copies, and both the
+injected-wait picture and INSIDE zero-pose picture equal the screen reference
+pixel-for-pixel. These tests do not establish headset timeout recovery,
+controller feel, long-session stability or in-game save/load acceptance.
