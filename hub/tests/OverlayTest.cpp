@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/app/LaunchOptions.h"
+#include "core/app/PanelAttacher.h"
 #include "overlay/OverlayHost.h"
 #include "overlay/SpikeState.h"
 #include <QKeyEvent>
+#include <QSignalSpy>
 #include <QFocusEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -80,19 +82,36 @@ private slots:
                      QPointF(corner.x()*1280,corner.y()*800));
         }
     }
-    void desktopStartBecomesAPanelOnlyWhileSteamVrRuns(){
+    void desktopHubIsAPanelWheneverSteamVrRuns(){
+        // The desktop Hub attaches when SteamVR runs; it never changes its mode or opens the dashboard.
         auto options=ac::parseLaunchOptions({});
-        QVERIFY(!ac::applyAutoPanel(options,false,false));QCOMPARE(options.mode,ac::Mode::Desktop);
-        QVERIFY(!ac::applyAutoPanel(options,true,true));QCOMPARE(options.mode,ac::Mode::Desktop); // No display to share.
-        QVERIFY(ac::applyAutoPanel(options,true,false));
-        QCOMPARE(options.mode,ac::Mode::Overlay);QVERIFY(options.window);QVERIFY(options.showDashboard);QVERIFY(options.autoPanel);
-        QVERIFY(ac::shouldOpenDesktop(options,true));QVERIFY(ac::shouldOpenDesktop(options,false)); // The window stays either way.
-        auto desktop=ac::parseLaunchOptions({"--desktop"});QVERIFY(desktop.error.isEmpty());
-        QVERIFY(!ac::applyAutoPanel(desktop,true,false));QCOMPARE(desktop.mode,ac::Mode::Desktop);
+        QVERIFY(ac::attachesPanelWhenSteamVrRuns(options,false));QCOMPARE(options.mode,ac::Mode::Desktop);QVERIFY(!options.showDashboard);
+        QVERIFY(!ac::attachesPanelWhenSteamVrRuns(options,true)); // No display to share.
+        auto desktop=ac::parseLaunchOptions({"--desktop"});QVERIFY(desktop.error.isEmpty());QVERIFY(!ac::attachesPanelWhenSteamVrRuns(desktop,false));
         // A Hub that SteamVR itself starts, or a launch, is left as it was asked for.
-        for(const auto &arguments:{QStringList{"--overlay","--steamvr-started"},QStringList{"--launch","synthetic"},QStringList{"--register-overlay"}}){
-            auto other=ac::parseLaunchOptions(arguments);const auto mode=other.mode;QVERIFY(!ac::applyAutoPanel(other,true,false));QCOMPARE(other.mode,mode);QVERIFY(!other.autoPanel);
-        }
+        for(const auto &arguments:{QStringList{"--overlay","--steamvr-started"},QStringList{"--launch","synthetic"},QStringList{"--register-overlay"}})
+            QVERIFY(!ac::attachesPanelWhenSteamVrRuns(ac::parseLaunchOptions(arguments),false));
+    }
+    void panelAttachesWhenSteamVrStartsLaterAndLetsGoWhenItQuits(){
+        // A stand-in for SteamVR: the attach step accepts once SteamVR is ready.
+        int attaches=0,detaches=0;bool ready=false;
+        ac::PanelAttacher panel([&](QString *error){++attaches;if(!ready&&error)*error="Synthetic SteamVR not ready";return ready;},[&]{++detaches;});
+        panel.setRetry(10,3);
+        QSignalSpy changes(&panel,&ac::PanelAttacher::attachedChanged),gaveUp(&panel,&ac::PanelAttacher::gaveUp);
+        panel.setSteamVrRunning(false);QCOMPARE(attaches,0); // The window alone, until SteamVR runs.
+        panel.setSteamVrRunning(true);QCOMPARE(attaches,1);QVERIFY(!panel.attached());
+        ready=true;QTRY_VERIFY(panel.attached());QCOMPARE(attaches,2);QCOMPARE(changes.size(),1);
+        panel.setSteamVrRunning(true);QCOMPARE(attaches,2);
+        // SteamVR quits: the panel goes, the window stays, and it does not rejoin the closing SteamVR.
+        panel.steamVrQuit();QVERIFY(!panel.attached());QCOMPARE(detaches,1);
+        panel.setSteamVrRunning(true);QTest::qWait(60);QCOMPARE(attaches,2);
+        // SteamVR started again: the panel comes back.
+        panel.setSteamVrRunning(false);panel.setSteamVrRunning(true);QVERIFY(panel.attached());QCOMPARE(attaches,3);
+        // SteamVR gone without a goodbye: let go too.
+        panel.setSteamVrRunning(false);QVERIFY(!panel.attached());QCOMPARE(detaches,2);
+        // A SteamVR that never accepts: a few tries, then a reason, and the window carries on.
+        ready=false;panel.setSteamVrRunning(true);QTRY_COMPARE(gaveUp.size(),1);QCOMPARE(attaches,6);
+        QVERIFY(gaveUp.first()[0].toString().contains("not ready"));
     }
     void independentOrientationCommandLine(){
         const auto defaults=ac::parseLaunchOptions({"--overlay"});
@@ -319,6 +338,9 @@ private slots:
         vr::VREvent_t event{}; event.eventType = vr::VREvent_Quit;
         host.handleRuntimeEvent(event); QVERIFY(signaled);
         host.handleRuntimeEvent(event); QCOMPARE(receipt.acknowledgements, 1); QCOMPARE(receipt.hides, 0);
+        // After the panel let go, a later SteamVR session can quit again.
+        host.shutdown(); signaled = false; receipt.acknowledgements = 0;
+        host.handleRuntimeEvent(event); QVERIFY(signaled); QCOMPARE(receipt.acknowledgements, 1);
     }
     void explicitRegistrationModesCannotBeCombined() {
         QCOMPARE(ac::parseLaunchOptions({"--register-overlay"}).mode, ac::Mode::RegisterOverlay);

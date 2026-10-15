@@ -125,6 +125,13 @@ class UiController : public QObject {
  // A table's own launch button, from its tile or its page: exactly that view, every time.
  Q_INVOKABLE void launchPinball(const QString &id,const QString &view);
  Q_PROPERTY(bool steamVrRunning READ steamVrRunning NOTIFY steamVrRunningChanged)
+ // Play in headset while SteamVR is off: the game waiting for SteamVR to be ready, empty otherwise.
+ Q_PROPERTY(QString steamVrStarting READ steamVrStarting NOTIFY steamVrStartingChanged)
+ QString steamVrStarting()const{return m_steamVrStarting;}
+ void setSteamVrStarting(const QString &title){if(title!=m_steamVrStarting){m_steamVrStarting=title;emit steamVrStartingChanged();}}
+ Q_INVOKABLE void cancelSteamVrStart(){if(!m_steamVrStarting.isEmpty())emit cancelSteamVrStartRequested();}
+ // A game's own Play button: exactly this view ("monitor", or one of its headset views), not remembered.
+ Q_INVOKABLE void playGame(const QString &id,const QString &view);
  bool steamVrRunning()const{return m_steamVrRunning;}
  void setSteamVrRunning(bool running){if(running!=m_steamVrRunning){m_steamVrRunning=running;emit steamVrRunningChanged();}}
  void launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable,const QString &view={},const QString &gamepad={});
@@ -230,6 +237,8 @@ class UiController : public QObject {
  void pinballChanged();
  void pinballPlayRequested(const QString &id,const QString &view);
  void steamVrRunningChanged();
+ void steamVrStartingChanged();
+ void cancelSteamVrStartRequested();
  void stopEverythingRequested();
  void model3Changed();
  void artworkChanged();
@@ -260,7 +269,7 @@ class UiController : public QObject {
  GameListModel *m_games; FilterSortModel *m_filter; UiSettings *m_settings;bool m_steamVrRunning=false;QVariantMap m_pinballArt;
  QString m_detailId,m_variantId,m_status; QVariantList m_events; QVariantMap m_recovery;
  int m_artRevision=0;
- bool m_artworkBusy=false;QString m_artworkStatus;
+ bool m_artworkBusy=false;QString m_artworkStatus,m_steamVrStarting;
  // A row's pictures: the user's own art for it first, then a downloaded one.
  void addArt(QVariantMap &row,const QString &artId,const QString &system)const;
  static QStringList artNames(const QVariantMap &row,const QString &artId);

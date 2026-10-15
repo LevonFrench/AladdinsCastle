@@ -27,8 +27,9 @@ Item {
  // Two launches per table, each exactly what it says. The headset one waits for SteamVR; the desktop one never needs it.
  property bool idle:Object.keys(uiController.nowPlaying).length===0
  function startable(row){return !!row&&!!row.id&&!row.error&&row.romState!=="ROM missing"&&page.idle}
- function headsetReady(row){return page.startable(row)&&row.vrReady===true&&uiController.steamVrRunning}
- readonly property string headsetReason:uiController.steamVrRunning?"":"Launch in headset needs SteamVR running, with the headset connected."
+ // SteamVR off is no reason to refuse: Launch in headset starts it first, then the table.
+ function headsetReady(row){return page.startable(row)&&row.vrReady===true&&!uiController.steamVrStarting}
+ readonly property string headsetReason:uiController.steamVrRunning?"":"SteamVR is off: Launch in headset starts it first, then the table."
  // Direction C: rows of tables. Recently played and favourites first, then one row per era.
  property var shelves:{
   let list=[],recentRows=filtered.filter(r=>Number(r.lastPlayed)>0).sort((a,b)=>Number(b.lastPlayed)-Number(a.lastPlayed)).slice(0,12),favouriteRows=filtered.filter(r=>r.favourite===true)
@@ -82,7 +83,7 @@ Item {
   // Search and filters, on one slim line; the reason for a waiting headset launch beside the count.
   RowLayout {Layout.fillWidth:true;Layout.leftMargin:page.side;Layout.rightMargin:page.side;Layout.topMargin:2;spacing:8
    UiText {objectName:"pinballCount";text:page.showAll?String(page.scanData.vrReady||0)+" VR-ready of "+String(page.scanData.total||0)+" tables":page.filtered.length+" tables ready to play";color:Theme.get("color.text.muted");font.pixelSize:page.vrOverlayMode?16:13;wrapMode:Text.NoWrap}
-   UiText {objectName:"pinballHeadsetReason";visible:text.length>0;text:page.headsetReason?"Start SteamVR for Launch in headset":"";color:Theme.get("color.state.needs_neon");font.pixelSize:page.vrOverlayMode?16:13;Layout.fillWidth:true;elide:Text.ElideRight;wrapMode:Text.NoWrap}
+   UiText {objectName:"pinballHeadsetReason";visible:text.length>0;text:page.headsetReason?"SteamVR starts first for Launch in headset":"";color:Theme.get("color.state.needs_neon");font.pixelSize:page.vrOverlayMode?16:13;Layout.fillWidth:true;elide:Text.ElideRight;wrapMode:Text.NoWrap}
    Item {visible:!page.headsetReason;Layout.fillWidth:true}
    TextField {id:query;objectName:"pinballSearch";Layout.preferredWidth:page.vrOverlayMode?220:200;Layout.preferredHeight:page.vrOverlayMode?52:38;placeholderText:"Search tables";Accessible.name:"Search Pinball tables"
     color:Theme.get("color.text.primary");placeholderTextColor:Theme.get("color.text.faint");font.family:Theme.get("font.family");font.pixelSize:page.vrOverlayMode?16:13;selectByMouse:true

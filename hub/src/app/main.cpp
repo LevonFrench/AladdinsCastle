@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/launch/SteamVrStart.h"
+#include "core/app/PanelAttacher.h"
 #include "core/app/LaunchOptions.h"
 #include "ProductIdentity.h"
 #include "core/app/LaunchFailure.h"
@@ -46,7 +48,7 @@ int main(int argc,char **argv){
            <<"  --data-root <folder>  Portable catalog\n  --spike  Diagnostic overlay input scene\n"
            <<"  --overlay-picture-flip-y on|off  Picture override (default off)\n  --overlay-pointer-flip-y on|off  Pointer override (default off on Windows, on elsewhere)\n"
            <<"  --overlay-capture-dir <absolute fresh directory>  One source texture PNG/receipt under catalog .local (requires --overlay)\n"
-           <<"  --show-dashboard  Explicitly select this Hub's dashboard (requires --overlay)\n  --desktop  Window only, even while SteamVR is running (by default the Hub then also opens as its dashboard panel)\n"
+           <<"  --show-dashboard  Explicitly select this Hub's dashboard (requires --overlay)\n  --desktop  Window only (by default the Hub is also SteamVR's dashboard panel whenever SteamVR runs)\n"
            <<"  --capture-compositor-dir <absolute fresh directory>  One compositor eye pair under catalog .local; existing service required\n"
            <<"  --compositor-dashboard any|visible|hidden  Snapshot visibility requirement (default any); never changes dashboard state\n"
            <<"  --register-overlay | --unregister-overlay  Explicit manifest action\n  --quit-after-ms <ms>  Bounded desktop diagnostic\n";return 0;
@@ -75,10 +77,6 @@ int main(int argc,char **argv){
             return app.exec();
         }catch(const std::exception &e){failure(QString::fromUtf8(e.what()));return 2;}
     }
-    // Started from the desktop while SteamVR runs: also open as the dashboard panel. Diagnostic
-    // and offscreen runs never attach to SteamVR on their own.
-    if(qEnvironmentVariable("QT_QPA_PLATFORM")!="offscreen"&&!qEnvironmentVariableIsSet("AC_UI_CAPTURE"))
-        ac::applyAutoPanel(options,ac::launch::processRunning({"vrserver.exe","vrserver"}),false);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
     QCoreApplication::setApplicationName(ac::product::user_data_folder);QGuiApplication::setApplicationDisplayName(ac::product::display_name);QCoreApplication::setApplicationVersion("0.1.0");
@@ -98,6 +96,8 @@ int main(int argc,char **argv){
     ac::UiSettings settings(portableRoot+"/user");ac::UiController ui(&games,&filter,&settings);
     settings.createAcceptedList(); // The owner's own list of games accepted in the headset, empty to begin with.
     ac::HubServices services(&games,&filter,&ui,&settings,portableRoot);
+    // Play in headset may start SteamVR when the user presses it. Diagnostic and offscreen runs may not.
+    if(qEnvironmentVariable("QT_QPA_PLATFORM")!="offscreen"&&!qEnvironmentVariableIsSet("AC_UI_CAPTURE"))services.setSteamVrStarter(ac::launch::startSteamVr);
     const auto capture=qEnvironmentVariable("AC_UI_CAPTURE");
     // Asked for on the set-up page only. Registration adds the manifest; it never switches on automatic start.
     QObject::connect(&services,&ac::HubServices::steamVrRegistrationRequested,&app,[&services](const QString &manifest){
@@ -144,6 +144,23 @@ int main(int argc,char **argv){
         QString error;overlayInitialized=overlay.initialize(engine,app.applicationDirPath()+"/resources/overlay-thumbnail.png",&error);if(!overlayInitialized){const bool fallback=ac::shouldOpenDesktop(options,false);err<<error<<(fallback?"; opening desktop Hub.\n":"; exiting SteamVR-started instance.\n");overlay.shutdown();if(!fallback)return 3;ui.overlayFallback(error);}
     }
     if(ac::shouldOpenDesktop(options,overlayInitialized)){engine.loadFromModule("AladdinsCastle.Hub","DesktopShell");if(engine.rootObjects().isEmpty())return 2;}
+    // The desktop Hub is also SteamVR's dashboard panel whenever SteamVR runs: attached when SteamVR is
+    // seen, whether it was running first, started later, or started by Play in headset; let go when it
+    // quits, with the window carrying on. The dashboard is never opened on the Hub by itself.
+    // Diagnostic and offscreen runs never attach to SteamVR on their own.
+    std::unique_ptr<ac::PanelAttacher> panel;
+    if(ac::attachesPanelWhenSteamVrRuns(options,qEnvironmentVariable("QT_QPA_PLATFORM")=="offscreen"||qEnvironmentVariableIsSet("AC_UI_CAPTURE"))){
+        try{const auto log=ac::install::scopedPath("user/logs/overlay-input.log",portableRoot);QDir().mkpath(QFileInfo(log).absolutePath());overlay.setInputLog(log);}catch(const std::exception &){}
+        const auto thumbnail=app.applicationDirPath()+"/resources/overlay-thumbnail.png";
+        panel=std::make_unique<ac::PanelAttacher>([&engine,&overlay,thumbnail](QString *error){
+                if(overlay.initialize(engine,thumbnail,error))return true;overlay.shutdown();return false;},
+            [&overlay]{QTimer::singleShot(0,&overlay,[&overlay]{overlay.shutdown();});});
+        QObject::connect(panel.get(),&ac::PanelAttacher::attachedChanged,&app,[&out](bool attached){out<<(attached?"Joined SteamVR's dashboard as a panel.\n":"Left SteamVR's dashboard; the window carries on.\n");out.flush();});
+        QObject::connect(panel.get(),&ac::PanelAttacher::gaveUp,&app,[&err](const QString &reason){err<<"Not a SteamVR panel this time: "<<reason<<'\n';});
+        QObject::connect(&overlay,&ac::OverlayHost::quitRequested,panel.get(),&ac::PanelAttacher::steamVrQuit);
+        QObject::connect(&overlay,&ac::OverlayHost::failed,panel.get(),[&err,p=panel.get()](const QString &error){err<<error<<'\n';p->steamVrQuit();});
+        QObject::connect(&ui,&ac::UiController::steamVrRunningChanged,panel.get(),[&ui,p=panel.get()]{p->setSteamVrRunning(ui.steamVrRunning());});
+    }
     // Explicit operator diagnostics capture this application's own Qt surface.
     // Private owner captures are never included in packaging.
     const auto qaGame=qEnvironmentVariable("AC_UI_PLAY");
@@ -189,6 +206,8 @@ int main(int argc,char **argv){
         });
         QTimer::singleShot(800,&ui,[&ui,queue]{if(!queue->isEmpty())ui.getArtwork(queue->takeFirst());});
     }
+    // Diagnostic, for pictures only: the Starting SteamVR state for a sample game; nothing is started.
+    if(qEnvironmentVariableIsSet("AC_UI_DEMO_STEAMVR_STARTING"))QTimer::singleShot(400,&ui,[&ui]{ui.setSteamVrStarting(qEnvironmentVariable("AC_UI_DEMO_STEAMVR_STARTING"));});
     // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.
     if(qEnvironmentVariableIsSet("AC_UI_SETUP_SCAN"))QTimer::singleShot(500,&ui,[&ui]{ui.scanSetup();});
     ac::Json diagnosticFinished=ac::Json::array();
@@ -213,7 +232,7 @@ int main(int argc,char **argv){
         if(qEnvironmentVariableIsSet("AC_UI_CAPTURE_QUIT")&&!services.launchBusy())QTimer::singleShot(0,qApp,[]{QCoreApplication::quit();});
     });
     if(overlayInitialized&&options.showDashboard){
-        QString error;if(!overlay.showDashboard(&error)){err<<error<<'\n';if(!options.autoPanel){overlay.shutdown();return 3;}}
+        QString error;if(!overlay.showDashboard(&error)){err<<error<<'\n';overlay.shutdown();return 3;}
         out<<"Own dashboard show requested; compositor presentation requires verification.\n";
     }
     out<<ac::product::display_name<<": "<<count<<" games\n";out.flush();

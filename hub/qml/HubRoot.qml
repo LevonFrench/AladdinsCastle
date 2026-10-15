@@ -41,6 +41,7 @@ FocusScope {
   FilterBar{objectName:"filterBar";visible:root.showAll&&["List","Library","Explore","Detail"].indexOf(root.view)>=0;Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:visible?implicitHeight:0;Layout.maximumHeight:visible?implicitHeight:0;vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;onBackPressed:root.back();onFiltersRequested:{sort.close();help.close();filters.open()} onScanRequested:if(uiController.scanning)uiController.cancelScan();else scanDialog.open();onSizeChosen:value=>uiSettings.set("size"+root.view,value)}
   Item{id:content;Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:0;Layout.preferredHeight:0;clip:true
    NowPlayingCard {anchors.fill:parent;vrOverlayMode:root.vrOverlayMode;z:900;visible:uiController.nowPlaying.gameId!==undefined}
+   SteamVrStartingCard {objectName:"steamVrStartingCard";anchors.fill:parent;vrOverlayMode:root.vrOverlayMode;z:901;focus:visible}
    // How the last game ended, until dismissed or the next one starts: closed, stopped, or why it crashed.
    Rectangle {id:ended;objectName:"lastSession";z:850;anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:root.vrOverlayMode?20:24;anchors.leftMargin:root.vrOverlayMode?28:40;anchors.rightMargin:root.vrOverlayMode?28:40
     property var session:uiController.lastSession;property bool trouble:session.outcome==="crashed"||session.outcome==="failed"

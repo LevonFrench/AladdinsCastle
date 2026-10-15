@@ -8,7 +8,10 @@
 #include "core/gunroom/GunRoom.h"
 #include "core/steam/Steam.h"
 #include "ui/UiController.h"
+#include <QElapsedTimer>
 #include <QThreadPool>
+#include <QTimer>
+#include <functional>
 #include <atomic>
 #include <memory>
 namespace ac {
@@ -57,6 +60,11 @@ public:
     launch::LaunchService *launcher() { return &launcher_; }
     // The optional artwork download; the tests give it a stand-in network.
     art::Downloader *artDownloader() { return artDownloader_.get(); }
+    // Play in headset while SteamVR is off starts it, waits until it has run for settleMs, then
+    // launches; nothing is launched if it fails, is cancelled or takes longer than timeoutMs.
+    // Only main.cpp gives the real starter; without one nothing is started, so no test can start SteamVR.
+    void setSteamVrStarter(std::function<bool(QString *)> starter) { steamVrStarter_ = std::move(starter); }
+    void setSteamVrWait(int timeoutMs, int settleMs) { steamVrTimeoutMs_ = timeoutMs; steamVrSettleMs_ = settleMs; }
     QVariantList gunRoomModels()const{return gunRoomModels_;}
     bool gunRoomAvailable()const{return gunRoomAvailable_;}
     QString gunRoomReason()const{return gunRoomReason_;}
@@ -147,6 +155,15 @@ private:
     // NVRAM and settings. Stop forces both programs only if nothing has ended well after that.
     bool askModel2ToQuit(bool forceLater);
     std::unique_ptr<art::Downloader> artDownloader_;
+    void launchInHeadset(const QString &title, std::function<void()> launch);
+    void endSteamVrWait(const QString &message, bool error);
+    std::function<bool(QString *)> steamVrStarter_;
+    std::function<void()> pendingHeadset_;
+    QString pendingHeadsetTitle_;
+    QTimer steamVrStartWatch_;
+    QElapsedTimer steamVrStartClock_;
+    qint64 steamVrSeenAt_ = -1;
+    int steamVrTimeoutMs_ = 120000, steamVrSettleMs_ = 5000;
     // Folders of artwork already on this PC: indexed off the main thread whenever the list changes.
     void scanLocalArt();
     QStringList localArtFolders_;bool localArtScanned_=false;std::shared_ptr<std::atomic_bool> localArtCancel_;

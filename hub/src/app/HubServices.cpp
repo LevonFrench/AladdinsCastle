@@ -111,11 +111,31 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::pinballPlayRequested,this,[this](const QString &id,const QString &view){
         if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
         for(const auto &value:ui_->pinballData().value("tables").toList()){
-            const auto row=value.toMap();if(row.value("id")==id){startPinball(row,settings_->get("pinballExecutable",QString()).toString(),view);return;}
+            const auto row=value.toMap();if(row.value("id")==id){
+                const auto start=[this,row,view]{startPinball(row,settings_->get("pinballExecutable",QString()).toString(),view);};
+                if(view=="headset")launchInHeadset(row.value("title").toString(),start);else start();
+                return;}
         }
         ui_->showError("Pinball","Table is no longer in the scan; scan again.");
     });
-    connect(ui_,&UiController::model3PlayRequested,this,&HubServices::startModel3);
+    // Every Model 3 view is in the headset.
+    connect(ui_,&UiController::model3PlayRequested,this,[this](const QString &id,const QString &view){
+        QString title=id;for(const auto &value:ui_->model3Games())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
+        launchInHeadset(title,[this,id,view]{startModel3(id,view);});
+    });
+    connect(ui_,&UiController::cancelSteamVrStartRequested,this,[this]{
+        endSteamVrWait("Cancelled: nothing was started. SteamVR may still be opening; close it from its own window if you do not need it.",false);});
+    steamVrStartWatch_.setInterval(500);
+    connect(&steamVrStartWatch_,&QTimer::timeout,this,[this]{
+        if(!pendingHeadset_){steamVrStartWatch_.stop();return;}
+        const auto now=steamVrStartClock_.elapsed();
+        if(vrServerRunning()){
+            if(steamVrSeenAt_<0)steamVrSeenAt_=now;
+            // Ready once it has been running a moment: its compositor and dashboard come up after the server.
+            if(now-steamVrSeenAt_>=steamVrSettleMs_){auto launch=std::move(pendingHeadset_);endSteamVrWait({},false);ui_->setSteamVrRunning(true);launch();return;}
+        }else steamVrSeenAt_=-1;
+        if(now>=steamVrTimeoutMs_)endSteamVrWait(QString("SteamVR did not start within %1 seconds. Nothing was started; check that the headset is connected, then try again.").arg(steamVrTimeoutMs_/1000),true);
+    });
     // The Hub never registers itself unasked: the set-up page asks, and whoever owns the VR runtime call answers.
     connect(ui_,&UiController::steamVrRequested,this,[this]{emit steamVrRegistrationRequested(steamVrManifest());});
     refreshSteamVr();
@@ -123,7 +143,12 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     steamVrWatch_.setInterval(3000);connect(&steamVrWatch_,&QTimer::timeout,this,[this]{ui_->setSteamVrRunning(vrServerRunning());});
     steamVrWatch_.start();QTimer::singleShot(0,this,[this]{ui_->setSteamVrRunning(vrServerRunning());});
     connect(ui_,&UiController::setupScanRequested,this,&HubServices::scanSetup);
-    connect(ui_,&UiController::otherPlayRequested,this,&HubServices::startOtherGame);
+    // Every game but a Dreamcast disc on the monitor runs in the headset.
+    connect(ui_,&UiController::otherPlayRequested,this,[this](const QString &id,const QString &view,const QString &file){
+        if(id.startsWith("dreamcast-")&&view=="monitor"){startOtherGame(id,view,file);return;}
+        QString title=id;for(const auto &value:ui_->otherGames())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
+        launchInHeadset(title,[this,id,view,file]{startOtherGame(id,view,file);});
+    });
     try{QFile saved(install::scopedPath("user/cache/setup-report.json",root_));if(saved.size()<=64*1024*1024&&saved.open(QIODevice::ReadOnly))ui_->setSetupReport(QJsonDocument::fromJson(saved.readAll()).toVariant().toMap());}catch(const std::exception &){}
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
@@ -549,6 +574,26 @@ bool HubServices::askPs2ToQuit(){
     QFile request(stopFile);
     if(stopFile.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS2","The stop request could not be written. Use the launcher's own stop to quit the game.");return true;}
     request.close();ui_->launchClosing();return true;
+}
+void HubServices::launchInHeadset(const QString &title,std::function<void()> launch){
+    if(vrServerRunning()){launch();return;}
+    if(pendingHeadset_){ui_->showError("SteamVR","SteamVR is already starting for "+pendingHeadsetTitle_+".");return;}
+    if(launchBusy()||hubExitPending_){ui_->showError("Launch","Close the current session before starting a game.");return;}
+    // Only ever because Play in headset was pressed: SteamVR is never started for anything else.
+    QString error;
+    // Only the real Hub is given the real starter (main.cpp); a Hub without one, as in every test, starts nothing.
+    if(!steamVrStarter_)error="this Hub was not given a way to start it.";
+    const bool asked=steamVrStarter_&&steamVrStarter_(&error);
+    if(!asked){ui_->showError("SteamVR","SteamVR could not be started"+(error.isEmpty()?QString("."):": "+error)+" Nothing was started.");return;}
+    pendingHeadset_=std::move(launch);pendingHeadsetTitle_=title;steamVrSeenAt_=-1;steamVrStartClock_.start();
+    ui_->setSteamVrStarting(title.isEmpty()?QString("the game"):title);
+    steamVrStartWatch_.start();
+}
+void HubServices::endSteamVrWait(const QString &message,bool error){
+    pendingHeadset_=nullptr;pendingHeadsetTitle_.clear();steamVrStartWatch_.stop();ui_->setSteamVrStarting({});
+    // Said on the status line either way; error only marks the ones that went wrong, for the log.
+    if(!message.isEmpty())ui_->showError("SteamVR",message);
+    if(error)qWarning("SteamVR wait ended: %s",qPrintable(message));
 }
 void HubServices::scanLocalArt(){
     const auto folders=settings_->get("artFolders",QVariantList{}).toStringList();

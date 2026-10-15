@@ -35,7 +35,16 @@ Item {
   c.blurb=trouble?trouble.split(". ")[0].replace(/\.$/,"")+".":"Found on this PC.";c.stateColour=trouble?needsColour:readyColour
   return c
  }
- function play(row){if(row.system==="catalog")uiController.primary(row.id);else if(row.system)uiController.playOtherGame(row.id);else uiController.playModel3(row.id)}
+ // Every game says where it plays: in the headset (Model 3's screen, wide screen or inside the game are
+ // choices under that), and on the monitor where the system has a monitor mode.
+ function headsetViews(row){return (row.views||uiController.model3Views).filter(v=>v.id!=="monitor")}
+ function hasMonitor(row){return (row.views||[]).some(v=>v.id==="monitor")}
+ function headsetView(row){const list=headsetViews(row);for(const v of list)if(v.id===row.view)return v;return list.length?list[0]:({})}
+ function headsetLabel(row){const list=headsetViews(row);return "Play in headset"+(list.length>1?" · "+headsetView(row).label:"")}
+ function playIn(row,where){if(!row||!row.id)return;uiController.playGame(row.id,where==="monitor"?"monitor":headsetView(row).id)}
+ function play(row){if(row.system==="catalog")uiController.primary(row.id);else playIn(row,"headset")}
+ readonly property bool canStart:idle&&!uiController.steamVrStarting
+ readonly property string headsetNote:uiController.steamVrRunning?"":"SteamVR is off: Play in headset starts it first, then the game."
  function choose(row,view){if(row.system)uiController.chooseGameView(row.id,view);else uiController.chooseModel3View(row.id,view)}
  signal setupRequested()
  // One picture per view, seen from above: you, what you look at, and how much of your view it fills.
@@ -77,7 +86,7 @@ Item {
  }
  function openRow(row){if(!row||!row.id)return;if(row.system==="catalog")page.detailRequested(row.id);else page.selectedId=row.id}
  // A game that is not ready, or starts only behind a warning, opens its page instead of starting.
- function primaryAction(row){if(!row||!row.id)return;if(row.problem||row.warning||!page.idle||row.system==="catalog")openRow(row);else page.play(row)}
+ function primaryAction(row){if(!row||!row.id)return;if(row.problem||row.warning||!page.canStart||row.system==="catalog")openRow(row);else page.play(row)}
  focus:!selectedId
  Keys.onLeftPressed:moveFocus(0,-1)
  Keys.onRightPressed:moveFocus(0,1)
@@ -94,7 +103,9 @@ Item {
    meta:page.setupProblem||page.focusedRow.problem||page.focusedRow.warning||(page.focusedRow.system==="catalog"?"Set up and ready on this PC.":page.focusedRow.title?"Found on this PC. Choose how you see it, then start.":"Add your systems in Set-up.")
    metaColour:page.setupProblem||page.focusedRow.problem||page.focusedRow.warning?page.needsColour:Theme.get("color.text.muted")
    PillButton {objectName:"model3HeroStart";visible:!!page.focusedRow.id;targetHeight:page.vrOverlayMode?56:48;vrOverlayMode:page.vrOverlayMode;neon:true;accent:page.focusedRow.problem||page.focusedRow.warning?page.needsColour:page.readyColour
-    text:page.focusedRow.problem?"Not ready":page.focusedRow.warning?"Read first":page.focusedRow.system==="catalog"?"Start":"Start · "+(page.focusedRow.viewLabel||"");onClicked:page.primaryAction(page.focusedRow)}
+    text:page.focusedRow.problem?"Not ready":page.focusedRow.warning?"Read first":page.focusedRow.system==="catalog"?"Start":page.headsetLabel(page.focusedRow);onClicked:page.primaryAction(page.focusedRow)}
+   PillButton {objectName:"model3HeroMonitor";visible:!!page.focusedRow.id&&page.hasMonitor(page.focusedRow)&&!page.focusedRow.problem&&!page.focusedRow.warning;targetHeight:page.vrOverlayMode?56:48;vrOverlayMode:page.vrOverlayMode
+    text:"Play on monitor";enabled:page.canStart;onClicked:page.playIn(page.focusedRow,"monitor")}
    PillButton {objectName:"model3HeroDetails";visible:!!page.focusedRow.id;targetHeight:page.vrOverlayMode?56:48;vrOverlayMode:page.vrOverlayMode;text:"Details";onClicked:page.openRow(page.focusedRow)}
    extra:[
     PillButton {objectName:"model3SetupButton";text:"Set-up";vrOverlayMode:page.vrOverlayMode;onClicked:page.setupRequested()},
@@ -117,16 +128,18 @@ Item {
    title:page.selected.title||""
    meta:page.selected.problem||(page.selected.warning?"Before you start: "+page.selected.warning:"Found on this PC. The view you choose below is remembered for this game.")
    metaColour:page.selected.problem||page.selected.warning?page.needsColour:Theme.get("color.text.muted")
-   PillButton {objectName:"model3Start";targetHeight:page.vrOverlayMode?56:48;text:"Start "+(page.selected.title||"")+" · "+(page.selected.viewLabel||"");neon:true;accent:page.selected.problem?page.needsColour:page.readyColour;vrOverlayMode:page.vrOverlayMode;enabled:!page.selected.problem&&page.idle;onClicked:page.play(page.selected)}
+   PillButton {objectName:"model3Start";targetHeight:page.vrOverlayMode?56:48;text:page.headsetLabel(page.selected);neon:true;accent:page.selected.problem?page.needsColour:page.readyColour;vrOverlayMode:page.vrOverlayMode;enabled:!page.selected.problem&&page.canStart;onClicked:page.playIn(page.selected,"headset")}
+   PillButton {objectName:"model3PlayMonitor";visible:page.hasMonitor(page.selected);targetHeight:page.vrOverlayMode?56:48;text:"Play on monitor";vrOverlayMode:page.vrOverlayMode;enabled:!page.selected.problem&&page.canStart;onClicked:page.playIn(page.selected,"monitor")}
    PillButton {objectName:"model3Back";targetHeight:page.vrOverlayMode?56:48;text:"‹ Back";vrOverlayMode:page.vrOverlayMode;onClicked:page.selectedId=""}
    // Only with the artwork setting on; otherwise it says where to turn it on, and asks nothing.
    extra:[PillButton {objectName:"model3GetArt";text:uiController.artworkBusy?"Getting artwork…":"Get artwork";vrOverlayMode:page.vrOverlayMode;enabled:!uiController.artworkBusy
     onClicked:uiController.getArtwork(page.selected.artId||page.selected.id)}]
   }
   Text {objectName:"model3Title";visible:false;text:page.selected.title||""}
-  Text {Layout.leftMargin:page.vrOverlayMode?28:40;Layout.topMargin:4;text:"How you see it";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?22:19}
+  UiText {objectName:"model3HeadsetNote";Layout.leftMargin:page.vrOverlayMode?28:40;Layout.bottomMargin:10;visible:text.length>0;text:page.headsetNote;font.pixelSize:page.vrOverlayMode?16:14;color:Theme.get("color.text.muted")}
+  Text {Layout.leftMargin:page.vrOverlayMode?28:40;Layout.topMargin:4;text:"How you see it in the headset";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?22:19}
   RowLayout {Layout.fillWidth:true;Layout.leftMargin:page.vrOverlayMode?28:40;Layout.rightMargin:page.vrOverlayMode?28:40;Layout.topMargin:12;spacing:16
-   Repeater {model:page.views
+   Repeater {model:page.headsetViews(page.selected)
     Button {id:option;objectName:"model3View";required property var modelData;property bool chosen:page.selected.view===modelData.id
      Layout.fillWidth:true;Layout.preferredWidth:1;Layout.preferredHeight:page.vrOverlayMode?186:140;padding:16;hoverEnabled:true
      Accessible.name:modelData.label;Accessible.checked:chosen

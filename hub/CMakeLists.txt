@@ -104,7 +104,11 @@ add_library(hubcore STATIC
     src/core/art/Art.h
     src/core/art/Art.cpp
     src/core/art/Download.h
-    src/core/art/Download.cpp)
+    src/core/art/Download.cpp
+    src/core/launch/SteamVrStart.h
+    src/core/launch/SteamVrStart.cpp
+    src/core/app/PanelAttacher.h
+    src/core/app/PanelAttacher.cpp)
 target_compile_features(hubcore PUBLIC cxx_std_20)
 target_include_directories(hubcore PUBLIC src "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent

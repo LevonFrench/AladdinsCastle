@@ -337,13 +337,13 @@ QVariantList UiController::otherGames()const{
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","ps2-"+id},{"system","ps2"},{"pill","PS2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
    {"problem",ps2::problem(id,ps2Launcher,m_settings->get("ps2Python",QString()).toString(),m_settings->get("ps2StopFile",QString()).toString())}},
-   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset. Start SteamVR first."}}});
+   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
  }
  // Time Crisis: one native program, checked as it is now.
  const auto program=m_settings->get("system22Executable",QString()).toString();
  if(!program.isEmpty())add({{"id","system22-timecris"},{"system","system22"},{"pill","SYSTEM 22"},{"title","Time Crisis"},{"year",1996},{"file",QString()},{"warning",QString()},
   {"problem",QFileInfo(program).isFile()?QString():QString("Time Crisis VR build not found. Use Set-up.")}},
-  {QVariantMap{{"id","vr"},{"label","In the headset"},{"help","The whole game around you, with a tracked gun. Start your headset's runtime first."}}});
+  {QVariantMap{{"id","vr"},{"label","In the headset"},{"help","The whole game around you, with a tracked gun."}}});
  // Dreamcast: the discs of the last scan. A disc without a VR profile starts behind a warning.
  const auto dreamcastProgram=m_settings->get("dreamcastExecutable",QString()).toString();
  for(const auto &system:m_setupReport.value("systems").toList()){
@@ -358,6 +358,10 @@ QVariantList UiController::otherGames()const{
  return rows;
 }
 void UiController::chooseGameView(const QString &id,const QString &view){auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();if(chosen.value(id)==view)return;chosen[id]=view;m_settings->set("gameViews",chosen);}
+void UiController::playGame(const QString &id,const QString &view){
+ for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,view.isEmpty()?row.value("view").toString():view);return;}}
+ for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,view.isEmpty()?row.value("view").toString():view,row.value("file").toString());return;}}
+}
 void UiController::playOtherGame(const QString &id){for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}}
 void UiController::launchOtherQueued(const QString &id,const QString &view,const QString &title,const QString &hint,const QString &closeUnavailable){
  queueSession(id,view,closeUnavailable);m_nowPlaying["title"]=title;if(!hint.isEmpty())m_nowPlaying["hint"]=hint;emit nowPlayingChanged();
