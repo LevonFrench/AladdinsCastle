@@ -414,10 +414,10 @@ class UiTest:public QObject {
   QTRY_VERIFY(!namedItems(window->contentItem(),"pinballGrid").isEmpty());
   auto grid=namedItems(window->contentItem(),"pinballGrid").first();QTRY_COMPARE(grid->property("count").toInt(),24);
   auto tiles=namedItems(window->contentItem(),"pinballTile");QVERIFY(!tiles.isEmpty());
-  auto tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,tile->height()/2));
+  auto tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,24));
   QTest::mousePress(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTest::mouseMove(window,p.toPoint()-QPoint(0,140),80);QTest::mouseRelease(window,Qt::LeftButton,Qt::NoModifier,p.toPoint()-QPoint(0,140));
   QVERIFY(namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
-  grid->setProperty("contentY",0);QTest::qWait(40);tiles=namedItems(window->contentItem(),"pinballTile");tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,tile->height()/2));
+  grid->setProperty("contentY",0);QTest::qWait(40);tiles=namedItems(window->contentItem(),"pinballTile");tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,24));
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTRY_VERIFY(!namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
   QCOMPARE(ui->property("pinballSelection").toMap().value("romState").toString(),QString("needs no ROM"));
   QTRY_VERIFY(!namedItems(window->contentItem(),"pinballLaunchHelp").isEmpty());
@@ -425,12 +425,18 @@ class UiTest:public QObject {
   const auto helpText=ui->property("pinballLaunchHelp").toString();
   QVERIFY(helpText.contains("normal settings"));QVERIFY(helpText.contains("scores"));
   QCOMPARE(launchHelp->property("text").toString(),helpText);
-  QSignalSpy play(ui.get(),SIGNAL(pinballPlayRequested(QString)));
-  QTRY_VERIFY(!namedItems(window->contentItem(),"pinballPlay").isEmpty());
-  const auto playButton=namedItems(window->contentItem(),"pinballPlay").first();
-  QVERIFY(playButton->height()>=48);QVERIFY(playButton->isEnabled());
+  // Two launches, each exactly what it says. Launch in headset waits for SteamVR and says so.
+  QSignalSpy play(ui.get(),SIGNAL(pinballPlayRequested(QString,QString)));
+  QTRY_VERIFY(!namedItems(window->contentItem(),"pinballLaunchDesktop").isEmpty());
+  const auto playButton=namedItems(window->contentItem(),"pinballLaunchDesktop").first(),headsetButton=namedItems(window->contentItem(),"pinballLaunchHeadset").first();
+  ui->setSteamVrRunning(false);QVERIFY(softwareFrame(window));
+  QVERIFY(playButton->height()>=48);QVERIFY(playButton->isEnabled());QVERIFY(!headsetButton->isEnabled());
+  QVERIFY(namedItems(window->contentItem(),"pinballHeadsetReason").first()->property("text").toString().contains("SteamVR"));
   QVERIFY(QMetaObject::invokeMethod(playButton,"clicked"));QCOMPARE(play.size(),1);
-  QCOMPARE(play[0][0].toString(),ui->pinballSelection()["id"].toString());
+  QCOMPARE(play[0][0].toString(),ui->pinballSelection()["id"].toString());QCOMPARE(play[0][1].toString(),QString("desktop"));
+  ui->setSteamVrRunning(true);QVERIFY(softwareFrame(window));QVERIFY(headsetButton->isEnabled());
+  QVERIFY(QMetaObject::invokeMethod(headsetButton,"clicked"));QCOMPARE(play.size(),2);QCOMPARE(play[1][1].toString(),QString("headset"));
+  ui->setSteamVrRunning(false);
   root->setProperty("vrOverlayMode",false);QVERIFY(softwareFrame(window));
   QCOMPARE(launchHelp->property("text").toString(),helpText);
   root->setProperty("vrOverlayMode",true);QVERIFY(softwareFrame(window));

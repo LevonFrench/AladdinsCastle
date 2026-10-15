@@ -66,11 +66,15 @@ class IntegrationTest:public QObject{
 private slots:
  void pinballLaunchUsesRetainedTableAndRecordsRecent(){
     QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
+    // VPX's own settings are looked for in a folder of the test's, never the PC's.
+    const auto previousAppData=qgetenv("APPDATA");qputenv("APPDATA",QDir::toNativeSeparators(t.filePath("appdata")).toUtf8());
+    const auto restoreAppData=qScopeGuard([previousAppData]{qputenv("APPDATA",previousAppData);});
     const auto cfb=syntheticTable();
     const auto table=folder+"/synthetic table.vpx";ac::install::atomicWrite(table,cfb);
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",QCoreApplication::applicationFilePath());
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    services.setVrServerProbe([]{return true;});services.setGamepadProbe([](const QString &){return QVariantList{};});
     auto data=ac::pinball::scan(folder);auto row=data["tables"].toList()[0].toMap();QVERIFY(!row.contains("error"));
     ui.pinballLoaded(data);ui.selectPinball(row["id"].toString());ui.markPinball(true);
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
@@ -102,6 +106,60 @@ private slots:
     QCOMPARE(exitReady.size(),0);QTRY_COMPARE_WITH_TIMEOUT(exitReady.size(),1,5000);QCOMPARE(exitReady[0][0].toInt(),7);
     QVERIFY(!services.launcher()->busy());QCOMPARE(ac::install::readBytes(table),cfb);
 #endif
+ }
+ // Launch on desktop or in headset, each exactly that; a gamepad gets the Hub's layout in a Hub-owned copy of the user's settings.
+ void pinballViewsAndGamepadReachVisualPinball(){
+    QTemporaryDir t;const auto folder=t.filePath("library");QVERIFY(QDir().mkpath(folder));
+    const auto table=folder+"/synthetic table.vpx";ac::install::atomicWrite(table,syntheticTable());
+    // The user's own VPX settings, where VPX keeps them; they must stay byte for byte.
+    const auto appData=t.filePath("appdata"),own=appData+"/VPinballX/10.8/VPinballX.ini";
+    const QByteArray mine="[Player]\r\nBallTrail = 1\r\n\r\n[Input]\r\nDevices = Key\r\nMapping.LeftFlipper = Key;225\r\nMapping.Start = Key;30\r\n\r\n[PlayerVR]\r\nAskToTurnOn = 1\r\n";
+    QVERIFY(QDir().mkpath(QFileInfo(own).absolutePath()));ac::install::atomicWrite(own,mine);
+    const auto previousAppData=qgetenv("APPDATA");qputenv("APPDATA",QDir::toNativeSeparators(appData).toUtf8());
+    const auto report=t.filePath("arguments.json");qputenv("AC_SYNTHETIC_PINBALL_ARGUMENTS",report.toUtf8());
+    const auto restore=qScopeGuard([previousAppData]{qputenv("APPDATA",previousAppData);qunsetenv("AC_SYNTHETIC_PINBALL_ARGUMENTS");});
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",QCoreApplication::applicationFilePath());
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QVariantList pads{QVariantMap{{"uid","SDLJoy_030000005e0400008e02000000007801_1"},{"name","Synthetic pad"},
+        {"elements",QVariantMap{{"A",0},{"B",1},{"X",2},{"Y",3},{"LeftShoulder",4},{"RightShoulder",5},{"Back",6},{"Start",7},{"LeftStick",8},{"RightStick",9},
+                                {"DPadLeft",0x100},{"DPadRight",0x101},{"DPadUp",0x102},{"DPadDown",0x103},{"LeftX",0x200},{"LeftY",0x201},{"LeftTrigger",0x202},{"RightX",0x203},{"RightY",0x204},{"RightTrigger",0x205}}}}};
+    QString probed;services.setGamepadProbe([&](const QString &library){probed=library;return pads;});
+    bool vr=false;services.setVrServerProbe([&]{return vr;});
+    auto data=ac::pinball::scan(folder);const auto row=data["tables"].toList()[0].toMap();const auto id=row["id"].toString();
+    ui.pinballLoaded(data);ui.selectPinball(id);ui.markPinball(true);
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started);
+    const auto hubCopy=QDir::toNativeSeparators(t.filePath("user/pinball/VPinballX.ini")),tableFile=QDir::toNativeSeparators(t.filePath("user/pinball/"+id+".ini"));
+    const auto run=[&](const QString &view){
+        const int before=started.size();ui.launchPinball(id,view);
+        QTRY_COMPARE_WITH_TIMEOUT(started.size(),before+1,5000);QTRY_VERIFY_WITH_TIMEOUT(!services.launcher()->busy(),5000);
+    };
+    // Without SteamVR, Launch in headset starts nothing and says why.
+    ui.launchPinball(id,"headset");QCOMPARE(started.size(),0);QVERIFY(ui.status().contains("Start SteamVR first"));
+    // On the desktop: VR off in the table's Hub file, the gamepad layout in the Hub's copy; SteamVR not needed.
+    run("desktop");
+    QCOMPARE(QJsonDocument::fromJson(ac::install::readBytes(report)).toVariant().toStringList(),(QStringList{"-Ini",hubCopy,"-Play",QFileInfo(table).absoluteFilePath(),"-TableIni",tableFile}));
+    QVERIFY(ac::install::readBytes(tableFile).contains("AskToTurnOn = 2"));
+    QVERIFY(probed.isEmpty()); // The stand-in has no SDL library beside it.
+    const auto copy=ac::install::readBytes(hubCopy);
+    for(const char *mapping:{"Mapping.LeftFlipper = Key;225 | SDLJoy_030000005e0400008e02000000007801_1;4 | SDLJoy_030000005e0400008e02000000007801_1;514;o;-0.300000",
+                             "Mapping.Start = Key;30 | SDLJoy_030000005e0400008e02000000007801_1;7",
+                             "Mapping.ExitGame = SDLJoy_030000005e0400008e02000000007801_1;7 & SDLJoy_030000005e0400008e02000000007801_1;6",
+                             "Mapping.Plunger0.Position = SDLJoy_030000005e0400008e02000000007801_1;516;P;0.100000;1.000000;1.000000",
+                             "Devices = Key;SDLJoy_030000005e0400008e02000000007801_1","[PlayerVR]\r\nAskToTurnOn = 1"})
+        QVERIFY2(copy.contains(mapping),mapping);
+    QCOMPARE(ac::install::readBytes(own),mine);
+    QVERIFY(ui.nowPlaying().isEmpty());
+    // In the headset: VR asked for; the same gamepad layout.
+    vr=true;run("headset");
+    QVERIFY(ac::install::readBytes(tableFile).contains("AskToTurnOn = 0"));QVERIFY(!ac::install::readBytes(tableFile).contains("AskToTurnOn = 2"));
+    QCOMPARE(QJsonDocument::fromJson(ac::install::readBytes(report)).toVariant().toStringList().first(),QString("-Ini"));
+    // No gamepad: VPX reads the user's own settings, so no -Ini.
+    pads.clear();vr=false;run("desktop");
+    QCOMPARE(QJsonDocument::fromJson(ac::install::readBytes(report)).toVariant().toStringList(),(QStringList{"-Play",QFileInfo(table).absoluteFilePath(),"-TableIni",tableFile}));
+    QCOMPARE(ac::install::readBytes(own),mine);
+    // Nothing is remembered: each button does its own launch every time.
+    QVERIFY(!settings.values().contains("pinballViews"));
  }
  void model3LaunchUsesTheChosenViewAndLeavesFoldersAlone(){
     // The stand-in emulator is this test program: it reports what it was started with, then exits.
@@ -486,7 +544,9 @@ int main(int argc,char **argv){
         QTimer::singleShot(duration>0?duration:600,&child,[&child,marker]{if(!marker.isEmpty()){QFile done(marker);if(done.open(QIODevice::WriteOnly))done.write("complete");}child.quit();});
         return child.exec();
     }
-    if(argc>=3&&QByteArray(argv[1])=="-Play"){
+    // VPX stand-in: any run with -Play, which -Ini may come before.
+    bool play=false;for(int i=1;i<argc;++i)play=play||QByteArray(argv[i])=="-Play";
+    if(play){
         QGuiApplication child(argc,argv);QWindow window;window.show();
         const auto arguments=qEnvironmentVariable("AC_SYNTHETIC_PINBALL_ARGUMENTS");
         if(!arguments.isEmpty()){

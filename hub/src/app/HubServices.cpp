@@ -8,6 +8,7 @@
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
+#include "core/pinball/Gamepad.h"
 #include "ProductIdentity.h"
 #include <QDir>
 #include <QCoreApplication>
@@ -102,12 +103,12 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         }else ui_->scanPinball();
     });
     connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &){
-        try{const auto plan=pinball::launchPlan(table,executable,pinballVrRoot(),true);ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
+        try{const auto plan=pinball::launchPlan(table,executable,root_,QString("headset"));ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
     });
-    connect(ui_,&UiController::pinballPlayRequested,this,[this](const QString &id){
+    connect(ui_,&UiController::pinballPlayRequested,this,[this](const QString &id,const QString &view){
         if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
         for(const auto &value:ui_->pinballData().value("tables").toList()){
-            const auto row=value.toMap();if(row.value("id")==id){startPinball(row,settings_->get("pinballExecutable",QString()).toString());return;}
+            const auto row=value.toMap();if(row.value("id")==id){startPinball(row,settings_->get("pinballExecutable",QString()).toString(),view);return;}
         }
         ui_->showError("Pinball","Table is no longer in the scan; scan again.");
     });
@@ -115,6 +116,9 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     // The Hub never registers itself unasked: the set-up page asks, and whoever owns the VR runtime call answers.
     connect(ui_,&UiController::steamVrRequested,this,[this]{emit steamVrRegistrationRequested(steamVrManifest());});
     refreshSteamVr();
+    // Whether SteamVR is running, for the Launch in headset buttons.
+    steamVrWatch_.setInterval(3000);connect(&steamVrWatch_,&QTimer::timeout,this,[this]{ui_->setSteamVrRunning(vrServerRunning());});
+    steamVrWatch_.start();QTimer::singleShot(0,this,[this]{ui_->setSteamVrRunning(vrServerRunning());});
     connect(ui_,&UiController::setupScanRequested,this,&HubServices::scanSetup);
     connect(ui_,&UiController::otherPlayRequested,this,&HubServices::startOtherGame);
     try{QFile saved(install::scopedPath("user/cache/setup-report.json",root_));if(saved.size()<=64*1024*1024&&saved.open(QIODevice::ReadOnly))ui_->setSetupReport(QJsonDocument::fromJson(saved.readAll()).toVariant().toMap());}catch(const std::exception &){}
@@ -163,7 +167,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         }
         if(id.startsWith("pinball-")){
             if(id!="pinball-"+retainedPinball_.value("id").toString()||variant!="vpx"){ui_->showError("Pinball","Restart does not match the retained table.");return;}
-            startPinball(retainedPinball_,retainedPinballExecutable_);return;
+            startPinball(retainedPinball_,retainedPinballExecutable_,retainedPinballView_);return;
         }
         if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
         if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
@@ -367,7 +371,8 @@ void HubServices::refreshSteamVr(const QString &error){
     ui_->setSteamVr({{"state",QString::fromLatin1(state)},{"error",error}});
 }
 QString HubServices::pinballVrRoot()const{return settings_->get("pinballHeadset",true).toBool()?root_:QString();}
-void HubServices::startPinball(const QVariantMap &row,const QString &executable){
+bool HubServices::vrServerRunning()const{return vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"});}
+void HubServices::startPinball(const QVariantMap &row,const QString &executable,const QString &view){
     if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
     try{
         const auto id=row.value("id").toString(),table=row.value("path").toString();const QFileInfo file(table);
@@ -375,18 +380,42 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable)
         if(!QRegularExpression("^[a-f0-9]{64}$").match(id).hasMatch()||id!=identity||!file.isFile()||
            file.size()!=row.value("size",-1).toLongLong()||file.lastModified().toMSecsSinceEpoch()!=row.value("mtime",-1).toLongLong())
             throw install::Error("E_PINBALL_CHANGED","Table changed or is no longer available; scan again.");
-        if(!row.value("vrReady").toBool()||!row.value("error").toString().isEmpty()||row.value("romState")=="ROM missing")
-            throw install::Error("E_PINBALL_NOT_READY","Choose a VR-ready table with no scan error or missing known ROM.");
-        // Headset on is asked for explicitly, through a Hub-owned settings file for this table.
+        if(!row.value("error").toString().isEmpty()||row.value("romState")=="ROM missing")
+            throw install::Error("E_PINBALL_NOT_READY","Choose a table with no scan error or missing known ROM.");
+        if(view=="headset"&&!row.value("vrReady").toBool())
+            throw install::Error("E_PINBALL_NOT_READY","This table is not marked VR-ready. Use Launch on desktop, or mark it VR-ready first.");
+        // In the headset or on the monitor, asked for explicitly through a Hub-owned settings file for this table.
         // A diagnostic settings file chooses its own mode, so nothing is layered over it.
-        const auto plan=pinball::launchPlan(table,executable,pinballDiagnosticIni_.isEmpty()?pinballVrRoot():QString(),true);
+        if(view!="desktop"&&view!="headset")throw install::Error("E_PINBALL_VIEW","Choose Launch on desktop or Launch in headset.");
+        // The headset needs SteamVR already running; the desktop never needs or starts it.
+        if(view=="headset"&&!vrServerRunning())throw install::Error("E_STEAMVR_NOT_RUNNING","Start SteamVR first, with the headset connected, then use Launch in headset.");
+        const bool diagnostic=!pinballDiagnosticIni_.isEmpty();
+        // A gamepad gets the Hub's layout through a Hub-owned copy of the user's VPX settings, made again at
+        // each start from the user's own file, which is only read. Without a gamepad VPX uses the user's file.
+        QString appSettings,gamepad;
+        if(!diagnostic){
+            QString sdl;for(const auto &name:{"SDL364.dll","SDL3.dll"}){const QFileInfo candidate(QFileInfo(executable).absoluteDir().filePath(QString::fromLatin1(name)));if(sdl.isEmpty()&&candidate.isFile())sdl=candidate.absoluteFilePath();}
+            const auto pads=gamepadProbe_?gamepadProbe_(sdl):pinball::probeGamepads(sdl);
+            // In the headset a single Y tap must not exit (holding Y in the Hub closes the table), so the copy is always made there.
+            if(!pads.isEmpty()||view=="headset"){
+                const auto own=pinball::userSettingsFile(executable);
+                const QByteArray mine=own.isEmpty()||QFileInfo(own).size()>4*1024*1024?QByteArray():install::readBytes(own);
+                appSettings=install::scopedPath("user/pinball/VPinballX.ini",root_);
+                if(!QDir().mkpath(QFileInfo(appSettings).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's Pinball settings folder");
+                auto settings=pinball::gamepadSettings(mine,pads);
+                if(view=="headset")settings=pinball::exitOnChord(settings);
+                install::atomicWrite(appSettings,settings);
+                if(!pads.isEmpty())gamepad=pads.first().toMap().value("name").toString();
+            }
+        }
+        const auto plan=pinball::launchPlan(table,executable,diagnostic?QString():root_,diagnostic?QString():view,appSettings);
         pinball::writeVrSettings(plan);
         launch::Request request;request.root=root_;request.gameId="pinball-"+id;request.variantId="vpx";request.prepareProfile=false;
         request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
         if(!pinballDiagnosticIni_.isEmpty())request.plan.args<<"-Ini"<<privatePinballIni(pinballDiagnosticIni_,root_);
-        retainedPinball_=row;retainedPinballExecutable_=request.plan.executable;
+        retainedPinball_=row;retainedPinballExecutable_=request.plan.executable;retainedPinballView_=view;
 #ifdef Q_OS_WIN
-        ui_->launchPinballQueued(row,QString());
+        ui_->launchPinballQueued(row,QString(),diagnostic?QString():view,gamepad);
 #else
         ui_->launchPinballQueued(row,"Clean window close is not supported on this platform yet.");
 #endif

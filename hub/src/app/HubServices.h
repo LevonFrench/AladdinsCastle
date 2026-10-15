@@ -72,6 +72,8 @@ public:
     void steamVrAnswered(const QString &error);
     // Whether SteamVR's server is running; tests replace it.
     void setVrServerProbe(std::function<bool()> probe){vrServerProbe_=std::move(probe);}
+    // Gamepads as Visual Pinball will name them; tests replace the probe of VPX's own SDL library.
+    void setGamepadProbe(std::function<QVariantList(const QString &)> probe){gamepadProbe_=std::move(probe);}
 signals:
     void gunRoomChanged();
     void hubExitReady(int code);
@@ -92,7 +94,7 @@ private:
     void startInstallRequest(const install::Request &request,const QString &kind);
     void installTool(const QString &gameId,const QString &variantId,const QString &handover={});
     void startGunRoom(const gunroom::Inputs &inputs);
-    void startPinball(const QVariantMap &row,const QString &executable);
+    void startPinball(const QVariantMap &row,const QString &executable,const QString &view);
     QString pinballVrRoot()const; // Empty when the user left the headset choice to VPX.
     void startModel3(const QString &id,const QString &view);
     void refreshSteamVr(const QString &error={});
@@ -124,11 +126,13 @@ private:
     bool gunRoomCalibrationAvailable_=false;
     bool gunRoomAvailable_=false, hubExitPending_=false;
     int hubExitCode_=0;
-    QVariantMap retainedPinball_;QString retainedPinballExecutable_;
+    QVariantMap retainedPinball_;QString retainedPinballExecutable_,retainedPinballView_;
+    QTimer steamVrWatch_;bool vrServerRunning()const;
     QString pinballDiagnosticIni_;
     gunroom::Inputs retainedGunRoom_;
     gunroom::Service gunRoom_;
     std::function<bool()> vrServerProbe_;
+    std::function<QVariantList(const QString &)> gamepadProbe_;
     bool askPs2ToQuit();
 };
 }

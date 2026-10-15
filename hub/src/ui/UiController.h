@@ -119,8 +119,15 @@ class UiController : public QObject {
  Q_INVOKABLE void markPinball(bool ready);
  Q_INVOKABLE void favouritePinball();
  Q_INVOKABLE void planPinball();
- Q_INVOKABLE void playPinball();
- void launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable);
+ // view: "desktop" or "headset"; empty is the headset, as Play always was.
+ Q_INVOKABLE void playPinball(const QString &view={});
+ // A table's own launch button, from its tile or its page: exactly that view, every time.
+ Q_INVOKABLE void launchPinball(const QString &id,const QString &view);
+ Q_PROPERTY(bool steamVrRunning READ steamVrRunning NOTIFY steamVrRunningChanged)
+ bool steamVrRunning()const{return m_steamVrRunning;}
+ void setSteamVrRunning(bool running){if(running!=m_steamVrRunning){m_steamVrRunning=running;emit steamVrRunningChanged();}}
+ void launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable,const QString &view={},const QString &gamepad={});
+ Q_INVOKABLE QVariantList pinballGamepadLayout()const;
  void pinballFailed(const QString &error);
  // Model 3: one row per game with its remembered view and any set-up problem.
  QVariantList model3Games()const;
@@ -204,7 +211,8 @@ class UiController : public QObject {
  void closeLaunchRequested();
  void nowPlayingChanged();
  void pinballChanged();
- void pinballPlayRequested(const QString &id);
+ void pinballPlayRequested(const QString &id,const QString &view);
+ void steamVrRunningChanged();
  void model3Changed();
  void catalogReadyChanged();
  void setupChanged();
@@ -228,7 +236,7 @@ class UiController : public QObject {
  void scheduleFacetsChanged();
  void retryGameInstall(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
  bool m_facetsQueued=false;
- GameListModel *m_games; FilterSortModel *m_filter; UiSettings *m_settings;
+ GameListModel *m_games; FilterSortModel *m_filter; UiSettings *m_settings;bool m_steamVrRunning=false;
  QString m_detailId,m_variantId,m_status; QVariantList m_events; QVariantMap m_recovery;
  int m_artRevision=0;
  bool m_artProviderReady=false;

@@ -6,6 +6,7 @@
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
+#include "core/pinball/Gamepad.h"
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -248,13 +249,18 @@ void UiController::pinballFailed(const QString &error){m_pinballScanning=false;e
 void UiController::markPinball(bool ready){const auto id=m_pinballSelection.value("id").toString();if(id.isEmpty())return;auto overrides=m_settings->get("pinballOverrides",QVariantMap{}).toMap();overrides[id]=ready;m_settings->set("pinballOverrides",overrides);pinballLoaded(m_pinballRaw);selectPinball(id);}
 void UiController::favouritePinball(){const auto id=m_pinballSelection.value("id").toString();if(id.isEmpty())return;auto favourites=m_settings->get("pinballFavourites",QVariantMap{}).toMap();favourites[id]=!favourites.value(id).toBool();m_settings->set("pinballFavourites",favourites);pinballLoaded(m_pinballRaw);selectPinball(id);}
 void UiController::planPinball(){if(m_pinballSelection.isEmpty())return;emit pinballPlanRequested(m_pinballSelection.value("path").toString(),m_settings->get("pinballExecutable",QString()).toString(),m_pinballSelection.value("id").toString());}
-void UiController::playPinball(){if(!m_pinballSelection.isEmpty())emit pinballPlayRequested(m_pinballSelection.value("id").toString());}
-void UiController::launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable){
+void UiController::playPinball(const QString &view){if(!m_pinballSelection.isEmpty())emit pinballPlayRequested(m_pinballSelection.value("id").toString(),view.isEmpty()?QString("headset"):view);}
+void UiController::launchPinball(const QString &id,const QString &view){if(view!="desktop"&&view!="headset")return;selectPinball(id);playPinball(view);}
+void UiController::launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable,const QString &view,const QString &gamepad){
  queueSession("pinball-"+row.value("id").toString(),"vpx",closeUnavailable);
  m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");
- if(m_settings->get("pinballHeadset",true).toBool())m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table, Y exits and X opens the menu.";
+ const bool headset=view!="desktop";
+ const QString pad=gamepad.isEmpty()?QString():" Gamepad ("+gamepad+"): LB/RB or the triggers are the flippers, pull the right stick down for the plunger, Start and Back together exit.";
+ if(headset)m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table, Y exits and X opens the menu."+pad;
+ else m_nowPlaying["hint"]="On the desktop, with VR off."+(pad.isEmpty()?QString(" No gamepad was found; the keyboard plays as Visual Pinball is set."):pad);
  emit nowPlayingChanged();
 }
+QVariantList UiController::pinballGamepadLayout()const{return pinball::gamepadLayout();}
 QVariantMap UiController::setupKinds()const{
  // Until the user says otherwise, a kind is ticked when one of its systems already has a folder.
  const auto saved=m_settings->get("setupKinds",QVariantMap{}).toMap();

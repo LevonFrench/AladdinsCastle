@@ -23,7 +23,11 @@ Item {
    &&(!favourites.checked||r.favourite===true)&&(!recent.checked||Number(r.lastPlayed)>0)
  }).sort(function(a,b){return sort.currentText==="Recent"?Number(b.lastPlayed||0)-Number(a.lastPlayed||0):String(a.title).localeCompare(String(b.title))})
  property string locationKey:"pinballFolder"
- property bool headset:(uiSettings.values,uiSettings.get("pinballHeadset",true))
+ // Two launches per table, each exactly what it says. The headset one waits for SteamVR; the desktop one never needs it.
+ property bool idle:Object.keys(uiController.nowPlaying).length===0
+ function startable(row){return !!row&&!!row.id&&!row.error&&row.romState!=="ROM missing"&&page.idle}
+ function headsetReady(row){return page.startable(row)&&row.vrReady===true&&uiController.steamVrRunning}
+ readonly property string headsetReason:uiController.steamVrRunning?"":"Launch in headset needs SteamVR running, with the headset connected."
  // A folder chosen earlier shows its last scan when the tab opens, so the tables are there without a desktop step.
  property string startItem:""
  Component.onCompleted:{uiController.openPinball();if(startItem.length)uiController.selectPinball(startItem)}
@@ -38,6 +42,7 @@ Item {
    PillButton {text:"ROM folder";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballRoms";folder.open()}}
    PillButton {text:"Media folder";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballMedia";folder.open()}}
   }
+  UiText {objectName:"pinballHeadsetReason";visible:text.length>0;text:page.headsetReason;color:Theme.get("color.state.needs_neon")}
   UiText {objectName:"pinballCount";text:page.showAll?String(page.scanData.vrReady||0)+" VR-ready of "+String(page.scanData.total||0)+" tables":page.filtered.length+" tables ready to play"}
   RowLayout {spacing:8
    TextField {id:query;objectName:"pinballSearch";Layout.fillWidth:true;Layout.preferredHeight:page.vrOverlayMode?56:40;placeholderText:"Search tables";Accessible.name:"Search Pinball tables"
@@ -55,11 +60,13 @@ Item {
    PillButton {id:recent;checkable:true;text:"Recently played";selected:checked;vrOverlayMode:page.vrOverlayMode}
    PillButton {id:excluded;objectName:"pinballExcluded";checkable:true;visible:page.showAll;text:"Show excluded";selected:checked;vrOverlayMode:page.vrOverlayMode}
   }
-  GridView {id:grid;objectName:"pinballGrid";Layout.fillWidth:true;Layout.fillHeight:true;clip:true;cellWidth:Math.max(210,width/Math.max(1,Math.floor(width/210)));cellHeight:page.vrOverlayMode?Math.max(130,Math.floor(height/Math.max(1,Math.floor(height/140)))):196;model:page.filtered;boundsBehavior:Flickable.StopAtBounds
+  GridView {id:grid;objectName:"pinballGrid";property bool anyWheel:page.filtered.some(r=>!!r.wheelUrl);Layout.fillWidth:true;Layout.fillHeight:true;clip:true;cellWidth:Math.max(210,width/Math.max(1,Math.floor(width/210)));cellHeight:page.vrOverlayMode?Math.max(230,Math.floor(height/Math.max(1,Math.floor(height/230)))):anyWheel?300:250;model:page.filtered;boundsBehavior:Flickable.StopAtBounds
    ScrollBar.vertical:ScrollBar{}
    delegate:Button {id:tile;objectName:"pinballTile";required property var modelData;width:grid.cellWidth-8;height:grid.cellHeight-8;padding:12;Accessible.name:modelData.title;onClicked:uiController.selectPinball(modelData.id)
     background:Rectangle {radius:Theme.get("size.card.radius");color:tile.down?Theme.get("color.surface.menu_hover"):Theme.get("color.surface.card");border.width:tile.activeFocus?2:1;border.color:tile.activeFocus?Theme.get("color.glass.ring"):tile.hovered?Theme.get("color.line.button"):Theme.get("color.line.strong")}
-    contentItem:Column {spacing:8;Image{width:parent.width;height:visible?64:0;visible:!!modelData.wheelUrl&&grid.cellHeight>=190;source:modelData.wheelUrl||"";sourceSize.width:256;sourceSize.height:64;fillMode:Image.PreserveAspectFit}UiText{width:parent.width;text:modelData.title;wrapMode:Text.Wrap;font.pixelSize:18;color:Theme.get("color.text.primary");maximumLineCount:grid.cellHeight>=190?3:2;elide:Text.ElideRight}UiText{width:parent.width;text:(modelData.maker||"")+" "+(modelData.year||"");wrapMode:Text.Wrap}UiText{width:parent.width;text:page.stateText(modelData.romState);wrapMode:Text.Wrap;color:modelData.romState==="ready"||modelData.romState==="needs no ROM"?Theme.get("color.state.ready_neon"):Theme.get("color.state.needs_neon")}}
+    contentItem:Column {spacing:8;Image{width:parent.width;height:visible?64:0;visible:!!modelData.wheelUrl&&grid.cellHeight>=190;source:modelData.wheelUrl||"";sourceSize.width:256;sourceSize.height:64;fillMode:Image.PreserveAspectFit}UiText{width:parent.width;text:modelData.title;wrapMode:Text.Wrap;font.pixelSize:18;color:Theme.get("color.text.primary");maximumLineCount:grid.cellHeight>=190?3:2;elide:Text.ElideRight}UiText{width:parent.width;text:(modelData.maker||"")+" "+(modelData.year||"");wrapMode:Text.Wrap}UiText{width:parent.width;text:page.stateText(modelData.romState);wrapMode:Text.Wrap;color:modelData.romState==="ready"||modelData.romState==="needs no ROM"?Theme.get("color.state.ready_neon"):Theme.get("color.state.needs_neon")}
+     PillButton{objectName:"pinballTileDesktop";width:parent.width;height:page.vrOverlayMode?44:30;text:"Launch on desktop";neon:true;accent:Theme.get("color.state.ready_neon");enabled:page.startable(modelData);vrOverlayMode:page.vrOverlayMode;onClicked:uiController.launchPinball(modelData.id,"desktop")}
+     PillButton{objectName:"pinballTileHeadset";width:parent.width;height:page.vrOverlayMode?44:30;text:"Launch in headset";neon:true;accent:Theme.get("color.state.ready_neon");enabled:page.headsetReady(modelData);vrOverlayMode:page.vrOverlayMode;onClicked:uiController.launchPinball(modelData.id,"headset")}}
    }
   }
   RowLayout {spacing:8;visible:page.vrOverlayMode
@@ -74,11 +81,11 @@ Item {
    PillButton {text:"Back to tables";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.selectPinball("")}
    UiText {objectName:"pinballDetailTitle";width:parent.width;text:page.selected.title||"";font.pixelSize:24;wrapMode:Text.Wrap}
    UiText {width:parent.width;wrapMode:Text.Wrap;text:[page.selected.maker||"",page.selected.year||"",page.selected.authors||"",page.selected.version||""].join(" · ")}
-   UiText {width:parent.width;wrapMode:Text.Wrap;text:Array.from(page.selected.evidence||[]).join(", ")+"\n"+Array.from(page.selected.features||[]).join(", ")+"\n"+(page.selected.error||page.selected.romState||"")}
+   UiText {width:parent.width;wrapMode:Text.Wrap;text:Array.from(page.selected.evidence||[]).join(", ")+"\n"+Array.from(page.selected.features||[]).join(", ")+"\n"+(page.selected.error||page.stateText(page.selected.romState))}
    // Actions come first so Play needs no scrolling, in the headset least of all.
    Flow {width:parent.width;spacing:8
-    PillButton {objectName:"pinballPlay";neon:true;accent:Theme.get("color.state.ready_neon");text:page.headset?"Play in headset":"Play";vrOverlayMode:page.vrOverlayMode;enabled:page.selected.vrReady===true&&!page.selected.error&&page.selected.romState!=="ROM missing"&&Object.keys(uiController.nowPlaying).length===0;onClicked:uiController.playPinball()}
-    PillButton {objectName:"pinballHeadset";text:page.headset?"Headset: on":"Headset: as VPX is set";selected:page.headset;vrOverlayMode:page.vrOverlayMode;onClicked:uiSettings.set("pinballHeadset",!page.headset)}
+    PillButton {objectName:"pinballLaunchDesktop";neon:true;accent:Theme.get("color.state.ready_neon");text:"Launch on desktop";vrOverlayMode:page.vrOverlayMode;enabled:page.startable(page.selected);onClicked:uiController.playPinball("desktop")}
+    PillButton {objectName:"pinballLaunchHeadset";neon:true;accent:Theme.get("color.state.ready_neon");text:"Launch in headset";vrOverlayMode:page.vrOverlayMode;enabled:page.headsetReady(page.selected);onClicked:uiController.playPinball("headset")}
     PillButton {text:page.selected.favourite?"Unfavourite":"Favourite";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.favouritePinball()}
     PillButton {text:"Mark VR-ready";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(true)}
     PillButton {text:"Exclude";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(false)}
@@ -86,7 +93,14 @@ Item {
    }
    UiText {objectName:"pinballAccepted";width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted_detail")
     text:{let when=(uiSettings.values,uiSettings.acceptedOn("pinball-"+(page.selected.id||""),page.selected.title||""));return "In the headset: "+(when?"accepted by you ("+when+")":"not yet accepted by you")+"."}}
-   UiText {width:parent.width;wrapMode:Text.Wrap;text:"Y exits the table. X opens the in-game menu."}
+   UiText {width:parent.width;wrapMode:Text.Wrap;text:(page.headsetReason?page.headsetReason+" ":"")+(page.selected.vrReady===true?"":"This table is not marked VR-ready, so it launches on the desktop only. ")+"On the desktop VR stays off and SteamVR is not needed. In the headset, VR controllers: X opens the in-game menu; Y together with the left stick click exits the table."}
+   // The gamepad layout the Hub sets for an Xbox-style controller, in both views.
+   UiText {width:parent.width;text:"Gamepad";font.pixelSize:page.vrOverlayMode?20:16;font.weight:600}
+   Grid {objectName:"pinballGamepad";columns:2;columnSpacing:16;rowSpacing:4
+    // A Grid fills row by row: control, then what it does.
+    Repeater {model:{let cells=[];for(let row of uiController.pinballGamepadLayout())cells.push({text:row.control,strong:true},{text:row.action,strong:false});return cells}
+     UiText {required property var modelData;text:modelData.text;font.pixelSize:page.vrOverlayMode?16:13;color:modelData.strong?Theme.get("color.text.primary"):Theme.get("color.text.body")}}
+   }
    UiText {width:parent.width;wrapMode:Text.Wrap;text:uiController.pinballControlsStatus;visible:text.length>0}
    Loader {width:parent.width;active:uiController.pinballControls.rows.length>0;visible:active;height:item?item.implicitHeight:0;source:"qrc:/controls/ControlsView.qml"
     onLoaded:{item.width=width;item.controlsModel=uiController.pinballControls;item.textSize=page.vrOverlayMode?18:14}

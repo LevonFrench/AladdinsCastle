@@ -163,7 +163,7 @@ int main(int argc,char **argv){
         }
         try{if(!qaPinballIni.isEmpty())services.setPinballDiagnosticIni(qaPinballIni);}
         catch(const std::exception &exception){ui.showError("Diagnostic","Pinball diagnostic settings refused: "+QString::fromUtf8(exception.what()));return;}
-        ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball();
+        ui.pinballLoaded({{"tables",QVariantList{row}}});ui.selectPinball(row.value("id").toString());ui.playPinball(qEnvironmentVariable("AC_UI_PINBALL_VIEW","desktop")); // A diagnostic's settings file chooses VR itself.
     });
     else if(!qaGame.isEmpty())QTimer::singleShot(1000,&ui,[&ui,qaGame]{ui.primary(qaGame);});
     // Diagnostic: one game started and ended through the Hub, written to AC_LAUNCH_PROOF.
