@@ -2307,7 +2307,7 @@ diff --git a/pcsx2/GS/PS2VRControllers.h b/pcsx2/GS/PS2VRControllers.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRControllers.h
-@@ -0,0 +1,320 @@
+@@ -0,0 +1,334 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// Included inside PS2Live after the runtime function table. Presenter-thread only.
 +static XrActionSet gun_actions=XR_NULL_HANDLE;
@@ -2596,16 +2596,29 @@ new file mode 100644
 + GLuint fbo=0,tex=0;glGenFramebuffers(1,&fbo);glCreateTextures(GL_TEXTURE_2D,1,&tex);
 + glTextureStorage2D(tex,1,GL_SRGB8_ALPHA8,GUN_RES,GUN_RES);glBindFramebuffer(GL_FRAMEBUFFER,fbo);
 + glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,tex,0);
-+ const auto projection=PS2VRGun::Mat4::Projection(-1,1,-1,1);
-+ const auto grip=PS2VRGun::Mat4::Translation(.12f,-.13f,-.42f)*PS2VRGun::Mat4::Rotation(1,0,0,-1.15f);
-+ const auto aim=PS2VRGun::Mat4::Translation(.12f,-.095f,-.44f);
++ const auto grip=PS2VRGun::Mat4::Translation(-.10f,-.13f,-.42f)*PS2VRGun::Mat4::Rotation(1,0,0,-1.15f);
++ const auto aim=PS2VRGun::Mat4::Translation(-.10f,-.095f,-.44f);
++ const auto fake=PS2VRInside::Fake();
++ PS2VRGun::Sample fixture;fixture.active=fixture.on_screen=fixture.scene_point_valid=true;
++ fixture.u=fixture.v=.5f;fixture.scene_point={0,0,-.8f};
++ std::ofstream dot_receipt(std::string(prefix)+"-dot-projection.txt");
++ dot_receipt<<"fixture metres 0 0 -0.8; columns eye u bottom_up_v; projection16 view16\n";
 + for(int eye=0;eye<2;eye++) {
-+  const auto view_matrix=PS2VRGun::Mat4::Translation(eye?-.0315f:.0315f,0,0);
++  auto projection=PS2VRGun::Mat4::Projection(-1,1,-1,1);
++  auto view_matrix=PS2VRGun::Mat4::Translation(eye?-.0315f:.0315f,0,0);
++  if(PS2VRInside::Enabled() && PS2VRInside::Valid(fake)) {
++   const auto& e=fake.eyes[eye];
++   projection=PS2VRGun::Mat4::Projection(e.tangents[0],e.tangents[1],e.tangents[2],e.tangents[3]);
++   view_matrix=PS2VRGun::Mat4::FromPose(e.pose.data(),e.pose.data()+3).RigidInverse();
++  }
++  float dot_u=0,dot_v=0;
++  const bool dot_visible=AimDotPosition(fixture,projection,view_matrix,PS2VRGun::Mat4::Translation(0,0,-2.5f),4,3,dot_u,dot_v);
++  dot_receipt<<eye<<' '<<dot_u<<' '<<dot_v;for(float n:projection.m)dot_receipt<<' '<<n;for(float n:view_matrix.m)dot_receipt<<' '<<n;dot_receipt<<'\n';
 +  DrainGL("before","overlay proof render");
 +  // Save gun-only alpha BEFORE adding the dot, then exercise dot-only with
 +  // model hidden to catch stale opaque backgrounds on the following frame.
-+  for(int pass=0;pass<2;pass++) {
-+   const bool ok=RenderControllerOverlay(model,fbo,GUN_RES,GUN_RES,projection,view_matrix,grip,aim,0,-1,pass==0,pass==1,.5f,.5f,error);
++  for(int pass=0;pass<3;pass++) {
++   const bool ok=RenderControllerOverlay(model,fbo,GUN_RES,GUN_RES,projection,view_matrix,grip,aim,pass==2?1.f:0.f,pass==2?.035f:-1.f,pass!=1,pass!=0&&dot_visible,dot_u,dot_v,error);
 +   glReadBuffer(GL_COLOR_ATTACHMENT0);glBindBuffer(GL_PIXEL_PACK_BUFFER,0);glPixelStorei(GL_PACK_ALIGNMENT,4);
 +   glPixelStorei(GL_PACK_ROW_LENGTH,0);glPixelStorei(GL_PACK_SKIP_ROWS,0);glPixelStorei(GL_PACK_SKIP_PIXELS,0);
 +   std::vector<u32> pixels(GUN_RES*GUN_RES),rgba(pixels.size()),alpha(pixels.size());
@@ -2615,10 +2628,11 @@ new file mode 100644
 +    rgba[y*GUN_RES+x]=value;alpha[y*GUN_RES+x]=0xff000000u|a|(a<<8)|(a<<16);
 +    foreground+=a!=0;transparent+=a==0;
 +   }
-+   const std::string name=std::string(prefix)+(pass?"-dot":"-gun")+(eye?"-right":"-left");
++   const char* part=pass==0?"gun":pass==1?"dot":"shot";
++   const std::string name=std::string(prefix)+"-"+part+(eye?"-right":"-left");
 +   const bool saved=RGBA8Image(GUN_RES,GUN_RES,std::move(rgba)).SaveToFile((name+"-rgba.png").c_str()) && RGBA8Image(GUN_RES,GUN_RES,std::move(alpha)).SaveToFile((name+"-alpha.png").c_str());
 +   const auto errors=DrainGL("after","overlay proof render/readback");
-+   if(live_log){std::fprintf(live_log,"Overlay alpha proof eye=%d part=%s draw=%d saved=%d foreground=%u transparent=%u GL_errors=%u error=%s\n",eye,pass?"dot":"gun",ok,saved,foreground,transparent,errors,error.c_str());std::fflush(live_log);}
++   if(live_log){std::fprintf(live_log,"Overlay alpha proof eye=%d part=%s draw=%d saved=%d foreground=%u transparent=%u GL_errors=%u error=%s\n",eye,part,ok,saved,foreground,transparent,errors,error.c_str());std::fflush(live_log);}
 +  }
 + }
 + XrCompositionLayerQuad quads[2]{{XR_TYPE_COMPOSITION_LAYER_QUAD},{XR_TYPE_COMPOSITION_LAYER_QUAD}};

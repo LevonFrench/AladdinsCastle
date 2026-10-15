@@ -49,7 +49,8 @@
   "controller_overlay_validation": {
     "composition": "Base screen quads or INSIDE scene/HUD, then alpha-blended gun/dot projection; no composition depth.",
     "offline": "Live shared-context per-eye alpha and stale-pixel proof; common composition builder recorded for both modes.",
-    "headset": "Owner retest required; no runtime started."
+    "headset": "Owner retest required; no runtime started.",
+    "scene_dot": "Native fake-head20 projection fixture at0.8m:53px eye disparity, subpixel centroid agreement, transparent background, trigger/recoil with invariant dot; physical tracking/haptic acceptance pending."
   },
   "inside_controller_aim": {
     "method": "Nearest retained camera triangle or100m fallback; original-picture UV through the same scanout-aware camera used by reconstruction.",

@@ -580,3 +580,15 @@ Native tests cover translated origins, nearest hit, fallback, invalid/backward
 rays, head-relative20-degree projection, and input pulse release. Physical
 tracking, game-specific calibration beyond the sampled title, muzzle fit and
 haptics still require the owner's headset check.
+
+
+The overlay proof also exercises the scene-distance dot consumer with a0.8m
+fixture and the actual fake-head20 eye matrices. Independently projected UV
+matches the native dot centre to less than1pixel; left/right dots are53pixels
+apart in1024px eye images. The trigger/recoil fixture moves the gun while the
+dot pixels remain identical. Separate native side/rear trigger0/1 renders check
+the supplied model, both trigger-node transforms and muzzle/aim alignment;
+the trigger is occluded from the rear. Alpha/RGB is zero outside the gun/dot.
+This is a deterministic visual fixture, separate from the real game shot proof.
+Live recoil/haptic dispatch remains keyed to the GunCon USB accepted-shot serial,
+with35ms amplitude1 feedback; actual vibration and tracked fit require a headset.
