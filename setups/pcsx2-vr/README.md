@@ -760,3 +760,22 @@ stippling and flat sparks remain; culling holes expected. Close/Far chase
 views confirmed in own options, first-person/cockpit unconfirmed. Physical
 headset,live FPS and whole-title effects untested. OutRun2 remains generic
 after its fit stop; XGIII is the last unattempted profile.
+
+### XGIII measured camera; INSIDE visual defect
+
+Actual Palus/Lithium/Muon Harbor race reached. All-candidate fit was ineligible;
+depth-writing training subset gives corroborated main640 camera consensus:
+`Z=-43008.36301120091+687194966.8812681*Q`,Qscale+1. Train182673/288882
+within64,inlierRMS1.685744. Held-out including nonwriting passes:57050/96768
+within64(58.9554%),inlierRMS1.610554,max62.5823; ALL-row RMS7405726.596,
+max300380984.762. This is not universal texture Q. Native39718 outside-guard
+world vertices all use fitted-Z. Provisional units/m10,fx320,fy341.3333,
+virtualcanvas640x512,convergence1000m; output640x448,source640x256.
+
+Near barrier19px/tail31px versus far bridge3px, with imperfect near registration
+and remaining material artifacts. All3 stereo-off/unchanged and isolated-HUD
+RGBA comparisons pass. Native launcher shared/SBS/exact-zero pass at3x1920x1344.
+Fake30 INSIDE is VISUALLY UNACCEPTED: duplicate HUD/scenery,detached translucent
+light/trail planes,dark cutouts beyond frustum holes. No unique cause assigned.
+Select confirms bike-free internal/first-person view, without visible cockpit;
+proofs use chase, not every camera preset. Physical/live FPS untested.
