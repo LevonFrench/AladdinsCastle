@@ -109,35 +109,45 @@ Item {
     onActivated:i=>{page.shelfIndex=index;page.tileIndex=i;page.openRow(modelData.items[i])}}
   }
  }
- Loader {anchors.fill:parent;active:!!page.selectedId;sourceComponent:Component{ColumnLayout {spacing:12
-  RowLayout {spacing:12
-   PillButton {objectName:"model3Back";text:"Back to games";vrOverlayMode:page.vrOverlayMode;onClicked:page.selectedId=""}
-   UiText {objectName:"model3Title";text:page.selected.title||"";font.pixelSize:24;Layout.fillWidth:true}
+ // A game's own page: the hero with Start and Back, then how to see it, then what it needs.
+ Loader {anchors.fill:parent;active:!!page.selectedId;sourceComponent:Component{ColumnLayout {spacing:0
+  HeroBanner {Layout.fillWidth:true;Layout.preferredHeight:page.height*(page.vrOverlayMode?0.4:0.44);vrOverlayMode:page.vrOverlayMode
+   system:page.selected.system||"model3"
+   eyebrow:(page.hardwareLabel(page.selected)+(page.selected.year?"  ·  "+page.selected.year:"")).toUpperCase()
+   title:page.selected.title||""
+   meta:page.selected.problem||(page.selected.warning?"Before you start: "+page.selected.warning:"Found on this PC. The view you choose below is remembered for this game.")
+   metaColour:page.selected.problem||page.selected.warning?page.needsColour:Theme.get("color.text.muted")
+   PillButton {objectName:"model3Start";targetHeight:page.vrOverlayMode?56:48;text:"Start "+(page.selected.title||"")+" · "+(page.selected.viewLabel||"");neon:true;accent:page.selected.problem?page.needsColour:page.readyColour;vrOverlayMode:page.vrOverlayMode;enabled:!page.selected.problem&&page.idle;onClicked:page.play(page.selected)}
+   PillButton {objectName:"model3Back";targetHeight:page.vrOverlayMode?56:48;text:"‹ Back";vrOverlayMode:page.vrOverlayMode;onClicked:page.selectedId=""}
   }
-  UiText {Layout.fillWidth:true;text:"Choose how you see it. The choice is remembered for this game."}
-  RowLayout {Layout.fillWidth:true;Layout.fillHeight:true;spacing:12
+  Text {objectName:"model3Title";visible:false;text:page.selected.title||""}
+  Text {Layout.leftMargin:page.vrOverlayMode?28:40;Layout.topMargin:4;text:"How you see it";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?22:19}
+  RowLayout {Layout.fillWidth:true;Layout.leftMargin:page.vrOverlayMode?28:40;Layout.rightMargin:page.vrOverlayMode?28:40;Layout.topMargin:12;spacing:16
    Repeater {model:page.views
     Button {id:option;objectName:"model3View";required property var modelData;property bool chosen:page.selected.view===modelData.id
-     Layout.fillWidth:true;Layout.fillHeight:true;Layout.preferredWidth:1;Layout.maximumHeight:340;padding:14
+     Layout.fillWidth:true;Layout.preferredWidth:1;Layout.preferredHeight:page.vrOverlayMode?186:140;padding:16;hoverEnabled:true
      Accessible.name:modelData.label;Accessible.checked:chosen
      onClicked:page.choose(page.selected,modelData.id)
-     background:Rectangle {radius:Theme.get("size.card.radius");color:Theme.mix(Theme.get("color.surface.card"),page.readyColour,option.chosen?0.12:0.03);border.width:option.chosen||option.activeFocus?2:1;border.color:option.chosen?page.readyColour:option.hovered?Theme.get("color.line.button"):Theme.get("color.line.strong")}
-     contentItem:ColumnLayout {spacing:8
-      ViewPicture {Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:70;kind:option.modelData.id==="headset"||option.modelData.id==="vr"?"inside":option.modelData.id==="monitor"?"screen":option.modelData.id;accent:option.chosen?page.readyColour:Theme.get("color.text.muted_detail")}
-      UiText {Layout.fillWidth:true;text:(option.chosen?"● ":"○ ")+option.modelData.label;font.pixelSize:page.vrOverlayMode?22:18;color:option.chosen?page.readyColour:Theme.get("color.text.primary")}
-      UiText {Layout.fillWidth:true;text:option.modelData.help;font.pixelSize:page.vrOverlayMode?16:13}
+     background:Rectangle {radius:Theme.get("radius.card");color:option.chosen?Theme.get("color.surface.pill"):Theme.get("color.surface.card");border.width:option.chosen||option.activeFocus||option.hovered?3:0;border.color:Theme.get("color.glass.ring")}
+     contentItem:RowLayout {spacing:14
+      ViewPicture {Layout.preferredWidth:page.vrOverlayMode?90:80;Layout.fillHeight:true;kind:option.modelData.id==="headset"||option.modelData.id==="vr"?"inside":option.modelData.id==="monitor"?"screen":option.modelData.id;accent:option.chosen?page.readyColour:Theme.get("color.text.muted_detail")}
+      ColumnLayout {Layout.fillWidth:true;spacing:6
+       Text {Layout.fillWidth:true;text:option.modelData.label;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?21:18}
+       Text {Layout.fillWidth:true;text:option.modelData.help;wrapMode:Text.Wrap;maximumLineCount:6;elide:Text.ElideRight;color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?16:14}
+       Item {Layout.fillHeight:true}
+      }
      }
     }
    }
   }
-  // The four facts kept apart: listed, how to start it, found here, accepted by the owner.
-  UiText {objectName:"model3Status";Layout.fillWidth:true;font.pixelSize:14;color:Theme.get("color.text.muted_detail")
-   text:"In the Hub's list: yes.   How to start it: known.   On this PC: "+(page.selected.found?"found":"not ready")+".   In the headset: "+(page.selected.accepted?"accepted by you ("+page.selected.accepted+")":"not yet accepted by you")+"."}
-  UiText {objectName:"model3Problem";Layout.fillWidth:true;visible:!!page.selected.problem;text:page.selected.problem||"";font.pixelSize:16;color:page.needsColour}
-  UiText {objectName:"model3Warning";Layout.fillWidth:true;visible:!!page.selected.warning;text:"Before you start: "+(page.selected.warning||"");font.pixelSize:16;color:page.needsColour}
-  RowLayout {spacing:12
-   PillButton {objectName:"model3Start";text:"Start "+(page.selected.title||"")+" · "+(page.selected.viewLabel||"");neon:true;accent:page.selected.problem?page.needsColour:page.readyColour;vrOverlayMode:page.vrOverlayMode;enabled:!page.selected.problem&&page.idle;onClicked:page.play(page.selected)}
-   UiText {Layout.fillWidth:true;visible:!page.selected.system;text:"In the game: Home = set straight ahead, 1 = start, 3 = coin, Esc = quit."}
+  ColumnLayout {Layout.fillWidth:true;Layout.leftMargin:page.vrOverlayMode?28:40;Layout.rightMargin:page.vrOverlayMode?28:40;Layout.topMargin:18;spacing:8
+   UiText {objectName:"model3Problem";Layout.fillWidth:true;visible:!!page.selected.problem;text:page.selected.problem||"";font.pixelSize:page.vrOverlayMode?18:16;color:page.needsColour}
+   UiText {objectName:"model3Warning";Layout.fillWidth:true;visible:!!page.selected.warning;text:"Before you start: "+(page.selected.warning||"");font.pixelSize:page.vrOverlayMode?18:16;color:page.needsColour}
+   UiText {Layout.fillWidth:true;visible:!page.selected.system;text:"In the game: Home = set straight ahead · 1 = start · 3 = coin · Esc = quit";font.pixelSize:page.vrOverlayMode?18:16;color:Theme.get("color.text.body")}
+   // The four facts kept apart: listed, how to start it, found here, accepted by the owner.
+   UiText {objectName:"model3Status";Layout.fillWidth:true;font.pixelSize:page.vrOverlayMode?16:14;color:Theme.get("color.text.muted_detail")
+    text:"In the Hub's list: yes   ·   How to start it: known   ·   On this PC: "+(page.selected.found?"found":"not ready")+"   ·   In the headset: "+(page.selected.accepted?"accepted by you ("+page.selected.accepted+")":"not yet accepted by you")}
   }
+  Item {Layout.fillHeight:true}
  }}}
 }
