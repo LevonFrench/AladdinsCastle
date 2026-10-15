@@ -174,6 +174,9 @@ int main(int argc,char **argv){
     QObject::connect(&overlay,&ac::OverlayHost::closeGameRequested,&ui,[&ui]{ui.stopLaunch();});
     // Diagnostic: one game started and ended through the Hub, written to AC_LAUNCH_PROOF.
     if(const auto proof=ac::launchProofOptions();!proof.output.isEmpty())ac::runLaunchProof(proof,services,ui);
+    // Diagnostic, for pictures only: the now-playing screen with a sample session; nothing is started.
+    if(qEnvironmentVariableIsSet("AC_UI_DEMO_NOWPLAYING"))QTimer::singleShot(400,&ui,[&ui]{
+        ui.launchOtherQueued("model3-scud","screen","Scud Race · Screen","Home = set straight ahead. 1 = start, 3 = coin, hold Y for 3 seconds to quit.",QString());ui.launchStarted("model3-scud");});
     // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.
     if(qEnvironmentVariableIsSet("AC_UI_SETUP_SCAN"))QTimer::singleShot(500,&ui,[&ui]{ui.scanSetup();});
     ac::Json diagnosticFinished=ac::Json::array();
