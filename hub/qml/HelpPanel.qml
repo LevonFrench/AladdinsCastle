@@ -11,8 +11,8 @@ Popup{
  signal gunRoomRequested()
  signal setupRequested()
  width:300;padding:12;modal:true;focus:true;closePolicy:Popup.CloseOnEscape|Popup.CloseOnPressOutside
- background:Rectangle{color:Theme.get("color.surface.panel");radius:8;border.color:Theme.get("color.line.button")}
- Column{width:parent.width;spacing:8;UiText{text:"HELP & FEEDBACK";font.pixelSize:10;color:Theme.get("color.text.menu_caption")}
+ background:Rectangle{color:Theme.get("color.surface.panel");radius:Theme.get("radius.hero");border.color:Theme.get("color.line.strong")}
+ Column{width:parent.width;spacing:8;UiText{text:"HELP & SETTINGS";font.pixelSize:panel.vrOverlayMode?14:12;font.weight:700;font.letterSpacing:1.5;color:Theme.get("color.text.muted")}
   PillButton{objectName:"helpSettings";vrOverlayMode:panel.vrOverlayMode;text:"Settings";width:parent.width;onClicked:{panel.close();panel.settingsRequested()}}
   PillButton{objectName:"helpSetup";vrOverlayMode:panel.vrOverlayMode;text:"Set-up";width:parent.width;onClicked:{panel.close();panel.setupRequested()}}
   PillButton{objectName:"helpGunRoom";text:"Gun room";visible:!panel.vrOverlayMode&&panel.showAll;width:parent.width;onClicked:{panel.close();panel.gunRoomRequested()}}

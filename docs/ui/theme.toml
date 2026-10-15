@@ -26,72 +26,72 @@ models = "docs/ui/05-models.md"
 # ---------------------------------------------------------------- colours
 
 [color.surface]
-window = "#0f0f12"              # 01 1.14 window background. Core/Modules/Window.Layout.ps1:12
-header = "#0d0d0f"              # 01 1.4 header strip. Window.Layout.ps1:24
-filterbar = "#0d0d0f"           # 01 1.5 filter bar. Window.Layout.ps1:272
-filterbar_rule = "#1a1a22"      # 01 1.5 filter bar bottom border. Window.Layout.ps1:273
-card = "#0c0c10"                # 02 1.5 Frosted card base. Frosted.ps1:27. [open] 02 2.2 may use per-game [hub].colour
-card_fade = "#db16161a"         # 02 2.4 / 03 art fade rgba(22,22,26,0.86): alpha 0.86 = 0xdb. Spec 02 wrote 16161adc (RRGGBBAA); converted
-pill = "#16161a"                # 01 1.14 glass base: search, ORDER, menu buttons, chips. Window.Layout.ps1:116, 156, 180, 205
-panel = "#16161a"               # 01 1.17 overlay panels (ORDER, help). Window.Layout.ps1:1436
-box = "#13131a"                 # 03 1.8 Game Info, similar and uninstall boxes. DetailView.Page.ps1:1197
-box_rule = "#222230"            # 03 1.8 box border. DetailView.Page.ps1:1199
-banner = "#0f0f15"              # 01 1.6 banner frame. Window.Layout.ps1:716
+window = "#0a0c10"              # 01 1.14 window background. Core/Modules/Window.Layout.ps1:12
+header = "#0a0c10"              # 01 1.4 header strip. Window.Layout.ps1:24
+filterbar = "#0a0c10"           # 01 1.5 filter bar. Window.Layout.ps1:272
+filterbar_rule = "#1b212b"      # 01 1.5 filter bar bottom border. Window.Layout.ps1:273
+card = "#151a23"                # 02 1.5 Frosted card base. Frosted.ps1:27. [open] 02 2.2 may use per-game [hub].colour
+card_fade = "#e6151a23"         # 02 2.4 / 03 art fade rgba(22,22,26,0.86): alpha 0.86 = 0xdb. Spec 02 wrote 16161adc (RRGGBBAA); converted
+pill = "#1e2532"                # 01 1.14 glass base: search, ORDER, menu buttons, chips. Window.Layout.ps1:116, 156, 180, 205
+panel = "#151a23"               # 01 1.17 overlay panels (ORDER, help). Window.Layout.ps1:1436
+box = "#151a23"                 # 03 1.8 Game Info, similar and uninstall boxes. DetailView.Page.ps1:1197
+box_rule = "#2a3240"            # 03 1.8 box border. DetailView.Page.ps1:1199
+banner = "#151a23"              # 01 1.6 banner frame. Window.Layout.ps1:716
 explore_label = "#0d0d12"       # 01 1.8 GENRE and PC POWER label box. Window.Layout.ps1:1264-1272
 explore_label_rule = "#22222e"  # 01 1.8
 chip_active = "#2a1a08"         # 01 1.8 genre chip active fill. BannerOvFilters.ps1:72-110
 count_fill = "#1e1e28"          # 01 1.8 genre row count bubble. BannerOvFilters.ps1:727-738
 count_rule = "#2c2c3a"          # 01 1.8
 count_text = "#9a9aae"          # 01 1.8
-menu_hover = "#1e1e2a"          # 01 1.11 menu row hover. CatalogSort.ps1:310
+menu_hover = "#2a3342"          # 01 1.11 menu row hover. CatalogSort.ps1:310
 similar_hover = "#1a1a24"       # 03 1.8 similar-games row hover
 quip_fill = "#16161e"           # 03 1.12 quip box
 quip_hover = "#2b2b36"          # 03 1.12
-dot_grid = "#222230"            # 01 1.14 dot grid on the content area (24 px tile, dot radius 0.9)
+dot_grid = "#0a0c10"            # 01 1.14 dot grid on the content area (24 px tile, dot radius 0.9)
 scrim = "#01000000"             # 01 1.17 transparent scrim behind menus
 
 [color.glass]
 tint = "#09ffffff"              # 01 1.14 glass tint: S/M/L and back button. Window.Layout.ps1:284, 327
-hairline = "#0fffffff"          # 01 1.14 inactive pill border. Filter.Controls.ps1:60
+hairline = "#1fffffff"          # 01 1.14 inactive pill border. Filter.Controls.ps1:60
 pill_opaque = "#000000"         # 01 1.5 filter pill base (opaque glass). Window.Layout.ps1:349
 section_fill = "#0dffffff"      # 01 1.7 section header pill. Window.Layout.ps1:890-909
 section_line = "#22ffffff"      # 01 1.7
-ring = "#ffeeb0"                # 01 1.5 selected ring (cream). Filter.Controls.ps1:61
-ring_halo = "#80ffeeb0"         # 01 1.5 2 px outer halo at margin -1. Filter.Controls.ps1:98
+ring = "#ffffff"                # 01 1.5 selected ring (cream). Filter.Controls.ps1:61
+ring_halo = "#59ffffff"         # 01 1.5 2 px outer halo at margin -1. Filter.Controls.ps1:98
 
 [color.line]
-strong = "#2a2a35"              # 01 1.14 search, ORDER idle border, banner border. Window.Layout.ps1:182, 206, 717
-button = "#3a3a48"              # 01 1.14 library, help, back-button hover base, overlay border. Window.Layout.ps1:118, 158
-rule = "#1e1e26"                # 02 1.5 / 03 2.7 divider and meta-strip rule. Window.Layout.ps1:917
+strong = "#2a3240"              # 01 1.14 search, ORDER idle border, banner border. Window.Layout.ps1:182, 206, 717
+button = "#3a4558"              # 01 1.14 library, help, back-button hover base, overlay border. Window.Layout.ps1:118, 158
+rule = "#1b212b"                # 02 1.5 / 03 2.7 divider and meta-strip rule. Window.Layout.ps1:917
 banner_hover = "#4a4a55"        # 01 1.6 banner border on hover. Filter.Banners.ps1:262
 banner_press = "#ff8822"        # 01 1.6 banner border on press (2 px). Filter.Banners.ps1:268
 back_hover = "#dd6600"          # 01 1.8 Back button hover border
 
 [color.text]
-primary = "#ffffff"             # 01 1.14 titles, active pill text
-title_end = "#d8dee3"           # 01 1.4 / 03 1.2 title gradient bottom (header, banners, detail)
-card_title_end = "#a8b0ba"      # 02 1.5 card title gradient bottom
-inactive = "#c7c7d0"            # 01 1.14 inactive pill text (set in code). Filter.Controls.ps1:77
-muted = "#aaaaaa"               # 01 1.14 S/M/L text. Window.Layout.ps1:289
-dim = "#6f6f7a"                 # 01 1.14 TYPE and STATE labels. Window.Layout.ps1:337, 412
-faint = "#555568"               # 01 1.14 tagline, version, placeholder, search hint; 02 1.5 author line
+primary = "#f3f5f8"             # 01 1.14 titles, active pill text
+title_end = "#f3f5f8"           # 01 1.4 / 03 1.2 title gradient bottom (header, banners, detail)
+card_title_end = "#dfe4ea"      # 02 1.5 card title gradient bottom
+inactive = "#e2e6ec"            # 01 1.14 inactive pill text (set in code). Filter.Controls.ps1:77
+muted = "#98a2b3"               # 01 1.14 S/M/L text. Window.Layout.ps1:289
+dim = "#7c8696"                 # 01 1.14 TYPE and STATE labels. Window.Layout.ps1:337, 412
+faint = "#6b7585"               # 01 1.14 tagline, version, placeholder, search hint; 02 1.5 author line
 count = "#7a7a86"               # 01 1.14 section counts. Window.Layout.ps1:908
-label = "#666677"               # 03 2.7 9 px meta labels; 01 1.8 explore labels text
+label = "#7c8696"               # 03 2.7 9 px meta labels; 01 1.8 explore labels text
 value = "#dddddd"               # 03 1.2 meta values
-body = "#c8c8d4"                # 03 1.8 description text
-heading = "#f0f0f4"             # 03 1.8 section headings
-muted_detail = "#8a8f99"        # 03 2.7 secondary text, console [..] lines
-note = "#777788"                # 02 1.5 card note line
+body = "#c9d0da"                # 03 1.8 description text
+heading = "#f3f5f8"             # 03 1.8 section headings
+muted_detail = "#98a2b3"        # 03 2.7 secondary text, console [..] lines
+note = "#98a2b3"                # 02 1.5 card note line
 author = "#555568"              # 02 1.5 card author line
 author_long = "#888899"         # 02 1.5 author on long titles
 separator = "#444455"           # 02 1.5 separator
-menu_caption = "#6a6a7e"        # 01 1.11 / 01 1.17 menu captions
+menu_caption = "#7c8696"        # 01 1.11 / 01 1.17 menu captions
 scan_text = "#e8f5ec"           # 01 1.14 scan button text. Window.Layout.ps1:562
 ready_count = "#fcefb0"         # 01 1.5 " VR Ready" count label (here: " ready" label). Filter.Scan.ps1:607
 
 [color.brand]
 orange = "#dd6600"              # 01 1.14 headset glyph, gamepad icon, Explore button, Shuffle. Window.Layout.ps1:41
-blue = "#3a8add"                # 01 1.14 title glow, ORDER prefix, active ORDER. Window.Layout.ps1:52
+blue = "#4c8dff"                # 01 1.14 title glow, ORDER prefix, active ORDER. Window.Layout.ps1:52
 gold = "#bfa845"                # 01 1.6 Show button border and text. Filter.Banners.ps1:223
 gold_press = "#f0d860"          # 01 1.6 Show button press. Filter.Banners.ps1:225
 orange_press = "#ffcc66"        # 01 1.8 Explore button press
@@ -132,9 +132,9 @@ text = "#c8ffc8"                # 01 1.4 "Update X available"
 text_accent = "#8bff8b"         # 01 1.4 " - Click to update"
 
 [color.state]
-installed_neon = "#f59e0b"      # 02 2.3 Needs your files (amber). 02 1.8 "Installed, no mod" neon amber
+installed_neon = "#f5a524"      # 02 2.3 Needs your files (amber). 02 1.8 "Installed, no mod" neon amber
 installed_line = "#5c4420"      # 02 1.8 / 2.3 amber border
-ready_neon = "#34d399"          # 02 2.3 Installed (VR ready) neon green
+ready_neon = "#22c55e"          # 02 2.3 Installed (VR ready) neon green
 ready_line = "#1d2e22"          # 02 1.8 installed card border
 ready_glow = "#46a05a"          # 02 1.8 radial top glow
 ready_sheen_top = "#227052"     # 02 1.8 glass sheen gradient top, alpha 20
@@ -150,7 +150,7 @@ installed_pill_line = "#4d8a5e" # 03 1.3 INSTALLED pill border. DetailView.Page.
 planned_neon = "#8a93a6"        # 02 2.3 Coming soon
 planned_line = "#40404e"        # 02 2.2 PLANNED badge border
 planned_text = "#9a9aa8"        # 02 2.2 / 01 2.10 PLANNED text
-needs_neon = "#f59e0b"          # 02 2.3 Find my files (amber)
+needs_neon = "#f5a524"          # 02 2.3 Find my files (amber)
 needs_emulator = "#7ab5ff"      # 02 2.3 Install emulator (info blue)
 reinstall_card_line = "#3d6e4a" # 02 1.4 reinstall pill divider
 reinstall_card_glyph = "#88dd99" # 02 1.4 reinstall glyph
@@ -168,6 +168,15 @@ upstream_text = "#b8dde8"       # 03 1.6
 steam_fill = "#101a30"          # 03 1.6 Open in Steam fill (only if a store id exists) [open]
 steam_line = "#5078cc"          # 03 1.6
 steam_text = "#b8cdf0"          # 03 1.6
+
+[color.system]                  # direction C: one colour per system, for tiles and heroes without a picture
+model3 = "#e8892b"              # Sega Model 3
+model2 = "#e0483a"              # Sega Model 2
+system22 = "#d83e86"            # Namco System 22
+dreamcast = "#ec6a1c"           # Sega Dreamcast
+ps2 = "#3e6fe8"                 # PlayStation 2
+pinball = "#9b5de5"             # Pinball tables
+catalog = "#2bb3a3"             # catalog games set up on this PC
 
 [color.card]
 info_border = "#40404e"         # 02 1.4 info pill border. Frosted.ps1:1487-1570
@@ -410,8 +419,8 @@ header_tagline = 1.04           # 01 1.4 tagline hover grow
 # ---------------------------------------------------------------- type
 
 [font]
-family = "Segoe UI"             # 01 1.14 "Segoe UI everywhere". [open] Segoe UI is absent on Linux and SteamOS (D12): choose a bundled font or a fallback list
-fallback = ["Segoe UI Variable", "Noto Sans", "DejaVu Sans", "sans-serif"]
+family = "Archivo"             # 01 1.14 "Segoe UI everywhere". [open] Segoe UI is absent on Linux and SteamOS (D12): choose a bundled font or a fallback list
+fallback = ["Segoe UI", "Noto Sans", "DejaVu Sans", "sans-serif"]
 mono = ["Consolas", "Cascadia Mono", "Courier New", "monospace"]   # 03 2.7 --mono
 
 [type]                          # size px (desktop, scale 1.0), weight. S / M / L where the Hub sizes them
@@ -473,9 +482,9 @@ console = { S = 12, M = 13, L = 14, weight = 400, line = 18 }  # 03 2.8 monospac
 console_max_h = 360             # 03 2.8
 
 [type.gradient]                 # gradient text is drawn with a mask, not with a drop shadow on the same item (02 1.13)
-title_top = "#ffffff"           # 01 1.4 / 02 1.5
-title_bottom = "#d8dee3"        # 01 1.4 (header, banners, detail)
-card_title_bottom = "#a8b0ba"   # 02 1.5 (card)
+title_top = "#f3f5f8"           # 01 1.4 / 02 1.5
+title_bottom = "#f3f5f8"        # 01 1.4 (header, banners, detail)
+card_title_bottom = "#dfe4ea"   # 02 1.5 (card)
 
 # ---------------------------------------------------------------- space, size, radius
 
@@ -688,15 +697,15 @@ focus_preview = 600             # [proposal] keyboard or gamepad focus shows the
 chip = 3                        # 01 1.14 / 01 1.5 family pill, small chips
 banner_btn = 4                  # 01 1.6
 genre = 5                       # 01 1.8 genre labels and chips (S, M)
-pill = 6                        # 01 1.5 filter pills, back button, S/M/L, ORDER, search
-focus = 7                       # 01 1.14 focus rings
-card = 8                        # 02 1.4
-header_btn = 8                  # 01 1.4
+pill = 10                        # 01 1.5 filter pills, back button, S/M/L, ORDER, search
+focus = 12                       # 01 1.14 focus rings
+card = 12                        # 02 1.4
+header_btn = 10                  # 01 1.4
 banner = 8                      # 01 1.6
-panel = 8                       # 01 1.17 overlay panels
+panel = 12                       # 01 1.17 overlay panels
 section_pill = 11               # 01 1.7
 updates_badge = 10              # 01 1.5
-hero = 10                       # 03 1.2
+hero = 14                       # 03 1.2
 info_pill = 11                  # 02 1.4
 docked_badge = 2                # 02 1.4
 circle = 15                     # 01 1.8 30 px edge buttons

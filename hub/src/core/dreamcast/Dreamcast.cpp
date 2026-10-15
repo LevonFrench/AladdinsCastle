@@ -28,7 +28,7 @@ QVariantList games(){
  return result;
 }
 QVariantList views(){
- return {QVariantMap{{"id","headset"},{"label","In the headset"},{"help","The game around you in VR. Start your headset's runtime first."}},
+ return {QVariantMap{{"id","headset"},{"label","In the headset"},{"help","The game around you in VR."}},
          QVariantMap{{"id","monitor"},{"label","On the monitor"},{"help","A normal window with no headset. The mouse is the gun."}}};
 }
 QString viewLabel(const QString &view){for(const auto &value:views())if(value.toMap().value("id")==view)return value.toMap().value("label").toString();return {};}

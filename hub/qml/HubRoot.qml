@@ -37,36 +37,39 @@ FocusScope {
  Rectangle{anchors.fill:parent;color:Theme.get("color.surface.window")}
  Canvas{anchors.fill:parent;layer.enabled:true;onPaint:{let c=getContext("2d");c.fillStyle=Theme.get("color.surface.dot_grid");for(let x=0;x<width;x+=24)for(let y=0;y<height;y+=24){c.beginPath();c.arc(x,y,0.9,0,2*Math.PI);c.fill()}} onWidthChanged:requestPaint();onHeightChanged:requestPaint()}
  ColumnLayout{anchors.fill:parent;spacing:0
-  Header{id:header;Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:implicitHeight;Layout.maximumHeight:implicitHeight;vrOverlayMode:root.vrOverlayMode;showAll:root.showAll;onLibraryRequested:root.navigate(root.view==="Library"?"List":"Library");onHelpRequested:{sort.close();filters.close();help.open()} onOrderRequested:{help.close();filters.close();sort.open()} onQueryEdited:text=>{gameFilter.query=text;if(root.view==="Detail")root.view="List"}}
+  Header{id:header;Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:implicitHeight;Layout.maximumHeight:implicitHeight;vrOverlayMode:root.vrOverlayMode;showAll:root.showAll;view:root.view;onLibraryRequested:root.navigate(root.view==="Library"?"List":"Library");onHelpRequested:{sort.close();filters.close();help.open()} onOrderRequested:{help.close();filters.close();sort.open()} onQueryEdited:text=>{gameFilter.query=text;if(root.view==="Detail")root.view="List"}}
   FilterBar{objectName:"filterBar";visible:root.showAll&&["List","Library","Explore","Detail"].indexOf(root.view)>=0;Layout.fillWidth:true;Layout.fillHeight:false;Layout.preferredHeight:visible?implicitHeight:0;Layout.maximumHeight:visible?implicitHeight:0;vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;onBackPressed:root.back();onFiltersRequested:{sort.close();help.close();filters.open()} onScanRequested:if(uiController.scanning)uiController.cancelScan();else scanDialog.open();onSizeChosen:value=>uiSettings.set("size"+root.view,value)}
   Item{id:content;Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumHeight:0;Layout.preferredHeight:0;clip:true
    NowPlayingCard {anchors.fill:parent;vrOverlayMode:root.vrOverlayMode;z:900;visible:uiController.nowPlaying.gameId!==undefined}
+   SteamVrStartingCard {objectName:"steamVrStartingCard";anchors.fill:parent;vrOverlayMode:root.vrOverlayMode;z:901;focus:visible}
    // How the last game ended, until dismissed or the next one starts: closed, stopped, or why it crashed.
-   Rectangle {id:ended;objectName:"lastSession";z:850;anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:12
+   Rectangle {id:ended;objectName:"lastSession";z:850;anchors.left:parent.left;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:root.vrOverlayMode?20:24;anchors.leftMargin:root.vrOverlayMode?28:40;anchors.rightMargin:root.vrOverlayMode?28:40
     property var session:uiController.lastSession;property bool trouble:session.outcome==="crashed"||session.outcome==="failed"
-    visible:session.text!==undefined&&uiController.nowPlaying.gameId===undefined;height:visible?endedText.implicitHeight+24:0;radius:8
-    color:Theme.get("color.surface.panel");border.color:trouble?Theme.get("color.state.needs_neon"):Theme.get("color.line.button")
-    RowLayout {anchors.fill:parent;anchors.margins:12;spacing:12
+    visible:session.text!==undefined&&uiController.nowPlaying.gameId===undefined;height:visible?Math.max(endedText.implicitHeight+32,root.vrOverlayMode?80:68):0;radius:Theme.get("radius.card")
+    color:Theme.get("color.surface.pill");border.width:0;clip:true
+    // How it ended, at a glance: amber when it went wrong.
+    Rectangle {width:6;height:parent.height;color:ended.trouble?Theme.get("color.state.needs_neon"):Theme.get("color.text.dim")}
+    RowLayout {anchors.fill:parent;anchors.margins:16;anchors.leftMargin:24;spacing:14
      UiText {id:endedText;objectName:"lastSessionText";Layout.fillWidth:true;font.pixelSize:root.vrOverlayMode?18:14;color:ended.trouble?Theme.get("color.state.needs_neon"):Theme.get("color.text.primary")
       text:(ended.session.text||"")+(ended.session.details?"\n"+ended.session.details:"")}
      PillButton {objectName:"lastSessionDismiss";text:"Dismiss";vrOverlayMode:root.vrOverlayMode;onClicked:uiController.dismissLastSession()}
     }
    }
-   Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Pinball";sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode;startItem:root.startAt.length>1&&root.startAt[0]==="Pinball"?root.startAt[1]:""}}}
-   Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Setup";sourceComponent:Component{SetupPage{vrOverlayMode:root.vrOverlayMode;step:root.startAt.length>1&&root.startAt[0]==="Setup"?Number(root.startAt[1]):0;onFinished:{root.history=[];root.view=root.home}}}}
-   Loader {anchors.fill:parent;anchors.margins:16;active:root.view==="Model3";sourceComponent:Component{Model3Page{onSetupRequested:root.navigate("Setup");onDetailRequested:id=>root.showDetail(id);vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;selectedId:root.startAt.length>1&&root.startAt[0]==="Model3"?root.startAt[1]:""}}}
+   Loader {anchors.fill:parent;active:root.view==="Pinball";focus:active;sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode;startItem:root.startAt.length>1&&root.startAt[0]==="Pinball"?root.startAt[1]:""}}}
+   Loader {anchors.fill:parent;active:root.view==="Setup";sourceComponent:Component{SetupPage{vrOverlayMode:root.vrOverlayMode;step:root.startAt.length>1&&root.startAt[0]==="Setup"?Number(root.startAt[1]):0;onFinished:{root.history=[];root.view=root.home}}}}
+   Loader {anchors.fill:parent;active:root.view==="Model3";focus:active;sourceComponent:Component{Model3Page{onSetupRequested:root.navigate("Setup");onDetailRequested:id=>root.showDetail(id);vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;selectedId:root.startAt.length>1&&root.startAt[0]==="Model3"?root.startAt[1]:""}}}
    Loader {anchors.fill:parent;anchors.margins:24;active:root.view==="GunRoom"&&!root.vrOverlayMode;sourceComponent:Component{GunRoomPage{}}}
    GameGrid{id:grid;anchors.fill:parent;visible:root.view==="List"||root.view==="Library";view:root.view;sizeValue:root.sizeValue;vrOverlayMode:root.vrOverlayMode;reduceMotion:root.reduceMotion;effectsEnabled:!(uiSettings.values,uiSettings.get("cheapEffects",true));onDetailRequested:id=>root.showDetail(id);onActionRequested:id=>{root.showDetail(id);uiController.primary(id)} onExploreRequested:root.navigate("Explore");onPreviewRequested:(game,item)=>{if(root.vrOverlayMode)return;root.previewGame=game;let p=item.mapToItem(content,0,0);preview.x=Math.max(0,Math.min(content.width-preview.width,p.x-(preview.width-item.width)/2));preview.y=Math.max(0,Math.min(content.height-preview.height,p.y-(preview.height-item.height)/2));preview.visible=true} onPreviewClosed:preview.visible=false}
    Loader{anchors.fill:parent;anchors.margins:24;active:root.view==="Detail";sourceComponent:Component{DetailPage{vrOverlayMode:root.vrOverlayMode;sizeValue:root.sizeValue;onDetailRequested:id=>uiController.openDetail(id)}}}
    Loader{anchors.fill:parent;anchors.margins:20;active:root.view==="Explore";sourceComponent:Component{ExplorePage{sizeValue:root.sizeValue;vrOverlayMode:root.vrOverlayMode;onDetailRequested:id=>root.showDetail(id)}}}
-   Loader{anchors.fill:parent;anchors.margins:24;active:root.view==="Settings";sourceComponent:Component{SettingsPage{vrOverlayMode:root.vrOverlayMode}}}
+   Loader{anchors.fill:parent;active:root.view==="Settings";sourceComponent:Component{SettingsPage{vrOverlayMode:root.vrOverlayMode}}}
    Item{id:preview;objectName:"previewHost";visible:false;width:previewCard.implicitWidth*Theme.get("motion.preview_scale");height:previewCard.implicitHeight*Theme.get("motion.preview_scale");z:1000
     GameCard{id:previewCard;vrOverlayMode:root.vrOverlayMode;game:root.previewGame;preview:true;sizeValue:root.sizeValue;scale:Theme.get("motion.preview_scale");transformOrigin:Item.TopLeft;onDetailRequested:id=>root.showDetail(id);onActionRequested:id=>{root.showDetail(id);uiController.primary(id)}}
     HoverHandler{id:previewHover;onHoveredChanged:if(!hovered)preview.visible=false}
    }
   }
-  PillButton{objectName:"globalStop";text:typeof hubServices!=="undefined"&&hubServices.gunRoomBusy?"Close gun room":typeof hubServices!=="undefined"&&hubServices.preparing?"Stop preparing launch":"Stop game";visible:typeof hubServices!=="undefined"&&hubServices.launchBusy;vrOverlayMode:root.vrOverlayMode;onClicked:uiController.stopLaunch()}
-  UiText{Layout.fillWidth:true;Layout.leftMargin:14;Layout.bottomMargin:6;text:uiController.status||(root.showAll?gameFilter.visibleCount+" / "+catalogGameCount+" games · Local art only":"");font.pixelSize:11;color:Theme.get("color.text.muted_detail")}
+  PillButton{objectName:"globalStop";Layout.leftMargin:root.vrOverlayMode?28:40;Layout.bottomMargin:6;targetHeight:root.vrOverlayMode?56:44;neon:true;accent:Theme.get("color.state.uninstall");text:typeof hubServices!=="undefined"&&hubServices.gunRoomBusy?"Close gun room":typeof hubServices!=="undefined"&&hubServices.preparing?"Stop preparing launch":"Stop game";visible:typeof hubServices!=="undefined"&&hubServices.launchBusy;vrOverlayMode:root.vrOverlayMode;onClicked:uiController.stopLaunch()}
+  UiText{Layout.fillWidth:true;Layout.leftMargin:root.vrOverlayMode?28:40;Layout.bottomMargin:6;text:uiController.status||(root.showAll?gameFilter.visibleCount+" / "+catalogGameCount+" games · Local art only":"");font.pixelSize:11;color:Theme.get("color.text.muted_detail")}
  }
  FiltersDrawer{id:filters;parent:root;x:Math.max(0,Math.min(root.width-width,160));y:Math.min(140,root.height-height);vrOverlayMode:root.vrOverlayMode}
  SortMenu{id:sort;parent:root;x:Math.max(0,root.width-width-180);y:60;vrOverlayMode:root.vrOverlayMode}

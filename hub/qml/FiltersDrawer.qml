@@ -11,7 +11,7 @@ Popup {
  function setExpanded(nodeId, value) { var next = {}; for (var key in expansionById) next[key]=expansionById[key]; next[nodeId]=value; expansionById=next }
  objectName:"filtersDrawer"
  width:Math.min(parent?parent.width-20:420,420);height:Math.min(parent?parent.height-20:650,650);padding:16;modal:true;focus:true;closePolicy:Popup.CloseOnEscape|Popup.CloseOnPressOutside
- background:Rectangle{color:Theme.get("color.surface.panel");radius:8;border.color:Theme.get("color.line.button")}
+ background:Rectangle{color:Theme.get("color.surface.panel");radius:Theme.get("radius.hero");border.color:Theme.get("color.line.strong")}
  ColumnLayout {anchors.fill:parent;spacing:10
  Row {Layout.fillWidth:true;spacing:10
   UiText{text:"FILTERS";color:Theme.get("color.text.label");font.pixelSize:11;anchors.verticalCenter:parent.verticalCenter}

@@ -7,6 +7,7 @@
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
 #include "core/pinball/Gamepad.h"
+#include "core/art/Download.h"
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -320,6 +321,7 @@ QVariantList UiController::otherGames()const{
   row["view"]=view;row["views"]=views;
   row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
   row["accepted"]=m_settings->acceptedOn(row.value("id").toString(),row.value("title").toString());
+  row["artId"]=row.value("id");addArt(row,row.value("id").toString(),row.value("system").toString());
   rows<<row;
  };
  // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
@@ -336,13 +338,13 @@ QVariantList UiController::otherGames()const{
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","ps2-"+id},{"system","ps2"},{"pill","PS2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
    {"problem",ps2::problem(id,ps2Launcher,m_settings->get("ps2Python",QString()).toString(),m_settings->get("ps2StopFile",QString()).toString())}},
-   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset. Start SteamVR first."}}});
+   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
  }
  // Time Crisis: one native program, checked as it is now.
  const auto program=m_settings->get("system22Executable",QString()).toString();
  if(!program.isEmpty())add({{"id","system22-timecris"},{"system","system22"},{"pill","SYSTEM 22"},{"title","Time Crisis"},{"year",1996},{"file",QString()},{"warning",QString()},
   {"problem",QFileInfo(program).isFile()?QString():QString("Time Crisis VR build not found. Use Set-up.")}},
-  {QVariantMap{{"id","vr"},{"label","In the headset"},{"help","The whole game around you, with a tracked gun. Start your headset's runtime first."}}});
+  {QVariantMap{{"id","vr"},{"label","In the headset"},{"help","The whole game around you, with a tracked gun."}}});
  // Dreamcast: the discs of the last scan. A disc without a VR profile starts behind a warning.
  const auto dreamcastProgram=m_settings->get("dreamcastExecutable",QString()).toString();
  for(const auto &system:m_setupReport.value("systems").toList()){
@@ -357,6 +359,10 @@ QVariantList UiController::otherGames()const{
  return rows;
 }
 void UiController::chooseGameView(const QString &id,const QString &view){auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();if(chosen.value(id)==view)return;chosen[id]=view;m_settings->set("gameViews",chosen);}
+void UiController::playGame(const QString &id,const QString &view){
+ for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,view.isEmpty()?row.value("view").toString():view);return;}}
+ for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,view.isEmpty()?row.value("view").toString():view,row.value("file").toString());return;}}
+}
 void UiController::playOtherGame(const QString &id){for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}}
 void UiController::launchOtherQueued(const QString &id,const QString &view,const QString &title,const QString &hint,const QString &closeUnavailable){
  queueSession(id,view,closeUnavailable);m_nowPlaying["title"]=title;if(!hint.isEmpty())m_nowPlaying["hint"]=hint;emit nowPlayingChanged();
@@ -383,9 +389,45 @@ QVariantList UiController::model3Games()const{
   // Four separate facts: in the Hub's list, launch line known, found on this PC, accepted by the owner.
   row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
   row["accepted"]=m_settings->acceptedOn("model3-"+id,row.value("title").toString());
+  row["artId"]="model3-"+id;addArt(row,"model3-"+id,"model3");
   rows<<row;
  }
  return rows;
+}
+QStringList UiController::artNames(const QVariantMap &row,const QString &artId){
+ // The set name (the part of the id after the system) and the game's own file and folder names.
+ QStringList names{artId.section('-',1)};
+ if(const auto file=row.value("file").toString();!file.isEmpty()){const QFileInfo info(file);names<<info.completeBaseName()<<info.dir().dirName();}
+ return names;
+}
+void UiController::addArt(QVariantMap &row,const QString &artId,const QString &system)const{
+ const auto picks=art::choosePictures(m_settings->userDir(),artId,system,row.value("title").toString(),artNames(row,artId),m_localArt.get());
+ row["art"]=picks.card.isEmpty()?QString():QUrl::fromLocalFile(picks.card).toString();
+ row["heroArt"]=picks.hero.isEmpty()?QString():QUrl::fromLocalFile(picks.hero).toString();
+ row["heroBlur"]=picks.heroBlurred;
+}
+void UiController::setArtwork(bool busy,const QString &status){
+ const bool done=m_artworkBusy&&!busy;m_artworkBusy=busy;m_artworkStatus=status;emit artworkChanged();message(status);
+ if(done)emit model3Changed(); // New pictures show at once.
+}
+void UiController::getArtwork(const QString &scope){
+ if(m_settings->get("artDownload",false).toBool()!=true){
+  setArtwork(false,"Artwork download is off. Turn on \"Download artwork from the internet\" in Settings first.");return;}
+ if(m_artworkBusy){message("Artwork is already being fetched.");return;}
+ const auto system=scope.startsWith("system:")?scope.mid(7):QString();
+ QVariantList targets;
+ auto rows=model3Games();for(auto &value:rows){auto row=value.toMap();row["system"]="model3";value=row;}
+ rows+=otherGames();
+ for(const auto &value:rows){
+  const auto row=value.toMap();const auto id=row.value("artId",row.value("id")).toString();
+  if(system.isEmpty()?id!=scope:row.value("system")!=system)continue;
+  // The game's own file and folder names match libretro's disc names best; they stay on this PC.
+  const auto names=artNames(row,id);
+  targets<<QVariantMap{{"id",id},{"system",row.value("system")},{"title",row.value("title")},{"names",names}};
+ }
+ if(targets.isEmpty()){message("No game to fetch artwork for.");return;}
+ setArtwork(true,QString("Artwork: asking for %1 game%2…").arg(targets.size()).arg(targets.size()==1?"":"s"));
+ emit artworkRequested(targets);
 }
 void UiController::chooseModel3View(const QString &id,const QString &view){
  if(model3::viewLabel(view).isEmpty())return;

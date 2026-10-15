@@ -133,5 +133,7 @@ void OverlayHost::shutdown() {
     if (m_running) { m_runtime->shutdown(); m_running = false; }
     m_keyboard.setWindow(nullptr);
     m_renderer.reset();
+    // A later session (SteamVR started again) can quit again.
+    m_quitSeen = false;
 }
 }

@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Theme.h"
 #include <algorithm>
+#include <QFontDatabase>
 namespace ac {
+void Theme::loadFonts() {
+ static const bool loaded=[]{for(const auto *name:{":/fonts/Archivo-Medium.ttf",":/fonts/Archivo-Bold.ttf",":/fonts/Archivo-Black.ttf"})QFontDatabase::addApplicationFont(QString::fromLatin1(name));return true;}();
+ Q_UNUSED(loaded);
+}
 QVariant Theme::get(const QString &path) const {
  QVariant v=m_tokens; for(const auto &part:path.split('.')){if(v.metaType().id()==QMetaType::QVariantList){bool ok=false;int index=part.toInt(&ok);auto list=v.toList();v=ok&&index>=0&&index<list.size()?list[index]:QVariant{};}else v=v.toMap().value(part);} return v;
 }

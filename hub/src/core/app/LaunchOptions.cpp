@@ -10,10 +10,8 @@ bool shouldOpenDesktop(const LaunchOptions &options, bool overlayInitialized) {
     if (options.mode == Mode::Overlay && options.steamVrStarted && !overlayInitialized) return false;
     return options.mode == Mode::Desktop || options.window || (options.mode == Mode::Overlay && !overlayInitialized);
 }
-bool applyAutoPanel(LaunchOptions &options, bool steamVrRunning, bool offscreenDisplay) {
-    if (options.mode != Mode::Desktop || options.desktopOnly || !steamVrRunning || offscreenDisplay || options.help || options.version || !options.error.isEmpty()) return false;
-    options.mode = Mode::Overlay; options.window = true; options.showDashboard = true; options.autoPanel = true;
-    return true;
+bool attachesPanelWhenSteamVrRuns(const LaunchOptions &options, bool offscreenDisplay) {
+    return options.mode == Mode::Desktop && !options.desktopOnly && !offscreenDisplay && !options.help && !options.version && options.error.isEmpty();
 }
 bool shouldQuitAfterLastWindow(bool launchBusy) { return !launchBusy; }
 bool shouldQuitAfterLaunch(bool overlayInitialized,bool launchBusy,bool desktopVisible){return !overlayInitialized&&!launchBusy&&!desktopVisible;}

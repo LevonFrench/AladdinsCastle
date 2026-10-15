@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/app/PanelAttacher.h"
 #include "app/HubServices.h"
 #include "core/app/LaunchOptions.h"
 #include "core/catalog/CatalogLoader.h"
@@ -138,8 +139,9 @@ private slots:
         const int before=started.size();ui.launchPinball(id,view);
         QTRY_COMPARE_WITH_TIMEOUT(started.size(),before+1,5000);QTRY_VERIFY_WITH_TIMEOUT(!services.launcher()->busy(),5000);
     };
-    // Without SteamVR, Launch in headset starts nothing and says why.
-    ui.launchPinball(id,"headset");QCOMPARE(started.size(),0);QVERIFY(ui.status().contains("Start SteamVR first"));
+    // Without SteamVR, Launch in headset would start it first; a Hub with no starter (every test) starts nothing and says why.
+    ui.launchPinball(id,"headset");QCOMPARE(started.size(),0);QVERIFY(ui.status().contains("could not be started"));QVERIFY(ui.status().contains("Nothing was started"));
+    QVERIFY(ui.steamVrStarting().isEmpty());
     // On the desktop: VR off in the table's Hub file, the gamepad layout in the Hub's copy; SteamVR not needed.
     run("desktop");
     QCOMPARE(QJsonDocument::fromJson(ac::install::readBytes(report)).toVariant().toStringList(),(QStringList{"-Ini",hubCopy,"-Play",QFileInfo(table).absoluteFilePath(),"-TableIni",tableFile}));
@@ -176,6 +178,7 @@ private slots:
     qputenv("AC_SYNTHETIC_MODEL3_REPORT",report.toUtf8());qputenv("ACVR_STALE","1");
     const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL3_REPORT");qunsetenv("ACVR_STALE");});
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    services.setVrServerProbe([]{return true;}); // A stand-in: SteamVR is running, so the game starts at once.
     const auto listing=[&]{QStringList names;for(const auto &folder:{emulator,media}){QDirIterator it(folder,QDir::AllEntries|QDir::NoDotAndDotDot,QDirIterator::Subdirectories);while(it.hasNext())names<<it.next();}names.sort();return names;};
     const auto before=listing();
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
@@ -260,6 +263,7 @@ private slots:
     ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",emulator);settings.set("model2GameFolder",sets);settings.set("model2RuntimePath",t.filePath("libraries"));
     qputenv("AC_SYNTHETIC_MODEL2_REPORT",report.toUtf8());const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL2_REPORT");});
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    services.setVrServerProbe([]{return true;}); // A stand-in: SteamVR is running, so the game starts at once.
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
     ui.playOtherGame("model2-vf2");QCOMPARE(started.size(),0); // Its game file is not there: nothing starts.
     ui.playOtherGame("model2-vcop2");
@@ -277,6 +281,98 @@ private slots:
     QCOMPARE(QDir(sets).entryList(QDir::Files,QDir::Name),QStringList{"vcop2.zip"});
     QVERIFY(QDir(build+"/runtime").isEmpty());QVERIFY(!QFileInfo::exists(build+"/captures"));
  }
+ // Get artwork in the Hub: with the setting off nothing reaches the network; on, the game is asked for.
+ void artworkAsksNothingWhileOff(){
+    struct Counting final:ac::art::Fetcher{QList<QUrl> urls;void get(const QNetworkRequest &request,std::function<void(int,QByteArray)> done)override{urls<<request.url();QTimer::singleShot(0,[done]{done(404,{});});}};
+    QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("my sets"));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2GameFolder",t.filePath("my sets"));
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    auto network=std::make_shared<Counting>();services.artDownloader()->setFetcher(network);services.artDownloader()->setInterval(0);
+    ui.getArtwork("system:model2");ui.getArtwork("model2-vcop2");QTest::qWait(300);
+    QVERIFY(network->urls.isEmpty());QVERIFY(!ui.artworkBusy());QVERIFY(ui.artworkStatus().contains("Settings"));
+    settings.set("artDownload",true);
+    ui.getArtwork("model2-vcop2");QVERIFY(ui.artworkBusy());
+    QTRY_VERIFY_WITH_TIMEOUT(!ui.artworkBusy(),5000);
+    // libretro's three MAME folders were asked for; no key, so not SteamGridDB.
+    QCOMPARE(network->urls.size(),3);for(const auto &url:network->urls)QCOMPARE(url.host(),QString("thumbnails.libretro.com"));
+    QVERIFY(ui.artworkStatus().contains("failed"));
+    settings.set("artDownload",false);network->urls.clear();ui.getArtwork("system:model2");QTest::qWait(200);QVERIFY(network->urls.isEmpty());
+ }
+ // Play in headset from the window with SteamVR off: SteamVR is started first (a stand-in here; the real one
+ // never), the Hub says so and waits, then launches; and the panel joins SteamVR once it runs. Cancel and a
+ // failed or slow start launch nothing.
+ void playInHeadsetStartsSteamVrFirst(){
+    QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");
+    for(const auto &folder:{"build/mame","build/presenter","build/runtime","my sets"})QVERIFY(QDir(t.path()).mkpath(folder));
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),build+"/mame/emulator.exe"));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),build+"/presenter/model2-viewer.exe"));
+    ac::install::atomicWrite(sets+"/vcop2.zip","synthetic");
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",build+"/mame/emulator.exe");settings.set("model2GameFolder",sets);
+    qputenv("AC_SYNTHETIC_MODEL2_REPORT",t.filePath("viewer.json").toUtf8());const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL2_REPORT");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    bool vr=false;int starts=0;services.setVrServerProbe([&]{return vr;});services.setSteamVrWait(5000,150);
+    services.setSteamVrStarter([&](QString *){++starts;QTimer::singleShot(250,&ui,[&]{vr=true;});return true;});
+    // The panel, wired as the desktop Hub wires it, with a stand-in for joining SteamVR's dashboard.
+    int attaches=0;ac::PanelAttacher panel([&](QString *){++attaches;return true;},[]{});
+    connect(&ui,&ac::UiController::steamVrRunningChanged,&panel,[&]{panel.setSteamVrRunning(ui.steamVrRunning());});
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    QTest::qWait(50);QVERIFY(!ui.steamVrRunning());QCOMPARE(attaches,0);
+    ui.playGame("model2-vcop2","screen");
+    QCOMPARE(starts,1);QCOMPARE(ui.steamVrStarting(),QString("Virtua Cop 2"));QCOMPARE(started.size(),0);
+    QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
+    QVERIFY(ui.steamVrStarting().isEmpty());QVERIFY(ui.steamVrRunning());QCOMPARE(attaches,1);QVERIFY(panel.attached());
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),1,15000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    // SteamVR running already: straight to the game, nothing started.
+    ui.playGame("model2-vcop2","screen");QCOMPARE(starts,1);QVERIFY(ui.steamVrStarting().isEmpty());
+    QTRY_COMPARE_WITH_TIMEOUT(started.size(),2,8000);QTRY_COMPARE_WITH_TIMEOUT(finished.size(),2,15000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    // SteamVR closed. Cancel while it starts: nothing is launched.
+    vr=false;ui.setSteamVrRunning(false);panel.setSteamVrRunning(false);
+    services.setSteamVrStarter([&](QString *){++starts;return true;});
+    ui.playGame("model2-vcop2","screen");QCOMPARE(starts,2);QVERIFY(!ui.steamVrStarting().isEmpty());
+    ui.cancelSteamVrStart();QVERIFY(ui.steamVrStarting().isEmpty());QVERIFY(ui.status().contains("Cancelled"));
+    QTest::qWait(400);QCOMPARE(started.size(),2);
+    // SteamVR cannot be started: said plainly, nothing is launched.
+    services.setSteamVrStarter([&](QString *error){++starts;*error="Synthetic: no SteamVR here.";return false;});
+    ui.playGame("model2-vcop2","screen");QVERIFY(ui.steamVrStarting().isEmpty());
+    QVERIFY(ui.status().contains("could not be started"));QVERIFY(ui.status().contains("Nothing was started"));
+    // SteamVR too slow: given up after the wait, nothing is launched.
+    services.setSteamVrStarter([&](QString *){++starts;return true;});services.setSteamVrWait(400,0);
+    ui.playGame("model2-vcop2","screen");QVERIFY(!ui.steamVrStarting().isEmpty());
+    QTRY_VERIFY_WITH_TIMEOUT(ui.steamVrStarting().isEmpty(),3000);QVERIFY(ui.status().contains("did not start within"));
+    QTest::qWait(200);QCOMPARE(started.size(),2);QCOMPARE(starts,4);
+ }
+ // Exit and Stop ask Model 2 to quit through its stop file, so MAME saves; nothing is forced.
+ void model2QuitsThroughItsStopFile(){
+    QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");
+    for(const auto &folder:{"build/mame","build/presenter","build/runtime","my sets"})QVERIFY(QDir(t.path()).mkpath(folder));
+    const auto emulator=build+"/mame/emulator.exe",viewer=build+"/presenter/model2-viewer.exe";
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),emulator));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),viewer));
+    ac::install::atomicWrite(sets+"/vcop2.zip","synthetic");
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",emulator);settings.set("model2GameFolder",sets);
+    qputenv("AC_SYNTHETIC_MODEL2_REPORT",t.filePath("viewer.json").toUtf8());qputenv("AC_SYNTHETIC_MODEL2_WAIT_STOP","1");
+    const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL2_REPORT");qunsetenv("AC_SYNTHETIC_MODEL2_WAIT_STOP");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    services.setVrServerProbe([]{return true;}); // A stand-in: SteamVR is running, so the game starts at once.
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    const auto stop=t.filePath("user/runtime/model2-vcop2.stop");
+    QSignalSpy exitReady(&services,&ac::HubServices::hubExitReady);
+    // Closing the Hub comes last: once asked, the Hub starts nothing more.
+    for(const QString way:{"exit","stop","hub"}){
+        const int before=finished.size();ui.playOtherGame("model2-vcop2");QTRY_COMPARE_WITH_TIMEOUT(started.size(),before+1,8000);
+        QVERIFY(!QFileInfo::exists(stop)); // Cleared before each launch.
+        QVERIFY(ui.nowPlaying()["closeUnavailable"].toString().isEmpty()); // Exit and Restart are offered again.
+        QTest::qWait(500);if(way=="exit")ui.closeLaunch();else if(way=="stop")ui.stopLaunch();else services.requestHubExit(3);
+        QVERIFY(QFileInfo::exists(stop));
+        // The viewer ends by itself, normally: the request was the stop file, not a kill.
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,15000);QCOMPARE(finished.last()[1].toInt(),0);QVERIFY2(finished.last()[2].toString().isEmpty(),qPrintable(finished.last()[2].toString()));
+        QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    }
+    QTRY_COMPARE_WITH_TIMEOUT(exitReady.size(),1,5000);QCOMPARE(exitReady.first()[0].toInt(),3);
+    const auto seen=QJsonDocument::fromJson(ac::install::readBytes(t.filePath("viewer.json"))).object();
+    QCOMPARE(QDir::fromNativeSeparators(seen["env"].toObject()["ACVR_M2_STOP_FILE"].toString()),QDir::fromNativeSeparators(stop));
+ }
  // Hub exit while a game runs: the exit waits for the game to finish by itself, however it was asked for.
  void hubExitWaitsForARunningGameToFinish_data(){QTest::addColumn<int>("code");QTest::newRow("normal exit")<<0;QTest::newRow("overlay failure")<<3;}
  void hubExitWaitsForARunningGameToFinish(){
@@ -291,6 +387,7 @@ private slots:
     qputenv("AC_SYNTHETIC_MODEL3_REPORT",t.filePath("report.json").toUtf8());qputenv("AC_SYNTHETIC_CHILD_MS","1800");qputenv("AC_SYNTHETIC_MARKER",marker.toUtf8());
     const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL3_REPORT");qunsetenv("AC_SYNTHETIC_CHILD_MS");qunsetenv("AC_SYNTHETIC_MARKER");});
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    services.setVrServerProbe([]{return true;}); // A stand-in: SteamVR is running, so the game starts at once.
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started);
     QList<bool> markerAtExit;QList<int> codes;QElapsedTimer clock;
     connect(&services,&ac::HubServices::hubExitReady,this,[&](int value){markerAtExit<<QFileInfo::exists(marker);codes<<value;});
@@ -335,7 +432,7 @@ private slots:
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
     bool vr=false;services.setVrServerProbe([&]{return vr;});
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
-    ui.playOtherGame("ps2-virtua-cop");QCOMPARE(started.size(),0);QVERIFY(ui.status().contains("Start SteamVR first"));
+    ui.playOtherGame("ps2-virtua-cop");QCOMPARE(started.size(),0);QVERIFY(ui.status().contains("not given a way to start it"));
     vr=true;ui.playOtherGame("ps2-virtua-cop");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
     QVERIFY(!QFileInfo::exists(stop));ui.stopLaunch();
     QVERIFY(QFileInfo::exists(stop)); // Asked to quit, not killed:
@@ -600,6 +697,9 @@ int main(int argc,char **argv){
 #endif
         QFile file(qEnvironmentVariable("AC_SYNTHETIC_MODEL2_REPORT"));if(!file.open(QIODevice::WriteOnly))return 3;
         file.write(QJsonDocument(QJsonObject{{"companion",id},{"companionAlive",alive},{"cwd",QDir::currentPath()},{"env",variables},{"path",environment.value("PATH")}}).toJson());file.close();
+        // Like the real viewer: with AC_SYNTHETIC_MODEL2_WAIT_STOP it plays until its stop file appears, then ends normally.
+        if(qEnvironmentVariableIsSet("AC_SYNTHETIC_MODEL2_WAIT_STOP")){const auto stop=qEnvironmentVariable("ACVR_M2_STOP_FILE");QTimer poll;
+            QObject::connect(&poll,&QTimer::timeout,&child,[&]{if(QFileInfo::exists(stop))child.exit(0);});poll.start(100);QTimer::singleShot(20000,&child,[&]{child.exit(7);});return child.exec();}
         QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
     }
     for(int i=1;i<argc;++i)if(QByteArray(argv[i]).startsWith("-input-system=")){

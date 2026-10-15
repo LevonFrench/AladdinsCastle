@@ -6,11 +6,36 @@ through Hub's `user/hub-settings.toml`, which is never part of the repository.
 
 ## In the headset
 
-Started from the desktop while SteamVR is running, Hub also opens as its
-SteamVR dashboard panel and shows the dashboard on it; its window stays on the
-monitor. `--desktop` keeps it a window only. Started while SteamVR is not running,
-it is a window only, as before. Adding Hub to SteamVR (below) does not by itself
-start it: SteamVR starts it only once "Choose Startup Overlay Apps" lists it as on.
+The desktop window is a full way to use the Hub. Starting the Hub from the desktop
+opens the window only; it never pops the SteamVR dashboard open.
+
+The same Hub is also a panel in SteamVR's dashboard whenever SteamVR runs:
+
+- It attaches when SteamVR is seen, whether SteamVR was running first, was
+  started later, or was started by the Hub's own Play in headset.
+- If SteamVR is still coming up, it tries again every 5 seconds, for a minute.
+- When SteamVR quits, the panel goes and the window carries on.
+- Window and panel show the same Hub. A game started in either shows as Now
+  Playing in both, and Stop works from either.
+- `--desktop` keeps the Hub a window only.
+- Adding Hub to SteamVR (below) does not by itself start it. SteamVR starts the
+  Hub only once "Choose Startup Overlay Apps" lists it as on.
+
+Every game has explicit buttons. **Play in headset** is on every game.
+**Play on monitor** appears where the system has a monitor mode: Dreamcast, and
+Pinball's Launch on desktop. Model 3's screen, wide screen and inside-the-game are
+choices under Play in headset.
+
+If SteamVR is not running when Play in headset is pressed, the Hub:
+
+1. starts SteamVR, using SteamVR's own starter from OpenVR's paths file, or
+   otherwise Steam;
+2. shows "Starting SteamVR…" with a Cancel button;
+3. starts the game once SteamVR has been running for 5 seconds.
+
+If SteamVR cannot be started, takes over two minutes, or Cancel is pressed,
+nothing is started and the Hub says why. SteamVR is started only when that button
+is pressed, never by a diagnostic or offscreen run, and never by a test.
 
 ## Pages
 
@@ -57,7 +82,12 @@ Finding a game is never shown as accepting it.
 the Dreamcast discs of the last report. Model 2 runs two programs: the emulator,
 which shows no window, and then its viewer, which is given the emulator's process
 id; when the viewer ends the emulator is ended too. Its whole launch line is in
-`src/core/model2/Model2.cpp`. A game that is not ready is greyed with its
+`src/core/model2/Model2.cpp`. Model 2 quits through a stop file the Hub owns,
+`user/runtime/model2-<game>.stop`, cleared before each launch and passed to the
+viewer as `ACVR_M2_STOP_FILE`: Exit game, Restart, Stop and closing the Hub write
+it, the viewer asks the emulator to quit, and the emulator saves its high scores
+and settings. Stop forces both programs only if they are still running 40 seconds
+later. A game that is not ready is greyed with its
 reason. A Dreamcast game without a VR profile opens its page with a warning
 before it can be started. Dreamcast starts the emulator from its own folder with
 `-config config:vr.Xr=yes|no <disc image>`; Time Crisis starts its program from

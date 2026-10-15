@@ -102,7 +102,13 @@ add_library(hubcore STATIC
     src/core/steam/BinaryVdf.cpp
     src/core/settings/Settings.h
     src/core/art/Art.h
-    src/core/art/Art.cpp)
+    src/core/art/Art.cpp
+    src/core/art/Download.h
+    src/core/art/Download.cpp
+    src/core/launch/SteamVrStart.h
+    src/core/launch/SteamVrStart.cpp
+    src/core/app/PanelAttacher.h
+    src/core/app/PanelAttacher.cpp)
 target_compile_features(hubcore PUBLIC cxx_std_20)
 target_include_directories(hubcore PUBLIC src "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent
@@ -135,6 +141,8 @@ ac_project_warnings(huboverlay)
 qt_add_library(hubui STATIC)
 add_subdirectory(src/controls)
 target_link_libraries(hubui PUBLIC hubcore accontrols Qt6::Quick Qt6::QuickControls2)
+# Archivo (SIL Open Font License 1.1), shipped so the Hub looks the same everywhere and downloads nothing.
+qt_add_resources(hubui hub_fonts PREFIX /fonts BASE resources/fonts FILES resources/fonts/Archivo-Medium.ttf resources/fonts/Archivo-Bold.ttf resources/fonts/Archivo-Black.ttf resources/fonts/OFL.txt)
 file(GLOB AC_QML_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
 foreach(qml_file IN LISTS AC_QML_FILES)
     get_filename_component(qml_name "${qml_file}" NAME)
@@ -225,6 +233,11 @@ if(BUILD_TESTING)
     ac_project_warnings(setup-tests)
     set_target_properties(setup-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-setup COMMAND setup-tests -o -,txt)
+    qt_add_executable(art-download-tests tests/ArtDownloadTest.cpp)
+    target_link_libraries(art-download-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(art-download-tests)
+    set_target_properties(art-download-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-art-download COMMAND art-download-tests -o -,txt)
     qt_add_executable(pinball-settings-tests tests/PinballSettingsTest.cpp)
     target_link_libraries(pinball-settings-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(pinball-settings-tests)

@@ -111,11 +111,31 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::pinballPlayRequested,this,[this](const QString &id,const QString &view){
         if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
         for(const auto &value:ui_->pinballData().value("tables").toList()){
-            const auto row=value.toMap();if(row.value("id")==id){startPinball(row,settings_->get("pinballExecutable",QString()).toString(),view);return;}
+            const auto row=value.toMap();if(row.value("id")==id){
+                const auto start=[this,row,view]{startPinball(row,settings_->get("pinballExecutable",QString()).toString(),view);};
+                if(view=="headset")launchInHeadset(row.value("title").toString(),start);else start();
+                return;}
         }
         ui_->showError("Pinball","Table is no longer in the scan; scan again.");
     });
-    connect(ui_,&UiController::model3PlayRequested,this,&HubServices::startModel3);
+    // Every Model 3 view is in the headset.
+    connect(ui_,&UiController::model3PlayRequested,this,[this](const QString &id,const QString &view){
+        QString title=id;for(const auto &value:ui_->model3Games())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
+        launchInHeadset(title,[this,id,view]{startModel3(id,view);});
+    });
+    connect(ui_,&UiController::cancelSteamVrStartRequested,this,[this]{
+        endSteamVrWait("Cancelled: nothing was started. SteamVR may still be opening; close it from its own window if you do not need it.",false);});
+    steamVrStartWatch_.setInterval(500);
+    connect(&steamVrStartWatch_,&QTimer::timeout,this,[this]{
+        if(!pendingHeadset_){steamVrStartWatch_.stop();return;}
+        const auto now=steamVrStartClock_.elapsed();
+        if(vrServerRunning()){
+            if(steamVrSeenAt_<0)steamVrSeenAt_=now;
+            // Ready once it has been running a moment: its compositor and dashboard come up after the server.
+            if(now-steamVrSeenAt_>=steamVrSettleMs_){auto launch=std::move(pendingHeadset_);endSteamVrWait({},false);ui_->setSteamVrRunning(true);launch();return;}
+        }else steamVrSeenAt_=-1;
+        if(now>=steamVrTimeoutMs_)endSteamVrWait(QString("SteamVR did not start within %1 seconds. Nothing was started; check that the headset is connected, then try again.").arg(steamVrTimeoutMs_/1000),true);
+    });
     // The Hub never registers itself unasked: the set-up page asks, and whoever owns the VR runtime call answers.
     connect(ui_,&UiController::steamVrRequested,this,[this]{emit steamVrRegistrationRequested(steamVrManifest());});
     refreshSteamVr();
@@ -123,7 +143,12 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     steamVrWatch_.setInterval(3000);connect(&steamVrWatch_,&QTimer::timeout,this,[this]{ui_->setSteamVrRunning(vrServerRunning());});
     steamVrWatch_.start();QTimer::singleShot(0,this,[this]{ui_->setSteamVrRunning(vrServerRunning());});
     connect(ui_,&UiController::setupScanRequested,this,&HubServices::scanSetup);
-    connect(ui_,&UiController::otherPlayRequested,this,&HubServices::startOtherGame);
+    // Every game but a Dreamcast disc on the monitor runs in the headset.
+    connect(ui_,&UiController::otherPlayRequested,this,[this](const QString &id,const QString &view,const QString &file){
+        if(id.startsWith("dreamcast-")&&view=="monitor"){startOtherGame(id,view,file);return;}
+        QString title=id;for(const auto &value:ui_->otherGames())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
+        launchInHeadset(title,[this,id,view,file]{startOtherGame(id,view,file);});
+    });
     try{QFile saved(install::scopedPath("user/cache/setup-report.json",root_));if(saved.size()<=64*1024*1024&&saved.open(QIODevice::ReadOnly))ui_->setSetupReport(QJsonDocument::fromJson(saved.readAll()).toVariant().toMap());}catch(const std::exception &){}
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
@@ -185,8 +210,20 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         }catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
     // A PS2 game has no window to close: both Exit and Stop ask it to quit through its stop file, and the Hub waits.
-    connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit())launcher_.stop();});
-    connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit())launcher_.requestClose();});
+    connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(true))launcher_.stop();});
+    connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(false))launcher_.requestClose();});
+    // Artwork from the internet: read from the settings at each request, so off is off at once.
+    artDownloader_=std::make_unique<art::Downloader>(settings_->userDir(),[this]{return settings_->get("artDownload",false).toBool();},
+        [this]{return settings_->get("steamGridDbKey",QString()).toString();},this);
+    connect(ui_,&UiController::artworkRequested,this,[this](const QVariantList &rows){
+        QVector<art::Target> targets;
+        for(const auto &value:rows){const auto row=value.toMap();targets<<art::Target{row.value("id").toString(),row.value("system").toString(),row.value("title").toString(),row.value("names").toStringList()};}
+        if(!artDownloader_->start(targets))ui_->setArtwork(false,artDownloader_->busy()?"Artwork is already being fetched.":"Artwork download is off. Turn it on in Settings first.");
+    });
+    connect(artDownloader_.get(),&art::Downloader::progress,this,[this](const QString &text){ui_->setArtwork(true,text);});
+    connect(artDownloader_.get(),&art::Downloader::finished,this,[this](const QString &summary,const QStringList &){ui_->setArtwork(false,summary);});
+    connect(settings_,&UiSettings::changed,this,[this]{scanLocalArt();});
+    scanLocalArt();
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
     connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int code,const QString &error,const QString &){
@@ -266,6 +303,7 @@ install::Request HubServices::gameRequest(const QString &id,const QString &varia
 }
 HubServices::~HubServices(){
     if(artCancel_)*artCancel_=true;
+    if(localArtCancel_)localArtCancel_->store(true);
     artPool_.waitForDone();
     disconnect(&gunRoom_,nullptr,this,nullptr);
     gunRoom_.close();
@@ -312,9 +350,12 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             const auto libraries=settings_->get("model2RuntimePath",QString()).toString();
             if(!libraries.isEmpty())environment.insert("PATH",QDir::toNativeSeparators(libraries)+QDir::listSeparator()+environment.value("PATH"));
             for(const auto &value:model2::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · 3D screen";hint=value.toMap().value("controls").toString();}
-            hint+=" Home = put the screen in front of you again. Use Stop game here to end it.";
-            // Neither program has a window to close, so Exit would wait for ever; Stop is the way out.
-            closeNote="Model 2 has no game window to close. Use Stop game.";
+            hint+=" Home = put the screen in front of you again. Exit game here, or hold Y for 3 seconds, quits and saves.";
+            // A stop file of the Hub's own for this launch, cleared first; the viewer watches for it.
+            model2StopFile_=install::scopedPath("user/runtime/model2-"+game+".stop",root_);
+            if(!QDir().mkpath(QFileInfo(model2StopFile_).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
+            if(QFileInfo::exists(model2StopFile_)&&!QFile::remove(model2StopFile_))throw install::Error("E_WRITE_DENIED","An old Model 2 stop request could not be cleared");
+            environment.insert("ACVR_M2_STOP_FILE",QDir::toNativeSeparators(model2StopFile_));++model2Session_;
         }else if(id.startsWith("ps2-")){
             // The launcher refuses without SteamVR; say so here instead of starting it to fail.
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
@@ -378,6 +419,7 @@ void HubServices::refreshSteamVr(const QString &error){
 QString HubServices::pinballVrRoot()const{return settings_->get("pinballHeadset",true).toBool()?root_:QString();}
 void HubServices::startPinballArt(const QVariantMap &scan){
     if(artCancel_)*artCancel_=true;
+    if(localArtCancel_)localArtCancel_->store(true);
     auto cancel=std::make_shared<std::atomic_bool>(false);artCancel_=cancel;
     QString cache;try{cache=install::scopedPath("user/cache/pinball-art/x",root_);cache=QFileInfo(cache).absolutePath();}catch(const std::exception &){return;}
     // Tables that can be started first, so the pictures that are seen come first.
@@ -518,6 +560,8 @@ void HubServices::requestHubExit(int code){
         // Any other game keeps its lease: the Hub exits once the game has ended by itself, so a slow
         // save or close dialog is never cut short. Ending it now is the explicit Stop action, not this.
         hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();
+        // Model 2 can be asked to quit cleanly, so it is; the Hub still waits for it to save and end.
+        if(askModel2ToQuit(false))return;
         ui_->showError("Closing","The Hub closes when the running game has ended. Use Stop game to end it now.");
         return;
     }
@@ -530,6 +574,49 @@ bool HubServices::askPs2ToQuit(){
     QFile request(stopFile);
     if(stopFile.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS2","The stop request could not be written. Use the launcher's own stop to quit the game.");return true;}
     request.close();ui_->launchClosing();return true;
+}
+void HubServices::launchInHeadset(const QString &title,std::function<void()> launch){
+    if(vrServerRunning()){launch();return;}
+    if(pendingHeadset_){ui_->showError("SteamVR","SteamVR is already starting for "+pendingHeadsetTitle_+".");return;}
+    if(launchBusy()||hubExitPending_){ui_->showError("Launch","Close the current session before starting a game.");return;}
+    // Only ever because Play in headset was pressed: SteamVR is never started for anything else.
+    QString error;
+    // Only the real Hub is given the real starter (main.cpp); a Hub without one, as in every test, starts nothing.
+    if(!steamVrStarter_)error="this Hub was not given a way to start it.";
+    const bool asked=steamVrStarter_&&steamVrStarter_(&error);
+    if(!asked){ui_->showError("SteamVR","SteamVR could not be started"+(error.isEmpty()?QString("."):": "+error)+" Nothing was started.");return;}
+    pendingHeadset_=std::move(launch);pendingHeadsetTitle_=title;steamVrSeenAt_=-1;steamVrStartClock_.start();
+    ui_->setSteamVrStarting(title.isEmpty()?QString("the game"):title);
+    steamVrStartWatch_.start();
+}
+void HubServices::endSteamVrWait(const QString &message,bool error){
+    pendingHeadset_=nullptr;pendingHeadsetTitle_.clear();steamVrStartWatch_.stop();ui_->setSteamVrStarting({});
+    // Said on the status line either way; error only marks the ones that went wrong, for the log.
+    if(!message.isEmpty())ui_->showError("SteamVR",message);
+    if(error)qWarning("SteamVR wait ended: %s",qPrintable(message));
+}
+void HubServices::scanLocalArt(){
+    const auto folders=settings_->get("artFolders",QVariantList{}).toStringList();
+    if(localArtScanned_&&folders==localArtFolders_)return;
+    localArtScanned_=true;localArtFolders_=folders;
+    if(localArtCancel_)localArtCancel_->store(true);
+    if(folders.isEmpty()){localArtCancel_.reset();ui_->setLocalArt({});return;}
+    auto cancel=std::make_shared<std::atomic_bool>(false);localArtCancel_=cancel;
+    QPointer<HubServices> self(this);
+    // Read in place: only names and paths are kept, and nothing is copied.
+    QThreadPool::globalInstance()->start([self,folders,cancel]{
+        auto index=std::make_shared<const art::LocalIndex>(art::LocalIndex::scan(folders,cancel.get()));
+        QMetaObject::invokeMethod(qApp,[self,index,cancel]{if(self&&!cancel->load())self->ui_->setLocalArt(index);});
+    });
+}
+bool HubServices::askModel2ToQuit(bool forceLater){
+    if(!ui_->nowPlaying().value("gameId").toString().startsWith("model2-")||!launcher_.busy()||model2StopFile_.isEmpty())return false;
+    QFile request(model2StopFile_);
+    if(!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("Model 2","The stop request could not be written; the game is ended instead.");return false;}
+    request.close();ui_->launchClosing();
+    // The viewer waits up to 30 seconds for MAME to save and exit; only after that is the game forced.
+    if(forceLater){const auto session=model2Session_;QTimer::singleShot(40000,this,[this,session]{if(session==model2Session_&&launcher_.busy())launcher_.stop();});}
+    return true;
 }
 void HubServices::finishPendingExit(){
     if(!hubExitPending_||launcher_.busy()||gunRoom_.busy())return;

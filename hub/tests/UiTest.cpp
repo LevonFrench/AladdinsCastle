@@ -425,17 +425,20 @@ class UiTest:public QObject {
   const auto helpText=ui->property("pinballLaunchHelp").toString();
   QVERIFY(helpText.contains("normal settings"));QVERIFY(helpText.contains("scores"));
   QCOMPARE(launchHelp->property("text").toString(),helpText);
-  // Two launches, each exactly what it says. Launch in headset waits for SteamVR and says so.
+  // Two launches, each exactly what it says. With SteamVR off, Launch in headset still works: it says SteamVR starts first.
   QSignalSpy play(ui.get(),SIGNAL(pinballPlayRequested(QString,QString)));
   QTRY_VERIFY(!namedItems(window->contentItem(),"pinballLaunchDesktop").isEmpty());
   const auto playButton=namedItems(window->contentItem(),"pinballLaunchDesktop").first(),headsetButton=namedItems(window->contentItem(),"pinballLaunchHeadset").first();
   ui->setSteamVrRunning(false);QVERIFY(softwareFrame(window));
-  QVERIFY(playButton->height()>=48);QVERIFY(playButton->isEnabled());QVERIFY(!headsetButton->isEnabled());
+  QVERIFY(playButton->height()>=48);QVERIFY(playButton->isEnabled());QVERIFY(headsetButton->isEnabled());
   QVERIFY(namedItems(window->contentItem(),"pinballHeadsetReason").first()->property("text").toString().contains("SteamVR"));
   QVERIFY(QMetaObject::invokeMethod(playButton,"clicked"));QCOMPARE(play.size(),1);
   QCOMPARE(play[0][0].toString(),ui->pinballSelection()["id"].toString());QCOMPARE(play[0][1].toString(),QString("desktop"));
-  ui->setSteamVrRunning(true);QVERIFY(softwareFrame(window));QVERIFY(headsetButton->isEnabled());
   QVERIFY(QMetaObject::invokeMethod(headsetButton,"clicked"));QCOMPARE(play.size(),2);QCOMPARE(play[1][1].toString(),QString("headset"));
+  // While SteamVR is starting for one game, no other headset launch is offered.
+  ui->setSteamVrStarting("Synthetic table");QVERIFY(softwareFrame(window));QVERIFY(!headsetButton->isEnabled());QVERIFY(playButton->isEnabled());
+  ui->setSteamVrStarting({});ui->setSteamVrRunning(true);QVERIFY(softwareFrame(window));QVERIFY(headsetButton->isEnabled());
+  QVERIFY(namedItems(window->contentItem(),"pinballHeadsetReason").first()->property("text").toString().isEmpty());
   ui->setSteamVrRunning(false);
   root->setProperty("vrOverlayMode",false);QVERIFY(softwareFrame(window));
   QCOMPARE(launchHelp->property("text").toString(),helpText);

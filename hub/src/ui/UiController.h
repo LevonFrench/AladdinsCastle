@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
+#include "core/art/Download.h"
 #include "models/FilterSortModel.h"
 #include "UiSettings.h"
 #include "DetailControlsController.h"
@@ -124,6 +125,13 @@ class UiController : public QObject {
  // A table's own launch button, from its tile or its page: exactly that view, every time.
  Q_INVOKABLE void launchPinball(const QString &id,const QString &view);
  Q_PROPERTY(bool steamVrRunning READ steamVrRunning NOTIFY steamVrRunningChanged)
+ // Play in headset while SteamVR is off: the game waiting for SteamVR to be ready, empty otherwise.
+ Q_PROPERTY(QString steamVrStarting READ steamVrStarting NOTIFY steamVrStartingChanged)
+ QString steamVrStarting()const{return m_steamVrStarting;}
+ void setSteamVrStarting(const QString &title){if(title!=m_steamVrStarting){m_steamVrStarting=title;emit steamVrStartingChanged();}}
+ Q_INVOKABLE void cancelSteamVrStart(){if(!m_steamVrStarting.isEmpty())emit cancelSteamVrStartRequested();}
+ // A game's own Play button: exactly this view ("monitor", or one of its headset views), not remembered.
+ Q_INVOKABLE void playGame(const QString &id,const QString &view);
  bool steamVrRunning()const{return m_steamVrRunning;}
  void setSteamVrRunning(bool running){if(running!=m_steamVrRunning){m_steamVrRunning=running;emit steamVrRunningChanged();}}
  void launchPinballQueued(const QVariantMap &row,const QString &closeUnavailable,const QString &view={},const QString &gamepad={});
@@ -137,6 +145,18 @@ class UiController : public QObject {
  Q_INVOKABLE void chooseModel3View(const QString &id,const QString &view);
  Q_INVOKABLE void playModel3(const QString &id);
  Q_INVOKABLE void refreshModel3(){emit model3Changed();}
+ // Optional artwork from the internet (D66): only when the setting is on, and only when asked.
+ // scope is a game's id ("model2-vcop2"; Model 3 games as "model3-<id>") or "system:<system>".
+ Q_INVOKABLE void getArtwork(const QString &scope);
+ Q_PROPERTY(bool artworkBusy READ artworkBusy NOTIFY artworkChanged)
+ Q_PROPERTY(QString artworkStatus READ artworkStatus NOTIFY artworkChanged)
+ bool artworkBusy()const{return m_artworkBusy;}
+ QString artworkStatus()const{return m_artworkStatus;}
+ void setArtwork(bool busy,const QString &status);
+ // The folders of artwork on this PC, indexed in the background; rows show them at once.
+ Q_PROPERTY(int localArtFiles READ localArtFiles NOTIFY artworkChanged)
+ int localArtFiles()const{return m_localArt?m_localArt->files():0;}
+ void setLocalArt(std::shared_ptr<const art::LocalIndex> index){m_localArt=std::move(index);emit artworkChanged();emit model3Changed();}
  void launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable);
  // Games of the other systems, in the same row shape as model3Games plus system,
  // pill, views and warning. Ids carry the system: "dreamcast-hotd2", "system22-timecris".
@@ -217,8 +237,13 @@ class UiController : public QObject {
  void pinballChanged();
  void pinballPlayRequested(const QString &id,const QString &view);
  void steamVrRunningChanged();
+ void steamVrStartingChanged();
+ void cancelSteamVrStartRequested();
  void stopEverythingRequested();
  void model3Changed();
+ void artworkChanged();
+ // Each target: id, system, title and names (the game's own file and folder names on this PC).
+ void artworkRequested(const QVariantList &targets);
  void catalogReadyChanged();
  void setupChanged();
  void steamVrRequested();
@@ -244,6 +269,11 @@ class UiController : public QObject {
  GameListModel *m_games; FilterSortModel *m_filter; UiSettings *m_settings;bool m_steamVrRunning=false;QVariantMap m_pinballArt;
  QString m_detailId,m_variantId,m_status; QVariantList m_events; QVariantMap m_recovery;
  int m_artRevision=0;
+ bool m_artworkBusy=false;QString m_artworkStatus,m_steamVrStarting;
+ // A row's pictures: the user's own art for it first, then a downloaded one.
+ void addArt(QVariantMap &row,const QString &artId,const QString &system)const;
+ static QStringList artNames(const QVariantMap &row,const QString &artId);
+ std::shared_ptr<const art::LocalIndex> m_localArt;
  bool m_artProviderReady=false;
  bool m_installing=false,m_scanning=false;
  QVariantMap m_nowPlaying,m_lastSession;
