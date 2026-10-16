@@ -482,10 +482,13 @@ class UiTest:public QObject {
    QCOMPARE(forced.count(),0);QCOMPARE(close.count(),0);QVERIFY(!localUi.nowPlaying().value("closing").toBool());
    QVERIFY(localUi.status().contains("VPX"));
   }else{
-   QCOMPARE(close.count(),1);QCOMPARE(forced.count(),0);QVERIFY(localUi.nowPlaying().value("closing").toBool());
-   QVERIFY(!localUi.status().contains("forced"));
+   // Pinball's Stop is Stop like any other: VPX is asked to close, then the Hub ends it if it has not.
+   // A pending Restart had already asked it to close once; Stop cancels the restart and forces the end.
+   const int asked=phase=="restart-pending"?1:0;
+   QCOMPARE(forced.count(),1);QCOMPARE(close.count(),asked);QVERIFY(localUi.nowPlaying().value("closing").toBool());
+   QVERIFY(localUi.status().contains(phase=="preparing"?"cancellation":"VPX is asked to close"));
    QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
-   QCOMPARE(close.count(),1);QCOMPARE(forced.count(),0);
+   QCOMPARE(forced.count(),1);QCOMPARE(close.count(),asked); // A second press does not start the wait over.
   }
   localUi.launchFinished(id,QString());QVERIFY(localUi.nowPlaying().isEmpty());QCOMPARE(replay.count(),0);
  }

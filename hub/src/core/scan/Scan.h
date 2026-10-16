@@ -76,5 +76,9 @@ public:
   static QString requirementId(const GameRecord &game, const Json &media,
                                int index);
 };
+// Files with one of these extensions under the roots, at most depth folders down. Links, junctions
+// and system or credential folders are never entered; cancellable; read-only.
+QStringList walk(const QStringList &roots, const QStringList &extensions, int depth,
+                 std::atomic_bool &cancel);
 } // namespace ac::scan
 Q_DECLARE_METATYPE(ac::scan::ScanResult)

@@ -146,6 +146,9 @@ void Service::close() {
   closing_=true;emit changed();
   if(process_.state()==QProcess::Running) sendClose();
 }
+void Service::forceEnd() {
+  if(active_&&process_.state()!=QProcess::NotRunning) process_.kill();
+}
 void Service::sendClose() {
   process_.write("close\n",6);
   // Qt closes only after queued bytes drain. EOF is also a native close command.

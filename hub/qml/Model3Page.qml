@@ -30,7 +30,7 @@ Item {
   c.pill=row.pill||"MODEL 3"
   // Arcade boards have one maker; console games do not, so none is claimed for them.
   c.manufacturerShort=row.system==="system22"?"Namco":(!row.system||row.system==="model2")?"Sega":""
-  c.hardwareLabel={dreamcast:"Dreamcast",system22:"System 22",model2:"Model 2",ps2:"PlayStation 2"}[row.system]||"Model 3";c.developerShown=false;c.isWip=false
+  c.hardwareLabel={wii:"Wii",dreamcast:"Dreamcast",system22:"System 22",model2:"Model 2",ps2:"PlayStation 2"}[row.system]||"Model 3";c.developerShown=false;c.isWip=false
   let trouble=row.problem||row.warning
   c.blurb=trouble?trouble.split(". ")[0].replace(/\.$/,"")+".":"Found on this PC.";c.stateColour=trouble?needsColour:readyColour
   return c
@@ -69,13 +69,13 @@ Item {
  }
  // Direction C: the focused game as a hero across the top, then one row of tiles per system.
  // Left and right move along a row, up and down between rows; laser hover moves the focus too.
- readonly property var shelfOrder:["model3","model2","system22","dreamcast","ps2","catalog"]
- readonly property var shelfNames:({model3:"Sega Model 3",model2:"Sega Model 2",system22:"Namco System 22",dreamcast:"Sega Dreamcast",ps2:"PlayStation 2",catalog:"Set up on this PC"})
+ readonly property var shelfOrder:["model3","model2","system22","wii","dreamcast","ps2","catalog"]
+ readonly property var shelfNames:({model3:"Sega Model 3",model2:"Sega Model 2",system22:"Namco System 22",wii:"Nintendo Wii",dreamcast:"Sega Dreamcast",ps2:"PlayStation 2",catalog:"Set up on this PC"})
  property var shelves:{let list=[];for(let key of shelfOrder){let items=rows.filter(r=>(r.system||"model3")===key);if(items.length)list.push({key:key,heading:shelfNames[key]+"  ·  "+items.length,items:items})}return list}
  property int shelfIndex:0
  property int tileIndex:0
  readonly property var focusedRow:{const shelf=shelves[Math.min(shelfIndex,shelves.length-1)];return shelf?shelf.items[Math.min(tileIndex,shelf.items.length-1)]||({}):({})}
- function hardwareLabel(row){return {dreamcast:"Sega Dreamcast",system22:"Namco System 22",model2:"Sega Model 2",ps2:"PlayStation 2",catalog:"On this PC"}[row.system]||"Sega Model 3"}
+ function hardwareLabel(row){return {wii:"Nintendo Wii",dreamcast:"Sega Dreamcast",system22:"Namco System 22",model2:"Sega Model 2",ps2:"PlayStation 2",catalog:"On this PC"}[row.system]||"Sega Model 3"}
  function badgeOf(row){return row.problem?"Not ready":row.warning?"Read first":row.accepted?"Accepted in the headset":""}
  function tileOf(row){const art=row.art||(row.system==="catalog"&&row.card?(row.card.artBanner||row.card.artCard||""):"");return {title:row.title,system:row.system||"model3",art:art,badge:badgeOf(row),badgeColour:row.accepted&&!row.problem&&!row.warning?readyColour:needsColour}}
  function moveFocus(dShelf,dTile){
@@ -136,6 +136,23 @@ Item {
     onClicked:uiController.getArtwork(page.selected.artId||page.selected.id)}]
   }
   Text {objectName:"model3Title";visible:false;text:page.selected.title||""}
+  // Several copies of this game in the library: which one is used, and the rule that chose it.
+  ColumnLayout {id:copiesBox;objectName:"gameCopies";Layout.fillWidth:true;Layout.leftMargin:page.vrOverlayMode?28:40;Layout.rightMargin:page.vrOverlayMode?28:40;spacing:6
+   readonly property string system:page.selected.system||"model3"
+   readonly property string game:page.selected.system?String(page.selected.id||"").substring(page.selected.system.length+1):(page.selected.id||"")
+   readonly property var copies:(uiController.library,uiSettings.values,uiController.copiesOf(system,game))
+   readonly property string inUse:(uiController.library,uiSettings.values,uiController.copyInUse(system,game))
+   visible:copies.length>1
+   Text {text:"Copy used ("+copiesBox.copies.length+" found)";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?20:17}
+   UiText {Layout.fillWidth:true;wrapMode:Text.Wrap;text:"Chosen by this rule unless you pick one: "+uiController.libraryRule();font.pixelSize:page.vrOverlayMode?15:13;color:Theme.get("color.text.muted")}
+   Flow {Layout.fillWidth:true;spacing:8
+    Repeater {model:copiesBox.copies
+     PillButton {required property var modelData;objectName:"gameCopy";vrOverlayMode:page.vrOverlayMode
+      readonly property string file:modelData.file||""
+      neon:file===copiesBox.inUse;accent:Theme.get("color.text.primary")
+      text:file.split("/").pop()+(modelData.region?"  ·  "+modelData.region:"")+(modelData.identity?"  ·  "+modelData.identity:"")
+      onClicked:uiController.chooseCopy(copiesBox.system,copiesBox.game,file)}}}
+  }
   UiText {objectName:"model3HeadsetNote";Layout.leftMargin:page.vrOverlayMode?28:40;Layout.bottomMargin:10;visible:text.length>0;text:page.headsetNote;font.pixelSize:page.vrOverlayMode?16:14;color:Theme.get("color.text.muted")}
   Text {Layout.leftMargin:page.vrOverlayMode?28:40;Layout.topMargin:4;text:"How you see it in the headset";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?22:19}
   RowLayout {Layout.fillWidth:true;Layout.leftMargin:page.vrOverlayMode?28:40;Layout.rightMargin:page.vrOverlayMode?28:40;Layout.topMargin:12;spacing:16

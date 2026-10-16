@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #pragma once
+#include "core/launch/Watchdog.h"
 #include "core/art/Art.h"
 #include "core/art/Download.h"
 #include "core/scan/ScanController.h"
@@ -60,6 +61,8 @@ public:
     launch::LaunchService *launcher() { return &launcher_; }
     // The optional artwork download; the tests give it a stand-in network.
     art::Downloader *artDownloader() { return artDownloader_.get(); }
+    // The watchdog over the set-up systems' programs; the tests shorten its timings.
+    launch::Watchdog *watchdog() { return &watchdog_; }
     // Play in headset while SteamVR is off starts it, waits until it has run for settleMs, then
     // launches; nothing is launched if it fails, is cancelled or takes longer than timeoutMs.
     // Only main.cpp gives the real starter; without one nothing is started, so no test can start SteamVR.
@@ -154,7 +157,17 @@ private:
     // Model 2 quits cleanly through a Hub-owned stop file: the viewer asks MAME to exit, which saves its
     // NVRAM and settings. Stop forces both programs only if nothing has ended well after that.
     bool askModel2ToQuit(bool forceLater);
+    // How long Stop waits for a graceful close before ending the whole tree; tests shorten it.
+public:
+    void setStopGrace(int ms){stopGraceMs_=ms;}
+private:
+    int stopGraceMs_=15000;quint64 stopSession_=0;
+    void stopRunning();
     std::unique_ptr<art::Downloader> artDownloader_;
+    launch::Watchdog watchdog_;
+    void applyWatchdogRules();
+    void recordCrash(const QString &id,int code,const QString &how,const QString &logPath);
+    QString sessionSystem_,sessionTitle_;qint64 sessionStartMs_=0;bool crashReported_=false;
     void launchInHeadset(const QString &title, std::function<void()> launch);
     void endSteamVrWait(const QString &message, bool error);
     std::function<bool(QString *)> steamVrStarter_;

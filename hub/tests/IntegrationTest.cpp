@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/launch/Watchdog.h"
 #include "core/app/PanelAttacher.h"
 #include "app/HubServices.h"
 #include "core/app/LaunchOptions.h"
@@ -342,6 +343,114 @@ private slots:
     QTRY_VERIFY_WITH_TIMEOUT(ui.steamVrStarting().isEmpty(),3000);QVERIFY(ui.status().contains("did not start within"));
     QTest::qWait(200);QCOMPARE(started.size(),2);QCOMPARE(starts,4);
  }
+ // The watchdog with real programs. Programs of a set-up system that run outside any game are listed
+ // and ended; the same program in a folder the settings do not point at is never touched.
+ void watchdogEndsBackgroundProgramsAndLeavesOthersAlone(){
+    QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("emu"));QVERIFY(QDir(t.path()).mkpath("elsewhere"));
+    const auto program=t.filePath("emu/TimeCrisisVR.exe"),other=t.filePath("elsewhere/TimeCrisisVR.exe");
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),other));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("system22Executable",program);
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());services.watchdog()->setTimings(200,300,0,800);
+    qint64 stray=0,unrelated=0;
+    QVERIFY(QProcess::startDetached(program,{"--synthetic-child"},{},&stray));QVERIFY(QProcess::startDetached(other,{"--synthetic-child"},{},&unrelated));
+    const auto cleanup=qScopeGuard([&]{ac::launch::endProcesses({stray,unrelated});});
+    const auto listed=[&](qint64 pid){for(const auto &value:ui.backgroundPrograms())if(value.toMap().value("pid").toLongLong()==pid)return true;return false;};
+    QTRY_VERIFY_WITH_TIMEOUT(listed(stray),5000);QVERIFY(!listed(unrelated));
+    QVERIFY(ui.backgroundPrograms().first().toMap().value("label").toString().contains("TimeCrisisVR.exe"));
+    ui.endBackgroundProgram(stray);
+    QTRY_VERIFY_WITH_TIMEOUT(!ac::launch::processAlive(stray),5000);QTRY_VERIFY_WITH_TIMEOUT(ui.backgroundPrograms().isEmpty(),3000);
+    QTest::qWait(500);QVERIFY(ac::launch::processAlive(unrelated)); // Same name, another folder: left alone.
+    ui.endAllBackgroundPrograms();QTest::qWait(1200);QVERIFY(ac::launch::processAlive(unrelated));
+ }
+ // A game the Hub started: a crash is said in words and recorded; a window that never shows is
+ // reported; Windows Error Reporting opened for it is closed with it; a grandchild left behind ends.
+ void watchdogCatchesCrashesHiddenGamesAndLeftovers(){
+    QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("emu"));QVERIFY(QDir(t.path()).mkpath("wer"));
+    const auto program=t.filePath("emu/TimeCrisisVR.exe"),report=t.filePath("wer/WerFault.exe");
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),report));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("system22Executable",program);
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    services.setVrServerProbe([]{return true;});services.watchdog()->setTimings(200,400,500,800);
+    QSignalSpy finished(services.launcher(),&ac::launch::LaunchService::finished);
+    const auto pids=t.filePath("pids.txt");qputenv("AC_SYNTHETIC_PIDS",pids.toUtf8());qputenv("AC_SYNTHETIC_WERFAULT",report.toUtf8());
+    const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_GAME");qunsetenv("AC_SYNTHETIC_PIDS");qunsetenv("AC_SYNTHETIC_WERFAULT");});
+    const auto play=[&](const QByteArray &mode){qputenv("AC_SYNTHETIC_GAME",mode);const int before=finished.size();ui.playGame("system22-timecris","vr");qunsetenv("AC_SYNTHETIC_GAME");return before;};
+    // A crash: the exit code in words, on the banner and in the crash records.
+    int before=play("crash");
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,10000);QCOMPARE(quint32(finished.last()[1].toInt()),0xC0000005u);
+    QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    QVERIFY2(ui.lastSession().value("text").toString().contains("crashed: an access violation"),qPrintable(ui.lastSession().value("text").toString()));
+    QCOMPARE(ui.lastSession().value("outcome").toString(),QString("crashed"));
+    QCOMPARE(ui.crashRecords().size(),1);QCOMPARE(ui.crashRecords().first().toMap().value("exitCode").toString(),QString("0xC0000005"));
+    QVERIFY(QFileInfo::exists(t.filePath("user/logs/crashes.json")));
+    // No window on the monitor: said after a moment, with Bring to front and End.
+    before=play("hidden");
+    QTRY_COMPARE_WITH_TIMEOUT(ui.gameTrouble(),QString("hidden"),8000);
+    ui.stopLaunch();QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,15000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    QVERIFY(ui.gameTrouble().isEmpty());QCOMPARE(ui.crashRecords().size(),1); // A stop is not a crash.
+    // Windows Error Reporting (a stand-in of the same name) opened by the game: both are ended, and it counts as a crash.
+    before=play("werfault");
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,15000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    QVERIFY2(ui.lastSession().value("text").toString().contains("Windows Error Reporting"),qPrintable(ui.lastSession().value("text").toString()));
+    QCOMPARE(ui.crashRecords().size(),2);
+    QTRY_VERIFY_WITH_TIMEOUT([&]{for(const auto &p:ac::launch::listProcesses())if(QDir::fromNativeSeparators(p.path).compare(report,Qt::CaseInsensitive)==0)return false;return true;}(),5000);
+    // A grandchild left behind when the game closes: ended with its game, nothing left in the background.
+    before=play("grandchild");
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,10000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+    qint64 grandchild=0;{QFile file(pids);QVERIFY(file.open(QIODevice::ReadOnly));for(const auto &line:file.readAll().split('\n'))if(line.startsWith("grandchild "))grandchild=line.mid(11).toLongLong();}
+    QVERIFY(grandchild>0);QTRY_VERIFY_WITH_TIMEOUT(!ac::launch::processAlive(grandchild),10000);
+    QTRY_VERIFY_WITH_TIMEOUT(ui.backgroundPrograms().isEmpty(),5000);QCOMPARE(ui.crashRecords().size(),2);
+ }
+ // Get artwork for one game the moment the last one ends, as the Hub's own diagnostic chains them.
+ void artworkRequestsCanFollowEachOther(){
+    struct Pictures final:ac::art::Fetcher{QList<QUrl> urls;void get(const QNetworkRequest &request,std::function<void(int,QByteArray)> done)override{
+        urls<<request.url();QByteArray body;
+        if(request.url().toString().endsWith("/"))body="<a href=\"Virtua%20Cop%202.png\">x</a><a href=\"Virtua%20Fighter%202.png\">x</a>";
+        else{QImage image(40,30,QImage::Format_RGB32);image.fill(Qt::red);QBuffer buffer(&body);buffer.open(QIODevice::WriteOnly);image.save(&buffer,"PNG");}
+        QTimer::singleShot(0,[done,body]{done(200,body);});}};
+    QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("my sets"));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2GameFolder",t.filePath("my sets"));settings.set("artDownload",true);
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    auto network=std::make_shared<Pictures>();services.artDownloader()->setFetcher(network);services.artDownloader()->setInterval(0);
+    QStringList queue{"model2-vf2"},said;
+    connect(&ui,&ac::UiController::artworkChanged,this,[&]{if(ui.artworkBusy())return;said<<ui.artworkStatus();if(!queue.isEmpty())ui.getArtwork(queue.takeFirst());});
+    ui.getArtwork("model2-vcop2");
+    QTRY_COMPARE_WITH_TIMEOUT(said.size(),2,10000);
+    QVERIFY2(said.last().contains("new picture"),qPrintable(said.join(" | ")));
+    const auto folder=ac::art::Downloader::downloadFolder(t.filePath("user"));
+    QVERIFY(QFileInfo::exists(folder+"/model2-vcop2/snap.png"));QVERIFY(QFileInfo::exists(folder+"/model2-vf2/snap.png"));
+ }
+ // A game's process tree ends with whoever holds it, even if that is never told to end it.
+ void aGameNeverOutlivesItsTree(){
+    qint64 pid=0;QVERIFY(QProcess::startDetached(QCoreApplication::applicationFilePath(),{"--synthetic-child"},{},&pid));
+    const auto cleanup=qScopeGuard([pid]{ac::launch::endProcesses({pid});});
+    {ac::launch::ProcessTree tree;tree.adopt(pid);QVERIFY(tree.members().contains(pid));QVERIFY(ac::launch::processAlive(pid));}
+    QTRY_VERIFY_WITH_TIMEOUT(!ac::launch::processAlive(pid),5000);
+ }
+ // Stop on a PS2 game that ignores its stop file: asked first, then ended with its whole tree.
+ void ps2StopIsForcedWhenTheGameDoesNotQuit(){
+    QTemporaryDir t;const auto play=t.filePath("play"),launcher=play+"/launch_ps2.py",python=t.filePath("python/pythonw.exe"),stop=t.filePath("runtime/quit.request");
+    QVERIFY(QDir().mkpath(play));QVERIFY(QDir().mkpath(t.filePath("python")));QVERIFY(QDir().mkpath(t.filePath("runtime")));
+    ac::install::atomicWrite(launcher,"synthetic");ac::install::atomicWrite(play+"/games.json","{\"virtua-cop\":{}}");
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),python));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("ps2Launcher",launcher);settings.set("ps2Python",python);settings.set("ps2StopFile",stop);
+    qputenv("AC_SYNTHETIC_PS2_STOP",stop.toUtf8());qputenv("AC_SYNTHETIC_PS2_IGNORE","1");
+    const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_PS2_STOP");qunsetenv("AC_SYNTHETIC_PS2_IGNORE");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    services.setVrServerProbe([]{return true;});services.setStopGrace(1500);
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    ui.playOtherGame("ps2-virtua-cop");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
+    const auto pid=services.launcher()->processId();QVERIFY(pid>0);
+    QTest::qWait(300);ui.stopLaunch();
+    QVERIFY(QFileInfo::exists(stop)); // The graceful request comes first.
+    QTest::qWait(800);QVERIFY(services.launchBusy()); // Not yet forced.
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),1,8000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),8000);
+    QVERIFY(!ac::launch::processAlive(pid));
+ }
  // Exit and Stop ask Model 2 to quit through its stop file, so MAME saves; nothing is forced.
  void model2QuitsThroughItsStopFile(){
     QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");
@@ -356,22 +465,26 @@ private slots:
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
     services.setVrServerProbe([]{return true;}); // A stand-in: SteamVR is running, so the game starts at once.
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
-    const auto stop=t.filePath("user/runtime/model2-vcop2.stop");
+    QStringList used;
     QSignalSpy exitReady(&services,&ac::HubServices::hubExitReady);
     // Closing the Hub comes last: once asked, the Hub starts nothing more.
     for(const QString way:{"exit","stop","hub"}){
         const int before=finished.size();ui.playOtherGame("model2-vcop2");QTRY_COMPARE_WITH_TIMEOUT(started.size(),before+1,8000);
-        QVERIFY(!QFileInfo::exists(stop)); // Cleared before each launch.
+        // Each launch has a stop file of its own, which does not exist until it is asked to quit.
+        QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(t.filePath("viewer.json")),5000);QTest::qWait(200);
+        const auto stop=QDir::fromNativeSeparators(QJsonDocument::fromJson(ac::install::readBytes(t.filePath("viewer.json"))).object()["env"].toObject()["ACVR_M2_STOP_FILE"].toString());
+        QVERIFY2(stop.startsWith(QDir::fromNativeSeparators(t.filePath("user/runtime/model2-vcop2-"))),qPrintable(stop));QVERIFY(!used.contains(stop));used<<stop;
+        QVERIFY(!QFileInfo::exists(stop));
         QVERIFY(ui.nowPlaying()["closeUnavailable"].toString().isEmpty()); // Exit and Restart are offered again.
-        QTest::qWait(500);if(way=="exit")ui.closeLaunch();else if(way=="stop")ui.stopLaunch();else services.requestHubExit(3);
+        QTest::qWait(300);if(way=="exit")ui.closeLaunch();else if(way=="stop")ui.stopLaunch();else services.requestHubExit(3);
         QVERIFY(QFileInfo::exists(stop));
         // The viewer ends by itself, normally: the request was the stop file, not a kill.
         QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,15000);QCOMPARE(finished.last()[1].toInt(),0);QVERIFY2(finished.last()[2].toString().isEmpty(),qPrintable(finished.last()[2].toString()));
         QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);
+        QVERIFY(!QFileInfo::exists(stop)); // Cleared once its game has ended.
+        QFile::remove(t.filePath("viewer.json"));
     }
     QTRY_COMPARE_WITH_TIMEOUT(exitReady.size(),1,5000);QCOMPARE(exitReady.first()[0].toInt(),3);
-    const auto seen=QJsonDocument::fromJson(ac::install::readBytes(t.filePath("viewer.json"))).object();
-    QCOMPARE(QDir::fromNativeSeparators(seen["env"].toObject()["ACVR_M2_STOP_FILE"].toString()),QDir::fromNativeSeparators(stop));
  }
  // Hub exit while a game runs: the exit waits for the game to finish by itself, however it was asked for.
  void hubExitWaitsForARunningGameToFinish_data(){QTest::addColumn<int>("code");QTest::newRow("normal exit")<<0;QTest::newRow("overlay failure")<<3;}
@@ -665,6 +778,28 @@ private slots:
  }
 };
 int main(int argc,char **argv){
+    // Synthetic games for the watchdog, chosen by AC_SYNTHETIC_GAME (set only around one test):
+    // "crash" ends with an access violation's code (no real fault, so no error dialog ever shows),
+    // "hidden" runs with a window that is never shown, "werfault" starts a stand-in Windows Error
+    // Reporting program and waits, "grandchild" starts a copy of itself and leaves it behind.
+    if(const auto mode=qEnvironmentVariable("AC_SYNTHETIC_GAME");!mode.isEmpty()&&argc==1){
+        QCoreApplication game(argc,argv);
+        if(const auto pidFile=qEnvironmentVariable("AC_SYNTHETIC_PIDS");!pidFile.isEmpty()){QFile file(pidFile);if(file.open(QIODevice::Append))file.write(QByteArray::number(QCoreApplication::applicationPid())+"\n");}
+#ifdef Q_OS_WIN
+        if(mode=="crash")QTimer::singleShot(600,&game,[]{TerminateProcess(GetCurrentProcess(),0xC0000005);});
+        if(mode=="hidden"){
+            WNDCLASSW kind{};kind.lpfnWndProc=DefWindowProcW;kind.hInstance=GetModuleHandleW(nullptr);kind.lpszClassName=L"AcSyntheticGame";RegisterClassW(&kind);
+            CreateWindowExW(0,L"AcSyntheticGame",L"Synthetic game",WS_OVERLAPPEDWINDOW,0,0,64,64,nullptr,nullptr,kind.hInstance,nullptr); // Never shown.
+        }
+#endif
+        if(mode=="werfault")QProcess::startDetached(qEnvironmentVariable("AC_SYNTHETIC_WERFAULT"),{"--synthetic-child"});
+        if(mode=="grandchild"){
+            qint64 pid=0;QProcess::startDetached(QCoreApplication::applicationFilePath(),{"--synthetic-child"},{},&pid);
+            if(const auto pidFile=qEnvironmentVariable("AC_SYNTHETIC_PIDS");!pidFile.isEmpty()){QFile file(pidFile);if(file.open(QIODevice::Append))file.write("grandchild "+QByteArray::number(pid)+"\n");}
+            QTimer::singleShot(800,&game,&QCoreApplication::quit);
+        }
+        QTimer::singleShot(30000,&game,&QCoreApplication::quit);return game.exec();
+    }
     // A launcher that starts two children, the first of which starts a grandchild. Each writes its
     // process id and waits; the launcher waits too ("stay") or ends after a moment ("leave").
     if(argc>=4&&(QByteArray(argv[1])=="--spawn-tree"||QByteArray(argv[1])=="--tree-child")){
@@ -681,7 +816,9 @@ int main(int argc,char **argv){
     // PS2 stand-in for the Python running the launcher: it waits for the stop file, then ends normally.
     if(argc==3&&QByteArray(argv[1]).endsWith("launch_ps2.py")){
         QCoreApplication child(argc,argv);const auto stop=qEnvironmentVariable("AC_SYNTHETIC_PS2_STOP");QTimer poll;
-        QObject::connect(&poll,&QTimer::timeout,&child,[&]{if(QFileInfo::exists(stop))child.exit(0);});poll.start(100);
+        // With AC_SYNTHETIC_PS2_IGNORE the game takes no notice of the stop file, as a stuck one would.
+        const bool ignore=qEnvironmentVariableIsSet("AC_SYNTHETIC_PS2_IGNORE");
+        QObject::connect(&poll,&QTimer::timeout,&child,[&]{if(!ignore&&QFileInfo::exists(stop))child.exit(0);});poll.start(100);
         QTimer::singleShot(20000,&child,[&]{child.exit(7);});return child.exec();
     }
     // Model 2 stand-ins. The emulator: any "-rompath" run, which waits to be ended. The viewer: one numeric argument.

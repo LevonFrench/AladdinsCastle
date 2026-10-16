@@ -174,6 +174,7 @@ model3 = "#e8892b"              # Sega Model 3
 model2 = "#e0483a"              # Sega Model 2
 system22 = "#d83e86"            # Namco System 22
 dreamcast = "#ec6a1c"           # Sega Dreamcast
+wii = "#2fa8e0"                 # Nintendo Wii
 ps2 = "#3e6fe8"                 # PlayStation 2
 pinball = "#9b5de5"             # Pinball tables
 catalog = "#2bb3a3"             # catalog games set up on this PC

@@ -37,6 +37,117 @@ If SteamVR cannot be started, takes over two minutes, or Cancel is pressed,
 nothing is started and the Hub says why. SteamVR is started only when that button
 is pressed, never by a diagnostic or offscreen run, and never by a test.
 
+## Game library
+
+The "Where is it?" step of Set-up has a **Game library** card. You choose one or
+more big folders of your own games, subfolders and all (`libraryRoots`), and the
+Hub finds every game it plays under them.
+
+**How it looks:**
+- It goes up to six folders down and never enters links, junctions or system
+  folders. It runs off the GUI thread, shows progress, and can be cancelled.
+- It is read-only: nothing under the roots is written, renamed or moved.
+
+**How it knows each game:**
+
+| System | How it is known |
+|---|---|
+| Wii | the game id in the disc header (`.iso`, `.wbfs`, `.rvz`, `.wia`) |
+| PS2 | the serial in the disc's SYSTEM.CNF (`.iso`, `.bin`, `.chd`); `.cso` and `.gz` by name |
+| Dreamcast | the product number in the disc's own header (`.gdi`, `.cdi`, `.cue`, `.chd`); a `.bin` named in a cue sheet is read through that sheet |
+| Model 3 and Model 2 | the zip's set name; the Set-up report then checks what is inside by CRC, as for a system folder |
+| Pinball | `.vpx` tables, counted per folder; "Use this folder for Visual Pinball" sets the pinball folder |
+
+**What it keeps:** each game's own file. The result goes to
+`user/cache/library.json`, and "Look again" searches the folders once more.
+
+**Where it fits:** a folder chosen for a system still comes first. The library
+fills in what that folder does not have, in the Set-up report, the game rows and
+the launch.
+
+**When there are several copies:** the Hub picks one by its rule:
+
+1. read from the disc itself;
+2. the release with a VR profile;
+3. USA, then World, Europe, Japan;
+4. the plainest format;
+5. a folder named for the system;
+6. the shortest path.
+
+The game's page lists the copies under "Copy used". Picking one there remembers it
+(`libraryChoice`).
+
+**What it reports:**
+- per system, the games found and the discs that are not in the Hub's list;
+- the files it read but did not recognise, as counts of disc images and archives.
+
+On a real collection with about 70 system folders, it read 31,568 candidate files
+in about 96 seconds. That first search is cached; the next one runs only on
+request.
+
+## Watchdog
+
+The Hub watches the programs of the systems it has been set up for.
+
+**What it counts as a game program:** a program in a system's own program folder
+(the folder of the program chosen in Set-up), or a program with one of that
+system's known names in the folders around it:
+
+- Visual Pinball, PinMAME, the B2S backglass server, DMD hosts and DOF.
+- Supermodel.
+- The Model 2 MAME build and its viewer.
+- PCSX2.
+- Flycast.
+- Time Crisis VR.
+
+It goes by folder, never by name alone, so the same program anywhere else is
+never touched. SteamVR and Steam are never touched, wherever they are.
+
+**Running in the background:** on start and every 3 seconds, the Hub lists any
+of those programs running outside the game it is running now. That covers
+programs left behind by a crash or a closed window, and programs started some
+other way. They show on a strip in the window and the panel, with Stop and Stop all. This includes a game started outside the Hub, from a .cmd
+launcher for example, as long as it runs from a set-up folder. Stopping is graceful first: PS2's
+stop file, Model 2's (the Hub's own recent ones, and the viewer's default beside
+itself), and every window asked to close. After 4 seconds, the program and
+everything it started is ended, as long as it is still that same program.
+
+**Stop:** a game the Hub started shows as Now Playing in both the desktop window
+and the headset panel. This includes a game started from the panel or with Play in
+headset. Stop works the same from either place. It sends the system's graceful quit
+first: Model 2's stop file (the viewer gives MAME 30 seconds to save), PS2's stop
+file, VPX's ordinary close, the gun room's close, or every window asked to close.
+The game's whole process tree is then ended if it is still running: after 40
+seconds for Model 2, 15 seconds for PS2, pinball and the gun room, and 5 seconds
+for the others. Each Model 2 launch has a stop file of its own, removed when the
+game ends.
+
+A game's process tree is set to end with the Hub from the moment it starts. If the
+Hub closes or crashes, nothing of the game is left running. SteamVR is never
+ended with it, even when a game started SteamVR itself.
+
+**Crashes:** a game the Hub started counts as crashed when it ends with a crash
+code (an access violation, a stack overflow, heap corruption and the like, said
+in words), or when Windows Error Reporting opens for it while it runs. The Hub
+then:
+
+- shows "<game> crashed: <why>" on the last-session banner;
+- ends the error report and the game;
+- ends what the game left running outside its own tree;
+- keeps a record in `user/logs/crashes.json`, at most the last 30.
+
+Each record holds the time, the game, the exit code and its meaning. It also
+holds the end of the emulator's own log where one exists (Supermodel.log,
+VPinballX.log, flycast.log), otherwise the Hub's launch log. Settings shows the
+last 10.
+
+**In the background:** a running game that is not responding, has no visible
+window, or is minimised for 5 seconds after its first 15 seconds is said on the
+Now Playing card. The card offers Bring to front (not for a hung game) and End
+game. A Model 2 game has no window of its own and is never called hidden. A
+headset game is judged by its processes and windows only: the Hub does not read
+SteamVR's own frame state.
+
 ## Pages
 
 1. **Welcome**: what Hub is, and that the user's folders are only read.
@@ -62,6 +173,7 @@ is pressed, never by a diagnostic or offscreen run, and never by a test.
 | Visual Pinball | `pinballFolder` | `pinballExecutable` | The table scan: VR-ready, readable, ROM present |
 | Sony PlayStation 2 | `ps2GameFolder` | `ps2Launcher` (the user's launcher script, run with the `ps2Python` it needs; `ps2StopFile` is the file that asks a running game to quit) | The serial in the disc's own SYSTEM.CNF (`.iso`, `.bin`, `.chd`); the file name for `.gz` and when no serial is read. A game is startable when the launcher has an entry for it. The launcher plays its own disc copies. Exit and Stop write the stop file and wait; SteamVR must already be running |
 | Sega Dreamcast | `dreamcastGameFolder` | `dreamcastExecutable` | The disc's own product number, read from `.chd`, `.gdi`, `.cdi` or `.cue` images; the file name only when the number cannot be read |
+| Nintendo Wii | `wiiGameFolder` | `wiiExecutable` (the DolphinXR build's Dolphin.exe; its User folder beside it holds its settings) | The game id in each disc's own header (.iso, .wbfs, .rvz, .wia), any region; what the build still lacks per game is said |
 
 Systems and their settings are listed in `src/core/setup/Setup.cpp`. Each check
 is one function in `src/core/setup/Report.cpp`; a system without one reports
@@ -92,3 +204,14 @@ reason. A Dreamcast game without a VR profile opens its page with a warning
 before it can be started. Dreamcast starts the emulator from its own folder with
 `-config config:vr.Xr=yes|no <disc image>`; Time Crisis starts its program from
 its own folder. Dreamcast in a headset is new and untested.
+
+The Wii gun games run in the headset through the user's DolphinXR build, by the authored route of the
+Chronicles recipes (D52-D54): `Dolphin.exe --user <build>/User -C Graphics.VR.EnableOpenXR=True
+-C Graphics.VR.ResolutionScale=1.0 -C Graphics.VR.EagerHeartbeat=False -C Graphics.Stereoscopy.StereoMode=0
+-C Dolphin.Interface.ConfirmStop=False --exec <disc>`, started from the build's folder. The last option
+is the Hub's: without it Dolphin asks on the monitor before it closes, so Exit game would wait. The seven
+listed games are the planned gun games: Umbrella and Darkside Chronicles, The House of the Dead: Overkill,
+Gunblade NY & L.A. Machineguns, Sin & Punishment: Star Successor, Dead Space: Extraction and Link's
+Crossbow Training. Umbrella Chronicles, played this way, is ready. Any other game starts behind "Read first", which says what the build lacks: its own VR settings
+(`User/GameSettingsVR/<game id>.ini`) and, for the two held docked, docked controls. The build's
+controls are the generated split-hold set for the right hand. Every other disc is listed by its game id.

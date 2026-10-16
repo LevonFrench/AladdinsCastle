@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/library/Library.h"
+#include "core/wii/Wii.h"
 #include "HubServices.h"
 #include "core/install/Support.h"
 #include "core/pinball/Pinball.h"
@@ -10,6 +12,7 @@
 #include "core/ps2/Ps2.h"
 #include "core/pinball/Gamepad.h"
 #include "core/pinball/Art.h"
+#include <QJsonArray>
 #include <QThread>
 #include "ProductIdentity.h"
 #include <QDir>
@@ -198,7 +201,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             startPinball(retainedPinball_,retainedPinballExecutable_,retainedPinballView_);return;
         }
         if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
-        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
+        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")||id.startsWith("wii-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
 #ifdef Q_OS_WIN
@@ -210,7 +213,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         }catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
     // A PS2 game has no window to close: both Exit and Stop ask it to quit through its stop file, and the Hub waits.
-    connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(true))launcher_.stop();});
+    connect(ui_,&UiController::stopLaunchRequested,this,&HubServices::stopRunning);
     connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(false))launcher_.requestClose();});
     // Artwork from the internet: read from the settings at each request, so off is off at once.
     artDownloader_=std::make_unique<art::Downloader>(settings_->userDir(),[this]{return settings_->get("artDownload",false).toBool();},
@@ -222,15 +225,90 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     });
     connect(artDownloader_.get(),&art::Downloader::progress,this,[this](const QString &text){ui_->setArtwork(true,text);});
     connect(artDownloader_.get(),&art::Downloader::finished,this,[this](const QString &summary,const QStringList &){ui_->setArtwork(false,summary);});
-    connect(settings_,&UiSettings::changed,this,[this]{scanLocalArt();});
+    connect(settings_,&UiSettings::changed,this,[this]{scanLocalArt();applyWatchdogRules();});
+    // The Game library: the last result from the cache, and a new search on request, off the GUI thread.
+    try{QFile cached(install::scopedPath("user/cache/library.json",root_));if(cached.size()<=64*1024*1024&&cached.open(QIODevice::ReadOnly))ui_->setLibrary(QJsonDocument::fromJson(cached.readAll()).toVariant().toMap());}catch(const std::exception &){}
+    connect(ui_,&UiController::libraryScanRequested,this,[this](const QStringList &roots){
+        const auto root=root_;const QPointer<UiController> ui=ui_;
+        auto *watcher=new QFutureWatcher<QVariantMap>(this);
+        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{
+            const auto result=watcher->result();watcher->deleteLater();ui_->setLibrary(result);
+            int games=0;for(const auto &system:result.value("systems").toMap())games+=system.toMap().value("games").toInt();
+            ui_->showError("Game library",QString("%1 games found in %2 files, in %3 seconds.").arg(games).arg(result.value("files").toInt()).arg(result.value("seconds").toDouble(),0,'f',1));
+        });
+        watcher->setFuture(QtConcurrent::run([roots,root,ui]{
+            std::atomic_bool cancel=false;
+            const auto progress=[ui](const QString &text){if(ui)QMetaObject::invokeMethod(ui.data(),"libraryScanProgress",Qt::QueuedConnection,Q_ARG(QString,text));};
+            const auto result=library::scan(roots,progress,cancel);
+            try{install::atomicWrite(install::scopedPath("user/cache/library.json",root),QJsonDocument::fromVariant(result).toJson(QJsonDocument::Compact));}catch(const std::exception &){}
+            return result;
+        }));
+    });
     scanLocalArt();
+    // The watchdog: on start and every few seconds, the set-up systems' programs outside any game.
+    applyWatchdogRules();
+    watchdog_.setGraceful([this](const QString &system,const QList<qint64> &pids){
+        // The system's own way to quit first, then every window asked to close; the tree ends after.
+        if(system=="ps2"){const auto stop=settings_->get("ps2StopFile",QString()).toString();if(!stop.isEmpty()){QFile file(stop);if(file.open(QIODevice::WriteOnly))file.write("stop\n");}}
+        if(system=="model2"){
+            // The stop files of the Hub's own recent launches, and the viewer's default beside itself
+            // (model2-<emulator id>.stop) for one started some other way.
+            QStringList stops;
+            try{QFile list(install::scopedPath("user/runtime/model2-stop-files.txt",root_));if(list.size()<64*1024&&list.open(QIODevice::ReadOnly))stops=QString::fromUtf8(list.readAll()).split('\n',Qt::SkipEmptyParts);}catch(const std::exception &){}
+            QString viewerFolder;QList<qint64> emulators;
+            for(const auto &p:launch::listProcesses())if(pids.contains(p.pid)){
+                if(p.name.startsWith("model2",Qt::CaseInsensitive))viewerFolder=QFileInfo(p.path).absolutePath();
+                else if(p.name.startsWith("mame",Qt::CaseInsensitive))emulators<<p.pid;}
+            if(!viewerFolder.isEmpty())for(const auto pid:emulators)stops<<viewerFolder+"/model2-"+QString::number(pid)+".stop";
+            for(const auto &stop:stops){QFile file(stop);if(file.open(QIODevice::WriteOnly))file.write("stop\n");}
+        }
+        launch::closeProcessWindows(pids);
+    });
+    connect(&watchdog_,&launch::Watchdog::straysChanged,this,[this]{ui_->setWatchdog(watchdog_.strays(),watchdog_.trouble());});
+    connect(&watchdog_,&launch::Watchdog::troubleChanged,this,[this]{ui_->setWatchdog(watchdog_.strays(),watchdog_.trouble());});
+    connect(ui_,&UiController::endBackgroundRequested,&watchdog_,&launch::Watchdog::end);
+    connect(ui_,&UiController::endAllBackgroundRequested,&watchdog_,&launch::Watchdog::endAll);
+    connect(ui_,&UiController::bringGameToFrontRequested,this,[this]{if(!watchdog_.bringSessionToFront())ui_->showError("Game","The game has no window to bring to the front.");});
+    connect(&watchdog_,&launch::Watchdog::errorReportSeen,this,[this](qint64 report,qint64 forPid,const QString &){
+        // Only the running game's: a background program's report shows on the strip instead.
+        if(!launcher_.busy()||crashReported_)return;
+        const auto own=launcher_.sessionProcesses();bool ours=own.contains(forPid);
+        if(!ours)for(const auto &p:launch::listProcesses())if(p.pid==forPid&&own.contains(p.parent))ours=true;
+        if(!ours)return;
+        crashReported_=true;
+        ui_->showError("Game",(sessionTitle_.isEmpty()?QString("The game"):sessionTitle_)+" crashed; Windows Error Reporting opened for it. Ending it.");
+        launch::endProcesses({report});
+        QTimer::singleShot(1500,this,[this]{if(launcher_.busy())launcher_.endEverything();});
+    });
+    try{QFile records(install::scopedPath("user/logs/crashes.json",root_));if(records.size()<=4*1024*1024&&records.open(QIODevice::ReadOnly))ui_->setCrashRecords(QJsonDocument::fromJson(records.readAll()).array().toVariantList());}catch(const std::exception &){}
+    QTimer::singleShot(0,this,[this]{watchdog_.start();});
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
-    connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){childPlaying_=true;emit playingChanged();ui_->launchStarted(id);});
-    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int code,const QString &error,const QString &){
+    connect(&launcher_,&launch::LaunchService::starting,this,[this](const QString &id,const QString &){
+        if(sessionSystem_.isEmpty()||!launcher_.playing()){sessionStartMs_=QDateTime::currentMSecsSinceEpoch()-1000;crashReported_=false;}
+        static const QStringList systems{"pinball","model3","model2","ps2","dreamcast","system22","wii"};
+        sessionSystem_="catalog";for(const auto &system:systems)if(id.startsWith(system+"-")||id==system)sessionSystem_=system;
+    });
+    connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){
+        childPlaying_=true;emit playingChanged();ui_->launchStarted(id);
+        sessionTitle_=ui_->nowPlaying().value("title",id).toString();
+        // The watchdog follows the running game: its own processes, and whether its window is all right.
+        watchdog_.beginSession({id,sessionTitle_,sessionSystem_,sessionStartMs_,sessionSystem_!="model2",[this]{return launcher_.sessionProcesses();}});
+    });
+    connect(&launcher_,&launch::LaunchService::finished,this,[this](const QString &id,int code,const QString &error,const QString &logPath){
         childPlaying_=false;emit playingChanged();
+        // A crash: a crash exit code, or Windows Error Reporting opened for it while it ran.
+        const bool crashCode=launch::isCrashCode(quint32(code)),crashed=crashCode||crashReported_;
+        const auto how=crashCode?launch::exitCodeText(code):QString("Windows Error Reporting opened for it");
+        const auto system=sessionSystem_;const auto since=sessionStartMs_;
+        if(crashed)recordCrash(id,code,how,logPath);
+        watchdog_.endSession();crashReported_=false;
+        if(id.startsWith("model2-")&&!model2StopFile_.isEmpty()){QFile::remove(model2StopFile_);model2StopFile_.clear();}
+        // What it left running outside its own tree ends with it.
+        if(crashed)QTimer::singleShot(300,this,[this,system,since]{watchdog_.endSince(system,since);});
+        const auto said=[this,id,crashed,how]{if(crashed)ui_->markCrash(id,(sessionTitle_.isEmpty()?QString("The game"):sessionTitle_)+" crashed: "+how+".");};
         // A Hub exit waiting on this game goes ahead only now that the game has finished by itself.
-        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished(id,error,code);finishPendingExit();return;}
-        ui_->launchFinished(id,error,code);if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
+        if(hubExitPending_){ui_->cancelPendingRestart();ui_->launchFinished(id,error,code);said();finishPendingExit();return;}
+        ui_->launchFinished(id,error,code);said();if(!error.isEmpty()&&!launcher_.busy())emit raiseHubRequested();
     });
     connect(&launcher_,&launch::LaunchService::runtimeStateReady,this,[this](const RuntimeState &state){games_->applyRuntimeStates({state});});
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::playingChanged);
@@ -335,10 +413,16 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             for(const auto &value:dreamcast::games())if("dreamcast-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · "+dreamcast::viewLabel(view);
             hint=view=="headset"?"New and not yet tried in a headset. The picture is also on the PC monitor.":"The mouse is the gun.";
+        }else if(id.startsWith("wii-")){
+            // The authored DolphinXR route: the build's own User folder, OpenXR on, the disc where it is.
+            const auto plan=wii::launchPlan(file,settings_->get("wiiExecutable",QString()).toString());
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            for(const auto &value:wii::games())if("wii-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · In the headset";
+            hint="Aim with your controller. Both thumbsticks pressed together, or Shift+R, recentre the view. Exit game here closes Dolphin.";
         }else if(id.startsWith("model2-")){
             // Two programs: the emulator first, then the viewer given the emulator's process id.
             const auto game=id.mid(7);
-            const auto plan=model2::launchPlan(game,settings_->get("model2Executable",QString()).toString(),settings_->get("model2GameFolder",QString()).toString());
+            const auto plan=model2::launchPlan(game,settings_->get("model2Executable",QString()).toString(),ui_->gameFolderFor("model2",game));
             const auto emulator=plan.value("companion").toMap();
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             request.companion.executable=emulator.value("executable").toString();request.companion.cwd=emulator.value("cwd").toString();request.companion.args=emulator.value("args").toStringList();
@@ -352,10 +436,13 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             for(const auto &value:model2::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · 3D screen";hint=value.toMap().value("controls").toString();}
             hint+=" Home = put the screen in front of you again. Exit game here, or hold Y for 3 seconds, quits and saves.";
             // A stop file of the Hub's own for this launch, cleared first; the viewer watches for it.
-            model2StopFile_=install::scopedPath("user/runtime/model2-"+game+".stop",root_);
+            model2StopFile_=install::scopedPath("user/runtime/model2-"+game+"-"+QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss-zzz")+".stop",root_);
             if(!QDir().mkpath(QFileInfo(model2StopFile_).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
             if(QFileInfo::exists(model2StopFile_)&&!QFile::remove(model2StopFile_))throw install::Error("E_WRITE_DENIED","An old Model 2 stop request could not be cleared");
             environment.insert("ACVR_M2_STOP_FILE",QDir::toNativeSeparators(model2StopFile_));++model2Session_;
+            {const auto list=install::scopedPath("user/runtime/model2-stop-files.txt",root_);QStringList known;
+             {QFile in(list);if(in.size()<64*1024&&in.open(QIODevice::ReadOnly))known=QString::fromUtf8(in.readAll()).split('\n',Qt::SkipEmptyParts);} // Closed before it is replaced.
+             known<<model2StopFile_;while(known.size()>20)known.removeFirst();install::atomicWrite(list,known.join('\n').toUtf8());}
         }else if(id.startsWith("ps2-")){
             // The launcher refuses without SteamVR; say so here instead of starting it to fail.
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
@@ -391,6 +478,8 @@ void HubServices::scanSetup(const QStringList &systems){
         try{
             const auto cachePath=install::scopedPath("user/cache/pinball-scan.json",root);
             QVariantMap context;
+            {QFile cached(install::scopedPath("user/cache/library.json",root));if(cached.size()<=64*1024*1024&&cached.open(QIODevice::ReadOnly))context["library"]=QJsonDocument::fromJson(cached.readAll()).toVariant().toMap();}
+            context["libraryChoice"]=values.value("libraryChoice").toMap();
             {QFile file(cachePath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly)){const auto saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();
                 if(QStringList{saved.value("folder").toString(),saved.value("database").toString(),saved.value("roms").toString(),saved.value("media").toString()}==pinballKey)context["pinballScan"]=saved.value("result");}}
             for(const auto &id:systems){
@@ -498,7 +587,7 @@ void HubServices::startModel3(const QString &id,const QString &view){
     try{
         // The same program, working folder, arguments and variables as the user's
         // own launcher files. Nothing is written beside the emulator or game files.
-        const auto plan=model3::launchPlan(id,view,settings_->get("model3Executable",QString()).toString(),settings_->get("model3GameFolder",QString()).toString());
+        const auto plan=model3::launchPlan(id,view,settings_->get("model3Executable",QString()).toString(),ui_->gameFolderFor("model3",id));
         launch::Request request;request.root=root_;request.gameId="model3-"+id;request.variantId=view;request.prepareProfile=false;
         request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
         auto &environment=request.runtimeInputs.environment;
@@ -568,6 +657,23 @@ void HubServices::requestHubExit(int code){
     if(!gunRoom_.busy()){emit hubExitReady(code);return;}
     hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();gunRoom_.close();
 }
+void HubServices::stopRunning(){
+    // Stop, the same from the window and the headset panel: the system's own graceful quit first (a stop
+    // file, VPX's close, the room's close), then everything of the game is ended after a short wait.
+    const auto session=++stopSession_;
+    const auto later=[this,session](std::function<void()> force){QTimer::singleShot(stopGraceMs_,this,[this,session,force]{if(session==stopSession_)force();});};
+    if(gunRoom_.busy()){gunRoom_.close();later([this]{if(gunRoom_.busy())gunRoom_.forceEnd();});return;}
+    if(!launcher_.busy())return;
+    const auto id=ui_->nowPlaying().value("gameId").toString();
+    if(id.startsWith("model2-")&&askModel2ToQuit(true))return; // Its own wait: the viewer gives MAME 30 s to save.
+    if(id.startsWith("ps2-")){
+        const auto stopFile=settings_->get("ps2StopFile",QString()).toString();QFile request(stopFile);
+        if(!stopFile.isEmpty()&&request.open(QIODevice::WriteOnly)&&request.write("stop\n")==5){request.close();ui_->launchClosing();later([this]{if(launcher_.busy())launcher_.endEverything();});return;}
+        launcher_.stop();return;
+    }
+    if(ui_->nowPlaying().contains("pinballId")){launcher_.requestClose();later([this]{if(launcher_.busy())launcher_.endEverything();});return;}
+    launcher_.stop();
+}
 bool HubServices::askPs2ToQuit(){
     if(!ui_->nowPlaying().value("gameId").toString().startsWith("ps2-")||!launcher_.busy())return false;
     const auto stopFile=settings_->get("ps2StopFile",QString()).toString();
@@ -594,6 +700,51 @@ void HubServices::endSteamVrWait(const QString &message,bool error){
     // Said on the status line either way; error only marks the ones that went wrong, for the log.
     if(!message.isEmpty())ui_->showError("SteamVR",message);
     if(error)qWarning("SteamVR wait ended: %s",qPrintable(message));
+}
+void HubServices::applyWatchdogRules(){
+    // Only what the settings point at: each system's program folder, and its known programs in the
+    // folders around it. Nothing else on the PC is ever the watchdog's to end.
+    const auto get=[this](const char *key){return settings_->get(key,QString()).toString();};
+    const auto folderOf=[](const QString &file){return file.isEmpty()?QString():QFileInfo(file).absolutePath();};
+    const auto parentOf=[](const QString &folder){return folder.isEmpty()?QString():QFileInfo(folder).absolutePath();};
+    QList<launch::SystemRule> rules;
+    const auto add=[&](const QString &system,const QString &label,const QString &own,const QStringList &folders,const QStringList &names){
+        if(own.isEmpty())return;rules<<launch::SystemRule{system,label,{own},folders,names};};
+    const auto pinball=folderOf(get("pinballExecutable"));
+    add("pinball","Visual Pinball",pinball,{get("pinballFolder"),parentOf(pinball)},
+        {"vpinball*","pinmame*","vpinmame*","b2sbackglassserver*","dmdext*","flexdmd*","ultradmd*","freezy*","pinupdisplay*","pupdmdcontrol*","dof*"});
+    add("model3","Sega Model 3",folderOf(get("model3Executable")),{},{"supermodel*"});
+    const auto model2=folderOf(get("model2Executable"));
+    add("model2","Sega Model 2",model2,{parentOf(model2)},{"mame*","model2*"});
+    const auto ps2=folderOf(get("ps2Launcher"));
+    add("ps2","PlayStation 2",ps2,{parentOf(ps2)},{"pcsx2*"});
+    add("dreamcast","Sega Dreamcast",folderOf(get("dreamcastExecutable")),{},{"flycast*"});
+    add("system22","Namco System 22",folderOf(get("system22Executable")),{},{"timecrisis*"});
+    add("wii","Nintendo Wii",folderOf(get("wiiExecutable")),{},{"dolphin*"});
+    watchdog_.setRules(rules);
+}
+void HubServices::recordCrash(const QString &id,int code,const QString &how,const QString &logPath){
+    // A short record in the Hub's folder: when, which game, the exit code in words, and the end of
+    // the emulator's own log when it keeps one (else the Hub's launch log).
+    const auto system=sessionSystem_;
+    QStringList candidates;
+    const auto beside=[this](const char *key,const QString &name){const auto file=settings_->get(key,QString()).toString();return file.isEmpty()?QString():QFileInfo(file).absolutePath()+"/"+name;};
+    if(system=="model3")candidates<<beside("model3Executable","Supermodel.log");
+    if(system=="pinball")candidates<<beside("pinballExecutable","VPinballX.log");
+    if(system=="dreamcast")candidates<<beside("dreamcastExecutable","flycast.log");
+    if(system=="wii")candidates<<beside("wiiExecutable","User/Logs/dolphin.log");
+    QString tail,from;
+    for(const auto &file:candidates){const QFileInfo info(file);if(!file.isEmpty()&&info.isFile()&&info.lastModified().toMSecsSinceEpoch()>=sessionStartMs_-5000){tail=launch::lastLines(file,12);from=info.fileName();break;}}
+    if(tail.isEmpty()&&!logPath.isEmpty()&&QFileInfo(logPath).isFile()){tail=launch::lastLines(logPath,12);from="the Hub's launch log";}
+    QJsonObject record{{"time",QDateTime::currentDateTime().toString(Qt::ISODate)},{"gameId",id},{"title",sessionTitle_.isEmpty()?id:sessionTitle_},{"system",system},
+        {"exitCode",QString("0x%1").arg(quint32(code),8,16,QLatin1Char('0')).toUpper().replace("0X","0x")},{"meaning",how},{"log",tail},{"logFrom",from}};
+    try{
+        const auto path=install::scopedPath("user/logs/crashes.json",root_);
+        QJsonArray list;{QFile file(path);if(file.size()<=4*1024*1024&&file.open(QIODevice::ReadOnly))list=QJsonDocument::fromJson(file.readAll()).array();}
+        list.prepend(record);while(list.size()>30)list.removeLast();
+        QDir().mkpath(QFileInfo(path).absolutePath());install::atomicWrite(path,QJsonDocument(list).toJson());
+        ui_->setCrashRecords(list.toVariantList());
+    }catch(const std::exception &e){ui_->showError("Crash record",QString::fromUtf8(e.what()));}
 }
 void HubServices::scanLocalArt(){
     const auto folders=settings_->get("artFolders",QVariantList{}).toStringList();

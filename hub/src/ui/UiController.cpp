@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/library/Library.h"
+#include "core/wii/Wii.h"
 #include "UiController.h"
 #include "core/pinball/Pinball.h"
 #include "core/model3/Model3.h"
@@ -172,10 +174,11 @@ void UiController::stopLaunch(){
   if(!m_nowPlaying.value("closeUnavailable").toString().isEmpty()){
    message("Close the table in VPX; normal close is unavailable from this Hub.");return;
   }
-  if(m_nowPlaying.value("closing").toBool())return;
+  // Pressed again while it stops: the wait already running is not started over.
+  if(m_nowPlaying.value("stopping").toBool()){message("Stopping; VPX is ended if it has not closed in a few seconds.");return;}
   const bool running=m_nowPlaying.value("running").toBool();
-  launchClosing();emit closeLaunchRequested();
-  message(running?"Close requested; waiting for VPX to exit.":"Pinball launch cancellation requested.");return;
+  m_nowPlaying["closing"]=true;m_nowPlaying["stopping"]=true;emit nowPlayingChanged();emit stopLaunchRequested();
+  message(running?"Stop requested; VPX is asked to close, then ended if it has not.":"Pinball launch cancellation requested.");return;
  }
  // Shown at once: the card says the game is being stopped before the game has reacted.
  if(!m_nowPlaying.isEmpty()){m_nowPlaying["closing"]=true;m_nowPlaying["stopping"]=true;emit nowPlayingChanged();}
@@ -319,6 +322,11 @@ QVariantList UiController::otherGames()const{
   if(!known)view=views.first().toMap().value("id").toString();
   for(const auto &value:views)if(value.toMap().value("id")==view)row["viewLabel"]=value.toMap().value("label");
   row["view"]=view;row["views"]=views;
+  // A copy chosen on the game's page is used at once, before the next Rescan.
+  if(const auto system=row.value("system").toString();system=="dreamcast"||system=="wii"){
+   const auto picked=m_settings->get("libraryChoice",QVariantMap{}).toMap().value(system+"/"+row.value("id").toString().mid(system.size()+1)).toString();
+   if(!picked.isEmpty()&&QFileInfo(picked).isFile())row["file"]=picked;
+  }
   row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
   row["accepted"]=m_settings->acceptedOn(row.value("id").toString(),row.value("title").toString());
   row["artId"]=row.value("id");addArt(row,row.value("id").toString(),row.value("system").toString());
@@ -326,10 +334,10 @@ QVariantList UiController::otherGames()const{
  };
  // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
  const auto model2Program=m_settings->get("model2Executable",QString()).toString(),model2Folder=m_settings->get("model2GameFolder",QString()).toString();
- if(!model2Program.isEmpty()||!model2Folder.isEmpty())for(const auto &value:model2::games()){
+ if(!model2Program.isEmpty()||!model2Folder.isEmpty()||m_library.value("systems").toMap().contains("model2"))for(const auto &value:model2::games()){
   const auto game=value.toMap();
   add({{"id","model2-"+game.value("id").toString()},{"system","model2"},{"pill","MODEL 2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},
-   {"warning",game.value("controls").toString()},{"problem",model2::problem(game.value("id").toString(),model2Program,model2Folder)}},
+   {"warning",game.value("controls").toString()},{"problem",model2::problem(game.value("id").toString(),model2Program,gameFolderFor("model2",game.value("id").toString()))}},
    {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
  }
  // PS2: through the user's launcher, checked as it is now. Controls and depth are said on each game's page.
@@ -345,6 +353,19 @@ QVariantList UiController::otherGames()const{
  if(!program.isEmpty())add({{"id","system22-timecris"},{"system","system22"},{"pill","SYSTEM 22"},{"title","Time Crisis"},{"year",1996},{"file",QString()},{"warning",QString()},
   {"problem",QFileInfo(program).isFile()?QString():QString("Time Crisis VR build not found. Use Set-up.")}},
   {QVariantMap{{"id","vr"},{"label","In the headset"},{"help","The whole game around you, with a tracked gun."}}});
+ // Wii: the discs of the last scan, in the headset through the DolphinXR build. A game the build is
+ // missing settings for starts behind a warning that says what is missing.
+ const auto wiiProgram=m_settings->get("wiiExecutable",QString()).toString();
+ const QVariantList wiiViews{QVariantMap{{"id","headset"},{"label","In the headset"},{"help","DolphinXR: the game on a screen in VR, aimed with your controller."}}};
+ for(const auto &system:m_setupReport.value("systems").toList()){
+  if(system.toMap().value("id")!="wii")continue;
+  QHash<QString,int> years;for(const auto &value:wii::games())years.insert(value.toMap().value("id").toString(),value.toMap().value("year").toInt());
+  const auto row=[&](const QVariantMap &entry){return QVariantMap{{"id","wii-"+entry.value("id").toString()},{"system","wii"},{"pill","WII"},{"title",entry.value("title")},{"year",years.value(entry.value("id").toString())},{"file",entry.value("file")},{"warning",QString()},{"problem",QString()}};};
+  for(const auto &value:system.toMap().value("ready").toList()){auto r=row(value.toMap());if(!QFileInfo(wiiProgram).isFile())r["problem"]="DolphinXR build not found. Use Set-up.";add(r,wiiViews);}
+  for(const auto &value:system.toMap().value("notRight").toList()){const auto entry=value.toMap();auto r=row(entry);
+   if(entry.value("startable").toBool()&&QFileInfo(wiiProgram).isFile())r["warning"]=entry.value("reason");else r["problem"]=entry.value("reason");add(r,wiiViews);}
+  for(const auto &value:system.toMap().value("missing").toList()){const auto entry=value.toMap();auto r=row(entry);r["problem"]="Not found. The Hub looks for: "+entry.value("expected").toString();add(r,wiiViews);}
+ }
  // Dreamcast: the discs of the last scan. A disc without a VR profile starts behind a warning.
  const auto dreamcastProgram=m_settings->get("dreamcastExecutable",QString()).toString();
  for(const auto &system:m_setupReport.value("systems").toList()){
@@ -359,6 +380,31 @@ QVariantList UiController::otherGames()const{
  return rows;
 }
 void UiController::chooseGameView(const QString &id,const QString &view){auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();if(chosen.value(id)==view)return;chosen[id]=view;m_settings->set("gameViews",chosen);}
+void UiController::scanLibrary(){
+ if(m_libraryScanning)return;
+ const auto roots=m_settings->get("libraryRoots",QVariantList{}).toStringList();
+ if(roots.isEmpty()){message("Add a folder to the game library first.");return;}
+ m_libraryScanning=true;m_libraryProgress="Looking through your folders";emit libraryChanged();emit libraryScanRequested(roots);
+}
+QVariantList UiController::copiesOf(const QString &system,const QString &game)const{return library::copies(m_library,system,game);}
+QString UiController::copyInUse(const QString &system,const QString &game)const{
+ return library::chosen(m_library,system,game,m_settings->get("libraryChoice",QVariantMap{}).toMap()).value("file").toString();
+}
+void UiController::chooseCopy(const QString &system,const QString &game,const QString &file){
+ auto choices=m_settings->get("libraryChoice",QVariantMap{}).toMap();choices[system+"/"+game]=file;m_settings->set("libraryChoice",choices);
+ message("This copy is used from now on. Rescan in Set-up to check it.");emit model3Changed();emit libraryChanged();
+}
+QString UiController::libraryRule()const{return library::rule();}
+QString UiController::gameFolderFor(const QString &system,const QString &game)const{
+ const auto own=m_settings->get(system+"GameFolder",QString()).toString();
+ if(!own.isEmpty()&&QFileInfo(QDir(own).filePath(game+".zip")).isFile())return own;
+ const auto copy=library::chosen(m_library,system,game,m_settings->get("libraryChoice",QVariantMap{}).toMap());
+ return copy.isEmpty()?own:QFileInfo(copy.value("file").toString()).absolutePath();
+}
+void UiController::markCrash(const QString &id,const QString &text){
+ if(m_lastSession.value("gameId")!=id)return;
+ m_lastSession["outcome"]="crashed";m_lastSession["text"]=text;emit nowPlayingChanged();
+}
 void UiController::playGame(const QString &id,const QString &view){
  for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,view.isEmpty()?row.value("view").toString():view);return;}}
  for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,view.isEmpty()?row.value("view").toString():view,row.value("file").toString());return;}}
@@ -381,7 +427,7 @@ QVariantList UiController::model3Games()const{
   auto row=value.toMap();const auto id=row.value("id").toString();
   auto view=chosen.value(id).toString();if(model3::viewLabel(view).isEmpty())view="screen";
   row["view"]=view;row["viewLabel"]=model3::viewLabel(view);
-  row["problem"]=model3::problem(id,executable,folder);
+  row["problem"]=model3::problem(id,executable,gameFolderFor("model3",id));
   // A file that is there but wrong for this emulator is known only from the last scan.
   if(row.value("problem").toString().isEmpty())for(const auto &system:m_setupReport.value("systems").toList())if(system.toMap().value("id")=="model3")
    for(const auto &entry:system.toMap().value("notRight").toList())if(entry.toMap().value("id")==id)row["problem"]="The game file is not right. "+entry.toMap().value("reason").toString();

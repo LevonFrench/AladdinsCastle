@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/launch/Watchdog.h"
 #include "core/launch/SteamVrStart.h"
 #include "core/app/PanelAttacher.h"
 #include "core/app/LaunchOptions.h"
@@ -198,16 +199,38 @@ int main(int argc,char **argv){
     // It still needs the setting on. With AC_UI_GET_ARTWORK_QUIT the Hub quits when the last one ends.
     if(qEnvironmentVariableIsSet("AC_UI_GET_ARTWORK")){
         auto queue=std::make_shared<QStringList>(qEnvironmentVariable("AC_UI_GET_ARTWORK").split(',',Qt::SkipEmptyParts));
-        QObject::connect(&ui,&ac::UiController::artworkChanged,&ui,[&ui,&out,queue]{
-            if(ui.artworkBusy())return;
-            out<<ui.artworkStatus()<<'\n';out.flush();
-            if(!queue->isEmpty())ui.getArtwork(queue->takeFirst());
+        auto asked=std::make_shared<bool>(false);
+        const auto next=[&ui,queue,asked]{
+            if(!queue->isEmpty()){*asked=true;ui.getArtwork(queue->takeFirst());}
             else if(qEnvironmentVariableIsSet("AC_UI_GET_ARTWORK_QUIT"))QTimer::singleShot(0,qApp,[]{QCoreApplication::quit();});
+        };
+        // Only the end of the request it made itself moves it on.
+        QObject::connect(&ui,&ac::UiController::artworkChanged,&ui,[&ui,&out,asked,next]{
+            if(!*asked||ui.artworkBusy())return;
+            *asked=false;out<<ui.artworkStatus()<<'\n';out.flush();
+            QTimer::singleShot(0,&ui,next);
         });
-        QTimer::singleShot(800,&ui,[&ui,queue]{if(!queue->isEmpty())ui.getArtwork(queue->takeFirst());});
+        QTimer::singleShot(800,&ui,next);
     }
     // Diagnostic, for pictures only: the Starting SteamVR state for a sample game; nothing is started.
     if(qEnvironmentVariableIsSet("AC_UI_DEMO_STEAMVR_STARTING"))QTimer::singleShot(400,&ui,[&ui]{ui.setSteamVrStarting(qEnvironmentVariable("AC_UI_DEMO_STEAMVR_STARTING"));});
+    // Diagnostic, for pictures only: the watchdog's strip, a crash and a game that is not responding,
+    // from sample data ("strip", "crash" or "hung"). No process is looked at or touched.
+    if(const auto demo=qEnvironmentVariable("AC_UI_DEMO_WATCHDOG");!demo.isEmpty())QTimer::singleShot(400,&ui,[&ui,demo]{
+        const QVariantList strays{QVariantMap{{"pid",4242},{"label","Visual Pinball · B2SBackglassServerEXE.exe"},{"system","pinball"}},
+                                  QVariantMap{{"pid",4243},{"label","Visual Pinball · VPinballX64.exe"},{"system","pinball"}},
+                                  QVariantMap{{"pid",4244},{"label","Windows Error Reporting for Supermodel.exe"},{"system","model3"}}};
+        if(demo=="strip")ui.setWatchdog(strays,QString());
+        if(demo=="crash"){
+            ui.launchOtherQueued("model3-scud","screen","Scud Race · Screen","",QString());ui.launchStarted("model3-scud");
+            ui.launchFinished("model3-scud","The game stopped unexpectedly",int(0xC0000005));
+            ui.markCrash("model3-scud","Scud Race · Screen crashed: "+ac::launch::exitCodeText(int(0xC0000005))+".");
+            ui.setCrashRecords({QVariantMap{{"time","2026-10-15T21:04:11"},{"title","Scud Race · Screen"},{"meaning",ac::launch::exitCodeText(int(0xC0000005))},{"exitCode","0xC0000005"},
+                {"logFrom","Supermodel.log"},{"log","Supermodel 0.3a\nLoading ROM set\nRenderer: OpenGL 4.6\nNetwork board: off\nFrame 18342: unhandled exception"}}});
+            ui.setWatchdog({strays.first()},QString());
+        }
+        if(demo=="hung"){ui.launchOtherQueued("model3-scud","screen","Scud Race · Screen","Home = set straight ahead. 1 = start, 3 = coin.",QString());ui.launchStarted("model3-scud");ui.setWatchdog({},"hung");}
+    });
     // Diagnostic: read the ticked systems' folders once, as the set-up's Rescan does.
     if(qEnvironmentVariableIsSet("AC_UI_SETUP_SCAN"))QTimer::singleShot(500,&ui,[&ui]{ui.scanSetup();});
     ac::Json diagnosticFinished=ac::Json::array();
