@@ -6,8 +6,8 @@
 using ac::launch::ProcessInfo;
 namespace {
 const QList<ac::launch::SystemRule> rules{
-    {"pinball", "Visual Pinball", {"D:/Games/VPX"}, {"D:/Games/VPX/Tables"}, {"vpinball*", "b2sbackglassserver*"}},
-    {"model3", "Sega Model 3", {"D:/Emu/Supermodel"}, {}, {"supermodel*"}}};
+    {"pinball", "Visual Pinball", {"/Games/VPX"}, {"/Games/VPX/Tables"}, {"vpinball*", "b2sbackglassserver*"}},
+    {"model3", "Sega Model 3", {"/Emu/Supermodel"}, {}, {"supermodel*"}}};
 ProcessInfo process(qint64 pid, qint64 parent, const QString &path, qint64 created) {
   return {pid, parent, created, path, path.section('/', -1)};
 }
@@ -16,16 +16,16 @@ class WatchdogTest : public QObject {
   Q_OBJECT
 private slots:
   void onlyConfiguredFoldersBelongToASystem() {
-    QCOMPARE(ac::launch::attribute(process(101, 0, "D:/Games/VPX/VPinballX64.exe", 0), rules), QString("pinball"));
-    QCOMPARE(ac::launch::attribute(process(102, 0, "d:\\games\\vpx\\Tools.exe", 0), rules), QString("pinball")); // Its own folder: any program.
-    QCOMPARE(ac::launch::attribute(process(103, 0, "D:/Games/VPX/Tables/B2SBackglassServerEXE.exe", 0), rules), QString("pinball"));
-    QVERIFY(ac::launch::attribute(process(104, 0, "D:/Games/VPX/Tables/notepad.exe", 0), rules).isEmpty()); // Around it: known names only.
-    QVERIFY(ac::launch::attribute(process(105, 0, "C:/Other/VPinballX64.exe", 0), rules).isEmpty());           // Same name elsewhere.
-    QCOMPARE(ac::launch::attribute(process(106, 0, "D:/Emu/Supermodel/Supermodel.exe", 0), rules), QString("model3"));
+    QCOMPARE(ac::launch::attribute(process(101, 0, "/Games/VPX/VPinballX64.exe", 0), rules), QString("pinball"));
+    QCOMPARE(ac::launch::attribute(process(102, 0, "\\games\\vpx\\Tools.exe", 0), rules), QString("pinball")); // Its own folder: any program.
+    QCOMPARE(ac::launch::attribute(process(103, 0, "/Games/VPX/Tables/B2SBackglassServerEXE.exe", 0), rules), QString("pinball"));
+    QVERIFY(ac::launch::attribute(process(104, 0, "/Games/VPX/Tables/notepad.exe", 0), rules).isEmpty()); // Around it: known names only.
+    QVERIFY(ac::launch::attribute(process(105, 0, "/Other/VPinballX64.exe", 0), rules).isEmpty());           // Same name elsewhere.
+    QCOMPARE(ac::launch::attribute(process(106, 0, "/Emu/Supermodel/Supermodel.exe", 0), rules), QString("model3"));
     // SteamVR and Steam are never the watchdog's, even inside a configured folder.
-    QVERIFY(ac::launch::attribute(process(107, 0, "D:/Games/VPX/vrserver.exe", 0), rules).isEmpty());
-    QVERIFY(ac::launch::neverTouch(process(108, 0, "G:/steam/steamapps/common/SteamVR/bin/win64/vrcompositor.exe", 0)));
-    QVERIFY(ac::launch::neverTouch(process(109, 0, "C:/Program Files (x86)/Steam/steam.exe", 0)));
+    QVERIFY(ac::launch::attribute(process(107, 0, "/Games/VPX/vrserver.exe", 0), rules).isEmpty());
+    QVERIFY(ac::launch::neverTouch(process(108, 0, "/steam/steamapps/common/SteamVR/bin/win64/vrcompositor.exe", 0)));
+    QVERIFY(ac::launch::neverTouch(process(109, 0, "/Program Files (x86)/Steam/steam.exe", 0)));
   }
   void exitCodesInWords() {
     QVERIFY(ac::launch::isCrashCode(0xC0000005));
@@ -40,14 +40,14 @@ private slots:
   }
   void straysSessionsAndErrorReports() {
     const qint64 start = 1'000'000;
-    QList<ProcessInfo> running{process(10, 1, "D:/Games/VPX/VPinballX64.exe", start + 100),                  // The game.
-                               process(11, 10, "D:/Games/VPX/PinMAME.exe", start + 200),                      // Its child.
-                               process(12, 1, "D:/Games/VPX/Tables/B2SBackglassServerEXE.exe", start - 60000), // Left from before.
-                               process(13, 1, "D:/Games/VPX/Tables/B2SBackglassServerEXE.exe", start + 300),   // Started for it by Windows.
-                               process(14, 1, "D:/Emu/Supermodel/Supermodel.exe", start - 5000),              // Another system's.
-                               process(15, 1, "C:/Other/VPinballX64.exe", start),                             // Not the Hub's.
-                               process(16, 10, "C:/Windows/System32/WerFault.exe", start + 900),              // Reporting on the game.
-                               process(17, 1, "C:/Windows/System32/WerFault.exe", start)};                     // Reporting on something else.
+    QList<ProcessInfo> running{process(10, 1, "/Games/VPX/VPinballX64.exe", start + 100),                  // The game.
+                               process(11, 10, "/Games/VPX/PinMAME.exe", start + 200),                      // Its child.
+                               process(12, 1, "/Games/VPX/Tables/B2SBackglassServerEXE.exe", start - 60000), // Left from before.
+                               process(13, 1, "/Games/VPX/Tables/B2SBackglassServerEXE.exe", start + 300),   // Started for it by Windows.
+                               process(14, 1, "/Emu/Supermodel/Supermodel.exe", start - 5000),              // Another system's.
+                               process(15, 1, "/Other/VPinballX64.exe", start),                             // Not the Hub's.
+                               process(16, 10, "/Windows/System32/WerFault.exe", start + 900),              // Reporting on the game.
+                               process(17, 1, "/Windows/System32/WerFault.exe", start)};                     // Reporting on something else.
     ac::launch::Watchdog dog;
     dog.setRules(rules);
     dog.setLister([&] { return running; });
@@ -73,8 +73,8 @@ private slots:
     QCOMPARE(pids(), QList<qint64>({11, 12, 13, 14}));
   }
   void endingIsGracefulThenTheTreeOnlyTheSameProcesses() {
-    QList<ProcessInfo> running{process(20, 1, "D:/Emu/Supermodel/Supermodel.exe", 100), process(21, 20, "C:/Windows/System32/conhost.exe", 150),
-                               process(22, 1, "D:/Emu/Supermodel/Supermodel.exe", 300), process(23, 1, "C:/Other/Supermodel.exe", 100)};
+    QList<ProcessInfo> running{process(20, 1, "/Emu/Supermodel/Supermodel.exe", 100), process(21, 20, "/Windows/System32/conhost.exe", 150),
+                               process(22, 1, "/Emu/Supermodel/Supermodel.exe", 300), process(23, 1, "/Other/Supermodel.exe", 100)};
     ac::launch::Watchdog dog;
     dog.setRules(rules);
     dog.setTimings(1000, 100, 0, 150);
