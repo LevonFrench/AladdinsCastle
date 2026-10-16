@@ -85,6 +85,7 @@ Item {
     }
     ColumnLayout {spacing:10
      Heading {text:"Where is it?"}
+     GameLibraryCard {objectName:"gameLibrary";Layout.fillWidth:true;vrOverlayMode:page.vrOverlayMode}
      Para {text:page.chosen.length?"One folder of your own files for each system, and the program that plays it. Leave any empty to skip it for now."+(page.vrOverlayMode?" Folders and programs are chosen on the desktop.":""):"Nothing is ticked on the page before, so there is nothing to find. Go back and tick what you have."}
      Repeater {model:page.chosen
       Rectangle {id:card;required property var modelData;Layout.fillWidth:true;implicitHeight:inner.implicitHeight+32;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.width:0

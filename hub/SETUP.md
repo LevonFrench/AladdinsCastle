@@ -37,6 +37,54 @@ If SteamVR cannot be started, takes over two minutes, or Cancel is pressed,
 nothing is started and the Hub says why. SteamVR is started only when that button
 is pressed, never by a diagnostic or offscreen run, and never by a test.
 
+## Game library
+
+The "Where is it?" step of Set-up has a **Game library** card. You choose one or
+more big folders of your own games, subfolders and all (`libraryRoots`), and the
+Hub finds every game it plays under them.
+
+**How it looks:**
+- It goes up to six folders down and never enters links, junctions or system
+  folders. It runs off the GUI thread, shows progress, and can be cancelled.
+- It is read-only: nothing under the roots is written, renamed or moved.
+
+**How it knows each game:**
+
+| System | How it is known |
+|---|---|
+| Wii | the game id in the disc header (`.iso`, `.wbfs`, `.rvz`, `.wia`) |
+| PS2 | the serial in the disc's SYSTEM.CNF (`.iso`, `.bin`, `.chd`); `.cso` and `.gz` by name |
+| Dreamcast | the product number in the disc's own header (`.gdi`, `.cdi`, `.cue`, `.chd`); a `.bin` named in a cue sheet is read through that sheet |
+| Model 3 and Model 2 | the zip's set name; the Set-up report then checks what is inside by CRC, as for a system folder |
+| Pinball | `.vpx` tables, counted per folder; "Use this folder for Visual Pinball" sets the pinball folder |
+
+**What it keeps:** each game's own file. The result goes to
+`user/cache/library.json`, and "Look again" searches the folders once more.
+
+**Where it fits:** a folder chosen for a system still comes first. The library
+fills in what that folder does not have, in the Set-up report, the game rows and
+the launch.
+
+**When there are several copies:** the Hub picks one by its rule:
+
+1. read from the disc itself;
+2. the release with a VR profile;
+3. USA, then World, Europe, Japan;
+4. the plainest format;
+5. a folder named for the system;
+6. the shortest path.
+
+The game's page lists the copies under "Copy used". Picking one there remembers it
+(`libraryChoice`).
+
+**What it reports:**
+- per system, the games found and the discs that are not in the Hub's list;
+- the files it read but did not recognise, as counts of disc images and archives.
+
+On a real collection with about 70 system folders, it read 31,568 candidate files
+in about 96 seconds. That first search is cached; the next one runs only on
+request.
+
 ## Watchdog
 
 The Hub watches the programs of the systems it has been set up for.

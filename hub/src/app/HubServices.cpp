@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/library/Library.h"
 #include "core/wii/Wii.h"
 #include "HubServices.h"
 #include "core/install/Support.h"
@@ -225,6 +226,24 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(artDownloader_.get(),&art::Downloader::progress,this,[this](const QString &text){ui_->setArtwork(true,text);});
     connect(artDownloader_.get(),&art::Downloader::finished,this,[this](const QString &summary,const QStringList &){ui_->setArtwork(false,summary);});
     connect(settings_,&UiSettings::changed,this,[this]{scanLocalArt();applyWatchdogRules();});
+    // The Game library: the last result from the cache, and a new search on request, off the GUI thread.
+    try{QFile cached(install::scopedPath("user/cache/library.json",root_));if(cached.size()<=64*1024*1024&&cached.open(QIODevice::ReadOnly))ui_->setLibrary(QJsonDocument::fromJson(cached.readAll()).toVariant().toMap());}catch(const std::exception &){}
+    connect(ui_,&UiController::libraryScanRequested,this,[this](const QStringList &roots){
+        const auto root=root_;const QPointer<UiController> ui=ui_;
+        auto *watcher=new QFutureWatcher<QVariantMap>(this);
+        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{
+            const auto result=watcher->result();watcher->deleteLater();ui_->setLibrary(result);
+            int games=0;for(const auto &system:result.value("systems").toMap())games+=system.toMap().value("games").toInt();
+            ui_->showError("Game library",QString("%1 games found in %2 files, in %3 seconds.").arg(games).arg(result.value("files").toInt()).arg(result.value("seconds").toDouble(),0,'f',1));
+        });
+        watcher->setFuture(QtConcurrent::run([roots,root,ui]{
+            std::atomic_bool cancel=false;
+            const auto progress=[ui](const QString &text){if(ui)QMetaObject::invokeMethod(ui.data(),"libraryScanProgress",Qt::QueuedConnection,Q_ARG(QString,text));};
+            const auto result=library::scan(roots,progress,cancel);
+            try{install::atomicWrite(install::scopedPath("user/cache/library.json",root),QJsonDocument::fromVariant(result).toJson(QJsonDocument::Compact));}catch(const std::exception &){}
+            return result;
+        }));
+    });
     scanLocalArt();
     // The watchdog: on start and every few seconds, the set-up systems' programs outside any game.
     applyWatchdogRules();
@@ -403,7 +422,7 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
         }else if(id.startsWith("model2-")){
             // Two programs: the emulator first, then the viewer given the emulator's process id.
             const auto game=id.mid(7);
-            const auto plan=model2::launchPlan(game,settings_->get("model2Executable",QString()).toString(),settings_->get("model2GameFolder",QString()).toString());
+            const auto plan=model2::launchPlan(game,settings_->get("model2Executable",QString()).toString(),ui_->gameFolderFor("model2",game));
             const auto emulator=plan.value("companion").toMap();
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             request.companion.executable=emulator.value("executable").toString();request.companion.cwd=emulator.value("cwd").toString();request.companion.args=emulator.value("args").toStringList();
@@ -459,6 +478,8 @@ void HubServices::scanSetup(const QStringList &systems){
         try{
             const auto cachePath=install::scopedPath("user/cache/pinball-scan.json",root);
             QVariantMap context;
+            {QFile cached(install::scopedPath("user/cache/library.json",root));if(cached.size()<=64*1024*1024&&cached.open(QIODevice::ReadOnly))context["library"]=QJsonDocument::fromJson(cached.readAll()).toVariant().toMap();}
+            context["libraryChoice"]=values.value("libraryChoice").toMap();
             {QFile file(cachePath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly)){const auto saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();
                 if(QStringList{saved.value("folder").toString(),saved.value("database").toString(),saved.value("roms").toString(),saved.value("media").toString()}==pinballKey)context["pinballScan"]=saved.value("result");}}
             for(const auto &id:systems){
@@ -566,7 +587,7 @@ void HubServices::startModel3(const QString &id,const QString &view){
     try{
         // The same program, working folder, arguments and variables as the user's
         // own launcher files. Nothing is written beside the emulator or game files.
-        const auto plan=model3::launchPlan(id,view,settings_->get("model3Executable",QString()).toString(),settings_->get("model3GameFolder",QString()).toString());
+        const auto plan=model3::launchPlan(id,view,settings_->get("model3Executable",QString()).toString(),ui_->gameFolderFor("model3",id));
         launch::Request request;request.root=root_;request.gameId="model3-"+id;request.variantId=view;request.prepareProfile=false;
         request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
         auto &environment=request.runtimeInputs.environment;

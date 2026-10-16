@@ -974,4 +974,8 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
   r.elapsedMs = elapsed.elapsed();
   return r;
 }
+QStringList walk(const QStringList &roots, const QStringList &extensions, int depth,
+                 std::atomic_bool &cancel) {
+  return enumerate(roots, extensions, depth, cancel);
+}
 } // namespace ac::scan

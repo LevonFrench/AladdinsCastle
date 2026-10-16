@@ -6,6 +6,8 @@
 #include "core/install/Support.h"
 #include "core/launch/Launch.h"
 #include "core/pinball/Pinball.h"
+#include "core/library/Library.h"
+#include <QJsonObject>
 #include <QJsonDocument>
 #include <QCoreApplication>
 #include <QDir>
@@ -58,6 +60,25 @@ int main(int argc, char **argv) {
   if (args.isEmpty()) {
     err << usage;
     return 2;
+  }
+  // The Game library over folders, read-only: counts per system and the time it took, nothing written.
+  if(args[0]=="library" && args.size()>=2) {
+    std::atomic_bool cancel=false;
+    const auto result=ac::library::scan(args.mid(1),{},cancel);
+    QJsonObject summary{{"files",result.value("files").toInt()},{"seconds",result.value("seconds").toDouble()},{"depth",result.value("depth").toInt()},
+                        {"unrecognised",QJsonObject::fromVariantMap(result.value("unrecognised").toMap())}};
+    QJsonObject systems;
+    const auto all=result.value("systems").toMap();
+    for(auto it=all.cbegin();it!=all.cend();++it){
+      const auto system=it.value().toMap();QJsonObject games;
+      const auto copies=system.value("copies").toMap();
+      for(auto game=copies.cbegin();game!=copies.cend();++game)games.insert(game.key(),game.value().toList().size());
+      systems.insert(it.key(),QJsonObject{{"games",system.value("games").toInt()},{"notInList",system.value("other").toInt()},{"copies",games}});
+    }
+    summary.insert("systems",systems);
+    const auto folders=result.value("pinballFolders").toList();
+    summary.insert("pinballTables",folders.isEmpty()?0:folders.first().toMap().value("tables").toInt());
+    out<<QJsonDocument(summary).toJson();return 0;
   }
   if(args[0]=="scan-pinball" && args.size()>=2 && args.size()<=5) {
     try{out<<QJsonDocument::fromVariant(ac::pinball::scan(args[1],args.value(2),args.value(3),args.value(4))).toJson();return 0;}catch(const std::exception &e){err<<e.what()<<"\n";return 2;}

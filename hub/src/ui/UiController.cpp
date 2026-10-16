@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/library/Library.h"
 #include "core/wii/Wii.h"
 #include "UiController.h"
 #include "core/pinball/Pinball.h"
@@ -320,6 +321,11 @@ QVariantList UiController::otherGames()const{
   if(!known)view=views.first().toMap().value("id").toString();
   for(const auto &value:views)if(value.toMap().value("id")==view)row["viewLabel"]=value.toMap().value("label");
   row["view"]=view;row["views"]=views;
+  // A copy chosen on the game's page is used at once, before the next Rescan.
+  if(const auto system=row.value("system").toString();system=="dreamcast"||system=="wii"){
+   const auto picked=m_settings->get("libraryChoice",QVariantMap{}).toMap().value(system+"/"+row.value("id").toString().mid(system.size()+1)).toString();
+   if(!picked.isEmpty()&&QFileInfo(picked).isFile())row["file"]=picked;
+  }
   row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
   row["accepted"]=m_settings->acceptedOn(row.value("id").toString(),row.value("title").toString());
   row["artId"]=row.value("id");addArt(row,row.value("id").toString(),row.value("system").toString());
@@ -327,10 +333,10 @@ QVariantList UiController::otherGames()const{
  };
  // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
  const auto model2Program=m_settings->get("model2Executable",QString()).toString(),model2Folder=m_settings->get("model2GameFolder",QString()).toString();
- if(!model2Program.isEmpty()||!model2Folder.isEmpty())for(const auto &value:model2::games()){
+ if(!model2Program.isEmpty()||!model2Folder.isEmpty()||m_library.value("systems").toMap().contains("model2"))for(const auto &value:model2::games()){
   const auto game=value.toMap();
   add({{"id","model2-"+game.value("id").toString()},{"system","model2"},{"pill","MODEL 2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},
-   {"warning",game.value("controls").toString()},{"problem",model2::problem(game.value("id").toString(),model2Program,model2Folder)}},
+   {"warning",game.value("controls").toString()},{"problem",model2::problem(game.value("id").toString(),model2Program,gameFolderFor("model2",game.value("id").toString()))}},
    {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
  }
  // PS2: through the user's launcher, checked as it is now. Controls and depth are said on each game's page.
@@ -373,6 +379,27 @@ QVariantList UiController::otherGames()const{
  return rows;
 }
 void UiController::chooseGameView(const QString &id,const QString &view){auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();if(chosen.value(id)==view)return;chosen[id]=view;m_settings->set("gameViews",chosen);}
+void UiController::scanLibrary(){
+ if(m_libraryScanning)return;
+ const auto roots=m_settings->get("libraryRoots",QVariantList{}).toStringList();
+ if(roots.isEmpty()){message("Add a folder to the game library first.");return;}
+ m_libraryScanning=true;m_libraryProgress="Looking through your folders";emit libraryChanged();emit libraryScanRequested(roots);
+}
+QVariantList UiController::copiesOf(const QString &system,const QString &game)const{return library::copies(m_library,system,game);}
+QString UiController::copyInUse(const QString &system,const QString &game)const{
+ return library::chosen(m_library,system,game,m_settings->get("libraryChoice",QVariantMap{}).toMap()).value("file").toString();
+}
+void UiController::chooseCopy(const QString &system,const QString &game,const QString &file){
+ auto choices=m_settings->get("libraryChoice",QVariantMap{}).toMap();choices[system+"/"+game]=file;m_settings->set("libraryChoice",choices);
+ message("This copy is used from now on. Rescan in Set-up to check it.");emit model3Changed();emit libraryChanged();
+}
+QString UiController::libraryRule()const{return library::rule();}
+QString UiController::gameFolderFor(const QString &system,const QString &game)const{
+ const auto own=m_settings->get(system+"GameFolder",QString()).toString();
+ if(!own.isEmpty()&&QFileInfo(QDir(own).filePath(game+".zip")).isFile())return own;
+ const auto copy=library::chosen(m_library,system,game,m_settings->get("libraryChoice",QVariantMap{}).toMap());
+ return copy.isEmpty()?own:QFileInfo(copy.value("file").toString()).absolutePath();
+}
 void UiController::markCrash(const QString &id,const QString &text){
  if(m_lastSession.value("gameId")!=id)return;
  m_lastSession["outcome"]="crashed";m_lastSession["text"]=text;emit nowPlayingChanged();
@@ -399,7 +426,7 @@ QVariantList UiController::model3Games()const{
   auto row=value.toMap();const auto id=row.value("id").toString();
   auto view=chosen.value(id).toString();if(model3::viewLabel(view).isEmpty())view="screen";
   row["view"]=view;row["viewLabel"]=model3::viewLabel(view);
-  row["problem"]=model3::problem(id,executable,folder);
+  row["problem"]=model3::problem(id,executable,gameFolderFor("model3",id));
   // A file that is there but wrong for this emulator is known only from the last scan.
   if(row.value("problem").toString().isEmpty())for(const auto &system:m_setupReport.value("systems").toList())if(system.toMap().value("id")=="model3")
    for(const auto &entry:system.toMap().value("notRight").toList())if(entry.toMap().value("id")==id)row["problem"]="The game file is not right. "+entry.toMap().value("reason").toString();

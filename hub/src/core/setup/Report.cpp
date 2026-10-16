@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/library/Library.h"
 #include "core/wii/Wii.h"
 #include "Report.h"
 #include "Setup.h"
@@ -20,6 +21,26 @@ namespace ac::setup {
 namespace {
 using Scanner=QVariantMap(*)(const QVariantMap &,const QVariantMap &,const Progress &,std::atomic_bool &);
 QVariantMap item(const QString &id,const QString &title,const char *key,const QString &text){return {{"id",id},{"title",title},{QString::fromLatin1(key),text}};}
+// The Game library (context "library" and the user's "libraryChoice"): every copy it found of a
+// system's games, the folder of a game's chosen zip, and whether a disc is the chosen copy.
+QVariantList libraryDiscs(const QVariantMap &context,const QString &system){
+ QVariantList out;const auto byGame=context.value("library").toMap().value("systems").toMap().value(system).toMap().value("copies").toMap();
+ for(auto it=byGame.cbegin();it!=byGame.cend();++it)out<<it.value().toList();
+ return out;
+}
+QString libraryFolder(const QVariantMap &context,const QString &system,const QString &game){
+ const auto copy=library::chosen(context.value("library").toMap(),system,game,context.value("libraryChoice").toMap());
+ return copy.isEmpty()?QString():QFileInfo(copy.value("file").toString()).absolutePath();
+}
+bool choice(const QVariantMap &context,const QString &system,const QString &game,const QVariantMap &disc){
+ const auto wanted=context.value("libraryChoice").toMap().value(system+"/"+game).toString();
+ return !wanted.isEmpty()&&QDir::fromNativeSeparators(disc.value("file").toString())==QDir::fromNativeSeparators(wanted);
+}
+// A system with no folder of its own may still have its games in the library.
+QString noFolder(const QString &folder,const QVariantMap &context,const QString &system){
+ if(!folder.isEmpty())return {};
+ return context.value("library").toMap().value("systems").toMap().contains(system)?QString("Found through your game library."):QString("No folder chosen for this system.");
+}
 struct Groups {
  QVariantList ready,notRight,missing,other;
  QVariantMap result(const QString &id,const QString &note)const{
@@ -70,8 +91,8 @@ QSet<quint32> checksums(const QString &zip,std::atomic_bool &cancel,bool *readab
  for(const auto &entry:file.entries)if(entry.hasCrc)found<<entry.crc;
  return found;
 }
-QVariantMap scanModel3(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
- const auto folder=settings.value("model3GameFolder").toString(),program=settings.value("model3Executable").toString();
+QVariantMap scanModel3(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
+ const auto systemFolder=settings.value("model3GameFolder").toString(),program=settings.value("model3Executable").toString();
  const auto work=model3::workingFolder(program);
  const bool programReady=QFileInfo(program).isFile()&&!work.isEmpty();
  const auto sets=programReady?supermodelSets(QDir(work).filePath("Config/Games.xml")):Sets{};
@@ -79,6 +100,8 @@ QVariantMap scanModel3(const QVariantMap &settings,const QVariantMap &,const Pro
  for(const auto &value:model3::games()){
   if(cancel)break;
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
+  auto folder=systemFolder;
+  if(folder.isEmpty()||!QFileInfo(QDir(folder).filePath(id+".zip")).isFile())folder=libraryFolder(context,"model3",id);
   const auto zip=QDir(folder).filePath(id+".zip");
   progress(title);
   if(folder.isEmpty()||!QFileInfo(zip).isFile()){groups.missing<<item(id,title,"expected",id+".zip");continue;}
@@ -97,11 +120,12 @@ QVariantMap scanModel3(const QVariantMap &settings,const QVariantMap &,const Pro
    if(absent==0){match=version;break;}
    if(closest<0||absent<closest){closest=absent;closestTotal=static_cast<int>(files.size());}
   }
-  if(!match.isEmpty())groups.ready<<item(id,title,"detail",match==id?QString("Checked against the emulator's own list."):QString("Checked against the emulator's own list. The file holds the version it calls %1.").arg(match));
+  if(!match.isEmpty()){groups.ready<<item(id,title,"detail",match==id?QString("Checked against the emulator's own list."):QString("Checked against the emulator's own list. The file holds the version it calls %1.").arg(match));
+   if(folder!=systemFolder){auto entry=groups.ready.last().toMap();entry["folder"]=folder;groups.ready.last()=entry;}}
   else if(!parentFound)groups.notRight<<item(id,title,"reason",QString("It also needs %1.zip beside it, which was not found.").arg(parent));
   else groups.notRight<<item(id,title,"reason",QString("%1 of the %2 files this emulator expects inside are missing or different. This is usually an older or newer version of the set.").arg(closest).arg(closestTotal));
  }
- return groups.result("model3",folder.isEmpty()?"No folder chosen for this system.":QString());
+ return groups.result("model3",noFolder(systemFolder,context,"model3"));
 }
 QVariantMap scanPinball(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &){
  const auto folder=settings.value("pinballFolder").toString(),program=settings.value("pinballExecutable").toString();
@@ -138,13 +162,15 @@ QByteArray mameListXml(const QString &program,const QString &workingFolder,const
  if(!emulator.waitForFinished(30000)){emulator.kill();emulator.waitForFinished(2000);return {};}
  return emulator.exitStatus()==QProcess::NormalExit&&emulator.exitCode()==0?emulator.readAllStandardOutput():QByteArray();
 }
-QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
- const auto folder=settings.value("model2GameFolder").toString(),program=settings.value("model2Executable").toString();
+QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
+ const auto systemFolder=settings.value("model2GameFolder").toString(),program=settings.value("model2Executable").toString();
  Groups groups;QStringList standIns;bool unchecked=false;
  for(const auto &value:model2::games()){
   if(cancel)break;
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
   progress(title);
+  auto folder=systemFolder;
+  if(folder.isEmpty()||!QFileInfo(QDir(folder).filePath(id+".zip")).isFile())folder=libraryFolder(context,"model2",id);
   if(folder.isEmpty()||!QFileInfo(QDir(folder).filePath(id+".zip")).isFile()){groups.missing<<item(id,title,"expected",id+".zip");continue;}
   const auto issue=model2::problem(id,program,folder);
   if(!issue.isEmpty()){groups.notRight<<item(id,title,"reason","The game file was found by its name, but the emulator build for this system is not set up on this PC. "+issue);continue;}
@@ -154,23 +180,24 @@ QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &,const Pro
   // The billboard set only drives the cabinet's sign, so a stand-in for it is accepted and said.
   const auto check=mameCheck(xml,id,folder,{"segabill"},cancel);
   for(const auto &name:check.value("standIns").toStringList())if(!standIns.contains(name))standIns<<name;
-  if(check.value("ok").toBool())groups.ready<<item(id,title,"detail","Checked against the emulator's own list. "+game.value("controls").toString());
+  if(check.value("ok").toBool()){groups.ready<<item(id,title,"detail","Checked against the emulator's own list. "+game.value("controls").toString());
+   if(folder!=systemFolder){auto entry=groups.ready.last().toMap();entry["folder"]=folder;groups.ready.last()=entry;}}
   else groups.notRight<<item(id,title,"reason",check.value("reason").toString());
  }
  QString note="Virtua Cop 2: controls new, untested. Gunblade NY and Virtua Fighter 2: view only for now.";
  if(!standIns.isEmpty())note+=QString(" The %1 set here is a stand-in, which only leaves the cabinet's sign blank.").arg(standIns.join(", "));
  if(unchecked)note+=" Some games could not be checked against the emulator.";
- return groups.result("model2",folder.isEmpty()?"No folder chosen for this system.":note);
+ return groups.result("model2",systemFolder.isEmpty()&&!context.value("library").toMap().value("systems").toMap().contains("model2")?QString("No folder chosen for this system."):note);
 }
-QVariantMap scanPs2(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
+QVariantMap scanPs2(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
  const auto folder=settings.value("ps2GameFolder").toString(),launcher=settings.value("ps2Launcher").toString();
  Groups groups;progress("Reading the disc images");
- const auto found=ps2::discs(folder,cancel);const auto keys=ps2::launcherKeys(launcher);
+ const auto found=ps2::discs(folder,cancel)+libraryDiscs(context,"ps2");const auto keys=ps2::launcherKeys(launcher);
  for(const auto &value:ps2::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
   // The best disc of this game: one whose serial was read, then one found by its name.
   QVariantMap disc;int rank=-1;
-  for(const auto &candidate:found){const auto c=candidate.toMap();if(c.value("game")!=id)continue;const int r=c.value("verified").toBool()?1:0;if(r>rank){rank=r;disc=c;}}
+  for(const auto &candidate:found){const auto c=candidate.toMap();if(c.value("game")!=id)continue;const int r=choice(context,"ps2",id,c)?2:c.value("verified").toBool()?1:0;if(r>rank){rank=r;disc=c;}}
   if(rank<0){groups.missing<<item(id,title,"expected",title+" (disc image)");continue;}
   const auto checked=disc.value("verified").toBool()?QString("Disc %1.").arg(disc.value("serial").toString()):QString("Found by its file name; the disc's serial was not read.");
   const auto issue=ps2::problem(id,launcher,settings.value("ps2Python").toString(),settings.value("ps2StopFile").toString());
@@ -181,19 +208,19 @@ QVariantMap scanPs2(const QVariantMap &settings,const QVariantMap &,const Progre
   const auto serial=c.value("serial").toString();
   groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",serial.isEmpty()?QString("serial not read"):"disc "+serial}};}
  Q_UNUSED(keys);
- return groups.result("ps2",folder.isEmpty()?"No folder chosen for this system.":"The Hub starts these through your PS2 launcher, which plays its own copies of the discs.");
+ return groups.result("ps2",folder.isEmpty()&&noFolder(folder,context,"ps2").startsWith("No")?QString("No folder chosen for this system."):QString("The Hub starts these through your PS2 launcher, which plays its own copies of the discs."));
 }
-QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
+QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
  const auto folder=settings.value("dreamcastGameFolder").toString();
  const bool programReady=QFileInfo(settings.value("dreamcastExecutable").toString()).isFile();
  Groups groups;
  progress("Reading the disc images");
- const auto found=dreamcast::discs(folder,cancel);
+ const auto found=dreamcast::discs(folder,cancel)+libraryDiscs(context,"dreamcast");
  for(const auto &value:dreamcast::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
   // The best disc of this game: one with a VR profile, then one whose number was read.
   QVariantMap disc;int rank=-1;
-  for(const auto &candidate:found){const auto c=candidate.toMap();if(c.value("game")!=id)continue;const int r=c.value("profile").toBool()?2:c.value("verified").toBool()?1:0;if(r>rank){rank=r;disc=c;}}
+  for(const auto &candidate:found){const auto c=candidate.toMap();if(c.value("game")!=id)continue;const int r=choice(context,"dreamcast",id,c)?3:c.value("profile").toBool()?2:c.value("verified").toBool()?1:0;if(r>rank){rank=r;disc=c;}}
   if(rank<0){groups.missing<<item(id,title,"expected",id=="hotd2"?title+" (US or PAL disc image)":title+" (disc image)");continue;}
   QVariantMap entry{{"id",id},{"title",title},{"file",disc.value("file")},{"startable",programReady}};
   const auto product=disc.value("product").toString();
@@ -207,18 +234,19 @@ QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &,const 
  for(const auto &candidate:found){const auto c=candidate.toMap();if(!c.value("game").toString().isEmpty())continue;
   const auto product=c.value("product").toString();
   groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",product.isEmpty()?QString("number not read"):"disc number "+product}};}
- return groups.result("dreamcast",folder.isEmpty()?"No folder chosen for this system.":QString());
+ return groups.result("dreamcast",noFolder(folder,context,"dreamcast"));
 }
-QVariantMap scanWii(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
+QVariantMap scanWii(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
  const auto folder=settings.value("wiiGameFolder").toString(),program=settings.value("wiiExecutable").toString();
  const bool programReady=QFileInfo(program).isFile();
  Groups groups;
  progress("Reading the disc images");
  // Each disc is known by the game id in its own header, whatever the file is called.
- const auto found=wii::discs(folder,cancel);
+ const auto found=wii::discs(folder,cancel)+libraryDiscs(context,"wii");
  for(const auto &value:wii::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString(),route=game.value("route").toString();
-  QVariantMap disc;for(const auto &candidate:found)if(candidate.toMap().value("game")==id){disc=candidate.toMap();break;}
+  // The user's chosen copy first, then the library's own order (USA first), then the system folder's.
+  QVariantMap disc;for(const auto &candidate:found)if(candidate.toMap().value("game")==id&&(disc.isEmpty()||choice(context,"wii",id,candidate.toMap())))disc=candidate.toMap();
   if(disc.isEmpty()){groups.missing<<item(id,title,"expected",title+" (Wii disc image: "+game.value("ids").toStringList().join(", ")+")");continue;}
   const auto discId=disc.value("id").toString();
   QVariantMap entry{{"id",id},{"title",title},{"file",disc.value("file")},{"discId",discId},{"startable",programReady}};
@@ -236,7 +264,7 @@ QVariantMap scanWii(const QVariantMap &settings,const QVariantMap &,const Progre
  for(const auto &candidate:found){const auto c=candidate.toMap();if(!c.value("game").toString().isEmpty())continue;
   const auto discId=c.value("id").toString();
   groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",discId.isEmpty()?QString("not a Wii disc header"):"game id "+discId}};}
- return groups.result("wii",folder.isEmpty()?"No folder chosen for this system.":"Started through your DolphinXR build with its own settings; the discs stay where they are.");
+ return groups.result("wii",folder.isEmpty()&&noFolder(folder,context,"wii").startsWith("No")?QString("No folder chosen for this system."):QString("Started through your DolphinXR build with its own settings; the discs stay where they are."));
 }
 QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const Progress &,std::atomic_bool &){
  // The native build carries its game files in a "roms" folder beside the program.

@@ -132,6 +132,24 @@ class UiController : public QObject {
  Q_INVOKABLE void cancelSteamVrStart(){if(!m_steamVrStarting.isEmpty())emit cancelSteamVrStartRequested();}
  // A game's own Play button: exactly this view ("monitor", or one of its headset views), not remembered.
  Q_INVOKABLE void playGame(const QString &id,const QString &view);
+ // The Game library: big folders of the user's own games (setting "libraryRoots"), searched below
+ // for every game the Hub plays. The per-system folders still come first.
+ Q_PROPERTY(QVariantMap library READ library NOTIFY libraryChanged)
+ Q_PROPERTY(bool libraryScanning READ libraryScanning NOTIFY libraryChanged)
+ Q_PROPERTY(QString libraryProgress READ libraryProgress NOTIFY libraryChanged)
+ QVariantMap library()const{return m_library;}
+ bool libraryScanning()const{return m_libraryScanning;}
+ QString libraryProgress()const{return m_libraryProgress;}
+ void setLibrary(const QVariantMap &library){m_library=library;m_libraryScanning=false;m_libraryProgress.clear();emit libraryChanged();emit model3Changed();}
+ Q_INVOKABLE void libraryScanProgress(const QString &text){m_libraryProgress=text;emit libraryChanged();}
+ Q_INVOKABLE void scanLibrary();
+ // Every copy the library found of a game, best first, and the one in use; choosing one remembers it.
+ Q_INVOKABLE QVariantList copiesOf(const QString &system,const QString &game)const;
+ Q_INVOKABLE QString copyInUse(const QString &system,const QString &game)const;
+ Q_INVOKABLE void chooseCopy(const QString &system,const QString &game,const QString &file);
+ Q_INVOKABLE QString libraryRule()const;
+ // Where an arcade game's zip is: the system's own folder when it is there, else the library's copy.
+ QString gameFolderFor(const QString &system,const QString &game)const;
  // The watchdog: programs of the set-up systems running outside any game (End, End all), the running
  // game's trouble ("hung", "hidden", "minimized"), and the crash records kept in the Hub's folder.
  Q_PROPERTY(QVariantList backgroundPrograms READ backgroundPrograms NOTIFY watchdogChanged)
@@ -253,6 +271,8 @@ class UiController : public QObject {
  void pinballPlayRequested(const QString &id,const QString &view);
  void steamVrRunningChanged();
  void steamVrStartingChanged();
+ void libraryChanged();
+ void libraryScanRequested(const QStringList &roots);
  void watchdogChanged();
  void crashRecordsChanged();
  void endBackgroundRequested(qint64 pid);
@@ -290,6 +310,7 @@ class UiController : public QObject {
  GameListModel *m_games; FilterSortModel *m_filter; UiSettings *m_settings;bool m_steamVrRunning=false;QVariantMap m_pinballArt;
  QString m_detailId,m_variantId,m_status; QVariantList m_events; QVariantMap m_recovery;
  int m_artRevision=0;
+ QVariantMap m_library;bool m_libraryScanning=false;QString m_libraryProgress;
  bool m_artworkBusy=false;QString m_artworkStatus,m_steamVrStarting,m_gameTrouble;QVariantList m_background,m_crashRecords;
  // A row's pictures: the user's own art for it first, then a downloaded one.
  void addArt(QVariantMap &row,const QString &artId,const QString &system)const;

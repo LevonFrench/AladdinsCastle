@@ -136,6 +136,23 @@ Item {
     onClicked:uiController.getArtwork(page.selected.artId||page.selected.id)}]
   }
   Text {objectName:"model3Title";visible:false;text:page.selected.title||""}
+  // Several copies of this game in the library: which one is used, and the rule that chose it.
+  ColumnLayout {id:copiesBox;objectName:"gameCopies";Layout.fillWidth:true;Layout.leftMargin:page.vrOverlayMode?28:40;Layout.rightMargin:page.vrOverlayMode?28:40;spacing:6
+   readonly property string system:page.selected.system||"model3"
+   readonly property string game:page.selected.system?String(page.selected.id||"").substring(page.selected.system.length+1):(page.selected.id||"")
+   readonly property var copies:(uiController.library,uiSettings.values,uiController.copiesOf(system,game))
+   readonly property string inUse:(uiController.library,uiSettings.values,uiController.copyInUse(system,game))
+   visible:copies.length>1
+   Text {text:"Copy used ("+copiesBox.copies.length+" found)";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?20:17}
+   UiText {Layout.fillWidth:true;wrapMode:Text.Wrap;text:"Chosen by this rule unless you pick one: "+uiController.libraryRule();font.pixelSize:page.vrOverlayMode?15:13;color:Theme.get("color.text.muted")}
+   Flow {Layout.fillWidth:true;spacing:8
+    Repeater {model:copiesBox.copies
+     PillButton {required property var modelData;objectName:"gameCopy";vrOverlayMode:page.vrOverlayMode
+      readonly property string file:modelData.file||""
+      neon:file===copiesBox.inUse;accent:Theme.get("color.text.primary")
+      text:file.split("/").pop()+(modelData.region?"  ·  "+modelData.region:"")+(modelData.identity?"  ·  "+modelData.identity:"")
+      onClicked:uiController.chooseCopy(copiesBox.system,copiesBox.game,file)}}}
+  }
   UiText {objectName:"model3HeadsetNote";Layout.leftMargin:page.vrOverlayMode?28:40;Layout.bottomMargin:10;visible:text.length>0;text:page.headsetNote;font.pixelSize:page.vrOverlayMode?16:14;color:Theme.get("color.text.muted")}
   Text {Layout.leftMargin:page.vrOverlayMode?28:40;Layout.topMargin:4;text:"How you see it in the headset";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?22:19}
   RowLayout {Layout.fillWidth:true;Layout.leftMargin:page.vrOverlayMode?28:40;Layout.rightMargin:page.vrOverlayMode?28:40;Layout.topMargin:12;spacing:16
