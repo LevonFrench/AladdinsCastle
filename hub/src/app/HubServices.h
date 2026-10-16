@@ -157,6 +157,12 @@ private:
     // Model 2 quits cleanly through a Hub-owned stop file: the viewer asks MAME to exit, which saves its
     // NVRAM and settings. Stop forces both programs only if nothing has ended well after that.
     bool askModel2ToQuit(bool forceLater);
+    // How long Stop waits for a graceful close before ending the whole tree; tests shorten it.
+public:
+    void setStopGrace(int ms){stopGraceMs_=ms;}
+private:
+    int stopGraceMs_=15000;quint64 stopSession_=0;
+    void stopRunning();
     std::unique_ptr<art::Downloader> artDownloader_;
     launch::Watchdog watchdog_;
     void applyWatchdogRules();

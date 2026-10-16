@@ -20,12 +20,12 @@ Rectangle {
      Rectangle {required property var modelData;objectName:"backgroundProgram";height:chipRow.implicitHeight+8;width:chipRow.implicitWidth+18;radius:height/2;color:Theme.get("color.surface.card")
       Row {id:chipRow;anchors.centerIn:parent;spacing:8
        Text {anchors.verticalCenter:parent.verticalCenter;text:modelData.label;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:strip.vrOverlayMode?16:13}
-       PillButton {objectName:"backgroundEnd";text:"End";targetHeight:strip.vrOverlayMode?44:30;vrOverlayMode:strip.vrOverlayMode;onClicked:uiController.endBackgroundProgram(modelData.pid)}
+       PillButton {objectName:"backgroundEnd";text:"Stop";targetHeight:strip.vrOverlayMode?44:30;vrOverlayMode:strip.vrOverlayMode;onClicked:uiController.endBackgroundProgram(modelData.pid)}
       }
      }
     }
    }
   }
-  PillButton {objectName:"backgroundEndAll";visible:strip.programs.length>1;text:"End all";neon:true;accent:Theme.get("color.state.uninstall");vrOverlayMode:strip.vrOverlayMode;onClicked:uiController.endAllBackgroundPrograms()}
+  PillButton {objectName:"backgroundEndAll";visible:strip.programs.length>1;text:"Stop all";neon:true;accent:Theme.get("color.state.uninstall");vrOverlayMode:strip.vrOverlayMode;onClicked:uiController.endAllBackgroundPrograms()}
  }
 }

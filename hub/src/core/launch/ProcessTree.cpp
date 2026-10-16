@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "ProcessTree.h"
+#include "Watchdog.h"
 #include <QFileInfo>
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
@@ -37,7 +38,7 @@ qint64 msSinceEpoch(const FILETIME &time){
     return qint64(value.QuadPart/10000ULL)-11644473600000LL;
 }
 }
-ProcessTree::ProcessTree(){job_=CreateJobObjectW(nullptr,nullptr);}
+ProcessTree::ProcessTree(){job_=CreateJobObjectW(nullptr,nullptr);endWithHub();}
 ProcessTree::~ProcessTree(){if(job_)CloseHandle(job_);}
 bool ProcessTree::adopt(qint64 pid){
     if(pid<=0)return false;
@@ -55,7 +56,15 @@ QList<qint64> ProcessTree::members()const{
     return result;
 }
 void ProcessTree::closeWindows()const{closeProcessWindows(members());}
-void ProcessTree::end(){if(job_)TerminateJobObject(job_,1);}
+void ProcessTree::end(){
+    if(!job_)return;
+    // A game that started SteamVR itself has it in its tree: everything else ends, SteamVR never.
+    const auto pids=members();QList<qint64> spared;
+    for(const auto &p:listProcesses())if(pids.contains(p.pid)&&neverTouch(p))spared<<p.pid;
+    if(spared.isEmpty()){TerminateJobObject(job_,1);return;}
+    QList<qint64> rest;for(const auto pid:pids)if(!spared.contains(pid))rest<<pid;
+    endProcesses(rest);
+}
 void ProcessTree::endWithHub(){
     if(!job_)return;
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};limits.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;

@@ -19,7 +19,8 @@ public:
     void closeWindows()const;
     // Ends every process in the tree at once.
     void end();
-    // From now on, closing the Hub ends whatever is left in the tree.
+    // Closing the Hub, or the Hub ending any other way, ends whatever is left in the tree.
+    // Set when the tree is made, so a game never outlives a Hub that crashed.
     void endWithHub();
 private:
     void *job_=nullptr;

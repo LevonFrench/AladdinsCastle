@@ -58,10 +58,25 @@ never touched. SteamVR and Steam are never touched, wherever they are.
 **Running in the background:** on start and every 3 seconds, the Hub lists any
 of those programs running outside the game it is running now. That covers
 programs left behind by a crash or a closed window, and programs started some
-other way. They show on a strip in the window and the panel, with End and End
-all. Ending is graceful first: PS2's and Model 2's own stop files, and every
-window asked to close. After 4 seconds, the program and everything it started
-is ended, as long as it is still that same program.
+other way. They show on a strip in the window and the panel, with Stop and Stop all. This includes a game started outside the Hub, from a .cmd
+launcher for example, as long as it runs from a set-up folder. Stopping is graceful first: PS2's
+stop file, Model 2's (the Hub's own recent ones, and the viewer's default beside
+itself), and every window asked to close. After 4 seconds, the program and
+everything it started is ended, as long as it is still that same program.
+
+**Stop:** a game the Hub started shows as Now Playing in both the desktop window
+and the headset panel. This includes a game started from the panel or with Play in
+headset. Stop works the same from either place. It sends the system's graceful quit
+first: Model 2's stop file (the viewer gives MAME 30 seconds to save), PS2's stop
+file, VPX's ordinary close, the gun room's close, or every window asked to close.
+The game's whole process tree is then ended if it is still running: after 40
+seconds for Model 2, 15 seconds for PS2, pinball and the gun room, and 5 seconds
+for the others. Each Model 2 launch has a stop file of its own, removed when the
+game ends.
+
+A game's process tree is set to end with the Hub from the moment it starts. If the
+Hub closes or crashes, nothing of the game is left running. SteamVR is never
+ended with it, even when a game started SteamVR itself.
 
 **Crashes:** a game the Hub started counts as crashed when it ends with a crash
 code (an access violation, a stack overflow, heap corruption and the like, said

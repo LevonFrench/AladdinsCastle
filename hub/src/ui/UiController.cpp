@@ -172,10 +172,11 @@ void UiController::stopLaunch(){
   if(!m_nowPlaying.value("closeUnavailable").toString().isEmpty()){
    message("Close the table in VPX; normal close is unavailable from this Hub.");return;
   }
-  if(m_nowPlaying.value("closing").toBool())return;
+  // Pressed again while it stops: the wait already running is not started over.
+  if(m_nowPlaying.value("stopping").toBool()){message("Stopping; VPX is ended if it has not closed in a few seconds.");return;}
   const bool running=m_nowPlaying.value("running").toBool();
-  launchClosing();emit closeLaunchRequested();
-  message(running?"Close requested; waiting for VPX to exit.":"Pinball launch cancellation requested.");return;
+  m_nowPlaying["closing"]=true;m_nowPlaying["stopping"]=true;emit nowPlayingChanged();emit stopLaunchRequested();
+  message(running?"Stop requested; VPX is asked to close, then ended if it has not.":"Pinball launch cancellation requested.");return;
  }
  // Shown at once: the card says the game is being stopped before the game has reacted.
  if(!m_nowPlaying.isEmpty()){m_nowPlaying["closing"]=true;m_nowPlaying["stopping"]=true;emit nowPlayingChanged();}

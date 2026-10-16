@@ -31,6 +31,8 @@ public:
   QString output() const { return output_; }
   bool start(const Plan &plan);
   void close();
+  // Ends the room's program at once: Stop's last resort when it did not close.
+  void forceEnd();
 signals:
   void started();
   void changed();

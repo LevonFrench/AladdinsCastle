@@ -212,7 +212,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         }catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
     // A PS2 game has no window to close: both Exit and Stop ask it to quit through its stop file, and the Hub waits.
-    connect(ui_,&UiController::stopLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(true))launcher_.stop();});
+    connect(ui_,&UiController::stopLaunchRequested,this,&HubServices::stopRunning);
     connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(false))launcher_.requestClose();});
     // Artwork from the internet: read from the settings at each request, so off is off at once.
     artDownloader_=std::make_unique<art::Downloader>(settings_->userDir(),[this]{return settings_->get("artDownload",false).toBool();},
@@ -231,10 +231,18 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     watchdog_.setGraceful([this](const QString &system,const QList<qint64> &pids){
         // The system's own way to quit first, then every window asked to close; the tree ends after.
         if(system=="ps2"){const auto stop=settings_->get("ps2StopFile",QString()).toString();if(!stop.isEmpty()){QFile file(stop);if(file.open(QIODevice::WriteOnly))file.write("stop\n");}}
-        if(system=="model2")for(const auto &value:model2::games())try{
-            const auto stop=install::scopedPath("user/runtime/model2-"+value.toMap().value("id").toString()+".stop",root_);
-            if(QDir().mkpath(QFileInfo(stop).absolutePath())){QFile file(stop);if(file.open(QIODevice::WriteOnly))file.write("stop\n");}
-        }catch(const std::exception &){}
+        if(system=="model2"){
+            // The stop files of the Hub's own recent launches, and the viewer's default beside itself
+            // (model2-<emulator id>.stop) for one started some other way.
+            QStringList stops;
+            try{QFile list(install::scopedPath("user/runtime/model2-stop-files.txt",root_));if(list.size()<64*1024&&list.open(QIODevice::ReadOnly))stops=QString::fromUtf8(list.readAll()).split('\n',Qt::SkipEmptyParts);}catch(const std::exception &){}
+            QString viewerFolder;QList<qint64> emulators;
+            for(const auto &p:launch::listProcesses())if(pids.contains(p.pid)){
+                if(p.name.startsWith("model2",Qt::CaseInsensitive))viewerFolder=QFileInfo(p.path).absolutePath();
+                else if(p.name.startsWith("mame",Qt::CaseInsensitive))emulators<<p.pid;}
+            if(!viewerFolder.isEmpty())for(const auto pid:emulators)stops<<viewerFolder+"/model2-"+QString::number(pid)+".stop";
+            for(const auto &stop:stops){QFile file(stop);if(file.open(QIODevice::WriteOnly))file.write("stop\n");}
+        }
         launch::closeProcessWindows(pids);
     });
     connect(&watchdog_,&launch::Watchdog::straysChanged,this,[this]{ui_->setWatchdog(watchdog_.strays(),watchdog_.trouble());});
@@ -275,6 +283,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         const auto system=sessionSystem_;const auto since=sessionStartMs_;
         if(crashed)recordCrash(id,code,how,logPath);
         watchdog_.endSession();crashReported_=false;
+        if(id.startsWith("model2-")&&!model2StopFile_.isEmpty()){QFile::remove(model2StopFile_);model2StopFile_.clear();}
         // What it left running outside its own tree ends with it.
         if(crashed)QTimer::singleShot(300,this,[this,system,since]{watchdog_.endSince(system,since);});
         const auto said=[this,id,crashed,how]{if(crashed)ui_->markCrash(id,(sessionTitle_.isEmpty()?QString("The game"):sessionTitle_)+" crashed: "+how+".");};
@@ -408,10 +417,13 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             for(const auto &value:model2::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · 3D screen";hint=value.toMap().value("controls").toString();}
             hint+=" Home = put the screen in front of you again. Exit game here, or hold Y for 3 seconds, quits and saves.";
             // A stop file of the Hub's own for this launch, cleared first; the viewer watches for it.
-            model2StopFile_=install::scopedPath("user/runtime/model2-"+game+".stop",root_);
+            model2StopFile_=install::scopedPath("user/runtime/model2-"+game+"-"+QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss-zzz")+".stop",root_);
             if(!QDir().mkpath(QFileInfo(model2StopFile_).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
             if(QFileInfo::exists(model2StopFile_)&&!QFile::remove(model2StopFile_))throw install::Error("E_WRITE_DENIED","An old Model 2 stop request could not be cleared");
             environment.insert("ACVR_M2_STOP_FILE",QDir::toNativeSeparators(model2StopFile_));++model2Session_;
+            {const auto list=install::scopedPath("user/runtime/model2-stop-files.txt",root_);QStringList known;
+             {QFile in(list);if(in.size()<64*1024&&in.open(QIODevice::ReadOnly))known=QString::fromUtf8(in.readAll()).split('\n',Qt::SkipEmptyParts);} // Closed before it is replaced.
+             known<<model2StopFile_;while(known.size()>20)known.removeFirst();install::atomicWrite(list,known.join('\n').toUtf8());}
         }else if(id.startsWith("ps2-")){
             // The launcher refuses without SteamVR; say so here instead of starting it to fail.
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
@@ -623,6 +635,23 @@ void HubServices::requestHubExit(int code){
     }
     if(!gunRoom_.busy()){emit hubExitReady(code);return;}
     hubExitPending_=true;hubExitCode_=code;ui_->cancelPendingRestart();gunRoom_.close();
+}
+void HubServices::stopRunning(){
+    // Stop, the same from the window and the headset panel: the system's own graceful quit first (a stop
+    // file, VPX's close, the room's close), then everything of the game is ended after a short wait.
+    const auto session=++stopSession_;
+    const auto later=[this,session](std::function<void()> force){QTimer::singleShot(stopGraceMs_,this,[this,session,force]{if(session==stopSession_)force();});};
+    if(gunRoom_.busy()){gunRoom_.close();later([this]{if(gunRoom_.busy())gunRoom_.forceEnd();});return;}
+    if(!launcher_.busy())return;
+    const auto id=ui_->nowPlaying().value("gameId").toString();
+    if(id.startsWith("model2-")&&askModel2ToQuit(true))return; // Its own wait: the viewer gives MAME 30 s to save.
+    if(id.startsWith("ps2-")){
+        const auto stopFile=settings_->get("ps2StopFile",QString()).toString();QFile request(stopFile);
+        if(!stopFile.isEmpty()&&request.open(QIODevice::WriteOnly)&&request.write("stop\n")==5){request.close();ui_->launchClosing();later([this]{if(launcher_.busy())launcher_.endEverything();});return;}
+        launcher_.stop();return;
+    }
+    if(ui_->nowPlaying().contains("pinballId")){launcher_.requestClose();later([this]{if(launcher_.busy())launcher_.endEverything();});return;}
+    launcher_.stop();
 }
 bool HubServices::askPs2ToQuit(){
     if(!ui_->nowPlaying().value("gameId").toString().startsWith("ps2-")||!launcher_.busy())return false;

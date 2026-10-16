@@ -547,7 +547,8 @@ void LaunchService::stop() {
   else {
     process_.terminate();
     const auto generation = generation_;
-    QTimer::singleShot(3000, &process_, [this, generation] {
+    // Its windows are asked to close; whatever is left after a few seconds is ended, tree and all.
+    QTimer::singleShot(5000, &process_, [this, generation] {
       if (generation_ == generation && process_.state() != QProcess::NotRunning)
         endTree();
     });
