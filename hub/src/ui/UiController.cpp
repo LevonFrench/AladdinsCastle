@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/wii/Wii.h"
 #include "UiController.h"
 #include "core/pinball/Pinball.h"
 #include "core/model3/Model3.h"
@@ -344,6 +345,19 @@ QVariantList UiController::otherGames()const{
  if(!program.isEmpty())add({{"id","system22-timecris"},{"system","system22"},{"pill","SYSTEM 22"},{"title","Time Crisis"},{"year",1996},{"file",QString()},{"warning",QString()},
   {"problem",QFileInfo(program).isFile()?QString():QString("Time Crisis VR build not found. Use Set-up.")}},
   {QVariantMap{{"id","vr"},{"label","In the headset"},{"help","The whole game around you, with a tracked gun."}}});
+ // Wii: the discs of the last scan, in the headset through the DolphinXR build. A game the build is
+ // missing settings for starts behind a warning that says what is missing.
+ const auto wiiProgram=m_settings->get("wiiExecutable",QString()).toString();
+ const QVariantList wiiViews{QVariantMap{{"id","headset"},{"label","In the headset"},{"help","DolphinXR: the game on a screen in VR, aimed with your controller."}}};
+ for(const auto &system:m_setupReport.value("systems").toList()){
+  if(system.toMap().value("id")!="wii")continue;
+  QHash<QString,int> years;for(const auto &value:wii::games())years.insert(value.toMap().value("id").toString(),value.toMap().value("year").toInt());
+  const auto row=[&](const QVariantMap &entry){return QVariantMap{{"id","wii-"+entry.value("id").toString()},{"system","wii"},{"pill","WII"},{"title",entry.value("title")},{"year",years.value(entry.value("id").toString())},{"file",entry.value("file")},{"warning",QString()},{"problem",QString()}};};
+  for(const auto &value:system.toMap().value("ready").toList()){auto r=row(value.toMap());if(!QFileInfo(wiiProgram).isFile())r["problem"]="DolphinXR build not found. Use Set-up.";add(r,wiiViews);}
+  for(const auto &value:system.toMap().value("notRight").toList()){const auto entry=value.toMap();auto r=row(entry);
+   if(entry.value("startable").toBool()&&QFileInfo(wiiProgram).isFile())r["warning"]=entry.value("reason");else r["problem"]=entry.value("reason");add(r,wiiViews);}
+  for(const auto &value:system.toMap().value("missing").toList()){const auto entry=value.toMap();auto r=row(entry);r["problem"]="Not found. The Hub looks for: "+entry.value("expected").toString();add(r,wiiViews);}
+ }
  // Dreamcast: the discs of the last scan. A disc without a VR profile starts behind a warning.
  const auto dreamcastProgram=m_settings->get("dreamcastExecutable",QString()).toString();
  for(const auto &system:m_setupReport.value("systems").toList()){

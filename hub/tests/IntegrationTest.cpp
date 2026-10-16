@@ -403,6 +403,26 @@ private slots:
     QVERIFY(grandchild>0);QTRY_VERIFY_WITH_TIMEOUT(!ac::launch::processAlive(grandchild),10000);
     QTRY_VERIFY_WITH_TIMEOUT(ui.backgroundPrograms().isEmpty(),5000);QCOMPARE(ui.crashRecords().size(),2);
  }
+ // Get artwork for one game the moment the last one ends, as the Hub's own diagnostic chains them.
+ void artworkRequestsCanFollowEachOther(){
+    struct Pictures final:ac::art::Fetcher{QList<QUrl> urls;void get(const QNetworkRequest &request,std::function<void(int,QByteArray)> done)override{
+        urls<<request.url();QByteArray body;
+        if(request.url().toString().endsWith("/"))body="<a href=\"Virtua%20Cop%202.png\">x</a><a href=\"Virtua%20Fighter%202.png\">x</a>";
+        else{QImage image(40,30,QImage::Format_RGB32);image.fill(Qt::red);QBuffer buffer(&body);buffer.open(QIODevice::WriteOnly);image.save(&buffer,"PNG");}
+        QTimer::singleShot(0,[done,body]{done(200,body);});}};
+    QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("my sets"));
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2GameFolder",t.filePath("my sets"));settings.set("artDownload",true);
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    auto network=std::make_shared<Pictures>();services.artDownloader()->setFetcher(network);services.artDownloader()->setInterval(0);
+    QStringList queue{"model2-vf2"},said;
+    connect(&ui,&ac::UiController::artworkChanged,this,[&]{if(ui.artworkBusy())return;said<<ui.artworkStatus();if(!queue.isEmpty())ui.getArtwork(queue.takeFirst());});
+    ui.getArtwork("model2-vcop2");
+    QTRY_COMPARE_WITH_TIMEOUT(said.size(),2,10000);
+    QVERIFY2(said.last().contains("new picture"),qPrintable(said.join(" | ")));
+    const auto folder=ac::art::Downloader::downloadFolder(t.filePath("user"));
+    QVERIFY(QFileInfo::exists(folder+"/model2-vcop2/snap.png"));QVERIFY(QFileInfo::exists(folder+"/model2-vf2/snap.png"));
+ }
  // Exit and Stop ask Model 2 to quit through its stop file, so MAME saves; nothing is forced.
  void model2QuitsThroughItsStopFile(){
     QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");

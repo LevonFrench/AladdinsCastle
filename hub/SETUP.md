@@ -110,6 +110,7 @@ SteamVR's own frame state.
 | Visual Pinball | `pinballFolder` | `pinballExecutable` | The table scan: VR-ready, readable, ROM present |
 | Sony PlayStation 2 | `ps2GameFolder` | `ps2Launcher` (the user's launcher script, run with the `ps2Python` it needs; `ps2StopFile` is the file that asks a running game to quit) | The serial in the disc's own SYSTEM.CNF (`.iso`, `.bin`, `.chd`); the file name for `.gz` and when no serial is read. A game is startable when the launcher has an entry for it. The launcher plays its own disc copies. Exit and Stop write the stop file and wait; SteamVR must already be running |
 | Sega Dreamcast | `dreamcastGameFolder` | `dreamcastExecutable` | The disc's own product number, read from `.chd`, `.gdi`, `.cdi` or `.cue` images; the file name only when the number cannot be read |
+| Nintendo Wii | `wiiGameFolder` | `wiiExecutable` (the DolphinXR build's Dolphin.exe; its User folder beside it holds its settings) | The game id in each disc's own header (.iso, .wbfs, .rvz, .wia), any region; what the build still lacks per game is said |
 
 Systems and their settings are listed in `src/core/setup/Setup.cpp`. Each check
 is one function in `src/core/setup/Report.cpp`; a system without one reports
@@ -140,3 +141,14 @@ reason. A Dreamcast game without a VR profile opens its page with a warning
 before it can be started. Dreamcast starts the emulator from its own folder with
 `-config config:vr.Xr=yes|no <disc image>`; Time Crisis starts its program from
 its own folder. Dreamcast in a headset is new and untested.
+
+The Wii gun games run in the headset through the user's DolphinXR build, by the authored route of the
+Chronicles recipes (D52-D54): `Dolphin.exe --user <build>/User -C Graphics.VR.EnableOpenXR=True
+-C Graphics.VR.ResolutionScale=1.0 -C Graphics.VR.EagerHeartbeat=False -C Graphics.Stereoscopy.StereoMode=0
+-C Dolphin.Interface.ConfirmStop=False --exec <disc>`, started from the build's folder. The last option
+is the Hub's: without it Dolphin asks on the monitor before it closes, so Exit game would wait. The seven
+listed games are the planned gun games: Umbrella and Darkside Chronicles, The House of the Dead: Overkill,
+Gunblade NY & L.A. Machineguns, Sin & Punishment: Star Successor, Dead Space: Extraction and Link's
+Crossbow Training. Umbrella Chronicles, played this way, is ready. Any other game starts behind "Read first", which says what the build lacks: its own VR settings
+(`User/GameSettingsVR/<game id>.ini`) and, for the two held docked, docked controls. The build's
+controls are the generated split-hold set for the right hand. Every other disc is listed by its game id.

@@ -224,6 +224,8 @@ QString libretroSystem(const QString &system) {
     return "Sega - Naomi";
   if (system == "dreamcast")
     return "Sega - Dreamcast";
+  if (system == "wii")
+    return "Nintendo - Wii";
   if (system == "ps2")
     return "Sony - PlayStation 2";
   // The arcade boards are under MAME, named by each game's full description.

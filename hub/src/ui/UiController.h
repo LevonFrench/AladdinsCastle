@@ -169,9 +169,9 @@ class UiController : public QObject {
  QString artworkStatus()const{return m_artworkStatus;}
  void setArtwork(bool busy,const QString &status);
  // The folders of artwork on this PC, indexed in the background; rows show them at once.
- Q_PROPERTY(int localArtFiles READ localArtFiles NOTIFY artworkChanged)
+ Q_PROPERTY(int localArtFiles READ localArtFiles NOTIFY localArtChanged)
  int localArtFiles()const{return m_localArt?m_localArt->files():0;}
- void setLocalArt(std::shared_ptr<const art::LocalIndex> index){m_localArt=std::move(index);emit artworkChanged();emit model3Changed();}
+ void setLocalArt(std::shared_ptr<const art::LocalIndex> index){m_localArt=std::move(index);emit localArtChanged();emit model3Changed();}
  void launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable);
  // Games of the other systems, in the same row shape as model3Games plus system,
  // pill, views and warning. Ids carry the system: "dreamcast-hotd2", "system22-timecris".
@@ -262,6 +262,7 @@ class UiController : public QObject {
  void stopEverythingRequested();
  void model3Changed();
  void artworkChanged();
+ void localArtChanged();
  // Each target: id, system, title and names (the game's own file and folder names on this PC).
  void artworkRequested(const QVariantList &targets);
  void catalogReadyChanged();

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/wii/Wii.h"
 #include "HubServices.h"
 #include "core/install/Support.h"
 #include "core/pinball/Pinball.h"
@@ -199,7 +200,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             startPinball(retainedPinball_,retainedPinballExecutable_,retainedPinballView_);return;
         }
         if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
-        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
+        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")||id.startsWith("wii-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
 #ifdef Q_OS_WIN
@@ -257,7 +258,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::starting,this,[this](const QString &id,const QString &){
         if(sessionSystem_.isEmpty()||!launcher_.playing()){sessionStartMs_=QDateTime::currentMSecsSinceEpoch()-1000;crashReported_=false;}
-        static const QStringList systems{"pinball","model3","model2","ps2","dreamcast","system22"};
+        static const QStringList systems{"pinball","model3","model2","ps2","dreamcast","system22","wii"};
         sessionSystem_="catalog";for(const auto &system:systems)if(id.startsWith(system+"-")||id==system)sessionSystem_=system;
     });
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){
@@ -384,6 +385,12 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             for(const auto &value:dreamcast::games())if("dreamcast-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · "+dreamcast::viewLabel(view);
             hint=view=="headset"?"New and not yet tried in a headset. The picture is also on the PC monitor.":"The mouse is the gun.";
+        }else if(id.startsWith("wii-")){
+            // The authored DolphinXR route: the build's own User folder, OpenXR on, the disc where it is.
+            const auto plan=wii::launchPlan(file,settings_->get("wiiExecutable",QString()).toString());
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            for(const auto &value:wii::games())if("wii-"+value.toMap().value("id").toString()==id)title=value.toMap().value("title").toString()+" · In the headset";
+            hint="Aim with your controller. Both thumbsticks pressed together, or Shift+R, recentre the view. Exit game here closes Dolphin.";
         }else if(id.startsWith("model2-")){
             // Two programs: the emulator first, then the viewer given the emulator's process id.
             const auto game=id.mid(7);
@@ -663,6 +670,7 @@ void HubServices::applyWatchdogRules(){
     add("ps2","PlayStation 2",ps2,{parentOf(ps2)},{"pcsx2*"});
     add("dreamcast","Sega Dreamcast",folderOf(get("dreamcastExecutable")),{},{"flycast*"});
     add("system22","Namco System 22",folderOf(get("system22Executable")),{},{"timecrisis*"});
+    add("wii","Nintendo Wii",folderOf(get("wiiExecutable")),{},{"dolphin*"});
     watchdog_.setRules(rules);
 }
 void HubServices::recordCrash(const QString &id,int code,const QString &how,const QString &logPath){
@@ -674,6 +682,7 @@ void HubServices::recordCrash(const QString &id,int code,const QString &how,cons
     if(system=="model3")candidates<<beside("model3Executable","Supermodel.log");
     if(system=="pinball")candidates<<beside("pinballExecutable","VPinballX.log");
     if(system=="dreamcast")candidates<<beside("dreamcastExecutable","flycast.log");
+    if(system=="wii")candidates<<beside("wiiExecutable","User/Logs/dolphin.log");
     QString tail,from;
     for(const auto &file:candidates){const QFileInfo info(file);if(!file.isEmpty()&&info.isFile()&&info.lastModified().toMSecsSinceEpoch()>=sessionStartMs_-5000){tail=launch::lastLines(file,12);from=info.fileName();break;}}
     if(tail.isEmpty()&&!logPath.isEmpty()&&QFileInfo(logPath).isFile()){tail=launch::lastLines(logPath,12);from="the Hub's launch log";}

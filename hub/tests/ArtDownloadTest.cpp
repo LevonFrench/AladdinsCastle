@@ -213,6 +213,31 @@ private slots:
     QCOMPARE(ac::art::choosePictures(t.filePath("user"), "model3-scud", "model3", "Scud Race", {"scud"}, &pack).card, own);
     Q_UNUSED(title);
   }
+  // "Get artwork" for one game straight after another, as the Hub's buttons may: the second runs too.
+  void aRunCanStartWhenTheLastOneEnds() {
+    QTemporaryDir t;
+    auto stub = std::make_shared<Stub>();
+    stub->answer = [](const QUrl &url) -> QPair<int, QByteArray> {
+      if (url.toString().endsWith("/"))
+        return {200, listing({"Game One (USA)", "Game Two (USA)"})};
+      return {200, png(Qt::green)};
+    };
+    ac::art::Downloader downloader(t.path(), [] { return true; }, [] { return QString(); });
+    downloader.setFetcher(stub);
+    downloader.setInterval(0);
+    QSignalSpy done(&downloader, &ac::art::Downloader::finished);
+    bool second = false;
+    connect(&downloader, &ac::art::Downloader::finished, this, [&] {
+      if (!second) {
+        second = true;
+        QVERIFY(downloader.start({{"wii-two", "wii", "Game Two", {}}}));
+      }
+    });
+    QVERIFY(downloader.start({{"wii-one", "wii", "Game One", {}}}));
+    QTRY_COMPARE_WITH_TIMEOUT(done.size(), 2, 5000);
+    QCOMPARE(done.last()[1].toStringList(), QStringList({"wii-two"}));
+    QVERIFY(QFileInfo::exists(ac::art::Downloader::downloadFolder(t.path()) + "/wii-two/boxart.png"));
+  }
   void onlyRealPicturesAreKept() {
     QTemporaryDir t;
     auto stub = std::make_shared<Stub>();

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/wii/Wii.h"
 #include "Report.h"
 #include "Setup.h"
 #include "core/model3/Model3.h"
@@ -208,6 +209,35 @@ QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &,const 
   groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",product.isEmpty()?QString("number not read"):"disc number "+product}};}
  return groups.result("dreamcast",folder.isEmpty()?"No folder chosen for this system.":QString());
 }
+QVariantMap scanWii(const QVariantMap &settings,const QVariantMap &,const Progress &progress,std::atomic_bool &cancel){
+ const auto folder=settings.value("wiiGameFolder").toString(),program=settings.value("wiiExecutable").toString();
+ const bool programReady=QFileInfo(program).isFile();
+ Groups groups;
+ progress("Reading the disc images");
+ // Each disc is known by the game id in its own header, whatever the file is called.
+ const auto found=wii::discs(folder,cancel);
+ for(const auto &value:wii::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString(),route=game.value("route").toString();
+  QVariantMap disc;for(const auto &candidate:found)if(candidate.toMap().value("game")==id){disc=candidate.toMap();break;}
+  if(disc.isEmpty()){groups.missing<<item(id,title,"expected",title+" (Wii disc image: "+game.value("ids").toStringList().join(", ")+")");continue;}
+  const auto discId=disc.value("id").toString();
+  QVariantMap entry{{"id",id},{"title",title},{"file",disc.value("file")},{"discId",discId},{"startable",programReady}};
+  if(!programReady){entry["reason"]="The disc was found (game id "+discId+"), but the DolphinXR build is not set up on this PC.";groups.notRight<<entry;continue;}
+  const auto lacking=wii::missing(id,discId,program);
+  const QString routeNote=route=="working"?QString():route=="imperfect"?QString(" Dolphin plays it with known faults."):QString(" Not yet tried in DolphinXR.");
+  if(route=="working"){
+   // The game the owner has played this way: ready, with anything the recipe adds said plainly.
+   entry["detail"]="Disc "+discId+". Played this way in the headset."+(lacking.isEmpty()?QString():" Not in this build yet: "+lacking.join("; ")+".");
+   groups.ready<<entry;
+  }else if(lacking.isEmpty()){entry["detail"]="Disc "+discId+"."+routeNote;groups.ready<<entry;}
+  else{entry["reason"]="It starts in the headset, but this build has no "+lacking.join(", and no ")+"."+routeNote;groups.notRight<<entry;}
+ }
+ // Every other disc is named with its own game id, so a game that is there is never passed over in silence.
+ for(const auto &candidate:found){const auto c=candidate.toMap();if(!c.value("game").toString().isEmpty())continue;
+  const auto discId=c.value("id").toString();
+  groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",discId.isEmpty()?QString("not a Wii disc header"):"game id "+discId}};}
+ return groups.result("wii",folder.isEmpty()?"No folder chosen for this system.":"Started through your DolphinXR build with its own settings; the discs stay where they are.");
+}
 QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const Progress &,std::atomic_bool &){
  // The native build carries its game files in a "roms" folder beside the program.
  const auto program=settings.value("system22Executable").toString();const QFileInfo info(program);
@@ -217,7 +247,7 @@ QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const P
  else groups.ready<<item(id,title,"detail","The program and the game files beside it were found.");
  return groups.result("system22",QString());
 }
-const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps2",scanPs2},{"dreamcast",scanDreamcast},{"system22",scanSystem22}};return table;}
+const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps2",scanPs2},{"dreamcast",scanDreamcast},{"wii",scanWii},{"system22",scanSystem22}};return table;}
 }
 QVariantMap mameCheck(const QByteArray &listXml,const QString &game,const QString &folder,const QStringList &cosmetic,std::atomic_bool &cancel){
  // Every machine in the output with the files it loads; the game itself names its parent and its devices.

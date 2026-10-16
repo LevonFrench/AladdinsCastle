@@ -110,7 +110,9 @@ add_library(hubcore STATIC
     src/core/app/PanelAttacher.h
     src/core/app/PanelAttacher.cpp
     src/core/launch/Watchdog.h
-    src/core/launch/Watchdog.cpp)
+    src/core/launch/Watchdog.cpp
+    src/core/wii/Wii.h
+    src/core/wii/Wii.cpp)
 target_compile_features(hubcore PUBLIC cxx_std_20)
 target_include_directories(hubcore PUBLIC src "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent
@@ -235,6 +237,11 @@ if(BUILD_TESTING)
     ac_project_warnings(setup-tests)
     set_target_properties(setup-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-setup COMMAND setup-tests -o -,txt)
+    qt_add_executable(wii-tests tests/WiiTest.cpp)
+    target_link_libraries(wii-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(wii-tests)
+    set_target_properties(wii-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-wii COMMAND wii-tests -o -,txt)
     qt_add_executable(watchdog-tests tests/WatchdogTest.cpp)
     target_link_libraries(watchdog-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(watchdog-tests)

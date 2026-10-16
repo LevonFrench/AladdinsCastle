@@ -199,13 +199,18 @@ int main(int argc,char **argv){
     // It still needs the setting on. With AC_UI_GET_ARTWORK_QUIT the Hub quits when the last one ends.
     if(qEnvironmentVariableIsSet("AC_UI_GET_ARTWORK")){
         auto queue=std::make_shared<QStringList>(qEnvironmentVariable("AC_UI_GET_ARTWORK").split(',',Qt::SkipEmptyParts));
-        QObject::connect(&ui,&ac::UiController::artworkChanged,&ui,[&ui,&out,queue]{
-            if(ui.artworkBusy())return;
-            out<<ui.artworkStatus()<<'\n';out.flush();
-            if(!queue->isEmpty())ui.getArtwork(queue->takeFirst());
+        auto asked=std::make_shared<bool>(false);
+        const auto next=[&ui,queue,asked]{
+            if(!queue->isEmpty()){*asked=true;ui.getArtwork(queue->takeFirst());}
             else if(qEnvironmentVariableIsSet("AC_UI_GET_ARTWORK_QUIT"))QTimer::singleShot(0,qApp,[]{QCoreApplication::quit();});
+        };
+        // Only the end of the request it made itself moves it on.
+        QObject::connect(&ui,&ac::UiController::artworkChanged,&ui,[&ui,&out,asked,next]{
+            if(!*asked||ui.artworkBusy())return;
+            *asked=false;out<<ui.artworkStatus()<<'\n';out.flush();
+            QTimer::singleShot(0,&ui,next);
         });
-        QTimer::singleShot(800,&ui,[&ui,queue]{if(!queue->isEmpty())ui.getArtwork(queue->takeFirst());});
+        QTimer::singleShot(800,&ui,next);
     }
     // Diagnostic, for pictures only: the Starting SteamVR state for a sample game; nothing is started.
     if(qEnvironmentVariableIsSet("AC_UI_DEMO_STEAMVR_STARTING"))QTimer::singleShot(400,&ui,[&ui]{ui.setSteamVrStarting(qEnvironmentVariable("AC_UI_DEMO_STEAMVR_STARTING"));});

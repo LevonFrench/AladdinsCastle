@@ -12,7 +12,7 @@ ScrollView{
  readonly property bool artOn:(uiSettings.values,uiSettings.get("artDownload",false))===true
  readonly property var artFolders:(uiSettings.values,uiSettings.get("artFolders",[]))||[]
  FolderDialog {id:artFolderDialog;title:"Choose a folder of artwork";onAccepted:{const path=uiController.localPath(selectedFolder);if(page.artFolders.indexOf(path)<0)uiSettings.set("artFolders",page.artFolders.concat([path]))}}
- readonly property var artSystems:[{key:"model3",label:"Sega Model 3"},{key:"model2",label:"Sega Model 2"},{key:"system22",label:"Namco System 22"},{key:"dreamcast",label:"Sega Dreamcast"},{key:"ps2",label:"PlayStation 2"}]
+ readonly property var artSystems:[{key:"model3",label:"Sega Model 3"},{key:"model2",label:"Sega Model 2"},{key:"system22",label:"Namco System 22"},{key:"wii",label:"Nintendo Wii"},{key:"dreamcast",label:"Sega Dreamcast"},{key:"ps2",label:"PlayStation 2"}]
  clip:true
  contentWidth:availableWidth
  Column{x:page.side;width:Math.min(page.availableWidth-2*page.side,880);spacing:12;topPadding:page.vrOverlayMode?20:28;bottomPadding:28
