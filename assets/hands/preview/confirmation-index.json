@@ -2617,7 +2617,7 @@
     "assets/guns/mnt-mg-heavy.glb": {
       "kind": "mesh",
       "hash_basis": "file-bytes",
-      "sha256": "6e415db4cfdb593cbeffa470293588c8eacc3a0b5df278135fd7c5de069791af"
+      "sha256": "b4171075818771728efa9b454a806ed56c95f27e9543a134141b38a15b56e56b"
     },
     "assets/guns/preview/arc-pistol-slide-front.png": {
       "kind": "preview",
@@ -2957,7 +2957,7 @@
     "assets/guns/src/mnt-mg-heavy.py": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "d297574c4ea34b34e8f889da22ebf41f8d476b02902b6181cfa20e56153d1d5a"
+      "sha256": "7bc96095edae98afc361efd7be01fe23f7edba63c0de272ce5c61190dcf48840"
     },
     "assets/hands/assembly.json": {
       "kind": "metadata",

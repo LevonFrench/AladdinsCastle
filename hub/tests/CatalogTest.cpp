@@ -114,7 +114,7 @@ class CatalogTest : public QObject {
     }
     void realCatalog() {
         const auto data = ac::CatalogLoader().load(QStringLiteral(AC_CATALOG_ROOT));
-        QCOMPARE(data.games.size(), 413);
+        QCOMPARE(data.games.size(), 418);
         QCOMPARE(data.report.errors, 0);
         QCOMPARE(data.report.warnings, 2);
         QVERIFY(data.find("timecris"));

@@ -323,7 +323,7 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [assets/guns/con-revolver-chunky.glb](../../guns/con-revolver-chunky.glb) | `36b3a7ebc6f33983f1d8f3540721923010cd953d91c4b59ba227510674faf457` |
 | [assets/guns/con-stick-grip.glb](../../guns/con-stick-grip.glb) | `29dcf90594aebf6baed6235060d03e7a9a73ebf2aeb751aff9b7875e296f8e1d` |
 | [assets/guns/generic-pistol.glb](../../guns/generic-pistol.glb) | `533c90e30515c44e45fe1436e1652e37c2308278706941c66b9113f01f5ca19e` |
-| [assets/guns/mnt-mg-heavy.glb](../../guns/mnt-mg-heavy.glb) | `6e415db4cfdb593cbeffa470293588c8eacc3a0b5df278135fd7c5de069791af` |
+| [assets/guns/mnt-mg-heavy.glb](../../guns/mnt-mg-heavy.glb) | `b4171075818771728efa9b454a806ed56c95f27e9543a134141b38a15b56e56b` |
 | [assets/guns/preview/arc-pistol-slide-front.png](../../guns/preview/arc-pistol-slide-front.png) | `10277f0d7a0c278abd419eea38a81e37e6d90e4fff697bbac843887f086eab24` |
 | [assets/guns/preview/arc-pistol-slide-held.png](../../guns/preview/arc-pistol-slide-held.png) | `4a9ce839d9223109e280b2c5aaacc901b6f38b538c2683bf795723216e52c8f1` |
 | [assets/guns/preview/arc-pistol-slide-sight-lod0.png](../../guns/preview/arc-pistol-slide-sight-lod0.png) | `c3e49ebf37ba69ee560d36c05791bbb1a8fb393b1e3026a313fe37ad3be7a070` |
@@ -391,7 +391,7 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [assets/guns/src/con-revolver-chunky.py](../../guns/src/con-revolver-chunky.py) | `ea09f942d9bdb029d0fe2ef22d1cd5e8584d30ee5b0171e2c92a0b5e20ac1ac5` |
 | [assets/guns/src/con-stick-grip.py](../../guns/src/con-stick-grip.py) | `caa6fe4657bea3efbe92cb3c12facdbd5f3f859b6926448c2a0f5aff10cb6ee3` |
 | [assets/guns/src/generic-pistol.py](../../guns/src/generic-pistol.py) | `51a4e2d03bd2f17616ab5bb0808cc5aa85aa0d879c2b98a86b592c6e5258beb6` |
-| [assets/guns/src/mnt-mg-heavy.py](../../guns/src/mnt-mg-heavy.py) | `d297574c4ea34b34e8f889da22ebf41f8d476b02902b6181cfa20e56153d1d5a` |
+| [assets/guns/src/mnt-mg-heavy.py](../../guns/src/mnt-mg-heavy.py) | `7bc96095edae98afc361efd7be01fe23f7edba63c0de272ce5c61190dcf48840` |
 | [assets/hands/assembly.json](../assembly.json) | `ca4c5b11e775d531a808fc11485b2e610c87df23135bd8a5e675fbab454ea1b4` |
 | [assets/hands/grip-hand-left.glb](../grip-hand-left.glb) | `8cf5104669ed4e59d49c21a500df389df71003b38314c154315e2a5a12f459e6` |
 | [assets/hands/grip-hand-left.toml](../grip-hand-left.toml) | `7e9db8b3a83b5d6063c7cd86564998f39dfc54e41de4a0e9f9d5ccf6d4c797e4` |
