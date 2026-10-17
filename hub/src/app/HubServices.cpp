@@ -535,8 +535,9 @@ void HubServices::startPinballArt(const QVariantMap &scan){
     });
 }
 bool HubServices::vrServerRunning()const{return vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"});}
-void HubServices::startPinball(const QVariantMap &row,const QString &executable,const QString &view){
-    if(launchBusy()||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
+void HubServices::startPinball(const QVariantMap &row,const QString &executable,const QString &view,const QVariantList *probed){
+    if((launchBusy()&&!(probed&&preparing_))||hubExitPending_){ui_->showError("Pinball","Close the current session before playing a table.");return;}
+    preparing_=false;
     try{
         const auto id=row.value("id").toString(),table=row.value("path").toString();const QFileInfo file(table);
         const auto identity=QString::fromLatin1(QCryptographicHash::hash(file.absoluteFilePath().toUtf8(),QCryptographicHash::Sha256).toHex());
@@ -558,7 +559,16 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable,
         QString appSettings,gamepad;
         if(!diagnostic){
             QString sdl;for(const auto &name:{"SDL364.dll","SDL3.dll"}){const QFileInfo candidate(QFileInfo(executable).absoluteDir().filePath(QString::fromLatin1(name)));if(sdl.isEmpty()&&candidate.isFile())sdl=candidate.absoluteFilePath();}
-            const auto pads=gamepadProbe_?gamepadProbe_(sdl):pinball::probeGamepads(sdl);
+            if(!probed){
+                // The gamepad probe loads SDL and asks the devices: off the GUI thread, then this start again.
+                preparing_=true;emit playingChanged();
+                const auto probe=gamepadProbe_;auto *watcher=new QFutureWatcher<QVariantList>(this);
+                connect(watcher,&QFutureWatcher<QVariantList>::finished,this,[this,watcher,row,executable,view]{
+                    const auto pads=watcher->result();watcher->deleteLater();startPinball(row,executable,view,&pads);emit playingChanged();});
+                watcher->setFuture(QtConcurrent::run([probe,sdl]{return probe?probe(sdl):pinball::probeGamepads(sdl);}));
+                return;
+            }
+            const auto pads=*probed;
             // In the headset a single Y tap must not exit (holding Y in the Hub closes the table), so the copy is always made there.
             if(!pads.isEmpty()||view=="headset"){
                 const auto own=pinball::userSettingsFile(executable);
@@ -634,10 +644,19 @@ void HubServices::calibrateGunRoom(const QString &model,const QString &hand,cons
     auto inputs=gunRoomInputs(model,hand,executable);inputs.calibrateGrip=true;
     startGunRoom(inputs);
 }
-void HubServices::startGunRoom(const gunroom::Inputs &inputs){
-    if(launchBusy()||hubExitPending_){ui_->showError("Gun room","Close the current session before opening the gun room.");return;}
-    // Revalidate the selected paths and frozen bytes at the actual click/restart.
-    const auto candidate=gunroom::plan(inputs);
+void HubServices::startGunRoom(const gunroom::Inputs &inputs,const gunroom::Plan *checked){
+    if((launchBusy()&&!(checked&&preparing_))||hubExitPending_){ui_->showError("Gun room","Close the current session before opening the gun room.");return;}
+    preparing_=false;
+    // Revalidate the selected paths and frozen bytes at the actual click/restart, hashing off the GUI thread.
+    if(!checked){
+        preparing_=true;emit playingChanged();
+        auto *watcher=new QFutureWatcher<gunroom::Plan>(this);
+        connect(watcher,&QFutureWatcher<gunroom::Plan>::finished,this,[this,watcher,inputs]{
+            const auto plan=watcher->result();watcher->deleteLater();startGunRoom(inputs,&plan);emit playingChanged();});
+        watcher->setFuture(QtConcurrent::run([inputs]{return gunroom::plan(inputs);}));
+        return;
+    }
+    const auto candidate=*checked;
     if(!candidate.available()){gunRoomAvailable_=false;gunRoomCalibrationAvailable_=false;gunRoomReason_=candidate.error;gunRoomCalibrationReason_=candidate.error;emit gunRoomChanged();ui_->showError("Gun room",candidate.error);return;}
     retainedGunRoom_=inputs;
     ui_->launchRoomQueued(inputs.model,inputs.hand,inputs.calibrateGrip);

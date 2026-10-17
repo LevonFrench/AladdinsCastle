@@ -154,6 +154,31 @@ private slots:
         QVERIFY2(process.exitCode() == 0, process.readAllStandardError().constData());
         QVERIFY(process.readAllStandardOutput().contains("AladdinsCastle: 1 games"));
     }
+    // One Hub per folder: a second start on the same folder asks the first to come to the front and quits.
+    void secondHubHandsOverToTheFirst() {
+        QTemporaryDir temp;QVERIFY(temp.isValid());const auto root=temp.path();
+        QVERIFY(QDir().mkpath(root+"/games/synthetic"));
+        {QFile file(root+"/games/synthetic/game.toml");QVERIFY(file.open(QIODevice::WriteOnly));file.write("id='synthetic'");}
+        auto env=QProcessEnvironment::systemEnvironment();
+        env.insert("QT_QPA_PLATFORM","offscreen");env.insert("QT_QUICK_BACKEND","software");env.insert("AC_SINGLE_INSTANCE_TEST","1");
+        QString executable=QDir(QCoreApplication::applicationDirPath()).filePath("aladdinscastle-hub");
+#ifdef Q_OS_WIN
+        executable+=".exe";
+#endif
+        QProcess first;first.setProcessEnvironment(env);first.start(executable,{"--data-root",root,"--install-root",root,"--quit-after-ms","9000"});
+        QVERIFY(first.waitForStarted());
+        QByteArray firstOut;QTRY_VERIFY_WITH_TIMEOUT((firstOut+=first.readAllStandardOutput()).contains("1 games"),8000);
+        QProcess second;second.setProcessEnvironment(env);second.start(executable,{"--data-root",root,"--install-root",root,"--quit-after-ms","3000"});
+        QVERIFY(second.waitForStarted());QVERIFY(second.waitForFinished(10000));
+        QCOMPARE(second.exitCode(),0);QVERIFY(second.readAllStandardOutput().contains("Another Hub is open"));
+        QTRY_VERIFY_WITH_TIMEOUT((firstOut+=first.readAllStandardOutput()).contains("Asked to come to the front"),5000);
+        QVERIFY(first.waitForFinished(15000));QCOMPARE(first.exitCode(),0);
+        // Another folder is another Hub.
+        QTemporaryDir other;QVERIFY(QDir().mkpath(other.path()+"/games/synthetic"));
+        {QFile file(other.path()+"/games/synthetic/game.toml");QVERIFY(file.open(QIODevice::WriteOnly));file.write("id='synthetic'");}
+        QProcess third;third.setProcessEnvironment(env);third.start(executable,{"--data-root",other.path(),"--install-root",other.path(),"--quit-after-ms","100"});
+        QVERIFY(third.waitForFinished(15000));QVERIFY(third.readAllStandardOutput().contains("1 games"));
+    }
     void hubtoolRejectsIncompleteArguments() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());

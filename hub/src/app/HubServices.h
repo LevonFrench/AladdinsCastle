@@ -43,7 +43,7 @@ public:
     QString toolPlan() const;
     QString removalPlan() const { return removalText_; }
     bool playing() const { return childPlaying_; }
-    bool launchBusy() const { return launcher_.busy() || gunRoom_.busy(); }
+    bool launchBusy() const { return launcher_.busy() || gunRoom_.busy() || preparing_; }
     bool preparing() const { return launchBusy() && !playing(); }
     bool canRemoveSteam() const { return games_->find(pendingRemoval_.gameId) != nullptr; }
     bool steamRemoving() const { return steamRequest_.remove; }
@@ -110,8 +110,11 @@ private:
     QVariantMap retryContext() const;
     void startInstallRequest(const install::Request &request,const QString &kind);
     void installTool(const QString &gameId,const QString &variantId,const QString &handover={});
-    void startGunRoom(const gunroom::Inputs &inputs);
-    void startPinball(const QVariantMap &row,const QString &executable,const QString &view);
+    // Slow checks (the gamepad probe, the room's file hashes) run off the GUI thread; the start then
+    // carries on with their result. Nothing else starts meanwhile.
+    void startGunRoom(const gunroom::Inputs &inputs,const gunroom::Plan *checked=nullptr);
+    void startPinball(const QVariantMap &row,const QString &executable,const QString &view,const QVariantList *probed=nullptr);
+    bool preparing_=false;
     QString pinballVrRoot()const; // Empty when the user left the headset choice to VPX.
     void startModel3(const QString &id,const QString &view);
     void refreshSteamVr(const QString &error={});

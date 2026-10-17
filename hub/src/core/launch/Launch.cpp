@@ -533,7 +533,9 @@ void LaunchService::beginChild() {
     helper_.setStandardOutputFile(helperLog, QIODevice::Append);
     helper_.start(request_.companion.executable, request_.companion.args);
     if (helper_.processId()) tree_->adopt(helper_.processId());
-    if (!helper_.waitForStarted(5000)) {
+    // Never waited for on the GUI thread: the process exists, with its id, once start() has returned,
+    // or it could not be made at all.
+    if (helper_.state() == QProcess::NotRunning || !helper_.processId()) {
       if (payload_) payload_->clearPendingChildLaunch();
       complete(1, "Could not start the companion program: " + helper_.errorString());
       return;

@@ -16,6 +16,9 @@
 #include "overlay/CompositorCapture.h"
 #include "overlay/SpikeState.h"
 #include "ui/Theme.h"
+#include <QCryptographicHash>
+#include <QLocalSocket>
+#include <QLocalServer>
 #include <QCoreApplication>
 #include <QDir>
 #include <QGuiApplication>
@@ -88,11 +91,30 @@ int main(int argc,char **argv){
         if(!ac::captureCompositorEyes(catalogRoot,options.compositorCaptureDir,options.compositorDashboard,&error)){err<<error<<'\n';return 3;}
         out<<"Compositor eye snapshot written; inspect content and orientation. No physical headset or exact frame-sync acceptance.\n";return 0;
     }
+    // Loaded on a worker before any window exists (about half a second for the whole catalog), so there
+    // is no window to freeze; the theme, the services and the art resolver are all built from it.
     auto catalog=QtConcurrent::run([catalogRoot]{return ac::CatalogLoader().load(catalogRoot);}).result();
     const auto count=catalog.report.records;
     ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);
     QQuickStyle::setStyle("Basic");ac::Theme theme(games.catalog().theme);
     const auto portableRoot=options.installRoot.isEmpty()?app.applicationDirPath():QDir(options.installRoot).absolutePath();
+    // One Hub per folder: a second start asks the first to come to the front, and quits. A Hub that SteamVR
+    // starts as its panel quits too; the open one joins SteamVR's dashboard itself. Picture and test runs are
+    // left alone unless a test asks for the guard.
+    std::unique_ptr<QLocalServer> instance;
+    const auto instanceName=QString("%1-%2").arg(QString::fromLatin1(ac::product::program_name),
+        QString::fromLatin1(QCryptographicHash::hash(QDir::cleanPath(portableRoot).toLower().toUtf8(),QCryptographicHash::Sha256).toHex().left(16)));
+    if((options.mode==ac::Mode::Desktop||options.mode==ac::Mode::Overlay)&&!qEnvironmentVariableIsSet("AC_UI_CAPTURE")&&
+       (qEnvironmentVariable("QT_QPA_PLATFORM")!="offscreen"||qEnvironmentVariableIsSet("AC_SINGLE_INSTANCE_TEST"))){
+        QLocalSocket other;other.connectToServer(instanceName);
+        if(other.waitForConnected(500)){
+            other.write(options.mode==ac::Mode::Overlay?"panel\n":"raise\n");other.waitForBytesWritten(500);other.disconnectFromServer();
+            out<<"Another Hub is open on this folder; it was asked to come to the front.\n";out.flush();return 0;
+        }
+        QLocalServer::removeServer(instanceName);
+        instance=std::make_unique<QLocalServer>();instance->setSocketOptions(QLocalServer::UserAccessOption);
+        if(!instance->listen(instanceName))instance.reset();
+    }
     try{ac::install::scopedPath("user/hub-settings.toml",portableRoot);ac::install::scopedPath("user/scan-folders.json",portableRoot);ac::install::scopedPath("user/cache/scan-bindings.json",portableRoot);}catch(const std::exception &e){err<<e.what()<<'\n';return 2;}
     ac::UiSettings settings(portableRoot+"/user");ac::UiController ui(&games,&filter,&settings);
     settings.createAcceptedList(); // The owner's own list of games accepted in the headset, empty to begin with.
@@ -137,6 +159,14 @@ int main(int argc,char **argv){
     QObject::connect(&engine,&QQmlApplicationEngine::objectCreationFailed,&services,[&services]{services.requestHubExit(2);},Qt::QueuedConnection);
     QObject::connect(&services,&ac::HubServices::raiseHubRequested,&engine,[&]{for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow*>(object)){window->show();window->raise();window->requestActivate();}});
     QObject::connect(&app,&QGuiApplication::lastWindowClosed,&app,[&]{if(ac::shouldQuitAfterLastWindow(services.launchBusy()))app.quit();});
+    if(instance)QObject::connect(instance.get(),&QLocalServer::newConnection,&app,[&]{
+        while(auto *socket=instance->nextPendingConnection()){
+            QObject::connect(socket,&QLocalSocket::disconnected,socket,&QObject::deleteLater);
+            QObject::connect(socket,&QLocalSocket::readyRead,&app,[&,socket]{
+                if(socket->readAll().startsWith("raise")){out<<"Asked to come to the front by another start.\n";out.flush();emit services.raiseHubRequested();}
+            });
+        }
+    });
     bool overlayInitialized=false;
     QObject::connect(services.launcher(),&ac::launch::LaunchService::finished,&app,[&](const QString &,int,const QString &,const QString &){QTimer::singleShot(0,&app,[&]{bool visible=false;for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow *>(object))visible=visible||window->isVisible();if(ac::shouldQuitAfterLaunch(overlayInitialized,services.launchBusy(),visible))app.quit();});});
     if(options.mode==ac::Mode::Overlay){
