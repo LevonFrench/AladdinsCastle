@@ -10,6 +10,7 @@
 #include "core/catalog/CatalogPaths.h"
 #include "core/install/Support.h"
 #include "core/launch/Launch.h"
+#include "core/pinball/Gamepad.h"
 #include "app/HubServices.h"
 #include "app/LaunchProof.h"
 #include "overlay/OverlayHost.h"
@@ -37,6 +38,13 @@
 #include <QtConcurrent>
 #include <qqml.h>
 int main(int argc,char **argv){
+    // The gamepad check for a pinball start, in a copy of the Hub of its own: the SDL library in the user's
+    // VPX folder is loaded here, never into the open Hub. No window; the devices are printed and it quits.
+    if(argc==3&&QByteArray(argv[1])=="--probe-gamepads"){
+        QCoreApplication probe(argc,argv);
+        QTextStream(stdout)<<QJsonDocument::fromVariant(ac::pinball::probeGamepads(probe.arguments().at(2))).toJson(QJsonDocument::Compact);
+        return 0;
+    }
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     ac::LaunchOptions options;
     {QCoreApplication argumentApp(argc,argv);options=ac::parseLaunchOptions(argumentApp.arguments().mid(1));}

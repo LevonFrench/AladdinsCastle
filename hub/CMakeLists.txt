@@ -114,7 +114,9 @@ add_library(hubcore STATIC
     src/core/wii/Wii.h
     src/core/wii/Wii.cpp
     src/core/library/Library.h
-    src/core/library/Library.cpp)
+    src/core/library/Library.cpp
+    src/core/settings/Secret.h
+    src/core/settings/Secret.cpp)
 target_compile_features(hubcore PUBLIC cxx_std_20)
 target_include_directories(hubcore PUBLIC src "${CMAKE_BINARY_DIR}/generated")
 target_link_libraries(hubcore PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Concurrent
@@ -127,7 +129,7 @@ target_link_libraries(hubcore PRIVATE hubhandmetadata)
 target_link_libraries(hubcore PRIVATE chdr-static)
 target_link_libraries(hubcore PUBLIC Qt6::Quick)
 if(WIN32)
-    target_link_libraries(hubcore PRIVATE version shell32 ole32 advapi32 uuid)
+    target_link_libraries(hubcore PRIVATE version shell32 ole32 advapi32 uuid crypt32)
 endif()
 ac_project_warnings(hubcore)
 qt_add_resources(hubcore scan_metadata PREFIX /scan BASE resources FILES resources/serial-index.json resources/wii-disc-index.json)

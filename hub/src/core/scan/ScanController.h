@@ -18,6 +18,8 @@ public:
   bool running() const { return m_running; }
   quint64 artRevision() const { return m_artRevision; }
   const ScanOptions &options() const { return m_options; }
+  // Whether a located emulator may be run for its game list, as the user answered; read at each scan.
+  void setQueryTools(bool allowed) { m_options.queryTools = allowed; }
   const ScanResult &lastResult() const { return m_last; }
 public slots:
   void scan(const QStringList &folders = {});

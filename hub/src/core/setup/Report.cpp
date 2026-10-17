@@ -174,7 +174,8 @@ QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &context,co
   if(folder.isEmpty()||!QFileInfo(QDir(folder).filePath(id+".zip")).isFile()){groups.missing<<item(id,title,"expected",id+".zip");continue;}
   const auto issue=model2::problem(id,program,folder);
   if(!issue.isEmpty()){groups.notRight<<item(id,title,"reason","The game file was found by its name, but the emulator build for this system is not set up on this PC. "+issue);continue;}
-  // What this game needs, files and device sets, is asked of the emulator build itself.
+  // What this game needs, files and device sets, is asked of the emulator build itself, when the user allows it.
+  if(!settings.value("queryEmulators").toBool()){unchecked=true;groups.ready<<item(id,title,"detail","Found by its set name. The files inside were not checked: the Hub runs the emulator for its list only when you allow it.");continue;}
   const auto xml=mameListXml(program,QDir::cleanPath(QFileInfo(program).absoluteDir().filePath("../runtime")),settings.value("model2RuntimePath").toString(),id);
   if(xml.isEmpty()){unchecked=true;groups.ready<<item(id,title,"detail","Found by its set name. The emulator did not give its list, so the files inside were not checked.");continue;}
   // The billboard set only drives the cabinet's sign, so a stand-in for it is accepted and said.
@@ -186,7 +187,7 @@ QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &context,co
  }
  QString note="Virtua Cop 2: controls new, untested. Gunblade NY and Virtua Fighter 2: view only for now.";
  if(!standIns.isEmpty())note+=QString(" The %1 set here is a stand-in, which only leaves the cabinet's sign blank.").arg(standIns.join(", "));
- if(unchecked)note+=" Some games could not be checked against the emulator.";
+ if(unchecked)note+=settings.value("queryEmulators").toBool()?QString(" Some games could not be checked against the emulator."):QString(" Allow the Hub to ask found emulators for their game lists, and the files inside each game are checked too.");
  return groups.result("model2",systemFolder.isEmpty()&&!context.value("library").toMap().value("systems").toMap().contains("model2")?QString("No folder chosen for this system."):note);
 }
 QVariantMap scanPs2(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){

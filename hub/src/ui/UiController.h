@@ -180,6 +180,10 @@ class UiController : public QObject {
  Q_INVOKABLE void refreshModel3(){emit model3Changed();}
  // Inside the game, draw the cabinet's wheel or handlebars in front of you (per game, off unless chosen).
  Q_INVOKABLE void setModel3Control(const QString &id,bool on);
+ // The user's SteamGridDB key: kept protected for this Windows account, never shown again once saved.
+ Q_INVOKABLE bool setSteamGridDbKey(const QString &key);
+ Q_INVOKABLE bool hasSteamGridDbKey() const;
+ QString steamGridDbKey() const;
  // Optional artwork from the internet (D66): only when the setting is on, and only when asked.
  // scope is a game's id ("model2-vcop2"; Model 3 games as "model3-<id>") or "system:<system>".
  Q_INVOKABLE void getArtwork(const QString &scope);

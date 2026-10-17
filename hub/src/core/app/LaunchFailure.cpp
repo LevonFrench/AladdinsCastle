@@ -33,7 +33,7 @@ QString writeLaunchFailureLog(const QString &root,const QString &gameId,const QS
     const auto stamp=QDateTime::currentDateTimeUtc().toString("yyyyMMdd-HHmmss-zzz")+"-"+QUuid::createUuid().toString(QUuid::Id128).left(8);
     const auto file=install::scopedPath("user/logs/launch-"+safeId+"-"+stamp+".log",root);
     QDir().mkpath(QFileInfo(file).absolutePath());
-    install::atomicWrite(file,QByteArray(product::display_name)+" launch failed\n"+message.toUtf8()+"\n");
+    install::atomicWrite(file,QByteArray(product::display_name)+" launch failed\n"+install::shareable(message).toUtf8()+"\n");
     // Bound only this game's generated preflight history; deletion is advisory.
     const QRegularExpression owned("^launch-"+QRegularExpression::escape(safeId)+"-\\d{8}-\\d{6}-\\d{3}-[a-f0-9]{8}\\.log$");
     auto history=QDir(QFileInfo(file).absolutePath()).entryInfoList(QDir::Files|QDir::NoSymLinks,QDir::Time|QDir::Reversed);

@@ -30,6 +30,7 @@
 #include <QRegularExpression>
 #include <QCryptographicHash>
 #include <QPointer>
+#include <QProcess>
 namespace ac {
 namespace {
 QString privatePinballIni(const QString &path,const QString &root) {
@@ -38,6 +39,29 @@ QString privatePinballIni(const QString &path,const QString &root) {
     const QFileInfo file(candidate);
     if(!file.isFile()||!file.isReadable())throw install::Error("E_PINBALL_DIAGNOSTIC_INI","Private settings file is missing or unreadable");
     return candidate;
+}
+// The devices SDL sees, asked of a copy of the Hub run for that alone: the user's SDL library is never loaded
+// into this one. Hidden, a few seconds at most, and only what a device list can hold is kept.
+QVariantList probeGamepadsApart(const QString &sdl){
+    if(!QFileInfo(sdl).isFile())return {};
+    auto program=QDir(QCoreApplication::applicationDirPath()).filePath(QString::fromLatin1(product::program_name));
+#ifdef Q_OS_WIN
+    program+=".exe";
+#endif
+    if(!QFileInfo(program).isFile())return {};
+    QProcess child;child.setProgram(program);child.setArguments({"--probe-gamepads",sdl});
+    child.setWorkingDirectory(QFileInfo(sdl).absolutePath());child.setStandardErrorFile(QProcess::nullDevice());child.start();
+    if(!child.waitForStarted(3000))return {};
+    if(!child.waitForFinished(8000)){child.kill();child.waitForFinished(2000);return {};}
+    if(child.exitStatus()!=QProcess::NormalExit||child.exitCode()!=0)return {};
+    QVariantList pads;
+    for(const auto &value:QJsonDocument::fromJson(child.readAllStandardOutput().left(256*1024)).array()){
+        const auto pad=value.toObject();if(!pad.value("uid").isString())continue;
+        QVariantMap elements;const auto given=pad.value("elements").toObject();
+        for(auto it=given.begin();it!=given.end();++it)if(it.value().isDouble())elements[it.key()]=it.value().toInt();
+        pads<<QVariantMap{{"uid",pad.value("uid").toString().left(128)},{"name",pad.value("name").toString().left(128)},{"elements",elements}};
+    }
+    return pads;
 }
 scan::ScanOptions scanOptions(const QString &root) {
     install::scopedPath("user/scan-folders.json",root);
@@ -221,7 +245,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::closeLaunchRequested,this,[this]{if(gunRoom_.busy())gunRoom_.close();else if(!askPs2ToQuit()&&!askModel2ToQuit(false))launcher_.requestClose();});
     // Artwork from the internet: read from the settings at each request, so off is off at once.
     artDownloader_=std::make_unique<art::Downloader>(settings_->userDir(),[this]{return settings_->get("artDownload",false).toBool();},
-        [this]{return settings_->get("steamGridDbKey",QString()).toString();},this);
+        [this]{return ui_->steamGridDbKey();},this);
     connect(ui_,&UiController::artworkRequested,this,[this](const QVariantList &rows){
         QVector<art::Target> targets;
         for(const auto &value:rows){const auto row=value.toMap();targets<<art::Target{row.value("id").toString(),row.value("system").toString(),row.value("title").toString(),row.value("names").toStringList()};}
@@ -375,7 +399,8 @@ void HubServices::scan(const QStringList &folders){
     if(scanner_.running()){rescanPending_=true;return;}
     QStringList roots=folders;
     if(roots.isEmpty())roots=scanner_.options().mediaRoots+scanner_.options().toolRoots+scanner_.options().artRoots;
-    roots<<QDir(root_).filePath("emulators");roots.removeDuplicates();scanner_.scan(roots);
+    roots<<QDir(root_).filePath("emulators");roots.removeDuplicates();
+    scanner_.setQueryTools(settings_->get("queryEmulators",false).toBool());scanner_.scan(roots);
 }
 install::Request HubServices::gameRequest(const QString &id,const QString &variant){
     auto game=games_->find(id);if(!game)throw install::Error("E_GAME_INVALID","Unknown game");
@@ -565,7 +590,7 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable,
                 const auto probe=gamepadProbe_;auto *watcher=new QFutureWatcher<QVariantList>(this);
                 connect(watcher,&QFutureWatcher<QVariantList>::finished,this,[this,watcher,row,executable,view]{
                     const auto pads=watcher->result();watcher->deleteLater();startPinball(row,executable,view,&pads);emit playingChanged();});
-                watcher->setFuture(QtConcurrent::run([probe,sdl]{return probe?probe(sdl):pinball::probeGamepads(sdl);}));
+                watcher->setFuture(QtConcurrent::run([probe,sdl]{return probe?probe(sdl):probeGamepadsApart(sdl);}));
                 return;
             }
             const auto pads=*probed;
@@ -769,7 +794,7 @@ void HubServices::recordCrash(const QString &id,int code,const QString &how,cons
     for(const auto &file:candidates){const QFileInfo info(file);if(!file.isEmpty()&&info.isFile()&&info.lastModified().toMSecsSinceEpoch()>=sessionStartMs_-5000){tail=launch::lastLines(file,12);from=info.fileName();break;}}
     if(tail.isEmpty()&&!logPath.isEmpty()&&QFileInfo(logPath).isFile()){tail=launch::lastLines(logPath,12);from="the Hub's launch log";}
     QJsonObject record{{"time",QDateTime::currentDateTime().toString(Qt::ISODate)},{"gameId",id},{"title",sessionTitle_.isEmpty()?id:sessionTitle_},{"system",system},
-        {"exitCode",QString("0x%1").arg(quint32(code),8,16,QLatin1Char('0')).toUpper().replace("0X","0x")},{"meaning",how},{"log",tail},{"logFrom",from}};
+        {"exitCode",QString("0x%1").arg(quint32(code),8,16,QLatin1Char('0')).toUpper().replace("0X","0x")},{"meaning",how},{"log",install::shareable(tail)},{"logFrom",from}};
     try{
         const auto path=install::scopedPath("user/logs/crashes.json",root_);
         QJsonArray list;{QFile file(path);if(file.size()<=4*1024*1024&&file.open(QIODevice::ReadOnly))list=QJsonDocument::fromJson(file.readAll()).array();}

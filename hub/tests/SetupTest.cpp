@@ -213,7 +213,11 @@ private slots:
     write(sets+"/vcop2.zip","synthetic");
     auto result=ac::setup::scanSystem("model2",{{"model2GameFolder",sets}},{},{},cancel);
     QVERIFY(entry(result,"notRight","vcop2")["reason"].toString().contains("not set up"));QCOMPARE(entry(result,"missing","vf2")["expected"].toString(),QString("vf2.zip"));
+    // The emulator is run for its list only when the user allowed it: until then, names only, and said.
     result=ac::setup::scanSystem("model2",{{"model2GameFolder",sets},{"model2Executable",program}},{},{},cancel);
+    QVERIFY(entry(result,"ready","vcop2")["detail"].toString().contains("only when you allow it"));
+    QVERIFY(result["note"].toString().contains("Allow the Hub to ask found emulators"));
+    result=ac::setup::scanSystem("model2",{{"model2GameFolder",sets},{"model2Executable",program},{"queryEmulators",true}},{},{},cancel);
     QVERIFY(entry(result,"ready","vcop2")["detail"].toString().contains("not checked"));
     QVERIFY(result["note"].toString().contains("could not be checked"));
     // Controls were proven on one game only: the others stay view only.

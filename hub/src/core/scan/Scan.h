@@ -45,6 +45,8 @@ struct ScanOptions {
   QString userRoot, mameXml, supermodelXml, serialIndex;
   int maxDepth = 6;
   bool locateOnly = false;
+  // A located emulator is run (MAME -listxml) only when the user said yes; a saved list is still read.
+  bool queryTools = false;
 };
 struct ScanResult {
   qint64 elapsedMs = 0;

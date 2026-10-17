@@ -22,18 +22,22 @@ ScrollView{
    detail:"Off: only games that can be played on this PC are listed. On: the whole catalog comes back, with its filters, search and order.";onClicked:uiSettings.set("showAllGames",!on)}
   SettingRow{objectName:"settingStartSteamVr";width:parent.width;vrOverlayMode:page.vrOverlayMode;on:(uiSettings.values,uiSettings.get("startSteamVr",true))===true;label:"Let the Hub start SteamVR"
    detail:"On: Play in headset starts SteamVR when it is not running, then the game. Off: the Hub never starts SteamVR; start it yourself first.";onClicked:uiSettings.set("startSteamVr",!on)}
+  SettingRow{objectName:"settingQueryEmulators";width:parent.width;vrOverlayMode:page.vrOverlayMode;on:(uiSettings.values,uiSettings.get("queryEmulators",false))===true;label:"Ask found emulators for their game lists"
+   detail:"On: the Hub runs a MAME build it found, hidden, once, to read the list of what each game needs, so the files inside are checked. Off: games are found by their names only.";onClicked:uiSettings.set("queryEmulators",!on)}
   SettingRow{objectName:"settingArtDownload";width:parent.width;vrOverlayMode:page.vrOverlayMode;on:page.artOn;label:"Download artwork from the internet"
    detail:"Off: the Hub asks the internet for nothing and shows only pictures on this PC. On: Get artwork, on a game's page or for a whole system below, fetches box art, title screens and screenshots from the libretro thumbnail server, then from SteamGridDB if you add your own key. Nothing downloads by itself. Pictures are kept in the Hub's own folder, and your own pictures always come first.";onClicked:uiSettings.set("artDownload",!on)}
   Column{objectName:"artDownloadOptions";visible:page.artOn;width:parent.width;spacing:10;leftPadding:page.vrOverlayMode?20:16
    Text{text:"SteamGridDB key (optional)";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?18:15}
    TextField{id:steamGridKey;objectName:"settingSteamGridKey";width:Math.min(parent.width-parent.leftPadding,520);height:page.vrOverlayMode?52:40;echoMode:TextInput.Password;selectByMouse:true
-    placeholderText:"Your own key, from SteamGridDB: Preferences, API";Accessible.name:"SteamGridDB API key";text:(uiSettings.values,uiSettings.get("steamGridDbKey",""))
+    readonly property bool saved:(uiSettings.values,uiController.hasSteamGridDbKey())
+    placeholderText:saved?"A key is saved. Type a new one to replace it.":"Your own key, from SteamGridDB: Preferences, API";Accessible.name:"SteamGridDB API key"
     color:Theme.get("color.text.primary");placeholderTextColor:Theme.get("color.text.faint");font.family:Theme.get("font.family");font.pixelSize:page.vrOverlayMode?16:14
-    onEditingFinished:if(text.trim()!==uiSettings.get("steamGridDbKey",""))uiSettings.set("steamGridDbKey",text.trim())
+    onEditingFinished:if(text.trim()!==""){uiController.setSteamGridDbKey(text);text=""}
     leftPadding:16;rightPadding:16
     background:Rectangle {radius:Theme.get("radius.pill");color:Theme.get("color.surface.pill");border.width:steamGridKey.activeFocus?2:0;border.color:Theme.get("color.glass.ring")}
     onActiveFocusChanged:if(activeFocus&&page.vrOverlayMode&&typeof overlayHost!=="undefined")overlayHost.requestKeyboard(steamGridKey)}
-   Text{width:parent.width-parent.leftPadding;wrapMode:Text.Wrap;text:"Kept in the Hub's settings on this PC and sent only to SteamGridDB. Without a key, only libretro is asked.";color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?15:13}
+   PillButton{objectName:"settingSteamGridKeyRemove";text:"Remove the saved key";visible:steamGridKey.saved;vrOverlayMode:page.vrOverlayMode;onClicked:uiController.setSteamGridDbKey("")}
+   Text{width:parent.width-parent.leftPadding;wrapMode:Text.Wrap;text:"Kept protected in the Hub's settings, readable only by your Windows account on this PC, and sent only to SteamGridDB. It is not shown again once saved. Without a key, only libretro is asked.";color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?15:13}
    Flow{width:parent.width-parent.leftPadding;spacing:10;topPadding:4
     Repeater{model:page.artSystems
      PillButton{required property var modelData;objectName:"artGet_"+modelData.key;text:"Get artwork · "+modelData.label;vrOverlayMode:page.vrOverlayMode;enabled:!uiController.artworkBusy;onClicked:uiController.getArtwork("system:"+modelData.key)}}}

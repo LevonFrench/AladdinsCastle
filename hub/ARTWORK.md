@@ -70,8 +70,13 @@ that says nothing comes after the known kinds.
    prefers USA, then World, Europe and Japan, and never takes a beta, prototype,
    demo or bootleg when there is another. MAME has pictures for few Model 2 and
    Model 3 games.
-2. **SteamGridDB**, only with the user's own API key (Settings, under the switch;
-   kept in the Hub's settings on this PC). It is asked for every game's hero
+2. **SteamGridDB**, only with the user's own API key (Settings, under the switch).
+   The key is kept protected with Windows data protection as
+   `steamGridDbKeyProtected`: only the same Windows account on the same PC can
+   read it back, and the page never shows it again, only that one is saved and
+   a button to remove it. A key an earlier Hub saved in the clear
+   (`steamGridDbKey`) is protected at the next start and the clear copy removed.
+   It is asked for every game's hero
    (the banner). A card picture is asked for only when libretro had nothing. The Hub searches by title and takes only an exact title
    match. It then takes one 920×430 or 460×215 grid for the card and one hero
    for the banner, still pictures only, with adult, joke and flashing pictures
@@ -132,6 +137,8 @@ local art order ([docs/art-pipeline.md](../docs/art-pipeline.md) §0).
   - the switch, which makes no request while off, even part-way through;
   - the cache, so a second run makes no request;
   - the key reaching SteamGridDB's API only;
+  - the key kept protected (`keyIsKeptProtected`, and
+    `UiTest::steamGridKeyIsKeptProtected` for the move from a clear key);
   - local pictures winning.
 - `IntegrationTest::artworkAsksNothingWhileOff` checks the same switch through
   the Hub itself.

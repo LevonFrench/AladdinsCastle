@@ -11,6 +11,7 @@ class UiSettings : public QObject {
  QVariantMap values() const {return m_values;}
  Q_INVOKABLE QVariant get(const QString &key,const QVariant &fallback={}) const {return m_values.value(key,fallback);}
  Q_INVOKABLE bool set(const QString &key,const QVariant &value);
+ bool remove(const QString &key);
  Q_INVOKABLE QVariantMap game(const QString &id) const {return m_games.value(id).toMap();}
  Q_INVOKABLE bool saveGame(const QString &id,const QVariantMap &value);
  // Games the owner has accepted in the headset, from accepted.toml beside the settings.

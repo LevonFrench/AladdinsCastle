@@ -698,6 +698,24 @@ void contentGuard(const QString &name, const Json &guard,
     if (file == QString::fromStdString(n.get<std::string>()).toLower())
       throw Error("E_CONTENT_GUARD", "Known game/BIOS file refused");
 }
+QString shareable(const QString &text, const QString &home) {
+  const auto folder = QDir::cleanPath(home.isEmpty() ? QDir::homePath() : home);
+  // A home at a drive's root or nowhere names no one.
+  if (folder.size() < 4 || folder == QDir::rootPath())
+    return text;
+#ifdef Q_OS_WIN
+  const QString name("%USERPROFILE%");
+#else
+  const QString name("~");
+#endif
+  auto out = text;
+  // Both spellings of the folder, as far as a path continues: never a longer name that only starts the same.
+  for (const auto &spelling : {folder, QDir::toNativeSeparators(folder)})
+    out.replace(QRegularExpression(QRegularExpression::escape(spelling) + R"((?=$|[\\/\s"'):;,]))",
+                                   QRegularExpression::CaseInsensitiveOption),
+                name);
+  return out;
+}
 bool verifyPe64(const QString &path) {
   QFile f(path);
   if (!f.open(QIODevice::ReadOnly))

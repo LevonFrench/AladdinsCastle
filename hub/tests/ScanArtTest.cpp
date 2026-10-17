@@ -848,6 +848,24 @@ private slots:
     QVERIFY(QFileInfo(path).size()!=result.tools.first().size);
   }
 
+  // A located MAME is run for its game list only when the user said yes; until then it is not started at all.
+  void locatedMameRunsOnlyWithConsent() {
+    QTemporaryDir t;
+    QByteArray pe(68,0);pe[0]='M';pe[1]='Z';qToLittleEndian<quint32>(64,pe.data()+60);pe.replace(64,4,QByteArray("PE\0\0",4));
+    save(t.filePath("tools/mame.exe"),pe);QDir().mkpath(t.filePath("user"));
+    ac::scan::ScanOptions options;options.toolRoots={t.filePath("tools")};options.userRoot=t.filePath("user");
+    std::atomic_bool stop=false;
+    auto result=ac::scan::Scanner::run(catalog(),options,stop);
+    QCOMPARE(result.tools.size(),1);
+    QVERIFY2(result.diagnostics.join("|").contains("only when you allow it"),qPrintable(result.diagnostics.join("|")));
+    QVERIFY(!result.diagnostics.join("|").contains("listxml"));
+    // Allowed: the stand-in is tried (it is no real program, so it gives no list), and nothing is cached.
+    options.queryTools=true;result=ac::scan::Scanner::run(catalog(),options,stop);
+    QVERIFY2(result.diagnostics.join("|").contains("listxml"),qPrintable(result.diagnostics.join("|")));
+    QVERIFY(QDir(t.filePath("user/cache")).entryList({"mame-*.xml"},QDir::Files).isEmpty());
+    QVERIFY(ac::scan::Scanner::optionsFromJson(ac::Json{{"queryTools",true}}).queryTools);
+    QVERIFY(!ac::scan::Scanner::optionsFromJson(ac::Json::object()).queryTools);
+  }
   void scopedRootsSkipSecretsAndSymlinks() {
     QTemporaryDir t;
     save(t.filePath(".ssh/secret.zip"), zip({{0x12345678, 100}}));

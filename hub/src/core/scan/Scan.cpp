@@ -530,6 +530,11 @@ QString mameMetadata(const QVector<ToolBinding> &tools, const ScanOptions &o,
       const auto path = o.userRoot + "/cache/mame-" + k + ".xml";
       if (QFileInfo::exists(path))
         return path;
+      if (!o.queryTools) {
+        errors << "MAME was found, but its game list was not read: the Hub runs a found emulator only when "
+                  "you allow it (Settings, Ask found emulators for their game lists)";
+        return {};
+      }
       const auto temp = path + ".partial";
       QProcess p;
       p.setProgram(t.path);
@@ -604,6 +609,7 @@ ScanOptions Scanner::optionsFromJson(const Json &j) {
   o.serialIndex = s(j, "serialIndex");
   o.maxDepth = qBound(0, j.value("maxDepth", 6), 16);
   o.locateOnly = j.value("locateOnly", false);
+  o.queryTools = j.value("queryTools", false);
   return o;
 }
 Json ScanResult::toJson() const {

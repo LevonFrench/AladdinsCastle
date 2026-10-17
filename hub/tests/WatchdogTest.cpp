@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The watchdog's rules with stand-in process lists and window probes: nothing here touches a real process.
 #include "core/launch/Watchdog.h"
+#include "core/install/Support.h"
+#include <QDir>
 #include <QSignalSpy>
 #include <QtTest>
 using ac::launch::ProcessInfo;
@@ -15,6 +17,21 @@ ProcessInfo process(qint64 pid, qint64 parent, const QString &path, qint64 creat
 class WatchdogTest : public QObject {
   Q_OBJECT
 private slots:
+  // What a crash record keeps of a log names no account: the home folder, in either spelling, is written as a name.
+  void sharedTextHidesTheHomeFolder() {
+#ifdef Q_OS_WIN
+    const QString home("%USERPROFILE%");
+#else
+    const QString home("~");
+#endif
+    const QString text = "opened /home/sample/AppData/game.cfg; " + QDir::toNativeSeparators("/home/sample/Saved") +
+                         " and /HOME/Sample\nothing, but /home/sampler/other and /home/sample";
+    const auto shared = ac::install::shareable(text, "/home/sample");
+    QVERIFY2(!shared.contains("sample/", Qt::CaseInsensitive) && !shared.contains("sample\\", Qt::CaseInsensitive), qPrintable(shared));
+    QVERIFY(shared.contains(home + "/AppData/game.cfg"));QVERIFY(shared.contains("/home/sampler/other"));QVERIFY(shared.endsWith(home));
+    QCOMPARE(ac::install::shareable("nothing personal", "/home/sample"), QString("nothing personal"));
+    QCOMPARE(ac::install::shareable("/x/y", "/"), QString("/x/y"));
+  }
   void onlyConfiguredFoldersBelongToASystem() {
     QCOMPARE(ac::launch::attribute(process(101, 0, "/Games/VPX/VPinballX64.exe", 0), rules), QString("pinball"));
     QCOMPARE(ac::launch::attribute(process(102, 0, "\\games\\vpx\\Tools.exe", 0), rules), QString("pinball")); // Its own folder: any program.

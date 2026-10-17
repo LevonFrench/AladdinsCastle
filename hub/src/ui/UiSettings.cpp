@@ -60,6 +60,7 @@ bool UiSettings::createAcceptedList()const{
  return file.commit();
 }
 bool UiSettings::set(const QString &key,const QVariant &value){m_values[key]=value;const bool ok=save();emit changed();return ok;}
+bool UiSettings::remove(const QString &key){if(!m_values.contains(key))return true;m_values.remove(key);const bool ok=save();emit changed();return ok;}
 bool UiSettings::saveGame(const QString &id,const QVariantMap &value){auto merged=m_games.value(id).toMap();for(auto it=value.begin();it!=value.end();++it)merged[it.key()]=it.value();m_games[id]=merged;const bool ok=save();if(ok)emit gameSaved(id,merged);emit changed();return ok;}
 bool UiSettings::save(){QDir().mkpath(QFileInfo(m_path).absolutePath());QSaveFile f(m_path);if(!f.open(QIODevice::WriteOnly)){emit error("Cannot save portable settings.");return false;}toml::table t;t.insert("ui",table(m_values));t.insert("game",table(m_games));std::ostringstream out;out<<t;const auto bytes=QByteArray::fromStdString(out.str());if(f.write(bytes)!=bytes.size()||!f.commit()){emit error("Cannot commit portable settings.");return false;}return true;}
 }

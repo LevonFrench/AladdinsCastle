@@ -133,6 +133,16 @@ Item {
       UiText {text:page.report.scanned?"Read on "+page.report.scanned:"";font.pixelSize:page.body-2;color:Theme.get("color.text.muted_detail")}
       PillButton {objectName:"setupRescan";text:uiController.setupScanning?"Reading…":"Rescan";enabled:!uiController.setupScanning;vrOverlayMode:page.vrOverlayMode;onClicked:uiController.scanSetup()}
      }
+     // Running a program the Hub found is the user's call, asked once, plainly.
+     Rectangle {objectName:"setupQueryEmulators";Layout.fillWidth:true;visible:(uiSettings.values,uiSettings.get("queryEmulators","")==="");implicitHeight:ask.implicitHeight+28;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card")
+      ColumnLayout {id:ask;x:14;y:14;width:parent.width-28;spacing:8
+       Para {Layout.fillWidth:true;text:"May the Hub run the MAME builds it found, hidden and once, to read what each game needs? Then the files inside your games are checked too. Without it, games are found by their names only. You can change this in Settings."}
+       RowLayout {spacing:10
+        PillButton {objectName:"setupQueryYes";text:"Yes, ask them";neon:true;accent:page.good;vrOverlayMode:page.vrOverlayMode;onClicked:{uiSettings.set("queryEmulators",true);uiController.scanSetup()}}
+        PillButton {objectName:"setupQueryNo";text:"No, names only";vrOverlayMode:page.vrOverlayMode;onClicked:uiSettings.set("queryEmulators",false)}
+       }
+      }
+     }
      Para {objectName:"setupProgress";visible:uiController.setupScanning;color:page.warn;text:"Reading your folders. Nothing in them is changed.  "+uiController.setupProgress}
      Para {visible:!uiController.setupScanning&&!(page.report.systems||[]).length;text:"Nothing has been read yet. Tick what you have, say where it is, then use Rescan."}
      Para {visible:(page.report.systems||[]).length>0;text:"Found, can start: the game's files and its program are on this PC. Found, not right: the file is there but cannot be used as it is. Not found: the Hub knows the game but did not find it; only the name it looks for is shown. None of this says a game works well in the headset: only you can say that, in your list of accepted games."}

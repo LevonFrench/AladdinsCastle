@@ -59,7 +59,7 @@ the table with either launch:
 
 VPX keeps gamepad mappings in its main settings file, which a table settings file
 cannot change, and names each gamepad by its SDL identity. So at each start Hub
-asks the SDL library beside VPX (`SDL364.dll`, only read and only for the list of
+asks the SDL library beside VPX (`SDL364.dll`, loaded in a separate copy of the Hub, never in the open one, and only for the list of
 gamepads, with VPX's own defaults) which gamepads are connected. When there is
 one, Hub writes `user/pinball/VPinballX.ini`: a copy of your own VPX settings
 (`%APPDATA%\VPinballX\10.8\VPinballX.ini`, or the one beside VPX) with this

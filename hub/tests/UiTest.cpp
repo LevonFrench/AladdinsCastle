@@ -270,11 +270,32 @@ class UiTest:public QObject {
   const QVariantMap entry{{"id","scud"},{"title","Synthetic Racer"},{"detail","Checked."},{"reason","Two files differ."},{"expected","synthetic.zip"}};
   ui->setSetupReport({{"scanned","today"},{"systems",QVariantList{QVariantMap{{"id","model3"},{"title","Sega Model 3"},{"note",""},{"ready",QVariantList{entry}},{"notRight",QVariantList{entry}},{"missing",QVariantList{entry}}}}}});
   QVERIFY(softwareFrame(window));QTRY_VERIFY(one("setupResult-model3"));QVERIFY(!one("setupProgress")->isVisible());
+  // Running a found emulator for its list is asked once; "No" is kept, and the question goes.
+  QVERIFY(one("setupQueryEmulators")&&one("setupQueryEmulators")->isVisible());
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupQueryNo")));
+  QTRY_VERIFY(settings->values().contains("queryEmulators"));QVERIFY(!settings->get("queryEmulators").toBool());
+  QVERIFY(softwareFrame(window));QVERIFY(!one("setupQueryEmulators")->isVisible());QCOMPARE(scans.size(),1);
+  settings->remove("queryEmulators");
   // The same finding greys the game on its own tab, with the reason.
   QVERIFY(ui->model3Games()[0].toMap()["problem"].toString().isEmpty()==false);
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));
   QTRY_COMPARE(root->property("view").toString(),QString("List"));QVERIFY(settings->get("setupDone").toBool());
   ui->setSetupReport({});
+ }
+ // A SteamGridDB key saved in the clear by an earlier Hub is protected at the next start, and is never shown.
+ void steamGridKeyIsKeptProtected(){
+#ifdef Q_OS_WIN
+  QTemporaryDir own;QVERIFY(own.isValid());const QString key="synthetic-key-abcdef0123456789";
+  {ac::UiSettings old(own.path());old.set("steamGridDbKey",key);}
+  ac::UiSettings kept(own.path());ac::UiController controller(games.get(),&filter,&kept);
+  QVERIFY(!kept.values().contains("steamGridDbKey"));QVERIFY(controller.hasSteamGridDbKey());QCOMPARE(controller.steamGridDbKey(),key);
+  QDirIterator files(own.path(),QDir::Files,QDirIterator::Subdirectories);
+  while(files.hasNext()){QFile file(files.next());QVERIFY(file.open(QIODevice::ReadOnly));QVERIFY2(!file.readAll().contains(key.toUtf8()),qPrintable(file.fileName()));}
+  QVERIFY(controller.setSteamGridDbKey("  another-key "));QCOMPARE(controller.steamGridDbKey(),QString("another-key"));
+  QVERIFY(controller.setSteamGridDbKey(""));QVERIFY(!controller.hasSteamGridDbKey());QVERIFY(controller.steamGridDbKey().isEmpty());
+#else
+  QSKIP("Windows data protection only");
+#endif
  }
  // Starting, stopping and ending are shown at once, with the reason when a game crashed.
  // Only playable games by default, and every menu opens and goes away again.

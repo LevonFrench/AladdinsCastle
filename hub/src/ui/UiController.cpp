@@ -2,6 +2,7 @@
 #include "core/library/Library.h"
 #include "core/wii/Wii.h"
 #include "UiController.h"
+#include "core/settings/Secret.h"
 #include "core/pinball/Pinball.h"
 #include "core/model3/Model3.h"
 #include "core/setup/Setup.h"
@@ -65,6 +66,9 @@ UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettin
  connect(games,&QAbstractItemModel::modelReset,this,&UiController::catalogReadyChanged);
  connect(settings,&UiSettings::changed,this,&UiController::setupChanged);
  m_detailControls.configure(games->catalog().root,games->catalog().packIds);
+ // A key saved in the clear by an earlier Hub is protected now, and the clear copy removed.
+ if(const auto plain=m_settings->get("steamGridDbKey").toString();!plain.isEmpty()){if(setSteamGridDbKey(plain))m_settings->remove("steamGridDbKey");}
+ else if(m_settings->values().contains("steamGridDbKey"))m_settings->remove("steamGridDbKey");
  ControlsResolver pinballLibrary;QVariantMap pinballResolved;
  if(!pinballLibrary.loadLibrary(games->catalog().root,m_pinballControlsStatus)||
     !pinballLibrary.resolveRoute("vpx-openxr",pinballResolved,m_pinballControlsStatus)||
@@ -477,6 +481,15 @@ void UiController::getArtwork(const QString &scope){
  setArtwork(true,QString("Artwork: asking for %1 game%2…").arg(targets.size()).arg(targets.size()==1?"":"s"));
  emit artworkRequested(targets);
 }
+bool UiController::setSteamGridDbKey(const QString &key){
+ const auto trimmed=key.trimmed();
+ if(trimmed.isEmpty())return m_settings->remove("steamGridDbKeyProtected");
+ const auto kept=secret::protect(trimmed);
+ if(kept.isEmpty()){showError("SteamGridDB key","The key could not be kept protected on this PC, so it was not saved.");return false;}
+ return m_settings->set("steamGridDbKeyProtected",kept);
+}
+bool UiController::hasSteamGridDbKey() const{return !m_settings->get("steamGridDbKeyProtected").toString().isEmpty();}
+QString UiController::steamGridDbKey() const{return secret::reveal(m_settings->get("steamGridDbKeyProtected").toString());}
 void UiController::setModel3Control(const QString &id,bool on){
  if(!model3::hasCabinetControl(id))return;
  auto chosen=m_settings->get("model3Controls",QVariantMap{}).toMap();chosen[id]=on;m_settings->set("model3Controls",chosen);emit model3Changed();

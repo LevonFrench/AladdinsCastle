@@ -167,6 +167,24 @@ game. A Model 2 game has no window of its own and is never called hidden. A
 headset game is judged by its processes and windows only: the Hub does not read
 SteamVR's own frame state.
 
+## What the Hub runs and keeps
+
+- **A found emulator is run only with a yes.** Reading what each game needs
+  from a MAME build (`-listxml`) means running that program. The Hub asks once,
+  on the Report page, and keeps the answer as `queryEmulators` (Settings, Ask
+  found emulators for their game lists). Until then Model 2 games and the main
+  scan's MAME sets are found by their names only, and the report says so. A
+  list saved by an earlier run is still read.
+- **The user's SDL library never loads into the Hub.** The pinball gamepad check
+  runs in a copy of the Hub started for that alone
+  (`aladdinscastle-hub --probe-gamepads <SDL library>`): no window, at most 8
+  seconds, and only a device list comes back.
+- **Shareable text names no account.** Crash records (`user/logs/crashes.json`)
+  and launch failure logs write the home folder as `%USERPROFILE%`. The caches
+  in `user/cache/` keep the full paths they need to find your files; they stay
+  on this PC and are not meant for sharing.
+- **The SteamGridDB key is kept protected**: see [ARTWORK.md](ARTWORK.md).
+
 ## Pages
 
 1. **Welcome**: what Hub is, and that the user's folders are only read.
@@ -180,14 +198,16 @@ SteamVR's own frame state.
    program that plays them. A folder found beside one already chosen is offered.
 5. **Report**: each game is Ready, Not right (with the reason) or Missing (only
    the name Hub looks for). The report is saved in `user/cache/` and **Rescan**
-   repeats the read. Hub never says where to get game files.
+   repeats the read. Hub never says where to get game files. Until it is
+   answered, the page asks whether the Hub may run the emulators it found for
+   their game lists.
 
 ## Systems
 
 | System | Folder setting | Program setting | How a game is checked |
 |---|---|---|---|
 | Sega Model 3 | `model3GameFolder` | `model3Executable` | Zip directory checksums against the emulator's own `Config/Games.xml`; optional regions ignored; another version of the same game inside the zip is accepted, as the emulator does |
-| Sega Model 2 | `model2GameFolder` | `model2Executable` (the emulator; its viewer and working folder sit beside its folder), optional `model2RuntimePath` for the build's own libraries | The emulator build is asked for its own list of the game (`-listxml`, no window, nothing written): the game's files by checksum, and each device set that has files of its own. A stand-in for the billboard set is accepted and said. Controls on Virtua Cop 2 only, new and untested; the others are view only |
+| Sega Model 2 | `model2GameFolder` | `model2Executable` (the emulator; its viewer and working folder sit beside its folder), optional `model2RuntimePath` for the build's own libraries | With `queryEmulators` on, the emulator build is asked for its own list of the game (`-listxml`, no window, nothing written): the game's files by checksum, and each device set that has files of its own. A stand-in for the billboard set is accepted and said. Controls on Virtua Cop 2 only, new and untested; the others are view only |
 | Namco System 22 | none | `system22Executable` | The native build and a non-empty `roms` folder beside it |
 | Visual Pinball | `pinballFolder` | `pinballExecutable` | The table scan: VR-ready, readable, ROM present |
 | Sony PlayStation 2 | `ps2GameFolder` | `ps2Launcher` (the user's launcher script, run with the `ps2Python` it needs; `ps2StopFile` is the file that asks a running game to quit) | The serial in the disc's own SYSTEM.CNF (`.iso`, `.bin`, `.chd`); the file name for `.gz` and when no serial is read. A game is startable when the launcher has an entry for it. The launcher plays its own disc copies. Exit and Stop write the stop file and wait; SteamVR must already be running |

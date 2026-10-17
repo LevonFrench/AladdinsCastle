@@ -76,4 +76,7 @@ Json loadContentGuard(const QString &catalogRoot);
 void contentGuard(const QString &name, const Json &guard,
                   const QString &archiveSha256 = {}, const QString &entrySha256 = {});
 bool verifyPe64(const QString &path);
+// Text the user may share (a crash record, a failure log): the home folder, which holds the account
+// name, is written as %USERPROFILE% (or ~ elsewhere). The given home is for tests; empty uses this PC's.
+QString shareable(const QString &text, const QString &home = {});
 } // namespace ac::install

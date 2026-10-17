@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The optional artwork download (D66), with a stand-in network: no test here reaches the internet.
+#include "core/settings/Secret.h"
 #include "core/art/Download.h"
 #include <QBuffer>
 #include <QImage>
@@ -64,6 +65,19 @@ private slots:
     QCOMPARE(ac::art::libretroSystem("ps2"), QString("Sony - PlayStation 2"));
     QCOMPARE(ac::art::libretroSystem("model2"), QString("MAME"));
     QVERIFY(ac::art::libretroSystem("pinball").isEmpty());
+  }
+  // The user's key is kept protected for this account: the saved text holds no copy of it, and reads back.
+  void keyIsKeptProtected() {
+#ifdef Q_OS_WIN
+    const QString key="synthetic-key-0123456789abcdef";
+    const auto kept=ac::secret::protect(key);
+    QVERIFY(kept.startsWith("dpapi:"));QVERIFY(!kept.contains(key));QVERIFY(!QByteArray::fromBase64(kept.mid(6).toLatin1()).contains(key.toUtf8()));
+    QCOMPARE(ac::secret::reveal(kept),key);
+    QVERIFY(ac::secret::reveal(key).isEmpty());QVERIFY(ac::secret::reveal("dpapi:bm90IGEga2V5").isEmpty());
+    QVERIFY(ac::secret::protect(QString()).isEmpty());
+#else
+    QSKIP("Windows data protection only");
+#endif
   }
   void offMakesNoRequest() {
     QTemporaryDir t;

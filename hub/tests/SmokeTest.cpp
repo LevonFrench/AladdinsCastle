@@ -179,6 +179,20 @@ private slots:
         QProcess third;third.setProcessEnvironment(env);third.start(executable,{"--data-root",other.path(),"--install-root",other.path(),"--quit-after-ms","100"});
         QVERIFY(third.waitForFinished(15000));QVERIFY(third.readAllStandardOutput().contains("1 games"));
     }
+    // The gamepad check runs in a copy of its own and prints what it found: here, a library that is no SDL.
+    void gamepadProbeRunsApart() {
+        QTemporaryDir temp;QVERIFY(temp.isValid());
+        {QFile file(temp.filePath("SDL3.dll"));QVERIFY(file.open(QIODevice::WriteOnly));file.write("not a library");}
+        QString executable=QDir(QCoreApplication::applicationDirPath()).filePath("aladdinscastle-hub");
+#ifdef Q_OS_WIN
+        executable+=".exe";
+#endif
+        for(const auto &library:{temp.filePath("SDL3.dll"),temp.filePath("missing.dll")}){
+            QProcess probe;probe.start(executable,{"--probe-gamepads",library});
+            QVERIFY(probe.waitForFinished(15000));QCOMPARE(probe.exitCode(),0);
+            QCOMPARE(probe.readAllStandardOutput().trimmed(),QByteArray("[]"));
+        }
+    }
     void hubtoolRejectsIncompleteArguments() {
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
