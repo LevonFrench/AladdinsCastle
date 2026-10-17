@@ -595,9 +595,14 @@ CatalogData CatalogLoader::load(const QString &root) const {
         for (auto route = routes.begin(); route != routes.end(); ++route) {
             if (!route.value().is_string() ||
                 !QStringList{"working", "imperfect", "playable"}.contains(
-                    QString::fromStdString(route.value().get<std::string>())) ||
-                !data.emulators.contains(route.key()))
+                    QString::fromStdString(route.value().get<std::string>())))
                 continue;
+            // A usable route to an emulator with no manifest is never offered: said, not hidden.
+            if (!data.emulators.contains(route.key())) {
+                g.warnings << QString("routes.%1 is '%2' but there is no emulator manifest data/emulators/%1.toml, so the Hub cannot offer it")
+                                  .arg(QString::fromStdString(route.key()), QString::fromStdString(route.value().get<std::string>()));
+                continue;
+            }
             // VR tools are authored setup variants, never automatic flat routes.
             if (QStringList{"vr-tool", "vr-port"}.contains(
                     str(data.emulators[route.key()], "kind")))

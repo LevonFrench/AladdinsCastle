@@ -10,6 +10,7 @@
 #include <QProcess>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <algorithm>
 namespace {
 void write(const QString &root, const QString &path, const QString &text) {
     const auto filePath = QDir(root).filePath(path);
@@ -116,7 +117,10 @@ class CatalogTest : public QObject {
         const auto data = ac::CatalogLoader().load(QStringLiteral(AC_CATALOG_ROOT));
         QCOMPARE(data.games.size(), 418);
         QCOMPARE(data.report.errors, 0);
-        QCOMPARE(data.report.warnings, 2);
+        // Two older notes, and seven Lindbergh games whose route has no emulator manifest yet, said rather than dropped.
+        QCOMPARE(data.report.warnings, 9);
+        QCOMPARE(int(std::count_if(data.games.cbegin(), data.games.cend(), [](const auto &g) {
+                     return std::any_of(g.warnings.cbegin(), g.warnings.cend(), [](const QString &w) { return w.contains("no emulator manifest"); }); })), 7);
         QVERIFY(data.find("timecris"));
         QVERIFY(data.find("timecris")->hasRecipe);
         QVERIFY(!data.emulators.empty());

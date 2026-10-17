@@ -10,6 +10,10 @@ namespace ac::model3 {
 QVariantList games(); // id (= set name), title, year
 QVariantList views(); // id, label, help
 QString viewLabel(const QString &view);
+// Games whose cabinet control the VR build can draw in front of you inside the game (ACVR_CONTROLS=1):
+// the wheel of the driving games, Harley-Davidson's handlebars. Off unless the user asks for it.
+bool hasCabinetControl(const QString &game);
+QString cabinetControlName(const QString &game);
 // The folder holding Config/Games.xml: the program's own folder or one above it.
 QString workingFolder(const QString &executable);
 // Empty when the game can start; otherwise "What is wrong. What to do." The

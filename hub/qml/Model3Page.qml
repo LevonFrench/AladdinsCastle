@@ -136,6 +136,12 @@ Item {
     onClicked:uiController.getArtwork(page.selected.artId||page.selected.id)}]
   }
   Text {objectName:"model3Title";visible:false;text:page.selected.title||""}
+  // Inside the game, the cabinet's own wheel or handlebars can be drawn in front of you.
+  SettingRow {objectName:"model3CabinetControl";Layout.fillWidth:true;Layout.leftMargin:page.vrOverlayMode?28:40;Layout.rightMargin:page.vrOverlayMode?28:40;Layout.topMargin:8;vrOverlayMode:page.vrOverlayMode
+   visible:!page.selected.system&&!!page.selected.cabinetControl&&page.selected.view==="inside"
+   label:"Show the cabinet's "+(page.selected.cabinetControl||"wheel")+" in front of you";on:!!page.selected.showControl
+   detail:"Inside the game only. It turns with the steering the game receives, from the controllers, a gamepad or the keyboard."
+   onClicked:uiController.setModel3Control(page.selected.id,!on)}
   // Several copies of this game in the library: which one is used, and the rule that chose it.
   ColumnLayout {id:copiesBox;objectName:"gameCopies";Layout.fillWidth:true;Layout.leftMargin:page.vrOverlayMode?28:40;Layout.rightMargin:page.vrOverlayMode?28:40;spacing:6
    readonly property string system:page.selected.system||"model3"

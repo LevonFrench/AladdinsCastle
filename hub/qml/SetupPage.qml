@@ -25,6 +25,15 @@ Item {
  function go(to){if(step===3&&to>step){uiController.acceptSetupGuesses();uiController.scanSetup()} if(to>=names.length){uiController.finishSetup();page.finished()}else step=Math.max(0,to)}
  function names_of(list){return Array.from(list||[]).map(e=>e.title).join(",  ")}
  FolderDialog {id:folder;title:"Choose the folder holding your own files";onAccepted:uiController.setSetupFolder(page.pendingId,uiController.localPath(selectedFolder))}
+ // The few settings a system needs beside its folder and program, each said in plain words.
+ property string pendingKey:""
+ readonly property var extras:({
+  ps2:[{key:"ps2Python",label:"Python that runs your launcher",kind:"file",help:"The python.exe your PS2 launcher script needs."},
+       {key:"ps2StopFile",label:"Stop file your launcher watches",kind:"save",help:"The Hub writes this file to ask a PS2 game to quit, so it saves."}],
+  model2:[{key:"model2RuntimePath",label:"Runtime libraries of the build (optional)",kind:"folder",help:"A folder of DLLs the Model 2 build needs, when they are not beside it."}]})
+ FileDialog {id:extraFile;title:"Choose the file";onAccepted:uiSettings.set(page.pendingKey,uiController.localPath(selectedFile))}
+ FileDialog {id:extraSave;title:"Choose where the stop file goes";fileMode:FileDialog.SaveFile;onAccepted:uiSettings.set(page.pendingKey,uiController.localPath(selectedFile))}
+ FolderDialog {id:extraFolder;title:"Choose the folder";onAccepted:uiSettings.set(page.pendingKey,uiController.localPath(selectedFolder))}
  FileDialog {id:program;title:"Choose the program";nameFilters:["Program (*.exe)","All files (*)"];onAccepted:uiController.setSetupProgram(page.pendingId,uiController.localPath(selectedFile))}
  component Tick:Button {id:tick;property bool on:false;property string label:"";readonly property bool selected:on;hoverEnabled:true;padding:10;leftPadding:12;rightPadding:16
   implicitHeight:page.vrOverlayMode?56:44;Accessible.name:label;Accessible.checked:on
@@ -104,6 +113,15 @@ Item {
           text:card.modelData.programLabel+":  "+(card.modelData.program||"not chosen")
           color:card.modelData.program?page.good:page.warn}
          PillButton {text:"Locate program";visible:!page.vrOverlayMode;onClicked:{page.pendingId=card.modelData.id;program.open()}}
+        }
+        Repeater {model:page.extras[card.modelData.id]||[]
+         RowLayout {required property var modelData;Layout.fillWidth:true;spacing:8
+          readonly property string value:(uiSettings.values,uiSettings.get(modelData.key,""))
+          UiText {Layout.fillWidth:true;objectName:"setupExtra-"+modelData.key;font.pixelSize:page.body-1;elide:Text.ElideMiddle;wrapMode:Text.NoWrap
+           text:modelData.label+":  "+(parent.value||"not chosen");color:parent.value?page.good:(modelData.kind==="folder"?Theme.get("color.text.muted_detail"):page.warn)}
+          PillButton {text:"Choose";visible:!page.vrOverlayMode;onClicked:{page.pendingKey=modelData.key;(modelData.kind==="folder"?extraFolder:modelData.kind==="save"?extraSave:extraFile).open()}}
+          PillButton {text:"Clear";visible:!!parent.value;vrOverlayMode:page.vrOverlayMode;onClicked:uiSettings.set(modelData.key,"")}
+         }
         }
        }
       }

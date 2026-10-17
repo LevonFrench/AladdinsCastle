@@ -610,6 +610,8 @@ void HubServices::startModel3(const QString &id,const QString &view){
         for(const auto &name:environment.keys())if(name.startsWith("ACVR_",Qt::CaseInsensitive))environment.remove(name);
         const auto variables=plan.value("env").toMap();
         for(auto it=variables.begin();it!=variables.end();++it)environment.insert(it.key(),it.value().toString());
+        // The cabinet's wheel or handlebars in front of you, inside the game only, when asked for.
+        if(view=="inside"&&model3::hasCabinetControl(id)&&settings_->get("model3Controls",QVariantMap{}).toMap().value(id).toBool())environment.insert("ACVR_CONTROLS","1");
 #ifdef Q_OS_WIN
         ui_->launchModel3Queued(id,view,QString());
 #else

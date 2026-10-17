@@ -143,6 +143,9 @@ def main(root=ROOT, json_report=False):
     makers = load(os.path.join(root, "data/vocab/manufacturers.toml"))
     hardware = load(os.path.join(root, "data/vocab/hardware.toml"))
     graphics = load(os.path.join(root, "data/vocab/graphics.toml"))
+    # Emulators with a manifest: a usable route to any other is never offered, so it is said, not hidden.
+    emulators = {os.path.splitext(name)[0] for name in os.listdir(os.path.join(root, "data/emulators"))
+                 if name.endswith(".toml")} if os.path.isdir(os.path.join(root, "data/emulators")) else set()
     errors, warnings, games = [], [], []
 
     for path in sorted(glob.glob(os.path.join(root, "games/*/game.toml"))):
@@ -203,6 +206,8 @@ def main(root=ROOT, json_report=False):
                     warnings.append(f"{rel}: routes.vr.best '{best}' should be true3d|theatre|none")
             elif isinstance(val, str) and val not in ROUTE_STATUS:
                 warnings.append(f"{rel}: routes.{key} status '{val}' not in {sorted(ROUTE_STATUS)}")
+            elif isinstance(val, str) and val in {"working", "imperfect", "playable"} and key not in emulators:
+                warnings.append(f"{rel}: routes.{key} is '{val}' but there is no emulator manifest data/emulators/{key}.toml, so the Hub cannot offer it")
         hub = g.get("hub", {})
         for k in ("pill", "colour", "accent", "blurb"):
             if k not in hub:

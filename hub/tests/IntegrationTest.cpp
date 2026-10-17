@@ -201,6 +201,13 @@ private slots:
     QCOMPARE(env,(QVariantMap{{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"}}));
     QCOMPARE(listing(),before);
     ui.playModel3("daytona2");QCOMPARE(started.size(),1);QVERIFY(ui.status().contains("daytona2.zip"));QVERIFY(!services.launchBusy());
+    // The cabinet's wheel, asked for on the game's page: drawn inside the game, and only there.
+    QCOMPARE(ui.model3Games().first().toMap().value("cabinetControl").toString(),QString("wheel"));
+    ui.setModel3Control("scud",true);QVERIFY(ui.model3Games().first().toMap().value("showControl").toBool());
+    QFile::remove(report);ui.playModel3("scud");QTRY_COMPARE_WITH_TIMEOUT(started.size(),2,5000);QTRY_VERIFY_WITH_TIMEOUT(!services.launcher()->busy(),10000);
+    QCOMPARE(QJsonDocument::fromJson(ac::install::readBytes(report)).object()["env"].toObject()["ACVR_CONTROLS"].toString(),QString("1"));
+    ui.chooseModel3View("scud","screen");QFile::remove(report);ui.playModel3("scud");QTRY_COMPARE_WITH_TIMEOUT(started.size(),3,5000);QTRY_VERIFY_WITH_TIMEOUT(!services.launcher()->busy(),10000);
+    QVERIFY(!QJsonDocument::fromJson(ac::install::readBytes(report)).object()["env"].toObject().contains("ACVR_CONTROLS"));
  }
  void pinballTabShowsTheLastScanWithoutScanningAgain(){
     QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);

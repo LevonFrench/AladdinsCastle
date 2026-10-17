@@ -436,6 +436,8 @@ QVariantList UiController::model3Games()const{
   row["listed"]=true;row["launchKnown"]=true;row["found"]=row.value("problem").toString().isEmpty();
   row["accepted"]=m_settings->acceptedOn("model3-"+id,row.value("title").toString());
   row["artId"]="model3-"+id;addArt(row,"model3-"+id,"model3");
+  row["cabinetControl"]=model3::cabinetControlName(id);
+  row["showControl"]=m_settings->get("model3Controls",QVariantMap{}).toMap().value(id).toBool();
   rows<<row;
  }
  return rows;
@@ -474,6 +476,10 @@ void UiController::getArtwork(const QString &scope){
  if(targets.isEmpty()){message("No game to fetch artwork for.");return;}
  setArtwork(true,QString("Artwork: asking for %1 game%2…").arg(targets.size()).arg(targets.size()==1?"":"s"));
  emit artworkRequested(targets);
+}
+void UiController::setModel3Control(const QString &id,bool on){
+ if(!model3::hasCabinetControl(id))return;
+ auto chosen=m_settings->get("model3Controls",QVariantMap{}).toMap();chosen[id]=on;m_settings->set("model3Controls",chosen);emit model3Changed();
 }
 void UiController::chooseModel3View(const QString &id,const QString &view){
  if(model3::viewLabel(view).isEmpty())return;

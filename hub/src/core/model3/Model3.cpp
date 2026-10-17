@@ -49,6 +49,8 @@ QVariantList views(){
  for(const auto &view:table())result<<QVariantMap{{"id",QString::fromLatin1(view.id)},{"label",QString::fromUtf8(view.label)},{"help",QString::fromUtf8(view.help)}};
  return result;
 }
+bool hasCabinetControl(const QString &game){return QStringList{"scud","daytona2","srally2","dirtdvls","harley"}.contains(game);}
+QString cabinetControlName(const QString &game){return game=="harley"?QString("handlebars"):hasCabinetControl(game)?QString("wheel"):QString();}
 QString viewLabel(const QString &view){const auto *found=findView(view);return found?QString::fromUtf8(found->label):QString();}
 QString workingFolder(const QString &executable){
  if(executable.isEmpty())return {};
