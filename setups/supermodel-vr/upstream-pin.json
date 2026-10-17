@@ -1,9 +1,10 @@
 {
   "repository": "https://github.com/trzy/Supermodel",
-  "source_commit": "8b4de23",
+  "source_commit": "8b4de239bf3e0fd921f4383edcd3c21c2e62067b",
   "source_commit_date": "2026-09-28",
   "version": "0.3a-WIP",
   "licence": "GPL-3.0-or-later",
   "openxr_headers": "Khronos OpenXR SDK 1.1.43 (headers only; openxr_loader.dll beside the built program)",
-  "checked_on": "2026-10-13"
+  "checked_on": "2026-10-16",
+  "check": "apply_acvr.py on a fresh clone at this commit gives files byte-identical to the maintained build"
 }
