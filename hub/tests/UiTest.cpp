@@ -817,14 +817,20 @@ class UiTest:public QObject {
   auto dialog=scene->findChild<QObject *>("steamDialog");QVERIFY(dialog);
   QTRY_VERIFY(dialog->property("opened").toBool());QVERIFY(QMetaObject::invokeMethod(dialog,"close"));
  }
- void authoredVrCopyKeepsInstallAndPlayBlocked(){
+ // The Time Crisis VR copy is admitted through its pinned local build (the recipe locates the user's own
+ // build and downloads nothing); a parked authored copy with no admitted launch stays blocked and says so.
+ void authoredVrCopyAdmittedOnlyWithItsPinnedLocalBuild(){
   ui->openDetail("timecris");ui->selectVariant("dr89-pcvr");
-  QVERIFY(!ui->detail().value("m1Available").toBool());
+  QVERIFY(ui->detail().value("m1Available").toBool());
   QSignalSpy install(ui.get(),&ac::UiController::installRequested),play(ui.get(),&ac::UiController::playRequested);
-  ui->startInstall("timecris","dr89-pcvr");QCOMPARE(install.count(),0);QVERIFY(ui->status().contains("not enabled"));
-  ui->play("timecris","dr89-pcvr");QCOMPARE(play.count(),0);QVERIFY(ui->status().contains("not enabled"));
-  const auto components=ui->detail().value("components").toList();QVERIFY(!components.isEmpty());
-  QVERIFY(components.first().toMap().value("role").toString().contains("recipe"));
+  ui->startInstall("timecris","dr89-pcvr");QCOMPARE(install.count(),1);QVERIFY(!ui->status().contains("not enabled"));
+  QVERIFY(!ui->detail().value("components").toList().isEmpty());
+  ui->openDetail("timecris");ui->selectVariant("namco22-vr");
+  QVERIFY(!ui->detail().value("m1Available").toBool());
+  const auto components=ui->detail().value("components").toList();QVERIFY2(!components.isEmpty(),"The parked copy still lists what it is made of.");
+  QVERIFY2(components.first().toMap().value("role").toString().contains("recipe"),qPrintable(components.first().toMap().value("role").toString()));
+  ui->startInstall("timecris","namco22-vr");QCOMPARE(install.count(),1);QVERIFY(ui->status().contains("not enabled"));
+  ui->play("timecris","namco22-vr");QCOMPARE(play.count(),0);QVERIFY(ui->status().contains("not enabled"));
   root->setProperty("view","Detail");QTRY_VERIFY(window->findChild<QObject *>("detailStateReason"));
   const auto reason=window->findChild<QObject *>("detailStateReason")->property("text").toString();
   QVERIFY(reason.contains("not enabled"));QVERIFY(!reason.contains("M1"));
@@ -1022,7 +1028,7 @@ class UiTest:public QObject {
   ui->openDetail("timecris");for(const auto &v:games->find("timecris")->variants)if(v.generated){ui->selectVariant(v.id);break;}
   const auto eventStart=ui->consoleEvents().size();ui->installEvent({{"kind","step"},{"step",2},{"total",4},{"text","Extract"}});ui->installEvent({{"kind","ok"},{"text","Verified archive"}});QCOMPARE(ui->consoleEvents().at(eventStart).toMap().value("line").toString(),QString("--- [2/4] Extract ---"));ui->installEvent({{"kind","fail"},{"step",2},{"total",4},{"text","Synthetic failure"}});QVERIFY(!ui->recovery().isEmpty());QVERIFY(!ui->installing());QSignalSpy retries(ui.get(),&ac::UiController::retryInstallRequested);ui->retryInstall(false,"synthetic-file");QCOMPARE(retries.count(),0);QVERIFY(ui->status().contains("Nothing to retry"));ui->installFinished(true,"Synthetic service completion without proof");
   for(const auto &g:games->records())QVERIFY(g.roles.value("state").toInt()!=static_cast<int>(ac::GameState::Installed));
-  ui->openDetail("timecris");ui->selectVariant("dr89-pcvr");QSignalSpy install(ui.get(),&ac::UiController::installRequested);ui->startInstall("timecris","dr89-pcvr");QCOMPARE(install.count(),0);
+  ui->openDetail("timecris");ui->selectVariant("namco22-vr");QSignalSpy install(ui.get(),&ac::UiController::installRequested);ui->startInstall("timecris","namco22-vr");QCOMPARE(install.count(),0);
  }
  void keyboardFocusAndOverlay(){
   window->requestActivate();QTest::keyClick(window,Qt::Key_K,Qt::ControlModifier);QTest::qWait(30);auto search=window->findChild<QQuickItem *>("searchField");QVERIFY(search);QVERIFY(search->hasActiveFocus());for(char letter:std::string("scud"))QTest::keyClick(window,letter);QTest::qWait(30);QCOMPARE(filter.query(),QString("scud"));QTest::keyClick(window,Qt::Key_Escape);QTest::qWait(30);QCOMPARE(filter.query(),QString());

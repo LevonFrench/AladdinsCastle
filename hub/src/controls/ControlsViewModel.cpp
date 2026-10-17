@@ -268,7 +268,9 @@ QVariantList ControlsViewModel::makeRows() const {
             {"physicalDsuSlot",m_data.value("schema").toString()=="shell-stick/1" ? wiiDsuSlot : device.isNull() || !device.isValid() ? -1 : device.toInt()},
             {"bindingLabel",bindingText},{"fallbackLabel",fallback.isEmpty() ? QString() : bindingLabel(fallback,elementHand(source,fallback))},
             {"availability",state},{"availabilityLabel",availabilityLabel},{"reason",unmapped ? source.value("reason") : reason},
-            {"pressed",pressed},{"warning",source.value("warning",false)},{"anchorAvailable",previewAvailable() && coordinates(anchor)},
+            {"pressed",pressed},{"warning",source.value("warning",false)},
+            // Only a mapping proven in the running game is said to be; adopted source labels are not.
+            {"runtimeValidated",source.value("binding_evidence").toString()=="runtime"},{"anchorAvailable",previewAvailable() && coordinates(anchor)},
             {"anchorX",anchor.size()==2 ? anchor[0] : QVariant(0.0)},{"anchorY",anchor.size()==2 ? anchor[1] : QVariant(0.0)},
             {"callout",part + " → " + action + " → " + bindingText}};
         result.append(row);
