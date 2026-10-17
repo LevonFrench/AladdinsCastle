@@ -22,17 +22,18 @@ QVariantMap identify(const QString &file,std::atomic_bool &cancel);
 QVariantList discs(const QString &folder,std::atomic_bool &cancel);
 // The keys the user's launcher knows, from the games.json beside it. Read-only.
 QStringList launcherKeys(const QString &launcher);
-// The keys whose games.json entry has an inside profile, so the launcher can open the game around you
-// (its --inside view). Read-only.
-QStringList insideKeys(const QString &launcher);
-// The views a game can be played in: Screen always, Inside the game when the launcher has a profile for it.
-// Each is {id, label, help}.
-QVariantList views(const QString &game,const QString &launcher);
+// The games whose launcher entry has an inside profile, so it can open the game around you: the one
+// list, in Ps2.cpp, filled in as each is confirmed. Empty until then.
+QStringList insideGames();
+// The views a game can be played in, each {id, label, help}: 3D screen always, and Inside the game for a
+// game in the inside list that the launcher knows. The list is given only by tests.
+QVariantList views(const QString &game,const QString &launcher,const QStringList &inside=insideGames());
 // Empty when the game can start; otherwise "What is wrong. What to do."
 QString problem(const QString &game,const QString &launcher,const QString &python,const QString &stopFile);
 // executable (the Python), cwd (the launcher's folder) and args (launcher, key, and --inside for the
 // Inside view). Throws install::Error, also for Inside on a game the launcher has no inside profile for.
-QVariantMap launchPlan(const QString &game,const QString &launcher,const QString &python,const QString &stopFile,const QString &view=QStringLiteral("screen"));
+QVariantMap launchPlan(const QString &game,const QString &launcher,const QString &python,const QString &stopFile,const QString &view=QStringLiteral("screen"),
+                       const QStringList &inside=insideGames());
 // "3D screen" or "Inside the game".
 QString viewLabel(const QString &view);
 }
