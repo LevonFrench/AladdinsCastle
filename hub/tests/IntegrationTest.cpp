@@ -455,6 +455,14 @@ private slots:
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
     services.setVrServerProbe([]{return true;});services.setStopGrace(1500);
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    // No inside profile in this launcher: one view, the default, and said so.
+    const auto row=[&ui]{for(const auto &value:ui.otherGames())if(value.toMap()["id"]=="ps2-virtua-cop")return value.toMap();return QVariantMap{};};
+    QCOMPARE(row()["views"].toList().size(),1);QCOMPARE(row()["view"].toString(),QString("screen"));QVERIFY(!row()["viewChosen"].toBool());
+    ac::install::atomicWrite(play+"/games.json","{\"virtua-cop\":{\"inside\":{\"convergence\":2}}}");
+    QCOMPARE(row()["views"].toList().size(),2);QCOMPARE(row()["view"].toString(),QString("screen"));QVERIFY(!row()["viewChosen"].toBool());
+    ui.chooseGameView("ps2-virtua-cop","inside");QCOMPARE(row()["view"].toString(),QString("inside"));QVERIFY(row()["viewChosen"].toBool());
+    QCOMPARE(row()["viewLabel"].toString(),QString("Inside the game"));
+    ui.chooseGameView("ps2-virtua-cop","screen");
     ui.playOtherGame("ps2-virtua-cop");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
     const auto pid=services.launcher()->processId();QVERIFY(pid>0);
     QTest::qWait(300);ui.stopLaunch();

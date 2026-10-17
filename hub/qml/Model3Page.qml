@@ -41,6 +41,12 @@ Item {
  function hasMonitor(row){return (row.views||[]).some(v=>v.id==="monitor")}
  function headsetView(row){const list=headsetViews(row);for(const v of list)if(v.id===row.view)return v;return list.length?list[0]:({})}
  function headsetLabel(row){const list=headsetViews(row);return "Play in headset"+(list.length>1?" · "+headsetView(row).label:"")}
+ // Which view Play uses, and whether it is the user's choice or the Hub's default, said plainly.
+ function viewNote(row,where){
+  const list=headsetViews(row);if(list.length<2)return ""
+  const others=list.filter(v=>v.id!==headsetView(row).id).map(v=>v.label).join(" or ")
+  return "Plays as "+headsetView(row).label+(row.viewChosen?", your choice.":", the default.")+" "+others+" can be chosen "+where+"; the choice is kept for this game."
+ }
  function playIn(row,where){if(!row||!row.id)return;uiController.playGame(row.id,where==="monitor"?"monitor":headsetView(row).id)}
  function play(row){if(row.system==="catalog")uiController.primary(row.id);else playIn(row,"headset")}
  readonly property bool canStart:idle&&!uiController.steamVrStarting
@@ -100,7 +106,7 @@ Item {
    system:page.focusedRow.system||"model3";art:page.focusedRow.heroArt||page.tileOf(page.focusedRow).art;artBlurred:!!page.focusedRow.heroBlur
    eyebrow:(page.hardwareLabel(page.focusedRow)+(page.focusedRow.year?"  ·  "+page.focusedRow.year:"")).toUpperCase()
    title:page.focusedRow.title||"VR games"
-   meta:page.setupProblem||page.focusedRow.problem||page.focusedRow.warning||(page.focusedRow.system==="catalog"?"Set up and ready on this PC.":page.focusedRow.title?"Found on this PC. Choose how you see it, then start.":"Add your systems in Set-up.")
+   meta:page.setupProblem||page.focusedRow.problem||page.focusedRow.warning||(page.focusedRow.system==="catalog"?"Set up and ready on this PC.":page.focusedRow.title?(page.viewNote(page.focusedRow,"in Details")||"Found on this PC. Choose how you see it, then start."):"Add your systems in Set-up.")
    metaColour:page.setupProblem||page.focusedRow.problem||page.focusedRow.warning?page.needsColour:Theme.get("color.text.muted")
    PillButton {objectName:"model3HeroStart";visible:!!page.focusedRow.id;targetHeight:page.vrOverlayMode?56:48;vrOverlayMode:page.vrOverlayMode;neon:true;accent:page.focusedRow.problem||page.focusedRow.warning?page.needsColour:page.readyColour
     text:page.focusedRow.problem?"Not ready":page.focusedRow.warning?"Read first":page.focusedRow.system==="catalog"?"Start":page.headsetLabel(page.focusedRow);onClicked:page.primaryAction(page.focusedRow)}
@@ -126,7 +132,7 @@ Item {
    system:page.selected.system||"model3";art:page.selected.heroArt||"";artBlurred:!!page.selected.heroBlur
    eyebrow:(page.hardwareLabel(page.selected)+(page.selected.year?"  ·  "+page.selected.year:"")).toUpperCase()
    title:page.selected.title||""
-   meta:page.selected.problem||(page.selected.warning?"Before you start: "+page.selected.warning:"Found on this PC. The view you choose below is remembered for this game.")
+   meta:page.selected.problem||(page.selected.warning?"Before you start: "+page.selected.warning:(page.viewNote(page.selected,"below")||"Found on this PC."))
    metaColour:page.selected.problem||page.selected.warning?page.needsColour:Theme.get("color.text.muted")
    PillButton {objectName:"model3Start";targetHeight:page.vrOverlayMode?56:48;text:page.headsetLabel(page.selected);neon:true;accent:page.selected.problem?page.needsColour:page.readyColour;vrOverlayMode:page.vrOverlayMode;enabled:!page.selected.problem&&page.canStart;onClicked:page.playIn(page.selected,"headset")}
    PillButton {objectName:"model3PlayMonitor";visible:page.hasMonitor(page.selected);targetHeight:page.vrOverlayMode?56:48;text:"Play on monitor";vrOverlayMode:page.vrOverlayMode;enabled:!page.selected.problem&&page.canStart;onClicked:page.playIn(page.selected,"monitor")}
@@ -172,6 +178,9 @@ Item {
       ViewPicture {Layout.preferredWidth:page.vrOverlayMode?90:80;Layout.fillHeight:true;kind:option.modelData.id==="headset"||option.modelData.id==="vr"?"inside":option.modelData.id==="monitor"?"screen":option.modelData.id;accent:option.chosen?page.readyColour:Theme.get("color.text.muted_detail")}
       ColumnLayout {Layout.fillWidth:true;spacing:6
        Text {Layout.fillWidth:true;text:option.modelData.label;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?21:18}
+       // The view Play uses, marked on its card: the user's choice, or the default until one is made.
+       Text {objectName:"model3ViewInUse";Layout.fillWidth:true;visible:option.chosen&&page.headsetViews(page.selected).length>1;text:page.selected.viewChosen?"Used by Play: your choice":"Used by Play: the default"
+        color:page.readyColour;font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?15:13}
        Text {Layout.fillWidth:true;text:option.modelData.help;wrapMode:Text.Wrap;maximumLineCount:6;elide:Text.ElideRight;color:Theme.get("color.text.muted");font.family:Theme.get("font.family");font.weight:500;font.pixelSize:page.vrOverlayMode?16:14}
        Item {Layout.fillHeight:true}
       }

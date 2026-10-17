@@ -22,8 +22,17 @@ QVariantMap identify(const QString &file,std::atomic_bool &cancel);
 QVariantList discs(const QString &folder,std::atomic_bool &cancel);
 // The keys the user's launcher knows, from the games.json beside it. Read-only.
 QStringList launcherKeys(const QString &launcher);
+// The keys whose games.json entry has an inside profile, so the launcher can open the game around you
+// (its --inside view). Read-only.
+QStringList insideKeys(const QString &launcher);
+// The views a game can be played in: Screen always, Inside the game when the launcher has a profile for it.
+// Each is {id, label, help}.
+QVariantList views(const QString &game,const QString &launcher);
 // Empty when the game can start; otherwise "What is wrong. What to do."
 QString problem(const QString &game,const QString &launcher,const QString &python,const QString &stopFile);
-// executable (the Python), cwd (the launcher's folder) and args (launcher, key). Throws install::Error.
-QVariantMap launchPlan(const QString &game,const QString &launcher,const QString &python,const QString &stopFile);
+// executable (the Python), cwd (the launcher's folder) and args (launcher, key, and --inside for the
+// Inside view). Throws install::Error, also for Inside on a game the launcher has no inside profile for.
+QVariantMap launchPlan(const QString &game,const QString &launcher,const QString &python,const QString &stopFile,const QString &view=QStringLiteral("screen"));
+// "3D screen" or "Inside the game".
+QString viewLabel(const QString &view);
 }
