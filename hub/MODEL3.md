@@ -41,7 +41,10 @@ file and window options as arguments, and the view's `ACVR_*` variables in the
 child's environment only. Any `ACVR_*` variable already set for Hub is dropped
 first, so a view is always exactly its own settings. One game needs a start-up
 input script to leave its first-boot service screen; Hub adds it for that game.
-The exact settings per view are in `src/core/model3/Model3.cpp`.
+A game can have its own stereo for the two screen views, measured in the
+headset: Sega Rally 2 uses an eye separation of 0.02 m and a zero-parallax plane
+at 3.6 m, so the car sits on the road; the others keep 0.065 m and the screen's
+own distance. The exact settings per view are in `src/core/model3/Model3.cpp`.
 
 Hub writes only its own launch log under `user/logs/`. It never writes beside
 the emulator or the game files; the emulator keeps its own settings and saves

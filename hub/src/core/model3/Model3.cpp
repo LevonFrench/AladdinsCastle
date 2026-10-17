@@ -35,6 +35,14 @@ const QList<View> &table(){
  };
  return views;
 }
+// Stereo measured per game in the headset, for the screen views only (those with an eye separation):
+// Sega Rally 2 with the default puts the car about four times nearer than the screen, so it floats;
+// at a 3.6 m zero-parallax plane and 2 cm separation the car sits on the road and the sky is comfortable.
+struct Stereo {const char *game;QList<Setting> env;};
+const QList<Stereo> &stereo(){
+ static const QList<Stereo> games{{"srally2",{{"ACVR_EYE_SEP","0.02"},{"ACVR_CONVERGENCE","3.6"}}}};
+ return games;
+}
 const Game *findGame(const QString &id){for(const auto &game:kGames)if(id==QLatin1String(game.id))return &game;return nullptr;}
 const View *findView(const QString &id){for(const auto &view:table())if(id==QLatin1String(view.id))return &view;return nullptr;}
 QString gameFile(const Game &game,const QString &folder){return QDir(folder).absoluteFilePath(QString::fromLatin1(game.id)+".zip");}
@@ -80,6 +88,9 @@ QVariantMap launchPlan(const QString &game,const QString &view,const QString &ex
  const auto *found=findGame(game);
  QVariantMap env;
  for(const auto &setting:choice->env)env.insert(QString::fromLatin1(setting.name),QString::fromLatin1(setting.value));
+ if(env.contains("ACVR_EYE_SEP"))
+  for(const auto &tuned:stereo())if(game==QLatin1String(tuned.game))
+   for(const auto &setting:tuned.env)env.insert(QString::fromLatin1(setting.name),QString::fromLatin1(setting.value));
  if(*found->script)env.insert("ACVR_INPUT_SCRIPT",QString::fromLatin1(found->script));
  return {{"executable",QDir::toNativeSeparators(QFileInfo(executable).absoluteFilePath())},
          {"cwd",QDir::toNativeSeparators(workingFolder(executable))},

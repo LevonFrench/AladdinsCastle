@@ -17,7 +17,7 @@ struct Fixture {
   QString emulator=folder.filePath("emu"),program=folder.filePath("emu/out/x64/build/program.exe"),media=folder.filePath("my games");
   Fixture() {
     touch(program); touch(emulator+"/Config/Games.xml");
-    touch(media+"/scud.zip"); touch(media+"/swtrilgy.zip");
+    touch(media+"/scud.zip"); touch(media+"/swtrilgy.zip"); touch(media+"/srally2.zip");
   }
 };
 QString native(const QString &path){return QDir::toNativeSeparators(path);}
@@ -45,6 +45,17 @@ private slots:
     QCOMPARE(wide.value("args"),screen.value("args"));
     auto expected=screen.value("env").toMap(); expected["ACVR_FOV_SCALE"]="1.5"; expected["ACVR_NO_CULL"]="1";
     QCOMPARE(wide.value("env").toMap(),expected);
+  }
+  // Sega Rally 2's measured stereo, in both screen views; Inside the game and every other game unchanged.
+  void segaRally2HasItsOwnStereo() {
+    Fixture f;
+    for(const auto &view:{"screen","wide"}) {
+      auto expected=ac::model3::launchPlan("scud",view,f.program,f.media).value("env").toMap();
+      QCOMPARE(expected.value("ACVR_EYE_SEP").toString(),QString("0.065"));QVERIFY(!expected.contains("ACVR_CONVERGENCE"));
+      expected["ACVR_EYE_SEP"]="0.02";expected["ACVR_CONVERGENCE"]="3.6";
+      QCOMPARE(ac::model3::launchPlan("srally2",view,f.program,f.media).value("env").toMap(),expected);
+    }
+    QCOMPARE(ac::model3::launchPlan("srally2","inside",f.program,f.media).value("env"),ac::model3::launchPlan("scud","inside",f.program,f.media).value("env"));
   }
   void insidePlanIsHeadTracked() {
     Fixture f;
