@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "core/launch/Launch.h"
 #include "OverlayRuntime.h"
 #include "OverlayCapture.h"
 #include <QFile>
@@ -61,6 +62,8 @@ public:
     bool initialize(QSize size, const QString &thumbnail, QString *error) override {
         m_submitGate.reset();
         if (!probeOpenVrLibrary(error)) return false;
+        // An overlay connecting to SteamVR would start it if it were not running: only ever join a running one.
+        if (!launch::processRunning({"vrserver.exe", "vrserver"})) { if (error) *error = "SteamVR is not running."; return false; }
         vr::EVRInitError initError = vr::VRInitError_None;
         m_system = vr::VR_Init(&initError, vr::VRApplication_Overlay);
         if (initError != vr::VRInitError_None) {
@@ -201,8 +204,10 @@ bool changeOverlayRegistration(const QString &manifest, bool add, QString *error
         *error = "Unexpected overlay manifest contents."; return false;
     }
     if (!probeOpenVrLibrary(error)) return false;
+    // A background application never starts SteamVR: adding or removing the Hub needs SteamVR running already.
     vr::EVRInitError initError = vr::VRInitError_None;
-    vr::VR_Init(&initError, vr::VRApplication_Utility);
+    vr::VR_Init(&initError, vr::VRApplication_Background);
+    if (initError == vr::VRInitError_Init_NoServerForBackgroundApp) { *error = "Start SteamVR first, then add the Hub to it."; return false; }
     if (initError != vr::VRInitError_None) {
         *error = QString("SteamVR manifest action: %1").arg(vr::VR_GetVRInitErrorAsEnglishDescription(initError)); return false;
     }

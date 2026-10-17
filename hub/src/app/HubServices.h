@@ -88,7 +88,7 @@ public:
     QString steamVrManifest() const;
     void steamVrAnswered(const QString &error);
     // Whether SteamVR's server is running; tests replace it.
-    void setVrServerProbe(std::function<bool()> probe){vrServerProbe_=std::move(probe);}
+    void setVrServerProbe(std::function<bool()> probe){vrServerProbe_=probe;launcher_.setVrServerProbe(std::move(probe));}
     // Gamepads as Visual Pinball will name them; tests replace the probe of VPX's own SDL library.
     void setGamepadProbe(std::function<QVariantList(const QString &)> probe){gamepadProbe_=std::move(probe);}
 signals:
@@ -169,6 +169,8 @@ private:
     void recordCrash(const QString &id,int code,const QString &how,const QString &logPath);
     QString sessionSystem_,sessionTitle_;qint64 sessionStartMs_=0;bool crashReported_=false;
     void launchInHeadset(const QString &title, std::function<void()> launch);
+    // The kill switch: the setting "startSteamVr" off, or AC_NO_STEAMVR_START set, and the Hub never starts SteamVR.
+    bool mayStartSteamVr() const;
     void endSteamVrWait(const QString &message, bool error);
     std::function<bool(QString *)> steamVrStarter_;
     std::function<void()> pendingHeadset_;

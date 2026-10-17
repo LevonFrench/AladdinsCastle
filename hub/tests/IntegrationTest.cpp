@@ -193,7 +193,12 @@ private slots:
     const auto seen=QJsonDocument::fromJson(ac::install::readBytes(report)).object();
     QCOMPARE(QFileInfo(seen["cwd"].toString()).canonicalFilePath(),QFileInfo(emulator).canonicalFilePath());
     QCOMPARE(seen["args"].toVariant().toStringList(),(QStringList{QDir::toNativeSeparators(media+"/scud.zip"),"-window","-res=1344,1344","-stretch","-ss=2","-input-system=xinput"}));
-    QCOMPARE(seen["env"].toObject().toVariantMap(),(QVariantMap{{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"}}));
+    auto env=seen["env"].toObject().toVariantMap();
+    // A headset launch: SteamVR's own OpenXR runtime, when this PC has one.
+    const auto steamVr=ac::launch::detectRuntime(ac::launch::systemRuntimeInputs()).steamVrManifest;
+    if(!steamVr.isEmpty())QCOMPARE(env.value("XR_RUNTIME_JSON").toString(),steamVr);
+    env.remove("XR_RUNTIME_JSON");
+    QCOMPARE(env,(QVariantMap{{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"}}));
     QCOMPARE(listing(),before);
     ui.playModel3("daytona2");QCOMPARE(started.size(),1);QVERIFY(ui.status().contains("daytona2.zip"));QVERIFY(!services.launchBusy());
  }
@@ -450,6 +455,42 @@ private slots:
     QTest::qWait(800);QVERIFY(services.launchBusy()); // Not yet forced.
     QTRY_COMPARE_WITH_TIMEOUT(finished.size(),1,8000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),8000);
     QVERIFY(!ac::launch::processAlive(pid));
+ }
+ // One SteamVR policy: only Play in headset starts SteamVR, and the kill switch stops even that; the
+ // launch service only ever checks it; headset launches get SteamVR's OpenXR runtime.
+ void oneSteamVrPolicy(){
+    QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");
+    for(const auto &folder:{"build/mame","build/presenter","build/runtime","my sets"})QVERIFY(QDir(t.path()).mkpath(folder));
+    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),build+"/mame/emulator.exe"));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),build+"/presenter/model2-viewer.exe"));
+    ac::install::atomicWrite(sets+"/vcop2.zip","synthetic");
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",build+"/mame/emulator.exe");settings.set("model2GameFolder",sets);
+    qputenv("AC_SYNTHETIC_MODEL2_REPORT",t.filePath("viewer.json").toUtf8());const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL2_REPORT");qunsetenv("AC_NO_STEAMVR_START");});
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    bool vr=false;int starts=0;services.setVrServerProbe([&]{return vr;});services.setSteamVrStarter([&](QString *){++starts;return true;});
+    QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    // The kill switch, in Settings: nothing is started, and it says why.
+    settings.set("startSteamVr",false);
+    ui.playGame("model2-vcop2","screen");QCOMPARE(starts,0);QVERIFY(ui.steamVrStarting().isEmpty());QVERIFY(ui.status().contains("turned off in Settings"));
+    // The same through AC_NO_STEAMVR_START, with the setting back on.
+    settings.set("startSteamVr",true);qputenv("AC_NO_STEAMVR_START","1");
+    ui.playGame("model2-vcop2","screen");QCOMPARE(starts,0);QVERIFY(ui.status().contains("turned off"));
+    qunsetenv("AC_NO_STEAMVR_START");QTest::qWait(200);QCOMPARE(started.size(),0);
+    // The launch service never starts SteamVR itself: a SteamVR game with SteamVR off is refused, said plainly.
+    ac::launch::Request request;request.root=t.path();request.gameId="synthetic-steamvr";request.variantId="vr";request.runtime="steamvr";request.prepareProfile=false;
+    request.plan.executable=build+"/presenter/model2-viewer.exe";request.plan.cwd=build+"/presenter";request.plan.args={"1"};
+    QTRY_VERIFY2_WITH_TIMEOUT(!services.launcher()->busy(),qPrintable(QString("busy: playing %1").arg(services.launcher()->playing())),5000);
+    QVERIFY(services.launcher()->start(request));
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),1,5000);QCOMPARE(started.size(),0);
+    const auto refusal=finished.last()[2].toString();QVERIFY2(refusal.contains("not running")||refusal.contains("not found"),qPrintable(refusal));
+    QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),5000);
+    // With SteamVR running, a headset launch is given SteamVR's own OpenXR runtime when this PC has one.
+    vr=true;ui.playGame("model2-vcop2","screen");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
+    QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(t.filePath("viewer.json")),5000);QTest::qWait(200);
+    const auto given=QJsonDocument::fromJson(ac::install::readBytes(t.filePath("viewer.json"))).object()["env"].toObject()["XR_RUNTIME_JSON"].toString();
+    const auto steamVr=ac::launch::detectRuntime(ac::launch::systemRuntimeInputs()).steamVrManifest;
+    if(steamVr.isEmpty())QVERIFY(given.isEmpty()||given==qEnvironmentVariable("XR_RUNTIME_JSON"));else QCOMPARE(given,steamVr);
+    QTRY_COMPARE_WITH_TIMEOUT(finished.size(),2,15000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);QCOMPARE(starts,0);
  }
  // Exit and Stop ask Model 2 to quit through its stop file, so MAME saves; nothing is forced.
  void model2QuitsThroughItsStopFile(){
@@ -825,7 +866,7 @@ int main(int argc,char **argv){
     for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="-rompath"){QCoreApplication child(argc,argv);QTimer::singleShot(30000,&child,&QCoreApplication::quit);return child.exec();}
     if(argc==2&&QByteArray(argv[1]).toLongLong()>0){
         QCoreApplication child(argc,argv);QJsonObject variables;const auto environment=QProcessEnvironment::systemEnvironment();
-        for(const auto &name:environment.keys())if(name.startsWith("ACVR_"))variables[name]=environment.value(name);
+        for(const auto &name:environment.keys())if(name.startsWith("ACVR_")||name=="XR_RUNTIME_JSON")variables[name]=environment.value(name);
         const auto id=QByteArray(argv[1]).toLongLong();bool alive=false;
 #ifdef Q_OS_WIN
         if(const auto handle=OpenProcess(SYNCHRONIZE,FALSE,static_cast<DWORD>(id))){alive=WaitForSingleObject(handle,0)==WAIT_TIMEOUT;CloseHandle(handle);}
@@ -842,7 +883,7 @@ int main(int argc,char **argv){
     for(int i=1;i<argc;++i)if(QByteArray(argv[i]).startsWith("-input-system=")){
         QCoreApplication child(argc,argv);QJsonObject variables;
         const auto environment=QProcessEnvironment::systemEnvironment();
-        for(const auto &name:environment.keys())if(name.startsWith("ACVR_"))variables[name]=environment.value(name);
+        for(const auto &name:environment.keys())if(name.startsWith("ACVR_")||name=="XR_RUNTIME_JSON")variables[name]=environment.value(name);
         QFile file(qEnvironmentVariable("AC_SYNTHETIC_MODEL3_REPORT"));if(!file.open(QIODevice::WriteOnly))return 3;
         file.write(QJsonDocument(QJsonObject{{"cwd",QDir::currentPath()},{"args",QJsonArray::fromStringList(child.arguments().mid(1))},{"env",variables}}).toJson());file.close();
         // A slow game: it writes its completion marker only after the given time, then ends.

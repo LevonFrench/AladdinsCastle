@@ -204,12 +204,16 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")||id.startsWith("wii-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
+            const auto start=[this,request,id,variant]{
 #ifdef Q_OS_WIN
-            ui_->launchQueued(id,variant,QString());
+                ui_->launchQueued(id,variant,QString());
 #else
-            ui_->launchQueued(id,variant,"Clean window close is not supported on this platform yet.");
+                ui_->launchQueued(id,variant,"Clean window close is not supported on this platform yet.");
 #endif
-            launcher_.start(request);
+                launcher_.start(request);
+            };
+            if(request.runtime=="steamvr"){const auto *record=games_->find(id);launchInHeadset(record?record->roles.value("title").toString():id,start);}
+            else start();
         }catch(const std::exception &e){ui_->showError("Launch",QString::fromUtf8(e.what()));}
     });
     // A PS2 game has no window to close: both Exit and Stop ask it to quit through its stop file, and the Hub waits.
@@ -464,6 +468,7 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
         ui_->launchOtherQueued(id,view,title,hint,"Clean window close is not supported on this platform yet.");
 #endif
         applyDiagnosticChild(request);
+        request.pinSteamVrOpenXr=!(id.startsWith("dreamcast-")&&view=="monitor"); // Every one but a disc on the monitor is in the headset.
         launcher_.start(request);
     }catch(const std::exception &error){ui_->showError("Launch",QString::fromUtf8(error.what()));}
 }
@@ -574,6 +579,7 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable,
         // Windows starts these for VPX outside its process tree; those started during the table end with it.
         request.helperPrograms={"B2SBackglassServerEXE.exe","B2SBackglassServer.exe","dmdext.exe","PinUpDisplay.exe","DOF2DMD.exe"};
         retainedPinball_=row;retainedPinballExecutable_=request.plan.executable;retainedPinballView_=view;
+        request.pinSteamVrOpenXr=view=="headset"; // VPX's OpenXR build finds SteamVR's runtime, never another.
 #ifdef Q_OS_WIN
         ui_->launchPinballQueued(row,QString(),diagnostic?QString():view,gamepad);
 #else
@@ -600,6 +606,7 @@ void HubServices::startModel3(const QString &id,const QString &view){
         ui_->launchModel3Queued(id,view,"Clean window close is not supported on this platform yet.");
 #endif
         applyDiagnosticChild(request);
+        request.pinSteamVrOpenXr=true; // Every Model 3 view is in the headset.
         launcher_.start(request);
     }catch(const std::exception &error){ui_->showError("Model 3",QString::fromUtf8(error.what()));}
 }
@@ -681,8 +688,12 @@ bool HubServices::askPs2ToQuit(){
     if(stopFile.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS2","The stop request could not be written. Use the launcher's own stop to quit the game.");return true;}
     request.close();ui_->launchClosing();return true;
 }
+bool HubServices::mayStartSteamVr() const{
+    return settings_->get("startSteamVr",true).toBool()&&!qEnvironmentVariableIsSet("AC_NO_STEAMVR_START");
+}
 void HubServices::launchInHeadset(const QString &title,std::function<void()> launch){
     if(vrServerRunning()){launch();return;}
+    if(!mayStartSteamVr()){ui_->showError("SteamVR","Starting SteamVR from the Hub is turned off in Settings. Start SteamVR yourself, then press Play in headset again. Nothing was started.");return;}
     if(pendingHeadset_){ui_->showError("SteamVR","SteamVR is already starting for "+pendingHeadsetTitle_+".");return;}
     if(launchBusy()||hubExitPending_){ui_->showError("Launch","Close the current session before starting a game.");return;}
     // Only ever because Play in headset was pressed: SteamVR is never started for anything else.

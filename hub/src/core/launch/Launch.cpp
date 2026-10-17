@@ -490,17 +490,12 @@ void LaunchService::launchReady() {
       runtime_ = detectRuntime(inputs);
       if (runtime_.steamVrManifest.isEmpty())
         throw Error("E_STEAMVR_MISSING", "SteamVR was not found");
-      if (!processRunning({"vrserver.exe", "vrserver"})) {
-        if (runtime_.steamVrMonitor.isEmpty())
-          throw Error("E_STEAMVR_MISSING", "SteamVR launcher was not found");
-        if (!QProcess::startDetached(runtime_.steamVrMonitor, {}))
-          throw Error("E_STEAMVR_START", "Could not start SteamVR");
-        waitedMs_ = 0;
-        emit starting(request.gameId, "Starting SteamVR");
-        if (busy_ && !preparationCancelled_)
-          runtimeTimer_.start();
-        return;
-      }
+      // One place starts SteamVR, the Hub's Play in headset, and only when it is pressed; here it is only checked.
+      if (!(vrServerProbe_ ? vrServerProbe_() : processRunning({"vrserver.exe", "vrserver"})))
+        throw Error("E_STEAMVR_NOT_RUNNING", "SteamVR is not running. Use Play in headset, which starts it, or start SteamVR first.");
+    } else if (request.pinSteamVrOpenXr) {
+      // Only read where SteamVR's OpenXR runtime is; a PC without SteamVR keeps its own default.
+      runtime_ = detectRuntime(systemRuntimeInputs());
     }
     beginChild();
   } catch (const std::exception &e) {
@@ -513,7 +508,7 @@ void LaunchService::beginChild() {
   try{for(auto i=request_.discIdentities.cbegin();i!=request_.discIdentities.cend();++i)verifyDisc(i.key(),i.value());}
   catch(const std::exception &e){complete(1,QString::fromUtf8(e.what()));return;}
   auto environment = request_.runtimeInputs.environment;
-  if (request_.runtime == "steamvr")
+  if ((request_.runtime == "steamvr" || request_.pinSteamVrOpenXr) && !runtime_.steamVrManifest.isEmpty())
     environment.insert("XR_RUNTIME_JSON", runtime_.steamVrManifest);
   process_.setProcessEnvironment(environment);
   process_.setWorkingDirectory(request_.plan.cwd);

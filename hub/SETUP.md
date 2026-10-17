@@ -85,6 +85,25 @@ On a real collection with about 70 system folders, it read 31,568 candidate file
 in about 96 seconds. That first search is cached; the next one runs only on
 request.
 
+## One SteamVR policy
+
+- **Who starts SteamVR:** only the Hub's Play in headset does, and only when it is
+  pressed. The launch service no longer starts SteamVR's monitor. A catalog game
+  that needs SteamVR goes through the same Play in headset path: start SteamVR,
+  wait, with Cancel. Without that path, a SteamVR game with SteamVR off is refused
+  with a plain message.
+- **Kill switch:** the setting "Let the Hub start SteamVR" (`startSteamVr`), or
+  the environment variable `AC_NO_STEAMVR_START`, stops the Hub from ever starting
+  SteamVR. Play in headset then asks you to start it yourself.
+- **OpenXR runtime:** every headset launch, and every catalog SteamVR game, gets
+  `XR_RUNTIME_JSON` pinned to SteamVR's own OpenXR runtime, when the PC has one.
+  An OpenXR game never lands on another runtime the PC has set as its default.
+- **Overlay:** the headset panel only joins a SteamVR that is already running. Adding
+  the Hub to SteamVR uses a background connection, which never starts SteamVR:
+  start SteamVR first, then add the Hub.
+- **Tests:** no test starts SteamVR. A Hub given no starter starts nothing, and no
+  test reaches a real VR_Init.
+
 ## Watchdog
 
 The Hub watches the programs of the systems it has been set up for.
