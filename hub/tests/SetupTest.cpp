@@ -177,7 +177,7 @@ private slots:
     QCOMPARE(plan["args"].toStringList(),QStringList{"${companion_pid}"});
     QCOMPARE(emulator["executable"].toString(),native(program));QCOMPARE(emulator["cwd"].toString(),native(t.filePath("build/runtime")));
     QCOMPARE(emulator["args"].toStringList(),(QStringList{"vcop2","-rompath",native(sets),"-video","none","-sound","none","-numprocessors","2","-skip_gameinfo","-noreadconfig","-nowriteconfig",
-      "-seconds_to_run","3600","-snapview","Screen 1","-snapshot_directory",native(t.filePath("build/captures/headset-vcop2")),"-snapname","vcop2-%i",
+      "-snapview","Screen 1","-snapshot_directory",native(t.filePath("build/captures/headset-vcop2")),"-snapname","vcop2-%i",
       "-nvram_directory","nvram","-cfg_directory","cfg","-state_directory","sta","-diff_directory","diff","-background_input"}));
     QCOMPARE(plan["env"].toMap(),(QVariantMap{{"ACVR_M2_STEREO","1"},{"ACVR_M2_STREAM","1"},{"ACVR_M2_INPUT_TEST","0"},{"ACVR_M2_IPD_M","0.064"},{"ACVR_M2_UNITS_PER_M","0.949387005"},{"ACVR_M2_ZERO_M","4"},{"ACVR_XR_SIZE","1"},{"ACVR_XR_HEIGHT","0"}}));
     QVERIFY(!QFileInfo::exists(t.filePath("build/captures"))); // Planning creates nothing.

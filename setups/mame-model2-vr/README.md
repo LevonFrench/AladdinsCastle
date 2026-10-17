@@ -65,7 +65,9 @@ the viewer exits. The Hub should wait for that exit instead of force-closing
 either process when requesting a normal stop. If MAME has not exited within
 30 seconds after the request, the viewer reports failure without terminating
 MAME; the launcher's existing bounded failure path remains a last resort.
-Escape and the viewer's own time limit use this same clean request path.
+Escape and the viewer's own time limit use this same clean request path. Only the
+diagnostic runs (`--scripted-input`, `--no-xr`) have a time limit; a game in the
+headset runs until it is quit.
 
 Holding left Y on Touch for three continuous real-time seconds requests the
 same clean exit. The corresponding binding on Index is left B, its upper face

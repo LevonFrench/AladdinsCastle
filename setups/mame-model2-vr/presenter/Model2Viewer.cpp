@@ -46,7 +46,8 @@ int main(int argc, char **argv)
 	}
 	if(scriptedY && !scripted) { std::fprintf(stderr,"Scripted Y requires scripted input\n"); return 2; }
 	no_xr=no_xr || scripted;
-	const DWORD limit = scripted ? 240000 : no_xr ? 20000 : 3600000;
+	// Diagnostic runs stop themselves; a game in the headset runs until it is quit, however long that is.
+	const DWORD limit = scripted ? 240000 : no_xr ? 20000 : 0;
 	SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
 	char name[80]; std::snprintf(name, sizeof(name), "Local\\ACVRM2-%lu", pid);
 	char defaultStop[80]; std::snprintf(defaultStop,sizeof(defaultStop),"model2-%lu.stop",pid);
@@ -82,7 +83,7 @@ int main(int argc, char **argv)
 			}
 			quit.poll(now,controller.quitHeld,stopAttributes!=INVALID_FILE_ATTRIBUTES && !(stopAttributes&FILE_ATTRIBUTE_DIRECTORY));
 			if(!scripted && (GetAsyncKeyState(VK_ESCAPE) & 1)) quit.request(CleanQuit::Reason::escape);
-			if(now-start>=limit) quit.request(CleanQuit::Reason::time_limit);
+			if(limit && now-start>=limit) quit.request(CleanQuit::Reason::time_limit);
 			if(exitSent) {
 				if(now-exitRequestedAt>=30000) throw std::runtime_error("MAME did not finish its clean exit within 30 seconds; viewer did not force it");
 				WaitForSingleObject(parent,10); continue; // keep viewer alive through MAME's save/exit
