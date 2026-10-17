@@ -10,7 +10,11 @@ import AladdinsCastle.Hub
 Rectangle {
  id:card
  property bool vrOverlayMode:false
- readonly property var roots:(uiSettings.values,uiSettings.get("libraryRoots",[]))||[]
+ // Replaced only when the folders change: any other setting leaves the list, and its rows, alone.
+ property var roots:[]
+ function keepRoots(){const next=Array.from(uiSettings.get("libraryRoots",[])||[]);if(JSON.stringify(next)!==JSON.stringify(roots))roots=next}
+ Connections {target:uiSettings;function onChanged(){card.keepRoots()}}
+ Component.onCompleted:keepRoots()
  readonly property var result:uiController.library||({})
  readonly property var names:({model3:"Sega Model 3",model2:"Sega Model 2",ps2:"PlayStation 2",dreamcast:"Sega Dreamcast",wii:"Nintendo Wii"})
  readonly property string summary:{
