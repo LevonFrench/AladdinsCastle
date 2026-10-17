@@ -629,7 +629,7 @@ a held button fires once. The Index button also retains its tap-to-Start role.
 Xbox mapping is unchanged. The offline-only injected hold exercises the same
 timer and gracefully exits the actual native program even with a frame limit.
 
-The private Stop launcher writes the stop file first, waits5seconds, then forces
+The private Stop launcher writes the stop file first, waits15seconds, then forces
 only the exact private executable and a creation-time-verified launcher helper.
 It holds process handles and rechecks creation time on the terminate handle.
 Missing/wrong helper timestamps are reported and left running. Startup, Stop
@@ -832,3 +832,47 @@ unchanged pinned baseline in3frames. Gun/dot final-order and transparent
 background proofs also pass the new executable in both launcher modes.
 `PCSX2_INSIDE_PASS_TRACE` optionally records the classifier/raster decisions;
 normal play leaves tracing off. Physical runtime/performance remains untested.
+
+### Backend lifecycle corrections
+
+Private play launchers have no session time cap. Offline runs require an explicit
+time limit or bounded check/replay mode. A requested stop allows 15 seconds
+for graceful shutdown before the verified owned-process fallback. CPU policy
+fixtures cover play beyond two hours, timed exit and an externally requested stop.
+
+Play enables one private 8 MB file card per game. Offline and diagnostic runs
+disable every slot and select a separate unused card directory. Xbox bindings
+are preserved. Normal VM shutdown closes the card and flushes its C file;
+the save-state boolean does not disable memory-card persistence. Forced
+termination may still lose an unfinished write; in-game save/load needs owner testing.
+
+The OpenXR presenter acquires/waits outside the publication mutex, using
+10 ms waits within a 250 ms budget. A timeout skips the frame and retains
+the acquired image for retry. Game and gun chains use the same policy.
+Blits and the exact published poses are copied together under the lock;
+a consumer GL fence prevents source reuse, with CPU completion outside
+the lock. No extra swapchain wait is made during destruction.
+A native offline delay hook and a concurrent CPU fixture exercise timeout,
+publication progress, recovery and interruptible shutdown without OpenXR.
+
+Spare Start is emitted as a 250 ms pulse only after a short release (under
+400 ms). Holding Index left B for quit never sends Start. The Touch spare
+menu button follows the same tap rule; focus loss resets pending taps.
+CPU fixtures cover the short tap, long hold, cutoff boundary and focus reset.
+
+Depth review only: nine profiles retain inherited 1000 m screen convergence;
+Virtua Cop and the generic OutRun 2 profile use 10 m. These are provisional,
+not measured physical distances. INSIDE uses runtime eye poses and bypasses
+the screen convergence shift; its HUD distance is explicitly 2.5 m. No profile
+constants changed. A future approved screen trial should compare convergence
+with the physical quad distance, retaining the current reference. Screen-mode
+separation could come from the runtime eye baseline; fake-pose proofs retain
+a fixed baseline. Physical scale, comfort and actual save/load need owner checks.
+
+Backend offline verification: the v145 live build boots with OpenXR disabled.
+During an injected swapchain wait, real emulation advances published pairs1
+to6, then the same wait policy resumes; the timed stop exits gracefully.
+Matched dump replays have exact shared-texture/SBS copies, and both the
+injected-wait picture and INSIDE zero-pose picture equal the screen reference
+pixel-for-pixel. These tests do not establish headset timeout recovery,
+controller feel, long-session stability or in-game save/load acceptance.
