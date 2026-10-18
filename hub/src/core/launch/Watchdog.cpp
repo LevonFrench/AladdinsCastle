@@ -16,8 +16,18 @@
 namespace ac::launch {
 namespace {
 QString clean(const QString &path) { return QDir::cleanPath(QDir::fromNativeSeparators(path)).toLower(); }
+// A path as the file system tells folders apart. Windows ignores case and takes either separator;
+// elsewhere a path is exactly as written, so a folder spelled differently is another folder, never a
+// system's. Only what may be ended uses this: the never-touch check stays as loose as it is.
+QString folderKey(const QString &path) {
+#ifdef Q_OS_WIN
+  return clean(path);
+#else
+  return QDir::cleanPath(path);
+#endif
+}
 bool under(const QString &path, const QString &folder) {
-  const auto f = clean(folder);
+  const auto f = folderKey(folder);
   return !f.isEmpty() && path.startsWith(f + "/");
 }
 bool named(const QString &name, const QStringList &patterns) {
@@ -175,11 +185,11 @@ bool neverTouch(const ProcessInfo &process) {
 QString attribute(const ProcessInfo &process, const QList<SystemRule> &rules) {
   if (process.path.isEmpty() || neverTouch(process))
     return {};
-  const auto path = clean(process.path);
+  const auto path = folderKey(process.path);
   const auto folder = path.section('/', 0, -2);
   for (const auto &rule : rules) {
     for (const auto &own : rule.ownFolders)
-      if (!own.isEmpty() && folder == clean(own))
+      if (!own.isEmpty() && folder == folderKey(own))
         return rule.system;
     for (const auto &other : QStringList(rule.folders) + rule.ownFolders)
       if (under(path, other) && named(process.name, rule.names))
