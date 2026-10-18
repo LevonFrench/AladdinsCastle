@@ -1,0 +1,109 @@
+name: Patch apply check
+# Checks that each emulator patch still applies to the upstream commit it is pinned to.
+# No build, no secrets, no game content: only the one pinned commit is fetched.
+on:
+  push:
+    paths:
+      - 'setups/**'
+      - '.github/workflows/patch-apply.yml'
+  pull_request:
+    paths:
+      - 'setups/**'
+      - '.github/workflows/patch-apply.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    name: ${{ matrix.setup }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # pin: JSON file in the setup folder; repo_key / commit_key: dotted keys inside it.
+          # A setup with no pin file (MAME) names its commit in its README instead.
+          - setup: supermodel-vr
+            pin: upstream-pin.json
+            repo_key: repository
+            commit_key: source_commit
+            patch: patch/apply_acvr.py
+          - setup: mame-model2-vr
+            pin: README.md
+            repo_url: https://github.com/mamedev/mame
+            patch: model2-stereo.patch
+          - setup: pcsx2-vr
+            pin: upstream-pin.json
+            repo_key: pcsx2.repository
+            commit_key: pcsx2.commit
+            patch: unattended-capture.patch
+          - setup: flycast-hotd2-vr
+            pin: upstream-pin.json
+            repo_key: repository
+            commit_key: source_commit
+            patch: patch/acvr-hotd2-vr.patch
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: repo
+
+      # Read the upstream repository and commit from the setup's pin file.
+      - name: Read the pin
+        shell: python
+        run: |
+          import json, os, pathlib, re
+          setup = pathlib.Path("repo/setups/${{ matrix.setup }}")
+          pin = setup / "${{ matrix.pin }}"
+          if pin.suffix == ".json":
+              data = json.loads(pin.read_text(encoding="utf-8"))
+              def get(dotted):
+                  node = data
+                  for key in dotted.split("."):
+                      node = node[key]
+                  return node
+              repo = get("${{ matrix.repo_key }}")
+              commit = get("${{ matrix.commit_key }}")
+          else:
+              # README line: Base: MAME commit `<40 hex characters>`
+              text = pin.read_text(encoding="utf-8")
+              commit = re.search(r"commit `([0-9a-f]{40})`", text).group(1)
+              repo = "${{ matrix.repo_url }}"
+          if not re.fullmatch(r"[0-9a-f]{40}", commit) or not repo.startswith("https://github.com/"):
+              raise SystemExit(f"Bad pin: {repo} {commit}")
+          print(f"Upstream {repo} at {commit}")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"UPSTREAM_REPO={repo}\nUPSTREAM_COMMIT={commit}\n")
+
+      # Fetch only the pinned commit, with no history and no submodules (MAME and PCSX2 are large).
+      - name: Fetch the pinned upstream commit
+        run: |
+          git init upstream
+          cd upstream
+          git remote add origin "$UPSTREAM_REPO"
+          git fetch --depth 1 origin "$UPSTREAM_COMMIT"
+          git checkout FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_COMMIT"
+
+      # Git patches: a dry run first, then the real apply.
+      - name: Apply the patch
+        if: endsWith(matrix.patch, '.patch')
+        working-directory: upstream
+        run: |
+          git apply --check "$GITHUB_WORKSPACE/repo/setups/${{ matrix.setup }}/${{ matrix.patch }}"
+          git apply --verbose "$GITHUB_WORKSPACE/repo/setups/${{ matrix.setup }}/${{ matrix.patch }}"
+          git status --short
+
+      # Supermodel uses a script. Every edit asserts its anchor, so a changed upstream fails here.
+      - name: Run the apply script
+        if: endsWith(matrix.patch, '.py')
+        working-directory: upstream
+        run: |
+          python3 "$GITHUB_WORKSPACE/repo/setups/${{ matrix.setup }}/${{ matrix.patch }}" | tee apply.log
+          grep -qx 'acvr applied' apply.log
+          rm apply.log
+          git status --short
