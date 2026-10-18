@@ -55,6 +55,11 @@ gun_model = "arc-smg"
 control_set = "gun-arc-smg"
 
 [[rule]]
+id = "model-funcon"
+gun_model = "funcon"
+control_set = "gun-funcon"
+
+[[rule]]
 id = "model-con-pistol-dpad"
 gun_model = "con-pistol-dpad"
 control_set = "gun-con-pistol-dpad"
