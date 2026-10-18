@@ -1,6 +1,6 @@
 # V1 independent verification: candidate d664d4f vs baseline 84ee3d2 (status: proposed)
 
-Scope: report only, nothing else edited. Paths under `J:\projects\games\aladdinscastle\.local\worktrees\website\`. Line numbers refer to `site\arcade.js` unless stated. The preview at localhost:8765 serves an `arcade.js` whose md5 equals the working tree (clean at d664d4f).
+Scope: report only, nothing else edited. Paths are relative to the repository root. Line numbers refer to `site\arcade.js` unless stated. The preview at localhost:8765 serves an `arcade.js` whose md5 equals the working tree (clean at d664d4f).
 
 ## Owner decisions
 

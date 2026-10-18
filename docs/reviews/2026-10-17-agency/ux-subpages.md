@@ -1,6 +1,6 @@
 # U1 UX review: How It Works and Game List (status: proposed)
 
-Lens: UX Architect, UI Designer secondary. Report-only; no site files edited. File paths are under `J:\projects\games\aladdinscastle\.local\worktrees\website\site\`. Reasoned from CSS plus the two captures (both low-resolution, so type legibility is judged from CSS, not pixels).
+Lens: UX Architect, UI Designer secondary. Report-only; no site files edited. File paths are under `site\`. Reasoned from CSS plus the two captures (both low-resolution, so type legibility is judged from CSS, not pixels).
 
 ## Ranked findings
 
