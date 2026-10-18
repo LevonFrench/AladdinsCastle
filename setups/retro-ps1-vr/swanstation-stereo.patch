@@ -1,5 +1,5 @@
 diff --git a/src/core/gpu_hw.cpp b/src/core/gpu_hw.cpp
-index 99582d73..b870c8f0 100644
+index 99582d73..ae75f7c7 100644
 --- a/src/core/gpu_hw.cpp
 +++ b/src/core/gpu_hw.cpp
 @@ -1,4 +1,13 @@
@@ -25,16 +25,134 @@ index 99582d73..b870c8f0 100644
    ClearVRAMDirtyRectangle();
  }
  
-@@ -715,6 +726,8 @@ void GPU_HW::LoadVertices()
+@@ -671,8 +682,114 @@ void GPU_HW::DrawLine(float x0, float y0, uint32_t col0, float x1, float y1, uin
+   AddVertex(output[1]);
+ }
+ 
++void GPU_HW::AcvrCountDepth(const BatchVertex* v, uint32_t count)
++{
++  if (!m_acvr_auto_conv)
++    return;
++  for (uint32_t i = 0; i < count; i++)
++  {
++    // quarter-octave bins from w = 1/4096 upwards
++    const float w = v[i].w;
++    if (!(w > 0.0f) || w == 1.0f)
++      continue;
++    const int b = std::clamp(static_cast<int>(std::floor(std::log2(w) * 4.0f)) + 48, 0, 47);
++    m_acvr_depth_bins[b]++;
++  }
++}
++
++void GPU_HW::AcvrDioramaEndFrame()
++{
++  if (m_acvr_auto_conv)
++  {
++    uint64_t total = 0;
++    for (uint32_t n : m_acvr_depth_bins)
++      total += n;
++    if (total >= 64)
++    {
++      uint64_t acc = 0;
++      int bin = 0;
++      for (; bin < 48; bin++)
++      {
++        acc += m_acvr_depth_bins[bin];
++        if (acc >= static_cast<uint64_t>(total * m_acvr_auto_percentile))
++          break;
++      }
++      const float target = std::exp2((bin - 48 + 0.5f) / 4.0f);
++      // Ease over about a second so a cut does not snap the whole scene.
++      m_acvr_auto_value += (target - m_acvr_auto_value) * 0.05f;
++    }
++    std::fill(std::begin(m_acvr_depth_bins), std::end(m_acvr_depth_bins), 0u);
++  }
++  if (!m_acvr_diorama)
++    return;
++  m_acvr_prim_total = std::max<uint32_t>(m_acvr_prim_index, 1u);
++  m_acvr_prim_index = 0;
++}
++
++void GPU_HW::AcvrDioramaApply(BatchVertex* first)
++{
++  BatchVertex* const last = m_batch_current_vertex_ptr;
++  if (!m_acvr_diorama || last <= first)
++    return;
++  const uint32_t index = m_acvr_prim_index++;
++  bool flat = true;
++  float x0 = first->x, x1 = first->x, y0 = first->y, y1 = first->y;
++  for (BatchVertex* v = first; v < last; v++)
++  {
++    flat &= (v->w == 1.0f);
++    x0 = std::min(x0, v->x); x1 = std::max(x1, v->x);
++    y0 = std::min(y0, v->y); y1 = std::max(y1, v->y);
++  }
++  if (!flat)
++    return; // real PGXP depth wins
++  // Only what is drawn into a frame buffer (a drawing area the size of the picture): pieces
++  // drawn into small off-screen work areas are often copied in later, and shifting them twice
++  // would tear their edges.
++  const float area_w = static_cast<float>(m_drawing_area.GetWidth()), area_h = static_cast<float>(m_drawing_area.GetHeight());
++  if (area_w < 0.8f * static_cast<float>(m_crtc_state.display_vram_width) ||
++      area_h < 0.8f * static_cast<float>(m_crtc_state.display_vram_height))
++    return;
++  const float order = std::min(static_cast<float>(index) / static_cast<float>(m_acvr_prim_total), 1.0f);
++  const float area = (x1 - x0) * (y1 - y0);
++  const float screen = static_cast<float>(std::max<uint32_t>(m_crtc_state.display_vram_width, 1u)) *
++                       static_cast<float>(std::max<uint32_t>(m_crtc_state.display_vram_height, 1u));
++  float k; // 1 = at infinity, 0 = on the screen, negative = in front
++  const float screen_w = static_cast<float>(std::max<uint32_t>(m_crtc_state.display_vram_width, 1u));
++  const float screen_h = static_cast<float>(std::max<uint32_t>(m_crtc_state.display_vram_height, 1u));
++  // Backdrops are often drawn as full-height or full-width strips: keep them on one layer.
++  // The first fifth of a frame, and tile-sized pieces of its first 60%, are the backdrop pass
++  // (often tiled): one layer, so tiles keep sharing their edges. The last tenth (usually the
++  // HUD) stays on the screen.
++  if (area > 0.4f * screen || (y1 - y0) > 0.6f * screen_h || (x1 - x0) > 0.6f * screen_w || order < 0.2f ||
++      (area > 0.02f * screen && order < 0.6f))
++    k = m_acvr_diorama_far + 0.2f;
++  else if (order > 0.9f)
++    k = 0.0f;
++  else
++    k = m_acvr_diorama_far + (m_acvr_diorama_near - m_acvr_diorama_far) * ((order - 0.2f) / 0.7f);
++  k = std::min(k, 0.95f);
++  // Whole PlayStation pixels only: a sprite moved by a fraction of a pixel samples the texel
++  // just outside its tile (often transparent) and shows a seam.
++  if (m_acvr_diorama_shift_px > 0.5f)
++    k = std::min(std::round(k * m_acvr_diorama_shift_px) / m_acvr_diorama_shift_px, 0.95f);
++  const float w = m_acvr_diorama_conv / (1.0f - k);
++  for (BatchVertex* v = first; v < last; v++)
++    v->w = w;
++}
++
+ void GPU_HW::LoadVertices()
+ {
++  struct AcvrDioramaScope
++  {
++    GPU_HW* gpu;
++    BatchVertex* first;
++    ~AcvrDioramaScope()
++    {
++      if (gpu->m_batch_current_vertex_ptr >= first)
++        gpu->AcvrDioramaApply(first);
++    }
++  } acvr_diorama_scope{this, m_batch_current_vertex_ptr};
++
+   if (m_GPUSTAT.check_mask_before_draw)
+     m_current_depth++;
+ 
+@@ -715,6 +832,11 @@ void GPU_HW::LoadVertices()
                                     m_drawing_offset.y, &vertices[i].x, &vertices[i].y, &vertices[i].w);
          }
        }
 +      if (pgxp && valid_w)
++      {
 +        AcvrRecordDepth(vertices.data(), num_vertices);
++        AcvrCountDepth(vertices.data(), num_vertices);
++      }
        if (pgxp)
        {
          if (!valid_w)
-@@ -1150,8 +1163,41 @@ GPU_HW::VRAMCopyUBOData GPU_HW::GetVRAMCopyUBOData(uint32_t src_x, uint32_t src_
+@@ -1150,8 +1272,41 @@ GPU_HW::VRAMCopyUBOData GPU_HW::GetVRAMCopyUBOData(uint32_t src_x, uint32_t src_
    return uniforms;
  }
  
@@ -76,7 +194,7 @@ index 99582d73..b870c8f0 100644
    m_vram_dirty_rect.Include(rect);
  
    // the vram area can include the texture page, but the game can leave it as-is. in this case, set it as dirty so the
-@@ -1319,6 +1365,8 @@ void GPU_HW::FillVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height, u
+@@ -1319,6 +1474,8 @@ void GPU_HW::FillVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height, u
  
  void GPU_HW::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height, const void* data, bool set_mask, bool check_mask)
  {
@@ -85,7 +203,7 @@ index 99582d73..b870c8f0 100644
    IncludeVRAMDirtyRectangle(Common::Rectangle<uint32_t>::FromExtents(x, y, width, height));
  
    if (check_mask)
-@@ -1330,6 +1378,8 @@ void GPU_HW::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
+@@ -1330,6 +1487,8 @@ void GPU_HW::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
  
  void GPU_HW::CopyVRAM(uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y, uint32_t width, uint32_t height)
  {
@@ -95,10 +213,10 @@ index 99582d73..b870c8f0 100644
      Common::Rectangle<uint32_t>::FromExtents(dst_x, dst_y, width, height).Clamped(0, 0, VRAM_WIDTH, VRAM_HEIGHT));
  
 diff --git a/src/core/gpu_hw.h b/src/core/gpu_hw.h
-index 3741e75c..16b53d63 100644
+index 3741e75c..0d9bf445 100644
 --- a/src/core/gpu_hw.h
 +++ b/src/core/gpu_hw.h
-@@ -558,6 +558,11 @@ protected:
+@@ -558,6 +558,30 @@ protected:
    // Bounding box of VRAM area that the GPU has drawn into.
    Common::Rectangle<uint32_t> m_vram_dirty_rect;
  
@@ -107,11 +225,30 @@ index 3741e75c..16b53d63 100644
 +  // the left eye pass that follows changes it exactly once.
 +  bool m_acvr_replay = false;
 +
++  // ACVR diorama (ACVR_PS1_DIORAMA=1): primitives without PGXP depth (sprites, 2D) get a
++  // depth from where they come in the frame's draw order. The PlayStation paints back to
++  // front, so early primitives sit behind the screen and later ones come forward.
++  // Full-screen backdrops stay at the back; the last tenth of a frame (usually the HUD)
++  // stays on the screen.
++  void AcvrDioramaApply(BatchVertex* first);
++  void AcvrDioramaEndFrame();
++  bool m_acvr_diorama = false;
++  float m_acvr_diorama_far = 0.6f, m_acvr_diorama_near = -0.6f, m_acvr_diorama_conv = 0.25f;
++  uint32_t m_acvr_prim_index = 0, m_acvr_prim_total = 1;
++  float m_acvr_diorama_shift_px = 0.0f; // one eye's shift at infinity, in PlayStation pixels
++
++  // ACVR automatic zero plane: a per-frame histogram of PGXP depth; the zero plane eases
++  // toward a low percentile of it, so most of the scene sits just behind the screen.
++  void AcvrCountDepth(const BatchVertex* v, uint32_t count);
++  bool m_acvr_auto_conv = false;
++  float m_acvr_auto_value = 0.1f, m_acvr_auto_percentile = 0.3f;
++  uint32_t m_acvr_depth_bins[48] = {};
++
    // Changed state
    bool m_batch_ubo_dirty = true;
  
 diff --git a/src/core/gpu_hw_opengl.cpp b/src/core/gpu_hw_opengl.cpp
-index 8e976dae..e9423b64 100644
+index 8e976dae..b7bc0dd9 100644
 --- a/src/core/gpu_hw_opengl.cpp
 +++ b/src/core/gpu_hw_opengl.cpp
 @@ -1,4 +1,6 @@
@@ -173,23 +310,34 @@ index 8e976dae..e9423b64 100644
  
    GL::Program::ResetLastProgram();
    return true;
-@@ -591,6 +612,15 @@ GPU_HW_OpenGL::~GPU_HW_OpenGL()
+@@ -591,6 +612,26 @@ GPU_HW_OpenGL::~GPU_HW_OpenGL()
  
  bool GPU_HW_OpenGL::Initialize(HostDisplay* host_display)
  {
 +  m_acvr_stereo = AcvrEnv("ACVR_PS1_STEREO", 0.0f) != 0.0f;
 +  m_acvr_ipd = AcvrEnv("ACVR_PS1_IPD", 0.064f);
 +  m_acvr_screen_w = AcvrEnv("ACVR_PS1_SCREEN_W", 2.4f);
-+  m_acvr_conv = AcvrEnv("ACVR_PS1_STEREO_CONV", 0.25f);
++  {
++    const char* conv = std::getenv("ACVR_PS1_STEREO_CONV");
++    m_acvr_auto_conv = !conv || !*conv || std::strcmp(conv, "auto") == 0;
++    m_acvr_conv = m_acvr_auto_conv ? 0.1f : AcvrEnv("ACVR_PS1_STEREO_CONV", 0.25f);
++    m_acvr_auto_percentile = AcvrEnv("ACVR_PS1_STEREO_AUTO", 0.3f);
++  }
 +  m_acvr_popout = AcvrEnv("ACVR_PS1_STEREO_POPOUT", 2.0f);
 +  m_acvr_depth = AcvrEnv("ACVR_PS1_STEREO_DEPTH", 1.0f);
++  m_acvr_diorama = m_acvr_stereo && AcvrEnv("ACVR_PS1_DIORAMA", 0.0f) != 0.0f;
++  m_acvr_diorama_far = AcvrEnv("ACVR_PS1_DIORAMA_FAR", 0.6f);
++  m_acvr_diorama_near = AcvrEnv("ACVR_PS1_DIORAMA_NEAR", -0.6f);
++  m_acvr_diorama_conv = m_acvr_conv;
++  if (m_acvr_diorama)
++    Log_InfoPrintf("ACVR diorama: draw-order depth from %.2f (first) to %.2f (last), HUD on the screen", m_acvr_diorama_far, m_acvr_diorama_near);
 +  if (m_acvr_stereo)
-+    Log_InfoPrintf("ACVR stereo: eye separation %.3f m, screen %.2f m, zero plane w %.4f, depth x%.2f, pop-out limit %.1f",
-+                   m_acvr_ipd, m_acvr_screen_w, m_acvr_conv, m_acvr_depth, m_acvr_popout);
++    Log_InfoPrintf("ACVR stereo: eye separation %.3f m, screen %.2f m, zero plane %s w %.4f, depth x%.2f, pop-out limit %.1f",
++                   m_acvr_ipd, m_acvr_screen_w, m_acvr_auto_conv ? "automatic, starting at" : "fixed at", m_acvr_conv, m_acvr_depth, m_acvr_popout);
    if (host_display->GetRenderAPI() != HostDisplay::RenderAPI::OpenGL &&
        host_display->GetRenderAPI() != HostDisplay::RenderAPI::OpenGLES)
    {
-@@ -1093,12 +1123,77 @@ bool GPU_HW_OpenGL::CreateFramebuffer()
+@@ -1093,12 +1134,77 @@ bool GPU_HW_OpenGL::CreateFramebuffer()
    if (m_state_copy_fbo_id == 0)
      glGenFramebuffers(1, &m_state_copy_fbo_id);
  
@@ -267,7 +415,7 @@ index 8e976dae..e9423b64 100644
    const float depth_clear_value = m_pgxp_depth_buffer ? 1.0f : 0.0f;
  
    glDisable(GL_SCISSOR_TEST);
-@@ -1632,6 +1727,22 @@ void GPU_HW_OpenGL::DrawBatchVertices(BatchRenderMode render_mode, uint32_t base
+@@ -1632,6 +1738,25 @@ void GPU_HW_OpenGL::DrawBatchVertices(BatchRenderMode render_mode, uint32_t base
  
    SetDepthFunc();
  
@@ -277,6 +425,9 @@ index 8e976dae..e9423b64 100644
 +    glGetIntegerv(GL_CURRENT_PROGRAM, &program);
 +    const GLint location = glGetUniformLocation(static_cast<GLuint>(program), "u_acvr");
 +    const float shift = AcvrShiftNdc();
++    m_acvr_diorama_shift_px = shift * 512.0f;
++    if (m_acvr_auto_conv)
++      m_acvr_conv = m_acvr_auto_value;
 +    for (int eye = 1; eye >= 0; eye--)
 +    {
 +      AcvrSelectEye(static_cast<uint32_t>(eye));
@@ -290,7 +441,7 @@ index 8e976dae..e9423b64 100644
    glDrawArrays(GL_TRIANGLES, m_batch_base_vertex, num_vertices);
  }
  
-@@ -1731,6 +1842,7 @@ void GPU_HW_OpenGL::UploadUniformBuffer(const void* data, uint32_t data_size)
+@@ -1731,6 +1856,7 @@ void GPU_HW_OpenGL::UploadUniformBuffer(const void* data, uint32_t data_size)
  void GPU_HW_OpenGL::ClearDisplay()
  {
    GPU_HW::ClearDisplay();
@@ -298,7 +449,15 @@ index 8e976dae..e9423b64 100644
  
    m_host_display->ClearDisplayTexture();
  
-@@ -1762,6 +1874,8 @@ void GPU_HW_OpenGL::UpdateDisplay()
+@@ -1745,6 +1871,7 @@ void GPU_HW_OpenGL::ClearDisplay()
+ void GPU_HW_OpenGL::UpdateDisplay()
+ {
+   GPU_HW::UpdateDisplay();
++  AcvrDioramaEndFrame();
+ 
+     m_host_display->SetDisplayParameters(m_crtc_state.display_width, m_crtc_state.display_height,
+                                          m_crtc_state.display_origin_left, m_crtc_state.display_origin_top,
+@@ -1762,6 +1889,8 @@ void GPU_HW_OpenGL::UpdateDisplay()
      const uint32_t scaled_display_height = display_height * resolution_scale;
      const InterlacedRenderMode interlaced = GetInterlacedRenderMode();
  
@@ -307,7 +466,7 @@ index 8e976dae..e9423b64 100644
      if (IsDisplayDisabled())
      {
        m_host_display->ClearDisplayTexture();
-@@ -1782,6 +1896,16 @@ void GPU_HW_OpenGL::UpdateDisplay()
+@@ -1782,6 +1911,16 @@ void GPU_HW_OpenGL::UpdateDisplay()
                                            m_vram_texture.GetHeight(), scaled_vram_offset_x,
                                            m_vram_texture.GetHeight() - scaled_vram_offset_y, scaled_display_width,
                                            -static_cast<int32_t>(scaled_display_height));
@@ -324,7 +483,7 @@ index 8e976dae..e9423b64 100644
        }
      }
      else
-@@ -1821,6 +1945,22 @@ void GPU_HW_OpenGL::UpdateDisplay()
+@@ -1821,6 +1960,22 @@ void GPU_HW_OpenGL::UpdateDisplay()
        glViewport(0, 0, scaled_display_width, scaled_display_height);
        glBindVertexArray(m_attributeless_vao_id);
        glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -347,7 +506,7 @@ index 8e976dae..e9423b64 100644
  
        if (IsUsingDownsampling())
        {
-@@ -1848,6 +1988,10 @@ void GPU_HW_OpenGL::UpdateDisplay()
+@@ -1848,6 +2003,10 @@ void GPU_HW_OpenGL::UpdateDisplay()
  
  void GPU_HW_OpenGL::ReadVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
  {
@@ -358,7 +517,7 @@ index 8e976dae..e9423b64 100644
    if (IsUsingSoftwareRendererForReadbacks())
    {
      ReadSoftwareRendererVRAM(x, y, width, height);
-@@ -1887,7 +2031,19 @@ void GPU_HW_OpenGL::ReadVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t he
+@@ -1887,7 +2046,19 @@ void GPU_HW_OpenGL::ReadVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t he
  
  void GPU_HW_OpenGL::FillVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t color)
  {
@@ -379,7 +538,7 @@ index 8e976dae..e9423b64 100644
      FillSoftwareRendererVRAM(x, y, width, height, color);
  
    GPU_HW::FillVRAM(x, y, width, height, color);
-@@ -1926,7 +2082,19 @@ void GPU_HW_OpenGL::FillVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t he
+@@ -1926,7 +2097,19 @@ void GPU_HW_OpenGL::FillVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t he
  
  void GPU_HW_OpenGL::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height, const void* data, bool set_mask, bool check_mask)
  {
@@ -400,7 +559,7 @@ index 8e976dae..e9423b64 100644
      UpdateSoftwareRendererVRAM(x, y, width, height, data, set_mask, check_mask);
  
    const Common::Rectangle<uint32_t> bounds = GetVRAMTransferBounds(x, y, width, height);
-@@ -1980,7 +2148,8 @@ void GPU_HW_OpenGL::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t
+@@ -1980,7 +2163,8 @@ void GPU_HW_OpenGL::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t
        // CPU round trip if oversized for now.
        Log_WarningPrintf("Oversized/masked VRAM update (%u-%u, %u-%u), CPU round trip", x, x + width, y, y + height);
        ReadVRAM(0, 0, VRAM_WIDTH, VRAM_HEIGHT);
@@ -410,7 +569,7 @@ index 8e976dae..e9423b64 100644
        UpdateVRAM(0, 0, VRAM_WIDTH, VRAM_HEIGHT, m_vram_shadow.data(), false, false);
        return;
      }
-@@ -2045,7 +2214,19 @@ void GPU_HW_OpenGL::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t
+@@ -2045,7 +2229,19 @@ void GPU_HW_OpenGL::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t
  
  void GPU_HW_OpenGL::CopyVRAM(uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y, uint32_t width, uint32_t height)
  {
@@ -431,7 +590,7 @@ index 8e976dae..e9423b64 100644
      CopySoftwareRendererVRAM(src_x, src_y, dst_x, dst_y, width, height);
  
    const Common::Rectangle<uint32_t> dst_bounds = GetVRAMTransferBounds(dst_x, dst_y, width, height);
-@@ -2078,7 +2259,7 @@ void GPU_HW_OpenGL::CopyVRAM(uint32_t src_x, uint32_t src_y, uint32_t dst_x, uin
+@@ -2078,7 +2274,7 @@ void GPU_HW_OpenGL::CopyVRAM(uint32_t src_x, uint32_t src_y, uint32_t dst_x, uin
  
      RestoreGraphicsAPIState();
  
@@ -440,7 +599,7 @@ index 8e976dae..e9423b64 100644
        m_current_depth++;
  
      return;
-@@ -2131,6 +2312,18 @@ void GPU_HW_OpenGL::CopyVRAM(uint32_t src_x, uint32_t src_y, uint32_t dst_x, uin
+@@ -2131,6 +2327,18 @@ void GPU_HW_OpenGL::CopyVRAM(uint32_t src_x, uint32_t src_y, uint32_t dst_x, uin
  
  void GPU_HW_OpenGL::UpdateVRAMReadTexture()
  {
@@ -459,7 +618,7 @@ index 8e976dae..e9423b64 100644
    const auto scaled_rect = m_vram_dirty_rect * m_resolution_scale;
    const uint32_t width = scaled_rect.GetWidth();
    const uint32_t height = scaled_rect.GetHeight();
-@@ -2168,6 +2361,18 @@ void GPU_HW_OpenGL::UpdateVRAMReadTexture()
+@@ -2168,6 +2376,18 @@ void GPU_HW_OpenGL::UpdateVRAMReadTexture()
  
  void GPU_HW_OpenGL::UpdateDepthBufferFromMaskBit()
  {
@@ -478,7 +637,7 @@ index 8e976dae..e9423b64 100644
    if (m_pgxp_depth_buffer)
      return;
  
-@@ -2190,6 +2395,18 @@ void GPU_HW_OpenGL::UpdateDepthBufferFromMaskBit()
+@@ -2190,6 +2410,18 @@ void GPU_HW_OpenGL::UpdateDepthBufferFromMaskBit()
  
  void GPU_HW_OpenGL::ClearDepthBuffer()
  {

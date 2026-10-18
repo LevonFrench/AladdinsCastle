@@ -150,7 +150,8 @@ picture twice in the OpenGL renderer:
 | Setting | Default | |
 |---|---|---|
 | `ACVR_PS1_STEREO` | 0 | 1 turns it on (OpenGL renderer only) |
-| `ACVR_PS1_STEREO_CONV` | 0.25 | the PGXP depth `w` that sits on the screen |
+| `ACVR_PS1_STEREO_CONV` | auto | the PGXP depth `w` that sits on the screen; `auto` eases it each frame toward a low percentile of the scene's depth |
+| `ACVR_PS1_STEREO_AUTO` | 0.3 | that percentile: this share of the geometry may come in front of the screen |
 | `ACVR_PS1_STEREO_DEPTH` | 1 | multiplier on the effect |
 | `ACVR_PS1_STEREO_POPOUT` | 2 | how far in front of the screen things may come, in units of the far limit |
 | `ACVR_PS1_IPD`, `ACVR_PS1_SCREEN_W` | 0.064, 2.4 | metres; the same screen width as the theatre |
@@ -162,10 +163,33 @@ from about 14 px crossed (nearest objects about 1.2 m away on a 2.5 m screen)
 to 13 px uncrossed, which is exactly the eye separation, so nothing is beyond
 infinity; the HUD sits on the screen. Not yet seen in a headset.
 
+With the automatic zero plane (the default) the same Time Crisis scenes
+measured almost the same as a hand-picked `CONV` of 0.05: scene median 5 to
+9 m behind the screen, nearest objects 1 to 2 m away, far limit at the eye
+separation. No per-game tuning is needed.
+
+### Diorama for sprite games (prototype)
+
+`ACVR_PS1_DIORAMA=1` (with stereo on) gives primitives that have no PGXP depth
+a depth from the frame's draw order, because the PlayStation paints back to
+front. Rules, in order: primitives drawn into a small off-screen work area are
+left flat (they are often copied in later); backdrops (anything covering 40%
+of the picture, spanning 60% of its width or height, drawn in the first fifth
+of the frame, or tile-sized in its first 60%) share one layer behind the
+screen; the last tenth of the frame (usually the HUD) stays on the screen;
+everything between moves from behind the screen to in front of it in draw
+order. Shifts are whole PlayStation pixels, so sprites never sample a
+neighbouring tile's edge. `ACVR_PS1_DIORAMA_FAR` / `_NEAR` (0.6 / -0.6) set
+the range.
+
+On Point Blank's piranha stage the water sits about 12 px behind the screen,
+the fish come 4 to 8 px in front, and the score and timer stay on the screen.
+Two faint one-pixel seams remain in some frames. Not yet seen in a headset.
+
 ## Next
 
-Per-game zero planes for every polygon game, and the diorama for sprite games
-(depth from the order the PlayStation draws things).
+The owner's headset verdict on stereo comfort and on the diorama; the Justifier
+for SwanStation, so Die Hard Trilogy can be 3D as well.
 
 The program is GPL-3.0-or-later. `retro_abi.h` declares the libretro core
 interface from its public description and contains no libretro code.
