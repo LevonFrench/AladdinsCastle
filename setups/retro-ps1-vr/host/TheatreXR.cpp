@@ -74,7 +74,7 @@ PFN_xrCreateInstance p_xrCreateInstance = nullptr;
   X(xrLocateSpace) X(xrLocateViews) X(xrEnumerateViewConfigurationViews) X(xrGetOpenGLGraphicsRequirementsKHR) \
   X(xrStringToPath) X(xrCreateActionSet) X(xrDestroyActionSet) X(xrCreateAction) X(xrSuggestInteractionProfileBindings) \
   X(xrAttachSessionActionSets) X(xrCreateActionSpace) X(xrSyncActions) X(xrGetActionStatePose) X(xrGetActionStateFloat) \
-  X(xrGetActionStateBoolean) X(xrApplyHapticFeedback)
+  X(xrGetActionStateBoolean) X(xrGetActionStateVector2f) X(xrApplyHapticFeedback)
 #define X(name) PFN_##name p_##name = nullptr;
 XR_FUNCS(X)
 #undef X
@@ -84,7 +84,8 @@ XrInstance s_instance = XR_NULL_HANDLE; XrSystemId s_system = XR_NULL_SYSTEM_ID;
 XrSpace s_local = XR_NULL_HANDLE, s_view = XR_NULL_HANDLE, s_aimSpace = XR_NULL_HANDLE, s_gripSpace = XR_NULL_HANDLE;
 XrActionSet s_set = XR_NULL_HANDLE;
 XrAction s_aim = XR_NULL_HANDLE, s_gripPose = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_a = XR_NULL_HANDLE, s_b = XR_NULL_HANDLE,
-         s_squeeze = XR_NULL_HANDLE, s_quit = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE;
+         s_squeeze = XR_NULL_HANDLE, s_quit = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE,
+         s_padStick = XR_NULL_HANDLE, s_padCross = XR_NULL_HANDLE, s_padCircle = XR_NULL_HANDLE, s_padSquare = XR_NULL_HANDLE, s_padStart = XR_NULL_HANDLE;
 XrPath s_right = XR_NULL_PATH, s_left = XR_NULL_PATH;
 struct EyeChain { XrSwapchain chain = XR_NULL_HANDLE; std::vector<XrSwapchainImageOpenGLKHR> images; int w = 0, h = 0; GLuint fbo = 0, depth = 0; };
 EyeChain s_eyes[2];
@@ -118,16 +119,23 @@ bool InitActions()
       !make("button_b", "Gun button B", XR_ACTION_TYPE_BOOLEAN_INPUT, s_b, s_right) ||
       !make("squeeze", "Pedal (grip)", XR_ACTION_TYPE_FLOAT_INPUT, s_squeeze, s_right) ||
       !make("quit", "Hold to quit", XR_ACTION_TYPE_BOOLEAN_INPUT, s_quit, s_left) ||
+      !make("pad_stick", "Pad directions", XR_ACTION_TYPE_VECTOR2F_INPUT, s_padStick, s_left) ||
+      !make("pad_cross", "Pad Cross", XR_ACTION_TYPE_FLOAT_INPUT, s_padCross, s_left) ||
+      !make("pad_circle", "Pad Circle", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padCircle, s_left) ||
+      !make("pad_square", "Pad Square", XR_ACTION_TYPE_FLOAT_INPUT, s_padSquare, s_left) ||
+      !make("pad_start", "Pad Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padStart, s_left) ||
       !make("recoil", "Recoil", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic, s_right)) return false;
-  struct Profile { const char *profile, *quit; };
-  const Profile profiles[] = { { "/interaction_profiles/oculus/touch_controller", "/user/hand/left/input/y/click" },
-                               { "/interaction_profiles/valve/index_controller", "/user/hand/left/input/b/click" } };
+  struct Profile { const char *profile, *quit, *circle, *start; };
+  const Profile profiles[] = { { "/interaction_profiles/oculus/touch_controller", "/user/hand/left/input/y/click", "/user/hand/left/input/x/click", "/user/hand/left/input/menu/click" },
+                               { "/interaction_profiles/valve/index_controller", "/user/hand/left/input/b/click", "/user/hand/left/input/a/click", "/user/hand/left/input/thumbstick/click" } };
   for (const auto &pr : profiles) {
     const std::pair<XrAction, const char *> list[] = {
       { s_aim, "/user/hand/right/input/aim/pose" }, { s_gripPose, "/user/hand/right/input/grip/pose" },
       { s_trigger, "/user/hand/right/input/trigger/value" }, { s_a, "/user/hand/right/input/a/click" },
       { s_b, "/user/hand/right/input/b/click" }, { s_squeeze, "/user/hand/right/input/squeeze/value" },
-      { s_quit, pr.quit }, { s_haptic, "/user/hand/right/output/haptic" } };
+      { s_quit, pr.quit }, { s_haptic, "/user/hand/right/output/haptic" },
+      { s_padStick, "/user/hand/left/input/thumbstick" }, { s_padCross, "/user/hand/left/input/trigger/value" },
+      { s_padCircle, pr.circle }, { s_padSquare, "/user/hand/left/input/squeeze/value" }, { s_padStart, pr.start } };
     std::vector<XrActionSuggestedBinding> b;
     for (const auto &item : list) { XrPath path; if (Check(p_xrStringToPath(s_instance, item.second, &path), item.second)) b.push_back({ item.first, path }); }
     XrInteractionProfileSuggestedBinding suggested{ XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
@@ -253,6 +261,15 @@ void ThreadMain()
       get.action = s_a; const bool aOk = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &a)) && a.isActive;
       get.action = s_b; const bool bOk = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &b)) && b.isActive;
       get.action = s_quit; get.subactionPath = s_left; in.quitHeld = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &quit)) && quit.isActive && quit.currentState;
+      {
+        XrActionStateVector2f stick{ XR_TYPE_ACTION_STATE_VECTOR2F }; XrActionStateFloat cross{ XR_TYPE_ACTION_STATE_FLOAT }, square{ XR_TYPE_ACTION_STATE_FLOAT };
+        XrActionStateBoolean circle{ XR_TYPE_ACTION_STATE_BOOLEAN }, start{ XR_TYPE_ACTION_STATE_BOOLEAN };
+        get.action = s_padStick; if (XR_SUCCEEDED(p_xrGetActionStateVector2f(s_session, &get, &stick)) && stick.isActive) { in.padX = stick.currentState.x; in.padY = stick.currentState.y; }
+        get.action = s_padCross; in.padCross = XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &cross)) && cross.isActive && cross.currentState > .55f;
+        get.action = s_padSquare; in.padSquare = XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &square)) && square.isActive && square.currentState > .6f;
+        get.action = s_padCircle; in.padCircle = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &circle)) && circle.isActive && circle.currentState;
+        get.action = s_padStart; in.padStart = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &start)) && start.isActive && start.currentState;
+      }
       in.active = aimOk || aOk || bOk; in.a = aOk && a.currentState; in.b = bOk && b.currentState; in.grip = sqOk && sq.currentState > .6f;
       triggerValue = trigOk ? trig.currentState : 0.f;
       XrSpaceLocation pa{ XR_TYPE_SPACE_LOCATION }, pg{ XR_TYPE_SPACE_LOCATION };

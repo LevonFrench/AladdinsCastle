@@ -94,6 +94,9 @@ struct Gun {
   bool offScreen = true, trigger = false, a = false, b = false, start = false, select = false;
 } g_gun;
 unsigned g_gunPort = 0;
+// The other port holds a standard pad, played with the left controller (or the offline script).
+struct Pad { bool up = false, down = false, left = false, right = false, cross = false, circle = false, square = false, triangle = false, start = false, select = false; } g_pad;
+bool g_padOn = true;
 std::uint64_t g_gunReads = 0;
 
 void CoreLog(retro_log_level level, const char *fmt, ...)
@@ -197,7 +200,22 @@ void InputPoll() {}
 
 std::int16_t InputState(unsigned port, unsigned device, unsigned, unsigned id)
 {
-  if (port != g_gunPort) return 0;
+  if (port != g_gunPort) {
+    if (!g_padOn || port > 1 || (device & RETRO_DEVICE_MASK) != RETRO_DEVICE_JOYPAD) return 0;
+    switch (id) {
+    case RETRO_DEVICE_ID_JOYPAD_UP: return g_pad.up;
+    case RETRO_DEVICE_ID_JOYPAD_DOWN: return g_pad.down;
+    case RETRO_DEVICE_ID_JOYPAD_LEFT: return g_pad.left;
+    case RETRO_DEVICE_ID_JOYPAD_RIGHT: return g_pad.right;
+    case RETRO_DEVICE_ID_JOYPAD_B: return g_pad.cross;      // libretro B is the PlayStation Cross
+    case RETRO_DEVICE_ID_JOYPAD_A: return g_pad.circle;
+    case RETRO_DEVICE_ID_JOYPAD_Y: return g_pad.square;
+    case RETRO_DEVICE_ID_JOYPAD_X: return g_pad.triangle;
+    case RETRO_DEVICE_ID_JOYPAD_START: return g_pad.start;
+    case RETRO_DEVICE_ID_JOYPAD_SELECT: return g_pad.select;
+    default: return 0;
+    }
+  }
   const unsigned base = device & RETRO_DEVICE_MASK;
   auto axis = [](float t) { return (std::int16_t)std::lround(std::clamp(t * 2.f - 1.f, -1.f, 1.f) * 32767.f); };
   if (base == RETRO_DEVICE_LIGHTGUN) {
@@ -270,6 +288,7 @@ struct ScriptEvent { unsigned frame; std::string cmd; std::vector<std::string> a
 struct Script {
   std::vector<ScriptEvent> events; std::size_t next = 0;
   unsigned holdTrigger = 0, holdA = 0, holdB = 0, holdStart = 0, holdSelect = 0, holdOff = 0;
+  std::map<std::string, unsigned> pad;   // pad-up, pad-cross, pad-start ... frames left
   bool load(const std::string &path)
   {
     std::ifstream in(path); if (!in) return false;
@@ -366,6 +385,7 @@ int main(int argc, char **argv)
     else if (a == "--log") logPath = next();
     else if (a == "--headless") headless = true;
     else if (a == "--no-xr") noXr = true;
+    else if (a == "--no-pad") g_padOn = false;
     else if (a == "--mute") mute = true;
     else if (a == "--seconds") seconds = (unsigned)std::strtoul(next().c_str(), nullptr, 10);
     else if (a == "--theatre-proof") theatreProof = next();
@@ -414,6 +434,7 @@ int main(int argc, char **argv)
     if (d.find(gunName) != std::string::npos) { device = c.id; break; }
   }
   g_core.set_controller_port_device(g_gunPort, device);
+  if (g_padOn && gunName != "lightgun") g_core.set_controller_port_device(1 - g_gunPort, RETRO_DEVICE_JOYPAD);
   Log("Port %u: %s (device 0x%X)", g_gunPort + 1, gunName.c_str(), device);
 
   {
@@ -466,6 +487,9 @@ int main(int argc, char **argv)
       g.trigger = controller.trigger; g.a = controller.a || controller.grip; g.b = controller.b;
       g.start = controller.a;   // the Justifier's side button; arcade Start
       g.select = gunName == "lightgun" && controller.b;   // arcade Coin
+      Pad p; p.left = controller.padX < -.5f; p.right = controller.padX > .5f; p.up = controller.padY > .5f; p.down = controller.padY < -.5f;
+      p.cross = controller.padCross; p.circle = controller.padCircle; p.square = controller.padSquare; p.start = controller.padStart;
+      g_pad = p;
       g_gun = g;
     } else {
       if (frames && frame >= frames) break;
@@ -479,6 +503,7 @@ int main(int argc, char **argv)
         else if (e.cmd == "start") timeline.holdStart = n;
         else if (e.cmd == "select") timeline.holdSelect = n;
         else if (e.cmd == "offscreen") timeline.holdOff = n;
+        else if (e.cmd.rfind("pad-", 0) == 0) timeline.pad[e.cmd.substr(4)] = n;
         else if (e.cmd == "reload") { timeline.holdOff = 8; timeline.holdTrigger = 6; }
         else if (e.cmd == "snap" && !snapshots.empty()) WriteSnapshot(snapshots, Arg(e.args, 0, ("f" + std::to_string(frame)).c_str()));
         else if (e.cmd == "save") SaveSram(true);
@@ -487,6 +512,11 @@ int main(int argc, char **argv)
       }
       g_gun.trigger = timeline.holdTrigger > 0; g_gun.a = timeline.holdA > 0; g_gun.b = timeline.holdB > 0;
       g_gun.start = timeline.holdStart > 0; g_gun.select = timeline.holdSelect > 0;
+      auto held = [&](const char *k) { auto it = timeline.pad.find(k); return it != timeline.pad.end() && it->second > 0; };
+      g_pad.up = held("up"); g_pad.down = held("down"); g_pad.left = held("left"); g_pad.right = held("right");
+      g_pad.cross = held("cross"); g_pad.circle = held("circle"); g_pad.square = held("square"); g_pad.triangle = held("triangle");
+      g_pad.start = held("start"); g_pad.select = held("select");
+      for (auto &kv : timeline.pad) if (kv.second) --kv.second;
       const bool off = timeline.holdOff > 0;
       static bool aimed = false; aimed = aimed || !g_gun.offScreen;
       g_gun.offScreen = off || !aimed;

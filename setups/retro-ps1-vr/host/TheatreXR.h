@@ -19,6 +19,10 @@ struct Config {
 struct Input {
   float u = .5f, v = .5f;
   bool active = false, offScreen = true, trigger = false, a = false, b = false, grip = false, quitHeld = false;
+  // Left controller as a PlayStation pad: stick = d-pad, trigger = Cross, X (Index: A) = Circle,
+  // grip = Square, menu (Index: stick click) = Start.
+  float padX = 0, padY = 0;
+  bool padCross = false, padCircle = false, padSquare = false, padStart = false;
 };
 // All picture and graphics calls run on the thread whose OpenGL context is current
 // in `owner` (the emulator thread). The headset runs on its own thread.

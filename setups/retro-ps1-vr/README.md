@@ -23,6 +23,9 @@ It brings no emulator, BIOS or game. You point it at your own:
 | Right B | GunCon B (arcade: Coin) |
 | Right grip | GunCon A as well: the pedal. In Time Crisis hold it to step out and shoot, let go to take cover and reload |
 | Hold left Y for 3 s (Index: left B) | Quit, saving the memory card |
+| Left stick | Pad d-pad (a standard pad on the other port, for menus and pad-only modes) |
+| Left trigger, left X (Index: left A), left grip | Pad Cross, Circle, Square |
+| Left menu button (Index: left stick click) | Pad Start |
 | Home key | Put the screen in front of you again |
 
 Each trigger pull gives a short vibration and a small visual kick of the gun.
@@ -92,6 +95,7 @@ The script has one event per line, timed in emulated frames:
 
 ```
 600 aim 0.5 0.5     # gun at the screen centre (0..1 from the top left)
+1500 pad-start 6    # the pad on the other port: pad-up/down/left/right/cross/circle/square/triangle/start/select
 720 trigger 4       # hold the trigger 4 frames
 900 a 6             # also: b, start, select, offscreen N, reload
 1200 snap title     # save the picture as title.png
