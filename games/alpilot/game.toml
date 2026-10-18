@@ -1,0 +1,41 @@
+id           = "alpilot"
+title        = "Airline Pilots"
+alt_titles   = ["Airline Pilots (World, Rev B)"]
+genre        = "racing"              # same convention as sstrkfgt: racing / flying for flight games
+subgenre     = ["flying"]
+year         = 1999
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-naomi"
+graphics     = "polygon-3d"
+players      = 1
+
+[controls]
+type   = "yoke"
+extras = ["rudder-pedal", "thrust-levers", "landing-gear", "flap", "view-change"]
+
+[[media]]
+kind = "mame-romset"
+set  = "alpilot"
+note = "Airline Pilots (World, Rev B); the Japan set alpilotj is a clone"
+
+[[media]]
+kind = "bios"
+set  = "airlbios"
+note = "Airline Pilots deluxe / multiboard BIOS named by the MAME driver"
+
+[routes]
+mame = "not-working"
+vr   = { best = "none" }
+
+[hub]
+pill   = "AIRLINEPIL"
+colour = "#0d1c24"
+accent = "#6ad0f0"
+blurb  = "Fly an airliner with a yoke, rudder pedals and thrust levers."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]
+confidence = "medium"
+checked    = "2026-10-18"
