@@ -42,6 +42,7 @@ QString controls(const Game &game){
  QString text=QString("Your right controller is the %1: trigger fires, point off the screen to reload, A and B are its buttons").arg(QString::fromLatin1(game.gun));
  text+=QString::fromLatin1(game.gun)=="GunCon"?QString("; the grip is the pedal (hold it to step out and shoot where a game has cover)."):QString(".");
  if(QString::fromLatin1(game.gun)=="arcade gun")text="Your right controller is the gun: trigger fires, B inserts a coin, A starts.";
+ if(QString::fromLatin1(game.gun)=="Justifier")text="Your right controller is the Justifier: trigger fires, point off the screen to reload, A is its Start button (menus, and it begins each mission).";
  const QString id=QString::fromLatin1(game.id);
  if(game.sprites)return text+" On a big theatre screen.";
  // Real 3D runs through the stereo core, whose light gun works on North American and Japanese discs. Die Hard Trilogy

@@ -30,7 +30,7 @@ note = "Your own PS2 BIOS dump"
 
 [routes]
 pcsx2 = "playable" # Official pinned PCSX2 GameIndex: compatible rating 5
-vr    = { best = "none" }
+vr    = { best = "true3d", via = "pcsx2-vr stereo with the GunCon 2 (setups/pcsx2-vr): screen and INSIDE profiles" }
 
 [hub]
 pill   = "TC2-PS2"
