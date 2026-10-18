@@ -1,0 +1,67 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "funcon"
+name      = "The Funcon"
+family    = "console"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 1                   # build order: 1 first
+model     = "assets/guns/funcon.glb"
+source    = "assets/guns/src/funcon.py"
+resembles = "Namco GunCon / G-Con 45 for PlayStation (1997) in proportion, with an arcade-style blowback slide; our own design, no logos"
+shape     = "Deep box barrel with a round lens in a flat muzzle, long grip angled back, large trigger guard, one oval button on each side below the barrel, cable from the grip base; the top slide kicks back on each shot."
+length_mm = 246                # design target for our model, not a measurement of the real item
+features  = ["laser", "recoil"]
+notes     = "A and B are the GunCon's two side buttons; the slide is visual only and never moves the aim."
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "black"
+p1      = "black"
+p2      = "orange"
+black = { body = "#1b1b1e", accent = "#8a8d93" }
+grey = { body = "#8f9298", accent = "#2a2a2e" }
+orange = { body = "#f07a1a", accent = "#2a2a2e" }
+gold = { body = "#e8b830", accent = "#8a6a14" }
+
+[[button]]
+id    = "a"
+label = "A"
+node  = "button_a"
+
+[[button]]
+id    = "b"
+label = "B"
+node  = "button_b"
+
+# Motion ranges use metres (slide) or radians (rotate). Visual recoil never moves the aim anchors.
+
+[motion.trigger]
+node = "pivot_trigger"
+kind = "rotate"
+axis = [-1,0,0]
+range = [0,0.35]
+drive = "trigger"
+lod_nodes = ["pivot_trigger", "pivot_trigger_lod1"]
+
+[motion.recoil]
+node = "slide_recoil"
+kind = "slide"
+axis = [0,0,1]
+range = [0,0.015]
+drive = "recoil"
+lod_nodes = ["slide_recoil", "slide_recoil_lod1"]
+duration_ms = 45
+
+[motion.button-a]
+node = "button_a"
+kind = "slide"
+axis = [1,0,0]
+range = [0,0.002]
+drive = "button:a"
+lod_nodes = ["button_a", "button_a_lod1"]
+
+[motion.button-b]
+node = "button_b"
+kind = "slide"
+axis = [-1,0,0]
+range = [0,0.002]
+drive = "button:b"
+lod_nodes = ["button_b", "button_b_lod1"]

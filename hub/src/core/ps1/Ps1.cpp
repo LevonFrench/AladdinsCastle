@@ -46,8 +46,9 @@ QString controls(const Game &game){
  const QString id=QString::fromLatin1(game.id);
  if(game.sprites)return text+" On a big theatre screen.";
  // Real 3D runs through the stereo core, whose light gun works on North American and Japanese discs. Die Hard Trilogy
- // and Horned Owl read the Justifier (not in that core); Maximum Force has no 3D depth; the European discs keep the proven theatre core.
- static const QStringList theatreOnly{"die-hard-trilogy","project-horned-owl","horned-owl-japan","maximum-force","extreme-ghostbusters","rescue-shot"};
+ // and Horned Owl read the Justifier (not in that core); Oh! Bakyuuun reads the GunCon through the light-pen
+ // interrupt, which that core lacks; Maximum Force has no 3D depth; the European discs keep the proven theatre core.
+ static const QStringList theatreOnly{"die-hard-trilogy","project-horned-owl","horned-owl-japan","ghoul-panic-japan","maximum-force","extreme-ghostbusters","rescue-shot"};
  if(theatreOnly.contains(id))return text+" On a big theatre screen.";
  return text+" In real 3D on a big screen.";
 }

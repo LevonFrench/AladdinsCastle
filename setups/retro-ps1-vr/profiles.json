@@ -32,8 +32,9 @@
     "gun": "guncon",
     "port": 1,
     "graphics": "mixed",
-    "view": "true3d",
-    "notes": "Real 3D on the Japanese release (Oh! Bakyuuun); the European release stays on the theatre core because the stereo core's GunCon calibration stalls on PAL discs."
+    "view": "theatre",
+    "notes": "Both releases (Japanese: Oh! Bakyuuun) read the GunCon through the light-pen interrupt, which the stereo core does not emulate, so they play on the theatre core.",
+    "planned": "true3d"
   },
   "ps1-time-crisis": {
     "gun": "guncon",
