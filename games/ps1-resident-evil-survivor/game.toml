@@ -28,7 +28,7 @@ note = "Your own PlayStation BIOS dump"
 
 [routes]
 duckstation = "unknown"
-vr    = { best = "theatre", via = "acvr-ps1 theatre (setups/retro-ps1-vr)", planned = "true3d-planned" }
+vr    = { best = "true3d", via = "acvr-ps1 with the SwanStation stereo patch (setups/retro-ps1-vr)" }
 
 [hub]
 pill   = "RE-SURV"

@@ -35,7 +35,11 @@ QString controls(const Game &game){
  QString text=QString("Your right controller is the %1: trigger fires, point off the screen to reload, A and B are its buttons").arg(QString::fromLatin1(game.gun));
  text+=QString::fromLatin1(game.gun)=="GunCon"?QString("; the grip is the pedal (hold it to step out and shoot where a game has cover)."):QString(".");
  if(QString::fromLatin1(game.gun)=="arcade gun")text="Your right controller is the gun: trigger fires, B inserts a coin, A starts.";
- return text+(game.sprites?" On a big theatre screen.":" On a big theatre screen; real 3D is planned.");
+ const QString id=QString::fromLatin1(game.id);
+ if(game.sprites)return text+" On a big theatre screen.";
+ // Die Hard Trilogy reads the Justifier, which the stereo core lacks; the Maximum Force disc image does not load in it.
+ if(id=="die-hard-trilogy"||id=="maximum-force")return text+" On a big theatre screen.";
+ return text+" In real 3D on a big screen.";
 }
 }
 QVariantList games(){
