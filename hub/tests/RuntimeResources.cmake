@@ -11,8 +11,12 @@ string(RANDOM LENGTH 10 ALPHABET 0123456789abcdef run)
 set(root "${TEST_ROOT}/${run}")
 set(fixture "${root}/source")
 file(MAKE_DIRECTORY "${fixture}/resources")
+# Every input the resource block configures must exist in the fixture.
 file(COPY "${HUB_SOURCE}/resources/dashboard.vrmanifest.in"
-    "${HUB_SOURCE}/resources/overlay-thumbnail.png" DESTINATION "${fixture}/resources")
+    "${HUB_SOURCE}/resources/overlay-thumbnail.png"
+    "${HUB_SOURCE}/resources/hub-actions.json"
+    "${HUB_SOURCE}/resources/hub-bindings-oculus_touch.json"
+    "${HUB_SOURCE}/resources/hub-bindings-knuckles.json" DESTINATION "${fixture}/resources")
 file(WRITE "${fixture}/main.cpp" "int main() { return 0; }\n")
 file(WRITE "${fixture}/CMakeLists.txt" "cmake_minimum_required(VERSION 3.28)\nproject(ResourceFixture LANGUAGES CXX)\nset(CMAKE_RUNTIME_OUTPUT_DIRECTORY \"\${CMAKE_BINARY_DIR}/bin\")\nset(AC_PRODUCT_short_id synthetic)\nset(AC_PRODUCT_program_name synthetic-program)\nset(AC_PRODUCT_display_name \"Synthetic Product\")\nset(AC_PRODUCT_overlay_key org.synthetic.product)\nadd_executable(aladdinscastle-hub main.cpp)\nset_target_properties(aladdinscastle-hub PROPERTIES OUTPUT_NAME synthetic-program)\n${resource_commands}\n")
 # The fixture exercises layout, not debug symbols. Avoid an unrelated local
