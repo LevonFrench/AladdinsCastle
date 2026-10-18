@@ -247,24 +247,27 @@ class UiTest:public QObject {
   const auto cleanup=qScopeGuard([&]{settings->set("setupKinds",QVariantMap{});settings->set("setupSystems",QVariantMap{});settings->set("setupDone",false);root->setProperty("view",previousView);});
   const auto centre=[](QQuickItem *item){return item->mapToScene(QPointF(item->width()/2,item->height()/2)).toPoint();};
   const auto one=[&](const QString &name){const auto items=namedItems(window->contentItem(),name);return items.size()==1?items.first():nullptr;};
+  // A click on an item missing from the page, or on it twice, fails the test with its name instead of crashing it.
+  const auto press=[&](const QString &name){const auto item=one(name);if(!item){qWarning().noquote()<<name<<"is not on the page exactly once";return false;}
+   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(item));return true;};
   root->setProperty("view","Setup");QVERIFY(softwareFrame(window));
   QTRY_VERIFY(one("setupWelcome"));QVERIFY(one("setupWelcome")->property("text").toString().contains(ui->appName()));
   // Five pages, reached with Next; the choices are saved as they are made.
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QVERIFY(press("setupNext"));QVERIFY(softwareFrame(window));
+  QVERIFY(press("setupNext"));QVERIFY(softwareFrame(window));
   QTRY_VERIFY(one("setupKind-arcade"));QVERIFY(!ui->setupKinds()["arcade"].toBool());
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupKind-arcade")));
+  QVERIFY(press("setupKind-arcade"));
   QTRY_VERIFY(ui->setupKinds()["arcade"].toBool());
   ac::UiSettings saved(user.path());QVERIFY(saved.get("setupKinds").toMap()["arcade"].toBool());
-  QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupSystem-model2")));
+  QVERIFY(softwareFrame(window));QVERIFY(press("setupSystem-model2"));
   QTRY_VERIFY(!ui->setupSystems()[1].toMap()["chosen"].toBool());
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QVERIFY(press("setupNext"));QVERIFY(softwareFrame(window));
   QTRY_VERIFY(one("setupFolder-model3"));QVERIFY(!one("setupFolder-model2"));
   QVERIFY(one("setupFolder-model3")->property("text").toString().contains("not chosen"));
   QVERIFY(!settings->get("setupDone",false).toBool());
   // Leaving the folders page asks for one read of the ticked systems, then shows what came back.
   QSignalSpy scans(ui.get(),SIGNAL(setupScanRequested(QStringList)));
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QVERIFY(press("setupNext"));QVERIFY(softwareFrame(window));
   QCOMPARE(scans.size(),1);QCOMPARE(scans[0][0].toStringList(),(QStringList{"model3","system22"}));
   QTRY_VERIFY(one("setupProgress"));QVERIFY(one("setupProgress")->isVisible());QVERIFY(!one("setupResult-model3"));
   const QVariantMap entry{{"id","scud"},{"title","Synthetic Racer"},{"detail","Checked."},{"reason","Two files differ."},{"expected","synthetic.zip"}};
@@ -272,13 +275,13 @@ class UiTest:public QObject {
   QVERIFY(softwareFrame(window));QTRY_VERIFY(one("setupResult-model3"));QVERIFY(!one("setupProgress")->isVisible());
   // Running a found emulator for its list is asked once; "No" is kept, and the question goes.
   QVERIFY(one("setupQueryEmulators")&&one("setupQueryEmulators")->isVisible());
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupQueryNo")));
+  QVERIFY(press("setupQueryNo"));
   QTRY_VERIFY(settings->values().contains("queryEmulators"));QVERIFY(!settings->get("queryEmulators").toBool());
   QVERIFY(softwareFrame(window));QVERIFY(!one("setupQueryEmulators")->isVisible());QCOMPARE(scans.size(),1);
   settings->remove("queryEmulators");
   // The same finding greys the game on its own tab, with the reason.
   QVERIFY(ui->model3Games()[0].toMap()["problem"].toString().isEmpty()==false);
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));
+  QVERIFY(press("setupNext"));
   QTRY_COMPARE(root->property("view").toString(),QString("List"));QVERIFY(settings->get("setupDone").toBool());
   ui->setSetupReport({});
  }
