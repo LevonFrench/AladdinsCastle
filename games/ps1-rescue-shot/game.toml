@@ -28,7 +28,7 @@ note = "Your own PlayStation BIOS dump"
 
 [routes]
 duckstation = "unknown"
-vr    = { best = "none" }
+vr    = { best = "true3d", via = "acvr-ps1 with the SwanStation stereo patch (setups/retro-ps1-vr) (Japanese release; the European one plays on the theatre screen)" }
 
 [hub]
 pill   = "RSHOT"
@@ -40,4 +40,4 @@ badges = []
 [meta]
 sources    = ["https://en.wikipedia.org/wiki/Rescue_Shot", "https://en.wikipedia.org/wiki/GunCon"]
 confidence = "low"
-checked    = "2026-10-08"
+checked    = "2026-10-18"

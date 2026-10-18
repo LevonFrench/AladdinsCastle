@@ -157,6 +157,7 @@ private:
     void startPinballArt(const QVariantMap &scan);
     QThreadPool artPool_;std::shared_ptr<std::atomic_bool> artCancel_;
     bool askPs2ToQuit();
+    bool askPs1ToQuit();
     // Model 2 quits cleanly through a Hub-owned stop file: the viewer asks MAME to exit, which saves its
     // NVRAM and settings. Stop forces both programs only if nothing has ended well after that.
     bool askModel2ToQuit(bool forceLater);
@@ -186,5 +187,6 @@ private:
     void scanLocalArt();
     QStringList localArtFolders_;bool localArtScanned_=false;std::shared_ptr<std::atomic_bool> localArtCancel_;
     QString model2StopFile_;quint64 model2Session_=0;
+    QString ps1StopFile_;
 };
 }

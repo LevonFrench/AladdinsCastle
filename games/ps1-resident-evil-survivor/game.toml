@@ -28,7 +28,7 @@ note = "Your own PlayStation BIOS dump"
 
 [routes]
 duckstation = "unknown"
-vr    = { best = "none" }
+vr    = { best = "true3d", via = "acvr-ps1 with the SwanStation stereo patch (setups/retro-ps1-vr)" }
 
 [hub]
 pill   = "RE-SURV"
@@ -40,4 +40,4 @@ badges = []
 [meta]
 sources    = ["https://en.wikipedia.org/wiki/Resident_Evil_Survivor", "https://en.wikipedia.org/wiki/GunCon"]
 confidence = "high"
-checked    = "2026-10-08"
+checked    = "2026-10-18"

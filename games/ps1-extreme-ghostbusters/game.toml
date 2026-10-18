@@ -1,0 +1,43 @@
+id           = "ps1-extreme-ghostbusters"
+title        = "Extreme Ghostbusters: The Ultimate Invasion"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 2004
+manufacturer = "other"
+developer    = "LSP"
+hardware     = "sony-ps1"
+graphics     = "polygon-3d"
+players      = 1
+series       = "Ghostbusters"
+
+[controls]
+type   = "gun"
+guns   = 1
+gun    = "Namco GunCon (G-Con 45)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (European release)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr          = { best = "theatre", via = "acvr-ps1 theatre (setups/retro-ps1-vr)", planned = "true3d-planned" }
+
+[hub]
+pill   = "XGB"
+colour = "#0a140a"
+accent = "#7cff4a"
+blurb  = "A late PAL-only rail shooter based on the Extreme Ghostbusters cartoon."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/GunCon"]
+confidence = "low"
+checked    = "2026-10-18"

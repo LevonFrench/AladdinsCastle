@@ -101,7 +101,11 @@ label = "Namco System 23 / Super System 23"
 kind = "arcade"
 family = "namco"
 [namco-system-246]
-label = "Namco System 246 / 256 (PS2-based)"
+label = "Namco System 246 (PS2-based)"
+kind = "arcade"
+family = "namco"
+[namco-system-256]
+label = "Namco System 256 (faster PS2-based)"
 kind = "arcade"
 family = "namco"
 [namco-system-357]

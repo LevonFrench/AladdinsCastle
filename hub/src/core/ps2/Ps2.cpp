@@ -21,6 +21,7 @@ const QList<Game> &table(){
   {"xgra","XGRA",2003,false,false,{},{"xgra"}},
   {"time-crisis-3","Time Crisis 3",2003,true,false,{"SCES-51844"},{"timecrisis3","timecrisisiii"}},
   {"crisis-zone","Crisis Zone",2004,true,false,{"SCES-52530"},{"crisiszone"}},
+  {"time-crisis-2","Time Crisis II",2001,true,false,{"SLUS-20219"},{"timecrisisii","timecrisis2"}},
   {"vampire-night","Vampire Night",2001,true,false,{},{"vampirenight"}},
   {"ninja-assault","Ninja Assault",2002,true,false,{"SLUS-20492"},{"ninjaassault"}},
   {"outrun-2","OutRun 2",2006,false,false,{"SLPM-66628"},{"outrun2"}},

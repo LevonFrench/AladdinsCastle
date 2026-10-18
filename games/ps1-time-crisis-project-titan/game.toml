@@ -29,7 +29,7 @@ note = "Your own PlayStation BIOS dump"
 
 [routes]
 duckstation = "unknown"
-vr    = { best = "none" }
+vr    = { best = "true3d", via = "acvr-ps1 with the SwanStation stereo patch (setups/retro-ps1-vr)" }
 
 [hub]
 pill   = "TC-TITAN"
@@ -41,4 +41,4 @@ badges = []
 [meta]
 sources    = ["https://en.wikipedia.org/wiki/Time_Crisis:_Project_Titan", "https://en.wikipedia.org/wiki/GunCon"]
 confidence = "medium"
-checked    = "2026-10-08"
+checked    = "2026-10-18"
