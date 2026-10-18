@@ -313,13 +313,25 @@ class UiTest:public QObject {
   QTRY_VERIFY(one("model3Grid"));QCOMPARE(one("model3Grid")->property("count").toInt(),int(ui->model3Games().size()+ui->otherGames().size()+ui->readyCatalogGames().size()));
   for(const auto &hidden:{"filterBar","libraryButton","orderButton","searchField"})QVERIFY2(!one(hidden)->isVisible(),hidden);
   QVERIFY(one("model3Tab")->isVisible());QVERIFY(one("pinballTab")->isVisible());QVERIFY(one("helpButton")->isVisible());
-  // Pinball lists only tables that can be started; the excluded and not-ready ones stay hidden.
+  // Pinball lists every table; Ready to play and VR-ready only narrow it, and a tile says why a table cannot play.
   QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Pinball"),Q_ARG(QVariant,QVariant())));
   {QVariantList tables;const QStringList states{"ready","needs no ROM","ROM missing","unknown"};
    for(int i=0;i<8;++i)tables<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"vrReady",i<6},{"romState",states[i%4]}};
    QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,(QVariantMap{{"total",8},{"vrReady",6},{"tables",tables}}))));}
-  QTRY_VERIFY(one("pinballGrid"));QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),4); // 0, 1, 4 and 5: VR-ready and startable.
-  QVERIFY(!one("pinballExcluded")->isVisible());QVERIFY(!one("pinballReady")->isVisible());QCOMPARE(one("pinballCount")->property("text").toString(),QString("4 tables ready to play"));
+  QTRY_VERIFY(one("pinballGrid"));QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),8);
+  const QString dot=QString("  ")+QChar(0xb7)+"  ";
+  QCOMPARE(one("pinballCount")->property("text").toString(),"8 tables"+dot+"4 ready to play"+dot+"4 ready in the headset");
+  QVERIFY(one("pinballReady")->isVisible());QVERIFY(one("pinballVrOnly")->isVisible());
+  one("pinballReady")->setProperty("checked",true);QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),4); // 0, 1, 4 and 5: startable.
+  one("pinballReady")->setProperty("checked",false);one("pinballVrOnly")->setProperty("checked",true);QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),6);
+  QCOMPARE(one("pinballCount")->property("text").toString(),"6 of 8 tables"+dot+"4 ready to play"+dot+"4 ready in the headset");
+  one("pinballVrOnly")->setProperty("checked",false);
+  {QObject *pinballPage=one("pinballGrid");while(pinballPage&&pinballPage->metaObject()->indexOfMethod("tileOf(QVariant)")<0)pinballPage=pinballPage->parent();QVERIFY(pinballPage);
+   QVariantMap desktop{{"id","9"},{"title","Fixture 9"},{"vrReady",false},{"romState","ready"}},broken{{"id","10"},{"title","Fixture 10"},{"error","unreadable"},{"romState","unknown"}},
+    locked{{"id","11"},{"title","Fixture 11"},{"note","Its script is locked by its author."},{"romState","unknown"}};
+   QStringList badges;QVariant tile;auto list=ui->pinballData()["tables"].toList();list<<desktop<<broken<<locked;
+   for(const auto &row:list){QVERIFY(QMetaObject::invokeMethod(pinballPage,"tileOf",Q_RETURN_ARG(QVariant,tile),Q_ARG(QVariant,row)));badges<<tile.toMap()["badge"].toString();}
+   QCOMPARE(badges,(QStringList{"","","ROM missing","ROM not checked","","","ROM missing","ROM not checked","Desktop only","Can't read","Locked script"}));}
   QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Model3"),Q_ARG(QVariant,QVariant())));QVERIFY(softwareFrame(window));
   // The help menu: closed by its Close button, by Escape and by a click outside it; only items that work are shown.
   const auto help=popup("helpPanel");QVERIFY(help);
@@ -433,7 +445,7 @@ class UiTest:public QObject {
   QVariantMap data{{"total",25},{"vrReady",24},{"tables",rows}};
   QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,data)));
   QTRY_VERIFY(!namedItems(window->contentItem(),"pinballGrid").isEmpty());
-  auto grid=namedItems(window->contentItem(),"pinballGrid").first();QTRY_COMPARE(grid->property("count").toInt(),24);
+  auto grid=namedItems(window->contentItem(),"pinballGrid").first();QTRY_COMPARE(grid->property("count").toInt(),25);
   auto tiles=namedItems(window->contentItem(),"pinballTile");QVERIFY(!tiles.isEmpty());
   auto tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,24));
   QTest::mousePress(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTest::mouseMove(window,p.toPoint()-QPoint(0,140),80);QTest::mouseRelease(window,Qt::LeftButton,Qt::NoModifier,p.toPoint()-QPoint(0,140));

@@ -70,6 +70,16 @@ QByteArray syntheticTable(){
 class IntegrationTest:public QObject{
  Q_OBJECT
 private slots:
+ // A table whose author locked its script is listed and can start: what it needs is unknown, and said.
+ void lockedPinballScriptIsANoteNotAnError(){
+    QTemporaryDir t;auto cfb=syntheticTable();cfb.replace(1028,4,"SECB");
+    ac::install::atomicWrite(t.filePath("Locked (Synthetic 1999).vpx"),cfb);ac::install::atomicWrite(t.filePath("Open (Synthetic 1999).vpx"),syntheticTable());
+    const auto tables=ac::pinball::scan(t.path())["tables"].toList();QCOMPARE(tables.size(),2);
+    const auto locked=tables[0].toMap(),open=tables[1].toMap();
+    QVERIFY2(!locked.contains("error"),qPrintable(locked.value("error").toString()));QVERIFY(locked["note"].toString().contains("locked"));
+    QCOMPARE(locked["romState"].toString(),QString("unknown"));QVERIFY(!locked["vrReady"].toBool());QCOMPARE(locked["year"].toInt(),1999);
+    QVERIFY(!open.contains("note"));QVERIFY(!open.contains("error"));
+ }
  void pinballLaunchUsesRetainedTableAndRecordsRecent(){
     QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
     // VPX's own settings are looked for in a folder of the test's, never the PC's.
