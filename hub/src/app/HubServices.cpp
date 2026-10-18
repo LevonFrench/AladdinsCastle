@@ -490,7 +490,9 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
 #ifdef Q_OS_WIN
         ui_->launchOtherQueued(id,view,title,hint,closeNote);
 #else
-        ui_->launchOtherQueued(id,view,title,hint,"Clean window close is not supported on this platform yet.");
+        // Model 2 and PS2 are asked to quit through a stop file, never a window, so their Exit works here too.
+        const bool stopFile=id.startsWith("model2-")||id.startsWith("ps2-");
+        ui_->launchOtherQueued(id,view,title,hint,stopFile?closeNote:"Clean window close is not supported on this platform yet.");
 #endif
         applyDiagnosticChild(request);
         request.pinSteamVrOpenXr=!(id.startsWith("dreamcast-")&&view=="monitor"); // Every one but a disc on the monitor is in the headset.
