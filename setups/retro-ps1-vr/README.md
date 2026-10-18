@@ -19,22 +19,40 @@ It brings no emulator, BIOS or game. You point it at your own:
 |---|---|
 | Right controller pointed at the screen | Gun aim |
 | Right trigger | Trigger. Pulled while pointing off the screen: reload |
-| Right A | GunCon A (Justifier: its start button) |
-| Right B | GunCon B |
+| Right A | GunCon A (Justifier: its start button; arcade: Start) |
+| Right B | GunCon B (arcade: Coin) |
+| Right grip | GunCon A as well: the pedal, so Time Crisis takes cover with it |
 | Hold left Y for 3 s (Index: left B) | Quit, saving the memory card |
 | Home key | Put the screen in front of you again |
 
-Each trigger pull gives a short vibration. An orange dot drawn into the
-picture shows where the gun points. Escape on the PC also quits cleanly. A
-launcher or the Hub can quit it by creating the file named in
-`ACVR_PS1_STOP_FILE`.
+Each trigger pull gives a short vibration and a small visual kick of the gun.
+Escape on the PC also quits cleanly. A launcher or the Hub can quit it by
+creating the file named in `ACVR_PS1_STOP_FILE`.
 
-## Theatre screen
+## Theatre
 
-The picture is scaled up by a whole number with sharp pixels to about 1440
-lines before the headset gets it, so sprites stay crisp. The screen is
-`ACVR_PS1_SCREEN_W` metres wide (default 2.4) at `ACVR_XR_DISTANCE` metres
-(default 2.5), in front of where you look when the first picture arrives.
+Everything you see is drawn into one OpenXR projection layer per eye: the
+game picture on a screen curved around you, the gun model in your hand and
+an orange aim dot where the gun's ray meets the screen, all depth-tested, so
+the gun is always in front of the picture. (SteamVR draws quad layers over
+projection layers whatever their order, which hid the gun behind the picture
+in the PS2 screen mode.)
+
+The picture is sampled "sharp bilinear": every game pixel stays a crisp
+square and only its edges are blended, over one headset pixel. When the
+picture is smaller than the headset pixels it uses mipmaps instead.
+
+| Setting | Default | |
+|---|---|---|
+| `ACVR_XR_DISTANCE` | 2.5 | metres to the screen |
+| `ACVR_PS1_SCREEN_W` | 2.4 | screen width in metres |
+| `ACVR_PS1_CURVE` | 1 | 1 curves around you, 0 is flat, between is gentler |
+| `ACVR_PS1_LIFT` | 0 | screen centre height above your eyes, metres |
+| `ACVR_PS1_CRT` | 0 | 1 adds scanlines |
+| `ACVR_PS1_GUN_MODEL`, `ACVR_PS1_GUN_META` | none | the gun's `.glb` (`assets/guns`) and `.toml` (`data/guns`) |
+
+The screen is placed level, straight ahead of where you look when the first
+picture arrives; Home places it again.
 
 ## Saves
 
@@ -48,9 +66,9 @@ changed and again on quit, always through a temporary file and a rename.
 powershell -File build-host.ps1 -OpenXRInclude <folder with openxr\openxr.h> -OutputDirectory <private folder>
 ```
 
-It needs MSYS2 MINGW64 `g++`. The OpenXR presenter is shared with the
-Model 2 viewer (`..\mame-model2-vr\presenter`). Keep `openxr_loader.dll`
-beside the program. Without a VR runtime the program still runs: the
+It needs MSYS2 MINGW64 `g++`. It borrows the hidden-window and bounded-wait
+helpers of the Model 2 viewer (`..\mame-model2-vr\presenter`). Keep
+`openxr_loader.dll` beside the program. Without a VR runtime the program still runs: the
 presenter stays off.
 
 ## Run
@@ -80,9 +98,11 @@ The script has one event per line, timed in emulated frames:
 ```
 
 In these runs the core draws its own crosshair, which shows where the game
-believes the gun points. `--no-xr --mute --test-aim U V --snapshots <folder>`
-runs at the game's own speed without a VR runtime and, on quit, reads back
-from the GPU the exact picture the headset would get, aim dot included.
+believes the gun points. Add `--theatre-proof <prefix> --test-aim U V` and,
+after the run, both eyes of the theatre are rendered with no VR runtime, from
+a fixed head pose and a right hand aimed at (U, V), into `<prefix>-left.png`
+and `<prefix>-right.png`. The log says where the aim ray met the screen,
+which must equal (U, V).
 
 Results so far (Beetle PSX 0.9.44.1, hidden runs): Point Blank was played
 from the intro to Training stages using only the gun (calibration, menus,

@@ -15,7 +15,7 @@ $presenter = (Resolve-Path -LiteralPath $presenter).Path
 $env:PATH = (Join-Path $MsysRoot 'mingw64\bin') + ';' + $env:PATH
 $arguments = @('-std=c++17','-O2','-static','-Wall','-Wno-misleading-indentation',
     ('-I"' + $hostSource + '"'),('-I"' + $presenter + '"'),('-I"' + $headers + '"'),
-    ('"' + (Join-Path $hostSource 'Ps1Host.cpp') + '"'),('"' + (Join-Path $presenter 'ACVRXR.cpp') + '"'),
+    ('"' + (Join-Path $hostSource 'Ps1Host.cpp') + '"'),('"' + (Join-Path $hostSource 'TheatreXR.cpp') + '"'),
     '-lopengl32','-lgdi32','-luser32','-lwinmm','-o',('"' + (Join-Path $output 'acvr-ps1.exe') + '"'))
 $process = Start-Process -FilePath (Join-Path $MsysRoot 'mingw64\bin\g++.exe') -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $output 'host-build.log') -RedirectStandardError (Join-Path $output 'host-build-errors.log')
 $process.PriorityClass='BelowNormal'; $handle=$process.Handle

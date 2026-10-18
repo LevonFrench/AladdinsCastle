@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // ACVR PS1 host: runs a user-supplied PlayStation libretro core (Beetle PSX),
 // shows its picture in the headset as a theatre screen through the shared
-// ACVR OpenXR presenter, and feeds the VR controller to the core as a GunCon
+// ACVR theatre presenter, and feeds the VR controller to the core as a GunCon
 // or Justifier light gun. A headless scripted mode makes offline proofs.
 #include "WinGL.h"
-#include "ACVRStereo.h"
+#include "TheatreXR.h"
 #include "CleanQuit.h"
 #include "retro_abi.h"
 #include "AudioOut.h"
@@ -21,8 +21,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-
-ACVRStereoState g_acvrStereo;
 
 namespace {
 
@@ -299,82 +297,42 @@ bool WriteSnapshot(const std::string &dir, const std::string &name)
   return ok;
 }
 
-// ---- headset presentation: prescale the picture with sharp pixels and draw the aim dot into it
-struct Presenter {
+// ---- the hidden window whose OpenGL context the theatre shares
+struct GlWindow {
   Host_Window *window = nullptr;
-  GLuint srcTex = 0, srcFbo = 0, bigTex = 0, bigFbo = 0;
-  unsigned srcW = 0, srcH = 0, bigW = 0, bigH = 0;
-  bool started = false;
-
   bool create()
   {
+    if (window) return true;
     window = Host_CreateWindow("ACVR PS1", 0, 0, 16, 16, Host_WINDOW_HIDDEN);
-    if (!window || !Host_GL_CreateContext(window) || !Host_LoadGL()) return false;
+    if (!window || !Host_GL_CreateContext(window)) return false;
     Log("Hidden GL context: %s", glGetString(GL_VERSION));
     return true;
   }
-  void resize(unsigned w, unsigned h)
-  {
-    if (srcTex && w == srcW && h == srcH) return;
-    if (srcTex) { glDeleteFramebuffers(1, &srcFbo); glDeleteFramebuffers(1, &bigFbo); glDeleteTextures(1, &srcTex); glDeleteTextures(1, &bigTex); }
-    // Integer nearest-neighbour prescale to about 1440 lines; the compositor's
-    // filtering of that keeps sprite edges sharp without shimmering.
-    unsigned k = std::max(1u, (1440u + h - 1) / h);
-    while (k > 1 && (w * k > 4096 || h * k > 4096)) --k;
-    srcW = w; srcH = h; bigW = w * k; bigH = h * k;
-    glGenTextures(1, &srcTex); glGenTextures(1, &bigTex); glGenFramebuffers(1, &srcFbo); glGenFramebuffers(1, &bigFbo);
-    glBindTexture(GL_TEXTURE_2D, srcTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glBindTexture(GL_TEXTURE_2D, bigTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, bigW, bigH, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindFramebuffer(GL_FRAMEBUFFER, srcFbo); glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, srcTex, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, bigFbo); glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bigTex, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    Log("Picture %ux%u shown at %ux%u (x%u)", w, h, bigW, bigH, k);
-  }
-  void present(const ACVRControllerInput &aim, bool showDot)
-  {
-    resize(g_frameW, g_frameH);
-    std::vector<std::uint32_t> opaque(g_frame.size());
-    for (std::size_t i = 0; i < g_frame.size(); ++i) opaque[i] = g_frame[i] | 0xff000000u;
-    glBindTexture(GL_TEXTURE_2D, srcTex);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, srcW, srcH, GL_BGRA, GL_UNSIGNED_BYTE, opaque.data());
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, srcFbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, bigFbo);
-    glBlitFramebuffer(0, 0, srcW, srcH, 0, bigH, bigW, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);   // flips to GL's bottom-up rows
-    if (showDot && aim.active && !aim.offScreen) {
-      const int x = (int)std::lround(aim.u * bigW), y = (int)std::lround((1.f - aim.v) * bigH);
-      const int r = std::max(4, (int)bigH / 160);
-      glBindFramebuffer(GL_FRAMEBUFFER, bigFbo);
-      glEnable(GL_SCISSOR_TEST);
-      glScissor(x - r - 2, y - r - 2, 2 * r + 4, 2 * r + 4); glClearColor(0.f, 0.f, 0.f, 1.f); glClear(GL_COLOR_BUFFER_BIT);
-      glScissor(x - r, y - r, 2 * r, 2 * r); glClearColor(1.f, .48f, .1f, 1.f); glClear(GL_COLOR_BUFFER_BIT);
-      glDisable(GL_SCISSOR_TEST);
-    }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    if (started) ACVR_XR_Publish(bigFbo, bigFbo, bigW, bigH);
-  }
-  // Desktop check: the exact picture the headset would be given, read back from the GPU.
-  bool readBack(const std::string &path)
-  {
-    if (!bigTex) return false;
-    std::vector<std::uint32_t> pixels((std::size_t)bigW * bigH), top(pixels.size());
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, bigFbo);
-    glReadPixels(0, 0, bigW, bigH, GL_BGRA, GL_UNSIGNED_BYTE, pixels.data());
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    if (glGetError() != GL_NO_ERROR) return false;
-    for (unsigned y = 0; y < bigH; ++y)
-      for (unsigned x = 0; x < bigW; ++x) top[(std::size_t)y * bigW + x] = pixels[(std::size_t)(bigH - 1 - y) * bigW + x] & 0xffffffu;
-    return acvr_png::write(path.c_str(), top.data(), bigW, bigH);
-  }
-  void destroy()
-  {
-    if (!window) return;
-    if (srcTex) { glDeleteFramebuffers(1, &srcFbo); glDeleteFramebuffers(1, &bigFbo); glDeleteTextures(1, &srcTex); glDeleteTextures(1, &bigTex); }
-    Host_DestroyWindow(window); window = nullptr;
-  }
+  void destroy() { if (window) Host_DestroyWindow(window); window = nullptr; }
 };
+
+float EnvFloat(const char *name, float fallback)
+{
+  const char *v = std::getenv(name);
+  if (!v || !*v) return fallback;
+  const float f = (float)std::atof(v);
+  return std::isfinite(f) ? f : fallback;
+}
+
+theatre::Config TheatreConfig()
+{
+  theatre::Config c;
+  c.distance = EnvFloat("ACVR_XR_DISTANCE", 2.5f);
+  c.width = EnvFloat("ACVR_PS1_SCREEN_W", 2.4f);
+  c.curve = EnvFloat("ACVR_PS1_CURVE", 1.f);
+  c.lift = EnvFloat("ACVR_PS1_LIFT", 0.f);
+  c.crt = EnvFloat("ACVR_PS1_CRT", 0.f) != 0.f;
+  const float aspect = g_av.geometry.aspect_ratio;
+  c.aspect = aspect > .1f ? aspect : 4.f / 3.f;
+  if (const char *m = std::getenv("ACVR_PS1_GUN_MODEL")) c.gunModel = m;
+  if (const char *m = std::getenv("ACVR_PS1_GUN_META")) c.gunMeta = m;
+  return c;
+}
 
 void Usage()
 {
@@ -382,7 +340,9 @@ void Usage()
     "acvr-ps1 --core <libretro dll> --game <disc> --system <BIOS dir> --saves <dir>\n"
     "         [--gun guncon|justifier|lightgun] [--port 1|2] [--option key=value]...\n"
     "         [--log <file>] [--no-xr] [--headless --frames N [--script file] [--snapshots dir]]\n"
-    "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4).\n"
+    "         [--theatre-proof <prefix> --test-aim U V]\n"
+    "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
+    "         ACVR_PS1_LIFT (m), ACVR_PS1_CRT (1: scanlines), ACVR_PS1_GUN_MODEL (.glb), ACVR_PS1_GUN_META (.toml).\n"
     "Clean quit: hold left Y (Index: left B) for 3 s, Escape, or create ACVR_PS1_STOP_FILE.\n");
 }
 
@@ -392,7 +352,7 @@ int main(int argc, char **argv)
 {
   std::string game, gunName = "guncon", script, snapshots, logPath;
   unsigned frames = 0, seconds = 0; bool headless = false, noXr = false, mute = false, testAim = false;
-  float testU = .5f, testV = .5f;
+  float testU = .5f, testV = .5f; std::string theatreProof;
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
     auto next = [&]() -> std::string { if (i + 1 >= argc) { Usage(); std::exit(2); } return argv[++i]; };
@@ -408,6 +368,7 @@ int main(int argc, char **argv)
     else if (a == "--no-xr") noXr = true;
     else if (a == "--mute") mute = true;
     else if (a == "--seconds") seconds = (unsigned)std::strtoul(next().c_str(), nullptr, 10);
+    else if (a == "--theatre-proof") theatreProof = next();
     else if (a == "--test-aim") { testAim = true; testU = (float)std::atof(next().c_str()); testV = (float)std::atof(next().c_str()); }
     else if (a == "--frames") frames = (unsigned)std::strtoul(next().c_str(), nullptr, 10);
     else if (a == "--script") script = next();
@@ -466,21 +427,16 @@ int main(int argc, char **argv)
     for (const auto &o : g_optionList) options << o.first << " = " << g_optionValues[o.first] << "    (" << o.second << ")\n";
   }
 
-  Presenter view;
+  GlWindow view; bool theatreOn = false;
   if (!headless) {
     if (!view.create()) { Log("Hidden OpenGL context unavailable"); return 5; }
     g_audioWanted = !mute && g_audio.open((unsigned)std::lround(g_av.timing.sample_rate));
     if (!g_audioWanted) Log(mute ? "Muted" : "Audio device unavailable: running silent");
     if (!noXr) {
-      if (!std::getenv("ACVR_XR_DISTANCE")) _putenv_s("ACVR_XR_DISTANCE", "2.5");
-      const char *ws = std::getenv("ACVR_PS1_SCREEN_W");
-      const float width = ws && *ws ? (float)std::atof(ws) : 2.4f;
-      const float distance = ACVR_XR_DistanceMetres();
-      const float aspect = g_av.geometry.aspect_ratio > 0.1f ? g_av.geometry.aspect_ratio : 4.f / 3.f;
-      const float tx = width * .5f / distance, ty = tx / aspect;
-      ACVR_XR_UpdateFov(-tx, tx, -ty, ty);
-      view.started = ACVR_XR_Start(view.window);
-      Log("Theatre screen %.2f m wide at %.2f m: %s", width, distance, view.started ? "presenter started" : "presenter unavailable");
+      const auto config = TheatreConfig();
+      theatreOn = theatre::Start(view.window, config);
+      Log("Theatre: screen %.2f m wide at %.2f m, curve %.2f%s; gun model %s: %s", config.width, config.distance, config.curve,
+          config.crt ? ", scanlines" : "", config.gunModel.empty() ? "none" : config.gunModel.c_str(), theatreOn ? "presenter started" : "presenter unavailable");
     }
   }
 
@@ -497,7 +453,7 @@ int main(int argc, char **argv)
 
   while (!g_shutdownRequested) {
     const ULONGLONG now = GetTickCount64();
-    ACVRControllerInput controller = view.started ? ACVR_XR_ControllerInput() : ACVRControllerInput{};
+    theatre::Input controller = theatreOn ? theatre::ReadInput() : theatre::Input{};
     if (testAim) { controller.active = true; controller.offScreen = false; controller.u = testU; controller.v = testV; }
     if (!headless) {
       const DWORD attr = stopFile.empty() ? INVALID_FILE_ATTRIBUTES : GetFileAttributesA(stopFile.c_str());
@@ -506,9 +462,10 @@ int main(int argc, char **argv)
       if (seconds && now - startedAt >= seconds * 1000ull) quit.request(CleanQuit::Reason::time_limit);
       if (quit.requested()) { Log("Clean quit: %s", quit.reason()); break; }
       Gun g; g.u = controller.u; g.v = controller.v; g.offScreen = !controller.active || controller.offScreen;
-      g.trigger = controller.trigger; g.a = controller.start; g.b = controller.coin;
-      g.start = controller.start;   // the Justifier's side button; arcade Start
-      g.select = gunName == "lightgun" && controller.coin;   // arcade Coin
+      // GunCon A is also on the grip, as the pedal (Time Crisis takes cover with it).
+      g.trigger = controller.trigger; g.a = controller.a || controller.grip; g.b = controller.b;
+      g.start = controller.a;   // the Justifier's side button; arcade Start
+      g.select = gunName == "lightgun" && controller.b;   // arcade Coin
       g_gun = g;
     } else {
       if (frames && frame >= frames) break;
@@ -536,7 +493,7 @@ int main(int argc, char **argv)
       for (unsigned *h : { &timeline.holdTrigger, &timeline.holdA, &timeline.holdB, &timeline.holdStart, &timeline.holdSelect, &timeline.holdOff }) if (*h) --*h;
       if (frames && frame >= frames) break;
     }
-    if (g_gun.trigger && !lastTrigger) { ++shots; if (view.started) ACVR_XR_QueueShotPulse(); }
+    if (g_gun.trigger && !lastTrigger) { ++shots; if (theatreOn) theatre::QueuePulse(); }
     lastTrigger = g_gun.trigger;
 
     g_core.run();
@@ -544,7 +501,7 @@ int main(int argc, char **argv)
 
     if (!headless && g_frameSerial != shownSerial && !g_frame.empty()) {
       shownSerial = g_frameSerial;
-      view.present(controller, true);
+      if (theatreOn) theatre::Publish(g_frame.data(), g_frameW, g_frameH);
     }
     if (now - lastSave > 10000) { SaveSram(false); lastSave = now; }
 
@@ -559,17 +516,21 @@ int main(int argc, char **argv)
   }
   if (g_shutdownRequested) Log("The core asked to shut down");
   if (headless && !snapshots.empty()) WriteSnapshot(snapshots, "final");
-  if (!headless && !snapshots.empty()) {
-    const std::string picture = snapshots + "\\headset-picture.png";
-    Log("Headset picture read back: %s %s", picture.c_str(), view.readBack(picture) ? "written" : "FAILED");
-    WriteSnapshot(snapshots, "final");
+  if (!theatreProof.empty() && !g_frame.empty()) {
+    if (!view.create()) Log("Theatre proof: no OpenGL context");
+    else {
+      std::string note;
+      const bool ok = theatre::RenderProof(TheatreConfig(), g_frame.data(), g_frameW, g_frameH, testU, testV, theatreProof, note);
+      Log("Theatre proof %s-left.png / -right.png: %s (%s)", theatreProof.c_str(), ok ? "written" : "FAILED", note.c_str());
+      if (!ok) result = 8;
+    }
   }
   Log("Ran %u frames; gun reads %llu; trigger presses %llu; last picture %ux%u", frame,
       (unsigned long long)g_gunReads, (unsigned long long)shots, g_frameW, g_frameH);
   if (!SaveSram(false)) result = 6;
   g_core.unload_game();
   g_core.deinit();
-  if (view.started && !ACVR_XR_Stop()) { Log("Presenter cleanup deferred"); result = 7; }
+  if (theatreOn) theatre::Stop();
   g_audio.close();
   view.destroy();
   Log("Clean exit");

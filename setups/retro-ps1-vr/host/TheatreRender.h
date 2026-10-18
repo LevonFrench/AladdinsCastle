@@ -1,0 +1,446 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Theatre scene for one eye: the game picture on a (curved) screen, the held
+// gun model and the aim dot, all depth-tested in one image, so the gun is in
+// front of the picture wherever it is nearer. Needs a current OpenGL 3.3
+// context; container objects (VAOs, FBOs) belong to the context that made them.
+#pragma once
+#include "WinGL.h"
+#include "MiniJson.h"
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <fstream>
+#include <functional>
+#include <regex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace tgl {
+#define TGL_FUNCS(X) \
+  X(PFNGLCREATESHADERPROC, CreateShader) X(PFNGLSHADERSOURCEPROC, ShaderSource) X(PFNGLCOMPILESHADERPROC, CompileShader) \
+  X(PFNGLGETSHADERIVPROC, GetShaderiv) X(PFNGLGETSHADERINFOLOGPROC, GetShaderInfoLog) X(PFNGLDELETESHADERPROC, DeleteShader) \
+  X(PFNGLCREATEPROGRAMPROC, CreateProgram) X(PFNGLATTACHSHADERPROC, AttachShader) X(PFNGLLINKPROGRAMPROC, LinkProgram) \
+  X(PFNGLGETPROGRAMIVPROC, GetProgramiv) X(PFNGLDELETEPROGRAMPROC, DeleteProgram) X(PFNGLUSEPROGRAMPROC, UseProgram) \
+  X(PFNGLGETUNIFORMLOCATIONPROC, GetUniformLocation) X(PFNGLUNIFORMMATRIX4FVPROC, UniformMatrix4fv) \
+  X(PFNGLUNIFORM4FVPROC, Uniform4fv) X(PFNGLUNIFORM2FPROC, Uniform2f) X(PFNGLUNIFORM1IPROC, Uniform1i) X(PFNGLUNIFORM1FPROC, Uniform1f) \
+  X(PFNGLGENVERTEXARRAYSPROC, GenVertexArrays) X(PFNGLBINDVERTEXARRAYPROC, BindVertexArray) X(PFNGLDELETEVERTEXARRAYSPROC, DeleteVertexArrays) \
+  X(PFNGLGENBUFFERSPROC, GenBuffers) X(PFNGLBINDBUFFERPROC, BindBuffer) X(PFNGLBUFFERDATAPROC, BufferData) X(PFNGLDELETEBUFFERSPROC, DeleteBuffers) \
+  X(PFNGLENABLEVERTEXATTRIBARRAYPROC, EnableVertexAttribArray) X(PFNGLVERTEXATTRIBPOINTERPROC, VertexAttribPointer) \
+  X(PFNGLACTIVETEXTUREPROC, ActiveTexture) X(PFNGLGENERATEMIPMAPPROC, GenerateMipmap) \
+  X(PFNGLGENRENDERBUFFERSPROC, GenRenderbuffers) X(PFNGLBINDRENDERBUFFERPROC, BindRenderbuffer) \
+  X(PFNGLRENDERBUFFERSTORAGEPROC, RenderbufferStorage) X(PFNGLFRAMEBUFFERRENDERBUFFERPROC, FramebufferRenderbuffer) \
+  X(PFNGLDELETERENDERBUFFERSPROC, DeleteRenderbuffers) X(PFNGLCHECKFRAMEBUFFERSTATUSPROC, CheckFramebufferStatus)
+#define X(type, name) inline type name = nullptr;
+TGL_FUNCS(X)
+#undef X
+inline bool Load()
+{
+  if (!Host_LoadGL()) return false;
+#define X(type, name) name = reinterpret_cast<type>(wglGetProcAddress("gl" #name)); if (!name) return false;
+  TGL_FUNCS(X)
+#undef X
+  return true;
+}
+}
+
+namespace theatre {
+struct Mat4 {
+  std::array<float, 16> m{};   // column-major
+  static Mat4 Identity() { Mat4 r; r.m = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 }; return r; }
+  static Mat4 Translation(float x, float y, float z) { auto r = Identity(); r.m[12] = x; r.m[13] = y; r.m[14] = z; return r; }
+  static Mat4 Rotation(float x, float y, float z, float a)
+  {
+    const float n = std::sqrt(x * x + y * y + z * z); x /= n; y /= n; z /= n;
+    const float c = std::cos(a), s = std::sin(a), t = 1 - c; auto r = Identity();
+    r.m[0] = t * x * x + c; r.m[4] = t * x * y - s * z; r.m[8] = t * x * z + s * y;
+    r.m[1] = t * x * y + s * z; r.m[5] = t * y * y + c; r.m[9] = t * y * z - s * x;
+    r.m[2] = t * x * z - s * y; r.m[6] = t * y * z + s * x; r.m[10] = t * z * z + c; return r;
+  }
+  static Mat4 FromPose(const float p[3], const float q[4])
+  {
+    const float x = q[0], y = q[1], z = q[2], w = q[3]; auto r = Identity();
+    r.m[0] = 1 - 2 * (y * y + z * z); r.m[4] = 2 * (x * y - z * w); r.m[8] = 2 * (x * z + y * w);
+    r.m[1] = 2 * (x * y + z * w); r.m[5] = 1 - 2 * (x * x + z * z); r.m[9] = 2 * (y * z - x * w);
+    r.m[2] = 2 * (x * z - y * w); r.m[6] = 2 * (y * z + x * w); r.m[10] = 1 - 2 * (x * x + y * y);
+    r.m[12] = p[0]; r.m[13] = p[1]; r.m[14] = p[2]; return r;
+  }
+  Mat4 RigidInverse() const
+  {
+    auto r = Identity();
+    for (int c = 0; c < 3; ++c) for (int row = 0; row < 3; ++row) r.m[c * 4 + row] = m[row * 4 + c];
+    for (int row = 0; row < 3; ++row) r.m[12 + row] = -(r.m[row] * m[12] + r.m[4 + row] * m[13] + r.m[8 + row] * m[14]);
+    return r;
+  }
+  // Arguments are the tangents of the OpenXR field-of-view angles.
+  static Mat4 Projection(float l, float r, float d, float u, float n = .03f, float f = 50.f)
+  {
+    Mat4 p; p.m[0] = 2 / (r - l); p.m[5] = 2 / (u - d); p.m[8] = (r + l) / (r - l); p.m[9] = (u + d) / (u - d);
+    p.m[10] = -(f + n) / (f - n); p.m[11] = -1; p.m[14] = -2 * f * n / (f - n); return p;
+  }
+};
+inline Mat4 operator*(const Mat4 &a, const Mat4 &b)
+{
+  Mat4 r; for (int c = 0; c < 4; ++c) for (int row = 0; row < 4; ++row) for (int k = 0; k < 4; ++k) r.m[c * 4 + row] += a.m[k * 4 + row] * b.m[c * 4 + k];
+  return r;
+}
+
+// Where the screen is: its frame (origin at the viewer's head when it was placed,
+// facing -Z), radius/distance, size and curvature. curve=0 is flat.
+struct ScreenGeometry {
+  Mat4 frame = Mat4::Identity();
+  float distance = 2.5f, width = 2.4f, height = 1.8f, curve = 1.f, lift = 0.f;
+  float arc() const { return width / distance; }
+  // Point on the screen for picture coordinates (0,0 top left .. 1,1 bottom right), in the frame.
+  std::array<float, 3> local(float u, float v) const
+  {
+    const float y = lift + (.5f - v) * height;
+    if (curve <= 0.f) return { (u - .5f) * width, y, -distance };
+    const float r = distance / curve, a = (u - .5f) * width / r;   // radius grows as curvature falls
+    return { r * std::sin(a), y, -distance + r * (1 - std::cos(a)) };
+  }
+  // Intersects a ray (world space) with the screen. Returns false when it misses.
+  bool hit(const float origin[3], const float dir[3], float &u, float &v) const
+  {
+    const Mat4 inv = frame.RigidInverse();
+    float o[3], d[3];
+    for (int i = 0; i < 3; ++i) {
+      o[i] = inv.m[i] * origin[0] + inv.m[4 + i] * origin[1] + inv.m[8 + i] * origin[2] + inv.m[12 + i];
+      d[i] = inv.m[i] * dir[0] + inv.m[4 + i] * dir[1] + inv.m[8 + i] * dir[2];
+    }
+    float x, y;
+    if (curve <= 0.f) {
+      if (!(d[2] < -1e-6f)) return false;
+      const float t = (-distance - o[2]) / d[2]; if (t <= 0) return false;
+      x = o[0] + t * d[0]; y = o[1] + t * d[1]; u = x / width + .5f;
+    } else {
+      // Cylinder of radius r about a vertical axis at (0, -distance + r).
+      const float r = distance / curve, cz = -distance + r;
+      const float px = o[0], pz = o[2] - cz;
+      const float A = d[0] * d[0] + d[2] * d[2], B = 2 * (px * d[0] + pz * d[2]), C = px * px + pz * pz - r * r;
+      const float disc = B * B - 4 * A * C; if (A < 1e-9f || disc < 0) return false;
+      const float s = std::sqrt(disc); float t = (-B - s) / (2 * A); if (t <= 0) t = (-B + s) / (2 * A); if (t <= 0) return false;
+      const float hx = px + t * d[0], hz = pz + t * d[2];
+      if (hz > 0) return false;   // the back half of the cylinder
+      y = o[1] + t * d[1]; u = std::atan2(hx, -hz) * r / width + .5f;
+    }
+    v = .5f - (y - lift) / height;
+    return u >= 0 && u <= 1 && v >= 0 && v <= 1;
+  }
+};
+
+inline GLuint Shader(GLenum type, const char *source)
+{
+  GLuint s = tgl::CreateShader(type); tgl::ShaderSource(s, 1, &source, nullptr); tgl::CompileShader(s);
+  GLint ok = 0; tgl::GetShaderiv(s, GL_COMPILE_STATUS, &ok);
+  if (!ok) { char log[2048]{}; tgl::GetShaderInfoLog(s, sizeof log, nullptr, log); tgl::DeleteShader(s); throw std::runtime_error(std::string("shader: ") + log); }
+  return s;
+}
+inline GLuint Program(const char *vs, const char *fs)
+{
+  GLuint v = Shader(GL_VERTEX_SHADER, vs), f = Shader(GL_FRAGMENT_SHADER, fs), p = tgl::CreateProgram();
+  tgl::AttachShader(p, v); tgl::AttachShader(p, f); tgl::LinkProgram(p); tgl::DeleteShader(v); tgl::DeleteShader(f);
+  GLint ok = 0; tgl::GetProgramiv(p, GL_LINK_STATUS, &ok); if (!ok) throw std::runtime_error("program link failed");
+  return p;
+}
+
+// The gun: one of the project's GLB models (metres, +Y up, muzzle along -Z) with
+// its TOML for the trigger motion and colours.
+class Gun {
+public:
+  bool loaded() const { return lod0 >= 0; }
+  void load(const std::string &glb, const std::string &toml)
+  {
+    std::ifstream f(glb, std::ios::binary); if (!f) throw std::runtime_error("cannot read " + glb);
+    std::string b((std::istreambuf_iterator<char>(f)), {});
+    auto u32 = [&](std::size_t at) { std::uint32_t v; std::memcpy(&v, b.data() + at, 4); return v; };
+    if (b.size() < 28 || u32(0) != 0x46546c67 || u32(4) != 2 || u32(16) != 0x4e4f534a) throw std::runtime_error("not a GLB file");
+    const std::size_t jn = u32(12); if (jn > b.size() - 28) throw std::runtime_error("bad GLB JSON chunk");
+    doc = mini_json::parse(b.substr(20, jn));
+    const std::size_t bo = 20 + jn; if (bo + 8 > b.size() || u32(bo + 4) != 0x004e4942 || u32(bo) > b.size() - bo - 8) throw std::runtime_error("bad GLB binary chunk");
+    bin.assign(b.begin() + bo + 8, b.begin() + bo + 8 + u32(bo));
+    for (const auto &j : doc["nodes"].a) {
+      Node n; if (j.has("name")) n.name = j["name"].str(); if (j.has("mesh")) n.mesh = (int)j["mesh"].num();
+      if (j.has("children")) for (const auto &c : j["children"].a) n.children.push_back((int)c.num());
+      if (j.has("matrix")) for (int k = 0; k < 16; ++k) n.local.m[k] = (float)j["matrix"][k].num();
+      else {
+        float p[3]{}, q[4]{ 0,0,0,1 };
+        if (j.has("translation")) for (int k = 0; k < 3; ++k) p[k] = (float)j["translation"][k].num();
+        if (j.has("rotation")) for (int k = 0; k < 4; ++k) q[k] = (float)j["rotation"][k].num();
+        n.local = Mat4::FromPose(p, q);
+        if (j.has("scale")) for (int c = 0; c < 3; ++c) for (int r = 0; r < 3; ++r) n.local.m[c * 4 + r] *= (float)j["scale"][c].num();
+      }
+      nodes.push_back(n);
+    }
+    for (std::size_t i = 0; i < nodes.size(); ++i) for (int c : nodes[i].children) {
+      if (c < 0 || (std::size_t)c >= nodes.size() || nodes[c].parent >= 0) throw std::runtime_error("bad gun hierarchy");
+      nodes[c].parent = (int)i;
+    }
+    grip = find("grip"); muzzle = find("muzzle"); lod0 = find("LOD0");
+    metadata(toml);
+  }
+  // Must run in the context that draws.
+  void upload()
+  {
+    if (!loaded()) return;
+    program = Program(
+      "#version 330 core\nlayout(location=0)in vec3 p;layout(location=1)in vec3 n;uniform mat4 mvp,model;out vec3 N;"
+      "void main(){gl_Position=mvp*vec4(p,1);N=mat3(model)*n;}",
+      "#version 330 core\nin vec3 N;uniform vec4 base;uniform int encode;out vec4 o;"
+      "void main(){vec3 n=normalize(N);float l=.30+.70*max(dot(n,normalize(vec3(-.4,.8,.6))),0.);"
+      "vec3 c=base.rgb*l+vec3(.04)*pow(1.-abs(n.z),3.);o=vec4(encode!=0?pow(c,vec3(1./2.2)):c,1);}");
+    meshes.assign(doc["meshes"].size(), {});
+    for (std::size_t mi = 0; mi < meshes.size(); ++mi) for (const auto &p : doc["meshes"][mi]["primitives"].a) {
+      if (p.has("mode") && (int)p["mode"].num() != 4) continue;
+      auto pos = accessor((unsigned)p["attributes"]["POSITION"].num(), 12), nor = accessor((unsigned)p["attributes"]["NORMAL"].num(), 12);
+      if (pos.type != 5126 || nor.type != 5126 || pos.count != nor.count) throw std::runtime_error("unsupported gun vertices");
+      const int ct = (int)doc["accessors"][(std::size_t)p["indices"].num()]["componentType"].num();
+      const std::size_t ib = ct == 5121 ? 1 : ct == 5123 ? 2 : ct == 5125 ? 4 : 0; if (!ib) throw std::runtime_error("unsupported gun indices");
+      auto ix = accessor((unsigned)p["indices"].num(), ib);
+      std::vector<float> v(pos.count * 6); std::vector<std::uint32_t> idx(ix.count);
+      for (std::size_t k = 0; k < pos.count; ++k) { std::memcpy(&v[k * 6], pos.ptr + k * pos.stride, 12); std::memcpy(&v[k * 6 + 3], nor.ptr + k * nor.stride, 12); }
+      for (std::size_t k = 0; k < ix.count; ++k) { std::uint32_t x = 0; std::memcpy(&x, ix.ptr + k * ix.stride, ib); if (x >= pos.count) throw std::runtime_error("gun index out of range"); idx[k] = x; }
+      Prim out; out.count = (GLsizei)ix.count;
+      if (p.has("material")) {
+        const auto &mat = doc["materials"][(std::size_t)p["material"].num()];
+        const std::string name = mat.has("name") ? mat["name"].str() : "";
+        if (name == "body") out.color = body; else if (name == "accent") out.color = accent;
+        else if (mat.has("pbrMetallicRoughness") && mat["pbrMetallicRoughness"].has("baseColorFactor"))
+          for (int c = 0; c < 4; ++c) out.color[c] = (float)mat["pbrMetallicRoughness"]["baseColorFactor"][c].num();
+      }
+      tgl::GenVertexArrays(1, &out.vao); tgl::BindVertexArray(out.vao);
+      tgl::GenBuffers(1, &out.vbo); tgl::BindBuffer(GL_ARRAY_BUFFER, out.vbo); tgl::BufferData(GL_ARRAY_BUFFER, v.size() * 4, v.data(), GL_STATIC_DRAW);
+      tgl::GenBuffers(1, &out.ibo); tgl::BindBuffer(GL_ELEMENT_ARRAY_BUFFER, out.ibo); tgl::BufferData(GL_ELEMENT_ARRAY_BUFFER, idx.size() * 4, idx.data(), GL_STATIC_DRAW);
+      tgl::EnableVertexAttribArray(0); tgl::VertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, nullptr);
+      tgl::EnableVertexAttribArray(1); tgl::VertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, reinterpret_cast<void *>(12));
+      meshes[mi].push_back(out);
+    }
+    tgl::BindVertexArray(0);
+  }
+  void release()
+  {
+    for (auto &mesh : meshes) for (auto &p : mesh) { tgl::DeleteVertexArrays(1, &p.vao); tgl::DeleteBuffers(1, &p.vbo); tgl::DeleteBuffers(1, &p.ibo); }
+    meshes.clear(); if (program) tgl::DeleteProgram(program); program = 0;
+  }
+  // The model's root: the bore along the tracked aim ray, the grip at the hand.
+  Mat4 alignedRoot(const Mat4 &gripWorld, const Mat4 &aimWorld, float kick) const
+  {
+    using V = std::array<float, 3>;
+    auto dot = [](const V &a, const V &b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; };
+    auto unit = [&](V v) { const float n = std::sqrt(dot(v, v)); if (n < 1e-7f) return V{ 0, 1, 0 }; for (auto &x : v) x /= n; return v; };
+    auto cross = [](const V &a, const V &b) -> V { return { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] }; };
+    const V back = unit({ aimWorld.m[8], aimWorld.m[9], aimWorld.m[10] });
+    V up{ gripWorld.m[4], gripWorld.m[5], gripWorld.m[6] };
+    float along = dot(up, back); for (int i = 0; i < 3; ++i) up[i] -= along * back[i];
+    if (dot(up, up) < 1e-6f) { up = { aimWorld.m[4], aimWorld.m[5], aimWorld.m[6] }; along = dot(up, back); for (int i = 0; i < 3; ++i) up[i] -= along * back[i]; }
+    const V right = unit(cross(up, back)); up = unit(cross(back, right));
+    auto basis = Mat4::Identity(); for (int i = 0; i < 3; ++i) { basis.m[i] = right[i]; basis.m[4 + i] = up[i]; basis.m[8 + i] = back[i]; }
+    auto bore = world(muzzle, 0); bore.m[12] = bore.m[13] = bore.m[14] = 0;
+    auto root = basis * bore.RigidInverse(); const auto anchor = world(grip, 0);
+    for (int i = 0; i < 3; ++i)
+      root.m[12 + i] = gripWorld.m[12 + i] - root.m[i] * anchor.m[12] - root.m[4 + i] * anchor.m[13] - root.m[8 + i] * anchor.m[14] + .01f * kick * up[i] + .02f * kick * back[i];
+    return root;
+  }
+  void draw(const Mat4 &root, const Mat4 &viewProj, float trigger, bool encode)
+  {
+    if (!program) return;
+    tgl::UseProgram(program); tgl::Uniform1i(tgl::GetUniformLocation(program, "encode"), encode ? 1 : 0);
+    drawNode(lod0, root, viewProj, trigger);
+  }
+private:
+  struct Node { std::string name; Mat4 local = Mat4::Identity(); int mesh = -1, parent = -1; std::vector<int> children; };
+  struct Prim { GLuint vao = 0, vbo = 0, ibo = 0; GLsizei count = 0; std::array<float, 4> color{ .5f, .5f, .5f, 1 }; };
+  struct Access { const unsigned char *ptr; std::size_t stride, count; int type; };
+  mini_json::Value doc; std::vector<unsigned char> bin; std::vector<Node> nodes; std::vector<std::vector<Prim>> meshes;
+  int grip = -1, muzzle = -1, lod0 = -1; std::array<int, 2> triggers{ -1, -1 };
+  std::array<float, 3> axis{ -1, 0, 0 }; std::array<float, 2> range{ 0, 0 };
+  std::array<float, 4> body{ .1f, .1f, .12f, 1 }, accent{ .3f, .3f, .32f, 1 };
+  GLuint program = 0;
+  int find(const std::string &s) const { for (std::size_t i = 0; i < nodes.size(); ++i) if (nodes[i].name == s) return (int)i; throw std::runtime_error("gun model lacks node " + s); }
+  Access accessor(unsigned index, std::size_t element)
+  {
+    const auto &a = doc["accessors"][index]; const auto &v = doc["bufferViews"][(std::size_t)a["bufferView"].num()];
+    const std::size_t off = (std::size_t)((v.has("byteOffset") ? v["byteOffset"].num() : 0) + (a.has("byteOffset") ? a["byteOffset"].num() : 0));
+    const std::size_t stride = v.has("byteStride") ? (std::size_t)v["byteStride"].num() : element, count = (std::size_t)a["count"].num();
+    if (!count || stride < element || off > bin.size() || element > bin.size() - off || (count - 1) > (bin.size() - off - element) / stride) throw std::runtime_error("gun accessor out of bounds");
+    return { bin.data() + off, stride, count, (int)a["componentType"].num() };
+  }
+  Mat4 world(int i, float trigger) const
+  {
+    auto local = nodes[i].local;
+    if ((i == triggers[0] || i == triggers[1]) && range[1] != range[0]) local = local * Mat4::Rotation(axis[0], axis[1], axis[2], range[0] + std::fmin(std::fmax(trigger, 0.f), 1.f) * (range[1] - range[0]));
+    return nodes[i].parent < 0 ? local : world(nodes[i].parent, trigger) * local;
+  }
+  void drawNode(int index, const Mat4 &root, const Mat4 &vp, float trigger)
+  {
+    const auto &n = nodes[index];
+    if (n.mesh >= 0 && (std::size_t)n.mesh < meshes.size()) {
+      const auto model = root * world(index, trigger), mvp = vp * model;
+      tgl::UniformMatrix4fv(tgl::GetUniformLocation(program, "mvp"), 1, GL_FALSE, mvp.m.data());
+      tgl::UniformMatrix4fv(tgl::GetUniformLocation(program, "model"), 1, GL_FALSE, model.m.data());
+      for (const auto &p : meshes[n.mesh]) {
+        tgl::Uniform4fv(tgl::GetUniformLocation(program, "base"), 1, p.color.data());
+        tgl::BindVertexArray(p.vao); glDrawElements(GL_TRIANGLES, p.count, GL_UNSIGNED_INT, nullptr);
+      }
+    }
+    for (int c : n.children) drawNode(c, root, vp, trigger);
+  }
+  void metadata(const std::string &path)
+  {
+    std::ifstream f(path); if (!f) return;   // colours and trigger motion are optional
+    std::string t((std::istreambuf_iterator<char>(f)), {});
+    auto section = [&](const std::string &name) { auto s = t.find("[" + name + "]"); if (s == std::string::npos) return std::string(); s += name.size() + 2; return t.substr(s, t.find("\n[", s) - s); };
+    auto value = [](const std::string &s, const std::string &key) { std::smatch m; std::regex re("(?:^|\\n)\\s*" + key + "\\s*=\\s*([^\\r\\n]+)"); return std::regex_search(s, m, re) ? m[1].str() : std::string(); };
+    auto numbers = [](std::string s) { std::vector<float> v; const auto l = s.find('['), r = s.find(']'); if (l == std::string::npos || r == std::string::npos) return v; s = s.substr(l + 1, r - l - 1); for (auto &c : s) if (c == ',') c = ' '; std::istringstream in(s); for (float x; in >> x;) v.push_back(x); return v; };
+    const auto trig = section("motion.trigger");
+    if (!trig.empty()) {
+      const auto a = numbers(value(trig, "axis")), r = numbers(value(trig, "range"));
+      if (a.size() == 3 && r.size() == 2) { axis = { a[0], a[1], a[2] }; range = { r[0], r[1] }; }
+      std::regex q("\"([^\"]+)\""); const auto names = value(trig, "lod_nodes"); int i = 0;
+      for (auto it = std::sregex_iterator(names.begin(), names.end(), q); it != std::sregex_iterator() && i < 2; ++it)
+        for (std::size_t k = 0; k < nodes.size(); ++k) if (nodes[k].name == (*it)[1].str()) triggers[i++] = (int)k;
+    }
+    const auto tints = section("tints");
+    if (!tints.empty()) {
+      std::smatch m; const auto def = value(tints, "default"); std::regex q("\"([^\"]+)\"");
+      if (std::regex_search(def, m, q)) {
+        const auto line = value(tints, m[1].str());
+        for (auto pair : { std::make_pair("body", &body), std::make_pair("accent", &accent) }) {
+          std::regex hex(std::string(pair.first) + "\\s*=\\s*\"#([0-9a-fA-F]{6})\"");
+          if (std::regex_search(line, m, hex)) { const unsigned rgb = (unsigned)std::stoul(m[1].str(), nullptr, 16); for (int c = 0; c < 3; ++c) (*pair.second)[c] = std::pow(((rgb >> (16 - 8 * c)) & 255) / 255.f, 2.2f); }
+        }
+      }
+    }
+  }
+};
+
+// What one eye sees. The picture texture is sRGB (decoded on sampling).
+struct EyeScene {
+  GLuint picture = 0; int pictureW = 0, pictureH = 0;
+  ScreenGeometry screen;
+  bool showGun = false; Mat4 gunRoot = Mat4::Identity(); float trigger = 0;
+  bool showDot = false; float dotU = .5f, dotV = .5f;
+  bool crt = false;
+};
+
+class Renderer {
+public:
+  void init(Gun *gun)
+  {
+    m_gun = gun;
+    m_screenProgram = Program(
+      "#version 330 core\nlayout(location=0)in vec3 p;layout(location=1)in vec2 t;uniform mat4 mvp;out vec2 uv;"
+      "void main(){gl_Position=mvp*vec4(p,1);uv=t;}",
+      // Sharp bilinear: whole texels stay crisp when magnified, edges blend over one screen
+      // pixel; minified pictures use the mipmaps. Optional CRT scanlines.
+      "#version 330 core\nin vec2 uv;uniform sampler2D picture;uniform vec2 size;uniform int crt,encode;out vec4 o;"
+      "void main(){vec2 texel=uv*size;vec2 ppt=1./max(fwidth(texel),vec2(1e-5));vec3 c;"
+      "if(min(ppt.x,ppt.y)<1.)c=texture(picture,uv).rgb;else{vec2 k=floor(ppt);vec2 f=fract(texel)-.5;"
+      "vec2 r=.5-.5/k;vec2 g=(f-clamp(f,-r,r))*k+.5;c=textureGrad(picture,(floor(texel)+g)/size,dFdx(uv),dFdy(uv)).rgb;}"
+      "if(crt!=0){float s=abs(fract(texel.y)-.5)*2.;c*=mix(1.,.62,s*s);}"
+      "o=vec4(encode!=0?pow(c,vec3(1./2.2)):c,1);}");
+    m_flatProgram = Program(
+      "#version 330 core\nlayout(location=0)in vec3 p;uniform mat4 mvp;void main(){gl_Position=mvp*vec4(p,1);}",
+      "#version 330 core\nuniform vec4 base;uniform int encode;out vec4 o;void main(){o=vec4(encode!=0?pow(base.rgb,vec3(1./2.2)):base.rgb,1);}");
+    tgl::GenVertexArrays(1, &m_screenVao); tgl::GenBuffers(1, &m_screenVbo);
+    tgl::GenVertexArrays(1, &m_dotVao); tgl::GenBuffers(1, &m_dotVbo);
+    if (m_gun) m_gun->upload();
+  }
+  void release()
+  {
+    if (m_gun) m_gun->release();
+    if (m_screenProgram) tgl::DeleteProgram(m_screenProgram); if (m_flatProgram) tgl::DeleteProgram(m_flatProgram);
+    tgl::DeleteVertexArrays(1, &m_screenVao); tgl::DeleteBuffers(1, &m_screenVbo);
+    tgl::DeleteVertexArrays(1, &m_dotVao); tgl::DeleteBuffers(1, &m_dotVbo);
+    m_screenProgram = m_flatProgram = m_screenVao = m_screenVbo = m_dotVao = m_dotVbo = 0;
+  }
+  // Draws into the bound framebuffer (colour + depth). encode: write sRGB values by hand
+  // (for a target that is not an sRGB format).
+  void draw(const EyeScene &s, const Mat4 &projection, const Mat4 &view, int w, int h, bool encode)
+  {
+    glViewport(0, 0, w, h); glDisable(GL_SCISSOR_TEST); glDisable(GL_BLEND); glDisable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
+    const float bg = encode ? .03f : .002f;   // a dark theatre
+    glClearColor(bg, bg, bg * 1.2f, 1); glClearDepth(1); glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    const Mat4 vp = projection * view;
+    buildScreen(s.screen);
+    // A thin dark frame behind the picture edges.
+    if (m_flatProgram) {
+      ScreenGeometry frame = s.screen; frame.width += .06f; frame.height += .06f; frame.distance += .01f;
+      buildScreenInto(frame, m_frameVerts);
+      tgl::UseProgram(m_flatProgram);
+      const Mat4 mvp = vp * s.screen.frame;
+      tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_flatProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
+      const float c[4] = { .012f, .012f, .014f, 1 };
+      tgl::Uniform4fv(tgl::GetUniformLocation(m_flatProgram, "base"), 1, c);
+      tgl::Uniform1i(tgl::GetUniformLocation(m_flatProgram, "encode"), encode ? 1 : 0);
+      drawStrip(m_frameVerts);
+    }
+    if (s.picture) {
+      tgl::UseProgram(m_screenProgram);
+      const Mat4 mvp = vp * s.screen.frame;
+      tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_screenProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
+      tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "size"), (float)s.pictureW, (float)s.pictureH);
+      tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "crt"), s.crt ? 1 : 0);
+      tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "encode"), encode ? 1 : 0);
+      tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "picture"), 0);
+      tgl::ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s.picture);
+      drawStrip(m_screenVerts);
+    }
+    if (s.showDot) drawDot(s, vp, encode);
+    if (s.showGun && m_gun && m_gun->loaded()) m_gun->draw(s.gunRoot, vp, s.trigger, encode);
+    tgl::BindVertexArray(0); tgl::UseProgram(0);
+  }
+private:
+  Gun *m_gun = nullptr;
+  GLuint m_screenProgram = 0, m_flatProgram = 0, m_screenVao = 0, m_screenVbo = 0, m_dotVao = 0, m_dotVbo = 0;
+  std::vector<float> m_screenVerts, m_frameVerts;
+  static void buildScreenInto(const ScreenGeometry &g, std::vector<float> &out)
+  {
+    const int columns = g.curve > 0 ? 64 : 1; out.clear();
+    for (int i = 0; i <= columns; ++i) {
+      const float u = (float)i / columns;
+      for (int row = 0; row < 2; ++row) { const float v = (float)row; const auto p = g.local(u, v); out.insert(out.end(), { p[0], p[1], p[2], u, v }); }
+    }
+  }
+  void buildScreen(const ScreenGeometry &g) { buildScreenInto(g, m_screenVerts); }
+  void drawStrip(const std::vector<float> &verts)
+  {
+    tgl::BindVertexArray(m_screenVao); tgl::BindBuffer(GL_ARRAY_BUFFER, m_screenVbo);
+    tgl::BufferData(GL_ARRAY_BUFFER, verts.size() * 4, verts.data(), GL_STREAM_DRAW);
+    tgl::EnableVertexAttribArray(0); tgl::VertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 20, nullptr);
+    tgl::EnableVertexAttribArray(1); tgl::VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 20, reinterpret_cast<void *>(12));
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, (GLsizei)(verts.size() / 5));
+  }
+  // An orange disc with a dark rim, lying on the screen just in front of the picture.
+  void drawDot(const EyeScene &s, const Mat4 &vp, bool encode)
+  {
+    const float r = s.screen.height / 110.f;
+    auto ring = [&](float radius, float lift, const float colour[4]) {
+      std::vector<float> v; const auto c = s.screen.local(s.dotU, s.dotV);
+      const float du = radius / s.screen.width, dv = radius / s.screen.height;
+      // Toward the viewer: the screen normal at this point, in the frame.
+      float nx = -c[0], nz = -(c[2] + s.screen.distance - (s.screen.curve > 0 ? s.screen.distance / s.screen.curve : 0)); if (s.screen.curve <= 0) { nx = 0; nz = 1; }
+      const float nl = std::sqrt(nx * nx + nz * nz); nx /= nl; nz /= nl;
+      v.insert(v.end(), { c[0] + nx * lift, c[1], c[2] + nz * lift });
+      for (int i = 0; i <= 24; ++i) {
+        const float a = i * 6.2831853f / 24, p = s.dotU + du * std::cos(a), q = s.dotV + dv * std::sin(a);
+        const auto e = s.screen.local(p, q); v.insert(v.end(), { e[0] + nx * lift, e[1], e[2] + nz * lift });
+      }
+      tgl::UseProgram(m_flatProgram);
+      const Mat4 mvp = vp * s.screen.frame;
+      tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_flatProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
+      tgl::Uniform4fv(tgl::GetUniformLocation(m_flatProgram, "base"), 1, colour);
+      tgl::Uniform1i(tgl::GetUniformLocation(m_flatProgram, "encode"), encode ? 1 : 0);
+      tgl::BindVertexArray(m_dotVao); tgl::BindBuffer(GL_ARRAY_BUFFER, m_dotVbo);
+      tgl::BufferData(GL_ARRAY_BUFFER, v.size() * 4, v.data(), GL_STREAM_DRAW);
+      tgl::EnableVertexAttribArray(0); tgl::VertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12, nullptr);
+      glDrawArrays(GL_TRIANGLE_FAN, 0, (GLsizei)(v.size() / 3));
+    };
+    const float rim[4] = { 0, 0, 0, 1 }, fill[4] = { 1.f, .2f, .02f, 1 };
+    ring(r * 1.35f, .004f, rim); ring(r, .006f, fill);
+  }
+};
+}
