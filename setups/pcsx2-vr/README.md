@@ -919,3 +919,27 @@ fixed separation and compares the default-off output with the preceding build.
 `PCSX2_STEREO_TEST_IPD_M` is a test-only injection guarded by this opt-in,
 screen mode and `PCSX2_OPENXR=0`; it is ignored with a runtime active. These
 synthetic poses are not headset measurements or physical-comfort acceptance.
+
+
+### Repeating the no-runtime screen/gun proof
+
+`screen_proof_test.py <private-capture-directory>` validates a matched replay
+triplet with Pillow and NumPy. Capture `baseline/` with the preceding build and
+no gun, `no-gun/` with the candidate and no gun, and `combined/` with the
+candidate's existing `PCSX2_VR_SCREEN_PROOF` synthetic poses. Keep the same
+combat dump, profile and save frame across the triplet; explicitly disable
+OpenXR, use hidden bounded runs at BelowNormal priority, and keep every image
+and run receipt in ignored private storage. The validator never launches a
+process or loads a runtime.
+
+Each folder supplies `run.log.json`, `live.log`, the `live-shared-{eye}.png`
+and `live-blit-{eye}.png` readbacks. The combined folder also supplies
+`screen-{eye}-{picture,front,behind,dot}.png` and
+`screen-screen-order.json`. The production renderer uses a picture plane at
+2.5 m, synthetic near/behind grip poses at 0.42/4 m, and a 63 mm eye baseline.
+The validator requires exact no-gun eye/blit equality, opaque picture pixels
+covered by the near gun, zero changed pixels for the behind gun, an aim marker,
+one opaque projection layer, successful draws and clean exits with no GL
+errors. Repeat per combat dump rather than inferring per-game acceptance from
+one scene. These checks establish native offline composition only; tracking,
+compositor behavior and headset comfort remain separate checks.
