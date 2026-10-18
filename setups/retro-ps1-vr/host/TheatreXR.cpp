@@ -329,6 +329,7 @@ void ThreadMain()
         if (haveGun && s_gun.loaded()) {
           const float since = (GetTickCount64() - kickAt) / 1000.f;
           scene.showGun = true; scene.trigger = triggerValue;
+          { const float slideS = s_gun.recoilMs() / 1000.f; scene.recoil = kickAt && since < 2 * slideS ? (since < slideS ? 1.f : 2.f - since / slideS) : 0.f; }   // back, hold, return
           scene.gunRoot = s_gun.alignedRoot(gripWorld, aimWorld, kickAt && since < .1f ? 1.f - since / .1f : 0.f);
         }
         bool ok = true;
