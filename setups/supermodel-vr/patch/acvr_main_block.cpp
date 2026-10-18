@@ -21,12 +21,18 @@
    ACVR_SAVE_STATE_FRAME=<n> write a save state (current slot) at that frame
    ACVR_HIDDEN=1          keep the window hidden (for unattended captures)
    ACVR_INPUT_SCRIPT=<first>-<last>:<InputId>:<value>;...  hold an input during those frames
+   ACVR_STICK_GRAB=1      Star Wars Trilogy: grab the flight stick with the right grip instead of pointing
+   ACVR_STICK_INVERT=1    with ACVR_STICK_GRAB: pushing the stick forward aims up instead of down
+   ACVR_TEST_STICK=<pitch>,<roll>  with ACVR_STICK_GRAB: a stick held at that tilt, degrees (pitch: pulled back,
+                          roll: to the right), with no controllers, for unattended checks
 ******************************************************************************/
 
 ACVRStereoState g_acvrStereo;
 
-static int      s_acvrCabinet = 0;          // 0 none, 1 wheel, 2 motorcycle bars
+static int      s_acvrCabinet = 0;          // 0 none, 1 wheel, 2 motorcycle bars, 3 flight stick (ACVR_STICK_GRAB)
 static float    s_acvrSteer = 0.0f;         // -1 full left .. 1 full right
+static int      s_acvrStickGrab = -1;       // ACVR_STICK_GRAB: -1 not read yet, 0 off, 1 on
+static float    s_acvrStick[2] = { 0, 0 };  // the flight stick's tilt, -1 .. 1: x to the right, y pulled back
 static GLuint   s_acvrEyeFbo[2] = { 0, 0 };
 static GLuint   s_acvrEyeTex[2] = { 0, 0 };
 static GLuint   s_acvrHudFbo = 0, s_acvrHudTex = 0;
@@ -117,6 +123,44 @@ static void ACVR_ApplyInputScript(CInputs *inputs)
   }
 }
 
+static bool ACVR_StickGrabOn()
+{
+  if (s_acvrStickGrab < 0) { const char *e = getenv("ACVR_STICK_GRAB"); s_acvrStickGrab = (e && e[0] == '1') ? 1 : 0; }
+  return s_acvrStickGrab == 1;
+}
+
+// A stick tilt in radians to -1 .. 1: a 2 degree dead zone, then full deflection at 25 degrees (the pointing scale)
+static float ACVR_StickAxis(float angle)
+{
+  const float dead = 2.0f * 0.01745329f, full = 25.0f * 0.01745329f;
+  const float m = fabsf(angle);
+  if (!(m > dead)) return 0.0f;
+  const float v = (m - dead) / (full - dead);
+  return (angle < 0.0f ? -1.0f : 1.0f) * (v > 1.0f ? 1.0f : v);
+}
+
+// The flight stick to the game: x to the right, y pulled back. Pulled back aims up, the same hand movement
+// (nose up) that aims up in the pointing mapping; ACVR_STICK_INVERT=1 swaps that.
+static void ACVR_SetStick(CInputs *inputs, float x, float y)
+{
+  static int invert = -1;
+  if (invert < 0) { const char *e = getenv("ACVR_STICK_INVERT"); invert = (e && e[0] == '1') ? 1 : 0; }
+  s_acvrStick[0] = x; s_acvrStick[1] = y;
+  const float gy = invert ? -y : y;
+  if (auto in = (*inputs)["AnalogJoyX"]) in->value = (int)(128.0f + x * 127.0f + 0.5f);
+  if (auto in = (*inputs)["AnalogJoyY"]) in->value = (int)(128.0f - gy * 127.0f + 0.5f);
+}
+
+static void ACVR_LogStick(CInputs *inputs, const char *how)
+{
+  static int frames = 0;
+  if (++frames < 60) return;
+  frames = 0;
+  auto jx = (*inputs)["AnalogJoyX"], jy = (*inputs)["AnalogJoyY"];
+  printf("ACVR stick (%s): x %.2f y %.2f -> AnalogJoyX %d AnalogJoyY %d\n", how, s_acvrStick[0], s_acvrStick[1],
+         jx ? jx->value : -1, jy ? jy->value : -1);
+}
+
 // Called right after the inputs are polled: VR controllers as cabinet controls. The layout depends on the
 // kind of cabinet. Only writes an input while its controller control is in use, so the keyboard and gamepad
 // keep working.
@@ -126,6 +170,10 @@ static void ACVR_ApplyInputScript(CInputs *inputs)
 //               A = start, B = coin, X = view change / VR1, Y = VR2 / hand brake, stick clicks = VR3 / VR4
 //   Pointing    (analog joystick, Star Wars Trilogy) where the right controller points = the stick;
 //               right trigger = its trigger, right grip = its event button; A = start, B = coin
+//   Flight stick (ACVR_STICK_GRAB=1, Star Wars Trilogy) hold the right grip to take the stick: tilt the hand
+//               back or forward (pitch) = stick Y, tip it to a side (roll) = stick X, from its pose at the grab;
+//               let go and it springs back to centre; right thumbstick when not holding it. Right trigger = its
+//               trigger, right stick click = its event button (the grip is the hand on the stick); A = start, B = coin
 //   Stick games left thumbstick = joystick; A, B, X, Y = the four buttons;
 //               menu button or right stick click = start (in Virtua Fighter 3 start also switches to the
 //               first-person view during a fight); left stick click = coin
@@ -133,6 +181,18 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
 {
   s_acvrCabinet = (gameInputs & Game::INPUT_HARLEY) ? 2 : ((gameInputs & Game::INPUT_VEHICLE) ? 1 : 0);
   if (auto st = (*inputs)["Steering"]) s_acvrSteer = (st->value - 128) / 127.0f;
+  if ((gameInputs & Game::INPUT_ANALOG_JOYSTICK) && ACVR_StickGrabOn())
+  {
+    s_acvrCabinet = 3;
+    if (const char *e = getenv("ACVR_TEST_STICK"))      // a stick held at a fixed tilt, no controllers needed
+    {
+      float pitch = 0.0f, roll = 0.0f;
+      sscanf(e, "%f,%f", &pitch, &roll);
+      ACVR_SetStick(inputs, ACVR_StickAxis(roll * 0.01745329f), ACVR_StickAxis(pitch * 0.01745329f));
+      ACVR_LogStick(inputs, "test");
+      return;
+    }
+  }
   // Hold Y for 3 seconds of wall-clock time to quit the game. Y keeps its game mapping while held (driving:
   // VR2 + HandBrake; stick games: Escape / Shift), so a 3 s hand-brake hold also quits.
   static Uint32 yDownSince = 0;       // SDL_GetTicks() when Y went down, 0 = not held
@@ -212,6 +272,52 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
     press("VR4", c.stickClick[1]);
     press("GearShiftUp", c.stick[1][1] > 0.7f);
     press("GearShiftDown", c.stick[1][1] < -0.7f);
+  }
+  else if ((gameInputs & Game::INPUT_ANALOG_JOYSTICK) && ACVR_StickGrabOn())
+  {
+    // A centre flight stick. Its shaft follows the hand's turn since the grab, seen in the player's frame:
+    // pitch moves it back and forward, roll to the sides, and a twist about the vertical does nothing.
+    static bool grabbed = false;
+    static float q0[4] = { 0, 0, 0, 1 };
+    float x = 0.0f, y = 0.0f;
+    if (c.grip[1] > 0.5f)
+    {
+      if (c.aimValid[1])
+      {
+        const float *q = c.aimRot[1];
+        if (!grabbed) { for (int k = 0; k < 4; k++) q0[k] = q[k]; grabbed = true; }
+        auto rot = [](const float *r, float sign, const float v[3], float o[3]) {   // v turned by r (sign -1: by its inverse)
+          const float qx = sign * r[0], qy = sign * r[1], qz = sign * r[2], w = r[3];
+          const float tx = 2.0f * (qy * v[2] - qz * v[1]), ty = 2.0f * (qz * v[0] - qx * v[2]), tz = 2.0f * (qx * v[1] - qy * v[0]);
+          o[0] = v[0] + w * tx + (qy * tz - qz * ty);
+          o[1] = v[1] + w * ty + (qz * tx - qx * tz);
+          o[2] = v[2] + w * tz + (qx * ty - qy * tx);
+        };
+        const float up[3] = { 0.0f, 1.0f, 0.0f };
+        float a[3], tip[3];
+        rot(q0, -1.0f, up, a);
+        rot(q, 1.0f, a, tip);                                              // the shaft: upright, turned as the hand turned
+        const float px = tip[0] * ca + tip[2] * sa, pz = -tip[0] * sa + tip[2] * ca;   // in the player's frame
+        x = ACVR_StickAxis(atan2f(px, tip[1]));                            // top to the right
+        y = ACVR_StickAxis(atan2f(pz, tip[1]));                            // top towards the player: pulled back
+      }
+      else if (grabbed) { x = s_acvrStick[0]; y = s_acvrStick[1]; }      // tracking lost for a moment: hold still
+    }
+    else
+    {
+      grabbed = false;                                                     // let go: back to centre
+      if (fabsf(c.stick[1][0]) > 0.12f || fabsf(c.stick[1][1]) > 0.12f)
+      {
+        x = clampf(c.stick[1][0], -1.0f, 1.0f);
+        y = clampf(c.stick[1][1], -1.0f, 1.0f);                            // thumbstick up aims up
+      }
+    }
+    ACVR_SetStick(inputs, x, y);
+    ACVR_LogStick(inputs, grabbed ? "grabbed" : "free");
+    press("AnalogJoyTrigger", c.trigger[1] > 0.5f);
+    press("AnalogJoyEvent", c.stickClick[1]);
+    press("Start1", c.a || c.menu);
+    press("Coin1", c.b);
   }
   else if (gameInputs & Game::INPUT_ANALOG_JOYSTICK)
   {
@@ -453,7 +559,8 @@ bool ACVR_SkipBottomLayer()
 }
 
 // ---------------------------------------------------------------- ACVR: cabinet controls in the headset
-// Head-tracked mode draws the cabinet's own control (the wheel, or Harley's bars) in front of the
+// Head-tracked mode draws the cabinet's own control (the wheel, Harley's bars, or with ACVR_STICK_GRAB=1
+// Star Wars Trilogy's flight stick, tilting with the stick the game receives) in front of the
 // player, turning with the steering the game receives. Models come from assets/controls, baked by
 // bake_control.py into Assets/acvr/*.acm. The control sits where the cabinet data puts it relative to a
 // seated player whose eyes were at the recentre point (ACVR_CONTROL_POS overrides, metres x,y,z).
@@ -464,6 +571,8 @@ static int      s_acvrControlLoaded = 0;    // which cabinet's model is in the b
 static bool     s_acvrControlFailed = false;
 static GLuint   s_acvrControlProg = 0, s_acvrControlVao = 0, s_acvrControlVbo = 0, s_acvrControlIbo = 0;
 static GLint    s_acvrCtlMvp = -1, s_acvrCtlModel = -1, s_acvrCtlAngle = -1, s_acvrCtlMoving = -1, s_acvrCtlColour = -1, s_acvrCtlAxis = -1;
+static GLint    s_acvrCtlAngle2 = -1, s_acvrCtlAxis2 = -1, s_acvrCtlPivot = -1;
+static float    s_acvrControlPivot[3] = { 0, 0, 0 };   // the loaded model's pivot origin, from the baked file
 static std::vector<ACVRControlPart> s_acvrControlParts;
 
 static GLuint ACVR_CompileControlShader()
@@ -477,14 +586,20 @@ static GLuint ACVR_CompileControlShader()
     "uniform float angle;\n"
     "uniform int moving;\n"
     "uniform vec3 axis;\n"
+    "uniform float angle2;\n"      // a first turn, before the one above (the flight stick's second gimbal axis)
+    "uniform vec3 axis2;\n"
+    "uniform vec3 pivot;\n"        // what the moving parts turn about (the flight stick's gimbal; 0 for the others)
     "out vec3 vNormal;\n"
+    "vec3 rot(vec3 v, vec3 ax, float a) {\n"
+    "  float c = cos(a), s = sin(a);\n"
+    "  return v * c + cross(ax, v) * s + ax * dot(ax, v) * (1.0 - c);\n"
+    "}\n"
     "vec3 turn(vec3 v) {\n"
     "  if (moving == 0) return v;\n"
-    "  float c = cos(angle), s = sin(angle);\n"
-    "  return v * c + cross(axis, v) * s + axis * dot(axis, v) * (1.0 - c);\n"
+    "  return rot(rot(v, axis2, angle2), axis, angle);\n"
     "}\n"
     "void main() {\n"
-    "  vec3 p = turn(inPos);\n"
+    "  vec3 p = moving == 0 ? inPos : turn(inPos - pivot) + pivot;\n"
     "  vNormal = mat3(model) * turn(inNormal);\n"
     "  gl_Position = mvp * vec4(p, 1.0);\n"
     "}\n";
@@ -520,7 +635,8 @@ static GLuint ACVR_CompileControlShader()
 
 static bool ACVR_LoadControl(int cabinet)
 {
-  const char *file = cabinet == 2 ? "Assets/acvr/bars-motorcycle.acm" : "Assets/acvr/wheel-three-spoke.acm";
+  const char *file = cabinet == 3 ? "Assets/acvr/stick-flight.acm" :
+                     (cabinet == 2 ? "Assets/acvr/bars-motorcycle.acm" : "Assets/acvr/wheel-three-spoke.acm");
   FILE *f = fopen(file, "rb");
   if (!f) { printf("ACVR controls: %s not found\n", file); return false; }
   char magic[4]; uint32_t parts = 0; float origin[3];
@@ -544,6 +660,7 @@ static bool ACVR_LoadControl(int cabinet)
   }
   fclose(f);
   if (!ok || verts.empty()) { printf("ACVR controls: %s unreadable\n", file); return false; }
+  for (int k = 0; k < 3; k++) s_acvrControlPivot[k] = origin[k];
   if (!s_acvrControlProg)
   {
     s_acvrControlProg = ACVR_CompileControlShader();
@@ -554,6 +671,9 @@ static bool ACVR_LoadControl(int cabinet)
     s_acvrCtlMoving = glGetUniformLocation(s_acvrControlProg, "moving");
     s_acvrCtlColour = glGetUniformLocation(s_acvrControlProg, "colour");
     s_acvrCtlAxis = glGetUniformLocation(s_acvrControlProg, "axis");
+    s_acvrCtlAngle2 = glGetUniformLocation(s_acvrControlProg, "angle2");
+    s_acvrCtlAxis2 = glGetUniformLocation(s_acvrControlProg, "axis2");
+    s_acvrCtlPivot = glGetUniformLocation(s_acvrControlProg, "pivot");
     glGenVertexArrays(1, &s_acvrControlVao);
     glGenBuffers(1, &s_acvrControlVbo);
     glGenBuffers(1, &s_acvrControlIbo);
@@ -604,8 +724,18 @@ static void ACVR_DrawControls(int eye)
   float tiltDeg = 25.0f, range = 2.35619449f;
   float axis[3] = { 0.0f, 0.0f, -1.0f };
   if (s_acvrCabinet == 2) { pos[1] = -0.32f; pos[2] = -0.42f; tiltDeg = 0.0f; range = 0.523599f; axis[0] = 0.0f; axis[1] = -1.0f; axis[2] = 0.0f; }
+  // The flight stick: upright, its base 0.6 m below the eyes and 0.35 m ahead, a little right, so the grip is
+  // where a seated player's right hand rests. It tilts 25 degrees at full deflection, the same as the hand.
+  float angle2 = 0.0f, axis2[3] = { 1.0f, 0.0f, 0.0f }, pivot[3] = { 0.0f, 0.0f, 0.0f };
+  if (s_acvrCabinet == 3)
+  {
+    pos[0] = 0.12f; pos[1] = -0.6f; pos[2] = -0.35f; tiltDeg = 0.0f; range = 25.0f * 0.01745329f;
+    axis[0] = 0.0f; axis[1] = 0.0f; axis[2] = -1.0f;                 // stick X: top to the right
+    angle2 = s_acvrStick[1] * range;                                  // stick Y: top towards the player
+    for (int k = 0; k < 3; k++) pivot[k] = s_acvrControlPivot[k];
+  }
   if (const char *e = getenv("ACVR_CONTROL_POS")) sscanf(e, "%f,%f,%f", &pos[0], &pos[1], &pos[2]);
-  float steer = s_acvrSteer;
+  float steer = s_acvrCabinet == 3 ? s_acvrStick[0] : s_acvrSteer;
   if (const char *e = getenv("ACVR_TEST_STEER")) steer = (float)atof(e);
   steer = steer < -1.0f ? -1.0f : (steer > 1.0f ? 1.0f : steer);
 
@@ -652,6 +782,9 @@ static void ACVR_DrawControls(int eye)
   glUniformMatrix4fv(s_acvrCtlModel, 1, GL_FALSE, model);
   glUniform1f(s_acvrCtlAngle, steer * range);
   glUniform3f(s_acvrCtlAxis, axis[0], axis[1], axis[2]);
+  glUniform1f(s_acvrCtlAngle2, angle2);
+  glUniform3f(s_acvrCtlAxis2, axis2[0], axis2[1], axis2[2]);
+  glUniform3f(s_acvrCtlPivot, pivot[0], pivot[1], pivot[2]);
   glBindVertexArray(s_acvrControlVao);
   for (const ACVRControlPart &p : s_acvrControlParts)
   {
