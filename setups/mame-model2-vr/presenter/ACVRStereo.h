@@ -5,6 +5,7 @@
  */
 #ifndef INCLUDED_ACVRSTEREO_H
 #define INCLUDED_ACVRSTEREO_H
+#include "../../../libacvr/publish-presenter/Presenter.h"
 
 struct ACVRStereoState
 {
@@ -38,11 +39,7 @@ bool  ACVR_XR_Stop();
 void  ACVR_XR_QueueShotPulse();
 void  ACVR_XR_UpdateFov(float left, float right, float bottom, float top);
 
-struct ACVRControllerInput
-{
-  float u = .5f, v = .5f;
-  bool active = false, offScreen = true, trigger = false, start = false, coin = false, quitHeld = false;
-};
+using ACVRControllerInput=acvr_publish::ControllerInput;
 ACVRControllerInput ACVR_XR_ControllerInput();
 
 #endif  // INCLUDED_ACVRSTEREO_H

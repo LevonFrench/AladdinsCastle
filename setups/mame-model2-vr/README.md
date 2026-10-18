@@ -197,3 +197,21 @@ the viewer's `AimMath.h` and patched MAME's `model2_input.h`.
 MAME as a whole is GPL-2.0; the new MAME-side source files are BSD-3-Clause.
 The source checkout's `COPYING` and `docs/legal` retain the upstream licence
 texts and copyright notices. The licence texts are included here as well.
+
+## Shared presenter candidate (Model 2 first)
+
+The new `libacvr/publish-presenter` target owns the presenter mechanics; the
+Model 2 source now keeps only the compatibility adapter and its bitmap/input
+transport. Build the candidate with `build-viewer.ps1 -SharedPresenter` using
+the existing required path parameters. It produces `model2-viewer-shared.exe`.
+The default build still uses the original files in `presenter/legacy` and
+produces `model2-viewer.exe`; both can be built side by side. No installed viewer
+or launcher is replaced. Keep the original until the candidate has passed play.
+
+Run `test-presenter.ps1` for the shared implementation, or add
+`-LegacyPresenter` for the preserved original harness. Both remain hidden and
+bounded. The shared test adds pose/serial ownership, loader-table failure,
+session/focus, 250 ms input expiry, GL drain, layer construction and recentre.
+No OpenXR loader or runtime is opened by these tests. This is offline proof,
+with headset behavior still pending. The shared library README describes the
+API, build target and remaining adapter work for other emulators.
