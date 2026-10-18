@@ -1,0 +1,9 @@
+{
+  "project": "SwanStation (libretro PlayStation core)",
+  "repository": "https://github.com/libretro/swanstation",
+  "licence": "GPL-3.0",
+  "commit": "e436e9b85374def58d211df7f78880f0f4a917b4",
+  "patch": "swanstation-stereo.patch",
+  "build": "cmake -G Ninja -DCMAKE_BUILD_TYPE=Release with the Visual Studio 2022 x64 toolchain; output swanstation_libretro.dll",
+  "checked": "2026-10-18: the patch applies to this commit and the core builds"
+}

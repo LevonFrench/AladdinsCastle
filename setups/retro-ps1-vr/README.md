@@ -125,11 +125,47 @@ played this way in a hidden run with MAME 0.285: coin, course chosen by
 shooting, targets knocked down. Point Blank (`ptblank`) needs files the
 current MAME set expects (the C75 sound BIOS and a newer sprite ROM).
 
+## Real 3D: the SwanStation stereo patch
+
+The PlayStation does its 3D maths on the CPU, so its graphics chip only ever
+receives flat screen positions. SwanStation's PGXP keeps each vertex's depth
+(`w`). `swanstation-stereo.patch` (against the commit in
+`swanstation-pin.json`, GPL-3.0 like SwanStation) uses it to draw every
+picture twice in the OpenGL renderer:
+
+- The right eye has its own copy of PlayStation video memory, its depth, its
+  read copy and its display texture. Every VRAM write, fill, copy and
+  depth/read-copy update runs for the right eye first as a replay that leaves
+  the emulator's bookkeeping untouched, then for the left eye as normal, so
+  both copies see identical state. Readbacks to the console use the left eye.
+- Each draw runs once per eye. The vertex shader moves a vertex sideways by
+  `shift x clamp(1 - conv / w, -popout, 1)`, where `shift` is half the eyes'
+  separation on the theatre screen. Far scenery therefore never needs the
+  eyes to diverge; vertices without PGXP depth (HUD, text, 2D) stay on the
+  screen plane.
+- The core outputs both eyes side by side; `acvr-ps1` shows the left half to
+  the left eye and the right half to the right eye (`ACVR_PS1_SBS=1`).
+- The light gun keeps mapping to one eye's picture.
+
+| Setting | Default | |
+|---|---|---|
+| `ACVR_PS1_STEREO` | 0 | 1 turns it on (OpenGL renderer only) |
+| `ACVR_PS1_STEREO_CONV` | 0.25 | the PGXP depth `w` that sits on the screen |
+| `ACVR_PS1_STEREO_DEPTH` | 1 | multiplier on the effect |
+| `ACVR_PS1_STEREO_POPOUT` | 2 | how far in front of the screen things may come, in units of the far limit |
+| `ACVR_PS1_IPD`, `ACVR_PS1_SCREEN_W` | 0.064, 2.4 | metres; the same screen width as the theatre |
+| `ACVR_PS1_STEREO_STATS` | 0 | 1 logs a histogram of `w` every few seconds, to choose `CONV` per game |
+
+Measured on Time Crisis gameplay (2x resolution, `CONV` 0.05, hidden
+offline runs): most geometry has `w` between 0.03 and 0.09; disparities run
+from about 14 px crossed (nearest objects about 1.2 m away on a 2.5 m screen)
+to 13 px uncrossed, which is exactly the eye separation, so nothing is beyond
+infinity; the HUD sits on the screen. Not yet seen in a headset.
+
 ## Next
 
-Real stereo for the polygon games needs a hardware-rendering core that
-keeps each vertex's depth (PGXP). That is a patched build of a GPL core;
-see the PS1 plan in the project notes.
+Per-game zero planes for every polygon game, and the diorama for sprite games
+(depth from the order the PlayStation draws things).
 
 The program is GPL-3.0-or-later. `retro_abi.h` declares the libretro core
 interface from its public description and contains no libretro code.

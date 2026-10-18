@@ -1,0 +1,570 @@
+diff --git a/src/core/gpu_hw.cpp b/src/core/gpu_hw.cpp
+index 99582d73..b870c8f0 100644
+--- a/src/core/gpu_hw.cpp
++++ b/src/core/gpu_hw.cpp
+@@ -1,4 +1,13 @@
+ #include "gpu_hw.h"
++#include <algorithm>
++#include <cstdlib>
++#include <string>
++
++#include "common/log.h"
++Log_SetChannel(GPU_HW);
++
++template <typename Vertex>
++static void AcvrRecordDepth(const Vertex* v, uint32_t count);
+ #include "common/state_wrapper.h"
+ #include "cpu_core.h"
+ #include "gpu_sw_backend.h"
+@@ -407,6 +416,8 @@ GPUDownsampleMode GPU_HW::GetDownsampleMode(uint32_t resolution_scale) const
+ 
+ void GPU_HW::UpdateVRAMReadTexture()
+ {
++  if (m_acvr_replay)
++    return;
+   ClearVRAMDirtyRectangle();
+ }
+ 
+@@ -715,6 +726,8 @@ void GPU_HW::LoadVertices()
+                                    m_drawing_offset.y, &vertices[i].x, &vertices[i].y, &vertices[i].w);
+         }
+       }
++      if (pgxp && valid_w)
++        AcvrRecordDepth(vertices.data(), num_vertices);
+       if (pgxp)
+       {
+         if (!valid_w)
+@@ -1150,8 +1163,41 @@ GPU_HW::VRAMCopyUBOData GPU_HW::GetVRAMCopyUBOData(uint32_t src_x, uint32_t src_
+   return uniforms;
+ }
+ 
++// ACVR stereo: a histogram of PGXP depth (w) over valid vertices, printed every 600 frames
++// when ACVR_PS1_STEREO_STATS is set, to choose the zero-parallax depth per game.
++template <typename Vertex>
++static void AcvrRecordDepth(const Vertex* v, uint32_t count)
++{
++  static const bool enabled = [] { const char* e = std::getenv("ACVR_PS1_STEREO_STATS"); return e && *e && *e != '0'; }();
++  if (!enabled)
++    return;
++  static uint64_t bins[32] = {};
++  static uint64_t samples = 0, calls = 0;
++  for (uint32_t i = 0; i < count; i++)
++  {
++    // log2 bins from w = 1/1024 to w = 4
++    const float w = v[i].w;
++    int b = (w > 0.0f) ? static_cast<int>(std::floor(std::log2(w) * 2.0f)) + 20 : 0;
++    b = std::clamp(b, 0, 31);
++    bins[b]++;
++    samples++;
++  }
++  if ((++calls % 20000) == 0)
++  {
++    std::string line = "ACVR depth histogram (w lower bounds:count):";
++    for (int b = 0; b < 32; b++)
++      if (bins[b])
++        line += " " + std::to_string(std::exp2((b - 20) / 2.0)).substr(0, 6) + ":" + std::to_string(bins[b]);
++    Log_InfoPrintf("%s (vertices %llu)", line.c_str(), static_cast<unsigned long long>(samples));
++    std::fill(std::begin(bins), std::end(bins), 0);
++    samples = 0;
++  }
++}
++
+ void GPU_HW::IncludeVRAMDirtyRectangle(const Common::Rectangle<uint32_t>& rect)
+ {
++  if (m_acvr_replay)
++    return;
+   m_vram_dirty_rect.Include(rect);
+ 
+   // the vram area can include the texture page, but the game can leave it as-is. in this case, set it as dirty so the
+@@ -1319,6 +1365,8 @@ void GPU_HW::FillVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height, u
+ 
+ void GPU_HW::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height, const void* data, bool set_mask, bool check_mask)
+ {
++  if (m_acvr_replay)
++    return;
+   IncludeVRAMDirtyRectangle(Common::Rectangle<uint32_t>::FromExtents(x, y, width, height));
+ 
+   if (check_mask)
+@@ -1330,6 +1378,8 @@ void GPU_HW::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
+ 
+ void GPU_HW::CopyVRAM(uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y, uint32_t width, uint32_t height)
+ {
++  if (m_acvr_replay)
++    return;
+   IncludeVRAMDirtyRectangle(
+     Common::Rectangle<uint32_t>::FromExtents(dst_x, dst_y, width, height).Clamped(0, 0, VRAM_WIDTH, VRAM_HEIGHT));
+ 
+diff --git a/src/core/gpu_hw.h b/src/core/gpu_hw.h
+index 3741e75c..16b53d63 100644
+--- a/src/core/gpu_hw.h
++++ b/src/core/gpu_hw.h
+@@ -558,6 +558,11 @@ protected:
+   // Bounding box of VRAM area that the GPU has drawn into.
+   Common::Rectangle<uint32_t> m_vram_dirty_rect;
+ 
++  // ACVR stereo: while the right eye's copy of VRAM is being brought up to date, the
++  // emulator's own bookkeeping (dirty rectangles, mask depth, CPU shadow) is left alone;
++  // the left eye pass that follows changes it exactly once.
++  bool m_acvr_replay = false;
++
+   // Changed state
+   bool m_batch_ubo_dirty = true;
+ 
+diff --git a/src/core/gpu_hw_opengl.cpp b/src/core/gpu_hw_opengl.cpp
+index 8e976dae..e9423b64 100644
+--- a/src/core/gpu_hw_opengl.cpp
++++ b/src/core/gpu_hw_opengl.cpp
+@@ -1,4 +1,6 @@
+ #include "gpu_hw_opengl.h"
++#include <cstdlib>
++#include <utility>
+ #include "common/align.h"
+ #include "common/log.h"
+ #include "common/state_wrapper.h"
+@@ -33,6 +35,20 @@ private:
+   GL::Texture m_texture;
+ };
+ 
++// ACVR stereo: the right eye's display picture, set by GPU_HW_OpenGL::UpdateDisplay.
++static struct
++{
++  void* texture = nullptr;
++  int32_t view_x = 0, view_y = 0, view_width = 0, view_height = 0;
++  uint32_t width = 0, height = 0;
++} s_acvr_right;
++
++static float AcvrEnv(const char* name, float fallback)
++{
++  const char* v = std::getenv(name);
++  return (v && *v) ? static_cast<float>(std::atof(v)) : fallback;
++}
++
+ LibretroOpenGLHostDisplay::LibretroOpenGLHostDisplay() = default;
+ 
+ LibretroOpenGLHostDisplay::~LibretroOpenGLHostDisplay() = default;
+@@ -506,8 +522,9 @@ bool LibretroOpenGLHostDisplay::Render()
+   const int32_t pos_x = offscreen ? 0 : (((static_cast<int32_t>(gun_x) + 0x7FFF) * display_width)  / 0xFFFF);
+   const int32_t pos_y = offscreen ? 0 : (((static_cast<int32_t>(gun_y) + 0x7FFF) * display_height) / 0xFFFF);
+ 
++  const bool acvr_pair = (s_acvr_right.texture != nullptr);
+   glEnable(GL_SCISSOR_TEST);
+-  glScissor(0, 0, display_width, display_height);
++  glScissor(0, 0, display_width * (acvr_pair ? 2 : 1), display_height);
+   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
+   glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+   glClear(GL_COLOR_BUFFER_BIT);
+@@ -518,6 +535,10 @@ bool LibretroOpenGLHostDisplay::Render()
+     RenderDisplay(left, top, width, height, m_display_texture_handle, m_display_texture_width, m_display_texture_height,
+                   m_display_texture_view_x, m_display_texture_view_y, m_display_texture_view_width,
+                   m_display_texture_view_height);
++    if (acvr_pair)
++      RenderDisplay(left + static_cast<int32_t>(display_width), top, width, height, s_acvr_right.texture,
++                    s_acvr_right.width, s_acvr_right.height, s_acvr_right.view_x, s_acvr_right.view_y,
++                    s_acvr_right.view_width, s_acvr_right.view_height);
+   }
+ 
+   if (g_settings.controller_show_crosshair && HasSoftwareCursor() && (pos_x > 0 || pos_y > 0))
+@@ -535,7 +556,7 @@ bool LibretroOpenGLHostDisplay::Render()
+     RenderSoftwareCursor(out_left, display_height - out_top - out_height, out_width, out_height, m_cursor_texture.get());
+   }
+ 
+-  g_retro_video_refresh_callback(RETRO_HW_FRAME_BUFFER_VALID, display_width, display_height, 0);
++  g_retro_video_refresh_callback(RETRO_HW_FRAME_BUFFER_VALID, display_width * (acvr_pair ? 2 : 1), display_height, 0);
+ 
+   GL::Program::ResetLastProgram();
+   return true;
+@@ -591,6 +612,15 @@ GPU_HW_OpenGL::~GPU_HW_OpenGL()
+ 
+ bool GPU_HW_OpenGL::Initialize(HostDisplay* host_display)
+ {
++  m_acvr_stereo = AcvrEnv("ACVR_PS1_STEREO", 0.0f) != 0.0f;
++  m_acvr_ipd = AcvrEnv("ACVR_PS1_IPD", 0.064f);
++  m_acvr_screen_w = AcvrEnv("ACVR_PS1_SCREEN_W", 2.4f);
++  m_acvr_conv = AcvrEnv("ACVR_PS1_STEREO_CONV", 0.25f);
++  m_acvr_popout = AcvrEnv("ACVR_PS1_STEREO_POPOUT", 2.0f);
++  m_acvr_depth = AcvrEnv("ACVR_PS1_STEREO_DEPTH", 1.0f);
++  if (m_acvr_stereo)
++    Log_InfoPrintf("ACVR stereo: eye separation %.3f m, screen %.2f m, zero plane w %.4f, depth x%.2f, pop-out limit %.1f",
++                   m_acvr_ipd, m_acvr_screen_w, m_acvr_conv, m_acvr_depth, m_acvr_popout);
+   if (host_display->GetRenderAPI() != HostDisplay::RenderAPI::OpenGL &&
+       host_display->GetRenderAPI() != HostDisplay::RenderAPI::OpenGLES)
+   {
+@@ -1093,12 +1123,77 @@ bool GPU_HW_OpenGL::CreateFramebuffer()
+   if (m_state_copy_fbo_id == 0)
+     glGenFramebuffers(1, &m_state_copy_fbo_id);
+ 
++  if (m_acvr_stereo && !AcvrCreateEyeSet())
++    return false;
++
+   SetFullVRAMDirtyRectangle();
+   return true;
+ }
+ 
++bool GPU_HW_OpenGL::AcvrCreateEyeSet()
++{
++  AcvrSelectEye(0);
++  const uint32_t texture_width = VRAM_WIDTH * m_resolution_scale;
++  const uint32_t texture_height = VRAM_HEIGHT * m_resolution_scale;
++  AcvrEyeSet& e = m_acvr_other;
++  if (!e.vram.Create(texture_width, texture_height, m_multisamples, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr, false,
++                     true) ||
++      !e.depth.Create(texture_width, texture_height, m_multisamples, GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT,
++                      nullptr, false) ||
++      !e.read.Create(texture_width, texture_height, 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr, false, true) ||
++      !e.read.CreateFramebuffer() ||
++      !e.display.Create(GPU_MAX_DISPLAY_WIDTH * m_resolution_scale, GPU_MAX_DISPLAY_HEIGHT * m_resolution_scale, 1,
++                        GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr, false) ||
++      !e.display.CreateFramebuffer())
++  {
++    Log_ErrorPrintf("ACVR stereo: the right eye's VRAM could not be created");
++    return false;
++  }
++  if (e.fbo == 0)
++    glGenFramebuffers(1, &e.fbo);
++  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, e.fbo);
++  glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, e.vram.GetGLTarget(), e.vram.GetGLId(), 0);
++  glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, e.depth.GetGLTarget(), e.depth.GetGLId(), 0);
++  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_vram_fbo_id);
++  return true;
++}
++
++void GPU_HW_OpenGL::AcvrSelectEye(uint32_t eye)
++{
++  if (!m_acvr_stereo || eye == m_acvr_eye || m_acvr_other.fbo == 0)
++    return;
++  std::swap(m_vram_texture, m_acvr_other.vram);
++  std::swap(m_vram_depth_texture, m_acvr_other.depth);
++  std::swap(m_vram_read_texture, m_acvr_other.read);
++  std::swap(m_display_texture, m_acvr_other.display);
++  std::swap(m_vram_fbo_id, m_acvr_other.fbo);
++  m_acvr_eye = eye;
++  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_vram_fbo_id);
++  m_vram_read_texture.Bind();
++}
++
++float GPU_HW_OpenGL::AcvrShiftNdc() const
++{
++  // Half the eyes' separation on a screen m_acvr_screen_w wide that shows display_vram_width
++  // VRAM pixels; VRAM x maps to NDC as 1/512 per pixel.
++  const float vram_width = static_cast<float>(std::max<uint32_t>(m_crtc_state.display_vram_width, 1u));
++  return m_acvr_depth * (m_acvr_ipd * 0.5f) / m_acvr_screen_w * vram_width / 512.0f;
++}
++
+ void GPU_HW_OpenGL::ClearFramebuffer()
+ {
++  if (m_acvr_stereo && !m_acvr_in_eyes && m_acvr_other.fbo != 0)
++  {
++    m_acvr_in_eyes = true;
++    AcvrSelectEye(1);
++    m_acvr_replay = true;
++    ClearFramebuffer();
++    m_acvr_replay = false;
++    AcvrSelectEye(0);
++    ClearFramebuffer();
++    m_acvr_in_eyes = false;
++    return;
++  }
+   const float depth_clear_value = m_pgxp_depth_buffer ? 1.0f : 0.0f;
+ 
+   glDisable(GL_SCISSOR_TEST);
+@@ -1632,6 +1727,22 @@ void GPU_HW_OpenGL::DrawBatchVertices(BatchRenderMode render_mode, uint32_t base
+ 
+   SetDepthFunc();
+ 
++  if (m_acvr_stereo && m_acvr_other.fbo != 0)
++  {
++    GLint program = 0;
++    glGetIntegerv(GL_CURRENT_PROGRAM, &program);
++    const GLint location = glGetUniformLocation(static_cast<GLuint>(program), "u_acvr");
++    const float shift = AcvrShiftNdc();
++    for (int eye = 1; eye >= 0; eye--)
++    {
++      AcvrSelectEye(static_cast<uint32_t>(eye));
++      if (location >= 0)
++        glUniform4f(location, eye ? shift : -shift, m_acvr_conv, 1.0f, m_acvr_popout);
++      glDrawArrays(GL_TRIANGLES, m_batch_base_vertex, num_vertices);
++    }
++    return;
++  }
++
+   glDrawArrays(GL_TRIANGLES, m_batch_base_vertex, num_vertices);
+ }
+ 
+@@ -1731,6 +1842,7 @@ void GPU_HW_OpenGL::UploadUniformBuffer(const void* data, uint32_t data_size)
+ void GPU_HW_OpenGL::ClearDisplay()
+ {
+   GPU_HW::ClearDisplay();
++  s_acvr_right.texture = nullptr;
+ 
+   m_host_display->ClearDisplayTexture();
+ 
+@@ -1762,6 +1874,8 @@ void GPU_HW_OpenGL::UpdateDisplay()
+     const uint32_t scaled_display_height = display_height * resolution_scale;
+     const InterlacedRenderMode interlaced = GetInterlacedRenderMode();
+ 
++    AcvrSelectEye(0);
++    s_acvr_right.texture = nullptr;
+     if (IsDisplayDisabled())
+     {
+       m_host_display->ClearDisplayTexture();
+@@ -1782,6 +1896,16 @@ void GPU_HW_OpenGL::UpdateDisplay()
+                                           m_vram_texture.GetHeight(), scaled_vram_offset_x,
+                                           m_vram_texture.GetHeight() - scaled_vram_offset_y, scaled_display_width,
+                                           -static_cast<int32_t>(scaled_display_height));
++        if (m_acvr_stereo && m_acvr_other.fbo != 0)
++        {
++          s_acvr_right.texture = reinterpret_cast<void*>(static_cast<uintptr_t>(m_acvr_other.vram.GetGLId()));
++          s_acvr_right.width = m_acvr_other.vram.GetWidth();
++          s_acvr_right.height = m_acvr_other.vram.GetHeight();
++          s_acvr_right.view_x = static_cast<int32_t>(scaled_vram_offset_x);
++          s_acvr_right.view_y = static_cast<int32_t>(m_acvr_other.vram.GetHeight() - scaled_vram_offset_y);
++          s_acvr_right.view_width = static_cast<int32_t>(scaled_display_width);
++          s_acvr_right.view_height = -static_cast<int32_t>(scaled_display_height);
++        }
+       }
+     }
+     else
+@@ -1821,6 +1945,22 @@ void GPU_HW_OpenGL::UpdateDisplay()
+       glViewport(0, 0, scaled_display_width, scaled_display_height);
+       glBindVertexArray(m_attributeless_vao_id);
+       glDrawArrays(GL_TRIANGLES, 0, 3);
++      if (m_acvr_stereo && m_acvr_other.fbo != 0)
++      {
++        // The same picture from the right eye's VRAM into the right eye's display texture.
++        AcvrSelectEye(1);
++        m_display_texture.BindFramebuffer(GL_DRAW_FRAMEBUFFER);
++        m_vram_texture.Bind();
++        glDrawArrays(GL_TRIANGLES, 0, 3);
++        AcvrSelectEye(0);
++        s_acvr_right.texture = reinterpret_cast<void*>(static_cast<uintptr_t>(m_acvr_other.display.GetGLId()));
++        s_acvr_right.width = m_acvr_other.display.GetWidth();
++        s_acvr_right.height = m_acvr_other.display.GetHeight();
++        s_acvr_right.view_x = 0;
++        s_acvr_right.view_y = static_cast<int32_t>(scaled_display_height);
++        s_acvr_right.view_width = static_cast<int32_t>(scaled_display_width);
++        s_acvr_right.view_height = -static_cast<int32_t>(scaled_display_height);
++      }
+ 
+       if (IsUsingDownsampling())
+       {
+@@ -1848,6 +1988,10 @@ void GPU_HW_OpenGL::UpdateDisplay()
+ 
+ void GPU_HW_OpenGL::ReadVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
+ {
++  // Readbacks feed the emulated console: always the left eye, never during a replay.
++  if (m_acvr_replay)
++    return;
++  AcvrSelectEye(0);
+   if (IsUsingSoftwareRendererForReadbacks())
+   {
+     ReadSoftwareRendererVRAM(x, y, width, height);
+@@ -1887,7 +2031,19 @@ void GPU_HW_OpenGL::ReadVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t he
+ 
+ void GPU_HW_OpenGL::FillVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t color)
+ {
+-  if (IsUsingSoftwareRendererForReadbacks())
++  if (m_acvr_stereo && !m_acvr_in_eyes && m_acvr_other.fbo != 0)
++  {
++    m_acvr_in_eyes = true;
++    AcvrSelectEye(1);
++    m_acvr_replay = true;
++    FillVRAM(x, y, width, height, color);
++    m_acvr_replay = false;
++    AcvrSelectEye(0);
++    FillVRAM(x, y, width, height, color);
++    m_acvr_in_eyes = false;
++    return;
++  }
++  if (!m_acvr_replay && IsUsingSoftwareRendererForReadbacks())
+     FillSoftwareRendererVRAM(x, y, width, height, color);
+ 
+   GPU_HW::FillVRAM(x, y, width, height, color);
+@@ -1926,7 +2082,19 @@ void GPU_HW_OpenGL::FillVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t he
+ 
+ void GPU_HW_OpenGL::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t height, const void* data, bool set_mask, bool check_mask)
+ {
+-  if (IsUsingSoftwareRendererForReadbacks())
++  if (m_acvr_stereo && !m_acvr_in_eyes && m_acvr_other.fbo != 0)
++  {
++    m_acvr_in_eyes = true;
++    AcvrSelectEye(1);
++    m_acvr_replay = true;
++    UpdateVRAM(x, y, width, height, data, set_mask, check_mask);
++    m_acvr_replay = false;
++    AcvrSelectEye(0);
++    UpdateVRAM(x, y, width, height, data, set_mask, check_mask);
++    m_acvr_in_eyes = false;
++    return;
++  }
++  if (!m_acvr_replay && IsUsingSoftwareRendererForReadbacks())
+     UpdateSoftwareRendererVRAM(x, y, width, height, data, set_mask, check_mask);
+ 
+   const Common::Rectangle<uint32_t> bounds = GetVRAMTransferBounds(x, y, width, height);
+@@ -1980,7 +2148,8 @@ void GPU_HW_OpenGL::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t
+       // CPU round trip if oversized for now.
+       Log_WarningPrintf("Oversized/masked VRAM update (%u-%u, %u-%u), CPU round trip", x, x + width, y, y + height);
+       ReadVRAM(0, 0, VRAM_WIDTH, VRAM_HEIGHT);
+-      GPU::UpdateVRAM(x, y, width, height, data, set_mask, check_mask);
++      if (!m_acvr_replay)
++        GPU::UpdateVRAM(x, y, width, height, data, set_mask, check_mask);
+       UpdateVRAM(0, 0, VRAM_WIDTH, VRAM_HEIGHT, m_vram_shadow.data(), false, false);
+       return;
+     }
+@@ -2045,7 +2214,19 @@ void GPU_HW_OpenGL::UpdateVRAM(uint32_t x, uint32_t y, uint32_t width, uint32_t
+ 
+ void GPU_HW_OpenGL::CopyVRAM(uint32_t src_x, uint32_t src_y, uint32_t dst_x, uint32_t dst_y, uint32_t width, uint32_t height)
+ {
+-  if (IsUsingSoftwareRendererForReadbacks())
++  if (m_acvr_stereo && !m_acvr_in_eyes && m_acvr_other.fbo != 0)
++  {
++    m_acvr_in_eyes = true;
++    AcvrSelectEye(1);
++    m_acvr_replay = true;
++    CopyVRAM(src_x, src_y, dst_x, dst_y, width, height);
++    m_acvr_replay = false;
++    AcvrSelectEye(0);
++    CopyVRAM(src_x, src_y, dst_x, dst_y, width, height);
++    m_acvr_in_eyes = false;
++    return;
++  }
++  if (!m_acvr_replay && IsUsingSoftwareRendererForReadbacks())
+     CopySoftwareRendererVRAM(src_x, src_y, dst_x, dst_y, width, height);
+ 
+   const Common::Rectangle<uint32_t> dst_bounds = GetVRAMTransferBounds(dst_x, dst_y, width, height);
+@@ -2078,7 +2259,7 @@ void GPU_HW_OpenGL::CopyVRAM(uint32_t src_x, uint32_t src_y, uint32_t dst_x, uin
+ 
+     RestoreGraphicsAPIState();
+ 
+-    if (m_GPUSTAT.check_mask_before_draw)
++    if (m_GPUSTAT.check_mask_before_draw && !m_acvr_replay)
+       m_current_depth++;
+ 
+     return;
+@@ -2131,6 +2312,18 @@ void GPU_HW_OpenGL::CopyVRAM(uint32_t src_x, uint32_t src_y, uint32_t dst_x, uin
+ 
+ void GPU_HW_OpenGL::UpdateVRAMReadTexture()
+ {
++  if (m_acvr_stereo && !m_acvr_in_eyes && m_acvr_other.fbo != 0)
++  {
++    m_acvr_in_eyes = true;
++    AcvrSelectEye(1);
++    m_acvr_replay = true;
++    UpdateVRAMReadTexture();
++    m_acvr_replay = false;
++    AcvrSelectEye(0);
++    UpdateVRAMReadTexture();
++    m_acvr_in_eyes = false;
++    return;
++  }
+   const auto scaled_rect = m_vram_dirty_rect * m_resolution_scale;
+   const uint32_t width = scaled_rect.GetWidth();
+   const uint32_t height = scaled_rect.GetHeight();
+@@ -2168,6 +2361,18 @@ void GPU_HW_OpenGL::UpdateVRAMReadTexture()
+ 
+ void GPU_HW_OpenGL::UpdateDepthBufferFromMaskBit()
+ {
++  if (m_acvr_stereo && !m_acvr_in_eyes && m_acvr_other.fbo != 0)
++  {
++    m_acvr_in_eyes = true;
++    AcvrSelectEye(1);
++    m_acvr_replay = true;
++    UpdateDepthBufferFromMaskBit();
++    m_acvr_replay = false;
++    AcvrSelectEye(0);
++    UpdateDepthBufferFromMaskBit();
++    m_acvr_in_eyes = false;
++    return;
++  }
+   if (m_pgxp_depth_buffer)
+     return;
+ 
+@@ -2190,6 +2395,18 @@ void GPU_HW_OpenGL::UpdateDepthBufferFromMaskBit()
+ 
+ void GPU_HW_OpenGL::ClearDepthBuffer()
+ {
++  if (m_acvr_stereo && !m_acvr_in_eyes && m_acvr_other.fbo != 0)
++  {
++    m_acvr_in_eyes = true;
++    AcvrSelectEye(1);
++    m_acvr_replay = true;
++    ClearDepthBuffer();
++    m_acvr_replay = false;
++    AcvrSelectEye(0);
++    ClearDepthBuffer();
++    m_acvr_in_eyes = false;
++    return;
++  }
+   glDisable(GL_SCISSOR_TEST);
+   IsGLES() ? glClearDepthf(1.0f) : glClearDepth(1.0f);
+   glClear(GL_DEPTH_BUFFER_BIT);
+diff --git a/src/core/gpu_hw_opengl.h b/src/core/gpu_hw_opengl.h
+index 69e1f369..5a73d7f3 100644
+--- a/src/core/gpu_hw_opengl.h
++++ b/src/core/gpu_hw_opengl.h
+@@ -254,4 +254,21 @@ private:
+ 
+   GL::Texture m_downsample_texture;
+   GL::Program m_downsample_program;
++
++  // ACVR stereo (ACVR_PS1_STEREO=1): a second copy of VRAM, its depth, its read copy and
++  // its display texture for the right eye. AcvrSelectEye swaps the active set; every
++  // VRAM operation runs for the right eye first (as a replay) and then for the left.
++  struct AcvrEyeSet
++  {
++    GL::Texture vram, depth, read, display;
++    GLuint fbo = 0;
++  };
++  bool AcvrCreateEyeSet();
++  void AcvrSelectEye(uint32_t eye);
++  float AcvrShiftNdc() const;
++  bool m_acvr_stereo = false;
++  bool m_acvr_in_eyes = false;
++  uint32_t m_acvr_eye = 0;
++  AcvrEyeSet m_acvr_other;
++  float m_acvr_ipd = 0.064f, m_acvr_screen_w = 2.4f, m_acvr_conv = 0.25f, m_acvr_popout = 2.0f, m_acvr_depth = 1.0f;
+ };
+diff --git a/src/core/gpu_hw_shadergen.cpp b/src/core/gpu_hw_shadergen.cpp
+index 1e1bf31b..c0d63be7 100644
+--- a/src/core/gpu_hw_shadergen.cpp
++++ b/src/core/gpu_hw_shadergen.cpp
+@@ -161,6 +161,9 @@ std::string GPU_HW_ShaderGen::GenerateBatchVertexShader(bool textured)
+   WriteCommonFunctions(ss, true);
+ 
+   ss << R"(
++#if API_OPENGL || API_OPENGL_ES
++uniform vec4 u_acvr; // ACVR stereo: x = eye shift at infinity (NDC), y = zero-parallax w, z = on, w = pop-out limit
++#endif
+ 
+ // OpenGL seems to be off by one pixel in the Y direction due to lower-left origin, but only on
+ // Intel and NVIDIA drivers. AMD is fine. V3D requires coordinates to be slightly offset even further.
+@@ -206,6 +209,14 @@ std::string GPU_HW_ShaderGen::GenerateBatchVertexShader(bool textured)
+   float pos_x = ((a_pos.x + vertex_offset) / 512.0) - 1.0;
+   float pos_y = ((a_pos.y + vertex_offset) / -256.0) + 1.0;
+ 
++#if API_OPENGL || API_OPENGL_ES
++  // ACVR stereo: each eye moves a vertex sideways by its PGXP depth, zero at the
++  // convergence depth (u_acvr.y). Vertices without PGXP depth (w exactly 1: HUD,
++  // sprites, 2D) stay on the screen plane. u_acvr.x is this eye's shift at infinity.
++  if (u_acvr.z != 0.0 && abs(a_pos.w - 1.0) > 0.000001 && a_pos.w > 0.0)
++    pos_x += u_acvr.x * clamp(1.0 - u_acvr.y / a_pos.w, -u_acvr.w, 1.0);
++#endif
++
+ #if API_OPENGL || API_OPENGL_ES
+   pos_y += POS_EPSILON;
+ #endif
+diff --git a/src/libretro/libretro_host_interface.cpp b/src/libretro/libretro_host_interface.cpp
+index 6f97a844..8748a920 100644
+--- a/src/libretro/libretro_host_interface.cpp
++++ b/src/libretro/libretro_host_interface.cpp
+@@ -696,7 +696,10 @@ void HostInterface::GetSystemAVInfo(struct retro_system_av_info* info, bool use_
+   info->geometry.base_width = (m_display ? m_display->GetDisplayWidth() : GPU_MAX_DISPLAY_WIDTH) * base_scale;
+   info->geometry.base_height = (m_display ? m_display->GetDisplayHeight() : GPU_MAX_DISPLAY_HEIGHT) * base_scale;
+   info->geometry.aspect_ratio = (m_display ? m_display->GetDisplayAspectRatio() : (g_gpu ? g_gpu->GetDisplayAspectRatio() : g_settings.GetDisplayAspectRatioValue()));
+-  info->geometry.max_width = VRAM_WIDTH * max_scale;
++  // ACVR stereo outputs both eyes side by side.
++  static const bool acvr_stereo = [] { const char* e = std::getenv("ACVR_PS1_STEREO"); return e && *e && *e != '0'; }();
++  // Only the maximum grows: the window stays one eye wide, so light-gun positions keep mapping to one eye.
++  info->geometry.max_width = VRAM_WIDTH * max_scale * (acvr_stereo ? 2 : 1);
+   info->geometry.max_height = VRAM_HEIGHT * max_scale;
+ 
+   info->timing.fps = (System::IsValid()) ? System::GetVerticalFrequency() : 60.0;
