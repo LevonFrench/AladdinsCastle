@@ -9,6 +9,7 @@
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
+#include "core/ps1/Ps1.h"
 #include "core/pinball/Gamepad.h"
 #include "core/art/Download.h"
 #include <QFileInfo>
@@ -324,6 +325,7 @@ QVariantList UiController::otherGames()const{
   auto view=chosen.value(row.value("id").toString()).toString();bool known=false;
   for(const auto &value:views)if(value.toMap().value("id")==view)known=true;
   if(!known)view=views.first().toMap().value("id").toString();
+  row["viewChosen"]=known;
   for(const auto &value:views)if(value.toMap().value("id")==view)row["viewLabel"]=value.toMap().value("label");
   row["view"]=view;row["views"]=views;
   // A copy chosen on the game's page is used at once, before the next Rescan.
@@ -350,7 +352,15 @@ QVariantList UiController::otherGames()const{
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","ps2-"+id},{"system","ps2"},{"pill","PS2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
    {"problem",ps2::problem(id,ps2Launcher,m_settings->get("ps2Python",QString()).toString(),m_settings->get("ps2StopFile",QString()).toString())}},
-   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
+   ps2::views(id,ps2Launcher));
+ }
+ // PS1 light-gun games: through the user's launcher and acvr-ps1, on a theatre screen with the gun.
+ const auto ps1Launcher=m_settings->get("ps1Launcher",QString()).toString();
+ if(!ps1Launcher.isEmpty())for(const auto &value:ps1::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString();
+  add({{"id","ps1-"+id},{"system","ps1"},{"pill","PS1"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
+   {"problem",ps1::problem(id,ps1Launcher)}},
+   {QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset, with your controller as the light gun."}}});
  }
  // Time Crisis: one native program, checked as it is now.
  const auto program=m_settings->get("system22Executable",QString()).toString();
@@ -429,7 +439,7 @@ QVariantList UiController::model3Games()const{
  QVariantList rows;
  for(const auto &value:model3::games()){
   auto row=value.toMap();const auto id=row.value("id").toString();
-  auto view=chosen.value(id).toString();if(model3::viewLabel(view).isEmpty())view="screen";
+  auto view=chosen.value(id).toString();row["viewChosen"]=!model3::viewLabel(view).isEmpty();if(!row["viewChosen"].toBool())view="screen";
   row["view"]=view;row["viewLabel"]=model3::viewLabel(view);
   row["problem"]=model3::problem(id,executable,gameFolderFor("model3",id));
   // A file that is there but wrong for this emulator is known only from the last scan.

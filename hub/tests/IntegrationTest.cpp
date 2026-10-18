@@ -70,6 +70,16 @@ QByteArray syntheticTable(){
 class IntegrationTest:public QObject{
  Q_OBJECT
 private slots:
+ // A table whose author locked its script is listed and can start: what it needs is unknown, and said.
+ void lockedPinballScriptIsANoteNotAnError(){
+    QTemporaryDir t;auto cfb=syntheticTable();cfb.replace(1028,4,"SECB");
+    ac::install::atomicWrite(t.filePath("Locked (Synthetic 1999).vpx"),cfb);ac::install::atomicWrite(t.filePath("Open (Synthetic 1999).vpx"),syntheticTable());
+    const auto tables=ac::pinball::scan(t.path())["tables"].toList();QCOMPARE(tables.size(),2);
+    const auto locked=tables[0].toMap(),open=tables[1].toMap();
+    QVERIFY2(!locked.contains("error"),qPrintable(locked.value("error").toString()));QVERIFY(locked["note"].toString().contains("locked"));
+    QCOMPARE(locked["romState"].toString(),QString("unknown"));QVERIFY(!locked["vrReady"].toBool());QCOMPARE(locked["year"].toInt(),1999);
+    QVERIFY(!open.contains("note"));QVERIFY(!open.contains("error"));
+ }
  void pinballLaunchUsesRetainedTableAndRecordsRecent(){
     QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
     // VPX's own settings are looked for in a folder of the test's, never the PC's.
@@ -358,6 +368,9 @@ private slots:
  // The watchdog with real programs. Programs of a set-up system that run outside any game are listed
  // and ended; the same program in a folder the settings do not point at is never touched.
  void watchdogEndsBackgroundProgramsAndLeavesOthersAlone(){
+#ifndef Q_OS_WIN
+    QSKIP("The watchdog lists and ends programs on Windows only; elsewhere it sees none.");
+#else
     QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("emu"));QVERIFY(QDir(t.path()).mkpath("elsewhere"));
     const auto program=t.filePath("emu/TimeCrisisVR.exe"),other=t.filePath("elsewhere/TimeCrisisVR.exe");
     QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),other));
@@ -374,10 +387,14 @@ private slots:
     QTRY_VERIFY_WITH_TIMEOUT(!ac::launch::processAlive(stray),5000);QTRY_VERIFY_WITH_TIMEOUT(ui.backgroundPrograms().isEmpty(),3000);
     QTest::qWait(500);QVERIFY(ac::launch::processAlive(unrelated)); // Same name, another folder: left alone.
     ui.endAllBackgroundPrograms();QTest::qWait(1200);QVERIFY(ac::launch::processAlive(unrelated));
+#endif
  }
  // A game the Hub started: a crash is said in words and recorded; a window that never shows is
  // reported; Windows Error Reporting opened for it is closed with it; a grandchild left behind ends.
  void watchdogCatchesCrashesHiddenGamesAndLeftovers(){
+#ifndef Q_OS_WIN
+    QSKIP("Windows exit codes, windows, Error Reporting and job objects.");
+#else
     QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("emu"));QVERIFY(QDir(t.path()).mkpath("wer"));
     const auto program=t.filePath("emu/TimeCrisisVR.exe"),report=t.filePath("wer/WerFault.exe");
     QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),report));
@@ -414,6 +431,7 @@ private slots:
     qint64 grandchild=0;{QFile file(pids);QVERIFY(file.open(QIODevice::ReadOnly));for(const auto &line:file.readAll().split('\n'))if(line.startsWith("grandchild "))grandchild=line.mid(11).toLongLong();}
     QVERIFY(grandchild>0);QTRY_VERIFY_WITH_TIMEOUT(!ac::launch::processAlive(grandchild),10000);
     QTRY_VERIFY_WITH_TIMEOUT(ui.backgroundPrograms().isEmpty(),5000);QCOMPARE(ui.crashRecords().size(),2);
+#endif
  }
  // Get artwork for one game the moment the last one ends, as the Hub's own diagnostic chains them.
  void artworkRequestsCanFollowEachOther(){
@@ -437,10 +455,14 @@ private slots:
  }
  // A game's process tree ends with whoever holds it, even if that is never told to end it.
  void aGameNeverOutlivesItsTree(){
+#ifndef Q_OS_WIN
+    QSKIP("Process trees are held in Windows job objects.");
+#else
     qint64 pid=0;QVERIFY(QProcess::startDetached(QCoreApplication::applicationFilePath(),{"--synthetic-child"},{},&pid));
     const auto cleanup=qScopeGuard([pid]{ac::launch::endProcesses({pid});});
     {ac::launch::ProcessTree tree;tree.adopt(pid);QVERIFY(tree.members().contains(pid));QVERIFY(ac::launch::processAlive(pid));}
     QTRY_VERIFY_WITH_TIMEOUT(!ac::launch::processAlive(pid),5000);
+#endif
  }
  // Stop on a PS2 game that ignores its stop file: asked first, then ended with its whole tree.
  void ps2StopIsForcedWhenTheGameDoesNotQuit(){
@@ -455,6 +477,11 @@ private slots:
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
     services.setVrServerProbe([]{return true;});services.setStopGrace(1500);
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
+    // Inside the game is off until confirmed: one view, the default, and an Inside choice is not kept.
+    const auto row=[&ui]{for(const auto &value:ui.otherGames())if(value.toMap()["id"]=="ps2-virtua-cop")return value.toMap();return QVariantMap{};};
+    QCOMPARE(row()["views"].toList().size(),1);QCOMPARE(row()["view"].toString(),QString("screen"));QVERIFY(!row()["viewChosen"].toBool());
+    ui.chooseGameView("ps2-virtua-cop","inside");QCOMPARE(row()["view"].toString(),QString("screen"));QVERIFY(!row()["viewChosen"].toBool());
+    ui.chooseGameView("ps2-virtua-cop","screen");QVERIFY(row()["viewChosen"].toBool());
     ui.playOtherGame("ps2-virtua-cop");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
     const auto pid=services.launcher()->processId();QVERIFY(pid>0);
     QTest::qWait(300);ui.stopLaunch();

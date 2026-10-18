@@ -1,0 +1,34 @@
+id           = "skytargt"
+title        = "Sky Target"
+genre        = "shooting"            # no "flight" genre in the vocab; nearest is shooting / stick-shooter
+subgenre     = ["stick-shooter"]
+year         = 1995
+manufacturer = "sega"
+hardware     = "sega-model-2"
+graphics     = "polygon-3d"
+players      = 1                     # unverified: check cabinet
+
+[controls]
+type   = "joystick"
+extras = ["analog-stick", "machine-gun", "missile", "view-change"]
+
+[[media]]
+kind = "mame-romset"
+set  = "skytargt"
+note = "Sky Target (MAME model2.cpp, Model 2A); MAME marks it not working"
+
+[routes]
+mame = "not-working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "SKYTARGET"
+colour = "#0c1a2e"
+accent = "#4fb4ff"
+blurb  = "Flight stick, machine gun and missiles in a polygon sky."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp"]
+confidence = "medium"
+checked    = "2026-10-18"

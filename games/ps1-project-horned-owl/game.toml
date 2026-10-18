@@ -1,0 +1,42 @@
+id           = "ps1-project-horned-owl"
+title        = "Project: Horned Owl"
+alt_titles   = ["Horned Owl"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1995
+manufacturer = "sony"
+developer    = "Alfa System (cutscenes by Movic)"
+hardware     = "sony-ps1"
+graphics     = "polygon-3d"
+players      = 2
+
+[controls]
+type    = "gun"
+guns    = 2
+gun     = "Konami Justifier (Hyper Blaster); the GunCon is not read"
+pedals  = []
+extras  = ["menus use a pad"]
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (BIN/CUE or CHD); the Japanese release is Horned Owl"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr    = { best = "theatre", via = "acvr-ps1 theatre (setups/retro-ps1-vr): the stereo core has no Justifier", planned = "true3d-planned" }
+
+[hub]
+pill   = "OWL"
+colour = "#10141c"
+accent = "#59c2ff"
+blurb  = "Police mech rail shooter through a polygon city, with anime cutscenes; one or two Konami guns."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Project:_Horned_Owl"]
+confidence = "medium"
+checked    = "2026-10-18"

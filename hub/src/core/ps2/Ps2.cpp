@@ -21,6 +21,7 @@ const QList<Game> &table(){
   {"xgra","XGRA",2003,false,false,{},{"xgra"}},
   {"time-crisis-3","Time Crisis 3",2003,true,false,{"SCES-51844"},{"timecrisis3","timecrisisiii"}},
   {"crisis-zone","Crisis Zone",2004,true,false,{"SCES-52530"},{"crisiszone"}},
+  {"time-crisis-2","Time Crisis II",2001,true,false,{"SLUS-20219"},{"timecrisisii","timecrisis2"}},
   {"vampire-night","Vampire Night",2001,true,false,{},{"vampirenight"}},
   {"ninja-assault","Ninja Assault",2002,true,false,{"SLUS-20492"},{"ninjaassault"}},
   {"outrun-2","OutRun 2",2006,false,false,{"SLPM-66628"},{"outrun2"}},
@@ -75,10 +76,26 @@ QVariantList discs(const QString &folder,std::atomic_bool &cancel){
  }
  return found;
 }
-QStringList launcherKeys(const QString &launcher){
+namespace {
+QJsonObject launcherGames(const QString &launcher){
  QFile file(QFileInfo(launcher).absoluteDir().filePath("games.json"));
  if(launcher.isEmpty()||file.size()>4*1024*1024||!file.open(QIODevice::ReadOnly))return {};
- return QJsonDocument::fromJson(file.readAll()).object().keys();
+ return QJsonDocument::fromJson(file.readAll()).object();
+}
+// The Inside the game view, in one place each, to be confirmed against the user's launcher:
+// the games with an inside profile (none until confirmed), the launcher's flag, and where it goes.
+const QStringList kInsideGames{};
+const QString kInsideFlag("--inside");
+constexpr bool kInsideFlagBeforeKey=false; // false: launcher, key, flag. true: launcher, flag, key.
+}
+QStringList launcherKeys(const QString &launcher){return launcherGames(launcher).keys();}
+QStringList insideGames(){return kInsideGames;}
+QString viewLabel(const QString &view){return view=="inside"?QString("Inside the game"):view=="screen"?QString("3D screen"):QString();}
+QVariantList views(const QString &game,const QString &launcher,const QStringList &inside){
+ QVariantList list{QVariantMap{{"id","screen"},{"label",viewLabel("screen")},{"help","A framed 3D screen straight ahead of you in the headset."}}};
+ if(inside.contains(game)&&launcherKeys(launcher).contains(game))
+  list<<QVariantMap{{"id","inside"},{"label",viewLabel("inside")},{"help","No frame: the game opens around you, with the depth your launcher's inside profile sets."}};
+ return list;
 }
 QString problem(const QString &game,const QString &launcher,const QString &python,const QString &stopFile){
  bool listed=false;for(const auto &entry:table())listed=listed||game==QLatin1String(entry.id);
@@ -90,11 +107,17 @@ QString problem(const QString &game,const QString &launcher,const QString &pytho
  if(!launcherKeys(launcher).contains(game))return "Your PS2 launcher has no entry for this game.";
  return {};
 }
-QVariantMap launchPlan(const QString &game,const QString &launcher,const QString &python,const QString &stopFile){
+QVariantMap launchPlan(const QString &game,const QString &launcher,const QString &python,const QString &stopFile,const QString &view,const QStringList &inside){
  const auto issue=problem(game,launcher,python,stopFile);
  if(!issue.isEmpty())throw install::Error("E_PS2_SETUP",issue);
+ if(view!="screen"&&view!="inside")throw install::Error("E_PS2_VIEW","Choose 3D screen or Inside the game.");
+ if(view=="inside"&&!inside.contains(game))throw install::Error("E_PS2_VIEW","Inside the game is not set up for this PS2 game yet. Choose 3D screen.");
  const QFileInfo script(launcher);
+ QStringList args{QDir::toNativeSeparators(script.absoluteFilePath())};
+ if(view=="inside"&&kInsideFlagBeforeKey)args<<kInsideFlag;
+ args<<game;
+ if(view=="inside"&&!kInsideFlagBeforeKey)args<<kInsideFlag;
  return {{"executable",QDir::toNativeSeparators(QFileInfo(python).absoluteFilePath())},{"cwd",QDir::toNativeSeparators(script.absolutePath())},
-         {"args",QStringList{QDir::toNativeSeparators(script.absoluteFilePath()),game}}};
+         {"args",args}};
 }
 }

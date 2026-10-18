@@ -10,6 +10,9 @@ Item {
  property int step:0
  signal finished()
  property var names:["Welcome","SteamVR","What you have","Where it is","Report"]
+ // Rows a Repeater makes are kept in a Column, never straight in a layout of a page: a layout on a hidden
+ // page does not take note of rows destroyed meanwhile, and showing the page then sized it from rows that
+ // were already gone (a crash on Next).
  // Every change to the settings sends the systems and the report again. The lists below are replaced only
  // when what they show changes, and the system cards are keyed by id, so a click never rebuilds the card it
  // came from while the layout is still sizing it.
@@ -100,10 +103,12 @@ Item {
      Repeater {model:[{id:"arcade",label:"Arcade"},{id:"pinball",label:"Pinball"},{id:"consoles",label:"Consoles"}]
       ColumnLayout {id:kind;required property var modelData;Layout.fillWidth:true;spacing:6
        Tick {objectName:"setupKind-"+kind.modelData.id;label:kind.modelData.label;on:page.kinds[kind.modelData.id]===true;onClicked:uiController.setSetupKind(kind.modelData.id,!on)}
-       Repeater {model:page.kindIds[kind.modelData.id]||[]
-        RowLayout {id:row;required property string modelData;readonly property var info:page.byId[modelData]||({});Layout.fillWidth:true;Layout.leftMargin:36;spacing:10;opacity:page.kinds[kind.modelData.id]===true?1:0.45
-         Tick {objectName:"setupSystem-"+row.modelData;label:row.info.title;on:row.info.chosen===true;enabled:page.kinds[kind.modelData.id]===true;onClicked:uiController.setSetupSystem(row.modelData,!on)}
-         UiText {Layout.fillWidth:true;text:row.info.detail;font.pixelSize:page.body-2;color:Theme.get("color.text.muted_detail")}
+       Column {Layout.fillWidth:true;Layout.leftMargin:36;spacing:6
+        Repeater {model:page.kindIds[kind.modelData.id]||[]
+         RowLayout {id:row;required property string modelData;readonly property var info:page.byId[modelData]||({});width:parent.width;spacing:10;opacity:page.kinds[kind.modelData.id]===true?1:0.45
+          Tick {objectName:"setupSystem-"+row.modelData;label:row.info.title;on:row.info.chosen===true;enabled:page.kinds[kind.modelData.id]===true;onClicked:uiController.setSetupSystem(row.modelData,!on)}
+          UiText {Layout.fillWidth:true;text:row.info.detail;font.pixelSize:page.body-2;color:Theme.get("color.text.muted_detail")}
+         }
         }
        }
       }
@@ -113,31 +118,33 @@ Item {
      Heading {text:"Where is it?"}
      GameLibraryCard {objectName:"gameLibrary";Layout.fillWidth:true;vrOverlayMode:page.vrOverlayMode}
      Para {text:page.chosen.length?"One folder of your own files for each system, and the program that plays it. Leave any empty to skip it for now."+(page.vrOverlayMode?" Folders and programs are chosen on the desktop.":""):"Nothing is ticked on the page before, so there is nothing to find. Go back and tick what you have."}
-     Repeater {model:page.chosenIds
-      Rectangle {id:card;required property string modelData;readonly property var info:page.byId[modelData]||({});Layout.fillWidth:true;implicitHeight:inner.implicitHeight+32;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.width:0
-       ColumnLayout {id:inner;anchors.fill:parent;anchors.margins:16;spacing:8
-        Text {text:card.info.title;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?21:18}
-        Para {visible:!card.info.folderKey;text:"This program keeps its game files in a folder beside itself, so there is no folder to choose.";font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")}
-        RowLayout {spacing:8;visible:!!card.info.folderKey
-         UiText {Layout.fillWidth:true;objectName:"setupFolder-"+card.modelData;font.pixelSize:page.body-1;elide:Text.ElideMiddle;wrapMode:Text.NoWrap
-          text:"Your files:  "+(card.info.folder||(card.info.guess?card.info.guess+"   (found, used unless you change it)":"not chosen"))
-          color:card.info.folder?page.good:card.info.guess?Theme.get("color.text.body"):page.warn}
-         PillButton {text:"Choose folder";visible:!page.vrOverlayMode;onClicked:{page.pendingId=card.modelData;folder.open()}}
-         PillButton {text:"Skip";visible:!!card.info.folder||!!card.info.guess;vrOverlayMode:page.vrOverlayMode;onClicked:{uiController.setSetupFolder(card.modelData,"");uiController.setSetupSystem(card.modelData,false)}}
-        }
-        RowLayout {spacing:8
-         UiText {Layout.fillWidth:true;font.pixelSize:page.body-1;elide:Text.ElideMiddle;wrapMode:Text.NoWrap
-          text:card.info.programLabel+":  "+(card.info.program||"not chosen")
-          color:card.info.program?page.good:page.warn}
-         PillButton {text:"Locate program";visible:!page.vrOverlayMode;onClicked:{page.pendingId=card.modelData;program.open()}}
-        }
-        Repeater {model:page.extras[card.modelData]||[]
-         RowLayout {required property var modelData;Layout.fillWidth:true;spacing:8
-          readonly property string value:(uiSettings.values,uiSettings.get(modelData.key,""))
-          UiText {Layout.fillWidth:true;objectName:"setupExtra-"+modelData.key;font.pixelSize:page.body-1;elide:Text.ElideMiddle;wrapMode:Text.NoWrap
-           text:modelData.label+":  "+(parent.value||"not chosen");color:parent.value?page.good:(modelData.kind==="folder"?Theme.get("color.text.muted_detail"):page.warn)}
-          PillButton {text:"Choose";visible:!page.vrOverlayMode;onClicked:{page.pendingKey=modelData.key;(modelData.kind==="folder"?extraFolder:modelData.kind==="save"?extraSave:extraFile).open()}}
-          PillButton {text:"Clear";visible:!!parent.value;vrOverlayMode:page.vrOverlayMode;onClicked:uiSettings.set(modelData.key,"")}
+     Column {Layout.fillWidth:true;spacing:10;visible:children.length>1
+      Repeater {model:page.chosenIds
+       Rectangle {id:card;required property string modelData;readonly property var info:page.byId[modelData]||({});width:parent.width;implicitHeight:inner.implicitHeight+32;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.width:0
+        ColumnLayout {id:inner;anchors.fill:parent;anchors.margins:16;spacing:8
+         Text {text:card.info.title;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?21:18}
+         Para {visible:!card.info.folderKey;text:"This program keeps its game files in a folder beside itself, so there is no folder to choose.";font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")}
+         RowLayout {spacing:8;visible:!!card.info.folderKey
+          UiText {Layout.fillWidth:true;objectName:"setupFolder-"+card.modelData;font.pixelSize:page.body-1;elide:Text.ElideMiddle;wrapMode:Text.NoWrap
+           text:"Your files:  "+(card.info.folder||(card.info.guess?card.info.guess+"   (found, used unless you change it)":"not chosen"))
+           color:card.info.folder?page.good:card.info.guess?Theme.get("color.text.body"):page.warn}
+          PillButton {text:"Choose folder";visible:!page.vrOverlayMode;onClicked:{page.pendingId=card.modelData;folder.open()}}
+          PillButton {text:"Skip";visible:!!card.info.folder||!!card.info.guess;vrOverlayMode:page.vrOverlayMode;onClicked:{uiController.setSetupFolder(card.modelData,"");uiController.setSetupSystem(card.modelData,false)}}
+         }
+         RowLayout {spacing:8
+          UiText {Layout.fillWidth:true;font.pixelSize:page.body-1;elide:Text.ElideMiddle;wrapMode:Text.NoWrap
+           text:card.info.programLabel+":  "+(card.info.program||"not chosen")
+           color:card.info.program?page.good:page.warn}
+          PillButton {text:"Locate program";visible:!page.vrOverlayMode;onClicked:{page.pendingId=card.modelData;program.open()}}
+         }
+         Repeater {model:page.extras[card.modelData]||[]
+          RowLayout {required property var modelData;Layout.fillWidth:true;spacing:8
+           readonly property string value:(uiSettings.values,uiSettings.get(modelData.key,""))
+           UiText {Layout.fillWidth:true;objectName:"setupExtra-"+modelData.key;font.pixelSize:page.body-1;elide:Text.ElideMiddle;wrapMode:Text.NoWrap
+            text:modelData.label+":  "+(parent.value||"not chosen");color:parent.value?page.good:(modelData.kind==="folder"?Theme.get("color.text.muted_detail"):page.warn)}
+           PillButton {text:"Choose";visible:!page.vrOverlayMode;onClicked:{page.pendingKey=modelData.key;(modelData.kind==="folder"?extraFolder:modelData.kind==="save"?extraSave:extraFile).open()}}
+           PillButton {text:"Clear";visible:!!parent.value;vrOverlayMode:page.vrOverlayMode;onClicked:uiSettings.set(modelData.key,"")}
+          }
          }
         }
        }
@@ -163,25 +170,27 @@ Item {
      Para {objectName:"setupProgress";visible:uiController.setupScanning;color:page.warn;text:"Reading your folders. Nothing in them is changed.  "+uiController.setupProgress}
      Para {visible:!uiController.setupScanning&&!(page.report.systems||[]).length;text:"Nothing has been read yet. Tick what you have, say where it is, then use Rescan."}
      Para {visible:(page.report.systems||[]).length>0;text:"Found, can start: the game's files and its program are on this PC. Found, not right: the file is there but cannot be used as it is. Not found: the Hub knows the game but did not find it; only the name it looks for is shown. None of this says a game works well in the headset: only you can say that, in your list of accepted games."}
-     Repeater {model:page.scanning?[]:(page.report.systems||[])
-      Rectangle {id:result;required property var modelData;objectName:"setupResult-"+modelData.id;Layout.fillWidth:true;implicitHeight:lines.implicitHeight+32;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.width:0
-       ColumnLayout {id:lines;anchors.fill:parent;anchors.margins:16;spacing:8
-        RowLayout {spacing:14
-         Text {text:result.modelData.title;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?21:18}
-         UiText {text:"Found, can start "+result.modelData.ready.length;font.pixelSize:page.body;color:page.good}
-         UiText {text:"Found, not right "+result.modelData.notRight.length;font.pixelSize:page.body;color:result.modelData.notRight.length?page.warn:Theme.get("color.text.muted_detail")}
-         UiText {text:"Not found "+result.modelData.missing.length;font.pixelSize:page.body;color:Theme.get("color.text.muted_detail")}
-         Item {Layout.fillWidth:true}
+     Column {Layout.fillWidth:true;spacing:10;visible:children.length>1
+      Repeater {model:page.scanning?[]:(page.report.systems||[])
+       Rectangle {id:result;required property var modelData;objectName:"setupResult-"+modelData.id;width:parent.width;implicitHeight:lines.implicitHeight+32;radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card");border.width:0
+        ColumnLayout {id:lines;anchors.fill:parent;anchors.margins:16;spacing:8
+         RowLayout {spacing:14
+          Text {text:result.modelData.title;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?21:18}
+          UiText {text:"Found, can start "+result.modelData.ready.length;font.pixelSize:page.body;color:page.good}
+          UiText {text:"Found, not right "+result.modelData.notRight.length;font.pixelSize:page.body;color:result.modelData.notRight.length?page.warn:Theme.get("color.text.muted_detail")}
+          UiText {text:"Not found "+result.modelData.missing.length;font.pixelSize:page.body;color:Theme.get("color.text.muted_detail")}
+          Item {Layout.fillWidth:true}
+         }
+         Para {visible:!!result.modelData.note;text:result.modelData.note||"";color:Theme.get("color.text.muted_detail")}
+         Para {visible:result.modelData.ready.length>0;text:"Found, can start:  "+page.names_of(result.modelData.ready);color:page.good;font.pixelSize:page.body-1}
+         Repeater {model:result.modelData.notRight
+          Para {required property var modelData;text:"Found, not right:  "+modelData.title+".  "+modelData.reason;color:page.warn;font.pixelSize:page.body-1}
+         }
+         Para {visible:result.modelData.missing.length>0;font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")
+          text:"Not found:  "+Array.from(result.modelData.missing).map(e=>e.title+" ("+e.expected+")").join(",  ")}
+         Para {objectName:"setupOther-"+result.modelData.id;visible:(result.modelData.other||[]).length>0;font.pixelSize:page.body-2;color:Theme.get("color.text.muted_detail")
+          text:{let all=Array.from(result.modelData.other||[]);return "Found, not in the Hub's list ("+all.length+"):  "+all.slice(0,6).map(e=>e.title+" ("+e.detail+")").join(",  ")+(all.length>6?",  and "+(all.length-6)+" more":"")}}
         }
-        Para {visible:!!result.modelData.note;text:result.modelData.note||"";color:Theme.get("color.text.muted_detail")}
-        Para {visible:result.modelData.ready.length>0;text:"Found, can start:  "+page.names_of(result.modelData.ready);color:page.good;font.pixelSize:page.body-1}
-        Repeater {model:result.modelData.notRight
-         Para {required property var modelData;text:"Found, not right:  "+modelData.title+".  "+modelData.reason;color:page.warn;font.pixelSize:page.body-1}
-        }
-        Para {visible:result.modelData.missing.length>0;font.pixelSize:page.body-1;color:Theme.get("color.text.muted_detail")
-         text:"Not found:  "+Array.from(result.modelData.missing).map(e=>e.title+" ("+e.expected+")").join(",  ")}
-        Para {objectName:"setupOther-"+result.modelData.id;visible:(result.modelData.other||[]).length>0;font.pixelSize:page.body-2;color:Theme.get("color.text.muted_detail")
-         text:{let all=Array.from(result.modelData.other||[]);return "Found, not in the Hub's list ("+all.length+"):  "+all.slice(0,6).map(e=>e.title+" ("+e.detail+")").join(",  ")+(all.length>6?",  and "+(all.length-6)+" more":"")}}
        }
       }
      }

@@ -10,17 +10,19 @@ Item {
  property var scanData:uiController.pinballData
  property var selected:uiController.pinballSelection
  property var rows:scanData.tables||[]
- // With the catalog switch off, only tables that can be started are listed.
- property bool showAll:(uiSettings.values,uiSettings.get("showAllGames",false))===true
+ // Every table in the folder is listed; one that cannot play says why on its tile. Ready to play and
+ // VR-ready only narrow the list when asked.
+ function playable(r){return !r.error&&(r.romState==="ready"||r.romState==="needs no ROM")}
+ readonly property var counts:{let ready=0,headset=0;for(const r of rows)if(playable(r)){++ready;if(r.vrReady===true)++headset}return {ready:ready,headset:headset}}
  function fileUrl(path){return path?"file:///"+String(path).replace(/\\/g,"/"):""}
  function stateText(state){return {"ready":"Ready to play","needs no ROM":"Ready to play","ROM missing":"ROM missing","unknown":"ROM not checked"}[state]||state||""}
  function makerOptions(){let result=["All makers"];for(let row of rows)if(row.maker&&result.indexOf(row.maker)<0)result.push(row.maker);return result}
  property var filtered:rows.filter(function(r){
-  return (excluded.checked||r.vrReady===true)&&(!query.text||r.title.toLowerCase().indexOf(query.text.toLowerCase())>=0)
+  return (!vrOnly.checked||r.vrReady===true)&&(!query.text||r.title.toLowerCase().indexOf(query.text.toLowerCase())>=0)
    &&(maker.currentIndex===0||r.maker===maker.currentText)
    &&(decade.currentText==="All decades"||Math.floor(Number(r.year)/10)*10===Number(decade.currentText))
    &&(type.currentText==="All types"||r.type===type.currentText)
-   &&(!ready.checked||r.romState==="ready"||r.romState==="needs no ROM")
+   &&(!ready.checked||page.playable(r))
    &&(!favourites.checked||r.favourite===true)&&(!recent.checked||Number(r.lastPlayed)>0)
  }).sort(function(a,b){return sort.currentText==="Recent"?Number(b.lastPlayed||0)-Number(a.lastPlayed||0):String(a.title).localeCompare(String(b.title))})
  property string locationKey:"pinballFolder"
@@ -35,6 +37,9 @@ Item {
   let list=[],recentRows=filtered.filter(r=>Number(r.lastPlayed)>0).sort((a,b)=>Number(b.lastPlayed)-Number(a.lastPlayed)).slice(0,12),favouriteRows=filtered.filter(r=>r.favourite===true)
   if(recentRows.length&&!recent.checked)list.push({heading:"Recently played  ·  "+recentRows.length,items:recentRows})
   if(favouriteRows.length&&!favourites.checked)list.push({heading:"Favourites  ·  "+favouriteRows.length,items:favouriteRows})
+  // The tables that start in the headset now, first, unless the filters already show only those.
+  const headsetRows=filtered.filter(r=>page.playable(r)&&r.vrReady===true)
+  if(headsetRows.length&&headsetRows.length<filtered.length)list.push({heading:"Ready in the headset  ·  "+headsetRows.length,items:headsetRows})
   let eras={};for(let row of filtered){const year=Number(row.year);const key=year>1900?String(Math.floor(year/10)*10):"other";(eras[key]=eras[key]||[]).push(row)}
   for(let key of Object.keys(eras).sort()){const items=eras[key];list.push({heading:(key==="other"?"Other tables":key+"s")+"  ·  "+items.length,items:items})}
   return list
@@ -48,7 +53,10 @@ Item {
   tileIndex=Math.max(0,Math.min(shelves[shelfIndex].items.length-1,tileIndex+dTile))
   grid.positionViewAtIndex(shelfIndex,ListView.Contain)
  }
- function tileOf(row){const ok=row.romState==="ready"||row.romState==="needs no ROM";return {title:row.title,system:"pinball",art:row.artThumb?fileUrl(row.artThumb):(row.wheelUrl||""),badge:row.error?"Scan error":ok?(row.favourite?"Favourite":""):stateText(row.romState),badgeColour:ok?Theme.get("color.text.primary"):Theme.get("color.state.needs_neon")}}
+ // The tile says in two words why a table cannot play, or plays on the desktop only.
+ function tileOf(row){const ok=playable(row);return {title:row.title,system:"pinball",art:row.artThumb?fileUrl(row.artThumb):(row.wheelUrl||""),
+  badge:row.error?"Can't read":!ok?(row.note&&row.romState==="unknown"?"Locked script":stateText(row.romState)):row.vrReady!==true?"Desktop only":row.favourite?"Favourite":"",
+  badgeColour:row.error||row.romState==="ROM missing"?Theme.get("color.state.needs_neon"):ok&&row.vrReady===true?Theme.get("color.text.primary"):Theme.get("color.text.muted")}}
  function tableLine(row){return [row.maker||"",row.year||""].join(" ").trim()}
  focus:!selected.id
  Keys.onLeftPressed:moveFocus(0,-1)
@@ -68,7 +76,7 @@ Item {
    art:page.fileUrl(page.focusedTable.artBackglass)
    eyebrow:("Pinball"+(page.tableLine(page.focusedTable)?"  ·  "+page.tableLine(page.focusedTable):"")).toUpperCase()
    title:page.focusedTable.title||"Pinball"
-   meta:page.focusedTable.id?(page.focusedTable.error||page.stateText(page.focusedTable.romState))+(page.focusedTable.vrReady===true?"":" · Desktop only: not marked VR-ready"):"Choose your table folder, then Scan."
+   meta:page.focusedTable.id?(page.focusedTable.error||page.focusedTable.note||page.stateText(page.focusedTable.romState))+(page.focusedTable.vrReady===true?"":" · Desktop only: not marked VR-ready"):"Choose your table folder, then Scan."
    metaColour:page.focusedTable.error||page.focusedTable.romState==="ROM missing"?Theme.get("color.state.needs_neon"):Theme.get("color.text.muted")
    PillButton {objectName:"pinballHeroDesktop";visible:!!page.focusedTable.id;targetHeight:page.vrOverlayMode?56:48;vrOverlayMode:page.vrOverlayMode;neon:true;accent:Theme.get("color.state.ready_neon");text:"Launch on desktop";enabled:page.startable(page.focusedTable);onClicked:uiController.launchPinball(page.focusedTable.id,"desktop")}
    PillButton {objectName:"pinballHeroHeadset";visible:!!page.focusedTable.id;targetHeight:page.vrOverlayMode?56:48;vrOverlayMode:page.vrOverlayMode;text:"Launch in headset";enabled:page.headsetReady(page.focusedTable);onClicked:uiController.launchPinball(page.focusedTable.id,"headset")}
@@ -82,7 +90,7 @@ Item {
   }
   // Search and filters, on one slim line; the reason for a waiting headset launch beside the count.
   RowLayout {Layout.fillWidth:true;Layout.leftMargin:page.side;Layout.rightMargin:page.side;Layout.topMargin:2;spacing:8
-   UiText {objectName:"pinballCount";text:page.showAll?String(page.scanData.vrReady||0)+" VR-ready of "+String(page.scanData.total||0)+" tables":page.filtered.length+" tables ready to play";color:Theme.get("color.text.muted");font.pixelSize:page.vrOverlayMode?16:13;wrapMode:Text.NoWrap}
+   UiText {objectName:"pinballCount";text:(page.filtered.length===page.rows.length?page.rows.length+" tables":page.filtered.length+" of "+page.rows.length+" tables")+"  ·  "+page.counts.ready+" ready to play  ·  "+page.counts.headset+" ready in the headset";color:Theme.get("color.text.muted");font.pixelSize:page.vrOverlayMode?16:13;wrapMode:Text.NoWrap}
    UiText {objectName:"pinballHeadsetReason";visible:text.length>0;text:page.headsetReason?"SteamVR starts first for Launch in headset":"";color:Theme.get("color.state.needs_neon");font.pixelSize:page.vrOverlayMode?16:13;Layout.fillWidth:true;elide:Text.ElideRight;wrapMode:Text.NoWrap}
    Item {visible:!page.headsetReason;Layout.fillWidth:true}
    TextField {id:query;objectName:"pinballSearch";Layout.preferredWidth:page.vrOverlayMode?220:200;Layout.preferredHeight:page.vrOverlayMode?52:38;placeholderText:"Search tables";Accessible.name:"Search Pinball tables"
@@ -95,8 +103,8 @@ Item {
    UiCombo {id:sort;visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;Layout.preferredHeight:38;model:["Title","Recent"]}
    PillButton {id:favourites;checkable:true;text:"Favourites";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
    PillButton {id:recent;checkable:true;text:"Recent";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
-   PillButton {id:ready;objectName:"pinballReady";checkable:true;checked:!page.showAll;visible:page.showAll;text:"Ready to play";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
-   PillButton {id:excluded;objectName:"pinballExcluded";checkable:true;visible:page.showAll;text:"Show excluded";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
+   PillButton {id:ready;objectName:"pinballReady";checkable:true;text:"Ready to play";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
+   PillButton {id:vrOnly;objectName:"pinballVrOnly";checkable:true;text:"VR-ready only";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
   }
   ListView {id:grid;objectName:"pinballGrid";property int count:page.filtered.length;Layout.fillWidth:true;Layout.fillHeight:true;Layout.topMargin:14;clip:true;spacing:page.vrOverlayMode?18:24;model:page.shelves
    boundsBehavior:Flickable.StopAtBounds;bottomMargin:24;ScrollBar.vertical:ScrollBar{}
@@ -117,7 +125,7 @@ Item {
   HeroBanner {Layout.fillWidth:true;Layout.preferredHeight:page.height*(page.vrOverlayMode?0.4:0.44);vrOverlayMode:page.vrOverlayMode;system:"pinball";art:page.fileUrl(page.selected.artBackglass)
    eyebrow:("Pinball"+(page.tableLine(page.selected)?"  ·  "+page.tableLine(page.selected):"")).toUpperCase()
    title:page.selected.title||""
-   meta:(page.selected.error||page.stateText(page.selected.romState))+(page.selected.authors?" · by "+page.selected.authors:"")+(page.selected.version?" · version "+page.selected.version:"")
+   meta:(page.selected.error||page.selected.note||page.stateText(page.selected.romState))+(page.selected.authors?" · by "+page.selected.authors:"")+(page.selected.version?" · version "+page.selected.version:"")
    metaColour:page.selected.error||page.selected.romState==="ROM missing"?Theme.get("color.state.needs_neon"):Theme.get("color.text.muted")
    PillButton {objectName:"pinballLaunchDesktop";targetHeight:page.vrOverlayMode?56:48;neon:true;accent:Theme.get("color.state.ready_neon");text:"Launch on desktop";vrOverlayMode:page.vrOverlayMode;enabled:page.startable(page.selected);onClicked:uiController.playPinball("desktop")}
    PillButton {objectName:"pinballLaunchHeadset";targetHeight:page.vrOverlayMode?56:48;text:"Launch in headset";vrOverlayMode:page.vrOverlayMode;enabled:page.headsetReady(page.selected);onClicked:uiController.playPinball("headset")}

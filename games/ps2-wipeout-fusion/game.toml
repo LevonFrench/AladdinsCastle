@@ -27,7 +27,7 @@ note = "Your own PS2 BIOS dump"
 
 [routes]
 pcsx2 = "unknown"
-vr    = { best = "none" }
+vr    = { best = "true3d", via = "AladdinsCastle PCSX2 VR (setups/pcsx2-vr): 3D screen and Inside the game" }
 
 [hub]
 pill   = "WIPE-FUS"

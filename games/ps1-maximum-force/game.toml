@@ -1,0 +1,43 @@
+id           = "ps1-maximum-force"
+title        = "Maximum Force"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1997
+manufacturer = "midway"
+developer    = "Mesa Logic (publisher Midway)"
+hardware     = "sony-ps1"
+graphics     = "mixed"
+players      = 2
+series       = "Area 51"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco GunCon (G-Con 45)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr          = { best = "theatre", via = "acvr-ps1 theatre (setups/retro-ps1-vr)", planned = "true3d-planned" }
+
+[hub]
+pill   = "MAXFORCE"
+colour = "#1a0d0d"
+accent = "#ff4a3a"
+blurb  = "The PlayStation port of Atari Games' arcade shooter with digitised actors, from the makers of Area 51."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Maximum_Force", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "low"
+checked    = "2026-10-18"

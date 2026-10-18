@@ -7,6 +7,15 @@ tables. Use **ROM folder**, **Media folder** and
 **Database** if you have those local resources. Select a table, then use
 **Locate VPX** to select your installed VPX executable.
 
+Every table in the folder is listed. The count says how many there are, how
+many are ready to play and how many are ready in the headset, and **Ready to
+play** and **VR-ready only** narrow the list when you ask. The tables that start
+in the headset now come first, in their own row. A tile that cannot play says
+why: **ROM missing**, **ROM not checked**, **Can't read** (the file could not be
+read), **Locked script** (its author locked the script, so the Hub cannot tell
+what it needs; it can still be started), or **Desktop only** (not marked
+VR-ready).
+
 Every table has two buttons, on its tile and on its page: **Launch on desktop**
 and **Launch in headset**. Each does exactly what it says, every time; nothing is
 remembered. Both need a table with no scan error or known missing ROM, while no

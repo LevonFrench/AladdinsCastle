@@ -1,0 +1,36 @@
+id           = "airco22b"
+title        = "Air Combat 22"
+alt_titles   = ["Air Combat 22 (Japan, ACS1 Ver.B)"]
+genre        = "racing"              # same convention as sstrkfgt: racing / flying for flight games
+subgenre     = ["flying"]
+year         = 1995
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "namco-super-system-22"
+graphics     = "polygon-3d"
+players      = 1                     # unverified: check cabinet
+
+[controls]
+type   = "joystick"
+extras = ["throttle-stick", "gun-trigger", "missile-button", "view-change"]
+
+[[media]]
+kind = "mame-romset"
+set  = "airco22b"
+note = "Air Combat 22 (Japan, ACS1 Ver.B); MAME marks imperfect graphics"
+
+[routes]
+mame = "imperfect"
+vr   = { best = "none" }
+
+[hub]
+pill   = "AIRCOMBAT"
+colour = "#0e1626"
+accent = "#ff7a3d"
+blurb  = "Stick, throttle and missiles for a jet fight over the clouds."
+badges = ["seated", "wip"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/namco/namcos22.cpp"]
+confidence = "medium"
+checked    = "2026-10-18"

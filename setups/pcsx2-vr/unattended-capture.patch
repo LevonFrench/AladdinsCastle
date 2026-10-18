@@ -1065,19 +1065,20 @@ index 81110bb..39dd2d9 100644
  
  void GSTextureCache::ReadbackAll()
 diff --git a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
-index 2174fa3..ec129e6 100644
+index 2174fa3..5b801ab 100644
 --- a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 +++ b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
-@@ -5,6 +5,8 @@
+@@ -5,6 +5,9 @@
  #include "GS/Renderers/OpenGL/GSDeviceOGL.h"
  #include "GS/Renderers/OpenGL/GLState.h"
  #include "GS/GSState.h"
 +#include "GS/PS2VRInside.h"
++#include "GS/PS2VRScreenDepth.h"
 +#include "GS/PS2VRAim.h"
  #include "GS/GSGL.h"
  #include "GS/GSPerfMon.h"
  #include "GS/GSUtil.h"
-@@ -19,6 +21,8 @@
+@@ -19,6 +22,8 @@
  #include "IconsFontAwesome.h"
  
  #include <cinttypes>
@@ -1086,7 +1087,7 @@ index 2174fa3..ec129e6 100644
  #include <fstream>
  #include <sstream>
  
-@@ -35,6 +39,60 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
+@@ -35,6 +40,64 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
  static constexpr u32 VERTEX_PUSH_CONSTANT_BUFFER_SIZE = 1024 * 1024;
  static constexpr u32 TEXTURE_UPLOAD_BUFFER_SIZE = 128 * 1024 * 1024;
  
@@ -1117,6 +1118,10 @@ index 2174fa3..ec129e6 100644
 +		bool hide_displaced = StereoEnv("PCSX2_STEREO_HIDE_DISPLACED", 0) != 0;
 +	};
 +	StereoParams s_stereo;
++ float StereoSeparation(){
++  if(!PS2VRScreenDepth::Enabled())return s_stereo.separation;
++  return PS2VRScreenDepth::Select(s_stereo.separation,PS2VRInside::Enabled(),g_perfmon.GetFrame());
++ }
 +	float s_stereo_draw_mode = 0;
 + float s_inside_draw_mode=0;
 + float s_inside_width=0,s_inside_height=0;
@@ -1147,7 +1152,7 @@ index 2174fa3..ec129e6 100644
  namespace ReplaceGL
  {
  	static void GLAPIENTRY ScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height)
-@@ -215,7 +273,10 @@ namespace Emulate_DSA
+@@ -215,7 +278,10 @@ namespace Emulate_DSA
  	}
  } // namespace Emulate_DSA
  
@@ -1159,7 +1164,7 @@ index 2174fa3..ec129e6 100644
  
  GSDeviceOGL::~GSDeviceOGL()
  {
-@@ -1835,6 +1896,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
+@@ -1835,6 +1901,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
  		+ fmt::format("#define VS_IIP {}\n", static_cast<u32>(sel.iip))
  		+ fmt::format("#define VS_POINT_SIZE {}\n", static_cast<u32>(sel.point_size))
  		+ fmt::format("#define VS_EXPAND {}\n", static_cast<int>(sel.expand));
@@ -1167,13 +1172,13 @@ index 2174fa3..ec129e6 100644
  
  	std::string src = GenGlslHeader("vs_main", GL_VERTEX_SHADER, macro);
  	src += m_shader_tfx_vgs;
-@@ -2995,6 +3057,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -2995,6 +3062,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	if (it != m_programs.end())
  	{
  		it->second.Bind();
 +		if (psel.vs.key & 0x80)
 +		{
-+			glUniform4f(30, s_stereo.eye * 0.5f * s_stereo.separation * s_stereo.units * s_stereo.focal,
++			glUniform4f(30, s_stereo.eye * 0.5f * StereoSeparation() * s_stereo.units * s_stereo.focal,
 +				1.0f / (s_stereo.convergence * s_stereo.units), s_stereo.qscale, s_stereo_draw_mode);
 +			glUniform4f(31, s_stereo.za, s_stereo.zb, 0, 0);
 +			UploadInside();
@@ -1181,13 +1186,13 @@ index 2174fa3..ec129e6 100644
  		return;
  	}
  
-@@ -3005,6 +3074,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -3005,6 +3079,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	m_shader_cache.GetProgram(&prog, vs, ps);
  	it = m_programs.emplace(psel, std::move(prog)).first;
  	it->second.Bind();
 +	if (psel.vs.key & 0x80)
 +	{
-+		glUniform4f(30, s_stereo.eye * 0.5f * s_stereo.separation * s_stereo.units * s_stereo.focal,
++		glUniform4f(30, s_stereo.eye * 0.5f * StereoSeparation() * s_stereo.units * s_stereo.focal,
 +			1.0f / (s_stereo.convergence * s_stereo.units), s_stereo.qscale, s_stereo_draw_mode);
 +		glUniform4f(31, s_stereo.za, s_stereo.zb, 0, 0);
 +			UploadInside();
@@ -1195,7 +1200,7 @@ index 2174fa3..ec129e6 100644
  }
  
  void GSDeviceOGL::SetupSampler(PSSamplerSelector ssel)
-@@ -3036,6 +3112,169 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
+@@ -3036,6 +3117,169 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
  
  void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
  {
@@ -1658,7 +1663,7 @@ diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,712 @@
+@@ -0,0 +1,732 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
@@ -1674,6 +1679,7 @@ new file mode 100644
 +#include "GS/PS2VRInside.h"
 +#include "GS/PS2VRGunModel.h"
 +#include "GS/PS2VRBackendPolicy.h"
++#include "GS/PS2VRScreenDepth.h"
 +#include <atomic>
 +#include <algorithm>
 +#include <chrono>
@@ -1782,10 +1788,11 @@ new file mode 100644
 +  u32 count=0;
 + };
 + static LayerList ComposeLayers(bool inside,bool complete,const XrCompositionLayerQuad* quads,
-+  const XrCompositionLayerProjection& scene,const XrCompositionLayerProjection* overlay)
++  const XrCompositionLayerProjection& scene,const XrCompositionLayerProjection* overlay,bool combined=false)
 + {
 +  LayerList result;
 +  if (!complete) return result;
++  if(combined){if(overlay){result.layers[0]=reinterpret_cast<const XrCompositionLayerBaseHeader*>(overlay);result.names[0]="screen-picture-gun-and-dot";result.count=1;}return result;}
 +  if (inside) { result.layers[result.count]=reinterpret_cast<const XrCompositionLayerBaseHeader*>(&scene); result.names[result.count++]="scene-and-HUD-panel"; }
 +  else for (int eye=0;eye<2;eye++) { result.layers[result.count]=reinterpret_cast<const XrCompositionLayerBaseHeader*>(&quads[eye]); result.names[result.count++]=eye?"screen-right":"screen-left"; }
 +  if (overlay) { result.layers[result.count]=reinterpret_cast<const XrCompositionLayerBaseHeader*>(overlay); result.names[result.count++]="gun-then-aim-dot"; }
@@ -1796,7 +1803,7 @@ new file mode 100644
 +  if (live_log) {
 +   std::fprintf(live_log,"Composition %s mode=%s back-to-front:",submitted?"submitted":"offline-proof",inside?"inside":"screen");
 +   for(u32 i=0;i<list.count;i++)std::fprintf(live_log," %u:%s(type=%d,flags=%llu)",i,list.names[i],list.layers[i]->type,static_cast<unsigned long long>(list.layers[i]->layerFlags));
-+   std::fprintf(live_log,"; HUD panel belongs to base; gun/dot overlay has no composition depth extension\n"); std::fflush(live_log);
++   std::fprintf(live_log,"; screen gun mode shares one opaque projection image and depth buffer\n"); std::fflush(live_log);
 +  }
 +  if (!path) return;
 +  std::ofstream f(std::string(path)+(inside?"-inside-order.json":"-screen-order.json"));
@@ -1807,6 +1814,7 @@ new file mode 100644
 +  f<<"  ]\n}\n";
 + }
 + static void SaveOverlayProof();
++ static void SaveScreenProof();
 +#endif
 + static void SaveSharedProof()
 + {
@@ -1891,6 +1899,9 @@ new file mode 100644
 +    glDeleteFramebuffers(2,fbos); glDeleteTextures(2,targets);
 +    DrainGL("after","fixed-target proof cleanup");
 +   }
++#ifdef _WIN32
++   if(std::getenv("PCSX2_VR_SCREEN_PROOF"))SaveScreenProof();
++#endif
 +   proof_pending=false; ready.notify_all();
 +  }
 +  context->DoneCurrent();
@@ -1972,7 +1983,7 @@ new file mode 100644
 + static std::uint64_t inside_sequence=0;
 + static void PublishInsidePose(XrTime time)
 + {
-+  if (!PS2VRInside::Enabled()) return;
++  if (!PS2VRInside::Enabled() && !PS2VRScreenDepth::Enabled()) return;
 +  XrViewLocateInfo li{XR_TYPE_VIEW_LOCATE_INFO}; li.viewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO; li.displayTime=time; li.space=space;
 +  XrViewState state{XR_TYPE_VIEW_STATE}; XrView views[2]{{XR_TYPE_VIEW},{XR_TYPE_VIEW}}; u32 count=0;
 +  PS2VRInside::Packet packet; packet.predicted_display_time=time; packet.sequence=++inside_sequence;
@@ -1988,7 +1999,10 @@ new file mode 100644
 +    e.view_from_recenter=(PS2VRGun::Mat4::FromPose(&v.pose.position.x,&v.pose.orientation.x).RigidInverse()*inside_origin).m;
 +   }
 +  }
-+  PS2VRInside::Publish(packet);
++  if(PS2VRScreenDepth::Enabled() && !PS2VRInside::Enabled())
++   PS2VRScreenDepth::Publish({views[0].pose.position.x,views[0].pose.position.y,views[0].pose.position.z},
++    {views[1].pose.position.x,views[1].pose.position.y,views[1].pose.position.z},packet.valid);
++  if(PS2VRInside::Enabled())PS2VRInside::Publish(packet);
 + }
 + static bool InitXR()
 + {
@@ -2011,7 +2025,7 @@ new file mode 100644
 +  XrSystemGetInfo si{XR_TYPE_SYSTEM_GET_INFO}; si.formFactor=XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
 +  XrSystemId system{};
 +  if (!Check(XRGL("xrGetSystem", p_xrGetSystem, instance,&si,&system),"xrGetSystem")) return false;
-+  if(PS2VRInside::Enabled()) {
++  if(PS2VRInside::Enabled() || PS2VRGun::Enabled()) {
 +   u32 count=0;
 +   if(!Check(XRGL("xrEnumerateViewConfigurationViews",p_xrEnumerateViewConfigurationViews,instance,system,XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,0,&count,nullptr),"view recommendations") || count!=2)return false;
 +   XrViewConfigurationView views[2]{{XR_TYPE_VIEW_CONFIGURATION_VIEW},{XR_TYPE_VIEW_CONFIGURATION_VIEW}};
@@ -2179,9 +2193,13 @@ new file mode 100644
 +    XrCompositionLayerProjectionView gun_views[2]{};
 +    const bool complete=count==expected_game_layers;
 +    const bool overlay=complete && DrawTrackedGun(fs.predictedDisplayTime,pose,screen_width,screen_height,gun_layer,gun_views);
-+    const auto composed=ComposeLayers(PS2VRInside::Enabled(),complete,quads,inside_layer,overlay?&gun_layer:nullptr);
-+    count=composed.count;
-+    ei.layerCount=count; ei.layers=count ? composed.layers : nullptr;
++    const auto composed=ComposeLayers(PS2VRInside::Enabled(),complete,quads,inside_layer,overlay?&gun_layer:nullptr,!PS2VRInside::Enabled() && PS2VRGun::Enabled());
++    if(!PS2VRInside::Enabled() && PS2VRGun::Enabled()){
++     // SteamVR quad priority is irrelevant: picture + gun share opaque eye images.
++     count=overlay?1:0;ei.layerCount=count;
++    }else count=composed.count;
++    const XrCompositionLayerBaseHeader* combined_layer=reinterpret_cast<const XrCompositionLayerBaseHeader*>(&gun_layer);
++    ei.layerCount=count; ei.layers=count ? ((!PS2VRInside::Enabled() && PS2VRGun::Enabled())?&combined_layer:composed.layers) : nullptr;
 +    const XrResult ended=XRGL("xrEndFrame", p_xrEndFrame, session,&ei);
 +    if (!Check(ended,"xrEndFrame")) break;
 +    if (count>0 && ended==XR_SUCCESS)
@@ -2307,6 +2325,7 @@ new file mode 100644
 + glDeleteTextures(2,eyes); glDeleteTextures(2,pending);
 + eyes[0]=eyes[1]=pending[0]=pending[1]=0; width=height=pending_width=pending_height=0;
 + enabled=false; other=false;
++ PS2VRScreenDepth::Reset();
 + PS2VRGun::Publish({});
 + LiveLog("Live stereo closed"); if (live_log) { std::fclose(live_log); live_log=nullptr; }
 +}
@@ -2314,6 +2333,12 @@ new file mode 100644
 +{
 + using namespace PS2Live;
 + if (!enabled) return;
++ // Synthetic views are available only in the existing no-loader proof path.
++ if(PS2VRScreenDepth::Enabled() && !PS2VRInside::Enabled() && Env("PCSX2_OPENXR",0)==0 && std::getenv("PCSX2_STEREO_TEST_IPD_M")){
++  const float ipd=Env("PCSX2_STEREO_TEST_IPD_M",0);
++  const bool accepted=PS2VRScreenDepth::Publish({-ipd*.5f,0,0},{ipd*.5f,0,0},true);
++  static bool reported=false;if(!reported){LiveLog(accepted?"OFFLINE SYNTHETIC runtime-IPD view pair; no runtime calls, not a headset measurement":"OFFLINE synthetic runtime-IPD rejected");reported=true;}
++ }
 + GSTexture* src=g_gs_device->GetCurrent(); if (!src) return;
 + std::unique_lock guard(mutex);
 + if(consumer_fence) {glWaitSync(consumer_fence,0,GL_TIMEOUT_IGNORED);glDeleteSync(consumer_fence);consumer_fence=nullptr;}
@@ -2455,7 +2480,7 @@ diff --git a/pcsx2/GS/PS2VRControllers.h b/pcsx2/GS/PS2VRControllers.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRControllers.h
-@@ -0,0 +1,335 @@
+@@ -0,0 +1,371 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// Included inside PS2Live after the runtime function table. Presenter-thread only.
 +static XrActionSet gun_actions=XR_NULL_HANDLE;
@@ -2682,7 +2707,7 @@ new file mode 100644
 + for (int eye=0;eye<2;eye++)
 + {
 +  XrSwapchainCreateInfo ci{XR_TYPE_SWAPCHAIN_CREATE_INFO}; ci.usageFlags=XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
-+  ci.format=format; ci.sampleCount=1; ci.width=PS2VRInside::Enabled()?chain_extent[eye].x:GUN_RES; ci.height=PS2VRInside::Enabled()?chain_extent[eye].y:GUN_RES; ci.faceCount=ci.arraySize=ci.mipCount=1;
++  ci.format=format; ci.sampleCount=1; ci.width=chain_extent[eye].x; ci.height=chain_extent[eye].y; ci.faceCount=ci.arraySize=ci.mipCount=1;
 +  if (!Check(XRGL("xrCreateSwapchain",p_xrCreateSwapchain,session,&ci,&gun_chains[eye]),"gun swapchain")) return false;
 +  u32 count=0;
 +  if (!Check(XRGL("xrEnumerateSwapchainImages",p_xrEnumerateSwapchainImages,gun_chains[eye],0,&count,nullptr),"gun images") || !count) return false;
@@ -2690,26 +2715,31 @@ new file mode 100644
 +  if (!Check(XRGL("xrEnumerateSwapchainImages",p_xrEnumerateSwapchainImages,gun_chains[eye],count,&count,reinterpret_cast<XrSwapchainImageBaseHeader*>(gun_images[eye].data())),"gun images")) return false;
 + }
 + glGenFramebuffers(1,&gun_fbo); gun_graphics_ready=true;
-+ LiveLog("Gun projection layer ready: GLB grip/muzzle anchors, TOML trigger + LOD, fixed per-eye targets (headset recommendation in INSIDE,1024 screen)");
++ LiveLog("Gun projection layer ready: GLB grip/muzzle anchors, TOML trigger + LOD, fixed per-eye targets from headset recommendation; screen picture and gun share depth");
 + return true;
 +}
 +static bool DrawTrackedGun(XrTime time,const XrPosef& screen_pose,float sw,float sh,XrCompositionLayerProjection& layer,XrCompositionLayerProjectionView* projections)
 +{
-+ if (!PS2VRGun::Enabled() || !gun_attached) return false;
++ if (!PS2VRGun::Enabled()) return false;
++ const bool combined=!PS2VRInside::Enabled();
++ if(!combined && !gun_attached)return false;
 + const bool show_model=grip_valid && Env("PCSX2_VR_GUN_SHOW_MODEL",1)!=0;
 + const auto sample=PS2VRGun::Snapshot();
 + const bool show_dot=Env("PCSX2_VR_GUN_DOT",1)!=0 && sample.active && sample.on_screen;
-+ if ((!show_model && !show_dot) || !InitGunGraphics()) return false;
++ if ((!combined && !show_model && !show_dot) || !InitGunGraphics()) return false;
 + XrViewLocateInfo vi{XR_TYPE_VIEW_LOCATE_INFO}; vi.viewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO; vi.displayTime=time; vi.space=space;
 + XrViewState state{XR_TYPE_VIEW_STATE}; XrView views[2]{{XR_TYPE_VIEW},{XR_TYPE_VIEW}}; u32 count=0;
 + const auto valid=XR_VIEW_STATE_POSITION_VALID_BIT|XR_VIEW_STATE_ORIENTATION_VALID_BIT;
 + if (!Check(XRGL("xrLocateViews",p_xrLocateViews,session,&vi,&state,2,&count,views),"gun eye poses") || count!=2 || (state.viewStateFlags&valid)!=valid) return false;
 + const auto grip=grip_valid ? PS2VRGun::Mat4::FromPose(&grip_pose.position.x,&grip_pose.orientation.x) : PS2VRGun::Mat4::Identity();
 + const float recoil=recoil_start.time_since_epoch().count() ? std::chrono::duration<float>(std::chrono::steady_clock::now()-recoil_start).count() : -1;
++ // Acquire and bound both waits before locking the published pair.
++ if(!WaitChainImage(gun_chains[0],gun_acquired[0]) || !WaitChainImage(gun_chains[1],gun_acquired[1]))return false;
++ std::unique_lock<std::mutex> pair_lock(mutex,std::defer_lock);
++ if(combined){pair_lock.lock();if(fence)glWaitSync(fence,0,GL_TIMEOUT_IGNORED);}
 + bool pair=true;
 + for (int eye=0;eye<2;eye++)
 + {
-+  if (!WaitChainImage(gun_chains[eye],gun_acquired[eye])) {pair=false;break;}
 +  const u32 index=gun_acquired[eye].index;
 +  const auto& v=views[eye];
 +  const auto projection=PS2VRGun::Mat4::Projection(std::tan(v.fov.angleLeft),std::tan(v.fov.angleRight),std::tan(v.fov.angleDown),std::tan(v.fov.angleUp));
@@ -2717,20 +2747,29 @@ new file mode 100644
 +  glBindFramebuffer(GL_FRAMEBUFFER,gun_fbo); glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,gun_images[eye][index].image,0);
 +  std::string error;
 +  DrainGL("before","gun render");
-+  const auto aim=PS2VRGun::Mat4::FromPose(&aim_pose.position.x,&aim_pose.orientation.x);
++  const auto aim=show_model ? PS2VRGun::Mat4::FromPose(&aim_pose.position.x,&aim_pose.orientation.x) : PS2VRGun::Mat4::Identity();
 +  const auto screen=PS2VRGun::Mat4::FromPose(&screen_pose.position.x,&screen_pose.orientation.x);
 +  float dot_u=0,dot_v=0;const bool dot=show_dot && AimDotPosition(sample,projection,view_matrix,screen,sw,sh,dot_u,dot_v);
-+  bool drawn=RenderControllerOverlay(gun_model,gun_fbo,PS2VRInside::Enabled()?chain_extent[eye].x:GUN_RES,PS2VRInside::Enabled()?chain_extent[eye].y:GUN_RES,projection,view_matrix,grip,aim,sample.trigger,recoil,show_model,dot,dot_u,dot_v,error);
-+  glFinish(); if (DrainGL("after","gun render / completion")) drawn=false;
++  bool drawn=false;
++  if(combined){
++   drawn=gun_model.Draw(gun_fbo,chain_extent[eye].x,chain_extent[eye].y,projection,view_matrix,grip,aim,sample.trigger,recoil,error,eyes[eye],width,height,screen,sw,sh,show_model);
++   if(dot){
++    const auto point=screen*PS2VRGun::Mat4::Translation((sample.u-.5f)*sw,(.5f-sample.v)*sh,.002f);
++    gun_model.DrawScreen(0,0,0,projection*view_matrix*point,.016f,.016f,true);
++   }
++  }else drawn=RenderControllerOverlay(gun_model,gun_fbo,chain_extent[eye].x,chain_extent[eye].y,projection,view_matrix,grip,aim,sample.trigger,recoil,show_model,dot,dot_u,dot_v,error);
++  if (DrainGL("after","gun render")) drawn=false;
 +  glDisable(GL_DEPTH_TEST); glDisable(GL_SCISSOR_TEST); glDisable(GL_FRAMEBUFFER_SRGB);
-+  const bool released=ReleaseChainImage(gun_chains[eye],gun_acquired[eye]);
-+  if (!drawn || !released) { LiveLog(("Gun frame failed: "+error).c_str()); pair=false; break; }
++  if (!drawn) { LiveLog(("Gun frame failed: "+error).c_str()); pair=false; break; }
 +  projections[eye]={XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW}; projections[eye].pose=v.pose; projections[eye].fov=v.fov;
-+  projections[eye].subImage.swapchain=gun_chains[eye]; projections[eye].subImage.imageRect.extent=PS2VRInside::Enabled()?XrExtent2Di{chain_extent[eye].x,chain_extent[eye].y}:XrExtent2Di{GUN_RES,GUN_RES};
++  projections[eye].subImage.swapchain=gun_chains[eye]; projections[eye].subImage.imageRect.extent=XrExtent2Di{chain_extent[eye].x,chain_extent[eye].y};
 + }
++ if(combined){if(consumer_fence)glDeleteSync(consumer_fence);consumer_fence=glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE,0);glFlush();pair_lock.unlock();}
++ glFinish();if(DrainGL("after","gun completion outside lock"))pair=false;
++ for(int eye=0;eye<2;eye++)pair=ReleaseChainImage(gun_chains[eye],gun_acquired[eye]) && pair;
 + layer={XR_TYPE_COMPOSITION_LAYER_PROJECTION};
 + layer.space=space;
-+ layer.layerFlags=XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT|XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
++ layer.layerFlags=combined?0:XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT|XR_COMPOSITION_LAYER_UNPREMULTIPLIED_ALPHA_BIT;
 + layer.viewCount=2; layer.views=projections;
 + return pair;
 +}
@@ -2791,11 +2830,33 @@ new file mode 100644
 + model.Shutdown();glBindFramebuffer(GL_FRAMEBUFFER,0);glDeleteFramebuffers(1,&fbo);glDeleteTextures(1,&tex);
 + DrainGL("after","overlay proof cleanup");
 +}
++
++// Runs only in the no-loader replay path, once the real game pair is published.
++static void SaveScreenProof(){
++ const char* prefix=std::getenv("PCSX2_VR_SCREEN_PROOF");if(!prefix||!PS2VRGun::Enabled())return;
++ PS2VRGun::Renderer model;std::string error;if(!model.Init(error)){LiveLog(error.c_str());return;}
++ GLuint fbo=0,tex=0;glGenFramebuffers(1,&fbo);glCreateTextures(GL_TEXTURE_2D,1,&tex);glTextureStorage2D(tex,1,GL_RGBA8,GUN_RES,GUN_RES);glBindFramebuffer(GL_FRAMEBUFFER,fbo);glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,tex,0);
++ for(int eye=0;eye<2;eye++)for(int pass=0;pass<4;pass++){
++  const auto projection=PS2VRGun::Mat4::Projection(-1,1,-1,1);
++  const auto view_matrix=PS2VRGun::Mat4::Translation(eye?-.0315f:.0315f,0,0);
++  const auto grip=PS2VRGun::Mat4::Translation(-.10f,-.13f,pass==2?-4.f:-.42f)*PS2VRGun::Mat4::Rotation(1,0,0,-1.15f);
++  const auto aim=PS2VRGun::Mat4::Translation(-.10f,-.095f,pass==2?-4.f:-.44f);
++  bool ok=model.Draw(fbo,GUN_RES,GUN_RES,projection,view_matrix,grip,aim,0,-1,error,eyes[eye],width,height,PS2VRGun::Mat4::Translation(0,0,-2.5f),4,3,pass!=0);
++  if(pass==3)model.DrawScreen(0,0,0,projection*view_matrix*PS2VRGun::Mat4::Translation(0,0,-2.498f),.016f,.016f,true);
++  glReadBuffer(GL_COLOR_ATTACHMENT0);glBindBuffer(GL_PIXEL_PACK_BUFFER,0);glPixelStorei(GL_PACK_ALIGNMENT,4);glPixelStorei(GL_PACK_ROW_LENGTH,0);glPixelStorei(GL_PACK_SKIP_ROWS,0);glPixelStorei(GL_PACK_SKIP_PIXELS,0);
++  std::vector<u32> pixels(GUN_RES*GUN_RES),flip(pixels.size());glReadPixels(0,0,GUN_RES,GUN_RES,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());for(int y=0;y<GUN_RES;y++)std::copy_n(pixels.data()+(GUN_RES-1-y)*GUN_RES,GUN_RES,flip.data()+y*GUN_RES);
++  RGBA8Image(GUN_RES,GUN_RES,std::move(flip)).SaveToFile((std::string(prefix)+(eye?"-right":"-left")+(pass==0?"-picture.png":pass==1?"-front.png":pass==2?"-behind.png":"-dot.png")).c_str());
++  if(live_log)std::fprintf(live_log,"Combined screen proof eye=%d pass=%d draw=%d errors=%u %s\n",eye,pass,ok,DrainGL("after","screen proof"),error.c_str());
++ }
++ XrCompositionLayerQuad quads[2]{};XrCompositionLayerProjection scene{XR_TYPE_COMPOSITION_LAYER_PROJECTION},combined{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
++ RecordLayerOrder(ComposeLayers(false,true,quads,scene,&combined,true),false,prefix,false);
++ model.Shutdown();glBindFramebuffer(GL_FRAMEBUFFER,0);glDeleteFramebuffers(1,&fbo);glDeleteTextures(1,&tex);
++}
 diff --git a/pcsx2/GS/PS2VRGunModel.h b/pcsx2/GS/PS2VRGunModel.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRGunModel.h
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,179 @@
 +// SPDX-License-Identifier: GPL-3.0-or-later
 +// Private PCSX2 presenter gun renderer. Requires a current OpenGL 4.5 context and glad.
 +// Model coordinates: metres, +Y up, -Z forward. No gameplay/aim state is modified.
@@ -2849,6 +2910,7 @@ new file mode 100644
 + struct Node { std::string name; Mat4 local=Mat4::Identity(); int mesh=-1,parent=-1; std::vector<int> children; };
 + std::vector<Node> nodes; std::vector<std::vector<Primitive>> meshes;
 + std::vector<unsigned char> bin; rapidjson::Document doc;
++ GLuint screen_program=0,screen_vao=0,screen_texture=0; int screen_w=0,screen_h=0;
 + GLuint program=0,depth=0; int dw=0,dh=0,grip=-1,muzzle=-1,lod0=-1;
 + std::array<int,2> triggers{-1,-1}; std::array<float,3> axis{}; std::array<float,2> range{};
 + std::array<float,4> body{.1f,.1f,.12f,1},accent{.3f,.3f,.32f,1};
@@ -2900,7 +2962,7 @@ new file mode 100644
 +  const char* fs="#version 330 core\nin vec3 N;uniform vec4 base;out vec4 o;void main(){vec3 n=normalize(N);float l=.32+.68*max(dot(n,normalize(vec3(-.4,.8,.6))),0.);vec3 c=base.rgb*l+vec3(.035)*pow(1.-abs(n.z),3.);o=vec4(pow(c,vec3(1./2.2)),base.a);}";
 +  GLuint v=Shader(GL_VERTEX_SHADER,vs),f=Shader(GL_FRAGMENT_SHADER,fs);program=glCreateProgram();glAttachShader(program,v);glAttachShader(program,f);glLinkProgram(program);glDeleteShader(v);glDeleteShader(f);GLint ok;glGetProgramiv(program,GL_LINK_STATUS,&ok);if(!ok)throw std::runtime_error("gun program link failed");Upload();glGenRenderbuffers(1,&depth);return true;
 + }catch(const std::exception&e){error=e.what();Shutdown();return false;}}
-+ void Shutdown(){for(auto&mesh:meshes)for(auto&p:mesh){glDeleteVertexArrays(1,&p.vao);glDeleteBuffers(1,&p.vbo);glDeleteBuffers(1,&p.ibo);}meshes.clear();nodes.clear();bin.clear();if(program)glDeleteProgram(program);if(depth)glDeleteRenderbuffers(1,&depth);program=depth=0;dw=dh=0;}
++ void Shutdown(){if(screen_program)glDeleteProgram(screen_program);if(screen_vao)glDeleteVertexArrays(1,&screen_vao);if(screen_texture)glDeleteTextures(1,&screen_texture);screen_program=screen_vao=screen_texture=0;screen_w=screen_h=0;for(auto&mesh:meshes)for(auto&p:mesh){glDeleteVertexArrays(1,&p.vao);glDeleteBuffers(1,&p.vbo);glDeleteBuffers(1,&p.ibo);}meshes.clear();nodes.clear();bin.clear();if(program)glDeleteProgram(program);if(depth)glDeleteRenderbuffers(1,&depth);program=depth=0;dw=dh=0;}
 + // Caller provides a COLOR_ATTACHMENT0 texture. Color is straight alpha (background 0).
 + // recoilSeconds is time since an ACCEPTED shot; negative disables recoil. Render-only.
 + // Sets GL state explicitly; caller must restore presenter state after return.
@@ -2925,12 +2987,25 @@ new file mode 100644
 +  for(int i=0;i<3;i++)root.m[12+i]=gripWorld.m[12+i]-root.m[i]*anchor.m[12]-root.m[4+i]*anchor.m[13]-root.m[8+i]*anchor.m[14]+.01f*kick*up[i]+.02f*kick*back[i];
 +  return root;
 + }
-+ bool Draw(GLuint fbo,int width,int height,const Mat4& projection,const Mat4& view,const Mat4& gripWorld,const Mat4& aimWorld,float trigger,float recoilSeconds,std::string& error) {try {
++ bool Draw(GLuint fbo,int width,int height,const Mat4& projection,const Mat4& view,const Mat4& gripWorld,const Mat4& aimWorld,float trigger,float recoilSeconds,std::string& error,GLuint picture=0,int picture_w=0,int picture_h=0,const Mat4& screen=Mat4::Identity(),float sw=0,float sh=0,bool show_model=true) {try {
 +  if(!program||width<=0||height<=0)throw std::runtime_error("gun renderer not initialized or invalid target");
 +  glBindFramebuffer(GL_FRAMEBUFFER,fbo);glBindRenderbuffer(GL_RENDERBUFFER,depth);if(dw!=width||dh!=height){glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT24,width,height);dw=width;dh=height;}glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_RENDERBUFFER,depth);glDrawBuffer(GL_COLOR_ATTACHMENT0);if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE)throw std::runtime_error("gun framebuffer incomplete");
 +  glViewport(0,0,width,height);glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);glDisable(GL_RASTERIZER_DISCARD);glDisable(GL_STENCIL_TEST);glDisable(GL_SCISSOR_TEST);glDisable(GL_BLEND);glDisable(GL_COLOR_LOGIC_OP);glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);glDisable(GL_POLYGON_OFFSET_FILL);glDisable(GL_PRIMITIVE_RESTART);glDisable(GL_PRIMITIVE_RESTART_FIXED_INDEX);glDisable(GL_CULL_FACE);glDisable(GL_FRAMEBUFFER_SRGB);glEnable(GL_DEPTH_TEST);glDepthFunc(GL_LESS);glDepthRange(0,1);glDepthMask(GL_TRUE);glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);glClearColor(0,0,0,0);glClearDepth(1);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);glUseProgram(program);
-+  auto root=AlignedRoot(gripWorld,aimWorld,recoilSeconds);DrawNode(lod0,root,projection*view,trigger);return true;
++  if(picture) DrawScreen(picture,picture_w,picture_h,projection*view*screen,sw,sh);
++  glUseProgram(program);
++  if(show_model){auto root=AlignedRoot(gripWorld,aimWorld,recoilSeconds);DrawNode(lod0,root,projection*view,trigger);}return true;
 + }catch(const std::exception&e){error=e.what();return false;}}
++ // Same LOCAL-space rectangle as the former quad. Depth is shared with the gun.
++ void DrawScreen(GLuint source,int w,int h,const Mat4& mvp,float sw,float sh,bool dot=false) {
++  if(!screen_program){
++   const char* vs="#version 330 core\nuniform mat4 mvp;uniform vec2 size;out vec2 uv;void main(){vec2 p=vec2((gl_VertexID==1||gl_VertexID==2)?1.:0.,gl_VertexID>=2?1.:0.);uv=vec2(p.x,1.-p.y);gl_Position=mvp*vec4((p-.5)*size,0,1);}";
++   const char* fs="#version 330 core\nin vec2 uv;uniform sampler2D picture;uniform int dot;out vec4 o;void main(){o=dot!=0?vec4(1,.15,.05,1):vec4(texture(picture,uv).rgb,1);}";
++   GLuint v=Shader(GL_VERTEX_SHADER,vs),f=Shader(GL_FRAGMENT_SHADER,fs);screen_program=glCreateProgram();glAttachShader(screen_program,v);glAttachShader(screen_program,f);glLinkProgram(screen_program);glDeleteShader(v);glDeleteShader(f);GLint ok=0;glGetProgramiv(screen_program,GL_LINK_STATUS,&ok);if(!ok)throw std::runtime_error("screen program link failed");glGenVertexArrays(1,&screen_vao);
++  }
++  if(!dot && (w!=screen_w||h!=screen_h)){if(screen_texture)glDeleteTextures(1,&screen_texture);glCreateTextures(GL_TEXTURE_2D,1,&screen_texture);glTextureStorage2D(screen_texture,1+int(std::floor(std::log2(std::max(w,h)))),GL_RGBA8,w,h);screen_w=w;screen_h=h;glTextureParameteri(screen_texture,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);glTextureParameteri(screen_texture,GL_TEXTURE_MAG_FILTER,GL_LINEAR);glTextureParameteri(screen_texture,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);glTextureParameteri(screen_texture,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);}
++  if(!dot){glCopyImageSubData(source,GL_TEXTURE_2D,0,0,0,0,screen_texture,GL_TEXTURE_2D,0,0,0,0,w,h,1);glGenerateTextureMipmap(screen_texture);}
++  glUseProgram(screen_program);glUniform1i(glGetUniformLocation(screen_program,"dot"),dot?1:0);glUniformMatrix4fv(glGetUniformLocation(screen_program,"mvp"),1,GL_FALSE,mvp.data());glUniform2f(glGetUniformLocation(screen_program,"size"),sw,sh);glUniform1i(glGetUniformLocation(screen_program,"picture"),0);glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,screen_texture);glBindSampler(0,0);glBindVertexArray(screen_vao);glDrawArrays(GL_TRIANGLE_FAN,0,4);
++ }
 + Mat4 TriggerWorld(int lod,float trigger)const {return World(triggers.at(lod),trigger);}
 + Mat4 GripAnchor()const{return World(grip,0);} Mat4 MuzzleAnchor()const{return World(muzzle,0);}
 + bool SaveProof(const std::string& prefix,std::string& error) {
@@ -3251,4 +3326,50 @@ new file mode 100644
 + }
 +};
 +
++}
+diff --git a/pcsx2/GS/PS2VRScreenDepth.h b/pcsx2/GS/PS2VRScreenDepth.h
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/GS/PS2VRScreenDepth.h
+@@ -0,0 +1,41 @@
++// SPDX-License-Identifier: GPL-3.0+
++#pragma once
++#include <array>
++#include <atomic>
++#include <chrono>
++#include <cmath>
++#include <cstdint>
++#include <cstdlib>
++#include <cstring>
++namespace PS2VRScreenDepth {
++inline bool Enabled(){static const bool enabled=[] {const char* v=std::getenv("PCSX2_STEREO_RUNTIME_IPD");return v && std::strcmp(v,"1")==0;}();return enabled;}
++inline std::int64_t Now(){return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
++inline std::atomic<float> baseline{0};
++inline std::atomic<std::int64_t> stamp{0};
++inline void Invalidate(){baseline.store(0,std::memory_order_relaxed);stamp.store(0,std::memory_order_release);}
++inline bool Publish(const std::array<float,3>& left,const std::array<float,3>& right,bool tracked,std::int64_t now=Now()){
++ if(!Enabled() || !tracked){Invalidate();return false;}
++ float squared=0;
++ for(unsigned i=0;i<3;i++){
++  if(!std::isfinite(left[i]) || !std::isfinite(right[i])){Invalidate();return false;}
++  const float delta=right[i]-left[i];squared+=delta*delta;
++ }
++ const float metres=std::sqrt(squared);
++ if(!std::isfinite(metres) || metres<.02f || metres>.12f){Invalidate();return false;}
++ baseline.store(metres,std::memory_order_relaxed);stamp.store(now,std::memory_order_release);return true;
++}
++inline float Sample(float configured,std::int64_t now=Now()){
++ const auto time=stamp.load(std::memory_order_acquire);const float metres=baseline.load(std::memory_order_relaxed);
++ return time>0 && now>=time && now-time<500 && metres>=.02f && metres<=.12f ? metres:configured;
++}
++struct FrameSample {std::uint64_t frame=0;float metres=0;bool valid=false;};
++inline thread_local FrameSample sample;
++// GS thread: one value for every draw/eye of this emulated frame. Runtime
++// updates cannot change the baseline halfway through an eye pair.
++inline float Select(float configured,bool inside,std::uint64_t frame,std::int64_t now=Now()){
++ if(!Enabled() || inside)return configured;
++ if(!sample.valid || frame!=sample.frame){sample={frame,Sample(configured,now),true};}
++ return sample.metres;
++}
++inline void Reset(){Invalidate();sample={};}
 +}

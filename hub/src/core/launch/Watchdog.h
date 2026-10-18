@@ -32,7 +32,8 @@ QString exitCodeText(int code);
 bool neverTouch(const ProcessInfo &process);
 
 // What belongs to a system: every program in its own program folders, and programs with one of its
-// known names under its other configured folders. Nothing else is ever the watchdog's.
+// known names under its other configured folders. Nothing else is ever the watchdog's. Folders are
+// compared as the file system tells them apart: without case on Windows, exactly elsewhere.
 struct SystemRule {
   QString system, label;
   QStringList ownFolders, folders, names; // names may end in '*'

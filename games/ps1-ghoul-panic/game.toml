@@ -1,0 +1,43 @@
+id           = "ps1-ghoul-panic"
+title        = "Ghoul Panic"
+alt_titles   = ["Oh! Bakyuuun"]
+genre        = "gun"
+subgenre     = ["party"]
+year         = 2000
+manufacturer = "namco"
+developer    = "Namco"
+hardware     = "sony-ps1"
+graphics     = "mixed"
+players      = 2
+original     = "ghlpanic"
+
+[controls]
+type   = "gun"
+guns   = 2
+gun    = "Namco GunCon (G-Con 45)"
+pedals = []
+extras = []
+
+[[media]]
+kind = "disc"
+note = "Your own PlayStation disc dump (the European release asks for a language first; the Japanese release is Oh! Bakyuuun)"
+
+[[media]]
+kind = "bios"
+note = "Your own PlayStation BIOS dump"
+
+[routes]
+duckstation = "unknown"
+vr          = { best = "true3d", via = "acvr-ps1 with the SwanStation stereo patch (setups/retro-ps1-vr) (Japanese release Oh! Bakyuuun; the European one plays on the theatre screen)" }
+
+[hub]
+pill   = "GHOUL"
+colour = "#120a18"
+accent = "#9b5cff"
+blurb  = "Namco's haunted-house shooting gallery: Point Blank-style mini-games with ghosts, for one or two GunCons."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Ghoul_Panic", "https://en.wikipedia.org/wiki/GunCon"]
+confidence = "medium"
+checked    = "2026-10-18"

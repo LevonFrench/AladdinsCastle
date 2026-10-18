@@ -192,10 +192,10 @@ class UiTest:public QObject {
  private slots:
  void initTestCase(){
   qInstallMessageHandler(logMessage);
-  auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);QCOMPARE(catalog.games.size(),418);
+  auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);QCOMPARE(catalog.games.size(),428);
   theme=std::make_unique<ac::Theme>(catalog.theme);qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",theme.get());
   games=std::make_unique<ac::GameListModel>(std::move(catalog));filter.setSourceModel(games.get());settings=std::make_unique<ac::UiSettings>(user.path());settings->set("showAllGames",true); /* the catalog tests below need the whole catalog */ui=std::make_unique<ac::UiController>(games.get(),&filter,settings.get());engine=std::make_unique<QQmlApplicationEngine>();
-  auto context=engine->rootContext();context->setContextProperty("catalogGameCount",418);context->setContextProperty("gameModel",games.get());context->setContextProperty("gameFilter",&filter);context->setContextProperty("uiSettings",settings.get());context->setContextProperty("uiController",ui.get());
+  auto context=engine->rootContext();context->setContextProperty("catalogGameCount",428);context->setContextProperty("gameModel",games.get());context->setContextProperty("gameFilter",&filter);context->setContextProperty("uiSettings",settings.get());context->setContextProperty("uiController",ui.get());
   engine->load(QUrl("qrc:/qt/qml/AladdinsCastle/Hub/DesktopShell.qml"));QVERIFY(!engine->rootObjects().isEmpty());window=qobject_cast<QQuickWindow *>(engine->rootObjects().first());QVERIFY(window);root=window->findChild<QObject *>("hubRoot");QVERIFY(root);QTest::qWait(300);
   auto list=window->findChild<QQuickItem *>("sectionedGrid");QVERIFY(list);QVERIFY(list->mapToScene(QPointF()).y()<200);QVERIFY(list->height()>400);
   int visibleCards=cardCount(window->contentItem(),true);QVERIFY(visibleCards>0);
@@ -216,7 +216,7 @@ class UiTest:public QObject {
    const bool installer=file=="InstallConsole.qml";
    const auto labels=namedItems(scene.get(),installer?"installConsoleTitle":"spikeFoundationTitle");
    QCOMPARE(labels.size(),1);
-   QCOMPARE(labels.first()->property("text").toString(),installer?QString("Synthetic Product installer · Last install"):QString("Synthetic Product: 418 games"));
+   QCOMPARE(labels.first()->property("text").toString(),installer?QString("Synthetic Product installer · Last install"):QString("Synthetic Product: 428 games"));
   }
  }
  void captureMarkersAreOptInInRealHubScene(){
@@ -247,24 +247,27 @@ class UiTest:public QObject {
   const auto cleanup=qScopeGuard([&]{settings->set("setupKinds",QVariantMap{});settings->set("setupSystems",QVariantMap{});settings->set("setupDone",false);root->setProperty("view",previousView);});
   const auto centre=[](QQuickItem *item){return item->mapToScene(QPointF(item->width()/2,item->height()/2)).toPoint();};
   const auto one=[&](const QString &name){const auto items=namedItems(window->contentItem(),name);return items.size()==1?items.first():nullptr;};
+  // A click on an item missing from the page, or on it twice, fails the test with its name instead of crashing it.
+  const auto press=[&](const QString &name){const auto item=one(name);if(!item){qWarning().noquote()<<name<<"is not on the page exactly once";return false;}
+   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(item));return true;};
   root->setProperty("view","Setup");QVERIFY(softwareFrame(window));
   QTRY_VERIFY(one("setupWelcome"));QVERIFY(one("setupWelcome")->property("text").toString().contains(ui->appName()));
   // Five pages, reached with Next; the choices are saved as they are made.
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QVERIFY(press("setupNext"));QVERIFY(softwareFrame(window));
+  QVERIFY(press("setupNext"));QVERIFY(softwareFrame(window));
   QTRY_VERIFY(one("setupKind-arcade"));QVERIFY(!ui->setupKinds()["arcade"].toBool());
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupKind-arcade")));
+  QVERIFY(press("setupKind-arcade"));
   QTRY_VERIFY(ui->setupKinds()["arcade"].toBool());
   ac::UiSettings saved(user.path());QVERIFY(saved.get("setupKinds").toMap()["arcade"].toBool());
-  QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupSystem-model2")));
+  QVERIFY(softwareFrame(window));QVERIFY(press("setupSystem-model2"));
   QTRY_VERIFY(!ui->setupSystems()[1].toMap()["chosen"].toBool());
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QVERIFY(press("setupNext"));QVERIFY(softwareFrame(window));
   QTRY_VERIFY(one("setupFolder-model3"));QVERIFY(!one("setupFolder-model2"));
   QVERIFY(one("setupFolder-model3")->property("text").toString().contains("not chosen"));
   QVERIFY(!settings->get("setupDone",false).toBool());
   // Leaving the folders page asks for one read of the ticked systems, then shows what came back.
   QSignalSpy scans(ui.get(),SIGNAL(setupScanRequested(QStringList)));
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));QVERIFY(softwareFrame(window));
+  QVERIFY(press("setupNext"));QVERIFY(softwareFrame(window));
   QCOMPARE(scans.size(),1);QCOMPARE(scans[0][0].toStringList(),(QStringList{"model3","system22"}));
   QTRY_VERIFY(one("setupProgress"));QVERIFY(one("setupProgress")->isVisible());QVERIFY(!one("setupResult-model3"));
   const QVariantMap entry{{"id","scud"},{"title","Synthetic Racer"},{"detail","Checked."},{"reason","Two files differ."},{"expected","synthetic.zip"}};
@@ -272,13 +275,13 @@ class UiTest:public QObject {
   QVERIFY(softwareFrame(window));QTRY_VERIFY(one("setupResult-model3"));QVERIFY(!one("setupProgress")->isVisible());
   // Running a found emulator for its list is asked once; "No" is kept, and the question goes.
   QVERIFY(one("setupQueryEmulators")&&one("setupQueryEmulators")->isVisible());
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupQueryNo")));
+  QVERIFY(press("setupQueryNo"));
   QTRY_VERIFY(settings->values().contains("queryEmulators"));QVERIFY(!settings->get("queryEmulators").toBool());
   QVERIFY(softwareFrame(window));QVERIFY(!one("setupQueryEmulators")->isVisible());QCOMPARE(scans.size(),1);
   settings->remove("queryEmulators");
   // The same finding greys the game on its own tab, with the reason.
   QVERIFY(ui->model3Games()[0].toMap()["problem"].toString().isEmpty()==false);
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(one("setupNext")));
+  QVERIFY(press("setupNext"));
   QTRY_COMPARE(root->property("view").toString(),QString("List"));QVERIFY(settings->get("setupDone").toBool());
   ui->setSetupReport({});
  }
@@ -313,13 +316,25 @@ class UiTest:public QObject {
   QTRY_VERIFY(one("model3Grid"));QCOMPARE(one("model3Grid")->property("count").toInt(),int(ui->model3Games().size()+ui->otherGames().size()+ui->readyCatalogGames().size()));
   for(const auto &hidden:{"filterBar","libraryButton","orderButton","searchField"})QVERIFY2(!one(hidden)->isVisible(),hidden);
   QVERIFY(one("model3Tab")->isVisible());QVERIFY(one("pinballTab")->isVisible());QVERIFY(one("helpButton")->isVisible());
-  // Pinball lists only tables that can be started; the excluded and not-ready ones stay hidden.
+  // Pinball lists every table; Ready to play and VR-ready only narrow it, and a tile says why a table cannot play.
   QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Pinball"),Q_ARG(QVariant,QVariant())));
   {QVariantList tables;const QStringList states{"ready","needs no ROM","ROM missing","unknown"};
    for(int i=0;i<8;++i)tables<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"vrReady",i<6},{"romState",states[i%4]}};
    QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,(QVariantMap{{"total",8},{"vrReady",6},{"tables",tables}}))));}
-  QTRY_VERIFY(one("pinballGrid"));QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),4); // 0, 1, 4 and 5: VR-ready and startable.
-  QVERIFY(!one("pinballExcluded")->isVisible());QVERIFY(!one("pinballReady")->isVisible());QCOMPARE(one("pinballCount")->property("text").toString(),QString("4 tables ready to play"));
+  QTRY_VERIFY(one("pinballGrid"));QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),8);
+  const QString dot=QString("  ")+QChar(0xb7)+"  ";
+  QCOMPARE(one("pinballCount")->property("text").toString(),"8 tables"+dot+"4 ready to play"+dot+"4 ready in the headset");
+  QVERIFY(one("pinballReady")->isVisible());QVERIFY(one("pinballVrOnly")->isVisible());
+  one("pinballReady")->setProperty("checked",true);QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),4); // 0, 1, 4 and 5: startable.
+  one("pinballReady")->setProperty("checked",false);one("pinballVrOnly")->setProperty("checked",true);QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),6);
+  QCOMPARE(one("pinballCount")->property("text").toString(),"6 of 8 tables"+dot+"4 ready to play"+dot+"4 ready in the headset");
+  one("pinballVrOnly")->setProperty("checked",false);
+  {QObject *pinballPage=one("pinballGrid");while(pinballPage&&pinballPage->metaObject()->indexOfMethod("tileOf(QVariant)")<0)pinballPage=pinballPage->parent();QVERIFY(pinballPage);
+   QVariantMap desktop{{"id","9"},{"title","Fixture 9"},{"vrReady",false},{"romState","ready"}},broken{{"id","10"},{"title","Fixture 10"},{"error","unreadable"},{"romState","unknown"}},
+    locked{{"id","11"},{"title","Fixture 11"},{"note","Its script is locked by its author."},{"romState","unknown"}};
+   QStringList badges;QVariant tile;auto list=ui->pinballData()["tables"].toList();list<<desktop<<broken<<locked;
+   for(const auto &row:list){QVERIFY(QMetaObject::invokeMethod(pinballPage,"tileOf",Q_RETURN_ARG(QVariant,tile),Q_ARG(QVariant,row)));badges<<tile.toMap()["badge"].toString();}
+   QCOMPARE(badges,(QStringList{"","","ROM missing","ROM not checked","","","ROM missing","ROM not checked","Desktop only","Can't read","Locked script"}));}
   QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Model3"),Q_ARG(QVariant,QVariant())));QVERIFY(softwareFrame(window));
   // The help menu: closed by its Close button, by Escape and by a click outside it; only items that work are shown.
   const auto help=popup("helpPanel");QVERIFY(help);
@@ -433,7 +448,7 @@ class UiTest:public QObject {
   QVariantMap data{{"total",25},{"vrReady",24},{"tables",rows}};
   QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,data)));
   QTRY_VERIFY(!namedItems(window->contentItem(),"pinballGrid").isEmpty());
-  auto grid=namedItems(window->contentItem(),"pinballGrid").first();QTRY_COMPARE(grid->property("count").toInt(),24);
+  auto grid=namedItems(window->contentItem(),"pinballGrid").first();QTRY_COMPARE(grid->property("count").toInt(),25);
   auto tiles=namedItems(window->contentItem(),"pinballTile");QVERIFY(!tiles.isEmpty());
   auto tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,24));
   QTest::mousePress(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTest::mouseMove(window,p.toPoint()-QPoint(0,140),80);QTest::mouseRelease(window,Qt::LeftButton,Qt::NoModifier,p.toPoint()-QPoint(0,140));
@@ -1041,8 +1056,8 @@ class UiTest:public QObject {
   for(const auto &key:{"graphicsIds","manufacturerIds","hardwareIds","vrKeys","playersBuckets","controlsTypes","decades"}){auto choices=filter.choices(key);QVERIFY(!choices.isEmpty());for(const auto &choice:QVariantList{choices.first(),choices.last()}){filter.setFacet(key,QStringList{choice.toMap().value("id").toString()});QVERIFY(filter.visibleCount()>0);filter.clearFacets();}}
   root->setProperty("view","Detail");
   int rendered=0;
-  for(const auto &g:games->records()){if(rendered++%50==0)qInfo("UI detail %d / 418",rendered);ui->openDetail(g.id);auto d=ui->detail();QCOMPARE(d.value("gameId").toString(),g.id);QVERIFY(!d.value("readme").toString().isEmpty());QVERIFY(!d.value("controls").toList().isEmpty());QCoreApplication::processEvents(QEventLoop::AllEvents,1);}
-  filter.setQuery("scud");QVERIFY(filter.visibleCount()>0);filter.setQuery("unlikely-no-title-synthetic");QCOMPARE(filter.visibleCount(),0);filter.setQuery("");root->setProperty("view","List");QCOMPARE(filter.visibleCount(),418);
+  for(const auto &g:games->records()){if(rendered++%50==0)qInfo("UI detail %d / 428",rendered);ui->openDetail(g.id);auto d=ui->detail();QCOMPARE(d.value("gameId").toString(),g.id);QVERIFY(!d.value("readme").toString().isEmpty());QVERIFY(!d.value("controls").toList().isEmpty());QCoreApplication::processEvents(QEventLoop::AllEvents,1);}
+  filter.setQuery("scud");QVERIFY(filter.visibleCount()>0);filter.setQuery("unlikely-no-title-synthetic");QCOMPARE(filter.visibleCount(),0);filter.setQuery("");root->setProperty("view","List");QCOMPARE(filter.visibleCount(),428);
  }
  void signalsAndProofGates(){
   QSignalSpy scans(ui.get(),&ac::UiController::scanRequested),cancels(ui.get(),&ac::UiController::cancelScanRequested);ui->startScan({"synthetic-root"});ui->startScan({"synthetic-root"});QCOMPARE(scans.count(),1);QCOMPARE(cancels.count(),0);QVERIFY(ui->scanning());ui->cancelScan();QCOMPARE(cancels.count(),1);ui->scanStarted();QVERIFY(ui->scanning());ui->scanFinished(true);QVERIFY(filter.scanComplete());
@@ -1084,7 +1099,7 @@ class UiTest:public QObject {
   root->setProperty("view","List");filter.clearFacets();filter.setQuery("");window->resize(1120,720);QTest::qWait(500);
   auto list=window->findChild<QObject *>("sectionedGrid");QVERIFY(list);
   for(auto p=qobject_cast<QQuickItem *>(list);p;p=p->parentItem()){qInfo()<<"Ancestor"<<p->metaObject()->className()<<p->position()<<p->size()<<p->implicitHeight();if(p->parentItem())for(auto c:p->parentItem()->childItems())qInfo()<<"Sibling"<<c->metaObject()->className()<<c->position()<<c->size()<<c->implicitHeight();}
-  QJsonObject report;report["catalogGames"]=418;report["renderer"]=QStringLiteral("OpenGL");report["initialDelegateCount"]=cardCount(window->contentItem());report["viewportHeight"]=list->property("height").toDouble();
+  QJsonObject report;report["catalogGames"]=428;report["renderer"]=QStringLiteral("OpenGL");report["initialDelegateCount"]=cardCount(window->contentItem());report["viewportHeight"]=list->property("height").toDouble();
   QQmlComponent card(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameCard.qml"));QElapsedTimer creation;creation.start();for(int i=0;i<100;++i){std::unique_ptr<QObject> object(card.create());QVERIFY(object);}report["delegateCreateMs"]=static_cast<double>(creation.nsecsElapsed())/1000000.0/100.0;
   for(bool cheap:{false,true}){
    settings->set("cheapEffects",cheap);QTest::qWait(200);QElapsedTimer elapsed;elapsed.start();QVector<double> deltas;double last=0;int frames=0;double cpu=cpuSeconds();

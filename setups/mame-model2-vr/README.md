@@ -197,3 +197,33 @@ the viewer's `AimMath.h` and patched MAME's `model2_input.h`.
 MAME as a whole is GPL-2.0; the new MAME-side source files are BSD-3-Clause.
 The source checkout's `COPYING` and `docs/legal` retain the upstream licence
 texts and copyright notices. The licence texts are included here as well.
+
+
+## Build tool versions
+
+`upstream-pin.json` records the exact MINGW64 package versions from the preserved
+build transaction, cross-checked against the package-manager history. Core
+tools are GCC 16.2.0-3, binutils 2.47-3, Python 3.14.7-1, GNU make 4.4.1-3,
+bash 5.3.015-1 and MSYS2 runtime 3.6.10-3. The complete dependency package map
+and existing small-target build flags are in the pin. Do not substitute the
+separate UCRT64 package set. OpenXR 1.1.43 header hashes are recorded as well.
+This is documentation and version identity only: no installs, rebuild or
+duplicate patch-apply check is part of this update.
+
+## Shared presenter candidate (Model 2 first)
+
+The new `libacvr/publish-presenter` target owns the presenter mechanics; the
+Model 2 source now keeps only the compatibility adapter and its bitmap/input
+transport. Build the candidate with `build-viewer.ps1 -SharedPresenter` using
+the existing required path parameters. It produces `model2-viewer-shared.exe`.
+The default build still uses the original files in `presenter/legacy` and
+produces `model2-viewer.exe`; both can be built side by side. No installed viewer
+or launcher is replaced. Keep the original until the candidate has passed play.
+
+Run `test-presenter.ps1` for the shared implementation, or add
+`-LegacyPresenter` for the preserved original harness. Both remain hidden and
+bounded. The shared test adds pose/serial ownership, loader-table failure,
+session/focus, 250 ms input expiry, GL drain, layer construction and recentre.
+No OpenXR loader or runtime is opened by these tests. This is offline proof,
+with headset behavior still pending. The shared library README describes the
+API, build target and remaining adapter work for other emulators.

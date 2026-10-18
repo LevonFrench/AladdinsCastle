@@ -4,6 +4,7 @@
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
+#include "core/ps1/Ps1.h"
 #include "core/install/Install.h"
 #include <QtTest>
 #include <QDir>
@@ -227,9 +228,9 @@ private slots:
   }
   // PS2: serials read from real discs, file names when a serial cannot be read, and the user's launcher's own keys.
   void ps2GamesAreKnownBySerialAndStartedThroughTheLauncher() {
-    QCOMPARE(ac::ps2::games().size(),11);
+    QCOMPARE(ac::ps2::games().size(),12);
     QCOMPARE(ac::ps2::gameForSerial("SLES_512.29"),QString("virtua-cop"));QCOMPARE(ac::ps2::gameForSerial("SLUS-21274"),QString("outrun-2006"));
-    QVERIFY(ac::ps2::gameForSerial("SLUS-20219").isEmpty()); // Time Crisis II: a real disc, not in the list.
+    QCOMPARE(ac::ps2::gameForSerial("SLUS-20219"),QString("time-crisis-2"));
     for(const auto &value:ac::ps2::games()){const auto game=value.toMap();QVERIFY(game["controls"].toString().contains("amepad"));}
     QTemporaryDir t;std::atomic_bool cancel=false;const auto launcher=t.filePath("play/launcher.py"),python=t.filePath("python/pythonw.exe"),stop=t.filePath("runtime/quit.request");
     write(launcher,"synthetic");write(python,"synthetic");QVERIFY(QDir().mkpath(t.filePath("runtime")));
@@ -242,6 +243,19 @@ private slots:
     QCOMPARE(plan["executable"].toString(),QDir::toNativeSeparators(python));QCOMPARE(plan["cwd"].toString(),QDir::toNativeSeparators(t.filePath("play")));
     QCOMPARE(plan["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"outrun-2006"}));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("xgra",launcher,python,stop));
+    // Inside the game: off for every game until each is confirmed, so only 3D screen is offered and Inside is refused.
+    QVERIFY(ac::ps2::insideGames().isEmpty());
+    for(const auto &value:ac::ps2::games())QCOMPARE(ac::ps2::views(value.toMap()["id"].toString(),launcher).size(),1);
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"inside"));
+    // With a game in the list (given here), Inside is offered for it when the launcher knows it, and passed on.
+    const QStringList inside{"virtua-cop","xgra"};
+    const auto views=ac::ps2::views("virtua-cop",launcher,inside);QCOMPARE(views.size(),2);
+    QCOMPARE(views[0].toMap()["id"].toString(),QString("screen"));QCOMPARE(views[1].toMap()["label"].toString(),QString("Inside the game"));
+    QCOMPARE(ac::ps2::views("outrun-2006",launcher,inside).size(),1);QCOMPARE(ac::ps2::views("xgra",launcher,inside).size(),1);
+    QCOMPARE(ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"inside",inside)["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"virtua-cop","--inside"}));
+    QCOMPARE(ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"screen",inside)["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"virtua-cop"}));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("outrun-2006",launcher,python,stop,"inside",inside));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"wide",inside));
     // A compressed image is matched by its name only; the longer name wins.
     const auto folder=t.filePath("discs");
     write(folder+"/OutRun 2006 (copy).gz","synthetic");write(folder+"/XGRA - Extreme G Racing Association (USA).gz","synthetic");write(folder+"/Something Else (USA).gz","synthetic");
@@ -251,6 +265,26 @@ private slots:
     QVERIFY(entry(result,"notRight","xgra")["reason"].toString().contains("no entry")); // Found, but the launcher does not know it.
     QCOMPARE(entry(result,"missing","virtua-cop")["expected"].toString(),QString("Virtua Cop Elite Edition (disc image)"));
     QCOMPARE(result["other"].toList().size(),1);QCOMPARE(result["other"].toList()[0].toMap()["title"].toString(),QString("Something Else (USA)"));
+  }
+  // PS1: the user's PowerShell launcher knows each disc and gun; the Hub checks its keys and starts it.
+  void ps1GamesStartThroughTheLaunchersKeys() {
+    QVERIFY(ac::ps1::games().size()>=14);
+    for(const auto &value:ac::ps1::games()){const auto game=value.toMap();QCOMPARE(game["view"].toString(),QString("theatre"));QVERIFY(!game["controls"].toString().isEmpty());}
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto launcher=t.filePath("play/ps1/launch-ps1.ps1");
+    QVERIFY(ac::ps1::problem("point-blank",QString()).contains("not found"));
+    write(launcher,"synthetic");
+    QVERIFY(ac::ps1::problem("point-blank",launcher).contains("no entry"));
+    QVERIFY(ac::ps1::problem("not-a-game",launcher).contains("not in the PS1 list"));
+    write(t.filePath("play/ps1/games.json"),"{\"point-blank\":{},\"time-crisis\":{}}");
+    QVERIFY(ac::ps1::problem("point-blank",launcher).isEmpty());
+    const auto plan=ac::ps1::launchPlan("time-crisis",launcher);
+    QVERIFY(plan["executable"].toString().endsWith("powershell.exe",Qt::CaseInsensitive));
+    QCOMPARE(plan["cwd"].toString(),QDir::toNativeSeparators(t.filePath("play/ps1")));
+    QCOMPARE(plan["args"].toStringList(),(QStringList{"-NoProfile","-ExecutionPolicy","Bypass","-File",QDir::toNativeSeparators(launcher),"time-crisis"}));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps1::launchPlan("judge-dredd",launcher));
+    const auto result=ac::setup::scanSystem("ps1",{{"ps1Launcher",launcher}},{},{},cancel);
+    QVERIFY(!entry(result,"ready","point-blank").isEmpty());
+    QCOMPARE(entry(result,"missing","judge-dredd")["expected"].toString(),QString("Judge Dredd (an entry in your PS1 launcher)"));
   }
   void timeCrisisNeedsItsProgramAndTheFilesBesideIt() {
     QTemporaryDir t;std::atomic_bool cancel=false;const auto program=t.filePath("build/game.exe");
