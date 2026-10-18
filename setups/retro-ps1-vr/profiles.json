@@ -31,9 +31,9 @@
   "ps1-ghoul-panic": {
     "gun": "guncon",
     "port": 1,
-    "graphics": "2d",
-    "view": "theatre",
-    "notes": "European release; asks for a language first."
+    "graphics": "mixed",
+    "view": "true3d",
+    "notes": "Real 3D on the Japanese release (Oh! Bakyuuun); the European release stays on the theatre core because the stereo core's GunCon calibration stalls on PAL discs."
   },
   "ps1-time-crisis": {
     "gun": "guncon",
@@ -113,5 +113,13 @@
     "graphics": "polygon-3d",
     "view": "true3d",
     "notes": "Real 3D on the Japanese release (Rescue Shot Bubibo); the European release stays on the theatre core because the stereo core's GunCon calibration stalls on PAL discs."
+  },
+  "ps1-project-horned-owl": {
+    "gun": "justifier",
+    "port": 1,
+    "graphics": "polygon-3d",
+    "view": "theatre",
+    "planned": "true3d",
+    "notes": "Justifier in port 1; its Start button (right A) works the menus. The GunCon is not read. The Japanese release is Horned Owl."
   }
 }

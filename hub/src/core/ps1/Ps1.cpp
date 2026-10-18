@@ -31,6 +31,9 @@ const QList<Game> &table(){
   {"rescue-shot","Rescue Shot",2000,"GunCon",false},
   {"rescue-shot-bubibo","Rescue Shot Bubibo (Japan)",1999,"GunCon",false},
   {"mighty-hits-special-japan","Mighty Hits Special (Japan)",2000,"GunCon",true},
+  {"ghoul-panic-japan","Oh! Bakyuuun (Ghoul Panic, Japan)",2000,"GunCon",false},
+  {"project-horned-owl","Project: Horned Owl",1996,"Justifier",false},
+  {"horned-owl-japan","Horned Owl (Japan)",1995,"Justifier",false},
  };
  return games;
 }
@@ -42,8 +45,8 @@ QString controls(const Game &game){
  const QString id=QString::fromLatin1(game.id);
  if(game.sprites)return text+" On a big theatre screen.";
  // Real 3D runs through the stereo core, whose light gun works on North American and Japanese discs. Die Hard Trilogy
- // reads the Justifier (not in that core); Maximum Force has no 3D depth; the European discs keep the proven theatre core.
- static const QStringList theatreOnly{"die-hard-trilogy","maximum-force","extreme-ghostbusters","rescue-shot"};
+ // and Horned Owl read the Justifier (not in that core); Maximum Force has no 3D depth; the European discs keep the proven theatre core.
+ static const QStringList theatreOnly{"die-hard-trilogy","project-horned-owl","horned-owl-japan","maximum-force","extreme-ghostbusters","rescue-shot"};
  if(theatreOnly.contains(id))return text+" On a big theatre screen.";
  return text+" In real 3D on a big screen.";
 }

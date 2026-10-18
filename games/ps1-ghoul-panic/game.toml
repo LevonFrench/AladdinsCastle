@@ -20,7 +20,7 @@ extras = []
 
 [[media]]
 kind = "disc"
-note = "Your own PlayStation disc dump (the European release; it asks for a language first)"
+note = "Your own PlayStation disc dump (the European release asks for a language first; the Japanese release is Oh! Bakyuuun)"
 
 [[media]]
 kind = "bios"
@@ -28,7 +28,7 @@ note = "Your own PlayStation BIOS dump"
 
 [routes]
 duckstation = "unknown"
-vr          = { best = "theatre", via = "acvr-ps1 theatre (setups/retro-ps1-vr)", planned = "true3d-planned" }
+vr          = { best = "true3d", via = "acvr-ps1 with the SwanStation stereo patch (setups/retro-ps1-vr) (Japanese release Oh! Bakyuuun; the European one plays on the theatre screen)" }
 
 [hub]
 pill   = "GHOUL"
