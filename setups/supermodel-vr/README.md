@@ -92,6 +92,9 @@ The wheel sits about 0.4 m below and 0.45 m ahead of the eyes at the moment of r
 | `ACVR_CONTROLS=1` | Draw the cabinet control (off by default) |
 | `ACVR_CONTROL_POS` | Where it sits relative to the recentred eyes, metres `x,y,z` (for example `0,-0.38,-0.45`) |
 | `ACVR_TEST_STEER` | Fix the steering at -1 to 1, for unattended pictures |
+| `ACVR_STICK_GRAB=1` | Star Wars Trilogy: hold the right grip to take the flight stick and tilt the hand (25 degrees is full deflection, 2 degree dead zone; sideways roll steers, pulling back aims up); letting go centres it. The event button moves to the right stick click while this is on. With `ACVR_CONTROLS=1` the cabinet stick (`assets/controls/stick-flight.glb`, baked to `Assets/acvr/stick-flight.acm` with `tools/bake_control.py`) is drawn tilting with the hand |
+| `ACVR_STICK_INVERT=1` | With `ACVR_STICK_GRAB`: pushing forward aims up instead |
+| `ACVR_TEST_STICK` | With `ACVR_STICK_GRAB`: a stick held at `pitch,roll` degrees, for unattended pictures |
 
 Not yet: hands drawn on the wheel, grabbing the rim itself, the shifter and pedals.
 
