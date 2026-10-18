@@ -16,6 +16,7 @@ using Clock=std::chrono::steady_clock;
 namespace {
 std::atomic<std::uint64_t> startedSerial{0},checkedSerial{0},consumerToken{0},gpuDoneToken{0};
 std::atomic<bool> consuming{false},denyForeign{false};
+std::atomic<bool> checkingMetadata{false};
 HGLRC deniedContext=nullptr;
 unsigned cleanupCalls=0,checkedPairs=0,blockedReuses=0;
 GLuint destination[2]{};
@@ -39,19 +40,20 @@ void OfflineFrame() {
  const auto info=s_pair.peek();
  if(!info.serial || info.serial<=checkedSerial) { Sleep(1); return; }
  ResizeDestination(info.w,info.h);
- std::uint64_t copied=0;
+ std::uint64_t copied=0;acvr_publish::ProjectionPacket stamped;
  const bool ok=CopyPair(destination,info.w,info.h,copied,[&](int eye) {
    if(eye==0) {
      ++consumerToken; consuming=true; startedSerial=info.serial;
      Sleep(25); // producer attempts reuse/resize while consumer still owns the slot
    }
- });
+ },&stamped);
  if(!ok) return; // producer resized before ownership was acquired
  std::vector<std::uint32_t> pixels(info.w*info.h);
  for(int eye=0;eye<2;++eye) {
    glBindTexture(GL_TEXTURE_2D,destination[eye]); glGetTexImage(GL_TEXTURE_2D,0,GL_BGRA,GL_UNSIGNED_BYTE,pixels.data());
    for(unsigned y=0;y<info.h;++y) for(unsigned x=0;x<info.w;++x) assert(pixels[y*info.w+x]==Pixel(unsigned(copied),eye,x,y));
  }
+ if(checkingMetadata){assert(stamped.valid==bool(copied&1));if(stamped.valid)assert(stamped.frame_time==std::int64_t(copied));}
  assert(glGetError()==GL_NO_ERROR); ++checkedPairs; checkedSerial=copied;
 }
 void OfflineCleanup() {
@@ -132,6 +134,7 @@ int main()
  Host_TestAllowCurrent=AllowContext;
  GLuint textures[2]{},fbos[2]{}; glGenTextures(2,textures); glGenFramebuffers(2,fbos);
  s_test.offline=true; s_test.frame=OfflineFrame; s_test.cleanup=OfflineCleanup; ACVR_TestConsumerDone=ConsumerDone;
+ checkingMetadata=true;
  for(unsigned cycle=0;cycle<2;++cycle) {
    startedSerial=checkedSerial=consumerToken=gpuDoneToken=0; consuming=false;
    assert(ACVR_XR_Start(owner)); assert(s_pair.peek().serial==0);
@@ -139,7 +142,8 @@ int main()
      const unsigned w=id==24?48:48+((id-1)%3)*16, h=id==24?32:32+((id-1)%2)*8;
      PrepareSource(textures,fbos,id,w,h);
      const bool blocked=consuming; const auto token=consumerToken.load();
-     ACVR_XR_Publish(fbos[0],fbos[1],w,h);
+     if(id&1){acvr_publish::ProjectionPacket packet;packet.valid=true;packet.frame_time=id;packet.eyes[0].position[0]=-.032f;packet.eyes[1].position[0]=.032f;acvr_publish::publish_projection(fbos[0],fbos[1],w,h,packet);}
+     else ACVR_XR_Publish(fbos[0],fbos[1],w,h);
      if(blocked) { assert(gpuDoneToken>=token); ++blockedReuses; }
      Deadline([&] {return startedSerial>=id;});
    }
@@ -148,7 +152,8 @@ int main()
    assert(wglGetCurrentContext()==owner->context);
  }
  assert(checkedPairs==48 && blockedReuses>0);
- std::printf("PASS GPU: %u exact stereo pairs, alternating IDs, repeated resizes; %u reuses waited for consumer GPU completion; two same-size restart cycles\n",checkedPairs,blockedReuses);
+ checkingMetadata=false;
+ std::printf("PASS GPU: %u exact stereo pairs and stamped projection/quad metadata, alternating IDs, repeated resizes; %u reuses waited for consumer GPU completion; two same-size restart cycles\n",checkedPairs,blockedReuses);
 
  // A foreign context must never receive cleanup callbacks after activation fails.
  auto *foreign=Host_CreateWindow("Hidden foreign context",0,0,16,16,Host_WINDOW_HIDDEN);
