@@ -247,10 +247,15 @@ std::int16_t InputState(unsigned port, unsigned device, unsigned, unsigned id)
   }
   const unsigned base = device & RETRO_DEVICE_MASK;
   auto axis = [](float t) { return (std::int16_t)std::lround(std::clamp(t * 2.f - 1.f, -1.f, 1.f) * 32767.f); };
+  // Open frame: a widescreen hack squeezes the game's 4:3 view into the middle of a wider picture, but the game still
+  // tests shots in its own 4:3 view. ACVR_PS1_AIM_WIDE (e.g. 1.3333 for 16:9) maps the aim back into that view; aim in
+  // the extra side areas lands on the game's edge, never off screen (that would reload).
+  static const float aimWide = [] { const char *s = getenv("ACVR_PS1_AIM_WIDE"); const float f = s ? (float)std::atof(s) : 1.f; return f >= 1.f && f <= 3.f ? f : 1.f; }();
+  const float gunU = aimWide == 1.f ? g_gun.u : std::clamp(.5f + (g_gun.u - .5f) * aimWide, .002f, .998f);
   if (base == RETRO_DEVICE_LIGHTGUN) {
     ++g_gunReads;
     switch (id) {
-    case RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X: return g_gun.offScreen ? -32768 : axis(g_gun.u);
+    case RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X: return g_gun.offScreen ? -32768 : axis(gunU);
     case RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y: return g_gun.offScreen ? -32768 : axis(g_gun.v);
     case RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN: return g_gun.offScreen;
     case RETRO_DEVICE_ID_LIGHTGUN_TRIGGER: return g_gun.trigger && !g_gun.offScreen;
@@ -271,7 +276,7 @@ std::int16_t InputState(unsigned port, unsigned device, unsigned, unsigned id)
   }
   if (base == RETRO_DEVICE_POINTER) {
     switch (id) {
-    case RETRO_DEVICE_ID_POINTER_X: return g_gun.offScreen ? -32768 : axis(g_gun.u);
+    case RETRO_DEVICE_ID_POINTER_X: return g_gun.offScreen ? -32768 : axis(gunU);
     case RETRO_DEVICE_ID_POINTER_Y: return g_gun.offScreen ? -32768 : axis(g_gun.v);
     case RETRO_DEVICE_ID_POINTER_PRESSED: return g_gun.trigger;
     default: return 0;
@@ -408,7 +413,8 @@ void Usage()
     "         [--log <file>] [--no-xr] [--headless --frames N [--script file] [--snapshots dir]]\n"
     "         [--theatre-proof <prefix> --test-aim U V]\n"
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
-    "         ACVR_PS1_LIFT (m), ACVR_PS1_CRT (1: scanlines), ACVR_PS1_GUN_MODEL (.glb), ACVR_PS1_GUN_META (.toml).\n"
+    "         ACVR_PS1_LIFT (m), ACVR_PS1_CRT (1: scanlines), ACVR_PS1_GUN_MODEL (.glb), ACVR_PS1_GUN_META (.toml),\n"
+    "         ACVR_PS1_AIM_WIDE (open frame: 1.3333 with a 16:9 widescreen hack).\n"
     "Clean quit: hold left Y (Index: left B) for 3 s, Escape, or create ACVR_PS1_STOP_FILE.\n");
 }
 

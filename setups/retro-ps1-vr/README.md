@@ -52,6 +52,7 @@ picture is smaller than the headset pixels it uses mipmaps instead.
 | `ACVR_PS1_CURVE` | 1 | 1 curves around you, 0 is flat, between is gentler |
 | `ACVR_PS1_LIFT` | 0 | screen centre height above your eyes, metres |
 | `ACVR_PS1_CRT` | 0 | 1 adds scanlines |
+| `ACVR_PS1_AIM_WIDE` | 1 | open frame: with a widescreen hack, maps the aim back into the game's own 4:3 view (1.3333 for 16:9) |
 | `ACVR_PS1_GUN_MODEL`, `ACVR_PS1_GUN_META` | none | the gun's `.glb` (`assets/guns`) and `.toml` (`data/guns`) |
 
 The screen is placed level, straight ahead of where you look when the first
