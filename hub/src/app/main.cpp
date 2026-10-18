@@ -192,7 +192,9 @@ int main(int argc,char **argv){
         try{const auto log=ac::install::scopedPath("user/logs/overlay-input.log",portableRoot);QDir().mkpath(QFileInfo(log).absolutePath());overlay.setInputLog(log);}catch(const std::exception &){}
         const auto thumbnail=app.applicationDirPath()+"/resources/overlay-thumbnail.png";
         panel=std::make_unique<ac::PanelAttacher>([&engine,&overlay,thumbnail](QString *error){
-                if(overlay.initialize(engine,thumbnail,error))return true;overlay.shutdown();return false;},
+                if(overlay.initialize(engine,thumbnail,error))return true;
+                overlay.shutdown();
+                return false;},
             [&overlay]{QTimer::singleShot(0,&overlay,[&overlay]{overlay.shutdown();});});
         QObject::connect(panel.get(),&ac::PanelAttacher::attachedChanged,&app,[&out](bool attached){out<<(attached?"Joined SteamVR's dashboard as a panel.\n":"Left SteamVR's dashboard; the window carries on.\n");out.flush();});
         QObject::connect(panel.get(),&ac::PanelAttacher::gaveUp,&app,[&err](const QString &reason){err<<"Not a SteamVR panel this time: "<<reason<<'\n';});

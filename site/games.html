@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game List · AC VR Hub</title>
+<meta name="description" content="Which games run in VR through AC VR Hub today, by system, with an honest status for each: played in a headset, running but not yet headset-checked, or set up and waiting.">
+<meta name="theme-color" content="#120c1f">
+<link rel="icon" href="token.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="flow.css">
+</head>
+<body class="flow-page">
+<header class="hud">
+  <a class="brand" href="index.html" aria-label="AC VR Hub, back to the arcade">
+    <img src="token.svg" alt="" width="34" height="34">
+    <span>AC VR Hub</span>
+  </a>
+  <nav class="hud-links">
+    <a href="index.html">The arcade</a>
+    <a href="how-it-works.html">How it works</a>
+    <a href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main class="flow-main">
+  <header class="intro">
+    <h1>Game list</h1>
+    <p class="lede">What runs in VR today, by system. A game is only marked "In headset" once it has been played in a real headset. New game profiles and emulator wrappers are added all the time, so this list keeps moving.</p>
+    <ul class="key" aria-label="Status key">
+      <li><span class="state ok">In headset</span> played in a headset by the developer</li>
+      <li><span class="state wip">Runs</span> runs in VR, headset check still to come</li>
+      <li><span class="state no">Set up</span> recipe or profile exists, not tried yet</li>
+    </ul>
+    <dl class="stats" aria-label="Totals">
+      <div><dt>7</dt><dd>games played in a headset</dd></div>
+      <div><dt>19</dt><dd>more games running in VR, headset check next</dd></div>
+      <div><dt>418</dt><dd>games tracked in the catalog</dd></div>
+    </dl>
+    <nav class="jump" aria-label="Systems">
+      <a href="#model3">Sega Model 3</a>
+      <a href="#wii">Nintendo Wii</a>
+      <a href="#ps2">PlayStation 2</a>
+      <a href="#more">More systems</a>
+    </nav>
+  </header>
+
+  <section class="pipe" id="model3" style="--accent: #9bdc3c">
+    <h2>Sega Model 3 <span class="tally">6 in headset · 4 running</span></h2>
+    <p class="pipe-intro">Through supermodel-vr: your own Supermodel build, patched to draw each eye. Views: Screen (a big screen in front of you), Wide screen (experimental) and Inside (you stand in the game's world).</p>
+    <ul class="cards">
+      <li class="node"><h3>Scud Race</h3><p>Racing · Screen, Inside</p><span class="state ok">In headset</span></li>
+      <li class="node"><h3>Daytona USA 2</h3><p>Racing · Screen, Inside</p><span class="state ok">In headset</span></li>
+      <li class="node"><h3>Sega Rally 2</h3><p>Racing · Screen</p><span class="state ok">In headset</span></li>
+      <li class="node"><h3>Star Wars Trilogy Arcade</h3><p>Shooting · Inside, analog-stick aim</p><span class="state ok">In headset</span></li>
+      <li class="node"><h3>Fighting Vipers 2</h3><p>Fighting · Inside</p><span class="state ok">In headset</span></li>
+      <li class="node"><h3>Dirt Devils</h3><p>Racing · Inside</p><span class="state ok">In headset</span></li>
+      <li class="node"><h3>Virtua Fighter 3</h3><p>Fighting · checked on a monitor</p><span class="state wip">Runs</span></li>
+      <li class="node"><h3>Spikeout</h3><p>Action · checked on a monitor</p><span class="state wip">Runs</span></li>
+      <li class="node"><h3>Virtua Striker 2</h3><p>Sports · checked on a monitor</p><span class="state wip">Runs</span></li>
+      <li class="node"><h3>Harley-Davidson &amp; L.A. Riders</h3><p>Racing · checked on a monitor</p><span class="state wip">Runs</span></li>
+    </ul>
+  </section>
+
+  <section class="pipe" id="wii" style="--accent: #4ff3ff">
+    <h2>Nintendo Wii <span class="tally">1 in headset · 1 set up</span></h2>
+    <p class="pipe-intro">Through DolphinXR, a VR build of Dolphin with a per-game profile. Wii gun games are the current main push.</p>
+    <ul class="cards">
+      <li class="node node-wide"><h3>Resident Evil: The Umbrella Chronicles</h3><p>Light gun · a saved mission played in a headset: depth, aim, clarity and HUD passed. Full chapters and co-op still to check.</p><span class="state ok">In headset</span></li>
+      <li class="node"><h3>Resident Evil: The Darkside Chronicles</h3><p>Light gun · recipe ready, no profile yet</p><span class="state no">Set up</span></li>
+    </ul>
+    <p class="also">Also on the Hub's Wii list, waiting for profiles: The House of the Dead: Overkill, Gunblade NY &amp; L.A. Machineguns, Sin &amp; Punishment: Star Successor, Dead Space: Extraction, Link's Crossbow Training.</p>
+  </section>
+
+  <section class="pipe" id="ps2" style="--accent: #f28a2e">
+    <h2>PlayStation 2 <span class="tally">11 running</span></h2>
+    <p class="pipe-intro">Through pcsx2-vr: your own PCSX2, patched to present the game in stereo with real depth on a 3D screen. All eleven games are proven offline; the first headset picture is the next check.</p>
+    <ul class="cards">
+      <li class="node node-wide"><h3>Light gun</h3><p>Time Crisis 3 · Crisis Zone · Vampire Night · Virtua Cop: Elite Edition · Ninja Assault</p><span class="state wip">Runs</span></li>
+      <li class="node node-wide"><h3>Racing</h3><p>OutRun 2006: Coast 2 Coast · OutRun 2 · Wipeout Fusion · Wipeout Pulse · XGIII: Extreme G Racing · XGRA: Extreme G Racing Association</p><span class="state wip">Runs</span></li>
+    </ul>
+  </section>
+
+  <section class="pipe" id="more" style="--accent: #ff4fa8">
+    <h2>Dreamcast, Model 2, System 22 and pinball <span class="tally">4 running · pinball launcher</span></h2>
+    <ul class="cards">
+      <li class="node"><h3>The House of the Dead 2</h3><p>Dreamcast · light gun · Flycast VR build. Reported to play in a headset with the upstream profile; not yet confirmed here.</p><span class="state wip">Runs</span></li>
+      <li class="node"><h3>Death Crimson OX</h3><p>Dreamcast · light gun · plays in 3D, checked off-headset</p><span class="state wip">Runs</span></li>
+      <li class="node"><h3>Virtua Cop 2</h3><p>Sega Model 2 · light gun · stereo MAME with a separate OpenXR viewer, tested offline</p><span class="state wip">Runs</span></li>
+      <li class="node"><h3>Time Crisis</h3><p>Namco System 22 · light gun · the Time Crisis VR port draws a stereo pair on the desktop; stage play in a headset still open</p><span class="state wip">Runs</span></li>
+      <li class="node"><h3>Your VR-ready pinball tables</h3><p>Visual Pinball X · desktop launch and close proven; headset start and exit are the next check</p><span class="state wip">Launcher</span></li>
+    </ul>
+    <p class="also">Also listed, no VR setup yet: Confidential Mission, Death Crimson 2 and Virtua Cop 2 on Dreamcast; Gunblade NY and Virtua Fighter 2 on Model 2. Namco System 22 racers such as Rave Racer are planned.</p>
+  </section>
+
+  <footer class="outro">
+    <p class="actions">
+      <a class="btn" href="how-it-works.html">How it works</a>
+      <a class="btn btn-ghost" href="index.html">Back to the arcade</a>
+    </p>
+    <p class="fine">The developer reports each headset result; the catalog tracks 418 games across arcade, console and PC, most of them still waiting for a route. Game and system names belong to their owners. AC VR Hub ships no game content: bring your own legally obtained copies.</p>
+  </footer>
+</main>
+</body>
+</html>

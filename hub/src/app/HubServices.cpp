@@ -766,7 +766,8 @@ void HubServices::applyWatchdogRules(){
     const auto parentOf=[](const QString &folder){return folder.isEmpty()?QString():QFileInfo(folder).absolutePath();};
     QList<launch::SystemRule> rules;
     const auto add=[&](const QString &system,const QString &label,const QString &own,const QStringList &folders,const QStringList &names){
-        if(own.isEmpty())return;rules<<launch::SystemRule{system,label,{own},folders,names};};
+        if(own.isEmpty())return;
+        rules<<launch::SystemRule{system,label,{own},folders,names};};
     const auto pinball=folderOf(get("pinballExecutable"));
     add("pinball","Visual Pinball",pinball,{get("pinballFolder"),parentOf(pinball)},
         {"vpinball*","pinmame*","vpinmame*","b2sbackglassserver*","dmdext*","flexdmd*","ultradmd*","freezy*","pinupdisplay*","pupdmdcontrol*","dof*"});
