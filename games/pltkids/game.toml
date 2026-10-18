@@ -1,0 +1,35 @@
+id           = "pltkids"
+title        = "Pilot Kids"
+genre        = "shooting"            # no "flight" genre in the vocab; nearest is shooting / stick-shooter
+subgenre     = ["stick-shooter"]
+year         = 1998
+manufacturer = "psikyo"
+developer    = "Psikyo"
+hardware     = "sega-model-2"
+graphics     = "polygon-3d"
+players      = 2
+
+[controls]
+type   = "joystick"
+extras = ["8-way-stick", "button-1", "button-2"]
+
+[[media]]
+kind = "mame-romset"
+set  = "pltkids"
+note = "Pilot Kids (Model 2B, Revision A); the Model 2A set is a clone"
+
+[routes]
+mame = "working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "PLTKIDS"
+colour = "#1a1220"
+accent = "#ff9ad5"
+blurb  = "Little planes, big guns: an overhead plane shooter for one or two players."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp"]
+confidence = "medium"
+checked    = "2026-10-18"

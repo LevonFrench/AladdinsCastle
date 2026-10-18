@@ -1,7 +1,7 @@
 id           = "zerogu2"
 title        = "Zero Gunner 2"
-genre        = "gun"
-subgenre     = ["rail-shooter"]
+genre        = "shooting"
+subgenre     = ["stick-shooter"]
 year         = 2001
 manufacturer = "psikyo"
 developer    = "Psikyo"
@@ -10,9 +10,8 @@ graphics     = "polygon-3d"
 players      = 2                   # unverified: check cabinet / MAME inputs
 
 [controls]
-type    = "gun"
-guns    = 2
-gun     = "Psikyo gun"
+type    = "joystick"
+extras  = ["stick", "buttons"]       # helicopter shooter on the generic NAOMI stick input, not a light gun
 
 [[media]]
 kind  = "mame-romset"
@@ -32,8 +31,8 @@ vr = { best = "none" }
 pill   = "ZEROGUN2"
 colour = "#1a1024"
 accent = "#b57bff"
-blurb  = "Psikyo's sequel: aim, shoot, and try not to get shot by the big stuff."
-badges = ["roomscale", "2-players", "wip"]
+blurb  = "Psikyo's helicopter shooter sequel: stick, buttons and a lot of big stuff to dodge."
+badges = ["seated", "2-players", "wip"]
 
 [meta]
 sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/naomi.cpp"]

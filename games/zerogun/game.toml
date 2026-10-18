@@ -1,0 +1,36 @@
+id           = "zerogun"
+title        = "Zero Gunner"
+alt_titles   = ["Zero Gunner (Model 2B)"]
+genre        = "shooting"            # no "flight" genre in the vocab; nearest is shooting / stick-shooter
+subgenre     = ["stick-shooter"]
+year         = 1997
+manufacturer = "psikyo"
+developer    = "Psikyo"
+hardware     = "sega-model-2"
+graphics     = "polygon-3d"
+players      = 2
+
+[controls]
+type   = "joystick"
+extras = ["8-way-stick", "button-1", "button-2"]
+
+[[media]]
+kind = "mame-romset"
+set  = "zerogun"
+note = "Zero Gunner (Export, Model 2B); the Japan and Model 2A sets are clones"
+
+[routes]
+mame = "working"
+vr   = { best = "theatre" }
+
+[hub]
+pill   = "ZEROGUN"
+colour = "#0f1a14"
+accent = "#6fe08a"
+blurb  = "Fly a helicopter gunship over a polygon battlefield, one or two players."
+badges = ["seated", "2-players"]
+
+[meta]
+sources    = ["https://github.com/mamedev/mame/blob/master/src/mame/sega/model2.cpp"]
+confidence = "medium"
+checked    = "2026-10-18"
