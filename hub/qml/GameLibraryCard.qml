@@ -31,10 +31,12 @@ Rectangle {
   Text {text:"Game library";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:card.vrOverlayMode?21:18}
   UiText {Layout.fillWidth:true;wrapMode:Text.Wrap;font.pixelSize:card.vrOverlayMode?17:14;color:Theme.get("color.text.muted")
    text:"Point to one or more big folders of your own games, subfolders and all. The Hub looks through them for every game it plays, by what is inside each file where it can, and never changes anything in them. A folder chosen for a system below still comes first."}
-  Repeater {model:card.roots
-   RowLayout {required property string modelData;Layout.fillWidth:true;spacing:8
-    UiText {Layout.fillWidth:true;text:modelData;elide:Text.ElideMiddle;wrapMode:Text.NoWrap;font.pixelSize:card.vrOverlayMode?16:13}
-    PillButton {objectName:"libraryRemove";text:"Remove";vrOverlayMode:card.vrOverlayMode;onClicked:uiSettings.set("libraryRoots",card.roots.filter(r=>r!==modelData))}}}
+  // In a Column, not straight in the layout: this card can sit on a hidden Set-up page while its rows change.
+  Column {Layout.fillWidth:true;spacing:8;visible:card.roots.length>0
+   Repeater {model:card.roots
+    RowLayout {required property string modelData;width:parent.width;spacing:8
+     UiText {Layout.fillWidth:true;text:modelData;elide:Text.ElideMiddle;wrapMode:Text.NoWrap;font.pixelSize:card.vrOverlayMode?16:13}
+     PillButton {objectName:"libraryRemove";text:"Remove";vrOverlayMode:card.vrOverlayMode;onClicked:uiSettings.set("libraryRoots",card.roots.filter(r=>r!==modelData))}}}}
   RowLayout {spacing:8
    PillButton {objectName:"libraryAdd";visible:!card.vrOverlayMode;vrOverlayMode:card.vrOverlayMode;text:"Add a folder…";onClicked:dialog.open()}
    PillButton {objectName:"libraryScan";visible:card.roots.length>0;neon:true;accent:Theme.get("color.state.ready_neon");vrOverlayMode:card.vrOverlayMode;enabled:!uiController.libraryScanning
