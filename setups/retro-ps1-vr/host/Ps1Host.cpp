@@ -538,7 +538,12 @@ int main(int argc, char **argv)
   const char *stopEnv = std::getenv("ACVR_PS1_STOP_FILE");
   const std::string stopFile = stopEnv && *stopEnv ? stopEnv : "";
   if (!stopFile.empty()) Log("Clean stop file: %s", stopFile.c_str());
+  const char *faceEnv = std::getenv("ACVR_PS1_FACE_BUTTONS");
+  const bool faceButtons = faceEnv && std::atoi(faceEnv) == 1;
+  if (faceButtons) Log("Face buttons: right A Cross, right B Circle, left X Square, left Y Triangle, left stick Select, right stick Start; gun buttons on the grips");
   CleanQuit quit;
+  bool quitWasHeld = false;
+  timeBeginPeriod(1);   // 1 ms sleeps, so pacing and audio refill are not 15 ms steps
   const double frameMs = 1000.0 / (g_av.timing.fps > 1 ? g_av.timing.fps : 60.0);
   LARGE_INTEGER freq, t0; QueryPerformanceFrequency(&freq); QueryPerformanceCounter(&t0);
   unsigned frame = 0; std::uint64_t shownSerial = 0, shots = 0;
@@ -553,9 +558,12 @@ int main(int argc, char **argv)
     if (!headless) {
       const DWORD attr = stopFile.empty() ? INVALID_FILE_ATTRIBUTES : GetFileAttributesA(stopFile.c_str());
       quit.poll(now, controller.quitHeld, attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY));
+      // So a quit that does not happen can be told apart from a press that never arrived.
+      if (controller.quitHeld != quitWasHeld) { Log(controller.quitHeld ? "Left Y down (hold 3 s to quit)" : "Left Y up"); quitWasHeld = controller.quitHeld; }
       if (GetAsyncKeyState(VK_ESCAPE) & 1) quit.request(CleanQuit::Reason::escape);
       if (seconds && now - startedAt >= seconds * 1000ull) quit.request(CleanQuit::Reason::time_limit);
       if (quit.requested()) { Log("Clean quit: %s", quit.reason()); break; }
+      if (theatreOn && theatre::RuntimeExit()) { Log("Clean quit: SteamVR ended the game"); break; }
       Gun g; g.u = controller.u; g.v = controller.v; g.offScreen = !controller.active || controller.offScreen;
       // GunCon A is also on the grip, as the pedal (Time Crisis takes cover with it).
       g.trigger = controller.trigger; g.a = controller.a || controller.grip; g.b = controller.b;
@@ -563,6 +571,16 @@ int main(int argc, char **argv)
       g.select = gunName == "lightgun" && controller.b;   // arcade Coin
       Pad p; p.left = controller.padX < -.5f; p.right = controller.padX > .5f; p.up = controller.padY > .5f; p.down = controller.padY < -.5f;
       p.cross = controller.padCross; p.circle = controller.padCircle; p.square = controller.padSquare; p.start = controller.padStart;
+      if (faceButtons) {
+        // The owner's layout: right A Cross, right B Circle, left X Square, left Y Triangle (holding left Y for 3 s
+        // still quits), left stick click Select, right stick click Start. The gun keeps the trigger; its two
+        // buttons move to the right and left grips.
+        p.cross = controller.a || controller.padCross; p.circle = controller.b; p.square = controller.padCircle;
+        p.triangle = controller.quitHeld;
+        p.select = controller.stickLeft; p.start = controller.stickRight || controller.padStart;
+        g.a = controller.grip; g.b = controller.padSquare;   // the gun's own two buttons on the grips
+        g.start = controller.stickRight || controller.padStart; g.select = controller.stickLeft;
+      }
       g_pad = p;
       g_gun = g;
     } else {
@@ -610,7 +628,7 @@ int main(int argc, char **argv)
     if (now - lastSave > 10000) { SaveSram(false); lastSave = now; }
 
     if (!headless) {
-      if (g_audioWanted) { for (int i = 0; i < 100 && g_audio.queued() > 6; ++i) Sleep(1); }
+      if (g_audioWanted) { for (int i = 0; i < 100 && g_audio.queued() > AudioOut::kTarget; ++i) Sleep(1); }
       else {
         LARGE_INTEGER t; QueryPerformanceCounter(&t);
         const double due = frame * frameMs, elapsed = (t.QuadPart - t0.QuadPart) * 1000.0 / freq.QuadPart;
@@ -632,6 +650,12 @@ int main(int argc, char **argv)
   }
   Log("Ran %u frames; gun reads %llu; trigger presses %llu; last picture %ux%u", frame,
       (unsigned long long)g_gunReads, (unsigned long long)shots, g_frameW, g_frameH);
+  timeEndPeriod(1);
+  if (!headless) {
+    const double secs = (GetTickCount64() - startedAt) / 1000.0;
+    Log("Speed %.1f frames/s over %.0f s (game rate %.1f); audio gaps %u, dropped buffers %u", secs > 0 ? frame / secs : 0.0, secs,
+        g_av.timing.fps, g_audio.underruns(), g_audio.dropped());
+  }
   if (!SaveSram(false)) result = 6;
   // A hardware core frees its graphics objects in context_destroy while its emulator still exists.
   if (g_hwOn && g_hw.context_destroy) { Log("Releasing the core's graphics"); g_hw.context_destroy(); }
