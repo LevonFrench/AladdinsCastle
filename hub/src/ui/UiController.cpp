@@ -324,6 +324,7 @@ QVariantList UiController::otherGames()const{
   auto view=chosen.value(row.value("id").toString()).toString();bool known=false;
   for(const auto &value:views)if(value.toMap().value("id")==view)known=true;
   if(!known)view=views.first().toMap().value("id").toString();
+  row["viewChosen"]=known;
   for(const auto &value:views)if(value.toMap().value("id")==view)row["viewLabel"]=value.toMap().value("label");
   row["view"]=view;row["views"]=views;
   // A copy chosen on the game's page is used at once, before the next Rescan.
@@ -350,7 +351,7 @@ QVariantList UiController::otherGames()const{
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","ps2-"+id},{"system","ps2"},{"pill","PS2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
    {"problem",ps2::problem(id,ps2Launcher,m_settings->get("ps2Python",QString()).toString(),m_settings->get("ps2StopFile",QString()).toString())}},
-   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
+   ps2::views(id,ps2Launcher));
  }
  // Time Crisis: one native program, checked as it is now.
  const auto program=m_settings->get("system22Executable",QString()).toString();
@@ -429,7 +430,7 @@ QVariantList UiController::model3Games()const{
  QVariantList rows;
  for(const auto &value:model3::games()){
   auto row=value.toMap();const auto id=row.value("id").toString();
-  auto view=chosen.value(id).toString();if(model3::viewLabel(view).isEmpty())view="screen";
+  auto view=chosen.value(id).toString();row["viewChosen"]=!model3::viewLabel(view).isEmpty();if(!row["viewChosen"].toBool())view="screen";
   row["view"]=view;row["viewLabel"]=model3::viewLabel(view);
   row["problem"]=model3::problem(id,executable,gameFolderFor("model3",id));
   // A file that is there but wrong for this emulator is known only from the last scan.

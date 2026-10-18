@@ -71,10 +71,11 @@ public:
  }
  QByteArray stream(const QString &name){if(!entries.contains(name))return {};const auto e=entries[name];auto size=qFromLittleEndian<quint64>(e.constData()+120);if(!size)return {};return chain(word(e,116),size<4096?miniFat:fat,size<4096,size);}
 };
-QString scriptFrom(const QByteArray &data){
+// A script its author locked (SECB) is not read: locked is set and nothing is returned.
+QString scriptFrom(const QByteArray &data,bool &locked){
  qsizetype p=0;while(p+8<=data.size()){
   const auto len=word(data,p);require(len>=4&&len<=quint64(data.size()-p-4));auto tag=data.mid(p+4,4);
-  if(tag=="SECB")throw std::runtime_error("Protected script metadata is not classified");
+  if(tag=="SECB"){locked=true;return {};}
   if(tag=="CODE"){require(len==4&&p+12<=data.size());const auto n=word(data,p+8);require(n<=2*1024*1024&&n<=quint64(data.size()-p-12));return QString::fromUtf8(data.mid(p+12,n));}
   if(tag=="ENDB") return {};
   p+=4+len;
@@ -88,7 +89,9 @@ QVariantMap inspect(const QString &path) {
   for(const auto &item:{qMakePair(QString("title"),QString("TableName")),qMakePair(QString("authors"),QString("AuthorName")),qMakePair(QString("version"),QString("TableVersion"))}){
    const auto b=c.stream("TableInfo/"+item.second);if(!b.isEmpty()){require(b.size()%2==0);row[item.first]=display(QString::fromUtf16(reinterpret_cast<const char16_t*>(b.constData()),b.size()/2));}
   }
-  const auto script=scriptFrom(c.stream("GameStg/GameData"));
+  bool locked=false;const auto script=scriptFrom(c.stream("GameStg/GameData"),locked);
+  // A locked script still plays in VPX; the Hub only cannot read what it needs, and says so.
+  if(locked)row["note"]="Its script is locked by its author, so the Hub cannot tell whether it needs a ROM or has a VR room. It can still be started.";
   // Comments do not supply evidence. Conservative switch + visible room object.
   QString code,roomCode;
   for(const auto &line:script.split('\n')){
@@ -113,7 +116,7 @@ QVariantMap inspect(const QString &path) {
   auto matches=romAssignment.globalMatch(code);QSet<QString> names;int assignments=0,literals=0;
   while(matches.hasNext()){const auto assignment=matches.next();++assignments;const auto literal=literalRom.match(code.mid(assignment.capturedEnd()));if(literal.hasMatch()&&literal.capturedStart()==0){names.insert(literal.captured(1));++literals;}}
   if(names.size()==1&&assignments==literals){row["rom"]=*names.begin();row["romState"]="ROM missing";}
-  else if(names.isEmpty()&&!QRegularExpression("\\b(cGameName|GameName|VPinMAME|LoadVPM|Controller\\.Run|CreateObject|Execute)\\b",QRegularExpression::CaseInsensitiveOption).match(code).hasMatch())row["romState"]="needs no ROM";
+  else if(!locked&&names.isEmpty()&&!QRegularExpression("\\b(cGameName|GameName|VPinMAME|LoadVPM|Controller\\.Run|CreateObject|Execute)\\b",QRegularExpression::CaseInsensitiveOption).match(code).hasMatch())row["romState"]="needs no ROM";
   const QRegularExpression machineName("^(.*?)\\s*\\(([^()]*)\\s+(\\d{4})\\)");
   auto identity=machineName.match(row["title"].toString());
   if(!identity.hasMatch())identity=machineName.match(QFileInfo(path).completeBaseName());

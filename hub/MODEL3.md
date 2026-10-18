@@ -31,6 +31,9 @@ remembered per game, and the card's button starts with it directly.
 | Wide screen | A camera and screen one and a half times wider. Experimental |
 | Inside the game | The camera follows your head; score and text float on a panel |
 
+Screen is the default until you choose. The game page says which view Play
+uses and whether it is your choice or the default, and marks it on its card.
+
 Start SteamVR with the headset connected first. Hub does not start or select a
 VR runtime for these games; without a headset the emulator plays on the monitor.
 

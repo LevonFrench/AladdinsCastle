@@ -242,6 +242,19 @@ private slots:
     QCOMPARE(plan["executable"].toString(),QDir::toNativeSeparators(python));QCOMPARE(plan["cwd"].toString(),QDir::toNativeSeparators(t.filePath("play")));
     QCOMPARE(plan["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"outrun-2006"}));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("xgra",launcher,python,stop));
+    // Inside the game: off for every game until each is confirmed, so only 3D screen is offered and Inside is refused.
+    QVERIFY(ac::ps2::insideGames().isEmpty());
+    for(const auto &value:ac::ps2::games())QCOMPARE(ac::ps2::views(value.toMap()["id"].toString(),launcher).size(),1);
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"inside"));
+    // With a game in the list (given here), Inside is offered for it when the launcher knows it, and passed on.
+    const QStringList inside{"virtua-cop","xgra"};
+    const auto views=ac::ps2::views("virtua-cop",launcher,inside);QCOMPARE(views.size(),2);
+    QCOMPARE(views[0].toMap()["id"].toString(),QString("screen"));QCOMPARE(views[1].toMap()["label"].toString(),QString("Inside the game"));
+    QCOMPARE(ac::ps2::views("outrun-2006",launcher,inside).size(),1);QCOMPARE(ac::ps2::views("xgra",launcher,inside).size(),1);
+    QCOMPARE(ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"inside",inside)["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"virtua-cop","--inside"}));
+    QCOMPARE(ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"screen",inside)["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"virtua-cop"}));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("outrun-2006",launcher,python,stop,"inside",inside));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"wide",inside));
     // A compressed image is matched by its name only; the longer name wins.
     const auto folder=t.filePath("discs");
     write(folder+"/OutRun 2006 (copy).gz","synthetic");write(folder+"/XGRA - Extreme G Racing Association (USA).gz","synthetic");write(folder+"/Something Else (USA).gz","synthetic");

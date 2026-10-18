@@ -477,9 +477,9 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
                 throw install::Error("E_STEAMVR_NOT_RUNNING","Start SteamVR first, with the headset connected, then start the game again.");
             const auto game=id.mid(4);
-            const auto plan=ps2::launchPlan(game,settings_->get("ps2Launcher",QString()).toString(),settings_->get("ps2Python",QString()).toString(),settings_->get("ps2StopFile",QString()).toString());
+            const auto plan=ps2::launchPlan(game,settings_->get("ps2Launcher",QString()).toString(),settings_->get("ps2Python",QString()).toString(),settings_->get("ps2StopFile",QString()).toString(),view);
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
-            for(const auto &value:ps2::games())if(value.toMap().value("id")==game)title=value.toMap().value("title").toString()+" · 3D screen";
+            for(const auto &value:ps2::games())if(value.toMap().value("id")==game)title=value.toMap().value("title").toString()+" · "+ps2::viewLabel(view);
             hint="Gamepad: Start, A = Cross, B = Circle. Home recentres the screen. Use Exit game here to quit: the game is asked to close and the Hub waits for it.";
         }else if(id=="system22-timecris"){
             const QFileInfo program(settings_->get("system22Executable",QString()).toString());
