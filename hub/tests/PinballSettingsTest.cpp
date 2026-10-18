@@ -25,7 +25,7 @@ private slots:
     QCOMPARE(vrOnSettings("[Player]\nBallTrail = 1"),QByteArray("[Player]\nBallTrail = 1\n\n[PlayerVR]\nAskToTurnOn = 0\n"));
   }
   void editingTwiceChangesNothingMore() {
-    for(const QByteArray text:{QByteArray(),QByteArray("[Player]\nBallTrail = 1\n"),QByteArray("[PlayerVR]\r\nAskToTurnOn = 1\r\n")})
+    for(const QByteArray &text:{QByteArray(),QByteArray("[Player]\nBallTrail = 1\n"),QByteArray("[PlayerVR]\r\nAskToTurnOn = 1\r\n")})
       QCOMPARE(vrOnSettings(vrOnSettings(text)),vrOnSettings(text));
   }
   void ownedFileStartsFromTheTablesOwnSettingsWhichStayUntouched() {
