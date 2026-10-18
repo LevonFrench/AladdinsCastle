@@ -29,7 +29,7 @@ note = "Your own PlayStation BIOS dump"
 
 [routes]
 duckstation = "unknown"
-vr    = { best = "none" }
+vr    = { best = "theatre", via = "acvr-ps1 theatre (setups/retro-ps1-vr)", planned = "true3d-planned" }
 
 [hub]
 pill   = "DHT-PS1"
@@ -41,4 +41,4 @@ badges = []
 [meta]
 sources    = ["https://en.wikipedia.org/wiki/Die_Hard_Trilogy", "https://en.wikipedia.org/wiki/List_of_light-gun_games"]
 confidence = "low"
-checked    = "2026-10-08"
+checked    = "2026-10-18"

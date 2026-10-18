@@ -28,7 +28,7 @@ note = "Your own PlayStation BIOS dump"
 
 [routes]
 duckstation = "unknown"
-vr    = { best = "none" }
+vr    = { best = "theatre", via = "acvr-ps1 theatre (setups/retro-ps1-vr)", planned = "true3d-planned" }
 
 [hub]
 pill   = "JDREDD"
@@ -40,4 +40,4 @@ badges = []
 [meta]
 sources    = ["https://en.wikipedia.org/wiki/Judge_Dredd_(1997_video_game)", "https://en.wikipedia.org/wiki/GunCon"]
 confidence = "low"
-checked    = "2026-10-08"
+checked    = "2026-10-18"

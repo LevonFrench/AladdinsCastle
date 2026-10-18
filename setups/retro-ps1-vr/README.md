@@ -21,7 +21,7 @@ It brings no emulator, BIOS or game. You point it at your own:
 | Right trigger | Trigger. Pulled while pointing off the screen: reload |
 | Right A | GunCon A (Justifier: its start button; arcade: Start) |
 | Right B | GunCon B (arcade: Coin) |
-| Right grip | GunCon A as well: the pedal, so Time Crisis takes cover with it |
+| Right grip | GunCon A as well: the pedal. In Time Crisis hold it to step out and shoot, let go to take cover and reload |
 | Hold left Y for 3 s (Index: left B) | Quit, saving the memory card |
 | Home key | Put the screen in front of you again |
 

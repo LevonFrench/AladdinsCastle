@@ -29,7 +29,7 @@ note = "Your own PlayStation BIOS dump"
 
 [routes]
 duckstation = "unknown"
-vr          = { best = "none" }
+vr          = { best = "theatre", via = "acvr-ps1 theatre (setups/retro-ps1-vr)" }
 
 [hub]
 pill   = "PS1 LE12"
@@ -41,4 +41,4 @@ badges = ["2-players"]
 [meta]
 sources    = ["https://en.wikipedia.org/wiki/Lethal_Enforcers", "https://en.wikipedia.org/wiki/Lethal_Enforcers_II:_Gun_Fighters"]
 confidence = "medium"
-checked    = "2026-10-08"
+checked    = "2026-10-18"
