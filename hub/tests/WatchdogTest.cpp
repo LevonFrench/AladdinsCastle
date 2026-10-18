@@ -34,7 +34,16 @@ private slots:
   }
   void onlyConfiguredFoldersBelongToASystem() {
     QCOMPARE(ac::launch::attribute(process(101, 0, "/Games/VPX/VPinballX64.exe", 0), rules), QString("pinball"));
-    QCOMPARE(ac::launch::attribute(process(102, 0, "\\games\\vpx\\Tools.exe", 0), rules), QString("pinball")); // Its own folder: any program.
+#ifdef Q_OS_WIN
+    // Its own folder: any program. Windows paths ignore case and take either separator.
+    QCOMPARE(ac::launch::attribute(process(102, 0, "\\games\\vpx\\Tools.exe", 0), rules), QString("pinball"));
+#else
+    // Its own folder: any program. Elsewhere a folder is exactly as written: another spelling is another folder.
+    QCOMPARE(ac::launch::attribute(process(102, 0, "/Games/VPX/Tools", 0), rules), QString("pinball"));
+    QVERIFY(ac::launch::attribute(process(110, 0, "/games/vpx/Tools", 0), rules).isEmpty());
+    QVERIFY(ac::launch::attribute(process(111, 0, "\\Games\\VPX\\Tools", 0), rules).isEmpty());
+    QVERIFY(ac::launch::attribute(process(112, 0, "/games/vpx/tables/VPinballX64", 0), rules).isEmpty());
+#endif
     QCOMPARE(ac::launch::attribute(process(103, 0, "/Games/VPX/Tables/B2SBackglassServerEXE.exe", 0), rules), QString("pinball"));
     QVERIFY(ac::launch::attribute(process(104, 0, "/Games/VPX/Tables/notepad.exe", 0), rules).isEmpty()); // Around it: known names only.
     QVERIFY(ac::launch::attribute(process(105, 0, "/Other/VPinballX64.exe", 0), rules).isEmpty());           // Same name elsewhere.
