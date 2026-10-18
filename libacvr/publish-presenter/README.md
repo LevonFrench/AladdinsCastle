@@ -47,3 +47,15 @@ Use `-LegacyPresenter` to run the preserved harness separately. Optional
 `-RunGatePath` stops subsequent child builds/runs if the specified marker exists.
 These are offline/source proofs. Headset A/B play, comfort, physical input and
 compositor behavior remain untested.
+# Mono gun theatre client
+
+`TheatreClient.h` adds an opt-in `start_theatre` entry point. A client receives
+current predicted eye views, recommended per-eye extents, focused tracked
+aim/grip and game buttons on the owning XR GL thread. `update` runs even when
+no image should be submitted. `draw_eye` attaches the supplied colour texture
+to its own depth framebuffer and completes each eye from the same retained
+picture. The shared presenter owns loader/session/actions, finite image waits,
+image release and one opaque projection layer; it never selects the quad path
+for a theatre client. Callbacks and their resources retire on that same GL
+context before session teardown. The separate renderer/GLB parser is shared
+source, and the legacy publish/quad APIs retain their original default path.
