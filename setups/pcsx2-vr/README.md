@@ -664,8 +664,8 @@ explicitly labelled as injected evidence.
 
 Actual hidden gameplay at fake head-left20 sampled100% in Virtua Cop at4x,
 with2048x2048 GS eyes. OutRun2006 did not meet full-speed acceptance: a4x-to3x
-trial timed out at240seconds; fresh3x race samples were13.98–22.42%, and a3x
-zero-pose control without periodic screenshots was12.30–21.76%. The zero-pose
+trial timed out at240seconds; fresh3x race samples were13.98â€“22.42%, and a3x
+zero-pose control without periodic screenshots was12.30â€“21.76%. The zero-pose
 control also being slow prevents assigning the cause solely to head projection
 or screenshot pauses. No GL error was logged. Three full-speed gate attempts
 are retained; further OutRun speed tests stop at this checkpoint.
@@ -876,3 +876,23 @@ Matched dump replays have exact shared-texture/SBS copies, and both the
 injected-wait picture and INSIDE zero-pose picture equal the screen reference
 pixel-for-pixel. These tests do not establish headset timeout recovery,
 controller feel, long-session stability or in-game save/load acceptance.
+
+
+### OpenXR reproducibility pins
+
+The consumed headers are OpenXR 1.1.61, from PenguinVRLab/PenguinScreen2 commit
+`f1eb4c813af0eba2ea6cedcd3dbb8d125b589c07`, under `3rdparty/openxr/include/openxr`.
+`upstream-pin.json` records a pinned source URL and SHA-256 for every header,
+including both repository-blob and installed bytes where checkout newlines differ.
+This is distinct from the preserved loader DLL, whose version resource is 1.1.43.0
+and whose existing SHA-256 remains pinned. No runtime is opened to identify it.
+
+The pin now contains a source-reviewed replacement loader recipe for the same
+pinned vendored SDK: existing x64 MSVC/CMake/Ninja/Python, `BUILD_LOADER=ON`,
+`DYNAMIC_LOADER=ON`, tests/layers/samples off, vendored jsoncpp and no forced
+regeneration. Build only the `openxr_loader` target. Nothing was built, fetched
+or installed for this record; the recipe is unexecuted and must not replace
+the current DLL automatically. Its SDK version is 1.1.61, so it is not a claim
+that the preserved 1.1.43 DLL can be rebuilt byte-for-byte. The original DLL
+source revision and command were not preserved: that exact-rebuild gap remains
+explicitly blocked rather than being filled with a guessed recipe.

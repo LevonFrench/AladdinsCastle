@@ -124,3 +124,15 @@ Found by scripting the test menus with `ACVR_INPUT_SCRIPT`. Frame numbers are fr
 - `CModel3::RenderFrame`: the frame is drawn once per eye; in head-tracked mode the 2D layers are kept out of the eye pictures.
 - `CRender2D::Setup2D`: in head-tracked mode the bottom layer is drawn as a far backdrop.
 - `Main.cpp`: start-up, the frame hooks, a hidden-window option and the presenter's lifetime.
+
+
+## Dependency identity
+
+`upstream-pin.json` now hashes all consumed OpenXR 1.1.43 headers and records
+the versioned upstream source reference. The local version macro and content
+were checked; no upstream fetch or original SDK-commit attestation is claimed.
+The MSVC solution uses SDL2 2.30.11, SDL2_net 2.4.0 and zlib 1.3.1. Each has a
+source URL, version-header path and SHA-256 in the pin; SDL2_net also carries
+its release revision description. These are the library inputs for the v145,
+Release-x64 solution, not an instruction to fetch current rolling libraries.
+No emulator patch or build command changed.

@@ -6,5 +6,47 @@
   "licence": "GPL-3.0-or-later",
   "openxr_headers": "Khronos OpenXR SDK 1.1.43 (headers only; openxr_loader.dll beside the built program)",
   "checked_on": "2026-10-16",
-  "check": "apply_acvr.py on a fresh clone at this commit gives files byte-identical to the maintained build"
+  "check": "apply_acvr.py on a fresh clone at this commit gives files byte-identical to the maintained build",
+  "openxr_header_pin": {
+    "version": "1.1.43",
+    "upstream_source_reference": "https://github.com/KhronosGroup/OpenXR-SDK/tree/release-1.1.43/include/openxr",
+    "source_reference_verification": "Version macro and all local header hashes checked; no upstream fetch and no original SDK commit attestation preserved.",
+    "sha256": {
+      "openxr.h": "102552dd30e459cc09a01d497cf6961a6e758892731881f363bef9a24ab3f8d5",
+      "openxr_loader_negotiation.h": "8b15d2802a65629a7c18eebc163a1767d8e5979714c2761f561e52523d386d4b",
+      "openxr_platform.h": "83132da278b9517c79cb3e2d1a119895f3d9c2f06a031e791639f96235643505",
+      "openxr_platform_defines.h": "d9cb4c72dc145dd2403ad14cc0c212a0a1f8f057c20d4135b33b54e726b621ef",
+      "openxr_reflection.h": "e6d5f100c65f75c88087f37826368ab13688bfdbc576035af48b77370afbc347",
+      "openxr_reflection_parent_structs.h": "99e756df174ed0746eb0450ea79059e804be85719c5c92aff14e5054f206fa7f",
+      "openxr_reflection_structs.h": "8879a2ccdce8306712476606aba33c4ad12449829cfa183047618c4c350cb734"
+    }
+  },
+  "libraries": {
+    "SDL2": {
+      "version": "2.30.11",
+      "source": "https://github.com/libsdl-org/SDL/tree/release-2.30.11",
+      "version_header": "Libraries/SDL2-2.30.11/include/SDL_version.h",
+      "version_header_sha256": "c53570bdd82a6c3ab81bdb20e588ecf5ee67caa19b1f48306a1fc43bbc3fd09e"
+    },
+    "SDL2_net": {
+      "version": "2.4.0",
+      "source": "https://github.com/libsdl-org/SDL_net/tree/release-2.4.0",
+      "version_header": "Libraries/SDL2_net-2.4.0/include/SDL_net.h",
+      "version_header_sha256": "334edc2679056c6447fc2453071bdda01b2923b921615f02831954fcff467b68",
+      "source_revision_description": "release-2.4.0-0-g904600c"
+    },
+    "zlib": {
+      "version": "1.3.1",
+      "source": "https://github.com/madler/zlib/tree/v1.3.1",
+      "version_header": "Libraries/zlib-1.3.1/zlib.h",
+      "version_header_sha256": "8a5579af72ea4f427ff00a4150f0ccb3fc5c1e4379f726e101133b1ab9fc600c"
+    }
+  },
+  "toolchain": {
+    "toolset": "v145",
+    "configuration": "Release x64",
+    "build_system": "Visual Studio 18 MSBuild",
+    "note": "Library inputs are built by the checked-in Supermodel MSVC solution; no rolling dependency version is implied."
+  },
+  "reproducibility_recorded_on": "2026-10-18"
 }

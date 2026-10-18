@@ -114,7 +114,7 @@ selection and off-screen reload edges use the same feedback path; this does not
 inspect game RAM or claim that a bullet hit an enemy. Late attachment, stale
 events, duplicate frames and loss of focus do not replay old pulses.
 The patch updates the existing P1 gun and button fields, keeping the serial
-gun mux and native border test. Virtua Cop 2 retains X 137–630 and Y 36–425;
+gun mux and native border test. Virtua Cop 2 retains X 137â€“630 and Y 36â€“425;
 the original 5% edge border remains active. Player 2 fields are untouched.
 Without the optional publisher or an active fresh controller, native inputs
 remain selected. The MAME publisher and viewer must be rebuilt together.
@@ -197,3 +197,15 @@ the viewer's `AimMath.h` and patched MAME's `model2_input.h`.
 MAME as a whole is GPL-2.0; the new MAME-side source files are BSD-3-Clause.
 The source checkout's `COPYING` and `docs/legal` retain the upstream licence
 texts and copyright notices. The licence texts are included here as well.
+
+
+## Build tool versions
+
+`upstream-pin.json` records the exact MINGW64 package versions from the preserved
+build transaction, cross-checked against the package-manager history. Core
+tools are GCC 16.2.0-3, binutils 2.47-3, Python 3.14.7-1, GNU make 4.4.1-3,
+bash 5.3.015-1 and MSYS2 runtime 3.6.10-3. The complete dependency package map
+and existing small-target build flags are in the pin. Do not substitute the
+separate UCRT64 package set. OpenXR 1.1.43 header hashes are recorded as well.
+This is documentation and version identity only: no installs, rebuild or
+duplicate patch-apply check is part of this update.
