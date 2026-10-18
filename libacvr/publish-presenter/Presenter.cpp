@@ -1,4 +1,6 @@
 #include "Presenter.h"
+#include "TheatreClient.h"
+#include <exception>
 /*
  * ACVR shared publish OpenXR presenter, extracted from Model 2 (AladdinsCastle project). GPL v3 or later, like Supermodel.
  *
@@ -57,6 +59,11 @@ namespace
   InputLease<ControllerInput> s_input;
   InputLease<ProjectionPacket> s_latestViews;
   ProjectionPacket s_displayed;
+  TheatreClient* s_theatre=nullptr;
+  bool s_theatreInitialized=false;
+  XrAction s_grip=XR_NULL_HANDLE,s_secondary=XR_NULL_HANDLE;
+  XrSpace s_gripSpace=XR_NULL_HANDLE;
+  unsigned s_theatreW[2]{},s_theatreH[2]{};
   std::atomic<bool> s_wantViews{false};
   struct Fov {float tanL=0,tanR=0,tanB=0,tanT=0;} s_fov;
   TextureHandoff s_pair;
@@ -184,11 +191,13 @@ namespace
         !action("coin", "Coin", XR_ACTION_TYPE_BOOLEAN_INPUT, s_coin) ||
         !action("shot_pulse", "Shot vibration", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic) ||
         !action("clean_quit", "Hold Y for clean quit", XR_ACTION_TYPE_BOOLEAN_INPUT, s_quit, s_left)) return false;
+    if(s_theatre && (!action("grip_pose","Right grip",XR_ACTION_TYPE_POSE_INPUT,s_grip) ||
+        !action("second_button","Second game button",XR_ACTION_TYPE_FLOAT_INPUT,s_secondary))) return false;
     const char *profiles[] = { "/interaction_profiles/oculus/touch_controller", "/interaction_profiles/valve/index_controller" };
     const char *paths[] = { "/user/hand/right/input/aim/pose", "/user/hand/right/input/trigger/value",
                            "/user/hand/right/input/a/click", "/user/hand/right/input/b/click", "/user/hand/right/output/haptic" };
     const XrAction actions[] = { s_aim, s_trigger, s_start, s_coin, s_haptic };
-    XrActionSuggestedBinding bindings[6]{};
+    XrActionSuggestedBinding bindings[8]{};
     for (unsigned i=0; i<5; ++i) {
       bindings[i].action = actions[i];
       if (!Check(p_xrStringToPath(s_instance, paths[i], &bindings[i].binding), "controller binding path")) return false;
@@ -200,7 +209,12 @@ namespace
       if (!Check(p_xrStringToPath(s_instance, profile, &suggested.interactionProfile), "interaction profile")) return false;
       bindings[5].action=s_quit;
       if(!Check(p_xrStringToPath(s_instance,quitPaths[profileIndex++],&bindings[5].binding),"clean quit button path")) return false;
-      suggested.countSuggestedBindings = 6; suggested.suggestedBindings = bindings;
+      if(s_theatre){
+        bindings[6].action=s_grip;bindings[7].action=s_secondary;
+        if(!Check(p_xrStringToPath(s_instance,"/user/hand/right/input/grip/pose",&bindings[6].binding),"grip path") ||
+           !Check(p_xrStringToPath(s_instance,"/user/hand/right/input/squeeze/value",&bindings[7].binding),"second button path"))return false;
+      }
+      suggested.countSuggestedBindings = s_theatre?8:6; suggested.suggestedBindings = bindings;
       Check(p_xrSuggestInteractionProfileBindings(s_instance, &suggested), profile);
     }
     XrSessionActionSetsAttachInfo attach = { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
@@ -208,7 +222,9 @@ namespace
     if (!Check(p_xrAttachSessionActionSets(s_session, &attach), "xrAttachSessionActionSets")) return false;
     XrActionSpaceCreateInfo space = { XR_TYPE_ACTION_SPACE_CREATE_INFO };
     space.action = s_aim; space.subactionPath = s_right; space.poseInActionSpace.orientation.w = 1;
-    return Check(p_xrCreateActionSpace(s_session, &space, &s_aimSpace), "xrCreateActionSpace aim");
+    if(!Check(p_xrCreateActionSpace(s_session, &space, &s_aimSpace), "xrCreateActionSpace aim"))return false;
+    if(s_theatre){space.action=s_grip;return Check(p_xrCreateActionSpace(s_session,&space,&s_gripSpace),"xrCreateActionSpace grip");}
+    return true;
   }
 
   void DispatchHaptics(bool focused)
@@ -256,6 +272,10 @@ namespace
     DispatchHaptics(input.active);
     s_input.publish(GetTickCount64(),input);
   }
+
+  void DestroyChains();
+  bool AcquireImages();
+#include "TheatreMode.inc"
 
   bool InitXR()
   {
@@ -308,6 +328,7 @@ namespace
     rs.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
     if (!Check(p_xrCreateReferenceSpace(s_session, &rs, &s_viewSpace), "xrCreateReferenceSpace (view)")) return false;
     if (!InitActions()) return false;
+    if(s_theatre && !TheatreExtents())return false;
 
     uint32_t n = 0;
     p_xrEnumerateSwapchainFormats(s_session, 0, &n, nullptr);
@@ -381,12 +402,7 @@ namespace
     },serial); // completes consumer GPU work before allowing producer reuse
   }
 
-  bool CopyEyes(std::uint64_t &shownSerial)
-  {
-    const auto info=s_pair.peek();
-    if(!info.serial || s_stop) return false;
-    if(!EnsureChains(info.w,info.h)) return false;
-    if(shownSerial==info.serial) return true;
+  bool AcquireImages(){
     // Runtime waits hold NO publication lock. Preserve acquired images across
     // timeout retries; never release an image whose wait has not succeeded.
     for(int eye=0;eye<2;++eye) {
@@ -404,6 +420,16 @@ namespace
       if(waited!=acvr_wait::Result::ready) return false;
       s_imageReady[eye]=true;
     }
+    return !s_stop;
+  }
+
+  bool CopyEyes(std::uint64_t &shownSerial)
+  {
+    const auto info=s_pair.peek();
+    if(!info.serial || s_stop) return false;
+    if(!EnsureChains(info.w,info.h)) return false;
+    if(shownSerial==info.serial) return true;
+    if(!AcquireImages())return false;
     if(s_stop) return false;
     const GLuint destination[]={s_images[0][s_imageIndex[0]].image,s_images[1][s_imageIndex[1]].image};
     std::uint64_t copied=0;
@@ -428,8 +454,11 @@ namespace
 #ifdef ACVR_VIEWER_TEST
     if(s_test.offline && s_test.cleanup) s_test.cleanup();
 #endif
+    if(s_theatreInitialized){s_theatre->shutdown();s_theatreInitialized=false;}
     glFinish();
     DestroyChains();
+    if(s_gripSpace)p_xrDestroySpace(s_gripSpace);s_gripSpace=XR_NULL_HANDLE;
+    s_grip=s_secondary=XR_NULL_HANDLE;
     if(s_aimSpace) p_xrDestroySpace(s_aimSpace);
     if(s_viewSpace) p_xrDestroySpace(s_viewSpace);
     if(s_space) p_xrDestroySpace(s_space);
@@ -509,12 +538,17 @@ namespace
     if (!InitXR())
     {
       Log("VR presenter off; the emulator keeps running on the monitor");
+      if(s_theatre)s_stop=true;
       Host_GL_MakeCurrent(s_xrWindow, nullptr);
       return;
     }
     glGenFramebuffers(1, &s_readFbo);
     glGenFramebuffers(1, &s_drawFbo);
 
+    if(s_theatre){
+      s_theatreInitialized=true;
+      try{s_theatre->initialize();}catch(const std::exception& e){Log("theatre initialization failed: %s",e.what());s_stop=true;Host_GL_MakeCurrent(s_xrWindow,nullptr);return;}
+    }
     SessionLoop session_loop;
     std::uint64_t shownSerial = 0;
     unsigned long frames = 0;
@@ -549,14 +583,23 @@ namespace
       XrFrameBeginInfo bi = { XR_TYPE_FRAME_BEGIN_INFO };
       if (!Check(p_xrBeginFrame(s_session, &bi), "xrBeginFrame")) break;
 
-      UpdateViews(fs.predictedDisplayTime);
+      if(!s_theatre)UpdateViews(fs.predictedDisplayTime);
       XrCompositionLayerProjection projection;
       XrCompositionLayerProjectionView projection_views[2]={{XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW},{XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW}};
       XrCompositionLayerQuad quads[2];
       const XrCompositionLayerBaseHeader *layers[2];
       uint32_t layerCount = 0;
       float width = 0, height = 0;
-      if (fs.shouldRender && CopyEyes(shownSerial))
+      if(s_theatre){
+        const auto tf=TheatreState(fs.predictedDisplayTime,session_loop.focused());
+        if(RenderTheatre(tf,fs.shouldRender)){
+          for(unsigned eye=0;eye<2;++eye){const auto& e=tf.views.eyes[eye];auto& v=projection_views[eye];
+            v.pose.position={e.position[0],e.position[1],e.position[2]};v.pose.orientation={e.orientation[0],e.orientation[1],e.orientation[2],e.orientation[3]};
+            v.fov={e.fov[0],e.fov[1],e.fov[2],e.fov[3]};v.subImage={s_chain[eye],{{0,0},{int(tf.width[eye]),int(tf.height[eye])}},0};}
+          if(projection_layer(projection,s_space,projection_views,2)){layers[0]=reinterpret_cast<const XrCompositionLayerBaseHeader*>(&projection);layerCount=1;++frames;}
+        }
+      }
+      else if (fs.shouldRender && CopyEyes(shownSerial))
       {
         if(s_displayed.valid){
           for(unsigned eye=0;eye<2;eye++){
@@ -586,7 +629,7 @@ namespace
         if (frames == 0) Log("first picture shown: screen %.2f x %.2f m at %.2f m", width, height, s_distance);
         frames++;
       }
-      ReadController(fs.predictedDisplayTime, width, height);
+      if(!s_theatre)ReadController(fs.predictedDisplayTime, width, height);
       XrFrameEndInfo ei = { XR_TYPE_FRAME_END_INFO };
       ei.displayTime = fs.predictedDisplayTime;
       ei.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
@@ -595,6 +638,7 @@ namespace
       if (!Check(p_xrEndFrame(s_session, &ei), "xrEndFrame")) break;
     }
 
+    if(s_theatre)s_stop=true;
     Log("presenter stopping after %lu shown frames", frames);
     // Stop joins this worker, then activates each owning context before cleanup.
     Host_GL_MakeCurrent(s_xrWindow, nullptr);
@@ -637,6 +681,14 @@ bool start(void *mainWindow)
   return true;
 }
 
+bool start_theatre(void* window,TheatreClient* client){
+  if(!client || s_started)return false;
+  s_theatre=client;
+  if(!start(window)){s_theatre=nullptr;return false;}
+  return true;
+}
+bool theatre_running(){return s_started && !s_stop;}
+
 // Game thread: copy the finished eye pictures into the shared textures
 void publish(unsigned leftFbo, unsigned rightFbo, unsigned w, unsigned h)
 {
@@ -674,7 +726,7 @@ bool stop()
   Host_DestroyWindow(s_xrWindow); s_xrWindow = nullptr; s_xrContext = nullptr;
   s_ownerWindow=nullptr; s_ownerContext=nullptr;
   s_input.clear();s_latestViews.clear();s_displayed={};s_wantViews=false;
-  s_shotPulses=0; s_started=false;
+  s_shotPulses=0; s_started=false;s_theatre=nullptr;s_theatreW[0]=s_theatreW[1]=s_theatreH[0]=s_theatreH[1]=0;
   if (s_log) { fclose(s_log); s_log = nullptr; }
   return true;
 }
@@ -698,6 +750,8 @@ ControllerInput controller_input()
 namespace acvr_publish {
 
 float distance_metres() { return 2.5f; }
+bool start_theatre(void*,TheatreClient*){return false;}
+bool theatre_running(){return false;}
 bool start(void *) { return false; }
 void publish(unsigned, unsigned, unsigned, unsigned) {}
 bool stop() { return true; }

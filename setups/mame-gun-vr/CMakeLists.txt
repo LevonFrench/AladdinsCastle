@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.20)
+project(acvr_mame_gun_viewer LANGUAGES CXX)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../../libacvr/publish-presenter" presenter)
+add_executable(mame-gun-viewer GunViewer.cpp)
+target_link_libraries(mame-gun-viewer PRIVATE acvr_publish_presenter)
+target_compile_features(mame-gun-viewer PRIVATE cxx_std_17)
