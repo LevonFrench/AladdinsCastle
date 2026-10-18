@@ -12,12 +12,14 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <map>
 #include <set>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -51,6 +53,8 @@ struct Core {
   void (*unload_game)() = nullptr;
   void *(*get_memory_data)(unsigned) = nullptr;
   std::size_t (*get_memory_size)(unsigned) = nullptr;
+  void (*cheat_reset)() = nullptr;                       // optional
+  void (*cheat_set)(unsigned, bool, const char *) = nullptr;   // optional
 } g_core;
 
 bool LoadCore(const std::string &path)
@@ -68,6 +72,8 @@ bool LoadCore(const std::string &path)
   SYM(load_game, "retro_load_game") SYM(unload_game, "retro_unload_game")
   SYM(get_memory_data, "retro_get_memory_data") SYM(get_memory_size, "retro_get_memory_size")
 #undef SYM
+  g_core.cheat_reset = reinterpret_cast<decltype(g_core.cheat_reset)>(GetProcAddress(g_core.dll, "retro_cheat_reset"));
+  g_core.cheat_set = reinterpret_cast<decltype(g_core.cheat_set)>(GetProcAddress(g_core.dll, "retro_cheat_set"));
   return true;
 }
 
@@ -247,16 +253,20 @@ std::int16_t InputState(unsigned port, unsigned device, unsigned, unsigned id)
   }
   const unsigned base = device & RETRO_DEVICE_MASK;
   auto axis = [](float t) { return (std::int16_t)std::lround(std::clamp(t * 2.f - 1.f, -1.f, 1.f) * 32767.f); };
-  // Open frame: a widescreen hack squeezes the game's 4:3 view into the middle of a wider picture, but the game still
-  // tests shots in its own 4:3 view. ACVR_PS1_AIM_WIDE (e.g. 1.3333 for 16:9) maps the aim back into that view; aim in
-  // the extra side areas lands on the game's edge, never off screen (that would reload).
-  static const float aimWide = [] { const char *s = getenv("ACVR_PS1_AIM_WIDE"); const float f = s ? (float)std::atof(s) : 1.f; return f >= 1.f && f <= 3.f ? f : 1.f; }();
-  const float gunU = aimWide == 1.f ? g_gun.u : std::clamp(.5f + (g_gun.u - .5f) * aimWide, .002f, .998f);
+  // Per-game aim trim, measured offline against where each game itself registers the shot:
+  // ACVR_PS1_AIM = "x scale, x shift, y scale, y shift" around the screen centre (default 1,0,1,0 = unchanged).
+  // Aim that lands outside after the trim is held at the edge, never read as off screen (that would reload).
+  static const std::array<float, 4> trim = [] {
+    std::array<float, 4> t{ 1, 0, 1, 0 }; const char *s = getenv("ACVR_PS1_AIM");
+    if (s && *s) { float v[4]; if (std::sscanf(s, "%f,%f,%f,%f", &v[0], &v[1], &v[2], &v[3]) == 4 && v[0] > .5f && v[0] < 2 && v[2] > .5f && v[2] < 2) t = { v[0], v[1], v[2], v[3] }; }
+    return t; }();
+  const float gunU = std::clamp(.5f + (g_gun.u - .5f) * trim[0] + trim[1], .002f, .998f);
+  const float gunV = std::clamp(.5f + (g_gun.v - .5f) * trim[2] + trim[3], .002f, .998f);
   if (base == RETRO_DEVICE_LIGHTGUN) {
     ++g_gunReads;
     switch (id) {
     case RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X: return g_gun.offScreen ? -32768 : axis(gunU);
-    case RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y: return g_gun.offScreen ? -32768 : axis(g_gun.v);
+    case RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y: return g_gun.offScreen ? -32768 : axis(gunV);
     case RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN: return g_gun.offScreen;
     case RETRO_DEVICE_ID_LIGHTGUN_TRIGGER: return g_gun.trigger && !g_gun.offScreen;
     case RETRO_DEVICE_ID_LIGHTGUN_RELOAD: return g_gun.trigger && g_gun.offScreen;
@@ -277,12 +287,39 @@ std::int16_t InputState(unsigned port, unsigned device, unsigned, unsigned id)
   if (base == RETRO_DEVICE_POINTER) {
     switch (id) {
     case RETRO_DEVICE_ID_POINTER_X: return g_gun.offScreen ? -32768 : axis(gunU);
-    case RETRO_DEVICE_ID_POINTER_Y: return g_gun.offScreen ? -32768 : axis(g_gun.v);
+    case RETRO_DEVICE_ID_POINTER_Y: return g_gun.offScreen ? -32768 : axis(gunV);
     case RETRO_DEVICE_ID_POINTER_PRESSED: return g_gun.trigger;
     default: return 0;
     }
   }
   return 0;
+}
+
+// ---- per-game cheat codes, e.g. "No Gun Flash" (the CRT beam-sync flash a GunCon needs, pointless in VR).
+// ACVR_PS1_CHEAT_FILE: a DuckStation-format .cht file; ACVR_PS1_CHEATS: the [section] names to enable, separated by ';'.
+void ApplyCheats()
+{
+  const char *file = std::getenv("ACVR_PS1_CHEAT_FILE"), *names = std::getenv("ACVR_PS1_CHEATS");
+  if (!file || !*file || !names || !*names) return;
+  if (!g_core.cheat_set) { Log("Cheats: the core has no retro_cheat_set"); return; }
+  std::ifstream in(file); if (!in) { Log("Cheats: cannot read %s", file); return; }
+  std::vector<std::string> wanted; { std::string s(names), item; std::istringstream ss(s); while (std::getline(ss, item, ';')) if (!item.empty()) wanted.push_back(item); }
+  std::map<std::string, std::string> codes; std::string section, line;
+  const std::regex header(R"(^\s*\[(.+)\]\s*$)"), code(R"(^\s*([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]{4,8})\s*$)");
+  std::smatch m;
+  while (std::getline(in, line)) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+    if (std::regex_match(line, m, header)) section = m[1].str();
+    else if (!section.empty() && std::regex_match(line, m, code)) { auto &c = codes[section]; if (!c.empty()) c += '+'; c += m[1].str() + " " + m[2].str(); }
+  }
+  if (g_core.cheat_reset) g_core.cheat_reset();
+  unsigned index = 0;
+  for (const auto &n : wanted) {
+    const auto it = codes.find(n);
+    if (it == codes.end()) { Log("Cheats: no [%s] in %s", n.c_str(), file); continue; }
+    g_core.cheat_set(index++, true, it->second.c_str());
+    Log("Cheat on: %s (%s)", n.c_str(), it->second.c_str());
+  }
 }
 
 // ---- memory card 0 lives in the core's save RAM; the host persists it
@@ -356,6 +393,42 @@ void EnsureCpuFrame()
   g_hwCpuStale = false;
 }
 
+// A light-gun game blanks the screen white for a frame or two on each shot so a real GunCon can see the CRT
+// beam. The emulated gun needs no flash, but some games only read the gun during it (Time Crisis misses
+// without it), so the game keeps drawing it and the headset simply keeps the previous picture instead.
+// Three lines across the whole picture (both eyes) are sampled; nearly all bright white means a flash.
+bool IsFlashFrame()
+{
+  const unsigned w = g_hwOn ? g_hwW : g_frameW, h = g_hwOn ? g_hwH : g_frameH;
+  if (!w || !h) return false;
+  unsigned bright = 0, total = 0;
+  std::vector<std::uint32_t> row(w);
+  if (g_hwOn) { glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hwFbo); glPixelStorei(GL_PACK_ALIGNMENT, 4); }
+  for (const unsigned y : { h / 4, h / 2, (h * 3) / 4 }) {
+    const std::uint32_t *px = nullptr;
+    if (g_hwOn) { glReadPixels(0, (GLint)y, (GLsizei)w, 1, GL_BGRA, GL_UNSIGNED_BYTE, row.data()); px = row.data(); }
+    else px = g_frame.data() + (std::size_t)y * w;
+    for (unsigned x = 0; x < w; x += 2) {
+      const std::uint32_t c = px[x];
+      const unsigned r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255;
+      ++total; if (r > 200 && g > 200 && b > 200) ++bright;
+    }
+  }
+  if (g_hwOn) glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  return total && bright * 100 >= total * 85;
+}
+unsigned g_flashRun = 0, g_flashHidden = 0, g_flashLongest = 0;
+const bool g_hideFlash = [] { const char *e = std::getenv("ACVR_PS1_HIDE_FLASH"); return !e || std::atoi(e) != 0; }();
+// True when this frame should not be shown: a flash, and not yet more than 4 in a row (a real fade to white shows).
+bool HideThisFrame()
+{
+  if (!g_hideFlash) return false;
+  if (!IsFlashFrame()) { g_flashRun = 0; return false; }
+  ++g_flashRun; g_flashLongest = g_flashRun > g_flashLongest ? g_flashRun : g_flashLongest;
+  if (g_flashRun > 4) return false;
+  ++g_flashHidden; return true;
+}
+
 bool WriteSnapshot(const std::string &dir, const std::string &name)
 {
   EnsureCpuFrame();
@@ -414,7 +487,7 @@ void Usage()
     "         [--theatre-proof <prefix> --test-aim U V]\n"
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
     "         ACVR_PS1_LIFT (m), ACVR_PS1_CRT (1: scanlines), ACVR_PS1_GUN_MODEL (.glb), ACVR_PS1_GUN_META (.toml),\n"
-    "         ACVR_PS1_AIM_WIDE (open frame: 1.3333 with a 16:9 widescreen hack).\n"
+    "         ACVR_PS1_AIM (per-game aim trim: x scale,x shift,y scale,y shift).\n"
     "Clean quit: hold left Y (Index: left B) for 3 s, Escape, or create ACVR_PS1_STOP_FILE.\n");
 }
 
@@ -517,6 +590,7 @@ int main(int argc, char **argv)
     g_sramPath = g_saveDir + "\\" + base + ".srm";
   }
   LoadSram();
+  ApplyCheats();
   {
     std::ofstream options(g_saveDir + "\\core-options.txt");
     for (const auto &o : g_optionList) options << o.first << " = " << g_optionValues[o.first] << "    (" << o.second << ")\n";
@@ -541,12 +615,13 @@ int main(int argc, char **argv)
   const char *faceEnv = std::getenv("ACVR_PS1_FACE_BUTTONS");
   const bool faceButtons = faceEnv && std::atoi(faceEnv) == 1;
   if (faceButtons) Log("Face buttons: right A Cross, right B Circle, left X Square, left Y Triangle, left stick Select, right stick Start; gun buttons on the grips");
+  if (const char *aim = std::getenv("ACVR_PS1_AIM")) if (*aim) Log("Aim trim (x scale, x shift, y scale, y shift): %s", aim);
   CleanQuit quit;
   bool quitWasHeld = false;
   timeBeginPeriod(1);   // 1 ms sleeps, so pacing and audio refill are not 15 ms steps
   const double frameMs = 1000.0 / (g_av.timing.fps > 1 ? g_av.timing.fps : 60.0);
   LARGE_INTEGER freq, t0; QueryPerformanceFrequency(&freq); QueryPerformanceCounter(&t0);
-  unsigned frame = 0; std::uint64_t shownSerial = 0, shots = 0;
+  unsigned frame = 0; std::uint64_t shownSerial = 0, shots = 0, countedSerial = 0;
   const ULONGLONG startedAt = GetTickCount64();
   bool lastTrigger = false; ULONGLONG lastSave = GetTickCount64();
   int result = 0;
@@ -620,10 +695,12 @@ int main(int argc, char **argv)
 
     g_core.run();
     ++frame;
+    // Offline runs count the flash frames the headset would skip (same test, nothing is skipped here).
+    if (headless && g_hideFlash && g_frameSerial != countedSerial) { countedSerial = g_frameSerial; HideThisFrame(); }
 
     if (!headless && g_frameSerial != shownSerial && (g_hwOn ? g_hwW > 0 : !g_frame.empty())) {
       shownSerial = g_frameSerial;
-      if (theatreOn) { if (g_hwOn) theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); else theatre::Publish(g_frame.data(), g_frameW, g_frameH); }
+      if (theatreOn && !HideThisFrame()) { if (g_hwOn) theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); else theatre::Publish(g_frame.data(), g_frameW, g_frameH); }
     }
     if (now - lastSave > 10000) { SaveSram(false); lastSave = now; }
 
@@ -650,6 +727,7 @@ int main(int argc, char **argv)
   }
   Log("Ran %u frames; gun reads %llu; trigger presses %llu; last picture %ux%u", frame,
       (unsigned long long)g_gunReads, (unsigned long long)shots, g_frameW, g_frameH);
+  if (g_hideFlash) Log("Gun flash frames kept out of the headset: %u (longest white run %u frames)", g_flashHidden, g_flashLongest);
   timeEndPeriod(1);
   if (!headless) {
     const double secs = (GetTickCount64() - startedAt) / 1000.0;
