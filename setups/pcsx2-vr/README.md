@@ -896,3 +896,70 @@ the current DLL automatically. Its SDK version is 1.1.61, so it is not a claim
 that the preserved 1.1.43 DLL can be rebuilt byte-for-byte. The original DLL
 source revision and command were not preserved: that exact-rebuild gap remains
 explicitly blocked rather than being filled with a guessed recipe.
+
+### Screen picture and tracked gun in one projection
+
+With the gun enabled in screen mode, the presenter submits a single opaque
+projection layer with two views. Each image contains the picture rectangle at
+the existing screen pose and dimensions, then the tracked model and aim marker
+with a shared depth buffer. A nearer gun covers the picture; a gun behind it is
+occluded. The marker sits just in front of the screen and remains depth tested.
+The fixed gun targets use the runtime's recommended per-eye dimensions. Screen
+sampling uses linear magnification and trilinear mipmapped minification.
+Missing controller tracking still displays the picture in that projection.
+
+With the gun disabled, the existing two-quad path is retained. Native no-loader
+replay compares both published eye images and the fixed-target quad blits with
+the preceding build: zero changed pixels. A synthetic controller in the same
+native GL replay covers more than fourteen thousand picture pixels in each eye
+when nearer, and zero when behind. A CPU resampling of the former quad mapping
+correlates above 0.98 with the minified picture (filtering differs); this is an
+offline mapping/sharpness comparison, not compositor or headset acceptance.
+All images and game dumps remain private. Bounded image waits are unchanged;
+both eye pictures are sampled from one publication and fenced before reuse.
+
+### Optional runtime eye separation in screen mode
+
+`PCSX2_STEREO_RUNTIME_IPD=1` opts screen mode into the Euclidean distance
+between the two valid located OpenXR view positions. It is off by default;
+the configured separation (normally 0.063 m) stays the reference otherwise.
+The GS thread latches one value per emulated frame for both eyes and every
+draw. Invalid/non-finite positions, an implausible baseline, a backward clock
+or a sample at least 500 ms old retain the configured value when latching the next frame. INSIDE keeps its
+existing pose-based path and does not use this override. No per-game values
+or launchers are changed.
+
+`runtime_ipd_test.cpp` compiles against the applied source's `pcsx2` include
+folder with an ordinary C++17 compiler. Run it in separate processes with
+`PCSX2_STEREO_RUNTIME_IPD=0` and argument `0`, then environment value `1` and
+argument `1`. It tests synthetic 72/64 mm view pairs, rigid rotation/translation,
+frame latching, stale/invalid/reset fallback and unchanged INSIDE selection.
+The native dump proof also compares the opt-in synthetic pair with the same
+fixed separation and compares the default-off output with the preceding build.
+`PCSX2_STEREO_TEST_IPD_M` is a test-only injection guarded by this opt-in,
+screen mode and `PCSX2_OPENXR=0`; it is ignored with a runtime active. These
+synthetic poses are not headset measurements or physical-comfort acceptance.
+
+
+### Repeating the no-runtime screen/gun proof
+
+`screen_proof_test.py <private-capture-directory>` validates a matched replay
+triplet with Pillow and NumPy. Capture `baseline/` with the preceding build and
+no gun, `no-gun/` with the candidate and no gun, and `combined/` with the
+candidate's existing `PCSX2_VR_SCREEN_PROOF` synthetic poses. Keep the same
+combat dump, profile and save frame across the triplet; explicitly disable
+OpenXR, use hidden bounded runs at BelowNormal priority, and keep every image
+and run receipt in ignored private storage. The validator never launches a
+process or loads a runtime.
+
+Each folder supplies `run.log.json`, `live.log`, the `live-shared-{eye}.png`
+and `live-blit-{eye}.png` readbacks. The combined folder also supplies
+`screen-{eye}-{picture,front,behind,dot}.png` and
+`screen-screen-order.json`. The production renderer uses a picture plane at
+2.5 m, synthetic near/behind grip poses at 0.42/4 m, and a 63 mm eye baseline.
+The validator requires exact no-gun eye/blit equality, opaque picture pixels
+covered by the near gun, zero changed pixels for the behind gun, an aim marker,
+one opaque projection layer, successful draws and clean exits with no GL
+errors. Repeat per combat dump rather than inferring per-game acceptance from
+one scene. These checks establish native offline composition only; tracking,
+compositor behavior and headset comfort remain separate checks.
