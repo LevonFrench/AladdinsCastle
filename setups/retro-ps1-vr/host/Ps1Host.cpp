@@ -82,6 +82,20 @@ std::vector<std::string> g_controllerNames[2];
 std::set<unsigned> g_unknownCommands;
 bool g_shutdownRequested = false;
 
+// A hardware-rendering core draws into our framebuffer; its picture is read back only when a
+// CPU copy is needed (offline pictures), and copied on the GPU for the headset.
+retro_hw_render_callback g_hw{};
+bool g_hwOn = false, g_hwCpuStale = false;
+GLuint g_hwFbo = 0, g_hwColor = 0, g_hwDepth = 0;
+unsigned g_hwW = 0, g_hwH = 0, g_hwMaxW = 0, g_hwMaxH = 0;
+Host_Window *g_glWindow = nullptr;
+std::uintptr_t HwFramebuffer() { return g_hwFbo; }
+retro_proc_address_t HwProc(const char *sym)
+{
+  auto p = reinterpret_cast<retro_proc_address_t>(wglGetProcAddress(sym));
+  if (!p) p = reinterpret_cast<retro_proc_address_t>(GetProcAddress(GetModuleHandleA("opengl32.dll"), sym));
+  return p;
+}
 std::vector<std::uint32_t> g_frame;   // 0x00RRGGBB, top row first
 unsigned g_frameW = 0, g_frameH = 0;
 std::uint64_t g_frameSerial = 0;
@@ -134,6 +148,20 @@ bool Environment(unsigned cmd, void *data)
   case RETRO_ENVIRONMENT_SET_MESSAGE: { auto *m = static_cast<const retro_message *>(data); if (m && m->msg) Log("[core message] %s", m->msg); return true; }
   case RETRO_ENVIRONMENT_SET_GEOMETRY: g_av.geometry = *static_cast<const retro_game_geometry *>(data); return true;
   case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: g_av = *static_cast<const retro_system_av_info *>(data); return true;
+  case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER: *static_cast<unsigned *>(data) = RETRO_HW_CONTEXT_OPENGL_CORE; return true;
+  case RETRO_ENVIRONMENT_SET_HW_RENDER: {
+    // Desktop OpenGL only. The driver's compatibility context also serves core-profile requests.
+    auto *cb = static_cast<retro_hw_render_callback *>(data);
+    if (cb->context_type != RETRO_HW_CONTEXT_OPENGL && cb->context_type != RETRO_HW_CONTEXT_OPENGL_CORE) return false;
+    if (!g_glWindow) {
+      g_glWindow = Host_CreateWindow("ACVR PS1", 0, 0, 16, 16, Host_WINDOW_HIDDEN);
+      if (!g_glWindow || !Host_GL_CreateContext(g_glWindow) || !Host_LoadGL()) { Log("No OpenGL context for the core"); return false; }
+    }
+    cb->get_current_framebuffer = HwFramebuffer; cb->get_proc_address = HwProc;
+    g_hw = *cb; g_hwOn = true;
+    Log("Core renders with OpenGL %u.%u (%s)", cb->version_major, cb->version_minor, glGetString(GL_VERSION));
+    return true;
+  }
   case RETRO_ENVIRONMENT_SET_VARIABLES: {
     for (auto *v = static_cast<const retro_variable *>(data); v && v->key; ++v) {
       std::string spec = v->value ? v->value : "";
@@ -172,6 +200,7 @@ bool Environment(unsigned cmd, void *data)
 
 void VideoRefresh(const void *data, unsigned w, unsigned h, std::size_t pitch)
 {
+  if (data == RETRO_HW_FRAME_BUFFER_VALID) { g_hwW = w; g_hwH = h; g_hwCpuStale = true; ++g_frameSerial; return; }
   if (!data || !w || !h) return;   // duplicate frame: keep the last picture
   g_frame.resize((std::size_t)w * h); g_frameW = w; g_frameH = h;
   for (unsigned y = 0; y < h; ++y) {
@@ -307,8 +336,24 @@ struct Script {
 
 std::string Arg(const std::vector<std::string> &a, std::size_t i, const char *fallback) { return i < a.size() ? a[i] : fallback; }
 
+// The hardware core's last picture as a CPU copy (its rows are bottom-up).
+void EnsureCpuFrame()
+{
+  if (!g_hwOn || !g_hwCpuStale || !g_hwW || !g_hwH) return;
+  std::vector<std::uint32_t> px((std::size_t)g_hwW * g_hwH);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hwFbo);
+  glPixelStorei(GL_PACK_ALIGNMENT, 4);
+  glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, px.data());
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  g_frame.resize(px.size()); g_frameW = g_hwW; g_frameH = g_hwH;
+  for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x)
+    g_frame[(std::size_t)y * g_hwW + x] = px[(std::size_t)(g_hwH - 1 - y) * g_hwW + x] & 0xffffffu;
+  g_hwCpuStale = false;
+}
+
 bool WriteSnapshot(const std::string &dir, const std::string &name)
 {
+  EnsureCpuFrame();
   if (g_frame.empty()) return false;
   const std::string path = dir + "\\" + name + ".png";
   const bool ok = acvr_png::write(path.c_str(), g_frame.data(), g_frameW, g_frameH);
@@ -321,13 +366,14 @@ struct GlWindow {
   Host_Window *window = nullptr;
   bool create()
   {
+    if (!window && g_glWindow) window = g_glWindow;   // the hardware core's context, shared with the theatre
     if (window) return true;
     window = Host_CreateWindow("ACVR PS1", 0, 0, 16, 16, Host_WINDOW_HIDDEN);
     if (!window || !Host_GL_CreateContext(window)) return false;
     Log("Hidden GL context: %s", glGetString(GL_VERSION));
     return true;
   }
-  void destroy() { if (window) Host_DestroyWindow(window); window = nullptr; }
+  void destroy() { if (window) Host_DestroyWindow(window); window = nullptr; g_glWindow = nullptr; }
 };
 
 float EnvFloat(const char *name, float fallback)
@@ -348,6 +394,7 @@ theatre::Config TheatreConfig()
   c.crt = EnvFloat("ACVR_PS1_CRT", 0.f) != 0.f;
   const float aspect = g_av.geometry.aspect_ratio;
   c.aspect = aspect > .1f ? aspect : 4.f / 3.f;
+  c.sideBySide = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f;
   if (const char *m = std::getenv("ACVR_PS1_GUN_MODEL")) c.gunModel = m;
   if (const char *m = std::getenv("ACVR_PS1_GUN_META")) c.gunMeta = m;
   return c;
@@ -423,6 +470,27 @@ int main(int argc, char **argv)
   retro_game_info info{}; info.path = game.c_str();
   if (!g_core.load_game(&info)) { Log("The core could not load the disc"); g_core.deinit(); return 4; }
   g_core.get_system_av_info(&g_av);
+  if (g_hwOn) {
+    g_hwMaxW = std::max(g_av.geometry.max_width, 64u); g_hwMaxH = std::max(g_av.geometry.max_height, 64u);
+    glGenFramebuffers(1, &g_hwFbo); glGenTextures(1, &g_hwColor);
+    glBindTexture(GL_TEXTURE_2D, g_hwColor);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_hwMaxW, g_hwMaxH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindFramebuffer(GL_FRAMEBUFFER, g_hwFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_hwColor, 0);
+    if (g_hw.depth) {
+      auto genRb = reinterpret_cast<PFNGLGENRENDERBUFFERSPROC>(wglGetProcAddress("glGenRenderbuffers"));
+      auto bindRb = reinterpret_cast<PFNGLBINDRENDERBUFFERPROC>(wglGetProcAddress("glBindRenderbuffer"));
+      auto storeRb = reinterpret_cast<PFNGLRENDERBUFFERSTORAGEPROC>(wglGetProcAddress("glRenderbufferStorage"));
+      auto attachRb = reinterpret_cast<PFNGLFRAMEBUFFERRENDERBUFFERPROC>(wglGetProcAddress("glFramebufferRenderbuffer"));
+      genRb(1, &g_hwDepth); bindRb(GL_RENDERBUFFER, g_hwDepth);
+      storeRb(GL_RENDERBUFFER, g_hw.stencil ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24, g_hwMaxW, g_hwMaxH);
+      attachRb(GL_FRAMEBUFFER, g_hw.stencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, g_hwDepth);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    Log("Core framebuffer %ux%u%s", g_hwMaxW, g_hwMaxH, g_hw.depth ? " with depth" : "");
+    if (g_hw.context_reset) g_hw.context_reset();
+  }
   Log("Timing: %.4f fps, %.0f Hz audio; picture %ux%u, aspect %.4f", g_av.timing.fps, g_av.timing.sample_rate,
       g_av.geometry.base_width, g_av.geometry.base_height, g_av.geometry.aspect_ratio);
 
@@ -529,9 +597,9 @@ int main(int argc, char **argv)
     g_core.run();
     ++frame;
 
-    if (!headless && g_frameSerial != shownSerial && !g_frame.empty()) {
+    if (!headless && g_frameSerial != shownSerial && (g_hwOn ? g_hwW > 0 : !g_frame.empty())) {
       shownSerial = g_frameSerial;
-      if (theatreOn) theatre::Publish(g_frame.data(), g_frameW, g_frameH);
+      if (theatreOn) { if (g_hwOn) theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); else theatre::Publish(g_frame.data(), g_frameW, g_frameH); }
     }
     if (now - lastSave > 10000) { SaveSram(false); lastSave = now; }
 
@@ -546,6 +614,7 @@ int main(int argc, char **argv)
   }
   if (g_shutdownRequested) Log("The core asked to shut down");
   if (headless && !snapshots.empty()) WriteSnapshot(snapshots, "final");
+  EnsureCpuFrame();
   if (!theatreProof.empty() && !g_frame.empty()) {
     if (!view.create()) Log("Theatre proof: no OpenGL context");
     else {
@@ -558,8 +627,10 @@ int main(int argc, char **argv)
   Log("Ran %u frames; gun reads %llu; trigger presses %llu; last picture %ux%u", frame,
       (unsigned long long)g_gunReads, (unsigned long long)shots, g_frameW, g_frameH);
   if (!SaveSram(false)) result = 6;
-  g_core.unload_game();
-  g_core.deinit();
+  // A hardware core frees its graphics objects in context_destroy while its emulator still exists.
+  if (g_hwOn && g_hw.context_destroy) { Log("Releasing the core's graphics"); g_hw.context_destroy(); }
+  Log("Unloading the disc"); g_core.unload_game();
+  Log("Stopping the core"); g_core.deinit();
   if (theatreOn) theatre::Stop();
   g_audio.close();
   view.destroy();

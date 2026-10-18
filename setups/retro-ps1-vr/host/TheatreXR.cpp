@@ -37,7 +37,7 @@ std::mutex s_slotMutex;
 Slot s_slots[3];
 int s_front = -1, s_inUse = -1;
 
-void UploadInto(Slot &slot, const std::uint32_t *xrgb, unsigned w, unsigned h)
+void EnsureSlot(Slot &slot, unsigned w, unsigned h)
 {
   if (!slot.tex) glGenTextures(1, &slot.tex);
   glBindTexture(GL_TEXTURE_2D, slot.tex);
@@ -49,6 +49,11 @@ void UploadInto(Slot &slot, const std::uint32_t *xrgb, unsigned w, unsigned h)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     slot.w = (int)w; slot.h = (int)h;
   }
+}
+
+void UploadInto(Slot &slot, const std::uint32_t *xrgb, unsigned w, unsigned h)
+{
+  EnsureSlot(slot, w, h);
   glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_BGRA, GL_UNSIGNED_BYTE, xrgb);
   tgl::GenerateMipmap(GL_TEXTURE_2D);
 }
@@ -309,6 +314,7 @@ void ThreadMain()
         XrSpaceLocation head{ XR_TYPE_SPACE_LOCATION };
         if ((!placed || (GetAsyncKeyState(VK_HOME) & 0x8000)) && XR_SUCCEEDED(p_xrLocateSpace(s_view, s_local, fs.predictedDisplayTime, &head))) { screen = PlaceScreen(head.pose); placed = true; }
         EyeScene scene; scene.screen = screen; scene.crt = s_config.crt;
+        if (s_config.sideBySide) scene.uw = .5f;
         { std::lock_guard<std::mutex> lock(s_slotMutex); s_inUse = s_front; if (s_front >= 0) { scene.picture = s_slots[s_front].tex; scene.pictureW = s_slots[s_front].w; scene.pictureH = s_slots[s_front].h; } }
         scene.showDot = in.active && !in.offScreen; scene.dotU = in.u; scene.dotV = in.v;
         if (haveGun && s_gun.loaded()) {
@@ -329,6 +335,7 @@ void ThreadMain()
           if (s_srgb) glEnable(GL_FRAMEBUFFER_SRGB); else glDisable(GL_FRAMEBUFFER_SRGB);
           const auto &f = views[e].fov;
           const Mat4 proj = Mat4::Projection(std::tan(f.angleLeft), std::tan(f.angleRight), std::tan(f.angleDown), std::tan(f.angleUp));
+          scene.u0 = s_config.sideBySide && e ? .5f : 0.f;
           renderer.draw(scene, proj, PoseMatrix(views[e].pose).RigidInverse(), eye.w, eye.h, !s_srgb);
           glDisable(GL_FRAMEBUFFER_SRGB);
           glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -397,6 +404,23 @@ void Publish(const std::uint32_t *xrgb, unsigned w, unsigned h)
   std::lock_guard<std::mutex> lock(s_slotMutex); s_front = slot;
 }
 
+void PublishFramebuffer(unsigned fbo, unsigned w, unsigned h)
+{
+  if (!s_started || s_stop || !w || !h) return;
+  int slot;
+  { std::lock_guard<std::mutex> lock(s_slotMutex); slot = 0; while (slot == s_front || slot == s_inUse) ++slot; }
+  EnsureSlot(s_slots[slot], w, h);
+  static GLuint target = 0; if (!target) glGenFramebuffers(1, &target);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target);
+  glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_slots[slot].tex, 0);
+  glDisable(GL_SCISSOR_TEST); glDisable(GL_FRAMEBUFFER_SRGB);
+  glBlitFramebuffer(0, 0, w, h, 0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);   // bottom-up rows to top-down
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glBindTexture(GL_TEXTURE_2D, s_slots[slot].tex); tgl::GenerateMipmap(GL_TEXTURE_2D);
+  glFinish();
+  std::lock_guard<std::mutex> lock(s_slotMutex); s_front = slot;
+}
+
 Input ReadInput()
 {
   std::lock_guard<std::mutex> lock(s_inputMutex);
@@ -439,6 +463,7 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     for (int i = 0; i < 3; ++i) { aim.m[i] = right[i]; aim.m[4 + i] = up[i]; aim.m[8 + i] = -dir[i]; aim.m[12 + i] = hand[i]; }
     float u = -1, v = -1; const bool on = screen.hit(hand, dir, u, v);
     EyeScene scene; scene.screen = screen; scene.crt = config.crt; scene.picture = picture.tex; scene.pictureW = picture.w; scene.pictureH = picture.h;
+    if (config.sideBySide) scene.uw = .5f;
     scene.showDot = on; scene.dotU = u; scene.dotV = v;
     if (s_gun.loaded()) { scene.showGun = true; scene.gunRoot = s_gun.alignedRoot(aim, aim, 0); }
     const int size = 1440; GLuint fbo = 0, color = 0, depth = 0;
@@ -452,6 +477,7 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     bool ok = true;
     for (int e = 0; e < 2; ++e) {
       const Mat4 eyePose = Mat4::Translation(e ? .032f : -.032f, 0, 0);
+      scene.u0 = config.sideBySide && e ? .5f : 0.f;
       glEnable(GL_FRAMEBUFFER_SRGB);
       renderer.draw(scene, proj, eyePose.RigidInverse(), size, size, false);
       glDisable(GL_FRAMEBUFFER_SRGB);

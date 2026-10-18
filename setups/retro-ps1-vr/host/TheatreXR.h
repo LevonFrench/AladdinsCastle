@@ -15,6 +15,7 @@ struct Config {
   float lift = 0.f;        // screen centre height above the eyes, metres
   bool crt = false;        // scanlines
   std::string gunModel, gunMeta;   // GLB and its TOML; empty: no gun drawn
+  bool sideBySide = false;         // the picture holds the left eye in its left half, the right eye in its right half
 };
 struct Input {
   float u = .5f, v = .5f;
@@ -28,6 +29,8 @@ struct Input {
 // in `owner` (the emulator thread). The headset runs on its own thread.
 bool Start(Host_Window *owner, const Config &config);
 void Publish(const std::uint32_t *xrgb, unsigned w, unsigned h);
+// The same from a framebuffer of the owner context whose rows are bottom-up (a libretro hardware core).
+void PublishFramebuffer(unsigned fbo, unsigned w, unsigned h);
 Input ReadInput();          // stale (over 250 ms) input reads as inactive
 void QueuePulse();
 bool Stop();

@@ -79,6 +79,21 @@
 #define RETRO_ENVIRONMENT_GET_CORE_OPTIONS_VERSION   52
 #define RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION 59
 #define RETRO_ENVIRONMENT_GET_INPUT_MAX_USERS        61
+#define RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER    56
+
+enum retro_hw_context_type { RETRO_HW_CONTEXT_NONE = 0, RETRO_HW_CONTEXT_OPENGL = 1, RETRO_HW_CONTEXT_OPENGLES2 = 2,
+  RETRO_HW_CONTEXT_OPENGL_CORE = 3, RETRO_HW_CONTEXT_OPENGLES3 = 4, RETRO_HW_CONTEXT_OPENGLES_VERSION = 5, RETRO_HW_CONTEXT_VULKAN = 6 };
+#define RETRO_HW_FRAME_BUFFER_VALID ((void *)-1)
+typedef void (*retro_hw_context_reset_t)(void);
+typedef std::uintptr_t (*retro_hw_get_current_framebuffer_t)(void);
+typedef void (*retro_proc_address_t)(void);
+typedef retro_proc_address_t (*retro_hw_get_proc_address_t)(const char *sym);
+struct retro_hw_render_callback {
+  retro_hw_context_type context_type; retro_hw_context_reset_t context_reset;
+  retro_hw_get_current_framebuffer_t get_current_framebuffer; retro_hw_get_proc_address_t get_proc_address;
+  bool depth, stencil, bottom_left_origin; unsigned version_major, version_minor; bool cache_context;
+  retro_hw_context_reset_t context_destroy; bool debug_context;
+};
 
 enum retro_pixel_format { RETRO_PIXEL_FORMAT_0RGB1555 = 0, RETRO_PIXEL_FORMAT_XRGB8888 = 1, RETRO_PIXEL_FORMAT_RGB565 = 2 };
 enum retro_log_level { RETRO_LOG_DEBUG = 0, RETRO_LOG_INFO, RETRO_LOG_WARN, RETRO_LOG_ERROR };
