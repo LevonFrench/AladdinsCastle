@@ -27,6 +27,10 @@ const QList<Game> &table(){
   {"die-hard-trilogy","Die Hard Trilogy",1996,"Justifier",false},
   {"maximum-force","Maximum Force",1997,"GunCon",false},
   {"resident-evil-survivor","Resident Evil Survivor",2000,"",false},
+  {"elemental-gearbolt","Elemental Gearbolt",1998,"GunCon",false},
+  {"rescue-shot","Rescue Shot",2000,"GunCon",false},
+  {"rescue-shot-bubibo","Rescue Shot Bubibo (Japan)",1999,"GunCon",false},
+  {"mighty-hits-special-japan","Mighty Hits Special (Japan)",2000,"GunCon",true},
  };
  return games;
 }
@@ -37,8 +41,10 @@ QString controls(const Game &game){
  if(QString::fromLatin1(game.gun)=="arcade gun")text="Your right controller is the gun: trigger fires, B inserts a coin, A starts.";
  const QString id=QString::fromLatin1(game.id);
  if(game.sprites)return text+" On a big theatre screen.";
- // Die Hard Trilogy reads the Justifier, which the stereo core lacks; the Maximum Force disc image does not load in it.
- if(id=="die-hard-trilogy"||id=="maximum-force")return text+" On a big theatre screen.";
+ // Real 3D runs through the stereo core, whose light gun works on North American and Japanese discs. Die Hard Trilogy
+ // reads the Justifier (not in that core); Maximum Force has no 3D depth; the European discs keep the proven theatre core.
+ static const QStringList theatreOnly{"die-hard-trilogy","maximum-force","extreme-ghostbusters","rescue-shot"};
+ if(theatreOnly.contains(id))return text+" On a big theatre screen.";
  return text+" In real 3D on a big screen.";
 }
 }

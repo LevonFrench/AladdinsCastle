@@ -1,17 +1,117 @@
 {
   "_about": "PlayStation light-gun games for acvr-ps1. Keys are catalog ids. gun: the device the game reads; port: the controller port it is plugged into; view: theatre now, true3d planned for polygon games. No locations here: each player's own launcher maps a key to their own disc.",
-  "ps1-point-blank":                          { "gun": "guncon", "port": 1, "graphics": "2d",         "view": "theatre", "notes": "GunCon A or B skips the intro and passes calibration; shoot menu items." },
-  "ps1-point-blank-2":                        { "gun": "guncon", "port": 1, "graphics": "2d",         "view": "theatre", "notes": "" },
-  "ps1-point-blank-3":                        { "gun": "guncon", "port": 1, "graphics": "2d",         "view": "theatre", "notes": "" },
-  "ps1-mighty-hits-special":                  { "gun": "guncon", "port": 1, "graphics": "2d",         "view": "theatre", "notes": "European release; asks for a language first." },
-  "ps1-ghoul-panic":                          { "gun": "guncon", "port": 1, "graphics": "2d",         "view": "theatre", "notes": "European release; asks for a language first." },
-  "ps1-time-crisis":                          { "gun": "guncon", "port": 1, "graphics": "polygon-3d", "view": "theatre", "planned": "true3d", "notes": "GunCon A or B takes cover." },
-  "ps1-time-crisis-project-titan":            { "gun": "guncon", "port": 1, "graphics": "polygon-3d", "view": "theatre", "planned": "true3d", "notes": "GunCon A or B takes cover." },
-  "ps1-die-hard-trilogy":                     { "gun": "justifier", "port": 1, "graphics": "polygon-3d", "view": "theatre", "planned": "true3d", "notes": "Only Die Hard 2 (the gun game) uses the gun; the other two need a gamepad." },
-  "ps1-die-hard-trilogy-2-viva-las-vegas":    { "gun": "guncon", "port": 1, "graphics": "polygon-3d", "view": "theatre", "planned": "true3d", "notes": "Gun in the shooting mode only." },
-  "ps1-extreme-ghostbusters":                 { "gun": "guncon", "port": 1, "graphics": "polygon-3d", "view": "theatre", "planned": "true3d", "notes": "" },
-  "ps1-gunfighter-the-legend-of-jesse-james": { "gun": "guncon", "port": 1, "graphics": "polygon-3d", "view": "theatre", "planned": "true3d", "notes": "Has its own light-gun calibration screen." },
-  "ps1-judge-dredd":                          { "gun": "guncon", "port": 1, "graphics": "polygon-3d", "view": "theatre", "planned": "true3d", "notes": "" },
-  "ps1-maximum-force":                        { "gun": "guncon", "port": 1, "graphics": "polygon-3d", "view": "theatre", "planned": "true3d", "notes": "" },
-  "ps1-resident-evil-survivor":               { "gun": "guncon", "port": 1, "graphics": "polygon-3d", "view": "theatre", "notes": "The North American release (SLUS-01087) has no light-gun support; the Japanese and European releases do." }
+  "ps1-point-blank": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "2d",
+    "view": "theatre",
+    "notes": "GunCon A or B skips the intro and passes calibration; shoot menu items."
+  },
+  "ps1-point-blank-2": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "2d",
+    "view": "theatre",
+    "notes": ""
+  },
+  "ps1-point-blank-3": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "2d",
+    "view": "theatre",
+    "notes": ""
+  },
+  "ps1-mighty-hits-special": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "2d",
+    "view": "theatre",
+    "notes": "European release; asks for a language first."
+  },
+  "ps1-ghoul-panic": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "2d",
+    "view": "theatre",
+    "notes": "European release; asks for a language first."
+  },
+  "ps1-time-crisis": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "polygon-3d",
+    "view": "true3d",
+    "notes": "GunCon A or B takes cover."
+  },
+  "ps1-time-crisis-project-titan": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "polygon-3d",
+    "view": "true3d",
+    "notes": "GunCon A or B takes cover."
+  },
+  "ps1-die-hard-trilogy": {
+    "gun": "justifier",
+    "port": 1,
+    "graphics": "polygon-3d",
+    "view": "theatre",
+    "planned": "true3d",
+    "notes": "Only Die Hard 2 (the gun game) uses the gun; the other two need a gamepad."
+  },
+  "ps1-die-hard-trilogy-2-viva-las-vegas": {
+    "gun": "guncon",
+    "port": 2,
+    "graphics": "polygon-3d",
+    "view": "true3d",
+    "notes": "GunCon in port 2: the game wants a pad in port 1 (the left controller)."
+  },
+  "ps1-extreme-ghostbusters": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "polygon-3d",
+    "view": "theatre",
+    "planned": "true3d",
+    "notes": "European release: kept on the theatre core, whose GunCon works with PAL discs."
+  },
+  "ps1-gunfighter-the-legend-of-jesse-james": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "polygon-3d",
+    "view": "true3d",
+    "notes": "Has its own light-gun calibration screen."
+  },
+  "ps1-judge-dredd": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "polygon-3d",
+    "view": "true3d",
+    "notes": ""
+  },
+  "ps1-maximum-force": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "mixed",
+    "view": "theatre",
+    "notes": "Digitised actors over pre-rendered scenes: no PGXP depth, so theatre, with a diorama prototype."
+  },
+  "ps1-resident-evil-survivor": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "polygon-3d",
+    "view": "true3d",
+    "notes": "The North American release (SLUS-01087) has no light-gun support; the Japanese and European releases do."
+  },
+  "ps1-elemental-gearbolt": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "polygon-3d",
+    "view": "true3d",
+    "notes": "Real 3D through the SwanStation stereo patch."
+  },
+  "ps1-rescue-shot": {
+    "gun": "guncon",
+    "port": 1,
+    "graphics": "polygon-3d",
+    "view": "true3d",
+    "notes": "Real 3D on the Japanese release (Rescue Shot Bubibo); the European release stays on the theatre core because the stereo core's GunCon calibration stalls on PAL discs."
+  }
 }
