@@ -21,6 +21,7 @@
   </a>
   <nav class="hud-links">
     <a href="index.html">The arcade</a>
+    <a href="games.html">Game list</a>
     <a href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
   </nav>
 </header>
@@ -29,7 +30,7 @@
   <section class="title-screen">
     <p class="eyebrow">How it works</p>
     <h1>Stage select</h1>
-    <p class="lede">Four worlds: how a game gets from your shelf into the headset, the Hub panel inside SteamVR, the VR pinball bonus stage, and how each console is turned into OpenXR.</p>
+    <p class="lede">How a game gets from your shelf into the headset, how the Hub works as a panel inside SteamVR, the VR pinball bonus stage, and how each console is turned into OpenXR.</p>
     <ul class="legend" aria-label="Status key">
       <li><span class="chip clear">Clear</span> works and is covered by tests or owner checks</li>
       <li><span class="chip wip">In progress</span> built, being finished or tested</li>
@@ -91,7 +92,7 @@
       <li class="stage">
         <span class="stage-num">2-1</span><i class="sprite" data-sprite="window"></i>
         <h3>Overlay mode</h3>
-        <p>The same Hub screens render off screen and are handed to SteamVR as a dashboard overlay. One UI for the desk and the headset.</p>
+        <p>The same Hub screens render off screen and are handed to SteamVR as a dashboard overlay, so the desk and the headset share one UI.</p>
         <span class="chip clear">Clear</span>
       </li>
       <li class="stage">
@@ -121,7 +122,7 @@
     </ol>
   </section>
 
-  <section class="world" id="world-3" style="--world: #ff4fa8">
+  <section class="world" id="world-3" style="--world: #ff4fa8; --cols: 6">
     <header class="world-head">
       <span class="world-num">World 3 · Bonus</span>
       <h2>VR pinball: the Visual Pinball X launcher</h2>
@@ -148,7 +149,7 @@
       <li class="stage">
         <span class="stage-num">3-4</span><i class="sprite" data-sprite="headset"></i>
         <h3>VPX's own OpenXR</h3>
-        <p>With SteamVR running, VPX draws the table in the headset itself. No extra VR layer sits in between.</p>
+        <p>With SteamVR running, VPX draws the table in the headset itself, without an extra VR layer.</p>
         <span class="chip wip">In progress</span>
       </li>
       <li class="stage">
@@ -181,10 +182,10 @@
       <article class="lane">
         <div class="lane-name"><i class="sprite" data-sprite="chip"></i><h3>Sega Model 3</h3><span class="chip wip">In progress</span></div>
         <ol class="track">
-          <li><b>Supermodel</b> emulator, pinned upstream</li>
-          <li><b>New3D renderer</b> draws once per eye. Views: Screen, Wide or Inside</li>
-          <li><b>supermodel-vr</b> opens the OpenXR session</li>
-          <li><b>SteamVR</b> to your headset</li>
+          <li data-col="Game"><b>Supermodel</b> emulator, pinned upstream</li>
+          <li data-col="Stereo hook"><b>New3D renderer</b> draws once per eye. Views: Screen, Wide or Inside</li>
+          <li data-col="OpenXR"><b>supermodel-vr</b> opens the OpenXR session</li>
+          <li data-col="Headset"><b>SteamVR</b> to your headset</li>
         </ol>
         <p class="return"><span>Input</span> controller → emulator's own gun and wheel inputs, inside the emulator (planned)</p>
         <p class="note">Inside view tried by the owner on five games.</p>
@@ -193,10 +194,10 @@
       <article class="lane">
         <div class="lane-name"><i class="sprite" data-sprite="chip"></i><h3>Nintendo Wii</h3><span class="chip wip">In progress</span></div>
         <ol class="track">
-          <li><b>DolphinXR</b>, a VR build of Dolphin</li>
-          <li><b>Dolphin's stereo</b> renders the 3D scene per eye</li>
-          <li><b>Dolphin's own OpenXR</b> output</li>
-          <li><b>SteamVR</b> to your headset</li>
+          <li data-col="Game"><b>DolphinXR</b>, a VR build of Dolphin</li>
+          <li data-col="Stereo hook"><b>Dolphin's stereo</b> renders the 3D scene per eye</li>
+          <li data-col="OpenXR"><b>Dolphin's own OpenXR</b> output</li>
+          <li data-col="Headset"><b>SteamVR</b> to your headset</li>
         </ol>
         <p class="return"><span>Input</span> SteamVR pose → wii-bridge → DSU server → Dolphin's pointer. Off the screen edge = reload</p>
         <p class="note">The live bridge stays switched off until it passes its readiness checks.</p>
@@ -205,10 +206,10 @@
       <article class="lane">
         <div class="lane-name"><i class="sprite" data-sprite="chip"></i><h3>PlayStation 2</h3><span class="chip wip">In progress</span></div>
         <ol class="track">
-          <li><b>PCSX2</b>, patched</li>
-          <li><b>Per-vertex depth</b> plus the game's camera give real parallax</li>
-          <li><b>In-process OpenXR</b> presenter</li>
-          <li><b>SteamVR</b> to your headset</li>
+          <li data-col="Game"><b>PCSX2</b>, patched</li>
+          <li data-col="Stereo hook"><b>Per-vertex depth</b> plus the game's camera give real parallax</li>
+          <li data-col="OpenXR"><b>In-process OpenXR</b> presenter</li>
+          <li data-col="Headset"><b>SteamVR</b> to your headset</li>
         </ol>
         <p class="return"><span>Input</span> controller → console-pistol aim, native to the emulator</p>
         <p class="note">Proven offline on 11 game profiles; headset tuning next.</p>
@@ -217,10 +218,10 @@
       <article class="lane">
         <div class="lane-name"><i class="sprite" data-sprite="link"></i><h3>libacvr shared runtime</h3><span class="chip locked">Not yet</span></div>
         <ol class="track">
-          <li><b>Decompiled or emulated game</b>, such as Namco System 22</li>
-          <li><b>game_camera + draw_eye</b> called once per eye</li>
-          <li><b>libacvr</b> runs the OpenXR session on one thread</li>
-          <li><b>SteamVR</b> to your headset</li>
+          <li data-col="Game"><b>Decompiled or emulated game</b>, such as Namco System 22</li>
+          <li data-col="Stereo hook"><b>game_camera + draw_eye</b> called once per eye</li>
+          <li data-col="OpenXR"><b>libacvr</b> runs the OpenXR session on one thread</li>
+          <li data-col="Headset"><b>SteamVR</b> to your headset</li>
         </ol>
         <p class="return"><span>Input</span> controller ray → hit in the 3D world → back through the game's camera → the game's own gun coordinates</p>
         <p class="note">One runtime for gun handling, cover, ghost controls and the pause menu everywhere. Off by default; no game runs on it yet.</p>
@@ -232,7 +233,8 @@
   <section class="continue">
     <p class="blink-slow">Continue?</p>
     <p class="actions">
-      <a class="btn" href="index.html">Back to the arcade</a>
+      <a class="btn" href="games.html">See the game list</a>
+      <a class="btn btn-ghost" href="index.html">Back to the arcade</a>
       <a class="btn btn-ghost" href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">Read the code</a>
     </p>
     <p class="fine">System and game names belong to their owners. AC VR Hub is not affiliated with any of them and ships no game content.</p>

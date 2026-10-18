@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game List · AC VR Hub</title>
+<meta name="description" content="Which games run in VR through AC VR Hub today, by system, with an honest status for each: played in a headset, running but not yet headset-checked, or set up and waiting.">
+<meta name="theme-color" content="#120c1f">
+<link rel="icon" href="token.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="pipeline.css">
+<link rel="stylesheet" href="games.css">
+</head>
+<body class="how-page">
+<header class="hud">
+  <a class="brand" href="index.html" aria-label="AC VR Hub, back to the arcade">
+    <img src="token.svg" alt="" width="34" height="34">
+    <span>AC VR Hub</span>
+  </a>
+  <nav class="hud-links">
+    <a href="index.html">The arcade</a>
+    <a href="how-it-works.html">How it works</a>
+    <a href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main class="how">
+  <section class="title-screen">
+    <p class="eyebrow">Game list</p>
+    <h1>Player select</h1>
+    <p class="lede">What runs in VR today, by system. A game only gets the top badge once it has been played in a real headset. New game profiles and emulator wrappers are added all the time, so this list keeps moving.</p>
+    <ul class="legend" aria-label="Status key">
+      <li><span class="chip clear">In headset</span> played in a headset by the developer</li>
+      <li><span class="chip wip">Runs</span> runs in VR, headset check still to come</li>
+      <li><span class="chip locked">Set up</span> recipe or profile exists, not tried yet</li>
+    </ul>
+    <div class="scoreline" aria-label="Totals">
+      <div><b>7</b><span>games played in a headset</span></div>
+      <div><b>19</b><span>more games running in VR, headset check next</span></div>
+      <div><b>418</b><span>games tracked in the catalog</span></div>
+    </div>
+    <nav class="world-select" aria-label="Systems">
+      <a href="#model3"><b>1</b> Sega Model 3</a>
+      <a href="#wii"><b>2</b> Nintendo Wii</a>
+      <a href="#ps2"><b>3</b> PlayStation 2</a>
+      <a href="#more"><b>4</b> More systems</a>
+    </nav>
+  </section>
+
+  <section class="world" id="model3" style="--world: #9bdc3c">
+    <header class="world-head">
+      <span class="world-num">supermodel-vr</span>
+      <h2>Sega Model 3 <small>6 in headset · 4 running</small></h2>
+    </header>
+    <p class="world-intro">Your own Supermodel build, patched to draw each eye. Views: Screen (a big screen in front of you), Wide screen (experimental) and Inside (you stand in the game's world).</p>
+    <ul class="games">
+      <li class="game"><h3>Scud Race</h3><p class="meta">Racing · Screen, Inside</p><span class="chip clear">In headset</span></li>
+      <li class="game"><h3>Daytona USA 2</h3><p class="meta">Racing · Screen, Inside</p><span class="chip clear">In headset</span></li>
+      <li class="game"><h3>Sega Rally 2</h3><p class="meta">Racing · Screen</p><span class="chip clear">In headset</span></li>
+      <li class="game"><h3>Star Wars Trilogy Arcade</h3><p class="meta">Shooting · Inside, analog-stick aim</p><span class="chip clear">In headset</span></li>
+      <li class="game"><h3>Fighting Vipers 2</h3><p class="meta">Fighting · Inside</p><span class="chip clear">In headset</span></li>
+      <li class="game"><h3>Dirt Devils</h3><p class="meta">Racing · Inside</p><span class="chip clear">In headset</span></li>
+      <li class="game"><h3>Virtua Fighter 3</h3><p class="meta">Fighting · checked on a monitor</p><span class="chip wip">Runs</span></li>
+      <li class="game"><h3>Spikeout</h3><p class="meta">Action · checked on a monitor</p><span class="chip wip">Runs</span></li>
+      <li class="game"><h3>Virtua Striker 2</h3><p class="meta">Sports · checked on a monitor</p><span class="chip wip">Runs</span></li>
+      <li class="game"><h3>Harley-Davidson &amp; L.A. Riders</h3><p class="meta">Racing · checked on a monitor</p><span class="chip wip">Runs</span></li>
+    </ul>
+  </section>
+
+  <section class="world" id="wii" style="--world: #4ff3ff">
+    <header class="world-head">
+      <span class="world-num">DolphinXR</span>
+      <h2>Nintendo Wii <small>1 in headset · 1 set up</small></h2>
+    </header>
+    <p class="world-intro">A VR build of Dolphin with a per-game profile. Wii gun games are the current main push.</p>
+    <ul class="games">
+      <li class="game"><h3>Resident Evil: The Umbrella Chronicles</h3><p class="meta">Light gun · a saved mission played in a headset: depth, aim, clarity and HUD passed. Full chapters and co-op still to check.</p><span class="chip clear">In headset</span></li>
+      <li class="game"><h3>Resident Evil: The Darkside Chronicles</h3><p class="meta">Light gun · recipe ready, no profile yet</p><span class="chip locked">Set up</span></li>
+    </ul>
+    <p class="also">Also on the Hub's Wii list, waiting for profiles: The House of the Dead: Overkill, Gunblade NY &amp; L.A. Machineguns, Sin &amp; Punishment: Star Successor, Dead Space: Extraction, Link's Crossbow Training.</p>
+  </section>
+
+  <section class="world" id="ps2" style="--world: #f28a2e">
+    <header class="world-head">
+      <span class="world-num">pcsx2-vr</span>
+      <h2>PlayStation 2 <small>11 running</small></h2>
+    </header>
+    <p class="world-intro">Your own PCSX2, patched to present the game in stereo with real depth on a 3D screen. All eleven games are proven offline; the first headset picture is the next check.</p>
+    <ul class="games">
+      <li class="game game-wide"><h3>Light gun</h3><p class="meta">Time Crisis 3 · Crisis Zone · Vampire Night · Virtua Cop: Elite Edition · Ninja Assault</p><span class="chip wip">Runs</span></li>
+      <li class="game game-wide"><h3>Racing</h3><p class="meta">OutRun 2006: Coast 2 Coast · OutRun 2 · Wipeout Fusion · Wipeout Pulse · XGIII: Extreme G Racing · XGRA: Extreme G Racing Association</p><span class="chip wip">Runs</span></li>
+    </ul>
+  </section>
+
+  <section class="world" id="more" style="--world: #ff4fa8">
+    <header class="world-head">
+      <span class="world-num">More systems</span>
+      <h2>Dreamcast, Model 2, System 22 and pinball <small>4 running · pinball launcher</small></h2>
+    </header>
+    <ul class="games">
+      <li class="game"><h3>The House of the Dead 2</h3><p class="meta">Dreamcast · light gun · Flycast VR build. Reported to play in a headset with the upstream profile; not yet confirmed here.</p><span class="chip wip">Runs</span></li>
+      <li class="game"><h3>Death Crimson OX</h3><p class="meta">Dreamcast · light gun · plays in 3D, checked off-headset</p><span class="chip wip">Runs</span></li>
+      <li class="game"><h3>Virtua Cop 2</h3><p class="meta">Sega Model 2 · light gun · stereo MAME with a separate OpenXR viewer, tested offline</p><span class="chip wip">Runs</span></li>
+      <li class="game"><h3>Time Crisis</h3><p class="meta">Namco System 22 · light gun · the Time Crisis VR port draws a stereo pair on the desktop; stage play in a headset still open</p><span class="chip wip">Runs</span></li>
+      <li class="game"><h3>Your VR-ready pinball tables</h3><p class="meta">Visual Pinball X · desktop launch and close proven; headset start and exit are the next check</p><span class="chip wip">Runs</span></li>
+    </ul>
+    <p class="also">Also listed, no VR setup yet: Confidential Mission, Death Crimson 2 and Virtua Cop 2 on Dreamcast; Gunblade NY and Virtua Fighter 2 on Model 2. Namco System 22 racers such as Rave Racer are planned.</p>
+  </section>
+
+  <section class="continue">
+    <p class="fine">The developer reports each headset result; the catalog tracks 418 games across arcade, console and PC, most of them still waiting for a route. Game and system names belong to their owners. AC VR Hub ships no game content: bring your own legally obtained copies.</p>
+    <p class="actions">
+      <a class="btn" href="index.html">Back to the arcade</a>
+      <a class="btn btn-ghost" href="how-it-works.html">How it works</a>
+    </p>
+  </section>
+</main>
+</body>
+</html>

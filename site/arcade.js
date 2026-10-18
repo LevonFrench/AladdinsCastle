@@ -6,14 +6,20 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const canvas = document.getElementById('scene');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isSmall = matchMedia('(max-width: 720px)').matches;
+let portrait = innerWidth < innerHeight;
 
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  // antialias is lost under the composer; FXAA runs as the last pass instead.
+  // A software or blocklisted GPU falls back to the text page rather than crawling.
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: true });
 } catch (err) {
   console.warn('WebGL unavailable, showing the text version', err);
   throw err; // body never gets .js, so the static layout stays
@@ -25,6 +31,21 @@ const curtain = document.createElement('div');
 curtain.className = 'loading';
 curtain.textContent = 'INSERT TOKEN…';
 document.body.appendChild(curtain);
+
+// Anything that breaks after this point drops back to the readable text page instead of
+// leaving the curtain up or a frozen canvas.
+let stopped = false;
+function fallBackToText(reason) {
+  if (stopped) return;
+  stopped = true;
+  console.warn('Arcade walk stopped, showing the text version:', reason);
+  document.body.classList.remove('js');
+  curtain.remove();
+  document.querySelectorAll('.card').forEach(c => { c.style.removeProperty('--vis'); c.removeAttribute('data-hidden'); });
+}
+addEventListener('error', e => fallBackToText(e.error || e.message));
+addEventListener('unhandledrejection', e => fallBackToText(e.reason));
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); fallBackToText('WebGL context lost'); });
 await Promise.race([
   Promise.all([
     document.fonts.load('28px "Press Start 2P"'),
@@ -43,7 +64,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color('#0d0818');
 scene.fog = new THREE.Fog('#0d0818', 18, 46);
 
-const camera = new THREE.PerspectiveCamera(isSmall ? 70 : 58, innerWidth / innerHeight, 0.05, 80);
+const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.05, 80);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 const envTex = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
@@ -66,20 +87,45 @@ function tex(c, { repeat, srgb = true } = {}) {
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); }
   return t;
 }
+// Materials and geometries are shared by value: the scene builds ~800 meshes from a few dozen of each.
+const matCache = new Map(), geoCache = new Map();
+const cacheKey = o => Object.keys(o).sort().map(k => {
+  const val = o[k];
+  return k + ':' + (val && val.isTexture ? val.uuid : val && val.isColor ? val.getHexString() : String(val));
+}).join('|');
 function std(color, opts = {}) {
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.05, ...opts });
+  const k = 's' + color + cacheKey(opts);
+  if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.05, ...opts }));
+  return matCache.get(k);
 }
 function glow(color, intensity = 2) {
-  return new THREE.MeshStandardMaterial({ color: '#000', emissive: color, emissiveIntensity: intensity, roughness: 1 });
+  const k = 'g' + color + intensity;
+  if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color: '#000', emissive: color, emissiveIntensity: intensity, roughness: 1 }));
+  return matCache.get(k);
+}
+function basicMat(map) {  // one unlit material per shared screen texture
+  const k = 'm' + map.uuid;
+  if (!matCache.has(k)) matCache.set(k, new THREE.MeshBasicMaterial({ map }));
+  return matCache.get(k);
+}
+function boxGeo(w, h, d) {
+  const k = `b${w},${h},${d}`;
+  if (!geoCache.has(k)) geoCache.set(k, new THREE.BoxGeometry(w, h, d));
+  return geoCache.get(k);
+}
+function planeGeo(w, h) {
+  const k = `p${w},${h}`;
+  if (!geoCache.has(k)) geoCache.set(k, new THREE.PlaneGeometry(w, h));
+  return geoCache.get(k);
 }
 function box(w, h, d, mat, x = 0, y = 0, z = 0, parent = scene) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  const m = new THREE.Mesh(boxGeo(w, h, d), mat);
   m.position.set(x, y, z);
   parent.add(m);
   return m;
 }
 function plane(w, h, mat, x = 0, y = 0, z = 0, parent = scene) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  const m = new THREE.Mesh(planeGeo(w, h), mat);
   m.position.set(x, y, z);
   parent.add(m);
   return m;
@@ -192,28 +238,75 @@ function ceilingTex() {
   return tex(c, { repeat: [16, 12] });
 }
 
-function signTex(text) {
-  // grey-green panel, checker border, glowing serif letters
+function makeSign() {
+  // Storefront sign: ARCADE lights up, R-A-D-E die like old neon, A and C slide together, VR HUB flickers on.
   const W = 2048, H = 360;
   const [c, g] = makeCanvas(W, H);
-  g.fillStyle = '#4c5d58'; g.fillRect(0, 0, W, H);
+  const [bc, bg] = makeCanvas(W, H);
+  bg.fillStyle = '#4c5d58'; bg.fillRect(0, 0, W, H);
   const s = 22;
-  for (let i = 0; i < W / s; i++) for (const y of [0, H - s]) {
-    g.fillStyle = i % 2 ? '#20302d' : '#9fb0aa'; g.fillRect(i * s, y + (i % 2 ? 0 : 0), s, s);
-  }
-  for (let j = 1; j < H / s - 1; j++) for (const x of [0, W - s]) {
-    g.fillStyle = j % 2 ? '#20302d' : '#9fb0aa'; g.fillRect(x, j * s, s, s);
-  }
+  for (let i = 0; i < W / s; i++) for (const y of [0, H - s]) { bg.fillStyle = i % 2 ? '#20302d' : '#9fb0aa'; bg.fillRect(i * s, y, s, s); }
+  for (let j = 1; j < H / s - 1; j++) for (const x of [0, W - s]) { bg.fillStyle = j % 2 ? '#20302d' : '#9fb0aa'; bg.fillRect(x, j * s, s, s); }
+  const font = size => `900 ${size}px "Cinzel Decorative", Georgia, serif`;
+  let size = 200;
+  g.font = font(size);
+  while (g.measureText('AC VR HUB').width > W - 220 && size > 60) { size -= 6; g.font = font(size); }
+  const layout = text => {
+    g.font = font(size);
+    const total = g.measureText(text).width;
+    let x = W / 2 - total / 2;
+    return [...text].map(ch => { const w = g.measureText(ch).width; const o = { ch, x: x + w / 2 }; x += w; return o; });
+  };
+  const from = layout('ARCADE'), to = layout('AC VR HUB');
+  const keep = [[from[0], to[0]], [from[2], to[1]]];
+  const dying = [from[1], from[3], from[4], from[5]];
+  const arriving = to.slice(2).filter(o => o.ch !== ' ');
   const grd = g.createLinearGradient(0, 70, 0, 290);
   grd.addColorStop(0, '#fff6d6'); grd.addColorStop(1, '#ffc65c');
-  g.font = '900 190px "Cinzel Decorative", Georgia, serif';
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  let size = 190;
-  while (g.measureText(text).width > W - 180 && size > 60) { size -= 6; g.font = `900 ${size}px "Cinzel Decorative", Georgia, serif`; }
-  g.shadowColor = 'rgba(255,160,40,0.95)'; g.shadowBlur = 40;
-  g.fillStyle = grd; g.fillText(text, W / 2, H / 2 + 10);
-  g.shadowBlur = 8; g.fillText(text, W / 2, H / 2 + 10);
-  return tex(c);
+  const flick = (t, k) => Math.sin(t * 41 + k * 13.7) + Math.sin(t * 23 + k * 5.3) > 0.3;
+  const ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
+  function letter(ch, x, lit) {
+    const y = H / 2 + 10;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    if (lit <= 0) return;
+    if (lit < 0.5) { g.shadowBlur = 0; g.fillStyle = 'rgba(70,58,44,0.9)'; g.fillText(ch, x, y); return; } // unlit tube
+    g.fillStyle = grd;
+    g.shadowColor = 'rgba(255,160,40,0.95)'; g.shadowBlur = 40; g.fillText(ch, x, y);
+    g.shadowBlur = 8; g.fillText(ch, x, y);
+  }
+  let t0 = -1e9, done = false;
+  const texture = tex(c);
+  function draw(T) {
+    g.drawImage(bc, 0, 0);
+    g.font = font(size);
+    // R, A, D, E: steady, then flicker to an unlit tube, then gone as A and C close the gap
+    dying.forEach((o, k) => {
+      let lit = 1;
+      if (T > 1.2) lit = T > 2.3 ? 0.3 : (flick(T, k) && T < 2.3 - k * 0.15) ? 1 : 0.3;
+      if (T > 2.5) lit = 0;
+      letter(o.ch, o.x, lit);
+    });
+    const m = ease((T - 2.5) / 0.8);
+    keep.forEach(([a, b]) => letter(a.ch, a.x + (b.x - a.x) * m, 1));
+    arriving.forEach((o, k) => {
+      const start = 3.4 + k * 0.08;
+      const lit = T < start ? 0 : (T > 4.3 || flick(T, k + 9)) ? 1 : 0.3;
+      letter(o.ch, o.x, lit);
+    });
+    texture.needsUpdate = true;
+  }
+  draw(reducedMotion ? 99 : 0);
+  return {
+    texture,
+    restart(t) { if (!reducedMotion) { t0 = t; done = false; } },
+    update(t) {
+      if (done) return;
+      const T = t - t0;
+      if (T < 0) return;
+      draw(T);
+      if (T > 4.6) done = true;
+    },
+  };
 }
 
 function marqueeTex(seed, bg = PAL.purple) {
@@ -465,7 +558,8 @@ box(10, 0.9, 0.3, std('#405652'), -9, 4.15, 0.25);          // neighbours' fasci
 box(10, 0.9, 0.3, std('#405652'), 9, 4.15, 0.25);
 // red sign frame + panel
 box(10.2, 1.7, 0.35, std('#b81f35', { roughness: 0.45, envMap: envTex, envMapIntensity: 0.4 }), 0, 3.85, 0.38);
-const signMesh = plane(9.5, 1.67, new THREE.MeshBasicMaterial({ color: '#ffffff', map: signTex('AC VR Hub'), toneMapped: false }), 0, 3.85, 0.57);
+const sign = makeSign();
+const signMesh = plane(9.5, 1.67, new THREE.MeshBasicMaterial({ color: '#ffffff', map: sign.texture, toneMapped: false }), 0, 3.85, 0.57);
 markClickable(signMesh, 0);
 // red header over the opening
 box(7.2, 0.25, 0.5, std('#b81f35'), 0, 2.95, 0.15);
@@ -522,7 +616,7 @@ function wall(len, x, z, rotY) {
   m.material = mural.clone(); m.material.map = mural.map.clone(); m.material.map.repeat.set(len / 5, 1); m.material.map.needsUpdate = true;
   box(len, ROOM.h - 2.35, 0.1, std('#2c1f45'), 0, 2.35 + (ROOM.h - 2.35) / 2, 0, g);
   // cyan neon strip along the top, as in the photos
-  box(len, 0.05, 0.05, glow('#4ff3ff', 3), 0, ROOM.h - 0.25, 0.08, g);
+  box(len, 0.05, 0.05, glow('#4ff3ff', 1.6), 0, ROOM.h - 0.25, 0.08, g);
   g.position.set(x, 0, z); g.rotation.y = rotY;
   scene.add(g);
 }
@@ -533,7 +627,7 @@ wall(ROOM.x * 2, 0, -ROOM.depth, 0);
 // ---------------------------------------------------------------- cabinets
 function cabinetBody(group, w, h, d, color) {
   const side = std(color, { roughness: 0.45, envMap: envTex, envMapIntensity: 0.35 });
-  const black = std('#121016', { roughness: 0.5 });
+  const black = std('#1d1a27', { roughness: 0.5 });
   box(0.05, h, d, side, -w / 2 + 0.025, h / 2, 0, group);
   box(0.05, h, d, side, w / 2 - 0.025, h / 2, 0, group);
   box(w - 0.1, h, d - 0.04, black, 0, h / 2, -0.02, group);
@@ -553,7 +647,7 @@ function upright({ x, z, rotY = 0, color, marquee, sub, screenTex, w = 0.8, h = 
   const sw = w - 0.2, sh = sw * 0.78;
   const bezel = box(w - 0.1, sh + 0.12, 0.02, std('#050507'), 0, 1.38, d / 2 + 0.04, g);
   bezel.rotation.x = -0.18;
-  const scr = plane(sw, sh, new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false }), 0, 1.38, d / 2 + 0.052, g);
+  const scr = plane(sw, sh, basicMat(screenTex), 0, 1.38, d / 2 + 0.052, g);
   scr.rotation.x = -0.18;
   // control panel
   const cp = box(w - 0.06, 0.06, 0.32, std('#1c1924'), 0, 1.0, d / 2 + 0.1, g);
@@ -582,7 +676,7 @@ function upright({ x, z, rotY = 0, color, marquee, sub, screenTex, w = 0.8, h = 
     box(0.28, 0.02, 0.22, std('#ffcc33'), 0, 0.07, d / 2 + 0.45, g).rotation.x = -0.15;
   }
   // lit marquee
-  box(w, 0.3, 0.3, std('#121016'), 0, h + 0.15, d / 2 - 0.17, g);
+  box(w, 0.3, 0.3, std('#1d1a27'), 0, h + 0.15, d / 2 - 0.17, g);
   plane(w - 0.04, 0.26, new THREE.MeshBasicMaterial({ map: marqueeTex(marquee, color, '#fff4c2', sub), toneMapped: false }), 0, h + 0.15, d / 2 - 0.015, g);
   g.position.set(x, 0, z); g.rotation.y = rotY;
   scene.add(g);
@@ -596,8 +690,8 @@ function sitdown({ x, z, rotY = 0, color, marquee, sub, screenTex, ghost = false
   box(1.0, 0.14, 2.0, std('#1b1820'), 0, 0.07, 0.4, g);                   // base
   box(1.0, 1.35, 0.7, side, 0, 0.82, -0.35, g);                            // front tower
   const bz = box(0.86, 0.66, 0.02, std('#050507'), 0, 1.12, 0.07, g); bz.rotation.x = -0.22;
-  const scr = plane(0.76, 0.56, new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false }), 0, 1.12, 0.082, g); scr.rotation.x = -0.22;
-  box(1.0, 0.28, 0.5, std('#121016'), 0, 1.64, -0.4, g);
+  const scr = plane(0.76, 0.56, basicMat(screenTex), 0, 1.12, 0.082, g); scr.rotation.x = -0.22;
+  box(1.0, 0.28, 0.5, std('#1d1a27'), 0, 1.64, -0.4, g);
   plane(0.96, 0.24, new THREE.MeshBasicMaterial({ map: marqueeTex(marquee, color, '#fff4c2', sub), toneMapped: false }), 0, 1.64, -0.149, g);
   // dash, wheel, shifter
   box(1.0, 0.18, 0.3, side, 0, 0.62, 0.15, g).rotation.x = 0.4;
@@ -618,14 +712,14 @@ function sitdown({ x, z, rotY = 0, color, marquee, sub, screenTex, ghost = false
   box(0.98, 0.02, 1.98, glow(color, 1.2), 0, 0.005, 0.4, g);
   if (ghost) {
     // ghost controls: see-through wheel and lever hovering where your hands go
-    const gm = new THREE.MeshBasicMaterial({ color: '#7ff8ff', transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false });
+    const gm = new THREE.MeshBasicMaterial({ color: new THREE.Color('#7ff8ff').multiplyScalar(2.2), transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
     const gw = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.018, 8, 40), gm);
     gw.position.set(0, 0.9, 0.62); gw.rotation.x = -1.05; g.add(gw);
     const spokes = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.015, 0.015), gm); spokes.position.copy(gw.position); spokes.rotation.x = -1.05; g.add(spokes);
     const gl = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22), gm); gl.position.set(0.36, 0.72, 0.8); gl.rotation.x = 0.35; g.add(gl);
     const gk = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 8), gm); gk.position.set(0.36, 0.82, 0.84); g.add(gk);
     animated.push(t => {
-      gm.opacity = 0.28 + Math.sin(t * 2.4) * 0.12;
+      gm.opacity = reducedMotion ? 0.55 : 0.55 + Math.sin(t * 2.4) * 0.1;
       gw.rotation.z = Math.sin(t * 0.9) * 0.35; spokes.rotation.z = gw.rotation.z;
       const bob = reducedMotion ? 0 : Math.sin(t * 1.2) * 0.02;
       gw.position.y = spokes.position.y = 0.9 + bob;
@@ -663,7 +757,7 @@ function claw(x, z, color, seed, rotY = 0) {
     const f = box(0.012, 0.12, 0.012, std('#ddd', { metalness: 0.9, roughness: 0.2 }), Math.cos(k * 2.09) * 0.04, -0.04, Math.sin(k * 2.09) * 0.04, clawG);
     f.rotation.z = Math.cos(k * 2.09) * 0.4; f.rotation.x = -Math.sin(k * 2.09) * 0.4;
   }
-  clawG.position.set(0, 1.45, 0); g.add(clawG);
+  clawG.position.set(0, 1.45, 0); clawG.userData.dynamic = true; g.add(clawG);
   const ph = r() * 6;
   animated.push(t => {
     if (reducedMotion) return;
@@ -689,7 +783,7 @@ function wheelGame(x, z, rotY, seed) {
   }
   ctx.fillStyle = '#1a0f2e'; ctx.beginPath(); ctx.arc(256, 256, 50, 0, 7); ctx.fill();
   const disc = new THREE.Mesh(new THREE.CircleGeometry(0.42, 48), new THREE.MeshBasicMaterial({ map: tex(c), toneMapped: false, color: '#d8d8d8' }));
-  disc.position.set(0, 1.55, 0.2); g.add(disc);
+  disc.position.set(0, 1.55, 0.2); disc.userData.dynamic = true; g.add(disc);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.025, 8, 48), glow('#ffd34f', 2.5)); ring.position.copy(disc.position); g.add(ring);
   box(0.06, 0.1, 0.03, glow('#ffffff', 2), 0, 2.02, 0.22, g);
   box(0.9, 0.9, 0.2, std('#191522'), 0, 1.55, 0.05, g);
@@ -739,6 +833,7 @@ const tokenPivot = new THREE.Group();
 token.rotation.x = Math.PI / 2;
 tokenPivot.add(token);
 tokenPivot.position.set(-2.1, 2.3, -2.8);
+tokenPivot.userData.dynamic = true;
 scene.add(tokenPivot);
 markClickable(tokenPivot, 1);
 animated.push((t, dt) => {
@@ -810,7 +905,7 @@ upright({ x: -2.9, z: -19.0, rotY: 0.3, color: PAL.teal, marquee: 'THEATREMODE',
 // scoreboard on the back wall
 {
   const board = plane(4.2, 2.3, new THREE.MeshBasicMaterial({ map: screenBoard, toneMapped: false }), -0.4, 2.0, -25.9);
-  box(4.5, 2.6, 0.1, std('#121016'), -0.4, 2.0, -25.97);
+  box(4.5, 2.6, 0.1, std('#1d1a27'), -0.4, 2.0, -25.97);
   box(4.5, 0.05, 0.05, glow('#ff4fa8', 3), -0.4, 3.32, -25.9);
   box(4.5, 0.05, 0.05, glow('#ff4fa8', 3), -0.4, 0.68, -25.9);
   markClickable(board, 9);
@@ -823,54 +918,71 @@ upright({ x: -2.9, z: -19.0, rotY: 0.3, color: PAL.teal, marquee: 'THEATREMODE',
 // Lookalike silhouettes only (docs/guns.md §2.2): no logos, no copied shapes. Forward is -z, grip at the origin.
 const additive = (color, opacity) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
 
+// Side profiles, x = forward (muzzle), y = up, grip at the origin; the trigger guard is a hole.
+// Each pistol is one extruded silhouette with a small bevel; moving parts stay separate meshes.
+const GUN_PROFILES = {
+  slide: { width: 0.036,
+    outer: [[-0.035, -0.115], [-0.012, -0.115], [0.005, -0.004], [0.05, -0.004], [0.062, 0.03], [0.14, 0.03], [0.14, 0.06], [-0.045, 0.06], [-0.045, 0.036], [-0.03, 0.03]],
+    hole: [[0.012, 0.003], [0.045, 0.003], [0.053, 0.025], [0.012, 0.025]] },
+  twin: { width: 0.046,
+    outer: [[-0.04, -0.12], [-0.012, -0.12], [0.005, -0.004], [0.05, -0.004], [0.062, 0.03], [0.09, 0.03], [0.09, 0.09], [-0.05, 0.09], [-0.05, 0.04], [-0.032, 0.03]],
+    hole: [[0.012, 0.003], [0.045, 0.003], [0.053, 0.025], [0.012, 0.025]] },
+  revolver: { width: 0.03,
+    outer: [[-0.045, -0.105], [-0.02, -0.105], [0.0, -0.002], [0.035, -0.004], [0.046, 0.028], [0.06, 0.032], [0.06, 0.075], [-0.028, 0.08], [-0.04, 0.062], [-0.03, 0.032]],
+    hole: [[0.007, 0.003], [0.031, 0.003], [0.038, 0.023], [0.007, 0.023]] },
+  dpad: { width: 0.04,
+    outer: [[-0.04, -0.11], [-0.015, -0.11], [0.003, -0.004], [0.05, -0.004], [0.062, 0.025], [0.17, 0.025], [0.17, 0.075], [-0.035, 0.08], [-0.046, 0.06], [-0.03, 0.03]],
+    hole: [[0.01, 0.003], [0.045, 0.003], [0.053, 0.021], [0.01, 0.021]] },
+  shell: { width: 0.045,
+    outer: [[-0.04, -0.1], [-0.015, -0.1], [0.0, -0.004], [0.05, -0.004], [0.062, 0.02], [0.2, 0.02], [0.208, -0.08], [0.235, -0.08], [0.235, 0.02], [0.26, 0.02], [0.26, 0.07], [-0.08, 0.07], [-0.19, 0.05], [-0.19, 0.0], [-0.09, 0.012], [-0.03, 0.026]],
+    hole: [[0.01, 0.003], [0.045, 0.003], [0.053, 0.016], [0.01, 0.016]] },
+};
+const profileGeoCache = new Map();
+function gunProfileGeo(kind) {
+  if (profileGeoCache.has(kind)) return profileGeoCache.get(kind);
+  const { width, outer, hole } = GUN_PROFILES[kind];
+  const shape = new THREE.Shape(outer.map(([x, y]) => new THREE.Vector2(x, y)));
+  shape.holes.push(new THREE.Path(hole.map(([x, y]) => new THREE.Vector2(x, y))));
+  const bevel = 0.003;
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: width - bevel * 2, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 4 });
+  geo.translate(0, 0, -(width - bevel * 2) / 2);
+  geo.rotateY(-Math.PI / 2);  // shape +x becomes -z (forward), extrusion becomes width along x
+  profileGeoCache.set(kind, geo);
+  return geo;
+}
+
 function gunModel(kind, main, accent) {
   const g = new THREE.Group();
-  // a little self-light so the silhouettes read against the dark room
-  const body = std(main, { roughness: 0.35, envMap: envTex, envMapIntensity: 0.4, emissive: main, emissiveIntensity: 0.12 });
-  const trim = std(accent, { roughness: 0.4, envMap: envTex, envMapIntensity: 0.3, emissive: accent, emissiveIntensity: 0.1 });
-  const dark = std('#18161d', { roughness: 0.5 });
+  const body = std(main, { roughness: 0.35, envMap: envTex, envMapIntensity: 0.4 });
+  const trim = std(accent, { roughness: 0.4, envMap: envTex, envMapIntensity: 0.3, emissive: accent, emissiveIntensity: 0.05 });
+  const dark = std('#2a2733', { roughness: 0.5, envMap: envTex, envMapIntensity: 0.3 });
   let slide = null, drum = null, muzzleZ = -0.2, muzzleY = 0.07;
-  const grip = (h = 0.11, tilt = 0.3) => { const m = box(0.032, h, 0.045, dark, 0, -h / 2 + 0.02, 0.025, g); m.rotation.x = tilt; };
-  const guard = () => {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.005, 6, 16, Math.PI), body);
-    ring.rotation.set(0, Math.PI / 2, Math.PI); ring.position.set(0, 0.012, -0.03); g.add(ring);
-    box(0.008, 0.025, 0.008, trim, 0, 0.012, -0.025, g);
-  };
+  g.add(new THREE.Mesh(gunProfileGeo(kind), body));
+  const trigger = box(0.008, 0.02, 0.008, dark, 0, 0.012, -0.022, g);
+  trigger.rotation.x = -0.3;
   if (kind === 'slide') {            // cabinet pistol, slide travels back on a shot
-    grip(); guard();
-    box(0.036, 0.035, 0.17, body, 0, 0.045, -0.06, g);
-    slide = box(0.04, 0.03, 0.17, trim, 0, 0.077, -0.06, g);
+    slide = box(0.04, 0.03, 0.17, trim, 0, 0.076, -0.06, g);
     muzzleZ = -0.15; muzzleY = 0.075;
   } else if (kind === 'twin') {      // chunky cabinet pistol with a round barrel
-    grip(0.12, 0.25); guard();
-    box(0.046, 0.06, 0.13, body, 0, 0.06, -0.04, g);
     const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.023, 0.13, 16), body);
-    bar.rotation.x = Math.PI / 2; bar.position.set(0, 0.065, -0.16); g.add(bar);
-    slide = box(0.03, 0.012, 0.1, trim, 0, 0.096, -0.04, g);
+    bar.rotation.x = Math.PI / 2; bar.position.set(0, 0.065, -0.155); g.add(bar);
+    slide = box(0.03, 0.012, 0.1, trim, 0, 0.098, -0.02, g);
     muzzleZ = -0.23; muzzleY = 0.065;
   } else if (kind === 'revolver') {  // long-barrel revolver: hammer falls, cylinder turns
-    grip(0.11, 0.45); guard();
-    box(0.03, 0.045, 0.08, body, 0, 0.055, -0.02, g);
-    drum = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.045, 6), trim);
-    drum.rotation.x = Math.PI / 2; drum.position.set(0, 0.058, -0.05); g.add(drum);
+    drum = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.045, 12), trim);
+    drum.rotation.x = Math.PI / 2; drum.position.set(0, 0.056, -0.045); g.add(drum);
     const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.18, 12), body);
-    bar.rotation.x = Math.PI / 2; bar.position.set(0, 0.07, -0.16); g.add(bar);
-    slide = box(0.012, 0.03, 0.015, dark, 0, 0.09, 0.02, g);
-    muzzleZ = -0.25; muzzleY = 0.07;
+    bar.rotation.x = Math.PI / 2; bar.position.set(0, 0.068, -0.15); g.add(bar);
+    slide = box(0.012, 0.03, 0.015, dark, 0, 0.088, 0.03, g);
+    muzzleZ = -0.24; muzzleY = 0.068;
   } else if (kind === 'dpad') {      // console pistol with a pad at the rear
-    grip(0.11, 0.3); guard();
-    box(0.04, 0.05, 0.2, body, 0, 0.05, -0.07, g);
-    box(0.042, 0.02, 0.06, trim, 0, 0.08, 0.0, g);
+    box(0.042, 0.016, 0.06, trim, 0, 0.083, 0.0, g);
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.006, 16), trim);
-    pad.rotation.x = Math.PI / 2; pad.position.set(0, 0.06, 0.031); g.add(pad);
-    for (const x of [-0.022, 0.022]) box(0.006, 0.012, 0.012, std(PAL.blue), x, 0.065, -0.09, g);
-    slide = box(0.03, 0.01, 0.08, trim, 0, 0.078, -0.1, g);
+    pad.rotation.x = Math.PI / 2; pad.position.set(0, 0.058, 0.05); g.add(pad);
+    for (const x of [-0.023, 0.023]) box(0.006, 0.012, 0.012, std(PAL.blue), x, 0.06, -0.09, g);
+    slide = box(0.03, 0.01, 0.08, trim, 0, 0.08, -0.11, g);
     muzzleZ = -0.18; muzzleY = 0.05;
   } else if (kind === 'shell') {     // two-hand shell with a remote riding in the barrel
-    grip(0.1, 0.25); guard();
-    box(0.045, 0.05, 0.34, body, 0, 0.045, -0.08, g);
-    box(0.03, 0.09, 0.04, body, 0, -0.02, -0.17, g).rotation.x = 0.15;
-    box(0.04, 0.06, 0.1, body, 0, 0.03, 0.14, g);
     slide = box(0.034, 0.03, 0.15, trim, 0, 0.085, -0.17, g);
     muzzleZ = -0.26; muzzleY = 0.085;
   }
@@ -926,7 +1038,7 @@ function floatingRing(x, y, z, r = 0.15) {
 // turntable display for a gun: spins, fires, bobs
 function gunOnTurntable(gun, x, y, z, scale, stop, i) {
   const pivot = new THREE.Group();
-  pivot.position.set(x, y, z); gun.scale.setScalar(scale); pivot.add(gun); scene.add(pivot);
+  pivot.position.set(x, y, z); pivot.userData.dynamic = true; gun.scale.setScalar(scale); pivot.add(gun); scene.add(pivot);
   floatingRing(x, y - 0.32, z);
   if (stop !== undefined) markClickable(pivot, stop);
   animated.push(t => {
@@ -946,6 +1058,7 @@ function gunOnTurntable(gun, x, y, z, scale, stop, i) {
   const ctrl = controllerModel(col);
   const gun = gunModel(kind, main, acc);
   pivot.add(ctrl, gun);
+  pivot.userData.dynamic = true;
   scene.add(pivot);
   floatingRing(x, y - 0.32, z, 0.17);
   markClickable(pivot, 1);
@@ -963,12 +1076,13 @@ function gunOnTurntable(gun, x, y, z, scale, stop, i) {
 
 // stop 2: one gun in the aisle that becomes the next model every few seconds
 {
-  const models = [['slide', PAL.blue, '#e8e8ee'], ['revolver', PAL.teal, '#c9c9d2'], ['twin', PAL.red, PAL.yellow], ['dpad', PAL.orange, '#1b1b20'], ['shell', '#f2f2f5', '#4fd2ff']]
+  const models = [['slide', PAL.blue, '#e8e8ee'], ['revolver', PAL.teal, '#c9c9d2'], ['twin', PAL.red, PAL.yellow], ['dpad', PAL.orange, '#1b1b20'], ['shell', '#a7acb8', '#4fd2ff']]
     .map(([kind, main, acc]) => gunModel(kind, main, acc));
   const x = -5.0, y = 1.45, z = -6.5, S = 2.5, HOLD = 4.5;
   const pivot = new THREE.Group();
   pivot.position.set(x, y, z);
   models.forEach(m => { m.scale.setScalar(1e-4); pivot.add(m); });
+  pivot.userData.dynamic = true;
   scene.add(pivot);
   floatingRing(x, y - 0.32, z);
   markClickable(pivot, 2);
@@ -992,60 +1106,125 @@ upright({ x: -7.2, z: -11.9, rotY: Math.PI / 2, color: PAL.lime, marquee: 'm3-b'
 sitdown({ x: -6.6, z: -13.3, rotY: Math.PI / 2, color: PAL.purple, marquee: 'm3-c', screenTex: screenRace, stop: 4 });
 
 // stops 5 and 6: console kiosks on the right wall, each with its own gun
-function kiosk({ x, z, consoleKind, screenTex, gun, stop, i }) {
+function kiosk({ x, z, consoleKind, screenTex, gun, stop, i, gunDz = 0 }) {
   const g = new THREE.Group();
   box(1.5, 0.72, 0.55, std('#3a2752', { roughness: 0.6 }), 0, 0.36, 0, g);
   box(1.5, 0.03, 0.03, glow(consoleKind === 'tall' ? '#4fd2ff' : PAL.orange, 2), 0, 0.72, 0.28, g);
   box(1.25, 0.76, 0.1, std('#0c0b10', { roughness: 0.35 }), 0, 1.22, -0.12, g);
-  plane(1.15, 0.66, new THREE.MeshBasicMaterial({ map: screenTex, toneMapped: false }), 0, 1.22, -0.068, g);
+  plane(1.15, 0.66, basicMat(screenTex), 0, 1.22, -0.068, g);
   box(0.3, 0.06, 0.2, std('#0c0b10'), 0, 0.78, -0.12, g);
+  // generic console shapes, about 1.6x so they read from the aisle; lit edges, no logos
   if (consoleKind === 'tall') {
-    box(0.05, 0.17, 0.2, std('#eeeef2', { roughness: 0.3 }), 0.52, 0.82, 0.08, g);
-    box(0.004, 0.06, 0.004, glow('#4fb8ff', 2.5), 0.52, 0.86, 0.181, g);
+    box(0.08, 0.27, 0.32, std('#c9ccd6', { roughness: 0.3 }), 0.5, 0.735 + 0.135, 0.06, g);
+    box(0.006, 0.1, 0.006, glow('#4fb8ff', 2.5), 0.5, 0.92, 0.222, g);
+    box(0.082, 0.006, 0.322, glow('#4fb8ff', 1.2), 0.5, 0.738, 0.06, g);
   } else {
-    box(0.32, 0.07, 0.24, std('#1a1a22', { roughness: 0.4 }), 0.45, 0.77, 0.08, g);
-    box(0.32, 0.004, 0.004, glow('#4f7bff', 2), 0.45, 0.77, 0.201, g);
+    box(0.5, 0.11, 0.38, std('#262532', { roughness: 0.4, envMap: envTex, envMapIntensity: 0.4 }), 0.42, 0.735 + 0.055, 0.04, g);
+    box(0.5, 0.006, 0.006, glow('#4f7bff', 2), 0.42, 0.79, 0.232, g);
+    box(0.006, 0.11, 0.006, glow('#4f7bff', 1.2), 0.17, 0.79, 0.232, g);
   }
   g.position.set(x, 0, z); g.rotation.y = -Math.PI / 2;
   scene.add(g);
   markClickable(g, stop);
-  gunOnTurntable(gun, x - 0.85, 1.35, z, 2.4, stop, i);
+  // the gun floats beside the TV, off the line from the aisle to the screen
+  gunOnTurntable(gun, x - 1.05, 1.3, z + gunDz, 2.4, stop, i);
 }
-kiosk({ x: 7.35, z: -14.6, consoleKind: 'tall', screenTex: screenCorridor, gun: gunModel('shell', '#f2f2f5', '#4fd2ff'), stop: 5, i: 5 });
-kiosk({ x: 7.35, z: -17.2, consoleKind: 'slab', screenTex: screenGun, gun: gunModel('dpad', PAL.orange, '#1b1b20'), stop: 6, i: 6 });
+kiosk({ x: 7.35, z: -14.6, consoleKind: 'tall', screenTex: screenCorridor, gun: gunModel('shell', '#a7acb8', '#4fd2ff'), stop: 5, i: 5, gunDz: -0.55 });
+kiosk({ x: 7.35, z: -17.2, consoleKind: 'slab', screenTex: screenGun, gun: gunModel('dpad', PAL.orange, '#1b1b20'), stop: 6, i: 6, gunDz: 0.55 });
 
 // exit sign over the door, inside
 plane(0.5, 0.18, new THREE.MeshBasicMaterial({ map: textSign('EXIT', '#300', '#ff4040'), toneMapped: false }), 0, 3.1, -0.3).rotation.y = Math.PI;
 
+// ---------------------------------------------------------------- static batching
+// Meshes that never move and share a material (and click target) are merged into one draw.
+// Anything under a userData.dynamic ancestor, transparent, or multi-material stays as is.
+{
+  scene.updateMatrixWorld(true);
+  const isDynamic = o => { for (let a = o; a; a = a.parent) if (a.userData.dynamic) return true; return false; };
+  const buckets = new Map();
+  scene.traverse(o => {
+    if (!o.isMesh || Array.isArray(o.material) || o.material.transparent || isDynamic(o)) return;
+    const key = `${o.material.uuid}|${o.userData.stop ?? ''}|${o.geometry.index ? 'i' : 'n'}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(o);
+  });
+  for (const list of buckets.values()) {
+    if (list.length < 2) continue;
+    const merged = mergeGeometries(list.map(m => m.geometry.clone().applyMatrix4(m.matrixWorld)), false);
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, list[0].material);
+    mesh.userData.stop = list[0].userData.stop;
+    scene.add(mesh);
+    list.forEach(m => m.removeFromParent());
+  }
+  clickables.length = 0;
+  scene.traverse(o => { if (o.isMesh && o.userData.stop !== undefined) clickables.push(o); });
+}
+
 // ---------------------------------------------------------------- post-processing
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.7, 0.5, 0.9);
+// Bloom only catches real emitters (linear > 1.1). Lit props never reach it.
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.45, 0.35, 1.1);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
+const fxaa = new ShaderPass(FXAAShader);
+composer.addPass(fxaa);
+function sizeFxaa() {
+  const pr = renderer.getPixelRatio();
+  fxaa.material.uniforms.resolution.value.set(1 / (innerWidth * pr), 1 / (innerHeight * pr));
+}
+sizeFxaa();
+
+// Emitters get real HDR level. Under the composer, toneMapped:false is ignored (OutputPass
+// tone-maps every pixel), so screens, marquees and the sign are lifted above 1.0 instead.
+{
+  const seen = new Set();
+  scene.traverse(o => {
+    const m = o.material;
+    if (!o.isMesh || !m || !m.isMeshBasicMaterial || seen.has(m) || m.blending === THREE.AdditiveBlending) return;
+    seen.add(m);
+    if (m === signMesh.material) m.color.setScalar(1.6);
+    else if (m.map) m.color.multiplyScalar(1.4);
+    else m.color.multiplyScalar(1.2);  // ceiling light panels
+  });
+}
 
 // ---------------------------------------------------------------- the walk
 const v = (x, y, z) => new THREE.Vector3(x, y, z);
 const STOPS = [
-  { pos: v(0, 1.62, 9.8), look: v(0, 2.55, 0) },          // mall, facing the sign
-  { pos: v(0.9, 1.6, -0.2), look: v(-1.5, 1.6, -2.7) },   // motion controls
-  { pos: v(-2.9, 1.6, -6.4), look: v(-6.0, 1.4, -7.3) },  // animated gun models
-  { pos: v(2.9, 1.8, -11.0), look: v(6.8, 1.0, -10.9) },  // racing
-  { pos: v(-3.3, 1.6, -12.0), look: v(-7.2, 1.45, -12.0) }, // Model 3
-  { pos: v(3.7, 1.6, -14.5), look: v(7.3, 1.2, -14.6) },  // Wii
-  { pos: v(3.7, 1.6, -17.1), look: v(7.3, 1.2, -17.2) },  // PS2
-  { pos: v(1.2, 1.6, -18.3), look: v(4.2, 1.2, -21.6) },  // prize counter
-  { pos: v(-1.2, 1.6, -16.4), look: v(-4.4, 1.35, -18.8) }, // the Hub
-  { pos: v(0.6, 1.65, -19.4), look: v(1.5, 1.95, -26) },  // scoreboard
+  { pos: v(0, 1.62, 9.8), look: v(0, 2.55, 0), fov: 58 },            // mall, facing the sign
+  { pos: v(0.9, 1.6, -0.2), look: v(-2.76, 1.49, -4.95), fov: 50, subject: v(-1.95, 1.45, -2.1) },  // motion controls
+  { pos: v(-2.9, 1.6, -6.4), look: v(-8.53, 1.27, -8.46), fov: 46, subject: v(-5.0, 1.45, -6.5) }, // the gun
+  { pos: v(4.6, 1.8, -11.45), look: v(10.04, -0.71, -11.72), fov: 52, subject: v(6.2, 1.0, -11.0) }, // racing, over the seat
+  { pos: v(-3.3, 1.6, -12.0), look: v(-9.16, 1.34, -13.25), fov: 58, subject: v(-7.0, 1.4, -11.9) }, // Model 3
+  { pos: v(3.2, 1.6, -15.5), look: v(9.19, 1.2, -15.55), fov: 46, subject: v(7.0, 1.2, -14.8) },  // Wii
+  { pos: v(3.2, 1.6, -16.3), look: v(9.18, 1.19, -16.08), fov: 46, subject: v(7.0, 1.2, -17.0) }, // PS2
+  { pos: v(1.2, 1.6, -18.3), look: v(3.7, 1.32, -23.75), fov: 58, subject: v(4.0, 1.1, -21.6) },  // prize counter
+  { pos: v(-1.8, 1.6, -16.9), look: v(-5.51, 1.18, -21.59), fov: 52, subject: v(-4.2, 1.45, -18.6) }, // the Hub
+  { pos: v(0.6, 1.65, -19.4), look: v(1.82, 1.92, -25.27), fov: 58, subject: v(-0.4, 2.0, -25.9) }, // scoreboard
 ];
-// in-between waypoints keep the path off the cabinets
-const PATH = [STOPS[0].pos, v(0, 1.61, 5.2), v(0, 1.6, 2.0), STOPS[1].pos, v(-0.6, 1.6, -4.4), STOPS[2].pos,
+// in-between waypoints keep the path at least 0.5 m off the cabinets
+const PATH = [STOPS[0].pos, v(0, 1.61, 5.2), v(0, 1.6, 2.0), STOPS[1].pos, v(-2.4, 1.6, -4.9), STOPS[2].pos,
   v(-2.9, 1.6, -9.0), v(0.8, 1.6, -10.0), STOPS[3].pos, v(0.4, 1.6, -11.6), STOPS[4].pos, v(0.2, 1.6, -13.4),
   STOPS[5].pos, STOPS[6].pos, STOPS[7].pos, v(0.0, 1.6, -17.4), STOPS[8].pos, v(-0.2, 1.6, -18.4), STOPS[9].pos];
 const STOP_IDX = STOPS.map(st => PATH.indexOf(st.pos));
 const curve = new THREE.CatmullRomCurve3(PATH, false, 'centripetal');
 const N = STOPS.length;
-if (camera.aspect < 1) STOPS[0].pos.set(0, 1.62, 16.5);
+// Each stop's view as yaw and pitch, so moves between opposite walls turn the head instead of
+// swinging the look point through the camera.
+function aimStops() {
+  STOPS[0].pos.set(0, 1.62, portrait ? 16.5 : 9.8);
+  for (const st of STOPS) {
+    // portrait: the card covers the lower half, so aim a little under the subject to lift it into view
+    const target = portrait && st.subject ? st.subject.clone().add(v(0, -0.55, 0)) : st.look;
+    const d = target.clone().sub(st.pos);
+    st.yaw = Math.atan2(d.x, -d.z);
+    st.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
+  }
+}
+aimStops();
+const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 
 const sections = [...document.querySelectorAll('.stop')];
 const cards = sections.map(s => s.querySelector('.card'));
@@ -1089,7 +1268,12 @@ function poseAt(q, outPos, outLook) {
   const te = smooth(0.12, 0.88, t);
   const a = STOP_IDX[i] / (PATH.length - 1), b = STOP_IDX[i + 1] / (PATH.length - 1);
   curve.getPoint(a + (b - a) * te, outPos);
-  outLook.lerpVectors(STOPS[i].look, STOPS[i + 1].look, smooth(0.25, 0.95, t));
+  const A = STOPS[i], B = STOPS[i + 1], k = smooth(0.2, 0.85, t);
+  const yaw = A.yaw + wrapAngle(B.yaw - A.yaw) * k, pitch = A.pitch + (B.pitch - A.pitch) * k;
+  outLook.set(outPos.x + Math.sin(yaw) * Math.cos(pitch), outPos.y + Math.sin(pitch), outPos.z - Math.cos(yaw) * Math.cos(pitch));
+  // per-stop lens; portrait phones get 16 degrees more so the subject fits above the card
+  const fov = A.fov + (B.fov - A.fov) * k + (portrait ? 16 : 0);
+  if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
   return te;
 }
 
@@ -1131,29 +1315,64 @@ function pick(e) {
 }
 
 addEventListener('keydown', e => {
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;  // leave browser shortcuts alone
   if (e.target.closest && e.target.closest('a, button, input')) return;
   const cur = Math.round(p);
   if (e.key === 'ArrowRight' || e.key === 'n') { scrollToStop(Math.min(N - 1, cur + 1)); e.preventDefault(); }
   if (e.key === 'ArrowLeft' || e.key === 'p') { scrollToStop(Math.max(0, cur - 1)); e.preventDefault(); }
 });
 
-addEventListener('resize', () => {
+function resize() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   composer.setSize(innerWidth, innerHeight);
+  sizeFxaa();
+  const nowPortrait = innerWidth < innerHeight;
+  if (nowPortrait !== portrait) { portrait = nowPortrait; aimStops(); }
   measure();
   p = progress();
-});
+}
+// debounced: phone toolbars resize the viewport on every scroll direction change
+let resizeTimer = 0;
+addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 150); });
 
 // ---------------------------------------------------------------- loop
 const clock = new THREE.Clock();
-let screenAcc = 0, walked = 0, lastPShown = pShown;
-function frame() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+let screenAcc = 0, walked = 0, lastPShown = pShown, signArmed = false;
+sign.restart(0.9);
+// Quality governor: hold ~60 fps on fast displays, and step resolution, then bloom, down
+// when frames run long. It never steps back up within a visit.
+const FRAME_MS = 1000 / 61;
+let lastFrame = 0, slowAcc = 0, slowCount = 0, dprCap = renderer.getPixelRatio();
+const govStart = performance.now() + 3000;  // ignore shader compiles and font swaps at load
+function govern(ms) {
+  if (ms > 100 || performance.now() < govStart) return;  // tab hidden, or still warming up
+  slowAcc += ms; slowCount++;
+  if (slowCount < 90) return;
+  const avg = slowAcc / slowCount; slowAcc = 0; slowCount = 0;
+  if (avg < 28) return;  // under ~36 fps sustained
+  if (dprCap > 1) {
+    dprCap = Math.max(1, dprCap - 0.25);
+    renderer.setPixelRatio(dprCap); composer.setPixelRatio(dprCap);
+    renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); sizeFxaa();
+  } else if (bloom.enabled) {
+    bloom.enabled = false;
+  }
+}
+function frame(now = 0) {
+  if (stopped) return;
+  requestAnimationFrame(frame);
+  if (now - lastFrame < FRAME_MS) return;
+  govern(now - lastFrame);
+  lastFrame = now;
+  if (renderer.info.autoReset === false) renderer.info.reset();
+  const rawDt = clock.getDelta();
+  const dt = Math.min(rawDt, 0.05);  // animation step
   const t = clock.elapsedTime;
 
-  pShown += (p - pShown) * (reducedMotion ? 1 : 1 - Math.exp(-dt * 6));
+  // the walk eases on real time, so a slow frame rate does not leave the camera a stop behind
+  pShown += (p - pShown) * (reducedMotion ? 1 : 1 - Math.exp(-Math.min(rawDt, 0.5) * 6));
   if (Math.abs(p - pShown) < 1e-4) pShown = p;
   poseAt(pShown, camPos, camLook);
 
@@ -1167,7 +1386,9 @@ function frame() {
   pointerEase.y += (pointer.y - pointerEase.y) * (1 - Math.exp(-dt * 3));
   if (!drag || !drag.look) { dragYaw *= Math.exp(-dt * 0.6); dragPitch *= Math.exp(-dt * 0.6); }
   lookTmp.subVectors(camLook, camPos);
-  const yaw = -pointerEase.x * 0.12 + dragYaw, pitch = -pointerEase.y * 0.06 + dragPitch;
+  // parallax shrinks with the lens on narrow screens so it never pushes the subject out of frame
+  const sway = Math.min(1, camera.aspect);
+  const yaw = -pointerEase.x * 0.12 * sway + dragYaw, pitch = -pointerEase.y * 0.06 * sway + dragPitch;
   lookTmp.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
   const right = new THREE.Vector3().crossVectors(lookTmp, camera.up).normalize();
   lookTmp.applyAxisAngle(right, pitch);
@@ -1176,6 +1397,10 @@ function frame() {
   // attract screens at ~20 fps
   screenAcc += dt;
   for (const fn of animated) fn(t, dt);
+  // the sign replays its ARCADE to AC routine whenever you walk back out to the mall
+  if (p > 0.6) signArmed = true;
+  if (signArmed && p < 0.05) { sign.restart(t + 0.3); signArmed = false; }
+  sign.update(t);
   if (screenAcc > 0.05) { for (const fn of screens) fn(t); screenAcc = 0; }
 
   // cards and HUD follow the scroll, not the eased camera, so text never lags
@@ -1193,7 +1418,6 @@ function frame() {
   creditNum.textContent = String(Math.round(p)).padStart(2, '0');
 
   composer.render(dt);
-  requestAnimationFrame(frame);
 }
 
 // deep links (#stop-3) land on their stop without a walk from the mall
@@ -1201,6 +1425,10 @@ function frame() {
   const i = sections.findIndex(sec => '#' + sec.id === location.hash);
   if (i > 0) { scrollTo({ top: tops[i], behavior: 'instant' }); p = pShown = lastPShown = i; }
 }
-frame();
+// ?debug exposes render stats for checking draw calls and quality steps
+const debug = new URLSearchParams(location.search).has('debug');
+if (debug) renderer.info.autoReset = false;
+if (debug) window.__acvr = { renderer, scene, bloom, get dpr() { return renderer.getPixelRatio(); }, get p() { return p; } };
+requestAnimationFrame(frame);
 requestAnimationFrame(() => curtain.classList.add('done'));
 setTimeout(() => curtain.remove(), 900);

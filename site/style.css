@@ -110,7 +110,7 @@ body:not(.js) {
   gap: 10px;
   text-decoration: none;
   color: var(--ink-dim);
-  font: 9px/1 var(--pixel);
+  font: 10px/1 var(--pixel);
 }
 .stops a::after {
   content: "";
@@ -188,7 +188,7 @@ body:not(.js) .stop { height: auto; padding: 120px 0 40px; }
   pointer-events: auto;
 }
 .card-right { margin-left: auto; margin-right: clamp(110px, 12vw, 190px); }
-.js .card[data-hidden] { pointer-events: none; visibility: hidden; }
+.js .card[data-hidden] { pointer-events: none; }
 
 .card-hero {
   top: 50vh;
@@ -291,11 +291,13 @@ a:focus-visible, .btn:focus-visible { outline: 2px solid var(--neon-cyan); outli
   body { font-size: 15px; }
   .brand { font-size: 16px; }
   .brand img { width: 28px; height: 28px; }
+  .brand span { display: none; }  /* the token stays; the links need the room */
+  .hud-links a { white-space: nowrap; }
   .hud-links a { padding: 8px 9px; font-size: 8px; }
-  .hud-links a + a { display: none; }
+  .hud-links a:nth-child(n+3) { display: none; }
   .stops { right: 8px; }
   .stops ol { gap: 12px; }
-  .stops a span { display: none; }
+  .stops a span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .card, .card-hero, .card-right {
     top: auto;
     bottom: 16px;

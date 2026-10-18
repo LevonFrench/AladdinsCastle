@@ -11,9 +11,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js" crossorigin>
+<link rel="modulepreload" href="arcade.js">
 <script type="importmap">
 { "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js",
   "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
 } }
 </script>
@@ -29,6 +31,7 @@
   </a>
   <nav class="hud-links">
     <a href="how-it-works.html">How it works</a>
+    <a href="games.html">Game list</a>
     <a href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
     <a href="https://github.com/LevonFrench/AladdinsCastle/blob/main/docs/quest3-quickstart.md" rel="noopener">Play VR now</a>
   </nav>
@@ -60,7 +63,7 @@
     <div class="card card-hero">
       <p class="eyebrow">Open source · GPL-3.0 · in development</p>
       <h1>Step inside the game.</h1>
-      <p class="lede">AC VR Hub installs and launches <strong>true 3D VR</strong> for arcade and console light gun and racing games. The game's own world drawn around you in stereo, a gun in your hand, a wheel you can grab.</p>
+      <p class="lede">AC VR Hub installs and launches <strong>true 3D VR</strong> for arcade and console light gun and racing games. You stand inside the game's own 3D world, drawn in stereo, with a gun in your hand or a wheel to grab.</p>
       <p class="fine">New game profiles and emulator wrappers are added all the time.</p>
       <p class="scroll-hint"><span class="blink">▼</span> Scroll to walk in</p>
     </div>
@@ -70,7 +73,7 @@
     <div class="card card-right">
       <p class="eyebrow">Motion controls</p>
       <h2>Your hands are the cabinet.</h2>
-      <p>Your motion controllers become whatever the cabinet had. Point one and it is a light gun. Reach out and it grabs a wheel. Squeeze the triggers and they are pedals.</p>
+      <p>Your motion controllers stand in for whatever the cabinet had. Point one at the screen and it works as a light gun, or reach out and take hold of a wheel while the analog triggers work the pedals.</p>
       <ul class="ticks">
         <li>Let go of the grip to take cover, squeeze to pop back out</li>
         <li>Point off-screen to reload</li>
@@ -88,9 +91,9 @@
       <ul class="ticks">
         <li>The slide kicks back on every shot; triggers, hammers and pumps move</li>
         <li>A gun in each hand for two-gun play</li>
-        <li>Aim follows the barrel, not a flat screen</li>
+        <li>Shots land where the barrel points</li>
       </ul>
-      <p class="fine">Lookalikes, not copies: original shapes with no logos, released under CC0.</p>
+      <p class="fine">Every model is an original lookalike with no logos, released under CC0.</p>
     </div>
   </section>
 
@@ -98,7 +101,7 @@
     <div class="card card-left">
       <p class="eyebrow">Sit-down racers</p>
       <h2>Ghost controls.</h2>
-      <p>Racing cabinets appear around you as see-through ghost controls: wheel, shifter, handlebars, levers. Reach out and grab one to take over. Analog triggers become pedals, with haptic detents and force feedback.</p>
+      <p>Racing cabinets appear around you as see-through ghost controls: a wheel, shifter, handlebars or levers. Grab one to take over. The analog triggers act as pedals, and you feel detents and force feedback through the controllers.</p>
     </div>
   </section>
 
@@ -133,7 +136,7 @@
     <div class="card card-left">
       <p class="eyebrow">Prize counter</p>
       <h2>Everything is a file.</h2>
-      <p>Games, VR setups, install recipes, control sets, guns and profiles are plain TOML you can read, copy, share and override. Adding a game is a folder, not a code change.</p>
+      <p>Games, VR setups, install recipes, control sets, guns and profiles are plain TOML you can read, copy, share and override. Adding a game takes a new folder and no code.</p>
       <p>Built on the people already doing this work: namco22-decompile, Supermodel, Dolphin, PCSX2, MAME, Time Crisis VR, VC2VR, DemulShooter and many more. We install them, add the missing VR pieces and send fixes upstream.</p>
       <p class="fine">The Hub is GPL-3.0. The shared VR runtime, libacvr, is MIT so any emulator or engine can link it.</p>
     </div>
@@ -160,7 +163,8 @@
       <p>The Qt Hub builds and its catalog, scanning, install and flat-launch paths are covered by tests. The shared VR runtime and the Wii, Model 3 and PS2 setups are being built now. There is no finished Hub-to-headset game yet.</p>
       <p>New game profiles and emulator wrappers land all the time, so the list of games keeps growing.</p>
       <p class="actions">
-        <a class="btn" href="how-it-works.html">How it works</a>
+        <a class="btn" href="games.html">Game list</a>
+        <a class="btn btn-ghost" href="how-it-works.html">How it works</a>
         <a class="btn btn-ghost" href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
         <a class="btn btn-ghost" href="https://github.com/LevonFrench/AladdinsCastle/blob/main/docs/roadmap.md" rel="noopener">Roadmap</a>
       </p>
