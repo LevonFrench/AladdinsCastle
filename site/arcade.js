@@ -130,6 +130,8 @@ function plane(w, h, mat, x = 0, y = 0, z = 0, parent = scene) {
   parent.add(m);
   return m;
 }
+const v = (x, y, z) => new THREE.Vector3(x, y, z);
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const pix = (g, size) => { g.font = `${size}px "Press Start 2P", monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; };
 function rng(seed) {
   return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -1029,39 +1031,59 @@ function controllerModel(color) {
   return g;
 }
 
-function floatingRing(x, y, z, r = 0.15) {
+function floatingRing(x, y, z, r = 0.15, parent = scene) {
   const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.006, 8, 48), glow('#4ff3ff', 0.9));
-  ring.rotation.x = Math.PI / 2; ring.position.set(x, y, z); scene.add(ring);
+  ring.rotation.x = Math.PI / 2; ring.position.set(x, y, z); parent.add(ring);
   return ring;
 }
 
+// Exhibits spread out on wide screens and gather on narrow ones. Each registers a wide and a
+// narrow spot; applyLayout() blends between them by aspect ratio (at start and on resize).
+const layouts = [];
+function exhibitHolder(wide, narrow) {
+  const holder = new THREE.Group();
+  holder.userData.dynamic = true;  // keeps it out of static batching so it can move
+  scene.add(holder);
+  layouts.push({ holder, wide, narrow });
+  return holder;
+}
+function applyLayout() {
+  const k = smooth(1.45, 2.0, camera.aspect);  // 16:10 laptop stays gathered, 2:1 and wider spreads
+  for (const { holder, wide, narrow } of layouts) holder.position.lerpVectors(narrow, wide, k);
+}
+
 // turntable display for a gun: spins, fires, bobs
-function gunOnTurntable(gun, x, y, z, scale, stop, i) {
+function gunOnTurntable(gun, wide, narrow, scale, stop, i) {
+  const holder = exhibitHolder(wide, narrow);
   const pivot = new THREE.Group();
-  pivot.position.set(x, y, z); pivot.userData.dynamic = true; gun.scale.setScalar(scale); pivot.add(gun); scene.add(pivot);
-  floatingRing(x, y - 0.32, z);
-  if (stop !== undefined) markClickable(pivot, stop);
+  gun.scale.setScalar(scale); pivot.add(gun); holder.add(pivot);
+  floatingRing(0, -0.32, 0, 0.15, holder);
+  if (stop !== undefined) markClickable(holder, stop);
   animated.push(t => {
     if (!reducedMotion) {
       pivot.rotation.y = t * 0.45 + i * 1.3;
-      pivot.position.y = y + Math.sin(t * 1.1 + i) * 0.02;
+      pivot.position.y = Math.sin(t * 1.1 + i) * 0.02;
     }
     gun.rotation.x = animateShot(gun, t, 2.4, i * 0.47) * 0.3;
   });
-  return pivot;
+  return holder;
 }
 
-// stop 1: two controllers that turn into guns and back
-[[-1.75, 1.55, -1.85, '#4ff3ff', 'slide', PAL.blue, '#e8e8ee', 0], [-2.2, 1.3, -2.35, '#ff4fa8', 'twin', PAL.red, PAL.yellow, 1]].forEach(([x, y, z, col, kind, main, acc, i]) => {
+// stop 1: two controllers that turn into guns and back. Wide screens (2:1 and up): at about 22%
+// and 42% of the width from the stop-1 camera, so both stay left of the card. Narrow screens: both gathered left of centre. The camera
+// path curves to the right of both (1.4 m or more).
+[
+  { wide: v(-1.46, 1.5, -1.29), narrow: v(-1.9, 1.55, -2.3), col: '#4ff3ff', kind: 'slide', main: PAL.blue, acc: '#e8e8ee', i: 0 },
+  { wide: v(-1.4, 1.35, -2.41), narrow: v(-1.6, 1.3, -2.9), col: '#ff4fa8', kind: 'twin', main: PAL.red, acc: PAL.yellow, i: 1 },
+].forEach(({ wide, narrow, col, kind, main, acc, i }) => {
+  const holder = exhibitHolder(wide, narrow);
   const pivot = new THREE.Group();
-  pivot.position.set(x, y, z);
   const ctrl = controllerModel(col);
   const gun = gunModel(kind, main, acc);
   pivot.add(ctrl, gun);
-  pivot.userData.dynamic = true;
-  scene.add(pivot);
-  floatingRing(x, y - 0.32, z, 0.17);
-  markClickable(pivot, 1);
+  holder.add(pivot);
+  floatingRing(0, -0.32, 0, 0.17, holder);
+  markClickable(holder, 1);
   const S = 3.4;
   animated.push(t => {
     const cyc = ((t + i * 0.8) % 7) / 7;
@@ -1078,14 +1100,13 @@ function gunOnTurntable(gun, x, y, z, scale, stop, i) {
 {
   const models = [['slide', PAL.blue, '#e8e8ee'], ['revolver', PAL.teal, '#c9c9d2'], ['twin', PAL.red, PAL.yellow], ['dpad', PAL.orange, '#1b1b20'], ['shell', '#a7acb8', '#4fd2ff']]
     .map(([kind, main, acc]) => gunModel(kind, main, acc));
-  const x = -5.0, y = 1.45, z = -6.5, S = 2.5, HOLD = 4.5;
+  const S = 2.5, HOLD = 4.5;
+  const holder = exhibitHolder(v(-5.0, 1.45, -6.5), v(-5.0, 1.45, -6.5));  // one gun: same spot at every width
   const pivot = new THREE.Group();
-  pivot.position.set(x, y, z);
   models.forEach(m => { m.scale.setScalar(1e-4); pivot.add(m); });
-  pivot.userData.dynamic = true;
-  scene.add(pivot);
-  floatingRing(x, y - 0.32, z);
-  markClickable(pivot, 2);
+  holder.add(pivot);
+  floatingRing(0, -0.32, 0, 0.15, holder);
+  markClickable(holder, 2);
   animated.push(t => {
     const n = Math.floor(t / HOLD), ph = (t % HOLD) / HOLD;
     const grow = smooth(0, 0.08, ph) * (1 - smooth(0.92, 1, ph));
@@ -1093,7 +1114,7 @@ function gunOnTurntable(gun, x, y, z, scale, stop, i) {
     const gun = models[n % models.length];
     if (!reducedMotion) {
       pivot.rotation.y = t * 0.45;
-      pivot.position.y = y + Math.sin(t * 1.1) * 0.02;
+      pivot.position.y = Math.sin(t * 1.1) * 0.02;
     }
     gun.rotation.x = animateShot(gun, t, 1.5, 0.6) * 0.3;
   });
@@ -1106,7 +1127,7 @@ upright({ x: -7.2, z: -11.9, rotY: Math.PI / 2, color: PAL.lime, marquee: 'm3-b'
 sitdown({ x: -6.6, z: -13.3, rotY: Math.PI / 2, color: PAL.purple, marquee: 'm3-c', screenTex: screenRace, stop: 4 });
 
 // stops 5 and 6: console kiosks on the right wall, each with its own gun
-function kiosk({ x, z, consoleKind, screenTex, gun, stop, i, gunDz = 0 }) {
+function kiosk({ x, z, consoleKind, screenTex, gun, stop, i, gunDzWide = 0, gunDzNarrow = 0 }) {
   const g = new THREE.Group();
   box(1.5, 0.72, 0.55, std('#3a2752', { roughness: 0.6 }), 0, 0.36, 0, g);
   box(1.5, 0.03, 0.03, glow(consoleKind === 'tall' ? '#4fd2ff' : PAL.orange, 2), 0, 0.72, 0.28, g);
@@ -1126,11 +1147,12 @@ function kiosk({ x, z, consoleKind, screenTex, gun, stop, i, gunDz = 0 }) {
   g.position.set(x, 0, z); g.rotation.y = -Math.PI / 2;
   scene.add(g);
   markClickable(g, stop);
-  // the gun floats beside the TV, off the line from the aisle to the screen
-  gunOnTurntable(gun, x - 1.05, 1.3, z + gunDz, 2.4, stop, i);
+  // the gun floats on the kiosk's outer side, away from its neighbour: further out on wide
+  // screens, tucked closer to the TV on narrow ones
+  gunOnTurntable(gun, v(x - 1.05, 1.3, z + gunDzWide), v(x - 1.05, 1.3, z + gunDzNarrow), 2.4, stop, i);
 }
-kiosk({ x: 7.35, z: -14.6, consoleKind: 'tall', screenTex: screenCorridor, gun: gunModel('shell', '#a7acb8', '#4fd2ff'), stop: 5, i: 5, gunDz: -0.8 });
-kiosk({ x: 7.35, z: -17.2, consoleKind: 'slab', screenTex: screenGun, gun: gunModel('dpad', PAL.orange, '#1b1b20'), stop: 6, i: 6, gunDz: 0.8 });
+kiosk({ x: 7.35, z: -14.6, consoleKind: 'tall', screenTex: screenCorridor, gun: gunModel('shell', '#a7acb8', '#4fd2ff'), stop: 5, i: 5, gunDzWide: 1.05, gunDzNarrow: 0.55 });
+kiosk({ x: 7.35, z: -17.2, consoleKind: 'slab', screenTex: screenGun, gun: gunModel('dpad', PAL.orange, '#1b1b20'), stop: 6, i: 6, gunDzWide: -1.05, gunDzNarrow: -0.55 });
 
 // exit sign over the door, inside
 plane(0.5, 0.18, new THREE.MeshBasicMaterial({ map: textSign('EXIT', '#300', '#ff4040'), toneMapped: false }), 0, 3.1, -0.3).rotation.y = Math.PI;
@@ -1191,10 +1213,9 @@ sizeFxaa();
 }
 
 // ---------------------------------------------------------------- the walk
-const v = (x, y, z) => new THREE.Vector3(x, y, z);
 const STOPS = [
   { pos: v(0, 1.62, 9.8), look: v(0, 2.55, 0), fov: 58 },            // mall, facing the sign
-  { pos: v(0.9, 1.6, -0.2), look: v(-2.76, 1.49, -4.95), fov: 50, subject: v(-1.95, 1.45, -2.1) },  // motion controls
+  { pos: v(0.9, 1.6, -0.2), look: v(-2.76, 1.49, -4.95), fov: 50, subject: v(-1.75, 1.42, -2.6) },  // motion controls
   { pos: v(-2.9, 1.6, -6.4), look: v(-8.53, 1.27, -8.46), fov: 46, subject: v(-5.0, 1.45, -6.5) }, // the gun
   { pos: v(4.6, 1.8, -11.45), look: v(10.04, -0.71, -11.72), fov: 52, subject: v(6.2, 1.0, -11.0) }, // racing, over the seat
   { pos: v(-3.3, 1.6, -12.0), look: v(-9.16, 1.34, -13.25), fov: 58, subject: v(-7.0, 1.4, -11.9) }, // Model 3
@@ -1205,7 +1226,7 @@ const STOPS = [
   { pos: v(0.6, 1.65, -19.4), look: v(1.82, 1.92, -25.27), fov: 58, subject: v(-0.4, 2.0, -25.9) }, // scoreboard
 ];
 // in-between waypoints keep the path at least 0.5 m off the cabinets
-const PATH = [STOPS[0].pos, v(0, 1.61, 5.2), v(0, 1.6, 2.0), STOPS[1].pos, v(-2.4, 1.6, -4.9), STOPS[2].pos,
+const PATH = [STOPS[0].pos, v(0, 1.61, 5.2), v(0, 1.6, 2.0), STOPS[1].pos, v(0.2, 1.6, -4.2), v(-2.6, 1.6, -5.0), STOPS[2].pos,
   v(-2.9, 1.6, -9.0), v(0.8, 1.6, -10.0), STOPS[3].pos, v(0.4, 1.6, -11.6), STOPS[4].pos, v(0.2, 1.6, -13.4),
   STOPS[5].pos, STOPS[6].pos, STOPS[7].pos, v(0.0, 1.6, -17.4), STOPS[8].pos, v(-0.2, 1.6, -18.4), STOPS[9].pos];
 const STOP_IDX = STOPS.map(st => PATH.indexOf(st.pos));
@@ -1224,6 +1245,7 @@ function aimStops() {
   }
 }
 aimStops();
+applyLayout();
 const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 
 const sections = [...document.querySelectorAll('.stop')];
@@ -1253,7 +1275,6 @@ function progress() {
   }
   return 0;
 }
-const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 const lookTmp = new THREE.Vector3();
@@ -1331,6 +1352,7 @@ function resize() {
   sizeFxaa();
   const nowPortrait = innerWidth < innerHeight;
   if (nowPortrait !== portrait) { portrait = nowPortrait; aimStops(); }
+  applyLayout();
   measure();
   p = progress();
 }

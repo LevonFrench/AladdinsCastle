@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How It Works · AC VR Hub</title>
-<meta name="description" content="How AC VR Hub works, drawn as a stage-select map: from your files to the headset, the SteamVR panel, VR pinball, and how Model 3, Wii and PS2 reach OpenXR.">
+<meta name="description" content="How AC VR Hub works: from your files to the headset, the Hub panel inside SteamVR, the VR pinball launcher, and how Model 3, Wii and PS2 reach OpenXR.">
 <meta name="theme-color" content="#120c1f">
 <link rel="icon" href="token.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="pipeline.css">
+<link rel="stylesheet" href="flow.css">
 </head>
-<body class="how-page">
+<body class="flow-page">
 <header class="hud">
   <a class="brand" href="index.html" aria-label="AC VR Hub, back to the arcade">
     <img src="token.svg" alt="" width="34" height="34">
@@ -26,219 +26,201 @@
   </nav>
 </header>
 
-<main class="how">
-  <section class="title-screen">
-    <p class="eyebrow">How it works</p>
-    <h1>Stage select</h1>
-    <p class="lede">How a game gets from your shelf into the headset, how the Hub works as a panel inside SteamVR, the VR pinball bonus stage, and how each console is turned into OpenXR.</p>
-    <ul class="legend" aria-label="Status key">
-      <li><span class="chip clear">Clear</span> works and is covered by tests or owner checks</li>
-      <li><span class="chip wip">In progress</span> built, being finished or tested</li>
-      <li><span class="chip locked">Not yet</span> not accepted yet</li>
+<main class="flow-main">
+  <header class="intro">
+    <h1>How it works</h1>
+    <p class="lede">How a game gets from your shelf into the headset, how the Hub works as a panel inside SteamVR, the VR pinball launcher, and how each console is turned into OpenXR.</p>
+    <ul class="key" aria-label="Status key">
+      <li><span class="state ok">Working</span> covered by tests or owner checks</li>
+      <li><span class="state wip">In progress</span> built, being finished or tested</li>
+      <li><span class="state no">Not yet</span> not accepted yet</li>
     </ul>
-    <nav class="world-select" aria-label="Worlds">
-      <a href="#world-1"><b>1</b> Files to headset</a>
-      <a href="#world-2"><b>2</b> SteamVR panel</a>
-      <a href="#world-3"><b>3</b> VR pinball</a>
-      <a href="#world-4"><b>4</b> OpenXR for consoles</a>
+    <nav class="jump" aria-label="Sections">
+      <a href="#files">Files to headset</a>
+      <a href="#panel">SteamVR panel</a>
+      <a href="#pinball">VR pinball</a>
+      <a href="#openxr">Consoles to OpenXR</a>
     </nav>
-  </section>
+  </header>
 
-  <section class="world" id="world-1" style="--world: #f6c744">
-    <header class="world-head">
-      <span class="world-num">World 1</span>
-      <h2>Insert coin: from your files to the headset</h2>
-    </header>
-    <ol class="stages">
-      <li class="stage">
-        <span class="stage-num">1-1</span><i class="sprite" data-sprite="folder"></i>
+  <section class="pipe" id="files" style="--accent: #f6c744">
+    <h2>From your files to the headset</h2>
+    <ol class="flow">
+      <li class="node">
+        <i class="sprite" data-sprite="folder"></i>
         <h3>Your files</h3>
         <p>Point the Hub at your ROM, disc and PC game folders. Files are matched by hash or disc serial and read where they are. Nothing is downloaded.</p>
-        <span class="chip clear">Clear</span>
+        <span class="state ok">Working</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">1-2</span><i class="sprite" data-sprite="scroll"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="scroll"></i>
         <h3>Recipe</h3>
         <p>Each game has an <code>install.toml</code> with one block per VR setup: fetch the pinned emulator release from upstream, extract, write config, add shortcuts.</p>
-        <span class="chip clear">Clear</span>
+        <span class="state ok">Working</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">1-3</span><i class="sprite" data-sprite="shield"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="shield"></i>
         <h3>Verify</h3>
         <p>Receipts and hashes record what was installed, so updates and uninstall touch only what the Hub put there.</p>
-        <span class="chip clear">Clear</span>
+        <span class="state ok">Working</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">1-4</span><i class="sprite" data-sprite="play"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="play"></i>
         <h3>Launch</h3>
         <p>Pre-flight checks, SteamVR started if it is not running, then the game's VR setup runs with its own settings.</p>
-        <span class="chip wip">In progress</span>
+        <span class="state wip">In progress</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">1-5</span><i class="sprite" data-sprite="headset"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="headset"></i>
         <h3>In the headset</h3>
         <p>The VR setup owns the OpenXR session while you play. Quit and you are back in the Hub.</p>
-        <span class="chip wip">In progress</span>
+        <span class="state wip">In progress</span>
       </li>
     </ol>
   </section>
 
-  <section class="world" id="world-2" style="--world: #4ff3ff">
-    <header class="world-head">
-      <span class="world-num">World 2</span>
-      <h2>SteamVR panel: the Hub inside the headset</h2>
-    </header>
-    <ol class="stages">
-      <li class="stage">
-        <span class="stage-num">2-1</span><i class="sprite" data-sprite="window"></i>
+  <section class="pipe" id="panel" style="--accent: #4ff3ff">
+    <h2>The Hub inside SteamVR</h2>
+    <ol class="flow">
+      <li class="node">
+        <i class="sprite" data-sprite="window"></i>
         <h3>Overlay mode</h3>
         <p>The same Hub screens render off screen and are handed to SteamVR as a dashboard overlay, so the desk and the headset share one UI.</p>
-        <span class="chip clear">Clear</span>
+        <span class="state ok">Working</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">2-2</span><i class="sprite" data-sprite="gear"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="gear"></i>
         <h3>Always there</h3>
         <p>A dashboard manifest registers the Hub tab. Whenever SteamVR runs, the Hub attaches itself as the panel, and it starts SteamVR when it is missing.</p>
-        <span class="chip clear">Clear</span>
+        <span class="state ok">Working</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">2-3</span><i class="sprite" data-sprite="laser"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="laser"></i>
         <h3>Point and click</h3>
         <p>Open the SteamVR dashboard and pick the Hub tab. Your controller's laser becomes mouse input. Clicks, stick scrolling and keys are being fixed after the first headset session.</p>
-        <span class="chip wip">In progress</span>
+        <span class="state wip">In progress</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">2-4</span><i class="sprite" data-sprite="play"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="play"></i>
         <h3>Play from the panel</h3>
         <p>Play runs the same launch service as the desktop Hub. Steam library shortcuts launch the same game and VR setup.</p>
-        <span class="chip wip">In progress</span>
+        <span class="state wip">In progress</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">2-5</span><i class="sprite" data-sprite="headset"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="headset"></i>
         <h3>Straight in</h3>
         <p>The game opens in VR without taking the headset off. Quit and you are back in SteamVR, ready to pick the next one.</p>
-        <span class="chip wip">In progress</span>
+        <span class="state wip">In progress</span>
       </li>
     </ol>
   </section>
 
-  <section class="world" id="world-3" style="--world: #ff4fa8; --cols: 6">
-    <header class="world-head">
-      <span class="world-num">World 3 · Bonus</span>
-      <h2>VR pinball: the Visual Pinball X launcher</h2>
-    </header>
-    <ol class="stages">
-      <li class="stage">
-        <span class="stage-num">3-1</span><i class="sprite" data-sprite="pinball"></i>
+  <section class="pipe" id="pinball" style="--accent: #ff4fa8">
+    <h2>VR pinball with Visual Pinball X</h2>
+    <ol class="flow flow-6">
+      <li class="node">
+        <i class="sprite" data-sprite="pinball"></i>
         <h3>Your VPX</h3>
         <p>Bring your own Visual Pinball X, the BGFX build 10.8.1. The Hub never downloads it.</p>
-        <span class="chip clear">Clear</span>
+        <span class="state ok">Working</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">3-2</span><i class="sprite" data-sprite="folder"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="folder"></i>
         <h3>Your tables</h3>
         <p>One tables folder is scanned in place. Only each table's metadata is read.</p>
-        <span class="chip clear">Clear</span>
+        <span class="state ok">Working</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">3-3</span><i class="sprite" data-sprite="window"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="window"></i>
         <h3>Desk or headset</h3>
         <p>Two buttons. The Hub writes its own settings file per table to turn VR on or off. Your own VPX settings are never edited.</p>
-        <span class="chip clear">Clear</span>
+        <span class="state ok">Working</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">3-4</span><i class="sprite" data-sprite="headset"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="headset"></i>
         <h3>VPX's own OpenXR</h3>
         <p>With SteamVR running, VPX draws the table in the headset itself, without an extra VR layer.</p>
-        <span class="chip wip">In progress</span>
+        <span class="state wip">In progress</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">3-5</span><i class="sprite" data-sprite="pad"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="pad"></i>
         <h3>Controls</h3>
         <p>A gamepad layout goes into a copy of VPX's settings. Hold Y for 3 seconds to close the table. Analog plunger and nudge are still to come.</p>
-        <span class="chip wip">In progress</span>
+        <span class="state wip">In progress</span>
       </li>
-      <li class="stage">
-        <span class="stage-num">3-6</span><i class="sprite" data-sprite="shield"></i>
+      <li class="node">
+        <i class="sprite" data-sprite="shield"></i>
         <h3>Clean exit</h3>
         <p>VPX's processes are kept together and asked to close, never force-killed, so scores get the chance to save.</p>
-        <span class="chip locked">Not yet</span>
+        <span class="state no">Not yet</span>
       </li>
     </ol>
   </section>
 
-  <section class="world world-lanes" id="world-4" style="--world: #9bdc3c">
-    <header class="world-head">
-      <span class="world-num">World 4</span>
-      <h2>OpenXR translation: each system into true 3D</h2>
-    </header>
-    <p class="world-intro">Every route ends the same way: two eye images go to OpenXR, SteamVR puts them in the headset, and your controller's pose comes back as the game's own gun or pointer input. What changes is where the stereo hook sits. New game profiles and emulator wrappers are added all the time.</p>
+  <section class="pipe" id="openxr" style="--accent: #9bdc3c">
+    <h2>How each system reaches OpenXR</h2>
+    <p class="pipe-intro">Every route ends the same way: two eye images go to OpenXR, SteamVR puts them in the headset, and your controller's pose comes back as the game's own gun or pointer input. What changes is where the stereo hook sits. New game profiles and emulator wrappers are added all the time.</p>
 
-    <div class="lane-head" aria-hidden="true">
-      <span>System</span><span>Game</span><span>Stereo hook</span><span>OpenXR</span><span>Headset</span>
-    </div>
-
-    <div class="lanes">
-      <article class="lane">
-        <div class="lane-name"><i class="sprite" data-sprite="chip"></i><h3>Sega Model 3</h3><span class="chip wip">In progress</span></div>
-        <ol class="track">
-          <li data-col="Game"><b>Supermodel</b> emulator, pinned upstream</li>
-          <li data-col="Stereo hook"><b>New3D renderer</b> draws once per eye. Views: Screen, Wide or Inside</li>
-          <li data-col="OpenXR"><b>supermodel-vr</b> opens the OpenXR session</li>
-          <li data-col="Headset"><b>SteamVR</b> to your headset</li>
+    <div class="routes">
+      <article class="route">
+        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>Sega Model 3</h3><span class="state wip">In progress</span></header>
+        <ol class="flow flow-4">
+          <li class="node node-sm"><span class="step">Game</span><p><b>Supermodel</b> emulator, pinned upstream</p></li>
+          <li class="node node-sm"><span class="step">Stereo hook</span><p><b>New3D renderer</b> draws once per eye. Views: Screen, Wide or Inside</p></li>
+          <li class="node node-sm"><span class="step">OpenXR</span><p><b>supermodel-vr</b> opens the OpenXR session</p></li>
+          <li class="node node-sm"><span class="step">Headset</span><p><b>SteamVR</b> to your headset</p></li>
         </ol>
-        <p class="return"><span>Input</span> controller → emulator's own gun and wheel inputs, inside the emulator (planned)</p>
+        <p class="input"><span>Input back</span> controller → emulator's own gun and wheel inputs, inside the emulator (planned)</p>
         <p class="note">Inside view tried by the owner on five games.</p>
       </article>
 
-      <article class="lane">
-        <div class="lane-name"><i class="sprite" data-sprite="chip"></i><h3>Nintendo Wii</h3><span class="chip wip">In progress</span></div>
-        <ol class="track">
-          <li data-col="Game"><b>DolphinXR</b>, a VR build of Dolphin</li>
-          <li data-col="Stereo hook"><b>Dolphin's stereo</b> renders the 3D scene per eye</li>
-          <li data-col="OpenXR"><b>Dolphin's own OpenXR</b> output</li>
-          <li data-col="Headset"><b>SteamVR</b> to your headset</li>
+      <article class="route">
+        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>Nintendo Wii</h3><span class="state wip">In progress</span></header>
+        <ol class="flow flow-4">
+          <li class="node node-sm"><span class="step">Game</span><p><b>DolphinXR</b>, a VR build of Dolphin</p></li>
+          <li class="node node-sm"><span class="step">Stereo hook</span><p><b>Dolphin's stereo</b> renders the 3D scene per eye</p></li>
+          <li class="node node-sm"><span class="step">OpenXR</span><p><b>Dolphin's own OpenXR</b> output</p></li>
+          <li class="node node-sm"><span class="step">Headset</span><p><b>SteamVR</b> to your headset</p></li>
         </ol>
-        <p class="return"><span>Input</span> SteamVR pose → wii-bridge → DSU server → Dolphin's pointer. Off the screen edge = reload</p>
+        <p class="input"><span>Input back</span> SteamVR pose → wii-bridge → DSU server → Dolphin's pointer. Off the screen edge = reload</p>
         <p class="note">The live bridge stays switched off until it passes its readiness checks.</p>
       </article>
 
-      <article class="lane">
-        <div class="lane-name"><i class="sprite" data-sprite="chip"></i><h3>PlayStation 2</h3><span class="chip wip">In progress</span></div>
-        <ol class="track">
-          <li data-col="Game"><b>PCSX2</b>, patched</li>
-          <li data-col="Stereo hook"><b>Per-vertex depth</b> plus the game's camera give real parallax</li>
-          <li data-col="OpenXR"><b>In-process OpenXR</b> presenter</li>
-          <li data-col="Headset"><b>SteamVR</b> to your headset</li>
+      <article class="route">
+        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>PlayStation 2</h3><span class="state wip">In progress</span></header>
+        <ol class="flow flow-4">
+          <li class="node node-sm"><span class="step">Game</span><p><b>PCSX2</b>, patched</p></li>
+          <li class="node node-sm"><span class="step">Stereo hook</span><p><b>Per-vertex depth</b> plus the game's camera give real parallax</p></li>
+          <li class="node node-sm"><span class="step">OpenXR</span><p><b>In-process OpenXR</b> presenter</p></li>
+          <li class="node node-sm"><span class="step">Headset</span><p><b>SteamVR</b> to your headset</p></li>
         </ol>
-        <p class="return"><span>Input</span> controller → console-pistol aim, native to the emulator</p>
+        <p class="input"><span>Input back</span> controller → console-pistol aim, native to the emulator</p>
         <p class="note">Proven offline on 11 game profiles; headset tuning next.</p>
       </article>
 
-      <article class="lane">
-        <div class="lane-name"><i class="sprite" data-sprite="link"></i><h3>libacvr shared runtime</h3><span class="chip locked">Not yet</span></div>
-        <ol class="track">
-          <li data-col="Game"><b>Decompiled or emulated game</b>, such as Namco System 22</li>
-          <li data-col="Stereo hook"><b>game_camera + draw_eye</b> called once per eye</li>
-          <li data-col="OpenXR"><b>libacvr</b> runs the OpenXR session on one thread</li>
-          <li data-col="Headset"><b>SteamVR</b> to your headset</li>
+      <article class="route">
+        <header class="route-head"><i class="sprite" data-sprite="link"></i><h3>libacvr shared runtime</h3><span class="state no">Not yet</span></header>
+        <ol class="flow flow-4">
+          <li class="node node-sm"><span class="step">Game</span><p><b>Decompiled or emulated game</b>, such as Namco System 22</p></li>
+          <li class="node node-sm"><span class="step">Stereo hook</span><p><b>game_camera + draw_eye</b> called once per eye</p></li>
+          <li class="node node-sm"><span class="step">OpenXR</span><p><b>libacvr</b> runs the OpenXR session on one thread</p></li>
+          <li class="node node-sm"><span class="step">Headset</span><p><b>SteamVR</b> to your headset</p></li>
         </ol>
-        <p class="return"><span>Input</span> controller ray → hit in the 3D world → back through the game's camera → the game's own gun coordinates</p>
+        <p class="input"><span>Input back</span> controller ray → hit in the 3D world → back through the game's camera → the game's own gun coordinates</p>
         <p class="note">One runtime for gun handling, cover, ghost controls and the pause menu everywhere. Off by default; no game runs on it yet.</p>
       </article>
     </div>
-    <p class="world-intro small">Also on the board: a stereo MAME Model 2 build with a separate OpenXR viewer (waiting on a headset test), and a Flycast build for The House of the Dead 2.</p>
+    <p class="pipe-intro small">Also on the board: a stereo MAME Model 2 build with a separate OpenXR viewer (waiting on a headset test), and a Flycast build for The House of the Dead 2.</p>
   </section>
 
-  <section class="continue">
-    <p class="blink-slow">Continue?</p>
+  <footer class="outro">
     <p class="actions">
       <a class="btn" href="games.html">See the game list</a>
       <a class="btn btn-ghost" href="index.html">Back to the arcade</a>
       <a class="btn btn-ghost" href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">Read the code</a>
     </p>
     <p class="fine">System and game names belong to their owners. AC VR Hub is not affiliated with any of them and ships no game content.</p>
-  </section>
+  </footer>
 </main>
 <script src="sprites.js"></script>
 </body>
