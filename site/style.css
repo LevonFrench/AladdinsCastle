@@ -293,7 +293,7 @@ a:focus-visible, .btn:focus-visible { outline: 2px solid var(--neon-cyan); outli
   .brand img { width: 28px; height: 28px; }
   .brand span { display: none; }  /* the token stays; the links need the room */
   .hud-links a { white-space: nowrap; }
-  .hud-links a { padding: 8px 9px; font-size: 8px; }
+  .hud-links a { padding: 9px 9px; font-size: 10px; }
   .hud-links a:nth-child(n+3) { display: none; }
   .stops { right: 8px; }
   .stops ol { gap: 12px; }

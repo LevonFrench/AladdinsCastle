@@ -946,7 +946,7 @@ function gunProfileGeo(kind) {
   const bevel = 0.003;
   const geo = new THREE.ExtrudeGeometry(shape, { depth: width - bevel * 2, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 4 });
   geo.translate(0, 0, -(width - bevel * 2) / 2);
-  geo.rotateY(-Math.PI / 2);  // shape +x becomes -z (forward), extrusion becomes width along x
+  geo.rotateY(Math.PI / 2);  // shape +x becomes -z (forward), extrusion becomes width along x
   profileGeoCache.set(kind, geo);
   return geo;
 }
@@ -1129,8 +1129,8 @@ function kiosk({ x, z, consoleKind, screenTex, gun, stop, i, gunDz = 0 }) {
   // the gun floats beside the TV, off the line from the aisle to the screen
   gunOnTurntable(gun, x - 1.05, 1.3, z + gunDz, 2.4, stop, i);
 }
-kiosk({ x: 7.35, z: -14.6, consoleKind: 'tall', screenTex: screenCorridor, gun: gunModel('shell', '#a7acb8', '#4fd2ff'), stop: 5, i: 5, gunDz: -0.55 });
-kiosk({ x: 7.35, z: -17.2, consoleKind: 'slab', screenTex: screenGun, gun: gunModel('dpad', PAL.orange, '#1b1b20'), stop: 6, i: 6, gunDz: 0.55 });
+kiosk({ x: 7.35, z: -14.6, consoleKind: 'tall', screenTex: screenCorridor, gun: gunModel('shell', '#a7acb8', '#4fd2ff'), stop: 5, i: 5, gunDz: -0.8 });
+kiosk({ x: 7.35, z: -17.2, consoleKind: 'slab', screenTex: screenGun, gun: gunModel('dpad', PAL.orange, '#1b1b20'), stop: 6, i: 6, gunDz: 0.8 });
 
 // exit sign over the door, inside
 plane(0.5, 0.18, new THREE.MeshBasicMaterial({ map: textSign('EXIT', '#300', '#ff4040'), toneMapped: false }), 0, 3.1, -0.3).rotation.y = Math.PI;
@@ -1235,6 +1235,7 @@ const creditNum = document.getElementById('credit-num');
 function scrollToStop(i) {
   sections[i].scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
 }
+cards.forEach((c, i) => c.addEventListener('focusin', () => { if (Math.round(p) !== i) scrollToStop(i); }));
 navLinks.forEach(a => a.addEventListener('click', e => { e.preventDefault(); scrollToStop(+a.dataset.stop); history.replaceState(null, '', a.getAttribute('href')); }));
 document.querySelector('.brand').addEventListener('click', e => { e.preventDefault(); scrollToStop(0); });
 
@@ -1343,15 +1344,15 @@ let screenAcc = 0, walked = 0, lastPShown = pShown, signArmed = false;
 sign.restart(0.9);
 // Quality governor: hold ~60 fps on fast displays, and step resolution, then bloom, down
 // when frames run long. It never steps back up within a visit.
-const FRAME_MS = 1000 / 61;
-let lastFrame = 0, slowAcc = 0, slowCount = 0, dprCap = renderer.getPixelRatio();
+const FRAME_MS = 1000 / 60;
+let lastFrame = 0, lastRaf = 0, minRaf = 1e9, slowAcc = 0, slowCount = 0, dprCap = renderer.getPixelRatio();
 const govStart = performance.now() + 3000;  // ignore shader compiles and font swaps at load
 function govern(ms) {
   if (ms > 100 || performance.now() < govStart) return;  // tab hidden, or still warming up
   slowAcc += ms; slowCount++;
   if (slowCount < 90) return;
   const avg = slowAcc / slowCount; slowAcc = 0; slowCount = 0;
-  if (avg < 28) return;  // under ~36 fps sustained
+  if (avg < Math.max(28, minRaf * 1.8)) return;  // well below what this display can show
   if (dprCap > 1) {
     dprCap = Math.max(1, dprCap - 0.25);
     renderer.setPixelRatio(dprCap); composer.setPixelRatio(dprCap);
@@ -1363,7 +1364,10 @@ function govern(ms) {
 function frame(now = 0) {
   if (stopped) return;
   requestAnimationFrame(frame);
-  if (now - lastFrame < FRAME_MS) return;
+  if (lastRaf && now - lastRaf > 1) minRaf = Math.min(minRaf, now - lastRaf);
+  lastRaf = now;
+  // skip a frame only on displays well above 60 Hz (120/144/240), so 60, 72 and 75 Hz render every frame
+  if (now - lastFrame < FRAME_MS * 0.75) return;
   govern(now - lastFrame);
   lastFrame = now;
   if (renderer.info.autoReset === false) renderer.info.reset();

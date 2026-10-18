@@ -131,7 +131,7 @@
 }
 .stage h3 { margin: 0; font: 400 11px/1.4 var(--pixel); color: #fff; text-transform: uppercase; }
 .stage p { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink); flex: 1; }
-.stage .chip { align-self: flex-start; }
+.stage .chip { align-self: flex-start; white-space: normal; line-height: 1.3; }
 .stage code, .lane code { font-size: 0.9em; color: var(--neon-cyan); }
 
 .sprite { display: block; width: 40px; height: 40px; image-rendering: pixelated; }
@@ -171,7 +171,7 @@
 }
 /* a fixed arrow between steps, so the direction reads even with motion turned off */
 .track li:not(:last-child)::after {
-  content: "B6"; position: absolute; right: -10px; top: 50%; transform: translateY(-50%);
+  content: "\25B6"; position: absolute; right: -10px; top: 50%; transform: translateY(-50%);
   font-size: 10px; color: var(--world); z-index: 2;
 }
 .track li::before { content: attr(data-col); display: none; font: 10px/1 var(--pixel); color: var(--ink-dim); text-transform: uppercase; margin-bottom: 6px; }
