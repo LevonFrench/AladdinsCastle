@@ -664,8 +664,8 @@ explicitly labelled as injected evidence.
 
 Actual hidden gameplay at fake head-left20 sampled100% in Virtua Cop at4x,
 with2048x2048 GS eyes. OutRun2006 did not meet full-speed acceptance: a4x-to3x
-trial timed out at240seconds; fresh3x race samples were13.98â€“22.42%, and a3x
-zero-pose control without periodic screenshots was12.30â€“21.76%. The zero-pose
+trial timed out at240seconds; fresh3x race samples were13.98–22.42%, and a3x
+zero-pose control without periodic screenshots was12.30–21.76%. The zero-pose
 control also being slow prevents assigning the cause solely to head projection
 or screenshot pauses. No GL error was logged. Three full-speed gate attempts
 are retained; further OutRun speed tests stop at this checkpoint.

@@ -114,7 +114,7 @@ selection and off-screen reload edges use the same feedback path; this does not
 inspect game RAM or claim that a bullet hit an enemy. Late attachment, stale
 events, duplicate frames and loss of focus do not replay old pulses.
 The patch updates the existing P1 gun and button fields, keeping the serial
-gun mux and native border test. Virtua Cop 2 retains X 137â€“630 and Y 36â€“425;
+gun mux and native border test. Virtua Cop 2 retains X 137–630 and Y 36–425;
 the original 5% edge border remains active. Player 2 fields are untouched.
 Without the optional publisher or an active fresh controller, native inputs
 remain selected. The MAME publisher and viewer must be rebuilt together.
