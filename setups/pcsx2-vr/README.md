@@ -876,3 +876,24 @@ Matched dump replays have exact shared-texture/SBS copies, and both the
 injected-wait picture and INSIDE zero-pose picture equal the screen reference
 pixel-for-pixel. These tests do not establish headset timeout recovery,
 controller feel, long-session stability or in-game save/load acceptance.
+
+### Screen picture and tracked gun in one projection
+
+With the gun enabled in screen mode, the presenter submits a single opaque
+projection layer with two views. Each image contains the picture rectangle at
+the existing screen pose and dimensions, then the tracked model and aim marker
+with a shared depth buffer. A nearer gun covers the picture; a gun behind it is
+occluded. The marker sits just in front of the screen and remains depth tested.
+The fixed gun targets use the runtime's recommended per-eye dimensions. Screen
+sampling uses linear magnification and trilinear mipmapped minification.
+Missing controller tracking still displays the picture in that projection.
+
+With the gun disabled, the existing two-quad path is retained. Native no-loader
+replay compares both published eye images and the fixed-target quad blits with
+the preceding build: zero changed pixels. A synthetic controller in the same
+native GL replay covers more than fourteen thousand picture pixels in each eye
+when nearer, and zero when behind. A CPU resampling of the former quad mapping
+correlates above 0.98 with the minified picture (filtering differs); this is an
+offline mapping/sharpness comparison, not compositor or headset acceptance.
+All images and game dumps remain private. Bounded image waits are unchanged;
+both eye pictures are sampled from one publication and fenced before reuse.
