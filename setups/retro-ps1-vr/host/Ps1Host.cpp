@@ -217,6 +217,13 @@ std::int16_t InputState(unsigned port, unsigned device, unsigned, unsigned id)
     default: return 0;
     }
   }
+  if (base == RETRO_DEVICE_JOYPAD) {   // arcade sets read coin and start from the pad
+    switch (id) {
+    case RETRO_DEVICE_ID_JOYPAD_START: return g_gun.start;
+    case RETRO_DEVICE_ID_JOYPAD_SELECT: return g_gun.select;
+    default: return 0;
+    }
+  }
   if (base == RETRO_DEVICE_POINTER) {
     switch (id) {
     case RETRO_DEVICE_ID_POINTER_X: return g_gun.offScreen ? -32768 : axis(g_gun.u);
@@ -373,7 +380,7 @@ void Usage()
 {
   std::fprintf(stderr,
     "acvr-ps1 --core <libretro dll> --game <disc> --system <BIOS dir> --saves <dir>\n"
-    "         [--gun guncon|justifier] [--port 1|2] [--option key=value]...\n"
+    "         [--gun guncon|justifier|lightgun] [--port 1|2] [--option key=value]...\n"
     "         [--log <file>] [--no-xr] [--headless --frames N [--script file] [--snapshots dir]]\n"
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4).\n"
     "Clean quit: hold left Y (Index: left B) for 3 s, Escape, or create ACVR_PS1_STOP_FILE.\n");
@@ -408,7 +415,7 @@ int main(int argc, char **argv)
     else { Usage(); return 2; }
   }
   if (g_corePath.empty() || game.empty() || g_systemDir.empty() || g_saveDir.empty() || (headless && !frames)) { Usage(); return 2; }
-  if (gunName != "guncon" && gunName != "justifier") { Usage(); return 2; }
+  if (gunName != "guncon" && gunName != "justifier" && gunName != "lightgun") { Usage(); return 2; }
   if (!logPath.empty()) { g_log = std::fopen(logPath.c_str(), "w"); if (!g_log) g_log = stdout; }
   SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
   CreateDirectoryA(g_saveDir.c_str(), nullptr);
@@ -439,7 +446,8 @@ int main(int argc, char **argv)
       g_av.geometry.base_width, g_av.geometry.base_height, g_av.geometry.aspect_ratio);
 
   // Pick the gun by the name the core gives it; fall back to the usual light-gun subclasses.
-  unsigned device = gunName == "justifier" ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 1) : RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 0);
+  unsigned device = gunName == "justifier" ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 1)
+                  : gunName == "lightgun" ? RETRO_DEVICE_LIGHTGUN : RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 0);
   for (const auto &c : g_controllers[g_gunPort]) {
     std::string d = c.desc ? c.desc : ""; std::transform(d.begin(), d.end(), d.begin(), ::tolower);
     if (d.find(gunName) != std::string::npos) { device = c.id; break; }
@@ -499,7 +507,8 @@ int main(int argc, char **argv)
       if (quit.requested()) { Log("Clean quit: %s", quit.reason()); break; }
       Gun g; g.u = controller.u; g.v = controller.v; g.offScreen = !controller.active || controller.offScreen;
       g.trigger = controller.trigger; g.a = controller.start; g.b = controller.coin;
-      g.start = controller.start;   // the Justifier's side button
+      g.start = controller.start;   // the Justifier's side button; arcade Start
+      g.select = gunName == "lightgun" && controller.coin;   // arcade Coin
       g_gun = g;
     } else {
       if (frames && frame >= frames) break;

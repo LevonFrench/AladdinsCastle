@@ -91,6 +91,16 @@ boot; Time Crisis, Project Titan, Point Blank 2 and Gunfighter pass their gun
 calibration screens. Headset viewing, the real controller and vibration have
 not been tried yet.
 
+## Arcade sets through the MAME core
+
+The same program runs arcade light-gun sets through the MAME libretro core
+(`mame_libretro.dll`) with `--gun lightgun --option mame_lightgun_mode=lightgun`.
+Right B inserts a coin and right A is Start. MAME keeps its NVRAM and
+settings under the saves folder. Point Blank 2 (`ptblank2`, System 12) was
+played this way in a hidden run with MAME 0.285: coin, course chosen by
+shooting, targets knocked down. Point Blank (`ptblank`) needs files the
+current MAME set expects (the C75 sound BIOS and a newer sprite ROM).
+
 ## Next
 
 Real stereo for the polygon games needs a hardware-rendering core that
