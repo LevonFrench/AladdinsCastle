@@ -897,3 +897,25 @@ correlates above 0.98 with the minified picture (filtering differs); this is an
 offline mapping/sharpness comparison, not compositor or headset acceptance.
 All images and game dumps remain private. Bounded image waits are unchanged;
 both eye pictures are sampled from one publication and fenced before reuse.
+
+### Optional runtime eye separation in screen mode
+
+`PCSX2_STEREO_RUNTIME_IPD=1` opts screen mode into the Euclidean distance
+between the two valid located OpenXR view positions. It is off by default;
+the configured separation (normally 0.063 m) stays the reference otherwise.
+The GS thread latches one value per emulated frame for both eyes and every
+draw. Invalid/non-finite positions, an implausible baseline, a backward clock
+or a sample at least 500 ms old retain the configured value when latching the next frame. INSIDE keeps its
+existing pose-based path and does not use this override. No per-game values
+or launchers are changed.
+
+`runtime_ipd_test.cpp` compiles against the applied source's `pcsx2` include
+folder with an ordinary C++17 compiler. Run it in separate processes with
+`PCSX2_STEREO_RUNTIME_IPD=0` and argument `0`, then environment value `1` and
+argument `1`. It tests synthetic 72/64 mm view pairs, rigid rotation/translation,
+frame latching, stale/invalid/reset fallback and unchanged INSIDE selection.
+The native dump proof also compares the opt-in synthetic pair with the same
+fixed separation and compares the default-off output with the preceding build.
+`PCSX2_STEREO_TEST_IPD_M` is a test-only injection guarded by this opt-in,
+screen mode and `PCSX2_OPENXR=0`; it is ignored with a runtime active. These
+synthetic poses are not headset measurements or physical-comfort acceptance.

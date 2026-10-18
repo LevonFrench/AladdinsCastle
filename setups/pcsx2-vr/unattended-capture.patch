@@ -1065,19 +1065,20 @@ index 81110bb..39dd2d9 100644
  
  void GSTextureCache::ReadbackAll()
 diff --git a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
-index 2174fa3..ec129e6 100644
+index 2174fa3..5b801ab 100644
 --- a/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
 +++ b/pcsx2/GS/Renderers/OpenGL/GSDeviceOGL.cpp
-@@ -5,6 +5,8 @@
+@@ -5,6 +5,9 @@
  #include "GS/Renderers/OpenGL/GSDeviceOGL.h"
  #include "GS/Renderers/OpenGL/GLState.h"
  #include "GS/GSState.h"
 +#include "GS/PS2VRInside.h"
++#include "GS/PS2VRScreenDepth.h"
 +#include "GS/PS2VRAim.h"
  #include "GS/GSGL.h"
  #include "GS/GSPerfMon.h"
  #include "GS/GSUtil.h"
-@@ -19,6 +21,8 @@
+@@ -19,6 +22,8 @@
  #include "IconsFontAwesome.h"
  
  #include <cinttypes>
@@ -1086,7 +1087,7 @@ index 2174fa3..ec129e6 100644
  #include <fstream>
  #include <sstream>
  
-@@ -35,6 +39,60 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
+@@ -35,6 +40,64 @@ static constexpr u32 FRAGMENT_UNIFORM_BUFFER_SIZE = 8 * 1024 * 1024;
  static constexpr u32 VERTEX_PUSH_CONSTANT_BUFFER_SIZE = 1024 * 1024;
  static constexpr u32 TEXTURE_UPLOAD_BUFFER_SIZE = 128 * 1024 * 1024;
  
@@ -1117,6 +1118,10 @@ index 2174fa3..ec129e6 100644
 +		bool hide_displaced = StereoEnv("PCSX2_STEREO_HIDE_DISPLACED", 0) != 0;
 +	};
 +	StereoParams s_stereo;
++ float StereoSeparation(){
++  if(!PS2VRScreenDepth::Enabled())return s_stereo.separation;
++  return PS2VRScreenDepth::Select(s_stereo.separation,PS2VRInside::Enabled(),g_perfmon.GetFrame());
++ }
 +	float s_stereo_draw_mode = 0;
 + float s_inside_draw_mode=0;
 + float s_inside_width=0,s_inside_height=0;
@@ -1147,7 +1152,7 @@ index 2174fa3..ec129e6 100644
  namespace ReplaceGL
  {
  	static void GLAPIENTRY ScissorIndexed(GLuint index, GLint left, GLint bottom, GLsizei width, GLsizei height)
-@@ -215,7 +273,10 @@ namespace Emulate_DSA
+@@ -215,7 +278,10 @@ namespace Emulate_DSA
  	}
  } // namespace Emulate_DSA
  
@@ -1159,7 +1164,7 @@ index 2174fa3..ec129e6 100644
  
  GSDeviceOGL::~GSDeviceOGL()
  {
-@@ -1835,6 +1896,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
+@@ -1835,6 +1901,7 @@ std::string GSDeviceOGL::GetVSSource(VSSelector sel)
  		+ fmt::format("#define VS_IIP {}\n", static_cast<u32>(sel.iip))
  		+ fmt::format("#define VS_POINT_SIZE {}\n", static_cast<u32>(sel.point_size))
  		+ fmt::format("#define VS_EXPAND {}\n", static_cast<int>(sel.expand));
@@ -1167,13 +1172,13 @@ index 2174fa3..ec129e6 100644
  
  	std::string src = GenGlslHeader("vs_main", GL_VERTEX_SHADER, macro);
  	src += m_shader_tfx_vgs;
-@@ -2995,6 +3057,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -2995,6 +3062,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	if (it != m_programs.end())
  	{
  		it->second.Bind();
 +		if (psel.vs.key & 0x80)
 +		{
-+			glUniform4f(30, s_stereo.eye * 0.5f * s_stereo.separation * s_stereo.units * s_stereo.focal,
++			glUniform4f(30, s_stereo.eye * 0.5f * StereoSeparation() * s_stereo.units * s_stereo.focal,
 +				1.0f / (s_stereo.convergence * s_stereo.units), s_stereo.qscale, s_stereo_draw_mode);
 +			glUniform4f(31, s_stereo.za, s_stereo.zb, 0, 0);
 +			UploadInside();
@@ -1181,13 +1186,13 @@ index 2174fa3..ec129e6 100644
  		return;
  	}
  
-@@ -3005,6 +3074,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
+@@ -3005,6 +3079,13 @@ void GSDeviceOGL::SetupPipeline(const ProgramSelector& psel)
  	m_shader_cache.GetProgram(&prog, vs, ps);
  	it = m_programs.emplace(psel, std::move(prog)).first;
  	it->second.Bind();
 +	if (psel.vs.key & 0x80)
 +	{
-+		glUniform4f(30, s_stereo.eye * 0.5f * s_stereo.separation * s_stereo.units * s_stereo.focal,
++		glUniform4f(30, s_stereo.eye * 0.5f * StereoSeparation() * s_stereo.units * s_stereo.focal,
 +			1.0f / (s_stereo.convergence * s_stereo.units), s_stereo.qscale, s_stereo_draw_mode);
 +		glUniform4f(31, s_stereo.za, s_stereo.zb, 0, 0);
 +			UploadInside();
@@ -1195,7 +1200,7 @@ index 2174fa3..ec129e6 100644
  }
  
  void GSDeviceOGL::SetupSampler(PSSamplerSelector ssel)
-@@ -3036,6 +3112,169 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
+@@ -3036,6 +3117,169 @@ static constexpr std::array<GLenum, 3> s_gl_blend_ops = { {
  
  void GSDeviceOGL::RenderHW(GSHWDrawConfig& config)
  {
@@ -1658,7 +1663,7 @@ diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,721 @@
+@@ -0,0 +1,732 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
@@ -1674,6 +1679,7 @@ new file mode 100644
 +#include "GS/PS2VRInside.h"
 +#include "GS/PS2VRGunModel.h"
 +#include "GS/PS2VRBackendPolicy.h"
++#include "GS/PS2VRScreenDepth.h"
 +#include <atomic>
 +#include <algorithm>
 +#include <chrono>
@@ -1977,7 +1983,7 @@ new file mode 100644
 + static std::uint64_t inside_sequence=0;
 + static void PublishInsidePose(XrTime time)
 + {
-+  if (!PS2VRInside::Enabled()) return;
++  if (!PS2VRInside::Enabled() && !PS2VRScreenDepth::Enabled()) return;
 +  XrViewLocateInfo li{XR_TYPE_VIEW_LOCATE_INFO}; li.viewConfigurationType=XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO; li.displayTime=time; li.space=space;
 +  XrViewState state{XR_TYPE_VIEW_STATE}; XrView views[2]{{XR_TYPE_VIEW},{XR_TYPE_VIEW}}; u32 count=0;
 +  PS2VRInside::Packet packet; packet.predicted_display_time=time; packet.sequence=++inside_sequence;
@@ -1993,7 +1999,10 @@ new file mode 100644
 +    e.view_from_recenter=(PS2VRGun::Mat4::FromPose(&v.pose.position.x,&v.pose.orientation.x).RigidInverse()*inside_origin).m;
 +   }
 +  }
-+  PS2VRInside::Publish(packet);
++  if(PS2VRScreenDepth::Enabled() && !PS2VRInside::Enabled())
++   PS2VRScreenDepth::Publish({views[0].pose.position.x,views[0].pose.position.y,views[0].pose.position.z},
++    {views[1].pose.position.x,views[1].pose.position.y,views[1].pose.position.z},packet.valid);
++  if(PS2VRInside::Enabled())PS2VRInside::Publish(packet);
 + }
 + static bool InitXR()
 + {
@@ -2316,6 +2325,7 @@ new file mode 100644
 + glDeleteTextures(2,eyes); glDeleteTextures(2,pending);
 + eyes[0]=eyes[1]=pending[0]=pending[1]=0; width=height=pending_width=pending_height=0;
 + enabled=false; other=false;
++ PS2VRScreenDepth::Reset();
 + PS2VRGun::Publish({});
 + LiveLog("Live stereo closed"); if (live_log) { std::fclose(live_log); live_log=nullptr; }
 +}
@@ -2323,6 +2333,12 @@ new file mode 100644
 +{
 + using namespace PS2Live;
 + if (!enabled) return;
++ // Synthetic views are available only in the existing no-loader proof path.
++ if(PS2VRScreenDepth::Enabled() && !PS2VRInside::Enabled() && Env("PCSX2_OPENXR",0)==0 && std::getenv("PCSX2_STEREO_TEST_IPD_M")){
++  const float ipd=Env("PCSX2_STEREO_TEST_IPD_M",0);
++  const bool accepted=PS2VRScreenDepth::Publish({-ipd*.5f,0,0},{ipd*.5f,0,0},true);
++  static bool reported=false;if(!reported){LiveLog(accepted?"OFFLINE SYNTHETIC runtime-IPD view pair; no runtime calls, not a headset measurement":"OFFLINE synthetic runtime-IPD rejected");reported=true;}
++ }
 + GSTexture* src=g_gs_device->GetCurrent(); if (!src) return;
 + std::unique_lock guard(mutex);
 + if(consumer_fence) {glWaitSync(consumer_fence,0,GL_TIMEOUT_IGNORED);glDeleteSync(consumer_fence);consumer_fence=nullptr;}
@@ -3310,4 +3326,50 @@ new file mode 100644
 + }
 +};
 +
++}
+diff --git a/pcsx2/GS/PS2VRScreenDepth.h b/pcsx2/GS/PS2VRScreenDepth.h
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/GS/PS2VRScreenDepth.h
+@@ -0,0 +1,41 @@
++// SPDX-License-Identifier: GPL-3.0+
++#pragma once
++#include <array>
++#include <atomic>
++#include <chrono>
++#include <cmath>
++#include <cstdint>
++#include <cstdlib>
++#include <cstring>
++namespace PS2VRScreenDepth {
++inline bool Enabled(){static const bool enabled=[] {const char* v=std::getenv("PCSX2_STEREO_RUNTIME_IPD");return v && std::strcmp(v,"1")==0;}();return enabled;}
++inline std::int64_t Now(){return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
++inline std::atomic<float> baseline{0};
++inline std::atomic<std::int64_t> stamp{0};
++inline void Invalidate(){baseline.store(0,std::memory_order_relaxed);stamp.store(0,std::memory_order_release);}
++inline bool Publish(const std::array<float,3>& left,const std::array<float,3>& right,bool tracked,std::int64_t now=Now()){
++ if(!Enabled() || !tracked){Invalidate();return false;}
++ float squared=0;
++ for(unsigned i=0;i<3;i++){
++  if(!std::isfinite(left[i]) || !std::isfinite(right[i])){Invalidate();return false;}
++  const float delta=right[i]-left[i];squared+=delta*delta;
++ }
++ const float metres=std::sqrt(squared);
++ if(!std::isfinite(metres) || metres<.02f || metres>.12f){Invalidate();return false;}
++ baseline.store(metres,std::memory_order_relaxed);stamp.store(now,std::memory_order_release);return true;
++}
++inline float Sample(float configured,std::int64_t now=Now()){
++ const auto time=stamp.load(std::memory_order_acquire);const float metres=baseline.load(std::memory_order_relaxed);
++ return time>0 && now>=time && now-time<500 && metres>=.02f && metres<=.12f ? metres:configured;
++}
++struct FrameSample {std::uint64_t frame=0;float metres=0;bool valid=false;};
++inline thread_local FrameSample sample;
++// GS thread: one value for every draw/eye of this emulated frame. Runtime
++// updates cannot change the baseline halfway through an eye pair.
++inline float Select(float configured,bool inside,std::uint64_t frame,std::int64_t now=Now()){
++ if(!Enabled() || inside)return configured;
++ if(!sample.valid || frame!=sample.frame){sample={frame,Sample(configured,now),true};}
++ return sample.metres;
++}
++inline void Reset(){Invalidate();sample={};}
 +}
