@@ -33,7 +33,7 @@ as the hold gesture. Vibration is one pulse per trigger edge; it does not claim
 the game acknowledged a hit.
 
 `launch-mame-gun.ps1` accepts explicit existing executable, media, gun and
-private writable paths. It supports the five starter game keys and keeps all
+private writable paths. It supports the game keys in its table and keeps all
 MAME cfg/NVRAM/state/output files in private directories. It launches both
 children hidden at BelowNormal priority. It waits for normal exit before an
 owned-process fallback; a forced close is reported and cannot establish saves.
@@ -63,3 +63,43 @@ retry. No test opens a loader or runtime.
 The original and shared Model 2 viewer sources remain unchanged. Their existing
 build and test scripts still select the same implementations. MAME, the Hub,
 catalog, PS1 and other emulator clients are outside this viewer change.
+
+## MAME patch, offline script mode and per-game settings
+
+`mame-gun-vr.patch` is the whole change to MAME 0.289 (9a119fe9): the
+publisher/gun module (`src/frontend/mame/acvr_mono.*`, BSD-3-Clause like
+MAME's own files), the analog override fix in `ioport.cpp` and an opt-in
+tolerance in `romload.cpp`. Build it as a `SUBTARGET=gun` with the driver
+sources of the games you own; nothing is downloaded.
+
+Environment switches read by MAME, all off unless set:
+
+- `MAME_VR_AIM=xs,xo,ys,yo` per-game trim around the picture centre,
+  `u' = 0.5 + (u - 0.5) * xs + xo`, the same convention as the PS1 host's
+  `ACVR_PS1_AIM`. A trimmed aim is clamped to the picture; only pointing off
+  the screen reads as off-screen.
+- `MAME_VR_CROSSHAIR=1|0` shows or hides MAME's crosshair. Hide it where MAME's
+  crosshair calibration does not match the game (any trimmed game).
+- `MAME_VR_ALLOW_MISSING=a,b` names ROM files the launcher accepts as absent:
+  only PLD/PROM dumps the driver never reads, which older sets lack. Each is
+  logged as a warning; program, graphics and sound ROMs are never listed.
+- `MAME_VR_SCRIPT=<file>` with `MAME_VR_SNAPDIR=<dir>`: offline proof mode.
+  Input comes from a schedule keyed by emulated frame instead of shared
+  memory, through the same aim mapping as play, so a run is repeatable to
+  the pixel. Commands: `aim p u v`, `off p`, `hold p TBSC n`,
+  `press TOKEN n` (any MAME input token, e.g. `SERVICE`), `dip port mask value`,
+  `snap name` (PNG of the exact picture the viewer gets plus a log line with
+  the field values) and `quit`.
+
+A field with no crosshair calibration and `PORT_REVERSE` is driven reversed,
+like MAME's own input would be (Operation Wolf 3 X).
+
+Aim is measured against each game's own cursor or hit marker (accuracy screen,
+in-game sight), not against MAME's crosshair:
+
+| Key | Game's own reference | Setting |
+|---|---|---|
+| `timecris` | Gun Initialize [Standard] accuracy screen, 9 points, max error 0.0052 | none; grip = foot pedal |
+| `opwolf3` | in-game sight, 11 points, 0.0058 after trim | `0.7143,0,0.5001,0` plus the game's own boot calibration (service switch at power-on, targets top-right then bottom-left); the game's gun gain is fixed, so the trim sets scale and the calibration sets offset |
+| `zombraid` | in-game sight on the name-entry screen, 11 points, max error 0.0068 | none; reload is the pump (grip), not an off-screen shot |
+| `rchase` | in-game sight, 11 points; x 0.0016 after trim | `1.0768,0.0007,1,0`; the game maps the gun's full y range to about 0.18-0.93 of the picture and treats very low readings as off-screen, so y is left untrimmed |
