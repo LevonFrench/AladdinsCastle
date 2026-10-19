@@ -62,7 +62,7 @@ void UploadInto(Slot &slot, const std::uint32_t *xrgb, unsigned w, unsigned h)
 std::mutex s_inputMutex;
 Input s_input; ULONGLONG s_inputTime = 0;
 std::atomic<unsigned> s_pulses{ 0 };
-std::atomic<bool> s_stop{ false }, s_started{ false };
+std::atomic<bool> s_stop{ false }, s_started{ false }, s_runtimeExit{ false };
 std::thread s_thread;
 Host_Window *s_owner = nullptr, *s_xrWindow = nullptr;
 HGLRC s_ownerContext = nullptr;
@@ -90,7 +90,8 @@ XrSpace s_local = XR_NULL_HANDLE, s_view = XR_NULL_HANDLE, s_aimSpace = XR_NULL_
 XrActionSet s_set = XR_NULL_HANDLE;
 XrAction s_aim = XR_NULL_HANDLE, s_gripPose = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_a = XR_NULL_HANDLE, s_b = XR_NULL_HANDLE,
          s_squeeze = XR_NULL_HANDLE, s_quit = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE,
-         s_padStick = XR_NULL_HANDLE, s_padCross = XR_NULL_HANDLE, s_padCircle = XR_NULL_HANDLE, s_padSquare = XR_NULL_HANDLE, s_padStart = XR_NULL_HANDLE;
+         s_padStick = XR_NULL_HANDLE, s_padCross = XR_NULL_HANDLE, s_padCircle = XR_NULL_HANDLE, s_padSquare = XR_NULL_HANDLE, s_padStart = XR_NULL_HANDLE,
+         s_stickLeft = XR_NULL_HANDLE, s_stickRight = XR_NULL_HANDLE;
 XrPath s_right = XR_NULL_PATH, s_left = XR_NULL_PATH;
 struct EyeChain { XrSwapchain chain = XR_NULL_HANDLE; std::vector<XrSwapchainImageOpenGLKHR> images; int w = 0, h = 0; GLuint fbo = 0, depth = 0; };
 EyeChain s_eyes[2];
@@ -129,6 +130,8 @@ bool InitActions()
       !make("pad_circle", "Pad Circle", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padCircle, s_left) ||
       !make("pad_square", "Pad Square", XR_ACTION_TYPE_FLOAT_INPUT, s_padSquare, s_left) ||
       !make("pad_start", "Pad Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padStart, s_left) ||
+      !make("stick_left", "Left stick click (Select)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickLeft, s_left) ||
+      !make("stick_right", "Right stick click (Start)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickRight, s_right) ||
       !make("recoil", "Recoil", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic, s_right)) return false;
   struct Profile { const char *profile, *quit, *circle, *start; };
   const Profile profiles[] = { { "/interaction_profiles/oculus/touch_controller", "/user/hand/left/input/y/click", "/user/hand/left/input/x/click", "/user/hand/left/input/menu/click" },
@@ -140,7 +143,8 @@ bool InitActions()
       { s_b, "/user/hand/right/input/b/click" }, { s_squeeze, "/user/hand/right/input/squeeze/value" },
       { s_quit, pr.quit }, { s_haptic, "/user/hand/right/output/haptic" },
       { s_padStick, "/user/hand/left/input/thumbstick" }, { s_padCross, "/user/hand/left/input/trigger/value" },
-      { s_padCircle, pr.circle }, { s_padSquare, "/user/hand/left/input/squeeze/value" }, { s_padStart, pr.start } };
+      { s_padCircle, pr.circle }, { s_padSquare, "/user/hand/left/input/squeeze/value" }, { s_padStart, pr.start },
+      { s_stickLeft, "/user/hand/left/input/thumbstick/click" }, { s_stickRight, "/user/hand/right/input/thumbstick/click" } };
     std::vector<XrActionSuggestedBinding> b;
     for (const auto &item : list) { XrPath path; if (Check(p_xrStringToPath(s_instance, item.second, &path), item.second)) b.push_back({ item.first, path }); }
     XrInteractionProfileSuggestedBinding suggested{ XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
@@ -241,9 +245,10 @@ void ThreadMain()
         const auto state = reinterpret_cast<XrEventDataSessionStateChanged *>(&ev)->state;
         Log("session state %d", (int)state);
         if (state == XR_SESSION_STATE_READY) { XrSessionBeginInfo bi{ XR_TYPE_SESSION_BEGIN_INFO }; bi.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO; running = Check(p_xrBeginSession(s_session, &bi), "xrBeginSession"); }
-        else if (state == XR_SESSION_STATE_STOPPING) { p_xrEndSession(s_session); running = false; }
-        else if (state == XR_SESSION_STATE_EXITING || state == XR_SESSION_STATE_LOSS_PENDING) s_stop = true;
-      } else if (ev.type == XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING) s_stop = true;
+        // SteamVR's "Exit game" (or a lost runtime) ends the session: the whole game closes, not just the picture.
+        else if (state == XR_SESSION_STATE_STOPPING) { p_xrEndSession(s_session); running = false; s_runtimeExit = true; }
+        else if (state == XR_SESSION_STATE_EXITING || state == XR_SESSION_STATE_LOSS_PENDING) { s_runtimeExit = true; s_stop = true; }
+      } else if (ev.type == XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING) { s_runtimeExit = true; s_stop = true; }
       ev = { XR_TYPE_EVENT_DATA_BUFFER };
     }
     if (s_stop) break;
@@ -274,6 +279,10 @@ void ThreadMain()
         get.action = s_padSquare; in.padSquare = XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &square)) && square.isActive && square.currentState > .6f;
         get.action = s_padCircle; in.padCircle = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &circle)) && circle.isActive && circle.currentState;
         get.action = s_padStart; in.padStart = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &start)) && start.isActive && start.currentState;
+        XrActionStateBoolean sl{ XR_TYPE_ACTION_STATE_BOOLEAN }, sr{ XR_TYPE_ACTION_STATE_BOOLEAN };
+        get.action = s_stickLeft; in.stickLeft = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &sl)) && sl.isActive && sl.currentState;
+        get.action = s_stickRight; get.subactionPath = s_right; in.stickRight = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &sr)) && sr.isActive && sr.currentState;
+        get.subactionPath = s_left;
       }
       in.active = aimOk || aOk || bOk; in.a = aOk && a.currentState; in.b = bOk && b.currentState; in.grip = sqOk && sq.currentState > .6f;
       triggerValue = trigOk ? trig.currentState : 0.f;
@@ -320,6 +329,7 @@ void ThreadMain()
         if (haveGun && s_gun.loaded()) {
           const float since = (GetTickCount64() - kickAt) / 1000.f;
           scene.showGun = true; scene.trigger = triggerValue;
+          { const float slideS = s_gun.recoilMs() / 1000.f; scene.recoil = kickAt && since < 2 * slideS ? (since < slideS ? 1.f : 2.f - since / slideS) : 0.f; }   // back, hold, return
           scene.gunRoot = s_gun.alignedRoot(gripWorld, aimWorld, kickAt && since < .1f ? 1.f - since / .1f : 0.f);
         }
         bool ok = true;
@@ -428,6 +438,7 @@ Input ReadInput()
 }
 
 void QueuePulse() { if (s_started && !s_stop) ++s_pulses; }
+bool RuntimeExit() { return s_runtimeExit.load(); }
 
 bool Stop()
 {

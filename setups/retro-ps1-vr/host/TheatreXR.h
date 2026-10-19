@@ -24,6 +24,7 @@ struct Input {
   // grip = Square, menu (Index: stick click) = Start.
   float padX = 0, padY = 0;
   bool padCross = false, padCircle = false, padSquare = false, padStart = false;
+  bool stickLeft = false, stickRight = false;   // thumbstick clicks
 };
 // All picture and graphics calls run on the thread whose OpenGL context is current
 // in `owner` (the emulator thread). The headset runs on its own thread.
@@ -34,6 +35,7 @@ void PublishFramebuffer(unsigned fbo, unsigned w, unsigned h);
 Input ReadInput();          // stale (over 250 ms) input reads as inactive
 void QueuePulse();
 bool Stop();
+bool RuntimeExit();         // the runtime ended the session (SteamVR "Exit game"): close the game
 // Offline proof without any VR runtime: renders both eyes for a fixed head and hand
 // pose into PNG files <prefix>-left.png and <prefix>-right.png.
 bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, unsigned h,
