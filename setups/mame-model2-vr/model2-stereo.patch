@@ -23,10 +23,27 @@ index dcc98198..4952de80 100644
  		"shcore",
  		"shlwapi",
 diff --git a/src/mame/sega/model2.cpp b/src/mame/sega/model2.cpp
-index 21b42076..70cdde53 100644
+index 21b42076..f3729c5d 100644
 --- a/src/mame/sega/model2.cpp
 +++ b/src/mame/sega/model2.cpp
-@@ -2528,6 +2528,20 @@ void model2_state::model2_screen(machine_config &config)
+@@ -2321,11 +2321,14 @@ INPUT_PORTS_END
+ static INPUT_PORTS_START( hotd )
+ 	PORT_INCLUDE(vcop2)
+ 
++	// P1 range widened so the full screen is reachable: with its default calibration
++	// (173..596, 87..380) the game's own gun mark sits at 0.867x+0.065, 0.829y+0.087
++	// of the screen (measured in its gun mark check), i.e. the calibration targets are inset.
+ 	PORT_MODIFY("P1_X")
+-	PORT_BIT(0x3ff, 0x180, IPT_LIGHTGUN_X) PORT_CROSSHAIR(X, 1.0, 0.0, 0) PORT_MINMAX(173, 596) PORT_SENSITIVITY(50) PORT_KEYDELTA(13) PORT_PLAYER(1)
++	PORT_BIT(0x3ff, 0x180, IPT_LIGHTGUN_X) PORT_CROSSHAIR(X, 1.0, 0.0, 0) PORT_MINMAX(141, 629) PORT_SENSITIVITY(50) PORT_KEYDELTA(13) PORT_PLAYER(1)
+ 
+ 	PORT_MODIFY("P1_Y")
+-	PORT_BIT(0x3ff, 0x0e9, IPT_LIGHTGUN_Y) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_MINMAX( 87, 380) PORT_SENSITIVITY(50) PORT_KEYDELTA(10) PORT_PLAYER(1)
++	PORT_BIT(0x3ff, 0x0e9, IPT_LIGHTGUN_Y) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_MINMAX( 56, 410) PORT_SENSITIVITY(50) PORT_KEYDELTA(10) PORT_PLAYER(1)
+ 
+ 	PORT_MODIFY("P2_X")
+ 	PORT_BIT(0x3ff, 0x17b, IPT_LIGHTGUN_X) PORT_CROSSHAIR(X, 1.0, 0.0, 0) PORT_MINMAX(163, 596) PORT_SENSITIVITY(50) PORT_KEYDELTA(13) PORT_PLAYER(2)
+@@ -2528,6 +2531,21 @@ void model2_state::model2_screen(machine_config &config)
  	m_screen->set_screen_update(FUNC(model2_state::screen_update));
  	m_screen->screen_vblank().set(FUNC(model2_state::screen_vblank));
  
@@ -37,9 +54,10 @@ index 21b42076..70cdde53 100644
 +		// timing and interrupts. Both eyes use the same emulated frame.
 +		SCREEN(config, m_stereo_screen);
 +		m_stereo_screen->set_refresh_hz(16000000.0 / (656.0 * 424.0));
-+		m_stereo_screen->set_size(992, 384);
++		const int eye_width = 496 + 2 * m_stereo.wide;
++		m_stereo_screen->set_size(2 * eye_width, 384);
 +		m_stereo_screen->set_visarea_full();
-+		m_stereo_screen->set_physical_aspect(992, 384);
++		m_stereo_screen->set_physical_aspect(2 * eye_width, 384);
 +		m_stereo_screen->set_video_attributes(VIDEO_UPDATE_AFTER_VBLANK | VIDEO_ALWAYS_UPDATE);
 +		m_stereo_screen->set_screen_update(FUNC(model2_state::stereo_screen_update));
 +	}
@@ -47,7 +65,7 @@ index 21b42076..70cdde53 100644
  	PALETTE(config, m_palette).set_entries(8192);
  }
  
-@@ -2795,6 +2809,7 @@ void model2a_state::vcop2(machine_config &config)
+@@ -2795,6 +2813,7 @@ void model2a_state::vcop2(machine_config &config)
  	model2a(config);
  
  	sega_315_5649_device &io(*subdevice<sega_315_5649_device>("io"));
@@ -55,11 +73,43 @@ index 21b42076..70cdde53 100644
  	io.serial_ch2_rd_callback().set(FUNC(model2a_state::lightgun_mux_r));
  	io.serial_ch2_wr_callback().set(FUNC(model2a_state::lightgun_mux_w));
  }
+@@ -2804,6 +2823,7 @@ void model2a_state::skytargt(machine_config &config)
+ 	model2a(config);
+ 
+ 	sega_315_5649_device &io(*subdevice<sega_315_5649_device>("io"));
++	io.in_pc_callback().set(FUNC(model2a_state::stereo_gun_buttons_r));
+ 	io.an_port_callback<0>().set_ioport("STICKY");
+ 	io.an_port_callback<2>().set_ioport("STICKX");
+ }
+@@ -2967,6 +2987,7 @@ void model2b_state::gunblade(machine_config &config)
+ 	model2b(config);
+ 
+ 	sega_315_5649_device &io(*subdevice<sega_315_5649_device>("io"));
++	io.in_pc_callback().set(FUNC(model2b_state::stereo_gun_buttons_r));
+ 	io.an_port_callback<0>().set_ioport("P1_X");
+ 	io.an_port_callback<1>().set_ioport("P2_X");
+ 	io.an_port_callback<2>().set_ioport("P1_Y");
+@@ -3062,6 +3083,7 @@ void model2c_state::bel(machine_config &config)
+ 	model2c(config);
+ 
+ 	sega_315_5649_device &io(*subdevice<sega_315_5649_device>("io"));
++	io.in_pc_callback().set(FUNC(model2c_state::stereo_gun_buttons_r));
+ 	io.an_port_callback<0>().set_ioport("P1_X");
+ 	io.an_port_callback<1>().set_ioport("P2_X");
+ 	io.an_port_callback<2>().set_ioport("P1_Y");
+@@ -3073,6 +3095,7 @@ void model2c_state::hotd(machine_config &config)
+ 	model2c(config);
+ 
+ 	sega_315_5649_device &io(*subdevice<sega_315_5649_device>("io"));
++	io.in_pc_callback().set(FUNC(model2c_state::stereo_gun_buttons_r));
+ 	io.serial_ch2_rd_callback().set(FUNC(model2c_state::lightgun_mux_r));
+ 	io.serial_ch2_wr_callback().set(FUNC(model2c_state::lightgun_mux_w));
+ }
 diff --git a/src/mame/sega/model2.h b/src/mame/sega/model2.h
-index 9dba100c..cf2d3b30 100644
+index 9dba100c..838f96e2 100644
 --- a/src/mame/sega/model2.h
 +++ b/src/mame/sega/model2.h
-@@ -28,11 +28,13 @@
+@@ -28,11 +28,15 @@
  
  #include "emupal.h"
  #include "screen.h"
@@ -70,10 +120,12 @@ index 9dba100c..cf2d3b30 100644
  
  class model2_renderer;
 +namespace model2_frames { class publisher; }
++namespace model2_input { struct game_map; }
++namespace model2_script { class ScriptFile; }
  
  class model2_state : public driver_device
  {
-@@ -66,6 +68,7 @@ public:
+@@ -66,6 +70,7 @@ public:
  		m_eeprom(*this, "eeprom"),
  		m_tiles(*this, "tile"),
  		m_screen(*this, "screen"),
@@ -81,7 +133,16 @@ index 9dba100c..cf2d3b30 100644
  		m_palette(*this, "palette"),
  		m_scsp(*this, "scsp"),
  		m_timers(*this, "timer%u", 0U),
-@@ -127,6 +130,7 @@ protected:
+@@ -102,6 +107,8 @@ public:
+ 	void init_srallyc();
+ 	void init_powsledm();
+ 	void lamp_output_w(u8 data);
++	// Open-frame margin per side, in pixels (0 = the original 4:3 picture).
++	int stereo_wide() const { return m_stereo.wide; }
+ 
+ protected:
+ 	virtual void machine_start() override ATTR_COLD;
+@@ -127,6 +134,7 @@ protected:
  	optional_device<eeprom_serial_93cxx_device> m_eeprom;
  	required_device<segas24_tile_device> m_tiles;
  	required_device<screen_device> m_screen;
@@ -89,7 +150,7 @@ index 9dba100c..cf2d3b30 100644
  	required_device<palette_device> m_palette;
  	optional_device<scsp_device> m_scsp;
  	required_device_array<timer_device, 4> m_timers;
-@@ -153,6 +157,17 @@ protected:
+@@ -153,6 +161,22 @@ protected:
  	std::unique_ptr<raster_state> m_raster;
  	std::unique_ptr<geo_state> m_geo;
  	bitmap_rgb32 m_sys24_bitmap;
@@ -97,9 +158,14 @@ index 9dba100c..cf2d3b30 100644
 +	render_target *m_stereo_target = nullptr;
 +	bool m_stereo_measure_done = false;
 +	std::shared_ptr<model2_frames::publisher> m_stereo_stream;
++	std::shared_ptr<model2_script::ScriptFile> m_stereo_script;
 +	bool m_stereo_controls_active = false;
 +	bool m_stereo_controller_trigger = false, m_stereo_trigger_latched = false;
 +	u64 m_stereo_shot_serial = 0;
++	const model2_input::game_map *m_stereo_map = nullptr;
++	bool m_stereo_map_checked = false;
++	int m_stereo_gear = 1;
++	u32 m_stereo_buttons_prev = 0;
 +	u32 m_stereo_snapshot_seen = 0;
 +	float m_stereo_tangents[4] = {-0.3f, 0.3f, -0.225f, 0.225f};
 +	bitmap_rgb32 m_stereo_scene[2];
@@ -107,7 +173,7 @@ index 9dba100c..cf2d3b30 100644
  	u8 m_gearsel = 0;
  	u8 m_lightgun_mux = 0;
  
-@@ -229,6 +244,9 @@ protected:
+@@ -229,6 +253,9 @@ protected:
  	void push_geo_data(u32 data);
  	void reset_model2_scsp();
  	u32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
@@ -117,16 +183,27 @@ index 9dba100c..cf2d3b30 100644
  	void screen_vblank(int state);
  	void sound_ready_w(int state);
  	template <int TNum> TIMER_DEVICE_CALLBACK_MEMBER(model2_timer_cb);
-@@ -240,6 +258,8 @@ protected:
+@@ -240,6 +267,8 @@ protected:
  	void render_frame_start();
  	void geo_parse();
  	void render_polygons(bitmap_rgb32 &bitmap, const rectangle &cliprect);
-+	void render_stereo_polygons(bitmap_rgb32 &left, bitmap_rgb32 &right, const rectangle &cliprect);
++	void render_stereo_polygons();
 +	void measure_stereo_reference();
  	void draw_framebuffer(bitmap_rgb32 &bitmap, const rectangle &cliprect);
  
  	void model2_timers(machine_config &config) ATTR_COLD;
-@@ -751,6 +771,9 @@ struct model2_state::polygon
+@@ -670,8 +699,8 @@ public:
+ 				{ &model2_renderer::draw_scanline_tex<false>, this },
+ 				{ &model2_renderer::draw_scanline_tex<true>, this } },
+ 		m_state(state),
+-		m_destmap(512, 512),
+-		m_fillmap(512, 512),
++		m_destmap(512 + 2 * state.stereo_wide(), 512),
++		m_fillmap(512 + 2 * state.stereo_wide(), 512),
+ 		m_xoffs(90),
+ 		m_yoffs(-8)
+ 	{
+@@ -751,6 +780,9 @@ struct model2_state::polygon
  	int16_t         viewport[4] = { 0, 0, 0, 0 };
  	int16_t         center[2] = { 0, 0 };
  	u8              window = 0;
@@ -137,21 +214,22 @@ index 9dba100c..cf2d3b30 100644
  
  struct model2_state::quad_m2
 diff --git a/src/mame/sega/model2_v.cpp b/src/mame/sega/model2_v.cpp
-index 3a5bfa51..6dd4c871 100644
+index 3a5bfa51..89e7077a 100644
 --- a/src/mame/sega/model2_v.cpp
 +++ b/src/mame/sega/model2_v.cpp
-@@ -90,6 +90,10 @@
+@@ -90,6 +90,11 @@
  
  #include "emu.h"
  #include "model2.h"
 +#include "render.h"
 +#include "model2_frames.h"
 +#include "model2_input.h"
++#include "model2_script.h"
 +#include "video.h"
  #include "model2rd.ipp"
  
  #include "corefloat.h"
-@@ -200,6 +204,8 @@ inline u16 model2_state::float_to_zval(float floatval, s32 z_adjust)
+@@ -200,6 +205,8 @@ inline u16 model2_state::float_to_zval(float floatval, s32 z_adjust)
  
  static int32_t clip_polygon(poly_vertex *v, int32_t num_vertices, poly_vertex *vout, model2_state::plane clip_plane)
  {
@@ -160,7 +238,7 @@ index 3a5bfa51..6dd4c871 100644
  	int32_t outcount = 0;
  
  	const poly_vertex *cur = v;
-@@ -458,12 +464,12 @@ void model2_state::model2_3d_process_polygon(raster_state *raster, u32 attr)
+@@ -458,12 +465,12 @@ void model2_state::model2_3d_process_polygon(raster_state *raster, u32 attr)
  		poly_vertex verts_in[8], verts_out[8];
  
  		for (int i = 0; i < NumVerts; i++)
@@ -175,7 +253,7 @@ index 3a5bfa51..6dd4c871 100644
  		{
  			clipped_verts = clip_polygon(verts_in, clipped_verts, verts_out, raster->clip_plane[raster->center_sel][i]);
  			for (int j = 0; j < clipped_verts; j++)
-@@ -509,6 +515,10 @@ void model2_state::model2_3d_process_polygon(raster_state *raster, u32 attr)
+@@ -509,6 +516,10 @@ void model2_state::model2_3d_process_polygon(raster_state *raster, u32 attr)
  
  			/* set the window */
  			poly->window = raster->cur_window;
@@ -186,7 +264,7 @@ index 3a5bfa51..6dd4c871 100644
  
  			poly->num_vertices = clipped_verts;
  
-@@ -740,6 +750,141 @@ void model2_state::render_polygons(bitmap_rgb32 &bitmap, const rectangle &clipre
+@@ -740,6 +751,165 @@ void model2_state::render_polygons(bitmap_rgb32 &bitmap, const rectangle &clipre
  	m_render_done = true;
  }
  
@@ -266,69 +344,93 @@ index 3a5bfa51..6dd4c871 100644
 +	m_stereo_measure_done = true;
 +}
 +
-+void model2_state::render_stereo_polygons(bitmap_rgb32 &left, bitmap_rgb32 &right, const rectangle &cliprect)
++// The game's main 3D window spans the visible screen; only that one is widened
++// for the open frame. Small windows (mirrors, HUD models) keep their size.
++static bool full_width_window(const model2_state::polygon &poly, int xoffset)
++{
++	return poly.viewport[0] + xoffset <= 8 && poly.viewport[2] + xoffset >= 487;
++}
++
++void model2_state::render_stereo_polygons()
 +{
 +	raster_state *raster = m_raster.get();
-+	if (!m_render_done)
++	if (m_render_done)
++		return;
++	measure_stereo_reference();
++	const int margin = m_stereo.wide;
++	const rectangle &visible = m_screen->visible_area();
++	const rectangle scene_rect(visible.min_x, visible.max_x + 2 * margin, visible.min_y, visible.max_y);
++	// Everything moves right by the margin; the original picture sits in the middle.
++	m_renderer->set_xoffset(m_crtc_xoffset + margin);
++	for (int eye = 0; eye < 2; ++eye)
 +	{
-+		measure_stereo_reference();
-+		const rectangle scene_rect = m_screen->visible_area();
-+		for (int eye = 0; eye < 2; ++eye)
-+		{
-+			m_renderer->destmap().fill(0);
-+			m_renderer->fillmap().fill(0);
-+			for (int window = raster->cur_window; window >= 0; --window)
-+				for (int z = raster->min_z; z <= raster->max_z; ++z)
-+					for (polygon *source = raster->poly_sorted_list[z]; source; source = static_cast<polygon *>(source->next))
++		m_renderer->destmap().fill(0);
++		m_renderer->fillmap().fill(0);
++		for (int window = raster->cur_window; window >= 0; --window)
++			for (int z = raster->min_z; z <= raster->max_z; ++z)
++				for (polygon *source = raster->poly_sorted_list[z]; source; source = static_cast<polygon *>(source->next))
++				{
++					if (source->window != window)
++						continue;
++					// Projection and texturing mutate vertices. Keep the shared
++					// view-space list intact for the other eye and later redraws.
++					polygon poly = *source;
++					if (margin && full_width_window(poly, m_crtc_xoffset))
 +					{
-+						if (source->window != window)
-+							continue;
-+						// Projection and texturing mutate vertices. Keep the shared
-+						// view-space list intact for the other eye and later redraws.
-+						polygon poly = *source;
-+						poly_vertex input[8], output[8];
-+						int count = poly.num_vertices;
-+						for (int i = 0; i < count; ++i)
-+						{
-+							input[i] = poly.v[i];
-+							input[i].x = model2_stereo::focused_x(input[i].x, input[i].pz,
-+								poly.focal_x, m_stereo.eye(eye), m_stereo.zero());
-+						}
-+						// Clip separately for each shifted, parallel camera, before
-+						// the perspective divide. No central-frustum edge loss.
-+						for (int plane = 0; plane < 4 && count; ++plane)
-+						{
-+							count = clip_polygon(input, count, output, poly.eye_clip[plane]);
-+							std::copy_n(output, count, input);
-+						}
-+						if (count < 3)
-+							continue;
-+						poly.num_vertices = count;
-+						std::copy_n(input, count, poly.v);
-+						model2_3d_project(&poly);
-+						m_renderer->model2_3d_render(&poly, scene_rect);
++						// Same frustum construction as the hardware's window command,
++						// with the left and right edges moved out by the margin.
++						poly.viewport[0] -= margin;
++						poly.viewport[2] += margin;
++						const float left_plane = float(poly.center[0] - poly.viewport[0]);
++						const float right_plane = float(poly.viewport[2] - poly.center[0]);
++						poly.eye_clip[0].normal.x = 1.0f / std::hypot(1.0f, left_plane);
++						poly.eye_clip[0].normal.pz = left_plane / std::hypot(1.0f, left_plane);
++						poly.eye_clip[1].normal.x = -1.0f / std::hypot(-1.0f, right_plane);
++						poly.eye_clip[1].normal.pz = right_plane / std::hypot(-1.0f, right_plane);
 +					}
-+			m_renderer->wait("End of stereo eye");
-+			copybitmap(m_stereo_scene[eye], m_renderer->destmap(), 0, 0, 0, 0, scene_rect);
-+		}
-+		m_render_done = true;
++					poly_vertex input[8], output[8];
++					int count = poly.num_vertices;
++					for (int i = 0; i < count; ++i)
++					{
++						input[i] = poly.v[i];
++						input[i].x = model2_stereo::focused_x(input[i].x, input[i].pz,
++							poly.focal_x, m_stereo.eye(eye), m_stereo.zero());
++					}
++					// Clip separately for each shifted, parallel camera, before
++					// the perspective divide. No central-frustum edge loss.
++					for (int plane = 0; plane < 4 && count; ++plane)
++					{
++						count = clip_polygon(input, count, output, poly.eye_clip[plane]);
++						std::copy_n(output, count, input);
++					}
++					if (count < 3)
++						continue;
++					poly.num_vertices = count;
++					std::copy_n(input, count, poly.v);
++					model2_3d_project(&poly);
++					for (int i = 0; i < count; ++i)
++						poly.v[i].x += margin;
++					m_renderer->model2_3d_render(&poly, scene_rect);
++				}
++		m_renderer->wait("End of stereo eye");
++		copybitmap(m_stereo_scene[eye], m_renderer->destmap(), 0, 0, 0, 0, scene_rect);
 +	}
-+	copybitmap_trans(left, m_stereo_scene[0], 0, 0, 0, 0, cliprect, 0);
-+	copybitmap_trans(right, m_stereo_scene[1], 0, 0, 0, 0, cliprect, 0);
++	m_renderer->set_xoffset(m_crtc_xoffset);
++	m_render_done = true;
 +}
 +
 +u32 model2_state::stereo_screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 +{
 +	bitmap.fill(0, cliprect);
 +	copybitmap(bitmap, m_stereo_eye[0], 0, 0, 0, 0, cliprect);
-+	copybitmap(bitmap, m_stereo_eye[1], 0, 0, m_screen->visible_area().width(), 0, cliprect);
++	copybitmap(bitmap, m_stereo_eye[1], 0, 0, m_stereo_eye[0].width(), 0, cliprect);
 +	return 0;
 +}
 +
  // direct framebuffer drawing (enabled with render test mode, Last Bronx title screen)
  // pretty sure test mode cuts off DSP framebuffer drawing/clear, according to the manual description too
  void model2_state::draw_framebuffer(bitmap_rgb32 &bitmap, const rectangle &cliprect)
-@@ -2368,6 +2513,25 @@ void model2_state::video_start()
+@@ -2368,6 +2538,35 @@ void model2_state::video_start()
  	int height = visarea.height();
  
  	m_sys24_bitmap.allocate(width, height+4);
@@ -336,9 +438,9 @@ index 3a5bfa51..6dd4c871 100644
 +	{
 +		for (int eye = 0; eye < 2; ++eye)
 +		{
-+			m_stereo_scene[eye].allocate(512, 512);
++			m_stereo_scene[eye].allocate(512 + 2 * m_stereo.wide, 512);
 +			m_stereo_scene[eye].fill(0);
-+			m_stereo_eye[eye].allocate(width, height);
++			m_stereo_eye[eye].allocate(width + 2 * m_stereo.wide, height);
 +			m_stereo_eye[eye].fill(0);
 +		}
 +		// A logical live target publishes this screen's texture even with
@@ -346,44 +448,59 @@ index 3a5bfa51..6dd4c871 100644
 +		m_stereo_target = machine().render().target_alloc();
 +		m_stereo_target->set_view(m_stereo_target->configured_view("Screen 1", 0, 1));
 +		if (model2_stereo::setting("ACVR_M2_STREAM", 0, 0, 1) == 1)
-+		{
 +			m_stereo_stream = std::make_shared<model2_frames::publisher>();
-+			machine().add_notifier(MACHINE_NOTIFY_FRAME, machine_notify_delegate(&model2_state::stereo_controls_update, this));
++		// Development proof only: MAME reads the controller script itself, frame-exact,
++		// instead of the viewer's live controls. Needs the explicit input-test switch.
++		const char *script = std::getenv("ACVR_M2_MAME_SCRIPT");
++		if (script && *script && model2_stereo::setting("ACVR_M2_INPUT_TEST", 0, 0, 1) == 1)
++		{
++			m_stereo_script = std::make_shared<model2_script::ScriptFile>();
++			std::string error;
++			if (!m_stereo_script->load(script, error))
++				throw emu_fatalerror("ACVR_M2_MAME_SCRIPT %s: %s", script, error);
++			osd_printf_info("Model 2 proof script read by MAME: %s\n", script);
 +		}
++		if (m_stereo_stream || m_stereo_script)
++			machine().add_notifier(MACHINE_NOTIFY_FRAME, machine_notify_delegate(&model2_state::stereo_controls_update, this));
 +	}
  
  	m_renderer = std::make_unique<model2_renderer>(*this);
  
-@@ -2434,10 +2598,21 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
- 		m_tiles->draw(screen, m_sys24_bitmap, cliprect, layer << 1, 0, 0);
- 
- 	copybitmap_trans(bitmap, m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
-+	if (m_stereo.enabled)
-+	{
-+		m_stereo_eye[1].fill(m_palette->pen(0), cliprect);
-+		copybitmap_trans(m_stereo_eye[1], m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
-+	}
- 
- 	/* tell the rasterizer we're starting a frame */
- 	if (m_render_test_mode == true)
-+	{
- 		draw_framebuffer(bitmap, cliprect);
-+		if (m_stereo.enabled)
-+			copybitmap(m_stereo_eye[1], bitmap, 0, 0, 0, 0, cliprect);
-+	}
-+	else if (m_stereo.enabled)
-+		render_stereo_polygons(bitmap, m_stereo_eye[1], cliprect);
- 	else
- 		render_polygons(bitmap, cliprect);
- 
-@@ -2448,5 +2623,81 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
+@@ -2435,6 +2634,59 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
  
  	copybitmap_trans(bitmap, m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
  
 +	if (m_stereo.enabled)
 +	{
-+		copybitmap_trans(m_stereo_eye[1], m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
-+		copybitmap(m_stereo_eye[0], bitmap, 0, 0, 0, 0, cliprect);
++		// Each eye: the 2D layers sit in the middle of a picture that is wider
++		// by the open-frame margin on each side; the 3D scene fills all of it.
++		const int margin = m_stereo.wide;
++		const rectangle eye_clip(cliprect.min_x, cliprect.max_x + 2 * margin, cliprect.min_y, cliprect.max_y);
++		for (int eye = 0; eye < 2; ++eye)
++		{
++			m_stereo_eye[eye].fill(m_palette->pen(0), eye_clip);
++			copybitmap_trans(m_stereo_eye[eye], m_sys24_bitmap, 0, 0, margin, 0, eye_clip, 0);
++		}
++		if (m_render_test_mode == true)
++		{
++			draw_framebuffer(bitmap, cliprect);
++			for (int eye = 0; eye < 2; ++eye)
++				copybitmap(m_stereo_eye[eye], bitmap, 0, 0, margin, 0, eye_clip);
++		}
++		else
++		{
++			render_stereo_polygons();
++			for (int eye = 0; eye < 2; ++eye)
++				copybitmap_trans(m_stereo_eye[eye], m_stereo_scene[eye], 0, 0, 0, 0, eye_clip, 0);
++		}
++		m_sys24_bitmap.fill(0, cliprect);
++		for (int layer = 3; layer >= 0; layer--)
++			m_tiles->draw(screen, m_sys24_bitmap, cliprect, (layer<<1) | 1, 0, 0);
++		for (int eye = 0; eye < 2; ++eye)
++			copybitmap_trans(m_stereo_eye[eye], m_sys24_bitmap, 0, 0, margin, 0, eye_clip, 0);
++		// The arcade screen itself shows the left eye's original 4:3 area.
++		copybitmap(bitmap, m_stereo_eye[0], 0, 0, -margin, 0, cliprect);
++
 +		if (m_stereo_stream && cliprect.max_y == m_screen->visible_area().max_y)
 +		{
 +			int largest = -1;
@@ -394,66 +511,147 @@ index 3a5bfa51..6dd4c871 100644
 +				if (area <= largest || poly.focal_x <= 0 || poly.focal_y <= 0) continue;
 +				largest = area;
 +				const float cx = m_crtc_xoffset + poly.center[0], cy = 384 - poly.center[1] + m_crtc_yoffset;
-+				m_stereo_tangents[0] = -cx / poly.focal_x;
-+				m_stereo_tangents[1] = (496 - cx) / poly.focal_x;
++				m_stereo_tangents[0] = -(cx + margin) / poly.focal_x;
++				m_stereo_tangents[1] = (496 + margin - cx) / poly.focal_x;
 +				m_stereo_tangents[2] = (cy - 384) / poly.focal_y;
 +				m_stereo_tangents[3] = cy / poly.focal_y;
 +			}
 +			if (m_stereo_stream->publish(&m_stereo_eye[0].pix(0), &m_stereo_eye[1].pix(0),
-+				m_stereo_eye[0].rowpixels(), m_stereo_eye[1].rowpixels(), m_stereo_tangents, m_stereo.zero_m, machine().time().as_double(), m_stereo_shot_serial))
++				m_stereo_eye[0].rowpixels(), m_stereo_eye[1].rowpixels(), m_stereo_eye[0].width(), m_stereo_tangents, m_stereo.zero_m, machine().time().as_double(), m_stereo_shot_serial))
 +				machine().schedule_exit();
 +		}
++		return 0;
 +	}
 +
+ 	/* tell the rasterizer we're starting a frame */
+ 	if (m_render_test_mode == true)
+ 		draw_framebuffer(bitmap, cliprect);
+@@ -2450,3 +2702,129 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
+ 
  	return 0;
  }
 +
-+// Override the original input fields; the serial mux and border/reload logic
-+// still read those ports normally. No mapping/viewer means no overrides.
++// The right VR controller becomes the cabinet's own control, as listed per
++// game in model2_input.h. Overrides go into the game's original input fields,
++// so the serial gun mux, the off-screen border/reload test and the analog
++// ports all read them normally. No list entry or no viewer means no overrides.
 +void model2_state::stereo_controls_update()
 +{
-+	ioport_port *xport = ioport("P1_X"), *yport = ioport("P1_Y");
-+	if (!xport || !yport) return;
-+	ioport_field *x = xport->field(0x3ff), *y = yport->field(0x3ff);
-+	ioport_field *trigger = ioport("IN1")->field(0x01);
-+	ioport_field *start = ioport("IN0")->field(0x10), *coin = ioport("IN0")->field(0x01);
-+	if (!x || !y || !trigger || !start || !coin || x->type()!=IPT_LIGHTGUN_X || y->type()!=IPT_LIGHTGUN_Y) return;
++	if (!m_stereo_map_checked)
++	{
++		m_stereo_map_checked = true;
++		m_stereo_map = model2_input::find(machine().system().name, machine().system().parent);
++		osd_printf_info("Model 2 controller map: %s\n", m_stereo_map ? m_stereo_map->name : "none (view only)");
++	}
++	const model2_input::game_map *map = m_stereo_map;
++	if (!map)
++		return;
++	auto digital = [this](const model2_input::input_bit &bit) -> ioport_field * {
++		ioport_port *port = bit.port ? ioport(bit.port) : nullptr;
++		return port ? port->field(bit.mask) : nullptr;
++	};
++	auto analog = [this](const char *tag) -> ioport_field * {
++		ioport_port *port = tag ? ioport(tag) : nullptr;
++		return port ? port->fields().first() : nullptr;
++	};
++	const bool h_pattern = map->shifter == model2_input::gears::h_pattern;
++	ioport_field *const start = digital(map->start), *const coin = digital({"IN0", 0x01});
++	ioport_field *const trigger = digital(map->trigger);
++	ioport_field *const grip_r = h_pattern ? nullptr : digital(map->grip_right);
++	ioport_field *const grip_l = h_pattern ? nullptr : digital(map->grip_left);
++	ioport_field *const aim_x = analog(map->aim_x), *const aim_y = analog(map->aim_y);
++	ioport_field *const steer = analog(map->steer), *const accel = analog(map->accel), *const brake = analog(map->brake);
++	ioport_field *gears[5] = {};
++	if (h_pattern)
++		for (int gear = 1; gear <= 4; ++gear)
++			gears[gear] = digital({"GEARS", 1u << gear});
++
 +	model2_frames::controls input{};
-+	const bool active = m_stereo_stream->read_controls(input) && model2_frames::publisher::fresh(input);
++	bool active = false;
++	if (m_stereo_script)
++	{
++		const model2_script::ScriptState step = m_stereo_script->at(machine().time().as_double());
++		input.valid = 1; input.u = step.u; input.v = step.v; input.off_screen = step.off; input.trigger = step.trigger;
++		input.start = step.start; input.coin = step.coin; input.steer = step.steer; input.accel = step.accel; input.brake = step.brake;
++		input.buttons = (step.gripr ? 1u : 0u) | (step.gripl ? 2u : 0u); input.snapshot_request = step.snaps;
++		active = true;
++	}
++	else
++		active = m_stereo_stream->read_controls(input) && model2_frames::publisher::fresh(input);
++	ioport_field *const all[] = {start, coin, trigger, grip_r, grip_l, aim_x, aim_y, steer, accel, brake, gears[1], gears[2], gears[3], gears[4]};
 +	if (active)
 +	{
-+		x->set_value(model2_input::coordinate(input.u, x->minval(), x->maxval(), input.off_screen));
-+		y->set_value(model2_input::coordinate(input.v, y->minval(), y->maxval(), input.off_screen));
-+		trigger->set_value(input.trigger); start->set_value(input.start); coin->set_value(input.coin);
++		bool off_screen = input.off_screen != 0;
++		const float u = model2_input::untrim(model2_input::from_wide(input.u, m_stereo.wide, 496, off_screen), map->trim[0], map->trim[1]);
++		const float v = model2_input::untrim(input.v, map->trim[2], map->trim[3]);
++		if (aim_x && aim_y)
++		{
++			if (map->type == model2_input::kind::light_gun)
++			{
++				aim_x->set_value(model2_input::coordinate(u, aim_x->minval(), aim_x->maxval(), off_screen));
++				aim_y->set_value(model2_input::coordinate(v, aim_y->minval(), aim_y->maxval(), off_screen));
++			}
++			else
++			{
++				// A turret or a stick has no off-screen: it stops at its end.
++				aim_x->set_value(model2_input::analog(u, aim_x->minval(), aim_x->maxval(), aim_x->analog_reverse()));
++				aim_y->set_value(model2_input::analog(v, aim_y->minval(), aim_y->maxval(), aim_y->analog_reverse()));
++			}
++		}
++		if (steer) steer->set_value(model2_input::analog(0.5f * (input.steer + 1.0f), steer->minval(), steer->maxval(), steer->analog_reverse()));
++		if (accel) accel->set_value(model2_input::analog(input.accel, accel->minval(), accel->maxval(), accel->analog_reverse()));
++		if (brake) brake->set_value(model2_input::analog(input.brake, brake->minval(), brake->maxval(), brake->analog_reverse()));
++		if (trigger) trigger->set_value(input.trigger);
++		if (start) start->set_value(input.start);
++		if (coin) coin->set_value(input.coin);
++		if (grip_r) grip_r->set_value(input.buttons & 1);
++		if (grip_l) grip_l->set_value(input.buttons & 2);
++		if (h_pattern)
++		{
++			const u32 pressed = input.buttons & ~m_stereo_buttons_prev;
++			m_stereo_gear = model2_input::shift(m_stereo_gear, pressed & 1, pressed & 2);
++			for (int gear = 1; gear <= 4; ++gear)
++				if (gears[gear]) gears[gear]->set_value(gear == m_stereo_gear);
++		}
++		m_stereo_buttons_prev = input.buttons;
 +	}
 +	else if (m_stereo_controls_active)
 +	{
-+		x->clear_value(); y->clear_value(); trigger->clear_value(); start->clear_value(); coin->clear_value();
++		for (ioport_field *field : all)
++			if (field) field->clear_value();
++		m_stereo_buttons_prev = 0;
 +	}
 +	m_stereo_controls_active = active;
-+	m_stereo_controller_trigger = active && input.trigger;
++	m_stereo_controller_trigger = active && input.trigger && trigger;
 +	// Only an explicit development switch permits scripted snapshot requests.
 +	if (active && input.snapshot_request != m_stereo_snapshot_seen && model2_stereo::setting("ACVR_M2_INPUT_TEST", 0, 0, 1) == 1)
 +	{
 +		m_stereo_snapshot_seen = input.snapshot_request;
 +		machine().video().save_active_screen_snapshots();
-+		std::printf("Controller proof snapshot %u at %.3f s: IN0=%02x IN1=%02x gun=(%u,%u) offscreen=%u\n",
-+			input.snapshot_request, machine().time().as_double(), ioport("IN0")->read(), ioport("IN1")->read(), xport->read(), yport->read(), input.off_screen);
++		auto port = [this](const char *tag) -> int { ioport_port *p = tag ? ioport(tag) : nullptr; return p ? int(p->read()) : -1; };
++		std::printf("Controller proof snapshot %u at %.3f s: IN0=%02x IN1=%02x aim=(%d,%d) steer=%d accel=%d brake=%d gear=%d offscreen=%u\n",
++			input.snapshot_request, machine().time().as_double(), port("IN0"), port("IN1"), port(map->aim_x), port(map->aim_y),
++			port(map->steer), port(map->accel), port(map->brake), h_pattern ? m_stereo_gear : 0, unsigned(input.off_screen));
++		std::fflush(stdout);
 +	}
 +}
 +
-+// The actual VCop2 I/O port read acknowledges controller trigger edges. Held
-+// triggers cannot repeat feedback, and an absent/inactive mapping changes no bits.
++// The game's actual read of its button port acknowledges controller trigger
++// edges. Held triggers cannot repeat feedback; no active mapping changes no bits.
 +u8 model2_state::stereo_gun_buttons_r()
 +{
 +	const u8 buttons = ioport("IN1")->read();
-+	const bool pressed = m_stereo_controller_trigger && !(buttons & 0x01);
++	const u8 mask = m_stereo_map && m_stereo_map->trigger.port && !std::strcmp(m_stereo_map->trigger.port, "IN1") ? m_stereo_map->trigger.mask : 0x01;
++	const bool pressed = m_stereo_controller_trigger && !(buttons & mask);
 +	if (pressed && !m_stereo_trigger_latched)
 +	{
 +		++m_stereo_shot_serial;
 +		if (model2_stereo::setting("ACVR_M2_INPUT_TEST", 0, 0, 1) == 1)
-+			std::printf("VCop2 controller trigger acknowledged at %.3f s: serial=%llu offscreen=%u\n",
-+				machine().time().as_double(), static_cast<unsigned long long>(m_stereo_shot_serial), lightgun_offscreen_r(0) & 1);
++		{
++			std::printf("Controller trigger acknowledged at %.3f s: serial=%llu\n",
++				machine().time().as_double(), static_cast<unsigned long long>(m_stereo_shot_serial));
++			std::fflush(stdout);
++		}
 +	}
 +	m_stereo_trigger_latched = pressed;
 +	return buttons;
@@ -462,7 +660,7 @@ diff --git a/src/mame/sega/model2_frames.h b/src/mame/sega/model2_frames.h
 new file mode 100644
 --- /dev/null
 +++ b/src/mame/sega/model2_frames.h
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,102 @@
 +// license:BSD-3-Clause
 +#ifndef MAME_SEGA_MODEL2_FRAMES_H
 +#define MAME_SEGA_MODEL2_FRAMES_H
@@ -477,13 +675,18 @@ new file mode 100644
 +#endif
 +
 +namespace model2_frames {
-+constexpr unsigned width = 496, height = 384, magic = 0x4d325352;
-+constexpr unsigned protocol_version = 3;
++// The 4:3 picture is 496 wide; an open-frame picture adds up to 256 pixels per side.
++constexpr unsigned width = 496, height = 384, max_width = 1008, magic = 0x4d325352;
++constexpr unsigned protocol_version = 4;
 +struct controls
 +{
 +	std::uint64_t heartbeat_ms;
 +	std::uint32_t valid, off_screen, trigger, start, coin, snapshot_request;
 +	float u, v;
++	// Protocol 4: analog cabinet controls and extra buttons. steer -1 (left) .. 1 (right),
++	// accel and brake 0..1; buttons: bit 0 right grip, bit 1 left grip.
++	float steer, accel, brake;
++	std::uint32_t buttons;
 +};
 +struct frame
 +{
@@ -494,7 +697,7 @@ new file mode 100644
 +	double emulated_seconds;
 +	std::uint64_t shot_serial, shot_time_ms;
 +	controls input;
-+	std::uint32_t pixels[2][height][width];
++	std::uint32_t pixels[2][height][max_width]; // rows of w pixels each
 +};
 +
 +// Plain bitmap transport to a separate viewer, not a linked OpenXR module.
@@ -514,16 +717,17 @@ new file mode 100644
 +		if (m_lock) ReleaseMutex(m_lock);
 +	}
 +	~publisher() { if (m_frame) UnmapViewOfFile(m_frame); if (m_mapping) CloseHandle(m_mapping); if (m_lock) CloseHandle(m_lock); }
-+	bool publish(const std::uint32_t *left, const std::uint32_t *right, unsigned stride_l, unsigned stride_r, const float *tangents, float distance, double seconds, std::uint64_t shots)
++	bool publish(const std::uint32_t *left, const std::uint32_t *right, unsigned stride_l, unsigned stride_r, unsigned picture_width, const float *tangents, float distance, double seconds, std::uint64_t shots)
 +	{
-+		if (!m_frame || !m_lock) return false;
++		if (!m_frame || !m_lock || picture_width > max_width) return false;
 +		const DWORD result = WaitForSingleObject(m_lock, 0);
 +		if (result != WAIT_OBJECT_0 && result != WAIT_ABANDONED) return false;
 +		for (unsigned y = 0; y < height; ++y)
 +		{
-+			std::memcpy(m_frame->pixels[0][y], left + y * stride_l, width * 4);
-+			std::memcpy(m_frame->pixels[1][y], right + y * stride_r, width * 4);
++			std::memcpy(m_frame->pixels[0][y], left + y * stride_l, picture_width * 4);
++			std::memcpy(m_frame->pixels[1][y], right + y * stride_r, picture_width * 4);
 +		}
++		m_frame->w = picture_width;
 +		m_frame->tan_l = tangents[0]; m_frame->tan_r = tangents[1];
 +		m_frame->tan_b = tangents[2]; m_frame->tan_t = tangents[3]; m_frame->distance = distance;
 +		m_frame->emulated_seconds = seconds;
@@ -552,7 +756,7 @@ new file mode 100644
 +	frame *m_frame = nullptr;
 +	controls m_last_input{};
 +#else
-+	bool publish(const std::uint32_t *, const std::uint32_t *, unsigned, unsigned, const float *, float, double, std::uint64_t) { return false; }
++	bool publish(const std::uint32_t *, const std::uint32_t *, unsigned, unsigned, unsigned, const float *, float, double, std::uint64_t) { return false; }
 +	bool read_controls(controls &) { return false; }
 +	static bool fresh(const controls &) { return false; }
 +#endif
@@ -563,25 +767,194 @@ diff --git a/src/mame/sega/model2_input.h b/src/mame/sega/model2_input.h
 new file mode 100644
 --- /dev/null
 +++ b/src/mame/sega/model2_input.h
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,95 @@
 +// license:BSD-3-Clause
 +#ifndef MAME_SEGA_MODEL2_INPUT_H
 +#define MAME_SEGA_MODEL2_INPUT_H
 +#include <algorithm>
 +#include <cmath>
++#include <cstring>
 +namespace model2_input {
 +inline unsigned coordinate(float normalized, unsigned minimum, unsigned maximum, bool off_screen)
 +{
 + if (off_screen || !std::isfinite(normalized)) return minimum;
 + return minimum + unsigned(std::lround(std::clamp(normalized,0.0f,1.0f)*(maximum-minimum)));
 +}
++
++// An analog cabinet control from a 0..1 amount. A field that MAME reverses for
++// a user's device is reversed here too, so an override equals what the same
++// physical movement would give through MAME's own input path.
++inline unsigned analog(float amount, unsigned minimum, unsigned maximum, bool reverse)
++{
++ if (!std::isfinite(amount)) amount = 0;
++ amount = std::clamp(amount, 0.0f, 1.0f);
++ if (reverse) amount = 1.0f - amount;
++ return minimum + unsigned(std::lround(amount * float(maximum - minimum)));
++}
++
++// A 4:3 coordinate from a coordinate across a wider presented picture whose
++// original 4:3 area sits in the middle with `margin` extra pixels per side.
++// Points in the extra sides are off the cabinet screen.
++inline float from_wide(float wide, unsigned margin, unsigned width, bool &off_screen)
++{
++ if (!margin) return wide;
++ const float total = float(width + 2 * margin);
++ const float inner = (wide * total - float(margin)) / float(width);
++ if (inner < 0 || inner > 1) off_screen = true;
++ return inner;
++}
++
++// What the right VR controller is on each cabinet. Field locations come from
++// MAME's own input definitions for the game (src/mame/sega/model2.cpp).
++enum class kind { none, light_gun, mounted_gun, yoke, racing };
++enum class gears { none, h_pattern, buttons };
++struct input_bit { const char *port; unsigned mask; };
++struct game_map
++{
++ const char *name;
++ kind type;
++ input_bit start, trigger, grip_right, grip_left;
++ const char *aim_x, *aim_y;            // light gun, mounted gun or yoke
++ const char *steer, *accel, *brake;    // racing
++ gears shifter;
++ // Aim trim measured against the game's own on-screen mark (default calibration):
++ // mark = scale * aim + offset, per axis, in 0..1 picture units. The inverse is applied.
++ float trim[4] = {1, 0, 1, 0}; // x scale, x offset, y scale, y offset
++};
++constexpr input_bit none_bit{nullptr, 0};
++constexpr game_map maps[] = {
++ // Light guns: Virtua Gun / Sega gun positions with the game's own off-screen border.
++ {"vcop2", kind::light_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
++ {"vcop",  kind::light_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
++ {"hotd",  kind::light_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
++ // Mounted guns: the turret's two potentiometers. Behind Enemy Lines has a missile button.
++ {"gunblade", kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none, {1.144f, -0.0597f, 1.154f, -0.084f}},
++ {"bel",      kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, {"IN1",0x10}, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
++ {"rchase2",  kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
++ // Sky Target: the flight stick follows where the controller points; trigger = machine gun.
++ {"skytargt", kind::yoke, {"IN0",0x40}, {"IN1",0x10}, {"IN1",0x20}, {"IN0",0x20}, "STICKX", "STICKY", nullptr, nullptr, nullptr, gears::none},
++ // Racing: steering, accelerator and brake; the grips shift or punch/kick.
++ {"daytona",  kind::racing, {"IN0",0x10}, none_bit, none_bit, none_bit, nullptr, nullptr, "STEER", "ACCEL", "BRAKE", gears::h_pattern},
++ {"srallyc",  kind::racing, {"IN0",0x40}, none_bit, none_bit, none_bit, nullptr, nullptr, "STEER", "ACCEL", "BRAKE", gears::h_pattern},
++ {"indy500",  kind::racing, {"IN0",0x40}, none_bit, {"IN1",0x10}, {"IN1",0x20}, nullptr, nullptr, "STEER", "ACCEL", "BRAKE", gears::buttons},
++ {"manxtt",   kind::racing, {"IN0",0x40}, none_bit, {"IN1",0x10}, {"IN1",0x20}, nullptr, nullptr, "BANK", "THROTTLE", "BRAKE", gears::buttons},
++ {"motoraid", kind::racing, {"IN0",0x40}, none_bit, {"IN1",0x10}, {"IN1",0x20}, nullptr, nullptr, "BANK", "THROTTLE", "BRAKE", gears::none},
++};
++// The set itself, else its parent (clones share their parent's controls).
++inline const game_map *find(const char *name, const char *parent)
++{
++ for (const auto &map : maps) if (name && !std::strcmp(map.name, name)) return &map;
++ for (const auto &map : maps) if (parent && !std::strcmp(map.name, parent)) return &map;
++ return nullptr;
++}
++
++// The cabinet amount that puts the game's mark where the controller points.
++inline float untrim(float aim, float scale, float offset)
++{
++ return scale > 0 ? (aim - offset) / scale : aim;
++}
++
++// Sequential shifting for an H-pattern box: gear 1..4, one step per press.
++inline int shift(int gear, bool up_edge, bool down_edge)
++{
++ if (up_edge) ++gear;
++ if (down_edge) --gear;
++ return std::clamp(gear, 1, 4);
++}
++}
++#endif
+diff --git a/src/mame/sega/model2_script.h b/src/mame/sega/model2_script.h
+new file mode 100644
+--- /dev/null
++++ b/src/mame/sega/model2_script.h
+@@ -0,0 +1,82 @@
++// license:BSD-3-Clause
++// Headset-free proof input read from a plain text file (ACVR_M2_SCRIPT).
++// Each line: <emulated seconds> followed by settings that stay until changed:
++//   u=<0..1> v=<0..1> off=<0|1> trigger=<0|1> start=<0|1> coin=<0|1>
++//   steer=<-1..1> accel=<0..1> brake=<0..1> gripr=<0|1> gripl=<0|1>
++// and the word "snap", which asks MAME for one snapshot. "#" starts a comment.
++// The viewer feeds it through the shared-memory controller path; MAME can also read
++// it itself (ACVR_M2_MAME_SCRIPT) for frame-exact, repeatable proof runs.
++#ifndef MAME_SEGA_MODEL2_SCRIPT_H
++#define MAME_SEGA_MODEL2_SCRIPT_H
++#include <algorithm>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <string>
++#include <vector>
++
++namespace model2_script {
++struct ScriptState
++{
++	float u=.5f, v=.5f, steer=0, accel=0, brake=0;
++	unsigned off=0, trigger=0, start=0, coin=0, gripr=0, gripl=0, snaps=0;
++};
++
++class ScriptFile
++{
++public:
++	bool load(const char *path, std::string &error)
++	{
++		m_steps.clear();
++		FILE *file=std::fopen(path,"r");
++		if(!file) { error="cannot open script file"; return false; }
++		char line[1024]; unsigned number=0;
++		while(std::fgets(line,sizeof(line),file)) {
++			++number;
++			if(char *hash=std::strchr(line,'#')) *hash=0;
++			char *cursor=line; char *end=nullptr;
++			const double time=std::strtod(cursor,&end);
++			if(end==cursor) { bool blank=true; for(char *c=line;*c;++c) if(*c>' ') blank=false; if(blank) continue; error="line "+std::to_string(number)+": no time"; std::fclose(file); return false; }
++			Step step; step.time=time; cursor=end;
++			for(char *token=std::strtok(cursor," \t\r\n");token;token=std::strtok(nullptr," \t\r\n")) {
++				if(!std::strcmp(token,"snap")) { step.snap=true; continue; }
++				char *equals=std::strchr(token,'=');
++				if(!equals) { error="line "+std::to_string(number)+": bad token"; std::fclose(file); return false; }
++				*equals=0;
++				static const char *const known[]={"u","v","off","trigger","start","coin","steer","accel","brake","gripr","gripl"};
++				if(std::none_of(std::begin(known),std::end(known),[token](const char *k){return !std::strcmp(k,token);})) {
++					error="line "+std::to_string(number)+": unknown setting "+token; std::fclose(file); return false;
++				}
++				step.keys.push_back(token); step.values.push_back(std::strtod(equals+1,nullptr));
++			}
++			m_steps.push_back(step);
++		}
++		std::fclose(file);
++		std::stable_sort(m_steps.begin(),m_steps.end(),[](const Step &a,const Step &b){return a.time<b.time;});
++		return !m_steps.empty() || (error="empty script",false);
++	}
++	// The state after every step up to the given emulated time.
++	ScriptState at(double seconds) const
++	{
++		ScriptState state;
++		for(const auto &step:m_steps) {
++			if(step.time>seconds) break;
++			if(step.snap) ++state.snaps;
++			for(size_t i=0;i<step.keys.size();++i) apply(state,step.keys[i],float(step.values[i]));
++		}
++		return state;
++	}
++	double last() const { return m_steps.empty()?0:m_steps.back().time; }
++private:
++	struct Step { double time=0; bool snap=false; std::vector<std::string> keys; std::vector<double> values; };
++	static void apply(ScriptState &s,const std::string &k,float v)
++	{
++		const unsigned b=v!=0;
++		if(k=="u") s.u=v; else if(k=="v") s.v=v; else if(k=="off") s.off=b; else if(k=="trigger") s.trigger=b;
++		else if(k=="start") s.start=b; else if(k=="coin") s.coin=b; else if(k=="steer") s.steer=v;
++		else if(k=="accel") s.accel=v; else if(k=="brake") s.brake=v; else if(k=="gripr") s.gripr=b; else if(k=="gripl") s.gripl=b;
++	}
++	std::vector<Step> m_steps;
++};
 +}
 +#endif
 diff --git a/src/mame/sega/model2_stereo.h b/src/mame/sega/model2_stereo.h
 new file mode 100644
 --- /dev/null
 +++ b/src/mame/sega/model2_stereo.h
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,43 @@
 +// license:BSD-3-Clause
 +#ifndef MAME_SEGA_MODEL2_STEREO_H
 +#define MAME_SEGA_MODEL2_STEREO_H
@@ -607,6 +980,9 @@ new file mode 100644
 +	double separation_m = setting("ACVR_M2_IPD_M", 0.064, 0, 0.2);
 +	double units_per_m = setting("ACVR_M2_UNITS_PER_M", 1, 0.001, 1000000);
 +	double zero_m = setting("ACVR_M2_ZERO_M", 4, 0.01, 1000000);
++	// Open frame: extra pixels drawn on each side of the 496-pixel 4:3 picture
++	// (93 gives 16:9). Only the game's full-width 3D windows are widened.
++	int wide = enabled ? int(setting("ACVR_M2_WIDE", 0, 0, 256)) : 0;
 +
 +	double eye(int index) const { return (index ? 0.5 : -0.5) * separation_m * units_per_m; }
 +	double zero() const { return zero_m * units_per_m; }

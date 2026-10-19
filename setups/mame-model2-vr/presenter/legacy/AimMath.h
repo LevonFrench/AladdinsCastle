@@ -27,5 +27,14 @@ inline hit intersect(vec origin, quat aim, vec centre, quat quad, float width, f
  result.on_screen=std::isfinite(result.u) && std::isfinite(result.v) && result.u>=0 && result.u<=1 && result.v>=0 && result.v<=1;
  return result;
 }
+// Steering from a controller held like a wheel: its roll about the pointing
+// axis. Clockwise (right side down) steers right; full_lock_degrees gives +-1.
+inline float steer_from_roll(quat aim, float full_lock_degrees)
+{
+ const vec right=rotate(aim,{1,0,0});
+ if (!std::isfinite(right.y) || !(full_lock_degrees>0)) return 0;
+ const float roll=std::asin(std::fmax(-1.f,std::fmin(1.f,right.y)))*57.2957795f;
+ return std::fmax(-1.f,std::fmin(1.f,-roll/full_lock_degrees));
+}
 }
 #endif
