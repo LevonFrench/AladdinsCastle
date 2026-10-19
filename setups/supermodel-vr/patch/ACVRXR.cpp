@@ -117,6 +117,7 @@ namespace
   XrSpace     s_viewSpace = XR_NULL_HANDLE;
   XrPosef     s_quadPose;
   bool        s_poseSet = false;
+  float       s_quadW = 0.0f, s_quadH = 0.0f;   // the screen's size as last submitted (screen mode)
   XrSwapchain s_chain[CHAINS] = { XR_NULL_HANDLE, XR_NULL_HANDLE, XR_NULL_HANDLE };
   std::vector<XrSwapchainImageOpenGLKHR> s_images[CHAINS];
   unsigned    s_chainW = 0, s_chainH = 0;
@@ -376,7 +377,19 @@ namespace
             c.aimValid[h] = true;
             c.aimRot[h][0] = loc.pose.orientation.x; c.aimRot[h][1] = loc.pose.orientation.y;
             c.aimRot[h][2] = loc.pose.orientation.z; c.aimRot[h][3] = loc.pose.orientation.w;
+            if (loc.locationFlags & posOk)
+            {
+              c.aimPosValid[h] = true;
+              c.aimPos[h][0] = loc.pose.position.x; c.aimPos[h][1] = loc.pose.position.y; c.aimPos[h][2] = loc.pose.position.z;
+            }
           }
+        }
+        if (s_poseSet && s_quadW > 0.0f)
+        {
+          c.screenValid = true;
+          c.screenPos[0] = s_quadPose.position.x; c.screenPos[1] = s_quadPose.position.y; c.screenPos[2] = s_quadPose.position.z;
+          c.screenYaw = 2.0f * atan2f(s_quadPose.orientation.y, s_quadPose.orientation.w);
+          c.screenSize[0] = s_quadW; c.screenSize[1] = s_quadH;
         }
         c.a = ReadBool(s_actA, XR_NULL_PATH);
         c.b = ReadBool(s_actB, XR_NULL_PATH);
@@ -678,6 +691,7 @@ namespace
             quads[0] = q;
             layers[layerCount++] = (const XrCompositionLayerBaseHeader *)&quads[0];
           }
+          s_quadW = 0.0f;                                   // no screen to point at: aiming uses the arcade view
           if (lastMode != 1) { Log("head-tracked picture shown (HUD panel %s)", shown.hasHud ? "on" : "off"); lastMode = 1; }
         }
         else
@@ -691,6 +705,7 @@ namespace
             s_poseSet = PlaceScreen(fs.predictedDisplayTime);
           const float width  = s_distance * (tr - tl) * s_sizeScale;
           const float height = s_distance * (tt - tb) * s_sizeScale;
+          s_quadW = width; s_quadH = height;
           for (int i = 0; i < 2; i++)
           {
             XrCompositionLayerQuad q = { XR_TYPE_COMPOSITION_LAYER_QUAD };

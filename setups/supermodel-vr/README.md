@@ -12,6 +12,7 @@ Supermodel is licensed GPL v3 or later, and so is everything in this folder.
 |---|---|---|
 | Screen | A large screen in front of you with the game in real 3D, sized so the scene is at real scale | Parallel cameras with off-axis frusta; two quad layers, one per eye |
 | Wide screen | The same with a wider camera on a larger screen | The game's frustum is widened and its culling is turned off |
+| Open frame | The same screen, wider than the arcade picture, with the game's world drawn past its 4:3 edges | Supermodel's own `-wide-screen` with a wide window; the patch also widens letterboxed scene views |
 | Inside the game | The scene fills your view and the camera follows your head | The headset's own per-eye frusta and eye poses; a projection layer; the game's text and score on a floating panel |
 
 The emulator keeps its own 57.5 Hz timing. The headset is fed from a separate thread at its own rate, and in the head-tracked mode each frame carries the eye poses it was drawn for, so the runtime can re-aim it between game frames.
@@ -57,10 +58,16 @@ Everything is switched by environment variables, so the same program runs unchan
 | `ACVR_XR_DISTANCE`, `ACVR_XR_SIZE`, `ACVR_XR_HEIGHT` | Screen mode: where the screen is and how large |
 | `ACVR_HUD_DISTANCE`, `ACVR_HUD_WIDTH` | Head-tracked: the panel that carries the game's 2D layer |
 | `ACVR_FOV_SCALE`, `ACVR_NO_CULL=1` | Screen mode: wider camera, culling off |
+| `ACVR_WIDE_ALL=0` | With `-wide-screen`: widen only full-screen views, as upstream does. By default letterboxed scene views (Star Wars Trilogy) and sky strips (Virtua Fighter 3) are widened too |
+| `ACVR_AIM_X`, `ACVR_AIM_Y` | Analog-stick games: where the game draws its crosshair for each stick value, `value:pixel,...` over its 496x384 picture. The default is Star Wars Trilogy's, measured from its own crosshair |
+| `ACVR_AIM_DISTANCE` | Head-tracked: how far ahead the arcade view is met when pointing, metres (2.5) |
+| `ACVR_FAKE_CONTROLLERS` | Made-up controllers for unattended checks, used only when no real ones are read: `first-last:control:value;...` (see the top of `acvr_main_block.cpp`) |
 | `ACVR_INPUT_SCRIPT` | Hold inputs during given frames, as `first-last:InputId:value;...` |
 | `ACVR_HIDDEN=1`, `ACVR_CAPTURE_FRAME`, `ACVR_CAPTURE_DIR`, `ACVR_SAVE_STATE_FRAME` | Unattended runs: hidden window, save frames as pictures and quit, write a save state |
 | `ACVR_VR_FAKE=1`, `ACVR_VR_FAKE_YAW` | Head-tracked rendering with a made-up headset, for checks on a monitor |
 | `ACVR_DEBUG=1` | On captured frames, list every viewport and save the bottom 2D layer |
+
+Open frame: add `-wide-screen` and give the window the shape you want, for example `-window -res=1920,1080 -ss=2`. The game area stays at the arcade's 4:3 size in the middle; the 3D scene is drawn on both sides of it, and the headset screen takes the window's shape. The 2D layers (text, score) stay in the 4:3 middle. What a game never sends to the board cannot appear: some games leave out objects that are outside their own 4:3 view.
 
 Head-tracked mode wants square pictures and Supermodel's own supersampling: `-window -res=1344,1344 -stretch -ss=2`. Screen mode: `-window -res=1440,1080 -ss=2`.
 
@@ -71,7 +78,7 @@ The Home key recentres. The presenter writes what it does to `acvr-xr.log` in th
 Read through OpenXR and turned into the emulator's own inputs, by cabinet type:
 
 - Driving: hold both grips and turn your hands like a wheel, or use the left thumbstick; right trigger accelerates, left trigger brakes; right thumbstick up and down shifts; A start, B coin, X view change, Y second view button or hand brake.
-- Analog stick (Star Wars Trilogy): point the right controller; right trigger fires, right grip is the event button.
+- Analog stick (Star Wars Trilogy): point the right controller at the picture and the game's crosshair goes where the ray meets it. The ray is met with the screen itself in screen mode and with the arcade view 2.5 m ahead in the head-tracked mode; the stick value is looked up from the game's measured crosshair response, which is not linear. Right trigger fires, right grip is the event button.
 - Stick and buttons: left thumbstick, and A, B, X, Y; start on the menu button or a right-stick click, coin on a left-stick click.
 
 The keyboard and gamepad keep working: a controller only overrides an input while it is being used.
