@@ -19,7 +19,7 @@ p2      = "orange"
 black = { body = "#1b1b1e", accent = "#8a8d93" }
 grey = { body = "#8f9298", accent = "#2a2a2e" }
 orange = { body = "#f07a1a", accent = "#2a2a2e" }
-gold = { body = "#e8b830", accent = "#8a6a14" }
+gold = { body = "#ffbf3f", accent = "#c8902e", body_metal = 1, body_rough = 0.22, accent_metal = 1, accent_rough = 0.4 }
 
 [[button]]
 id    = "a"
