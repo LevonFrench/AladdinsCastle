@@ -104,17 +104,19 @@ class Checks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp); lib=p/'tables';lib.mkdir();roms=p/'roms';roms.mkdir()
             vr='Const VRRoom = 1\nVRRoomCabinet.Visible = VRRoom\n'
-            for name,script in [('database',''),('script',vr),('flat',''),('present',vr+'Const cGameName="synthetic_rom"'),('missing',vr+'Const cGameName="absent_rom"'),('dynamic',vr+'cGameName=ChooseRom()')]:
+            vpm='\nLoadVPM "01560000","sys80.vbs",3.26\nController.GameName=cGameName'
+            for name,script in [('database',''),('script',vr),('flat',''),('present',vr+'Const cGameName="synthetic_rom"'+vpm),('missing',vr+'Const cGameName="absent_rom"'+vpm),('dynamic',vr+'cGameName=ChooseRom()'),('em',vr+'Const cGameName="em_hiscore"\nExecuteGlobal GetTextFile("controller.vbs")')]:
                 table(lib/(name+'.vpx'),name+' (Synthetic 2000)','Test Author','1.0',script)
             (roms/'synthetic_rom.zip').write_bytes(b'synthetic')
             (lib/'broken.vpx').write_bytes(b'not OLE'); (lib/'nested').mkdir();table(lib/'nested'/'ignored.vpx','ignored','Test','1','')
             db=p/'db.json';db.write_text(json.dumps([dict(name='database',manufacturer='Synthetic',year=2000,tableFiles=[dict(authors=['Test Author'],version='1.0',features=['VR'],urls=[dict(url='https://invalid.example/download')])])]))
             before={x.name:x.read_bytes() for x in lib.glob('*.vpx')}
             result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(lib),str(db),str(roms)]))
-            self.assertEqual(result['total'],7); rows={x['title'].split(' (')[0]:x for x in result['tables']}
+            self.assertEqual(result['total'],8); rows={x['title'].split(' (')[0]:x for x in result['tables']}
             self.assertEqual(rows['database']['evidence'],['VPS: VR']);self.assertEqual(rows['script']['evidence'],['script: VR room'])
             self.assertFalse(rows['flat']['vrReady']);self.assertEqual(rows['script']['romState'],'needs no ROM')
             self.assertEqual(rows['present']['romState'],'ready');self.assertEqual(rows['missing']['romState'],'ROM missing')
+            self.assertEqual(rows['em']['romState'],'needs no ROM');self.assertNotIn('rom',rows['em'])
             self.assertEqual(rows['dynamic']['romState'],'unknown');self.assertNotIn('invalid.example',json.dumps(result))
             self.assertEqual(before,{x.name:x.read_bytes() for x in lib.glob('*.vpx')})
             plan=json.loads(subprocess.check_output([HUB,'plan-pinball',str(lib/'script.vpx'),HUB,str(p/'owned'),'desktop']))

@@ -36,6 +36,8 @@ Input ReadInput();          // stale (over 250 ms) input reads as inactive
 void QueuePulse();
 bool Stop();
 bool RuntimeExit();         // the runtime ended the session (SteamVR "Exit game"): close the game
+bool Focused();             // the headset shows this game and its controllers reach it (not the SteamVR dashboard)
+bool PresenterGone();       // the headset picture stopped for good (see acvr-theatre.log): close the game
 // Offline proof without any VR runtime: renders both eyes for a fixed head and hand
 // pose into PNG files <prefix>-left.png and <prefix>-right.png.
 bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, unsigned h,

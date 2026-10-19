@@ -32,6 +32,16 @@ Each trigger pull gives a short vibration and a small visual kick of the gun.
 Escape on the PC also quits cleanly. A launcher or the Hub can quit it by
 creating the file named in `ACVR_PS1_STOP_FILE`.
 
+SteamVR's **Exit game** closes it too, saving the memory card. The game pauses,
+picture and sound, whenever the headset is not showing it: the SteamVR
+dashboard is open, the headset is idle or in standby, or the session is still
+starting. It carries on where it stopped when the picture comes back. If the
+headset picture stops for good (no runtime, or the runtime fails), the game
+saves and quits with exit code 9 instead of running unseen; the reason is in
+`acvr-theatre.log`. If the sound device is lost, the game carries on silent,
+paced by the clock. A game in the headset runs at normal priority; offline
+runs (`--headless`, `--no-xr`) run below normal.
+
 ## Theatre
 
 Everything you see is drawn into one OpenXR projection layer per eye: the
@@ -53,7 +63,7 @@ picture is smaller than the headset pixels it uses mipmaps instead.
 | `ACVR_PS1_LIFT` | 0 | screen centre height above your eyes, metres |
 | `ACVR_PS1_CRT` | 0 | 1 adds scanlines |
 | `ACVR_PS1_AIM` | 1,0,1,0 | per-game aim trim: x scale, x shift, y scale, y shift around the centre, measured against where the game registers the shot |
-| `ACVR_PS1_HIDE_FLASH` | 1 | keep the games' per-shot white flash frames out of the headset (the game still draws them and reads the gun) |
+| `ACVR_PS1_HIDE_FLASH` | 1 | keep the games' per-shot white flash frames out of the headset (the game still draws them and reads the gun). Only white frames while the trigger is held or within 20 frames after it count, so menus and fades always show |
 | `ACVR_PS1_CHEAT_FILE`, `ACVR_PS1_CHEATS` | none | a DuckStation-format .cht file and the `;`-separated entries to enable |
 | `ACVR_PS1_GUN_MODEL`, `ACVR_PS1_GUN_META` | none | the gun's `.glb` (`assets/guns`) and `.toml` (`data/guns`) |
 

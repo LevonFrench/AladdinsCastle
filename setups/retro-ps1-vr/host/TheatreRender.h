@@ -185,12 +185,25 @@ public:
   void upload()
   {
     if (!loaded()) return;
+    // A part whose tint gives metal/rough values (look.z = 1) is polished: Schlick Fresnel reflecting a small
+    // made-up studio (dark floor, lighter ceiling, a bright horizon band and one key light), with roughness
+    // widened where normals change fast so highlights do not sparkle. Other parts keep the plain matte look.
     program = Program(
-      "#version 330 core\nlayout(location=0)in vec3 p;layout(location=1)in vec3 n;uniform mat4 mvp,model;out vec3 N;"
-      "void main(){gl_Position=mvp*vec4(p,1);N=mat3(model)*n;}",
-      "#version 330 core\nin vec3 N;uniform vec4 base;uniform int encode;out vec4 o;"
-      "void main(){vec3 n=normalize(N);float l=.30+.70*max(dot(n,normalize(vec3(-.4,.8,.6))),0.);"
-      "vec3 c=base.rgb*l+vec3(.04)*pow(1.-abs(n.z),3.);o=vec4(encode!=0?pow(c,vec3(1./2.2)):c,1);}");
+      "#version 330 core\nlayout(location=0)in vec3 p;layout(location=1)in vec3 n;uniform mat4 mvp,model;out vec3 N,W;"
+      "void main(){gl_Position=mvp*vec4(p,1);N=mat3(model)*n;W=(model*vec4(p,1)).xyz;}",
+      "#version 330 core\nin vec3 N,W;uniform vec4 base,look,eye;uniform int encode;out vec4 o;"
+      "const vec3 L=normalize(vec3(-.4,.8,.6));"
+      "vec3 env(vec3 r,float g){float y=r.y;"
+      "vec3 e=mix(vec3(.12,.11,.10),mix(vec3(.38,.37,.36),vec3(.85,.85,.88),smoothstep(0.,.9,y)),smoothstep(-.45,.05,y));"
+      "e+=vec3(1.3,1.2,1.05)*exp(-abs(y-.05)*mix(9.,3.,g))*(1.-.4*g);"
+      "e+=vec3(6.,5.6,5.)*pow(max(dot(r,L),0.),mix(300.,12.,g))*(1.-.7*g);return e;}"
+      "void main(){vec3 n=normalize(N);float l=.30+.70*max(dot(n,L),0.);vec3 c;"
+      "if(look.z<.5)c=base.rgb*l+vec3(.04)*pow(1.-abs(n.z),3.);"
+      "else{vec3 v=normalize(eye.xyz-W);if(dot(n,v)<0.)n=-n;vec3 r=reflect(-v,n);"
+      "float m=clamp(look.x,0.,1.),g=clamp(look.y+.6*length(fwidth(n)),.04,1.);"
+      "vec3 F0=mix(vec3(.04),base.rgb,m);vec3 F=F0+(max(vec3(1.-g),F0)-F0)*pow(1.-max(dot(n,v),0.),5.);"
+      "c=base.rgb*(1.-m)*l+F*env(r,g)+base.rgb*m*.10*l;c=c/(1.+.25*c);}"
+      "o=vec4(encode!=0?pow(c,vec3(1./2.2)):c,1);}");
     meshes.assign(doc["meshes"].size(), {});
     for (std::size_t mi = 0; mi < meshes.size(); ++mi) for (const auto &p : doc["meshes"][mi]["primitives"].a) {
       if (p.has("mode") && (int)p["mode"].num() != 4) continue;
@@ -206,7 +219,7 @@ public:
       if (p.has("material")) {
         const auto &mat = doc["materials"][(std::size_t)p["material"].num()];
         const std::string name = mat.has("name") ? mat["name"].str() : "";
-        if (name == "body") out.color = body; else if (name == "accent") out.color = accent;
+        if (name == "body") { out.color = body; out.look = bodyLook; } else if (name == "accent") { out.color = accent; out.look = accentLook; }
         else if (mat.has("pbrMetallicRoughness") && mat["pbrMetallicRoughness"].has("baseColorFactor"))
           for (int c = 0; c < 4; ++c) out.color[c] = (float)mat["pbrMetallicRoughness"]["baseColorFactor"][c].num();
       }
@@ -245,22 +258,26 @@ public:
   }
   // recoil: 0..1 of the slide's travel this frame (an arcade-style blowback slide, if the model has one).
   float recoilMs() const { return slideMs; }
-  void draw(const Mat4 &root, const Mat4 &viewProj, float trigger, bool encode, float recoil = 0.f)
+  // eye: the viewing eye's position in world space (for the polished parts' reflections).
+  void draw(const Mat4 &root, const Mat4 &viewProj, float trigger, bool encode, float recoil = 0.f, const float *eye = nullptr)
   {
     if (!program) return;
     m_recoil = std::fmin(std::fmax(recoil, 0.f), 1.f);
     tgl::UseProgram(program); tgl::Uniform1i(tgl::GetUniformLocation(program, "encode"), encode ? 1 : 0);
+    const float at[4] = { eye ? eye[0] : 0.f, eye ? eye[1] : 0.f, eye ? eye[2] : 0.f, 1 };
+    tgl::Uniform4fv(tgl::GetUniformLocation(program, "eye"), 1, at);
     drawNode(lod0, root, viewProj, trigger);
   }
 private:
   struct Node { std::string name; Mat4 local = Mat4::Identity(); int mesh = -1, parent = -1; std::vector<int> children; };
-  struct Prim { GLuint vao = 0, vbo = 0, ibo = 0; GLsizei count = 0; std::array<float, 4> color{ .5f, .5f, .5f, 1 }; };
+  struct Prim { GLuint vao = 0, vbo = 0, ibo = 0; GLsizei count = 0; std::array<float, 4> color{ .5f, .5f, .5f, 1 }, look{ 0, 1, 0, 0 }; };
   struct Access { const unsigned char *ptr; std::size_t stride, count; int type; };
   mini_json::Value doc; std::vector<unsigned char> bin; std::vector<Node> nodes; std::vector<std::vector<Prim>> meshes;
   int grip = -1, muzzle = -1, lod0 = -1; std::array<int, 2> triggers{ -1, -1 };
   std::array<float, 3> axis{ -1, 0, 0 }; std::array<float, 2> range{ 0, 0 };
   std::array<int, 2> slides{ -1, -1 }; std::array<float, 3> slideAxis{ 0, 0, 1 }; float slideTravel = 0, slideMs = 45, m_recoil = 0;
   std::array<float, 4> body{ .1f, .1f, .12f, 1 }, accent{ .3f, .3f, .32f, 1 };
+  std::array<float, 4> bodyLook{ 0, 1, 0, 0 }, accentLook{ 0, 1, 0, 0 };   // metal, roughness, polished (1) or matte (0)
   GLuint program = 0;
   int find(const std::string &s) const { for (std::size_t i = 0; i < nodes.size(); ++i) if (nodes[i].name == s) return (int)i; throw std::runtime_error("gun model lacks node " + s); }
   Access accessor(unsigned index, std::size_t element)
@@ -287,6 +304,7 @@ private:
       tgl::UniformMatrix4fv(tgl::GetUniformLocation(program, "model"), 1, GL_FALSE, model.m.data());
       for (const auto &p : meshes[n.mesh]) {
         tgl::Uniform4fv(tgl::GetUniformLocation(program, "base"), 1, p.color.data());
+        tgl::Uniform4fv(tgl::GetUniformLocation(program, "look"), 1, p.look.data());
         tgl::BindVertexArray(p.vao); glDrawElements(GL_TRIANGLES, p.count, GL_UNSIGNED_INT, nullptr);
       }
     }
@@ -324,6 +342,13 @@ private:
         for (auto pair : { std::make_pair("body", &body), std::make_pair("accent", &accent) }) {
           std::regex hex(std::string(pair.first) + "\\s*=\\s*\"#([0-9a-fA-F]{6})\"");
           if (std::regex_search(line, m, hex)) { const unsigned rgb = (unsigned)std::stoul(m[1].str(), nullptr, 16); for (int c = 0; c < 3; ++c) (*pair.second)[c] = std::pow(((rgb >> (16 - 8 * c)) & 255) / 255.f, 2.2f); }
+        }
+        // Optional, on the same one-line table: body_metal / body_rough and accent_metal / accent_rough (0..1).
+        for (auto pair : { std::make_pair("body", &bodyLook), std::make_pair("accent", &accentLook) }) {
+          std::regex metal(std::string(pair.first) + "_metal\\s*=\\s*([0-9.]+)"), rough(std::string(pair.first) + "_rough\\s*=\\s*([0-9.]+)");
+          std::smatch mm, mr;
+          const bool hasMetal = std::regex_search(line, mm, metal), hasRough = std::regex_search(line, mr, rough);
+          if (hasMetal || hasRough) *pair.second = { hasMetal ? std::stof(mm[1].str()) : 0.f, hasRough ? std::stof(mr[1].str()) : .5f, 1, 0 };
         }
       }
     }
@@ -406,7 +431,10 @@ public:
       drawStrip(m_screenVerts);
     }
     if (s.showDot) drawDot(s, vp, encode);
-    if (s.showGun && m_gun && m_gun->loaded()) m_gun->draw(s.gunRoot, vp, s.trigger, encode, s.recoil);
+    if (s.showGun && m_gun && m_gun->loaded()) {
+      const Mat4 eyeWorld = view.RigidInverse(); const float eye[3] = { eyeWorld.m[12], eyeWorld.m[13], eyeWorld.m[14] };
+      m_gun->draw(s.gunRoot, vp, s.trigger, encode, s.recoil, eye);
+    }
     tgl::BindVertexArray(0); tgl::UseProgram(0);
   }
 private:

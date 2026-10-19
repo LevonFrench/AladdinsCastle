@@ -107,6 +107,7 @@ Named nodes libacvr binds to:
 | `screen_scope` | Scope lens that shows a zoomed render |
 
 - **Materials:** `body` and `accent` take their colours from the model's `[tints]`; `dark` and `glass` are fixed. Each model lists named tints plus which one players 1 and 2 get.
+- **Polished tints:** a tint may also give `body_metal`, `body_rough`, `accent_metal` and `accent_rough` (0 to 1) on the same one-line table, e.g. the Funcon's `gold`. The PS1 theatre then draws that part as polished metal, reflecting a small made-up studio; without them a part stays matte, exactly as before.
 - **Budget:** a gun sits close to the eyes, so up to 8,000 triangles at full detail, a second level at 2,000, one 1k texture set or vertex colours.
 - **Recoil is visual.** The slide or the whole gun kicks, and the controller pulses; the aim ray does not move.
 

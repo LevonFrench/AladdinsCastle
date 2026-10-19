@@ -396,7 +396,8 @@ void EnsureCpuFrame()
 // A light-gun game blanks the screen white for a frame or two on each shot so a real GunCon can see the CRT
 // beam. The emulated gun needs no flash, but some games only read the gun during it (Time Crisis misses
 // without it), so the game keeps drawing it and the headset simply keeps the previous picture instead.
-// Three lines across the whole picture (both eyes) are sampled; nearly all bright white means a flash.
+// Three lines across the whole picture (both eyes) are sampled, only in the frames just after a shot;
+// nearly all bright white means a flash.
 bool IsFlashFrame()
 {
   const unsigned w = g_hwOn ? g_hwW : g_frameW, h = g_hwOn ? g_hwH : g_frameH;
@@ -419,10 +420,22 @@ bool IsFlashFrame()
 }
 unsigned g_flashRun = 0, g_flashHidden = 0, g_flashLongest = 0;
 const bool g_hideFlash = [] { const char *e = std::getenv("ACVR_PS1_HIDE_FLASH"); return !e || std::atoi(e) != 0; }();
-// True when this frame should not be shown: a flash, and not yet more than 4 in a row (a real fade to white shows).
-bool HideThisFrame()
+// The frame the gun's trigger was last down; a flash only follows a shot (autofire included), so white
+// menus and fades with no shot always show, and no picture is read back while nobody is shooting.
+unsigned g_triggerFrame = 0; bool g_triggerSeen = false;
+const unsigned kFlashWindow = 20;   // frames (a third of a second) after the trigger in which a white frame counts as a gun flash
+bool g_flashAudit = false;          // offline runs also log white frames outside that window (they stay visible)
+unsigned g_flashOutside = 0;
+// True when this frame should not be shown: a flash right after a shot, and not yet more than 4 in a row
+// (a real fade to white shows).
+bool HideThisFrame(unsigned frame)
 {
   if (!g_hideFlash) return false;
+  if (!g_triggerSeen || frame - g_triggerFrame > kFlashWindow) {
+    if (g_flashAudit && IsFlashFrame() && ++g_flashOutside <= 40)
+      Log("White frame %u shown: %s", frame, g_triggerSeen ? (std::to_string(frame - g_triggerFrame) + " frames after the trigger").c_str() : "no shot yet");
+    g_flashRun = 0; return false;
+  }
   if (!IsFlashFrame()) { g_flashRun = 0; return false; }
   ++g_flashRun; g_flashLongest = g_flashRun > g_flashLongest ? g_flashRun : g_flashLongest;
   if (g_flashRun > 4) return false;
@@ -524,10 +537,12 @@ int main(int argc, char **argv)
   if (g_corePath.empty() || game.empty() || g_systemDir.empty() || g_saveDir.empty() || (headless && !frames)) { Usage(); return 2; }
   if (gunName != "guncon" && gunName != "justifier" && gunName != "lightgun") { Usage(); return 2; }
   if (!logPath.empty()) { g_log = std::fopen(logPath.c_str(), "w"); if (!g_log) g_log = stdout; }
-  SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+  // Offline runs stay out of the way; a game in the headset keeps normal priority so it is never starved.
+  if (headless || noXr) SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
   CreateDirectoryA(g_saveDir.c_str(), nullptr);
   if (!snapshots.empty()) CreateDirectoryA(snapshots.c_str(), nullptr);
 
+  g_flashAudit = headless;
   Script timeline;
   if (!script.empty() && !timeline.load(script)) { Log("Cannot read script %s", script.c_str()); return 2; }
   // The core draws its own crosshair only in offline proofs, to show where it thinks the gun points.
@@ -623,7 +638,9 @@ int main(int argc, char **argv)
   LARGE_INTEGER freq, t0; QueryPerformanceFrequency(&freq); QueryPerformanceCounter(&t0);
   unsigned frame = 0; std::uint64_t shownSerial = 0, shots = 0, countedSerial = 0;
   const ULONGLONG startedAt = GetTickCount64();
-  bool lastTrigger = false; ULONGLONG lastSave = GetTickCount64();
+  bool lastTrigger = false, wasPaused = false; ULONGLONG lastSave = GetTickCount64();
+  // After a pause or a lost audio device the clock pacing starts again from this frame.
+  auto restartClock = [&] { QueryPerformanceCounter(&t0); t0.QuadPart -= (LONGLONG)(frame * frameMs * freq.QuadPart / 1000.0); };
   int result = 0;
 
   while (!g_shutdownRequested) {
@@ -639,6 +656,18 @@ int main(int argc, char **argv)
       if (seconds && now - startedAt >= seconds * 1000ull) quit.request(CleanQuit::Reason::time_limit);
       if (quit.requested()) { Log("Clean quit: %s", quit.reason()); break; }
       if (theatreOn && theatre::RuntimeExit()) { Log("Clean quit: SteamVR ended the game"); break; }
+      if (theatreOn && theatre::PresenterGone()) { Log("Clean quit: the headset picture stopped (see acvr-theatre.log)"); result = 9; break; }
+      // The game waits while the headset is not showing it: the SteamVR dashboard, standby, or still starting.
+      const bool paused = theatreOn && !theatre::Focused();
+      if (paused != wasPaused) {
+        Log(paused ? "Paused: the headset is not showing the game (SteamVR dashboard, standby or start-up)" : "Resumed");
+        wasPaused = paused; if (!paused) restartClock();
+      }
+      if (paused) {
+        g_audio.hold();
+        if (now - lastSave > 10000) { SaveSram(false); lastSave = now; }
+        Sleep(20); continue;
+      }
       Gun g; g.u = controller.u; g.v = controller.v; g.offScreen = !controller.active || controller.offScreen;
       // GunCon A is also on the grip, as the pedal (Time Crisis takes cover with it).
       g.trigger = controller.trigger; g.a = controller.a || controller.grip; g.b = controller.b;
@@ -691,20 +720,22 @@ int main(int argc, char **argv)
       if (frames && frame >= frames) break;
     }
     if (g_gun.trigger && !lastTrigger) { ++shots; if (theatreOn) theatre::QueuePulse(); }
+    if (g_gun.trigger) { g_triggerFrame = frame; g_triggerSeen = true; }
     lastTrigger = g_gun.trigger;
 
     g_core.run();
     ++frame;
     // Offline runs count the flash frames the headset would skip (same test, nothing is skipped here).
-    if (headless && g_hideFlash && g_frameSerial != countedSerial) { countedSerial = g_frameSerial; HideThisFrame(); }
+    if (headless && g_hideFlash && g_frameSerial != countedSerial) { countedSerial = g_frameSerial; HideThisFrame(frame); }
 
     if (!headless && g_frameSerial != shownSerial && (g_hwOn ? g_hwW > 0 : !g_frame.empty())) {
       shownSerial = g_frameSerial;
-      if (theatreOn && !HideThisFrame()) { if (g_hwOn) theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); else theatre::Publish(g_frame.data(), g_frameW, g_frameH); }
+      if (theatreOn && !HideThisFrame(frame)) { if (g_hwOn) theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); else theatre::Publish(g_frame.data(), g_frameW, g_frameH); }
     }
     if (now - lastSave > 10000) { SaveSram(false); lastSave = now; }
 
     if (!headless) {
+      if (g_audioWanted && g_audio.failed()) { Log("Audio device lost: running silent, paced by the clock"); g_audioWanted = false; restartClock(); }
       if (g_audioWanted) { for (int i = 0; i < 100 && g_audio.queued() > AudioOut::kTarget; ++i) Sleep(1); }
       else {
         LARGE_INTEGER t; QueryPerformanceCounter(&t);
@@ -727,7 +758,8 @@ int main(int argc, char **argv)
   }
   Log("Ran %u frames; gun reads %llu; trigger presses %llu; last picture %ux%u", frame,
       (unsigned long long)g_gunReads, (unsigned long long)shots, g_frameW, g_frameH);
-  if (g_hideFlash) Log("Gun flash frames kept out of the headset: %u (longest white run %u frames)", g_flashHidden, g_flashLongest);
+  if (g_hideFlash) Log("Gun flash frames kept out of the headset: %u (longest white run %u frames)%s", g_flashHidden, g_flashLongest,
+                      g_flashAudit ? ("; white frames shown with no shot just before: " + std::to_string(g_flashOutside)).c_str() : "");
   timeEndPeriod(1);
   if (!headless) {
     const double secs = (GetTickCount64() - startedAt) / 1000.0;
