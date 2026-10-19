@@ -115,7 +115,12 @@ QVariantMap inspect(const QString &path) {
   static const QRegularExpression literalRom("^\"([A-Za-z0-9_]+)\"[ \\t\\r]*(?:$|:)",QRegularExpression::MultilineOption);
   auto matches=romAssignment.globalMatch(code);QSet<QString> names;int assignments=0,literals=0;
   while(matches.hasNext()){const auto assignment=matches.next();++assignments;const auto literal=literalRom.match(code.mid(assignment.capturedEnd()));if(literal.hasMatch()&&literal.capturedStart()==0){names.insert(literal.captured(1));++literals;}}
-  if(names.size()==1&&assignments==literals){row["rom"]=*names.begin();row["romState"]="ROM missing";}
+  // An EM table often names a ROM only for its backglass and high-score file; it needs one only when it runs PinMAME.
+  static const QRegularExpression runsPinmame("\\bLoadVPM\\b|VPinMAME\\.Controller|\\.GameName\\s*=",QRegularExpression::CaseInsensitiveOption);
+  if(names.size()==1&&assignments==literals){
+   if(locked||runsPinmame.match(code).hasMatch()){row["rom"]=*names.begin();row["romState"]="ROM missing";}
+   else row["romState"]="needs no ROM";
+  }
   else if(!locked&&names.isEmpty()&&!QRegularExpression("\\b(cGameName|GameName|VPinMAME|LoadVPM|Controller\\.Run|CreateObject|Execute)\\b",QRegularExpression::CaseInsensitiveOption).match(code).hasMatch())row["romState"]="needs no ROM";
   const QRegularExpression machineName("^(.*?)\\s*\\(([^()]*)\\s+(\\d{4})\\)");
   auto identity=machineName.match(row["title"].toString());
