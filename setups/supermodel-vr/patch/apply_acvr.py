@@ -41,13 +41,23 @@ s = rep(s,
         '\tvp->projectionMatrix.LoadIdentity();\t// reset matrix' + nl + nl +
         '\tconst bool acvrFullScreen = (vp->vpX == 0 && vp->vpWidth >= 495 && vp->vpY == 0 && vp->vpHeight >= 383);' + nl +
         '\t// A scene view is any full-width viewport, whatever its height: games letterbox their scenes (Star Wars Trilogy) and draw the sky in its own thin strip (Virtua Fighter 3)' + nl +
-        '\tconst bool acvrMainView = (vp->vpWidth >= 400);' + nl + nl +
+        '\tconst bool acvrMainView = (vp->vpWidth >= 400);' + nl +
+        '\t// A full-width scene view of at least half the height (letterboxed ones included, thin sky strips not): its' + nl +
+        '\t// frustum, carried on to the edges of the whole 496x384 picture, is the field of view of the picture' + nl +
+        '\tconst bool acvrSceneView = (vp->vpX == 0 && vp->vpWidth >= 495 && vp->vpHeight >= 200);' + nl +
+        '\tauto acvrRecordTan = [&](float L, float R) {' + nl +
+        '\t\tif (g_acvrStereo.eye != 0) return;' + nl +
+        '\t\tconst float perLine = (t - b) / vp->vpHeight;' + nl +
+        '\t\tg_acvrStereo.tanL = L; g_acvrStereo.tanR = R;' + nl +
+        '\t\tg_acvrStereo.tanT = t + vp->vpY * perLine;' + nl +
+        '\t\tg_acvrStereo.tanB = b - (384.0f - vp->vpY - vp->vpHeight) * perLine;' + nl +
+        '\t};' + nl + nl +
         '\tif (g_acvrStereo.debugViews && g_acvrStereo.eye == 0)' + nl +
         '\t\tprintf("[ACVR view] pri=%d x=%g y=%g w=%g h=%g  l=%.3f r=%.3f b=%.3f t=%.3f  scrollFog=%g\\n", vp->priority, vp->vpX, vp->vpY, vp->vpWidth, vp->vpHeight, l, r, b, t, vp->scrollFog);' + nl + nl +
         '\tif (g_acvrStereo.vr) {' + nl +
         '\t\t// ACVR head-tracked view: the main 3D viewports are drawn for the headset\'s own eye, over the' + nl +
         '\t\t// whole target. Small viewports (mirrors, HUD parts) are not drawn in the eye pictures yet.' + nl +
-        '\t\tif (acvrFullScreen && g_acvrStereo.eye == 0) { g_acvrStereo.tanL = l; g_acvrStereo.tanR = r; g_acvrStereo.tanB = b; g_acvrStereo.tanT = t; }' + nl +
+        '\t\tif (acvrSceneView) acvrRecordTan(l, r);' + nl +
         '\t\tif (acvrMainView) {' + nl +
         '\t\t\tconst float *e = g_acvrStereo.eyeTan[g_acvrStereo.eye];' + nl +
         '\t\t\tvp->x = 0; vp->y = 0; vp->width = m_totalXRes; vp->height = m_totalYRes;' + nl +
@@ -72,14 +82,18 @@ s = rep(s,
         '\t}' + nl)
 s = rep(s,
         '\t\tvp->projectionMatrix.FrustumRZ(l*correction, r*correction, b, t, NEAR_PLANE);',
-        '\t\tif (g_acvrStereo.eye == 0) { g_acvrStereo.tanL = l*correction; g_acvrStereo.tanR = r*correction; g_acvrStereo.tanB = b; g_acvrStereo.tanT = t; }' + nl +
+        '\t\tif (acvrSceneView) acvrRecordTan(l*correction, r*correction);' + nl +
         '\t\tvp->projectionMatrix.FrustumRZ(l*correction + eyeShift, r*correction + eyeShift, b, t, NEAR_PLANE);' + nl +
         '\t\tif (eyeMove != 0.0f) vp->projectionMatrix.Translate(eyeMove, 0.0f, 0.0f);')
 s = rep(s,
         '\t\tvp->projectionMatrix.FrustumRZ(l, r, b, t, NEAR_PLANE);' + nl + '\t}' + nl + '}',
-        '\t\tif (g_acvrStereo.eye == 0 && acvrFullScreen) { g_acvrStereo.tanL = l; g_acvrStereo.tanR = r; g_acvrStereo.tanB = b; g_acvrStereo.tanT = t; }' + nl +
+        '\t\tif (acvrSceneView) acvrRecordTan(l, r);' + nl +
         '\t\tvp->projectionMatrix.FrustumRZ(l + eyeShift, r + eyeShift, b, t, NEAR_PLANE);' + nl +
         '\t\tif (eyeMove != 0.0f) vp->projectionMatrix.Translate(eyeMove, 0.0f, 0.0f);' + nl + '\t}' + nl + '}')
+s = rep(s,
+        '\tif (m_wideScreen && (vp->vpX == 0) && (vp->vpWidth >= 495) && (vp->vpY == 0) && (vp->vpHeight >= 383)) {',
+        '\t// ACVR: with ACVR_WIDE_ALL (on by default) letterboxed scenes and sky strips are widened as well' + nl +
+        '\tif (m_wideScreen && (vp->vpX == 0) && (vp->vpWidth >= 495) && (((vp->vpY == 0) && (vp->vpHeight >= 383)) || g_acvrStereo.wideAll)) {')
 s = rep(s,
         '\t\toutsideFrustum = true;' + nl + '\t}' + nl,
         '\t\toutsideFrustum = true;' + nl + '\t}' + nl +

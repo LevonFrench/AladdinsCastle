@@ -5,7 +5,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$Source,
     [Parameter(Mandatory = $true)][string]$MSBuild,
-    [string]$OutName = ''
+    [string]$OutName = '',
+    [int]$Jobs = 2                                    # parallel projects; keep it low so the PC stays usable
 )
 $ErrorActionPreference = 'Stop'
 $log = Join-Path $Source 'acvr-build.log'
@@ -16,7 +17,7 @@ if ($OutName) {
     $target = Join-Path $Source 'MSVC\Supermodel.sln'
     $extra = @()
 }
-$arguments = @("`"$target`"", '/p:Configuration=Release', '/p:Platform=x64', '/m:4', '/v:minimal', '/nologo', '/fl', "/flp:logfile=$log;verbosity=minimal") + $extra
+$arguments = @("`"$target`"", '/p:Configuration=Release', '/p:Platform=x64', "/m:$Jobs", '/v:minimal', '/nologo', '/fl', "/flp:logfile=$log;verbosity=minimal") + $extra
 $p = Start-Process -FilePath $MSBuild -ArgumentList $arguments -PassThru -WindowStyle Hidden
 try { $p.PriorityClass = 'BelowNormal' } catch {}
 $p.WaitForExit()
