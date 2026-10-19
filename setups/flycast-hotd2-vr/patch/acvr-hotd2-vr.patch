@@ -1,13 +1,33 @@
+diff --git a/core/cfg/option.cpp b/core/cfg/option.cpp
+index 6f75fb7..b61566f 100644
+--- a/core/cfg/option.cpp
++++ b/core/cfg/option.cpp
+@@ -104,7 +104,7 @@ Option<bool> VrXrGun("vr.XrGun", true);		// the controllers drive the light gun
+ Option<bool> VrWiden("vr.Widen", true);		// let the game profile widen the view (vr.FovScale)
+ Option<float> VrWorldScale("vr.WorldScale", 0.025f);	// metres per game unit
+ Option<float> VrXrResolution("vr.XrResolution", 1.f);	// eye buffer size, times the recommended size
+-Option<int> VrXrRefreshRate("vr.XrRefreshRate", 72);	// Hz
++Option<int> VrXrRefreshRate("vr.XrRefreshRate", 0);	// Hz; 0 = the highest rate the headset offers
+ Option<bool> VrLaser("vr.Laser", true);		// aim line and dot from the gun
+ Option<bool> VrShowGun("vr.ShowGun", true);	// a gun in the shooting hand
+ Option<float> VrGunScale("vr.GunScale", 0.68f);	// its size, times the model's (24.7 cm long); 0.68: 17 cm, a compact pistol
 diff --git a/core/rend/vr/debug_shots.cpp b/core/rend/vr/debug_shots.cpp
-index 417e6c9..4fa77ad 100644
+index 417e6c9..197702c 100644
 --- a/core/rend/vr/debug_shots.cpp
 +++ b/core/rend/vr/debug_shots.cpp
-@@ -10,10 +10,13 @@
+@@ -10,10 +10,20 @@
  #include "hw/pvr/Renderer_if.h"
  #include "hw/sh4/sh4_sched.h"
  #include "ui/gui.h"
 +#include "input/gamepad_device.h"
++#include "input/udp_lightgun.h"
++#include "hw/sh4/sh4_mem.h"
++#include "log/Log.h"
++#include <cstring>
++#include <string>
  #include "stdclass.h"
++#include <algorithm>
++#include <cmath>
  #include <stb_image_write.h>
  
  #include <cstdio>
@@ -16,7 +36,7 @@ index 417e6c9..4fa77ad 100644
  #include <vector>
  
  namespace vr
-@@ -36,6 +39,37 @@ void onEvent(Event event, void *)
+@@ -36,6 +46,223 @@ void onEvent(Event event, void *)
  		lastShot = -1;
  		return;
  	}
@@ -49,6 +69,192 @@ index 417e6c9..4fa77ad 100644
 +				kcode[0] &= ~press.second;
 +			else if (now >= press.first + 0.25 && now < press.first + 0.35)
 +				kcode[0] |= press.second;
++		}
++	}
++	// ACVR: a scripted light gun for unattended aim and shot tests. ACVR_GUN="t:x:y:b;..."
++	// puts player 1's gun at x, y (1/10000ths of the screen, outside: off-screen) with the
++	// buttons b (lightgunSet's bits: 1 trigger, 2 reload, 4 start, 128 B) from game time t (s)
++	// until the next entry. Sent every frame, so the mouse stays out of it.
++	{
++		struct GunStep { double at; int x, y; u32 buttons; };
++		static std::vector<GunStep> steps;
++		static bool parsed = false;
++		if (!parsed)
++		{
++			parsed = true;
++			if (const char *s = getenv("ACVR_GUN"))
++			{
++				GunStep g; int used;
++				while (sscanf(s, "%lf:%d:%d:%u%n", &g.at, &g.x, &g.y, &g.buttons, &used) == 4)
++				{
++					steps.push_back(g);
++					s += used;
++					if (*s != ';')
++						break;
++					s++;
++				}
++			}
++		}
++		const double now = gameSeconds() - startedAt;
++		const GunStep *cur = nullptr;
++		for (const GunStep& g : steps)
++			if (now >= g.at)
++				cur = &g;
++		if (cur != nullptr)
++			lightgunSet(0, cur->x, cur->y, cur->buttons);
++	}
++	// ACVR: snapshots at exact game times: ACVR_SNAP="t;t;..." (seconds) writes
++	// snap_<centiseconds>.png the first frame at or after each.
++	{
++		static std::vector<double> snaps;
++		static size_t nextSnap = 0;
++		static bool parsed = false;
++		if (!parsed)
++		{
++			parsed = true;
++			if (const char *s = getenv("ACVR_SNAP"))
++			{
++				double at; int used;
++				while (sscanf(s, "%lf%n", &at, &used) == 1)
++				{
++					snaps.push_back(at);
++					s += used;
++					if (*s != ';')
++						break;
++					s++;
++				}
++				std::sort(snaps.begin(), snaps.end());
++			}
++		}
++		const double now = gameSeconds() - startedAt;
++		while (nextSnap < snaps.size() && now >= snaps[nextSnap])
++		{
++			const int cs = (int)std::lround(snaps[nextSnap] * 100.0);
++			nextSnap++;
++			gui_runOnUiThread([cs]() {
++				std::vector<u8> rgb;
++				int w = 0, h = 0;
++				if (renderer == nullptr || !renderer->GetLastFrame(rgb, w, h) || w <= 0 || h <= 0)
++					return;
++				char name[32];
++				snprintf(name, sizeof(name), "snap_%06d.png", cs);
++				stbi_write_png(get_writable_data_path(name).c_str(), w, h, 3, rgb.data(), w * 3);
++			});
++		}
++	}
++	// ACVR: ACVR_RIP="t:count,every,ram;..." asks for a rip (vr_reproject.cpp ripRequested, PC with
++	// vr.Reproject) at game time t: count passes, every N, with the main RAM when ram is 1.
++	{
++		struct Rip { double at; unsigned count, every, ram; };
++		static std::vector<Rip> rips;
++		static size_t nextRip = 0;
++		static bool parsed = false;
++		if (!parsed)
++		{
++			parsed = true;
++			if (const char *s = getenv("ACVR_RIP"))
++			{
++				Rip r; int used;
++				while (sscanf(s, "%lf:%u,%u,%u%n", &r.at, &r.count, &r.every, &r.ram, &used) == 4)
++				{
++					rips.push_back(r);
++					s += used;
++					if (*s != ';')
++						break;
++					s++;
++				}
++			}
++		}
++		const double now = gameSeconds() - startedAt;
++		if (nextRip < rips.size() && now >= rips[nextRip].at)
++		{
++			if (FILE *f = fopen("rip.request", "w"))
++			{
++				fprintf(f, "%u %u %u\n", rips[nextRip].count, rips[nextRip].every, rips[nextRip].ram);
++				fclose(f);
++			}
++			nextRip++;
++		}
++	}
++	// ACVR: ACVR_WATCH="off:t,..." logs RAM values (offset hex from 0x8C000000; t: f float, h s16,
++	// w u32) whenever one changes, with the game time. ACVR_POKE="off:value,..." writes 16-bit
++	// values (hex offset, decimal value) every frame. To find and test a game's gun calibration.
++	{
++		struct Watch { u32 off; char type; u32 last; };
++		struct PokeW { u32 off; u16 value; };
++		static std::vector<Watch> watches;
++		static std::vector<PokeW> pokes;
++		static bool parsed = false;
++		if (!parsed)
++		{
++			parsed = true;
++			if (const char *s = getenv("ACVR_WATCH"))
++			{
++				unsigned off; char type; int used;
++				while (sscanf(s, "%x:%c%n", &off, &type, &used) == 2)
++				{
++					watches.push_back({ off & 0x00FFFFFFu, type, 0xDEADBEEFu });
++					s += used;
++					if (*s != ',')
++						break;
++					s++;
++				}
++			}
++			if (const char *s = getenv("ACVR_POKE"))
++			{
++				unsigned off; int value; int used;
++				while (sscanf(s, "%x:%d%n", &off, &value, &used) == 2)
++				{
++					pokes.push_back({ off & 0x00FFFFFFu, (u16)value });
++					s += used;
++					if (*s != ',')
++						break;
++					s++;
++				}
++			}
++		}
++		for (const PokeW& p : pokes)
++			if (ReadMem16_nommu(0x8C000000u + p.off) != p.value)
++				WriteMem16_nommu(0x8C000000u + p.off, p.value);
++		if (!watches.empty())
++		{
++			bool changed = false;
++			for (Watch& w : watches)
++			{
++				const u32 v = w.type == 'h' ? ReadMem16_nommu(0x8C000000u + w.off) : ReadMem32_nommu(0x8C000000u + w.off);
++				changed = changed || v != w.last;
++				w.last = v;
++			}
++			if (changed)
++			{
++				std::string line;
++				char buf[48];
++				for (const Watch& w : watches)
++				{
++					if (w.type == 'f') { float f; memcpy(&f, &w.last, 4); snprintf(buf, sizeof(buf), " %06x=%.3f", w.off, f); }
++					else if (w.type == 'h') snprintf(buf, sizeof(buf), " %06x=%d", w.off, (int)(s16)w.last);
++					else snprintf(buf, sizeof(buf), " %06x=%u", w.off, w.last);
++					line += buf;
++				}
++				NOTICE_LOG(COMMON, "ACVR watch t=%.3f%s", gameSeconds() - startedAt, line.c_str());
++			}
++		}
++	}
++	// ACVR: ACVR_QUIT=<seconds>: the run ends by itself at that game time (after the snapshots
++	// queued before it are written).
++	{
++		static double quitAt = -1.0;
++		static bool parsed = false, quitting = false;
++		if (!parsed)
++		{
++			parsed = true;
++			if (const char *s = getenv("ACVR_QUIT"))
++				quitAt = atof(s);
++		}
++		if (quitAt > 0.0 && !quitting && gameSeconds() - startedAt >= quitAt)
++		{
++			quitting = true;
++			gui_runOnUiThread([]() { dc_exit(); });
 +		}
 +	}
  	const int every = config::VrDebugShots;
@@ -157,8 +363,85 @@ index e4ddf02..f66049b 100644
  	gMvp = gShape = gStarAngle = -1;
  	smoke.clear();
  	lastShot[0] = lastShot[1] = 0;
+diff --git a/core/rend/vr/xr_host.cpp b/core/rend/vr/xr_host.cpp
+index 1295144..451a735 100644
+--- a/core/rend/vr/xr_host.cpp
++++ b/core/rend/vr/xr_host.cpp
+@@ -95,6 +95,8 @@ XrSpace gripSpaces[2];		// the hand on the handle (grip pose): where the gun's g
+ XrActionSet actionSet = XR_NULL_HANDLE;
+ XrAction aimAction, handAction, triggerAction, startAction, skipAction, recenterAction, hapticAction, stickAction, gripAction;
+ PFN_xrRequestDisplayRefreshRateFB requestRefreshRate;
++PFN_xrEnumerateDisplayRefreshRatesFB enumerateRefreshRates;
++
+ PFN_xrPerfSettingsSetPerformanceLevelEXT setPerformanceLevel;
+ 
+ bool initTried;
+@@ -176,6 +178,35 @@ bool check(XrResult result, const char *what)
+ }
+ #define XRCHECK(call) check((call), #call)
+ 
++// Asks the runtime for the headset's highest refresh rate, or for the highest one not above
++// vr.XrRefreshRate when that is set. The head pose is redrawn every headset frame, so a higher
++// rate is smoother even though the game itself runs at 60. Runtimes without
++// XR_FB_display_refresh_rate (SteamVR on PC) keep the rate chosen in their own settings.
++static void requestBestRefreshRate()
++{
++	const float limit = (float)config::VrXrRefreshRate;
++	float chosen = limit;
++	uint32_t count = 0;
++	if (enumerateRefreshRates && XR_SUCCEEDED(enumerateRefreshRates(session, 0, &count, nullptr)) && count > 0)
++	{
++		std::vector<float> rates(count);
++		if (XR_SUCCEEDED(enumerateRefreshRates(session, count, &count, rates.data())))
++		{
++			chosen = 0.f;
++			for (uint32_t i = 0; i < count; i++)
++				if ((limit <= 0.f || rates[i] <= limit + 0.5f) && rates[i] > chosen)
++					chosen = rates[i];
++			if (chosen <= 0.f)
++				chosen = *std::min_element(rates.begin(), rates.begin() + count);
++		}
++	}
++	if (chosen > 0.f)
++	{
++		NOTICE_LOG(RENDERER, "XR: requesting display refresh rate %.1f Hz", chosen);
++		XRCHECK(requestRefreshRate(session, chosen));
++	}
++}
++
+ XrPath path(const char *s)
+ {
+ 	XrPath p = XR_NULL_PATH;
+@@ -473,7 +504,10 @@ bool init()
+ 	if (!XRCHECK(xrCreateInstance(&createInfo, &instance)))
+ 		return false;
+ 	if (refreshRates)
++	{
+ 		xrGetInstanceProcAddr(instance, "xrRequestDisplayRefreshRateFB", (PFN_xrVoidFunction *)&requestRefreshRate);
++		xrGetInstanceProcAddr(instance, "xrEnumerateDisplayRefreshRatesFB", (PFN_xrVoidFunction *)&enumerateRefreshRates);
++	}
+ 	if (perfSettings)
+ 		xrGetInstanceProcAddr(instance, "xrPerfSettingsSetPerformanceLevelEXT", (PFN_xrVoidFunction *)&setPerformanceLevel);
+ 	XrInstanceProperties instanceProps { XR_TYPE_INSTANCE_PROPERTIES };
+@@ -566,7 +600,7 @@ void pollEvents()
+ 				{
+ 					sessionRunning = true;
+ 					if (requestRefreshRate)
+-						XRCHECK(requestRefreshRate(session, (float)config::VrXrRefreshRate));
++						requestBestRefreshRate();
+ 					if (setPerformanceLevel)
+ 					{
+ 						XRCHECK(setPerformanceLevel(session, XR_PERF_SETTINGS_DOMAIN_CPU_EXT, XR_PERF_SETTINGS_LEVEL_SUSTAINED_HIGH_EXT));
+@@ -1684,6 +1718,7 @@ void term()
+ 	actionSet = XR_NULL_HANDLE;
+ 	aimAction = handAction = triggerAction = startAction = skipAction = recenterAction = hapticAction = stickAction = gripAction = XR_NULL_HANDLE;
+ 	requestRefreshRate = nullptr;
++	enumerateRefreshRates = nullptr;
+ 	setPerformanceLevel = nullptr;
+ 	sessionRunning = focused = drawingEye = false;
+ 	sessionLost = exiting = false;
 diff --git a/core/rend/vr_reproject.cpp b/core/rend/vr_reproject.cpp
-index 6314981..f4e4ba0 100644
+index 6314981..5eae4e2 100644
 --- a/core/rend/vr_reproject.cpp
 +++ b/core/rend/vr_reproject.cpp
 @@ -343,6 +343,14 @@ static std::vector<GameProfile> makeProfiles()
@@ -211,6 +494,35 @@ index 6314981..f4e4ba0 100644
  		u32 i = pp.first;
  		while (i < pp.first + pp.count && onOverlay(ctx.verts[i], hudW) && opaqueBlack(ctx.verts[i]))
  			i++;
+@@ -1186,9 +1217,9 @@ void dropShotMarker(rend_context& ctx, const RenderPass& pass, const RenderPass&
+ 			}
+ 			const bool big = size.x >= fbWidth * 0.5f && size.y >= fbHeight * 0.5f && size.x < fbWidth * 4.f && size.y < fbHeight * 4.f;
+ 			if (diag && (((all2D || markerLike) && offset <= MarkerMaxOffset) || (big && (all2D || bright))))
+-				NOTICE_LOG(RENDERER, "VR: shot +%d ms gun %.0f,%.0f%s: %s %u (%u verts) %.0fx%.0f, %.0f px off, W %.3f..%.3f%s, tex %06x tsp %08x col %02x%02x%02x%02x%s",
++				NOTICE_LOG(RENDERER, "VR: shot +%d ms gun %.0f,%.0f%s: %s %u (%u verts) %.0fx%.0f at %.1f,%.1f, %.0f px off, W %.3f..%.3f%s, tex %06x tsp %08x col %02x%02x%02x%02x%s",
+ 						(int)near->since, near->gun.x, near->gun.y, near->into3D ? "" : " (2D)", name, n, pp.count,
+-						size.x, size.y, offset, wMin, wMax, all2D ? " all-2D" : "",
++						size.x, size.y, centre.x, centre.y, offset, wMin, wMax, all2D ? " all-2D" : "",
+ 						(unsigned)(pp.tcw.TexAddr << 3), pp.tsp.full, c[0], c[1], c[2], c[3], hide ? " DROPPED" : "");
+ 			if (!hide)
+ 				continue;
+@@ -1263,7 +1294,15 @@ const ReprojectParams& update(const rend_context& ctx)
+ 			* glm::rotate(glm::mat4(1.f), glm::radians(pitch), glm::vec3(1, 0, 0));
+ 	// The renderer's ndc y points down the image; flip into y-up space for the pose.
+ 	const glm::mat4 flipY = glm::scale(glm::mat4(1.f), glm::vec3(1, -1, 1));
+-	params.viewProj = projection(stockTan, zNear) * flipY * glm::inverse(pose) * flipY;
++	// ACVR: ACVR_PREVIEW_WIDE=k shows k times the stock view (tan of the half angle) in the flat
++	// picture, the 2D plane still at its stock size in the middle: what the headset shows around
++	// the original frame when the game's view is widened (open-frame pictures on the PC).
++	static const float previewWide = [] {
++		const char *s = getenv("ACVR_PREVIEW_WIDE");
++		const float k = s != nullptr ? (float)atof(s) : 1.f;
++		return k >= 1.f && k <= 4.f ? k : 1.f;
++	}();
++	params.viewProj = projection(stockTan * previewWide, zNear) * flipY * glm::inverse(pose) * flipY;
+ 
+ 	return params;
+ }
 diff --git a/core/sdl/sdl.cpp b/core/sdl/sdl.cpp
 index 3568d4b..a1b8e14 100644
 --- a/core/sdl/sdl.cpp
