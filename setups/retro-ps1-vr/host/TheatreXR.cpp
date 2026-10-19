@@ -62,7 +62,8 @@ void UploadInto(Slot &slot, const std::uint32_t *xrgb, unsigned w, unsigned h)
 std::mutex s_inputMutex;
 Input s_input; ULONGLONG s_inputTime = 0;
 std::atomic<unsigned> s_pulses{ 0 };
-std::atomic<bool> s_stop{ false }, s_started{ false }, s_runtimeExit{ false };
+std::atomic<bool> s_stop{ false }, s_started{ false }, s_runtimeExit{ false }, s_gone{ false };
+std::atomic<int> s_state{ 0 };   // the session's XrSessionState
 std::thread s_thread;
 Host_Window *s_owner = nullptr, *s_xrWindow = nullptr;
 HGLRC s_ownerContext = nullptr;
@@ -231,7 +232,7 @@ ScreenGeometry PlaceScreen(const XrPosef &head)
   return g;
 }
 
-void ThreadMain()
+void ThreadBody()
 {
   if (Host_GL_MakeCurrent(s_xrWindow, s_xrWindow->context) != 0) { Log("cannot use the XR OpenGL context"); return; }
   if (!InitXR()) { Log("Theatre off: no headset session"); Host_GL_MakeCurrent(s_xrWindow, nullptr); return; }
@@ -243,10 +244,11 @@ void ThreadMain()
     while (p_xrPollEvent(s_instance, &ev) == XR_SUCCESS) {
       if (ev.type == XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED) {
         const auto state = reinterpret_cast<XrEventDataSessionStateChanged *>(&ev)->state;
-        Log("session state %d", (int)state);
+        Log("session state %d", (int)state); s_state = (int)state;
         if (state == XR_SESSION_STATE_READY) { XrSessionBeginInfo bi{ XR_TYPE_SESSION_BEGIN_INFO }; bi.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO; running = Check(p_xrBeginSession(s_session, &bi), "xrBeginSession"); }
-        // SteamVR's "Exit game" (or a lost runtime) ends the session: the whole game closes, not just the picture.
-        else if (state == XR_SESSION_STATE_STOPPING) { p_xrEndSession(s_session); running = false; s_runtimeExit = true; }
+        // STOPPING alone (headset idle, runtime standby) only ends the session: the game waits, paused, for READY.
+        else if (state == XR_SESSION_STATE_STOPPING) { Check(p_xrEndSession(s_session), "xrEndSession"); running = false; Log("session stopped: the game waits paused"); }
+        // SteamVR's "Exit game" (or a lost runtime) ends with EXITING: the whole game closes, not just the picture.
         else if (state == XR_SESSION_STATE_EXITING || state == XR_SESSION_STATE_LOSS_PENDING) { s_runtimeExit = true; s_stop = true; }
       } else if (ev.type == XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING) { s_runtimeExit = true; s_stop = true; }
       ev = { XR_TYPE_EVENT_DATA_BUFFER };
@@ -333,12 +335,21 @@ void ThreadMain()
           scene.gunRoot = s_gun.alignedRoot(gripWorld, aimWorld, kickAt && since < .1f ? 1.f - since / .1f : 0.f);
         }
         bool ok = true;
+        // An image acquired for eye 0 must go back even when eye 1 fails.
+        auto releaseFirst = [&](int e) { XrSwapchainImageReleaseInfo rel{ XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO }; if (e == 1) Check(p_xrReleaseSwapchainImage(s_eyes[0].chain, &rel), "release"); };
         for (int e = 0; e < 2 && ok; ++e) {
           auto &eye = s_eyes[e]; uint32_t index = 0;
           XrSwapchainImageAcquireInfo acq{ XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO };
-          if (!Check(p_xrAcquireSwapchainImage(eye.chain, &acq, &index), "acquire")) { ok = false; break; }
-          const auto waited = acvr_wait::image([&](long long timeout) { XrSwapchainImageWaitInfo w{ XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO }; w.timeout = timeout; return p_xrWaitSwapchainImage(eye.chain, &w); }, [] { return s_stop.load(); });
-          if (waited != acvr_wait::Result::ready) { Log("swapchain wait did not finish"); s_stop = true; ok = false; break; }
+          if (!Check(p_xrAcquireSwapchainImage(eye.chain, &acq, &index), "acquire")) { releaseFirst(e); ok = false; break; }
+          // One slow compositor frame is a hitch, not the end: keep waiting up to 2 s before giving up.
+          auto waited = acvr_wait::Result::deadline;
+          for (int tries = 0; tries < 8 && waited == acvr_wait::Result::deadline; ++tries) {
+            waited = acvr_wait::image([&](long long timeout) { XrSwapchainImageWaitInfo w{ XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO }; w.timeout = timeout; return p_xrWaitSwapchainImage(eye.chain, &w); }, [] { return s_stop.load(); });
+            if (waited == acvr_wait::Result::deadline) Log("swapchain wait slow (%d ms so far)", (tries + 1) * 250);
+          }
+          if (waited != acvr_wait::Result::ready) {
+            Log("swapchain wait did not finish"); releaseFirst(e); s_stop = true; ok = false; break;
+          }
           glBindFramebuffer(GL_FRAMEBUFFER, eye.fbo);
           glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, eye.images[index].image, 0);
           tgl::FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, eye.depth);
@@ -378,6 +389,15 @@ void ThreadMain()
   Host_GL_MakeCurrent(s_xrWindow, nullptr);
 }
 
+// The headset thread runs a little above normal so a busy emulator never makes it miss the compositor.
+// However it ends, the game is told: a game with no picture must not keep running unseen.
+void ThreadMain()
+{
+  SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+  ThreadBody();
+  s_gone = true;
+}
+
 void LoadGun(const Config &c)
 {
   if (s_gun.loaded() || c.gunModel.empty()) return;
@@ -399,7 +419,7 @@ bool Start(Host_Window *owner, const Config &config)
   Host_GL_SetAttribute(Host_GL_SHARE_WITH_CURRENT_CONTEXT, 0);
   const bool restored = wglMakeCurrent(owner->dc, s_ownerContext);
   if (!made || !restored) { Log("cannot create the shared OpenGL context"); if (s_xrWindow) Host_DestroyWindow(s_xrWindow); s_xrWindow = nullptr; return false; }
-  s_stop = false; s_started = true;
+  s_stop = false; s_gone = false; s_state = 0; s_started = true;
   s_thread = std::thread(ThreadMain);
   return true;
 }
@@ -439,6 +459,8 @@ Input ReadInput()
 
 void QueuePulse() { if (s_started && !s_stop) ++s_pulses; }
 bool RuntimeExit() { return s_runtimeExit.load(); }
+bool Focused() { return s_state.load() == XR_SESSION_STATE_FOCUSED; }
+bool PresenterGone() { return s_gone.load(); }
 
 bool Stop()
 {

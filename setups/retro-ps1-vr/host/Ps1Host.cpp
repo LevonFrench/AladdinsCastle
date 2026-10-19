@@ -524,7 +524,8 @@ int main(int argc, char **argv)
   if (g_corePath.empty() || game.empty() || g_systemDir.empty() || g_saveDir.empty() || (headless && !frames)) { Usage(); return 2; }
   if (gunName != "guncon" && gunName != "justifier" && gunName != "lightgun") { Usage(); return 2; }
   if (!logPath.empty()) { g_log = std::fopen(logPath.c_str(), "w"); if (!g_log) g_log = stdout; }
-  SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+  // Offline runs stay out of the way; a game in the headset keeps normal priority so it is never starved.
+  if (headless || noXr) SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
   CreateDirectoryA(g_saveDir.c_str(), nullptr);
   if (!snapshots.empty()) CreateDirectoryA(snapshots.c_str(), nullptr);
 
@@ -623,7 +624,9 @@ int main(int argc, char **argv)
   LARGE_INTEGER freq, t0; QueryPerformanceFrequency(&freq); QueryPerformanceCounter(&t0);
   unsigned frame = 0; std::uint64_t shownSerial = 0, shots = 0, countedSerial = 0;
   const ULONGLONG startedAt = GetTickCount64();
-  bool lastTrigger = false; ULONGLONG lastSave = GetTickCount64();
+  bool lastTrigger = false, wasPaused = false; ULONGLONG lastSave = GetTickCount64();
+  // After a pause or a lost audio device the clock pacing starts again from this frame.
+  auto restartClock = [&] { QueryPerformanceCounter(&t0); t0.QuadPart -= (LONGLONG)(frame * frameMs * freq.QuadPart / 1000.0); };
   int result = 0;
 
   while (!g_shutdownRequested) {
@@ -639,6 +642,18 @@ int main(int argc, char **argv)
       if (seconds && now - startedAt >= seconds * 1000ull) quit.request(CleanQuit::Reason::time_limit);
       if (quit.requested()) { Log("Clean quit: %s", quit.reason()); break; }
       if (theatreOn && theatre::RuntimeExit()) { Log("Clean quit: SteamVR ended the game"); break; }
+      if (theatreOn && theatre::PresenterGone()) { Log("Clean quit: the headset picture stopped (see acvr-theatre.log)"); result = 9; break; }
+      // The game waits while the headset is not showing it: the SteamVR dashboard, standby, or still starting.
+      const bool paused = theatreOn && !theatre::Focused();
+      if (paused != wasPaused) {
+        Log(paused ? "Paused: the headset is not showing the game (SteamVR dashboard, standby or start-up)" : "Resumed");
+        wasPaused = paused; if (!paused) restartClock();
+      }
+      if (paused) {
+        g_audio.hold();
+        if (now - lastSave > 10000) { SaveSram(false); lastSave = now; }
+        Sleep(20); continue;
+      }
       Gun g; g.u = controller.u; g.v = controller.v; g.offScreen = !controller.active || controller.offScreen;
       // GunCon A is also on the grip, as the pedal (Time Crisis takes cover with it).
       g.trigger = controller.trigger; g.a = controller.a || controller.grip; g.b = controller.b;
@@ -705,6 +720,7 @@ int main(int argc, char **argv)
     if (now - lastSave > 10000) { SaveSram(false); lastSave = now; }
 
     if (!headless) {
+      if (g_audioWanted && g_audio.failed()) { Log("Audio device lost: running silent, paced by the clock"); g_audioWanted = false; restartClock(); }
       if (g_audioWanted) { for (int i = 0; i < 100 && g_audio.queued() > AudioOut::kTarget; ++i) Sleep(1); }
       else {
         LARGE_INTEGER t; QueryPerformanceCounter(&t);
