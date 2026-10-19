@@ -13,17 +13,18 @@ series       = "Operation Wolf"
 [controls]
 type   = "gun"
 guns   = 2
-gun    = "Taito light gun (type not confirmed)"
+gun    = "Taito positional gun (ADC0809-read potentiometers)"
 pedals = []
 extras = []
 
 [[media]]
-kind = "other"
-note = "Taito arcade PCB, not in MAME (no set found in the taito drivers checked). Wikipedia: only Operation Wolf game with digitized-photograph graphics"
+kind = "mame-romset"
+set  = "opwolf3"
+note = "World set in MAME taito/slapshot.cpp (clones opwolf3u, opwolf3j). Sets dumped before the PLD dumps were added lack d74-09.8, d74-10.40, d74-12.1, d74-13.2; the driver never reads them"
 
 [routes]
-mame = "unknown"
-vr   = { best = "none" }
+mame = "working"
+vr   = { best = "theatre" }
 
 [hub]
 pill   = "OPWOLF3"

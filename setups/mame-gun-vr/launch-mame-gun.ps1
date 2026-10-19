@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 param(
- [Parameter(Mandatory=$true)][ValidateSet('ptblank2','lethalen','term2la3','bbusters','zeropnt')][string]$Game,
+ [Parameter(Mandatory=$true)][string]$Game,
  [Parameter(Mandatory=$true)][string]$MameExe,
  [Parameter(Mandatory=$true)][string]$ViewerExe,
  [Parameter(Mandatory=$true)][string]$RomPath,
@@ -9,23 +9,52 @@ param(
  [Parameter(Mandatory=$true)][string]$WorkingDirectory,
  [ValidateRange(1,86400)][int]$Seconds=3600,
  [string]$StopFile='',
+ [string]$AimTrim='',
+ [switch]$Mute,
  [switch]$Crt
 )
 $ErrorActionPreference='Stop'
+# Per-game settings, each measured offline against the game's own cursor or hit marks
+# (README "Aim and per-game settings").
+#  allow: files missing from the owner's set that MAME 0.289 lists but the driver never
+#         reads (PLD/PROM dumps) or that only seed a blank EEPROM; MAME_VR_ALLOW_MISSING.
+#  aim:   per-game trim "x scale,x shift,y scale,y shift" around the centre; MAME_VR_AIM.
+#  xhair: '1' shows MAME's crosshair (only where MAME's calibration matches the game), '0' hides it.
+$games=@{
+ 'ptblank2'=@{allow='';aim='';xhair='1'}
+ 'lethalen'=@{allow='';aim='';xhair='1'}
+ 'term2la3'=@{allow='';aim='';xhair='1'}
+ 'bbusters'=@{allow='';aim='';xhair='1'}
+ 'zeropnt' =@{allow='';aim='';xhair='1'}
+ # Time Crisis: own accuracy screen, 9 points within 0.0052 untrimmed; grip = foot pedal
+ 'timecris'=@{allow='';aim='';xhair='0'}
+ # Operation Wolf 3: four PLD dumps absent from older sets; its gun gain is fixed by the game,
+ # so the trim sets scale and a one-time in-game calibration (seeded NVRAM) sets the offset
+ 'opwolf3' =@{allow='d74-09.8,d74-10.40,d74-12.1,d74-13.2';aim='0.7143,0,0.5001,0';xhair='0'}
+ # Zombie Raid: game cursor within 0.0068 untrimmed; grip = pump reload
+ 'zombraid'=@{allow='';aim='';xhair='0'}
+ # Rail Chase: x trim measured; y left untrimmed (low readings count as off-screen), see README
+ 'rchase'  =@{allow='';aim='1.0768,0.0007,1,0';xhair='0'}
+}
+if(-not $games.ContainsKey($Game)){throw ('Unknown game key ' + $Game + '; known: ' + (($games.Keys | Sort-Object) -join ', '))}
 foreach($file in @($MameExe,$ViewerExe,$GunModel,$GunMetadata)) {
  if(-not (Test-Path -LiteralPath $file -PathType Leaf)){throw "Missing local file: $file"}
 }
 New-Item -ItemType Directory -Force -Path $WorkingDirectory | Out-Null
-$home=(Resolve-Path -LiteralPath $WorkingDirectory).Path
-$run=Join-Path $home ('runs\'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fff'))
+# ($home is a read-only automatic variable in Windows PowerShell; never assign it.)
+$gameHome=(Resolve-Path -LiteralPath $WorkingDirectory).Path
+$run=Join-Path $gameHome ('runs\'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Force -Path $run | Out-Null
 if(-not $StopFile){$StopFile=Join-Path $run 'quit.request'}
 if(Test-Path -LiteralPath $StopFile){throw "Stop file already exists: $StopFile"}
-$env:MAME_VR_PUBLISH='1';$env:MAME_VR_GUN='1';$env:MAME_VR_CROSSHAIR='1'
-# All writable MAME paths stay private. ROM paths are inputs only.
-$argsM=@($Game,'-noreadconfig','-rompath',('"'+$RomPath+'"'),'-video','none','-sound','none','-numprocessors','2','-skip_gameinfo','-homepath',('"'+$home+'"'))
+$env:MAME_VR_PUBLISH='1';$env:MAME_VR_GUN='1';$env:MAME_VR_CROSSHAIR=$games[$Game].xhair
+Remove-Item Env:MAME_VR_SCRIPT -ErrorAction SilentlyContinue
+$env:MAME_VR_ALLOW_MISSING=$games[$Game].allow
+$env:MAME_VR_AIM=$(if($AimTrim){$AimTrim}else{$games[$Game].aim})
+# All writable MAME paths stay private. ROM paths are inputs only. Sound plays unless -Mute.
+$argsM=@($Game,'-noreadconfig','-rompath',('"'+$RomPath+'"'),'-video','none','-sound',$(if($Mute){'none'}else{'auto'}),'-numprocessors','2','-skip_gameinfo','-homepath',('"'+$gameHome+'"'))
 foreach($pair in @(@('cfg_directory','cfg'),@('nvram_directory','nvram'),@('snapshot_directory','snap'),@('diff_directory','diff'),@('input_directory','inp'),@('state_directory','sta'),@('share_directory','share'))) {
- $argsM+=@('-'+$pair[0],('"'+(Join-Path $home $pair[1])+'"'))
+ $argsM+=@('-'+$pair[0],('"'+(Join-Path $gameHome $pair[1])+'"'))
 }
 $mame=$null;$viewer=$null;$forced=@()
 try {
