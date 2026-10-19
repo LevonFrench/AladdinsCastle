@@ -82,10 +82,17 @@ XrResult XRAPI_CALL Action(XrActionSet,const XrActionCreateInfo *info,XrAction *
  static std::uintptr_t next=10; *out=reinterpret_cast<XrAction>(++next);
  if(std::string(info->actionName)=="shot_pulse") assert(info->actionType==XR_ACTION_TYPE_VIBRATION_OUTPUT);
  if(std::string(info->actionName)=="clean_quit") assert(info->actionType==XR_ACTION_TYPE_BOOLEAN_INPUT && info->countSubactionPaths==1 && info->subactionPaths[0]==s_left);
+ for(const char *left:{"brake","steer_stick","grip_left"}) if(std::string(info->actionName)==left) assert(info->countSubactionPaths==1 && info->subactionPaths[0]==s_left);
+ if(std::string(info->actionName)=="grip_right") assert(info->actionType==XR_ACTION_TYPE_BOOLEAN_INPUT && info->subactionPaths[0]==s_right);
  return XR_SUCCESS;
 }
 XrResult XRAPI_CALL Suggest(XrInstance,const XrInteractionProfileSuggestedBinding *info) {
- assert(info->countSuggestedBindings==6);
+ assert(info->countSuggestedBindings==10);
+ // Racing and extra-button bindings, identical paths on both profiles.
+ assert(info->suggestedBindings[6].action==s_brake && info->suggestedBindings[6].binding==paths.at("/user/hand/left/input/trigger/value"));
+ assert(info->suggestedBindings[7].action==s_stickX && info->suggestedBindings[7].binding==paths.at("/user/hand/left/input/thumbstick/x"));
+ assert(info->suggestedBindings[8].action==s_gripR && info->suggestedBindings[8].binding==paths.at("/user/hand/right/input/squeeze/value"));
+ assert(info->suggestedBindings[9].action==s_gripL && info->suggestedBindings[9].binding==paths.at("/user/hand/left/input/squeeze/value"));
  assert(info->suggestedBindings[4].action==s_haptic);
  assert(info->suggestedBindings[4].binding==paths.at("/user/hand/right/output/haptic"));
  assert(info->suggestedBindings[5].action==s_quit);

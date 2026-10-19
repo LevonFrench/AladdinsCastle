@@ -4,6 +4,8 @@
 #include "model2_frames.h"
 #include "ShotFeedback.h"
 #include "CleanQuit.h"
+#include "model2_script.h"
+#include <cstddef>
 #include <vector>
 #include <memory>
 #include <stdexcept>
@@ -46,6 +48,13 @@ int main(int argc, char **argv)
 	}
 	if(scriptedY && !scripted) { std::fprintf(stderr,"Scripted Y requires scripted input\n"); return 2; }
 	no_xr=no_xr || scripted;
+	// Optional proof script (scripted runs only): see model2_script.h.
+	model2_script::ScriptFile script; bool haveScript=false;
+	if(const char *scriptPath=std::getenv("ACVR_M2_SCRIPT"); scripted && scriptPath && *scriptPath) {
+		std::string error;
+		if(!script.load(scriptPath,error)) { std::fprintf(stderr,"Script %s: %s\n",scriptPath,error.c_str()); return 2; }
+		haveScript=true; std::printf("Proof script: %s (last step at %.3f s)\n",scriptPath,script.last()); std::fflush(stdout);
+	}
 	// Diagnostic runs stop themselves; a game in the headset runs until it is quit, however long that is.
 	const DWORD limit = scripted ? 240000 : no_xr ? 20000 : 0;
 	SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
@@ -64,7 +73,8 @@ int main(int argc, char **argv)
 	auto *shared = mapping ? static_cast<model2_frames::frame *>(MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(model2_frames::frame))) : nullptr;
 	if (!shared || !mutex || !parent) { std::fprintf(stderr, "Frame transport unavailable (Win32 %lu)\n", GetLastError()); return 3; }
 	auto local = std::make_unique<model2_frames::frame>();
-	std::vector<unsigned> flipped(model2_frames::width * model2_frames::height), readback(flipped.size());
+	std::vector<unsigned> flipped(model2_frames::max_width * model2_frames::height), readback(flipped.size());
+	unsigned textureWidth = 0;
 	Host_Window *window = nullptr; GLuint tex[2] = {}, fbo[2] = {};
 	bool started = false, checked = false; unsigned frames = 0; std::uint64_t serial = 0; int result = 0;
 	ShotFeedback feedback;
@@ -99,21 +109,37 @@ int main(int argc, char **argv)
 				continue;
 			}
 			model2_frames::controls input{};
-			if (scripted) input=ScriptedInput(shared->emulated_seconds);
+			if (scripted && haveScript) {
+				const model2_script::ScriptState step=script.at(shared->emulated_seconds);
+				input.valid=1; input.u=step.u; input.v=step.v; input.off_screen=step.off; input.trigger=step.trigger;
+				input.start=step.start; input.coin=step.coin; input.steer=step.steer; input.accel=step.accel; input.brake=step.brake;
+				input.buttons=(step.gripr?1u:0u)|(step.gripl?2u:0u); input.snapshot_request=step.snaps;
+			}
+			else if (scripted) input=ScriptedInput(shared->emulated_seconds);
 			else if (!no_xr) {
 				input.valid=controller.active; input.off_screen=controller.offScreen; input.u=controller.u; input.v=controller.v;
 				input.trigger=controller.trigger; input.start=controller.start; input.coin=controller.coin;
+				input.steer=controller.steer; input.accel=controller.accel; input.brake=controller.brake;
+				input.buttons=(controller.gripR?1u:0u)|(controller.gripL?2u:0u);
 			}
 			input.heartbeat_ms=GetTickCount64(); shared->input=input;
-			std::memcpy(local.get(), shared, sizeof(*local)); ReleaseMutex(mutex);
-			if (local->w != model2_frames::width || local->h != model2_frames::height)
+			// Header every poll; the pictures only when a new pair has arrived.
+			std::memcpy(local.get(), shared, offsetof(model2_frames::frame, pixels));
+			const bool fresh = local->serial && local->serial != serial;
+			if (fresh && local->w <= model2_frames::max_width && local->h == model2_frames::height)
+				for (int eye = 0; eye < 2; ++eye) for (unsigned y = 0; y < local->h; ++y)
+					std::memcpy(local->pixels[eye][y], shared->pixels[eye][y], local->w * 4);
+			ReleaseMutex(mutex);
+			if (local->w == 0 || local->w > model2_frames::max_width || local->h != model2_frames::height)
 				throw std::runtime_error("Unexpected frame transport format");
-			if (!local->serial || local->serial == serial) { Sleep(5); continue; }
+			if (!fresh) { Sleep(5); continue; }
 			serial = local->serial;
 			feedback.observe(local->shot_serial,local->shot_time_ms,GetTickCount64(),started,[] { ACVR_XR_QueueShotPulse(); });
 			if (scripted) { ++frames; Sleep(1); continue; }
+			if (window && local->w != textureWidth) throw std::runtime_error("Picture width changed during the run");
 			if (!window)
 			{
+				textureWidth = local->w;
 				window = Host_CreateWindow("Model 2 viewer", 0, 0, 16, 16, Host_WINDOW_HIDDEN);
 				if (!window || !Host_GL_CreateContext(window) || !Host_LoadGL()) throw std::runtime_error("Hidden OpenGL context/entry points unavailable");
 				std::printf("Hidden GL context: %s\n", glGetString(GL_VERSION));
