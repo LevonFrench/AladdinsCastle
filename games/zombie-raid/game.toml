@@ -18,12 +18,13 @@ pedals = []
 extras = []
 
 [[media]]
-kind = "other"
-note = "Arcade PCB on Seta 1st-generation hardware (not in vocab). Not checked in MAME. North America release only"
+kind = "mame-romset"
+set  = "zombraid"
+note = "US 9/28/95 in MAME seta/seta.cpp; MAME rates the best set as best available (six PALs have no dump). Reload is the pump button, not an off-screen shot"
 
 [routes]
-mame = "unknown"
-vr   = { best = "none" }
+mame = "working"
+vr   = { best = "theatre" }
 
 [hub]
 pill   = "ZOMBIE"
