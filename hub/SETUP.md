@@ -241,7 +241,7 @@ and settings. Stop forces both programs only if they are still running 40 second
 later. A game that is not ready is greyed with its
 reason. A Dreamcast game without a VR profile opens its page with a warning
 before it can be started. Dreamcast starts the emulator from its own folder with
-`-config config:vr.Xr=yes|no <disc image>`; Time Crisis starts its program from
+`-config config:vr.Xr=yes|no,input:device1=7,input:device2=7 <disc image>` (light guns in ports A and B); Time Crisis starts its program from
 its own folder. Dreamcast in a headset is new and untested.
 
 The Wii gun games run in the headset through the user's DolphinXR build, by the authored route of the

@@ -67,6 +67,8 @@ QVariantMap launchPlan(const QString &file,const QString &view,const QString &ex
  if(file.isEmpty()||!QFileInfo(file).isFile())throw install::Error("E_DREAMCAST_DISC","The disc image is no longer where it was. Use Rescan in Set-up.");
  const QFileInfo program(executable);
  return {{"executable",QDir::toNativeSeparators(program.absoluteFilePath())},{"cwd",QDir::toNativeSeparators(program.absolutePath())},
-         {"args",QStringList{"-config",view=="headset"?"config:vr.Xr=yes":"config:vr.Xr=no",QDir::toNativeSeparators(QFileInfo(file).absoluteFilePath())}}};
+         // Light guns in ports A and B: the build only plugs them in itself for games it has a profile for,
+         // and on the monitor the mouse aims only a port that holds a gun.
+         {"args",QStringList{"-config",QString(view=="headset"?"config:vr.Xr=yes":"config:vr.Xr=no")+",input:device1=7,input:device2=7",QDir::toNativeSeparators(QFileInfo(file).absoluteFilePath())}}};
 }
 }
