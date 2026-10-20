@@ -143,5 +143,10 @@ backup of anything replaced. Launchers add
 - Dolphin's own log at EFB creation: Mario Kart Wii with only `-C Graphics.Settings.MSAA=4` → `msaa=1`;
   with `GameSettings/RMCP01.ini` → `msaa=4`; Super Mario Galaxy with the command line only → `msaa=4`.
   Screenshots at `InternalResolution=3` are 2501×1368 against 834×456 at 1x.
+- Gun games (2026-10-20, same method, launcher graphics flags): in all five games every Wii Remote
+  and Nunchuk binding reached the report, the right grip landed on A (on Z for Dead Space:
+  Extraction), Home only after the hold. The wrist-strap and Zapper pages wait for A in all five; with
+  right A every 2 s the games left them (save prompt, logos, file select) while the no-input control
+  was still on them at 32 s. Dolphin's log shows `msaa=4` in every gun run.
 - Not proven offline: the stereo OpenXR render itself (the runs are mono), anisotropic filtering, and
   anything in the headset.
