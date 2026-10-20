@@ -349,7 +349,7 @@ void ThreadBody()
         scene.frame = s_config.frame; scene.fadeU = s_config.edgeFade; scene.fadeV = s_config.edgeFade * s_config.aspect;
         {
           std::lock_guard<std::mutex> lock(s_slotMutex); s_inUse = s_front; if (s_front >= 0) { scene.picture = s_slots[s_front].tex; scene.pictureW = s_slots[s_front].w; scene.pictureH = s_slots[s_front].h; }
-          s_hudInUse = s_hudFront; if (s_config.hud && s_hudFront >= 0) { scene.hud = s_hudSlots[s_hudFront].tex; scene.hudOverWhite = s_hudWhiteSlots[s_hudFront].tex; scene.hudPanel = HudPanel(screen, s_config); scene.hudOpacity = s_config.hudOpacity; }
+          s_hudInUse = s_hudFront; if (s_config.hud && s_hudFront >= 0) { scene.hud = s_hudSlots[s_hudFront].tex; scene.hudOverWhite = s_hudWhiteSlots[s_hudFront].tex; scene.hudPanel = HudPanel(screen, s_config); scene.hudOpacity = s_config.hudOpacity; scene.hudKeyBlack = s_config.hudKeyBlack; }
         }
         scene.showDot = s_config.aimDot && in.active && !in.offScreen; scene.dotU = in.u; scene.dotV = in.v;
         if (haveGun && s_gun.loaded()) {
@@ -557,7 +557,7 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     if (config.sideBySide) scene.uw = .5f;
     scene.frame = config.frame; scene.fadeU = config.edgeFade; scene.fadeV = config.edgeFade * config.aspect;
     Slot hud;
-    if (config.hud && hudArgb && hudW && hudH) { UploadInto(hud, hudArgb, hudW, hudH); scene.hud = hud.tex; scene.hudPanel = HudPanel(screen, config); scene.hudOpacity = config.hudOpacity; }
+    if (config.hud && hudArgb && hudW && hudH) { UploadInto(hud, hudArgb, hudW, hudH); scene.hud = hud.tex; scene.hudPanel = HudPanel(screen, config); scene.hudOpacity = config.hudOpacity; scene.hudKeyBlack = config.hudKeyBlack; }
     scene.showDot = on && config.aimDot; scene.dotU = u; scene.dotV = v;
     if (s_gun.loaded()) { scene.showGun = true; scene.gunRoot = s_gun.alignedRoot(aim, aim, 0); }
     const int size = 1440; GLuint fbo = 0, color = 0, depth = 0;

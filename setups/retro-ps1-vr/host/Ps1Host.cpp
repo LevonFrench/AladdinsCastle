@@ -498,6 +498,7 @@ void EnsureCpuFrame()
   if (const unsigned hud = glstereo::HudFramebuffer()) {
     g_hudFrame.resize((std::size_t)g_hwW * g_hwH);
     std::vector<std::uint32_t> white(px.size());
+    const char *key = std::getenv("ACVR_HUD_KEY_BLACK"); const bool keyBlack = key && std::atoi(key) != 0;
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, hud); glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, px.data());
     glBindFramebuffer(GL_READ_FRAMEBUFFER, glstereo::HudFramebuffer(true)); glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, white.data());
@@ -505,7 +506,10 @@ void EnsureCpuFrame()
       const std::size_t i = (std::size_t)(g_hwH - 1 - y) * g_hwW + x;
       const std::uint32_t b = px[i], w = white[i]; int d = 0;
       for (int sh : { 0, 8, 16 }) d = std::max(d, (int)((w >> sh) & 255) - (int)((b >> sh) & 255));
-      g_hudFrame[(std::size_t)y * g_hwW + x] = ((std::uint32_t)(255 - std::clamp(d, 0, 255)) << 24) | (b & 0xffffffu);
+      std::uint32_t argb = ((std::uint32_t)(255 - std::clamp(d, 0, 255)) << 24) | (b & 0xffffffu);
+      // ACVR_HUD_KEY_BLACK=1: a game's opaque black border bars in its 2D layer show as transparent.
+      if (keyBlack && ((b >> 16) & 255) < 3 && ((b >> 8) & 255) < 3 && (b & 255) < 3) argb = 0;
+      g_hudFrame[(std::size_t)y * g_hwW + x] = argb;
     }
   }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -667,6 +671,7 @@ theatre::Config TheatreConfig()
     c.hudWidth = EnvFloat("ACVR_HUD_WIDTH", 2 * c.hudDistance * std::tan(std::min(angle, 2.6f) / 2) * EnvFloat("ACVR_HUD_SCALE", 1.f));
     c.hudLift = EnvFloat("ACVR_HUD_LIFT", -.08f);
     c.hudOpacity = EnvFloat("ACVR_HUD_OPACITY", 1.f);
+    c.hudKeyBlack = EnvFloat("ACVR_HUD_KEY_BLACK", 0.f) != 0.f;
   }
   if (const char *m = std::getenv("ACVR_PS1_GUN_MODEL")) c.gunModel = m;
   if (const char *m = std::getenv("ACVR_PS1_GUN_META")) c.gunMeta = m;

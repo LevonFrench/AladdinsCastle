@@ -23,6 +23,7 @@ struct Config {
   // with the screen and fixed in the room, nearer than the screen.
   bool hud = false;
   float hudDistance = 1.8f, hudWidth = 1.2f, hudLift = -.1f, hudOpacity = 1.f, hudAspect = 16.f / 9.f;
+  bool hudKeyBlack = false;        // opaque pure black in the HUD layer (a game's border bars) shows as transparent
 };
 struct Input {
   float u = .5f, v = .5f;
