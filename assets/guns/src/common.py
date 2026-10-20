@@ -122,6 +122,12 @@ class Design:
         self.part(name,'vented_tube',at,'accent',parent,0,radius=radius/1000,
                   inner=inner/1000,depth=depth/1000)
 
+    def zloft(self,name,rings,material='body',parent=None,power=4):
+        """Rounded bar along Z: rings of (z, half width, half height, y centre) in mm, each a
+        superellipse |x/a|^p + |y/b|^p = 1 (p=2 ellipse, larger p squarer), capped at both ends."""
+        self.part(name,'zloft',(0,0,0),material,parent,0,power=power,
+                  rings=[tuple(v/1000 for v in ring) for ring in rings])
+
     def loft(self,name,rings,material='body',parent=None):
         self.part(name,'loft',(0,0,0),material,parent,0,
                   rings=[tuple(v/1000 for v in ring) for ring in rings])
@@ -166,6 +172,18 @@ def geometry(part, lod):
         n=24 if lod==0 else 12
         vertices=[(rx*math.cos(i*math.tau/n),y,z+rz*math.sin(i*math.tau/n))
                   for y,rx,rz,z in part['rings'] for i in range(n)]
+        faces=[tuple(reversed(range(n))),tuple(range(len(vertices)-n,len(vertices)))]
+        for ring in range(len(part['rings'])-1):
+            for i in range(n):
+                a=ring*n+i;b=ring*n+(i+1)%n
+                faces.append((a,b,b+n,a+n))
+        return vertices,faces
+    if shape == 'zloft':
+        n=32 if lod==0 else 16;e=2/part['power'];vertices=[]
+        for z,a,b,yc in part['rings']:
+            for i in range(n):
+                t=i*math.tau/n;c,s=math.cos(t),math.sin(t)
+                vertices.append((a*math.copysign(abs(c)**e,c),yc+b*math.copysign(abs(s)**e,s),z))
         faces=[tuple(reversed(range(n))),tuple(range(len(vertices)-n,len(vertices)))]
         for ring in range(len(part['rings'])-1):
             for i in range(n):
@@ -321,7 +339,7 @@ def blender_run(model_id, parameters, spec=None, meta=None):
             mesh.from_pydata([vec(v) for v in verts],[],faces); mesh.validate(); mesh.update()
             bm=bmesh.new(); bm.from_mesh(mesh); bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces))
             bm.to_mesh(mesh); bm.free(); mesh.update()
-            if part['shape'] in ('loft','sweep'):
+            if part['shape'] in ('loft','sweep','zloft'):
                 for polygon in mesh.polygons: polygon.use_smooth=len(polygon.vertices)==4
             obj=bpy.data.objects.new(mesh.name,mesh); scene.collection.objects.link(obj)
             parent=objects.get(part['parent'],group); obj.parent=parent

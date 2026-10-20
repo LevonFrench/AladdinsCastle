@@ -1,5 +1,13 @@
 # Original gun assets
 
+One model here is not original: `arc-light-gun` (the arcade light gun hotd2-vr draws,
+"Namco Arcade Gun" by Martoscar, CC BY 4.0, with its lettering removed and a blowback
+slide split off). Its asset and previews are CC BY 4.0, not CC0; credit and changes are in
+`data/guns/arc-light-gun.toml` and docs/guns.md section 2.7. It is built by
+`src/arc-light-gun.py` from hotd2-vr's `gun_model.h`, outside the default batch, and checked
+with `python tools/check_gun_assets.py --model arc-light-gun`. Its preview set also has
+`arc-light-gun-recoil.png` and `arc-light-gun-front-recoil.png` (slide fully back).
+
 The owner-promoted `con-remote-shell` and companion `con-stick-grip` are built
 alongside the seven original tier 1 guns. Their authored scripts contain no
 imported/traced shapes or maker labels. The shell is held at its trigger grip;
@@ -28,6 +36,13 @@ No imported, extracted,
 traced or third-party meshes, logos or markings are used. These are toy-like
 peripherals with our own dimensions, not real firearms or branded replicas.
 Built models and preview/callout assets are CC0-1.0; scripts are GPL-3.0-only.
+
+`con-pointer-remote` is a second held controller (a Wii Remote-like pointer, original
+design, CC0 like the others): no muzzle, sights or effects, buttons only, and its
+`length_axis = "z"` because it points forward. The checker measures a controller's length
+along `length_axis` (default Y) and asks for stick pivots only when its features list
+`analog_stick`. Its rounded bar uses the `zloft` primitive (superellipse rings along Z).
+The DolphinXR build draws it in the right hand for Wii motion games.
 
 ## Rebuild
 

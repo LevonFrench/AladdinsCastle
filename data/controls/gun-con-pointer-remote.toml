@@ -1,0 +1,152 @@
+version = "0.1"
+id = "gun-con-pointer-remote"
+title = "Pointer remote controls"
+gun_model = "con-pointer-remote"
+
+[policy]
+p1_hand = "right"
+two_guns = "on_join"
+
+[[unmapped_part]]
+id="p1-dpad"
+slot=0
+player=0
+node="button_dpad"
+label="D-pad"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="dpad"
+
+[[unmapped_part]]
+id="p1-a"
+slot=0
+player=0
+node="button_a"
+label="A"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="a"
+
+[[unmapped_part]]
+id="p1-b"
+slot=0
+player=0
+node="button_b"
+label="B"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="b"
+
+[[unmapped_part]]
+id="p1-minus"
+slot=0
+player=0
+node="button_minus"
+label="-"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="minus"
+
+[[unmapped_part]]
+id="p1-home"
+slot=0
+player=0
+node="button_home"
+label="Home"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="home"
+
+[[unmapped_part]]
+id="p1-plus"
+slot=0
+player=0
+node="button_plus"
+label="+"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="plus"
+
+[[unmapped_part]]
+id="p1-one"
+slot=0
+player=0
+node="button_one"
+label="1"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="one"
+
+[[unmapped_part]]
+id="p1-two"
+slot=0
+player=0
+node="button_two"
+label="2"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="two"
+
+[[unmapped_part]]
+id="p2-dpad"
+slot=1
+player=1
+node="button_dpad"
+label="D-pad"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="dpad"
+
+[[unmapped_part]]
+id="p2-a"
+slot=1
+player=1
+node="button_a"
+label="A"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="a"
+
+[[unmapped_part]]
+id="p2-b"
+slot=1
+player=1
+node="button_b"
+label="B"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="b"
+
+[[unmapped_part]]
+id="p2-minus"
+slot=1
+player=1
+node="button_minus"
+label="-"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="minus"
+
+[[unmapped_part]]
+id="p2-home"
+slot=1
+player=1
+node="button_home"
+label="Home"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="home"
+
+[[unmapped_part]]
+id="p2-plus"
+slot=1
+player=1
+node="button_plus"
+label="+"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="plus"
+
+[[unmapped_part]]
+id="p2-one"
+slot=1
+player=1
+node="button_one"
+label="1"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="one"
+
+[[unmapped_part]]
+id="p2-two"
+slot=1
+player=1
+node="button_two"
+label="2"
+reason="Wii motion games bind these in the DolphinXR button sets (UserMotion); other game meanings remain questions"
+requested_semantic="two"
