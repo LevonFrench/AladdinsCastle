@@ -17,7 +17,9 @@ param(
   [double] $UntilProbeTime = 0
 )
 if (Test-Path $Marker) { 'paused: headset on'; exit 3 }
-if (Get-Process -Name Dolphin, DolphinNoGUI -ErrorAction SilentlyContinue) { 'another Dolphin is running'; exit 4 }
+# One run per lane: refuse only if this same executable is already running (other lanes have their own).
+$exeFull = (Resolve-Path $Exe).Path
+if (Get-Process -Name DolphinNoGUI -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exeFull }) { 'this lane already has a Dolphin running'; exit 4 }
 $env:XR_RUNTIME_JSON = Join-Path $env:TEMP 'ac-no-such-openxr-runtime.json'
 $env:DOLPHINXR_INPUT_SCRIPT = $Script
 $env:DOLPHINXR_INPUT_PROBE = $Probe
