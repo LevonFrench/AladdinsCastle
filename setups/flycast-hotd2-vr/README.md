@@ -16,6 +16,7 @@ is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see 
 | Pistol blowback | `core/rend/vr/xr_gun.cpp` | The House of the Dead 2 pistol's slide snaps back on every shot (25 ms back, home by 90 ms), on top of racking it by hand. |
 | Arcade gun trigger | `core/rend/vr/xr_gun.cpp` | The arcade gun's trigger blade swings back up to 15 degrees with the controller's trigger. The blade was located in the mesh by position (inside the guard, on the centre line). |
 | Black-bar finder | `core/rend/vr_reproject.cpp` | With `ACVR_LOG_BLACK` set, logs each W at which a game draws a flat opaque black polygon, to find a new game's letterbox W. |
+| No lettering on the arcade gun | `core/rend/vr/gun_model.h` | The maker's name engraved on the right side of the arcade gun is removed and the side refilled. The header is rewritten by `tools/clean_gun_model.py` (step 2 of the build), not carried in the patch. |
 | Hidden test window | `core/sdl/sdl.cpp` | With `ACVR_HIDDEN` set, the window is created hidden (unattended test runs). |
 | Scripted presses | `core/rend/vr/debug_shots.cpp` | With `ACVR_PRESS="seconds:mask;..."`, presses buttons on port 1 at those game times (8 Start, 4 A, 128 right), for unattended test runs. |
 | Highest refresh rate | `core/rend/vr/xr_host.cpp`, `core/cfg/option.cpp` | `vr.XrRefreshRate` 0 (the new default) asks the headset for its highest rate instead of 72 Hz. |
@@ -30,7 +31,9 @@ The hidden window and every `ACVR_*` test aid change nothing unless their enviro
 
 1. Clone the upstream at the pinned commit with its submodules, then apply the patch:
    `git apply patch/acvr-hotd2-vr.patch`.
-2. Build with `tools/build.cmd <source folder> <vcvars64.bat> <cmake.exe> <ninja.exe>`. The
+2. Remove the lettering from the arcade gun: `python tools/clean_gun_model.py <source folder>` (numpy; it uses
+   `assets/guns/src/arc_light_gun_mesh.py` from this repository and the fork's own `hotd2-vr/gun_model/convert_gun.py`).
+3. Build with `tools/build.cmd <source folder> <vcvars64.bat> <cmake.exe> <ninja.exe>`. The
    upstream `hotd2-vr/build-win.cmd` uses the CMake and Ninja that come with Visual Studio; if
    only an MSYS2 CMake is available, `tools/build.cmd` adds the three flags that keep it from
    picking up MSYS2's own libraries and its missing `cmcldeps` (see the comments there).
