@@ -282,7 +282,7 @@ and R, the right analog stick is the C buttons.
 
 | Mode | Right controller | Used for |
 |---|---|---|
-| `wheel` | Rolled like a steering wheel: analog X, linear from a 3 degree dead zone to full lock at `ACVR_PAD_WHEEL_DEG` (75) | Mario Kart 64, F-Zero X |
+| `wheel` | Racing: the left stick steers, the triggers are gas and brake (per the map). Rolled like a steering wheel it also steers only with `ACVR_N64_ROLL_STEER=1` (off by default, the owner's choice): analog X, linear from a 3 degree dead zone to full lock at `ACVR_PAD_WHEEL_DEG` (75) | Mario Kart 64, F-Zero X and the other racers |
 | `aim` | While the right grip is held (`ACVR_PAD_AIM_HOLD`, or `always`), where it points on the screen sets the analog stick, with the game's aim button held (`ACVR_PAD_AIM_BUTTON`, N64 R), so the game's own crosshair follows it | GoldenEye 007 |
 | `pad` | Buttons only; the left stick is the analog stick | anything else |
 

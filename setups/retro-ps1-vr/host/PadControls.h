@@ -2,8 +2,8 @@
 // Pad games (Nintendo 64 through mupen64plus-next, or any libretro pad core): the VR controllers become a
 // standard RetroPad with analog sticks. Modes (--controls):
 //   pad   the left stick is the analog stick; buttons come from the map
-//   wheel the right controller rolled like a steering wheel steers (analog X); the left stick also steers and
-//         gives the analog Y (nose up/down)
+//   wheel racing: the left stick steers (and gives the analog Y, nose up/down), the triggers are gas and brake;
+//         rolling the right controller like a steering wheel also steers only when ACVR_N64_ROLL_STEER=1 (off by default)
 //   aim   while aiming (right grip held, or always), the right controller's point on the screen sets the analog
 //         stick so the game's own crosshair follows it, with the game's aim button held; the left stick then
 //         goes to the right analog (the N64 C buttons). Not aiming, the left stick is the analog stick.
@@ -77,6 +77,7 @@ struct Config {
   std::string mode = "pad";                       // pad | wheel | aim
   std::vector<std::pair<std::string, int>> map;   // VR control -> RetroPad button
   float wheelDegrees = 75, wheelDead = 3;         // roll for full lock, and the dead zone, degrees
+  bool rollSteer = false;                         // roll steering is opt-in (ACVR_N64_ROLL_STEER=1); else the left stick steers
   std::string aimHold = "rgrip";                  // VR control that enters aim mode; "always" keeps aiming
   int aimButton = RETRO_DEVICE_ID_JOYPAD_R;       // the game's aim-mode button (GoldenEye: N64 R)
   float aimTrim[4] = { 1, 0, 1, 0 };              // stick = clamp((offset - shift) * scale), offset = (u - .5) * 2 per axis
@@ -113,6 +114,8 @@ struct Config {
     const char *e = std::getenv("ACVR_PAD_MAP");
     parseMap(e && *e ? e : DefaultMap(mode), problems);
     if ((e = std::getenv("ACVR_PAD_WHEEL_DEG")) && std::atof(e) >= 10) wheelDegrees = (float)std::atof(e);
+    // The owner's choice: rolling the controller to steer is an option, off unless asked for.
+    rollSteer = ((e = std::getenv("ACVR_N64_ROLL_STEER")) && std::atoi(e) == 1) || ((e = std::getenv("ACVR_PAD_ROLL_STEER")) && std::atoi(e) == 1);
     if ((e = std::getenv("ACVR_PAD_AIM_HOLD")) && *e) aimHold = e;
     if ((e = std::getenv("ACVR_PAD_AIM_BUTTON")) && *e) { const int id = std::string(e) == "none" ? -1 : RetroButton(e); if (id >= 0 || std::string(e) == "none") aimButton = id; else problems += std::string(" aim button '") + e + "'"; }
     if ((e = std::getenv("ACVR_PAD_FOLLOW_GAIN")) && *e) std::sscanf(e, "%f,%f,%f,%f,%f,%f", &follow[0], &follow[1], &follow[2], &follow[3], &follow[4], &follow[5]);
@@ -125,7 +128,8 @@ struct Config {
     std::string d = "controls " + mode + ":";
     for (const auto &m : map) d += " " + m.first + "->" + std::to_string(m.second);
     char extra[200];
-    if (mode == "wheel") { std::snprintf(extra, sizeof extra, "; full lock at %.0f deg roll, dead zone %.0f deg", wheelDegrees, wheelDead); d += extra; }
+    if (mode == "wheel" && rollSteer) { std::snprintf(extra, sizeof extra, "; roll steering on: full lock at %.0f deg roll, dead zone %.0f deg", wheelDegrees, wheelDead); d += extra; }
+    if (mode == "wheel" && !rollSteer) d += "; the left stick steers (roll steering off; ACVR_N64_ROLL_STEER=1 turns it on)";
     if (mode == "aim") { std::snprintf(extra, sizeof extra, "; aim while %s, aim button %d, trim %.3f,%.3f,%.3f,%.3f, curve %.2f", aimHold.c_str(), aimButton, aimTrim[0], aimTrim[1], aimTrim[2], aimTrim[3], aimCurve); d += extra; }
     return d;
   }
@@ -163,7 +167,7 @@ inline RetroPad Map(const theatre::Input &in, const Config &c)
   const float sx = in.padX, sy = -in.padY;   // left thumbstick, +y down
   if (c.rightStickToAnalog) { p.rx = in.rightX; p.ry = -in.rightY; }
   if (c.mode == "wheel") {
-    const float steer = in.active ? WheelSteer(in.roll, c) : 0.f;
+    const float steer = in.active && c.rollSteer ? WheelSteer(in.roll, c) : 0.f;
     p.lx = std::fabs(sx) > std::fabs(steer) ? sx : steer; p.ly = sy;
   } else if (c.mode == "aim" && Aiming(in, c)) {
     if (in.hasCurrent) {   // closed loop on the marker's position

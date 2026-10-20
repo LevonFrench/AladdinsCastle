@@ -23,7 +23,7 @@ const QList<Game> &table(){
   {"perfect-dark","Perfect Dark",2000,Play::Aim,"open",true,""},
   {"diddy-kong-racing","Diddy Kong Racing",1997,Play::Wheel,"open",true,""},
   {"beetle-adventure-racing","Beetle Adventure Racing!",1999,Play::Wheel,"standard",true,""},
-  {"1080-snowboarding","1080\u00b0 Snowboarding",1998,Play::Wheel,"open",true,"Roll to carve; the right trigger crouches and jumps, right A and B do tricks, the right grip grabs."},
+  {"1080-snowboarding","1080\u00b0 Snowboarding",1998,Play::Wheel,"open",true,"The left stick carves; the right trigger crouches and jumps, right A and B do tricks, the right grip grabs."},
   {"cruisn-usa","Cruis'n USA",1996,Play::Wheel,"open",true,""},
   {"cruisn-world","Cruis'n World",1998,Play::Wheel,"open",true,""},
   {"cruisn-exotica","Cruis'n Exotica",2000,Play::Wheel,"open",true,""},
@@ -44,7 +44,7 @@ const Game *find(const QString &id){for(const auto &game:table())if(id==QLatin1S
 QString controls(const Game &game){
  QString text;
  switch(game.play){
- case Play::Wheel:text="Roll your right controller like a steering wheel (or use the left stick); the right trigger accelerates, the left trigger brakes; the grips are R and Z.";break;
+ case Play::Wheel:text="The left stick steers; the right trigger accelerates, the left trigger brakes; the grips are R and Z.";break;
  case Play::Aim:text="Hold the right grip and point: the game's own crosshair follows your right controller. The right trigger fires; the left stick walks (and strafes while you aim).";break;
  case Play::StarFox:text="Point your right controller where the targeting box should go and the Arwing flies it there. The right trigger fires, right A or B drops a bomb, the left trigger boosts, left X brakes, the grips bank.";break;
  case Play::Turok:text="Point where you want to look: the view turns toward it, and the crosshair (the middle of the picture) comes onto what you point at. The right trigger fires; the left stick walks and strafes; the right grip jumps.";break;
