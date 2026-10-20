@@ -501,6 +501,12 @@ bool IsFlashFrame()
   const unsigned w = g_hwOn ? g_hwW : g_frameW, h = g_hwOn ? g_hwH : g_frameH;
   if (!w || !h) return false;
   unsigned bright = 0, total = 0;
+  // ACVR_PS1_FLASH_CHANNELS: which colour channels must be bright (default "rgb", white). Area 51 on the Saturn
+  // flashes blue: "b".
+  static const unsigned channels = [] {
+    const char *e = std::getenv("ACVR_PS1_FLASH_CHANNELS"); unsigned m = 0;
+    for (const char *c = e ? e : ""; *c; ++c) m |= *c == 'r' ? 4u : *c == 'g' ? 2u : *c == 'b' ? 1u : 0u;
+    return m ? m : 7u; }();
   std::vector<std::uint32_t> row(w);
   if (g_hwOn) { glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hwFbo); glPixelStorei(GL_PACK_ALIGNMENT, 4); }
   for (const unsigned y : { h / 4, h / 2, (h * 3) / 4 }) {
@@ -510,7 +516,7 @@ bool IsFlashFrame()
     for (unsigned x = 0; x < w; x += 2) {
       const std::uint32_t c = px[x];
       const unsigned r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255;
-      ++total; if (r > 200 && g > 200 && b > 200) ++bright;
+      ++total; if ((!(channels & 4) || r > 200) && (!(channels & 2) || g > 200) && (!(channels & 1) || b > 200)) ++bright;
     }
   }
   if (g_hwOn) glBindFramebuffer(GL_FRAMEBUFFER, 0);

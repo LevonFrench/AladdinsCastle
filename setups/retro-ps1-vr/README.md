@@ -173,21 +173,27 @@ set is the European release (50 Hz, refused by a US console), so the
 launcher uses the Japanese disc, whose menus are in English. Like Virtua
 Cop it keeps its calibration in backup memory.
 
-`--state <file>` starts from a saved moment. Virtua Cop 2 keeps a gun
-calibration that it did not restore from its save after a restart in our
-runs, so its launcher starts from the title screen just after the game's
-own calibration.
+Area 51 (Configure 1P, Calibrate) has the same kind of sight steps (up to
+0.025 of the picture short from one side); its launcher trim is
+`ACVR_PS1_AIM=1,-0.0125,1,0.0055`, leaving at most 0.021. Its shot flash
+is a blue frame, so `ACVR_PS1_FLASH_CHANNELS=b` (the colour channels that
+must be bright; default `rgb`, white) keeps those out of the headset.
+
+`--state <file>` starts from a saved moment. Virtua Cop 2 and Area 51 keep a gun
+calibration that they did not restore from their saves after a restart in
+our runs, so their launchers start from the title or main menu just after
+the game's own calibration.
 
 The Saturn draws its 3D as flat distorted sprites (VDP1 quads with 2D
 screen corners and no depth), so these games play on the theatre screen.
 
 Results so far (Beetle Saturn 1.29.0 b4df47a, hidden offline runs):
-Virtua Cop, Virtua Cop 2 and The House of the Dead play from the title
-into their first stage with the gun only; the same run with and without
+Virtua Cop, Virtua Cop 2, The House of the Dead and Area 51 play from the
+title into their first stage with the gun only; the same run with and without
 trigger pulls gives different pictures (scores and kills against game over)
 while two runs without shots are identical, the off-screen shot reloads, and
-their white flash per shot (one frame; two in The House of the Dead) is
-kept out of the headset.
+their flash per shot (one white frame; two in The House of the Dead; one
+blue frame in Area 51) is kept out of the headset.
 
 ## Real 3D: the SwanStation stereo patch
 
