@@ -243,9 +243,13 @@ public:
       root.m[12 + i] = gripWorld.m[12 + i] - root.m[i] * anchor.m[12] - root.m[4 + i] * anchor.m[13] - root.m[8 + i] * anchor.m[14] + .01f * kick * up[i] + .02f * kick * back[i];
     return root;
   }
-  void draw(const Mat4 &root, const Mat4 &viewProj, float trigger, bool encode)
+  // recoil: 0..1 of the slide's travel this frame ([motion.recoil] of the model's TOML, if it has one).
+  float recoilMs() const { return slideMs; }
+  bool hasRecoil() const { return slides[0] >= 0 && slideTravel > 0; }
+  void draw(const Mat4 &root, const Mat4 &viewProj, float trigger, bool encode, float recoil = 0.f)
   {
     if (!program) return;
+    m_recoil = std::fmin(std::fmax(recoil, 0.f), 1.f);
     tgl::UseProgram(program); tgl::Uniform1i(tgl::GetUniformLocation(program, "encode"), encode ? 1 : 0);
     drawNode(lod0, root, viewProj, trigger);
   }
@@ -256,6 +260,7 @@ private:
   mini_json::Value doc; std::vector<unsigned char> bin; std::vector<Node> nodes; std::vector<std::vector<Prim>> meshes;
   int grip = -1, muzzle = -1, lod0 = -1; std::array<int, 2> triggers{ -1, -1 };
   std::array<float, 3> axis{ -1, 0, 0 }; std::array<float, 2> range{ 0, 0 };
+  std::array<int, 2> slides{ -1, -1 }; std::array<float, 3> slideAxis{ 0, 0, 1 }; float slideTravel = 0, slideMs = 45, m_recoil = 0;
   std::array<float, 4> body{ .1f, .1f, .12f, 1 }, accent{ .3f, .3f, .32f, 1 };
   GLuint program = 0;
   int find(const std::string &s) const { for (std::size_t i = 0; i < nodes.size(); ++i) if (nodes[i].name == s) return (int)i; throw std::runtime_error("gun model lacks node " + s); }
@@ -271,6 +276,7 @@ private:
   {
     auto local = nodes[i].local;
     if ((i == triggers[0] || i == triggers[1]) && range[1] != range[0]) local = local * Mat4::Rotation(axis[0], axis[1], axis[2], range[0] + std::fmin(std::fmax(trigger, 0.f), 1.f) * (range[1] - range[0]));
+    if ((i == slides[0] || i == slides[1]) && m_recoil > 0) { const float d = slideTravel * m_recoil; local = local * Mat4::Translation(slideAxis[0] * d, slideAxis[1] * d, slideAxis[2] * d); }
     return nodes[i].parent < 0 ? local : world(nodes[i].parent, trigger) * local;
   }
   void drawNode(int index, const Mat4 &root, const Mat4 &vp, float trigger)
@@ -302,6 +308,15 @@ private:
       for (auto it = std::sregex_iterator(names.begin(), names.end(), q); it != std::sregex_iterator() && i < 2; ++it)
         for (std::size_t k = 0; k < nodes.size(); ++k) if (nodes[k].name == (*it)[1].str()) triggers[i++] = (int)k;
     }
+    const auto rec = section("motion.recoil");   // [motion.recoil] drive = "recoil": the slide kicks back per shot
+    if (!rec.empty()) {
+      const auto a = numbers(value(rec, "axis")), r = numbers(value(rec, "range")); const auto ms = value(rec, "duration_ms");
+      if (a.size() == 3 && r.size() == 2) { slideAxis = { a[0], a[1], a[2] }; slideTravel = r[1]; }
+      if (!ms.empty()) slideMs = std::stof(ms);
+      std::regex q("\"([^\"]+)\""); const auto names = value(rec, "lod_nodes"); int i = 0;
+      for (auto it = std::sregex_iterator(names.begin(), names.end(), q); it != std::sregex_iterator() && i < 2; ++it)
+        for (std::size_t k = 0; k < nodes.size(); ++k) if (nodes[k].name == (*it)[1].str()) slides[i++] = (int)k;
+    }
     const auto tints = section("tints");
     if (!tints.empty()) {
       std::smatch m; const auto def = value(tints, "default"); std::regex q("\"([^\"]+)\"");
@@ -320,7 +335,7 @@ private:
 struct EyeScene {
   GLuint picture = 0; int pictureW = 0, pictureH = 0;
   ScreenGeometry screen;
-  bool showGun = false; Mat4 gunRoot = Mat4::Identity(); float trigger = 0;
+  bool showGun = false; Mat4 gunRoot = Mat4::Identity(); float trigger = 0; float recoil = 0;   // slide travel 0..1
   bool showDot = false; float dotU = .5f, dotV = .5f;
   bool crt = false;
   float u0 = 0, uw = 1;   // the part of the picture this eye sees (side-by-side stereo)
@@ -392,7 +407,7 @@ public:
       drawStrip(m_screenVerts);
     }
     if (s.showDot) drawDot(s, vp, encode);
-    if (s.showGun && m_gun && m_gun->loaded()) m_gun->draw(s.gunRoot, vp, s.trigger, encode);
+    if (s.showGun && m_gun && m_gun->loaded()) m_gun->draw(s.gunRoot, vp, s.trigger, encode, s.recoil);
     tgl::BindVertexArray(0); tgl::UseProgram(0);
   }
 private:

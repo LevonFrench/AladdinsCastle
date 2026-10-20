@@ -16,6 +16,11 @@ by lock-or-skip; a skipped frame retains the last complete picture.
 The shared presenter's separate theatre mode locates the current eye views and
 tracked right aim/grip, then draws a 3.2 m flat screen at 2.5 m, the GLB gun and
 the aim dot into one opaque projection layer with two depth-tested eye images.
+If the gun's TOML has `[motion.recoil]` (a blowback slide, e.g. `arc-light-gun`),
+each shot edge kicks that node back by its range for `duration_ms`, holds it, and
+returns it over the same time, as the PS1 theatre does. The offline proof also
+saves `left/right-recoil.png` with the slide fully back and records
+`recoil_pixels` (how many pixels differ from the slide at rest; zero fails).
 Each target has the runtime's own recommended dimensions. There are no quad
 layers in this mode. Screen height uses physical aspect, including non-square
 pixels. Native pixels are integer-prescaled by nearest blit, then sampled with
@@ -117,3 +122,25 @@ in-game sight), not against MAME's crosshair:
 | `alien3` | in-game sight, 11 points, 0.0047 after trim | `1,0,1.1789,-0.0012`; mounted guns read as AD sticks |
 | `rapidfir` | the game's hit spark, 11 points within 0.0063 after trim | `1,0,1,-0.0125` |
 | `crossbow`, `cheyenne`, `chiller`, `claypign`, `combat`, `hitnmiss`, `whodunit8` | the game's own 4x4 shot dot (Exidy 440), 2-11 clean points each, all within 0.0062 | none; NVRAM seeded past the first-boot "E2 PROM initialized" screen |
+
+## Open frame (Namco System 22 / Super System 22)
+
+`ACVR_S22_WIDE=<pixels per side>` (107 = 16:9 for the 640x480 screen) draws the
+game's 3D scene a second time into the two added side strips of a wider
+picture: the same projection with the screen centre moved out, the game's
+full-screen window opened to the new edges, and the side strips taking the
+background colour, fog, fade and gamma of the normal mix. The finished 4:3
+screen (3D, sprites and the text-layer HUD) sits unchanged in the middle, so
+the HUD stays in the 4:3 centre. MAME's renderer does no culling outside 4:3
+(only backface culling and near-plane clipping); what reaches the sides is
+whatever the game's own code sends. The publisher sends the wider picture
+with its physical aspect, the viewer keeps a 4:3 picture 2.4 m tall and adds
+width at the sides, and a gun aimed at the added sides reads as off-screen
+(the `aimw` script command and the viewer path use the same conversion).
+`launch-mame-gun.ps1 -OpenFrame` sets it for games whose sides were shown to
+fill with game geometry.
+
+Time Crisis at 16:9: 37 gameplay pictures with the sides 93.7-98.0% filled
+(median 97.8%); the accuracy screen gives the same 9-point error (0.0052) as
+at 4:3, and shots into the added sides register nothing. 2D sprites drawn in
+the scene are not repeated in the sides.

@@ -319,7 +319,8 @@ private slots:
     auto result=ac::setup::scanSystem("dreamcast",settings,{},{},cancel);
     // The US release has the full profile even though a second, unprofiled disc of the same game is present.
     QVERIFY(entry(result,"ready","hotd2")["detail"].toString().contains("US release"));QVERIFY(entry(result,"ready","hotd2")["file"].toString().endsWith("first.gdi"));
-    QVERIFY(entry(result,"notRight","confmiss")["reason"].toString().contains("no VR profile"));QVERIFY(entry(result,"notRight","confmiss")["startable"].toBool());
+    // Confidential Mission (US) has its own VR profile since 2026-10-20: found and ready.
+    QVERIFY(!entry(result,"ready","confmiss").isEmpty());QVERIFY(entry(result,"notRight","confmiss").isEmpty());
     QVERIFY(entry(result,"notRight","dcrimson2")["reason"].toString().contains("not checked"));
     QVERIFY(!entry(result,"missing","vcop2").isEmpty());QVERIFY(!entry(result,"missing","dcox").isEmpty());
     QVERIFY(!result["note"].toString().contains("headset")); // Headset acceptance is the owner's list, not the scan's.
@@ -343,7 +344,9 @@ private slots:
     // A .cdi keeps the game's header after its first session: here past the quick read, in a file named for the game.
     write(folder+"/Confidential Mission (late header).cdi",QByteArray(17*1024*1024,'x')+track("MK-51160"));
     const auto result=ac::setup::scanSystem("dreamcast",{{"dreamcastGameFolder",folder},{"dreamcastExecutable",program}},{},{},cancel);
-    for(const auto &id:{"dcrimson2","vcop2","confmiss"}){
+    // Confidential Mission now has a VR profile, so its late-header disc is found and ready.
+    QVERIFY2(!entry(result,"ready","confmiss").isEmpty(),"confmiss");
+    for(const auto &id:{"dcrimson2","vcop2"}){
       QVERIFY2(entry(result,"missing",id).isEmpty(),id);
       const auto reason=entry(result,"notRight",id)["reason"].toString();
       QVERIFY2(reason.contains("no VR profile"),id);QVERIFY2(!reason.contains("not checked"),id);

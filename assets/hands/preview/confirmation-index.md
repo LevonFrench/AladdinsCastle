@@ -384,7 +384,7 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [assets/guns/propose_wii.py](../../guns/propose_wii.py) | `d8d699963a9edf9d6fd515c4a0817586306d8996bc85930c98ed6bb8a7d61192` |
 | [assets/guns/runtime-lighting.json](../../guns/runtime-lighting.json) | `6baf2010619ca122a5fa9cfeb934407c24ff20b030b8ad98301291d2ae6ab450` |
 | [assets/guns/src/arc-pistol-slide.py](../../guns/src/arc-pistol-slide.py) | `38f923d5188d88ef91f43f3328d0d5c8a359bad24da0c2d1088b04610ddb4c27` |
-| [assets/guns/src/common.py](../../guns/src/common.py) | `0f17566d6aaf7b0bb972faf4ff251775c751f36da7537303e120b8a810633fc1` |
+| [assets/guns/src/common.py](../../guns/src/common.py) | `e8347cbce8f5f5584759e9e5e9d7b607d66d1a2899d87773c5c49eb16b20af06` |
 | [assets/guns/src/con-pistol-dpad.py](../../guns/src/con-pistol-dpad.py) | `33ede9b5c799f766a85fb387544dc4510a1ce3346efaf46ea3489e6f4c62c332` |
 | [assets/guns/src/con-pistol-slim.py](../../guns/src/con-pistol-slim.py) | `afec36fcfa03bead7f0e7ee9452e3ca90a1b0bd25a6d85b218504c2724b2a547` |
 | [assets/guns/src/con-remote-shell.py](../../guns/src/con-remote-shell.py) | `2bc8f11d09780cc9a193c6faa802d4dc35291b32b667e79b89c3412cbb88362d` |

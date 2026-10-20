@@ -132,6 +132,44 @@ std::string g_controls = "gun";
 pad::Config g_padCfg;
 pad::RetroPad g_rpad;
 bool PadMode() { return g_controls != "gun"; }
+// ACVR_PAD_FOLLOW_U / _V = "c0,addr:k,addr:k...": the game's target marker on the picture (0..1) as c0 + sum of
+// k * float at addr in the console's memory (fitted offline against the marker in snapshots).
+struct FollowAxis { bool on = false; float c0 = 0; std::vector<std::pair<std::size_t, float>> terms; float prev = 0, sum = 0; bool seen = false; };
+FollowAxis g_follow[2];
+void LoadFollow()
+{
+  const char *names[2] = { "ACVR_PAD_FOLLOW_U", "ACVR_PAD_FOLLOW_V" };
+  for (int i = 0; i < 2; ++i) {
+    const char *e = std::getenv(names[i]); if (!e || !*e) continue;
+    std::istringstream s(e); std::string item; bool first = true;
+    while (std::getline(s, item, ',')) {
+      if (first) { g_follow[i].c0 = (float)std::atof(item.c_str()); first = false; continue; }
+      const auto colon = item.find(':'); if (colon == std::string::npos) continue;
+      g_follow[i].terms.emplace_back((std::size_t)std::strtoul(item.substr(0, colon).c_str(), nullptr, 16) & 0x7ffffcu, (float)std::atof(item.substr(colon + 1).c_str()));
+    }
+    g_follow[i].on = !g_follow[i].terms.empty();
+  }
+}
+// Fills where the marker is now (and how far it moved) into the controller state used for this frame's pad.
+void FollowInto(theatre::Input &in)
+{
+  if (!g_follow[0].on && !g_follow[1].on) return;
+  const auto *ram = static_cast<const unsigned char *>(g_core.get_memory_data(RETRO_MEMORY_SYSTEM_RAM));
+  const std::size_t size = g_core.get_memory_size(RETRO_MEMORY_SYSTEM_RAM);
+  if (!ram) return;
+  float cur[2] = { .5f, .5f }, vel[2] = { 0, 0 };
+  for (int i = 0; i < 2; ++i) {
+    auto &f = g_follow[i]; if (!f.on) continue;
+    float v = f.c0;
+    for (const auto &t : f.terms) { float x = 0; if (t.first + 4 <= size) std::memcpy(&x, ram + t.first, 4); if (std::isfinite(x)) v += t.second * x; }
+    vel[i] = f.seen ? v - f.prev : 0; f.prev = v; f.seen = true; cur[i] = v;
+    // The error's integral, held so its share of the stick stays within full deflection.
+    const float gain = g_padCfg.follow[4 + i], target = i ? in.v : in.u;
+    const bool aiming = in.active && !in.offScreen;
+    f.sum = aiming && gain != 0 ? std::clamp(f.sum + (target - v), -1.f / std::fabs(gain), 1.f / std::fabs(gain)) : 0.f;
+  }
+  in.hasCurrent = true; in.curU = cur[0]; in.curV = cur[1]; in.velU = vel[0]; in.velV = vel[1]; in.sumU = g_follow[0].sum; in.sumV = g_follow[1].sum;
+}
 // Pad games: the controller's rumble (an N64 Rumble Pak) becomes a pulse on the right controller, at most
 // every 80 ms while the game keeps it on.
 bool g_rumbleOn = false; std::uint64_t g_rumbleStarts = 0;
@@ -440,6 +478,7 @@ struct Script {
 
 std::string Arg(const std::vector<std::string> &a, std::size_t i, const char *fallback) { return i < a.size() ? a[i] : fallback; }
 
+std::vector<std::uint32_t> g_hudFrame;   // the HUD layer's last picture (ACVR_GL_HUD)
 // The hardware core's last picture as a CPU copy (its rows are bottom-up). With GL stereo on, both eyes
 // side by side: left eye in the left half.
 void EnsureCpuFrame()
@@ -454,6 +493,24 @@ void EnsureCpuFrame()
     glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, px.data());
     for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x)
       g_frame[(std::size_t)y * g_frameW + e * g_hwW + x] = px[(std::size_t)(g_hwH - 1 - y) * g_hwW + x] & 0xffffffu;
+  }
+  // The HUD layer, when on: 0xAARRGGBB, colour premultiplied; alpha from the layer over black and over white.
+  if (const unsigned hud = glstereo::HudFramebuffer()) {
+    g_hudFrame.resize((std::size_t)g_hwW * g_hwH);
+    std::vector<std::uint32_t> white(px.size());
+    const char *key = std::getenv("ACVR_HUD_KEY_BLACK"); const bool keyBlack = key && std::atoi(key) != 0;
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, hud); glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, px.data());
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, glstereo::HudFramebuffer(true)); glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, white.data());
+    for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x) {
+      const std::size_t i = (std::size_t)(g_hwH - 1 - y) * g_hwW + x;
+      const std::uint32_t b = px[i], w = white[i]; int d = 0;
+      for (int sh : { 0, 8, 16 }) d = std::max(d, (int)((w >> sh) & 255) - (int)((b >> sh) & 255));
+      std::uint32_t argb = ((std::uint32_t)(255 - std::clamp(d, 0, 255)) << 24) | (b & 0xffffffu);
+      // ACVR_HUD_KEY_BLACK=1: a game's opaque black border bars in its 2D layer show as transparent.
+      if (keyBlack && ((b >> 16) & 255) < 3 && ((b >> 8) & 255) < 3 && (b & 255) < 3) argb = 0;
+      g_hudFrame[(std::size_t)y * g_hwW + x] = argb;
+    }
   }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   g_hwCpuStale = false;
@@ -470,7 +527,8 @@ struct KeepGlState {
 void PublishHardwareFrame()
 {
   std::optional<KeepGlState> keep;   // pad cores (GLideN64) and stereo; the PS1 light-gun path stays as it was
-  if (PadMode() || glstereo::StereoOn()) keep.emplace();
+  if (PadMode() || glstereo::StereoOn() || glstereo::HudOn()) keep.emplace();
+  if (const unsigned hud = glstereo::HudFramebuffer()) theatre::PublishHudFramebuffer(hud, glstereo::HudFramebuffer(true), g_hwW, g_hwH);
   const unsigned right = glstereo::RightFramebuffer();
   if (!right) { theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); return; }
   if (!g_sbsFbo || g_sbsW != g_hwW * 2 || g_sbsH != g_hwH) {
@@ -545,6 +603,18 @@ bool WriteSnapshot(const std::string &dir, const std::string &name)
   const std::string path = dir + "\\" + name + ".png";
   const bool ok = acvr_png::write(path.c_str(), g_frame.data(), g_frameW, g_frameH);
   Log("Snapshot %s %ux%u: %s", path.c_str(), g_frameW, g_frameH, ok ? "written" : "FAILED");
+  if (!g_hudFrame.empty() && g_hudFrame.size() == (std::size_t)g_hwW * g_hwH) {
+    // The HUD layer alone, over a grey checkerboard so its transparency shows.
+    std::vector<std::uint32_t> view(g_hudFrame.size());
+    for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x) {
+      const std::uint32_t c = g_hudFrame[(std::size_t)y * g_hwW + x]; const unsigned a = c >> 24;
+      const unsigned bg = ((x / 16 + y / 16) & 1) ? 96 : 160;
+      auto ch = [&](int shift) { return std::min(255u, ((c >> shift) & 255) + bg * (255 - a) / 255); };
+      view[(std::size_t)y * g_hwW + x] = (ch(16) << 16) | (ch(8) << 8) | ch(0);
+    }
+    const std::string hudPath = dir + "\\" + name + "-hud.png";
+    Log("Snapshot %s (HUD layer): %s", hudPath.c_str(), acvr_png::write(hudPath.c_str(), view.data(), g_hwW, g_hwH) ? "written" : "FAILED");
+  }
   return ok;
 }
 
@@ -583,6 +653,26 @@ theatre::Config TheatreConfig()
   c.aspect = aspect > .1f ? aspect : 4.f / 3.f;
   c.sideBySide = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f || glstereo::StereoOn();
   c.aimDot = !PadMode() || EnvFloat("ACVR_PAD_AIM_DOT", 0.f) != 0.f;   // pad games show their own crosshair, if any
+  // Wide view: the picture holds 1/kx of the game's width and 1/ky of its height, so the surface is that much
+  // wider (ACVR_PS1_SCREEN_W gives its width): no frame, edges fading into the dark.
+  float kx = 1, ky = 1; glstereo::WideView(kx, ky);
+  const bool wide = kx < 1 || ky < 1;
+  c.aspect *= ky / kx;
+  c.frame = EnvFloat("ACVR_SCREEN_FRAME", wide ? 0.f : 1.f) != 0.f;
+  c.edgeFade = EnvFloat("ACVR_SCREEN_FADE", wide ? .06f : 0.f);
+  c.hud = glstereo::HudOn();
+  if (c.hud) {
+    // By default the panel covers the same view angle as the game's own picture on the world surface (so the
+    // game's crosshair lines up with the world), nearer and a little lower.
+    c.hudAspect = aspect > .1f ? aspect : 4.f / 3.f;
+    c.hudDistance = EnvFloat("ACVR_HUD_DISTANCE", 1.8f);
+    const float pictureArc = kx * c.width;   // the game's picture width on the surface
+    const float angle = c.curve > .5f ? pictureArc / c.distance : 2 * std::atan(pictureArc / 2 / c.distance);
+    c.hudWidth = EnvFloat("ACVR_HUD_WIDTH", 2 * c.hudDistance * std::tan(std::min(angle, 2.6f) / 2) * EnvFloat("ACVR_HUD_SCALE", 1.f));
+    c.hudLift = EnvFloat("ACVR_HUD_LIFT", -.08f);
+    c.hudOpacity = EnvFloat("ACVR_HUD_OPACITY", 1.f);
+    c.hudKeyBlack = EnvFloat("ACVR_HUD_KEY_BLACK", 0.f) != 0.f;
+  }
   if (const char *m = std::getenv("ACVR_PS1_GUN_MODEL")) c.gunModel = m;
   if (const char *m = std::getenv("ACVR_PS1_GUN_META")) c.gunMeta = m;
   return c;
@@ -650,6 +740,9 @@ int main(int argc, char **argv)
   if (!PadMode() && !g_optionOverrides.count("beetle_psx_gun_input_mode")) g_optionOverrides["beetle_psx_gun_input_mode"] = "lightgun";
   if (PadMode()) {
     const std::string problems = g_padCfg.load(g_controls);
+    LoadFollow();
+    if (g_follow[0].on || g_follow[1].on) Log("Pad aim follows the game's marker from its memory (%zu + %zu terms), gains %.2f %.2f %.2f %.2f",
+                                             g_follow[0].terms.size(), g_follow[1].terms.size(), g_padCfg.follow[0], g_padCfg.follow[1], g_padCfg.follow[2], g_padCfg.follow[3]);
     Log("Pad %s", g_padCfg.describe().c_str());
     if (!problems.empty()) Log("Pad map entries not understood:%s", problems.c_str());
   }
@@ -808,7 +901,19 @@ int main(int argc, char **argv)
         g.start = controller.stickRight || controller.padStart; g.select = controller.stickLeft;
       }
       g_pad = p;
-      if (PadMode()) g_rpad = pad::Map(controller, g_padCfg);
+      if (PadMode()) {
+        // Aim at the game's own picture: the HUD panel when it is on (where the game's crosshair is drawn),
+        // else the screen, undoing the wide view's squeeze.
+        theatre::Input aimIn = controller;
+        float kx = 1, ky = 1; glstereo::WideView(kx, ky);
+        // ACVR_PAD_AIM_ON=world: the game's marker is in the 3D world (Star Fox 64), so aim at the world surface.
+        const char *aimOn = std::getenv("ACVR_PAD_AIM_ON");
+        const bool atWorld = aimOn && !std::strcmp(aimOn, "world");
+        if (glstereo::HudOn() && !atWorld) { aimIn.u = controller.hudU; aimIn.v = controller.hudV; aimIn.offScreen = !controller.hudHit; }
+        else if ((kx < 1 || ky < 1) && glstereo::WideSqueezed()) { aimIn.u = .5f + (controller.u - .5f) / kx; aimIn.v = .5f + (controller.v - .5f) / ky; }
+        FollowInto(aimIn);
+        g_rpad = pad::Map(aimIn, g_padCfg);
+      }
       else g_gun = g;
     } else {
       if (frames && frame >= frames) break;
@@ -828,10 +933,28 @@ int main(int argc, char **argv)
         else if (e.cmd == "reload") { timeline.holdOff = 8; timeline.holdTrigger = 6; }
         else if (e.cmd == "snap" && !snapshots.empty()) {
           WriteSnapshot(snapshots, Arg(e.args, 0, ("f" + std::to_string(frame)).c_str()));
-          if (PadMode()) Log("  frame %u pad: buttons 0x%04X left %.3f %.3f right %.3f %.3f", frame, g_rpad.buttons, g_rpad.lx, g_rpad.ly, g_rpad.rx, g_rpad.ry);
+          if (PadMode()) Log("  frame %u pad: buttons 0x%04X left %.3f %.3f right %.3f %.3f%s", frame, g_rpad.buttons, g_rpad.lx, g_rpad.ly, g_rpad.rx, g_rpad.ry,
+                             scripted.vr.hasCurrent ? (" marker " + std::to_string(scripted.vr.curU) + " " + std::to_string(scripted.vr.curV) + " target " + std::to_string(scripted.vr.u) + " " + std::to_string(scripted.vr.v)).c_str() : "");
+          // ACVR_RAM_WATCH: console memory words (hex addresses) logged as floats at each snapshot, to study a game.
+          if (const char *watch = std::getenv("ACVR_RAM_WATCH")) {
+            const auto *ram = static_cast<const unsigned char *>(g_core.get_memory_data(RETRO_MEMORY_SYSTEM_RAM));
+            const std::size_t size = g_core.get_memory_size(RETRO_MEMORY_SYSTEM_RAM);
+            std::string line; std::istringstream list(watch); std::string item;
+            while (ram && std::getline(list, item, ',')) {
+              const std::size_t addr = (std::size_t)std::strtoul(item.c_str(), nullptr, 16) & 0x7ffffcu; float f = 0;
+              if (addr + 4 <= size) std::memcpy(&f, ram + addr, 4);
+              char b[64]; std::snprintf(b, sizeof b, " %s=%.4f", item.c_str(), f); line += b;
+            }
+            Log("  frame %u ram:%s", frame, line.c_str());
+          }
         }
         else if (e.cmd == "save") SaveSram(true);
         else if (e.cmd == "state-save") SaveState(Arg(e.args, 0, "state.bin"));
+        else if (e.cmd == "ram-dump") {   // the console's main memory, for finding a game's variables offline
+          const void *ram = g_core.get_memory_data(RETRO_MEMORY_SYSTEM_RAM); const std::size_t size = g_core.get_memory_size(RETRO_MEMORY_SYSTEM_RAM);
+          std::ofstream out(Arg(e.args, 0, "ram.bin"), std::ios::binary); if (ram && size) out.write(static_cast<const char *>(ram), (std::streamsize)size);
+          Log("RAM dump %s: %zu bytes", Arg(e.args, 0, "ram.bin").c_str(), size);
+        }
         else if (e.cmd == "state-load") { if (!LoadState(Arg(e.args, 0, "state.bin"))) frames = frame; }
         else if (e.cmd == "quit") { frames = frame; }
         else Log("Unknown script command '%s' at frame %u", e.cmd.c_str(), e.frame);
@@ -847,7 +970,7 @@ int main(int argc, char **argv)
       static bool aimed = false; aimed = aimed || !g_gun.offScreen;
       g_gun.offScreen = off || !aimed;
       for (unsigned *h : { &timeline.holdTrigger, &timeline.holdA, &timeline.holdB, &timeline.holdStart, &timeline.holdSelect, &timeline.holdOff }) if (*h) --*h;
-      if (PadMode()) g_rpad = scripted.frame(g_padCfg);
+      if (PadMode()) { FollowInto(scripted.vr); g_rpad = scripted.frame(g_padCfg); }
       if (frames && frame >= frames) break;
     }
     if (g_gun.trigger && !lastTrigger) { ++shots; if (theatreOn) theatre::QueuePulse(); }
@@ -884,7 +1007,9 @@ int main(int argc, char **argv)
     if (!view.create()) Log("Theatre proof: no OpenGL context");
     else {
       std::string note;
-      const bool ok = theatre::RenderProof(TheatreConfig(), g_frame.data(), g_frameW, g_frameH, testU, testV, theatreProof, note);
+      const bool hud = !g_hudFrame.empty() && g_hudFrame.size() == (std::size_t)g_hwW * g_hwH;
+      const bool ok = theatre::RenderProof(TheatreConfig(), g_frame.data(), g_frameW, g_frameH, testU, testV, theatreProof, note,
+                                           hud ? g_hudFrame.data() : nullptr, hud ? g_hwW : 0, hud ? g_hwH : 0);
       Log("Theatre proof %s-left.png / -right.png: %s (%s)", theatreProof.c_str(), ok ? "written" : "FAILED", note.c_str());
       if (!ok) result = 8;
     }

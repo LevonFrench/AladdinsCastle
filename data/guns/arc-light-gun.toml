@@ -1,0 +1,51 @@
+# AladdinsCastle gun model. Schema and rules: docs/guns.md
+id        = "arc-light-gun"
+name      = "Arcade light gun"
+family    = "arcade"            # generic | console | arcade | mounted | special
+hold      = "one-hand"          # one-hand | two-hand | mounted
+tier      = 1                   # build order: 1 first
+model     = "assets/guns/arc-light-gun.glb"
+source    = "assets/guns/src/arc-light-gun.py"
+resembles = "Namco's tethered arcade pistols with a blowback top (Time Crisis series); the model hotd2-vr draws for Confidential Mission and The House of the Dead 2, with the maker's lettering removed"
+shape     = "Full-size arcade pistol: deep upper housing that kicks back 15 mm on each shot, a lower barrel holding the round lens, serrated rear block, long grip with panels, trigger in a large guard. No logos or lettering."
+length_mm = 248                # measured on the built model
+features  = ["recoil_slide", "laser"]
+notes     = "Not an original design: CC BY 4.0 model, see [licence]. The slide is visual only and never moves the aim. Owner to pick a name (proposed: The Kickback)."
+
+[licence]                       # this model is CC BY 4.0, not CC0 like our original guns
+spdx        = "CC-BY-4.0"
+title       = "Namco Arcade Gun"
+author      = "Martoscar"
+author_url  = "https://sketchfab.com/Martoscar"
+source_url  = "https://sketchfab.com/3d-models/namco-arcade-gun-15fbd5b9add94a34b5c21746e3dd32be"
+licence_url = "https://creativecommons.org/licenses/by/4.0/"
+via         = "hotd2-vr core/rend/vr/gun_model.h (https://github.com/mikermak/hotd2-vr, commit f0c7a2fd), which re-oriented, quantised and recoloured it and dropped its textures"
+changes     = ["maker's lettering engraved on the right side removed and the side face refilled", "upper housing split off as a moving slide (cut sections capped, cover plate added under its front)", "trigger made a separate moving part", "original sights replaced by notch and blade sights", "screw tips under the housing flattened", "moved into the AladdinsCastle gun frame (grip at the web of the hand, -Z bore)", "decimated into two levels of detail", "four neutral materials instead of the original colours"]
+
+[tints]                         # our palette; body = main colour, accent = trim
+default = "red"
+p1      = "red"
+p2      = "blue"
+red = { body = "#e0201a", accent = "#b81610" }
+blue = { body = "#2f6fd6", accent = "#2457b0" }
+black = { body = "#1b1b1e", accent = "#2a2a2e" }
+orange = { body = "#f07a1a", accent = "#c85e10" }
+
+# Motion ranges use metres (slide) or radians (rotate). Visual recoil never moves the aim anchors.
+
+[motion.trigger]
+node = "pivot_trigger"
+kind = "rotate"
+axis = [-1,0,0]
+range = [0,0.26]
+drive = "trigger"
+lod_nodes = ["pivot_trigger", "pivot_trigger_lod1"]
+
+[motion.recoil]
+node = "slide_recoil"
+kind = "slide"
+axis = [0,0,1]
+range = [0,0.015]
+drive = "recoil"
+lod_nodes = ["slide_recoil", "slide_recoil_lod1"]
+duration_ms = 45

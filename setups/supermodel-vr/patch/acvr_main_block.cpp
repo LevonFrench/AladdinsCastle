@@ -29,7 +29,11 @@
                           and sky strips are widened too)
    ACVR_AIM_X, ACVR_AIM_Y analog-joystick games: where the game draws its crosshair for each stick value, as
                           "value:pixel,..." over its 496x384 picture (default: Star Wars Trilogy, measured)
-   ACVR_AIM_DISTANCE=<m>  head-tracked: distance of the virtual screen the arcade view is met on when pointing (2.5)
+   ACVR_AIM_DISTANCE=<m>  head-tracked: distance of the plane the arcade view is met on when pointing (default: the
+                          HUD panel's distance, so the ray meets the panel where the game draws its crosshair)
+   ACVR_HUD_MATCH=0|1     head-tracked: HUD panel over the arcade view exactly (default: on for analog-stick games)
+   ACVR_LASER=0           head-tracked pointing games: no laser and aim dot from the right controller
+   ACVR_STICK_MODEL=1     with ACVR_STICK_GRAB and ACVR_CONTROLS: draw the cabinet's flight stick (off by default)
    ACVR_FAKE_CONTROLLERS=<first>-<last>:<control>:<value>;...  made-up VR controllers for unattended checks, used
                           only while no real ones are read. Controls: trigger.l trigger.r grip.l grip.r a b x y menu
                           stick.lx stick.ly stick.rx stick.ry click.l click.r; wheel (degrees, both hands on a
@@ -195,6 +199,13 @@ static void ACVR_ReadAimTable(std::vector<ACVRAimPoint> &t, const char *env, con
   std::sort(t.begin(), t.end(), [](const ACVRAimPoint &a, const ACVRAimPoint &b) { return a.pixel < b.pixel; });
 }
 
+static void ACVR_AimTablesRead()
+{
+  if (!s_acvrAimX.empty()) return;
+  ACVR_ReadAimTable(s_acvrAimX, "ACVR_AIM_X", "0:34,16:48,32:76,48:108,64:140,80:172,96:203,112:230,128:245,160:288,176:319,192:352,208:384,224:418,240:446,255:461");
+  ACVR_ReadAimTable(s_acvrAimY, "ACVR_AIM_Y", "0:36,16:46,32:67,48:91,64:115,80:140,96:163,112:183,128:195,144:206,160:227,176:252,192:277,208:301,224:325,240:346,255:357");
+}
+
 // The stick value that puts the crosshair at this pixel (clamped to the crosshair's reach)
 static int ACVR_AimValue(const std::vector<ACVRAimPoint> &t, float pixel)
 {
@@ -229,13 +240,15 @@ static bool ACVR_GetAimScreen(const ACVRControllers &c, ACVRAimScreen &s)
   }
   else if (g_acvrStereo.vr)
   {
-    const float d = ACVR_EnvFloat("ACVR_AIM_DISTANCE", 2.5f);
+    // The arcade view on the plane of the HUD panel, which (with hudMatch) covers exactly this rectangle: the ray
+    // meets the panel where the game's crosshair is drawn, and that is where the game's camera aims
+    const float d = ACVR_EnvFloat("ACVR_AIM_DISTANCE", ACVR_EnvFloat("ACVR_HUD_DISTANCE", 1.6f));
     yaw = s_acvrOriginYaw;
-    const float cx = d * 0.5f * (tl + tr), cy = d * 0.5f * (tb + tt);
+    float cx, cy;
+    ACVR_ArcadeRect(d, cx, cy, s.w, s.h);
     s.centre[0] = s_acvrOriginPos[0] + cx * cosf(yaw) - d * sinf(yaw);
     s.centre[1] = s_acvrOriginPos[1] + cy;
     s.centre[2] = s_acvrOriginPos[2] - cx * sinf(yaw) - d * cosf(yaw);
-    s.w = d * (tr - tl); s.h = d * (tt - tb);
   }
   else
   {
@@ -254,6 +267,10 @@ static bool ACVR_GetAimScreen(const ACVRControllers &c, ACVRAimScreen &s)
   return s.w > 0.0f && s.h > 0.0f;
 }
 
+// The last pointing ray that met the aim plane, reference space (drawn as a laser in the head-tracked mode)
+static float s_acvrAimFrom[3] = { 0, 0, 0 }, s_acvrAimHit[3] = { 0, 0, 0 };
+static long  s_acvrAimFrame = -10;
+
 // Where the right controller's pointing ray meets the game picture: u, v from its top left (may be outside 0..1)
 static bool ACVR_AimUV(const ACVRControllers &c, float &u, float &v)
 {
@@ -269,6 +286,8 @@ static bool ACVR_AimUV(const ACVRControllers &c, float &u, float &v)
   const float hit[3] = { o[0] + t * d[0] - s.centre[0], o[1] + t * d[1] - s.centre[1], o[2] + t * d[2] - s.centre[2] };
   const float su = 0.5f + (hit[0] * s.xaxis[0] + hit[1] * s.xaxis[1] + hit[2] * s.xaxis[2]) / s.w;
   const float sv = 0.5f - hit[1] / s.h;
+  for (int k = 0; k < 3; k++) { s_acvrAimFrom[k] = o[k]; s_acvrAimHit[k] = o[k] + t * d[k]; }
+  s_acvrAimFrame = s_acvrFrame;
   u = (su - s.g0[0]) / (s.g1[0] - s.g0[0]);
   v = (sv - s.g0[1]) / (s.g1[1] - s.g0[1]);
   return true;
@@ -382,6 +401,10 @@ static bool ACVR_FakeControllers(ACVRControllers &c)
 static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
 {
   s_acvrCabinet = (gameInputs & Game::INPUT_HARLEY) ? 2 : ((gameInputs & Game::INPUT_VEHICLE) ? 1 : 0);
+  {
+    const char *m = getenv("ACVR_HUD_MATCH");
+    g_acvrStereo.hudMatch = (m && *m) ? (m[0] == '1') : ((gameInputs & Game::INPUT_ANALOG_JOYSTICK) != 0);
+  }
   if (auto st = (*inputs)["Steering"]) s_acvrSteer = (st->value - 128) / 127.0f;
   if ((gameInputs & Game::INPUT_ANALOG_JOYSTICK) && ACVR_StickGrabOn())
   {
@@ -505,16 +528,31 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
       }
       else if (grabbed) { x = s_acvrStick[0]; y = s_acvrStick[1]; }      // tracking lost for a moment: hold still
     }
-    else
+    int pointX = -1, pointY = -1;
+    if (c.grip[1] <= 0.5f)
     {
       grabbed = false;                                                     // let go: back to centre
-      if (fabsf(c.stick[1][0]) > 0.12f || fabsf(c.stick[1][1]) > 0.12f)
+      // Not holding the stick: the right controller points, 1:1 with the game's crosshair, as without the grab
+      float u, v;
+      if (ACVR_AimUV(c, u, v))
+      {
+        ACVR_AimTablesRead();
+        pointX = ACVR_AimValue(s_acvrAimX, u * 496.0f); pointY = ACVR_AimValue(s_acvrAimY, v * 384.0f);
+        x = (pointX - 128) / 127.0f; y = (128 - pointY) / 127.0f;
+      }
+      else if (fabsf(c.stick[1][0]) > 0.12f || fabsf(c.stick[1][1]) > 0.12f)
       {
         x = clampf(c.stick[1][0], -1.0f, 1.0f);
         y = clampf(c.stick[1][1], -1.0f, 1.0f);                            // thumbstick up aims up
       }
     }
-    ACVR_SetStick(inputs, x, y);
+    if (pointX >= 0)
+    {
+      s_acvrStick[0] = x; s_acvrStick[1] = y;
+      set("AnalogJoyX", pointX); set("AnalogJoyY", pointY);
+    }
+    else
+      ACVR_SetStick(inputs, x, y);
     ACVR_LogStick(inputs, grabbed ? "grabbed" : "free");
     press("AnalogJoyTrigger", c.trigger[1] > 0.5f);
     press("AnalogJoyEvent", c.stickClick[1]);
@@ -527,11 +565,7 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
     // where the controller's ray meets the picture (the screen in screen mode; in head-tracked mode a virtual
     // screen carrying the arcade view). Off the picture, the crosshair stays at its edge.
     // While the controllers are connected the mouse never drives it: centred when the controller isn't pointing.
-    if (s_acvrAimX.empty())
-    {
-      ACVR_ReadAimTable(s_acvrAimX, "ACVR_AIM_X", "0:34,16:48,32:76,48:108,64:140,80:172,96:203,112:230,128:245,160:288,176:319,192:352,208:384,224:418,240:446,255:461");
-      ACVR_ReadAimTable(s_acvrAimY, "ACVR_AIM_Y", "0:36,16:46,32:67,48:91,64:115,80:140,96:163,112:183,128:195,144:206,160:227,176:252,192:277,208:301,224:325,240:346,255:357");
-    }
+    ACVR_AimTablesRead();
     set("AnalogJoyX", 128);
     set("AnalogJoyY", 128);
     float u = 0.5f, v = 0.5f;
@@ -843,11 +877,52 @@ static GLuint ACVR_CompileControlShader()
   return p;
 }
 
+static bool ACVR_EnsureControlProgram()
+{
+  if (s_acvrControlProg) return true;
+  s_acvrControlProg = ACVR_CompileControlShader();
+  if (!s_acvrControlProg) return false;
+  s_acvrCtlMvp = glGetUniformLocation(s_acvrControlProg, "mvp");
+  s_acvrCtlModel = glGetUniformLocation(s_acvrControlProg, "model");
+  s_acvrCtlAngle = glGetUniformLocation(s_acvrControlProg, "angle");
+  s_acvrCtlMoving = glGetUniformLocation(s_acvrControlProg, "moving");
+  s_acvrCtlColour = glGetUniformLocation(s_acvrControlProg, "colour");
+  s_acvrCtlAxis = glGetUniformLocation(s_acvrControlProg, "axis");
+  s_acvrCtlAngle2 = glGetUniformLocation(s_acvrControlProg, "angle2");
+  s_acvrCtlAxis2 = glGetUniformLocation(s_acvrControlProg, "axis2");
+  s_acvrCtlPivot = glGetUniformLocation(s_acvrControlProg, "pivot");
+  return true;
+}
+
+// The supersampling target is a colour texture only, with no depth buffer: a model drawn into it had every
+// triangle painted in file order, so its far side showed through its near side (it looked hollow). A depth
+// buffer of our own is attached while a model is drawn over the picture and taken off again afterwards, so the
+// emulator's own drawing into that target is unchanged.
+static GLuint   s_acvrDepthRb = 0;
+static unsigned s_acvrDepthW = 0, s_acvrDepthH = 0;
+static void ACVR_OverlayDepth(bool on)
+{
+  if (!s_acvrAATarget) return;         // no supersampling: the window's own buffer has depth
+  if (!on) { glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, 0); return; }
+  if (!s_acvrDepthRb || s_acvrDepthW != s_acvrEyeW || s_acvrDepthH != s_acvrEyeH)
+  {
+    GLint bound = 0;
+    glGetIntegerv(GL_RENDERBUFFER_BINDING, &bound);
+    if (!s_acvrDepthRb) glGenRenderbuffers(1, &s_acvrDepthRb);
+    glBindRenderbuffer(GL_RENDERBUFFER, s_acvrDepthRb);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, (GLsizei)s_acvrEyeW, (GLsizei)s_acvrEyeH);
+    glBindRenderbuffer(GL_RENDERBUFFER, (GLuint)bound);
+    s_acvrDepthW = s_acvrEyeW; s_acvrDepthH = s_acvrEyeH;
+  }
+  glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, s_acvrDepthRb);
+}
+
 static bool ACVR_LoadControl(int cabinet)
 {
   const char *file = cabinet == 3 ? "Assets/acvr/stick-flight.acm" :
-                     (cabinet == 2 ? "Assets/acvr/bars-motorcycle.acm" : "Assets/acvr/wheel-three-spoke.acm");
+                     (cabinet == 2 ? "Assets/acvr/bars-motorcycle.acm" : "Assets/acvr/wheel-solid.acm");
   FILE *f = fopen(file, "rb");
+  if (!f && cabinet == 1) { file = "Assets/acvr/wheel-three-spoke.acm"; f = fopen(file, "rb"); }   // the older baked wheel
   if (!f) { printf("ACVR controls: %s not found\n", file); return false; }
   char magic[4]; uint32_t parts = 0; float origin[3];
   bool ok = fread(magic, 1, 4, f) == 4 && memcmp(magic, "ACM1", 4) == 0 && fread(&parts, 4, 1, f) == 1 && fread(origin, 4, 3, f) == 3;
@@ -871,19 +946,9 @@ static bool ACVR_LoadControl(int cabinet)
   fclose(f);
   if (!ok || verts.empty()) { printf("ACVR controls: %s unreadable\n", file); return false; }
   for (int k = 0; k < 3; k++) s_acvrControlPivot[k] = origin[k];
-  if (!s_acvrControlProg)
+  if (!ACVR_EnsureControlProgram()) return false;
+  if (!s_acvrControlVao)
   {
-    s_acvrControlProg = ACVR_CompileControlShader();
-    if (!s_acvrControlProg) return false;
-    s_acvrCtlMvp = glGetUniformLocation(s_acvrControlProg, "mvp");
-    s_acvrCtlModel = glGetUniformLocation(s_acvrControlProg, "model");
-    s_acvrCtlAngle = glGetUniformLocation(s_acvrControlProg, "angle");
-    s_acvrCtlMoving = glGetUniformLocation(s_acvrControlProg, "moving");
-    s_acvrCtlColour = glGetUniformLocation(s_acvrControlProg, "colour");
-    s_acvrCtlAxis = glGetUniformLocation(s_acvrControlProg, "axis");
-    s_acvrCtlAngle2 = glGetUniformLocation(s_acvrControlProg, "angle2");
-    s_acvrCtlAxis2 = glGetUniformLocation(s_acvrControlProg, "axis2");
-    s_acvrCtlPivot = glGetUniformLocation(s_acvrControlProg, "pivot");
     glGenVertexArrays(1, &s_acvrControlVao);
     glGenBuffers(1, &s_acvrControlVbo);
     glGenBuffers(1, &s_acvrControlIbo);
@@ -919,6 +984,9 @@ static void ACVR_MatMul(const float *a, const float *b, float *out)
 static void ACVR_DrawControls(int eye)
 {
   if (s_acvrCabinet == 0 || s_acvrControlFailed) return;
+  static int stickModel = -1;
+  if (stickModel < 0) { const char *e = getenv("ACVR_STICK_MODEL"); stickModel = e && e[0] == '1'; }
+  if (s_acvrCabinet == 3 && !stickModel) return;          // the flight stick model: off unless asked for
   static int enabled = -1;
   if (enabled < 0) { const char *e = getenv("ACVR_CONTROLS"); enabled = e && e[0] == '1'; }   // off unless asked for
   if (!enabled) return;
@@ -983,6 +1051,7 @@ static void ACVR_DrawControls(int eye)
   GLint elementBuffer; glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &elementBuffer);
 
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, s_acvrAATarget);
+  ACVR_OverlayDepth(true);
   glViewport(0, 0, (GLsizei)s_acvrEyeW, (GLsizei)s_acvrEyeH);
   glDisable(GL_SCISSOR_TEST); glDisable(GL_BLEND); glDisable(GL_CULL_FACE);
   glEnable(GL_DEPTH_TEST); glDepthMask(GL_TRUE); glDepthFunc(GL_LESS); glClearDepth(1.0);
@@ -1002,6 +1071,7 @@ static void ACVR_DrawControls(int eye)
     glUniform3f(s_acvrCtlColour, p.colour[0], p.colour[1], p.colour[2]);
     glDrawElements(GL_TRIANGLES, p.count, GL_UNSIGNED_INT, (const void *)(size_t)(p.first * sizeof(uint32_t)));
   }
+  ACVR_OverlayDepth(false);
 
   glBindVertexArray((GLuint)vao);
   glUseProgram((GLuint)prog);
@@ -1016,11 +1086,137 @@ static void ACVR_DrawControls(int eye)
   if (scissor) glEnable(GL_SCISSOR_TEST);
 }
 
+// ---------------------------------------------------------------- ACVR: laser and aim dot (head-tracked pointing)
+// A thin beam from the right controller to where its ray meets the arcade view, and a dot there, drawn into each
+// eye's picture with the same shader as the cabinet controls. Closed meshes: a capped cylinder and a sphere.
+static GLuint  s_acvrPtrVao = 0, s_acvrPtrVbo = 0, s_acvrPtrIbo = 0;
+static GLsizei s_acvrPtrCyl = 0, s_acvrPtrSph = 0;      // index counts: cylinder first, then the sphere
+
+static bool ACVR_MakePointerMeshes()
+{
+  if (s_acvrPtrVao) return true;
+  if (!ACVR_EnsureControlProgram()) return false;
+  std::vector<float> v; std::vector<uint32_t> ix;
+  auto vert = [&](float x, float y, float z, float nx, float ny, float nz) { v.insert(v.end(), { x, y, z, nx, ny, nz }); return (uint32_t)(v.size() / 6 - 1); };
+  const int N = 16;
+  // cylinder, radius 1, from z = 0 to z = 1, with both ends capped
+  for (int i = 0; i < N; i++)
+  {
+    const float a0 = 6.2831853f * i / N, a1 = 6.2831853f * (i + 1) / N;
+    const float c0 = cosf(a0), s0 = sinf(a0), c1 = cosf(a1), s1 = sinf(a1);
+    const uint32_t a = vert(c0, s0, 0, c0, s0, 0), b = vert(c1, s1, 0, c1, s1, 0), c = vert(c1, s1, 1, c1, s1, 0), d = vert(c0, s0, 1, c0, s0, 0);
+    ix.insert(ix.end(), { a, b, c, a, c, d });
+    const uint32_t m0 = vert(0, 0, 0, 0, 0, -1), e0 = vert(c1, s1, 0, 0, 0, -1), f0 = vert(c0, s0, 0, 0, 0, -1);
+    ix.insert(ix.end(), { m0, e0, f0 });
+    const uint32_t m1 = vert(0, 0, 1, 0, 0, 1), e1 = vert(c0, s0, 1, 0, 0, 1), f1 = vert(c1, s1, 1, 0, 0, 1);
+    ix.insert(ix.end(), { m1, e1, f1 });
+  }
+  s_acvrPtrCyl = (GLsizei)ix.size();
+  // sphere, radius 1
+  const int R = 10;
+  const uint32_t base = (uint32_t)(v.size() / 6);
+  for (int i = 0; i <= R; i++)
+    for (int j = 0; j <= N; j++)
+    {
+      const float th = 3.1415927f * i / R, ph = 6.2831853f * j / N;
+      const float x = sinf(th) * cosf(ph), y = cosf(th), z = sinf(th) * sinf(ph);
+      vert(x, y, z, x, y, z);
+    }
+  for (int i = 0; i < R; i++)
+    for (int j = 0; j < N; j++)
+    {
+      const uint32_t a = base + i * (N + 1) + j, b = a + 1, c = a + (N + 1), d = c + 1;
+      ix.insert(ix.end(), { a, c, b, b, c, d });
+    }
+  s_acvrPtrSph = (GLsizei)ix.size() - s_acvrPtrCyl;
+  GLint vao = 0, ab = 0;
+  glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao);
+  glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &ab);
+  glGenVertexArrays(1, &s_acvrPtrVao); glGenBuffers(1, &s_acvrPtrVbo); glGenBuffers(1, &s_acvrPtrIbo);
+  glBindVertexArray(s_acvrPtrVao);
+  glBindBuffer(GL_ARRAY_BUFFER, s_acvrPtrVbo);
+  glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(float), v.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_acvrPtrIbo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, ix.size() * sizeof(uint32_t), ix.data(), GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (const void *)0);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (const void *)(3 * sizeof(float)));
+  glBindVertexArray((GLuint)vao);
+  glBindBuffer(GL_ARRAY_BUFFER, (GLuint)ab);
+  return true;
+}
+
+static void ACVR_DrawPointer(int eye)
+{
+  static int laser = -1;
+  if (laser < 0) { const char *e = getenv("ACVR_LASER"); laser = !(e && e[0] == '0'); }
+  if (!laser || !g_acvrStereo.hudMatch || s_acvrAimFrame < s_acvrFrame - 1) return;
+  if (!ACVR_MakePointerMeshes()) return;
+  // reference space -> the recentred player frame, in game units (as the eye views are)
+  const float ya = -s_acvrOriginYaw, ca = cosf(ya), sa = sinf(ya), u = s_acvrUnitsPerMetre;
+  auto toPlayer = [&](const float p[3], float o[3]) {
+    const float dx = p[0] - s_acvrOriginPos[0], dy = p[1] - s_acvrOriginPos[1], dz = p[2] - s_acvrOriginPos[2];
+    o[0] = (dx * ca + dz * sa) * u; o[1] = dy * u; o[2] = (-dx * sa + dz * ca) * u;
+  };
+  float from[3], hit[3];
+  toPlayer(s_acvrAimFrom, from); toPlayer(s_acvrAimHit, hit);
+  float dir[3] = { hit[0] - from[0], hit[1] - from[1], hit[2] - from[2] };
+  const float len = sqrtf(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+  if (!(len > 1e-3f)) return;
+  for (int k = 0; k < 3; k++) dir[k] /= len;
+  float side[3] = { dir[2], 0.0f, -dir[0] };                   // up x dir
+  float sl = sqrtf(side[0] * side[0] + side[2] * side[2]);
+  if (sl < 1e-4f) { side[0] = 1.0f; side[2] = 0.0f; sl = 1.0f; }
+  side[0] /= sl; side[2] /= sl;
+  const float up2[3] = { dir[1] * side[2] - dir[2] * side[1], dir[2] * side[0] - dir[0] * side[2], dir[0] * side[1] - dir[1] * side[0] };
+  const float rb = 0.0015f * u, rd = 0.012f * u;               // beam and dot radius
+  const float beam[16] = { side[0] * rb, side[1] * rb, side[2] * rb, 0, up2[0] * rb, up2[1] * rb, up2[2] * rb, 0,
+                           dir[0] * len, dir[1] * len, dir[2] * len, 0, from[0], from[1], from[2], 1 };
+  const float dot[16] = { rd, 0, 0, 0, 0, rd, 0, 0, 0, 0, rd, 0, hit[0], hit[1], hit[2], 1 };
+  const float *tn = g_acvrStereo.eyeTan[eye];
+  const float n = 0.05f * u, fa = 100.0f * u;
+  const float l = tn[0] * n, rr = tn[1] * n, b = tn[2] * n, tp = tn[3] * n;
+  const float proj[16] = { 2 * n / (rr - l), 0, 0, 0, 0, 2 * n / (tp - b), 0, 0,
+                           (rr + l) / (rr - l), (tp + b) / (tp - b), -(fa + n) / (fa - n), -1, 0, 0, -2 * fa * n / (fa - n), 0 };
+  GLint prog, vao, fb, vp[4]; GLboolean depth, cull, blend, scissor, depthMask; GLint depthFunc; GLfloat clearDepth;
+  glGetIntegerv(GL_CURRENT_PROGRAM, &prog); glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &vao); glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fb);
+  glGetIntegerv(GL_VIEWPORT, vp);
+  depth = glIsEnabled(GL_DEPTH_TEST); cull = glIsEnabled(GL_CULL_FACE); blend = glIsEnabled(GL_BLEND); scissor = glIsEnabled(GL_SCISSOR_TEST);
+  glGetBooleanv(GL_DEPTH_WRITEMASK, &depthMask); glGetIntegerv(GL_DEPTH_FUNC, &depthFunc); glGetFloatv(GL_DEPTH_CLEAR_VALUE, &clearDepth);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, s_acvrAATarget);
+  ACVR_OverlayDepth(true);
+  glViewport(0, 0, (GLsizei)s_acvrEyeW, (GLsizei)s_acvrEyeH);
+  glDisable(GL_SCISSOR_TEST); glDisable(GL_BLEND); glDisable(GL_CULL_FACE);
+  glEnable(GL_DEPTH_TEST); glDepthMask(GL_TRUE); glDepthFunc(GL_LESS); glClearDepth(1.0);
+  glClear(GL_DEPTH_BUFFER_BIT);
+  glUseProgram(s_acvrControlProg);
+  glUniform1i(s_acvrCtlMoving, 0);
+  glBindVertexArray(s_acvrPtrVao);
+  float vm[16], mvp[16];
+  ACVR_MatMul(g_acvrStereo.eyeView[eye], beam, vm); ACVR_MatMul(proj, vm, mvp);
+  glUniformMatrix4fv(s_acvrCtlMvp, 1, GL_FALSE, mvp); glUniformMatrix4fv(s_acvrCtlModel, 1, GL_FALSE, beam);
+  glUniform3f(s_acvrCtlColour, 1.0f, 0.12f, 0.08f);
+  glDrawElements(GL_TRIANGLES, s_acvrPtrCyl, GL_UNSIGNED_INT, (const void *)0);
+  ACVR_MatMul(g_acvrStereo.eyeView[eye], dot, vm); ACVR_MatMul(proj, vm, mvp);
+  glUniformMatrix4fv(s_acvrCtlMvp, 1, GL_FALSE, mvp); glUniformMatrix4fv(s_acvrCtlModel, 1, GL_FALSE, dot);
+  glUniform3f(s_acvrCtlColour, 1.0f, 0.95f, 0.2f);
+  glDrawElements(GL_TRIANGLES, s_acvrPtrSph, GL_UNSIGNED_INT, (const void *)(size_t)(s_acvrPtrCyl * sizeof(uint32_t)));
+  ACVR_OverlayDepth(false);
+  glBindVertexArray((GLuint)vao); glUseProgram((GLuint)prog);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)fb); glViewport(vp[0], vp[1], vp[2], vp[3]);
+  glDepthMask(depthMask); glDepthFunc((GLenum)depthFunc); glClearDepth(clearDepth);
+  if (!depth) glDisable(GL_DEPTH_TEST);
+  if (cull) glEnable(GL_CULL_FACE);
+  if (blend) glEnable(GL_BLEND);
+  if (scissor) glEnable(GL_SCISSOR_TEST);
+}
+
 void ACVR_StereoEyeDone(int eye)
 {
   if (eye < 0 || eye > 1) return;
   ACVR_EnsureTargets();
-  if (g_acvrStereo.vr) ACVR_DrawControls(eye);
+  if (g_acvrStereo.vr) { ACVR_DrawControls(eye); ACVR_DrawPointer(eye); }
   const GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
   glDisable(GL_SCISSOR_TEST);       // blits obey the scissor box
   glBindFramebuffer(GL_READ_FRAMEBUFFER, s_acvrAATarget);
@@ -1100,6 +1296,27 @@ static void ACVR_SaveBound(const std::string &file, unsigned w, unsigned h)
   glPixelStorei(GL_PACK_ALIGNMENT, 1);
   glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.get());
   Util::WriteSurfaceToBMP<Util::RGBA8>(file, pixels.get(), w, h, true);
+}
+
+// Headset runs (ACVR_XR): called once per loop pass, after the inputs. Returns true when this pass must not run
+// a game frame. When the runtime ended the game (SteamVR "Exit game", a lost runtime) or the presenter is gone
+// (it could not start, or its thread ended), the game closes through the normal exit, which saves NVRAM. While
+// the session is not running (starting up, or stopped by the runtime) the game waits, paused.
+static bool ACVR_XR_Hold()
+{
+  static int last = 0;
+  const int state = ACVR_XR_State();
+  if (state != last)
+  {
+    static const char *what[] = { "off", "headset showing the game: running", "headset not showing the game: paused",
+                                  "the headset runtime ended the game: closing", "the headset picture stopped: closing" };
+    printf("ACVR XR: %s\n", what[state < 0 || state > 4 ? 0 : state]);
+    fflush(stdout);
+    last = state;
+  }
+  if (state == 3 || state == 4) { s_acvrQuit = true; return true; }
+  if (state == 2) { SDL_Delay(20); return true; }
+  return false;
 }
 
 // Called once per presented frame, before the buffer swap

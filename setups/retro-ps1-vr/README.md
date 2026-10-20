@@ -266,6 +266,59 @@ redirected in the loaded core's import table. Then:
   source. Both eyes go to the headset side by side; offline pictures are
   side by side too.
 
+### HUD on its own panel, and a world wider than the screen
+
+`ACVR_GL_HUD=1` splits the game's 2D overlay from its 3D world, the first of
+the three things in `docs/3d-mode-target.md`. The same twin mechanism makes a
+third picture, the HUD layer: in the framebuffer that holds the game's 3D
+picture, every vertex is classed as world (perspective) or 2D; 2D drawn before
+the frame's first depth-tested 3D draw is a backdrop (sky, part of the world),
+later 2D is HUD. Fragment shaders get a guard that drops HUD fragments from the
+world pictures and world fragments from the HUD layer, and gives HUD fragments
+an alpha from the core's own blending (GLideN64 blends with dual-source
+factors), so the layer is premultiplied colour over transparent black. The
+theatre shows it on a flat panel fixed in the room with the screen, nearer and
+a little lower: `ACVR_HUD_DISTANCE` (1.8 m), `ACVR_HUD_LIFT` (-0.08 m),
+`ACVR_HUD_WIDTH` (default: the same view angle as the game's picture on the
+world surface, so a crosshair lines up), `ACVR_HUD_SCALE`, `ACVR_HUD_OPACITY`.
+In `aim` mode the controller then aims at the HUD panel, where the game draws
+its crosshair. Offline snapshots also write `<name>-hud.png` (the layer over a
+checkerboard).
+
+`ACVR_GL_WIDE=kx,ky` squeezes the 3D projection about the picture's centre, so
+geometry the game draws past the old edges comes into the picture (1/kx of the
+width, 1/ky of the height); the theatre stretches it back on a surface that
+much wider (`ACVR_PS1_SCREEN_W` is its width: 7 m at 2.5 m curves about 160
+degrees round you), with no frame and edges fading into the dark
+(`ACVR_SCREEN_FADE`, 0.06; `ACVR_SCREEN_FRAME=1` brings the frame back). Raise
+the core's resolution with it (`mupen64plus-169screensize=1920x1080`), since
+the picture is spread wider. How far a game draws is the game's own culling.
+
+How far a game draws past its frame is the game's own business: GLideN64
+clips to the game's projection, so squeezing shows more only where the game
+already draws more (GoldenEye, Perfect Dark, F-Zero X: about twice the width).
+Mario Kart 64 clips at its frame. For it, and for Wave Race 64 and Star Fox 64
+(which have the same kind of code), a widescreen code that sets a wider
+projection aspect (RetroArch's `Widescreen` entry with its aspect value 1.78
+raised to 3.55) makes the game draw 32:9 itself, and `ACVR_GL_WIDE_SQUEEZE=0`
+leaves the squeeze to the game.
+
+Beetle Adventure Racing! breaks with `16:9 adjusted` even without any of this
+(its frame-buffer copies tile the picture), so it runs 4:3 with the HUD panel
+and 3D but no open frame. Its 2D layer has opaque black border bars;
+`ACVR_HUD_KEY_BLACK=1` shows pure black HUD pixels as transparent.
+
+### Aim that moves by rate (Star Fox 64)
+
+Where the stick moves the game's marker rather than placing it,
+`ACVR_PAD_FOLLOW_U` / `_V` give the marker's place on the picture from the
+game's memory (`c0,addr:k,addr:k`, fitted offline against the marker in
+snapshots, with the script line `ram-dump <file>` and `ACVR_RAM_WATCH`), and
+the pad steers it to where the controller points with
+`ACVR_PAD_FOLLOW_GAIN = px,dx,py,dy,ix,iy` (proportional, damping, integral).
+`ACVR_PAD_AIM_ON=world` aims at the world surface instead of the HUD panel,
+for a marker that is part of the 3D world.
+
 `ACVR_GL_TRACE=<first frame>,<frames>` (with `ACVR_GL_TRACE_DIR`) logs what a
 core draws and saves its vertex shaders, to study another core.
 
