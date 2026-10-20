@@ -1,0 +1,111 @@
+# Metroid Prime Trilogy with slot 1 filled: menus to Metroid Prime, trigger presses through the opening cinematic to 230 s, then walk forward and fire.
+12.0 12.3 R trigger 1
+14.0 14.3 R trigger 1
+16.0 16.3 R trigger 1
+18.0 18.3 R trigger 1
+20.0 20.3 R trigger 1
+22.0 22.3 R trigger 1
+24.0 24.3 R trigger 1
+26.0 26.3 R trigger 1
+30.0 37.0 R u -0.46
+30.0 37.0 R v 0.34
+32.0 32.3 R trigger 1
+35.0 35.3 R trigger 1
+37.0 42.0 R u 0
+37.0 42.0 R v 0.45
+39.0 39.3 R trigger 1
+43.0 43.3 R trigger 1
+47.0 47.3 R trigger 1
+51.0 51.3 R trigger 1
+55.0 55.3 R trigger 1
+59.0 59.3 R trigger 1
+63.0 63.3 R trigger 1
+67.0 67.3 R trigger 1
+71.0 71.3 R trigger 1
+75.0 75.3 R trigger 1
+79.0 79.3 R trigger 1
+83.0 83.3 R trigger 1
+87.0 87.3 R trigger 1
+91.0 91.3 R trigger 1
+95.0 95.3 R trigger 1
+99.0 99.3 R trigger 1
+103.0 103.3 R trigger 1
+107.0 107.3 R trigger 1
+111.0 111.3 R trigger 1
+115.0 115.3 R trigger 1
+119.0 119.3 R trigger 1
+123.0 123.3 R trigger 1
+127.0 127.3 R trigger 1
+131.0 131.3 R trigger 1
+135.0 135.3 R trigger 1
+139.0 139.3 R trigger 1
+143.0 143.3 R trigger 1
+147.0 147.3 R trigger 1
+151.0 151.3 R trigger 1
+155.0 155.3 R trigger 1
+159.0 159.3 R trigger 1
+163.0 163.3 R trigger 1
+167.0 167.3 R trigger 1
+171.0 171.3 R trigger 1
+175.0 175.3 R trigger 1
+179.0 179.3 R trigger 1
+183.0 183.3 R trigger 1
+187.0 187.3 R trigger 1
+191.0 191.3 R trigger 1
+195.0 195.3 R trigger 1
+199.0 199.3 R trigger 1
+203.0 203.3 R trigger 1
+207.0 207.3 R trigger 1
+211.0 211.3 R trigger 1
+215.0 215.3 R trigger 1
+219.0 219.3 R trigger 1
+223.0 223.3 R trigger 1
+227.0 227.3 R trigger 1
+232.0 262.0 L stick_y 1
+233.0 233.4 R trigger 1
+235.0 235.4 R trigger 1
+237.0 237.4 R trigger 1
+239.0 239.4 R trigger 1
+241.0 241.4 R trigger 1
+243.0 243.4 R trigger 1
+245.0 245.4 R trigger 1
+247.0 247.4 R trigger 1
+249.0 249.4 R trigger 1
+251.0 251.4 R trigger 1
+253.0 253.4 R trigger 1
+255.0 255.4 R trigger 1
+257.0 257.4 R trigger 1
+259.0 259.4 R trigger 1
+261.0 261.4 R trigger 1
+240.0 244.0 R u 0.4
+248.0 252.0 R u -0.4
+shot 150 p150
+shot 154 p154
+shot 158 p158
+shot 162 p162
+shot 166 p166
+shot 170 p170
+shot 174 p174
+shot 178 p178
+shot 182 p182
+shot 186 p186
+shot 190 p190
+shot 194 p194
+shot 198 p198
+shot 202 p202
+shot 206 p206
+shot 210 p210
+shot 214 p214
+shot 218 p218
+shot 222 p222
+shot 226 p226
+shot 230 p230
+shot 234 p234
+shot 238 p238
+shot 242 p242
+shot 246 p246
+shot 250 p250
+shot 254 p254
+shot 258 p258
+shot 262 p262
+266.0 266.3 L thumbclick 1

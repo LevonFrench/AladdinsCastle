@@ -217,3 +217,13 @@ the kart does not turn. Tilt steering stays available only through the opt-in la
 | Excitebike: World Rally | WWRP (WiiWare) | pad (racer, stick steering) | AC Pad Sideways | profile, name entry, World Tour, training race running |
 
 Excitebike follows the owner's racer rule: steering is on the stick (D-pad lanes); tilt is not used for steering.
+
+### No message boxes (2026-10-20)
+
+DolphinNoGUI registers no alert handler, so Dolphin's default handler shows real Windows message
+boxes. `run_probe.ps1` now passes `-C Dolphin.Interface.UsePanicHandlers=False` (panic alerts and
+"Ignore and continue?" asserts are logged and answered "continue"; questions and critical errors
+still show). The alerts seen in the logged proof runs were `FIFO: Unknown Opcode` video asserts
+(`VideoCommon/OpcodeDecoding.h:166`, "Ignore and continue?") in Mario Strikers Charged and
+Excitebike: World Rally; runs without a log may have raised more. A dialog left open blocks
+emulation, which may explain some stalled offline runs (DKCR at 1-1, slow Metroid runs); not verified.
