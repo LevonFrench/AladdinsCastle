@@ -106,8 +106,8 @@ graphics settings; corrections are in each game's button set.
 | --- | --- | --- | --- | --- |
 | Umbrella Chronicles RBUP08 | red reticle, save prompt | 24% (1.62x both axes, 11% high) | 15.8, 11.4, 15 | 1.3% (mark sheet confirms all nine) |
 | Darkside Chronicles SBDP08 | red reticle, save prompt | 24% (1.21x, 1.25x, 18% low) | 20.7, 15.7, 0 | 0.6% |
-| House of the Dead Overkill RHOP8P | grey ring, save prompt | about 14% (1.31x wide, 7% high) | 18.75, 19, 15 | centred at nine points by eye (mark sheet) |
-| Dead Space Extraction RZJE69 | crosshair lines, title | 19% (1.37x, 1.05x, 7.6% high) | 18.2, 19.2, 15 | 0.5% |
+| House of the Dead Overkill RHOP8P | grey ring, save prompt | about 10% (1.31x wide, 7% high; read from pictures) | 18.75, 19, 15 | centred at nine points by eye (mark sheet) |
+| Dead Space Extraction RZJE69 | crosshair lines, title | 8.5% (1.36x wide, 1.05x tall, 7.6% high) | 18.2, 19.2, 15 | 0.5% |
 | Sin & Punishment SoS R2VE01 | gecko, keys | 1.32x wide | 18.75, 19.5, 18 | keys hit |
 | Super Mario Galaxy RMGP01 | star of the star pointer | 8.6% (1.32x wide) | 18.9, 19, 11 (set AC Motion Galaxy) | 1.2% |
 | Zelda Twilight Princess RZDP01 | blue reticle, save screen | 24% (1.0x wide, 1.3x+ tall, 22% low) | 25, 13.2, 0 (set AC Motion Zelda) | 1.0% |
