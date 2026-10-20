@@ -150,24 +150,30 @@ Pulling the trigger while pointing off the screen is the Stunner's
 off-screen shot, which these games use to reload. Right A is the gun's
 Start button.
 
+Each game has its own gun calibration screen (Options, Gun Adjust or
+Calibrate Gun), and before calibration both Virtua Cops register a shot
+above the aimed point (Virtua Cop: 13% of the picture height; Virtua Cop 2:
+10%, and 9% of the width to the right), so the bottom edge (and for
+Virtua Cop 2 the left edge) cannot be reached. Calibrating once by shooting the drawn centre of the target puts
+every shot within 0.004 of the picture of the aimed point, measured with the
+game's own bullet holes on its shoot-test screen; no aim trim is needed.
+Virtua Cop saves its calibration in backup memory, so its launcher brings a
+first save with the calibration done (never replacing an existing save).
+
 `--state <file>` starts from a saved moment. Virtua Cop 2 keeps a gun
-calibration offset that it did not restore from its save after a restart in
-our runs, and uncalibrated it registers a shot about 9% of the width right
-of and 10% of the height above the aimed point, so the left and bottom
-edges cannot be reached. Its launcher therefore starts from the title
-screen just after the game's own calibration (Options, Calibrate Gun,
-shooting the drawn centre of the target); measured on the game's shoot-test
-screen the error is then at most 0.004 of the picture, with no aim trim.
+calibration that it did not restore from its save after a restart in our
+runs, so its launcher starts from the title screen just after the game's
+own calibration.
 
 The Saturn draws its 3D as flat distorted sprites (VDP1 quads with 2D
 screen corners and no depth), so these games play on the theatre screen.
 
 Results so far (Beetle Saturn 1.29.0 b4df47a, hidden offline runs):
-Virtua Cop 2 plays from the title through the first stage with the gun
-only; the same run with and without trigger pulls gives different pictures
-(score 2350 against 0) while two runs without shots are identical, the
-off-screen shot reloads, and its one-frame white flash per shot is kept out
-of the headset.
+Virtua Cop and Virtua Cop 2 play from the title into their first stage
+with the gun only; the same run with and without trigger pulls gives
+different pictures (score 2100 or 2350 against 0) while two runs without
+shots are identical, the off-screen shot reloads, and their one-frame white
+flash per shot is kept out of the headset.
 
 ## Real 3D: the SwanStation stereo patch
 
