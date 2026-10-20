@@ -89,10 +89,12 @@ Hold Y for 3 seconds to quit; the game saves its NVRAM before the headset presen
 
 ### The cabinet's own controls in the headset
 
-With `ACVR_CONTROLS=1`, head-tracked mode draws the cabinet's wheel (driving games) or Harley-Davidson's handlebars in front of the player, turning with the steering the game receives, from whatever source: the controllers, a gamepad or the keyboard. The models are the repository's own `assets/controls/wheel-three-spoke.glb` and `bars-motorcycle.glb`, baked once into the format the patch reads:
+With `ACVR_CONTROLS=1`, head-tracked mode draws the cabinet's wheel (driving games) or Harley-Davidson's handlebars in front of the player, turning with the steering the game receives, from whatever source: the controllers, a gamepad or the keyboard. The wheel is a procedural solid (a thick rim, three spokes, a plain hub and a short column, every part a closed mesh); the bars are the repository's own `assets/controls/bars-motorcycle.glb`. Both are made once into the format the patch reads:
 
-    python tools/bake_control.py <repo>/assets/controls/wheel-three-spoke.glb pivot_wheel <Supermodel source>/Assets/acvr/wheel-three-spoke.acm
+    python tools/make_wheel_acm.py <Supermodel source>/Assets/acvr/wheel-solid.acm
     python tools/bake_control.py <repo>/assets/controls/bars-motorcycle.glb pivot_steering <Supermodel source>/Assets/acvr/bars-motorcycle.acm
+
+Without `wheel-solid.acm` the older `wheel-three-spoke.acm` (baked from `assets/controls/wheel-three-spoke.glb`) is used. The models are drawn into the supersampled picture with a depth buffer of their own: that picture has none, and without it every model looked hollow (its far side showed through).
 
 The wheel sits about 0.4 m below and 0.45 m ahead of the eyes at the moment of recentring, tilted 25 degrees like the cabinet's, and turns 135 degrees each way; the bars turn 30 degrees each way. The game's picture is drawn first and the control over it, so it is always in front.
 
@@ -101,9 +103,12 @@ The wheel sits about 0.4 m below and 0.45 m ahead of the eyes at the moment of r
 | `ACVR_CONTROLS=1` | Draw the cabinet control (off by default) |
 | `ACVR_CONTROL_POS` | Where it sits relative to the recentred eyes, metres `x,y,z` (for example `0,-0.38,-0.45`) |
 | `ACVR_TEST_STEER` | Fix the steering at -1 to 1, for unattended pictures |
-| `ACVR_STICK_GRAB=1` | Star Wars Trilogy: hold the right grip to take the flight stick and tilt the hand (25 degrees is full deflection, 2 degree dead zone; sideways roll steers, pulling back aims up); letting go centres it. The event button moves to the right stick click while this is on. With `ACVR_CONTROLS=1` the cabinet stick (`assets/controls/stick-flight.glb`, baked to `Assets/acvr/stick-flight.acm` with `tools/bake_control.py`) is drawn tilting with the hand |
+| `ACVR_STICK_GRAB=1` | Star Wars Trilogy: holding the right grip takes the flight stick and tilting the hand moves it (25 degrees is full deflection, 2 degree dead zone; sideways roll steers, pulling back aims up). When the grip is not held the controller points 1:1, as without this setting. The event button moves to the right stick click while this is on |
+| `ACVR_STICK_MODEL=1` | With `ACVR_STICK_GRAB` and `ACVR_CONTROLS=1`: draw the cabinet stick (`assets/controls/stick-flight.glb`, baked to `Assets/acvr/stick-flight.acm`) tilting with the hand. Off by default |
 | `ACVR_STICK_INVERT=1` | With `ACVR_STICK_GRAB`: pushing forward aims up instead |
 | `ACVR_TEST_STICK` | With `ACVR_STICK_GRAB`: a stick held at `pitch,roll` degrees, for unattended pictures |
+
+Head-tracked pointing (Star Wars Trilogy): the HUD panel is placed exactly over the arcade view (`ACVR_HUD_MATCH`), the right controller's ray is met with that view at the panel's distance, and a thin red laser with a yellow dot at its end is drawn in the scene (`ACVR_LASER=0` hides them). Checked offline at 12 points against the game's own crosshair in the head-tracked mode: largest error 0.009 of the picture (about 0.4 degrees).
 
 Not yet: hands drawn on the wheel, grabbing the rim itself, the shifter and pedals.
 

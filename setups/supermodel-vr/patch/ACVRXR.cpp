@@ -596,7 +596,7 @@ namespace
     glDisable(GL_SCISSOR_TEST);
     if (!InitXR())
     {
-      Log("VR presenter off; the emulator keeps running on the monitor");
+      Log("VR presenter off: no headset session; the game closes");
       SDL_GL_MakeCurrent(s_xrWindow, nullptr);
       return;
     }
@@ -697,9 +697,24 @@ namespace
             q.space = s_space;
             q.eyeVisibility = XR_EYE_VISIBILITY_BOTH;
             FillSubImage(q.subImage, HUD);
-            q.pose = PoseAhead(shown.info.originPos, shown.info.originYaw, s_height, s_hudDistance);
-            q.size.width = s_hudWidth;
-            q.size.height = s_hudWidth * 0.75f;
+            if (g_acvrStereo.hudMatch)
+            {
+              // Exactly over the arcade view, so the game's crosshair on it lies where the game aims
+              float cx, cy, w, h;
+              ACVR_ArcadeRect(s_hudDistance, cx, cy, w, h);
+              const float yaw = shown.info.originYaw;
+              q.pose = PoseAhead(shown.info.originPos, yaw, cy, s_hudDistance);
+              q.pose.position.x += cx * cosf(yaw);
+              q.pose.position.z -= cx * sinf(yaw);
+              q.size.width = w;
+              q.size.height = h;
+            }
+            else
+            {
+              q.pose = PoseAhead(shown.info.originPos, shown.info.originYaw, s_height, s_hudDistance);
+              q.size.width = s_hudWidth;
+              q.size.height = s_hudWidth * 0.75f;
+            }
             quads[0] = q;
             layers[layerCount++] = (const XrCompositionLayerBaseHeader *)&quads[0];
           }

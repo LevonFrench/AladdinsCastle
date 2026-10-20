@@ -33,6 +33,11 @@ struct ACVRStereoState
   // scenes such as Star Wars Trilogy's, sky strips such as Virtua Fighter 3's). ACVR_WIDE_ALL=0 turns it off.
   bool  wideAll  = true;
 
+  // Head-tracked: the HUD panel is placed and sized to cover the arcade view exactly (its own field of view at
+  // the panel's distance), so a crosshair drawn on it points the same way as the game's camera. On for
+  // analog-stick games (Star Wars Trilogy); ACVR_HUD_MATCH=0 or 1 forces it.
+  bool  hudMatch = false;
+
   // Head-tracked mode. When vr is true for a frame, the game's full-screen 3D viewports are drawn with the
   // headset's own per-eye frusta and with eyeView applied after the game's view matrix; the 2D layers are
   // left out of the eye pictures and drawn once into a separate HUD picture.
@@ -50,6 +55,16 @@ struct ACVRStereoState
 };
 
 extern ACVRStereoState g_acvrStereo;
+
+// Where the game's own 496x384 picture lies on a plane d metres ahead of the head-tracked recentre point, seen
+// from there: its centre (right and up of straight ahead) and its size, metres. From the game's own field of view.
+inline void ACVR_ArcadeRect(float d, float &cx, float &cy, float &w, float &h)
+{
+  float tl = g_acvrStereo.tanL, tr = g_acvrStereo.tanR, tb = g_acvrStereo.tanB, tt = g_acvrStereo.tanT;
+  if (!(tr - tl > 0.05f) || !(tt - tb > 0.05f)) { tl = -0.6f; tr = 0.6f; tb = -0.45f; tt = 0.45f; }
+  cx = d * 0.5f * (tl + tr); cy = d * 0.5f * (tb + tt);
+  w = d * (tr - tl); h = d * (tt - tb);
+}
 
 // Frame loop hooks (OSD layer)
 void ACVR_FrameBegin();             // start of a rendered frame: decides screen or head-tracked mode
