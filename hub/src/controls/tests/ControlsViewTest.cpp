@@ -55,7 +55,7 @@ private slots:
         for (const auto &value:output.value("games").toList()) {
             const auto map=value.toMap(); samples[map.value("game_id").toString()]=map;
         }
-        QCOMPARE(samples.size(),156);
+        QCOMPARE(samples.size(),158);
         qInstallMessageHandler(messages);
     }
     void allResolvedGamesHaveCalloutsAndExplicitBindingState() {

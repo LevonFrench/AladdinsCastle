@@ -1,0 +1,44 @@
+# Saturn port of the 1995 Atari Games arcade game; its title screen credits Mesa Logic (development),
+# Tantalus and Perfect Entertainment (conversion), with Williams / Midway as the licensee. Arcade original: MAME area51 (not in this catalog).
+id           = "sat-area-51"
+title        = "Area 51"
+alt_titles   = []
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1996
+manufacturer = "midway"
+developer    = "Tantalus / Perfect Entertainment"
+hardware     = "sega-saturn"
+graphics     = "polygon-3d"
+players      = 2
+series       = "Area 51"
+
+[controls]
+type = "gun"
+guns = 2
+gun  = "Virtua Gun (Saturn light gun)"
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre", via = "acvr-ps1 with Beetle Saturn and the Stunner (setups/retro-ps1-vr)" }
+
+[hub]
+pill   = "SAT-A51"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "The arcade alien-base shooter on Saturn, with its own gun calibration screen."
+badges = ["roomscale", "2-players"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Area_51_(1995_video_game)"]
+confidence = "medium"
+checked    = "2026-10-20"

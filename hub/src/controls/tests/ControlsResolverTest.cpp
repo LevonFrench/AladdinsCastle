@@ -36,7 +36,7 @@ private slots:
         const auto output=QJsonDocument::fromJson(process.readAllStandardOutput(),&parseError).object().toVariantMap();
         QVERIFY2(parseError.error==QJsonParseError::NoError,qPrintable(parseError.errorString()));
         for (const auto &game:output.value("games").toList()) expected[game.toMap().value("game_id").toString()]=game;
-        QCOMPARE(expected.size(),156);
+        QCOMPARE(expected.size(),158);
         // Supply real authored asset names to the display resolver seam. This
         // proves source/native reference parity, not a runtime renderer load.
         const QDir assets(QDir(AC_CONTROLS_ROOT).filePath("assets/guns"));
