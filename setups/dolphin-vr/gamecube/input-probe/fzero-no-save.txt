@@ -1,0 +1,65 @@
+# F-Zero GX: answer NO to "create a save file?" (stick right, A), then right A every 2 s; picture every 4 s.
+7.6 8.4 L stick_x 1
+9 9.3 R primary 1
+11 11.3 R primary 1
+13 13.3 R primary 1
+15 15.3 R primary 1
+17 17.3 R primary 1
+19 19.3 R primary 1
+21 21.3 R primary 1
+23 23.3 R primary 1
+25 25.3 R primary 1
+27 27.3 R primary 1
+29 29.3 R primary 1
+31 31.3 R primary 1
+33 33.3 R primary 1
+35 35.3 R primary 1
+37 37.3 R primary 1
+39 39.3 R primary 1
+41 41.3 R primary 1
+43 43.3 R primary 1
+45 45.3 R primary 1
+47 47.3 R primary 1
+49 49.3 R primary 1
+51 51.3 R primary 1
+53 53.3 R primary 1
+55 55.3 R primary 1
+57 57.3 R primary 1
+59 59.3 R primary 1
+61 61.3 R primary 1
+63 63.3 R primary 1
+65 65.3 R primary 1
+67 67.3 R primary 1
+69 69.3 R primary 1
+71 71.3 R primary 1
+73 73.3 R primary 1
+75 75.3 R primary 1
+77 77.3 R primary 1
+79 79.3 R primary 1
+81 81.3 R primary 1
+83 83.3 R primary 1
+85 85.3 R primary 1
+87 87.3 R primary 1
+89 89.3 R primary 1
+shot 4 d004
+shot 8 d008
+shot 12 d012
+shot 16 d016
+shot 20 d020
+shot 24 d024
+shot 28 d028
+shot 32 d032
+shot 36 d036
+shot 40 d040
+shot 44 d044
+shot 48 d048
+shot 52 d052
+shot 56 d056
+shot 60 d060
+shot 64 d064
+shot 68 d068
+shot 72 d072
+shot 76 d076
+shot 80 d080
+shot 84 d084
+shot 88 d088

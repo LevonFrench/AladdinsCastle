@@ -1,0 +1,82 @@
+# F-Zero GX: YES to the save file, 8 letters + end with right A, YES to register the name, then right A every 2 s.
+8 8.3 R primary 1
+10 10.3 R primary 1
+12 12.3 R primary 1
+14 14.3 R primary 1
+16 16.3 R primary 1
+18 18.3 R primary 1
+20 20.3 R primary 1
+22 22.3 R primary 1
+24 24.3 R primary 1
+26 26.3 R primary 1
+28 28.6 L stick_x -1
+29.5 29.8 R primary 1
+32 32.3 R primary 1
+34 34.3 R primary 1
+36 36.3 R primary 1
+38 38.3 R primary 1
+40 40.3 R primary 1
+42 42.3 R primary 1
+44 44.3 R primary 1
+46 46.3 R primary 1
+48 48.3 R primary 1
+50 50.3 R primary 1
+52 52.3 R primary 1
+54 54.3 R primary 1
+56 56.3 R primary 1
+58 58.3 R primary 1
+60 60.3 R primary 1
+62 62.3 R primary 1
+64 64.3 R primary 1
+66 66.3 R primary 1
+68 68.3 R primary 1
+70 70.3 R primary 1
+72 72.3 R primary 1
+74 74.3 R primary 1
+76 76.3 R primary 1
+78 78.3 R primary 1
+80 80.3 R primary 1
+82 82.3 R primary 1
+84 84.3 R primary 1
+86 86.3 R primary 1
+88 88.3 R primary 1
+90 90.3 R primary 1
+92 92.3 R primary 1
+94 94.3 R primary 1
+96 96.3 R primary 1
+98 98.3 R primary 1
+100 100.3 R primary 1
+102 102.3 R primary 1
+104 104.3 R primary 1
+106 106.3 R primary 1
+108 108.3 R primary 1
+110 110.3 R primary 1
+112 112.3 R primary 1
+114 114.3 R primary 1
+116 116.3 R primary 1
+118 118.3 R primary 1
+120 120.3 R primary 1
+shot 30 f030
+shot 34 f034
+shot 38 f038
+shot 42 f042
+shot 46 f046
+shot 50 f050
+shot 54 f054
+shot 58 f058
+shot 62 f062
+shot 66 f066
+shot 70 f070
+shot 74 f074
+shot 78 f078
+shot 82 f082
+shot 86 f086
+shot 90 f090
+shot 94 f094
+shot 98 f098
+shot 102 f102
+shot 106 f106
+shot 110 f110
+shot 114 f114
+shot 118 f118
+121 122 L squeeze 0.05
