@@ -20,6 +20,30 @@ constexpr unsigned max_width = 1024, max_height = 1024, players = 2;
 constexpr std::uint32_t magic = 0x474d5641; // "AVMG" little-endian
 constexpr std::uint32_t protocol_version = 4;
 
+// Body controls for motion cabinets (bikes, skis, jet ski, flight stick), written by
+// the viewer from controller poses; MAME maps each named axis onto the analog field a
+// launcher names (MAME_VR_MOTION). Appended after the picture, so the gun fields keep
+// their offsets; a viewer and MAME are still rebuilt together.
+enum motion_axis : unsigned
+{
+	axis_steer,      // -1..1, right +: right controller roll (handlebar, bike bank)
+	axis_throttle,   // 0..1: right trigger
+	axis_brake,      // 0..1: left trigger
+	axis_stick_x,    // -1..1, right +: right controller roll (flight stick)
+	axis_stick_y,    // -1..1, pulled back +: right controller pitched up
+	axis_throttle2,  // 0..1: left trigger (throttle lever)
+	axis_lean,       // -1..1, right +: both controllers' mean roll (ski edge)
+	axis_twist,      // -1..1, right +: both controllers' mean yaw against the head (ski swing)
+	axis_pedal,      // 0..1: pedalling speed from alternating hand height, or the right trigger
+	motion_axes = 16
+};
+struct motion
+{
+	std::uint64_t heartbeat_ms;      // same staleness rule as controls
+	std::uint32_t valid, reserved;
+	float axis[motion_axes];
+};
+
 // Written by the viewer. u,v: 0..1 on the displayed picture, top-left origin.
 struct controls
 {
@@ -54,6 +78,7 @@ struct frame
 	controls input[players];
 	gun_state gun[players];
 	std::uint32_t pixels[max_width * max_height]; // XRGB8888, rows of 'stride'
+	motion body;                     // written by the viewer (motion cabinets)
 };
 
 inline void mapping_name(char *out, std::size_t size, unsigned long pid)
@@ -89,6 +114,11 @@ public:
 	}
 	void unlock() { ReleaseMutex(m_lock); }
 
+	static bool fresh(const motion &input)
+	{
+		const auto now = GetTickCount64();
+		return input.valid && input.heartbeat_ms <= now && now - input.heartbeat_ms < 250;
+	}
 	static bool fresh(const controls &input)
 	{
 		const auto now = GetTickCount64();
@@ -106,6 +136,7 @@ public:
 	frame *try_lock() { return nullptr; }
 	void unlock() { }
 	static bool fresh(const controls &) { return false; }
+	static bool fresh(const motion &) { return false; }
 };
 #endif
 } // namespace acvr_mono
