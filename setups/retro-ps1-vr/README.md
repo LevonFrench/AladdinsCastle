@@ -160,6 +160,19 @@ game's own bullet holes on its shoot-test screen; no aim trim is needed.
 Virtua Cop saves its calibration in backup memory, so its launcher brings a
 first save with the calibration done (never replacing an existing save).
 
+The House of the Dead moves its sight towards the gun in steps (the
+Saturn version's own smoothing), and the sight stops up to about 8 pixels
+short when the gun comes from the right or from above, wherever the
+calibration is. The launcher therefore sets an aim trim of half that step
+(`ACVR_PS1_AIM=1,-0.0114,1,0.0156`), which leaves at most 0.012 of the width
+and 0.02 of the height in either direction instead of 0.023 and 0.034 in
+one. Its shot flash whitens the scene rather than painting it white, so
+`ACVR_PS1_FLASH_SHARE=60` (the share of bright samples that makes a flash,
+default 85) keeps all of them out of the headset. The disc named USA in our
+set is the European release (50 Hz, refused by a US console), so the
+launcher uses the Japanese disc, whose menus are in English. Like Virtua
+Cop it keeps its calibration in backup memory.
+
 `--state <file>` starts from a saved moment. Virtua Cop 2 keeps a gun
 calibration that it did not restore from its save after a restart in our
 runs, so its launcher starts from the title screen just after the game's
@@ -169,11 +182,12 @@ The Saturn draws its 3D as flat distorted sprites (VDP1 quads with 2D
 screen corners and no depth), so these games play on the theatre screen.
 
 Results so far (Beetle Saturn 1.29.0 b4df47a, hidden offline runs):
-Virtua Cop and Virtua Cop 2 play from the title into their first stage
-with the gun only; the same run with and without trigger pulls gives
-different pictures (score 2100 or 2350 against 0) while two runs without
-shots are identical, the off-screen shot reloads, and their one-frame white
-flash per shot is kept out of the headset.
+Virtua Cop, Virtua Cop 2 and The House of the Dead play from the title
+into their first stage with the gun only; the same run with and without
+trigger pulls gives different pictures (scores and kills against game over)
+while two runs without shots are identical, the off-screen shot reloads, and
+their white flash per shot (one frame; two in The House of the Dead) is
+kept out of the headset.
 
 ## Real 3D: the SwanStation stereo patch
 

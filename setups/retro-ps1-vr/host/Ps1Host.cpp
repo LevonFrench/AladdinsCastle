@@ -514,7 +514,10 @@ bool IsFlashFrame()
     }
   }
   if (g_hwOn) glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  return total && bright * 100 >= total * 85;
+  // ACVR_PS1_FLASH_SHARE: the share of bright samples (percent, default 85) that makes a flash. House of the Dead on
+  // the Saturn whitens the picture over the scene rather than painting it white, so some of its flashes only reach 77%.
+  static const unsigned share = [] { const char *e = std::getenv("ACVR_PS1_FLASH_SHARE"); const int v = e ? std::atoi(e) : 0; return v >= 50 && v <= 100 ? (unsigned)v : 85u; }();
+  return total && bright * 100 >= total * share;
 }
 unsigned g_flashRun = 0, g_flashHidden = 0, g_flashLongest = 0;
 const bool g_hideFlash = [] { const char *e = std::getenv("ACVR_PS1_HIDE_FLASH"); return !e || std::atoi(e) != 0; }();
