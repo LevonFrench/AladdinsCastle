@@ -13,7 +13,7 @@ struct Game {const char *id,*title;int year;QList<Release> releases;QStringList 
 const QList<Game> &table(){
  static const QList<Game> games{
   {"hotd2","The House of the Dead 2",1999,{{"MK-51002","US",true},{"MK-5100250","PAL",true}},{"houseofthedead2","hotd2"}},
-  {"confmiss","Confidential Mission",2001,{{"MK-51160","US",false}},{"confidentialmission","confmission","confmiss"}},
+  {"confmiss","Confidential Mission",2001,{{"MK-51160","US",true}},{"confidentialmission","confmission","confmiss"}},
   {"dcox","Death Crimson OX",2001,{{"T2401N","US",false}},{"deathcrimsonox","crimsonox"}},
   {"dcrimson2","Death Crimson 2",1999,{{"T23201M","Japan",false}},{"deathcrimson2","deathcrimsonii"}},
   {"vcop2","Virtua Cop 2",2000,{{"HDR-0061","Japan",false}},{"virtuacop2","vcop2"}},

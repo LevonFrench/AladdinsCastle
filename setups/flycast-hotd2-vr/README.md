@@ -25,6 +25,9 @@ is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see 
 | HOTD2 (US) gun calibration | `core/rend/vr_reproject.cpp` | The profile writes the game's seven calibration words so its aim matches Flycast's light gun exactly (see Findings). |
 | Per-game aim trim | `core/rend/vr_reproject.cpp`, `core/input/udp_lightgun.cpp` | A profile can move the light gun's beam to where a game with a fixed beam mapping of its own reads the intended pixel (`GameProfile::aim`). |
 | Ranger Mission profile | `core/rend/vr_reproject.cpp` | Atomiswave (Sammy 2004): its aim trim (see Findings). |
+| Confidential Mission profile | `core/rend/vr_reproject.cpp` | US (MK-51160): its camera, life size and aim trim (see Findings). |
+| Light guns for every game | `core/rend/vr_reproject.cpp` | In the headset ports A and B get light guns for every Dreamcast game, not only those with a profile. |
+| Fixed clock | `core/hw/aica/aica_if.cpp` | `ACVR_RTC=<seconds since 1950>` fixes the Dreamcast clock so test runs repeat exactly (Confidential Mission seeds its randomness from it). |
 | Wide preview | `core/rend/vr_reproject.cpp` | `ACVR_PREVIEW_WIDE=k` shows k times the stock view in the flat picture, the 2D plane still at its stock size: what the headset shows around the original frame (open-frame pictures). The shot log also gives the centre of each polygon near a shot. |
 
 The hidden window and every `ACVR_*` test aid change nothing unless their environment variables are set.
@@ -102,6 +105,19 @@ wide picture and measures how much of the rest holds picture.
   both). Sports Shooting USA reloads by itself. Every one draws past 4:3 with Flycast's `rend.WideScreen`
   (89-100% of the side area has picture) and shows its world beyond the frame in a turned 3D view.
   `tools/aimpump.py` makes a nine-point script that pumps before every shot; `tools/holes.py` finds bullet holes.
+
+- Confidential Mission (US), offline (2026-10-20), after the owner's headset report (aim drifting, no off-screen
+  reload, open frame only partly). Causes found: no light gun in port A without a profile (now always); no camera
+  profile, so the world was rebuilt at HOTD2's scale, 20-60 cm from the eyes and behind the gun's muzzle, so the
+  aim ray started past what it was meant to hit and a gun pointed away from the screen still "hit" the miniature
+  room (no off-screen shot). Its profile now has its camera (projection 0x0C2F0C20, viewport 0x0C2F0D58, focal
+  540.8), its size (`unitScale` 4.6: a guard 340 px tall at W 25 is 1.8 m) and an aim trim: it reads the gun at
+  0x0C2AFCB8/BC as 322.5 + 1.073 (x - 320), 229 + 1.152 (y - 240), up to 34 px off; with the trim within 2 px
+  over a 5 x 4 grid. Shots vs two identical control runs (with `ACVR_RTC`) hit the guard; a shot off the screen
+  reloads at once. Open frame: with `rend.WideScreen` it draws the rooms past 4:3 (92-100% of the side area in
+  play, 96-100% around the frame through the 3D rebuild); in story scenes people at the sides can be cut into
+  pieces (the game culls body parts). A wider game view (`vr.FovScale` 1.5 through its viewport) also fills
+  60-100%, but its gun hit test against the widened view is untested, so it is not used.
 
 ## Status (2026-10-14)
 

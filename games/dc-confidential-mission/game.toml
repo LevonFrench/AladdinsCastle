@@ -27,7 +27,7 @@ note = "Optional: your own Dreamcast BIOS dump"
 
 [routes]
 flycast = "working"  # Batocera lists this as working (secondary source, see data note)
-vr      = { best = "theatre", planned = "true3d-planned" }
+vr      = { best = "true3d", via = "hotd2-vr Flycast fork with setups/flycast-hotd2-vr (US profile MK-51160, offline-checked 2026-10-20)" }
 
 [hub]
 pill   = "DC-CONFM"

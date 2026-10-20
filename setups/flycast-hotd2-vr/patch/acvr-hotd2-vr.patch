@@ -11,6 +11,28 @@ index 6f75fb7..b61566f 100644
  Option<bool> VrLaser("vr.Laser", true);		// aim line and dot from the gun
  Option<bool> VrShowGun("vr.ShowGun", true);	// a gun in the shooting hand
  Option<float> VrGunScale("vr.GunScale", 0.68f);	// its size, times the model's (24.7 cm long); 0.68: 17 cm, a compact pistol
+diff --git a/core/hw/aica/aica_if.cpp b/core/hw/aica/aica_if.cpp
+index 92bfa83..dfcc4c5 100644
+--- a/core/hw/aica/aica_if.cpp
++++ b/core/hw/aica/aica_if.cpp
+@@ -5,6 +5,7 @@
+ */
+ 
+ #include "aica_if.h"
++#include <cstdlib>
+ #include "aica_mem.h"
+ #include "hw/holly/sb.h"
+ #include "hw/holly/holly_intc.h"
+@@ -198,6 +199,9 @@ static int DreamcastSecond(int tag, int cycles, int jitter, void *arg)
+ void initRtc()
+ {
+ 	RealTimeClock = GetRTC_now();
++	// ACVR: ACVR_RTC=<seconds since 1950> fixes the clock, so unattended test runs repeat exactly
++	if (const char *fixed = getenv("ACVR_RTC"))
++		RealTimeClock = (u32)strtoul(fixed, nullptr, 10);
+ 	if (rtc_schid == -1)
+ 		rtc_schid = sh4_sched_register(0, &DreamcastSecond);
+ }
 diff --git a/core/input/udp_lightgun.cpp b/core/input/udp_lightgun.cpp
 index 11bc267..32fefda 100644
 --- a/core/input/udp_lightgun.cpp
@@ -472,7 +494,7 @@ index 1295144..451a735 100644
  	sessionRunning = focused = drawingEye = false;
  	sessionLost = exiting = false;
 diff --git a/core/rend/vr_reproject.cpp b/core/rend/vr_reproject.cpp
-index 6314981..133e6aa 100644
+index 6314981..eff9e62 100644
 --- a/core/rend/vr_reproject.cpp
 +++ b/core/rend/vr_reproject.cpp
 @@ -235,6 +235,10 @@ struct GameProfile
@@ -504,7 +526,7 @@ index 6314981..133e6aa 100644
  	list.push_back(p);
  	// The Maze of the Kings (NAOMI, Hitmaker 2002; worked out from rips, RAM dumps and its
  	// code, see hotd2-vr/README). Its field of view changes from scene to scene (60 degrees
-@@ -343,6 +358,22 @@ static std::vector<GameProfile> makeProfiles()
+@@ -343,6 +358,39 @@ static std::vector<GameProfile> makeProfiles()
  	p.model.file = "staff-mok.bin";
  	p.model.staff = { { { 0xC1C000, 0xCB0800 }, { 0xD87000, 0xDA9800 } } };
  	list.push_back(p);
@@ -520,6 +542,23 @@ index 6314981..133e6aa 100644
 +	// position at 0x0C7008B4 / 0x0C7008B8 (centred pixels). A beam at screen pixel x reads as
 +	// (x - 333.2) * 0.961 left of 333.2 and * 1.150 right of it, y as (y - 259.4) * 0.997
 +	// (a 5 x 5 sweep, 2026-10-19): up to 26 px off at the right edge and 20 px low.
++	// ACVR: Confidential Mission (Dreamcast, US, Hitmaker 2001). Its camera: projection 0x0C2F0C20
++	// (1.69, 2.2533: a focal of 540.8 px, 47.9 degrees vertical) and viewport 0x0C2F0D58 (320, -240),
++	// found in RAM dumps 2026-10-19. Its gun: it keeps the screen position it read at 0x0C2AFCB8 / BC;
++	// a 5 x 5 sweep gives x = 322.5 + 1.073 (beam - 320) and y = 229 + 1.152 (beam - 240), so as loaded
++	// its aim was up to 22 px off sideways and 34 px off up and down at the edges. The trim moves the
++	// beam to where the game reads the intended pixel.
++	p = GameProfile();
++	p.gameId = "MK-51160";
++	p.projAddr = 0x2F0C20;
++	p.viewportAddr = 0x2F0D58;
++	p.focal = 540.8f;
++	p.aim = { 317.67f, 249.55f, 1.0732f, 1.0732f, 1.1517f, 1.1517f };
++	// Its units are bigger than HOTD2's: a guard 340 px tall at W 25 is 15.7 units, so 1.8 m is
++	// 0.115 m a unit, 4.6 times HOTD2's 0.025. Without it the world stood 20-60 cm from the eyes,
++	// behind the gun's muzzle, and the aim ray started past what it was meant to hit.
++	p.unitScale = 4.6f;
++	list.push_back(p);
 +	p = GameProfile();
 +	p.gameId = "RANGER MISSION";
 +	p.aim = { 333.2f, 259.4f, 0.961f, 1.150f, 0.997f, 0.997f };
@@ -527,7 +566,48 @@ index 6314981..133e6aa 100644
  	return list;
  }
  static const std::vector<GameProfile> profiles = makeProfiles();
-@@ -471,6 +502,20 @@ static struct ProfileWritesRegistration
+@@ -393,23 +441,25 @@ static void applyGameProfile(Event, void *)
+ 		}
+ 		std::copy(std::begin(prof.markerTextures), std::end(prof.markerTextures), std::begin(markerTextures));
+ 		std::copy(std::begin(prof.p2PromptTextures), std::end(prof.p2PromptTextures), std::begin(p2PromptTextures));
+-		const bool gunB = config::VrDualWield;
+-		if (xr::enabled() && config::VrXrGun && settings.platform.isConsole()
+-				&& (config::MapleMainDevices[0] != MDT_LightGun || (gunB && config::MapleMainDevices[1] != MDT_LightGun)))
+-		{
+-			// The right controller is a light gun: plug one into port A (a pad ignores
+-			// where it points), and player 2's into port B for dual wielding (vr.DualWield).
+-			// The devices were made just before this event, before the game runs, so they
+-			// can still be swapped. (An arcade game's guns are on its I/O board already.)
+-			config::MapleMainDevices[0].override(MDT_LightGun);
+-			if (gunB)
+-				config::MapleMainDevices[1].override(MDT_LightGun);
+-			mcfg_DestroyDevices();
+-			mcfg_CreateDevices();
+-			NOTICE_LOG(RENDERER, "VR: light gun in port A%s", config::VrDualWield ? " and B" : "");
+-		}
+ 		NOTICE_LOG(RENDERER, "VR: camera profile for %s", prof.gameId);
+ 	}
++	// ACVR: light guns for every Dreamcast game in the headset, not only those with a profile
++	// (Confidential Mission had a pad in port A). Was inside the profile loop.
++	const bool gunB = config::VrDualWield;
++	if (xr::enabled() && config::VrXrGun && settings.platform.isConsole()
++			&& (config::MapleMainDevices[0] != MDT_LightGun || (gunB && config::MapleMainDevices[1] != MDT_LightGun)))
++	{
++		// The right controller is a light gun: plug one into port A (a pad ignores
++		// where it points), and player 2's into port B for dual wielding (vr.DualWield).
++		// The devices were made just before this event, before the game runs, so they
++		// can still be swapped. (An arcade game's guns are on its I/O board already.)
++		config::MapleMainDevices[0].override(MDT_LightGun);
++		if (gunB)
++			config::MapleMainDevices[1].override(MDT_LightGun);
++		mcfg_DestroyDevices();
++		mcfg_CreateDevices();
++		NOTICE_LOG(RENDERER, "VR: light gun in port A%s", config::VrDualWield ? " and B" : "");
++	}
+ }
+ 
+ static struct GameProfileRegistration
+@@ -471,6 +521,20 @@ static struct ProfileWritesRegistration
  	}
  } profileWritesRegistration;
  
@@ -548,7 +628,7 @@ index 6314981..133e6aa 100644
  float worldScale()
  {
  	const GameProfile *prof = activeProfile;
-@@ -688,11 +733,34 @@ static void hideLetterbox(rend_context& ctx, const std::vector<PolyParam>& list,
+@@ -688,11 +752,34 @@ static void hideLetterbox(rend_context& ctx, const std::vector<PolyParam>& list,
  {
  	if (activeProfile != nullptr && activeProfile->letterboxW > 0.f)
  		hudW = activeProfile->letterboxW;
@@ -583,7 +663,7 @@ index 6314981..133e6aa 100644
  		u32 i = pp.first;
  		while (i < pp.first + pp.count && onOverlay(ctx.verts[i], hudW) && opaqueBlack(ctx.verts[i]))
  			i++;
-@@ -1186,9 +1254,9 @@ void dropShotMarker(rend_context& ctx, const RenderPass& pass, const RenderPass&
+@@ -1186,9 +1273,9 @@ void dropShotMarker(rend_context& ctx, const RenderPass& pass, const RenderPass&
  			}
  			const bool big = size.x >= fbWidth * 0.5f && size.y >= fbHeight * 0.5f && size.x < fbWidth * 4.f && size.y < fbHeight * 4.f;
  			if (diag && (((all2D || markerLike) && offset <= MarkerMaxOffset) || (big && (all2D || bright))))
@@ -595,7 +675,7 @@ index 6314981..133e6aa 100644
  						(unsigned)(pp.tcw.TexAddr << 3), pp.tsp.full, c[0], c[1], c[2], c[3], hide ? " DROPPED" : "");
  			if (!hide)
  				continue;
-@@ -1263,7 +1331,15 @@ const ReprojectParams& update(const rend_context& ctx)
+@@ -1263,7 +1350,15 @@ const ReprojectParams& update(const rend_context& ctx)
  			* glm::rotate(glm::mat4(1.f), glm::radians(pitch), glm::vec3(1, 0, 0));
  	// The renderer's ndc y points down the image; flip into y-up space for the pose.
  	const glm::mat4 flipY = glm::scale(glm::mat4(1.f), glm::vec3(1, -1, 1));
