@@ -119,7 +119,8 @@ public:
    const float yaw=std::atan2(2*(q[0]*q[2]+q[3]*q[1]),1-2*(q[0]*q[0]+q[1]*q[1]));
    scene.screen.frame=Mat4::Translation(centre[0],centre[1],centre[2])*Mat4::Rotation(0,1,0,yaw);placed=true;
   }
-  scene.screen.height=scene.screen.width/snapshot.aspect;
+  // keep a 4:3 picture 2.4 m tall; an open-frame (wider) picture adds width at the sides
+  scene.screen.width=std::max(3.2f,2.4f*snapshot.aspect);scene.screen.height=scene.screen.width/snapshot.aspect;
   float u=.5f,v=.5f;bool on=false;
   Mat4 aim=Mat4::FromPose(frame.aim.position,frame.aim.orientation);
   if(frame.focused && frame.aim.valid){const float direction[3]={-aim.m[8],-aim.m[9],-aim.m[10]};on=scene.screen.hit(frame.aim.position,direction,u,v);}
