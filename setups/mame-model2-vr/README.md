@@ -256,8 +256,13 @@ Check, default calibration; 17 points, no trigger), all E2:
 - Gunblade NY: its reticle followed 1.144x-0.060 and 1.154y-0.084 (mission select).
   With the inverse trim the largest error is 0.0133 and the mean 0.0045; one step of
   the 8-bit turret pot is about 0.0076 of the screen, so this is near its resolution.
-- Behind Enemy Lines: no test-menu gun screen could be opened and no live reticle was
-  found in play; its aim is not measured.
+- Rail Chase 2: its reticle followed the turret with different scales either side of
+  centre (x 0.362 at centre, y 0.569), so the trim is piecewise: where the mark lands
+  for cabinet input 0, 0.5 and 1 per axis. After it: errors within 0.01 except the
+  lowest point (0.038, near the dashboard). Needs the owner's epr-17895.ic8.
+- Behind Enemy Lines: its test mode (hold Test at power-on) has GUN CALIBRATION, which
+  the patch's full-range turret input passes (min/max stops recorded). In play the game
+  shows no reticle; shots land as tracer and hit sparks, so its aim is not measured.
 
 **Shots, with a control run** (MAME reads the script, frame-exact; runs A and B are
 identical, C is the same script without trigger pulls): A and B matched in every
@@ -268,10 +273,12 @@ Virtua Cop, The House of the Dead and Gunblade NY, enemies hit (E2).
 **Racing.** Protocol 4 adds steering (-1..1), accelerator and brake (0..1) and two grip
 buttons to the shared controller block. The viewer binds the left trigger (brake),
 the right trigger value (accelerator), the left thumbstick X and both grips on the
-Touch and Index profiles. Steering is the thumbstick when it is pushed, else the right
-controller's roll held like a wheel (60 degrees = full lock). Grips shift up/down
+Touch and Index profiles. Steering is the left thumbstick. Rolling the right controller like a
+wheel (60 degrees = full lock) is an opt-in, `ACVR_M2_ROLL_STEER=1` for the viewer; off
+by default, and a pushed stick still wins. Grips shift up/down
 (an H-pattern box steps one gear per press) or are the game's extra buttons.
-Daytona USA, Sega Rally Championship, INDY 500 and Motor Raid, full left steering
+Daytona USA, Sega Rally Championship, INDY 500, Motor Raid, Super GT 24h and Desert
+Tank, full left steering
 from a fixed time against the same run straight: identical repeat runs, and the car
 or bike turns left (E2). Steering only takes effect once the race is the player's
 (after Daytona's rolling start). Gear shifting on the grips is built, not proven.
@@ -280,9 +287,13 @@ or bike turns left (E2). Steering only takes effect once the race is the player'
 game's full-width 3D window: the same frustum construction as the hardware's window
 command with the left and right edges moved out, a wider render target and wider eye
 pictures. The 2D tile layers (HUD, some skies) stay in the middle 4:3 area. Gun aim in
-the added sides counts as off the screen. In Virtua Cop, Virtua Cop 2, Daytona USA and
-Sega Rally Championship at 16:9 the world continues into both added sides (about
-94-99% of their pixels drawn), so these games send geometry past 4:3 (E2). Other games are unchecked; a
+the added sides counts as off the screen. At 16:9 the world continues into both added
+sides in Virtua Cop, Virtua Cop 2, Daytona USA and Sega Rally (94-99% of side pixels
+drawn), Behind Enemy Lines (97-100%), INDY 500 (79-92%), Gunblade NY (78-92% in play)
+and The House of the Dead (70-79%; its 2D sky picture stays 4:3). Motor Raid's track
+fills the sides but its 2D sky does not (28-75%). For light guns the added sides read
+as off the screen (House of the Dead: the mark goes to its off-screen corner); inside
+the 4:3 area aim is unchanged (within 0.0025). A turret stops at the screen edge. Other games are unchecked; a
 game that culls to 4:3 shows black sides. The viewer uploads the wider pictures
 (hidden OpenGL readback check passed).
 
