@@ -308,6 +308,10 @@ Beetle Adventure Racing! breaks with `16:9 adjusted` even without any of this
 and 3D but no open frame. Its 2D layer has opaque black border bars;
 `ACVR_HUD_KEY_BLACK=1` shows pure black HUD pixels as transparent.
 
+Cruis'n Exotica draws its whole 3D world without the depth test;
+`ACVR_GL_3D_NO_DEPTH=1` counts its triangle draws as the 3D picture all the
+same, so its HUD still splits off.
+
 ### Aim that moves by rate (Star Fox 64)
 
 Where the stick moves the game's marker rather than placing it,

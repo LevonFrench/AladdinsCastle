@@ -499,7 +499,9 @@ void Seen(bool clear)
 {
   // The game's 3D picture: a framebuffer that gets depth-tested draws of the triangle shaders. (GLideN64 also
   // fills its depth image with depth-tested rectangles; that one has no HUD or backdrop.)
-  if (!clear && s_depthTest) {
+  // ACVR_GL_3D_NO_DEPTH=1: games that draw their 3D world without the depth test (Cruis'n Exotica) count it all the same.
+  static const bool noDepth = EnvF("ACVR_GL_3D_NO_DEPTH", 0) != 0;
+  if (!clear && (s_depthTest || noDepth)) {
     const auto it = s_programs.find(s_program);
     if (it != s_programs.end() && it->second.wide >= 0) { s_fboHas3D.insert(s_drawFbo); s_fbo3DEver.insert(s_drawFbo); }
   }
