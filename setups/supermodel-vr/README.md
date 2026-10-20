@@ -73,6 +73,8 @@ Head-tracked mode wants square pictures and Supermodel's own supersampling: `-wi
 
 The Home key recentres. The presenter writes what it does to `acvr-xr.log` in the working folder.
 
+With `ACVR_XR` the game never runs unseen. It closes cleanly, saving NVRAM, in three cases: when the runtime ends the session (SteamVR's "Exit game", a lost runtime), when the presenter cannot start (no runtime, no headset), or when the presenter's thread stops. While the session is starting, or after the runtime stopped it (headset idle, standby), the game waits, paused.
+
 ### Controllers
 
 Read through OpenXR and turned into the emulator's own inputs, by cabinet type:
