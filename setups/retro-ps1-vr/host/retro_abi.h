@@ -29,6 +29,12 @@
 #define RETRO_DEVICE_ID_JOYPAD_RIGHT  7
 #define RETRO_DEVICE_ID_JOYPAD_A      8
 #define RETRO_DEVICE_ID_JOYPAD_X      9
+#define RETRO_DEVICE_ID_JOYPAD_L      10
+#define RETRO_DEVICE_ID_JOYPAD_R      11
+#define RETRO_DEVICE_ID_JOYPAD_L2     12
+#define RETRO_DEVICE_ID_JOYPAD_R2     13
+#define RETRO_DEVICE_ID_JOYPAD_L3     14
+#define RETRO_DEVICE_ID_JOYPAD_R3     15
 #define RETRO_DEVICE_ID_JOYPAD_MASK   256
 
 #define RETRO_DEVICE_ID_LIGHTGUN_TRIGGER      2
@@ -42,11 +48,18 @@
 #define RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN 15
 #define RETRO_DEVICE_ID_LIGHTGUN_RELOAD       16
 
+#define RETRO_DEVICE_INDEX_ANALOG_LEFT   0
+#define RETRO_DEVICE_INDEX_ANALOG_RIGHT  1
+#define RETRO_DEVICE_INDEX_ANALOG_BUTTON 2
+#define RETRO_DEVICE_ID_ANALOG_X         0
+#define RETRO_DEVICE_ID_ANALOG_Y         1
+
 #define RETRO_DEVICE_ID_POINTER_X       0
 #define RETRO_DEVICE_ID_POINTER_Y       1
 #define RETRO_DEVICE_ID_POINTER_PRESSED 2
 
 #define RETRO_MEMORY_SAVE_RAM 0
+#define RETRO_MEMORY_SYSTEM_RAM 2
 
 #define RETRO_ENVIRONMENT_EXPERIMENTAL 0x10000
 #define RETRO_ENVIRONMENT_GET_OVERSCAN               2
@@ -107,6 +120,7 @@ struct retro_game_geometry { unsigned base_width, base_height, max_width, max_he
 struct retro_system_timing { double fps, sample_rate; };
 struct retro_system_av_info { retro_game_geometry geometry; retro_system_timing timing; };
 struct retro_controller_description { const char *desc; unsigned id; };
+struct retro_input_descriptor { unsigned port, device, index, id; const char *description; };
 struct retro_controller_info { const retro_controller_description *types; unsigned num_types; };
 
 typedef void (*retro_log_printf_t)(retro_log_level level, const char *fmt, ...);

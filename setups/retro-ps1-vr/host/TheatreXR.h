@@ -16,6 +16,7 @@ struct Config {
   bool crt = false;        // scanlines
   std::string gunModel, gunMeta;   // GLB and its TOML; empty: no gun drawn
   bool sideBySide = false;         // the picture holds the left eye in its left half, the right eye in its right half
+  bool aimDot = true;              // the orange dot where the right controller's ray meets the screen
 };
 struct Input {
   float u = .5f, v = .5f;
@@ -25,6 +26,11 @@ struct Input {
   float padX = 0, padY = 0;
   bool padCross = false, padCircle = false, padSquare = false, padStart = false;
   bool stickLeft = false, stickRight = false;   // thumbstick clicks
+  // Analog values and the right controller's roll, for pad games (steering wheel, accelerate/brake).
+  float triggerValue = 0, padTriggerValue = 0, gripValue = 0, padGripValue = 0;
+  float rightX = 0, rightY = 0;   // right thumbstick
+  float roll = 0;                 // right controller roll about its pointing axis, radians, positive turned clockwise (to the right)
+  bool padYButton = false;             // left Y (Index: left B) pressed at all; held 3 s it still quits
 };
 // All picture and graphics calls run on the thread whose OpenGL context is current
 // in `owner` (the emulator thread). The headset runs on its own thread.
