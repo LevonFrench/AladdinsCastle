@@ -28,6 +28,7 @@ is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see 
 | Confidential Mission profile | `core/rend/vr_reproject.cpp` | US (MK-51160): its camera, life size and aim trim (see Findings). |
 | Light guns for every game | `core/rend/vr_reproject.cpp` | In the headset ports A and B get light guns for every Dreamcast game, not only those with a profile. |
 | Fixed clock | `core/hw/aica/aica_if.cpp` | `ACVR_RTC=<seconds since 1950>` fixes the Dreamcast clock so test runs repeat exactly (Confidential Mission seeds its randomness from it). |
+| No desktop dialogs | `core/windows/winmain.cpp`, `core/sdl/sdl.cpp` | Flycast never shows a message box: its two error boxes are logged instead, Windows crash, critical-error and abort dialogs are off (`SetErrorMode`, `_set_abort_behavior`), SDL assertions are ignored, and a fatal error ends the program quietly when no debugger is attached. Checked: a missing disc ends the run with the reason in `flycast.log` and no window shown. |
 | Wide preview | `core/rend/vr_reproject.cpp` | `ACVR_PREVIEW_WIDE=k` shows k times the stock view in the flat picture, the 2D plane still at its stock size: what the headset shows around the original frame (open-frame pictures). The shot log also gives the centre of each polygon near a shot. |
 
 The hidden window and every `ACVR_*` test aid change nothing unless their environment variables are set.
