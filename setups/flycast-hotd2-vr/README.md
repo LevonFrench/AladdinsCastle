@@ -23,6 +23,8 @@ is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see 
 | Exact-time pictures | `core/rend/vr/debug_shots.cpp` | `ACVR_SNAP="seconds;..."` writes `snap_<centiseconds>.png` at those game times. With `rend.ThreadedRendering=no` two runs with the same inputs give identical pictures (checked on The House of the Dead 2: 20 of 20). |
 | End, rip, watch, poke | `core/rend/vr/debug_shots.cpp` | `ACVR_QUIT=seconds` ends the run; `ACVR_RIP="seconds:count,every,ram"` asks for a rip at a game time; `ACVR_WATCH="offset:f|h|w,..."` logs RAM values when they change; `ACVR_POKE="offset:value,..."` writes 16-bit values every frame (to find and test a game's gun calibration). |
 | HOTD2 (US) gun calibration | `core/rend/vr_reproject.cpp` | The profile writes the game's seven calibration words so its aim matches Flycast's light gun exactly (see Findings). |
+| Per-game aim trim | `core/rend/vr_reproject.cpp`, `core/input/udp_lightgun.cpp` | A profile can move the light gun's beam to where a game with a fixed beam mapping of its own reads the intended pixel (`GameProfile::aim`). |
+| Ranger Mission profile | `core/rend/vr_reproject.cpp` | Atomiswave (Sammy 2004): its aim trim (see Findings). |
 | Wide preview | `core/rend/vr_reproject.cpp` | `ACVR_PREVIEW_WIDE=k` shows k times the stock view in the flat picture, the 2D plane still at its stock size: what the headset shows around the original frame (open-frame pictures). The shot log also gives the centre of each polygon near a shot. |
 
 The hidden window and every `ACVR_*` test aid change nothing unless their environment variables are set.
@@ -78,6 +80,15 @@ wide picture and measures how much of the rest holds picture.
   the game's own position is within 2 px of where the gun was sent over a 5 x 5 grid, and its shot flash lands on it.
 - Open frame: with the profile's wider view (41 to 74 degrees) the game draws all around the original frame: 90-96%
   of the area outside it holds picture in chapter 1 (`ACVR_PREVIEW_WIDE=2`, `tools/openframe.py`).
+
+- Ranger Mission (Atomiswave), offline: boots to play on free play (set once in the system menu's COIN SETTINGS
+  and kept in the game's saved settings), A starts, a shot picks the stage and skips the intro. It reads the gun
+  every frame at 0x0C7008B4 / 0x0C7008B8 (centred pixels) with a fixed mapping of its own: up to 26 px off at the
+  right edge and 20 px low. With its profile's aim trim its reading is within 4 px over a 5 x 5 grid, and its bullet
+  puffs land on the aim points. Shots against two identical control runs change its ammo bar; a shot off the
+  screen refills it. 3D: a view turned 30 degrees shows the jungle beyond the original frame. Open frame: with
+  Flycast's `rend.WideScreen` it draws the jungle past 4:3 on both sides (95% of the side area has picture), and
+  through the 3D rebuild above and below too.
 
 ## Status (2026-10-14)
 
