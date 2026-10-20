@@ -441,10 +441,28 @@ index 1295144..451a735 100644
  	sessionRunning = focused = drawingEye = false;
  	sessionLost = exiting = false;
 diff --git a/core/rend/vr_reproject.cpp b/core/rend/vr_reproject.cpp
-index 6314981..5eae4e2 100644
+index 6314981..b7859c3 100644
 --- a/core/rend/vr_reproject.cpp
 +++ b/core/rend/vr_reproject.cpp
-@@ -343,6 +343,14 @@ static std::vector<GameProfile> makeProfiles()
+@@ -276,6 +276,17 @@ static std::vector<GameProfile> makeProfiles()
+ 	p.p2PromptTextures[0] = 0x53c400;
+ 	p.p2PromptTextures[1] = 0x572000;
+ 	p.model.pistol = { { 0x5fc800, 0x5fe800 }, 0x603800, 0x600800 };	// (the same hands.bin as PAL's)
++	// ACVR: its gun calibration (2026-10-19, measured offline with a scripted gun and its RAM). The game
++	// turns the gun's raw beam position (0x0C27B77C: x + 285, y / 2 + 20) into its screen position
++	// (floats at 0x0C27B784, centred, y up) through seven words at 0x0C27B792: x left, centre, right
++	// (beam position minus the fourth word, 208) and y top, centre, bottom, about 265 and 192 game
++	// units out. As loaded they put the middle of the screen 25 px left and 15 px up. These make it
++	// exact for Flycast's light gun (within 2 px over a 5 x 5 grid).
++	{
++		const u16 calibration[7] { 133, 398, 663, 208, 44, 140, 236 };
++		for (int k = 0; k < 7; k++)
++			p.pokes[k] = { (u32)(0x27B792 + k * 2), calibration[k] };
++	}
+ 	list.push_back(p);
+ 	// The Maze of the Kings (NAOMI, Hitmaker 2002; worked out from rips, RAM dumps and its
+ 	// code, see hotd2-vr/README). Its field of view changes from scene to scene (60 degrees
+@@ -343,6 +354,14 @@ static std::vector<GameProfile> makeProfiles()
  	p.model.file = "staff-mok.bin";
  	p.model.staff = { { { 0xC1C000, 0xCB0800 }, { 0xD87000, 0xDA9800 } } };
  	list.push_back(p);
@@ -459,7 +477,7 @@ index 6314981..5eae4e2 100644
  	return list;
  }
  static const std::vector<GameProfile> profiles = makeProfiles();
-@@ -688,11 +696,34 @@ static void hideLetterbox(rend_context& ctx, const std::vector<PolyParam>& list,
+@@ -688,11 +707,34 @@ static void hideLetterbox(rend_context& ctx, const std::vector<PolyParam>& list,
  {
  	if (activeProfile != nullptr && activeProfile->letterboxW > 0.f)
  		hudW = activeProfile->letterboxW;
@@ -494,7 +512,7 @@ index 6314981..5eae4e2 100644
  		u32 i = pp.first;
  		while (i < pp.first + pp.count && onOverlay(ctx.verts[i], hudW) && opaqueBlack(ctx.verts[i]))
  			i++;
-@@ -1186,9 +1217,9 @@ void dropShotMarker(rend_context& ctx, const RenderPass& pass, const RenderPass&
+@@ -1186,9 +1228,9 @@ void dropShotMarker(rend_context& ctx, const RenderPass& pass, const RenderPass&
  			}
  			const bool big = size.x >= fbWidth * 0.5f && size.y >= fbHeight * 0.5f && size.x < fbWidth * 4.f && size.y < fbHeight * 4.f;
  			if (diag && (((all2D || markerLike) && offset <= MarkerMaxOffset) || (big && (all2D || bright))))
@@ -506,7 +524,7 @@ index 6314981..5eae4e2 100644
  						(unsigned)(pp.tcw.TexAddr << 3), pp.tsp.full, c[0], c[1], c[2], c[3], hide ? " DROPPED" : "");
  			if (!hide)
  				continue;
-@@ -1263,7 +1294,15 @@ const ReprojectParams& update(const rend_context& ctx)
+@@ -1263,7 +1305,15 @@ const ReprojectParams& update(const rend_context& ctx)
  			* glm::rotate(glm::mat4(1.f), glm::radians(pitch), glm::vec3(1, 0, 0));
  	// The renderer's ndc y points down the image; flip into y-up space for the pose.
  	const glm::mat4 flipY = glm::scale(glm::mat4(1.f), glm::vec3(1, -1, 1));

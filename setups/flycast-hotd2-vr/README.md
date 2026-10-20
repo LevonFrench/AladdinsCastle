@@ -22,6 +22,7 @@ is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see 
 | Scripted light gun | `core/rend/vr/debug_shots.cpp` | `ACVR_GUN="seconds:x:y:buttons;..."` holds player 1's gun at x, y (1/10000ths of the screen, outside: off-screen) with `lightgunSet` buttons (1 trigger, 2 reload, 4 Start, 256 a shot on the 2D plane) from that game time to the next entry, sent every frame. |
 | Exact-time pictures | `core/rend/vr/debug_shots.cpp` | `ACVR_SNAP="seconds;..."` writes `snap_<centiseconds>.png` at those game times. With `rend.ThreadedRendering=no` two runs with the same inputs give identical pictures (checked on The House of the Dead 2: 20 of 20). |
 | End, rip, watch, poke | `core/rend/vr/debug_shots.cpp` | `ACVR_QUIT=seconds` ends the run; `ACVR_RIP="seconds:count,every,ram"` asks for a rip at a game time; `ACVR_WATCH="offset:f|h|w,..."` logs RAM values when they change; `ACVR_POKE="offset:value,..."` writes 16-bit values every frame (to find and test a game's gun calibration). |
+| HOTD2 (US) gun calibration | `core/rend/vr_reproject.cpp` | The profile writes the game's seven calibration words so its aim matches Flycast's light gun exactly (see Findings). |
 | Wide preview | `core/rend/vr_reproject.cpp` | `ACVR_PREVIEW_WIDE=k` shows k times the stock view in the flat picture, the 2D plane still at its stock size: what the headset shows around the original frame (open-frame pictures). The shot log also gives the centre of each polygon near a shot. |
 
 The hidden window and every `ACVR_*` test aid change nothing unless their environment variables are set.
@@ -72,8 +73,11 @@ wide picture and measures how much of the rest holds picture.
   floats at 0x8C27B784 / 0x8C27B788 (centred, y up): -217 / 155, 172 / 99, -44 / -153, where -220 / 140, 180 / 90,
   -20 / -160 would be exact. Its calibration (likely the seven 16-bit words from 0x8C27B792, not yet tested; perhaps from the save on the
   memory card) bends the middle of the screen: up to about 25 px off in x and 15 px in y, the edges nearly right.
-  The game's own shot flash agrees (its centre lands 7 to 32 px from where the gun was sent). Fix to try: calibrate
-  through the game's own gun adjustment, or set the calibration words in its profile.
+  The game's own shot flash agrees (its centre lands 7 to 32 px from where the gun was sent). Fixed: the US profile
+  now sets those words (x left, centre, right 133, 398, 663 with offset 208; y top, centre, bottom 44, 140, 236). With them
+  the game's own position is within 2 px of where the gun was sent over a 5 x 5 grid, and its shot flash lands on it.
+- Open frame: with the profile's wider view (41 to 74 degrees) the game draws all around the original frame: 90-96%
+  of the area outside it holds picture in chapter 1 (`ACVR_PREVIEW_WIDE=2`, `tools/openframe.py`).
 
 ## Status (2026-10-14)
 
