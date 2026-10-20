@@ -27,6 +27,7 @@
 #include <QUrl>
 #include <QRegularExpression>
 #include <QTimer>
+#include <QScopeGuard>
 #include <algorithm>
 namespace ac {
 QString UiController::pinballLaunchHelp()const{return pinball::launchGuidance().value("help").toString();}
@@ -66,6 +67,8 @@ QObject *UiController::createGridModel(int columns){return new SectionedGridMode
 void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<SectionedGridModel *>(model);grid&&grid->parent()==this)grid->deleteLater();}
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_detailControls(this),m_games(games),m_filter(filter),m_settings(settings){
  connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
+ connect(this,&UiController::nowPlayingChanged,this,&UiController::launchGateChanged);
+ connect(this,&UiController::steamVrStartingChanged,this,&UiController::launchGateChanged);
  connect(settings,&UiSettings::changed,this,&UiController::model3Changed);
  connect(games,&QAbstractItemModel::dataChanged,this,&UiController::catalogReadyChanged);
  connect(games,&QAbstractItemModel::modelReset,this,&UiController::catalogReadyChanged);
@@ -90,6 +93,15 @@ QString UiController::vrLabel(int badge)const{const QStringList labels{"FLAT","T
 QString UiController::primaryLabel(const QString &id)const{auto g=m_games->find(id);if(!g)return "No setup yet";if(g->roles.value("playing").toBool())return "Playing";if(g->roles.value("state").toInt()==4){const auto *v=variant(*g);return v?v->title:"Play";}if(g->roles.value("state").toInt()==6)return "Locate / install emulator";return g->roles.value("stateLabel").toString();}
 QString UiController::appVersion()const{return QCoreApplication::applicationVersion();}
 void UiController::message(const QString &text){m_status=text;emit statusChanged();}
+// Pressing Play twice, or Play on another game while one starts or runs, starts nothing more and says why.
+bool UiController::refuseSecondLaunch(){
+ if(launchGateOpen())return false;
+ const auto title=!m_steamVrStarting.isEmpty()?m_steamVrStarting:m_nowPlaying.value("title").toString();
+ const auto phase=!m_steamVrStarting.isEmpty()?QString("waiting for SteamVR"):m_nowPlaying.value("running").toBool()?QString("running"):QString("starting");
+ ++m_refusedLaunches;emit launchGateChanged();
+ message("Not started: "+(title.isEmpty()?QString("a game"):title)+" is already "+phase+". Close the current session first, or press Stop.");
+ return true;
+}
 QVariantMap UiController::game(const QString &id)const {auto g=m_games->find(id);return g?g->roles:QVariantMap{};}
 QVariantMap UiController::filteredGame(int row)const{auto i=m_filter->mapToSource(m_filter->index(row,0));return i.isValid()?m_games->records()[i.row()].roles:QVariantMap{};}
 void UiController::openDetail(const QString &id){if(!m_games->find(id))return;m_detailId=id;m_variantId.clear();if(m_detailControlsVisible)refreshDetailControls();emit detailChanged();}
@@ -150,8 +162,8 @@ void UiController::cancelScan(){if(!m_scanning)return;emit cancelScanRequested()
 void UiController::showError(const QString &operation,const QString &text){message(operation+": "+text);}
 void UiController::overlayFallback(const QString &reason){showError("Overlay unavailable",reason);}
 void UiController::settingsSaved(const QString &id){emit detailChanged();message("Settings saved for "+game(id).value("title").toString()+". They apply to the next owned install or repair; existing emulator profiles are preserved.");}
-void UiController::startInstall(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}message("Install requested; waiting for installer.");emit installRequested(id,variantId);return;}}
-void UiController::play(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}emit playRequested(id,variantId);return;}}
+void UiController::startInstall(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;if(m_installing){message("An installation is already running. Wait for it to finish.");return;}for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}message("Install requested; waiting for installer.");emit installRequested(id,variantId);return;}}
+void UiController::play(const QString &id,const QString &variantId){if(refuseSecondLaunch())return;auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}emit playRequested(id,variantId);return;}}
 void UiController::cancelInstall(){emit cancelInstallRequested();message("Cancel requested; the installer stops between steps.");}
 bool UiController::retryGameAvailable()const{
  const QRegularExpression id("^[a-z0-9]+(?:-[a-z0-9]+)*$");
@@ -189,6 +201,8 @@ void UiController::stopLaunch(){
   m_nowPlaying["closing"]=true;m_nowPlaying["stopping"]=true;emit nowPlayingChanged();emit stopLaunchRequested();
   message(running?"Stop requested; VPX is asked to close, then ended if it has not.":"Pinball launch cancellation requested.");return;
  }
+ // Pressed again while it stops: nothing is asked twice.
+ if(m_nowPlaying.value("stopping").toBool()){message("Stopping; the game is ended if it has not closed within the timeout.");return;}
  // Shown at once: the card says the game is being stopped before the game has reacted.
  if(!m_nowPlaying.isEmpty()){m_nowPlaying["closing"]=true;m_nowPlaying["stopping"]=true;emit nowPlayingChanged();}
  emit stopLaunchRequested();message("Stop requested; the game is asked to close, then forced to stop after the timeout.");
@@ -463,10 +477,12 @@ void UiController::markCrash(const QString &id,const QString &text){
  m_lastSession["outcome"]="crashed";m_lastSession["text"]=text;emit nowPlayingChanged();
 }
 void UiController::playGame(const QString &id,const QString &view){
+ if(refuseSecondLaunch())return;
+ m_launchInFlight=true;const auto landed=qScopeGuard([this]{m_launchInFlight=false;emit launchGateChanged();});
  for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,view.isEmpty()?row.value("view").toString():view);return;}}
  for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,view.isEmpty()?row.value("view").toString():view,row.value("file").toString());return;}}
 }
-void UiController::playOtherGame(const QString &id){for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}}
+void UiController::playOtherGame(const QString &id){if(refuseSecondLaunch())return;for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}}
 void UiController::launchOtherQueued(const QString &id,const QString &view,const QString &title,const QString &hint,const QString &closeUnavailable){
  queueSession(id,view,closeUnavailable);m_nowPlaying["title"]=title;if(!hint.isEmpty())m_nowPlaying["hint"]=hint;emit nowPlayingChanged();
 }
@@ -556,6 +572,7 @@ void UiController::chooseModel3View(const QString &id,const QString &view){
  chosen[id]=view;m_settings->set("model3Views",chosen);
 }
 void UiController::playModel3(const QString &id){
+ if(refuseSecondLaunch())return;
  for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,row.value("view").toString());return;}}
 }
 void UiController::launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable){

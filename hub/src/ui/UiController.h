@@ -129,6 +129,12 @@ class UiController : public QObject {
  Q_PROPERTY(QString steamVrStarting READ steamVrStarting NOTIFY steamVrStartingChanged)
  QString steamVrStarting()const{return m_steamVrStarting;}
  void setSteamVrStarting(const QString &title){if(title!=m_steamVrStarting){m_steamVrStarting=title;emit steamVrStartingChanged();}}
+ // A second Play while a game starts, runs, or waits for SteamVR is refused here with a message,
+ // before it reaches the launcher; the first press already shows the Starting card.
+ Q_PROPERTY(bool launchGateOpen READ launchGateOpen NOTIFY launchGateChanged)
+ bool launchGateOpen()const{return !m_launchInFlight&&m_nowPlaying.isEmpty()&&m_steamVrStarting.isEmpty();}
+ Q_PROPERTY(int refusedLaunches READ refusedLaunches NOTIFY launchGateChanged)
+ int refusedLaunches()const{return m_refusedLaunches;}
  Q_INVOKABLE void cancelSteamVrStart(){if(!m_steamVrStarting.isEmpty())emit cancelSteamVrStartRequested();}
  // A game's own Play button: exactly this view ("monitor", or one of its headset views), not remembered.
  Q_INVOKABLE void playGame(const QString &id,const QString &view);
@@ -281,6 +287,7 @@ class UiController : public QObject {
  void pinballPlayRequested(const QString &id,const QString &view);
  void steamVrRunningChanged();
  void steamVrStartingChanged();
+ void launchGateChanged();
  void libraryChanged();
  void libraryScanRequested(const QStringList &roots);
  void watchdogChanged();
@@ -314,6 +321,8 @@ class UiController : public QObject {
  const Variant *variant(const GameRecord &record) const;
  QString readme(const GameRecord &record) const;
  void message(const QString &text);
+ bool refuseSecondLaunch();
+ bool m_launchInFlight=false;int m_refusedLaunches=0;
  void scheduleFacetsChanged();
  void retryGameInstall(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
  bool m_facetsQueued=false;

@@ -35,6 +35,20 @@ public:
 private:
     qint64 m_holdMs,m_since=-1;bool m_fired=false;
 };
+// A button's press, once: true on the update where it goes down, then not again until it is let go.
+// A press the runtime reports while it was already down never counts twice.
+class PressEdge {
+public:
+    bool update(bool down){const bool pressed=down&&!m_down;m_down=down;return pressed;}
+    void reset(){m_down=false;}
+private:
+    bool m_down=false;
+};
+// The Hub's own controller buttons, read once per frame.
+struct HubButtons {
+    bool closeHeld=false; // "close the game" (held 3 s) while a game runs in the headset
+    bool backDown=false;  // B: back one page, while the panel is shown
+};
 class OverlayTextureSubmitGate {
 public:
     bool shouldSubmit(bool visible)const{return visible||!m_hasTexture;}
@@ -61,6 +75,9 @@ public:
     // Whether the "close the game" button is down now. While active, the Hub's action set
     // runs above the game's own input, so the game does not see that button.
     virtual bool closeGameHeld(bool active){Q_UNUSED(active);return false;}
+    // Both Hub buttons in one read. closeActive: a game the Hub started runs in the headset;
+    // panelActive: the Hub's dashboard panel is on show. With neither, the buttons go back to the game.
+    virtual HubButtons pollButtons(bool closeActive,bool panelActive){Q_UNUSED(panelActive);return {closeGameHeld(closeActive),false};}
     virtual void shutdown() = 0;
 };
 // Loads and checks exports only; never calls VR_Init or contacts SteamVR.

@@ -14,6 +14,11 @@
       "name": "/actions/hub/in/close_game",
       "type": "boolean",
       "requirement": "optional"
+    },
+    {
+      "name": "/actions/hub/in/back",
+      "type": "boolean",
+      "requirement": "optional"
     }
   ],
   "action_sets": [
@@ -26,7 +31,8 @@
     {
       "language_tag": "en_US",
       "/actions/hub": "AladdinsCastle Hub",
-      "/actions/hub/in/close_game": "Hold for 3 seconds to close the game"
+      "/actions/hub/in/close_game": "Hold for 3 seconds to close the game",
+      "/actions/hub/in/back": "Back one page in the Hub panel"
     }
   ]
 }
