@@ -303,6 +303,11 @@ projection aspect (RetroArch's `Widescreen` entry with its aspect value 1.78
 raised to 3.55) makes the game draw 32:9 itself, and `ACVR_GL_WIDE_SQUEEZE=0`
 leaves the squeeze to the game.
 
+Beetle Adventure Racing! breaks with `16:9 adjusted` even without any of this
+(its frame-buffer copies tile the picture), so it runs 4:3 with the HUD panel
+and 3D but no open frame. Its 2D layer has opaque black border bars;
+`ACVR_HUD_KEY_BLACK=1` shows pure black HUD pixels as transparent.
+
 ### Aim that moves by rate (Star Fox 64)
 
 Where the stick moves the game's marker rather than placing it,

@@ -366,7 +366,7 @@ struct EyeScene {
   bool frame = true; float fadeU = 0, fadeV = 0;   // dark frame; edges fading into the dark
   // The HUD panel: either one picture with alpha (sRGB, premultiplied), or the layer over black and over white
   // (linear 8-bit values as the game drew them), whose difference gives the alpha.
-  GLuint hud = 0, hudOverWhite = 0; ScreenGeometry hudPanel; float hudOpacity = 1;
+  GLuint hud = 0, hudOverWhite = 0; ScreenGeometry hudPanel; float hudOpacity = 1; bool hudKeyBlack = false;
 };
 
 class Renderer {
@@ -393,10 +393,11 @@ public:
     m_hudProgram = Program(
       "#version 330 core\nlayout(location=0)in vec3 p;layout(location=1)in vec2 t;uniform mat4 mvp;out vec2 uv0;"
       "void main(){gl_Position=mvp*vec4(p,1);uv0=t;}",
-      "#version 330 core\nin vec2 uv0;uniform sampler2D hud,white;uniform float opacity;uniform int encode,matte;out vec4 o;"
+      "#version 330 core\nin vec2 uv0;uniform sampler2D hud,white;uniform float opacity;uniform int encode,matte,keyBlack;out vec4 o;"
       "void main(){vec4 c=texture(hud,uv0);"
       "if(matte!=0){vec3 w=texture(white,uv0).rgb;c.a=clamp(1.-max(max(w.r-c.r,w.g-c.g),w.b-c.b),0.,1.);if(encode==0)c.rgb=pow(c.rgb,vec3(2.2));}"
       "else if(encode!=0)c.rgb=pow(c.rgb,vec3(1./2.2));"
+      "if(keyBlack!=0&&max(max(c.r,c.g),c.b)<.012)c=vec4(0);"
       "o=c*opacity;}");
     tgl::GenVertexArrays(1, &m_screenVao); tgl::GenBuffers(1, &m_screenVbo);
     tgl::GenVertexArrays(1, &m_dotVao); tgl::GenBuffers(1, &m_dotVbo);
@@ -458,6 +459,7 @@ public:
       tgl::Uniform1i(tgl::GetUniformLocation(m_hudProgram, "hud"), 0);
       tgl::Uniform1i(tgl::GetUniformLocation(m_hudProgram, "white"), 1);
       tgl::Uniform1i(tgl::GetUniformLocation(m_hudProgram, "matte"), s.hudOverWhite ? 1 : 0);
+      tgl::Uniform1i(tgl::GetUniformLocation(m_hudProgram, "keyBlack"), s.hudKeyBlack ? 1 : 0);
       tgl::ActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, s.hudOverWhite);
       tgl::ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s.hud);
       drawStrip(m_hudVerts);
