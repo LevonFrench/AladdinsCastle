@@ -35,8 +35,8 @@ FocusScope {
  // change here (its label from the names below, else from its pill). Catalog games set up on this PC are
  // sorted in by their hardware. Pinball is a page of its own, at the end.
  readonly property var labels:({all:"All",model3:"Model 3",model2:"Model 2",system22:"System 22",ps1:"PS1",ps2:"PS2",n64:"N64",
-  saturn:"Saturn",dreamcast:"Dreamcast",wii:"Wii",mameguns:"MAME guns",other:"Other",pinball:"Pinball"})
- readonly property var systemOrder:["ps1","model2","model3","system22","n64","saturn","dreamcast","mameguns","ps2","wii"]
+  saturn:"Saturn",dreamcast:"Dreamcast",atomiswave:"Atomiswave",wii:"Wii",gamecube:"GameCube",mamegun:"Arcade guns",other:"Other",pinball:"Pinball"})
+ readonly property var systemOrder:["ps1","model2","model3","system22","mamegun","n64","saturn","dreamcast","atomiswave","ps2","wii","gamecube"]
  function tabOf(row){
   const system=row.system||"model3"
   if(system!=="catalog")return system
@@ -47,10 +47,12 @@ FocusScope {
   if(hw.startsWith("sega-model-3"))return "model3"
   if(hw==="nintendo-64")return "n64"
   if(hw==="sega-saturn")return "saturn"
-  if(hw==="sega-dreamcast"||hw.startsWith("sega-naomi")||hw==="sammy-atomiswave")return "dreamcast"
+  if(hw==="sega-dreamcast"||hw.startsWith("sega-naomi"))return "dreamcast"
+  if(hw==="sammy-atomiswave")return "atomiswave"
   if(hw==="nintendo-wii")return "wii"
+  if(hw==="nintendo-gamecube")return "gamecube"
   if(hw.indexOf("system-22")>=0)return "system22"
-  if(card.genreId==="gun")return "mameguns"
+  if(card.genreId==="gun")return "mamegun" // The same tab as the arcade gun launcher's games.
   return "other"
  }
  function rank(id){const i=systemOrder.indexOf(id);return i<0?(id==="other"?1000:500):i}

@@ -4,7 +4,7 @@ import QtQuick
 // SteamVR sends a held stick as a stream of small smooth-scroll packets; a mouse wheel sends notches.
 // Both arrive here as wheel angles (120 = one notch). The rules:
 //  - Dead zone: packets weaker than deadZone are ignored, so a resting stick never drifts the page.
-//  - The first row moves once a push adds up to one notch: at once for a wheel notch after a pause,
+//  - The first row moves once a push adds up to one notch: at once for a whole wheel notch after a pause,
 //    or after two packets in the same direction for a stick, so stick noise flipping between up and
 //    down never moves the page (no jitter).
 //  - Held, it repeats: slowly at first, then faster the longer it is held (acceleration).
@@ -67,7 +67,8 @@ QtObject {
   const wasFresh=fresh
   lastEvent=now;acc+=Math.abs(dy);++runPackets
   let move=false
-  if(rowsThisHold===0)move=acc>=notch&&(wasFresh&&runPackets===1||runPackets>=2)
+  // Only a whole wheel notch (a multiple of 120) moves at once; a stick packet, however strong, waits for a second one.
+  if(rowsThisHold===0)move=acc>=notch&&(wasFresh&&runPackets===1&&Math.abs(dy)%notch===0||runPackets>=2)
   else{
    const held=now-holdStart
    const interval=rowsThisHold===1?firstRepeatMs:Math.max(fastestRepeatMs,220-held*0.12)
