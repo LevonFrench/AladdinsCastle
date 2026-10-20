@@ -201,10 +201,11 @@ s = rep(s,
         '    if (!Inputs->Poll(&game, xOffset, yOffset, xRes, yRes))' + nl + '      quit = true;' + nl,
         '    if (!Inputs->Poll(&game, xOffset, yOffset, xRes, yRes))' + nl + '      quit = true;' + nl +
         '    ACVR_ApplyInputScript(Inputs);' + nl +
-        '    ACVR_ApplyVRInputs(Inputs, game.inputs);' + nl)
+        '    ACVR_ApplyVRInputs(Inputs, game.inputs);' + nl +
+        '    const bool acvrHold = ACVR_XR_Hold();\t// headset: closed by the runtime, or not showing the game' + nl)
 s = rep(s,
         '    if (paused)' + nl + '      Model3->RenderFrame();' + nl + '    else' + nl + '      Model3->RunFrame();' + nl,
-        '    if (paused)' + nl + '      Model3->RenderFrame();' + nl + '    else' + nl + '      Model3->RunFrame();' + nl +
+        '    if (acvrHold) { }	// no game frame this pass' + nl + '    else if (paused)' + nl + '      Model3->RenderFrame();' + nl + '    else' + nl + '      Model3->RunFrame();' + nl +
         '    if (s_acvrWantSaveState) { SaveState(Model3); s_acvrWantSaveState = false; }' + nl)
 s = rep(s, 'superAA->Init(totalXRes, totalYRes);', 'superAA->Init(totalXRes, totalYRes); s_acvrAATarget = superAA->GetTargetID();', count=0)
 s = rep(s, '  auto cmd_line = ParseCommandLine(argc, argv);',

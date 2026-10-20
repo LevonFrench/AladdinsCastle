@@ -103,5 +103,10 @@ bool  ACVR_XR_Start(void *sdlWindow);
 bool  ACVR_XR_GetViews(ACVREyeView out[2]);   // false until the headset is tracked
 void  ACVR_XR_Publish(const ACVRPublish &p);
 void  ACVR_XR_Stop();
+// The headset presenter as the game loop sees it: 0 not asked for (no ACVR_XR), 1 the session is running,
+// 2 waiting (starting up, or stopped by the runtime: the game pauses), 3 the runtime ended the game (SteamVR
+// "Exit game", a lost runtime or instance), 4 the presenter could not start or its thread has ended.
+// 3 and 4 close the game cleanly: a game with no picture must not keep running unseen.
+int   ACVR_XR_State();
 
 #endif  // INCLUDED_ACVRSTEREO_H

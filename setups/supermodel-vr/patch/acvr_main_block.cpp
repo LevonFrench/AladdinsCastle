@@ -1102,6 +1102,27 @@ static void ACVR_SaveBound(const std::string &file, unsigned w, unsigned h)
   Util::WriteSurfaceToBMP<Util::RGBA8>(file, pixels.get(), w, h, true);
 }
 
+// Headset runs (ACVR_XR): called once per loop pass, after the inputs. Returns true when this pass must not run
+// a game frame. When the runtime ended the game (SteamVR "Exit game", a lost runtime) or the presenter is gone
+// (it could not start, or its thread ended), the game closes through the normal exit, which saves NVRAM. While
+// the session is not running (starting up, or stopped by the runtime) the game waits, paused.
+static bool ACVR_XR_Hold()
+{
+  static int last = 0;
+  const int state = ACVR_XR_State();
+  if (state != last)
+  {
+    static const char *what[] = { "off", "headset showing the game: running", "headset not showing the game: paused",
+                                  "the headset runtime ended the game: closing", "the headset picture stopped: closing" };
+    printf("ACVR XR: %s\n", what[state < 0 || state > 4 ? 0 : state]);
+    fflush(stdout);
+    last = state;
+  }
+  if (state == 3 || state == 4) { s_acvrQuit = true; return true; }
+  if (state == 2) { SDL_Delay(20); return true; }
+  return false;
+}
+
 // Called once per presented frame, before the buffer swap
 static void ACVR_EndFrame()
 {
