@@ -204,7 +204,8 @@ games play on the theatre screen.
 Results so far (Beetle Saturn 1.29.0 b4df47a, hidden offline runs):
 Virtua Cop, Virtua Cop 2, The House of the Dead, Area 51 and Hakaider
 play from the title into their first stage with the gun only; the same
-run with and without trigger pulls gives different pictures (scores and kills against game over)
+run with and without trigger pulls gives different pictures (enemies hit and
+points scored only with shots)
 while two runs without shots are identical, the off-screen shot reloads, and
 their flash per shot (one white frame; two in The House of the Dead; one
 blue frame in Area 51) is kept out of the headset.
