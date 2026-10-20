@@ -1,0 +1,4 @@
+# Reach the title quickly (A at 10 s), then one picture for image-quality comparison.
+10.0 10.3 R primary 1
+shot 22 q22
+shot 26 q26

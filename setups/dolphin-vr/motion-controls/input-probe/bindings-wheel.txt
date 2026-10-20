@@ -1,0 +1,19 @@
+# Every binding of "AC Motion Wheel" (Mario Kart Wii, no Nunchuk), one at a time.
+20.0 20.5 R primary 1
+21.0 21.5 R squeeze 1
+22.0 22.5 L trigger 1
+23.0 23.5 R secondary 1
+24.0 24.5 R trigger 1
+25.0 25.5 L thumbclick 1
+26.0 26.5 L menu 1
+27.0 28.5 L secondary 1
+27.1 28.5 L menu 1
+29.0 29.5 R stick_y 1
+30.0 30.5 R stick_y -1
+31.0 31.5 R stick_x -1
+32.0 32.5 R stick_x 1
+33.0 33.5 L stick_y 1
+34.0 34.5 L stick_y -1
+35.0 35.5 L stick_x -1
+36.0 36.5 L stick_x 1
+37.0 38.0 R roll 90
