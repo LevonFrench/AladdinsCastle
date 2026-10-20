@@ -17,6 +17,12 @@ struct Config {
   std::string gunModel, gunMeta;   // GLB and its TOML; empty: no gun drawn
   bool sideBySide = false;         // the picture holds the left eye in its left half, the right eye in its right half
   bool aimDot = true;              // the orange dot where the right controller's ray meets the screen
+  bool frame = true;               // the thin dark frame round the screen
+  float edgeFade = 0;              // share of the picture's width and height over which its edges fade into the dark
+  // The HUD panel: the game's 2D overlay (a separate picture, transparent elsewhere) on its own flat panel, placed
+  // with the screen and fixed in the room, nearer than the screen.
+  bool hud = false;
+  float hudDistance = 1.8f, hudWidth = 1.2f, hudLift = -.1f, hudOpacity = 1.f, hudAspect = 16.f / 9.f;
 };
 struct Input {
   float u = .5f, v = .5f;
@@ -31,6 +37,8 @@ struct Input {
   float rightX = 0, rightY = 0;   // right thumbstick
   float roll = 0;                 // right controller roll about its pointing axis, radians, positive turned clockwise (to the right)
   bool padYButton = false;             // left Y (Index: left B) pressed at all; held 3 s it still quits
+  // Where the right controller's ray meets the HUD panel's plane (u, v may lie outside 0..1), when it does.
+  bool hudHit = false; float hudU = .5f, hudV = .5f;
 };
 // All picture and graphics calls run on the thread whose OpenGL context is current
 // in `owner` (the emulator thread). The headset runs on its own thread.
@@ -38,6 +46,8 @@ bool Start(Host_Window *owner, const Config &config);
 void Publish(const std::uint32_t *xrgb, unsigned w, unsigned h);
 // The same from a framebuffer of the owner context whose rows are bottom-up (a libretro hardware core).
 void PublishFramebuffer(unsigned fbo, unsigned w, unsigned h);
+// The HUD layer (rows bottom-up, alpha = coverage, colour premultiplied), for the HUD panel.
+void PublishHudFramebuffer(unsigned fbo, unsigned w, unsigned h);
 Input ReadInput();          // stale (over 250 ms) input reads as inactive
 void QueuePulse();
 bool Stop();
@@ -47,5 +57,6 @@ bool PresenterGone();       // the headset picture stopped for good (see acvr-th
 // Offline proof without any VR runtime: renders both eyes for a fixed head and hand
 // pose into PNG files <prefix>-left.png and <prefix>-right.png.
 bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, unsigned h,
-                 float aimU, float aimV, const std::string &prefix, std::string &error);
+                 float aimU, float aimV, const std::string &prefix, std::string &error,
+                 const std::uint32_t *hudArgb = nullptr, unsigned hudW = 0, unsigned hudH = 0);
 }

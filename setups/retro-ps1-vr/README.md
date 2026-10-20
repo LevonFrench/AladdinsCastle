@@ -266,6 +266,34 @@ redirected in the loaded core's import table. Then:
   source. Both eyes go to the headset side by side; offline pictures are
   side by side too.
 
+### HUD on its own panel, and a world wider than the screen
+
+`ACVR_GL_HUD=1` splits the game's 2D overlay from its 3D world, the first of
+the three things in `docs/3d-mode-target.md`. The same twin mechanism makes a
+third picture, the HUD layer: in the framebuffer that holds the game's 3D
+picture, every vertex is classed as world (perspective) or 2D; 2D drawn before
+the frame's first depth-tested 3D draw is a backdrop (sky, part of the world),
+later 2D is HUD. Fragment shaders get a guard that drops HUD fragments from the
+world pictures and world fragments from the HUD layer, and gives HUD fragments
+an alpha from the core's own blending (GLideN64 blends with dual-source
+factors), so the layer is premultiplied colour over transparent black. The
+theatre shows it on a flat panel fixed in the room with the screen, nearer and
+a little lower: `ACVR_HUD_DISTANCE` (1.8 m), `ACVR_HUD_LIFT` (-0.08 m),
+`ACVR_HUD_WIDTH` (default: the same view angle as the game's picture on the
+world surface, so a crosshair lines up), `ACVR_HUD_SCALE`, `ACVR_HUD_OPACITY`.
+In `aim` mode the controller then aims at the HUD panel, where the game draws
+its crosshair. Offline snapshots also write `<name>-hud.png` (the layer over a
+checkerboard).
+
+`ACVR_GL_WIDE=kx,ky` squeezes the 3D projection about the picture's centre, so
+geometry the game draws past the old edges comes into the picture (1/kx of the
+width, 1/ky of the height); the theatre stretches it back on a surface that
+much wider (`ACVR_PS1_SCREEN_W` is its width: 7 m at 2.5 m curves about 160
+degrees round you), with no frame and edges fading into the dark
+(`ACVR_SCREEN_FADE`, 0.06; `ACVR_SCREEN_FRAME=1` brings the frame back). Raise
+the core's resolution with it (`mupen64plus-169screensize=1920x1080`), since
+the picture is spread wider. How far a game draws is the game's own culling.
+
 `ACVR_GL_TRACE=<first frame>,<frames>` (with `ACVR_GL_TRACE_DIR`) logs what a
 core draws and saves its vertex shaders, to study another core.
 

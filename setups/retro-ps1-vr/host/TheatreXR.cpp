@@ -36,6 +36,8 @@ struct Slot { GLuint tex = 0; int w = 0, h = 0; };
 std::mutex s_slotMutex;
 Slot s_slots[3];
 int s_front = -1, s_inUse = -1;
+Slot s_hudSlots[3];   // the HUD layer, the same way
+int s_hudFront = -1, s_hudInUse = -1;
 
 void EnsureSlot(Slot &slot, unsigned w, unsigned h)
 {
@@ -233,6 +235,13 @@ ScreenGeometry PlaceScreen(const XrPosef &head)
   Log("screen placed %.2f m ahead, %.2f x %.2f m, curve %.2f", g.distance, g.width, g.height, g.curve);
   return g;
 }
+// The HUD panel: flat, in the screen's frame, nearer and (by default) a little lower.
+ScreenGeometry HudPanel(const ScreenGeometry &screen, const Config &c)
+{
+  ScreenGeometry h; h.frame = screen.frame; h.curve = 0; h.distance = c.hudDistance; h.width = c.hudWidth;
+  h.height = c.hudWidth / (c.hudAspect > .1f ? c.hudAspect : 16.f / 9.f); h.lift = c.hudLift;
+  return h;
+}
 
 void ThreadBody()
 {
@@ -308,6 +317,7 @@ void ThreadBody()
         if (placed) {
           const float o[3] = { aimWorld.m[12], aimWorld.m[13], aimWorld.m[14] }, d[3] = { -aimWorld.m[8], -aimWorld.m[9], -aimWorld.m[10] };
           in.offScreen = !screen.hit(o, d, in.u, in.v);
+          if (s_config.hud) { float hu = -9, hv = -9; HudPanel(screen, s_config).hit(o, d, hu, hv); in.hudHit = hu > -8; if (in.hudHit) { in.hudU = hu; in.hudV = hv; } }
         }
       }
     }
@@ -336,7 +346,11 @@ void ThreadBody()
         if ((!placed || (GetAsyncKeyState(VK_HOME) & 0x8000)) && XR_SUCCEEDED(p_xrLocateSpace(s_view, s_local, fs.predictedDisplayTime, &head))) { screen = PlaceScreen(head.pose); placed = true; }
         EyeScene scene; scene.screen = screen; scene.crt = s_config.crt;
         if (s_config.sideBySide) scene.uw = .5f;
-        { std::lock_guard<std::mutex> lock(s_slotMutex); s_inUse = s_front; if (s_front >= 0) { scene.picture = s_slots[s_front].tex; scene.pictureW = s_slots[s_front].w; scene.pictureH = s_slots[s_front].h; } }
+        scene.frame = s_config.frame; scene.fadeU = s_config.edgeFade; scene.fadeV = s_config.edgeFade * s_config.aspect;
+        {
+          std::lock_guard<std::mutex> lock(s_slotMutex); s_inUse = s_front; if (s_front >= 0) { scene.picture = s_slots[s_front].tex; scene.pictureW = s_slots[s_front].w; scene.pictureH = s_slots[s_front].h; }
+          s_hudInUse = s_hudFront; if (s_config.hud && s_hudFront >= 0) { scene.hud = s_hudSlots[s_hudFront].tex; scene.hudPanel = HudPanel(screen, s_config); scene.hudOpacity = s_config.hudOpacity; }
+        }
         scene.showDot = s_config.aimDot && in.active && !in.offScreen; scene.dotU = in.u; scene.dotV = in.v;
         if (haveGun && s_gun.loaded()) {
           const float since = (GetTickCount64() - kickAt) / 1000.f;
@@ -461,6 +475,23 @@ void PublishFramebuffer(unsigned fbo, unsigned w, unsigned h)
   std::lock_guard<std::mutex> lock(s_slotMutex); s_front = slot;
 }
 
+void PublishHudFramebuffer(unsigned fbo, unsigned w, unsigned h)
+{
+  if (!s_started || s_stop || !w || !h) return;
+  int slot;
+  { std::lock_guard<std::mutex> lock(s_slotMutex); slot = 0; while (slot == s_hudFront || slot == s_hudInUse) ++slot; }
+  EnsureSlot(s_hudSlots[slot], w, h);
+  static GLuint target = 0; if (!target) glGenFramebuffers(1, &target);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target);
+  glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_hudSlots[slot].tex, 0);
+  glDisable(GL_SCISSOR_TEST); glDisable(GL_FRAMEBUFFER_SRGB);
+  glBlitFramebuffer(0, 0, w, h, 0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glBindTexture(GL_TEXTURE_2D, s_hudSlots[slot].tex); tgl::GenerateMipmap(GL_TEXTURE_2D);
+  glFinish();
+  std::lock_guard<std::mutex> lock(s_slotMutex); s_hudFront = slot;
+}
+
 Input ReadInput()
 {
   std::lock_guard<std::mutex> lock(s_inputMutex);
@@ -480,12 +511,14 @@ bool Stop()
   if (s_xrWindow) { Host_DestroyWindow(s_xrWindow); s_xrWindow = nullptr; }
   wglMakeCurrent(s_owner->dc, s_ownerContext);
   for (auto &slot : s_slots) { if (slot.tex) glDeleteTextures(1, &slot.tex); slot = {}; }
-  s_front = s_inUse = -1; s_started = false;
+  for (auto &slot : s_hudSlots) { if (slot.tex) glDeleteTextures(1, &slot.tex); slot = {}; }
+  s_front = s_inUse = -1; s_hudFront = s_hudInUse = -1; s_started = false;
   if (s_log) { std::fclose(s_log); s_log = nullptr; }
   return true;
 }
 
-bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, unsigned h, float aimU, float aimV, const std::string &prefix, std::string &error)
+bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, unsigned h, float aimU, float aimV, const std::string &prefix, std::string &error,
+                 const std::uint32_t *hudArgb, unsigned hudW, unsigned hudH)
 {
   try {
     if (!tgl::Load()) throw std::runtime_error("OpenGL 3.3 entry points unavailable");
@@ -507,7 +540,10 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     float u = -1, v = -1; const bool on = screen.hit(hand, dir, u, v);
     EyeScene scene; scene.screen = screen; scene.crt = config.crt; scene.picture = picture.tex; scene.pictureW = picture.w; scene.pictureH = picture.h;
     if (config.sideBySide) scene.uw = .5f;
-    scene.showDot = on; scene.dotU = u; scene.dotV = v;
+    scene.frame = config.frame; scene.fadeU = config.edgeFade; scene.fadeV = config.edgeFade * config.aspect;
+    Slot hud;
+    if (config.hud && hudArgb && hudW && hudH) { UploadInto(hud, hudArgb, hudW, hudH); scene.hud = hud.tex; scene.hudPanel = HudPanel(screen, config); scene.hudOpacity = config.hudOpacity; }
+    scene.showDot = on && config.aimDot; scene.dotU = u; scene.dotV = v;
     if (s_gun.loaded()) { scene.showGun = true; scene.gunRoot = s_gun.alignedRoot(aim, aim, 0); }
     const int size = 1440; GLuint fbo = 0, color = 0, depth = 0;
     glGenFramebuffers(1, &fbo); glGenTextures(1, &color); tgl::GenRenderbuffers(1, &depth);
@@ -532,7 +568,7 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     char note[256]; std::snprintf(note, sizeof note, "aim requested (%.4f, %.4f), ray hit %s (%.4f, %.4f), gun %s", aimU, aimV, on ? "on screen" : "off screen", u, v, s_gun.loaded() ? "drawn" : "not loaded");
     error = note;
     glBindFramebuffer(GL_FRAMEBUFFER, 0); glDeleteFramebuffers(1, &fbo); glDeleteTextures(1, &color); tgl::DeleteRenderbuffers(1, &depth);
-    glDeleteTextures(1, &picture.tex); renderer.release();
+    glDeleteTextures(1, &picture.tex); if (hud.tex) glDeleteTextures(1, &hud.tex); renderer.release();
     if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL error during the proof render");
     return ok;
   } catch (const std::exception &e) { error = e.what(); return false; }
