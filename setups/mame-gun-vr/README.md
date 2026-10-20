@@ -74,10 +74,17 @@ sources of the games you own; nothing is downloaded.
 
 Environment switches read by MAME, all off unless set:
 
-- `MAME_VR_AIM=xs,xo,ys,yo` per-game trim around the picture centre,
+- `MAME_VR_AIM=xs,xo,ys,yo[,margin]` per-game trim around the picture centre,
   `u' = 0.5 + (u - 0.5) * xs + xo`, the same convention as the PS1 host's
   `ACVR_PS1_AIM`. A trimmed aim is clamped to the picture; only pointing off
-  the screen reads as off-screen.
+  the screen reads as off-screen. An on-screen aim also stays `margin`
+  (default 0.004) inside the field's range: many gun boards report their
+  extreme values as off-screen.
+- `MAME_VR_DIPS=PORT:MASK:VALUE;...` (hex) sets DIP or configuration fields at
+  start, such as a cabinet's control-type switch.
+- `MAME_VR_TRACKBALL=kx,ky` drives trackball counters as an absolute position,
+  `kx`/`ky` counts across the picture (for trackball shooters; Rambo III was
+  tried and does not suit it, as its trackball also scrolls the field).
 - `MAME_VR_CROSSHAIR=1|0` shows or hides MAME's crosshair. Hide it where MAME's
   crosshair calibration does not match the game (any trimmed game).
 - `MAME_VR_ALLOW_MISSING=a,b` names ROM files the launcher accepts as absent:
@@ -102,4 +109,11 @@ in-game sight), not against MAME's crosshair:
 | `timecris` | Gun Initialize [Standard] accuracy screen, 9 points, max error 0.0052 | none; grip = foot pedal |
 | `opwolf3` | in-game sight, 11 points, 0.0058 after trim | `0.7143,0,0.5001,0` plus the game's own boot calibration (service switch at power-on, targets top-right then bottom-left); the game's gun gain is fixed, so the trim sets scale and the calibration sets offset |
 | `zombraid` | in-game sight on the name-entry screen, 11 points, max error 0.0068 | none; reload is the pump (grip), not an off-screen shot |
-| `rchase` | in-game sight, 11 points; x 0.0016 after trim | `1.0768,0.0007,1,0`; the game maps the gun's full y range to about 0.18-0.93 of the picture and treats very low readings as off-screen, so y is left untrimmed |
+| `rchase` | in-game sight, 14 points; within 0.003 on the playfield | `1.0768,0.0007,1.3296,-0.0700,0.04`; the game maps the gun's whole y range to about 0.18-0.93 of the picture and reads the gun's extreme values as off-screen, hence the 0.04 edge margin; the HUD band above the playfield is out of the sight's reach, as on the cabinet |
+| `term2` | in-game sight, 11 points, 0.0039 after trim | `0.9726,0.0032,0.9623,0.0033` after the game's own three-target gun calibration (first boot; the launcher's NVRAM is seeded) |
+| `le2` | the game's hit sparks, 0.0038 after trim | `1,0.005,1,0.011`; off-screen trigger reloads |
+| `lethalen` | the game's hit sparks, 6 points within 0.0073 | none |
+| `policetr13` | the game's red hit circle, 9 points within 0.0005 after trim | `1,0.0065,0.9597,-0.0178` (MAME's crosshair for this set reads about 4% tall) |
+| `alien3` | in-game sight, 11 points, 0.0047 after trim | `1,0,1.1789,-0.0012`; mounted guns read as AD sticks |
+| `rapidfir` | the game's hit spark, 11 points within 0.0063 after trim | `1,0,1,-0.0125` |
+| `crossbow`, `cheyenne`, `chiller`, `claypign`, `combat`, `hitnmiss`, `whodunit8` | the game's own 4x4 shot dot (Exidy 440), 2-11 clean points each, all within 0.0062 | none; NVRAM seeded past the first-boot "E2 PROM initialized" screen |
