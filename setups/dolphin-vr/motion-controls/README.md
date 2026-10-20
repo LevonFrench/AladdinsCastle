@@ -74,6 +74,29 @@ device.
 The wrist-strap/health screen takes **A** (no pointing needed). Super Mario Galaxy's and
 Twilight Princess's title screens ask for **A + B** together (right A + right trigger).
 
+## Wii gun games (separate user folder)
+
+The gun games' `WiimoteNew.ini` had the same gap (Source and Device only). `gun/WiimoteNew.ini`
+is the default for that user folder and `gun/<ID>.controls.ini` holds the `[Controls]` block to
+append to each game's existing private `GameSettings/<ID>.ini` (those already carry frame-rate codes;
+keep them). Every set maps every Wii button the generic way (B = right trigger, A = right A,
+1 = right B, 2 = right stick click, D-pad = right stick, + = left Menu, − = left stick click,
+Home = hold left Y + left Menu, Nunchuk stick/C/Z = left stick/left X/left trigger) plus the right
+grip as a second-finger button where the game's reload or action sits:
+
+| Game | ID | Set | Right grip | Roles from reviews (no manual found) |
+| --- | --- | --- | --- | --- |
+| Resident Evil: The Umbrella Chronicles | RBUP08 | AC Gun Umbrella Chronicles | A | B fires, shake the Remote reloads, A interacts, Nunchuk stick looks |
+| Resident Evil: The Darkside Chronicles | SBDP08 | AC Gun Darkside Chronicles | A | B fires, A picks up, D-pad or Nunchuk stick changes weapon |
+| The House of the Dead: Overkill | RHOP8P | AC Gun House of the Dead Overkill | A | B fires, A or a shake reloads, 1/2 change weapon |
+| Dead Space: Extraction | RZJE69 | AC Gun Dead Space Extraction | Z | B fires, Z reloads, C stasis, A kinesis, tilt for alt fire |
+| Sin & Punishment: Star Successor | R2VE01 | AC Gun Sin and Punishment | A | B fires, C jump, Z evade, A charge shot (remappable in game) |
+
+Shake-to-reload is physical: with `Source = 3` the override replaces the whole accelerometer, so a
+button bound to Dolphin's Shake group would have no effect; shaking the right controller itself does.
+None of the five shipped game INIs set MSAA; the gun launchers had no resolution or AA flags at all
+and now pass the same four `-C` settings as the motion launchers.
+
 ## Anti-aliasing and internal resolution in the VR path
 
 - With OpenXR on, `stereo_mode` becomes `OpenXR` and the EFB is a two-layer render target of

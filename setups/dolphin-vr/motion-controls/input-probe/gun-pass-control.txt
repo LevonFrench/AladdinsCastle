@@ -1,0 +1,4 @@
+# Gun games control for gun-pass-a.txt: no input before the pictures at 28 and 32 s; a minus press at 33 s marks the end.
+shot 28 n28
+shot 32 n32
+33.0 33.3 L thumbclick 1

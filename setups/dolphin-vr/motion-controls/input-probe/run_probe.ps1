@@ -12,7 +12,9 @@ param(
   [int] $Seconds = 90,
   [string[]] $Extra = @(),
   # The owner's headset marker file (private review folder); nothing runs while it exists.
-  [Parameter(Mandatory)] [string] $Marker
+  [Parameter(Mandatory)] [string] $Marker,
+  # Optional: stop as soon as the probe log shows emulated time at or past this many seconds.
+  [double] $UntilProbeTime = 0
 )
 if (Test-Path $Marker) { 'paused: headset on'; exit 3 }
 if (Get-Process -Name Dolphin, DolphinNoGUI -ErrorAction SilentlyContinue) { 'another Dolphin is running'; exit 4 }
@@ -24,8 +26,17 @@ $argv = @('-p', 'headless', '-u', "`"$User`"", '-C', 'Graphics.VR.EnableOpenXR=F
 $p = Start-Process -FilePath $Exe -ArgumentList $argv -WindowStyle Hidden -PassThru `
   -RedirectStandardOutput "$Probe.stdout.txt" -RedirectStandardError "$Probe.stderr.txt"
 try { $p.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::BelowNormal } catch {}
-if (-not $p.WaitForExit($Seconds * 1000)) {
+$deadline = (Get-Date).AddSeconds($Seconds)
+$reached = $false
+while (-not $p.HasExited -and (Get-Date) -lt $deadline) {
+  Start-Sleep -Milliseconds 2000
+  if ($UntilProbeTime -gt 0 -and (Test-Path $Probe)) {
+    $last = Get-Content $Probe -Tail 1 -ErrorAction SilentlyContinue
+    if ($last -match '^t=([\d.]+)' -and [double]$Matches[1] -ge $UntilProbeTime) { $reached = $true; Start-Sleep -Seconds 3; break }
+  }
+}
+if (-not $p.HasExited) {
   Stop-Process -Id $p.Id -Force
   $null = $p.WaitForExit(20000)
-  "stopped after $Seconds s"
+  if ($reached) { "stopped at probe time $UntilProbeTime" } else { "stopped after $Seconds s" }
 } else { "exited $($p.ExitCode)" }
