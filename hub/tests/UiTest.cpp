@@ -1289,8 +1289,30 @@ class UiTest:public QObject {
   QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-2-grid-scrolled.png")));
   panel->setProperty("selectedId","scud");QTest::qWait(400);
   QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-3-game-page.png")));
-  panel->setProperty("selectedId","");panel->setProperty("tab","ps1");QTest::qWait(300);
-  QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-4-tab-ps1.png")));
+  const auto save=[&](const QString &name){QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath(name)));};
+  const auto b=[&]{QTest::qWait(300);emit overlayProbe.backRequested();QTest::qWait(300);};
+  // B at each level: a game page in the PS1 tab, then the PS1 grid, then the whole grid, then the top (no change).
+  panel->setProperty("selectedId","");QTest::qWait(300);panel->setProperty("tab","ps1");QTest::qWait(300);
+  save("panel-4-tab-ps1.png");
+  QQuickItem *ps1Tile=visibleNamed("panelTile");QVERIFY(ps1Tile);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,ps1Tile->mapToScene(QPointF(ps1Tile->width()/2,ps1Tile->height()/2)).toPoint());
+  QTRY_VERIFY(visibleNamed("panelGamePage"));QTest::qWait(300);save("panel-5-b0-game-page-in-ps1-tab.png");
+  b();QVERIFY(!visibleNamed("panelGamePage"));save("panel-6-b1-back-to-ps1-grid.png");
+  b();QCOMPARE(panel->property("tab").toString(),QString("all"));save("panel-7-b2-back-to-all-grid.png");
+  b();QCOMPARE(root->property("view").toString(),QString("Model3"));save("panel-8-b3-top-nothing-happens.png");
+  // The filter menu open, then closed by B.
+  QQuickItem *filterButton=visibleNamed("panelFilter");QVERIFY(filterButton);QTest::qWait(300);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,filterButton->mapToScene(QPointF(filterButton->width()/2,filterButton->height()/2)).toPoint());
+  QTest::qWait(300);save("panel-9-filter-menu.png");b();save("panel-10-b-closed-filter-menu.png");
+  // Double click on a tile, then Play spammed: one start, every Play shows Starting, a refused second launch is said.
+  int plays=0;auto connection=connect(ui.get(),&ac::UiController::model3PlayRequested,this,[&](const QString &id,const QString &view){++plays;ui->launchModel3Queued(id,view,QString());});
+  const auto finish=qScopeGuard([&]{disconnect(connection);if(!ui->nowPlaying().isEmpty())ui->launchFinished(ui->nowPlaying()["gameId"].toString(),QString(),0);ui->dismissLastSession();});
+  QQuickItem *scud=nullptr;for(auto *tile:namedItems(window->contentItem(),"panelTile"))if(tile->property("title").toString()=="Scud Race"&&withinClips(tile))scud=tile;QVERIFY(scud);
+  const auto at=scud->mapToScene(QPointF(scud->width()/2,scud->height()/2)).toPoint();
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,at);QTest::qWait(60);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,at);
+  QTRY_VERIFY(visibleNamed("panelGamePage"));QCOMPARE(plays,0);save("panel-11-after-double-click-page-open-nothing-started.png");
+  QTest::qWait(350);QQuickItem *play=visibleNamed("panelPlay");QVERIFY(play);const auto playAt=play->mapToScene(QPointF(play->width()/2,play->height()/2)).toPoint();
+  for(int i=0;i<5;++i){QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,playAt);QTest::qWait(30);}
+  QCOMPARE(plays,1);save("panel-12-play-spammed-starting-card.png");
+  ui->playGame("scud","screen");QCOMPARE(plays,1);save("panel-13-second-launch-refused-message.png");
  }
  void sceneWarnings(){QTest::qWait(100);QStringList invalid;for(const auto &w:warnings)if(w.contains("ReferenceError")||w.contains("TypeError")||w.contains("Unable to assign")||w.contains("Binding loop")||w.contains("is not a type"))invalid<<w;QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));}
  void selfBenchmark(){
