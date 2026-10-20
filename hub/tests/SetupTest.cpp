@@ -6,6 +6,7 @@
 #include "core/ps2/Ps2.h"
 #include "core/ps1/Ps1.h"
 #include "core/n64/N64.h"
+#include "core/saturn/Saturn.h"
 #include "core/install/Install.h"
 #include <QtTest>
 #include <QDir>
@@ -317,6 +318,26 @@ private slots:
     const auto result=ac::setup::scanSystem("n64",{{"n64Launcher",launcher}},{},{},cancel);
     QVERIFY(!entry(result,"ready","mario-kart-64").isEmpty());
     QCOMPARE(entry(result,"missing","goldeneye")["expected"].toString(),QString("GoldenEye 007 (an entry in your N64 launcher)"));
+  }
+  // Saturn: the five gun games, each started by its key in the user's launcher, on the theatre screen.
+  void saturnGamesStartThroughTheLaunchersKeys() {
+    QCOMPARE(ac::saturn::games().size(),5);
+    for(const auto &value:ac::saturn::games()){const auto game=value.toMap();QCOMPARE(game["view"].toString(),QString("theatre"));QVERIFY(game["controls"].toString().contains("Stunner"));}
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto launcher=t.filePath("play/saturn/launch-saturn.ps1");
+    QVERIFY(ac::saturn::problem("virtua-cop-2",QString()).contains("not found"));
+    write(launcher,"synthetic");
+    QVERIFY(ac::saturn::problem("virtua-cop-2",launcher).contains("no entry"));
+    QVERIFY(ac::saturn::problem("not-a-game",launcher).contains("not in the Saturn list"));
+    write(t.filePath("play/saturn/games.json"),"{\"virtua-cop-2\":{},\"house-of-the-dead\":{}}");
+    QVERIFY(ac::saturn::problem("virtua-cop-2",launcher).isEmpty());
+    const auto plan=ac::saturn::launchPlan("house-of-the-dead",launcher);
+    QVERIFY(plan["executable"].toString().endsWith("powershell.exe",Qt::CaseInsensitive));
+    QCOMPARE(plan["cwd"].toString(),QDir::toNativeSeparators(t.filePath("play/saturn")));
+    QCOMPARE(plan["args"].toStringList(),(QStringList{"-NoProfile","-ExecutionPolicy","Bypass","-File",QDir::toNativeSeparators(launcher),"house-of-the-dead"}));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::saturn::launchPlan("area-51",launcher));
+    const auto result=ac::setup::scanSystem("saturn",{{"saturnLauncher",launcher}},{},{},cancel);
+    QVERIFY(!entry(result,"ready","virtua-cop-2").isEmpty());
+    QCOMPARE(entry(result,"missing","hakaider")["expected"].toString(),QString("Mechanical Violator Hakaider: Last Judgement (an entry in your Saturn launcher)"));
   }
   void timeCrisisNeedsItsProgramAndTheFilesBesideIt() {
     QTemporaryDir t;std::atomic_bool cancel=false;const auto program=t.filePath("build/game.exe");

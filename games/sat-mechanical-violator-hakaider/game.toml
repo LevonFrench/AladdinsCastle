@@ -1,0 +1,43 @@
+# Japan-only Saturn light-gun game based on the Toei film; the title screen credits Toei Video, Sega and Tohokushinsha (1996).
+id           = "sat-mechanical-violator-hakaider"
+title        = "Mechanical Violator Hakaider: Last Judgement"
+alt_titles   = ["Jinzou Ningen Hakaider: Last Judgement"]
+genre        = "gun"
+subgenre     = ["rail-shooter"]
+year         = 1996
+manufacturer = "sega"
+developer    = "Sega"
+hardware     = "sega-saturn"
+graphics     = "polygon-3d"
+players      = 1
+series       = "Kikaider"
+
+[controls]
+type = "gun"
+guns = 1
+gun  = "Virtua Gun (Saturn light gun)"
+
+[[media]]
+kind = "disc"
+note = "Your own Saturn disc image (CUE/BIN or CHD)"
+
+[[media]]
+kind = "bios"
+note = "Your own Saturn BIOS dump"
+
+[routes]
+mednafen     = "unknown"
+yabasanshiro = "unknown"
+vr           = { best = "theatre", via = "acvr-ps1 with Beetle Saturn and the Stunner (setups/retro-ps1-vr)" }
+
+[hub]
+pill   = "SAT-HAKAI"
+colour = "#1a1224"
+accent = "#b07cff"
+blurb  = "A Japanese Saturn gun game after the Hakaider film, with Gun Adjust in its options."
+badges = ["roomscale"]
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Mechanical_Violator_Hakaider"]
+confidence = "low"
+checked    = "2026-10-20"
