@@ -5,6 +5,7 @@
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
 #include "core/ps1/Ps1.h"
+#include "core/n64/N64.h"
 #include "core/install/Install.h"
 #include <QtTest>
 #include <QDir>
@@ -287,6 +288,35 @@ private slots:
     const auto result=ac::setup::scanSystem("ps1",{{"ps1Launcher",launcher}},{},{},cancel);
     QVERIFY(!entry(result,"ready","point-blank").isEmpty());
     QCOMPARE(entry(result,"missing","judge-dredd")["expected"].toString(),QString("Judge Dredd (an entry in your PS1 launcher)"));
+  }
+  // N64: the user's launcher has one key per view (<id>-3d, <id>, <id>-theatre); the Hub offers the ones it lists.
+  void n64GamesStartThroughTheLaunchersViewKeys() {
+    QCOMPARE(ac::n64::games().size(),22);
+    for(const auto &value:ac::n64::games()){const auto game=value.toMap();QVERIFY(!game["controls"].toString().isEmpty());
+     QVERIFY(QStringList({"open","wide","standard"}).contains(game["frame"].toString()));}
+    QTemporaryDir t;std::atomic_bool cancel=false;const auto launcher=t.filePath("play/n64/launch-n64.ps1");
+    QVERIFY(ac::n64::problem("mario-kart-64",QString()).contains("not found"));
+    write(launcher,"synthetic");
+    QVERIFY(ac::n64::problem("mario-kart-64",launcher).contains("no entry"));
+    QVERIFY(ac::n64::problem("not-a-game",launcher).contains("not in the N64 list"));
+    write(t.filePath("play/n64/games.json"),"{\"mario-kart-64\":{},\"mario-kart-64-3d\":{},\"mario-kart-64-theatre\":{},\"turok-3d\":{}}");
+    QVERIFY(ac::n64::problem("mario-kart-64",launcher).isEmpty());
+    QVERIFY(ac::n64::problem("turok",launcher).isEmpty());
+    QStringList ids;for(const auto &v:ac::n64::views("mario-kart-64",launcher))ids<<v.toMap()["id"].toString();
+    QCOMPARE(ids,(QStringList{"3d","flat","theatre"}));
+    QCOMPARE(ac::n64::views("turok",launcher).size(),1);
+    QCOMPARE(ac::n64::viewLabel("mario-kart-64","3d"),QString("Real 3D, open frame"));
+    QCOMPARE(ac::n64::viewLabel("super-mario-64","flat"),QString("16:9"));
+    const auto plan=ac::n64::launchPlan("mario-kart-64",launcher,"3d");
+    QVERIFY(plan["executable"].toString().endsWith("powershell.exe",Qt::CaseInsensitive));
+    QCOMPARE(plan["cwd"].toString(),QDir::toNativeSeparators(t.filePath("play/n64")));
+    QCOMPARE(plan["args"].toStringList(),(QStringList{"-NoProfile","-ExecutionPolicy","Bypass","-File",QDir::toNativeSeparators(launcher),"mario-kart-64-3d"}));
+    QCOMPARE(ac::n64::launchPlan("mario-kart-64",launcher,"flat")["args"].toStringList().last(),QString("mario-kart-64"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::n64::launchPlan("turok",launcher,"theatre"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::n64::launchPlan("goldeneye",launcher,"3d"));
+    const auto result=ac::setup::scanSystem("n64",{{"n64Launcher",launcher}},{},{},cancel);
+    QVERIFY(!entry(result,"ready","mario-kart-64").isEmpty());
+    QCOMPARE(entry(result,"missing","goldeneye")["expected"].toString(),QString("GoldenEye 007 (an entry in your N64 launcher)"));
   }
   void timeCrisisNeedsItsProgramAndTheFilesBesideIt() {
     QTemporaryDir t;std::atomic_bool cancel=false;const auto program=t.filePath("build/game.exe");

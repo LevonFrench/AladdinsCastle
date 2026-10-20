@@ -1,0 +1,36 @@
+id           = "n64-rush-2"
+title        = "Rush 2: Extreme Racing USA"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["street"]
+year         = 1998
+manufacturer = "midway"
+developer    = "Atari Games"
+hardware     = "nintendo-64"
+graphics     = "polygon-3d"
+players      = 2
+series       = "Rush"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "other"
+note = "Your own N64 cartridge dump (not provided by this catalog)"
+
+[routes]
+mupen64plus = "unknown"
+vr          = { best = "true3d", via = "acvr-ps1 with mupen64plus-next, GL stereo (setups/retro-ps1-vr)" }
+
+[hub]
+pill   = "N64 RUSH2"
+colour = "#14100e"
+accent = "#e86a3a"
+blurb  = "Jumps and shortcuts through American cities."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Rush_2:_Extreme_Racing_USA"]
+confidence = "medium"
+checked    = "2026-10-20"
