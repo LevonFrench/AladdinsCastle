@@ -150,6 +150,10 @@ class UiController : public QObject {
  Q_INVOKABLE QString libraryRule()const;
  // Where an arcade game's zip is: the system's own folder when it is there, else the library's copy.
  QString gameFolderFor(const QString &system,const QString &game)const;
+ // The launcher script a system's games start through: the one chosen in the settings, or the system's usual
+ // launcher beside another launcher the user chose (their play folder). Empty when there is none. Systems:
+ // saturn, mamegun, dreamcast, wii, gamecube.
+ QString launcherFor(const QString &system)const;
  // The watchdog: programs of the set-up systems running outside any game (End, End all), the running
  // game's trouble ("hung", "hidden", "minimized"), and the crash records kept in the Hub's folder.
  Q_PROPERTY(QVariantList backgroundPrograms READ backgroundPrograms NOTIFY watchdogChanged)

@@ -78,6 +78,10 @@ add_library(hubcore STATIC
     src/core/model2/Model2.h
     src/core/dreamcast/Dreamcast.cpp
     src/core/dreamcast/Dreamcast.h
+    src/core/scripted/Scripted.cpp
+    src/core/scripted/Scripted.h
+    src/core/system22/System22.cpp
+    src/core/system22/System22.h
     src/core/setup/Setup.cpp
     src/core/setup/Setup.h
     src/core/setup/Report.cpp

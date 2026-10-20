@@ -413,19 +413,20 @@ class UiTest:public QObject {
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(tabs.first()));
   QCOMPARE(root->property("view").toString(),QString("Model3"));
   QTRY_VERIFY(!namedItems(window->contentItem(),"model3Grid").isEmpty());
-  QCOMPARE(namedItems(window->contentItem(),"model3Grid").first()->property("count").toInt(),10);
+  QCOMPARE(namedItems(window->contentItem(),"model3Grid").first()->property("count").toInt(),11); // with Sega Rally 2 DX
   for(const auto &row:ui->model3Games())QVERIFY(row.toMap().value("problem").toString().contains("Choose it in Set-up"));
   QVERIFY(settings->set("model3Executable",fixture.filePath("emu/program.exe")));QVERIFY(settings->set("model3GameFolder",fixture.filePath("games")));
-  auto rows=ui->model3Games();QCOMPARE(rows.size(),10);
+  auto rows=ui->model3Games();QCOMPARE(rows.size(),11); // with Sega Rally 2 DX
   QCOMPARE(rows[0].toMap().value("view").toString(),QString("screen"));
   QVERIFY(rows[0].toMap().value("problem").toString().isEmpty());QVERIFY(rows[1].toMap().value("problem").toString().contains("daytona2.zip"));
   QVERIFY(softwareFrame(window));QTRY_VERIFY(!namedItems(window->contentItem(),"model3Card").isEmpty());
   const auto card=namedItems(window->contentItem(),"model3Card").first();
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,card->mapToScene(QPointF(card->width()/2,20)).toPoint());
-  QTRY_COMPARE(namedItems(window->contentItem(),"model3View").size(),3);
+  // Scud Race's views from its old launchers: screen, open frame, wide, depth trial, inside, inside with the wheel.
+  QTRY_COMPARE(namedItems(window->contentItem(),"model3View").size(),6);
   QCOMPARE(namedItems(window->contentItem(),"model3Title").first()->property("text").toString(),QString("Scud Race"));
   QVERIFY(softwareFrame(window));
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(namedItems(window->contentItem(),"model3View").last()));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(namedItems(window->contentItem(),"model3View")[4]));
   QTRY_COMPARE(ui->model3Games()[0].toMap().value("view").toString(),QString("inside"));
   ac::UiSettings saved(user.path());QCOMPARE(saved.get("model3Views").toMap().value("scud").toString(),QString("inside"));
   QSignalSpy play(ui.get(),SIGNAL(model3PlayRequested(QString,QString)));

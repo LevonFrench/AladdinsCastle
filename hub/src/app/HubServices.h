@@ -158,6 +158,8 @@ private:
     QThreadPool artPool_;std::shared_ptr<std::atomic_bool> artCancel_;
     bool askPs2ToQuit();
     bool askPs1ToQuit();
+    // Whether a game's view plays on the PC monitor, with no headset (from its row's views).
+    bool onMonitor(const QString &id,const QString &view)const;
     // Model 2 quits cleanly through a Hub-owned stop file: the viewer asks MAME to exit, which saves its
     // NVRAM and settings. Stop forces both programs only if nothing has ended well after that.
     bool askModel2ToQuit(bool forceLater);

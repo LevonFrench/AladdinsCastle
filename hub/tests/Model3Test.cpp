@@ -26,7 +26,7 @@ class Model3Test : public QObject {
   Q_OBJECT
 private slots:
   void listsTenGamesAndThreeViews() {
-    QCOMPARE(ac::model3::games().size(),10);
+    QCOMPARE(ac::model3::games().size(),11); // the first ten and Sega Rally 2 DX (srally2x, 2026-10-20)
     QStringList ids; for(const auto &view:ac::model3::views())ids<<view.toMap().value("id").toString();
     QCOMPARE(ids,(QStringList{"screen","wide","inside"}));
     QCOMPARE(ac::model3::viewLabel("inside"),QString("Inside the game"));
@@ -86,6 +86,42 @@ private slots:
     QVERIFY(ac::model3::problem("scud",bare.filePath("program.exe"),f.media).contains("Config"));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::model3::launchPlan("daytona2","screen",f.program,f.media));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::model3::launchPlan("scud","sideways",f.program,f.media));
+  }
+  // Each game's own views, as the old numbered launchers offered them.
+  void eachGameHasTheViewsOfItsOldLaunchers() {
+    Fixture f;
+    const auto ids=[](const QString &game){QStringList list;for(const auto &v:ac::model3::views(game))list<<v.toMap().value("id").toString();return list;};
+    QCOMPARE(ids("scud"),(QStringList{"screen","open-frame","wide","depth","inside","inside-wheel"}));
+    QCOMPARE(ids("srally2"),(QStringList{"screen","open-frame","wide","inside","inside-wheel","sbs-monitor"}));
+    QCOMPARE(ids("swtrilgy"),(QStringList{"screen","open-frame","wide","inside","inside-stick"}));
+    QCOMPARE(ids("vf3"),(QStringList{"screen","open-frame","wide","inside"}));
+    QCOMPARE(ids("srally2x"),(QStringList{"screen","open-frame","inside-wheel"}));
+    int count=0;for(const auto &game:ac::model3::games())count+=ac::model3::views(game.toMap().value("id").toString()).size();
+    QCOMPARE(count,54); // the 47 archived launchers, plus Wide screen, which the Hub already offered, for seven more games
+    // Open frame: Supermodel's wide screen at 16:9.
+    QCOMPARE(ac::model3::launchPlan("scud","open-frame",f.program,f.media).value("args").toStringList(),
+             (QStringList{native(f.media+"/scud.zip"),"-window","-res=1920,1080","-ss=2","-wide-screen","-input-system=xinput"}));
+    // The depth trial: the measured convergence and separation.
+    auto env=ac::model3::launchPlan("scud","depth",f.program,f.media).value("env").toMap();
+    QCOMPARE(env,(QVariantMap{{"ACVR_XR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_XR_DISTANCE","2.5"},{"ACVR_XR_SIZE","1"},{"ACVR_CONVERGENCE","3.8"},{"ACVR_EYE_SEP","0.02"}}));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::model3::launchPlan("swtrilgy","depth",f.program,f.media));
+    // Inside with the wheel to grab; Star Wars Trilogy's stick; the side-by-side window keeps the default separation.
+    env=ac::model3::launchPlan("scud","inside-wheel",f.program,f.media).value("env").toMap();
+    QCOMPARE(env.value("ACVR_CONTROLS").toString(),QString("1"));QCOMPARE(env.value("ACVR_WHEEL_GRAB").toString(),QString("1"));QCOMPARE(env.value("ACVR_VR").toString(),QString("1"));
+    env=ac::model3::launchPlan("swtrilgy","inside-stick",f.program,f.media).value("env").toMap();
+    QCOMPARE(env.value("ACVR_STICK_GRAB").toString(),QString("1"));QCOMPARE(env.value("ACVR_INPUT_SCRIPT").toString(),QString("300-312:TestA:1;700-712:TestA:1"));
+    const auto sbs=ac::model3::launchPlan("srally2","sbs-monitor",f.program,f.media);
+    QCOMPARE(sbs.value("env").toMap(),(QVariantMap{{"ACVR_STEREO","1"},{"ACVR_EYE_SEP","0.065"},{"ACVR_WORLD_SCALE","1"},{"ACVR_CONVERGENCE","2.5"}}));
+    QCOMPARE(sbs.value("args").toStringList(),(QStringList{native(f.media+"/srally2.zip"),"-window","-res=1280,960","-input-system=xinput"}));
+    QVERIFY(ac::model3::isMonitorView("sbs-monitor"));QVERIFY(!ac::model3::isMonitorView("screen"));
+    // Sega Rally 2 DX: its own folder beside the game folder, Supermodel's set name, its CPU speed, Sega Rally 2's stereo.
+    touch(f.folder.filePath("games-dx/srally2x.zip"));
+    QVERIFY(ac::model3::problem("srally2x",f.program,f.media).isEmpty());
+    QCOMPARE(ac::model3::setName("srally2x"),QString("srally2dx"));QCOMPARE(ac::model3::setName("scud"),QString("scud"));
+    const auto dx=ac::model3::launchPlan("srally2x","open-frame",f.program,f.media);
+    QCOMPARE(dx.value("args").toStringList(),(QStringList{native(f.folder.filePath("games-dx/srally2x.zip")),"-window","-res=1920,1080","-ss=2","-wide-screen","-ppc-frequency=100","-input-system=xinput"}));
+    QCOMPARE(dx.value("env").toMap().value("ACVR_CONVERGENCE").toString(),QString("3.6"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::model3::launchPlan("srally2x","inside",f.program,f.media));
   }
   void planningWritesNothing() {
     Fixture f;

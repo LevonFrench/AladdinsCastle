@@ -15,8 +15,16 @@ namespace ac::ps1 {
 QVariantList games(); // id (the launcher's key), title, year, controls (a plain sentence), view
 // The keys the user's launcher knows, from the games.json beside it. Read-only.
 QStringList launcherKeys(const QString &launcher);
+// A game's views are separate launcher keys: <id> (its usual view: real 3D or the theatre screen),
+// <id>-open-frame (3D drawn 16:9), <id>-diorama (sprites at depths, a prototype) and <id>-no-trim (the aim
+// without its measured trim, to compare). The views the launcher lists for the game, each {id, label, help},
+// the usual one first. Empty when it lists none.
+QVariantList views(const QString &game,const QString &launcher);
+QString viewLabel(const QString &game,const QString &view);
+// The launcher key for a game and view ("standard", "open-frame", "diorama" or "no-trim"); empty for another view.
+QString launcherKey(const QString &game,const QString &view);
 // Empty when the game can start; otherwise "What is wrong. What to do."
 QString problem(const QString &game,const QString &launcher);
 // executable (Windows PowerShell), cwd (the launcher's folder) and args. Throws install::Error.
-QVariantMap launchPlan(const QString &game,const QString &launcher);
+QVariantMap launchPlan(const QString &game,const QString &launcher,const QString &view=QStringLiteral("standard"));
 }

@@ -25,8 +25,9 @@ QStringList launcherKeys(const QString &launcher);
 // The games whose launcher entry has an inside profile, so it can open the game around you: the one
 // list, in Ps2.cpp, filled in as each is confirmed. Empty until then.
 QStringList insideGames();
-// The views a game can be played in, each {id, label, help}: 3D screen always, and Inside the game for a
-// game in the inside list that the launcher knows. The list is given only by tests.
+// The views a game can be played in, each {id, label, help}: 3D screen always; Inside the game for a game in the
+// inside list, or whose launcher entry carries its own inside profile; Depth trial when the launcher has a
+// <id>-depth-trial key; and the launcher's short Headset check on Virtua Cop. The list is given only by tests.
 QVariantList views(const QString &game,const QString &launcher,const QStringList &inside=insideGames());
 // Empty when the game can start; otherwise "What is wrong. What to do."
 QString problem(const QString &game,const QString &launcher,const QString &python,const QString &stopFile);
@@ -34,6 +35,6 @@ QString problem(const QString &game,const QString &launcher,const QString &pytho
 // Inside view). Throws install::Error, also for Inside on a game the launcher has no inside profile for.
 QVariantMap launchPlan(const QString &game,const QString &launcher,const QString &python,const QString &stopFile,const QString &view=QStringLiteral("screen"),
                        const QStringList &inside=insideGames());
-// "3D screen" or "Inside the game".
+// "3D screen", "Inside the game", "Depth trial" or "Headset check".
 QString viewLabel(const QString &view);
 }

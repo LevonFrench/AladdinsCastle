@@ -16,6 +16,11 @@ namespace ac::model2 {
 //   ../runtime                       the emulator's working folder
 //   ../captures                      where the emulator keeps its own snapshots
 QVariantList games(); // id (= set name), title, year, controls (a plain sentence about the controls)
+// The views a game has, each {id, label, help, controls}, real 3D first: "3d" (the 4:3 picture in stereo),
+// "open-frame" (the 3D world drawn to 16:9 where the game sends it) and the opt-in "roll-steer" (roll the right
+// controller like a wheel), as the old numbered launchers offered them. Empty for a game not in the list.
+QVariantList views(const QString &game);
+QString viewLabel(const QString &view);
 // The game's zip file name without ".zip": the set name, or its parent's when the clone lives there.
 QString fileName(const QString &game);
 // Empty when the game can start; otherwise "What is wrong. What to do." Which
@@ -26,5 +31,5 @@ QString problem(const QString &game,const QString &program,const QString &gameFo
 // same for the emulator under "companion", and env (name -> value). The
 // viewer's argument is "${companion_pid}", filled in by the launcher.
 // Read-only: nothing is created. Throws install::Error.
-QVariantMap launchPlan(const QString &game,const QString &program,const QString &gameFolder);
+QVariantMap launchPlan(const QString &game,const QString &program,const QString &gameFolder,const QString &view=QStringLiteral("3d"));
 }

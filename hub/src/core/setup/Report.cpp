@@ -104,26 +104,26 @@ QVariantMap scanModel3(const QVariantMap &settings,const QVariantMap &context,co
   if(cancel)break;
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
   auto folder=systemFolder;
-  if(folder.isEmpty()||!QFileInfo(QDir(folder).filePath(id+".zip")).isFile())folder=libraryFolder(context,"model3",id);
-  const auto zip=QDir(folder).filePath(id+".zip");
+  if(folder.isEmpty()||!QFileInfo(model3::gameFile(id,folder)).isFile())folder=libraryFolder(context,"model3",id);
+  const auto zip=folder.isEmpty()?QString():model3::gameFile(id,folder),set=model3::setName(id);
   progress(title);
   if(folder.isEmpty()||!QFileInfo(zip).isFile()){groups.missing<<item(id,title,"expected",id+".zip");continue;}
   if(!programReady){groups.notRight<<item(id,title,"reason","The game file was found by its name, but it could not be checked: the emulator build for this system is not set up on this PC.");continue;}
-  if(!sets.contains(id)){groups.notRight<<item(id,title,"reason","This emulator build does not list this game.");continue;}
+  if(!sets.contains(set)){groups.notRight<<item(id,title,"reason","This emulator build does not list this game.");continue;}
   bool readable=false;auto have=checksums(zip,cancel,&readable);
   if(!readable){groups.notRight<<item(id,title,"reason","The file is not a zip the Hub can read.");continue;}
-  const auto parent=sets.value(id).parent;bool parentFound=true;
-  if(!parent.isEmpty()){const auto parentZip=QDir(folder).filePath(parent+".zip");parentFound=QFileInfo(parentZip).isFile();if(parentFound){bool ok=false;have.unite(checksums(parentZip,cancel,&ok));}}
+  const auto parent=sets.value(set).parent;bool parentFound=true;
+  if(!parent.isEmpty()){const auto parentZip=QFileInfo(zip).absoluteDir().filePath(parent+".zip");parentFound=QFileInfo(parentZip).isFile();if(parentFound){bool ok=false;have.unite(checksums(parentZip,cancel,&ok));}}
   // Right when the zip holds every needed file of this game or of another version of it.
   QString match;int closest=-1,closestTotal=0;
-  for(const auto &version:family(sets,id)){
+  for(const auto &version:family(sets,set)){
    const auto files=needed(sets,version);int absent=0;
    for(auto it=files.begin();it!=files.end();++it)if(!have.contains(it.key()))++absent;
    if(files.isEmpty())continue;
    if(absent==0){match=version;break;}
    if(closest<0||absent<closest){closest=absent;closestTotal=static_cast<int>(files.size());}
   }
-  if(!match.isEmpty()){groups.ready<<item(id,title,"detail",match==id?QString("Checked against the emulator's own list."):QString("Checked against the emulator's own list. The file holds the version it calls %1.").arg(match));
+  if(!match.isEmpty()){groups.ready<<item(id,title,"detail",match==set?QString("Checked against the emulator's own list."):QString("Checked against the emulator's own list. The file holds the version it calls %1.").arg(match));
    if(folder!=systemFolder){auto entry=groups.ready.last().toMap();entry["folder"]=folder;groups.ready.last()=entry;}}
   else if(!parentFound)groups.notRight<<item(id,title,"reason",QString("It also needs %1.zip beside it, which was not found.").arg(parent));
   else groups.notRight<<item(id,title,"reason",QString("%1 of the %2 files this emulator expects inside are missing or different. This is usually an older or newer version of the set.").arg(closest).arg(closestTotal));

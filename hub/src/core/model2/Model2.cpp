@@ -24,6 +24,21 @@ const Game kGames[]={
  {"desert","Desert Tank",1994,"Controls new, untested: the left stick steers the tank, right trigger = gas, left trigger = brake, right grip = machine gun, left grip = cannon, A = Start, B = Coin."},
  {"rchase2","Rail Chase 2",1994,"Controls new, untested: aim the mounted gun with the right controller, the trigger fires, A = Start, B = Coin."},
  {"vf2","Virtua Fighter 2",1994,viewOnly}};
+// The extra views, with the controls the old launchers said for them. Open frame adds 93 pixels a side (16:9).
+struct Extra {const char *game,*view,*controls;};
+const Extra kExtras[]={
+ {"vcop2","open-frame","Open frame 16:9 (3D world drawn past 4:3 where the game sends it). Gun as in 3D; pointing at the extra sides counts as off the screen (reload)."},
+ {"vcop","open-frame","Open frame 16:9 (3D world drawn past 4:3). Gun as in 3D; pointing at the extra sides counts as off the screen (reload)."},
+ {"hotdo","open-frame","Open frame 16:9 (3D ground and trees fill the sides; the 2D sky stays 4:3). Right controller = gun (aim, trigger shoots, point off the screen to reload), A = Start, B = Coin."},
+ {"gunblade","open-frame","Open frame 16:9. Right controller aims the mounted gun (stops at the screen edge), trigger fires, A = Start, B = Coin."},
+ {"bel","open-frame","Open frame 16:9 (world beside the 4:3 cockpit frame). Right controller aims the mounted gun, trigger fires, right grip = missile, A = Start, B = Coin."},
+ {"daytona","open-frame","Open frame 16:9. Left stick steers, right trigger = gas, left trigger = brake, grips = gears, A = Start, B = Coin."},
+ {"srallyc","open-frame","Open frame 16:9. Left stick steers, right trigger = gas, left trigger = brake, grips = gears, A = Start, B = Coin."},
+ {"indy500","open-frame","Open frame 16:9. Left stick steers, right trigger = gas, left trigger = brake, grips = shift, A = Start, B = Coin (2 coins per credit)."},
+ {"motoraid","open-frame","Open frame 16:9 (track fills the sides; the 2D sky stays 4:3). Left stick steers, right trigger = gas, left trigger = brake, grips = punch and kick, A = Start, B = Coin."},
+ {"daytona","roll-steer","Roll the right controller like a wheel (60 degrees = full lock; a pushed left stick still wins), right trigger = gas, left trigger = brake, grips = gears, A = Start, B = Coin."},
+ {"srallyc","roll-steer","Roll the right controller like a wheel (60 degrees = full lock; a pushed left stick still wins), right trigger = gas, left trigger = brake, grips = gears, A = Start, B = Coin."},
+};
 const Game *findGame(const QString &id){for(const auto &game:kGames)if(id==QLatin1String(game.id))return &game;return nullptr;}
 QString beside(const QString &program,const QString &path){return QDir::cleanPath(QFileInfo(program).absoluteDir().filePath("../"+path));}
 // Stereo and scale settings of the build. The scale was measured in one game and is used for all.
@@ -38,6 +53,21 @@ QVariantList games(){
  for(const auto &game:kGames)result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",QString::fromUtf8(game.controls)}};
  return result;
 }
+QString viewLabel(const QString &view){
+ if(view=="3d")return "3D screen";
+ if(view=="open-frame")return "Open frame (3D, 16:9)";
+ if(view=="roll-steer")return "Roll steer (opt-in)";
+ return {};
+}
+QVariantList views(const QString &game){
+ const auto *found=findGame(game);if(!found)return {};
+ QVariantList list{QVariantMap{{"id","3d"},{"label",viewLabel("3d")},{"help","The game's 4:3 picture in stereo depth on a screen in the headset."},{"controls",QString::fromUtf8(found->controls)}}};
+ for(const auto *view:{"open-frame","roll-steer"})for(const auto &extra:kExtras)if(game==QLatin1String(extra.game)&&QLatin1String(view)==QLatin1String(extra.view))
+  list<<QVariantMap{{"id",QString::fromLatin1(view)},{"label",viewLabel(QString::fromLatin1(view))},
+   {"help",QLatin1String(view)==QLatin1String("open-frame")?QString("The game's 3D world drawn to 16:9 where the game sends it, in stereo."):QString("Steer by rolling your right controller like a wheel; the left stick still steers too.")},
+   {"controls",QString::fromUtf8(extra.controls)}};
+ return list;
+}
 QString fileName(const QString &game){const auto *found=findGame(game);return found&&found->file?QString::fromLatin1(found->file):game;}
 QString problem(const QString &game,const QString &program,const QString &gameFolder){
  const auto *found=findGame(game);
@@ -51,9 +81,13 @@ QString problem(const QString &game,const QString &program,const QString &gameFo
  if(!QFileInfo(QDir(gameFolder).filePath(fileName(game)+".zip")).isFile())return QString("%1.zip is missing. Put your own copy in the game folder.").arg(fileName(game));
  return {};
 }
-QVariantMap launchPlan(const QString &game,const QString &program,const QString &gameFolder){
+QVariantMap launchPlan(const QString &game,const QString &program,const QString &gameFolder,const QString &chosenView){
+ // "screen" was the one view's id before the views of the old launchers came in; it is real 3D.
+ const QString view=chosenView=="screen"?QString("3d"):chosenView;
  const auto issue=problem(game,program,gameFolder);
  if(!issue.isEmpty())throw install::Error("E_MODEL2_SETUP",issue);
+ bool offered=false;for(const auto &value:views(game))offered=offered||value.toMap().value("id")==view;
+ if(!offered)throw install::Error("E_MODEL2_VIEW","This Model 2 game has no such view. Choose Real 3D.");
  const auto native=[](const QString &path){return QDir::toNativeSeparators(path);};
  const auto viewer=beside(program,"presenter/model2-viewer.exe");
  // The emulator draws no window and plays no sound itself; the viewer shows its picture.
@@ -61,6 +95,10 @@ QVariantMap launchPlan(const QString &game,const QString &program,const QString 
   "-snapview","Screen 1","-snapshot_directory",native(beside(program,"captures/headset-"+game)),"-snapname",game+"-%i",
   "-nvram_directory","nvram","-cfg_directory","cfg","-state_directory","sta","-diff_directory","diff","-background_input"};
  QVariantMap env;for(const auto &setting:settings())env.insert(setting.first,setting.second);
+ // Open frame: extra pixels drawn on each side of the 4:3 picture (93 = 16:9); 0 = the original frame.
+ env.insert("ACVR_M2_WIDE",view=="open-frame"?"93":"0");
+ // Racing steering is the left stick; rolling the right controller like a wheel is opt-in.
+ env.insert("ACVR_M2_ROLL_STEER",view=="roll-steer"?"1":"0");
  return {{"executable",native(viewer)},{"cwd",native(QFileInfo(viewer).absolutePath())},{"args",QStringList{"${companion_pid}"}},
          {"companion",QVariantMap{{"executable",native(QFileInfo(program).absoluteFilePath())},{"cwd",native(beside(program,"runtime"))},{"args",emulator}}},
          {"env",env}};
