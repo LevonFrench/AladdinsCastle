@@ -16,6 +16,8 @@ bool StereoOn();
 bool HudOn();
 // ACVR_GL_WIDE=kx,ky: the 3D projection squeezed by kx, ky (1 = off); the presenter stretches the picture back.
 void WideView(float &x, float &y);
+// True when the squeeze is done here (false: the game draws the wide view itself, ACVR_GL_WIDE_SQUEEZE=0).
+bool WideSqueezed();
 // Patches the core module's imports of opengl32.dll that this module wraps. Call after LoadLibrary.
 void InstallImports(HMODULE core);
 // The proc address the core gets for `sym`: a wrapper where one exists, else the real entry point.

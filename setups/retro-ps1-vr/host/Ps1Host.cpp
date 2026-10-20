@@ -132,6 +132,44 @@ std::string g_controls = "gun";
 pad::Config g_padCfg;
 pad::RetroPad g_rpad;
 bool PadMode() { return g_controls != "gun"; }
+// ACVR_PAD_FOLLOW_U / _V = "c0,addr:k,addr:k...": the game's target marker on the picture (0..1) as c0 + sum of
+// k * float at addr in the console's memory (fitted offline against the marker in snapshots).
+struct FollowAxis { bool on = false; float c0 = 0; std::vector<std::pair<std::size_t, float>> terms; float prev = 0, sum = 0; bool seen = false; };
+FollowAxis g_follow[2];
+void LoadFollow()
+{
+  const char *names[2] = { "ACVR_PAD_FOLLOW_U", "ACVR_PAD_FOLLOW_V" };
+  for (int i = 0; i < 2; ++i) {
+    const char *e = std::getenv(names[i]); if (!e || !*e) continue;
+    std::istringstream s(e); std::string item; bool first = true;
+    while (std::getline(s, item, ',')) {
+      if (first) { g_follow[i].c0 = (float)std::atof(item.c_str()); first = false; continue; }
+      const auto colon = item.find(':'); if (colon == std::string::npos) continue;
+      g_follow[i].terms.emplace_back((std::size_t)std::strtoul(item.substr(0, colon).c_str(), nullptr, 16) & 0x7ffffcu, (float)std::atof(item.substr(colon + 1).c_str()));
+    }
+    g_follow[i].on = !g_follow[i].terms.empty();
+  }
+}
+// Fills where the marker is now (and how far it moved) into the controller state used for this frame's pad.
+void FollowInto(theatre::Input &in)
+{
+  if (!g_follow[0].on && !g_follow[1].on) return;
+  const auto *ram = static_cast<const unsigned char *>(g_core.get_memory_data(RETRO_MEMORY_SYSTEM_RAM));
+  const std::size_t size = g_core.get_memory_size(RETRO_MEMORY_SYSTEM_RAM);
+  if (!ram) return;
+  float cur[2] = { .5f, .5f }, vel[2] = { 0, 0 };
+  for (int i = 0; i < 2; ++i) {
+    auto &f = g_follow[i]; if (!f.on) continue;
+    float v = f.c0;
+    for (const auto &t : f.terms) { float x = 0; if (t.first + 4 <= size) std::memcpy(&x, ram + t.first, 4); if (std::isfinite(x)) v += t.second * x; }
+    vel[i] = f.seen ? v - f.prev : 0; f.prev = v; f.seen = true; cur[i] = v;
+    // The error's integral, held so its share of the stick stays within full deflection.
+    const float gain = g_padCfg.follow[4 + i], target = i ? in.v : in.u;
+    const bool aiming = in.active && !in.offScreen;
+    f.sum = aiming && gain != 0 ? std::clamp(f.sum + (target - v), -1.f / std::fabs(gain), 1.f / std::fabs(gain)) : 0.f;
+  }
+  in.hasCurrent = true; in.curU = cur[0]; in.curV = cur[1]; in.velU = vel[0]; in.velV = vel[1]; in.sumU = g_follow[0].sum; in.sumV = g_follow[1].sum;
+}
 // Pad games: the controller's rumble (an N64 Rumble Pak) becomes a pulse on the right controller, at most
 // every 80 ms while the game keeps it on.
 bool g_rumbleOn = false; std::uint64_t g_rumbleStarts = 0;
@@ -697,6 +735,9 @@ int main(int argc, char **argv)
   if (!PadMode() && !g_optionOverrides.count("beetle_psx_gun_input_mode")) g_optionOverrides["beetle_psx_gun_input_mode"] = "lightgun";
   if (PadMode()) {
     const std::string problems = g_padCfg.load(g_controls);
+    LoadFollow();
+    if (g_follow[0].on || g_follow[1].on) Log("Pad aim follows the game's marker from its memory (%zu + %zu terms), gains %.2f %.2f %.2f %.2f",
+                                             g_follow[0].terms.size(), g_follow[1].terms.size(), g_padCfg.follow[0], g_padCfg.follow[1], g_padCfg.follow[2], g_padCfg.follow[3]);
     Log("Pad %s", g_padCfg.describe().c_str());
     if (!problems.empty()) Log("Pad map entries not understood:%s", problems.c_str());
   }
@@ -860,8 +901,12 @@ int main(int argc, char **argv)
         // else the screen, undoing the wide view's squeeze.
         theatre::Input aimIn = controller;
         float kx = 1, ky = 1; glstereo::WideView(kx, ky);
-        if (glstereo::HudOn()) { aimIn.u = controller.hudU; aimIn.v = controller.hudV; aimIn.offScreen = !controller.hudHit; }
-        else if (kx < 1 || ky < 1) { aimIn.u = .5f + (controller.u - .5f) / kx; aimIn.v = .5f + (controller.v - .5f) / ky; }
+        // ACVR_PAD_AIM_ON=world: the game's marker is in the 3D world (Star Fox 64), so aim at the world surface.
+        const char *aimOn = std::getenv("ACVR_PAD_AIM_ON");
+        const bool atWorld = aimOn && !std::strcmp(aimOn, "world");
+        if (glstereo::HudOn() && !atWorld) { aimIn.u = controller.hudU; aimIn.v = controller.hudV; aimIn.offScreen = !controller.hudHit; }
+        else if ((kx < 1 || ky < 1) && glstereo::WideSqueezed()) { aimIn.u = .5f + (controller.u - .5f) / kx; aimIn.v = .5f + (controller.v - .5f) / ky; }
+        FollowInto(aimIn);
         g_rpad = pad::Map(aimIn, g_padCfg);
       }
       else g_gun = g;
@@ -883,10 +928,28 @@ int main(int argc, char **argv)
         else if (e.cmd == "reload") { timeline.holdOff = 8; timeline.holdTrigger = 6; }
         else if (e.cmd == "snap" && !snapshots.empty()) {
           WriteSnapshot(snapshots, Arg(e.args, 0, ("f" + std::to_string(frame)).c_str()));
-          if (PadMode()) Log("  frame %u pad: buttons 0x%04X left %.3f %.3f right %.3f %.3f", frame, g_rpad.buttons, g_rpad.lx, g_rpad.ly, g_rpad.rx, g_rpad.ry);
+          if (PadMode()) Log("  frame %u pad: buttons 0x%04X left %.3f %.3f right %.3f %.3f%s", frame, g_rpad.buttons, g_rpad.lx, g_rpad.ly, g_rpad.rx, g_rpad.ry,
+                             scripted.vr.hasCurrent ? (" marker " + std::to_string(scripted.vr.curU) + " " + std::to_string(scripted.vr.curV) + " target " + std::to_string(scripted.vr.u) + " " + std::to_string(scripted.vr.v)).c_str() : "");
+          // ACVR_RAM_WATCH: console memory words (hex addresses) logged as floats at each snapshot, to study a game.
+          if (const char *watch = std::getenv("ACVR_RAM_WATCH")) {
+            const auto *ram = static_cast<const unsigned char *>(g_core.get_memory_data(RETRO_MEMORY_SYSTEM_RAM));
+            const std::size_t size = g_core.get_memory_size(RETRO_MEMORY_SYSTEM_RAM);
+            std::string line; std::istringstream list(watch); std::string item;
+            while (ram && std::getline(list, item, ',')) {
+              const std::size_t addr = (std::size_t)std::strtoul(item.c_str(), nullptr, 16) & 0x7ffffcu; float f = 0;
+              if (addr + 4 <= size) std::memcpy(&f, ram + addr, 4);
+              char b[64]; std::snprintf(b, sizeof b, " %s=%.4f", item.c_str(), f); line += b;
+            }
+            Log("  frame %u ram:%s", frame, line.c_str());
+          }
         }
         else if (e.cmd == "save") SaveSram(true);
         else if (e.cmd == "state-save") SaveState(Arg(e.args, 0, "state.bin"));
+        else if (e.cmd == "ram-dump") {   // the console's main memory, for finding a game's variables offline
+          const void *ram = g_core.get_memory_data(RETRO_MEMORY_SYSTEM_RAM); const std::size_t size = g_core.get_memory_size(RETRO_MEMORY_SYSTEM_RAM);
+          std::ofstream out(Arg(e.args, 0, "ram.bin"), std::ios::binary); if (ram && size) out.write(static_cast<const char *>(ram), (std::streamsize)size);
+          Log("RAM dump %s: %zu bytes", Arg(e.args, 0, "ram.bin").c_str(), size);
+        }
         else if (e.cmd == "state-load") { if (!LoadState(Arg(e.args, 0, "state.bin"))) frames = frame; }
         else if (e.cmd == "quit") { frames = frame; }
         else Log("Unknown script command '%s' at frame %u", e.cmd.c_str(), e.frame);
@@ -902,7 +965,7 @@ int main(int argc, char **argv)
       static bool aimed = false; aimed = aimed || !g_gun.offScreen;
       g_gun.offScreen = off || !aimed;
       for (unsigned *h : { &timeline.holdTrigger, &timeline.holdA, &timeline.holdB, &timeline.holdStart, &timeline.holdSelect, &timeline.holdOff }) if (*h) --*h;
-      if (PadMode()) g_rpad = scripted.frame(g_padCfg);
+      if (PadMode()) { FollowInto(scripted.vr); g_rpad = scripted.frame(g_padCfg); }
       if (frames && frame >= frames) break;
     }
     if (g_gun.trigger && !lastTrigger) { ++shots; if (theatreOn) theatre::QueuePulse(); }

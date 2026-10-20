@@ -588,6 +588,7 @@ bool Tracing() { return s_trace; }
 bool StereoOn() { return s_stereo; }
 bool HudOn() { return s_hud; }
 void WideView(float &x, float &y) { x = s_wideX; y = s_wideY; }
+bool WideSqueezed() { return s_squeeze; }
 
 void InstallImports(HMODULE core)
 {

@@ -39,6 +39,9 @@ struct Input {
   bool padYButton = false;             // left Y (Index: left B) pressed at all; held 3 s it still quits
   // Where the right controller's ray meets the HUD panel's plane (u, v may lie outside 0..1), when it does.
   bool hudHit = false; float hudU = .5f, hudV = .5f;
+  // Filled by the host for games whose aim point moves by rate (Star Fox 64): where the game's own target marker
+  // is on the picture now, from the game's memory (ACVR_PAD_FOLLOW_U/V), and how far it moved since last frame.
+  bool hasCurrent = false; float curU = .5f, curV = .5f, velU = 0, velV = 0, sumU = 0, sumV = 0;   // sum: integral of the error
 };
 // All picture and graphics calls run on the thread whose OpenGL context is current
 // in `owner` (the emulator thread). The headset runs on its own thread.
