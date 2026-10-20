@@ -99,6 +99,7 @@ public:
  std::atomic<bool> exitSent{false};
  bool captured=false;
  unsigned pulses=0;
+ std::uint64_t kickAt=0;   // last shot edge: the model's [motion.recoil] slide kicks back, holds, returns
  explicit Viewer(const Options& o):options(o){gun.load(o.model,o.metadata);}
  void request_stop(){stopRequested=true;}
  const Snapshot& picture()const{return snapshot;}
@@ -131,7 +132,8 @@ public:
   input.valid=frame.focused && !quit.requested();input.off_screen=!on;input.u=std::clamp(u,0.f,1.f);input.v=std::clamp(v,0.f,1.f);
   input.trigger=input.valid && frame.aim.valid && frame.trigger>=.55f;
   input.button2=input.valid && frame.button2;input.start=input.valid && frame.start;input.coin=input.valid && frame.coin;
-  if(input.trigger && !previousTrigger){++pulses;queue_shot_pulse();}previousTrigger=input.trigger;
+  if(input.trigger && !previousTrigger){++pulses;queue_shot_pulse();kickAt=GetTickCount64();}previousTrigger=input.trigger;
+  {const float slideS=gun.recoilMs()/1000.f,since=(GetTickCount64()-kickAt)/1000.f;scene.recoil=kickAt && since<2*slideS?(since<slideS?1.f:2.f-since/slideS):0.f;}   // back, hold, return
   if(quit.requested()){input={};input.heartbeat_ms=GetTickCount64();}
   const bool complete=wire.exchange(input,quit.requested(),snapshot);
   if(quit.requested() && complete)exitSent=true;
@@ -189,21 +191,23 @@ public:
   auto save=[&](std::string name,const std::vector<std::uint32_t>& pixels,unsigned w,unsigned h){if(!acvr_png::write((fs::path(options.proof)/name).string().c_str(),pixels.data(),w,h))throw std::runtime_error("proof write failed");};
   save("source.png",snapshot.pixels,snapshot.w,snapshot.h);
   auto original=scene;
-  std::uint64_t nearCount[2]{},farCount[2]{},dotCount[2]{};
+  std::uint64_t nearCount[2]{},farCount[2]{},dotCount[2]{},recoilCount[2]{};
   for(unsigned eye=0;eye<2;++eye){
    GLuint colour=0;glGenTextures(1,&colour);glBindTexture(GL_TEXTURE_2D,colour);glTexImage2D(GL_TEXTURE_2D,0,GL_SRGB8_ALPHA8,frame.width[eye],frame.height[eye],0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);
    scene=original;scene.showGun=scene.showDot=false;draw_eye(eye,colour,frame,true);auto picture=readback(eye,frame);save(eye?"right-picture.png":"left-picture.png",picture,frame.width[eye],frame.height[eye]);
-   scene=original;scene.showDot=false;draw_eye(eye,colour,frame,true);auto front=readback(eye,frame);save(eye?"right-front.png":"left-front.png",front,frame.width[eye],frame.height[eye]);
+   scene=original;scene.showDot=false;scene.recoil=0;draw_eye(eye,colour,frame,true);auto front=readback(eye,frame);save(eye?"right-front.png":"left-front.png",front,frame.width[eye],frame.height[eye]);
    scene.gunRoot.m[14]-=5;draw_eye(eye,colour,frame,true);auto behind=readback(eye,frame);save(eye?"right-behind.png":"left-behind.png",behind,frame.width[eye],frame.height[eye]);
    scene=original;scene.showGun=false;draw_eye(eye,colour,frame,true);auto dot=readback(eye,frame);save(eye?"right-dot.png":"left-dot.png",dot,frame.width[eye],frame.height[eye]);
-   for(std::size_t i=0;i<picture.size();++i){nearCount[eye]+=(front[i]!=picture[i]);farCount[eye]+=(behind[i]!=picture[i]);dotCount[eye]+=(dot[i]!=picture[i]);}
+   scene=original;scene.showDot=false;scene.recoil=1;draw_eye(eye,colour,frame,true);auto recoil=readback(eye,frame);save(eye?"right-recoil.png":"left-recoil.png",recoil,frame.width[eye],frame.height[eye]);
+   for(std::size_t i=0;i<picture.size();++i){nearCount[eye]+=(front[i]!=picture[i]);recoilCount[eye]+=(recoil[i]!=front[i]);farCount[eye]+=(behind[i]!=picture[i]);dotCount[eye]+=(dot[i]!=picture[i]);}
    glDeleteTextures(1,&colour);
    if(nearCount[eye]<100 || farCount[eye]!=0 || dotCount[eye]<4)throw std::runtime_error("gun/dot depth proof failed");
+   if(gun.hasRecoil() && recoilCount[eye]==0)throw std::runtime_error("recoil proof failed: the slide did not move");
   }
   scene=original;glFinish();if(glGetError()!=GL_NO_ERROR)throw std::runtime_error("GL error during proof");
   if(GetModuleHandleA("openxr_loader.dll"))throw std::runtime_error("offline proof opened an XR loader");
   std::ofstream f(fs::path(options.proof)/"native-proof.json");
-  f<<"{\n\"protocol\":4,\"serial\":"<<snapshot.serial<<",\"emulated_seconds\":"<<snapshot.seconds<<",\"native_width\":"<<snapshot.w<<",\"native_height\":"<<snapshot.h<<",\"physical_aspect\":"<<snapshot.aspect<<",\"orientation_already_applied\":"<<snapshot.orientation<<",\"integer_prescale\":"<<factor<<",\"aim_u\":"<<scene.dotU<<",\"aim_v\":"<<scene.dotV<<",\"mame_cross_u\":"<<snapshot.gun.cross_u<<",\"mame_cross_v\":"<<snapshot.gun.cross_v<<",\"left_near_pixels\":"<<nearCount[0]<<",\"right_near_pixels\":"<<nearCount[1]<<",\"behind_pixels\":0,\"dot_pixels\":["<<dotCount[0]<<","<<dotCount[1]<<"],\"trigger_pulses\":"<<pulses<<",\"GL_errors\":0,\"OpenXR_started\":false,\"headset_tested\":false\n}\n";
+  f<<"{\n\"protocol\":4,\"serial\":"<<snapshot.serial<<",\"emulated_seconds\":"<<snapshot.seconds<<",\"native_width\":"<<snapshot.w<<",\"native_height\":"<<snapshot.h<<",\"physical_aspect\":"<<snapshot.aspect<<",\"orientation_already_applied\":"<<snapshot.orientation<<",\"integer_prescale\":"<<factor<<",\"aim_u\":"<<scene.dotU<<",\"aim_v\":"<<scene.dotV<<",\"mame_cross_u\":"<<snapshot.gun.cross_u<<",\"mame_cross_v\":"<<snapshot.gun.cross_v<<",\"left_near_pixels\":"<<nearCount[0]<<",\"right_near_pixels\":"<<nearCount[1]<<",\"behind_pixels\":0,\"dot_pixels\":["<<dotCount[0]<<","<<dotCount[1]<<"],\"recoil_pixels\":["<<recoilCount[0]<<","<<recoilCount[1]<<"],\"trigger_pulses\":"<<pulses<<",\"GL_errors\":0,\"OpenXR_started\":false,\"headset_tested\":false\n}\n";
   captured=true;
  }
  void shutdown()override{

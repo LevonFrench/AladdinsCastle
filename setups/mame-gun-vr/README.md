@@ -16,6 +16,11 @@ by lock-or-skip; a skipped frame retains the last complete picture.
 The shared presenter's separate theatre mode locates the current eye views and
 tracked right aim/grip, then draws a 3.2 m flat screen at 2.5 m, the GLB gun and
 the aim dot into one opaque projection layer with two depth-tested eye images.
+If the gun's TOML has `[motion.recoil]` (a blowback slide, e.g. `arc-light-gun`),
+each shot edge kicks that node back by its range for `duration_ms`, holds it, and
+returns it over the same time, as the PS1 theatre does. The offline proof also
+saves `left/right-recoil.png` with the slide fully back and records
+`recoil_pixels` (how many pixels differ from the slide at rest; zero fails).
 Each target has the runtime's own recommended dimensions. There are no quad
 layers in this mode. Screen height uses physical aspect, including non-square
 pixels. Native pixels are integer-prescaled by nearest blit, then sampled with
