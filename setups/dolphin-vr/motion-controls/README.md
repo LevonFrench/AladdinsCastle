@@ -150,3 +150,25 @@ backup of anything replaced. Launchers add
   was still on them at 32 s. Dolphin's log shows `msaa=4` in every gun run.
 - Not proven offline: the stereo OpenXR render itself (the runs are mono), anisotropic filtering, and
   anything in the headset.
+
+## More owned games (2026-10-20): pointer aim measured against each game's own cursor
+
+Method (as for the PS1 guns): reach a screen where the game draws its pointer, hold the scripted
+aim ray at nine points (centre, corners and edge midpoints at ±0.45), take a picture 1.5 s into
+each, find the cursor (`input-probe/measure_cursor.py` for colour cursors, `measure_tip.py` for an
+arrow tip) and compare with the aim point `x = (u+1)/2, y = (1-v)/2`. Fit scale and shift per axis
+and turn them into the Point group's own settings in the profile: `IR/Total Yaw` (horizontal scale),
+`IR/Total Pitch` (vertical scale), `IR/Vertical Offset` (vertical shift; about 1.5% of the screen
+height per cm in these games). With Dolphin's defaults (25°, 20°, 10 cm) the cursors were off by up
+to 12% of the screen.
+
+| Game | ID | Set | Cursor used | Before | Trim | After |
+| --- | --- | --- | --- | --- | --- | --- |
+| Gunblade NY & L.A. Machineguns | SQDE8P | AC Gun Gunblade and LA Machineguns | yellow crosshair, ID screen | x 1.33× wide, 7.7% high | Yaw 18.75, Pitch 19, Offset 15 | max 0.5% |
+| Sin & Punishment: Star Successor | R2VE01 | AC Gun Sin and Punishment | gecko cursor; on-screen keys | x 1.32× wide | Yaw 18.75, Pitch 19.5, Offset 18 | aimed keys hit (letter A, OK, YES, menu icons) |
+| Metroid Prime Trilogy | R3ME01 | AC Pointer Metroid Prime Trilogy | blue arrow tip, slot screen | x 1.10×, y 0.75×, 11% low | Yaw 22.7, Pitch 26.8, Offset 0 | about 1% (tip at the aim mark) |
+
+The trims are for the game's own mapping of the emulated IR camera to its picture; in the headset
+the aim ray is measured against DolphinXR's virtual screen, so they hold where that screen shows the
+whole game picture. Metroid Prime Trilogy uses the trigger as Wii A (fire, confirm) and right A or
+grip as B (jump).
