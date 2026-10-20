@@ -400,7 +400,7 @@ core draws and saves its vertex shaders, to study another core.
 
 Results so far (Mupen64Plus-Next 2.8 bc43bce, hidden offline runs): GoldenEye
 007, Mario Kart 64 and F-Zero X boot to gameplay with a scripted pad, react to
-it (identical inputs give identical pictures), steer by roll and accelerate or
+it (identical inputs give identical pictures), steer (by roll, now an option) and accelerate or
 brake on the triggers; GoldenEye's crosshair lands within 0.005 of the screen
 point the controller aims at (13 points inside its aim box, 4:3 and 16:9; one
 16:9 point measured 0.012 where sky hid part of the crosshair). The aim box is
