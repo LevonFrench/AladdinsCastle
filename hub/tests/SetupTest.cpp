@@ -221,10 +221,12 @@ private slots:
     result=ac::setup::scanSystem("model2",{{"model2GameFolder",sets},{"model2Executable",program},{"queryEmulators",true}},{},{},cancel);
     QVERIFY(entry(result,"ready","vcop2")["detail"].toString().contains("not checked"));
     QVERIFY(result["note"].toString().contains("could not be checked"));
-    // Controls were proven on one game only: the others stay view only.
-    QVERIFY(result["note"].toString().contains("Virtua Cop 2: controls new, untested"));QVERIFY(result["note"].toString().contains("view only for now"));
+    // Every game with a controller map says its controls are new and untested; Virtua Fighter 2 stays view only.
+    QVERIFY(result["note"].toString().contains("Controls new, untested: Virtua Cop 2"));QVERIFY(result["note"].toString().contains("Virtua Fighter 2: view only for now"));
     for(const auto &value:ac::model2::games()){const auto game=value.toMap();
-      QCOMPARE(game["controls"].toString().startsWith("Controls new, untested"),game["id"].toString()=="vcop2");}
+      QCOMPARE(game["controls"].toString().startsWith("Controls new, untested"),game["id"].toString()!="vf2");}
+    // A clone kept in its parent's zip is looked for under the parent's name.
+    QCOMPARE(ac::model2::fileName("hotdo"),QString("hotd"));QCOMPARE(ac::model2::fileName("vcop2"),QString("vcop2"));
   }
   // PS2: serials read from real discs, file names when a serial cannot be read, and the user's launcher's own keys.
   void ps2GamesAreKnownBySerialAndStartedThroughTheLauncher() {
