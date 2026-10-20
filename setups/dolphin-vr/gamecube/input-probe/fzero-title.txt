@@ -1,0 +1,80 @@
+# F-Zero GX: save + name as fzero-menus.txt, Start on the title, then right A every 2.5 s.
+8 8.3 R primary 1
+10 10.3 R primary 1
+12 12.3 R primary 1
+14 14.3 R primary 1
+16 16.3 R primary 1
+18 18.3 R primary 1
+20 20.3 R primary 1
+22 22.3 R primary 1
+24 24.3 R primary 1
+26 26.3 R primary 1
+28 28.6 L stick_x -1
+29.5 29.8 R primary 1
+40 40.3 L menu 1
+43.0 43.3 R primary 1
+45.5 45.8 R primary 1
+48.0 48.3 R primary 1
+50.5 50.8 R primary 1
+53.0 53.3 R primary 1
+55.5 55.8 R primary 1
+58.0 58.3 R primary 1
+60.5 60.8 R primary 1
+63.0 63.3 R primary 1
+65.5 65.8 R primary 1
+68.0 68.3 R primary 1
+70.5 70.8 R primary 1
+73.0 73.3 R primary 1
+75.5 75.8 R primary 1
+78.0 78.3 R primary 1
+80.5 80.8 R primary 1
+83.0 83.3 R primary 1
+85.5 85.8 R primary 1
+88.0 88.3 R primary 1
+90.5 90.8 R primary 1
+93.0 93.3 R primary 1
+95.5 95.8 R primary 1
+98.0 98.3 R primary 1
+100.5 100.8 R primary 1
+103.0 103.3 R primary 1
+105.5 105.8 R primary 1
+108.0 108.3 R primary 1
+110.5 110.8 R primary 1
+113.0 113.3 R primary 1
+115.5 115.8 R primary 1
+118.0 118.3 R primary 1
+120.5 120.8 R primary 1
+123.0 123.3 R primary 1
+125.5 125.8 R primary 1
+128.0 128.3 R primary 1
+130.5 130.8 R primary 1
+133.0 133.3 R primary 1
+135.5 135.8 R primary 1
+138.0 138.3 R primary 1
+shot 40 g040
+shot 44 g044
+shot 48 g048
+shot 52 g052
+shot 56 g056
+shot 60 g060
+shot 64 g064
+shot 68 g068
+shot 72 g072
+shot 76 g076
+shot 80 g080
+shot 84 g084
+shot 88 g088
+shot 92 g092
+shot 96 g096
+shot 100 g100
+shot 104 g104
+shot 108 g108
+shot 112 g112
+shot 116 g116
+shot 120 g120
+shot 124 g124
+shot 128 g128
+shot 132 g132
+shot 136 g136
+shot 140 g140
+141 142 L squeeze 0.05

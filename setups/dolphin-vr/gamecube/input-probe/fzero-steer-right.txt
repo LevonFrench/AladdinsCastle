@@ -1,0 +1,38 @@
+# F-Zero GX steering proof (right): race start with right trigger held from 78 s; variant input 88-98 s.
+8 8.3 R primary 1
+10 10.3 R primary 1
+12 12.3 R primary 1
+14 14.3 R primary 1
+16 16.3 R primary 1
+18 18.3 R primary 1
+20 20.3 R primary 1
+22 22.3 R primary 1
+24 24.3 R primary 1
+26 26.3 R primary 1
+28 28.6 L stick_x -1
+29.5 29.8 R primary 1
+40 40.3 L menu 1
+43.0 43.3 R primary 1
+45.5 45.8 R primary 1
+48.0 48.3 R primary 1
+50.5 50.8 R primary 1
+53.0 53.3 R primary 1
+55.5 55.8 R primary 1
+58.0 58.3 R primary 1
+60.5 60.8 R primary 1
+63.0 63.3 R primary 1
+65.5 65.8 R primary 1
+68.0 68.3 R primary 1
+70.5 70.8 R primary 1
+73.0 73.3 R primary 1
+75.5 75.8 R primary 1
+78 100 R trigger 1
+shot 86 s086
+shot 88 s088
+shot 90 s090
+shot 92 s092
+shot 94 s094
+shot 96 s096
+shot 98 s098
+100 101 L squeeze 0.05
+88 98 L stick_x 1

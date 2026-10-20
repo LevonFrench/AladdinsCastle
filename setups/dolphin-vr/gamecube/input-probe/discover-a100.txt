@@ -1,0 +1,73 @@
+# Discovery: right A every 2 s from 8 s to 100 s, a picture every 4 s, end marker.
+8 8.3 R primary 1
+10 10.3 R primary 1
+12 12.3 R primary 1
+14 14.3 R primary 1
+16 16.3 R primary 1
+18 18.3 R primary 1
+20 20.3 R primary 1
+22 22.3 R primary 1
+24 24.3 R primary 1
+26 26.3 R primary 1
+28 28.3 R primary 1
+30 30.3 R primary 1
+32 32.3 R primary 1
+34 34.3 R primary 1
+36 36.3 R primary 1
+38 38.3 R primary 1
+40 40.3 R primary 1
+42 42.3 R primary 1
+44 44.3 R primary 1
+46 46.3 R primary 1
+48 48.3 R primary 1
+50 50.3 R primary 1
+52 52.3 R primary 1
+54 54.3 R primary 1
+56 56.3 R primary 1
+58 58.3 R primary 1
+60 60.3 R primary 1
+62 62.3 R primary 1
+64 64.3 R primary 1
+66 66.3 R primary 1
+68 68.3 R primary 1
+70 70.3 R primary 1
+72 72.3 R primary 1
+74 74.3 R primary 1
+76 76.3 R primary 1
+78 78.3 R primary 1
+80 80.3 R primary 1
+82 82.3 R primary 1
+84 84.3 R primary 1
+86 86.3 R primary 1
+88 88.3 R primary 1
+90 90.3 R primary 1
+92 92.3 R primary 1
+94 94.3 R primary 1
+96 96.3 R primary 1
+98 98.3 R primary 1
+shot 4 d004
+shot 8 d008
+shot 12 d012
+shot 16 d016
+shot 20 d020
+shot 24 d024
+shot 28 d028
+shot 32 d032
+shot 36 d036
+shot 40 d040
+shot 44 d044
+shot 48 d048
+shot 52 d052
+shot 56 d056
+shot 60 d060
+shot 64 d064
+shot 68 d068
+shot 72 d072
+shot 76 d076
+shot 80 d080
+shot 84 d084
+shot 88 d088
+shot 92 d092
+shot 96 d096
+shot 100 d100
+101 102 L squeeze 0.05

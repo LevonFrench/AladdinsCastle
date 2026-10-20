@@ -1,0 +1,28 @@
+# F-Zero GX: YES to the save file, right A every 2 s from 8 s to 26 s, then watch.
+8 8.3 R primary 1
+10 10.3 R primary 1
+12 12.3 R primary 1
+14 14.3 R primary 1
+16 16.3 R primary 1
+18 18.3 R primary 1
+20 20.3 R primary 1
+22 22.3 R primary 1
+24 24.3 R primary 1
+26 26.3 R primary 1
+shot 20 e020
+shot 21 e021
+shot 22 e022
+shot 23 e023
+shot 24 e024
+shot 25 e025
+shot 26 e026
+shot 27 e027
+shot 28 e028
+shot 29 e029
+shot 30 e030
+shot 31 e031
+shot 32 e032
+shot 33 e033
+shot 34 e034
+shot 35 e035
+shot 36 e036
