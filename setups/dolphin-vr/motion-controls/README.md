@@ -206,3 +206,14 @@ Circuit, then holds A with the Nunchuk stick left (104-110 s) and right (112-118
 the Nunchuk stick at 0 and 255. The kart turns left, then right, back onto the track.
 `mkw-kart-tiltcontrol.txt` is the same run with the right controller rolled ±60° instead of the stick:
 the kart does not turn. Tilt steering stays available only through the opt-in launcher.
+
+### Queue, batch 2 (2026-10-20)
+
+| Game | ID | Launcher type | Set | Offline result |
+| --- | --- | --- | --- | --- |
+| Kirby's Return to Dream Land | SUKE01 | pad (sideways) | AC Pad Sideways | file select, story skipped with +, world map, level 1-1 with Kirby moving and attacking |
+| Kirby's Epic Yarn | RK5E01 | pad (sideways) | AC Pad Sideways | save creation, story (+ offers "stop watching"), Patch Land with Kirby walking |
+| Mario Strikers Charged | R4QE01 | motion | AC Motion Remote and Nunchuk | pointer menus reached (VS, Domination, option pages) but no match: its pointer is not trimmed yet and DONE did not register; not proven |
+| Excitebike: World Rally | WWRP (WiiWare) | pad (racer, stick steering) | AC Pad Sideways | profile, name entry, World Tour, training race running |
+
+Excitebike follows the owner's racer rule: steering is on the stick (D-pad lanes); tilt is not used for steering.
