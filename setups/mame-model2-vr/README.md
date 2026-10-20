@@ -271,16 +271,18 @@ the right trigger value (accelerator), the left thumbstick X and both grips on t
 Touch and Index profiles. Steering is the thumbstick when it is pushed, else the right
 controller's roll held like a wheel (60 degrees = full lock). Grips shift up/down
 (an H-pattern box steps one gear per press) or are the game's extra buttons.
-INDY 500 and Motor Raid, full left steering from a fixed time against the same run
-straight: identical repeat runs, and the car or bike turns left (E2).
+Daytona USA, Sega Rally Championship, INDY 500 and Motor Raid, full left steering
+from a fixed time against the same run straight: identical repeat runs, and the car
+or bike turns left (E2). Steering only takes effect once the race is the player's
+(after Daytona's rolling start). Gear shifting on the grips is built, not proven.
 
 **Open frame.** `ACVR_M2_WIDE=<pixels per side>` (93 = 16:9, stereo only) widens the
 game's full-width 3D window: the same frustum construction as the hardware's window
 command with the left and right edges moved out, a wider render target and wider eye
 pictures. The 2D tile layers (HUD, some skies) stay in the middle 4:3 area. Gun aim in
-the added sides counts as off the screen. In Virtua Cop and Virtua Cop 2 at 16:9 the
-city continues into both added sides (about 95-99% of their pixels drawn in attract
-pictures), so these games send geometry past 4:3 (E2). Other games are unchecked; a
+the added sides counts as off the screen. In Virtua Cop, Virtua Cop 2, Daytona USA and
+Sega Rally Championship at 16:9 the world continues into both added sides (about
+94-99% of their pixels drawn), so these games send geometry past 4:3 (E2). Other games are unchecked; a
 game that culls to 4:3 shows black sides. The viewer uploads the wider pictures
 (hidden OpenGL readback check passed).
 

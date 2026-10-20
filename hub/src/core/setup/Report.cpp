@@ -186,7 +186,7 @@ QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &context,co
    if(folder!=systemFolder){auto entry=groups.ready.last().toMap();entry["folder"]=folder;groups.ready.last()=entry;}}
   else groups.notRight<<item(id,title,"reason",check.value("reason").toString());
  }
- QString note="Controls new, untested: Virtua Cop 2, Virtua Cop, The House of the Dead, Gunblade NY, Behind Enemy Lines, Sky Target, INDY 500 and Motor Raid. Virtua Fighter 2: view only for now.";
+ QString note="Controls new, untested: Virtua Cop 2, Virtua Cop, The House of the Dead, Gunblade NY, Behind Enemy Lines, Sky Target, Daytona USA, Sega Rally Championship, INDY 500 and Motor Raid. Virtua Fighter 2: view only for now.";
  if(!standIns.isEmpty())note+=QString(" The %1 set here is a stand-in, which only leaves the cabinet's sign blank.").arg(standIns.join(", "));
  if(unchecked)note+=settings.value("queryEmulators").toBool()?QString(" Some games could not be checked against the emulator."):QString(" Allow the Hub to ask found emulators for their game lists, and the files inside each game are checked too.");
  return groups.result("model2",systemFolder.isEmpty()&&!context.value("library").toMap().value("systems").toMap().contains("model2")?QString("No folder chosen for this system."):note);
