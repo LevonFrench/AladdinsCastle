@@ -297,10 +297,11 @@ the picture is spread wider. How far a game draws is the game's own culling.
 How far a game draws past its frame is the game's own business: GLideN64
 clips to the game's projection, so squeezing shows more only where the game
 already draws more (GoldenEye, Perfect Dark, F-Zero X: about twice the width).
-Mario Kart 64, Wave Race 64 and Star Fox 64 clip at their frame; for them a
-widescreen code that sets a wider projection aspect (RetroArch's `Widescreen`
-entry with its aspect value 1.78 raised to 3.55) makes the game draw 32:9
-itself, and `ACVR_GL_WIDE_SQUEEZE=0` leaves the squeeze to the game.
+Mario Kart 64 clips at its frame. For it, and for Wave Race 64 and Star Fox 64
+(which have the same kind of code), a widescreen code that sets a wider
+projection aspect (RetroArch's `Widescreen` entry with its aspect value 1.78
+raised to 3.55) makes the game draw 32:9 itself, and `ACVR_GL_WIDE_SQUEEZE=0`
+leaves the squeeze to the game.
 
 ### Aim that moves by rate (Star Fox 64)
 
