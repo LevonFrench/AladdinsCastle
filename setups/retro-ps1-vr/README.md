@@ -154,14 +154,13 @@ Each game has its own gun calibration screen (Options, Gun Adjust or
 Calibrate Gun), and before calibration both Virtua Cops register a shot
 above the aimed point (Virtua Cop: 13% of the picture height; Virtua Cop 2:
 10%, and 9% of the width to the right), so the bottom edge (and for
-Virtua Cop 2 the left edge) cannot be reached. Calibrating once by shooting the drawn centre of the target puts
-every shot within 0.004 of the picture of the aimed point, measured with the
+Virtua Cop 2 the left edge) cannot be reached. Calibrating once by
+shooting the drawn centre of the target puts every shot within 0.004 of the picture of the aimed point, measured with the
 game's own bullet holes on its shoot-test screen; no aim trim is needed.
 Virtua Cop saves its calibration in backup memory, so its launcher brings a
 first save with the calibration done (never replacing an existing save).
 
-The House of the Dead moves its sight towards the gun in steps (the
-Saturn version's own smoothing), and the sight stops up to about 8 pixels
+The House of the Dead moves its sight towards the gun in steps, and the sight stops up to about 8 pixels
 short when the gun comes from the right or from above, wherever the
 calibration is. The launcher therefore sets an aim trim of half that step
 (`ACVR_PS1_AIM=1,-0.0114,1,0.0156`), which leaves at most 0.012 of the width
@@ -179,18 +178,33 @@ Area 51 (Configure 1P, Calibrate) has the same kind of sight steps (up to
 is a blue frame, so `ACVR_PS1_FLASH_CHANNELS=b` (the colour channels that
 must be bright; default `rgb`, white) keeps those out of the headset.
 
-`--state <file>` starts from a saved moment. Virtua Cop 2 and Area 51 keep a gun
-calibration that they did not restore from their saves after a restart in
+`--state <file>` starts from a saved moment. Virtua Cop 2, Area 51 and
+Hakaider keep a gun calibration that they did not restore from their saves after a restart in
 our runs, so their launchers start from the title or main menu just after
 the game's own calibration.
 
-The Saturn draws its 3D as flat distorted sprites (VDP1 quads with 2D
-screen corners and no depth), so these games play on the theatre screen.
+Mechanical Violator Hakaider (Japan) calibrates in Option, Gun Adjust
+(the left trigger opens it): the first shot at the drawn centre
+calibrates, later shots leave holes, which landed within 0.005 of the aimed
+points. Its launcher starts at the main menu just after that calibration.
+Its menus take the gun trigger as confirm and the pad to move.
+
+The Saturn draws its 3D as flat distorted sprites: the game's own code
+projects every polygon, and VDP1 receives four 2D screen corners per quad
+with no depth. Beetle Saturn, Kronos and YabaSanshiro all draw from those
+corners; the only depth in the Kronos and YabaSanshiro OpenGL renderers is
+the VDP2 layer priority (0 to 7), and YabaSanshiro's perspective-corrected
+polygon mode derives its correction from the quad's shape. Games built on
+Sega's library sort their quads back to front, so draw order is the only
+depth cue left (as for the PlayStation diorama); using it would need a
+patched Saturn core. Only Beetle Saturn has the Stunner, and none of the
+three cores has a widescreen mode, so there is no open frame either: these
+games play on the theatre screen.
 
 Results so far (Beetle Saturn 1.29.0 b4df47a, hidden offline runs):
-Virtua Cop, Virtua Cop 2, The House of the Dead and Area 51 play from the
-title into their first stage with the gun only; the same run with and without
-trigger pulls gives different pictures (scores and kills against game over)
+Virtua Cop, Virtua Cop 2, The House of the Dead, Area 51 and Hakaider
+play from the title into their first stage with the gun only; the same
+run with and without trigger pulls gives different pictures (scores and kills against game over)
 while two runs without shots are identical, the off-screen shot reloads, and
 their flash per shot (one white frame; two in The House of the Dead; one
 blue frame in Area 51) is kept out of the headset.
