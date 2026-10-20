@@ -1,0 +1,77 @@
+# Sin and Punishment 2: strap pages and title with A, first New File, type A, OK, confirm, then A at the centre.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+26.0 26.3 R primary 1
+29.0 33.0 R u -0.77
+29.0 33.0 R v -0.44
+31.0 31.3 R primary 1
+33.0 36.0 R u -0.57
+33.0 36.0 R v 0.16
+34.5 34.8 R primary 1
+36.0 43.0 R u -0.34
+36.0 43.0 R v -0.58
+37.5 37.8 R primary 1
+39.5 39.8 R primary 1
+41.5 41.8 R primary 1
+45.0 45.3 R primary 1
+48.0 48.3 R primary 1
+51.0 51.3 R primary 1
+54.0 54.3 R primary 1
+57.0 57.3 R primary 1
+60.0 60.3 R primary 1
+63.0 63.3 R primary 1
+66.0 66.3 R primary 1
+69.0 69.3 R primary 1
+72.0 72.3 R primary 1
+75.0 75.3 R primary 1
+78.0 78.3 R primary 1
+81.0 81.3 R primary 1
+84.0 84.3 R primary 1
+87.0 87.3 R primary 1
+90.0 90.3 R primary 1
+93.0 93.3 R primary 1
+96.0 96.3 R primary 1
+99.0 99.3 R primary 1
+shot 30 p30
+shot 32 p32
+shot 34 p34
+shot 36 p36
+shot 38 p38
+shot 40 p40
+shot 42 p42
+shot 44 p44
+shot 46 p46
+shot 48 p48
+shot 50 p50
+shot 52 p52
+shot 54 p54
+shot 56 p56
+shot 58 p58
+shot 60 p60
+shot 62 p62
+shot 64 p64
+shot 66 p66
+shot 68 p68
+shot 70 p70
+shot 72 p72
+shot 74 p74
+shot 76 p76
+shot 78 p78
+shot 80 p80
+shot 82 p82
+shot 84 p84
+shot 86 p86
+shot 88 p88
+shot 90 p90
+shot 92 p92
+shot 94 p94
+shot 96 p96
+shot 98 p98
+shot 100 p100
+shot 102 p102
+104.0 104.3 L thumbclick 1
