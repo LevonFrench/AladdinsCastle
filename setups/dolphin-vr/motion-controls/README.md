@@ -104,6 +104,21 @@ Copy `WiimoteNew.ini` to `<user>/Config/`, `Profiles/Wiimote/*.ini` to
 backup of anything replaced. Launchers add
 `-C Graphics.Settings.InternalResolution=3 -C Graphics.Settings.MSAA=4 -C Graphics.Settings.SSAA=False -C Graphics.Enhancements.MaxAnisotropy=4`.
 
-## Status
+## Offline results (2026-10-19, hidden DolphinNoGUI, OpenXR off, no XR runtime)
 
-Offline proofs only; nothing here has been checked in the headset.
+- Every binding of all three sets reached emulated Wii Remote 1 as the right report bit or value:
+  A, B, 1, 2, −, +, Home (only after the 0.5 s hold, and + stayed off during it), the four D-pad
+  directions from either stick where mapped, Nunchuk C, Z and all four stick directions, Mario Kart's
+  grip/left-trigger B and trigger 2, the Resort Nunchuk toggle (attached, then detached, − stayed off).
+- The override paths also arrived: right roll/pitch changed the Wii Remote accelerometer, the aim
+  hit moved the IR dot, right angular velocity moved the MotionPlus gyro, left roll/pitch changed the
+  Nunchuk accelerometer.
+- Right A skipped the wrist-strap/health screen in Mario Kart Wii, Super Mario Galaxy, Twilight Princess,
+  Wii Sports Resort and Punch-Out!! (pictures differ from a no-input control run at the same emulated
+  time). In Mario Kart Wii, A on the title, 2 and A again reached the Mii selection; in Galaxy,
+  A + B on the title reached the file select.
+- Dolphin's own log at EFB creation: Mario Kart Wii with only `-C Graphics.Settings.MSAA=4` → `msaa=1`;
+  with `GameSettings/RMCP01.ini` → `msaa=4`; Super Mario Galaxy with the command line only → `msaa=4`.
+  Screenshots at `InternalResolution=3` are 2501×1368 against 834×456 at 1x.
+- Not proven offline: the stereo OpenXR render itself (the runs are mono), anisotropic filtering, and
+  anything in the headset.
