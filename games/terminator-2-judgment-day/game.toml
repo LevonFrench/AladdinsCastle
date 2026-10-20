@@ -19,12 +19,13 @@ pedals = []
 extras = []
 
 [[media]]
-kind = "other"
-note = "Midway arcade PCB (board not in vocab), not in MAME (midtunit and midwunit drivers checked, no T2 set). Digitized film cast; ports on Genesis, SNES, Master System, MS-DOS"
+kind = "mame-romset"
+set  = "term2"
+note = "Rev LA4 08/03/92 in MAME williams/midyunit.cpp (Midway Y-unit; clones term2la3, term2la2, term2la1, term2pa2, term2lg1). Guns are calibrated in the game on a first boot (three targets per gun). Ports on Genesis, SNES, Master System, MS-DOS"
 
 [routes]
-mame = "unknown"
-vr   = { best = "none" }
+mame = "working"
+vr   = { best = "theatre" }
 
 [hub]
 pill   = "T2"

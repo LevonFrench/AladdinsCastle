@@ -19,12 +19,13 @@ pedals = []
 extras = []
 
 [[media]]
-kind = "other"
-note = "Konami arcade PCB, not in MAME (no set found in the lethal.cpp driver). Console versions: Genesis, Sega CD, PS1 compilation"
+kind = "mame-romset"
+set  = "le2"
+note = "Lethal Enforcers II: Gun Fighters, ver EAA, in MAME konami/konamigx.cpp (clones le2u, le2j). Console versions: Genesis, Sega CD, PS1 compilation"
 
 [routes]
-mame = "unknown"
-vr   = { best = "none" }
+mame = "imperfect"
+vr   = { best = "theatre" }
 
 [hub]
 pill   = "LETHAL2"
