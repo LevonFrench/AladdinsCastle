@@ -59,6 +59,7 @@ The Hub shows a "2 guns" badge on a game only when its installed route supports 
 | `con-pistol-slim` | 1 | one-hand | 10 | Namco GunCon / G-Con 45 for PlayStation (1997): A and B buttons, one on each side below the barrel; black in Japan, grey and later orange elsewhere |
 | `con-revolver-chunky` | 1 | one-hand | 4 | Sega Virtua Gun for Saturn (sold as the Stunner in North America): trigger and a Start button; the Japanese unit is black with a yellow trigger and Start button |
 | `arc-light-gun` | 1 | one-hand | 0 (MAME theatre launchers) | The model hotd2-vr draws for Confidential Mission and The House of the Dead 2: Namco's arcade pistol with a blowback top. Not our design: CC BY 4.0, see §2.7 |
+| `con-pointer-remote` | 2 | one-hand | 0 (Wii motion games in DolphinXR) | Nintendo Wii Remote (2006) at its real size, 148 x 36 x 31 mm: D-pad, A, B underneath, minus / Home / plus, speaker, 1 and 2, four player lights, infrared window, wrist strap. A held controller (`asset_kind = "controller"`, length along Z), not a gun |
 | `generic-pistol` | 1 | one-hand | 2 | Nothing in particular: the fallback when a game has no better match |
 | `mnt-mg-heavy` | 1 | mounted | 21 | Cabinet-mounted machine guns (Sega Gunblade NY, L.A. Machineguns and the two-handed guns of Line of Fire; Midway Terminator 2 and Revolution X; SNK Beast Busters; Sega Let's Go Jungle) |
 | `arc-pistol-optical` | 2 | one-hand | 4 | The plain optical pistols on Midway, Atari Games, Konami, Taito and Sammy cabinets (Area 51, Maximum Force, Jurassic Park III) |

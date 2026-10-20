@@ -133,3 +133,8 @@ control_set = "gun-spc-hose-nozzle"
 id = "con-stick-grip"
 gun_model = "con-stick-grip"
 control_set = "gun-con-stick-grip"
+
+[[rule]]
+id = "con-pointer-remote"
+gun_model = "con-pointer-remote"
+control_set = "gun-con-pointer-remote"

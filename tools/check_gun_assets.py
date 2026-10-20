@@ -194,7 +194,7 @@ def check_asset(path, meta):
     demand(all(isinstance(n,str) and n for n in names) and len(set(names)) == len(names), 'missing/duplicate node names')
     needed = ({'grip','LOD0','LOD1'} if accessory else REQUIRED) | {b['node'] for b in meta.get('button',[])}
     if hand: needed |= {'pivot_'+finger for finger in ('index','middle','ring','pinky','thumb')}
-    elif controller: needed |= {'pivot_stick_x','pivot_stick_y'}
+    elif controller and 'analog_stick' in meta.get('features',[]): needed |= {'pivot_stick_x','pivot_stick_y'}
     if controller:
         demand(not any(n in names for n in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear')), 'controller must have no muzzle, sights or gun effects')
     if meta.get('assembly',{}).get('dock_node'): needed.add(meta['assembly']['dock_node'])
@@ -304,7 +304,7 @@ def check_asset(path, meta):
         demand(0 < totals[lod] <= budget, f'{lod} triangle budget: {totals[lod]}/{budget}')
         lo = [min(p[i] for p in positions[lod]) for i in range(3)]
         hi = [max(p[i] for p in positions[lod]) for i in range(3)]
-        axis=1 if controller else 2
+        axis={'x':0,'y':1,'z':2}[meta.get('length_axis','y' if controller else 'z')]
         length = (hi[axis]-lo[axis])*1000
         demand(abs(length-meta['length_mm']) <= meta['length_mm']*.1,
                f'{lod} bore length {length:.2f} mm differs from target {meta["length_mm"]} mm')

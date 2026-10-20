@@ -37,6 +37,13 @@ traced or third-party meshes, logos or markings are used. These are toy-like
 peripherals with our own dimensions, not real firearms or branded replicas.
 Built models and preview/callout assets are CC0-1.0; scripts are GPL-3.0-only.
 
+`con-pointer-remote` is a second held controller (a Wii Remote-like pointer, original
+design, CC0 like the others): no muzzle, sights or effects, buttons only, and its
+`length_axis = "z"` because it points forward. The checker measures a controller's length
+along `length_axis` (default Y) and asks for stick pivots only when its features list
+`analog_stick`. Its rounded bar uses the `zloft` primitive (superellipse rings along Z).
+The DolphinXR build draws it in the right hand for Wii motion games.
+
 ## Rebuild
 
 Ask the owner before invoking Blender, including headless/CPU use. The source
