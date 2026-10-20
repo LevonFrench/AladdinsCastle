@@ -11,7 +11,7 @@ import QtQuick
 //  - Every move animates contentY to a row boundary; a new row while moving retargets from there.
 QtObject {
  id:scroller
- property Flickable flick:null
+ property Item flick:null
  property real rowHeight:100
  property bool reduceMotion:false
  property int deadZone:24
@@ -34,7 +34,7 @@ QtObject {
  readonly property real minY:flick?flick.originY-flick.topMargin:0
  readonly property real maxY:flick?Math.max(minY,flick.originY+flick.contentHeight+flick.bottomMargin-flick.height):0
  readonly property int lastRow:rowHeight>0?Math.ceil((maxY-minY)/rowHeight-0.001):0
- property NumberAnimation motion:NumberAnimation {target:scroller.flick;property:"contentY";duration:170;easing.type:Easing.OutCubic}
+ property QtObject motion:NumberAnimation {target:scroller.flick;property:"contentY";duration:170;easing.type:Easing.OutCubic}
  function clampRow(row){return Math.max(0,Math.min(lastRow,row))}
  function rowAt(y){return clampRow(Math.round((y-minY)/rowHeight))}
  function yOf(row){return Math.max(minY,Math.min(maxY,minY+row*rowHeight))}
