@@ -92,7 +92,7 @@ XrActionSet s_set = XR_NULL_HANDLE;
 XrAction s_aim = XR_NULL_HANDLE, s_gripPose = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_a = XR_NULL_HANDLE, s_b = XR_NULL_HANDLE,
          s_squeeze = XR_NULL_HANDLE, s_quit = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE,
          s_padStick = XR_NULL_HANDLE, s_padCross = XR_NULL_HANDLE, s_padCircle = XR_NULL_HANDLE, s_padSquare = XR_NULL_HANDLE, s_padStart = XR_NULL_HANDLE,
-         s_stickLeft = XR_NULL_HANDLE, s_stickRight = XR_NULL_HANDLE;
+         s_stickLeft = XR_NULL_HANDLE, s_stickRight = XR_NULL_HANDLE, s_rightStick = XR_NULL_HANDLE;
 XrPath s_right = XR_NULL_PATH, s_left = XR_NULL_PATH;
 struct EyeChain { XrSwapchain chain = XR_NULL_HANDLE; std::vector<XrSwapchainImageOpenGLKHR> images; int w = 0, h = 0; GLuint fbo = 0, depth = 0; };
 EyeChain s_eyes[2];
@@ -133,6 +133,7 @@ bool InitActions()
       !make("pad_start", "Pad Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padStart, s_left) ||
       !make("stick_left", "Left stick click (Select)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickLeft, s_left) ||
       !make("stick_right", "Right stick click (Start)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickRight, s_right) ||
+      !make("right_stick", "Right stick", XR_ACTION_TYPE_VECTOR2F_INPUT, s_rightStick, s_right) ||
       !make("recoil", "Recoil", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic, s_right)) return false;
   struct Profile { const char *profile, *quit, *circle, *start; };
   const Profile profiles[] = { { "/interaction_profiles/oculus/touch_controller", "/user/hand/left/input/y/click", "/user/hand/left/input/x/click", "/user/hand/left/input/menu/click" },
@@ -145,7 +146,8 @@ bool InitActions()
       { s_quit, pr.quit }, { s_haptic, "/user/hand/right/output/haptic" },
       { s_padStick, "/user/hand/left/input/thumbstick" }, { s_padCross, "/user/hand/left/input/trigger/value" },
       { s_padCircle, pr.circle }, { s_padSquare, "/user/hand/left/input/squeeze/value" }, { s_padStart, pr.start },
-      { s_stickLeft, "/user/hand/left/input/thumbstick/click" }, { s_stickRight, "/user/hand/right/input/thumbstick/click" } };
+      { s_stickLeft, "/user/hand/left/input/thumbstick/click" }, { s_stickRight, "/user/hand/right/input/thumbstick/click" },
+      { s_rightStick, "/user/hand/right/input/thumbstick" } };
     std::vector<XrActionSuggestedBinding> b;
     for (const auto &item : list) { XrPath path; if (Check(p_xrStringToPath(s_instance, item.second, &path), item.second)) b.push_back({ item.first, path }); }
     XrInteractionProfileSuggestedBinding suggested{ XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING };
@@ -278,16 +280,22 @@ void ThreadBody()
         XrActionStateBoolean circle{ XR_TYPE_ACTION_STATE_BOOLEAN }, start{ XR_TYPE_ACTION_STATE_BOOLEAN };
         get.action = s_padStick; if (XR_SUCCEEDED(p_xrGetActionStateVector2f(s_session, &get, &stick)) && stick.isActive) { in.padX = stick.currentState.x; in.padY = stick.currentState.y; }
         get.action = s_padCross; in.padCross = XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &cross)) && cross.isActive && cross.currentState > .55f;
+        if (cross.isActive) in.padTriggerValue = cross.currentState;
         get.action = s_padSquare; in.padSquare = XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &square)) && square.isActive && square.currentState > .6f;
+        if (square.isActive) in.padGripValue = square.currentState;
+        in.padYButton = quit.isActive && quit.currentState;
         get.action = s_padCircle; in.padCircle = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &circle)) && circle.isActive && circle.currentState;
         get.action = s_padStart; in.padStart = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &start)) && start.isActive && start.currentState;
         XrActionStateBoolean sl{ XR_TYPE_ACTION_STATE_BOOLEAN }, sr{ XR_TYPE_ACTION_STATE_BOOLEAN };
         get.action = s_stickLeft; in.stickLeft = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &sl)) && sl.isActive && sl.currentState;
         get.action = s_stickRight; get.subactionPath = s_right; in.stickRight = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &sr)) && sr.isActive && sr.currentState;
+        XrActionStateVector2f rstick{ XR_TYPE_ACTION_STATE_VECTOR2F };
+        get.action = s_rightStick; if (XR_SUCCEEDED(p_xrGetActionStateVector2f(s_session, &get, &rstick)) && rstick.isActive) { in.rightX = rstick.currentState.x; in.rightY = rstick.currentState.y; }
         get.subactionPath = s_left;
       }
       in.active = aimOk || aOk || bOk; in.a = aOk && a.currentState; in.b = bOk && b.currentState; in.grip = sqOk && sq.currentState > .6f;
       triggerValue = trigOk ? trig.currentState : 0.f;
+      in.triggerValue = triggerValue; in.gripValue = sqOk ? sq.currentState : 0.f;
       XrSpaceLocation pa{ XR_TYPE_SPACE_LOCATION }, pg{ XR_TYPE_SPACE_LOCATION };
       const auto need = XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
       if (aimOk && XR_SUCCEEDED(p_xrLocateSpace(s_aimSpace, s_local, fs.predictedDisplayTime, &pa)) && (pa.locationFlags & need) == need) {
@@ -295,6 +303,8 @@ void ThreadBody()
         gripWorld = XR_SUCCEEDED(p_xrLocateSpace(s_gripSpace, s_local, fs.predictedDisplayTime, &pg)) && (pg.locationFlags & need) == need ? PoseMatrix(pg.pose) : aimWorld;
         haveGun = true;
         in.trigger = triggerValue >= .55f;
+        // Roll about the pointing axis: 0 with the controller's right side level, positive turned clockwise.
+        in.roll = std::atan2(-aimWorld.m[1], aimWorld.m[5]);
         if (placed) {
           const float o[3] = { aimWorld.m[12], aimWorld.m[13], aimWorld.m[14] }, d[3] = { -aimWorld.m[8], -aimWorld.m[9], -aimWorld.m[10] };
           in.offScreen = !screen.hit(o, d, in.u, in.v);

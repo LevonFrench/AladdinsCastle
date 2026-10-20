@@ -9,6 +9,7 @@
 #include "retro_abi.h"
 #include "AudioOut.h"
 #include "Png.h"
+#include "PadControls.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
@@ -55,6 +56,9 @@ struct Core {
   std::size_t (*get_memory_size)(unsigned) = nullptr;
   void (*cheat_reset)() = nullptr;                       // optional
   void (*cheat_set)(unsigned, bool, const char *) = nullptr;   // optional
+  std::size_t (*serialize_size)() = nullptr;                    // optional: offline proofs start from a saved state
+  bool (*serialize)(void *, std::size_t) = nullptr;
+  bool (*unserialize)(const void *, std::size_t) = nullptr;
 } g_core;
 
 bool LoadCore(const std::string &path)
@@ -74,6 +78,9 @@ bool LoadCore(const std::string &path)
 #undef SYM
   g_core.cheat_reset = reinterpret_cast<decltype(g_core.cheat_reset)>(GetProcAddress(g_core.dll, "retro_cheat_reset"));
   g_core.cheat_set = reinterpret_cast<decltype(g_core.cheat_set)>(GetProcAddress(g_core.dll, "retro_cheat_set"));
+  g_core.serialize_size = reinterpret_cast<decltype(g_core.serialize_size)>(GetProcAddress(g_core.dll, "retro_serialize_size"));
+  g_core.serialize = reinterpret_cast<decltype(g_core.serialize)>(GetProcAddress(g_core.dll, "retro_serialize"));
+  g_core.unserialize = reinterpret_cast<decltype(g_core.unserialize)>(GetProcAddress(g_core.dll, "retro_unserialize"));
   return true;
 }
 
@@ -118,6 +125,11 @@ unsigned g_gunPort = 0;
 struct Pad { bool up = false, down = false, left = false, right = false, cross = false, circle = false, square = false, triangle = false, start = false, select = false; } g_pad;
 bool g_padOn = true;
 std::uint64_t g_gunReads = 0;
+// --controls pad|wheel|aim: port 1 is a RetroPad with analog sticks (Nintendo 64 games) instead of a light gun.
+std::string g_controls = "gun";
+pad::Config g_padCfg;
+pad::RetroPad g_rpad;
+bool PadMode() { return g_controls != "gun"; }
 
 void CoreLog(retro_log_level level, const char *fmt, ...)
 {
@@ -147,8 +159,17 @@ bool Environment(unsigned cmd, void *data)
   case RETRO_ENVIRONMENT_GET_USERNAME: *static_cast<const char **>(data) = "Player"; return true;
   case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE: if (data) *static_cast<int *>(data) = 3; return true;
   case RETRO_ENVIRONMENT_GET_FASTFORWARDING: if (data) *static_cast<bool *>(data) = false; return true;
+  case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: {
+    // Logged once for pad games: the core's own names for each RetroPad input (how the buttons map).
+    static bool logged = false;
+    if (PadMode() && !logged) {
+      logged = true;
+      for (auto *d = static_cast<const retro_input_descriptor *>(data); d && d->description; ++d)
+        if (d->port == 0) Log("Input: device %u index %u id %u = %s", d->device, d->index, d->id, d->description);
+    }
+    return true;
+  }
   case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
-  case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS:
   case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: return true;
   case RETRO_ENVIRONMENT_SHUTDOWN: g_shutdownRequested = true; return true;
   case RETRO_ENVIRONMENT_SET_MESSAGE: { auto *m = static_cast<const retro_message *>(data); if (m && m->msg) Log("[core message] %s", m->msg); return true; }
@@ -233,8 +254,9 @@ void AudioSample(std::int16_t l, std::int16_t r) { const std::int16_t f[2] = { l
 std::size_t AudioBatch(const std::int16_t *d, std::size_t frames) { if (g_audioWanted) g_audio.write(d, frames); return frames; }
 void InputPoll() {}
 
-std::int16_t InputState(unsigned port, unsigned device, unsigned, unsigned id)
+std::int16_t InputState(unsigned port, unsigned device, unsigned index, unsigned id)
 {
+  if (PadMode()) return port == 0 ? pad::State(g_rpad, device, index, id) : 0;
   if (port != g_gunPort) {
     if (!g_padOn || port > 1 || (device & RETRO_DEVICE_MASK) != RETRO_DEVICE_JOYPAD) return 0;
     switch (id) {
@@ -296,7 +318,8 @@ std::int16_t InputState(unsigned port, unsigned device, unsigned, unsigned id)
 }
 
 // ---- per-game cheat codes, e.g. "No Gun Flash" (the CRT beam-sync flash a GunCon needs, pointless in VR).
-// ACVR_PS1_CHEAT_FILE: a DuckStation-format .cht file; ACVR_PS1_CHEATS: the [section] names to enable, separated by ';'.
+// ACVR_PS1_CHEAT_FILE: a DuckStation-format .cht file, or a RetroArch-format one; ACVR_PS1_CHEATS: the [section]
+// names (RetroArch: descriptions or cheatN) to enable, separated by ';'.
 void ApplyCheats()
 {
   const char *file = std::getenv("ACVR_PS1_CHEAT_FILE"), *names = std::getenv("ACVR_PS1_CHEATS");
@@ -306,12 +329,18 @@ void ApplyCheats()
   std::vector<std::string> wanted; { std::string s(names), item; std::istringstream ss(s); while (std::getline(ss, item, ';')) if (!item.empty()) wanted.push_back(item); }
   std::map<std::string, std::string> codes; std::string section, line;
   const std::regex header(R"(^\s*\[(.+)\]\s*$)"), code(R"(^\s*([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]{4,8})\s*$)");
+  // RetroArch-format files (cheatN_desc = "...", cheatN_code = "..."): an entry is named by its description or "cheatN".
+  const std::regex raDesc(R"re(^\s*cheat(\d+)_desc\s*=\s*"(.*)"\s*$)re"), raCode(R"re(^\s*cheat(\d+)_code\s*=\s*"(.*)"\s*$)re");
+  std::map<std::string, std::string> raDescs;
   std::smatch m;
   while (std::getline(in, line)) {
     if (!line.empty() && line.back() == '\r') line.pop_back();
     if (std::regex_match(line, m, header)) section = m[1].str();
     else if (!section.empty() && std::regex_match(line, m, code)) { auto &c = codes[section]; if (!c.empty()) c += '+'; c += m[1].str() + " " + m[2].str(); }
+    else if (std::regex_match(line, m, raDesc)) raDescs[m[1].str()] = m[2].str();
+    else if (std::regex_match(line, m, raCode)) codes["cheat" + m[1].str()] = m[2].str();
   }
+  for (const auto &d : raDescs) { const auto c = codes.find("cheat" + d.first); if (c != codes.end() && !codes.count(d.second)) codes[d.second] = c->second; }
   if (g_core.cheat_reset) g_core.cheat_reset();
   unsigned index = 0;
   for (const auto &n : wanted) {
@@ -352,6 +381,24 @@ bool SaveSram(bool force)
   g_sramSaved.assign(static_cast<unsigned char *>(mem), static_cast<unsigned char *>(mem) + size);
   Log("Memory card saved: %s", g_sramPath.c_str());
   return true;
+}
+
+// ---- emulator states for offline proofs ("state-save <file>" / "state-load <file>" script lines)
+bool SaveState(const std::string &path)
+{
+  if (!g_core.serialize_size || !g_core.serialize) { Log("State: the core cannot save states"); return false; }
+  std::vector<char> data(g_core.serialize_size());
+  if (data.empty() || !g_core.serialize(data.data(), data.size())) { Log("State save failed"); return false; }
+  std::ofstream out(path, std::ios::binary); out.write(data.data(), (std::streamsize)data.size());
+  Log("State saved: %s (%zu bytes)", path.c_str(), data.size()); return (bool)out;
+}
+bool LoadState(const std::string &path)
+{
+  if (!g_core.unserialize) { Log("State: the core cannot load states"); return false; }
+  std::ifstream in(path, std::ios::binary);
+  std::vector<char> data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  const bool ok = !data.empty() && g_core.unserialize(data.data(), data.size());
+  Log("State load %s: %s", path.c_str(), ok ? "done" : "FAILED"); return ok;
 }
 
 // ---- offline script: "<frame> <command> [arguments]" per line, # comments
@@ -495,7 +542,7 @@ void Usage()
 {
   std::fprintf(stderr,
     "acvr-ps1 --core <libretro dll> --game <disc> --system <BIOS dir> --saves <dir>\n"
-    "         [--gun guncon|justifier|lightgun] [--port 1|2] [--option key=value]...\n"
+    "         [--gun guncon|justifier|lightgun] [--port 1|2] [--controls gun|pad|wheel|aim] [--option key=value]...\n"
     "         [--log <file>] [--no-xr] [--headless --frames N [--script file] [--snapshots dir]]\n"
     "         [--theatre-proof <prefix> --test-aim U V]\n"
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
@@ -519,6 +566,7 @@ int main(int argc, char **argv)
     else if (a == "--system") g_systemDir = next();
     else if (a == "--saves") g_saveDir = next();
     else if (a == "--gun") gunName = next();
+    else if (a == "--controls") g_controls = next();
     else if (a == "--port") g_gunPort = (unsigned)std::atoi(next().c_str()) == 2 ? 1 : 0;
     else if (a == "--option") { const std::string kv = next(); const auto eq = kv.find('='); if (eq == std::string::npos) { Usage(); return 2; } g_optionOverrides[kv.substr(0, eq)] = kv.substr(eq + 1); }
     else if (a == "--log") logPath = next();
@@ -536,6 +584,7 @@ int main(int argc, char **argv)
   }
   if (g_corePath.empty() || game.empty() || g_systemDir.empty() || g_saveDir.empty() || (headless && !frames)) { Usage(); return 2; }
   if (gunName != "guncon" && gunName != "justifier" && gunName != "lightgun") { Usage(); return 2; }
+  if (g_controls != "gun" && g_controls != "pad" && g_controls != "wheel" && g_controls != "aim") { Usage(); return 2; }
   if (!logPath.empty()) { g_log = std::fopen(logPath.c_str(), "w"); if (!g_log) g_log = stdout; }
   // Offline runs stay out of the way; a game in the headset keeps normal priority so it is never starved.
   if (headless || noXr) SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
@@ -544,10 +593,16 @@ int main(int argc, char **argv)
 
   g_flashAudit = headless;
   Script timeline;
+  pad::Scripted scripted;
   if (!script.empty() && !timeline.load(script)) { Log("Cannot read script %s", script.c_str()); return 2; }
   // The core draws its own crosshair only in offline proofs, to show where it thinks the gun points.
-  if (!g_optionOverrides.count("beetle_psx_gun_cursor")) g_optionOverrides["beetle_psx_gun_cursor"] = headless ? "cross" : "off";
-  if (!g_optionOverrides.count("beetle_psx_gun_input_mode")) g_optionOverrides["beetle_psx_gun_input_mode"] = "lightgun";
+  if (!PadMode() && !g_optionOverrides.count("beetle_psx_gun_cursor")) g_optionOverrides["beetle_psx_gun_cursor"] = headless ? "cross" : "off";
+  if (!PadMode() && !g_optionOverrides.count("beetle_psx_gun_input_mode")) g_optionOverrides["beetle_psx_gun_input_mode"] = "lightgun";
+  if (PadMode()) {
+    const std::string problems = g_padCfg.load(g_controls);
+    Log("Pad %s", g_padCfg.describe().c_str());
+    if (!problems.empty()) Log("Pad map entries not understood:%s", problems.c_str());
+  }
 
   if (!LoadCore(g_corePath)) return 3;
   if (g_core.api_version() != RETRO_API_VERSION) { Log("Core API version %u is not supported", g_core.api_version()); return 3; }
@@ -562,6 +617,14 @@ int main(int argc, char **argv)
   Log("Core: %s %s", sys.library_name ? sys.library_name : "?", sys.library_version ? sys.library_version : "?");
 
   retro_game_info info{}; info.path = game.c_str();
+  // Cores that do not read the file themselves (mupen64plus-next) get its bytes.
+  std::vector<char> gameBytes;
+  if (!sys.need_fullpath) {
+    std::ifstream in(game, std::ios::binary);
+    gameBytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    if (gameBytes.empty()) { Log("Cannot read %s", game.c_str()); g_core.deinit(); return 4; }
+    info.data = gameBytes.data(); info.size = gameBytes.size();
+  }
   if (!g_core.load_game(&info)) { Log("The core could not load the disc"); g_core.deinit(); return 4; }
   g_core.get_system_av_info(&g_av);
   if (g_hwOn) {
@@ -588,6 +651,11 @@ int main(int argc, char **argv)
   Log("Timing: %.4f fps, %.0f Hz audio; picture %ux%u, aspect %.4f", g_av.timing.fps, g_av.timing.sample_rate,
       g_av.geometry.base_width, g_av.geometry.base_height, g_av.geometry.aspect_ratio);
 
+  if (PadMode()) {
+    for (const auto &c : g_controllers[0]) Log("Port 1 device offered: %s (0x%X)", c.desc ? c.desc : "?", c.id);
+    g_core.set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
+    Log("Port 1: pad (%s)", g_controls.c_str());
+  } else {
   // Pick the gun by the name the core gives it; fall back to the usual light-gun subclasses.
   unsigned device = gunName == "justifier" ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 1)
                   : gunName == "lightgun" ? RETRO_DEVICE_LIGHTGUN : RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 0);
@@ -598,6 +666,7 @@ int main(int argc, char **argv)
   g_core.set_controller_port_device(g_gunPort, device);
   if (g_padOn && gunName != "lightgun") g_core.set_controller_port_device(1 - g_gunPort, RETRO_DEVICE_JOYPAD);
   Log("Port %u: %s (device 0x%X)", g_gunPort + 1, gunName.c_str(), device);
+  }
 
   {
     std::string base = game.substr(game.find_last_of("\\/") + 1);
@@ -686,13 +755,16 @@ int main(int argc, char **argv)
         g.start = controller.stickRight || controller.padStart; g.select = controller.stickLeft;
       }
       g_pad = p;
-      g_gun = g;
+      if (PadMode()) g_rpad = pad::Map(controller, g_padCfg);
+      else g_gun = g;
     } else {
       if (frames && frame >= frames) break;
       while (timeline.next < timeline.events.size() && timeline.events[timeline.next].frame <= frame) {
         const auto &e = timeline.events[timeline.next++];
         const unsigned n = (unsigned)std::atoi(Arg(e.args, 0, "6").c_str());
-        if (e.cmd == "aim") { g_gun.u = (float)std::atof(Arg(e.args, 0, ".5").c_str()); g_gun.v = (float)std::atof(Arg(e.args, 1, ".5").c_str()); g_gun.offScreen = false; }
+        std::string padError;
+        if (PadMode() && scripted.command(e.cmd, e.args, padError)) { if (!padError.empty()) Log("Script line at frame %u: %s", e.frame, padError.c_str()); }
+        else if (e.cmd == "aim") { g_gun.u = (float)std::atof(Arg(e.args, 0, ".5").c_str()); g_gun.v = (float)std::atof(Arg(e.args, 1, ".5").c_str()); g_gun.offScreen = false; }
         else if (e.cmd == "trigger") timeline.holdTrigger = n;
         else if (e.cmd == "a") timeline.holdA = n;
         else if (e.cmd == "b") timeline.holdB = n;
@@ -701,8 +773,13 @@ int main(int argc, char **argv)
         else if (e.cmd == "offscreen") timeline.holdOff = n;
         else if (e.cmd.rfind("pad-", 0) == 0) timeline.pad[e.cmd.substr(4)] = n;
         else if (e.cmd == "reload") { timeline.holdOff = 8; timeline.holdTrigger = 6; }
-        else if (e.cmd == "snap" && !snapshots.empty()) WriteSnapshot(snapshots, Arg(e.args, 0, ("f" + std::to_string(frame)).c_str()));
+        else if (e.cmd == "snap" && !snapshots.empty()) {
+          WriteSnapshot(snapshots, Arg(e.args, 0, ("f" + std::to_string(frame)).c_str()));
+          if (PadMode()) Log("  frame %u pad: buttons 0x%04X left %.3f %.3f right %.3f %.3f", frame, g_rpad.buttons, g_rpad.lx, g_rpad.ly, g_rpad.rx, g_rpad.ry);
+        }
         else if (e.cmd == "save") SaveSram(true);
+        else if (e.cmd == "state-save") SaveState(Arg(e.args, 0, "state.bin"));
+        else if (e.cmd == "state-load") { if (!LoadState(Arg(e.args, 0, "state.bin"))) frames = frame; }
         else if (e.cmd == "quit") { frames = frame; }
         else Log("Unknown script command '%s' at frame %u", e.cmd.c_str(), e.frame);
       }
@@ -717,6 +794,7 @@ int main(int argc, char **argv)
       static bool aimed = false; aimed = aimed || !g_gun.offScreen;
       g_gun.offScreen = off || !aimed;
       for (unsigned *h : { &timeline.holdTrigger, &timeline.holdA, &timeline.holdB, &timeline.holdStart, &timeline.holdSelect, &timeline.holdOff }) if (*h) --*h;
+      if (PadMode()) g_rpad = scripted.frame(g_padCfg);
       if (frames && frame >= frames) break;
     }
     if (g_gun.trigger && !lastTrigger) { ++shots; if (theatreOn) theatre::QueuePulse(); }

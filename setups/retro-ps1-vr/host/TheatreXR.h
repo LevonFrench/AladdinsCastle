@@ -25,6 +25,11 @@ struct Input {
   float padX = 0, padY = 0;
   bool padCross = false, padCircle = false, padSquare = false, padStart = false;
   bool stickLeft = false, stickRight = false;   // thumbstick clicks
+  // Analog values and the right controller's roll, for pad games (steering wheel, accelerate/brake).
+  float triggerValue = 0, padTriggerValue = 0, gripValue = 0, padGripValue = 0;
+  float rightX = 0, rightY = 0;   // right thumbstick
+  float roll = 0;                 // right controller roll about its pointing axis, radians, positive turned clockwise (to the right)
+  bool padYButton = false;             // left Y (Index: left B) pressed at all; held 3 s it still quits
 };
 // All picture and graphics calls run on the thread whose OpenGL context is current
 // in `owner` (the emulator thread). The headset runs on its own thread.
