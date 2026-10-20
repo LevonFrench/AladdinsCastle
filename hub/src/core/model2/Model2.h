@@ -16,6 +16,8 @@ namespace ac::model2 {
 //   ../runtime                       the emulator's working folder
 //   ../captures                      where the emulator keeps its own snapshots
 QVariantList games(); // id (= set name), title, year, controls (a plain sentence about the controls)
+// The game's zip file name without ".zip": the set name, or its parent's when the clone lives there.
+QString fileName(const QString &game);
 // Empty when the game can start; otherwise "What is wrong. What to do." Which
 // device sets a game needs beside it is the emulator's own knowledge: the set-up
 // scan asks the emulator (see setup::mameCheck) instead of keeping a list here.

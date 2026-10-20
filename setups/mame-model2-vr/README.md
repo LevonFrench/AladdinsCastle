@@ -245,14 +245,25 @@ Trigger acknowledgement for vibration now also comes from the button-port reads 
 Sky Target, Gunblade NY, Behind Enemy Lines and The House of the Dead.
 
 **Aim, measured against each game's own gun mark** (test menu, Gun Setting, Gun Mark
-Check, default calibration; 17 points, no trigger):
-- Virtua Cop 2: largest error 0.0063 of the screen; no trim needed (E2).
-- The House of the Dead: with MAME's port range the game's mark sat at
-  0.867x+0.065 and 0.829y+0.087, up to 0.073 off at the edges. The game's calibration
-  targets are inset, so the patch widens P1's range to 141..629 and 56..410 so the
-  whole screen is reachable. Re-measurement is pending (E1).
-- Gunblade NY: its reticle followed 1.144x-0.060 and 1.154y-0.084 (mission select,
-  interior points). The map applies the inverse as a trim. Re-measurement pending (E1).
+Check, default calibration; 17 points, no trigger), all E2:
+- Virtua Cop 2: largest error 0.0063 of the screen; no trim needed.
+- Virtua Cop: largest error 0.005; no trim needed. It needs the model1io2 and hd44780
+  device sets beside the game.
+- The House of the Dead (the original revision, MAME's hotdo): with MAME's port range
+  the game's mark sat at 0.867x+0.065 and 0.829y+0.087, up to 0.073 off at the edges.
+  Its calibration targets are inset, so the patch widens P1's range to 141..629 and
+  56..410. Measured again afterwards: largest error 0.0028.
+- Gunblade NY: its reticle followed 1.144x-0.060 and 1.154y-0.084 (mission select).
+  With the inverse trim the largest error is 0.0133 and the mean 0.0045; one step of
+  the 8-bit turret pot is about 0.0076 of the screen, so this is near its resolution.
+- Behind Enemy Lines: no test-menu gun screen could be opened and no live reticle was
+  found in play; its aim is not measured.
+
+**Shots, with a control run** (MAME reads the script, frame-exact; runs A and B are
+identical, C is the same script without trigger pulls): A and B matched in every
+picture for Virtua Cop, Virtua Cop 2, The House of the Dead, Gunblade NY and Behind
+Enemy Lines. C differed by the games' own ammunition displays, impact marks and, in
+Virtua Cop, The House of the Dead and Gunblade NY, enemies hit (E2).
 
 **Racing.** Protocol 4 adds steering (-1..1), accelerator and brake (0..1) and two grip
 buttons to the shared controller block. The viewer binds the left trigger (brake),
@@ -260,13 +271,18 @@ the right trigger value (accelerator), the left thumbstick X and both grips on t
 Touch and Index profiles. Steering is the thumbstick when it is pushed, else the right
 controller's roll held like a wheel (60 degrees = full lock). Grips shift up/down
 (an H-pattern box steps one gear per press) or are the game's extra buttons.
+INDY 500 and Motor Raid, full left steering from a fixed time against the same run
+straight: identical repeat runs, and the car or bike turns left (E2).
 
 **Open frame.** `ACVR_M2_WIDE=<pixels per side>` (93 = 16:9, stereo only) widens the
 game's full-width 3D window: the same frustum construction as the hardware's window
 command with the left and right edges moved out, a wider render target and wider eye
 pictures. The 2D tile layers (HUD, some skies) stay in the middle 4:3 area. Gun aim in
-the added sides counts as off the screen. Whether a game sends geometry beyond 4:3
-depends on its own culling; this is built (E1) and not yet pictured.
+the added sides counts as off the screen. In Virtua Cop and Virtua Cop 2 at 16:9 the
+city continues into both added sides (about 95-99% of their pixels drawn in attract
+pictures), so these games send geometry past 4:3 (E2). Other games are unchecked; a
+game that culls to 4:3 shows black sides. The viewer uploads the wider pictures
+(hidden OpenGL readback check passed).
 
 **Proof scripts.** A plain text script drives the controls by emulated time:
 `<seconds> u= v= off= trigger= start= coin= steer= accel= brake= gripr= gripl=` and

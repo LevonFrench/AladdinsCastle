@@ -23,7 +23,7 @@ index dcc98198..4952de80 100644
  		"shcore",
  		"shlwapi",
 diff --git a/src/mame/sega/model2.cpp b/src/mame/sega/model2.cpp
-index 21b42076..f3729c5d 100644
+index 21b42076..f2d577f4 100644
 --- a/src/mame/sega/model2.cpp
 +++ b/src/mame/sega/model2.cpp
 @@ -2321,11 +2321,14 @@ INPUT_PORTS_END
@@ -65,6 +65,15 @@ index 21b42076..f3729c5d 100644
  	PALETTE(config, m_palette).set_entries(8192);
  }
  
+@@ -2695,7 +2713,7 @@ void model2o_state::vcop(machine_config &config)
+ 	ioboard.read_callback().set("dpram", FUNC(mb8421_device::left_r));
+ 	ioboard.write_callback().set("dpram", FUNC(mb8421_device::left_w));
+ 	ioboard.in_callback<0>().set_ioport("IN0");
+-	ioboard.in_callback<1>().set_ioport("IN1");
++	ioboard.in_callback<1>().set(FUNC(model2o_state::stereo_gun_buttons_r));
+ 	ioboard.in_callback<2>().set_ioport("IN2");
+ 	ioboard.output_callback().set(FUNC(model2_state::lamp_output_w));
+ 	ioboard.set_lightgun_p1x_tag("P1_X");
 @@ -2795,6 +2813,7 @@ void model2a_state::vcop2(machine_config &config)
  	model2a(config);
  
@@ -828,7 +837,7 @@ new file mode 100644
 + {"vcop",  kind::light_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
 + {"hotd",  kind::light_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
 + // Mounted guns: the turret's two potentiometers. Behind Enemy Lines has a missile button.
-+ {"gunblade", kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none, {1.144f, -0.0597f, 1.154f, -0.084f}},
++ {"gunblade", kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none, {1.144f, -0.0552f, 1.154f, -0.084f}},
 + {"bel",      kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, {"IN1",0x10}, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
 + {"rchase2",  kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
 + // Sky Target: the flight stick follows where the controller points; trigger = machine gun.

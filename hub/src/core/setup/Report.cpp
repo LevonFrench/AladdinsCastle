@@ -170,9 +170,9 @@ QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &context,co
   if(cancel)break;
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
   progress(title);
-  auto folder=systemFolder;
-  if(folder.isEmpty()||!QFileInfo(QDir(folder).filePath(id+".zip")).isFile())folder=libraryFolder(context,"model2",id);
-  if(folder.isEmpty()||!QFileInfo(QDir(folder).filePath(id+".zip")).isFile()){groups.missing<<item(id,title,"expected",id+".zip");continue;}
+  auto folder=systemFolder;const auto file=model2::fileName(id)+".zip";
+  if(folder.isEmpty()||!QFileInfo(QDir(folder).filePath(file)).isFile())folder=libraryFolder(context,"model2",id);
+  if(folder.isEmpty()||!QFileInfo(QDir(folder).filePath(file)).isFile()){groups.missing<<item(id,title,"expected",file);continue;}
   const auto issue=model2::problem(id,program,folder);
   if(!issue.isEmpty()){groups.notRight<<item(id,title,"reason","The game file was found by its name, but the emulator build for this system is not set up on this PC. "+issue);continue;}
   // What this game needs, files and device sets, is asked of the emulator build itself, when the user allows it.
@@ -186,7 +186,7 @@ QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &context,co
    if(folder!=systemFolder){auto entry=groups.ready.last().toMap();entry["folder"]=folder;groups.ready.last()=entry;}}
   else groups.notRight<<item(id,title,"reason",check.value("reason").toString());
  }
- QString note="Virtua Cop 2: controls new, untested. Gunblade NY and Virtua Fighter 2: view only for now.";
+ QString note="Controls new, untested: Virtua Cop 2, Virtua Cop, The House of the Dead, Gunblade NY, Behind Enemy Lines, Sky Target, INDY 500 and Motor Raid. Virtua Fighter 2: view only for now.";
  if(!standIns.isEmpty())note+=QString(" The %1 set here is a stand-in, which only leaves the cabinet's sign blank.").arg(standIns.join(", "));
  if(unchecked)note+=settings.value("queryEmulators").toBool()?QString(" Some games could not be checked against the emulator."):QString(" Allow the Hub to ask found emulators for their game lists, and the files inside each game are checked too.");
  return groups.result("model2",systemFolder.isEmpty()&&!context.value("library").toMap().value("systems").toMap().contains("model2")?QString("No folder chosen for this system."):note);

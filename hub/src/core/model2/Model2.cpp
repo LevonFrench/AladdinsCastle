@@ -5,14 +5,24 @@
 #include <QFileInfo>
 namespace ac::model2 {
 namespace {
-struct Game {const char *id,*title;int year;const char *controls;};
+// file: the set's zip name when it differs from the set (a clone kept in its parent's zip).
+struct Game {const char *id,*title;int year;const char *controls;const char *file=nullptr;};
 const char *const viewOnly="View only for now: no controls yet.";
+const char *const lightGun="Controls new, untested: aim with the right controller, the trigger shoots, shoot off the screen to reload, A = Start, B = Coin.";
+const char *const racing="Controls new, untested: tilt the right controller like a wheel or push the left stick to steer, right trigger = gas, left trigger = brake, grips = shift or the game's buttons, A = Start, B = Coin.";
 const Game kGames[]={
- {"vcop2","Virtua Cop 2",1995,"Controls new, untested: aim with the right controller, the trigger shoots, shoot off the screen to reload, A = Start, B = Coin."},
- {"gunblade","Gunblade NY",1995,viewOnly},{"vf2","Virtua Fighter 2",1994,viewOnly}};
+ {"vcop2","Virtua Cop 2",1995,lightGun},
+ {"vcop","Virtua Cop",1994,lightGun},
+ // The usual hotd.zip holds the original revision, which MAME calls hotdo.
+ {"hotdo","The House of the Dead",1997,lightGun,"hotd"},
+ {"gunblade","Gunblade NY",1995,"Controls new, untested: aim the mounted gun with the right controller, the trigger fires, A = Start, B = Coin."},
+ {"bel","Behind Enemy Lines",1997,"Controls new, untested: aim the mounted gun with the right controller, the trigger fires, right grip = missile, A = Start, B = Coin."},
+ {"skytargt","Sky Target",1995,"Controls new, untested: point the right controller to fly, the trigger fires the gun, right grip = missile, A = Start, B = Coin."},
+ {"indy500","INDY 500",1995,racing},{"motoraid","Motor Raid",1997,racing},
+ {"vf2","Virtua Fighter 2",1994,viewOnly}};
 const Game *findGame(const QString &id){for(const auto &game:kGames)if(id==QLatin1String(game.id))return &game;return nullptr;}
 QString beside(const QString &program,const QString &path){return QDir::cleanPath(QFileInfo(program).absoluteDir().filePath("../"+path));}
-// Stereo and scale settings of the build. The scale was measured in one game and is used for all three.
+// Stereo and scale settings of the build. The scale was measured in one game and is used for all.
 const QList<QPair<QString,QString>> &settings(){
  static const QList<QPair<QString,QString>> values{{"ACVR_M2_STEREO","1"},{"ACVR_M2_STREAM","1"},{"ACVR_M2_INPUT_TEST","0"},{"ACVR_M2_IPD_M","0.064"},
   {"ACVR_M2_UNITS_PER_M","0.949387005"},{"ACVR_M2_ZERO_M","4"},{"ACVR_XR_SIZE","1"},{"ACVR_XR_HEIGHT","0"}};
@@ -24,6 +34,7 @@ QVariantList games(){
  for(const auto &game:kGames)result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",QString::fromUtf8(game.controls)}};
  return result;
 }
+QString fileName(const QString &game){const auto *found=findGame(game);return found&&found->file?QString::fromLatin1(found->file):game;}
 QString problem(const QString &game,const QString &program,const QString &gameFolder){
  const auto *found=findGame(game);
  if(!found)return "This game is not in the Model 2 list.";
@@ -33,7 +44,7 @@ QString problem(const QString &game,const QString &program,const QString &gameFo
  if(!QFileInfo(beside(program,"runtime")).isDir())return "Emulator working folder not found. The runtime folder belongs beside the emulator's folder.";
  if(gameFolder.isEmpty())return "Game folder not chosen. Choose it in Set-up.";
  if(!QFileInfo(gameFolder).isDir())return "Game folder not found. Choose it again in Set-up.";
- if(!QFileInfo(QDir(gameFolder).filePath(QString::fromLatin1(found->id)+".zip")).isFile())return QString("%1.zip is missing. Put your own copy in the game folder.").arg(QLatin1String(found->id));
+ if(!QFileInfo(QDir(gameFolder).filePath(fileName(game)+".zip")).isFile())return QString("%1.zip is missing. Put your own copy in the game folder.").arg(fileName(game));
  return {};
 }
 QVariantMap launchPlan(const QString &game,const QString &program,const QString &gameFolder){
