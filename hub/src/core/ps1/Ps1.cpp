@@ -39,11 +39,17 @@ const QList<Game> &table(){
 }
 QString controls(const Game &game){
  if(!*game.gun)return "This release has no light-gun support: the gun buttons only.";
+ const QString id=QString::fromLatin1(game.id);
+ // These games need the whole pad as well, so the launcher gives them the owner's face-button layout.
+ static const QStringList faceButtons{"extreme-ghostbusters","project-horned-owl","horned-owl-japan"};
+ if(faceButtons.contains(id))
+  return QString("Your right controller is the %1: trigger fires, point off the screen to reload; its own two buttons are on the grips. "
+                 "Pad: right A Cross, right B Circle, left X Square, left Y Triangle, left stick click Select, right stick click Start. "
+                 "On a big theatre screen.").arg(QString::fromLatin1(game.gun));
  QString text=QString("Your right controller is the %1: trigger fires, point off the screen to reload, A and B are its buttons").arg(QString::fromLatin1(game.gun));
  text+=QString::fromLatin1(game.gun)=="GunCon"?QString("; the grip is the pedal (hold it to step out and shoot where a game has cover)."):QString(".");
  if(QString::fromLatin1(game.gun)=="arcade gun")text="Your right controller is the gun: trigger fires, B inserts a coin, A starts.";
  if(QString::fromLatin1(game.gun)=="Justifier")text="Your right controller is the Justifier: trigger fires, point off the screen to reload, A is its Start button (menus, and it begins each mission).";
- const QString id=QString::fromLatin1(game.id);
  if(game.sprites)return text+" On a big theatre screen.";
  // Real 3D runs through the stereo core, whose light gun works on North American and Japanese discs. Die Hard Trilogy
  // and Horned Owl read the Justifier (not in that core); Oh! Bakyuuun reads the GunCon through the light-pen

@@ -41,14 +41,14 @@
     "port": 1,
     "graphics": "polygon-3d",
     "view": "true3d",
-    "notes": "GunCon A or B takes cover."
+    "notes": "Hold GunCon A or B (the right grip) to step out and shoot; let go to take cover and reload."
   },
   "ps1-time-crisis-project-titan": {
     "gun": "guncon",
     "port": 1,
     "graphics": "polygon-3d",
     "view": "true3d",
-    "notes": "GunCon A or B takes cover."
+    "notes": "Hold GunCon A or B (the right grip) to step out and shoot; let go to take cover and reload."
   },
   "ps1-die-hard-trilogy": {
     "gun": "justifier",

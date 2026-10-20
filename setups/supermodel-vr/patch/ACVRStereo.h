@@ -29,6 +29,10 @@ struct ACVRStereoState
   float fovScale = 1.0f;
   bool  noCull   = false;
 
+  // With the emulator's -wide-screen: also widen full-width scene views that are not full height (letterboxed
+  // scenes such as Star Wars Trilogy's, sky strips such as Virtua Fighter 3's). ACVR_WIDE_ALL=0 turns it off.
+  bool  wideAll  = true;
+
   // Head-tracked mode. When vr is true for a frame, the game's full-screen 3D viewports are drawn with the
   // headset's own per-eye frusta and with eyeView applied after the game's view matrix; the 2D layers are
   // left out of the eye pictures and drawn once into a separate HUD picture.
@@ -82,6 +86,15 @@ struct ACVRControllers
   float gripPos[2][3] = { { 0 } };              // where each hand is, reference space, metres
   bool  aimValid[2] = { false, false };
   float aimRot[2][4] = { { 0 } };               // where each controller points, quaternion x, y, z, w
+  bool  aimPosValid[2] = { false, false };
+  float aimPos[2][3] = { { 0 } };               // where each pointing ray starts, reference space, metres
+
+  // Screen mode: where the presenter put the screen (the whole eye picture), in the same space, so a pointing
+  // ray can be met with the picture. Yaw only; size in metres.
+  bool  screenValid = false;
+  float screenPos[3] = { 0, 0, 0 };
+  float screenYaw = 0.0f;
+  float screenSize[2] = { 0, 0 };
 };
 
 bool  ACVR_XR_GetControllers(ACVRControllers &out);

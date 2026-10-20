@@ -227,3 +227,55 @@ session/focus, 250 ms input expiry, GL drain, layer construction and recentre.
 No OpenXR loader or runtime is opened by these tests. This is offline proof,
 with headset behavior still pending. The shared library README describes the
 API, build target and remaining adapter work for other emulators.
+
+
+## Controller map, racing controls, open frame and proof scripts (2026-10-19)
+
+Evidence tiers below: E1 built, E2 offline proof. Nothing here has been seen in a headset.
+
+**Controller map.** `model2_input.h` lists, per game, what the right VR controller is
+on that cabinet, using the input fields of MAME's own definitions: a light gun
+(Virtua Cop 2, Virtua Cop, The House of the Dead), a mounted gun (Gunblade NY, Behind
+Enemy Lines, Rail Chase 2), a flight stick (Sky Target) or a wheel with pedals (Daytona
+USA, Sega Rally, INDY 500, Manx TT, Motor Raid). Clones use their parent's entry; a
+game without an entry stays view only. Overrides go into the original fields, so the
+serial gun mux, the 5% off-screen border (reload) and the analog ports read them
+normally. Analog fields that MAME reverses for a user's device are reversed here too.
+Trigger acknowledgement for vibration now also comes from the button-port reads of
+Sky Target, Gunblade NY, Behind Enemy Lines and The House of the Dead.
+
+**Aim, measured against each game's own gun mark** (test menu, Gun Setting, Gun Mark
+Check, default calibration; 17 points, no trigger):
+- Virtua Cop 2: largest error 0.0063 of the screen; no trim needed (E2).
+- The House of the Dead: with MAME's port range the game's mark sat at
+  0.867x+0.065 and 0.829y+0.087, up to 0.073 off at the edges. The game's calibration
+  targets are inset, so the patch widens P1's range to 141..629 and 56..410 so the
+  whole screen is reachable. Re-measurement is pending (E1).
+- Gunblade NY: its reticle followed 1.144x-0.060 and 1.154y-0.084 (mission select,
+  interior points). The map applies the inverse as a trim. Re-measurement pending (E1).
+
+**Racing.** Protocol 4 adds steering (-1..1), accelerator and brake (0..1) and two grip
+buttons to the shared controller block. The viewer binds the left trigger (brake),
+the right trigger value (accelerator), the left thumbstick X and both grips on the
+Touch and Index profiles. Steering is the thumbstick when it is pushed, else the right
+controller's roll held like a wheel (60 degrees = full lock). Grips shift up/down
+(an H-pattern box steps one gear per press) or are the game's extra buttons.
+
+**Open frame.** `ACVR_M2_WIDE=<pixels per side>` (93 = 16:9, stereo only) widens the
+game's full-width 3D window: the same frustum construction as the hardware's window
+command with the left and right edges moved out, a wider render target and wider eye
+pictures. The 2D tile layers (HUD, some skies) stay in the middle 4:3 area. Gun aim in
+the added sides counts as off the screen. Whether a game sends geometry beyond 4:3
+depends on its own culling; this is built (E1) and not yet pictured.
+
+**Proof scripts.** A plain text script drives the controls by emulated time:
+`<seconds> u= v= off= trigger= start= coin= steer= accel= brake= gripr= gripl=` and
+`snap` (see `model2_script.h`). The viewer reads it with `--scripted-input` and
+`ACVR_M2_SCRIPT`, through the real shared-memory path. MAME reads it itself, frame-exact,
+with `ACVR_M2_INPUT_TEST=1` and `ACVR_M2_MAME_SCRIPT`; two such runs give identical
+pictures, so a run without the trigger is a clean control. Virtua Cop 2: two identical
+runs matched in all 29 pictures; the same script without trigger pulls differed only
+in the game's revolver display and impact marks (E2).
+
+The protocol-4 viewer and MAME must be rebuilt and installed together; the protocol-3
+viewer refuses the new transport.

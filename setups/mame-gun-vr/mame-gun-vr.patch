@@ -1,0 +1,941 @@
+diff --git a/scripts/src/mame/frontend.lua b/scripts/src/mame/frontend.lua
+index d98b0706..828cb8f8 100644
+--- a/scripts/src/mame/frontend.lua
++++ b/scripts/src/mame/frontend.lua
+@@ -58,6 +58,9 @@ files {
+ 	MAME_DIR .. "src/frontend/mame/cheat.h",
+ 	MAME_DIR .. "src/frontend/mame/clifront.cpp",
+ 	MAME_DIR .. "src/frontend/mame/clifront.h",
++	MAME_DIR .. "src/frontend/mame/acvr_mono.cpp",
++	MAME_DIR .. "src/frontend/mame/acvr_mono.h",
++	MAME_DIR .. "src/frontend/mame/acvr_mono_frames.h",
+ 	MAME_DIR .. "src/frontend/mame/infoxml.cpp",
+ 	MAME_DIR .. "src/frontend/mame/infoxml.h",
+ 	MAME_DIR .. "src/frontend/mame/iptseqpoll.cpp",
+diff --git a/scripts/src/osd/modules.lua b/scripts/src/osd/modules.lua
+index 3b6cede8..a7c43502 100644
+--- a/scripts/src/osd/modules.lua
++++ b/scripts/src/osd/modules.lua
+@@ -152,6 +152,7 @@ function osdmodulesbuild()
+ 		MAME_DIR .. "src/osd/modules/sound/coreaudio_sound.cpp",
+ 		MAME_DIR .. "src/osd/modules/sound/js_sound.cpp",
+ 		MAME_DIR .. "src/osd/modules/sound/mmdevice_helpers.cpp",
++		MAME_DIR .. "src/osd/modules/sound/windows_audio_guids.cpp",
+ 		MAME_DIR .. "src/osd/modules/sound/mmdevice_helpers.h",
+ 		MAME_DIR .. "src/osd/modules/sound/none.cpp",
+ 		MAME_DIR .. "src/osd/modules/sound/pa_sound.cpp",
+diff --git a/scripts/src/osd/windows.lua b/scripts/src/osd/windows.lua
+index dcc98198..4952de80 100644
+--- a/scripts/src/osd/windows.lua
++++ b/scripts/src/osd/windows.lua
+@@ -44,6 +44,7 @@ function maintargetosdoptions(_target,_subtarget)
+ 		"comdlg32",
+ 		"dinput8",
+ 		"ole32",
++		"ksguid",
+ 		"psapi",
+ 		"shcore",
+ 		"shlwapi",
+diff --git a/src/emu/ioport.cpp b/src/emu/ioport.cpp
+index 113378ae..0f7837e4 100644
+--- a/src/emu/ioport.cpp
++++ b/src/emu/ioport.cpp
+@@ -4002,7 +4002,16 @@ void analog_field::read(ioport_value &result)
+ 	// if set programmatically, only use the override value
+ 	if (m_use_adjoverride)
+ 	{
+-		result = m_adjoverride;
++		// ACVR gun-vr branch fix: the stock code did "result = m_adjoverride;",
++		// which ignored this field's shift, mask and invert flag and wiped every
++		// other bit of the same port.  Insert the override exactly like the
++		// normal path below does (remap, invert, then shift into the mask).
++		s32 value = m_adjoverride;
++		if (m_field.remap_table() != nullptr)
++			value = m_field.remap_table()[value];
++		if (m_field.analog_invert())
++			value = ~value;
++		result = (result & ~m_field.mask()) | ((value << m_shift) & m_field.mask());
+ 		return;
+ 	}
+ 
+@@ -4036,7 +4045,9 @@ void analog_field::read(ioport_value &result)
+ 
+ float analog_field::crosshair_read()
+ {
+-	s32 rawvalue = apply_settings(m_accum) & (m_field.mask() >> m_shift);
++	// ACVR gun-vr branch: follow a programmatic override too, so MAME's own
++	// crosshair shows where a script or the VR viewer is aiming.
++	s32 rawvalue = (m_use_adjoverride ? m_adjoverride : apply_settings(m_accum)) & (m_field.mask() >> m_shift);
+ 	return float(rawvalue - m_adjmin) / float(m_adjmax - m_adjmin);
+ }
+ 
+diff --git a/src/emu/romload.cpp b/src/emu/romload.cpp
+index 476dc8f1..ed1cb279 100644
+--- a/src/emu/romload.cpp
++++ b/src/emu/romload.cpp
+@@ -25,6 +25,7 @@
+ #include <algorithm>
+ #include <cstdarg>
+ #include <cstdio>
++#include <cstdlib>
+ #include <set>
+ #include <span>
+ 
+@@ -45,6 +46,23 @@
+ 
+ namespace {
+ 
++// ACVR gun-vr branch: launcher-approved absent files (see handle_missing_file)
++bool acvr_allowed_missing(std::string_view name)
++{
++	const char *list = std::getenv("MAME_VR_ALLOW_MISSING");
++	if (!list || !*list || name.empty()) return false;
++	std::string_view rest(list);
++	while (!rest.empty())
++	{
++		const size_t comma = rest.find(',');
++		if (rest.substr(0, comma) == name) return true;
++		if (comma == std::string_view::npos) break;
++		rest.remove_prefix(comma + 1);
++	}
++	return false;
++}
++
++
+ /*-------------------------------------------------
+     debugload - log data to a file
+ -------------------------------------------------*/
+@@ -561,6 +579,14 @@ void rom_load_manager::handle_missing_file(const rom_entry *romp, const std::vec
+ 			m_errorstring.append(string_format("%s NOT FOUND (NO GOOD DUMP KNOWN)%s\n", name, tried));
+ 		m_knownbad++;
+ 	}
++	else if (!is_chd && acvr_allowed_missing(romp->name()))
++	{
++		// ACVR gun-vr branch: MAME_VR_ALLOW_MISSING="a,b,c" names files a launcher
++		// accepts as absent (PLD/PROM dumps the driver never reads, default
++		// EEPROM images).  The region keeps its erase fill; logged as a warning.
++		m_errorstring.append(string_format("%s NOT FOUND (ALLOWED BY MAME_VR_ALLOW_MISSING)%s\n", name, tried));
++		m_warnings++;
++	}
+ 	else
+ 	{
+ 		// anything else is bad
+diff --git a/src/frontend/mame/acvr_mono.cpp b/src/frontend/mame/acvr_mono.cpp
+new file mode 100644
+index 00000000..10919611
+--- /dev/null
++++ b/src/frontend/mame/acvr_mono.cpp
+@@ -0,0 +1,634 @@
++// license:BSD-3-Clause
++/***************************************************************************
++
++    acvr_mono.cpp
++
++    ACVR generic mono frame publisher and generic gun input (gun-vr branch).
++
++    Off unless an environment variable is set:
++      MAME_VR_PUBLISH=1    publish the first screen, as MAME renders it
++                           (game rotation and flips applied, the same native
++                           view and software renderer the snapshot code uses),
++                           into shared memory "Local\ACVRMG-<pid>" each frame.
++      MAME_VR_GUN=1        read normalised u,v + buttons for players 1 and 2
++                           from the same mapping and drive the game's lightgun
++                           / AD stick fields and buttons with set_value.
++      MAME_VR_CROSSHAIR=1  force MAME's own crosshair on (proof aid);
++                           =0 forces it off (clean pictures of the game's
++                           own cursor; script mode defaults to off).
++      MAME_VR_AIM=xs,xo,ys,yo  per-game aim trim around the picture centre:
++                           u' = 0.5 + (u - 0.5) * xs + xo (same for v), applied
++                           to every on-screen aim before the crosshair inverse.
++      MAME_VR_SCRIPT=<file>  offline proof mode: input comes from a schedule
++                           keyed by emulated frame (deterministic), never from
++                           shared memory.  MAME_VR_SNAPDIR=<dir> receives PNGs
++                           of the exact picture the viewer would get and a log.
++                           Lines: "<frame> <command> ...", commands:
++                             aim <p> <u> <v>     aim (sticky), p = 1 or 2
++                             off <p>             point off-screen (sticky)
++                             hold <p> <TBSC> <n> hold trigger/button2/start/coin n frames
++                             press <TOKEN> <n>   hold any input type n frames
++                                                 (MAME tokens: SERVICE, SERVICE1, P1_BUTTON3, ...)
++                             dip <port> <mask> <value>  set a DIP / config field (hex)
++                             snap <name>         save <name>.png and a log line
++                             quit                exit normally
++
++    Aim mapping: MAME's crosshair is MAME's calibration of where a gun value
++    lands on screen (ioport_field::crosshair_read).  u,v on the displayed
++    picture are mapped back through the render target orientation and the
++    screen container orientation to native screen coordinates, then the
++    crosshair scale/offset is inverted to get the field value.
++
++***************************************************************************/
++
++#include "emu.h"
++#include "acvr_mono.h"
++#include "acvr_mono_frames.h"
++
++#include "crsshair.h"
++#include "render.h"
++#include "rendutil.h"
++#include "rendersw.hxx"
++#include "screen.h"
++
++#include "fileio.h"
++#include "png.h"
++#include "xmlfile.h"
++
++#include <algorithm>
++#include <cmath>
++#include <cstdio>
++#include <cstdlib>
++#include <bit>
++#include <fstream>
++#include <memory>
++#include <sstream>
++#include <string>
++#include <vector>
++
++namespace {
++
++bool env_on(const char *name)
++{
++	const char *text = std::getenv(name);
++	return text && text[0] == '1';
++}
++
++// orientation on a normalised point, same order as render.cpp apply_orientation
++void apply_orient(int o, float &x, float &y)
++{
++	if (o & ORIENTATION_SWAP_XY) std::swap(x, y);
++	if (o & ORIENTATION_FLIP_X) x = 1.0f - x;
++	if (o & ORIENTATION_FLIP_Y) y = 1.0f - y;
++}
++
++void undo_orient(int o, float &x, float &y)
++{
++	if (o & ORIENTATION_FLIP_X) x = 1.0f - x;
++	if (o & ORIENTATION_FLIP_Y) y = 1.0f - y;
++	if (o & ORIENTATION_SWAP_XY) std::swap(x, y);
++}
++
++typedef software_renderer<u32, 0,0,0, 16,8,0, false, false> mono_renderer;
++
++struct gun_fields
++{
++	ioport_field *x = nullptr, *y = nullptr;
++	ioport_field *trigger = nullptr, *button2 = nullptr, *start = nullptr, *coin = nullptr;
++};
++
++struct script_line
++{
++	u64 frame = 0;
++	std::string cmd;
++	std::vector<std::string> args;
++};
++
++class acvr_mono_module
++{
++public:
++	acvr_mono_module(running_machine &machine, bool publish, bool gun, int crosshair, const char *script, const char *snapdir)
++		: m_machine(machine), m_publish(publish), m_gun(gun), m_crosshair(crosshair)
++	{
++		if (const char *aim = std::getenv("MAME_VR_AIM"))
++		{
++			float t[4];
++			if (std::sscanf(aim, "%f,%f,%f,%f", &t[0], &t[1], &t[2], &t[3]) == 4 && t[0] > 0.25f && t[0] < 4.0f && t[2] > 0.25f && t[2] < 4.0f)
++				std::copy(std::begin(t), std::end(t), std::begin(m_trim));
++			osd_printf_info("ACVR gun: aim trim %.4f,%.4f,%.4f,%.4f\n", m_trim[0], m_trim[1], m_trim[2], m_trim[3]);
++		}
++		if (script && *script)
++			load_script(script, snapdir ? snapdir : ".");
++		machine.add_notifier(MACHINE_NOTIFY_FRAME, machine_notify_delegate(&acvr_mono_module::frame, this));
++		machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(&acvr_mono_module::exit, this));
++	}
++
++private:
++	running_machine &m_machine;
++	bool m_publish, m_gun;
++	int m_crosshair; // 1 force on, 0 force off, -1 MAME default
++	bool m_started = false;
++	float m_trim[4] = { 1.0f, 0.0f, 1.0f, 0.0f };
++
++	// script (offline proof) mode
++	bool m_script = false;
++	std::string m_snapdir;
++	std::vector<script_line> m_lines;
++	size_t m_next_line = 0;
++	u64 m_frame_no = 0;
++	FILE *m_log = nullptr;
++	acvr_mono::controls m_sin[acvr_mono::players] = {};
++	acvr_mono::gun_state m_sstate[acvr_mono::players] = {};
++	u64 m_until[acvr_mono::players][4] = {}; // trigger, button2, start, coin: hold while frame < until
++	struct held { ioport_field *field; u64 until; };
++	std::vector<held> m_held;
++	acvr_mono::publisher m_shm;
++	render_target *m_target = nullptr;
++	screen_device *m_screen = nullptr;
++	bitmap_rgb32 m_bitmap;
++	gun_fields m_fields[acvr_mono::players];
++	bool m_applied[acvr_mono::players] = { false, false };
++
++	static s32 adj(const ioport_field &f, ioport_value v)
++	{
++		const ioport_value mask = f.mask();
++		const unsigned shift = mask ? std::countr_zero(mask) : 0U;
++		return s32((v & mask) >> shift);
++	}
++
++	int container_orientation() const { return m_screen ? m_screen->container().orientation() : 0; }
++
++	// displayed u,v -> native screen container x,y
++	void to_container(float u, float v, float &x, float &y) const
++	{
++		x = u; y = v;
++		undo_orient(m_target->orientation(), x, y);
++		undo_orient(container_orientation(), x, y);
++	}
++
++	void to_display(float x, float y, float &u, float &v) const
++	{
++		u = x; v = y;
++		apply_orient(container_orientation(), u, v);
++		apply_orient(m_target->orientation(), u, v);
++	}
++
++	// invert crosshair_read(): screen position on this field's axis -> value
++	static s32 aim_value(const ioport_field &f, float pos)
++	{
++		const s32 lo = adj(f, f.minval()), hi = adj(f, f.maxval());
++		float n = pos;
++		const float scale = f.crosshair_scale(), offset = f.crosshair_offset();
++		if (f.crosshair_axis() != CROSSHAIR_AXIS_NONE && scale != 0.0f)
++		{
++			if (scale < 0)
++				n = 1.0f - (pos - offset) / -scale;
++			else
++				n = (pos - offset) / scale;
++		}
++		else if (f.analog_reverse())
++		{
++			// no crosshair calibration: follow what MAME's own input does for a
++			// reversed field (moving right lowers the value the game reads), as the
++			// override bypasses the field settings (Operation Wolf 3 X)
++			n = 1.0f - pos;
++		}
++		const s32 value = s32(std::lround(lo + n * float(hi - lo)));
++		return std::clamp(value, std::min(lo, hi), std::max(lo, hi));
++	}
++
++	static bool axis_is_x(const ioport_field &f)
++	{
++		if (f.crosshair_axis() == CROSSHAIR_AXIS_X) return true;
++		if (f.crosshair_axis() == CROSSHAIR_AXIS_Y) return false;
++		return f.type() == IPT_LIGHTGUN_X || f.type() == IPT_AD_STICK_X;
++	}
++
++	static s32 read_bits(ioport_field &f)
++	{
++		ioport_value v = 0;
++		if (f.is_analog()) f.live().analog->read(v);
++		return adj(f, v);
++	}
++
++	void find_fields()
++	{
++		for (auto &port : m_machine.ioport().ports())
++			for (ioport_field &f : port.second->fields())
++			{
++				const int p = f.player();
++				const ioport_type t = f.type();
++				for (unsigned i = 0; i < acvr_mono::players; ++i)
++				{
++					gun_fields &g = m_fields[i];
++					if (unsigned(p) == i)
++					{
++						if (t == IPT_LIGHTGUN_X && (!g.x || g.x->type() != IPT_LIGHTGUN_X)) g.x = &f;
++						else if (t == IPT_AD_STICK_X && !g.x) g.x = &f;
++						else if (t == IPT_LIGHTGUN_Y && (!g.y || g.y->type() != IPT_LIGHTGUN_Y)) g.y = &f;
++						else if (t == IPT_AD_STICK_Y && !g.y) g.y = &f;
++						else if (t == IPT_BUTTON1 && !g.trigger) g.trigger = &f;
++						else if (t == IPT_BUTTON2 && !g.button2) g.button2 = &f;
++					}
++					if (t == ioport_type(IPT_START1 + i) && !g.start) g.start = &f;
++					if (t == ioport_type(IPT_COIN1 + i) && !g.coin) g.coin = &f;
++				}
++			}
++		for (unsigned i = 0; i < acvr_mono::players; ++i)
++		{
++			gun_fields &g = m_fields[i];
++			auto describe = [] (ioport_field *f) -> std::string
++			{
++				if (!f) return "none";
++				return util::string_format("%s:%X '%s' %d..%d xhair axis %d scale %.3f offset %.3f%s",
++						f->port().tag(), f->mask(), f->name(), adj(*f, f->minval()), adj(*f, f->maxval()),
++						int(f->crosshair_axis()), f->crosshair_scale(), f->crosshair_offset(), f->analog_invert() ? " invert" : "");
++			};
++			osd_printf_info("ACVR gun P%u: X %s\n", i + 1, describe(g.x));
++			osd_printf_info("ACVR gun P%u: Y %s\n", i + 1, describe(g.y));
++			osd_printf_info("ACVR gun P%u: trigger %s, button2 %s, start %s, coin %s\n", i + 1,
++					g.trigger ? g.trigger->name() : "none", g.button2 ? g.button2->name() : "none",
++					g.start ? g.start->name() : "none", g.coin ? g.coin->name() : "none");
++			if (m_crosshair >= 0 && (g.x || g.y) && m_machine.crosshair().get_usage())
++			{
++				render_crosshair &c = m_machine.crosshair().get_crosshair(i);
++				if (c.is_used())
++				{
++					c.set_mode(m_crosshair ? CROSSHAIR_VISIBILITY_ON : CROSSHAIR_VISIBILITY_OFF);
++					c.set_visible(m_crosshair != 0);
++				}
++			}
++		}
++		// other players' crosshairs (3-gun cabinets) follow the same rule
++		if (m_crosshair == 0 && m_machine.crosshair().get_usage())
++			for (int i = acvr_mono::players; i < MAX_PLAYERS; ++i)
++			{
++				render_crosshair &c = m_machine.crosshair().get_crosshair(i);
++				if (c.is_used()) { c.set_mode(CROSSHAIR_VISIBILITY_OFF); c.set_visible(false); }
++			}
++		if (!m_fields[0].x && !m_fields[0].y)
++			osd_printf_warning("ACVR gun: no lightgun or AD stick fields for player 1; gun input stays off\n");
++	}
++
++	void start()
++	{
++		m_started = true;
++		m_screen = screen_device_enumerator(m_machine.root_device()).first();
++		if (m_script)
++			m_gun = true; // the schedule drives the same gun mapping as play
++		else if (!m_shm.ok())
++		{
++			osd_printf_error("ACVR mono: shared memory unavailable\n");
++			m_publish = m_gun = false;
++			return;
++		}
++
++		// native target: one view per screen, the screen filling it (as video.cpp -snapview native)
++		util::xml::file::ptr const root(util::xml::file::create());
++		util::xml::data_node *const layoutnode(root->add_child("mamelayout", nullptr));
++		layoutnode->set_attribute_int("version", 2);
++		const unsigned screens = screen_device_enumerator(m_machine.root_device()).count();
++		for (unsigned i = 0; i < std::max(screens, 1U); ++i)
++		{
++			util::xml::data_node *const viewnode(layoutnode->add_child("view", nullptr));
++			viewnode->set_attribute("name", util::string_format("s%1$u", i).c_str());
++			util::xml::data_node *const screennode(viewnode->add_child("screen", nullptr));
++			screennode->set_attribute_int("index", i);
++			util::xml::data_node *const boundsnode(screennode->add_child("bounds", nullptr));
++			boundsnode->set_attribute_int("left", 0);
++			boundsnode->set_attribute_int("top", 0);
++			boundsnode->set_attribute_int("right", 1);
++			boundsnode->set_attribute_int("bottom", 1);
++		}
++		m_target = m_machine.render().target_alloc(*root, RENDER_CREATE_SINGLE_FILE | RENDER_CREATE_HIDDEN);
++		m_target->set_screen_overlay_enabled(false);
++		m_target->set_zoom_to_screen(false);
++		m_target->set_view(0);
++		m_target->resolve_tags(); // allocated after machine start resolved the others
++
++		if (m_gun)
++			find_fields();
++		osd_printf_info("ACVR mono: publish %d gun %d, target orientation %d, container orientation %d\n",
++				m_publish, m_gun, m_target->orientation(), container_orientation());
++	}
++
++	void apply_gun(unsigned i, const acvr_mono::controls &in, bool fresh, acvr_mono::gun_state &out)
++	{
++		gun_fields &g = m_fields[i];
++		auto press = [fresh] (ioport_field *f, std::uint32_t on)
++		{
++			if (!f) return;
++			if (fresh && on) f->set_value(1); else f->clear_value();
++		};
++		if (fresh)
++		{
++			float x, y;
++			// off-screen: just outside the top-left corner of the *displayed*
++			// picture, mapped back like any aim point, so flipped games (lethalen
++			// FLIP_Y + crosshair scale -1) get their own top edge, not the bottom
++			float u = in.u, v = in.v;
++			if (!in.off_screen)
++			{
++				// per-game trim; a trimmed aim never leaves the picture (that would reload)
++				u = std::clamp(0.5f + (u - 0.5f) * m_trim[0] + m_trim[1], 0.0f, 1.0f);
++				v = std::clamp(0.5f + (v - 0.5f) * m_trim[2] + m_trim[3], 0.0f, 1.0f);
++			}
++			to_container(in.off_screen ? -0.05f : u, in.off_screen ? -0.05f : v, x, y);
++			for (ioport_field *f : { g.x, g.y })
++				if (f)
++				{
++					const s32 value = aim_value(*f, axis_is_x(*f) ? x : y);
++					f->set_value(value);
++					(f == g.x ? out.x_set : out.y_set) = value;
++				}
++			m_applied[i] = true;
++		}
++		else if (m_applied[i])
++		{
++			if (g.x) g.x->clear_value();
++			if (g.y) g.y->clear_value();
++			m_applied[i] = false;
++		}
++		press(g.trigger, in.trigger);
++		press(g.button2, in.button2);
++		// start/coin of player 2 may be the same field as nobody else's; only drive when found
++		press(g.start, in.start);
++		press(g.coin, in.coin);
++
++		out.active = fresh;
++		out.buttons = fresh ? ((in.trigger ? 1 : 0) | (in.button2 ? 2 : 0) | (in.start ? 4 : 0) | (in.coin ? 8 : 0)) : 0;
++	}
++
++	void fill_state(unsigned i, acvr_mono::gun_state &out)
++	{
++		gun_fields &g = m_fields[i];
++		out.has_x = g.x != nullptr; out.has_y = g.y != nullptr;
++		out.has_trigger = g.trigger != nullptr; out.has_button2 = g.button2 != nullptr;
++		out.has_start = g.start != nullptr; out.has_coin = g.coin != nullptr;
++		float cx = 0.5f, cy = 0.5f;
++		if (g.x)
++		{
++			out.x_min = adj(*g.x, g.x->minval()); out.x_max = adj(*g.x, g.x->maxval());
++			out.x_read = read_bits(*g.x);
++			(axis_is_x(*g.x) ? cx : cy) = g.x->crosshair_read();
++		}
++		if (g.y)
++		{
++			out.y_min = adj(*g.y, g.y->minval()); out.y_max = adj(*g.y, g.y->maxval());
++			out.y_read = read_bits(*g.y);
++			(axis_is_x(*g.y) ? cx : cy) = g.y->crosshair_read();
++		}
++		to_display(cx, cy, out.cross_u, out.cross_v);
++	}
++
++	void frame()
++	{
++		if (!m_started)
++			start();
++		if (!m_target)
++			return;
++
++		// render first, outside the lock
++		s32 width = 0, height = 0;
++		if (m_publish || m_script)
++		{
++			m_target->compute_minimum_size(width, height);
++			if (width > s32(acvr_mono::max_width) || height > s32(acvr_mono::max_height))
++			{
++				const float s = std::min(float(acvr_mono::max_width) / width, float(acvr_mono::max_height) / height);
++				width = std::max(1, s32(width * s)); height = std::max(1, s32(height * s));
++			}
++			width = std::max(width, 1); height = std::max(height, 1);
++			m_target->set_bounds(width, height);
++			if (width != m_bitmap.width() || height != m_bitmap.height())
++				m_bitmap.resize(width, height);
++			render_primitive_list &primlist = m_target->get_primitives();
++			primlist.acquire_lock();
++			mono_renderer::draw_primitives(primlist, &m_bitmap.pix(0), width, height, m_bitmap.rowpixels());
++			primlist.release_lock();
++		}
++
++		if (m_script)
++		{
++			script_frame();
++			return;
++		}
++
++		acvr_mono::frame *f = m_shm.try_lock();
++		if (!f)
++			return; // viewer holds the lock: skip this frame, keep the last input
++
++		if (m_gun)
++			for (unsigned i = 0; i < acvr_mono::players; ++i)
++			{
++				const acvr_mono::controls in = f->input[i];
++				apply_gun(i, in, acvr_mono::publisher::fresh(in), f->gun[i]);
++				fill_state(i, f->gun[i]);
++			}
++
++		if (m_publish)
++		{
++			for (s32 y = 0; y < height; ++y)
++				std::memcpy(&f->pixels[y * width], &m_bitmap.pix(y), width * 4);
++			f->w = width; f->h = height; f->stride = width;
++			float aspect = float(width) / float(height);
++			if (m_screen)
++			{
++				const auto pa = m_screen->physical_aspect();
++				const bool swap = (orientation_add(container_orientation(), m_target->orientation()) & ORIENTATION_SWAP_XY) != 0;
++				if (pa.first && pa.second)
++					aspect = swap ? float(pa.second) / pa.first : float(pa.first) / pa.second;
++				f->refresh_hz = float(m_screen->frame_period().as_hz());
++				f->frame_number = m_screen->frame_number();
++			}
++			f->physical_aspect = aspect;
++			f->orientation = orientation_add(container_orientation(), m_target->orientation());
++		}
++		f->emulated_seconds = m_machine.time().as_double();
++		++f->serial;
++		const bool exit = f->exit_request != 0;
++		m_shm.unlock();
++		if (exit)
++			m_machine.schedule_exit();
++	}
++
++	void load_script(const char *path, const char *snapdir)
++	{
++		std::ifstream in(path);
++		if (!in)
++		{
++			osd_printf_error("ACVR script: cannot read %s\n", path);
++			return;
++		}
++		std::string text;
++		while (std::getline(in, text))
++		{
++			if (!text.empty() && text.back() == '\r') text.pop_back();
++			if (text.empty() || text[0] == '#') continue;
++			std::istringstream ss(text);
++			script_line l;
++			if (!(ss >> l.frame >> l.cmd)) continue;
++			for (std::string a; ss >> a; ) l.args.push_back(a);
++			m_lines.push_back(std::move(l));
++		}
++		std::stable_sort(m_lines.begin(), m_lines.end(), [] (const script_line &a, const script_line &b) { return a.frame < b.frame; });
++		m_script = true;
++		m_snapdir = snapdir;
++		m_log = std::fopen((m_snapdir + "/script-log.txt").c_str(), "w");
++		for (unsigned i = 0; i < acvr_mono::players; ++i) { m_sin[i].valid = 1; m_sin[i].u = m_sin[i].v = 0.5f; }
++		osd_printf_info("ACVR script: %u lines from %s, pictures to %s\n", unsigned(m_lines.size()), path, snapdir);
++	}
++
++	static int player_arg(const script_line &l, size_t i)
++	{
++		const int p = i < l.args.size() ? std::atoi(l.args[i].c_str()) : 1;
++		return std::clamp(p, 1, int(acvr_mono::players)) - 1;
++	}
++
++	void run_line(const script_line &l)
++	{
++		const auto arg = [&l] (size_t i) -> std::string { return i < l.args.size() ? l.args[i] : std::string(); };
++		if (l.cmd == "aim")
++		{
++			const int p = player_arg(l, 0);
++			m_sin[p].u = std::strtof(arg(1).c_str(), nullptr);
++			m_sin[p].v = std::strtof(arg(2).c_str(), nullptr);
++			m_sin[p].off_screen = 0;
++		}
++		else if (l.cmd == "off")
++			m_sin[player_arg(l, 0)].off_screen = 1;
++		else if (l.cmd == "hold")
++		{
++			const int p = player_arg(l, 0);
++			const std::string which = arg(1);
++			const u64 until = m_frame_no + std::max(1, std::atoi(arg(2).c_str()));
++			const char names[4] = { 'T', 'B', 'S', 'C' };
++			for (int b = 0; b < 4; ++b)
++				if (which.find(names[b]) != std::string::npos)
++					m_until[p][b] = until;
++		}
++		else if (l.cmd == "press")
++		{
++			int player = 0;
++			const ioport_type type = m_machine.ioport().token_to_input_type(arg(0).c_str(), player);
++			ioport_field *found = nullptr;
++			for (auto &port : m_machine.ioport().ports())
++				for (ioport_field &f : port.second->fields())
++					if (!found && f.type() == type && f.player() == player)
++						found = &f;
++			if (found)
++				m_held.push_back({ found, m_frame_no + std::max(1, std::atoi(arg(1).c_str())) });
++			if (m_log) std::fprintf(m_log, "frame %llu press %s -> %s\n", (unsigned long long)m_frame_no, arg(0).c_str(), found ? found->name().c_str() : "NOT FOUND");
++		}
++		else if (l.cmd == "dip")
++		{
++			ioport_port *port = m_machine.root_device().ioport(arg(0));
++			const ioport_value mask = ioport_value(std::strtoul(arg(1).c_str(), nullptr, 16));
++			const ioport_value value = ioport_value(std::strtoul(arg(2).c_str(), nullptr, 16));
++			bool done = false;
++			if (port)
++				for (ioport_field &f : port->fields())
++					if (f.mask() == mask)
++					{
++						ioport_field::user_settings s;
++						f.get_user_settings(s);
++						s.value = value;
++						f.set_user_settings(s);
++						done = true;
++					}
++			if (m_log) std::fprintf(m_log, "frame %llu dip %s %s %s -> %s\n", (unsigned long long)m_frame_no, arg(0).c_str(), arg(1).c_str(), arg(2).c_str(), done ? "set" : "NOT FOUND");
++		}
++		else if (l.cmd == "snap")
++			snap(arg(0));
++		else if (l.cmd == "quit")
++			m_machine.schedule_exit();
++	}
++
++	void snap(const std::string &name)
++	{
++		if (!m_bitmap.valid() || name.empty()) return;
++		emu_file file(m_snapdir, OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
++		if (!file.open(name + ".png"))
++			util::png_write_bitmap(file, nullptr, m_bitmap, 0, nullptr);
++		if (!m_log) return;
++		std::fprintf(m_log, "frame %llu t %.4f snap %s %dx%d", (unsigned long long)m_frame_no, m_machine.time().as_double(), name.c_str(), m_bitmap.width(), m_bitmap.height());
++		for (unsigned i = 0; i < acvr_mono::players; ++i)
++		{
++			const acvr_mono::controls &c = m_sin[i];
++			const acvr_mono::gun_state &g = m_sstate[i];
++			std::fprintf(m_log, " | P%u aim %.4f %.4f%s btn %u X set %d read %d Y set %d read %d xhair %.4f %.4f",
++					i + 1, c.u, c.v, c.off_screen ? " OFF" : "", g.buttons, g.x_set, g.x_read, g.y_set, g.y_read, g.cross_u, g.cross_v);
++		}
++		std::fprintf(m_log, "\n");
++		std::fflush(m_log);
++	}
++
++	void script_frame()
++	{
++		++m_frame_no;
++		// releases first, then this frame's commands, then apply
++		m_held.erase(std::remove_if(m_held.begin(), m_held.end(), [this] (const held &h)
++		{
++			if (m_frame_no < h.until) return false;
++			h.field->clear_value();
++			return true;
++		}), m_held.end());
++		std::vector<const script_line *> snaps;
++		while (m_next_line < m_lines.size() && m_lines[m_next_line].frame <= m_frame_no)
++		{
++			const script_line &l = m_lines[m_next_line++];
++			if (l.cmd == "snap") snaps.push_back(&l); else run_line(l);
++		}
++		for (const held &h : m_held)
++			h.field->set_value(1);
++		for (unsigned i = 0; i < acvr_mono::players; ++i)
++		{
++			acvr_mono::controls in = m_sin[i];
++			in.trigger = m_frame_no < m_until[i][0];
++			in.button2 = m_frame_no < m_until[i][1];
++			in.start = m_frame_no < m_until[i][2];
++			in.coin = m_frame_no < m_until[i][3];
++			m_sin[i] = in;
++			apply_gun(i, in, true, m_sstate[i]);
++			fill_state(i, m_sstate[i]);
++		}
++		// the picture rendered this frame shows the state before this frame's input
++		for (const script_line *l : snaps)
++			snap(l->args.empty() ? std::string() : l->args[0]);
++	}
++
++	void exit()
++	{
++		if (m_log)
++		{
++			std::fprintf(m_log, "exit at frame %llu t %.4f\n", (unsigned long long)m_frame_no, m_machine.time().as_double());
++			std::fclose(m_log);
++			m_log = nullptr;
++		}
++		for (gun_fields &g : m_fields)
++			for (ioport_field *f : { g.x, g.y, g.trigger, g.button2, g.start, g.coin })
++				if (f) f->clear_value();
++		for (const held &h : m_held)
++			h.field->clear_value();
++		if (m_target)
++			m_machine.render().target_free(m_target);
++		m_target = nullptr;
++	}
++};
++
++std::unique_ptr<acvr_mono_module> g_module;
++
++} // anonymous namespace
++
++void acvr_mono_start(running_machine &machine)
++{
++	g_module.reset();
++	const char *script = std::getenv("MAME_VR_SCRIPT");
++	const bool scripted = script && *script;
++	const bool publish = env_on("MAME_VR_PUBLISH"), gun = env_on("MAME_VR_GUN");
++	if (!publish && !gun && !scripted)
++		return;
++	const char *cross = std::getenv("MAME_VR_CROSSHAIR");
++	const int crosshair = cross && cross[0] == '1' ? 1 : (cross && cross[0] == '0') || scripted ? 0 : -1;
++	g_module = std::make_unique<acvr_mono_module>(machine, scripted ? false : publish, gun || scripted, crosshair, script, std::getenv("MAME_VR_SNAPDIR"));
++}
+diff --git a/src/frontend/mame/acvr_mono.h b/src/frontend/mame/acvr_mono.h
+new file mode 100644
+index 00000000..ce61638d
+--- /dev/null
++++ b/src/frontend/mame/acvr_mono.h
+@@ -0,0 +1,11 @@
++// license:BSD-3-Clause
++// ACVR generic mono frame publisher + generic gun input (gun-vr branch).
++// Off unless MAME_VR_PUBLISH=1 and/or MAME_VR_GUN=1 is set.
++#ifndef MAME_FRONTEND_ACVR_MONO_H
++#define MAME_FRONTEND_ACVR_MONO_H
++#pragma once
++
++class running_machine;
++void acvr_mono_start(running_machine &machine);
++
++#endif
+diff --git a/src/frontend/mame/acvr_mono_frames.h b/src/frontend/mame/acvr_mono_frames.h
+new file mode 100644
+index 00000000..9acd49d9
+--- /dev/null
++++ b/src/frontend/mame/acvr_mono_frames.h
+@@ -0,0 +1,112 @@
++// license:BSD-3-Clause
++// ACVR mono frame + gun protocol v4 ("ACVRMG"), shared by MAME and a viewer.
++// Same style as model2_frames.h: one named file mapping per MAME process,
++// "Local\ACVRMG-<pid>", guarded by the mutex "<name>-lock", lock-or-skip.
++// No MAME headers here so a separate viewer or test tool can include it.
++#ifndef MAME_FRONTEND_ACVR_MONO_FRAMES_H
++#define MAME_FRONTEND_ACVR_MONO_FRAMES_H
++#include <cstdint>
++#include <cstring>
++#include <cstdio>
++#ifdef _WIN32
++#ifndef NOMINMAX
++#define NOMINMAX
++#endif
++#include <windows.h>
++#endif
++
++namespace acvr_mono {
++constexpr unsigned max_width = 1024, max_height = 1024, players = 2;
++constexpr std::uint32_t magic = 0x474d5641; // "AVMG" little-endian
++constexpr std::uint32_t protocol_version = 4;
++
++// Written by the viewer. u,v: 0..1 on the displayed picture, top-left origin.
++struct controls
++{
++	std::uint64_t heartbeat_ms;      // GetTickCount64() of the writer; stale after 250 ms
++	std::uint32_t valid, off_screen, trigger, button2, start, coin;
++	float u, v;
++};
++
++// Written by MAME: what it found and what the game now reads.
++struct gun_state
++{
++	std::uint32_t has_x, has_y;      // aim fields found (lightgun or AD stick)
++	std::uint32_t has_trigger, has_button2, has_start, has_coin;
++	std::int32_t x_min, x_max, y_min, y_max;   // field ranges (adjusted)
++	std::int32_t x_set, y_set;       // value given to set_value
++	std::int32_t x_read, y_read;     // bits the game reads back from the port
++	float cross_u, cross_v;          // MAME crosshair position mapped to displayed u,v
++	std::uint32_t buttons;           // bit0 trigger, 1 button2, 2 start, 3 coin (as applied)
++	std::uint32_t active;            // overrides currently applied
++};
++
++struct frame
++{
++	std::uint32_t tag, version, w, h, stride; // stride in pixels (== w)
++	std::uint64_t serial;            // +1 per published frame
++	float physical_aspect;           // displayed width / height (use this, not w/h)
++	std::uint32_t orientation;       // MAME ORIENTATION_* bits applied to the picture
++	float refresh_hz;
++	std::uint32_t exit_request;      // viewer sets 1 -> MAME exits cleanly
++	double emulated_seconds;
++	std::uint64_t frame_number;      // MAME screen frame number
++	controls input[players];
++	gun_state gun[players];
++	std::uint32_t pixels[max_width * max_height]; // XRGB8888, rows of 'stride'
++};
++
++inline void mapping_name(char *out, std::size_t size, unsigned long pid)
++{
++	std::snprintf(out, size, "Local\\ACVRMG-%lu", pid);
++}
++
++#ifdef _WIN32
++class publisher
++{
++public:
++	publisher()
++	{
++		char name[80], lock_name[96];
++		mapping_name(name, sizeof(name), GetCurrentProcessId());
++		std::snprintf(lock_name, sizeof(lock_name), "%s-lock", name);
++		m_lock = CreateMutexA(nullptr, TRUE, lock_name);
++		m_mapping = CreateFileMappingA(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(frame), name);
++		if (m_mapping) m_frame = static_cast<frame *>(MapViewOfFile(m_mapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(frame)));
++		if (m_frame) { std::memset(m_frame, 0, sizeof(frame) - sizeof(m_frame->pixels)); m_frame->tag = magic; m_frame->version = protocol_version; }
++		if (m_lock) ReleaseMutex(m_lock);
++	}
++	~publisher() { if (m_frame) UnmapViewOfFile(m_frame); if (m_mapping) CloseHandle(m_mapping); if (m_lock) CloseHandle(m_lock); }
++	bool ok() const { return m_frame && m_lock; }
++
++	// Lock-or-skip: returns the locked frame or nullptr; call unlock() after.
++	frame *try_lock()
++	{
++		if (!ok()) return nullptr;
++		const DWORD result = WaitForSingleObject(m_lock, 0);
++		if (result != WAIT_OBJECT_0 && result != WAIT_ABANDONED) return nullptr;
++		return m_frame;
++	}
++	void unlock() { ReleaseMutex(m_lock); }
++
++	static bool fresh(const controls &input)
++	{
++		const auto now = GetTickCount64();
++		return input.valid && input.heartbeat_ms <= now && now - input.heartbeat_ms < 250;
++	}
++private:
++	HANDLE m_mapping = nullptr, m_lock = nullptr;
++	frame *m_frame = nullptr;
++};
++#else
++class publisher
++{
++public:
++	bool ok() const { return false; }
++	frame *try_lock() { return nullptr; }
++	void unlock() { }
++	static bool fresh(const controls &) { return false; }
++};
++#endif
++} // namespace acvr_mono
++#endif
+diff --git a/src/frontend/mame/mame.cpp b/src/frontend/mame/mame.cpp
+index 2dfe2439..eaf5ebf2 100644
+--- a/src/frontend/mame/mame.cpp
++++ b/src/frontend/mame/mame.cpp
+@@ -10,6 +10,7 @@
+ 
+ #include "emu.h"
+ #include "mame.h"
++#include "acvr_mono.h"
+ 
+ #include "ui/inifile.h"
+ #include "ui/selgame.h"
+@@ -382,6 +383,9 @@ void mame_machine_manager::create_custom(running_machine &machine)
+ 	// start favorite manager
+ 	m_favorite = std::make_unique<favorite_manager>(m_ui->options());
+ 
++	// ACVR gun-vr: generic mono frame publisher + gun input (off unless MAME_VR_PUBLISH/MAME_VR_GUN set)
++	acvr_mono_start(machine);
++
+ 	// attempt to load the autoboot script if configured
+ 	m_autoboot_script.reset();
+ 	if (*options().autoboot_script())
+diff --git a/src/osd/modules/sound/windows_audio_guids.cpp b/src/osd/modules/sound/windows_audio_guids.cpp
+new file mode 100644
+index 00000000..e0e015cb
+--- /dev/null
++++ b/src/osd/modules/sound/windows_audio_guids.cpp
+@@ -0,0 +1,16 @@
++// license:BSD-3-Clause
++
++#if defined(_WIN32)
++
++// Emits storage for the audio property keys that MinGW-w64's headers only
++// declare unless INITGUID is set.
++#define INITGUID
++#include <windows.h>
++#include <initguid.h>
++#include <mmreg.h>
++#include <ks.h>
++#include <ksmedia.h>
++#include <mmdeviceapi.h>
++#include <functiondiscoverykeys_devpkey.h>
++
++#endif

@@ -42,6 +42,11 @@ struct ACVRControllerInput
 {
   float u = .5f, v = .5f;
   bool active = false, offScreen = true, trigger = false, start = false, coin = false, quitHeld = false;
+  // Cabinet controls for racing and extra buttons: right trigger pull 0..1 (accelerator),
+  // left trigger 0..1 (brake), steering -1 (left) .. 1 (right) from the left thumbstick or
+  // the right controller's roll, and the two grips.
+  float accel = 0, brake = 0, steer = 0;
+  bool gripR = false, gripL = false;
 };
 ACVRControllerInput ACVR_XR_ControllerInput();
 

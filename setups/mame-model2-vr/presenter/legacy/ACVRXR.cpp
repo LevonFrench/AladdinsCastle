@@ -117,6 +117,7 @@ namespace
   int64_t     s_format = 0;
   XrActionSet s_actions = XR_NULL_HANDLE;
   XrAction s_aim = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_start = XR_NULL_HANDLE, s_coin = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE, s_quit = XR_NULL_HANDLE;
+  XrAction s_brake = XR_NULL_HANDLE, s_stickX = XR_NULL_HANDLE, s_gripR = XR_NULL_HANDLE, s_gripL = XR_NULL_HANDLE;
   XrSpace s_aimSpace = XR_NULL_HANDLE;
   XrPath s_right = XR_NULL_PATH, s_left = XR_NULL_PATH;
   bool s_acquired[2]{},s_imageReady[2]{};
@@ -157,12 +158,24 @@ namespace
         !action("start", "Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_start) ||
         !action("coin", "Coin", XR_ACTION_TYPE_BOOLEAN_INPUT, s_coin) ||
         !action("shot_pulse", "Shot vibration", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic) ||
-        !action("clean_quit", "Hold Y for clean quit", XR_ACTION_TYPE_BOOLEAN_INPUT, s_quit, s_left)) return false;
+        !action("clean_quit", "Hold Y for clean quit", XR_ACTION_TYPE_BOOLEAN_INPUT, s_quit, s_left) ||
+        !action("brake", "Brake (racing)", XR_ACTION_TYPE_FLOAT_INPUT, s_brake, s_left) ||
+        !action("steer_stick", "Steer (racing)", XR_ACTION_TYPE_FLOAT_INPUT, s_stickX, s_left) ||
+        !action("grip_right", "Right grip: shift up / extra button", XR_ACTION_TYPE_BOOLEAN_INPUT, s_gripR) ||
+        !action("grip_left", "Left grip: shift down / extra button", XR_ACTION_TYPE_BOOLEAN_INPUT, s_gripL, s_left)) return false;
     const char *profiles[] = { "/interaction_profiles/oculus/touch_controller", "/interaction_profiles/valve/index_controller" };
     const char *paths[] = { "/user/hand/right/input/aim/pose", "/user/hand/right/input/trigger/value",
                            "/user/hand/right/input/a/click", "/user/hand/right/input/b/click", "/user/hand/right/output/haptic" };
     const XrAction actions[] = { s_aim, s_trigger, s_start, s_coin, s_haptic };
-    XrActionSuggestedBinding bindings[6]{};
+    // Both profiles use the same paths for these; index 5 is the clean-quit button, set per profile.
+    const char *morePaths[] = { "/user/hand/left/input/trigger/value", "/user/hand/left/input/thumbstick/x",
+                               "/user/hand/right/input/squeeze/value", "/user/hand/left/input/squeeze/value" };
+    const XrAction moreActions[] = { s_brake, s_stickX, s_gripR, s_gripL };
+    XrActionSuggestedBinding bindings[10]{};
+    for (unsigned i=0; i<4; ++i) {
+      bindings[6+i].action = moreActions[i];
+      if (!Check(p_xrStringToPath(s_instance, morePaths[i], &bindings[6+i].binding), "controller binding path")) return false;
+    }
     for (unsigned i=0; i<5; ++i) {
       bindings[i].action = actions[i];
       if (!Check(p_xrStringToPath(s_instance, paths[i], &bindings[i].binding), "controller binding path")) return false;
@@ -174,7 +187,7 @@ namespace
       if (!Check(p_xrStringToPath(s_instance, profile, &suggested.interactionProfile), "interaction profile")) return false;
       bindings[5].action=s_quit;
       if(!Check(p_xrStringToPath(s_instance,quitPaths[profileIndex++],&bindings[5].binding),"clean quit button path")) return false;
-      suggested.countSuggestedBindings = 6; suggested.suggestedBindings = bindings;
+      suggested.countSuggestedBindings = 10; suggested.suggestedBindings = bindings;
       Check(p_xrSuggestInteractionProfileBindings(s_instance, &suggested), profile);
     }
     XrSessionActionSetsAttachInfo attach = { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
@@ -211,7 +224,21 @@ namespace
       get.action=s_trigger; const bool triggerOK=XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &trigger));
       get.action=s_start; const bool startOK=XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &start));
       get.action=s_coin; const bool coinOK=XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &coin));
-      input.active = (aimOK && aim.isActive) || (startOK && start.isActive) || (coinOK && coin.isActive);
+      XrActionStateFloat brake = { XR_TYPE_ACTION_STATE_FLOAT }, stick = { XR_TYPE_ACTION_STATE_FLOAT };
+      XrActionStateBoolean gripR = { XR_TYPE_ACTION_STATE_BOOLEAN }, gripL = { XR_TYPE_ACTION_STATE_BOOLEAN };
+      get.action=s_gripR; const bool gripROK=XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &gripR));
+      get.subactionPath=s_left;
+      get.action=s_brake; const bool brakeOK=XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &brake));
+      get.action=s_stickX; const bool stickOK=XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &stick));
+      get.action=s_gripL; const bool gripLOK=XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &gripL));
+      get.subactionPath=s_right;
+      input.active = (aimOK && aim.isActive) || (startOK && start.isActive) || (coinOK && coin.isActive) ||
+                     (triggerOK && trigger.isActive) || (brakeOK && brake.isActive) || (stickOK && stick.isActive);
+      input.accel = triggerOK && trigger.isActive ? std::fmin(std::fmax(trigger.currentState, 0.f), 1.f) : 0.f;
+      input.brake = brakeOK && brake.isActive ? std::fmin(std::fmax(brake.currentState, 0.f), 1.f) : 0.f;
+      input.gripR = gripROK && gripR.isActive && gripR.currentState;
+      input.gripL = gripLOK && gripL.isActive && gripL.currentState;
+      const float stickX = stickOK && stick.isActive ? stick.currentState : 0.f;
       input.start=startOK && start.isActive && start.currentState;
       input.coin=coinOK && coin.isActive && coin.currentState;
       XrActionStateBoolean quit={XR_TYPE_ACTION_STATE_BOOLEAN};
@@ -219,7 +246,12 @@ namespace
       input.quitHeld=XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session,&get,&quit)) && quit.isActive && quit.currentState;
       XrSpaceLocation pose = { XR_TYPE_SPACE_LOCATION };
       const auto need=XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
-      if (width>0 && height>0 && s_poseSet && aimOK && aim.isActive && XR_SUCCEEDED(p_xrLocateSpace(s_aimSpace, s_space, time, &pose)) && (pose.locationFlags & need)==need) {
+      const bool located = aimOK && aim.isActive && XR_SUCCEEDED(p_xrLocateSpace(s_aimSpace, s_space, time, &pose)) && (pose.locationFlags & need)==need;
+      // Steering: the left thumbstick when it is pushed, else the right controller's roll,
+      // held like a wheel: 60 degrees clockwise is full right lock.
+      if (std::fabs(stickX) > .15f) input.steer = std::fmin(std::fmax(stickX, -1.f), 1.f);
+      else if (located) input.steer = acvr_aim::steer_from_roll({pose.pose.orientation.x,pose.pose.orientation.y,pose.pose.orientation.z,pose.pose.orientation.w}, 60.f);
+      if (width>0 && height>0 && s_poseSet && located) {
         const auto &p=pose.pose.position, &c=s_quadPose.position;
         const auto &q=pose.pose.orientation, &s=s_quadPose.orientation;
         const auto hit=acvr_aim::intersect({p.x,p.y,p.z},{q.x,q.y,q.z,q.w},{c.x,c.y,c.z},{s.x,s.y,s.z,s.w},width,height);

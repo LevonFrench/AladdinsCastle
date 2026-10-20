@@ -25,6 +25,17 @@
    ACVR_STICK_INVERT=1    with ACVR_STICK_GRAB: pushing the stick forward aims up instead of down
    ACVR_TEST_STICK=<pitch>,<roll>  with ACVR_STICK_GRAB: a stick held at that tilt, degrees (pitch: pulled back,
                           roll: to the right), with no controllers, for unattended checks
+   ACVR_WIDE_ALL=0        with -wide-screen: widen only full-screen views, as upstream (default: letterboxed scenes
+                          and sky strips are widened too)
+   ACVR_AIM_X, ACVR_AIM_Y analog-joystick games: where the game draws its crosshair for each stick value, as
+                          "value:pixel,..." over its 496x384 picture (default: Star Wars Trilogy, measured)
+   ACVR_AIM_DISTANCE=<m>  head-tracked: distance of the virtual screen the arcade view is met on when pointing (2.5)
+   ACVR_FAKE_CONTROLLERS=<first>-<last>:<control>:<value>;...  made-up VR controllers for unattended checks, used
+                          only while no real ones are read. Controls: trigger.l trigger.r grip.l grip.r a b x y menu
+                          stick.lx stick.ly stick.rx stick.ry click.l click.r; wheel (degrees, both hands on a
+                          wheel, positive turns right); aim.u aim.v (the right controller points at that place of
+                          the game picture, 0..1 from the top left); aim.yaw aim.pitch (degrees, left and up
+                          positive); hand.x hand.y hand.z (where the right controller is, metres from the head)
 ******************************************************************************/
 
 ACVRStereoState g_acvrStereo;
@@ -86,6 +97,7 @@ static void ACVR_Init()
   g_acvrStereo.convergence = convMetres * s_acvrUnitsPerMetre;
   g_acvrStereo.fovScale    = ACVR_EnvFloat("ACVR_FOV_SCALE", 1.0f);
   g_acvrStereo.noCull      = s_acvrVRWanted || getenv("ACVR_NO_CULL") != nullptr;
+  if (const char *w = getenv("ACVR_WIDE_ALL")) g_acvrStereo.wideAll = (w[0] != '0');
   if (const char *f = getenv("ACVR_CAPTURE_FRAME"))
   {
     for (const char *c = f; *c; )
@@ -161,6 +173,196 @@ static void ACVR_LogStick(CInputs *inputs, const char *how)
          jx ? jx->value : -1, jy ? jy->value : -1);
 }
 
+// ---------------------------------------------------------------- ACVR: pointing at the picture
+// Where an analog-joystick game (Star Wars Trilogy) draws its crosshair for each stick value, in pixels of its
+// 496x384 picture, measured from the game's own crosshair (Yavin, 2026-10-19). The response is not linear: the
+// crosshair moves half as far per step near the centre and at the ends, and never reaches the outer 34 pixels.
+struct ACVRAimPoint { float value, pixel; };
+static std::vector<ACVRAimPoint> s_acvrAimX, s_acvrAimY;
+
+static void ACVR_ReadAimTable(std::vector<ACVRAimPoint> &t, const char *env, const char *fallback)
+{
+  const char *e = getenv(env);
+  const char *src = (e && *e) ? e : fallback;
+  t.clear();
+  for (const char *c = src; *c; )
+  {
+    ACVRAimPoint pt;
+    if (sscanf(c, "%f:%f", &pt.value, &pt.pixel) == 2) t.push_back(pt);
+    while (*c && *c != ',') c++;
+    if (*c == ',') c++;
+  }
+  std::sort(t.begin(), t.end(), [](const ACVRAimPoint &a, const ACVRAimPoint &b) { return a.pixel < b.pixel; });
+}
+
+// The stick value that puts the crosshair at this pixel (clamped to the crosshair's reach)
+static int ACVR_AimValue(const std::vector<ACVRAimPoint> &t, float pixel)
+{
+  if (t.size() < 2) return 128;
+  if (pixel <= t.front().pixel) return (int)(t.front().value + 0.5f);
+  if (pixel >= t.back().pixel) return (int)(t.back().value + 0.5f);
+  for (size_t i = 1; i < t.size(); i++)
+  {
+    if (pixel > t[i].pixel) continue;
+    const float f = (pixel - t[i - 1].pixel) / (t[i].pixel - t[i - 1].pixel);
+    return (int)(t[i - 1].value + f * (t[i].value - t[i - 1].value) + 0.5f);
+  }
+  return 128;
+}
+
+// The surface a pointing ray is met on, in the controllers' space: the screen the presenter placed (screen mode),
+// the same screen placed for a head at the origin when there is no presenter (unattended checks), or in the
+// head-tracked mode a virtual screen that carries the arcade view, ACVR_AIM_DISTANCE metres ahead of the
+// recentre point. g0 and g1 bound the game's own 496x384 picture on it, as fractions from the top left.
+struct ACVRAimScreen { float centre[3], xaxis[3], normal[3], w, h, g0[2], g1[2]; };
+
+static bool ACVR_GetAimScreen(const ACVRControllers &c, ACVRAimScreen &s)
+{
+  float tl = g_acvrStereo.tanL, tr = g_acvrStereo.tanR, tb = g_acvrStereo.tanB, tt = g_acvrStereo.tanT;
+  if (!(tr - tl > 0.05f) || !(tt - tb > 0.05f)) { tl = -0.6f; tr = 0.6f; tb = -0.45f; tt = 0.45f; }
+  float yaw = 0.0f;
+  const bool whole = !g_acvrStereo.vr;      // screen mode: the screen shows the whole eye picture
+  if (c.screenValid)
+  {
+    for (int k = 0; k < 3; k++) s.centre[k] = c.screenPos[k];
+    yaw = c.screenYaw; s.w = c.screenSize[0]; s.h = c.screenSize[1];
+  }
+  else if (g_acvrStereo.vr)
+  {
+    const float d = ACVR_EnvFloat("ACVR_AIM_DISTANCE", 2.5f);
+    yaw = s_acvrOriginYaw;
+    const float cx = d * 0.5f * (tl + tr), cy = d * 0.5f * (tb + tt);
+    s.centre[0] = s_acvrOriginPos[0] + cx * cosf(yaw) - d * sinf(yaw);
+    s.centre[1] = s_acvrOriginPos[1] + cy;
+    s.centre[2] = s_acvrOriginPos[2] - cx * sinf(yaw) - d * cosf(yaw);
+    s.w = d * (tr - tl); s.h = d * (tt - tb);
+  }
+  else
+  {
+    const float d = ACVR_XR_DistanceMetres(), size = ACVR_EnvFloat("ACVR_XR_SIZE", 1.0f);
+    s.centre[0] = 0.0f; s.centre[1] = ACVR_EnvFloat("ACVR_XR_HEIGHT", 0.0f); s.centre[2] = -d;
+    s.w = d * (tr - tl) * size; s.h = d * (tt - tb) * size;
+  }
+  s.xaxis[0] = cosf(yaw); s.xaxis[1] = 0.0f; s.xaxis[2] = -sinf(yaw);
+  s.normal[0] = sinf(yaw); s.normal[1] = 0.0f; s.normal[2] = cosf(yaw);
+  if (whole && totalXRes > 0 && totalYRes > 0)
+  {
+    s.g0[0] = (float)xOffset / totalXRes; s.g1[0] = (float)(xOffset + xRes) / totalXRes;
+    s.g0[1] = (float)yOffset / totalYRes; s.g1[1] = (float)(yOffset + yRes) / totalYRes;
+  }
+  else { s.g0[0] = s.g0[1] = 0.0f; s.g1[0] = s.g1[1] = 1.0f; }
+  return s.w > 0.0f && s.h > 0.0f;
+}
+
+// Where the right controller's pointing ray meets the game picture: u, v from its top left (may be outside 0..1)
+static bool ACVR_AimUV(const ACVRControllers &c, float &u, float &v)
+{
+  ACVRAimScreen s;
+  if (!c.aimValid[1] || !ACVR_GetAimScreen(c, s)) return false;
+  const float *q = c.aimRot[1];
+  const float d[3] = { -2.0f * (q[0] * q[2] + q[3] * q[1]), -2.0f * (q[1] * q[2] - q[3] * q[0]), -(1.0f - 2.0f * (q[0] * q[0] + q[1] * q[1])) };
+  const float *o = c.aimPosValid[1] ? c.aimPos[1] : c.gripPos[1];
+  const float dn = d[0] * s.normal[0] + d[1] * s.normal[1] + d[2] * s.normal[2];
+  if (!(dn < -1e-4f)) return false;                       // pointing away from the screen
+  const float t = ((s.centre[0] - o[0]) * s.normal[0] + (s.centre[1] - o[1]) * s.normal[1] + (s.centre[2] - o[2]) * s.normal[2]) / dn;
+  if (!(t > 0.0f)) return false;
+  const float hit[3] = { o[0] + t * d[0] - s.centre[0], o[1] + t * d[1] - s.centre[1], o[2] + t * d[2] - s.centre[2] };
+  const float su = 0.5f + (hit[0] * s.xaxis[0] + hit[1] * s.xaxis[1] + hit[2] * s.xaxis[2]) / s.w;
+  const float sv = 0.5f - hit[1] / s.h;
+  u = (su - s.g0[0]) / (s.g1[0] - s.g0[0]);
+  v = (sv - s.g0[1]) / (s.g1[1] - s.g0[1]);
+  return true;
+}
+
+// Made-up controllers for unattended checks (ACVR_FAKE_CONTROLLERS), held for the given frames
+struct ACVRFakeEntry { long first, last; std::string key; float value; };
+static std::vector<ACVRFakeEntry> s_acvrFake;
+static int s_acvrFakeRead = 0;
+
+static void ACVR_FakeQuat(float yaw, float pitch, float q[4])      // pitch about x first, then yaw about y
+{
+  const float cy = cosf(yaw * 0.5f), sy = sinf(yaw * 0.5f), cp = cosf(pitch * 0.5f), sp = sinf(pitch * 0.5f);
+  q[0] = cy * sp; q[1] = sy * cp; q[2] = -sy * sp; q[3] = cy * cp;
+}
+
+static bool ACVR_FakeControllers(ACVRControllers &c)
+{
+  if (!s_acvrFakeRead)
+  {
+    s_acvrFakeRead = 1;
+    if (const char *e = getenv("ACVR_FAKE_CONTROLLERS"))
+      for (const char *p = e; *p; )
+      {
+        ACVRFakeEntry f; char key[32] = { 0 };
+        if (sscanf(p, "%ld-%ld:%31[^:]:%f", &f.first, &f.last, key, &f.value) == 4) { f.key = key; s_acvrFake.push_back(f); }
+        while (*p && *p != ';') p++;
+        if (*p == ';') p++;
+      }
+  }
+  if (s_acvrFake.empty()) return false;
+  c = ACVRControllers();
+  c.valid = true;
+  const long frame = s_acvrFrame + 1;
+  float hand[3] = { 0.2f, -0.3f, -0.3f };
+  float aimU = -1.0f, aimV = -1.0f, aimYaw = 0.0f, aimPitch = 0.0f, wheel = 0.0f;
+  bool aimAt = false, aimAngles = false, onWheel = false;
+  for (const ACVRFakeEntry &f : s_acvrFake)
+  {
+    if (frame < f.first || frame > f.last) continue;
+    const std::string &k = f.key; const float v = f.value;
+    if (k == "trigger.l") c.trigger[0] = v; else if (k == "trigger.r") c.trigger[1] = v;
+    else if (k == "grip.l") c.grip[0] = v; else if (k == "grip.r") c.grip[1] = v;
+    else if (k == "a") c.a = v > 0.5f; else if (k == "b") c.b = v > 0.5f; else if (k == "x") c.x = v > 0.5f;
+    else if (k == "y") c.y = v > 0.5f; else if (k == "menu") c.menu = v > 0.5f;
+    else if (k == "stick.lx") c.stick[0][0] = v; else if (k == "stick.ly") c.stick[0][1] = v;
+    else if (k == "stick.rx") c.stick[1][0] = v; else if (k == "stick.ry") c.stick[1][1] = v;
+    else if (k == "click.l") c.stickClick[0] = v > 0.5f; else if (k == "click.r") c.stickClick[1] = v > 0.5f;
+    else if (k == "wheel") { wheel = v; onWheel = true; }
+    else if (k == "aim.u") { aimU = v; aimAt = true; } else if (k == "aim.v") { aimV = v; aimAt = true; }
+    else if (k == "aim.yaw") { aimYaw = v; aimAngles = true; } else if (k == "aim.pitch") { aimPitch = v; aimAngles = true; }
+    else if (k == "hand.x") hand[0] = v; else if (k == "hand.y") hand[1] = v; else if (k == "hand.z") hand[2] = v;
+  }
+  if (onWheel)
+  {
+    // Both hands on a 36 cm wheel 0.4 m ahead of and 0.35 m below the head, turned by the given angle
+    const float a = wheel * 0.01745329f, rr = 0.18f, centre[3] = { 0.0f, -0.35f, -0.4f };
+    c.grip[0] = c.grip[1] = 1.0f; c.gripValid[0] = c.gripValid[1] = true;
+    c.gripPos[1][0] = centre[0] + rr * cosf(a); c.gripPos[1][1] = centre[1] - rr * sinf(a); c.gripPos[1][2] = centre[2];
+    c.gripPos[0][0] = centre[0] - rr * cosf(a); c.gripPos[0][1] = centre[1] + rr * sinf(a); c.gripPos[0][2] = centre[2];
+  }
+  else
+  {
+    c.gripValid[1] = true;
+    for (int k = 0; k < 3; k++) c.gripPos[1][k] = hand[k];
+  }
+  c.aimPosValid[1] = true;
+  for (int k = 0; k < 3; k++) c.aimPos[1][k] = hand[k];
+  if (aimAt && aimU >= -0.5f && aimV >= -0.5f)
+  {
+    // Point from the hand at that place of the game picture on the aim screen
+    ACVRAimScreen s;
+    if (ACVR_GetAimScreen(c, s))
+    {
+      const float su = s.g0[0] + aimU * (s.g1[0] - s.g0[0]), sv = s.g0[1] + aimV * (s.g1[1] - s.g0[1]);
+      float d[3];
+      for (int k = 0; k < 3; k++) d[k] = s.centre[k] + (su - 0.5f) * s.w * s.xaxis[k] - hand[k];
+      d[1] += (0.5f - sv) * s.h;
+      const float len = sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+      if (len > 1e-4f)
+      {
+        ACVR_FakeQuat(atan2f(-d[0], -d[2]), asinf(d[1] / len), c.aimRot[1]);
+        c.aimValid[1] = true;
+      }
+    }
+  }
+  else if (aimAngles)
+  {
+    ACVR_FakeQuat(aimYaw * 0.01745329f, aimPitch * 0.01745329f, c.aimRot[1]);
+    c.aimValid[1] = true;
+  }
+  return true;
+}
+
 // Called right after the inputs are polled: VR controllers as cabinet controls. The layout depends on the
 // kind of cabinet. Only writes an input while its controller control is in use, so the keyboard and gamepad
 // keep working.
@@ -197,7 +399,7 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
   // VR2 + HandBrake; stick games: Escape / Shift), so a 3 s hand-brake hold also quits.
   static Uint32 yDownSince = 0;       // SDL_GetTicks() when Y went down, 0 = not held
   ACVRControllers c;
-  if (!ACVR_XR_GetControllers(c))
+  if (!ACVR_XR_GetControllers(c) && !ACVR_FakeControllers(c))
   {
     yDownSince = 0;                   // no input (focus lost, thread stopped, stale): the hold starts again
     return;
@@ -321,21 +523,29 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
   }
   else if (gameInputs & Game::INPUT_ANALOG_JOYSTICK)
   {
-    // The analog stick by pointing the right controller: 25 degrees to a side or 20 up or down is full deflection.
+    // The analog stick by pointing the right controller: the stick value that puts the game's own crosshair
+    // where the controller's ray meets the picture (the screen in screen mode; in head-tracked mode a virtual
+    // screen carrying the arcade view). Off the picture, the crosshair stays at its edge.
     // While the controllers are connected the mouse never drives it: centred when the controller isn't pointing.
+    if (s_acvrAimX.empty())
+    {
+      ACVR_ReadAimTable(s_acvrAimX, "ACVR_AIM_X", "0:34,16:48,32:76,48:108,64:140,80:172,96:203,112:230,128:245,160:288,176:319,192:352,208:384,224:418,240:446,255:461");
+      ACVR_ReadAimTable(s_acvrAimY, "ACVR_AIM_Y", "0:36,16:46,32:67,48:91,64:115,80:140,96:163,112:183,128:195,144:206,160:227,176:252,192:277,208:301,224:325,240:346,255:357");
+    }
     set("AnalogJoyX", 128);
     set("AnalogJoyY", 128);
-    if (c.aimValid[1])
+    float u = 0.5f, v = 0.5f;
+    if (ACVR_AimUV(c, u, v))
     {
-      const float *q = c.aimRot[1];
-      const float fx = -2.0f * (q[0] * q[2] + q[3] * q[1]);
-      const float fy = -2.0f * (q[1] * q[2] - q[3] * q[0]);
-      const float fz = -(1.0f - 2.0f * (q[0] * q[0] + q[1] * q[1]));
-      const float rx = fx * ca + fz * sa, rz = -fx * sa + fz * ca;   // pointing direction in the player's frame
-      const float side = atan2f(rx, -rz);                              // right is positive
-      const float up = asinf(clampf(fy, -1.0f, 1.0f));
-      set("AnalogJoyX", (int)clampf(128.0f + side / (25.0f * 0.01745329f) * 127.0f, 0.0f, 255.0f));
-      set("AnalogJoyY", (int)clampf(128.0f - up / (20.0f * 0.01745329f) * 127.0f, 0.0f, 255.0f));
+      const int jx = ACVR_AimValue(s_acvrAimX, u * 496.0f), jy = ACVR_AimValue(s_acvrAimY, v * 384.0f);
+      set("AnalogJoyX", jx);
+      set("AnalogJoyY", jy);
+      static int logFrames = 0;
+      if (!s_acvrFake.empty() && ++logFrames >= 30)
+      {
+        logFrames = 0;
+        printf("ACVR aim: frame %ld u %.4f v %.4f -> AnalogJoyX %d AnalogJoyY %d\n", s_acvrFrame + 1, u, v, jx, jy);
+      }
     }
     press("AnalogJoyTrigger", c.trigger[1] > 0.5f);
     press("AnalogJoyEvent", c.grip[1] > 0.5f);
