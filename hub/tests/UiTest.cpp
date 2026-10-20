@@ -1141,7 +1141,7 @@ class UiTest:public QObject {
   root->setProperty("overlayPresentation",false);root->setProperty("vrOverlayMode",false);root->setProperty("history",QVariantList{});root->setProperty("view","List");
   if(!desktopSize.isEmpty())window->resize(desktopSize);desktopSize={};QTest::qWait(50);
  }
- void wheel(QPointF at,int dy){QWheelEvent event(at,window->mapToGlobal(at),{},QPoint(0,dy),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);QCoreApplication::sendEvent(window,&event);}
+ void sendWheel(QPointF at,int dy){QWheelEvent event(at,window->mapToGlobal(at),{},QPoint(0,dy),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);QCoreApplication::sendEvent(window,&event);}
  private slots:
  // The SteamVR panel: one grid that scrolls as one surface, a row at a time, with a dead zone and no jitter.
  void panelGridScrollsByRowsWithDeadZone(){
@@ -1163,21 +1163,21 @@ class UiTest:public QObject {
   const QPointF over=grid->mapToScene(QPointF(grid->width()/2,grid->height()/2));
   QCOMPARE(y(),minY);
   // A resting stick: weak packets never move the page.
-  for(int i=0;i<40;++i){wheel(over,-10);QTest::qWait(8);}
+  for(int i=0;i<40;++i){sendWheel(over,-10);QTest::qWait(8);}
   QTest::qWait(250);QCOMPARE(y(),minY);QCOMPARE(scroller->property("steps").toInt(),0);
   // Noise flipping between up and down never moves it either.
-  for(int i=0;i<40;++i){wheel(over,i%2?150:-150);QTest::qWait(8);}
+  for(int i=0;i<40;++i){sendWheel(over,i%2?150:-150);QTest::qWait(8);}
   QTest::qWait(250);QCOMPARE(y(),minY);QCOMPARE(scroller->property("steps").toInt(),0);
   // Held down: rows one after another, never backwards, faster the longer it is held, each on a row boundary.
   QList<qint64> stepTimes;QElapsedTimer held;held.start();double last=y();bool backwards=false;int steps=0;
-  while(held.elapsed()<1300){wheel(over,-150);QTest::qWait(16);if(y()<last-0.5)backwards=true;last=y();const int now=scroller->property("steps").toInt();if(now>steps){steps=now;stepTimes<<held.elapsed();}}
+  while(held.elapsed()<1300){sendWheel(over,-150);QTest::qWait(16);if(y()<last-0.5)backwards=true;last=y();const int now=scroller->property("steps").toInt();if(now>steps){steps=now;stepTimes<<held.elapsed();}}
   QTest::qWait(300);
   QVERIFY(!backwards);QVERIFY2(stepTimes.size()>=5,qPrintable(QString::number(stepTimes.size())));QVERIFY(aligned());QVERIFY(y()>minY+row*4-0.5);
   QList<qint64> gaps;for(int i=1;i<stepTimes.size();++i)gaps<<stepTimes[i]-stepTimes[i-1];
   QVERIFY2(gaps.last()<gaps.first(),qPrintable(QString("first gap %1 ms, last %2 ms").arg(gaps.first()).arg(gaps.last())));
   // One notch up after a pause: exactly one row.
   const double before=y();const int stepsBefore=scroller->property("steps").toInt();
-  wheel(over,120);QTest::qWait(300);
+  sendWheel(over,120);QTest::qWait(300);
   QCOMPARE(scroller->property("steps").toInt(),stepsBefore+1);QVERIFY(std::abs(y()-(before-row))<0.5);QVERIFY(aligned());
   // Scrolling opened nothing.
   QCOMPARE(panel->property("selectedId").toString(),QString());
@@ -1285,7 +1285,7 @@ class UiTest:public QObject {
   auto panel=enterPanel(rows);QVERIFY(panel);QDir().mkpath(output);
   QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-1-grid.png")));
   auto grid=visibleNamed("panelGrid");const QPointF over=grid->mapToScene(QPointF(grid->width()/2,grid->height()/2));
-  QElapsedTimer held;held.start();while(held.elapsed()<700){wheel(over,-150);QTest::qWait(16);}QTest::qWait(400);
+  QElapsedTimer held;held.start();while(held.elapsed()<700){sendWheel(over,-150);QTest::qWait(16);}QTest::qWait(400);
   QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-2-grid-scrolled.png")));
   panel->setProperty("selectedId","scud");QTest::qWait(400);
   QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-3-game-page.png")));
