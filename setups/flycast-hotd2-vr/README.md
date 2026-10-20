@@ -19,7 +19,7 @@ is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see 
 | Hidden test window | `core/sdl/sdl.cpp` | With `ACVR_HIDDEN` set, the window is created hidden (unattended test runs). |
 | Scripted presses | `core/rend/vr/debug_shots.cpp` | With `ACVR_PRESS="seconds:mask;..."`, presses buttons on port 1 at those game times (8 Start, 4 A, 128 right), for unattended test runs. |
 | Highest refresh rate | `core/rend/vr/xr_host.cpp`, `core/cfg/option.cpp` | `vr.XrRefreshRate` 0 (the new default) asks the headset for its highest rate instead of 72 Hz. |
-| Scripted light gun | `core/rend/vr/debug_shots.cpp` | `ACVR_GUN="seconds:x:y:buttons;..."` holds player 1's gun at x, y (1/10000ths of the screen, outside: off-screen) with `lightgunSet` buttons (1 trigger, 2 reload, 4 Start, 256 a shot on the 2D plane) from that game time to the next entry, sent every frame. |
+| Scripted light gun | `core/rend/vr/debug_shots.cpp` | `ACVR_GUN="seconds:x:y:buttons;..."` (and `ACVR_GUN2` for player 2) holds player 1's gun at x, y (1/10000ths of the screen, outside: off-screen) with `lightgunSet` buttons (1 trigger, 2 reload, 4 Start, 256 a shot on the 2D plane) from that game time to the next entry, sent every frame. |
 | Exact-time pictures | `core/rend/vr/debug_shots.cpp` | `ACVR_SNAP="seconds;..."` writes `snap_<centiseconds>.png` at those game times. With `rend.ThreadedRendering=no` two runs with the same inputs give identical pictures (checked on The House of the Dead 2: 20 of 20). |
 | End, rip, watch, poke | `core/rend/vr/debug_shots.cpp` | `ACVR_QUIT=seconds` ends the run; `ACVR_RIP="seconds:count,every,ram"` asks for a rip at a game time; `ACVR_WATCH="offset:f|h|w,..."` logs RAM values when they change; `ACVR_POKE="offset:value,..."` writes 16-bit values every frame (to find and test a game's gun calibration). |
 | HOTD2 (US) gun calibration | `core/rend/vr_reproject.cpp` | The profile writes the game's seven calibration words so its aim matches Flycast's light gun exactly (see Findings). |
@@ -89,6 +89,19 @@ wide picture and measures how much of the rest holds picture.
   screen refills it. 3D: a view turned 30 degrees shows the jungle beyond the original frame. Open frame: with
   Flycast's `rend.WideScreen` it draws the jungle past 4:3 on both sides (95% of the side area has picture), and
   through the 3D rebuild above and below too.
+
+- The other Atomiswave gun games, offline (2026-10-19). Each needs a one-time set-up in its own system menu, kept in
+  its saved settings (`<set>.zip.nvmem` in Flycast's data folder): free play (COIN SETTINGS, or GAME SETTINGS >
+  CREDIT SETTINGS on the Sega titles) and the gun's own calibration in TEST MODE > I/O TEST (shoot the target or
+  the centre mark with each gun). Flycast's light gun needs it: Sega Clay Challenge read the gun 105 px to the right
+  before. After it, each game's own gun read-out or hit marker lands within 1-3 px of where the gun was sent:
+  Sports Shooting USA (bullet holes on a wall, 9 points), Extreme Hunting (its I/O test read-out), Extreme Hunting 2
+  (its GUN ADJUST cursor at three points), Sega Clay Challenge (cursor at four points, hit marker at 7 of 9 points).
+  Shots against two identical control runs change each game. Extreme Hunting 1 and 2 pump after every shot and
+  Clay Challenge reloads after every shot: B or a shot off the screen does it (the I/O test shows PUMP on for
+  both). Sports Shooting USA reloads by itself. Every one draws past 4:3 with Flycast's `rend.WideScreen`
+  (89-100% of the side area has picture) and shows its world beyond the frame in a turned 3D view.
+  `tools/aimpump.py` makes a nine-point script that pumps before every shot; `tools/holes.py` finds bullet holes.
 
 ## Status (2026-10-14)
 

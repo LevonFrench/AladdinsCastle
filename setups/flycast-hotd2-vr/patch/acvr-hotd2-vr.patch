@@ -38,7 +38,7 @@ index 11bc267..32fefda 100644
  		setButton(player, DC_BTN_RELOAD, buttons & 2);
  	if (changed & 4)
 diff --git a/core/rend/vr/debug_shots.cpp b/core/rend/vr/debug_shots.cpp
-index 417e6c9..197702c 100644
+index 417e6c9..e7937f7 100644
 --- a/core/rend/vr/debug_shots.cpp
 +++ b/core/rend/vr/debug_shots.cpp
 @@ -10,10 +10,20 @@
@@ -62,7 +62,7 @@ index 417e6c9..197702c 100644
  #include <vector>
  
  namespace vr
-@@ -36,6 +46,223 @@ void onEvent(Event event, void *)
+@@ -36,6 +46,228 @@ void onEvent(Event event, void *)
  		lastShot = -1;
  		return;
  	}
@@ -102,32 +102,37 @@ index 417e6c9..197702c 100644
 +	// buttons b (lightgunSet's bits: 1 trigger, 2 reload, 4 start, 128 B) from game time t (s)
 +	// until the next entry. Sent every frame, so the mouse stays out of it.
 +	{
++		// (ACVR_GUN2: the same for player 2's gun)
 +		struct GunStep { double at; int x, y; u32 buttons; };
-+		static std::vector<GunStep> steps;
++		static std::vector<GunStep> steps[2];
 +		static bool parsed = false;
 +		if (!parsed)
 +		{
 +			parsed = true;
-+			if (const char *s = getenv("ACVR_GUN"))
-+			{
-+				GunStep g; int used;
-+				while (sscanf(s, "%lf:%d:%d:%u%n", &g.at, &g.x, &g.y, &g.buttons, &used) == 4)
++			for (int player = 0; player < 2; player++)
++				if (const char *s = getenv(player == 0 ? "ACVR_GUN" : "ACVR_GUN2"))
 +				{
-+					steps.push_back(g);
-+					s += used;
-+					if (*s != ';')
-+						break;
-+					s++;
++					GunStep g; int used;
++					while (sscanf(s, "%lf:%d:%d:%u%n", &g.at, &g.x, &g.y, &g.buttons, &used) == 4)
++					{
++						steps[player].push_back(g);
++						s += used;
++						if (*s != ';')
++							break;
++						s++;
++					}
 +				}
-+			}
 +		}
 +		const double now = gameSeconds() - startedAt;
-+		const GunStep *cur = nullptr;
-+		for (const GunStep& g : steps)
-+			if (now >= g.at)
-+				cur = &g;
-+		if (cur != nullptr)
-+			lightgunSet(0, cur->x, cur->y, cur->buttons);
++		for (int player = 0; player < 2; player++)
++		{
++			const GunStep *cur = nullptr;
++			for (const GunStep& g : steps[player])
++				if (now >= g.at)
++					cur = &g;
++			if (cur != nullptr)
++				lightgunSet(player, cur->x, cur->y, cur->buttons);
++		}
 +	}
 +	// ACVR: snapshots at exact game times: ACVR_SNAP="t;t;..." (seconds) writes
 +	// snap_<centiseconds>.png the first frame at or after each.
