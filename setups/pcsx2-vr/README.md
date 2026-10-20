@@ -963,3 +963,69 @@ one opaque projection layer, successful draws and clean exits with no GL
 errors. Repeat per combat dump rather than inferring per-game acceptance from
 one scene. These checks establish native offline composition only; tracking,
 compositor behavior and headset comfort remain separate checks.
+
+### GunCon 2 calibration and INSIDE picture breakup (Time Crisis 3)
+
+Owner report: in INSIDE mode the Time Crisis 3 GunCon 2 calibration could not
+be passed and the picture broke up. Offline reproduction found three causes.
+
+1. Calibration protocol, all modes. Namco's calibration shows one black frame
+   after the shot and waits for the gun to report position (0,0), as a real
+   light sensor does on a black picture. The VR trigger never produced that
+   report, so the screen stayed on "Calibrate 1P side" in screen mode as well.
+   The gun now emulates the light sensor: the GS thread marks a displayed frame
+   dark when every shown circuit is a pending black clear (or nothing is shown
+   and BGCOLOR is black); the GunCon 2 then reports (0,0) for that frame. No GPU
+   readback is used. `PCSX2_VR_GUN_LIGHT_SENSE=0` disables it.
+2. INSIDE aim parallax. A ray that hits no retained world triangle (every 2D
+   screen, including calibration) was projected from a point 100 m along the
+   controller ray. A gun held below the eyes then reported a point well above
+   the target, and the game rejected the calibration shot. Such rays now map
+   where they cross the stationary picture/HUD panel, the same quad mapping as
+   screen mode. World-triangle hits are unchanged. `PCSX2_INSIDE_GUN_PANEL=0`
+   restores the old far point for comparison.
+3. INSIDE double reprojection. Time Crisis 3 builds its depth-of-field by
+   resampling a copy of the finished frame in small tiles. Those draws were
+   classified as HUD and placed on the panel, which re-projected an already
+   reprojected eye picture: a duplicate enemy, ghost layers and a missing cover
+   rock. With `PCSX2_INSIDE_SCREEN_EFFECTS=1` (per profile), non-world draws
+   on the camera target that sample a render target or a same-size frame copy,
+   and untextured fills covering the whole scanout, stay in picture space. This
+   also enables the scanout-aware policy above, so large world batches stay
+   reprojected.
+
+`PCSX2_VR_GUN_SCRIPT_SPACE=hand` models a gun held at
+`PCSX2_VR_GUN_SCRIPT_HAND_X/Y/Z` (default 0.18, -0.30, -0.25 m from the eyes)
+whose barrel points at what the viewer sees at picture (u,v): the screen quad
+in screen mode, or the nearest world triangle, else the panel, in INSIDE mode.
+
+Offline results (OpenXR disabled, hidden runs; pictures and logs private):
+screen mode with the hand script now passes calibration ("Is the gunsight
+aligned correctly?"); with light sensing disabled it does not, and two
+identical no-shot runs give identical pictures. The game's own sight marker
+lands within 0.0075 of the picture size of six aimed points in screen mode and
+in INSIDE mode with the panel mapping. INSIDE with the old far-point mapping
+reports (0.461, 0.413) for a centre shot and the game rejects the calibration.
+INSIDE at a 20 degree fake head turn also passes. Combat replays at a 30
+degree turn lose the duplicate enemy and ghost layers and regain the blurred
+cover rock; exact-zero INSIDE still equals screen mode in every RGBA pixel.
+Remaining limits: original-frustum holes, temporal effects, physical tracking,
+real hand offsets and headset comfort are not established offline.
+
+Crisis Zone and Ninja Assault draw their black frame with ordinary draws, so a
+pending clear is not enough. For 45 frames after each VR trigger edge the GS
+thread also reads back five 8x8 blocks of the displayed picture (centre and
+the four quarter points); the frame is dark when every sampled channel is at
+most 16. Outside that window only the free clear/blank test runs. The
+readback adds a GPU sync on those frames; live speed with it is unmeasured.
+
+Other gun profiles, same offline method (INSIDE, exact-zero pose, hand script,
+calibration shot at the centre, then six held aim points measured against the
+game's own sight marker): Time Crisis II accepted, max error 0.0031; Ninja
+Assault accepted, 0.0088; Crisis Zone accepted, 0.0149 before and 0.0041 after
+a vertical gun scale of 1.045 in its private profile; Virtua Cop's calibration
+crosses stay within 0.0015. Vampire Night shows no calibration screen at boot
+and was not measured. With `PCSX2_INSIDE_SCREEN_EFFECTS=1`, combat replays at a
+30 degree turn change no pixels for Crisis Zone, Vampire Night, Ninja Assault
+and Virtua Cop in the sampled scenes; Time Crisis II loses a darkening panel
+edge, and Time Crisis 3 loses its duplicate scene.
