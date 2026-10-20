@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <fstream>
 #include <map>
 #include <optional>
@@ -93,7 +94,7 @@ std::vector<std::pair<std::string, std::string>> g_optionList;   // key, "descri
 retro_pixel_format g_pixelFormat = RETRO_PIXEL_FORMAT_0RGB1555;
 retro_system_av_info g_av{};
 std::vector<retro_controller_description> g_controllers[2];
-std::vector<std::string> g_controllerNames[2];
+std::deque<std::string> g_controllerNames[2];   // a deque keeps each name (and its desc pointer) in place
 std::set<unsigned> g_unknownCommands;
 bool g_shutdownRequested = false;
 
@@ -264,6 +265,7 @@ bool Environment(unsigned cmd, void *data)
   case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE: *static_cast<bool *>(data) = false; return true;
   case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO: {
     unsigned port = 0;
+    for (unsigned p = 0; p < 2; ++p) { g_controllers[p].clear(); g_controllerNames[p].clear(); }   // the latest call describes the ports
     for (auto *info = static_cast<const retro_controller_info *>(data); info && info->types && port < 2; ++info, ++port)
       for (unsigned i = 0; i < info->num_types; ++i) {
         g_controllers[port].push_back(info->types[i]);
@@ -557,6 +559,12 @@ bool IsFlashFrame()
   const unsigned w = g_hwOn ? g_hwW : g_frameW, h = g_hwOn ? g_hwH : g_frameH;
   if (!w || !h) return false;
   unsigned bright = 0, total = 0;
+  // ACVR_PS1_FLASH_CHANNELS: which colour channels must be bright (default "rgb", white). Area 51 on the Saturn
+  // flashes blue: "b".
+  static const unsigned channels = [] {
+    const char *e = std::getenv("ACVR_PS1_FLASH_CHANNELS"); unsigned m = 0;
+    for (const char *c = e ? e : ""; *c; ++c) m |= *c == 'r' ? 4u : *c == 'g' ? 2u : *c == 'b' ? 1u : 0u;
+    return m ? m : 7u; }();
   std::vector<std::uint32_t> row(w);
   if (g_hwOn) { glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hwFbo); glPixelStorei(GL_PACK_ALIGNMENT, 4); }
   for (const unsigned y : { h / 4, h / 2, (h * 3) / 4 }) {
@@ -566,11 +574,14 @@ bool IsFlashFrame()
     for (unsigned x = 0; x < w; x += 2) {
       const std::uint32_t c = px[x];
       const unsigned r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255;
-      ++total; if (r > 200 && g > 200 && b > 200) ++bright;
+      ++total; if ((!(channels & 4) || r > 200) && (!(channels & 2) || g > 200) && (!(channels & 1) || b > 200)) ++bright;
     }
   }
   if (g_hwOn) glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  return total && bright * 100 >= total * 85;
+  // ACVR_PS1_FLASH_SHARE: the share of bright samples (percent, default 85) that makes a flash. House of the Dead on
+  // the Saturn whitens the picture over the scene rather than painting it white, so some of its flashes only reach 77%.
+  static const unsigned share = [] { const char *e = std::getenv("ACVR_PS1_FLASH_SHARE"); const int v = e ? std::atoi(e) : 0; return v >= 50 && v <= 100 ? (unsigned)v : 85u; }();
+  return total && bright * 100 >= total * share;
 }
 unsigned g_flashRun = 0, g_flashHidden = 0, g_flashLongest = 0;
 const bool g_hideFlash = [] { const char *e = std::getenv("ACVR_PS1_HIDE_FLASH"); return !e || std::atoi(e) != 0; }();
@@ -682,9 +693,9 @@ void Usage()
 {
   std::fprintf(stderr,
     "acvr-ps1 --core <libretro dll> --game <disc> --system <BIOS dir> --saves <dir>\n"
-    "         [--gun guncon|justifier|lightgun] [--port 1|2] [--controls gun|pad|wheel|aim] [--option key=value]...\n"
+    "         [--gun guncon|justifier|lightgun|stunner] [--port 1|2] [--controls gun|pad|wheel|aim] [--option key=value]...\n"
     "         [--log <file>] [--no-xr] [--headless --frames N [--script file] [--snapshots dir]]\n"
-    "         [--theatre-proof <prefix> --test-aim U V]\n"
+    "         [--theatre-proof <prefix> --test-aim U V] [--state <saved state to start from>]\n"
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
     "         ACVR_PS1_LIFT (m), ACVR_PS1_CRT (1: scanlines), ACVR_PS1_GUN_MODEL (.glb), ACVR_PS1_GUN_META (.toml),\n"
     "         ACVR_PS1_AIM (per-game aim trim: x scale,x shift,y scale,y shift).\n"
@@ -697,7 +708,7 @@ int main(int argc, char **argv)
 {
   std::string game, gunName = "guncon", script, snapshots, logPath;
   unsigned frames = 0, seconds = 0; bool headless = false, noXr = false, mute = false, testAim = false;
-  float testU = .5f, testV = .5f; std::string theatreProof;
+  float testU = .5f, testV = .5f; std::string theatreProof, startState;
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
     auto next = [&]() -> std::string { if (i + 1 >= argc) { Usage(); std::exit(2); } return argv[++i]; };
@@ -716,6 +727,7 @@ int main(int argc, char **argv)
     else if (a == "--mute") mute = true;
     else if (a == "--seconds") seconds = (unsigned)std::strtoul(next().c_str(), nullptr, 10);
     else if (a == "--theatre-proof") theatreProof = next();
+    else if (a == "--state") startState = next();
     else if (a == "--test-aim") { testAim = true; testU = (float)std::atof(next().c_str()); testV = (float)std::atof(next().c_str()); }
     else if (a == "--frames") frames = (unsigned)std::strtoul(next().c_str(), nullptr, 10);
     else if (a == "--script") script = next();
@@ -723,7 +735,7 @@ int main(int argc, char **argv)
     else { Usage(); return 2; }
   }
   if (g_corePath.empty() || game.empty() || g_systemDir.empty() || g_saveDir.empty() || (headless && !frames)) { Usage(); return 2; }
-  if (gunName != "guncon" && gunName != "justifier" && gunName != "lightgun") { Usage(); return 2; }
+  if (gunName != "guncon" && gunName != "justifier" && gunName != "lightgun" && gunName != "stunner") { Usage(); return 2; }
   if (g_controls != "gun" && g_controls != "pad" && g_controls != "wheel" && g_controls != "aim") { Usage(); return 2; }
   if (!logPath.empty()) { g_log = std::fopen(logPath.c_str(), "w"); if (!g_log) g_log = stdout; }
   // Offline runs stay out of the way; a game in the headset keeps normal priority so it is never starved.
@@ -738,6 +750,11 @@ int main(int argc, char **argv)
   // The core draws its own crosshair only in offline proofs, to show where it thinks the gun points.
   if (!PadMode() && !g_optionOverrides.count("beetle_psx_gun_cursor")) g_optionOverrides["beetle_psx_gun_cursor"] = headless ? "cross" : "off";
   if (!PadMode() && !g_optionOverrides.count("beetle_psx_gun_input_mode")) g_optionOverrides["beetle_psx_gun_input_mode"] = "lightgun";
+  // Sega Saturn (Beetle Saturn): the Stunner / Virtua Gun reads light-gun coordinates; its crosshair is drawn offline only.
+  if (gunName == "stunner") {
+    if (!g_optionOverrides.count("beetle_saturn_virtuagun_input")) g_optionOverrides["beetle_saturn_virtuagun_input"] = "Lightgun";
+    if (!g_optionOverrides.count("beetle_saturn_virtuagun_crosshair")) g_optionOverrides["beetle_saturn_virtuagun_crosshair"] = headless ? "Cross" : "Off";
+  }
   if (PadMode()) {
     const std::string problems = g_padCfg.load(g_controls);
     LoadFollow();
@@ -809,6 +826,7 @@ int main(int argc, char **argv)
     std::string d = c.desc ? c.desc : ""; std::transform(d.begin(), d.end(), d.begin(), ::tolower);
     if (d.find(gunName) != std::string::npos) { device = c.id; break; }
   }
+  if (gunName == "stunner") for (const auto &c : g_controllers[g_gunPort]) Log("Port %u device offered: %s (0x%X)", g_gunPort + 1, c.desc ? c.desc : "?", c.id);
   g_core.set_controller_port_device(g_gunPort, device);
   if (g_padOn && gunName != "lightgun") g_core.set_controller_port_device(1 - g_gunPort, RETRO_DEVICE_JOYPAD);
   Log("Port %u: %s (device 0x%X)", g_gunPort + 1, gunName.c_str(), device);
@@ -821,6 +839,9 @@ int main(int argc, char **argv)
   }
   LoadSram();
   ApplyCheats();
+  // A saved moment to start from, e.g. a Saturn gun game's title screen just after its own gun calibration,
+  // which Virtua Cop 2 did not restore from its save after a restart. The game boots normally if it cannot be loaded.
+  if (!startState.empty() && !LoadState(startState)) Log("Start state not loaded: the game boots normally");
   {
     std::ofstream options(g_saveDir + "\\core-options.txt");
     for (const auto &o : g_optionList) options << o.first << " = " << g_optionValues[o.first] << "    (" << o.second << ")\n";
