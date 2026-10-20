@@ -190,3 +190,15 @@ The trims are for the game's own mapping of the emulated IR camera to its pictur
 the aim ray is measured against DolphinXR's virtual screen, so they hold where that screen shows the
 whole game picture. Metroid Prime Trilogy uses the trigger as Wii A (fire, confirm) and right A or
 grip as B (jump).
+
+### Queue, batch 1 (2026-10-20)
+
+| Game | ID | Launcher type | Set | Offline result |
+| --- | --- | --- | --- | --- |
+| Super Mario Galaxy 2 | SB4P01 | pointer | AC Motion Galaxy 2 (Galaxy trim) | star within about 1.4% at six points, lower row by eye; file screens, story, first area with Mario walking |
+| New Super Mario Bros. Wii | SMNE01 | pad | AC Motion Remote and Nunchuk | intro, world map, level 1-1 with Mario running and jumping |
+| Donkey Kong Country Returns | SF8P01 | pad | AC Motion Remote and Nunchuk | title, map and level 1-1 start (DK's hut, controller icon shown); no gameplay appeared with either the Nunchuk or the sideways set, shakes included; not proven |
+
+`AC Pad Sideways` (sideways Wii Remote, no Nunchuk, Dolphin's Sideways option on so either stick
+gives screen directions) is for the sideways games that follow. None of these discs has a shipped
+DolphinXR VR profile and none of their game INIs touches MSAA.

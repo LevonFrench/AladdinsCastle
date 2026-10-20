@@ -1,0 +1,134 @@
+# Super Mario Galaxy 2: new-file dialog OK, Mario icon, OK again, then A every 2 s and + every 8 s through the story, then move with jumps.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+24.0 24.3 R trigger 1
+26.0 26.3 R primary 1
+28.0 28.3 R primary 1
+30.0 37.0 R u 0.26
+30.0 37.0 R v -0.64
+32.0 32.3 R primary 1
+35.0 35.3 R primary 1
+37.0 45.0 R u -0.56
+37.0 45.0 R v 0.38
+39.0 39.3 R primary 1
+42.0 42.3 R primary 1
+45.0 51.0 R u 0.26
+45.0 51.0 R v -0.64
+47.0 47.3 R primary 1
+50.0 50.3 R primary 1
+53.0 53.3 R primary 1
+55.0 55.3 R primary 1
+57.0 57.3 R primary 1
+59.0 59.3 R primary 1
+61.0 61.3 R primary 1
+63.0 63.3 R primary 1
+65.0 65.3 R primary 1
+67.0 67.3 R primary 1
+69.0 69.3 R primary 1
+71.0 71.3 R primary 1
+73.0 73.3 R primary 1
+75.0 75.3 R primary 1
+77.0 77.3 R primary 1
+79.0 79.3 R primary 1
+81.0 81.3 R primary 1
+83.0 83.3 R primary 1
+85.0 85.3 R primary 1
+87.0 87.3 R primary 1
+89.0 89.3 R primary 1
+91.0 91.3 R primary 1
+93.0 93.3 R primary 1
+95.0 95.3 R primary 1
+97.0 97.3 R primary 1
+99.0 99.3 R primary 1
+101.0 101.3 R primary 1
+103.0 103.3 R primary 1
+105.0 105.3 R primary 1
+107.0 107.3 R primary 1
+109.0 109.3 R primary 1
+111.0 111.3 R primary 1
+113.0 113.3 R primary 1
+115.0 115.3 R primary 1
+117.0 117.3 R primary 1
+119.0 119.3 R primary 1
+121.0 121.3 R primary 1
+123.0 123.3 R primary 1
+125.0 125.3 R primary 1
+127.0 127.3 R primary 1
+129.0 129.3 R primary 1
+131.0 131.3 R primary 1
+133.0 133.3 R primary 1
+135.0 135.3 R primary 1
+137.0 137.3 R primary 1
+139.0 139.3 R primary 1
+58.0 58.3 L menu 1
+66.0 66.3 L menu 1
+74.0 74.3 L menu 1
+82.0 82.3 L menu 1
+90.0 90.3 L menu 1
+98.0 98.3 L menu 1
+106.0 106.3 L menu 1
+114.0 114.3 L menu 1
+122.0 122.3 L menu 1
+140.0 170.0 L stick_y 1
+141.0 141.5 R primary 1
+144.0 144.5 R primary 1
+147.0 147.5 R primary 1
+150.0 150.5 R primary 1
+153.0 153.5 R primary 1
+156.0 156.5 R primary 1
+159.0 159.5 R primary 1
+162.0 162.5 R primary 1
+165.0 165.5 R primary 1
+168.0 168.5 R primary 1
+shot 36 p36
+shot 39 p39
+shot 42 p42
+shot 45 p45
+shot 48 p48
+shot 51 p51
+shot 54 p54
+shot 57 p57
+shot 60 p60
+shot 63 p63
+shot 66 p66
+shot 69 p69
+shot 72 p72
+shot 75 p75
+shot 78 p78
+shot 81 p81
+shot 84 p84
+shot 87 p87
+shot 90 p90
+shot 93 p93
+shot 96 p96
+shot 99 p99
+shot 102 p102
+shot 105 p105
+shot 108 p108
+shot 111 p111
+shot 114 p114
+shot 117 p117
+shot 120 p120
+shot 123 p123
+shot 126 p126
+shot 129 p129
+shot 132 p132
+shot 135 p135
+shot 138 p138
+shot 141 p141
+shot 144 p144
+shot 147 p147
+shot 150 p150
+shot 153 p153
+shot 156 p156
+shot 159 p159
+shot 162 p162
+shot 165 p165
+shot 168 p168
+shot 171 p171
+172.0 172.3 L thumbclick 1
