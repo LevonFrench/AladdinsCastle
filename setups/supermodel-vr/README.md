@@ -78,7 +78,7 @@ The Home key recentres. The presenter writes what it does to `acvr-xr.log` in th
 Read through OpenXR and turned into the emulator's own inputs, by cabinet type:
 
 - Driving: hold both grips and turn your hands like a wheel, or use the left thumbstick; right trigger accelerates, left trigger brakes; right thumbstick up and down shifts; A start, B coin, X view change, Y second view button or hand brake.
-- Analog stick (Star Wars Trilogy): point the right controller at the picture and the game's crosshair goes where the ray meets it. The ray is met with the screen itself in screen mode and with the arcade view 2.5 m ahead in the head-tracked mode; the stick value is looked up from the game's measured crosshair response, which is not linear. Right trigger fires, right grip is the event button.
+- Analog stick (Star Wars Trilogy): point the right controller at the picture and the game's crosshair goes where the ray meets it. The ray is met with the screen itself in screen mode and with the arcade view 2.5 m ahead in the head-tracked mode; the stick value is looked up from the game's measured crosshair response, which is not linear. Checked offline against the game's own crosshair at 12 points on Yavin: the largest error was 0.009 of the picture, on the normal and on the open-frame screen. Right trigger fires, right grip is the event button.
 - Stick and buttons: left thumbstick, and A, B, X, Y; start on the menu button or a right-stick click, coin on a left-stick click.
 
 The keyboard and gamepad keep working: a controller only overrides an input while it is being used.
@@ -105,7 +105,7 @@ The wheel sits about 0.4 m below and 0.45 m ahead of the eyes at the moment of r
 
 Not yet: hands drawn on the wheel, grabbing the rim itself, the shifter and pedals.
 
-## Getting three games past their start-up checks
+## Getting games past their start-up checks
 
 Found by scripting the test menus with `ACVR_INPUT_SCRIPT`. Frame numbers are from power-on.
 
@@ -113,6 +113,7 @@ Found by scripting the test menus with `ACVR_INPUT_SCRIPT`. Frame numbers are fr
   `300-312:TestA:1`, eight `ServiceA` presses 40 frames apart from frame 900, `1260-1272:TestA:1`, `1450-1458:ServiceA:1`, `1520-1532:TestA:1`, `1660-1672:TestA:1`, eight `ServiceA` presses from frame 1800, `2160-2172:TestA:1`, four `ServiceA` presses from frame 2300, `2500-2512:TestA:1`.
 - **Daytona USA 2, two-cabinet sets:** the same, with three presses on Link ID (MASTER, SLAVE, LIVE, SINGLE) and one more menu row.
 - **Star Wars Trilogy:** stops at "failed feedback lever initialize" at every start. Entering and leaving the test menu during boot skips it: `300-312:TestA:1;700-712:TestA:1`.
+- **Sega Rally 2 DX (srally2dx):** a clone set. Supermodel opens the parent `srally2.zip` from the same folder as the DX file, and the game wants `-ppc-frequency=100`. Steering, pedals, open frame and the head-tracked mode work as for Sega Rally 2.
 
 ## Files
 
