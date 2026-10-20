@@ -1,0 +1,66 @@
+# Metroid Prime Trilogy, empty save: strap screen and title with the trigger (Wii A), Slot 1, New Game, first Mii (saved).
+12.0 12.3 R trigger 1
+14.0 14.3 R trigger 1
+16.0 16.3 R trigger 1
+18.0 18.3 R trigger 1
+20.0 20.3 R trigger 1
+22.0 22.3 R trigger 1
+24.0 24.3 R trigger 1
+26.0 26.3 R trigger 1
+30.0 34.0 R u -0.46
+30.0 34.0 R v 0.34
+32.0 32.3 R trigger 1
+34.0 37.0 R u 0
+34.0 37.0 R v -0.06
+35.5 35.8 R trigger 1
+37.0 41.0 R u -0.62
+37.0 41.0 R v 0.5
+39.0 39.3 R trigger 1
+43.0 43.3 R trigger 1
+47.0 47.3 R trigger 1
+51.0 51.3 R trigger 1
+55.0 55.3 R trigger 1
+59.0 59.3 R trigger 1
+63.0 63.3 R trigger 1
+67.0 67.3 R trigger 1
+71.0 71.3 R trigger 1
+75.0 75.3 R trigger 1
+79.0 79.3 R trigger 1
+83.0 83.3 R trigger 1
+87.0 87.3 R trigger 1
+91.0 91.3 R trigger 1
+95.0 95.3 R trigger 1
+shot 34 p34
+shot 36 p36
+shot 38 p38
+shot 40 p40
+shot 42 p42
+shot 44 p44
+shot 46 p46
+shot 48 p48
+shot 50 p50
+shot 52 p52
+shot 54 p54
+shot 56 p56
+shot 58 p58
+shot 60 p60
+shot 62 p62
+shot 64 p64
+shot 66 p66
+shot 68 p68
+shot 70 p70
+shot 72 p72
+shot 74 p74
+shot 76 p76
+shot 78 p78
+shot 80 p80
+shot 82 p82
+shot 84 p84
+shot 86 p86
+shot 88 p88
+shot 90 p90
+shot 92 p92
+shot 94 p94
+shot 96 p96
+shot 98 p98
+100.0 100.3 L thumbclick 1

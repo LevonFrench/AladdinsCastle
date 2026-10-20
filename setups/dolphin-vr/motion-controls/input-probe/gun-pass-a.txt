@@ -1,0 +1,11 @@
+# Gun games: right A every 2 s from 12 to 24 s pages through the wrist-strap/Zapper screens; pictures at 28 and 32 s.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+shot 28 p28
+shot 32 p32
+33.0 33.3 L thumbclick 1

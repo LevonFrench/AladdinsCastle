@@ -1,0 +1,10 @@
+# Motion and pointer paths of the OpenXR override (both profiles): right tilt, pitch, pointer,
+# right angular velocity (MotionPlus), left tilt (Nunchuk accelerometer).
+20.0 21.0 R roll 90
+22.0 23.0 R pitch 45
+24.0 25.0 R u 0.5
+24.0 25.0 R v 0.3
+26.0 27.0 R ang_x 3
+28.0 29.0 R ang_y 3
+30.0 31.0 L roll 90
+32.0 33.0 L pitch 45

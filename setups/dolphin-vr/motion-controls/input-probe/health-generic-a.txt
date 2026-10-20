@@ -1,0 +1,11 @@
+# Right A at 12, 20 and 28 s; same pictures as the control.
+12.0 12.4 R primary 1
+20.0 20.4 R primary 1
+28.0 28.4 R primary 1
+shot 10 a10
+shot 14 a14
+shot 18 a18
+shot 22 a22
+shot 26 a26
+shot 30 a30
+shot 34 a34

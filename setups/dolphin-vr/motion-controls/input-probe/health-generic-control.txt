@@ -1,0 +1,8 @@
+# Control: pictures only.
+shot 10 c10
+shot 14 c14
+shot 18 c18
+shot 22 c22
+shot 26 c26
+shot 30 c30
+shot 34 c34

@@ -1,0 +1,13 @@
+# Mario Kart Wii: A at 10 s skips the strap screen; A at 24 s and 36 s, 2 (right trigger) at 30 s on the title.
+10.0 10.3 R primary 1
+24.0 24.4 R primary 1
+30.0 30.4 R trigger 1
+36.0 36.4 R primary 1
+shot 22 t22
+shot 26 t26
+shot 28 t28
+shot 32 t32
+shot 34 t34
+shot 38 t38
+shot 42 t42
+shot 46 t46

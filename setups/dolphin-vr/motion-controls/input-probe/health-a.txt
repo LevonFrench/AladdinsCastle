@@ -1,0 +1,11 @@
+# Same pictures; right A pressed at 10 s (strap/health screen) and 30 s (title screen).
+10.0 10.3 R primary 1
+30.0 30.3 R primary 1
+shot 8 a8
+shot 12 a12
+shot 16 a16
+shot 20 a20
+shot 28 a28
+shot 32 a32
+shot 36 a36
+shot 40 a40
