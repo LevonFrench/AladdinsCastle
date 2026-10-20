@@ -152,6 +152,7 @@ std::vector<unsigned> s_histo(kBins, 0);
 
 struct FrameStats { std::map<GLuint, unsigned> draws, clears; unsigned blits = 0, reads = 0; std::set<std::string> viewports; } s_tstats;
 unsigned s_vertexShaders = 0, s_patchedShaders = 0, s_patchedFragment = 0;
+int s_lastCount = 0;
 
 std::vector<int> Extra()
 {
@@ -512,16 +513,18 @@ void Seen(bool clear)
       if (s_tstats.draws[s_drawFbo] < limit) {
         auto it = s_programs.find(s_program);
         const char *kind = it == s_programs.end() ? "other" : it->second.wide >= 0 ? "triangles" : "rectangles";
-        s_log("[gl]   draw %u into fbo %u: program %u (%s), depth test %s, blend %s (0x%X,0x%X), backdrop %s", s_tstats.draws[s_drawFbo], s_drawFbo, s_program, kind,
-              s_depthTest ? "on" : "off", s_blend ? "on" : "off", s_blendSrcRgb, s_blendDstRgb, Backdrop() ? "yes" : "no");
+        const GLuint t0 = s_unitTex[0][GL_TEXTURE_2D];
+        GLint tw = 0, th = 0; if (t0 && s_ownOk) { o_GetTextureLevelParameteriv(t0, 0, GL_TEXTURE_WIDTH, &tw); o_GetTextureLevelParameteriv(t0, 0, GL_TEXTURE_HEIGHT, &th); }
+        s_log("[gl]   draw %u into fbo %u: program %u (%s), depth test %s, blend %s (0x%X,0x%X), backdrop %s, tex0 %u %dx%d%s, count %d", s_tstats.draws[s_drawFbo], s_drawFbo, s_program, kind,
+              s_depthTest ? "on" : "off", s_blend ? "on" : "off", s_blendSrcRgb, s_blendDstRgb, Backdrop() ? "yes" : "no", t0, tw, th, s_renderTargets.count(t0) ? " (render target)" : "", s_lastCount);
       }
       ++s_tstats.draws[s_drawFbo]; char v[64]; std::snprintf(v, sizeof v, "fbo %u vp %d,%d %dx%d", s_drawFbo, s_vp[0], s_vp[1], s_vp[2], s_vp[3]); s_tstats.viewports.insert(v);
     }
   }
   if (Known(s_drawFbo) && !Extra().empty()) { if (clear) ++s_dupClears; else ++s_dupDraws; }
 }
-void WINAPI W_DrawArrays(GLenum mode, GLint first, GLsizei count) { Seen(false); Layers([&] { r_DrawArrays(mode, first, count); }); }
-void WINAPI W_DrawElements(GLenum mode, GLsizei count, GLenum type, const void *idx) { Seen(false); Layers([&] { r_DrawElements(mode, count, type, idx); }); }
+void WINAPI W_DrawArrays(GLenum mode, GLint first, GLsizei count) { s_lastCount = count; Seen(false); Layers([&] { r_DrawArrays(mode, first, count); }); }
+void WINAPI W_DrawElements(GLenum mode, GLsizei count, GLenum type, const void *idx) { s_lastCount = count; Seen(false); Layers([&] { r_DrawElements(mode, count, type, idx); }); }
 void WINAPI W_DrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const void *idx, GLint base) { Seen(false); Layers([&] { r_DrawElementsBaseVertex(mode, count, type, idx, base); }); }
 void WINAPI W_DrawRangeElements(GLenum mode, GLuint s, GLuint e, GLsizei count, GLenum type, const void *idx) { Seen(false); Layers([&] { r_DrawRangeElements(mode, s, e, count, type, idx); }); }
 void WINAPI W_DrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei n) { Seen(false); Layers([&] { r_DrawArraysInstanced(mode, first, count, n); }); }
