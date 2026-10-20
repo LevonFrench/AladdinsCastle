@@ -20,9 +20,15 @@ is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see 
 | Hidden test window | `core/sdl/sdl.cpp` | With `ACVR_HIDDEN` set, the window is created hidden (unattended test runs). |
 | Scripted presses | `core/rend/vr/debug_shots.cpp` | With `ACVR_PRESS="seconds:mask;..."`, presses buttons on port 1 at those game times (8 Start, 4 A, 128 right), for unattended test runs. |
 | Highest refresh rate | `core/rend/vr/xr_host.cpp`, `core/cfg/option.cpp` | `vr.XrRefreshRate` 0 (the new default) asks the headset for its highest rate instead of 72 Hz. |
-| Scripted light gun | `core/rend/vr/debug_shots.cpp` | `ACVR_GUN="seconds:x:y:buttons;..."` holds player 1's gun at x, y (1/10000ths of the screen, outside: off-screen) with `lightgunSet` buttons (1 trigger, 2 reload, 4 Start, 256 a shot on the 2D plane) from that game time to the next entry, sent every frame. |
+| Scripted light gun | `core/rend/vr/debug_shots.cpp` | `ACVR_GUN="seconds:x:y:buttons;..."` (and `ACVR_GUN2` for player 2) holds player 1's gun at x, y (1/10000ths of the screen, outside: off-screen) with `lightgunSet` buttons (1 trigger, 2 reload, 4 Start, 256 a shot on the 2D plane) from that game time to the next entry, sent every frame. |
 | Exact-time pictures | `core/rend/vr/debug_shots.cpp` | `ACVR_SNAP="seconds;..."` writes `snap_<centiseconds>.png` at those game times. With `rend.ThreadedRendering=no` two runs with the same inputs give identical pictures (checked on The House of the Dead 2: 20 of 20). |
 | End, rip, watch, poke | `core/rend/vr/debug_shots.cpp` | `ACVR_QUIT=seconds` ends the run; `ACVR_RIP="seconds:count,every,ram"` asks for a rip at a game time; `ACVR_WATCH="offset:f|h|w,..."` logs RAM values when they change; `ACVR_POKE="offset:value,..."` writes 16-bit values every frame (to find and test a game's gun calibration). |
+| HOTD2 (US) gun calibration | `core/rend/vr_reproject.cpp` | The profile writes the game's seven calibration words so its aim matches Flycast's light gun exactly (see Findings). |
+| Per-game aim trim | `core/rend/vr_reproject.cpp`, `core/input/udp_lightgun.cpp` | A profile can move the light gun's beam to where a game with a fixed beam mapping of its own reads the intended pixel (`GameProfile::aim`). |
+| Ranger Mission profile | `core/rend/vr_reproject.cpp` | Atomiswave (Sammy 2004): its aim trim (see Findings). |
+| Confidential Mission profile | `core/rend/vr_reproject.cpp` | US (MK-51160): its camera, life size and aim trim (see Findings). |
+| Light guns for every game | `core/rend/vr_reproject.cpp` | In the headset ports A and B get light guns for every Dreamcast game, not only those with a profile. |
+| Fixed clock | `core/hw/aica/aica_if.cpp` | `ACVR_RTC=<seconds since 1950>` fixes the Dreamcast clock so test runs repeat exactly (Confidential Mission seeds its randomness from it). |
 | Wide preview | `core/rend/vr_reproject.cpp` | `ACVR_PREVIEW_WIDE=k` shows k times the stock view in the flat picture, the 2D plane still at its stock size: what the headset shows around the original frame (open-frame pictures). The shot log also gives the centre of each polygon near a shot. |
 
 The hidden window and every `ACVR_*` test aid change nothing unless their environment variables are set.
@@ -75,8 +81,46 @@ wide picture and measures how much of the rest holds picture.
   floats at 0x8C27B784 / 0x8C27B788 (centred, y up): -217 / 155, 172 / 99, -44 / -153, where -220 / 140, 180 / 90,
   -20 / -160 would be exact. Its calibration (likely the seven 16-bit words from 0x8C27B792, not yet tested; perhaps from the save on the
   memory card) bends the middle of the screen: up to about 25 px off in x and 15 px in y, the edges nearly right.
-  The game's own shot flash agrees (its centre lands 7 to 32 px from where the gun was sent). Fix to try: calibrate
-  through the game's own gun adjustment, or set the calibration words in its profile.
+  The game's own shot flash agrees (its centre lands 7 to 32 px from where the gun was sent). Fixed: the US profile
+  now sets those words (x left, centre, right 133, 398, 663 with offset 208; y top, centre, bottom 44, 140, 236). With them
+  the game's own position is within 2 px of where the gun was sent over a 5 x 5 grid, and its shot flash lands on it.
+- Open frame: with the profile's wider view (41 to 74 degrees) the game draws all around the original frame: 90-96%
+  of the area outside it holds picture in chapter 1 (`ACVR_PREVIEW_WIDE=2`, `tools/openframe.py`).
+
+- Ranger Mission (Atomiswave), offline: boots to play on free play (set once in the system menu's COIN SETTINGS
+  and kept in the game's saved settings), A starts, a shot picks the stage and skips the intro. It reads the gun
+  every frame at 0x0C7008B4 / 0x0C7008B8 (centred pixels) with a fixed mapping of its own: up to 26 px off at the
+  right edge and 20 px low. With its profile's aim trim its reading is within 4 px over a 5 x 5 grid, and its bullet
+  puffs land on the aim points. Shots against two identical control runs change its ammo bar; a shot off the
+  screen refills it. 3D: a view turned 30 degrees shows the jungle beyond the original frame. Open frame: with
+  Flycast's `rend.WideScreen` it draws the jungle past 4:3 on both sides (95% of the side area has picture), and
+  through the 3D rebuild above and below too.
+
+- The other Atomiswave gun games, offline (2026-10-19). Each needs a one-time set-up in its own system menu, kept in
+  its saved settings (`<set>.zip.nvmem` in Flycast's data folder): free play (COIN SETTINGS, or GAME SETTINGS >
+  CREDIT SETTINGS on the Sega titles) and the gun's own calibration in TEST MODE > I/O TEST (shoot the target or
+  the centre mark with each gun). Flycast's light gun needs it: Sega Clay Challenge read the gun 105 px to the right
+  before. After it, each game's own gun read-out or hit marker lands within 1-3 px of where the gun was sent:
+  Sports Shooting USA (bullet holes on a wall, 9 points), Extreme Hunting (its I/O test read-out), Extreme Hunting 2
+  (its GUN ADJUST cursor at three points), Sega Clay Challenge (cursor at four points, hit marker at 7 of 9 points).
+  Shots against two identical control runs change each game. Extreme Hunting 1 and 2 pump after every shot and
+  Clay Challenge reloads after every shot: B or a shot off the screen does it (the I/O test shows PUMP on for
+  both). Sports Shooting USA reloads by itself. Every one draws past 4:3 with Flycast's `rend.WideScreen`
+  (89-100% of the side area has picture) and shows its world beyond the frame in a turned 3D view.
+  `tools/aimpump.py` makes a nine-point script that pumps before every shot; `tools/holes.py` finds bullet holes.
+
+- Confidential Mission (US), offline (2026-10-20), after the owner's headset report (aim drifting, no off-screen
+  reload, open frame only partly). Causes found: no light gun in port A without a profile (now always); no camera
+  profile, so the world was rebuilt at HOTD2's scale, 20-60 cm from the eyes and behind the gun's muzzle, so the
+  aim ray started past what it was meant to hit and a gun pointed away from the screen still "hit" the miniature
+  room (no off-screen shot). Its profile now has its camera (projection 0x0C2F0C20, viewport 0x0C2F0D58, focal
+  540.8), its size (`unitScale` 4.6: a guard 340 px tall at W 25 is 1.8 m) and an aim trim: it reads the gun at
+  0x0C2AFCB8/BC as 322.5 + 1.073 (x - 320), 229 + 1.152 (y - 240), up to 34 px off; with the trim within 2 px
+  over a 5 x 4 grid. Shots vs two identical control runs (with `ACVR_RTC`) hit the guard; a shot off the screen
+  reloads at once. Open frame: with `rend.WideScreen` it draws the rooms past 4:3 (92-100% of the side area in
+  play, 96-100% around the frame through the 3D rebuild); in story scenes people at the sides can be cut into
+  pieces (the game culls body parts). A wider game view (`vr.FovScale` 1.5 through its viewport) also fills
+  60-100%, but its gun hit test against the widened view is untested, so it is not used.
 
 ## Status (2026-10-14)
 
