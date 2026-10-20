@@ -1,0 +1,39 @@
+# Super Mario Galaxy 2: A (and A + B) to the new-file dialog by 30 s, then nine aim points from 34 s.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+24.0 24.3 R trigger 1
+26.0 26.3 R primary 1
+28.0 28.3 R primary 1
+34.0 36.0 R u 0
+34.0 36.0 R v 0
+shot 35.5 aim-0_0_0
+36.0 38.0 R u -0.45
+36.0 38.0 R v 0.45
+shot 37.5 aim-1_-0.45_0.45
+38.0 40.0 R u 0
+38.0 40.0 R v 0.45
+shot 39.5 aim-2_0_0.45
+40.0 42.0 R u 0.45
+40.0 42.0 R v 0.45
+shot 41.5 aim-3_0.45_0.45
+42.0 44.0 R u -0.45
+42.0 44.0 R v 0
+shot 43.5 aim-4_-0.45_0
+44.0 46.0 R u 0.45
+44.0 46.0 R v 0
+shot 45.5 aim-5_0.45_0
+46.0 48.0 R u -0.45
+46.0 48.0 R v -0.45
+shot 47.5 aim-6_-0.45_-0.45
+48.0 50.0 R u 0
+48.0 50.0 R v -0.45
+shot 49.5 aim-7_0_-0.45
+50.0 52.0 R u 0.45
+50.0 52.0 R v -0.45
+shot 51.5 aim-8_0.45_-0.45
+52.0 53.0 R u 5

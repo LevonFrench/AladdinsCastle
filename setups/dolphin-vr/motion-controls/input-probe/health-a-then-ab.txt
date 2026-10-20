@@ -1,0 +1,8 @@
+# Right A at 12 s (strap screen), then right A + right trigger (A + B) at 22 s for titles that ask for both.
+12.0 12.4 R primary 1
+22.0 22.5 R primary 1
+22.0 22.5 R trigger 1
+shot 20 ab20
+shot 26 ab26
+shot 30 ab30
+shot 34 ab34

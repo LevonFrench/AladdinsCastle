@@ -20,8 +20,8 @@ kind = "other"
 note = "Your own N64 cartridge dump (not provided by this catalog)"
 
 [routes]
-# No N64 emulator key in game-schema.md yet; add one before routing.
-vr = { best = "none" }
+mupen64plus = "unknown"
+vr          = { best = "true3d", via = "acvr-ps1 with mupen64plus-next, GL stereo (setups/retro-ps1-vr)" }
 
 [hub]
 pill   = "N64-MK64"

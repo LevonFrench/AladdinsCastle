@@ -1,0 +1,36 @@
+id           = "n64-banjo-kazooie"
+title        = "Banjo-Kazooie"
+alt_titles   = []
+genre        = "action"
+subgenre     = []
+year         = 1998
+manufacturer = "nintendo"
+developer    = "Rare"
+hardware     = "nintendo-64"
+graphics     = "polygon-3d"
+players      = 1
+series       = "Banjo-Kazooie"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "other"
+note = "Your own N64 cartridge dump (not provided by this catalog)"
+
+[routes]
+mupen64plus = "unknown"
+vr          = { best = "true3d", via = "acvr-ps1 with mupen64plus-next, GL stereo (setups/retro-ps1-vr)" }
+
+[hub]
+pill   = "N64 BANJO"
+colour = "#18120a"
+accent = "#e8b04a"
+blurb  = "The bear and bird platformer through Gruntilda's lair."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Banjo-Kazooie"]
+confidence = "medium"
+checked    = "2026-10-20"

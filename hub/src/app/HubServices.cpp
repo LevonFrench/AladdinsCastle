@@ -11,6 +11,7 @@
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
 #include "core/ps1/Ps1.h"
+#include "core/n64/N64.h"
 #include "core/pinball/Gamepad.h"
 #include "core/pinball/Art.h"
 #include <QJsonArray>
@@ -226,7 +227,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             startPinball(retainedPinball_,retainedPinballExecutable_,retainedPinballView_);return;
         }
         if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
-        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")||id.startsWith("ps1-")||id.startsWith("wii-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
+        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")||id.startsWith("ps1-")||id.startsWith("n64-")||id.startsWith("wii-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
             const auto start=[this,request,id,variant]{
@@ -279,7 +280,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     watchdog_.setGraceful([this](const QString &system,const QList<qint64> &pids){
         // The system's own way to quit first, then every window asked to close; the tree ends after.
         if(system=="ps2"){const auto stop=settings_->get("ps2StopFile",QString()).toString();if(!stop.isEmpty()){QFile file(stop);if(file.open(QIODevice::WriteOnly))file.write("stop\n");}}
-        if(system=="ps1"&&!ps1StopFile_.isEmpty()){QFile file(ps1StopFile_);if(file.open(QIODevice::WriteOnly))file.write("stop\n");}
+        if((system=="ps1"||system=="n64")&&!ps1StopFile_.isEmpty()){QFile file(ps1StopFile_);if(file.open(QIODevice::WriteOnly))file.write("stop\n");}
         if(system=="model2"){
             // The stop files of the Hub's own recent launches, and the viewer's default beside itself
             // (model2-<emulator id>.stop) for one started some other way.
@@ -315,7 +316,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::starting,this,[this](const QString &id,const QString &){
         if(sessionSystem_.isEmpty()||!launcher_.playing()){sessionStartMs_=QDateTime::currentMSecsSinceEpoch()-1000;crashReported_=false;}
-        static const QStringList systems{"pinball","model3","model2","ps2","ps1","dreamcast","system22","wii"};
+        static const QStringList systems{"pinball","model3","model2","ps2","ps1","n64","dreamcast","system22","wii"};
         sessionSystem_="catalog";for(const auto &system:systems)if(id.startsWith(system+"-")||id==system)sessionSystem_=system;
     });
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){
@@ -499,6 +500,21 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             environment.insert("ACVR_PS1_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
             for(const auto &value:ps1::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · Theatre screen";hint=value.toMap().value("controls").toString();}
             hint+=" Home = put the screen in front of you again. Exit game here, or hold left Y for 3 seconds, quits and saves.";
+        }else if(id.startsWith("n64-")){
+            if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
+                throw install::Error("E_STEAMVR_NOT_RUNNING","Start SteamVR first, with the headset connected, then start the game again.");
+            const auto game=id.mid(4);
+            const auto plan=n64::launchPlan(game,settings_->get("n64Launcher",QString()).toString(),view);
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            auto &environment=request.runtimeInputs.environment;
+            for(const auto &name:environment.keys())if(name.startsWith("ACVR_",Qt::CaseInsensitive))environment.remove(name);
+            // The same stop file as PS1: acvr-ps1 runs these too, and saves on the way out when it appears.
+            ps1StopFile_=install::scopedPath("user/runtime/n64-"+game+"-"+QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss-zzz")+".stop",root_);
+            if(!QDir().mkpath(QFileInfo(ps1StopFile_).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
+            if(QFileInfo::exists(ps1StopFile_)&&!QFile::remove(ps1StopFile_))throw install::Error("E_WRITE_DENIED","An old N64 stop request could not be cleared");
+            environment.insert("ACVR_PS1_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
+            for(const auto &value:n64::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · "+n64::viewLabel(game,view);hint=value.toMap().value("controls").toString();}
+            hint+=" Home = put the screen in front of you again. Exit game here quits and saves.";
         }else if(id=="system22-timecris"){
             const QFileInfo program(settings_->get("system22Executable",QString()).toString());
             if(!program.isFile())throw install::Error("E_SYSTEM22_SETUP","The Time Crisis VR build is not set up. Choose its program in Set-up.");
@@ -739,7 +755,7 @@ void HubServices::stopRunning(){
     if(!launcher_.busy())return;
     const auto id=ui_->nowPlaying().value("gameId").toString();
     if(id.startsWith("model2-")&&askModel2ToQuit(true))return; // Its own wait: the viewer gives MAME 30 s to save.
-    if(id.startsWith("ps1-")){
+    if(id.startsWith("ps1-")||id.startsWith("n64-")){
         QFile request(ps1StopFile_);
         if(!ps1StopFile_.isEmpty()&&request.open(QIODevice::WriteOnly)&&request.write("stop\n")==5){request.close();ui_->launchClosing();later([this]{if(launcher_.busy())launcher_.endEverything();});return;}
         launcher_.stop();return;
@@ -760,7 +776,8 @@ bool HubServices::askPs2ToQuit(){
     request.close();ui_->launchClosing();return true;
 }
 bool HubServices::askPs1ToQuit(){
-    if(!ui_->nowPlaying().value("gameId").toString().startsWith("ps1-")||!launcher_.busy())return false;
+    const auto playing=ui_->nowPlaying().value("gameId").toString();
+    if(!(playing.startsWith("ps1-")||playing.startsWith("n64-"))||!launcher_.busy())return false;
     QFile request(ps1StopFile_);
     if(ps1StopFile_.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS1","The stop request could not be written. Hold left Y for 3 seconds in the headset to quit the game.");return true;}
     request.close();ui_->launchClosing();return true;
@@ -809,6 +826,8 @@ void HubServices::applyWatchdogRules(){
     add("ps2","PlayStation 2",ps2,{parentOf(ps2)},{"pcsx2*"});
     const auto ps1=folderOf(get("ps1Launcher"));
     add("ps1","PlayStation",ps1,{parentOf(ps1)},{"acvr-ps1*"});
+    const auto n64=folderOf(get("n64Launcher"));
+    add("n64","Nintendo 64",n64,{parentOf(n64)},{"acvr-ps1*"});
     add("dreamcast","Sega Dreamcast",folderOf(get("dreamcastExecutable")),{},{"flycast*"});
     add("system22","Namco System 22",folderOf(get("system22Executable")),{},{"timecrisis*"});
     add("wii","Nintendo Wii",folderOf(get("wiiExecutable")),{},{"dolphin*"});

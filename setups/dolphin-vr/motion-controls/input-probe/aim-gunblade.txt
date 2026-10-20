@@ -1,0 +1,39 @@
+# Pointer aim check on a game cursor: A presses to reach a pointer screen, then the pointer off-screen
+# (baseline picture) and nine aim points held 2 s each, a picture 1.5 s into each. u right, v up, -1..1.
+# Tune the A presses per game with -Script copies; this one fits Gunblade (name-entry screen by 26 s).
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+27.0 29.0 R u 5
+shot 28.6 aim-hidden
+30.0 32.0 R u 0
+30.0 32.0 R v 0
+shot 31.5 aim-0_0_0
+32.0 34.0 R u -0.7
+32.0 34.0 R v 0.7
+shot 33.5 aim-1_-0.7_0.7
+34.0 36.0 R u 0
+34.0 36.0 R v 0.7
+shot 35.5 aim-2_0_0.7
+36.0 38.0 R u 0.7
+36.0 38.0 R v 0.7
+shot 37.5 aim-3_0.7_0.7
+38.0 40.0 R u -0.7
+38.0 40.0 R v 0
+shot 39.5 aim-4_-0.7_0
+40.0 42.0 R u 0.7
+40.0 42.0 R v 0
+shot 41.5 aim-5_0.7_0
+42.0 44.0 R u -0.7
+42.0 44.0 R v -0.7
+shot 43.5 aim-6_-0.7_-0.7
+44.0 46.0 R u 0
+44.0 46.0 R v -0.7
+shot 45.5 aim-7_0_-0.7
+46.0 48.0 R u 0.7
+46.0 48.0 R v -0.7
+shot 47.5 aim-8_0.7_-0.7
+48.0 49.0 R u 5

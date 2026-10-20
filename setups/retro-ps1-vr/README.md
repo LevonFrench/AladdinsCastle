@@ -138,6 +138,78 @@ played this way in a hidden run with MAME 0.285: coin, course chosen by
 shooting, targets knocked down. Point Blank (`ptblank`) needs files the
 current MAME set expects (the C75 sound BIOS and a newer sprite ROM).
 
+## Sega Saturn gun games (Beetle Saturn)
+
+The same program runs Saturn light-gun games through the Beetle Saturn core
+(`mednafen_saturn_libretro.dll`, GPL-2.0) with `--gun stunner`: the gun port
+gets the core's Stunner device (the US name of Sega's Virtua Gun; the core
+treats both the same). The BIOS folder holds your own `mpr-17933.bin`
+(US/Europe) and `sega_101.bin` (Japan). In offline runs the core draws its
+crosshair (`beetle_saturn_virtuagun_crosshair`); in the headset it is off.
+Pulling the trigger while pointing off the screen is the Stunner's
+off-screen shot, which these games use to reload. Right A is the gun's
+Start button.
+
+Each game has its own gun calibration screen (Options, Gun Adjust or
+Calibrate Gun), and before calibration both Virtua Cops register a shot
+above the aimed point (Virtua Cop: 13% of the picture height; Virtua Cop 2:
+10%, and 9% of the width to the right), so the bottom edge (and for
+Virtua Cop 2 the left edge) cannot be reached. Calibrating once by
+shooting the drawn centre of the target puts every shot within 0.004 of the picture of the aimed point, measured with the
+game's own bullet holes on its shoot-test screen; no aim trim is needed.
+Virtua Cop saves its calibration in backup memory, so its launcher brings a
+first save with the calibration done (never replacing an existing save).
+
+The House of the Dead moves its sight towards the gun in steps, and the sight stops up to about 8 pixels
+short when the gun comes from the right or from above, wherever the
+calibration is. The launcher therefore sets an aim trim of half that step
+(`ACVR_PS1_AIM=1,-0.0114,1,0.0156`), which leaves at most 0.012 of the width
+and 0.02 of the height in either direction instead of 0.023 and 0.034 in
+one. Its shot flash whitens the scene rather than painting it white, so
+`ACVR_PS1_FLASH_SHARE=60` (the share of bright samples that makes a flash,
+default 85) keeps all of them out of the headset. The disc named USA in our
+set is the European release (50 Hz, refused by a US console), so the
+launcher uses the Japanese disc, whose menus are in English. Like Virtua
+Cop it keeps its calibration in backup memory.
+
+Area 51 (Configure 1P, Calibrate) has the same kind of sight steps (up to
+0.025 of the picture short from one side); its launcher trim is
+`ACVR_PS1_AIM=1,-0.0125,1,0.0055`, leaving at most 0.021. Its shot flash
+is a blue frame, so `ACVR_PS1_FLASH_CHANNELS=b` (the colour channels that
+must be bright; default `rgb`, white) keeps those out of the headset.
+
+`--state <file>` starts from a saved moment. Virtua Cop 2, Area 51 and
+Hakaider keep a gun calibration that they did not restore from their saves after a restart in
+our runs, so their launchers start from the title or main menu just after
+the game's own calibration.
+
+Mechanical Violator Hakaider (Japan) calibrates in Option, Gun Adjust
+(the left trigger opens it): the first shot at the drawn centre
+calibrates, later shots leave holes, which landed within 0.005 of the aimed
+points. Its launcher starts at the main menu just after that calibration.
+Its menus take the gun trigger as confirm and the pad to move.
+
+The Saturn draws its 3D as flat distorted sprites: the game's own code
+projects every polygon, and VDP1 receives four 2D screen corners per quad
+with no depth. Beetle Saturn, Kronos and YabaSanshiro all draw from those
+corners; the only depth in the Kronos and YabaSanshiro OpenGL renderers is
+the VDP2 layer priority (0 to 7), and YabaSanshiro's perspective-corrected
+polygon mode derives its correction from the quad's shape. Games built on
+Sega's library sort their quads back to front, so draw order is the only
+depth cue left (as for the PlayStation diorama); using it would need a
+patched Saturn core. Only Beetle Saturn has the Stunner, and none of the
+three cores has a widescreen mode, so there is no open frame either: these
+games play on the theatre screen.
+
+Results so far (Beetle Saturn 1.29.0 b4df47a, hidden offline runs):
+Virtua Cop, Virtua Cop 2, The House of the Dead, Area 51 and Hakaider
+play from the title into their first stage with the gun only; the same
+run with and without trigger pulls gives different pictures (enemies hit and
+points scored only with shots)
+while two runs without shots are identical, the off-screen shot reloads, and
+their flash per shot (one white frame; two in The House of the Dead; one
+blue frame in Area 51) is kept out of the headset.
+
 ## Real 3D: the SwanStation stereo patch
 
 The PlayStation does its 3D maths on the CPU, so its graphics chip only ever
@@ -307,6 +379,10 @@ Beetle Adventure Racing! breaks with `16:9 adjusted` even without any of this
 (its frame-buffer copies tile the picture), so it runs 4:3 with the HUD panel
 and 3D but no open frame. Its 2D layer has opaque black border bars;
 `ACVR_HUD_KEY_BLACK=1` shows pure black HUD pixels as transparent.
+
+Cruis'n Exotica draws its whole 3D world without the depth test;
+`ACVR_GL_3D_NO_DEPTH=1` counts its triangle draws as the 3D picture all the
+same, so its HUD still splits off.
 
 ### Aim that moves by rate (Star Fox 64)
 
