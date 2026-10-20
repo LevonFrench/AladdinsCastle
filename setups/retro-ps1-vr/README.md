@@ -138,6 +138,37 @@ played this way in a hidden run with MAME 0.285: coin, course chosen by
 shooting, targets knocked down. Point Blank (`ptblank`) needs files the
 current MAME set expects (the C75 sound BIOS and a newer sprite ROM).
 
+## Sega Saturn gun games (Beetle Saturn)
+
+The same program runs Saturn light-gun games through the Beetle Saturn core
+(`mednafen_saturn_libretro.dll`, GPL-2.0) with `--gun stunner`: the gun port
+gets the core's Stunner device (the US name of Sega's Virtua Gun; the core
+treats both the same). The BIOS folder holds your own `mpr-17933.bin`
+(US/Europe) and `sega_101.bin` (Japan). In offline runs the core draws its
+crosshair (`beetle_saturn_virtuagun_crosshair`); in the headset it is off.
+Pulling the trigger while pointing off the screen is the Stunner's
+off-screen shot, which these games use to reload. Right A is the gun's
+Start button.
+
+`--state <file>` starts from a saved moment. Virtua Cop 2 keeps a gun
+calibration offset that it did not restore from its save after a restart in
+our runs, and uncalibrated it registers a shot about 9% of the width right
+of and 10% of the height above the aimed point, so the left and bottom
+edges cannot be reached. Its launcher therefore starts from the title
+screen just after the game's own calibration (Options, Calibrate Gun,
+shooting the drawn centre of the target); measured on the game's shoot-test
+screen the error is then at most 0.004 of the picture, with no aim trim.
+
+The Saturn draws its 3D as flat distorted sprites (VDP1 quads with 2D
+screen corners and no depth), so these games play on the theatre screen.
+
+Results so far (Beetle Saturn 1.29.0 b4df47a, hidden offline runs):
+Virtua Cop 2 plays from the title through the first stage with the gun
+only; the same run with and without trigger pulls gives different pictures
+(score 2350 against 0) while two runs without shots are identical, the
+off-screen shot reloads, and its one-frame white flash per shot is kept out
+of the headset.
+
 ## Real 3D: the SwanStation stereo patch
 
 The PlayStation does its 3D maths on the CPU, so its graphics chip only ever
