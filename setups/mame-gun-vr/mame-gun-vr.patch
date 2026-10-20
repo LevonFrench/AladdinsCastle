@@ -122,10 +122,10 @@ index 476dc8f1..ed1cb279 100644
  		// anything else is bad
 diff --git a/src/frontend/mame/acvr_mono.cpp b/src/frontend/mame/acvr_mono.cpp
 new file mode 100644
-index 00000000..0e90ea60
+index 00000000..0f6d3df4
 --- /dev/null
 +++ b/src/frontend/mame/acvr_mono.cpp
-@@ -0,0 +1,683 @@
+@@ -0,0 +1,712 @@
 +// license:BSD-3-Clause
 +/***************************************************************************
 +
@@ -558,6 +558,23 @@ index 00000000..0e90ea60
 +		to_display(cx, cy, out.cross_u, out.cross_v);
 +	}
 +
++	// open frame: a driver's wider picture (see acvr_mono.h), else MAME's render
++	static bool wide_active()
++	{
++		return g_acvr_wide.bitmap && g_acvr_wide.margin > 0 && g_acvr_wide.width <= int(acvr_mono::max_width) && g_acvr_wide.height <= int(acvr_mono::max_height);
++	}
++	const bitmap_rgb32 &picture() const { return wide_active() ? *g_acvr_wide.bitmap : m_bitmap; }
++
++	// aim across the wide picture -> aim on the 4:3 screen; the added sides are off-screen
++	static void from_wide(acvr_mono::controls &in)
++	{
++		if (!wide_active() || in.off_screen) return;
++		const float total = float(g_acvr_wide.width), inner = total - 2.0f * g_acvr_wide.margin;
++		const float u = (in.u * total - float(g_acvr_wide.margin)) / inner;
++		if (u < 0.0f || u > 1.0f) in.off_screen = 1;
++		else in.u = u;
++	}
++
 +	void frame()
 +	{
 +		if (!m_started)
@@ -598,15 +615,20 @@ index 00000000..0e90ea60
 +		if (m_gun)
 +			for (unsigned i = 0; i < acvr_mono::players; ++i)
 +			{
-+				const acvr_mono::controls in = f->input[i];
-+				apply_gun(i, in, acvr_mono::publisher::fresh(in), f->gun[i]);
++				acvr_mono::controls in = f->input[i];
++				const bool fresh = acvr_mono::publisher::fresh(in);
++				from_wide(in);
++				apply_gun(i, in, fresh, f->gun[i]);
 +				fill_state(i, f->gun[i]);
 +			}
 +
 +		if (m_publish)
 +		{
++			const bitmap_rgb32 &pic = picture();
++			const s32 w43 = width;
++			width = pic.width(); height = pic.height();
 +			for (s32 y = 0; y < height; ++y)
-+				std::memcpy(&f->pixels[y * width], &m_bitmap.pix(y), width * 4);
++				std::memcpy(&f->pixels[y * width], &pic.pix(y), width * 4);
 +			f->w = width; f->h = height; f->stride = width;
 +			float aspect = float(width) / float(height);
 +			if (m_screen)
@@ -615,6 +637,9 @@ index 00000000..0e90ea60
 +				const bool swap = (orientation_add(container_orientation(), m_target->orientation()) & ORIENTATION_SWAP_XY) != 0;
 +				if (pa.first && pa.second)
 +					aspect = swap ? float(pa.second) / pa.first : float(pa.first) / pa.second;
++				if (wide_active())
++					aspect *= float(g_acvr_wide.width) / float(g_acvr_wide.width - 2 * g_acvr_wide.margin);
++				(void)w43;
 +				f->refresh_hz = float(m_screen->frame_period().as_hz());
 +				f->frame_number = m_screen->frame_number();
 +			}
@@ -665,12 +690,15 @@ index 00000000..0e90ea60
 +	void run_line(const script_line &l)
 +	{
 +		const auto arg = [&l] (size_t i) -> std::string { return i < l.args.size() ? l.args[i] : std::string(); };
-+		if (l.cmd == "aim")
++		if (l.cmd == "aim" || l.cmd == "aimw")
 +		{
++			// aim: u,v on the 4:3 screen; aimw: u,v across the published (possibly wide)
++			// picture, mapped exactly as the viewer's input is
 +			const int p = player_arg(l, 0);
 +			m_sin[p].u = std::strtof(arg(1).c_str(), nullptr);
 +			m_sin[p].v = std::strtof(arg(2).c_str(), nullptr);
 +			m_sin[p].off_screen = 0;
++			if (l.cmd == "aimw") from_wide(m_sin[p]);
 +		}
 +		else if (l.cmd == "off")
 +			m_sin[player_arg(l, 0)].off_screen = 1;
@@ -723,12 +751,13 @@ index 00000000..0e90ea60
 +
 +	void snap(const std::string &name)
 +	{
-+		if (!m_bitmap.valid() || name.empty()) return;
++		const bitmap_rgb32 &pic = picture();
++		if (!pic.valid() || name.empty()) return;
 +		emu_file file(m_snapdir, OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
 +		if (!file.open(name + ".png"))
-+			util::png_write_bitmap(file, nullptr, m_bitmap, 0, nullptr);
++			util::png_write_bitmap(file, nullptr, pic, 0, nullptr);
 +		if (!m_log) return;
-+		std::fprintf(m_log, "frame %llu t %.4f snap %s %dx%d", (unsigned long long)m_frame_no, m_machine.time().as_double(), name.c_str(), m_bitmap.width(), m_bitmap.height());
++		std::fprintf(m_log, "frame %llu t %.4f snap %s %dx%d", (unsigned long long)m_frame_no, m_machine.time().as_double(), name.c_str(), pic.width(), pic.height());
 +		for (unsigned i = 0; i < acvr_mono::players; ++i)
 +		{
 +			const acvr_mono::controls &c = m_sin[i];
@@ -811,10 +840,10 @@ index 00000000..0e90ea60
 +}
 diff --git a/src/frontend/mame/acvr_mono.h b/src/frontend/mame/acvr_mono.h
 new file mode 100644
-index 00000000..ce61638d
+index 00000000..7f2f2794
 --- /dev/null
 +++ b/src/frontend/mame/acvr_mono.h
-@@ -0,0 +1,11 @@
+@@ -0,0 +1,23 @@
 +// license:BSD-3-Clause
 +// ACVR generic mono frame publisher + generic gun input (gun-vr branch).
 +// Off unless MAME_VR_PUBLISH=1 and/or MAME_VR_GUN=1 is set.
@@ -823,7 +852,19 @@ index 00000000..ce61638d
 +#pragma once
 +
 +class running_machine;
++class bitmap_rgb32;
 +void acvr_mono_start(running_machine &machine);
++
++// Open frame: a driver that renders its 3D world past the 4:3 screen publishes the
++// wider picture here (the normal screen in the middle, margin pixels added per side).
++// The mono publisher sends it instead of the screen, and gun aim in the added sides
++// reads as off-screen. Header-only so drivers need no link dependency on the frontend.
++struct acvr_wide_frame
++{
++	const bitmap_rgb32 *bitmap = nullptr;
++	int margin = 0, width = 0, height = 0;
++};
++inline acvr_wide_frame g_acvr_wide;
 +
 +#endif
 diff --git a/src/frontend/mame/acvr_mono_frames.h b/src/frontend/mame/acvr_mono_frames.h
@@ -966,6 +1007,274 @@ index 2dfe2439..eaf5ebf2 100644
  	// attempt to load the autoboot script if configured
  	m_autoboot_script.reset();
  	if (*options().autoboot_script())
+diff --git a/src/mame/namco/namcos22.h b/src/mame/namco/namcos22.h
+index 9626d2aa..9f5a2637 100644
+--- a/src/mame/namco/namcos22.h
++++ b/src/mame/namco/namcos22.h
+@@ -152,6 +152,8 @@ public:
+ 	namcos22_renderer(namcos22_state &state);
+ 
+ 	void render_scene(screen_device &screen, bitmap_rgb32 &bitmap);
++	// ACVR open frame: also draw the 3D scene into the sides of a wider bitmap
++	void set_wide(bitmap_rgb32 *bitmap, bitmap_ind8 *pri, int margin) { m_wide_bitmap = bitmap; m_wide_pri = pri; m_wide = margin; }
+ 	struct namcos22_scenenode *new_scenenode(running_machine &machine, u32 zsort, namcos22_scenenode_type type);
+ 
+ 	void init();
+@@ -163,13 +165,16 @@ private:
+ 	struct namcos22_scenenode *m_scenenode_cur;
+ 	std::list<namcos22_scenenode> m_scenenode_alloc;
+ 	rectangle m_cliprect;
++	bitmap_rgb32 *m_wide_bitmap = nullptr;
++	bitmap_ind8 *m_wide_pri = nullptr;
++	int m_wide = 0;
+ 
+ 	static u8 nthbyte(const u32 *src, int n) { return util::big_endian_cast<u8>(src)[n]; }
+ 	static u16 nthword(const u32 *src, int n) { return util::big_endian_cast<u16>(src)[n]; }
+ 
+ 	void render_scene_nodes(screen_device &screen, bitmap_rgb32 &bitmap, struct namcos22_scenenode *node);
+ 	void render_sprite(screen_device &screen, bitmap_rgb32 &bitmap, struct namcos22_scenenode *node);
+-	void poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bitmap, struct namcos22_scenenode *node);
++	void poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bitmap, struct namcos22_scenenode *node, bool wide_pass = false);
+ 	void poly3d_drawsprite(screen_device &screen, bitmap_rgb32 &dest_bmp, u32 code, u32 color, int flipx, int flipy, int sx, int sy, int scalex, int scaley, int cz_factor, int prioverchar, bool fade_enabled, int alpha);
+ 
+ 	void free_scenenode(struct namcos22_scenenode *node);
+@@ -489,6 +494,10 @@ protected:
+ 	std::unique_ptr<s32[]> m_pointrom;
+ 	std::unique_ptr<u8[]> m_dirtypal;
+ 	std::unique_ptr<bitmap_ind16> m_mix_bitmap;
++	// ACVR open frame (ACVR_S22_WIDE=<pixels per side>, Super System 22 only)
++	int m_acvr_wide = 0;
++	bitmap_rgb32 m_acvr_wide_bitmap;
++	bitmap_ind8 m_acvr_wide_pri;
+ 
+ 	tilemap_t *m_text_tilemap;
+ 	u16 m_tilemapattr[8] = { };
+diff --git a/src/mame/namco/namcos22_v.cpp b/src/mame/namco/namcos22_v.cpp
+index 0b1395ca..4cf81e93 100644
+--- a/src/mame/namco/namcos22_v.cpp
++++ b/src/mame/namco/namcos22_v.cpp
+@@ -11,6 +11,10 @@
+ 
+ #include "video.h"
+ 
++#include "../../frontend/mame/acvr_mono.h"
++
++#include <cstdlib>
++
+ 
+ // poly constructor
+ 
+@@ -289,7 +293,7 @@ inline void namcos22_renderer::dispatch_scanline_poly(scanline_func callback, in
+ 
+ /*********************************************************************************************/
+ 
+-void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bitmap, struct namcos22_scenenode *node)
++void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bitmap, struct namcos22_scenenode *node, bool wide_pass)
+ {
+ 	vertex_t v[4];
+ 	vertex_t clipv[6];
+@@ -298,10 +302,29 @@ void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bit
+ 	const bool direct = node->data.quad.direct;
+ 
+ 	// scene clip
+-	const int cx = 320 + node->data.quad.vx;
++	const int shift = wide_pass ? m_wide : 0;
++	const int cx = 320 + node->data.quad.vx + shift;
+ 	const int cy = 240 + node->data.quad.vy;
+ 	m_cliprect.set(cx + node->data.quad.vl, cx - node->data.quad.vr - 1, cy + node->data.quad.vu, cy - node->data.quad.vd - 1);
+-	m_cliprect &= screen.visible_area();
++	rectangle strips[2];
++	if (wide_pass)
++	{
++		// ACVR open frame: a window that spans the whole 4:3 screen opens into the added
++		// sides (the hardware's frustum, wider); only the two side strips are drawn here,
++		// the middle comes from the normal screen. Other windows stay as they are.
++		const rectangle &vis = screen.visible_area();
++		if (m_cliprect.left() <= vis.left() + shift && m_cliprect.right() >= vis.right() + shift)
++		{
++			m_cliprect.setx(0, bitmap.width() - 1);
++			m_cliprect.sety(std::max(m_cliprect.top(), vis.top()), std::min(m_cliprect.bottom(), vis.bottom()));
++		}
++		else
++			return;
++		strips[0] = m_cliprect; strips[0].setx(0, shift - 1);
++		strips[1] = m_cliprect; strips[1].setx(shift + vis.width(), bitmap.width() - 1);
++	}
++	else
++		m_cliprect &= screen.visible_area();
+ 
+ 	// non-direct case: project and z-clip
+ 	if (!direct)
+@@ -366,7 +389,7 @@ void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bit
+ 	extra.fogfactor = 0;
+ 
+ 	extra.pens = &m_state.m_palette->pen((color & 0x7f) << 8);
+-	extra.primap = &screen.priority();
++	extra.primap = wide_pass ? m_wide_pri : &screen.priority();
+ 	extra.bn = node->data.quad.texturebank;
+ 	extra.cmode = node->data.quad.cmode;
+ 	extra.prioverchar = ((node->data.quad.cmode & 7) == 1) ? 1 : 0;
+@@ -446,10 +469,16 @@ void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bit
+ 		extra.fogfactor = 0;
+ 	}
+ 
+-	if (m_state.m_is_ss22)
+-		dispatch_scanline_poly(&namcos22_renderer::renderscanline_poly_ss22, clipverts, clipv);
++	const scanline_func func = m_state.m_is_ss22 ? &namcos22_renderer::renderscanline_poly_ss22 : &namcos22_renderer::renderscanline_poly;
++	if (!wide_pass)
++		dispatch_scanline_poly(func, clipverts, clipv);
+ 	else
+-		dispatch_scanline_poly(&namcos22_renderer::renderscanline_poly, clipverts, clipv);
++		for (const rectangle &strip : strips)
++			if (strip.left() <= strip.right() && strip.top() <= strip.bottom())
++			{
++				m_cliprect = strip;
++				dispatch_scanline_poly(func, clipverts, clipv);
++			}
+ }
+ 
+ 
+@@ -656,6 +685,8 @@ void namcos22_renderer::render_scene_nodes(screen_device &screen, bitmap_rgb32 &
+ 				{
+ 					case NAMCOS22_SCENENODE_QUAD:
+ 						poly3d_drawquad(screen, bitmap, node);
++						if (m_wide && m_wide_bitmap)
++							poly3d_drawquad(screen, *m_wide_bitmap, node, true);
+ 						break;
+ 
+ 					case NAMCOS22_SCENENODE_SPRITE:
+@@ -2560,7 +2591,22 @@ u32 namcos22s_state::screen_update_namcos22s(screen_device &screen, bitmap_rgb32
+ 	if (BIT(layer, 2)) draw_text_layer(screen, bitmap, cliprect);
+ 	if (BIT(layer, 1)) draw_sprites();
+ 	if (BIT(layer, 0)) draw_polygons();
++	const rectangle &vis = screen.visible_area();
++	const bool wide = m_acvr_wide > 0 && cliprect == vis;
++	if (wide)
++	{
++		const int w = vis.width() + 2 * m_acvr_wide;
++		if (m_acvr_wide_bitmap.width() != w || m_acvr_wide_bitmap.height() != vis.bottom() + 1)
++		{
++			m_acvr_wide_bitmap.allocate(w, vis.bottom() + 1);
++			m_acvr_wide_pri.allocate(w, vis.bottom() + 1);
++		}
++		m_acvr_wide_bitmap.fill(bg_color.to_rgba());
++		m_acvr_wide_pri.fill(0);
++		m_poly->set_wide(&m_acvr_wide_bitmap, &m_acvr_wide_pri, m_acvr_wide);
++	}
+ 	m_poly->render_scene(screen, bitmap);
++	m_poly->set_wide(nullptr, nullptr, 0);
+ 	if (BIT(layer, 2)) namcos22s_mix_text_layer(screen, bitmap, cliprect, 6);
+ 
+ 	// apply gamma
+@@ -2580,6 +2626,30 @@ u32 namcos22s_state::screen_update_namcos22s(screen_device &screen, bitmap_rgb32
+ 		}
+ 	}
+ 
++	if (wide)
++	{
++		// gamma on the side strips, then the finished 4:3 screen in the middle
++		const int m = m_acvr_wide, w = m_acvr_wide_bitmap.width();
++		for (int y = vis.top(); y <= vis.bottom(); y++)
++		{
++			u32 *const dest = &m_acvr_wide_bitmap.pix(y);
++			for (int x = 0; x < w; x++)
++			{
++				if (x == m) { x = m + vis.width() - 1; continue; }
++				const u32 rgb = dest[x];
++				const u8 r = rlut[NATIVE_ENDIAN_VALUE_LE_BE(3, 0) ^ (rgb >> 16 & 0xff)];
++				const u8 g = glut[NATIVE_ENDIAN_VALUE_LE_BE(3, 0) ^ (rgb >> 8 & 0xff)];
++				const u8 b = blut[NATIVE_ENDIAN_VALUE_LE_BE(3, 0) ^ (rgb & 0xff)];
++				dest[x] = (r << 16) | (g << 8) | b;
++			}
++			std::copy_n(&bitmap.pix(y, vis.left()), vis.width(), &dest[m]);
++		}
++		g_acvr_wide.bitmap = &m_acvr_wide_bitmap;
++		g_acvr_wide.margin = m;
++		g_acvr_wide.width = w;
++		g_acvr_wide.height = vis.bottom() + 1;
++	}
++
+ 	return 0;
+ }
+ 
+@@ -2596,9 +2666,67 @@ u32 namcos22_state::screen_update_namcos22(screen_device &screen, bitmap_rgb32 &
+ 
+ 	// layers
+ 	draw_polygons();
++	const rectangle &vis = screen.visible_area();
++	const bool wide = m_acvr_wide > 0 && cliprect == vis;
++	if (wide)
++	{
++		const int w = vis.width() + 2 * m_acvr_wide;
++		if (m_acvr_wide_bitmap.width() != w || m_acvr_wide_bitmap.height() != vis.bottom() + 1)
++		{
++			m_acvr_wide_bitmap.allocate(w, vis.bottom() + 1);
++			m_acvr_wide_pri.allocate(w, vis.bottom() + 1);
++		}
++		m_acvr_wide_bitmap.fill(m_palette->pen(bg_color));
++		m_acvr_wide_pri.fill(0);
++		m_poly->set_wide(&m_acvr_wide_bitmap, &m_acvr_wide_pri, m_acvr_wide);
++	}
+ 	m_poly->render_scene(screen, bitmap);
++	m_poly->set_wide(nullptr, nullptr, 0);
+ 	draw_text_layer(screen, bitmap, cliprect); // text layer + final mix
+ 
++	if (wide)
++	{
++		// ACVR open frame: the final mix's global fade and gamma on the side strips
++		// (no text layer there), then the finished 4:3 screen in the middle
++		const u8 *rlut = &m_gamma_proms[0x000];
++		const u8 *glut = &m_gamma_proms[0x100];
++		const u8 *blut = &m_gamma_proms[0x200];
++		const bool fade_enabled = (m_screen_fade_r != 0x100 || m_screen_fade_g != 0x100 || m_screen_fade_b != 0x100);
++		const u32 fade_r_add = (m_screen_fade_r > 0x100) ? (1 << 16) : 0;
++		const u32 fade_g_add = (m_screen_fade_g > 0x100) ? (1 << 8) : 0;
++		const u32 fade_b_add = (m_screen_fade_b > 0x100) ? 1 : 0;
++		const bool fade_white = fade_r_add || fade_g_add || fade_b_add;
++		rgbaint_t fade_color(0, m_screen_fade_r, m_screen_fade_g, m_screen_fade_b);
++		const int m = m_acvr_wide, w = m_acvr_wide_bitmap.width();
++		for (int y = vis.top(); y <= vis.bottom(); y++)
++		{
++			u32 *const dest = &m_acvr_wide_bitmap.pix(y);
++			for (int x = 0; x < w; x++)
++			{
++				if (x == m) { x = m + vis.width() - 1; continue; }
++				u32 pixel = dest[x];
++				if (fade_enabled)
++				{
++					if (fade_white)
++					{
++						if (!(pixel & 0xff0000)) pixel += fade_r_add;
++						if (!(pixel & 0x00ff00)) pixel += fade_g_add;
++						if (!(pixel & 0x0000ff)) pixel += fade_b_add;
++					}
++					rgbaint_t rgb(pixel);
++					rgb.scale_and_clamp(fade_color);
++					pixel = rgb.to_rgba();
++				}
++				dest[x] = (rlut[pixel >> 16 & 0xff] << 16) | (glut[pixel >> 8 & 0xff] << 8) | blut[pixel & 0xff];
++			}
++			std::copy_n(&bitmap.pix(y, vis.left()), vis.width(), &dest[m]);
++		}
++		g_acvr_wide.bitmap = &m_acvr_wide_bitmap;
++		g_acvr_wide.margin = m;
++		g_acvr_wide.width = w;
++		g_acvr_wide.height = vis.bottom() + 1;
++	}
++
+ 	return 0;
+ }
+ 
+@@ -2739,6 +2867,9 @@ void namcos22_state::video_start()
+ 	m_posirq_timer = timer_alloc(FUNC(namcos22_state::posirq_callback), this);
+ 
+ 	m_mix_bitmap = std::make_unique<bitmap_ind16>(640, 480);
++	if (const char *wide = std::getenv("ACVR_S22_WIDE"))
++		m_acvr_wide = std::clamp(std::atoi(wide), 0, 192);
++	g_acvr_wide = acvr_wide_frame();
+ 	m_text_tilemap = &machine().tilemap().create(*m_gfxdecode, tilemap_get_info_delegate(*this, FUNC(namcos22_state::get_text_tile_info)), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
+ 	m_text_tilemap->set_scroll_rows(64 * 16); // fake
+ 	m_text_tilemap->set_transparent_pen(0xf);
 diff --git a/src/osd/modules/sound/windows_audio_guids.cpp b/src/osd/modules/sound/windows_audio_guids.cpp
 new file mode 100644
 index 00000000..e0e015cb
