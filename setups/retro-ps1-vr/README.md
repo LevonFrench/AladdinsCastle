@@ -194,12 +194,46 @@ projects every polygon, and VDP1 receives four 2D screen corners per quad
 with no depth. Beetle Saturn, Kronos and YabaSanshiro all draw from those
 corners; the only depth in the Kronos and YabaSanshiro OpenGL renderers is
 the VDP2 layer priority (0 to 7), and YabaSanshiro's perspective-corrected
-polygon mode derives its correction from the quad's shape. Games built on
-Sega's library sort their quads back to front, so draw order is the only
-depth cue left (as for the PlayStation diorama); using it would need a
-patched Saturn core. Only Beetle Saturn has the Stunner, and none of the
+polygon mode derives its correction from the quad's shape. With no depth
+buffer, a game paints far to near, so draw order is the only depth cue left
+(as for the PlayStation diorama); see the experiment below. Only Beetle Saturn has the Stunner, and none of the
 three cores has a widescreen mode, so there is no open frame either: these
 games play on the theatre screen.
+
+### Depth from draw order (experiment, off by default)
+
+`beetle-saturn-depth.patch` (against the Beetle Saturn commit in
+`beetle-saturn-pin.json`, GPL-2.0 like the core) tries to recover depth the
+way the PlayStation diorama does. With `ACVR_SAT_STEREO=1`:
+
+- Every VDP1 drawing command gets a number in the order it is drawn, and
+  every pixel it draws keeps that number in a side buffer beside the VDP1
+  framebuffer. Normal and scaled sprites (HUD, text) stay on the screen
+  plane; a command covering 40% of the screen is a backdrop, far away; the
+  others (distorted sprites, polygons, lines) go from far (drawn first) to
+  `ACVR_SAT_STEREO_POPOUT` (0.3) in front of the screen (drawn last), by their
+  rank among the frame's 3D commands (`ACVR_SAT_STEREO_DEPTH=size` uses their
+  screen size instead).
+- VDP2 records which layer won each output pixel. A VDP2 layer over a sprite
+  pixel (HUD) sits on the screen plane; one with no sprite under it is far at
+  the top of the picture and comes to `ACVR_SAT_STEREO_FLOOR` (0.15) at the
+  bottom, for floors drawn as a rotating background.
+- The core outputs both eyes side by side (`ACVR_PS1_SBS=1` in `acvr-ps1`):
+  the left eye exactly as the game drew it, so the light gun maps to it
+  unchanged, and the right eye with each pixel moved by its depth (the eyes'
+  separation on the theatre screen at infinity); holes take the farther
+  neighbour. `ACVR_SAT_STEREO_DEBUG=1` shows the depth map as the right eye.
+
+Results (hidden offline runs): the gun is unchanged (Virtua Cop's
+calibrated shots in the left eye within 0.002 of the aimed points, as
+without the patch). In Virtua Cop the layering reads correctly most of the
+time (sky and hills far, the floor ramping towards you, buildings in
+between, enemies near, the HUD on the screen), but one object can get
+several depths, the last polygons drawn always come out in front even when
+they are a parked car in the middle distance, and edges show stretched
+pixels. In The House of the Dead the draw order does not follow depth
+across the frame (floors and walls are drawn late and come out in front of
+the zombies standing on them), so large areas get the wrong depth. Not good enough to use; the launchers keep the theatre screen.
 
 Results so far (Beetle Saturn 1.29.0 b4df47a, hidden offline runs):
 Virtua Cop, Virtua Cop 2, The House of the Dead, Area 51 and Hakaider
