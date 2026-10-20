@@ -12,6 +12,9 @@ FocusScope {
  property var row:({})
  property bool vrOverlayMode:true
  property bool reduceMotion:false
+ // From the library: the system's name, and whether this row's "warning" holds its controls.
+ property string systemLabel:""
+ property bool warningIsControls:false
  signal backRequested()
  signal detailRequested(string id)
  signal setupRequested()
@@ -37,14 +40,16 @@ FocusScope {
   if(!canStart)return
   if(catalog)uiController.primary(row.id);else uiController.playGame(row.id,view)
  }
- function hardwareLabel(){return ({wii:"Nintendo Wii",dreamcast:"Sega Dreamcast",system22:"Namco System 22",model2:"Sega Model 2",ps2:"PlayStation 2",ps1:"PlayStation",catalog:(row.card||{}).hardwareLabel||"On this PC"})[row.system]||"Sega Model 3"}
+ function hardwareLabel(){return systemLabel||(row.system?String(row.pill||row.system):"Model 3")}
+ // Read from the row, the same for every system: its own controls, else its controls note; Model 3 rows
+ // (no system) use the emulator's keys.
  readonly property string controlsText:{
+  if(row.controls)return String(row.controls)
   if(!row.system)return "Home = set straight ahead · 1 = start · 3 = coin · Esc = quit."+(row.cabinetControl?" Inside the game, the cabinet's "+row.cabinetControl+" can be shown in front of you.":"")
-  if(row.system==="ps1"||row.system==="ps2"||row.system==="model2")return row.warning||""
   if(catalog)return (row.card||{}).controlsLabel?"Controls: "+row.card.controlsLabel+".":""
-  return ""
+  return warningIsControls?(row.warning||""):""
  }
- readonly property string beforeText:row.system==="wii"||row.system==="dreamcast"?(row.warning||""):""
+ readonly property string beforeText:!warningIsControls&&!catalog?(row.warning||""):""
  readonly property string statusText:row.problem?row.problem:waitingForSteamVr?"Waiting for SteamVR to start, then the game starts.":starting?"Starting the game. It opens in a moment.":session.gameId===sessionId?"Playing now.":!uiController.launchGateOpen?"Another game is running. Close it before starting this one.":uiController.steamVrRunning?"Ready to play.":"Ready to play. SteamVR is off: Play starts it first, then the game."
  readonly property string factsText:"In the Hub's list: yes   ·   On this PC: "+(catalog?"set up":row.found?"found":"not ready")+"   ·   In the headset: "+(row.accepted?"accepted by you ("+row.accepted+")":"not yet accepted by you")
  // A view's own play button: big, with what it is in a line underneath.

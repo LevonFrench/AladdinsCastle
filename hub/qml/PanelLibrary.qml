@@ -31,34 +31,46 @@ FocusScope {
  readonly property real side:28
  readonly property color readyColour:Theme.get("color.state.ready_neon")
  readonly property color needsColour:Theme.get("color.state.needs_neon")
- // System tabs. Catalog games set up on this PC are sorted in by their hardware.
- readonly property var tabDefs:[
-  {id:"all",label:"All"},{id:"ps1",label:"PS1"},{id:"model2",label:"Model 2"},{id:"model3",label:"Model 3"},
-  {id:"system22",label:"System 22"},{id:"n64",label:"N64"},{id:"dreamcast",label:"Dreamcast"},
-  {id:"mameguns",label:"MAME guns"},{id:"ps2",label:"PS2"},{id:"wii",label:"Wii"},{id:"other",label:"Other"},{id:"pinball",label:"Pinball"}]
- readonly property var systemOrder:["model3","model2","system22","wii","dreamcast","ps2","ps1","n64","mameguns","other"]
+ // System tabs, made from the games themselves: a system the Hub learns later gets its own tab with no
+ // change here (its label from the names below, else from its pill). Catalog games set up on this PC are
+ // sorted in by their hardware. Pinball is a page of its own, at the end.
+ readonly property var labels:({all:"All",model3:"Model 3",model2:"Model 2",system22:"System 22",ps1:"PS1",ps2:"PS2",n64:"N64",
+  saturn:"Saturn",dreamcast:"Dreamcast",wii:"Wii",mameguns:"MAME guns",other:"Other",pinball:"Pinball"})
+ readonly property var systemOrder:["ps1","model2","model3","system22","n64","saturn","dreamcast","mameguns","ps2","wii"]
  function tabOf(row){
   const system=row.system||"model3"
-  if(system!=="catalog")return ({model3:"model3",model2:"model2",system22:"system22",ps1:"ps1",ps2:"ps2",wii:"wii",dreamcast:"dreamcast"})[system]||"other"
+  if(system!=="catalog")return system
   const card=row.card||({});const hw=String(card.hardwareId||"")
   if(hw==="sony-ps1")return "ps1"
   if(hw==="sony-ps2")return "ps2"
   if(hw.startsWith("sega-model-2"))return "model2"
   if(hw.startsWith("sega-model-3"))return "model3"
   if(hw==="nintendo-64")return "n64"
+  if(hw==="sega-saturn")return "saturn"
   if(hw==="sega-dreamcast"||hw.startsWith("sega-naomi")||hw==="sammy-atomiswave")return "dreamcast"
   if(hw==="nintendo-wii")return "wii"
   if(hw.indexOf("system-22")>=0)return "system22"
   if(card.genreId==="gun")return "mameguns"
   return "other"
  }
+ function rank(id){const i=systemOrder.indexOf(id);return i<0?(id==="other"?1000:500):i}
+ function labelOf(id,row){if(labels[id])return labels[id];const pill=String((row||{}).pill||id);return pill.charAt(0)+pill.slice(1).toLowerCase()}
+ readonly property var tabDefs:{
+  const seen={};const list=[]
+  for(const row of rows){const id=tabOf(row);if(!seen[id]){seen[id]=true;list.push({id:id,label:labelOf(id,row)})}}
+  list.sort((a,b)=>rank(a.id)-rank(b.id)||a.id.localeCompare(b.id))
+  return [{id:"all",label:"All"}].concat(list,[{id:"pinball",label:"Pinball"}])
+ }
  function ready(row){return !row.problem}
+ // The core modules put a game's controls in "warning", except where the scan found a disc that starts
+ // behind a note (Wii, Dreamcast): there it is what to read first. A row may also carry "controls" itself.
+ function warningIsControls(row){return !!row.system&&row.system!=="catalog"&&["wii","dreamcast"].indexOf(row.system)<0}
  readonly property var counts:{const c={all:rows.length};for(const row of rows){const t=tabOf(row);c[t]=(c[t]||0)+1}return c}
- readonly property var visibleTabs:tabDefs.filter(t=>t.id==="all"||t.id==="pinball"||(counts[t.id]||0)>0)
+ readonly property var visibleTabs:tabDefs
  readonly property var shown:{
   const q=query.trim().toLowerCase()
   let list=rows.filter(r=>(tab==="all"||tabOf(r)===tab)&&(!readyOnly||ready(r))&&(!q||String(r.title||"").toLowerCase().indexOf(q)>=0))
-  const order=r=>systemOrder.indexOf(tabOf(r))
+  const order=r=>rank(tabOf(r))
   if(sortKey==="title")list=list.slice().sort((a,b)=>String(a.title).localeCompare(String(b.title)))
   else if(sortKey==="year")list=list.slice().sort((a,b)=>(a.year||9999)-(b.year||9999)||String(a.title).localeCompare(String(b.title)))
   else list=list.map((r,i)=>({r:r,i:i})).sort((a,b)=>order(a.r)-order(b.r)||a.i-b.i).map(x=>x.r)
@@ -77,7 +89,7 @@ FocusScope {
  function openAt(i){const row=shown[i];if(!row||!row.id)return;currentIndex=i;selectedId=row.id}
  function chooseTab(id){if(id==="pinball"){page.pinballRequested();return}tab=id;currentIndex=0;scroller.scrollToRow(0)}
  onTabChanged:Qt.callLater(()=>{for(const child of tabRow.children)if(child.objectName==="panelTab-"+tab){tabStrip.contentX=Math.max(0,Math.min(tabStrip.contentWidth-tabStrip.width,child.x-40));return}})
- function badgeOf(row){return row.problem?"Not ready":row.warning&&row.system!=="ps1"&&row.system!=="ps2"&&row.system!=="model2"?"Read first":row.accepted?"Accepted in the headset":""}
+ function badgeOf(row){return row.problem?"Not ready":row.warning&&!warningIsControls(row)?"Read first":row.accepted?"Accepted in the headset":""}
  function tileOf(row){const art=row.art||(row.system==="catalog"&&row.card?(row.card.artBanner||row.card.artCard||""):"");return {title:row.title,system:row.system||"model3",art:art,badge:badgeOf(row),badgeColour:row.accepted&&!row.problem?readyColour:needsColour}}
  function moveCurrent(delta){
   if(!shown.length)return
@@ -162,6 +174,8 @@ FocusScope {
   id:gamePage;objectName:"panelGameLoader";anchors.fill:parent;active:!!page.selectedId
   sourceComponent:Component {PanelGamePage {
    row:page.selected;vrOverlayMode:page.vrOverlayMode;reduceMotion:page.reduceMotion
+   systemLabel:page.selected.system==="catalog"?((page.selected.card||{}).hardwareLabel||"On this PC"):page.labelOf(page.tabOf(page.selected),page.selected)
+   warningIsControls:page.warningIsControls(page.selected)
    onBackRequested:page.handleBack()
    onDetailRequested:id=>page.detailRequested(id)
    onSetupRequested:page.setupRequested()}}
