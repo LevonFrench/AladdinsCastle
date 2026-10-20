@@ -25,6 +25,11 @@ gun_model = "arc-pistol-optical"
 control_set = "gun-arc-pistol-optical"
 
 [[rule]]
+id = "model-arc-light-gun"
+gun_model = "arc-light-gun"
+control_set = "gun-arc-light-gun"
+
+[[rule]]
 id = "model-arc-pistol-slide"
 gun_model = "arc-pistol-slide"
 control_set = "gun-arc-pistol-slide"

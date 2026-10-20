@@ -58,6 +58,7 @@ The Hub shows a "2 guns" badge on a game only when its installed route supports 
 | `con-pistol-dpad` | 1 | one-hand | 12 | Namco GunCon 2 / G-Con 2 for PlayStation 2 (2001): A and B above the trigger, C under the grip, Select and Start on the left of the shaft, d-pad at the rear; black, orange and blue versions |
 | `con-pistol-slim` | 1 | one-hand | 10 | Namco GunCon / G-Con 45 for PlayStation (1997): A and B buttons, one on each side below the barrel; black in Japan, grey and later orange elsewhere |
 | `con-revolver-chunky` | 1 | one-hand | 4 | Sega Virtua Gun for Saturn (sold as the Stunner in North America): trigger and a Start button; the Japanese unit is black with a yellow trigger and Start button |
+| `arc-light-gun` | 1 | one-hand | 0 (MAME theatre launchers) | The model hotd2-vr draws for Confidential Mission and The House of the Dead 2: Namco's arcade pistol with a blowback top. Not our design: CC BY 4.0, see §2.7 |
 | `generic-pistol` | 1 | one-hand | 2 | Nothing in particular: the fallback when a game has no better match |
 | `mnt-mg-heavy` | 1 | mounted | 21 | Cabinet-mounted machine guns (Sega Gunblade NY, L.A. Machineguns and the two-handed guns of Line of Fire; Midway Terminator 2 and Revolution X; SNK Beast Busters; Sega Let's Go Jungle) |
 | `arc-pistol-optical` | 2 | one-hand | 4 | The plain optical pistols on Midway, Atari Games, Konami, Taito and Sammy cabinets (Area 51, Maximum Force, Jurassic Park III) |
@@ -83,7 +84,7 @@ The "Resembles" column is a reference for the modeller and holds only facts we h
 
 - Every model is an **original design** that evokes the real gun's silhouette, button layout and colours. Proportions are our own. No logos, brand names, model numbers or regulatory marks appear on a model.
 - Model ids are descriptive (`con-pistol-slim`), never a trademark. The real product is named only in the `resembles` text.
-- Models are never extracted from games, scans or other people's meshes. (hotd2-vr builds the agent's hands from the user's own game at run time; that is its choice, and nothing like it ships with us.)
+- Models are never extracted from games, scans or other people's meshes. The one exception is `arc-light-gun` (§2.7), which the owner asked for by name; it carries its author's licence and credit. (hotd2-vr builds the agent's hands from the user's own game at run time; that is its choice, and nothing like it ships with us.)
 - The references are toy-like game peripherals, not real firearms. The models stay toy-like.
 
 ### 2.3 Format
@@ -131,6 +132,19 @@ The player can override it: a different gun for one game, one favourite gun for 
 ### 2.6 Licence (D47, default)
 
 Scripts are GPL-3.0 like the rest of the repository. The built `.glb` models are released under **CC0-1.0**, so any VR port can ship them whatever its own licence is. (hotd2-vr had to move its builds to GPL-3.0 because of one CC BY gun model.)
+Exception: `arc-light-gun.glb` and its previews are **CC BY 4.0** (§2.7), not CC0.
+
+### 2.7 The arcade light gun (`arc-light-gun`, CC BY 4.0)
+
+The owner wanted the gun hotd2-vr draws for Confidential Mission in Time Crisis too, without the maker's name on its side. It is not our design:
+
+- **Credit:** "Namco Arcade Gun" by Martoscar (https://sketchfab.com/Martoscar), https://sketchfab.com/3d-models/namco-arcade-gun-15fbd5b9add94a34b5c21746e3dd32be, licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). We read it from hotd2-vr's baked copy (`core/rend/vr/gun_model.h` at the commit in `setups/flycast-hotd2-vr/upstream-pin.json`), which had already re-oriented, quantised and recoloured it and dropped its textures. The original model was not downloaded.
+- **Our changes:** the lettering engraved 0.9 mm deep on the right side of the upper housing is removed and the side face refilled; the upper housing is split off at its bottom plane as a blowback slide (15 mm, cut sections capped, a cover plate under its front so the gap reads as solid); the trigger is its own part (15 degrees); the original sights are replaced by our notch and blade sights; two screw tips hidden under the housing are flattened; it is moved into our gun frame and decimated into two LODs (7,647 and 1,810 triangles) with our four neutral materials. The same list is in `data/guns/arc-light-gun.toml` under `[licence]` and in the `.glb` (`grip` extras).
+- **Checks:** no lettering or logo remains (`arc_light_gun_mesh.remove_lettering` finds the letters as holes in the right side face that have no mirror image on the left). Moving the slide through its full 15 mm crosses no other surface (a swept test of every surface sample at full detail). `python tools/check_gun_assets.py --model arc-light-gun` passes.
+- **Build:** `assets/guns/src/arc-light-gun.py` (Blender 5.2, CPU) with `--source-header` pointing at that `gun_model.h`; the script checks its SHA-256. It is not in the default `build.py` batch.
+- **Name:** "Arcade light gun" until the owner picks one; the model id stays descriptive.
+
+hotd2-vr itself can drop the lettering the same way: `setups/flycast-hotd2-vr/tools/clean_gun_model.py` rewrites its `gun_model.h` through hotd2-vr's own converter.
 
 ## 3. What changes elsewhere
 

@@ -1,0 +1,170 @@
+{
+  "version": "0.1",
+  "model": "arc-light-gun",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "arc-light-gun-front.png",
+      "nodes": {
+        "muzzle": [
+          0.154924,
+          0.387469
+        ],
+        "fx_muzzle": [
+          0.154924,
+          0.387469
+        ],
+        "fx_laser": [
+          0.154924,
+          0.387469
+        ],
+        "sight_front": [
+          0.177131,
+          0.249846
+        ],
+        "sight_rear": [
+          0.723385,
+          0.249846
+        ],
+        "limit_recoil": [
+          0.520457,
+          0.304486
+        ],
+        "slide_recoil": [
+          0.476628,
+          0.304486
+        ],
+        "pivot_trigger": [
+          0.574513,
+          0.419026
+        ],
+        "grip": [
+          0.783431,
+          0.405293
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "arc-light-gun.png",
+      "nodes": {
+        "muzzle": [
+          0.261734,
+          0.490805
+        ],
+        "fx_muzzle": [
+          0.261734,
+          0.490805
+        ],
+        "fx_laser": [
+          0.261734,
+          0.490805
+        ],
+        "sight_front": [
+          0.277067,
+          0.357408
+        ],
+        "sight_rear": [
+          0.654242,
+          0.2072
+        ],
+        "limit_recoil": [
+          0.514125,
+          0.313539
+        ],
+        "slide_recoil": [
+          0.483863,
+          0.325591
+        ],
+        "pivot_trigger": [
+          0.551449,
+          0.404615
+        ],
+        "grip": [
+          0.695702,
+          0.334465
+        ]
+      }
+    },
+    "held": {
+      "image": "arc-light-gun-held.png",
+      "nodes": {
+        "muzzle": [
+          0.426929,
+          0.250827
+        ],
+        "fx_muzzle": [
+          0.426929,
+          0.250827
+        ],
+        "fx_laser": [
+          0.426929,
+          0.250827
+        ],
+        "sight_front": [
+          0.431631,
+          0.136707
+        ],
+        "sight_rear": [
+          0.547302,
+          0.371098
+        ],
+        "limit_recoil": [
+          0.504332,
+          0.333116
+        ],
+        "slide_recoil": [
+          0.495051,
+          0.31431
+        ],
+        "pivot_trigger": [
+          0.515778,
+          0.459221
+        ],
+        "grip": [
+          0.560017,
+          0.536526
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
+  },
+  "silhouette": "arc-light-gun-silhouette.png",
+  "asset_kind": "gun",
+  "extra_views": {
+    "recoil": "arc-light-gun-recoil.png",
+    "front_recoil": "arc-light-gun-front-recoil.png"
+  },
+  "sight_reviews": {
+    "LOD0": "arc-light-gun-sight-lod0.png",
+    "LOD1": "arc-light-gun-sight-lod1.png"
+  },
+  "silhouette_scale_m": 0.82
+}

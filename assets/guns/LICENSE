@@ -8,3 +8,9 @@ To the extent permitted by law, the contributors waive copyright and related
 rights in these built assets. They are supplied without warranty.
 
 The Python source scripts are GPL-3.0-only like the repository.
+
+Exception, CC BY 4.0: arc-light-gun.glb and preview/arc-light-gun* are adapted from
+"Namco Arcade Gun" by Martoscar
+(https://sketchfab.com/3d-models/namco-arcade-gun-15fbd5b9add94a34b5c21746e3dd32be),
+licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). They are not CC0.
+Changes are listed in data/guns/arc-light-gun.toml ([licence]) and docs/guns.md section 2.7.
