@@ -7,6 +7,7 @@
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
 #include "core/ps1/Ps1.h"
+#include "core/n64/N64.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/pinball/Pinball.h"
 #include "core/scan/Scan.h"
@@ -226,6 +227,20 @@ QVariantMap scanPs1(const QVariantMap &settings,const QVariantMap &context,const
  }
  return groups.result("ps1",launcher.isEmpty()?QString("No PS1 launcher chosen."):QString("The Hub starts these through your PS1 launcher, which knows each disc and gun."));
 }
+QVariantMap scanN64(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
+ // The launcher holds each game's cartridge dump, controls and views; the Hub only checks that it knows the game.
+ Q_UNUSED(context);Q_UNUSED(cancel);progress("Reading the N64 launcher");
+ const auto launcher=settings.value("n64Launcher").toString();
+ Groups groups;
+ for(const auto &value:n64::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
+  const auto issue=n64::problem(id,launcher);
+  if(issue.isEmpty())groups.ready<<item(id,title,"detail",game.value("controls").toString());
+  else if(issue.contains("no entry"))groups.missing<<item(id,title,"expected",title+" (an entry in your N64 launcher)");
+  else groups.notRight<<item(id,title,"reason",issue);
+ }
+ return groups.result("n64",launcher.isEmpty()?QString("No N64 launcher chosen."):QString("The Hub starts these through your N64 launcher, which knows each cartridge dump and its views."));
+}
 QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
  const auto folder=settings.value("dreamcastGameFolder").toString();
  const bool programReady=QFileInfo(settings.value("dreamcastExecutable").toString()).isFile();
@@ -291,7 +306,7 @@ QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const P
  else groups.ready<<item(id,title,"detail","The program and the game files beside it were found.");
  return groups.result("system22",QString());
 }
-const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps2",scanPs2},{"ps1",scanPs1},{"dreamcast",scanDreamcast},{"wii",scanWii},{"system22",scanSystem22}};return table;}
+const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps2",scanPs2},{"ps1",scanPs1},{"n64",scanN64},{"dreamcast",scanDreamcast},{"wii",scanWii},{"system22",scanSystem22}};return table;}
 }
 QVariantMap mameCheck(const QByteArray &listXml,const QString &game,const QString &folder,const QStringList &cosmetic,std::atomic_bool &cancel){
  // Every machine in the output with the files it loads; the game itself names its parent and its devices.

@@ -1,0 +1,36 @@
+id           = "n64-rush-2049"
+title        = "San Francisco Rush 2049"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["futuristic"]
+year         = 2000
+manufacturer = "midway"
+developer    = "Atari Games"
+hardware     = "nintendo-64"
+graphics     = "polygon-3d"
+players      = 4
+series       = "Rush"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "other"
+note = "Your own N64 cartridge dump (not provided by this catalog)"
+
+[routes]
+mupen64plus = "unknown"
+vr          = { best = "true3d", via = "acvr-ps1 with mupen64plus-next, GL stereo (setups/retro-ps1-vr)" }
+
+[hub]
+pill   = "N64 RUSH49"
+colour = "#120e18"
+accent = "#b07af0"
+blurb  = "Winged cars through a future San Francisco."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/San_Francisco_Rush_2049"]
+confidence = "medium"
+checked    = "2026-10-20"

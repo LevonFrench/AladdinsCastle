@@ -70,6 +70,8 @@ add_library(hubcore STATIC
     src/core/ps2/Ps2.h
     src/core/ps1/Ps1.cpp
     src/core/ps1/Ps1.h
+    src/core/n64/N64.cpp
+    src/core/n64/N64.h
     src/core/model2/Model2.cpp
     src/core/model2/Model2.h
     src/core/dreamcast/Dreamcast.cpp
