@@ -9,6 +9,8 @@
 #include "retro_abi.h"
 #include "AudioOut.h"
 #include "Png.h"
+#include "PadControls.h"
+#include "GlStereo.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
@@ -18,6 +20,7 @@
 #include <cstring>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <set>
 #include <regex>
 #include <sstream>
@@ -55,6 +58,9 @@ struct Core {
   std::size_t (*get_memory_size)(unsigned) = nullptr;
   void (*cheat_reset)() = nullptr;                       // optional
   void (*cheat_set)(unsigned, bool, const char *) = nullptr;   // optional
+  std::size_t (*serialize_size)() = nullptr;                    // optional: offline proofs start from a saved state
+  bool (*serialize)(void *, std::size_t) = nullptr;
+  bool (*unserialize)(const void *, std::size_t) = nullptr;
 } g_core;
 
 bool LoadCore(const std::string &path)
@@ -74,6 +80,9 @@ bool LoadCore(const std::string &path)
 #undef SYM
   g_core.cheat_reset = reinterpret_cast<decltype(g_core.cheat_reset)>(GetProcAddress(g_core.dll, "retro_cheat_reset"));
   g_core.cheat_set = reinterpret_cast<decltype(g_core.cheat_set)>(GetProcAddress(g_core.dll, "retro_cheat_set"));
+  g_core.serialize_size = reinterpret_cast<decltype(g_core.serialize_size)>(GetProcAddress(g_core.dll, "retro_serialize_size"));
+  g_core.serialize = reinterpret_cast<decltype(g_core.serialize)>(GetProcAddress(g_core.dll, "retro_serialize"));
+  g_core.unserialize = reinterpret_cast<decltype(g_core.unserialize)>(GetProcAddress(g_core.dll, "retro_unserialize"));
   return true;
 }
 
@@ -100,7 +109,7 @@ retro_proc_address_t HwProc(const char *sym)
 {
   auto p = reinterpret_cast<retro_proc_address_t>(wglGetProcAddress(sym));
   if (!p) p = reinterpret_cast<retro_proc_address_t>(GetProcAddress(GetModuleHandleA("opengl32.dll"), sym));
-  return p;
+  return glstereo::Wrap(sym, p);   // unchanged unless GL tracing or stereo is on
 }
 std::vector<std::uint32_t> g_frame;   // 0x00RRGGBB, top row first
 unsigned g_frameW = 0, g_frameH = 0;
@@ -118,6 +127,21 @@ unsigned g_gunPort = 0;
 struct Pad { bool up = false, down = false, left = false, right = false, cross = false, circle = false, square = false, triangle = false, start = false, select = false; } g_pad;
 bool g_padOn = true;
 std::uint64_t g_gunReads = 0;
+// --controls pad|wheel|aim: port 1 is a RetroPad with analog sticks (Nintendo 64 games) instead of a light gun.
+std::string g_controls = "gun";
+pad::Config g_padCfg;
+pad::RetroPad g_rpad;
+bool PadMode() { return g_controls != "gun"; }
+// Pad games: the controller's rumble (an N64 Rumble Pak) becomes a pulse on the right controller, at most
+// every 80 ms while the game keeps it on.
+bool g_rumbleOn = false; std::uint64_t g_rumbleStarts = 0;
+bool SetRumble(unsigned port, retro_rumble_effect, std::uint16_t strength)
+{
+  if (port != 0) return false;
+  const bool on = strength > 0;
+  if (on && !g_rumbleOn) ++g_rumbleStarts;
+  g_rumbleOn = on; return true;
+}
 
 void CoreLog(retro_log_level level, const char *fmt, ...)
 {
@@ -147,8 +171,20 @@ bool Environment(unsigned cmd, void *data)
   case RETRO_ENVIRONMENT_GET_USERNAME: *static_cast<const char **>(data) = "Player"; return true;
   case RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE: if (data) *static_cast<int *>(data) = 3; return true;
   case RETRO_ENVIRONMENT_GET_FASTFORWARDING: if (data) *static_cast<bool *>(data) = false; return true;
+  case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: {
+    // Logged once for pad games: the core's own names for each RetroPad input (how the buttons map).
+    static bool logged = false;
+    if (PadMode() && !logged) {
+      logged = true;
+      for (auto *d = static_cast<const retro_input_descriptor *>(data); d && d->description; ++d)
+        if (d->port == 0) Log("Input: device %u index %u id %u = %s", d->device, d->index, d->id, d->description);
+    }
+    return true;
+  }
+  case RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE:
+    if (!PadMode()) return false;
+    static_cast<retro_rumble_interface *>(data)->set_rumble_state = SetRumble; return true;
   case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
-  case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS:
   case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: return true;
   case RETRO_ENVIRONMENT_SHUTDOWN: g_shutdownRequested = true; return true;
   case RETRO_ENVIRONMENT_SET_MESSAGE: { auto *m = static_cast<const retro_message *>(data); if (m && m->msg) Log("[core message] %s", m->msg); return true; }
@@ -233,8 +269,9 @@ void AudioSample(std::int16_t l, std::int16_t r) { const std::int16_t f[2] = { l
 std::size_t AudioBatch(const std::int16_t *d, std::size_t frames) { if (g_audioWanted) g_audio.write(d, frames); return frames; }
 void InputPoll() {}
 
-std::int16_t InputState(unsigned port, unsigned device, unsigned, unsigned id)
+std::int16_t InputState(unsigned port, unsigned device, unsigned index, unsigned id)
 {
+  if (PadMode()) return port == 0 ? pad::State(g_rpad, device, index, id) : 0;
   if (port != g_gunPort) {
     if (!g_padOn || port > 1 || (device & RETRO_DEVICE_MASK) != RETRO_DEVICE_JOYPAD) return 0;
     switch (id) {
@@ -296,7 +333,8 @@ std::int16_t InputState(unsigned port, unsigned device, unsigned, unsigned id)
 }
 
 // ---- per-game cheat codes, e.g. "No Gun Flash" (the CRT beam-sync flash a GunCon needs, pointless in VR).
-// ACVR_PS1_CHEAT_FILE: a DuckStation-format .cht file; ACVR_PS1_CHEATS: the [section] names to enable, separated by ';'.
+// ACVR_PS1_CHEAT_FILE: a DuckStation-format .cht file, or a RetroArch-format one; ACVR_PS1_CHEATS: the [section]
+// names (RetroArch: descriptions or cheatN) to enable, separated by ';'.
 void ApplyCheats()
 {
   const char *file = std::getenv("ACVR_PS1_CHEAT_FILE"), *names = std::getenv("ACVR_PS1_CHEATS");
@@ -306,12 +344,18 @@ void ApplyCheats()
   std::vector<std::string> wanted; { std::string s(names), item; std::istringstream ss(s); while (std::getline(ss, item, ';')) if (!item.empty()) wanted.push_back(item); }
   std::map<std::string, std::string> codes; std::string section, line;
   const std::regex header(R"(^\s*\[(.+)\]\s*$)"), code(R"(^\s*([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]{4,8})\s*$)");
+  // RetroArch-format files (cheatN_desc = "...", cheatN_code = "..."): an entry is named by its description or "cheatN".
+  const std::regex raDesc(R"re(^\s*cheat(\d+)_desc\s*=\s*"(.*)"\s*$)re"), raCode(R"re(^\s*cheat(\d+)_code\s*=\s*"(.*)"\s*$)re");
+  std::map<std::string, std::string> raDescs;
   std::smatch m;
   while (std::getline(in, line)) {
     if (!line.empty() && line.back() == '\r') line.pop_back();
     if (std::regex_match(line, m, header)) section = m[1].str();
     else if (!section.empty() && std::regex_match(line, m, code)) { auto &c = codes[section]; if (!c.empty()) c += '+'; c += m[1].str() + " " + m[2].str(); }
+    else if (std::regex_match(line, m, raDesc)) raDescs[m[1].str()] = m[2].str();
+    else if (std::regex_match(line, m, raCode)) codes["cheat" + m[1].str()] = m[2].str();
   }
+  for (const auto &d : raDescs) { const auto c = codes.find("cheat" + d.first); if (c != codes.end() && !codes.count(d.second)) codes[d.second] = c->second; }
   if (g_core.cheat_reset) g_core.cheat_reset();
   unsigned index = 0;
   for (const auto &n : wanted) {
@@ -354,6 +398,24 @@ bool SaveSram(bool force)
   return true;
 }
 
+// ---- emulator states for offline proofs ("state-save <file>" / "state-load <file>" script lines)
+bool SaveState(const std::string &path)
+{
+  if (!g_core.serialize_size || !g_core.serialize) { Log("State: the core cannot save states"); return false; }
+  std::vector<char> data(g_core.serialize_size());
+  if (data.empty() || !g_core.serialize(data.data(), data.size())) { Log("State save failed"); return false; }
+  std::ofstream out(path, std::ios::binary); out.write(data.data(), (std::streamsize)data.size());
+  Log("State saved: %s (%zu bytes)", path.c_str(), data.size()); return (bool)out;
+}
+bool LoadState(const std::string &path)
+{
+  if (!g_core.unserialize) { Log("State: the core cannot load states"); return false; }
+  std::ifstream in(path, std::ios::binary);
+  std::vector<char> data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  const bool ok = !data.empty() && g_core.unserialize(data.data(), data.size());
+  Log("State load %s: %s", path.c_str(), ok ? "done" : "FAILED"); return ok;
+}
+
 // ---- offline script: "<frame> <command> [arguments]" per line, # comments
 struct ScriptEvent { unsigned frame; std::string cmd; std::vector<std::string> args; };
 struct Script {
@@ -378,19 +440,53 @@ struct Script {
 
 std::string Arg(const std::vector<std::string> &a, std::size_t i, const char *fallback) { return i < a.size() ? a[i] : fallback; }
 
-// The hardware core's last picture as a CPU copy (its rows are bottom-up).
+// The hardware core's last picture as a CPU copy (its rows are bottom-up). With GL stereo on, both eyes
+// side by side: left eye in the left half.
 void EnsureCpuFrame()
 {
   if (!g_hwOn || !g_hwCpuStale || !g_hwW || !g_hwH) return;
+  const unsigned right = glstereo::RightFramebuffer(), eyes = right ? 2 : 1;
+  g_frame.resize((std::size_t)g_hwW * eyes * g_hwH); g_frameW = g_hwW * eyes; g_frameH = g_hwH;
   std::vector<std::uint32_t> px((std::size_t)g_hwW * g_hwH);
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hwFbo);
-  glPixelStorei(GL_PACK_ALIGNMENT, 4);
-  glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, px.data());
+  for (unsigned e = 0; e < eyes; ++e) {
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, e ? right : g_hwFbo);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, px.data());
+    for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x)
+      g_frame[(std::size_t)y * g_frameW + e * g_hwW + x] = px[(std::size_t)(g_hwH - 1 - y) * g_hwW + x] & 0xffffffu;
+  }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  g_frame.resize(px.size()); g_frameW = g_hwW; g_frameH = g_hwH;
-  for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x)
-    g_frame[(std::size_t)y * g_hwW + x] = px[(std::size_t)(g_hwH - 1 - y) * g_hwW + x] & 0xffffffu;
   g_hwCpuStale = false;
+}
+// With GL stereo on, the headset gets both eyes side by side in one picture.
+GLuint g_sbsFbo = 0, g_sbsTex = 0; unsigned g_sbsW = 0, g_sbsH = 0;
+// The core's OpenGL state that publishing touches is put back afterwards: a core that caches its own state
+// (GLideN64) would otherwise draw with a binding or scissor it no longer has.
+struct KeepGlState {
+  GLint draw = 0, read = 0, tex = 0; GLboolean scissor = GL_FALSE;
+  KeepGlState() { glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw); glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read); glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex); scissor = glIsEnabled(GL_SCISSOR_TEST); }
+  ~KeepGlState() { glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw); glBindFramebuffer(GL_READ_FRAMEBUFFER, read); glBindTexture(GL_TEXTURE_2D, tex); if (scissor) glEnable(GL_SCISSOR_TEST); else glDisable(GL_SCISSOR_TEST); }
+};
+void PublishHardwareFrame()
+{
+  std::optional<KeepGlState> keep;   // pad cores (GLideN64) and stereo; the PS1 light-gun path stays as it was
+  if (PadMode() || glstereo::StereoOn()) keep.emplace();
+  const unsigned right = glstereo::RightFramebuffer();
+  if (!right) { theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); return; }
+  if (!g_sbsFbo || g_sbsW != g_hwW * 2 || g_sbsH != g_hwH) {
+    if (!g_sbsFbo) { glGenFramebuffers(1, &g_sbsFbo); glGenTextures(1, &g_sbsTex); }
+    g_sbsW = g_hwW * 2; g_sbsH = g_hwH;
+    glBindTexture(GL_TEXTURE_2D, g_sbsTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_sbsW, g_sbsH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glBindFramebuffer(GL_FRAMEBUFFER, g_sbsFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_sbsTex, 0);
+  }
+  glDisable(GL_SCISSOR_TEST);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, g_sbsFbo);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hwFbo); glBlitFramebuffer(0, 0, g_hwW, g_hwH, 0, 0, g_hwW, g_hwH, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, right); glBlitFramebuffer(0, 0, g_hwW, g_hwH, g_hwW, 0, 2 * g_hwW, g_hwH, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  theatre::PublishFramebuffer(g_sbsFbo, g_sbsW, g_sbsH);
 }
 
 // A light-gun game blanks the screen white for a frame or two on each shot so a real GunCon can see the CRT
@@ -485,7 +581,8 @@ theatre::Config TheatreConfig()
   c.crt = EnvFloat("ACVR_PS1_CRT", 0.f) != 0.f;
   const float aspect = g_av.geometry.aspect_ratio;
   c.aspect = aspect > .1f ? aspect : 4.f / 3.f;
-  c.sideBySide = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f;
+  c.sideBySide = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f || glstereo::StereoOn();
+  c.aimDot = !PadMode() || EnvFloat("ACVR_PAD_AIM_DOT", 0.f) != 0.f;   // pad games show their own crosshair, if any
   if (const char *m = std::getenv("ACVR_PS1_GUN_MODEL")) c.gunModel = m;
   if (const char *m = std::getenv("ACVR_PS1_GUN_META")) c.gunMeta = m;
   return c;
@@ -495,7 +592,7 @@ void Usage()
 {
   std::fprintf(stderr,
     "acvr-ps1 --core <libretro dll> --game <disc> --system <BIOS dir> --saves <dir>\n"
-    "         [--gun guncon|justifier|lightgun] [--port 1|2] [--option key=value]...\n"
+    "         [--gun guncon|justifier|lightgun] [--port 1|2] [--controls gun|pad|wheel|aim] [--option key=value]...\n"
     "         [--log <file>] [--no-xr] [--headless --frames N [--script file] [--snapshots dir]]\n"
     "         [--theatre-proof <prefix> --test-aim U V]\n"
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
@@ -519,6 +616,7 @@ int main(int argc, char **argv)
     else if (a == "--system") g_systemDir = next();
     else if (a == "--saves") g_saveDir = next();
     else if (a == "--gun") gunName = next();
+    else if (a == "--controls") g_controls = next();
     else if (a == "--port") g_gunPort = (unsigned)std::atoi(next().c_str()) == 2 ? 1 : 0;
     else if (a == "--option") { const std::string kv = next(); const auto eq = kv.find('='); if (eq == std::string::npos) { Usage(); return 2; } g_optionOverrides[kv.substr(0, eq)] = kv.substr(eq + 1); }
     else if (a == "--log") logPath = next();
@@ -536,6 +634,7 @@ int main(int argc, char **argv)
   }
   if (g_corePath.empty() || game.empty() || g_systemDir.empty() || g_saveDir.empty() || (headless && !frames)) { Usage(); return 2; }
   if (gunName != "guncon" && gunName != "justifier" && gunName != "lightgun") { Usage(); return 2; }
+  if (g_controls != "gun" && g_controls != "pad" && g_controls != "wheel" && g_controls != "aim") { Usage(); return 2; }
   if (!logPath.empty()) { g_log = std::fopen(logPath.c_str(), "w"); if (!g_log) g_log = stdout; }
   // Offline runs stay out of the way; a game in the headset keeps normal priority so it is never starved.
   if (headless || noXr) SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
@@ -544,12 +643,20 @@ int main(int argc, char **argv)
 
   g_flashAudit = headless;
   Script timeline;
+  pad::Scripted scripted;
   if (!script.empty() && !timeline.load(script)) { Log("Cannot read script %s", script.c_str()); return 2; }
   // The core draws its own crosshair only in offline proofs, to show where it thinks the gun points.
-  if (!g_optionOverrides.count("beetle_psx_gun_cursor")) g_optionOverrides["beetle_psx_gun_cursor"] = headless ? "cross" : "off";
-  if (!g_optionOverrides.count("beetle_psx_gun_input_mode")) g_optionOverrides["beetle_psx_gun_input_mode"] = "lightgun";
+  if (!PadMode() && !g_optionOverrides.count("beetle_psx_gun_cursor")) g_optionOverrides["beetle_psx_gun_cursor"] = headless ? "cross" : "off";
+  if (!PadMode() && !g_optionOverrides.count("beetle_psx_gun_input_mode")) g_optionOverrides["beetle_psx_gun_input_mode"] = "lightgun";
+  if (PadMode()) {
+    const std::string problems = g_padCfg.load(g_controls);
+    Log("Pad %s", g_padCfg.describe().c_str());
+    if (!problems.empty()) Log("Pad map entries not understood:%s", problems.c_str());
+  }
 
   if (!LoadCore(g_corePath)) return 3;
+  glstereo::Configure(Log);
+  glstereo::InstallImports(g_core.dll);
   if (g_core.api_version() != RETRO_API_VERSION) { Log("Core API version %u is not supported", g_core.api_version()); return 3; }
   g_core.set_environment(Environment);
   g_core.set_video_refresh(VideoRefresh);
@@ -562,6 +669,14 @@ int main(int argc, char **argv)
   Log("Core: %s %s", sys.library_name ? sys.library_name : "?", sys.library_version ? sys.library_version : "?");
 
   retro_game_info info{}; info.path = game.c_str();
+  // Cores that do not read the file themselves (mupen64plus-next) get its bytes.
+  std::vector<char> gameBytes;
+  if (!sys.need_fullpath) {
+    std::ifstream in(game, std::ios::binary);
+    gameBytes.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    if (gameBytes.empty()) { Log("Cannot read %s", game.c_str()); g_core.deinit(); return 4; }
+    info.data = gameBytes.data(); info.size = gameBytes.size();
+  }
   if (!g_core.load_game(&info)) { Log("The core could not load the disc"); g_core.deinit(); return 4; }
   g_core.get_system_av_info(&g_av);
   if (g_hwOn) {
@@ -583,11 +698,17 @@ int main(int argc, char **argv)
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     Log("Core framebuffer %ux%u%s", g_hwMaxW, g_hwMaxH, g_hw.depth ? " with depth" : "");
+    glstereo::SetHostFramebuffer(g_hwFbo, g_hwMaxW, g_hwMaxH, g_hw.depth, g_hw.stencil);
     if (g_hw.context_reset) g_hw.context_reset();
   }
   Log("Timing: %.4f fps, %.0f Hz audio; picture %ux%u, aspect %.4f", g_av.timing.fps, g_av.timing.sample_rate,
       g_av.geometry.base_width, g_av.geometry.base_height, g_av.geometry.aspect_ratio);
 
+  if (PadMode()) {
+    for (const auto &c : g_controllers[0]) Log("Port 1 device offered: %s (0x%X)", c.desc ? c.desc : "?", c.id);
+    g_core.set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
+    Log("Port 1: pad (%s)", g_controls.c_str());
+  } else {
   // Pick the gun by the name the core gives it; fall back to the usual light-gun subclasses.
   unsigned device = gunName == "justifier" ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 1)
                   : gunName == "lightgun" ? RETRO_DEVICE_LIGHTGUN : RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, 0);
@@ -598,6 +719,7 @@ int main(int argc, char **argv)
   g_core.set_controller_port_device(g_gunPort, device);
   if (g_padOn && gunName != "lightgun") g_core.set_controller_port_device(1 - g_gunPort, RETRO_DEVICE_JOYPAD);
   Log("Port %u: %s (device 0x%X)", g_gunPort + 1, gunName.c_str(), device);
+  }
 
   {
     std::string base = game.substr(game.find_last_of("\\/") + 1);
@@ -686,13 +808,16 @@ int main(int argc, char **argv)
         g.start = controller.stickRight || controller.padStart; g.select = controller.stickLeft;
       }
       g_pad = p;
-      g_gun = g;
+      if (PadMode()) g_rpad = pad::Map(controller, g_padCfg);
+      else g_gun = g;
     } else {
       if (frames && frame >= frames) break;
       while (timeline.next < timeline.events.size() && timeline.events[timeline.next].frame <= frame) {
         const auto &e = timeline.events[timeline.next++];
         const unsigned n = (unsigned)std::atoi(Arg(e.args, 0, "6").c_str());
-        if (e.cmd == "aim") { g_gun.u = (float)std::atof(Arg(e.args, 0, ".5").c_str()); g_gun.v = (float)std::atof(Arg(e.args, 1, ".5").c_str()); g_gun.offScreen = false; }
+        std::string padError;
+        if (PadMode() && scripted.command(e.cmd, e.args, padError)) { if (!padError.empty()) Log("Script line at frame %u: %s", e.frame, padError.c_str()); }
+        else if (e.cmd == "aim") { g_gun.u = (float)std::atof(Arg(e.args, 0, ".5").c_str()); g_gun.v = (float)std::atof(Arg(e.args, 1, ".5").c_str()); g_gun.offScreen = false; }
         else if (e.cmd == "trigger") timeline.holdTrigger = n;
         else if (e.cmd == "a") timeline.holdA = n;
         else if (e.cmd == "b") timeline.holdB = n;
@@ -701,8 +826,13 @@ int main(int argc, char **argv)
         else if (e.cmd == "offscreen") timeline.holdOff = n;
         else if (e.cmd.rfind("pad-", 0) == 0) timeline.pad[e.cmd.substr(4)] = n;
         else if (e.cmd == "reload") { timeline.holdOff = 8; timeline.holdTrigger = 6; }
-        else if (e.cmd == "snap" && !snapshots.empty()) WriteSnapshot(snapshots, Arg(e.args, 0, ("f" + std::to_string(frame)).c_str()));
+        else if (e.cmd == "snap" && !snapshots.empty()) {
+          WriteSnapshot(snapshots, Arg(e.args, 0, ("f" + std::to_string(frame)).c_str()));
+          if (PadMode()) Log("  frame %u pad: buttons 0x%04X left %.3f %.3f right %.3f %.3f", frame, g_rpad.buttons, g_rpad.lx, g_rpad.ly, g_rpad.rx, g_rpad.ry);
+        }
         else if (e.cmd == "save") SaveSram(true);
+        else if (e.cmd == "state-save") SaveState(Arg(e.args, 0, "state.bin"));
+        else if (e.cmd == "state-load") { if (!LoadState(Arg(e.args, 0, "state.bin"))) frames = frame; }
         else if (e.cmd == "quit") { frames = frame; }
         else Log("Unknown script command '%s' at frame %u", e.cmd.c_str(), e.frame);
       }
@@ -717,20 +847,23 @@ int main(int argc, char **argv)
       static bool aimed = false; aimed = aimed || !g_gun.offScreen;
       g_gun.offScreen = off || !aimed;
       for (unsigned *h : { &timeline.holdTrigger, &timeline.holdA, &timeline.holdB, &timeline.holdStart, &timeline.holdSelect, &timeline.holdOff }) if (*h) --*h;
+      if (PadMode()) g_rpad = scripted.frame(g_padCfg);
       if (frames && frame >= frames) break;
     }
     if (g_gun.trigger && !lastTrigger) { ++shots; if (theatreOn) theatre::QueuePulse(); }
+    { static ULONGLONG lastPulse = 0; if (g_rumbleOn && theatreOn && now - lastPulse >= 80) { theatre::QueuePulse(); lastPulse = now; } }
     if (g_gun.trigger) { g_triggerFrame = frame; g_triggerSeen = true; }
     lastTrigger = g_gun.trigger;
 
     g_core.run();
     ++frame;
+    if (g_hwOn) glstereo::EndFrame(frame);
     // Offline runs count the flash frames the headset would skip (same test, nothing is skipped here).
     if (headless && g_hideFlash && g_frameSerial != countedSerial) { countedSerial = g_frameSerial; HideThisFrame(frame); }
 
     if (!headless && g_frameSerial != shownSerial && (g_hwOn ? g_hwW > 0 : !g_frame.empty())) {
       shownSerial = g_frameSerial;
-      if (theatreOn && !HideThisFrame(frame)) { if (g_hwOn) theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); else theatre::Publish(g_frame.data(), g_frameW, g_frameH); }
+      if (theatreOn && !HideThisFrame(frame)) { if (g_hwOn) PublishHardwareFrame(); else theatre::Publish(g_frame.data(), g_frameW, g_frameH); }
     }
     if (now - lastSave > 10000) { SaveSram(false); lastSave = now; }
 
@@ -758,6 +891,7 @@ int main(int argc, char **argv)
   }
   Log("Ran %u frames; gun reads %llu; trigger presses %llu; last picture %ux%u", frame,
       (unsigned long long)g_gunReads, (unsigned long long)shots, g_frameW, g_frameH);
+  if (PadMode()) Log("Rumble started %llu times", (unsigned long long)g_rumbleStarts);
   if (g_hideFlash) Log("Gun flash frames kept out of the headset: %u (longest white run %u frames)%s", g_flashHidden, g_flashLongest,
                       g_flashAudit ? ("; white frames shown with no shot just before: " + std::to_string(g_flashOutside)).c_str() : "");
   timeEndPeriod(1);

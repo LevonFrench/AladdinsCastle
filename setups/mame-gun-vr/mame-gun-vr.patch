@@ -122,10 +122,10 @@ index 476dc8f1..ed1cb279 100644
  		// anything else is bad
 diff --git a/src/frontend/mame/acvr_mono.cpp b/src/frontend/mame/acvr_mono.cpp
 new file mode 100644
-index 00000000..10919611
+index 00000000..0e90ea60
 --- /dev/null
 +++ b/src/frontend/mame/acvr_mono.cpp
-@@ -0,0 +1,634 @@
+@@ -0,0 +1,683 @@
 +// license:BSD-3-Clause
 +/***************************************************************************
 +
@@ -144,7 +144,10 @@ index 00000000..10919611
 +      MAME_VR_CROSSHAIR=1  force MAME's own crosshair on (proof aid);
 +                           =0 forces it off (clean pictures of the game's
 +                           own cursor; script mode defaults to off).
-+      MAME_VR_AIM=xs,xo,ys,yo  per-game aim trim around the picture centre:
++      MAME_VR_AIM=xs,xo,ys,yo[,margin]  per-game aim trim around the picture
++                           centre (margin: on-screen aim stays that far inside
++                           0..1, default 0.004, as gun boards read their extreme
++                           values as off-screen):
 +                           u' = 0.5 + (u - 0.5) * xs + xo (same for v), applied
 +                           to every on-screen aim before the crosshair inverse.
 +      MAME_VR_SCRIPT=<file>  offline proof mode: input comes from a schedule
@@ -217,6 +220,8 @@ index 00000000..10919611
 +	if (o & ORIENTATION_SWAP_XY) std::swap(x, y);
 +}
 +
++float g_trackball[2] = { 0.0f, 0.0f }; // MAME_VR_TRACKBALL counts across the picture
++
 +typedef software_renderer<u32, 0,0,0, 16,8,0, false, false> mono_renderer;
 +
 +struct gun_fields
@@ -240,11 +245,18 @@ index 00000000..10919611
 +	{
 +		if (const char *aim = std::getenv("MAME_VR_AIM"))
 +		{
-+			float t[4];
-+			if (std::sscanf(aim, "%f,%f,%f,%f", &t[0], &t[1], &t[2], &t[3]) == 4 && t[0] > 0.25f && t[0] < 4.0f && t[2] > 0.25f && t[2] < 4.0f)
-+				std::copy(std::begin(t), std::end(t), std::begin(m_trim));
-+			osd_printf_info("ACVR gun: aim trim %.4f,%.4f,%.4f,%.4f\n", m_trim[0], m_trim[1], m_trim[2], m_trim[3]);
++			float t[5] = { 1.0f, 0.0f, 1.0f, 0.0f, m_margin };
++			const int n = std::sscanf(aim, "%f,%f,%f,%f,%f", &t[0], &t[1], &t[2], &t[3], &t[4]);
++			if (n >= 4 && t[0] > 0.25f && t[0] < 4.0f && t[2] > 0.25f && t[2] < 4.0f)
++			{
++				std::copy(t, t + 4, std::begin(m_trim));
++				if (n == 5 && t[4] >= 0.0f && t[4] < 0.2f) m_margin = t[4];
++			}
++			osd_printf_info("ACVR gun: aim trim %.4f,%.4f,%.4f,%.4f edge margin %.4f\n", m_trim[0], m_trim[1], m_trim[2], m_trim[3], m_margin);
 +		}
++		if (const char *tb = std::getenv("MAME_VR_TRACKBALL"))
++			if (std::sscanf(tb, "%f,%f", &g_trackball[0], &g_trackball[1]) == 2)
++				osd_printf_info("ACVR gun: trackball counts across the picture %.1f, %.1f\n", g_trackball[0], g_trackball[1]);
 +		if (script && *script)
 +			load_script(script, snapdir ? snapdir : ".");
 +		machine.add_notifier(MACHINE_NOTIFY_FRAME, machine_notify_delegate(&acvr_mono_module::frame, this));
@@ -257,6 +269,7 @@ index 00000000..10919611
 +	int m_crosshair; // 1 force on, 0 force off, -1 MAME default
 +	bool m_started = false;
 +	float m_trim[4] = { 1.0f, 0.0f, 1.0f, 0.0f };
++	float m_margin = 0.004f; // on-screen aim stays this far inside 0..1 (5th MAME_VR_AIM value)
 +
 +	// script (offline proof) mode
 +	bool m_script = false;
@@ -321,6 +334,16 @@ index 00000000..10919611
 +			// override bypasses the field settings (Operation Wolf 3 X)
 +			n = 1.0f - pos;
 +		}
++		if (f.type() == IPT_TRACKBALL_X || f.type() == IPT_TRACKBALL_Y)
++		{
++			// trackball games: the counter the game reads is driven as an absolute
++			// position, MAME_VR_TRACKBALL=<counts across the picture x>,<y>; the
++			// game turns counter steps into cursor steps, so with the right count
++			// the cursor follows the aim, and it re-aligns at each picture edge
++			const float k = f.type() == IPT_TRACKBALL_X ? g_trackball[0] : g_trackball[1];
++			const s32 value = s32(std::lround(std::clamp(n, 0.0f, 1.0f) * k));
++			return value & s32(f.mask() >> (f.mask() ? std::countr_zero(f.mask()) : 0));
++		}
 +		const s32 value = s32(std::lround(lo + n * float(hi - lo)));
 +		return std::clamp(value, std::min(lo, hi), std::max(lo, hi));
 +	}
@@ -329,7 +352,7 @@ index 00000000..10919611
 +	{
 +		if (f.crosshair_axis() == CROSSHAIR_AXIS_X) return true;
 +		if (f.crosshair_axis() == CROSSHAIR_AXIS_Y) return false;
-+		return f.type() == IPT_LIGHTGUN_X || f.type() == IPT_AD_STICK_X;
++		return f.type() == IPT_LIGHTGUN_X || f.type() == IPT_AD_STICK_X || f.type() == IPT_TRACKBALL_X;
 +	}
 +
 +	static s32 read_bits(ioport_field &f)
@@ -355,6 +378,8 @@ index 00000000..10919611
 +						else if (t == IPT_AD_STICK_X && !g.x) g.x = &f;
 +						else if (t == IPT_LIGHTGUN_Y && (!g.y || g.y->type() != IPT_LIGHTGUN_Y)) g.y = &f;
 +						else if (t == IPT_AD_STICK_Y && !g.y) g.y = &f;
++						else if (t == IPT_TRACKBALL_X && !g.x && g_trackball[0] > 0) g.x = &f;
++						else if (t == IPT_TRACKBALL_Y && !g.y && g_trackball[1] > 0) g.y = &f;
 +						else if (t == IPT_BUTTON1 && !g.trigger) g.trigger = &f;
 +						else if (t == IPT_BUTTON2 && !g.button2) g.button2 = &f;
 +					}
@@ -434,6 +459,27 @@ index 00000000..10919611
 +		m_target->set_view(0);
 +		m_target->resolve_tags(); // allocated after machine start resolved the others
 +
++		// MAME_VR_DIPS="PORT:MASK:VALUE;..." (hex) sets DIP/config fields at start,
++		// e.g. a cabinet's control-type switch, without a cfg file
++		if (const char *dips = std::getenv("MAME_VR_DIPS"))
++		{
++			std::string rest(dips);
++			for (size_t pos = 0; pos < rest.size(); )
++			{
++				size_t end = rest.find(';', pos); if (end == std::string::npos) end = rest.size();
++				const std::string item = rest.substr(pos, end - pos); pos = end + 1;
++				const size_t c1 = item.find(':'), c2 = item.rfind(':');
++				if (c1 == std::string::npos || c1 == c2) continue;
++				ioport_port *port = m_machine.root_device().ioport(item.substr(0, c1));
++				const ioport_value mask = ioport_value(std::strtoul(item.substr(c1 + 1, c2 - c1 - 1).c_str(), nullptr, 16));
++				const ioport_value value = ioport_value(std::strtoul(item.substr(c2 + 1).c_str(), nullptr, 16));
++				bool done = false;
++				if (port)
++					for (ioport_field &fld : port->fields())
++						if (fld.mask() == mask) { ioport_field::user_settings us; fld.get_user_settings(us); us.value = value; fld.set_user_settings(us); done = true; }
++				osd_printf_info("ACVR dip %s -> %s\n", item, done ? "set" : "NOT FOUND");
++			}
++		}
 +		if (m_gun)
 +			find_fields();
 +		osd_printf_info("ACVR mono: publish %d gun %d, target orientation %d, container orientation %d\n",
@@ -457,9 +503,12 @@ index 00000000..10919611
 +			float u = in.u, v = in.v;
 +			if (!in.off_screen)
 +			{
-+				// per-game trim; a trimmed aim never leaves the picture (that would reload)
-+				u = std::clamp(0.5f + (u - 0.5f) * m_trim[0] + m_trim[1], 0.0f, 1.0f);
-+				v = std::clamp(0.5f + (v - 0.5f) * m_trim[2] + m_trim[3], 0.0f, 1.0f);
++				// per-game trim; an on-screen aim never reaches the field's extreme
++				// values, which many gun boards report as off-screen (Time Crisis,
++				// Rail Chase): pointing off the screen is the only way to get those
++				const float lo = m_margin, hi = 1.0f - m_margin;
++				u = std::clamp(0.5f + (u - 0.5f) * m_trim[0] + m_trim[1], lo, hi);
++				v = std::clamp(0.5f + (v - 0.5f) * m_trim[2] + m_trim[3], lo, hi);
 +			}
 +			to_container(in.off_screen ? -0.05f : u, in.off_screen ? -0.05f : v, x, y);
 +			for (ioport_field *f : { g.x, g.y })

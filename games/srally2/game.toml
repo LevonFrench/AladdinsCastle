@@ -23,7 +23,7 @@ note = "Export (parent set)"
 [[media]]
 kind = "mame-romset"
 set  = "srally2dx"
-note = "Export Deluxe (may run slow in Supermodel)"
+note = "Export Deluxe: Supermodel needs the parent srally2 set beside it and -ppc-frequency=100"
 
 [routes]
 mame        = "not-working"

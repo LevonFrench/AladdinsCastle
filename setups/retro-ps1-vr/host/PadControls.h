@@ -1,0 +1,243 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Pad games (Nintendo 64 through mupen64plus-next, or any libretro pad core): the VR controllers become a
+// standard RetroPad with analog sticks. Modes (--controls):
+//   pad   the left stick is the analog stick; buttons come from the map
+//   wheel the right controller rolled like a steering wheel steers (analog X); the left stick also steers and
+//         gives the analog Y (nose up/down)
+//   aim   while aiming (right grip held, or always), the right controller's point on the screen sets the analog
+//         stick so the game's own crosshair follows it, with the game's aim button held; the left stick then
+//         goes to the right analog (the N64 C buttons). Not aiming, the left stick is the analog stick.
+// The same mapping serves the headset and the offline scripts (a scripted virtual controller), so offline
+// proofs exercise exactly what the headset sends.
+#pragma once
+#include "TheatreXR.h"
+#include "retro_abi.h"
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
+namespace pad {
+
+struct RetroPad {
+  std::uint16_t buttons = 0;          // bit = RETRO_DEVICE_ID_JOYPAD_*
+  float lx = 0, ly = 0, rx = 0, ry = 0;   // -1..1, libretro convention: +x right, +y down
+  bool on(unsigned id) const { return (buttons >> id) & 1; }
+  void press(unsigned id)
+  {
+    if (id < 16) buttons |= (std::uint16_t)(1u << id);
+    else if (id == 16) ry = -1; else if (id == 17) ry = 1; else if (id == 18) rx = -1; else if (id == 19) rx = 1;
+  }
+};
+
+constexpr int kRightUp = 16, kRightDown = 17, kRightLeft = 18, kRightRight = 19;
+inline int RetroButton(const std::string &name)
+{
+  static const std::map<std::string, int> names = {
+    { "b", RETRO_DEVICE_ID_JOYPAD_B }, { "y", RETRO_DEVICE_ID_JOYPAD_Y }, { "select", RETRO_DEVICE_ID_JOYPAD_SELECT },
+    { "start", RETRO_DEVICE_ID_JOYPAD_START }, { "up", RETRO_DEVICE_ID_JOYPAD_UP }, { "down", RETRO_DEVICE_ID_JOYPAD_DOWN },
+    { "left", RETRO_DEVICE_ID_JOYPAD_LEFT }, { "right", RETRO_DEVICE_ID_JOYPAD_RIGHT }, { "a", RETRO_DEVICE_ID_JOYPAD_A },
+    { "x", RETRO_DEVICE_ID_JOYPAD_X }, { "l", RETRO_DEVICE_ID_JOYPAD_L }, { "r", RETRO_DEVICE_ID_JOYPAD_R },
+    { "l2", RETRO_DEVICE_ID_JOYPAD_L2 }, { "r2", RETRO_DEVICE_ID_JOYPAD_R2 }, { "l3", RETRO_DEVICE_ID_JOYPAD_L3 },
+    { "r3", RETRO_DEVICE_ID_JOYPAD_R3 },
+    // The right analog stick pushed fully one way (mupen64plus-next: the N64 C buttons).
+    { "rs-up", kRightUp }, { "rs-down", kRightDown }, { "rs-left", kRightLeft }, { "rs-right", kRightRight } };
+  const auto it = names.find(name);
+  return it == names.end() ? -1 : it->second;
+}
+
+// The VR controls a map may name.
+inline bool VrControl(const theatre::Input &in, const std::string &name)
+{
+  if (name == "rtrig") return in.triggerValue > .35f;
+  if (name == "ltrig") return in.padTriggerValue > .35f;
+  if (name == "rgrip") return in.gripValue > .5f;
+  if (name == "lgrip") return in.padGripValue > .5f;
+  if (name == "ra") return in.a;
+  if (name == "rb") return in.b;
+  if (name == "lx") return in.padCircle;          // left X (Index: left A)
+  if (name == "ly") return in.padYButton;              // left Y (Index: left B); held 3 s it quits
+  if (name == "lmenu") return in.padStart;        // left menu (Index: left stick click)
+  if (name == "rclick") return in.stickRight;
+  if (name == "lclick") return in.stickLeft;
+  if (name == "rup") return in.rightY > .6f;
+  if (name == "rdown") return in.rightY < -.6f;
+  if (name == "rleft") return in.rightX < -.6f;
+  if (name == "rright") return in.rightX > .6f;
+  return false;
+}
+
+struct Config {
+  std::string mode = "pad";                       // pad | wheel | aim
+  std::vector<std::pair<std::string, int>> map;   // VR control -> RetroPad button
+  float wheelDegrees = 75, wheelDead = 3;         // roll for full lock, and the dead zone, degrees
+  std::string aimHold = "rgrip";                  // VR control that enters aim mode; "always" keeps aiming
+  int aimButton = RETRO_DEVICE_ID_JOYPAD_R;       // the game's aim-mode button (GoldenEye: N64 R)
+  float aimTrim[4] = { 1, 0, 1, 0 };              // stick = clamp((offset - shift) * scale), offset = (u - .5) * 2 per axis
+  float aimCurve = 1;                             // stick = sign * |stick| ^ curve (measured per game)
+  bool rightStickToAnalog = true;                 // right thumbstick to the right analog (N64 C buttons)
+
+  // "rtrig=a,ltrig=b,rgrip=r" ; unknown names are reported in `problems`.
+  void parseMap(const std::string &text, std::string &problems)
+  {
+    std::istringstream s(text); std::string item;
+    while (std::getline(s, item, ',')) {
+      const auto eq = item.find('='); if (eq == std::string::npos) { if (!item.empty()) problems += " '" + item + "'"; continue; }
+      const std::string vr = item.substr(0, eq), retro = item.substr(eq + 1);
+      const int id = RetroButton(retro);
+      if (id < 0) { problems += " '" + item + "'"; continue; }
+      map.emplace_back(vr, id);
+    }
+  }
+  static std::string DefaultMap(const std::string &mode)
+  {
+    // libretro names; mupen64plus-next reads RetroPad B as N64 A, Y as N64 B, L2 as Z, R as R, L as L, Start as Start.
+    if (mode == "wheel") return "rtrig=b,ltrig=y,rgrip=r,lgrip=l2,ra=b,rb=y,lx=l2,lmenu=start,rclick=start,lclick=l";
+    if (mode == "aim") return "rtrig=l2,ra=b,rb=y,lgrip=l2,lx=b,lmenu=start,rclick=start,lclick=l,ltrig=r";
+    return "ra=b,rb=y,rtrig=l2,rgrip=r,ltrig=l2,lgrip=l,lx=b,lmenu=start,rclick=start";
+  }
+  // Environment: ACVR_PAD_MAP, ACVR_PAD_WHEEL_DEG, ACVR_PAD_AIM_HOLD, ACVR_PAD_AIM_BUTTON, ACVR_PAD_AIM, ACVR_PAD_AIM_CURVE.
+  std::string load(const std::string &m)
+  {
+    mode = m; std::string problems;
+    const char *e = std::getenv("ACVR_PAD_MAP");
+    parseMap(e && *e ? e : DefaultMap(mode), problems);
+    if ((e = std::getenv("ACVR_PAD_WHEEL_DEG")) && std::atof(e) >= 10) wheelDegrees = (float)std::atof(e);
+    if ((e = std::getenv("ACVR_PAD_AIM_HOLD")) && *e) aimHold = e;
+    if ((e = std::getenv("ACVR_PAD_AIM_BUTTON")) && *e) { const int id = RetroButton(e); if (id >= 0) aimButton = id; else problems += std::string(" aim button '") + e + "'"; }
+    if ((e = std::getenv("ACVR_PAD_AIM")) && *e) std::sscanf(e, "%f,%f,%f,%f", &aimTrim[0], &aimTrim[1], &aimTrim[2], &aimTrim[3]);
+    if ((e = std::getenv("ACVR_PAD_AIM_CURVE")) && std::atof(e) > .2) aimCurve = (float)std::atof(e);
+    return problems;
+  }
+  std::string describe() const
+  {
+    std::string d = "controls " + mode + ":";
+    for (const auto &m : map) d += " " + m.first + "->" + std::to_string(m.second);
+    char extra[200];
+    if (mode == "wheel") { std::snprintf(extra, sizeof extra, "; full lock at %.0f deg roll, dead zone %.0f deg", wheelDegrees, wheelDead); d += extra; }
+    if (mode == "aim") { std::snprintf(extra, sizeof extra, "; aim while %s, aim button %d, trim %.3f,%.3f,%.3f,%.3f, curve %.2f", aimHold.c_str(), aimButton, aimTrim[0], aimTrim[1], aimTrim[2], aimTrim[3], aimCurve); d += extra; }
+    return d;
+  }
+};
+
+inline float Clamp1(float v) { return std::clamp(v, -1.f, 1.f); }
+
+// Steering from roll: linear from the dead zone to full lock.
+inline float WheelSteer(float rollRadians, const Config &c)
+{
+  const float deg = rollRadians * 57.29578f, mag = std::fabs(deg);
+  if (mag <= c.wheelDead) return 0;
+  return Clamp1((deg > 0 ? 1.f : -1.f) * (mag - c.wheelDead) / (c.wheelDegrees - c.wheelDead));
+}
+
+// The analog deflection that puts the game's crosshair at screen point (u, v), from the per-game trim.
+inline void AimStick(float u, float v, const Config &c, float &x, float &y)
+{
+  auto axis = [&](float t, float scale, float shift) {
+    const float s = Clamp1(((t - .5f) * 2.f - shift) * scale);
+    return (s < 0 ? -1.f : 1.f) * std::pow(std::fabs(s), c.aimCurve);
+  };
+  x = axis(u, c.aimTrim[0], c.aimTrim[1]); y = axis(v, c.aimTrim[2], c.aimTrim[3]);
+}
+
+inline bool Aiming(const theatre::Input &in, const Config &c)
+{
+  if (c.mode != "aim" || !in.active || in.offScreen) return false;
+  return c.aimHold == "always" || VrControl(in, c.aimHold);
+}
+
+inline RetroPad Map(const theatre::Input &in, const Config &c)
+{
+  RetroPad p;
+  const float sx = in.padX, sy = -in.padY;   // left thumbstick, +y down
+  if (c.rightStickToAnalog) { p.rx = in.rightX; p.ry = -in.rightY; }
+  if (c.mode == "wheel") {
+    const float steer = in.active ? WheelSteer(in.roll, c) : 0.f;
+    p.lx = std::fabs(sx) > std::fabs(steer) ? sx : steer; p.ly = sy;
+  } else if (c.mode == "aim" && Aiming(in, c)) {
+    AimStick(in.u, in.v, c, p.lx, p.ly);
+    p.press((unsigned)c.aimButton);
+    if (std::fabs(sx) > .3f || std::fabs(sy) > .3f) { p.rx = sx; p.ry = sy; }   // walk/strafe on the C buttons while aiming
+  } else { p.lx = sx; p.ly = sy; }
+  for (const auto &m : c.map) if (VrControl(in, m.first)) p.press((unsigned)m.second);   // buttons (and C directions) last
+  return p;
+}
+
+inline std::int16_t Axis(float v) { return (std::int16_t)std::lround(Clamp1(v) * 32767.f); }
+
+// What the core reads through retro_input_state for port 0.
+inline std::int16_t State(const RetroPad &p, unsigned device, unsigned index, unsigned id)
+{
+  switch (device & RETRO_DEVICE_MASK) {
+  case RETRO_DEVICE_JOYPAD:
+    if (id == RETRO_DEVICE_ID_JOYPAD_MASK) return (std::int16_t)p.buttons;
+    return id < 16 ? p.on(id) : 0;
+  case RETRO_DEVICE_ANALOG:
+    if (index == RETRO_DEVICE_INDEX_ANALOG_LEFT) return Axis(id == RETRO_DEVICE_ID_ANALOG_X ? p.lx : p.ly);
+    if (index == RETRO_DEVICE_INDEX_ANALOG_RIGHT) return Axis(id == RETRO_DEVICE_ID_ANALOG_X ? p.rx : p.ry);
+    if (index == RETRO_DEVICE_INDEX_ANALOG_BUTTON) return id < 16 && p.on(id) ? 32767 : 0;
+    return 0;
+  default: return 0;
+  }
+}
+
+// Offline: a scripted virtual controller (the same fields the headset fills) plus raw pad overrides for menus.
+struct Scripted {
+  theatre::Input vr;
+  std::map<std::string, unsigned> holdVr;   // ra, rb, rgrip, lgrip, lx, ly, lmenu, rclick, lclick: frames left
+  std::map<int, unsigned> holdRaw;          // RetroPad button: frames left
+  bool rawStick = false; float rawX = 0, rawY = 0;
+  bool rawRight = false; float rawRX = 0, rawRY = 0;
+
+  // Returns false when the command is not a pad command.
+  bool command(const std::string &cmd, const std::vector<std::string> &args, std::string &error)
+  {
+    auto f = [&](std::size_t i, float fallback) { return i < args.size() ? (float)std::atof(args[i].c_str()) : fallback; };
+    auto n = [&](std::size_t i) { return i < args.size() ? (unsigned)std::atoi(args[i].c_str()) : 6u; };
+    if (cmd == "roll") { vr.roll = f(0, 0) / 57.29578f; vr.active = true; }
+    else if (cmd == "point") { if (!args.empty() && args[0] == "off") vr.offScreen = true; else { vr.u = f(0, .5f); vr.v = f(1, .5f); vr.offScreen = false; } vr.active = true; }
+    else if (cmd == "rtrig") vr.triggerValue = f(0, 1);
+    else if (cmd == "ltrig") vr.padTriggerValue = f(0, 1);
+    else if (cmd == "rgrip") vr.gripValue = f(0, 1);
+    else if (cmd == "lgrip") vr.padGripValue = f(0, 1);
+    else if (cmd == "lstick") { vr.padX = f(0, 0); vr.padY = f(1, 0); }
+    else if (cmd == "rstick") { vr.rightX = f(0, 0); vr.rightY = f(1, 0); }
+    else if (cmd == "vr") { if (args.empty()) { error = "vr needs a control"; return true; } holdVr[args[0]] = n(1); }
+    else if (cmd == "btn") {
+      const int id = args.empty() ? -1 : RetroButton(args[0]);
+      if (id < 0) { error = "btn needs a RetroPad button name"; return true; }
+      holdRaw[id] = n(1);
+    }
+    else if (cmd == "stick") { if (!args.empty() && args[0] == "off") rawStick = false; else { rawStick = true; rawX = f(0, 0); rawY = f(1, 0); } }
+    else if (cmd == "cstick") { if (!args.empty() && args[0] == "off") rawRight = false; else { rawRight = true; rawRX = f(0, 0); rawRY = f(1, 0); } }
+    else return false;
+    return true;
+  }
+  // One frame: the pad the core sees. Hold counters count down after use.
+  RetroPad frame(const Config &c)
+  {
+    theatre::Input in = vr;
+    auto held = [&](const char *k) { auto it = holdVr.find(k); return it != holdVr.end() && it->second > 0; };
+    in.a = held("ra"); in.b = held("rb"); in.padCircle = held("lx"); in.padYButton = held("ly"); in.padStart = held("lmenu");
+    in.stickRight = held("rclick"); in.stickLeft = held("lclick");
+    if (held("rgrip")) in.gripValue = 1;
+    if (held("lgrip")) in.padGripValue = 1;
+    if (held("rtrig")) in.triggerValue = 1;
+    if (held("ltrig")) in.padTriggerValue = 1;
+    RetroPad p = Map(in, c);
+    for (const auto &h : holdRaw) if (h.second) p.press((unsigned)h.first);
+    if (rawStick) { p.lx = rawX; p.ly = rawY; }
+    if (rawRight) { p.rx = rawRX; p.ry = rawRY; }
+    for (auto &h : holdVr) if (h.second) --h.second;
+    for (auto &h : holdRaw) if (h.second) --h.second;
+    return p;
+  }
+};
+
+}  // namespace pad
