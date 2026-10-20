@@ -29,9 +29,14 @@ struct RetroPad {
   std::uint16_t buttons = 0;          // bit = RETRO_DEVICE_ID_JOYPAD_*
   float lx = 0, ly = 0, rx = 0, ry = 0;   // -1..1, libretro convention: +x right, +y down
   bool on(unsigned id) const { return (buttons >> id) & 1; }
-  void press(unsigned id) { buttons |= (std::uint16_t)(1u << id); }
+  void press(unsigned id)
+  {
+    if (id < 16) buttons |= (std::uint16_t)(1u << id);
+    else if (id == 16) ry = -1; else if (id == 17) ry = 1; else if (id == 18) rx = -1; else if (id == 19) rx = 1;
+  }
 };
 
+constexpr int kRightUp = 16, kRightDown = 17, kRightLeft = 18, kRightRight = 19;
 inline int RetroButton(const std::string &name)
 {
   static const std::map<std::string, int> names = {
@@ -40,7 +45,9 @@ inline int RetroButton(const std::string &name)
     { "left", RETRO_DEVICE_ID_JOYPAD_LEFT }, { "right", RETRO_DEVICE_ID_JOYPAD_RIGHT }, { "a", RETRO_DEVICE_ID_JOYPAD_A },
     { "x", RETRO_DEVICE_ID_JOYPAD_X }, { "l", RETRO_DEVICE_ID_JOYPAD_L }, { "r", RETRO_DEVICE_ID_JOYPAD_R },
     { "l2", RETRO_DEVICE_ID_JOYPAD_L2 }, { "r2", RETRO_DEVICE_ID_JOYPAD_R2 }, { "l3", RETRO_DEVICE_ID_JOYPAD_L3 },
-    { "r3", RETRO_DEVICE_ID_JOYPAD_R3 } };
+    { "r3", RETRO_DEVICE_ID_JOYPAD_R3 },
+    // The right analog stick pushed fully one way (mupen64plus-next: the N64 C buttons).
+    { "rs-up", kRightUp }, { "rs-down", kRightDown }, { "rs-left", kRightLeft }, { "rs-right", kRightRight } };
   const auto it = names.find(name);
   return it == names.end() ? -1 : it->second;
 }
@@ -148,7 +155,6 @@ inline bool Aiming(const theatre::Input &in, const Config &c)
 inline RetroPad Map(const theatre::Input &in, const Config &c)
 {
   RetroPad p;
-  for (const auto &m : c.map) if (VrControl(in, m.first)) p.press((unsigned)m.second);
   const float sx = in.padX, sy = -in.padY;   // left thumbstick, +y down
   if (c.rightStickToAnalog) { p.rx = in.rightX; p.ry = -in.rightY; }
   if (c.mode == "wheel") {
@@ -159,6 +165,7 @@ inline RetroPad Map(const theatre::Input &in, const Config &c)
     p.press((unsigned)c.aimButton);
     if (std::fabs(sx) > .3f || std::fabs(sy) > .3f) { p.rx = sx; p.ry = sy; }   // walk/strafe on the C buttons while aiming
   } else { p.lx = sx; p.ly = sy; }
+  for (const auto &m : c.map) if (VrControl(in, m.first)) p.press((unsigned)m.second);   // buttons (and C directions) last
   return p;
 }
 

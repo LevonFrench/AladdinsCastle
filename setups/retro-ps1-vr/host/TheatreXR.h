@@ -16,6 +16,7 @@ struct Config {
   bool crt = false;        // scanlines
   std::string gunModel, gunMeta;   // GLB and its TOML; empty: no gun drawn
   bool sideBySide = false;         // the picture holds the left eye in its left half, the right eye in its right half
+  bool aimDot = true;              // the orange dot where the right controller's ray meets the screen
 };
 struct Input {
   float u = .5f, v = .5f;

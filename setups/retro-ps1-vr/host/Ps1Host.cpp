@@ -10,6 +10,7 @@
 #include "AudioOut.h"
 #include "Png.h"
 #include "PadControls.h"
+#include "GlStereo.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
@@ -19,6 +20,7 @@
 #include <cstring>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <set>
 #include <regex>
 #include <sstream>
@@ -107,7 +109,7 @@ retro_proc_address_t HwProc(const char *sym)
 {
   auto p = reinterpret_cast<retro_proc_address_t>(wglGetProcAddress(sym));
   if (!p) p = reinterpret_cast<retro_proc_address_t>(GetProcAddress(GetModuleHandleA("opengl32.dll"), sym));
-  return p;
+  return glstereo::Wrap(sym, p);   // unchanged unless GL tracing or stereo is on
 }
 std::vector<std::uint32_t> g_frame;   // 0x00RRGGBB, top row first
 unsigned g_frameW = 0, g_frameH = 0;
@@ -130,6 +132,16 @@ std::string g_controls = "gun";
 pad::Config g_padCfg;
 pad::RetroPad g_rpad;
 bool PadMode() { return g_controls != "gun"; }
+// Pad games: the controller's rumble (an N64 Rumble Pak) becomes a pulse on the right controller, at most
+// every 80 ms while the game keeps it on.
+bool g_rumbleOn = false; std::uint64_t g_rumbleStarts = 0;
+bool SetRumble(unsigned port, retro_rumble_effect, std::uint16_t strength)
+{
+  if (port != 0) return false;
+  const bool on = strength > 0;
+  if (on && !g_rumbleOn) ++g_rumbleStarts;
+  g_rumbleOn = on; return true;
+}
 
 void CoreLog(retro_log_level level, const char *fmt, ...)
 {
@@ -169,6 +181,9 @@ bool Environment(unsigned cmd, void *data)
     }
     return true;
   }
+  case RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE:
+    if (!PadMode()) return false;
+    static_cast<retro_rumble_interface *>(data)->set_rumble_state = SetRumble; return true;
   case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
   case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: return true;
   case RETRO_ENVIRONMENT_SHUTDOWN: g_shutdownRequested = true; return true;
@@ -425,19 +440,53 @@ struct Script {
 
 std::string Arg(const std::vector<std::string> &a, std::size_t i, const char *fallback) { return i < a.size() ? a[i] : fallback; }
 
-// The hardware core's last picture as a CPU copy (its rows are bottom-up).
+// The hardware core's last picture as a CPU copy (its rows are bottom-up). With GL stereo on, both eyes
+// side by side: left eye in the left half.
 void EnsureCpuFrame()
 {
   if (!g_hwOn || !g_hwCpuStale || !g_hwW || !g_hwH) return;
+  const unsigned right = glstereo::RightFramebuffer(), eyes = right ? 2 : 1;
+  g_frame.resize((std::size_t)g_hwW * eyes * g_hwH); g_frameW = g_hwW * eyes; g_frameH = g_hwH;
   std::vector<std::uint32_t> px((std::size_t)g_hwW * g_hwH);
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hwFbo);
-  glPixelStorei(GL_PACK_ALIGNMENT, 4);
-  glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, px.data());
+  for (unsigned e = 0; e < eyes; ++e) {
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, e ? right : g_hwFbo);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, px.data());
+    for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x)
+      g_frame[(std::size_t)y * g_frameW + e * g_hwW + x] = px[(std::size_t)(g_hwH - 1 - y) * g_hwW + x] & 0xffffffu;
+  }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  g_frame.resize(px.size()); g_frameW = g_hwW; g_frameH = g_hwH;
-  for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x)
-    g_frame[(std::size_t)y * g_hwW + x] = px[(std::size_t)(g_hwH - 1 - y) * g_hwW + x] & 0xffffffu;
   g_hwCpuStale = false;
+}
+// With GL stereo on, the headset gets both eyes side by side in one picture.
+GLuint g_sbsFbo = 0, g_sbsTex = 0; unsigned g_sbsW = 0, g_sbsH = 0;
+// The core's OpenGL state that publishing touches is put back afterwards: a core that caches its own state
+// (GLideN64) would otherwise draw with a binding or scissor it no longer has.
+struct KeepGlState {
+  GLint draw = 0, read = 0, tex = 0; GLboolean scissor = GL_FALSE;
+  KeepGlState() { glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw); glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read); glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex); scissor = glIsEnabled(GL_SCISSOR_TEST); }
+  ~KeepGlState() { glBindFramebuffer(GL_DRAW_FRAMEBUFFER, draw); glBindFramebuffer(GL_READ_FRAMEBUFFER, read); glBindTexture(GL_TEXTURE_2D, tex); if (scissor) glEnable(GL_SCISSOR_TEST); else glDisable(GL_SCISSOR_TEST); }
+};
+void PublishHardwareFrame()
+{
+  std::optional<KeepGlState> keep;   // pad cores (GLideN64) and stereo; the PS1 light-gun path stays as it was
+  if (PadMode() || glstereo::StereoOn()) keep.emplace();
+  const unsigned right = glstereo::RightFramebuffer();
+  if (!right) { theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); return; }
+  if (!g_sbsFbo || g_sbsW != g_hwW * 2 || g_sbsH != g_hwH) {
+    if (!g_sbsFbo) { glGenFramebuffers(1, &g_sbsFbo); glGenTextures(1, &g_sbsTex); }
+    g_sbsW = g_hwW * 2; g_sbsH = g_hwH;
+    glBindTexture(GL_TEXTURE_2D, g_sbsTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, g_sbsW, g_sbsH, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glBindFramebuffer(GL_FRAMEBUFFER, g_sbsFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_sbsTex, 0);
+  }
+  glDisable(GL_SCISSOR_TEST);
+  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, g_sbsFbo);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, g_hwFbo); glBlitFramebuffer(0, 0, g_hwW, g_hwH, 0, 0, g_hwW, g_hwH, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, right); glBlitFramebuffer(0, 0, g_hwW, g_hwH, g_hwW, 0, 2 * g_hwW, g_hwH, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  theatre::PublishFramebuffer(g_sbsFbo, g_sbsW, g_sbsH);
 }
 
 // A light-gun game blanks the screen white for a frame or two on each shot so a real GunCon can see the CRT
@@ -532,7 +581,8 @@ theatre::Config TheatreConfig()
   c.crt = EnvFloat("ACVR_PS1_CRT", 0.f) != 0.f;
   const float aspect = g_av.geometry.aspect_ratio;
   c.aspect = aspect > .1f ? aspect : 4.f / 3.f;
-  c.sideBySide = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f;
+  c.sideBySide = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f || glstereo::StereoOn();
+  c.aimDot = !PadMode() || EnvFloat("ACVR_PAD_AIM_DOT", 0.f) != 0.f;   // pad games show their own crosshair, if any
   if (const char *m = std::getenv("ACVR_PS1_GUN_MODEL")) c.gunModel = m;
   if (const char *m = std::getenv("ACVR_PS1_GUN_META")) c.gunMeta = m;
   return c;
@@ -605,6 +655,8 @@ int main(int argc, char **argv)
   }
 
   if (!LoadCore(g_corePath)) return 3;
+  glstereo::Configure(Log);
+  glstereo::InstallImports(g_core.dll);
   if (g_core.api_version() != RETRO_API_VERSION) { Log("Core API version %u is not supported", g_core.api_version()); return 3; }
   g_core.set_environment(Environment);
   g_core.set_video_refresh(VideoRefresh);
@@ -646,6 +698,7 @@ int main(int argc, char **argv)
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     Log("Core framebuffer %ux%u%s", g_hwMaxW, g_hwMaxH, g_hw.depth ? " with depth" : "");
+    glstereo::SetHostFramebuffer(g_hwFbo, g_hwMaxW, g_hwMaxH, g_hw.depth, g_hw.stencil);
     if (g_hw.context_reset) g_hw.context_reset();
   }
   Log("Timing: %.4f fps, %.0f Hz audio; picture %ux%u, aspect %.4f", g_av.timing.fps, g_av.timing.sample_rate,
@@ -798,17 +851,19 @@ int main(int argc, char **argv)
       if (frames && frame >= frames) break;
     }
     if (g_gun.trigger && !lastTrigger) { ++shots; if (theatreOn) theatre::QueuePulse(); }
+    { static ULONGLONG lastPulse = 0; if (g_rumbleOn && theatreOn && now - lastPulse >= 80) { theatre::QueuePulse(); lastPulse = now; } }
     if (g_gun.trigger) { g_triggerFrame = frame; g_triggerSeen = true; }
     lastTrigger = g_gun.trigger;
 
     g_core.run();
     ++frame;
+    if (g_hwOn) glstereo::EndFrame(frame);
     // Offline runs count the flash frames the headset would skip (same test, nothing is skipped here).
     if (headless && g_hideFlash && g_frameSerial != countedSerial) { countedSerial = g_frameSerial; HideThisFrame(frame); }
 
     if (!headless && g_frameSerial != shownSerial && (g_hwOn ? g_hwW > 0 : !g_frame.empty())) {
       shownSerial = g_frameSerial;
-      if (theatreOn && !HideThisFrame(frame)) { if (g_hwOn) theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); else theatre::Publish(g_frame.data(), g_frameW, g_frameH); }
+      if (theatreOn && !HideThisFrame(frame)) { if (g_hwOn) PublishHardwareFrame(); else theatre::Publish(g_frame.data(), g_frameW, g_frameH); }
     }
     if (now - lastSave > 10000) { SaveSram(false); lastSave = now; }
 
@@ -836,6 +891,7 @@ int main(int argc, char **argv)
   }
   Log("Ran %u frames; gun reads %llu; trigger presses %llu; last picture %ux%u", frame,
       (unsigned long long)g_gunReads, (unsigned long long)shots, g_frameW, g_frameH);
+  if (PadMode()) Log("Rumble started %llu times", (unsigned long long)g_rumbleStarts);
   if (g_hideFlash) Log("Gun flash frames kept out of the headset: %u (longest white run %u frames)%s", g_flashHidden, g_flashLongest,
                       g_flashAudit ? ("; white frames shown with no shot just before: " + std::to_string(g_flashOutside)).c_str() : "");
   timeEndPeriod(1);

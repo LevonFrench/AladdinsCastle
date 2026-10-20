@@ -337,7 +337,7 @@ void ThreadBody()
         EyeScene scene; scene.screen = screen; scene.crt = s_config.crt;
         if (s_config.sideBySide) scene.uw = .5f;
         { std::lock_guard<std::mutex> lock(s_slotMutex); s_inUse = s_front; if (s_front >= 0) { scene.picture = s_slots[s_front].tex; scene.pictureW = s_slots[s_front].w; scene.pictureH = s_slots[s_front].h; } }
-        scene.showDot = in.active && !in.offScreen; scene.dotU = in.u; scene.dotV = in.v;
+        scene.showDot = s_config.aimDot && in.active && !in.offScreen; scene.dotU = in.u; scene.dotV = in.v;
         if (haveGun && s_gun.loaded()) {
           const float since = (GetTickCount64() - kickAt) / 1000.f;
           scene.showGun = true; scene.trigger = triggerValue;

@@ -199,6 +199,88 @@ On Point Blank's piranha stage the water sits about 12 px behind the screen,
 the fish come 4 to 8 px in front, and the score and timer stay on the screen.
 Two faint one-pixel seams remain in some frames. Not yet seen in a headset.
 
+## Nintendo 64 games (mupen64plus-next)
+
+The same program runs Nintendo 64 games through the prebuilt
+`mupen64plus_next_libretro.dll` (GPL-2.0, GLideN64 renderer) with
+`--controls pad|wheel|aim` instead of a light gun: port 1 becomes a pad with
+an analog stick, fed from the VR controllers (`host/PadControls.h`). The
+core's RetroPad layout: B is the N64 A button, Y is B, L2 is Z, L and R are L
+and R, the right analog stick is the C buttons.
+
+| Mode | Right controller | Used for |
+|---|---|---|
+| `wheel` | Rolled like a steering wheel: analog X, linear from a 3 degree dead zone to full lock at `ACVR_PAD_WHEEL_DEG` (75) | Mario Kart 64, F-Zero X |
+| `aim` | While the right grip is held (`ACVR_PAD_AIM_HOLD`, or `always`), where it points on the screen sets the analog stick, with the game's aim button held (`ACVR_PAD_AIM_BUTTON`, N64 R), so the game's own crosshair follows it | GoldenEye 007 |
+| `pad` | Buttons only; the left stick is the analog stick | anything else |
+
+`ACVR_PAD_MAP` maps VR controls to RetroPad buttons, for example
+`rtrig=b,ltrig=rs-down,rgrip=r,lgrip=l2` (F-Zero X: right trigger accelerates,
+left trigger brakes on C-down, the grips lean). VR names: `rtrig ltrig rgrip
+lgrip ra rb lx ly lmenu rclick lclick rup rdown rleft rright`; RetroPad names:
+`b y select start up down left right a x l r l2 r2 l3 r3` and `rs-up rs-down
+rs-left rs-right` (the right stick pushed fully). `ACVR_PAD_AIM` is the aim
+trim `x scale, x shift, y scale, y shift` from the screen point to the stick,
+measured per game against its own crosshair. The game's Rumble Pak
+(`--option mupen64plus-pak1=rumble`) pulses the right controller. Saves
+(EEPROM, SRAM, controller pak) are the core's save memory, kept in the saves
+folder like the PlayStation memory card.
+
+Offline scripts drive a virtual VR controller through the same mapping:
+`roll DEG`, `point U V`, `rtrig V`, `ltrig V`, `rgrip V`, `lgrip V`,
+`lstick X Y`, `rstick X Y`, `vr <control> N`, plus raw `btn <RetroPad name> N`,
+`stick X Y` / `stick off` and `cstick X Y` for menus. `state-save <file>` and
+`state-load <file>` start proofs from a saved moment.
+
+Open frame: the core's `mupen64plus-aspect=16:9 adjusted` widens the 3D
+projection; games whose culling allows it draw real geometry outside the 4:3
+centre (GoldenEye, Mario Kart 64). F-Zero X needs its widescreen code from
+RetroArch's cheat database with `mupen64plus-aspect=16:9`:
+`ACVR_PS1_CHEAT_FILE` also reads RetroArch `.cht` files, where an entry is
+named by its description (`Widescreen`) or `cheatN`.
+
+### 3D without changing the core
+
+`host/GlStereo.cpp` gives a prebuilt OpenGL core real stereo from the outside
+(`ACVR_GL_STEREO=1`). The host already hands the core its OpenGL entry points
+(`get_proc_address`); the OpenGL 1.1 calls the core links directly are
+redirected in the loaded core's import table. Then:
+
+- Every framebuffer the core draws into gets a right-eye twin of the same size
+  and format. Each draw, clear, blit and framebuffer-to-texture copy runs twice:
+  as asked (left eye), then into the twins, with every bound texture that is a
+  render target swapped for its twin. The final copy to the host therefore
+  makes the right eye's picture too; readbacks to the console stay left.
+- GLideN64's triangle vertex shaders get one line appended, the rule of the
+  SwanStation patch: `x += eye * shift * clamp(1 - conv / w, -popout, 1) * w`.
+  Orthographic geometry (w exactly 1: HUD, sprites) and 2D rectangles stay on
+  the screen; 2D drawn into the 3D picture before its first depth-tested draw
+  of the frame (skies, backgrounds) goes to infinity.
+- `shift` is half of `ACVR_PS1_IPD / ACVR_PS1_SCREEN_W` of the picture width,
+  whatever viewport the core uses. `ACVR_GL_STEREO_CONV` sets the `w` on the
+  screen plane (default `auto`: a percentile, `ACVR_GL_STEREO_AUTO`, of a
+  histogram of `w` the shaders count each frame); `ACVR_GL_STEREO_POPOUT` (2)
+  and `ACVR_GL_STEREO_DEPTH` (1) as for SwanStation; `ACVR_GL_STEREO_STATS=1`
+  logs the histogram. The shader cache must be off
+  (`mupen64plus-EnableShadersStorage=False`) so the shaders are compiled from
+  source. Both eyes go to the headset side by side; offline pictures are
+  side by side too.
+
+`ACVR_GL_TRACE=<first frame>,<frames>` (with `ACVR_GL_TRACE_DIR`) logs what a
+core draws and saves its vertex shaders, to study another core.
+
+Results so far (Mupen64Plus-Next 2.8 bc43bce, hidden offline runs): GoldenEye
+007, Mario Kart 64 and F-Zero X boot to gameplay with a scripted pad, react to
+it (identical inputs give identical pictures), steer by roll and accelerate or
+brake on the triggers; GoldenEye's crosshair lands within 0.005 of the screen
+point the controller aims at (13 points inside its aim box, 4:3 and 16:9; one
+16:9 point measured 0.012 where sky hid part of the crosshair). The aim box is
+about the middle 49% of the 16:9 width and 60% of the height; pointing past it
+turns Bond. In 3D, measured
+disparities follow depth: Mario Kart 64 with `CONV` 60 puts the kart just in
+front of the screen, the track behind it and the sky at the eyes' separation,
+the HUD on the screen. Not yet seen in a headset.
+
 ## Next
 
 The owner's headset verdict on stereo comfort and on the diorama; the Justifier
