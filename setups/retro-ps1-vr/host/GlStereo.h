@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Stereo for a prebuilt libretro hardware-OpenGL core, without its source: the host owns the core's OpenGL
+// Stereo, HUD layer and wide view for a prebuilt libretro hardware-OpenGL core, without its source: the host owns the core's OpenGL
 // entry points (get_proc_address, and the core's import table for the OpenGL 1.1 calls it links directly),
 // so it can see and steer what the core draws. See GlStereo.cpp.
 #pragma once
@@ -12,6 +12,12 @@ namespace glstereo {
 void Configure(void (*log)(const char *fmt, ...));
 bool Tracing();
 bool StereoOn();
+// ACVR_GL_HUD=1: the game's 2D overlay goes to its own picture (HudFramebuffer), out of the world pictures.
+bool HudOn();
+// ACVR_GL_WIDE=kx,ky: the 3D projection squeezed by kx, ky (1 = off); the presenter stretches the picture back.
+void WideView(float &x, float &y);
+// True when the squeeze is done here (false: the game draws the wide view itself, ACVR_GL_WIDE_SQUEEZE=0).
+bool WideSqueezed();
 // Patches the core module's imports of opengl32.dll that this module wraps. Call after LoadLibrary.
 void InstallImports(HMODULE core);
 // The proc address the core gets for `sym`: a wrapper where one exists, else the real entry point.
@@ -22,6 +28,9 @@ void SetHostFramebuffer(unsigned fbo, unsigned w, unsigned h, bool depth, bool s
 void EndFrame(unsigned frame);
 // The right eye's picture (same size as the host framebuffer), or 0 when stereo is off.
 unsigned RightFramebuffer();
+// The HUD layer drawn over black (premultiplied colour) or over white (same size as the host framebuffer):
+// alpha = 1 - (white - black). 0 when off.
+unsigned HudFramebuffer(bool overWhite = false);
 // The w now on the screen plane (automatic or set).
 float ZeroPlane();
 }

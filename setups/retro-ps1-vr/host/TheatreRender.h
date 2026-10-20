@@ -363,6 +363,10 @@ struct EyeScene {
   bool showDot = false; float dotU = .5f, dotV = .5f;
   bool crt = false;
   float u0 = 0, uw = 1;   // the part of the picture this eye sees (side-by-side stereo)
+  bool frame = true; float fadeU = 0, fadeV = 0;   // dark frame; edges fading into the dark
+  // The HUD panel: either one picture with alpha (sRGB, premultiplied), or the layer over black and over white
+  // (linear 8-bit values as the game drew them), whose difference gives the alpha.
+  GLuint hud = 0, hudOverWhite = 0; ScreenGeometry hudPanel; float hudOpacity = 1;
 };
 
 class Renderer {
@@ -375,15 +379,25 @@ public:
       "void main(){gl_Position=mvp*vec4(p,1);uv0=t;}",
       // Sharp bilinear: whole texels stay crisp when magnified, edges blend over one screen
       // pixel; minified pictures use the mipmaps. Optional CRT scanlines.
-      "#version 330 core\nin vec2 uv0;uniform sampler2D picture;uniform vec2 size,range;uniform int crt,encode;out vec4 o;"
+      "#version 330 core\nin vec2 uv0;uniform sampler2D picture;uniform vec2 size,range,fade;uniform int crt,encode;out vec4 o;"
       "void main(){vec2 uv=vec2(range.x+uv0.x*range.y,uv0.y);vec2 texel=uv*size;vec2 ppt=1./max(fwidth(texel),vec2(1e-5));vec3 c;"
       "if(min(ppt.x,ppt.y)<1.)c=texture(picture,uv).rgb;else{vec2 k=floor(ppt);vec2 f=fract(texel)-.5;"
       "vec2 r=.5-.5/k;vec2 g=(f-clamp(f,-r,r))*k+.5;c=textureGrad(picture,(floor(texel)+g)/size,dFdx(uv),dFdy(uv)).rgb;}"
       "if(crt!=0){float s=abs(fract(texel.y)-.5)*2.;c*=mix(1.,.62,s*s);}"
+      "if(fade.x>0.)c*=smoothstep(0.,fade.x,uv0.x)*smoothstep(0.,fade.x,1.-uv0.x);"
+      "if(fade.y>0.)c*=smoothstep(0.,fade.y,uv0.y)*smoothstep(0.,fade.y,1.-uv0.y);"
       "o=vec4(encode!=0?pow(c,vec3(1./2.2)):c,1);}");
     m_flatProgram = Program(
       "#version 330 core\nlayout(location=0)in vec3 p;uniform mat4 mvp;void main(){gl_Position=mvp*vec4(p,1);}",
       "#version 330 core\nuniform vec4 base;uniform int encode;out vec4 o;void main(){o=vec4(encode!=0?pow(base.rgb,vec3(1./2.2)):base.rgb,1);}");
+    m_hudProgram = Program(
+      "#version 330 core\nlayout(location=0)in vec3 p;layout(location=1)in vec2 t;uniform mat4 mvp;out vec2 uv0;"
+      "void main(){gl_Position=mvp*vec4(p,1);uv0=t;}",
+      "#version 330 core\nin vec2 uv0;uniform sampler2D hud,white;uniform float opacity;uniform int encode,matte;out vec4 o;"
+      "void main(){vec4 c=texture(hud,uv0);"
+      "if(matte!=0){vec3 w=texture(white,uv0).rgb;c.a=clamp(1.-max(max(w.r-c.r,w.g-c.g),w.b-c.b),0.,1.);if(encode==0)c.rgb=pow(c.rgb,vec3(2.2));}"
+      "else if(encode!=0)c.rgb=pow(c.rgb,vec3(1./2.2));"
+      "o=c*opacity;}");
     tgl::GenVertexArrays(1, &m_screenVao); tgl::GenBuffers(1, &m_screenVbo);
     tgl::GenVertexArrays(1, &m_dotVao); tgl::GenBuffers(1, &m_dotVbo);
     if (m_gun) m_gun->upload();
@@ -392,6 +406,7 @@ public:
   {
     if (m_gun) m_gun->release();
     if (m_screenProgram) tgl::DeleteProgram(m_screenProgram); if (m_flatProgram) tgl::DeleteProgram(m_flatProgram);
+    if (m_hudProgram) tgl::DeleteProgram(m_hudProgram); m_hudProgram = 0;
     tgl::DeleteVertexArrays(1, &m_screenVao); tgl::DeleteBuffers(1, &m_screenVbo);
     tgl::DeleteVertexArrays(1, &m_dotVao); tgl::DeleteBuffers(1, &m_dotVbo);
     m_screenProgram = m_flatProgram = m_screenVao = m_screenVbo = m_dotVao = m_dotVbo = 0;
@@ -407,7 +422,7 @@ public:
     const Mat4 vp = projection * view;
     buildScreen(s.screen);
     // A thin dark frame behind the picture edges.
-    if (m_flatProgram) {
+    if (m_flatProgram && s.frame) {
       ScreenGeometry frame = s.screen; frame.width += .06f; frame.height += .06f; frame.distance += .01f;
       buildScreenInto(frame, m_frameVerts);
       tgl::UseProgram(m_flatProgram);
@@ -424,11 +439,29 @@ public:
       tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_screenProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
       tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "size"), (float)s.pictureW, (float)s.pictureH);
       tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "range"), s.u0, s.uw);
+      tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "fade"), s.fadeU, s.fadeV);
       tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "crt"), s.crt ? 1 : 0);
       tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "encode"), encode ? 1 : 0);
       tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "picture"), 0);
       tgl::ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s.picture);
       drawStrip(m_screenVerts);
+    }
+    if (s.hud && m_hudProgram) {
+      // Premultiplied over the world, no depth written (the gun still goes in front where it is nearer).
+      buildScreenInto(s.hudPanel, m_hudVerts);
+      glEnable(GL_BLEND); glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); glDepthMask(GL_FALSE);
+      tgl::UseProgram(m_hudProgram);
+      const Mat4 mvp = vp * s.hudPanel.frame;
+      tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_hudProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
+      tgl::Uniform1f(tgl::GetUniformLocation(m_hudProgram, "opacity"), s.hudOpacity);
+      tgl::Uniform1i(tgl::GetUniformLocation(m_hudProgram, "encode"), encode ? 1 : 0);
+      tgl::Uniform1i(tgl::GetUniformLocation(m_hudProgram, "hud"), 0);
+      tgl::Uniform1i(tgl::GetUniformLocation(m_hudProgram, "white"), 1);
+      tgl::Uniform1i(tgl::GetUniformLocation(m_hudProgram, "matte"), s.hudOverWhite ? 1 : 0);
+      tgl::ActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, s.hudOverWhite);
+      tgl::ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s.hud);
+      drawStrip(m_hudVerts);
+      glDepthMask(GL_TRUE); glDisable(GL_BLEND);
     }
     if (s.showDot) drawDot(s, vp, encode);
     if (s.showGun && m_gun && m_gun->loaded()) {
@@ -439,8 +472,8 @@ public:
   }
 private:
   Gun *m_gun = nullptr;
-  GLuint m_screenProgram = 0, m_flatProgram = 0, m_screenVao = 0, m_screenVbo = 0, m_dotVao = 0, m_dotVbo = 0;
-  std::vector<float> m_screenVerts, m_frameVerts;
+  GLuint m_screenProgram = 0, m_flatProgram = 0, m_hudProgram = 0, m_screenVao = 0, m_screenVbo = 0, m_dotVao = 0, m_dotVbo = 0;
+  std::vector<float> m_screenVerts, m_frameVerts, m_hudVerts;
   static void buildScreenInto(const ScreenGeometry &g, std::vector<float> &out)
   {
     const int columns = g.curve > 0 ? 64 : 1; out.clear();

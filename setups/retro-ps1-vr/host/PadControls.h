@@ -82,6 +82,10 @@ struct Config {
   float aimTrim[4] = { 1, 0, 1, 0 };              // stick = clamp((offset - shift) * scale), offset = (u - .5) * 2 per axis
   float aimCurve = 1;                             // stick = sign * |stick| ^ curve (measured per game)
   bool rightStickToAnalog = true;                 // right thumbstick to the right analog (N64 C buttons)
+  // Rate-driven aim (the stick moves the game's marker rather than placing it): stick = p * error - d * velocity
+  // + i * integral of the error, per axis, from where the marker is now (Input::curU/curV).
+  // ACVR_PAD_FOLLOW_GAIN = "px,dx,py,dy,ix,iy".
+  float follow[6] = { 6, 40, 6, 40, 0, 0 };
 
   // "rtrig=a,ltrig=b,rgrip=r" ; unknown names are reported in `problems`.
   void parseMap(const std::string &text, std::string &problems)
@@ -110,7 +114,8 @@ struct Config {
     parseMap(e && *e ? e : DefaultMap(mode), problems);
     if ((e = std::getenv("ACVR_PAD_WHEEL_DEG")) && std::atof(e) >= 10) wheelDegrees = (float)std::atof(e);
     if ((e = std::getenv("ACVR_PAD_AIM_HOLD")) && *e) aimHold = e;
-    if ((e = std::getenv("ACVR_PAD_AIM_BUTTON")) && *e) { const int id = RetroButton(e); if (id >= 0) aimButton = id; else problems += std::string(" aim button '") + e + "'"; }
+    if ((e = std::getenv("ACVR_PAD_AIM_BUTTON")) && *e) { const int id = std::string(e) == "none" ? -1 : RetroButton(e); if (id >= 0 || std::string(e) == "none") aimButton = id; else problems += std::string(" aim button '") + e + "'"; }
+    if ((e = std::getenv("ACVR_PAD_FOLLOW_GAIN")) && *e) std::sscanf(e, "%f,%f,%f,%f,%f,%f", &follow[0], &follow[1], &follow[2], &follow[3], &follow[4], &follow[5]);
     if ((e = std::getenv("ACVR_PAD_AIM")) && *e) std::sscanf(e, "%f,%f,%f,%f", &aimTrim[0], &aimTrim[1], &aimTrim[2], &aimTrim[3]);
     if ((e = std::getenv("ACVR_PAD_AIM_CURVE")) && std::atof(e) > .2) aimCurve = (float)std::atof(e);
     return problems;
@@ -161,8 +166,11 @@ inline RetroPad Map(const theatre::Input &in, const Config &c)
     const float steer = in.active ? WheelSteer(in.roll, c) : 0.f;
     p.lx = std::fabs(sx) > std::fabs(steer) ? sx : steer; p.ly = sy;
   } else if (c.mode == "aim" && Aiming(in, c)) {
-    AimStick(in.u, in.v, c, p.lx, p.ly);
-    p.press((unsigned)c.aimButton);
+    if (in.hasCurrent) {   // closed loop on the marker's position
+      p.lx = Clamp1(c.follow[0] * (in.u - in.curU) - c.follow[1] * in.velU + c.follow[4] * in.sumU);
+      p.ly = Clamp1(c.follow[2] * (in.v - in.curV) - c.follow[3] * in.velV + c.follow[5] * in.sumV);
+    } else AimStick(in.u, in.v, c, p.lx, p.ly);
+    if (c.aimButton >= 0) p.press((unsigned)c.aimButton);
     if (std::fabs(sx) > .3f || std::fabs(sy) > .3f) { p.rx = sx; p.ry = sy; }   // walk/strafe on the C buttons while aiming
   } else { p.lx = sx; p.ly = sy; }
   for (const auto &m : c.map) if (VrControl(in, m.first)) p.press((unsigned)m.second);   // buttons (and C directions) last
