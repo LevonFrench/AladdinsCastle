@@ -31,6 +31,11 @@ int main()
  const float r=30*3.14159265f/180; // 60 degrees about the pointing axis (-z)
  const quat clockwise{0,0,-std::sin(r),std::cos(r)}, anticlockwise{0,0,std::sin(r),std::cos(r)};
  assert(std::abs(steer_from_roll(clockwise,60)-1)<1e-4f && std::abs(steer_from_roll(anticlockwise,60)+1)<1e-4f);
+ // Default racing steering is the left stick; roll is opt-in and loses to a pushed stick.
+ assert(choose_steer(-.6f,false,true,clockwise,60)==-.6f && choose_steer(.02f,false,true,clockwise,60)==0);
+ assert(choose_steer(0,false,true,clockwise,60)==0); // roll ignored unless opted in
+ assert(std::abs(choose_steer(0,true,true,clockwise,60)-1)<1e-4f && choose_steer(-.5f,true,true,clockwise,60)==-.5f);
+ assert(choose_steer(0,true,false,clockwise,60)==0 && choose_steer(3,false,false,identity,60)==1);
  // Analog cabinet controls, MAME's reversal honoured; open-frame coordinates back to 4:3.
  assert(model2_input::analog(0,0x20,0xe0,false)==0x20 && model2_input::analog(1,0x20,0xe0,false)==0xe0);
  assert(model2_input::analog(.5f,0x00,0xff,true)==0x80 && model2_input::analog(0,0x00,0xff,true)==0xff);
@@ -41,10 +46,16 @@ int main()
  assert(model2_input::find("hotdo","hotd")->type==model2_input::kind::light_gun);
  assert(model2_input::find("indy500d","indy500")->shifter==model2_input::gears::buttons);
  assert(!model2_input::find("vf2",nullptr));
- // Measured trim: the inverse puts the game's mark on the aim point.
- const auto *gun=model2_input::find("gunblade",nullptr);
- for(float aim:{.15f,.5f,.85f}) assert(std::abs(gun->trim[0]*model2_input::untrim(aim,gun->trim[0],gun->trim[1])+gun->trim[1]-aim)<1e-5f);
- assert(model2_input::find("vcop2",nullptr)->trim[0]==1 && model2_input::find("vcop2",nullptr)->trim[1]==0);
+ // Measured trim: the inverse puts the game's mark on the aim point (two halves may differ).
+ for(const char *name:{"gunblade","rchase2"}) {
+  const auto *gun=model2_input::find(name,nullptr); const float *m=gun->marks;
+  auto mark=[](float in,float a,float h,float b){return in<=.5f?a+(h-a)*in*2:h+(b-h)*(in-.5f)*2;};
+  for(float aim:{.1f,.3f,.5f,.7f,.9f}) {
+   assert(std::abs(mark(model2_input::untrim(aim,m[0],m[1],m[2]),m[0],m[1],m[2])-aim)<1e-5f);
+   assert(std::abs(mark(model2_input::untrim(aim,m[3],m[4],m[5]),m[3],m[4],m[5])-aim)<1e-5f);
+  }
+ }
+ assert(model2_input::find("vcop2",nullptr)->marks[1]==.5f && model2_input::untrim(.3f,0,.5f,1)==.3f);
  assert(model2_input::shift(4,true,false)==4 && model2_input::shift(1,false,true)==1 && model2_input::shift(2,true,false)==3);
  // Proof scripts: settings hold until changed; snap counts.
  const char *path="controller-math-script.txt";
