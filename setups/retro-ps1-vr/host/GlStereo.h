@@ -26,8 +26,9 @@ void SetHostFramebuffer(unsigned fbo, unsigned w, unsigned h, bool depth, bool s
 void EndFrame(unsigned frame);
 // The right eye's picture (same size as the host framebuffer), or 0 when stereo is off.
 unsigned RightFramebuffer();
-// The HUD layer (same size as the host framebuffer, transparent where there is no HUD), or 0 when off.
-unsigned HudFramebuffer();
+// The HUD layer drawn over black (premultiplied colour) or over white (same size as the host framebuffer):
+// alpha = 1 - (white - black). 0 when off.
+unsigned HudFramebuffer(bool overWhite = false);
 // The w now on the screen plane (automatic or set).
 float ZeroPlane();
 }

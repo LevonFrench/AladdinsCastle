@@ -46,8 +46,8 @@ bool Start(Host_Window *owner, const Config &config);
 void Publish(const std::uint32_t *xrgb, unsigned w, unsigned h);
 // The same from a framebuffer of the owner context whose rows are bottom-up (a libretro hardware core).
 void PublishFramebuffer(unsigned fbo, unsigned w, unsigned h);
-// The HUD layer (rows bottom-up, alpha = coverage, colour premultiplied), for the HUD panel.
-void PublishHudFramebuffer(unsigned fbo, unsigned w, unsigned h);
+// The HUD layer drawn over black and over white (rows bottom-up), for the HUD panel: alpha = 1 - (white - black).
+void PublishHudFramebuffer(unsigned overBlack, unsigned overWhite, unsigned w, unsigned h);
 Input ReadInput();          // stale (over 250 ms) input reads as inactive
 void QueuePulse();
 bool Stop();

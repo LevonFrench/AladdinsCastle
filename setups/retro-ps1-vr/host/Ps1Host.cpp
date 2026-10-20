@@ -456,12 +456,19 @@ void EnsureCpuFrame()
     for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x)
       g_frame[(std::size_t)y * g_frameW + e * g_hwW + x] = px[(std::size_t)(g_hwH - 1 - y) * g_hwW + x] & 0xffffffu;
   }
-  // The HUD layer, when on: 0xAARRGGBB, colour premultiplied (drawn over transparent black).
+  // The HUD layer, when on: 0xAARRGGBB, colour premultiplied; alpha from the layer over black and over white.
   if (const unsigned hud = glstereo::HudFramebuffer()) {
     g_hudFrame.resize((std::size_t)g_hwW * g_hwH);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, hud); glPixelStorei(GL_PACK_ALIGNMENT, 4);
-    glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, px.data());
-    for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x) g_hudFrame[(std::size_t)y * g_hwW + x] = px[(std::size_t)(g_hwH - 1 - y) * g_hwW + x];
+    std::vector<std::uint32_t> white(px.size());
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, hud); glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, px.data());
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, glstereo::HudFramebuffer(true)); glReadPixels(0, 0, g_hwW, g_hwH, GL_BGRA, GL_UNSIGNED_BYTE, white.data());
+    for (unsigned y = 0; y < g_hwH; ++y) for (unsigned x = 0; x < g_hwW; ++x) {
+      const std::size_t i = (std::size_t)(g_hwH - 1 - y) * g_hwW + x;
+      const std::uint32_t b = px[i], w = white[i]; int d = 0;
+      for (int sh : { 0, 8, 16 }) d = std::max(d, (int)((w >> sh) & 255) - (int)((b >> sh) & 255));
+      g_hudFrame[(std::size_t)y * g_hwW + x] = ((std::uint32_t)(255 - std::clamp(d, 0, 255)) << 24) | (b & 0xffffffu);
+    }
   }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   g_hwCpuStale = false;
@@ -479,7 +486,7 @@ void PublishHardwareFrame()
 {
   std::optional<KeepGlState> keep;   // pad cores (GLideN64) and stereo; the PS1 light-gun path stays as it was
   if (PadMode() || glstereo::StereoOn() || glstereo::HudOn()) keep.emplace();
-  if (const unsigned hud = glstereo::HudFramebuffer()) theatre::PublishHudFramebuffer(hud, g_hwW, g_hwH);
+  if (const unsigned hud = glstereo::HudFramebuffer()) theatre::PublishHudFramebuffer(hud, glstereo::HudFramebuffer(true), g_hwW, g_hwH);
   const unsigned right = glstereo::RightFramebuffer();
   if (!right) { theatre::PublishFramebuffer(g_hwFbo, g_hwW, g_hwH); return; }
   if (!g_sbsFbo || g_sbsW != g_hwW * 2 || g_sbsH != g_hwH) {

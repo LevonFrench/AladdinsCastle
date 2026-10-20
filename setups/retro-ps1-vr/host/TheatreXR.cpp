@@ -36,7 +36,7 @@ struct Slot { GLuint tex = 0; int w = 0, h = 0; };
 std::mutex s_slotMutex;
 Slot s_slots[3];
 int s_front = -1, s_inUse = -1;
-Slot s_hudSlots[3];   // the HUD layer, the same way
+Slot s_hudSlots[3], s_hudWhiteSlots[3];   // the HUD layer over black and over white, the same way (linear RGBA8)
 int s_hudFront = -1, s_hudInUse = -1;
 
 void EnsureSlot(Slot &slot, unsigned w, unsigned h)
@@ -349,7 +349,7 @@ void ThreadBody()
         scene.frame = s_config.frame; scene.fadeU = s_config.edgeFade; scene.fadeV = s_config.edgeFade * s_config.aspect;
         {
           std::lock_guard<std::mutex> lock(s_slotMutex); s_inUse = s_front; if (s_front >= 0) { scene.picture = s_slots[s_front].tex; scene.pictureW = s_slots[s_front].w; scene.pictureH = s_slots[s_front].h; }
-          s_hudInUse = s_hudFront; if (s_config.hud && s_hudFront >= 0) { scene.hud = s_hudSlots[s_hudFront].tex; scene.hudPanel = HudPanel(screen, s_config); scene.hudOpacity = s_config.hudOpacity; }
+          s_hudInUse = s_hudFront; if (s_config.hud && s_hudFront >= 0) { scene.hud = s_hudSlots[s_hudFront].tex; scene.hudOverWhite = s_hudWhiteSlots[s_hudFront].tex; scene.hudPanel = HudPanel(screen, s_config); scene.hudOpacity = s_config.hudOpacity; }
         }
         scene.showDot = s_config.aimDot && in.active && !in.offScreen; scene.dotU = in.u; scene.dotV = in.v;
         if (haveGun && s_gun.loaded()) {
@@ -475,19 +475,33 @@ void PublishFramebuffer(unsigned fbo, unsigned w, unsigned h)
   std::lock_guard<std::mutex> lock(s_slotMutex); s_front = slot;
 }
 
-void PublishHudFramebuffer(unsigned fbo, unsigned w, unsigned h)
+void EnsureLinearSlot(Slot &slot, unsigned w, unsigned h)
+{
+  if (!slot.tex) glGenTextures(1, &slot.tex);
+  glBindTexture(GL_TEXTURE_2D, slot.tex);
+  if (slot.w != (int)w || slot.h != (int)h) {
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    slot.w = (int)w; slot.h = (int)h;
+  }
+}
+void PublishHudFramebuffer(unsigned overBlack, unsigned overWhite, unsigned w, unsigned h)
 {
   if (!s_started || s_stop || !w || !h) return;
   int slot;
   { std::lock_guard<std::mutex> lock(s_slotMutex); slot = 0; while (slot == s_hudFront || slot == s_hudInUse) ++slot; }
-  EnsureSlot(s_hudSlots[slot], w, h);
   static GLuint target = 0; if (!target) glGenFramebuffers(1, &target);
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target);
-  glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_hudSlots[slot].tex, 0);
   glDisable(GL_SCISSOR_TEST); glDisable(GL_FRAMEBUFFER_SRGB);
-  glBlitFramebuffer(0, 0, w, h, 0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+  for (int i = 0; i < 2; ++i) {
+    Slot &s = i ? s_hudWhiteSlots[slot] : s_hudSlots[slot];
+    EnsureLinearSlot(s, w, h);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, i ? overWhite : overBlack); glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s.tex, 0);
+    glBlitFramebuffer(0, 0, w, h, 0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, s.tex); tgl::GenerateMipmap(GL_TEXTURE_2D);
+  }
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glBindTexture(GL_TEXTURE_2D, s_hudSlots[slot].tex); tgl::GenerateMipmap(GL_TEXTURE_2D);
   glFinish();
   std::lock_guard<std::mutex> lock(s_slotMutex); s_hudFront = slot;
 }
@@ -512,6 +526,7 @@ bool Stop()
   wglMakeCurrent(s_owner->dc, s_ownerContext);
   for (auto &slot : s_slots) { if (slot.tex) glDeleteTextures(1, &slot.tex); slot = {}; }
   for (auto &slot : s_hudSlots) { if (slot.tex) glDeleteTextures(1, &slot.tex); slot = {}; }
+  for (auto &slot : s_hudWhiteSlots) { if (slot.tex) glDeleteTextures(1, &slot.tex); slot = {}; }
   s_front = s_inUse = -1; s_hudFront = s_hudInUse = -1; s_started = false;
   if (s_log) { std::fclose(s_log); s_log = nullptr; }
   return true;

@@ -20,7 +20,7 @@
 //   depth-tested draw of the frame they are a backdrop (sky, background: to infinity, part of the world);
 //   otherwise they are HUD: on the screen plane, or with the HUD layer on, only in the HUD layer.
 // Fragment shaders get a guard that discards HUD fragments from world pictures and world fragments from the HUD
-// layer, and gives HUD fragments a coverage alpha from the core's blending, so the layer composites correctly.
+// layer. The HUD layer is drawn over black and over white, which gives its alpha whatever way the core blends.
 // The shaders also count clip w into a 64-bin log histogram; the zero plane can follow a percentile of it.
 //
 // Trace mode (ACVR_GL_TRACE=<first frame>,<frames>) logs what the core draws in those frames and saves every
@@ -60,10 +60,15 @@ unsigned s_traceFirst = 0, s_traceCount = 0, s_frame = 0;
 std::string s_traceDir;
 bool TraceNow() { return s_trace && s_frame >= s_traceFirst && s_frame < s_traceFirst + s_traceCount; }
 bool Active() { return s_stereo || s_hud || s_wide; }
+float EnvF(const char *n, float d) { const char *v = std::getenv(n); return v && *v ? (float)std::atof(v) : d; }
 
-constexpr int kRight = 1, kHud = 2, kEyes = 3;
+// The HUD layer is drawn twice, over black and over white: whatever way the core blends (GL blending or in its
+// shaders), alpha = 1 - (over white - over black) and the colour over black is premultiplied.
+constexpr int kRight = 1, kHud = 2, kHudWhite = 3, kEyes = 4;
+bool HudEye(int e) { return e == kHud || e == kHudWhite; }
 float s_shift = .0267f, s_conv = -1, s_auto = .3f, s_pop = 2, s_convNow = 0, s_wideX = 1, s_wideY = 1;
 bool s_convAuto = true, s_stats = false;
+bool s_squeeze = true;   // ACVR_GL_WIDE_SQUEEZE=0: the game itself draws the wide view (a widescreen code); only the presenter stretches
 constexpr int kBins = 64, kHistBinding = 13;
 float BinW(int bin) { return std::exp2(bin / 2.f - 8.f); }   // lower edge of a bin: log2(w) = bin/2 - 8
 
@@ -105,7 +110,7 @@ void (WINAPI *r_BlendFunc)(GLenum, GLenum) = nullptr;
   X(PFNGLNAMEDBUFFERDATAPROC, NamedBufferData) X(PFNGLGETNAMEDBUFFERSUBDATAPROC, GetNamedBufferSubData) \
   X(PFNGLCLEARNAMEDBUFFERDATAPROC, ClearNamedBufferData) X(PFNGLBINDBUFFERBASEPROC, BindBufferBase) \
   X(PFNGLCHECKNAMEDFRAMEBUFFERSTATUSPROC, CheckNamedFramebufferStatus) X(PFNGLGETPROGRAMIVPROC, GetProgramiv) \
-  X(PFNGLCLEARNAMEDFRAMEBUFFERFVPROC, ClearNamedFramebufferfv) X(PFNGLBLENDFUNCSEPARATEPROC, BlendFuncSeparate)
+  X(PFNGLCLEARNAMEDFRAMEBUFFERFVPROC, ClearNamedFramebufferfv) X(PFNGLBLENDFUNCSEPARATEPROC, BlendFuncSeparate)   X(PFNGLCLEARTEXIMAGEPROC, ClearTexImage)
 #define X(type, name) type o_##name = nullptr;
 OWN_PROCS(X)
 #undef X
@@ -152,7 +157,7 @@ std::vector<int> Extra()
 {
   std::vector<int> e;
   if (s_stereo) e.push_back(kRight);
-  if (s_hud) e.push_back(kHud);
+  if (s_hud) { e.push_back(kHud); e.push_back(kHudWhite); }
   return e;
 }
 
@@ -175,7 +180,9 @@ GLuint TwinTexture(GLuint tex, int eye)
   if (s.w > 0 && s.h > 0 && s.format) {
     o_CreateTextures(GL_TEXTURE_2D, 1, &t); o_TextureStorage2D(t, 1, (GLenum)s.format, s.w, s.h);
     for (GLenum p : { GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MAG_FILTER, GL_TEXTURE_WRAP_S, GL_TEXTURE_WRAP_T }) { GLint v = 0; o_GetTextureParameteriv(tex, p, &v); o_TextureParameteri(t, p, v); }
-    if (map.size() < 32) s_log("GL layers: %s twin of texture %u: %dx%d format 0x%X", eye == kHud ? "HUD" : "right-eye", tex, s.w, s.h, s.format);
+    // A HUD layer starts empty everywhere, also where the core never clears (borders outside its scissor).
+    if (eye == kHud || eye == kHudWhite) { const float c[4] = { eye == kHudWhite ? 1.f : 0.f, eye == kHudWhite ? 1.f : 0.f, eye == kHudWhite ? 1.f : 0.f, eye == kHudWhite ? 1.f : 0.f }; o_ClearTexImage(t, 0, GL_RGBA, GL_FLOAT, c); }
+    if (map.size() < 32) s_log("GL layers: %s twin of texture %u: %dx%d format 0x%X", HudEye(eye) ? "HUD" : "right-eye", tex, s.w, s.h, s.format);
   } else { ++s_twinFails; s_log("GL layers: texture %u has no size (%dx%d, 0x%X): no twin", tex, s.w, s.h, s.format); }
   map[tex] = t; return t;
 }
@@ -201,7 +208,7 @@ GLuint TwinFramebuffer(GLuint fbo, int eye)
   if (!twin.fbo) o_CreateFramebuffers(1, &twin.fbo);
   bool changed = false;
   for (const auto &a : want) {
-    if (eye == kHud && !ColourPoint(a.first)) continue;
+    if (HudEye(eye) && !ColourPoint(a.first)) continue;
     auto have = twin.attached.find(a.first);
     if (have != twin.attached.end() && have->second.name == a.second.name && have->second.renderbuffer == a.second.renderbuffer && have->second.level == a.second.level) continue;
     if (!a.second.name) o_NamedFramebufferTexture(twin.fbo, a.first, 0, 0);
@@ -262,42 +269,29 @@ void PictureInClip(float &perPictureX, float &centreX, float &centreY)
   centreY = (float)(s.h - 2 * s_vp[1]) / (float)s_vp[3] - 1.f;
 }
 
-// Alpha for HUD fragments, from the core's blending: 1 = opaque, 2 = coverage 1 - fragColor1.a (dual-source
-// "src + dst * src1"), 3 = coverage fragColor1.a ("dst * (1 - src1)"), 4 = keep the fragment's alpha.
-float HudAlphaMode()
-{
-  if (!s_blend) return 1;
-  switch (s_blendDstRgb) {
-  case GL_SRC1_COLOR: case GL_SRC1_ALPHA: return 2;
-  case GL_ONE_MINUS_SRC1_COLOR: case GL_ONE_MINUS_SRC1_ALPHA: return 3;
-  default: return 4;
-  }
-}
-
 // Uniforms for one picture: 0 left eye (or the only one), kRight, kHud.
 void SetPicture(int eye)
 {
   auto it = s_programs.find(s_program); if (it == s_programs.end()) return;
   const Program &p = it->second;
   float perPicture, cx, cy; PictureInClip(perPicture, cx, cy);
-  const float side = !s_stereo || eye == kHud ? 0.f : eye == kRight ? 1.f : -1.f;
+  const float side = !s_stereo || HudEye(eye) ? 0.f : eye == kRight ? 1.f : -1.f;
   const float shift = side * s_shift * perPicture;
   const bool is3D = Is3D(), backdrop = s_backdrop && Backdrop();
   if (p.shift >= 0) o_Uniform1f(p.shift, shift);
-  if (p.conv >= 0) o_Uniform4f(p.conv, s_convNow, s_pop, eye == 0 && s_stereo ? 1.f : 0.f, 0.f);
-  // x: backdrop now, y: split HUD from world in this framebuffer, z: this pass is the HUD layer, w: HUD alpha mode
-  if (p.mode >= 0) o_Uniform4f(p.mode, backdrop ? 1.f : 0.f, s_hud && is3D ? 1.f : 0.f, eye == kHud ? 1.f : 0.f, eye == kHud ? HudAlphaMode() : 0.f);
-  if (p.wide >= 0) o_Uniform2f(p.wide, is3D ? s_wideX : 1.f, is3D ? s_wideY : 1.f);
+  if (p.conv >= 0) o_Uniform4f(p.conv, s_convNow, s_pop, eye == 0 && s_stereo ? 1.f : 0.f, s_depthTest ? 1.f : 0.f);
+  // x: backdrop now, y: split HUD from world in this framebuffer, z: this pass is the HUD layer
+  if (p.mode >= 0) o_Uniform4f(p.mode, backdrop ? 1.f : 0.f, s_hud && is3D ? 1.f : 0.f, HudEye(eye) ? 1.f : 0.f, 0.f);
+  if (p.wide >= 0) o_Uniform2f(p.wide, is3D && s_squeeze ? s_wideX : 1.f, is3D && s_squeeze ? s_wideY : 1.f);
   if (p.centre >= 0) o_Uniform2f(p.centre, cx, cy);
   if (backdrop && eye == 0) ++s_bgDraws;
 }
 
-void ClearHudTwin(GLuint fbo)
+const float kHudClear[2][4] = { { 0, 0, 0, 0 }, { 1, 1, 1, 1 } };
+void ClearHudTwins(GLuint fbo)
 {
-  const GLuint twin = TwinFramebuffer(fbo, kHud); if (!twin) return;
-  const float zero[4] = { 0, 0, 0, 0 };
   if (s_scissor) r_Disable(GL_SCISSOR_TEST);
-  o_ClearNamedFramebufferfv(twin, GL_COLOR, 0, zero);
+  for (int e : { kHud, kHudWhite }) if (const GLuint twin = TwinFramebuffer(fbo, e)) o_ClearNamedFramebufferfv(twin, GL_COLOR, 0, kHudClear[e == kHudWhite]);
   if (s_scissor) r_Enable(GL_SCISSOR_TEST);
 }
 
@@ -306,23 +300,20 @@ template <class F> void Layers(F draw, bool isClear = false, GLbitfield clearMas
 {
   if (!Known(s_drawFbo)) { draw(); return; }
   for (int e : Extra()) TwinFramebuffer(s_drawFbo, e);   // learns sizes, keeps twins in step
-  if (s_hud && Is3D() && !s_hudCleared.count(s_drawFbo)) { ClearHudTwin(s_drawFbo); s_hudCleared.insert(s_drawFbo); }
+  if (s_hud && Is3D() && !s_hudCleared.count(s_drawFbo)) { ClearHudTwins(s_drawFbo); s_hudCleared.insert(s_drawFbo); }
   if (!isClear) SetPicture(0);
   draw();
   for (int e : Extra()) {
-    if (e == kHud && !isClear && Backdrop()) continue;   // backdrops are never HUD
+    if (HudEye(e) && !isClear && Backdrop()) continue;   // backdrops are never HUD
     const GLuint twin = TwinFramebuffer(s_drawFbo, e); if (!twin) continue;
     r_BindFramebuffer(GL_DRAW_FRAMEBUFFER, twin);
     if (isClear) {
-      if (e == kHud) {   // the HUD layer clears to transparent, and has no depth
-        if (clearMask & GL_COLOR_BUFFER_BIT) { const float zero[4] = { 0, 0, 0, 0 }; o_ClearNamedFramebufferfv(twin, GL_COLOR, 0, zero); }
+      if (HudEye(e)) {   // the HUD layers clear to their black or white, and have no depth
+        if (clearMask & GL_COLOR_BUFFER_BIT) o_ClearNamedFramebufferfv(twin, GL_COLOR, 0, kHudClear[e == kHudWhite]);
       } else r_Clear(clearMask);
     } else {
       SwapTextures(e); SetPicture(e);
-      const bool hudBlend = e == kHud && Is3D() && s_blend;
-      if (hudBlend) r_BlendFuncSeparate(s_blendSrcRgb, s_blendDstRgb, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);   // alpha accumulates "over"
       draw();
-      if (hudBlend) r_BlendFuncSeparate(s_blendSrcRgb, s_blendDstRgb, s_blendSrcA, s_blendDstA);
       if (e == kHud && Is3D()) ++s_hudDraws;
       RestoreTextures();
     }
@@ -333,7 +324,7 @@ template <class F> void Layers(F draw, bool isClear = false, GLbitfield clearMas
 // ---- shader patches
 const char *kTriangleTail = R"glsl(
 uniform float acvrShift;   // eye * half the eyes' separation on the screen, in NDC
-uniform vec4 acvrConv;     // w on the screen plane, pop-out limit, 1 when this pass counts w
+uniform vec4 acvrConv;     // w on the screen plane, pop-out limit, 1 when this pass counts w, 1 when depth-tested
 uniform vec4 acvrMode;     // backdrop, split HUD from world, HUD pass, HUD alpha mode
 uniform vec2 acvrWide;     // projection squeeze for the wide view
 uniform vec2 acvrCentre;   // the picture's centre in NDC
@@ -349,7 +340,9 @@ void main()
     vec2 c = acvrCentre * gl_Position.w;
     gl_Position.xy = c + (gl_Position.xy - c) * acvrWide;
     gl_Position.x += acvrShift * clamp(1.0 - acvrConv.x / gl_Position.w, -acvrConv.y, 1.0) * gl_Position.w;
-  } else if (acvrMode.x > 0.5) gl_Position.x += acvrShift * gl_Position.w;   // backdrop: at infinity
+  // Backdrops, at infinity: 2D before the frame's first 3D draw, and screen-space vertices drawn with the depth
+  // test (GoldenEye's sky). Orthographic HUD (w = 1) and later 2D are HUD.
+  } else if (acvrMode.x > 0.5 || (aModify[0] != 0.0 && acvrConv.w > 0.5)) gl_Position.x += acvrShift * gl_Position.w;
   else acvrHud = 1.0;
 }
 )glsl";
@@ -376,8 +369,7 @@ void main()
 {
   if (acvrMode.y > 0.5 && ((acvrHud > 0.5) != (acvrMode.z > 0.5))) discard;
   acvr_fmain();
-  if (acvrMode.y > 0.5 && acvrMode.z > 0.5) {
-    if (acvrMode.w < 1.5) fragColor.a = 1.0;
+}
 )glsl";
 
 bool Desktop(const std::string &src) { return src.find("#version 3") != std::string::npos || src.find("#version 4") != std::string::npos; }
@@ -398,9 +390,6 @@ bool PatchFragmentShader(std::string &src)
   const auto at = src.find("void main()"); if (at == std::string::npos) return false;
   src.replace(at, 11, "void acvr_fmain()");
   src += kFragmentHead;
-  if (src.find("fragColor1") != std::string::npos)
-    src += "    else if (acvrMode.w < 2.5) fragColor.a = 1.0 - fragColor1.a;\n    else if (acvrMode.w < 3.5) fragColor.a = fragColor1.a;\n";
-  src += "  }\n}\n";
   return true;
 }
 
@@ -484,7 +473,7 @@ void WINAPI W_BlitFramebuffer(GLint a, GLint b, GLint c, GLint d, GLint e, GLint
   // Into a known framebuffer: again from the source's twin (or the source itself) into each twin.
   if (Known(s_drawFbo)) {
     for (int eye : Extra()) {
-      const GLbitfield m = eye == kHud ? (mask & GL_COLOR_BUFFER_BIT) : mask; if (!m) continue;
+      const GLbitfield m = HudEye(eye) ? (mask & GL_COLOR_BUFFER_BIT) : mask; if (!m) continue;
       const GLuint dst = TwinFramebuffer(s_drawFbo, eye), src = Known(s_readFbo) ? TwinFramebuffer(s_readFbo, eye) : s_readFbo;
       r_BindFramebuffer(GL_READ_FRAMEBUFFER, src); r_BindFramebuffer(GL_DRAW_FRAMEBUFFER, dst);
       r_BlitFramebuffer(a, b, c, d, e, f, g, h, m, filter);
@@ -517,7 +506,8 @@ void Seen(bool clear)
   if (TraceNow()) {
     if (clear) ++s_tstats.clears[s_drawFbo];
     else {
-      if (s_tstats.draws[s_drawFbo] < 60) {
+      static const unsigned limit = (unsigned)EnvF("ACVR_GL_TRACE_DRAWS", 60);
+      if (s_tstats.draws[s_drawFbo] < limit) {
         auto it = s_programs.find(s_program);
         const char *kind = it == s_programs.end() ? "other" : it->second.wide >= 0 ? "triangles" : "rectangles";
         s_log("[gl]   draw %u into fbo %u: program %u (%s), depth test %s, blend %s (0x%X,0x%X), backdrop %s", s_tstats.draws[s_drawFbo], s_drawFbo, s_program, kind,
@@ -562,7 +552,6 @@ const Entry kProcs[] = { E(ShaderSource), E(CreateShader), E(LinkProgram), E(Use
 const Entry kImports[] = { E(DrawArrays), E(DrawElements), E(Clear), E(Viewport), E(Scissor), E(ReadPixels), E(BindTexture), E(DeleteTextures),
                            E(CopyTexSubImage2D), E(Enable), E(Disable), E(BlendFunc) };
 #undef E
-float EnvF(const char *n, float d) { const char *v = std::getenv(n); return v && *v ? (float)std::atof(v) : d; }
 }  // namespace
 
 void Configure(void (*log)(const char *, ...))
@@ -580,7 +569,9 @@ void Configure(void (*log)(const char *, ...))
   }
   if (s_trace) s_log("GL trace: frames %u to %u", s_traceFirst, s_traceFirst + s_traceCount - 1);
   if (s_hud) s_log("GL HUD layer on: the game's 2D overlay goes to its own picture; the world pictures carry none");
-  if (s_wide) s_log("GL wide view: projection squeezed to %.3f x %.3f about the picture centre (shows %.2fx the width, %.2fx the height)", s_wideX, s_wideY, 1 / s_wideX, 1 / s_wideY);
+  s_squeeze = EnvF("ACVR_GL_WIDE_SQUEEZE", 1) != 0;
+  if (s_wide && !s_squeeze) { s_log("GL wide view: the game draws %.2fx the width, %.2fx the height itself; the presenter stretches it", 1 / s_wideX, 1 / s_wideY); }
+  else if (s_wide) s_log("GL wide view: projection squeezed to %.3f x %.3f about the picture centre (shows %.2fx the width, %.2fx the height)", s_wideX, s_wideY, 1 / s_wideX, 1 / s_wideY);
   s_backdrop = EnvF("ACVR_GL_STEREO_BACKDROP", 1) != 0;
   s_stats = EnvF("ACVR_GL_STEREO_STATS", 0) != 0;
   if (!s_stereo) return;
@@ -704,6 +695,6 @@ void EndFrame(unsigned frame)
 }
 
 unsigned RightFramebuffer() { return s_stereo && s_ownOk && s_hostFbo ? TwinFramebuffer(s_hostFbo, kRight) : 0; }
-unsigned HudFramebuffer() { return s_hud && s_ownOk && s_hostFbo ? TwinFramebuffer(s_hostFbo, kHud) : 0; }
+unsigned HudFramebuffer(bool overWhite) { return s_hud && s_ownOk && s_hostFbo ? TwinFramebuffer(s_hostFbo, overWhite ? kHudWhite : kHud) : 0; }
 float ZeroPlane() { return s_convNow; }
 }  // namespace glstereo
