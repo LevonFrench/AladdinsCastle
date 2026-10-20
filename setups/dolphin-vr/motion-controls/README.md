@@ -97,6 +97,24 @@ button bound to Dolphin's Shake group would have no effect; shaking the right co
 None of the five shipped game INIs set MSAA; the gun launchers had no resolution or AA flags at all
 and now pass the same four `-C` settings as the motion launchers.
 
+### Aim of the games the owner already plays (2026-10-20)
+
+Same method, nine points at ±0.45, measured on each game's own cursor or reticle with the launcher's
+graphics settings; corrections are in each game's button set.
+
+| Game | Cursor used | Before (max error) | Trim (Yaw, Pitch, Offset cm) | After (max error) |
+| --- | --- | --- | --- | --- |
+| Umbrella Chronicles RBUP08 | red reticle, save prompt | 24% (1.62x both axes, 11% high) | 15.8, 11.4, 15 | 1.3% (mark sheet confirms all nine) |
+| Darkside Chronicles SBDP08 | red reticle, save prompt | 24% (1.21x, 1.25x, 18% low) | 20.7, 15.7, 0 | 0.6% |
+| House of the Dead Overkill RHOP8P | grey ring, save prompt | about 14% (1.31x wide, 7% high) | 18.75, 19, 15 | centred at nine points by eye (mark sheet) |
+| Dead Space Extraction RZJE69 | crosshair lines, title | 19% (1.37x, 1.05x, 7.6% high) | 18.2, 19.2, 15 | 0.5% |
+| Sin & Punishment SoS R2VE01 | gecko, keys | 1.32x wide | 18.75, 19.5, 18 | keys hit |
+| Super Mario Galaxy RMGP01 | star of the star pointer | 8.6% (1.32x wide) | 18.9, 19, 11 (set AC Motion Galaxy) | 1.2% |
+| Zelda Twilight Princess RZDP01 | blue reticle, save screen | 24% (1.0x wide, 1.3x+ tall, 22% low) | 25, 13.2, 0 (set AC Motion Zelda) | 1.0% |
+| Wii Sports Resort RZTP01 | fingertip of the hand | 10% (1.31x wide, 9% high) | 19, 19, 16 (set AC Motion Resort) | 0.4% |
+
+Punch-Out!! and Mario Kart Wii (wheel) have no pointer in play and keep Dolphin's defaults.
+
 ## Anti-aliasing and internal resolution in the VR path
 
 - With OpenXR on, `stereo_mode` becomes `OpenXR` and the EFB is a two-layer render target of

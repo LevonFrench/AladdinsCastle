@@ -1,0 +1,43 @@
+# Super Mario Galaxy: A past the strap screen, A + B at the title, then nine aim points on the file select.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+22.0 22.4 R primary 1
+22.0 22.4 R trigger 1
+25.0 25.4 R primary 1
+25.0 25.4 R trigger 1
+shot 10 d10
+shot 13 d13
+shot 16 d16
+shot 19 d19
+shot 22 d22
+shot 25 d25
+shot 28 d28
+30.0 32.0 R u 0
+30.0 32.0 R v 0
+shot 31.5 aim-0_0_0
+32.0 34.0 R u -0.45
+32.0 34.0 R v 0.45
+shot 33.5 aim-1_-0.45_0.45
+34.0 36.0 R u 0
+34.0 36.0 R v 0.45
+shot 35.5 aim-2_0_0.45
+36.0 38.0 R u 0.45
+36.0 38.0 R v 0.45
+shot 37.5 aim-3_0.45_0.45
+38.0 40.0 R u -0.45
+38.0 40.0 R v 0
+shot 39.5 aim-4_-0.45_0
+40.0 42.0 R u 0.45
+40.0 42.0 R v 0
+shot 41.5 aim-5_0.45_0
+42.0 44.0 R u -0.45
+42.0 44.0 R v -0.45
+shot 43.5 aim-6_-0.45_-0.45
+44.0 46.0 R u 0
+44.0 46.0 R v -0.45
+shot 45.5 aim-7_0_-0.45
+46.0 48.0 R u 0.45
+46.0 48.0 R v -0.45
+shot 47.5 aim-8_0.45_-0.45
+48.0 49.0 R u 5

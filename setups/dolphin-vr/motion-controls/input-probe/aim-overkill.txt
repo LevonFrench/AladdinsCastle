@@ -1,0 +1,44 @@
+# House of the Dead Overkill: A through the strap pages, A + B at the title (about 42 s), then nine aim points from 54 s.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+44.0 44.4 R primary 1
+44.0 44.4 R trigger 1
+47.0 47.4 R primary 1
+47.0 47.4 R trigger 1
+50.0 50.4 R primary 1
+50.0 50.4 R trigger 1
+shot 42 d42
+shot 44 d44
+shot 46 d46
+shot 48 d48
+shot 50 d50
+shot 52 d52
+54.0 56.0 R u 0
+54.0 56.0 R v 0
+shot 55.5 aim-0_0_0
+56.0 58.0 R u -0.45
+56.0 58.0 R v 0.45
+shot 57.5 aim-1_-0.45_0.45
+58.0 60.0 R u 0
+58.0 60.0 R v 0.45
+shot 59.5 aim-2_0_0.45
+60.0 62.0 R u 0.45
+60.0 62.0 R v 0.45
+shot 61.5 aim-3_0.45_0.45
+62.0 64.0 R u -0.45
+62.0 64.0 R v 0
+shot 63.5 aim-4_-0.45_0
+64.0 66.0 R u 0.45
+64.0 66.0 R v 0
+shot 65.5 aim-5_0.45_0
+66.0 68.0 R u -0.45
+66.0 68.0 R v -0.45
+shot 67.5 aim-6_-0.45_-0.45
+68.0 70.0 R u 0
+68.0 70.0 R v -0.45
+shot 69.5 aim-7_0_-0.45
+70.0 72.0 R u 0.45
+70.0 72.0 R v -0.45
+shot 71.5 aim-8_0.45_-0.45
+72.0 73.0 R u 5

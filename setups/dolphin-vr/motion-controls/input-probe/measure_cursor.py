@@ -71,6 +71,8 @@ def main():
     ap.add_argument('--color')
     ap.add_argument('--tol', type=int, default=120)
     ap.add_argument('--out')
+    ap.add_argument('--point', default='centroid', choices=['centroid', 'top'],
+                    help='top = fingertip of a hand cursor (topmost changed pixels)')
     args = ap.parse_args()
     shots = []
     for f in glob.glob(os.path.join(args.run, 'aim-*_*_*.png')):
@@ -97,7 +99,12 @@ def main():
             rows.append({'point': i, 'u': u, 'v': v, 'aim': aim, 'cursor': None})
             print(f'{i} u={u:+.2f} v={v:+.2f} aim=({aim[0]:.3f},{aim[1]:.3f}) cursor not found')
             continue
-        cur = (sum(xs) / len(xs) / w, sum(ys) / len(ys) / h)
+        if args.point == 'top':
+            y0 = min(ys)
+            band = [x for x, y in zip(xs, ys) if y <= y0 + 0.012 * h]
+            cur = (sum(band) / len(band) / w, y0 / h)
+        else:
+            cur = (sum(xs) / len(xs) / w, sum(ys) / len(ys) / h)
         err = (cur[0] - aim[0], cur[1] - aim[1])
         worst = max(worst, abs(err[0]), abs(err[1]))
         rows.append({'point': i, 'u': u, 'v': v, 'aim': aim, 'cursor': cur, 'error': err, 'pixels': len(xs)})
