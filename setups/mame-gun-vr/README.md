@@ -144,3 +144,35 @@ Time Crisis at 16:9: 37 gameplay pictures with the sides 93.7-98.0% filled
 (median 97.8%); the accuracy screen gives the same 9-point error (0.0052) as
 at 4:3, and shots into the added sides register nothing. 2D sprites drawn in
 the scene are not repeated in the sides.
+
+## Motion cabinets (Namco System 22: Prop Cycle, Alpine Racer 1 and 2, Cyber Cycles, Aqua Jet, Air Combat 22)
+
+The wire header appends a `motion` block after the picture: named axes the viewer
+fills (steer, throttle, brake, stick x/y, throttle lever, lean, twist, pedal). The
+gun fields keep their offsets, but the viewer and MAME are rebuilt together.
+`MAME_VR_MOTION="PORT:axis[:flags];..."` maps axes onto the game's analog fields
+(flag `h`: 0..1 drives the centre..maximum of a self-centring lever such as Prop
+Cycle's pedal or Air Combat's throttle; `r`: reversed). A field named there is
+never taken as a gun axis. Directions follow MAME's own input for each field.
+
+`GunViewer --motion` (default for these games) uses thumbsticks and triggers:
+left stick x steers, swings the skis and banks the plane; pulling the left stick back
+climbs or leans back; the right stick's x edges the skis; the right trigger is
+throttle and pedalling; the left trigger is the brake and the throttle lever.
+Roll and tilt steering are off by default. `--body` is the opt-in body-motion
+mode: the controllers' mean roll steers and edges, their heading against the head
+swings the skis, the right controller's roll and pitch are the flight stick, and
+moving the hands up and down in turn pedals. `motion_test.cpp` checks both
+mappings with scripted controller poses. The shared presenter's theatre mode
+now also reports the left grip pose, the left trigger, the right squeeze value
+and both thumbsticks (`theatre_test.cpp` covers them).
+
+The proof scripts (`axis <name> <value>`) drive each input from a fixed frame.
+For each game, a no-input run repeated twice gives identical pictures, and every
+input differs from the no-input run in 11 of 13 pictures. Directions seen in the
+pictures: Cyber Cycles banks right and slows on brake or throttle-off; Air Combat
+banks right, climbs with the stick pulled back (its own tutorial then says "push
+the stick forward to descend") and lights the afterburner on full throttle; Prop
+Cycle banks right and climbs with the handlebar pulled. Alpine Racer's swing/edge
+and Aqua Jet's steer/lean directions are not yet confirmed by eye.
+All six run at 16:9 open frame (gameplay side fill, median 75-97%).
