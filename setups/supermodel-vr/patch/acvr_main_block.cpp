@@ -34,6 +34,8 @@
    ACVR_HUD_MATCH=0|1     head-tracked: HUD panel over the arcade view exactly (default: on for analog-stick games)
    ACVR_LASER=0           head-tracked pointing games: no laser and aim dot from the right controller
    ACVR_STICK_MODEL=1     with ACVR_STICK_GRAB and ACVR_CONTROLS: draw the cabinet's flight stick (off by default)
+   ACVR_WHEEL_GRAB=0|1    driving games: steer by holding both grips and turning the hands like a wheel. Default: on
+                          only with ACVR_CONTROLS=1 (the wheel is drawn); otherwise the left thumbstick steers
    ACVR_FAKE_CONTROLLERS=<first>-<last>:<control>:<value>;...  made-up VR controllers for unattended checks, used
                           only while no real ones are read. Controls: trigger.l trigger.r grip.l grip.r a b x y menu
                           stick.lx stick.ly stick.rx stick.ry click.l click.r; wheel (degrees, both hands on a
@@ -386,7 +388,7 @@ static bool ACVR_FakeControllers(ACVRControllers &c)
 // kind of cabinet. Only writes an input while its controller control is in use, so the keyboard and gamepad
 // keep working.
 //
-//   Driving     hold both grips and turn your hands like a wheel (or left thumbstick); right trigger =
+//   Driving     left thumbstick steers (with ACVR_WHEEL_GRAB: hold both grips and turn your hands like a wheel); right trigger =
 //               accelerator, left trigger = brake; right thumbstick up/down = shift up/down;
 //               A = start, B = coin, X = view change / VR1, Y = VR2 / hand brake, stick clicks = VR3 / VR4
 //   Pointing    (analog joystick, Star Wars Trilogy) where the right controller points = the stick;
@@ -467,11 +469,18 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
     if (c.trigger[1] > 0.02f) set("Accelerator", (int)(clampf(c.trigger[1], 0.0f, 1.0f) * 255.0f));
     if (c.trigger[0] > 0.02f) set("Brake", (int)(clampf(c.trigger[0], 0.0f, 1.0f) * 255.0f));
 
-    // Steering: both grips held = hands on the wheel. The wheel angle is the tilt of the line from the left
-    // hand to the right hand, seen from the driver's seat. 80 degrees of hand turn is full lock.
+    // Steering: the left thumbstick. Two-handed wheel (ACVR_WHEEL_GRAB=1; on by default only where the cabinet's
+    // wheel is drawn, ACVR_CONTROLS=1): both grips held = hands on the wheel, and the wheel angle is the tilt of
+    // the line from the left hand to the right hand, seen from the driver's seat; 80 degrees is full lock.
+    static int wheelGrab = -1;
+    if (wheelGrab < 0)
+    {
+      const char *g = getenv("ACVR_WHEEL_GRAB"), *ctl = getenv("ACVR_CONTROLS");
+      wheelGrab = (g && *g) ? (g[0] == '1') : (ctl && ctl[0] == '1');
+    }
     bool steering = false;
     float steer = 0.0f;
-    if (c.grip[0] > 0.5f && c.grip[1] > 0.5f && c.gripValid[0] && c.gripValid[1])
+    if (wheelGrab && c.grip[0] > 0.5f && c.grip[1] > 0.5f && c.gripValid[0] && c.gripValid[1])
     {
       const float dx = c.gripPos[1][0] - c.gripPos[0][0];
       const float dy = c.gripPos[1][1] - c.gripPos[0][1];
