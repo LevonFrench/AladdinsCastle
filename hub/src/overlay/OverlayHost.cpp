@@ -71,6 +71,13 @@ void OverlayHost::handleRuntimeEvent(const vr::VREvent_t &event) {
     if (event.eventType == vr::VREvent_OverlayHidden) m_keyboard.close(false, true);
     if (m_input.dispatch(event, m_renderer->window())) m_gate.markDirty();
 }
+void OverlayHost::handleButtons(const HubButtons &buttons,bool panelVisible,qint64 nowMs) {
+    if (m_closeHold.update(buttons.closeHeld && m_gestureActive, nowMs)) emit closeGameRequested();
+    // One press, one step back; a button held down never repeats, and one held while the panel
+    // opens is not a new press. Hidden, the panel takes no B.
+    const bool back = m_backPress.update(buttons.backDown);
+    if (back && panelVisible) { emit backRequested(); m_gate.markDirty(); }
+}
 void OverlayHost::tick() {
     const bool visible = m_runtime->isVisible();
     const bool initialFrame=m_gate.initialFramePending();
@@ -85,7 +92,7 @@ void OverlayHost::tick() {
     for (int count = 0; count < 256 && m_runtime->pollEvent(&event); ++count) {
         handleRuntimeEvent(event); if (m_quitSeen) return;
     }
-    if (m_closeHold.update(m_runtime->closeGameHeld(m_gestureActive) && m_gestureActive, m_clock.elapsed())) emit closeGameRequested();
+    handleButtons(m_runtime->pollButtons(m_gestureActive, visible), visible, m_clock.elapsed());
     m_timer.setInterval(visible ? 16 : 50);
     if (!visible) { m_input.releaseButtons(m_renderer->window()); m_keyboard.close(false, true); }
     if (!m_gate.shouldRender(visible, m_clock.elapsed())) return;

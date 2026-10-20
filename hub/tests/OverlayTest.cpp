@@ -330,6 +330,38 @@ private slots:
         // A runtime without SteamVR input never reports the button.
         RuntimeReceipt receipt;FakeRuntime runtime(receipt);QVERIFY(!runtime.closeGameHeld(true));
     }
+    // B on the controller: one step back per press, never repeated while held, never while the panel is hidden.
+    void backButtonOncePerPressWhilePanelShown() {
+        ac::PressEdge edge;
+        QVERIFY(edge.update(true));QVERIFY(!edge.update(true));QVERIFY(!edge.update(false));QVERIFY(edge.update(true));
+        ac::SpikeState state;RuntimeReceipt receipt;ac::OverlayHost host(state,std::make_unique<FakeRuntime>(receipt));
+        QSignalSpy back(&host,&ac::OverlayHost::backRequested),close(&host,&ac::OverlayHost::closeGameRequested);
+        const ac::HubButtons up{false,false},down{false,true};
+        host.handleButtons(down,true,0);QCOMPARE(back.size(),1);
+        // Held for many frames: still one.
+        for(int frame=1;frame<120;++frame)host.handleButtons(down,true,frame*16);
+        QCOMPARE(back.size(),1);
+        // Spammed: one per press, however fast.
+        for(int press=0;press<10;++press){host.handleButtons(up,true,2000+press*32);host.handleButtons(down,true,2016+press*32);}
+        QCOMPARE(back.size(),11);
+        // Hidden: nothing, and a press held while the panel opens is not a new press.
+        host.handleButtons(up,false,3000);host.handleButtons(down,false,3016);QCOMPARE(back.size(),11);
+        host.handleButtons(down,true,3032);QCOMPARE(back.size(),11);
+        host.handleButtons(up,true,3048);host.handleButtons(down,true,3064);QCOMPARE(back.size(),12);
+        // B never closes the game, and the close hold still needs its own button and three seconds.
+        QCOMPARE(close.size(),0);host.setCloseGesture(true);
+        host.handleButtons({true,false},true,4000);host.handleButtons({true,false},true,7000);QCOMPARE(close.size(),1);QCOMPARE(back.size(),12);
+        // A runtime without SteamVR input reports neither button.
+        FakeRuntime runtime(receipt);const auto none=runtime.pollButtons(true,true);QVERIFY(!none.closeHeld);QVERIFY(!none.backDown);
+        // The shipped action manifest names B, and each controller binds it to the right hand's B, apart from the close button.
+        const auto resources=QCoreApplication::applicationDirPath()+"/resources/";
+        if(!QFileInfo::exists(resources+"hub-actions.json"))QSKIP("Runtime resources are not beside this test binary.");
+        const auto read=[&](const QString &name){QFile file(resources+name);return file.open(QIODevice::ReadOnly)?QString::fromUtf8(file.readAll()):QString();};
+        QVERIFY(read("hub-actions.json").contains("/actions/hub/in/back"));
+        for(const auto &name:{"hub-bindings-knuckles.json","hub-bindings-oculus_touch.json"}){
+            const auto text=read(name);QVERIFY2(text.contains("/user/hand/right/input/b"),name);QVERIFY2(text.contains("/actions/hub/in/back"),name);QVERIFY2(text.contains("/actions/hub/in/close_game"),name);
+        }
+    }
     void quitAcknowledgedOnceBeforeExitSignal() {
         ac::SpikeState state; RuntimeReceipt receipt;
         ac::OverlayHost host(state, std::make_unique<FakeRuntime>(receipt));

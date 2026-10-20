@@ -148,8 +148,9 @@ public:
     }
     void hideKeyboard() override { if (m_initialized) vr::VROverlay()->HideKeyboard(); }
     void acknowledgeQuit() override { if (m_system) m_system->AcknowledgeQuit_Exiting(); }
-    bool closeGameHeld(bool active) override {
-        if (!m_initialized || !vr::VRInput()) return false;
+    bool closeGameHeld(bool active) override { return pollButtons(active,false).closeHeld; }
+    HubButtons pollButtons(bool closeActive,bool panelActive) override {
+        if (!m_initialized || !vr::VRInput()) return {};
         if (!m_actionsTried) {
             m_actionsTried = true;
             const auto manifest = QDir::toNativeSeparators(QCoreApplication::applicationDirPath() + "/resources/hub-actions.json");
@@ -157,19 +158,29 @@ public:
                 && vr::VRInput()->SetActionManifestPath(manifest.toUtf8().constData()) == vr::VRInputError_None
                 && vr::VRInput()->GetActionSetHandle("/actions/hub", &m_actionSet) == vr::VRInputError_None
                 && vr::VRInput()->GetActionHandle("/actions/hub/in/close_game", &m_closeGame) == vr::VRInputError_None;
+            // Back is optional: an older manifest without it still gives the close button.
+            if (m_actionsReady && vr::VRInput()->GetActionHandle("/actions/hub/in/back", &m_back) != vr::VRInputError_None)
+                m_back = vr::k_ulInvalidActionHandle;
         }
-        if (!m_actionsReady) return false;
-        if (!active) {
-            // Give the button back to the game.
+        if (!m_actionsReady) return {};
+        if (!closeActive && !panelActive) {
+            // Give the buttons back to the game.
             if (m_actionsActive) { vr::VRActiveActionSet_t none{}; vr::VRInput()->UpdateActionState(&none, sizeof none, 0); m_actionsActive = false; }
-            return false;
+            return {};
         }
         vr::VRActiveActionSet_t set{};set.ulActionSet = m_actionSet;set.nPriority = vr::k_nActionSetOverlayGlobalPriorityMin;
-        if (vr::VRInput()->UpdateActionState(&set, sizeof set, 1) != vr::VRInputError_None) return false;
+        if (vr::VRInput()->UpdateActionState(&set, sizeof set, 1) != vr::VRInputError_None) return {};
         m_actionsActive = true;
-        vr::InputDigitalActionData_t data{};
-        if (vr::VRInput()->GetDigitalActionData(m_closeGame, &data, sizeof data, vr::k_ulInvalidInputValueHandle) != vr::VRInputError_None) return false;
-        return data.bActive && data.bState;
+        const auto down = [](vr::VRActionHandle_t action) {
+            if (action == vr::k_ulInvalidActionHandle) return false;
+            vr::InputDigitalActionData_t data{};
+            if (vr::VRInput()->GetDigitalActionData(action, &data, sizeof data, vr::k_ulInvalidInputValueHandle) != vr::VRInputError_None) return false;
+            return data.bActive && data.bState;
+        };
+        HubButtons buttons;
+        buttons.closeHeld = closeActive && down(m_closeGame);
+        buttons.backDown = panelActive && down(m_back);
+        return buttons;
     }
     void shutdown() override {
         m_submitGate.reset();
@@ -192,6 +203,7 @@ private:
     bool m_actionsTried = false, m_actionsReady = false, m_actionsActive = false;
     vr::VRActionSetHandle_t m_actionSet = vr::k_ulInvalidActionSetHandle;
     vr::VRActionHandle_t m_closeGame = vr::k_ulInvalidActionHandle;
+    vr::VRActionHandle_t m_back = vr::k_ulInvalidActionHandle;
 };
 }
 std::unique_ptr<OverlayRuntime> makeOpenVrRuntime(bool pictureFlipY) { return std::make_unique<OpenVrRuntime>(pictureFlipY); }

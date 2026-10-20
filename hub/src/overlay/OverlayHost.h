@@ -28,10 +28,14 @@ public:
     void setCloseGesture(bool active){m_gestureActive=active;}
     // Public input boundary: tests inject synthetic events through the same path.
     void handleRuntimeEvent(const vr::VREvent_t &event);
+    // Public button boundary: tests feed the per-frame button state through the same path as tick().
+    void handleButtons(const HubButtons &buttons,bool panelVisible,qint64 nowMs);
     void shutdown();
 signals:
     void quitRequested();
     void closeGameRequested();
+    // The controller's B button, pressed once while the panel is shown: the page goes back one level.
+    void backRequested();
     void failed(const QString &error);
 private:
     void tick();
@@ -50,6 +54,7 @@ private:
     bool m_running = false;
     bool m_gestureActive = false;
     HoldGesture m_closeHold;
+    PressEdge m_backPress;
     QTimer m_timer;
     QElapsedTimer m_clock;
     qint64 m_reportTime = 0;
