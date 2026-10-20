@@ -1140,7 +1140,7 @@ class UiTest:public QObject {
   QMetaObject::invokeMethod(root,"closeMenus");
   if(auto loader=window->findChild<QObject *>("model3Loader"))loader->setProperty("keep",false);
   root->setProperty("overlayPresentation",false);root->setProperty("vrOverlayMode",false);root->setProperty("history",QVariantList{});root->setProperty("view","List");
-  if(!desktopSize.isEmpty())window->resize(desktopSize);desktopSize={};QTest::qWait(50);
+  if(!desktopSize.isEmpty()){window->resize(desktopSize);}desktopSize={};QTest::qWait(50);
  }
  void sendWheel(QPointF at,int dy){QWheelEvent event(at,window->mapToGlobal(at),{},QPoint(0,dy),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);QCoreApplication::sendEvent(window,&event);}
  private slots:
@@ -1191,7 +1191,9 @@ class UiTest:public QObject {
   const auto cleanup=qScopeGuard([&]{leavePanel();});
   auto panel=enterPanel(syntheticPanelRows(30));QVERIFY(panel);
   const auto centre=[](QQuickItem *item){return item->mapToScene(QPointF(item->width()/2,item->height()/2)).toPoint();};
-  const auto click=[&](QQuickItem *item){QVERIFY(item);QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(item));};
+  // The double-click guard drops presses for a moment after each page change; a slow PC can stretch a fixed wait
+  // past it or short of it, so a click waits until the guard's time has passed.
+  const auto click=[&](QQuickItem *item){QVERIFY(item);QVERIFY(QTest::qWaitFor([&]{return QDateTime::currentMSecsSinceEpoch()>=root->property("clickGuardUntil").toDouble();},3000));QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(item));};
   const auto steps=[&]{return root->property("backSteps").toInt();};
   const auto b=[&]{emit overlayProbe.backRequested();};
   // At the top: nothing happens and the Hub stays.
@@ -1279,7 +1281,7 @@ class UiTest:public QObject {
   QMap<QString,int> taken;
   for(const auto &record:games->records()){
    const auto hw=record.roles.value("hardwareId").toString();const auto system=systems.value(hw);
-   if(system.isEmpty()||taken[system]>=6)continue;++taken[system];
+   if(system.isEmpty()||taken[system]>=6){continue;}++taken[system];
    rows<<QVariantMap{{"id",system+"-"+record.id},{"system",system},{"title",record.roles.value("title")},{"year",record.roles.value("year")},{"problem",QString()},{"warning",QString()},{"found",true},{"view","screen"},
     {"views",QVariantList{QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}},QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset, with your controller as the gun."}}}}};
   }

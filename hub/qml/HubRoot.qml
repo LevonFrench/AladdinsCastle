@@ -42,7 +42,11 @@ FocusScope {
  property int backSteps:0
  readonly property int backQuietMs:250
  // The click guard is for the SteamVR panel's trigger; the desktop mouse is left alone.
- function pageChanged(){lastPageChange=Date.now();if(overlayPresentation)clickGuardTimer.restart()}
+ // Presses on the panel before this time land nowhere. A clock, not a Timer: the panel draws only when something
+ // changes, and a QML Timer can stall with it, which would keep the guard up and eat the next real click.
+ property real clickGuardUntil:0
+ readonly property int clickGuardMs:300
+ function pageChanged(){lastPageChange=Date.now();if(overlayPresentation)clickGuardUntil=lastPageChange+clickGuardMs}
  onViewChanged:pageChanged()
  // The kept panel library belongs to the panel look only.
  onVrOverlayModeChanged:model3Loader.keep=false
@@ -169,9 +173,11 @@ FocusScope {
  Connections{target:uiSettings;function onChanged(){root.previewGame=root.previewGame}}
  // Diagnostics may open one menu at start, for pictures taken by the Hub itself.
  Timer{interval:300;running:typeof startMenu!=="undefined"&&startMenu.length>0;onTriggered:{if(startMenu==="help")help.open();else if(startMenu==="sort")sort.open();else if(startMenu==="filters")filters.open()}}
- Timer {id:clickGuardTimer;interval:300}
- // Over everything but the menus while it runs: presses land here and go nowhere; hover and the stick pass.
- MouseArea {objectName:"clickGuard";anchors.fill:parent;z:9000;enabled:clickGuardTimer.running;acceptedButtons:Qt.AllButtons;onWheel:wheel=>{wheel.accepted=false}}
+ // Over everything but the menus: a press just after a page change lands here and goes nowhere; any other press,
+ // hover and the stick pass through.
+ MouseArea {objectName:"clickGuard";anchors.fill:parent;z:9000;enabled:root.overlayPresentation;acceptedButtons:Qt.AllButtons
+  onPressed:mouse=>{mouse.accepted=Date.now()<root.clickGuardUntil}
+  onWheel:wheel=>{wheel.accepted=false}}
  Component.onCompleted:{if(root.vrOverlayMode&&root.view==="List"&&!root.startAt.length)root.view="Model3"
   if(root.showAll&&(uiSettings.values,uiSettings.get("scanOnStartup",false))&&(uiSettings.values,uiSettings.get("scanRoots","")).length)uiController.startScan((uiSettings.values,uiSettings.get("scanRoots","")).split(/\n|;/))}
 }
