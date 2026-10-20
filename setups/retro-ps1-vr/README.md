@@ -138,6 +138,112 @@ played this way in a hidden run with MAME 0.285: coin, course chosen by
 shooting, targets knocked down. Point Blank (`ptblank`) needs files the
 current MAME set expects (the C75 sound BIOS and a newer sprite ROM).
 
+## Sega Saturn gun games (Beetle Saturn)
+
+The same program runs Saturn light-gun games through the Beetle Saturn core
+(`mednafen_saturn_libretro.dll`, GPL-2.0) with `--gun stunner`: the gun port
+gets the core's Stunner device (the US name of Sega's Virtua Gun; the core
+treats both the same). The BIOS folder holds your own `mpr-17933.bin`
+(US/Europe) and `sega_101.bin` (Japan). In offline runs the core draws its
+crosshair (`beetle_saturn_virtuagun_crosshair`); in the headset it is off.
+Pulling the trigger while pointing off the screen is the Stunner's
+off-screen shot, which these games use to reload. Right A is the gun's
+Start button.
+
+Each game has its own gun calibration screen (Options, Gun Adjust or
+Calibrate Gun), and before calibration both Virtua Cops register a shot
+above the aimed point (Virtua Cop: 13% of the picture height; Virtua Cop 2:
+10%, and 9% of the width to the right), so the bottom edge (and for
+Virtua Cop 2 the left edge) cannot be reached. Calibrating once by
+shooting the drawn centre of the target puts every shot within 0.004 of the picture of the aimed point, measured with the
+game's own bullet holes on its shoot-test screen; no aim trim is needed.
+Virtua Cop saves its calibration in backup memory, so its launcher brings a
+first save with the calibration done (never replacing an existing save).
+
+The House of the Dead moves its sight towards the gun in steps, and the sight stops up to about 8 pixels
+short when the gun comes from the right or from above, wherever the
+calibration is. The launcher therefore sets an aim trim of half that step
+(`ACVR_PS1_AIM=1,-0.0114,1,0.0156`), which leaves at most 0.012 of the width
+and 0.02 of the height in either direction instead of 0.023 and 0.034 in
+one. Its shot flash whitens the scene rather than painting it white, so
+`ACVR_PS1_FLASH_SHARE=60` (the share of bright samples that makes a flash,
+default 85) keeps all of them out of the headset. The disc named USA in our
+set is the European release (50 Hz, refused by a US console), so the
+launcher uses the Japanese disc, whose menus are in English. Like Virtua
+Cop it keeps its calibration in backup memory.
+
+Area 51 (Configure 1P, Calibrate) has the same kind of sight steps (up to
+0.025 of the picture short from one side); its launcher trim is
+`ACVR_PS1_AIM=1,-0.0125,1,0.0055`, leaving at most 0.021. Its shot flash
+is a blue frame, so `ACVR_PS1_FLASH_CHANNELS=b` (the colour channels that
+must be bright; default `rgb`, white) keeps those out of the headset.
+
+`--state <file>` starts from a saved moment. Virtua Cop 2, Area 51 and
+Hakaider keep a gun calibration that they did not restore from their saves after a restart in
+our runs, so their launchers start from the title or main menu just after
+the game's own calibration.
+
+Mechanical Violator Hakaider (Japan) calibrates in Option, Gun Adjust
+(the left trigger opens it): the first shot at the drawn centre
+calibrates, later shots leave holes, which landed within 0.005 of the aimed
+points. Its launcher starts at the main menu just after that calibration.
+Its menus take the gun trigger as confirm and the pad to move.
+
+The Saturn draws its 3D as flat distorted sprites: the game's own code
+projects every polygon, and VDP1 receives four 2D screen corners per quad
+with no depth. Beetle Saturn, Kronos and YabaSanshiro all draw from those
+corners; the only depth in the Kronos and YabaSanshiro OpenGL renderers is
+the VDP2 layer priority (0 to 7), and YabaSanshiro's perspective-corrected
+polygon mode derives its correction from the quad's shape. With no depth
+buffer, a game paints far to near, so draw order is the only depth cue left
+(as for the PlayStation diorama); see the experiment below. Only Beetle Saturn has the Stunner, and none of the
+three cores has a widescreen mode, so there is no open frame either: these
+games play on the theatre screen.
+
+### Depth from draw order (experiment, off by default)
+
+`beetle-saturn-depth.patch` (against the Beetle Saturn commit in
+`beetle-saturn-pin.json`, GPL-2.0 like the core) tries to recover depth the
+way the PlayStation diorama does. With `ACVR_SAT_STEREO=1`:
+
+- Every VDP1 drawing command gets a number in the order it is drawn, and
+  every pixel it draws keeps that number in a side buffer beside the VDP1
+  framebuffer. Normal and scaled sprites (HUD, text) stay on the screen
+  plane; a command covering 40% of the screen is a backdrop, far away; the
+  others (distorted sprites, polygons, lines) go from far (drawn first) to
+  `ACVR_SAT_STEREO_POPOUT` (0.3) in front of the screen (drawn last), by their
+  rank among the frame's 3D commands (`ACVR_SAT_STEREO_DEPTH=size` uses their
+  screen size instead).
+- VDP2 records which layer won each output pixel. A VDP2 layer over a sprite
+  pixel (HUD) sits on the screen plane; one with no sprite under it is far at
+  the top of the picture and comes to `ACVR_SAT_STEREO_FLOOR` (0.15) at the
+  bottom, for floors drawn as a rotating background.
+- The core outputs both eyes side by side (`ACVR_PS1_SBS=1` in `acvr-ps1`):
+  the left eye exactly as the game drew it, so the light gun maps to it
+  unchanged, and the right eye with each pixel moved by its depth (the eyes'
+  separation on the theatre screen at infinity); holes take the farther
+  neighbour. `ACVR_SAT_STEREO_DEBUG=1` shows the depth map as the right eye.
+
+Results (hidden offline runs): the gun is unchanged (Virtua Cop's
+calibrated shots in the left eye within 0.002 of the aimed points, as
+without the patch). In Virtua Cop the layering reads correctly most of the
+time (sky and hills far, the floor ramping towards you, buildings in
+between, enemies near, the HUD on the screen), but one object can get
+several depths, the last polygons drawn always come out in front even when
+they are a parked car in the middle distance, and edges show stretched
+pixels. In The House of the Dead the draw order does not follow depth
+across the frame (floors and walls are drawn late and come out in front of
+the zombies standing on them), so large areas get the wrong depth. Not good enough to use; the launchers keep the theatre screen.
+
+Results so far (Beetle Saturn 1.29.0 b4df47a, hidden offline runs):
+Virtua Cop, Virtua Cop 2, The House of the Dead, Area 51 and Hakaider
+play from the title into their first stage with the gun only; the same
+run with and without trigger pulls gives different pictures (enemies hit and
+points scored only with shots)
+while two runs without shots are identical, the off-screen shot reloads, and
+their flash per shot (one white frame; two in The House of the Dead; one
+blue frame in Area 51) is kept out of the headset.
+
 ## Real 3D: the SwanStation stereo patch
 
 The PlayStation does its 3D maths on the CPU, so its graphics chip only ever
@@ -210,7 +316,7 @@ and R, the right analog stick is the C buttons.
 
 | Mode | Right controller | Used for |
 |---|---|---|
-| `wheel` | Rolled like a steering wheel: analog X, linear from a 3 degree dead zone to full lock at `ACVR_PAD_WHEEL_DEG` (75) | Mario Kart 64, F-Zero X |
+| `wheel` | Racing: the left stick steers, the triggers are gas and brake (per the map). Rolled like a steering wheel it also steers only with `ACVR_N64_ROLL_STEER=1` (off by default, the owner's choice): analog X, linear from a 3 degree dead zone to full lock at `ACVR_PAD_WHEEL_DEG` (75) | Mario Kart 64, F-Zero X and the other racers |
 | `aim` | While the right grip is held (`ACVR_PAD_AIM_HOLD`, or `always`), where it points on the screen sets the analog stick, with the game's aim button held (`ACVR_PAD_AIM_BUTTON`, N64 R), so the game's own crosshair follows it | GoldenEye 007 |
 | `pad` | Buttons only; the left stick is the analog stick | anything else |
 
@@ -266,12 +372,69 @@ redirected in the loaded core's import table. Then:
   source. Both eyes go to the headset side by side; offline pictures are
   side by side too.
 
+### HUD on its own panel, and a world wider than the screen
+
+`ACVR_GL_HUD=1` splits the game's 2D overlay from its 3D world, the first of
+the three things in `docs/3d-mode-target.md`. The same twin mechanism makes a
+third picture, the HUD layer: in the framebuffer that holds the game's 3D
+picture, every vertex is classed as world (perspective) or 2D; 2D drawn before
+the frame's first depth-tested 3D draw is a backdrop (sky, part of the world),
+later 2D is HUD. Fragment shaders get a guard that drops HUD fragments from the
+world pictures and world fragments from the HUD layer, and gives HUD fragments
+an alpha from the core's own blending (GLideN64 blends with dual-source
+factors), so the layer is premultiplied colour over transparent black. The
+theatre shows it on a flat panel fixed in the room with the screen, nearer and
+a little lower: `ACVR_HUD_DISTANCE` (1.8 m), `ACVR_HUD_LIFT` (-0.08 m),
+`ACVR_HUD_WIDTH` (default: the same view angle as the game's picture on the
+world surface, so a crosshair lines up), `ACVR_HUD_SCALE`, `ACVR_HUD_OPACITY`.
+In `aim` mode the controller then aims at the HUD panel, where the game draws
+its crosshair. Offline snapshots also write `<name>-hud.png` (the layer over a
+checkerboard).
+
+`ACVR_GL_WIDE=kx,ky` squeezes the 3D projection about the picture's centre, so
+geometry the game draws past the old edges comes into the picture (1/kx of the
+width, 1/ky of the height); the theatre stretches it back on a surface that
+much wider (`ACVR_PS1_SCREEN_W` is its width: 7 m at 2.5 m curves about 160
+degrees round you), with no frame and edges fading into the dark
+(`ACVR_SCREEN_FADE`, 0.06; `ACVR_SCREEN_FRAME=1` brings the frame back). Raise
+the core's resolution with it (`mupen64plus-169screensize=1920x1080`), since
+the picture is spread wider. How far a game draws is the game's own culling.
+
+How far a game draws past its frame is the game's own business: GLideN64
+clips to the game's projection, so squeezing shows more only where the game
+already draws more (GoldenEye, Perfect Dark, F-Zero X: about twice the width).
+Mario Kart 64 clips at its frame. For it, and for Wave Race 64 and Star Fox 64
+(which have the same kind of code), a widescreen code that sets a wider
+projection aspect (RetroArch's `Widescreen` entry with its aspect value 1.78
+raised to 3.55) makes the game draw 32:9 itself, and `ACVR_GL_WIDE_SQUEEZE=0`
+leaves the squeeze to the game.
+
+Beetle Adventure Racing! breaks with `16:9 adjusted` even without any of this
+(its frame-buffer copies tile the picture), so it runs 4:3 with the HUD panel
+and 3D but no open frame. Its 2D layer has opaque black border bars;
+`ACVR_HUD_KEY_BLACK=1` shows pure black HUD pixels as transparent.
+
+Cruis'n Exotica draws its whole 3D world without the depth test;
+`ACVR_GL_3D_NO_DEPTH=1` counts its triangle draws as the 3D picture all the
+same, so its HUD still splits off.
+
+### Aim that moves by rate (Star Fox 64)
+
+Where the stick moves the game's marker rather than placing it,
+`ACVR_PAD_FOLLOW_U` / `_V` give the marker's place on the picture from the
+game's memory (`c0,addr:k,addr:k`, fitted offline against the marker in
+snapshots, with the script line `ram-dump <file>` and `ACVR_RAM_WATCH`), and
+the pad steers it to where the controller points with
+`ACVR_PAD_FOLLOW_GAIN = px,dx,py,dy,ix,iy` (proportional, damping, integral).
+`ACVR_PAD_AIM_ON=world` aims at the world surface instead of the HUD panel,
+for a marker that is part of the 3D world.
+
 `ACVR_GL_TRACE=<first frame>,<frames>` (with `ACVR_GL_TRACE_DIR`) logs what a
 core draws and saves its vertex shaders, to study another core.
 
 Results so far (Mupen64Plus-Next 2.8 bc43bce, hidden offline runs): GoldenEye
 007, Mario Kart 64 and F-Zero X boot to gameplay with a scripted pad, react to
-it (identical inputs give identical pictures), steer by roll and accelerate or
+it (identical inputs give identical pictures), steer (by roll, now an option) and accelerate or
 brake on the triggers; GoldenEye's crosshair lands within 0.005 of the screen
 point the controller aims at (13 points inside its aim box, 4:3 and 16:9; one
 16:9 point measured 0.012 where sky hid part of the crosshair). The aim box is

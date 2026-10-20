@@ -2922,7 +2922,7 @@
     "assets/guns/src/common.py": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "0f17566d6aaf7b0bb972faf4ff251775c751f36da7537303e120b8a810633fc1"
+      "sha256": "e8347cbce8f5f5584759e9e5e9d7b607d66d1a2899d87773c5c49eb16b20af06"
     },
     "assets/guns/src/con-pistol-dpad.py": {
       "kind": "source",

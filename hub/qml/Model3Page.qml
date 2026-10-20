@@ -30,7 +30,7 @@ Item {
   c.pill=row.pill||"MODEL 3"
   // Arcade boards have one maker; console games do not, so none is claimed for them.
   c.manufacturerShort=row.system==="system22"?"Namco":(!row.system||row.system==="model2")?"Sega":""
-  c.hardwareLabel={wii:"Wii",dreamcast:"Dreamcast",system22:"System 22",model2:"Model 2",ps2:"PlayStation 2",ps1:"PlayStation"}[row.system]||"Model 3";c.developerShown=false;c.isWip=false
+  c.hardwareLabel={wii:"Wii",dreamcast:"Dreamcast",system22:"System 22",model2:"Model 2",ps2:"PlayStation 2",ps1:"PlayStation",n64:"Nintendo 64",saturn:"Saturn"}[row.system]||"Model 3";c.developerShown=false;c.isWip=false
   let trouble=row.problem||row.warning
   c.blurb=trouble?trouble.split(". ")[0].replace(/\.$/,"")+".":"Found on this PC.";c.stateColour=trouble?needsColour:readyColour
   return c
@@ -75,13 +75,13 @@ Item {
  }
  // Direction C: the focused game as a hero across the top, then one row of tiles per system.
  // Left and right move along a row, up and down between rows; laser hover moves the focus too.
- readonly property var shelfOrder:["model3","model2","system22","wii","dreamcast","ps2","ps1","catalog"]
- readonly property var shelfNames:({model3:"Sega Model 3",model2:"Sega Model 2",system22:"Namco System 22",wii:"Nintendo Wii",dreamcast:"Sega Dreamcast",ps2:"PlayStation 2",ps1:"PlayStation",catalog:"Set up on this PC"})
+ readonly property var shelfOrder:["model3","model2","system22","wii","dreamcast","ps2","ps1","n64","saturn","catalog"]
+ readonly property var shelfNames:({model3:"Sega Model 3",model2:"Sega Model 2",system22:"Namco System 22",wii:"Nintendo Wii",dreamcast:"Sega Dreamcast",ps2:"PlayStation 2",ps1:"PlayStation",n64:"Nintendo 64",saturn:"Sega Saturn",catalog:"Set up on this PC"})
  property var shelves:{let list=[];for(let key of shelfOrder){let items=rows.filter(r=>(r.system||"model3")===key);if(items.length)list.push({key:key,heading:shelfNames[key]+"  ·  "+items.length,items:items})}return list}
  property int shelfIndex:0
  property int tileIndex:0
  readonly property var focusedRow:{const shelf=shelves[Math.min(shelfIndex,shelves.length-1)];return shelf?shelf.items[Math.min(tileIndex,shelf.items.length-1)]||({}):({})}
- function hardwareLabel(row){return {wii:"Nintendo Wii",dreamcast:"Sega Dreamcast",system22:"Namco System 22",model2:"Sega Model 2",ps2:"PlayStation 2",ps1:"PlayStation",catalog:"On this PC"}[row.system]||"Sega Model 3"}
+ function hardwareLabel(row){return {wii:"Nintendo Wii",dreamcast:"Sega Dreamcast",system22:"Namco System 22",model2:"Sega Model 2",ps2:"PlayStation 2",ps1:"PlayStation",n64:"Nintendo 64",saturn:"Sega Saturn",catalog:"On this PC"}[row.system]||"Sega Model 3"}
  function badgeOf(row){return row.problem?"Not ready":row.warning?"Read first":row.accepted?"Accepted in the headset":""}
  function tileOf(row){const art=row.art||(row.system==="catalog"&&row.card?(row.card.artBanner||row.card.artCard||""):"");return {title:row.title,system:row.system||"model3",art:art,badge:badgeOf(row),badgeColour:row.accepted&&!row.problem&&!row.warning?readyColour:needsColour}}
  function moveFocus(dShelf,dTile){

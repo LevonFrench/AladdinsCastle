@@ -1,0 +1,93 @@
+# Sin and Punishment 2, first run on an empty save: strap pages and title with A, first New File, type A, OK, YES (then the main menu).
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+26.0 26.3 R primary 1
+29.0 33.0 R u -0.77
+29.0 33.0 R v -0.44
+31.0 31.3 R primary 1
+33.0 36.0 R u -0.57
+33.0 36.0 R v 0.16
+34.5 34.8 R primary 1
+36.0 39.0 R u -0.34
+36.0 39.0 R v -0.58
+37.5 37.8 R primary 1
+39.0 44.0 R u -0.17
+39.0 44.0 R v -0.5
+41.0 41.3 R primary 1
+43.0 43.3 R primary 1
+46.0 56.0 R u -0.78
+46.0 56.0 R v -0.4
+47.0 47.3 R primary 1
+49.0 49.3 R primary 1
+51.0 51.3 R primary 1
+53.0 53.3 R primary 1
+55.0 55.3 R primary 1
+58.0 58.3 R primary 1
+61.0 61.3 R primary 1
+64.0 64.3 R primary 1
+67.0 67.3 R primary 1
+70.0 70.3 R primary 1
+73.0 73.3 R primary 1
+76.0 76.3 R primary 1
+79.0 79.3 R primary 1
+82.0 82.3 R primary 1
+85.0 85.3 R primary 1
+88.0 88.3 R primary 1
+91.0 91.3 R primary 1
+94.0 94.3 R primary 1
+97.0 97.3 R primary 1
+100.0 100.3 R primary 1
+103.0 103.3 R primary 1
+106.0 106.3 R primary 1
+109.0 109.3 R primary 1
+112.0 112.3 R primary 1
+115.0 115.3 R primary 1
+118.0 118.3 R primary 1
+shot 40 p40
+shot 42 p42
+shot 44 p44
+shot 46 p46
+shot 48 p48
+shot 50 p50
+shot 52 p52
+shot 54 p54
+shot 56 p56
+shot 58 p58
+shot 60 p60
+shot 62 p62
+shot 64 p64
+shot 66 p66
+shot 68 p68
+shot 70 p70
+shot 72 p72
+shot 74 p74
+shot 76 p76
+shot 78 p78
+shot 80 p80
+shot 82 p82
+shot 84 p84
+shot 86 p86
+shot 88 p88
+shot 90 p90
+shot 92 p92
+shot 94 p94
+shot 96 p96
+shot 98 p98
+shot 100 p100
+shot 102 p102
+shot 104 p104
+shot 106 p106
+shot 108 p108
+shot 110 p110
+shot 112 p112
+shot 114 p114
+shot 116 p116
+shot 118 p118
+shot 120 p120
+shot 122 p122
+124.0 124.3 L thumbclick 1

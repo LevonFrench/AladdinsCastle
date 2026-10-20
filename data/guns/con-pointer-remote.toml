@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# AladdinsCastle controller model. Schema and rules: docs/guns.md
+id = "con-pointer-remote"
+name = "Pointer remote"
+family = "console"
+asset_kind = "controller"
+hold = "one-hand"
+tier = 2
+model = "assets/guns/con-pointer-remote.glb"
+source = "assets/guns/src/con-pointer-remote.py"
+resembles = "Nintendo Wii Remote (2006), 148 x 36.2 x 30.8 mm: D-pad, A, B trigger underneath, minus / Home / plus, speaker, 1 and 2, four player lights, infrared window at the front, wrist strap; our own design, no logos"
+shape = "Rounded bar pointing along -Z; buttons on the top face, B trigger under the A button, dark infrared window at the front, strap loop at the back"
+length_mm = 148
+length_axis = "z"
+features = ["pointer"]
+notes = "Drawn in the right hand by the DolphinXR build for Wii motion games (baked to wii-remote.dgv). Grip anchor a little behind the middle, where the hand holds it; the pointing end is -Z. No muzzle, sights or gun effects."
+
+[tints]
+default = "white"
+p1 = "white"
+p2 = "black"
+white = { body = "#eef0f3", accent = "#d9dde2" }
+black = { body = "#26272b", accent = "#3a3c41" }
+
+[[button]]
+id = "dpad"
+label = "D-pad"
+node = "button_dpad"
+
+[[button]]
+id = "a"
+label = "A"
+node = "button_a"
+
+[[button]]
+id = "b"
+label = "B"
+node = "button_b"
+
+[[button]]
+id = "minus"
+label = "-"
+node = "button_minus"
+
+[[button]]
+id = "home"
+label = "Home"
+node = "button_home"
+
+[[button]]
+id = "plus"
+label = "+"
+node = "button_plus"
+
+[[button]]
+id = "one"
+label = "1"
+node = "button_one"
+
+[[button]]
+id = "two"
+label = "2"
+node = "button_two"
+
+# Motion ranges use metres (slide). Buttons press 1.5 mm into the shell.
+
+[motion.button-dpad]
+node = "button_dpad"
+kind = "slide"
+axis = [0,-1,0]
+range = [0,0.0015]
+drive = "button:dpad"
+lod_nodes = ["button_dpad", "button_dpad_lod1"]
+
+[motion.button-a]
+node = "button_a"
+kind = "slide"
+axis = [0,-1,0]
+range = [0,0.0015]
+drive = "button:a"
+lod_nodes = ["button_a", "button_a_lod1"]
+
+[motion.button-b]
+node = "button_b"
+kind = "slide"
+axis = [0,1,0]
+range = [0,0.0015]
+drive = "button:b"
+lod_nodes = ["button_b", "button_b_lod1"]
+
+[motion.button-minus]
+node = "button_minus"
+kind = "slide"
+axis = [0,-1,0]
+range = [0,0.0015]
+drive = "button:minus"
+lod_nodes = ["button_minus", "button_minus_lod1"]
+
+[motion.button-home]
+node = "button_home"
+kind = "slide"
+axis = [0,-1,0]
+range = [0,0.0015]
+drive = "button:home"
+lod_nodes = ["button_home", "button_home_lod1"]
+
+[motion.button-plus]
+node = "button_plus"
+kind = "slide"
+axis = [0,-1,0]
+range = [0,0.0015]
+drive = "button:plus"
+lod_nodes = ["button_plus", "button_plus_lod1"]
+
+[motion.button-one]
+node = "button_one"
+kind = "slide"
+axis = [0,-1,0]
+range = [0,0.0015]
+drive = "button:one"
+lod_nodes = ["button_one", "button_one_lod1"]
+
+[motion.button-two]
+node = "button_two"
+kind = "slide"
+axis = [0,-1,0]
+range = [0,0.0015]
+drive = "button:two"
+lod_nodes = ["button_two", "button_two_lod1"]

@@ -10,6 +10,8 @@
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
 #include "core/ps1/Ps1.h"
+#include "core/n64/N64.h"
+#include "core/saturn/Saturn.h"
 #include "core/pinball/Gamepad.h"
 #include "core/art/Download.h"
 #include <QFileInfo>
@@ -374,6 +376,23 @@ QVariantList UiController::otherGames()const{
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","ps1-"+id},{"system","ps1"},{"pill","PS1"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
    {"problem",ps1::problem(id,ps1Launcher)}},
+   {QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset, with your controller as the light gun."}}});
+ }
+ // N64: through the user's launcher and acvr-ps1; the views are the ones the launcher lists for the game.
+ const auto n64Launcher=m_settings->get("n64Launcher",QString()).toString();
+ if(!n64Launcher.isEmpty())for(const auto &value:n64::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString();
+  auto views=n64::views(id,n64Launcher);
+  if(views.isEmpty())views<<QVariantMap{{"id","flat"},{"label",n64::viewLabel(id,"flat")},{"help","Not in your N64 launcher yet."}};
+  add({{"id","n64-"+id},{"system","n64"},{"pill","N64"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
+   {"problem",n64::problem(id,n64Launcher)}},views);
+ }
+ // Saturn light-gun games: through the user's launcher and acvr-ps1, on a theatre screen with the Stunner.
+ const auto saturnLauncher=m_settings->get("saturnLauncher",QString()).toString();
+ if(!saturnLauncher.isEmpty())for(const auto &value:saturn::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString();
+  add({{"id","saturn-"+id},{"system","saturn"},{"pill","SATURN"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
+   {"problem",saturn::problem(id,saturnLauncher)}},
    {QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset, with your controller as the light gun."}}});
  }
  // Time Crisis: one native program, checked as it is now.

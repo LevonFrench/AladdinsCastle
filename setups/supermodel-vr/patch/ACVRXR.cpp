@@ -72,6 +72,9 @@ namespace
   std::atomic<bool> s_started(false);
   std::thread       s_thread;
   std::atomic<bool> s_threadDone(false);        // set by the XR thread as its very last step
+  std::atomic<bool> s_wanted(false);            // ACVR_XR_Start was called
+  std::atomic<bool> s_runtimeExit(false);       // the runtime ended the session or the instance
+  std::atomic<bool> s_sessionRunning(false);    // between xrBeginSession and STOPPING
   SDL_Window       *s_xrWindow = nullptr;
   SDL_GLContext     s_xrContext = nullptr;
 
@@ -593,7 +596,7 @@ namespace
     glDisable(GL_SCISSOR_TEST);
     if (!InitXR())
     {
-      Log("VR presenter off; the emulator keeps running on the monitor");
+      Log("VR presenter off: no headset session; the game closes");
       SDL_GL_MakeCurrent(s_xrWindow, nullptr);
       return;
     }
@@ -623,19 +626,28 @@ namespace
             XrSessionBeginInfo bi = { XR_TYPE_SESSION_BEGIN_INFO };
             bi.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
             running = Check(p_xrBeginSession(s_session, &bi), "xrBeginSession");
+            s_sessionRunning = running;
           }
           else if (e->state == XR_SESSION_STATE_STOPPING)
           {
-            p_xrEndSession(s_session);
+            // Headset idle or runtime standby: end the session; the game waits, paused, for READY
+            Check(p_xrEndSession(s_session), "xrEndSession");
             running = false;
+            s_sessionRunning = false;
+            Log("session stopped: the game waits, paused");
           }
           else if (e->state == XR_SESSION_STATE_EXITING || e->state == XR_SESSION_STATE_LOSS_PENDING)
           {
+            // SteamVR's "Exit game", or a lost runtime: the whole game closes, not just the picture
+            Log(e->state == XR_SESSION_STATE_EXITING ? "session exiting: the game closes" : "session lost: the game closes");
+            s_runtimeExit = true;
             s_stop = true;
           }
         }
         else if (ev.type == XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING)
         {
+          Log("instance loss pending: the game closes");
+          s_runtimeExit = true;
           s_stop = true;
         }
         ev = { XR_TYPE_EVENT_DATA_BUFFER };
@@ -685,9 +697,24 @@ namespace
             q.space = s_space;
             q.eyeVisibility = XR_EYE_VISIBILITY_BOTH;
             FillSubImage(q.subImage, HUD);
-            q.pose = PoseAhead(shown.info.originPos, shown.info.originYaw, s_height, s_hudDistance);
-            q.size.width = s_hudWidth;
-            q.size.height = s_hudWidth * 0.75f;
+            if (g_acvrStereo.hudMatch)
+            {
+              // Exactly over the arcade view, so the game's crosshair on it lies where the game aims
+              float cx, cy, w, h;
+              ACVR_ArcadeRect(s_hudDistance, cx, cy, w, h);
+              const float yaw = shown.info.originYaw;
+              q.pose = PoseAhead(shown.info.originPos, yaw, cy, s_hudDistance);
+              q.pose.position.x += cx * cosf(yaw);
+              q.pose.position.z -= cx * sinf(yaw);
+              q.size.width = w;
+              q.size.height = h;
+            }
+            else
+            {
+              q.pose = PoseAhead(shown.info.originPos, shown.info.originYaw, s_height, s_hudDistance);
+              q.size.width = s_hudWidth;
+              q.size.height = s_hudWidth * 0.75f;
+            }
             quads[0] = q;
             layers[layerCount++] = (const XrCompositionLayerBaseHeader *)&quads[0];
           }
@@ -731,6 +758,7 @@ namespace
     }
 
     Log("presenter stopping after %lu shown frames", frames);
+    s_sessionRunning = false;
     s_focused = false;
     ClearControllers();
     DestroyChains();
@@ -743,10 +771,12 @@ namespace
     SDL_GL_MakeCurrent(s_xrWindow, nullptr);
   }
 
-  // Every way out of the XR thread leaves the controllers empty and says it is done
+  // Every way out of the XR thread leaves the controllers empty and says it is done; the game loop then closes
+  // the game (ACVR_XR_State), so it never keeps running with no picture
   void ThreadMain()
   {
     ThreadBody();
+    s_sessionRunning = false;
     s_focused = false;
     ClearControllers();
     s_threadDone = true;
@@ -762,6 +792,9 @@ float ACVR_XR_DistanceMetres()
 bool ACVR_XR_Start(void *mainWindow)
 {
   if (s_started) return true;
+  s_wanted = true;
+  s_runtimeExit = false;
+  s_sessionRunning = false;
   s_log = fopen("acvr-xr.log", "w");
   s_distance    = ACVR_XR_DistanceMetres();
   s_sizeScale   = EnvFloat("ACVR_XR_SIZE", 1.0f);
@@ -864,6 +897,14 @@ void ACVR_XR_Publish(const ACVRPublish &p)
   s_pubSerial++;
 }
 
+int ACVR_XR_State()
+{
+  if (!s_wanted) return 0;
+  if (s_runtimeExit) return 3;
+  if (!s_started || s_threadDone) return 4;
+  return s_sessionRunning ? 1 : 2;
+}
+
 void ACVR_XR_Stop()
 {
   if (!s_started) return;
@@ -898,5 +939,6 @@ bool ACVR_XR_GetViews(ACVREyeView *) { return false; }
 bool ACVR_XR_GetControllers(ACVRControllers &) { return false; }
 void ACVR_XR_Publish(const ACVRPublish &) {}
 void ACVR_XR_Stop() {}
+int ACVR_XR_State() { return 0; }
 
 #endif

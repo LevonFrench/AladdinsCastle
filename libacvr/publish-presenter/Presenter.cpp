@@ -63,6 +63,8 @@ namespace
   bool s_theatreInitialized=false;
   XrAction s_grip=XR_NULL_HANDLE,s_secondary=XR_NULL_HANDLE;
   XrSpace s_gripSpace=XR_NULL_HANDLE;
+  XrAction s_leftGrip=XR_NULL_HANDLE,s_leftTrigger=XR_NULL_HANDLE,s_leftStick=XR_NULL_HANDLE,s_rightStick=XR_NULL_HANDLE;
+  XrSpace s_leftGripSpace=XR_NULL_HANDLE;
   unsigned s_theatreW[2]{},s_theatreH[2]{};
   std::atomic<bool> s_wantViews{false};
   struct Fov {float tanL=0,tanR=0,tanB=0,tanT=0;} s_fov;
@@ -112,7 +114,7 @@ namespace
   X(xrLocateSpace) X(xrLocateViews) X(xrGetOpenGLGraphicsRequirementsKHR) \
   X(xrStringToPath) X(xrCreateActionSet) X(xrDestroyActionSet) X(xrCreateAction) \
   X(xrSuggestInteractionProfileBindings) X(xrAttachSessionActionSets) X(xrCreateActionSpace) \
-  X(xrSyncActions) X(xrGetActionStatePose) X(xrGetActionStateFloat) X(xrGetActionStateBoolean) X(xrApplyHapticFeedback)
+  X(xrSyncActions) X(xrGetActionStatePose) X(xrGetActionStateFloat) X(xrGetActionStateBoolean) X(xrGetActionStateVector2f) X(xrApplyHapticFeedback)
 #define X(name) PFN_##name p_##name = nullptr;
   ACVR_XR_FUNCS(X)
 #undef X
@@ -192,12 +194,16 @@ namespace
         !action("shot_pulse", "Shot vibration", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic) ||
         !action("clean_quit", "Hold Y for clean quit", XR_ACTION_TYPE_BOOLEAN_INPUT, s_quit, s_left)) return false;
     if(s_theatre && (!action("grip_pose","Right grip",XR_ACTION_TYPE_POSE_INPUT,s_grip) ||
-        !action("second_button","Second game button",XR_ACTION_TYPE_FLOAT_INPUT,s_secondary))) return false;
+        !action("second_button","Second game button",XR_ACTION_TYPE_FLOAT_INPUT,s_secondary) ||
+        !action("left_grip_pose","Left grip",XR_ACTION_TYPE_POSE_INPUT,s_leftGrip,s_left) ||
+        !action("left_trigger","Left trigger",XR_ACTION_TYPE_FLOAT_INPUT,s_leftTrigger,s_left) ||
+        !action("left_stick","Left thumbstick",XR_ACTION_TYPE_VECTOR2F_INPUT,s_leftStick,s_left) ||
+        !action("right_stick","Right thumbstick",XR_ACTION_TYPE_VECTOR2F_INPUT,s_rightStick))) return false;
     const char *profiles[] = { "/interaction_profiles/oculus/touch_controller", "/interaction_profiles/valve/index_controller" };
     const char *paths[] = { "/user/hand/right/input/aim/pose", "/user/hand/right/input/trigger/value",
                            "/user/hand/right/input/a/click", "/user/hand/right/input/b/click", "/user/hand/right/output/haptic" };
     const XrAction actions[] = { s_aim, s_trigger, s_start, s_coin, s_haptic };
-    XrActionSuggestedBinding bindings[8]{};
+    XrActionSuggestedBinding bindings[12]{};
     for (unsigned i=0; i<5; ++i) {
       bindings[i].action = actions[i];
       if (!Check(p_xrStringToPath(s_instance, paths[i], &bindings[i].binding), "controller binding path")) return false;
@@ -213,8 +219,14 @@ namespace
         bindings[6].action=s_grip;bindings[7].action=s_secondary;
         if(!Check(p_xrStringToPath(s_instance,"/user/hand/right/input/grip/pose",&bindings[6].binding),"grip path") ||
            !Check(p_xrStringToPath(s_instance,"/user/hand/right/input/squeeze/value",&bindings[7].binding),"second button path"))return false;
+        bindings[8].action=s_leftGrip;bindings[9].action=s_leftTrigger;
+        if(!Check(p_xrStringToPath(s_instance,"/user/hand/left/input/grip/pose",&bindings[8].binding),"left grip path") ||
+           !Check(p_xrStringToPath(s_instance,"/user/hand/left/input/trigger/value",&bindings[9].binding),"left trigger path"))return false;
+        bindings[10].action=s_leftStick;bindings[11].action=s_rightStick;
+        if(!Check(p_xrStringToPath(s_instance,"/user/hand/left/input/thumbstick",&bindings[10].binding),"left stick path") ||
+           !Check(p_xrStringToPath(s_instance,"/user/hand/right/input/thumbstick",&bindings[11].binding),"right stick path"))return false;
       }
-      suggested.countSuggestedBindings = s_theatre?8:6; suggested.suggestedBindings = bindings;
+      suggested.countSuggestedBindings = s_theatre?12:6; suggested.suggestedBindings = bindings;
       Check(p_xrSuggestInteractionProfileBindings(s_instance, &suggested), profile);
     }
     XrSessionActionSetsAttachInfo attach = { XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO };
@@ -223,7 +235,11 @@ namespace
     XrActionSpaceCreateInfo space = { XR_TYPE_ACTION_SPACE_CREATE_INFO };
     space.action = s_aim; space.subactionPath = s_right; space.poseInActionSpace.orientation.w = 1;
     if(!Check(p_xrCreateActionSpace(s_session, &space, &s_aimSpace), "xrCreateActionSpace aim"))return false;
-    if(s_theatre){space.action=s_grip;return Check(p_xrCreateActionSpace(s_session,&space,&s_gripSpace),"xrCreateActionSpace grip");}
+    if(s_theatre){
+      space.action=s_grip;if(!Check(p_xrCreateActionSpace(s_session,&space,&s_gripSpace),"xrCreateActionSpace grip"))return false;
+      space.action=s_leftGrip;space.subactionPath=s_left;
+      return Check(p_xrCreateActionSpace(s_session,&space,&s_leftGripSpace),"xrCreateActionSpace left grip");
+    }
     return true;
   }
 
@@ -458,7 +474,8 @@ namespace
     glFinish();
     DestroyChains();
     if(s_gripSpace)p_xrDestroySpace(s_gripSpace);s_gripSpace=XR_NULL_HANDLE;
-    s_grip=s_secondary=XR_NULL_HANDLE;
+    if(s_leftGripSpace)p_xrDestroySpace(s_leftGripSpace);s_leftGripSpace=XR_NULL_HANDLE;
+    s_grip=s_secondary=s_leftGrip=s_leftTrigger=s_leftStick=s_rightStick=XR_NULL_HANDLE;
     if(s_aimSpace) p_xrDestroySpace(s_aimSpace);
     if(s_viewSpace) p_xrDestroySpace(s_viewSpace);
     if(s_space) p_xrDestroySpace(s_space);

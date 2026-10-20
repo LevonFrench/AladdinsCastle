@@ -11,6 +11,8 @@ param(
  [string]$StopFile='',
  [string]$AimTrim='',
  [switch]$Mute,
+ [switch]$OpenFrame,
+ [switch]$Body,
  [switch]$Crt
 )
 $ErrorActionPreference='Stop'
@@ -18,6 +20,11 @@ $ErrorActionPreference='Stop'
 # (README "Aim and per-game settings").
 #  allow: files missing from the owner's set that MAME 0.289 lists but the driver never
 #         reads (PLD/PROM dumps) or that only seed a blank EEPROM; MAME_VR_ALLOW_MISSING.
+#  motion: MAME_VR_MOTION for motion cabinets (Namco System 22 bikes, skis, jet ski, plane):
+#         the viewer runs with --motion (thumbsticks and triggers); -Body switches it to
+#         body motion (controller roll/tilt, lean and twist, pedalling), which is opt-in.
+#  wide:  environment for -OpenFrame (the game's 3D drawn past 4:3, here 16:9), only where
+#         a picture showed the added sides filled with game geometry.
 #  aim:   per-game trim "x scale,x shift,y scale,y shift" around the centre; MAME_VR_AIM.
 #  xhair: '1' shows MAME's crosshair (only where MAME's calibration matches the game), '0' hides it.
 $games=@{
@@ -27,7 +34,14 @@ $games=@{
  'bbusters'=@{allow='';aim='';xhair='1'}
  'zeropnt' =@{allow='';aim='';xhair='1'}
  # Time Crisis: own accuracy screen, 9 points within 0.0052 untrimmed; grip = foot pedal
- 'timecris'=@{allow='';aim='';xhair='0'}
+ 'timecris'=@{allow='';aim='';xhair='0';wide=@{ACVR_S22_WIDE='107'}}
+ # Namco System 22 motion cabinets (proofs: README "Motion cabinets")
+ 'propcycl'=@{allow='';aim='';xhair='0';wide=@{ACVR_S22_WIDE='107'};motion='ADC.0:steer;ADC.1:sticky;OPT.0:pedal:h'}
+ 'alpinerd'=@{allow='';aim='';xhair='0';wide=@{ACVR_S22_WIDE='107'};motion='ADC.0:twist;ADC.1:lean'}
+ 'alpinr2b'=@{allow='';aim='';xhair='0';wide=@{ACVR_S22_WIDE='107'};motion='ADC.0:twist;ADC.1:lean'}
+ 'cybrcycc'=@{allow='';aim='';xhair='0';wide=@{ACVR_S22_WIDE='107'};motion='ADC.0:steer;ADC.1:throttle;ADC.2:brake'}
+ 'aquajet' =@{allow='';aim='';xhair='0';wide=@{ACVR_S22_WIDE='107'};motion='ADC.0:steer;ADC.1:throttle;ADC.2:sticky'}
+ 'airco22b'=@{allow='';aim='';xhair='0';wide=@{ACVR_S22_WIDE='107'};motion='ADC.0:stickx;ADC.1:sticky;ADC.2:throttle2:h'}
  # Operation Wolf 3: four PLD dumps absent from older sets; its gun gain is fixed by the game,
  # so the trim sets scale and a one-time in-game calibration (seeded NVRAM) sets the offset
  'opwolf3' =@{allow='d74-09.8,d74-10.40,d74-12.1,d74-13.2';aim='0.7143,0,0.5001,0';xhair='0'}
@@ -71,6 +85,13 @@ $env:MAME_VR_PUBLISH='1';$env:MAME_VR_GUN='1';$env:MAME_VR_CROSSHAIR=$games[$Gam
 Remove-Item Env:MAME_VR_SCRIPT -ErrorAction SilentlyContinue
 $env:MAME_VR_ALLOW_MISSING=$games[$Game].allow
 $env:MAME_VR_AIM=$(if($AimTrim){$AimTrim}else{$games[$Game].aim})
+Remove-Item Env:ACVR_S22_WIDE -ErrorAction SilentlyContinue
+$env:MAME_VR_MOTION=$(if($games[$Game].motion){$games[$Game].motion}else{''})
+if($Body -and -not $games[$Game].motion){throw ('No motion cabinet controls for ' + $Game)}
+if($OpenFrame){
+ if(-not $games[$Game].wide){throw ('No open-frame mode proven for ' + $Game)}
+ foreach($k in $games[$Game].wide.Keys){Set-Item -Path ('Env:'+$k) -Value $games[$Game].wide[$k]}
+}
 # All writable MAME paths stay private. ROM paths are inputs only. Sound plays unless -Mute.
 $argsM=@($Game,'-noreadconfig','-rompath',('"'+$RomPath+'"'),'-video','none','-sound',$(if($Mute){'none'}else{'auto'}),'-numprocessors','2','-skip_gameinfo','-homepath',('"'+$gameHome+'"'))
 foreach($pair in @(@('cfg_directory','cfg'),@('nvram_directory','nvram'),@('snapshot_directory','snap'),@('diff_directory','diff'),@('input_directory','inp'),@('state_directory','sta'),@('share_directory','share'))) {
@@ -82,6 +103,7 @@ try {
  $mame.PriorityClass='BelowNormal';$mameHandle=$mame.Handle
  $argsV=@('--pid',$mame.Id,'--model',('"'+$GunModel+'"'),'--metadata',('"'+$GunMetadata+'"'),'--seconds',$Seconds,'--stop-file',('"'+$StopFile+'"'))
  if($Crt){$argsV+='--crt'}
+ if($games[$Game].motion){$argsV+=$(if($Body){'--body'}else{'--motion'})}
  $viewer=Start-Process -FilePath $ViewerExe -ArgumentList $argsV -WorkingDirectory $run -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $run 'viewer.log') -RedirectStandardError (Join-Path $run 'viewer-errors.log')
  $viewer.PriorityClass='BelowNormal';$viewerHandle=$viewer.Handle
  $deadline=[DateTime]::UtcNow.AddSeconds($Seconds+30)

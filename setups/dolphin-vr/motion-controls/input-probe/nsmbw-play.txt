@@ -1,0 +1,113 @@
+# New Super Mario Bros. Wii: A every 2 s and + every 8 s (41-65 s) through the intro, 1 twice at 84 s to leave any map menu, A on the world map enters 1-1, then hold right with A jumps and B runs.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+26.0 26.3 R primary 1
+28.0 28.3 R primary 1
+30.0 30.3 R primary 1
+32.0 32.3 R primary 1
+34.0 34.3 R primary 1
+36.0 36.3 R primary 1
+38.0 38.3 R primary 1
+40.0 40.3 R primary 1
+42.0 42.3 R primary 1
+44.0 44.3 R primary 1
+46.0 46.3 R primary 1
+48.0 48.3 R primary 1
+50.0 50.3 R primary 1
+52.0 52.3 R primary 1
+54.0 54.3 R primary 1
+56.0 56.3 R primary 1
+58.0 58.3 R primary 1
+60.0 60.3 R primary 1
+62.0 62.3 R primary 1
+64.0 64.3 R primary 1
+66.0 66.3 R primary 1
+68.0 68.3 R primary 1
+70.0 70.3 R primary 1
+72.0 72.3 R primary 1
+74.0 74.3 R primary 1
+76.0 76.3 R primary 1
+78.0 78.3 R primary 1
+80.0 80.3 R primary 1
+82.0 82.3 R primary 1
+88.0 88.3 R primary 1
+90.0 90.3 R primary 1
+92.0 92.3 R primary 1
+94.0 94.3 R primary 1
+96.0 96.3 R primary 1
+98.0 98.3 R primary 1
+100.0 100.3 R primary 1
+102.0 102.3 R primary 1
+104.0 104.3 R primary 1
+106.0 106.3 R primary 1
+108.0 108.3 R primary 1
+110.0 110.3 R primary 1
+112.0 112.3 R primary 1
+114.0 114.3 R primary 1
+116.0 116.3 R primary 1
+118.0 118.3 R primary 1
+120.0 120.3 R primary 1
+41.0 41.3 L menu 1
+49.0 49.3 L menu 1
+57.0 57.3 L menu 1
+65.0 65.3 L menu 1
+84.0 84.3 R secondary 1
+86.0 86.3 R secondary 1
+122.0 160.0 L stick_x 1
+122.0 160.0 R trigger 1
+123.0 123.6 R primary 1
+125.0 125.6 R primary 1
+127.0 127.6 R primary 1
+129.0 129.6 R primary 1
+131.0 131.6 R primary 1
+133.0 133.6 R primary 1
+135.0 135.6 R primary 1
+137.0 137.6 R primary 1
+139.0 139.6 R primary 1
+141.0 141.6 R primary 1
+143.0 143.6 R primary 1
+145.0 145.6 R primary 1
+147.0 147.6 R primary 1
+149.0 149.6 R primary 1
+151.0 151.6 R primary 1
+153.0 153.6 R primary 1
+155.0 155.6 R primary 1
+157.0 157.6 R primary 1
+159.0 159.6 R primary 1
+shot 70 p70
+shot 73 p73
+shot 76 p76
+shot 79 p79
+shot 82 p82
+shot 85 p85
+shot 88 p88
+shot 91 p91
+shot 94 p94
+shot 97 p97
+shot 100 p100
+shot 103 p103
+shot 106 p106
+shot 109 p109
+shot 112 p112
+shot 115 p115
+shot 118 p118
+shot 121 p121
+shot 124 p124
+shot 127 p127
+shot 130 p130
+shot 133 p133
+shot 136 p136
+shot 139 p139
+shot 142 p142
+shot 145 p145
+shot 148 p148
+shot 151 p151
+shot 154 p154
+shot 157 p157
+shot 160 p160
+162.0 162.3 L thumbclick 1

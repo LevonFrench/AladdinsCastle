@@ -1,0 +1,54 @@
+# Discover then aim: right A every 2 s from 12 to 38 s with pictures, then nine aim points from 42 s (no presses).
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+26.0 26.3 R primary 1
+28.0 28.3 R primary 1
+30.0 30.3 R primary 1
+32.0 32.3 R primary 1
+34.0 34.3 R primary 1
+36.0 36.3 R primary 1
+38.0 38.3 R primary 1
+shot 10 d10
+shot 13 d13
+shot 16 d16
+shot 19 d19
+shot 22 d22
+shot 25 d25
+shot 28 d28
+shot 31 d31
+shot 34 d34
+shot 37 d37
+shot 40 d40
+42.0 44.0 R u 0
+42.0 44.0 R v 0
+shot 43.5 aim-0_0_0
+44.0 46.0 R u -0.45
+44.0 46.0 R v 0.45
+shot 45.5 aim-1_-0.45_0.45
+46.0 48.0 R u 0
+46.0 48.0 R v 0.45
+shot 47.5 aim-2_0_0.45
+48.0 50.0 R u 0.45
+48.0 50.0 R v 0.45
+shot 49.5 aim-3_0.45_0.45
+50.0 52.0 R u -0.45
+50.0 52.0 R v 0
+shot 51.5 aim-4_-0.45_0
+52.0 54.0 R u 0.45
+52.0 54.0 R v 0
+shot 53.5 aim-5_0.45_0
+54.0 56.0 R u -0.45
+54.0 56.0 R v -0.45
+shot 55.5 aim-6_-0.45_-0.45
+56.0 58.0 R u 0
+56.0 58.0 R v -0.45
+shot 57.5 aim-7_0_-0.45
+58.0 60.0 R u 0.45
+58.0 60.0 R v -0.45
+shot 59.5 aim-8_0.45_-0.45
+60.0 61.0 R u 5

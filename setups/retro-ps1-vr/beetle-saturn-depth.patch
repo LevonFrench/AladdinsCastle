@@ -1,0 +1,358 @@
+diff --git a/libretro.c b/libretro.c
+index 7d59b69..f1cad0a 100644
+--- a/libretro.c
++++ b/libretro.c
+@@ -163,6 +163,71 @@ static const bool PrevInterlaced = false;
+ 
+ static MDFN_Surface *surf = NULL;
+ 
++/* ACVR depth experiment (ACVR_SAT_STEREO=1): the renderer writes a depth code per surface pixel into
++ * ACVR_DepthPix (see VDP1_GetDepthLine); the frame goes out as two eyes side by side, the left eye as the
++ * game drew it (so the light gun maps to it unchanged) and the right eye with every pixel moved sideways by
++ * its depth: 0 on the screen plane, the eyes' separation on the screen (ACVR_PS1_IPD / ACVR_PS1_SCREEN_W of the
++ * picture width) at infinity. Holes left behind take the farther neighbour. */
++extern uint8_t* ACVR_DepthPix; extern int32_t ACVR_DepthPitch, ACVR_DepthRows; extern float ACVR_FarCode, ACVR_FloorCode;
++extern bool VDP1_DepthOn;
++static uint32_t *acvr_sbs = NULL; static size_t acvr_sbs_size = 0;
++static const void *acvr_stereo_frame(const uint32_t *pix, size_t pitch_px, unsigned w, unsigned h, unsigned first_row, unsigned x0)
++{
++   static float sep = -1.0f;
++   if (sep < 0.0f)
++   {
++      const char *ipd = getenv("ACVR_PS1_IPD"), *sw = getenv("ACVR_PS1_SCREEN_W"), *dp = getenv("ACVR_SAT_STEREO_SCALE");
++      const float i = ipd && *ipd ? (float)atof(ipd) : 0.064f, s = sw && *sw ? (float)atof(sw) : 2.4f, k = dp && *dp ? (float)atof(dp) : 1.0f;
++      sep = (s > 0.1f ? i / s : 0.0267f) * k;
++   }
++   const size_t need = (size_t)w * 2 * h;
++   if (need > acvr_sbs_size) { free(acvr_sbs); acvr_sbs = (uint32_t*)malloc(need * sizeof(uint32_t)); acvr_sbs_size = acvr_sbs ? need : 0; }
++   if (!acvr_sbs || w > 1024) return NULL;
++   static float zrow[1024]; static int16_t filled[1024];
++   const float inf_px = sep * (float)w;
++   for (unsigned y = 0; y < h; y++)
++   {
++      const uint32_t *src = pix + (size_t)y * pitch_px;
++      uint32_t *left = acvr_sbs + (size_t)y * w * 2, *right = left + w;
++      memcpy(left, src, w * sizeof(uint32_t));
++      const int32_t drow = (int32_t)(first_row + y);
++      const uint8_t *dsrc = (drow >= 0 && drow < ACVR_DepthRows) ? ACVR_DepthPix + (size_t)drow * ACVR_DepthPitch + x0 : NULL;
++      static int debug = -1; if (debug < 0) { const char *g = getenv("ACVR_SAT_STEREO_DEBUG"); debug = g && atoi(g) == 1; }
++      if (debug)
++      {
++         /* The right half shows the depth itself: white on the screen plane, darker further away, red in front,
++          * blue for VDP2 pixels with no sprite under them. */
++         for (unsigned x = 0; x < w; x++)
++         {
++            const uint8_t c = dsrc ? dsrc[x] : 0;
++            const float d = c ? (float)(c - 1) / 100.0f - 0.5f : 0.0f;
++            const int g = (int)(255.0f * (1.0f - (d > 0 ? (d > 1.2f ? 1.2f : d) / 1.2f : 0.0f)));
++            right[x] = d < 0 ? 0xFF0000u : (c == 0 ? 0x0000FFu : (uint32_t)((g << 16) | (g << 8) | g));
++         }
++         continue;
++      }
++      for (unsigned x = 0; x < w; x++) { zrow[x] = 1e9f; filled[x] = 0; }
++      for (unsigned x = 0; x < w; x++)
++      {
++         const uint8_t c = dsrc ? dsrc[x] : 0;
++         const float d = c ? (float)(c - 1) / 100.0f - 0.5f : 0.0f;
++         const int t = (int)x + (int)(d * inf_px + (d >= 0 ? 0.5f : -0.5f));
++         if (t < 0 || t >= (int)w || d >= zrow[t]) continue;
++         zrow[t] = d; right[t] = src[x]; filled[t] = 1;
++      }
++      for (unsigned x = 0; x < w; x++)
++      {
++         if (filled[x]) continue;
++         int l = (int)x - 1, r = (int)x + 1;
++         while (l >= 0 && !filled[l]) l--;
++         while (r < (int)w && !filled[r]) r++;
++         const bool useL = l >= 0 && (r >= (int)w || zrow[l] >= zrow[r]);
++         right[x] = useL ? right[l] : (r < (int)w ? right[r] : src[x]);
++      }
++   }
++   return acvr_sbs;
++}
++
+ static void alloc_surface(void)
+ {
+   uint32_t width  = MEDNAFEN_CORE_GEOMETRY_MAX_W;
+@@ -175,6 +240,17 @@ static void alloc_surface(void)
+   // R=16/G=8/B=0/A=24 shifts anyway.
+   MDFN_Surface_Delete(surf);
+   surf = MDFN_Surface_New(width, height, width);
++  {
++     const char *e = getenv("ACVR_SAT_STEREO");
++     free(ACVR_DepthPix); ACVR_DepthPix = NULL;
++     if (e && atoi(e) == 1)
++     {
++        ACVR_DepthPix = (uint8_t*)calloc((size_t)width * height, 1);
++        ACVR_DepthPitch = (int32_t)width; ACVR_DepthRows = ACVR_DepthPix ? (int32_t)height : 0;
++        const char *f = getenv("ACVR_SAT_STEREO_FAR"); ACVR_FarCode = f && *f ? (float)atof(f) : 1.0f;
++        const char *fl = getenv("ACVR_SAT_STEREO_FLOOR"); ACVR_FloorCode = fl && *fl ? (float)atof(fl) : 0.15f;
++     }
++  }
+ }
+ 
+ static void check_system_specs(void)
+@@ -1652,7 +1728,11 @@ void retro_run(void)
+    {
+       pix += surf->pitchinpix * (linevisfirst << PrevInterlaced) + overscan_mask;
+       fb   = pix;
+-      video_cb(fb, game_width, game_height, pitch);
++      const void *sbs = (VDP1_DepthOn && ACVR_DepthPix) ? acvr_stereo_frame(pix, surf->pitchinpix, game_width, game_height, linevisfirst << PrevInterlaced, overscan_mask) : NULL;
++      if (sbs)
++         video_cb(sbs, game_width * 2, game_height, game_width * 2 * sizeof(uint32_t));
++      else
++         video_cb(fb, game_width, game_height, pitch);
+    }
+    audio_batch_cb((int16_t*)&IBuffer, spec.SoundBufSize);
+ 
+diff --git a/mednafen/ss/vdp1.c b/mednafen/ss/vdp1.c
+index 9a603f5..5a237d0 100644
+--- a/mednafen/ss/vdp1.c
++++ b/mednafen/ss/vdp1.c
+@@ -39,6 +39,7 @@
+ //       end of hblank instead of the beginning.
+ 
+ #include <string.h>
++#include <stdlib.h>
+ #include "vdp1.h"
+ #include "vdp1_common.h"
+ 
+@@ -153,6 +154,87 @@ uint16_t* VDP1_AltMeshFBDrawWhichPtr;
+ // arg is true. Default false = hardware-accurate stipple.
+ bool VDP1_MeshImproved = false;
+ 
++/* ACVR depth experiment (ACVR_SAT_STEREO=1). Each drawing command gets a number in the order VDP1 draws it,
++ * and every pixel it draws records that number in VDP1_DepthFB (double-buffered with the framebuffer). Per
++ * command it keeps its kind: 2D sprite (normal/scaled: HUD, text), 3D (distorted sprite, polygon, line) with
++ * its rank among the frame's 3D commands, or backdrop (covers 40% of the screen). The Saturn draws back to
++ * front, so a later 3D command is nearer. VDP1_GetDepthLine turns that into a depth per pixel. */
++bool VDP1_DepthOn = false;
++uint16_t VDP1_DrawSeq = 0;
++static uint16_t VDP1_DepthFB[2][0x20000];
++uint16_t* VDP1_DepthFBDrawWhichPtr = VDP1_DepthFB[0];
++enum { ACVR_SEQ_MAX = 8192, ACVR_KIND_2D = 0, ACVR_KIND_3D = 1, ACVR_KIND_BACK = 2 };
++static uint8_t ACVR_SeqKind[2][ACVR_SEQ_MAX];
++static uint16_t ACVR_SeqRank[2][ACVR_SEQ_MAX];
++static uint16_t ACVR_Rank3D[2];
++static float ACVR_Far = 1.0f, ACVR_Pop = 0.3f;
++static int ACVR_BySize = 0;
++static uint32_t ACVR_SeqArea[2][ACVR_SEQ_MAX];
++
++static void ACVR_NoteCommand(const uint16_t* cmd, bool side)
++{
++ const unsigned type = cmd[0] & 0xF;
++ if(type > 7) return;
++ if(VDP1_DrawSeq < ACVR_SEQ_MAX - 1) VDP1_DrawSeq++;
++ int32_t x0, y0, x1, y1;
++ if(type <= 1)
++ {
++  const int32_t w = ((cmd[5] >> 8) & 0x3F) << 3, h = cmd[5] & 0xFF;
++  int32_t xa = (int16_t)(cmd[6] << 3) >> 3, ya = (int16_t)(cmd[7] << 3) >> 3;
++  if(type == 1 && ((cmd[0] >> 8) & 0xF) == 0) { const int32_t xc = (int16_t)(cmd[10] << 3) >> 3, yc = (int16_t)(cmd[11] << 3) >> 3; x0 = xa; y0 = ya; x1 = xc; y1 = yc; }
++  else if(type == 1) { x0 = xa; y0 = ya; x1 = xa + ((int16_t)(cmd[8] << 3) >> 3); y1 = ya + ((int16_t)(cmd[9] << 3) >> 3); }
++  else { x0 = xa; y0 = ya; x1 = xa + w; y1 = ya + h; }
++ }
++ else
++ {
++  x0 = y0 = 0x7FFFFFFF; x1 = y1 = -0x7FFFFFFF;
++  for(unsigned v = 0; v < 4; v++) { const int32_t vx = (int16_t)(cmd[6 + v * 2] << 3) >> 3, vy = (int16_t)(cmd[7 + v * 2] << 3) >> 3; if(vx < x0) x0 = vx; if(vx > x1) x1 = vx; if(vy < y0) y0 = vy; if(vy > y1) y1 = vy; }
++ }
++ int32_t bw = x1 - x0, bh = y1 - y0; if(bw < 0) bw = -bw; if(bh < 0) bh = -bh;
++ if(bw > 704) bw = 704; if(bh > 512) bh = 512;
++ const uint32_t area = (uint32_t)bw * (uint32_t)bh;
++ uint8_t kind = type <= 1 ? ACVR_KIND_2D : ACVR_KIND_3D;
++ if(area * 10 > 320u * 224u * 4) kind = ACVR_KIND_BACK;
++ ACVR_SeqKind[side][VDP1_DrawSeq] = kind;
++ ACVR_SeqArea[side][VDP1_DrawSeq] = area;
++ ACVR_SeqRank[side][VDP1_DrawSeq] = kind == ACVR_KIND_3D ? ACVR_Rank3D[side]++ : 0;
++}
++
++static void ACVR_NewDrawSide(void)
++{
++ VDP1_DepthFBDrawWhichPtr = VDP1_DepthFB[FBDrawWhich];
++ if(!VDP1_DepthOn) return;
++ memset(VDP1_DepthFBDrawWhichPtr, 0, sizeof(VDP1_DepthFB[0]));
++ VDP1_DrawSeq = 0; ACVR_Rank3D[FBDrawWhich] = 0;
++}
++
++/* Depth of each pixel of a displayed VDP1 line, coded 0 = no VDP1 pixel, else 1 + round((d + 0.5) * 100) with
++ * d in [-0.5, 1.5]: 0 on the screen plane, 1 at the eyes' separation (infinity), negative in front. */
++void VDP1_GetDepthLine(const int line, uint8_t* out, unsigned w)
++{
++ if(!VDP1_DepthOn || (VDP1_TVMR & VDP1_TVMR_ROTATE)) { memset(out, 0, w); return; }
++ const bool side = !FBDrawWhich;
++ const uint16_t* row = &VDP1_DepthFB[side][(line & 0xFF) << 9];
++ const uint32_t n3 = ACVR_Rank3D[side] > 1 ? ACVR_Rank3D[side] - 1 : 1;
++ for(unsigned i = 0; i < w; i++)
++ {
++  const uint16_t seq = row[i];
++  if(!seq) { out[i] = 0; continue; }
++  float d;
++  switch(ACVR_SeqKind[side][seq])
++  {
++   case ACVR_KIND_BACK: d = ACVR_Far; break;
++   case ACVR_KIND_3D:
++    if(ACVR_BySize) { const float a = ACVR_SeqArea[side][seq] / (320.0f * 224.0f * 0.25f); d = ACVR_Far - (ACVR_Far + ACVR_Pop) * (a > 1 ? 1 : a); }
++    else d = ACVR_Far - (ACVR_Far + ACVR_Pop) * ((float)ACVR_SeqRank[side][seq] / (float)n3);
++    break;
++   default: d = 0; break;
++  }
++  int v = (int)((d + 0.5f) * 100.0f + 0.5f); if(v < 0) v = 0; if(v > 200) v = 200;
++  out[i] = (uint8_t)(1 + v);
++ }
++}
++
+ void VDP1_SetMeshImproved(bool improved)
+ {
+  VDP1_MeshImproved = improved;
+@@ -242,6 +324,13 @@ void VDP1_Reset(bool powering_up)
+  }
+ 
+  FBDrawWhich = 0;
++ {
++  const char* e = getenv("ACVR_SAT_STEREO"); VDP1_DepthOn = e && atoi(e) == 1;
++  const char* f = getenv("ACVR_SAT_STEREO_FAR"); if(f && *f) ACVR_Far = (float)atof(f);
++  const char* p = getenv("ACVR_SAT_STEREO_POPOUT"); if(p && *p) ACVR_Pop = (float)atof(p);
++  const char* m = getenv("ACVR_SAT_STEREO_DEPTH"); ACVR_BySize = m && !strcmp(m, "size");
++  ACVR_NewDrawSide();
++ }
+  VDP1_FBDrawWhichPtr = VDP1_FB[FBDrawWhich];
+  VDP1_AltFBDrawWhichPtr = VDP1_AltFB[FBDrawWhich];
+  VDP1_MeshFBDrawWhichPtr = VDP1_MeshFB[FBDrawWhich];
+@@ -748,6 +837,7 @@ static INLINE void DoDrawing(void)
+       VDP1_RESUME_Polygon, VDP1_RESUME_Line, VDP1_RESUME_Line, VDP1_RESUME_Line,
+      };
+ 
++     if(VDP1_DepthOn) ACVR_NoteCommand(CommandData, FBDrawWhich);
+      VDP1_EAT_CLOCKS(command_table[CommandData[0] & 0xF](CommandData));
+      if(!(CommandData[0] & 0x8))
+      {
+@@ -956,6 +1046,7 @@ void VDP1_SetHBVB(const sscpu_timestamp_t event_timestamp, const bool new_hb_sta
+     VDP1_AltFBDrawWhichPtr = VDP1_AltFB[FBDrawWhich];
+     VDP1_MeshFBDrawWhichPtr = VDP1_MeshFB[FBDrawWhich];
+     VDP1_AltMeshFBDrawWhichPtr = VDP1_AltMeshFB[FBDrawWhich];
++    ACVR_NewDrawSide();
+ 
+     // Unconditionally clear the new draw side of VDP1_MeshFB. Game-driven erase
+     // (VBErase, per-scanline GetLine erase) is gated on the game's VDP1_FBCR/
+diff --git a/mednafen/ss/vdp1.h b/mednafen/ss/vdp1.h
+index 73377d5..9ffb0b3 100644
+--- a/mednafen/ss/vdp1.h
++++ b/mednafen/ss/vdp1.h
+@@ -85,6 +85,11 @@ void VDP1_SetAltFieldCapture(bool enabled);
+ /* "Improved mesh transparency" toggle storage (libretro core
+    option). Defined in vdp1.c; read directly by vdp2_render. */
+ MDFN_HIDE extern bool VDP1_MeshImproved;
++/* ACVR depth experiment: the draw-order number of the VDP1 command that last wrote each framebuffer pixel. */
++MDFN_HIDE extern bool VDP1_DepthOn;
++MDFN_HIDE extern uint16_t VDP1_DrawSeq;
++MDFN_HIDE extern uint16_t* VDP1_DepthFBDrawWhichPtr;
++void VDP1_GetDepthLine(const int line, uint8_t* out, unsigned w);
+ 
+ /*
+ **
+diff --git a/mednafen/ss/vdp1_common.h b/mednafen/ss/vdp1_common.h
+index 5455725..e784826 100644
+--- a/mednafen/ss/vdp1_common.h
++++ b/mednafen/ss/vdp1_common.h
+@@ -289,6 +289,7 @@ static MDFN_FORCE_INLINE int32_t VDP1_PlotPixel(const int die, const unsigned bp
+  if(bpp8) {
+   if(MSBOn) { pix = (fbyptr[((x >> 1) & 0x1FF)] | 0x8000) >> (((x & 1) ^ 1) << 3); ret += 5; }
+   else if(HalfBGEn) ret += 5;
++  if(!transparent && VDP1_DepthOn && !die) VDP1_DepthFBDrawWhichPtr[(fbrow << 9) + ((x >> 1) & 0x1FF)] = VDP1_DrawSeq;
+   if(!transparent) { const uint32_t boff__ = (bpp8 == 2) ? ((x & 0x1FF) | ((y & 0x100) << 1)) : (x & 0x3FF);
+ #ifdef MSB_FIRST
+    ((uint8_t*)fbyptr)[boff__] = pix;
+@@ -314,6 +315,7 @@ static MDFN_FORCE_INLINE int32_t VDP1_PlotPixel(const int die, const unsigned bp
+    if(!transparent) mfbbase[(fbrow << 9) + (x & 0x1FF)] = pix;
+   } else {
+    if(!transparent) *p = pix;
++   if(!transparent && VDP1_DepthOn && !die) VDP1_DepthFBDrawWhichPtr[(fbrow << 9) + (x & 0x1FF)] = VDP1_DrawSeq;
+    if(!MeshEn && VDP1_MeshImproved && !transparent) mfbbase[(fbrow << 9) + (x & 0x1FF)] = 0;
+   }
+   ret++;
+diff --git a/mednafen/ss/vdp2.c b/mednafen/ss/vdp2.c
+index 53334ec..ee73644 100644
+--- a/mednafen/ss/vdp2.c
++++ b/mednafen/ss/vdp2.c
+@@ -571,6 +571,7 @@ static INLINE int32_t AddHCounter(const sscpu_timestamp_t event_timestamp, int32
+     }
+     lib->vdp1_hires8 = VDP1_GetLine(VCounter, lib->vdp1_line, lib->vdp1_mesh_line, lib->vdp1_line_alt, lib->vdp1_mesh_line_alt, &lib->vdp1_alt_valid, (HRes & 1) ? 352 : 320, (int32_t)RotParams[0].XstAccum >> 1, (int32_t)RotParams[0].YstAccum >> 1, (int32_t)RotParams[0].DX >> 1, (int32_t)RotParams[0].DY >> 1); // Always call, has side effects.
+     lib->vdp1_alt_hires8 = lib->vdp1_hires8;
++    if(VDP1_DepthOn) VDP1_GetDepthLine(VCounter, lib->acvr_depth_line, (HRes & 1) ? 352 : 320);
+     VDP2REND_DrawLine(InternalVB ? -1 : VCounter, CRTLineCounter, !Odd);
+     CRTLineCounter++;
+    }
+diff --git a/mednafen/ss/vdp2_render.c b/mednafen/ss/vdp2_render.c
+index 432aaf5..1bc2d9e 100644
+--- a/mednafen/ss/vdp2_render.c
++++ b/mednafen/ss/vdp2_render.c
+@@ -72,6 +72,7 @@ typedef uint32_t vdp2_atomic_u32;
+  * in response to the libretro option-update path, so a relaxed load
+  * is sufficient.  VDP1 is C; plain extern, default C linkage. */
+ MDFN_HIDE extern bool VDP1_MeshImproved;
++MDFN_HIDE extern bool VDP1_DepthOn;
+ 
+ //uint8_t vdp2rend_prepad_bss
+ 
+@@ -3783,6 +3784,7 @@ static MDFN_FORCE_INLINE uint32_t MixIt_coloroffs_rgb24(uint32_t rgb_tmp,
+   pt |= 0xC0ULL; /* Back pixel(0x80) and null pixel(0x40) */                                                                                \
+                                                                                                                                            \
+   st = 63 ^ MDFN_lzcount64_0UD(pt);                                                                                                         \
++  if(VDP1_DepthOn) LIB[vdp2_line].acvr_winlayer[i] = st & 7;                                                                                \
+   pt ^= 1ULL << st;                                                                                                                         \
+   pt |= 0x40; /* Restore the null! */                                                                                                       \
+   pix = MixIt_Fetch(mix_bases, i, st, back_pix);                                                                                                                  \
+@@ -4020,6 +4022,7 @@ DMI_FN_AT_DUALEN(1)
+ #define DMI_TBL_AT_SPECIAL(DUALEN, SPECIAL)             { DMI_ENUM_CCRTMD(DMI_TBL_AT_CCRTMD, DUALEN, SPECIAL) },
+ #define DMI_TBL_AT_DUALEN(DUALEN)                       { DMI_ENUM_SPECIAL(DMI_TBL_AT_SPECIAL, DUALEN) },
+ 
++uint8_t* ACVR_DepthPix = NULL; int32_t ACVR_DepthPitch = 0, ACVR_DepthRows = 0; float ACVR_FarCode = 1.0f, ACVR_FloorCode = 0.15f;
+ static void (*MixIt[2][7][2][2])(uint32_t* target, const unsigned vdp2_line, const unsigned w, const uint32_t back_rgb24, const uint64_t* blursrc) =
+ {
+  DMI_TBL_AT_DUALEN(0)
+@@ -4893,6 +4896,29 @@ static NO_INLINE void DrawLine(const uint16_t out_line, const uint16_t vdp2_line
+      special = MIXIT_SPECIAL_HIRES_CRAM12;
+    }
+    MixIt[rbgdualen][special][CCRTMD][CCMD](target + tvxo, vdp2_line, ow, back_rgb24, blursrc);
++   // ACVR depth experiment: a depth per output pixel, beside the surface. A sprite pixel that won keeps its
++   // VDP1 depth; a VDP2 layer drawn over a sprite pixel (HUD, text) sits on the screen plane; a VDP2 layer with
++   // no sprite under it (sky, backdrop) is far away.
++   if(VDP1_DepthOn && ACVR_DepthPix && target != SpillRow)
++   {
++    const int32_t row = (int32_t)((target - espec->surface->pixels) / espec->surface->pitchinpix);
++    if(row >= 0 && row < ACVR_DepthRows)
++    {
++     uint8_t* d = ACVR_DepthPix + (size_t)row * ACVR_DepthPitch + tvxo;
++     const unsigned hs = (HRes & 0x2) >> 1;
++     // VDP2 layers with no sprite under them: far away in the upper part of the picture (sky), coming nearer
++     // towards the bottom (a floor drawn by a rotating background layer), down to ACVR_FloorCode at the bottom.
++     const float yf = vdp2_line / 224.0f;
++     const float bd = yf < 0.45f ? ACVR_FarCode : ACVR_FarCode - (ACVR_FarCode - ACVR_FloorCode) * ((yf > 1.0f ? 1.0f : yf) - 0.45f) / 0.55f;
++     const uint8_t far_code = (uint8_t)(1 + (int)((bd + 0.5f) * 100.0f + 0.5f));
++     for(int32_t i = 0; i < ow; i++)
++     {
++      const uint8_t sd = LIB[vdp2_line].acvr_depth_line[(i >> hs) < 352 ? (i >> hs) : 351];
++      const uint8_t wl = LIB[vdp2_line].acvr_winlayer[i];
++      d[i] = (wl == 5 && sd) ? sd : sd ? 51 : far_code;
++     }
++    }
++   }
+    // RGB-to-output byte-swap now folded into MixIt's terminal store
+    // (single bswap+shr per pixel at a register that already holds the
+    // value, instead of a separate read-modify-write pass over the row).
+diff --git a/mednafen/ss/vdp2_render.h b/mednafen/ss/vdp2_render.h
+index 58e6c24..9bbe940 100644
+--- a/mednafen/ss/vdp2_render.h
++++ b/mednafen/ss/vdp2_render.h
+@@ -98,6 +98,10 @@ struct VDP2Rend_LIB
+  // texel's own priority bits + SpritePrioNum[] lookup as FBMeshPrio).
+  // Sized to the hires output width.
+  uint8_t vdp1_winprio[704];
++ // ACVR depth experiment: VDP1 depth code per sprite pixel (VDP1_GetDepthLine), and the layer (0..7, 5 = sprite)
++ // that won each output pixel in T_MixIt.
++ uint8_t acvr_depth_line[352];
++ uint8_t acvr_winlayer[704];
+ };
+ 
+ #ifdef __cplusplus

@@ -1,19 +1,19 @@
 # Open-frame proof: marks the original 4:3 frame inside a wider picture and measures how much of the area
 # outside it holds picture (not black). python openframe.py <scale> <out.png> <in.png> [in.png ...]
-# scale: the original frame's size as a fraction of the picture (presentation focal / stock focal).
+# scale: the original frame's size as a fraction of the picture (presentation focal / stock focal), or sx,sy.
 import sys, os
 from PIL import Image, ImageDraw
 
-scale = float(sys.argv[1]); out = sys.argv[2]; files = sys.argv[3:]
+sc = [float(v) for v in sys.argv[1].split(',')]; sx, sy = sc[0], sc[-1]; out = sys.argv[2]; files = sys.argv[3:]
 tiles = []
 for f in files:
     im = Image.open(f).convert('RGB')
     w, h = im.size
-    bw, bh = w * scale, h * scale
+    bw, bh = w * sx, h * sy
     box = (int((w - bw) / 2), int((h - bh) / 2), int((w + bw) / 2), int((h + bh) / 2))
     px = im.load()
     outside = lit = 0
-    for y in range(0, h, 2):
+    for y in range(0, int(h * 0.92), 2):  # (the bottom 8% left out: credit lines)
         for x in range(0, w, 2):
             if box[0] <= x < box[2] and box[1] <= y < box[3]:
                 continue

@@ -1,0 +1,9 @@
+# Control run: no buttons, pictures only (emulated seconds).
+shot 8 c8
+shot 12 c12
+shot 16 c16
+shot 20 c20
+shot 28 c28
+shot 32 c32
+shot 36 c36
+shot 40 c40

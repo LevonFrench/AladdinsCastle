@@ -7,6 +7,8 @@
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
 #include "core/ps1/Ps1.h"
+#include "core/n64/N64.h"
+#include "core/saturn/Saturn.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/pinball/Pinball.h"
 #include "core/scan/Scan.h"
@@ -186,7 +188,7 @@ QVariantMap scanModel2(const QVariantMap &settings,const QVariantMap &context,co
    if(folder!=systemFolder){auto entry=groups.ready.last().toMap();entry["folder"]=folder;groups.ready.last()=entry;}}
   else groups.notRight<<item(id,title,"reason",check.value("reason").toString());
  }
- QString note="Controls new, untested: Virtua Cop 2, Virtua Cop, The House of the Dead, Gunblade NY, Behind Enemy Lines, Sky Target, Daytona USA, Sega Rally Championship, INDY 500 and Motor Raid. Virtua Fighter 2: view only for now.";
+ QString note="Controls new, untested: Virtua Cop 2, Virtua Cop, The House of the Dead, Gunblade NY, Behind Enemy Lines, Rail Chase 2, Sky Target, Daytona USA, Sega Rally Championship, INDY 500, Motor Raid, Super GT 24h and Desert Tank. Virtua Fighter 2: view only for now.";
  if(!standIns.isEmpty())note+=QString(" The %1 set here is a stand-in, which only leaves the cabinet's sign blank.").arg(standIns.join(", "));
  if(unchecked)note+=settings.value("queryEmulators").toBool()?QString(" Some games could not be checked against the emulator."):QString(" Allow the Hub to ask found emulators for their game lists, and the files inside each game are checked too.");
  return groups.result("model2",systemFolder.isEmpty()&&!context.value("library").toMap().value("systems").toMap().contains("model2")?QString("No folder chosen for this system."):note);
@@ -225,6 +227,34 @@ QVariantMap scanPs1(const QVariantMap &settings,const QVariantMap &context,const
   else groups.notRight<<item(id,title,"reason",issue);
  }
  return groups.result("ps1",launcher.isEmpty()?QString("No PS1 launcher chosen."):QString("The Hub starts these through your PS1 launcher, which knows each disc and gun."));
+}
+QVariantMap scanN64(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
+ // The launcher holds each game's cartridge dump, controls and views; the Hub only checks that it knows the game.
+ Q_UNUSED(context);Q_UNUSED(cancel);progress("Reading the N64 launcher");
+ const auto launcher=settings.value("n64Launcher").toString();
+ Groups groups;
+ for(const auto &value:n64::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
+  const auto issue=n64::problem(id,launcher);
+  if(issue.isEmpty())groups.ready<<item(id,title,"detail",game.value("controls").toString());
+  else if(issue.contains("no entry"))groups.missing<<item(id,title,"expected",title+" (an entry in your N64 launcher)");
+  else groups.notRight<<item(id,title,"reason",issue);
+ }
+ return groups.result("n64",launcher.isEmpty()?QString("No N64 launcher chosen."):QString("The Hub starts these through your N64 launcher, which knows each cartridge dump and its views."));
+}
+QVariantMap scanSaturn(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
+ // The launcher holds each game's disc, aim trim and saved calibration; the Hub only checks that it knows the game.
+ Q_UNUSED(context);Q_UNUSED(cancel);progress("Reading the Saturn launcher");
+ const auto launcher=settings.value("saturnLauncher").toString();
+ Groups groups;
+ for(const auto &value:saturn::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
+  const auto issue=saturn::problem(id,launcher);
+  if(issue.isEmpty())groups.ready<<item(id,title,"detail",game.value("controls").toString());
+  else if(issue.contains("no entry"))groups.missing<<item(id,title,"expected",title+" (an entry in your Saturn launcher)");
+  else groups.notRight<<item(id,title,"reason",issue);
+ }
+ return groups.result("saturn",launcher.isEmpty()?QString("No Saturn launcher chosen."):QString("The Hub starts these through your Saturn launcher, which knows each disc and its gun calibration."));
 }
 QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
  const auto folder=settings.value("dreamcastGameFolder").toString();
@@ -291,7 +321,7 @@ QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const P
  else groups.ready<<item(id,title,"detail","The program and the game files beside it were found.");
  return groups.result("system22",QString());
 }
-const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps2",scanPs2},{"ps1",scanPs1},{"dreamcast",scanDreamcast},{"wii",scanWii},{"system22",scanSystem22}};return table;}
+const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps2",scanPs2},{"ps1",scanPs1},{"n64",scanN64},{"saturn",scanSaturn},{"dreamcast",scanDreamcast},{"wii",scanWii},{"system22",scanSystem22}};return table;}
 }
 QVariantMap mameCheck(const QByteArray &listXml,const QString &game,const QString &folder,const QStringList &cosmetic,std::atomic_bool &cancel){
  // Every machine in the output with the files it loads; the game itself names its parent and its devices.

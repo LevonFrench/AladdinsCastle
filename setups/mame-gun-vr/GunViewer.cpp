@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // ACVRMG v4 reader and theatre client. MAME owns emulation, calibration and saves.
 #include "acvr_mono_frames.h"
+#include "BodyMotion.h"
 #include "TheatreClient.h"
 #include "TheatreRender.h"
 #include "CleanQuit.h"
@@ -19,7 +20,7 @@ struct Options {
  DWORD pid=0;
  unsigned seconds=3600;
  std::string model,metadata,stop,proof;
- bool offline=false,script=false,crt=false;
+ bool offline=false,script=false,crt=false,motion=false,body=false;
  double captureSeconds=36;
 };
 struct Snapshot {
@@ -41,7 +42,7 @@ public:
   if(mapping && mutex)shared=static_cast<acvr_mono::frame*>(MapViewOfFile(mapping,FILE_MAP_ALL_ACCESS,0,0,sizeof(acvr_mono::frame)));
   return shared!=nullptr;
  }
- bool exchange(const acvr_mono::controls& input,bool exit,Snapshot& out){
+ bool exchange(const acvr_mono::controls& input,const acvr_mono::motion* body,bool exit,Snapshot& out){
   if(!shared)return false;
   DWORD state=WaitForSingleObject(mutex,0);
   if(state!=WAIT_OBJECT_0 && state!=WAIT_ABANDONED)return false;
@@ -52,6 +53,7 @@ public:
   if(f.tag!=acvr_mono::magic || f.version!=4)
    throw std::runtime_error("invalid ACVRMG v4 header");
   f.input[0]=input;
+  if(body)f.body=*body;
   if(exit)f.exit_request=1;
   if(!f.w || !f.h || !f.serial)return false;
   if(f.w>1024 || f.h>1024 || f.stride!=f.w || !std::isfinite(f.physical_aspect) || f.physical_aspect<.1f || f.physical_aspect>10.f)
@@ -92,6 +94,8 @@ class Viewer:public TheatreClient {
  bool placed=false,previousTrigger=false;
  std::atomic<bool> stopRequested{false};
  CleanQuit quit;
+ body_motion::Mapper bodyMapper;
+ acvr_mono::motion body{};
  FILE* trace=nullptr;
  unsigned lastButtons=~0u;
  bool initialized=false;
@@ -99,6 +103,7 @@ public:
  std::atomic<bool> exitSent{false};
  bool captured=false;
  unsigned pulses=0;
+ std::uint64_t kickAt=0;   // last shot edge: the model's [motion.recoil] slide kicks back, holds, returns
  explicit Viewer(const Options& o):options(o){gun.load(o.model,o.metadata);}
  void request_stop(){stopRequested=true;}
  const Snapshot& picture()const{return snapshot;}
@@ -119,21 +124,37 @@ public:
    const float yaw=std::atan2(2*(q[0]*q[2]+q[3]*q[1]),1-2*(q[0]*q[0]+q[1]*q[1]));
    scene.screen.frame=Mat4::Translation(centre[0],centre[1],centre[2])*Mat4::Rotation(0,1,0,yaw);placed=true;
   }
-  scene.screen.height=scene.screen.width/snapshot.aspect;
+  // keep a 4:3 picture 2.4 m tall; an open-frame (wider) picture adds width at the sides
+  scene.screen.width=std::max(3.2f,2.4f*snapshot.aspect);scene.screen.height=scene.screen.width/snapshot.aspect;
   float u=.5f,v=.5f;bool on=false;
   Mat4 aim=Mat4::FromPose(frame.aim.position,frame.aim.orientation);
   if(frame.focused && frame.aim.valid){const float direction[3]={-aim.m[8],-aim.m[9],-aim.m[10]};on=scene.screen.hit(frame.aim.position,direction,u,v);}
-  scene.showGun=frame.focused && frame.grip.valid && frame.aim.valid;
-  scene.showDot=frame.focused && frame.aim.valid && on;scene.dotU=u;scene.dotV=v;scene.trigger=frame.trigger;
+  scene.showGun=!options.motion && frame.focused && frame.grip.valid && frame.aim.valid;
+  scene.showDot=!options.motion && frame.focused && frame.aim.valid && on;scene.dotU=u;scene.dotV=v;scene.trigger=frame.trigger;
   if(scene.showGun)scene.gunRoot=gun.alignedRoot(Mat4::FromPose(frame.grip.position,frame.grip.orientation),aim,0);
   quit.poll(GetTickCount64(),frame.focused && frame.quitHeld,stopRequested || (!options.stop.empty() && fs::exists(options.stop)));
   acvr_mono::controls input{};input.heartbeat_ms=GetTickCount64();
   input.valid=frame.focused && !quit.requested();input.off_screen=!on;input.u=std::clamp(u,0.f,1.f);input.v=std::clamp(v,0.f,1.f);
   input.trigger=input.valid && frame.aim.valid && frame.trigger>=.55f;
   input.button2=input.valid && frame.button2;input.start=input.valid && frame.start;input.coin=input.valid && frame.coin;
-  if(input.trigger && !previousTrigger){++pulses;queue_shot_pulse();}previousTrigger=input.trigger;
+  if(input.trigger && !previousTrigger){++pulses;queue_shot_pulse();kickAt=GetTickCount64();}previousTrigger=input.trigger;
+  {const float slideS=gun.recoilMs()/1000.f,since=(GetTickCount64()-kickAt)/1000.f;scene.recoil=kickAt && since<2*slideS?(since<slideS?1.f:2.f-since/slideS):0.f;}   // back, hold, return
   if(quit.requested()){input={};input.heartbeat_ms=GetTickCount64();}
-  const bool complete=wire.exchange(input,quit.requested(),snapshot);
+  if(options.motion){
+   // body controls: the aim pose gives the right hand's heading, the grip poses give height
+   body_motion::Input in;
+   if(frame.views.valid){in.head.valid=true;for(int i=0;i<3;++i)in.head.position[i]=(frame.views.eyes[0].position[i]+frame.views.eyes[1].position[i])*.5f;for(int i=0;i<4;++i)in.head.orientation[i]=frame.views.eyes[0].orientation[i];}
+   if(frame.focused && frame.aim.valid){in.right.valid=true;for(int i=0;i<4;++i)in.right.orientation[i]=frame.aim.orientation[i];for(int i=0;i<3;++i)in.right.position[i]=frame.grip.valid?frame.grip.position[i]:frame.aim.position[i];}
+   if(frame.focused && frame.leftGrip.valid){in.left=body_motion::Pose{};in.left.valid=true;for(int i=0;i<3;++i)in.left.position[i]=frame.leftGrip.position[i];for(int i=0;i<4;++i)in.left.orientation[i]=frame.leftGrip.orientation[i];}
+   in.rightTrigger=frame.focused?frame.trigger:0;in.leftTrigger=frame.focused?frame.leftTrigger:0;in.seconds=GetTickCount64()/1000.0;
+   for(int i=0;i<2;++i){in.leftStick[i]=frame.focused?frame.leftStick[i]:0;in.rightStick[i]=frame.focused?frame.rightStick[i]:0;}
+   body={};body.heartbeat_ms=GetTickCount64();
+   // thumbsticks and triggers by default; body motion (roll, tilt, lean, twist, pedalling) only with --body
+   if(options.body)body.valid=input.valid && bodyMapper.Map(in,body.axis);
+   else {bodyMapper.MapSticks(in,body.axis);body.valid=input.valid;}
+   if(quit.requested())body.valid=0;
+  }
+  const bool complete=wire.exchange(input,options.motion?&body:nullptr,quit.requested(),snapshot);
   if(quit.requested() && complete)exitSent=true;
   const unsigned buttons=input.trigger|(input.button2<<1)|(input.start<<2)|(input.coin<<3);
   if(trace && snapshot.serial && (buttons!=lastButtons || snapshot.serial%60==0)){
@@ -189,21 +210,23 @@ public:
   auto save=[&](std::string name,const std::vector<std::uint32_t>& pixels,unsigned w,unsigned h){if(!acvr_png::write((fs::path(options.proof)/name).string().c_str(),pixels.data(),w,h))throw std::runtime_error("proof write failed");};
   save("source.png",snapshot.pixels,snapshot.w,snapshot.h);
   auto original=scene;
-  std::uint64_t nearCount[2]{},farCount[2]{},dotCount[2]{};
+  std::uint64_t nearCount[2]{},farCount[2]{},dotCount[2]{},recoilCount[2]{};
   for(unsigned eye=0;eye<2;++eye){
    GLuint colour=0;glGenTextures(1,&colour);glBindTexture(GL_TEXTURE_2D,colour);glTexImage2D(GL_TEXTURE_2D,0,GL_SRGB8_ALPHA8,frame.width[eye],frame.height[eye],0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);
    scene=original;scene.showGun=scene.showDot=false;draw_eye(eye,colour,frame,true);auto picture=readback(eye,frame);save(eye?"right-picture.png":"left-picture.png",picture,frame.width[eye],frame.height[eye]);
-   scene=original;scene.showDot=false;draw_eye(eye,colour,frame,true);auto front=readback(eye,frame);save(eye?"right-front.png":"left-front.png",front,frame.width[eye],frame.height[eye]);
+   scene=original;scene.showDot=false;scene.recoil=0;draw_eye(eye,colour,frame,true);auto front=readback(eye,frame);save(eye?"right-front.png":"left-front.png",front,frame.width[eye],frame.height[eye]);
    scene.gunRoot.m[14]-=5;draw_eye(eye,colour,frame,true);auto behind=readback(eye,frame);save(eye?"right-behind.png":"left-behind.png",behind,frame.width[eye],frame.height[eye]);
    scene=original;scene.showGun=false;draw_eye(eye,colour,frame,true);auto dot=readback(eye,frame);save(eye?"right-dot.png":"left-dot.png",dot,frame.width[eye],frame.height[eye]);
-   for(std::size_t i=0;i<picture.size();++i){nearCount[eye]+=(front[i]!=picture[i]);farCount[eye]+=(behind[i]!=picture[i]);dotCount[eye]+=(dot[i]!=picture[i]);}
+   scene=original;scene.showDot=false;scene.recoil=1;draw_eye(eye,colour,frame,true);auto recoil=readback(eye,frame);save(eye?"right-recoil.png":"left-recoil.png",recoil,frame.width[eye],frame.height[eye]);
+   for(std::size_t i=0;i<picture.size();++i){nearCount[eye]+=(front[i]!=picture[i]);recoilCount[eye]+=(recoil[i]!=front[i]);farCount[eye]+=(behind[i]!=picture[i]);dotCount[eye]+=(dot[i]!=picture[i]);}
    glDeleteTextures(1,&colour);
-   if(nearCount[eye]<100 || farCount[eye]!=0 || dotCount[eye]<4)throw std::runtime_error("gun/dot depth proof failed");
+   if(!options.motion && (nearCount[eye]<100 || farCount[eye]!=0 || dotCount[eye]<4))throw std::runtime_error("gun/dot depth proof failed");
+   if(!options.motion && gun.hasRecoil() && recoilCount[eye]==0)throw std::runtime_error("recoil proof failed: the slide did not move");
   }
   scene=original;glFinish();if(glGetError()!=GL_NO_ERROR)throw std::runtime_error("GL error during proof");
   if(GetModuleHandleA("openxr_loader.dll"))throw std::runtime_error("offline proof opened an XR loader");
   std::ofstream f(fs::path(options.proof)/"native-proof.json");
-  f<<"{\n\"protocol\":4,\"serial\":"<<snapshot.serial<<",\"emulated_seconds\":"<<snapshot.seconds<<",\"native_width\":"<<snapshot.w<<",\"native_height\":"<<snapshot.h<<",\"physical_aspect\":"<<snapshot.aspect<<",\"orientation_already_applied\":"<<snapshot.orientation<<",\"integer_prescale\":"<<factor<<",\"aim_u\":"<<scene.dotU<<",\"aim_v\":"<<scene.dotV<<",\"mame_cross_u\":"<<snapshot.gun.cross_u<<",\"mame_cross_v\":"<<snapshot.gun.cross_v<<",\"left_near_pixels\":"<<nearCount[0]<<",\"right_near_pixels\":"<<nearCount[1]<<",\"behind_pixels\":0,\"dot_pixels\":["<<dotCount[0]<<","<<dotCount[1]<<"],\"trigger_pulses\":"<<pulses<<",\"GL_errors\":0,\"OpenXR_started\":false,\"headset_tested\":false\n}\n";
+  f<<"{\n\"protocol\":4,\"serial\":"<<snapshot.serial<<",\"emulated_seconds\":"<<snapshot.seconds<<",\"native_width\":"<<snapshot.w<<",\"native_height\":"<<snapshot.h<<",\"physical_aspect\":"<<snapshot.aspect<<",\"orientation_already_applied\":"<<snapshot.orientation<<",\"integer_prescale\":"<<factor<<",\"aim_u\":"<<scene.dotU<<",\"aim_v\":"<<scene.dotV<<",\"mame_cross_u\":"<<snapshot.gun.cross_u<<",\"mame_cross_v\":"<<snapshot.gun.cross_v<<",\"left_near_pixels\":"<<nearCount[0]<<",\"right_near_pixels\":"<<nearCount[1]<<",\"behind_pixels\":0,\"dot_pixels\":["<<dotCount[0]<<","<<dotCount[1]<<"],\"recoil_pixels\":["<<recoilCount[0]<<","<<recoilCount[1]<<"],\"trigger_pulses\":"<<pulses<<",\"GL_errors\":0,\"OpenXR_started\":false,\"headset_tested\":false\n}\n";
   captured=true;
  }
  void shutdown()override{
@@ -234,7 +257,7 @@ int main(int argc,char** argv){
   for(int i=1;i<argc;++i){std::string a=argv[i];auto value=[&](){if(++i>=argc)throw std::runtime_error("missing option value");return std::string(argv[i]);};
    if(a=="--pid")o.pid=std::stoul(value());else if(a=="--model")o.model=value();else if(a=="--metadata")o.metadata=value();
    else if(a=="--seconds")o.seconds=std::stoul(value());else if(a=="--stop-file")o.stop=value();else if(a=="--offline-proof"){o.offline=true;o.proof=value();}
-   else if(a=="--script")o.script=true;else if(a=="--crt")o.crt=true;else if(a=="--capture-seconds")o.captureSeconds=std::stod(value());else throw std::runtime_error("unknown option: "+a);
+   else if(a=="--script")o.script=true;else if(a=="--motion")o.motion=true;else if(a=="--body")o.motion=o.body=true;else if(a=="--crt")o.crt=true;else if(a=="--capture-seconds")o.captureSeconds=std::stod(value());else throw std::runtime_error("unknown option: "+a);
   }
   if(!o.pid || o.model.empty() || o.metadata.empty() || !o.seconds || o.seconds>86400 || !std::isfinite(o.captureSeconds) || o.captureSeconds<1)throw std::runtime_error("required: --pid --model --metadata; bounded --seconds, optional --offline-proof directory --script");
   std::fprintf(stderr,"viewer: monitoring publisher %lu, offline=%d\n",o.pid,o.offline);std::fflush(stderr);

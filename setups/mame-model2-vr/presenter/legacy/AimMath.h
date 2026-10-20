@@ -36,5 +36,13 @@ inline float steer_from_roll(quat aim, float full_lock_degrees)
  const float roll=std::asin(std::fmax(-1.f,std::fmin(1.f,right.y)))*57.2957795f;
  return std::fmax(-1.f,std::fmin(1.f,-roll/full_lock_degrees));
 }
+// Racing steering: the left stick by default (small dead zone). Controller roll only when
+// the player opted in and the stick is not pushed.
+inline float choose_steer(float stick, bool roll_enabled, bool roll_valid, quat aim, float full_lock_degrees)
+{
+ if (!std::isfinite(stick)) stick=0;
+ if (roll_enabled && roll_valid && std::fabs(stick)<=.15f) return steer_from_roll(aim,full_lock_degrees);
+ return std::fabs(stick)<.05f ? 0.f : std::fmax(-1.f,std::fmin(1.f,stick));
+}
 }
 #endif

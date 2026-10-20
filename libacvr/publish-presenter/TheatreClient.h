@@ -9,6 +9,10 @@ struct TrackedPose {
 struct TheatreFrame {
  ProjectionPacket views;
  TrackedPose aim,grip;
+ // Body controls (motion cabinets): left grip pose, left trigger and the right squeeze value.
+ TrackedPose leftGrip;
+ float leftTrigger=0,squeeze=0;
+ float leftStick[2]={},rightStick[2]={}; // thumbsticks, x right +, y up +
  unsigned width[2]={},height[2]={};
  float trigger=0;
  bool focused=false,button2=false,start=false,coin=false,quitHeld=false,recenter=false;

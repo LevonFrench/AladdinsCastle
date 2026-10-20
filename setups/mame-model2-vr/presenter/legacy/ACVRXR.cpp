@@ -247,10 +247,11 @@ namespace
       XrSpaceLocation pose = { XR_TYPE_SPACE_LOCATION };
       const auto need=XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
       const bool located = aimOK && aim.isActive && XR_SUCCEEDED(p_xrLocateSpace(s_aimSpace, s_space, time, &pose)) && (pose.locationFlags & need)==need;
-      // Steering: the left thumbstick when it is pushed, else the right controller's roll,
-      // held like a wheel: 60 degrees clockwise is full right lock.
-      if (std::fabs(stickX) > .15f) input.steer = std::fmin(std::fmax(stickX, -1.f), 1.f);
-      else if (located) input.steer = acvr_aim::steer_from_roll({pose.pose.orientation.x,pose.pose.orientation.y,pose.pose.orientation.z,pose.pose.orientation.w}, 60.f);
+      // Steering: the left thumbstick. Rolling the right controller like a wheel is an
+      // opt-in (ACVR_M2_ROLL_STEER=1, 60 degrees = full lock); a pushed stick still wins.
+      static const bool rollSteer = [] { const char *v = std::getenv("ACVR_M2_ROLL_STEER"); return v && !std::strcmp(v, "1"); }();
+      input.steer = acvr_aim::choose_steer(stickX, rollSteer, located,
+        {pose.pose.orientation.x,pose.pose.orientation.y,pose.pose.orientation.z,pose.pose.orientation.w}, 60.f);
       if (width>0 && height>0 && s_poseSet && located) {
         const auto &p=pose.pose.position, &c=s_quadPose.position;
         const auto &q=pose.pose.orientation, &s=s_quadPose.orientation;

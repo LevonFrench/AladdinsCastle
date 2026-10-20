@@ -1,0 +1,5 @@
+# Gun games control: no input until after the pictures at 10, 16, 20 s; one minus press at 21 s marks the end in the probe log.
+shot 10 c10
+shot 16 c16
+shot 20 c20
+21.0 21.3 L thumbclick 1

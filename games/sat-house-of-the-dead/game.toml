@@ -28,7 +28,7 @@ note = "Your own Saturn BIOS dump"
 [routes]
 mednafen     = "unknown"
 yabasanshiro = "unknown"
-vr           = { best = "none" }
+vr           = { best = "theatre", via = "acvr-ps1 with Beetle Saturn and the Stunner (setups/retro-ps1-vr)" }
 
 [hub]
 pill   = "SAT-HOTD"

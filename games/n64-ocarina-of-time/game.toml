@@ -1,0 +1,36 @@
+id           = "n64-ocarina-of-time"
+title        = "The Legend of Zelda: Ocarina of Time"
+alt_titles   = []
+genre        = "action"
+subgenre     = []
+year         = 1998
+manufacturer = "nintendo"
+developer    = "Nintendo EAD"
+hardware     = "nintendo-64"
+graphics     = "polygon-3d"
+players      = 1
+series       = "The Legend of Zelda"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "other"
+note = "Your own N64 cartridge dump (not provided by this catalog)"
+
+[routes]
+mupen64plus = "unknown"
+vr          = { best = "true3d", via = "acvr-ps1 with mupen64plus-next, GL stereo (setups/retro-ps1-vr)" }
+
+[hub]
+pill   = "N64 OOT"
+colour = "#0e1610"
+accent = "#6ac06a"
+blurb  = "Link's journey through Hyrule and time."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/The_Legend_of_Zelda:_Ocarina_of_Time"]
+confidence = "medium"
+checked    = "2026-10-20"
