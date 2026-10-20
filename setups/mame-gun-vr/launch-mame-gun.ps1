@@ -33,8 +33,28 @@ $games=@{
  'opwolf3' =@{allow='d74-09.8,d74-10.40,d74-12.1,d74-13.2';aim='0.7143,0,0.5001,0';xhair='0'}
  # Zombie Raid: game cursor within 0.0068 untrimmed; grip = pump reload
  'zombraid'=@{allow='';aim='';xhair='0'}
- # Rail Chase: x trim measured; y left untrimmed (low readings count as off-screen), see README
- 'rchase'  =@{allow='';aim='1.0768,0.0007,1,0';xhair='0'}
+ # Rail Chase: sight within 0.003 on the playfield; the 5th value keeps the aim off the gun's
+ # extreme readings, which the game takes as off-screen (the HUD band above stays unreachable)
+ 'rchase'  =@{allow='';aim='1.0768,0.0007,1.3296,-0.0700,0.04';xhair='0'}
+ # Terminator 2 LA4: in-game three-target gun calibration (seeded NVRAM) plus trim; grip = bomb
+ 'term2'   =@{allow='';aim='0.9726,0.0032,0.9623,0.0033';xhair='0'}
+ # Lethal Enforcers II: hit sparks within 0.004 after a small shift; off-screen trigger reloads
+ 'le2'     =@{allow='';aim='1,0.005,1,0.011';xhair='0'}
+ # Police Trainer (Rev 1.3): the game's red hit circle within 0.001 after trim
+ 'policetr13'=@{allow='';aim='1,0.0065,0.9597,-0.0178';xhair='0'}
+ # Alien3: The Gun (mounted guns read as AD sticks): sight within 0.005 after a y scale; grip = bomb
+ 'alien3'  =@{allow='';aim='1,0,1.1789,-0.0012';xhair='0'}
+ # Rapid Fire: hit spark within 0.006 after a y shift
+ 'rapidfir'=@{allow='';aim='1,0,1,-0.0125';xhair='0'}
+ # Exidy 440 gun games: the game's own 4x4 shot dot lands on the aim (no trim); NVRAM seeded
+ # past the first-boot "E2 PROM initialized" screen. Older sets lack the unused sync PROMs.
+ 'crossbow'=@{allow='';aim='';xhair='0'}
+ 'cheyenne'=@{allow='';aim='';xhair='0'}
+ 'chiller' =@{allow='';aim='';xhair='0'}
+ 'claypign'=@{allow='';aim='';xhair='0'}
+ 'combat'  =@{allow='';aim='';xhair='0'}
+ 'hitnmiss'=@{allow='xbl.12h,xbl.9h,xbl.2h,xml-3k_mmi_6331.bin,xbl.4k,xbl.5k,xbl.6k,xbl.7k,xbl.8k';aim='';xhair='0'}
+ 'whodunit8'=@{allow='xbl.12h,xbl.9h,xbl.2h,xml-3k_mmi_6331.bin,xbl.4k,xbl.5k,xbl.6k,xbl.7k,xbl.8k';aim='';xhair='0'}
 }
 if(-not $games.ContainsKey($Game)){throw ('Unknown game key ' + $Game + '; known: ' + (($games.Keys | Sort-Object) -join ', '))}
 foreach($file in @($MameExe,$ViewerExe,$GunModel,$GunMetadata)) {
