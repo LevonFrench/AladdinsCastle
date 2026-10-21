@@ -24,6 +24,8 @@ public:
     void setInputLog(const QString &path);
     Q_INVOKABLE void requestKeyboard(QQuickItem *item);
     Q_INVOKABLE void dismissKeyboard();
+    // The page's answer to one B press, for the input log: "back: <what happened>" or "ignored: <why>".
+    Q_INVOKABLE void noteBack(const QString &outcome);
     // While a game the Hub started runs in the headset, holding the close button for 3 seconds asks it to close.
     void setCloseGesture(bool active){m_gestureActive=active;}
     // Public input boundary: tests inject synthetic events through the same path.
@@ -47,6 +49,11 @@ private:
     OverlayKeyboard m_keyboard;
     OverlayCapture m_capture;
     void logInput(const vr::VREvent_t &event,const OverlayObservation &value);
+    void logLine(const QByteArray &text);
+    // Input-log state: what SteamVR reported for the actions last time, the last raw B, and the last tick.
+    int m_loggedActions = -1;
+    bool m_rawBack = false;
+    qint64 m_lastTick = -1;
     QFile m_inputLog;
     int m_inputLines = 0, m_inputMoves = 0;
     bool m_loggedVisible = false;

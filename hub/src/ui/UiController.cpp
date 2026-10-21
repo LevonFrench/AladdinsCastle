@@ -69,7 +69,7 @@ UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettin
  connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
  connect(this,&UiController::nowPlayingChanged,this,&UiController::launchGateChanged);
  connect(this,&UiController::steamVrStartingChanged,this,&UiController::launchGateChanged);
- connect(settings,&UiSettings::changed,this,&UiController::model3Changed);
+ connect(settings,&UiSettings::changed,this,&UiController::listsChanged);
  connect(games,&QAbstractItemModel::dataChanged,this,&UiController::catalogReadyChanged);
  connect(games,&QAbstractItemModel::modelReset,this,&UiController::catalogReadyChanged);
  connect(settings,&UiSettings::changed,this,&UiController::setupChanged);
@@ -337,7 +337,8 @@ QVariantList UiController::readyCatalogGames()const{
  }
  return rows;
 }
-QVariantList UiController::otherGames()const{
+QVariantList UiController::otherGames()const{if(!m_otherCache)m_otherCache=buildOtherGames();return *m_otherCache;}
+QVariantList UiController::buildOtherGames()const{
  const auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();QVariantList rows;
  const auto add=[&](QVariantMap row,const QVariantList &views){
   auto view=chosen.value(row.value("id").toString()).toString();bool known=false;
@@ -413,7 +414,7 @@ QVariantList UiController::otherGames()const{
    // Atomiswave boards run in the same Flycast build; they get their own shelf.
    const bool atomiswave=system.id=="dreamcast"&&group=="atomiswave";
    add({{"id",system.id+"-"+game.value("id").toString()},{"system",atomiswave?QString("atomiswave"):system.id},{"pill",atomiswave?QString("ATOMISWAVE"):system.pill},
-        {"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},{"problem",QString()},
+        {"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"artFile",game.value("file")},{"warning",game.value("controls")},{"problem",QString()},
         {"launcher",launcher},{"status",game.value("status")}},game.value("views").toList());
   }
  }
@@ -456,7 +457,7 @@ QString UiController::copyInUse(const QString &system,const QString &game)const{
 }
 void UiController::chooseCopy(const QString &system,const QString &game,const QString &file){
  auto choices=m_settings->get("libraryChoice",QVariantMap{}).toMap();choices[system+"/"+game]=file;m_settings->set("libraryChoice",choices);
- message("This copy is used from now on. Rescan in Set-up to check it.");emit model3Changed();emit libraryChanged();
+ message("This copy is used from now on. Rescan in Set-up to check it.");listsChanged();emit libraryChanged();
 }
 QString UiController::libraryRule()const{return library::rule();}
 QString UiController::launcherFor(const QString &system)const{
@@ -492,7 +493,8 @@ void UiController::scanSetup(){
  m_setupScanning=true;m_setupProgress="Starting";emit setupChanged();emit setupScanRequested(ids);
 }
 QVariantList UiController::model3Views()const{return model3::views();}
-QVariantList UiController::model3Games()const{
+QVariantList UiController::model3Games()const{if(!m_model3Cache)m_model3Cache=buildModel3Games();return *m_model3Cache;}
+QVariantList UiController::buildModel3Games()const{
  const auto executable=m_settings->get("model3Executable",QString()).toString(),folder=m_settings->get("model3GameFolder",QString()).toString();
  const auto chosen=m_settings->get("model3Views",QVariantMap{}).toMap();
  QVariantList rows;
@@ -518,9 +520,11 @@ QVariantList UiController::model3Games()const{
  return rows;
 }
 QStringList UiController::artNames(const QVariantMap &row,const QString &artId){
- // The set name (the part of the id after the system) and the game's own file and folder names.
+ // The set name (the part of the id after the system) and the game's own file and folder names,
+ // the launch file or, for a game started through a launcher, the file its games.json names.
  QStringList names{artId.section('-',1)};
- if(const auto file=row.value("file").toString();!file.isEmpty()){const QFileInfo info(file);names<<info.completeBaseName()<<info.dir().dirName();}
+ for(const auto &key:{"file","artFile"})
+  if(const auto file=row.value(key).toString();!file.isEmpty()){const QFileInfo info(file);names<<info.completeBaseName()<<info.dir().dirName();}
  return names;
 }
 void UiController::addArt(QVariantMap &row,const QString &artId,const QString &system)const{
@@ -531,7 +535,7 @@ void UiController::addArt(QVariantMap &row,const QString &artId,const QString &s
 }
 void UiController::setArtwork(bool busy,const QString &status){
  const bool done=m_artworkBusy&&!busy;m_artworkBusy=busy;m_artworkStatus=status;emit artworkChanged();message(status);
- if(done)emit model3Changed(); // New pictures show at once.
+ if(done)listsChanged(); // New pictures show at once.
 }
 void UiController::getArtwork(const QString &scope){
  if(m_settings->get("artDownload",false).toBool()!=true){
@@ -563,7 +567,7 @@ bool UiController::hasSteamGridDbKey() const{return !m_settings->get("steamGridD
 QString UiController::steamGridDbKey() const{return secret::reveal(m_settings->get("steamGridDbKeyProtected").toString());}
 void UiController::setModel3Control(const QString &id,bool on){
  if(!model3::hasCabinetControl(id))return;
- auto chosen=m_settings->get("model3Controls",QVariantMap{}).toMap();chosen[id]=on;m_settings->set("model3Controls",chosen);emit model3Changed();
+ auto chosen=m_settings->get("model3Controls",QVariantMap{}).toMap();chosen[id]=on;m_settings->set("model3Controls",chosen);listsChanged();
 }
 void UiController::chooseModel3View(const QString &id,const QString &view){
  if(model3::viewLabel(view).isEmpty())return;

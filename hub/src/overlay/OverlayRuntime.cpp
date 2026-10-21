@@ -171,15 +171,22 @@ public:
         vr::VRActiveActionSet_t set{};set.ulActionSet = m_actionSet;set.nPriority = vr::k_nActionSetOverlayGlobalPriorityMin;
         if (vr::VRInput()->UpdateActionState(&set, sizeof set, 1) != vr::VRInputError_None) return {};
         m_actionsActive = true;
-        const auto down = [](vr::VRActionHandle_t action) {
+        // Down, and whether SteamVR has the action bound and active at all.
+        const auto read = [](vr::VRActionHandle_t action, bool *active) {
+            *active = false;
             if (action == vr::k_ulInvalidActionHandle) return false;
             vr::InputDigitalActionData_t data{};
             if (vr::VRInput()->GetDigitalActionData(action, &data, sizeof data, vr::k_ulInvalidInputValueHandle) != vr::VRInputError_None) return false;
+            *active = data.bActive;
             return data.bActive && data.bState;
         };
         HubButtons buttons;
-        buttons.closeHeld = closeActive && down(m_closeGame);
-        buttons.backDown = panelActive && down(m_back);
+        buttons.actionsReady = true;
+        bool closeBound = false, backBound = false;
+        buttons.closeHeld = closeActive && read(m_closeGame, &closeBound);
+        const bool back = read(m_back, &backBound);
+        buttons.backDown = panelActive && back;
+        buttons.backBound = backBound;
         return buttons;
     }
     void shutdown() override {

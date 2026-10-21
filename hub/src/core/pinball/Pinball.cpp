@@ -14,6 +14,7 @@
 #include <QRegularExpression>
 #include <QCryptographicHash>
 #include <QtEndian>
+#include <algorithm>
 #include <stdexcept>
 namespace ac::pinball {
 namespace {
@@ -129,18 +130,34 @@ QVariantMap inspect(const QString &path) {
  }catch(const std::exception &e){row["error"]=QString::fromUtf8(e.what());row["vrReady"]=false;row["evidence"]=QStringList{};}
  return row;
 }
+// Every .vpx under the folder, subfolders included (a table often sits in a folder of its own with its backglass).
+// Folder links and junctions are never followed, so a link cannot loop the walk or reach outside the library;
+// depth and count are bounded. Sorted by path, so the order is stable.
+static QFileInfoList tableFiles(const QString &folder){
+ QFileInfoList found;QList<QPair<QString,int>> pending{{folder,0}};
+ constexpr int maxDepth=8,maxTables=20000,maxFolders=20000;int folders=0;
+ while(!pending.isEmpty()&&found.size()<maxTables&&folders<maxFolders){
+  const auto [path,depth]=pending.takeFirst();++folders;QDir dir(path);
+  for(const auto &file:dir.entryInfoList({"*.vpx","*.VPX"},QDir::Files|QDir::NoDotAndDotDot,QDir::Name))if(!link(file))found<<file;
+  if(depth>=maxDepth)continue;
+  for(const auto &sub:dir.entryInfoList(QDir::Dirs|QDir::NoDotAndDotDot,QDir::Name))if(!link(sub))pending<<qMakePair(sub.absoluteFilePath(),depth+1);
+ }
+ QSet<QString> seen;QFileInfoList unique;
+ for(const auto &file:found)if(!seen.contains(file.absoluteFilePath().toCaseFolded())){seen.insert(file.absoluteFilePath().toCaseFolded());unique<<file;}
+ std::sort(unique.begin(),unique.end(),[](const QFileInfo &x,const QFileInfo &y){return x.absoluteFilePath().compare(y.absoluteFilePath(),Qt::CaseInsensitive)<0;});
+ return unique;
+}
 QVariantMap scan(const QString &folder,const QString &database,const QString &romFolder,const QString &mediaFolder) {
  QVariantList rows;QJsonArray db;
  if(!database.isEmpty()){QFile f(database);require(!link(QFileInfo(database))&&f.open(QIODevice::ReadOnly)&&f.size()<=64*1024*1024);QJsonParseError error;const auto doc=QJsonDocument::fromJson(f.readAll(),&error);require(error.error==QJsonParseError::NoError&&doc.isArray());db=doc.array();}
  QMultiMap<QString,QJsonObject> machineIndex;
  for(const auto &value:db){auto m=value.toObject();machineIndex.insert(key(m["name"].toString())+"|"+key(m["manufacturer"].toString())+"|"+QString::number(m["year"].toInt()),m);}
  QDir dir(folder);require(dir.exists());int ready=0;
- for(const auto &file:dir.entryInfoList({"*.vpx","*.VPX"},QDir::Files|QDir::NoDotAndDotDot,QDir::Name)){
-  if(link(file)) continue;
+ for(const auto &file:tableFiles(folder)){
   auto row=inspect(file.absoluteFilePath());
   row["size"]=file.size();row["mtime"]=file.lastModified().toMSecsSinceEpoch();
-  // Explicit roots, exact stems, metadata only. No recursion or remote artwork.
-  QStringList artRoots{folder};if(!mediaFolder.isEmpty())artRoots.prepend(mediaFolder);
+  // Explicit roots, exact stems, metadata only: the media folder, the table's own folder, then the library folder.
+  QStringList artRoots{folder};if(file.absolutePath()!=QDir(folder).absolutePath())artRoots.prepend(file.absolutePath());if(!mediaFolder.isEmpty())artRoots.prepend(mediaFolder);
   for(const auto &root:artRoots){
    for(const auto &ext:{"png","jpg","webp"}){
     const QFileInfo image(QDir(root).filePath(file.completeBaseName()+"."+ext));

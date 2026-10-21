@@ -90,7 +90,9 @@ QVariantList games(const QString &launcher){
   if(!validKey(it.key())||!it.value().isObject())continue;
   const auto entry=it.value().toObject();
   const auto views=viewsOf(entry);if(views.isEmpty())continue;
-  result<<QVariantMap{{"id",it.key()},{"title",entry.value("title").toString(it.key())},{"year",entry.value("year").toInt()},
+  // The game's own file, as the launcher names it: its name and folder find artwork kept beside it.
+  const auto file=entry.value("file").toString(entry.value("disc").toString(entry.value("rom").toString()));
+  result<<QVariantMap{{"id",it.key()},{"title",entry.value("title").toString(it.key())},{"year",entry.value("year").toInt()},{"file",file},
                       {"controls",entry.value("controls").toString()},{"group",entry.value("group").toString(entry.value("system").toString())},
                       {"status",entry.value("status").toString()},{"views",views}};
  }

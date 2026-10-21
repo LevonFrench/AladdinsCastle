@@ -4,6 +4,7 @@
 #include "HubServices.h"
 #include "core/install/Support.h"
 #include "core/pinball/Pinball.h"
+#include <QElapsedTimer>
 #include "core/model3/Model3.h"
 #include "core/setup/Setup.h"
 #include "core/setup/Report.h"
@@ -18,7 +19,9 @@
 #include "core/pinball/Gamepad.h"
 #include "core/pinball/Art.h"
 #include <QJsonArray>
+#include <algorithm>
 #include <QThread>
+#include <QScopeGuard>
 #include "ProductIdentity.h"
 #include <QDir>
 #include <QCoreApplication>
@@ -118,23 +121,41 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::writeConfigRequested,this,[this](const QString &id,const QVariantMap &){ui_->settingsSaved(id);});
     connect(ui_,&UiController::pinballScanRequested,this,[this](const QString &folder,const QString &database,const QString &roms,const QString &media){
         auto *watcher=new QFutureWatcher<QVariantMap>(this);
-        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher,folder,database,roms,media]{
-            const auto result=watcher->result();watcher->deleteLater();
+        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{
+            auto result=watcher->result();watcher->deleteLater();
             if(result.contains("error")){ui_->pinballFailed(result["error"].toString());return;}
-            // Kept in Hub's own data so the tab opens at once next time; a table is still rechecked when it is started.
-            try{install::atomicWrite(install::scopedPath("user/cache/pinball-scan.json",root_),QJsonDocument::fromVariant(QVariantMap{{"folder",folder},{"database",database},{"roms",roms},{"media",media},{"result",result}}).toJson(QJsonDocument::Compact));}
-            catch(const std::exception &){ui_->showError("Pinball","The scan could not be saved; the next start scans again.");}
+            const bool unsaved=result.take("cacheUnsaved").toBool();
+            if(unsaved)ui_->showError("Pinball","The scan could not be saved; the next start scans again.");
             ui_->pinballLoaded(result);startPinballArt(result);
         });
-        watcher->setFuture(QtConcurrent::run([folder,database,roms,media]{try{return pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}}));
+        // The scan and its cache file are both written off the UI thread: a large library is many megabytes of JSON.
+        const auto cachePath=[this]{try{return install::scopedPath("user/cache/pinball-scan.json",root_);}catch(const std::exception &){return QString();}}();
+        watcher->setFuture(QtConcurrent::run([folder,database,roms,media,cachePath]{
+            QVariantMap result;
+            try{result=pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}
+            // Kept in Hub's own data so the tab opens at once next time; a table is still rechecked when it is started.
+            bool saved=false;
+            if(!cachePath.isEmpty())try{install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",folder},{"database",database},{"roms",roms},{"media",media},{"result",result}}).toJson(QJsonDocument::Compact));saved=true;}catch(const std::exception &){}
+            if(!saved)result["cacheUnsaved"]=true;
+            return result;
+        }));
     });
     connect(ui_,&UiController::pinballRestoreRequested,this,[this](const QString &folder,const QString &database,const QString &roms,const QString &media){
-        QVariantMap saved;
-        try{QFile file(install::scopedPath("user/cache/pinball-scan.json",root_));if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();}catch(const std::exception &){}
-        const auto result=saved.value("result").toMap();
-        if(saved.value("folder")==folder&&saved.value("database")==database&&saved.value("roms")==roms&&saved.value("media")==media&&result.contains("tables")){
-            ui_->pinballLoaded(result);startPinballArt(result);ui_->showError("Pinball","Showing your last scan. Use Scan after adding or changing tables.");
-        }else ui_->scanPinball();
+        // The saved scan can be tens of megabytes: it is read and parsed off the UI thread.
+        const auto cachePath=[this]{try{return install::scopedPath("user/cache/pinball-scan.json",root_);}catch(const std::exception &){return QString();}}();
+        auto *watcher=new QFutureWatcher<QVariantMap>(this);
+        connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher,folder,database,roms,media]{
+            const auto saved=watcher->result();watcher->deleteLater();
+            const auto result=saved.value("result").toMap();
+            if(saved.value("folder")==folder&&saved.value("database")==database&&saved.value("roms")==roms&&saved.value("media")==media&&result.contains("tables")){
+                ui_->pinballLoaded(result);startPinballArt(result);ui_->showError("Pinball","Showing your last scan. Use Scan after adding or changing tables.");
+            }else ui_->scanPinball();
+        });
+        watcher->setFuture(QtConcurrent::run([cachePath]{
+            QVariantMap saved;
+            if(!cachePath.isEmpty()){QFile file(cachePath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();}
+            return saved;
+        }));
     });
     connect(ui_,&UiController::pinballPlanRequested,this,[this](const QString &table,const QString &executable,const QString &){
         try{const auto plan=pinball::launchPlan(table,executable,root_,QString("headset"));ui_->setPinballPlan(QString::fromUtf8(QJsonDocument::fromVariant(plan).toJson()));}catch(const std::exception &e){ui_->setPinballPlan(QString::fromUtf8(e.what()));}
@@ -626,7 +647,8 @@ void HubServices::refreshSteamVr(const QString &error){
 QString HubServices::pinballVrRoot()const{return settings_->get("pinballHeadset",true).toBool()?root_:QString();}
 void HubServices::startPinballArt(const QVariantMap &scan){
     if(artCancel_)*artCancel_=true;
-    if(localArtCancel_)localArtCancel_->store(true);
+    // Only the pinball art job is replaced. The game artwork scan is a separate job on the global pool; cancelling
+    // it here left it marked done for good, so artwork from the owner's folders never appeared.
     auto cancel=std::make_shared<std::atomic_bool>(false);artCancel_=cancel;
     QString cache;try{cache=install::scopedPath("user/cache/pinball-art/x",root_);cache=QFileInfo(cache).absolutePath();}catch(const std::exception &){return;}
     // Tables that can be started first, so the pictures that are seen come first.
@@ -636,13 +658,14 @@ void HubServices::startPinballArt(const QVariantMap &scan){
     artPool_.setMaxThreadCount(1);
     artPool_.start([rows,cache,cancel,ui]{
         QThread::currentThread()->setPriority(QThread::LowestPriority);
-        QVariantMap batch;
-        const auto send=[&]{if(batch.isEmpty()||!ui)return;QMetaObject::invokeMethod(ui.data(),[ui,batch]{if(ui)ui->setPinballArt(batch);},Qt::QueuedConnection);batch.clear();};
+        // Each batch rebuilds the pinball page's lists on the UI thread, so batches go at most twice a second.
+        QVariantMap batch;QElapsedTimer sinceSend;sinceSend.start();
+        const auto send=[&]{if(batch.isEmpty()||!ui)return;QMetaObject::invokeMethod(ui.data(),[ui,batch]{if(ui)ui->setPinballArt(batch);},Qt::QueuedConnection);batch.clear();sinceSend.restart();};
         for(const auto &value:rows){
             if(*cancel)return;
             const auto row=value.toMap();
             try{const auto art=pinball::tableArt(row.value("path").toString(),row.value("id").toString(),cache,*cancel);if(!art.isEmpty())batch[row.value("id").toString()]=art;}catch(const std::exception &){}
-            if(batch.size()>=6)send();
+            if(sinceSend.elapsed()>=500)send();
         }
         send();
     });
@@ -910,16 +933,70 @@ void HubServices::recordCrash(const QString &id,int code,const QString &how,cons
         ui_->setCrashRecords(list.toVariantList());
     }catch(const std::exception &e){ui_->showError("Crash record",QString::fromUtf8(e.what()));}
 }
+// Folders that hold the owner's games: artwork kept beside a ROM or in its boxart/covers/snap subfolders is found
+// there without being added as an artwork folder. Settings first (no disk reads), then each launcher's games.json
+// (read on the scan's worker).
+static QStringList romFolderSettings(const QVariantMap &values){
+    QStringList folders;
+    for(auto it=values.cbegin();it!=values.cend();++it)if(it.key().endsWith("GameFolder"))folders<<it.value().toString();
+    folders<<values.value("libraryRoots").toStringList();
+    return folders;
+}
+static QStringList launcherRomFolders(const QStringList &launchers){
+    QStringList folders;
+    for(const auto &launcher:launchers){
+        if(launcher.isEmpty())continue;
+        QFile file(QFileInfo(launcher).absoluteDir().filePath("games.json"));
+        if(file.size()>8*1024*1024||!file.open(QIODevice::ReadOnly))continue;
+        auto bytes=file.readAll();if(bytes.startsWith("\xEF\xBB\xBF"))bytes.remove(0,3);
+        const auto all=QJsonDocument::fromJson(bytes).object();
+        for(const auto &value:all){
+            const auto entry=value.toObject();
+            for(const auto *key:{"file","disc","rom"}){const auto path=entry.value(key).toString();if(QDir::isAbsolutePath(path))folders<<QFileInfo(path).absolutePath();}
+            for(const auto &path:entry.value("RomPath").toString().split(';',Qt::SkipEmptyParts))if(QDir::isAbsolutePath(path.trimmed()))folders<<path.trimmed();
+        }
+    }
+    return folders;
+}
+// Distinct folders that exist, none inside another, never a whole drive.
+static QStringList artRoots(const QStringList &candidates){
+    QStringList clean;
+    for(const auto &candidate:candidates){
+        if(candidate.trimmed().isEmpty())continue;
+        const QFileInfo info(candidate);if(!info.isDir())continue;
+        const auto path=QDir::cleanPath(info.absoluteFilePath());if(QDir(path).isRoot())continue;
+        clean<<path;
+    }
+    std::sort(clean.begin(),clean.end(),[](const QString &a,const QString &b){return a.size()<b.size();});
+    QStringList roots;
+    for(const auto &path:clean){
+        bool inside=false;
+        for(const auto &root:roots)if(path.compare(root,Qt::CaseInsensitive)==0||path.startsWith(root+"/",Qt::CaseInsensitive)){inside=true;break;}
+        if(!inside)roots<<path;
+    }
+    return roots;
+}
 void HubServices::scanLocalArt(){
-    const auto folders=settings_->get("artFolders",QVariantList{}).toStringList();
-    if(localArtScanned_&&folders==localArtFolders_)return;
-    localArtScanned_=true;localArtFolders_=folders;
+    const auto chosen=settings_->get("artFolders",QVariantList{}).toStringList();
+    QStringList launchers;
+    for(const auto &key:{"ps1Launcher","n64Launcher","saturnLauncher","ps2Launcher"})launchers<<settings_->get(key,QString()).toString();
+    for(const auto &system:scripted::systems())launchers<<ui_->launcherFor(system.id);
+    const auto romFolders=romFolderSettings(settings_->values());
+    const auto key=chosen+QStringList{"|"}+romFolders+QStringList{"|"}+launchers;
+    if(localArtScanned_&&key==localArtFolders_)return;
+    localArtScanned_=true;localArtFolders_=key;
     if(localArtCancel_)localArtCancel_->store(true);
-    if(folders.isEmpty()){localArtCancel_.reset();ui_->setLocalArt({});return;}
     auto cancel=std::make_shared<std::atomic_bool>(false);localArtCancel_=cancel;
     QPointer<HubServices> self(this);
-    // Read in place: only names and paths are kept, and nothing is copied.
-    QThreadPool::globalInstance()->start([self,folders,cancel]{
+    // Read in place: only names and paths are kept, and nothing is copied. The owner's chosen artwork folders
+    // come first, so a picture there wins over one beside a ROM.
+    QThreadPool::globalInstance()->start([self,chosen,romFolders,launchers,cancel]{
+        // ROM folders can be large; play comes first. The pool's thread gets its priority back for the next job.
+        // A pool thread reports InheritPriority, which cannot be set back; Normal is what it ran at.
+        auto priority=QThread::currentThread()->priority();if(priority==QThread::InheritPriority)priority=QThread::NormalPriority;
+        QThread::currentThread()->setPriority(QThread::LowestPriority);
+        const auto restore=qScopeGuard([priority]{QThread::currentThread()->setPriority(priority);});
+        const auto folders=artRoots(chosen)+artRoots(romFolders+launcherRomFolders(launchers));
         auto index=std::make_shared<const art::LocalIndex>(art::LocalIndex::scan(folders,cancel.get()));
         QMetaObject::invokeMethod(qApp,[self,index,cancel]{if(self&&!cancel->load())self->ui_->setLocalArt(index);});
     });

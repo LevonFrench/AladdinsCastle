@@ -56,17 +56,23 @@ FocusScope {
  // B on the controller: back exactly one level. An open menu or dialog closes; then the page's own level
  // (game page to the grid, a tab or search to the whole grid); then the page before. At the top it does
  // nothing, and it never quits. While a game starts or runs its card is the page, and B leaves it alone.
+ // Each B press is answered in the panel's input log: what it did, or why it was ignored.
+ function noteBack(outcome){if(typeof overlayHost!=="undefined"&&overlayHost&&typeof overlayHost.noteBack==="function")overlayHost.noteBack(outcome)}
  function panelBack(){
-  if(Date.now()-lastPageChange<backQuietMs)return false
-  let done=false
-  for(const open of popups)if(open.opened){open.close();done=true;break}
-  if(!done&&(uiController.nowPlaying.gameId!==undefined||!!uiController.steamVrStarting))return false
-  if(!done&&view==="Model3"&&pageItem&&typeof pageItem.handleBack==="function")done=pageItem.handleBack()
-  if(!done&&(history.length>0||view!==home)){back();done=true}
+  if(Date.now()-lastPageChange<backQuietMs){noteBack("ignored: page just changed");return false}
+  let done=false,what=""
+  for(const open of popups)if(open.opened){open.close();done=true;what="closed "+(open.objectName||"a menu");break}
+  if(!done&&uiController.nowPlaying.gameId!==undefined){noteBack("ignored: a game is running ("+uiController.nowPlaying.gameId+")");return false}
+  if(!done&&!!uiController.steamVrStarting){noteBack("ignored: SteamVR is starting");return false}
+  // The page's own level first: the library's game page, tab or search; Pinball's table page or filters.
+  const page=view==="Model3"?pageItem:view==="Pinball"?pinballLoader.item:null
+  if(!done&&page&&typeof page.handleBack==="function"&&page.handleBack()){done=true;what=view+" page level"}
+  if(!done&&(history.length>0||view!==home)){back();done=true;what="to "+view}
   if(done){++backSteps;pageChanged()}
+  noteBack(done?"back: "+what:"ignored: already at the top")
   return done
  }
- Connections {target:typeof overlayHost!=="undefined"?overlayHost:null;ignoreUnknownSignals:true;function onBackRequested(){if(root.overlayPresentation)root.panelBack()}}
+ Connections {target:typeof overlayHost!=="undefined"?overlayHost:null;ignoreUnknownSignals:true;function onBackRequested(){if(root.overlayPresentation)root.panelBack();else root.noteBack("ignored: not the panel presentation")}}
  Loader{anchors.fill:parent;z:10000;active:root.captureMarkers;sourceComponent:Component{OverlayCaptureMarkers{}}}
  Rectangle{anchors.fill:parent;color:Theme.get("color.surface.window")}
  Canvas{anchors.fill:parent;layer.enabled:true;onPaint:{let c=getContext("2d");c.fillStyle=Theme.get("color.surface.dot_grid");for(let x=0;x<width;x+=24)for(let y=0;y<height;y+=24){c.beginPath();c.arc(x,y,0.9,0,2*Math.PI);c.fill()}} onWidthChanged:requestPaint();onHeightChanged:requestPaint()}
@@ -89,7 +95,7 @@ FocusScope {
      PillButton {objectName:"lastSessionDismiss";text:"Dismiss";vrOverlayMode:root.vrOverlayMode;onClicked:uiController.dismissLastSession()}
     }
    }
-   Loader {anchors.fill:parent;active:root.view==="Pinball";focus:active;sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode;startItem:root.startAt.length>1&&root.startAt[0]==="Pinball"?root.startAt[1]:""}}}
+   Loader {id:pinballLoader;objectName:"pinballLoader";anchors.fill:parent;active:root.view==="Pinball";focus:active;sourceComponent:Component{PinballPage{vrOverlayMode:root.vrOverlayMode;startItem:root.startAt.length>1&&root.startAt[0]==="Pinball"?root.startAt[1]:""}}}
    Loader {anchors.fill:parent;active:root.view==="Setup";sourceComponent:Component{SetupPage{vrOverlayMode:root.vrOverlayMode;step:root.startAt.length>1&&root.startAt[0]==="Setup"?Number(root.startAt[1]):0;onFinished:{root.history=[];root.view=root.home}}}}
    // The SteamVR panel shows its Steam-like library; the desktop keeps the VR games page. The panel's
    // library stays loaded behind other pages, so B comes back to the same tab and scroll position.
