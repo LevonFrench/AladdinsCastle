@@ -992,7 +992,9 @@ void HubServices::scanLocalArt(){
     // come first, so a picture there wins over one beside a ROM.
     QThreadPool::globalInstance()->start([self,chosen,romFolders,launchers,cancel]{
         // ROM folders can be large; play comes first. The pool's thread gets its priority back for the next job.
-        const auto priority=QThread::currentThread()->priority();QThread::currentThread()->setPriority(QThread::LowestPriority);
+        // A pool thread reports InheritPriority, which cannot be set back; Normal is what it ran at.
+        auto priority=QThread::currentThread()->priority();if(priority==QThread::InheritPriority)priority=QThread::NormalPriority;
+        QThread::currentThread()->setPriority(QThread::LowestPriority);
         const auto restore=qScopeGuard([priority]{QThread::currentThread()->setPriority(priority);});
         const auto folders=artRoots(chosen)+artRoots(romFolders+launcherRomFolders(launchers));
         auto index=std::make_shared<const art::LocalIndex>(art::LocalIndex::scan(folders,cancel.get()));
