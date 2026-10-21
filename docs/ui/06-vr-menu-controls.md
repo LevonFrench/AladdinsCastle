@@ -36,7 +36,10 @@ Rules:
 5. **Typing is rare.** Filters, an A to Z jump strip and recent searches come before the keyboard.
 6. **Losing focus never clicks.** On focus loss or hide, held buttons are released without activating anything and the pointer is parked off the panel.
 7. **Hover, press and release are always visible**, and the laser's dot sits on the panel, not in front of it.
-8. **Controller buttons** (A/B/X/Y, grips) are not relied on. Reading them from a dashboard overlay is an experimental SteamVR feature that needs a developer setting. If it proves reliable, B = Back and grips = previous/next tab come later.
+8. **Controller buttons** (A/B/X/Y, grips) are not relied on. Reading them from a dashboard overlay is an experimental SteamVR feature that needs a developer setting.
+   - **Confirmed 2026-10-21.** The Hub binds B to a back action (`hub/resources/hub-actions.json`). In the owner's session its input log recorded `b-action manifest=accepted b=unbound` the whole time the panel was open, and no B press arrived.
+   - The way back is the large on-panel **Back** button: 72 px, bottom left, on every page.
+   - Since 2026-10-21 the Hub's manifest names its action file and uses absolute paths. Before that, SteamVR skipped the Hub's registration because it cannot follow `..` in a manifest path. Whether a properly registered Hub receives B is still to be seen in the next session's log.
 
 Desktop mode keeps mouse, keyboard and gamepad as they are.
 

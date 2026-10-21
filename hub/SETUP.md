@@ -20,6 +20,18 @@ The same Hub is also a panel in SteamVR's dashboard whenever SteamVR runs:
 - `--desktop` keeps the Hub a window only.
 - Adding Hub to SteamVR (below) does not by itself start it. SteamVR starts the
   Hub only once "Choose Startup Overlay Apps" lists it as on.
+- **Going back in the panel:** use the large **Back** button at the bottom left of
+  every page. While SteamVR's dashboard is open, SteamVR does not give the
+  controller's B to the Hub (checked in the owner's 2026-10-21 session).
+- **The Hub's SteamVR manifest** (`resources/aladdinscastle.vrmanifest`) is
+  rewritten at every start with the Hub's absolute path and folder, and names
+  `hub-actions.json`. SteamVR cannot follow `..` in a manifest; with the old
+  relative path it skipped the Hub ("binary_path … is invalid") and ran it as an
+  anonymous app.
+- **Input log:** `user/logs/overlay-input.log` records pointer events, whether
+  SteamVR has B bound, every B press and what the page did with it (`b-outcome
+  back: …` or `ignored: <why>`), and every UI stall over 250 ms (`stall <ms>`).
+  It is the first thing to read after a headset session.
 
 Every game has explicit buttons. **Play in headset** is on every game.
 **Play on monitor** appears where the system has a monitor mode: Dreamcast, and
@@ -228,6 +240,10 @@ line names a game by its id (such as `model3-scud`) or its title, with a date.
 Finding a game is never shown as accepting it.
 
 ## Starting
+
+**Since 2026-10-20 the launchers come first.** Arcade guns and motion (MAME), Dreamcast and Atomiswave, Wii and GameCube start through the owner's launcher: `play/<system>/launch-<system>.ps1 <key> -View <view>`, with `games.json` beside it listing each game, its views and its controls text. The Hub finds the launchers next to the PS1 and N64 ones, so no extra setting is needed. Launcher exit codes: 2 unknown game or view, 3 no SteamVR, 5 another game is running. PS1, N64, Saturn and PS2 have their own launchers; Model 2, Model 3 and Time Crisis VR are started by the Hub directly. The direct Dreamcast and Wii routes described below apply only when no launcher is found. `hubtool plan-views` prints every game, view and launch plan.
+
+**Diagnostics of a packaged Hub:** the portable package ships only Qt's `windows` platform plugin. An offscreen run (`QT_QPA_PLATFORM=offscreen`) must set `QT_PLUGIN_PATH` to the build Qt's `plugins` folder and must not start without `platforms/qoffscreen.dll`. Otherwise Qt shows a "no Qt platform plugin" error box on the desktop.
 
 **VR games** lists Model 3 (see [MODEL3.md](MODEL3.md)), Model 2, Time Crisis and
 the Dreamcast discs of the last report. Model 2 runs two programs: the emulator,

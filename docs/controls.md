@@ -90,7 +90,23 @@ Racing in VR is the biggest motion sickness risk. All of these are options:
 - **Tracking loss:** Quest 3 estimates controller position briefly when out of camera view (weaker above the head than Quest 2). Use `XR_SPACE_LOCATION_POSITION_TRACKED_BIT` vs `..._VALID_BIT`: freeze or fade the gun and don't fire on inferred poses. Holster/reload gestures behind the head will be unreliable.
 - **Haptics:** amplitude 0-1, duration in nanoseconds, frequency in Hz. Over Meta Link to SteamVR, haptics were reported very weak until SteamVR's *Meta Plugin Compatibility* was turned off (2024). Test recoil through the connection used by the SteamVR headset.
 
+### 2.5 What the owner's headset sessions settled (2026-10-19 to 2026-10-21)
+
+These rules override the plans above wherever they disagree. They apply to the Quest through ALVR on SteamVR, the owner's setup.
+
+| Rule | Why |
+|---|---|
+| No game control on the **left Menu** button or the **right Oculus** button | ALVR gives the left Menu to the SteamVR dashboard, and the headset keeps the Oculus button. With Start on the left Menu, F-Zero GX could not be started and Wii games could not be advanced. |
+| **Start / Plus = left-stick click**; **Home = hold left Y (0.5 s)**; **Minus = tap left Y** (Dolphin) | Buttons a game can actually receive. In the GameCube profile, click-and-tilt is still the D-pad; Minus is active for the first half second of a Y press. |
+| Racers: **stick steers, triggers pedal**, by default; roll or tilt steering is an opt-in view only | "Roll steering sucks, make it an option, always off by default." |
+| The Hub's SteamVR panel goes back with its **on-panel Back** button, not B | While the SteamVR dashboard is open, SteamVR does not deliver B to the Hub: its input log showed B unbound for a whole session. |
+| No emulator or Hub error dialog may reach the desktop | Offline runs switch off panic and message boxes (for example Dolphin `UsePanicHandlers=False`). |
+
+The N64 host still maps Start to the left Menu: it needs the same change in `acvr-ps1`.
+
 ## 3. Pause overlay controls (all setups)
+
+> Planned before the headset sessions. On Quest through ALVR the left Menu opens the SteamVR dashboard (see 2.5). Setups use SteamVR's **Exit game** and their own button maps instead.
 
 | Action | Default |
 |---|---|

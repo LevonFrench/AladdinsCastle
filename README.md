@@ -4,9 +4,9 @@
 
 AladdinsCastle is an open-source desktop Hub being built to install and launch VR setups for arcade and console 3D light gun games (Time Crisis, Virtua Cop, House of the Dead...) and racing games (Rave Racer, Daytona USA, Scud Race...). The goal is **true 3D VR**: the game's own world drawn around you in stereo, a tracked gun in your hand, and **ghost controls** you grab to drive, with analog triggers as pedals.
 
-> **Status: M2 development.** The Qt Hub builds on Windows and Linux, with catalog, scanning, installation and flat-launch paths covered by software tests. The shared VR runtime and System 22 renderer are under development. There is no accepted Hub-to-headset Time Crisis build yet; public OpenXR runtime creation remains unsupported.
+> **Status (2026-10-21): working on the owner's PC, not released.** The Qt Hub (Windows) is the single front door: 143 games and 279 views across 12 systems. Each game shows the views it has, such as *Real 3D*, *Open frame*, *Inside the game*, *Theatre screen* or *Motion controls*. The Hub is both a desktop window and a SteamVR dashboard panel. Systems: PlayStation, Nintendo 64, Saturn, PlayStation 2, Sega Model 2 and Model 3, Namco System 22 (Time Crisis), MAME arcade guns and motion cabinets, Dreamcast, Atomiswave, Wii, GameCube, plus Visual Pinball. See **[where it stands](docs/status/current.md)** for each system's views, evidence level and open problems.
 
-Catalog capability, an available recipe, detected launch requirements and a verified owned installation are separate states. None proves that a game has passed headset or gameplay acceptance. Runtime/renderer CPU checks and offscreen Hub tests also do not establish GPU correctness, comfort or performance. Actual gun assets, runtime profiles, dual-gun play and racing controls remain unfinished. See the [runtime implementation and limits](docs/libacvr-runtime-core.md) and [lead checkpoint reports](docs/status/lead/) for current evidence. The [PCVR and standalone quickstart](docs/quest3-quickstart.md) covers separate existing projects.
+Most games are proven offline: controls reach the game, aim is measured against the game's own calibration, and the picture is checked. A smaller set has been accepted by the owner in the headset. An offline proof is not a headset verdict on comfort or feel. Each setup's README under [setups/](setups/) has its commands, proofs and limits. The [PCVR and standalone quickstart](docs/quest3-quickstart.md) covers separate existing projects.
 
 ## What it will do
 
@@ -21,6 +21,9 @@ Catalog capability, an available recipe, detected launch requirements and a veri
 
 | Doc | |
 |---|---|
+| **[Where it stands](docs/status/current.md)** | **Current state of every system, the Hub and the controller rules; start here** |
+| [Hub set-up and use](hub/SETUP.md) | First run, the VR games tab, SteamVR panel, watchdog, what the Hub runs and keeps |
+| [Setups](setups/) | One README per VR setup (acvr-ps1, PCSX2, Model 2, Model 3, MAME guns, Flycast, Dolphin): commands, views, proofs |
 | [Vision](docs/vision.md) | Pillars, audience, non-goals, experience sketch |
 | [Landscape](docs/landscape.md) | Existing projects we build on and learn from |
 | [Architecture](docs/architecture.md) | Hub, VR setups, libacvr shared runtime, stereo techniques, input bridge |

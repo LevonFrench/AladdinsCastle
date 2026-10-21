@@ -2,6 +2,13 @@
 
 Each milestone ends with something you can do in the headset or the Hub. Dates are not set.
 
+> **Where the plan met reality (2026-10-21).** The milestones below are the original plan; [where it stands](status/current.md) has the actual state. In short:
+> - **M1** is done.
+> - **M2's main thrust moved twice.** First to Wii through Dolphin (D52), then to a broad push across platforms, 19 to 20 October. That push produced acvr-ps1, a shared libretro host for PS1, N64 and Saturn with theatre, GL-interception stereo and gun models; PCSX2 VR; Model 2 and Model 3 open frame and inside modes; MAME guns and System 22 motion cabinets; Flycast; DolphinXR; and one Hub for all of them.
+> - **M3** (theatre with guns) is effectively in place through those setups.
+> - **M4** (Supermodel VR) is in place.
+> - **Not yet:** the ghost-control framework beyond the Model 3 wheel, two-gun co-op, and a public release.
+
 ## M0: Play now
 - [PCVR and standalone quickstart](quest3-quickstart.md): DR-89 Time Crisis VR, VC2VR, PenguinScreen2.
 - **Done when (optional):** the owner has played Time Crisis VR or VC2VR on PCVR with a SteamVR headset and noted what feels right and wrong. Not a blocker for M1.
