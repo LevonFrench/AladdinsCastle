@@ -51,7 +51,7 @@ These come from the owner's headset sessions and apply to every setup:
 | Time Crisis (Namco System 22, Time Crisis VR) | 1 / 5 | Open frame, Inside | E2 | |
 | Arcade guns and motion (MAME) | 26 / 34 | Theatre, open frame where the game draws it, body motion opt-in | E3 for Time Crisis theatre, rest E2 | |
 | Dreamcast (Flycast hotd2-vr) | 5 / 7 | Real 3D, open frame | E2 (Confidential Mission rebuilt after E1 headset issues) | Death Crimson OX/2, Virtua Cop 2 at E1 |
-| Atomiswave (Flycast) | 5 / 10 | Real 3D, open frame | E2 | |
+| Atomiswave (Flycast) | 5 / 10 | Real 3D (the world around the frame is part of it) | E2; owner 2026-10-21: Sports Shooting USA open frame was squeezed and shifted (aim up to 270 px off), fixed in the build, offline-checked | Title and menu screens show stray art around the frame; open frame view of Sports Shooting USA removed |
 | Wii (DolphinXR) | 19 / 26 | Real 3D with pointer or motion | E2; pointer aim within 1.3% | Owner 2026-10-21: stereo broken in a game (details pending); Dead Space and Metroid asked for the Nunchuk (MotionPlus now off); DK Country Returns stops at 1-1, Mario Strikers has no match yet |
 | GameCube (DolphinXR) | 1 / 2 | Real 3D, HUD on a panel | E2 for F-Zero GX | Start moved to left-stick click on 2026-10-21 |
 | Pinball (Visual Pinball X) | its own page | Desktop or headset | Scan finds tables in subfolders since 2026-10-20 | |
