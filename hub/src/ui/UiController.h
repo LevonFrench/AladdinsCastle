@@ -147,7 +147,7 @@ class UiController : public QObject {
  QVariantMap library()const{return m_library;}
  bool libraryScanning()const{return m_libraryScanning;}
  QString libraryProgress()const{return m_libraryProgress;}
- void setLibrary(const QVariantMap &library){m_library=library;m_libraryScanning=false;m_libraryProgress.clear();emit libraryChanged();emit model3Changed();}
+ void setLibrary(const QVariantMap &library){m_library=library;m_libraryScanning=false;m_libraryProgress.clear();emit libraryChanged();listsChanged();}
  Q_INVOKABLE void libraryScanProgress(const QString &text){m_libraryProgress=text;emit libraryChanged();}
  Q_INVOKABLE void scanLibrary();
  // Every copy the library found of a game, best first, and the one in use; choosing one remembers it.
@@ -188,7 +188,7 @@ class UiController : public QObject {
  QVariantList model3Views()const;
  Q_INVOKABLE void chooseModel3View(const QString &id,const QString &view);
  Q_INVOKABLE void playModel3(const QString &id);
- Q_INVOKABLE void refreshModel3(){emit model3Changed();}
+ Q_INVOKABLE void refreshModel3(){listsChanged();}
  // Inside the game, draw the cabinet's wheel or handlebars in front of you (per game, off unless chosen).
  Q_INVOKABLE void setModel3Control(const QString &id,bool on);
  // The user's SteamGridDB key: kept protected for this Windows account, never shown again once saved.
@@ -206,7 +206,7 @@ class UiController : public QObject {
  // The folders of artwork on this PC, indexed in the background; rows show them at once.
  Q_PROPERTY(int localArtFiles READ localArtFiles NOTIFY localArtChanged)
  int localArtFiles()const{return m_localArt?m_localArt->files():0;}
- void setLocalArt(std::shared_ptr<const art::LocalIndex> index){m_localArt=std::move(index);emit localArtChanged();emit model3Changed();}
+ void setLocalArt(std::shared_ptr<const art::LocalIndex> index){m_localArt=std::move(index);emit localArtChanged();listsChanged();}
  void launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable);
  // Games of the other systems, in the same row shape as model3Games plus system,
  // pill, views and warning. Ids carry the system: "dreamcast-hotd2", "system22-timecris".
@@ -233,7 +233,7 @@ class UiController : public QObject {
  QString setupProgress()const{return m_setupProgress;}
  Q_INVOKABLE void scanSetup();
  Q_INVOKABLE void setupScanProgress(const QString &text){m_setupProgress=text;emit setupChanged();}
- Q_INVOKABLE void setSetupReport(const QVariantMap &report){m_setupReport=report;m_setupScanning=false;m_setupProgress.clear();emit setupChanged();emit model3Changed();}
+ Q_INVOKABLE void setSetupReport(const QVariantMap &report){m_setupReport=report;m_setupScanning=false;m_setupProgress.clear();emit setupChanged();listsChanged();}
  void setPinballPlan(const QString &plan){m_pinballPlan=plan;emit pinballChanged();}
  Q_INVOKABLE QString localPath(const QUrl &url)const{return url.isLocalFile()?url.toLocalFile():QString();}
  Q_INVOKABLE QString vrLabel(int badge) const;
@@ -348,6 +348,9 @@ class UiController : public QObject {
  // Building them reads every launcher's games.json and checks artwork for every game, so doing it on each
  // QML read or lookup held the UI thread (the panel froze and B presses were lost).
  mutable std::optional<QVariantList> m_model3Cache,m_otherCache;
+ // The only way model3Changed is sent: the cached lists are dropped first. QML re-reads bound properties while
+ // the signal is being emitted, before any connected slot runs, so clearing them in a slot came too late.
+ void listsChanged(){m_model3Cache.reset();m_otherCache.reset();emit model3Changed();}
  QVariantList buildModel3Games()const;
  QVariantList buildOtherGames()const;
  QString m_pinballPlan;

@@ -57,7 +57,7 @@ FocusScope {
  // (game page to the grid, a tab or search to the whole grid); then the page before. At the top it does
  // nothing, and it never quits. While a game starts or runs its card is the page, and B leaves it alone.
  // Each B press is answered in the panel's input log: what it did, or why it was ignored.
- function noteBack(outcome){if(typeof overlayHost!=="undefined"&&overlayHost)overlayHost.noteBack(outcome)}
+ function noteBack(outcome){if(typeof overlayHost!=="undefined"&&overlayHost&&typeof overlayHost.noteBack==="function")overlayHost.noteBack(outcome)}
  function panelBack(){
   if(Date.now()-lastPageChange<backQuietMs){noteBack("ignored: page just changed");return false}
   let done=false,what=""

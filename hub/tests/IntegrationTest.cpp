@@ -227,7 +227,7 @@ private slots:
         ac::UiSettings settings(t.filePath("user"));settings.set("pinballFolder",folder);
         ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
         QSignalSpy scans(&ui,&ac::UiController::pinballScanRequested);
-        ui.openPinball();QCOMPARE(scans.size(),1); // Nothing saved yet: the folder is scanned.
+        ui.openPinball();QTRY_COMPARE_WITH_TIMEOUT(scans.size(),1,10000); // Nothing saved yet: the folder is scanned (after the restore finds nothing).
         QTRY_COMPARE_WITH_TIMEOUT(ui.pinballData()["tables"].toList().size(),1,10000);
         QVERIFY(QFileInfo::exists(t.filePath("user/cache/pinball-scan.json")));
     }

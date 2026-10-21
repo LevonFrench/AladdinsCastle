@@ -66,12 +66,10 @@ void SectionedGridModel::refresh(){
 QObject *UiController::createGridModel(int columns){return new SectionedGridModel(m_games,m_filter,columns,this);}
 void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<SectionedGridModel *>(model);grid&&grid->parent()==this)grid->deleteLater();}
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_detailControls(this),m_games(games),m_filter(filter),m_settings(settings){
- // First connection to model3Changed, so the lists are dropped before anything re-reads them.
- connect(this,&UiController::model3Changed,this,[this]{m_model3Cache.reset();m_otherCache.reset();});
  connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
  connect(this,&UiController::nowPlayingChanged,this,&UiController::launchGateChanged);
  connect(this,&UiController::steamVrStartingChanged,this,&UiController::launchGateChanged);
- connect(settings,&UiSettings::changed,this,&UiController::model3Changed);
+ connect(settings,&UiSettings::changed,this,&UiController::listsChanged);
  connect(games,&QAbstractItemModel::dataChanged,this,&UiController::catalogReadyChanged);
  connect(games,&QAbstractItemModel::modelReset,this,&UiController::catalogReadyChanged);
  connect(settings,&UiSettings::changed,this,&UiController::setupChanged);
@@ -459,7 +457,7 @@ QString UiController::copyInUse(const QString &system,const QString &game)const{
 }
 void UiController::chooseCopy(const QString &system,const QString &game,const QString &file){
  auto choices=m_settings->get("libraryChoice",QVariantMap{}).toMap();choices[system+"/"+game]=file;m_settings->set("libraryChoice",choices);
- message("This copy is used from now on. Rescan in Set-up to check it.");emit model3Changed();emit libraryChanged();
+ message("This copy is used from now on. Rescan in Set-up to check it.");listsChanged();emit libraryChanged();
 }
 QString UiController::libraryRule()const{return library::rule();}
 QString UiController::launcherFor(const QString &system)const{
@@ -537,7 +535,7 @@ void UiController::addArt(QVariantMap &row,const QString &artId,const QString &s
 }
 void UiController::setArtwork(bool busy,const QString &status){
  const bool done=m_artworkBusy&&!busy;m_artworkBusy=busy;m_artworkStatus=status;emit artworkChanged();message(status);
- if(done)emit model3Changed(); // New pictures show at once.
+ if(done)listsChanged(); // New pictures show at once.
 }
 void UiController::getArtwork(const QString &scope){
  if(m_settings->get("artDownload",false).toBool()!=true){
@@ -569,7 +567,7 @@ bool UiController::hasSteamGridDbKey() const{return !m_settings->get("steamGridD
 QString UiController::steamGridDbKey() const{return secret::reveal(m_settings->get("steamGridDbKeyProtected").toString());}
 void UiController::setModel3Control(const QString &id,bool on){
  if(!model3::hasCabinetControl(id))return;
- auto chosen=m_settings->get("model3Controls",QVariantMap{}).toMap();chosen[id]=on;m_settings->set("model3Controls",chosen);emit model3Changed();
+ auto chosen=m_settings->get("model3Controls",QVariantMap{}).toMap();chosen[id]=on;m_settings->set("model3Controls",chosen);listsChanged();
 }
 void UiController::chooseModel3View(const QString &id,const QString &view){
  if(model3::viewLabel(view).isEmpty())return;
