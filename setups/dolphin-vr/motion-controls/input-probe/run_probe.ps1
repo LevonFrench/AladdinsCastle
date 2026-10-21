@@ -1,3 +1,4 @@
+# Panic alerts are off (UsePanicHandlers=False): DolphinNoGUI would otherwise show real message boxes.
 # One hidden, below-normal, time-limited DolphinNoGUI run with the input probe and no XR runtime.
 # Example:
 #   ./run_probe.ps1 -Exe <DolphinNoGUI.exe with probe> -User <test user dir> -Disc <owned disc>
@@ -17,12 +18,14 @@ param(
   [double] $UntilProbeTime = 0
 )
 if (Test-Path $Marker) { 'paused: headset on'; exit 3 }
-if (Get-Process -Name Dolphin, DolphinNoGUI -ErrorAction SilentlyContinue) { 'another Dolphin is running'; exit 4 }
+# One run per lane: refuse only if this same executable is already running (other lanes have their own).
+$exeFull = (Resolve-Path $Exe).Path
+if (Get-Process -Name DolphinNoGUI -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exeFull }) { 'this lane already has a Dolphin running'; exit 4 }
 $env:XR_RUNTIME_JSON = Join-Path $env:TEMP 'ac-no-such-openxr-runtime.json'
 $env:DOLPHINXR_INPUT_SCRIPT = $Script
 $env:DOLPHINXR_INPUT_PROBE = $Probe
 Remove-Item Env:DOLPHINXR_GUN -ErrorAction SilentlyContinue
-$argv = @('-p', 'headless', '-u', "`"$User`"", '-C', 'Graphics.VR.EnableOpenXR=False') + $Extra + @('-e', "`"$Disc`"")
+$argv = @('-p', 'headless', '-u', "`"$User`"", '-C', 'Graphics.VR.EnableOpenXR=False', '-C', 'Dolphin.Interface.UsePanicHandlers=False', '-C', 'Dolphin.Interface.ConfirmStop=False') + $Extra + @('-e', "`"$Disc`"")
 $p = Start-Process -FilePath $Exe -ArgumentList $argv -WindowStyle Hidden -PassThru `
   -RedirectStandardOutput "$Probe.stdout.txt" -RedirectStandardError "$Probe.stderr.txt"
 try { $p.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::BelowNormal } catch {}

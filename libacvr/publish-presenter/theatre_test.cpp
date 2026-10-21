@@ -14,7 +14,11 @@ XrResult XRAPI_CALL Path(XrInstance,const char* name,XrPath* out){auto p=paths.e
 XrResult XRAPI_CALL Set(XrInstance,const XrActionSetCreateInfo*,XrActionSet* out){*out=reinterpret_cast<XrActionSet>(1);return XR_SUCCESS;}
 XrResult XRAPI_CALL Action(XrActionSet,const XrActionCreateInfo* info,XrAction* out){static uintptr_t id=10;*out=reinterpret_cast<XrAction>(++id);if(std::string(info->actionName)=="second_button")assert(info->actionType==XR_ACTION_TYPE_FLOAT_INPUT);return XR_SUCCESS;}
 XrResult XRAPI_CALL Suggest(XrInstance,const XrInteractionProfileSuggestedBinding* info){
- assert(info->countSuggestedBindings==8);assert(info->suggestedBindings[6].action==s_grip);assert(info->suggestedBindings[7].action==s_secondary);
+ assert(info->countSuggestedBindings==12);assert(info->suggestedBindings[6].action==s_grip);assert(info->suggestedBindings[7].action==s_secondary);
+ assert(info->suggestedBindings[8].action==s_leftGrip && info->suggestedBindings[8].binding==paths.at("/user/hand/left/input/grip/pose"));
+ assert(info->suggestedBindings[9].action==s_leftTrigger && info->suggestedBindings[9].binding==paths.at("/user/hand/left/input/trigger/value"));
+ assert(info->suggestedBindings[10].action==s_leftStick && info->suggestedBindings[10].binding==paths.at("/user/hand/left/input/thumbstick"));
+ assert(info->suggestedBindings[11].action==s_rightStick && info->suggestedBindings[11].binding==paths.at("/user/hand/right/input/thumbstick"));
  assert(info->suggestedBindings[3].binding==paths.at("/user/hand/right/input/b/click"));
  assert(info->suggestedBindings[5].binding==paths.at(profiles++?"/user/hand/left/input/b/click":"/user/hand/left/input/y/click"));return XR_SUCCESS;
 }
@@ -23,6 +27,7 @@ XrResult XRAPI_CALL Space(XrSession,const XrActionSpaceCreateInfo*,XrSpace* out)
 XrResult XRAPI_CALL Sync(XrSession,const XrActionsSyncInfo*){++syncCalls;return XR_SUCCESS;}
 XrResult XRAPI_CALL Pose(XrSession,const XrActionStateGetInfo*,XrActionStatePose* out){out->isActive=true;return XR_SUCCESS;}
 XrResult XRAPI_CALL Float(XrSession,const XrActionStateGetInfo*,XrActionStateFloat* out){out->isActive=true;out->currentState=.8f;return XR_SUCCESS;}
+XrResult XRAPI_CALL Stick(XrSession,const XrActionStateGetInfo* info,XrActionStateVector2f* out){out->isActive=true;out->currentState={info->subactionPath==s_left?-.5f:.25f,.75f};return XR_SUCCESS;}
 XrResult XRAPI_CALL Button(XrSession,const XrActionStateGetInfo*,XrActionStateBoolean* out){out->isActive=out->currentState=true;return XR_SUCCESS;}
 XrResult XRAPI_CALL Locate(XrSpace,XrSpace,XrTime time,XrSpaceLocation* out){assert(time==123);out->locationFlags=XR_SPACE_LOCATION_POSITION_VALID_BIT|XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;if(tracked)out->locationFlags|=XR_SPACE_LOCATION_POSITION_TRACKED_BIT|XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT;out->pose.orientation.w=1;out->pose.position={.1f,-.2f,-.3f};return XR_SUCCESS;}
 XrResult XRAPI_CALL Views(XrSession,const XrViewLocateInfo* info,XrViewState* state,uint32_t,uint32_t* count,XrView* views){
@@ -56,11 +61,12 @@ int main(){
  Client client;client.initialize();s_theatre=&client;
  s_instance=reinterpret_cast<XrInstance>(1);s_session=reinterpret_cast<XrSession>(1);s_space=reinterpret_cast<XrSpace>(1);s_format=GL_RGBA8;
  p_xrStringToPath=Path;p_xrCreateActionSet=Set;p_xrCreateAction=Action;p_xrSuggestInteractionProfileBindings=Suggest;p_xrAttachSessionActionSets=Attach;p_xrCreateActionSpace=Space;
- assert(InitActions() && profiles==2 && s_gripSpace!=s_aimSpace);
+ assert(InitActions() && profiles==2 && s_gripSpace!=s_aimSpace && s_leftGripSpace && s_leftGripSpace!=s_gripSpace);
  p_xrGetInstanceProcAddr=Resolve;assert(TheatreExtents());assert(s_theatreW[0]==64 && s_theatreW[1]==80 && s_theatreH[0]==48 && s_theatreH[1]==56);
- p_xrLocateViews=Views;p_xrSyncActions=Sync;p_xrGetActionStatePose=Pose;p_xrGetActionStateFloat=Float;p_xrGetActionStateBoolean=Button;p_xrLocateSpace=Locate;
+ p_xrLocateViews=Views;p_xrSyncActions=Sync;p_xrGetActionStatePose=Pose;p_xrGetActionStateFloat=Float;p_xrGetActionStateBoolean=Button;p_xrGetActionStateVector2f=Stick;p_xrLocateSpace=Locate;
  auto frame=TheatreState(123,true);assert(frame.views.valid && frame.aim.valid && frame.grip.valid && frame.trigger==.8f && frame.button2 && frame.start && frame.coin && frame.quitHeld);
- const auto count=syncCalls;auto unfocused=TheatreState(123,false);assert(unfocused.views.valid && !unfocused.aim.valid && !unfocused.trigger && !unfocused.start && !unfocused.coin && !unfocused.quitHeld && syncCalls==count);
+ assert(frame.leftGrip.valid && frame.leftTrigger==.8f && frame.squeeze==.8f && frame.leftStick[0]==-.5f && frame.leftStick[1]==.75f && frame.rightStick[0]==.25f);
+ const auto count=syncCalls;auto unfocused=TheatreState(123,false);assert(unfocused.views.valid && !unfocused.leftGrip.valid && !unfocused.leftTrigger && !unfocused.leftStick[0] && !unfocused.aim.valid && !unfocused.trigger && !unfocused.start && !unfocused.coin && !unfocused.quitHeld && syncCalls==count);
  tracked=false;auto lost=TheatreState(123,true);assert(!lost.aim.valid && !lost.grip.valid && !lost.trigger);tracked=true;
  p_xrCreateSwapchain=Chain;p_xrEnumerateSwapchainImages=Images;p_xrAcquireSwapchainImage=Acquire;p_xrWaitSwapchainImage=Wait;p_xrReleaseSwapchainImage=Release;p_xrDestroySwapchain=Destroy;
  assert(!RenderTheatre(frame,false) && updates==1 && draws==0 && acquires==0);
@@ -70,5 +76,5 @@ int main(){
  assert(RenderTheatre(unfocused,true));assert(draws==4); // drawing independent of focus
  client.shutdown();DestroyChains();glDeleteTextures(2,textures);s_theatre=nullptr;s_shotPulses=0;
  assert(glGetError()==GL_NO_ERROR && !GetModuleHandleA("openxr_loader.dll"));Host_DestroyWindow(window);
- std::puts("PASS theatre actions, per-eye extents, tracked poses, focus release, zero-draw update, bounded wait retry and opaque render inputs; no loader");
+ std::puts("PASS theatre actions (left grip, left trigger and both thumbsticks included), per-eye extents, tracked poses, focus release, zero-draw update, bounded wait retry and opaque render inputs; no loader");
 }

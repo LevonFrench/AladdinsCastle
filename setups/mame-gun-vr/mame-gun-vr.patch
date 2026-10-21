@@ -122,10 +122,10 @@ index 476dc8f1..ed1cb279 100644
  		// anything else is bad
 diff --git a/src/frontend/mame/acvr_mono.cpp b/src/frontend/mame/acvr_mono.cpp
 new file mode 100644
-index 00000000..0f6d3df4
+index 00000000..05bb5bc0
 --- /dev/null
 +++ b/src/frontend/mame/acvr_mono.cpp
-@@ -0,0 +1,712 @@
+@@ -0,0 +1,795 @@
 +// license:BSD-3-Clause
 +/***************************************************************************
 +
@@ -283,6 +283,76 @@ index 00000000..0f6d3df4
 +	u64 m_until[acvr_mono::players][4] = {}; // trigger, button2, start, coin: hold while frame < until
 +	struct held { ioport_field *field; u64 until; };
 +	std::vector<held> m_held;
++
++	// motion cabinets: MAME_VR_MOTION="PORT:axis[:flags];..." maps the viewer's body axes
++	// onto analog fields; flags: h = 0..1 drives centre..max (self-centring levers),
++	// r = reversed. A field named here is never a gun axis.
++	struct motion_field { ioport_field *field; unsigned axis; bool half, reverse; std::string port; };
++	std::vector<motion_field> m_motion;
++	float m_saxis[acvr_mono::motion_axes] = {};
++	bool m_saxis_set[acvr_mono::motion_axes] = {};
++	bool m_motion_applied = false;
++
++	static int axis_index(const std::string &name)
++	{
++		static const char *const names[] = { "steer", "throttle", "brake", "stickx", "sticky", "throttle2", "lean", "twist", "pedal" };
++		for (int i = 0; i < int(std::size(names)); ++i) if (name == names[i]) return i;
++		return -1;
++	}
++	static bool axis_bipolar(unsigned a)
++	{
++		return a == acvr_mono::axis_steer || a == acvr_mono::axis_stick_x || a == acvr_mono::axis_stick_y || a == acvr_mono::axis_lean || a == acvr_mono::axis_twist;
++	}
++
++	void find_motion()
++	{
++		const char *spec = std::getenv("MAME_VR_MOTION");
++		if (!spec || !*spec) return;
++		std::string rest(spec);
++		for (size_t pos = 0; pos < rest.size(); )
++		{
++			size_t end = rest.find(';', pos); if (end == std::string::npos) end = rest.size();
++			const std::string item = rest.substr(pos, end - pos); pos = end + 1;
++			const size_t c1 = item.find(':'); if (c1 == std::string::npos) continue;
++			const size_t c2 = item.find(':', c1 + 1);
++			const std::string port = item.substr(0, c1), axis = item.substr(c1 + 1, c2 == std::string::npos ? std::string::npos : c2 - c1 - 1);
++			const std::string flags = c2 == std::string::npos ? std::string() : item.substr(c2 + 1);
++			const int a = axis_index(axis);
++			ioport_port *pp = m_machine.root_device().ioport(port);
++			ioport_field *field = nullptr;
++			if (pp) for (ioport_field &f : pp->fields()) if (!field && f.is_analog()) field = &f;
++			if (a < 0 || !field) { osd_printf_warning("ACVR motion: %s -> not found\n", item); continue; }
++			m_motion.push_back({ field, unsigned(a), flags.find('h') != std::string::npos, flags.find('r') != std::string::npos, port });
++			osd_printf_info("ACVR motion: %s '%s' %d..%d <- %s%s%s\n", port, field->name(), adj(*field, field->minval()), adj(*field, field->maxval()), axis,
++					flags.find('h') != std::string::npos ? " (centre..max)" : "", flags.find('r') != std::string::npos ? " reversed" : "");
++		}
++	}
++	bool is_motion_field(const ioport_field &f) const
++	{
++		for (const motion_field &m : m_motion) if (m.field == &f) return true;
++		return false;
++	}
++
++	// one body axis value -> the field value, following MAME's own direction for the field
++	static s32 motion_value(const motion_field &m, float value)
++	{
++		const ioport_field &f = *m.field;
++		const s32 lo = adj(f, f.minval()), hi = adj(f, f.maxval());
++		float n = axis_bipolar(m.axis) ? 0.5f + 0.5f * std::clamp(value, -1.0f, 1.0f) : std::clamp(value, 0.0f, 1.0f);
++		if (m.half) n = 0.5f + 0.5f * n;
++		if (f.analog_reverse() != m.reverse) n = 1.0f - n;
++		return std::clamp(s32(std::lround(lo + n * float(hi - lo))), std::min(lo, hi), std::max(lo, hi));
++	}
++
++	void apply_motion(const float *axis, const bool *set, bool fresh)
++	{
++		for (const motion_field &m : m_motion)
++		{
++			if (fresh && (!set || set[m.axis])) m.field->set_value(motion_value(m, axis[m.axis]));
++			else m.field->clear_value();
++		}
++		m_motion_applied = fresh;
++	}
 +	acvr_mono::publisher m_shm;
 +	render_target *m_target = nullptr;
 +	screen_device *m_screen = nullptr;
@@ -369,6 +439,7 @@ index 00000000..0f6d3df4
 +			{
 +				const int p = f.player();
 +				const ioport_type t = f.type();
++				if (is_motion_field(f)) continue;
 +				for (unsigned i = 0; i < acvr_mono::players; ++i)
 +				{
 +					gun_fields &g = m_fields[i];
@@ -480,6 +551,7 @@ index 00000000..0f6d3df4
 +				osd_printf_info("ACVR dip %s -> %s\n", item, done ? "set" : "NOT FOUND");
 +			}
 +		}
++		find_motion();
 +		if (m_gun)
 +			find_fields();
 +		osd_printf_info("ACVR mono: publish %d gun %d, target orientation %d, container orientation %d\n",
@@ -619,6 +691,8 @@ index 00000000..0f6d3df4
 +				const bool fresh = acvr_mono::publisher::fresh(in);
 +				from_wide(in);
 +				apply_gun(i, in, fresh, f->gun[i]);
++				if (i == 0 && !m_motion.empty())
++					apply_motion(f->body.axis, nullptr, acvr_mono::publisher::fresh(f->body));
 +				fill_state(i, f->gun[i]);
 +			}
 +
@@ -699,6 +773,13 @@ index 00000000..0f6d3df4
 +			m_sin[p].v = std::strtof(arg(2).c_str(), nullptr);
 +			m_sin[p].off_screen = 0;
 +			if (l.cmd == "aimw") from_wide(m_sin[p]);
++		}
++		else if (l.cmd == "axis")
++		{
++			// axis <name> <value>: a body axis as the viewer would send it (sticky)
++			const int a = axis_index(arg(0));
++			if (a >= 0) { m_saxis[a] = std::strtof(arg(1).c_str(), nullptr); m_saxis_set[a] = true; }
++			if (m_log) std::fprintf(m_log, "frame %llu axis %s %s%s\n", (unsigned long long)m_frame_no, arg(0).c_str(), arg(1).c_str(), a < 0 ? " UNKNOWN" : "");
 +		}
 +		else if (l.cmd == "off")
 +			m_sin[player_arg(l, 0)].off_screen = 1;
@@ -798,6 +879,8 @@ index 00000000..0f6d3df4
 +			apply_gun(i, in, true, m_sstate[i]);
 +			fill_state(i, m_sstate[i]);
 +		}
++		if (!m_motion.empty())
++			apply_motion(m_saxis, m_saxis_set, true);
 +		// the picture rendered this frame shows the state before this frame's input
 +		for (const script_line *l : snaps)
 +			snap(l->args.empty() ? std::string() : l->args[0]);
@@ -869,10 +952,10 @@ index 00000000..7f2f2794
 +#endif
 diff --git a/src/frontend/mame/acvr_mono_frames.h b/src/frontend/mame/acvr_mono_frames.h
 new file mode 100644
-index 00000000..9acd49d9
+index 00000000..d025fbeb
 --- /dev/null
 +++ b/src/frontend/mame/acvr_mono_frames.h
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,143 @@
 +// license:BSD-3-Clause
 +// ACVR mono frame + gun protocol v4 ("ACVRMG"), shared by MAME and a viewer.
 +// Same style as model2_frames.h: one named file mapping per MAME process,
@@ -894,6 +977,30 @@ index 00000000..9acd49d9
 +constexpr unsigned max_width = 1024, max_height = 1024, players = 2;
 +constexpr std::uint32_t magic = 0x474d5641; // "AVMG" little-endian
 +constexpr std::uint32_t protocol_version = 4;
++
++// Body controls for motion cabinets (bikes, skis, jet ski, flight stick), written by
++// the viewer from controller poses; MAME maps each named axis onto the analog field a
++// launcher names (MAME_VR_MOTION). Appended after the picture, so the gun fields keep
++// their offsets; a viewer and MAME are still rebuilt together.
++enum motion_axis : unsigned
++{
++	axis_steer,      // -1..1, right +: right controller roll (handlebar, bike bank)
++	axis_throttle,   // 0..1: right trigger
++	axis_brake,      // 0..1: left trigger
++	axis_stick_x,    // -1..1, right +: right controller roll (flight stick)
++	axis_stick_y,    // -1..1, pulled back +: right controller pitched up
++	axis_throttle2,  // 0..1: left trigger (throttle lever)
++	axis_lean,       // -1..1, right +: both controllers' mean roll (ski edge)
++	axis_twist,      // -1..1, right +: both controllers' mean yaw against the head (ski swing)
++	axis_pedal,      // 0..1: pedalling speed from alternating hand height, or the right trigger
++	motion_axes = 16
++};
++struct motion
++{
++	std::uint64_t heartbeat_ms;      // same staleness rule as controls
++	std::uint32_t valid, reserved;
++	float axis[motion_axes];
++};
 +
 +// Written by the viewer. u,v: 0..1 on the displayed picture, top-left origin.
 +struct controls
@@ -929,6 +1036,7 @@ index 00000000..9acd49d9
 +	controls input[players];
 +	gun_state gun[players];
 +	std::uint32_t pixels[max_width * max_height]; // XRGB8888, rows of 'stride'
++	motion body;                     // written by the viewer (motion cabinets)
 +};
 +
 +inline void mapping_name(char *out, std::size_t size, unsigned long pid)
@@ -964,6 +1072,11 @@ index 00000000..9acd49d9
 +	}
 +	void unlock() { ReleaseMutex(m_lock); }
 +
++	static bool fresh(const motion &input)
++	{
++		const auto now = GetTickCount64();
++		return input.valid && input.heartbeat_ms <= now && now - input.heartbeat_ms < 250;
++	}
 +	static bool fresh(const controls &input)
 +	{
 +		const auto now = GetTickCount64();
@@ -981,6 +1094,7 @@ index 00000000..9acd49d9
 +	frame *try_lock() { return nullptr; }
 +	void unlock() { }
 +	static bool fresh(const controls &) { return false; }
++	static bool fresh(const motion &) { return false; }
 +};
 +#endif
 +} // namespace acvr_mono

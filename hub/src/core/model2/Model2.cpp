@@ -9,7 +9,7 @@ namespace {
 struct Game {const char *id,*title;int year;const char *controls;const char *file=nullptr;};
 const char *const viewOnly="View only for now: no controls yet.";
 const char *const lightGun="Controls new, untested: aim with the right controller, the trigger shoots, shoot off the screen to reload, A = Start, B = Coin.";
-const char *const racing="Controls new, untested: tilt the right controller like a wheel or push the left stick to steer, right trigger = gas, left trigger = brake, grips = shift or the game's buttons, A = Start, B = Coin.";
+const char *const racing="Controls new, untested: the left stick steers, right trigger = gas, left trigger = brake, grips = shift or the game's buttons, A = Start, B = Coin.";
 const Game kGames[]={
  {"vcop2","Virtua Cop 2",1995,lightGun},
  {"vcop","Virtua Cop",1994,lightGun},
@@ -20,6 +20,9 @@ const Game kGames[]={
  {"skytargt","Sky Target",1995,"Controls new, untested: point the right controller to fly, the trigger fires the gun, right grip = missile, A = Start, B = Coin."},
  {"daytona","Daytona USA",1994,racing},{"srallyc","Sega Rally Championship",1995,racing},
  {"indy500","INDY 500",1995,racing},{"motoraid","Motor Raid",1997,racing},
+ {"sgt24h","Super GT 24h",1996,racing},
+ {"desert","Desert Tank",1994,"Controls new, untested: the left stick steers the tank, right trigger = gas, left trigger = brake, right grip = machine gun, left grip = cannon, A = Start, B = Coin."},
+ {"rchase2","Rail Chase 2",1994,"Controls new, untested: aim the mounted gun with the right controller, the trigger fires, A = Start, B = Coin."},
  {"vf2","Virtua Fighter 2",1994,viewOnly}};
 const Game *findGame(const QString &id){for(const auto &game:kGames)if(id==QLatin1String(game.id))return &game;return nullptr;}
 QString beside(const QString &program,const QString &path){return QDir::cleanPath(QFileInfo(program).absoluteDir().filePath("../"+path));}

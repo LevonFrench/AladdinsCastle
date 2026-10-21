@@ -79,7 +79,7 @@ With `ACVR_XR` the game never runs unseen. It closes cleanly, saving NVRAM, in t
 
 Read through OpenXR and turned into the emulator's own inputs, by cabinet type:
 
-- Driving: hold both grips and turn your hands like a wheel, or use the left thumbstick; right trigger accelerates, left trigger brakes; right thumbstick up and down shifts; A start, B coin, X view change, Y second view button or hand brake.
+- Driving: the left thumbstick steers; right trigger accelerates, left trigger brakes; right thumbstick up and down shifts; A start, B coin, X view change, Y second view button or hand brake. Steering with both hands on a wheel (hold both grips and turn the hands) is opt-in: `ACVR_WHEEL_GRAB=1`, on by default only together with `ACVR_CONTROLS=1`, where the wheel is drawn to hold.
 - Analog stick (Star Wars Trilogy): point the right controller at the picture and the game's crosshair goes where the ray meets it. The ray is met with the screen itself in screen mode and with the arcade view 2.5 m ahead in the head-tracked mode; the stick value is looked up from the game's measured crosshair response, which is not linear. Checked offline against the game's own crosshair at 12 points on Yavin: the largest error was 0.009 of the picture, on the normal and on the open-frame screen. Right trigger fires, right grip is the event button.
 - Stick and buttons: left thumbstick, and A, B, X, Y; start on the menu button or a right-stick click, coin on a left-stick click.
 

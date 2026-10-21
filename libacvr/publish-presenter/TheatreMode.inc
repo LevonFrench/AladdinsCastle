@@ -33,8 +33,8 @@ TheatreFrame TheatreState(XrTime time,bool focused){
  if(focused){
   XrActiveActionSet set{s_actions,XR_NULL_PATH};XrActionsSyncInfo sync={XR_TYPE_ACTIONS_SYNC_INFO};sync.countActiveActionSets=1;sync.activeActionSets=&set;
   if(p_xrSyncActions(s_session,&sync)==XR_SUCCESS){
-   auto pose=[&](XrAction action,XrSpace space,TrackedPose& out){
-    XrActionStateGetInfo get={XR_TYPE_ACTION_STATE_GET_INFO};get.action=action;get.subactionPath=s_right;
+   auto pose=[&](XrAction action,XrSpace space,TrackedPose& out,XrPath hand=XR_NULL_PATH){
+    XrActionStateGetInfo get={XR_TYPE_ACTION_STATE_GET_INFO};get.action=action;get.subactionPath=hand==XR_NULL_PATH?s_right:hand;
     XrActionStatePose active={XR_TYPE_ACTION_STATE_POSE};XrSpaceLocation location={XR_TYPE_SPACE_LOCATION};
     const auto need=XR_SPACE_LOCATION_POSITION_VALID_BIT|XR_SPACE_LOCATION_ORIENTATION_VALID_BIT|XR_SPACE_LOCATION_POSITION_TRACKED_BIT|XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT;
     if(XR_SUCCEEDED(p_xrGetActionStatePose(s_session,&get,&active)) && active.isActive && XR_SUCCEEDED(p_xrLocateSpace(space,s_space,time,&location)) && (location.locationFlags&need)==need){
@@ -42,10 +42,13 @@ TheatreFrame TheatreState(XrTime time,bool focused){
      out.orientation[0]=location.pose.orientation.x;out.orientation[1]=location.pose.orientation.y;out.orientation[2]=location.pose.orientation.z;out.orientation[3]=location.pose.orientation.w;
     }
    };
-   auto scalar=[&](XrAction action){XrActionStateGetInfo get={XR_TYPE_ACTION_STATE_GET_INFO};get.action=action;get.subactionPath=s_right;XrActionStateFloat value={XR_TYPE_ACTION_STATE_FLOAT};return XR_SUCCEEDED(p_xrGetActionStateFloat(s_session,&get,&value)) && value.isActive?value.currentState:0.f;};
+   auto scalar=[&](XrAction action,XrPath hand=XR_NULL_PATH){XrActionStateGetInfo get={XR_TYPE_ACTION_STATE_GET_INFO};get.action=action;get.subactionPath=hand==XR_NULL_PATH?s_right:hand;XrActionStateFloat value={XR_TYPE_ACTION_STATE_FLOAT};return XR_SUCCEEDED(p_xrGetActionStateFloat(s_session,&get,&value)) && value.isActive?value.currentState:0.f;};
    auto button=[&](XrAction action,XrPath hand){XrActionStateGetInfo get={XR_TYPE_ACTION_STATE_GET_INFO};get.action=action;get.subactionPath=hand;XrActionStateBoolean value={XR_TYPE_ACTION_STATE_BOOLEAN};return XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session,&get,&value)) && value.isActive && value.currentState;};
    pose(s_aim,s_aimSpace,frame.aim);pose(s_grip,s_gripSpace,frame.grip);
-   frame.trigger=frame.aim.valid?scalar(s_trigger):0;frame.button2=scalar(s_secondary)>=.55f;
+   frame.trigger=frame.aim.valid?scalar(s_trigger):0;frame.squeeze=scalar(s_secondary);frame.button2=frame.squeeze>=.55f;
+   if(s_leftGrip){pose(s_leftGrip,s_leftGripSpace,frame.leftGrip,s_left);frame.leftTrigger=scalar(s_leftTrigger,s_left);}
+   auto stick=[&](XrAction action,XrPath hand,float out[2]){XrActionStateGetInfo get={XR_TYPE_ACTION_STATE_GET_INFO};get.action=action;get.subactionPath=hand;XrActionStateVector2f value={XR_TYPE_ACTION_STATE_VECTOR2F};if(action && p_xrGetActionStateVector2f && XR_SUCCEEDED(p_xrGetActionStateVector2f(s_session,&get,&value)) && value.isActive){out[0]=value.currentState.x;out[1]=value.currentState.y;}};
+   stick(s_leftStick,s_left,frame.leftStick);stick(s_rightStick,s_right,frame.rightStick);
    frame.start=button(s_start,s_right);frame.coin=button(s_coin,s_right);frame.quitHeld=button(s_quit,s_left);
   }
  }

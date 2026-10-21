@@ -707,7 +707,7 @@ index 3ceb8c0..affe42f 100644
  float worldScale();
  // ...the profile knows that picture (else player 2 can't be told out again).
 diff --git a/core/sdl/sdl.cpp b/core/sdl/sdl.cpp
-index 3568d4b..a1b8e14 100644
+index 3568d4b..efdf7c7 100644
 --- a/core/sdl/sdl.cpp
 +++ b/core/sdl/sdl.cpp
 @@ -872,6 +872,9 @@ bool sdl_recreate_window(u32 flags)
@@ -720,3 +720,55 @@ index 3568d4b..a1b8e14 100644
  
  	window = SDL_CreateWindow("Flycast", windowPos.x, windowPos.y,
  			windowPos.w * hdpiScaling, windowPos.h * hdpiScaling, flags);
+@@ -1005,7 +1008,8 @@ void sdl_window_create()
+ 	try {
+ 		initRenderApi();
+ 	} catch (const FlycastException& e) {
+-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, i18n::T("Flycast Error"), e.what(), nullptr);
++		// ACVR: no message box on the desktop; the error is logged
++		ERROR_LOG(RENDERER, "Flycast error: %s", e.what());
+ 		throw;
+ 	}
+ 	// ImGui copy & paste
+diff --git a/core/windows/winmain.cpp b/core/windows/winmain.cpp
+index e80c0da..b89f8b2 100644
+--- a/core/windows/winmain.cpp
++++ b/core/windows/winmain.cpp
+@@ -313,6 +313,12 @@ int remove(char const *name)
+ int main(int argc, char* argv[])
+ {
+ 	nowide::args _(argc, argv);
++	// ACVR: no Windows error or crash dialog may reach the desktop (critical-error, crash-report and
++	// missing-file boxes off; abort() without its message box). Errors go to flycast.log instead.
++	SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
++	_set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
++	if (getenv("SDL_ASSERT") == nullptr)
++		_putenv("SDL_ASSERT=always_ignore");	// SDL's assertion box too
+ 
+ 	WSADATA wsaData;
+ 	int ret = WSAStartup(MAKEWORD(2, 0), &wsaData);
+@@ -372,9 +378,7 @@ int main(int argc, char* argv[])
+ 		mainui_loop();
+ 	} catch (const std::exception& e) {
+ 		ERROR_LOG(BOOT, "mainui_loop error: %s", e.what());
+-#ifndef TARGET_UWP
+-		MessageBox(NULL, i18n::T("Flycast Error"), e.what(), MB_ICONSTOP | MB_OK);
+-#endif
++		// ACVR: logged only, no message box on the desktop
+ 	} catch (...) {
+ 		ERROR_LOG(BOOT, "mainui_loop unknown exception");
+ 	}
+@@ -388,6 +392,13 @@ int main(int argc, char* argv[])
+ 
+ [[noreturn]] void os_DebugBreak()
+ {
++	// ACVR: no dialog on the owner's desktop: without a debugger a fatal error just ends the program
++	// (the reason is in flycast.log), instead of a breakpoint that Windows reports in a crash dialog.
++	if (!IsDebuggerPresent())
++	{
++		fflush(nullptr);
++		TerminateProcess(GetCurrentProcess(), 3);
++	}
+ 	__debugbreak();
+ 	std::abort();
+ }

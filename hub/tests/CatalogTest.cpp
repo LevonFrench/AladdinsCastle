@@ -115,7 +115,7 @@ class CatalogTest : public QObject {
     }
     void realCatalog() {
         const auto data = ac::CatalogLoader().load(QStringLiteral(AC_CATALOG_ROOT));
-        QCOMPARE(data.games.size(), 441);
+        QCOMPARE(data.games.size(), 443);
         QCOMPARE(data.report.errors, 0);
         // Two older notes, and seven Lindbergh games whose route has no emulator manifest yet, said rather than dropped.
         QCOMPARE(data.report.warnings, 9);

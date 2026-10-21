@@ -47,11 +47,7 @@ DolphinXR fork, plus the anti-aliasing fixes found while checking the owner's fi
 | Nunchuk motion | left controller itself (override) |
 | Rumble | right controller |
 
-Profile `AC Motion Wheel` (Mario Kart Wii): no Nunchuk, so the game uses its sideways/wheel
-scheme and steering is the right controller's roll. 2 = right trigger (accelerate), 1 = right B,
-B = right grip or left trigger (drift), D-pad = either stick (items), A = right A, + − Home as above.
-With a Nunchuk attached Mario Kart Wii switches to stick steering, which is why this game gets its
-own set.
+Mario Kart Wii defaults to `AC Motion Kart` (Wii Remote + Nunchuk, steering on the left stick; controller tilt does not steer), the owner's choice of 2026-10-20. Tilt steering is opt-in: profile `AC Motion Wheel` (no Nunchuk, so the game uses its wheel scheme; 2 = right trigger, 1 = right B, B = right grip or left trigger, D-pad = either stick) through a separate "(tilt steer)" launcher. Both launchers write `GameSettings/RMCP01.ini` before starting (`GameSettings/RMCP01.ini` and `RMCP01-tilt-steer.ini` here), because the game INI picks the profile. Any other racer set up later defaults to stick steering too.
 
 Profile `AC Motion Resort` (Wii Sports Resort): the generic set, but the Nunchuk starts detached and
 **left Y + left stick click** attaches or detaches it (`Extension = toggle(...)`; − is gated off
@@ -61,7 +57,7 @@ extension from the MotionPlus; without it the game went on to its intro.
 | Game | ID | Set |
 | --- | --- | --- |
 | Wii Sports Resort | RZTP01 | AC Motion Resort |
-| Mario Kart Wii | RMCP01 | AC Motion Wheel (+ `MSAA = 4`) |
+| Mario Kart Wii | RMCP01 | AC Motion Kart (+ `MSAA = 4`); AC Motion Wheel only in the tilt-steer launcher |
 | Punch-Out!! | R7PE01 | AC Motion Remote and Nunchuk |
 | Super Mario Galaxy | RMGP01 | AC Motion Remote and Nunchuk |
 | Zelda: Twilight Princess | RZDP01 | AC Motion Remote and Nunchuk |
@@ -202,3 +198,32 @@ grip as B (jump).
 `AC Pad Sideways` (sideways Wii Remote, no Nunchuk, Dolphin's Sideways option on so either stick
 gives screen directions) is for the sideways games that follow. None of these discs has a shipped
 DolphinXR VR profile and none of their game INIs touches MSAA.
+
+### Mario Kart Wii stick steering, offline proof (2026-10-20)
+
+`input-probe/mkw-kart.txt` presses A through the default menu choices into a Time Trial on Luigi
+Circuit, then holds A with the Nunchuk stick left (104-110 s) and right (112-118 s); the probe shows
+the Nunchuk stick at 0 and 255. The kart turns left, then right, back onto the track.
+`mkw-kart-tiltcontrol.txt` is the same run with the right controller rolled ±60° instead of the stick:
+the kart does not turn. Tilt steering stays available only through the opt-in launcher.
+
+### Queue, batch 2 (2026-10-20)
+
+| Game | ID | Launcher type | Set | Offline result |
+| --- | --- | --- | --- | --- |
+| Kirby's Return to Dream Land | SUKE01 | pad (sideways) | AC Pad Sideways | file select, story skipped with +, world map, level 1-1 with Kirby moving and attacking |
+| Kirby's Epic Yarn | RK5E01 | pad (sideways) | AC Pad Sideways | save creation, story (+ offers "stop watching"), Patch Land with Kirby walking |
+| Mario Strikers Charged | R4QE01 | motion | AC Motion Remote and Nunchuk | pointer menus reached (VS, Domination, option pages) but no match: its pointer is not trimmed yet and DONE did not register; not proven |
+| Excitebike: World Rally | WWRP (WiiWare) | pad (racer, stick steering) | AC Pad Sideways | profile, name entry, World Tour, training race running |
+
+Excitebike follows the owner's racer rule: steering is on the stick (D-pad lanes); tilt is not used for steering.
+
+### No message boxes (2026-10-20)
+
+DolphinNoGUI registers no alert handler, so Dolphin's default handler shows real Windows message
+boxes. `run_probe.ps1` now passes `-C Dolphin.Interface.UsePanicHandlers=False` (panic alerts and
+"Ignore and continue?" asserts are logged and answered "continue"; questions and critical errors
+still show). The alerts seen in the logged proof runs were `FIFO: Unknown Opcode` video asserts
+(`VideoCommon/OpcodeDecoding.h:166`, "Ignore and continue?") in Mario Strikers Charged and
+Excitebike: World Rally; runs without a log may have raised more. A dialog left open blocks
+emulation, which may explain some stalled offline runs (DKCR at 1-1, slow Metroid runs); not verified.

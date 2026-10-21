@@ -23,7 +23,7 @@ index dcc98198..4952de80 100644
  		"shcore",
  		"shlwapi",
 diff --git a/src/mame/sega/model2.cpp b/src/mame/sega/model2.cpp
-index 21b42076..f2d577f4 100644
+index 21b42076..113a3419 100644
 --- a/src/mame/sega/model2.cpp
 +++ b/src/mame/sega/model2.cpp
 @@ -2321,11 +2321,14 @@ INPUT_PORTS_END
@@ -90,7 +90,15 @@ index 21b42076..f2d577f4 100644
  	io.an_port_callback<0>().set_ioport("STICKY");
  	io.an_port_callback<2>().set_ioport("STICKX");
  }
-@@ -2967,6 +2987,7 @@ void model2b_state::gunblade(machine_config &config)
+@@ -2954,6 +2974,7 @@ void model2b_state::rchase2(machine_config &config)
+ 	CXD1095(config, "ioexp");
+ 
+ 	sega_315_5649_device &io(*subdevice<sega_315_5649_device>("io"));
++	io.in_pc_callback().set(FUNC(model2b_state::stereo_gun_buttons_r));
+ 	io.in_pd_callback().set(FUNC(model2b_state::rchase2_drive_board_r));
+ 	io.out_pe_callback().set(FUNC(model2b_state::rchase2_drive_board_w));
+ 	io.an_port_callback<0>().set_ioport("P2_X");
+@@ -2967,6 +2988,7 @@ void model2b_state::gunblade(machine_config &config)
  	model2b(config);
  
  	sega_315_5649_device &io(*subdevice<sega_315_5649_device>("io"));
@@ -98,7 +106,7 @@ index 21b42076..f2d577f4 100644
  	io.an_port_callback<0>().set_ioport("P1_X");
  	io.an_port_callback<1>().set_ioport("P2_X");
  	io.an_port_callback<2>().set_ioport("P1_Y");
-@@ -3062,6 +3083,7 @@ void model2c_state::bel(machine_config &config)
+@@ -3062,6 +3084,7 @@ void model2c_state::bel(machine_config &config)
  	model2c(config);
  
  	sega_315_5649_device &io(*subdevice<sega_315_5649_device>("io"));
@@ -106,7 +114,7 @@ index 21b42076..f2d577f4 100644
  	io.an_port_callback<0>().set_ioport("P1_X");
  	io.an_port_callback<1>().set_ioport("P2_X");
  	io.an_port_callback<2>().set_ioport("P1_Y");
-@@ -3073,6 +3095,7 @@ void model2c_state::hotd(machine_config &config)
+@@ -3073,6 +3096,7 @@ void model2c_state::hotd(machine_config &config)
  	model2c(config);
  
  	sega_315_5649_device &io(*subdevice<sega_315_5649_device>("io"));
@@ -223,7 +231,7 @@ index 9dba100c..838f96e2 100644
  
  struct model2_state::quad_m2
 diff --git a/src/mame/sega/model2_v.cpp b/src/mame/sega/model2_v.cpp
-index 3a5bfa51..89e7077a 100644
+index 3a5bfa51..aeb0d320 100644
 --- a/src/mame/sega/model2_v.cpp
 +++ b/src/mame/sega/model2_v.cpp
 @@ -90,6 +90,11 @@
@@ -591,8 +599,8 @@ index 3a5bfa51..89e7077a 100644
 +	if (active)
 +	{
 +		bool off_screen = input.off_screen != 0;
-+		const float u = model2_input::untrim(model2_input::from_wide(input.u, m_stereo.wide, 496, off_screen), map->trim[0], map->trim[1]);
-+		const float v = model2_input::untrim(input.v, map->trim[2], map->trim[3]);
++		const float u = model2_input::untrim(model2_input::from_wide(input.u, m_stereo.wide, 496, off_screen), map->marks[0], map->marks[1], map->marks[2]);
++		const float v = model2_input::untrim(input.v, map->marks[3], map->marks[4], map->marks[5]);
 +		if (aim_x && aim_y)
 +		{
 +			if (map->type == model2_input::kind::light_gun)
@@ -776,7 +784,7 @@ diff --git a/src/mame/sega/model2_input.h b/src/mame/sega/model2_input.h
 new file mode 100644
 --- /dev/null
 +++ b/src/mame/sega/model2_input.h
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,100 @@
 +// license:BSD-3-Clause
 +#ifndef MAME_SEGA_MODEL2_INPUT_H
 +#define MAME_SEGA_MODEL2_INPUT_H
@@ -826,9 +834,10 @@ new file mode 100644
 + const char *aim_x, *aim_y;            // light gun, mounted gun or yoke
 + const char *steer, *accel, *brake;    // racing
 + gears shifter;
-+ // Aim trim measured against the game's own on-screen mark (default calibration):
-+ // mark = scale * aim + offset, per axis, in 0..1 picture units. The inverse is applied.
-+ float trim[4] = {1, 0, 1, 0}; // x scale, x offset, y scale, y offset
++ // Aim trim measured against the game's own on-screen mark (default calibration): where
++ // the mark lands, in 0..1 picture units, for cabinet input 0, 0.5 and 1 on each axis
++ // (games may scale the two halves differently). The inverse is applied.
++ float marks[6] = {0, 0.5f, 1, 0, 0.5f, 1}; // x at 0, 0.5, 1; y at 0, 0.5, 1
 +};
 +constexpr input_bit none_bit{nullptr, 0};
 +constexpr game_map maps[] = {
@@ -837,9 +846,9 @@ new file mode 100644
 + {"vcop",  kind::light_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
 + {"hotd",  kind::light_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
 + // Mounted guns: the turret's two potentiometers. Behind Enemy Lines has a missile button.
-+ {"gunblade", kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none, {1.144f, -0.0552f, 1.154f, -0.084f}},
++ {"gunblade", kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none, {-0.0552f, 0.5168f, 1.0888f, -0.084f, 0.493f, 1.07f}},
 + {"bel",      kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, {"IN1",0x10}, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
-+ {"rchase2",  kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none},
++ {"rchase2",  kind::mounted_gun, {"IN0",0x10}, {"IN1",0x01}, none_bit, none_bit, "P1_X", "P1_Y", nullptr, nullptr, nullptr, gears::none, {-0.06f, 0.362f, 1.05f, -0.066f, 0.569f, 1.072f}},
 + // Sky Target: the flight stick follows where the controller points; trigger = machine gun.
 + {"skytargt", kind::yoke, {"IN0",0x40}, {"IN1",0x10}, {"IN1",0x20}, {"IN0",0x20}, "STICKX", "STICKY", nullptr, nullptr, nullptr, gears::none},
 + // Racing: steering, accelerator and brake; the grips shift or punch/kick.
@@ -847,6 +856,9 @@ new file mode 100644
 + {"srallyc",  kind::racing, {"IN0",0x40}, none_bit, none_bit, none_bit, nullptr, nullptr, "STEER", "ACCEL", "BRAKE", gears::h_pattern},
 + {"indy500",  kind::racing, {"IN0",0x40}, none_bit, {"IN1",0x10}, {"IN1",0x20}, nullptr, nullptr, "STEER", "ACCEL", "BRAKE", gears::buttons},
 + {"manxtt",   kind::racing, {"IN0",0x40}, none_bit, {"IN1",0x10}, {"IN1",0x20}, nullptr, nullptr, "BANK", "THROTTLE", "BRAKE", gears::buttons},
++ {"sgt24h",   kind::racing, {"IN0",0x40}, none_bit, {"IN1",0x10}, {"IN1",0x20}, nullptr, nullptr, "STEER", "ACCEL", "BRAKE", gears::buttons},
++ // Desert Tank: tracks steer like a wheel; right grip = machine gun, left grip = cannon.
++ {"desert",   kind::racing, {"IN0",0x10}, none_bit, {"IN1",0x10}, {"IN1",0x20}, nullptr, nullptr, "STEER", "ACCEL", "BRAKE", gears::none},
 + {"motoraid", kind::racing, {"IN0",0x40}, none_bit, {"IN1",0x10}, {"IN1",0x20}, nullptr, nullptr, "BANK", "THROTTLE", "BRAKE", gears::none},
 +};
 +// The set itself, else its parent (clones share their parent's controls).
@@ -858,9 +870,10 @@ new file mode 100644
 +}
 +
 +// The cabinet amount that puts the game's mark where the controller points.
-+inline float untrim(float aim, float scale, float offset)
++inline float untrim(float aim, float at0, float at_half, float at1)
 +{
-+ return scale > 0 ? (aim - offset) / scale : aim;
++ if (!(at_half > at0) || !(at1 > at_half)) return aim;
++ return aim <= at_half ? 0.5f * (aim - at0) / (at_half - at0) : 0.5f + 0.5f * (aim - at_half) / (at1 - at_half);
 +}
 +
 +// Sequential shifting for an H-pattern box: gear 1..4, one step per press.

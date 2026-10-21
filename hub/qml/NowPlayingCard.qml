@@ -10,7 +10,7 @@ Rectangle {
  visible:session.gameId!==undefined
  implicitHeight:visible?150:0
  color:Theme.get("color.surface.window")
- readonly property string system:{const id=String(session.gameId||"");for(const key of ["model2","ps2","ps1","n64","dreamcast","system22","pinball"])if(id.startsWith(key+"-"))return key;return id.startsWith("__gun_room")?"catalog":"model3"}
+ readonly property string system:{const id=String(session.gameId||"");for(const key of ["model2","ps2","ps1","n64","saturn","dreamcast","system22","pinball"])if(id.startsWith(key+"-"))return key;return id.startsWith("__gun_room")?"catalog":"model3"}
  // A table's backglass, when the Hub has made one.
  readonly property string art:{if(!session.pinballId)return "";for(const row of (uiController.pinballData.tables||[]))if(row.id===session.pinballId&&row.artBackglass)return "file:///"+String(row.artBackglass).replace(/\\/g,"/");return ""}
  // The watchdog's word on the running game: not responding, without a window, or minimised.
