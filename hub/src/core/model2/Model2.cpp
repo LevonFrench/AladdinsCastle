@@ -90,8 +90,8 @@ QVariantMap launchPlan(const QString &game,const QString &program,const QString 
  if(!offered)throw install::Error("E_MODEL2_VIEW","This Model 2 game has no such view. Choose Real 3D.");
  const auto native=[](const QString &path){return QDir::toNativeSeparators(path);};
  const auto viewer=beside(program,"presenter/model2-viewer.exe");
- // The emulator draws no window and plays no sound itself; the viewer shows its picture.
- const QStringList emulator{game,"-rompath",native(QDir(gameFolder).absolutePath()),"-video","none","-sound","none","-numprocessors","2","-skip_gameinfo","-noreadconfig","-nowriteconfig",
+ // The emulator draws no window; the viewer shows its picture. The emulator plays the game's sound itself through the Windows default output ("-sound none" made every Model 2 game silent until 2026-10-21).
+ const QStringList emulator{game,"-rompath",native(QDir(gameFolder).absolutePath()),"-video","none","-sound","auto","-numprocessors","2","-skip_gameinfo","-noreadconfig","-nowriteconfig",
   "-snapview","Screen 1","-snapshot_directory",native(beside(program,"captures/headset-"+game)),"-snapname",game+"-%i",
   "-nvram_directory","nvram","-cfg_directory","cfg","-state_directory","sta","-diff_directory","diff","-background_input"};
  QVariantMap env;for(const auto &setting:settings())env.insert(setting.first,setting.second);
