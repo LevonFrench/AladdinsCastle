@@ -479,7 +479,9 @@ private slots:
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
     // Inside the game is off until confirmed: one view, the default, and an Inside choice is not kept.
     const auto row=[&ui]{for(const auto &value:ui.otherGames())if(value.toMap()["id"]=="ps2-virtua-cop")return value.toMap();return QVariantMap{};};
-    QCOMPARE(row()["views"].toList().size(),1);QCOMPARE(row()["view"].toString(),QString("screen"));QVERIFY(!row()["viewChosen"].toBool());
+    // No Inside view without an inside profile; Virtua Cop also has the launcher's headset check (2026-10-20).
+    QCOMPARE(row()["views"].toList().size(),2);QCOMPARE(row()["views"].toList()[1].toMap()["id"].toString(),QString("check"));
+    QCOMPARE(row()["view"].toString(),QString("screen"));QVERIFY(!row()["viewChosen"].toBool());
     ui.chooseGameView("ps2-virtua-cop","inside");QCOMPARE(row()["view"].toString(),QString("screen"));QVERIFY(!row()["viewChosen"].toBool());
     ui.chooseGameView("ps2-virtua-cop","screen");QVERIFY(row()["viewChosen"].toBool());
     ui.playOtherGame("ps2-virtua-cop");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);

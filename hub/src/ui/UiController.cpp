@@ -12,6 +12,8 @@
 #include "core/ps1/Ps1.h"
 #include "core/n64/N64.h"
 #include "core/saturn/Saturn.h"
+#include "core/scripted/Scripted.h"
+#include "core/system22/System22.h"
 #include "core/pinball/Gamepad.h"
 #include "core/art/Download.h"
 #include <QFileInfo>
@@ -25,6 +27,7 @@
 #include <QUrl>
 #include <QRegularExpression>
 #include <QTimer>
+#include <QScopeGuard>
 #include <algorithm>
 namespace ac {
 QString UiController::pinballLaunchHelp()const{return pinball::launchGuidance().value("help").toString();}
@@ -64,6 +67,8 @@ QObject *UiController::createGridModel(int columns){return new SectionedGridMode
 void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<SectionedGridModel *>(model);grid&&grid->parent()==this)grid->deleteLater();}
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_detailControls(this),m_games(games),m_filter(filter),m_settings(settings){
  connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
+ connect(this,&UiController::nowPlayingChanged,this,&UiController::launchGateChanged);
+ connect(this,&UiController::steamVrStartingChanged,this,&UiController::launchGateChanged);
  connect(settings,&UiSettings::changed,this,&UiController::model3Changed);
  connect(games,&QAbstractItemModel::dataChanged,this,&UiController::catalogReadyChanged);
  connect(games,&QAbstractItemModel::modelReset,this,&UiController::catalogReadyChanged);
@@ -88,6 +93,15 @@ QString UiController::vrLabel(int badge)const{const QStringList labels{"FLAT","T
 QString UiController::primaryLabel(const QString &id)const{auto g=m_games->find(id);if(!g)return "No setup yet";if(g->roles.value("playing").toBool())return "Playing";if(g->roles.value("state").toInt()==4){const auto *v=variant(*g);return v?v->title:"Play";}if(g->roles.value("state").toInt()==6)return "Locate / install emulator";return g->roles.value("stateLabel").toString();}
 QString UiController::appVersion()const{return QCoreApplication::applicationVersion();}
 void UiController::message(const QString &text){m_status=text;emit statusChanged();}
+// Pressing Play twice, or Play on another game while one starts or runs, starts nothing more and says why.
+bool UiController::refuseSecondLaunch(){
+ if(launchGateOpen())return false;
+ const auto title=!m_steamVrStarting.isEmpty()?m_steamVrStarting:m_nowPlaying.value("title").toString();
+ const auto phase=!m_steamVrStarting.isEmpty()?QString("waiting for SteamVR"):m_nowPlaying.value("running").toBool()?QString("running"):QString("starting");
+ ++m_refusedLaunches;emit launchGateChanged();
+ message("Not started: "+(title.isEmpty()?QString("a game"):title)+" is already "+phase+". Close the current session first, or press Stop.");
+ return true;
+}
 QVariantMap UiController::game(const QString &id)const {auto g=m_games->find(id);return g?g->roles:QVariantMap{};}
 QVariantMap UiController::filteredGame(int row)const{auto i=m_filter->mapToSource(m_filter->index(row,0));return i.isValid()?m_games->records()[i.row()].roles:QVariantMap{};}
 void UiController::openDetail(const QString &id){if(!m_games->find(id))return;m_detailId=id;m_variantId.clear();if(m_detailControlsVisible)refreshDetailControls();emit detailChanged();}
@@ -148,8 +162,8 @@ void UiController::cancelScan(){if(!m_scanning)return;emit cancelScanRequested()
 void UiController::showError(const QString &operation,const QString &text){message(operation+": "+text);}
 void UiController::overlayFallback(const QString &reason){showError("Overlay unavailable",reason);}
 void UiController::settingsSaved(const QString &id){emit detailChanged();message("Settings saved for "+game(id).value("title").toString()+". They apply to the next owned install or repair; existing emulator profiles are preserved.");}
-void UiController::startInstall(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}message("Install requested; waiting for installer.");emit installRequested(id,variantId);return;}}
-void UiController::play(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}emit playRequested(id,variantId);return;}}
+void UiController::startInstall(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;if(m_installing){message("An installation is already running. Wait for it to finish.");return;}for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}message("Install requested; waiting for installer.");emit installRequested(id,variantId);return;}}
+void UiController::play(const QString &id,const QString &variantId){if(refuseSecondLaunch())return;auto g=m_games->find(id);if(!g)return;for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}emit playRequested(id,variantId);return;}}
 void UiController::cancelInstall(){emit cancelInstallRequested();message("Cancel requested; the installer stops between steps.");}
 bool UiController::retryGameAvailable()const{
  const QRegularExpression id("^[a-z0-9]+(?:-[a-z0-9]+)*$");
@@ -187,6 +201,8 @@ void UiController::stopLaunch(){
   m_nowPlaying["closing"]=true;m_nowPlaying["stopping"]=true;emit nowPlayingChanged();emit stopLaunchRequested();
   message(running?"Stop requested; VPX is asked to close, then ended if it has not.":"Pinball launch cancellation requested.");return;
  }
+ // Pressed again while it stops: nothing is asked twice.
+ if(m_nowPlaying.value("stopping").toBool()){message("Stopping; the game is ended if it has not closed within the timeout.");return;}
  // Shown at once: the card says the game is being stopped before the game has reacted.
  if(!m_nowPlaying.isEmpty()){m_nowPlaying["closing"]=true;m_nowPlaying["stopping"]=true;emit nowPlayingChanged();}
  emit stopLaunchRequested();message("Stop requested; the game is asked to close, then forced to stop after the timeout.");
@@ -346,7 +362,7 @@ QVariantList UiController::otherGames()const{
   const auto game=value.toMap();
   add({{"id","model2-"+game.value("id").toString()},{"system","model2"},{"pill","MODEL 2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},
    {"warning",game.value("controls").toString()},{"problem",model2::problem(game.value("id").toString(),model2Program,gameFolderFor("model2",game.value("id").toString()))}},
-   {QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}}});
+   model2::views(game.value("id").toString()));
  }
  // PS2: through the user's launcher, checked as it is now. Controls and depth are said on each game's page.
  const auto ps2Launcher=m_settings->get("ps2Launcher",QString()).toString();
@@ -362,7 +378,7 @@ QVariantList UiController::otherGames()const{
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","ps1-"+id},{"system","ps1"},{"pill","PS1"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
    {"problem",ps1::problem(id,ps1Launcher)}},
-   {QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset, with your controller as the light gun."}}});
+   [&]{auto views=ps1::views(id,ps1Launcher);if(views.isEmpty())views<<QVariantMap{{"id","standard"},{"label",ps1::viewLabel(id,"standard")},{"help","Not in your PS1 launcher yet."}};return views;}());
  }
  // N64: through the user's launcher and acvr-ps1; the views are the ones the launcher lists for the game.
  const auto n64Launcher=m_settings->get("n64Launcher",QString()).toString();
@@ -374,7 +390,7 @@ QVariantList UiController::otherGames()const{
    {"problem",n64::problem(id,n64Launcher)}},views);
  }
  // Saturn light-gun games: through the user's launcher and acvr-ps1, on a theatre screen with the Stunner.
- const auto saturnLauncher=m_settings->get("saturnLauncher",QString()).toString();
+ const auto saturnLauncher=launcherFor("saturn");
  if(!saturnLauncher.isEmpty())for(const auto &value:saturn::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","saturn-"+id},{"system","saturn"},{"pill","SATURN"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
@@ -385,13 +401,28 @@ QVariantList UiController::otherGames()const{
  const auto program=m_settings->get("system22Executable",QString()).toString();
  if(!program.isEmpty())add({{"id","system22-timecris"},{"system","system22"},{"pill","SYSTEM 22"},{"title","Time Crisis"},{"year",1996},{"file",QString()},{"warning",QString()},
   {"problem",QFileInfo(program).isFile()?QString():QString("Time Crisis VR build not found. Use Set-up.")}},
-  {QVariantMap{{"id","vr"},{"label","In the headset"},{"help","The whole game around you, with a tracked gun."}}});
+  system22::views(program));
+ // Systems started through the user's own launcher by key and view (games.json beside it): the arcade gun and
+ // motion games (MAME), Dreamcast and Atomiswave, Wii and GameCube. A launcher found replaces the disc scan.
+ QStringList scripted;
+ for(const auto &system:scripted::systems()){
+  const auto launcher=launcherFor(system.id);if(launcher.isEmpty())continue;
+  scripted<<system.id;
+  for(const auto &value:scripted::games(launcher)){
+   const auto game=value.toMap();const auto group=game.value("group").toString();
+   // Atomiswave boards run in the same Flycast build; they get their own shelf.
+   const bool atomiswave=system.id=="dreamcast"&&group=="atomiswave";
+   add({{"id",system.id+"-"+game.value("id").toString()},{"system",atomiswave?QString("atomiswave"):system.id},{"pill",atomiswave?QString("ATOMISWAVE"):system.pill},
+        {"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},{"problem",QString()},
+        {"launcher",launcher},{"status",game.value("status")}},game.value("views").toList());
+  }
+ }
  // Wii: the discs of the last scan, in the headset through the DolphinXR build. A game the build is
  // missing settings for starts behind a warning that says what is missing.
  const auto wiiProgram=m_settings->get("wiiExecutable",QString()).toString();
  const QVariantList wiiViews{QVariantMap{{"id","headset"},{"label","In the headset"},{"help","DolphinXR: the game on a screen in VR, aimed with your controller."}}};
  for(const auto &system:m_setupReport.value("systems").toList()){
-  if(system.toMap().value("id")!="wii")continue;
+  if(system.toMap().value("id")!="wii"||scripted.contains("wii"))continue;
   QHash<QString,int> years;for(const auto &value:wii::games())years.insert(value.toMap().value("id").toString(),value.toMap().value("year").toInt());
   const auto row=[&](const QVariantMap &entry){return QVariantMap{{"id","wii-"+entry.value("id").toString()},{"system","wii"},{"pill","WII"},{"title",entry.value("title")},{"year",years.value(entry.value("id").toString())},{"file",entry.value("file")},{"warning",QString()},{"problem",QString()}};};
   for(const auto &value:system.toMap().value("ready").toList()){auto r=row(value.toMap());if(!QFileInfo(wiiProgram).isFile())r["problem"]="DolphinXR build not found. Use Set-up.";add(r,wiiViews);}
@@ -402,7 +433,7 @@ QVariantList UiController::otherGames()const{
  // Dreamcast: the discs of the last scan. A disc without a VR profile starts behind a warning.
  const auto dreamcastProgram=m_settings->get("dreamcastExecutable",QString()).toString();
  for(const auto &system:m_setupReport.value("systems").toList()){
-  if(system.toMap().value("id")!="dreamcast")continue;
+  if(system.toMap().value("id")!="dreamcast"||scripted.contains("dreamcast"))continue;
   QHash<QString,int> years;for(const auto &value:dreamcast::games())years.insert(value.toMap().value("id").toString(),value.toMap().value("year").toInt());
   const auto row=[&](const QVariantMap &entry){return QVariantMap{{"id","dreamcast-"+entry.value("id").toString()},{"system","dreamcast"},{"pill","DREAMCAST"},{"title",entry.value("title")},{"year",years.value(entry.value("id").toString())},{"file",entry.value("file")},{"warning",QString()},{"problem",QString()}};};
   for(const auto &value:system.toMap().value("ready").toList()){auto r=row(value.toMap());if(!QFileInfo(dreamcastProgram).isFile())r["problem"]="Dreamcast VR build not found. Use Set-up.";add(r,dreamcast::views());}
@@ -428,6 +459,13 @@ void UiController::chooseCopy(const QString &system,const QString &game,const QS
  message("This copy is used from now on. Rescan in Set-up to check it.");emit model3Changed();emit libraryChanged();
 }
 QString UiController::libraryRule()const{return library::rule();}
+QString UiController::launcherFor(const QString &system)const{
+ const QStringList others{m_settings->get("ps1Launcher",QString()).toString(),m_settings->get("n64Launcher",QString()).toString(),
+                          m_settings->get("saturnLauncher",QString()).toString(),m_settings->get("ps2Launcher",QString()).toString()};
+ if(system=="saturn")return scripted::locate({"saturn","SATURN","saturnLauncher","saturn","launch-saturn.ps1"},m_settings->get("saturnLauncher",QString()).toString(),others);
+ const auto *found=scripted::system(system);
+ return found?scripted::locate(*found,m_settings->get(found->settingKey,QString()).toString(),others):QString();
+}
 QString UiController::gameFolderFor(const QString &system,const QString &game)const{
  const auto own=m_settings->get(system+"GameFolder",QString()).toString();
  if(!own.isEmpty()&&QFileInfo(QDir(own).filePath(game+".zip")).isFile())return own;
@@ -439,10 +477,12 @@ void UiController::markCrash(const QString &id,const QString &text){
  m_lastSession["outcome"]="crashed";m_lastSession["text"]=text;emit nowPlayingChanged();
 }
 void UiController::playGame(const QString &id,const QString &view){
+ if(refuseSecondLaunch())return;
+ m_launchInFlight=true;const auto landed=qScopeGuard([this]{m_launchInFlight=false;emit launchGateChanged();});
  for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,view.isEmpty()?row.value("view").toString():view);return;}}
  for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,view.isEmpty()?row.value("view").toString():view,row.value("file").toString());return;}}
 }
-void UiController::playOtherGame(const QString &id){for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}}
+void UiController::playOtherGame(const QString &id){if(refuseSecondLaunch())return;for(const auto &value:otherGames()){const auto row=value.toMap();if(row.value("id")==id&&row.value("problem").toString().isEmpty()){emit otherPlayRequested(id,row.value("view").toString(),row.value("file").toString());return;}}}
 void UiController::launchOtherQueued(const QString &id,const QString &view,const QString &title,const QString &hint,const QString &closeUnavailable){
  queueSession(id,view,closeUnavailable);m_nowPlaying["title"]=title;if(!hint.isEmpty())m_nowPlaying["hint"]=hint;emit nowPlayingChanged();
 }
@@ -458,8 +498,10 @@ QVariantList UiController::model3Games()const{
  QVariantList rows;
  for(const auto &value:model3::games()){
   auto row=value.toMap();const auto id=row.value("id").toString();
-  auto view=chosen.value(id).toString();row["viewChosen"]=!model3::viewLabel(view).isEmpty();if(!row["viewChosen"].toBool())view="screen";
-  row["view"]=view;row["viewLabel"]=model3::viewLabel(view);
+  const auto views=model3::views(id);row["views"]=views;
+  auto view=chosen.value(id).toString();bool offered=false;for(const auto &v:views)if(v.toMap().value("id")==view){offered=true;row["viewLabel"]=v.toMap().value("label");}
+  row["viewChosen"]=offered;if(!offered){view="screen";row["viewLabel"]=model3::viewLabel(view);}
+  row["view"]=view;
   row["problem"]=model3::problem(id,executable,gameFolderFor("model3",id));
   // A file that is there but wrong for this emulator is known only from the last scan.
   if(row.value("problem").toString().isEmpty())for(const auto &system:m_setupReport.value("systems").toList())if(system.toMap().value("id")=="model3")
@@ -530,6 +572,7 @@ void UiController::chooseModel3View(const QString &id,const QString &view){
  chosen[id]=view;m_settings->set("model3Views",chosen);
 }
 void UiController::playModel3(const QString &id){
+ if(refuseSecondLaunch())return;
  for(const auto &value:model3Games()){const auto row=value.toMap();if(row.value("id")==id){emit model3PlayRequested(id,row.value("view").toString());return;}}
 }
 void UiController::launchModel3Queued(const QString &id,const QString &view,const QString &closeUnavailable){

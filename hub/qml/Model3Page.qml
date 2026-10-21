@@ -30,7 +30,7 @@ Item {
   c.pill=row.pill||"MODEL 3"
   // Arcade boards have one maker; console games do not, so none is claimed for them.
   c.manufacturerShort=row.system==="system22"?"Namco":(!row.system||row.system==="model2")?"Sega":""
-  c.hardwareLabel={wii:"Wii",dreamcast:"Dreamcast",system22:"System 22",model2:"Model 2",ps2:"PlayStation 2",ps1:"PlayStation",n64:"Nintendo 64",saturn:"Saturn"}[row.system]||"Model 3";c.developerShown=false;c.isWip=false
+  c.hardwareLabel={wii:"Wii",dreamcast:"Dreamcast",system22:"System 22",model2:"Model 2",ps2:"PlayStation 2",ps1:"PlayStation",n64:"Nintendo 64",saturn:"Saturn",mamegun:"Arcade (MAME)",atomiswave:"Atomiswave",gamecube:"GameCube"}[row.system]||"Model 3";c.developerShown=false;c.isWip=false
   let trouble=row.problem||row.warning
   c.blurb=trouble?trouble.split(". ")[0].replace(/\.$/,"")+".":"Found on this PC.";c.stateColour=trouble?needsColour:readyColour
   return c
@@ -75,8 +75,8 @@ Item {
  }
  // Direction C: the focused game as a hero across the top, then one row of tiles per system.
  // Left and right move along a row, up and down between rows; laser hover moves the focus too.
- readonly property var shelfOrder:["model3","model2","system22","wii","dreamcast","ps2","ps1","n64","saturn","catalog"]
- readonly property var shelfNames:({model3:"Sega Model 3",model2:"Sega Model 2",system22:"Namco System 22",wii:"Nintendo Wii",dreamcast:"Sega Dreamcast",ps2:"PlayStation 2",ps1:"PlayStation",n64:"Nintendo 64",saturn:"Sega Saturn",catalog:"Set up on this PC"})
+ readonly property var shelfOrder:["model3","model2","system22","mamegun","wii","gamecube","dreamcast","atomiswave","ps2","ps1","n64","saturn","catalog"]
+ readonly property var shelfNames:({model3:"Sega Model 3",model2:"Sega Model 2",system22:"Namco System 22",mamegun:"Arcade guns and motion (MAME)",wii:"Nintendo Wii",gamecube:"Nintendo GameCube",dreamcast:"Sega Dreamcast",atomiswave:"Sammy Atomiswave",ps2:"PlayStation 2",ps1:"PlayStation",n64:"Nintendo 64",saturn:"Sega Saturn",catalog:"Set up on this PC"})
  property var shelves:{let list=[];for(let key of shelfOrder){let items=rows.filter(r=>(r.system||"model3")===key);if(items.length)list.push({key:key,heading:shelfNames[key]+"  ·  "+items.length,items:items})}return list}
  property int shelfIndex:0
  property int tileIndex:0
@@ -175,7 +175,7 @@ Item {
      onClicked:page.choose(page.selected,modelData.id)
      background:Rectangle {radius:Theme.get("radius.card");color:option.chosen?Theme.get("color.surface.pill"):Theme.get("color.surface.card");border.width:option.chosen||option.activeFocus||option.hovered?3:0;border.color:Theme.get("color.glass.ring")}
      contentItem:RowLayout {spacing:14
-      ViewPicture {Layout.preferredWidth:page.vrOverlayMode?90:80;Layout.fillHeight:true;kind:option.modelData.id==="headset"||option.modelData.id==="vr"?"inside":option.modelData.id==="monitor"?"screen":option.modelData.id;accent:option.chosen?page.readyColour:Theme.get("color.text.muted_detail")}
+      ViewPicture {Layout.preferredWidth:page.vrOverlayMode?90:80;Layout.fillHeight:true;kind:option.modelData.id==="headset"||option.modelData.id==="vr"||option.modelData.id.startsWith("inside")?"inside":option.modelData.id==="wide"||option.modelData.id==="open-frame"?"wide":"screen";accent:option.chosen?page.readyColour:Theme.get("color.text.muted_detail")}
       ColumnLayout {Layout.fillWidth:true;spacing:6
        Text {Layout.fillWidth:true;text:option.modelData.label;color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?21:18}
        // The view Play uses, marked on its card: the user's choice, or the default until one is made.

@@ -11,9 +11,18 @@
               "output": "/actions/hub/in/close_game"
             }
           }
+        },
+        {
+          "path": "/user/hand/right/input/b",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/hub/in/back"
+            }
+          }
         }
       ]
     }
   },
-  "description": "AladdinsCastle Hub: hold the left upper face button to close the game"
+  "description": "AladdinsCastle Hub: hold the left upper face button to close the game; the right B button goes back one page in the panel"
 }

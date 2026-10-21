@@ -7,6 +7,17 @@
 #include "core/launch/Launch.h"
 #include "core/pinball/Pinball.h"
 #include "core/library/Library.h"
+#include "core/model2/Model2.h"
+#include "core/model3/Model3.h"
+#include "core/n64/N64.h"
+#include "core/ps1/Ps1.h"
+#include "core/ps2/Ps2.h"
+#include "core/saturn/Saturn.h"
+#include "core/scripted/Scripted.h"
+#include "core/system22/System22.h"
+#include <QFile>
+#include <QJsonArray>
+#include <functional>
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QCoreApplication>
@@ -52,7 +63,8 @@ int main(int argc, char **argv) {
       "[--bindings <JSON>] [--settings <JSON>] [--recipe <TOML>] [--handover <path>] count | "
       "explain <game> | plan-launch <game> <variant> | plan/install/repair/update/uninstall/recover <game> "
       "<variant> | plan-tool/install-tool/uninstall-tool <tool> | locate-tool "
-      "<tool> <exe> | identify-disc <file> | dreamcast-product <file> | scan-pinball <folder> [<database> [<roms> [<media>]]] | plan-pinball <table> <exe> <owned-session> <vr|desktop>\n";
+      "<tool> <exe> | identify-disc <file> | dreamcast-product <file> | scan-pinball <folder> [<database> [<roms> [<media>]]] | plan-pinball <table> <exe> <owned-session> <vr|desktop> | "
+      "plan-views --settings <JSON>\n";
   if (args == QStringList{"--help"}) {
     out << usage;
     return 0;
@@ -85,6 +97,46 @@ int main(int argc, char **argv) {
   }
   if(args[0]=="identify-disc"&&args.size()==2){std::atomic_bool cancel=false;const auto id=ac::scan::Scanner::inspect(args[1],cancel);const bool valid=id.kind=="disc-id"&&!id.identity.isEmpty()&&id.error.isEmpty();out<<QJsonDocument::fromVariant(QVariantMap{{"kind",id.kind},{"identity",id.identity},{"error",id.error},{"valid",valid}}).toJson();return valid?0:2;}
   if(args[0]=="dreamcast-product"&&args.size()==2){std::atomic_bool cancel=false;const auto product=ac::scan::Scanner::dreamcastProduct(args[1],cancel);out<<product<<'\n';return product.isEmpty()?2:0;}
+  // Every game and view of the systems the settings set up, each with the launch plan the Hub would start
+  // (read-only: nothing is started or written). Settings: the Hub's own keys (ps1Launcher, model3Executable ...).
+  if(args==QStringList{"plan-views"}) {
+    QFile file(settingsPath);
+    if(settingsPath.isEmpty()||!file.open(QIODevice::ReadOnly)){err<<"plan-views needs --settings <JSON>.\n";return 2;}
+    const auto settings=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();
+    const auto get=[&](const char *key){return settings.value(QString::fromLatin1(key)).toString();};
+    QJsonArray rows;
+    const auto add=[&](const QString &system,const QString &game,const QString &title,const QVariantList &views,const std::function<QVariantMap(const QString &)> &plan){
+      for(const auto &value:views){
+        const auto view=value.toMap();QVariantMap row{{"system",system},{"game",game},{"title",title},{"view",view.value("id")},{"label",view.value("label")},
+          {"controls",view.value("controls")},{"monitor",view.value("monitor").toBool()}};
+        try{row["plan"]=plan(view.value("id").toString());}catch(const ac::install::Error &e){row["error"]=QString(e.code)+": "+QString::fromUtf8(e.what());}
+        rows.append(QJsonObject::fromVariantMap(row));
+      }
+    };
+    const QStringList others{get("ps1Launcher"),get("n64Launcher"),get("saturnLauncher"),get("ps2Launcher")};
+    if(!get("ps1Launcher").isEmpty())for(const auto &value:ac::ps1::games()){const auto g=value.toMap();const auto id=g.value("id").toString();
+      add("ps1",id,g.value("title").toString(),ac::ps1::views(id,get("ps1Launcher")),[&](const QString &v){return ac::ps1::launchPlan(id,get("ps1Launcher"),v);});}
+    if(!get("n64Launcher").isEmpty())for(const auto &value:ac::n64::games()){const auto g=value.toMap();const auto id=g.value("id").toString();
+      add("n64",id,g.value("title").toString(),ac::n64::views(id,get("n64Launcher")),[&](const QString &v){return ac::n64::launchPlan(id,get("n64Launcher"),v);});}
+    const auto saturnLauncher=ac::scripted::locate({"saturn","SATURN","saturnLauncher","saturn","launch-saturn.ps1"},get("saturnLauncher"),others);
+    if(!saturnLauncher.isEmpty())for(const auto &value:ac::saturn::games()){const auto g=value.toMap();const auto id=g.value("id").toString();
+      add("saturn",id,g.value("title").toString(),{QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"controls",g.value("controls")}}},[&](const QString &){return ac::saturn::launchPlan(id,saturnLauncher);});}
+    if(!get("ps2Launcher").isEmpty())for(const auto &value:ac::ps2::games()){const auto g=value.toMap();const auto id=g.value("id").toString();
+      add("ps2",id,g.value("title").toString(),ac::ps2::views(id,get("ps2Launcher")),[&](const QString &v){return ac::ps2::launchPlan(id,get("ps2Launcher"),get("ps2Python"),get("ps2StopFile"),v);});}
+    if(!get("model2Executable").isEmpty())for(const auto &value:ac::model2::games()){const auto g=value.toMap();const auto id=g.value("id").toString();
+      add("model2",id,g.value("title").toString(),ac::model2::views(id),[&](const QString &v){return ac::model2::launchPlan(id,get("model2Executable"),get("model2GameFolder"),v);});}
+    if(!get("model3Executable").isEmpty())for(const auto &value:ac::model3::games()){const auto g=value.toMap();const auto id=g.value("id").toString();
+      add("model3",id,g.value("title").toString(),ac::model3::views(id),[&](const QString &v){return ac::model3::launchPlan(id,v,get("model3Executable"),get("model3GameFolder"));});}
+    if(!get("system22Executable").isEmpty())
+      add("system22","timecris","Time Crisis",ac::system22::views(get("system22Executable")),[&](const QString &v){return ac::system22::launchPlan(get("system22Executable"),v);});
+    for(const auto &system:ac::scripted::systems()){
+      const auto launcher=ac::scripted::locate(system,settings.value(system.settingKey).toString(),others);if(launcher.isEmpty())continue;
+      for(const auto &value:ac::scripted::games(launcher)){const auto g=value.toMap();const auto key=g.value("id").toString();
+        const auto shelf=system.id=="dreamcast"&&g.value("group")=="atomiswave"?QString("atomiswave"):system.id;
+        add(shelf,key,g.value("title").toString(),g.value("views").toList(),[&](const QString &v){return ac::scripted::launchPlan(launcher,key,v);});}
+    }
+    out<<QJsonDocument(rows).toJson();return 0;
+  }
   if(args[0]=="plan-pinball" && args.size()==5 && QStringList{"vr","desktop"}.contains(args[4])) {
     try{out<<QJsonDocument::fromVariant(ac::pinball::launchPlan(args[1],args[2],args[3],args[4]=="vr")).toJson();return 0;}catch(const std::exception &e){err<<e.what()<<"\n";return 2;}
   }

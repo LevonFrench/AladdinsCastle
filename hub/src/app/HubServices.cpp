@@ -13,6 +13,8 @@
 #include "core/ps1/Ps1.h"
 #include "core/n64/N64.h"
 #include "core/saturn/Saturn.h"
+#include "core/scripted/Scripted.h"
+#include "core/system22/System22.h"
 #include "core/pinball/Gamepad.h"
 #include "core/pinball/Art.h"
 #include <QJsonArray>
@@ -151,6 +153,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     // Every Model 3 view is in the headset.
     connect(ui_,&UiController::model3PlayRequested,this,[this](const QString &id,const QString &view){
         QString title=id;for(const auto &value:ui_->model3Games())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
+        if(model3::isMonitorView(view)){startModel3(id,view);return;}
         launchInHeadset(title,[this,id,view]{startModel3(id,view);});
     });
     connect(ui_,&UiController::cancelSteamVrStartRequested,this,[this]{
@@ -175,7 +178,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(ui_,&UiController::setupScanRequested,this,&HubServices::scanSetup);
     // Every game but a Dreamcast disc on the monitor runs in the headset.
     connect(ui_,&UiController::otherPlayRequested,this,[this](const QString &id,const QString &view,const QString &file){
-        if(id.startsWith("dreamcast-")&&view=="monitor"){startOtherGame(id,view,file);return;}
+        if((id.startsWith("dreamcast-")&&view=="monitor")||onMonitor(id,view)){startOtherGame(id,view,file);return;}
         QString title=id;for(const auto &value:ui_->otherGames())if(value.toMap().value("id")==id)title=value.toMap().value("title").toString();
         launchInHeadset(title,[this,id,view,file]{startOtherGame(id,view,file);});
     });
@@ -228,7 +231,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             startPinball(retainedPinball_,retainedPinballExecutable_,retainedPinballView_);return;
         }
         if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
-        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")||id.startsWith("ps1-")||id.startsWith("n64-")||id.startsWith("saturn-")||id.startsWith("wii-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
+        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")||id.startsWith("ps1-")||id.startsWith("n64-")||id.startsWith("saturn-")||id.startsWith("wii-")||id.startsWith("mamegun-")||id.startsWith("gamecube-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
             const auto start=[this,request,id,variant]{
@@ -317,7 +320,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(&launcher_,&launch::LaunchService::starting,ui_,&UiController::launchPreparing);
     connect(&launcher_,&launch::LaunchService::starting,this,[this](const QString &id,const QString &){
         if(sessionSystem_.isEmpty()||!launcher_.playing()){sessionStartMs_=QDateTime::currentMSecsSinceEpoch()-1000;crashReported_=false;}
-        static const QStringList systems{"pinball","model3","model2","ps2","ps1","n64","saturn","dreamcast","system22","wii"};
+        static const QStringList systems{"pinball","model3","model2","ps2","ps1","n64","saturn","dreamcast","system22","wii","mamegun","gamecube"};
         sessionSystem_="catalog";for(const auto &system:systems)if(id.startsWith(system+"-")||id==system)sessionSystem_=system;
     });
     connect(&launcher_,&launch::LaunchService::started,this,[this](const QString &id){
@@ -435,12 +438,39 @@ void HubServices::startForDiagnostic(const QString &id,const QString &view){
     for(const auto &value:ui_->otherGames()){const auto row=value.toMap();if(row.value("id")==id){startOtherGame(id,view,row.value("file").toString());return;}}
     ui_->showError("Launch","This game is not in the VR games list on this PC.");
 }
+bool HubServices::onMonitor(const QString &id,const QString &view)const{
+    for(const auto &value:ui_->otherGames()){const auto row=value.toMap();if(row.value("id")!=id)continue;
+        for(const auto &v:row.value("views").toList())if(v.toMap().value("id")==view)return v.toMap().value("monitor").toBool();}
+    return false;
+}
 void HubServices::startOtherGame(const QString &id,const QString &view,const QString &file){
     if(launchBusy()||hubExitPending_){ui_->showError("Launch","Close the current session before starting a game.");return;}
     try{
         launch::Request request;request.root=root_;request.gameId=id;request.variantId=view;request.prepareProfile=false;
         QString title,hint,closeNote;
-        if(id.startsWith("dreamcast-")){
+        bool monitor=false;
+        QVariantMap row;for(const auto &value:ui_->otherGames())if(value.toMap().value("id")==id)row=value.toMap();
+        if(!row.value("launcher").toString().isEmpty()){
+            // A game of the user's own launcher (arcade guns, Dreamcast and Atomiswave, Wii, GameCube): its key and view.
+            const auto system=id.section('-',0,0),key=id.mid(system.size()+1),launcher=row.value("launcher").toString();
+            const auto plan=scripted::launchPlan(launcher,key,view);
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            QVariantMap chosen;for(const auto &value:row.value("views").toList())if(value.toMap().value("id")==view)chosen=value.toMap();
+            monitor=scripted::isMonitor(chosen);
+            title=row.value("title").toString()+" · "+chosen.value("label").toString();
+            hint=chosen.value("controls").toString();
+            if(!monitor&&!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
+                throw install::Error("E_STEAMVR_NOT_RUNNING","Start SteamVR first, with the headset connected, then start the game again.");
+            if(system=="mamegun"&&monitor)ps1StopFile_.clear(); // its own program on the monitor: closed by its window
+            if(system=="mamegun"&&!monitor){
+                // A stop file of the Hub's own for this launch; MAME saves and quits when it appears.
+                ps1StopFile_=install::scopedPath("user/runtime/mamegun-"+key+"-"+QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss-zzz")+".stop",root_);
+                if(!QDir().mkpath(QFileInfo(ps1StopFile_).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
+                if(QFileInfo::exists(ps1StopFile_)&&!QFile::remove(ps1StopFile_))throw install::Error("E_WRITE_DENIED","An old stop request could not be cleared");
+                request.runtimeInputs.environment.insert("AC_HUB_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
+                if(!monitor)hint+=" Exit game here, or hold left Y for 3 seconds, quits and saves.";
+            }
+        }else if(id.startsWith("dreamcast-")){
             // The emulator keeps its settings beside itself, so its own folder is the working folder.
             const auto plan=dreamcast::launchPlan(file,view,settings_->get("dreamcastExecutable",QString()).toString());
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
@@ -455,7 +485,7 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
         }else if(id.startsWith("model2-")){
             // Two programs: the emulator first, then the viewer given the emulator's process id.
             const auto game=id.mid(7);
-            const auto plan=model2::launchPlan(game,settings_->get("model2Executable",QString()).toString(),ui_->gameFolderFor("model2",game));
+            const auto plan=model2::launchPlan(game,settings_->get("model2Executable",QString()).toString(),ui_->gameFolderFor("model2",game),view);
             const auto emulator=plan.value("companion").toMap();
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             request.companion.executable=emulator.value("executable").toString();request.companion.cwd=emulator.value("cwd").toString();request.companion.args=emulator.value("args").toStringList();
@@ -466,7 +496,8 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             // The build's own runtime libraries, when the user's set-up names where they are.
             const auto libraries=settings_->get("model2RuntimePath",QString()).toString();
             if(!libraries.isEmpty())environment.insert("PATH",QDir::toNativeSeparators(libraries)+QDir::listSeparator()+environment.value("PATH"));
-            for(const auto &value:model2::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · 3D screen";hint=value.toMap().value("controls").toString();}
+            for(const auto &value:model2::games())if(value.toMap().value("id")==game)title=value.toMap().value("title").toString()+" · "+model2::viewLabel(view);
+            for(const auto &value:model2::views(game))if(value.toMap().value("id")==view)hint=value.toMap().value("controls").toString();
             hint+=" Home = put the screen in front of you again. Exit game here, or hold Y for 3 seconds, quits and saves.";
             // A stop file of the Hub's own for this launch, cleared first; the viewer watches for it.
             model2StopFile_=install::scopedPath("user/runtime/model2-"+game+"-"+QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss-zzz")+".stop",root_);
@@ -490,7 +521,7 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
                 throw install::Error("E_STEAMVR_NOT_RUNNING","Start SteamVR first, with the headset connected, then start the game again.");
             const auto game=id.mid(4);
-            const auto plan=ps1::launchPlan(game,settings_->get("ps1Launcher",QString()).toString());
+            const auto plan=ps1::launchPlan(game,settings_->get("ps1Launcher",QString()).toString(),view);
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             auto &environment=request.runtimeInputs.environment;
             for(const auto &name:environment.keys())if(name.startsWith("ACVR_",Qt::CaseInsensitive))environment.remove(name);
@@ -499,7 +530,7 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(!QDir().mkpath(QFileInfo(ps1StopFile_).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
             if(QFileInfo::exists(ps1StopFile_)&&!QFile::remove(ps1StopFile_))throw install::Error("E_WRITE_DENIED","An old PS1 stop request could not be cleared");
             environment.insert("ACVR_PS1_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
-            for(const auto &value:ps1::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · Theatre screen";hint=value.toMap().value("controls").toString();}
+            for(const auto &value:ps1::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · "+ps1::viewLabel(game,view);hint=value.toMap().value("controls").toString();}
             hint+=" Home = put the screen in front of you again. Exit game here, or hold left Y for 3 seconds, quits and saves.";
         }else if(id.startsWith("n64-")){
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
@@ -520,7 +551,7 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
                 throw install::Error("E_STEAMVR_NOT_RUNNING","Start SteamVR first, with the headset connected, then start the game again.");
             const auto game=id.mid(7);
-            const auto plan=saturn::launchPlan(game,settings_->get("saturnLauncher",QString()).toString());
+            const auto plan=saturn::launchPlan(game,ui_->launcherFor("saturn"));
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
             auto &environment=request.runtimeInputs.environment;
             for(const auto &name:environment.keys())if(name.startsWith("ACVR_",Qt::CaseInsensitive))environment.remove(name);
@@ -532,10 +563,15 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             for(const auto &value:saturn::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · Theatre screen";hint=value.toMap().value("controls").toString();}
             hint+=" Home = put the screen in front of you again. Exit game here, or hold left Y for 3 seconds, quits and saves.";
         }else if(id=="system22-timecris"){
-            const QFileInfo program(settings_->get("system22Executable",QString()).toString());
-            if(!program.isFile())throw install::Error("E_SYSTEM22_SETUP","The Time Crisis VR build is not set up. Choose its program in Set-up.");
-            request.plan.executable=QDir::toNativeSeparators(program.absoluteFilePath());request.plan.cwd=QDir::toNativeSeparators(program.absolutePath());
-            title="Time Crisis · In the headset";hint="A = credits, either trigger = start and fire, hold a grip to leave cover, X = recentre. Close its window on the PC to quit.";
+            const auto plan=system22::launchPlan(settings_->get("system22Executable",QString()).toString(),view);
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            auto &environment=request.runtimeInputs.environment;
+            for(const auto &name:environment.keys())if(name.startsWith("TCVR_",Qt::CaseInsensitive))environment.remove(name);
+            const auto variables=plan.value("env").toMap();
+            for(auto it=variables.begin();it!=variables.end();++it)environment.insert(it.key(),it.value().toString());
+            monitor=view=="monitor";
+            title="Time Crisis · "+system22::viewLabel(view);
+            for(const auto &value:system22::views(settings_->get("system22Executable",QString()).toString()))if(value.toMap().value("id")==view)hint=value.toMap().value("controls").toString();
         }else throw install::Error("E_ID","Unknown game");
 #ifdef Q_OS_WIN
         ui_->launchOtherQueued(id,view,title,hint,closeNote);
@@ -545,7 +581,7 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
         ui_->launchOtherQueued(id,view,title,hint,stopFile?closeNote:"Clean window close is not supported on this platform yet.");
 #endif
         applyDiagnosticChild(request);
-        request.pinSteamVrOpenXr=!(id.startsWith("dreamcast-")&&view=="monitor"); // Every one but a disc on the monitor is in the headset.
+        request.pinSteamVrOpenXr=!(id.startsWith("dreamcast-")&&view=="monitor")&&!monitor; // Every one but a view on the monitor is in the headset.
         launcher_.start(request);
     }catch(const std::exception &error){ui_->showError("Launch",QString::fromUtf8(error.what()));}
 }
@@ -695,7 +731,7 @@ void HubServices::startModel3(const QString &id,const QString &view){
         ui_->launchModel3Queued(id,view,"Clean window close is not supported on this platform yet.");
 #endif
         applyDiagnosticChild(request);
-        request.pinSteamVrOpenXr=true; // Every Model 3 view is in the headset.
+        request.pinSteamVrOpenXr=!model3::isMonitorView(view); // Every Model 3 view but side by side on the monitor is in the headset.
         launcher_.start(request);
     }catch(const std::exception &error){ui_->showError("Model 3",QString::fromUtf8(error.what()));}
 }
@@ -771,7 +807,7 @@ void HubServices::stopRunning(){
     if(!launcher_.busy())return;
     const auto id=ui_->nowPlaying().value("gameId").toString();
     if(id.startsWith("model2-")&&askModel2ToQuit(true))return; // Its own wait: the viewer gives MAME 30 s to save.
-    if(id.startsWith("ps1-")||id.startsWith("n64-")||id.startsWith("saturn-")){
+    if(id.startsWith("ps1-")||id.startsWith("n64-")||id.startsWith("saturn-")||id.startsWith("mamegun-")){
         QFile request(ps1StopFile_);
         if(!ps1StopFile_.isEmpty()&&request.open(QIODevice::WriteOnly)&&request.write("stop\n")==5){request.close();ui_->launchClosing();later([this]{if(launcher_.busy())launcher_.endEverything();});return;}
         launcher_.stop();return;
@@ -793,7 +829,7 @@ bool HubServices::askPs2ToQuit(){
 }
 bool HubServices::askPs1ToQuit(){
     const auto playing=ui_->nowPlaying().value("gameId").toString();
-    if(!(playing.startsWith("ps1-")||playing.startsWith("n64-")||playing.startsWith("saturn-"))||!launcher_.busy())return false;
+    if(!(playing.startsWith("ps1-")||playing.startsWith("n64-")||playing.startsWith("saturn-")||(playing.startsWith("mamegun-")&&!ps1StopFile_.isEmpty()))||!launcher_.busy())return false;
     QFile request(ps1StopFile_);
     if(ps1StopFile_.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS1","The stop request could not be written. Hold left Y for 3 seconds in the headset to quit the game.");return true;}
     request.close();ui_->launchClosing();return true;

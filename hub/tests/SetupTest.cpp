@@ -7,6 +7,8 @@
 #include "core/ps1/Ps1.h"
 #include "core/n64/N64.h"
 #include "core/saturn/Saturn.h"
+#include "core/scripted/Scripted.h"
+#include "core/system22/System22.h"
 #include "core/install/Install.h"
 #include <QtTest>
 #include <QDir>
@@ -120,7 +122,7 @@ private slots:
     QCOMPARE(result["title"].toString(),QString("Sega Model 3"));
     QVERIFY(!entry(result,"ready","scud").isEmpty());
     QCOMPARE(entry(result,"missing","srally2")["expected"].toString(),QString("srally2.zip"));
-    QCOMPARE(result["ready"].toList().size()+result["notRight"].toList().size()+result["missing"].toList().size(),10);
+    QCOMPARE(result["ready"].toList().size()+result["notRight"].toList().size()+result["missing"].toList().size(),11); // with Sega Rally 2 DX
     // One file differs: found, not right, and the count is stated.
     write(f.games+"/scud.zip",zip({{"one.bin","one"},{"two.bin","changed"}}));
     result=f.scan();QVERIFY(entry(result,"ready","scud").isEmpty());
@@ -182,8 +184,19 @@ private slots:
     QCOMPARE(emulator["args"].toStringList(),(QStringList{"vcop2","-rompath",native(sets),"-video","none","-sound","none","-numprocessors","2","-skip_gameinfo","-noreadconfig","-nowriteconfig",
       "-snapview","Screen 1","-snapshot_directory",native(t.filePath("build/captures/headset-vcop2")),"-snapname","vcop2-%i",
       "-nvram_directory","nvram","-cfg_directory","cfg","-state_directory","sta","-diff_directory","diff","-background_input"}));
-    QCOMPARE(plan["env"].toMap(),(QVariantMap{{"ACVR_M2_STEREO","1"},{"ACVR_M2_STREAM","1"},{"ACVR_M2_INPUT_TEST","0"},{"ACVR_M2_IPD_M","0.064"},{"ACVR_M2_UNITS_PER_M","0.949387005"},{"ACVR_M2_ZERO_M","4"},{"ACVR_XR_SIZE","1"},{"ACVR_XR_HEIGHT","0"}}));
+    QCOMPARE(plan["env"].toMap(),(QVariantMap{{"ACVR_M2_STEREO","1"},{"ACVR_M2_STREAM","1"},{"ACVR_M2_INPUT_TEST","0"},{"ACVR_M2_IPD_M","0.064"},{"ACVR_M2_UNITS_PER_M","0.949387005"},{"ACVR_M2_ZERO_M","4"},{"ACVR_XR_SIZE","1"},{"ACVR_XR_HEIGHT","0"},
+      {"ACVR_M2_WIDE","0"},{"ACVR_M2_ROLL_STEER","0"}}));
     QVERIFY(!QFileInfo::exists(t.filePath("build/captures"))); // Planning creates nothing.
+    // The views the old numbered launchers offered: real 3D first, open frame (-Wide 93), roll steer opt-in.
+    QStringList ids;for(const auto &v:ac::model2::views("daytona"))ids<<v.toMap()["id"].toString();
+    QCOMPARE(ids,(QStringList{"3d","open-frame","roll-steer"}));
+    ids.clear();for(const auto &v:ac::model2::views("vcop2"))ids<<v.toMap()["id"].toString();QCOMPARE(ids,(QStringList{"3d","open-frame"}));
+    QCOMPARE(ac::model2::views("rchase2").size(),1);QCOMPARE(ac::model2::views("vf2").size(),1);
+    int views=0;for(const auto &value:ac::model2::games())views+=ac::model2::views(value.toMap()["id"].toString()).size();
+    QCOMPARE(views,25); // the 25 archived Model 2 launchers
+    QCOMPARE(ac::model2::launchPlan("vcop2",program,sets,"open-frame")["env"].toMap()["ACVR_M2_WIDE"].toString(),QString("93"));
+    QCOMPARE(ac::model2::launchPlan("vcop2",program,sets,"open-frame")["env"].toMap()["ACVR_M2_ROLL_STEER"].toString(),QString("0"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::model2::launchPlan("vcop2",program,sets,"roll-steer"));
   }
   // The emulator's own list decides what a game needs: its files, and device sets that have files of their own.
   void model2IsCheckedAgainstTheEmulatorsOwnList() {
@@ -249,17 +262,29 @@ private slots:
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("xgra",launcher,python,stop));
     // Inside the game: off for every game until each is confirmed, so only 3D screen is offered and Inside is refused.
     QVERIFY(ac::ps2::insideGames().isEmpty());
-    for(const auto &value:ac::ps2::games())QCOMPARE(ac::ps2::views(value.toMap()["id"].toString(),launcher).size(),1);
+    for(const auto &value:ac::ps2::games())for(const auto &view:ac::ps2::views(value.toMap()["id"].toString(),launcher))QVERIFY(view.toMap()["id"].toString()!="inside");
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"inside"));
     // With a game in the list (given here), Inside is offered for it when the launcher knows it, and passed on.
     const QStringList inside{"virtua-cop","xgra"};
-    const auto views=ac::ps2::views("virtua-cop",launcher,inside);QCOMPARE(views.size(),2);
+    const auto views=ac::ps2::views("virtua-cop",launcher,inside);QCOMPARE(views.size(),3);QCOMPARE(views[2].toMap()["id"].toString(),QString("check")); // and its headset check
     QCOMPARE(views[0].toMap()["id"].toString(),QString("screen"));QCOMPARE(views[1].toMap()["label"].toString(),QString("Inside the game"));
     QCOMPARE(ac::ps2::views("outrun-2006",launcher,inside).size(),1);QCOMPARE(ac::ps2::views("xgra",launcher,inside).size(),1);
     QCOMPARE(ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"inside",inside)["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"virtua-cop","--inside"}));
     QCOMPARE(ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"screen",inside)["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"virtua-cop"}));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("outrun-2006",launcher,python,stop,"inside",inside));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"wide",inside));
+    // A launcher entry with its own inside profile offers Inside the game without the list; a depth-trial key
+    // offers Depth trial; Virtua Cop also has the launcher's short headset check.
+    write(t.filePath("play/games.json"),"{\"virtua-cop\":{\"inside\":{\"params\":{}}},\"time-crisis-3\":{\"inside\":{}},\"time-crisis-3-depth-trial\":{}}");
+    QStringList ids;for(const auto &v:ac::ps2::views("time-crisis-3",launcher))ids<<v.toMap()["id"].toString();
+    QCOMPARE(ids,(QStringList{"screen","inside","depth"}));
+    ids.clear();for(const auto &v:ac::ps2::views("virtua-cop",launcher))ids<<v.toMap()["id"].toString();
+    QCOMPARE(ids,(QStringList{"screen","inside","check"}));
+    QCOMPARE(ac::ps2::launchPlan("time-crisis-3",launcher,python,stop,"inside")["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"time-crisis-3","--inside"}));
+    QCOMPARE(ac::ps2::launchPlan("time-crisis-3",launcher,python,stop,"depth")["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"time-crisis-3-depth-trial"}));
+    QCOMPARE(ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"check")["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"virtua-cop","--headset-check"}));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("time-crisis-3",launcher,python,stop,"check"));
+    write(t.filePath("play/games.json"),"{\"virtua-cop\":{},\"outrun-2006\":{}}");
     // A compressed image is matched by its name only; the longer name wins.
     const auto folder=t.filePath("discs");
     write(folder+"/OutRun 2006 (copy).gz","synthetic");write(folder+"/XGRA - Extreme G Racing Association (USA).gz","synthetic");write(folder+"/Something Else (USA).gz","synthetic");
@@ -286,6 +311,16 @@ private slots:
     QCOMPARE(plan["cwd"].toString(),QDir::toNativeSeparators(t.filePath("play/ps1")));
     QCOMPARE(plan["args"].toStringList(),(QStringList{"-NoProfile","-ExecutionPolicy","Bypass","-File",QDir::toNativeSeparators(launcher),"time-crisis"}));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps1::launchPlan("judge-dredd",launcher));
+    // Each view is a key of its own: <id>, <id>-open-frame, <id>-diorama, <id>-no-trim; the usual one first.
+    write(t.filePath("play/ps1/games.json"),"{\"point-blank\":{},\"point-blank-diorama\":{},\"time-crisis\":{},\"time-crisis-open-frame\":{},\"judge-dredd-no-trim\":{}}");
+    QStringList ids;for(const auto &v:ac::ps1::views("time-crisis",launcher))ids<<v.toMap()["id"].toString();
+    QCOMPARE(ids,(QStringList{"standard","open-frame"}));
+    QCOMPARE(ac::ps1::viewLabel("time-crisis","standard"),QString("Real 3D screen"));QCOMPARE(ac::ps1::viewLabel("point-blank","standard"),QString("Theatre screen"));
+    ids.clear();for(const auto &v:ac::ps1::views("point-blank",launcher))ids<<v.toMap()["id"].toString();QCOMPARE(ids,(QStringList{"standard","diorama"}));
+    QCOMPARE(ac::ps1::launchPlan("time-crisis",launcher,"open-frame")["args"].toStringList().last(),QString("time-crisis-open-frame"));
+    QCOMPARE(ac::ps1::launchPlan("point-blank",launcher,"diorama")["args"].toStringList().last(),QString("point-blank-diorama"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps1::launchPlan("point-blank",launcher,"open-frame"));
+    write(t.filePath("play/ps1/games.json"),"{\"point-blank\":{},\"time-crisis\":{}}");
     const auto result=ac::setup::scanSystem("ps1",{{"ps1Launcher",launcher}},{},{},cancel);
     QVERIFY(!entry(result,"ready","point-blank").isEmpty());
     QCOMPARE(entry(result,"missing","judge-dredd")["expected"].toString(),QString("Judge Dredd (an entry in your PS1 launcher)"));
@@ -345,6 +380,53 @@ private slots:
     QVERIFY(entry(scan(QString()),"notRight","timecris")["reason"].toString().contains("not set up"));
     write(program,"synthetic");QVERIFY(entry(scan(program),"notRight","timecris")["reason"].toString().contains("roms folder"));
     write(t.filePath("build/roms/set.bin"),"synthetic");QVERIFY(!entry(scan(program),"ready","timecris").isEmpty());
+  }
+  // Arcade guns, Dreamcast, Wii and GameCube: the user's launcher lists its games and views; the Hub starts
+  // "<launcher> <key> -View <view>", the usual view first and opt-in and monitor views last.
+  void launcherSystemsListTheirGamesAndViews() {
+    QTemporaryDir t;const auto ps1=t.filePath("play/ps1/launch-ps1.ps1"),arcade=t.filePath("play/mame-gun/launch-mame-gun-key.ps1");
+    write(ps1,"synthetic");
+    const auto *system=ac::scripted::system("mamegun");QVERIFY(system);
+    QVERIFY(ac::scripted::locate(*system,QString(),{ps1}).isEmpty());
+    write(arcade,"synthetic");
+    QCOMPARE(QDir::fromNativeSeparators(ac::scripted::locate(*system,QString(),{QString(),ps1})),QDir::cleanPath(arcade));
+    QVERIFY(ac::scripted::locate(*system,t.filePath("elsewhere.ps1"),{ps1}).isEmpty()); // a chosen launcher that is gone is not replaced
+    // A byte-order mark, a "_" key of the launcher's own, a key the Hub would not accept, views in any order.
+    write(t.filePath("play/mame-gun/games.json"),"\xEF\xBB\xBF{\"_defaults\":{\"x\":1},\"Bad Key\":{\"views\":{\"theatre\":{}}},"
+      "\"propcycl\":{\"title\":\"Prop Cycle\",\"controls\":\"Pedal.\",\"views\":{\"native-monitor\":{\"label\":\"Native\",\"monitor\":true},\"body\":{},\"open-frame\":{\"controls\":\"Sticks.\"}}},"
+      "\"timecris\":{\"title\":\"Time Crisis\",\"group\":\"gun\",\"views\":{\"theatre\":[],\"open-frame\":[]}}}");
+    const auto games=ac::scripted::games(arcade);QCOMPARE(games.size(),2);
+    const auto prop=games[0].toMap();QCOMPARE(prop["id"].toString(),QString("propcycl"));
+    QStringList ids;for(const auto &v:prop["views"].toList())ids<<v.toMap()["id"].toString();QCOMPARE(ids,(QStringList{"open-frame","body","native-monitor"}));
+    QCOMPARE(prop["views"].toList()[0].toMap()["controls"].toString(),QString("Sticks."));QCOMPARE(prop["views"].toList()[1].toMap()["controls"].toString(),QString("Pedal."));
+    QCOMPARE(prop["views"].toList()[1].toMap()["label"].toString(),QString("Body motion (opt-in)"));
+    QVERIFY(ac::scripted::isMonitor(prop["views"].toList()[2].toMap()));QVERIFY(!ac::scripted::isMonitor(prop["views"].toList()[0].toMap()));
+    ids.clear();for(const auto &v:games[1].toMap()["views"].toList())ids<<v.toMap()["id"].toString();QCOMPARE(ids,(QStringList{"open-frame","theatre"}));
+    const auto plan=ac::scripted::launchPlan(arcade,"timecris","theatre");
+    QVERIFY(plan["executable"].toString().endsWith("powershell.exe",Qt::CaseInsensitive));
+    QCOMPARE(plan["cwd"].toString(),QDir::toNativeSeparators(t.filePath("play/mame-gun")));
+    QCOMPARE(plan["args"].toStringList(),(QStringList{"-NoProfile","-ExecutionPolicy","Bypass","-File",QDir::toNativeSeparators(arcade),"timecris","-View","theatre"}));
+    QVERIFY(ac::scripted::problem(arcade,"timecris","body").contains("no such view"));
+    QVERIFY(ac::scripted::problem(arcade,"ptblank2","theatre").contains("no entry"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::scripted::launchPlan(arcade,"timecris","body"));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::scripted::launchPlan(arcade,"Bad Key","theatre"));
+    QCOMPARE(ac::scripted::viewLabel("3d"),QString("Real 3D"));QCOMPARE(ac::scripted::viewLabel("x-new"),QString("x-new"));
+  }
+  // Time Crisis's native port in the views of its old launchers; our own gun's build only when it is there.
+  void timeCrisisHasTheViewsOfItsOldLaunchers() {
+    QTemporaryDir t;const auto program=t.filePath("tc/port/build/pc/TimeCrisisVR.exe");write(program,"synthetic");
+    QStringList ids;for(const auto &v:ac::system22::views(program))ids<<v.toMap()["id"].toString();
+    QCOMPARE(ids,(QStringList{"vr","frame","inbetween","monitor"}));
+    write(t.filePath("tc/own-gun85/build/pc/TimeCrisisVR.exe"),"synthetic");
+    ids.clear();for(const auto &v:ac::system22::views(program))ids<<v.toMap()["id"].toString();
+    QCOMPARE(ids,(QStringList{"vr","frame","inbetween","own-gun","monitor"}));
+    QCOMPARE(ac::system22::launchPlan(program,"vr")["env"].toMap(),QVariantMap{});
+    QCOMPARE(ac::system22::launchPlan(program,"frame")["env"].toMap(),(QVariantMap{{"TCVR_SCREEN_FRAME","1"}}));
+    QCOMPARE(ac::system22::launchPlan(program,"inbetween")["env"].toMap(),(QVariantMap{{"TCVR_INBETWEEN","1"}}));
+    QCOMPARE(ac::system22::launchPlan(program,"monitor")["args"].toStringList(),QStringList{"--desktop"});
+    QCOMPARE(ac::system22::launchPlan(program,"own-gun")["executable"].toString(),QDir::toNativeSeparators(t.filePath("tc/own-gun85/build/pc/TimeCrisisVR.exe")));
+    QCOMPARE(ac::system22::launchPlan(program,"own-gun")["cwd"].toString(),QDir::toNativeSeparators(t.filePath("tc/own-gun85/build/pc")));
+    QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::system22::launchPlan(program,"wide"));
   }
   void dreamcastStartsFromTheEmulatorsOwnFolder() {
     QTemporaryDir t;const auto program=t.filePath("emu/program.exe"),disc=t.filePath("my discs/game.chd");write(program,"synthetic");write(disc,"synthetic");

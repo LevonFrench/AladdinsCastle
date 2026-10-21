@@ -90,11 +90,31 @@ constexpr bool kInsideFlagBeforeKey=false; // false: launcher, key, flag. true: 
 }
 QStringList launcherKeys(const QString &launcher){return launcherGames(launcher).keys();}
 QStringList insideGames(){return kInsideGames;}
-QString viewLabel(const QString &view){return view=="inside"?QString("Inside the game"):view=="screen"?QString("3D screen"):QString();}
+QString viewLabel(const QString &view){
+ if(view=="inside")return "Inside the game";
+ if(view=="screen")return "3D screen";
+ if(view=="depth")return "Depth trial";
+ if(view=="check")return "Headset check";
+ return {};
+}
+namespace {
+// Inside the game: confirmed in the list, or the launcher's own entry has an inside profile.
+bool hasInside(const QString &game,const QString &launcher,const QStringList &inside){
+ const auto entry=launcherGames(launcher).value(game);
+ return entry.isObject()&&(inside.contains(game)||entry.toObject().value("inside").isObject());
+}
+QString depthKey(const QString &game){return game+"-depth-trial";}
+const QString kCheckGame("virtua-cop");
+}
 QVariantList views(const QString &game,const QString &launcher,const QStringList &inside){
  QVariantList list{QVariantMap{{"id","screen"},{"label",viewLabel("screen")},{"help","A framed 3D screen straight ahead of you in the headset."}}};
- if(inside.contains(game)&&launcherKeys(launcher).contains(game))
+ if(hasInside(game,launcher,inside))
   list<<QVariantMap{{"id","inside"},{"label",viewLabel("inside")},{"help","No frame: the game opens around you, with the depth your launcher's inside profile sets."}};
+ const auto keys=launcherKeys(launcher);
+ if(keys.contains(depthKey(game)))
+  list<<QVariantMap{{"id","depth"},{"label",viewLabel("depth")},{"help","The 3D screen with the depth of the overnight measurement (convergence 2.5 m instead of 1000 m), to compare with 3D screen."}};
+ if(game==kCheckGame&&keys.contains(game))
+  list<<QVariantMap{{"id","check"},{"label",viewLabel("check")},{"help","The launcher's short check of the PS2 picture in the headset; it ends by itself and writes its result beside the launcher."}};
  return list;
 }
 QString problem(const QString &game,const QString &launcher,const QString &python,const QString &stopFile){
@@ -110,13 +130,16 @@ QString problem(const QString &game,const QString &launcher,const QString &pytho
 QVariantMap launchPlan(const QString &game,const QString &launcher,const QString &python,const QString &stopFile,const QString &view,const QStringList &inside){
  const auto issue=problem(game,launcher,python,stopFile);
  if(!issue.isEmpty())throw install::Error("E_PS2_SETUP",issue);
- if(view!="screen"&&view!="inside")throw install::Error("E_PS2_VIEW","Choose 3D screen or Inside the game.");
- if(view=="inside"&&!inside.contains(game))throw install::Error("E_PS2_VIEW","Inside the game is not set up for this PS2 game yet. Choose 3D screen.");
+ if(view!="screen"&&view!="inside"&&view!="depth"&&view!="check")throw install::Error("E_PS2_VIEW","Choose 3D screen or Inside the game.");
+ if(view=="inside"&&!hasInside(game,launcher,inside))throw install::Error("E_PS2_VIEW","Inside the game is not set up for this PS2 game yet. Choose 3D screen.");
+ if(view=="depth"&&!launcherKeys(launcher).contains(depthKey(game)))throw install::Error("E_PS2_VIEW","Your PS2 launcher has no depth trial for this game. Choose 3D screen.");
+ if(view=="check"&&game!=kCheckGame)throw install::Error("E_PS2_VIEW","The headset check runs with Virtua Cop only. Choose 3D screen.");
  const QFileInfo script(launcher);
  QStringList args{QDir::toNativeSeparators(script.absoluteFilePath())};
  if(view=="inside"&&kInsideFlagBeforeKey)args<<kInsideFlag;
- args<<game;
+ args<<(view=="depth"?depthKey(game):game);
  if(view=="inside"&&!kInsideFlagBeforeKey)args<<kInsideFlag;
+ if(view=="check")args<<"--headset-check";
  return {{"executable",QDir::toNativeSeparators(QFileInfo(python).absoluteFilePath())},{"cwd",QDir::toNativeSeparators(script.absolutePath())},
          {"args",args}};
 }

@@ -37,6 +37,7 @@ const QList<Game> &table(){
  };
  return games;
 }
+bool inThreeD(const Game &game);
 QString controls(const Game &game){
  if(!*game.gun)return "This release has no light-gun support: the gun buttons only.";
  const QString id=QString::fromLatin1(game.id);
@@ -54,9 +55,23 @@ QString controls(const Game &game){
  // Real 3D runs through the stereo core, whose light gun works on North American and Japanese discs. Die Hard Trilogy
  // and Horned Owl read the Justifier (not in that core); Oh! Bakyuuun reads the GunCon through the light-pen
  // interrupt, which that core lacks; Maximum Force has no 3D depth; the European discs keep the proven theatre core.
+ return text+(inThreeD(game)?" In real 3D on a big screen.":" On a big theatre screen.");
+}
+bool inThreeD(const Game &game){
  static const QStringList theatreOnly{"die-hard-trilogy","project-horned-owl","horned-owl-japan","ghoul-panic-japan","maximum-force","extreme-ghostbusters","rescue-shot"};
- if(theatreOnly.contains(id))return text+" On a big theatre screen.";
- return text+" In real 3D on a big screen.";
+ return *game.gun&&!game.sprites&&!theatreOnly.contains(QString::fromLatin1(game.id));
+}
+const Game *find(const QString &id){for(const auto &game:table())if(id==QLatin1String(game.id))return &game;return nullptr;}
+struct View {const char *id,*suffix,*label,*help;};
+// The usual view first; then the views the old numbered launchers offered beside it.
+const QList<View> &viewTable(){
+ static const QList<View> list{
+  {"standard","","","" },
+  {"open-frame","-open-frame","Open frame (3D, 16:9)","The game drawn 16:9 in real 3D, its aim corrected to the game's own 4:3 view: enemies in the extra side areas can be seen but not shot until they move into the middle. Untested in the headset."},
+  {"diorama","-diorama","Diorama (prototype)","Sprites placed at depths from the order the game draws them. A prototype."},
+  {"no-trim","-no-trim","No aim trim (compare)","The same game without its measured aim trim, to compare with the usual view."},
+ };
+ return list;
 }
 }
 QVariantList games(){
@@ -69,6 +84,28 @@ QStringList launcherKeys(const QString &launcher){
  if(launcher.isEmpty()||file.size()>4*1024*1024||!file.open(QIODevice::ReadOnly))return {};
  return QJsonDocument::fromJson(file.readAll()).object().keys();
 }
+QString launcherKey(const QString &game,const QString &view){
+ if(view=="theatre")return game; // the one view's id before the views of the old launchers came in
+ for(const auto &entry:viewTable())if(view==QLatin1String(entry.id))return game+QString::fromLatin1(entry.suffix);
+ return {};
+}
+QString viewLabel(const QString &game,const QString &view){
+ const auto *entry=find(game);if(!entry)return {};
+ if(view=="standard")return inThreeD(*entry)?QString("Real 3D screen"):QString("Theatre screen");
+ for(const auto &row:viewTable())if(view==QLatin1String(row.id))return QString::fromUtf8(row.label);
+ return {};
+}
+QVariantList views(const QString &game,const QString &launcher){
+ const auto *entry=find(game);if(!entry)return {};
+ const auto keys=launcherKeys(launcher);QVariantList list;
+ for(const auto &row:viewTable()){
+  const QString id=QString::fromLatin1(row.id);
+  if(!keys.contains(launcherKey(game,id)))continue;
+  const QString help=id=="standard"?(inThreeD(*entry)?QString("The game's own 3D world in stereo on a big screen, with your controller as the light gun."):QString("A big screen in the headset, with your controller as the light gun.")):QString::fromUtf8(row.help);
+  list<<QVariantMap{{"id",id},{"label",viewLabel(game,id)},{"help",help}};
+ }
+ return list;
+}
 QString problem(const QString &game,const QString &launcher){
  bool listed=false;for(const auto &entry:table())listed=listed||game==QLatin1String(entry.id);
  if(!listed)return "This game is not in the PS1 list.";
@@ -76,14 +113,16 @@ QString problem(const QString &game,const QString &launcher){
  if(!launcherKeys(launcher).contains(game))return "Your PS1 launcher has no entry for this game.";
  return {};
 }
-QVariantMap launchPlan(const QString &game,const QString &launcher){
+QVariantMap launchPlan(const QString &game,const QString &launcher,const QString &view){
  const auto issue=problem(game,launcher);
  if(!issue.isEmpty())throw install::Error("E_PS1_SETUP",issue);
+ const auto key=launcherKey(game,view);
+ if(key.isEmpty()||!launcherKeys(launcher).contains(key))throw install::Error("E_PS1_VIEW","Your PS1 launcher has no entry for this view. Choose another view.");
  const QFileInfo script(launcher);
  // Windows PowerShell 5.1 from the system folder, never one found on PATH.
  const auto windows=QProcessEnvironment::systemEnvironment().value("SystemRoot","C:\\Windows");
  const auto shell=QDir(windows).filePath("System32/WindowsPowerShell/v1.0/powershell.exe");
  return {{"executable",QDir::toNativeSeparators(shell)},{"cwd",QDir::toNativeSeparators(script.absolutePath())},
-         {"args",QStringList{"-NoProfile","-ExecutionPolicy","Bypass","-File",QDir::toNativeSeparators(script.absoluteFilePath()),game}}};
+         {"args",QStringList{"-NoProfile","-ExecutionPolicy","Bypass","-File",QDir::toNativeSeparators(script.absoluteFilePath()),key}}};
 }
 }

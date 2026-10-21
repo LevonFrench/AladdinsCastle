@@ -178,6 +178,32 @@ public:
  using ac::UiController::UiController;
  QString syntheticName()const{return QStringLiteral("Synthetic Product");}
 };
+// Stands in for the overlay host: the B button arrives as its backRequested signal, as from OverlayHost.
+class OverlayHostProbe:public QObject {
+ Q_OBJECT
+public:
+ int keyboards=0;
+ Q_INVOKABLE void requestKeyboard(QQuickItem *){++keyboards;}
+ Q_INVOKABLE void dismissKeyboard(){}
+signals:
+ void backRequested();
+};
+// Synthetic panel rows: titles only, one Model 3 row with a real id so Play reaches the real launch signal.
+QVariantList syntheticPanelRows(int count){
+ const QStringList systems{"","model2","ps1","ps2","wii","dreamcast","system22"};
+ QVariantList rows;
+ for(int i=0;i<count;++i){
+  const auto system=systems[i%systems.size()];
+  QVariantMap row{{"id",i==0?QString("scud"):system.isEmpty()?QString("synthetic%1").arg(i):system+QString("-synthetic%1").arg(i)},
+   {"title",i==0?QString("Scud Race"):QString("Synthetic game %1").arg(i,2,10,QChar('0'))},{"year",1990+i%10},{"problem",QString()},{"warning",QString()},{"found",true}};
+  if(!system.isEmpty()){
+   row["system"]=system;row["view"]="screen";
+   row["views"]=QVariantList{QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}},QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset."}}};
+  }
+  rows<<row;
+ }
+ return rows;
+}
 class UiTest:public QObject {
  Q_OBJECT
  QTemporaryDir user;
@@ -186,6 +212,7 @@ class UiTest:public QObject {
  std::unique_ptr<ac::Theme> theme;
  std::unique_ptr<ac::UiSettings> settings;
  std::unique_ptr<ac::UiController> ui;
+ OverlayHostProbe overlayProbe;
  std::unique_ptr<QQmlApplicationEngine> engine;
  QQuickWindow *window=nullptr;
  QObject *root=nullptr;
@@ -195,7 +222,7 @@ class UiTest:public QObject {
   auto catalog=ac::CatalogLoader().load(AC_CATALOG_ROOT);QCOMPARE(catalog.games.size(),443);
   theme=std::make_unique<ac::Theme>(catalog.theme);qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",theme.get());
   games=std::make_unique<ac::GameListModel>(std::move(catalog));filter.setSourceModel(games.get());settings=std::make_unique<ac::UiSettings>(user.path());settings->set("showAllGames",true); /* the catalog tests below need the whole catalog */ui=std::make_unique<ac::UiController>(games.get(),&filter,settings.get());engine=std::make_unique<QQmlApplicationEngine>();
-  auto context=engine->rootContext();context->setContextProperty("catalogGameCount",443);context->setContextProperty("gameModel",games.get());context->setContextProperty("gameFilter",&filter);context->setContextProperty("uiSettings",settings.get());context->setContextProperty("uiController",ui.get());
+  auto context=engine->rootContext();context->setContextProperty("overlayHost",&overlayProbe);context->setContextProperty("catalogGameCount",443);context->setContextProperty("gameModel",games.get());context->setContextProperty("gameFilter",&filter);context->setContextProperty("uiSettings",settings.get());context->setContextProperty("uiController",ui.get());
   engine->load(QUrl("qrc:/qt/qml/AladdinsCastle/Hub/DesktopShell.qml"));QVERIFY(!engine->rootObjects().isEmpty());window=qobject_cast<QQuickWindow *>(engine->rootObjects().first());QVERIFY(window);root=window->findChild<QObject *>("hubRoot");QVERIFY(root);QTest::qWait(300);
   auto list=window->findChild<QQuickItem *>("sectionedGrid");QVERIFY(list);QVERIFY(list->mapToScene(QPointF()).y()<200);QVERIFY(list->height()>400);
   int visibleCards=cardCount(window->contentItem(),true);QVERIFY(visibleCards>0);
@@ -413,19 +440,20 @@ class UiTest:public QObject {
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(tabs.first()));
   QCOMPARE(root->property("view").toString(),QString("Model3"));
   QTRY_VERIFY(!namedItems(window->contentItem(),"model3Grid").isEmpty());
-  QCOMPARE(namedItems(window->contentItem(),"model3Grid").first()->property("count").toInt(),10);
+  QCOMPARE(namedItems(window->contentItem(),"model3Grid").first()->property("count").toInt(),11); // with Sega Rally 2 DX
   for(const auto &row:ui->model3Games())QVERIFY(row.toMap().value("problem").toString().contains("Choose it in Set-up"));
   QVERIFY(settings->set("model3Executable",fixture.filePath("emu/program.exe")));QVERIFY(settings->set("model3GameFolder",fixture.filePath("games")));
-  auto rows=ui->model3Games();QCOMPARE(rows.size(),10);
+  auto rows=ui->model3Games();QCOMPARE(rows.size(),11); // with Sega Rally 2 DX
   QCOMPARE(rows[0].toMap().value("view").toString(),QString("screen"));
   QVERIFY(rows[0].toMap().value("problem").toString().isEmpty());QVERIFY(rows[1].toMap().value("problem").toString().contains("daytona2.zip"));
   QVERIFY(softwareFrame(window));QTRY_VERIFY(!namedItems(window->contentItem(),"model3Card").isEmpty());
   const auto card=namedItems(window->contentItem(),"model3Card").first();
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,card->mapToScene(QPointF(card->width()/2,20)).toPoint());
-  QTRY_COMPARE(namedItems(window->contentItem(),"model3View").size(),3);
+  // Scud Race's views from its old launchers: screen, open frame, wide, depth trial, inside, inside with the wheel.
+  QTRY_COMPARE(namedItems(window->contentItem(),"model3View").size(),6);
   QCOMPARE(namedItems(window->contentItem(),"model3Title").first()->property("text").toString(),QString("Scud Race"));
   QVERIFY(softwareFrame(window));
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(namedItems(window->contentItem(),"model3View").last()));
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(namedItems(window->contentItem(),"model3View")[4]));
   QTRY_COMPARE(ui->model3Games()[0].toMap().value("view").toString(),QString("inside"));
   ac::UiSettings saved(user.path());QCOMPARE(saved.get("model3Views").toMap().value("scud").toString(),QString("inside"));
   QSignalSpy play(ui.get(),SIGNAL(model3PlayRequested(QString,QString)));
@@ -1092,6 +1120,202 @@ class UiTest:public QObject {
   QCOMPARE(checked,8);
   QStringList invalid;for(qsizetype i=before;i<warnings.size();++i)if(warnings[i].contains("TypeError"))invalid<<warnings[i];
   QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
+ }
+ private:
+ // Shown and inside every clipping parent: a delegate kept in a list's cache is not counted.
+ QQuickItem *visibleNamed(const QString &name){for(auto *item:namedItems(window->contentItem(),name))if(item->isVisible()&&withinClips(item))return item;return nullptr;}
+ QSize desktopSize;
+ QQuickItem *enterPanel(const QVariantList &rows){
+  // The panel's own size.
+  if(desktopSize.isEmpty())desktopSize=window->size();
+  window->resize(1280,800);
+  root->setProperty("history",QVariantList{});root->setProperty("vrOverlayMode",true);root->setProperty("overlayPresentation",true);
+  if(!QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Model3"),Q_ARG(QVariant,QVariant())))return nullptr;
+  QQuickItem *panel=nullptr;
+  if(!QTest::qWaitFor([&]{panel=visibleNamed("panelLibrary");return panel!=nullptr;},3000))return nullptr;
+  panel->setProperty("rows",rows);root->setProperty("history",QVariantList{});QTest::qWait(350);softwareFrame(window);
+  return panel;
+ }
+ void leavePanel(){
+  QMetaObject::invokeMethod(root,"closeMenus");
+  if(auto loader=window->findChild<QObject *>("model3Loader"))loader->setProperty("keep",false);
+  root->setProperty("overlayPresentation",false);root->setProperty("vrOverlayMode",false);root->setProperty("history",QVariantList{});root->setProperty("view","List");
+  if(!desktopSize.isEmpty()){window->resize(desktopSize);}desktopSize={};QTest::qWait(50);
+ }
+ void sendWheel(QPointF at,int dy){QWheelEvent event(at,window->mapToGlobal(at),{},QPoint(0,dy),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);QCoreApplication::sendEvent(window,&event);}
+ private slots:
+ // The SteamVR panel: one grid that scrolls as one surface, a row at a time, with a dead zone and no jitter.
+ void panelGridScrollsByRowsWithDeadZone(){
+  const auto cleanup=qScopeGuard([&]{leavePanel();});
+  auto panel=enterPanel(syntheticPanelRows(70));QVERIFY(panel);
+  // No split: no hero over the grid; the grid takes the panel below the slim bar.
+  QVERIFY(namedItems(window->contentItem(),"model3Hero").isEmpty());QVERIFY(!visibleNamed("brand"));
+  auto grid=visibleNamed("panelGrid");QVERIFY(grid);QVERIFY(grid->height()>window->height()*0.6);
+  QVERIFY(visibleNamed("panelTopBar")->height()<=80);QVERIFY(visibleNamed("panelSearchButton"));QVERIFY(visibleNamed("panelFilter"));
+  for(const auto &tab:{"all","ps1","model2","model3","system22","dreamcast","ps2","wii","pinball"})QVERIFY2(visibleNamed(QString("panelTab-")+tab),tab);
+  QVERIFY(!visibleNamed("panelTab-n64"));QVERIFY(visibleNamed("panelBackHint"));
+  // Large laser targets.
+  auto tile=visibleNamed("panelTile");QVERIFY(tile);QVERIFY(tile->width()>=200);QVERIFY(tile->height()>=110);
+  auto scroller=panel->findChild<QObject *>("panelScroller");QVERIFY(scroller);
+  const double row=grid->property("cellHeight").toDouble(),minY=grid->property("originY").toDouble()-grid->property("topMargin").toDouble();
+  const auto maxY=[&]{return grid->property("originY").toDouble()+grid->property("contentHeight").toDouble()+grid->property("bottomMargin").toDouble()-grid->height();};
+  const auto y=[&]{return grid->property("contentY").toDouble();};
+  const auto aligned=[&]{const double r=(y()-minY)/row;return std::abs(r-std::round(r))<0.01||std::abs(y()-maxY())<0.5;};
+  const QPointF over=grid->mapToScene(QPointF(grid->width()/2,grid->height()/2));
+  QCOMPARE(y(),minY);
+  // A resting stick: weak packets never move the page.
+  for(int i=0;i<40;++i){sendWheel(over,-10);QTest::qWait(8);}
+  QTest::qWait(250);QCOMPARE(y(),minY);QCOMPARE(scroller->property("steps").toInt(),0);
+  // Noise flipping between up and down never moves it either.
+  for(int i=0;i<40;++i){sendWheel(over,i%2?150:-150);QTest::qWait(8);}
+  QTest::qWait(250);QCOMPARE(y(),minY);QCOMPARE(scroller->property("steps").toInt(),0);
+  // Held down: rows one after another, never backwards, faster the longer it is held, each on a row boundary.
+  QList<qint64> stepTimes;QElapsedTimer held;held.start();double last=y();bool backwards=false;int steps=0;
+  while(held.elapsed()<1300){sendWheel(over,-150);QTest::qWait(16);if(y()<last-0.5)backwards=true;last=y();const int now=scroller->property("steps").toInt();if(now>steps){steps=now;stepTimes<<held.elapsed();}}
+  QTest::qWait(300);
+  QVERIFY(!backwards);QVERIFY2(stepTimes.size()>=5,qPrintable(QString::number(stepTimes.size())));QVERIFY(aligned());QVERIFY(y()>minY+row*4-0.5);
+  QList<qint64> gaps;for(int i=1;i<stepTimes.size();++i)gaps<<stepTimes[i]-stepTimes[i-1];
+  QVERIFY2(gaps.last()<gaps.first(),qPrintable(QString("first gap %1 ms, last %2 ms").arg(gaps.first()).arg(gaps.last())));
+  // One notch up after a pause: exactly one row.
+  const double before=y();const int stepsBefore=scroller->property("steps").toInt();
+  sendWheel(over,120);QTest::qWait(300);
+  QCOMPARE(scroller->property("steps").toInt(),stepsBefore+1);QVERIFY(std::abs(y()-(before-row))<0.5);QVERIFY(aligned());
+  // Scrolling opened nothing.
+  QCOMPARE(panel->property("selectedId").toString(),QString());
+  // The keyboard moves the highlight a row at a time and keeps it in view, still on row boundaries.
+  panel->forceActiveFocus();for(int i=0;i<12;++i){QTest::keyClick(window,Qt::Key_Down);QTest::qWait(20);}
+  QTest::qWait(300);QVERIFY(aligned());QCOMPARE(panel->property("selectedId").toString(),QString());
+ }
+ // B goes back exactly one level per press: menu, game page, tab, page; never two at once and never out of the Hub.
+ void panelBackStepsOneLevelPerPress(){
+  const auto cleanup=qScopeGuard([&]{leavePanel();});
+  auto panel=enterPanel(syntheticPanelRows(30));QVERIFY(panel);
+  const auto centre=[](QQuickItem *item){return item->mapToScene(QPointF(item->width()/2,item->height()/2)).toPoint();};
+  // The double-click guard drops presses for a moment after each page change; a slow PC can stretch a fixed wait
+  // past it or short of it, so a click waits until the guard's time has passed.
+  const auto click=[&](QQuickItem *item){QVERIFY(item);QVERIFY(QTest::qWaitFor([&]{return QDateTime::currentMSecsSinceEpoch()>=root->property("clickGuardUntil").toDouble();},3000));QVERIFY(softwareFrame(window));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(item));};
+  const auto steps=[&]{return root->property("backSteps").toInt();};
+  const auto b=[&]{emit overlayProbe.backRequested();};
+  // At the top: nothing happens and the Hub stays.
+  int start=steps();b();QTest::qWait(50);QCOMPARE(steps(),start);QCOMPARE(root->property("view").toString(),QString("Model3"));QVERIFY(window->isVisible());
+  // A tab, then a game in it.
+  click(visibleNamed("panelTab-ps1"));QTRY_COMPARE(panel->property("tab").toString(),QString("ps1"));
+  QCOMPARE(panel->property("shown").toList().size(),4);
+  QTest::qWait(350);click(visibleNamed("panelTile"));QTRY_VERIFY(!panel->property("selectedId").toString().isEmpty());
+  QTRY_VERIFY(visibleNamed("panelGamePage"));
+  // Spammed B, five presses in 100 ms: one level only. The game page closes; the tab stays.
+  QTest::qWait(300);start=steps();for(int i=0;i<5;++i){b();QTest::qWait(20);}
+  QCOMPARE(steps(),start+1);QCOMPARE(panel->property("selectedId").toString(),QString());QCOMPARE(panel->property("tab").toString(),QString("ps1"));
+  // The next press, after the page change: the tab goes back to All.
+  QTest::qWait(300);b();QCOMPARE(steps(),start+2);QCOMPARE(panel->property("tab").toString(),QString("all"));
+  // Then the top: nothing, however often.
+  for(int i=0;i<4;++i){QTest::qWait(300);b();}
+  QCOMPARE(steps(),start+2);QCOMPARE(root->property("view").toString(),QString("Model3"));QVERIFY(window->isVisible());
+  // A search counts as a filter: B clears it.
+  panel->setProperty("query","synthetic game 0");QTRY_VERIFY(panel->property("shown").toList().size()<30);QTest::qWait(300);b();QCOMPARE(panel->property("query").toString(),QString());
+  // The filter menu closes first and leaves the page as it was.
+  QTest::qWait(300);click(visibleNamed("panelFilter"));auto menu=window->findChild<QObject *>("panelFilterMenu");QVERIFY(menu);QTRY_VERIFY(menu->property("opened").toBool());
+  QTest::qWait(300);start=steps();b();QTRY_VERIFY(!menu->property("visible").toBool());QCOMPARE(steps(),start+1);QCOMPARE(root->property("view").toString(),QString("Model3"));
+  // The Hub's own menu too.
+  QTest::qWait(300);click(visibleNamed("panelMenu"));auto help=root->findChild<QObject *>("helpPanel");QVERIFY(help);QTRY_VERIFY(help->property("opened").toBool());
+  QTest::qWait(300);b();QTRY_VERIFY(!help->property("visible").toBool());QCOMPARE(root->property("view").toString(),QString("Model3"));
+  // Pinball is a page of its own: B comes back to the library, on the same tab.
+  QTest::qWait(300);click(visibleNamed("panelTab-pinball"));QTRY_COMPARE(root->property("view").toString(),QString("Pinball"));
+  QTest::qWait(300);b();QTRY_COMPARE(root->property("view").toString(),QString("Model3"));QCOMPARE(root->property("history").toList().size(),0);
+  QVERIFY(visibleNamed("panelLibrary")==panel); // Kept: the same library, not a new one.
+  // Escape on a keyboard is B too.
+  QTest::qWait(350);click(visibleNamed("panelTile"));QTRY_VERIFY(!panel->property("selectedId").toString().isEmpty());
+  QTest::qWait(300);window->requestActivate();QTest::keyClick(window,Qt::Key_Escape);QTRY_COMPARE(panel->property("selectedId").toString(),QString());
+  // While a game starts its card is the page: B leaves it alone.
+  QTest::qWait(350);click(visibleNamed("panelTile"));QTRY_VERIFY(!panel->property("selectedId").toString().isEmpty());
+  ui->launchQueued("synthetic-game","flat",QString());QTest::qWait(300);start=steps();b();QCOMPARE(steps(),start);QVERIFY(!panel->property("selectedId").toString().isEmpty());
+  ui->launchFinished("synthetic-game","Launch executable or working directory missing",1);ui->dismissLastSession();
+  QTest::qWait(300);b();QCOMPARE(panel->property("selectedId").toString(),QString());
+ }
+ // Double clicks and spammed buttons: one launch, a message for the refused ones, single-shot Stop and Install.
+ void panelDoubleClickAndSpamStartOnce(){
+  const auto cleanup=qScopeGuard([&]{if(!ui->nowPlaying().isEmpty())ui->launchFinished(ui->nowPlaying()["gameId"].toString(),QString(),0);ui->dismissLastSession();leavePanel();});
+  int plays=0;
+  // Stands in for the services: a Model 3 Play is queued at once, as HubServices does.
+  auto connection=connect(ui.get(),&ac::UiController::model3PlayRequested,this,[&](const QString &id,const QString &view){++plays;ui->launchModel3Queued(id,view,QString());});
+  const auto disconnectLater=qScopeGuard([&]{disconnect(connection);});
+  auto panel=enterPanel(syntheticPanelRows(12));QVERIFY(panel);
+  const auto centre=[](QQuickItem *item){return item->mapToScene(QPointF(item->width()/2,item->height()/2)).toPoint();};
+  QQuickItem *first=nullptr;for(auto *tile:namedItems(window->contentItem(),"panelTile"))if(tile->property("title").toString()=="Scud Race"&&withinClips(tile))first=tile;QVERIFY(first);
+  // A double click on the tile: the first click opens the page, the second lands in the click guard.
+  QVERIFY(softwareFrame(window));const auto at=centre(first);
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,at);QTest::qWait(60);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,at);
+  QTRY_VERIFY(visibleNamed("panelGamePage"));QCOMPARE(panel->property("selectedId").toString(),QString("scud"));QCOMPARE(plays,0);
+  // A click on Play right after the page appears is also dropped.
+  auto play=visibleNamed("panelPlay");QVERIFY(play);QCOMPARE(namedItems(window->contentItem(),"panelPlay").size(),3); // Model 3: three headset views.
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,centre(play));QTest::qWait(30);QCOMPARE(plays,0);
+  // After the guard: Play, spammed five times, starts once.
+  QTest::qWait(350);QVERIFY(play->isEnabled());const auto playAt=centre(play);
+  for(int i=0;i<5;++i){QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,playAt);QTest::qWait(30);}
+  QCOMPARE(plays,1);QCOMPARE(ui->nowPlaying()["gameId"].toString(),QString("model3-scud"));
+  // Every Play button is off and says it is starting.
+  for(auto *button:namedItems(window->contentItem(),"panelPlay")){QVERIFY(!button->isEnabled());QCOMPARE(button->property("text").toString(),QString::fromUtf8("Starting…"));}
+  // A second launch through any door is refused with a message, not silently.
+  const int refused=ui->property("refusedLaunches").toInt();
+  ui->playGame("scud","screen");ui->playModel3("scud");ui->playOtherGame("ps1-synthetic2");
+  QCOMPARE(plays,1);QCOMPARE(ui->property("refusedLaunches").toInt(),refused+3);QVERIFY2(ui->status().startsWith("Not started: "),qPrintable(ui->status()));QVERIFY(ui->status().contains("current session"));
+  // Stop pressed five times asks once.
+  ui->launchStarted("model3-scud");QSignalSpy stops(ui.get(),SIGNAL(stopLaunchRequested()));
+  for(int i=0;i<5;++i)ui->stopLaunch();
+  QCOMPARE(stops.size(),1);
+  ui->launchFinished("model3-scud",QString(),0);QTRY_VERIFY(ui->nowPlaying().isEmpty());QVERIFY(ui->property("launchGateOpen").toBool());
+  QVERIFY(softwareFrame(window));QTRY_VERIFY(visibleNamed("panelPlay")&&visibleNamed("panelPlay")->isEnabled());
+  // Install while one runs: refused, said, nothing queued.
+  QSignalSpy installs(ui.get(),&ac::UiController::installRequested);ui->installStarted();
+  for(int i=0;i<3;++i)ui->startInstall("timecris","dr89-pcvr");
+  QCOMPARE(installs.size(),0);QVERIFY(ui->status().contains("already running"));
+  ui->installFinished(true,"Synthetic install finished");
+ }
+ // Pictures of the panel at its own size, for review; only when asked for.
+ void panelPictures(){
+  const auto output=qEnvironmentVariable("AC_UI_PANEL_PICTURES");if(output.isEmpty())QSKIP("Panel pictures are taken only when AC_UI_PANEL_PICTURES names a folder.");
+  const auto cleanup=qScopeGuard([&]{leavePanel();});
+  // Real catalog titles, sorted into systems; no game files and no artwork in this test, so tiles show their system colour.
+  QVariantList rows=ui->model3Games();for(auto &value:rows){auto row=value.toMap();row["problem"]=QString();row["found"]=true;value=row;}
+  const QMap<QString,QString> systems{{"sega-model-2","model2"},{"sony-ps1","ps1"},{"sony-ps2","ps2"},{"nintendo-wii","wii"},{"sega-dreamcast","dreamcast"}};
+  QMap<QString,int> taken;
+  for(const auto &record:games->records()){
+   const auto hw=record.roles.value("hardwareId").toString();const auto system=systems.value(hw);
+   if(system.isEmpty()||taken[system]>=6){continue;}++taken[system];
+   rows<<QVariantMap{{"id",system+"-"+record.id},{"system",system},{"title",record.roles.value("title")},{"year",record.roles.value("year")},{"problem",QString()},{"warning",QString()},{"found",true},{"view","screen"},
+    {"views",QVariantList{QVariantMap{{"id","screen"},{"label","3D screen"},{"help","A 3D screen in the headset."}},QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset, with your controller as the gun."}}}}};
+  }
+  auto panel=enterPanel(rows);QVERIFY(panel);QDir().mkpath(output);
+  QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-1-grid.png")));
+  auto grid=visibleNamed("panelGrid");const QPointF over=grid->mapToScene(QPointF(grid->width()/2,grid->height()/2));
+  QElapsedTimer held;held.start();while(held.elapsed()<700){sendWheel(over,-150);QTest::qWait(16);}QTest::qWait(400);
+  QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-2-grid-scrolled.png")));
+  panel->setProperty("selectedId","scud");QTest::qWait(400);
+  QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-3-game-page.png")));
+  const auto save=[&](const QString &name){QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath(name)));};
+  const auto b=[&]{QTest::qWait(300);emit overlayProbe.backRequested();QTest::qWait(300);};
+  // B at each level: a game page in the PS1 tab, then the PS1 grid, then the whole grid, then the top (no change).
+  panel->setProperty("selectedId","");QTest::qWait(300);panel->setProperty("tab","ps1");QTest::qWait(300);
+  save("panel-4-tab-ps1.png");
+  QQuickItem *ps1Tile=visibleNamed("panelTile");QVERIFY(ps1Tile);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,ps1Tile->mapToScene(QPointF(ps1Tile->width()/2,ps1Tile->height()/2)).toPoint());
+  QTRY_VERIFY(visibleNamed("panelGamePage"));QTest::qWait(300);save("panel-5-b0-game-page-in-ps1-tab.png");
+  b();QVERIFY(!visibleNamed("panelGamePage"));save("panel-6-b1-back-to-ps1-grid.png");
+  b();QCOMPARE(panel->property("tab").toString(),QString("all"));save("panel-7-b2-back-to-all-grid.png");
+  b();QCOMPARE(root->property("view").toString(),QString("Model3"));save("panel-8-b3-top-nothing-happens.png");
+  // The filter menu open, then closed by B.
+  QQuickItem *filterButton=visibleNamed("panelFilter");QVERIFY(filterButton);QTest::qWait(300);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,filterButton->mapToScene(QPointF(filterButton->width()/2,filterButton->height()/2)).toPoint());
+  QTest::qWait(300);save("panel-9-filter-menu.png");b();save("panel-10-b-closed-filter-menu.png");
+  // Double click on a tile, then Play spammed: one start, every Play shows Starting, a refused second launch is said.
+  int plays=0;auto connection=connect(ui.get(),&ac::UiController::model3PlayRequested,this,[&](const QString &id,const QString &view){++plays;ui->launchModel3Queued(id,view,QString());});
+  const auto finish=qScopeGuard([&]{disconnect(connection);if(!ui->nowPlaying().isEmpty())ui->launchFinished(ui->nowPlaying()["gameId"].toString(),QString(),0);ui->dismissLastSession();});
+  QQuickItem *scud=nullptr;for(auto *tile:namedItems(window->contentItem(),"panelTile"))if(tile->property("title").toString()=="Scud Race"&&withinClips(tile))scud=tile;QVERIFY(scud);
+  const auto at=scud->mapToScene(QPointF(scud->width()/2,scud->height()/2)).toPoint();
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,at);QTest::qWait(60);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,at);
+  QTRY_VERIFY(visibleNamed("panelGamePage"));QCOMPARE(plays,0);save("panel-11-after-double-click-page-open-nothing-started.png");
+  QTest::qWait(350);QQuickItem *play=visibleNamed("panelPlay");QVERIFY(play);const auto playAt=play->mapToScene(QPointF(play->width()/2,play->height()/2)).toPoint();
+  for(int i=0;i<5;++i){QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,playAt);QTest::qWait(30);}
+  QCOMPARE(plays,1);save("panel-12-play-spammed-starting-card.png");
+  ui->playGame("scud","screen");QCOMPARE(plays,1);save("panel-13-second-launch-refused-message.png");
  }
  void sceneWarnings(){QTest::qWait(100);QStringList invalid;for(const auto &w:warnings)if(w.contains("ReferenceError")||w.contains("TypeError")||w.contains("Unable to assign")||w.contains("Binding loop")||w.contains("is not a type"))invalid<<w;QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));}
  void selfBenchmark(){
