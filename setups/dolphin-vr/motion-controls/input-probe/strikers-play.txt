@@ -1,113 +1,134 @@
-# Mario Strikers Charged with a save: title, VS, Domination, then DONE on both option pages (pointer low centre), then A at the centre through team picks, + skips, then stick and B in the match.
-12.0 12.3 R primary 1
-14.0 14.3 R primary 1
-16.0 16.3 R primary 1
-18.0 18.3 R primary 1
-20.0 20.3 R primary 1
-22.0 22.3 R primary 1
-24.0 24.3 R primary 1
-26.0 26.3 R primary 1
-28.0 28.3 R primary 1
-30.0 30.3 R primary 1
-32.0 32.3 R primary 1
-34.0 34.3 R primary 1
-36.0 36.3 R primary 1
-38.0 38.3 R primary 1
-40.0 40.3 R primary 1
-42.0 42.3 R primary 1
-44.0 44.3 R primary 1
-46.0 54.0 R u 0
-46.0 54.0 R v 0.62
-48.0 48.3 R primary 1
-51.0 51.3 R primary 1
-54.0 60.0 R u 0
-54.0 60.0 R v 0
-55.0 55.3 R primary 1
-57.0 57.3 R primary 1
-60.0 72.0 R u 0
-60.0 72.0 R v -0.8
-62.0 62.3 R primary 1
-66.0 66.3 R primary 1
-70.0 70.3 R primary 1
-72.0 130.0 R u 0
-72.0 130.0 R v 0
-73.0 73.3 R primary 1
-75.0 75.3 R primary 1
-77.0 77.3 R primary 1
-79.0 79.3 R primary 1
-81.0 81.3 R primary 1
-83.0 83.3 R primary 1
-85.0 85.3 R primary 1
-87.0 87.3 R primary 1
-89.0 89.3 R primary 1
-91.0 91.3 R primary 1
-93.0 93.3 R primary 1
-95.0 95.3 R primary 1
-97.0 97.3 R primary 1
-99.0 99.3 R primary 1
-101.0 101.3 R primary 1
-103.0 103.3 R primary 1
-105.0 105.3 R primary 1
-107.0 107.3 R primary 1
-109.0 109.3 R primary 1
-111.0 111.3 R primary 1
-113.0 113.3 R primary 1
-115.0 115.3 R primary 1
-117.0 117.3 R primary 1
-119.0 119.3 R primary 1
-121.0 121.3 R primary 1
-123.0 123.3 R primary 1
-125.0 125.3 R primary 1
-127.0 127.3 R primary 1
-129.0 129.3 R primary 1
-90.0 90.3 L menu 1
-100.0 100.3 L menu 1
-110.0 110.3 L menu 1
-120.0 120.3 L menu 1
-130.0 160.0 L stick_x 1
-131.0 131.4 R trigger 1
-134.0 134.4 R trigger 1
-137.0 137.4 R trigger 1
-140.0 140.4 R trigger 1
-143.0 143.4 R trigger 1
-146.0 146.4 R trigger 1
-149.0 149.4 R trigger 1
-152.0 152.4 R trigger 1
-155.0 155.4 R trigger 1
-158.0 158.4 R trigger 1
-shot 58 p58
-shot 61 p61
-shot 64 p64
-shot 67 p67
-shot 70 p70
-shot 73 p73
-shot 76 p76
-shot 79 p79
-shot 82 p82
-shot 85 p85
-shot 88 p88
-shot 91 p91
-shot 94 p94
-shot 97 p97
-shot 100 p100
-shot 103 p103
-shot 106 p106
-shot 109 p109
-shot 112 p112
-shot 115 p115
-shot 118 p118
-shot 121 p121
-shot 124 p124
-shot 127 p127
-shot 130 p130
-shot 133 p133
-shot 136 p136
-shot 139 p139
-shot 142 p142
-shot 145 p145
-shot 148 p148
-shot 151 p151
-shot 154 p154
-shot 157 p157
-shot 160 p160
-162.0 162.3 L thumbclick 1
+# Mario Strikers Charged (2026-10-21), menus to a played match with profile 'AC Motion Strikers': A to the VS wheel, Domination (top burst), Domination Options DONE, click the HOME monitor then a captain icon, same for AWAY, DONE, sidekicks DONE, hold A on the Wii Remote icon and drag it into the HOME box, DONE, stadium PLAY NOW, then in the match Mario runs right (stick), sprints (Z), passes (A) and shoots (B). Pointer positions are fingertip positions (u = 2x-1, v = 1-2y of the screen). Kick-off is at about 195 s emulated.
+12.00 12.30 R primary 1
+14.00 14.30 R primary 1
+16.00 16.30 R primary 1
+18.00 18.30 R primary 1
+20.00 20.30 R primary 1
+22.00 22.30 R primary 1
+24.00 24.30 R primary 1
+26.00 26.30 R primary 1
+28.00 28.30 R primary 1
+36.0 300.0 R u 0
+36.0 300.0 R v 0.68
+60.00 60.30 R primary 1
+74.0 300.0 R u 0
+74.0 300.0 R v -0.83
+78.00 78.30 R primary 1
+88.0 94.0 R u -0.38
+88.0 94.0 R v 0.5
+91.00 91.30 R primary 1
+94.0 100.0 R u -0.54
+94.0 100.0 R v -0.34
+97.00 97.30 R primary 1
+100.0 106.0 R u 0.38
+100.0 106.0 R v 0.5
+103.00 103.30 R primary 1
+106.0 112.0 R u -0.12
+106.0 112.0 R v -0.34
+109.00 109.30 R primary 1
+112.0 128.0 R u 0
+112.0 128.0 R v -0.83
+115.00 115.30 R primary 1
+127.00 127.30 R primary 1
+130.0 146.0 R u 0.0
+130.0 146.0 R v -0.82
+146.00 153.00 R primary 1
+148.0 153.0 R u -0.55
+148.0 153.0 R v -0.55
+153.0 300.0 R u -0.55
+153.0 300.0 R v -0.55
+157.0 166.0 R u -0.44
+157.0 166.0 R v 0.6
+160.00 160.30 R primary 1
+166.0 300.0 R u 0
+166.0 300.0 R v -0.83
+170.00 170.30 R primary 1
+176.00 176.30 R primary 1
+178.0 300.0 R u 0
+178.0 300.0 R v 0
+200.00 300.00 L stick_x 1
+204.00 300.00 L trigger 1
+206.00 206.30 R primary 1
+209.00 209.30 R primary 1
+212.00 212.30 R primary 1
+215.00 215.30 R primary 1
+218.00 218.30 R primary 1
+221.00 221.30 R primary 1
+224.00 224.30 R primary 1
+227.00 227.30 R primary 1
+230.00 230.30 R primary 1
+233.00 233.30 R primary 1
+236.00 236.30 R primary 1
+239.00 239.30 R primary 1
+242.00 242.30 R primary 1
+245.00 245.30 R primary 1
+248.00 248.30 R primary 1
+251.00 251.30 R primary 1
+254.00 254.30 R primary 1
+257.00 257.30 R primary 1
+260.00 260.30 R primary 1
+263.00 263.30 R primary 1
+266.00 266.30 R primary 1
+269.00 269.30 R primary 1
+272.00 272.30 R primary 1
+275.00 275.30 R primary 1
+278.00 278.30 R primary 1
+281.00 281.30 R primary 1
+284.00 284.30 R primary 1
+287.00 287.30 R primary 1
+290.00 290.30 R primary 1
+293.00 293.30 R primary 1
+296.00 296.30 R primary 1
+299.00 299.30 R primary 1
+207.50 207.80 R trigger 1
+212.50 212.80 R trigger 1
+217.50 217.80 R trigger 1
+222.50 222.80 R trigger 1
+227.50 227.80 R trigger 1
+232.50 232.80 R trigger 1
+237.50 237.80 R trigger 1
+242.50 242.80 R trigger 1
+247.50 247.80 R trigger 1
+252.50 252.80 R trigger 1
+257.50 257.80 R trigger 1
+262.50 262.80 R trigger 1
+267.50 267.80 R trigger 1
+272.50 272.80 R trigger 1
+277.50 277.80 R trigger 1
+282.50 282.80 R trigger 1
+287.50 287.80 R trigger 1
+292.50 292.80 R trigger 1
+297.50 297.80 R trigger 1
+shot 194 d194
+shot 197 d197
+shot 200 d200
+shot 203 d203
+shot 206 d206
+shot 209 d209
+shot 212 d212
+shot 215 d215
+shot 218 d218
+shot 221 d221
+shot 224 d224
+shot 227 d227
+shot 230 d230
+shot 233 d233
+shot 236 d236
+shot 239 d239
+shot 242 d242
+shot 245 d245
+shot 248 d248
+shot 251 d251
+shot 254 d254
+shot 257 d257
+shot 260 d260
+shot 263 d263
+shot 266 d266
+shot 269 d269
+shot 272 d272
+shot 275 d275
+shot 278 d278
+shot 281 d281
+shot 284 d284
+shot 287 d287
+shot 290 d290

@@ -1,4 +1,5 @@
 # Panic alerts are off (UsePanicHandlers=False): DolphinNoGUI would otherwise show real message boxes.
+# Audio is off too (No Audio Output backend, volume 0, muted): offline runs must be silent on the owner's speakers.
 # One hidden, below-normal, time-limited DolphinNoGUI run with the input probe and no XR runtime.
 # Example:
 #   ./run_probe.ps1 -Exe <DolphinNoGUI.exe with probe> -User <test user dir> -Disc <owned disc>
@@ -25,7 +26,7 @@ $env:XR_RUNTIME_JSON = Join-Path $env:TEMP 'ac-no-such-openxr-runtime.json'
 $env:DOLPHINXR_INPUT_SCRIPT = $Script
 $env:DOLPHINXR_INPUT_PROBE = $Probe
 Remove-Item Env:DOLPHINXR_GUN -ErrorAction SilentlyContinue
-$argv = @('-p', 'headless', '-u', "`"$User`"", '-C', 'Graphics.VR.EnableOpenXR=False', '-C', 'Dolphin.Interface.UsePanicHandlers=False', '-C', 'Dolphin.Interface.ConfirmStop=False') + $Extra + @('-e', "`"$Disc`"")
+$argv = @('-p', 'headless', '-u', "`"$User`"", '-C', 'Graphics.VR.EnableOpenXR=False', '-C', 'Dolphin.Interface.UsePanicHandlers=False', '-C', 'Dolphin.Interface.ConfirmStop=False', '-C', 'Dolphin.DSP.Backend="No Audio Output"', '-C', 'Dolphin.DSP.Volume=0', '-C', 'Dolphin.DSP.Muted=True') + $Extra + @('-e', "`"$Disc`"")
 $p = Start-Process -FilePath $Exe -ArgumentList $argv -WindowStyle Hidden -PassThru `
   -RedirectStandardOutput "$Probe.stdout.txt" -RedirectStandardError "$Probe.stderr.txt"
 try { $p.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::BelowNormal } catch {}

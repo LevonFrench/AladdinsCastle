@@ -1,0 +1,120 @@
+# Donkey Kong Country Returns, grip shake (2026-10-21). A taps to level 1-1 (title card by about 66 s), then the right grip (the profile's Shake group) every second asks for the hut-start shake; DK then runs right with the left stick, jumps with right A, rolls with a grip squeeze. Needs profile 'AC Pad DKCR' and -C Wiimote.Wiimote1.Source=1 (see README).
+12.00 12.30 R primary 1
+14.00 14.30 R primary 1
+16.00 16.30 R primary 1
+18.00 18.30 R primary 1
+20.00 20.30 R primary 1
+22.00 22.30 R primary 1
+24.00 24.30 R primary 1
+26.00 26.30 R primary 1
+28.00 28.30 R primary 1
+30.00 30.30 R primary 1
+32.00 32.30 R primary 1
+34.00 34.30 R primary 1
+36.00 36.30 R primary 1
+38.00 38.30 R primary 1
+40.00 40.30 R primary 1
+42.00 42.30 R primary 1
+44.00 44.30 R primary 1
+46.00 46.30 R primary 1
+48.00 48.30 R primary 1
+50.00 50.30 R primary 1
+52.00 52.30 R primary 1
+54.00 54.30 R primary 1
+56.00 56.30 R primary 1
+58.00 58.30 R primary 1
+60.00 60.30 R primary 1
+62.00 62.30 R primary 1
+64.00 64.30 R primary 1
+24.00 24.30 R trigger 1
+30.00 30.30 R trigger 1
+36.00 36.30 R trigger 1
+42.00 42.30 R trigger 1
+48.00 48.30 R trigger 1
+54.00 54.30 R trigger 1
+60.00 60.30 R trigger 1
+68.00 68.40 R squeeze 1
+69.00 69.40 R squeeze 1
+70.00 70.40 R squeeze 1
+71.00 71.40 R squeeze 1
+72.00 72.40 R squeeze 1
+73.00 73.40 R squeeze 1
+74.00 74.40 R squeeze 1
+75.00 75.40 R squeeze 1
+76.00 76.40 R squeeze 1
+77.00 77.40 R squeeze 1
+78.00 78.40 R squeeze 1
+79.00 79.40 R squeeze 1
+80.00 80.40 R squeeze 1
+81.00 81.40 R squeeze 1
+82.00 82.40 R squeeze 1
+83.00 83.40 R squeeze 1
+84.00 84.40 R squeeze 1
+85.00 85.40 R squeeze 1
+86.00 86.40 R squeeze 1
+88.00 160.00 L stick_x 1
+92.00 92.35 R primary 1
+94.50 94.85 R primary 1
+97.00 97.35 R primary 1
+99.50 99.85 R primary 1
+102.00 102.35 R primary 1
+104.50 104.85 R primary 1
+107.00 107.35 R primary 1
+109.50 109.85 R primary 1
+112.00 112.35 R primary 1
+114.50 114.85 R primary 1
+117.00 117.35 R primary 1
+119.50 119.85 R primary 1
+122.00 122.35 R primary 1
+124.50 124.85 R primary 1
+127.00 127.35 R primary 1
+129.50 129.85 R primary 1
+132.00 132.35 R primary 1
+134.50 134.85 R primary 1
+137.00 137.35 R primary 1
+139.50 139.85 R primary 1
+142.00 142.35 R primary 1
+144.50 144.85 R primary 1
+147.00 147.35 R primary 1
+149.50 149.85 R primary 1
+152.00 152.35 R primary 1
+154.50 154.85 R primary 1
+157.00 157.35 R primary 1
+159.50 159.85 R primary 1
+93.00 93.40 R squeeze 1
+99.00 99.40 R squeeze 1
+105.00 105.40 R squeeze 1
+111.00 111.40 R squeeze 1
+117.00 117.40 R squeeze 1
+123.00 123.40 R squeeze 1
+129.00 129.40 R squeeze 1
+135.00 135.40 R squeeze 1
+141.00 141.40 R squeeze 1
+147.00 147.40 R squeeze 1
+153.00 153.40 R squeeze 1
+159.00 159.40 R squeeze 1
+shot 66 z66
+shot 70 z70
+shot 74 z74
+shot 78 z78
+shot 82 z82
+shot 86 z86
+shot 90 z90
+shot 94 z94
+shot 98 z98
+shot 102 z102
+shot 106 z106
+shot 110 z110
+shot 114 z114
+shot 118 z118
+shot 122 z122
+shot 126 z126
+shot 130 z130
+shot 134 z134
+shot 138 z138
+shot 142 z142
+shot 146 z146
+shot 150 z150
+shot 154 z154
+shot 158 z158
+161.00 161.30 L thumbclick 1

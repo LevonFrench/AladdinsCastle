@@ -194,7 +194,7 @@ grip as B (jump).
 | --- | --- | --- | --- | --- |
 | Super Mario Galaxy 2 | SB4P01 | pointer | AC Motion Galaxy 2 (Galaxy trim) | star within about 1.4% at six points, lower row by eye; file screens, story, first area with Mario walking |
 | New Super Mario Bros. Wii | SMNE01 | pad | AC Motion Remote and Nunchuk | intro, world map, level 1-1 with Mario running and jumping |
-| Donkey Kong Country Returns | SF8P01 | pad | AC Motion Remote and Nunchuk | title, map and level 1-1 start (DK's hut, controller icon shown); no gameplay appeared with either the Nunchuk or the sideways set, shakes included; not proven |
+| Donkey Kong Country Returns | SF8P01 | pad | AC Pad DKCR (2026-10-21; was AC Motion Remote and Nunchuk) | title, map and level 1-1; plays since 2026-10-21 once the hut-start shake is given (see "Donkey Kong Country Returns and Mario Strikers Charged" below) |
 
 `AC Pad Sideways` (sideways Wii Remote, no Nunchuk, Dolphin's Sideways option on so either stick
 gives screen directions) is for the sideways games that follow. None of these discs has a shipped
@@ -214,7 +214,7 @@ the kart does not turn. Tilt steering stays available only through the opt-in la
 | --- | --- | --- | --- | --- |
 | Kirby's Return to Dream Land | SUKE01 | pad (sideways) | AC Pad Sideways | file select, story skipped with +, world map, level 1-1 with Kirby moving and attacking |
 | Kirby's Epic Yarn | RK5E01 | pad (sideways) | AC Pad Sideways | save creation, story (+ offers "stop watching"), Patch Land with Kirby walking |
-| Mario Strikers Charged | R4QE01 | motion | AC Motion Remote and Nunchuk | pointer menus reached (VS, Domination, option pages) but no match: its pointer is not trimmed yet and DONE did not register; not proven |
+| Mario Strikers Charged | R4QE01 | motion | AC Motion Strikers (2026-10-21; was AC Motion Remote and Nunchuk) | pointer trimmed; menus, captains, sides, stadium and a played match since 2026-10-21 (see "Donkey Kong Country Returns and Mario Strikers Charged" below) |
 | Excitebike: World Rally | WWRP (WiiWare) | pad (racer, stick steering) | AC Pad Sideways | profile, name entry, World Tour, training race running |
 
 Excitebike follows the owner's racer rule: steering is on the stick (D-pad lanes); tilt is not used for steering.
@@ -228,3 +228,54 @@ still show). The alerts seen in the logged proof runs were `FIFO: Unknown Opcode
 (`VideoCommon/OpcodeDecoding.h:166`, "Ignore and continue?") in Mario Strikers Charged and
 Excitebike: World Rally; runs without a log may have raised more. A dialog left open blocks
 emulation, which may explain some stalled offline runs (DKCR at 1-1, slow Metroid runs); not verified.
+﻿
+## Donkey Kong Country Returns and Mario Strikers Charged (2026-10-21)
+
+Both stopped for a reason found offline (hidden DolphinNoGUI, OpenXR off, no XR runtime, audio off, scripted input;
+evidence level E2, nothing seen in the headset yet).
+
+### Donkey Kong Country Returns (SF8P01): level 1-1 waits for a shake
+
+- Scripted A presses get from the title through the file and map into 1-1 ("Jungle Hijinxs"). Level 1-1 then opens
+  on DK's hut with a Wii Remote + Nunchuk icon in a star burst and stays there. The game is alive (smoke animates,
+  the pause menu opens with +); it is asking for a **shake**. The first shake smashes the hut sign, DK steps out and
+  the level starts. The earlier runs "shook" the controllers by rolling them 80 degrees back and forth; with
+  `Source = 3` the Wii Remote's accelerometer comes from the tilt and the controller's real acceleration
+  (`CreateOpenXRInputOverrideFunction`), and a tilt swing is only about 1 g, which the game does not count.
+  It is not a missing button, a MotionPlus problem, a dual-core problem or a PAL60 problem (tried:
+  `Dolphin.Core.CPUThread=False`, `Dolphin.Core.PAL60=False` and MotionPlus off; the hut stayed until a shake came).
+- Proof: with a Wii Remote that has no OpenXR override (`Source = 1`) and the Shake group bound to a button, the
+  same script reaches gameplay (DK runs, jumps, rolls, loses lives, Game Over screen).
+- Fix: the owner's launcher view `3d` now passes `-C Wiimote.Wiimote1.Source=1` and uses profile `AC Pad DKCR`
+  (via `GameSettings/SF8P01.ini`), which binds **Wii Remote shake to the right grip and Nunchuk shake to the left
+  grip** (`Shake/X|Y|Z`, `Nunchuk/Shake/X|Y|Z`). `Source` is a Config setting (`Wiimote.Wiimote1.Source`); a
+  `Source` line inside a profile did not take effect, the command line does. DKCR uses no pointer, so nothing is
+  lost. The second view `physical-shake` keeps `Source = 3` (profile `AC Pad DKCR Motion`, no grip shake): wave
+  the controller; not provable offline.
+- With `Source = 3` a button-bound Shake group moves only the IR dot, never the accelerometer (probe: the
+  accelerometer stays 512,512,616 while the shake button is held), so a grip shake needs `Source = 1`.
+- DKCR refuses a Classic Controller ("please remove the unsupported external extension controller"), so there is
+  no pad-only layout. MotionPlus is detached in both DKCR profiles (the game does not use it).
+- Scripts: `input-probe/dkcr-grip-shake.txt` (runs the grip shake from the hut, then runs right, jumps and rolls; use
+  it with a user folder holding `AC Pad DKCR` and `-C Wiimote.Wiimote1.Source=1`). `dkcr-play.txt`, `dkcr-sideways.txt`
+  and `dkcr-wait.txt` are the 2026-10-20 runs that could not get past the hut.
+
+### Mario Strikers Charged (R4QE01): never reached a match because the menus need a trimmed pointer and a click path
+
+- The game is a pointer menu all the way to the kick-off. Its cursor is a blue hand whose **fingertip** is the
+  hot spot (the drawn hand hangs about 7% of the screen height below the tip), so the old default trim put the
+  tip 7% above and 33% too wide of where the controller pointed and DONE and the pads were missed.
+- Trim (profile `AC Motion Strikers`): `IR/Total Yaw = 18.8`, `IR/Total Pitch = 19.7`, `IR/Vertical Offset = 14.8`.
+  Nine aim points measured on the VS wheel (`input-probe/aim-strikers.txt`, tip position by the top of the hand, `input-probe/measure_tip_hand.py`):
+  eight of nine within 1.1% of the screen of the aim point, the ninth (first move after a page change) 7%.
+- The click path, all with right A (Wii A) on the fingertip position: Press A, save prompt (continues), VS wheel
+  (top burst = Domination), Domination Options page DONE (bottom centre), **click the HOME monitor, then a captain
+  icon**; same for AWAY; DONE; sidekicks DONE; **choose sides: hold A on the Wii Remote icon at the bottom and drag it
+  into the HOME box, then DONE**; stadium PLAY NOW; match. The pads on the floor do nothing; `+` on the options page
+  only flips to the cheats page. Script: `input-probe/strikers-play.txt` (menus to the kick-off, then Mario runs
+  with the stick, sprints with Z, passes with A, shoots with B).
+- The offline match: pitch with Mario's team, a Mega Strike cut-scene with its "block the balls, press A" mini-game,
+  score and clock. One-off `FIFO: Unknown Opcode` lines (two in one run, none in the others) are logged; with
+  panic alerts off the game carried on.
+
+Offline runs are silent: `input-probe/run_probe.ps1` passes `-C Dolphin.DSP.Backend="No Audio Output" -C Dolphin.DSP.Volume=0 -C Dolphin.DSP.Muted=True` (owner request, 2026-10-21).
