@@ -664,6 +664,23 @@ private slots:
     QVERIFY2(launch.has_value(),"Default launch did not retain the installed authored setup");
     QCOMPARE(launch->variantId,QString("dolphinxr"));
  }
+ // Artwork beside the owner's ROMs is found without adding an artwork folder: a game folder's snap subfolder for
+ // Model 2, and the picture beside the disc a launcher's games.json names for Dreamcast.
+ void romFoldersFeedLocalArt(){
+    QTemporaryDir t;const auto model2=t.filePath("model2 roms"),discs=t.filePath("dreamcast discs"),play=t.filePath("play/dreamcast");
+    for(const auto &folder:{model2+"/snap",discs,play})QVERIFY(QDir().mkpath(folder));
+    ac::install::atomicWrite(model2+"/snap/vcop2.png","synthetic picture name only");
+    ac::install::atomicWrite(discs+"/Confidential Mission.cdi","synthetic");ac::install::atomicWrite(discs+"/Confidential Mission.png","synthetic picture name only");
+    ac::install::atomicWrite(play+"/launch-dreamcast.ps1","synthetic");
+    ac::install::atomicWrite(play+"/games.json",QJsonDocument(QJsonObject{{"confmiss",QJsonObject{{"title","Synthetic Mission"},{"file",QDir::toNativeSeparators(discs+"/Confidential Mission.cdi")},{"views",QJsonArray{"theatre"}}}}}).toJson());
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("model2GameFolder",model2);settings.set("dreamcastLauncher",play+"/launch-dreamcast.ps1");
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QTRY_COMPARE_WITH_TIMEOUT(ui.localArtFiles(),2,10000);
+    const auto art=[&](const QString &id){for(const auto &value:ui.otherGames())if(value.toMap()["id"]==id)return value.toMap()["art"].toString();return QString();};
+    QVERIFY2(art("model2-vcop2").endsWith("snap/vcop2.png"),qPrintable(art("model2-vcop2")));
+    QVERIFY2(art("dreamcast-confmiss").endsWith("Confidential Mission.png"),qPrintable(art("dreamcast-confmiss")));
+ }
  void restoreArtAndScanSignals(){
     QTemporaryDir temp;const auto media=temp.filePath("fixture.zip");ac::install::atomicWrite(media,"synthetic metadata only");receipt(temp.path(),media);
     ac::GameListModel games(syntheticCatalog(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);

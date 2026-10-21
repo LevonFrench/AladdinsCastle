@@ -416,7 +416,7 @@ QVariantList UiController::buildOtherGames()const{
    // Atomiswave boards run in the same Flycast build; they get their own shelf.
    const bool atomiswave=system.id=="dreamcast"&&group=="atomiswave";
    add({{"id",system.id+"-"+game.value("id").toString()},{"system",atomiswave?QString("atomiswave"):system.id},{"pill",atomiswave?QString("ATOMISWAVE"):system.pill},
-        {"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},{"problem",QString()},
+        {"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"artFile",game.value("file")},{"warning",game.value("controls")},{"problem",QString()},
         {"launcher",launcher},{"status",game.value("status")}},game.value("views").toList());
   }
  }
@@ -522,9 +522,11 @@ QVariantList UiController::buildModel3Games()const{
  return rows;
 }
 QStringList UiController::artNames(const QVariantMap &row,const QString &artId){
- // The set name (the part of the id after the system) and the game's own file and folder names.
+ // The set name (the part of the id after the system) and the game's own file and folder names,
+ // the launch file or, for a game started through a launcher, the file its games.json names.
  QStringList names{artId.section('-',1)};
- if(const auto file=row.value("file").toString();!file.isEmpty()){const QFileInfo info(file);names<<info.completeBaseName()<<info.dir().dirName();}
+ for(const auto &key:{"file","artFile"})
+  if(const auto file=row.value(key).toString();!file.isEmpty()){const QFileInfo info(file);names<<info.completeBaseName()<<info.dir().dirName();}
  return names;
 }
 void UiController::addArt(QVariantMap &row,const QString &artId,const QString &system)const{

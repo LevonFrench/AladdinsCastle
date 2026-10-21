@@ -19,7 +19,9 @@
 #include "core/pinball/Gamepad.h"
 #include "core/pinball/Art.h"
 #include <QJsonArray>
+#include <algorithm>
 #include <QThread>
+#include <QScopeGuard>
 #include "ProductIdentity.h"
 #include <QDir>
 #include <QCoreApplication>
@@ -931,16 +933,68 @@ void HubServices::recordCrash(const QString &id,int code,const QString &how,cons
         ui_->setCrashRecords(list.toVariantList());
     }catch(const std::exception &e){ui_->showError("Crash record",QString::fromUtf8(e.what()));}
 }
+// Folders that hold the owner's games: artwork kept beside a ROM or in its boxart/covers/snap subfolders is found
+// there without being added as an artwork folder. Settings first (no disk reads), then each launcher's games.json
+// (read on the scan's worker).
+static QStringList romFolderSettings(const QVariantMap &values){
+    QStringList folders;
+    for(auto it=values.cbegin();it!=values.cend();++it)if(it.key().endsWith("GameFolder"))folders<<it.value().toString();
+    folders<<values.value("libraryRoots").toStringList();
+    return folders;
+}
+static QStringList launcherRomFolders(const QStringList &launchers){
+    QStringList folders;
+    for(const auto &launcher:launchers){
+        if(launcher.isEmpty())continue;
+        QFile file(QFileInfo(launcher).absoluteDir().filePath("games.json"));
+        if(file.size()>8*1024*1024||!file.open(QIODevice::ReadOnly))continue;
+        auto bytes=file.readAll();if(bytes.startsWith("\xEF\xBB\xBF"))bytes.remove(0,3);
+        const auto all=QJsonDocument::fromJson(bytes).object();
+        for(const auto &value:all){
+            const auto entry=value.toObject();
+            for(const auto *key:{"file","disc","rom"}){const auto path=entry.value(key).toString();if(QDir::isAbsolutePath(path))folders<<QFileInfo(path).absolutePath();}
+            for(const auto &path:entry.value("RomPath").toString().split(';',Qt::SkipEmptyParts))if(QDir::isAbsolutePath(path.trimmed()))folders<<path.trimmed();
+        }
+    }
+    return folders;
+}
+// Distinct folders that exist, none inside another, never a whole drive.
+static QStringList artRoots(const QStringList &candidates){
+    QStringList clean;
+    for(const auto &candidate:candidates){
+        if(candidate.trimmed().isEmpty())continue;
+        const QFileInfo info(candidate);if(!info.isDir())continue;
+        const auto path=QDir::cleanPath(info.absoluteFilePath());if(QDir(path).isRoot())continue;
+        clean<<path;
+    }
+    std::sort(clean.begin(),clean.end(),[](const QString &a,const QString &b){return a.size()<b.size();});
+    QStringList roots;
+    for(const auto &path:clean){
+        bool inside=false;
+        for(const auto &root:roots)if(path.compare(root,Qt::CaseInsensitive)==0||path.startsWith(root+"/",Qt::CaseInsensitive)){inside=true;break;}
+        if(!inside)roots<<path;
+    }
+    return roots;
+}
 void HubServices::scanLocalArt(){
-    const auto folders=settings_->get("artFolders",QVariantList{}).toStringList();
-    if(localArtScanned_&&folders==localArtFolders_)return;
-    localArtScanned_=true;localArtFolders_=folders;
+    const auto chosen=settings_->get("artFolders",QVariantList{}).toStringList();
+    QStringList launchers;
+    for(const auto &key:{"ps1Launcher","n64Launcher","saturnLauncher","ps2Launcher"})launchers<<settings_->get(key,QString()).toString();
+    for(const auto &system:scripted::systems())launchers<<ui_->launcherFor(system.id);
+    const auto romFolders=romFolderSettings(settings_->values());
+    const auto key=chosen+QStringList{"|"}+romFolders+QStringList{"|"}+launchers;
+    if(localArtScanned_&&key==localArtFolders_)return;
+    localArtScanned_=true;localArtFolders_=key;
     if(localArtCancel_)localArtCancel_->store(true);
-    if(folders.isEmpty()){localArtCancel_.reset();ui_->setLocalArt({});return;}
     auto cancel=std::make_shared<std::atomic_bool>(false);localArtCancel_=cancel;
     QPointer<HubServices> self(this);
-    // Read in place: only names and paths are kept, and nothing is copied.
-    QThreadPool::globalInstance()->start([self,folders,cancel]{
+    // Read in place: only names and paths are kept, and nothing is copied. The owner's chosen artwork folders
+    // come first, so a picture there wins over one beside a ROM.
+    QThreadPool::globalInstance()->start([self,chosen,romFolders,launchers,cancel]{
+        // ROM folders can be large; play comes first. The pool's thread gets its priority back for the next job.
+        const auto priority=QThread::currentThread()->priority();QThread::currentThread()->setPriority(QThread::LowestPriority);
+        const auto restore=qScopeGuard([priority]{QThread::currentThread()->setPriority(priority);});
+        const auto folders=artRoots(chosen)+artRoots(romFolders+launcherRomFolders(launchers));
         auto index=std::make_shared<const art::LocalIndex>(art::LocalIndex::scan(folders,cancel.get()));
         QMetaObject::invokeMethod(qApp,[self,index,cancel]{if(self&&!cancel->load())self->ui_->setLocalArt(index);});
     });
