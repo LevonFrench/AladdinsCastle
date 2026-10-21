@@ -16,6 +16,7 @@
 #include <QDirIterator>
 #include <QElapsedTimer>
 #include <QProcessEnvironment>
+#include <QSaveFile>
 #include <QScopeGuard>
 #include <QtTest>
 #include <optional>
@@ -66,6 +67,9 @@ QByteArray syntheticTable(){
     for(int i=0;i<128;++i)u32(5120+4*i,i==0||i==8?0xfffffffe:i==9?0xfffffffd:i<8?static_cast<quint32>(i+1):0xffffffff);
     return cfb;
 }
+// A tree program's process id, or 0 while its file is not written yet. Never throws: each program
+// writes its file through a temporary one beside it, so the folder can list it before the id can be read.
+qint64 pidIn(const QString &file){QFile f(file);return f.open(QIODevice::ReadOnly)?f.readAll().trimmed().toLongLong():0;}
 }
 class IntegrationTest:public QObject{
  Q_OBJECT
@@ -733,6 +737,19 @@ private slots:
     ui.pinballLoaded(ac::pinball::scan(folder));ui.setPinballArt({{id,again}});ui.selectPinball(id);
     QCOMPARE(ui.pinballSelection()["artBackglass"].toString(),again["backglass"].toString());
  }
+ // The race the tree test below lost on Windows CI: an id file still being written is listed in its folder
+ // (its temporary file sits beside it) with no id in it yet. The Hub's reader throws for it, and that
+ // exception ended the whole run inside QTest; the test's own reader waits instead.
+ void aPidFileBeingWrittenIsNotYetAnId(){
+    QTemporaryDir t;for(const auto &name:{"launcher","child1","child2"})ac::install::atomicWrite(t.filePath(QString(name)+".pid"),"4242");
+    const auto last=t.filePath("grandchild.pid");QSaveFile pending(last);QVERIFY(pending.open(QIODevice::WriteOnly));QCOMPARE(pending.write("4343"),qint64(4));
+#ifdef Q_OS_WIN
+    QCOMPARE(QDir(t.path()).entryList(QDir::Files).size(),4); // Four files listed, three ids written.
+#endif
+    bool threw=false;try{ac::install::readBytes(last);}catch(const ac::install::Error &){threw=true;}QVERIFY(threw);
+    QCOMPARE(pidIn(last),qint64(0));QCOMPARE(pidIn(t.filePath("child1.pid")),qint64(4242));
+    QVERIFY(pending.commit());QCOMPARE(pidIn(last),qint64(4343));
+ }
  void stopLeavesNoProcessOfTheGameRunning(){
 #ifndef Q_OS_WIN
     QSKIP("Process trees are held in Windows job objects.");
@@ -744,8 +761,9 @@ private slots:
         request.plan.executable=QCoreApplication::applicationFilePath();request.plan.cwd=temp.path();
         request.plan.args={"--spawn-tree",folder,"launcher",way=="leave"?"leave":"stay"};
         QVERIFY(launcher.start(request));
-        const auto pids=[&]{QList<qint64> list;for(const auto &name:{"launcher","child1","child2","grandchild"})list<<ac::install::readBytes(folder+"/"+name+".pid").toLongLong();return list;};
-        QTRY_VERIFY_WITH_TIMEOUT(QDir(folder).entryList(QDir::Files).size()==4,15000);
+        const auto pids=[&]{QList<qint64> list;for(const auto &name:{"launcher","child1","child2","grandchild"})list<<pidIn(folder+"/"+name+".pid");return list;};
+        // Waited for by id, not by file count: a file still being written counts in the folder but cannot be read.
+        QTRY_VERIFY2_WITH_TIMEOUT(!pids().contains(0),qPrintable(way+" "+QDir(folder).entryList(QDir::Files).join(' ')),15000);
         const auto all=pids();for(const auto pid:all)QVERIFY(pid>0);
         if(way=="stop"){QVERIFY(ac::launch::processAlive(all[3]));const auto owned=launcher.ownedProcesses();for(const auto pid:all)QVERIFY(owned.contains(pid));launcher.stop();}
         else if(way=="everything")launcher.endEverything();

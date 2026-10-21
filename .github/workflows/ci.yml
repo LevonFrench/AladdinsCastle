@@ -150,6 +150,13 @@ jobs:
       - run: cmake --build build --parallel 2
         if: runner.os != 'Windows'
       - run: ctest --test-dir build --output-on-failure
+      - name: Upload Qt test reports
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hub-test-reports-${{ matrix.os }}
+          path: build/Testing/*.txt
+          if-no-files-found: warn
       - name: Portable provenance and opt-in staging (synthetic PowerShell 5.1)
         if: runner.os == 'Windows'
         shell: powershell

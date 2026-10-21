@@ -361,7 +361,12 @@ if(BUILD_TESTING)
     target_compile_definitions(integration-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
     ac_project_warnings(integration-tests)
     add_dependencies(hub-tests integration-tests)
-    add_test(NAME hub-integration COMMAND integration-tests -o -,txt)
+    # Through the receipt runner: a Windows GUI test has no console for -o -,txt, so a crash left no report.
+    add_test(NAME hub-integration COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:integration-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-integration.txt
+        -DTEST_TIMEOUT=300
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(hub-integration PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     qt_add_executable(launch-tests tests/LaunchSteamTest.cpp)
     target_link_libraries(launch-tests PRIVATE hubcore Qt6::Test)
