@@ -6,6 +6,7 @@
 #include "DetailControlsController.h"
 #include "ProductIdentity.h"
 #include <QObject>
+#include <optional>
 #include <QUrl>
 namespace ac {
 // One model per grid presentation: desktop and overlay can use different columns.
@@ -343,6 +344,12 @@ class UiController : public QObject {
  bool m_setupScanning=false;
  bool m_restartAfterClose=false;
  QVariantMap m_pinballData,m_pinballRaw,m_pinballSelection;
+ // The two game lists are built once per change (model3Changed) and served from here until the next one.
+ // Building them reads every launcher's games.json and checks artwork for every game, so doing it on each
+ // QML read or lookup held the UI thread (the panel froze and B presses were lost).
+ mutable std::optional<QVariantList> m_model3Cache,m_otherCache;
+ QVariantList buildModel3Games()const;
+ QVariantList buildOtherGames()const;
  QString m_pinballPlan;
  bool m_pinballScanning=false;
  ControlsViewModel m_pinballControls;

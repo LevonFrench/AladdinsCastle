@@ -235,11 +235,11 @@ private slots:
     ac::UiSettings settings(t.filePath("user"));
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
     QSignalSpy scans(&ui,&ac::UiController::pinballScanRequested);
-    ui.openPinball();QCOMPARE(scans.size(),0);
-    QCOMPARE(ui.pinballData()["tables"].toList().size(),1);QVERIFY(ui.status().contains("last scan"));
+    // The saved scan is read off the UI thread, so it arrives a moment later, still without a new scan.
+    ui.openPinball();QTRY_COMPARE_WITH_TIMEOUT(ui.pinballData()["tables"].toList().size(),1,10000);QCOMPARE(scans.size(),0);QVERIFY(ui.status().contains("last scan"));
     // Another folder is never answered from the saved scan.
     QDir().mkpath(t.filePath("other"));settings.set("pinballFolder",t.filePath("other"));
-    ui.pinballLoaded({});ui.openPinball();QCOMPARE(scans.size(),1);
+    ui.pinballLoaded({});ui.openPinball();QTRY_COMPARE_WITH_TIMEOUT(scans.size(),1,10000);
     QTRY_VERIFY_WITH_TIMEOUT(!ui.pinballScanning(),10000);
     QCOMPARE(QDir(folder).entryList(QDir::Files),QStringList{"synthetic table.vpx"});
  }

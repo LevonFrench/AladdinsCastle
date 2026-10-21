@@ -66,6 +66,8 @@ void SectionedGridModel::refresh(){
 QObject *UiController::createGridModel(int columns){return new SectionedGridModel(m_games,m_filter,columns,this);}
 void UiController::releaseGridModel(QObject *model){if(auto grid=qobject_cast<SectionedGridModel *>(model);grid&&grid->parent()==this)grid->deleteLater();}
 UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent):QObject(parent),m_detailControls(this),m_games(games),m_filter(filter),m_settings(settings){
+ // First connection to model3Changed, so the lists are dropped before anything re-reads them.
+ connect(this,&UiController::model3Changed,this,[this]{m_model3Cache.reset();m_otherCache.reset();});
  connect(&m_detailControls,&DetailControlsController::changed,this,&UiController::detailControlsChanged);
  connect(this,&UiController::nowPlayingChanged,this,&UiController::launchGateChanged);
  connect(this,&UiController::steamVrStartingChanged,this,&UiController::launchGateChanged);
@@ -337,7 +339,8 @@ QVariantList UiController::readyCatalogGames()const{
  }
  return rows;
 }
-QVariantList UiController::otherGames()const{
+QVariantList UiController::otherGames()const{if(!m_otherCache)m_otherCache=buildOtherGames();return *m_otherCache;}
+QVariantList UiController::buildOtherGames()const{
  const auto chosen=m_settings->get("gameViews",QVariantMap{}).toMap();QVariantList rows;
  const auto add=[&](QVariantMap row,const QVariantList &views){
   auto view=chosen.value(row.value("id").toString()).toString();bool known=false;
@@ -492,7 +495,8 @@ void UiController::scanSetup(){
  m_setupScanning=true;m_setupProgress="Starting";emit setupChanged();emit setupScanRequested(ids);
 }
 QVariantList UiController::model3Views()const{return model3::views();}
-QVariantList UiController::model3Games()const{
+QVariantList UiController::model3Games()const{if(!m_model3Cache)m_model3Cache=buildModel3Games();return *m_model3Cache;}
+QVariantList UiController::buildModel3Games()const{
  const auto executable=m_settings->get("model3Executable",QString()).toString(),folder=m_settings->get("model3GameFolder",QString()).toString();
  const auto chosen=m_settings->get("model3Views",QVariantMap{}).toMap();
  QVariantList rows;
