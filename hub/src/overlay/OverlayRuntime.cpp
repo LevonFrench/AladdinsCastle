@@ -3,6 +3,7 @@
 #include "OverlayRuntime.h"
 #include "OverlayCapture.h"
 #include <QFile>
+#include <QSaveFile>
 #include <QCoreApplication>
 #include <QDir>
 #ifdef Q_OS_WIN
@@ -214,7 +215,28 @@ private:
 };
 }
 std::unique_ptr<OverlayRuntime> makeOpenVrRuntime(bool pictureFlipY) { return std::make_unique<OpenVrRuntime>(pictureFlipY); }
+bool refreshOverlayManifest(const QString &manifest, QString *error) {
+    QFile file(manifest);
+    if (!file.open(QIODevice::ReadOnly)) { *error = "Overlay manifest is missing from the portable resources folder."; return false; }
+    auto doc = QJsonDocument::fromJson(file.readAll());file.close();
+    auto root = doc.object();auto applications = root.value("applications").toArray();
+    if (applications.size() != 1 || applications.at(0).toObject().value("app_key").toString() != QLatin1String(overlayKey)) {
+        *error = "Unexpected overlay manifest contents."; return false;
+    }
+    auto app = applications.at(0).toObject();const auto before = app;
+    const auto program = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
+    app["binary_path_windows"] = program;app["binary_path_linux"] = program;
+    app["working_directory"] = QDir::toNativeSeparators(QCoreApplication::applicationDirPath());
+    // Beside the manifest, so a relative path works: SteamVR reads the Hub's actions and default bindings from it.
+    app["action_manifest_path"] = QStringLiteral("hub-actions.json");
+    if (app == before) return true;
+    applications[0] = app;root["applications"] = applications;
+    QSaveFile out(manifest);
+    if (!out.open(QIODevice::WriteOnly) || out.write(QJsonDocument(root).toJson()) < 0 || !out.commit()) { *error = "Overlay manifest could not be updated."; return false; }
+    return true;
+}
 bool changeOverlayRegistration(const QString &manifest, bool add, QString *error) {
+    if (add && !refreshOverlayManifest(manifest, error)) return false;
     QFile file(manifest);
     if (!file.open(QIODevice::ReadOnly)) { *error = "Overlay manifest is missing from the portable resources folder."; return false; }
     const auto doc = QJsonDocument::fromJson(file.readAll());

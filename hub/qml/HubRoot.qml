@@ -117,15 +117,16 @@ FocusScope {
   BackgroundStrip{objectName:"backgroundStrip";Layout.fillWidth:true;Layout.preferredHeight:implicitHeight;Layout.bottomMargin:visible?6:0;vrOverlayMode:root.vrOverlayMode}
   PillButton{objectName:"globalStop";Layout.leftMargin:root.vrOverlayMode?28:40;Layout.bottomMargin:6;targetHeight:root.vrOverlayMode?56:44;neon:true;accent:Theme.get("color.state.uninstall");text:typeof hubServices!=="undefined"&&hubServices.gunRoomBusy?"Close gun room":typeof hubServices!=="undefined"&&hubServices.preparing?"Stop preparing launch":"Stop game";visible:typeof hubServices!=="undefined"&&hubServices.launchBusy;vrOverlayMode:root.vrOverlayMode;onClicked:uiController.stopLaunch()}
   RowLayout {Layout.fillWidth:true;Layout.leftMargin:root.vrOverlayMode?28:40;Layout.rightMargin:root.vrOverlayMode?28:40;Layout.bottomMargin:6;spacing:14
-   // On every panel page: what B does. It is a button too, for a laser.
-   Rectangle {id:backHint;objectName:"panelBackHint";visible:root.vrOverlayMode;Layout.preferredHeight:44;Layout.preferredWidth:hintRow.implicitWidth+28;radius:22
-    color:Theme.get("color.surface.pill");opacity:root.canGoBack?1:0.45;Accessible.name:"Back";Accessible.role:Accessible.Button
-    Row {id:hintRow;anchors.centerIn:parent;spacing:10
-     Rectangle {width:30;height:30;radius:15;anchors.verticalCenter:parent.verticalCenter;color:Theme.get("color.text.primary")
-      Text {anchors.centerIn:parent;text:"B";color:Theme.get("color.surface.window");font.family:Theme.get("font.family");font.weight:900;font.pixelSize:17}}
-     Text {anchors.verticalCenter:parent.verticalCenter;text:"Back";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:18}
+   // On every panel page: one large Back for the laser. SteamVR keeps the controller's B while its dashboard is
+   // open (the Hub's log shows B unbound for whole sessions), so this button is the dependable way back.
+   Rectangle {id:backHint;objectName:"panelBackHint";visible:root.vrOverlayMode;Layout.preferredHeight:72;Layout.preferredWidth:Math.max(240,hintRow.implicitWidth+56);radius:36
+    color:backArea.containsMouse&&root.canGoBack?Theme.get("color.surface.menu_hover"):Theme.get("color.surface.pill");border.width:root.canGoBack?3:0;border.color:Theme.get("color.text.primary")
+    opacity:root.canGoBack?1:0.4;Accessible.name:"Back";Accessible.role:Accessible.Button
+    Row {id:hintRow;anchors.centerIn:parent;spacing:14
+     Text {anchors.verticalCenter:parent.verticalCenter;text:"‹";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:900;font.pixelSize:44}
+     Text {anchors.verticalCenter:parent.verticalCenter;text:"Back";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:800;font.pixelSize:30}
     }
-    MouseArea {anchors.fill:parent;onClicked:root.panelBack()}
+    MouseArea {id:backArea;anchors.fill:parent;hoverEnabled:true;onClicked:root.panelBack()}
    }
    UiText{objectName:"statusLine";Layout.fillWidth:true;text:uiController.status||(root.showAll?gameFilter.visibleCount+" / "+catalogGameCount+" games":"");font.pixelSize:root.vrOverlayMode?16:11;elide:Text.ElideRight;maximumLineCount:2;color:Theme.get("color.text.muted_detail")}
   }

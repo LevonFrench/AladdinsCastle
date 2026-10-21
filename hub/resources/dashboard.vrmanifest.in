@@ -8,6 +8,7 @@
     "working_directory": "..",
     "arguments": "--overlay --steamvr-started",
     "is_dashboard_overlay": true,
+    "action_manifest_path": "hub-actions.json",
     "image_path": "overlay-thumbnail.png",
     "strings": {"en_us": {"name": "@AC_PRODUCT_display_name@", "description": "@AC_PRODUCT_display_name@ Hub dashboard overlay"}}
   }]

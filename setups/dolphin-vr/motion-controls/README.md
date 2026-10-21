@@ -24,7 +24,8 @@ DolphinXR fork, plus the anti-aliasing fixes found while checking the owner's fi
   the mapping window is opened in the desktop GUI. So the previous `UserMotion` file (Source,
   Device, Extension only) gave the games **no buttons at all**; only pointer and motion worked.
 - On Quest Touch the fork binds `Right Button Menu` to the right controller's system button, which
-  the runtime normally keeps for itself, so the mapping uses only the left Menu.
+  the runtime normally keeps for itself. Through ALVR on Quest the left Menu opens the SteamVR
+  dashboard (owner, 2026-10-21: no way to press + or Start), so the mapping uses neither Menu button.
 
 ## The mapping
 
@@ -38,9 +39,9 @@ DolphinXR fork, plus the anti-aliasing fixes found while checking the owner's fi
 | 1 | right B |
 | 2 | right stick click |
 | D-pad | right stick directions |
-| + | left Menu (not while left Y is held) |
-| − | left stick click |
-| Home | hold left Y and left Menu together for 0.5 s |
+| + | left stick click (not while left Y is held) |
+| − | tap left Y (Minus is active for the first half second of a press, so holding Y for Home sends a brief Minus first) |
+| Home | hold left Y for 0.5 s (a tap of left Y is −) |
 | Nunchuk stick | left stick |
 | Nunchuk C | left X |
 | Nunchuk Z | left trigger |
@@ -76,8 +77,8 @@ The gun games' `WiimoteNew.ini` had the same gap (Source and Device only). `gun/
 is the default for that user folder and `gun/<ID>.controls.ini` holds the `[Controls]` block to
 append to each game's existing private `GameSettings/<ID>.ini` (those already carry frame-rate codes;
 keep them). Every set maps every Wii button the generic way (B = right trigger, A = right A,
-1 = right B, 2 = right stick click, D-pad = right stick, + = left Menu, − = left stick click,
-Home = hold left Y + left Menu, Nunchuk stick/C/Z = left stick/left X/left trigger) plus the right
+1 = right B, 2 = right stick click, D-pad = right stick, + = left stick click, − = tap left Y,
+Home = hold left Y, Nunchuk stick/C/Z = left stick/left X/left trigger) plus the right
 grip as a second-finger button where the game's reload or action sits:
 
 | Game | ID | Set | Right grip | Roles from reviews (no manual found) |

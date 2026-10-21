@@ -31,7 +31,7 @@ folder `UserGCRoll` with "(roll steer)" launchers that share `UserGC`'s memory c
 | B (brake / reverse; crouch in Wave Race) | **left trigger** or right B |
 | X / Y | left X / left Y |
 | Z | right stick click |
-| Start | left Menu |
+| Start | left stick click (not while the stick is tilted: click and tilt is the D-pad) |
 | L / R (analog and click) | left grip / right grip |
 | C stick | right stick |
 | D-pad | hold left stick click and push the left stick (the control stick is held off meanwhile) |
