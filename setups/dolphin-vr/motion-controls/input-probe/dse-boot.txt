@@ -1,0 +1,103 @@
+# Dead Space Extraction: right A (Wii A) every 2 s from 8 to 70 s; a screenshot every second; left-stick nudge marks the end.
+8.0 8.3 R primary 1
+10.0 10.3 R primary 1
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+26.0 26.3 R primary 1
+28.0 28.3 R primary 1
+30.0 30.3 R primary 1
+32.0 32.3 R primary 1
+34.0 34.3 R primary 1
+36.0 36.3 R primary 1
+38.0 38.3 R primary 1
+40.0 40.3 R primary 1
+42.0 42.3 R primary 1
+44.0 44.3 R primary 1
+46.0 46.3 R primary 1
+48.0 48.3 R primary 1
+50.0 50.3 R primary 1
+52.0 52.3 R primary 1
+54.0 54.3 R primary 1
+56.0 56.3 R primary 1
+58.0 58.3 R primary 1
+60.0 60.3 R primary 1
+62.0 62.3 R primary 1
+64.0 64.3 R primary 1
+66.0 66.3 R primary 1
+68.0 68.3 R primary 1
+70.0 70.3 R primary 1
+73.0 74.0 L stick_x 0.05
+shot 4 k004
+shot 5 k005
+shot 6 k006
+shot 7 k007
+shot 8 k008
+shot 9 k009
+shot 10 k010
+shot 11 k011
+shot 12 k012
+shot 13 k013
+shot 14 k014
+shot 15 k015
+shot 16 k016
+shot 17 k017
+shot 18 k018
+shot 19 k019
+shot 20 k020
+shot 21 k021
+shot 22 k022
+shot 23 k023
+shot 24 k024
+shot 25 k025
+shot 26 k026
+shot 27 k027
+shot 28 k028
+shot 29 k029
+shot 30 k030
+shot 31 k031
+shot 32 k032
+shot 33 k033
+shot 34 k034
+shot 35 k035
+shot 36 k036
+shot 37 k037
+shot 38 k038
+shot 39 k039
+shot 40 k040
+shot 41 k041
+shot 42 k042
+shot 43 k043
+shot 44 k044
+shot 45 k045
+shot 46 k046
+shot 47 k047
+shot 48 k048
+shot 49 k049
+shot 50 k050
+shot 51 k051
+shot 52 k052
+shot 53 k053
+shot 54 k054
+shot 55 k055
+shot 56 k056
+shot 57 k057
+shot 58 k058
+shot 59 k059
+shot 60 k060
+shot 61 k061
+shot 62 k062
+shot 63 k063
+shot 64 k064
+shot 65 k065
+shot 66 k066
+shot 67 k067
+shot 68 k068
+shot 69 k069
+shot 70 k070
+shot 71 k071
+shot 72 k072
