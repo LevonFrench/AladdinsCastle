@@ -126,6 +126,52 @@ Punch-Out!! and Mario Kart Wii (wheel) have no pointer in play and keep Dolphin'
 - **Anisotropy key.** Dolphin reads `Graphics.Enhancements.MaxAnisotropy` (value 4 = 16x);
   `Graphics.Settings.MaxAnisotropy` is not read by anything.
 
+## Stereo in the headset: the virtual screen (2026-10-21)
+
+Measured offline with per-eye pictures from `../stereo-probe/` (the real DolphinXR stereo path with a
+synthetic head, no OpenXR runtime). E2 only; nothing here was seen in the headset.
+
+- **`[VR] VirtualScreen` decides where 2D goes, not whether the world is 3D.** The 3D world is drawn
+  per eye either way. With `VirtualScreen = False` every orthographic draw (title, menus, HUD,
+  crosshair, strap screens) keeps the game's own projection: both eyes get the identical picture
+  (mean left/right difference 0.0, disparity 0 px), it fills the view and it turns with the head
+  (a 20° synthetic head turn left it on the same pixels). With `True` the same draws sit on a
+  screen in the room: 15 px disparity at `ScreenDistance = 4`, 41 px at 1.5 m (expected
+  0.064 m / distance × 960 px for a 1920-pixel eye), and they stay put when the head turns.
+- **The per-game VR profile wins** over `Config/GFX.ini` (`GameSettingsVR/<ID>.ini` is applied at the
+  CurrentRun layer). Before this fix every Wii game we launch ended with `VirtualScreen = False`
+  except Mario Kart Wii (DolphinXR's shipped `RMCP01` profile sets `True`), the one game with no
+  stereo complaint. The gun-game profiles had copied Umbrella's `VirtualScreen = False` without
+  Umbrella's HUD shader overrides, so their 2D was glued to the face.
+- **`True` is not right for every game.** Games that build their picture from full-screen 2D passes
+  get a flat box ("inner window") with it on: Wii Sports Resort, Twilight Princess, Galaxy 2,
+  Kirby's Return to Dream Land (title screens), Sin & Punishment (stale, displaced layers), and
+  Umbrella's mission (2026-10-11). So the folder defaults stay as they were and the setting is
+  per game:
+
+| Game | ID | VirtualScreen | Evidence (offline, 2026-10-21) |
+| --- | --- | --- | --- |
+| Dead Space: Extraction | RZJE69 | **True** (`gun/GameSettingsVR/`) | profile menu: 0 px → 15 px, stays in the room on a 20° turn |
+| House of the Dead: Overkill | RHOP8P | **True** (`gun/GameSettingsVR/`) | title: 0 px → 15 px |
+| Gunblade NY & L.A. Machineguns | SQDE8P | **True** (`gun/GameSettingsVR/`) | name entry: 0 px → 15 px |
+| New Super Mario Bros. Wii | SMNE01 | **True** (`GameSettingsVR/`) | world map HUD: 0 px → 41 px |
+| Punch-Out!! | R7PE01 | **True** (`GameSettingsVR/`) | save screen on the panel |
+| Mario Kart Wii | RMCP01 | True (DolphinXR's profile) | race: road 101 px near, sky 0 px, HUD ~41 px |
+| Umbrella, Darkside, Sin & Punishment, Resort, Zelda, Galaxy 1 and 2, Kirby x2, Strikers, DKCR, Metroid | | False (unchanged) | flat box or seam with True, or no gain; needs per-game HUD overrides like Umbrella's |
+
+- **Not the cause:** `InternalResolution=3`, `MSAA=4` and anisotropy. Mario Kart Wii at 3x/MSAA 4 and at
+  1x/no MSAA gave the same disparity profile (near road 101 px vs 33 px × 3 = 99 px, sky 0 px), and
+  Metroid behaved the same in both. The OpenXR path resolves every EFB layer.
+- **Metroid Prime Trilogy (separate fault):** 30 of 48 sampled frames (37 of 48 at 1x) were presented
+  from a one-layer XFB. Its shipped `Sys/GameSettings/R3M.ini` sends XFB copies to RAM, the copies are
+  640×448 while the video interface asks for 640×480, so the texture cache misses and Dolphin
+  rebuilds the frame from RAM as a single layer (with stale "Metroid Prime Loading..." pixels).
+  `Presenter::BlitCurrentSourceToOpenXREyes` skips any source with fewer than two layers, so those
+  frames never reach the headset. `XFBToTextureEnable = True` did not help (18 of 34 still mono);
+  `ImmediateXFBEnable = True` made all 33 frames stereo but showed a corrupt frame and many more
+  FIFO errors, so it is not applied. The real fix is in the emulator: build the XFB container with
+  the EFB's layer count and stitch each layer.
+
 ## Offline input probe (test only)
 
 `input-probe/` adds an env-gated probe to a private source clone (`apply.py <source>`,
@@ -139,7 +185,8 @@ with OpenXR off and `XR_RUNTIME_JSON` pointed at a missing file. Scripts: `bindi
 
 Copy `WiimoteNew.ini` to `<user>/Config/`, `Profiles/Wiimote/*.ini` to
 `<user>/Config/Profiles/Wiimote/`, `GameSettings/*.ini` to `<user>/GameSettings/`, keeping a
-backup of anything replaced. Launchers add
+backup of anything replaced. VR profiles: `GameSettingsVR/*.ini` into the motion folder's
+`GameSettingsVR/`, `gun/GameSettingsVR/*.ini` into the gun folder's `GameSettingsVR/`. Launchers add
 `-C Graphics.Settings.InternalResolution=3 -C Graphics.Settings.MSAA=4 -C Graphics.Settings.SSAA=False -C Graphics.Enhancements.MaxAnisotropy=4`.
 
 ## Offline results (2026-10-19, hidden DolphinNoGUI, OpenXR off, no XR runtime)
@@ -163,7 +210,8 @@ backup of anything replaced. Launchers add
   Extraction), Home only after the hold. The wrist-strap and Zapper pages wait for A in all five; with
   right A every 2 s the games left them (save prompt, logos, file select) while the no-input control
   was still on them at 32 s. Dolphin's log shows `msaa=4` in every gun run.
-- Not proven offline: the stereo OpenXR render itself (the runs are mono), anisotropic filtering, and
+- Not proven offline: the stereo OpenXR render itself (the runs are mono; see the virtual-screen
+  section above and `../stereo-probe/` for the later per-eye pictures), anisotropic filtering, and
   anything in the headset.
 
 ## More owned games (2026-10-20): pointer aim measured against each game's own cursor
