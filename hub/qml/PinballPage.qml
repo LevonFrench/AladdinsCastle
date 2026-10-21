@@ -12,6 +12,12 @@ Item {
  property var rows:scanData.tables||[]
  // Every table in the folder is listed; one that cannot play says why on its tile. Ready to play and
  // VR-ready only narrow the list when asked.
+ // B in the headset: a table's page closes first, then a search or filter clears; false at the plain list.
+ function handleBack(){
+  if(page.selected.id){uiController.selectPinball("");return true}
+  if(query.text.length||ready.checked||vrOnly.checked){query.text="";ready.checked=false;vrOnly.checked=false;return true}
+  return false
+ }
  function playable(r){return !r.error&&(r.romState==="ready"||r.romState==="needs no ROM")}
  readonly property var counts:{let ready=0,headset=0;for(const r of rows)if(playable(r)){++ready;if(r.vrReady===true)++headset}return {ready:ready,headset:headset}}
  function fileUrl(path){return path?"file:///"+String(path).replace(/\\/g,"/"):""}

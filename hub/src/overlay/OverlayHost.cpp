@@ -71,8 +71,23 @@ void OverlayHost::handleRuntimeEvent(const vr::VREvent_t &event) {
     if (event.eventType == vr::VREvent_OverlayHidden) m_keyboard.close(false, true);
     if (m_input.dispatch(event, m_renderer->window())) m_gate.markDirty();
 }
+void OverlayHost::logLine(const QByteArray &text) {
+    if(!m_inputLog.isOpen()||m_inputLines>=4000)return;
+    m_inputLog.write(QByteArray::number(m_clock.isValid()?m_clock.elapsed():0)+" "+text+"\n");m_inputLog.flush();++m_inputLines;
+}
+void OverlayHost::noteBack(const QString &outcome) { logLine("b-outcome "+outcome.toUtf8()); }
 void OverlayHost::handleButtons(const HubButtons &buttons,bool panelVisible,qint64 nowMs) {
     if (m_closeHold.update(buttons.closeHeld && m_gestureActive, nowMs)) emit closeGameRequested();
+    // The log says whether B can reach the Hub at all (manifest accepted, B bound) whenever that changes while
+    // the panel is shown, and every raw press, so a dead B in the headset can be told from a page that ignored it.
+    if (panelVisible) {
+        const int actions = (buttons.actionsReady ? 1 : 0) | (buttons.backBound ? 2 : 0);
+        if (actions != m_loggedActions) {
+            m_loggedActions = actions;
+            logLine(QByteArray("b-action manifest=")+(buttons.actionsReady?"accepted":"missing")+" b="+(buttons.backBound?"bound":"unbound"));
+        }
+    }
+    if (buttons.backDown != m_rawBack) { m_rawBack = buttons.backDown; if (m_rawBack) logLine(QByteArray("b-press panel=")+(panelVisible?"shown":"hidden")); }
     // One press, one step back; a button held down never repeats, and one held while the panel
     // opens is not a new press. Hidden, the panel takes no B.
     const bool back = m_backPress.update(buttons.backDown);
@@ -80,6 +95,10 @@ void OverlayHost::handleButtons(const HubButtons &buttons,bool panelVisible,qint
 }
 void OverlayHost::tick() {
     const bool visible = m_runtime->isVisible();
+    // A late tick while the panel is shown means the UI thread was busy: the panel froze and a quick B could be lost.
+    const qint64 now = m_clock.elapsed();
+    if (visible && m_lastTick >= 0 && now - m_lastTick > 250) logLine("stall "+QByteArray::number(now - m_lastTick)+"ms");
+    m_lastTick = now;
     const bool initialFrame=m_gate.initialFramePending();
     // Only the offscreen QML item is made renderable for bootstrap. Native
     // visibility remains authoritative for input and keyboard cancellation.

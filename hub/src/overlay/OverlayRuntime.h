@@ -48,6 +48,9 @@ private:
 struct HubButtons {
     bool closeHeld=false; // "close the game" (held 3 s) while a game runs in the headset
     bool backDown=false;  // B: back one page, while the panel is shown
+    // For the input log: SteamVR accepted the Hub's action manifest, and B has an active binding now.
+    bool actionsReady=false;
+    bool backBound=false;
 };
 class OverlayTextureSubmitGate {
 public:
