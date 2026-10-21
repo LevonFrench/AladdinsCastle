@@ -88,4 +88,8 @@ bool probeOpenVrLibrary(QString *error);
 std::unique_ptr<OverlayRuntime> makeOpenVrRuntime(bool pictureFlipY=false);
 // Only the two explicit command-line actions call this function.
 bool changeOverlayRegistration(const QString &manifest, bool add, QString *error);
+// SteamVR cannot follow ".." in a manifest: it looked for resources\<program>.exe, called the path invalid and
+// skipped the Hub, which then ran as an anonymous app. This writes the running program's absolute path, folder and
+// action manifest into the Hub's own manifest (only when they differ). No OpenVR call; safe in every mode.
+bool refreshOverlayManifest(const QString &manifest, QString *error);
 }

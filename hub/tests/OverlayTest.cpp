@@ -14,6 +14,10 @@
 #include <QTemporaryDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include "ProductIdentity.h"
 #include <QtTest>
 #include <QQmlEngine>
 #include <limits>
@@ -331,6 +335,25 @@ private slots:
         RuntimeReceipt receipt;FakeRuntime runtime(receipt);QVERIFY(!runtime.closeGameHeld(true));
     }
     // B on the controller: one step back per press, never repeated while held, never while the panel is hidden.
+    // SteamVR cannot follow "../" in a manifest: the Hub writes its own absolute path, folder and action manifest
+    // into it, once, and leaves an up-to-date manifest untouched.
+    void manifestPointsAtThisProgram() {
+        const auto built=QCoreApplication::applicationDirPath()+"/resources/"+QString::fromLatin1(ac::product::short_id)+".vrmanifest";
+        if(!QFileInfo::exists(built))QSKIP("Runtime resources are not beside this test binary.");
+        QTemporaryDir temp;QVERIFY(temp.isValid());const auto manifest=temp.filePath("hub.vrmanifest");QVERIFY(QFile::copy(built,manifest));
+        QFile::setPermissions(manifest,QFile::ReadOwner|QFile::WriteOwner);
+        const auto app=[&]{QFile file(manifest);if(!file.open(QIODevice::ReadOnly))return QJsonObject{};return QJsonDocument::fromJson(file.readAll()).object().value("applications").toArray().at(0).toObject();};
+        QCOMPARE(app().value("action_manifest_path").toString(),QString("hub-actions.json")); // In the template already.
+        QString error;QVERIFY2(ac::refreshOverlayManifest(manifest,&error),qPrintable(error));
+        QCOMPARE(app().value("binary_path_windows").toString(),QDir::toNativeSeparators(QCoreApplication::applicationFilePath()));
+        QCOMPARE(app().value("working_directory").toString(),QDir::toNativeSeparators(QCoreApplication::applicationDirPath()));
+        QVERIFY(!app().value("binary_path_windows").toString().contains(".."));
+        const auto written=QFileInfo(manifest).lastModified();QTest::qWait(1100);
+        QVERIFY(ac::refreshOverlayManifest(manifest,&error));QCOMPARE(QFileInfo(manifest).lastModified(),written); // Unchanged: not rewritten.
+        // Another program's manifest is refused, never rewritten.
+        QFile other(temp.filePath("other.vrmanifest"));QVERIFY(other.open(QIODevice::WriteOnly));other.write(R"({"applications":[{"app_key":"someone.else"}]})");other.close();
+        QVERIFY(!ac::refreshOverlayManifest(other.fileName(),&error));
+    }
     void backButtonOncePerPressWhilePanelShown() {
         ac::PressEdge edge;
         QVERIFY(edge.update(true));QVERIFY(!edge.update(true));QVERIFY(!edge.update(false));QVERIFY(edge.update(true));

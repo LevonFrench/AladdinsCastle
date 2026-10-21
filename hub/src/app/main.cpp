@@ -106,6 +106,8 @@ int main(int argc,char **argv){
     ac::GameListModel games(std::move(catalog));ac::FilterSortModel filter;filter.setSourceModel(&games);
     QQuickStyle::setStyle("Basic");ac::Theme theme(games.catalog().theme);
     const auto portableRoot=options.installRoot.isEmpty()?app.applicationDirPath():QDir(options.installRoot).absolutePath();
+    // Keep SteamVR's entry for the Hub pointing at this program, so SteamVR registers it next time it starts.
+    {QString manifestError;ac::refreshOverlayManifest(QDir(app.applicationDirPath()).filePath(QString("resources/")+ac::product::short_id+".vrmanifest"),&manifestError);}
     // One Hub per folder: a second start asks the first to come to the front, and quits. A Hub that SteamVR
     // starts as its panel quits too; the open one joins SteamVR's dashboard itself. Picture and test runs are
     // left alone unless a test asks for the guard.
