@@ -188,6 +188,35 @@ the aim ray is measured against DolphinXR's virtual screen, so they hold where t
 whole game picture. Metroid Prime Trilogy uses the trigger as Wii A (fire, confirm) and right A or
 grip as B (jump).
 
+### Nunchuk prompts (2026-10-21, offline proof)
+
+The owner saw a Nunchuk prompt in Metroid Prime Trilogy (2026-10-21) and in Dead Space: Extraction
+(earlier). Hidden `DolphinNoGUI` runs with copies of the owner's own settings folders and the input
+probe settled both:
+
+- **The extension does reach the games.** Dolphin's log shows `Switching to Extension 1` (Nunchuk) on
+  Wii Remote 1 when it links, and the probe shows Nunchuk data in every report. The profile loads
+  through the game INI's `[Controls] WiimoteProfile1`; `Source = 3` (OpenXR) behaves like `Source = 1`
+  here (the OpenXR override only replaces accelerometer, gyro and pointer values).
+- **Dead Space: Extraction** blocks on "A Nunchuk is required for Player 1" only when no Nunchuk is
+  attached (profile set to `Extension = None`). With `Extension = Nunchuk` it goes on to Select Profile,
+  with MotionPlus on or off. The gun settings folder had no extension at all until 2026-10-20
+  (`WiimoteNew.ini` with only `Source` and `Device`), which explains the earlier prompt. The
+  "Wii Zapper Use" page that shows a Nunchuk is only a picture; right A passes it.
+- **Metroid Prime Trilogy**: after Press A at the title, the Trilogy menu shows "Nunchuk is required."
+  for about 3 seconds, then saves and opens Game Select by itself. This happens in every setup tried:
+  Nunchuk or none, MotionPlus on or off, `Source = 3` or `1`, the 2026-10-19 test folder, a live
+  re-plug before the title, and a minute of waiting on the title. With or without a Nunchuk the frames
+  are byte-identical, so the menu does not look at the Nunchuk there; it is not a missing Nunchuk.
+  Metroid Prime itself does check: without a Nunchuk it stops on "Please connect a Nunchuk to the
+  Wii Remote." for the rest of the run; with `AC Pointer Metroid Prime Trilogy` it plays (Frigate
+  Orpheon, walking on the Nunchuk stick, firing, the game's own "Press and hold Z" hint).
+- MotionPlus stays off in the Dead Space and Metroid sets: neither game uses it, and both pass with it
+  off. It was not the cause either (both also pass with it on).
+
+Scripts: `input-probe/metroid-title-a.txt` (title message), `metroid-gameplay.txt` (slot 1 filled:
+menus, cinematic, then walking and firing), `dse-boot.txt` (Dead Space to Select Profile).
+
 ### Queue, batch 1 (2026-10-20)
 
 | Game | ID | Launcher type | Set | Offline result |
