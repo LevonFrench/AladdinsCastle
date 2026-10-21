@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Synthetic OLE/BIFF fixtures; no game content or network access."""
+import os
 import json, struct, sys, tempfile, pathlib, subprocess, unittest
 EOC, FREE = 0xfffffffe, 0xffffffff
 def table(path, title, author, version, script, mini=False):
@@ -108,11 +109,15 @@ class Checks(unittest.TestCase):
             for name,script in [('database',''),('script',vr),('flat',''),('present',vr+'Const cGameName="synthetic_rom"'+vpm),('missing',vr+'Const cGameName="absent_rom"'+vpm),('dynamic',vr+'cGameName=ChooseRom()'),('em',vr+'Const cGameName="em_hiscore"\nExecuteGlobal GetTextFile("controller.vbs")')]:
                 table(lib/(name+'.vpx'),name+' (Synthetic 2000)','Test Author','1.0',script)
             (roms/'synthetic_rom.zip').write_bytes(b'synthetic')
-            (lib/'broken.vpx').write_bytes(b'not OLE'); (lib/'nested').mkdir();table(lib/'nested'/'ignored.vpx','ignored','Test','1','')
+            (lib/'broken.vpx').write_bytes(b'not OLE'); (lib/'nested'/'deeper').mkdir(parents=True);table(lib/'nested'/'deeper'/'nested.vpx','nested','Test','1','')
+            # A folder link to the library is never followed: no loop, no table listed twice.
+            try: os.symlink(lib,lib/'loop',target_is_directory=True)
+            except OSError: pass
             db=p/'db.json';db.write_text(json.dumps([dict(name='database',manufacturer='Synthetic',year=2000,tableFiles=[dict(authors=['Test Author'],version='1.0',features=['VR'],urls=[dict(url='https://invalid.example/download')])])]))
             before={x.name:x.read_bytes() for x in lib.glob('*.vpx')}
             result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(lib),str(db),str(roms)]))
-            self.assertEqual(result['total'],8); rows={x['title'].split(' (')[0]:x for x in result['tables']}
+            self.assertEqual(result['total'],9); rows={x['title'].split(' (')[0]:x for x in result['tables']}
+            self.assertIn('nested',rows) # Tables in subfolders are listed.
             self.assertEqual(rows['database']['evidence'],['VPS: VR']);self.assertEqual(rows['script']['evidence'],['script: VR room'])
             self.assertFalse(rows['flat']['vrReady']);self.assertEqual(rows['script']['romState'],'needs no ROM')
             self.assertEqual(rows['present']['romState'],'ready');self.assertEqual(rows['missing']['romState'],'ROM missing')
