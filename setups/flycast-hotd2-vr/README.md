@@ -31,6 +31,8 @@ is under the same terms. The arcade gun model inside hotd2-vr is CC BY 4.0 (see 
 | Fixed clock | `core/hw/aica/aica_if.cpp` | `ACVR_RTC=<seconds since 1950>` fixes the Dreamcast clock so test runs repeat exactly (Confidential Mission seeds its randomness from it). |
 | No desktop dialogs | `core/windows/winmain.cpp`, `core/sdl/sdl.cpp` | Flycast never shows a message box: its two error boxes are logged instead, Windows crash, critical-error and abort dialogs are off (`SetErrorMode`, `_set_abort_behavior`), SDL assertions are ignored, and a fatal error ends the program quietly when no debugger is attached. Checked: a missing disc ends the run with the reason in `flycast.log` and no window shown. |
 | Wide preview | `core/rend/vr_reproject.cpp` | `ACVR_PREVIEW_WIDE=k` shows k times the stock view in the flat picture, the 2D plane still at its stock size: what the headset shows around the original frame (open-frame pictures). The shot log also gives the centre of each polygon near a shot. |
+| No widescreen in the headset | `core/rend/transform_matrix.cpp`, `core/rend/vr_reproject.cpp/.h` | `rend.WideScreen` is ignored while the 3D rebuild runs in the headset (`vr::ignoreWidescreen`): it squeezed the picture to 3/4 and shifted it sideways there, and the light gun aimed in the unsqueezed picture (see Findings 2026-10-21). |
+| Eye-buffer test | `core/rend/gles/gles.cpp`, `core/rend/vr_reproject.cpp` | `ACVR_EYE_SIZE=2592x2688` makes the renderer build its matrices as if it drew into a headset eye buffer of that size (a PC test of the line above); `ACVR_NO_WIDE_FIX=1` switches the fix off to see the old picture. |
 
 The hidden window and every `ACVR_*` test aid change nothing unless their environment variables are set.
 
@@ -122,6 +124,37 @@ wide picture and measures how much of the rest holds picture.
   play, 96-100% around the frame through the 3D rebuild); in story scenes people at the sides can be cut into
   pieces (the game culls body parts). A wider game view (`vr.FovScale` 1.5 through its viewport) also fills
   60-100%, but its gun hit test against the widened view is untested, so it is not used.
+
+- Sports Shooting USA, after the owner's headset report (2026-10-21: "the aim was off"; open frame "wasn't working
+  right: too many graphics outside the frame"). Two findings.
+  1. The game's own reading is fine: with the gun calibrated in its I/O TEST its read-out is within 4 px at nine
+     points over the screen (the calibration targets are at 31.5, 39.5 and 607.5, 359.5, and the game only counts
+     a gun inside that rectangle as on screen: a shot below about y 360, the HUD strip, reloads, and one left of about x 30,
+     right of about 610 or above about y 40 is off screen too), and nine bullet holes on the practice wall land within 3.1 px of the aim
+     (rms 2.3, mean -0.9 / +1.4), in the 4:3 picture and in the wide one alike. Within the 0.01 of the screen the
+     lane allows, so it has no aim trim.
+  2. The open-frame view was the problem. Its launcher entry set `rend.WideScreen`; the headset path builds the
+     game's picture through the renderer's own matrices, and with WideScreen those stretch the frame to 16:9
+     and re-centre it for the size of the buffer rendered into. On the PC the picture is 16:9, so it cancelled out
+     (every earlier open-frame picture looked right). In the headset's near-square eye buffer (2592 x 2688 in the
+     owner's log) the picture came out squeezed to 3/4 and moved left: x_seen = 0.75 x - 122.5 of 640 (measured by
+     registering the picture against the plain one, `tools/register_x.py`: the same constants in every scene of
+     five games). The hit test and the 2D plane use the unshifted picture, so aiming at what you saw
+     was off by -138, -203 and -268 px at x 60, 320 and 580 (many of the owner's shots in the headset log are at x 100 to 200: the
+     centre of the picture was seen at x 117). `vr::ignoreWidescreen()` keeps the matrices 4:3 in
+     the headset; with `ACVR_EYE_SIZE` and `rend.WideScreen=yes` the same registration gives x_seen = x, error 0, in
+     all five Atomiswave games tested (Sports Shooting USA, Ranger Mission, Extreme Hunting 1 and 2, Sega Clay
+     Challenge). Confidential Mission's open-frame launcher entry set the same flag, so it had the same error.
+     The 3D view (no WideScreen) was never affected: its registration is exact with and without the fix.
+  The rebuilt 3D view already shows what the game draws beyond the frame, so after the fix "open frame" and "3D"
+  are the same picture. What is out there (rip passes, `tools/outside_frame.py`, the area up to one half frame
+  beyond each side): in play 97 to 100% real scenery (ground, sky, hills, W 700 to 4000) and the HUD stays inside
+  the frame; on the title, the category and division menus and stage changes 0 to 41% (81% with the black fade
+  slab) is the menus' own art as perspective polygons with streaks and black slabs, which can not be put on
+  the 2D plane (a flat-screen profile changed nothing: the polygons are not flat in W). The launcher entry for
+  this game keeps only the 3D view.
+- Older lines above that say the open frame came "with `rend.WideScreen`" describe the flat PC picture; in the
+  headset that flag was the bug above.
 
 ## Status (2026-10-14)
 

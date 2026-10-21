@@ -59,6 +59,43 @@ index 11bc267..32fefda 100644
  	if (changed & 2)
  		setButton(player, DC_BTN_RELOAD, buttons & 2);
  	if (changed & 4)
+diff --git a/core/rend/gles/gles.cpp b/core/rend/gles/gles.cpp
+index 7aba717..c74269f 100644
+--- a/core/rend/gles/gles.cpp
++++ b/core/rend/gles/gles.cpp
+@@ -1202,7 +1202,9 @@ bool OpenGLRenderer::renderFrame(int width, int height)
+ 	//add some extra range to avoid clipping border cases
+ 	vtx_max_fZ *= 1.001f;
+ 
+-	gl.matrices.CalcMatrices(gl.rendContext, width, height);
++	int matrixWidth = width, matrixHeight = height;
++	vr::eyeSizeForTest(matrixWidth, matrixHeight);	// ACVR: PC test of the headset's eye buffer shape
++	gl.matrices.CalcMatrices(gl.rendContext, matrixWidth, matrixHeight);
+ 	ShaderUniforms.ndcMat = gl.matrices.GetNormalMatrix();
+ 	{
+ 		const vr::ReprojectParams& vrParams = vr::update(*gl.rendContext);
+diff --git a/core/rend/transform_matrix.cpp b/core/rend/transform_matrix.cpp
+index 847cbd3..401563d 100644
+--- a/core/rend/transform_matrix.cpp
++++ b/core/rend/transform_matrix.cpp
+@@ -19,6 +19,7 @@
+ #define GLM_FORCE_SWIZZLE 1
+ #include "transform_matrix.h"
+ #include <glm/gtx/transform.hpp>
++#include "vr_reproject.h"	// ACVR: vr::ignoreWidescreen
+ 
+ static void getTAViewport(const rend_context& rendCtx, int& width, int& height) {
+ 	width = rendCtx.globClip.x;
+@@ -103,7 +104,8 @@ void TransformMatrix::CalcMatrices(const rend_context *renderingContext, int wid
+ 	else
+ 	{
+ 		float widescreenShift;
+-		if (config::Widescreen && !config::Rotate90 && !config::EmulateFramebuffer)
++		// ACVR: not in the headset (vr::ignoreWidescreen)
++		if (config::Widescreen && !config::Rotate90 && !config::EmulateFramebuffer && !vr::ignoreWidescreen())
+ 		{
+ 			widescreenShift = 1.f - dcViewport.x / dcViewport.y * renderViewport.y / renderViewport.x;
+ 			if (config::SuperWidescreen)
 diff --git a/core/rend/vr/debug_shots.cpp b/core/rend/vr/debug_shots.cpp
 index 417e6c9..e7937f7 100644
 --- a/core/rend/vr/debug_shots.cpp
@@ -494,7 +531,7 @@ index 1295144..451a735 100644
  	sessionRunning = focused = drawingEye = false;
  	sessionLost = exiting = false;
 diff --git a/core/rend/vr_reproject.cpp b/core/rend/vr_reproject.cpp
-index 6314981..eff9e62 100644
+index 6314981..39d7326 100644
 --- a/core/rend/vr_reproject.cpp
 +++ b/core/rend/vr_reproject.cpp
 @@ -235,6 +235,10 @@ struct GameProfile
@@ -607,10 +644,28 @@ index 6314981..eff9e62 100644
  }
  
  static struct GameProfileRegistration
-@@ -471,6 +521,20 @@ static struct ProfileWritesRegistration
+@@ -471,6 +521,38 @@ static struct ProfileWritesRegistration
  	}
  } profileWritesRegistration;
  
++bool ignoreWidescreen()
++{
++	static const bool test = getenv("ACVR_EYE_SIZE") != nullptr;
++	static const bool keep = getenv("ACVR_NO_WIDE_FIX") != nullptr;
++	return !keep && config::VrReproject && (test || xr::enabled());
++}
++
++void eyeSizeForTest(int& w, int& h)
++{
++	static const char *s = getenv("ACVR_EYE_SIZE");
++	int ew, eh;
++	if (s != nullptr && sscanf(s, "%dx%d", &ew, &eh) == 2 && ew > 0 && eh > 0)
++	{
++		w = ew;
++		h = eh;
++	}
++}
++
 +void trimAim(int& x, int& y)
 +{
 +	const GameProfile *prof = activeProfile;
@@ -628,7 +683,7 @@ index 6314981..eff9e62 100644
  float worldScale()
  {
  	const GameProfile *prof = activeProfile;
-@@ -688,11 +752,34 @@ static void hideLetterbox(rend_context& ctx, const std::vector<PolyParam>& list,
+@@ -688,11 +770,34 @@ static void hideLetterbox(rend_context& ctx, const std::vector<PolyParam>& list,
  {
  	if (activeProfile != nullptr && activeProfile->letterboxW > 0.f)
  		hudW = activeProfile->letterboxW;
@@ -663,7 +718,7 @@ index 6314981..eff9e62 100644
  		u32 i = pp.first;
  		while (i < pp.first + pp.count && onOverlay(ctx.verts[i], hudW) && opaqueBlack(ctx.verts[i]))
  			i++;
-@@ -1186,9 +1273,9 @@ void dropShotMarker(rend_context& ctx, const RenderPass& pass, const RenderPass&
+@@ -1186,9 +1291,9 @@ void dropShotMarker(rend_context& ctx, const RenderPass& pass, const RenderPass&
  			}
  			const bool big = size.x >= fbWidth * 0.5f && size.y >= fbHeight * 0.5f && size.x < fbWidth * 4.f && size.y < fbHeight * 4.f;
  			if (diag && (((all2D || markerLike) && offset <= MarkerMaxOffset) || (big && (all2D || bright))))
@@ -675,7 +730,7 @@ index 6314981..eff9e62 100644
  						(unsigned)(pp.tcw.TexAddr << 3), pp.tsp.full, c[0], c[1], c[2], c[3], hide ? " DROPPED" : "");
  			if (!hide)
  				continue;
-@@ -1263,7 +1350,15 @@ const ReprojectParams& update(const rend_context& ctx)
+@@ -1263,7 +1368,15 @@ const ReprojectParams& update(const rend_context& ctx)
  			* glm::rotate(glm::mat4(1.f), glm::radians(pitch), glm::vec3(1, 0, 0));
  	// The renderer's ndc y points down the image; flip into y-up space for the pose.
  	const glm::mat4 flipY = glm::scale(glm::mat4(1.f), glm::vec3(1, -1, 1));
@@ -693,10 +748,10 @@ index 6314981..eff9e62 100644
  	return params;
  }
 diff --git a/core/rend/vr_reproject.h b/core/rend/vr_reproject.h
-index 3ceb8c0..affe42f 100644
+index 3ceb8c0..052d359 100644
 --- a/core/rend/vr_reproject.h
 +++ b/core/rend/vr_reproject.h
-@@ -93,6 +93,9 @@ const hands::Source *gameModelSource();
+@@ -93,11 +93,25 @@ const hands::Source *gameModelSource();
  // The game asks for player 2 in its corner ("PRESS START BUTTON"): player 2 isn't playing.
  // Seen in the last half second (when the game's profile knows the picture).
  bool player2Prompting();
@@ -706,6 +761,22 @@ index 3ceb8c0..affe42f 100644
  // Metres per game unit: vr.WorldScale, times the game profile's unit size next to HOTD2's.
  float worldScale();
  // ...the profile knows that picture (else player 2 can't be told out again).
+ bool player2PromptKnown();
+ 
++// ACVR: rend.WideScreen stretches the renderer's matrices to 16:9 and re-centres them for the size of the
++// target it renders to. The rebuild above reads the game's picture through those matrices, so in the headset
++// (an eye buffer of another shape) the picture came out squeezed to 3/4 and shifted sideways, while the light gun
++// aimed in the unsqueezed, unshifted picture (Sports Shooting USA: up to 270 px off). With the reprojection on in
++// the headset the matrices stay 4:3. Also on with ACVR_EYE_SIZE (a PC test of the same thing); off with
++// ACVR_NO_WIDE_FIX (to see the old behaviour in a test).
++bool ignoreWidescreen();
++// ACVR: with ACVR_EYE_SIZE=WxH the renderer builds its matrices as if it drew into a W x H eye buffer (the
++// headset's shape) instead of the picture it really makes: a PC test of the above. Else leaves w, h alone.
++void eyeSizeForTest(int& w, int& h);
++
+ // Computes this frame's reprojection. Passes that must not move (render-to-texture,
+ // or the feature switched off) get the identity reprojection, which reproduces the
+ // original image exactly.
 diff --git a/core/sdl/sdl.cpp b/core/sdl/sdl.cpp
 index 3568d4b..efdf7c7 100644
 --- a/core/sdl/sdl.cpp
