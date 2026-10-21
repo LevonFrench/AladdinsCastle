@@ -147,6 +147,18 @@ static QFileInfoList tableFiles(const QString &folder){
  std::sort(unique.begin(),unique.end(),[](const QFileInfo &x,const QFileInfo &y){return x.absoluteFilePath().compare(y.absoluteFilePath(),Qt::CaseInsensitive)<0;});
  return unique;
 }
+// Raise when the scanner's results change for the same files, so saved scans from an older Hub are redone.
+// 2: locked scripts are listed as startable instead of "Protected script metadata is not classified" (2026-10-20).
+constexpr int kScannerVersion=2;
+QVariantMap fingerprint(const QString &folder,const QString &database,const QString &romFolder) {
+ qint64 newestTable=0,newestRom=0;
+ const auto tables=tableFiles(folder);
+ for(const auto &file:tables)newestTable=std::max(newestTable,file.lastModified().toMSecsSinceEpoch());
+ int roms=0;
+ if(!romFolder.isEmpty())for(const auto &zip:QDir(romFolder).entryInfoList({"*.zip","*.ZIP"},QDir::Files,QDir::NoSort)){++roms;newestRom=std::max(newestRom,zip.lastModified().toMSecsSinceEpoch());}
+ const qint64 db=database.isEmpty()?0:QFileInfo(database).lastModified().toMSecsSinceEpoch();
+ return {{"scanner",kScannerVersion},{"tables",int(tables.size())},{"newestTable",newestTable},{"roms",roms},{"newestRom",newestRom},{"database",db}};
+}
 QVariantMap scan(const QString &folder,const QString &database,const QString &romFolder,const QString &mediaFolder) {
  QVariantList rows;QJsonArray db;
  if(!database.isEmpty()){QFile f(database);require(!link(QFileInfo(database))&&f.open(QIODevice::ReadOnly)&&f.size()<=64*1024*1024);QJsonParseError error;const auto doc=QJsonDocument::fromJson(f.readAll(),&error);require(error.error==QJsonParseError::NoError&&doc.isArray());db=doc.array();}

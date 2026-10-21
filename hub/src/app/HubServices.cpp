@@ -135,7 +135,8 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             try{result=pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}
             // Kept in Hub's own data so the tab opens at once next time; a table is still rechecked when it is started.
             bool saved=false;
-            if(!cachePath.isEmpty())try{install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",folder},{"database",database},{"roms",roms},{"media",media},{"result",result}}).toJson(QJsonDocument::Compact));saved=true;}catch(const std::exception &){}
+            const auto print=pinball::fingerprint(folder,database,roms);
+            if(!cachePath.isEmpty())try{install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",folder},{"database",database},{"roms",roms},{"media",media},{"fingerprint",print},{"result",result}}).toJson(QJsonDocument::Compact));saved=true;}catch(const std::exception &){}
             if(!saved)result["cacheUnsaved"]=true;
             return result;
         }));
@@ -148,12 +149,22 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             const auto saved=watcher->result();watcher->deleteLater();
             const auto result=saved.value("result").toMap();
             if(saved.value("folder")==folder&&saved.value("database")==database&&saved.value("roms")==roms&&saved.value("media")==media&&result.contains("tables")){
-                ui_->pinballLoaded(result);startPinballArt(result);ui_->showError("Pinball","Showing your last scan. Use Scan after adding or changing tables.");
+                ui_->pinballLoaded(result);startPinballArt(result);
+                // Added or changed tables, new ROMs or an older scanner: the saved list is shown now and replaced by a
+                // fresh scan in the background (a stale list hid 8 new tables and 255 startable ones, 2026-10-21).
+                if(saved.value("stale").toBool()){ui_->showError("Pinball","Your tables or ROMs changed since the last scan: scanning again.");ui_->scanPinball();}
+                else ui_->showError("Pinball","Showing your last scan. Use Scan after adding or changing tables.");
             }else ui_->scanPinball();
         });
-        watcher->setFuture(QtConcurrent::run([cachePath]{
+        watcher->setFuture(QtConcurrent::run([cachePath,folder,database,roms]{
             QVariantMap saved;
             if(!cachePath.isEmpty()){QFile file(cachePath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();}
+            // Names and dates only, off the UI thread: a saved scan without a fingerprint (older Hub) is out of date too.
+            if(!saved.isEmpty()){
+                // Compared as JSON: the saved numbers come back as doubles, the fresh ones as integers.
+                const auto json=[](const QVariantMap &m){return QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Compact);};
+                saved["stale"]=json(saved.value("fingerprint").toMap())!=json(pinball::fingerprint(folder,database,roms));
+            }
             return saved;
         }));
     });
