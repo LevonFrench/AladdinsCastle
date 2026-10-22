@@ -237,9 +237,13 @@ void Watchdog::scan() {
   const auto sessionPids = inSession_ && session_.pids ? session_.pids() : QList<qint64>{};
   const auto inSessionTree = [&](const ProcessInfo &p) {
     // The running game's own processes, and whatever they started that is still alive.
-    for (auto at = p; at.pid > 0;) {
+    // Each process is visited once: system processes whose start time can't be read (0) can chain into a
+    // loop through reused process numbers, and the walk must still end.
+    QSet<qint64> seen;
+    for (auto at = p; at.pid > 0 && !seen.contains(at.pid);) {
       if (sessionPids.contains(at.pid))
         return true;
+      seen.insert(at.pid);
       const auto parent = byPid.value(at.parent);
       if (parent.pid <= 0 || parent.createdMs > at.createdMs)
         return false;
