@@ -15,9 +15,9 @@ features  = ["laser"]
 default = "red"
 p1      = "red"
 p2      = "blue"
-red = { body = "#c8322b", accent = "#1c1c20" }
-blue = { body = "#2f6fd6", accent = "#1c1c20" }
-grey = { body = "#8a8d93", accent = "#1c1c20" }
+red = { body = "#c8322b", accent = "#50535a" }
+blue = { body = "#2f6fd6", accent = "#50535a" }
+grey = { body = "#8a8d93", accent = "#50535a" }
 
 # Motion ranges use metres (slide) or radians (rotate). Visual recoil never moves the aim anchors.
 

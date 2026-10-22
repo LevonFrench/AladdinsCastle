@@ -17,8 +17,8 @@ default = "black"
 p1      = "red"
 p2      = "blue"
 black = { body = "#26262a", accent = "#7d8087" }
-red = { body = "#c93a2e", accent = "#1c1c20" }
-blue = { body = "#2f66cc", accent = "#1c1c20" }
+red = { body = "#c93a2e", accent = "#50535a" }
+blue = { body = "#2f66cc", accent = "#50535a" }
 
 [[button]]
 id    = "special"

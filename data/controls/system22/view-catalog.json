@@ -520,19 +520,19 @@
           "p2": "blue",
           "red": {
             "body": "#d2362e",
-            "accent": "#1c1c20"
+            "accent": "#50535a"
           },
           "blue": {
             "body": "#2f6fd6",
-            "accent": "#1c1c20"
+            "accent": "#50535a"
           },
           "pink": {
             "body": "#e86aa6",
-            "accent": "#1c1c20"
+            "accent": "#50535a"
           },
           "orange": {
             "body": "#f07a1a",
-            "accent": "#1c1c20"
+            "accent": "#50535a"
           }
         },
         "motion": {

@@ -44,6 +44,26 @@ along `length_axis` (default Y) and asks for stick pivots only when its features
 `analog_stick`. Its rounded bar uses the `zloft` primitive (superellipse rings along Z).
 The DolphinXR build draws it in the right hand for Wii motion games.
 
+## 2026-10-21 redesign (nine models)
+
+Nine GLBs here are now built by the redesign builder in `src-redesign/`, not by `src/`:
+`arc-pistol-slide`, `arc-pistol-twin`, `con-pistol-dpad`, `con-pistol-slim`, `con-pointer-remote`,
+`con-remote-shell`, `con-revolver-chunky`, `con-stick-grip` and `mnt-mg-heavy` (review IDs R01-R09).
+They are new, original designs (CC0 like the others; scripts GPL-3.0-only) made after the owner marked
+50 earlier versions for replacement, then corrected after a four-specialist studio review: sizes within 10% of
+`data/guns`, convention materials, sight lines parallel to the bore, split normals, no inverted or collapsed
+faces, budgets kept. `tools/check_gun_assets.py` reports 0 errors. Node names, anchors and motion nodes keep the
+conventions above, so hosts load them unchanged.
+
+- `src/` still provides each model's plan and metadata (nodes, motion, buttons) used by the tools and tests.
+  Running `build.py` would rebuild the old designs over these nine: build them with `src-redesign/` instead.
+- `assets/hands/assembly.json` label bind positions come from `src/` plans and still describe the old
+  `mnt-mg-heavy`; hosts do not read them (hands attach by node name: `grip`, `grip_two`).
+- The previews in `preview/` for these nine still show the old designs; the review renders and measurements are
+  in the owner's private review folder.
+- `generic-pistol` (#011, owner-rated) is unchanged; the redesign's R13 replaced only archived variants and is
+  not wired in.
+
 ## Rebuild
 
 Ask the owner before invoking Blender, including headless/CPU use. The source

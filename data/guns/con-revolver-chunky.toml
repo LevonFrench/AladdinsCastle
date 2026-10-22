@@ -16,8 +16,8 @@ default = "black"
 p1      = "orange"
 p2      = "blue"
 black = { body = "#1b1b1e", accent = "#f2c81e" }
-orange = { body = "#f26a1b", accent = "#2a2a2e" }
-blue = { body = "#2459c4", accent = "#2a2a2e" }
+orange = { body = "#f26a1b", accent = "#50535a" }
+blue = { body = "#2459c4", accent = "#50535a" }
 
 [[button]]
 id    = "start"
@@ -37,7 +37,7 @@ lod_nodes = ["pivot_trigger", "pivot_trigger_lod1"]
 [motion.button-start]
 node = "button_start"
 kind = "slide"
-axis = [1,0,0]
+axis = [0,-1,0]
 range = [0,0.002]
 drive = "button:start"
 lod_nodes = ["button_start", "button_start_lod1"]

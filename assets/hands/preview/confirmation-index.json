@@ -2582,32 +2582,32 @@
     "assets/guns/arc-pistol-slide.glb": {
       "kind": "mesh",
       "hash_basis": "file-bytes",
-      "sha256": "d2df90a1d8fc62e09a8854004930d05950f6d90ea88708ebf7b19ceaa3088a07"
+      "sha256": "a2e6da9ad2255c026d2e69dfea9eb9167a380303b26610b33031bec71d85e624"
     },
     "assets/guns/con-pistol-dpad.glb": {
       "kind": "mesh",
       "hash_basis": "file-bytes",
-      "sha256": "a5f2cda5da5218ac9d9f07c97ca92496eca7211604c790246869c71d31b8e68c"
+      "sha256": "13df14dd69b6a45e562ab8df2e1a1bbd57badb103993d5e37b4daaf58dd1bbc3"
     },
     "assets/guns/con-pistol-slim.glb": {
       "kind": "mesh",
       "hash_basis": "file-bytes",
-      "sha256": "4b38bc9418ecada3f511a722c6dcccc7c5c76682e41184ad4231f9cd549bd1aa"
+      "sha256": "4d66ec5ef475c7ef4cad42e922c0b2b7d0ea93b7ff197cc91da5b425738aea42"
     },
     "assets/guns/con-remote-shell.glb": {
       "kind": "mesh",
       "hash_basis": "file-bytes",
-      "sha256": "c5c8f3395e7f6b9ba4666b57586a7a48461def8a3ba8df24e2f94e050114d176"
+      "sha256": "32805753d15fbbbc5f476a8e884eae549621902ee628b325daa97c2caf5f4304"
     },
     "assets/guns/con-revolver-chunky.glb": {
       "kind": "mesh",
       "hash_basis": "file-bytes",
-      "sha256": "36b3a7ebc6f33983f1d8f3540721923010cd953d91c4b59ba227510674faf457"
+      "sha256": "fac9846d93d326cfa9e7ad5f2511575237d5b68113f46c708a005386eae6900b"
     },
     "assets/guns/con-stick-grip.glb": {
       "kind": "mesh",
       "hash_basis": "file-bytes",
-      "sha256": "29dcf90594aebf6baed6235060d03e7a9a73ebf2aeb751aff9b7875e296f8e1d"
+      "sha256": "4a6bd2ae1cebf0b35be21ffb277c096f68ee07d35a237c33620cfb9082a97f9a"
     },
     "assets/guns/generic-pistol.glb": {
       "kind": "mesh",
@@ -2617,7 +2617,7 @@
     "assets/guns/mnt-mg-heavy.glb": {
       "kind": "mesh",
       "hash_basis": "file-bytes",
-      "sha256": "b4171075818771728efa9b454a806ed56c95f27e9543a134141b38a15b56e56b"
+      "sha256": "90b5057d93cb760e3639c7443a9c973a5e034c8a668f5649b3b8a591f17459c7"
     },
     "assets/guns/preview/arc-pistol-slide-front.png": {
       "kind": "preview",
@@ -3312,17 +3312,17 @@
     "data/guns/arc-pistol-slide.toml": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "19352254d98f4540ad7a41c800ae94343abcaacd35f77d55a203e61b532a8677"
+      "sha256": "e00c1a68d1202c7a586a7ebb59ab56cdb1a65fb234c3029887aa0f23154f6cc8"
     },
     "data/guns/con-pistol-dpad.toml": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "488f86bc6e85991d42d835f682d968e9787d38b32c82439e26c9391a6374a1d8"
+      "sha256": "11a7a702ac2b8da188b17fbcafc7a80b189546a020bd5a078afc138583848d60"
     },
     "data/guns/con-pistol-slim.toml": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "a062b9fe678659a0669edbdbb9654d0e629a4770b637256fe25646b7b2379d94"
+      "sha256": "3076db0ca32766f9c00cdcb723e1dccc41ef4227b378f345e7611e068394d285"
     },
     "data/guns/con-remote-shell.toml": {
       "kind": "source",
@@ -3332,7 +3332,7 @@
     "data/guns/con-revolver-chunky.toml": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "5015f28bcaabebbc13c1713ad326af44c34acbb66fceba1e7c27e6e26a3fd2df"
+      "sha256": "9463408c36874985213948792718ff69df74d8bbd0bfd01952f7753bcc9e0446"
     },
     "data/guns/con-stick-grip.toml": {
       "kind": "source",
@@ -3342,12 +3342,12 @@
     "data/guns/generic-pistol.toml": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "d87851675661fbbe760c022fe860cde9daf18196be403f7c3acc692711c05a7d"
+      "sha256": "b83a1c89efcfd319799a19dbec079fc6369fbe3782666ef1577849e5cd7a7c3d"
     },
     "data/guns/mnt-mg-heavy.toml": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "c008465e444e823a7043aba4de60d9d138f7dedcaeb65aa49df041530a0e8ada"
+      "sha256": "089f0106b31ed51afc18437cd36345faedd588f8604c062610c47ed3251a68d5"
     },
     "games/wii-dead-space-extraction/game.toml": {
       "kind": "source",
