@@ -62,7 +62,10 @@ conventions above, so hosts load them unchanged.
 - The previews in `preview/` for these nine still show the old designs; the review renders and measurements are
   in the owner's private review folder.
 - `generic-pistol` (#011, owner-rated) is unchanged; the redesign's R13 replaced only archived variants and is
-  not wired in.
+  not wired in. R10-R12 are deferred.
+- Seven `data/guns/*.toml` files (six redesigned guns with tints, plus `generic-pistol`, whose shape is unchanged)
+  had their dark accent tint lifted to `#50535a`; the old `#1c1c20` / `#2a2a2e` read as holes under the runtime
+  lighting. `con-pistol-dpad` and `con-revolver-chunky` also had button press axes corrected.
 
 ## Rebuild
 
