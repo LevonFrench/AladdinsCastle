@@ -41,8 +41,10 @@ ac::CatalogData syntheticCatalog(const QString &root){
     variant.quality="flat";variant.status="stable";variant.generated=true;variant.media={"synthetic"};variant.tools={"mame"};game.variants<<variant;
     data.games={game};return data;
 }
+// The small stand-in game (tests/StandIn.cpp) the tests copy under emulator names and start.
+QString standIn(){return QStringLiteral(AC_STAND_IN);}
 void receipt(const QString &root,const QString &media){
-    const QFileInfo file(media);const QFileInfo tool(QCoreApplication::applicationFilePath());
+    const QFileInfo file(media);const QFileInfo tool(standIn());
     ac::Json json{{"bindings",ac::Json::array({{{"gameId","synthetic"},{"requirementId","synthetic"},{"path",media.toStdString()},{"identity","synthetic"},{"proof","synthetic-fixture"},{"verified",true}}})},
                   {"tools",ac::Json::array({{{"id","mame"},{"path",tool.absoluteFilePath().toStdString()},{"verified",true},{"size",tool.size()},{"mtime",tool.lastModified().toMSecsSinceEpoch()}}})},
                   {"files",ac::Json::array({{{"path",media.toStdString()},{"size",file.size()},{"mtime",file.lastModified().toMSecsSinceEpoch()}}})}};
@@ -92,7 +94,7 @@ private slots:
     const auto cfb=syntheticTable();
     const auto table=folder+"/synthetic table.vpx";ac::install::atomicWrite(table,cfb);
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
-    ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",QCoreApplication::applicationFilePath());
+    ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",standIn());
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
     services.setVrServerProbe([]{return true;});services.setGamepadProbe([](const QString &){return QVariantList{};});
     auto data=ac::pinball::scan(folder);auto row=data["tables"].toList()[0].toMap();QVERIFY(!row.contains("error"));
@@ -139,7 +141,7 @@ private slots:
     const auto report=t.filePath("arguments.json");qputenv("AC_SYNTHETIC_PINBALL_ARGUMENTS",report.toUtf8());
     const auto restore=qScopeGuard([previousAppData]{qputenv("APPDATA",previousAppData);qunsetenv("AC_SYNTHETIC_PINBALL_ARGUMENTS");});
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
-    ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",QCoreApplication::applicationFilePath());
+    ac::UiSettings settings(t.filePath("user"));settings.set("pinballExecutable",standIn());
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
     QVariantList pads{QVariantMap{{"uid","SDLJoy_030000005e0400008e02000000007801_1"},{"name","Synthetic pad"},
         {"elements",QVariantMap{{"A",0},{"B",1},{"X",2},{"Y",3},{"LeftShoulder",4},{"RightShoulder",5},{"Back",6},{"Start",7},{"LeftStick",8},{"RightStick",9},
@@ -183,11 +185,11 @@ private slots:
     QVERIFY(!settings.values().contains("pinballViews"));
  }
  void model3LaunchUsesTheChosenViewAndLeavesFoldersAlone(){
-    // The stand-in emulator is this test program: it reports what it was started with, then exits.
+    // The emulator is a copy of the stand-in game: it reports what it was started with, then exits.
     QTemporaryDir t;const auto emulator=t.filePath("emu"),media=t.filePath("my games"),report=t.filePath("report.json");
     QVERIFY(QDir().mkpath(emulator+"/Config"));QVERIFY(QDir().mkpath(emulator+"/out/x64"));QVERIFY(QDir().mkpath(media));
     ac::install::atomicWrite(emulator+"/Config/Games.xml","synthetic");ac::install::atomicWrite(media+"/scud.zip","synthetic");
-    const auto program=emulator+"/out/x64/program.exe";QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));
+    const auto program=emulator+"/out/x64/program.exe";QVERIFY(QFile::copy(standIn(),program));
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("model3Executable",program);settings.set("model3GameFolder",media);
     qputenv("AC_SYNTHETIC_MODEL3_REPORT",report.toUtf8());qputenv("ACVR_STALE","1");
@@ -301,11 +303,11 @@ private slots:
     QCOMPARE(ui.steamVr()["state"].toString(),QString("added"));QVERIFY(ui.steamVr()["error"].toString().isEmpty());
  }
  void model2StartsTwoProgramsAndEndsBoth(){
-    // Both stand-ins are this test program: the emulator waits, the viewer reports what it was given and leaves.
+    // Both are copies of the stand-in game: the emulator waits, the viewer reports what it was given and leaves.
     QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets"),report=t.filePath("viewer.json");
     for(const auto &folder:{"build/mame","build/presenter","build/runtime","my sets","libraries"})QVERIFY(QDir(t.path()).mkpath(folder));
     const auto emulator=build+"/mame/emulator.exe",viewer=build+"/presenter/model2-viewer.exe";
-    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),emulator));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),viewer));
+    QVERIFY(QFile::copy(standIn(),emulator));QVERIFY(QFile::copy(standIn(),viewer));
     ac::install::atomicWrite(sets+"/vcop2.zip","synthetic");
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",emulator);settings.set("model2GameFolder",sets);settings.set("model2RuntimePath",t.filePath("libraries"));
@@ -353,7 +355,7 @@ private slots:
  void playInHeadsetStartsSteamVrFirst(){
     QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");
     for(const auto &folder:{"build/mame","build/presenter","build/runtime","my sets"})QVERIFY(QDir(t.path()).mkpath(folder));
-    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),build+"/mame/emulator.exe"));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),build+"/presenter/model2-viewer.exe"));
+    QVERIFY(QFile::copy(standIn(),build+"/mame/emulator.exe"));QVERIFY(QFile::copy(standIn(),build+"/presenter/model2-viewer.exe"));
     ac::install::atomicWrite(sets+"/vcop2.zip","synthetic");
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",build+"/mame/emulator.exe");settings.set("model2GameFolder",sets);
@@ -398,7 +400,7 @@ private slots:
 #else
     QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("emu"));QVERIFY(QDir(t.path()).mkpath("elsewhere"));
     const auto program=t.filePath("emu/TimeCrisisVR.exe"),other=t.filePath("elsewhere/TimeCrisisVR.exe");
-    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),other));
+    QVERIFY(QFile::copy(standIn(),program));QVERIFY(QFile::copy(standIn(),other));
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("system22Executable",program);
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());services.watchdog()->setTimings(200,300,0,800);
@@ -422,7 +424,7 @@ private slots:
 #else
     QTemporaryDir t;QVERIFY(QDir(t.path()).mkpath("emu"));QVERIFY(QDir(t.path()).mkpath("wer"));
     const auto program=t.filePath("emu/TimeCrisisVR.exe"),report=t.filePath("wer/WerFault.exe");
-    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),report));
+    QVERIFY(QFile::copy(standIn(),program));QVERIFY(QFile::copy(standIn(),report));
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("system22Executable",program);
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
@@ -483,7 +485,7 @@ private slots:
 #ifndef Q_OS_WIN
     QSKIP("Process trees are held in Windows job objects.");
 #else
-    qint64 pid=0;QVERIFY(QProcess::startDetached(QCoreApplication::applicationFilePath(),{"--synthetic-child"},{},&pid));
+    qint64 pid=0;QVERIFY(QProcess::startDetached(standIn(),{"--synthetic-child"},{},&pid));
     const auto cleanup=qScopeGuard([pid]{ac::launch::endProcesses({pid});});
     {ac::launch::ProcessTree tree;tree.adopt(pid);QVERIFY(tree.members().contains(pid));QVERIFY(ac::launch::processAlive(pid));}
     QTRY_VERIFY_WITH_TIMEOUT(!ac::launch::processAlive(pid),5000);
@@ -494,7 +496,7 @@ private slots:
     QTemporaryDir t;const auto play=t.filePath("play"),launcher=play+"/launch_ps2.py",python=t.filePath("python/pythonw.exe"),stop=t.filePath("runtime/quit.request");
     QVERIFY(QDir().mkpath(play));QVERIFY(QDir().mkpath(t.filePath("python")));QVERIFY(QDir().mkpath(t.filePath("runtime")));
     ac::install::atomicWrite(launcher,"synthetic");ac::install::atomicWrite(play+"/games.json","{\"virtua-cop\":{}}");
-    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),python));
+    QVERIFY(QFile::copy(standIn(),python));
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("ps2Launcher",launcher);settings.set("ps2Python",python);settings.set("ps2StopFile",stop);
     qputenv("AC_SYNTHETIC_PS2_STOP",stop.toUtf8());qputenv("AC_SYNTHETIC_PS2_IGNORE","1");
@@ -522,7 +524,7 @@ private slots:
  void oneSteamVrPolicy(){
     QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");
     for(const auto &folder:{"build/mame","build/presenter","build/runtime","my sets"})QVERIFY(QDir(t.path()).mkpath(folder));
-    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),build+"/mame/emulator.exe"));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),build+"/presenter/model2-viewer.exe"));
+    QVERIFY(QFile::copy(standIn(),build+"/mame/emulator.exe"));QVERIFY(QFile::copy(standIn(),build+"/presenter/model2-viewer.exe"));
     ac::install::atomicWrite(sets+"/vcop2.zip","synthetic");
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",build+"/mame/emulator.exe");settings.set("model2GameFolder",sets);
@@ -558,7 +560,7 @@ private slots:
     QTemporaryDir t;const auto build=t.filePath("build"),sets=t.filePath("my sets");
     for(const auto &folder:{"build/mame","build/presenter","build/runtime","my sets"})QVERIFY(QDir(t.path()).mkpath(folder));
     const auto emulator=build+"/mame/emulator.exe",viewer=build+"/presenter/model2-viewer.exe";
-    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),emulator));QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),viewer));
+    QVERIFY(QFile::copy(standIn(),emulator));QVERIFY(QFile::copy(standIn(),viewer));
     ac::install::atomicWrite(sets+"/vcop2.zip","synthetic");
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",emulator);settings.set("model2GameFolder",sets);
@@ -595,7 +597,7 @@ private slots:
     QTemporaryDir t;const auto emulator=t.filePath("emu"),media=t.filePath("games"),marker=t.filePath("saved.marker");
     QVERIFY(QDir().mkpath(emulator+"/Config"));QVERIFY(QDir().mkpath(media));
     ac::install::atomicWrite(emulator+"/Config/Games.xml","synthetic");ac::install::atomicWrite(media+"/scud.zip","synthetic");
-    const auto program=emulator+"/program.exe";QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),program));
+    const auto program=emulator+"/program.exe";QVERIFY(QFile::copy(standIn(),program));
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("model3Executable",program);settings.set("model3GameFolder",media);
     // The stand-in game needs 1.8 s before it has written its completion marker and ended.
@@ -640,7 +642,7 @@ private slots:
     QTemporaryDir t;const auto play=t.filePath("play"),launcher=play+"/launch_ps2.py",python=t.filePath("python/pythonw.exe"),stop=t.filePath("runtime/quit.request");
     QVERIFY(QDir().mkpath(play));QVERIFY(QDir().mkpath(t.filePath("python")));QVERIFY(QDir().mkpath(t.filePath("runtime")));
     ac::install::atomicWrite(launcher,"synthetic");ac::install::atomicWrite(play+"/games.json","{\"virtua-cop\":{}}");
-    QVERIFY(QFile::copy(QCoreApplication::applicationFilePath(),python));
+    QVERIFY(QFile::copy(standIn(),python));
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("ps2Launcher",launcher);settings.set("ps2Python",python);settings.set("ps2StopFile",stop);
     qputenv("AC_SYNTHETIC_PS2_STOP",stop.toUtf8());const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_PS2_STOP");});
@@ -741,7 +743,7 @@ private slots:
  }
  void launchPreparationBusyAndStopAreDistinct(){
     QTemporaryDir temp;ac::GameListModel games(syntheticCatalog(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);ac::UiSettings settings(temp.filePath("user"));ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,temp.path());
-    ac::launch::Request request;request.root=temp.path();request.gameId="synthetic";request.variantId="flat-mame";request.plan.executable=QCoreApplication::applicationFilePath();request.plan.cwd=temp.path();request.plan.args={"--synthetic-child"};
+    ac::launch::Request request;request.root=temp.path();request.gameId="synthetic";request.variantId="flat-mame";request.plan.executable=standIn();request.plan.cwd=temp.path();request.plan.args={"--synthetic-child"};
     bool prepared=false,busyMessage=false;auto connection=connect(services.launcher(),&ac::launch::LaunchService::starting,&ui,[&](const QString &,const QString &){prepared=!ac::shouldQuitAfterLastWindow(services.launchBusy())&&services.preparing()&&services.launchBusy()&&!services.playing()&&ui.status().contains("Preparing");ui.play("synthetic","flat-mame");busyMessage=ui.status().contains("Play refused");ui.stopLaunch();});
     services.launcher()->start(request);QVERIFY(prepared);QVERIFY(busyMessage);QVERIFY(!services.launchBusy());disconnect(connection);
     request.prepareProfile=false;QVERIFY(services.launcher()->start(request));QTRY_VERIFY_WITH_TIMEOUT(services.playing(),5000);QVERIFY(services.launchBusy());QVERIFY(!services.preparing());ui.stopLaunch();QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy()&&!services.playing(),6000);
@@ -798,7 +800,7 @@ private slots:
         QTemporaryDir temp;const auto folder=temp.filePath("pids");QVERIFY(QDir().mkpath(folder));
         ac::launch::LaunchService launcher;QSignalSpy finished(&launcher,&ac::launch::LaunchService::finished);
         ac::launch::Request request;request.root=temp.path();request.gameId="synthetic-tree";request.variantId="flat";request.prepareProfile=false;
-        request.plan.executable=QCoreApplication::applicationFilePath();request.plan.cwd=temp.path();
+        request.plan.executable=standIn();request.plan.cwd=temp.path();
         request.plan.args={"--spawn-tree",folder,"launcher",way=="leave"?"leave":"stay"};
         QVERIFY(launcher.start(request));
         const auto pids=[&]{QList<qint64> list;for(const auto &name:{"launcher","child1","child2","grandchild"})list<<pidIn(folder+"/"+name+".pid");return list;};
@@ -911,90 +913,6 @@ private slots:
  }
 };
 int main(int argc,char **argv){
-    // Synthetic games for the watchdog, chosen by AC_SYNTHETIC_GAME (set only around one test):
-    // "crash" ends with an access violation's code (no real fault, so no error dialog ever shows),
-    // "hidden" runs with a window that is never shown, "werfault" starts a stand-in Windows Error
-    // Reporting program and waits, "grandchild" starts a copy of itself and leaves it behind.
-    if(const auto mode=qEnvironmentVariable("AC_SYNTHETIC_GAME");!mode.isEmpty()&&argc==1){
-        QCoreApplication game(argc,argv);
-        if(const auto pidFile=qEnvironmentVariable("AC_SYNTHETIC_PIDS");!pidFile.isEmpty()){QFile file(pidFile);if(file.open(QIODevice::Append))file.write(QByteArray::number(QCoreApplication::applicationPid())+"\n");}
-#ifdef Q_OS_WIN
-        if(mode=="crash")QTimer::singleShot(600,&game,[]{TerminateProcess(GetCurrentProcess(),0xC0000005);});
-        if(mode=="hidden"){
-            WNDCLASSW kind{};kind.lpfnWndProc=DefWindowProcW;kind.hInstance=GetModuleHandleW(nullptr);kind.lpszClassName=L"AcSyntheticGame";RegisterClassW(&kind);
-            CreateWindowExW(0,L"AcSyntheticGame",L"Synthetic game",WS_OVERLAPPEDWINDOW,0,0,64,64,nullptr,nullptr,kind.hInstance,nullptr); // Never shown.
-        }
-#endif
-        if(mode=="werfault")QProcess::startDetached(qEnvironmentVariable("AC_SYNTHETIC_WERFAULT"),{"--synthetic-child"});
-        if(mode=="grandchild"){
-            qint64 pid=0;QProcess::startDetached(QCoreApplication::applicationFilePath(),{"--synthetic-child"},{},&pid);
-            if(const auto pidFile=qEnvironmentVariable("AC_SYNTHETIC_PIDS");!pidFile.isEmpty()){QFile file(pidFile);if(file.open(QIODevice::Append))file.write("grandchild "+QByteArray::number(pid)+"\n");}
-            QTimer::singleShot(800,&game,&QCoreApplication::quit);
-        }
-        QTimer::singleShot(30000,&game,&QCoreApplication::quit);return game.exec();
-    }
-    // A launcher that starts two children, the first of which starts a grandchild. Each writes its
-    // process id and waits; the launcher waits too ("stay") or ends after a moment ("leave").
-    if(argc>=4&&(QByteArray(argv[1])=="--spawn-tree"||QByteArray(argv[1])=="--tree-child")){
-        QCoreApplication child(argc,argv);const auto folder=QString::fromLocal8Bit(argv[2]),name=QString::fromLocal8Bit(argv[3]);
-        const auto self=QCoreApplication::applicationFilePath();
-        ac::install::atomicWrite(folder+"/"+name+".pid",QByteArray::number(QCoreApplication::applicationPid()));
-        if(QByteArray(argv[1])=="--spawn-tree"){
-            QProcess::startDetached(self,{"--tree-child",folder,"child1","grand"});QProcess::startDetached(self,{"--tree-child",folder,"child2"});
-            if(argc>=5&&QByteArray(argv[4])=="leave"){QTimer::singleShot(2500,&child,&QCoreApplication::quit);return child.exec();}
-        }else if(argc>=5&&QByteArray(argv[4])=="grand")QProcess::startDetached(self,{"--tree-child",folder,"grandchild"});
-        QTimer::singleShot(60000,&child,&QCoreApplication::quit);return child.exec();
-    }
-    for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="--synthetic-child"){QCoreApplication app(argc,argv);QTimer::singleShot(30000,&app,&QCoreApplication::quit);return app.exec();}
-    // PS2 stand-in for the Python running the launcher: it waits for the stop file, then ends normally.
-    if(argc==3&&QByteArray(argv[1]).endsWith("launch_ps2.py")){
-        QCoreApplication child(argc,argv);const auto stop=qEnvironmentVariable("AC_SYNTHETIC_PS2_STOP");QTimer poll;
-        // With AC_SYNTHETIC_PS2_IGNORE the game takes no notice of the stop file, as a stuck one would.
-        const bool ignore=qEnvironmentVariableIsSet("AC_SYNTHETIC_PS2_IGNORE");
-        QObject::connect(&poll,&QTimer::timeout,&child,[&]{if(!ignore&&QFileInfo::exists(stop))child.exit(0);});poll.start(100);
-        QTimer::singleShot(20000,&child,[&]{child.exit(7);});return child.exec();
-    }
-    // Model 2 stand-ins. The emulator: any "-rompath" run, which waits to be ended. The viewer: one numeric argument.
-    for(int i=1;i<argc;++i)if(QByteArray(argv[i])=="-rompath"){QCoreApplication child(argc,argv);QTimer::singleShot(30000,&child,&QCoreApplication::quit);return child.exec();}
-    if(argc==2&&QByteArray(argv[1]).toLongLong()>0){
-        QCoreApplication child(argc,argv);QJsonObject variables;const auto environment=QProcessEnvironment::systemEnvironment();
-        for(const auto &name:environment.keys())if(name.startsWith("ACVR_")||name=="XR_RUNTIME_JSON")variables[name]=environment.value(name);
-        const auto id=QByteArray(argv[1]).toLongLong();bool alive=false;
-#ifdef Q_OS_WIN
-        if(const auto handle=OpenProcess(SYNCHRONIZE,FALSE,static_cast<DWORD>(id))){alive=WaitForSingleObject(handle,0)==WAIT_TIMEOUT;CloseHandle(handle);}
-#else
-        alive=QFileInfo::exists("/proc/"+QString::number(id));
-#endif
-        QFile file(qEnvironmentVariable("AC_SYNTHETIC_MODEL2_REPORT"));if(!file.open(QIODevice::WriteOnly))return 3;
-        file.write(QJsonDocument(QJsonObject{{"companion",id},{"companionAlive",alive},{"cwd",QDir::currentPath()},{"env",variables},{"path",environment.value("PATH")}}).toJson());file.close();
-        // Like the real viewer: with AC_SYNTHETIC_MODEL2_WAIT_STOP it plays until its stop file appears, then ends normally.
-        if(qEnvironmentVariableIsSet("AC_SYNTHETIC_MODEL2_WAIT_STOP")){const auto stop=qEnvironmentVariable("ACVR_M2_STOP_FILE");QTimer poll;
-            QObject::connect(&poll,&QTimer::timeout,&child,[&]{if(QFileInfo::exists(stop))child.exit(0);});poll.start(100);QTimer::singleShot(20000,&child,[&]{child.exit(7);});return child.exec();}
-        QTimer::singleShot(600,&child,&QCoreApplication::quit);return child.exec();
-    }
-    for(int i=1;i<argc;++i)if(QByteArray(argv[i]).startsWith("-input-system=")){
-        QCoreApplication child(argc,argv);QJsonObject variables;
-        const auto environment=QProcessEnvironment::systemEnvironment();
-        for(const auto &name:environment.keys())if(name.startsWith("ACVR_")||name=="XR_RUNTIME_JSON")variables[name]=environment.value(name);
-        QFile file(qEnvironmentVariable("AC_SYNTHETIC_MODEL3_REPORT"));if(!file.open(QIODevice::WriteOnly))return 3;
-        file.write(QJsonDocument(QJsonObject{{"cwd",QDir::currentPath()},{"args",QJsonArray::fromStringList(child.arguments().mid(1))},{"env",variables}}).toJson());file.close();
-        // A slow game: it writes its completion marker only after the given time, then ends.
-        const auto duration=qEnvironmentVariableIntValue("AC_SYNTHETIC_CHILD_MS");const auto marker=qEnvironmentVariable("AC_SYNTHETIC_MARKER");
-        QTimer::singleShot(duration>0?duration:600,&child,[&child,marker]{if(!marker.isEmpty()){QFile done(marker);if(done.open(QIODevice::WriteOnly))done.write("complete");}child.quit();});
-        return child.exec();
-    }
-    // VPX stand-in: any run with -Play, which -Ini may come before.
-    bool play=false;for(int i=1;i<argc;++i)play=play||QByteArray(argv[i])=="-Play";
-    if(play){
-        QGuiApplication child(argc,argv);QWindow window;window.show();
-        const auto arguments=qEnvironmentVariable("AC_SYNTHETIC_PINBALL_ARGUMENTS");
-        if(!arguments.isEmpty()){
-            QFile file(arguments);if(!file.open(QIODevice::WriteOnly))return 3;
-            file.write(QJsonDocument::fromVariant(child.arguments().mid(1)).toJson(QJsonDocument::Compact));
-        }
-        const auto duration=qEnvironmentVariableIntValue("AC_SYNTHETIC_PINBALL_CHILD_MS");
-        QTimer::singleShot(duration>0?duration:600,&child,&QCoreApplication::quit);return child.exec();
-    }
     QGuiApplication app(argc,argv);IntegrationTest test;return QTest::qExec(&test,argc,argv);
 }
 #include "IntegrationTest.moc"

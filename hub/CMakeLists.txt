@@ -362,11 +362,17 @@ if(BUILD_TESTING)
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(overlay-scene PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
+    # The stand-in game the tests copy under emulator names and start: small and Qt-only, because a copy of the
+    # whole test program under game names in the temporary folder was flagged and deleted by Windows Defender.
+    qt_add_executable(test-stand-in tests/StandIn.cpp)
+    target_link_libraries(test-stand-in PRIVATE Qt6::Gui)
+    ac_project_warnings(test-stand-in)
     qt_add_executable(integration-tests tests/IntegrationTest.cpp)
     target_link_libraries(integration-tests PRIVATE hubapp Qt6::Test)
-    target_compile_definitions(integration-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    target_compile_definitions(integration-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/.." AC_STAND_IN="$<TARGET_FILE:test-stand-in>")
     ac_project_warnings(integration-tests)
-    add_dependencies(hub-tests integration-tests)
+    add_dependencies(integration-tests test-stand-in)
+    add_dependencies(hub-tests integration-tests test-stand-in)
     # Through the receipt runner: a Windows GUI test has no console for -o -,txt, so a crash left no report.
     add_test(NAME hub-integration COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:integration-tests>

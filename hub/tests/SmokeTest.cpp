@@ -67,7 +67,7 @@ private slots:
         QVERIFY(QDir().mkpath(root+"/.local"));
         const auto ini=temp.filePath(shape=="outside-ini"?"outside.ini":".local/mode settings.ini"),arguments=temp.filePath("child-arguments.json");
         QVERIFY(write(ini,"[PlayerVR]\nAskToTurnOn=2\n"));
-        auto hub=QCoreApplication::applicationDirPath()+"/aladdinscastle-hub", child=QCoreApplication::applicationDirPath()+"/integration-tests";
+        auto hub=QCoreApplication::applicationDirPath()+"/aladdinscastle-hub", child=QCoreApplication::applicationDirPath()+"/test-stand-in";
 #ifdef Q_OS_WIN
         hub+=".exe"; child+=".exe";
         const QString quitAfter="7000";
