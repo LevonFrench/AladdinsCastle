@@ -247,6 +247,27 @@ private slots:
     QTRY_VERIFY_WITH_TIMEOUT(!ui.pinballScanning(),10000);
     QCOMPARE(QDir(folder).entryList(QDir::Files),QStringList{"synthetic table.vpx"});
  }
+ // A saved scan goes out of date when tables are added (or ROMs, or the scanner changes): the saved list is shown
+ // at once and a fresh scan runs by itself, so new tables appear without pressing Scan.
+ void pinballSavedScanRefreshesWhenTablesChange(){
+    QTemporaryDir t;const auto folder=t.filePath("library");QDir().mkpath(folder);
+    ac::install::atomicWrite(folder+"/first table.vpx",syntheticTable());
+    {
+        ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+        ac::UiSettings settings(t.filePath("user"));settings.set("pinballFolder",folder);
+        ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+        ui.openPinball();QTRY_COMPARE_WITH_TIMEOUT(ui.pinballData()["tables"].toList().size(),1,10000);
+        QTRY_VERIFY_WITH_TIMEOUT(!ui.pinballScanning(),10000);
+    }
+    ac::install::atomicWrite(folder+"/second table.vpx",syntheticTable()); // Added after the scan was saved.
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    QSignalSpy scans(&ui,&ac::UiController::pinballScanRequested);
+    ui.openPinball();QTRY_COMPARE_WITH_TIMEOUT(scans.size(),1,10000); // Out of date: scanned again by itself.
+    QTRY_COMPARE_WITH_TIMEOUT(ui.pinballData()["tables"].toList().size(),2,10000);
+    QTRY_VERIFY_WITH_TIMEOUT(!ui.pinballScanning(),10000);
+ }
  void setupRemembersChoicesAndAddsToSteamVrOnlyWhenAsked(){
     QTemporaryDir t;const auto steam=t.filePath("steam"),list=steam+"/config/appconfig.json";
     for(const auto &name:{"roms/model3","roms/model2","steam/config"})QVERIFY(QDir(t.path()).mkpath(name));

@@ -1,0 +1,63 @@
+# MPT: A (right trigger) every 2 s from 8 s to 50 s; shots every 1 s from 14 to 52 s; left-stick nudge (no effect) marks the end.
+8.0 8.3 R trigger 1
+10.0 10.3 R trigger 1
+12.0 12.3 R trigger 1
+14.0 14.3 R trigger 1
+16.0 16.3 R trigger 1
+18.0 18.3 R trigger 1
+20.0 20.3 R trigger 1
+22.0 22.3 R trigger 1
+24.0 24.3 R trigger 1
+26.0 26.3 R trigger 1
+28.0 28.3 R trigger 1
+30.0 30.3 R trigger 1
+32.0 32.3 R trigger 1
+34.0 34.3 R trigger 1
+36.0 36.3 R trigger 1
+38.0 38.3 R trigger 1
+40.0 40.3 R trigger 1
+42.0 42.3 R trigger 1
+44.0 44.3 R trigger 1
+46.0 46.3 R trigger 1
+48.0 48.3 R trigger 1
+50.0 50.3 R trigger 1
+53.0 54.0 L stick_x 0.05
+shot 14.0 e0140
+shot 15.0 e0150
+shot 16.0 e0160
+shot 17.0 e0170
+shot 18.0 e0180
+shot 19.0 e0190
+shot 20.0 e0200
+shot 21.0 e0210
+shot 22.0 e0220
+shot 23.0 e0230
+shot 24.0 e0240
+shot 25.0 e0250
+shot 26.0 e0260
+shot 27.0 e0270
+shot 28.0 e0280
+shot 29.0 e0290
+shot 30.0 e0300
+shot 31.0 e0310
+shot 32.0 e0320
+shot 33.0 e0330
+shot 34.0 e0340
+shot 35.0 e0350
+shot 36.0 e0360
+shot 37.0 e0370
+shot 38.0 e0380
+shot 39.0 e0390
+shot 40.0 e0400
+shot 41.0 e0410
+shot 42.0 e0420
+shot 43.0 e0430
+shot 44.0 e0440
+shot 45.0 e0450
+shot 46.0 e0460
+shot 47.0 e0470
+shot 48.0 e0480
+shot 49.0 e0490
+shot 50.0 e0500
+shot 51.0 e0510
+shot 52.0 e0520

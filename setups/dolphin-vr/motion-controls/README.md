@@ -126,6 +126,52 @@ Punch-Out!! and Mario Kart Wii (wheel) have no pointer in play and keep Dolphin'
 - **Anisotropy key.** Dolphin reads `Graphics.Enhancements.MaxAnisotropy` (value 4 = 16x);
   `Graphics.Settings.MaxAnisotropy` is not read by anything.
 
+## Stereo in the headset: the virtual screen (2026-10-21)
+
+Measured offline with per-eye pictures from `../stereo-probe/` (the real DolphinXR stereo path with a
+synthetic head, no OpenXR runtime). E2 only; nothing here was seen in the headset.
+
+- **`[VR] VirtualScreen` decides where 2D goes, not whether the world is 3D.** The 3D world is drawn
+  per eye either way. With `VirtualScreen = False` every orthographic draw (title, menus, HUD,
+  crosshair, strap screens) keeps the game's own projection: both eyes get the identical picture
+  (mean left/right difference 0.0, disparity 0 px), it fills the view and it turns with the head
+  (a 20° synthetic head turn left it on the same pixels). With `True` the same draws sit on a
+  screen in the room: 15 px disparity at `ScreenDistance = 4`, 41 px at 1.5 m (expected
+  0.064 m / distance × 960 px for a 1920-pixel eye), and they stay put when the head turns.
+- **The per-game VR profile wins** over `Config/GFX.ini` (`GameSettingsVR/<ID>.ini` is applied at the
+  CurrentRun layer). Before this fix every Wii game we launch ended with `VirtualScreen = False`
+  except Mario Kart Wii (DolphinXR's shipped `RMCP01` profile sets `True`), the one game with no
+  stereo complaint. The gun-game profiles had copied Umbrella's `VirtualScreen = False` without
+  Umbrella's HUD shader overrides, so their 2D was glued to the face.
+- **`True` is not right for every game.** Games that build their picture from full-screen 2D passes
+  get a flat box ("inner window") with it on: Wii Sports Resort, Twilight Princess, Galaxy 2,
+  Kirby's Return to Dream Land (title screens), Sin & Punishment (stale, displaced layers), and
+  Umbrella's mission (2026-10-11). So the folder defaults stay as they were and the setting is
+  per game:
+
+| Game | ID | VirtualScreen | Evidence (offline, 2026-10-21) |
+| --- | --- | --- | --- |
+| Dead Space: Extraction | RZJE69 | **True** (`gun/GameSettingsVR/`) | profile menu: 0 px → 15 px, stays in the room on a 20° turn |
+| House of the Dead: Overkill | RHOP8P | **True** (`gun/GameSettingsVR/`) | title: 0 px → 15 px |
+| Gunblade NY & L.A. Machineguns | SQDE8P | **True** (`gun/GameSettingsVR/`) | name entry: 0 px → 15 px |
+| New Super Mario Bros. Wii | SMNE01 | **True** (`GameSettingsVR/`) | world map HUD: 0 px → 41 px |
+| Punch-Out!! | R7PE01 | **True** (`GameSettingsVR/`) | save screen on the panel |
+| Mario Kart Wii | RMCP01 | True (DolphinXR's profile) | race: road 101 px near, sky 0 px, HUD ~41 px |
+| Umbrella, Darkside, Sin & Punishment, Resort, Zelda, Galaxy 1 and 2, Kirby x2, Strikers, DKCR, Metroid | | False (unchanged) | flat box or seam with True, or no gain; needs per-game HUD overrides like Umbrella's |
+
+- **Not the cause:** `InternalResolution=3`, `MSAA=4` and anisotropy. Mario Kart Wii at 3x/MSAA 4 and at
+  1x/no MSAA gave the same disparity profile (near road 101 px vs 33 px × 3 = 99 px, sky 0 px), and
+  Metroid behaved the same in both. The OpenXR path resolves every EFB layer.
+- **Metroid Prime Trilogy (separate fault):** 30 of 48 sampled frames (37 of 48 at 1x) were presented
+  from a one-layer XFB. Its shipped `Sys/GameSettings/R3M.ini` sends XFB copies to RAM, the copies are
+  640×448 while the video interface asks for 640×480, so the texture cache misses and Dolphin
+  rebuilds the frame from RAM as a single layer (with stale "Metroid Prime Loading..." pixels).
+  `Presenter::BlitCurrentSourceToOpenXREyes` skips any source with fewer than two layers, so those
+  frames never reach the headset. `XFBToTextureEnable = True` did not help (18 of 34 still mono);
+  `ImmediateXFBEnable = True` made all 33 frames stereo but showed a corrupt frame and many more
+  FIFO errors, so it is not applied. The real fix is in the emulator: build the XFB container with
+  the EFB's layer count and stitch each layer.
+
 ## Offline input probe (test only)
 
 `input-probe/` adds an env-gated probe to a private source clone (`apply.py <source>`,
@@ -139,7 +185,8 @@ with OpenXR off and `XR_RUNTIME_JSON` pointed at a missing file. Scripts: `bindi
 
 Copy `WiimoteNew.ini` to `<user>/Config/`, `Profiles/Wiimote/*.ini` to
 `<user>/Config/Profiles/Wiimote/`, `GameSettings/*.ini` to `<user>/GameSettings/`, keeping a
-backup of anything replaced. Launchers add
+backup of anything replaced. VR profiles: `GameSettingsVR/*.ini` into the motion folder's
+`GameSettingsVR/`, `gun/GameSettingsVR/*.ini` into the gun folder's `GameSettingsVR/`. Launchers add
 `-C Graphics.Settings.InternalResolution=3 -C Graphics.Settings.MSAA=4 -C Graphics.Settings.SSAA=False -C Graphics.Enhancements.MaxAnisotropy=4`.
 
 ## Offline results (2026-10-19, hidden DolphinNoGUI, OpenXR off, no XR runtime)
@@ -163,7 +210,8 @@ backup of anything replaced. Launchers add
   Extraction), Home only after the hold. The wrist-strap and Zapper pages wait for A in all five; with
   right A every 2 s the games left them (save prompt, logos, file select) while the no-input control
   was still on them at 32 s. Dolphin's log shows `msaa=4` in every gun run.
-- Not proven offline: the stereo OpenXR render itself (the runs are mono), anisotropic filtering, and
+- Not proven offline: the stereo OpenXR render itself (the runs are mono; see the virtual-screen
+  section above and `../stereo-probe/` for the later per-eye pictures), anisotropic filtering, and
   anything in the headset.
 
 ## More owned games (2026-10-20): pointer aim measured against each game's own cursor
@@ -188,13 +236,42 @@ the aim ray is measured against DolphinXR's virtual screen, so they hold where t
 whole game picture. Metroid Prime Trilogy uses the trigger as Wii A (fire, confirm) and right A or
 grip as B (jump).
 
+### Nunchuk prompts (2026-10-21, offline proof)
+
+The owner saw a Nunchuk prompt in Metroid Prime Trilogy (2026-10-21) and in Dead Space: Extraction
+(earlier). Hidden `DolphinNoGUI` runs with copies of the owner's own settings folders and the input
+probe settled both:
+
+- **The extension does reach the games.** Dolphin's log shows `Switching to Extension 1` (Nunchuk) on
+  Wii Remote 1 when it links, and the probe shows Nunchuk data in every report. The profile loads
+  through the game INI's `[Controls] WiimoteProfile1`; `Source = 3` (OpenXR) behaves like `Source = 1`
+  here (the OpenXR override only replaces accelerometer, gyro and pointer values).
+- **Dead Space: Extraction** blocks on "A Nunchuk is required for Player 1" only when no Nunchuk is
+  attached (profile set to `Extension = None`). With `Extension = Nunchuk` it goes on to Select Profile,
+  with MotionPlus on or off. The gun settings folder had no extension at all until 2026-10-20
+  (`WiimoteNew.ini` with only `Source` and `Device`), which explains the earlier prompt. The
+  "Wii Zapper Use" page that shows a Nunchuk is only a picture; right A passes it.
+- **Metroid Prime Trilogy**: after Press A at the title, the Trilogy menu shows "Nunchuk is required."
+  for about 3 seconds, then saves and opens Game Select by itself. This happens in every setup tried:
+  Nunchuk or none, MotionPlus on or off, `Source = 3` or `1`, the 2026-10-19 test folder, a live
+  re-plug before the title, and a minute of waiting on the title. With or without a Nunchuk the frames
+  are byte-identical, so the menu does not look at the Nunchuk there; it is not a missing Nunchuk.
+  Metroid Prime itself does check: without a Nunchuk it stops on "Please connect a Nunchuk to the
+  Wii Remote." for the rest of the run; with `AC Pointer Metroid Prime Trilogy` it plays (Frigate
+  Orpheon, walking on the Nunchuk stick, firing, the game's own "Press and hold Z" hint).
+- MotionPlus stays off in the Dead Space and Metroid sets: neither game uses it, and both pass with it
+  off. It was not the cause either (both also pass with it on).
+
+Scripts: `input-probe/metroid-title-a.txt` (title message), `metroid-gameplay.txt` (slot 1 filled:
+menus, cinematic, then walking and firing), `dse-boot.txt` (Dead Space to Select Profile).
+
 ### Queue, batch 1 (2026-10-20)
 
 | Game | ID | Launcher type | Set | Offline result |
 | --- | --- | --- | --- | --- |
 | Super Mario Galaxy 2 | SB4P01 | pointer | AC Motion Galaxy 2 (Galaxy trim) | star within about 1.4% at six points, lower row by eye; file screens, story, first area with Mario walking |
 | New Super Mario Bros. Wii | SMNE01 | pad | AC Motion Remote and Nunchuk | intro, world map, level 1-1 with Mario running and jumping |
-| Donkey Kong Country Returns | SF8P01 | pad | AC Motion Remote and Nunchuk | title, map and level 1-1 start (DK's hut, controller icon shown); no gameplay appeared with either the Nunchuk or the sideways set, shakes included; not proven |
+| Donkey Kong Country Returns | SF8P01 | pad | AC Pad DKCR (2026-10-21; was AC Motion Remote and Nunchuk) | title, map and level 1-1; plays since 2026-10-21 once the hut-start shake is given (see "Donkey Kong Country Returns and Mario Strikers Charged" below) |
 
 `AC Pad Sideways` (sideways Wii Remote, no Nunchuk, Dolphin's Sideways option on so either stick
 gives screen directions) is for the sideways games that follow. None of these discs has a shipped
@@ -214,7 +291,7 @@ the kart does not turn. Tilt steering stays available only through the opt-in la
 | --- | --- | --- | --- | --- |
 | Kirby's Return to Dream Land | SUKE01 | pad (sideways) | AC Pad Sideways | file select, story skipped with +, world map, level 1-1 with Kirby moving and attacking |
 | Kirby's Epic Yarn | RK5E01 | pad (sideways) | AC Pad Sideways | save creation, story (+ offers "stop watching"), Patch Land with Kirby walking |
-| Mario Strikers Charged | R4QE01 | motion | AC Motion Remote and Nunchuk | pointer menus reached (VS, Domination, option pages) but no match: its pointer is not trimmed yet and DONE did not register; not proven |
+| Mario Strikers Charged | R4QE01 | motion | AC Motion Strikers (2026-10-21; was AC Motion Remote and Nunchuk) | pointer trimmed; menus, captains, sides, stadium and a played match since 2026-10-21 (see "Donkey Kong Country Returns and Mario Strikers Charged" below) |
 | Excitebike: World Rally | WWRP (WiiWare) | pad (racer, stick steering) | AC Pad Sideways | profile, name entry, World Tour, training race running |
 
 Excitebike follows the owner's racer rule: steering is on the stick (D-pad lanes); tilt is not used for steering.
@@ -228,3 +305,54 @@ still show). The alerts seen in the logged proof runs were `FIFO: Unknown Opcode
 (`VideoCommon/OpcodeDecoding.h:166`, "Ignore and continue?") in Mario Strikers Charged and
 Excitebike: World Rally; runs without a log may have raised more. A dialog left open blocks
 emulation, which may explain some stalled offline runs (DKCR at 1-1, slow Metroid runs); not verified.
+﻿
+## Donkey Kong Country Returns and Mario Strikers Charged (2026-10-21)
+
+Both stopped for a reason found offline (hidden DolphinNoGUI, OpenXR off, no XR runtime, audio off, scripted input;
+evidence level E2, nothing seen in the headset yet).
+
+### Donkey Kong Country Returns (SF8P01): level 1-1 waits for a shake
+
+- Scripted A presses get from the title through the file and map into 1-1 ("Jungle Hijinxs"). Level 1-1 then opens
+  on DK's hut with a Wii Remote + Nunchuk icon in a star burst and stays there. The game is alive (smoke animates,
+  the pause menu opens with +); it is asking for a **shake**. The first shake smashes the hut sign, DK steps out and
+  the level starts. The earlier runs "shook" the controllers by rolling them 80 degrees back and forth; with
+  `Source = 3` the Wii Remote's accelerometer comes from the tilt and the controller's real acceleration
+  (`CreateOpenXRInputOverrideFunction`), and a tilt swing is only about 1 g, which the game does not count.
+  It is not a missing button, a MotionPlus problem, a dual-core problem or a PAL60 problem (tried:
+  `Dolphin.Core.CPUThread=False`, `Dolphin.Core.PAL60=False` and MotionPlus off; the hut stayed until a shake came).
+- Proof: with a Wii Remote that has no OpenXR override (`Source = 1`) and the Shake group bound to a button, the
+  same script reaches gameplay (DK runs, jumps, rolls, loses lives, Game Over screen).
+- Fix: the owner's launcher view `3d` now passes `-C Wiimote.Wiimote1.Source=1` and uses profile `AC Pad DKCR`
+  (via `GameSettings/SF8P01.ini`), which binds **Wii Remote shake to the right grip and Nunchuk shake to the left
+  grip** (`Shake/X|Y|Z`, `Nunchuk/Shake/X|Y|Z`). `Source` is a Config setting (`Wiimote.Wiimote1.Source`); a
+  `Source` line inside a profile did not take effect, the command line does. DKCR uses no pointer, so nothing is
+  lost. The second view `physical-shake` keeps `Source = 3` (profile `AC Pad DKCR Motion`, no grip shake): wave
+  the controller; not provable offline.
+- With `Source = 3` a button-bound Shake group moves only the IR dot, never the accelerometer (probe: the
+  accelerometer stays 512,512,616 while the shake button is held), so a grip shake needs `Source = 1`.
+- DKCR refuses a Classic Controller ("please remove the unsupported external extension controller"), so there is
+  no pad-only layout. MotionPlus is detached in both DKCR profiles (the game does not use it).
+- Scripts: `input-probe/dkcr-grip-shake.txt` (runs the grip shake from the hut, then runs right, jumps and rolls; use
+  it with a user folder holding `AC Pad DKCR` and `-C Wiimote.Wiimote1.Source=1`). `dkcr-play.txt`, `dkcr-sideways.txt`
+  and `dkcr-wait.txt` are the 2026-10-20 runs that could not get past the hut.
+
+### Mario Strikers Charged (R4QE01): never reached a match because the menus need a trimmed pointer and a click path
+
+- The game is a pointer menu all the way to the kick-off. Its cursor is a blue hand whose **fingertip** is the
+  hot spot (the drawn hand hangs about 7% of the screen height below the tip), so the old default trim put the
+  tip 7% above and 33% too wide of where the controller pointed and DONE and the pads were missed.
+- Trim (profile `AC Motion Strikers`): `IR/Total Yaw = 18.8`, `IR/Total Pitch = 19.7`, `IR/Vertical Offset = 14.8`.
+  Nine aim points measured on the VS wheel (`input-probe/aim-strikers.txt`, tip position by the top of the hand, `input-probe/measure_tip_hand.py`):
+  eight of nine within 1.1% of the screen of the aim point, the ninth (first move after a page change) 7%.
+- The click path, all with right A (Wii A) on the fingertip position: Press A, save prompt (continues), VS wheel
+  (top burst = Domination), Domination Options page DONE (bottom centre), **click the HOME monitor, then a captain
+  icon**; same for AWAY; DONE; sidekicks DONE; **choose sides: hold A on the Wii Remote icon at the bottom and drag it
+  into the HOME box, then DONE**; stadium PLAY NOW; match. The pads on the floor do nothing; `+` on the options page
+  only flips to the cheats page. Script: `input-probe/strikers-play.txt` (menus to the kick-off, then Mario runs
+  with the stick, sprints with Z, passes with A, shoots with B).
+- The offline match: pitch with Mario's team, a Mega Strike cut-scene with its "block the balls, press A" mini-game,
+  score and clock. One-off `FIFO: Unknown Opcode` lines (two in one run, none in the others) are logged; with
+  panic alerts off the game carried on.
+
+Offline runs are silent: `input-probe/run_probe.ps1` passes `-C Dolphin.DSP.Backend="No Audio Output" -C Dolphin.DSP.Volume=0 -C Dolphin.DSP.Muted=True` (owner request, 2026-10-21).

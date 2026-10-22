@@ -1,4 +1,4 @@
-# Where AladdinsCastle stands (2026-10-21)
+# Where AladdinsCastle stands (2026-10-21, evening)
 
 The single current-state page. It replaces "M2 development" as the summary. Older checkpoint reports stay in [docs/status/](./) as history.
 
@@ -42,19 +42,19 @@ These come from the owner's headset sessions and apply to every setup:
 
 | System | Hub games / views | Best views | State | Open |
 |---|---|---|---|---|
-| PlayStation (acvr-ps1, SwanStation) | 22 / 37 | Theatre screen with the gun, diorama | E2; per-game aim trims, gun-flash hiding gated to shots | PS1 open frame not possible (games cull outside 4:3) |
+| PlayStation (acvr-ps1: SwanStation and Beetle cores) | 22 / 37 | Theatre screen with the gun, diorama | E2; per-game aim trims, gun-flash hiding gated to shots. Graphics raised 2026-10-21 after offline before/after pictures: SwanStation games 5x, 4x MSAA, 24-bit colour, no dithering; Beetle (software) 3D games 4x and sprite games 2x, no dithering, PGXP memory-only (Beetle 4x leaves 3-7 ms per frame on one CPU thread) | PS1 open frame not possible (games cull outside 4:3) |
 | Nintendo 64 (acvr-ps1, GL interception) | 22 / 47 | Real 3D, surround view, HUD on a panel | E3 for Mario Kart 64 3D ("looks really good"), rest E2 | Start is still on the left Menu: needs a host change |
 | Saturn (acvr-ps1, Beetle) | 5 / 5 | Theatre with the Stunner | E2 | Draw-order depth experiment too unreliable for use |
 | PlayStation 2 (PCSX2 VR) | 12 / 27 | Screen, Inside the game | E2; Time Crisis 3 calibration and Inside fixed | |
-| Sega Model 2 (MAME 0.289 patch) | 14 / 25 | Real 3D, open frame | E2; aim fixed (HotD 0.073 to 0.003 of the screen) | Sky Target firing unproven |
+| Sega Model 2 (MAME 0.289 patch) | 14 / 25 | Real 3D, open frame | E2; aim fixed (HotD 0.073 to 0.003 of the screen). Sound: every Model 2 game was silent from the Hub (`-sound none`) until 2026-10-21; now `-sound auto` to the Windows default output | Sky Target firing unproven |
 | Sega Model 3 (Supermodel Next10) | 11 / 54 | Open frame, Inside the game (head-tracked), two-handed wheel | E3 for Sega Rally 2 DX inside with the wheel, rest E2 | |
 | Time Crisis (Namco System 22, Time Crisis VR) | 1 / 5 | Open frame, Inside | E2 | |
 | Arcade guns and motion (MAME) | 26 / 34 | Theatre, open frame where the game draws it, body motion opt-in | E3 for Time Crisis theatre, rest E2 | |
 | Dreamcast (Flycast hotd2-vr) | 5 / 7 | Real 3D, open frame | E2 (Confidential Mission rebuilt after E1 headset issues) | Death Crimson OX/2, Virtua Cop 2 at E1 |
-| Atomiswave (Flycast) | 5 / 10 | Real 3D, open frame | E2 | |
-| Wii (DolphinXR) | 19 / 26 | Real 3D with pointer or motion | E2; pointer aim within 1.3% | Owner 2026-10-21: stereo broken in a game (details pending); Dead Space and Metroid asked for the Nunchuk (MotionPlus now off); DK Country Returns stops at 1-1, Mario Strikers has no match yet |
+| Atomiswave (Flycast) | 5 / 10 | Real 3D (the world around the frame is part of it) | E2; owner 2026-10-21: Sports Shooting USA open frame was squeezed and shifted (aim up to 270 px off), fixed in the build, offline-checked | Title and menu screens show stray art around the frame; open frame view of Sports Shooting USA removed |
+| Wii (DolphinXR) | 19 / 26 | Real 3D with pointer or motion | E2; pointer aim within 1.3%. 2026-10-21: the "broken stereo" was each game's `[VR] VirtualScreen = False`, which glues all 2D (menus, strap screens, HUD) to the face in both eyes; Dead Space, Overkill, Gunblade, New Super Mario Bros. Wii and Punch-Out!! now put it on a screen in the room (0 to 15-41 px disparity, offline probe). The Nunchuk reaches every game (Metroid's 3-second "Nunchuk is required" is a harmless menu notice). Metroid Prime, DK Country Returns (grip = shake) and Mario Strikers Charged reach gameplay offline | Metroid Prime Trilogy drops about 60% of frames from the headset (RAM frame copies are rebuilt as one layer; needs an emulator change). Games whose picture is built from full-screen 2D passes (Galaxy, Kirby, Resort, Zelda, Strikers, Umbrella, Darkside, Sin & Punishment) keep 2D on the face until per-game HUD shader overrides are made in a headset session |
 | GameCube (DolphinXR) | 1 / 2 | Real 3D, HUD on a panel | E2 for F-Zero GX | Start moved to left-stick click on 2026-10-21 |
-| Pinball (Visual Pinball X) | its own page | Desktop or headset | Scan finds tables in subfolders since 2026-10-20 | |
+| Pinball (Visual Pinball X) | its own page | Desktop or headset | 597 tables, 561 startable (2026-10-21 rescan; the saved scan was from 2026-10-15). Scan finds tables in subfolders; the Hub rescans by itself when tables, ROMs or the scanner change | The Matrix and Total Nuclear Annihilation files cannot be parsed |
 
 Each system's details, commands and proofs are in its setup README under [setups/](../../setups/).
 
@@ -65,6 +65,6 @@ The live build is a portable folder under the owner's private `.local/hub-live/<
 ## What is not established
 
 - No headset acceptance (E3) for most games: the offline proofs show controls and pictures, not comfort or feel.
-- Wii stereo problem reported 2026-10-21, details pending.
+- Wii: Metroid Prime Trilogy frame drops; 2D on the face in the full-screen-pass games (see the Wii row).
 - A packaged Hub has no offscreen Qt plugin. Diagnostics take it from the build Qt (see `hub/SETUP.md`).
 - Windows CI's `hub-integration` crashed intermittently on a pid-file race. Fix in PR #119.
