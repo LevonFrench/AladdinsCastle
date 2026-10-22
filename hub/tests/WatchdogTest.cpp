@@ -98,6 +98,20 @@ private slots:
     dog.endSession();
     QCOMPARE(pids(), QList<qint64>({11, 12, 13, 14}));
   }
+  // System processes whose start time can't be read (0) can chain into a loop through reused process
+  // numbers. A scan walking a stray's parents through such a loop still ends.
+  void aParentLoopStillEndsTheScan() {
+    const QList<ProcessInfo> running{process(30, 31, "/Games/VPX/Tools.exe", 500), process(31, 32, "/Windows/sihost.exe", 0),
+                                     process(32, 33, "/Windows/System32/services.exe", 0), process(33, 32, "/Windows/System32/wininit.exe", 0),
+                                     process(40, 1, "/Games/VPX/VPinballX64.exe", 100600)};
+    ac::launch::Watchdog dog;
+    dog.setRules(rules);
+    dog.setLister([&] { return running; });
+    dog.setWindowProbe([](const QList<qint64> &) { return ac::launch::WindowState{true, true, false, false}; });
+    dog.beginSession({"pinball-x", "Table", "pinball", 100000, true, [] { return QList<qint64>{40}; }});
+    QCOMPARE(dog.strays().size(), 1);
+    QCOMPARE(dog.strays().first().toMap().value("pid").toLongLong(), 30);
+  }
   void endingIsGracefulThenTheTreeOnlyTheSameProcesses() {
     QList<ProcessInfo> running{process(20, 1, "/Emu/Supermodel/Supermodel.exe", 100), process(21, 20, "/Windows/System32/conhost.exe", 150),
                                process(22, 1, "/Emu/Supermodel/Supermodel.exe", 300), process(23, 1, "/Other/Supermodel.exe", 100)};
