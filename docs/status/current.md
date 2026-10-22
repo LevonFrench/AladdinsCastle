@@ -69,7 +69,7 @@ Each system's details, commands and proofs are in its setup README under [setups
 
 ## Where the live Hub is
 
-The live build is a portable folder under the owner's private `.local/hub-live/<date>-<commit>/`. Launcher 0 and SteamVR's `appconfig.json` point at it, and every switch keeps backups of both. On 2026-10-21 evening the live build is the one from commit `27a0333`. A build from the PR #123 head (`a7ffcfb`) is staged beside it and is switched live after PR #123 merges. Each release folder under `.local/review/hub-release-<commit>/` holds the receipts: test log, package, owner-state staging with a settings hash, an offscreen smoke picture, and the switch record.
+The live build is a portable folder under the owner's private `.local/hub-live/<date>-<commit>/`. Launcher 0 and SteamVR's `appconfig.json` point at it, and every switch keeps backups of both. On 2026-10-21 evening the live build is the one from commit `27a0333`, which predates the Pinball rescan and the Model 2 sound fix (both are in main but not yet in a live build). A build from the PR #123 head (`a7ffcfb`) is staged beside it and is switched live after PR #123 merges. Each release folder under `.local/review/hub-release-<commit>/` holds the receipts: test log, package, owner-state staging with a settings hash, an offscreen smoke picture, and the switch record.
 
 ## What is not established
 
