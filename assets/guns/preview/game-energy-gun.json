@@ -1,0 +1,190 @@
+{
+  "version": "0.1",
+  "model": "game-energy-gun",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "game-energy-gun-front.png",
+      "nodes": {
+        "grip": [
+          0.751781,
+          0.475426
+        ],
+        "fx_laser": [
+          0.137681,
+          0.399278
+        ],
+        "fx_muzzle": [
+          0.137681,
+          0.399278
+        ],
+        "limit_recoil": [
+          0.391331,
+          0.399278
+        ],
+        "button_reload": [
+          0.776345,
+          0.458232
+        ],
+        "pivot_trigger": [
+          0.702653,
+          0.470514
+        ],
+        "slide_recoil": [
+          0.354485,
+          0.399278
+        ],
+        "energy_core_cycle": [
+          0.302153,
+          0.399278
+        ],
+        "muzzle": [
+          0.137681,
+          0.399278
+        ],
+        "sight_front": [
+          0.246082,
+          0.28874
+        ],
+        "sight_rear": [
+          0.783714,
+          0.28874
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "game-energy-gun.png",
+      "nodes": {
+        "grip": [
+          0.673848,
+          0.408037
+        ],
+        "fx_laser": [
+          0.249827,
+          0.506469
+        ],
+        "fx_muzzle": [
+          0.249827,
+          0.506469
+        ],
+        "limit_recoil": [
+          0.424966,
+          0.436721
+        ],
+        "button_reload": [
+          0.722792,
+          0.396984
+        ],
+        "pivot_trigger": [
+          0.639926,
+          0.417002
+        ],
+        "slide_recoil": [
+          0.399525,
+          0.446853
+        ],
+        "energy_core_cycle": [
+          0.363391,
+          0.461243
+        ],
+        "muzzle": [
+          0.249827,
+          0.506469
+        ],
+        "sight_front": [
+          0.324675,
+          0.374422
+        ],
+        "sight_rear": [
+          0.695897,
+          0.226585
+        ]
+      }
+    },
+    "held": {
+      "image": "game-energy-gun-held.png",
+      "nodes": {
+        "grip": [
+          0.553315,
+          0.585958
+        ],
+        "fx_laser": [
+          0.423278,
+          0.254038
+        ],
+        "fx_muzzle": [
+          0.423278,
+          0.254038
+        ],
+        "limit_recoil": [
+          0.476989,
+          0.362877
+        ],
+        "button_reload": [
+          0.515304,
+          0.58516
+        ],
+        "pivot_trigger": [
+          0.542912,
+          0.560464
+        ],
+        "slide_recoil": [
+          0.469187,
+          0.347067
+        ],
+        "energy_core_cycle": [
+          0.458105,
+          0.324612
+        ],
+        "muzzle": [
+          0.423278,
+          0.254038
+        ],
+        "sight_front": [
+          0.446232,
+          0.201238
+        ],
+        "sight_rear": [
+          0.560077,
+          0.43193
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
+  },
+  "silhouette": "game-energy-gun-silhouette.png",
+  "asset_kind": "gun",
+  "sight_reviews": {
+    "LOD0": "game-energy-gun-sight-lod0.png",
+    "LOD1": "game-energy-gun-sight-lod1.png"
+  },
+  "silhouette_scale_m": 0.82
+}

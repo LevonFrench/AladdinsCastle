@@ -15,7 +15,13 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[3]
 TIERS = ('generic-pistol', 'arc-pistol-slide', 'arc-pistol-twin',
          'con-pistol-slim', 'con-pistol-dpad', 'con-revolver-chunky', 'mnt-mg-heavy')
-BUILT_MODELS = TIERS + ('con-remote-shell','con-stick-grip')
+LEGACY_BUILD_MODELS = TIERS + ('con-remote-shell','con-stick-grip')
+REDESIGN_PLAN_MODELS = ('game-energy-gun','game-revolver-heavy','game-tool-cutter')
+BUILT_MODELS = LEGACY_BUILD_MODELS + REDESIGN_PLAN_MODELS
+# The redesigned specials are checked and assembled from source-plan adapters,
+# but their GLBs are built only by src-redesign/build_render.py. Keep the legacy
+# Blender batch away from those IDs so it cannot overwrite redesigned assets.
+BUILDABLE_MODELS = LEGACY_BUILD_MODELS
 MATERIAL_RGBA = {'body':(.55,.55,.55,1), 'accent':(.32,.32,.34,1),
                  'dark':(.012,.012,.018,1), 'glass':(.025,.10,.16,1)}
 RUNTIME_LIGHTING=json.loads((ROOT/'assets/guns/runtime-lighting.json').read_text(encoding='utf-8'))

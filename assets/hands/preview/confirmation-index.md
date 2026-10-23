@@ -384,7 +384,7 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [assets/guns/propose_wii.py](../../guns/propose_wii.py) | `d8d699963a9edf9d6fd515c4a0817586306d8996bc85930c98ed6bb8a7d61192` |
 | [assets/guns/runtime-lighting.json](../../guns/runtime-lighting.json) | `6baf2010619ca122a5fa9cfeb934407c24ff20b030b8ad98301291d2ae6ab450` |
 | [assets/guns/src/arc-pistol-slide.py](../../guns/src/arc-pistol-slide.py) | `38f923d5188d88ef91f43f3328d0d5c8a359bad24da0c2d1088b04610ddb4c27` |
-| [assets/guns/src/common.py](../../guns/src/common.py) | `e8347cbce8f5f5584759e9e5e9d7b607d66d1a2899d87773c5c49eb16b20af06` |
+| [assets/guns/src/common.py](../../guns/src/common.py) | `7091d048cb9ed5d0e8ea685ddfb95809ca2f79987a1311a49c52e415df4ca57c` |
 | [assets/guns/src/con-pistol-dpad.py](../../guns/src/con-pistol-dpad.py) | `33ede9b5c799f766a85fb387544dc4510a1ce3346efaf46ea3489e6f4c62c332` |
 | [assets/guns/src/con-pistol-slim.py](../../guns/src/con-pistol-slim.py) | `afec36fcfa03bead7f0e7ee9452e3ca90a1b0bd25a6d85b218504c2724b2a547` |
 | [assets/guns/src/con-remote-shell.py](../../guns/src/con-remote-shell.py) | `2bc8f11d09780cc9a193c6faa802d4dc35291b32b667e79b89c3412cbb88362d` |
@@ -392,7 +392,7 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [assets/guns/src/con-stick-grip.py](../../guns/src/con-stick-grip.py) | `caa6fe4657bea3efbe92cb3c12facdbd5f3f859b6926448c2a0f5aff10cb6ee3` |
 | [assets/guns/src/generic-pistol.py](../../guns/src/generic-pistol.py) | `51a4e2d03bd2f17616ab5bb0808cc5aa85aa0d879c2b98a86b592c6e5258beb6` |
 | [assets/guns/src/mnt-mg-heavy.py](../../guns/src/mnt-mg-heavy.py) | `7bc96095edae98afc361efd7be01fe23f7edba63c0de272ce5c61190dcf48840` |
-| [assets/hands/assembly.json](../assembly.json) | `ca4c5b11e775d531a808fc11485b2e610c87df23135bd8a5e675fbab454ea1b4` |
+| [assets/hands/assembly.json](../assembly.json) | `304f4df2121630bd24687f2884ddfca68db17e598c479a7acdd3106628450ce9` |
 | [assets/hands/grip-hand-left.glb](../grip-hand-left.glb) | `8cf5104669ed4e59d49c21a500df389df71003b38314c154315e2a5a12f459e6` |
 | [assets/hands/grip-hand-left.toml](../grip-hand-left.toml) | `7e9db8b3a83b5d6063c7cd86564998f39dfc54e41de4a0e9f9d5ccf6d4c797e4` |
 | [assets/hands/grip-hand-right.glb](../grip-hand-right.glb) | `28f79a25b5bfcc595c5b0f88dda403fc01b4fa53f20ec3935ab4beae35799a94` |
@@ -478,6 +478,6 @@ Hashes describe these existing bytes. They do not establish owner acceptance.
 | [games/wii-resident-evil-umbrella-chronicles/game.toml](../../../games/wii-resident-evil-umbrella-chronicles/game.toml) | `a3fccde20ab1e7fd53e2bab5497c5d8c2a11c55b6b1c1f7a0be197cf150238a9` |
 | [games/wii-sin-and-punishment-star-successor/game.toml](../../../games/wii-sin-and-punishment-star-successor/game.toml) | `1066e052911fa6d1ceaa5359a7bf65953c1e7fdbda5834383b10b71633832144` |
 | [tools/gun_confirmation.py](../../../tools/gun_confirmation.py) | `6bfe61fcf6601275c9df908489e7800452ef98893de146e3180c7d13020b7a9e` |
-| [tools/hand_assembly.py](../../../tools/hand_assembly.py) | `11979c9c25c9c2a84b5bb0f487b19307e5c714425384cdbedcf1f4ee85f91fe0` |
+| [tools/hand_assembly.py](../../../tools/hand_assembly.py) | `dea531fb96641c7e441ba3aa8c1e96a363746a122a112311855349536a5ab24b` |
 | [tools/wii_controls.py](../../../tools/wii_controls.py) | `a73fc096b65254db81cf915eeca86e65a37293c388ae9712ff533c93a7d27789` |
 | [tools/wii_shell_stick.py](../../../tools/wii_shell_stick.py) | `821f09475ffa00f3e6c84064b3f4bb4ad5a0764f20dd4f0ad8d014a2e603e3e8` |

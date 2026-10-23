@@ -2922,7 +2922,7 @@
     "assets/guns/src/common.py": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "e8347cbce8f5f5584759e9e5e9d7b607d66d1a2899d87773c5c49eb16b20af06"
+      "sha256": "7091d048cb9ed5d0e8ea685ddfb95809ca2f79987a1311a49c52e415df4ca57c"
     },
     "assets/guns/src/con-pistol-dpad.py": {
       "kind": "source",
@@ -2962,7 +2962,7 @@
     "assets/hands/assembly.json": {
       "kind": "metadata",
       "hash_basis": "repository-lf",
-      "sha256": "ca4c5b11e775d531a808fc11485b2e610c87df23135bd8a5e675fbab454ea1b4"
+      "sha256": "304f4df2121630bd24687f2884ddfca68db17e598c479a7acdd3106628450ce9"
     },
     "assets/hands/grip-hand-left.glb": {
       "kind": "mesh",
@@ -3392,7 +3392,7 @@
     "tools/hand_assembly.py": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "11979c9c25c9c2a84b5bb0f487b19307e5c714425384cdbedcf1f4ee85f91fe0"
+      "sha256": "dea531fb96641c7e441ba3aa8c1e96a363746a122a112311855349536a5ab24b"
     },
     "tools/wii_controls.py": {
       "kind": "source",

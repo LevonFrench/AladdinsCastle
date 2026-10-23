@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-3.0-only
+id="game-revolver-heavy"
+name="Heavy revolver"
+family="special"
+hold="one-hand"
+tier=1
+model="assets/guns/game-revolver-heavy.glb"
+source="assets/guns/src/game-revolver-heavy.py"
+resembles="An original heavy revolver with a long underlug, not a named weapon"
+shape="Round barrel aligned with the upper chamber, short broad six-chamber drum outside a narrow frame, tapered underlug and dark grip"
+length_mm=285
+features=["rotating_cylinder"]
+notes="Overkill weapon-spirit proposal. Cylinder motion is a visual cycle, not mechanical simulation. Original primitives; neutral metal and rubber, small player-colour inlays. Owner fit and game actions pending."
+[tints]
+default="red"
+p1="red"
+p2="blue"
+red={body="#a0a5aa",accent="#c5484f"}
+blue={body="#a0a5aa",accent="#4276bf"}
+[finish.body]
+metallic=0
+roughness=0.58
+[finish.accent]
+metallic=0
+roughness=0.58
+[finish.dark]
+metallic=0
+roughness=0.58
+[motion.trigger]
+node="pivot_trigger"
+kind="rotate"
+axis=[-1,0,0]
+range=[0,0.35]
+drive="trigger"
+lod_nodes=["pivot_trigger","pivot_trigger_lod1"]
+[motion.reload_control]
+node="button_reload"
+kind="slide"
+axis=[1,0,0]
+range=[0,0.0015]
+drive="selector"
+lod_nodes=["button_reload","button_reload_lod1"]
+[motion.cylinder]
+node="cylinder_spin"
+kind="rotate"
+axis=[0,0,1]
+range=[0,1.0471975512]
+drive="recoil"
+lod_nodes=["cylinder_spin","cylinder_spin_lod1"]
+duration_ms=75
+[[button]]
+id="reload"
+label="Cylinder release (game mapping pending)"
+node="button_reload"

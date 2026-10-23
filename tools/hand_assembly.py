@@ -48,5 +48,5 @@ def main():
     path=ROOT/'assets/hands/assembly.json';payload=json.dumps(compile_assembly(),indent=2)+'\n'
     if args.write:path.write_text(payload,encoding='utf-8')
     elif path.read_text(encoding='utf-8')!=payload:raise ValueError('Stale hand assembly data')
-    print('hand-assembly/1: nine unchanged models, original left/right hands, semantic label anchors')
+    print(f'hand-assembly/1: {len(BUILT_MODELS)} models, original left/right hands, semantic label anchors')
 if __name__=='__main__':main()
