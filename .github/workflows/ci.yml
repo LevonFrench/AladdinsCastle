@@ -54,6 +54,10 @@ jobs:
             echo "::error::Existing g++ required for the standalone append-parser check."
             exit 1
           fi
+      - name: Offline draw-discovery evidence checks (synthetic CPU only)
+        working-directory: setups/dolphin-vr/draw-discovery
+        timeout-minutes: 2
+        run: python -B -m unittest -v test_discovery
       - name: Parse all catalog and theme TOML
         shell: python
         run: |
@@ -82,6 +86,11 @@ jobs:
         working-directory: setups/dolphin-vr/scorecard
         timeout-minutes: 2
         run: python -B -m unittest -v test_scorecard test_runner test_metrics test_ingest
+      - name: Offline draw-discovery evidence checks (Windows synthetic CPU only)
+        if: runner.os == 'Windows'
+        working-directory: setups/dolphin-vr/draw-discovery
+        timeout-minutes: 2
+        run: python -B -m unittest -v test_discovery
       - name: Sitting configuration in Windows PowerShell 5.1
         if: runner.os == 'Windows'
         shell: powershell

@@ -5,6 +5,26 @@ Umbrella Chronicles first, then Darkside. System22 is parked. The target is the
 gun at the hand with scene depth. This checkpoint prepares the real application;
 it does not claim that any game passes those requirements.
 
+## Offline measurement review — 2026-10-23
+
+The current review records each view and scene before changing game settings.
+[Scorecards](scorecard/README.md) keep native, 72 Hz and 90 Hz experiments
+separate, retain immutable receipts and leave unsupported claims unknown.
+Two-layer XFB source counts do not establish distinct content frames or headset
+delivery. E2 is offline evidence; only the owner can provide E3 headset acceptance.
+
+[Draw discovery](draw-discovery/README.md) records bounded shader identities,
+projection/render state and texture metadata to prepare individual placement
+trials. A matching shader or orthographic projection does not identify a HUD by
+itself. [Bounded replay input](motion-controls/input-probe/APPEND.md) supports
+navigation observations through the game's configured input path. Neither tool
+creates a per-game acceptance result or authorizes a live settings change.
+
+Use only a separately reviewed synthetic-eye probe, with the owner's headset-use
+marker checked before execution. Keep private builds, game media, captures and
+measurement receipts under the invoking checkout's ignored `.local` directory.
+The older release and runtime checkpoints below remain historical context.
+
 ## Release and desktop configuration
 
 [DolphinVR Redux v0.4](https://github.com/iChris4/dolphinXR/releases/tag/v0.4)
