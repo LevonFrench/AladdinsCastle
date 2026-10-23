@@ -442,6 +442,40 @@ a:focus-visible, .btn:focus-visible { outline: 2px solid var(--neon-cyan); outli
 .has-music .flow-main { padding-bottom: 96px; }
 @media (max-width: 720px) {
   .music { left: 12px; right: 12px; bottom: 10px; justify-content: space-between; gap: 8px; }
-  .music-title { display: none; }
 }
 .music[hidden] { display: none; }
+
+/* the title turns into a seek bar on hover or focus */
+.music-track { display: grid; align-items: center; width: 240px; }
+.music-track > * { grid-area: 1 / 1; }
+.music-title { overflow: hidden; text-overflow: ellipsis; transition: opacity 0.15s; }
+.music-seek {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 22px; margin: 0;
+  background: transparent; cursor: pointer;
+  opacity: 0; transition: opacity 0.15s;
+  --fill: 0%;
+}
+.music-track:hover .music-seek, .music-seek:focus-visible { opacity: 1; }
+.music-track:hover .music-title, .music-track:focus-within .music-title { opacity: 0; }
+.music-seek::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--brass) var(--fill), rgba(226, 185, 85, 0.25) var(--fill));
+}
+.music-seek::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(226, 185, 85, 0.25); }
+.music-seek::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--brass); }
+.music-seek::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 12px; height: 12px; margin-top: -4px; border-radius: 50%;
+  background: var(--ink); box-shadow: 0 0 0 2px var(--brass);
+}
+.music-seek::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--brass); }
+.music-seek:focus-visible { outline: 2px solid var(--neon-cyan); outline-offset: 2px; border-radius: 4px; }
+@media (max-width: 720px) {
+  /* no hover on phones: the seek bar takes the title's place */
+  .music-track { flex: 1; width: auto; min-width: 0; }
+  .music-title { visibility: hidden; }
+  .music-seek { opacity: 1; }
+  .music { gap: 6px; }
+  .music-db { display: none; }  /* the knob's angle shows the level; screen readers get it from the knob */
+}

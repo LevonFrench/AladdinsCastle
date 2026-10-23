@@ -8,7 +8,7 @@ The guns, grip hands and ghost controls in the scene, and the interactive model 
 
 ## Music
 
-`music.js` plays `audio/l-von-theme.mp3` (L-VON, "Theme From Aladdin's Castle", the developer's own track, encoded at 192 kbps) on every page. A first visit starts 45 seconds in with a 6-second fade once the visitor clicks or presses a key (browsers block sound before that); the track then loops from 0:00. The bar at the bottom has play/pause, stop (back to 0:45), the position and a volume knob that starts at -6 dB (drag up or down, scroll, or arrow keys; double-click resets). The position carries across pages in the same tab, and a stop or pause keeps it quiet until the visitor presses Play. The track is not covered by the repository's software or model licences. Add `?mute` to any page for silent test runs.
+`music.js` plays `audio/l-von-theme.mp3` (L-VON, "Theme From Aladdin's Castle", the developer's own track, encoded at 192 kbps) on every page. A first visit starts 45 seconds in with a 6-second fade once the visitor clicks or presses a key (browsers block sound before that); the track then loops from 0:00. The bar at the bottom has play/pause, stop (back to 0:45), the title (it turns into a seek bar on hover; on phones the seek bar shows in its place), the position and a volume knob that starts at -6 dB (drag up or down, scroll, or arrow keys; double-click resets). The position carries across pages in the same tab, and a stop or pause keeps it quiet until the visitor presses Play. Cloudflare Pages ignores range requests, so the track is fetched whole and played from a local copy, which is what lets it seek. The track is not covered by the repository's software or model licences. Add `?mute` to any page for silent test runs.
 
 ## Keeping it current
 

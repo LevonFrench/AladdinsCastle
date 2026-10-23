@@ -1,6 +1,7 @@
 // Background music: the first play starts 45 s in with a slow fade, the track loops from 0:00,
-// and a bar at the bottom has play/pause, stop, a timer and a volume knob (starts at -6 dB).
-// Browsers only allow sound after a click or key press, so the music starts on the first one.
+// and a bar at the bottom has play/pause, stop, the title (a seek bar on hover), a timer and a
+// volume knob (starts at -6 dB). Browsers only allow sound after a click or key press, so the
+// music starts on the first one.
 (() => {
   const SRC = 'audio/l-von-theme.mp3?v=20261023e';
   const TITLE = 'L-VON · Theme From Aladdin’s Castle';
@@ -16,8 +17,7 @@
   };
 
   const el = new Audio();
-  el.src = SRC;
-  el.preload = 'metadata';
+  el.preload = 'auto';
   if (/[?&]mute\b/.test(location.search)) el.muted = true;  // silent test runs
   let ctx = null, fadeGain = null, volGain = null;
   let db = Number(store.getLocal('acvr-music-db'));
@@ -28,6 +28,24 @@
   if (!Number.isFinite(resumeAt) || store.get('acvr-music-at') === null) resumeAt = START;
   let fresh = store.get('acvr-music-at') === null;
   let userStopped = store.get('acvr-music-off') === '1';
+
+  // The host (Cloudflare Pages) ignores range requests, and a streamed file without them cannot
+  // seek. So the track is fetched whole (cached for a day) and played from a local copy.
+  let loading = null, loaded = false;
+  function load() {
+    if (!loading) {
+      loading = fetch(SRC)
+        .then(r => { if (!r.ok) throw new Error('music ' + r.status); return r.blob(); })
+        .then(blob => new Promise((resolve, reject) => {
+          el.addEventListener('loadedmetadata', resolve, { once: true });
+          el.addEventListener('error', reject, { once: true });
+          el.src = URL.createObjectURL(blob);
+        }))
+        .then(() => { loaded = true; });
+      loading.catch(() => { loading = null; hideBar(); });
+    }
+    return loading;
+  }
 
   const gainOf = d => (d <= DB_MIN ? 0 : Math.pow(10, d / 20));
   function graph() {
@@ -60,7 +78,10 @@
     <button type="button" class="music-btn music-stop" aria-label="Stop music">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3.5h9v9h-9z"/></svg>
     </button>
-    <span class="music-title">${TITLE}</span>
+    <span class="music-track">
+      <span class="music-title">${TITLE}</span>
+      <input class="music-seek" type="range" min="0" max="304" step="0.1" value="${START}" aria-label="Seek in ${TITLE}">
+    </span>
     <span class="music-time" aria-label="Track position"><b>0:45</b> / <span>5:04</span></span>
     <div class="music-knob" role="slider" tabindex="0" aria-label="Volume"
          aria-valuemin="${DB_MIN}" aria-valuemax="${DB_MAX}">
@@ -71,14 +92,24 @@
   document.body.classList.add('has-music');
   const playBtn = bar.querySelector('.music-play');
   const stopBtn = bar.querySelector('.music-stop');
+  const seek = bar.querySelector('.music-seek');
   const timeNow = bar.querySelector('.music-time b');
   const timeAll = bar.querySelector('.music-time span');
   const knob = bar.querySelector('.music-knob');
   const dial = bar.querySelector('.music-dial');
   const dbText = bar.querySelector('.music-db');
+  function hideBar() { bar.hidden = true; document.body.classList.remove('has-music'); }  // no track, no bar
 
   const clock = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-  function showTime() { timeNow.textContent = clock(el.paused && !playing ? resumeAt : el.currentTime); }
+  let seeking = false;
+  function showTime(at = playing ? el.currentTime : resumeAt) {
+    timeNow.textContent = clock(at);
+    if (!seeking) {
+      seek.value = String(at);
+      seek.style.setProperty('--fill', `${(100 * at / (Number(seek.max) || 1)).toFixed(2)}%`);
+    }
+    seek.setAttribute('aria-valuetext', clock(at));
+  }
   function showVolume() {
     const t = (db - DB_MIN) / (DB_MAX - DB_MIN);       // 0..1
     dial.style.transform = `rotate(${-135 + 270 * t}deg)`;
@@ -102,13 +133,12 @@
     playBtn.setAttribute('aria-label', playing ? 'Pause music' : 'Play music');
   }
   async function play() {
-    graph();
-    if (ctx && ctx.state === 'suspended') await ctx.resume().catch(() => {});
+    graph();  // inside the click, so the browser lets the audio start
+    if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
     clearTimeout(pauseTimer);
+    if (!loaded) { try { await load(); } catch { return false; } }
     if (el.paused) {
-      // a seek before the length is known is dropped, so wait for it when needed
-      if (el.readyState >= 1) el.currentTime = resumeAt;
-      else { const at = resumeAt; el.addEventListener('loadedmetadata', () => { el.currentTime = at; }, { once: true }); }
+      el.currentTime = resumeAt;
       try { await el.play(); } catch { return false; }  // still blocked: wait for a gesture
     }
     playing = true; userStopped = false; store.set('acvr-music-off', '0');
@@ -119,7 +149,7 @@
   }
   function pause() {
     playing = false;
-    resumeAt = el.currentTime;
+    resumeAt = el.currentTime || resumeAt;
     fadeTo(0, QUICK_FADE);
     clearTimeout(pauseTimer);
     pauseTimer = setTimeout(() => el.pause(), QUICK_FADE * 1000 + 30);
@@ -136,10 +166,25 @@
   stopBtn.addEventListener('click', stop);
   // loop from the top of the track once it ends
   el.addEventListener('ended', () => { el.currentTime = 0; el.play().catch(() => {}); });
-  el.addEventListener('timeupdate', () => { if (playing) { timeNow.textContent = clock(el.currentTime); store.set('acvr-music-at', String(el.currentTime)); } });
-  el.addEventListener('loadedmetadata', () => { timeAll.textContent = clock(el.duration); });
-  el.addEventListener('error', () => { bar.hidden = true; document.body.classList.remove('has-music'); });  // no track, no bar
+  el.addEventListener('timeupdate', () => { if (playing) { showTime(el.currentTime); store.set('acvr-music-at', String(el.currentTime)); } });
+  el.addEventListener('loadedmetadata', () => { timeAll.textContent = clock(el.duration); seek.max = String(el.duration); showTime(); });
   addEventListener('pagehide', () => { if (playing) store.set('acvr-music-at', String(el.currentTime)); });
+
+  // ---- seek bar (the title turns into it on hover or focus) ----
+  seek.addEventListener('input', () => {
+    seeking = true;
+    const at = Number(seek.value);
+    seek.style.setProperty('--fill', `${(100 * at / (Number(seek.max) || 1)).toFixed(2)}%`);
+    timeNow.textContent = clock(at);
+  });
+  seek.addEventListener('change', () => {
+    seeking = false;
+    const at = Number(seek.value);
+    resumeAt = at; fresh = false;
+    store.set('acvr-music-at', String(at));
+    if (loaded) el.currentTime = at;
+    showTime(at);
+  });
 
   // ---- knob: drag up/down, wheel, or arrow keys ----
   let drag = null;
@@ -161,15 +206,19 @@
     else if (e.key === 'End') { setDb(DB_MAX); e.preventDefault(); }
   });
   knob.addEventListener('dblclick', () => setDb(DB_DEFAULT));
+  // the arcade walks on arrow keys; keep the bar's own keys to itself
+  seek.addEventListener('keydown', e => e.stopPropagation());
 
   // ---- start: right away if the browser allows it, otherwise on the first click or key ----
   function firstGesture(e) {
-    if (e && bar.contains(e.target)) return;  // the bar's own buttons decide for themselves
+    if (e && bar.contains(e.target)) return;  // the bar's own controls decide for themselves
     removeEventListener('pointerup', firstGesture, true);
     removeEventListener('keydown', firstGesture, true);
     if (!userStopped) play();
   }
   showVolume(); showTime(); showState();
+  const idle = window.requestIdleCallback || (fn => setTimeout(fn, 1500));
+  idle(() => load().catch(() => {}), { timeout: 4000 });  // ready by the first click
   if (!userStopped) {
     addEventListener('pointerup', firstGesture, true);
     addEventListener('keydown', firstGesture, true);
