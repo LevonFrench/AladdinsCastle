@@ -1,5 +1,6 @@
 // AC VR Hub site: a scroll-driven walk from the mall corridor into an arcade.
-// Everything is built in code (no photos or third-party art): boxes, canvas textures, emissive neon.
+// Everything is built in code (no photos): boxes, canvas textures, emissive neon. Most cabinet screens
+// play MIT-licensed ASCII games from ascii-magic-art, copied into ascii/ by tools/sync_ascii.py.
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -10,6 +11,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loadModel } from './models.js?v=20261023d';
+import { paint, GlyphAtlas, cellAspect } from './ascii/runtime/canvas.js';
 
 const canvas = document.getElementById('scene');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -398,6 +400,47 @@ function screen(draw, w = 256, h = 192) {
   return t;
 }
 
+// An ASCII game in attract mode. It redraws only while the camera is near one of the cabinets
+// showing it, at the piece's own frame rate up to 12 fps. A frame costs 1-9 ms, so at most two
+// screens redraw per tick, taking turns.
+const asciiJobs = [];
+let asciiTurn = 0;
+function pumpAscii(time) {
+  let budget = 2;
+  for (let k = 0; k < asciiJobs.length && budget > 0; k++) {
+    const job = asciiJobs[(asciiTurn + k) % asciiJobs.length];
+    if (job.due(time)) { job.frame(time); budget--; }
+  }
+  asciiTurn = (asciiTurn + 1) % Math.max(1, asciiJobs.length);
+}
+function asciiScreen(slug, { w = 384, h = 288, offset = 0 } = {}) {
+  const [c, g] = makeCanvas(w, h);
+  const t = tex(c);
+  g.fillStyle = '#05030a'; g.fillRect(0, 0, w, h);
+  t.userData.spots = [];
+  const atlas = new GlyphAtlas();  // one per screen: an atlas resets whenever the cell size changes
+  let draw = null, meta = null, last = -1, layout = null;
+  import(`./ascii/pieces/${slug}.js`).then(mod => {
+    meta = mod.meta; draw = mod.default();
+    const aspect = cellAspect(meta), cw = Math.min(w / meta.cols, h / (meta.rows * aspect)), ch = cw * aspect;
+    layout = { cw, ch, x: (w - meta.cols * cw) / 2, y: (h - meta.rows * ch) / 2 };
+    frame(reducedMotion ? 3 : 0);
+  }).catch(() => {});
+  function frame(time) {
+    const f = draw(time + offset);
+    g.fillStyle = '#05030a'; g.fillRect(0, 0, w, h);
+    paint(g, f, f.palette || meta.palette, { ...layout, mode: 'text', ink: '#d8f7ff', atlas, dpr: 1 });
+    g.fillStyle = 'rgba(0, 0, 0, 0.22)';  // scanlines
+    for (let y = 0; y < h; y += 3) g.fillRect(0, y, w, 1);
+    t.needsUpdate = true;
+  }
+  if (!reducedMotion) asciiJobs.push({
+    due: time => draw && time - last >= 1 / Math.min(meta.fps || 20, 12) && t.userData.spots.some(v => v.distanceToSquared(camPos) < 81),
+    frame: time => { last = time; frame(time); },
+  });
+  return t;
+}
+
 const screenGun = screen((g, w, h, t) => {
   // dusk skyline scrolling, crosshair hunting targets
   const sky = g.createLinearGradient(0, 0, 0, h);
@@ -463,22 +506,6 @@ const screenHub = screen((g, w, h, t) => {
   }
   g.fillStyle = sel % 3 === 0 ? '#9bdc3c' : '#e2b955';
   g.fillRect(w / 2 - 50, h - 11, 100 * (sel % 3 === 0 ? 1 : 0.5 + 0.5 * Math.sin(t * 2) ** 2), 5);
-});
-
-const screenAttract = screen((g, w, h, t) => {
-  g.fillStyle = '#05030d'; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 60; i++) {
-    const z = ((i * 97 + t * 40) % 200) / 200;
-    const a = i * 2.39996;
-    const x = w / 2 + Math.cos(a) * z * w * 0.7, y = h / 2 + Math.sin(a) * z * h * 0.7;
-    g.fillStyle = `rgba(255,255,255,${z})`; g.fillRect(x, y, 1 + z * 2, 1 + z * 2);
-  }
-  for (let i = 0; i < 3; i++) {
-    const a = t * (0.8 + i * 0.3) + i * 2;
-    g.fillStyle = [PAL.yellow, PAL.magenta, PAL.teal][i];
-    g.save(); g.translate(w / 2 + Math.cos(a) * 50, h / 2 + Math.sin(a * 1.3) * 40); g.rotate(a);
-    g.beginPath(); g.moveTo(0, -16); g.lineTo(14, 10); g.lineTo(-14, 10); g.fill(); g.restore();
-  }
 });
 
 const screenCorridor = screen((g, w, h, t) => {
@@ -649,6 +676,7 @@ function cabinetBody(group, w, h, d, color) {
 
 function upright({ x, z, rotY = 0, color, marquee, sub, screenTex, w = 0.8, h = 1.95, d = 0.85, guns = false, stop }) {
   const g = new THREE.Group();
+  screenTex.userData.spots?.push(new THREE.Vector3(x, 1.4, z));
   cabinetBody(g, w, h, d, color);
   // screen, tilted back
   const sw = w - 0.2, sh = sw * 0.78;
@@ -693,6 +721,7 @@ function upright({ x, z, rotY = 0, color, marquee, sub, screenTex, w = 0.8, h = 
 
 function sitdown({ x, z, rotY = 0, color, marquee, sub, screenTex, ghost = false, stop }) {
   const g = new THREE.Group();
+  screenTex.userData.spots?.push(new THREE.Vector3(x, 1.2, z));
   const side = std(color, { roughness: 0.4, envMap: envTex, envMapIntensity: 0.35 });
   box(1.0, 0.14, 2.0, std('#1b1820'), 0, 0.07, 0.4, g);                   // base
   box(1.0, 1.35, 0.7, side, 0, 0.82, -0.35, g);                            // front tower
@@ -834,19 +863,24 @@ animated.push((t, dt) => {
   if (!reducedMotion) tokenPivot.position.y = 2.3 + Math.sin(t * 1.5) * 0.05;
 });
 
+// ASCII attract games, one cabinet each (offsets keep neighbours out of step)
+const ascii = slug => asciiScreen(slug, { offset: (slug.length * 7.3) % 11 });
+
 // light gun row (left wall, facing +x)
 upright({ x: -7.2, z: -5.0, rotY: Math.PI / 2, color: PAL.blue, marquee: 'LIGHT GUNTRUE 3D', screenTex: screenGun, w: 1.15, h: 2.15, d: 1.0, guns: true, stop: 2 });
-upright({ x: -7.2, z: -6.5, rotY: Math.PI / 2, color: PAL.red, marquee: 'TAKE COVER2 PLAYER', screenTex: screenGun, w: 1.15, h: 2.15, d: 1.0, guns: true, stop: 2 });
-upright({ x: -7.2, z: -8.0, rotY: Math.PI / 2, color: PAL.teal, marquee: 'RELOADPOINT OFF SCREEN', screenTex: screenGun, w: 1.15, h: 2.15, d: 1.0, guns: true, stop: 2 });
+upright({ x: -7.2, z: -6.5, rotY: Math.PI / 2, color: PAL.red, marquee: 'TAKE COVER2 PLAYER', screenTex: ascii('alien-wave'), w: 1.15, h: 2.15, d: 1.0, guns: true, stop: 2 });
+upright({ x: -7.2, z: -8.0, rotY: Math.PI / 2, color: PAL.teal, marquee: 'RELOADPOINT OFF SCREEN', screenTex: ascii('rock-blaster'), w: 1.15, h: 2.15, d: 1.0, guns: true, stop: 2 });
 // center island of classic uprights, back to back
+const islandA = ['maze-chase', 'brick-breaker', 'pipe-flyer'].map(ascii);
+const islandB = ['block-drop', 'paddle-tennis', 'frog-hop-crossing'].map(ascii);
 for (let i = 0; i < 3; i++) {
-  upright({ x: -1.4, z: -6.0 - i * 0.85, rotY: -Math.PI / 2, color: [PAL.purple, PAL.orange, PAL.magenta][i], marquee: ['INSERT TOKEN', 'ATTRACT', 'HI SCORE'][i], screenTex: screenAttract });
-  upright({ x: -0.55, z: -6.0 - i * 0.85, rotY: Math.PI / 2, color: [PAL.teal, PAL.blue, PAL.red][i], marquee: ['PLAYER 1', 'CONTINUE?', 'GAME OVER'][i], screenTex: [screenAttract, screenRace, screenGun][i] });
+  upright({ x: -1.4, z: -6.0 - i * 0.85, rotY: -Math.PI / 2, color: [PAL.purple, PAL.orange, PAL.magenta][i], marquee: ['INSERT TOKEN', 'ATTRACT', 'HI SCORE'][i], screenTex: islandA[i] });
+  upright({ x: -0.55, z: -6.0 - i * 0.85, rotY: Math.PI / 2, color: [PAL.teal, PAL.blue, PAL.red][i], marquee: ['PLAYER 1', 'CONTINUE?', 'GAME OVER'][i], screenTex: islandB[i] });
 }
 
 // racing row (right wall, facing -x)
-sitdown({ x: 6.6, z: -9.6, rotY: -Math.PI / 2, color: PAL.red, marquee: 'GHOST WHEELGRAB TO DRIVE', screenTex: screenRace, ghost: true, stop: 3 });
-sitdown({ x: 6.6, z: -11.0, rotY: -Math.PI / 2, color: PAL.yellow, marquee: 'TWIN RACERTRIGGER = PEDAL', screenTex: screenRace, ghost: true, stop: 3 });
+sitdown({ x: 6.6, z: -9.6, rotY: -Math.PI / 2, color: PAL.red, marquee: 'GHOST WHEELGRAB TO DRIVE', screenTex: ascii('circuit-lap-racer'), ghost: true, stop: 3 });
+sitdown({ x: 6.6, z: -11.0, rotY: -Math.PI / 2, color: PAL.yellow, marquee: 'TWIN RACERTRIGGER = PEDAL', screenTex: ascii('rainbow-warp-road'), ghost: true, stop: 3 });
 sitdown({ x: 6.6, z: -12.4, rotY: -Math.PI / 2, color: PAL.blue, marquee: 'TWIN RACERLINK PLAY', screenTex: screenRace, stop: 3 });
 
 // ticket games along the right wall near the front
@@ -857,7 +891,7 @@ hoops(6.8, -7.4, -Math.PI / 2 + 0.0001);
 // the Hub cabinet, back left
 upright({ x: -4.2, z: -18.6, rotY: 0.45, color: '#e2b955', marquee: 'THE HUBLIBRARY', screenTex: screenHub, w: 1.0, h: 2.05, d: 0.9, stop: 7 });
 upright({ x: -5.5, z: -18.0, rotY: 0.6, color: PAL.purple, marquee: 'ONE CLICKINSTALL', screenTex: screenHub, stop: 7 });
-upright({ x: -2.9, z: -19.0, rotY: 0.3, color: PAL.teal, marquee: 'THEATREMODE', screenTex: screenAttract, stop: 7 });
+upright({ x: -2.9, z: -19.0, rotY: 0.3, color: PAL.teal, marquee: 'THEATREMODE', screenTex: ascii('snake-autoplay'), stop: 7 });
 
 // prize counter, back right
 {
@@ -904,8 +938,9 @@ upright({ x: -2.9, z: -19.0, rotY: 0.3, color: PAL.teal, marquee: 'THEATREMODE',
   markClickable(board, 8);
 }
 // filler uprights along the back wall
+const backRow = ['dino-runner', 'coin-run-platformer', 'vector-space-duel', 'gem-cascade'].map(ascii);
 [[-6.8, PAL.orange], [-5.9, PAL.teal], [3.0, PAL.red], [3.9, PAL.blue]].forEach(([x, col], i) =>
-  upright({ x, z: -25.3, rotY: 0, color: col, marquee: ['BONUS', 'EXTRA LIFE', 'STAGE 2', 'NEW RECORD'][i], screenTex: [screenRace, screenAttract, screenGun, screenAttract][i] }));
+  upright({ x, z: -25.3, rotY: 0, color: col, marquee: ['BONUS', 'EXTRA LIFE', 'STAGE 2', 'NEW RECORD'][i], screenTex: backRow[i] }));
 
 // ---------------------------------------------------------------- the project's own models
 // Guns, hands and ghost controls are the real CC0 models from assets/ (copied into models/ by
@@ -1380,7 +1415,7 @@ function frame(now = 0) {
   if (p > 0.6) signArmed = true;
   if (signArmed && p < 0.05) { sign.restart(t + 0.3); signArmed = false; }
   sign.update(t);
-  if (screenAcc > 0.05) { for (const fn of screens) fn(t); screenAcc = 0; }
+  if (screenAcc > 0.05) { for (const fn of screens) fn(t); pumpAscii(t); screenAcc = 0; }
 
   // the arcade sits back behind the panels; in the mall it stays bright so the sign reads
   if (scrim) {
