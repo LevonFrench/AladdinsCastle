@@ -1,0 +1,25 @@
+# Route learned from boot: title explicitly says Press B.
+12 12.3 R primary 1
+20 20.3 R primary 1
+35 35.3 R trigger 1
+40 42 R u 0
+40 42 R v 0
+42 44 R u -0.45
+42 44 R v 0.45
+44 46 R u 0
+44 46 R v 0.45
+46 48 R u 0.45
+46 48 R v 0.45
+48 50 R u -0.45
+48 50 R v 0
+50 52 R u 0.45
+50 52 R v 0
+52 54 R u -0.45
+52 54 R v -0.45
+54 56 R u 0
+54 56 R v -0.45
+56 58 R u 0.45
+56 58 R v -0.45
+60 65 R u 0.25
+60 65 R v 0.1
+63 63.3 R trigger 1

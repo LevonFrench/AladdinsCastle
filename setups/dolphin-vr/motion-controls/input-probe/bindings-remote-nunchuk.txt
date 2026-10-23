@@ -1,12 +1,11 @@
-# Every binding of "AC Motion Remote and Nunchuk", one at a time (emulated seconds).
+# AC Motion Remote and Nunchuk checks: Plus=left thumb click; Minus=brief left-Y tap; Home=left-Y hold (brief Minus precedes Home).
 20.0 20.5 R primary 1
 21.0 21.5 R trigger 1
 22.0 22.5 R secondary 1
 23.0 23.5 R thumbclick 1
 24.0 24.5 L thumbclick 1
-25.0 25.5 L menu 1
+25.0 25.3 L secondary 1
 26.0 27.5 L secondary 1
-26.1 27.5 L menu 1
 28.0 28.5 R stick_y 1
 29.0 29.5 R stick_y -1
 30.0 30.5 R stick_x -1

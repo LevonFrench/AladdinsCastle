@@ -4,6 +4,39 @@ Explicit Wii Remote and Nunchuk bindings for the five Wii motion games (Wii Spor
 Mario Kart Wii, Punch-Out!!, Super Mario Galaxy, Zelda: Twilight Princess) on the pinned
 DolphinXR fork, plus the anti-aliasing fixes found while checking the owner's first headset run.
 
+## Current audit and evidence limits — 2026-10-23
+
+The [scorecard](../scorecard/README.md) separates current configured bindings, constructed
+emulated reports, visible game actions and physical-controller acceptance. The older results
+below retain their original game state, seed and method; they are not renewed acceptance of
+every launcher view. A static binding check proves neither that a game selected that profile
+nor that its action occurred. Inspect report transitions during presses, releases and the
+Home hold threshold; the parser's latest preceding state can be stale.
+
+The current 19 default-profile observations reached their bounded endpoints:
+18 logged no FIFO errors; Excitebike logged 19 and remains failed. Actual report
+transitions confirm Plus, Minus and Home, including a side effect: holding Y first
+sends Minus, then Home. The configured hold uses 0.5 wall seconds; probe timestamps
+use emulated time. Stick and motion report changes do not establish physical dead
+zones, natural gesture strength or successful game actions. Twelve pointer-game
+observations still lack a validated numeric accuracy result; some stop at menus,
+logos or titles and do not supply nine usable cursor points.
+
+For aim, inspect all nine actual cursor hotspots and validate the game-coordinate viewport
+before measuring. Synthetic captures can be stereo pairs, mono, or a room panel surrounded by
+other graphics. The legacy detectors expect one game viewport; a successful detector exit or
+a two-layer texture does not validate that geometry. Keep rejected detections and missing
+points explicit. Scripted screen hits and motion inputs do not measure tracking, hand-eye
+alignment, natural shake strength, comfort or haptics.
+
+The three binding replays now use a short left-Y tap for Minus and leave the
+long-Y Home test free of reserved Menu input. Five play-route candidates
+(`galaxy2-play`, `kirbyrtdl-play`, `kirbyyarn-play`, `nsmbw-play`, `snp2-play`)
+now send their intended Plus pulses through left-stick click. Those pulses may
+pause after a story ends, so the changed routes require fresh scene review;
+earlier gameplay receipts remain tied to the original scripts. Neither reserved
+Menu button is used by these corrected replays.
+
 ## How DolphinXR feeds the emulated Wii Remote (source reading, pinned fork)
 
 - `Source = 3` in `WiimoteNew.ini` is `WiimoteSource::OpenXR` (`Core/HW/Wiimote.h`). It is an

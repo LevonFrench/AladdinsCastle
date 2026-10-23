@@ -1,0 +1,551 @@
+diff --git a/Source/Core/VideoCommon/TextureCacheBase.cpp b/Source/Core/VideoCommon/TextureCacheBase.cpp
+index 982b95ad62..5f851b2433 100644
+--- a/Source/Core/VideoCommon/TextureCacheBase.cpp
++++ b/Source/Core/VideoCommon/TextureCacheBase.cpp
+@@ -7,7 +7,9 @@
+ #include <chrono>
+ #include <cmath>
+ #include <cstring>
++#include <cstdlib>
+ #include <memory>
++#include <optional>
+ #include <string>
+ #include <utility>
+ #include <vector>
+@@ -33,6 +35,7 @@
+ #include "Core/FifoPlayer/FifoRecorder.h"
+ #include "Core/HW/Memmap.h"
+ #include "Core/System.h"
++#include "Core/HW/SystemTimers.h"
+ 
+ #include "VideoCommon/AbstractFramebuffer.h"
+ #include "VideoCommon/AbstractGfx.h"
+@@ -59,6 +62,9 @@
+ #include "VideoCommon/VertexManagerBase.h"
+ #include "VideoCommon/VideoCommon.h"
+ #include "VideoCommon/VideoConfig.h"
++#ifdef ENABLE_VR
++#include "VideoCommon/VR/OpenXRManager.h"
++#endif
+ 
+ static const u64 TEXHASH_INVALID = 0;
+ // Sonic the Fighters (inside Sonic Gems Collection) loops a 64 frames animation
+@@ -67,6 +73,51 @@ static const int TEXTURE_POOL_KILL_THRESHOLD = 3;
+ 
+ static int xfb_count = 0;
+ 
++static bool IsW2StereoXFBPreservationEnabled()
++{
++  const char* value = std::getenv("AC_W2_PRESERVE_STEREO_XFB");
++  return value && std::strcmp(value, "1") == 0 &&
++         g_ActiveConfig.stereo_mode == StereoMode::OpenXR;
++}
++
++static bool IsW2SyntheticDiagnosticEnabled()
++{
++#if defined(ENABLE_VR)
++  const char* probe = std::getenv("AC_STEREO_PROBE");
++  const char* enabled = std::getenv("AC_W2_SYNTHETIC_DIAGNOSTICS");
++  return probe && std::strcmp(probe, "1") == 0 && enabled &&
++         std::strcmp(enabled, "1") == 0 && !VR::g_openxr;
++#else
++  return false;
++#endif
++}
++
++static std::optional<double> GetNonnegativeEnvironmentSeconds(const char* name)
++{
++  const char* value = std::getenv(name);
++  if (!value || !*value)
++    return std::nullopt;
++
++  char* end = nullptr;
++  const double seconds = std::strtod(value, &end);
++  if (end == value || *end != '\0' || !std::isfinite(seconds) || seconds < 0.0)
++    return std::nullopt;
++  return seconds;
++}
++
++static bool IsW2DiagnosticTimeSelected(double emulated_seconds)
++{
++  const std::optional<double> start = GetNonnegativeEnvironmentSeconds("AC_W2_TRACE_START_S");
++  const std::optional<double> duration = GetNonnegativeEnvironmentSeconds("AC_W2_TRACE_DURATION_S");
++  if (!IsW2SyntheticDiagnosticEnabled() || !start || !duration || *duration <= 0.0 ||
++      *duration > 60.0)
++  {
++    return false;
++  }
++  const double end = *start + *duration;
++  return std::isfinite(end) && emulated_seconds >= *start && emulated_seconds < end;
++}
++
+ std::unique_ptr<TextureCacheBase> g_texture_cache;
+ 
+ static bool IsMetroidPrime1GC()
+@@ -196,6 +247,11 @@ bool TextureCacheBase::Initialize()
+     return false;
+   }
+ 
++  m_w2_after_present_event =
++      GetVideoEvents().after_present_event.Register([this](const PresentInfo& pi) {
++        m_w2_after_present_timestamp = pi.emulated_timestamp;
++      });
++
+   return true;
+ }
+ 
+@@ -533,6 +589,41 @@ void TextureCacheBase::ScaleTextureCacheEntryTo(RcTcacheEntry& entry, u32 new_wi
+       config, TexPoolEntry(std::move(new_texture->texture), std::move(new_texture->framebuffer)));
+ }
+ 
++bool TextureCacheBase::PromoteXFBEntryToStereo(RcTcacheEntry& entry)
++{
++  if (!entry || !entry->texture)
++    return false;
++  if (entry->GetNumLayers() >= 2)
++    return true;
++  if (entry->GetNumLayers() != 1)
++    return false;
++
++  TextureConfig promoted_config = entry->texture->GetConfig();
++  promoted_config.layers = 2;
++  std::optional<TexPoolEntry> promoted = AllocateTexture(promoted_config);
++  if (!promoted)
++  {
++    return false;
++  }
++
++  // Guest RAM contains a single image. Duplicate it into both slices as explicitly mono fallback.
++  // Real two-layer EFB copies overwrite only their clipped destination regions later in stitching.
++  const MathUtil::Rectangle<int> rect = entry->texture->GetConfig().GetRect();
++  for (u32 layer = 0; layer < 2; ++layer)
++  {
++    promoted->texture->CopyRectangleFromTexture(entry->texture.get(), rect, 0, 0, rect, layer, 0);
++  }
++  promoted->texture->FinishedRendering();
++  entry->texture.swap(promoted->texture);
++  entry->framebuffer.swap(promoted->framebuffer);
++
++  // Retain the TCacheEntry identity, hashes, references, and refcount. Recycle only its old texture.
++  const TextureConfig old_config = promoted->texture->GetConfig();
++  m_texture_pool.emplace(
++      old_config, TexPoolEntry(std::move(promoted->texture), std::move(promoted->framebuffer)));
++  return true;
++}
++
+ bool TextureCacheBase::CheckReadbackTexture(u32 width, u32 height, AbstractTextureFormat format)
+ {
+   if (m_readback_texture && m_readback_texture->GetConfig().width >= width &&
+@@ -2083,6 +2174,140 @@ static void GetDisplayRectForXFBEntry(TCacheEntry* entry, u32 width, u32 height,
+   display_rect->bottom = static_cast<int>(height * entry->GetHeight() / entry->native_height);
+ }
+ 
++struct XFBCopyRectangles
++{
++  MathUtil::Rectangle<int> source;
++  MathUtil::Rectangle<int> destination;
++  bool requires_scale = false;
++};
++
++struct XFBCopyOperation
++{
++  TCacheEntry* source = nullptr;
++  XFBCopyRectangles rectangles;
++  bool mono_provenance = false;
++};
++
++struct XFBCopyAnalysis
++{
++  std::vector<XFBCopyOperation> operations;
++  bool has_layered_gpu_source = false;
++  bool has_scaled_mono_source = false;
++  bool has_unsupported_layered_scale = false;
++};
++
++// One geometry calculation is shared by promotion preflight and the changed copy loop. The caller
++// performs the original optional upscale first, so bounds here always use the actual destination.
++static bool CalculateXFBCopyRectangles(const TCacheEntry& destination, const TCacheEntry& source,
++                                       XFBCopyRectangles* rectangles)
++{
++  if (destination.native_width <= 0 || destination.native_height <= 0 ||
++      source.native_width <= 0 || source.native_height <= 0 || !source.texture)
++  {
++    return false;
++  }
++
++  int src_x;
++  int src_y;
++  int dst_x;
++  int dst_y;
++  if (source.addr >= destination.addr)
++  {
++    const int pixel_offset = (source.addr - destination.addr) / 2;
++    src_x = 0;
++    src_y = 0;
++    dst_x = pixel_offset % destination.native_width;
++    dst_y = pixel_offset / destination.native_width;
++  }
++  else
++  {
++    const int pixel_offset = (destination.addr - source.addr) / 2;
++    src_x = pixel_offset % source.native_width;
++    src_y = pixel_offset / source.native_width;
++    dst_x = 0;
++    dst_y = 0;
++  }
++
++  const int native_width =
++      std::min(source.native_width - src_x, destination.native_width - dst_x);
++  const int native_height =
++      std::min(source.native_height - src_y, destination.native_height - dst_y);
++  if (native_width <= 0 || native_height <= 0)
++    return false;
++
++  int src_width = native_width;
++  int src_height = native_height;
++  int dst_width = native_width;
++  int dst_height = native_height;
++  // Map rectangle endpoints using each allocation's own dimensions. Cached source/destination
++  // textures can retain a scale different from the current framebuffer-manager scale.
++  const auto scale_endpoint = [](int value, int native_extent, u32 allocation_extent) {
++    return static_cast<int>(static_cast<s64>(value) * allocation_extent / native_extent);
++  };
++  const int src_right = src_x + src_width;
++  const int src_bottom = src_y + src_height;
++  const int dst_right = dst_x + dst_width;
++  const int dst_bottom = dst_y + dst_height;
++  const int scaled_src_x = scale_endpoint(src_x, source.native_width, source.GetWidth());
++  const int scaled_src_y = scale_endpoint(src_y, source.native_height, source.GetHeight());
++  const int scaled_dst_x = scale_endpoint(dst_x, destination.native_width, destination.GetWidth());
++  const int scaled_dst_y = scale_endpoint(dst_y, destination.native_height, destination.GetHeight());
++  src_width = scale_endpoint(src_right, source.native_width, source.GetWidth()) - scaled_src_x;
++  src_height = scale_endpoint(src_bottom, source.native_height, source.GetHeight()) - scaled_src_y;
++  dst_width = scale_endpoint(dst_right, destination.native_width, destination.GetWidth()) - scaled_dst_x;
++  dst_height = scale_endpoint(dst_bottom, destination.native_height, destination.GetHeight()) - scaled_dst_y;
++  src_x = scaled_src_x;
++  src_y = scaled_src_y;
++  dst_x = scaled_dst_x;
++  dst_y = scaled_dst_y;
++
++  if (src_x < 0 || src_y < 0 || dst_x < 0 || dst_y < 0 || src_width <= 0 || src_height <= 0 ||
++      dst_width <= 0 || dst_height <= 0 ||
++      static_cast<u32>(src_x + src_width) > source.GetWidth() ||
++      static_cast<u32>(src_y + src_height) > source.GetHeight() ||
++      static_cast<u32>(dst_x + dst_width) > destination.GetWidth() ||
++      static_cast<u32>(dst_y + dst_height) > destination.GetHeight())
++  {
++    return false;
++  }
++
++  rectangles->source = {src_x, src_y, src_x + src_width, src_y + src_height};
++  rectangles->destination = {dst_x, dst_y, dst_x + dst_width, dst_y + dst_height};
++  rectangles->requires_scale = src_width != dst_width || src_height != dst_height;
++  return true;
++}
++
++// Analyze only hash-valid entries admitted by StitchXFBCopy's IsCopy()/overlap/stride checks.
++// XFB containers retain mono RAM provenance even after a prior W2 promotion.
++static XFBCopyAnalysis AnalyzeXFBCopyCandidates(const TCacheEntry& destination,
++                                                const std::vector<TCacheEntry*>& candidates)
++{
++  XFBCopyAnalysis analysis;
++  analysis.operations.reserve(candidates.size());
++  for (TCacheEntry* source : candidates)
++  {
++    if (!source->IsCopy() || source->GetNumLayers() == 0)
++      continue;
++
++    XFBCopyRectangles rectangles;
++    if (!CalculateXFBCopyRectangles(destination, *source, &rectangles))
++      continue;
++
++    const bool mono_provenance = source->is_xfb_container || source->GetNumLayers() < 2;
++    if (mono_provenance && rectangles.requires_scale)
++      analysis.has_scaled_mono_source = true;
++    if (!source->is_xfb_container && source->GetNumLayers() >= 2)
++    {
++      analysis.has_layered_gpu_source = true;
++      if (rectangles.requires_scale && !g_backend_info.bSupportsGeometryShaders)
++        analysis.has_unsupported_layered_scale = true;
++    }
++
++    analysis.operations.push_back({source, rectangles, mono_provenance});
++  }
++  return analysis;
++}
++
+ RcTcacheEntry TextureCacheBase::GetXFBTexture(u32 address, u32 width, u32 height, u32 stride,
+                                               MathUtil::Rectangle<int>* display_rect)
+ {
+@@ -2102,14 +2327,23 @@ RcTcacheEntry TextureCacheBase::GetXFBTexture(u32 address, u32 width, u32 height
+   RcTcacheEntry entry = GetXFBFromCache(address, width, height, stride);
+   if (entry && !entry->IsLocked())
+   {
+-    if (entry->is_xfb_container)
++    if (entry->is_xfb_container && !StitchXFBCopy(entry))
+     {
+-      StitchXFBCopy(entry);
+-      entry->texture->FinishedRendering();
++      // A cached layered container can become incompatible with a newly observed scaled mono
++      // contributor. Invalidate it and rebuild from RAM as a one-layer baseline, where the legacy
++      // mono scaler is valid; do not silently skip the overlay or report it as applied.
++      const TexAddrCache::iterator cached = GetTexCacheIter(entry.get());
++      if (cached != m_textures_by_address.end())
++        InvalidateTexture(cached);
++      entry.reset();
++    }
++    else
++    {
++      if (entry->is_xfb_container)
++        entry->texture->FinishedRendering();
++      GetDisplayRectForXFBEntry(entry.get(), width, height, display_rect);
++      return entry;
+     }
+-
+-    GetDisplayRectForXFBEntry(entry.get(), width, height, display_rect);
+-    return entry;
+   }
+ 
+   // Create a new VRAM texture, and fill it with the data from guest RAM.
+@@ -2139,7 +2373,11 @@ RcTcacheEntry TextureCacheBase::GetXFBTexture(u32 address, u32 width, u32 height
+   }
+ 
+   // Stitch any VRAM copies into the new RAM copy.
+-  StitchXFBCopy(entry);
++  if (!StitchXFBCopy(entry))
++  {
++    entry->texture->FinishedRendering();
++    return {};
++  }
+   entry->texture->FinishedRendering();
+ 
+   // Insert into the texture cache so we can re-use it next frame, if needed.
+@@ -2201,7 +2439,7 @@ RcTcacheEntry TextureCacheBase::GetXFBFromCache(u32 address, u32 width, u32 heig
+   return {};
+ }
+ 
+-void TextureCacheBase::StitchXFBCopy(RcTcacheEntry& stitched_entry)
++bool TextureCacheBase::StitchXFBCopy(RcTcacheEntry& stitched_entry)
+ {
+   // It is possible that some of the overlapping textures overlap each other. This behavior has been
+   // seen with XFB copies in Rogue Leader. To get the correct result, we apply the texture updates
+@@ -2244,12 +2482,13 @@ void TextureCacheBase::StitchXFBCopy(RcTcacheEntry& stitched_entry)
+   }
+ 
+   if (candidates.empty())
+-    return;
++    return true;
+ 
+   std::ranges::sort(candidates, {}, &TCacheEntry::id);
+ 
+   // We only upscale when necessary to preserve resolution. i.e. when there are upscaled partial
+-  // copies to be stitched together.
++  // copies to be stitched together. Do this once before preflight so the shared rectangle checker
++  // validates against the actual destination allocation in both passes.
+   if (create_upscaled_copy)
+   {
+     ScaleTextureCacheEntryTo(stitched_entry,
+@@ -2257,6 +2496,137 @@ void TextureCacheBase::StitchXFBCopy(RcTcacheEntry& stitched_entry)
+                              g_framebuffer_manager->EFBToScaledY(stitched_entry->native_height));
+   }
+ 
++  const bool preserve_stereo_enabled = IsW2StereoXFBPreservationEnabled();
++  const u64 timestamp_ticks = m_w2_after_present_timestamp;
++  double emulated_seconds = 0.0;
++  bool trace_window = false;
++  if (IsW2SyntheticDiagnosticEnabled())
++  {
++    const u64 ticks_per_second = Core::System::GetInstance().GetSystemTimers().GetTicksPerSecond();
++    if (ticks_per_second > 0)
++    {
++      emulated_seconds = static_cast<double>(timestamp_ticks) / ticks_per_second;
++      trace_window = IsW2DiagnosticTimeSelected(emulated_seconds);
++    }
++  }
++
++  XFBCopyAnalysis analysis;
++  if (preserve_stereo_enabled || trace_window)
++    analysis = AnalyzeXFBCopyCandidates(*stitched_entry, candidates);
++
++  const u32 layers_before = stitched_entry->GetNumLayers();
++  const bool unsafe_layered_destination =
++      preserve_stereo_enabled && layers_before >= 2 &&
++      (analysis.has_scaled_mono_source || analysis.has_unsupported_layered_scale);
++  if (unsafe_layered_destination)
++  {
++    // No W2 overlay/reference has been applied yet. After the baseline upscale above, GetXFBTexture
++    // invalidates the cached layered image and rebuilds the mono RAM result, preserving overlays.
++    if (trace_window && m_w2_xfb_stitch_trace_records < 64)
++    {
++      INFO_LOG_FMT(VIDEO,
++                   "W2_XFB_STITCH emu_s={:.3f} ticks={} dst_id={} addr={:#010x} candidates={} "
++                   "layers_before={} layers_after={} outcome=cached_layered_rebuild "
++                   "mono_scaled={} unsupported_layered_scale={}",
++                   emulated_seconds, timestamp_ticks, stitched_entry->id, stitched_entry->addr,
++                   candidates.size(), layers_before, stitched_entry->GetNumLayers(),
++                   analysis.has_scaled_mono_source, analysis.has_unsupported_layered_scale);
++      ++m_w2_xfb_stitch_trace_records;
++    }
++    return false;
++  }
++
++  bool promotion_attempted = false;
++  bool promoted_for_stereo = false;
++  if (preserve_stereo_enabled && layers_before == 1 && analysis.has_layered_gpu_source &&
++      !analysis.has_scaled_mono_source && !analysis.has_unsupported_layered_scale)
++  {
++    promotion_attempted = true;
++    // Promotion allocation failure is harmless: the original one-layer stitch path below remains
++    // responsible for every contributor and preserves its normal copy/reference behavior.
++    promoted_for_stereo = PromoteXFBEntryToStereo(stitched_entry);
++  }
++
++  const bool use_layered_copy_path =
++      preserve_stereo_enabled && stitched_entry->GetNumLayers() >= 2;
++  if (trace_window && m_w2_xfb_stitch_trace_records < 64)
++  {
++    const char* outcome = !preserve_stereo_enabled ? "setting_off" :
++                          analysis.has_scaled_mono_source ? "mono_scaled_source_fallback" :
++                          analysis.has_unsupported_layered_scale ? "unsupported_scale_fallback" :
++                          promoted_for_stereo ? "promoted" :
++                          layers_before >= 2 && use_layered_copy_path ? "reused_layered" :
++                          promotion_attempted ? "promotion_allocation_failed_legacy_fallback" :
++                          analysis.has_layered_gpu_source ? "promotion_rejected_legacy_fallback" :
++                                                            "no_layered_gpu_source";
++    INFO_LOG_FMT(VIDEO,
++                 "W2_XFB_STITCH emu_s={:.3f} ticks={} dst_id={} addr={:#010x} candidates={} "
++                 "layered_copy_candidate={} mono_scaled={} unsupported_layered_scale={} "
++                 "enabled={} layers_before={} layers_after={} outcome={}",
++                 emulated_seconds, timestamp_ticks, stitched_entry->id, stitched_entry->addr,
++                 candidates.size(), analysis.has_layered_gpu_source,
++                 analysis.has_scaled_mono_source, analysis.has_unsupported_layered_scale,
++                 preserve_stereo_enabled, layers_before, stitched_entry->GetNumLayers(), outcome);
++    ++m_w2_xfb_stitch_trace_records;
++  }
++
++  if (use_layered_copy_path)
++  {
++    // The precomputed operation list and geometry are exactly those inspected above. Valid mono
++    // contributors are copied to each layer; layered GPU copies preserve their layer ordering.
++    for (const XFBCopyOperation& operation : analysis.operations)
++    {
++      TCacheEntry* source = operation.source;
++      const MathUtil::Rectangle<int>& srcrect = operation.rectangles.source;
++      const MathUtil::Rectangle<int>& dstrect = operation.rectangles.destination;
++      const char* operation_name = "layered-source-copy";
++      if (operation.rectangles.requires_scale)
++      {
++        g_gfx->ScaleTexture(stitched_entry->framebuffer.get(), dstrect, source->texture.get(),
++                            srcrect);
++        operation_name = "layered-source-scale";
++      }
++      else if (operation.mono_provenance)
++      {
++        for (u32 layer = 0; layer < stitched_entry->GetNumLayers(); ++layer)
++        {
++          stitched_entry->texture->CopyRectangleFromTexture(source->texture.get(), srcrect, 0, 0,
++                                                            dstrect, layer, 0);
++        }
++        operation_name = "mono-source-duplicated";
++      }
++      else
++      {
++        const u32 layers_to_copy = std::min(source->GetNumLayers(),
++                                            stitched_entry->GetNumLayers());
++        for (u32 layer = 0; layer < layers_to_copy; ++layer)
++        {
++          stitched_entry->texture->CopyRectangleFromTexture(source->texture.get(), srcrect, layer,
++                                                            0, dstrect, layer, 0);
++        }
++      }
++
++      if (trace_window && m_w2_xfb_region_trace_records < 64)
++      {
++        INFO_LOG_FMT(VIDEO,
++                     "W2_XFB_REGION emu_s={:.3f} ticks={} dst_id={} dst={:#010x} src_id={} "
++                     "src={:#010x} src_hash={:#018x} src_layers={} src_rect=({},{}..{},{}) "
++                     "dst_rect=({},{}..{},{}) op={}",
++                     emulated_seconds, timestamp_ticks, stitched_entry->id, stitched_entry->addr,
++                     source->id, source->addr, source->hash, source->GetNumLayers(), srcrect.left,
++                     srcrect.top, srcrect.right, srcrect.bottom, dstrect.left, dstrect.top,
++                     dstrect.right, dstrect.bottom, operation_name);
++        ++m_w2_xfb_region_trace_records;
++      }
++
++      // Link the two textures together, so we won't apply this partial update again.
++      source->CreateReference(stitched_entry.get());
++      source->frameCount = FRAMECOUNT_INVALID;
++    }
++    return true;
++  }
++
++  // Default/off mode and rejected one-layer W2 cases retain the original stitching behavior.
+   for (TCacheEntry* entry : candidates)
+   {
+     int src_x, src_y, dst_x, dst_y;
+@@ -2324,10 +2694,12 @@ void TextureCacheBase::StitchXFBCopy(RcTcacheEntry& stitched_entry)
+     dstrect.bottom = (dst_y + dst_height);
+ 
+     // We may have to scale if one of the copies is not internal resolution.
++    const char* operation_name = "legacy-copy";
+     if (srcrect.GetWidth() != dstrect.GetWidth() || srcrect.GetHeight() != dstrect.GetHeight())
+     {
+       g_gfx->ScaleTexture(stitched_entry->framebuffer.get(), dstrect, entry->texture.get(),
+                           srcrect);
++      operation_name = "legacy-scale";
+     }
+     else
+     {
+@@ -2340,12 +2712,26 @@ void TextureCacheBase::StitchXFBCopy(RcTcacheEntry& stitched_entry)
+       }
+     }
+ 
++    if (trace_window && m_w2_xfb_region_trace_records < 64)
++    {
++      INFO_LOG_FMT(VIDEO,
++                   "W2_XFB_REGION emu_s={:.3f} ticks={} dst_id={} dst={:#010x} src_id={} "
++                   "src={:#010x} src_hash={:#018x} src_layers={} src_rect=({},{}..{},{}) "
++                   "dst_rect=({},{}..{},{}) op={}",
++                   emulated_seconds, timestamp_ticks, stitched_entry->id, stitched_entry->addr,
++                   entry->id, entry->addr, entry->hash, entry->GetNumLayers(), srcrect.left,
++                   srcrect.top, srcrect.right, srcrect.bottom, dstrect.left, dstrect.top,
++                   dstrect.right, dstrect.bottom, operation_name);
++      ++m_w2_xfb_region_trace_records;
++    }
++
+     // Link the two textures together, so we won't apply this partial update again
+     entry->CreateReference(stitched_entry.get());
+ 
+     // Mark the texture update as used, as if it was loaded directly
+     entry->frameCount = FRAMECOUNT_INVALID;
+   }
++  return true;
+ }
+ 
+ std::array<u32, 3>
+diff --git a/Source/Core/VideoCommon/TextureCacheBase.h b/Source/Core/VideoCommon/TextureCacheBase.h
+index 205c4a655b..b40ab0a50a 100644
+--- a/Source/Core/VideoCommon/TextureCacheBase.h
++++ b/Source/Core/VideoCommon/TextureCacheBase.h
+@@ -382,7 +382,8 @@ private:
+ 
+   RcTcacheEntry DoPartialTextureUpdates(RcTcacheEntry& entry_to_update, const u8* palette,
+                                         TLUTFormat tlutfmt);
+-  void StitchXFBCopy(RcTcacheEntry& entry_to_update);
++  bool StitchXFBCopy(RcTcacheEntry& entry_to_update);
++  bool PromoteXFBEntryToStereo(RcTcacheEntry& entry);
+ 
+   void CheckTempSize(size_t required_size);
+ 
+@@ -438,6 +439,11 @@ private:
+ 
+   TexPool m_texture_pool;
+   u64 m_last_entry_id = 0;
++  // Bound W2 trace output to 64 diagnostic records per cache instance.
++  u32 m_w2_xfb_stitch_trace_records = 0;
++  u32 m_w2_xfb_region_trace_records = 0;
++  u64 m_w2_after_present_timestamp = 0;
++  Common::EventHook m_w2_after_present_event;
+ 
+   // Backup configuration values
+   struct BackupConfig
