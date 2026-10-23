@@ -153,10 +153,11 @@ private slots:
     auto input=f.inputs;input.model="healthy-pistol";QVERIFY(ac::gunroom::plan(input).available());
   }
   void retainedPipeCloseAndConfirmedExit() {
+    QTemporaryDir root;QVERIFY(root.isValid());
     ac::gunroom::Service service;
     ac::gunroom::Plan fixture;
     fixture.executable=QCoreApplication::applicationFilePath();
-    fixture.root=QDir::tempPath();fixture.arguments={"--pipe-fixture"};
+    fixture.root=root.path();fixture.arguments={"--pipe-fixture"};
     QSignalSpy started(&service,&ac::gunroom::Service::started),finished(&service,&ac::gunroom::Service::finished);
     QVERIFY(service.start(fixture));QVERIFY(service.busy());QVERIFY(!service.start(fixture));
     QTRY_COMPARE(started.size(),1);
@@ -166,18 +167,20 @@ private slots:
     QVERIFY(!service.busy());QVERIFY(service.output().contains("exact-close-and-eof"));
   }
   void closeWhileStartingAndFailedStart() {
+    QTemporaryDir root;QVERIFY(root.isValid());
     ac::gunroom::Service service;ac::gunroom::Plan fixture;
-    fixture.executable=QCoreApplication::applicationFilePath();fixture.root=QDir::tempPath();fixture.arguments={"--pipe-fixture"};
+    fixture.executable=QCoreApplication::applicationFilePath();fixture.root=root.path();fixture.arguments={"--pipe-fixture"};
     QSignalSpy finished(&service,&ac::gunroom::Service::finished);
     QVERIFY(service.start(fixture));service.close();
     QTRY_COMPARE(finished.size(),1);QVERIFY(finished[0][0].toString().isEmpty());
-    fixture.executable=QDir(QDir::tempPath()).filePath("absent-gun-room-executable.exe");
+    fixture.executable=root.filePath("absent-gun-room-executable.exe");
     QVERIFY(service.start(fixture));QTRY_COMPARE(finished.size(),2);
     QVERIFY(!finished[1][0].toString().isEmpty());QVERIFY(!service.busy());
   }
   void destructionRetainsChildThroughOrderlyExit() {
+    QTemporaryDir root;QVERIFY(root.isValid());
     auto service=std::make_unique<ac::gunroom::Service>();ac::gunroom::Plan fixture;
-    fixture.executable=QCoreApplication::applicationFilePath();fixture.root=QDir::tempPath();fixture.arguments={"--pipe-fixture"};
+    fixture.executable=QCoreApplication::applicationFilePath();fixture.root=root.path();fixture.arguments={"--pipe-fixture"};
     bool finished=false;QString error;
     connect(service.get(),&ac::gunroom::Service::finished,this,[&](const QString &value){finished=true;error=value;});
     QVERIFY(service->start(fixture));service.reset();

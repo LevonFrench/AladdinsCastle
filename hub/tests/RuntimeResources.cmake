@@ -32,7 +32,7 @@ foreach(generator IN ITEMS "Ninja" "Ninja Multi-Config")
         -DCMAKE_TRY_COMPILE_CONFIGURATION=Release
         -DCMAKE_BUILD_TYPE=Release
         "-DCMAKE_MAKE_PROGRAM=${NINJA}" RESULT_VARIABLE result
-        OUTPUT_VARIABLE output ERROR_VARIABLE error)
+        OUTPUT_VARIABLE output ERROR_VARIABLE error TIMEOUT 60)
     if(NOT result EQUAL 0)
         message(FATAL_ERROR "${generator} configure failed: ${output}${error}")
     endif()
@@ -43,8 +43,8 @@ foreach(generator IN ITEMS "Ninja" "Ninja Multi-Config")
     endif()
     foreach(config IN LISTS configurations)
         execute_process(COMMAND "${CMAKE_COMMAND}" --build "${build}" --config "${config}"
-            --target aladdinscastle-hub RESULT_VARIABLE result
-            OUTPUT_VARIABLE output ERROR_VARIABLE error)
+            --target aladdinscastle-hub --parallel 2 RESULT_VARIABLE result
+            OUTPUT_VARIABLE output ERROR_VARIABLE error TIMEOUT 60)
         if(NOT result EQUAL 0)
             message(FATAL_ERROR "${generator}/${config} build failed: ${output}${error}")
         endif()
@@ -90,8 +90,8 @@ foreach(layout IN ITEMS "Ninja/Release" "Ninja-Multi-Config/Release" "Ninja-Mult
     list(GET parts 1 config)
     set(build "${root}/${directory}")
     execute_process(COMMAND "${CMAKE_COMMAND}" --build "${build}" --config "${config}"
-        --target aladdinscastle-hub RESULT_VARIABLE result
-        OUTPUT_VARIABLE output ERROR_VARIABLE error)
+        --target aladdinscastle-hub --parallel 2 RESULT_VARIABLE result
+        OUTPUT_VARIABLE output ERROR_VARIABLE error TIMEOUT 60)
     if(NOT result EQUAL 0)
         message(FATAL_ERROR "${layout} asset-only build failed: ${output}${error}")
     endif()
@@ -124,7 +124,7 @@ execute_process(COMMAND "${CMAKE_COMMAND}" -S "${no_ninja}" -B "${root}/no-ninja
     -DCMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH=FALSE -DCMAKE_FIND_USE_CMAKE_PATH=FALSE
     -DCMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH=FALSE -DCMAKE_FIND_USE_CMAKE_SYSTEM_PATH=FALSE
     -DCMAKE_FIND_USE_INSTALL_PREFIX=FALSE
-    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error TIMEOUT 60)
 if(NOT result EQUAL 0)
     message(FATAL_ERROR "No-Ninja discovery configuration failed: ${output}${error}")
 endif()
@@ -132,3 +132,12 @@ if(NOT output MATCHES "Skipping hub-runtime-resources")
     message(FATAL_ERROR "No-Ninja configuration must explain the skipped extra regression: ${output}")
 endif()
 message(STATUS "PASS no-Ninja discovery: configure succeeds with explicit extra-test skip")
+
+# Preserve failed fixtures for diagnosis; successful repeats remove only their generated run directory.
+cmake_path(ABSOLUTE_PATH TEST_ROOT NORMALIZE OUTPUT_VARIABLE owned_parent)
+cmake_path(ABSOLUTE_PATH root NORMALIZE OUTPUT_VARIABLE owned_root)
+cmake_path(IS_PREFIX owned_parent "${owned_root}" NORMALIZE owned)
+if(NOT owned OR owned_root STREQUAL owned_parent)
+    message(FATAL_ERROR "Resource fixture cleanup escaped its test root: ${owned_root}")
+endif()
+file(REMOVE_RECURSE "${owned_root}")

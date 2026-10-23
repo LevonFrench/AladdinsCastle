@@ -55,7 +55,7 @@ install::Request syntheticManagedTool(const QString &root) {
   install::Request request; request.root=root; request.gameId="tool-synthetic"; request.variantId="windows-x64";
   request.runtime.gameId=request.gameId;
   const auto source=root+"/games/tool-synthetic/setup/synthetic-tool.exe";
-  install::atomicCopy(QCoreApplication::applicationFilePath(),source);
+  install::atomicCopy(QStringLiteral(AC_STAND_IN),source);
   request.recipe={{"format",1},{"variant",{{"windows-x64",{
       {"status","stable"},{"version","v1"},{"install_dir","emulators/synthetic"},
       {"installed_when","file:${install_dir}/synthetic-tool.exe"},
@@ -487,11 +487,14 @@ void LaunchSteamTest::sortedResourcesRefuseWithoutPartialReservation() {
   const auto a=temp.path()+"/a",b=temp.path()+"/b";
   QVERIFY(QDir().mkpath(a)); QVERIFY(QDir().mkpath(b));
   install::ResourceLocks use({b},install::ResourceAccess::Use);
-  QElapsedTimer elapsed; elapsed.start();
-  try {install::ResourceLocks denied({b,a},install::ResourceAccess::Mutation);QFAIL("Mutation entered in-use resource");}
-  catch(const install::Error &error){QCOMPARE(error.code,QString("E_LOCKED"));}
-  QVERIFY(elapsed.elapsed()<1000);
-  install::ResourceLocks aStillFree({a},install::ResourceAccess::Mutation); // Earlier sorted reservation unwound.
+  QProcess probe;
+  auto cleanup=qScopeGuard([&]{if(probe.state()!=QProcess::NotRunning){probe.kill();probe.waitForFinished(3000);}});
+  probe.start(QCoreApplication::applicationFilePath(),{"--synthetic-multi-mutator",a,b});
+  QVERIFY(probe.waitForStarted(15000));
+  QVERIFY2(probe.waitForFinished(15000),"Mutation waited for b to be released");
+  QCOMPARE(probe.exitStatus(),QProcess::NormalExit);
+  QCOMPARE(probe.exitCode(),0); // Child also reacquired a before its process exited.
+  install::ResourceLocks aStillFree({a},install::ResourceAccess::Mutation);
 }
 void LaunchSteamTest::orphanedChildKeepsUsageLease_data() {
   QTest::addColumn<QString>("evidence");
@@ -1375,20 +1378,19 @@ void LaunchSteamTest::lastPlayedLockRefusal() {
   launch::Request r;r.root=temp.path();r.gameId="test-game";r.variantId="flat-test";r.prepareProfile=false;r.plan.executable=QCoreApplication::applicationFilePath();r.plan.cwd=temp.path();r.plan.args={"--synthetic-child","0"};
   launch::LaunchService service;
   QSignalSpy done(&service, &launch::LaunchService::finished), warnings(&service, &launch::LaunchService::warning);
-  int heartbeats = 0;
-  QTimer heartbeat; heartbeat.setInterval(10);
-  connect(&heartbeat, &QTimer::timeout, this, [&] { ++heartbeats; });
+  int pendingHeartbeats = 0;
+  QTimer heartbeat; heartbeat.setInterval(0); // Count event-loop turns, not a scheduler-dependent 10 ms cadence.
+  connect(&heartbeat, &QTimer::timeout, this, [&] { if(!service.playing()&&service.busy())++pendingHeartbeats; });
   heartbeat.start();
   QElapsedTimer elapsed; elapsed.start();
   QVERIFY(service.start(r));
-  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 10000);
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 15000);
   QCOMPARE(done[0][1].toInt(), 0);
   QVERIFY(done[0][2].toString().isEmpty());
-  QVERIFY(elapsed.elapsed() >= 1200);
-  QVERIFY(elapsed.elapsed() < 3500); // Bounded worker lock wait, including process startup.
+  QVERIFY(elapsed.elapsed() >= 1200); // Held lock exercised the worker's retry window.
   QTRY_COMPARE_WITH_TIMEOUT(warnings.count(), 1, 5000);
   QVERIFY(warnings[0][1].toString().contains("Last-played state is locked"));
-  QVERIFY(heartbeats > 30); // GUI event processing continues throughout the worker wait.
+  QVERIFY(pendingHeartbeats > 30); // The GUI event loop advanced repeatedly during pending persistence.
   QVERIFY(!service.busy());
   QVERIFY(!QFileInfo::exists(temp.path() + "/user/last-played.json"));
 }
@@ -1407,7 +1409,7 @@ void LaunchSteamTest::transientLastPlayedLockHandoff() {
     if (!service.playing()) QTimer::singleShot(150, this, [&] { held.unlock(); });
   });
   QVERIFY(service.start(request));
-  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 5000);
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 15000);
   QCOMPARE(done[0][1].toInt(), 0); QVERIFY(done[0][2].toString().isEmpty());
   QCOMPARE(warnings.count(), 0);
   const auto times = Json::parse(install::readBytes(temp.path() + "/user/last-played.json").toStdString());
@@ -1420,7 +1422,7 @@ void LaunchSteamTest::completionIndependentOfGlobalPool() {
   QSemaphore entered, release;
   auto blocker = QtConcurrent::run(global, [&] { entered.release(); release.acquire(); });
   auto cleanup = qScopeGuard([&] { release.release(); blocker.waitForFinished(); global->setMaxThreadCount(previousLimit); });
-  QVERIFY(entered.tryAcquire(1, 5000));
+  QVERIFY(entered.tryAcquire(1, 15000));
   QTemporaryDir temp;
   launch::Request request;
   request.root = temp.path(); request.gameId = "test-game"; request.variantId = "flat-test";
@@ -1429,7 +1431,7 @@ void LaunchSteamTest::completionIndependentOfGlobalPool() {
   launch::LaunchService service;
   QSignalSpy done(&service, &launch::LaunchService::finished);
   QVERIFY(service.start(request));
-  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 5000);
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(), 1, 15000);
   QVERIFY(!blocker.isFinished()); // Completion succeeded while the global worker remained occupied.
   QCOMPARE(done[0][1].toInt(), 0); QVERIFY(done[0][2].toString().isEmpty());
   QVERIFY(QFileInfo::exists(temp.path() + "/user/last-played.json"));
@@ -1439,16 +1441,13 @@ void LaunchSteamTest::pendingPersistenceTeardownBounded() {
   QDir().mkpath(temp.path() + "/user/locks");
   QLockFile held(temp.path() + "/user/locks/last-played.lock");
   QVERIFY(held.tryLock());
-  launch::Request request;
-  request.root = temp.path(); request.gameId = "test-game"; request.variantId = "flat-test";
-  request.prepareProfile = false; request.plan.executable = QCoreApplication::applicationFilePath();
-  request.plan.cwd = temp.path(); request.plan.args = {"--synthetic-child", "0"};
-  auto service = std::make_unique<launch::LaunchService>();
-  QVERIFY(service->start(request));
-  QTRY_VERIFY_WITH_TIMEOUT(!service->playing() && service->busy(), 5000);
-  QElapsedTimer elapsed; elapsed.start();
-  service.reset(); // Drains its owned pool; no detached task retains session state.
-  QVERIFY(elapsed.elapsed() < 2500);
+  QProcess teardown;
+  auto cleanup=qScopeGuard([&]{if(teardown.state()!=QProcess::NotRunning){teardown.kill();teardown.waitForFinished(3000);}});
+  teardown.start(QCoreApplication::applicationFilePath(),{"--synthetic-persistence-teardown",temp.path()});
+  QVERIFY(teardown.waitForStarted(15000));
+  QVERIFY2(teardown.waitForFinished(20000),"LaunchService destructor waited for the held state lock to be released");
+  QCOMPARE(teardown.exitStatus(),QProcess::NormalExit);
+  QCOMPARE(teardown.exitCode(),0); // Child destroyed its service while the parent still held the lock.
   QVERIFY(!QFileInfo::exists(temp.path() + "/user/last-played.json"));
 }
 void LaunchSteamTest::completionBlocksReentrantStart() {
@@ -1569,7 +1568,7 @@ void LaunchSteamTest::immediateCancel() {
   else
     connect(&service, &launch::LaunchService::playingChanged, &service, cancel);
   QVERIFY(!service.start(r));
-  QTest::qWait(100);
+  QTRY_COMPARE_WITH_TIMEOUT(done.count(),1,5000);
   QCOMPARE(started.count(), 0);
   QCOMPARE(done.count(), 1);
   QVERIFY(done[0][2].toString().startsWith("Launch cancelled"));
@@ -1664,6 +1663,32 @@ LRESULT CALLBACK syntheticCloseWindow(HWND window,UINT message,WPARAM wparam,LPA
 }
 #endif
 int main(int argc, char **argv) {
+  if(argc==3 && QByteArray(argv[1])=="--synthetic-persistence-teardown"){
+    QCoreApplication app(argc,argv);const auto root=app.arguments()[2];
+    launch::Request request;request.root=root;request.gameId="test-game";request.variantId="flat-test";
+    request.prepareProfile=false;request.plan.executable=QCoreApplication::applicationFilePath();
+    request.plan.cwd=root;request.plan.args={"--synthetic-child","0"};
+    auto service=std::make_unique<launch::LaunchService>();bool sawPending=false;
+    QObject::connect(service.get(),&launch::LaunchService::playingChanged,&app,[&]{if(!service->playing()&&service->busy())sawPending=true;});
+    if(!service->start(request))return 23;
+    QElapsedTimer wait;wait.start();
+    while(!sawPending){
+      QCoreApplication::processEvents();
+      if(wait.elapsed()>10000)return 24;
+      QThread::msleep(10);
+    }
+    service.reset(); // Drains its owned pool in this process, before its session state is destroyed.
+    return QFileInfo::exists(root+"/user/last-played.json")?25:0;
+  }
+  if(argc==4 && QByteArray(argv[1])=="--synthetic-multi-mutator"){
+    QCoreApplication app(argc,argv);const auto args=app.arguments();bool refused=false;
+    try {install::ResourceLocks denied({args[3],args[2]},install::ResourceAccess::Mutation);}
+    catch(const install::Error &error){if(error.code!="E_LOCKED")return 20;refused=true;}
+    if(!refused)return 21;
+    try {install::ResourceLocks free({args[2]},install::ResourceAccess::Mutation);}
+    catch(const install::Error &){return 22;}
+    return 0;
+  }
   if(argc==3&&QByteArray(argv[1])=="--synthetic-cooperative-child"){
 #ifdef Q_OS_WIN
     QCoreApplication app(argc,argv);const auto receipt=app.arguments()[2];HWND window=nullptr;

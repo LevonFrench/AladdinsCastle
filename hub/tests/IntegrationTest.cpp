@@ -8,6 +8,7 @@
 #include <QTemporaryDir>
 #include <QDateTime>
 #include <QGuiApplication>
+#include <QHash>
 #include <QTimer>
 #include <QWindow>
 #include <QJsonDocument>
@@ -72,6 +73,33 @@ QByteArray syntheticTable(){
 // A tree program's process id, or 0 while its file is not written yet. Never throws: each program
 // writes its file through a temporary one beside it, so the folder can list it before the id can be read.
 qint64 pidIn(const QString &file){QFile f(file);return f.open(QIODevice::ReadOnly)?f.readAll().trimmed().toLongLong():0;}
+QJsonObject model2Report(const QString &path){QFile file(path);return file.open(QIODevice::ReadOnly)?QJsonDocument::fromJson(file.readAll()).object():QJsonObject{};}
+#ifdef Q_OS_WIN
+bool sameTestPath(const QString &actual,const QString &expected){
+    return !actual.isEmpty() && QDir::cleanPath(QDir::fromNativeSeparators(actual)).compare(
+        QDir::cleanPath(QDir::fromNativeSeparators(expected)),Qt::CaseInsensitive)==0;
+}
+// Only end processes started during this test whose executable is its exact fixture path. A PID
+// alone is not enough after an assertion has spent several seconds waiting: Windows can reuse it.
+bool endTestProcesses(const QHash<qint64,QString> &known,const QStringList &fixturePaths,qint64 startedMs){
+    const auto matching=[&]{
+        QList<qint64> result;
+        for(const auto &process:ac::launch::listProcesses()){
+            if(process.createdMs<startedMs || process.path.isEmpty() || !ac::launch::processAlive(process.pid))continue;
+            bool ours=known.contains(process.pid)&&sameTestPath(process.path,known.value(process.pid));
+            for(const auto &path:fixturePaths)ours=ours||sameTestPath(process.path,path);
+            if(ours)result<<process.pid;
+        }
+        return result;
+    };
+    QElapsedTimer timer;timer.start();
+    do{
+        const auto active=matching();if(active.isEmpty())return true;
+        ac::launch::endProcesses(active);QTest::qWait(25);
+    }while(timer.elapsed()<5000);
+    return matching().isEmpty();
+}
+#endif
 }
 class IntegrationTest:public QObject{
  Q_OBJECT
@@ -361,13 +389,13 @@ private slots:
     ac::UiSettings settings(t.filePath("user"));settings.set("model2Executable",build+"/mame/emulator.exe");settings.set("model2GameFolder",sets);
     qputenv("AC_SYNTHETIC_MODEL2_REPORT",t.filePath("viewer.json").toUtf8());const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_MODEL2_REPORT");});
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
-    bool vr=false;int starts=0;services.setVrServerProbe([&]{return vr;});services.setSteamVrWait(5000,150);
+    bool vr=false;int starts=0,probes=0;services.setVrServerProbe([&]{++probes;return vr;});services.setSteamVrWait(5000,150);
     services.setSteamVrStarter([&](QString *){++starts;QTimer::singleShot(250,&ui,[&]{vr=true;});return true;});
     // The panel, wired as the desktop Hub wires it, with a stand-in for joining SteamVR's dashboard.
     int attaches=0;ac::PanelAttacher panel([&](QString *){++attaches;return true;},[]{});
     connect(&ui,&ac::UiController::steamVrRunningChanged,&panel,[&]{panel.setSteamVrRunning(ui.steamVrRunning());});
     QSignalSpy started(services.launcher(),&ac::launch::LaunchService::started),finished(services.launcher(),&ac::launch::LaunchService::finished);
-    QTest::qWait(50);QVERIFY(!ui.steamVrRunning());QCOMPARE(attaches,0);
+    QTRY_VERIFY_WITH_TIMEOUT(probes>0,5000);QVERIFY(!ui.steamVrRunning());QCOMPARE(attaches,0);
     ui.playGame("model2-vcop2","screen");
     QCOMPARE(starts,1);QCOMPARE(ui.steamVrStarting(),QString("Virtua Cop 2"));QCOMPARE(started.size(),0);
     QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
@@ -404,9 +432,12 @@ private slots:
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("system22Executable",program);
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());services.watchdog()->setTimings(200,300,0,800);
-    qint64 stray=0,unrelated=0;
+    qint64 stray=0,unrelated=0;const auto startedMs=QDateTime::currentMSecsSinceEpoch();
+    const auto cleanup=qScopeGuard([&]{
+        if(!endTestProcesses({{stray,program},{unrelated,other}},{},startedMs))
+            QTest::qFail("Detached fixture process did not exit before temporary cleanup",__FILE__,__LINE__);
+    });
     QVERIFY(QProcess::startDetached(program,{"--synthetic-child"},{},&stray));QVERIFY(QProcess::startDetached(other,{"--synthetic-child"},{},&unrelated));
-    const auto cleanup=qScopeGuard([&]{ac::launch::endProcesses({stray,unrelated});});
     const auto listed=[&](qint64 pid){for(const auto &value:ui.backgroundPrograms())if(value.toMap().value("pid").toLongLong()==pid)return true;return false;};
     QTRY_VERIFY_WITH_TIMEOUT(listed(stray),5000);QVERIFY(!listed(unrelated));
     QVERIFY(ui.backgroundPrograms().first().toMap().value("label").toString().contains("TimeCrisisVR.exe"));
@@ -432,6 +463,12 @@ private slots:
     QSignalSpy finished(services.launcher(),&ac::launch::LaunchService::finished);
     const auto pids=t.filePath("pids.txt");qputenv("AC_SYNTHETIC_PIDS",pids.toUtf8());qputenv("AC_SYNTHETIC_WERFAULT",report.toUtf8());
     const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_GAME");qunsetenv("AC_SYNTHETIC_PIDS");qunsetenv("AC_SYNTHETIC_WERFAULT");});
+    const auto startedMs=QDateTime::currentMSecsSinceEpoch();
+    const auto cleanup=qScopeGuard([&]{
+        services.launcher()->stop();
+        if(!endTestProcesses({}, {program,report},startedMs))
+            QTest::qFail("Watchdog fixture or its WerFault/grandchild did not exit before temporary cleanup",__FILE__,__LINE__);
+    });
     const auto play=[&](const QByteArray &mode){qputenv("AC_SYNTHETIC_GAME",mode);const int before=finished.size();ui.playGame("system22-timecris","vr");qunsetenv("AC_SYNTHETIC_GAME");return before;};
     // A crash: the exit code in words, on the banner and in the crash records.
     int before=play("crash");
@@ -513,7 +550,7 @@ private slots:
     ui.chooseGameView("ps2-virtua-cop","screen");QVERIFY(row()["viewChosen"].toBool());
     ui.playOtherGame("ps2-virtua-cop");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
     const auto pid=services.launcher()->processId();QVERIFY(pid>0);
-    QTest::qWait(300);ui.stopLaunch();
+    QTRY_VERIFY_WITH_TIMEOUT(ac::launch::processAlive(pid),5000);QVERIFY(!QFileInfo::exists(stop));ui.stopLaunch();
     QVERIFY(QFileInfo::exists(stop)); // The graceful request comes first.
     QTest::qWait(800);QVERIFY(services.launchBusy()); // Not yet forced.
     QTRY_COMPARE_WITH_TIMEOUT(finished.size(),1,8000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),8000);
@@ -549,8 +586,8 @@ private slots:
     QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),5000);
     // With SteamVR running, a headset launch is given SteamVR's own OpenXR runtime when this PC has one.
     vr=true;ui.playGame("model2-vcop2","screen");QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,8000);
-    QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(t.filePath("viewer.json")),5000);QTest::qWait(200);
-    const auto given=QJsonDocument::fromJson(ac::install::readBytes(t.filePath("viewer.json"))).object()["env"].toObject()["XR_RUNTIME_JSON"].toString();
+    QTRY_VERIFY_WITH_TIMEOUT(model2Report(t.filePath("viewer.json")).value("env").isObject(),5000);
+    const auto given=model2Report(t.filePath("viewer.json")).value("env").toObject().value("XR_RUNTIME_JSON").toString();
     const auto steamVr=ac::launch::detectRuntime(ac::launch::systemRuntimeInputs()).steamVrManifest;
     if(steamVr.isEmpty())QVERIFY(given.isEmpty()||given==qEnvironmentVariable("XR_RUNTIME_JSON"));else QCOMPARE(given,steamVr);
     QTRY_COMPARE_WITH_TIMEOUT(finished.size(),2,15000);QTRY_VERIFY_WITH_TIMEOUT(!services.launchBusy(),10000);QCOMPARE(starts,0);
@@ -575,12 +612,13 @@ private slots:
     for(const QString way:{"exit","stop","hub"}){
         const int before=finished.size();ui.playOtherGame("model2-vcop2");QTRY_COMPARE_WITH_TIMEOUT(started.size(),before+1,8000);
         // Each launch has a stop file of its own, which does not exist until it is asked to quit.
-        QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(t.filePath("viewer.json")),5000);QTest::qWait(200);
-        const auto stop=QDir::fromNativeSeparators(QJsonDocument::fromJson(ac::install::readBytes(t.filePath("viewer.json"))).object()["env"].toObject()["ACVR_M2_STOP_FILE"].toString());
+        QTRY_VERIFY_WITH_TIMEOUT(model2Report(t.filePath("viewer.json")).value("env").toObject().value("ACVR_M2_STOP_FILE").isString(),5000);
+        const auto stop=QDir::fromNativeSeparators(model2Report(t.filePath("viewer.json")).value("env").toObject().value("ACVR_M2_STOP_FILE").toString());
         QVERIFY2(stop.startsWith(QDir::fromNativeSeparators(t.filePath("user/runtime/model2-vcop2-"))),qPrintable(stop));QVERIFY(!used.contains(stop));used<<stop;
         QVERIFY(!QFileInfo::exists(stop));
         QVERIFY(ui.nowPlaying()["closeUnavailable"].toString().isEmpty()); // Exit and Restart are offered again.
-        QTest::qWait(300);if(way=="exit")ui.closeLaunch();else if(way=="stop")ui.stopLaunch();else services.requestHubExit(3);
+        QTRY_VERIFY_WITH_TIMEOUT(ac::launch::processAlive(services.launcher()->processId()),5000);
+        if(way=="exit")ui.closeLaunch();else if(way=="stop")ui.stopLaunch();else services.requestHubExit(3);
         QVERIFY(QFileInfo::exists(stop));
         // The viewer ends by itself, normally: the request was the stop file, not a kill.
         QTRY_COMPARE_WITH_TIMEOUT(finished.size(),before+1,15000);QCOMPARE(finished.last()[1].toInt(),0);QVERIFY2(finished.last()[2].toString().isEmpty(),qPrintable(finished.last()[2].toString()));
@@ -802,6 +840,16 @@ private slots:
         ac::launch::Request request;request.root=temp.path();request.gameId="synthetic-tree";request.variantId="flat";request.prepareProfile=false;
         request.plan.executable=standIn();request.plan.cwd=temp.path();
         request.plan.args={"--spawn-tree",folder,"launcher",way=="leave"?"leave":"stay"};
+        const auto startedMs=QDateTime::currentMSecsSinceEpoch();
+        const auto cleanup=qScopeGuard([&]{
+            QHash<qint64,QString> known;
+            for(const auto &name:{"launcher","child1","child2","grandchild"})known.insert(pidIn(folder+"/"+name+".pid"),request.plan.executable);
+            known.insert(launcher.processId(),request.plan.executable);
+            for(const auto pid:launcher.ownedProcesses())known.insert(pid,request.plan.executable);
+            launcher.endEverything();
+            if(!endTestProcesses(known,{},startedMs))
+                QTest::qFail("Synthetic game tree did not exit before temporary cleanup",__FILE__,__LINE__);
+        });
         QVERIFY(launcher.start(request));
         const auto pids=[&]{QList<qint64> list;for(const auto &name:{"launcher","child1","child2","grandchild"})list<<pidIn(folder+"/"+name+".pid");return list;};
         // Waited for by id, not by file count: a file still being written counts in the folder but cannot be read.
