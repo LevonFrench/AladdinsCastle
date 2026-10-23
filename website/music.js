@@ -3,7 +3,7 @@
 // volume knob (starts at -6 dB). Browsers only allow sound after a click or key press, so the
 // music starts on the first one.
 (() => {
-  const SRC = 'audio/l-von-theme.mp3?v=20261023e';
+  const SRC = 'audio/l-von-theme.mp3?v=20261023m';
   const TITLE = 'L-VON · Theme From Aladdin’s Castle';
   const START = 0;             // a fresh start plays from the top; the track fades itself in
   const QUICK_FADE = 0.35;     // seconds, pause/resume/stop, so they do not click
