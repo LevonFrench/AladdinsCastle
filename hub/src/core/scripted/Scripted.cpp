@@ -111,6 +111,26 @@ QString problem(const QString &launcher,const QString &key,const QString &view){
  }
  return "Your launcher has no entry for this game.";
 }
+QString missingMedia(const QString &launcher,const QStringList &keys){
+ const auto all=read(launcher);if(all.isEmpty())return {};
+ const QDir beside=QFileInfo(launcher).absoluteDir();
+ const auto check=[&](const QJsonObject &object)->QString{
+  for(const auto *field:{"file","disc","rom"}){
+   const auto named=object.value(QLatin1String(field)).toString();
+   if(named.trimmed().isEmpty())continue;
+   const QFileInfo found(QDir::isAbsolutePath(named)?named:beside.filePath(named));
+   if(!found.exists())return "Game file not found: "+QDir::toNativeSeparators(found.absoluteFilePath())+". Check the disc or ROM path in your launcher's games.json.";
+  }
+  return {};
+ };
+ for(const auto &key:keys){
+  const auto entry=all.value(key).toObject();if(entry.isEmpty())continue;
+  if(const auto issue=check(entry);!issue.isEmpty())return issue;
+  const auto views=entry.value("views");
+  if(views.isObject())for(const auto &view:views.toObject())if(view.isObject())if(const auto issue=check(view.toObject());!issue.isEmpty())return issue;
+ }
+ return {};
+}
 QVariantMap launchPlan(const QString &launcher,const QString &key,const QString &view){
  const auto issue=problem(launcher,key,view);
  if(!issue.isEmpty()||view.isEmpty())throw install::Error("E_LAUNCHER_SETUP",issue.isEmpty()?QString("Choose a view."):issue);

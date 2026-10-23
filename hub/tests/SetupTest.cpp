@@ -412,6 +412,45 @@ private slots:
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::scripted::launchPlan(arcade,"Bad Key","theatre"));
     QCOMPARE(ac::scripted::viewLabel("3d"),QString("Real 3D"));QCOMPARE(ac::scripted::viewLabel("x-new"),QString("x-new"));
   }
+  // A launcher's game whose own file is gone is not found, and the path is said: a disc, ROM or file on the
+  // entry or on any of its views, a relative one read beside games.json. A game naming no file is not judged.
+  void launcherGameFilesAreChecked() {
+    QTemporaryDir t;const auto launcher=t.filePath("play/wii/launch-wii.ps1");write(launcher,"synthetic");
+    const auto here=t.filePath("discs/here.iso");write(here,"synthetic");write(t.filePath("play/wii/beside.iso"),"synthetic");
+    const auto native=[](const QString &path){return QDir::toNativeSeparators(path);};
+    write(t.filePath("play/wii/games.json"),QJsonDocument(QJsonObject{
+      {"here",QJsonObject{{"disc",native(here)}}},{"beside",QJsonObject{{"rom","beside.iso"}}},
+      {"gone",QJsonObject{{"file",native(t.filePath("discs/gone.cdi"))}}},
+      {"view-gone",QJsonObject{{"views",QJsonObject{{"headset",QJsonObject{{"disc",native(here)}}},{"pointer",QJsonObject{{"disc",native(t.filePath("discs/other.iso"))}}}}}}},
+      {"no-file",QJsonObject{{"views",QJsonObject{{"theatre",QJsonObject{}}}}}}}).toJson());
+    QVERIFY(ac::scripted::missingMedia(launcher,{"here"}).isEmpty());
+    QVERIFY(ac::scripted::missingMedia(launcher,{"beside"}).isEmpty());
+    const auto gone=ac::scripted::missingMedia(launcher,{"gone"});
+    QVERIFY2(gone.startsWith("Game file not found: ")&&gone.contains(native(t.filePath("discs/gone.cdi"))),qPrintable(gone));
+    QVERIFY(ac::scripted::missingMedia(launcher,{"view-gone"}).contains("other.iso"));
+    QVERIFY(ac::scripted::missingMedia(launcher,{"no-file"}).isEmpty());
+    QVERIFY(ac::scripted::missingMedia(launcher,{"not-listed"}).isEmpty());
+    QVERIFY(!ac::scripted::missingMedia(launcher,{"here","gone"}).isEmpty());
+    QVERIFY(ac::scripted::missingMedia(t.filePath("nowhere/launch.ps1"),{"gone"}).isEmpty());
+  }
+  // A Set-up report's stamp: the same while nothing it reads changed; different once a folder, a launcher's
+  // games.json or a setting changes. The order the systems were read in does not matter.
+  void setupReportStampFollowsFoldersAndLaunchers() {
+    QTemporaryDir t;const auto launcher=t.filePath("play/ps1/launch-ps1.ps1"),games=t.filePath("play/ps1/games.json");
+    write(launcher,"synthetic");write(games,"{}");QVERIFY(QDir().mkpath(t.filePath("model3")));
+    const QVariantMap settings{{"model3GameFolder",t.filePath("model3")},{"ps1Launcher",launcher}};
+    const auto json=[](const QVariantMap &m){return QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Compact);};
+    const auto stamp=ac::setup::reportStamp(settings,{"ps1","model3"});
+    QCOMPARE(json(ac::setup::reportStamp(settings,{"model3","ps1"})),json(stamp));
+    // Saved and read back, it still matches.
+    QCOMPARE(json(QJsonDocument::fromJson(json(stamp)).toVariant().toMap()),json(stamp));
+    QFile file(games);QVERIFY(file.open(QIODevice::ReadWrite));
+    QVERIFY(file.setFileTime(QDateTime::currentDateTime().addSecs(-3600),QFileDevice::FileModificationTime));file.close();
+    QVERIFY(json(ac::setup::reportStamp(settings,{"model3","ps1"}))!=json(stamp));
+    auto moved=settings;moved["model3GameFolder"]=t.filePath("elsewhere");
+    QVERIFY(json(ac::setup::reportStamp(moved,{"model3","ps1"}))!=json(ac::setup::reportStamp(settings,{"model3","ps1"})));
+    QVERIFY(json(ac::setup::reportStamp(settings,{"model3"}))!=json(ac::setup::reportStamp(settings,{"model3","ps1"})));
+  }
   // Time Crisis's native port in the views of its old launchers; our own gun's build only when it is there.
   void timeCrisisHasTheViewsOfItsOldLaunchers() {
     QTemporaryDir t;const auto program=t.filePath("tc/port/build/pc/TimeCrisisVR.exe");write(program,"synthetic");

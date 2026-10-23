@@ -691,6 +691,50 @@ private slots:
     QVERIFY2(launch.has_value(),"Default launch did not retain the installed authored setup");
     QCOMPARE(launch->variantId,QString("dolphinxr"));
  }
+ // A launcher's game whose disc or ROM is gone shows as not found, with the path, instead of found; the
+ // launcher's own complaint (no entry for the game) still comes first.
+ void launcherGamesWithAMissingFileAreNotFound(){
+    QTemporaryDir t;const auto discs=t.filePath("discs"),dreamcast=t.filePath("play/dreamcast"),ps1=t.filePath("play/ps1");
+    for(const auto &folder:{discs,dreamcast,ps1})QVERIFY(QDir().mkpath(folder));
+    ac::install::atomicWrite(discs+"/here.cdi","synthetic");
+    ac::install::atomicWrite(dreamcast+"/launch-dreamcast.ps1","synthetic");ac::install::atomicWrite(ps1+"/launch-ps1.ps1","synthetic");
+    const auto native=[](const QString &path){return QDir::toNativeSeparators(path);};
+    ac::install::atomicWrite(dreamcast+"/games.json",QJsonDocument(QJsonObject{
+        {"here",QJsonObject{{"title","Here"},{"file",native(discs+"/here.cdi")},{"views",QJsonArray{"theatre"}}}},
+        {"gone",QJsonObject{{"title","Gone"},{"file",native(discs+"/gone.cdi")},{"views",QJsonArray{"theatre"}}}}}).toJson());
+    ac::install::atomicWrite(ps1+"/games.json",QJsonDocument(QJsonObject{{"point-blank-2",QJsonObject{{"disc",native(discs+"/Point Blank 2.chd")}}}}).toJson());
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("dreamcastLauncher",dreamcast+"/launch-dreamcast.ps1");settings.set("ps1Launcher",ps1+"/launch-ps1.ps1");
+    ac::UiController ui(&games,&filter,&settings);
+    const auto row=[&](const QString &id){for(const auto &value:ui.otherGames())if(value.toMap()["id"]==id)return value.toMap();return QVariantMap{};};
+    QVERIFY(row("dreamcast-here")["found"].toBool());
+    QVERIFY(!row("dreamcast-gone")["found"].toBool());
+    QVERIFY2(row("dreamcast-gone")["problem"].toString().contains(native(discs+"/gone.cdi")),qPrintable(row("dreamcast-gone")["problem"].toString()));
+    QVERIFY(row("ps1-point-blank-2")["problem"].toString().contains("Point Blank 2.chd"));
+    QVERIFY(row("ps1-time-crisis")["problem"].toString().contains("no entry")); // Not in this launcher at all.
+ }
+ // A Set-up report saved by an older Hub, or from other folders, is shown at start and read again in the
+ // background; a report made from what is there now is not. The table scan Set-up saves keeps its fingerprint,
+ // so the Pinball tab does not scan again for nothing.
+ void staleSetupReportIsReadAgain(){
+    QTemporaryDir t;const auto tables=t.filePath("tables");QVERIFY(QDir().mkpath(tables));
+    ac::install::atomicWrite(t.filePath("user/cache/setup-report.json"),QJsonDocument(QJsonObject{{"scanned","14 October 2026, 18:44"},
+        {"systems",QJsonArray{QJsonObject{{"id","pinball"},{"ready",QJsonArray{}}}}}}).toJson());
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));settings.set("pinballFolder",tables);settings.set("setupKinds",QVariantMap{{"pinball",true}});
+    {
+        ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+        QCOMPARE(ui.setupReport()["scanned"].toString(),QString("14 October 2026, 18:44")); // Shown at once.
+        QTRY_VERIFY_WITH_TIMEOUT(!ui.setupReport()["stamp"].toMap().isEmpty()&&!ui.setupScanning(),20000);
+        QVERIFY(ui.setupReport()["scanned"].toString()!="14 October 2026, 18:44");
+        QFile saved(t.filePath("user/cache/pinball-scan.json"));QVERIFY(saved.open(QIODevice::ReadOnly));
+        QVERIFY(QJsonDocument::fromJson(saved.readAll()).object().contains("fingerprint"));
+    }
+    ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());
+    const auto scanned=ui.setupReport()["scanned"].toString();QVERIFY(!scanned.isEmpty());
+    QTest::qWait(300);
+    QVERIFY(!ui.setupScanning());QCOMPARE(ui.setupReport()["scanned"].toString(),scanned);
+ }
  // Artwork beside the owner's ROMs is found without adding an artwork folder: a game folder's snap subfolder for
  // Model 2, and the picture beside the disc a launcher's games.json names for Dreamcast.
  void romFoldersFeedLocalArt(){

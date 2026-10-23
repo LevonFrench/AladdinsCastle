@@ -33,6 +33,12 @@ QString viewLabel(const QString &view);
 bool isMonitor(const QVariantMap &view);
 // Empty when the game can start in this view; otherwise "What is wrong. What to do."
 QString problem(const QString &launcher, const QString &key, const QString &view);
+// The game's own files as a launcher's games.json names them under these keys: "file", "disc" or "rom" on the
+// entry and on each of its views, a relative path read beside games.json. Empty when every one is there or
+// none is named; otherwise "Game file not found: <path>. ..." for the first one missing. Any launcher with a
+// games.json beside it (PS1, PS2, N64, Saturn too). An arcade set named only by its key is not checked: MAME
+// also finds a clone's files inside its parent's set.
+QString missingMedia(const QString &launcher, const QStringList &keys);
 // executable (Windows PowerShell), cwd (the launcher's folder) and args. Throws install::Error.
 QVariantMap launchPlan(const QString &launcher, const QString &key, const QString &view);
 } // namespace ac::scripted

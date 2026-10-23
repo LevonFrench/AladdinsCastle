@@ -6,6 +6,7 @@
 #include <QCryptographicHash>
 #include <QDirIterator>
 #include <QElapsedTimer>
+#include <QJsonDocument>
 #include <QTemporaryDir>
 #include <QtEndian>
 #include <QtTest>
@@ -181,6 +182,47 @@ private slots:
     // Cancelling stops it.
     cancel = true;
     QVERIFY(ac::library::scan({root}, {}, cancel).value("cancelled").toBool());
+  }
+  // The second search uses the first one's reading of each unchanged file and opens only what is new or changed;
+  // the result is the same as reading everything again.
+  void anUnchangedFileIsNotReadAgain() {
+    QTemporaryDir t;
+    const auto root = t.filePath("roms");
+    write(root + "/wii/umbrella.wbfs", wbfs("RBUE08"));
+    write(root + "/ps2/disc.iso", ps2Iso("SLES_512.29"));
+    write(root + "/dc/hotd2.cdi", QByteArray(3000, 'x') + dreamcastTrack("MK-51002"));
+    write(root + "/arcade/scud.zip", zip("epr-19731.13", "a"));
+    write(root + "/pinball/one.vpx", "vpx");
+    write(root + "/junk/not a disc.iso", QByteArray(4096, 'j'));
+    std::atomic_bool cancel = false;
+    QVariantMap index;
+    const auto first = ac::library::scan({root}, {}, cancel, 6, &index);
+    QCOMPARE(first.value("reused").toInt(), 0);
+    QCOMPARE(index.value("files").toMap().size(), 6);
+    // Saved and read back as the Hub does, between two runs.
+    index = QJsonDocument::fromJson(QJsonDocument::fromVariant(index).toJson()).toVariant().toMap();
+    const auto second = ac::library::scan({root}, {}, cancel, 6, &index);
+    QCOMPARE(second.value("reused").toInt(), 6);
+    QCOMPARE(QJsonDocument::fromVariant(second.value("systems")).toJson(), QJsonDocument::fromVariant(first.value("systems")).toJson());
+    QCOMPARE(second.value("unrecognised"), first.value("unrecognised"));
+    QCOMPARE(second.value("pinballFolders"), first.value("pinballFolders"));
+    // A file replaced by another game is read again; a new one is read; one removed is gone from the result.
+    write(root + "/wii/umbrella.wbfs", wbfs("RBUP08") + QByteArray(16, '\0'));
+    write(root + "/wii/more.iso", wiiIso("RBUE08"));
+    QFile::remove(root + "/ps2/disc.iso");
+    const auto third = ac::library::scan({root}, {}, cancel, 6, &index);
+    QCOMPARE(third.value("reused").toInt(), 4);
+    QCOMPARE(files(ac::library::copies(third, "wii", "umbrella")), QStringList({"more.iso", "umbrella.wbfs"}));
+    QVERIFY(ac::library::copies(third, "ps2", "virtua-cop").isEmpty());
+    QVERIFY(!index.value("files").toMap().contains(QDir::fromNativeSeparators(root + "/ps2/disc.iso")));
+    // An index made against other lists of games is not used.
+    index["stamp"] = "older";
+    QCOMPARE(ac::library::scan({root}, {}, cancel, 6, &index).value("reused").toInt(), 0);
+    // Stopped before anything was read: the result says so, and the index keeps every last reading.
+    const auto kept = index.value("files").toMap().size();
+    cancel = true;
+    QVERIFY(ac::library::scan({root}, {}, cancel, 6, &index).value("cancelled").toBool());
+    QCOMPARE(index.value("files").toMap().size(), kept);
   }
 };
 QTEST_GUILESS_MAIN(LibraryTest)

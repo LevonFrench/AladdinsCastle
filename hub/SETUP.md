@@ -57,7 +57,11 @@ Hub finds every game it plays under them.
 
 **How it looks:**
 - It goes up to six folders down and never enters links, junctions or system
-  folders. It runs off the GUI thread, shows progress, and can be cancelled.
+  folders. It runs off the GUI thread and shows progress. **Stop** ends it at
+  the next file and keeps the last whole result.
+- The second time is quick: a file whose size and time have not changed since
+  the last search is not opened again (`user/cache/library-index.json`). A Hub
+  whose list of games changed reads every file again.
 - It is read-only: nothing under the roots is written, renamed or moved.
 
 **How it knows each game:**

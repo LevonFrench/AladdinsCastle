@@ -26,4 +26,8 @@ QVariantMap mameCheck(const QByteArray &listXml,const QString &game,const QStrin
 // settings: the Hub's own settings values (folders and programs per system).
 // context: data a system needs beside them, such as a saved table scan.
 QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel);
+// What a Set-up report was made from: the report's version, the systems read, the settings it reads, and the
+// times of each chosen folder and of each launcher's games.json (names and times only, nothing opened). Saved
+// with the report; a saved report whose stamp differs from the one now is out of date and is read again.
+QVariantMap reportStamp(const QVariantMap &settings,const QStringList &systems);
 }

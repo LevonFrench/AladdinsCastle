@@ -188,6 +188,8 @@ private:
     // Folders of artwork already on this PC: indexed off the main thread whenever the list changes.
     void scanLocalArt();
     QStringList localArtFolders_;bool localArtScanned_=false;std::shared_ptr<std::atomic_bool> localArtCancel_;
+    // The running Game library search's stop flag (Stop on its card).
+    std::shared_ptr<std::atomic_bool> libraryCancel_;
     QString model2StopFile_;quint64 model2Session_=0;
     QString ps1StopFile_;
 };
