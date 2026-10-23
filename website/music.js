@@ -1,13 +1,12 @@
-// Background music: the first play starts 45 s in with a slow fade, the track loops from 0:00,
+// Background music: plays from 0:00 (the track has its own fade-in) and loops,
 // and a bar at the bottom has play/pause, stop, the title (a seek bar on hover), a timer and a
 // volume knob (starts at -6 dB). Browsers only allow sound after a click or key press, so the
 // music starts on the first one.
 (() => {
   const SRC = 'audio/l-von-theme.mp3?v=20261023e';
   const TITLE = 'L-VON · Theme From Aladdin’s Castle';
-  const START = 45;            // seconds into the track for a fresh start
-  const SLOW_FADE = 6;         // seconds, fresh start
-  const QUICK_FADE = 0.35;     // seconds, pause/resume/stop
+  const START = 0;             // a fresh start plays from the top; the track fades itself in
+  const QUICK_FADE = 0.35;     // seconds, pause/resume/stop, so they do not click
   const DB_MIN = -40, DB_MAX = 0, DB_DEFAULT = -6;
   const store = {
     get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
@@ -23,7 +22,7 @@
   let db = Number(store.getLocal('acvr-music-db'));
   if (!Number.isFinite(db) || store.getLocal('acvr-music-db') === null) db = DB_DEFAULT;
   db = Math.min(DB_MAX, Math.max(DB_MIN, db));
-  // where to pick up: a page change keeps the position, a first visit starts at 0:45
+  // where to pick up: a page change keeps the position, a first visit starts at the top
   let resumeAt = Number(store.get('acvr-music-at'));
   if (!Number.isFinite(resumeAt) || store.get('acvr-music-at') === null) resumeAt = START;
   let fresh = store.get('acvr-music-at') === null;
@@ -63,7 +62,8 @@
     const g = fadeGain.gain, now = ctx.currentTime;
     g.cancelScheduledValues(now);
     g.setValueAtTime(g.value, now);
-    g.linearRampToValueAtTime(target, now + seconds);
+    if (seconds > 0) g.linearRampToValueAtTime(target, now + seconds);
+    else g.setValueAtTime(target, now);
   }
 
   // ---- bar ----
@@ -80,9 +80,9 @@
     </button>
     <span class="music-track">
       <span class="music-title">${TITLE}</span>
-      <input class="music-seek" type="range" min="0" max="304" step="0.1" value="${START}" aria-label="Seek in ${TITLE}">
+      <input class="music-seek" type="range" min="0" max="1" step="0.1" value="${START}" aria-label="Seek in ${TITLE}">
     </span>
-    <span class="music-time" aria-label="Track position"><b>0:45</b> / <span>5:04</span></span>
+    <span class="music-time" aria-label="Track position"><b>0:00</b> / <span>-:--</span></span>
     <div class="music-knob" role="slider" tabindex="0" aria-label="Volume"
          aria-valuemin="${DB_MIN}" aria-valuemax="${DB_MAX}">
       <i class="music-dial"><i></i></i>
@@ -142,7 +142,7 @@
       try { await el.play(); } catch { return false; }  // still blocked: wait for a gesture
     }
     playing = true; userStopped = false; store.set('acvr-music-off', '0');
-    fadeTo(1, fresh ? SLOW_FADE : QUICK_FADE * 3);
+    fadeTo(1, fresh ? 0 : QUICK_FADE);  // straight in from the top, a short ramp on resume
     fresh = false;
     showState();
     return true;
