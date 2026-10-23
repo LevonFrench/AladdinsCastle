@@ -254,11 +254,14 @@ private slots:
     }
     void launchErrorPresentationDeadline(){
         QCOMPARE(ac::launchFailureDialogTimeoutMs,15000);
-        QEventLoop modal;int displayed=0,dismissed=0;bool watchdogExpired=false;
+        QEventLoop modal;int displayed=0,dismissed=0;bool watchdogExpired=false,lateDismissal=false;
         QTimer watchdog;watchdog.setSingleShot(true);watchdog.start(15000);
         connect(&watchdog,&QTimer::timeout,&modal,[&]{watchdogExpired=true;modal.quit();});
-        ac::runTimedLaunchFailurePresentation([&]{++displayed;modal.exec();},[&]{++dismissed;modal.quit();},25);
-        QCOMPARE(displayed,1);QCOMPARE(dismissed,1);QVERIFY(!watchdogExpired);watchdog.stop();
+        QTimer later;later.setSingleShot(true);
+        connect(&later,&QTimer::timeout,&modal,[&]{if(!dismissed){lateDismissal=true;modal.quit();}});
+        // The requested short timer must win event ordering even if this thread was descheduled.
+        ac::runTimedLaunchFailurePresentation([&]{++displayed;later.start(1000);modal.exec();},[&]{++dismissed;modal.quit();},25);
+        QCOMPARE(displayed,1);QCOMPARE(dismissed,1);QVERIFY(!watchdogExpired);QVERIFY(!lateDismissal);watchdog.stop();later.stop();
         ac::runTimedLaunchFailurePresentation([&]{++displayed;},[&]{++dismissed;},25);
         bool observed=false;QTimer::singleShot(50,&modal,[&]{observed=true;});
         QTRY_VERIFY_WITH_TIMEOUT(observed,15000);QCOMPARE(dismissed,1); // Returning cancelled the delayed dismissal.
