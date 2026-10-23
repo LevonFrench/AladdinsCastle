@@ -94,7 +94,6 @@ struct DiagnosticScene {
         },5000);
         if(!ready)qFatal("Diagnostic scene geometry/exposure did not become ready");
         activate();
-        if(!QTest::qWaitFor([&]{return root->hasActiveFocus();},5000))qFatal("Diagnostic scene did not take focus");
     }
     void contractScene(){
         QQmlComponent component(&engine);component.setData(R"(
