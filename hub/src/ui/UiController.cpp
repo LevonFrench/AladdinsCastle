@@ -325,6 +325,12 @@ QVariantList UiController::setupSystems()const{
  }
  return rows;
 }
+QStringList UiController::chosenSetupSystems()const{
+ const auto kinds=setupKinds();const auto saved=m_settings->get("setupSystems",QVariantMap{}).toMap();QStringList ids;
+ for(const auto &value:setup::systems()){const auto row=value.toMap();const auto id=row.value("id").toString();
+  if(kinds.value(row.value("kind").toString()).toBool()&&saved.value(id,true).toBool())ids<<id;}
+ return ids;
+}
 void UiController::setSetupKind(const QString &kind,bool on){auto kinds=m_settings->get("setupKinds",QVariantMap{}).toMap();kinds[kind]=on;m_settings->set("setupKinds",kinds);}
 void UiController::setSetupSystem(const QString &id,bool on){auto systems=m_settings->get("setupSystems",QVariantMap{}).toMap();systems[id]=on;m_settings->set("setupSystems",systems);}
 void UiController::setSetupFolder(const QString &id,const QString &folder){for(const auto &value:setup::systems())if(value.toMap().value("id")==id&&!value.toMap().value("folderKey").toString().isEmpty())m_settings->set(value.toMap().value("folderKey").toString(),folder);}
@@ -359,6 +365,8 @@ QVariantList UiController::buildOtherGames()const{
   row["artId"]=row.value("id");addArt(row,row.value("id").toString(),row.value("system").toString());
   rows<<row;
  };
+ // A game started through a launcher whose own file (disc, ROM) is gone is not found, whatever the launcher lists.
+ const auto media=[](const QString &problem,const QString &launcher,const QStringList &keys){return problem.isEmpty()?scripted::missingMedia(launcher,keys):problem;};
  // Model 2: checked as it is now, like Model 3. One view; controls on Virtua Cop 2 only, untested.
  const auto model2Program=m_settings->get("model2Executable",QString()).toString(),model2Folder=m_settings->get("model2GameFolder",QString()).toString();
  if(!model2Program.isEmpty()||!model2Folder.isEmpty()||m_library.value("systems").toMap().contains("model2"))for(const auto &value:model2::games()){
@@ -372,7 +380,7 @@ QVariantList UiController::buildOtherGames()const{
  if(!ps2Launcher.isEmpty())for(const auto &value:ps2::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","ps2-"+id},{"system","ps2"},{"pill","PS2"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
-   {"problem",ps2::problem(id,ps2Launcher,m_settings->get("ps2Python",QString()).toString(),m_settings->get("ps2StopFile",QString()).toString())}},
+   {"problem",media(ps2::problem(id,ps2Launcher,m_settings->get("ps2Python",QString()).toString(),m_settings->get("ps2StopFile",QString()).toString()),ps2Launcher,{id})}},
    ps2::views(id,ps2Launcher));
  }
  // PS1 light-gun games: through the user's launcher and acvr-ps1, on a theatre screen with the gun.
@@ -380,7 +388,7 @@ QVariantList UiController::buildOtherGames()const{
  if(!ps1Launcher.isEmpty())for(const auto &value:ps1::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","ps1-"+id},{"system","ps1"},{"pill","PS1"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
-   {"problem",ps1::problem(id,ps1Launcher)}},
+   {"problem",media(ps1::problem(id,ps1Launcher),ps1Launcher,[&]{QStringList keys{id};for(const auto &view:ps1::views(id,ps1Launcher))keys<<ps1::launcherKey(id,view.toMap().value("id").toString());return keys;}())}},
    [&]{auto views=ps1::views(id,ps1Launcher);if(views.isEmpty())views<<QVariantMap{{"id","standard"},{"label",ps1::viewLabel(id,"standard")},{"help","Not in your PS1 launcher yet."}};return views;}());
  }
  // N64: through the user's launcher and acvr-ps1; the views are the ones the launcher lists for the game.
@@ -390,14 +398,14 @@ QVariantList UiController::buildOtherGames()const{
   auto views=n64::views(id,n64Launcher);
   if(views.isEmpty())views<<QVariantMap{{"id","flat"},{"label",n64::viewLabel(id,"flat")},{"help","Not in your N64 launcher yet."}};
   add({{"id","n64-"+id},{"system","n64"},{"pill","N64"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
-   {"problem",n64::problem(id,n64Launcher)}},views);
+   {"problem",media(n64::problem(id,n64Launcher),n64Launcher,[&]{QStringList keys{id};for(const auto &view:views)keys<<n64::launcherKey(id,view.toMap().value("id").toString());return keys;}())}},views);
  }
  // Saturn light-gun games: through the user's launcher and acvr-ps1, on a theatre screen with the Stunner.
  const auto saturnLauncher=launcherFor("saturn");
  if(!saturnLauncher.isEmpty())for(const auto &value:saturn::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString();
   add({{"id","saturn-"+id},{"system","saturn"},{"pill","SATURN"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
-   {"problem",saturn::problem(id,saturnLauncher)}},
+   {"problem",media(saturn::problem(id,saturnLauncher),saturnLauncher,{id})}},
    {QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset, with your controller as the light gun."}}});
  }
  // Time Crisis: one native program, checked as it is now.
@@ -416,7 +424,7 @@ QVariantList UiController::buildOtherGames()const{
    // Atomiswave boards run in the same Flycast build; they get their own shelf.
    const bool atomiswave=system.id=="dreamcast"&&group=="atomiswave";
    add({{"id",system.id+"-"+game.value("id").toString()},{"system",atomiswave?QString("atomiswave"):system.id},{"pill",atomiswave?QString("ATOMISWAVE"):system.pill},
-        {"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"artFile",game.value("file")},{"warning",game.value("controls")},{"problem",QString()},
+        {"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"artFile",game.value("file")},{"warning",game.value("controls")},{"problem",scripted::missingMedia(launcher,{game.value("id").toString()})},
         {"launcher",launcher},{"status",game.value("status")}},game.value("views").toList());
   }
  }
@@ -491,7 +499,7 @@ void UiController::launchOtherQueued(const QString &id,const QString &view,const
 }
 void UiController::scanSetup(){
  if(m_setupScanning)return;
- QStringList ids;for(const auto &value:setupSystems())if(value.toMap().value("chosen").toBool())ids<<value.toMap().value("id").toString();
+ const auto ids=chosenSetupSystems();
  m_setupScanning=true;m_setupProgress="Starting";emit setupChanged();emit setupScanRequested(ids);
 }
 QVariantList UiController::model3Views()const{return model3::views();}

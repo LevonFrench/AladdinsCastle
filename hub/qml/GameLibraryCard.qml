@@ -41,6 +41,7 @@ Rectangle {
    PillButton {objectName:"libraryAdd";visible:!card.vrOverlayMode;vrOverlayMode:card.vrOverlayMode;text:"Add a folder…";onClicked:dialog.open()}
    PillButton {objectName:"libraryScan";visible:card.roots.length>0;neon:true;accent:Theme.get("color.state.ready_neon");vrOverlayMode:card.vrOverlayMode;enabled:!uiController.libraryScanning
     text:uiController.libraryScanning?"Looking…":card.result.files!==undefined?"Look again":"Find my games";onClicked:uiController.scanLibrary()}
+   PillButton {objectName:"libraryStop";visible:uiController.libraryScanning;vrOverlayMode:card.vrOverlayMode;text:"Stop";onClicked:uiController.cancelLibraryScan()}
    UiText {visible:card.vrOverlayMode&&card.roots.length===0;text:"Add folders on the desktop.";font.pixelSize:15}
   }
   UiText {objectName:"libraryProgress";visible:uiController.libraryScanning;text:uiController.libraryProgress;font.pixelSize:card.vrOverlayMode?16:13}

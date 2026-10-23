@@ -19,8 +19,14 @@ namespace ac::library {
 //                        the Hub's list) } }
 //   pinballFolders: [ {folder, tables} ] (folders holding .vpx tables, most first)
 //   unrecognised: { discs, archives } (files of a kind the Hub reads that are none of its games)
+//   reused (files whose last reading was used again), cancelled (stopped part-way: the result is partial)
+//
+// With an index, a search is quick the second time: a file whose size and time are unchanged since the last
+// reading is not opened again. The index ({stamp, files: {path: {size, modified, outcome}}}) is read and
+// replaced; one made against other lists of games is not used. Stopped part-way, the files not reached keep
+// their last reading.
 using Progress = std::function<void(const QString &)>;
-QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic_bool &cancel, int depth = 6);
+QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic_bool &cancel, int depth = 6, QVariantMap *index = nullptr);
 // The copy of a game to use: the user's own choice ("system/game" -> file) when it is still there,
 // otherwise by the rule: read from the disc itself, then the release with a VR profile (Dreamcast),
 // then USA, World, Europe, Japan, then the plainest format, then the shortest path.
