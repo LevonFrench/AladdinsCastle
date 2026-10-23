@@ -1,4 +1,4 @@
-# Original gun assets
+# Gun assets and licences
 
 One model here is not original: `arc-light-gun` (the arcade light gun hotd2-vr draws,
 "Namco Arcade Gun" by Martoscar, CC BY 4.0, with its lettering removed and a blowback
@@ -35,7 +35,7 @@ code handles geometry and export; each model script owns its silhouette.
 No imported, extracted,
 traced or third-party meshes, logos or markings are used. These are toy-like
 peripherals with our own dimensions, not real firearms or branded replicas.
-Built models and preview/callout assets are CC0-1.0; scripts are GPL-3.0-only.
+These original models and their preview/callout assets are CC0-1.0; scripts are GPL-3.0-only. The adapted `arc-light-gun` and its previews retain the CC BY 4.0 exception described above and in [LICENSE](LICENSE).
 
 `con-pointer-remote` is a second held controller (a Wii Remote-like pointer, original
 design, CC0 like the others): no muzzle, sights or effects, buttons only, and its

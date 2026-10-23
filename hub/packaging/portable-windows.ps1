@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 # Run from a VS 2022 x64 developer shell. No machine runtime DLLs are used.
 [CmdletBinding()]
 param(

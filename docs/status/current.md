@@ -1,6 +1,10 @@
 # Where AladdinsCastle stands (2026-10-21, evening)
 
-The single current-state page. It replaces "M2 development" as the summary. Older checkpoint reports stay in [docs/status/](./) as history.
+This page summarizes development progress, including dated test reports. It is
+not a manifest of a downloadable release. The source/document audit on 22 October
+2026 uses main `71f983b`; it adds no runtime or headset acceptance. Older checkpoint
+reports stay in [docs/status/](./) as history. For a new PC, start with the
+[tester prerequisites](../TESTER-QUICKSTART.md).
 
 **Evidence levels** used below and in the setup READMEs:
 
@@ -63,13 +67,17 @@ These come from the owner's headset sessions and apply to every setup:
 | Atomiswave (Flycast) | 5 / 10 | Real 3D (the world around the frame is part of it) | E2; owner 2026-10-21: Sports Shooting USA open frame was squeezed and shifted (aim up to 270 px off), fixed in the build, offline-checked | Title and menu screens show stray art around the frame. The open frame view of Sports Shooting USA is removed because the game draws outside its frame; its aim fix is in `setups/flycast-hotd2-vr/patch/acvr-hotd2-vr.patch` |
 | Wii (DolphinXR) | 19 / 26 | Real 3D with pointer or motion | E2; pointer aim within 1.3%. 2026-10-21: the "broken stereo" was each game's `[VR] VirtualScreen = False`, which glues all 2D (menus, strap screens, HUD) to the face in both eyes; Dead Space, Overkill, Gunblade, New Super Mario Bros. Wii and Punch-Out!! now put it on a screen in the room (0 to 15-41 px disparity, offline probe). The Nunchuk reaches every game (Metroid's 3-second "Nunchuk is required" is a harmless menu notice). Metroid Prime, DK Country Returns (grip = shake) and Mario Strikers Charged reach gameplay offline | Metroid Prime Trilogy drops about 60% of frames from the headset (RAM frame copies are rebuilt as one layer; needs an emulator change). Games whose picture is built from full-screen 2D passes (Galaxy, Kirby, Resort, Zelda, Strikers, Umbrella, Darkside, Sin & Punishment) keep 2D on the face until per-game HUD shader overrides are made in a headset session |
 | GameCube (DolphinXR) | 1 / 2 | Real 3D, HUD on a panel | E2 for F-Zero GX | Start moved to left-stick click on 2026-10-21 |
-| Pinball (Visual Pinball X) | its own page | Desktop or headset | 597 tables, 561 startable (2026-10-21 rescan; the saved scan was from 2026-10-15). Scan finds tables in subfolders. A saved scan carries a fingerprint (scanner version 2, table count, newest table and ROM dates, database date); when it no longer matches, the Hub rescans by itself, which fixed missing tables | The Matrix and Total Nuclear Annihilation files cannot be parsed |
+| Pinball (Visual Pinball X) | its own page | Desktop or headset | The scanner finds tables in subfolders. Saved scans use a fingerprint of the scanner version and table/ROM/database state; stale scans trigger a rescan. Table counts depend on the user's folders. | Readability, ROM detection and launch isolation must be checked for each selected table; a scan result is not a playability verdict. |
 
 Each system's details, commands and proofs are in its setup README under [setups/](../../setups/).
 
-## Where the live Hub is
+## What a tester can obtain
 
-The live build is a portable folder under the owner's private `.local/hub-live/<date>-<commit>/`. Launcher 0 and SteamVR's `appconfig.json` point at it, and every switch keeps backups of both. Since 2026-10-21 23:38 the live build is the one from commit `976ff5e` (PR #125's head: main plus the watchdog fix for a parent-process walk that could loop and freeze the Hub). It has everything above, including the Pinball rescan, the Model 2 sound fix and the redesigned guns; the previous build (`a7ffcfb`) is kept beside it. Each release folder under `.local/review/hub-release-<commit>/` holds the receipts: test log, package, owner-state staging with a settings hash, an offscreen smoke picture, and the switch record.
+There is no published 0.01 release yet. CI stages a portable Windows Hub artifact
+from a source revision; it does not supply the custom emulator builds, private
+launchers, game files or a tested Quest connection. Private development settings
+and live-build locations are not installation instructions. See the
+[tester walkthrough](../TESTER-QUICKSTART.md) and the selected setup's README.
 
 ## What is not established
 
