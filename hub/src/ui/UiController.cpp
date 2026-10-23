@@ -265,7 +265,9 @@ void UiController::pinballLoaded(const QVariantMap &data){
  const auto recent=m_settings->get("pinballRecent",QVariantMap{}).toMap();
  QVariantList rows;int ready=0;for(auto value:data.value("tables").toList()){
   auto row=value.toMap();const auto id=row.value("id").toString();
-  if(overrides.contains(id)){row["vrReady"]=overrides[id].toBool();row["evidence"]=overrides[id].toBool()?QStringList{"marked by you"}:QStringList{};}
+  // VPX plays any table in the headset; a scripted VR room is only a label. A readable table is headset-ready unless you exclude it.
+  row["vrRoom"]=row.value("vrReady").toBool();row["vrReady"]=row.value("error").toString().isEmpty();
+  if(overrides.contains(id)){row["vrReady"]=overrides[id].toBool()&&row.value("error").toString().isEmpty();row["evidence"]=overrides[id].toBool()?QStringList{"marked by you"}:QStringList{};}
   row["lastPlayed"]=recent.value(id,0);
   if(m_pinballArt.contains(id)){const auto art=m_pinballArt.value(id).toMap();row["artThumb"]=art.value("thumb");row["artBackglass"]=art.value("backglass");}
   row["favourite"]=favourites.value(id).toBool();if(row.value("vrReady").toBool())++ready;rows<<row;
