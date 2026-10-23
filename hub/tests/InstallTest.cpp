@@ -20,6 +20,16 @@
 using namespace ac;
 using namespace ac::install;
 namespace {
+#ifdef Q_OS_WIN
+bool waitForJunction(QProcess &process) {
+  const bool finished = process.waitForFinished(30000);
+  if (!finished && process.state() != QProcess::NotRunning) {
+    process.kill();
+    process.waitForFinished(5000);
+  }
+  return finished;
+}
+#endif
 class HttpsServer : public QTcpServer {
 public:
   QByteArray payload = "synthetic tool artifact";
@@ -480,7 +490,7 @@ private slots:
     p.start("cmd.exe",
             {"/c", "mklink", "/J", QDir::toNativeSeparators(junction),
              QDir::toNativeSeparators(other)});
-    QVERIFY(p.waitForFinished());
+    QVERIFY2(waitForJunction(p), "mklink /J failed to start or exceeded 30 seconds");
     QCOMPARE(p.exitCode(), 0);
 #else
     QVERIFY(QFile::link(other, root + "/escape"));
@@ -525,7 +535,7 @@ private slots:
       QProcess p;
       p.start("cmd.exe", {"/c", "mklink", "/J", QDir::toNativeSeparators(link),
                           QDir::toNativeSeparators(outside)});
-      QVERIFY(p.waitForFinished());
+      QVERIFY2(waitForJunction(p), "mklink /J failed to start or exceeded 30 seconds");
       QCOMPARE(p.exitCode(), 0);
 #else
       QVERIFY(QFile::link(outside, link));
@@ -573,7 +583,7 @@ private slots:
     QProcess p;
     p.start("cmd.exe", {"/c", "mklink", "/J", QDir::toNativeSeparators(link),
                         QDir::toNativeSeparators(outside)});
-    QVERIFY(p.waitForFinished());
+    QVERIFY2(waitForJunction(p), "mklink /J failed to start or exceeded 30 seconds");
     QCOMPARE(p.exitCode(), 0);
 #else
     QVERIFY(QFile::link(outside, link));
@@ -1503,7 +1513,7 @@ private slots:
       atomicWrite(outside + "/keep.dat", "synthetic outside");
 #ifdef Q_OS_WIN
       QProcess process; process.start("cmd.exe", {"/c", "mklink", "/J", QDir::toNativeSeparators(link), QDir::toNativeSeparators(outside)});
-      QVERIFY(process.waitForFinished()); QCOMPARE(process.exitCode(), 0);
+      QVERIFY2(waitForJunction(process), "mklink /J failed to start or exceeded 30 seconds"); QCOMPARE(process.exitCode(), 0);
 #else
       QVERIFY(QFile::link(outside, link));
 #endif

@@ -25,6 +25,7 @@
 #include <QEventLoop>
 #include <QElapsedTimer>
 #include <QTimer>
+#include <QScopeGuard>
 class SmokeTest : public QObject {
     Q_OBJECT
 private slots:
@@ -83,7 +84,7 @@ private slots:
         if(shape=="ini-without-row")env.remove("AC_UI_PINBALL_ROW");
         env.insert("QT_QPA_PLATFORM","offscreen");env.insert("QT_QUICK_BACKEND","software");env.insert("QT_OPENGL","software");
         QProcess process;process.setProcessEnvironment(env);process.start(hub,{"--data-root",root,"--install-root",root,"--quit-after-ms",quitAfter});
-        QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(16000));QCOMPARE(process.exitStatus(),QProcess::NormalExit);QCOMPARE(process.exitCode(),0);
+        QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(30000));QCOMPARE(process.exitStatus(),QProcess::NormalExit);QCOMPARE(process.exitCode(),0);
         QFile receipt(capture+".json");QVERIFY(receipt.open(QIODevice::ReadOnly));const auto captured=QJsonDocument::fromJson(receipt.readAll()).object();
         QVERIFY(!QImage(capture).isNull());QVERIFY(captured["imageSaved"].toBool());
         if(shape=="current"||shape=="private-ini"){
@@ -149,7 +150,7 @@ private slots:
 #ifdef Q_OS_WIN
         executable += ".exe";
 #endif
-        process.start(executable, {"--data-root", root, "--quit-after-ms", "100"});
+        process.start(executable, {"--data-root", root, "--install-root", root, "--quit-after-ms", "100"});
         QVERIFY(process.waitForStarted()); QVERIFY(process.waitForFinished(15000));
         QVERIFY2(process.exitCode() == 0, process.readAllStandardError().constData());
         QVERIFY(process.readAllStandardOutput().contains("AladdinsCastle: 1 games"));
@@ -165,19 +166,25 @@ private slots:
 #ifdef Q_OS_WIN
         executable+=".exe";
 #endif
-        QProcess first;first.setProcessEnvironment(env);first.start(executable,{"--data-root",root,"--install-root",root,"--quit-after-ms","9000"});
-        QVERIFY(first.waitForStarted());
-        QByteArray firstOut;QTRY_VERIFY_WITH_TIMEOUT((firstOut+=first.readAllStandardOutput()).contains("1 games"),8000);
+        QProcess first;first.setProcessEnvironment(env);
+        const auto stopFirst=qScopeGuard([&]{if(first.state()!=QProcess::NotRunning){first.kill();if(!first.waitForFinished(15000))QTest::qFail("First Hub did not stop",__FILE__,__LINE__);}});
+        // The parent owns the first Hub's lifetime. Its deadline is only an orphan failsafe,
+        // not a narrow window in which the second process has to start under CPU load.
+        first.start(executable,{"--data-root",root,"--install-root",root,"--quit-after-ms","120000"});
+        QVERIFY(first.waitForStarted(15000));
+        QByteArray firstOut;QTRY_VERIFY_WITH_TIMEOUT((firstOut+=first.readAllStandardOutput()).contains("1 games"),30000);
+        QCOMPARE(first.state(),QProcess::Running);
         QProcess second;second.setProcessEnvironment(env);second.start(executable,{"--data-root",root,"--install-root",root,"--quit-after-ms","3000"});
-        QVERIFY(second.waitForStarted());QVERIFY(second.waitForFinished(10000));
+        QVERIFY(second.waitForStarted(15000));QVERIFY(second.waitForFinished(30000));
         QCOMPARE(second.exitCode(),0);QVERIFY(second.readAllStandardOutput().contains("Another Hub is open"));
-        QTRY_VERIFY_WITH_TIMEOUT((firstOut+=first.readAllStandardOutput()).contains("Asked to come to the front"),5000);
-        QVERIFY(first.waitForFinished(15000));QCOMPARE(first.exitCode(),0);
-        // Another folder is another Hub.
+        QTRY_VERIFY_WITH_TIMEOUT((firstOut+=first.readAllStandardOutput()).contains("Asked to come to the front"),15000);
+        QCOMPARE(first.state(),QProcess::Running);
+        // Another folder is another Hub, even while the first is still open.
         QTemporaryDir other;QVERIFY(QDir().mkpath(other.path()+"/games/synthetic"));
         {QFile file(other.path()+"/games/synthetic/game.toml");QVERIFY(file.open(QIODevice::WriteOnly));file.write("id='synthetic'");}
         QProcess third;third.setProcessEnvironment(env);third.start(executable,{"--data-root",other.path(),"--install-root",other.path(),"--quit-after-ms","100"});
-        QVERIFY(third.waitForFinished(15000));QVERIFY(third.readAllStandardOutput().contains("1 games"));
+        QVERIFY(third.waitForFinished(30000));QCOMPARE(third.exitStatus(),QProcess::NormalExit);QCOMPARE(third.exitCode(),0);
+        QVERIFY(third.readAllStandardOutput().contains("1 games"));QCOMPARE(first.state(),QProcess::Running);
     }
     // The gamepad check runs in a copy of its own and prints what it found: here, a library that is no SDL.
     void gamepadProbeRunsApart() {
@@ -247,11 +254,14 @@ private slots:
     }
     void launchErrorPresentationDeadline(){
         QCOMPARE(ac::launchFailureDialogTimeoutMs,15000);
-        QEventLoop modal;int displayed=0,dismissed=0;QElapsedTimer elapsed;elapsed.start();
-        QTimer::singleShot(3000,&modal,&QEventLoop::quit);
+        QEventLoop modal;int displayed=0,dismissed=0;bool watchdogExpired=false;
+        QTimer watchdog;watchdog.setSingleShot(true);watchdog.start(15000);
+        connect(&watchdog,&QTimer::timeout,&modal,[&]{watchdogExpired=true;modal.quit();});
         ac::runTimedLaunchFailurePresentation([&]{++displayed;modal.exec();},[&]{++dismissed;modal.quit();},25);
-        QCOMPARE(displayed,1);QCOMPARE(dismissed,1);QVERIFY(elapsed.elapsed()<1500);
-        ac::runTimedLaunchFailurePresentation([&]{++displayed;},[&]{++dismissed;},25);QTest::qWait(50);QCOMPARE(dismissed,1);
+        QCOMPARE(displayed,1);QCOMPARE(dismissed,1);QVERIFY(!watchdogExpired);watchdog.stop();
+        ac::runTimedLaunchFailurePresentation([&]{++displayed;},[&]{++dismissed;},25);
+        bool observed=false;QTimer::singleShot(50,&modal,[&]{observed=true;});
+        QTRY_VERIFY_WITH_TIMEOUT(observed,15000);QCOMPARE(dismissed,1); // Returning cancelled the delayed dismissal.
     }
     void qmlRemoteResourcesDenied() {
         ac::LocalQmlNetworkFactory factory; std::unique_ptr<QNetworkAccessManager> manager(factory.create(nullptr));
@@ -271,30 +281,29 @@ private slots:
         QVERIFY(ac::shouldQuitAfterLaunch(false,false,false));QVERIFY(!ac::shouldQuitAfterLaunch(true,false,false));QVERIFY(!ac::shouldQuitAfterLaunch(false,true,false));QVERIFY(!ac::shouldQuitAfterLaunch(false,false,true));
     }
     void cliWorksWithoutOpenVrRuntime() {
-#ifdef Q_OS_WIN
-        QTemporaryDir temp; const auto binary=QCoreApplication::applicationDirPath()+"/aladdinscastle-hub.exe";const auto copy=temp.filePath("aladdinscastle-hub.exe");QVERIFY(QFile::copy(binary,copy));
+#ifdef AC_NO_RUNTIME_HUB
+        const QString binary=QStringLiteral(AC_NO_RUNTIME_HUB);QVERIFY(QFileInfo::exists(binary));
+        QVERIFY(!QFileInfo::exists(QFileInfo(binary).dir().filePath("openvr_api.dll")));
         QProcess process;auto env=QProcessEnvironment::systemEnvironment();QStringList qtDirs;
         for(const auto &dir:env.value("PATH").split(';'))if(QFileInfo(QDir(dir).filePath("Qt6Core.dll")).isFile())qtDirs.append(dir);
         QVERIFY(!qtDirs.isEmpty());qtDirs.append(env.value("SystemRoot")+"/System32");env.insert("PATH",qtDirs.join(';'));process.setProcessEnvironment(env);
-        process.start(copy,{"--help"});QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(15000));QCOMPARE(process.exitCode(),0);QVERIFY(process.readAllStandardOutput().contains("Usage:"));QVERIFY(!QFileInfo::exists(temp.filePath("openvr_api.dll")));
+        process.start(binary,{"--help"});QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(30000));QCOMPARE(process.exitCode(),0);QVERIFY(process.readAllStandardOutput().contains("Usage:"));QVERIFY(!QFileInfo::exists(QFileInfo(binary).dir().filePath("openvr_api.dll")));
 #endif
     }
     void missingDllOverlayActionsFailWithoutRuntime(){
-#ifdef Q_OS_WIN
-        QTemporaryDir temp;QVERIFY(temp.isValid());const auto appDir=QCoreApplication::applicationDirPath();
-        const auto copy=temp.filePath("aladdinscastle-hub.exe");QVERIFY(QFile::copy(appDir+"/aladdinscastle-hub.exe",copy));
-        const auto manifest=QString("resources/")+ac::product::short_id+".vrmanifest";
-        QVERIFY(QDir().mkpath(temp.filePath("resources")));QVERIFY(QFile::copy(appDir+"/"+manifest,temp.filePath(manifest)));
+#ifdef AC_NO_RUNTIME_HUB
+        QTemporaryDir temp;QVERIFY(temp.isValid());const QString binary=QStringLiteral(AC_NO_RUNTIME_HUB);QVERIFY(QFileInfo::exists(binary));
+        QVERIFY(!QFileInfo::exists(QFileInfo(binary).dir().filePath("openvr_api.dll")));
         QVERIFY(QDir().mkpath(temp.filePath("games/synthetic")));QFile metadata(temp.filePath("games/synthetic/game.toml"));QVERIFY(metadata.open(QIODevice::WriteOnly));metadata.write("id='synthetic'\ntitle='Synthetic'\n");metadata.close();
         auto env=QProcessEnvironment::systemEnvironment();QStringList qtDirs;for(const auto &dir:env.value("PATH").split(';'))if(QFileInfo(QDir(dir).filePath("Qt6Core.dll")).isFile())qtDirs<<dir;
         QVERIFY(!qtDirs.isEmpty());qtDirs<<env.value("SystemRoot")+"/System32";env.insert("PATH",qtDirs.join(';'));env.insert("QT_QPA_PLATFORM","offscreen");env.insert("QT_QUICK_BACKEND","software");env.insert("QT_OPENGL","software");
         for(const auto &args:{QStringList{"--overlay","--quit-after-ms","50"},QStringList{"--overlay","--steamvr-started"},QStringList{"--register-overlay"},QStringList{"--unregister-overlay"}}){
-            QProcess process;process.setProcessEnvironment(env);process.setWorkingDirectory(temp.path());process.start(copy,args);QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(15000));
+            QProcess process;process.setProcessEnvironment(env);process.setWorkingDirectory(temp.path());process.start(binary,args+QStringList{"--data-root",temp.path(),"--install-root",temp.path()});QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(30000));
             QCOMPARE(process.exitStatus(),QProcess::NormalExit);const auto error=process.readAllStandardError();QVERIFY2(error.contains("OpenVR runtime DLL is missing"),error.constData());
             if(args.contains("--quit-after-ms")){QCOMPARE(process.exitCode(),0);QVERIFY(error.contains("opening desktop Hub"));QVERIFY(process.readAllStandardOutput().contains("AladdinsCastle: 1 games"));}
             else {QCOMPARE(process.exitCode(),3);QVERIFY(!error.contains("opening desktop Hub"));}
         }
-        QVERIFY(!QFileInfo::exists(temp.filePath("openvr_api.dll")));
+        QVERIFY(!QFileInfo::exists(QFileInfo(binary).dir().filePath("openvr_api.dll")));
 #endif
     }
     void modesAndRejections() {

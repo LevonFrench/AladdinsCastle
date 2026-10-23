@@ -8,6 +8,7 @@
 #include <QTemporaryDir>
 #include <QDateTime>
 #include <QGuiApplication>
+#include <QHash>
 #include <QTimer>
 #include <QWindow>
 #include <QJsonDocument>
@@ -72,6 +73,32 @@ QByteArray syntheticTable(){
 // A tree program's process id, or 0 while its file is not written yet. Never throws: each program
 // writes its file through a temporary one beside it, so the folder can list it before the id can be read.
 qint64 pidIn(const QString &file){QFile f(file);return f.open(QIODevice::ReadOnly)?f.readAll().trimmed().toLongLong():0;}
+#ifdef Q_OS_WIN
+bool sameTestPath(const QString &actual,const QString &expected){
+    return !actual.isEmpty() && QDir::cleanPath(QDir::fromNativeSeparators(actual)).compare(
+        QDir::cleanPath(QDir::fromNativeSeparators(expected)),Qt::CaseInsensitive)==0;
+}
+// Only end processes started during this test whose executable is its exact fixture path. A PID
+// alone is not enough after an assertion has spent several seconds waiting: Windows can reuse it.
+bool endTestProcesses(const QHash<qint64,QString> &known,const QStringList &fixturePaths,qint64 startedMs){
+    const auto matching=[&]{
+        QList<qint64> result;
+        for(const auto &process:ac::launch::listProcesses()){
+            if(process.createdMs<startedMs || process.path.isEmpty() || !ac::launch::processAlive(process.pid))continue;
+            bool ours=known.contains(process.pid)&&sameTestPath(process.path,known.value(process.pid));
+            for(const auto &path:fixturePaths)ours=ours||sameTestPath(process.path,path);
+            if(ours)result<<process.pid;
+        }
+        return result;
+    };
+    QElapsedTimer timer;timer.start();
+    do{
+        const auto active=matching();if(active.isEmpty())return true;
+        ac::launch::endProcesses(active);QTest::qWait(25);
+    }while(timer.elapsed()<5000);
+    return matching().isEmpty();
+}
+#endif
 }
 class IntegrationTest:public QObject{
  Q_OBJECT
@@ -404,9 +431,12 @@ private slots:
     ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(t.filePath("user"));settings.set("system22Executable",program);
     ac::UiController ui(&games,&filter,&settings);ac::HubServices services(&games,&filter,&ui,&settings,t.path());services.watchdog()->setTimings(200,300,0,800);
-    qint64 stray=0,unrelated=0;
+    qint64 stray=0,unrelated=0;const auto startedMs=QDateTime::currentMSecsSinceEpoch();
+    const auto cleanup=qScopeGuard([&]{
+        if(!endTestProcesses({{stray,program},{unrelated,other}},{},startedMs))
+            QTest::qFail("Detached fixture process did not exit before temporary cleanup",__FILE__,__LINE__);
+    });
     QVERIFY(QProcess::startDetached(program,{"--synthetic-child"},{},&stray));QVERIFY(QProcess::startDetached(other,{"--synthetic-child"},{},&unrelated));
-    const auto cleanup=qScopeGuard([&]{ac::launch::endProcesses({stray,unrelated});});
     const auto listed=[&](qint64 pid){for(const auto &value:ui.backgroundPrograms())if(value.toMap().value("pid").toLongLong()==pid)return true;return false;};
     QTRY_VERIFY_WITH_TIMEOUT(listed(stray),5000);QVERIFY(!listed(unrelated));
     QVERIFY(ui.backgroundPrograms().first().toMap().value("label").toString().contains("TimeCrisisVR.exe"));
@@ -432,6 +462,12 @@ private slots:
     QSignalSpy finished(services.launcher(),&ac::launch::LaunchService::finished);
     const auto pids=t.filePath("pids.txt");qputenv("AC_SYNTHETIC_PIDS",pids.toUtf8());qputenv("AC_SYNTHETIC_WERFAULT",report.toUtf8());
     const auto restore=qScopeGuard([]{qunsetenv("AC_SYNTHETIC_GAME");qunsetenv("AC_SYNTHETIC_PIDS");qunsetenv("AC_SYNTHETIC_WERFAULT");});
+    const auto startedMs=QDateTime::currentMSecsSinceEpoch();
+    const auto cleanup=qScopeGuard([&]{
+        services.launcher()->stop();
+        if(!endTestProcesses({}, {program,report},startedMs))
+            QTest::qFail("Watchdog fixture or its WerFault/grandchild did not exit before temporary cleanup",__FILE__,__LINE__);
+    });
     const auto play=[&](const QByteArray &mode){qputenv("AC_SYNTHETIC_GAME",mode);const int before=finished.size();ui.playGame("system22-timecris","vr");qunsetenv("AC_SYNTHETIC_GAME");return before;};
     // A crash: the exit code in words, on the banner and in the crash records.
     int before=play("crash");
@@ -846,6 +882,16 @@ private slots:
         ac::launch::Request request;request.root=temp.path();request.gameId="synthetic-tree";request.variantId="flat";request.prepareProfile=false;
         request.plan.executable=standIn();request.plan.cwd=temp.path();
         request.plan.args={"--spawn-tree",folder,"launcher",way=="leave"?"leave":"stay"};
+        const auto startedMs=QDateTime::currentMSecsSinceEpoch();
+        const auto cleanup=qScopeGuard([&]{
+            QHash<qint64,QString> known;
+            for(const auto &name:{"launcher","child1","child2","grandchild"})known.insert(pidIn(folder+"/"+name+".pid"),request.plan.executable);
+            known.insert(launcher.processId(),request.plan.executable);
+            for(const auto pid:launcher.ownedProcesses())known.insert(pid,request.plan.executable);
+            launcher.endEverything();
+            if(!endTestProcesses(known,{},startedMs))
+                QTest::qFail("Synthetic game tree did not exit before temporary cleanup",__FILE__,__LINE__);
+        });
         QVERIFY(launcher.start(request));
         const auto pids=[&]{QList<qint64> list;for(const auto &name:{"launcher","child1","child2","grandchild"})list<<pidIn(folder+"/"+name+".pid");return list;};
         // Waited for by id, not by file count: a file still being written counts in the folder but cannot be read.

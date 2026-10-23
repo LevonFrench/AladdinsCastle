@@ -34,16 +34,24 @@ QVariantMap rowWithId(const ac::ControlsViewModel &model,const QString &id) {
     for (const auto &value:model.rows()) if (value.toMap().value("id").toString()==id) return value.toMap();
     return {};
 }
+bool rendered(const QImage &image,const QSize &size) {
+    if (image.isNull() || image.devicePixelRatio()<=0 ||
+        QSize(qRound(image.width()/image.devicePixelRatio()),qRound(image.height()/image.devicePixelRatio()))!=size) return false;
+    for (int y=20;y<qMin(image.height(),240);y+=2)
+        for (int x=20;x<image.width()-20;x+=2)
+            if (const auto pixel=image.pixel(x,y);qRed(pixel)>110 && qGreen(pixel)>110 && qBlue(pixel)>110) return true;
+    return false;
+}
 }
 
 class ControlsViewTest final: public QObject {
     Q_OBJECT
     QMap<QString,QVariantMap> samples;
+    QTemporaryDir fixtureDirectory;
     QString fixtureRoot;
 private slots:
     void initTestCase() {
-        fixtureRoot=QDir(AC_CONTROLS_ROOT).filePath(".local/controls-view-tests");
-        QVERIFY(QDir().mkpath(fixtureRoot));
+        QVERIFY(fixtureDirectory.isValid());fixtureRoot=fixtureDirectory.path();
         QProcess process;
         process.start(AC_CONTROLS_PYTHON,{QDir(AC_CONTROLS_ROOT).filePath("tools/control_sets.py"),"--allow-unmapped","--proposed-overrides","--json"});
         QVERIFY(process.waitForFinished(30000));
@@ -237,11 +245,12 @@ private slots:
         auto *item=qobject_cast<QQuickItem *>(object.get()); QVERIFY(item);
         QQuickWindow window; window.setColor(QColor("#0f0f12")); window.resize(1040,1300);
         item->setParentItem(window.contentItem()); item->setPosition({20,20}); window.show();
-        QTest::qWait(100);
-        const QImage desktop=window.grabWindow(); QVERIFY(!desktop.isNull());
+        QImage desktop;
+        QTRY_VERIFY_WITH_TIMEOUT(([&]{if(!window.isSceneGraphInitialized())return false;desktop=window.grabWindow();return rendered(desktop,window.size());})(),10000);
         QVERIFY(desktop.save(QDir(fixtureRoot).filePath("timecris-desktop-source-only.png")));
-        item->setWidth(460); window.resize(500,1650); QTest::qWait(60);
-        const QImage narrow=window.grabWindow(); QVERIFY(!narrow.isNull());
+        item->setWidth(460); window.resize(500,1650);
+        QImage narrow;
+        QTRY_VERIFY_WITH_TIMEOUT(([&]{if(!window.isSceneGraphInitialized())return false;narrow=window.grabWindow();return rendered(narrow,window.size());})(),10000);
         QVERIFY(narrow.save(QDir(fixtureRoot).filePath("timecris-narrow-source-only.png")));
         item->setParentItem(nullptr);
     }
@@ -281,8 +290,9 @@ private slots:
         QVERIFY(named(item,"shellPartPreview").front()->isVisible()); QVERIFY(named(item,"stickPartPreview").front()->isVisible());
         QCOMPARE(named(item,"controlsCallout").size(),model.rows().size());
         QQuickWindow window; window.setColor(QColor("#0f0f12"));window.resize(1040,qMax(2400,qCeil(item->height())+40));
-        item->setParentItem(window.contentItem());item->setPosition({20,20});window.show();QTest::qWait(100);
-        const QImage capture=window.grabWindow();QVERIFY(!capture.isNull());
+        item->setParentItem(window.contentItem());item->setPosition({20,20});window.show();
+        QImage capture;
+        QTRY_VERIFY_WITH_TIMEOUT(([&]{if(!window.isSceneGraphInitialized())return false;capture=window.grabWindow();return rendered(capture,window.size());})(),10000);
         QVERIFY(capture.save(QDir(fixtureRoot).filePath("wii-umbrella-shell-stick-native.png")));
         item->setParentItem(nullptr);
         QVERIFY(model.loadResolved(samples["wii-resident-evil-umbrella-chronicles"],QDir(AC_CONTROLS_ROOT).filePath("assets/guns/preview")));
