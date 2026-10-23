@@ -107,13 +107,15 @@ QVariantMap scriptMetadata(const QString &script,bool locked){
   const auto concat=split(expression,'&');if(concat.size()>1){Values v{{QString()},true};for(const auto &part:concat){const auto item=resolve(part,seen,depth+1);v.complete&=item.complete;QStringList names;for(const auto &a:v.names)for(const auto &b:item.names){if(names.size()>=64)return {{},false};names<<a+b;}v.names=names;}return v;}
   m=reference.match(expression);if(!m.hasMatch())return {{},false};auto name=m.captured(1).toCaseFolded();const auto index=m.captured(2).trimmed();
   if(!index.isEmpty()&&assignments.contains(name+'('+index+')'))name+='('+index+')';
-  if(seen.contains(name))return {{},false};seen.insert(name);Values values;
+  if(seen.contains(name))return {{},false};
+  seen.insert(name);Values values;
   if(assignments.contains(name)){values.complete=certainAssignments.contains(name);if(assignments[name].size()>128)return {{},false};for(const auto &rhs:assignments[name]){const auto v=resolve(rhs,seen,depth+1);values.names+=v.names;values.complete&=v.complete;if(values.names.size()>64)return {{},false};}}
   else {values.complete=false;for(auto it=assignments.cbegin();it!=assignments.cend();++it)if(it.key().startsWith(name+'(')){for(const auto &rhs:it.value())values.names+=resolve(rhs,seen,depth+1).names;}}
   if(!index.isEmpty()&&name==m.captured(1).toCaseFolded()&&assignments.value(name).size()==1){bool ok=false;const int i=index.toInt(&ok);if(ok){if(i>=0&&i<values.names.size())values.names={values.names[i]};else return {{},false};}}
   // An array's indexed writes can change any runtime-selected member; a base Array(...) is not the complete set.
   if(name==m.captured(1).toCaseFolded())for(auto it=assignments.cbegin();it!=assignments.cend();++it)if(it.key().startsWith(name+'(')){values.complete=false;break;}
-  if(values.names.size()>64)return {{},false};return values;
+  if(values.names.size()>64)return {{},false};
+  return values;
  };
  QStringList with;QStringList sinks;bool otherSink=false,uncertainSink=false;
  static const QRegularExpression withStart("^\\s*With\\s+([A-Za-z_]\\w*)\\s*$",ci),withEnd("^\\s*End\\s+With\\b",ci);

@@ -32,9 +32,11 @@ QString zipRoot(const QFileInfo &info,qint64 &budget,bool &complete){
  QFile f(info.absoluteFilePath());if(!f.open(QIODevice::ReadOnly)||f.size()<22)return unavailable();
  // Most archives have no ZIP comment: read their fixed footer first so a large
  // collection does not spend the metadata budget on compressed ROM payloads.
- if(budget<22||!f.seek(f.size()-22))return unavailable();budget-=22;auto tail=f.read(22);if(tail.size()!=22)return unavailable();
+ if(budget<22||!f.seek(f.size()-22))return unavailable();
+ budget-=22;auto tail=f.read(22);if(tail.size()!=22)return unavailable();
  if(u32(tail,0)!=0x06054b50U||u16(tail,20)!=0){const qint64 tailSize=std::min<qint64>(f.size(),65557);if(tailSize>budget)return unavailable();budget-=tailSize;
-  if(!f.seek(f.size()-tailSize))return unavailable();tail=f.read(tailSize);if(tail.size()!=tailSize)return unavailable();
+  if(!f.seek(f.size()-tailSize))return unavailable();
+  tail=f.read(tailSize);if(tail.size()!=tailSize)return unavailable();
  }
  qsizetype end=-1;for(qsizetype p=tail.size()-22;p>=0;--p){if(u32(tail,p)==0x06054b50U&&p+22+u16(tail,p+20)==tail.size()){end=p;break;}}
  if(end<0||u16(tail,end+4)||u16(tail,end+6)||u16(tail,end+8)!=u16(tail,end+10))return unavailable();

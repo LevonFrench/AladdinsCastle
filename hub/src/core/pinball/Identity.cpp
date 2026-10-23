@@ -36,7 +36,9 @@ Parts parse(QString s){
  s=clean(s);Parts p;
  static const QRegularExpression both("^(.*?)\\s*\\(([^()]*)[,\\s]+((?:18|19|20)\\d{2})\\)(?:\\s|$|(?=v\\d+(?:\\.\\d+){0,3}$))",QRegularExpression::CaseInsensitiveOption);
  auto m=both.match(s);
- if(m.hasMatch()&&!m.captured(1).trimmed().isEmpty()){p.name=shown(m.captured(1));p.maker=shown(m.captured(2)).replace(QRegularExpression("[,\\s]+$"),QString());if(QStringList{"vpw","vr","mod","fss"}.contains(key(p.maker)))p.maker.clear();p.year=m.captured(3).toInt();p.marked=true;return p;}
+ if(m.hasMatch()&&!m.captured(1).trimmed().isEmpty()){p.name=shown(m.captured(1));p.maker=shown(m.captured(2)).replace(QRegularExpression("[,\\s]+$"),QString());
+  if(QStringList{"vpw","vr","mod","fss"}.contains(key(p.maker)))p.maker.clear();
+  p.year=m.captured(3).toInt();p.marked=true;return p;}
  static const QRegularExpression year("^(.*?)\\s*\\(((?:18|19|20)\\d{2})\\)(?:\\s|$)");m=year.match(s);
  if(m.hasMatch()&&!m.captured(1).trimmed().isEmpty()){p.name=shown(m.captured(1));p.year=m.captured(2).toInt();p.marked=true;return p;}
  static const QRegularExpression bracket("^(.*?)\\s*\\(([^()]*)\\)(?:\\s|$)");m=bracket.match(s);
@@ -50,7 +52,10 @@ Parts parse(QString s){
  }
  p.name=s;return p;
 }
-QString caption(const Parts &p){if(p.maker.isEmpty()&&p.year==0)return p.name;return p.name+" ("+p.maker+(p.maker.isEmpty()||!p.year?QString():QString(" "))+(p.year?QString::number(p.year):QString())+")";}
+QString caption(const Parts &p){
+ if(p.maker.isEmpty()&&p.year==0)return p.name;
+ return p.name+" ("+p.maker+(p.maker.isEmpty()||!p.year?QString():QString(" "))+(p.year?QString::number(p.year):QString())+")";
+}
 QString safeVpsUrl(const QJsonObject &machine){
  const auto raw=machine.value("vpsUrl").toString(machine.value("url").toString());const QUrl url(raw);
  if(url.scheme()=="https"&&url.userInfo().isEmpty()&&url.port()==-1){const auto host=url.host().toCaseFolded();if(host=="virtualpinballspreadsheet.com"||host=="www.virtualpinballspreadsheet.com")return url.toString(QUrl::FullyEncoded);}
@@ -103,7 +108,8 @@ void matchVps(QVariantMap &row,const QJsonArray &db){
  }
  if(!exact){
   QStringList tried;for(const auto &alternate:alternateNames(row.value("machine").toString())){
-   const auto alternateKey=key(alternate);if(alternateKey.isEmpty()||tried.contains(alternateKey))continue;tried<<alternateKey;
+   const auto alternateKey=key(alternate);if(alternateKey.isEmpty()||tried.contains(alternateKey))continue;
+   tried<<alternateKey;
    for(const auto &value:db){const auto machine=value.toObject();if(key(machine.value("name").toString())!=alternateKey)continue;
     if(!maker.isEmpty()&&makerKey(machine.value("manufacturer").toString())!=maker)continue;
     if(year&&machine.value("year").toInt()!=year)continue;
@@ -126,9 +132,11 @@ void matchVps(QVariantMap &row,const QJsonArray &db){
  if(count!=1)return;
  const auto id=match.value("id").toString(),canonical=shown(match.value("name").toString()),manufacturer=shown(match.value("manufacturer").toString());
  const int matchedYear=match.value("year").toInt();if(canonical.isEmpty()||manufacturer.isEmpty()||(matchedYear&&(matchedYear<1800||matchedYear>2100)))return;
- row["vpsMatched"]=true;if(!id.isEmpty())row["vpsId"]=id;row["vpsName"]=canonical;
+ row["vpsMatched"]=true;if(!id.isEmpty())row["vpsId"]=id;
+ row["vpsName"]=canonical;
  const auto url=safeVpsUrl(match);if(!url.isEmpty())row["vpsUrl"]=url;
- row["machine"]=canonical;row["maker"]=manufacturer;if(matchedYear)row["year"]=matchedYear;row["title"]=caption({canonical,manufacturer,matchedYear,true});
+ row["machine"]=canonical;row["maker"]=manufacturer;if(matchedYear)row["year"]=matchedYear;
+ row["title"]=caption({canonical,manufacturer,matchedYear,true});
  row["type"]=shown(match.value("type").toString());row["players"]=match.value("players").toInt();row["theme"]=shown(match.value("theme").toString());
  QList<QJsonObject> files;const auto author=key(row.value("authors").toString()),version=row.value("version").toString().trimmed().toCaseFolded();
  if(author.isEmpty()||version.isEmpty())return;
@@ -138,7 +146,8 @@ void matchVps(QVariantMap &row,const QJsonArray &db){
   if(key(authors.join(" "))==author&&file.value("version").toString().trimmed().toCaseFolded()==version)files<<file;
  }
  if(files.size()!=1)return;
- QStringList features;for(const auto &value:files.first().value("features").toArray())features<<shown(value.toString());row["features"]=features;
+ QStringList features;for(const auto &value:files.first().value("features").toArray())features<<shown(value.toString());
+ row["features"]=features;
  if(features.contains("VR",Qt::CaseInsensitive)&&row.value("error").toString().isEmpty()){
   auto evidence=row.value("evidence").toStringList();evidence<<"VPS: VR";row["evidence"]=evidence;row["vrReady"]=true;
  }
