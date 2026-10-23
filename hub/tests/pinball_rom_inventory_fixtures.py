@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Synthetic ROM inventory cases; no real tables, ROMs or downloads."""
 import json, os, pathlib, subprocess, sys, tempfile, unittest, zipfile
+sys.dont_write_bytecode = True  # Shared fixtures must leave the source tree clean for packaging.
 from pinball_fixtures import table
 
 HUB = sys.argv.pop(1)

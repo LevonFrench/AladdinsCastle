@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Synthetic VBScript metadata cases; scripts are never executed."""
 import json, pathlib, subprocess, sys, tempfile, unittest, zipfile
+sys.dont_write_bytecode = True  # Shared fixtures must leave the source tree clean for packaging.
 from pinball_fixtures import table
 HUB=sys.argv.pop(1)
 

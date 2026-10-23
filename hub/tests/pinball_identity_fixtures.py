@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Synthetic table and VPS identity cases; no collection data or network access."""
 import json, pathlib, subprocess, sys, tempfile, unittest
+sys.dont_write_bytecode = True  # Shared fixtures must leave the source tree clean for packaging.
 from pinball_fixtures import table
 
 HUB = sys.argv.pop(1)
