@@ -694,7 +694,7 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable,
         if(!row.value("error").toString().isEmpty()||row.value("romState")=="ROM missing")
             throw install::Error("E_PINBALL_NOT_READY","Choose a table with no scan error or missing known ROM.");
         if(view=="headset"&&!row.value("vrReady").toBool())
-            throw install::Error("E_PINBALL_NOT_READY","This table is not marked VR-ready. Use Launch on desktop, or mark it VR-ready first.");
+            throw install::Error("E_PINBALL_NOT_READY","You excluded this table from the headset. Use Launch on desktop, or include it in the headset first.");
         // In the headset or on the monitor, asked for explicitly through a Hub-owned settings file for this table.
         // A diagnostic settings file chooses its own mode, so nothing is layered over it.
         if(view!="desktop"&&view!="headset")throw install::Error("E_PINBALL_VIEW","Choose Launch on desktop or Launch in headset.");

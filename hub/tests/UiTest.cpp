@@ -343,7 +343,7 @@ class UiTest:public QObject {
   QTRY_VERIFY(one("model3Grid"));QCOMPARE(one("model3Grid")->property("count").toInt(),int(ui->model3Games().size()+ui->otherGames().size()+ui->readyCatalogGames().size()));
   for(const auto &hidden:{"filterBar","libraryButton","orderButton","searchField"})QVERIFY2(!one(hidden)->isVisible(),hidden);
   QVERIFY(one("model3Tab")->isVisible());QVERIFY(one("pinballTab")->isVisible());QVERIFY(one("helpButton")->isVisible());
-  // Pinball lists every table; Ready to play and VR-ready only narrow it, and a tile says why a table cannot play.
+  // Pinball lists every table and every readable one plays in the headset; Ready to play and VR room only narrow it, and a tile says why a table cannot play.
   QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Pinball"),Q_ARG(QVariant,QVariant())));
   {QVariantList tables;const QStringList states{"ready","needs no ROM","ROM missing","unknown"};
    for(int i=0;i<8;++i)tables<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"vrReady",i<6},{"romState",states[i%4]}};
@@ -361,7 +361,7 @@ class UiTest:public QObject {
     locked{{"id","11"},{"title","Fixture 11"},{"note","Its script is locked by its author."},{"romState","unknown"}};
    QStringList badges;QVariant tile;auto list=ui->pinballData()["tables"].toList();list<<desktop<<broken<<locked;
    for(const auto &row:list){QVERIFY(QMetaObject::invokeMethod(pinballPage,"tileOf",Q_RETURN_ARG(QVariant,tile),Q_ARG(QVariant,row)));badges<<tile.toMap()["badge"].toString();}
-   QCOMPARE(badges,(QStringList{"","","ROM missing","ROM not checked","","","ROM missing","ROM not checked","Desktop only","Can't read","Locked script"}));}
+   QCOMPARE(badges,(QStringList{"VR room","VR room","ROM missing","ROM not checked","VR room","VR room","ROM missing","ROM not checked","Excluded","Can't read","Locked script"}));}
   QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Model3"),Q_ARG(QVariant,QVariant())));QVERIFY(softwareFrame(window));
   // The help menu: closed by its Close button, by Escape and by a click outside it; only items that work are shown.
   const auto help=popup("helpPanel");QVERIFY(help);

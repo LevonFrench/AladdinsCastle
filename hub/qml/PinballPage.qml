@@ -11,7 +11,7 @@ Item {
  property var selected:uiController.pinballSelection
  property var rows:scanData.tables||[]
  // Every table in the folder is listed; one that cannot play says why on its tile. Ready to play and
- // VR-ready only narrow the list when asked.
+ // VR room only narrow the list when asked. Every readable table plays in the headset unless you exclude it.
  // B in the headset: a table's page closes first, then a search or filter clears; false at the plain list.
  function handleBack(){
   if(page.selected.id){uiController.selectPinball("");return true}
@@ -24,7 +24,7 @@ Item {
  function stateText(state){return {"ready":"Ready to play","needs no ROM":"Ready to play","ROM missing":"ROM missing","unknown":"ROM not checked"}[state]||state||""}
  function makerOptions(){let result=["All makers"];for(let row of rows)if(row.maker&&result.indexOf(row.maker)<0)result.push(row.maker);return result}
  property var filtered:rows.filter(function(r){
-  return (!vrOnly.checked||r.vrReady===true)&&(!query.text||r.title.toLowerCase().indexOf(query.text.toLowerCase())>=0)
+  return (!vrOnly.checked||r.vrRoom===true)&&(!query.text||r.title.toLowerCase().indexOf(query.text.toLowerCase())>=0)
    &&(maker.currentIndex===0||r.maker===maker.currentText)
    &&(decade.currentText==="All decades"||Math.floor(Number(r.year)/10)*10===Number(decade.currentText))
    &&(type.currentText==="All types"||r.type===type.currentText)
@@ -61,7 +61,7 @@ Item {
  }
  // The tile says in two words why a table cannot play, or plays on the desktop only.
  function tileOf(row){const ok=playable(row);return {title:row.title,system:"pinball",art:row.artThumb?fileUrl(row.artThumb):(row.wheelUrl||""),
-  badge:row.error?"Can't read":!ok?(row.note&&row.romState==="unknown"?"Locked script":stateText(row.romState)):row.vrReady!==true?"Desktop only":row.favourite?"Favourite":"",
+  badge:row.error?"Can't read":!ok?(row.note&&row.romState==="unknown"?"Locked script":stateText(row.romState)):row.vrReady!==true?"Excluded":row.favourite?"Favourite":row.vrRoom===true?"VR room":"",
   badgeColour:row.error||row.romState==="ROM missing"?Theme.get("color.state.needs_neon"):ok&&row.vrReady===true?Theme.get("color.text.primary"):Theme.get("color.text.muted")}}
  function tableLine(row){return [row.maker||"",row.year||""].join(" ").trim()}
  focus:!selected.id
@@ -82,7 +82,7 @@ Item {
    art:page.fileUrl(page.focusedTable.artBackglass)
    eyebrow:("Pinball"+(page.tableLine(page.focusedTable)?"  ·  "+page.tableLine(page.focusedTable):"")).toUpperCase()
    title:page.focusedTable.title||"Pinball"
-   meta:page.focusedTable.id?(page.focusedTable.error||page.focusedTable.note||page.stateText(page.focusedTable.romState))+(page.focusedTable.vrReady===true?"":" · Desktop only: not marked VR-ready"):"Choose your table folder, then Scan."
+   meta:page.focusedTable.id?(page.focusedTable.error||page.focusedTable.note||page.stateText(page.focusedTable.romState))+(page.focusedTable.vrReady===true?"":" · Excluded by you: desktop only"):"Choose your table folder, then Scan."
    metaColour:page.focusedTable.error||page.focusedTable.romState==="ROM missing"?Theme.get("color.state.needs_neon"):Theme.get("color.text.muted")
    PillButton {objectName:"pinballHeroDesktop";visible:!!page.focusedTable.id;targetHeight:page.vrOverlayMode?56:48;vrOverlayMode:page.vrOverlayMode;neon:true;accent:Theme.get("color.state.ready_neon");text:"Launch on desktop";enabled:page.startable(page.focusedTable);onClicked:uiController.launchPinball(page.focusedTable.id,"desktop")}
    PillButton {objectName:"pinballHeroHeadset";visible:!!page.focusedTable.id;targetHeight:page.vrOverlayMode?56:48;vrOverlayMode:page.vrOverlayMode;text:"Launch in headset";enabled:page.headsetReady(page.focusedTable);onClicked:uiController.launchPinball(page.focusedTable.id,"headset")}
@@ -110,7 +110,7 @@ Item {
    PillButton {id:favourites;checkable:true;text:"Favourites";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
    PillButton {id:recent;checkable:true;text:"Recent";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
    PillButton {id:ready;objectName:"pinballReady";checkable:true;text:"Ready to play";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
-   PillButton {id:vrOnly;objectName:"pinballVrOnly";checkable:true;text:"VR-ready only";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
+   PillButton {id:vrOnly;objectName:"pinballVrOnly";checkable:true;text:"VR room only";selected:checked;vrOverlayMode:page.vrOverlayMode;targetHeight:page.vrOverlayMode?52:38}
   }
   ListView {id:grid;objectName:"pinballGrid";property int count:page.filtered.length;Layout.fillWidth:true;Layout.fillHeight:true;Layout.topMargin:14;clip:true;spacing:page.vrOverlayMode?18:24;model:page.shelves
    boundsBehavior:Flickable.StopAtBounds;bottomMargin:24;ScrollBar.vertical:ScrollBar{}
@@ -142,13 +142,13 @@ Item {
    Column {x:page.side;width:detail.availableWidth-2*page.side;spacing:12;topPadding:4;bottomPadding:24
     Flow {width:parent.width;spacing:8
      PillButton {text:page.selected.favourite?"Unfavourite":"Favourite";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.favouritePinball()}
-     PillButton {text:"Mark VR-ready";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(true)}
+     PillButton {text:"Include in headset";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(true)}
      PillButton {text:"Exclude";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(false)}
      PillButton {text:"Locate VPX";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballExecutable";file.nameFilters=["Program (*.exe)"];file.open()}}
     }
     UiText {objectName:"pinballAccepted";width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted_detail");font.pixelSize:page.vrOverlayMode?16:14
      text:{let when=(uiSettings.values,uiSettings.acceptedOn("pinball-"+(page.selected.id||""),page.selected.title||""));return "In the headset: "+(when?"accepted by you ("+when+")":"not yet accepted by you")+"."}}
-    UiText {width:parent.width;wrapMode:Text.Wrap;font.pixelSize:page.vrOverlayMode?17:15;text:(page.headsetReason?page.headsetReason+" ":"")+(page.selected.vrReady===true?"":"This table is not marked VR-ready, so it launches on the desktop only. ")+"On the desktop VR stays off and SteamVR is not needed. In the headset, VR controllers: X opens the in-game menu; hold Y for 3 seconds to close the table (with the Hub open as the SteamVR panel), or press Y together with the left stick click."}
+    UiText {width:parent.width;wrapMode:Text.Wrap;font.pixelSize:page.vrOverlayMode?17:15;text:(page.headsetReason?page.headsetReason+" ":"")+(page.selected.vrReady===true?"":"You excluded this table from the headset, so it launches on the desktop only. ")+"On the desktop VR stays off and SteamVR is not needed. In the headset, VR controllers: X opens the in-game menu; hold Y for 3 seconds to close the table (with the Hub open as the SteamVR panel), or press Y together with the left stick click."}
     UiText {width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted_detail");font.pixelSize:page.vrOverlayMode?15:13;text:Array.from(page.selected.evidence||[]).join(", ")+(page.selected.features&&page.selected.features.length?"  ·  "+Array.from(page.selected.features).join(", "):"")}
     // The gamepad layout the Hub sets for an Xbox-style controller, for both launches.
     Text {text:"Gamepad";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?22:19;topPadding:6}
