@@ -59,9 +59,9 @@ QJsonObject geometry(QQuickItem *item){
 void snapshot(const QString &tag,QQuickItem *item){
  if(diagnosticEnabled())qInfo().noquote()<<"GEOMETRY "+tag+" "+QString::fromUtf8(QJsonDocument(geometry(item)).toJson(QJsonDocument::Compact));
 }
-bool softwareFrame(QQuickWindow *window){
+bool softwareFrame(QQuickWindow *window,int timeoutMs=15000){
  QSignalSpy rendered(window,&QQuickWindow::afterRendering);
- window->update();return QTest::qWaitFor([&]{return !rendered.isEmpty();},2000);
+ window->update();return QTest::qWaitFor([&]{return !rendered.isEmpty();},timeoutMs);
 }
 bool withinClips(QQuickItem *item){
  if(item->width()<=0||item->height()<=0||!item->isVisible())return false;
@@ -223,7 +223,9 @@ class UiTest:public QObject {
   theme=std::make_unique<ac::Theme>(catalog.theme);qmlRegisterSingletonInstance("AladdinsCastle.Hub",1,0,"Theme",theme.get());
   games=std::make_unique<ac::GameListModel>(std::move(catalog));filter.setSourceModel(games.get());settings=std::make_unique<ac::UiSettings>(user.path());settings->set("showAllGames",true); /* the catalog tests below need the whole catalog */ui=std::make_unique<ac::UiController>(games.get(),&filter,settings.get());engine=std::make_unique<QQmlApplicationEngine>();
   auto context=engine->rootContext();context->setContextProperty("overlayHost",&overlayProbe);context->setContextProperty("catalogGameCount",443);context->setContextProperty("gameModel",games.get());context->setContextProperty("gameFilter",&filter);context->setContextProperty("uiSettings",settings.get());context->setContextProperty("uiController",ui.get());
-  engine->load(QUrl("qrc:/qt/qml/AladdinsCastle/Hub/DesktopShell.qml"));QVERIFY(!engine->rootObjects().isEmpty());window=qobject_cast<QQuickWindow *>(engine->rootObjects().first());QVERIFY(window);root=window->findChild<QObject *>("hubRoot");QVERIFY(root);QTest::qWait(300);
+  engine->load(QUrl("qrc:/qt/qml/AladdinsCastle/Hub/DesktopShell.qml"));QVERIFY(!engine->rootObjects().isEmpty());window=qobject_cast<QQuickWindow *>(engine->rootObjects().first());QVERIFY(window);root=window->findChild<QObject *>("hubRoot");QVERIFY(root);
+  QTRY_VERIFY_WITH_TIMEOUT(window->findChild<QQuickItem *>("sectionedGrid")&&cardCount(window->contentItem(),true)>0,15000);
+  QVERIFY(softwareFrame(window,15000));
   auto list=window->findChild<QQuickItem *>("sectionedGrid");QVERIFY(list);QVERIFY(list->mapToScene(QPointF()).y()<200);QVERIFY(list->height()>400);
   int visibleCards=cardCount(window->contentItem(),true);QVERIFY(visibleCards>0);
   if(!qEnvironmentVariable("AC_UI_BENCH_OUTPUT").isEmpty()){auto out=QFileInfo(qEnvironmentVariable("AC_UI_BENCH_OUTPUT")).dir();QVERIFY(window->grabWindow().save(out.filePath("d-startup.png")));}
@@ -265,7 +267,7 @@ class UiTest:public QObject {
  void emptyArtModelDuringNavigation(){
   QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameArt.qml"));
   std::unique_ptr<QObject> art(component.create());QVERIFY(art);const auto before=warnings.size();
-  QVERIFY(art->setProperty("game",QVariant()));QTest::qWait(40);
+  QVERIFY(art->setProperty("game",QVariant()));QTest::qWait(40); // Negative-observation window: no readiness signal exists for an unattached binding warning.
   QStringList invalid;for(const auto &warning:warnings.mid(before))if(warning.contains("TypeError")||warning.contains("ReferenceError"))invalid<<warning;
   QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));
  }
@@ -378,7 +380,7 @@ class UiTest:public QObject {
   // Scrolling over the help menu leaves it open; it used to close it.
   click(one("helpButton"));QTRY_VERIFY(help->property("opened").toBool());
   {const auto inside=centre(one("helpSettings"));QWheelEvent wheel(inside,window->mapToGlobal(inside),{},QPoint(0,-120),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);QCoreApplication::sendEvent(window,&wheel);}
-  QTest::qWait(100);QVERIFY(help->property("opened").toBool());click(one("helpClose"));QTRY_VERIFY(!help->property("visible").toBool());
+  QTest::qWait(100);QVERIFY(help->property("opened").toBool());click(one("helpClose"));QTRY_VERIFY(!help->property("visible").toBool()); // Observe deferred close events too.
   // A help item closes the menu and opens its page.
   click(one("helpButton"));QTRY_VERIFY(help->property("opened").toBool());click(one("helpSettings"));
   QTRY_VERIFY(!help->property("visible").toBool());QCOMPARE(root->property("view").toString(),QString("Settings"));
@@ -391,7 +393,7 @@ class UiTest:public QObject {
   // Scrolling inside the drawer scrolls it; it used to close it.
   QVERIFY(softwareFrame(window));const auto inside=window->contentItem()->mapFromItem(qobject_cast<QQuickItem *>(filters->property("contentItem").value<QObject *>()),QPointF(40,40)).toPoint();
   QWheelEvent wheel(inside,window->mapToGlobal(inside),{},QPoint(0,-120),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);QCoreApplication::sendEvent(window,&wheel);
-  QTest::qWait(100);QVERIFY(filters->property("opened").toBool());
+  QTest::qWait(100);QVERIFY(filters->property("opened").toBool()); // Observe deferred close events too.
   click(one("filtersDone"));QTRY_VERIFY(!filters->property("visible").toBool());
   // Escape closes a dialog and stays on the page under it.
   const auto scan=popup("scanDialog");QVERIFY(scan);QVERIFY(QMetaObject::invokeMethod(scan,"open"));QTRY_VERIFY(scan->property("opened").toBool());
@@ -483,7 +485,7 @@ class UiTest:public QObject {
   auto tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,24));
   QTest::mousePress(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTest::mouseMove(window,p.toPoint()-QPoint(0,140),80);QTest::mouseRelease(window,Qt::LeftButton,Qt::NoModifier,p.toPoint()-QPoint(0,140));
   QVERIFY(namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
-  grid->setProperty("contentY",0);QTest::qWait(40);tiles=namedItems(window->contentItem(),"pinballTile");tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,24));
+  grid->setProperty("contentY",0);QTRY_VERIFY_WITH_TIMEOUT(std::abs(grid->property("contentY").toDouble())<0.5&&!namedItems(window->contentItem(),"pinballTile").isEmpty(),15000);QVERIFY(softwareFrame(window,15000));tiles=namedItems(window->contentItem(),"pinballTile");tile=tiles.first();p=tile->mapToScene(QPointF(tile->width()/2,24));
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,p.toPoint());QTRY_VERIFY(!namedItems(window->contentItem(),"pinballDetailTitle").isEmpty());
   QCOMPARE(ui->property("pinballSelection").toMap().value("romState").toString(),QString("needs no ROM"));
   QTRY_VERIFY(!namedItems(window->contentItem(),"pinballLaunchHelp").isEmpty());
@@ -755,7 +757,8 @@ class UiTest:public QObject {
   auto click=[&](QQuickItem *button){
    const auto before=button->mapToScene(QPointF(button->width()/2,button->height()/2));
    flick->setProperty("contentY",qMax(0.0,before.y()+flick->property("contentY").toDouble()-window->height()/2));
-   QTest::qWait(50);
+   QTRY_VERIFY_WITH_TIMEOUT([&]{const auto point=button->mapToScene(QPointF(button->width()/2,button->height()/2));return point.y()>0&&point.y()<window->height();}(),15000);
+   QVERIFY(softwareFrame(window,15000));
    const auto point=button->mapToScene(QPointF(button->width()/2,button->height()/2));
    QVERIFY(point.y()>0&&point.y()<window->height());
    QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
@@ -830,11 +833,13 @@ class UiTest:public QObject {
   QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&localUi);
   QQmlComponent component(engine.get());component.setData("import QtQuick; import AladdinsCastle.Hub; DetailPage {width:1120;height:720}",QUrl());
   std::unique_ptr<QQuickItem> page(qobject_cast<QQuickItem *>(component.create(&context)));QVERIFY2(page,qPrintable(component.errorString()));
-  page->setParentItem(window->contentItem());page->setZ(100);QTest::qWait(50);
-  auto primary=page->findChild<QQuickItem *>("detailPrimary");QVERIFY(primary);QVERIFY(primary->isEnabled());
+  page->setParentItem(window->contentItem());page->setZ(100);
+  QTRY_VERIFY_WITH_TIMEOUT(page->findChild<QQuickItem *>("detailPrimary")&&page->findChild<QQuickItem *>("detailPrimary")->isEnabled(),15000);
+  QVERIFY(softwareFrame(window,15000));auto primary=page->findChild<QQuickItem *>("detailPrimary");QVERIFY(primary);QVERIFY(primary->isEnabled());
   auto flick=page->property("contentItem").value<QQuickItem *>();QVERIFY(flick);QVERIFY(flick->property("contentY").isValid());
   const auto initial=primary->mapToScene({primary->width()/2,primary->height()/2});
-  flick->setProperty("contentY",qMax(0.0,initial.y()-window->height()/2));QTest::qWait(50);
+  flick->setProperty("contentY",qMax(0.0,initial.y()-window->height()/2));
+  QTRY_VERIFY_WITH_TIMEOUT([&]{const auto point=primary->mapToScene({primary->width()/2,primary->height()/2});return point.y()>0&&point.y()<window->height();}(),15000);QVERIFY(softwareFrame(window,15000));
   const auto point=primary->mapToScene({primary->width()/2,primary->height()/2});
   QVERIFY(point.x()>0&&point.x()<window->width()&&point.y()>0&&point.y()<window->height());
   QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
@@ -860,7 +865,7 @@ class UiTest:public QObject {
   const auto click=[&](QQuickItem *button){
    const auto before=button->mapToScene({button->width()/2,button->height()/2});
    flick->setProperty("contentY",qMax(0.0,before.y()+flick->property("contentY").toDouble()-window->height()/2));
-   QTest::qWait(50);
+   QTRY_VERIFY_WITH_TIMEOUT([&]{const auto point=button->mapToScene({button->width()/2,button->height()/2});return point.y()>0&&point.y()<window->height();}(),15000);QVERIFY(softwareFrame(window,15000));
    const auto point=button->mapToScene({button->width()/2,button->height()/2});
    QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,point.toPoint());
   };
@@ -958,24 +963,30 @@ class UiTest:public QObject {
   const auto original=window->size();window->resize(1104,688);QCoreApplication::processEvents();settings->set("reduceMotion",true);QCOMPARE(window->size(),QSize(1104,688));settings->set("reduceMotion",false);window->resize(original);
  }
  void persistentGridKeepsCardsFocusAndScroll(){
-  filter.clearFacets();filter.setSortMode("title");root->setProperty("view","List");QTest::qWait(100);auto list=window->findChild<QQuickItem *>("sectionedGrid");QVERIFY(list);list->setProperty("contentY",280.0);QTest::qWait(50);
+  filter.clearFacets();filter.setSortMode("title");root->setProperty("view","List");QTRY_VERIFY_WITH_TIMEOUT(window->findChild<QQuickItem *>("sectionedGrid"),15000);auto list=window->findChild<QQuickItem *>("sectionedGrid");QVERIFY(list);list->setProperty("contentY",280.0);QTRY_VERIFY_WITH_TIMEOUT(std::abs(list->property("contentY").toDouble()-280.0)<0.5,15000);QVERIFY(softwareFrame(window,15000));
   auto cards=namedItems(list,"gameCard");QVERIFY(!cards.isEmpty());QPointer<QQuickItem> kept=cards.first();const auto value=kept->property("game");const auto game=value.metaType().id()==qMetaTypeId<QJSValue>()?value.value<QJSValue>().toVariant().toMap():value.toMap();const auto id=game.value("gameId").toString();QVERIFY(games->find(id));
   kept->forceActiveFocus();QVERIFY(kept->hasActiveFocus());const auto y=list->property("contentY").toDouble();const auto modelValue=list->property("model");auto object=modelValue.value<QObject *>();if(!object&&modelValue.metaType().id()==qMetaTypeId<QJSValue>())object=modelValue.value<QJSValue>().toQObject();auto model=qobject_cast<ac::SectionedGridModel *>(object);QVERIFY(model);
   QPersistentModelIndex index(model->index(1));QSignalSpy resets(model,&QAbstractItemModel::modelReset),changes(model,&QAbstractItemModel::dataChanged);const auto originalState=games->find(id)->runtime;auto state=originalState;state.playing=true;games->applyRuntimeStates({state});QTRY_VERIFY(changes.count()>0);QVERIFY(index.isValid());QCOMPARE(resets.count(),0);QVERIFY(kept);QVERIFY(namedItems(list,"gameCard").contains(kept.data()));QVERIFY(kept->hasActiveFocus());QCOMPARE(list->property("contentY").toDouble(),y);
-  games->applyRuntimeStates({originalState});QTest::qWait(50);list->setProperty("contentY",0.0);
+  const int beforeRestore=changes.count();games->applyRuntimeStates({originalState});QTRY_VERIFY_WITH_TIMEOUT(changes.count()>beforeRestore,15000);list->setProperty("contentY",0.0);
  }
  void runtimeBurstCoalescesFacetNotifications(){
   filter.clearFacets();filter.setSortMode("title");QCoreApplication::processEvents();QSignalSpy facets(ui.get(),&ac::UiController::facetsChanged);QVector<ac::RuntimeState> originals;
   for(int i=0;i<12;++i){auto state=games->records()[i].runtime;originals<<state;state.lastPlayed=9000+i;games->applyRuntimeStates({state});}
-  QCOMPARE(facets.count(),0);QTRY_COMPARE(facets.count(),1);games->applyRuntimeStates(originals);QTest::qWait(30);
+  QCOMPARE(facets.count(),0);QTRY_COMPARE(facets.count(),1);games->applyRuntimeStates(originals);QTRY_COMPARE_WITH_TIMEOUT(facets.count(),2,15000);
  }
  void hardwareExpansionSurvivesRecount(){
-  filter.setFacet("genre",QStringList{"gun"});QTest::qWait(50);const auto kind=ui->hardwareTree().first().toMap();const auto family=kind.value("children").toList().first().toMap();
-  auto drawer=window->findChild<QObject *>("filtersDrawer");QVERIFY(drawer);QVERIFY(QMetaObject::invokeMethod(drawer,"open"));QTest::qWait(50);
+  filter.clearFacets();const auto fullTree=ui->hardwareTree();filter.setFacet("genre",QStringList{"gun"});const auto filteredTree=ui->hardwareTree();QVERIFY(!filteredTree.isEmpty());
+  QVariantMap kind;int fullCount=-1;
+  for(const auto &value:filteredTree){const auto candidate=value.toMap();for(const auto &unfiltered:fullTree){const auto row=unfiltered.toMap();if(row.value("id")==candidate.value("id")&&row.value("count")!=candidate.value("count")){kind=candidate;fullCount=row.value("count").toInt();break;}}if(!kind.isEmpty())break;}
+  QVERIFY2(!kind.isEmpty(),"Fixture needs a hardware kind whose gun-filtered and unfiltered counts differ.");const auto children=kind.value("children").toList();QVERIFY(!children.isEmpty());const auto family=children.first().toMap();
+  auto drawer=window->findChild<QObject *>("filtersDrawer");QVERIFY(drawer);QVERIFY(QMetaObject::invokeMethod(drawer,"open"));QTRY_VERIFY_WITH_TIMEOUT(drawer->property("opened").toBool(),15000);
+  const auto kindName="hardwareKind-"+kind.value("id").toString();const auto delegateCount=[](QQuickItem *item){const auto value=item->property("modelData");return (value.metaType().id()==qMetaTypeId<QJSValue>()?value.value<QJSValue>().toVariant():value).toMap().value("count").toInt();};
+  QTRY_VERIFY_WITH_TIMEOUT([&]{const auto items=namedItems(window->contentItem(),kindName);return items.size()==1&&delegateCount(items.first())==kind.value("count").toInt();}(),15000);
   QVERIFY(QMetaObject::invokeMethod(drawer,"setExpanded",Q_ARG(QVariant,kind.value("id")),Q_ARG(QVariant,QVariant(false))));
-  QVERIFY(QMetaObject::invokeMethod(drawer,"setExpanded",Q_ARG(QVariant,family.value("id")),Q_ARG(QVariant,QVariant(true))));filter.clearFacets();QTest::qWait(70);
+  QVERIFY(QMetaObject::invokeMethod(drawer,"setExpanded",Q_ARG(QVariant,family.value("id")),Q_ARG(QVariant,QVariant(true))));QCoreApplication::processEvents();QSignalSpy recounted(ui.get(),&ac::UiController::facetsChanged);filter.clearFacets();
+  QTRY_VERIFY_WITH_TIMEOUT(!recounted.isEmpty(),15000);QTRY_VERIFY_WITH_TIMEOUT([&]{const auto items=namedItems(window->contentItem(),kindName);return items.size()==1&&delegateCount(items.first())==fullCount;}(),15000);QVERIFY(softwareFrame(window,15000));
   auto kinds=namedItems(window->contentItem(),"hardwareKind-"+kind.value("id").toString());QCOMPARE(kinds.size(),1);QVERIFY(!kinds.first()->property("expanded").toBool());
-  QVERIFY(QMetaObject::invokeMethod(drawer,"setExpanded",Q_ARG(QVariant,kind.value("id")),Q_ARG(QVariant,QVariant(true))));QTest::qWait(50);
+  QVERIFY(QMetaObject::invokeMethod(drawer,"setExpanded",Q_ARG(QVariant,kind.value("id")),Q_ARG(QVariant,QVariant(true))));QTRY_VERIFY_WITH_TIMEOUT(!namedItems(window->contentItem(),"hardwareFamily-"+family.value("id").toString()).isEmpty(),15000);QVERIFY(softwareFrame(window,15000));
   auto families=namedItems(window->contentItem(),"hardwareFamily-"+family.value("id").toString());QCOMPARE(families.size(),1);QVERIFY(families.first()->property("expanded").toBool());QVERIFY(QMetaObject::invokeMethod(drawer,"close"));
  }
  void recoveryRetryIgnoresOpenPage(){
@@ -1059,7 +1070,7 @@ class UiTest:public QObject {
   for(const auto &kindValue:tree){const auto kind=kindValue.toMap();QVERIFY(kind.value("count").toInt()>0);const auto families=kind.value("children").toList();QVERIFY(!families.isEmpty());
    for(const auto &familyValue:families){const auto family=familyValue.toMap();QVERIFY(family.value("count").toInt()>0);const auto boards=family.value("children").toList();QVERIFY(!boards.isEmpty());for(const auto &boardValue:boards)QVERIFY(boardValue.toMap().value("count").toInt()>0);}
   }
-  auto drawer=window->findChild<QObject *>("filtersDrawer");QVERIFY(drawer);QVERIFY(QMetaObject::invokeMethod(drawer,"open"));QTest::qWait(100);
+  auto drawer=window->findChild<QObject *>("filtersDrawer");QVERIFY(drawer);QVERIFY(QMetaObject::invokeMethod(drawer,"open"));QTRY_VERIFY_WITH_TIMEOUT(drawer->property("opened").toBool(),15000);
   std::function<void(QQuickItem *)> inspect=[&](QQuickItem *item){QVERIFY(!item->property("text").toString().contains("undefined",Qt::CaseInsensitive));for(auto child:item->childItems())inspect(child);};inspect(window->contentItem());
   QVERIFY(QMetaObject::invokeMethod(drawer,"close"));
   // Manufacturer choices ignore their own selected value while obeying the genre facet.
@@ -1122,13 +1133,13 @@ class UiTest:public QObject {
   ui->openDetail("timecris");ui->selectVariant("namco22-vr");QSignalSpy install(ui.get(),&ac::UiController::installRequested);ui->startInstall("timecris","namco22-vr");QCOMPARE(install.count(),0);
  }
  void keyboardFocusAndOverlay(){
-  window->requestActivate();QTest::keyClick(window,Qt::Key_K,Qt::ControlModifier);QTest::qWait(30);auto search=window->findChild<QQuickItem *>("searchField");QVERIFY(search);QVERIFY(search->hasActiveFocus());for(char letter:std::string("scud"))QTest::keyClick(window,letter);QTest::qWait(30);QCOMPARE(filter.query(),QString("scud"));QTest::keyClick(window,Qt::Key_Escape);QTest::qWait(30);QCOMPARE(filter.query(),QString());
-  root->setProperty("vrOverlayMode",true);QTest::qWait(30);QQmlComponent c(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/PillButton.qml"));std::unique_ptr<QObject> button(c.create());button->setProperty("vrOverlayMode",true);QVERIFY(button->property("implicitHeight").toDouble()>=40);root->setProperty("vrOverlayMode",false);
+  window->requestActivate();QTest::keyClick(window,Qt::Key_K,Qt::ControlModifier);QTRY_VERIFY_WITH_TIMEOUT(window->findChild<QQuickItem *>("searchField")&&window->findChild<QQuickItem *>("searchField")->hasActiveFocus(),15000);auto search=window->findChild<QQuickItem *>("searchField");QVERIFY(search);QVERIFY(search->hasActiveFocus());for(char letter:std::string("scud"))QTest::keyClick(window,letter);QTRY_COMPARE_WITH_TIMEOUT(filter.query(),QString("scud"),15000);QTest::keyClick(window,Qt::Key_Escape);QTRY_COMPARE_WITH_TIMEOUT(filter.query(),QString(),15000);
+  root->setProperty("vrOverlayMode",true);QVERIFY(root->property("vrOverlayMode").toBool());QQmlComponent c(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/PillButton.qml"));std::unique_ptr<QObject> button(c.create());button->setProperty("vrOverlayMode",true);QVERIFY(button->property("implicitHeight").toDouble()>=40);root->setProperty("vrOverlayMode",false);
  }
  void allOverlayPillsHaveMinimumTargets(){
   root->setProperty("vrOverlayMode",true);int checked=0;std::function<void(QQuickItem *)> inspect=[&](QQuickItem *item){if(item->property("targetHeight").isValid()){++checked;QVERIFY2(item->property("vrOverlayMode").toBool(),qPrintable(item->property("text").toString()));QVERIFY(item->height()>=56);QVERIFY(item->width()>=44);}for(auto child:item->childItems())inspect(child);};
-  ui->openDetail("timecris");for(const auto &view:{"List","Detail","Explore","Settings"}){root->setProperty("view",view);QTest::qWait(60);inspect(window->contentItem());}
-  for(const auto &name:{"scanDialog","toolDialog","steamDialog","removeDialog"}){auto dialog=window->findChild<QObject *>(name);QVERIFY(dialog);QVERIFY(QMetaObject::invokeMethod(dialog,"open"));QTest::qWait(60);inspect(window->contentItem());QVERIFY(QMetaObject::invokeMethod(dialog,"close"));}
+  ui->openDetail("timecris");for(const auto &view:{"List","Detail","Explore","Settings"}){root->setProperty("view",view);QTRY_COMPARE_WITH_TIMEOUT(root->property("view").toString(),QString(view),15000);QVERIFY(softwareFrame(window,15000));inspect(window->contentItem());}
+  for(const auto &name:{"scanDialog","toolDialog","steamDialog","removeDialog"}){auto dialog=window->findChild<QObject *>(name);QVERIFY(dialog);QVERIFY(QMetaObject::invokeMethod(dialog,"open"));QTRY_VERIFY_WITH_TIMEOUT(dialog->property("opened").toBool(),15000);QVERIFY(softwareFrame(window,15000));inspect(window->contentItem());QVERIFY(QMetaObject::invokeMethod(dialog,"close"));}
   QVERIFY(checked>50);root->setProperty("view","List");root->setProperty("vrOverlayMode",false);
  }
  void artDelayedRecordKeepsFallbackSafe(){
@@ -1159,15 +1170,18 @@ class UiTest:public QObject {
   root->setProperty("history",QVariantList{});root->setProperty("vrOverlayMode",true);root->setProperty("overlayPresentation",true);
   if(!QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Model3"),Q_ARG(QVariant,QVariant())))return nullptr;
   QQuickItem *panel=nullptr;
-  if(!QTest::qWaitFor([&]{panel=visibleNamed("panelLibrary");return panel!=nullptr;},3000))return nullptr;
-  panel->setProperty("rows",rows);root->setProperty("history",QVariantList{});QTest::qWait(350);softwareFrame(window);
+  if(!QTest::qWaitFor([&]{panel=visibleNamed("panelLibrary");return panel!=nullptr;},15000))return nullptr;
+  panel->setProperty("rows",rows);root->setProperty("history",QVariantList{});
+  if(!QTest::qWaitFor([&]{return visibleNamed("panelGrid")&&!namedItems(window->contentItem(),"panelTile").isEmpty();},15000))return nullptr;
+  if(!softwareFrame(window,15000))return nullptr;
   return panel;
  }
  void leavePanel(){
   QMetaObject::invokeMethod(root,"closeMenus");
   if(auto loader=window->findChild<QObject *>("model3Loader"))loader->setProperty("keep",false);
   root->setProperty("overlayPresentation",false);root->setProperty("vrOverlayMode",false);root->setProperty("history",QVariantList{});root->setProperty("view","List");
-  if(!desktopSize.isEmpty()){window->resize(desktopSize);}desktopSize={};QTest::qWait(50);
+  if(!desktopSize.isEmpty()){window->resize(desktopSize);}desktopSize={};
+  QTRY_VERIFY_WITH_TIMEOUT(root->property("view").toString()=="List"&&!visibleNamed("panelLibrary"),15000);
  }
  void sendWheel(QPointF at,int dy){QWheelEvent event(at,window->mapToGlobal(at),{},QPoint(0,dy),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);QCoreApplication::sendEvent(window,&event);}
  private slots:
@@ -1335,52 +1349,60 @@ class UiTest:public QObject {
   auto panel=enterPanel(rows);QVERIFY(panel);QDir().mkpath(output);
   QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-1-grid.png")));
   auto grid=visibleNamed("panelGrid");const QPointF over=grid->mapToScene(QPointF(grid->width()/2,grid->height()/2));
-  QElapsedTimer held;held.start();while(held.elapsed()<700){sendWheel(over,-150);QTest::qWait(16);}QTest::qWait(400);
+  QElapsedTimer held;held.start();while(held.elapsed()<700){sendWheel(over,-150);QTest::qWait(16);} // Real held-stick cadence is the picture's input contract.
+  auto scroller=panel->findChild<QObject *>("panelScroller");QVERIFY(scroller);
+  const double row=grid->property("cellHeight").toDouble(),minY=grid->property("originY").toDouble()-grid->property("topMargin").toDouble();
+  const double maxY=grid->property("originY").toDouble()+grid->property("contentHeight").toDouble()+grid->property("bottomMargin").toDouble()-grid->height();
+  QTRY_VERIFY_WITH_TIMEOUT(std::abs(grid->property("contentY").toDouble()-std::min(maxY,minY+row*scroller->property("targetRow").toInt()))<0.5,15000);
   QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-2-grid-scrolled.png")));
-  panel->setProperty("selectedId","scud");QTest::qWait(400);
+  panel->setProperty("selectedId","scud");QTRY_VERIFY_WITH_TIMEOUT(visibleNamed("panelGamePage"),15000);
   QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath("panel-3-game-page.png")));
   const auto save=[&](const QString &name){QVERIFY(softwareFrame(window));QVERIFY(window->grabWindow().save(QDir(output).filePath(name)));};
-  const auto b=[&]{QTest::qWait(300);emit overlayProbe.backRequested();QTest::qWait(300);};
+  const auto b=[&]{QVERIFY(QTest::qWaitFor([&]{return QDateTime::currentMSecsSinceEpoch()-root->property("lastPageChange").toDouble()>=root->property("backQuietMs").toInt();},15000));emit overlayProbe.backRequested();};
   // B at each level: a game page in the PS1 tab, then the PS1 grid, then the whole grid, then the top (no change).
-  panel->setProperty("selectedId","");QTest::qWait(300);panel->setProperty("tab","ps1");QTest::qWait(300);
+  panel->setProperty("selectedId","");QTRY_VERIFY_WITH_TIMEOUT(!visibleNamed("panelGamePage"),15000);panel->setProperty("tab","ps1");QTRY_COMPARE_WITH_TIMEOUT(panel->property("tab").toString(),QString("ps1"),15000);
   save("panel-4-tab-ps1.png");
   QQuickItem *ps1Tile=visibleNamed("panelTile");QVERIFY(ps1Tile);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,ps1Tile->mapToScene(QPointF(ps1Tile->width()/2,ps1Tile->height()/2)).toPoint());
-  QTRY_VERIFY(visibleNamed("panelGamePage"));QTest::qWait(300);save("panel-5-b0-game-page-in-ps1-tab.png");
+  QTRY_VERIFY(visibleNamed("panelGamePage"));save("panel-5-b0-game-page-in-ps1-tab.png");
   b();QVERIFY(!visibleNamed("panelGamePage"));save("panel-6-b1-back-to-ps1-grid.png");
   b();QCOMPARE(panel->property("tab").toString(),QString("all"));save("panel-7-b2-back-to-all-grid.png");
   b();QCOMPARE(root->property("view").toString(),QString("Model3"));save("panel-8-b3-top-nothing-happens.png");
   // The filter menu open, then closed by B.
-  QQuickItem *filterButton=visibleNamed("panelFilter");QVERIFY(filterButton);QTest::qWait(300);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,filterButton->mapToScene(QPointF(filterButton->width()/2,filterButton->height()/2)).toPoint());
-  QTest::qWait(300);save("panel-9-filter-menu.png");b();save("panel-10-b-closed-filter-menu.png");
+  QQuickItem *filterButton=visibleNamed("panelFilter");QVERIFY(filterButton);QVERIFY(QTest::qWaitFor([&]{return QDateTime::currentMSecsSinceEpoch()>=root->property("clickGuardUntil").toDouble();},15000));QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,filterButton->mapToScene(QPointF(filterButton->width()/2,filterButton->height()/2)).toPoint());
+  auto filterMenu=window->findChild<QObject *>("panelFilterMenu");QVERIFY(filterMenu);QTRY_VERIFY_WITH_TIMEOUT(filterMenu->property("opened").toBool(),15000);save("panel-9-filter-menu.png");b();QTRY_VERIFY_WITH_TIMEOUT(!filterMenu->property("visible").toBool(),15000);save("panel-10-b-closed-filter-menu.png");
   // Double click on a tile, then Play spammed: one start, every Play shows Starting, a refused second launch is said.
   int plays=0;auto connection=connect(ui.get(),&ac::UiController::model3PlayRequested,this,[&](const QString &id,const QString &view){++plays;ui->launchModel3Queued(id,view,QString());});
   const auto finish=qScopeGuard([&]{disconnect(connection);if(!ui->nowPlaying().isEmpty())ui->launchFinished(ui->nowPlaying()["gameId"].toString(),QString(),0);ui->dismissLastSession();});
   QQuickItem *scud=nullptr;for(auto *tile:namedItems(window->contentItem(),"panelTile"))if(tile->property("title").toString()=="Scud Race"&&withinClips(tile))scud=tile;QVERIFY(scud);
+  QVERIFY(QTest::qWaitFor([&]{return QDateTime::currentMSecsSinceEpoch()>=root->property("clickGuardUntil").toDouble();},15000));
   const auto at=scud->mapToScene(QPointF(scud->width()/2,scud->height()/2)).toPoint();
-  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,at);QTest::qWait(60);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,at);
+  QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,at);QTest::qWait(60);QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,at); // Double-click interval.
   QTRY_VERIFY(visibleNamed("panelGamePage"));QCOMPARE(plays,0);save("panel-11-after-double-click-page-open-nothing-started.png");
-  QTest::qWait(350);QQuickItem *play=visibleNamed("panelPlay");QVERIFY(play);const auto playAt=play->mapToScene(QPointF(play->width()/2,play->height()/2)).toPoint();
-  for(int i=0;i<5;++i){QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,playAt);QTest::qWait(30);}
+  QVERIFY(QTest::qWaitFor([&]{return QDateTime::currentMSecsSinceEpoch()>=root->property("clickGuardUntil").toDouble();},15000));QQuickItem *play=visibleNamed("panelPlay");QVERIFY(play);const auto playAt=play->mapToScene(QPointF(play->width()/2,play->height()/2)).toPoint();
+  for(int i=0;i<5;++i){QTest::mouseClick(window,Qt::LeftButton,Qt::NoModifier,playAt);QTest::qWait(30);} // Deliberate duplicate-click cadence.
   QCOMPARE(plays,1);save("panel-12-play-spammed-starting-card.png");
   ui->playGame("scud","screen");QCOMPARE(plays,1);save("panel-13-second-launch-refused-message.png");
  }
- void sceneWarnings(){QTest::qWait(100);QStringList invalid;for(const auto &w:warnings)if(w.contains("ReferenceError")||w.contains("TypeError")||w.contains("Unable to assign")||w.contains("Binding loop")||w.contains("is not a type"))invalid<<w;QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));}
+ void sceneWarnings(){QTest::qWait(100); // Deliberate negative-observation window for queued QML warnings.
+  QStringList invalid;for(const auto &w:warnings)if(w.contains("ReferenceError")||w.contains("TypeError")||w.contains("Unable to assign")||w.contains("Binding loop")||w.contains("is not a type"))invalid<<w;QVERIFY2(invalid.isEmpty(),qPrintable(invalid.join('\n')));}
  void selfBenchmark(){
   const auto output=qEnvironmentVariable("AC_UI_BENCH_OUTPUT");if(output.isEmpty())QSKIP("Owner-hardware headed timing runs explicitly through AC_UI_BENCH_OUTPUT.");
-  root->setProperty("view","List");filter.clearFacets();filter.setQuery("");window->resize(1120,720);QTest::qWait(500);
+  root->setProperty("view","List");filter.clearFacets();filter.setQuery("");window->resize(1120,720);
+  QTRY_VERIFY_WITH_TIMEOUT(window->findChild<QObject *>("sectionedGrid")&&window->size()==QSize(1120,720),15000);QVERIFY(softwareFrame(window,15000));
   auto list=window->findChild<QObject *>("sectionedGrid");QVERIFY(list);
   for(auto p=qobject_cast<QQuickItem *>(list);p;p=p->parentItem()){qInfo()<<"Ancestor"<<p->metaObject()->className()<<p->position()<<p->size()<<p->implicitHeight();if(p->parentItem())for(auto c:p->parentItem()->childItems())qInfo()<<"Sibling"<<c->metaObject()->className()<<c->position()<<c->size()<<c->implicitHeight();}
   QJsonObject report;report["catalogGames"]=443;report["renderer"]=QStringLiteral("OpenGL");report["initialDelegateCount"]=cardCount(window->contentItem());report["viewportHeight"]=list->property("height").toDouble();
   QQmlComponent card(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameCard.qml"));QElapsedTimer creation;creation.start();for(int i=0;i<100;++i){std::unique_ptr<QObject> object(card.create());QVERIFY(object);}report["delegateCreateMs"]=static_cast<double>(creation.nsecsElapsed())/1000000.0/100.0;
   for(bool cheap:{false,true}){
-   settings->set("cheapEffects",cheap);QTest::qWait(200);QElapsedTimer elapsed;elapsed.start();QVector<double> deltas;double last=0;int frames=0;double cpu=cpuSeconds();
+   settings->set("cheapEffects",cheap);QTest::qWait(200); // Fixed benchmark warm-up, excluded from the six-second sample.
+   QElapsedTimer elapsed;elapsed.start();QVector<double> deltas;double last=0;int frames=0;double cpu=cpuSeconds();
    auto connection=connect(window,&QQuickWindow::frameSwapped,this,[&]{double t=static_cast<double>(elapsed.nsecsElapsed())/1000000.0;if(last>0)deltas<<t-last;last=t;++frames;});
    QTimer scroll;scroll.setInterval(8);connect(&scroll,&QTimer::timeout,this,[&]{double max=std::max(0.0,list->property("contentHeight").toDouble()-list->property("height").toDouble());double phase=static_cast<double>(elapsed.elapsed()%6000)/6000.0;list->setProperty("contentY",phase*max);window->update();});scroll.start();QEventLoop loop;QTimer::singleShot(6000,&loop,&QEventLoop::quit);loop.exec();scroll.stop();disconnect(connection);
    std::sort(deltas.begin(),deltas.end());double seconds=static_cast<double>(elapsed.elapsed())/1000.0;QJsonObject run;run["fps"]=static_cast<double>(frames)/seconds;run["frames"]=frames;run["p95FrameMs"]=deltas.isEmpty()?0:deltas[static_cast<qsizetype>(deltas.size()*0.95)];run["cpuSeconds"]=cpuSeconds()-cpu;run["cpuMsPerFrame"]=frames>0?(cpuSeconds()-cpu)*1000/frames:0;run["workingSetBytes"]=static_cast<double>(memoryBytes());report[cheap?"cheapBorder":"multiEffectBaseline"]=run;
   }
   QFile f(output);QVERIFY(f.open(QIODevice::WriteOnly));f.write(QJsonDocument(report).toJson());
-  settings->set("cheapEffects",true);QMetaObject::invokeMethod(list,"positionViewAtBeginning");QTest::qWait(300);auto item=qobject_cast<QQuickItem *>(list);qInfo()<<"List geometry"<<item->mapToScene(QPointF())<<item->size()<<"content"<<list->property("contentY")<<list->property("contentHeight");QVERIFY(window->grabWindow().save(QFileInfo(output).dir().filePath("d-library.png")));
-  ui->openDetail("timecris");root->setProperty("view","Detail");QTest::qWait(300);auto detail=window->findChild<QQuickItem *>("detailPage");if(detail)qInfo()<<"Detail geometry"<<detail->mapToScene(QPointF())<<detail->size();QVERIFY(window->grabWindow().save(QFileInfo(output).dir().filePath("d-detail.png")));
+  settings->set("cheapEffects",true);QVERIFY(QMetaObject::invokeMethod(list,"positionViewAtBeginning"));QTRY_VERIFY_WITH_TIMEOUT(std::abs(list->property("contentY").toDouble())<0.5,15000);QVERIFY(softwareFrame(window,15000));auto item=qobject_cast<QQuickItem *>(list);qInfo()<<"List geometry"<<item->mapToScene(QPointF())<<item->size()<<"content"<<list->property("contentY")<<list->property("contentHeight");QVERIFY(window->grabWindow().save(QFileInfo(output).dir().filePath("d-library.png")));
+  ui->openDetail("timecris");root->setProperty("view","Detail");QTRY_VERIFY_WITH_TIMEOUT(window->findChild<QQuickItem *>("detailPage"),15000);QVERIFY(softwareFrame(window,15000));auto detail=window->findChild<QQuickItem *>("detailPage");if(detail)qInfo()<<"Detail geometry"<<detail->mapToScene(QPointF())<<detail->size();QVERIFY(window->grabWindow().save(QFileInfo(output).dir().filePath("d-detail.png")));
  }
 };
 int main(int argc,char **argv){QQuickWindow::setGraphicsApi(qEnvironmentVariable("QT_QUICK_BACKEND")=="software"?QSGRendererInterface::Software:QSGRendererInterface::OpenGL);QGuiApplication app(argc,argv);QCoreApplication::setApplicationVersion("0.1.0");QQuickStyle::setStyle("Basic");UiTest test;return QTest::qExec(&test,argc,argv);}

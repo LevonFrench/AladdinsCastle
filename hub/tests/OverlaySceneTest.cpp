@@ -13,6 +13,7 @@
 #include <QQuickRenderControl>
 #include <QQuickStyle>
 #include <QtTest>
+#include <cmath>
 #include <cstring>
 namespace {
 QList<QQuickItem *> visualItems(QQuickItem *root,const QString &name) {
@@ -84,7 +85,16 @@ struct DiagnosticScene {
         window.setGeometry(0,0,1280,800);root->setParent(window.contentItem());root->setParentItem(window.contentItem());
         root->setSize({1280,800});root->setProperty("overlayPresentation",true);
         if(!controlled)window.show(); // software/offscreen only; render-control window stays hidden
-        keyboard.setWindow(&window);QCoreApplication::processEvents();QTest::qWait(20);activate();
+        keyboard.setWindow(&window);
+        const bool ready=QTest::qWaitFor([&]{
+            if(renderControl)renderControl->polishItems();
+            root->ensurePolished();const auto corner=item(root,"spikeCorner0");
+            return window.width()==1280&&window.height()==800&&root->width()==1280&&root->height()==800&&
+                corner&&corner->width()>0&&corner->height()>0&&(renderControl||window.isExposed());
+        },5000);
+        if(!ready)qFatal("Diagnostic scene geometry/exposure did not become ready");
+        activate();
+        if(!QTest::qWaitFor([&]{return root->hasActiveFocus();},5000))qFatal("Diagnostic scene did not take focus");
     }
     void contractScene(){
         QQmlComponent component(&engine);component.setData(R"(
@@ -113,8 +123,15 @@ Item {
     }
     bool click(QQuickItem *target,quint32 cursor=0){
         if(!target)return false;
-        QTest::qWait(50);if(renderControl){renderControl->polishItems();QCoreApplication::processEvents();renderControl->polishItems();}
-        QList<QQuickItem *> parents;for(auto p=target;p;p=p->parentItem())parents.prepend(p);for(auto p:parents)p->ensurePolished();
+        const bool ready=QTest::qWaitFor([&]{
+            if(renderControl)renderControl->polishItems();
+            QList<QQuickItem *> parents;for(auto p=target;p;p=p->parentItem())parents.prepend(p);for(auto p:parents)p->ensurePolished();
+            const auto center=target->mapToScene({target->width()/2,target->height()/2});
+            return target->window()==&window&&target->width()>0&&target->height()>0&&
+                std::isfinite(center.x())&&std::isfinite(center.y())&&center.x()>=0&&center.x()<window.width()&&
+                center.y()>=0&&center.y()<window.height();
+        },5000);
+        if(!ready)return false;
         const auto center=target->mapToScene({target->width()/2,target->height()/2});
         const auto ok=point(center,cursor)&&point(center,cursor,vr::VREvent_MouseButtonDown)&&point(center,cursor,vr::VREvent_MouseButtonUp);
         QCoreApplication::processEvents();return ok;
@@ -270,7 +287,9 @@ private slots:
     void receiverDestructionAndShutdownCancelActualQtGrabs(){
         DiagnosticScene survivor;survivor.contractScene();auto receiver=std::make_unique<QQuickWindow>();receiver->setGeometry(0,0,1280,800);
         QQmlComponent component(&survivor.engine);component.setData("import QtQuick; import QtQuick.Controls; Button {width:200;height:100;text: 'temporary'}",QUrl());
-        auto target=qobject_cast<QQuickItem *>(component.create());QVERIFY(target);target->setParent(receiver->contentItem());target->setParentItem(receiver->contentItem());receiver->show();QTest::qWait(10);QSignalSpy clicks(target,SIGNAL(clicked()));QVERIFY(clicks.isValid());
+        auto target=qobject_cast<QQuickItem *>(component.create());QVERIFY(target);target->setParent(receiver->contentItem());target->setParentItem(receiver->contentItem());receiver->show();
+        QTRY_VERIFY_WITH_TIMEOUT([&]{target->ensurePolished();return receiver->isExposed()&&target->window()==receiver.get()&&target->width()==200&&target->height()==100;}(),5000);
+        QSignalSpy clicks(target,SIGNAL(clicked()));QVERIFY(clicks.isValid());
         vr::VREvent_t event{};event.eventType=vr::VREvent_MouseMove;event.data.mouse={50,750,0,0};QVERIFY(survivor.input.dispatch(event,receiver.get()));event.eventType=vr::VREvent_MouseButtonDown;event.data.mouse.button=vr::VRMouseButton_Left;QVERIFY(survivor.input.dispatch(event,receiver.get()));
         receiver.reset();QCOMPARE(survivor.input.buttons(),Qt::NoButton);QCOMPARE(clicks.count(),0);
         event.eventType=vr::VREvent_MouseButtonUp;QVERIFY(!survivor.input.dispatch(event,&survivor.window));survivor.activate();QVERIFY(survivor.click(item(survivor.root,"contractButton")));QCOMPARE(survivor.root->property("activations").toInt(),1);
