@@ -130,12 +130,12 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         });
         // The scan and its cache file are both written off the UI thread: a large library is many megabytes of JSON.
         const auto cachePath=[this]{try{return install::scopedPath("user/cache/pinball-scan.json",root_);}catch(const std::exception &){return QString();}}();
-        watcher->setFuture(QtConcurrent::run([folder,database,roms,media,cachePath]{
+        watcher->setFuture(QtConcurrent::run([folder,database,roms,media,cachePath,pinmame=pinball::pinmameFolderForExecutable(settings_->get("pinballExecutable",QString()).toString())]{
             QVariantMap result;
-            try{result=pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}
+            try{result=pinball::scan(folder,database,roms,media,pinmame);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}
             // Kept in Hub's own data so the tab opens at once next time; a table is still rechecked when it is started.
             bool saved=false;
-            const auto print=pinball::fingerprint(folder,database,roms);
+            const auto print=pinball::fingerprint(folder,database,roms,pinmame);
             if(!cachePath.isEmpty())try{install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",folder},{"database",database},{"roms",roms},{"media",media},{"fingerprint",print},{"result",result}}).toJson(QJsonDocument::Compact));saved=true;}catch(const std::exception &){}
             if(!saved)result["cacheUnsaved"]=true;
             return result;
@@ -156,14 +156,14 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
                 else ui_->showError("Pinball","Showing your last scan. Use Scan after adding or changing tables.");
             }else ui_->scanPinball();
         });
-        watcher->setFuture(QtConcurrent::run([cachePath,folder,database,roms]{
+        watcher->setFuture(QtConcurrent::run([cachePath,folder,database,roms,pinmame=pinball::pinmameFolderForExecutable(settings_->get("pinballExecutable",QString()).toString())]{
             QVariantMap saved;
             if(!cachePath.isEmpty()){QFile file(cachePath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();}
-            // Names and dates only, off the UI thread: a saved scan without a fingerprint (older Hub) is out of date too.
+            // Bounded metadata, off the UI thread: a saved scan without a fingerprint (older Hub) is out of date too.
             if(!saved.isEmpty()){
                 // Compared as JSON: the saved numbers come back as doubles, the fresh ones as integers.
                 const auto json=[](const QVariantMap &m){return QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Compact);};
-                saved["stale"]=json(saved.value("fingerprint").toMap())!=json(pinball::fingerprint(folder,database,roms));
+                saved["stale"]=json(saved.value("fingerprint").toMap())!=json(pinball::fingerprint(folder,database,roms,pinmame));
             }
             return saved;
         }));
@@ -691,7 +691,7 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable,
         if(!QRegularExpression("^[a-f0-9]{64}$").match(id).hasMatch()||id!=identity||!file.isFile()||
            file.size()!=row.value("size",-1).toLongLong()||file.lastModified().toMSecsSinceEpoch()!=row.value("mtime",-1).toLongLong())
             throw install::Error("E_PINBALL_CHANGED","Table changed or is no longer available; scan again.");
-        if(!row.value("error").toString().isEmpty()||row.value("romState")=="ROM missing")
+        if(!pinball::canStart(row))
             throw install::Error("E_PINBALL_NOT_READY","Choose a table with no scan error or missing known ROM.");
         if(view=="headset"&&!row.value("vrReady").toBool())
             throw install::Error("E_PINBALL_NOT_READY","You excluded this table from the headset. Use Launch on desktop, or include it in the headset first.");

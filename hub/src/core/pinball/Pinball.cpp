@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Pinball.h"
+#include "Identity.h"
+#include "Roms.h"
+#include "Script.h"
 #include "core/install/Support.h"
 #include <QFile>
 #include <QFileInfo>
@@ -22,7 +25,7 @@ constexpr quint32 End=0xfffffffeU, Free=0xffffffffU;
 void require(bool ok){if(!ok)throw std::runtime_error("Invalid or unsupported bounded VPX metadata");}
 quint32 word(const QByteArray &b,qsizetype p){require(p>=0&&p+4<=b.size());return qFromLittleEndian<quint32>(b.constData()+p);}
 QString display(QString s){s.remove(QChar(0));s.remove(QRegularExpression("https?://[^\\s]+",QRegularExpression::CaseInsensitiveOption));return s.trimmed().left(512);}
-QString key(QString s){static const QRegularExpression punctuation("[^\\p{L}\\p{N}]+");return s.toCaseFolded().remove(punctuation);}
+
 bool link(const QFileInfo &f){return f.isSymLink()||f.isJunction();}
 // Independently implemented CFB reader. Only named metadata streams are read;
 // geometry, textures, sounds and embedded assets are never extracted.
@@ -77,7 +80,7 @@ QString scriptFrom(const QByteArray &data,bool &locked){
  qsizetype p=0;while(p+8<=data.size()){
   const auto len=word(data,p);require(len>=4&&len<=quint64(data.size()-p-4));auto tag=data.mid(p+4,4);
   if(tag=="SECB"){locked=true;return {};}
-  if(tag=="CODE"){require(len==4&&p+12<=data.size());const auto n=word(data,p+8);require(n<=2*1024*1024&&n<=quint64(data.size()-p-12));return QString::fromUtf8(data.mid(p+12,n));}
+  if(tag=="CODE"){require(len==4&&p+12<=data.size());const auto n=word(data,p+8);require(n<=8*1024*1024&&n<=quint64(data.size()-p-12));return QString::fromUtf8(data.mid(p+12,n));}
   if(tag=="ENDB") return {};
   p+=4+len;
  }throw std::runtime_error("No bounded script record was found");
@@ -94,40 +97,27 @@ QVariantMap inspect(const QString &path) {
   // A locked script still plays in VPX; the Hub only cannot read what it needs, and says so.
   if(locked)row["note"]="Its script is locked by its author, so the Hub cannot tell whether it needs a ROM or has a VR room. It can still be started.";
   // Comments do not supply evidence. Conservative switch + visible room object.
-  QString code,roomCode;
+  QString roomCode;bool malformed=false;
   for(const auto &line:script.split('\n')){
    if(line.trimmed().startsWith("Rem ",Qt::CaseInsensitive))continue;
    for(qsizetype i=0;i<line.size();++i){
     if(line[i]=='\'')break;
-    if(line[i]!='"'){code+=line[i];roomCode+=line[i];continue;}
+    if(line[i]!='"'){roomCode+=line[i];continue;}
     const auto start=i++;
     while(i<line.size()){
      if(line[i]=='"'){if(i+1<line.size()&&line[i+1]=='"'){i+=2;continue;}break;}++i;
     }
-    require(i<line.size());const auto literal=line.mid(start,i-start+1);
-    code+=literal;roomCode+=literal.compare("\"VR Room\"",Qt::CaseInsensitive)==0?literal:QString("\"\"");
-   }code+='\n';roomCode+='\n';
+    if(i>=line.size()){malformed=true;break;}const auto literal=line.mid(start,i-start+1);
+    roomCode+=literal.compare("\"VR Room\"",Qt::CaseInsensitive)==0?literal:QString("\"\"");
+   }roomCode+='\n';
   }
   static const QRegularExpression switchAssignment("(?:^|:|\\bThen\\s+|\\bElse\\s+)\\s*(?:Const\\s+)?VR_?Room\\s*=\\s*(?:[0-9]+|True\\b|False\\b|VR_?RoomChoice\\b|[A-Za-z0-9_]+\\.Option\\s*\\(\\s*\"VR Room\")",QRegularExpression::CaseInsensitiveOption|QRegularExpression::MultilineOption);
   static const QRegularExpression roomObject("\\bVR(?:Room|_Room|_)[A-Za-z0-9_]*\\.Visible\\s*=",QRegularExpression::CaseInsensitiveOption);
-  const bool room=switchAssignment.match(roomCode).hasMatch()&&roomObject.match(roomCode).hasMatch();
+  const bool room=!malformed&&switchAssignment.match(roomCode).hasMatch()&&roomObject.match(roomCode).hasMatch();
   if(room){row["vrReady"]=true;row["evidence"]=QStringList{"script: VR room"};}
-  static const QRegularExpression romAssignment("(?:^|:|\\bThen\\s+|\\bElse\\s+)\\s*(?:Const\\s+)?(?:cGameName|GameName)\\s*=\\s*",QRegularExpression::CaseInsensitiveOption|QRegularExpression::MultilineOption);
-  static const QRegularExpression literalRom("^\"([A-Za-z0-9_]+)\"[ \\t\\r]*(?:$|:)",QRegularExpression::MultilineOption);
-  auto matches=romAssignment.globalMatch(code);QSet<QString> names;int assignments=0,literals=0;
-  while(matches.hasNext()){const auto assignment=matches.next();++assignments;const auto literal=literalRom.match(code.mid(assignment.capturedEnd()));if(literal.hasMatch()&&literal.capturedStart()==0){names.insert(literal.captured(1));++literals;}}
-  // An EM table often names a ROM only for its backglass and high-score file; it needs one only when it runs PinMAME.
-  static const QRegularExpression runsPinmame("\\bLoadVPM\\b|VPinMAME\\.Controller|\\.GameName\\s*=",QRegularExpression::CaseInsensitiveOption);
-  if(names.size()==1&&assignments==literals){
-   if(locked||runsPinmame.match(code).hasMatch()){row["rom"]=*names.begin();row["romState"]="ROM missing";}
-   else row["romState"]="needs no ROM";
-  }
-  else if(!locked&&names.isEmpty()&&!QRegularExpression("\\b(cGameName|GameName|VPinMAME|LoadVPM|Controller\\.Run|CreateObject|Execute)\\b",QRegularExpression::CaseInsensitiveOption).match(code).hasMatch())row["romState"]="needs no ROM";
-  const QRegularExpression machineName("^(.*?)\\s*\\(([^()]*)\\s+(\\d{4})\\)");
-  auto identity=machineName.match(row["title"].toString());
-  if(!identity.hasMatch())identity=machineName.match(QFileInfo(path).completeBaseName());
-  if(identity.hasMatch()){row["machine"]=identity.captured(1).trimmed();row["maker"]=display(identity.captured(2));row["year"]=identity.captured(3).toInt();}
+  const auto metadata=scriptMetadata(script,locked);for(auto it=metadata.cbegin();it!=metadata.cend();++it)row[it.key()]=it.value();
  }catch(const std::exception &e){row["error"]=QString::fromUtf8(e.what());row["vrReady"]=false;row["evidence"]=QStringList{};}
+ identify(row,QFileInfo(path).completeBaseName());
  return row;
 }
 // Every .vpx under the folder, subfolders included (a table often sits in a folder of its own with its backglass).
@@ -149,21 +139,20 @@ static QFileInfoList tableFiles(const QString &folder){
 }
 // Raise when the scanner's results change for the same files, so saved scans from an older Hub are redone.
 // 2: locked scripts are listed as startable instead of "Protected script metadata is not classified" (2026-10-20).
-constexpr int kScannerVersion=2;
-QVariantMap fingerprint(const QString &folder,const QString &database,const QString &romFolder) {
- qint64 newestTable=0,newestRom=0;
- const auto tables=tableFiles(folder);
+// 3: controller-aware ROMs, aliases, nested inventories, larger scripts and machine-level VPS identity.
+constexpr int kScannerVersion=3;
+QString pinmameFolderForExecutable(const QString &executable){return executable.isEmpty()?QString():QDir(QFileInfo(executable).absolutePath()).filePath("VPinMAME");}
+QVariantMap fingerprint(const QString &folder,const QString &database,const QString &romFolder,const QString &pinmameFolder) {
+ qint64 newestTable=0;const auto tables=tableFiles(folder);
  for(const auto &file:tables)newestTable=std::max(newestTable,file.lastModified().toMSecsSinceEpoch());
- int roms=0;
- if(!romFolder.isEmpty())for(const auto &zip:QDir(romFolder).entryInfoList({"*.zip","*.ZIP"},QDir::Files,QDir::NoSort)){++roms;newestRom=std::max(newestRom,zip.lastModified().toMSecsSinceEpoch());}
- const qint64 db=database.isEmpty()?0:QFileInfo(database).lastModified().toMSecsSinceEpoch();
- return {{"scanner",kScannerVersion},{"tables",int(tables.size())},{"newestTable",newestTable},{"roms",roms},{"newestRom",newestRom},{"database",db}};
+ auto result=collectRoms(romFolder,pinmameFolder).fingerprint;
+ result.insert("scanner",kScannerVersion);result.insert("tables",int(tables.size()));result.insert("newestTable",newestTable);
+ result.insert("database",database.isEmpty()?0:QFileInfo(database).lastModified().toMSecsSinceEpoch());return result;
 }
-QVariantMap scan(const QString &folder,const QString &database,const QString &romFolder,const QString &mediaFolder) {
+QVariantMap scan(const QString &folder,const QString &database,const QString &romFolder,const QString &mediaFolder,const QString &pinmameFolder) {
  QVariantList rows;QJsonArray db;
  if(!database.isEmpty()){QFile f(database);require(!link(QFileInfo(database))&&f.open(QIODevice::ReadOnly)&&f.size()<=64*1024*1024);QJsonParseError error;const auto doc=QJsonDocument::fromJson(f.readAll(),&error);require(error.error==QJsonParseError::NoError&&doc.isArray());db=doc.array();}
- QMultiMap<QString,QJsonObject> machineIndex;
- for(const auto &value:db){auto m=value.toObject();machineIndex.insert(key(m["name"].toString())+"|"+key(m["manufacturer"].toString())+"|"+QString::number(m["year"].toInt()),m);}
+ const auto inventory=collectRoms(romFolder,pinmameFolder);
  QDir dir(folder);require(dir.exists());int ready=0;
  for(const auto &file:tableFiles(folder)){
   auto row=inspect(file.absoluteFilePath());
@@ -178,16 +167,7 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
    const QFileInfo backglass(QDir(root).filePath(file.completeBaseName()+".directb2s"));
    if(!row.contains("backglassPath")&&backglass.isFile()&&!link(backglass))row["backglassPath"]=backglass.absoluteFilePath();
   }
-  const auto rom=row.value("rom").toString();if(!rom.isEmpty()&&!romFolder.isEmpty()){
-   QFileInfo zip(QDir(romFolder).filePath(rom+".zip"));if(zip.isFile()&&!link(zip))row["romState"]="ready";
-  }
-  const auto matchKey=key(row.value("machine").toString())+"|"+key(row.value("maker").toString())+"|"+QString::number(row.value("year").toInt());
-  const auto machines=row.value("machine").toString().isEmpty()?QList<QJsonObject>{}:machineIndex.values(matchKey);
-  if(machines.size()==1){
-   const auto machine=machines.first();QList<QJsonObject> files;
-   for(const auto &v:machine["tableFiles"].toArray()){auto f=v.toObject();if(!f["tableFormat"].toString().isEmpty()&&f["tableFormat"].toString()!="VPX")continue;QStringList authors;for(const auto &a:f["authors"].toArray())authors<<a.toString();if(key(authors.join(" "))==key(row.value("authors").toString())&&f["version"].toString().trimmed().toCaseFolded()==row.value("version").toString().trimmed().toCaseFolded()&&!key(row.value("authors").toString()).isEmpty())files<<f;}
-   if(files.size()==1){QStringList features;for(const auto &f:files.first()["features"].toArray())features<<display(f.toString());row["features"]=features;row["type"]=display(machine["type"].toString());row["players"]=machine["players"].toInt();row["theme"]=display(machine["theme"].toString());if(features.contains("VR")&&row.value("error").toString().isEmpty()){auto evidence=row["evidence"].toStringList();evidence<<"VPS: VR";row["evidence"]=evidence;row["vrReady"]=true;}}
-  }
+  row=applyRomState(row,inventory);matchVps(row,db);
   row["id"]=QString::fromLatin1(QCryptographicHash::hash(file.absoluteFilePath().toUtf8(),QCryptographicHash::Sha256).toHex());
   if(row["vrReady"].toBool()) ++ready;
   rows<<row;

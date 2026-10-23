@@ -346,7 +346,7 @@ class UiTest:public QObject {
   // Pinball lists every table and every readable one plays in the headset; Ready to play and VR room only narrow it, and a tile says why a table cannot play.
   QVERIFY(QMetaObject::invokeMethod(root,"navigate",Q_ARG(QVariant,"Pinball"),Q_ARG(QVariant,QVariant())));
   {QVariantList tables;const QStringList states{"ready","needs no ROM","ROM missing","unknown"};
-   for(int i=0;i<8;++i)tables<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"vrReady",i<6},{"romState",states[i%4]}};
+   for(int i=0;i<8;++i)tables<<QVariantMap{{"id",QString::number(i)},{"title",QString("Fixture %1").arg(i)},{"vrReady",i<6},{"romState",states[i%4]},{"vpsUrl",i==0?"https://virtualpinballspreadsheet.com/?game=synthetic":""}};
    QVERIFY(QMetaObject::invokeMethod(ui.get(),"pinballLoaded",Q_ARG(QVariantMap,(QVariantMap{{"total",8},{"vrReady",6},{"tables",tables}}))));}
   QTRY_VERIFY(one("pinballGrid"));QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),8);
   const QString dot=QString("  ")+QChar(0xb7)+"  ";
@@ -356,6 +356,8 @@ class UiTest:public QObject {
   one("pinballReady")->setProperty("checked",false);one("pinballVrOnly")->setProperty("checked",true);QTRY_COMPARE(one("pinballGrid")->property("count").toInt(),6);
   QCOMPARE(one("pinballCount")->property("text").toString(),"6 of 8 tables"+dot+"4 ready to play"+dot+"4 ready in the headset");
   one("pinballVrOnly")->setProperty("checked",false);
+  ui->selectPinball("0");QTRY_VERIFY(one("pinballVpsEntry")&&one("pinballVpsEntry")->isVisible());
+  ui->selectPinball("1");QTRY_VERIFY(!one("pinballVpsEntry")->isVisible());ui->selectPinball("");
   {QObject *pinballPage=one("pinballGrid");while(pinballPage&&pinballPage->metaObject()->indexOfMethod("tileOf(QVariant)")<0)pinballPage=pinballPage->parent();QVERIFY(pinballPage);
    QVariantMap desktop{{"id","9"},{"title","Fixture 9"},{"vrReady",false},{"romState","ready"}},broken{{"id","10"},{"title","Fixture 10"},{"error","unreadable"},{"romState","unknown"}},
     locked{{"id","11"},{"title","Fixture 11"},{"note","Its script is locked by its author."},{"romState","unknown"}};

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/pinball/Pinball.h"
 #include "core/pinball/Gamepad.h"
+#include "core/pinball/Roms.h"
 #include "core/install/Support.h"
 #include <QtTest>
 #include <QDir>
@@ -9,6 +10,24 @@ using ac::pinball::vrOnSettings;
 class PinballSettingsTest : public QObject {
   Q_OBJECT
 private slots:
+  void uncertainRomsStayStartableButErrorsAndKnownMissingRomsDoNot() {
+    for(const auto &state:{"ready","unknown","needs no ROM"})QVERIFY(ac::pinball::canStart({{"romState",state}}));
+    QVERIFY(!ac::pinball::canStart({{"romState","ROM missing"}}));
+    QVERIFY(!ac::pinball::canStart({{"romState","ready"},{"error","Unreadable table"}}));
+    const auto locked=ac::pinball::scriptMetadata("LoadVPM \"x\"",true);
+    QVERIFY(locked.value("romReason").toString().contains("locked"));QVERIFY(ac::pinball::canStart(locked));
+  }
+  void nestedRomsAndAliasEditsInvalidateTheFingerprint() {
+    QTemporaryDir folder;const auto roms=folder.filePath("roms"),vpm=folder.filePath("VPinMAME");
+    QVERIFY(QDir().mkpath(roms+"/nested"));QVERIFY(QDir().mkpath(vpm));
+    ac::install::atomicWrite(roms+"/nested/fixture.zip","fixture");
+    ac::install::atomicWrite(vpm+"/VPMAlias.txt","alias,fixture\n");
+    const auto first=ac::pinball::fingerprint(folder.path(),{},roms,vpm);
+    ac::install::atomicWrite(vpm+"/VPMAlias.txt","alias,missing\n");
+    const auto second=ac::pinball::fingerprint(folder.path(),{},roms,vpm);QVERIFY(first!=second);
+    QVERIFY(QFile::remove(roms+"/nested/fixture.zip"));
+    QVERIFY(second!=ac::pinball::fingerprint(folder.path(),{},roms,vpm));
+  }
   void emptySettingsAskForTheHeadset() {
     QCOMPARE(vrOnSettings({}),QByteArray("[PlayerVR]\nAskToTurnOn = 0\n"));
   }
