@@ -384,3 +384,98 @@ a:focus-visible, .btn:focus-visible { outline: 2px solid var(--neon-cyan); outli
 @media (max-width: 899px) and (orientation: portrait) {
   .stop[data-side] { padding-top: 42vh; }
 }
+
+/* ---------- background music bar ---------- */
+.music {
+  position: fixed;
+  right: clamp(16px, 3vw, 32px);
+  bottom: 14px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid rgba(226, 185, 85, 0.35);
+  border-radius: 999px;
+  background: rgba(18, 12, 31, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  color: var(--brass);
+  font: 9px/1 var(--pixel);
+}
+.music-btn {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 1px solid rgba(226, 185, 85, 0.6);
+  border-radius: 50%;
+  background: rgba(226, 185, 85, 0.08);
+  color: var(--brass);
+  cursor: pointer;
+}
+.music-btn:hover { background: rgba(226, 185, 85, 0.2); }
+.music-btn:focus-visible, .music-knob:focus-visible { outline: 2px solid var(--neon-cyan); outline-offset: 2px; }
+.music-btn svg { width: 13px; height: 13px; fill: currentColor; }
+.music .i-pause, .music.is-playing .i-play { display: none; }
+.music.is-playing .i-pause { display: inline; }
+.music-title { color: var(--ink-dim, #b9b0cc); font: 500 12px/1.2 var(--body); white-space: nowrap; }
+.music-time { font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: 0.02em; }
+.music-time b { font-weight: 400; color: var(--ink, #f3ecff); }
+.music-knob {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  cursor: ns-resize;
+  touch-action: none;
+  background: conic-gradient(from 225deg, rgba(226, 185, 85, 0.55) 0 270deg, transparent 270deg);
+  padding: 3px;
+}
+.music-dial {
+  display: block; position: relative;
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #4a3d66, #1b1330 70%);
+  box-shadow: inset 0 0 0 1px rgba(226, 185, 85, 0.5);
+}
+.music-dial i { position: absolute; left: calc(50% - 1px); top: 3px; width: 2px; height: 8px; border-radius: 1px; background: var(--brass); }
+.music-db { min-width: 5.5ch; text-align: right; font-variant-numeric: tabular-nums; }
+.has-music .flow-main { padding-bottom: 96px; }
+@media (max-width: 720px) {
+  .music { left: 12px; right: 12px; bottom: 10px; justify-content: space-between; gap: 8px; }
+}
+.music[hidden] { display: none; }
+
+/* the title turns into a seek bar on hover or focus */
+.music-track { display: grid; align-items: center; width: 240px; }
+.music-track > * { grid-area: 1 / 1; }
+.music-title { overflow: hidden; text-overflow: ellipsis; transition: opacity 0.15s; }
+.music-seek {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 22px; margin: 0;
+  background: transparent; cursor: pointer;
+  opacity: 0; transition: opacity 0.15s;
+  --fill: 0%;
+}
+.music-track:hover .music-seek, .music-seek:focus-visible { opacity: 1; }
+.music-track:hover .music-title, .music-track:focus-within .music-title { opacity: 0; }
+.music-seek::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--brass) var(--fill), rgba(226, 185, 85, 0.25) var(--fill));
+}
+.music-seek::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(226, 185, 85, 0.25); }
+.music-seek::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--brass); }
+.music-seek::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 12px; height: 12px; margin-top: -4px; border-radius: 50%;
+  background: var(--ink); box-shadow: 0 0 0 2px var(--brass);
+}
+.music-seek::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--brass); }
+.music-seek:focus-visible { outline: 2px solid var(--neon-cyan); outline-offset: 2px; border-radius: 4px; }
+@media (max-width: 720px) {
+  /* no hover on phones: the seek bar takes the title's place */
+  .music-track { flex: 1; width: auto; min-width: 0; }
+  .music-title { visibility: hidden; }
+  .music-seek { opacity: 1; }
+  .music { gap: 6px; }
+  .music-db { display: none; }  /* the knob's angle shows the level; screen readers get it from the knob */
+}

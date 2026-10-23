@@ -1,5 +1,7 @@
 # Cloudflare Pages response headers. CSS and JS links carry a ?v= tag, so they can be cached;
 # models change rarely and get a day.
+/audio/*
+  Cache-Control: public, max-age=86400
 /models/*
   Cache-Control: public, max-age=86400
 /*.css

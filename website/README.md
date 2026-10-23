@@ -6,6 +6,10 @@ The arcade page is a scroll-driven walk from a mall corridor into an arcade, bui
 
 The guns, grip hands and ghost controls in the scene, and the interactive model bench, are the project's own CC0 models: `tools/sync_models.py` copies them from `assets/` into `models/` with their tints and moving parts from `data/guns/`. The room itself (cabinets, sign, carpet, neon) is generated in code in `arcade.js`, with no photos, logos or third-party art ([legal.md](../docs/legal.md)).
 
+## Music
+
+`music.js` plays `audio/l-von-theme.mp3` (L-VON, "Theme From Aladdin's Castle", the developer's own track, encoded at 192 kbps) on every page. It plays from 0:00 (the track fades itself in) once the visitor clicks or presses a key (browsers block sound before that), and loops. The bar at the bottom has play/pause, stop (back to 0:00), the title (it turns into a seek bar on hover; on phones the seek bar shows in its place), the position and a volume knob that starts at -6 dB (drag up or down, scroll, or arrow keys; double-click resets). The position carries across pages in the same tab, and a stop or pause keeps it quiet until the visitor presses Play. Cloudflare Pages ignores range requests, so the track is fetched whole and played from a local copy, which is what lets it seek. The track is not covered by the repository's software or model licences. Add `?mute` to any page for silent test runs.
+
 ## Keeping it current
 
 - Models: `python website/tools/sync_models.py` after the gun, hand or control assets change.
