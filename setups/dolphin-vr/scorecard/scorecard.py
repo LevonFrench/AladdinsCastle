@@ -212,6 +212,7 @@ def import_receipt(card, path):
     runs = card["games"][key]["views"][view]["runs"]
     if any(r["receipt_sha256"] == run["receipt_sha256"] for r in runs):
         return False
+    supersession_target(run, runs)
     runs.append(run)
     # No merged 'latest metrics': before/after and title/menu/gameplay remain independent.
     card["updated_at"] = utc_now()
@@ -232,9 +233,63 @@ def escape(value):
     return display(value).replace("|", "\\|").replace("\r", " ").replace("\n", " ")
 
 
+def receipt_identity(path, sha256):
+    # Compare recorded identity only; do not reread/reinterpret old evidence.
+    windows = PureWindowsPath(path)
+    normalized = windows.as_posix().casefold() if windows.is_absolute() else PurePosixPath(path).as_posix()
+    return normalized, sha256.lower()
+
+
+def supersession_reference(run):
+    path_key, hash_key = "supersedes_receipt_path", "supersedes_receipt_sha256"
+    references = []
+    if path_key in run or hash_key in run:
+        references.append((run.get(path_key), run.get(hash_key)))
+    if "supersedes" in run:
+        nested = run["supersedes"]
+        if not isinstance(nested, dict):
+            raise ValueError("supersession must be an object")
+        references.append((nested.get("receipt_path"), nested.get("receipt_sha256")))
+    if not references:
+        return None
+    for path, sha256 in references:
+        if not absolute(path) or not isinstance(sha256, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", sha256):
+            raise ValueError("supersession requires an absolute receipt path and SHA-256")
+    if any(receipt_identity(*item) != receipt_identity(*references[0]) for item in references[1:]):
+        raise ValueError("conflicting supersession declarations")
+    return references[0]
+
+
+def supersession_target(run, previous):
+    reference = supersession_reference(run)
+    if reference is None:
+        return None
+    path, sha256 = reference
+    identity = receipt_identity(path, sha256)
+    for old in previous:
+        if receipt_identity(old["receipt_path"], old["receipt_sha256"]) != identity:
+            continue
+        if all(old.get(key, "baseline" if key == "phase" else None) == run.get(key, "baseline" if key == "phase" else None)
+               for key in ("game_key", "view", "phase")):
+            return old
+    raise ValueError("supersession target must be an earlier receipt in the same game/view/phase with matching path and SHA-256")
+
+
+def superseded_receipts(runs):
+    superseded = {}
+    for index, run in enumerate(runs):
+        old = supersession_target(run, runs[:index])
+        if old is not None:
+            superseded[receipt_identity(old["receipt_path"], old["receipt_sha256"])] = run
+    return superseded
+
+
 def scoped_runs(game):
     for view_name, view in game["views"].items():
+        superseded = superseded_receipts(view["runs"])
         for index, run in enumerate(view["runs"], 1):
+            if receipt_identity(run["receipt_path"], run["receipt_sha256"]) in superseded:
+                continue
             scope = "/".join((view_name, run["phase"], run.get("stage") or "unassigned"))
             yield scope + " r" + str(index) + " " + run["evidence_level"], run
 
@@ -307,7 +362,7 @@ def markdown(card):
              "| Game | Views | Current evidence | Stages / scoped receipts | Stereo | 2D | Scale | Frames | Image | Controls | Launch |",
              "|---|---|---|---|---|---|---|---|---|---|---|"]
     for game in card["games"].values():
-        runs = [r for v in game["views"].values() for r in v["runs"]]
+        runs = [run for _, run in scoped_runs(game)]
         levels = sorted(set(r["evidence_level"] for r in runs))
         evidence = "E0 baseline" + ("; receipts " + ", ".join(levels) + " (scope below)" if levels else "")
         cells = [escape(game["title"]), escape(", ".join(game["views"])), escape(evidence), overview_stages(game)]
@@ -318,6 +373,7 @@ def markdown(card):
         lines += ["", "## " + escape(game["title"]) + " (`" + key + "`)", "",
                   "E0 identity: launcher key and title. IDs inferred from INI filenames are unverified against disc headers."]
         for name, view in game["views"].items():
+            superseded = superseded_receipts(view["runs"])
             lines += ["", "### View `" + name + "`", "", "E0 config baseline (copied from manifest; referenced files not read):", "", "```json",
                       json.dumps({"game_id_from_ini_filename": view["game_id_from_ini_filename"], **view["baseline"]}, indent=2, ensure_ascii=False), "```"]
             if not view["runs"]:
@@ -328,6 +384,14 @@ def markdown(card):
                           "Receipt: `" + run["receipt_path"] + "` (SHA-256 `" + run["receipt_sha256"] + "`)", "",
                           "Evidence paths (reported provenance; existence/content not verified by this importer):"]
                 lines += ["- `" + p + "`" for p in run["evidence_paths"]]
+                replacement = superseded.get(receipt_identity(run["receipt_path"], run["receipt_sha256"]))
+                if replacement is not None:
+                    lines += ["", "Superseded by `" + replacement["receipt_path"] + "` (SHA-256 `" +
+                              replacement["receipt_sha256"] + "`); retained as history and excluded from the current overview."]
+                reference = supersession_reference(run)
+                if reference is not None:
+                    lines += ["", "Supersedes `" + reference[0] + "` (SHA-256 `" +
+                              reference[1] + "`) within this game/view/phase."]
                 if run.get("owner_confirmation"):
                     lines += ["", "Owner confirmation: " + escape(run["owner_confirmation"])]
                 if run.get("notes"):

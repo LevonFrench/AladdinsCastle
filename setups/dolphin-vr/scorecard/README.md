@@ -58,6 +58,8 @@ Each receipt describes one game/view/phase/stage and one evidence scope. Require
 
 `evidence_paths` is a required nonempty list of absolute paths. The importer records its own receipt path and SHA-256 as well. It does not assert that the listed files exist or validate their contents. A receipt's provenance and supplied values need review. E0 may contain only launch-plan metrics; measurements need E2 or an explicit owner receipt.
 
+A correction can declare `supersedes_receipt_path` plus `supersedes_receipt_sha256`, or `supersedes: {receipt_path, receipt_sha256, reason}`. The referenced receipt must already exist in the same game/view/phase with both recorded identity fields matching. Cross-scope, missing and conflicting references are rejected. The old receipt and its measurements remain in detailed history with a superseded note, while the current overview excludes it. Stage may change as part of a reviewed correction; supersession never implies acceptance or silently merges metrics from the replaced receipt.
+
 Synthetic example (no actual run or measurement):
 
 ```json

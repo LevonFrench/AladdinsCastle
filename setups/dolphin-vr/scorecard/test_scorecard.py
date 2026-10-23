@@ -140,6 +140,47 @@ class ScorecardTests(unittest.TestCase):
         self.assertIn("3d/after/unassigned", sc.overview_stages(game))
         self.assertEqual(game["evidence_level"], "E0")
 
+    def test_explicit_supersession_preserves_history_and_rejects_other_scopes(self):
+        self.receipt["metrics"] = {"stereo": {"near_px_1920": 999}}
+        self.import_run()
+        game = self.card["games"]["synthetic"]
+        original = copy.deepcopy(game["views"]["3d"]["runs"][0])
+        corrected = copy.deepcopy(self.receipt)
+        corrected.update(stage="menu", supersedes_receipt_path=original["receipt_path"],
+                         supersedes_receipt_sha256=original["receipt_sha256"],
+                         metrics={"stereo": {"distinct_eyes": False}})
+        self.import_run(corrected, "corrected.json")
+        self.assertEqual(len(game["views"]["3d"]["runs"]), 2)
+        self.assertEqual(game["views"]["3d"]["runs"][0], original)
+        self.assertNotIn("999", sc.overview_cell(game, "stereo"))
+        self.assertIn("eyes differ=no", sc.overview_cell(game, "stereo"))
+        self.assertNotIn("/gameplay ", sc.overview_stages(game))
+        self.assertIn("/menu ", sc.overview_stages(game))
+        report = sc.markdown(self.card)
+        self.assertIn("Superseded by", report)
+        self.assertIn("near_px_1920: 999", report)
+        self.assertIn(original["receipt_path"], report)
+        second = game["views"]["3d"]["runs"][-1]
+        nested = copy.deepcopy(corrected)
+        nested.pop("supersedes_receipt_path")
+        nested.pop("supersedes_receipt_sha256")
+        nested["supersedes"] = {"receipt_path": second["receipt_path"],
+                                "receipt_sha256": second["receipt_sha256"], "reason": "nested correction example"}
+        self.import_run(nested, "nested-corrected.json")
+        self.assertEqual(len(game["views"]["3d"]["runs"]), 3)
+        self.assertEqual(game["views"]["3d"]["runs"][0], original)
+        self.assertNotIn(" r2 ", sc.overview_cell(game, "stereo"))
+        self.assertIn(" r3 ", sc.overview_cell(game, "stereo"))
+        game["views"]["alternate"] = {**copy.deepcopy(game["views"]["3d"]), "runs": []}
+        self.card["games"]["other"] = {**copy.deepcopy(game), "views": {"3d": {**copy.deepcopy(game["views"]["3d"]), "runs": []}}}
+        for patch in ({"phase": "after"}, {"view": "alternate"}, {"game_key": "other"},
+                      {"supersedes_receipt_sha256": "0" * 64}, {"supersedes_receipt_sha256": None}):
+            with self.subTest(patch=patch):
+                before = copy.deepcopy(self.card)
+                with self.assertRaisesRegex(ValueError, "supersession"):
+                    self.import_run({**corrected, **patch}, "invalid-suppression.json")
+                self.assertEqual(self.card, before)
+
 
 if __name__ == "__main__":
     unittest.main()
