@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 """Original 2026-10-21 special weapon/tool silhouettes.
 
 All shapes are authored here from dimensions. No old model, outline, or builder
@@ -171,7 +172,7 @@ def _heavy_revolver(detail):
     cyl('thin_round_recoil_shield', (-13.5, 21, 0), 25, 6,
         'body', 'f', n, 1.1)
     profile('upper_cylinder_strap', [(-30, 49), (51, 49), (61, 44),
-            (59, 39), (45, 40), (-28, 42)], 20, 'body', 1.2)
+            (59, 39), (45, 40), (-28, 42)], 24, 'body', 1.2)
     profile('cylinder_front_yoke', [(40, 5), (49, 4), (59, 10), (65, 35),
             (56, 43), (45, 39), (49, 20), (43, 11)], 28, 'body', 1.4)
     profile('lower_frame_spine', [(-16, 2), (43, 2), (52, 8), (51, -2),
@@ -189,8 +190,14 @@ def _heavy_revolver(detail):
     cyl('deep_bore_shadow', (187.3, 37, 0), 5.35, .6,
         'dark', 'f', n, .1)
     profile('tapered_ejector_underlug', [(58, 27), (166, 27), (179, 30),
-            (175, 22), (70, 17), (55, 20)], 17, 'accent', 1.0)
+            (175, 22), (70, 17), (55, 20)], 20, 'accent', 1.0)
     cyl('ejector_rod', (99, 21, 0), 2.8, 88, 'body', 'f', 12, .2)
+    # R11 adopts the v2 R07 fix: a fixed centre-line web fills gaps around the spinning
+    # cylinder, so the frame reads as solid without changing the drum motion.
+    profile('cylinder_window_web', [(-23, 5), (48, 5), (59, 13),
+            (56, 39), (46, 44), (-25, 43)], 12, 'body', 1.0)
+    profile('ejector_underlug_web', [(61, 18), (168, 18), (181, 28),
+            (166, 33), (61, 29)], 10, 'body', 1.0, lateral=-4)
     # A revolver's broad curved palm volume, not an extruded pistol-grip panel.
     _palm_volume('rounded_wraparound_revolver_grip',
                  [(-99,-31,13,13),(-95,-31,18,17),(-83,-31,21,19),
@@ -203,12 +210,10 @@ def _heavy_revolver(detail):
         'dark', 'l', n, .5)
     cyl('cylinder_release_button', (-25, 30, -14.5), 4.1, 2.6,
         'accent', 'l', n, .7, parent=reload_button)
-    for side in (-1, 1):
-        if not detail:
-            screw('grip_fastener_' + str(side), (-26, -58, side * 19.1), 2.1)
-            screw('frame_pin_' + str(side), (-27, 24, side * 12.8), 1.8)
-    ring('oval_trigger_guard', _ellipse(18, -27, 25, 21, 16 if detail else 32),
-         _ellipse(18, -27, 19.2, 15, 16 if detail else 32), 11,
+    # v2 detail budget: remove sub-2 mm fasteners and spend those triangles on
+    # the broad silhouette features above and the smoother trigger guard below.
+    ring('oval_trigger_guard', _ellipse(18, -27, 25, 21, 20 if detail else 40),
+         _ellipse(18, -27, 19.2, 15, 20 if detail else 40), 11,
          'body', .9)
     _trigger((13, -8, 0), [(12, -7), (18, -9), (17, -17), (12, -24),
              (15, -30), (12, -33), (7, -27), (8, -19)])
@@ -216,21 +221,15 @@ def _heavy_revolver(detail):
     profile('exposed_hammer', [(-34, 34), (-29, 41), (-34, 53),
             (-43, 57), (-48, 54), (-44, 49)], 10, 'accent', .8,
             parent=hammer)
-    box('front_sight_base', (171, 49, 0), (17, 3, 7), 'accent', .7)
-    profile('front_sight_ramp', [(164, 50), (174, 56), (178, 56),
-            (178, 50)], 4, 'dark', .45)
-    cyl('front_sight_fiber', (176.2, 54.5, 0), 1.0, 5.5,
-        'glass', 'f', 12, .12)
-    box('rear_sight_seated_base', (-21, 51.3, 0), (13, 5, 15),
-        'accent', .6)
-    box('rear_sight_left', (-21, 54, -5), (13, 4, 3), 'dark', .4)
-    box('rear_sight_right', (-21, 54, 5), (13, 4, 3), 'dark', .4)
+    # Shared wrapper geometry supplies the tier-1 notch and blade at the level
+    # anchors returned below, replacing these model-specific sight fragments.
     if not detail:
         for f in (-39, -36, -33):
             box('hammer_thumb_serration_' + str(f), (f, 54.7, 0),
                 (1.2, .65, 8), 'dark', .15, parent=hammer)
     return {'muzzle': (191, 37, 0), 'sight_front': (176, 56, 0),
-            'sight_rear': (-21, 56, 0), 'pivot_trigger': (13, -8, 0),
+            'sight_rear': (-21, 56, 0), 'functional_sights': True,
+            'pivot_trigger': (13, -8, 0),
             'length_mm': 240}
 
 
@@ -241,7 +240,7 @@ def _energy_sidearm(detail):
     shell = [(-45, 31, 9, 11), (-31, 39, 20, 19),
           (4, 44, 24, 24), (61, 44, 21, 23), (106, 37, 16, 19),
           (144, 30, 12, 15)]
-    _loft('flowing_energy_carapace', shell, segments=12 if detail else 20, exponent=2.6,
+    _loft('flowing_energy_carapace', shell, segments=12 if detail else 24, exponent=2.6,
           bevel=.4)
     _loft('underslung_power_spine', [(-21, 15, 8, 13), (35, 18, 8, 15),
           (93, 22, 7, 14), (145, 28, 9, 14)], mat='accent',
@@ -261,22 +260,22 @@ def _energy_sidearm(detail):
          'dark', 'f', n, .2, parent=recoil)
     # A genuine thumb-web curve and palm swell, with no lower forward prong.
     profile('energy_grip_web', _rounded([(-25, 21), (7, 18), (15, 9), (6, -3),
-            (-3, -21), (-2, -44), (7, -74), (3, -88), (-10, -96),
+            (7, -21), (8, -44), (7, -74), (3, -88), (-10, -96),
             (-29, -92), (-35, -81), (-32, -61), (-23, -30),
-            (-20, -11), (-33, 8)], 2 if detail else 3), 32, 'body', 4.0)
+            (-20, -11), (-33, 8)], 2 if detail else 4), 32, 'body', 4.0)
     for side in (-1, 1):
         profile('swept_palm_insert_' + str(side), _rounded([(-19, -10), (-4, -6),
                 (-11, -25), (-10, -49), (0, -76), (-5, -84),
                 (-21, -84), (-25, -76), (-21, -51), (-15, -29)],
-                2 if detail else 3),
+                2 if detail else 4),
                 3.4, 'dark', 2.7, lateral=side * 16.2)
         _skin('curved_carapace_service_strip_' + str(side), shell,
               [4, 35, 61, 85], [-30,0,30] if detail else [-18,0,18],
               side=side, exponent=2.6, offset=.8)
-        if not detail:
-            screw('grip_service_screw_' + str(side), (-15, -52, side * 18.3), 1.8)
-    ring('energy_guard', _ellipse(27,-14,29,22,16 if detail else 32),
-         _ellipse(27,-14,22.5,15.5,16 if detail else 32), 11, 'accent', 1.3)
+    # v2 detail budget: keep the palm panels broad and clear, remove their tiny
+    # screws, then spend the recovered triangles on the shell and grip outline.
+    ring('energy_guard', _ellipse(27,-14,29,22,20 if detail else 40),
+         _ellipse(27,-14,22.5,15.5,20 if detail else 40), 11, 'accent', 1.3)
     _trigger((20, 2, 0), [(17, 2), (24, 2), (24, -8), (18, -18),
              (18, -22), (13, -22), (11, -17), (17, -6)])
     reload_button = node('button_reload', (-10, 7, -18))
@@ -284,17 +283,13 @@ def _energy_sidearm(detail):
         'dark', 'l', n, .5)
     cyl('energy_cell_release_button', (-10, 7, -18.5), 4.2, 2.5,
         'accent', 'l', n, .6, parent=reload_button)
-    profile('rear_optic_seated_wedge', [(-27.5,58.7),(-6.5,64.1),
-            (-6.5,67),(-27.5,67)], 15, 'accent', .7)
-    tube('open_reflex_aperture', (-13, 76, 0), 10, 7.2, 7,
-         'dark', 'f', 12 if detail else 20, .6)
-    for side in (-1, 1):
-        box('reflex_sight_mount_' + str(side), (-13, 69, side * 7),
-            (7, 7, 3), 'accent', .6)
+    # The build wrapper adds the shared tier-1 notch/blade sight pair at these
+    # level anchors; retire the round optic and its stalk to avoid duplicate sights.
     profile('emitter_index_ridge', [(120, 44), (151, 44), (154, 46),
             (131, 48)], 6, 'accent', .7)
-    return {'muzzle': (178, 31, 0), 'sight_front': (149, 47, 0),
-            'sight_rear': (-13, 76, 0), 'pivot_trigger': (20, 2, 0),
+    return {'muzzle': (178, 31, 0), 'sight_front': (149, 76, 0),
+            'sight_rear': (-13, 76, 0), 'functional_sights': True,
+            'pivot_trigger': (20, 2, 0),
             'limit_recoil': (112, 31, 0),
             'length_mm': 223}
 
@@ -437,20 +432,17 @@ def _industrial_cutter(detail):
                    (143, 57, side * 23), parent=recoil)
         profile('jaw_cartridge_' + str(side), [(133, 40), (147, 34),
                 (182, 39), (205, 52), (207, 60), (195, 73),
-                (171, 79), (145, 75), (135, 67)], 16,
+                (171, 79), (145, 75), (135, 67)], 20,
                 'body', 2.0, lateral=side * 24, parent=jaw)
         profile('jaw_thermal_insert_' + str(side), [(155, 43), (181, 48),
                 (195, 55), (196, 60), (183, 66), (156, 68)],
-                2.2, 'dark', .8, lateral=side * 32.3, parent=jaw)
+                2.2, 'dark', .8, lateral=side * 34.3, parent=jaw)
         cyl('jaw_front_roller_' + str(side), (195, 57, side * 24),
             5.8, 17, 'accent', 'l', 12 if detail else 20, .5, parent=jaw)
         # The blue working faces are inset on the interior of the jaws.
         profile('jaw_ceramic_contact_' + str(side), [(166, 50), (195, 54),
                 (197, 59), (186, 64), (166, 65)], 1.7,
-                'glass', .4, lateral=side * 15.4, parent=jaw)
-        if not detail:
-            screw('jaw_seated_fastener_' + str(side), (146, 56, side * 33),
-                  2.5, parent=jaw)
+                'glass', .4, lateral=side * 13.4, parent=jaw)
     top_jaw = node('jaw_upper', (143, 80, 0), parent=recoil)
     profile('upper_thermal_cartridge', [(133, 76), (173, 83), (192, 77),
             (200, 82), (191, 93), (168, 97), (143, 91)],
@@ -461,12 +453,12 @@ def _industrial_cutter(detail):
     profile('tool_grip_chassis', _rounded([(-24, 19), (12, 20), (23, 8), (19, -12),
             (6, -35), (4, -63), (16, -88), (9, -98), (-18, -98),
             (-29, -89), (-31, -75), (-22, -50), (-15, -24),
-            (-19, -5), (-32, 7)], 2 if detail else 3), 36, 'body', 3.6)
+            (-19, -5), (-32, 7)], 2 if detail else 4), 36, 'body', 3.6)
     for side in (-1, 1):
         profile('tool_rubber_palm_' + str(side), _rounded([(-14, -7), (8, -4),
                 (7, -18), (-3, -40), (-6, -65), (4, -84),
                 (-15, -86), (-21, -76), (-14, -50), (-7, -24)],
-                2 if detail else 3),
+                2 if detail else 4),
                 3.2, 'dark', 2.5, lateral=side * 18)
         _skin('curved_motor_service_plate_' + str(side), motor,
               [-10,12,34,65,80], [-30,0,30] if detail else [-36,-18,0,18,36],
@@ -476,7 +468,6 @@ def _industrial_cutter(detail):
                 _skin('seated_motor_vent_%s_%s' % (side,k), motor,
                       [4+k*9,7+k*9], [-18,0,18], side=side,
                       exponent=3, offset=1.8, mat='dark')
-            screw('palm_fastener_' + str(side), (-11, -59, side * 20), 2)
     box('battery_mount', (-3, -101, 0), (49, 8, 40), 'accent', 1.6)
     _loft('removable_battery', [(-39, -111, 11, 21), (-31, -114, 15, 25),
           (24, -114, 15, 25), (31, -110, 11, 20)],
@@ -493,7 +484,8 @@ def _industrial_cutter(detail):
             (59.5,81.5),(32.5,81.5)], 12, 'dark', .7)
     box('status_optical_insert', (46, 82, 0), (18, 1, 6), 'glass', .7)
     return {'muzzle': (208, 57, 0), 'sight_front': (178, 97, 0),
-            'sight_rear': (46, 82.5, 0), 'pivot_trigger': (30, 9, 0),
+            'sight_rear': (46, 97, 0), 'functional_sights': True,
+            'pivot_trigger': (30, 9, 0),
             'limit_recoil': (116, 57, 0),
             'length_mm': 248}
 

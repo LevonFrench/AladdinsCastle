@@ -1,0 +1,178 @@
+{
+  "version": "0.1",
+  "model": "game-revolver-heavy",
+  "size": [
+    512,
+    512
+  ],
+  "views": {
+    "front": {
+      "image": "game-revolver-heavy-front.png",
+      "nodes": {
+        "grip": [
+          0.730104,
+          0.44365
+        ],
+        "fx_laser": [
+          0.137681,
+          0.349574
+        ],
+        "fx_muzzle": [
+          0.137681,
+          0.349574
+        ],
+        "button_reload": [
+          0.793669,
+          0.367372
+        ],
+        "cylinder_spin": [
+          0.690694,
+          0.390256
+        ],
+        "hammer_cock": [
+          0.81401,
+          0.347032
+        ],
+        "pivot_trigger": [
+          0.697051,
+          0.463991
+        ],
+        "muzzle": [
+          0.137681,
+          0.349574
+        ],
+        "sight_front": [
+          0.188047,
+          0.301265
+        ],
+        "sight_rear": [
+          0.783499,
+          0.301265
+        ]
+      }
+    },
+    "threequarter": {
+      "image": "game-revolver-heavy.png",
+      "nodes": {
+        "grip": [
+          0.658881,
+          0.384607
+        ],
+        "fx_laser": [
+          0.249828,
+          0.460497
+        ],
+        "fx_muzzle": [
+          0.249828,
+          0.460497
+        ],
+        "button_reload": [
+          0.72944,
+          0.306254
+        ],
+        "cylinder_spin": [
+          0.63167,
+          0.346058
+        ],
+        "hammer_cock": [
+          0.716816,
+          0.27217
+        ],
+        "pivot_trigger": [
+          0.636059,
+          0.41251
+        ],
+        "muzzle": [
+          0.249828,
+          0.460497
+        ],
+        "sight_front": [
+          0.284604,
+          0.401965
+        ],
+        "sight_rear": [
+          0.695749,
+          0.238229
+        ]
+      }
+    },
+    "held": {
+      "image": "game-revolver-heavy-held.png",
+      "nodes": {
+        "grip": [
+          0.548725,
+          0.548107
+        ],
+        "fx_laser": [
+          0.423278,
+          0.209381
+        ],
+        "fx_muzzle": [
+          0.423278,
+          0.209381
+        ],
+        "button_reload": [
+          0.526154,
+          0.510277
+        ],
+        "cylinder_spin": [
+          0.54038,
+          0.483224
+        ],
+        "hammer_cock": [
+          0.566493,
+          0.497302
+        ],
+        "pivot_trigger": [
+          0.541726,
+          0.5522
+        ],
+        "muzzle": [
+          0.423278,
+          0.209381
+        ],
+        "sight_front": [
+          0.433943,
+          0.187589
+        ],
+        "sight_rear": [
+          0.560032,
+          0.44309
+        ]
+      }
+    }
+  },
+  "render": {
+    "device": "CPU",
+    "samples": 64,
+    "denoiser": "OPENIMAGEDENOISE",
+    "denoising_use_gpu": false,
+    "view_transform": "Standard",
+    "exposure": 0,
+    "lighting": {
+      "id": "gun_lighting_r2",
+      "normal_space": "camera-view",
+      "direction_to_light": [
+        0.36,
+        0.7,
+        0.62
+      ],
+      "normalize_normal_and_direction": true,
+      "ambient": 0.35,
+      "directional": 0.65,
+      "albedo": "vertex_color * baseColorFactor * linear_body_or_accent_tint",
+      "alpha": "product alpha preserved; runtime premultiplies after lighting",
+      "output": "linear-to-sRGB",
+      "specular": false,
+      "shadows": false,
+      "tone_mapping": false
+    }
+  },
+  "silhouette": "game-revolver-heavy-silhouette.png",
+  "asset_kind": "gun",
+  "sight_reviews": {
+    "LOD0": "game-revolver-heavy-sight-lod0.png",
+    "LOD1": "game-revolver-heavy-sight-lod1.png"
+  },
+  "silhouette_scale_m": 0.82
+}

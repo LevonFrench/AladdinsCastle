@@ -44,6 +44,47 @@ along `length_axis` (default Y) and asks for stick pivots only when its features
 `analog_stick`. Its rounded bar uses the `zloft` primitive (superellipse rings along Z).
 The DolphinXR build draws it in the right hand for Wii motion games.
 
+## 2026-10-22 redesign: energy gun, heavy revolver and cutter
+
+R10–R12 add three original models: `game-energy-gun`, `game-revolver-heavy`
+and `game-tool-cutter`. Their model-specific control selectors are available,
+but no game slot selects them. Shape ratings, game assignments and headset fit
+remain owner decisions.
+
+| Model | Length | LOD0 / LOD1 triangles |
+| --- | ---: | ---: |
+| game-energy-gun | 295 mm | 5,624 / 1,674 |
+| game-revolver-heavy | 285 mm | 5,400 / 1,940 |
+| game-tool-cutter | 285 mm | 7,352 / 1,974 |
+
+The energy grip neck measures at least 27.48 mm through its reviewed height
+range. The revolver has a fixed cylinder-window web; the cutter has seated jaw
+inserts. Both LODs use a clear notch/blade sight line parallel to the bore,
+sharp edges above 35 degrees and weighted normals. Four neutral material roles
+match the earlier redesign, with no metallic response. The original red/blue
+player accent palettes are retained: these three palettes contain no near-black
+accent tint requiring the earlier `#50535a` lift. Reload buttons press inward
+along +X; the revolver indicator follows its button.
+
+`src-redesign/specials.py` is the GPL geometry source. Use Blender 5.2 background
+CPU mode, factory startup and four threads. Pass `--model <id> --output-root
+<absolute-build-directory> --views threequarter,side,held` to
+`src-redesign/build_render.py` after Blender's `--` separator. Models and editable
+scenes go under `models/<id>/`, and review images under `renders/<id>/`.
+For `--model benchmark`, also pass `--benchmark-manifest <absolute-review-json>`;
+the renderer verifies entry #001's source hash independently of the output path.
+`src-redesign/render_previews.py` imports those GLBs and takes `--model <id>
+--repo-root <absolute-repository> --models-root <absolute-build-directory>/models
+--out-dir <absolute-preview-directory>` to make the runtime-lighting previews,
+sight views and silhouettes. The per-model files in `src/` are semantic-plan
+adapters for assembly/checking; the legacy `build.py` excludes these adapters.
+
+The source-plan tests check all three actual GLBs, their preview contracts and
+their exported anchors against the assembly plans. These offline checks do not
+establish controller comfort, hand contact, recoil/trigger clearance in the host,
+or acceptance of the designs. The previously integrated models and generic
+pistol are unchanged.
+
 ## 2026-10-21 redesign (nine models)
 
 Nine GLBs here are now built by the redesign builder in `src-redesign/`, not by `src/`:
@@ -62,7 +103,7 @@ conventions above, so hosts load them unchanged.
 - The previews in `preview/` for these nine still show the old designs; the review renders and measurements are
   in the owner's private review folder.
 - `generic-pistol` (#011, owner-rated) is unchanged; the redesign's R13 replaced only archived variants and is
-  not wired in. R10-R12 are deferred.
+  not wired in. R10-R12 were deferred at that stage and are integrated above.
 - Seven `data/guns/*.toml` files (six redesigned guns with tints, plus `generic-pistol`, whose shape is unchanged)
   had their dark accent tint lifted to `#50535a`; the old `#1c1c20` / `#2a2a2e` read as holes under the runtime
   lighting. `con-pistol-dpad` and `con-revolver-chunky` also had button press axes corrected.

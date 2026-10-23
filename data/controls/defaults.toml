@@ -138,3 +138,18 @@ control_set = "gun-con-stick-grip"
 id = "con-pointer-remote"
 gun_model = "con-pointer-remote"
 control_set = "gun-con-pointer-remote"
+
+[[rule]]
+id = "model-game-energy-gun"
+gun_model = "game-energy-gun"
+control_set = "gun-game-energy-gun"
+
+[[rule]]
+id = "model-game-revolver-heavy"
+gun_model = "game-revolver-heavy"
+control_set = "gun-game-revolver-heavy"
+
+[[rule]]
+id = "model-game-tool-cutter"
+gun_model = "game-tool-cutter"
+control_set = "gun-game-tool-cutter"
