@@ -5,9 +5,11 @@
 #include "ui/UiSettings.h"
 #include <QDirIterator>
 #include <QFile>
+#include <QFutureWatcher>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QPointer>
 #include <QScopeGuard>
 #include <QSemaphore>
 #include <QTemporaryDir>
@@ -79,13 +81,17 @@ private slots:
         if(!barrier->blocked.exchange(true)){barrier->entered.release();barrier->release.acquire();barrier->completed.release();}return std::nullopt;
       };return options;
     });
-    controller.selectGame("timecris","first");QTRY_VERIFY_WITH_TIMEOUT(barrier->entered.available()>0,10000);
+    controller.selectGame("timecris","first");QPointer<QFutureWatcherBase> firstWatcher=controller.findChild<QFutureWatcherBase*>();QVERIFY(firstWatcher);
+    QTRY_VERIFY_WITH_TIMEOUT(barrier->entered.available()>0,10000);
     controller.selectGame("vcop","second");QTRY_VERIFY_WITH_TIMEOUT(!controller.loading(),10000);QCOMPARE(controller.model()->gameId(),QString("vcop"));
-    barrier->release.release();QTRY_VERIFY_WITH_TIMEOUT(barrier->completed.available()>0,10000);QTest::qWait(50);
+    barrier->release.release();QTRY_VERIFY_WITH_TIMEOUT(barrier->completed.available()>0,10000);
+    QTRY_VERIFY_WITH_TIMEOUT(firstWatcher.isNull(),15000); // The stale future's queued completion has run.
     QCOMPARE(controller.model()->gameId(),QString("vcop"));QCOMPARE(controller.resolved().value("game_id").toString(),QString("vcop"));
     barrier->entered.acquire(barrier->entered.available());barrier->completed.acquire(barrier->completed.available());barrier->blocked=false;
-    controller.selectGame("timecris","leaving");QTRY_VERIFY_WITH_TIMEOUT(barrier->entered.available()>0,10000);
-    controller.clear();barrier->release.release();QTRY_VERIFY_WITH_TIMEOUT(barrier->completed.available()>0,10000);QTest::qWait(50);
+    controller.selectGame("timecris","leaving");const auto watchers=controller.findChildren<QFutureWatcherBase*>();QVERIFY(!watchers.isEmpty());
+    QPointer<QFutureWatcherBase> leavingWatcher=watchers.constLast();QTRY_VERIFY_WITH_TIMEOUT(barrier->entered.available()>0,10000);
+    controller.clear();barrier->release.release();QTRY_VERIFY_WITH_TIMEOUT(barrier->completed.available()>0,10000);
+    QTRY_VERIFY_WITH_TIMEOUT(leavingWatcher.isNull(),15000);
     QVERIFY(controller.model()->rows().isEmpty());QVERIFY(controller.resolved().isEmpty());QVERIFY(!controller.loading());
   }
   void nativeWiiRouteClearsDsuMapping(){
@@ -126,14 +132,15 @@ private slots:
     QVERIFY(controller.status().contains("inside DolphinXR"));QVERIFY(controller.resolved().isEmpty());
     controller.selectGame(game,"flat-dolphin","nintendo-wii");
     QTRY_VERIFY_WITH_TIMEOUT(!controller.loading(),10000);QVERIFY(!controller.model()->rows().isEmpty());
-    auto *pool=QThreadPool::globalInstance();pool->waitForDone();const auto prior=pool->maxThreadCount();pool->setMaxThreadCount(1);
+    auto *pool=QThreadPool::globalInstance();QVERIFY2(pool->waitForDone(15000),"Global thread pool did not become idle before route test");const auto prior=pool->maxThreadCount();pool->setMaxThreadCount(1);
     struct Barrier{QSemaphore entered,release;};auto barrier=std::make_shared<Barrier>();
-    const auto restore=qScopeGuard([&]{barrier->release.release();pool->waitForDone();pool->setMaxThreadCount(prior);});
+    const auto restore=qScopeGuard([&]{barrier->release.release();const bool done=pool->waitForDone(15000);pool->setMaxThreadCount(prior);if(!done)QTest::qFail("Global thread pool did not drain after route test",__FILE__,__LINE__);});
     pool->start([barrier]{barrier->entered.release();barrier->release.acquire();});
     QTRY_VERIFY_WITH_TIMEOUT(barrier->entered.available()>0,10000);
     controller.selectGame(game,"flat-dolphin","nintendo-wii");QVERIFY(controller.loading());
+    const auto watchers=controller.findChildren<QFutureWatcherBase*>();QVERIFY(!watchers.isEmpty());QPointer<QFutureWatcherBase> staleWatcher=watchers.constLast();
     controller.selectGame(game,"dolphinxr","nintendo-wii");QVERIFY(!controller.loading());
-    barrier->release.release();QVERIFY(pool->waitForDone(10000));QTest::qWait(50);
+    barrier->release.release();QVERIFY(pool->waitForDone(15000));QTRY_VERIFY_WITH_TIMEOUT(staleWatcher.isNull(),15000);
     QVERIFY(controller.model()->rows().isEmpty());QVERIFY(controller.resolved().isEmpty());
     QVERIFY(controller.status().contains("inside DolphinXR"));
   }
@@ -147,13 +154,15 @@ private slots:
     ac::GameListModel games(ac::CatalogLoader().load(temp.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
     ac::UiSettings settings(temp.path()+"/ui-settings");ac::UiController ui(&games,&filter,&settings);
     const QString game="wii-resident-evil-umbrella-chronicles";
-    auto *pool=QThreadPool::globalInstance();pool->waitForDone();const auto prior=pool->maxThreadCount();pool->setMaxThreadCount(1);
+    auto *pool=QThreadPool::globalInstance();QVERIFY2(pool->waitForDone(15000),"Global thread pool did not become idle before runtime route test");const auto prior=pool->maxThreadCount();pool->setMaxThreadCount(1);
     struct Barrier{QSemaphore entered,release;};auto barrier=std::make_shared<Barrier>();
-    const auto restore=qScopeGuard([&]{barrier->release.release();pool->waitForDone();pool->setMaxThreadCount(prior);});
+    const auto restore=qScopeGuard([&]{barrier->release.release();const bool done=pool->waitForDone(15000);pool->setMaxThreadCount(prior);if(!done)QTest::qFail("Global thread pool did not drain after runtime route test",__FILE__,__LINE__);});
     if(pending){pool->start([barrier]{barrier->entered.release();barrier->release.acquire();});QTRY_VERIFY_WITH_TIMEOUT(barrier->entered.available()>0,10000);}
     ui.openDetail(game);ui.refreshDetailControls();QCOMPARE(ui.detail().value("variantId").toString(),QString("dolphin"));
     if(pending)QVERIFY(ui.detailControlsLoading());
     else {QTRY_VERIFY_WITH_TIMEOUT(!ui.detailControlsLoading(),10000);QVERIFY(!ui.controlsController()->model()->rows().isEmpty());}
+    QPointer<QFutureWatcherBase> pendingWatcher;
+    if(pending){const auto watchers=ui.controlsController()->findChildren<QFutureWatcherBase*>();QVERIFY(!watchers.isEmpty());pendingWatcher=watchers.constLast();}
     QSignalSpy changes(ui.controlsController(),&ac::DetailControlsController::changed);
     auto state=games.find(game)->runtime;state.lastPlayed+=1;games.applyRuntimeStates({state});
     auto unrelated=games.find("vcop")->runtime;unrelated.playing=true;games.applyRuntimeStates({unrelated});
@@ -162,7 +171,8 @@ private slots:
     QCOMPARE(ui.detail().value("variantId").toString(),QString("dolphinxr"));
     QVERIFY2(ui.controlsController()->model()->rows().isEmpty(),"Runtime selected native route left flat DSU rows visible");
     QVERIFY2(ui.detailControlsStatus().contains("inside DolphinXR"),"Runtime native route did not replace pending flat mapping");
-    barrier->release.release();QVERIFY(pool->waitForDone(10000));QTest::qWait(50);
+    barrier->release.release();QVERIFY(pool->waitForDone(15000));
+    if(pending)QTRY_VERIFY_WITH_TIMEOUT(pendingWatcher.isNull(),15000);
     QVERIFY(ui.controlsController()->model()->rows().isEmpty());QVERIFY(!ui.detailControlsLoading());
     QVERIFY(ui.detailControlsStatus().contains("inside DolphinXR"));
     state.selectedVariantId="dolphin";games.applyRuntimeStates({state});

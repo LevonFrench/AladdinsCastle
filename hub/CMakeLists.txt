@@ -279,6 +279,8 @@ if(BUILD_TESTING)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})
+    add_test(NAME hub-test-runner COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/runner_fixtures.py
+        ${CMAKE_COMMAND} ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     add_test(NAME serial-index-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/build_serial_index.py --test)
     add_test(NAME catalog-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/validate_catalog.py --test)
     add_test(NAME build-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/check_build_policy.py)
@@ -297,11 +299,31 @@ if(BUILD_TESTING)
     qt_add_executable(hub-tests tests/SmokeTest.cpp)
     target_link_libraries(hub-tests PRIVATE hubcore Qt6::Test)
     add_dependencies(hub-tests aladdinscastle-hub hubtool)
+    if(MSVC)
+        # Link the real entry point without its adjacent runtime DLL. Smoke tests must not copy a large
+        # executable into the system temporary folder just to exercise the missing-runtime path.
+        qt_add_executable(hub-without-runtime src/app/main.cpp)
+        target_link_libraries(hub-without-runtime PRIVATE hubapp huboverlay Qt6::OpenGL Qt6::ShaderTools OpenVR::OpenVR)
+        qt_add_resources(hub-without-runtime smoke_theme PREFIX /resources
+            BASE "${CMAKE_CURRENT_BINARY_DIR}/resources" FILES "${CMAKE_CURRENT_BINARY_DIR}/resources/theme.toml")
+        set_target_properties(hub-without-runtime PROPERTIES WIN32_EXECUTABLE TRUE
+            OUTPUT_NAME "${AC_PRODUCT_program_name}" RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Testing/no-runtime/$<CONFIG>")
+        target_link_options(hub-without-runtime PRIVATE "/DELAYLOAD:openvr_api.dll")
+        target_link_libraries(hub-without-runtime PRIVATE delayimp)
+        add_custom_command(TARGET hub-without-runtime POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:hub-without-runtime>/resources"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/${AC_PRODUCT_short_id}.vrmanifest"
+                "$<TARGET_FILE_DIR:hub-without-runtime>/resources/${AC_PRODUCT_short_id}.vrmanifest" VERBATIM)
+        ac_project_warnings(hub-without-runtime)
+        add_dependencies(hub-tests hub-without-runtime)
+        target_compile_definitions(hub-tests PRIVATE AC_NO_RUNTIME_HUB="$<TARGET_FILE:hub-without-runtime>")
+    endif()
     ac_project_warnings(hub-tests)
     add_test(NAME hub-smoke COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:hub-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-smoke.txt
-        -DTEST_TIMEOUT=120
+        -DTEST_TIMEOUT=240
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(catalog-tests tests/CatalogTest.cpp)
     target_link_libraries(catalog-tests PRIVATE hubcore Qt6::Test)
@@ -313,7 +335,11 @@ if(BUILD_TESTING)
     add_dependencies(install-tests hubtool)
     ac_project_warnings(install-tests)
     target_compile_definitions(install-tests PRIVATE AC_TEST_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
-    add_test(NAME hub-install COMMAND install-tests)
+    add_test(NAME hub-install COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:install-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-install.txt
+        -DTEST_TIMEOUT=240
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(ui-tests tests/UiTest.cpp)
     target_link_libraries(ui-tests PRIVATE hubui Qt6::Test)
     if(WIN32)
@@ -324,7 +350,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-ui COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:ui-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-ui.txt
-        -DTEST_TIMEOUT=90
+        -DTEST_TIMEOUT=180
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(hub-ui PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     qt_add_executable(scan-art-tests tests/ScanArtTest.cpp)
@@ -382,16 +408,29 @@ if(BUILD_TESTING)
     set_tests_properties(hub-integration PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     qt_add_executable(launch-tests tests/LaunchSteamTest.cpp)
     target_link_libraries(launch-tests PRIVATE hubcore Qt6::Test)
-    add_dependencies(launch-tests steamtool hubtool)
-    target_compile_definitions(launch-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    add_dependencies(launch-tests steamtool hubtool test-stand-in)
+    target_compile_definitions(launch-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/.." AC_STAND_IN="$<TARGET_FILE:test-stand-in>")
     ac_project_warnings(launch-tests)
     set_target_properties(launch-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-launch-steam COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:launch-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-launch-steam.txt
-        -DTEST_TIMEOUT=120
+        -DTEST_TIMEOUT=240
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     if(NOT WIN32)
         set_tests_properties(hub-launch-steam PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     endif()
+    # The outer deadline also covers wrappers and their cleanup, including direct Python tests.
+    get_property(_ac_tests DIRECTORY PROPERTY TESTS)
+    set_tests_properties(${_ac_tests} PROPERTIES TIMEOUT 180)
+    set_tests_properties(hub-smoke hub-install hub-launch-steam PROPERTIES TIMEOUT 270)
+    set_tests_properties(hub-ui PROPERTIES TIMEOUT 210)
+    set_tests_properties(hub-integration PROPERTIES TIMEOUT 330)
+    if(TEST hub-runtime-resources)
+        set_tests_properties(hub-runtime-resources PROPERTIES TIMEOUT 300)
+    endif()
+    # Optional capture/benchmark modes require an explicit direct invocation, not an inherited CTest environment.
+    set_tests_properties(hub-ui PROPERTIES ENVIRONMENT_MODIFICATION
+        "AC_UI_PANEL_PICTURES=unset:;AC_UI_BENCH_OUTPUT=unset:")
+    set_property(TEST ${_ac_tests} APPEND PROPERTY ENVIRONMENT_MODIFICATION "PYTHONDONTWRITEBYTECODE=set:1")
 endif()

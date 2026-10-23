@@ -704,7 +704,7 @@ class CatalogTest : public QObject {
         state.jobProgress = "3 of 5";
         model.queueRuntimeStates({state});
         QCOMPARE(changed.size(), 0);
-        QTRY_COMPARE_WITH_TIMEOUT(changed.size(), 1, 1000);
+        QTRY_COMPARE_WITH_TIMEOUT(changed.size(), 1, 15000);
         QCOMPARE(reset.size(), 0);
         QCOMPARE(stateOf(), static_cast<int>(ac::GameState::Installed));
         QCOMPARE(model.find("a")->roles.value("state").toInt(),

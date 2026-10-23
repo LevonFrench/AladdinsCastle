@@ -76,4 +76,7 @@ if(BUILD_TESTING)
         -DTEST_LOG=${CMAKE_CURRENT_BINARY_DIR}/Testing/controls-resolver.txt
         -P ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/RunQtTest.cmake)
     set_tests_properties(controls-resolver-native PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1;PYTHONIOENCODING=utf-8")
+    get_property(_ac_controls_tests DIRECTORY PROPERTY TESTS)
+    set_tests_properties(${_ac_controls_tests} PROPERTIES TIMEOUT 180)
+    set_property(TEST ${_ac_controls_tests} APPEND PROPERTY ENVIRONMENT_MODIFICATION "PYTHONDONTWRITEBYTECODE=set:1")
 endif()
