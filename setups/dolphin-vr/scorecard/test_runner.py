@@ -49,11 +49,207 @@ class RunnerTests(unittest.TestCase):
             exe_sha256=hashlib.sha256(self.exe.read_bytes()).hexdigest(),
             out=str(self.out), manifest=str(self.manifest_path), plan=str(self.plan_path),
             game="demo", view="3d", rate="native", tag="test", start=None,
-            input_until=None, seconds=10, yaw=0, config=[])
+            input_until=None, seconds=10, yaw=0, config=[],
+            phase="baseline", capture_policy="sampled", observe_until=None)
 
     @property
     def seed(self):
         return self.root / "seed-user"
+
+    def run_with_fake_exited_child(self):
+        """Exercise preparation/receipts while replacing process creation entirely."""
+        child = mock.Mock()
+        child.pid = 12345
+        child.returncode = 0
+        child.poll.return_value = 0
+        with mock.patch.object(runner.subprocess, "Popen", return_value=child) as popen:
+            with mock.patch("builtins.print"):
+                runner.run(self.args)
+        popen.assert_called_once()
+        child.terminate.assert_not_called()
+        run_dir = self.out / "runs" / f"demo-native-{self.args.tag}"
+        receipt = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+        script = (run_dir / "input.txt").read_text(encoding="utf-8")
+        return receipt, script
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_before_window_excludes_original_and_generated_timing_captures(self):
+        self.args.start = 40.0
+        self.args.capture_policy = "before-window"
+        self.script.write_text(
+            "0 100 R primary 1\nshot 5 original-before\nshot 35 too-close\n"
+            "shot 50 during-window\nshot 70 during-window-later\n", encoding="utf-8")
+
+        receipt, script = self.run_with_fake_exited_child()
+
+        scheduled = receipt["scheduled_capture_emulated_seconds"]
+        emitted = [float(line.split()[1]) for line in script.splitlines()
+                   if line.startswith("shot ")]
+        self.assertEqual(scheduled, [5.0, 8.0, 20.0, 30.0])
+        self.assertEqual(emitted, scheduled)
+        self.assertTrue(all(0 <= value <= self.args.start - 10 for value in scheduled))
+        self.assertFalse(any(self.args.start <= value < self.args.start + 60 for value in emitted))
+        self.assertIn("0 100 R primary 1", script)
+        self.assertEqual(receipt["capture_policy"], "before-window")
+        self.assertIn("asynchronous", receipt["capture_overhead_note"])
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_before_window_zero_anchor_schedules_no_capture_at_measurement_start(self):
+        self.args.start = 0.0
+        self.args.capture_policy = "before-window"
+
+        receipt, script = self.run_with_fake_exited_child()
+
+        self.assertEqual(receipt["scheduled_capture_emulated_seconds"], [])
+        self.assertFalse(any(line.startswith("shot ") for line in script.splitlines()))
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_after_phase_and_sampled_capture_caveat_are_recorded(self):
+        self.args.phase = "after"
+
+        receipt, _ = self.run_with_fake_exited_child()
+
+        self.assertEqual(receipt["phase"], "after")
+        self.assertEqual(receipt["capture_policy"], "sampled")
+        self.assertIn("may interrupt the measured interval", receipt["capture_overhead_note"])
+        self.assertIn(10, receipt["scheduled_capture_emulated_seconds"])
+        self.assertIn(40, receipt["scheduled_capture_emulated_seconds"])
+        self.assertFalse(receipt["accepted_as_measurement"])
+        self.assertIsNone(receipt["observe_until_emulated_s"])
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_observation_filters_captures_and_keeps_five_second_settling_gap(self):
+        self.args.start = 40.0
+        self.args.observe_until = 35.0
+        self.script.write_text("shot 5 early\nshot 35 stop-time\nshot 50 late\n", encoding="utf-8")
+
+        receipt, script = self.run_with_fake_exited_child()
+
+        self.assertEqual(receipt["scheduled_capture_emulated_seconds"], [5.0, 8.0, 20.0, 30.0])
+        self.assertEqual(receipt["observe_until_emulated_s"], 35.0)
+        self.assertFalse(receipt["measurement_window_complete"])
+        self.assertFalse(receipt["accepted_as_measurement"])
+        self.assertIn("Observation only", receipt["capture_overhead_note"])
+        self.assertNotIn("shot 35.000", script)
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_observation_stops_owned_mock_child_without_claiming_measurement(self):
+        self.args.observe_until = 100.0
+        run_dir = self.out / "runs" / "demo-native-test"
+        child = mock.Mock(pid=12345, returncode=0)
+        child.poll.side_effect = [None, None, 0]
+
+        def spawn(*unused, **ignored):
+            (run_dir / "frames.csv").write_text(
+                "wall_ns,emulated_ticks,ticks_per_second\n90000000000,12000,100\n", encoding="utf-8")
+            (run_dir / "User/Logs/dolphin.log").write_text(
+                "AC stereo probe: OpenXR not initialized; synthetic eyes.\n", encoding="utf-8")
+            return child
+
+        with mock.patch.object(runner.subprocess, "Popen", side_effect=spawn) as popen, \
+                mock.patch.object(runner.time, "monotonic", return_value=0), \
+                mock.patch.object(runner.time, "sleep") as sleep, mock.patch("builtins.print") as output:
+            runner.run(self.args)
+
+        popen.assert_called_once()
+        sleep.assert_any_call(3)
+        child.terminate.assert_called_once()
+        child.wait.assert_called_once_with(timeout=20)
+        receipt = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+        self.assertEqual(receipt["stop_reason"], "observation_end")
+        self.assertEqual(receipt["observe_until_emulated_s"], 100.0)
+        self.assertFalse(receipt["measurement_window_complete"])
+        self.assertFalse(receipt["accepted_as_measurement"])
+        self.assertIn('"stop_reason": "observation_end"', output.call_args.args[0])
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_invalid_observation_time_rejects_before_preparation(self):
+        for value in (4.99, -1, float("inf"), float("nan")):
+            with self.subTest(value=value), mock.patch.object(runner.subprocess, "Popen") as popen:
+                self.args.observe_until = value
+                with self.assertRaisesRegex(ValueError, "finite and at least 5"):
+                    runner.run(self.args)
+                popen.assert_not_called()
+                self.assertFalse((self.out / "runs").exists())
+
+    def test_observation_cli_value_rejects_nonfinite_or_short_values(self):
+        self.assertEqual(runner.observation_time("5"), 5.0)
+        for value in ("4", "nan", "inf", "-inf"):
+            with self.subTest(value=value), self.assertRaises(runner.argparse.ArgumentTypeError):
+                runner.observation_time(value)
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_live_input_missing_ready_ack_stops_owned_child(self):
+        self.args.live_input = True
+        self.args.observe_until = 100
+        self.args.seconds = 120
+        run_dir = self.out / "runs" / "demo-native-test"
+        child = mock.Mock(pid=12345, returncode=0)
+        child.poll.return_value = None
+
+        def spawn(*unused, **kwargs):
+            self.assertEqual(kwargs['env']['DOLPHINXR_INPUT_APPEND'], str(run_dir / 'live-input.txt'))
+            self.assertTrue((run_dir / 'live-input.txt').is_file())
+            (run_dir / 'User/Logs/dolphin.log').write_text(
+                'AC stereo probe: OpenXR not initialized; synthetic eyes.\n', encoding='utf-8')
+            return child
+
+        clock = iter([0, 31, 31, 31])
+        with mock.patch.object(runner.subprocess, 'Popen', side_effect=spawn), \
+                mock.patch.object(runner.time, 'monotonic', side_effect=lambda: next(clock)), \
+                mock.patch.object(runner.time, 'sleep', side_effect=AssertionError('must stop at missing ACK')), \
+                mock.patch('builtins.print'):
+            runner.run(self.args)
+
+        child.terminate.assert_called_once()
+        child.wait.assert_called_once_with(timeout=20)
+        record = json.loads((run_dir / 'run.json').read_text(encoding='utf-8'))
+        self.assertEqual(record['stop_reason'], 'missing_live_input_guard')
+        self.assertFalse(record['measurement_window_complete'])
+        self.assertFalse(record['accepted_as_measurement'])
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_live_input_ready_ack_then_run_local_stop(self):
+        self.args.live_input = True
+        self.args.observe_until = 100
+        self.args.seconds = 120
+        run_dir = self.out / 'runs' / 'demo-native-test'
+        child = mock.Mock(pid=12345, returncode=0)
+        child.poll.return_value = None
+
+        def spawn(*unused, **ignored):
+            (run_dir / 'User/Logs/dolphin.log').write_text(
+                'AC stereo probe: OpenXR not initialized; synthetic eyes.\n', encoding='utf-8')
+            (run_dir / 'probe.log').write_text('t=0.0 AC_INPUT_APPEND ready\n', encoding='utf-8')
+            return child
+
+        def request_stop(unused):
+            self.assertFalse((run_dir / 'STOP').exists(), 'runner failed to honor STOP')
+            (run_dir / 'STOP').write_text('test-owned stop request', encoding='utf-8')
+
+        clock = iter([0, 31, 31, 31])
+        with mock.patch.object(runner.subprocess, 'Popen', side_effect=spawn), \
+                mock.patch.object(runner.time, 'monotonic', side_effect=lambda: next(clock)), \
+                mock.patch.object(runner.time, 'sleep', side_effect=request_stop), mock.patch('builtins.print'):
+            runner.run(self.args)
+
+        child.terminate.assert_called_once()
+        child.wait.assert_called_once_with(timeout=20)
+        record = json.loads((run_dir / 'run.json').read_text(encoding='utf-8'))
+        self.assertEqual(record['stop_reason'], 'operator_stop')
+        self.assertEqual(record['operator_stop_path'], str(run_dir / 'STOP'))
+        self.assertEqual(record['live_input_sha256'], runner.digest(run_dir / 'live-input.txt'))
+        self.assertFalse(record['measurement_window_complete'])
+        self.assertFalse(record['accepted_as_measurement'])
+
+    @unittest.skipUnless(os.name == "nt", "runner launches only on Windows")
+    def test_live_input_requires_observation_mode_before_process_creation(self):
+        self.args.live_input = True
+        self.args.observe_until = None
+        with mock.patch.object(runner.subprocess, "Popen") as popen:
+            with self.assertRaisesRegex(ValueError, "requires --observe-until"):
+                runner.run(self.args)
+        popen.assert_not_called()
 
     @unittest.skipUnless(os.name == "nt", "runner launches only on Windows")
     def test_marker_present_rejects_before_process_creation(self):

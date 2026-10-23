@@ -6,6 +6,7 @@ The caller supplies an already built probe and a private launch manifest/plan.
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -20,6 +21,13 @@ def digest(path):
 
 def below(path, root):
     return Path(path).resolve().is_relative_to(Path(root).resolve())
+
+
+def observation_time(value):
+    value = float(value)
+    if not math.isfinite(value) or value < 5:
+        raise argparse.ArgumentTypeError('--observe-until must be finite and at least 5 emulated seconds')
+    return value
 
 
 def copy_settings(live, seed, destination):
@@ -61,6 +69,15 @@ def copy_settings(live, seed, destination):
 def run(args):
     if os.name != 'nt':
         raise ValueError('This runner requires Windows hidden-process support.')
+    observe_until = getattr(args, 'observe_until', None)
+    live_input = getattr(args, 'live_input', False)
+    if live_input and observe_until is None:
+        raise ValueError('--live-input requires --observe-until; navigation is not a timing pass.')
+    if observe_until is not None:
+        try:
+            observe_until = observation_time(observe_until)
+        except (ValueError, argparse.ArgumentTypeError) as error:
+            raise ValueError(str(error)) from error
     marker = Path(args.marker).resolve()
     if marker.exists():
         raise RuntimeError(f'Headset marker present: {marker}')
@@ -133,6 +150,20 @@ def run(args):
         shots.update(original_shots[::max(1, len(original_shots) // 12)])
         shots.add(original_shots[-1])
     shots.update([start, start + 30, start + 65, end])
+    if args.capture_policy == 'before-window':
+        # PNG readback/compression can interrupt rendering. Keep a gameplay
+        # checkpoint ahead of the timing anchor and leave a settling interval.
+        # The caller must still review that checkpoint to establish its stage.
+        shots = {t for t in shots if 0 <= t <= start - 10}
+        if start >= 10:
+            shots.add(start - 10)
+    if observe_until is not None:
+        # Observation runs need a final state capture, then at least five
+        # emulated seconds for readback before the owned-process stop.
+        last_capture = observe_until - 5
+        shots = {t for t in shots if 0 <= t <= last_capture}
+        if args.capture_policy == 'sampled' or last_capture <= start - 10:
+            shots.add(last_capture)
     for t in sorted(shots):
         lines.append(f'shot {t:.3f} w0-{t:07.2f}')
     script = run_dir / 'input.txt'
@@ -190,14 +221,32 @@ def run(args):
                XR_RUNTIME_JSON=str(missing_runtime),
                DOLPHINXR_INPUT_SCRIPT=str(script),
                DOLPHINXR_INPUT_PROBE=str(run_dir / 'probe.log'))
+    inbox = run_dir / 'live-input.txt'
+    stop_file = run_dir / 'STOP'
+    if live_input:
+        inbox.write_text('# Append future timed input or screenshot commands only.\n', encoding='utf-8')
+        env['DOLPHINXR_INPUT_APPEND'] = str(inbox)
     receipt = {'game_key': args.game, 'view': view_id, 'rate': args.rate,
-               'phase': 'baseline', 'stage': 'unverified', 'argv': argv,
+               'phase': args.phase, 'stage': 'unverified', 'argv': argv,
                'exe': str(exe), 'exe_sha256': digest(exe),
                'manifest': str(manifest_path), 'manifest_sha256': digest(manifest_path),
                'script_source': str(original_script), 'script_sha256': digest(script),
                'input_until_emulated_s': args.input_until,
                'seed_user': str(seed), 'settings_source': str(live),
                'window_start_emulated_s': start, 'marker': str(marker),
+               'observe_until_emulated_s': observe_until,
+               'live_input_path': str(inbox) if live_input else None,
+               'operator_stop_path': str(stop_file) if live_input else None,
+               'capture_policy': args.capture_policy,
+               'scheduled_capture_emulated_seconds': sorted(shots),
+               'capture_overhead_note': (
+                   'Observation only; scheduled captures stop at least 5 emulated seconds '
+                   'before observation end. Asynchronous PNG write completion is not instrumented.'
+                   if observe_until is not None else
+                   'PNG captures may interrupt the measured interval.'
+                   if args.capture_policy == 'sampled' else
+                   'Captures stop at least 10 emulated seconds before the timing anchor; '
+                   'completion of asynchronous PNG writes is not instrumented.'),
                'evidence_level': 'unverified run record', 'real_compositor': 'not measured: no XR runtime',
                'guard_config': forced, 'run_dir': str(run_dir)}
     (run_dir / 'run.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
@@ -210,10 +259,13 @@ def run(args):
         child = subprocess.Popen(argv, cwd=exe.parent, env=env, stdout=stdout, stderr=stderr,
                                  creationflags=subprocess.CREATE_NO_WINDOW | subprocess.BELOW_NORMAL_PRIORITY_CLASS)
         receipt['pid'] = child.pid
+        (run_dir / 'run.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
         try:
             while child.poll() is None:
                 if marker.exists():
                     reason = 'headset_marker'; break
+                if live_input and stop_file.exists():
+                    reason = 'operator_stop'; break
                 if time.monotonic() - start_wall >= args.seconds:
                     reason = 'wall_deadline'; break
                 trace = run_dir / 'frames.csv'
@@ -232,18 +284,30 @@ def run(args):
                             wall = int(row['wall_ns']) / 1e9
                         except (KeyError, ValueError, ZeroDivisionError):
                             continue
-                        if emulated >= start and window_wall_origin is None:
-                            window_wall_origin = wall
-                        if window_wall_origin is not None and wall - window_wall_origin >= 65:
-                            reason = 'complete_wall_window'
+                        if observe_until is not None:
+                            if emulated >= observe_until:
+                                reason = 'observation_end'
+                        else:
+                            if emulated >= start and window_wall_origin is None:
+                                window_wall_origin = wall
+                            if window_wall_origin is not None and wall - window_wall_origin >= 65:
+                                reason = 'complete_wall_window'
                         break
-                    if reason == 'complete_wall_window':
+                    if reason in ('complete_wall_window', 'observation_end'):
+                        # Let an in-flight screenshot finish before the bounded
+                        # owned-process stop. Observation mode claims no window.
+                        time.sleep(3)
                         break
                 log = user / 'Logs/dolphin.log'
                 if time.monotonic() - start_wall > 30:
                     guard_text = log.read_text(encoding='utf-8', errors='replace') if log.is_file() else ''
                     if 'AC stereo probe: OpenXR not initialized; synthetic eyes.' not in guard_text:
                         reason = 'missing_synthetic_guard'; break
+                    if live_input:
+                        probe_log = run_dir / 'probe.log'
+                        probe_text = probe_log.read_text(encoding='utf-8', errors='replace') if probe_log.is_file() else ''
+                        if 'AC_INPUT_APPEND ready' not in probe_text:
+                            reason = 'missing_live_input_guard'; break
                 time.sleep(0.5)
         finally:
             if child.poll() is None:
@@ -257,8 +321,10 @@ def run(args):
     receipt['synthetic_guard_logged'] = 'AC stereo probe: OpenXR not initialized; synthetic eyes.' in text
     receipt['fifo_error_mentions'] = text.count('Unknown Opcode')
     receipt['screenshots'] = [str(p) for p in (user / 'ScreenShots').rglob('*.png')]
-    receipt['measurement_window_complete'] = reason == 'complete_wall_window'
+    receipt['measurement_window_complete'] = observe_until is None and reason == 'complete_wall_window'
     receipt['accepted_as_measurement'] = False  # analysis and stage review are required
+    if live_input:
+        receipt['live_input_sha256'] = digest(inbox)
     (run_dir / 'run.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
     print(json.dumps({k: receipt[k] for k in ('game_key', 'rate', 'stop_reason', 'wall_duration_s', 'synthetic_guard_logged', 'run_dir')}), flush=True)
 
@@ -270,7 +336,14 @@ def main():
     ap.add_argument('--view')
     ap.add_argument('--rate', choices=('native', '72', '90'), default='native')
     ap.add_argument('--tag', default='baseline')
+    ap.add_argument('--phase', choices=('baseline', 'before', 'after'), default='baseline')
+    ap.add_argument('--capture-policy', choices=('sampled', 'before-window'), default='sampled',
+                    help='before-window keeps scheduled PNG capture work outside timing windows')
     ap.add_argument('--start', type=float)
+    ap.add_argument('--observe-until', type=observation_time,
+                    help='stop after this emulated time plus a 3s flush; observation only, no timing-window claim')
+    ap.add_argument('--live-input', action='store_true',
+                    help='observation-only append inbox for a compatible offline probe; never drives desktop input')
     ap.add_argument('--input-until', type=float, help='omit later input events, such as a scripted pause')
     ap.add_argument('--seconds', type=int, default=600)
     ap.add_argument('--yaw', type=float, default=0)

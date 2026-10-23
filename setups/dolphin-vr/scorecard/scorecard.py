@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import math
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import sys
 
@@ -34,7 +34,7 @@ def utc_now():
 
 
 def absolute(path):
-    return isinstance(path, str) and (Path(path).is_absolute() or PureWindowsPath(path).is_absolute())
+    return isinstance(path, str) and (PurePosixPath(path).is_absolute() or PureWindowsPath(path).is_absolute())
 
 
 def private_output(path):
@@ -232,6 +232,69 @@ def escape(value):
     return display(value).replace("|", "\\|").replace("\r", " ").replace("\n", " ")
 
 
+def scoped_runs(game):
+    for view_name, view in game["views"].items():
+        for index, run in enumerate(view["runs"], 1):
+            scope = "/".join((view_name, run["phase"], run.get("stage") or "unassigned"))
+            yield scope + " r" + str(index) + " " + run["evidence_level"], run
+
+
+def overview_cell(game, group):
+    """Summarize reported fields without combining different run scopes."""
+    entries = []
+    fields = {
+        "stereo": (("distinct_eyes", "eyes differ"), ("near_px_1920", "near@1920"),
+                   ("far_px_1920", "far@1920"), ("near_px", "raw near"), ("far_px", "raw far")),
+        "placement_2d": (("classification", "placement"), ("disparity_px_1920", "px@1920")),
+        "scale": (("known_object", "object"), ("units_per_metre", "units/m"),
+                  ("assumed_size_uncertainty_m", "object +/-m"), ("uncertainty", "uncertainty")),
+        "image": (("aliasing", "aliasing"), ("artefacts", "artefacts")),
+        "controls": (("aim_error_percent", "aim error %"), ("aim_points", "aim points")),
+        "launch": (("print_only", "print-only"), ("exit_code", "exit"),
+                   ("program_exists", "program exists"), ("disc_exists", "disc exists")),
+    }
+    for scope, run in scoped_runs(game):
+        values = run["metrics"].get(group, {})
+        parts = []
+        if group == "frames":
+            for channel, frame in values.items():
+                if not any(value is not None for value in frame.values()):
+                    continue
+                observed = []
+                for key, label in (("target_hz", "target Hz"), ("wall_duration_s", "wall s"),
+                                   ("emulated_duration_s", "emu s"), ("present_count", "source events"),
+                                   ("expected_wall_frames", "expected wall frames"),
+                                   ("eligible_stereo_frame_count", "eligible stereo events"),
+                                   ("layers_min", "layers min"), ("layers_max", "layers max"),
+                                   ("fresh_stereo_xfb_frames", "fresh stereo XFB"),
+                                   ("fresh_mono_or_blank_xfb_frames", "fresh mono/blank XFB"),
+                                   ("fifo_unknown_opcode_mentions_entire_run", "FIFO warnings entire run"),
+                                   ("capture_policy", "capture policy")):
+                    if frame.get(key) is not None:
+                        observed.append(label + "=" + display(frame[key]))
+                if observed:
+                    parts.append(channel + ": " + ", ".join(observed))
+        else:
+            for key, label in fields[group]:
+                if values.get(key) is not None:
+                    # Prefer normalized disparity when it exists; retain raw
+                    # measurements in the detailed receipt below.
+                    if group == "stereo" and key in ("near_px", "far_px") and values.get(key + "_1920") is not None:
+                        continue
+                    parts.append(label + "=" + display(values[key]))
+            if group == "controls" and values.get("bindings"):
+                parts.append("binding observations recorded")
+        if parts:
+            entries.append(escape(scope + ": " + "; ".join(parts)))
+    return "<br>".join(entries) if entries else "unknown"
+
+
+def overview_stages(game):
+    stages = [escape(scope) for scope, run in scoped_runs(game)
+              if run["evidence_level"] in ("E2", "E3")]
+    return "<br>".join(stages) if stages else "unknown"
+
+
 def markdown(card):
     lines = ["# Wii W0 scorecard", "", "Generated: " + card["updated_at"], "",
              "Source baseline E0: `" + card["source"]["manifest_path"] + "`",
@@ -239,15 +302,18 @@ def markdown(card):
              "Unknown means unmeasured. No pass is inferred. E0 = source/launch plan; E2 = offline evidence; E3 requires an explicit owner's receipt.",
              "Offline present counts and eligible stereo frame counts do not measure real compositor delivery or headset comfort.",
              "Near/far disparity is pixels normalized to 1920 pixels per eye; scale is game units per metre with object-size assumptions.",
-             "Frame cells show observed offline presents / expected wall frames. Fresh/repeated content and timing scope are recorded separately below.", "",
-             "| Game | Views | Current evidence | Stereo | 2D | Scale | Frames | Image | Controls | Launch |",
-             "|---|---|---|---|---|---|---|---|---|---|"]
+             "Overview scopes are view/phase/stage and per-view receipt ordinal. Unassigned means the stage was not verified. No values are merged across receipts.",
+             "Frame source-event counts and expected wall frames are separate observations; source availability is not actual delivery. Exact timing scopes and receipt paths follow below.", "",
+             "| Game | Views | Current evidence | Stages / scoped receipts | Stereo | 2D | Scale | Frames | Image | Controls | Launch |",
+             "|---|---|---|---|---|---|---|---|---|---|---|"]
     for game in card["games"].values():
         runs = [r for v in game["views"].values() for r in v["runs"]]
         levels = sorted(set(r["evidence_level"] for r in runs))
         evidence = "E0 baseline" + ("; receipts " + ", ".join(levels) + " (scope below)" if levels else "")
-        lines.append("| " + " | ".join(escape(v) for v in [game["title"], ", ".join(game["views"]), evidence] + ["unknown"] * 7) + " |")
-    lines += ["", "Overview metrics remain unknown until a comparable per-game finding is supplied; individual receipts are not promoted to game acceptance."]
+        cells = [escape(game["title"]), escape(", ".join(game["views"])), escape(evidence), overview_stages(game)]
+        cells += [overview_cell(game, group) for group in ("stereo", "placement_2d", "scale", "frames", "image", "controls", "launch")]
+        lines.append("| " + " | ".join(cells) + " |")
+    lines += ["", "Overview values report supplied evidence only. Missing fields remain unknown in each detailed receipt; no game-wide pass or owner acceptance is inferred."]
     for key, game in card["games"].items():
         lines += ["", "## " + escape(game["title"]) + " (`" + key + "`)", "",
                   "E0 identity: launcher key and title. IDs inferred from INI filenames are unverified against disc headers."]

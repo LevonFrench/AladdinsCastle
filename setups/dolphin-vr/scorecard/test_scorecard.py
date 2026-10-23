@@ -22,14 +22,14 @@ class ScorecardTests(unittest.TestCase):
         self.manifest = self.root / "games.json"
         self.manifest.write_text(json.dumps({"synthetic": {
             "title": "Synthetic | example", "status": "Historical E2 claim",
-            "views": {"3d": {"disc": "F:/private/example.wbfs", "user": "J:/private/User",
+            "views": {"3d": {"disc": "/synthetic/discs/example.wbfs", "user": "/synthetic/settings/User",
                               "config": ["Graphics.Settings.MSAA=4"],
-                              "gameIni": {"path": "J:/private/GameSettings/ABCE01.ini", "content": []},
+                              "gameIni": {"path": "/synthetic/settings/GameSettings/ABCE01.ini", "content": []},
                               "notes": ["Historical stereo claim"]}}}}), encoding="utf-8")
         self.card = sc.initialize(self.manifest)
         self.receipt = {"schema_version": 1, "game_key": "synthetic", "view": "3d",
                         "phase": "before", "stage": "gameplay", "evidence_level": "E2",
-                        "evidence_kind": "offline", "evidence_paths": ["J:/private/run/frames.json"],
+                        "evidence_kind": "offline", "evidence_paths": ["/synthetic/.local/run/frames.json"],
                         "metrics": {}}
 
     def import_run(self, receipt=None, filename="receipt.json"):
@@ -119,6 +119,26 @@ class ScorecardTests(unittest.TestCase):
         self.receipt["metrics"] = {"stereo": {"near_px": float("nan")}}
         with self.assertRaises(ValueError):
             self.import_run()
+
+    def test_overview_reports_measurements_without_merging_scopes(self):
+        self.receipt["metrics"] = {"frames": {"native": {"target_hz": 60,
+            "wall_duration_s": 60, "present_count": 3500, "fresh_stereo_xfb_frames": 3400}}}
+        self.import_run()
+        after = copy.deepcopy(self.receipt)
+        after["phase"] = "after"
+        after.pop("stage")
+        after["metrics"]["frames"]["native"]["present_count"] = 3550
+        self.import_run(after, "after.json")
+        game = self.card["games"]["synthetic"]
+        cell = sc.overview_cell(game, "frames")
+        self.assertIn("3d/before/gameplay r1 E2", cell)
+        self.assertIn("source events=3500", cell)
+        self.assertIn("fresh stereo XFB=3400", cell)
+        self.assertIn("3d/after/unassigned r2 E2", cell)
+        self.assertIn("source events=3550", cell)
+        self.assertEqual(sc.overview_cell(game, "stereo"), "unknown")
+        self.assertIn("3d/after/unassigned", sc.overview_stages(game))
+        self.assertEqual(game["evidence_level"], "E0")
 
 
 if __name__ == "__main__":

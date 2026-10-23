@@ -9,6 +9,7 @@
 // DOLPHINXR_INPUT_PROBE=<file>   appends one line per change of what emulated Wii Remote 1
 //                                reports to the game (buttons, accel, IR dot, MotionPlus,
 //                                Nunchuk stick/buttons/accel).
+// DOLPHINXR_INPUT_APPEND=<file> optional append-only future commands, synthetic offline only.
 //
 // Script lines: "<from_s> <to_s> <L|R> <control> <value>" or "shot <at_s> <name>".
 // Controls: primary secondary menu thumbclick trigger squeeze stick_x stick_y
@@ -27,8 +28,10 @@
 #include <vector>
 
 #include "Common/VR/OpenXRInputState.h"
+#include "Core/ACInputAppend.h"
 #include "Core/Core.h"
 #include "Core/HW/WiimoteEmu/DesiredWiimoteState.h"
+#include "VideoCommon/VR/OpenXRManager.h"
 
 namespace ACInputProbe
 {
@@ -55,6 +58,10 @@ struct State
   std::vector<Shot> shots;
   std::FILE* probe = nullptr;
   std::string last;
+  std::string append_path;
+  Append::Inbox inbox;
+  std::size_t fixed_steps = 0, fixed_shots = 0;
+  bool append_purged = false;
 };
 
 inline State& Get()
@@ -92,6 +99,10 @@ inline State& Get()
     }
     if (const char* path = std::getenv("DOLPHINXR_INPUT_PROBE"); path && *path)
       s.probe = std::fopen(path, "a");
+    if (const char* path = std::getenv("DOLPHINXR_INPUT_APPEND"); path && *path)
+      s.append_path = path;  // No file access until Feed validates the offline gate.
+    s.fixed_steps = s.steps.size();
+    s.fixed_shots = s.shots.size();
   }
   return s;
 }
@@ -115,6 +126,69 @@ inline void Feed(double t)
   State& s = Get();
   if (!s.script_on)
     return;
+
+  // Feed's BTEmu call site is only ENABLE_VR-guarded. Restrict the NEW inbox
+  // explicitly; never infer offline status from the synthetic input snapshot.
+  const char* synthetic = std::getenv("AC_STEREO_PROBE");
+  if (!s.append_path.empty() && !s.append_purged && s.probe && synthetic && std::string(synthetic) == "1" &&
+      !VR::g_openxr)
+  {
+    auto log = [&](const std::string& message) {
+      std::fprintf(s.probe, "t=%.3f %s\n", t, message.c_str());
+      std::fflush(s.probe);
+    };
+    s.inbox.Poll(s.append_path, t, [&](const Append::Command& command) {
+      if (command.shot)
+      {
+        for (const Shot& old : s.shots)
+          if (Append::SameName(old.name, command.name))
+          {
+            log("AC_INPUT_APPEND rejected reason=duplicate_shot_name");
+            return false;
+          }
+        if (s.shots.size() >= Append::MAX_TOTAL_SHOTS)
+        {
+          log("AC_INPUT_APPEND rejected reason=shot_cap");
+          return false;
+        }
+        s.shots.push_back({command.from, command.name, false});
+        log("AC_INPUT_APPEND accepted shot " + std::to_string(command.from) + " " + command.name);
+      }
+      else
+      {
+        if (s.steps.size() >= Append::MAX_TOTAL_STEPS)
+        {
+          log("AC_INPUT_APPEND rejected reason=step_cap");
+          return false;
+        }
+        s.steps.push_back({command.from, command.to, command.hand, command.control, command.value});
+        log("AC_INPUT_APPEND accepted step " + std::to_string(command.from) + " " +
+            std::to_string(command.to) + " " + (command.hand == 0 ? "L " : "R ") +
+            command.control + " " + std::to_string(command.value));
+      }
+      return true;
+    }, log);
+    if (s.inbox.Disabled() && !s.append_purged)
+    {
+      s.steps.resize(s.fixed_steps);
+      s.shots.resize(s.fixed_shots);
+      s.append_purged = true;
+      log("AC_INPUT_APPEND purged appended actions; fixed replay retained");
+    }
+  }
+  else if (s.inbox.Ready() && !s.append_purged)
+  {
+    // A manager appearing or the opt-in gate changing revokes appended input.
+    // Never reactivate the inbox or replay its already consumed bytes.
+    s.steps.resize(s.fixed_steps);
+    s.shots.resize(s.fixed_shots);
+    s.append_purged = true;
+    if (s.probe)
+    {
+      std::fprintf(s.probe, "t=%.3f AC_INPUT_APPEND disabled reason=offline_gate_lost\n", t);
+      std::fflush(s.probe);
+    }
+  }
 
   std::array<Common::VR::OpenXRControllerState, 2> c{};
   std::array<float, 2> yaw{}, pitch{}, roll{};
@@ -164,7 +238,11 @@ inline void Feed(double t)
       shot.done = true;
       Core::SaveScreenShot(shot.name);
       if (s.probe)
+      {
         std::fprintf(s.probe, "t=%.3f shot %s\n", t, shot.name.c_str());
+        if (!s.append_path.empty())
+          std::fflush(s.probe);
+      }
     }
   }
 }
