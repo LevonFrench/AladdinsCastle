@@ -1,0 +1,1348 @@
+{
+ "catalog_games": 443,
+ "models": [
+  {
+   "id": "arc-pistol-slide",
+   "kind": "gun",
+   "name": "Arcade pistol with blowback slide",
+   "family": "arcade",
+   "hold": "one-hand",
+   "shape": "Full-size semi-automatic with a separate slide that travels back about 15 mm, chunky rounded grip, cable boss under the grip.",
+   "length_mm": 255,
+   "tint": {
+    "body": "#d2362e",
+    "accent": "#50535a"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "recoil": {
+     "node": "slide_recoil",
+     "kind": "slide",
+     "axis": [
+      0,
+      0,
+      1
+     ],
+     "range": [
+      0,
+      0.015
+     ],
+     "drive": "recoil",
+     "lod_nodes": [
+      "slide_recoil",
+      "slide_recoil_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/arc-pistol-slide.glb"
+  },
+  {
+   "id": "arc-pistol-twin",
+   "kind": "gun",
+   "name": "Arcade twin-gun pistol",
+   "family": "arcade",
+   "hold": "one-hand",
+   "shape": "Stocky pistol with a squared barrel block, a moulded revolver-style cylinder and a wide trigger guard.",
+   "length_mm": 245,
+   "tint": {
+    "body": "#cf2f2b",
+    "accent": "#50535a"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "recoil": {
+     "node": "visual_kick",
+     "kind": "rotate",
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.05
+     ],
+     "drive": "recoil",
+     "lod_nodes": [
+      "visual_kick",
+      "visual_kick_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/arc-pistol-twin.glb"
+  },
+  {
+   "id": "generic-pistol",
+   "kind": "gun",
+   "name": "Plain arcade pistol",
+   "family": "generic",
+   "hold": "one-hand",
+   "shape": "Compact semi-automatic outline with a thick grip and a short flat-topped barrel.",
+   "length_mm": 230,
+   "tint": {
+    "body": "#c8322b",
+    "accent": "#50535a"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/generic-pistol.glb"
+  },
+  {
+   "id": "funcon",
+   "kind": "gun",
+   "name": "The Funcon",
+   "family": "console",
+   "hold": "one-hand",
+   "shape": "Deep box barrel with a round lens in a flat muzzle, long grip angled back, large trigger guard, one oval button on each side below the barrel, cable from the grip base; the top slide kicks back on each shot.",
+   "length_mm": 246,
+   "tint": {
+    "body": "#1b1b1e",
+    "accent": "#8a8d93"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "recoil": {
+     "node": "slide_recoil",
+     "kind": "slide",
+     "axis": [
+      0,
+      0,
+      1
+     ],
+     "range": [
+      0,
+      0.015
+     ],
+     "drive": "recoil",
+     "lod_nodes": [
+      "slide_recoil",
+      "slide_recoil_lod1"
+     ]
+    },
+    "button-a": {
+     "node": "button_a",
+     "kind": "slide",
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:a",
+     "lod_nodes": [
+      "button_a",
+      "button_a_lod1"
+     ]
+    },
+    "button-b": {
+     "node": "button_b",
+     "kind": "slide",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:b",
+     "lod_nodes": [
+      "button_b",
+      "button_b_lod1"
+     ]
+    }
+   },
+   "hands": {},
+   "licence": "CC0-1.0",
+   "file": "models/funcon.glb"
+  },
+  {
+   "id": "con-pistol-dpad",
+   "kind": "gun",
+   "name": "Console pistol with rear d-pad",
+   "family": "console",
+   "hold": "one-hand",
+   "shape": "Smaller, rounder pistol; small d-pad on the back where a hammer would be; two buttons above the trigger guard; one button at the bottom of the grip.",
+   "length_mm": 225,
+   "tint": {
+    "body": "#1b1b1e",
+    "accent": "#8a8d93"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "button-a": {
+     "node": "button_a",
+     "kind": "slide",
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:a",
+     "lod_nodes": [
+      "button_a",
+      "button_a_lod1"
+     ]
+    },
+    "button-b": {
+     "node": "button_b",
+     "kind": "slide",
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:b",
+     "lod_nodes": [
+      "button_b",
+      "button_b_lod1"
+     ]
+    },
+    "button-c": {
+     "node": "button_c",
+     "kind": "slide",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:c",
+     "lod_nodes": [
+      "button_c",
+      "button_c_lod1"
+     ]
+    },
+    "button-select": {
+     "node": "button_select",
+     "kind": "slide",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:select",
+     "lod_nodes": [
+      "button_select",
+      "button_select_lod1"
+     ]
+    },
+    "button-start": {
+     "node": "button_start",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:start",
+     "lod_nodes": [
+      "button_start",
+      "button_start_lod1"
+     ]
+    },
+    "button-dpad": {
+     "node": "button_dpad",
+     "kind": "slide",
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:dpad",
+     "lod_nodes": [
+      "button_dpad",
+      "button_dpad_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/con-pistol-dpad.glb"
+  },
+  {
+   "id": "con-pistol-slim",
+   "kind": "gun",
+   "name": "Slim console pistol",
+   "family": "console",
+   "hold": "one-hand",
+   "shape": "Slim automatic-style pistol, long flat barrel, round lens at the muzzle, one oval button on each side under the barrel.",
+   "length_mm": 240,
+   "tint": {
+    "body": "#1b1b1e",
+    "accent": "#8a8d93"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "button-a": {
+     "node": "button_a",
+     "kind": "slide",
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:a",
+     "lod_nodes": [
+      "button_a",
+      "button_a_lod1"
+     ]
+    },
+    "button-b": {
+     "node": "button_b",
+     "kind": "slide",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:b",
+     "lod_nodes": [
+      "button_b",
+      "button_b_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/con-pistol-slim.glb"
+  },
+  {
+   "id": "con-revolver-chunky",
+   "kind": "gun",
+   "name": "Chunky console revolver",
+   "family": "console",
+   "hold": "one-hand",
+   "shape": "Short, thick revolver-like pistol with a blocky barrel shroud, a fixed cylinder bulge and a Start button on the left side.",
+   "length_mm": 230,
+   "tint": {
+    "body": "#1b1b1e",
+    "accent": "#f2c81e"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "button-start": {
+     "node": "button_start",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:start",
+     "lod_nodes": [
+      "button_start",
+      "button_start_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/con-revolver-chunky.glb"
+  },
+  {
+   "id": "con-remote-shell",
+   "kind": "gun",
+   "name": "Remote shell",
+   "family": "console",
+   "hold": "one-hand",
+   "shape": "Long flat barrel with a remote-shaped bar, forward trigger grip, open rear handle dropping down and back",
+   "length_mm": 300,
+   "tint": {
+    "body": "#eef0f3",
+    "accent": "#aeb5bd"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.3
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "button-a": {
+     "node": "button_a",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:a",
+     "lod_nodes": [
+      "button_a",
+      "button_a_lod1"
+     ]
+    },
+    "button-dpad": {
+     "node": "button_dpad",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:dpad",
+     "lod_nodes": [
+      "button_dpad",
+      "button_dpad_lod1"
+     ]
+    },
+    "button-plus": {
+     "node": "button_plus",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:plus",
+     "lod_nodes": [
+      "button_plus",
+      "button_plus_lod1"
+     ]
+    },
+    "button-minus": {
+     "node": "button_minus",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:minus",
+     "lod_nodes": [
+      "button_minus",
+      "button_minus_lod1"
+     ]
+    },
+    "button-one": {
+     "node": "button_one",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:one",
+     "lod_nodes": [
+      "button_one",
+      "button_one_lod1"
+     ]
+    },
+    "button-two": {
+     "node": "button_two",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:two",
+     "lod_nodes": [
+      "button_two",
+      "button_two_lod1"
+     ]
+    },
+    "button-home": {
+     "node": "button_home",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:home",
+     "lod_nodes": [
+      "button_home",
+      "button_home_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/con-remote-shell.glb"
+  },
+  {
+   "id": "con-stick-grip",
+   "kind": "controller",
+   "name": "Analog stick grip",
+   "family": "console",
+   "hold": "one-hand",
+   "shape": "Rounded tapered grip, analog stick on top, C and Z on the front; no cable or muzzle",
+   "length_mm": 120,
+   "tint": {
+    "body": "#eef0f3",
+    "accent": "#aeb5bd"
+   },
+   "motion": {
+    "stick-x": {
+     "node": "pivot_stick_x",
+     "kind": "rotate",
+     "axis": [
+      0,
+      0,
+      -1
+     ],
+     "range": [
+      -0.35,
+      0.35
+     ],
+     "drive": "stick_x",
+     "lod_nodes": [
+      "pivot_stick_x",
+      "pivot_stick_x_lod1"
+     ]
+    },
+    "stick-y": {
+     "node": "pivot_stick_y",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      -0.35,
+      0.35
+     ],
+     "drive": "stick_y",
+     "lod_nodes": [
+      "pivot_stick_y",
+      "pivot_stick_y_lod1"
+     ]
+    },
+    "button-stick": {
+     "node": "button_stick",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:stick",
+     "lod_nodes": [
+      "button_stick",
+      "button_stick_lod1"
+     ]
+    },
+    "button-c": {
+     "node": "button_c",
+     "kind": "slide",
+     "axis": [
+      0,
+      0,
+      1
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:c",
+     "lod_nodes": [
+      "button_c",
+      "button_c_lod1"
+     ]
+    },
+    "button-z": {
+     "node": "button_z",
+     "kind": "slide",
+     "axis": [
+      0,
+      0,
+      1
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:z",
+     "lod_nodes": [
+      "button_z",
+      "button_z_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      -0.005,
+      0.012
+     ],
+     "rotation_xyzw": [
+      0.0,
+      0,
+      0,
+      1.0
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      -0.005,
+      0.012
+     ],
+     "rotation_xyzw": [
+      0.0,
+      0,
+      0,
+      1.0
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/con-stick-grip.glb"
+  },
+  {
+   "id": "con-pointer-remote",
+   "kind": "controller",
+   "name": "Pointer remote",
+   "family": "console",
+   "hold": "one-hand",
+   "shape": "Rounded bar pointing along -Z; buttons on the top face, B trigger under the A button, dark infrared window at the front, strap loop at the back",
+   "length_mm": 148,
+   "tint": {
+    "body": "#eef0f3",
+    "accent": "#d9dde2"
+   },
+   "motion": {
+    "button-dpad": {
+     "node": "button_dpad",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "button:dpad",
+     "lod_nodes": [
+      "button_dpad",
+      "button_dpad_lod1"
+     ]
+    },
+    "button-a": {
+     "node": "button_a",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "button:a",
+     "lod_nodes": [
+      "button_a",
+      "button_a_lod1"
+     ]
+    },
+    "button-b": {
+     "node": "button_b",
+     "kind": "slide",
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "button:b",
+     "lod_nodes": [
+      "button_b",
+      "button_b_lod1"
+     ]
+    },
+    "button-minus": {
+     "node": "button_minus",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "button:minus",
+     "lod_nodes": [
+      "button_minus",
+      "button_minus_lod1"
+     ]
+    },
+    "button-home": {
+     "node": "button_home",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "button:home",
+     "lod_nodes": [
+      "button_home",
+      "button_home_lod1"
+     ]
+    },
+    "button-plus": {
+     "node": "button_plus",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "button:plus",
+     "lod_nodes": [
+      "button_plus",
+      "button_plus_lod1"
+     ]
+    },
+    "button-one": {
+     "node": "button_one",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "button:one",
+     "lod_nodes": [
+      "button_one",
+      "button_one_lod1"
+     ]
+    },
+    "button-two": {
+     "node": "button_two",
+     "kind": "slide",
+     "axis": [
+      0,
+      -1,
+      0
+     ],
+     "range": [
+      0,
+      0.0015
+     ],
+     "drive": "button:two",
+     "lod_nodes": [
+      "button_two",
+      "button_two_lod1"
+     ]
+    }
+   },
+   "hands": {},
+   "licence": "CC0-1.0",
+   "file": "models/con-pointer-remote.glb"
+  },
+  {
+   "id": "mnt-mg-heavy",
+   "kind": "gun",
+   "name": "Pivot-mounted heavy machine gun",
+   "family": "mounted",
+   "hold": "mounted",
+   "shape": "Fat barrel shroud on a yoke that turns and tilts, two rear handles or a rear grip plus a top handle, a thumb button on the side.",
+   "length_mm": 650,
+   "tint": {
+    "body": "#26262a",
+    "accent": "#7d8087"
+   },
+   "motion": {
+    "trigger": {
+     "node": "pivot_trigger",
+     "kind": "rotate",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.35
+     ],
+     "drive": "trigger",
+     "lod_nodes": [
+      "pivot_trigger",
+      "pivot_trigger_lod1"
+     ]
+    },
+    "yaw": {
+     "node": "pivot_yaw",
+     "kind": "rotate",
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "range": [
+      -0.7,
+      0.7
+     ],
+     "drive": "yaw",
+     "lod_nodes": [
+      "pivot_yaw",
+      "pivot_yaw_lod1"
+     ]
+    },
+    "pitch": {
+     "node": "pivot_pitch",
+     "kind": "rotate",
+     "axis": [
+      1,
+      0,
+      0
+     ],
+     "range": [
+      -0.4,
+      0.4
+     ],
+     "drive": "pitch",
+     "lod_nodes": [
+      "pivot_pitch",
+      "pivot_pitch_lod1"
+     ]
+    },
+    "button-special": {
+     "node": "button_special",
+     "kind": "slide",
+     "axis": [
+      -1,
+      0,
+      0
+     ],
+     "range": [
+      0,
+      0.002
+     ],
+     "drive": "button:special",
+     "lod_nodes": [
+      "button_special",
+      "button_special_lod1"
+     ]
+    }
+   },
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.0,
+      0,
+      0,
+      1.0
+     ]
+    },
+    "left": {
+     "node": "grip_two",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.0,
+      0,
+      0,
+      1.0
+     ]
+    }
+   },
+   "licence": "CC0-1.0",
+   "file": "models/mnt-mg-heavy.glb"
+  },
+  {
+   "id": "wheel-three-spoke",
+   "kind": "control",
+   "name": "Three-spoke steering wheel",
+   "licence": "CC0-1.0",
+   "file": "models/wheel-three-spoke.glb"
+  },
+  {
+   "id": "shifter-sequential",
+   "kind": "control",
+   "name": "Sequential shifter",
+   "licence": "CC0-1.0",
+   "file": "models/shifter-sequential.glb"
+  },
+  {
+   "id": "shifter-four-gate",
+   "kind": "control",
+   "name": "Four-gate shifter",
+   "licence": "CC0-1.0",
+   "file": "models/shifter-four-gate.glb"
+  },
+  {
+   "id": "pedals-dual",
+   "kind": "control",
+   "name": "Accelerator and brake pedals",
+   "licence": "CC0-1.0",
+   "file": "models/pedals-dual.glb"
+  },
+  {
+   "id": "bars-motorcycle",
+   "kind": "control",
+   "name": "Motorcycle handlebars",
+   "licence": "CC0-1.0",
+   "file": "models/bars-motorcycle.glb"
+  },
+  {
+   "id": "stick-arcade",
+   "kind": "control",
+   "name": "Arcade joystick",
+   "licence": "CC0-1.0",
+   "file": "models/stick-arcade.glb"
+  },
+  {
+   "id": "grip-hand-right",
+   "kind": "hand",
+   "name": "Right grip hand",
+   "licence": "CC0-1.0",
+   "file": "models/grip-hand-right.glb"
+  },
+  {
+   "id": "grip-hand-left",
+   "kind": "hand",
+   "name": "Left grip hand",
+   "licence": "CC0-1.0",
+   "file": "models/grip-hand-left.glb"
+  }
+ ]
+}

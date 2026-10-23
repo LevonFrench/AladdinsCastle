@@ -186,3 +186,20 @@
   .flow-page .hud-links a:nth-child(n+3) { display: none; }
   .pipe { margin-top: 48px; }
 }
+
+/* game list: compact title grid */
+.titles {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px;
+}
+.titles .game {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 12px;
+  background: var(--node-bg);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+}
+.titles .t { font: 600 15px/1.3 var(--body); color: #fff; }
+.titles .n { font-size: 13px; color: var(--ink-dim); }
+.titles .state { align-self: flex-start; margin-top: 2px; }
