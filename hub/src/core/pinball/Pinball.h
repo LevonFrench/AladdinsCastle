@@ -3,13 +3,15 @@
 #include <QVariantMap>
 #include <QVariantList>
 #include <QString>
+#include "Script.h"
 namespace ac::pinball {
 QVariantMap inspect(const QString &path);
-QVariantMap scan(const QString &folder,const QString &database={},const QString &romFolder={},const QString &mediaFolder={});
+QString pinmameFolderForExecutable(const QString &executable);
+QVariantMap scan(const QString &folder,const QString &database={},const QString &romFolder={},const QString &mediaFolder={},const QString &pinmameFolder={});
 // What a saved scan was made from: the scanner's version, how many tables there are and when the newest table,
-// ROM or database changed. A saved scan whose fingerprint differs from the folders now is out of date.
-// Reads names and dates only (no table is opened); bounded like the scan.
-QVariantMap fingerprint(const QString &folder,const QString &database={},const QString &romFolder={});
+// ROM or database changed, including nested ROM entries and VPMAlias.txt content.
+// Reads bounded ROM metadata, names and dates (no table is opened).
+QVariantMap fingerprint(const QString &folder,const QString &database={},const QString &romFolder={},const QString &pinmameFolder={});
 QVariantMap launchGuidance();
 // With vr and an owned root the plan asks VPX for the headset explicitly: it adds
 // -TableIni <ownedRoot>/user/pinball/<table id>.ini, a Hub-owned per-table settings

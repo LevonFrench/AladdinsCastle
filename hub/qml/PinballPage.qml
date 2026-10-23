@@ -144,12 +144,14 @@ Item {
      PillButton {text:page.selected.favourite?"Unfavourite":"Favourite";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.favouritePinball()}
      PillButton {text:"Include in headset";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(true)}
      PillButton {text:"Exclude";vrOverlayMode:page.vrOverlayMode;onClicked:uiController.markPinball(false)}
+     PillButton {objectName:"pinballVpsEntry";text:"VPS entry";visible:!!page.selected.vpsUrl;vrOverlayMode:page.vrOverlayMode;onClicked:Qt.openUrlExternally(page.selected.vpsUrl)}
      PillButton {text:"Locate VPX";visible:!page.vrOverlayMode;vrOverlayMode:page.vrOverlayMode;onClicked:{page.locationKey="pinballExecutable";file.nameFilters=["Program (*.exe)"];file.open()}}
     }
     UiText {objectName:"pinballAccepted";width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted_detail");font.pixelSize:page.vrOverlayMode?16:14
      text:{let when=(uiSettings.values,uiSettings.acceptedOn("pinball-"+(page.selected.id||""),page.selected.title||""));return "In the headset: "+(when?"accepted by you ("+when+")":"not yet accepted by you")+"."}}
     UiText {width:parent.width;wrapMode:Text.Wrap;font.pixelSize:page.vrOverlayMode?17:15;text:(page.headsetReason?page.headsetReason+" ":"")+(page.selected.vrReady===true?"":"You excluded this table from the headset, so it launches on the desktop only. ")+"On the desktop VR stays off and SteamVR is not needed. In the headset, VR controllers: X opens the in-game menu; hold Y for 3 seconds to close the table (with the Hub open as the SteamVR panel), or press Y together with the left stick click."}
     UiText {width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted_detail");font.pixelSize:page.vrOverlayMode?15:13;text:Array.from(page.selected.evidence||[]).join(", ")+(page.selected.features&&page.selected.features.length?"  ·  "+Array.from(page.selected.features).join(", "):"")}
+    UiText {width:parent.width;wrapMode:Text.Wrap;color:Theme.get("color.text.muted_detail");visible:!!page.selected.romReason;font.pixelSize:page.vrOverlayMode?15:13;text:page.selected.romReason||""}
     // The gamepad layout the Hub sets for an Xbox-style controller, for both launches.
     Text {text:"Gamepad";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:page.vrOverlayMode?22:19;topPadding:6}
     Grid {objectName:"pinballGamepad";columns:2;columnSpacing:24;rowSpacing:6
