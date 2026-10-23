@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 # Only the upstream C metadata reader is linked. It is public domain; no C++/unRAR code.
 FetchContent_Declare(sevenzip
     GIT_REPOSITORY https://github.com/ip7z/7zip.git

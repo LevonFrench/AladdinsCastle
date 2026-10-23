@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 # Pure provenance selection; no machine information is included.
 function Get-PackageBuildRevision {
     param([string]$CiRevision, [string]$CheckoutRevision)

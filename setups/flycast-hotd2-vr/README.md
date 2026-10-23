@@ -156,7 +156,13 @@ wide picture and measures how much of the rest holds picture.
 - Older lines above that say the open frame came "with `rend.WideScreen`" describe the flat PC picture; in the
   headset that flag was the bug above.
 
-## Status (2026-10-14)
+## Historical status (2026-10-14)
+
+The snapshot below predates the 19–21 October findings above. In particular,
+Confidential Mission now has the profile listed in the patch table and an offline
+check described under Findings. The old "no profile" and "not yet checked" lines
+are not current status. See [current development status](../../docs/status/current.md)
+for the distinction between offline checks and headset acceptance.
 
 - The House of the Dead 2 (US): plays in the headset with the upstream profile.
 - Death Crimson OX (US): plays in 3D; black bars fixed and checked off-headset in a cutscene.

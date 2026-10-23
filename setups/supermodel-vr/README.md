@@ -17,7 +17,12 @@ Supermodel is licensed GPL v3 or later, and so is everything in this folder.
 
 The emulator keeps its own 57.5 Hz timing. The headset is fed from a separate thread at its own rate, and in the head-tracked mode each frame carries the eye poses it was drawn for, so the runtime can re-aim it between game frames.
 
-## State on 13 October 2026
+## Historical state on 13 October 2026
+
+This dated trial list is retained as history. The newer
+[current status](../../docs/status/current.md) records headset acceptance for
+Sega Rally 2 DX inside with the wheel. It does not extend that verdict to the
+other games, and the setup still requires a separately built emulator.
 
 Tried in a headset through SteamVR by the project owner:
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 # One project-local backend for ZIP, 7z, TAR and gzip. No global tool installs.
 set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(ac_zlib GIT_REPOSITORY https://github.com/madler/zlib.git GIT_TAG 51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf # v1.3.1

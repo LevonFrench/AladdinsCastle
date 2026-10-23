@@ -5,6 +5,10 @@ account/licence directories, follow directory symlinks or Windows junctions, dow
 launch games. Results and local paths stay in the portable user's directory. Public
 tests contain synthetic headers and a tiny synthetic archive encoded in C++.
 
+This page describes the catalog scanner in `hub/src/core/scan/`. The **Game
+library** card in Set-up uses the separate `hub/src/core/library/` scanner; do not
+infer its cancellation or cache behavior from this page.
+
 ## Interfaces and UI integration
 
 `hub/src/core/scan/Scan.h` exposes value types `ScanOptions`, `ScanResult`, `Binding`,
@@ -13,7 +17,7 @@ accepts an atomic cancellation flag and reports progress maps. `ScanController`
 runs it through QtConcurrent, queues progress onto the GUI thread, and merges only
 scan-owned media/tool fields into **current full** runtime snapshots before model
 updates. Installation state, jobs, selection and play timestamps survive an active
-scan. Cancelled scans never apply partial library states or replace the cache.
+scan. Cancelled catalog scans never apply partial runtime states or replace the cache.
 
 Connect UI `scanRequested(QStringList)` to `ScanController::scan`, and UI cancellation
 to `cancel`. Connect controller `scanStarted`, `progress(QVariantMap)`, and

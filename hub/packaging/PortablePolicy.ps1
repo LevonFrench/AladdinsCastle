@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 # Windows PowerShell 5.1 helpers. No application, runtime or account is accessed.
 function Assert-PlainPortablePath {
     param([Parameter(Mandatory)][string]$Path)

@@ -11,16 +11,18 @@ This is not legal advice. It sets out the project's rules.
 
 ## Code licences
 
-- AladdinsCastle is **GPL-3.0** ([LICENSE](../LICENSE)), except **`libacvr/`, which is MIT** ([libacvr/LICENSE](../libacvr/LICENSE)). libacvr is the glue every VR setup links; MIT lets it link into engines under any licence (namco22-decompile MIT, Supermodel/PCSX2 GPL, a Cannonball fork under its non-commercial licence) and lets upstream projects adopt it. The Hub and everything else stay GPL-3.0.
-- Upstream projects keep their licences. namco22-decompile, DR-89 Time Crisis VR, VC2VR, UEVR and OpenXR-Toolkit are MIT. Supermodel, PCSX2 and PenguinScreen2 are GPL. MAME is GPL-2.0+. Check each file's own header: DuckStation, for example, has files under CC-BY-NC-ND-4.0, which must not be copied into our tree.
+- Project-owned code defaults to **GPL-3.0-only** ([LICENSE](../LICENSE)). `libacvr/` uses [MIT](../libacvr/LICENSE), subject to any separately marked upstream files. Built assets have separate terms below. See the [notice index](../THIRD-PARTY-NOTICES.md).
+- Preserve upstream copyright, licence and attribution when publishing emulator patches or modified builds. A repository-level GPL notice does not change an upstream file's licence. In particular, GPL-2.0-only code cannot simply be relabelled GPL-3.0-only; review the pinned files and the terms of the added code before distributing a combined build.
+- Upstream projects keep their licences. namco22-decompile, DR-89 Time Crisis VR, VC2VR, UEVR and OpenXR-Toolkit are MIT. Supermodel, PCSX2 and PenguinScreen2 are GPL. The pinned MAME 0.289 distribution specifies GPL version 2, with per-file exceptions; do not assume an or-later grant. Check each file's own header: DuckStation, for example, has files under CC-BY-NC-ND-4.0, which must not be copied into our tree.
 - PenguinScreen2's bundled VR profiles use a separate non-commercial licence.
 
 ## Art and trademarks
 
-- Arcade game names, logos, marquees and cabinet designs belong to their owners (Sega, Bandai Namco, Konami and others). We ship no third-party art. Art downloaded by users stays on their machine, with a record of where it came from.
+- Arcade game names, logos, marquees and cabinet designs belong to their owners (Sega, Bandai Namco, Konami and others). The adapted `arc-light-gun` model is third-party art under the terms below. Game artwork downloaded by users stays on their machine, with a record of where it came from.
 - "Aladdin's Castle" was the name of a Bally/Midway arcade chain. Before any commercial or store release, clear the project name for trademark use.
 - Cabinet 3D models we ship must be original or properly licensed (for example CC-BY with attribution).
-- **Gun and control models are lookalikes, not copies**: original designs that evoke a peripheral's silhouette and layout, with our own proportions, no logos, brand names or model numbers on the model, and descriptive ids instead of trademarks. Never extracted from games, scans or other people's meshes. Built models are released under CC0-1.0 ([guns.md](guns.md) §2.2, §2.6).
+- **Original gun, hand and control models** are CC0-1.0 under their directory notices. They use descriptive ids and omit logos and maker lettering. Their Python builders are separately licensed source code.
+- **Exception: `arc-light-gun` and its previews are CC BY 4.0.** They adapt "Namco Arcade Gun" by Martoscar, through hotd2-vr's converted mesh. Preserve the author, original source and licence links, and the record of modifications in [the model metadata](../data/guns/arc-light-gun.toml) and [asset licence](../assets/guns/LICENSE). Removing lettering does not remove the attribution requirement. The [CC BY 4.0 terms](https://creativecommons.org/licenses/by/4.0/) apply; this asset is not CC0.
 
 ## Metadata services
 

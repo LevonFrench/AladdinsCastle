@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 # Sparse CHD sector reader only. All bundled codecs are GPL-compatible.
 set(CHDR_WANT_TESTS OFF CACHE BOOL "" FORCE)
 set(CHDR_LOWRAM_TARGET OFF CACHE BOOL "" FORCE)

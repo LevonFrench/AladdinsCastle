@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 include(FetchContent)
 
 # First declaration wins, so declare json before the schema validator.
