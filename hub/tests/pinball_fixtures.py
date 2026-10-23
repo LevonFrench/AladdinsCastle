@@ -44,7 +44,7 @@ def table(path, title, author, version, script, mini=False):
 
 class Checks(unittest.TestCase):
     def helper_json(self, *arguments):
-        completed=subprocess.run([HUB,*arguments],capture_output=True,text=True)
+        completed=subprocess.run([HUB,*arguments],capture_output=True,text=True,timeout=60)
         self.assertEqual(completed.returncode,0,'Diagnostic helper failed: '+completed.stderr)
         value=json.loads(completed.stdout)
         self.assertIsInstance(value,dict,'Diagnostic helper must return a JSON object')
@@ -73,21 +73,21 @@ class Checks(unittest.TestCase):
     def test_minifat_and_directory_cycle(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp);f=p/'mini.vpx';table(f,'Mini (Synthetic 2000)','Test','1.0','Const VRRoom=1\nVRRoomCabinet.Visible=True',mini=True)
-            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)]))['tables'][0]
+            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)],timeout=60))['tables'][0]
             self.assertEqual(result['title'],'Mini (Synthetic 2000)');self.assertTrue(result['vrReady'])
             raw=bytearray(f.read_bytes());fat=struct.unpack_from('<I',raw,76)[0];struct.pack_into('<I',raw,(fat+1)*512,0);f.write_bytes(raw)
-            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)]))['tables'][0]
+            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)],timeout=60))['tables'][0]
             self.assertFalse(result['vrReady']);self.assertIn('error',result)
     def test_conditions_and_comments_are_not_switches(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp)
             for i,script in enumerate(["' Const VRRoom=1\nVRRoomCabinet.Visible=True",'If VRRoom=1 Then\nVRRoomCabinet.Visible=True\nEnd If','Const VRRoom=1\nOrdinaryObject.Visible=True','Debug.Print "Then VRRoom=1"\nVRRoomCabinet.Visible=True']):table(p/(str(i)+'.vpx'),'Noise','Test','1.0',script)
-            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)]))
+            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)],timeout=60))
             self.assertEqual(result['vrReady'],0)
     def test_dynamic_rom_cannot_borrow_a_literal(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp);table(p/'dynamic.vpx','Dynamic','Test','1.0','Const VRRoom=1\nVRRoomCabinet.Visible=True\ncGameName="synthetic"\ncGameName=ChooseRom()')
-            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)]))['tables'][0]
+            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(p)],timeout=60))['tables'][0]
             self.assertEqual(result['romState'],'unknown');self.assertNotIn('rom',result)
     def test_only_exact_local_media_is_associated(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -95,11 +95,11 @@ class Checks(unittest.TestCase):
             table(lib/'fixture.vpx','Fixture','Test','1.0','')
             (art/'fixture.png').write_bytes(b'synthetic media metadata; never decoded')
             (art/'fixture.directb2s').write_bytes(b'synthetic metadata; never decoded')
-            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(lib),'','',str(art)]))['tables'][0]
+            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(lib),'','',str(art)],timeout=60))['tables'][0]
             self.assertEqual(pathlib.Path(result['wheelPath']),art/'fixture.png')
             self.assertEqual(pathlib.Path(result['backglassPath']),art/'fixture.directb2s')
             (art/'fixture.png').rename(art/'unrelated.png')
-            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(lib),'','',str(art)]))['tables'][0]
+            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(lib),'','',str(art)],timeout=60))['tables'][0]
             self.assertNotIn('wheelPath',result)
     def test_classification_and_refusals(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -115,7 +115,7 @@ class Checks(unittest.TestCase):
             except OSError: pass
             db=p/'db.json';db.write_text(json.dumps([dict(name='database',manufacturer='Synthetic',year=2000,tableFiles=[dict(authors=['Test Author'],version='1.0',features=['VR'],urls=[dict(url='https://invalid.example/download')])])]))
             before={x.name:x.read_bytes() for x in lib.glob('*.vpx')}
-            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(lib),str(db),str(roms)]))
+            result=json.loads(subprocess.check_output([HUB,'scan-pinball',str(lib),str(db),str(roms)],timeout=60))
             self.assertEqual(result['total'],9); rows={x['title'].split(' (')[0]:x for x in result['tables']}
             self.assertIn('nested',rows) # Tables in subfolders are listed.
             self.assertEqual(rows['database']['evidence'],['VPS: VR']);self.assertEqual(rows['script']['evidence'],['script: VR room'])
@@ -124,7 +124,7 @@ class Checks(unittest.TestCase):
             self.assertEqual(rows['em']['romState'],'needs no ROM');self.assertNotIn('rom',rows['em'])
             self.assertEqual(rows['dynamic']['romState'],'unknown');self.assertNotIn('invalid.example',json.dumps(result))
             self.assertEqual(before,{x.name:x.read_bytes() for x in lib.glob('*.vpx')})
-            plan=json.loads(subprocess.check_output([HUB,'plan-pinball',str(lib/'script.vpx'),HUB,str(p/'owned'),'desktop']))
+            plan=json.loads(subprocess.check_output([HUB,'plan-pinball',str(lib/'script.vpx'),HUB,str(p/'owned'),'desktop'],timeout=60))
             self.assertEqual(plan['args'],['-Play',(lib/'script.vpx').as_posix()]);self.assertTrue(plan['launchAllowed'])
             self.assertFalse((p/'owned').exists())
 
