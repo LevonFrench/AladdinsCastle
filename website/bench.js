@@ -1,8 +1,7 @@
 // Model bench: an interactive panel showing the project's own models one at a time.
 // Starts only when the panel scrolls into view; drag to turn, Fire to see the moving parts work.
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { catalog, loadModel } from './models.js';
+import { catalog, loadModel } from './models.js?v=20261023d';
 
 const panel = document.getElementById('bench');
 if (panel) {
@@ -22,36 +21,47 @@ async function init() {
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // the hosts' runtime lighting: no tone mapping, ambient 0.35 + one camera-space light 0.65, no specular
+  renderer.toneMapping = THREE.NoToneMapping;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  const env = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(renderer), 0.04).texture;
   const scene = new THREE.Scene();
-  scene.add(new THREE.HemisphereLight('#e8e4ff', '#2a1a3a', 1.1));
-  const key = new THREE.DirectionalLight('#ffffff', 2.2); key.position.set(0.8, 1.4, 1.2); scene.add(key);
-  const rim = new THREE.DirectionalLight('#4ff3ff', 1.2); rim.position.set(-1.2, 0.6, -1); scene.add(rim);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 20);
+  scene.add(camera);
+  scene.add(new THREE.AmbientLight('#ffffff', 0.35 * Math.PI));
+  const key = new THREE.DirectionalLight('#ffffff', 0.65 * Math.PI);
+  key.position.set(0.36, 0.70, 0.62);  // direction_to_light, in camera space
+  camera.add(key); camera.add(key.target);
   const stage = new THREE.Group(); scene.add(stage);
 
   const cat = await catalog();
   const show = cat.models.filter(m => m.kind !== 'hand');
   const label = { gun: 'Gun', controller: 'Controller', control: 'Cabinet control' };
   // start side-on: models face -Z, so a quarter turn shows the profile
+  // fit the model to whichever of the canvas's width or height is tighter
+  let framed = 0.2;
+  function frame() {
+    const half = THREE.MathUtils.degToRad(camera.fov / 2);
+    const tight = Math.min(Math.tan(half), Math.tan(half) * camera.aspect);
+    camera.position.set(0, 0, framed / tight * 1.08);
+    camera.lookAt(0, 0, 0);
+  }
   let current = null, token = 0, yaw = -Math.PI / 2 + 0.35, pitch = 0.12, dragging = null, lastShot = -9;
 
   show.forEach((m, i) => {
     const b = document.createElement('button');
     b.type = 'button'; b.textContent = m.name.replace(/^The /, '');
+    b.setAttribute('aria-pressed', 'false');
     b.dataset.id = m.id;
-    b.addEventListener('click', () => pick(m.id));
+    b.addEventListener('click', () => pick(m.id).catch(err => console.warn('model bench', err)));
     chips.appendChild(b);
     if (i === 0) b.classList.add('on');
   });
 
   async function pick(id) {
     const my = ++token;
-    chips.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.id === id));
+    chips.querySelectorAll('button').forEach(b => { const on = b.dataset.id === id; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     const entry = show.find(m => m.id === id);
-    const m = await loadModel(id, { envMap: env, hands: false });
+    const m = await loadModel(id, { style: 'runtime', hands: false });
     if (my !== token) return;
     if (current) stage.remove(current.root);
     current = m;
@@ -60,9 +70,8 @@ async function init() {
     const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
     m.root.position.sub(mid);
     stage.add(m.root);
-    const radius = Math.max(size.x, size.y, size.z) * 0.62;
-    camera.position.set(0, 0, radius / Math.tan(THREE.MathUtils.degToRad(15)) * 1.05);
-    camera.lookAt(0, 0, 0);
+    framed = Math.max(size.x, size.y, size.z) * 0.62;
+    frame();
     const moving = Object.keys(entry.motion || {}).length;
     info.innerHTML = '';
     const h = document.createElement('h3'); h.textContent = entry.name; info.appendChild(h);
@@ -87,7 +96,7 @@ async function init() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio())) {
       renderer.setSize(w, h, false);
-      camera.aspect = w / h; camera.updateProjectionMatrix();
+      camera.aspect = w / h; camera.updateProjectionMatrix(); frame();
     }
   }
   const clock = new THREE.Clock();

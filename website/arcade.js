@@ -9,7 +9,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { loadModel } from './models.js';
+import { loadModel } from './models.js?v=20261023d';
 
 const canvas = document.getElementById('scene');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -43,8 +43,12 @@ function fallBackToText(reason) {
   document.body.classList.remove('js');
   curtain.remove();
 }
-addEventListener('error', e => fallBackToText(e.error || e.message));
-addEventListener('unhandledrejection', e => fallBackToText(e.reason));
+// Before the first frame, any error means the scene cannot run: show the text page. After that,
+// a late problem (one model that fails to load, say) is logged and the arcade carries on.
+let sceneStarted = false;
+const onError = reason => { if (sceneStarted) console.warn('Arcade walk:', reason); else fallBackToText(reason); };
+addEventListener('error', e => onError(e.error || e.message));
+addEventListener('unhandledrejection', e => onError(e.reason));
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); fallBackToText('WebGL context lost'); });
 await Promise.race([
   Promise.all([
@@ -934,6 +938,9 @@ async function realGun(id, { scale = 2.5, hands = false } = {}) {
   const m = await loadModel(id, { envMap: envTex, hands });
   const pivot = new THREE.Group();
   m.root.scale.setScalar(scale);
+  // turn around the model's middle, not its grip
+  const mid = new THREE.Box3().setFromObject(m.root).getCenter(new THREE.Vector3());
+  m.root.position.sub(mid);
   pivot.add(m.root);
   const flash = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), additive('#ffd27a', 0));
   (m.node('fx_muzzle') || m.root).add(flash);
@@ -964,7 +971,12 @@ function turntable(wide, narrow, stop, i) {
   });
   return spin;
 }
-const later = fn => (window.requestIdleCallback || (cb => setTimeout(cb, 400)))(() => fn().catch(err => console.warn('model load', err)));
+// idle-time load with a deadline, so a busy page still gets its models; a failure skips that exhibit only
+const later = fn => (window.requestIdleCallback || (cb => setTimeout(cb, 400)))(() => fn().catch(err => console.warn('model load', err)), { timeout: 2500 });
+// exhibits load as the walk gets within a section of them, not all at once
+const nearLoads = [];
+const whenNear = (stop, fn) => nearLoads.push({ stop, fn });
+const settled = results => results.filter(r => r.status === 'fulfilled').map(r => r.value);
 
 // stop 1: your hands are the cabinet. Two grip hands holding real guns, aiming down the aisle.
 [
@@ -974,9 +986,10 @@ const later = fn => (window.requestIdleCallback || (cb => setTimeout(cb, 400)))(
   const holder = exhibitHolder(wide, narrow);
   floatingRing(0, -0.34, 0, 0.17, holder);
   markClickable(holder, 1);
-  later(async () => {
+  whenNear(1, async () => {
     const gun = await realGun(id, { scale: 3.0, hands: true });
     holder.add(gun.pivot);
+    markClickable(gun.pivot, 1);
     animated.push(t => {
       const sway = reducedMotion ? 0 : Math.sin(t * 0.9 + i * 2) * 0.3;
       gun.pivot.rotation.set(reducedMotion ? 0 : Math.sin(t * 1.3 + i) * 0.08, -0.8 + sway, 0);
@@ -990,13 +1003,14 @@ const later = fn => (window.requestIdleCallback || (cb => setTimeout(cb, 400)))(
   const spin = turntable(v(-5.0, 1.45, -6.5), v(-5.0, 1.45, -6.5), 2, 0);
   const ids = ['arc-pistol-slide', 'arc-pistol-twin', 'funcon', 'con-pistol-dpad', 'con-revolver-chunky', 'con-pistol-slim', 'con-remote-shell', 'generic-pistol'];
   const HOLD = 4.5;
-  later(async () => {
-    const guns = await Promise.all(ids.map(id => realGun(id, { scale: 2.4 })));
-    guns.forEach(g => { g.root.scale.setScalar(1e-4); spin.add(g.pivot); });
+  whenNear(2, async () => {
+    const guns = settled(await Promise.allSettled(ids.map(id => realGun(id, { scale: 2.4 }))));
+    if (!guns.length) return;
+    guns.forEach(g => { g.pivot.visible = false; spin.add(g.pivot); markClickable(g.pivot, 2); });
     animated.push(t => {
       const n = Math.floor(t / HOLD) % guns.length, ph = (t % HOLD) / HOLD;
       const grow = smooth(0, 0.08, ph) * (1 - smooth(0.92, 1, ph));
-      guns.forEach((g, k) => g.root.scale.setScalar(k === n ? 2.4 * grow + 1e-4 : 1e-4));
+      guns.forEach((g, k) => { g.pivot.visible = k === n; if (k === n) g.pivot.scale.setScalar(grow + 1e-4); });  // grow about the centre
       guns[n].root.rotation.x = fire(guns[n], t, 1.5, 0.6) * 0.25;
     });
   });
@@ -1004,10 +1018,12 @@ const later = fn => (window.requestIdleCallback || (cb => setTimeout(cb, 400)))(
 
 // stop 4: the mounted machine gun the Model 3 gun cabinets use
 {
-  const spin = turntable(v(-5.2, 1.3, -11.3), v(-5.4, 1.3, -11.6), 4, 3);
-  later(async () => {
+  // beside the Model 3 cabinets, on the open side of the screen
+  const spin = turntable(v(-5.4, 1.3, -12.6), v(-5.6, 1.3, -12.4), 4, 3);
+  whenNear(4, async () => {
     const gun = await realGun('mnt-mg-heavy', { scale: 1.6 });
     spin.add(gun.pivot);
+    markClickable(gun.pivot, 4);
     animated.push(t => { gun.root.rotation.x = fire(gun, t, 0.5, 0) * 0.08; });
   });
 }
@@ -1018,15 +1034,16 @@ function ghostControls(g) {
   const holder = new THREE.Group();
   holder.userData.dynamic = true;
   g.add(holder);
-  later(async () => {
-    const [wheel, shifter, pedals] = await Promise.all([
+  whenNear(3, async () => {
+    const [wheel, shifter, pedals] = (await Promise.allSettled([
       loadModel('wheel-three-spoke', { style: 'ghost' }),
       loadModel('shifter-sequential', { style: 'ghost' }),
       loadModel('pedals-dual', { style: 'ghost' }),
-    ]);
+    ])).map(r => r.status === 'fulfilled' ? r.value : null);
+    if (!wheel) return;
     wheel.root.position.set(0, 0.95, 0.55); wheel.root.rotation.x = -0.95; holder.add(wheel.root);
-    shifter.root.position.set(0.36, 0.62, 0.72); holder.add(shifter.root);
-    pedals.root.position.set(0, 0.16, 0.22); holder.add(pedals.root);
+    if (shifter) { shifter.root.position.set(0.36, 0.62, 0.72); holder.add(shifter.root); }
+    if (pedals) { pedals.root.position.set(0, 0.16, 0.22); holder.add(pedals.root); }
     animated.push(t => {
       if (reducedMotion) return;
       wheel.root.rotation.z = Math.sin(t * 0.9) * 0.35;
@@ -1067,14 +1084,15 @@ function kiosk({ x, z, consoleKind, screenTex, gunId, stop, i, gunDzWide = 0, gu
   // the gun floats on the kiosk's outer side, away from its neighbour: further out on wide
   // screens, tucked closer to the TV on narrow ones
   const spin = turntable(v(x - 1.05, 1.3, z + gunDzWide), v(x - 1.05, 1.3, z + gunDzNarrow), stop, i);
-  later(async () => {
+  whenNear(stop, async () => {
     const gun = await realGun(gunId, { scale: 2.4 });
     spin.add(gun.pivot);
+    markClickable(gun.pivot, stop);
     animated.push(t => { gun.root.rotation.x = fire(gun, t, 2.4, i * 0.47) * 0.25; });
   });
 }
-kiosk({ x: 7.35, z: -14.6, consoleKind: 'tall', screenTex: screenCorridor, gunId: 'con-remote-shell', stop: 5, i: 5, gunDzWide: 1.05, gunDzNarrow: 0.55 });
-kiosk({ x: 7.35, z: -17.2, consoleKind: 'slab', screenTex: screenGun, gunId: 'con-pistol-dpad', stop: 5, i: 6, gunDzWide: -1.05, gunDzNarrow: -0.55 });
+kiosk({ x: 7.35, z: -14.6, consoleKind: 'tall', screenTex: screenCorridor, gunId: 'con-remote-shell', stop: 5, i: 5, gunDzWide: 0.6, gunDzNarrow: 0.55 });
+kiosk({ x: 7.35, z: -17.2, consoleKind: 'slab', screenTex: screenGun, gunId: 'con-pistol-dpad', stop: 5, i: 6, gunDzWide: -0.6, gunDzNarrow: -0.55 });
 
 // exit sign over the door, inside
 plane(0.5, 0.18, new THREE.MeshBasicMaterial({ map: textSign('EXIT', '#300', '#ff4040'), toneMapped: false }), 0, 3.1, -0.3).rotation.y = Math.PI;
@@ -1137,14 +1155,14 @@ sizeFxaa();
 // ---------------------------------------------------------------- the walk
 const STOPS = [
   { pos: v(0, 1.62, 9.8), look: v(0, 2.55, 0), fov: 58 },            // mall, facing the sign
-  { pos: v(0.9, 1.6, -0.2), look: v(-2.76, 1.49, -4.95), fov: 50, subject: v(-1.75, 1.42, -2.6) },  // motion controls
-  { pos: v(-2.9, 1.6, -6.4), look: v(-8.53, 1.27, -8.46), fov: 46, subject: v(-5.0, 1.45, -6.5) }, // the gun
-  { pos: v(4.6, 1.8, -11.45), look: v(10.04, -0.71, -11.72), fov: 52, subject: v(6.2, 1.0, -11.0) }, // racing, over the seat
-  { pos: v(-3.3, 1.6, -12.0), look: v(-9.16, 1.34, -13.25), fov: 58, subject: v(-7.0, 1.4, -11.9) }, // Model 3
-  { pos: v(3.0, 1.6, -15.9), look: v(9.2, 1.2, -15.9), fov: 56, subject: v(7.0, 1.2, -15.9) },  // consoles: Wii and PS2 kiosks
-  { pos: v(1.2, 1.6, -18.3), look: v(3.7, 1.32, -23.75), fov: 58, subject: v(4.0, 1.1, -21.6) },  // prize counter
-  { pos: v(-1.8, 1.6, -16.9), look: v(-5.51, 1.18, -21.59), fov: 52, subject: v(-4.2, 1.45, -18.6) }, // the Hub
-  { pos: v(0.6, 1.65, -19.4), look: v(1.82, 1.92, -25.27), fov: 58, subject: v(-0.4, 2.0, -25.9) }, // scoreboard
+  { pos: v(0.9, 1.6, -0.2), look: v(-2.76, 1.49, -4.95), fov: 50, subject: v(-1.75, 1.42, -2.6), side: 'right' },  // motion controls
+  { pos: v(-2.9, 1.6, -6.4), look: v(-8.53, 1.27, -8.46), fov: 46, subject: v(-5.0, 1.45, -6.5), side: 'right' }, // the gun
+  { pos: v(4.6, 1.8, -11.45), look: v(10.04, -0.71, -11.72), fov: 52, subject: v(6.2, 1.0, -11.0), side: 'left' }, // racing, over the seat
+  { pos: v(-3.3, 1.6, -12.0), look: v(-9.16, 1.34, -13.25), fov: 58, subject: v(-7.0, 1.4, -11.9), side: 'right' }, // Model 3
+  { pos: v(3.0, 1.6, -15.9), look: v(9.2, 1.2, -15.9), fov: 64, subject: v(7.0, 1.2, -15.9), side: 'right' },  // consoles: Wii and PS2 kiosks
+  { pos: v(1.2, 1.6, -18.3), look: v(3.7, 1.32, -23.75), fov: 58, subject: v(4.0, 1.1, -21.6), side: 'left' },  // prize counter
+  { pos: v(-1.8, 1.6, -16.9), look: v(-5.51, 1.18, -21.59), fov: 52, subject: v(-4.2, 1.45, -18.6), side: 'right' }, // the Hub
+  { pos: v(0.6, 1.65, -19.4), look: v(1.82, 1.92, -25.27), fov: 58, subject: v(-0.4, 2.0, -25.9), side: 'right' }, // scoreboard
 ];
 // in-between waypoints keep the path at least 0.5 m off the cabinets
 const PATH = [STOPS[0].pos, v(0, 1.61, 5.2), v(0, 1.6, 2.0), STOPS[1].pos, v(0.2, 1.6, -4.2), v(-2.6, 1.6, -5.0), STOPS[2].pos,
@@ -1158,11 +1176,20 @@ const N = STOPS.length;
 function aimStops() {
   STOPS[0].pos.set(0, 1.62, portrait ? 16.5 : 9.8);
   for (const st of STOPS) {
-    // portrait: panels fill the lower part of the screen, so aim a little under the subject to lift it
-    const target = portrait && st.subject ? st.subject.clone().add(v(0, -0.55, 0)) : st.look;
+    // Panels take one side of the screen; the camera turns so the stop's exhibit sits about 22% in
+    // from the open edge (desktop), or in the top fifth above the panels (portrait phones).
+    let target = st.look, yawShift = 0, pitchShift = 0;
+    if (st.subject) {
+      const tv = Math.tan(THREE.MathUtils.degToRad(st.fov + (portrait ? 16 : 0)) / 2);
+      if (portrait) { target = st.subject; pitchShift = -Math.atan(0.56 * tv); }
+      else if (innerWidth >= 900 && (st.side === 'right' || st.side === 'left')) {  // the CSS side layout starts at 900px
+        target = st.subject;
+        yawShift = (st.side === 'right' ? 1 : -1) * Math.atan(0.56 * tv * camera.aspect);
+      }
+    }
     const d = target.clone().sub(st.pos);
-    st.yaw = Math.atan2(d.x, -d.z);
-    st.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
+    st.yaw = Math.atan2(d.x, -d.z) + yawShift;
+    st.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)) + pitchShift;
   }
 }
 aimStops();
@@ -1171,6 +1198,7 @@ const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 
 const sections = [...document.querySelectorAll('.stop')];
 const scrim = document.querySelector('.scrim');
+const spot = new THREE.Vector3();
 const navLinks = [...document.querySelectorAll('#stop-nav a')];
 const creditFill = document.getElementById('credit-fill');
 const creditNum = document.getElementById('credit-num');
@@ -1244,7 +1272,8 @@ function hitStop(e) {
   if (e.target !== canvas && !(e.target.classList && e.target.classList.contains('stop'))) return undefined;
   ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
-  const hit = raycaster.intersectObjects(clickables, false)[0];
+  const shown = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+  const hit = raycaster.intersectObjects(clickables, false).find(h => shown(h.object));
   return hit && hit.distance < 14 ? hit.object.userData.stop : undefined;
 }
 function hover(e) {
@@ -1271,7 +1300,8 @@ function resize() {
   composer.setSize(innerWidth, innerHeight);
   sizeFxaa();
   const nowPortrait = innerWidth < innerHeight;
-  if (nowPortrait !== portrait) { portrait = nowPortrait; aimStops(); }
+  portrait = nowPortrait;
+  aimStops();
   applyLayout();
   measure();
   p = progress();
@@ -1342,6 +1372,9 @@ function frame(now = 0) {
 
   // attract screens at ~20 fps
   screenAcc += dt;
+  for (let k = nearLoads.length - 1; k >= 0; k--) {
+    if (Math.abs(p - nearLoads[k].stop) < 1.6) { later(nearLoads[k].fn); nearLoads.splice(k, 1); }
+  }
   for (const fn of animated) fn(t, dt);
   // the sign replays its ARCADE to AC routine whenever you walk back out to the mall
   if (p > 0.6) signArmed = true;
@@ -1350,7 +1383,17 @@ function frame(now = 0) {
   if (screenAcc > 0.05) { for (const fn of screens) fn(t); screenAcc = 0; }
 
   // the arcade sits back behind the panels; in the mall it stays bright so the sign reads
-  if (scrim) scrim.style.setProperty('--dim', (0.18 + 0.42 * smooth(0.15, 0.7, p)).toFixed(3));
+  if (scrim) {
+    scrim.style.setProperty('--dim', (0.12 + 0.18 * smooth(0.15, 0.7, p)).toFixed(3));
+    const subject = STOPS[Math.round(p)].subject;
+    if (subject) {
+      spot.copy(subject).project(camera);
+      if (spot.z < 1) {
+        scrim.style.setProperty('--sx', ((spot.x + 1) * 50).toFixed(1) + '%');
+        scrim.style.setProperty('--sy', ((1 - spot.y) * 50).toFixed(1) + '%');
+      }
+    }
+  }
   const active = Math.round(p);
   if (active !== lastActive) {
     navLinks.forEach((a, i) => a.classList.toggle('active', i === active));
@@ -1372,5 +1415,5 @@ const debug = new URLSearchParams(location.search).has('debug');
 if (debug) renderer.info.autoReset = false;
 if (debug) window.__acvr = { renderer, scene, bloom, get dpr() { return renderer.getPixelRatio(); }, get p() { return p; } };
 requestAnimationFrame(frame);
-requestAnimationFrame(() => curtain.classList.add('done'));
+requestAnimationFrame(() => { sceneStarted = true; curtain.classList.add('done'); });
 setTimeout(() => curtain.remove(), 900);

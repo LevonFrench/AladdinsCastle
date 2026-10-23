@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261022d">
+<link rel="stylesheet" href="style.css?v=20261023d">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js",
@@ -18,9 +18,10 @@
 } }
 </script>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js" crossorigin>
-<link rel="modulepreload" href="arcade.js?v=20261022d">
+<link rel="modulepreload" href="arcade.js?v=20261023d">
 </head>
 <body>
+<a class="skip" href="#walk">Skip to the content</a>
 <canvas id="scene" aria-hidden="true"></canvas>
 <div class="scrim" aria-hidden="true"></div>
 <div class="vignette" aria-hidden="true"></div>
@@ -30,7 +31,7 @@
     <img src="token.svg" alt="" width="34" height="34">
     <span>AC VR Hub</span>
   </a>
-  <nav class="hud-links">
+  <nav class="hud-links" aria-label="Pages">
     <a href="how-it-works.html">How it works</a>
     <a href="games.html">Game list</a>
     <a href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
@@ -57,14 +58,14 @@
   <span id="credit-num">00</span>
 </div>
 
-<main id="walk">
+<main id="walk" tabindex="-1">
   <!-- 0 · the mall -->
   <section class="stop stop-hero" id="stop-0" data-stop="0">
     <div class="wrap">
       <div class="panel panel-hero reveal">
         <p class="eyebrow">Open source · GPL-3.0 · in development</p>
         <h1>Step inside the game.</h1>
-        <p class="lede">AC VR Hub is one front door for arcade and console light gun and racing games in VR. It is a desktop window and also a panel inside SteamVR: pick a game, press Play, and it opens in the headset in real 3D, inside the game, or on a big screen in the room.</p>
+        <p class="lede">AC VR Hub is a free, open-source Windows app that brings arcade and console light gun and racing games into VR. It runs on your desk and as a panel inside SteamVR: pick a game, press Play, and it opens in the headset. Bring your own games; none are included.</p>
         <p class="fine">New game profiles and emulator wrappers are added all the time.</p>
         <p class="actions">
           <a class="btn" href="games.html">Game list</a>
@@ -76,13 +77,13 @@
         <div class="panel stat reveal"><b>143</b><span>games in the Hub library</span></div>
         <div class="panel stat reveal"><b>279</b><span>ways to play them (views)</span></div>
         <div class="panel stat reveal"><b>12</b><span>systems, from Model 3 to Wii</span></div>
-        <div class="panel stat reveal"><b>561</b><span>pinball tables ready to start</span></div>
+        <div class="panel stat reveal"><b>3</b><span>accepted in the headset so far</span></div>
       </div>
     </div>
   </section>
 
   <!-- 1 · motion controls -->
-  <section class="stop" id="stop-1" data-stop="1">
+  <section class="stop" id="stop-1" data-stop="1" data-side="right">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">How you play</p>
@@ -100,14 +101,23 @@
         </article>
         <article class="panel reveal">
           <h3>Rules from real headset sessions</h3>
-          <p>No game control uses the left Menu or the right headset button, since SteamVR and the headset own them. Left-stick click is Start or Plus; hold left Y for Home. Exit game in the SteamVR dashboard ends the game cleanly on PS1, N64, Saturn and Model 3.</p>
+          <p>Game controls stay off the left Menu and the right headset button, since SteamVR and the headset own them (N64 Start is the one left to move). Left-stick click is Start or Plus; hold left Y for Home. Exit game in the SteamVR dashboard ends the game cleanly on PS1, N64, Saturn and Model 3.</p>
+        </article>
+        <article class="panel reveal">
+          <h3>Four ways to see a game</h3>
+          <ul class="ticks">
+            <li><b>Real 3D:</b> the game's own world drawn in true depth, one picture per eye.</li>
+            <li><b>Inside the game:</b> you sit in the game's camera and look around with your head.</li>
+            <li><b>Open frame:</b> the picture is not boxed to an old 4:3 screen; the world carries on past its edges where the game draws it.</li>
+            <li><b>Big screen:</b> a large flat screen in a room, with the gun in your hand.</li>
+          </ul>
         </article>
       </div>
     </div>
   </section>
 
   <!-- 2 · gun models -->
-  <section class="stop" id="stop-2" data-stop="2">
+  <section class="stop" id="stop-2" data-stop="2" data-side="right">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">Gun models</p>
@@ -117,7 +127,7 @@
       <div class="panel bench reveal" id="bench">
         <div class="bench-view"><canvas aria-label="3D view of the selected model; drag to turn it"></canvas></div>
         <div class="bench-side">
-          <div class="bench-info"><h3>Model bench</h3><p>Pick a model to see it at its real size. Drag to turn it.</p></div>
+          <div class="bench-info" aria-live="polite"><h3>Model bench</h3><p>Pick a model to see it at its real size. Drag to turn it.</p></div>
           <button type="button" class="btn bench-fire" hidden>Fire</button>
           <div class="bench-chips" role="group" aria-label="Models"></div>
           <p class="bench-hint">Original designs, no logos, released under CC0.</p>
@@ -138,19 +148,19 @@
         <article class="panel reveal">
           <h3>Parts that move</h3>
           <p>Each model names its moving parts: the trigger, the slide that kicks back on a shot, the revolver cylinder, buttons and sticks. The hosts drive them from your controller, so the gun in your hand reacts the way the cabinet's did.</p>
-          <p class="fine">Twelve guns and controllers are built, from 27 designs planned; the rest follow.</p>
+          <p class="fine">Twelve guns and controllers are built as models so far; the project's gun data lists 27, and the rest follow.</p>
         </article>
       </div>
     </div>
   </section>
 
   <!-- 3 · ghost controls -->
-  <section class="stop" id="stop-3" data-stop="3">
+  <section class="stop" id="stop-3" data-stop="3" data-side="left">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">Sit-down racers</p>
         <h2>Ghost controls.</h2>
-        <p>Racing cabinets appear around you as see-through controls where your hands and feet go: the wheel, shifter and pedals on the racer behind this panel are the project's own models.</p>
+        <p>Racing cabinets appear around you as see-through controls where your hands and feet go: the wheel, shifter and pedals on the racer beside these panels are the project's own models.</p>
       </header>
       <div class="grid">
         <article class="panel reveal"><h3>Wheels and shifters</h3><p>A three-spoke wheel, a sequential shifter and a four-gate shifter, each with its own grab points.</p></article>
@@ -161,7 +171,7 @@
   </section>
 
   <!-- 4 · arcade boards -->
-  <section class="stop" id="stop-4" data-stop="4">
+  <section class="stop" id="stop-4" data-stop="4" data-side="right">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">Arcade boards</p>
@@ -170,36 +180,37 @@
       </header>
       <div class="grid">
         <article class="panel sys reveal"><h3>Sega Model 3</h3><span class="route">Supermodel, patched · 11 games, 54 views</span><p>Open frame, Inside the game (head-tracked) and a two-handed wheel. Sega Rally 2 DX inside with the wheel is accepted.</p><span class="state ok">E3 Sega Rally 2 DX · rest E2</span></article>
-        <article class="panel sys reveal"><h3>Arcade guns and motion</h3><span class="route">MAME, patched · 26 games, 34 views</span><p>Big screen, open frame where the game draws it, and opt-in body motion for motion cabinets. Time Crisis on the big screen is accepted.</p><span class="state ok">E3 Time Crisis theatre · rest E2</span></article>
-        <article class="panel sys reveal"><h3>Sega Model 2</h3><span class="route">MAME 0.289, patched · 14 games, 25 views</span><p>Real 3D and open frame, with the game's own sound since 21 October. Aim error cut from 7.3% to 0.3% of the screen.</p><span class="state wip">E2 · Sky Target firing unproven</span></article>
-        <article class="panel sys reveal"><h3>Namco System 22</h3><span class="route">Time Crisis VR · 1 game, 5 views</span><p>Time Crisis in open frame or inside the game.</p><span class="state wip">E2</span></article>
-        <article class="panel sys reveal"><h3>Atomiswave</h3><span class="route">Flycast, patched · 5 games, 10 views</span><p>Real 3D, with the world around the frame part of it. Title and menu screens still show stray art around the frame.</p><span class="state wip">E2</span></article>
-        <article class="panel sys reveal"><h3>Visual Pinball X</h3><span class="route">Your own VPX · 597 tables found</span><p>Desk or headset, with 561 tables ready to start. The Hub rescans by itself when your tables change.</p><span class="state wip">Desk or headset</span></article>
+        <article class="panel sys reveal"><h3>Arcade guns and motion</h3><span class="route">MAME, patched · 26 games, 34 views</span><p>Big screen, open frame where the game draws it, and opt-in body motion for motion cabinets. Time Crisis on the big screen is accepted.</p><span class="state ok">E3 Time Crisis big screen · rest E2</span></article>
+        <article class="panel sys reveal"><h3>Sega Model 2</h3><span class="route">MAME 0.289, patched · 14 games, 25 views</span><p>Real 3D and open frame, with the game's own sound since 21 October. Aim error in The House of the Dead cut from 7.3% to 0.3% of the screen.</p><span class="state wip">E2 · Sky Target firing unproven</span></article>
+        <article class="panel sys reveal"><h3>Namco System 22</h3><span class="route">Time Crisis VR · 1 game, 5 views</span><p>Time Crisis in open frame or inside the game.</p><span class="state wip">E2 · offline proof</span></article>
+        <article class="panel sys reveal"><h3>Atomiswave</h3><span class="route">Flycast, patched · 5 games, 10 views</span><p>Real 3D, with the world around the frame part of it. Title and menu screens still show stray art around the frame.</p><span class="state wip">E2 · offline proof</span></article>
+        <article class="panel sys reveal"><h3>Visual Pinball X</h3><span class="route">Your own VPX · 597 tables found</span><p>Desk or headset, with 561 tables ready to start. The Hub rescans by itself when your tables change.</p><span class="route">Plays on the desk or in the headset</span></article>
       </div>
     </div>
   </section>
 
   <!-- 5 · consoles -->
-  <section class="stop" id="stop-5" data-stop="5">
+  <section class="stop" id="stop-5" data-stop="5" data-side="right">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">Consoles</p>
         <h2>Living-room light guns, in stereo.</h2>
         <p>Console games reach the headset through VR builds of their emulators: real 3D where the game's world allows it, otherwise a big screen in the room with the gun in your hand.</p>
+        <p class="fine">E3: accepted in the headset. E2: works in a hidden offline proof. E1: started or partly works.</p>
       </header>
       <div class="grid">
-        <article class="panel sys reveal"><h3>Nintendo 64</h3><span class="route">acvr-ps1 with mupen64plus · 22 games, 47 views</span><p>Real 3D, a surround view and the HUD on a panel. Mario Kart 64 in 3D is accepted.</p><span class="state ok">E3 Mario Kart 64 · rest E2</span></article>
-        <article class="panel sys reveal"><h3>PlayStation</h3><span class="route">acvr-ps1: SwanStation and Beetle · 22 games, 37 views</span><p>Big screen with the gun, and a diorama view. Graphics raised on 21 October: 5x resolution and 4x anti-aliasing on SwanStation games.</p><span class="state wip">E2</span></article>
-        <article class="panel sys reveal"><h3>PlayStation 2</h3><span class="route">PCSX2 VR · 12 games, 27 views</span><p>A screen in the room, or inside the game with real depth. Time Crisis 3 calibration and its inside view are fixed.</p><span class="state wip">E2</span></article>
-        <article class="panel sys reveal"><h3>Nintendo Wii</h3><span class="route">DolphinXR · 19 games, 26 views</span><p>Real 3D with the pointer or motion controls, pointer aim within 1.3%. Menus and HUDs now sit on a screen in the room in five games; eight others still show them on your face.</p><span class="state wip">E2</span></article>
+        <article class="panel sys reveal"><h3>Nintendo 64</h3><span class="route">acvr-ps1 with mupen64plus · 22 games, 47 views</span><p>Real 3D with the HUD on a panel. Mario Kart 64 in 3D is accepted.</p><span class="state ok">E3 Mario Kart 64 · rest E2</span></article>
+        <article class="panel sys reveal"><h3>PlayStation</h3><span class="route">acvr-ps1: SwanStation and Beetle · 22 games, 37 views</span><p>Big screen with the gun. Graphics raised on 21 October: 5x resolution and 4x anti-aliasing on SwanStation games.</p><span class="state wip">E2 · offline proof</span></article>
+        <article class="panel sys reveal"><h3>PlayStation 2</h3><span class="route">PCSX2 VR · 12 games, 27 views</span><p>A screen in the room, or inside the game with real depth. Time Crisis 3 calibration and its inside view are fixed.</p><span class="state wip">E2 · offline proof</span></article>
+        <article class="panel sys reveal"><h3>Nintendo Wii</h3><span class="route">DolphinXR · 19 games, 26 views</span><p>Real 3D with the pointer or motion controls, pointer aim within 1.3%. Menus and HUDs now sit on a screen in the room in five games; eight others still show them on your face.</p><span class="state wip">E2 · offline proof</span></article>
         <article class="panel sys reveal"><h3>Dreamcast</h3><span class="route">Flycast, patched · 5 games, 7 views</span><p>Real 3D and open frame. Confidential Mission was rebuilt after headset issues; Death Crimson OX and 2 and Virtua Cop 2 are still early.</p><span class="state wip">E2 · three games E1</span></article>
-        <article class="panel sys reveal"><h3>Saturn and GameCube</h3><span class="route">Beetle Saturn · 5 games · DolphinXR · F-Zero GX</span><p>Saturn on the big screen with its revolver; F-Zero GX in real 3D with the HUD on a panel.</p><span class="state wip">E2</span></article>
+        <article class="panel sys reveal"><h3>Saturn and GameCube</h3><span class="route">Beetle Saturn · 5 games · DolphinXR · F-Zero GX</span><p>Saturn on the big screen with its revolver; F-Zero GX in real 3D with the HUD on a panel.</p><span class="state wip">E2 · offline proof</span></article>
       </div>
     </div>
   </section>
 
   <!-- 6 · open source -->
-  <section class="stop" id="stop-6" data-stop="6">
+  <section class="stop" id="stop-6" data-stop="6" data-side="left">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">Prize counter</p>
@@ -207,7 +218,7 @@
         <p>Games, VR setups, install recipes, control sets, guns and profiles are plain TOML you can read, copy, share and override. Adding a game takes a new folder and no code.</p>
       </header>
       <div class="grid">
-        <article class="panel reveal"><h3>Built on the people doing this work</h3><p>Supermodel, MAME, PCSX2, Dolphin and DolphinXR, Flycast, SwanStation, Beetle, mupen64plus, Visual Pinball X, Time Crisis VR, namco22-decompile and many more. We install them, add the missing VR pieces and send fixes upstream.</p></article>
+        <article class="panel reveal"><h3>Built on the people doing this work</h3><p>Supermodel, MAME, PCSX2, Dolphin and DolphinXR, Flycast, SwanStation, Beetle, mupen64plus, Visual Pinball X, Time Crisis VR, namco22-decompile and many more. We install them and add the missing VR pieces, with every patch kept in the open in the repo.</p></article>
         <article class="panel reveal"><h3>No game content</h3><p>AC VR Hub never ships, downloads or links to ROMs, BIOS files or disc images. You bring your own legally obtained games; the Hub reads them where they are.</p></article>
         <article class="panel reveal"><h3>Licences</h3><p>The Hub is GPL-3.0. The shared VR runtime, libacvr, is MIT so any emulator or engine can link it. The project's own gun, hand and control models are CC0; one adapted gun model is CC BY 4.0 and credited in the repo.</p></article>
       </div>
@@ -215,7 +226,7 @@
   </section>
 
   <!-- 7 · the Hub -->
-  <section class="stop" id="stop-7" data-stop="7">
+  <section class="stop" id="stop-7" data-stop="7" data-side="right">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">The Hub</p>
@@ -231,12 +242,12 @@
   </section>
 
   <!-- 8 · where it stands -->
-  <section class="stop stop-last" id="stop-8" data-stop="8">
+  <section class="stop stop-last" id="stop-8" data-stop="8" data-side="right">
     <div class="wrap">
       <header class="panel section-head reveal">
         <p class="eyebrow">Scoreboard</p>
         <h2>Where it stands.</h2>
-        <p>Most games work in hidden offline proofs: controls reach the game and pictures are checked. A game only counts as accepted once the developer has played it in the headset.</p>
+        <p>Most games work in hidden offline proofs (E2): controls reach the game and pictures are checked. A game only counts as accepted (E3) once the developer has played it in the headset.</p>
       </header>
       <div class="grid grid-2">
         <article class="panel reveal">
@@ -261,8 +272,8 @@
 </main>
 
 <noscript><p class="noscript">The walk-through needs JavaScript and WebGL. Everything above is still here to read.</p></noscript>
-<script src="page.js?v=20261022d" defer></script>
-<script type="module" src="arcade.js?v=20261022d"></script>
-<script type="module" src="bench.js?v=20261022d"></script>
+<script src="page.js?v=20261023d" defer></script>
+<script type="module" src="arcade.js?v=20261023d"></script>
+<script type="module" src="bench.js?v=20261023d"></script>
 </body>
 </html>

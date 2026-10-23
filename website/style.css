@@ -162,8 +162,9 @@ body:not(.js) .credit { display: none; }
   /* dims the arcade behind the panels; JS lightens it in the mall so the sign reads */
   --dim: 0.5;
   position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  /* a soft spotlight follows the section's exhibit (--sx, --sy set by arcade.js) */
   background:
-    radial-gradient(ellipse at 50% 40%, rgba(10, 6, 18, calc(var(--dim) * 0.55)), rgba(10, 6, 18, calc(var(--dim) * 1.1)) 75%);
+    radial-gradient(circle at var(--sx, 50%) var(--sy, 45%), rgba(10, 6, 18, calc(var(--dim) * 0.15)) 0, rgba(10, 6, 18, calc(var(--dim) * 0.35)) 16vw, rgba(10, 6, 18, var(--dim)) 46vw);
   transition: background 0.3s;
 }
 body:not(.js) .scrim { display: none; }
@@ -191,6 +192,15 @@ body:not(.js) .stop { min-height: 0; padding: 72px 0 24px; }
 .grid-2 { --cols: 2; }
 .grid-4 { --cols: 4; }
 .span-2 { grid-column: span 2; }
+
+/* each section keeps one side of the screen open for its exhibit in the scene */
+@media (min-width: 900px) {
+  .stop[data-side="right"] .wrap { width: min(660px, 52vw); margin: 0 clamp(110px, 9vw, 150px) 0 auto; }
+  .stop[data-side="left"] .wrap { width: min(660px, 52vw); margin: 0 auto 0 clamp(24px, 5vw, 72px); }
+  .stop[data-side="center"] .wrap { width: min(720px, 54vw); }
+  .stop[data-side] .grid { --cols: 2; }
+  .stop[data-side] .section-head { max-width: none; }
+}
 
 .panel {
   padding: 22px 22px 20px;
@@ -365,4 +375,12 @@ a:focus-visible, .btn:focus-visible { outline: 2px solid var(--neon-cyan); outli
   .lede { font-size: 16px; }
   h2 { font-size: 22px; }
   .credit { display: none; }
+}
+
+.skip { position: absolute; left: 12px; top: -48px; z-index: 20; padding: 10px 14px; background: var(--brass); color: #1a1004; border-radius: 6px; font: 700 14px/1 var(--body); }
+.skip:focus { top: 12px; }
+
+/* portrait windows aim the camera so the exhibit sits above the first panel; leave it room */
+@media (max-width: 899px) and (orientation: portrait) {
+  .stop[data-side] { padding-top: 42vh; }
 }

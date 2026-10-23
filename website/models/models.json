@@ -1335,14 +1335,22 @@
    "kind": "hand",
    "name": "Right grip hand",
    "licence": "CC0-1.0",
-   "file": "models/grip-hand-right.glb"
+   "file": "models/grip-hand-right.glb",
+   "tint": {
+    "body": "#8293a8",
+    "accent": "#a9b8c9"
+   }
   },
   {
    "id": "grip-hand-left",
    "kind": "hand",
    "name": "Left grip hand",
    "licence": "CC0-1.0",
-   "file": "models/grip-hand-left.glb"
+   "file": "models/grip-hand-left.glb",
+   "tint": {
+    "body": "#8293a8",
+    "accent": "#a9b8c9"
+   }
   }
  ]
 }

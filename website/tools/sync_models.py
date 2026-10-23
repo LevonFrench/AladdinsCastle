@@ -72,7 +72,11 @@ def main() -> int:
         entries.append({"id": cid, "kind": "control", "name": name, "licence": "CC0-1.0", "file": f"models/{cid}.glb"})
     for hid, name in HANDS.items():
         shutil.copy2(ROOT / "assets" / "hands" / f"{hid}.glb", OUT / f"{hid}.glb")
-        entries.append({"id": hid, "kind": "hand", "name": name, "licence": "CC0-1.0", "file": f"models/{hid}.glb"})
+        hand = tomllib.loads((ROOT / "assets" / "hands" / f"{hid}.toml").read_text(encoding="utf-8"))
+        tints = hand.get("tints", {})
+        glove = tints.get(tints.get("default", ""), {}) if isinstance(tints.get("default"), str) else {}
+        entries.append({"id": hid, "kind": "hand", "name": name, "licence": "CC0-1.0", "file": f"models/{hid}.glb",
+                        "tint": {"body": glove.get("body"), "accent": glove.get("accent")}})
     catalog = sum(1 for _ in (ROOT / "games").glob("*/game.toml"))
     (OUT / "models.json").write_text(json.dumps({"catalog_games": catalog, "models": entries}, indent=1) + "\n", encoding="utf-8")
     size = sum(p.stat().st_size for p in OUT.glob("*.glb"))

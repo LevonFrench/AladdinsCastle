@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261022d">
-<link rel="stylesheet" href="flow.css?v=20261022d">
+<link rel="stylesheet" href="style.css?v=20261023d">
+<link rel="stylesheet" href="flow.css?v=20261023d">
 </head>
 <body class="flow-page">
 <header class="hud">
@@ -19,7 +19,7 @@
     <img src="token.svg" alt="" width="34" height="34">
     <span>AC VR Hub</span>
   </a>
-  <nav class="hud-links">
+  <nav class="hud-links" aria-label="Pages">
     <a href="index.html">The arcade</a>
     <a href="games.html">Game list</a>
     <a href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
@@ -31,9 +31,10 @@
     <h1>How it works</h1>
     <p class="lede">How a game gets from your shelf into the headset, how the Hub works as a panel inside SteamVR, the VR pinball launcher, and how each console is turned into OpenXR.</p>
     <ul class="key" aria-label="Status key">
-      <li><span class="state ok">Working</span> covered by tests or owner checks; E3 = accepted in the headset</li>
-      <li><span class="state wip">In progress</span> built, being finished or tested; E2 = works in an offline proof</li>
-      <li><span class="state no">Not yet</span> not accepted yet</li>
+      <li><span class="state ok">Working</span> built and covered by tests or owner checks</li>
+      <li><span class="state wip">In progress</span> built, being finished or tested</li>
+      <li><span class="state no">Not yet</span> not built or not working yet</li>
+      <li class="key-note">Game routes use the evidence levels instead: E3 accepted in the headset, E2 works in a hidden offline proof, E1 started.</li>
     </ul>
     <nav class="jump" aria-label="Sections">
       <a href="#files">Files to headset</a>
@@ -145,14 +146,14 @@
       <li class="node">
         <i class="sprite" data-sprite="pad"></i>
         <h3>Controls</h3>
-        <p>A gamepad layout goes into a copy of VPX's settings. Hold Y for 3 seconds to close the table. Analog plunger and nudge are still to come.</p>
+        <p>A gamepad layout, with an analog plunger and nudge, goes into a copy of VPX's settings. In the headset, hold Y for 3 seconds to close the table.</p>
         <span class="state wip">In progress</span>
       </li>
       <li class="node">
         <i class="sprite" data-sprite="shield"></i>
         <h3>Clean exit</h3>
-        <p>VPX's processes are kept together and asked to close, never force-killed, so scores get the chance to save.</p>
-        <span class="state no">Not yet</span>
+        <p>Exit game or Stop asks VPX to close normally, with no forced stop, so scores get the chance to save. Helpers the table started are closed with it.</p>
+        <span class="state ok">Working</span>
       </li>
     </ol>
   </section>
@@ -187,7 +188,7 @@
       </article>
 
       <article class="route">
-        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>PlayStation 2</h3><span class="state wip">E2</span></header>
+        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>PlayStation 2</h3><span class="state wip">E2 · offline proof</span></header>
         <ol class="flow flow-4">
           <li class="node node-sm"><span class="step">Game</span><p><b>PCSX2</b>, patched</p></li>
           <li class="node node-sm"><span class="step">Stereo hook</span><p><b>Per-vertex depth</b> plus the game's camera give real parallax</p></li>
@@ -199,7 +200,7 @@
       </article>
 
       <article class="route">
-        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>Wii and GameCube</h3><span class="state wip">E2</span></header>
+        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>Wii and GameCube</h3><span class="state wip">E2 · offline proof</span></header>
         <ol class="flow flow-4">
           <li class="node node-sm"><span class="step">Game</span><p><b>DolphinXR</b>, a VR build of Dolphin, pinned</p></li>
           <li class="node node-sm"><span class="step">Stereo hook</span><p><b>Dolphin's stereo</b> renders the 3D scene per eye; menus and HUD on a screen in the room where the game allows</p></li>
@@ -211,7 +212,7 @@
       </article>
 
       <article class="route">
-        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>Dreamcast and Atomiswave</h3><span class="state wip">E2</span></header>
+        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>Dreamcast and Atomiswave</h3><span class="state wip">E2 · offline proof</span></header>
         <ol class="flow flow-4">
           <li class="node node-sm"><span class="step">Game</span><p><b>hotd2-vr</b>, a Flycast fork, with our patch</p></li>
           <li class="node node-sm"><span class="step">Stereo hook</span><p><b>Rebuilds the game in true 3D</b>, with per-game profiles</p></li>
@@ -223,7 +224,7 @@
       </article>
 
       <article class="route">
-        <header class="route-head"><i class="sprite" data-sprite="link"></i><h3>MAME: Model 2 and arcade guns</h3><span class="state ok">E3 Time Crisis theatre · rest E2</span></header>
+        <header class="route-head"><i class="sprite" data-sprite="link"></i><h3>MAME: Model 2 and arcade guns</h3><span class="state ok">E3 Time Crisis big screen · rest E2</span></header>
         <ol class="flow flow-4">
           <li class="node node-sm"><span class="step">Game</span><p><b>MAME</b>, patched: a stereo Model 2 renderer, or plain frames for gun games</p></li>
           <li class="node node-sm"><span class="step">Stereo hook</span><p><b>Frames published</b> to our viewer, beside the emulator</p></li>
@@ -235,7 +236,7 @@
       </article>
 
       <article class="route">
-        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>Namco System 22</h3><span class="state wip">E2</span></header>
+        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>Namco System 22</h3><span class="state wip">E2 · offline proof</span></header>
         <ol class="flow flow-4">
           <li class="node node-sm"><span class="step">Game</span><p><b>Time Crisis VR</b>, a third-party port, built locally</p></li>
           <li class="node node-sm"><span class="step">Stereo hook</span><p><b>The port's own stereo</b>: open frame or inside the game</p></li>
@@ -257,6 +258,6 @@
     <p class="fine">System and game names belong to their owners. AC VR Hub is not affiliated with any of them and ships no game content.</p>
   </footer>
 </main>
-<script src="sprites.js?v=20261022d"></script>
+<script src="sprites.js?v=20261023d"></script>
 </body>
 </html>

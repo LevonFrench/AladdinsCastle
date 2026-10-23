@@ -11,7 +11,7 @@ The guns, grip hands and ghost controls in the scene, and the interactive model 
 - Models: `python website/tools/sync_models.py` after the gun, hand or control assets change.
 - Game List: edit `SYSTEMS` in `website/tools/make_games.py` from `docs/status/current.md` and the Hub's game tables, then `python website/tools/make_games.py website`.
 - Arcade and How It Works text: `index.html` and `how-it-works.html`, from the same status page. Never claim more than the repo does: E3 only where `current.md` says the owner accepted it.
-- Bump the `?v=` tag on the CSS and JS links when those files change, so browsers do not mix old and new files.
+- Bump the `?v=` tag on the CSS and JS links when those files change, so browsers do not mix old and new files. The models carry their own tag: `VER` in `models.js` and the `models.js?v=` imports in `arcade.js` and `bench.js` (keep those two imports identical, or the page loads two copies of the module).
 
 ## Preview
 
@@ -35,7 +35,7 @@ Scroll, the stop dots on the right, or the arrow keys walk the path. Mouse drag 
 
 ## Publishing
 
-The preview is the Cloudflare Pages project `ac-vr-hub`, branch `preview` (https://preview.ac-vr-hub.pages.dev). Deploy the folder as it is; there is no build step:
+The preview is the Cloudflare Pages project `ac-vr-hub`, branch `preview` (https://preview.ac-vr-hub.pages.dev). Deploy the folder as it is; there is no build step. `_headers` sets caching (models a day, CSS and JS an hour) and `404.html` answers missing paths with a real 404:
 
 ```bash
 wrangler pages deploy website --project-name ac-vr-hub --branch preview

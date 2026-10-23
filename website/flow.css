@@ -203,3 +203,4 @@
 .titles .t { font: 600 15px/1.3 var(--body); color: #fff; }
 .titles .n { font-size: 13px; color: var(--ink-dim); }
 .titles .state { align-self: flex-start; margin-top: 2px; }
+.key .key-note { flex-basis: 100%; font-size: 13px; }
