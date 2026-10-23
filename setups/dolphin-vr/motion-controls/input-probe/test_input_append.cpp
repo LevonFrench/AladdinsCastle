@@ -19,6 +19,12 @@ int main(int argc, char** argv)
   assert(command.hand == 1 && command.value == 1);
   assert(parse("12 14 L u -.44") == Result::Accept);
   assert(command.hand == 0 && command.control == "u");
+  assert(parse("12 13 R lin_x -2") == Result::Accept);
+  assert(command.hand == 1 && command.control == "lin_x" && command.value == -2);
+  assert(parse("12 13 L lin_y 2") == Result::Accept);
+  assert(command.hand == 0 && command.control == "lin_y" && command.value == 2);
+  assert(parse("12 13 R lin_z 0.75") == Result::Accept);
+  assert(command.hand == 1 && command.control == "lin_z" && command.value == 0.75f);
   assert(parse("shot 12 menu-01") == Result::Accept);
   assert(command.shot && command.name == "menu-01");
   assert(parse("# ignored") == Result::Ignore);
@@ -28,6 +34,7 @@ int main(int argc, char** argv)
          "12 13 X primary 1", "12 13 R menu 0", "12 13 L menu 1",
          "12 13 R primary .5", "12 13 R trigger 2", "12 13 R stick_x -2",
          "12 13 R u 6", "12 13 R yaw 361", "12 13 R ang_x 101",
+         "12 13 R lin_x 2.01", "12 13 L lin_y -2.01", "12 13 R lin_z inf",
          "12 13 R unknown 1", "12 13 R primary nan", "12 13 R primary 1 extra",
          "shot 9 old", "shot 700 too-far", "shot 12 ../escape", "shot 12 CON",
          "shot 12 lpt9", "shot 12 bad.name", "shot 12 extra token"})

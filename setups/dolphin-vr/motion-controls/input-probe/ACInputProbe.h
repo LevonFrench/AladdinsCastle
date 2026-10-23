@@ -13,11 +13,13 @@
 //
 // Script lines: "<from_s> <to_s> <L|R> <control> <value>" or "shot <at_s> <name>".
 // Controls: primary secondary menu thumbclick trigger squeeze stick_x stick_y
-//           roll pitch yaw (degrees, aim orientation) u v (screen hit) ang_x ang_y ang_z.
+//           roll pitch yaw (degrees, aim orientation) u v (screen hit) ang_x ang_y ang_z
+//           lin_x lin_y lin_z (grip linear velocity, meters/second; each component is bounded).
 #pragma once
 
 #ifdef ENABLE_VR
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -192,14 +194,30 @@ inline void Feed(double t)
 
   std::array<Common::VR::OpenXRControllerState, 2> c{};
   std::array<float, 2> yaw{}, pitch{}, roll{};
+  std::array<bool, 2> scripted_linear_velocity{};
+  for (const Step& st : s.steps)
+  {
+    if (st.control == "lin_x" || st.control == "lin_y" || st.control == "lin_z")
+      scripted_linear_velocity[st.hand] = true;
+  }
   for (int h = 0; h < 2; ++h)
   {
     c[h].connected = true;
     c[h].grip_pose.valid = true;
     c[h].grip_pose.position = {h == 0 ? -0.2f : 0.2f, 1.0f, -0.3f};
+    // When a script uses linear velocity, publish zero outside active steps too. The
+    // velocity edge back to zero is needed for the existing OpenXR-to-accelerometer
+    // derivative path to see both the start and end of a synthetic movement pulse.
+    c[h].grip_velocity.linear_valid = scripted_linear_velocity[h];
     c[h].aim_pose.valid = true;
     c[h].screen_hit = {true, 0.0f, 0.0f, 2.0f};
   }
+  const auto bounded_linear_velocity = [](float value) {
+    if (!std::isfinite(value))
+      return 0.0f;
+    const float limit = static_cast<float>(Append::MAX_LINEAR_VELOCITY_MPS);
+    return std::clamp(value, -limit, limit);
+  };
   for (const Step& st : s.steps)
   {
     if (t < st.from || t >= st.to)
@@ -222,6 +240,21 @@ inline void Feed(double t)
     else if (st.control == "ang_x") { k.grip_velocity.angular[0] = st.value; k.grip_velocity.angular_valid = true; }
     else if (st.control == "ang_y") { k.grip_velocity.angular[1] = st.value; k.grip_velocity.angular_valid = true; }
     else if (st.control == "ang_z") { k.grip_velocity.angular[2] = st.value; k.grip_velocity.angular_valid = true; }
+    else if (st.control == "lin_x")
+    {
+      k.grip_velocity.linear[0] = bounded_linear_velocity(st.value);
+      k.grip_velocity.linear_valid = true;
+    }
+    else if (st.control == "lin_y")
+    {
+      k.grip_velocity.linear[1] = bounded_linear_velocity(st.value);
+      k.grip_velocity.linear_valid = true;
+    }
+    else if (st.control == "lin_z")
+    {
+      k.grip_velocity.linear[2] = bounded_linear_velocity(st.value);
+      k.grip_velocity.linear_valid = true;
+    }
   }
   for (int h = 0; h < 2; ++h)
   {

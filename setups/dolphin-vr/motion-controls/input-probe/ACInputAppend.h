@@ -18,6 +18,9 @@ inline constexpr std::size_t MAX_TOTAL_STEPS = 2048;
 inline constexpr std::size_t MAX_TOTAL_SHOTS = 512;
 inline constexpr double MAX_FUTURE_SECONDS = 600;
 inline constexpr double MAX_STEP_SECONDS = 120;
+// OpenXR linear velocity is expressed in meters per second. Keep synthetic controller
+// velocity commands within a conservative finite range before they become acceleration.
+inline constexpr double MAX_LINEAR_VELOCITY_MPS = 2.0;
 
 struct Command
 {
@@ -119,6 +122,8 @@ inline Result ParseLine(const std::string& line, double now, Command& out, std::
     low = -360, high = 360;
   else if (out.control == "ang_x" || out.control == "ang_y" || out.control == "ang_z")
     low = -100, high = 100;
+  else if (out.control == "lin_x" || out.control == "lin_y" || out.control == "lin_z")
+    low = -MAX_LINEAR_VELOCITY_MPS, high = MAX_LINEAR_VELOCITY_MPS;
   else
     return reject("unknown_control");
   if (value < low || value > high)
