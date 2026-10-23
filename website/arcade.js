@@ -9,6 +9,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { loadModel } from './models.js?v=20261023d';
 
 const canvas = document.getElementById('scene');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -41,10 +42,13 @@ function fallBackToText(reason) {
   console.warn('Arcade walk stopped, showing the text version:', reason);
   document.body.classList.remove('js');
   curtain.remove();
-  document.querySelectorAll('.card').forEach(c => { c.style.removeProperty('--vis'); c.removeAttribute('data-hidden'); });
 }
-addEventListener('error', e => fallBackToText(e.error || e.message));
-addEventListener('unhandledrejection', e => fallBackToText(e.reason));
+// Before the first frame, any error means the scene cannot run: show the text page. After that,
+// a late problem (one model that fails to load, say) is logged and the arcade carries on.
+let sceneStarted = false;
+const onError = reason => { if (sceneStarted) console.warn('Arcade walk:', reason); else fallBackToText(reason); };
+addEventListener('error', e => onError(e.error || e.message));
+addEventListener('unhandledrejection', e => onError(e.reason));
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); fallBackToText('WebGL context lost'); });
 await Promise.race([
   Promise.all([
@@ -72,6 +76,7 @@ const envTex = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 const clickables = [];
 const animated = [];   // every frame
+const ghostSlots = []; // racer groups waiting for their real ghost-control models
 const screens = [];    // canvas redraws, throttled
 
 // ---------------------------------------------------------------- helpers
@@ -502,20 +507,20 @@ const screenCorridor = screen((g, w, h, t) => {
 });
 
 const screenBoard = screen((g, w, h, t) => {
-  // roadmap as a high-score table (docs/roadmap.md, status from README)
+  // system status as a high-score table (docs/status/current.md, evidence levels E1-E3)
   g.fillStyle = '#05030d'; g.fillRect(0, 0, w, h);
   pix(g, 22);
   const hue = (t * 40) % 360;
-  g.fillStyle = `hsl(${hue},90%,65%)`; g.fillText('ROADMAP', w / 2, 34);
+  g.fillStyle = `hsl(${hue},90%,65%)`; g.fillText('STATUS', w / 2, 34);
   const rows = [
-    ['M0', 'PLAY NOW', 'READY', '#9bdc3c'],
-    ['M1', 'HUB + FLAT LAUNCH', 'BUILDS', '#9bdc3c'],
-    ['M2', 'FIRST TRUE 3D', 'NOW', '#f6c744'],
-    ['M3', 'THEATRE + INPUT', '', '#8b86a0'],
-    ['M4', 'SUPERMODEL-VR', '', '#8b86a0'],
-    ['M5', 'SPRITE DEPTH', '', '#8b86a0'],
-    ['M6', 'PS2 TRUE 3D', '', '#8b86a0'],
-    ['M7', 'STANDALONE', '', '#8b86a0'],
+    ['N64', 'MARIO KART 64 3D', 'E3', '#9bdc3c'],
+    ['M3', 'SEGA RALLY 2 DX', 'E3', '#9bdc3c'],
+    ['MAME', 'TIME CRISIS SCREEN', 'E3', '#9bdc3c'],
+    ['PS1', '22 GAMES', 'E2', '#f6c744'],
+    ['PS2', '12 GAMES', 'E2', '#f6c744'],
+    ['WII', '19 GAMES', 'E2', '#f6c744'],
+    ['M2', '14 GAMES', 'E2', '#f6c744'],
+    ['DC', '5 GAMES', 'E2', '#f6c744'],
   ];
   pix(g, 11);
   rows.forEach(([m, name, st, col], i) => {
@@ -523,7 +528,7 @@ const screenBoard = screen((g, w, h, t) => {
     g.textAlign = 'left'; g.fillStyle = '#4ff3ff'; g.fillText(m, 22, y);
     g.fillStyle = col; g.fillText(name, 70, y);
     g.textAlign = 'right';
-    if (st && !(st === 'NOW' && Math.floor(t * 2) % 2)) g.fillText(st, w - 22, y);
+    if (st && !(st === 'E3' && Math.floor(t * 2) % 2 && i === 0)) g.fillText(st, w - 22, y);
   });
 }, 512, 280);
 
@@ -712,21 +717,7 @@ function sitdown({ x, z, rotY = 0, color, marquee, sub, screenTex, ghost = false
   box(0.6, 0.3, 0.55, side, 0, 0.27, 1.05, g);
   // under-glow
   box(0.98, 0.02, 1.98, glow(color, 1.2), 0, 0.005, 0.4, g);
-  if (ghost) {
-    // ghost controls: see-through wheel and lever hovering where your hands go
-    const gm = new THREE.MeshBasicMaterial({ color: new THREE.Color('#7ff8ff').multiplyScalar(2.2), transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
-    const gw = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.018, 8, 40), gm);
-    gw.position.set(0, 0.9, 0.62); gw.rotation.x = -1.05; g.add(gw);
-    const spokes = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.015, 0.015), gm); spokes.position.copy(gw.position); spokes.rotation.x = -1.05; g.add(spokes);
-    const gl = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22), gm); gl.position.set(0.36, 0.72, 0.8); gl.rotation.x = 0.35; g.add(gl);
-    const gk = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 8), gm); gk.position.set(0.36, 0.82, 0.84); g.add(gk);
-    animated.push(t => {
-      gm.opacity = reducedMotion ? 0.55 : 0.55 + Math.sin(t * 2.4) * 0.1;
-      gw.rotation.z = Math.sin(t * 0.9) * 0.35; spokes.rotation.z = gw.rotation.z;
-      const bob = reducedMotion ? 0 : Math.sin(t * 1.2) * 0.02;
-      gw.position.y = spokes.position.y = 0.9 + bob;
-    });
-  }
+  if (ghost) ghostSlots.push(g);  // real see-through wheel, shifter and pedals arrive later
   g.position.set(x, 0, z); g.rotation.y = rotY;
   scene.add(g);
   if (stop !== undefined) markClickable(g, stop);
@@ -864,9 +855,9 @@ wheelGame(7.3, -5.6, -Math.PI / 2, 4);
 hoops(6.8, -7.4, -Math.PI / 2 + 0.0001);
 
 // the Hub cabinet, back left
-upright({ x: -4.2, z: -18.6, rotY: 0.45, color: '#e2b955', marquee: 'THE HUBLIBRARY', screenTex: screenHub, w: 1.0, h: 2.05, d: 0.9, stop: 8 });
-upright({ x: -5.5, z: -18.0, rotY: 0.6, color: PAL.purple, marquee: 'ONE CLICKINSTALL', screenTex: screenHub, stop: 8 });
-upright({ x: -2.9, z: -19.0, rotY: 0.3, color: PAL.teal, marquee: 'THEATREMODE', screenTex: screenAttract, stop: 8 });
+upright({ x: -4.2, z: -18.6, rotY: 0.45, color: '#e2b955', marquee: 'THE HUBLIBRARY', screenTex: screenHub, w: 1.0, h: 2.05, d: 0.9, stop: 7 });
+upright({ x: -5.5, z: -18.0, rotY: 0.6, color: PAL.purple, marquee: 'ONE CLICKINSTALL', screenTex: screenHub, stop: 7 });
+upright({ x: -2.9, z: -19.0, rotY: 0.3, color: PAL.teal, marquee: 'THEATREMODE', screenTex: screenAttract, stop: 7 });
 
 // prize counter, back right
 {
@@ -901,7 +892,7 @@ upright({ x: -2.9, z: -19.0, rotY: 0.3, color: PAL.teal, marquee: 'THEATREMODE',
   plane(2.6, 0.55, new THREE.MeshBasicMaterial({ map: marqueeTex('prize-sign', PAL.magenta), toneMapped: false }), 0, 2.55, -1.28, g);
   g.position.set(4.2, 0, -21.5); g.rotation.y = -0.35;
   scene.add(g);
-  markClickable(g, 7);
+  markClickable(g, 6);
 }
 
 // scoreboard on the back wall
@@ -910,126 +901,16 @@ upright({ x: -2.9, z: -19.0, rotY: 0.3, color: PAL.teal, marquee: 'THEATREMODE',
   box(4.5, 2.6, 0.1, std('#1d1a27'), -0.4, 2.0, -25.97);
   box(4.5, 0.05, 0.05, glow('#ff4fa8', 3), -0.4, 3.32, -25.9);
   box(4.5, 0.05, 0.05, glow('#ff4fa8', 3), -0.4, 0.68, -25.9);
-  markClickable(board, 9);
+  markClickable(board, 8);
 }
 // filler uprights along the back wall
 [[-6.8, PAL.orange], [-5.9, PAL.teal], [3.0, PAL.red], [3.9, PAL.blue]].forEach(([x, col], i) =>
   upright({ x, z: -25.3, rotY: 0, color: col, marquee: ['BONUS', 'EXTRA LIFE', 'STAGE 2', 'NEW RECORD'][i], screenTex: [screenRace, screenAttract, screenGun, screenAttract][i] }));
 
-// ---------------------------------------------------------------- motion controls and gun models
-// Lookalike silhouettes only (docs/guns.md §2.2): no logos, no copied shapes. Forward is -z, grip at the origin.
+// ---------------------------------------------------------------- the project's own models
+// Guns, hands and ghost controls are the real CC0 models from assets/ (copied into models/ by
+// tools/sync_models.py). They stream in after the first frame, so the page never waits on them.
 const additive = (color, opacity) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-
-// Side profiles, x = forward (muzzle), y = up, grip at the origin; the trigger guard is a hole.
-// Each pistol is one extruded silhouette with a small bevel; moving parts stay separate meshes.
-const GUN_PROFILES = {
-  slide: { width: 0.036,
-    outer: [[-0.035, -0.115], [-0.012, -0.115], [0.005, -0.004], [0.05, -0.004], [0.062, 0.03], [0.14, 0.03], [0.14, 0.06], [-0.045, 0.06], [-0.045, 0.036], [-0.03, 0.03]],
-    hole: [[0.012, 0.003], [0.045, 0.003], [0.053, 0.025], [0.012, 0.025]] },
-  twin: { width: 0.046,
-    outer: [[-0.04, -0.12], [-0.012, -0.12], [0.005, -0.004], [0.05, -0.004], [0.062, 0.03], [0.09, 0.03], [0.09, 0.09], [-0.05, 0.09], [-0.05, 0.04], [-0.032, 0.03]],
-    hole: [[0.012, 0.003], [0.045, 0.003], [0.053, 0.025], [0.012, 0.025]] },
-  revolver: { width: 0.03,
-    outer: [[-0.045, -0.105], [-0.02, -0.105], [0.0, -0.002], [0.035, -0.004], [0.046, 0.028], [0.06, 0.032], [0.06, 0.075], [-0.028, 0.08], [-0.04, 0.062], [-0.03, 0.032]],
-    hole: [[0.007, 0.003], [0.031, 0.003], [0.038, 0.023], [0.007, 0.023]] },
-  dpad: { width: 0.04,
-    outer: [[-0.04, -0.11], [-0.015, -0.11], [0.003, -0.004], [0.05, -0.004], [0.062, 0.025], [0.17, 0.025], [0.17, 0.075], [-0.035, 0.08], [-0.046, 0.06], [-0.03, 0.03]],
-    hole: [[0.01, 0.003], [0.045, 0.003], [0.053, 0.021], [0.01, 0.021]] },
-  shell: { width: 0.045,
-    outer: [[-0.04, -0.1], [-0.015, -0.1], [0.0, -0.004], [0.05, -0.004], [0.062, 0.02], [0.2, 0.02], [0.208, -0.08], [0.235, -0.08], [0.235, 0.02], [0.26, 0.02], [0.26, 0.07], [-0.08, 0.07], [-0.19, 0.05], [-0.19, 0.0], [-0.09, 0.012], [-0.03, 0.026]],
-    hole: [[0.01, 0.003], [0.045, 0.003], [0.053, 0.016], [0.01, 0.016]] },
-};
-const profileGeoCache = new Map();
-function gunProfileGeo(kind) {
-  if (profileGeoCache.has(kind)) return profileGeoCache.get(kind);
-  const { width, outer, hole } = GUN_PROFILES[kind];
-  const shape = new THREE.Shape(outer.map(([x, y]) => new THREE.Vector2(x, y)));
-  shape.holes.push(new THREE.Path(hole.map(([x, y]) => new THREE.Vector2(x, y))));
-  const bevel = 0.003;
-  const geo = new THREE.ExtrudeGeometry(shape, { depth: width - bevel * 2, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 4 });
-  geo.translate(0, 0, -(width - bevel * 2) / 2);
-  geo.rotateY(Math.PI / 2);  // shape +x becomes -z (forward), extrusion becomes width along x
-  profileGeoCache.set(kind, geo);
-  return geo;
-}
-
-function gunModel(kind, main, accent) {
-  const g = new THREE.Group();
-  const body = std(main, { roughness: 0.35, envMap: envTex, envMapIntensity: 0.4 });
-  const trim = std(accent, { roughness: 0.4, envMap: envTex, envMapIntensity: 0.3, emissive: accent, emissiveIntensity: 0.05 });
-  const dark = std('#2a2733', { roughness: 0.5, envMap: envTex, envMapIntensity: 0.3 });
-  let slide = null, drum = null, muzzleZ = -0.2, muzzleY = 0.07;
-  g.add(new THREE.Mesh(gunProfileGeo(kind), body));
-  const trigger = box(0.008, 0.02, 0.008, dark, 0, 0.012, -0.022, g);
-  trigger.rotation.x = -0.3;
-  if (kind === 'slide') {            // cabinet pistol, slide travels back on a shot
-    slide = box(0.04, 0.03, 0.17, trim, 0, 0.076, -0.06, g);
-    muzzleZ = -0.15; muzzleY = 0.075;
-  } else if (kind === 'twin') {      // chunky cabinet pistol with a round barrel
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.023, 0.13, 16), body);
-    bar.rotation.x = Math.PI / 2; bar.position.set(0, 0.065, -0.155); g.add(bar);
-    slide = box(0.03, 0.012, 0.1, trim, 0, 0.098, -0.02, g);
-    muzzleZ = -0.23; muzzleY = 0.065;
-  } else if (kind === 'revolver') {  // long-barrel revolver: hammer falls, cylinder turns
-    drum = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.045, 12), trim);
-    drum.rotation.x = Math.PI / 2; drum.position.set(0, 0.056, -0.045); g.add(drum);
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.18, 12), body);
-    bar.rotation.x = Math.PI / 2; bar.position.set(0, 0.068, -0.15); g.add(bar);
-    slide = box(0.012, 0.03, 0.015, dark, 0, 0.088, 0.03, g);
-    muzzleZ = -0.24; muzzleY = 0.068;
-  } else if (kind === 'dpad') {      // console pistol with a pad at the rear
-    box(0.042, 0.016, 0.06, trim, 0, 0.083, 0.0, g);
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.006, 16), trim);
-    pad.rotation.x = Math.PI / 2; pad.position.set(0, 0.058, 0.05); g.add(pad);
-    for (const x of [-0.023, 0.023]) box(0.006, 0.012, 0.012, std(PAL.blue), x, 0.06, -0.09, g);
-    slide = box(0.03, 0.01, 0.08, trim, 0, 0.08, -0.11, g);
-    muzzleZ = -0.18; muzzleY = 0.05;
-  } else if (kind === 'shell') {     // two-hand shell with a remote riding in the barrel
-    slide = box(0.034, 0.03, 0.15, trim, 0, 0.085, -0.17, g);
-    muzzleZ = -0.26; muzzleY = 0.085;
-  }
-  const flash = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), additive('#ffd27a', 0));
-  flash.position.set(0, muzzleY, muzzleZ - 0.03); g.add(flash);
-  const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, 1.2, 6), additive('#4ff3ff', 0));
-  ray.rotation.x = Math.PI / 2; ray.position.set(0, muzzleY, muzzleZ - 0.6); g.add(ray);
-  g.userData.gun = { kind, slide, slideZ: slide ? slide.position.z : 0, drum, flash, ray };
-  return g;
-}
-
-// one shot every `period` seconds: slide or hammer kicks, muzzle flashes, aim ray pulses
-function animateShot(gun, t, period, offset) {
-  const u = gun.userData.gun;
-  const n = Math.floor((t + offset) / period);
-  const ph = ((t + offset) % period) / period;
-  const kick = reducedMotion ? 0 : Math.max(0, 1 - ph * 9);
-  if (u.kind === 'revolver') u.slide.rotation.x = -kick * 0.7;
-  else if (u.slide) u.slide.position.z = u.slideZ + kick * 0.035;
-  if (u.drum) u.drum.rotation.y = n * (Math.PI / 3);
-  u.flash.material.opacity = kick > 0.55 ? 0.7 : 0;
-  u.flash.scale.setScalar(0.4 + kick * 0.5);
-  u.ray.material.opacity = 0.08 + kick * 0.35;
-  return kick;
-}
-
-function controllerModel(color) {
-  const g = new THREE.Group();
-  const shell = std('#3c3a48', { roughness: 0.4, envMap: envTex, envMapIntensity: 0.5, emissive: '#2a2836', emissiveIntensity: 0.6 });
-  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.026, 0.12, 16), shell);
-  grip.position.set(0, -0.045, 0.02); grip.rotation.x = 0.35; g.add(grip);
-  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.03, 0.035, 20), shell);
-  head.position.set(0, 0.022, -0.005); g.add(head);
-  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.014, 12), std('#111'));
-  stick.position.set(-0.009, 0.045, 0.0); g.add(stick);
-  box(0.009, 0.004, 0.009, glow(color, 1.5), 0.013, 0.041, -0.012, g);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.007, 8, 40), shell);
-  ring.position.set(0, 0.03, -0.01); ring.rotation.x = Math.PI / 2 - 0.5; g.add(ring);
-  const accent = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.0025, 6, 40), glow(color, 2.2));
-  accent.position.set(0, 0.034, -0.01); accent.rotation.copy(ring.rotation); g.add(accent);
-  box(0.014, 0.03, 0.02, std('#111'), 0, -0.005, -0.035, g);
-  const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 1.4, 6), additive(color, 0.5));
-  ray.rotation.x = Math.PI / 2; ray.position.set(0, 0.02, -0.72); g.add(ray);
-  return g;
-}
 
 function floatingRing(x, y, z, r = 0.15, parent = scene) {
   const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.006, 8, 48), glow('#4ff3ff', 0.9));
@@ -1052,73 +933,126 @@ function applyLayout() {
   for (const { holder, wide, narrow } of layouts) holder.position.lerpVectors(narrow, wide, k);
 }
 
-// turntable display for a gun: spins, fires, bobs
-function gunOnTurntable(gun, wide, narrow, scale, stop, i) {
-  const holder = exhibitHolder(wide, narrow);
+// A loaded gun on a pivot: scaled for the room, with a muzzle flash at its fx_muzzle node.
+async function realGun(id, { scale = 2.5, hands = false } = {}) {
+  const m = await loadModel(id, { envMap: envTex, hands });
   const pivot = new THREE.Group();
-  gun.scale.setScalar(scale); pivot.add(gun); holder.add(pivot);
+  m.root.scale.setScalar(scale);
+  // turn around the model's middle, not its grip
+  const mid = new THREE.Box3().setFromObject(m.root).getCenter(new THREE.Vector3());
+  m.root.position.sub(mid);
+  pivot.add(m.root);
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), additive('#ffd27a', 0));
+  (m.node('fx_muzzle') || m.root).add(flash);
+  return { ...m, pivot, flash };
+}
+// one shot every `period` seconds: trigger pulls, slide kicks, muzzle flashes
+function fire(gun, t, period, offset) {
+  const ph = ((t + offset) % period) / period;
+  const kick = reducedMotion ? 0 : Math.max(0, 1 - ph * 9);
+  gun.pull(reducedMotion ? 0 : smooth(0.86, 0.98, ph) + kick * 0.9 - smooth(0.98, 1, ph));
+  gun.shoot(kick);
+  gun.flash.material.opacity = kick > 0.55 ? 0.8 : 0;
+  gun.flash.scale.setScalar(0.5 + kick);
+  return kick;
+}
+
+// turntable display for one model: spins, bobs and (for guns) fires
+function turntable(wide, narrow, stop, i) {
+  const holder = exhibitHolder(wide, narrow);
+  const spin = new THREE.Group();
+  holder.add(spin);
   floatingRing(0, -0.32, 0, 0.15, holder);
   if (stop !== undefined) markClickable(holder, stop);
   animated.push(t => {
-    if (!reducedMotion) {
-      pivot.rotation.y = t * 0.45 + i * 1.3;
-      pivot.position.y = Math.sin(t * 1.1 + i) * 0.02;
-    }
-    gun.rotation.x = animateShot(gun, t, 2.4, i * 0.47) * 0.3;
+    if (reducedMotion) return;
+    spin.rotation.y = t * 0.45 + i * 1.3;
+    spin.position.y = Math.sin(t * 1.1 + i) * 0.02;
   });
-  return holder;
+  return spin;
 }
+// idle-time load with a deadline, so a busy page still gets its models; a failure skips that exhibit only
+const later = fn => (window.requestIdleCallback || (cb => setTimeout(cb, 400)))(() => fn().catch(err => console.warn('model load', err)), { timeout: 2500 });
+// exhibits load as the walk gets within a section of them, not all at once
+const nearLoads = [];
+const whenNear = (stop, fn) => nearLoads.push({ stop, fn });
+const settled = results => results.filter(r => r.status === 'fulfilled').map(r => r.value);
 
-// stop 1: two controllers that turn into guns and back. Wide screens (2:1 and up): at about 22%
-// and 42% of the width from the stop-1 camera, so both stay left of the card. Narrow screens: both gathered left of centre. The camera
-// path curves to the right of both (1.4 m or more).
+// stop 1: your hands are the cabinet. Two grip hands holding real guns, aiming down the aisle.
 [
-  { wide: v(-1.46, 1.5, -1.29), narrow: v(-1.9, 1.55, -2.3), col: '#4ff3ff', kind: 'slide', main: PAL.blue, acc: '#e8e8ee', i: 0 },
-  { wide: v(-1.4, 1.35, -2.41), narrow: v(-1.6, 1.3, -2.9), col: '#ff4fa8', kind: 'twin', main: PAL.red, acc: PAL.yellow, i: 1 },
-].forEach(({ wide, narrow, col, kind, main, acc, i }) => {
+  { wide: v(-1.46, 1.5, -1.29), narrow: v(-1.9, 1.55, -2.3), id: 'arc-pistol-slide', i: 0 },
+  { wide: v(-1.4, 1.35, -2.41), narrow: v(-1.6, 1.3, -2.9), id: 'con-revolver-chunky', i: 1 },
+].forEach(({ wide, narrow, id, i }) => {
   const holder = exhibitHolder(wide, narrow);
-  const pivot = new THREE.Group();
-  const ctrl = controllerModel(col);
-  const gun = gunModel(kind, main, acc);
-  pivot.add(ctrl, gun);
-  holder.add(pivot);
-  floatingRing(0, -0.32, 0, 0.17, holder);
+  floatingRing(0, -0.34, 0, 0.17, holder);
   markClickable(holder, 1);
-  const S = 3.4;
-  animated.push(t => {
-    const cyc = ((t + i * 0.8) % 7) / 7;
-    const g = smooth(0.42, 0.52, cyc) - smooth(0.9, 1.0, cyc);
-    ctrl.scale.setScalar(S * (1 - g) + 1e-4);
-    gun.scale.setScalar(S * g + 1e-4);
-    const sway = reducedMotion ? 0 : Math.sin(t * 0.9 + i * 2) * 0.35;
-    pivot.rotation.set(reducedMotion ? 0 : Math.sin(t * 1.3 + i) * 0.12, -0.8 + sway, 0);
-    if (g > 0.5) gun.rotation.x = animateShot(gun, t, 1.4, i * 0.6) * 0.3;
+  whenNear(1, async () => {
+    const gun = await realGun(id, { scale: 3.0, hands: true });
+    holder.add(gun.pivot);
+    markClickable(gun.pivot, 1);
+    animated.push(t => {
+      const sway = reducedMotion ? 0 : Math.sin(t * 0.9 + i * 2) * 0.3;
+      gun.pivot.rotation.set(reducedMotion ? 0 : Math.sin(t * 1.3 + i) * 0.08, -0.8 + sway, 0);
+      gun.root.rotation.x = fire(gun, t, 1.6, i * 0.7) * 0.25;
+    });
   });
 });
 
-// stop 2: one gun in the aisle that becomes the next model every few seconds
+// stop 2: one gun at a time, cycling through the project's real models
 {
-  const models = [['slide', PAL.blue, '#e8e8ee'], ['revolver', PAL.teal, '#c9c9d2'], ['twin', PAL.red, PAL.yellow], ['dpad', PAL.orange, '#1b1b20'], ['shell', '#a7acb8', '#4fd2ff']]
-    .map(([kind, main, acc]) => gunModel(kind, main, acc));
-  const S = 2.5, HOLD = 4.5;
-  const holder = exhibitHolder(v(-5.0, 1.45, -6.5), v(-5.0, 1.45, -6.5));  // one gun: same spot at every width
-  const pivot = new THREE.Group();
-  models.forEach(m => { m.scale.setScalar(1e-4); pivot.add(m); });
-  holder.add(pivot);
-  floatingRing(0, -0.32, 0, 0.15, holder);
-  markClickable(holder, 2);
-  animated.push(t => {
-    const n = Math.floor(t / HOLD), ph = (t % HOLD) / HOLD;
-    const grow = smooth(0, 0.08, ph) * (1 - smooth(0.92, 1, ph));
-    models.forEach((m, k) => m.scale.setScalar(k === n % models.length ? S * grow + 1e-4 : 1e-4));
-    const gun = models[n % models.length];
-    if (!reducedMotion) {
-      pivot.rotation.y = t * 0.45;
-      pivot.position.y = Math.sin(t * 1.1) * 0.02;
-    }
-    gun.rotation.x = animateShot(gun, t, 1.5, 0.6) * 0.3;
+  const spin = turntable(v(-5.0, 1.45, -6.5), v(-5.0, 1.45, -6.5), 2, 0);
+  const ids = ['arc-pistol-slide', 'arc-pistol-twin', 'funcon', 'con-pistol-dpad', 'con-revolver-chunky', 'con-pistol-slim', 'con-remote-shell', 'generic-pistol'];
+  const HOLD = 4.5;
+  whenNear(2, async () => {
+    const guns = settled(await Promise.allSettled(ids.map(id => realGun(id, { scale: 2.4 }))));
+    if (!guns.length) return;
+    guns.forEach(g => { g.pivot.visible = false; spin.add(g.pivot); markClickable(g.pivot, 2); });
+    animated.push(t => {
+      const n = Math.floor(t / HOLD) % guns.length, ph = (t % HOLD) / HOLD;
+      const grow = smooth(0, 0.08, ph) * (1 - smooth(0.92, 1, ph));
+      guns.forEach((g, k) => { g.pivot.visible = k === n; if (k === n) g.pivot.scale.setScalar(grow + 1e-4); });  // grow about the centre
+      guns[n].root.rotation.x = fire(guns[n], t, 1.5, 0.6) * 0.25;
+    });
   });
 }
+
+// stop 4: the mounted machine gun the Model 3 gun cabinets use
+{
+  // beside the Model 3 cabinets, on the open side of the screen
+  const spin = turntable(v(-5.4, 1.3, -12.6), v(-5.6, 1.3, -12.4), 4, 3);
+  whenNear(4, async () => {
+    const gun = await realGun('mnt-mg-heavy', { scale: 1.6 });
+    spin.add(gun.pivot);
+    markClickable(gun.pivot, 4);
+    animated.push(t => { gun.root.rotation.x = fire(gun, t, 0.5, 0) * 0.08; });
+  });
+}
+
+// ghost controls on the racers: the real wheel, shifter and pedals, see-through, where your
+// hands and feet go. Called by sitdown() with its group.
+function ghostControls(g) {
+  const holder = new THREE.Group();
+  holder.userData.dynamic = true;
+  g.add(holder);
+  whenNear(3, async () => {
+    const [wheel, shifter, pedals] = (await Promise.allSettled([
+      loadModel('wheel-three-spoke', { style: 'ghost' }),
+      loadModel('shifter-sequential', { style: 'ghost' }),
+      loadModel('pedals-dual', { style: 'ghost' }),
+    ])).map(r => r.status === 'fulfilled' ? r.value : null);
+    if (!wheel) return;
+    wheel.root.position.set(0, 0.95, 0.55); wheel.root.rotation.x = -0.95; holder.add(wheel.root);
+    if (shifter) { shifter.root.position.set(0.36, 0.62, 0.72); holder.add(shifter.root); }
+    if (pedals) { pedals.root.position.set(0, 0.16, 0.22); holder.add(pedals.root); }
+    animated.push(t => {
+      if (reducedMotion) return;
+      wheel.root.rotation.z = Math.sin(t * 0.9) * 0.35;
+      wheel.root.position.y = 0.95 + Math.sin(t * 1.2) * 0.02;
+    });
+  });
+}
+
+ghostSlots.forEach(ghostControls);
 
 // ---------------------------------------------------------------- systems
 // stop 4: Model 3 corner, blank cabs on the left wall
@@ -1127,7 +1061,7 @@ upright({ x: -7.2, z: -11.9, rotY: Math.PI / 2, color: PAL.lime, marquee: 'm3-b'
 sitdown({ x: -6.6, z: -13.3, rotY: Math.PI / 2, color: PAL.purple, marquee: 'm3-c', screenTex: screenRace, stop: 4 });
 
 // stops 5 and 6: console kiosks on the right wall, each with its own gun
-function kiosk({ x, z, consoleKind, screenTex, gun, stop, i, gunDzWide = 0, gunDzNarrow = 0 }) {
+function kiosk({ x, z, consoleKind, screenTex, gunId, stop, i, gunDzWide = 0, gunDzNarrow = 0 }) {
   const g = new THREE.Group();
   box(1.5, 0.72, 0.55, std('#3a2752', { roughness: 0.6 }), 0, 0.36, 0, g);
   box(1.5, 0.03, 0.03, glow(consoleKind === 'tall' ? '#4fd2ff' : PAL.orange, 2), 0, 0.72, 0.28, g);
@@ -1149,10 +1083,16 @@ function kiosk({ x, z, consoleKind, screenTex, gun, stop, i, gunDzWide = 0, gunD
   markClickable(g, stop);
   // the gun floats on the kiosk's outer side, away from its neighbour: further out on wide
   // screens, tucked closer to the TV on narrow ones
-  gunOnTurntable(gun, v(x - 1.05, 1.3, z + gunDzWide), v(x - 1.05, 1.3, z + gunDzNarrow), 2.4, stop, i);
+  const spin = turntable(v(x - 1.05, 1.3, z + gunDzWide), v(x - 1.05, 1.3, z + gunDzNarrow), stop, i);
+  whenNear(stop, async () => {
+    const gun = await realGun(gunId, { scale: 2.4 });
+    spin.add(gun.pivot);
+    markClickable(gun.pivot, stop);
+    animated.push(t => { gun.root.rotation.x = fire(gun, t, 2.4, i * 0.47) * 0.25; });
+  });
 }
-kiosk({ x: 7.35, z: -14.6, consoleKind: 'tall', screenTex: screenCorridor, gun: gunModel('shell', '#a7acb8', '#4fd2ff'), stop: 5, i: 5, gunDzWide: 1.05, gunDzNarrow: 0.55 });
-kiosk({ x: 7.35, z: -17.2, consoleKind: 'slab', screenTex: screenGun, gun: gunModel('dpad', PAL.orange, '#1b1b20'), stop: 6, i: 6, gunDzWide: -1.05, gunDzNarrow: -0.55 });
+kiosk({ x: 7.35, z: -14.6, consoleKind: 'tall', screenTex: screenCorridor, gunId: 'con-remote-shell', stop: 5, i: 5, gunDzWide: 0.6, gunDzNarrow: 0.55 });
+kiosk({ x: 7.35, z: -17.2, consoleKind: 'slab', screenTex: screenGun, gunId: 'con-pistol-dpad', stop: 5, i: 6, gunDzWide: -0.6, gunDzNarrow: -0.55 });
 
 // exit sign over the door, inside
 plane(0.5, 0.18, new THREE.MeshBasicMaterial({ map: textSign('EXIT', '#300', '#ff4040'), toneMapped: false }), 0, 3.1, -0.3).rotation.y = Math.PI;
@@ -1215,20 +1155,19 @@ sizeFxaa();
 // ---------------------------------------------------------------- the walk
 const STOPS = [
   { pos: v(0, 1.62, 9.8), look: v(0, 2.55, 0), fov: 58 },            // mall, facing the sign
-  { pos: v(0.9, 1.6, -0.2), look: v(-2.76, 1.49, -4.95), fov: 50, subject: v(-1.75, 1.42, -2.6) },  // motion controls
-  { pos: v(-2.9, 1.6, -6.4), look: v(-8.53, 1.27, -8.46), fov: 46, subject: v(-5.0, 1.45, -6.5) }, // the gun
-  { pos: v(4.6, 1.8, -11.45), look: v(10.04, -0.71, -11.72), fov: 52, subject: v(6.2, 1.0, -11.0) }, // racing, over the seat
-  { pos: v(-3.3, 1.6, -12.0), look: v(-9.16, 1.34, -13.25), fov: 58, subject: v(-7.0, 1.4, -11.9) }, // Model 3
-  { pos: v(3.2, 1.6, -15.5), look: v(9.19, 1.2, -15.55), fov: 46, subject: v(7.0, 1.2, -14.8) },  // Wii
-  { pos: v(3.2, 1.6, -16.3), look: v(9.18, 1.19, -16.08), fov: 46, subject: v(7.0, 1.2, -17.0) }, // PS2
-  { pos: v(1.2, 1.6, -18.3), look: v(3.7, 1.32, -23.75), fov: 58, subject: v(4.0, 1.1, -21.6) },  // prize counter
-  { pos: v(-1.8, 1.6, -16.9), look: v(-5.51, 1.18, -21.59), fov: 52, subject: v(-4.2, 1.45, -18.6) }, // the Hub
-  { pos: v(0.6, 1.65, -19.4), look: v(1.82, 1.92, -25.27), fov: 58, subject: v(-0.4, 2.0, -25.9) }, // scoreboard
+  { pos: v(0.9, 1.6, -0.2), look: v(-2.76, 1.49, -4.95), fov: 50, subject: v(-1.75, 1.42, -2.6), side: 'right' },  // motion controls
+  { pos: v(-2.9, 1.6, -6.4), look: v(-8.53, 1.27, -8.46), fov: 46, subject: v(-5.0, 1.45, -6.5), side: 'right' }, // the gun
+  { pos: v(4.6, 1.8, -11.45), look: v(10.04, -0.71, -11.72), fov: 52, subject: v(6.2, 1.0, -11.0), side: 'left' }, // racing, over the seat
+  { pos: v(-3.3, 1.6, -12.0), look: v(-9.16, 1.34, -13.25), fov: 58, subject: v(-7.0, 1.4, -11.9), side: 'right' }, // Model 3
+  { pos: v(3.0, 1.6, -15.9), look: v(9.2, 1.2, -15.9), fov: 64, subject: v(7.0, 1.2, -15.9), side: 'right' },  // consoles: Wii and PS2 kiosks
+  { pos: v(1.2, 1.6, -18.3), look: v(3.7, 1.32, -23.75), fov: 58, subject: v(4.0, 1.1, -21.6), side: 'left' },  // prize counter
+  { pos: v(-1.8, 1.6, -16.9), look: v(-5.51, 1.18, -21.59), fov: 52, subject: v(-4.2, 1.45, -18.6), side: 'right' }, // the Hub
+  { pos: v(0.6, 1.65, -19.4), look: v(1.82, 1.92, -25.27), fov: 58, subject: v(-0.4, 2.0, -25.9), side: 'right' }, // scoreboard
 ];
 // in-between waypoints keep the path at least 0.5 m off the cabinets
 const PATH = [STOPS[0].pos, v(0, 1.61, 5.2), v(0, 1.6, 2.0), STOPS[1].pos, v(0.2, 1.6, -4.2), v(-2.6, 1.6, -5.0), STOPS[2].pos,
   v(-2.9, 1.6, -9.0), v(0.8, 1.6, -10.0), STOPS[3].pos, v(0.4, 1.6, -11.6), STOPS[4].pos, v(0.2, 1.6, -13.4),
-  STOPS[5].pos, STOPS[6].pos, STOPS[7].pos, v(0.0, 1.6, -17.4), STOPS[8].pos, v(-0.2, 1.6, -18.4), STOPS[9].pos];
+  STOPS[5].pos, STOPS[6].pos, v(0.0, 1.6, -17.4), STOPS[7].pos, v(-0.2, 1.6, -18.4), STOPS[8].pos];
 const STOP_IDX = STOPS.map(st => PATH.indexOf(st.pos));
 const curve = new THREE.CatmullRomCurve3(PATH, false, 'centripetal');
 const N = STOPS.length;
@@ -1237,11 +1176,20 @@ const N = STOPS.length;
 function aimStops() {
   STOPS[0].pos.set(0, 1.62, portrait ? 16.5 : 9.8);
   for (const st of STOPS) {
-    // portrait: the card covers the lower half, so aim a little under the subject to lift it into view
-    const target = portrait && st.subject ? st.subject.clone().add(v(0, -0.55, 0)) : st.look;
+    // Panels take one side of the screen; the camera turns so the stop's exhibit sits about 22% in
+    // from the open edge (desktop), or in the top fifth above the panels (portrait phones).
+    let target = st.look, yawShift = 0, pitchShift = 0;
+    if (st.subject) {
+      const tv = Math.tan(THREE.MathUtils.degToRad(st.fov + (portrait ? 16 : 0)) / 2);
+      if (portrait) { target = st.subject; pitchShift = -Math.atan(0.56 * tv); }
+      else if (innerWidth >= 900 && (st.side === 'right' || st.side === 'left')) {  // the CSS side layout starts at 900px
+        target = st.subject;
+        yawShift = (st.side === 'right' ? 1 : -1) * Math.atan(0.56 * tv * camera.aspect);
+      }
+    }
     const d = target.clone().sub(st.pos);
-    st.yaw = Math.atan2(d.x, -d.z);
-    st.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
+    st.yaw = Math.atan2(d.x, -d.z) + yawShift;
+    st.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)) + pitchShift;
   }
 }
 aimStops();
@@ -1249,7 +1197,8 @@ applyLayout();
 const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 
 const sections = [...document.querySelectorAll('.stop')];
-const cards = sections.map(s => s.querySelector('.card'));
+const scrim = document.querySelector('.scrim');
+const spot = new THREE.Vector3();
 const navLinks = [...document.querySelectorAll('#stop-nav a')];
 const creditFill = document.getElementById('credit-fill');
 const creditNum = document.getElementById('credit-num');
@@ -1257,7 +1206,6 @@ const creditNum = document.getElementById('credit-num');
 function scrollToStop(i) {
   sections[i].scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
 }
-cards.forEach((c, i) => c.addEventListener('focusin', () => { if (Math.round(p) !== i) scrollToStop(i); }));
 navLinks.forEach(a => a.addEventListener('click', e => { e.preventDefault(); scrollToStop(+a.dataset.stop); history.replaceState(null, '', a.getAttribute('href')); }));
 document.querySelector('.brand').addEventListener('click', e => { e.preventDefault(); scrollToStop(0); });
 
@@ -1293,7 +1241,7 @@ function poseAt(q, outPos, outLook) {
   const A = STOPS[i], B = STOPS[i + 1], k = smooth(0.2, 0.85, t);
   const yaw = A.yaw + wrapAngle(B.yaw - A.yaw) * k, pitch = A.pitch + (B.pitch - A.pitch) * k;
   outLook.set(outPos.x + Math.sin(yaw) * Math.cos(pitch), outPos.y + Math.sin(pitch), outPos.z - Math.cos(yaw) * Math.cos(pitch));
-  // per-stop lens; portrait phones get 16 degrees more so the subject fits above the card
+  // per-stop lens; portrait phones get 16 degrees more so the subject fits above the panels
   const fov = A.fov + (B.fov - A.fov) * k + (portrait ? 16 : 0);
   if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
   return te;
@@ -1324,7 +1272,8 @@ function hitStop(e) {
   if (e.target !== canvas && !(e.target.classList && e.target.classList.contains('stop'))) return undefined;
   ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
-  const hit = raycaster.intersectObjects(clickables, false)[0];
+  const shown = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+  const hit = raycaster.intersectObjects(clickables, false).find(h => shown(h.object));
   return hit && hit.distance < 14 ? hit.object.userData.stop : undefined;
 }
 function hover(e) {
@@ -1351,7 +1300,8 @@ function resize() {
   composer.setSize(innerWidth, innerHeight);
   sizeFxaa();
   const nowPortrait = innerWidth < innerHeight;
-  if (nowPortrait !== portrait) { portrait = nowPortrait; aimStops(); }
+  portrait = nowPortrait;
+  aimStops();
   applyLayout();
   measure();
   p = progress();
@@ -1422,6 +1372,9 @@ function frame(now = 0) {
 
   // attract screens at ~20 fps
   screenAcc += dt;
+  for (let k = nearLoads.length - 1; k >= 0; k--) {
+    if (Math.abs(p - nearLoads[k].stop) < 1.6) { later(nearLoads[k].fn); nearLoads.splice(k, 1); }
+  }
   for (const fn of animated) fn(t, dt);
   // the sign replays its ARCADE to AC routine whenever you walk back out to the mall
   if (p > 0.6) signArmed = true;
@@ -1429,12 +1382,18 @@ function frame(now = 0) {
   sign.update(t);
   if (screenAcc > 0.05) { for (const fn of screens) fn(t); screenAcc = 0; }
 
-  // cards and HUD follow the scroll, not the eased camera, so text never lags
-  cards.forEach((c, i) => {
-    const vis = 1 - smooth(0.22, 0.5, Math.abs(p - i));
-    c.style.setProperty('--vis', vis.toFixed(3));
-    if (vis < 0.02) c.setAttribute('data-hidden', ''); else c.removeAttribute('data-hidden');
-  });
+  // the arcade sits back behind the panels; in the mall it stays bright so the sign reads
+  if (scrim) {
+    scrim.style.setProperty('--dim', (0.12 + 0.18 * smooth(0.15, 0.7, p)).toFixed(3));
+    const subject = STOPS[Math.round(p)].subject;
+    if (subject) {
+      spot.copy(subject).project(camera);
+      if (spot.z < 1) {
+        scrim.style.setProperty('--sx', ((spot.x + 1) * 50).toFixed(1) + '%');
+        scrim.style.setProperty('--sy', ((1 - spot.y) * 50).toFixed(1) + '%');
+      }
+    }
+  }
   const active = Math.round(p);
   if (active !== lastActive) {
     navLinks.forEach((a, i) => a.classList.toggle('active', i === active));
@@ -1456,5 +1415,5 @@ const debug = new URLSearchParams(location.search).has('debug');
 if (debug) renderer.info.autoReset = false;
 if (debug) window.__acvr = { renderer, scene, bloom, get dpr() { return renderer.getPixelRatio(); }, get p() { return p; } };
 requestAnimationFrame(frame);
-requestAnimationFrame(() => curtain.classList.add('done'));
+requestAnimationFrame(() => { sceneStarted = true; curtain.classList.add('done'); });
 setTimeout(() => curtain.remove(), 900);

@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Game List · AC VR Hub</title>
-<meta name="description" content="Which games run in VR through AC VR Hub today, by system, with an honest status for each: played in a headset, running but not yet headset-checked, or set up and waiting.">
+<meta name="description" content="Every game in the AC VR Hub library, by system: 143 games and 279 views across 12 systems, plus your own pinball tables, with an honest status for each.">
 <meta name="theme-color" content="#120c1f">
 <link rel="icon" href="token.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="flow.css">
+<link rel="stylesheet" href="style.css?v=20261023d">
+<link rel="stylesheet" href="flow.css?v=20261023d">
 </head>
 <body class="flow-page">
 <header class="hud">
@@ -19,7 +19,7 @@
     <img src="token.svg" alt="" width="34" height="34">
     <span>AC VR Hub</span>
   </a>
-  <nav class="hud-links">
+  <nav class="hud-links" aria-label="Pages">
     <a href="index.html">The arcade</a>
     <a href="how-it-works.html">How it works</a>
     <a href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
@@ -29,71 +29,257 @@
 <main class="flow-main">
   <header class="intro">
     <h1>Game list</h1>
-    <p class="lede">What runs in VR today, by system. A game is only marked "In headset" once it has been played in a real headset. New game profiles and emulator wrappers are added all the time, so this list keeps moving.</p>
+    <p class="lede">Every game in the Hub's library, by system. Most work in hidden offline proofs; a game is marked accepted only once the developer has played it in a real headset. New game profiles and emulator wrappers are added all the time, so this list keeps moving.</p>
     <ul class="key" aria-label="Status key">
-      <li><span class="state ok">In headset</span> played in a headset by the developer</li>
-      <li><span class="state wip">Runs</span> runs in VR, headset check still to come</li>
-      <li><span class="state no">Set up</span> recipe or profile exists, not tried yet</li>
+      <li><span class="state ok">E3 accepted</span> played and accepted in the headset</li>
+      <li><span class="state wip">E2</span> works in an offline proof: controls reach the game, pictures checked (every game unless marked)</li>
+      <li><span class="state no">E1 early</span> started, or partly works</li>
     </ul>
     <dl class="stats" aria-label="Totals">
-      <div><dt>7</dt><dd>games played in a headset</dd></div>
-      <div><dt>19</dt><dd>more games running in VR, headset check next</dd></div>
-      <div><dt>418</dt><dd>games tracked in the catalog</dd></div>
+      <div><dt>143</dt><dd>games across 12 systems</dd></div>
+      <div><dt>279</dt><dd>views: real 3D, inside the game, open frame, big screen</dd></div>
+      <div><dt>3</dt><dd>accepted in the headset so far</dd></div>
     </dl>
     <nav class="jump" aria-label="Systems">
       <a href="#model3">Sega Model 3</a>
-      <a href="#wii">Nintendo Wii</a>
+      <a href="#mame">Arcade guns and motion</a>
+      <a href="#model2">Sega Model 2</a>
+      <a href="#system22">Namco System 22</a>
+      <a href="#atomiswave">Atomiswave</a>
+      <a href="#n64">Nintendo 64</a>
+      <a href="#ps1">PlayStation</a>
       <a href="#ps2">PlayStation 2</a>
-      <a href="#more">More systems</a>
+      <a href="#saturn">Saturn</a>
+      <a href="#dreamcast">Dreamcast</a>
+      <a href="#wii">Nintendo Wii</a>
+      <a href="#gamecube">GameCube</a>
+      <a href="#pinball">Pinball</a>
     </nav>
   </header>
 
   <section class="pipe" id="model3" style="--accent: #9bdc3c">
-    <h2>Sega Model 3 <span class="tally">6 in headset · 4 running</span></h2>
-    <p class="pipe-intro">Through supermodel-vr: your own Supermodel build, patched to draw each eye. Views: Screen (a big screen in front of you), Wide screen (experimental) and Inside (you stand in the game's world).</p>
-    <ul class="cards">
-      <li class="node"><h3>Scud Race</h3><p>Racing · Screen, Inside</p><span class="state ok">In headset</span></li>
-      <li class="node"><h3>Daytona USA 2</h3><p>Racing · Screen, Inside</p><span class="state ok">In headset</span></li>
-      <li class="node"><h3>Sega Rally 2</h3><p>Racing · Screen</p><span class="state ok">In headset</span></li>
-      <li class="node"><h3>Star Wars Trilogy Arcade</h3><p>Shooting · Inside, analog-stick aim</p><span class="state ok">In headset</span></li>
-      <li class="node"><h3>Fighting Vipers 2</h3><p>Fighting · Inside</p><span class="state ok">In headset</span></li>
-      <li class="node"><h3>Dirt Devils</h3><p>Racing · Inside</p><span class="state ok">In headset</span></li>
-      <li class="node"><h3>Virtua Fighter 3</h3><p>Fighting · checked on a monitor</p><span class="state wip">Runs</span></li>
-      <li class="node"><h3>Spikeout</h3><p>Action · checked on a monitor</p><span class="state wip">Runs</span></li>
-      <li class="node"><h3>Virtua Striker 2</h3><p>Sports · checked on a monitor</p><span class="state wip">Runs</span></li>
-      <li class="node"><h3>Harley-Davidson &amp; L.A. Riders</h3><p>Racing · checked on a monitor</p><span class="state wip">Runs</span></li>
+    <h2>Sega Model 3 <span class="tally">11 games · 54 views</span></h2>
+    <p class="pipe-intro">Supermodel, patched. Open frame, inside the game with your head tracked, and an opt-in two-handed wheel.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">Scud Race</span></li>
+      <li class="game"><span class="t">Daytona USA 2</span></li>
+      <li class="game"><span class="t">Sega Rally 2</span></li>
+      <li class="game"><span class="t">Sega Rally 2 DX</span><span class="n">inside, with the wheel</span><span class="state ok">E3 accepted</span></li>
+      <li class="game"><span class="t">Star Wars Trilogy</span></li>
+      <li class="game"><span class="t">Harley-Davidson &amp; L.A. Riders</span></li>
+      <li class="game"><span class="t">Dirt Devils</span></li>
+      <li class="game"><span class="t">Virtua Fighter 3</span></li>
+      <li class="game"><span class="t">Spikeout</span></li>
+      <li class="game"><span class="t">Fighting Vipers 2</span></li>
+      <li class="game"><span class="t">Virtua Striker 2</span></li>
+    </ul>
+    <p class="also">Also tried in a headset by the developer: Scud Race, Daytona USA 2, Sega Rally 2, Star Wars Trilogy, Fighting Vipers 2 and Dirt Devils.</p>
+  </section>
+
+  <section class="pipe" id="mame" style="--accent: #f6c744">
+    <h2>Arcade guns and motion (MAME) <span class="tally">26 games · 34 views</span></h2>
+    <p class="pipe-intro">MAME, patched, with our viewer: a big screen in the room with the gun in your hand, open frame where the game draws it, and opt-in body motion.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">Point Blank 2</span></li>
+      <li class="game"><span class="t">Lethal Enforcers</span></li>
+      <li class="game"><span class="t">Lethal Enforcers II: Gun Fighters</span></li>
+      <li class="game"><span class="t">Beast Busters</span></li>
+      <li class="game"><span class="t">Time Crisis</span><span class="n">on the big screen</span><span class="state ok">E3 accepted</span></li>
+      <li class="game"><span class="t">Terminator 2: Judgment Day</span></li>
+      <li class="game"><span class="t">Operation Wolf 3</span></li>
+      <li class="game"><span class="t">Zombie Raid</span></li>
+      <li class="game"><span class="t">Rail Chase</span></li>
+      <li class="game"><span class="t">Police Trainer</span></li>
+      <li class="game"><span class="t">Alien3: The Gun</span></li>
+      <li class="game"><span class="t">Rapid Fire</span></li>
+      <li class="game"><span class="t">Prop Cycle</span></li>
+      <li class="game"><span class="t">Alpine Racer</span></li>
+      <li class="game"><span class="t">Alpine Racer 2</span></li>
+      <li class="game"><span class="t">Cyber Cycles</span></li>
+      <li class="game"><span class="t">Aqua Jet</span></li>
+      <li class="game"><span class="t">Air Combat 22</span></li>
+    </ul>
+    <p class="also">Eight more are listed in the Hub by their arcade set names only. The six motion cabinets (Prop Cycle to Air Combat 22) run in 16:9 open frame.</p>
+  </section>
+
+  <section class="pipe" id="model2" style="--accent: #4ff3ff">
+    <h2>Sega Model 2 <span class="tally">14 games · 25 views</span></h2>
+    <p class="pipe-intro">MAME 0.289, patched: real 3D and open frame, with the game&#x27;s own sound since 21 October.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">Virtua Cop</span></li>
+      <li class="game"><span class="t">Virtua Cop 2</span></li>
+      <li class="game"><span class="t">The House of the Dead</span></li>
+      <li class="game"><span class="t">Gunblade NY</span></li>
+      <li class="game"><span class="t">Behind Enemy Lines</span></li>
+      <li class="game"><span class="t">Sky Target</span><span class="n">firing unproven</span></li>
+      <li class="game"><span class="t">Daytona USA</span></li>
+      <li class="game"><span class="t">Sega Rally Championship</span></li>
+      <li class="game"><span class="t">INDY 500</span></li>
+      <li class="game"><span class="t">Motor Raid</span></li>
+      <li class="game"><span class="t">Super GT 24h</span></li>
+      <li class="game"><span class="t">Desert Tank</span></li>
+      <li class="game"><span class="t">Rail Chase 2</span></li>
+      <li class="game"><span class="t">Virtua Fighter 2</span><span class="n">view only</span></li>
+    </ul>
+    <p class="also">The Hub marks the controls of several of these as new and untested.</p>
+  </section>
+
+  <section class="pipe" id="system22" style="--accent: #ff4fa8">
+    <h2>Namco System 22 <span class="tally">1 game · 5 views</span></h2>
+    <p class="pipe-intro">Time Crisis VR, a third-party port built on your PC, started by the Hub directly.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">Time Crisis</span></li>
     </ul>
   </section>
 
-  <section class="pipe" id="wii" style="--accent: #4ff3ff">
-    <h2>Nintendo Wii <span class="tally">1 in headset · 1 set up</span></h2>
-    <p class="pipe-intro">Through DolphinXR, a VR build of Dolphin with a per-game profile. Wii gun games are the current main push.</p>
-    <ul class="cards">
-      <li class="node node-wide"><h3>Resident Evil: The Umbrella Chronicles</h3><p>Light gun · a saved mission played in a headset: depth, aim, clarity and HUD passed. Full chapters and co-op still to check.</p><span class="state ok">In headset</span></li>
-      <li class="node"><h3>Resident Evil: The Darkside Chronicles</h3><p>Light gun · recipe ready, no profile yet</p><span class="state no">Set up</span></li>
+  <section class="pipe" id="atomiswave" style="--accent: #f28a2e">
+    <h2>Atomiswave <span class="tally">5 games · 10 views</span></h2>
+    <p class="pipe-intro">Flycast (hotd2-vr), patched: real 3D, with the world around the frame part of it.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">Sports Shooting USA</span></li>
+      <li class="game"><span class="t">Ranger Mission</span></li>
+      <li class="game"><span class="t">Extreme Hunting</span></li>
+      <li class="game"><span class="t">Extreme Hunting 2</span></li>
+      <li class="game"><span class="t">Sega Clay Challenge</span></li>
     </ul>
-    <p class="also">Also on the Hub's Wii list, waiting for profiles: The House of the Dead: Overkill, Gunblade NY &amp; L.A. Machineguns, Sin &amp; Punishment: Star Successor, Dead Space: Extraction, Link's Crossbow Training.</p>
+    <p class="also">Title and menu screens still show stray art around the frame.</p>
+  </section>
+
+  <section class="pipe" id="n64" style="--accent: #9bdc3c">
+    <h2>Nintendo 64 <span class="tally">22 games · 47 views</span></h2>
+    <p class="pipe-intro">acvr-ps1 with mupen64plus: real 3D by intercepting the game&#x27;s drawing, with the HUD on a panel.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">GoldenEye 007</span></li>
+      <li class="game"><span class="t">Mario Kart 64</span><span class="n">real 3D</span><span class="state ok">E3 accepted</span></li>
+      <li class="game"><span class="t">F-Zero X</span></li>
+      <li class="game"><span class="t">Star Fox 64</span></li>
+      <li class="game"><span class="t">Wave Race 64</span></li>
+      <li class="game"><span class="t">Perfect Dark</span></li>
+      <li class="game"><span class="t">Diddy Kong Racing</span></li>
+      <li class="game"><span class="t">Beetle Adventure Racing!</span></li>
+      <li class="game"><span class="t">1080° Snowboarding</span></li>
+      <li class="game"><span class="t">Cruis&#x27;n USA</span></li>
+      <li class="game"><span class="t">Cruis&#x27;n World</span></li>
+      <li class="game"><span class="t">Cruis&#x27;n Exotica</span></li>
+      <li class="game"><span class="t">Hydro Thunder</span></li>
+      <li class="game"><span class="t">San Francisco Rush: Extreme Racing</span></li>
+      <li class="game"><span class="t">Rush 2: Extreme Racing USA</span></li>
+      <li class="game"><span class="t">San Francisco Rush 2049</span></li>
+      <li class="game"><span class="t">Star Wars Episode I: Racer</span></li>
+      <li class="game"><span class="t">Super Mario 64</span></li>
+      <li class="game"><span class="t">The Legend of Zelda: Ocarina of Time</span></li>
+      <li class="game"><span class="t">The Legend of Zelda: Majora&#x27;s Mask</span></li>
+      <li class="game"><span class="t">Banjo-Kazooie</span></li>
+      <li class="game"><span class="t">Turok: Dinosaur Hunter</span></li>
+    </ul>
+    <p class="also">Start is still on the left Menu button, which SteamVR keeps: it needs a host change.</p>
+  </section>
+
+  <section class="pipe" id="ps1" style="--accent: #4ff3ff">
+    <h2>PlayStation <span class="tally">22 games · 37 views</span></h2>
+    <p class="pipe-intro">acvr-ps1 with SwanStation or Beetle: a big screen in the room with the gun in your hand.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">Time Crisis</span></li>
+      <li class="game"><span class="t">Time Crisis: Project Titan</span></li>
+      <li class="game"><span class="t">Point Blank</span></li>
+      <li class="game"><span class="t">Point Blank 2</span></li>
+      <li class="game"><span class="t">Point Blank 3</span></li>
+      <li class="game"><span class="t">Point Blank 2 (arcade, MAME)</span></li>
+      <li class="game"><span class="t">Ghoul Panic</span></li>
+      <li class="game"><span class="t">Oh! Bakyuuun (Japan)</span></li>
+      <li class="game"><span class="t">Mighty Hits Special</span></li>
+      <li class="game"><span class="t">Mighty Hits Special (Japan)</span></li>
+      <li class="game"><span class="t">Gunfighter: The Legend of Jesse James</span></li>
+      <li class="game"><span class="t">Judge Dredd</span></li>
+      <li class="game"><span class="t">Extreme Ghostbusters: The Ultimate Invasion</span></li>
+      <li class="game"><span class="t">Die Hard Trilogy</span></li>
+      <li class="game"><span class="t">Die Hard Trilogy 2: Viva Las Vegas</span></li>
+      <li class="game"><span class="t">Maximum Force</span></li>
+      <li class="game"><span class="t">Resident Evil Survivor</span><span class="n">no gun support</span></li>
+      <li class="game"><span class="t">Elemental Gearbolt</span></li>
+      <li class="game"><span class="t">Rescue Shot</span></li>
+      <li class="game"><span class="t">Rescue Shot Bubibo (Japan)</span></li>
+      <li class="game"><span class="t">Project: Horned Owl</span></li>
+      <li class="game"><span class="t">Horned Owl (Japan)</span></li>
+    </ul>
+    <p class="also">Open frame is not possible on PlayStation: these games cut everything outside 4:3.</p>
   </section>
 
   <section class="pipe" id="ps2" style="--accent: #f28a2e">
-    <h2>PlayStation 2 <span class="tally">11 running</span></h2>
-    <p class="pipe-intro">Through pcsx2-vr: your own PCSX2, patched to present the game in stereo with real depth on a 3D screen. All eleven games are proven offline; the first headset picture is the next check.</p>
-    <ul class="cards">
-      <li class="node node-wide"><h3>Light gun</h3><p>Time Crisis 3 · Crisis Zone · Vampire Night · Virtua Cop: Elite Edition · Ninja Assault</p><span class="state wip">Runs</span></li>
-      <li class="node node-wide"><h3>Racing</h3><p>OutRun 2006: Coast 2 Coast · OutRun 2 · Wipeout Fusion · Wipeout Pulse · XGIII: Extreme G Racing · XGRA: Extreme G Racing Association</p><span class="state wip">Runs</span></li>
+    <h2>PlayStation 2 <span class="tally">12 games · 27 views</span></h2>
+    <p class="pipe-intro">PCSX2 VR: a screen in the room, or inside the game with real depth.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">Time Crisis II</span></li>
+      <li class="game"><span class="t">Time Crisis 3</span></li>
+      <li class="game"><span class="t">Crisis Zone</span></li>
+      <li class="game"><span class="t">Vampire Night</span></li>
+      <li class="game"><span class="t">Virtua Cop: Elite Edition</span></li>
+      <li class="game"><span class="t">Ninja Assault</span></li>
+      <li class="game"><span class="t">OutRun 2</span></li>
+      <li class="game"><span class="t">OutRun 2006: Coast 2 Coast</span></li>
+      <li class="game"><span class="t">Wipeout Fusion</span></li>
+      <li class="game"><span class="t">Wipeout Pulse</span></li>
+      <li class="game"><span class="t">XGIII: Extreme G Racing</span></li>
+      <li class="game"><span class="t">XGRA: Extreme G Racing Association</span></li>
+    </ul>
+    <p class="also">Depth is measured for Virtua Cop: Elite Edition and OutRun 2006, experimental for the others.</p>
+  </section>
+
+  <section class="pipe" id="saturn" style="--accent: #ff4fa8">
+    <h2>Saturn <span class="tally">5 games · 5 views</span></h2>
+    <p class="pipe-intro">acvr-ps1 with Beetle Saturn: a big screen in the room with the revolver in your hand.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">Virtua Cop</span></li>
+      <li class="game"><span class="t">Virtua Cop 2</span></li>
+      <li class="game"><span class="t">The House of the Dead</span></li>
+      <li class="game"><span class="t">Area 51</span></li>
+      <li class="game"><span class="t">Mechanical Violator Hakaider: Last Judgement</span></li>
     </ul>
   </section>
 
-  <section class="pipe" id="more" style="--accent: #ff4fa8">
-    <h2>Dreamcast, Model 2, System 22 and pinball <span class="tally">4 running · pinball launcher</span></h2>
-    <ul class="cards">
-      <li class="node"><h3>The House of the Dead 2</h3><p>Dreamcast · light gun · Flycast VR build. Reported to play in a headset with the upstream profile; not yet confirmed here.</p><span class="state wip">Runs</span></li>
-      <li class="node"><h3>Death Crimson OX</h3><p>Dreamcast · light gun · plays in 3D, checked off-headset</p><span class="state wip">Runs</span></li>
-      <li class="node"><h3>Virtua Cop 2</h3><p>Sega Model 2 · light gun · stereo MAME with a separate OpenXR viewer, tested offline</p><span class="state wip">Runs</span></li>
-      <li class="node"><h3>Time Crisis</h3><p>Namco System 22 · light gun · the Time Crisis VR port draws a stereo pair on the desktop; stage play in a headset still open</p><span class="state wip">Runs</span></li>
-      <li class="node"><h3>Your VR-ready pinball tables</h3><p>Visual Pinball X · desktop launch and close proven; headset start and exit are the next check</p><span class="state wip">Launcher</span></li>
+  <section class="pipe" id="dreamcast" style="--accent: #4ff3ff">
+    <h2>Dreamcast <span class="tally">5 games · 7 views</span></h2>
+    <p class="pipe-intro">Flycast (hotd2-vr), patched: real 3D and open frame.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">The House of the Dead 2</span></li>
+      <li class="game"><span class="t">Confidential Mission</span><span class="n">rebuilt after headset issues</span></li>
+      <li class="game"><span class="t">Death Crimson OX</span><span class="state no">E1 early</span></li>
+      <li class="game"><span class="t">Death Crimson 2</span><span class="state no">E1 early</span></li>
+      <li class="game"><span class="t">Virtua Cop 2</span><span class="state no">E1 early</span></li>
     </ul>
-    <p class="also">Also listed, no VR setup yet: Confidential Mission, Death Crimson 2 and Virtua Cop 2 on Dreamcast; Gunblade NY and Virtua Fighter 2 on Model 2. Namco System 22 racers such as Rave Racer are planned.</p>
+  </section>
+
+  <section class="pipe" id="wii" style="--accent: #9bdc3c">
+    <h2>Nintendo Wii <span class="tally">19 games · 26 views</span></h2>
+    <p class="pipe-intro">DolphinXR: real 3D with the pointer or motion controls, pointer aim within 1.3%.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">Resident Evil: The Umbrella Chronicles</span></li>
+      <li class="game"><span class="t">Resident Evil: The Darkside Chronicles</span></li>
+      <li class="game"><span class="t">The House of the Dead: Overkill</span></li>
+      <li class="game"><span class="t">Gunblade NY &amp; L.A. Machineguns</span></li>
+      <li class="game"><span class="t">Sin &amp; Punishment: Star Successor</span></li>
+      <li class="game"><span class="t">Dead Space: Extraction</span></li>
+      <li class="game"><span class="t">Link&#x27;s Crossbow Training</span></li>
+      <li class="game"><span class="t">Metroid Prime Trilogy</span><span class="n">drops frames</span></li>
+      <li class="game"><span class="t">Donkey Kong Country Returns</span></li>
+      <li class="game"><span class="t">Mario Strikers Charged</span></li>
+      <li class="game"><span class="t">New Super Mario Bros. Wii</span></li>
+      <li class="game"><span class="t">Punch-Out!!</span></li>
+    </ul>
+    <p class="also">Seven more are in the Hub but not named in the public repo. Menus and HUDs sit on a screen in the room in Dead Space, Overkill, Gunblade, New Super Mario Bros. Wii and Punch-Out!!; several others still show them on your face.</p>
+  </section>
+
+  <section class="pipe" id="gamecube" style="--accent: #f6c744">
+    <h2>GameCube <span class="tally">1 game · 2 views</span></h2>
+    <p class="pipe-intro">DolphinXR: real 3D with the HUD on a panel.</p>
+    <ul class="titles">
+      <li class="game"><span class="t">F-Zero GX</span></li>
+    </ul>
+  </section>
+
+  <section class="pipe" id="pinball" style="--accent: #ff4fa8">
+    <h2>Pinball <span class="tally">your own Visual Pinball X tables</span></h2>
+    <p class="pipe-intro">The Hub scans your tables folder in place, subfolders included. On the developer's PC it found 597 tables, 561 of them ready to start, on the desk or in the headset. When your tables change, the Hub rescans by itself.</p>
   </section>
 
   <footer class="outro">
@@ -101,7 +287,7 @@
       <a class="btn" href="how-it-works.html">How it works</a>
       <a class="btn btn-ghost" href="index.html">Back to the arcade</a>
     </p>
-    <p class="fine">The developer reports each headset result; the catalog tracks 418 games across arcade, console and PC, most of them still waiting for a route. Game and system names belong to their owners. AC VR Hub ships no game content: bring your own legally obtained copies.</p>
+    <p class="fine">Statuses come from the project's status page and setup notes. The library shows only the games you own: AC VR Hub ships no game content, so bring your own legally obtained copies. Game and system names belong to their owners.</p>
   </footer>
 </main>
 </body>
