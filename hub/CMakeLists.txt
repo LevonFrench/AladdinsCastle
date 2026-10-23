@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 cmake_minimum_required(VERSION 3.28)
 project(AladdinsCastleHub VERSION 0.1.0 LANGUAGES C CXX)
 
@@ -64,6 +65,12 @@ add_library(hubcore STATIC
     src/core/pinball/Gamepad.h
     src/core/pinball/Pinball.cpp
     src/core/pinball/Pinball.h
+    src/core/pinball/Script.cpp
+    src/core/pinball/Script.h
+    src/core/pinball/Roms.cpp
+    src/core/pinball/Roms.h
+    src/core/pinball/Identity.cpp
+    src/core/pinball/Identity.h
     src/core/model3/Model3.cpp
     src/core/model3/Model3.h
     src/core/ps2/Ps2.cpp
@@ -276,8 +283,21 @@ if(BUILD_TESTING)
     ac_project_warnings(pinball-settings-tests)
     set_target_properties(pinball-settings-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-pinball-settings COMMAND pinball-settings-tests -o -,txt)
+    qt_add_executable(pinball-cache-tests tests/PinballCacheTest.cpp)
+    target_link_libraries(pinball-cache-tests PRIVATE hubapp Qt6::Test)
+    ac_project_warnings(pinball-cache-tests)
+    set_target_properties(pinball-cache-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-pinball-cache COMMAND ${CMAKE_COMMAND}
+        -DTEST_EXECUTABLE=$<TARGET_FILE:pinball-cache-tests>
+        -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/pinball-cache.txt
+        -DTEST_TIMEOUT=60
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
+    set_tests_properties(hub-pinball-cache PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_test(NAME hub-pinball COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_fixtures.py $<TARGET_FILE:hubtool>)
+    add_test(NAME hub-pinball-script COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_script_fixtures.py $<TARGET_FILE:hubtool>)
+    add_test(NAME hub-pinball-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_rom_inventory_fixtures.py $<TARGET_FILE:hubtool>)
+    add_test(NAME hub-pinball-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/pinball_identity_fixtures.py $<TARGET_FILE:hubtool>)
     add_test(NAME hub-product-identity COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/product_identity.py ${CMAKE_COMMAND})
     add_test(NAME serial-index-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/build_serial_index.py --test)
     add_test(NAME catalog-policy COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/validate_catalog.py --test)
@@ -297,6 +317,7 @@ if(BUILD_TESTING)
     qt_add_executable(hub-tests tests/SmokeTest.cpp)
     target_link_libraries(hub-tests PRIVATE hubcore Qt6::Test)
     add_dependencies(hub-tests aladdinscastle-hub hubtool)
+    add_dependencies(hub-tests pinball-cache-tests)
     ac_project_warnings(hub-tests)
     add_test(NAME hub-smoke COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:hub-tests>

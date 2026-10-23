@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 # Applied to first-party targets only; never mutate global CMAKE_CXX_FLAGS.
 function(ac_project_warnings target)
     target_compile_features(${target} PRIVATE cxx_std_20)

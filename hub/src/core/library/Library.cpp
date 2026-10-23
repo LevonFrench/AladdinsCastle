@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <QCryptographicHash>
 #include <QSet>
 #include <algorithm>
 namespace ac::library {
@@ -73,7 +74,87 @@ QString rule() {
   return "Read from the disc itself first, then the release with a VR profile, then USA, World, Europe, "
          "Japan, then the plainest format, then the shortest path.";
 }
-QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic_bool &cancel, int depth) {
+namespace {
+// Raised whenever what a file is read as changes, so every saved reading is read again.
+constexpr int kIndexVersion = 1;
+// What one file is: the copies it gives (system and copy), the system it is another disc of, a kind the Hub
+// reads but does not know ("disc" or "archive"), or a pinball table. Kept in the index to be used again.
+QVariantMap classify(const QString &path, const QString &ext, const QSet<QString> &model3Sets, const QSet<QString> &model2Sets,
+                     std::atomic_bool &cancel) {
+  const auto copy = [](const QString &system, const QVariantMap &found) {
+    return QVariantMap{{"copies", QVariantList{QVariantMap{{"system", system}, {"copy", found}}}}};
+  };
+  if (ext == "vpx")
+    return {{"table", true}};
+  if (ext == "zip") {
+    // Arcade sets are known by their set name; Set-up checks what is inside by CRC.
+    const auto set = QFileInfo(path).completeBaseName().toLower();
+    QVariantList found;
+    if (model3Sets.contains(set))
+      found << QVariantMap{{"system", "model3"}, {"copy", QVariantMap{{"file", path}, {"game", set}, {"identity", set}, {"verified", false}}}};
+    if (model2Sets.contains(set))
+      found << QVariantMap{{"system", "model2"}, {"copy", QVariantMap{{"file", path}, {"game", set}, {"identity", set}, {"verified", false}}}};
+    return found.isEmpty() ? QVariantMap{{"unknown", "archive"}} : QVariantMap{{"copies", found}};
+  }
+  // Disc images: the Wii's header first (cheapest), then a Dreamcast disc's own number, then a PS2 serial.
+  if (ext == "iso" || ext == "wbfs" || ext == "rvz" || ext == "wia") {
+    const auto disc = wii::identify(path);
+    const auto id = disc.value("id").toString();
+    if (!id.isEmpty()) {
+      if (disc.value("game").toString().isEmpty())
+        return {{"other", "wii"}};
+      auto found = disc;
+      found["identity"] = id;
+      found["region"] = wiiRegion(id);
+      return copy("wii", found);
+    }
+    if (ext != "iso")
+      return {{"unknown", "disc"}};
+  }
+  if (ext == "gdi" || ext == "cdi" || ext == "cue" || ext == "chd") {
+    const auto disc = dreamcast::identify(path, cancel);
+    const auto product = disc.value("product").toString();
+    if (!disc.value("game").toString().isEmpty() && (!product.isEmpty() || ext != "chd")) {
+      auto found = disc;
+      found["identity"] = product;
+      if (found.value("region").toString() == "US")
+        found["region"] = "USA";
+      else if (found.value("region").toString() == "PAL")
+        found["region"] = "Europe";
+      if (found.value("region").toString().isEmpty())
+        found["region"] = regionOfName(QFileInfo(path).fileName());
+      return copy("dreamcast", found);
+    }
+    if (!product.isEmpty())
+      return {{"other", "dreamcast"}};
+    if (ext != "chd")
+      return {{"unknown", "disc"}};
+  }
+  if (ext == "iso" || ext == "bin" || ext == "chd" || ext == "cso" || ext == "gz") {
+    const auto disc = ps2::identify(path, cancel);
+    const auto serial = disc.value("serial").toString();
+    if (!disc.value("game").toString().isEmpty() && (disc.value("verified").toBool() || ext == "cso" || ext == "gz")) {
+      auto found = disc;
+      found["identity"] = serial;
+      found["region"] = serial.isEmpty() ? regionOfName(QFileInfo(path).fileName()) : ps2Region(serial);
+      return copy("ps2", found);
+    }
+    if (!serial.isEmpty())
+      return {{"other", "ps2"}};
+  }
+  return {{"unknown", "disc"}};
+}
+// The games the Hub knows, as a short stamp: a saved reading made against other lists is read again.
+QString listsStamp() {
+  QByteArray all = QByteArray::number(kIndexVersion);
+  for (const auto &list : {model3::games(), model2::games(), ps2::games(), wii::games(), dreamcast::games()})
+    for (const auto &game : list)
+      all += '|' + game.toMap().value("id").toString().toUtf8();
+  return QString::fromLatin1(QCryptographicHash::hash(all, QCryptographicHash::Sha1).toHex().left(16));
+}
+} // namespace
+
+QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic_bool &cancel, int depth, QVariantMap *index) {
   QElapsedTimer clock;
   clock.start();
   QStringList cleanRoots;
@@ -109,10 +190,12 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
         tracks.insert(QDir::cleanPath(QFileInfo(file).absoluteDir().filePath(name)).toLower());
     }
   }
-  const auto add = [&](const QString &system, QVariantMap copy) {
-    copies[system][copy.value("game").toString()] << copy;
-  };
-  int done = 0;
+  // The last reading of each file, used again while its size and time are unchanged; made against the same
+  // lists of games, or not used at all.
+  const auto stamp = listsStamp();
+  const auto before = index && index->value("stamp").toString() == stamp ? index->value("files").toMap() : QVariantMap{};
+  QVariantMap after;
+  int done = 0, reused = 0;
   for (const auto &file : files) {
     if (cancel)
       break;
@@ -121,88 +204,42 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
     const QFileInfo info(file);
     const auto ext = info.suffix().toLower();
     const auto path = QDir::fromNativeSeparators(info.absoluteFilePath());
-    if (ext == "vpx") {
-      ++tables[QDir::fromNativeSeparators(info.absolutePath())];
-      continue;
-    }
-    if (ext == "zip") {
-      // Arcade sets are known by their set name; Set-up checks what is inside by CRC.
-      const auto set = info.completeBaseName().toLower();
-      bool known = false;
-      if (model3Sets.contains(set)) {
-        add("model3", {{"file", path}, {"game", set}, {"identity", set}, {"verified", false}});
-        known = true;
-      }
-      if (model2Sets.contains(set)) {
-        add("model2", {{"file", path}, {"game", set}, {"identity", set}, {"verified", false}});
-        known = true;
-      }
-      if (!known)
-        ++unknownArchives;
-      continue;
-    }
     if (ext == "bin" && tracks.contains(path.toLower()))
       continue;
-    // Disc images: the Wii's header first (cheapest), then a Dreamcast disc's own number, then a PS2 serial.
-    if (ext == "iso" || ext == "wbfs" || ext == "rvz" || ext == "wia") {
-      const auto disc = wii::identify(path);
-      const auto id = disc.value("id").toString();
-      if (!id.isEmpty()) {
-        if (disc.value("game").toString().isEmpty())
-          ++other["wii"];
-        else {
-          auto copy = disc;
-          copy["identity"] = id;
-          copy["region"] = wiiRegion(id);
-          add("wii", copy);
-        }
-        continue;
-      }
-      if (ext != "iso") {
-        ++unknownDiscs;
-        continue;
-      }
+    const auto size = info.size();
+    const auto modified = info.lastModified().toMSecsSinceEpoch();
+    const auto saved = before.value(path).toMap();
+    QVariantMap outcome;
+    if (!saved.isEmpty() && saved.value("size").toLongLong() == size && saved.value("modified").toLongLong() == modified) {
+      outcome = saved.value("outcome").toMap();
+      ++reused;
+    } else {
+      outcome = classify(path, ext, model3Sets, model2Sets, cancel);
+      if (cancel)
+        break; // A reading cut short is neither counted nor kept.
     }
-    if (ext == "gdi" || ext == "cdi" || ext == "cue" || ext == "chd") {
-      const auto disc = dreamcast::identify(path, cancel);
-      const auto product = disc.value("product").toString();
-      if (!disc.value("game").toString().isEmpty() && (!product.isEmpty() || ext != "chd")) {
-        auto copy = disc;
-        copy["identity"] = product;
-        if (copy.value("region").toString() == "US")
-          copy["region"] = "USA";
-        else if (copy.value("region").toString() == "PAL")
-          copy["region"] = "Europe";
-        if (copy.value("region").toString().isEmpty())
-          copy["region"] = regionOfName(info.fileName());
-        add("dreamcast", copy);
-        continue;
-      }
-      if (!product.isEmpty()) {
-        ++other["dreamcast"];
-        continue;
-      }
-      if (ext != "chd") {
-        ++unknownDiscs;
-        continue;
-      }
+    after.insert(path, QVariantMap{{"size", size}, {"modified", modified}, {"outcome", outcome}});
+    if (outcome.value("table").toBool())
+      ++tables[QDir::fromNativeSeparators(info.absolutePath())];
+    for (const auto &value : outcome.value("copies").toList()) {
+      const auto found = value.toMap();
+      const auto copy = found.value("copy").toMap();
+      copies[found.value("system").toString()][copy.value("game").toString()] << copy;
     }
-    if (ext == "iso" || ext == "bin" || ext == "chd" || ext == "cso" || ext == "gz") {
-      const auto disc = ps2::identify(path, cancel);
-      const auto serial = disc.value("serial").toString();
-      if (!disc.value("game").toString().isEmpty() && (disc.value("verified").toBool() || ext == "cso" || ext == "gz")) {
-        auto copy = disc;
-        copy["identity"] = serial;
-        copy["region"] = serial.isEmpty() ? regionOfName(info.fileName()) : ps2Region(serial);
-        add("ps2", copy);
-        continue;
-      }
-      if (!serial.isEmpty()) {
-        ++other["ps2"];
-        continue;
-      }
-    }
-    ++unknownDiscs;
+    if (const auto system = outcome.value("other").toString(); !system.isEmpty())
+      ++other[system];
+    if (outcome.value("unknown") == "disc")
+      ++unknownDiscs;
+    else if (outcome.value("unknown") == "archive")
+      ++unknownArchives;
+  }
+  if (index) {
+    // Stopped part-way: the files not reached keep their last reading for next time.
+    if (cancel)
+      for (auto it = before.cbegin(); it != before.cend(); ++it)
+        if (!after.contains(it.key()))
+          after.insert(it.key(), it.value());
+    *index = QVariantMap{{"stamp", stamp}, {"files", after}};
   }
   QVariantMap systems;
   for (auto it = copies.cbegin(); it != copies.cend(); ++it) {
@@ -222,7 +259,7 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
     folders << QVariantMap{{"folder", it.key()}, {"tables", it.value()}};
   std::sort(folders.begin(), folders.end(), [](const QVariant &a, const QVariant &b) { return a.toMap().value("tables").toInt() > b.toMap().value("tables").toInt(); });
   return {{"roots", cleanRoots}, {"scanned", QDateTime::currentDateTime().toString("d MMMM yyyy, HH:mm")}, {"seconds", clock.elapsed() / 1000.0},
-          {"files", files.size()}, {"depth", depth}, {"cancelled", bool(cancel)}, {"systems", systems}, {"pinballFolders", folders},
+          {"files", files.size()}, {"reused", reused}, {"depth", depth}, {"cancelled", bool(cancel)}, {"systems", systems}, {"pinballFolders", folders},
           {"unrecognised", QVariantMap{{"discs", unknownDiscs}, {"archives", unknownArchives}}}};
 }
 QVariantList copies(const QVariantMap &library, const QString &system, const QString &game) {

@@ -4,6 +4,20 @@ The first start opens **Set-up**; later it is under **···**, **Set-up**. Hub
 ships no emulator and no game files. Everything it starts is the user's own, found
 through Hub's `user/hub-settings.toml`, which is never part of the repository.
 
+## Before starting
+
+Use a complete Windows x64 portable Hub folder, not the repository source ZIP.
+The Hub's CI artifact contains the Hub and its dependencies; it does not contain
+the separately built emulators, native VR hosts or private launcher folders used
+in development. You must supply the supported program for the selected system
+and your own legally obtained game files. Set-up detects those inputs; it does
+not build them or configure the Quest-to-PC connection.
+
+Connect your headset to a working SteamVR session first. Adding the Hub to
+SteamVR is a separate registration step, and does not enable automatic startup.
+See [the tester walkthrough](../docs/TESTER-QUICKSTART.md) for the prerequisites,
+wizard pages and a conditional first-game example.
+
 ## In the headset
 
 The desktop window is a full way to use the Hub. Starting the Hub from the desktop
@@ -57,7 +71,11 @@ Hub finds every game it plays under them.
 
 **How it looks:**
 - It goes up to six folders down and never enters links, junctions or system
-  folders. It runs off the GUI thread, shows progress, and can be cancelled.
+  folders. It runs off the GUI thread and shows progress. **Stop** ends it at
+  the next file and keeps the last whole result.
+- The second time is quick: a file whose size and time have not changed since
+  the last search is not opened again (`user/cache/library-index.json`). A Hub
+  whose list of games changed reads every file again.
 - It is read-only: nothing under the roots is written, renamed or moved.
 
 **How it knows each game:**

@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-3.0-only
+id="game-energy-gun"
+name="Guarded energy gun"
+family="special"
+hold="one-hand"
+tier=1
+model="assets/guns/game-energy-gun.glb"
+source="assets/guns/src/game-energy-gun.py"
+resembles="An original fictional energy weapon, not a named or extracted game model"
+shape="Angular protected emitter, underslung guard, power cell and conventional dark grip"
+length_mm=295
+features=["recoil_slide","emitter_guard"]
+notes="Sin and Punishment weapon-spirit proposal; exact design remains an owner choice. Neutral satin finish with small player-colour accents. Original primitives, no logos or tracing. Native fit and game-event motion remain unverified."
+[tints]
+default="red"
+p1="red"
+p2="blue"
+red={body="#a0a5aa",accent="#c5484f"}
+blue={body="#a0a5aa",accent="#4276bf"}
+[finish.body]
+metallic=0
+roughness=0.58
+[finish.accent]
+metallic=0
+roughness=0.58
+[finish.dark]
+metallic=0
+roughness=0.58
+[motion.trigger]
+node="pivot_trigger"
+kind="rotate"
+axis=[-1,0,0]
+range=[0,0.35]
+drive="trigger"
+lod_nodes=["pivot_trigger","pivot_trigger_lod1"]
+[motion.reload_control]
+node="button_reload"
+kind="slide"
+axis=[1,0,0]
+range=[0,0.0015]
+drive="selector"
+lod_nodes=["button_reload","button_reload_lod1"]
+[motion.recoil]
+node="slide_recoil"
+kind="slide"
+axis=[0,0,1]
+range=[0,0.015]
+drive="recoil"
+lod_nodes=["slide_recoil","slide_recoil_lod1"]
+duration_ms=75
+[[button]]
+id="reload"
+label="Power-cell release (game mapping pending)"
+node="button_reload"

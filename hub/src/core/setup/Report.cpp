@@ -12,6 +12,7 @@
 #include "core/dreamcast/Dreamcast.h"
 #include "core/pinball/Pinball.h"
 #include "core/scan/Scan.h"
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -373,5 +374,22 @@ QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const Q
  const auto scanner=scanners().value(system);
  if(scanner)return scanner(settings,context,progress?progress:[](const QString &){},cancel);
  Groups none;return none.result(system,"The Hub cannot check this system yet.");
+}
+QVariantMap reportStamp(const QVariantMap &settings,const QStringList &systems){
+ // Raised whenever a system is read differently, so every saved report is read again.
+ static constexpr int kVersion=1;
+ static const QStringList folders{"model3GameFolder","model2GameFolder","model2RuntimePath","pinballFolder","pinballRoms","ps2GameFolder","wiiGameFolder","dreamcastGameFolder"};
+ static const QStringList programs{"model3Executable","model2Executable","system22Executable","pinballExecutable","pinballDatabase","pinballMedia","pinballOverrides",
+                                   "ps2Python","ps2StopFile","wiiExecutable","dreamcastExecutable","queryEmulators"};
+ static const QStringList launchers{"ps1Launcher","ps2Launcher","n64Launcher","saturnLauncher"};
+ // Times as text: a saved number comes back as a double.
+ const auto time=[](const QString &path){const QFileInfo info(path);return path.isEmpty()||!info.exists()?QString():QString::number(info.lastModified().toMSecsSinceEpoch());};
+ QVariantMap values,times;
+ for(const auto &key:folders){const auto value=settings.value(key).toString();values[key]=value;times[key]=time(value);}
+ for(const auto &key:programs)values[key]=settings.value(key).toString();
+ for(const auto &key:launchers){const auto value=settings.value(key).toString();values[key]=value;
+  times[key]=value.isEmpty()?QString():time(QFileInfo(value).absoluteDir().filePath("games.json"));}
+ auto read=systems;read.sort();
+ return {{"version",kVersion},{"systems",read},{"settings",values},{"times",times}};
 }
 }

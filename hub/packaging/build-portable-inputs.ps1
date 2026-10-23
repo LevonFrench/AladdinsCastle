@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-only
 # Run in the existing VS x64 developer shell. No dependency acquisition or application launch.
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$BuildDir,[string]$RepoRoot='',[switch]$AllTargets)

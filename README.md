@@ -8,6 +8,18 @@ AladdinsCastle is an open-source desktop Hub being built to install and launch V
 
 Most games are proven offline: controls reach the game, aim is measured against the game's own calibration, and the picture is checked. A smaller set has been accepted by the owner in the headset. An offline proof is not a headset verdict on comfort or feel. Each setup's README under [setups/](setups/) has its commands, proofs and limits. The [PCVR and standalone quickstart](docs/quest3-quickstart.md) covers separate existing projects.
 
+## Trying a development build
+
+There is no published 0.01 release yet. Downloading this source tree does not give
+you a runnable Hub or the custom emulator builds. CI produces a Windows x64 Hub
+artifact, but a green build is not a tested, complete game package.
+
+Start with the [tester prerequisites and first-run steps](docs/TESTER-QUICKSTART.md).
+You need a complete portable Hub folder, the supported build for your chosen
+system, your own legally obtained game files, and a working PC-to-headset
+connection through SteamVR. Most systems currently depend on separately prepared
+emulator builds or launcher folders; the Hub does not create those for you.
+
 ## What it will do
 
 - **A desktop Hub** (modelled on [PCVR Mods Installer Hub](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub)): a library with art, detection of your ROMs and PC games, one-click install of each game's VR setup from original sources, updates, launch, SteamVR library shortcuts, and **Install to standalone headset** for standalone setups. No VR lobby: games open straight into VR.
@@ -71,4 +83,9 @@ This project does not include, download or link to ROMs, BIOS files, disc images
 
 ## Licence
 
-[GPL-3.0](LICENSE), except **`libacvr/`, which is [MIT](libacvr/LICENSE)** so any engine or emulator can link it whatever its own licence (MIT, GPL, or non-commercial like Cannonball). Third-party projects keep their own licences.
+Project code defaults to [GPL-3.0-only](LICENSE). **`libacvr/` has its own
+[MIT licence](libacvr/LICENSE)**; upstream-derived files and emulator patches keep
+their applicable notices. Original built gun, hand and control assets are CC0;
+`arc-light-gun` and its previews are CC BY 4.0. See the
+[licence and attribution index](THIRD-PARTY-NOTICES.md) before redistributing
+source, models, a website copy or a binary package.

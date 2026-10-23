@@ -1,10 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-only
 """Sequential CPU-only Blender author/export/render entry point."""
 import sys, json, argparse, importlib, math, hashlib
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-import bpy, bmesh
-from mathutils import Vector, Matrix
-import fresh
 ROOT=Path(__file__).resolve().parents[1]
 
 def descendants(o):
@@ -122,6 +120,8 @@ def bounds(objs):
 def lighting(center,span):
     scene=bpy.context.scene
     scene.render.engine='CYCLES';scene.cycles.device='CPU';scene.cycles.samples=32
+    scene.cycles.denoiser='OPENIMAGEDENOISE';scene.cycles.denoising_use_gpu=False
+    scene.cycles.preview_denoising_use_gpu=False
     scene.cycles.use_denoising=True;scene.cycles.max_bounces=4
     scene.render.threads_mode='FIXED';scene.render.threads=4
     scene.world.color=(.18,.18,.18)
@@ -157,17 +157,36 @@ def render_views(objs,path,views,resolution,samples):
         bpy.ops.render.render(write_still=True)
         print('VIEW '+json.dumps({'file':scene.render.filepath,'view':view}),flush=True)
 
-def main():
+def parse_args(argv):
     p=argparse.ArgumentParser();p.add_argument('--model',required=True);p.add_argument('--views',default='threequarter');p.add_argument('--resolution',type=int,default=640);p.add_argument('--samples',type=int,default=24)
-    args=p.parse_args(sys.argv[sys.argv.index('--')+1:])
+    p.add_argument('--output-root',type=Path,help='Explicit directory for models and review renders')
+    p.add_argument('--benchmark-manifest',type=Path,help='Owner review manifest containing benchmark #001')
+    args=p.parse_args(argv)
+    if args.model=='benchmark' and not args.benchmark_manifest:
+        p.error('--model benchmark requires --benchmark-manifest')
+    return args
+
+
+def read_benchmark(manifest):
+    review=json.loads(manifest.read_text(encoding='utf-8'))
+    ref=next(x for x in review['records'] if x['id']=='001')
+    source=Path(ref['representative_path'])
+    if hashlib.sha1(source.read_bytes()).hexdigest()!=ref['sha1_at_contact_sheet']:
+        raise ValueError('Benchmark changed since owner review')
+    return ref,source
+
+
+def main():
+    global ROOT,bpy,bmesh,Vector,Matrix,fresh
+    args=parse_args(sys.argv[sys.argv.index('--')+1:])
+    if args.output_root:ROOT=args.output_root.resolve()
+    import bpy,bmesh,fresh
+    from mathutils import Vector,Matrix
     assert bpy.app.version[:2]==(5,2),bpy.app.version_string
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
     for m in list(bpy.data.materials):bpy.data.materials.remove(m)
     if args.model=='benchmark':
-        review=json.loads((ROOT.parents[1]/'gun-contact-sheet/owner-review-2026-10-21.json').read_text(encoding='utf-8'))
-        ref=next(x for x in review['records'] if x['id']=='001')
-        source=Path(ref['representative_path'])
-        assert hashlib.sha1(source.read_bytes()).hexdigest()==ref['sha1_at_contact_sheet'],'Benchmark changed since owner review'
+        ref,source=read_benchmark(args.benchmark_manifest)
         bpy.ops.import_scene.gltf(filepath=str(source))
         lod1=bpy.data.objects.get('LOD1')
         if lod1:
@@ -190,18 +209,41 @@ def main():
     for level,budget in [(0,8000),(1,2000)]:
         lod=bpy.data.objects.new(f'LOD{level}',None);bpy.context.scene.collection.objects.link(lod);lod.parent=root
         lod['level']=level;lods.append(lod);fresh.setup(lod,level)
-        data=module.build(args.model,level);metadata.append(data)
+        data=module.build(args.model,level)
+        # R10-R12 retain their new silhouettes, with seated notch/blade sights.
+        # Roof heights come from the authored housing, not floating anchors.
+        if args.model=='game-energy-gun':
+            data.update(fresh.functional_sights((149,46),(-13,62),76,
+                front_ramp=16,riser_front=(149,46,72),riser_rear=(-13,62,71)))
+        elif args.model=='game-revolver-heavy':
+            data.update(fresh.functional_sights((176,47.5),(-21,49),56))
+            fresh.cyl('release_status_lens',(-25,30,-16),1.8,.5,'glass','l',12,.1,
+                      parent='button_reload')
+        elif args.model=='game-tool-cutter':
+            data.update(fresh.functional_sights((178,95),(46,82),103,
+                riser_rear=(46,82,98)))
+        metadata.append(data)
         audits.append(collapse(lod,budget))
     fresh.setup(None,0)
     data=dict(metadata[0])
     spec=data.pop('_deform',None) or {}
+    targets={'game-energy-gun':(295,40),'game-revolver-heavy':(285,60),
+             'game-tool-cutter':(285,65)}
+    if args.model in targets:
+        target,start=targets[args.model]
+        lo,hi=bounds(descendants(lods[0]))
+        # Forward-only sizing leaves grip girth, web thickness and height intact.
+        lo_f,hi_f=lo.y*1000,hi.y*1000
+        spec={'stretch':(start,(target+lo_f-start)/(hi_f-start))}
+        data['length_mm_authored']=data['length_mm']
+        data['length_mm']=target
     fhl,world=make_deform(spec)
     if spec:
         deform(root,world)
         for name,loc in list(data.items()):
             if isinstance(loc,(list,tuple)) and len(loc)==3 and all(isinstance(v,(int,float)) for v in loc):
                 data[name]=tuple(round(v,3) for v in fhl(loc))
-        if 'length_mm' in data:data['length_mm_authored']=data['length_mm']
+        if 'length_mm' in data:data.setdefault('length_mm_authored',data['length_mm'])
     for lod in lods:normals(lod)
     functional=data.pop('functional_sights',False)
     # The original runtime contract declares 15 mm travel for recoil slides.

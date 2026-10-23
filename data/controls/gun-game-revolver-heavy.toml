@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Weapon illustration proposal. Wii input comes from the dedicated per-game set.
+version = "0.1"
+id = "gun-game-revolver-heavy"
+title = "Heavy revolver mapping questions"
+gun_model = "game-revolver-heavy"
+element = []
+
+[policy]
+p1_hand = "right"
+two_guns = "on_join"
+
+[[unmapped_part]]
+id="p1-trigger"
+slot=0
+player=0
+node="pivot_trigger"
+label="Trigger game action"
+reason="Use the per-game Wii set; selected game instructions and weapon fit remain questions"
+requested_semantic="trigger"
+
+[[unmapped_part]]
+id="p1-reload"
+slot=0
+player=0
+node="button_reload"
+label="Reload control game action"
+reason="Use the per-game Wii set; selected game instructions and weapon fit remain questions"
+requested_semantic="reload"
+
+[[unmapped_part]]
+id="p1-aim"
+slot=0
+player=0
+node="muzzle"
+label="Aim reference"
+reason="Use the per-game Wii set; selected game instructions and weapon fit remain questions"
+requested_semantic="pointer"
+
+[[unmapped_part]]
+id="p2-trigger"
+slot=1
+player=1
+node="pivot_trigger"
+label="Trigger game action"
+reason="Use the per-game Wii set; selected game instructions and weapon fit remain questions"
+requested_semantic="trigger"
+
+[[unmapped_part]]
+id="p2-reload"
+slot=1
+player=1
+node="button_reload"
+label="Reload control game action"
+reason="Use the per-game Wii set; selected game instructions and weapon fit remain questions"
+requested_semantic="reload"
+
+[[unmapped_part]]
+id="p2-aim"
+slot=1
+player=1
+node="muzzle"
+label="Aim reference"
+reason="Use the per-game Wii set; selected game instructions and weapon fit remain questions"
+requested_semantic="pointer"

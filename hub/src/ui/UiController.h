@@ -150,6 +150,9 @@ class UiController : public QObject {
  void setLibrary(const QVariantMap &library){m_library=library;m_libraryScanning=false;m_libraryProgress.clear();emit libraryChanged();listsChanged();}
  Q_INVOKABLE void libraryScanProgress(const QString &text){m_libraryProgress=text;emit libraryChanged();}
  Q_INVOKABLE void scanLibrary();
+ // Stop on the card: the search ends at the next file and the last whole result stays.
+ Q_INVOKABLE void cancelLibraryScan(){if(!m_libraryScanning)return;m_libraryProgress="Stopping…";emit libraryChanged();emit libraryCancelRequested();}
+ void libraryScanStopped(){m_libraryScanning=false;m_libraryProgress.clear();emit libraryChanged();}
  // Every copy the library found of a game, best first, and the one in use; choosing one remembers it.
  Q_INVOKABLE QVariantList copiesOf(const QString &system,const QString &game)const;
  Q_INVOKABLE QString copyInUse(const QString &system,const QString &game)const;
@@ -217,6 +220,8 @@ class UiController : public QObject {
  void launchOtherQueued(const QString &id,const QString &view,const QString &title,const QString &hint,const QString &closeUnavailable);
  // First-run set-up: what the user has, and where each system's files and program are.
  QVariantList setupSystems()const;
+ // The ids of the systems ticked in Set-up, without the folder guesses setupSystems() makes (those list folders).
+ QStringList chosenSetupSystems()const;
  QVariantMap setupKinds()const;
  QVariantMap steamVr()const{return m_steamVr;}
  void setSteamVr(const QVariantMap &state){m_steamVr=state;emit setupChanged();}
@@ -291,6 +296,7 @@ class UiController : public QObject {
  void launchGateChanged();
  void libraryChanged();
  void libraryScanRequested(const QStringList &roots);
+ void libraryCancelRequested();
  void watchdogChanged();
  void crashRecordsChanged();
  void endBackgroundRequested(qint64 pid);

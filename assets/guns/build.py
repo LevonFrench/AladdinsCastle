@@ -7,21 +7,29 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE/'src'))
-from common import BUILT_MODELS
+from common import BUILDABLE_MODELS
+
+
+def select_models(requested=None):
+    """Keep the legacy batch away from redesigned source-plan adapters."""
+    if not requested:
+        return list(BUILDABLE_MODELS)
+    unknown=set(requested)-set(BUILDABLE_MODELS)
+    if unknown:
+        raise ValueError('not built by the legacy batch: '+', '.join(sorted(unknown)))
+    return list(requested)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--blender', type=Path, required=True)
     parser.add_argument('--owner-approved-cpu-batch', action='store_true', required=True)
-    parser.add_argument('--model', action='append', choices=(
-        'generic-pistol','arc-pistol-slide','arc-pistol-twin','con-pistol-slim',
-        'con-pistol-dpad','con-revolver-chunky','mnt-mg-heavy','con-remote-shell','con-stick-grip'))
+    parser.add_argument('--model', action='append', choices=BUILDABLE_MODELS)
     parser.add_argument('--samples', type=int, default=64)
     args = parser.parse_args()
     if not args.blender.is_file():
         parser.error('Use the absolute path to an existing Blender executable; this tool never installs it')
-    models = args.model or list(BUILT_MODELS)
+    models = select_models(args.model)
     for model in models:
         subprocess.run([str(args.blender.resolve()), '--background', '--factory-startup',
                         '--python-exit-code','1','--threads','4','--python',str(HERE/'src'/(model+'.py')),

@@ -53,19 +53,19 @@
       <li class="node">
         <i class="sprite" data-sprite="folder"></i>
         <h3>Your files</h3>
-        <p>Point the Hub at your ROM, disc and PC game folders. Files are matched by hash or disc serial and read where they are. Nothing is downloaded.</p>
+        <p>Point the Hub at your ROM, disc and PC game folders. Supported files are matched by archive metadata, disc identity or a system-specific name check and read where they are. Game files are never downloaded.</p>
         <span class="state ok">Working</span>
       </li>
       <li class="node">
         <i class="sprite" data-sprite="scroll"></i>
         <h3>Recipe</h3>
-        <p>Each game has an <code>install.toml</code> with one block per VR setup: fetch the pinned emulator release from upstream, extract, write config, add shortcuts.</p>
+        <p>Some catalog entries have an <code>install.toml</code> for a supported upstream build. Most systems still need a separately prepared emulator or launcher folder; Set-up finds those inputs and does not build them.</p>
         <span class="state ok">Working</span>
       </li>
       <li class="node">
         <i class="sprite" data-sprite="shield"></i>
         <h3>Verify</h3>
-        <p>Receipts and hashes record what was installed, so updates and uninstall touch only what the Hub put there.</p>
+        <p>For supported installation recipes, receipts and hashes record what the Hub installed. This does not manage emulator builds or launcher folders prepared separately.</p>
         <span class="state ok">Working</span>
       </li>
       <li class="node">

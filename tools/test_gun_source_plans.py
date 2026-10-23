@@ -7,10 +7,58 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'assets/guns/src'))
-from common import TIERS, MATERIAL_RGBA, metadata, plan, preview_material_rgba, geometry, runtime_preview_rgba, RUNTIME_LIGHTING
+from common import (TIERS, BUILT_MODELS, BUILDABLE_MODELS, LEGACY_BUILD_MODELS,
+                    REDESIGN_PLAN_MODELS, MATERIAL_RGBA, metadata, plan,
+                    preview_material_rgba, geometry, runtime_preview_rgba,
+                    RUNTIME_LIGHTING)
 
 
 class SourcePlanTests(unittest.TestCase):
+    def test_redesign_benchmark_input_is_independent_of_output_root(self):
+        import hashlib,json
+        from tempfile import TemporaryDirectory
+        builder=runpy.run_path(str(ROOT/'assets/guns/src-redesign/build_render.py'))
+        scratch=ROOT/'.local/gun-source-fixtures'
+        scratch.mkdir(parents=True,exist_ok=True)
+        with TemporaryDirectory(dir=scratch) as temp:
+            directory=Path(temp);source=directory/'reference.glb';source.write_bytes(b'fixture')
+            manifest=directory/'review.json'
+            manifest.write_text(json.dumps({'records':[{'id':'001','representative_path':str(source),
+                'sha1_at_contact_sheet':hashlib.sha1(source.read_bytes()).hexdigest()}]}))
+            args=builder['parse_args'](['--model','benchmark','--output-root',str(directory/'other'),
+                                       '--benchmark-manifest',str(manifest)])
+            builder['main'].__globals__['ROOT']=args.output_root
+            self.assertEqual(builder['read_benchmark'](args.benchmark_manifest)[1],source)
+            source.write_bytes(b'changed')
+            with self.assertRaisesRegex(ValueError,'Benchmark changed'):
+                builder['read_benchmark'](args.benchmark_manifest)
+
+    def test_redesigned_special_exports_and_bind_anchors(self):
+        import check_gun_assets as checker
+        for mid in REDESIGN_PLAN_MODELS:
+            with self.subTest(model=mid):
+                meta=metadata(mid)
+                checker.check_asset(ROOT/meta['model'],meta)
+                checker.check_previews(ROOT/'assets/guns/preview',mid,meta)
+                doc,_=checker.read_glb(ROOT/meta['model'])
+                nodes=doc['nodes']; parents={c:i for i,n in enumerate(nodes) for c in n.get('children',[])}
+                worlds={}
+                def world(index):
+                    if index not in worlds:
+                        local=checker.local_matrix(nodes[index])
+                        worlds[index]=checker.multiply(world(parents[index]),local) if index in parents else local
+                    return worlds[index]
+                names={n['name']:i for i,n in enumerate(nodes)}
+                for name,anchor in plan(mid,{})['nodes'].items():
+                    self.assertIn(name,names)
+                    actual=checker.transform(world(names[name]),(0,0,0))
+                    for got,want in zip(actual,anchor['at']):
+                        self.assertAlmostEqual(got,want,places=6,msg=mid+' '+name)
+                if mid=='game-revolver-heavy':
+                    for suffix in ('','_lod1'):
+                        lens=next(i for i,n in enumerate(nodes) if n['name'].startswith('part_release_status_lens') and n['name'].endswith('_lod1')==bool(suffix))
+                        self.assertEqual(nodes[parents[lens]]['name'],'button_reload'+suffix)
+
     def test_runtime_lighting_uses_camera_normal_lambert_and_preserves_alpha(self):
         self.assertEqual(RUNTIME_LIGHTING['direction_to_light'],[.36,.70,.62])
         color=(.2,.4,.6,.3); direction=(.36,.70,.62)
@@ -106,6 +154,49 @@ class SourcePlanTests(unittest.TestCase):
                 self.assertEqual({n for n in spec['nodes'] if n.startswith('button_')},
                                  {b['node'] for b in meta.get('button',[])})
 
+    def test_redesigned_special_adapters_match_metadata_and_static_aim(self):
+        for mid in REDESIGN_PLAN_MODELS:
+            with self.subTest(model=mid):
+                module=runpy.run_path(str(ROOT/'assets/guns/src'/(mid+'.py')))
+                params=module['PARAMETERS'];spec=plan(mid,params);meta=metadata(mid)
+                self.assertEqual(params['length_mm'],meta['length_mm'])
+                self.assertAlmostEqual(spec['length_m'],meta['length_mm']/1000)
+                self.assertEqual(spec['sights']['kind'],'notch-blade')
+                nodes=spec['nodes']
+                for name in ('muzzle','fx_muzzle','fx_laser','sight_front','sight_rear'):
+                    self.assertIsNone(nodes[name]['parent'])
+                muzzle=nodes['muzzle']['at']
+                self.assertLess(muzzle[2],-.01)
+                front,rear=(nodes[name]['at'] for name in ('sight_front','sight_rear'))
+                self.assertAlmostEqual(front[0],rear[0],places=8)
+                self.assertAlmostEqual(front[1],rear[1],places=8)
+                self.assertLess(front[2],rear[2])
+                self.assertEqual({n for n in nodes if n.startswith('button_')},
+                                 {b['node'] for b in meta.get('button',[])})
+                self.assertEqual(meta['tints']['red'],
+                                 {'body':'#a0a5aa','accent':'#c5484f'})
+                self.assertEqual(meta['tints']['blue'],
+                                 {'body':'#a0a5aa','accent':'#4276bf'})
+                for motion in meta.get('motion',{}).values():
+                    self.assertIn(motion['node'],nodes)
+                self.assertEqual(meta['motion']['reload_control']['axis'],[1,0,0])
+        for mid in ('game-energy-gun','game-tool-cutter'):
+            nodes=plan(mid,None)['nodes']
+            self.assertAlmostEqual(nodes['limit_recoil']['at'][2]-nodes['slide_recoil']['at'][2],.015,places=8)
+
+    def test_redesign_plans_are_excluded_from_legacy_blender_dispatch(self):
+        self.assertEqual(BUILDABLE_MODELS,LEGACY_BUILD_MODELS)
+        self.assertEqual(BUILT_MODELS,LEGACY_BUILD_MODELS+REDESIGN_PLAN_MODELS)
+        self.assertTrue(set(REDESIGN_PLAN_MODELS).isdisjoint(BUILDABLE_MODELS))
+        build=runpy.run_path(str(ROOT/'assets/guns/build.py'))
+        self.assertEqual(build['BUILDABLE_MODELS'],BUILDABLE_MODELS)
+        self.assertEqual(build['select_models'](),list(BUILDABLE_MODELS))
+        self.assertEqual(build['select_models'](['generic-pistol']),['generic-pistol'])
+        for mid in REDESIGN_PLAN_MODELS:
+            with self.subTest(model=mid):
+                with self.assertRaisesRegex(ValueError,'not built by the legacy batch'):
+                    build['select_models']([mid])
+
     def test_mounted_grip_is_at_rear_handle(self):
         path = ROOT/'assets/guns/src/mnt-mg-heavy.py'
         spec = plan('mnt-mg-heavy',runpy.run_path(str(path))['PARAMETERS'])
@@ -158,7 +249,7 @@ class SourcePlanTests(unittest.TestCase):
         self.assertEqual(MATERIAL_RGBA,{'body':(.55,.55,.55,1),'accent':(.32,.32,.34,1),
                                         'dark':(.012,.012,.018,1),'glass':(.025,.10,.16,1)})
         palettes=[{'body':'#000000','accent':'#ffffff'}, {'body':'#0a0bff','accent':'#ff0b0a'}]
-        for mid in TIERS:
+        for mid in BUILT_MODELS:
             palettes.extend(v for v in metadata(mid)['tints'].values() if isinstance(v,dict))
         for tint in palettes:
             with self.subTest(tint=tint):

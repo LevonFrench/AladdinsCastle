@@ -130,12 +130,12 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         });
         // The scan and its cache file are both written off the UI thread: a large library is many megabytes of JSON.
         const auto cachePath=[this]{try{return install::scopedPath("user/cache/pinball-scan.json",root_);}catch(const std::exception &){return QString();}}();
-        watcher->setFuture(QtConcurrent::run([folder,database,roms,media,cachePath]{
+        watcher->setFuture(QtConcurrent::run([folder,database,roms,media,cachePath,pinmame=pinball::pinmameFolderForExecutable(settings_->get("pinballExecutable",QString()).toString())]{
             QVariantMap result;
-            try{result=pinball::scan(folder,database,roms,media);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}
+            try{result=pinball::scan(folder,database,roms,media,pinmame);}catch(const std::exception &e){return QVariantMap{{"error",QString::fromUtf8(e.what())}};}
             // Kept in Hub's own data so the tab opens at once next time; a table is still rechecked when it is started.
             bool saved=false;
-            const auto print=pinball::fingerprint(folder,database,roms);
+            const auto print=pinball::fingerprint(folder,database,roms,pinmame);
             if(!cachePath.isEmpty())try{install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",folder},{"database",database},{"roms",roms},{"media",media},{"fingerprint",print},{"result",result}}).toJson(QJsonDocument::Compact));saved=true;}catch(const std::exception &){}
             if(!saved)result["cacheUnsaved"]=true;
             return result;
@@ -156,14 +156,14 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
                 else ui_->showError("Pinball","Showing your last scan. Use Scan after adding or changing tables.");
             }else ui_->scanPinball();
         });
-        watcher->setFuture(QtConcurrent::run([cachePath,folder,database,roms]{
+        watcher->setFuture(QtConcurrent::run([cachePath,folder,database,roms,pinmame=pinball::pinmameFolderForExecutable(settings_->get("pinballExecutable",QString()).toString())]{
             QVariantMap saved;
             if(!cachePath.isEmpty()){QFile file(cachePath);if(file.size()<=64*1024*1024&&file.open(QIODevice::ReadOnly))saved=QJsonDocument::fromJson(file.readAll()).toVariant().toMap();}
-            // Names and dates only, off the UI thread: a saved scan without a fingerprint (older Hub) is out of date too.
+            // Bounded metadata, off the UI thread: a saved scan without a fingerprint (older Hub) is out of date too.
             if(!saved.isEmpty()){
                 // Compared as JSON: the saved numbers come back as doubles, the fresh ones as integers.
                 const auto json=[](const QVariantMap &m){return QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Compact);};
-                saved["stale"]=json(saved.value("fingerprint").toMap())!=json(pinball::fingerprint(folder,database,roms));
+                saved["stale"]=json(saved.value("fingerprint").toMap())!=json(pinball::fingerprint(folder,database,roms,pinmame));
             }
             return saved;
         }));
@@ -215,6 +215,16 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
         launchInHeadset(title,[this,id,view,file]{startOtherGame(id,view,file);});
     });
     try{QFile saved(install::scopedPath("user/cache/setup-report.json",root_));if(saved.size()<=64*1024*1024&&saved.open(QIODevice::ReadOnly))ui_->setSetupReport(QJsonDocument::fromJson(saved.readAll()).toVariant().toMap());}catch(const std::exception &){}
+    // A saved report made from other folders or launchers, or by an older Hub, is shown now and read again in the
+    // background (one from 14 October still listed games the Hub had since gained). A Hub never set up reads nothing.
+    QTimer::singleShot(0,this,[this]{
+        const auto saved=ui_->setupReport();if(saved.value("systems").toList().isEmpty())return;
+        const auto chosen=ui_->chosenSetupSystems();if(chosen.isEmpty())return;
+        const auto json=[](const QVariantMap &m){return QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Compact);};
+        if(json(saved.value("stamp").toMap())==json(setup::reportStamp(settings_->values(),chosen)))return;
+        ui_->showError("Set-up","Your folders, launchers or the Hub changed since the last Set-up report: reading your folders again.");
+        ui_->scanSetup();
+    });
     connect(ui_,&UiController::scanRequested,this,&HubServices::scan);
     connect(ui_,&UiController::cancelScanRequested,&scanner_,&scan::ScanController::cancel);
     connect(&scanner_,&scan::ScanController::scanStarted,ui_,&UiController::scanStarted);
@@ -296,20 +306,31 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     try{QFile cached(install::scopedPath("user/cache/library.json",root_));if(cached.size()<=64*1024*1024&&cached.open(QIODevice::ReadOnly))ui_->setLibrary(QJsonDocument::fromJson(cached.readAll()).toVariant().toMap());}catch(const std::exception &){}
     connect(ui_,&UiController::libraryScanRequested,this,[this](const QStringList &roots){
         const auto root=root_;const QPointer<UiController> ui=ui_;
+        const auto cancel=std::make_shared<std::atomic_bool>(false);libraryCancel_=cancel;
         auto *watcher=new QFutureWatcher<QVariantMap>(this);
         connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher]{
-            const auto result=watcher->result();watcher->deleteLater();ui_->setLibrary(result);
+            const auto result=watcher->result();watcher->deleteLater();libraryCancel_.reset();
+            // Stopped: the last whole result stays; a part of a search would hide games it never reached.
+            if(result.value("cancelled").toBool()){ui_->libraryScanStopped();ui_->showError("Game library","Stopped. The last result is kept.");return;}
+            ui_->setLibrary(result);
             int games=0;for(const auto &system:result.value("systems").toMap())games+=system.toMap().value("games").toInt();
-            ui_->showError("Game library",QString("%1 games found in %2 files, in %3 seconds.").arg(games).arg(result.value("files").toInt()).arg(result.value("seconds").toDouble(),0,'f',1));
+            const auto files=result.value("files").toInt(),reused=result.value("reused").toInt();
+            ui_->showError("Game library",QString("%1 games found in %2 files, in %3 seconds%4.").arg(games).arg(files).arg(result.value("seconds").toDouble(),0,'f',1)
+                .arg(reused>0?QString(" (%1 unchanged since last time, not read again)").arg(reused):QString()));
         });
-        watcher->setFuture(QtConcurrent::run([roots,root,ui]{
-            std::atomic_bool cancel=false;
+        watcher->setFuture(QtConcurrent::run([roots,root,ui,cancel]{
             const auto progress=[ui](const QString &text){if(ui)QMetaObject::invokeMethod(ui.data(),"libraryScanProgress",Qt::QueuedConnection,Q_ARG(QString,text));};
-            const auto result=library::scan(roots,progress,cancel);
-            try{install::atomicWrite(install::scopedPath("user/cache/library.json",root),QJsonDocument::fromVariant(result).toJson(QJsonDocument::Compact));}catch(const std::exception &){}
+            // What each file was read as last time, so an unchanged file is not opened again.
+            QVariantMap index;
+            try{QFile saved(install::scopedPath("user/cache/library-index.json",root));if(saved.size()<=256*1024*1024&&saved.open(QIODevice::ReadOnly))index=QJsonDocument::fromJson(saved.readAll()).toVariant().toMap();}catch(const std::exception &){}
+            const auto result=library::scan(roots,progress,*cancel,6,&index);
+            try{install::atomicWrite(install::scopedPath("user/cache/library-index.json",root),QJsonDocument::fromVariant(index).toJson(QJsonDocument::Compact));}catch(const std::exception &){}
+            if(!result.value("cancelled").toBool())
+                try{install::atomicWrite(install::scopedPath("user/cache/library.json",root),QJsonDocument::fromVariant(result).toJson(QJsonDocument::Compact));}catch(const std::exception &){}
             return result;
         }));
     });
+    connect(ui_,&UiController::libraryCancelRequested,this,[this]{if(libraryCancel_)*libraryCancel_=true;});
     scanLocalArt();
     // The watchdog: on start and every few seconds, the set-up systems' programs outside any game.
     applyWatchdogRules();
@@ -450,6 +471,7 @@ install::Request HubServices::gameRequest(const QString &id,const QString &varia
 HubServices::~HubServices(){
     if(artCancel_)*artCancel_=true;
     if(localArtCancel_)localArtCancel_->store(true);
+    if(libraryCancel_)libraryCancel_->store(true);
     artPool_.waitForDone();
     disconnect(&gunRoom_,nullptr,this,nullptr);
     gunRoom_.close();
@@ -637,10 +659,11 @@ void HubServices::scanSetup(const QStringList &systems){
                 const auto progress=[ui,title](const QString &text){if(ui)QMetaObject::invokeMethod(ui.data(),"setupScanProgress",Qt::QueuedConnection,Q_ARG(QString,title+": "+text));};
                 auto result=setup::scanSystem(id,values,context,progress,cancel);
                 const auto tables=result.take("pinballScan").toMap();
-                if(tables.contains("tables")&&!context.contains("pinballScan"))install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",pinballKey[0]},{"database",pinballKey[1]},{"roms",pinballKey[2]},{"media",pinballKey[3]},{"result",tables}}).toJson(QJsonDocument::Compact));
+                if(tables.contains("tables")&&!context.contains("pinballScan"))install::atomicWrite(cachePath,QJsonDocument::fromVariant(QVariantMap{{"folder",pinballKey[0]},{"database",pinballKey[1]},{"roms",pinballKey[2]},{"media",pinballKey[3]},
+                    {"fingerprint",pinball::fingerprint(pinballKey[0],pinballKey[1],pinballKey[2])},{"result",tables}}).toJson(QJsonDocument::Compact));
                 results<<result;
             }
-            report={{"scanned",QDateTime::currentDateTime().toString("d MMMM yyyy, HH:mm")},{"systems",results}};
+            report={{"scanned",QDateTime::currentDateTime().toString("d MMMM yyyy, HH:mm")},{"systems",results},{"stamp",setup::reportStamp(values,systems)}};
             install::atomicWrite(install::scopedPath("user/cache/setup-report.json",root),QJsonDocument::fromVariant(report).toJson(QJsonDocument::Compact));
         }catch(const std::exception &e){report["systems"]=results;report["error"]=QString::fromUtf8(e.what());}
         return report;
@@ -691,7 +714,7 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable,
         if(!QRegularExpression("^[a-f0-9]{64}$").match(id).hasMatch()||id!=identity||!file.isFile()||
            file.size()!=row.value("size",-1).toLongLong()||file.lastModified().toMSecsSinceEpoch()!=row.value("mtime",-1).toLongLong())
             throw install::Error("E_PINBALL_CHANGED","Table changed or is no longer available; scan again.");
-        if(!row.value("error").toString().isEmpty()||row.value("romState")=="ROM missing")
+        if(!pinball::canStart(row))
             throw install::Error("E_PINBALL_NOT_READY","Choose a table with no scan error or missing known ROM.");
         if(view=="headset"&&!row.value("vrReady").toBool())
             throw install::Error("E_PINBALL_NOT_READY","You excluded this table from the headset. Use Launch on desktop, or include it in the headset first.");
