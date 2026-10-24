@@ -43,7 +43,7 @@
     "gameId": "dc-fighting-vipers-2",
     "title": "Fighting Vipers 2",
     "system": "dreamcast",
-    "region": "JP",
+    "region": "Japan",
     "profile": false,
     "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
   },
@@ -59,7 +59,7 @@
     "gameId": "dc-shenmue-ii",
     "title": "Shenmue II",
     "system": "dreamcast",
-    "region": "JP",
+    "region": "Japan",
     "profile": false,
     "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
   },
@@ -67,7 +67,7 @@
     "gameId": "dc-space-channel-5-part-2",
     "title": "Space Channel 5 Part 2",
     "system": "dreamcast",
-    "region": "JP",
+    "region": "Japan",
     "profile": false,
     "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
   },
@@ -219,7 +219,7 @@
     "gameId": "dc-jet-grind-radio",
     "title": "Jet Grind Radio",
     "system": "dreamcast",
-    "region": "multiple",
+    "region": "USA",
     "profile": false,
     "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
   },
@@ -227,7 +227,7 @@
     "gameId": "dc-shenmue",
     "title": "Shenmue",
     "system": "dreamcast",
-    "region": "multiple",
+    "region": "USA",
     "profile": false,
     "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
   },
@@ -323,7 +323,7 @@
     "gameId": "dc-mortal-kombat-gold",
     "title": "Mortal Kombat Gold",
     "system": "dreamcast",
-    "region": "multiple",
+    "region": "USA",
     "profile": false,
     "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
   },
@@ -459,7 +459,7 @@
     "gameId": "dc-blue-stinger",
     "title": "Blue Stinger",
     "system": "dreamcast",
-    "region": "multiple",
+    "region": "USA",
     "profile": false,
     "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
   },
@@ -475,7 +475,7 @@
     "gameId": "dc-tony-hawk-s-pro-skater-2",
     "title": "Tony Hawk's Pro Skater 2",
     "system": "dreamcast",
-    "region": "multiple",
+    "region": "USA",
     "profile": false,
     "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
   },
@@ -563,7 +563,7 @@
     "gameId": "dc-dead-or-alive-2-limited-edition",
     "title": "Dead or Alive 2: Limited Edition",
     "system": "dreamcast",
-    "region": "JP",
+    "region": "Japan",
     "profile": false,
     "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
   },
@@ -651,7 +651,7 @@
     "gameId": "dc-karous",
     "title": "Karous",
     "system": "dreamcast",
-    "region": "JP",
+    "region": "Japan",
     "profile": false,
     "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
   },
