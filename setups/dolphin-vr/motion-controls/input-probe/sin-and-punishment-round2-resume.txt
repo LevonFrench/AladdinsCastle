@@ -1,0 +1,5 @@
+# Restore92. Movement directions are independent of the boot replay.
+93 97 L stick_x 1
+99 103 L stick_x -1
+95 96 R trigger 1
+101 102 R trigger 1

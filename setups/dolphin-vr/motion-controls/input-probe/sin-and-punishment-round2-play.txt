@@ -1,0 +1,155 @@
+# Offline round2: prepared local tutorial save required; checkpoint at92.
+ # E2: restored scene supports Nunchuk movement and trigger beam/impact.
+ # Timer0; score gain, full-screen aim and headset delivery remain unverified.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+26.0 26.3 R primary 1
+29.0 33.0 R u -0.77
+29.0 33.0 R v -0.44
+31.0 31.3 R primary 1
+33.0 50.0 R u -0.76
+33.0 50.0 R v -0.4
+35.0 35.3 R primary 1
+38.0 38.3 R primary 1
+41.0 41.3 R primary 1
+44.0 44.3 R primary 1
+47.0 47.3 R primary 1
+50.0 58.0 R u -0.25
+50.0 58.0 R v -0.36
+52.0 52.3 R primary 1
+55.0 55.3 R primary 1
+66.0 66.3 L thumbclick 1
+74.0 74.3 L thumbclick 1
+82.0 82.3 L thumbclick 1
+90.0 90.3 L thumbclick 1
+78.0 78.3 R primary 1
+81.0 81.3 R primary 1
+84.0 84.3 R primary 1
+87.0 87.3 R primary 1
+90.0 90.3 R primary 1
+93.0 93.4 R trigger 1
+94.0 94.4 R trigger 1
+95.0 95.4 R trigger 1
+96.0 96.4 R trigger 1
+97.0 97.4 R trigger 1
+98.0 98.4 R trigger 1
+99.0 99.4 R trigger 1
+100.0 100.4 R trigger 1
+101.0 101.4 R trigger 1
+102.0 102.4 R trigger 1
+103.0 103.4 R trigger 1
+104.0 104.4 R trigger 1
+105.0 105.4 R trigger 1
+106.0 106.4 R trigger 1
+107.0 107.4 R trigger 1
+108.0 108.4 R trigger 1
+109.0 109.4 R trigger 1
+110.0 110.4 R trigger 1
+111.0 111.4 R trigger 1
+112.0 112.4 R trigger 1
+113.0 113.4 R trigger 1
+114.0 114.4 R trigger 1
+115.0 115.4 R trigger 1
+116.0 116.4 R trigger 1
+117.0 117.4 R trigger 1
+118.0 118.4 R trigger 1
+119.0 119.4 R trigger 1
+120.0 120.4 R trigger 1
+121.0 121.4 R trigger 1
+122.0 122.4 R trigger 1
+123.0 123.4 R trigger 1
+124.0 124.4 R trigger 1
+125.0 125.4 R trigger 1
+126.0 126.4 R trigger 1
+127.0 127.4 R trigger 1
+128.0 128.4 R trigger 1
+129.0 129.4 R trigger 1
+130.0 130.4 R trigger 1
+131.0 131.4 R trigger 1
+132.0 132.4 R trigger 1
+133.0 133.4 R trigger 1
+134.0 134.4 R trigger 1
+135.0 135.4 R trigger 1
+136.0 136.4 R trigger 1
+137.0 137.4 R trigger 1
+138.0 138.4 R trigger 1
+139.0 139.4 R trigger 1
+140.0 140.4 R trigger 1
+141.0 141.4 R trigger 1
+142.0 142.4 R trigger 1
+143.0 143.4 R trigger 1
+144.0 144.4 R trigger 1
+145.0 145.4 R trigger 1
+96.0 102.0 L stick_x -1
+102.0 108.0 L stick_x 1
+93.0 146.0 R u 0.2
+93.0 146.0 R v 0.1
+shot 70 p70
+shot 72 p72
+shot 74 p74
+shot 76 p76
+shot 78 p78
+shot 80 p80
+shot 82 p82
+shot 84 p84
+shot 86 p86
+shot 88 p88
+shot 90 p90
+shot 92 p92
+shot 94 p94
+shot 96 p96
+shot 98 p98
+shot 100 p100
+shot 102 p102
+shot 104 p104
+shot 106 p106
+shot 108 p108
+shot 110 p110
+shot 112 p112
+shot 114 p114
+shot 116 p116
+shot 118 p118
+shot 120 p120
+shot 122 p122
+shot 124 p124
+shot 126 p126
+shot 128 p128
+shot 130 p130
+shot 132 p132
+shot 134 p134
+shot 136 p136
+shot 138 p138
+shot 140 p140
+shot 142 p142
+shot 144 p144
+shot 146 p146
+shot 148 p148
+160 175 L stick_x -1
+180 195 L stick_x 1
+160 200 R trigger 1
+shot 92.000 checkpoint-first-active
+94.000 97.000 L stick_x 1
+94.000 97.000 R trigger 1
+shot 99.000 action-after
+shot 142.000 checkpoint-tutorial-control
+143.000 147.000 L stick_x -1
+shot 146.000 move-left
+148.000 152.000 L stick_x 1
+shot 151.000 move-right
+174.000 176.500 R u -0.95
+174.000 176.500 R v 0.95
+shot 175.200 corner-UL
+177.000 179.500 R u 0.95
+177.000 179.500 R v 0.95
+shot 178.200 corner-UR
+180.000 182.500 R u -0.95
+180.000 182.500 R v -0.95
+shot 181.200 corner-LL
+183.000 185.500 R u 0.95
+183.000 185.500 R v -0.95
+shot 184.200 corner-LR
