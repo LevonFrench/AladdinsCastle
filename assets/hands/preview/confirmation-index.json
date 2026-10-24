@@ -2962,7 +2962,7 @@
     "assets/hands/assembly.json": {
       "kind": "metadata",
       "hash_basis": "repository-lf",
-      "sha256": "304f4df2121630bd24687f2884ddfca68db17e598c479a7acdd3106628450ce9"
+      "sha256": "bb275b59d7f250d11e0e9f62294d080877c277a33bcc554ef635ed1d28bc227c"
     },
     "assets/hands/grip-hand-left.glb": {
       "kind": "mesh",
@@ -2992,167 +2992,167 @@
     "assets/hands/preview/grips/arc-pistol-slide-left-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "848a617661379ae6eed42a9691cf4d4755a483f0a25d2573dd3f10d14386fde0"
+      "sha256": "3dfe181b99b27fcc7634850f4c5be64b176a46595c3b36b8ea8e2f6219398f9c"
     },
     "assets/hands/preview/grips/arc-pistol-slide-left-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "b1884174419e5d60e832772f7687ecca7b9400bed9486749e031855565e2c8c8"
+      "sha256": "d3d0d06f59cdcb67111cd4b8c7da85ef4e0ddd0a799f62dc8d62a6e91f7c58c2"
     },
     "assets/hands/preview/grips/arc-pistol-slide-review-sheet.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "04d4bfe6de7055300dcc87a70ba5ef8257dafc9faafcb19ca946f2945832b427"
+      "sha256": "bb7360f78f704c667d9e676af825dcf50004f8fab248d976cf8fcb8e07e5af0d"
     },
     "assets/hands/preview/grips/arc-pistol-slide-right-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "e4abd2b9a0a13e42246ce354f659571819ab4c3d66e1aad3d85ef5025a4fb1f3"
+      "sha256": "d97c1c6f4687e924f8607692e161fef196fae427819d5cd317f0ae349d1be030"
     },
     "assets/hands/preview/grips/arc-pistol-slide-right-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "0fd529bd2da9a1941b5c5489ceb9188e515bd1929c4479b44c0b1ad75551a997"
+      "sha256": "7f55075be0694e8e09af408247ef4f0de66a91c1c8e6d9723598b1baea839d59"
     },
     "assets/hands/preview/grips/con-pistol-dpad-left-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "5aac990a6c4eaf20875956acc3eead13688bd7e0889bdf3bc5730fc0548fe91a"
+      "sha256": "92d7643ef3d337ed3a985151dac0e086f27e994140c40c047bfc3ea5380a8428"
     },
     "assets/hands/preview/grips/con-pistol-dpad-left-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "60c6539e4322fef9b48bc19f3c0c35da8017deb269a48920fbc3d9f5c330a65e"
+      "sha256": "6d034a03dfb9a936d33c6e811cac6003d5845120ee369834c213e5125463dfe0"
     },
     "assets/hands/preview/grips/con-pistol-dpad-review-sheet.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "994175ab95c29b59a61121da1e4a8e94249e479a71aa514df0b5cb9f6cf41faa"
+      "sha256": "c64e635ad80353ffee989069bbf2c9c3ae498a2693868b13d8e7bd8a6966ede3"
     },
     "assets/hands/preview/grips/con-pistol-dpad-right-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "30d95f9502f7c3ca110a65d6a5d2c2bfd39c3aaafc89af2fb1d3a14bcacff887"
+      "sha256": "378709cffa36c46b0771693da41c9ebb308e571155db4257419f0b359a94632e"
     },
     "assets/hands/preview/grips/con-pistol-dpad-right-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "592e1ab9132ce4ccf2e7e7afe86459b9722924a306c9a81bd5582a78b06f6740"
+      "sha256": "b2d42f241a7fe6caef19d06da3873ea232e9ddb86c93c9bfd834a02abe15c205"
     },
     "assets/hands/preview/grips/con-pistol-slim-left-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "210bc337bb75143085228eb128c8b93aba2692dd999bee5ade4a1f015886006d"
+      "sha256": "870ebdaa5fc0b7b3e1da98fa52d59b4d798f8f22ecc71575e9f477785fb92c8a"
     },
     "assets/hands/preview/grips/con-pistol-slim-left-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "707bc60f4de5a1e2ad8b011a01929f1da7c253dc2f42f693399d941982b8672e"
+      "sha256": "c20df91fada77413697f24b799370c09c72ffd760b93b1884a281e248e3be558"
     },
     "assets/hands/preview/grips/con-pistol-slim-review-sheet.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "2dbfe1ad331ca9c23633a80183354bc0f5f1b5ef2f9e87d55a6766031ca5d5cf"
+      "sha256": "f4d428ac7406db0c343348f7b249c1678d4c16981a6dbeb2a5fec268e34a0d22"
     },
     "assets/hands/preview/grips/con-pistol-slim-right-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "21af239bb83632c8c12c8ec35d7746a16b2ad27c47816e45cd7e4fe84710bff7"
+      "sha256": "f56e53b5d4e0a925c5f104919a4cb0e5f17f206fdd71c9bc9d1633cff97a36b8"
     },
     "assets/hands/preview/grips/con-pistol-slim-right-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "bd1efdb6c98cdc63e5fd160c3d48a1106a55af80d467b0017aae6fece8d42326"
+      "sha256": "7292eda1510108aebf73cb49cc0f3ca47302f04663f14dc2a678970ce90015ff"
     },
     "assets/hands/preview/grips/con-remote-shell-left-docked-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "542818705a1939ab679cc581a71bf3f9156748f91fae296cd2494d2276112b15"
+      "sha256": "0b3d53776c65a37490d2af3e75a5e306fe288fd4c1f53f6a6f7dd1225838196b"
     },
     "assets/hands/preview/grips/con-remote-shell-left-docked-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "b9df350ae437aec2613a245eed0022e4c1611a85eb5e7c1f29bc574fe2023ba5"
+      "sha256": "6e400ea503a165824c7399216bde0fb629dadd5f70798a6758cff4db3a25b412"
     },
     "assets/hands/preview/grips/con-remote-shell-left-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "ab4b6d248485a535695b2cf3dac6a6899b94c69c6cb48570e693b9323f18321d"
+      "sha256": "117d541f283dddb40ab9dcb2681c2f0e91ce42f620987ab74d5b94b50ad255dc"
     },
     "assets/hands/preview/grips/con-remote-shell-left-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "f8ebff99605e81816b28028005ef56004ca76dcb518f9ff0b6f94dfae49f0a40"
+      "sha256": "7bc4cc462255fe96858fa2884df092138d76bc026cee67febea2a062806bbb1b"
     },
     "assets/hands/preview/grips/con-remote-shell-left-support-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "10e8fa37859770d9bc2df94563508fe79085b08ea88b42afd43547da1f278a25"
+      "sha256": "838d8d80bbf0c05a5f41b1c58dd58edcfbc967ccba5cca7857d7935193e33d66"
     },
     "assets/hands/preview/grips/con-remote-shell-left-support-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "c4442f586294243c1503f3b42fa127bc5d4ff01d5281e47134ad67b8c38d0958"
+      "sha256": "8e3c6541cc67130c45d738458054605cb2957bcfd141cf1e1e81746c31b97108"
     },
     "assets/hands/preview/grips/con-remote-shell-review-sheet.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "797a317c2adfae711562e63b724ebf01116fa78aaf75dd5fe2e54101be0e5954"
+      "sha256": "d72038fca23a74c2a9c243b45d2a0a511e6fdfd60d2d6897816adf50e5108500"
     },
     "assets/hands/preview/grips/con-remote-shell-right-docked-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "da86e79ab9168406f0487791f608481634c5c0e9e49b00922ee119f676408586"
+      "sha256": "0a3d47ecf634092c79484d5da04ef1295c48d6c3f7e7bcbe0bd1cdc715915f92"
     },
     "assets/hands/preview/grips/con-remote-shell-right-docked-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "02cc0595c870a5f6966991dca25a3b7783a08926225f7373fbc16f949cc90c60"
+      "sha256": "9a57be4edb779bcb7b2cfc75c418fe6c1a8b3cbb9471c077d2da1579e5e21f85"
     },
     "assets/hands/preview/grips/con-remote-shell-right-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "c202c255cc84109e14844b21521703b18191a4ca0806bfdadc2027e49b1506c2"
+      "sha256": "235c0a38b6e32095b8b1abf4ab2fcb466fb6842891ba3853b8ad57725d02aa25"
     },
     "assets/hands/preview/grips/con-remote-shell-right-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "5ac815e6da1218aeffb49d4d0d85976053b439e27e30f4b1f293cc9bb339e6ad"
+      "sha256": "17c1e5ac285f3e3b49d8de1cd342aeb0d0088c49b3e9e0360dff8cb86503a0ef"
     },
     "assets/hands/preview/grips/con-remote-shell-right-support-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "9f834e94367971abeeaf5ab599c63f62318f4be4db97218620117f1e482a5d9f"
+      "sha256": "4856794af322abbf331f82b5d3d2d0bc7e497f72f858ba8641f08975e9f01bd2"
     },
     "assets/hands/preview/grips/con-remote-shell-right-support-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "b9719fb7ca884071678158e7a9a8dbc4358ace777b0e68ea5a933c3b879ddbc8"
+      "sha256": "3a3820e122a9714a13aed0af9643397186ff09e3e3c7026c14eb6eca604a053a"
     },
     "assets/hands/preview/grips/con-revolver-chunky-left-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "e190d2ee8d8b57e6bdb3672ee7fb9cfd801a1fb86c7a40b5c2d58b978749f82f"
+      "sha256": "100a5cbc7628c4e3fdb353f38a557bd8fc4d25b699a32ab4a1d83229a79ffe2a"
     },
     "assets/hands/preview/grips/con-revolver-chunky-left-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "0ed4b773f6b6a3c2ed1b2a43907117a0a631f5d6e736d2be0db7a1305ae61f8a"
+      "sha256": "47855cb041ddafa1bfaf94d8c0c5428bc9ce1b97b07014cbb194d5fd95f4091d"
     },
     "assets/hands/preview/grips/con-revolver-chunky-review-sheet.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "f9a43b14f15ac91a0c93c230678e6d53587e0cc87da77d00f30ad6a06fffa385"
+      "sha256": "38ede9f5e16561dc7f7a1dbce09422eb68e97731fdb527c81510ddc0fc6f950a"
     },
     "assets/hands/preview/grips/con-revolver-chunky-right-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "12880712d70cfd1bd8a94a08f8f2c08bc5faaa5784e1afd138367cefad166cb1"
+      "sha256": "617c5d462a9bd205a45d992ad20699d85a546bbc6d21490166a3f559a843dbc0"
     },
     "assets/hands/preview/grips/con-revolver-chunky-right-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "4d95817a3c223ac2f74ca4562ff2f7d708332f5a21866f77d0c29ed82e5e6069"
+      "sha256": "30bf1b9a29a1f21447acb1b4bf65a6a3e30b3534aa67c76b6c5263ea866ccb5f"
     },
     "assets/hands/preview/grips/con-stick-grip-left-primary-assembly.png": {
       "kind": "preview",
@@ -3182,37 +3182,37 @@
     "assets/hands/preview/grips/coverage.json": {
       "kind": "metadata",
       "hash_basis": "repository-lf",
-      "sha256": "0deefacda14289f852c8ded487193d1d2a254598281f54cb76019bac9d35fc0d"
+      "sha256": "cf2d5cb2e4197a3886f9a019ddfc65daa7fecd7b66fe607444719af3c1c7e2d3"
     },
     "assets/hands/preview/grips/generic-pistol-left-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "b6359b02c0c2ec277641294c8a6a3a1174c81c8fda48f1486c6aafd66e570f06"
+      "sha256": "c3e60682748e75942bdd99eed473cde4904e19d167bda768c57a6199f58373bc"
     },
     "assets/hands/preview/grips/generic-pistol-left-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "5e67521bc609f21feb47fce3b4e5a962e94d81f2ad88506534d73795cd3430a8"
+      "sha256": "50615c57176c076734dd8cfcdeda3a0383f64e0bc5f36f9ffc90ffc59e2734d8"
     },
     "assets/hands/preview/grips/generic-pistol-review-sheet.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "ffcb091778f2180381d937052cdb240868903d6b1f87bd4d5537220f2345dc57"
+      "sha256": "9ae3b17a6f3afab42ab2f6f9f5828ef3923a22d89e4eba0ef3bbaef2a318e726"
     },
     "assets/hands/preview/grips/generic-pistol-right-primary-assembly.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "9acddc41ef1819d4f1ead9cf73b4a0c242aefd7a0a1596d8b8f91eb7ea61a3cb"
+      "sha256": "b3cc4ad3d382cf608e7f283a60d7319cb1c5069b61a2567a8434285d702f8c09"
     },
     "assets/hands/preview/grips/generic-pistol-right-primary-grip.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "2e235c57adebe1eab418abcc3301a498e0c1c94cb093e63e721cbe72576bef62"
+      "sha256": "53e709db8fff13f43d4e00c249a317c52b6afaa756d063113bb562522373fd5b"
     },
     "assets/hands/preview/grips/grip-coverage-sheet.png": {
       "kind": "preview",
       "hash_basis": "file-bytes",
-      "sha256": "ca4c2acdc40c86340efd4e97c51bae3a227b36c690bf6ce695b88c955a79c0b1"
+      "sha256": "9003c0d3928f898271b88173e6644eca5d1eaa53b7842487e965e0665d43aa7e"
     },
     "assets/hands/preview/grips/mnt-mg-heavy-left-primary-assembly.png": {
       "kind": "preview",
@@ -3392,7 +3392,7 @@
     "tools/hand_assembly.py": {
       "kind": "source",
       "hash_basis": "repository-lf",
-      "sha256": "dea531fb96641c7e441ba3aa8c1e96a363746a122a112311855349536a5ab24b"
+      "sha256": "c293c905fd211bcbd0e13f74ae63c8465aa5a4f3ebb680661402860bd7686730"
     },
     "tools/wii_controls.py": {
       "kind": "source",

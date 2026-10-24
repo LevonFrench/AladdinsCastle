@@ -6,8 +6,13 @@ from pathlib import Path
 import sys
 import tomllib
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/'assets/guns/src'))
+sys.path.insert(0,str(ROOT/'assets/guns/src'));sys.path.insert(0,str(ROOT/'assets/hands/src'))
 from common import BUILT_MODELS,plan
+from grip_hand import FINGERS
+from check_gun_assets import IDENTITY,accessor,local_matrix,multiply,read_glb,transform
+# The index pad rests on the trigger's front face this far down the blade: low
+# enough that the rigid middle finger clears under the guard on the pistols.
+TRIGGER_PAD=.75
 
 def between(a,b):
     la=math.sqrt(sum(x*x for x in a));lb=math.sqrt(sum(x*x for x in b))
@@ -16,6 +21,37 @@ def between(a,b):
     length=math.sqrt(sum(x*x for x in q))
     return [v/length for v in q]
 
+def trigger_blade(mid):
+    """LOD0 trigger-blade triangles of the exported gun, in grip space; empty without a trigger."""
+    doc,binary=read_glb(ROOT/'assets/guns'/f'{mid}.glb');triangles=[]
+    def visit(index,world,lod0):
+        node=doc['nodes'][index];name=node.get('name','');world=multiply(world,local_matrix(node));lod0=lod0 or name=='LOD0'
+        if lod0 and 'mesh' in node and 'trigger' in name and 'guard' not in name:
+            for prim in doc['meshes'][node['mesh']]['primitives']:
+                points=[transform(world,p) for p in accessor(doc,binary,prim['attributes']['POSITION'])]
+                order=[row[0] for row in accessor(doc,binary,prim['indices'])]
+                triangles.extend([points[i] for i in order[k:k+3]] for k in range(0,len(order),3))
+        for child in node.get('children',[]):visit(child,world,lod0)
+    visit(doc['scenes'][0]['nodes'][0],IDENTITY,False)
+    return triangles
+
+def trigger_finger(mid,rotation):
+    """Hand translation that puts the index fingertip pad on the trigger blade's front face.
+
+    The pad height is TRIGGER_PAD down the blade; the face is read where the mesh
+    crosses the gun's mid-plane (x=0) at that height."""
+    triangles=trigger_blade(mid)
+    if not triangles:return [0,0,0]
+    heights=[p[1] for t in triangles for p in t];top=max(heights)
+    y=top-(top-min(heights))*TRIGGER_PAD;front=[]
+    for t in triangles:
+        cut=[(a[1]+(b[1]-a[1])*a[0]/(a[0]-b[0]),a[2]+(b[2]-a[2])*a[0]/(a[0]-b[0])) for a,b in ((t[0],t[1]),(t[1],t[2]),(t[2],t[0])) if (a[0]<0)!=(b[0]<0)]
+        if len(cut)==2 and (cut[0][0]-y)*(cut[1][0]-y)<=0 and cut[0][0]!=cut[1][0]:
+            front.append(cut[0][1]+(y-cut[0][0])/(cut[1][0]-cut[0][0])*(cut[1][1]-cut[0][1]))
+    points,radii=FINGERS['index'];tip=[v/1000 for v in points[-1]];pitch=2*math.atan2(rotation[0],rotation[3])
+    tip_y=tip[1]*math.cos(pitch)-tip[2]*math.sin(pitch);tip_z=tip[1]*math.sin(pitch)+tip[2]*math.cos(pitch)
+    return [0,round(y-tip_y,4),round(min(front)-radii[-1]/1000-tip_z,4)]
+
 def compile_assembly():
     policy=tomllib.loads((ROOT/'data/controls/wii/shell-and-stick.toml').read_text())
     models={}
@@ -23,7 +59,9 @@ def compile_assembly():
         spec=plan(mid,{})
         pitch=0 if mid in ('mnt-mg-heavy','con-stick-grip') else math.radians(15)
         rotation=[math.sin(pitch/2),0,0,math.cos(pitch/2)]
-        hands={hand:dict(asset=f'assets/hands/grip-hand-{hand}.glb',node='grip',translation=[0,0,0],rotation_xyzw=rotation,finger_pose={}) for hand in ('right','left')}
+        # Spade grips and the stick grip keep the hand at the grip node; pistols put the index on the trigger.
+        translation=[0,0,0] if mid in ('mnt-mg-heavy','con-stick-grip') else trigger_finger(mid,rotation)
+        hands={hand:dict(asset=f'assets/hands/grip-hand-{hand}.glb',node='grip',translation=list(translation),rotation_xyzw=rotation,finger_pose={}) for hand in ('right','left')}
         if mid=='con-stick-grip':
             for hand,pose in hands.items():
                 pose['translation']=[0,-.005,.012]

@@ -14,8 +14,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0318,
+              0.0127
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -41,8 +41,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0318,
+              0.0127
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -68,8 +68,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0412,
+              0.0105
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -95,8 +95,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0412,
+              0.0105
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -122,8 +122,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0333,
+              0.0159
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -149,8 +149,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0333,
+              0.0159
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -176,8 +176,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0308,
+              0.0197
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -203,8 +203,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0308,
+              0.0197
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -230,8 +230,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0319,
+              0.019
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -257,8 +257,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0319,
+              0.019
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -284,8 +284,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0291,
+              -0.0142
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -311,8 +311,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0291,
+              -0.0142
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -484,8 +484,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0308,
+              0.0197
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -530,8 +530,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0308,
+              0.0197
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -668,8 +668,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0308,
+              0.0197
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -741,8 +741,8 @@
             "node": "grip",
             "translation": [
               0,
-              0,
-              0
+              -0.0308,
+              0.0197
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -803,6 +803,66 @@
     }
   ],
   "images": [
+    {
+      "case": "mnt-mg-heavy-right-primary",
+      "view": "assembly",
+      "image": "mnt-mg-heavy-right-primary-assembly.png"
+    },
+    {
+      "case": "mnt-mg-heavy-right-primary",
+      "view": "grip",
+      "image": "mnt-mg-heavy-right-primary-grip.png"
+    },
+    {
+      "case": "con-stick-grip-right-primary",
+      "view": "assembly",
+      "image": "con-stick-grip-right-primary-assembly.png"
+    },
+    {
+      "case": "con-stick-grip-right-primary",
+      "view": "grip",
+      "image": "con-stick-grip-right-primary-grip.png"
+    },
+    {
+      "case": "con-stick-grip-left-primary",
+      "view": "assembly",
+      "image": "con-stick-grip-left-primary-assembly.png"
+    },
+    {
+      "case": "con-stick-grip-left-primary",
+      "view": "grip",
+      "image": "con-stick-grip-left-primary-grip.png"
+    },
+    {
+      "case": "mnt-mg-heavy-left-primary",
+      "view": "assembly",
+      "image": "mnt-mg-heavy-left-primary-assembly.png"
+    },
+    {
+      "case": "mnt-mg-heavy-left-primary",
+      "view": "grip",
+      "image": "mnt-mg-heavy-left-primary-grip.png"
+    },
+    {
+      "case": "mnt-mg-heavy-right-support",
+      "view": "assembly",
+      "image": "mnt-mg-heavy-right-support-assembly.png"
+    },
+    {
+      "case": "mnt-mg-heavy-right-support",
+      "view": "grip",
+      "image": "mnt-mg-heavy-right-support-grip.png"
+    },
+    {
+      "case": "mnt-mg-heavy-left-support",
+      "view": "assembly",
+      "image": "mnt-mg-heavy-left-support-assembly.png"
+    },
+    {
+      "case": "mnt-mg-heavy-left-support",
+      "view": "grip",
+      "image": "mnt-mg-heavy-left-support-grip.png"
+    },
     {
       "case": "arc-pistol-slide-right-primary",
       "view": "assembly",
@@ -924,66 +984,6 @@
       "image": "generic-pistol-left-primary-grip.png"
     },
     {
-      "case": "mnt-mg-heavy-right-primary",
-      "view": "assembly",
-      "image": "mnt-mg-heavy-right-primary-assembly.png"
-    },
-    {
-      "case": "mnt-mg-heavy-right-primary",
-      "view": "grip",
-      "image": "mnt-mg-heavy-right-primary-grip.png"
-    },
-    {
-      "case": "con-stick-grip-right-primary",
-      "view": "assembly",
-      "image": "con-stick-grip-right-primary-assembly.png"
-    },
-    {
-      "case": "con-stick-grip-right-primary",
-      "view": "grip",
-      "image": "con-stick-grip-right-primary-grip.png"
-    },
-    {
-      "case": "con-stick-grip-left-primary",
-      "view": "assembly",
-      "image": "con-stick-grip-left-primary-assembly.png"
-    },
-    {
-      "case": "con-stick-grip-left-primary",
-      "view": "grip",
-      "image": "con-stick-grip-left-primary-grip.png"
-    },
-    {
-      "case": "con-remote-shell-right-docked",
-      "view": "assembly",
-      "image": "con-remote-shell-right-docked-assembly.png"
-    },
-    {
-      "case": "con-remote-shell-right-docked",
-      "view": "grip",
-      "image": "con-remote-shell-right-docked-grip.png"
-    },
-    {
-      "case": "con-remote-shell-left-docked",
-      "view": "assembly",
-      "image": "con-remote-shell-left-docked-assembly.png"
-    },
-    {
-      "case": "con-remote-shell-left-docked",
-      "view": "grip",
-      "image": "con-remote-shell-left-docked-grip.png"
-    },
-    {
-      "case": "mnt-mg-heavy-left-primary",
-      "view": "assembly",
-      "image": "mnt-mg-heavy-left-primary-assembly.png"
-    },
-    {
-      "case": "mnt-mg-heavy-left-primary",
-      "view": "grip",
-      "image": "mnt-mg-heavy-left-primary-grip.png"
-    },
-    {
       "case": "con-remote-shell-right-support",
       "view": "assembly",
       "image": "con-remote-shell-right-support-assembly.png"
@@ -1004,24 +1004,24 @@
       "image": "con-remote-shell-left-support-grip.png"
     },
     {
-      "case": "mnt-mg-heavy-right-support",
+      "case": "con-remote-shell-right-docked",
       "view": "assembly",
-      "image": "mnt-mg-heavy-right-support-assembly.png"
+      "image": "con-remote-shell-right-docked-assembly.png"
     },
     {
-      "case": "mnt-mg-heavy-right-support",
+      "case": "con-remote-shell-right-docked",
       "view": "grip",
-      "image": "mnt-mg-heavy-right-support-grip.png"
+      "image": "con-remote-shell-right-docked-grip.png"
     },
     {
-      "case": "mnt-mg-heavy-left-support",
+      "case": "con-remote-shell-left-docked",
       "view": "assembly",
-      "image": "mnt-mg-heavy-left-support-assembly.png"
+      "image": "con-remote-shell-left-docked-assembly.png"
     },
     {
-      "case": "mnt-mg-heavy-left-support",
+      "case": "con-remote-shell-left-docked",
       "view": "grip",
-      "image": "mnt-mg-heavy-left-support-grip.png"
+      "image": "con-remote-shell-left-docked-grip.png"
     }
   ],
   "lighting": {
@@ -1046,49 +1046,49 @@
   "samples": 64,
   "acceptance": "Visual CPU fit coverage only; no physical acceptance",
   "source_sha256": {
-    "arc-pistol-slide-right-primary-assembly.png": "e4abd2b9a0a13e42246ce354f659571819ab4c3d66e1aad3d85ef5025a4fb1f3",
-    "arc-pistol-slide-right-primary-grip.png": "0fd529bd2da9a1941b5c5489ceb9188e515bd1929c4479b44c0b1ad75551a997",
-    "arc-pistol-slide-left-primary-assembly.png": "848a617661379ae6eed42a9691cf4d4755a483f0a25d2573dd3f10d14386fde0",
-    "arc-pistol-slide-left-primary-grip.png": "b1884174419e5d60e832772f7687ecca7b9400bed9486749e031855565e2c8c8",
-    "con-pistol-dpad-right-primary-assembly.png": "30d95f9502f7c3ca110a65d6a5d2c2bfd39c3aaafc89af2fb1d3a14bcacff887",
-    "con-pistol-dpad-right-primary-grip.png": "592e1ab9132ce4ccf2e7e7afe86459b9722924a306c9a81bd5582a78b06f6740",
-    "con-pistol-dpad-left-primary-assembly.png": "5aac990a6c4eaf20875956acc3eead13688bd7e0889bdf3bc5730fc0548fe91a",
-    "con-pistol-dpad-left-primary-grip.png": "60c6539e4322fef9b48bc19f3c0c35da8017deb269a48920fbc3d9f5c330a65e",
-    "con-pistol-slim-right-primary-assembly.png": "21af239bb83632c8c12c8ec35d7746a16b2ad27c47816e45cd7e4fe84710bff7",
-    "con-pistol-slim-right-primary-grip.png": "bd1efdb6c98cdc63e5fd160c3d48a1106a55af80d467b0017aae6fece8d42326",
-    "con-pistol-slim-left-primary-assembly.png": "210bc337bb75143085228eb128c8b93aba2692dd999bee5ade4a1f015886006d",
-    "con-pistol-slim-left-primary-grip.png": "707bc60f4de5a1e2ad8b011a01929f1da7c253dc2f42f693399d941982b8672e",
-    "con-remote-shell-right-primary-assembly.png": "c202c255cc84109e14844b21521703b18191a4ca0806bfdadc2027e49b1506c2",
-    "con-remote-shell-right-primary-grip.png": "5ac815e6da1218aeffb49d4d0d85976053b439e27e30f4b1f293cc9bb339e6ad",
-    "con-remote-shell-left-primary-assembly.png": "ab4b6d248485a535695b2cf3dac6a6899b94c69c6cb48570e693b9323f18321d",
-    "con-remote-shell-left-primary-grip.png": "f8ebff99605e81816b28028005ef56004ca76dcb518f9ff0b6f94dfae49f0a40",
-    "con-revolver-chunky-right-primary-assembly.png": "12880712d70cfd1bd8a94a08f8f2c08bc5faaa5784e1afd138367cefad166cb1",
-    "con-revolver-chunky-right-primary-grip.png": "4d95817a3c223ac2f74ca4562ff2f7d708332f5a21866f77d0c29ed82e5e6069",
-    "con-revolver-chunky-left-primary-assembly.png": "e190d2ee8d8b57e6bdb3672ee7fb9cfd801a1fb86c7a40b5c2d58b978749f82f",
-    "con-revolver-chunky-left-primary-grip.png": "0ed4b773f6b6a3c2ed1b2a43907117a0a631f5d6e736d2be0db7a1305ae61f8a",
-    "generic-pistol-right-primary-assembly.png": "9acddc41ef1819d4f1ead9cf73b4a0c242aefd7a0a1596d8b8f91eb7ea61a3cb",
-    "generic-pistol-right-primary-grip.png": "2e235c57adebe1eab418abcc3301a498e0c1c94cb093e63e721cbe72576bef62",
-    "generic-pistol-left-primary-assembly.png": "b6359b02c0c2ec277641294c8a6a3a1174c81c8fda48f1486c6aafd66e570f06",
-    "generic-pistol-left-primary-grip.png": "5e67521bc609f21feb47fce3b4e5a962e94d81f2ad88506534d73795cd3430a8",
     "mnt-mg-heavy-right-primary-assembly.png": "9622c33c72f1124d7789c6075714ad211fb436384be9ab856d1697e402f80e26",
     "mnt-mg-heavy-right-primary-grip.png": "e4c2df9ca735f0b9ca202181ba067fcf4cb4dae8c82105953f124f287fa18986",
     "con-stick-grip-right-primary-assembly.png": "c2a76a9bde0650995d71a76d86a1860c122302c417ad179cb15b820ffb8c4cec",
     "con-stick-grip-right-primary-grip.png": "9bf461e493d1df4fee75e1a0f3c97a1b58112a32b9e81aff9b3fae82e5ce578f",
     "con-stick-grip-left-primary-assembly.png": "72d04fbd970d47245be12c685ed270892d59697b3b3e1c366f5508c8d996afc7",
     "con-stick-grip-left-primary-grip.png": "c27dd3d10a6a8f1ca9467851a22bce4ede8067daa7fe45cb91865ea5fd3e9657",
-    "con-remote-shell-right-docked-assembly.png": "da86e79ab9168406f0487791f608481634c5c0e9e49b00922ee119f676408586",
-    "con-remote-shell-right-docked-grip.png": "02cc0595c870a5f6966991dca25a3b7783a08926225f7373fbc16f949cc90c60",
-    "con-remote-shell-left-docked-assembly.png": "542818705a1939ab679cc581a71bf3f9156748f91fae296cd2494d2276112b15",
-    "con-remote-shell-left-docked-grip.png": "b9df350ae437aec2613a245eed0022e4c1611a85eb5e7c1f29bc574fe2023ba5",
     "mnt-mg-heavy-left-primary-assembly.png": "058f50ae31cfc93b3746f5ddb0a0c24d5df65ae47f30323358a2d595e2cb5e38",
     "mnt-mg-heavy-left-primary-grip.png": "4e60e67e1d5f0a9b1ead53e4db76f7db0f69f40519cb00a33914afe48ab07913",
-    "con-remote-shell-right-support-assembly.png": "9f834e94367971abeeaf5ab599c63f62318f4be4db97218620117f1e482a5d9f",
-    "con-remote-shell-right-support-grip.png": "b9719fb7ca884071678158e7a9a8dbc4358ace777b0e68ea5a933c3b879ddbc8",
-    "con-remote-shell-left-support-assembly.png": "10e8fa37859770d9bc2df94563508fe79085b08ea88b42afd43547da1f278a25",
-    "con-remote-shell-left-support-grip.png": "c4442f586294243c1503f3b42fa127bc5d4ff01d5281e47134ad67b8c38d0958",
     "mnt-mg-heavy-right-support-assembly.png": "5b915ac86965bdede21236ce32697e6ee5865f7c342aba92691fac5137d4c699",
     "mnt-mg-heavy-right-support-grip.png": "109543ae2b3fbe7a12eadc29ce42fed534b26d96f954e523084812a383f78083",
     "mnt-mg-heavy-left-support-assembly.png": "bd00a785209eff97b6b50c5f363207656c6dc186fff40304659eeab4bf973d67",
-    "mnt-mg-heavy-left-support-grip.png": "02449ca5b13d7986df17724b67af0c922d994a6e1621cc3d536824b93d628888"
+    "mnt-mg-heavy-left-support-grip.png": "02449ca5b13d7986df17724b67af0c922d994a6e1621cc3d536824b93d628888",
+    "arc-pistol-slide-right-primary-assembly.png": "d97c1c6f4687e924f8607692e161fef196fae427819d5cd317f0ae349d1be030",
+    "arc-pistol-slide-right-primary-grip.png": "7f55075be0694e8e09af408247ef4f0de66a91c1c8e6d9723598b1baea839d59",
+    "arc-pistol-slide-left-primary-assembly.png": "3dfe181b99b27fcc7634850f4c5be64b176a46595c3b36b8ea8e2f6219398f9c",
+    "arc-pistol-slide-left-primary-grip.png": "d3d0d06f59cdcb67111cd4b8c7da85ef4e0ddd0a799f62dc8d62a6e91f7c58c2",
+    "con-pistol-dpad-right-primary-assembly.png": "378709cffa36c46b0771693da41c9ebb308e571155db4257419f0b359a94632e",
+    "con-pistol-dpad-right-primary-grip.png": "b2d42f241a7fe6caef19d06da3873ea232e9ddb86c93c9bfd834a02abe15c205",
+    "con-pistol-dpad-left-primary-assembly.png": "92d7643ef3d337ed3a985151dac0e086f27e994140c40c047bfc3ea5380a8428",
+    "con-pistol-dpad-left-primary-grip.png": "6d034a03dfb9a936d33c6e811cac6003d5845120ee369834c213e5125463dfe0",
+    "con-pistol-slim-right-primary-assembly.png": "f56e53b5d4e0a925c5f104919a4cb0e5f17f206fdd71c9bc9d1633cff97a36b8",
+    "con-pistol-slim-right-primary-grip.png": "7292eda1510108aebf73cb49cc0f3ca47302f04663f14dc2a678970ce90015ff",
+    "con-pistol-slim-left-primary-assembly.png": "870ebdaa5fc0b7b3e1da98fa52d59b4d798f8f22ecc71575e9f477785fb92c8a",
+    "con-pistol-slim-left-primary-grip.png": "c20df91fada77413697f24b799370c09c72ffd760b93b1884a281e248e3be558",
+    "con-remote-shell-right-primary-assembly.png": "235c0a38b6e32095b8b1abf4ab2fcb466fb6842891ba3853b8ad57725d02aa25",
+    "con-remote-shell-right-primary-grip.png": "17c1e5ac285f3e3b49d8de1cd342aeb0d0088c49b3e9e0360dff8cb86503a0ef",
+    "con-remote-shell-left-primary-assembly.png": "117d541f283dddb40ab9dcb2681c2f0e91ce42f620987ab74d5b94b50ad255dc",
+    "con-remote-shell-left-primary-grip.png": "7bc4cc462255fe96858fa2884df092138d76bc026cee67febea2a062806bbb1b",
+    "con-revolver-chunky-right-primary-assembly.png": "617c5d462a9bd205a45d992ad20699d85a546bbc6d21490166a3f559a843dbc0",
+    "con-revolver-chunky-right-primary-grip.png": "30bf1b9a29a1f21447acb1b4bf65a6a3e30b3534aa67c76b6c5263ea866ccb5f",
+    "con-revolver-chunky-left-primary-assembly.png": "100a5cbc7628c4e3fdb353f38a557bd8fc4d25b699a32ab4a1d83229a79ffe2a",
+    "con-revolver-chunky-left-primary-grip.png": "47855cb041ddafa1bfaf94d8c0c5428bc9ce1b97b07014cbb194d5fd95f4091d",
+    "generic-pistol-right-primary-assembly.png": "b3cc4ad3d382cf608e7f283a60d7319cb1c5069b61a2567a8434285d702f8c09",
+    "generic-pistol-right-primary-grip.png": "53e709db8fff13f43d4e00c249a317c52b6afaa756d063113bb562522373fd5b",
+    "generic-pistol-left-primary-assembly.png": "c3e60682748e75942bdd99eed473cde4904e19d167bda768c57a6199f58373bc",
+    "generic-pistol-left-primary-grip.png": "50615c57176c076734dd8cfcdeda3a0383f64e0bc5f36f9ffc90ffc59e2734d8",
+    "con-remote-shell-right-support-assembly.png": "4856794af322abbf331f82b5d3d2d0bc7e497f72f858ba8641f08975e9f01bd2",
+    "con-remote-shell-right-support-grip.png": "3a3820e122a9714a13aed0af9643397186ff09e3e3c7026c14eb6eca604a053a",
+    "con-remote-shell-left-support-assembly.png": "838d8d80bbf0c05a5f41b1c58dd58edcfbc967ccba5cca7857d7935193e33d66",
+    "con-remote-shell-left-support-grip.png": "8e3c6541cc67130c45d738458054605cb2957bcfd141cf1e1e81746c31b97108",
+    "con-remote-shell-right-docked-assembly.png": "0a3d47ecf634092c79484d5da04ef1295c48d6c3f7e7bcbe0bd1cdc715915f92",
+    "con-remote-shell-right-docked-grip.png": "9a57be4edb779bcb7b2cfc75c418fe6c1a8b3cbb9471c077d2da1579e5e21f85",
+    "con-remote-shell-left-docked-assembly.png": "0b3d53776c65a37490d2af3e75a5e306fe288fd4c1f53f6a6f7dd1225838196b",
+    "con-remote-shell-left-docked-grip.png": "6e400ea503a165824c7399216bde0fb629dadd5f70798a6758cff4db3a25b412"
   }
 }
