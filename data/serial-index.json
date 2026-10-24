@@ -739,9 +739,23 @@
     "region": "NTSC-U",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
   },
+  "SCUS-97112": {
+    "gameId": "ps2-extermination",
+    "title": "Extermination",
+    "system": "ps2",
+    "region": "NTSC-U",
+    "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
+  },
   "SCUS-97113": {
     "gameId": "ps2-ico",
     "title": "Ico",
+    "system": "ps2",
+    "region": "NTSC-U",
+    "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
+  },
+  "SCUS-97129": {
+    "gameId": "ps2-okage-shadow-king",
+    "title": "Okage - Shadow King",
     "system": "ps2",
     "region": "NTSC-U",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
@@ -3211,6 +3225,13 @@
     "region": "NTSC-U",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
   },
+  "SLUS-20066": {
+    "gameId": "ps2-half-life",
+    "title": "Half-Life",
+    "system": "ps2",
+    "region": "NTSC-U",
+    "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
+  },
   "SLUS-20070": {
     "gameId": "ps2-q-ball-billiards-master",
     "title": "Q-Ball Billiards Master",
@@ -3246,9 +3267,23 @@
     "region": "NTSC-U",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
   },
+  "SLUS-20167": {
+    "gameId": "ps2-quake-iii-revolution",
+    "title": "Quake III - Revolution",
+    "system": "ps2",
+    "region": "NTSC-U",
+    "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
+  },
   "SLUS-20169": {
     "gameId": "ps2-ephemeral-fantasia",
     "title": "Ephemeral Fantasia",
+    "system": "ps2",
+    "region": "NTSC-U",
+    "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20172": {
+    "gameId": "ps2-pryzm-chapter-one-the-dark-unicorn",
+    "title": "Pryzm - Chapter One - The Dark Unicorn",
     "system": "ps2",
     "region": "NTSC-U",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
@@ -3361,6 +3396,13 @@
   "SLUS-20389": {
     "gameId": "ps2-endgame",
     "title": "Endgame",
+    "system": "ps2",
+    "region": "NTSC-U",
+    "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20394": {
+    "gameId": "ps2-ecco-the-dolphin-defender-of-the-future",
+    "title": "Ecco the Dolphin - Defender of the Future",
     "system": "ps2",
     "region": "NTSC-U",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
@@ -3533,6 +3575,13 @@
     "region": "NTSC-U",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
   },
+  "SLUS-20777": {
+    "gameId": "ps2-obscure",
+    "title": "Obscure",
+    "system": "ps2",
+    "region": "NTSC-U",
+    "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
+  },
   "SLUS-20780": {
     "gameId": "ps2-r-type-final",
     "title": "R-Type Final",
@@ -3603,6 +3652,20 @@
     "region": "NTSC-U",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
   },
+  "SLUS-20939": {
+    "gameId": "ps2-viewtiful-joe-2",
+    "title": "Viewtiful Joe 2",
+    "system": "ps2",
+    "region": "NTSC-U",
+    "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-20951": {
+    "gameId": "ps2-viewtiful-joe",
+    "title": "Viewtiful Joe",
+    "system": "ps2",
+    "region": "NTSC-U",
+    "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
+  },
   "SLUS-20960": {
     "gameId": "ps2-mega-man-x8",
     "title": "Mega Man X8",
@@ -3634,6 +3697,13 @@
   "SLUS-21037": {
     "gameId": "ps2-project-snowblind",
     "title": "Project - Snowblind",
+    "system": "ps2",
+    "region": "NTSC-U",
+    "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
+  },
+  "SLUS-21038": {
+    "gameId": "ps2-pinball-hall-of-fame-the-gottlieb-collection",
+    "title": "Pinball Hall of Fame - The Gottlieb Collection",
     "system": "ps2",
     "region": "NTSC-U",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
