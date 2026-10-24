@@ -16,12 +16,12 @@ Rectangle {
  Connections {target:uiSettings;function onChanged(){card.keepRoots()}}
  Component.onCompleted:keepRoots()
  readonly property var result:uiController.library||({})
- readonly property var names:({model3:"Sega Model 3",model2:"Sega Model 2",ps2:"PlayStation 2",dreamcast:"Sega Dreamcast",wii:"Nintendo Wii"})
+ readonly property var names:({model3:"Sega Model 3",model2:"Sega Model 2",ps1:"PlayStation",ps2:"PlayStation 2",dreamcast:"Sega Dreamcast",wii:"Nintendo Wii",gamecube:"Nintendo GameCube"})
  readonly property string summary:{
   const systems=result.systems||{};let parts=[]
-  for(const key of ["model3","model2","wii","dreamcast","ps2"]){const s=systems[key];if(s)parts.push(names[key]+": "+s.games+(s.other?" (and "+s.other+" not in the Hub's list)":""))}
+  for(const key of ["model3","model2","wii","gamecube","dreamcast","ps2","ps1"]){const s=systems[key];if(s)parts.push(names[key]+": "+s.games+(s.other?" (and "+s.other+" unknown "+(s.other===1?"ID":"IDs")+")":""))}
   const tables=(result.pinballFolders||[]);if(tables.length)parts.push("Visual Pinball: "+tables[0].tables+" tables in "+tables[0].folder)
-  const u=result.unrecognised||{};if(result.files!==undefined)parts.push("Not games the Hub plays: "+(u.discs||0)+" disc images, "+(u.archives||0)+" archives")
+  const u=result.unrecognised||{};if(result.files!==undefined)parts.push("Unknown: "+(u.discs||0)+" disc images, "+(u.archives||0)+" archives")
   return parts.join("\n")
  }
  implicitHeight:column.implicitHeight+(vrOverlayMode?40:32)
@@ -30,7 +30,7 @@ Rectangle {
  ColumnLayout {id:column;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;anchors.margins:card.vrOverlayMode?20:16;spacing:8
   Text {text:"Game library";color:Theme.get("color.text.primary");font.family:Theme.get("font.family");font.weight:700;font.pixelSize:card.vrOverlayMode?21:18}
   UiText {Layout.fillWidth:true;wrapMode:Text.Wrap;font.pixelSize:card.vrOverlayMode?17:14;color:Theme.get("color.text.muted")
-   text:"Point to one or more big folders of your own games, subfolders and all. The Hub looks through them for every game it plays, by what is inside each file where it can, and never changes anything in them. A folder chosen for a system below still comes first."}
+   text:"Point to one or more big folders of your own games, subfolders and all. The Hub identifies discs from their own IDs and never changes them. Set-up below lists the games it can start. A folder chosen for a system below still comes first."}
   // In a Column, not straight in the layout: this card can sit on a hidden Set-up page while its rows change.
   Column {Layout.fillWidth:true;spacing:8;visible:card.roots.length>0
    Repeater {model:card.roots

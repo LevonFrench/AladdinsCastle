@@ -50,7 +50,7 @@ const QList<QPair<QString,QString>> &settings(){
 }
 QVariantList games(){
  QVariantList result;
- for(const auto &game:kGames)result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",QString::fromUtf8(game.controls)}};
+ for(const auto &game:kGames)result<<QVariantMap{{"id",QString::fromLatin1(game.id)},{"file",QString::fromLatin1(game.file?game.file:game.id)},{"title",QString::fromUtf8(game.title)},{"year",game.year},{"controls",QString::fromUtf8(game.controls)}};
  return result;
 }
 QString viewLabel(const QString &view){

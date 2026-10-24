@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "HeaderSafety.h"
 #include "Scan.h"
+#include "DiscReader.h"
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -246,17 +248,18 @@ void seven(QFile &f, FileIdentity &r, std::atomic_bool &cancel) {
   if (!r.error.isEmpty())
     r.entries.clear();
 }
-QString serial(const QByteArray &b) {
-  const QRegularExpression re("(?:BOOT2?|BOOT)\\s*=\\s*[^\\r\\n]*?([A-Z]{4})[_-"
+QString serial(const QByteArray &b,QString *system=nullptr) {
+  const QRegularExpression re("(?:^|[\\r\\n])\\s*(BOOT2?)\\s*=\\s*[^\\r\\n]*?([A-Z]{4})[_-"
                               "]([0-9]{3})\\.([0-9]{2})",
                               QRegularExpression::CaseInsensitiveOption);
   auto m = re.match(QString::fromLatin1(b));
+  if(m.hasMatch()&&system)*system=m.captured(1).compare("BOOT2",Qt::CaseInsensitive)==0?"ps2":"ps1";
   return m.hasMatch()
-             ? m.captured(1).toUpper() + "-" + m.captured(2) + m.captured(3)
+             ? m.captured(2).toUpper() + "-" + m.captured(3) + m.captured(4)
              : QString();
 }
 using Reader = std::function<QByteArray(qint64, qint64)>;
-QString isoReader(const Reader &read, std::atomic_bool &cancel) {
+QString isoReader(const Reader &read, std::atomic_bool &cancel,QString *system=nullptr) {
   // ISO9660 root descriptor, followed only by the bounded root directory and
   // SYSTEM.CNF.
   int stride = 0, payload = 0;
@@ -313,7 +316,7 @@ QString isoReader(const Reader &read, std::atomic_bool &cancel) {
         auto n = u32(dir, p + 10);
         if (n > 65536)
           return {};
-        return serial(logical(u32(dir, p + 2), n));
+        return serial(logical(u32(dir, p + 2), n),system);
       }
       p += len;
     }
@@ -321,10 +324,10 @@ QString isoReader(const Reader &read, std::atomic_bool &cancel) {
   }
   return {};
 }
-QString iso(QFile &f, std::atomic_bool &cancel) {
+QString iso(QFile &f, std::atomic_bool &cancel,QString *system=nullptr) {
   return isoReader(
       [&](qint64 offset, qint64 bytes) { return readAt(f, offset, bytes); },
-      cancel);
+      cancel,system);
 }
 struct ChdInput {
   QFile *file;
@@ -358,7 +361,7 @@ struct ChdInput {
 };
 using ChdReader = std::function<QString(const Reader &, chd_file *)>;
 QString chdSerial(QFile &f, const QByteArray &header, std::atomic_bool &cancel,
-                  QString &error, const ChdReader &custom = {}) {
+                  QString &error, const ChdReader &custom = {},QString *system=nullptr) {
   const auto logical = qFromBigEndian<quint64>(header.constData() + 32),
              mapOffset = qFromBigEndian<quint64>(header.constData() + 40);
   const auto hunk = qFromBigEndian<quint32>(header.constData() + 56),
@@ -439,44 +442,11 @@ QString chdSerial(QFile &f, const QByteArray &header, std::atomic_bool &cancel,
     }
     return out;
   };
-  const auto identity = custom ? custom(read, chd) : isoReader(read, cancel);
+  const auto identity = custom ? custom(read, chd) : isoReader(read, cancel,system);
   chd_close(chd);
   return identity;
 }
-// "SEGA SEGAKATANA" opens the boot header; the product number sits 64 bytes on.
-QString katanaProduct(const QByteArray &bytes) {
-  const auto at = bytes.indexOf("SEGA SEGAKATANA");
-  return at < 0 || bytes.size() < at + 74 ? QString() : QString::fromLatin1(bytes.mid(at + 64, 10)).trimmed();
-}
-// The first megabytes of a file, searched in overlapping pieces.
-QString katanaScan(const QString &path, qint64 limit, std::atomic_bool &cancel) {
-  QFile f(path);
-  if (!f.open(QIODevice::ReadOnly)) return {};
-  QByteArray tail;
-  for (qint64 done = 0; done < limit && !f.atEnd() && !cancel;) {
-    const auto piece = f.read(1024 * 1024);
-    if (piece.isEmpty()) break;
-    done += piece.size();
-    const auto product = katanaProduct(tail + piece);
-    if (!product.isEmpty()) return product;
-    tail = piece.right(128);
-  }
-  return {};
-}
-} // namespace
-QString Scanner::dreamcastProduct(const QString &path, std::atomic_bool &cancel, bool thorough) {
-  const QFileInfo info(path);
-  const auto ext = info.suffix().toLower();
-  if (ext == "chd") {
-    // The disc's game area starts at its third track; the tracks before it are
-    // stored first, each rounded up to four frames.
-    const auto checked = inspect(path, cancel);
-    if (!checked.error.isEmpty() || !checked.chdHeaderBoundsOk) return {};
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) return {};
-    const auto header = readAt(f, 0, 124);
-    QString error;
-    return chdSerial(f, header, cancel, error, [](const Reader &read, chd_file *chd) {
+QString katanaChd(const Reader &read,chd_file *chd){
       const auto *about = chd_get_header(chd);
       if (!about || about->unitbytes < 2048) return QString();
       static const QRegularExpression fields("TRACK:(\\d+).*FRAMES:(\\d+)");
@@ -492,47 +462,91 @@ QString Scanner::dreamcastProduct(const QString &path, std::atomic_bool &cancel,
         if (match.captured(1).toInt() >= 3) break;
         frame += (match.captured(2).toULongLong() + 3) & ~3ULL;
       }
-      return katanaProduct(read(static_cast<qint64>(frame * about->unitbytes), 2352));
-    });
+      return detail::katanaProduct(read(static_cast<qint64>(frame * about->unitbytes), 2352));
+}
+// The first megabytes of a file, searched in overlapping pieces.
+QString katanaScan(const QString &path, qint64 limit, std::atomic_bool &cancel,QString *error=nullptr) {
+  QFile f(path);
+  if (!f.open(QIODevice::ReadOnly)) return {};
+  QString issue;const auto product=detail::scanKatana([&](qint64 at,qint64 count){return readAt(f,at,count);},qMin(limit,f.size()),cancel,issue);
+  if(error){*error=issue;if(product.isEmpty()&&!cancel&&!f.atEnd()&&issue.isEmpty())*error="Dreamcast header size budget reached";}
+  return product;
+}
+} // namespace
+QString Scanner::dreamcastProduct(const QString &path, std::atomic_bool &cancel, bool thorough) {
+  Q_UNUSED(thorough);
+  if(cancel)return {};
+  const QFileInfo info(path);
+  if(protectedMediaName(info.fileName()))return {};
+  const auto ext = info.suffix().toLower();
+  if(ext=="m3u"){
+    const auto read=inspect(path,cancel);return read.system=="dreamcast"?read.identity:QString();
   }
-  if (ext == "gdi") {
-    // Track 3 is named on its own line: number, start, type, sector size, file, offset.
-    QFile list(path);
-    if (list.size() > 64 * 1024 || !list.open(QIODevice::ReadOnly)) return {};
-    for (const auto &line : QString::fromUtf8(list.readAll()).split('\n')) {
-      static const QRegularExpression track("^\\s*3\\s+\\d+\\s+\\d+\\s+\\d+\\s+(\"[^\"]+\"|\\S+)");
-      const auto match = track.match(line);
-      if (!match.hasMatch()) continue;
-      auto name = match.captured(1);
-      name.remove('"');
-      const QFileInfo file(info.absoluteDir().filePath(name));
-      if (file.absoluteDir() != info.absoluteDir()) return {};
-      return katanaScan(file.absoluteFilePath(), 1024 * 1024, cancel);
-    }
-    return {};
+  if(ext=="chd"){
+    const auto read=inspect(path,cancel);return read.error.isEmpty()&&read.system=="dreamcast"?read.identity:QString();
   }
-  if (ext == "cue") {
-    QFile sheet(path);
-    if (sheet.size() > 64 * 1024 || !sheet.open(QIODevice::ReadOnly)) return {};
-    static const QRegularExpression entry("FILE\\s+\"([^\"]+)\"");
-    auto files = entry.globalMatch(QString::fromUtf8(sheet.readAll()));
-    while (files.hasNext() && !cancel) {
-      const QFileInfo file(info.absoluteDir().filePath(files.next().captured(1)));
-      if (file.absoluteDir() != info.absoluteDir()) continue;
-      const auto product = katanaScan(file.absoluteFilePath(), 4 * 1024 * 1024, cancel);
-      if (!product.isEmpty()) return product;
-    }
-    return {};
+  if(ext=="gdi"||ext=="cue"){
+    const auto read=inspect(path,cancel);return read.system=="dreamcast"?read.identity:QString();
   }
   // A .cdi keeps a short first session before the game's own; a raw track starts with the header.
-  return katanaScan(path, ext != "cdi" ? 1024 * 1024 : thorough ? 2048LL * 1024 * 1024 : 16 * 1024 * 1024, cancel);
+  return katanaScan(path, ext != "cdi" ? 1024 * 1024 : 2048LL * 1024 * 1024, cancel);
 }
 FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
   QFileInfo info(path);
   FileIdentity r;
   r.path = info.absoluteFilePath();
+  if(protectedMediaName(info.fileName())){r.error="Protected media name";return r;}
   r.size = info.size();
   r.mtime = info.lastModified().toMSecsSinceEpoch();
+  static thread_local int depth=0;
+  if(cancel||depth>=8){r.error=cancel?"Cancelled":"Disc reference recursion limit";return r;}
+  struct Depth {int &value;Depth(int &v):value(v){++value;}~Depth(){--value;}} guard(depth);
+  const auto extension=info.suffix().toLower();
+  if(QStringList{"cue","gdi","m3u"}.contains(extension)){
+    QFile sheet(path);
+    if(info.isSymLink()||info.isJunction()||sheet.size()>65536||!sheet.open(QIODevice::ReadOnly)){r.error="Unreadable or oversized disc sheet";return r;}
+    const auto text=QString::fromUtf8(sheet.readAll());QList<QPair<QString,qint64>> tracks;
+    if(extension=="m3u"){
+      for(auto line:text.split('\n')){line=line.trimmed();if(line.startsWith(QChar(0xfeff)))line.remove(0,1);if(!line.isEmpty()&&!line.startsWith('#')){tracks<<qMakePair(line,qint64(0));break;}}
+    }else if(extension=="cue"){
+      QString current;bool data=false,hasTrack=false;int stride=2352;
+      static const QRegularExpression fileRe("^FILE\\s+\"([^\"]+)\"\\s+BINARY$",QRegularExpression::CaseInsensitiveOption),trackRe("^TRACK\\s+\\d+\\s+(\\S+)$",QRegularExpression::CaseInsensitiveOption),indexRe("^INDEX\\s+01\\s+(\\d+):(\\d+):(\\d+)$",QRegularExpression::CaseInsensitiveOption);
+      QStringList files;
+      for(auto line:text.split('\n')){
+        line=line.trimmed();const auto f=fileRe.match(line),t=trackRe.match(line),i=indexRe.match(line);
+        if(f.hasMatch()){current=f.captured(1);files<<current;data=false;}
+        else if(t.hasMatch()){hasTrack=true;const auto mode=t.captured(1).toUpper();data=mode.startsWith("MODE1/")||mode.startsWith("MODE2/");stride=mode.endsWith("/2048")?2048:mode.endsWith("/2448")?2448:2352;}
+        else if(i.hasMatch()&&data&&!current.isEmpty()){
+          const auto minutes=i.captured(1).toLongLong();const auto seconds=i.captured(2).toInt(),frames=i.captured(3).toInt();
+          if(minutes<1000&&seconds<60&&frames<75)tracks<<qMakePair(current,((minutes*60+seconds)*75+frames)*stride);
+          data=false;
+        }
+      }
+      if(!hasTrack)for(const auto &name:files)tracks<<qMakePair(name,qint64(0));
+    }else{
+      static const QRegularExpression entry("(?:^|[\\r\\n])\\s*3\\s+\\d+\\s+\\d+\\s+\\d+\\s+(?:\"([^\"]+)\"|(\\S+))\\s+(\\d+)");
+      const auto m=entry.match(text);if(m.hasMatch())tracks<<qMakePair(m.captured(1).isEmpty()?m.captured(2):m.captured(1),m.captured(3).toLongLong());
+    }
+    for(const auto &entry:tracks){
+      if(cancel)break;
+      const QFileInfo track(info.absoluteDir().filePath(entry.first));
+      if(protectedMediaName(track.fileName()))continue;
+      if(track.absoluteDir()!=info.absoluteDir()||track.isSymLink()||track.isJunction()||track.canonicalPath()!=info.canonicalPath())continue;
+      if(extension=="m3u"||entry.second==0){
+        const auto found=inspect(track.absoluteFilePath(),cancel);
+        if(found.error.isEmpty()&&!found.identity.isEmpty()){r.kind=found.kind;r.identity=found.identity;r.system=found.system;return r;}
+        if(extension=="m3u")break;
+      }
+      QFile media(track.absoluteFilePath());if(!media.open(QIODevice::ReadOnly))continue;
+      const Reader read=[&](qint64 at,qint64 count){if(cancel||at<0||entry.second>media.size()||at>media.size()-entry.second)return QByteArray();return readAt(media,entry.second+at,count);};
+      const auto head=read(0,qMin(qint64(1024*1024),media.size()-entry.second));
+      const auto product=detail::katanaProduct(head);
+      if(!product.isEmpty()){r.kind="disc-id";r.system="dreamcast";r.identity=product;return r;}
+      r.identity=isoReader(read,cancel,&r.system);
+      if(!r.identity.isEmpty()){r.kind="disc-serial";return r;}
+    }
+    r.error="No readable disc in sheet";return r;
+  }
   if (info.suffix().compare("rom1", Qt::CaseInsensitive) == 0) {
     r.kind = "ps2-bios-component";
     return r;
@@ -550,7 +564,45 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
       break;
     }
   const auto ext = info.suffix().toLower();
-  if (ext == "wbfs") {
+  if(QStringList{"cso","gz","pbp","gcz"}.contains(ext)){
+    const auto read=detail::compressedReader(f,ext,cancel,r.error);
+    if(read){
+      if(ext=="gcz"){
+        const auto h=read(0,32);
+        if(h.size()==32&&QRegularExpression("^[A-Z0-9]{6}$").match(QString::fromLatin1(h.left(6))).hasMatch()){
+          if(qFromBigEndian<quint32>(h.constData()+24)==0x5d1c9ea3)r.system="wii";
+          else if(qFromBigEndian<quint32>(h.constData()+28)==0xc2339f3d)r.system="gc";
+          if(!r.system.isEmpty()){r.kind="disc-id";r.identity=QString::fromLatin1(h.left(6));}
+        }
+      }else{r.kind="disc-serial";r.identity=isoReader(read,cancel,&r.system);}
+    }
+    if(r.identity.isEmpty()&&r.error.isEmpty())r.error="No readable compressed disc identity";
+  }else if(ext=="cdi"||ext=="gdi"){
+    r.kind="disc-id";r.system="dreamcast";r.identity=katanaScan(path,2048LL*1024*1024,cancel,&r.error);
+  }else if(ext=="wad"){
+    if(header.size()>=32){
+      const auto align=[](quint64 n){return (n+63)&~quint64(63);};
+      const auto be=[&](int n){return qFromBigEndian<quint32>(header.constData()+n);};
+      const auto ticket=align(be(0))+align(be(8))+align(be(12));const auto length=be(16);
+      const auto signature=readAt(f,qint64(ticket),4);
+      const auto type=signature.size()==4?qFromBigEndian<quint32>(signature.constData()):0;
+      const quint64 body=type==0x10000?0x240:type==0x10001?0x140:type==0x10002?0x80:0;
+      if(be(0)>=32&&be(0)<=65536&&body&&length>=body+0xa4&&ticket<=quint64(f.size())&&length<=quint64(f.size())-ticket){
+        const auto id=readAt(f,qint64(ticket+body+0x9c),8);
+        if(id.size()==8&&id!=QByteArray(8,0)){r.kind="title-id";r.system="wii";r.identity=QString::fromLatin1(id.toHex().toUpper());}
+      }
+    }
+    if(r.identity.isEmpty())r.error="Invalid WAD ticket metadata";
+  }else if(ext=="rvz"||ext=="wia"){
+    if(header.startsWith(ext=="rvz"?QByteArray("RVZ\x01",4):QByteArray("WIA\x01",4))){
+      const auto h=readAt(f,0x58,32);
+      if(h.size()==32&&QRegularExpression("^[A-Z0-9]{6}$").match(QString::fromLatin1(h.left(6))).hasMatch()){
+        if(qFromBigEndian<quint32>(h.constData()+24)==0x5d1c9ea3)r.system="wii";
+        else if(qFromBigEndian<quint32>(h.constData()+28)==0xc2339f3d)r.system="gc";
+        if(!r.system.isEmpty()){r.kind="disc-id";r.identity=QString::fromLatin1(h.left(6));}
+      }
+    }
+  }else if (ext == "wbfs") {
     // Single-disc WBFS: the copied Wii header follows the host-sector header.
     // Identification is metadata only; split payloads and block maps are not read.
     const auto reject=[&]{r.error="Unsupported or invalid single-disc WBFS metadata";};
@@ -575,7 +627,7 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
        !QRegularExpression("^[A-Z0-9]{6}$").match(QString::fromLatin1(disc.left(6))).hasMatch()) {
       reject();return r;
     }
-    r.kind="disc-id";r.identity=QString::fromLatin1(disc.left(6));
+    r.kind="disc-id";r.system="wii";r.identity=QString::fromLatin1(disc.left(6));
   } else if (ext == "zip") {
     r.kind = "archive-crc";
     zip(f, r, cancel);
@@ -642,26 +694,34 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
       r.chdHeaderSha1.clear();
     }
     QString sparseError;
-    const auto discSerial = chdSerial(f, header, cancel, sparseError);
+    const auto discSerial = chdSerial(f, header, cancel, sparseError,{},&r.system);
     if (!discSerial.isEmpty()) {
       r.kind = "chd-disc-serial";
       r.identity = discSerial;
     } else if (!sparseError.isEmpty())
       r.error = sparseError;
+    else {
+      const auto product=chdSerial(f,header,cancel,sparseError,katanaChd);
+      if(!product.isEmpty()){r.kind="chd-disc-id";r.system="dreamcast";r.identity=product;}
+      else if(!sparseError.isEmpty())r.error=sparseError;
+    }
   } else if (header.startsWith("SEGA SEGAKATANA") && header.size() >= 256) {
     r.kind = "disc-id";
-    r.identity = QString::fromLatin1(header.mid(64, 10)).trimmed();
+    r.system="dreamcast";
+    r.identity = detail::katanaProduct(header);
   } else if (header.startsWith("SEGA SEGASATURN ") && header.size() >= 256) {
     r.kind = "disc-id";
+    r.system="saturn";
     r.identity = QString::fromLatin1(header.mid(32, 10)).trimmed();
   } else if (header.size() >= 32 &&
              (qFromBigEndian<quint32>(header.constData() + 28) == 0xc2339f3d ||
               qFromBigEndian<quint32>(header.constData() + 24) == 0x5d1c9ea3)) {
     r.kind = "disc-id";
+    r.system=qFromBigEndian<quint32>(header.constData()+24)==0x5d1c9ea3?"wii":"gc";
     r.identity = QString::fromLatin1(header.left(6));
   } else if (ext == "iso" || ext == "bin" || ext == "img") {
     r.kind = "disc-serial";
-    r.identity = iso(f, cancel);
+    r.identity = iso(f, cancel,&r.system);
   }
   if (r.identity.isEmpty() && (ext == "bin" || ext == "rom" || ext == "rom0") &&
       r.size >= 512 * 1024 && r.size <= 8 * 1024 * 1024) {
@@ -695,8 +755,10 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
       }
     }
   }
-  if (r.kind.isEmpty())
+  if (r.kind.isEmpty()&&r.error.isEmpty())
     r.error = "Unsupported header";
+  if(cancel){r.identity.clear();r.error="Cancelled";}
+  if(!r.error.isEmpty()&&r.kind!="chd-sha1")r.identity.clear();
   return r;
 }
 } // namespace ac::scan

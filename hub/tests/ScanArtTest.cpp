@@ -267,6 +267,22 @@ private slots:
     QCOMPARE(r.states[0].lastPlayed, qint64(42));
     QCOMPARE(r.states[0].selectedVariantId, QString("kept"));
   }
+  void ps1NeverBindsPs2AndOldCacheIsInvalidated() {
+    QTemporaryDir t;const auto disc=t.filePath("disc.bin");
+    auto bytes=iso();bytes.replace(bytes.indexOf("BOOT2"),5,"BOOT ");save(disc,bytes);
+    auto c=catalog("disc");c.games[0].raw["media"][0].erase("set");c.games[0].raw["media"][0]["serial"]="SLUS-20219";
+    ac::scan::ScanOptions o;o.mediaRoots={disc};o.userRoot=t.filePath("user");o.serialIndex=t.filePath("serial.json");
+    save(o.serialIndex,"{\"SLUS-20219\":{\"gameId\":\"synthetic\"}}");std::atomic_bool stop=false;
+    const auto ps1=ac::scan::Scanner::run(c,o,stop);QCOMPARE(ps1.files[0].system,QString("ps1"));QVERIFY(!ps1.bindings[0].verified);
+    c.games[0].raw["media"][0].erase("serial");QVERIFY(!ac::scan::Scanner::run(c,o,stop).bindings[0].verified);
+    save(disc,iso());const auto ps2=ac::scan::Scanner::run(c,o,stop);QVERIFY(ps2.bindings[0].verified);
+    const auto cache=t.filePath("user/cache/scan.toml");QFile f(cache);QVERIFY(f.open(QIODevice::ReadOnly));auto old=f.readAll();f.close();
+    QVERIFY(old.contains("version = 6"));
+    for(const auto version:{4,5}){
+      auto stale=old;stale.replace("version = 6",QByteArray("version = ")+QByteArray::number(version));stale.replace("SLUS-20219","SLUS-00000");save(cache,stale);
+      const auto rescanned=ac::scan::Scanner::run(c,o,stop);QVERIFY(!rescanned.files[0].cacheHit);QCOMPARE(rescanned.files[0].identity,QString("SLUS-20219"));QVERIFY(rescanned.bindings[0].verified);
+    }
+  }
   void wiiIdsMatchRenamedDiscs_data() {
     QTest::addColumn<QByteArray>("id");
     QTest::addColumn<QString>("game");

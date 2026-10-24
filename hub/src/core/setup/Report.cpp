@@ -12,6 +12,7 @@
 #include "core/dreamcast/Dreamcast.h"
 #include "core/pinball/Pinball.h"
 #include "core/scan/Scan.h"
+#include "core/scan/DiscIndex.h"
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -25,6 +26,7 @@ namespace ac::setup {
 namespace {
 using Scanner=QVariantMap(*)(const QVariantMap &,const QVariantMap &,const Progress &,std::atomic_bool &);
 QVariantMap item(const QString &id,const QString &title,const char *key,const QString &text){return {{"id",id},{"title",title},{QString::fromLatin1(key),text}};}
+bool listedGame(const QVariantList &games,const QString &id){for(const auto &value:games)if(value.toMap().value("id").toString()==id)return true;return false;}
 // The Game library (context "library" and the user's "libraryChoice"): every copy it found of a
 // system's games, the folder of a game's chosen zip, and whether a disc is the chosen copy.
 QVariantList libraryDiscs(const QVariantMap &context,const QString &system){
@@ -200,7 +202,7 @@ QVariantMap scanPs2(const QVariantMap &settings,const QVariantMap &context,const
  const auto found=ps2::discs(folder,cancel)+libraryDiscs(context,"ps2");const auto keys=ps2::launcherKeys(launcher);
  for(const auto &value:ps2::games()){
   const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
-  // The best disc of this game: one whose serial was read, then one found by its name.
+  // The best identified disc of this game, with the owner's choice first.
   QVariantMap disc;int rank=-1;
   for(const auto &candidate:found){const auto c=candidate.toMap();if(c.value("game")!=id)continue;const int r=choice(context,"ps2",id,c)?2:c.value("verified").toBool()?1:0;if(r>rank){rank=r;disc=c;}}
   if(rank<0){groups.missing<<item(id,title,"expected",title+" (disc image)");continue;}
@@ -209,9 +211,9 @@ QVariantMap scanPs2(const QVariantMap &settings,const QVariantMap &context,const
   if(!issue.isEmpty())groups.notRight<<item(id,title,"reason","The disc was found, but the game cannot be started from the Hub yet. "+issue);
   else groups.ready<<item(id,title,"detail",checked+" "+game.value("controls").toString());
  }
- for(const auto &candidate:found){const auto c=candidate.toMap();if(!c.value("game").toString().isEmpty())continue;
+ for(const auto &candidate:found){const auto c=candidate.toMap();if(listedGame(ps2::games(),c.value("game").toString()))continue;
   const auto serial=c.value("serial").toString();
-  groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",serial.isEmpty()?QString("serial not read"):"disc "+serial}};}
+  groups.other<<QVariantMap{{"title",c.value("title").toString().isEmpty()?QFileInfo(c.value("file").toString()).completeBaseName():c.value("title").toString()},{"detail",serial.isEmpty()?QString("serial not read"):"disc "+serial}};}
  Q_UNUSED(keys);
  return groups.result("ps2",folder.isEmpty()&&noFolder(folder,context,"ps2").startsWith("No")?QString("No folder chosen for this system."):QString("The Hub starts these through your PS2 launcher, which plays its own copies of the discs."));
 }
@@ -278,9 +280,9 @@ QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &context
   else{entry["reason"]=QString("It starts, but there is no VR profile for it yet: the view, the HUD and the hands will be wrong.")+(disc.value("verified").toBool()?QString():QString(" Found by its file name, not checked."));groups.notRight<<entry;}
  }
  // Every other disc is named with its own number where that could be read, so a game that is there is never passed over in silence.
- for(const auto &candidate:found){const auto c=candidate.toMap();if(!c.value("game").toString().isEmpty())continue;
+ for(const auto &candidate:found){const auto c=candidate.toMap();if(listedGame(dreamcast::games(),c.value("game").toString()))continue;
   const auto product=c.value("product").toString();
-  groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",product.isEmpty()?QString("number not read"):"disc number "+product}};}
+  groups.other<<QVariantMap{{"title",c.value("title").toString().isEmpty()?QFileInfo(c.value("file").toString()).completeBaseName():c.value("title").toString()},{"detail",product.isEmpty()?QString("number not read"):"disc number "+product}};}
  return groups.result("dreamcast",noFolder(folder,context,"dreamcast"));
 }
 QVariantMap scanWii(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
@@ -308,9 +310,9 @@ QVariantMap scanWii(const QVariantMap &settings,const QVariantMap &context,const
   else{entry["reason"]="It starts in the headset, but this build has no "+lacking.join(", and no ")+"."+routeNote;groups.notRight<<entry;}
  }
  // Every other disc is named with its own game id, so a game that is there is never passed over in silence.
- for(const auto &candidate:found){const auto c=candidate.toMap();if(!c.value("game").toString().isEmpty())continue;
+ for(const auto &candidate:found){const auto c=candidate.toMap();if(listedGame(wii::games(),c.value("game").toString()))continue;
   const auto discId=c.value("id").toString();
-  groups.other<<QVariantMap{{"title",QFileInfo(c.value("file").toString()).completeBaseName()},{"detail",discId.isEmpty()?QString("not a Wii disc header"):"game id "+discId}};}
+  groups.other<<QVariantMap{{"title",c.value("title").toString().isEmpty()?QFileInfo(c.value("file").toString()).completeBaseName():c.value("title").toString()},{"detail",discId.isEmpty()?QString("not a Wii disc header"):"game id "+discId}};}
  return groups.result("wii",folder.isEmpty()&&noFolder(folder,context,"wii").startsWith("No")?QString("No folder chosen for this system."):QString("Started through your DolphinXR build with its own settings; the discs stay where they are."));
 }
 QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const Progress &,std::atomic_bool &){
@@ -377,7 +379,7 @@ QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const Q
 }
 QVariantMap reportStamp(const QVariantMap &settings,const QStringList &systems){
  // Raised whenever a system is read differently, so every saved report is read again.
- static constexpr int kVersion=1;
+ static constexpr int kVersion=2;
  static const QStringList folders{"model3GameFolder","model2GameFolder","model2RuntimePath","pinballFolder","pinballRoms","ps2GameFolder","wiiGameFolder","dreamcastGameFolder"};
  static const QStringList programs{"model3Executable","model2Executable","system22Executable","pinballExecutable","pinballDatabase","pinballMedia","pinballOverrides",
                                    "ps2Python","ps2StopFile","wiiExecutable","dreamcastExecutable","queryEmulators"};
@@ -390,6 +392,6 @@ QVariantMap reportStamp(const QVariantMap &settings,const QStringList &systems){
  for(const auto &key:launchers){const auto value=settings.value(key).toString();values[key]=value;
   times[key]=value.isEmpty()?QString():time(QFileInfo(value).absoluteDir().filePath("games.json"));}
  auto read=systems;read.sort();
- return {{"version",kVersion},{"systems",read},{"settings",values},{"times",times}};
+ return {{"version",kVersion},{"discData",scan::DiscIndex::fingerprint()},{"systems",read},{"settings",values},{"times",times}};
 }
 }
