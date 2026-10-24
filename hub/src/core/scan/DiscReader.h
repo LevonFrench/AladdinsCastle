@@ -7,4 +7,6 @@
 namespace ac::scan::detail {
 using DiscReader=std::function<QByteArray(qint64,qint64)>;
 DiscReader compressedReader(QFile &file,const QString &format,std::atomic_bool &cancel,QString &error);
+QString katanaProduct(const QByteArray &bytes);
+QString scanKatana(const DiscReader &read,qint64 size,std::atomic_bool &cancel,QString &error);
 }

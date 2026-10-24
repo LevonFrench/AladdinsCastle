@@ -2,6 +2,7 @@
 #include "DiscReader.h"
 #include <QElapsedTimer>
 #include <QtEndian>
+#include <QRegularExpression>
 #include <memory>
 #include <zlib.h>
 namespace ac::scan::detail {
@@ -68,7 +69,7 @@ struct Disc {
  QByteArray gzipAt(quint64 at,quint64 count){
   if(at+count>10ULL*1024*MiB)return fail("Gzip logical read exceeds 10 GiB budget");
   if(!gzipReady||at<gzipEnd-quint64(gzipWindow.size())){
-   if(gzipReady)inflateEnd(&gzip);gzip={};gzipReady=false;gzipEnd=0;gzipWindow.clear();
+   if(gzipReady){inflateEnd(&gzip);}gzip={};gzipReady=false;gzipEnd=0;gzipWindow.clear();
    if(!file.seek(0)||inflateInit2(&gzip,31)!=Z_OK)return fail("Gzip inflater initialization failed");
    gzipReady=true;gzipInput.resize(64*1024);
   }
@@ -98,12 +99,12 @@ struct Disc {
     if(format=="cso"){
      const auto pair=physical(base+number*4,8);if(pair.size()!=8)return {};
      const auto a=le32(pair,0),b=le32(pair,4);raw=(a&0x80000000U)!=0;start=quint64(a&0x7fffffffU)<<shift;const auto end=quint64(b&0x7fffffffU)<<shift;
-     if(end<start)return fail("CISO block order");length=end-start;
+     if(end<start){return fail("CISO block order");}length=end-start;
     }else if(format=="gcz"){
      const auto a=physical(base+number*8,8);if(a.size()!=8)return {};
      const auto pointer=le64(a,0);raw=(pointer>>63)!=0;start=pointer&0x7fffffffffffffffULL;
      quint64 end=packed;if(number+1<entries){const auto b=physical(base+(number+1)*8,8);if(b.size()!=8)return {};end=le64(b,0)&0x7fffffffffffffffULL;}
-     if(end<start||end>packed)return fail("GCZ block order");length=end-start;start+=data;
+     if(end<start||end>packed){return fail("GCZ block order");}length=end-start;start+=data;
     }else{
      const auto row=physical(base+number*32,8);if(row.size()!=8)return {};
      start=data+le32(row,0);length=qFromLittleEndian<quint16>(row.constData()+4);raw=length==block;
@@ -128,5 +129,27 @@ struct Disc {
 DiscReader compressedReader(QFile &file,const QString &format,std::atomic_bool &cancel,QString &error){
  auto disc=std::make_shared<Disc>(file,format,cancel,error);if(!disc->init())return {};
  return [disc](qint64 offset,qint64 count){return disc->read(offset,count);};
+}
+QString katanaProduct(const QByteArray &bytes){
+ static const QRegularExpression valid("^[A-Z0-9][A-Z0-9 -]{2,9}$");
+ for(qsizetype at=bytes.indexOf("SEGA SEGAKATANA");at>=0;at=bytes.indexOf("SEGA SEGAKATANA",at+1)){
+  if(bytes.size()<at+74)break;
+  const auto product=QString::fromLatin1(bytes.mid(at+64,10)).trimmed();
+  if(valid.match(product).hasMatch())return product;
+ }
+ return {};
+}
+QString scanKatana(const DiscReader &read,qint64 size,std::atomic_bool &cancel,QString &error){
+ QByteArray tail;QElapsedTimer clock;clock.start();
+ for(qint64 done=0;done<size&&!cancel;){
+  if(clock.elapsed()>=20000){error="Dreamcast header time budget reached";return {};}
+  const auto piece=read(done,qMin(qint64(MiB),size-done));
+  if(cancel){error="Cancelled";return {};}
+  if(piece.isEmpty())return {};
+  done+=piece.size();const auto product=katanaProduct(tail+piece);
+  if(!product.isEmpty())return product;
+  tail=piece.right(128);
+ }
+ return {};
 }
 }

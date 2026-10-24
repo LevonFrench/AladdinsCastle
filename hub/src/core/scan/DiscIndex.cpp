@@ -20,6 +20,11 @@ QVariantMap DiscIndex::match(const QString &system,const QString &identity){
  if(!QStringList{"ps1","ps2","dreamcast","wii","gc"}.contains(system)||identity.trimmed().isEmpty())return {};
  auto key=identity.trimmed().toUpper();if(system=="ps1"||system=="ps2")key.replace('_','-').remove('.');
  auto row=index(system).value(key).toMap();if(row.isEmpty()||row.value("gameId").toString().isEmpty()||row.value("system").toString()!=system)return {};
+ const auto region=row.value("region").toString();
+ if(region=="US"||region=="NTSC-U"||region=="NTSC-U/C")row["region"]="USA";
+ else if(region=="PAL")row["region"]="Europe";
+ else if(region=="NTSC-J")row["region"]="Japan";
+ else if(region=="NTSC-K")row["region"]="Korea";
  row["catalogId"]=row.value("gameId");row["game"]=row.value("gameId");
  for(const auto &entry:games(system)){const auto game=entry.toMap();if(game.value("catalogId",game.value("id"))==row.value("gameId")){row["game"]=game.value("id");row["title"]=game.value("title");break;}}
  return row;

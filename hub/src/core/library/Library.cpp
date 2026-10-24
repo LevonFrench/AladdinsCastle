@@ -76,11 +76,7 @@ QVariantMap classify(const QString &path, const QString &ext, const QSet<QString
     }
     return found.isEmpty() ? QVariantMap{{"unknown", "archive"}} : QVariantMap{{"copies", found}};
   }
-  auto read=scan::Scanner::inspect(path,cancel);
-  if(read.system.isEmpty()&&ext=="chd"&&!cancel){
-    const auto product=scan::Scanner::dreamcastProduct(path,cancel,true);
-    if(!product.isEmpty()){read.system="dreamcast";read.identity=product;read.error.clear();}
-  }
+  const auto read=scan::Scanner::inspect(path,cancel);
   if(!read.error.isEmpty()||read.identity.isEmpty())return {{"unknown","disc"},{"retry",read.error.contains("budget")||read.error.contains("time")}};
   const auto row=scan::DiscIndex::match(read.system,read.identity);
   if(row.isEmpty())return read.system.isEmpty()?QVariantMap{{"unknown","disc"}}:QVariantMap{{"other",read.system}};

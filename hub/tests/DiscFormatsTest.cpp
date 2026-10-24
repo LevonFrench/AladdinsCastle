@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Authored metadata fixtures only; no game executable or media content.
 #include "core/scan/Scan.h"
+#include "core/scan/DiscReader.h"
 #include <QElapsedTimer>
 #include <QFile>
 #include <QTemporaryDir>
@@ -197,6 +198,12 @@ private slots:
     while (!entered.load()) std::this_thread::yield();
     QTest::qSleep(2); cancel = true; worker.join();
     QVERIFY(result.identity.isEmpty()); QVERIFY2(timer.elapsed() < 5000, "Cancellation must bound the long CDI read");
+  }
+  void cancellationDuringAnActualRead(){
+    QTemporaryDir d;QFile file(d.filePath("authored.cdi"));QVERIFY(file.open(QIODevice::ReadWrite));QCOMPARE(file.write(QByteArray(4*1024*1024,0)),qint64(4*1024*1024));
+    std::atomic_bool cancel{false};int reads=0;QString error;
+    const auto reader=[&](qint64 at,qint64 bytes){if(!file.seek(at))return QByteArray();auto piece=file.read(bytes);if(++reads==2)cancel=true;return piece;};
+    QVERIFY(ac::scan::detail::scanKatana(reader,file.size(),cancel,error).isEmpty());QCOMPARE(reads,2);QCOMPARE(error,QString("Cancelled"));
   }
 };
 QTEST_GUILESS_MAIN(DiscFormatsTest)

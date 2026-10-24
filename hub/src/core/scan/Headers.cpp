@@ -446,16 +446,6 @@ QString chdSerial(QFile &f, const QByteArray &header, std::atomic_bool &cancel,
   chd_close(chd);
   return identity;
 }
-// "SEGA SEGAKATANA" opens the boot header; the product number sits 64 bytes on.
-QString katanaProduct(const QByteArray &bytes) {
-  static const QRegularExpression valid("^[A-Z0-9][A-Z0-9 -]{2,9}$");
-  for(qsizetype at=bytes.indexOf("SEGA SEGAKATANA");at>=0;at=bytes.indexOf("SEGA SEGAKATANA",at+1)){
-    if(bytes.size()<at+74)break;
-    const auto product=QString::fromLatin1(bytes.mid(at+64,10)).trimmed();
-    if(valid.match(product).hasMatch())return product;
-  }
-  return {};
-}
 QString katanaChd(const Reader &read,chd_file *chd){
       const auto *about = chd_get_header(chd);
       if (!about || about->unitbytes < 2048) return QString();
@@ -472,24 +462,15 @@ QString katanaChd(const Reader &read,chd_file *chd){
         if (match.captured(1).toInt() >= 3) break;
         frame += (match.captured(2).toULongLong() + 3) & ~3ULL;
       }
-      return katanaProduct(read(static_cast<qint64>(frame * about->unitbytes), 2352));
+      return detail::katanaProduct(read(static_cast<qint64>(frame * about->unitbytes), 2352));
 }
 // The first megabytes of a file, searched in overlapping pieces.
 QString katanaScan(const QString &path, qint64 limit, std::atomic_bool &cancel,QString *error=nullptr) {
   QFile f(path);
   if (!f.open(QIODevice::ReadOnly)) return {};
-  QByteArray tail;
-  QElapsedTimer clock;clock.start();
-  for (qint64 done = 0; done < limit && !f.atEnd() && !cancel&&clock.elapsed()<20000;) {
-    const auto piece = f.read(1024 * 1024);
-    if (piece.isEmpty()) break;
-    done += piece.size();
-    const auto product = katanaProduct(tail + piece);
-    if (!product.isEmpty()) return product;
-    tail = piece.right(128);
-  }
-  if(error&&!cancel&&!f.atEnd())*error="Dreamcast header time/size budget reached";
-  return {};
+  QString issue;const auto product=detail::scanKatana([&](qint64 at,qint64 count){return readAt(f,at,count);},qMin(limit,f.size()),cancel,issue);
+  if(error){*error=issue;if(product.isEmpty()&&!cancel&&!f.atEnd()&&issue.isEmpty())*error="Dreamcast header size budget reached";}
+  return product;
 }
 } // namespace
 QString Scanner::dreamcastProduct(const QString &path, std::atomic_bool &cancel, bool thorough) {
@@ -556,7 +537,7 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
       QFile media(track.absoluteFilePath());if(!media.open(QIODevice::ReadOnly))continue;
       const Reader read=[&](qint64 at,qint64 count){if(cancel||at<0||entry.second>media.size()||at>media.size()-entry.second)return QByteArray();return readAt(media,entry.second+at,count);};
       const auto head=read(0,qMin(qint64(1024*1024),media.size()-entry.second));
-      const auto product=katanaProduct(head);
+      const auto product=detail::katanaProduct(head);
       if(!product.isEmpty()){r.kind="disc-id";r.system="dreamcast";r.identity=product;return r;}
       r.identity=isoReader(read,cancel,&r.system);
       if(!r.identity.isEmpty()){r.kind="disc-serial";return r;}
@@ -724,7 +705,7 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
   } else if (header.startsWith("SEGA SEGAKATANA") && header.size() >= 256) {
     r.kind = "disc-id";
     r.system="dreamcast";
-    r.identity = katanaProduct(header);
+    r.identity = detail::katanaProduct(header);
   } else if (header.startsWith("SEGA SEGASATURN ") && header.size() >= 256) {
     r.kind = "disc-id";
     r.system="saturn";

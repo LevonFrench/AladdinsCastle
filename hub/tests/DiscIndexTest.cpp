@@ -46,7 +46,7 @@ private slots:
   const QDir games(root()+"/games");
   for(const auto &entry:games.entryInfoList(QDir::Dirs|QDir::NoDotAndDotDot)){
    const auto game=ac::CatalogLoader::parseToml(entry.absoluteFilePath()+"/game.toml");const auto hardware=QString::fromStdString(game.value("hardware",std::string()));
-   if(!systems.contains(hardware))continue;const auto system=systems.value(hardware);const auto id=QString::fromStdString(game.at("id").get<std::string>());
+   if(!systems.contains(hardware)){continue;}const auto system=systems.value(hardware);const auto id=QString::fromStdString(game.at("id").get<std::string>());
    QVERIFY2(indexed.value(system).contains(id),qPrintable(entry.absoluteFilePath()+"/game.toml has no exact public disc identity"));++covered[system];
   }
   QCOMPARE(covered.value("ps1"),28);QCOMPARE(covered.value("ps2"),26);QCOMPARE(covered.value("dreamcast"),15);QCOMPARE(covered.value("wii"),13);QCOMPARE(covered.value("gc"),5);
@@ -78,6 +78,7 @@ private slots:
   QCOMPARE(DiscIndex::match("ps1","SLUS-00481").value("catalogId").toString(),QString("ps1-point-blank"));
   QCOMPARE(DiscIndex::match("gc","GFZE01").value("catalogId").toString(),QString("gc-f-zero-gx"));QVERIFY(DiscIndex::match("wii","GFZE01").isEmpty());
   QCOMPARE(DiscIndex::match("wii","RBUP08").value("game").toString(),QString("umbrella"));QVERIFY(DiscIndex::match("wii","RBUX08").isEmpty());QVERIFY(DiscIndex::match("wii","RBUE01").isEmpty());
+  QCOMPARE(DiscIndex::match("wii","RBUE08").value("region").toString(),QString("USA"));QCOMPARE(DiscIndex::match("wii","RBUP08").value("region").toString(),QString("Europe"));
   QCOMPARE(DiscIndex::match("dreamcast","MK-51002").value("catalogId").toString(),QString("dc-house-of-the-dead-2"));
   QVERIFY(DiscIndex::match("dreamcast","MK-51002-50").isEmpty());
  }
