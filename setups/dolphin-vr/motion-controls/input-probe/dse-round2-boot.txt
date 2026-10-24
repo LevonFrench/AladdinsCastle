@@ -1,0 +1,58 @@
+# Round 2: explicit AC Gun Dead Space Extraction profile, copied Source 3.
+# Boot/setup candidate reaches Create new profile. Save private checkpoint 235.
+# Continue with dse-round2-profile.txt; this file alone is not play proof.
+# UNPROVEN extension of ds-play2 route; no established gameplay start.
+# Existing baseline135 image has middle New Profile selected and CREATE visible.
+12.0 12.3 R primary 1
+15.0 15.3 R primary 1
+18.0 18.3 R primary 1
+21.0 21.3 R primary 1
+24.0 24.3 R primary 1
+27.0 27.3 R primary 1
+30.0 30.3 R primary 1
+33.0 33.3 R primary 1
+36.0 36.3 R primary 1
+39.0 39.3 R primary 1
+42.0 42.3 R primary 1
+45.0 45.3 R primary 1
+48.0 48.3 R primary 1
+# Original CREATE attempt before profile selection retained, then center select.
+52.0 70.0 R u 0.16
+52.0 70.0 R v -0.87
+55.0 55.3 R primary 1
+60.0 60.3 R primary 1
+65.0 65.3 R primary 1
+70.0 140.0 R u 0
+70.0 140.0 R v 0
+72.0 72.3 R primary 1
+78.0 78.3 R primary 1
+84.0 84.3 R primary 1
+90.0 90.3 R primary 1
+96.0 96.3 R primary 1
+102.0 102.3 R primary 1
+108.0 108.3 R primary 1
+114.0 114.3 R primary 1
+120.0 120.3 R primary 1
+126.0 126.3 R primary 1
+132.0 132.3 R primary 1
+# Revisit CREATE after selection. Original target coordinate, not a new proof.
+142.0 159.0 R u 0.16
+142.0 159.0 R v -0.87
+145.0 145.3 R primary 1
+151.0 151.3 R primary 1
+157.0 157.3 R primary 1
+160.0 200.0 R u 0
+160.0 200.0 R v 0
+166.0 166.3 R primary 1
+172.0 172.3 R primary 1
+178.0 178.3 R primary 1
+shot 40 title-or-menu
+shot 52 profile-before-create
+shot 70 profile-state
+shot 100 profile-state-100
+shot 136 profile-selected-candidate
+shot 144 create-hover-candidate
+shot 146 after-first-create
+shot 160 after-create-candidate
+shot 180 next-state
+shot 200 terminal
