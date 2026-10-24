@@ -15,6 +15,56 @@ WORKTREE = Path(__file__).resolve().parents[3]
 TEMP_ROOT = WORKTREE / ".local" / "runner-tests"
 
 
+class ProfilePreloadTests(unittest.TestCase):
+    def setUp(self):
+        TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir=TEMP_ROOT)
+        self.addCleanup(self.temp.cleanup)
+        self.user = Path(self.temp.name)
+        self.profiles = self.user / 'Config/Profiles/Wiimote'
+        self.profiles.mkdir(parents=True)
+        self.target = self.user / 'Config/WiimoteNew.ini'
+        self.original = '[Wiimote1]\nSource = 3\nButtons/A = old\n[Wiimote2]\nSource = 0\n'
+        self.target.write_text(self.original, encoding='utf-8')
+        self.source = self.profiles / 'Demo Pad.ini'
+        self.source.write_text('[Profile]\nDevice = OpenXR/0/OpenXR Controller\n'
+                               'Buttons/A = `Left Button X`\nButtons/2 = `Right Button A`\n'
+                               'Extension = None\n', encoding='utf-8')
+
+    def test_preload_changes_first_remote_and_pins_actual_config(self):
+        receipt = runner.apply_wiimote_profile(self.user, 'Demo Pad')
+        config = configparser.ConfigParser(interpolation=None)
+        config.optionxform = str
+        config.read(self.target, encoding='utf-8')
+        self.assertEqual(config['Wiimote1']['Buttons/2'], '`Right Button A`')
+        self.assertEqual(config['Wiimote1']['Source'], '3')
+        self.assertEqual(config['Wiimote2']['Source'], '0')
+        self.assertEqual(receipt['source_sha256'], runner.digest(self.source))
+        self.assertEqual(receipt['applied_config_sha256'], runner.digest(self.target))
+
+    def test_invalid_and_missing_names_leave_config_untouched(self):
+        for name in ('../Demo Pad', '..\\Demo Pad', 'Demo Pad.ini', '', 'Missing'):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                runner.apply_wiimote_profile(self.user, name)
+            self.assertEqual(self.target.read_text(encoding='utf-8'), self.original)
+
+    def test_wrong_device_and_source_overrides_are_refused_before_write(self):
+        for body in ('[Profile]\nDevice = Keyboard/0\n',
+                     '[Profile]\nDevice = OpenXR/0/OpenXR Controller\nSource = 1\n',
+                     '[Profile]\nDevice = OpenXR/0/OpenXR Controller\nsource = 1\n',
+                     '[Other]\nDevice = OpenXR/0/OpenXR Controller\n'):
+            self.source.write_text(body, encoding='utf-8')
+            with self.subTest(body=body), self.assertRaises(ValueError):
+                runner.apply_wiimote_profile(self.user, 'Demo Pad')
+            self.assertEqual(self.target.read_text(encoding='utf-8'), self.original)
+
+    def test_missing_first_remote_does_not_replace_another_remote(self):
+        self.target.write_text('[Wiimote2]\nSource = 0\n', encoding='utf-8')
+        with self.assertRaises(ValueError):
+            runner.apply_wiimote_profile(self.user, 'Demo Pad')
+        self.assertEqual(self.target.read_text(encoding='utf-8'), '[Wiimote2]\nSource = 0\n')
+
+
 class RunnerTests(unittest.TestCase):
     def setUp(self):
         # Keep all fixtures inside the ignored private worktree tree.

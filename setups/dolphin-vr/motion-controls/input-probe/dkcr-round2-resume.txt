@@ -1,0 +1,5 @@
+# Restore90 after hut shake. Source1 with AC Pad DKCR. Mono theatre test.
+92 95 L stick_x -1
+97 101 L stick_x 1
+98 98.4 R primary 1
+103 103.5 R squeeze 1

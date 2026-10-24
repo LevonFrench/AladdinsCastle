@@ -1,0 +1,5 @@
+# Restore815 in Stage1-1. Explicit AC Pad Sideways profile, mono theatre.
+816 819 L stick_x -1
+817 817.4 R primary 1
+821 824 L stick_x 1
+822 822.4 R primary 1

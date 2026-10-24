@@ -1,0 +1,54 @@
+# Load private hub269 state with --wiimote-profile "AC Pad Sideways" explicitly preloaded into Wiimote1.
+# Tested Source3,FlatScreen=True,DisableCPUCull=False,1x,single-core. Profile right-primary isWii2.
+# E2 reaches Stage1-1 with movement,jump andstarcollection. Save815, then use resume script.
+# The legacy gear-counter move stays rejected; native3D andheadsetacceptance remain unknown.
+shot 317.000 kirby-sideways-before
+318.000 321.000 L stick_x 1
+shot 320.000 kirby-sideways-right
+322.000 322.400 R primary 1
+shot 324.000 kirby-sideways-two
+326.000 327.000 L stick_y 1
+328.000 328.400 R primary 1
+shot 331.000 kirby-sideways-enter
+shot 333.000 checkpoint-kirby-sideways
+shot 425.000 kirby-warp-before
+426.000 436.000 L stick_x -1
+429.000 429.400 R primary 1
+shot 429.200 kirby-explicit-two-jump
+shot 433.000 kirby-walk-left
+437.000 438.000 L stick_y 1
+439.000 439.400 R primary 1
+shot 442.000 kirby-after-warp
+shot 443.000 checkpoint-kirby-warp
+541.000 547.000 L stick_x 1
+545.500 545.900 R primary 1
+shot 545.700 kirby-warp-jump
+546.000 547.500 L stick_y 1
+shot 549.000 kirby-warp-result
+shot 554.000 kirby-warp-next
+shot 556.000 checkpoint-kirby-warp-next
+638.000 641.000 L stick_x -1
+640.500 641.000 R primary 1
+640.500 642.500 L stick_y 1
+shot 641.200 kirby-star-contact
+shot 645.000 kirby-star-transition
+shot 648.000 checkpoint-kirby-star-contact
+716.000 716.350 L stick_y 1
+shot 718.000 kirby-cookie-selected
+719.000 719.400 R primary 1
+shot 723.000 kirby-cookie-enter
+725.000 725.400 R primary 1
+shot 729.000 kirby-stage-selected
+731.000 731.400 R primary 1
+shot 736.000 kirby-stage-start
+shot 738.000 checkpoint-kirby-stage-candidate
+798.000 799.300 L stick_x 1
+799.500 800.500 L stick_y 1
+shot 802.000 kirby-door-enter
+804.000 804.400 R primary 1
+shot 808.000 kirby-stage-one-before
+810.000 813.000 L stick_x 1
+811.000 811.400 R primary 1
+shot 811.200 kirby-stage-one-jump
+shot 814.000 kirby-stage-one-after
+shot 815.000 checkpoint-kirby-stage-one

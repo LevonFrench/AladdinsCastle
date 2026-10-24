@@ -4,6 +4,7 @@ All outputs belong in a private lane. This never invokes the live launcher or XR
 The caller supplies an already built probe and a private launch manifest/plan.
 """
 import argparse
+import configparser
 import hashlib
 import json
 import math
@@ -64,6 +65,35 @@ def copy_settings(live, seed, destination):
     (destination / 'Config/Logger.ini').write_text(
         '[Options]\nWriteToFile = True\nWriteToConsole = False\nWriteToWindow = False\n'
         'Verbosity = 3\n[Logs]\nVIDEO = True\n', encoding='utf-8')
+
+
+def apply_wiimote_profile(user, name):
+    """Preload an explicit copied profile into the fresh offline user's first remote."""
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 _-]{0,95}', name):
+        raise ValueError('Wiimote profile must be a plain profile name without an extension.')
+    profiles = user / 'Config/Profiles/Wiimote'
+    source = profiles / (name + '.ini')
+    if not below(source, profiles) or not source.is_file():
+        raise ValueError('Requested Wiimote profile is missing from the copied user.')
+    profile = configparser.ConfigParser(interpolation=None)
+    profile.optionxform = str
+    profile.read(source, encoding='utf-8-sig')
+    if 'Profile' not in profile or profile['Profile'].get('Device') != 'OpenXR/0/OpenXR Controller':
+        raise ValueError('Offline profile must declare the synthetic OpenXR controller device.')
+    if any(key.casefold() == 'source' for key in profile['Profile']):
+        raise ValueError('Select the input source explicitly with --config, not through a profile.')
+    target = user / 'Config/WiimoteNew.ini'
+    settings = configparser.ConfigParser(interpolation=None)
+    settings.optionxform = str
+    settings.read(target, encoding='utf-8-sig')
+    if 'Wiimote1' not in settings:
+        raise ValueError('Copied user has no first Wiimote configuration to preserve.')
+    for key, value in profile['Profile'].items():
+        settings['Wiimote1'][key] = value
+    with target.open('w', encoding='utf-8') as output:
+        settings.write(output)
+    return {'name': name, 'source': str(source), 'source_sha256': digest(source),
+            'applied_config_sha256': digest(target)}
 
 
 def run(args):
@@ -129,6 +159,8 @@ def run(args):
     run_dir.mkdir(parents=True)
     user = run_dir / 'User'
     copy_settings(live, seed, user)
+    profile_name = getattr(args, 'wiimote_profile', None)
+    profile_receipt = apply_wiimote_profile(user, profile_name) if profile_name is not None else None
     if view.get('gameIni'):
         ini = view['gameIni']
         source = Path(ini['path']).resolve()
@@ -261,6 +293,7 @@ def run(args):
                'script_source': str(original_script), 'script_sha256': digest(script),
                'input_until_emulated_s': args.input_until,
                'seed_user': str(seed), 'settings_source': str(live),
+               'wiimote_profile_preload': profile_receipt,
                'load_state': str(load_state) if load_state else None,
                'load_state_sha256': digest(load_state) if load_state else None,
                'save_state_at_emulated_s': save_at,
@@ -410,6 +443,7 @@ def main():
     ap.add_argument('--save-state-at', type=float,
                     help='observation only: request a private run-local checkpoint at this emulated time')
     ap.add_argument('--load-state', help='explicit private .local savestate; compatibility and scene need review')
+    ap.add_argument('--wiimote-profile', help='explicit copied OpenXR profile name; preloads only the fresh private user')
     ap.add_argument('--end-capture', action='store_true',
                     help='timing only: request an in-program PNG after the65second trace window, for stage review')
     ap.add_argument('--checkpoint-shots', action='store_true',
