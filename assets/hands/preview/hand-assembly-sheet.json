@@ -8,37 +8,37 @@
   "sources": [
     {
       "image": "arc-pistol-slide-right-rest-side.png",
-      "sha256": "3bd7a808871f5cddc9006f9bd5e9ab887f87fe9d05221eb146aa3067c8da1fab"
+      "sha256": "b241f7ad2fe169ed87896b6bf0a3f3bcb3affe3af0a601caf3453d02f801c639"
     },
     {
       "image": "arc-pistol-slide-right-rest-threequarter.png",
-      "sha256": "cc5d01125ae34a276a0a60e29b14d2dc252e2e8c4270771142ea9c6b8562acd7"
+      "sha256": "53098628b3a5bb2561c26f68fda3fba1ccaa524d1e3b1784328634e134ef7230"
     },
     {
       "image": "arc-pistol-slide-right-stress-side.png",
-      "sha256": "10d6e4a1169441aadcabc4b43a0226b1b24df4c2fb9236eee79695a8b6b806c0"
+      "sha256": "1a16bbb6570e28bbe0aa4ab9b8977314758b74f12c38fe2e48ed60894e05bf48"
     },
     {
       "image": "arc-pistol-slide-right-stress-threequarter.png",
-      "sha256": "dde37f1a89510b9e27e125b54897a719d8ed1d8d3b15ba1c0f7ec03fa7f83d76"
+      "sha256": "4a9d6546e31065d47556569f0cc3ac262528e3b7356be808a104f1c9ef71185d"
     },
     {
       "image": "con-stick-grip-left-rest-side.png",
-      "sha256": "7a0ad0a41f20139fbcc1ff426f4dddc9b9dd8347759d4e549a3c95a242b80c19"
+      "sha256": "7a642c54ca4429bfd0b97e7aecfeabf151fe0150b297da8a2837b1debe5c2ad1"
     },
     {
       "image": "con-stick-grip-left-rest-threequarter.png",
-      "sha256": "c168917a620b4716eba4ce7913f43a292ef7b8ddcae4005a6d344c972405bc0e"
+      "sha256": "b4478ddcbce8fce5a59f8f51003bf53c5fa40e8151f14dc396299663848e38f5"
     },
     {
       "image": "con-stick-grip-left-stress-side.png",
-      "sha256": "1efe32394d89dffb61a063737066eaf4e2df5f369183d0ddcd08fb3554e02ade"
+      "sha256": "c6260cc82677ba8a447dd055acc4d20a7c7c102486125d38c5902d7ad1f6204b"
     },
     {
       "image": "con-stick-grip-left-stress-threequarter.png",
-      "sha256": "6366ecb989c0065456c07653bd1b688fc1be77e2f77aef90bce3f99d505203b3"
+      "sha256": "4e7626cfa7ac5f3158f11e5baaddeda44437cd499b2a31749cc1f90aecbb2727"
     }
   ],
-  "sha256": "7152dc781b220a57009df7ad859bbb67fabc9e09f20aafb413878d5645593738",
+  "sha256": "ad8c75c3615f2d2b8ee706cbde1f0d8227541f02e36dd887acee4809b77cb165",
   "acceptance": "CPU fit review; owner physical acceptance pending"
 }

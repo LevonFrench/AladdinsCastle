@@ -5,10 +5,34 @@ import json
 from pathlib import Path
 import runpy
 import unittest
-from hand_assembly import ROOT,compile_assembly
+from hand_assembly import FINGERS,ROOT,compile_assembly,trigger_blade
 from check_gun_assets import read_glb
 
+def finger_gap(points,radii,pose,sign,targets):
+    """Smallest gap in metres from a posed finger's swept surface to target points."""
+    x,y,z,w=pose['rotation_xyzw']
+    def place(p):
+        p=[sign*p[0]/1000,p[1]/1000,p[2]/1000];t=[2*(y*p[2]-z*p[1]),2*(z*p[0]-x*p[2]),2*(x*p[1]-y*p[0])]
+        return [p[0]+w*t[0]+y*t[2]-z*t[1]+pose['translation'][0],p[1]+w*t[1]+z*t[0]-x*t[2]+pose['translation'][1],p[2]+w*t[2]+x*t[1]-y*t[0]+pose['translation'][2]]
+    spine=[place(p) for p in points];best=9.0
+    for (a,b),(ra,rb) in zip(zip(spine,spine[1:]),zip(radii,radii[1:])):
+        d=[q-p for p,q in zip(a,b)];dd=sum(v*v for v in d)
+        for q in targets:
+            s=max(0,min(1,sum((qv-av)*dv for qv,av,dv in zip(q,a,d))/dd))
+            best=min(best,sum((qv-av-s*dv)**2 for qv,av,dv in zip(q,a,d))**.5-(ra+(rb-ra)*s)/1000)
+    return best
+
 class HandGripCoverageTests(unittest.TestCase):
+    def test_index_finger_rests_on_every_pistol_trigger(self):
+        for mid,row in compile_assembly()['models'].items():
+            blade={tuple(p) for t in trigger_blade(mid) for p in t}
+            if mid in ('mnt-mg-heavy','con-stick-grip') or not blade:continue
+            for hand,pose in row['hands'].items():
+                gaps={name:finger_gap(*FINGERS[name],pose,1 if hand=='right' else -1,blade) for name in FINGERS}
+                with self.subTest(model=mid,hand=hand):
+                    self.assertEqual(min(gaps,key=gaps.get),'index')
+                    self.assertLess(gaps['index'],.003)
+                    self.assertGreater(gaps['middle'],.008)
     def test_every_proposal_and_stick_has_both_primary_hands(self):
         cases=runpy.run_path(str(ROOT/'assets/hands/review_grips.py'))['cases']()
         proposals=json.loads((ROOT/'assets/guns/preview/wii-proposal-sheet.json').read_text())
