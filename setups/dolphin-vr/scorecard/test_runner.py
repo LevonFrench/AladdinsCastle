@@ -64,6 +64,27 @@ class ProfilePreloadTests(unittest.TestCase):
             runner.apply_wiimote_profile(self.user, 'Demo Pad')
         self.assertEqual(self.target.read_text(encoding='utf-8'), '[Wiimote2]\nSource = 0\n')
 
+    def test_copied_game_selectors_cannot_restore_another_first_remote_profile(self):
+        folder = self.user / 'GameSettings'
+        folder.mkdir()
+        ini = folder / 'DEMO01.ini'
+        ini.write_bytes(b'# keep\r\n[Controls]\r\nWiimoteProfile1 = Motion\r\n'
+                        b'WiimoteProfile2 = Other\r\n[Core]\r\nCPUThread = False\r\n')
+        receipt = runner.apply_wiimote_profile(self.user, 'Demo Pad')
+        self.assertEqual(ini.read_bytes(), b'# keep\r\n[Controls]\r\nWiimoteProfile1 = Demo Pad\r\n'
+                         b'WiimoteProfile2 = Other\r\n[Core]\r\nCPUThread = False\r\n')
+        self.assertEqual(receipt['game_profile_selector_files'], {str(ini): runner.digest(ini)})
+
+    def test_unrelated_sections_and_second_remote_selectors_are_preserved(self):
+        folder = self.user / 'GameSettings'
+        folder.mkdir()
+        ini = folder / 'DEMO.ini'
+        body = '[Other]\nWiimoteProfile1 = Other\n[Controls]\nWiimoteProfile2 = Keep\n'
+        ini.write_text(body, encoding='utf-8')
+        receipt = runner.apply_wiimote_profile(self.user, 'Demo Pad')
+        self.assertEqual(ini.read_text(encoding='utf-8'), body)
+        self.assertEqual(receipt['game_profile_selector_files'], {})
+
 
 class RunnerTests(unittest.TestCase):
     def setUp(self):
@@ -122,6 +143,30 @@ class RunnerTests(unittest.TestCase):
         receipt = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
         script = (run_dir / "input.txt").read_text(encoding="utf-8")
         return receipt, script
+
+    @unittest.skipUnless(os.name == 'nt', 'runner prepares Windows process flags')
+    def test_explicit_profile_is_applied_after_view_game_ini(self):
+        profiles = self.live / 'Config/Profiles/Wiimote'
+        profiles.mkdir(parents=True)
+        (profiles / 'Demo Pad.ini').write_text(
+            '[Profile]\nDevice = OpenXR/0/OpenXR Controller\nButtons/2 = `Right Button A`\n',
+            encoding='utf-8')
+        (self.live / 'Config/WiimoteNew.ini').write_text('[Wiimote1]\nSource = 3\n', encoding='utf-8')
+        folder = self.live / 'GameSettings'
+        folder.mkdir()
+        source = folder / 'DEMO01.ini'
+        source.write_text('[Controls]\nWiimoteProfile1 = Seed\n', encoding='utf-8')
+        manifest = json.loads(self.manifest_path.read_text(encoding='utf-8'))
+        manifest['demo']['views']['3d']['gameIni'] = {
+            'path': str(source), 'content': ['[Controls]', 'WiimoteProfile1 = View Motion']}
+        self.manifest_path.write_text(json.dumps(manifest), encoding='utf-8')
+        self.args.wiimote_profile = 'Demo Pad'
+        receipt, _ = self.run_with_fake_exited_child()
+        copied = self.out / 'runs/demo-native-test/User/GameSettings/DEMO01.ini'
+        self.assertEqual(copied.read_text(encoding='utf-8'), '[Controls]\nWiimoteProfile1 = Demo Pad\n')
+        self.assertEqual(source.read_text(encoding='utf-8'), '[Controls]\nWiimoteProfile1 = Seed\n')
+        self.assertEqual(receipt['wiimote_profile_preload']['game_profile_selector_files'],
+                         {str(copied): runner.digest(copied)})
 
     @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
     def test_checkpoint_shots_require_live_observation(self):

@@ -1,0 +1,18 @@
+# Restore private RHOP8P-first-combat-495.sav with the explicit Overkill gun profile.
+# E2: all four reticle extremes are captured during combat at 497/499/501/503.
+# The lower reticle is partly clipped at the edge; numeric calibration is unverified.
+# Use observation end 511 or later so every capture has a five-second completion gap.
+# This no-fire replay dies by 506; it is not a sustained timing route.
+# Restore495 combat. Four corners before health expires.
+496 497.7 R u -0.95
+496 497.7 R v 0.95
+shot 497 overkill-live-corner-tl
+498 499.7 R u 0.95
+498 499.7 R v 0.95
+shot 499 overkill-live-corner-tr
+500 501.7 R u -0.95
+500 501.7 R v -0.95
+shot 501 overkill-live-corner-bl
+502 503.7 R u 0.95
+502 503.7 R v -0.95
+shot 503 overkill-live-corner-br

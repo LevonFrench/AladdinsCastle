@@ -81,7 +81,7 @@ def apply_wiimote_profile(user, name):
     if 'Profile' not in profile or profile['Profile'].get('Device') != 'OpenXR/0/OpenXR Controller':
         raise ValueError('Offline profile must declare the synthetic OpenXR controller device.')
     if any(key.casefold() == 'source' for key in profile['Profile']):
-        raise ValueError('Select the input source explicitly with --config, not through a profile.')
+        raise ValueError('The profile may not override the copied input source.')
     target = user / 'Config/WiimoteNew.ini'
     settings = configparser.ConfigParser(interpolation=None)
     settings.optionxform = str
@@ -90,10 +90,35 @@ def apply_wiimote_profile(user, name):
         raise ValueError('Copied user has no first Wiimote configuration to preserve.')
     for key, value in profile['Profile'].items():
         settings['Wiimote1'][key] = value
+    selectors = {}
+    for path in sorted((user / 'GameSettings').glob('*.ini')):
+        with path.open(encoding='utf-8-sig', newline='') as stream:
+            text = stream.read()
+        section = ''
+        lines = []
+        selected = False
+        for line in text.splitlines(keepends=True):
+            heading = re.fullmatch(r'\s*\[([^]]+)\]\s*', line.strip())
+            if heading:
+                section = heading.group(1).casefold()
+            if section == 'controls' and re.match(r'\s*WiimoteProfile1\s*=', line, re.IGNORECASE):
+                ending = '\r\n' if line.endswith('\r\n') else '\n' if line.endswith('\n') else ''
+                line = re.sub(r'^(\s*WiimoteProfile1\s*=\s*).*$',
+                              lambda match: match.group(1) + name, line.rstrip('\r\n'),
+                              flags=re.IGNORECASE) + ending
+                selected = True
+            lines.append(line)
+        if selected:
+            selectors[path] = ''.join(lines)
     with target.open('w', encoding='utf-8') as output:
         settings.write(output)
+    # Game-specific profiles load after the base input configuration. Keep only
+    # their first-remote selectors consistent, inside this fresh run's copy.
+    for path, text in selectors.items():
+        path.write_text(text, encoding='utf-8', newline='')
     return {'name': name, 'source': str(source), 'source_sha256': digest(source),
-            'applied_config_sha256': digest(target)}
+            'applied_config_sha256': digest(target),
+            'game_profile_selector_files': {str(path): digest(path) for path in selectors}}
 
 
 def run(args):
@@ -159,8 +184,6 @@ def run(args):
     run_dir.mkdir(parents=True)
     user = run_dir / 'User'
     copy_settings(live, seed, user)
-    profile_name = getattr(args, 'wiimote_profile', None)
-    profile_receipt = apply_wiimote_profile(user, profile_name) if profile_name is not None else None
     if view.get('gameIni'):
         ini = view['gameIni']
         source = Path(ini['path']).resolve()
@@ -169,6 +192,8 @@ def run(args):
         target = user / source.relative_to(live)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text('\n'.join(ini['content']) + '\n', encoding='utf-8')
+    profile_name = getattr(args, 'wiimote_profile', None)
+    profile_receipt = apply_wiimote_profile(user, profile_name) if profile_name is not None else None
     start = args.start if args.start is not None else item.get('gameplay_start_s')
     if start is None:
         start = max(0.0, float(item.get('max_emulated_s', 120)) - 60)
