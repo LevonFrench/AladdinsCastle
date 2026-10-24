@@ -1,0 +1,6 @@
+# Step2: load private SMNE01-map-103.sav. Times use the restored clock.
+# Neutral A confirms106/108 enter1-1. Save SMNE01-level1-1-114.sav at114.
+# E2 mono1x/single-core observation and independent level-state restore succeeded.
+# No save/state data is included; expanded-view stereo and sustained pacing remain untested.
+106 106.3 R primary 1
+108 108.3 R primary 1

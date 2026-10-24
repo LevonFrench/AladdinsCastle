@@ -1,4 +1,4 @@
-# Sin and Punishment 2 with a save present: menus, Start Game, + skips both cutscenes, A closes the tutorial cards, then fire (B) while moving.
+# Sin and Punishment 2 route candidate: Plus pulses at 66-90 s may skip cutscenes; unverified and may pause if one lands after them.
 12.0 12.3 R primary 1
 14.0 14.3 R primary 1
 16.0 16.3 R primary 1
@@ -21,10 +21,10 @@
 50.0 58.0 R v -0.36
 52.0 52.3 R primary 1
 55.0 55.3 R primary 1
-66.0 66.3 L menu 1
-74.0 74.3 L menu 1
-82.0 82.3 L menu 1
-90.0 90.3 L menu 1
+66.0 66.3 L thumbclick 1
+74.0 74.3 L thumbclick 1
+82.0 82.3 L thumbclick 1
+90.0 90.3 L thumbclick 1
 78.0 78.3 R primary 1
 81.0 81.3 R primary 1
 84.0 84.3 R primary 1

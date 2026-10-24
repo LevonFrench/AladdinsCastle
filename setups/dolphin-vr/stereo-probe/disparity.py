@@ -60,13 +60,16 @@ for j in range(gy):
                      "sad": round(best, 2), "conf": round(float(conf), 3)})
 
 good = [r for r in rows if r["conf"] >= 0.15 and r["sad"] < 25]
-ds = np.array([r["d"] for r in good]) if good else np.array([0])
+ds = np.array([r["d"] for r in good])
 summary = {
     "file": a.png, "eye_size": [w, H], "mean_abs_LR_diff": round(mono_diff, 2),
     "patches": len(rows), "confident": len(good),
-    "d_median": float(np.median(ds)), "d_min": int(ds.min()), "d_max": int(ds.max()),
-    "d_p10": float(np.percentile(ds, 10)), "d_p90": float(np.percentile(ds, 90)),
-    "negative_share": round(float(np.mean(ds < -2)), 3), "zero_share": round(float(np.mean(np.abs(ds) <= 1)), 3),
+    "d_median": float(np.median(ds)) if good else None,
+    "d_min": int(ds.min()) if good else None, "d_max": int(ds.max()) if good else None,
+    "d_p10": float(np.percentile(ds, 10)) if good else None,
+    "d_p90": float(np.percentile(ds, 90)) if good else None,
+    "negative_share": round(float(np.mean(ds < -2)), 3) if good else None,
+    "zero_share": round(float(np.mean(np.abs(ds) <= 1)), 3) if good else None,
 }
 by_row = {}
 for r in good:

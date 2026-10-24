@@ -1,0 +1,21 @@
+# Restore private RZJE69-armed-intro-1123.sav; explicit DSE gun profile.
+# E2: B-fire, a muzzle flash and ammo 2 to 1 are independently repeated.
+# Four pointer extremes are visible in the armed introduction; edge reticle/HUD partly clips.
+# No enemy-hit, reload, numeric aim, 3x pacing or headset acceptance. End observation at 1148 or later.
+# Restore1123 armed intro after one shot.
+shot 1124 dse-resume-before
+1126 1126.3 R trigger 1
+shot 1126.1 dse-resume-shot
+shot 1127 dse-resume-after-shot
+1128 1130.3 R u -0.95
+1128 1130.3 R v 0.95
+shot 1129 dse-resume-corner-tl
+1131 1133.3 R u 0.95
+1131 1133.3 R v 0.95
+shot 1132 dse-resume-corner-tr
+1134 1136.3 R u -0.95
+1134 1136.3 R v -0.95
+shot 1135 dse-resume-corner-bl
+1137 1139.3 R u 0.95
+1137 1139.3 R v -0.95
+shot 1138 dse-resume-corner-br

@@ -1,0 +1,7 @@
+# Step3: load private SMNE01-level1-1-114.sav for a short independent control check.
+# E2: timer493 at118 and left movement were visible. This sequence later loses a life.
+# Jump success and sustained survival are unaccepted. Do not use this as a60second timing route.
+115 119 L stick_x -1
+116 116.4 R primary 1
+123 125 L stick_x 1
+123 123.4 R primary 1

@@ -1,0 +1,186 @@
+"""CPU-only checks with synthetic manifests/receipts; no game/runtime access."""
+import contextlib
+import copy
+import io
+import json
+from pathlib import Path
+import tempfile
+import unittest
+
+import scorecard as sc
+
+
+class ScorecardTests(unittest.TestCase):
+    def setUp(self):
+        # Windows sandbox's redirected OS temp can be unwritable. Keep fixtures
+        # under the worktree's ignored .local rather than changing permissions.
+        test_root = Path(__file__).resolve().parents[3] / ".local" / "scorecard-tests"
+        test_root.mkdir(parents=True, exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir=test_root)
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.manifest = self.root / "games.json"
+        self.manifest.write_text(json.dumps({"synthetic": {
+            "title": "Synthetic | example", "status": "Historical E2 claim",
+            "views": {"3d": {"disc": "/synthetic/discs/example.wbfs", "user": "/synthetic/settings/User",
+                              "config": ["Graphics.Settings.MSAA=4"],
+                              "gameIni": {"path": "/synthetic/settings/GameSettings/ABCE01.ini", "content": []},
+                              "notes": ["Historical stereo claim"]}}}}), encoding="utf-8")
+        self.card = sc.initialize(self.manifest)
+        self.receipt = {"schema_version": 1, "game_key": "synthetic", "view": "3d",
+                        "phase": "before", "stage": "gameplay", "evidence_level": "E2",
+                        "evidence_kind": "offline", "evidence_paths": ["/synthetic/.local/run/frames.json"],
+                        "metrics": {}}
+
+    def import_run(self, receipt=None, filename="receipt.json"):
+        path = self.root / filename
+        path.write_text(json.dumps(receipt or self.receipt), encoding="utf-8")
+        return sc.import_receipt(self.card, path)
+
+    def test_init_preserves_baseline_without_reading_referenced_files(self):
+        game = self.card["games"]["synthetic"]
+        view = game["views"]["3d"]
+        self.assertEqual(view["game_id_from_ini_filename"], "ABCE01")
+        self.assertEqual(game["evidence_level"], "E0")
+        self.assertEqual(view["metrics"], sc.METRICS)
+        self.assertIn("Historical E2 claim", game["historical_claims_unverified"]["status"])
+        self.assertNotIn("notes", view["baseline"])
+        self.assertEqual(self.card["source"]["sha256"], sc.digest(self.manifest))
+        self.assertIn("Missing: stereo", sc.markdown(self.card))
+
+    def test_offline_normalization_and_delivery_scope(self):
+        self.receipt["metrics"] = {
+            "stereo": {"eye_width_px": 960, "near_px": 10, "far_px": -2, "distinct_eyes": True},
+            "frames": {"72": {"wall_duration_s": 60, "present_count": 4000,
+                               "layers_min": 2, "layers_max": 2,
+                               "eligible_stereo_frame_count": 3990, "emulated_duration_s": 55}}}
+        self.import_run()
+        metrics = self.card["games"]["synthetic"]["views"]["3d"]["runs"][0]["metrics"]
+        self.assertEqual(metrics["stereo"]["near_px_1920"], 20)
+        self.assertEqual(metrics["stereo"]["far_px_1920"], -4)
+        self.assertEqual(metrics["frames"]["72"]["expected_wall_frames"], 4320)
+        self.assertEqual(metrics["frames"]["72"]["eligible_stereo_frame_count"], 3990)
+        self.assertIsNone(metrics["frames"]["72"]["fresh_content_frames"])
+        self.assertIsNone(metrics["frames"]["90"]["expected_wall_frames"])
+        self.assertEqual(metrics["frames"]["real_compositor"], sc.METRICS["frames"]["real_compositor"])
+
+    def test_distinct_before_after_and_deduplication(self):
+        self.assertTrue(self.import_run())
+        self.assertFalse(self.import_run())
+        after = copy.deepcopy(self.receipt)
+        after["phase"] = "after"
+        self.assertTrue(self.import_run(after, "after.json"))
+        runs = self.card["games"]["synthetic"]["views"]["3d"]["runs"]
+        self.assertEqual([r["phase"] for r in runs], ["before", "after"])
+        self.assertEqual(self.card["games"]["synthetic"]["views"]["3d"]["metrics"], sc.METRICS)
+
+    def test_reject_ambiguous_or_false_provenance(self):
+        cases = [
+            {"view": "absent"}, {"evidence_level": "E3", "evidence_kind": "owner"},
+            {"evidence_paths": ["relative.json"]}, {"evidence_level": "E3"},
+            {"metrics": {"frames": {"real_compositor": {"present_count": 10}}}},
+            {"metrics": {"stereo": {"eye_width_px": 0}}},
+            {"metrics": {"stereo": {"near_px": 2, "eye_width_px": 960, "near_px_1920": 8}}},
+            {"metrics": {"frames": {"72": {"target_hz": 90}}}},
+            {"metrics": {"frames": {"72": {"stereo_layer_count": 100}}}},
+            {"metrics": {"frames": {"72": {"layers_min": 2, "layers_max": 1}}}},
+            {"metrics": {"frames": {"72": {"wall_duration_s": 60, "expected_wall_frames": 1}}}},
+            {"metrics": {"launch": {"print_only": False}}},
+            {"evidence_level": "E0", "evidence_kind": "source", "metrics": {"controls": {"aim_error_percent": 1}}},
+        ]
+        original = copy.deepcopy(self.card)
+        for patch in cases:
+            with self.subTest(patch=patch):
+                bad = {**self.receipt, **patch}
+                with self.assertRaises(ValueError):
+                    self.import_run(bad)
+                self.assertEqual(original, self.card)
+
+    def test_explicit_owner_confirmation_is_preserved(self):
+        self.receipt.update(evidence_level="E3", evidence_kind="owner",
+                            owner_confirmation={"by": "owner", "at": "2026-10-23T00:00:00Z", "statement": "synthetic example only"})
+        self.import_run()
+        self.assertIn("synthetic example only", sc.markdown(self.card))
+        self.assertEqual(self.card["games"]["synthetic"]["evidence_level"], "E0")
+
+    def test_cli_private_output_refuses_overwrite_and_batch_failure(self):
+        out = self.root / ".local" / "out"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(sc.main(["init", "--manifest", str(self.manifest), "--out", str(out)]), 0)
+            prior = (out / "scorecard.json").read_bytes()
+            self.assertEqual(sc.main(["init", "--manifest", str(self.manifest), "--out", str(out)]), 2)
+            self.assertEqual(sc.main(["import", "--out", str(out), "--receipt", str(self.root / "absent.json")]), 2)
+            self.assertEqual((out / "scorecard.json").read_bytes(), prior)
+            public = Path(__file__).resolve().parents[3] / "scorecard-forbidden-test-output"
+            self.assertEqual(sc.main(["init", "--manifest", str(self.manifest), "--out", str(public)]), 2)
+        self.assertIn("Synthetic \\| example", (out / "SCORECARD.md").read_text(encoding="utf-8"))
+
+    def test_nan_rejected(self):
+        self.receipt["metrics"] = {"stereo": {"near_px": float("nan")}}
+        with self.assertRaises(ValueError):
+            self.import_run()
+
+    def test_overview_reports_measurements_without_merging_scopes(self):
+        self.receipt["metrics"] = {"frames": {"native": {"target_hz": 60,
+            "wall_duration_s": 60, "present_count": 3500, "fresh_stereo_xfb_frames": 3400}}}
+        self.import_run()
+        after = copy.deepcopy(self.receipt)
+        after["phase"] = "after"
+        after.pop("stage")
+        after["metrics"]["frames"]["native"]["present_count"] = 3550
+        self.import_run(after, "after.json")
+        game = self.card["games"]["synthetic"]
+        cell = sc.overview_cell(game, "frames")
+        self.assertIn("3d/before/gameplay r1 E2", cell)
+        self.assertIn("source events=3500", cell)
+        self.assertIn("fresh stereo XFB=3400", cell)
+        self.assertIn("3d/after/unassigned r2 E2", cell)
+        self.assertIn("source events=3550", cell)
+        self.assertEqual(sc.overview_cell(game, "stereo"), "unknown")
+        self.assertIn("3d/after/unassigned", sc.overview_stages(game))
+        self.assertEqual(game["evidence_level"], "E0")
+
+    def test_explicit_supersession_preserves_history_and_rejects_other_scopes(self):
+        self.receipt["metrics"] = {"stereo": {"near_px_1920": 999}}
+        self.import_run()
+        game = self.card["games"]["synthetic"]
+        original = copy.deepcopy(game["views"]["3d"]["runs"][0])
+        corrected = copy.deepcopy(self.receipt)
+        corrected.update(stage="menu", supersedes_receipt_path=original["receipt_path"],
+                         supersedes_receipt_sha256=original["receipt_sha256"],
+                         metrics={"stereo": {"distinct_eyes": False}})
+        self.import_run(corrected, "corrected.json")
+        self.assertEqual(len(game["views"]["3d"]["runs"]), 2)
+        self.assertEqual(game["views"]["3d"]["runs"][0], original)
+        self.assertNotIn("999", sc.overview_cell(game, "stereo"))
+        self.assertIn("eyes differ=no", sc.overview_cell(game, "stereo"))
+        self.assertNotIn("/gameplay ", sc.overview_stages(game))
+        self.assertIn("/menu ", sc.overview_stages(game))
+        report = sc.markdown(self.card)
+        self.assertIn("Superseded by", report)
+        self.assertIn("near_px_1920: 999", report)
+        self.assertIn(original["receipt_path"], report)
+        second = game["views"]["3d"]["runs"][-1]
+        nested = copy.deepcopy(corrected)
+        nested.pop("supersedes_receipt_path")
+        nested.pop("supersedes_receipt_sha256")
+        nested["supersedes"] = {"receipt_path": second["receipt_path"],
+                                "receipt_sha256": second["receipt_sha256"], "reason": "nested correction example"}
+        self.import_run(nested, "nested-corrected.json")
+        self.assertEqual(len(game["views"]["3d"]["runs"]), 3)
+        self.assertEqual(game["views"]["3d"]["runs"][0], original)
+        self.assertNotIn(" r2 ", sc.overview_cell(game, "stereo"))
+        self.assertIn(" r3 ", sc.overview_cell(game, "stereo"))
+        game["views"]["alternate"] = {**copy.deepcopy(game["views"]["3d"]), "runs": []}
+        self.card["games"]["other"] = {**copy.deepcopy(game), "views": {"3d": {**copy.deepcopy(game["views"]["3d"]), "runs": []}}}
+        for patch in ({"phase": "after"}, {"view": "alternate"}, {"game_key": "other"},
+                      {"supersedes_receipt_sha256": "0" * 64}, {"supersedes_receipt_sha256": None}):
+            with self.subTest(patch=patch):
+                before = copy.deepcopy(self.card)
+                with self.assertRaisesRegex(ValueError, "supersession"):
+                    self.import_run({**corrected, **patch}, "invalid-suppression.json")
+                self.assertEqual(self.card, before)
+
+
+if __name__ == "__main__":
+    unittest.main()

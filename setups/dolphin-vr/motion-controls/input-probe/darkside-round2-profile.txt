@@ -1,0 +1,14 @@
+# Restore private220 file-slot checkpoint; same profile and matching game-save seed.
+# File 1 / confirmation reaches Difficulty. Save private320 for the next segment.
+224 231 R u -0.39
+224 231 R v 0.28
+226 226.3 R primary 1
+230 230.3 R primary 1
+shot 228.000 w0-0228-00
+shot 235.000 w0-0235-00
+shot 245.000 w0-0245-00
+shot 260.000 w0-0260-00
+shot 280.000 w0-0280-00
+shot 290.000 w0-0290-00
+shot 300.000 w0-0300-00
+shot 320.000 w0-0320-00

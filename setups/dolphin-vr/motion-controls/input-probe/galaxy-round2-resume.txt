@@ -1,0 +1,4 @@
+# Restore531 in opening plaza; neutral532, backward533-537 and right539-542; A jump attempt540.
+533 537 L stick_y -1
+539 542 L stick_x 1
+540 540.3 R primary 1

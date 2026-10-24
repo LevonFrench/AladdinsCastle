@@ -1,9 +1,47 @@
-# Wii 3D mode — DolphinXR first checkpoint
+# Wii 3D mode â€” DolphinXR first checkpoint
 
 Umbrella Chronicles first, then Darkside. System22 is parked. The target is the
 [three things](../../docs/3d-mode-target.md): steady HUD panel, wide world frame,
 gun at the hand with scene depth. This checkpoint prepares the real application;
 it does not claim that any game passes those requirements.
+
+## Offline measurement review â€” 2026-10-23
+
+The current review records each view and scene before changing game settings.
+[Scorecards](scorecard/README.md) keep native, 72 Hz and 90 Hz experiments
+separate, retain immutable receipts and leave unsupported claims unknown.
+Two-layer XFB source counts do not establish distinct content frames or headset
+delivery. E2 is offline evidence; only the owner can provide E3 headset acceptance.
+
+The 23 October audit records all 19 launcher games at native rate and in separate
+72/90 Hz experiments. Several routes stop at menus or unverified scenes. No game
+has a complete acceptance result for stereo, 2D placement, scale, headset delivery
+and controls together. Galaxy 2, Umbrella and Kirby HUD trials remain rejected or
+inconclusive. The [experimental XFB patch](xfb-stereo-preservation/README.md) is
+default-off: single-core Metroid without it produced the cleaner source-count
+result, but clipped geometry remains. A matched Mario Kart 3x/4x pair recorded
+equal source counts; retain 3x/MSAA 4 until visual quality and runtime cost are
+accepted. Physical world scale remains uncalibrated.
+
+The launcher now has 20 games and 28 views after adding
+[Crossbow](crossbow-training/README.md) as a mono theatre candidate. Its timed
+target-practice scene is visible offline; the open-frame trial hid targets behind
+a blank panel and was rejected. Original game/view route keys and runtime settings
+are retained. Labels and control/status notes now state the measured limits.
+All 19 default-profile button probes reported inputs; Excitebike retained FIFO
+errors. Twelve aim observation sets did not establish numeric calibration.
+
+[Draw discovery](draw-discovery/README.md) records bounded shader identities,
+projection/render state and texture metadata to prepare individual placement
+trials. A matching shader or orthographic projection does not identify a HUD by
+itself. [Bounded replay input](motion-controls/input-probe/APPEND.md) supports
+navigation observations through the game's configured input path. Neither tool
+creates a per-game acceptance result or authorizes a live settings change.
+
+Use only a separately reviewed synthetic-eye probe, with the owner's headset-use
+marker checked before execution. Keep private builds, game media, captures and
+measurement receipts under the invoking checkout's ignored `.local` directory.
+The older release and runtime checkpoints below remain historical context.
 
 ## Release and desktop configuration
 
@@ -18,10 +56,10 @@ The executable's own SHA-256 is also pinned for the inspection launcher.
 
 Private layout in the invoking checkout:
 
-- `.local/dolphinxr/releases/v0.4/Dolphin-Redux-Windows.zip` — original archive.
-- `.local/dolphinxr/releases/v0.4/app/Dolphin.exe` — extracted executable.
-- `.local/dolphinxr/source-v0.4/` — matching pinned source, unmodified.
-- `.local/dolphinxr/users/umbrella-inspection/` — separate user/config directory.
+- `.local/dolphinxr/releases/v0.4/Dolphin-Redux-Windows.zip` â€” original archive.
+- `.local/dolphinxr/releases/v0.4/app/Dolphin.exe` â€” extracted executable.
+- `.local/dolphinxr/source-v0.4/` â€” matching pinned source, unmodified.
+- `.local/dolphinxr/users/umbrella-inspection/` â€” separate user/config directory.
 
 From that checkout in PowerShell:
 
@@ -79,7 +117,7 @@ which must be addressed in a concrete patch/build slice rather than silently
 fetching more dependencies. Darkside camera stabilization comes after Umbrella.
 Do not expand beyond the first tier before acceptance.
 
-## Source instrumentation checkpoint — 2026-10-10
+## Source instrumentation checkpoint â€” 2026-10-10
 
 The earlier release inspection above is historical. The pinned source now builds
 with the existing Windows compiler and Qt 6.8.3, using the 28 selected exact

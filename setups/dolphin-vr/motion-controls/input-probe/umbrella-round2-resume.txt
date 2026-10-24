@@ -1,0 +1,16 @@
+# Restore private RBUP08-train-combat-495.sav; explicit Umbrella gun profile.
+# E2 early B-fire flash/smoke and enemy reaction. Later death-menu corners omitted.
+# No confirmed kill, reload, numeric aim, native or headset claim. End511 or later.
+495.1 498.5 R u -0.42
+495.1 498.5 R v -0.08
+shot 495.3 umbrella-resume-before
+496 496.25 R trigger 1
+shot 496.1 umbrella-resume-left-hit-496
+497 497.25 R trigger 1
+shot 497.1 umbrella-resume-left-hit-497
+499 502 R u 0.27
+499 502 R v 0.1
+500 500.25 R trigger 1
+shot 500.1 umbrella-resume-right-hit-500
+501 501.25 R trigger 1
+shot 501.1 umbrella-resume-right-hit-501

@@ -1,0 +1,26 @@
+# Restore private SBDP08-first-combat-717.sav; explicit Darkside gun profile.
+# E2: B-fire shows enemy impact/blood and first enemy falling; four live pointer extremes follow.
+# Infinite tutorial ammunition and reduced health: no sustained60-second combat or reload acceptance.
+# Mono 1x / single-core only; numeric accuracy, native stereo and headset delivery unverified. End740 or later.
+# Restore717 before early firing, then inspect response and four corners.
+shot 717.5 darkside-resume-before
+718 718.25 R trigger 1
+shot 718.1 darkside-resume-fire-718
+719 719.25 R trigger 1
+shot 719.1 darkside-resume-fire-719
+720 720.25 R trigger 1
+shot 720.1 darkside-resume-fire-720
+721 721.25 R trigger 1
+shot 721.1 darkside-resume-fire-721
+723 724.7 R u -0.95
+723 724.7 R v 0.95
+shot 724 darkside-resume-corner-tl
+725 726.7 R u 0.95
+725 726.7 R v 0.95
+shot 726 darkside-resume-corner-tr
+727 728.7 R u -0.95
+727 728.7 R v -0.95
+shot 728 darkside-resume-corner-bl
+729 730.7 R u 0.95
+729 730.7 R v -0.95
+shot 730 darkside-resume-corner-br

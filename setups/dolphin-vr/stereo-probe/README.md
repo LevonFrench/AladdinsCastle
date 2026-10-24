@@ -38,6 +38,19 @@ screenshots.
   so about 41 px at 1.5 m and 15 px at 4 m.
 - `eyes.py <folder>...` counts stereo and mono (single-layer XFB) pictures.
 
+For bounded timing and immutable receipts, use the [scorecard tools](../scorecard/README.md).
+Review the final pre-window picture and label only the stage visible in that image;
+it does not establish the stage throughout the timing window. Count fresh XFB
+identities separately from presents and eligible layers; none is a GPU completion or unique
+content counter. The [Metroid experiment](../xfb-stereo-preservation/README.md) demonstrates why
+threading, mono reconstruction, FIFO errors and visible corruption must be checked together.
+
+Disparity alone does not calibrate world scale. Record the actual per-eye viewport, projection,
+IPD, per-draw units-per-metre and an independently known physical reference. A room-screen menu
+can occupy only part of an eye image, so normalized cursor error requires its coordinate mapping;
+do not divide a mono picture in half or assume the full eye is the pointer viewport. The 23 October
+audit leaves physical scale and unvalidated aim geometry unknown.
+
 ## Limits
 
 The synthetic head is not a headset: no lens FOV, no tracking, no compositor, no gun layer. The

@@ -1,0 +1,67 @@
+# Restore private profile prompt checkpoint 235; explicit DSE gun profile.
+# Creates local AAA, selects Story Mode / Chapter 1 / rivet gun / Normal.
+# Plus opens pause; the later pointer/A Resume Game selection is required.
+# Request armed checkpoint 1123. E2: firing changes ammo 3 to 2; independent restore repeats 2 to 1.
+# This is an armed introduction, not verified enemy combat; mono 1x / single-core only.
+236 244 R u 0
+236 244 R v 0.23
+shot 237 dse-yes-hover
+239 239.4 R primary 1
+shot 245 dse-after-yes
+shot 251 checkpoint-dse-after-yes
+384.000 391.000 R u 0.22
+384.000 391.000 R v -0.85
+shot 385.000 dse-continue-hover
+387.000 387.400 R primary 1
+shot 392.000 dse-name-continue
+shot 397.000 checkpoint-dse-profile-created
+510.000 510.400 R primary 1
+shot 515.000 dse-profile-ok-next
+shot 520.000 checkpoint-dse-main-menu
+602.000 609.000 R u -0.35
+602.000 609.000 R v 0
+604.000 604.400 R primary 1
+shot 609.000 dse-story-selected
+shot 614.000 checkpoint-dse-story
+680.000 687.000 R u 0.22
+680.000 687.000 R v -0.85
+682.000 682.400 R primary 1
+shot 687.000 dse-chapter-continue
+shot 692.000 checkpoint-dse-chapter-next
+693 701 R u 0.22
+693 701 R v -0.85
+695 695.4 R primary 1
+shot 702 dse-progress-702
+shot 732 dse-progress-732
+shot 762 dse-progress-762
+shot 792 dse-progress-792
+shot 822 dse-progress-822
+shot 852 dse-progress-852
+shot 882 dse-progress-882
+shot 912 dse-progress-912
+shot 942 dse-progress-942
+shot 972 dse-progress-972
+shot 1002 dse-progress-1002
+shot 1032 dse-progress-1032
+shot 1062 dse-progress-1062
+771.000 778.000 R u 0.22
+771.000 778.000 R v -0.85
+773.000 773.400 R primary 1
+shot 778.000 dse-normal-continue
+shot 786.000 checkpoint-dse-story-start
+880.000 880.350 L thumbclick 1
+shot 884.000 dse-intro-plus-menu
+933.000 933.350 L thumbclick 1
+shot 941.000 dse-intro-resumed
+shot 968.000 dse-intro-progress
+shot 993.000 checkpoint-dse-after-intro-wait
+1024.000 1031.000 R u 0
+1024.000 1031.000 R v -0.85
+1026.000 1026.400 R primary 1
+shot 1030.000 dse-explicit-resume
+shot 1049.000 dse-after-resume-progress
+shot 1069.000 checkpoint-dse-resumed-intro
+shot 1121.000 dse-armed-before-fire
+1122.000 1122.300 R trigger 1
+shot 1122.100 dse-armed-shot
+shot 1123.000 checkpoint-dse-armed-action

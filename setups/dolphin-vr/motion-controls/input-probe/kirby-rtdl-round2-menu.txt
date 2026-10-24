@@ -1,0 +1,106 @@
+# Observed legacy generic-input setup: File1/MainMode; Wii2 at257 enters hub; checkpoint269.
+# This records the original run. Continue with the explicit sideways-profile stage script; it changes bindings.
+12.0 12.3 R primary 1
+13.0 13.3 L primary 1
+14.0 14.3 R primary 1
+15.0 15.3 L primary 1
+16.0 16.3 R primary 1
+17.0 17.3 L primary 1
+18.0 18.3 R primary 1
+19.0 19.3 L primary 1
+20.0 20.3 R primary 1
+21.0 21.3 L primary 1
+22.0 22.3 R primary 1
+23.0 23.3 L primary 1
+24.0 24.3 R primary 1
+25.0 25.3 L primary 1
+26.0 26.3 R primary 1
+27.0 27.3 L primary 1
+28.0 28.3 R primary 1
+29.0 29.3 L primary 1
+32.0 32.3 L thumbclick 1
+40.0 40.3 L thumbclick 1
+48.0 48.3 L thumbclick 1
+50.0 50.3 R primary 1
+51.0 51.3 L primary 1
+52.0 52.3 R primary 1
+53.0 53.3 L primary 1
+54.0 54.3 R primary 1
+55.0 55.3 L primary 1
+56.0 56.3 R primary 1
+57.0 57.3 L primary 1
+58.0 58.3 R primary 1
+59.0 59.3 L primary 1
+60.0 60.3 R primary 1
+61.0 61.3 L primary 1
+62.0 62.3 R primary 1
+63.0 63.3 L primary 1
+64.0 64.3 R primary 1
+65.0 65.3 L primary 1
+66.0 66.3 R primary 1
+67.0 67.3 L primary 1
+68.0 68.3 R primary 1
+69.0 69.3 L primary 1
+70.0 70.3 R primary 1
+71.0 71.3 L primary 1
+72.0 72.3 R primary 1
+73.0 73.3 L primary 1
+74.0 74.3 R primary 1
+75.0 75.3 L primary 1
+76.0 76.3 R primary 1
+77.0 77.3 L primary 1
+78.0 78.3 R primary 1
+79.0 79.3 L primary 1
+80.0 120.0 L stick_x 1
+81.0 81.5 R primary 1
+84.0 84.5 R primary 1
+87.0 87.5 R primary 1
+90.0 90.5 R primary 1
+93.0 93.5 R primary 1
+96.0 96.5 R primary 1
+99.0 99.5 R primary 1
+102.0 102.5 R primary 1
+105.0 105.5 R primary 1
+108.0 108.5 R primary 1
+111.0 111.5 R primary 1
+114.0 114.5 R primary 1
+117.0 117.5 R primary 1
+shot 40 p40
+shot 43 p43
+shot 46 p46
+shot 49 p49
+shot 52 p52
+shot 55 p55
+shot 58 p58
+shot 61 p61
+shot 64 p64
+shot 67 p67
+shot 70 p70
+shot 73 p73
+shot 76 p76
+shot 79 p79
+shot 82 p82
+shot 85 p85
+shot 88 p88
+shot 91 p91
+shot 94 p94
+shot 97 p97
+shot 100 p100
+shot 103 p103
+shot 106 p106
+shot 109 p109
+shot 112 p112
+shot 115 p115
+shot 118 p118
+shot 121 p121
+125 147 L stick_x 1
+130 130.3 R primary 1
+140 140.3 R primary 1
+150 155 L stick_y 1
+152 152.3 R primary 1
+160 170 L stick_x 1
+257.000 257.400 R thumbclick 1
+shot 261.000 kirby-after-two
+263.000 263.400 R thumbclick 1
+shot 267.000 kirby-after-two-confirm
+shot 269.000 checkpoint-kirby-menu-progress

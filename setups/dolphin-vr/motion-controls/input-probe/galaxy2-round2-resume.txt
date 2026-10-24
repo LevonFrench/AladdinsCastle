@@ -1,0 +1,5 @@
+# Restore212 in controllable storybook introduction; not the later3D world.
+213 217 L stick_x -1
+216 216.4 R primary 1
+220 226 L stick_x 1
+221 221.4 R primary 1

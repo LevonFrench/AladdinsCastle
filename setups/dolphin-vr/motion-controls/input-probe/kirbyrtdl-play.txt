@@ -1,4 +1,4 @@
-# Kirby's Return to Dream Land: 2 and A through title and file select, + skips the story (32, 40, 48 s), 2 and A to 80 s, then hold right with 2 jumps.
+# Kirby's Return to Dream Land route candidate: Plus pulses at 32, 40 and 48 s may skip the story; unverified and may pause if one lands after it.
 12.0 12.3 R primary 1
 13.0 13.3 L primary 1
 14.0 14.3 R primary 1
@@ -17,9 +17,9 @@
 27.0 27.3 L primary 1
 28.0 28.3 R primary 1
 29.0 29.3 L primary 1
-32.0 32.3 L menu 1
-40.0 40.3 L menu 1
-48.0 48.3 L menu 1
+32.0 32.3 L thumbclick 1
+40.0 40.3 L thumbclick 1
+48.0 48.3 L thumbclick 1
 50.0 50.3 R primary 1
 51.0 51.3 L primary 1
 52.0 52.3 R primary 1
