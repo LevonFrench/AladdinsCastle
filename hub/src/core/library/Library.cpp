@@ -5,6 +5,7 @@
 #include "core/model3/Model3.h"
 #include "core/ps2/Ps2.h"
 #include "core/scan/Scan.h"
+#include "core/scan/DiscIndex.h"
 #include "core/wii/Wii.h"
 #include <QDateTime>
 #include <QDir>
@@ -15,31 +16,6 @@
 #include <algorithm>
 namespace ac::library {
 namespace {
-QString regionOfName(const QString &name) {
-  if (name.contains("(USA") || name.contains("NTSC-U") || name.contains("(US)"))
-    return "USA";
-  if (name.contains("(World"))
-    return "World";
-  if (name.contains("(Europe") || name.contains("PAL") || name.contains("(EU"))
-    return "Europe";
-  if (name.contains("(Japan") || name.contains("NTSC-J"))
-    return "Japan";
-  return {};
-}
-QString wiiRegion(const QString &id) {
-  const auto c = id.size() > 3 ? id[3] : QChar();
-  return c == 'E' ? "USA" : c == 'P' ? "Europe" : c == 'J' ? "Japan" : c == 'K' ? "Korea" : QString();
-}
-QString ps2Region(const QString &serial) {
-  const auto s = serial.toUpper();
-  if (s.startsWith("SLUS") || s.startsWith("SCUS"))
-    return "USA";
-  if (s.startsWith("SLES") || s.startsWith("SCES") || s.startsWith("SCED"))
-    return "Europe";
-  if (s.startsWith("SLPS") || s.startsWith("SLPM") || s.startsWith("SCPS") || s.startsWith("SCAJ"))
-    return "Japan";
-  return {};
-}
 int regionRank(const QString &region) {
   static const QStringList order{"USA", "World", "Europe", "Japan"};
   const auto i = order.indexOf(region);
@@ -76,7 +52,7 @@ QString rule() {
 }
 namespace {
 // Raised whenever what a file is read as changes, so every saved reading is read again.
-constexpr int kIndexVersion = 1;
+constexpr int kIndexVersion = 2;
 // What one file is: the copies it gives (system and copy), the system it is another disc of, a kind the Hub
 // reads but does not know ("disc" or "archive"), or a pinball table. Kept in the index to be used again.
 QVariantMap classify(const QString &path, const QString &ext, const QSet<QString> &model3Sets, const QSet<QString> &model2Sets,
@@ -94,55 +70,26 @@ QVariantMap classify(const QString &path, const QString &ext, const QSet<QString
       found << QVariantMap{{"system", "model3"}, {"copy", QVariantMap{{"file", path}, {"game", set}, {"identity", set}, {"verified", false}}}};
     if (model2Sets.contains(set))
       found << QVariantMap{{"system", "model2"}, {"copy", QVariantMap{{"file", path}, {"game", set}, {"identity", set}, {"verified", false}}}};
+    else for(const auto &value:model2::games()){
+      const auto game=value.toMap();if(game.value("file").toString()==set)
+        found<<QVariantMap{{"system","model2"},{"copy",QVariantMap{{"file",path},{"game",game.value("id")},{"identity",set},{"verified",false}}}};
+    }
     return found.isEmpty() ? QVariantMap{{"unknown", "archive"}} : QVariantMap{{"copies", found}};
   }
-  // Disc images: the Wii's header first (cheapest), then a Dreamcast disc's own number, then a PS2 serial.
-  if (ext == "iso" || ext == "wbfs" || ext == "rvz" || ext == "wia") {
-    const auto disc = wii::identify(path);
-    const auto id = disc.value("id").toString();
-    if (!id.isEmpty()) {
-      if (disc.value("game").toString().isEmpty())
-        return {{"other", "wii"}};
-      auto found = disc;
-      found["identity"] = id;
-      found["region"] = wiiRegion(id);
-      return copy("wii", found);
-    }
-    if (ext != "iso")
-      return {{"unknown", "disc"}};
+  auto read=scan::Scanner::inspect(path,cancel);
+  if(read.system.isEmpty()&&ext=="chd"&&!cancel){
+    const auto product=scan::Scanner::dreamcastProduct(path,cancel,true);
+    if(!product.isEmpty()){read.system="dreamcast";read.identity=product;read.error.clear();}
   }
-  if (ext == "gdi" || ext == "cdi" || ext == "cue" || ext == "chd") {
-    const auto disc = dreamcast::identify(path, cancel);
-    const auto product = disc.value("product").toString();
-    if (!disc.value("game").toString().isEmpty() && (!product.isEmpty() || ext != "chd")) {
-      auto found = disc;
-      found["identity"] = product;
-      if (found.value("region").toString() == "US")
-        found["region"] = "USA";
-      else if (found.value("region").toString() == "PAL")
-        found["region"] = "Europe";
-      if (found.value("region").toString().isEmpty())
-        found["region"] = regionOfName(QFileInfo(path).fileName());
-      return copy("dreamcast", found);
-    }
-    if (!product.isEmpty())
-      return {{"other", "dreamcast"}};
-    if (ext != "chd")
-      return {{"unknown", "disc"}};
-  }
-  if (ext == "iso" || ext == "bin" || ext == "chd" || ext == "cso" || ext == "gz") {
-    const auto disc = ps2::identify(path, cancel);
-    const auto serial = disc.value("serial").toString();
-    if (!disc.value("game").toString().isEmpty() && (disc.value("verified").toBool() || ext == "cso" || ext == "gz")) {
-      auto found = disc;
-      found["identity"] = serial;
-      found["region"] = serial.isEmpty() ? regionOfName(QFileInfo(path).fileName()) : ps2Region(serial);
-      return copy("ps2", found);
-    }
-    if (!serial.isEmpty())
-      return {{"other", "ps2"}};
-  }
-  return {{"unknown", "disc"}};
+  if(!read.error.isEmpty()||read.identity.isEmpty())return {{"unknown","disc"},{"retry",read.error.contains("budget")||read.error.contains("time")}};
+  const auto row=scan::DiscIndex::match(read.system,read.identity);
+  if(row.isEmpty())return read.system.isEmpty()?QVariantMap{{"unknown","disc"}}:QVariantMap{{"other",read.system}};
+  QVariantMap found{{"file",path},{"identity",read.identity},{"game",row.value("game")},{"title",row.value("title")},
+                    {"region",row.value("region")},{"verified",true},{"profile",row.value("profile",false)}};
+  if(read.system=="ps1"||read.system=="ps2")found["serial"]=read.identity;
+  else if(read.system=="dreamcast")found["product"]=read.identity;
+  else if(read.system=="wii"||read.system=="gc")found["id"]=read.identity;
+  return copy(read.system,found);
 }
 // The games the Hub knows, as a short stamp: a saved reading made against other lists is read again.
 QString listsStamp() {
@@ -150,6 +97,7 @@ QString listsStamp() {
   for (const auto &list : {model3::games(), model2::games(), ps2::games(), wii::games(), dreamcast::games()})
     for (const auto &game : list)
       all += '|' + game.toMap().value("id").toString().toUtf8();
+  all+=scan::DiscIndex::fingerprint().toUtf8();
   return QString::fromLatin1(QCryptographicHash::hash(all, QCryptographicHash::Sha1).toHex().left(16));
 }
 } // namespace
@@ -163,7 +111,7 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
       cleanRoots << QDir::cleanPath(QDir::fromNativeSeparators(root));
   if (progress)
     progress("Looking through your folders");
-  const auto files = scan::walk(cleanRoots, {"zip", "iso", "wbfs", "rvz", "wia", "bin", "chd", "cso", "gz", "gdi", "cdi", "cue", "vpx"}, depth, cancel);
+  const auto files = scan::walk(cleanRoots, {"zip", "iso", "wbfs", "rvz", "wia", "bin", "chd", "cso", "gz", "gdi", "cdi", "cue", "m3u", "gcz", "gcm", "wad", "nkit", "pbp", "img", "vpx"}, depth, cancel);
   QSet<QString> model3Sets, model2Sets;
   for (const auto &game : model3::games())
     model3Sets << game.toMap().value("id").toString();
@@ -210,7 +158,7 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
     const auto modified = info.lastModified().toMSecsSinceEpoch();
     const auto saved = before.value(path).toMap();
     QVariantMap outcome;
-    if (!saved.isEmpty() && saved.value("size").toLongLong() == size && saved.value("modified").toLongLong() == modified) {
+    if (!QStringList{"cue","gdi","m3u"}.contains(ext) && !saved.value("outcome").toMap().value("retry").toBool() && !saved.isEmpty() && saved.value("size").toLongLong() == size && saved.value("modified").toLongLong() == modified) {
       outcome = saved.value("outcome").toMap();
       ++reused;
     } else {

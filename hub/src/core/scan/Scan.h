@@ -12,7 +12,7 @@ struct ArchiveEntry {
   bool hasCrc = false;
 };
 struct FileIdentity {
-  QString path, kind, identity, error, chdHeaderSha1;
+  QString path, kind, identity, error, chdHeaderSha1, system;
   QVector<ArchiveEntry> entries;
   qint64 size = 0, mtime = 0;
   bool cacheHit = false;
@@ -66,10 +66,9 @@ class Scanner {
 public:
   static FileIdentity inspect(const QString &path, std::atomic_bool &cancel);
   // The product number in a Dreamcast disc image's own header (.chd, .gdi, .cdi,
-  // .cue or a raw track), or empty when it cannot be read cheaply. Bounded reads
-  // only; the image is never written or unpacked to disk. A .cdi keeps the game's
-  // header anywhere after its first session: the quick read looks at the start,
-  // "thorough" reads on to the end of the file.
+  // .cue, .m3u or a raw track). Reads are cancellable and bounded; a CDI searches
+  // up to 2 GiB / 20 seconds regardless of filename. No image is written or
+  // unpacked to disk. The thorough argument remains for source compatibility.
   static QString dreamcastProduct(const QString &path, std::atomic_bool &cancel, bool thorough = false);
   static ScanResult run(const CatalogData &catalog, const ScanOptions &options,
                         std::atomic_bool &cancel,

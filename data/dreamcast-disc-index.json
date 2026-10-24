@@ -1,0 +1,218 @@
+{
+  "HDR-0061": {
+    "gameId": "dc-virtua-cop-2",
+    "title": "Virtua Cop 2",
+    "system": "dreamcast",
+    "region": "Japan",
+    "profile": false,
+    "source": "hub/src/core/dreamcast/Dreamcast.cpp (ee04fbd)"
+  },
+  "HDR-0080": {
+    "gameId": "dc-18-wheeler",
+    "title": "18 Wheeler: American Pro Trucker",
+    "system": "dreamcast",
+    "region": "Japan",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "HDR-0100": {
+    "gameId": "dc-f355-challenge",
+    "title": "F355 Challenge",
+    "system": "dreamcast",
+    "region": "Japan",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "HDR-0159": {
+    "gameId": "dc-crazy-taxi-2",
+    "title": "Crazy Taxi 2",
+    "system": "dreamcast",
+    "region": "Japan",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "HDR0010": {
+    "gameId": "dc-sega-rally-2",
+    "title": "Sega Rally 2",
+    "system": "dreamcast",
+    "region": "Japan",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-51002": {
+    "gameId": "dc-house-of-the-dead-2",
+    "title": "The House of the Dead 2",
+    "system": "dreamcast",
+    "region": "US",
+    "profile": true,
+    "source": "hub/src/core/dreamcast/Dreamcast.cpp (ee04fbd)"
+  },
+  "MK-5100250": {
+    "gameId": "dc-house-of-the-dead-2",
+    "title": "The House of the Dead 2",
+    "system": "dreamcast",
+    "region": "PAL",
+    "profile": true,
+    "source": "hub/src/core/dreamcast/Dreamcast.cpp (ee04fbd)"
+  },
+  "MK-51012": {
+    "gameId": "dc-metropolis-street-racer",
+    "title": "Metropolis Street Racer",
+    "system": "dreamcast",
+    "region": "USA",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-51019": {
+    "gameId": "dc-sega-rally-2",
+    "title": "Sega Rally 2",
+    "system": "dreamcast",
+    "region": "USA",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-5102250": {
+    "gameId": "dc-metropolis-street-racer",
+    "title": "Metropolis Street Racer",
+    "system": "dreamcast",
+    "region": "PAL",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-51035": {
+    "gameId": "dc-crazy-taxi",
+    "title": "Crazy Taxi",
+    "system": "dreamcast",
+    "region": "US/PAL",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-51037": {
+    "gameId": "dc-daytona-usa-2001",
+    "title": "Daytona USA 2001",
+    "system": "dreamcast",
+    "region": "USA",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-5103750": {
+    "gameId": "dc-daytona-usa-2001",
+    "title": "Daytona USA 2001",
+    "system": "dreamcast",
+    "region": "PAL",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-51064": {
+    "gameId": "dc-18-wheeler",
+    "title": "18 Wheeler: American Pro Trucker",
+    "system": "dreamcast",
+    "region": "USA",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-5106450": {
+    "gameId": "dc-18-wheeler",
+    "title": "18 Wheeler: American Pro Trucker",
+    "system": "dreamcast",
+    "region": "PAL",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-51136": {
+    "gameId": "dc-crazy-taxi-2",
+    "title": "Crazy Taxi 2",
+    "system": "dreamcast",
+    "region": "USA",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-5113650": {
+    "gameId": "dc-crazy-taxi-2",
+    "title": "Crazy Taxi 2",
+    "system": "dreamcast",
+    "region": "PAL",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "MK-51160": {
+    "gameId": "dc-confidential-mission",
+    "title": "Confidential Mission",
+    "system": "dreamcast",
+    "region": "US",
+    "profile": true,
+    "source": "hub/src/core/dreamcast/Dreamcast.cpp (ee04fbd)"
+  },
+  "T-9702D-50": {
+    "gameId": "dc-hydro-thunder",
+    "title": "Hydro Thunder",
+    "system": "dreamcast",
+    "region": "PAL",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/emulator.cpp"
+  },
+  "T-9707N": {
+    "gameId": "dc-san-francisco-rush-2049",
+    "title": "San Francisco Rush 2049",
+    "system": "dreamcast",
+    "region": "USA",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/emulator.cpp"
+  },
+  "T-9709D-50": {
+    "gameId": "dc-san-francisco-rush-2049",
+    "title": "San Francisco Rush 2049",
+    "system": "dreamcast",
+    "region": "PAL",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/emulator.cpp"
+  },
+  "T23201M": {
+    "gameId": "dc-death-crimson-2",
+    "title": "Death Crimson 2",
+    "system": "dreamcast",
+    "region": "Japan",
+    "profile": false,
+    "source": "hub/src/core/dreamcast/Dreamcast.cpp (ee04fbd)"
+  },
+  "T2401N": {
+    "gameId": "dc-death-crimson-ox",
+    "title": "Death Crimson OX",
+    "system": "dreamcast",
+    "region": "US",
+    "profile": false,
+    "source": "hub/src/core/dreamcast/Dreamcast.cpp (ee04fbd)"
+  },
+  "T8118D  50": {
+    "gameId": "dc-f355-challenge",
+    "title": "F355 Challenge",
+    "system": "dreamcast",
+    "region": "PAL",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp"
+  },
+  "T9505D": {
+    "gameId": "dc-silent-scope",
+    "title": "Silent Scope",
+    "system": "dreamcast",
+    "region": "PAL",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/emulator.cpp"
+  },
+  "T9507N": {
+    "gameId": "dc-silent-scope",
+    "title": "Silent Scope",
+    "system": "dreamcast",
+    "region": "USA",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/emulator.cpp"
+  },
+  "T9513M": {
+    "gameId": "dc-silent-scope",
+    "title": "Silent Scope",
+    "system": "dreamcast",
+    "region": "Japan",
+    "profile": false,
+    "source": "https://github.com/flyinghead/flycast/blob/master/core/emulator.cpp"
+  }
+}

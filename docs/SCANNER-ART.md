@@ -67,17 +67,48 @@ requiring firmware from a different emulator's definition.
 Disc reads are bounded: ISO9660 PVD, root directory (up to 2 MiB), SYSTEM.CNF
 (up to 64 KiB), CHD v5 header SHA1, Dreamcast IP.BIN, Saturn header, and GC/Wii IDs.
 PS2 BIOS detection checks ROMDIR/ROMVER structures in .bin/.rom/.rom0, not filenames. A discovered same-basename .rom1 is an optional companion path; .mec/.nvm/.inf/.diff auxiliary files are not read. Disc headers
-with no catalog identity remain unverified. CHDv5 sparse decoding uses pinned libchdr to read only ISO9660 PVD/root/SYSTEM.CNF hunks. Dimensions are checked before map allocation: hunk bytes at most 1 MiB, logical bytes at most 100 GiB, normalized map at most 32 MiB (12 bytes per compressed-map entry or 4 per uncompressed entry), with compressed-map bytes also capped at 32 MiB. Reads stop at 64 MiB compressed input and 8 MiB / 128 decoded hunks; parent-dependent discs remain unverified. Combined header SHA1 is retained separately and never treated as an uncompressed disc hash. An explicit chd_sha1 field can identify that distinct combined hash. Raw 2352-byte PS1 data tracks support 16/24-byte sector prefixes. Multi-track GDI/CUE traversal and generic BIOS platforms remain
-unverified unless supported identifying metadata is supplied; no guessed filename
-match becomes Ready.
+with no catalog identity remain unverified. CHDv5 sparse decoding uses pinned libchdr to read only ISO9660 PVD/root/SYSTEM.CNF hunks. Dimensions are checked before map allocation: hunk bytes at most 1 MiB, logical bytes at most 100 GiB, normalized map at most 32 MiB (12 bytes per compressed-map entry or 4 per uncompressed entry), with compressed-map bytes also capped at 32 MiB. Reads stop at 64 MiB compressed input and 8 MiB / 128 decoded hunks; parent-dependent discs remain unverified. Combined header SHA1 is retained separately and never treated as an uncompressed disc hash. An explicit chd_sha1 field can identify that distinct combined hash. Raw 2352-byte PS1 data tracks support 16/24-byte sector prefixes. CUE/GDI traversal reads declared local data tracks; M3U uses its first declared disc, with cancellation and bounded traversal. PS1 SYSTEM.CNF BOOT and PS2 BOOT2 retain distinct system identities. Generic BIOS platforms remain unverified unless supported identifying metadata is supplied; no guessed disc filename match becomes Ready.
 
-The bundled serial index contains 100 PS2 title/serial mappings from the
-[official PCSX2 GameIndex](https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml),
-including Time Crisis II regional releases and recognized retail GunCon/reprint bundles. Demos/trials remain distinct. It contains metadata facts only.
-`tools/build_serial_index.py` reproduces the index from that pinned YAML without
-network calls or copying emulator settings. Exact catalog/alternate-title matching
-normalizes punctuation and the numbered title spelling `II`/`2`; unknown serials
-never match by ISO filename. The shipped automatic serial-to-game lookup is PS2-only. Dreamcast, Saturn, GC/Wii and other disc identities require an explicit catalog `serial`/ID or an owner-supplied `serialIndex`; recognizing their header does not identify a game in the shipped index. GDI/CUE traversal is still unsupported. PC media matching is explicitly **name-only**: a catalog `find`/`exe` basename plus PE/ELF structure, reported as `executable-name-only`. File version is informational; there is no PC payload hash, product-ID or publisher check. Tool location verifies a
+Canonical public identity facts live in `data/serial-index.json`,
+`data/dreamcast-disc-index.json` and `data/wii-disc-index.json` (the latter includes
+GameCube IDs and WiiWare title IDs). `data/disc-profiles.json` separately holds the
+existing frontend game aliases, controls/profile metadata, holds, routes and views.
+The resource copies are generated from these canonical files; the indexes contain
+metadata facts only, never local media paths. Exact identity and system must both
+match. Unknown IDs stay unknown; Nintendo region bytes are not wildcarded.
+
+Serial facts come from the [official PCSX2 GameIndex](https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml)
+and [MAME PlayStation software list](https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml).
+Dreamcast product literals are from the previous committed Hub table and
+[Flycast's product-specific source records](https://github.com/flyinghead/flycast/blob/master/core/cheats.cpp).
+Nintendo ID/title facts use the GameTDB English title list (version 20250826093514,
+distributed with Dolphin), with original exact regional IDs retained. The index
+records its source and, for Nintendo records, source version and source ID.
+Package-label Dreamcast serials are not substituted for IP.BIN product numbers.
+The index is intentionally incomplete; identifying a public title does not add a
+runnable frontend profile or establish emulator/VR compatibility.
+
+The shared cancellable reader handles ISO/BIN, declared CUE/GDI tracks, M3U first
+disc, bounded sparse CHD metadata, CISO (`.cso`), gzip (`.gz`), supported PBP blocks,
+GCZ headers, Wii/GC copied headers in RVZ/WIA, single-disc WBFS and WAD ticket title
+IDs. PBP variants, unsupported codecs, parent-dependent CHDs, encrypted or malformed
+metadata and headers beyond read budgets stay unread or unknown. NKit is accepted
+only where a readable standard disc header survives; no NKit reconstruction occurs.
+A CDI scan searches beyond the former 16 MiB cutoff but remains time/size bounded
+and cancellable. These are source-level implementation boundaries; real-library
+coverage, first-rescan cost and runtime acceptance require separate private proof.
+
+`tools/build_serial_index.py` retains the offline extractor for pinned PCSX2 facts;
+manual curated additions carry their own record provenance. The data currently has
+at least one explicit public identity for each catalog disc title in these five
+systems; this is catalog coverage, not a claim that every owned disc variant can
+be read or mapped. `hub/tests/DiscIndexTest.cpp` checks this against the catalog
+files and checks schema/resource consistency, exact region/maker boundaries and
+unchanged frontend profile lists. Test execution is a separate acceptance step.
+Demos/trials stay
+distinct, and regional or translated aliases need explicit metadata evidence.
+
+PC media matching is explicitly **name-only**: a catalog `find`/`exe` basename plus PE/ELF structure, reported as `executable-name-only`. File version is informational; there is no PC payload hash, product-ID or publisher check. Tool location verifies a
 PE/ELF executable structure; it does not claim a downloaded install is verified.
 
 ## Local art

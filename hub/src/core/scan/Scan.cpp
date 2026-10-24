@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Scan.h"
+#include "DiscIndex.h"
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
@@ -150,6 +151,7 @@ Json identityJson(const FileIdentity &f) {
           {"mtime", f.mtime},
           {"kind", f.kind.toStdString()},
           {"identity", f.identity.toStdString()},
+          {"system", f.system.toStdString()},
           {"chdHeaderSha1", f.chdHeaderSha1.toStdString()},
           {"chdHeaderBoundsOk", f.chdHeaderBoundsOk},
           {"error", f.error.toStdString()},
@@ -160,6 +162,7 @@ FileIdentity fromIdentity(const Json &j) {
   f.path = s(j, "path");
   f.kind = s(j, "kind");
   f.identity = s(j, "identity");
+  f.system = s(j,"system");
   f.chdHeaderSha1 = s(j, "chdHeaderSha1");
   f.error = s(j, "error");
   f.size = j.value("size", qint64(0));
@@ -754,7 +757,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
   if (!o.userRoot.isEmpty())
     try {
       auto table = toml::parse_file(cachePath.toStdString());
-      if (table["version"].value_or(0) == 4)
+      if (table["version"].value_or(0) == 5)
         if (auto a = table["files"].as_array())
           for (const auto &n : *a)
             if (auto p = n.value<std::string>()) {
@@ -765,7 +768,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
     }
   const auto paths = enumerate(o.mediaRoots,
                                {"zip", "7z", "iso", "wbfs", "chd", "bin", "img", "rom",
-                                "rom0", "rom1", "exe", "gcm"},
+                                "rom0", "rom1", "exe", "gcm", "cue", "gdi", "cdi", "rvz", "wia", "gcz", "m3u", "wad", "nkit", "cso", "gz", "pbp"},
                                o.maxDepth, cancel);
   int completed = 0;
   for (const auto &path : paths) {
@@ -773,8 +776,8 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
       break;
     QFileInfo info(path);
     FileIdentity f;
-    const bool freshDisc=QStringList{"iso","gcm","wbfs"}.contains(info.suffix().toLower())||cache.value(path).kind=="disc-id";
-    if (!freshDisc && cache.contains(path) && cache[path].size == info.size() &&
+    const bool freshDisc=QStringList{"iso","gcm","wbfs","cue","gdi","m3u"}.contains(info.suffix().toLower())||cache.value(path).kind=="disc-id";
+    if (!freshDisc && cache.contains(path) && !cache[path].error.contains("budget") && !cache[path].error.contains("time") && cache[path].size == info.size() &&
         cache[path].mtime == info.lastModified().toMSecsSinceEpoch()) {
       f = cache[path];
       f.cacheHit = true;
@@ -874,20 +877,27 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
               if (!f.error.isEmpty() || f.identity.isEmpty())
                 continue;
               bool found = false;
+              const auto hardware=s(g.raw,"hardware");
+              const QString expectedSystem=hardware=="sony-ps2"?"ps2":hardware=="sony-ps1"?"ps1":hardware=="sega-dreamcast"?"dreamcast":hardware=="nintendo-wii"?"wii":hardware=="nintendo-gamecube"?"gc":QString();
+              if(kind=="disc"&&!expectedSystem.isEmpty()&&!f.system.isEmpty()&&f.system!=expectedSystem)continue;
               if (kind == "bios")
                 found = f.kind == "ps2-bios-romdir" &&
                         s(g.raw, "hardware") == "sony-ps2";
               else if (!s(m, "chd_sha1").isEmpty() && !f.chdHeaderSha1.isEmpty())
                 found = s(m, "chd_sha1").compare(f.chdHeaderSha1, Qt::CaseInsensitive) == 0;
               else if (!s(m, "serial").isEmpty())
-                found = s(m, "serial") == f.identity;
+                found = (expectedSystem.isEmpty()||f.system==expectedSystem)&&s(m, "serial") == f.identity;
               else if (s(g.raw, "hardware") == "nintendo-wii" && f.kind == "disc-id" &&
                        wiiIds.contains(f.identity.toStdString())) {
                 found = s(wiiIds[f.identity.toStdString()], "gameId") == g.id;
               }
               else if (serials.contains(f.identity.toStdString())) {
                 const auto &entry = serials[f.identity.toStdString()];
-                found = s(entry, "gameId") == g.id;
+                found = (expectedSystem.isEmpty()||f.system==expectedSystem)&&(s(entry,"system").isEmpty()||s(entry,"system")==f.system)&&s(entry, "gameId") == g.id;
+              }
+              if(!found&&kind=="disc"&&!f.system.isEmpty()){
+                const auto entry=DiscIndex::match(f.system,f.identity);
+                found=entry.value("catalogId").toString()==g.id;
               }
               if (found) {
                 binding.path = f.path;
@@ -947,7 +957,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
   if (!r.cancelled && !o.userRoot.isEmpty()) {
     QDir().mkpath(o.userRoot + "/cache");
     toml::table table;
-    table.insert("version", 4);
+    table.insert("version", 5);
     toml::array a;
     for (const auto &f : r.files)
       a.push_back(identityJson(f).dump());

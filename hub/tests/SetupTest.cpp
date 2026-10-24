@@ -39,6 +39,13 @@ QByteArray zip(const QList<QPair<QByteArray,QByteArray>> &members){
   u32(out,0x06054b50);u16(out,0);u16(out,0);u16(out,quint16(members.size()));u16(out,quint16(members.size()));u32(out,quint32(directory.size()));u32(out,start);u16(out,0);
   return out;
 }
+QByteArray ps2Header(const QByteArray &serial){
+  QByteArray b(24*2048,'\0');const int p=16*2048,d=20*2048;
+  b[p]=1;b.replace(p+1,5,"CD001");b[p+6]=1;b[p+156]=34;
+  qToLittleEndian<quint32>(20,b.data()+p+158);qToLittleEndian<quint32>(2048,b.data()+p+166);
+  b[d]=46;qToLittleEndian<quint32>(21,b.data()+d+2);qToLittleEndian<quint32>(64,b.data()+d+10);
+  b[d+32]=12;b.replace(d+33,12,"SYSTEM.CNF;1");const auto cnf=QByteArray("BOOT2 = cdrom0:\\")+serial+";1\r\n";b.replace(21*2048,cnf.size(),cnf);return b;
+}
 QString hex(const QByteArray &data){return "0x"+QString::number(crc32(data),16).toUpper();}
 QVariantMap entry(const QVariantMap &result,const char *group,const QString &id){for(const auto &value:result.value(group).toList())if(value.toMap().value("id")==id)return value.toMap();return {};}
 // A stand-in emulator folder whose list names two files for one game and a parent for another.
@@ -243,7 +250,7 @@ private slots:
     // A clone kept in its parent's zip is looked for under the parent's name.
     QCOMPARE(ac::model2::fileName("hotdo"),QString("hotd"));QCOMPARE(ac::model2::fileName("vcop2"),QString("vcop2"));
   }
-  // PS2: serials read from real discs, file names when a serial cannot be read, and the user's launcher's own keys.
+  // PS2: exact disc serials and the user's launcher's own keys.
   void ps2GamesAreKnownBySerialAndStartedThroughTheLauncher() {
     QCOMPARE(ac::ps2::games().size(),12);
     QCOMPARE(ac::ps2::gameForSerial("SLES_512.29"),QString("virtua-cop"));QCOMPARE(ac::ps2::gameForSerial("SLUS-21274"),QString("outrun-2006"));
@@ -285,12 +292,12 @@ private slots:
     QCOMPARE(ac::ps2::launchPlan("virtua-cop",launcher,python,stop,"check")["args"].toStringList(),(QStringList{QDir::toNativeSeparators(launcher),"virtua-cop","--headset-check"}));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::ps2::launchPlan("time-crisis-3",launcher,python,stop,"check"));
     write(t.filePath("play/games.json"),"{\"virtua-cop\":{},\"outrun-2006\":{}}");
-    // A compressed image is matched by its name only; the longer name wins.
+    // Disc headers prove the game independently of the file name.
     const auto folder=t.filePath("discs");
-    write(folder+"/OutRun 2006 (copy).gz","synthetic");write(folder+"/XGRA - Extreme G Racing Association (USA).gz","synthetic");write(folder+"/Something Else (USA).gz","synthetic");
+    write(folder+"/unrelated-a.iso",ps2Header("SLUS_212.74"));write(folder+"/unrelated-b.iso",ps2Header("SLUS_206.32"));write(folder+"/Something Else (USA).gz","synthetic");
     const QVariantMap settings{{"ps2GameFolder",folder},{"ps2Launcher",launcher},{"ps2Python",python},{"ps2StopFile",stop}};
     const auto result=ac::setup::scanSystem("ps2",settings,{},{},cancel);
-    QVERIFY(entry(result,"ready","outrun-2006")["detail"].toString().contains("serial was not read"));
+    QVERIFY(entry(result,"ready","outrun-2006")["detail"].toString().contains("SLUS-21274"));
     QVERIFY(entry(result,"notRight","xgra")["reason"].toString().contains("no entry")); // Found, but the launcher does not know it.
     QCOMPARE(entry(result,"missing","virtua-cop")["expected"].toString(),QString("Virtua Cop Elite Edition (disc image)"));
     QCOMPARE(result["other"].toList().size(),1);QCOMPARE(result["other"].toList()[0].toMap()["title"].toString(),QString("Something Else (USA)"));
@@ -484,7 +491,7 @@ private slots:
     write(folder+"/first.gdi",("3\n1 0 4 2352 a.bin 0\n2 600 0 2352 b.raw 0\n3 45000 4 2352 \"game track.bin\" 0\n"));write(folder+"/game track.bin",track("MK-51002"));
     write(folder+"/Confidential Mission.cdi",QByteArray(3000,'x')+track("MK-51160"));
     write(folder+"/house of the dead 2 other.cdi",track("HDR-0000"));
-    write(folder+"/Death Crimson 2.cue","FILE \"none.bin\" BINARY\n");
+    write(folder+"/Death Crimson 2.cue","FILE \"dc2.bin\" BINARY\n TRACK 01 MODE1/2352\n INDEX 01 00:00:00\n");write(folder+"/dc2.bin",track("T23201M"));
     write(folder+"/unrelated.cdi",track("T-99999"));
     write(folder+"/no header.cdi",QByteArray(4096,'x'));
     const QVariantMap settings{{"dreamcastGameFolder",folder},{"dreamcastExecutable",program}};
@@ -493,7 +500,7 @@ private slots:
     QVERIFY(entry(result,"ready","hotd2")["detail"].toString().contains("US release"));QVERIFY(entry(result,"ready","hotd2")["file"].toString().endsWith("first.gdi"));
     // Confidential Mission (US) has its own VR profile since 2026-10-20: found and ready.
     QVERIFY(!entry(result,"ready","confmiss").isEmpty());QVERIFY(entry(result,"notRight","confmiss").isEmpty());
-    QVERIFY(entry(result,"notRight","dcrimson2")["reason"].toString().contains("not checked"));
+    QVERIFY(entry(result,"notRight","dcrimson2")["reason"].toString().contains("no VR profile"));
     QVERIFY(!entry(result,"missing","vcop2").isEmpty());QVERIFY(!entry(result,"missing","dcox").isEmpty());
     QVERIFY(!result["note"].toString().contains("headset")); // Headset acceptance is the owner's list, not the scan's.
     // Discs the Hub does not list are still named, with their own number where it was read.
@@ -506,7 +513,7 @@ private slots:
     // Without the emulator build nothing is startable.
     result=ac::setup::scanSystem("dreamcast",{{"dreamcastGameFolder",folder}},{},{},cancel);
     QVERIFY(entry(result,"notRight","confmiss")["reason"].toString().contains("not set up"));QVERIFY(!entry(result,"notRight","confmiss")["startable"].toBool());
-    QCOMPARE(QDir(folder).entryList(QDir::Files).size(),6);
+    QCOMPARE(QDir(folder).entryList(QDir::Files).size(),7);
   }
   // The numbers read from real Japanese discs: found whatever the file is called, never reported missing.
   void dreamcastJapaneseGunDiscsAreFoundByTheirNumbers() {

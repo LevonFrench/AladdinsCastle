@@ -1,0 +1,1651 @@
+{
+  "0001000157324350": {
+    "gameId": "wii-brain-challenge",
+    "title": "Brain Challenge",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "W2CP"
+  },
+  "0001000157324D50": {
+    "gameId": "wii-blaster-master-overdrive",
+    "title": "Blaster Master: Overdrive",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "W2MP"
+  },
+  "0001000157334145": {
+    "gameId": "wii-carmen-sandiego-adventures-in-math-the-big-ben-burglary",
+    "title": "Carmen Sandiego Adventures in Math - The Big Ben Burglary",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "W3AE"
+  },
+  "0001000157334750": {
+    "gameId": "wii-phoenix-wright-ace-attorney-trials-and-tribulations",
+    "title": "Phoenix Wright: Ace Attorney Trials and Tribulations",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "W3GP"
+  },
+  "0001000157334C45": {
+    "gameId": "wii-carmen-sandiego-adventures-in-math-the-lady-liberty-larceny",
+    "title": "Carmen Sandiego Adventures in Math - The Lady Liberty Larceny",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "W3LE"
+  },
+  "0001000157343845": {
+    "gameId": "wii-shadowplay",
+    "title": "ShadowPlay",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "W48E"
+  },
+  "0001000157344150": {
+    "gameId": "wii-arcade-sports-air-hockey-bowling-pool-snooker",
+    "title": "Arcade Sports:  Air Hockey, Bowling, Pool, Snooker",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "W4AP"
+  },
+  "0001000157353450": {
+    "gameId": "wii-5-spots-party",
+    "title": "5 Spots Party",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "W54P"
+  },
+  "0001000157354150": {
+    "gameId": "wii-5-arcade-gems",
+    "title": "5 Arcade Gems",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "W5AP"
+  },
+  "0001000157384C45": {
+    "gameId": "wii-balloon-pop-festival",
+    "title": "Balloon Pop Festival",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "W8LE"
+  },
+  "0001000157414245": {
+    "gameId": "wii-art-of-balance",
+    "title": "Art of Balance",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WABE"
+  },
+  "0001000157414A45": {
+    "gameId": "wii-motoheroz",
+    "title": "MotoHeroz",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WAJE"
+  },
+  "0001000157414B45": {
+    "gameId": "wii-carmen-sandiego-adventures-in-math-the-case-of-the-crumbling-cathedral",
+    "title": "Carmen Sandiego Adventures in Math - The Case of the Crumbling Cathedral",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WAKE"
+  },
+  "0001000157414D45": {
+    "gameId": "wii-carmen-sandiego-adventures-in-math-the-great-gateway-grab",
+    "title": "Carmen Sandiego Adventures in Math - The Great Gateway Grab",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WAME"
+  },
+  "0001000157423550": {
+    "gameId": "wii-block-breaker-deluxe",
+    "title": "Block Breaker Deluxe",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WB5P"
+  },
+  "0001000157424A45": {
+    "gameId": "wii-harvest-moon-my-little-shop",
+    "title": "Harvest Moon - My Little Shop",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WBJE"
+  },
+  "0001000157424B50": {
+    "gameId": "wii-arkanoid-plus",
+    "title": "Arkanoid Plus!",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WBKP"
+  },
+  "0001000157425650": {
+    "gameId": "wii-spogs-racing",
+    "title": "SPOGS Racing",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WBVP"
+  },
+  "0001000157425750": {
+    "gameId": "wii-critter-round-up",
+    "title": "Critter Round-Up",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WBWP"
+  },
+  "0001000157435A50": {
+    "gameId": "wii-colorz",
+    "title": "ColorZ",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WCZP"
+  },
+  "0001000157443945": {
+    "gameId": "wii-castlevania-the-adventure-rebirth",
+    "title": "Castlevania - The Adventure ReBirth",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WD9E"
+  },
+  "0001000157443950": {
+    "gameId": "wii-castlevania-the-adventure-rebirth",
+    "title": "Castlevania - The Adventure ReBirth",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WD9P"
+  },
+  "0001000157444450": {
+    "gameId": "wii-diner-dash",
+    "title": "Diner Dash",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WDDP"
+  },
+  "0001000157444F50": {
+    "gameId": "wii-driift-mania",
+    "title": "Driift Mania",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WDOP"
+  },
+  "0001000157455250": {
+    "gameId": "wii-my-aquarium",
+    "title": "My Aquarium",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WERP"
+  },
+  "0001000157455645": {
+    "gameId": "wii-viral-survival",
+    "title": "Viral Survival",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WEVE"
+  },
+  "0001000157464B45": {
+    "gameId": "wii-family-go-kart-racing",
+    "title": "Family Go-Kart Racing",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WFKE"
+  },
+  "0001000157464C45": {
+    "gameId": "wii-fluidity",
+    "title": "Fluidity",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WFLE"
+  },
+  "0001000157465250": {
+    "gameId": "wii-frogger-returns",
+    "title": "Frogger Returns",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WFRP"
+  },
+  "0001000157465545": {
+    "gameId": "wii-furry-legends",
+    "title": "Furry Legends",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WFUE"
+  },
+  "0001000157474450": {
+    "gameId": "wii-gradius-rebirth",
+    "title": "Gradius ReBirth",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WGDP"
+  },
+  "0001000157474650": {
+    "gameId": "wii-girlfriends-forever-magic-skate",
+    "title": "Girlfriends Forever - Magic Skate",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WGFP"
+  },
+  "0001000157494845": {
+    "gameId": "wii-play-with-birds",
+    "title": "Play with Birds",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WIHE"
+  },
+  "00010001574A4B50": {
+    "gameId": "wii-jewel-keepers-easter-island",
+    "title": "Jewel Keepers - Easter Island",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WJKP"
+  },
+  "00010001574B5445": {
+    "gameId": "wii-contra-rebirth",
+    "title": "Contra ReBirth",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WKTE"
+  },
+  "00010001574B5450": {
+    "gameId": "wii-contra-rebirth",
+    "title": "Contra ReBirth",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WKTP"
+  },
+  "00010001574C4945": {
+    "gameId": "wii-liight",
+    "title": "Liight",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WLIE"
+  },
+  "00010001574C5745": {
+    "gameId": "wii-lostwinds",
+    "title": "LostWinds",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WLWE"
+  },
+  "00010001574D3850": {
+    "gameId": "wii-bomberman-blast",
+    "title": "Bomberman Blast",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WM8P"
+  },
+  "00010001574D4A50": {
+    "gameId": "wii-dive-the-medes-islands-secret",
+    "title": "Dive - The Medes Islands Secret",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WMJP"
+  },
+  "00010001574D4C45": {
+    "gameId": "wii-major-league-eating-the-game",
+    "title": "Major League Eating - The Game",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WMLE"
+  },
+  "00010001574D5245": {
+    "gameId": "wii-monochrome-racing",
+    "title": "Monochrome Racing",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WMRE"
+  },
+  "00010001574F4150": {
+    "gameId": "wii-family-glide-hockey",
+    "title": "Family Glide Hockey",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WOAP"
+  },
+  "00010001574F5445": {
+    "gameId": "wii-overturn",
+    "title": "Overturn",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WOTE"
+  },
+  "0001000157504745": {
+    "gameId": "wii-snowpack-park",
+    "title": "Snowpack Park",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WPGE"
+  },
+  "0001000157504A45": {
+    "gameId": "wii-pucca-s-kisses-game",
+    "title": "Pucca's Kisses Game",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WPJE"
+  },
+  "0001000157504C45": {
+    "gameId": "wii-planet-pachinko",
+    "title": "Planet Pachinko",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WPLE"
+  },
+  "0001000157505150": {
+    "gameId": "wii-protothea",
+    "title": "Protothea",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WPQP"
+  },
+  "0001000157505650": {
+    "gameId": "wii-the-tales-of-bearsworth-manor-chaotic-conflicts",
+    "title": "The Tales of Bearsworth Manor - Chaotic Conflicts",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WPVP"
+  },
+  "0001000157524645": {
+    "gameId": "wii-reel-fishing-challenge-ii",
+    "title": "Reel Fishing Challenge II",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WRFE"
+  },
+  "0001000157524950": {
+    "gameId": "wii-rainbow-islands-towering-adventure",
+    "title": "Rainbow Islands - Towering Adventure!",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WRIP"
+  },
+  "0001000157525250": {
+    "gameId": "wii-robin-hood-the-return-of-richard",
+    "title": "Robin Hood - The Return of Richard",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WRRP"
+  },
+  "0001000157525950": {
+    "gameId": "wii-robox",
+    "title": "Robox",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WRYP"
+  },
+  "0001000157533345": {
+    "gameId": "wii-silver-star-chess",
+    "title": "Silver Star Chess",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WS3E"
+  },
+  "0001000157533645": {
+    "gameId": "wii-silver-star-reversi",
+    "title": "Silver Star Reversi",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WS6E"
+  },
+  "0001000157533745": {
+    "gameId": "wii-fantasy-slots-adventure-slots-and-games",
+    "title": "Fantasy Slots - Adventure Slots and Games",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WS7E"
+  },
+  "0001000157534A50": {
+    "gameId": "wii-spot-the-differences",
+    "title": "Spot the Differences!",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WSJP"
+  },
+  "0001000157535850": {
+    "gameId": "wii-stunt-cars",
+    "title": "Stunt Cars",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WSXP"
+  },
+  "0001000157543350": {
+    "gameId": "wii-tomena-sanner",
+    "title": "Tomena Sanner",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WT3P"
+  },
+  "0001000157544945": {
+    "gameId": "wii-tikitowers",
+    "title": "TikiTowers",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WTIE"
+  },
+  "0001000157545050": {
+    "gameId": "wii-tetris-party",
+    "title": "Tetris Party",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WTPP"
+  },
+  "0001000157545545": {
+    "gameId": "wii-tumblebugs-2",
+    "title": "Tumblebugs 2",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WTUE"
+  },
+  "0001000157565350": {
+    "gameId": "wii-gods-vs-humans",
+    "title": "Gods vs. Humans",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WVSP"
+  },
+  "0001000157575250": {
+    "gameId": "wii-excitebike-world-challenge",
+    "title": "Excitebike: World Challenge",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WWRP"
+  },
+  "0001000157575450": {
+    "gameId": "wii-burgertime-world-tour",
+    "title": "BurgerTime World Tour",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WWTP"
+  },
+  "00010001575A4145": {
+    "gameId": "wii-zombii-attack",
+    "title": "Zombii Attack",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WZAE"
+  },
+  "00010001575A4850": {
+    "gameId": "wii-my-zoo",
+    "title": "My Zoo",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WZHP"
+  },
+  "00010001575A5A50": {
+    "gameId": "wii-the-tales-of-bearsworth-manor-puzzling-pages",
+    "title": "The Tales of Bearsworth Manor - Puzzling Pages",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "WZZP"
+  },
+  "G2VE08": {
+    "gameId": "gc-viewtiful-joe-2",
+    "title": "Viewtiful Joe 2",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "G2VE08"
+  },
+  "G4QE01": {
+    "gameId": "gc-super-mario-strikers",
+    "title": "Super Mario Strikers",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "G4QE01"
+  },
+  "G4SE01": {
+    "gameId": "gc-the-legend-of-zelda-four-swords-adventures",
+    "title": "The Legend of Zelda: Four Swords Adventures",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "G4SE01"
+  },
+  "G8ME01": {
+    "gameId": "gc-paper-mario-the-thousand-year-door",
+    "title": "Paper Mario: The Thousand-Year Door",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "G8ME01"
+  },
+  "G9SE8P": {
+    "gameId": "gc-sonic-heroes",
+    "title": "Sonic Heroes",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "G9SE8P"
+  },
+  "GAFE01": {
+    "gameId": "gc-animal-crossing",
+    "title": "Animal Crossing",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GAFE01"
+  },
+  "GALE01": {
+    "gameId": "gc-super-smash-bros-melee",
+    "title": "Super Smash Bros. Melee",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GALE01"
+  },
+  "GB4E51": {
+    "gameId": "gc-burnout-2",
+    "title": "Burnout 2: Point of Impact",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GB4E51"
+  },
+  "GB4P51": {
+    "gameId": "gc-burnout-2",
+    "title": "Burnout 2: Point of Impact",
+    "system": "gc",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GB4P51"
+  },
+  "GEAE8P": {
+    "gameId": "gc-skies-of-arcadia-legends",
+    "title": "Skies of Arcadia: Legends",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GEAE8P"
+  },
+  "GEDP01": {
+    "gameId": "gc-eternal-darkness-sanity-s-requiem",
+    "title": "Eternal Darkness: Sanity's Requiem",
+    "system": "gc",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GEDP01"
+  },
+  "GEOE08": {
+    "gameId": "gc-capcom-vs-snk-2-eo",
+    "title": "Capcom vs. SNK 2 EO",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GEOE08"
+  },
+  "GF7E01": {
+    "gameId": "gc-star-fox-assault",
+    "title": "Star Fox: Assault",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GF7E01"
+  },
+  "GFTE01": {
+    "gameId": "gc-mario-golf-toadstool-tour",
+    "title": "Mario Golf: Toadstool Tour",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GFTE01"
+  },
+  "GFZE01": {
+    "gameId": "gc-f-zero-gx",
+    "title": "F-Zero GX",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GFZE01"
+  },
+  "GFZJ01": {
+    "gameId": "gc-f-zero-gx",
+    "title": "F-Zero GX",
+    "system": "gc",
+    "region": "Japan",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GFZJ01"
+  },
+  "GFZP01": {
+    "gameId": "gc-f-zero-gx",
+    "title": "F-Zero GX",
+    "system": "gc",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GFZP01"
+  },
+  "GGEE41": {
+    "gameId": "gc-beyond-good-evil",
+    "title": "Beyond Good & Evil",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GGEE41"
+  },
+  "GGSEA4": {
+    "gameId": "gc-metal-gear-solid-the-twin-snakes",
+    "title": "Metal Gear Solid: The Twin Snakes",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GGSEA4"
+  },
+  "GHQE7D": {
+    "gameId": "gc-the-simpsons-hit-run",
+    "title": "The Simpsons: Hit & Run",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GHQE7D"
+  },
+  "GIKE70": {
+    "gameId": "gc-ikaruga",
+    "title": "Ikaruga",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GIKE70"
+  },
+  "GKYE01": {
+    "gameId": "gc-kirby-air-ride",
+    "title": "Kirby Air Ride",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GKYE01"
+  },
+  "GLME01": {
+    "gameId": "gc-luigi-s-mansion",
+    "title": "Luigi's Mansion",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GLME01"
+  },
+  "GLRE64": {
+    "gameId": "gc-star-wars-rogue-squadron-iii-rebel-strike",
+    "title": "Star Wars: Rogue Squadron III: Rebel Strike",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GLRE64"
+  },
+  "GM2E8P": {
+    "gameId": "gc-super-monkey-ball-2",
+    "title": "Super Monkey Ball 2",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GM2E8P"
+  },
+  "GM4E01": {
+    "gameId": "gc-mario-kart-double-dash",
+    "title": "Mario Kart: Double Dash!!",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GM4E01"
+  },
+  "GM4J01": {
+    "gameId": "gc-mario-kart-double-dash",
+    "title": "Mario Kart: Double Dash!!",
+    "system": "gc",
+    "region": "Japan",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GM4J01"
+  },
+  "GM4K01": {
+    "gameId": "gc-mario-kart-double-dash",
+    "title": "Mario Kart: Double Dash!!",
+    "system": "gc",
+    "region": "Korea",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GM4K01"
+  },
+  "GM4P01": {
+    "gameId": "gc-mario-kart-double-dash",
+    "title": "Mario Kart: Double Dash!!",
+    "system": "gc",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GM4P01"
+  },
+  "GMBE8P": {
+    "gameId": "gc-super-monkey-ball",
+    "title": "Super Monkey Ball",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GMBE8P"
+  },
+  "GMSE01": {
+    "gameId": "gc-super-mario-sunshine",
+    "title": "Super Mario Sunshine",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GMSE01"
+  },
+  "GNWP69": {
+    "gameId": "gc-def-jam-fight-for-ny",
+    "title": "Def Jam: Fight for NY",
+    "system": "gc",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GNWP69"
+  },
+  "GOME01": {
+    "gameId": "gc-mario-power-tennis",
+    "title": "Mario Power Tennis",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GOME01"
+  },
+  "GOMP01": {
+    "gameId": "gc-mario-power-tennis",
+    "title": "Mario Power Tennis",
+    "system": "gc",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GOMP01"
+  },
+  "GPHE52": {
+    "gameId": "gc-pitfall-the-lost-expedition",
+    "title": "Pitfall: The Lost Expedition",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GPHE52"
+  },
+  "GPIE01": {
+    "gameId": "gc-pikmin",
+    "title": "Pikmin",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GPIE01"
+  },
+  "GPUE8P": {
+    "gameId": "gc-puyo-pop-fever",
+    "title": "Puyo Pop Fever",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GPUE8P"
+  },
+  "GPVE01": {
+    "gameId": "gc-pikmin-2",
+    "title": "Pikmin 2",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GPVE01"
+  },
+  "GPVP01": {
+    "gameId": "gc-pikmin-2",
+    "title": "Pikmin 2",
+    "system": "gc",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GPVP01"
+  },
+  "GRSEAF": {
+    "gameId": "gc-soulcalibur-ii",
+    "title": "Soulcalibur II",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GRSEAF"
+  },
+  "GSAE01": {
+    "gameId": "gc-star-fox-adventures",
+    "title": "Star Fox Adventures",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GSAE01"
+  },
+  "GSPE69": {
+    "gameId": "gc-the-simpsons-road-rage",
+    "title": "The Simpsons: Road Rage",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GSPE69"
+  },
+  "GSWE64": {
+    "gameId": "gc-star-wars-rogue-squadron-ii-rogue-leader",
+    "title": "Star Wars: Rogue Squadron II: Rogue Leader",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GSWE64"
+  },
+  "GTEE01": {
+    "gameId": "gc-1080-avalanche",
+    "title": "1080 Avalanche",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GTEE01"
+  },
+  "GTEP01": {
+    "gameId": "gc-1080-avalanche",
+    "title": "1080 Avalanche",
+    "system": "gc",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GTEP01"
+  },
+  "GUPE8P": {
+    "gameId": "gc-shadow-the-hedgehog",
+    "title": "Shadow the Hedgehog",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GUPE8P"
+  },
+  "GVJE08": {
+    "gameId": "gc-viewtiful-joe",
+    "title": "Viewtiful Joe",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GVJE08"
+  },
+  "GVLE69": {
+    "gameId": "gc-marvel-nemesis-rise-of-the-imperfects",
+    "title": "Marvel Nemesis: Rise of the Imperfects",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GVLE69"
+  },
+  "GWRE01": {
+    "gameId": "gc-wave-race-blue-storm",
+    "title": "Wave Race: Blue Storm",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GWRE01"
+  },
+  "GWRJ01": {
+    "gameId": "gc-wave-race-blue-storm",
+    "title": "Wave Race: Blue Storm",
+    "system": "gc",
+    "region": "Japan",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GWRJ01"
+  },
+  "GWRP01": {
+    "gameId": "gc-wave-race-blue-storm",
+    "title": "Wave Race: Blue Storm",
+    "system": "gc",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GWRP01"
+  },
+  "GXBE69": {
+    "gameId": "gc-ssx-3",
+    "title": "SSX 3",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GXBE69"
+  },
+  "GXSE8P": {
+    "gameId": "gc-sonic-adventure-dx-director-s-cut",
+    "title": "Sonic Adventure DX: Director's Cut",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GXSE8P"
+  },
+  "GYQE01": {
+    "gameId": "gc-mario-superstar-baseball",
+    "title": "Mario Superstar Baseball",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GYQE01"
+  },
+  "GZ2E01": {
+    "gameId": "gc-the-legend-of-zelda-twilight-princess",
+    "title": "The Legend of Zelda: Twilight Princess",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GZ2E01"
+  },
+  "GZLE01": {
+    "gameId": "gc-the-legend-of-zelda-the-wind-waker",
+    "title": "The Legend of Zelda: The Wind Waker",
+    "system": "gc",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "GZLE01"
+  },
+  "R2VE01": {
+    "gameId": "wii-sin-and-punishment-star-successor",
+    "title": "Sin & Punishment: Star Successor",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "R2VE01"
+  },
+  "R2VJ01": {
+    "gameId": "wii-sin-and-punishment-star-successor",
+    "title": "Sin & Punishment: Star Successor",
+    "source": "hub/src/core/wii/Wii.cpp (ee04fbd)",
+    "system": "wii",
+    "region": "Japan"
+  },
+  "R2VP01": {
+    "gameId": "wii-sin-and-punishment-star-successor",
+    "title": "Sin & Punishment: Star Successor",
+    "source": "hub/src/core/wii/Wii.cpp (ee04fbd)",
+    "system": "wii",
+    "region": "PAL"
+  },
+  "R3ME01": {
+    "gameId": "wii-metroid-prime-trilogy",
+    "title": "Metroid Prime Trilogy",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "R3ME01"
+  },
+  "R4QE01": {
+    "gameId": "wii-mario-strikers-charged",
+    "title": "Mario Strikers Charged",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "R4QE01"
+  },
+  "R7PE01": {
+    "gameId": "wii-punch-out",
+    "title": "Punch-Out!!",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "R7PE01"
+  },
+  "R8PP01": {
+    "gameId": "wii-super-paper-mario",
+    "title": "Super Paper Mario",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "R8PP01"
+  },
+  "R92P01": {
+    "gameId": "wii-pikmin-2",
+    "title": "Pikmin 2",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "R92P01"
+  },
+  "RBUE08": {
+    "gameId": "wii-resident-evil-umbrella-chronicles",
+    "title": "Resident Evil: The Umbrella Chronicles",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RBUE08"
+  },
+  "RBUJ08": {
+    "gameId": "wii-resident-evil-umbrella-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Umbrella_Chronicles",
+    "system": "wii",
+    "region": "Japan"
+  },
+  "RBUK08": {
+    "gameId": "wii-resident-evil-umbrella-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Umbrella_Chronicles",
+    "system": "wii",
+    "region": "Korea"
+  },
+  "RBUP08": {
+    "gameId": "wii-resident-evil-umbrella-chronicles",
+    "title": "Resident Evil: The Umbrella Chronicles",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RBUP08"
+  },
+  "RDGPA4": {
+    "gameId": "wii-castlevania-judgment",
+    "title": "Castlevania Judgment",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RDGPA4"
+  },
+  "REXE01": {
+    "gameId": "wii-excite-truck",
+    "title": "Excite Truck",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "REXE01"
+  },
+  "REXJ01": {
+    "gameId": "wii-excite-truck",
+    "title": "Excite Truck",
+    "system": "wii",
+    "region": "Japan",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "REXJ01"
+  },
+  "REXP01": {
+    "gameId": "wii-excite-truck",
+    "title": "Excite Truck",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "REXP01"
+  },
+  "RGDEA4": {
+    "gameId": "wii-target-terror",
+    "title": "Target: Terror",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RGDEA4"
+  },
+  "RGSE8P": {
+    "gameId": "wii-ghost-squad",
+    "title": "Ghost Squad",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RGSE8P"
+  },
+  "RGSJ8P": {
+    "gameId": "wii-ghost-squad",
+    "title": "Ghost Squad",
+    "system": "wii",
+    "region": "Japan",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RGSJ8P"
+  },
+  "RGSP8P": {
+    "gameId": "wii-ghost-squad",
+    "title": "Ghost Squad",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RGSP8P"
+  },
+  "RHDE8P": {
+    "gameId": "wii-house-of-the-dead-2-3-return",
+    "title": "The House of the Dead 2 & 3 Return",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RHDE8P"
+  },
+  "RHDJ8P": {
+    "gameId": "wii-house-of-the-dead-2-3-return",
+    "title": "The House of the Dead 2 & 3 Return",
+    "system": "wii",
+    "region": "Japan",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RHDJ8P"
+  },
+  "RHDP8P": {
+    "gameId": "wii-house-of-the-dead-2-3-return",
+    "title": "The House of the Dead 2 & 3 Return",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RHDP8P"
+  },
+  "RHOE8P": {
+    "gameId": "wii-house-of-the-dead-overkill",
+    "title": "The House of the Dead: Overkill",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RHOE8P"
+  },
+  "RHOJ8P": {
+    "gameId": "wii-house-of-the-dead-overkill",
+    "title": "The House of the Dead: Overkill",
+    "system": "wii",
+    "region": "Japan",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RHOJ8P"
+  },
+  "RHOP8P": {
+    "gameId": "wii-house-of-the-dead-overkill",
+    "title": "The House of the Dead: Overkill",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RHOP8P"
+  },
+  "RK5E01": {
+    "gameId": "wii-kirby-s-epic-yarn",
+    "title": "Kirby's Epic Yarn",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RK5E01"
+  },
+  "RM8P01": {
+    "gameId": "wii-mario-party-8",
+    "title": "Mario Party 8",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RM8P01"
+  },
+  "RMCC01": {
+    "gameId": "wii-mario-kart-wii",
+    "title": "Mario Kart Wii",
+    "system": "wii",
+    "region": "unknown",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RMCC01"
+  },
+  "RMCE01": {
+    "gameId": "wii-mario-kart-wii",
+    "title": "Mario Kart Wii",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RMCE01"
+  },
+  "RMCJ01": {
+    "gameId": "wii-mario-kart-wii",
+    "title": "Mario Kart Wii",
+    "system": "wii",
+    "region": "Japan",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RMCJ01"
+  },
+  "RMCK01": {
+    "gameId": "wii-mario-kart-wii",
+    "title": "Mario Kart Wii",
+    "system": "wii",
+    "region": "Korea",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RMCK01"
+  },
+  "RMCP01": {
+    "gameId": "wii-mario-kart-wii",
+    "title": "Mario Kart Wii",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RMCP01"
+  },
+  "RMCR01": {
+    "gameId": "wii-mario-kart-wii",
+    "title": "Mario Kart Wii",
+    "system": "wii",
+    "region": "unknown",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RMCR01"
+  },
+  "RMGP01": {
+    "gameId": "wii-super-mario-galaxy",
+    "title": "Super Mario Galaxy",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RMGP01"
+  },
+  "RONPG9": {
+    "gameId": "wii-onechanbara-bikini-zombie-slayers",
+    "title": "Onechanbara: Bikini Zombie Slayers",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RONPG9"
+  },
+  "RQSP6M": {
+    "gameId": "wii-gottlieb-pinball-classics",
+    "title": "Gottlieb Pinball Classics",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RQSP6M"
+  },
+  "RSBP01": {
+    "gameId": "wii-super-smash-bros-brawl",
+    "title": "Super Smash Bros. Brawl",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RSBP01"
+  },
+  "RZDP01": {
+    "gameId": "wii-the-legend-of-zelda-twilight-princess",
+    "title": "The Legend of Zelda: Twilight Princess",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RZDP01"
+  },
+  "RZJD69": {
+    "gameId": "wii-dead-space-extraction",
+    "title": "Dead Space: Extraction",
+    "system": "wii",
+    "region": "unknown",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RZJD69"
+  },
+  "RZJE69": {
+    "gameId": "wii-dead-space-extraction",
+    "title": "Dead Space: Extraction",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RZJE69"
+  },
+  "RZJJ13": {
+    "gameId": "wii-dead-space-extraction",
+    "title": "Dead Space: Extraction",
+    "system": "wii",
+    "region": "Japan",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RZJJ13"
+  },
+  "RZJP69": {
+    "gameId": "wii-dead-space-extraction",
+    "title": "Dead Space: Extraction",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RZJP69"
+  },
+  "RZPE01": {
+    "gameId": "wii-links-crossbow-training",
+    "title": "Link's Crossbow Training",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RZPE01"
+  },
+  "RZPJ01": {
+    "gameId": "wii-links-crossbow-training",
+    "title": "Link's Crossbow Training",
+    "source": "hub/src/core/wii/Wii.cpp (ee04fbd)",
+    "system": "wii",
+    "region": "Japan"
+  },
+  "RZPK01": {
+    "gameId": "wii-links-crossbow-training",
+    "title": "Link's Crossbow Training",
+    "source": "hub/src/core/wii/Wii.cpp (ee04fbd)",
+    "system": "wii",
+    "region": "Korea"
+  },
+  "RZPP01": {
+    "gameId": "wii-links-crossbow-training",
+    "title": "Link's Crossbow Training",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RZPP01"
+  },
+  "RZTP01": {
+    "gameId": "wii-wii-sports-resort",
+    "title": "Wii Sports Resort",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "RZTP01"
+  },
+  "SB4P01": {
+    "gameId": "wii-super-mario-galaxy-2",
+    "title": "Super Mario Galaxy 2",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "SB4P01"
+  },
+  "SBDE08": {
+    "gameId": "wii-resident-evil-darkside-chronicles",
+    "title": "Resident Evil: The Darkside Chronicles",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "SBDE08"
+  },
+  "SBDJ08": {
+    "gameId": "wii-resident-evil-darkside-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Darkside_Chronicles",
+    "system": "wii",
+    "region": "Japan"
+  },
+  "SBDK08": {
+    "gameId": "wii-resident-evil-darkside-chronicles",
+    "hardware": "nintendo-wii",
+    "source": "https://wiki.dolphin-emu.org/index.php/Resident_Evil:_The_Darkside_Chronicles",
+    "system": "wii",
+    "region": "Korea"
+  },
+  "SBDP08": {
+    "gameId": "wii-resident-evil-darkside-chronicles",
+    "title": "Resident Evil: The Darkside Chronicles",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "SBDP08"
+  },
+  "SBQE4Z": {
+    "gameId": "wii-big-buck-hunter-pro",
+    "title": "Big Buck Hunter Pro",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "SBQE4Z"
+  },
+  "SF8P01": {
+    "gameId": "wii-donkey-kong-country-returns",
+    "title": "Donkey Kong Country Returns",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "SF8P01"
+  },
+  "SMNE01": {
+    "gameId": "wii-new-super-mario-bros-wii",
+    "title": "New Super Mario Bros. Wii",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "SMNE01"
+  },
+  "SQDE8P": {
+    "gameId": "wii-gunblade-ny-la-machineguns",
+    "title": "Gunblade NY & L.A. Machineguns Arcade Hits Pack",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "SQDE8P"
+  },
+  "SQDP8P": {
+    "gameId": "wii-gunblade-ny-la-machineguns",
+    "title": "Gunblade NY & L.A. Machineguns Arcade Hits Pack",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "SQDP8P"
+  },
+  "SSQP01": {
+    "gameId": "wii-mario-party-9",
+    "title": "Mario Party 9",
+    "system": "wii",
+    "region": "PAL",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "SSQP01"
+  },
+  "STKE08": {
+    "gameId": "wii-tatsunoko-vs-capcom-ultimate-all-stars",
+    "title": "Tatsunoko vs. Capcom: Ultimate All-Stars",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "STKE08"
+  },
+  "SUKE01": {
+    "gameId": "wii-kirby-s-return-to-dream-land",
+    "title": "Kirby's Return to Dream Land",
+    "system": "wii",
+    "region": "US",
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "SUKE01"
+  }
+}

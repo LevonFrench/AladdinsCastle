@@ -59,6 +59,8 @@ add_library(hubcore STATIC
     src/core/scan/Scan.h
     src/core/scan/Scan.cpp
     src/core/scan/Headers.cpp
+    src/core/scan/DiscReader.cpp
+    src/core/scan/DiscIndex.cpp
     src/core/pinball/Art.cpp
     src/core/pinball/Art.h
     src/core/pinball/Gamepad.cpp
@@ -144,12 +146,14 @@ target_compile_definitions(hubcore PUBLIC NOMINMAX)
 target_link_libraries(hubcore PRIVATE ac7zmetadata)
 target_link_libraries(hubcore PRIVATE hubhandmetadata)
 target_link_libraries(hubcore PRIVATE chdr-static)
+target_link_libraries(hubcore PRIVATE zlibstatic)
 target_link_libraries(hubcore PUBLIC Qt6::Quick)
 if(WIN32)
     target_link_libraries(hubcore PRIVATE version shell32 ole32 advapi32 uuid crypt32)
 endif()
 ac_project_warnings(hubcore)
-qt_add_resources(hubcore scan_metadata PREFIX /scan BASE resources FILES resources/serial-index.json resources/wii-disc-index.json)
+qt_add_resources(hubcore disc_metadata PREFIX /data BASE ../data FILES ../data/serial-index.json ../data/wii-disc-index.json ../data/dreamcast-disc-index.json ../data/disc-profiles.json)
+qt_add_resources(hubcore scan_metadata PREFIX /scan BASE ../data FILES ../data/serial-index.json ../data/wii-disc-index.json)
 
 add_library(huboverlay STATIC
     src/overlay/OverlayInput.cpp src/overlay/OverlayInput.h
@@ -263,6 +267,21 @@ if(BUILD_TESTING)
     ac_project_warnings(library-tests)
     set_target_properties(library-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-library COMMAND library-tests -o -,txt)
+    qt_add_executable(disc-format-tests tests/DiscFormatsTest.cpp)
+    target_link_libraries(disc-format-tests PRIVATE hubcore Qt6::Test zlibstatic)
+    ac_project_warnings(disc-format-tests)
+    set_target_properties(disc-format-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-disc-formats COMMAND disc-format-tests -o -,txt)
+    qt_add_executable(disc-index-tests tests/DiscIndexTest.cpp)
+    target_link_libraries(disc-index-tests PRIVATE hubcore Qt6::Test)
+    target_compile_definitions(disc-index-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    ac_project_warnings(disc-index-tests)
+    set_target_properties(disc-index-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-disc-index COMMAND disc-index-tests -o -,txt)
+    qt_add_executable(disc-inventory tests/DiscInventory.cpp)
+    target_link_libraries(disc-inventory PRIVATE hubcore)
+    ac_project_warnings(disc-inventory)
+    set_target_properties(disc-inventory PROPERTIES WIN32_EXECUTABLE FALSE)
     qt_add_executable(wii-tests tests/WiiTest.cpp)
     target_link_libraries(wii-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(wii-tests)
