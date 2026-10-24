@@ -496,7 +496,7 @@ private slots:
     write(folder+"/no header.cdi",QByteArray(4096,'x'));
     const QVariantMap settings{{"dreamcastGameFolder",folder},{"dreamcastExecutable",program}};
     auto result=ac::setup::scanSystem("dreamcast",settings,{},{},cancel);
-    // The US release has the full profile even though a second, unprofiled disc of the same game is present.
+    // The identified US release has the full profile; the misleading filename cannot identify the other disc.
     QVERIFY(entry(result,"ready","hotd2")["detail"].toString().contains("USA release"));QVERIFY(entry(result,"ready","hotd2")["file"].toString().endsWith("first.gdi"));
     // Confidential Mission (US) has its own VR profile since 2026-10-20: found and ready.
     QVERIFY(!entry(result,"ready","confmiss").isEmpty());QVERIFY(entry(result,"notRight","confmiss").isEmpty());
@@ -505,11 +505,11 @@ private slots:
     QVERIFY(!result["note"].toString().contains("headset")); // Headset acceptance is the owner's list, not the scan's.
     // Discs the Hub does not list are still named, with their own number where it was read.
     QStringList others;for(const auto &value:result["other"].toList())others<<value.toMap()["title"].toString()+"|"+value.toMap()["detail"].toString();
-    QCOMPARE(others,(QStringList{"no header|number not read","unrelated|disc number T-99999"}));
-    // Only the unprofiled release of the main game: found, not right, still startable.
+    QCOMPARE(others,(QStringList{"house of the dead 2 other|disc number HDR-0000","no header|number not read","unrelated|disc number T-99999"}));
+    // Removing the identified disc leaves the game missing; an unknown number cannot borrow its filename.
     QVERIFY(QFile::remove(folder+"/first.gdi"));
     result=ac::setup::scanSystem("dreamcast",settings,{},{},cancel);
-    QVERIFY(entry(result,"notRight","hotd2")["reason"].toString().contains("HDR-0000"));QVERIFY(entry(result,"notRight","hotd2")["startable"].toBool());
+    QVERIFY(entry(result,"notRight","hotd2").isEmpty());QVERIFY(!entry(result,"missing","hotd2").isEmpty());
     // Without the emulator build nothing is startable.
     result=ac::setup::scanSystem("dreamcast",{{"dreamcastGameFolder",folder}},{},{},cancel);
     QVERIFY(entry(result,"notRight","confmiss")["reason"].toString().contains("not set up"));QVERIFY(!entry(result,"notRight","confmiss")["startable"].toBool());
