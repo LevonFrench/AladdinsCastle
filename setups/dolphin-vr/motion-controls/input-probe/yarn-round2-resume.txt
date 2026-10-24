@@ -1,0 +1,10 @@
+# Restore private RK5E01-PatchCastle-play-773.sav, AC Pad Sideways.
+# Independent replay checks opposite movement and Wii2 jump. End790 or later.
+# Acceptance is limited to reviewed captures; no complete-stage or headset claim.
+shot 773.1 yarn-resume-before
+774 776 L stick_x -0.8
+shot 775 yarn-resume-left
+777 781 L stick_x 1
+778 778.7 R primary 1
+shot 778.3 yarn-resume-jump
+shot 781.3 yarn-resume-beads

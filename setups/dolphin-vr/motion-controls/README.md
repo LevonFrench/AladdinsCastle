@@ -1,5 +1,7 @@
 # Wii motion games on Quest Touch — DolphinXR mapping
 
+Round-2 offline route results and limits: [ROUND2-ROUTES.md](ROUND2-ROUTES.md). These supersede the earlier setup-screen route conclusions below; they do not establish headset acceptance.
+
 Explicit Wii Remote and Nunchuk bindings for the five Wii motion games (Wii Sports Resort,
 Mario Kart Wii, Punch-Out!!, Super Mario Galaxy, Zelda: Twilight Princess) on the pinned
 DolphinXR fork, plus the anti-aliasing fixes found while checking the owner's first headset run.
