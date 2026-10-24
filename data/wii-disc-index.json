@@ -611,6 +611,16 @@
     "sourceVersion": "20250826093514",
     "sourceId": "WZZP"
   },
+  "D43E01": {
+    "gameId": "gc-the-legend-of-zelda-ocarina-of-time-master-quest",
+    "title": "The Legend of Zelda: Ocarina of Time & Master Quest",
+    "system": "gc",
+    "region": "USA",
+    "profile": false,
+    "source": "https://www.gametdb.com/",
+    "sourceVersion": "20250826093514",
+    "sourceId": "D43E01"
+  },
   "G2VE08": {
     "gameId": "gc-viewtiful-joe-2",
     "title": "Viewtiful Joe 2",
