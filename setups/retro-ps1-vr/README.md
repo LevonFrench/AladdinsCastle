@@ -444,6 +444,63 @@ disparities follow depth: Mario Kart 64 with `CONV` 60 puts the kart just in
 front of the screen, the track behind it and the sky at the eyes' separation,
 the HUD on the screen. Not yet seen in a headset.
 
+## Nintendo 3DS games (Azahar)
+
+The 3DS draws both eyes itself, so the same program shows them with no patch:
+the prebuilt `azahar_libretro.dll` (GPL-2.0, the Citra successor; the
+buildbot's Windows x86_64 build) with
+
+```
+--option citra_layout_option=single_screen --option citra_render_3d=side-by-side-full
+--option citra_factor_3d=100 --option citra_resolution_factor=3
+ACVR_PS1_SBS=1  ACVR_PS1_LETTERBOX=.25
+```
+
+`single_screen` keeps only the top (3D) screen. `side-by-side-full` puts the
+left eye in the left half of the picture and the right eye in the right half,
+each at the top screen's full 400x240 (times the resolution factor), but it
+keeps the base 5:3 picture size (1200x720 at 3x), so each eye sits in the
+middle half of the rows with black above and below. `ACVR_PS1_LETTERBOX` is
+the share of the rows the theatre cuts from the top and from the bottom of each
+eye (`.25` here), so the eye fills the screen. `citra_factor_3d` is the 3D
+slider (0 to 100). The core reports the 5:3 aspect itself.
+
+Azahar refuses a decrypted dump whose NCCH header still says it is encrypted
+("This ROM is encrypted"), where the older Citra core forced no crypto. The
+dump's own NoCrypto flag (bit 0x04 of byte 0x18F of each decrypted partition's
+NCCH header) has to be set; set it on a private copy, never on the original.
+At 3x with both eyes the core runs about 110 to 200 frames a second uncapped
+on the owner's PC.
+
+Star Fox 64 3D (Type A controls) in `--controls pad`, from its own tutorial;
+Azahar's RetroPad A, B, X, Y, L, R are the 3DS buttons of the same names, the
+left stick is the Circle Pad:
+
+```
+ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lmenu=start,rclick=start
+```
+
+| VR control | 3DS | Star Fox 64 3D |
+|---|---|---|
+| left stick | Circle Pad | steer (push up and boost for a somersault, up and brake for a U-turn) |
+| right trigger | A | laser (hold to charge a lock-on shot) |
+| right A | Y | bomb |
+| right grip | X | boost |
+| left grip | B | brake |
+| left trigger, right stick left | L | bank left (twice: barrel roll) |
+| right B, right stick right | R | bank right (twice: barrel roll) |
+| left menu, right stick click | Start | pause |
+
+The game asks in its tutorial whether to turn on gyro aiming; the host sends no
+motion, so answer no (or tap B to realign when it asks).
+
+Results so far (Azahar 2127.0-alpha3, hidden offline runs, 3x): Star Fox 64
+3D, Kid Icarus: Uprising and Mario Kart 7 boot and draw real per-depth
+disparity (Mario Kart 7's race 1 to 28 px across 24 levels; Star Fox's HUD at
+0, its grid 14 to 24 px). In Star Fox's training course each mapped VR control
+does its job (laser, bomb, boost, brake, bank, steer), and the theatre proof
+shows each eye cropped to fill the curved screen. Not yet seen in a headset.
+
 ## Next
 
 The owner's headset verdict on stereo comfort and on the diorama; the Justifier
