@@ -363,6 +363,7 @@ struct EyeScene {
   bool showDot = false; float dotU = .5f, dotV = .5f;
   bool crt = false;
   float u0 = 0, uw = 1;   // the part of the picture this eye sees (side-by-side stereo)
+  float v0 = 0, vh = 1;   // and its rows (a letterboxed picture)
   bool frame = true; float fadeU = 0, fadeV = 0;   // dark frame; edges fading into the dark
   // The HUD panel: either one picture with alpha (sRGB, premultiplied), or the layer over black and over white
   // (linear 8-bit values as the game drew them), whose difference gives the alpha.
@@ -379,8 +380,8 @@ public:
       "void main(){gl_Position=mvp*vec4(p,1);uv0=t;}",
       // Sharp bilinear: whole texels stay crisp when magnified, edges blend over one screen
       // pixel; minified pictures use the mipmaps. Optional CRT scanlines.
-      "#version 330 core\nin vec2 uv0;uniform sampler2D picture;uniform vec2 size,range,fade;uniform int crt,encode;out vec4 o;"
-      "void main(){vec2 uv=vec2(range.x+uv0.x*range.y,uv0.y);vec2 texel=uv*size;vec2 ppt=1./max(fwidth(texel),vec2(1e-5));vec3 c;"
+      "#version 330 core\nin vec2 uv0;uniform sampler2D picture;uniform vec2 size,range,rows,fade;uniform int crt,encode;out vec4 o;"
+      "void main(){vec2 uv=vec2(range.x+uv0.x*range.y,rows.x+uv0.y*rows.y);vec2 texel=uv*size;vec2 ppt=1./max(fwidth(texel),vec2(1e-5));vec3 c;"
       "if(min(ppt.x,ppt.y)<1.)c=texture(picture,uv).rgb;else{vec2 k=floor(ppt);vec2 f=fract(texel)-.5;"
       "vec2 r=.5-.5/k;vec2 g=(f-clamp(f,-r,r))*k+.5;c=textureGrad(picture,(floor(texel)+g)/size,dFdx(uv),dFdy(uv)).rgb;}"
       "if(crt!=0){float s=abs(fract(texel.y)-.5)*2.;c*=mix(1.,.62,s*s);}"
@@ -440,6 +441,7 @@ public:
       tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_screenProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
       tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "size"), (float)s.pictureW, (float)s.pictureH);
       tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "range"), s.u0, s.uw);
+      tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "rows"), s.v0, s.vh);
       tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "fade"), s.fadeU, s.fadeV);
       tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "crt"), s.crt ? 1 : 0);
       tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "encode"), encode ? 1 : 0);

@@ -663,6 +663,8 @@ theatre::Config TheatreConfig()
   const float aspect = g_av.geometry.aspect_ratio;
   c.aspect = aspect > .1f ? aspect : 4.f / 3.f;
   c.sideBySide = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f || glstereo::StereoOn();
+  // The 3DS core's side-by-side frames keep its 5:3 size and letterbox each eye in the middle half of the rows.
+  c.letterbox = std::clamp(EnvFloat("ACVR_PS1_LETTERBOX", 0.f), 0.f, .45f);
   c.aimDot = !PadMode() || EnvFloat("ACVR_PAD_AIM_DOT", 0.f) != 0.f;   // pad games show their own crosshair, if any
   // Wide view: the picture holds 1/kx of the game's width and 1/ky of its height, so the surface is that much
   // wider (ACVR_PS1_SCREEN_W gives its width): no frame, edges fading into the dark.
@@ -698,7 +700,8 @@ void Usage()
     "         [--theatre-proof <prefix> --test-aim U V] [--state <saved state to start from>]\n"
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
     "         ACVR_PS1_LIFT (m), ACVR_PS1_CRT (1: scanlines), ACVR_PS1_GUN_MODEL (.glb), ACVR_PS1_GUN_META (.toml),\n"
-    "         ACVR_PS1_AIM (per-game aim trim: x scale,x shift,y scale,y shift).\n"
+    "         ACVR_PS1_AIM (per-game aim trim: x scale,x shift,y scale,y shift),\n"
+    "         ACVR_PS1_SBS (1: side-by-side eyes), ACVR_PS1_LETTERBOX (share of rows cut top and bottom, 3DS: .25).\n"
     "Clean quit: hold left Y (Index: left B) for 3 s, Escape, or create ACVR_PS1_STOP_FILE.\n");
 }
 

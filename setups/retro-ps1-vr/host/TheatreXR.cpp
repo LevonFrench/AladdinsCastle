@@ -346,6 +346,7 @@ void ThreadBody()
         if ((!placed || (GetAsyncKeyState(VK_HOME) & 0x8000)) && XR_SUCCEEDED(p_xrLocateSpace(s_view, s_local, fs.predictedDisplayTime, &head))) { screen = PlaceScreen(head.pose); placed = true; }
         EyeScene scene; scene.screen = screen; scene.crt = s_config.crt;
         if (s_config.sideBySide) scene.uw = .5f;
+        scene.v0 = s_config.letterbox; scene.vh = 1 - 2 * s_config.letterbox;
         scene.frame = s_config.frame; scene.fadeU = s_config.edgeFade; scene.fadeV = s_config.edgeFade * s_config.aspect;
         {
           std::lock_guard<std::mutex> lock(s_slotMutex); s_inUse = s_front; if (s_front >= 0) { scene.picture = s_slots[s_front].tex; scene.pictureW = s_slots[s_front].w; scene.pictureH = s_slots[s_front].h; }
@@ -537,6 +538,11 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
 {
   try {
     if (!tgl::Load()) throw std::runtime_error("OpenGL 3.3 entry points unavailable");
+    // A hardware core shares this context: drop the errors it left and the pixel state that would bend the upload and the read back.
+    for (int i = 0; i < 32 && glGetError() != GL_NO_ERROR; ++i) {}
+    tgl::BindBuffer(GL_PIXEL_PACK_BUFFER, 0); tgl::BindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); glPixelStorei(GL_UNPACK_ALIGNMENT, 4); glPixelStorei(GL_PACK_ROW_LENGTH, 0); glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glDisable(GL_SCISSOR_TEST); glDisable(GL_STENCIL_TEST);
     LoadGun(config);
     Slot picture; UploadInto(picture, xrgb, w, h);
     Renderer renderer; renderer.init(s_gun.loaded() ? &s_gun : nullptr);
@@ -555,6 +561,7 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     float u = -1, v = -1; const bool on = screen.hit(hand, dir, u, v);
     EyeScene scene; scene.screen = screen; scene.crt = config.crt; scene.picture = picture.tex; scene.pictureW = picture.w; scene.pictureH = picture.h;
     if (config.sideBySide) scene.uw = .5f;
+    scene.v0 = config.letterbox; scene.vh = 1 - 2 * config.letterbox;
     scene.frame = config.frame; scene.fadeU = config.edgeFade; scene.fadeV = config.edgeFade * config.aspect;
     Slot hud;
     if (config.hud && hudArgb && hudW && hudH) { UploadInto(hud, hudArgb, hudW, hudH); scene.hud = hud.tex; scene.hudPanel = HudPanel(screen, config); scene.hudOpacity = config.hudOpacity; scene.hudKeyBlack = config.hudKeyBlack; }
