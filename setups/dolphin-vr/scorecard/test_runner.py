@@ -74,6 +74,108 @@ class RunnerTests(unittest.TestCase):
         return receipt, script
 
     @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_checkpoint_shots_require_live_observation(self):
+        self.args.checkpoint_shots = True
+        for live, observe in ((False, 30), (True, None)):
+            self.args.live_input, self.args.observe_until = live, observe
+            with mock.patch.object(runner.subprocess, 'Popen') as popen:
+                with self.assertRaises(ValueError):
+                    runner.run(self.args)
+                popen.assert_not_called()
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_checkpoint_shots_stay_in_fresh_private_user_and_are_not_measurement_acceptance(self):
+        self.args.checkpoint_shots = True
+        self.args.live_input = True
+        self.args.observe_until = 30
+        child = mock.Mock(pid=12345, returncode=0)
+        child.poll.return_value = 0
+        with mock.patch.object(runner.subprocess, 'Popen', return_value=child) as popen, mock.patch('builtins.print'):
+            runner.run(self.args)
+        run = self.out / 'runs/demo-native-test'
+        receipt = json.loads((run / 'run.json').read_text())
+        self.assertEqual(popen.call_args.kwargs['env']['DOLPHINXR_INPUT_CHECKPOINT_DIR'], str(run / 'User/StateSaves'))
+        self.assertEqual(receipt['checkpoint_files'], {})
+        self.assertFalse(receipt['accepted_as_measurement'])
+        self.assertFalse(receipt['measurement_window_complete'])
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_end_capture_rejects_navigation_and_observation_modes_before_launch(self):
+        self.args.end_capture = True
+        for live, observe in ((True, None), (False, 30)):
+            self.args.live_input, self.args.observe_until = live, observe
+            with mock.patch.object(runner.subprocess, 'Popen') as popen:
+                with self.assertRaises(ValueError):
+                    runner.run(self.args)
+                popen.assert_not_called()
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_end_capture_is_requested_only_after_completed_trace_window(self):
+        self.args.end_capture = True
+        self.args.start = 100.0
+        run = self.out / 'runs/demo-native-test'
+        child = mock.Mock(pid=12345, returncode=0)
+        child.poll.return_value = None
+        header = 'wall_ns,emulated_ticks,ticks_per_second\n'
+
+        def spawn(*unused, **ignored):
+            (run / 'frames.csv').write_text(header + '0,10000,100\n')
+            (run / 'User/Logs/dolphin.log').write_text('AC stereo probe: OpenXR not initialized; synthetic eyes.\n')
+            return child
+
+        def advance(seconds):
+            inbox = run / 'end-capture.txt'
+            if any(line.startswith('shot ') for line in inbox.read_text().splitlines()):
+                target = run / 'User/ScreenShots/demo/ac-window-end.png'
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(b'synthetic file-presence fixture, not PNG acceptance')
+            else:
+                self.assertFalse(list((run / 'User/ScreenShots').rglob('*.png')))
+                (run / 'frames.csv').write_text(header + '0,10000,100\n65000000000,17000,100\n')
+
+        with mock.patch.object(runner.subprocess, 'Popen', side_effect=spawn) as popen, \
+                mock.patch.object(runner.time, 'monotonic', return_value=0), \
+                mock.patch.object(runner.time, 'sleep', side_effect=advance), mock.patch('builtins.print'):
+            runner.run(self.args)
+        receipt = json.loads((run / 'run.json').read_text())
+        self.assertEqual(receipt['end_capture_request'], {'after_window_wall_seconds': 65.0, 'at_emulated_s': 175.0})
+        self.assertIn('shot 175.000 ac-window-end', (run / 'end-capture.txt').read_text())
+        self.assertTrue(receipt['measurement_window_complete'])
+        self.assertFalse(receipt['accepted_as_measurement'])
+        self.assertIsNone(receipt['live_input_path'])
+        self.assertEqual(len(receipt['end_capture_paths']), 1)
+        self.assertEqual(popen.call_args.kwargs['env']['DOLPHINXR_INPUT_APPEND'], str(run / 'end-capture.txt'))
+        child.terminate.assert_called_once()
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_end_capture_marker_aborts_owned_child_without_extra_flush(self):
+        self.args.end_capture = True
+        self.args.start = 100.0
+        run = self.out / 'runs/demo-native-test'
+        child = mock.Mock(pid=12345, returncode=0)
+        child.poll.return_value = None
+        header = 'wall_ns,emulated_ticks,ticks_per_second\n'
+        def spawn(*unused, **ignored):
+            (run / 'frames.csv').write_text(header + '0,10000,100\n')
+            return child
+        def advance(seconds):
+            if seconds == 0.5:
+                (run / 'frames.csv').write_text(header + '0,10000,100\n65000000000,17000,100\n')
+            elif seconds == 0.2:
+                self.marker.touch()
+            else:
+                self.fail('Headset marker must skip the extra screenshot flush')
+        with mock.patch.object(runner.subprocess, 'Popen', side_effect=spawn), \
+                mock.patch.object(runner.time, 'monotonic', return_value=0), \
+                mock.patch.object(runner.time, 'sleep', side_effect=advance), mock.patch('builtins.print'):
+            runner.run(self.args)
+        receipt = json.loads((run / 'run.json').read_text())
+        self.assertEqual(receipt['stop_reason'], 'headset_marker')
+        self.assertFalse(receipt['measurement_window_complete'])
+        self.assertEqual(receipt['end_capture_paths'], [])
+        child.terminate.assert_called_once()
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
     def test_single_core_option_replaces_default_without_weakening_offline_guards(self):
         fragment = configparser.ConfigParser()
         fragment.read(WORKTREE / 'setups/dolphin-vr/metroid-prime-trilogy/single-core.ini')
@@ -94,6 +196,7 @@ class RunnerTests(unittest.TestCase):
         child.poll.return_value = 0
         with mock.patch.dict(os.environ, {'DOLPHINXR_INPUT_SAVE_PATH': 'must-not-write',
                                          'DOLPHINXR_INPUT_SAVE_AT': '0',
+                                         'DOLPHINXR_INPUT_CHECKPOINT_DIR': 'must-not-write',
                                          'AC_W2_PRESERVE_STEREO_XFB': '1'}), \
                 mock.patch.object(runner.subprocess, 'Popen', return_value=child) as popen, \
                 mock.patch('builtins.print'):
@@ -101,6 +204,7 @@ class RunnerTests(unittest.TestCase):
         env = popen.call_args.kwargs['env']
         self.assertNotIn('DOLPHINXR_INPUT_SAVE_PATH', env)
         self.assertNotIn('DOLPHINXR_INPUT_SAVE_AT', env)
+        self.assertNotIn('DOLPHINXR_INPUT_CHECKPOINT_DIR', env)
         self.assertNotIn('AC_W2_PRESERVE_STEREO_XFB', env)
         self.assertNotIn('-s', popen.call_args.args[0])
 

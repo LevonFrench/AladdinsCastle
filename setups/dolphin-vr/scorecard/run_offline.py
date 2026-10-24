@@ -71,6 +71,12 @@ def run(args):
         raise ValueError('This runner requires Windows hidden-process support.')
     observe_until = getattr(args, 'observe_until', None)
     live_input = getattr(args, 'live_input', False)
+    end_capture = getattr(args, 'end_capture', False)
+    checkpoint_shots = getattr(args, 'checkpoint_shots', False)
+    if checkpoint_shots and (not live_input or observe_until is None):
+        raise ValueError('--checkpoint-shots requires a bounded live-input observation.')
+    if end_capture and (live_input or observe_until is not None):
+        raise ValueError('--end-capture is for timing runs without live navigation.')
     save_at = getattr(args, 'save_state_at', None)
     load_state = getattr(args, 'load_state', None)
     if save_at is not None:
@@ -234,13 +240,18 @@ def run(args):
                DOLPHINXR_INPUT_SCRIPT=str(script),
                DOLPHINXR_INPUT_PROBE=str(run_dir / 'probe.log'))
     inbox = run_dir / 'live-input.txt'
+    if end_capture:
+        inbox = run_dir / 'end-capture.txt'
     stop_file = run_dir / 'STOP'
-    if live_input:
+    if live_input or end_capture:
         inbox.write_text('# Append future timed input or screenshot commands only.\n', encoding='utf-8')
         env['DOLPHINXR_INPUT_APPEND'] = str(inbox)
     state_path = user / 'StateSaves' / 'route.sav'
+    if checkpoint_shots:
+        state_path.parent.mkdir(exist_ok=True)
+        env['DOLPHINXR_INPUT_CHECKPOINT_DIR'] = str(state_path.parent)
     if save_at is not None:
-        state_path.parent.mkdir()
+        state_path.parent.mkdir(exist_ok=True)
         env['DOLPHINXR_INPUT_SAVE_AT'] = str(save_at)
         env['DOLPHINXR_INPUT_SAVE_PATH'] = str(state_path)
     receipt = {'game_key': args.game, 'view': view_id, 'rate': args.rate,
@@ -254,10 +265,14 @@ def run(args):
                'load_state_sha256': digest(load_state) if load_state else None,
                'save_state_at_emulated_s': save_at,
                'save_state_path': str(state_path) if save_at is not None else None,
+               'checkpoint_shots_enabled': checkpoint_shots,
+               'checkpoint_directory': str(state_path.parent) if checkpoint_shots else None,
                'experimental_xfb_patch_requested': False,
                'window_start_emulated_s': start, 'marker': str(marker),
                'observe_until_emulated_s': observe_until,
                'live_input_path': str(inbox) if live_input else None,
+               'end_capture_enabled': end_capture,
+               'end_capture_inbox': str(inbox) if end_capture else None,
                'operator_stop_path': str(stop_file) if live_input else None,
                'capture_policy': args.capture_policy,
                'scheduled_capture_emulated_seconds': sorted(shots),
@@ -316,20 +331,38 @@ def run(args):
                                 reason = 'complete_wall_window'
                         break
                     if reason in ('complete_wall_window', 'observation_end'):
+                        if end_capture:
+                            # The trace has already covered65wall seconds after
+                            # the anchor. Request PNG work only AFTER that window.
+                            shot_at = emulated + 5
+                            with inbox.open('a', encoding='utf-8') as commands:
+                                commands.write(f'shot {shot_at:.3f} ac-window-end\n')
+                            receipt['end_capture_request'] = {
+                                'after_window_wall_seconds': wall - window_wall_origin,
+                                'at_emulated_s': shot_at,
+                            }
+                            until = min(start_wall + args.seconds, time.monotonic() + 12)
+                            while child.poll() is None and time.monotonic() < until:
+                                if marker.exists():
+                                    reason = 'headset_marker'; break
+                                if list((user / 'ScreenShots').rglob('ac-window-end.png')):
+                                    break
+                                time.sleep(0.2)
                         # Let an in-flight screenshot finish before the bounded
                         # owned-process stop. Observation mode claims no window.
-                        time.sleep(3)
+                        if reason != 'headset_marker':
+                            time.sleep(3)
                         break
                 log = user / 'Logs/dolphin.log'
                 if time.monotonic() - start_wall > 30:
                     guard_text = log.read_text(encoding='utf-8', errors='replace') if log.is_file() else ''
                     if 'AC stereo probe: OpenXR not initialized; synthetic eyes.' not in guard_text:
                         reason = 'missing_synthetic_guard'; break
-                    if live_input:
+                    if live_input or end_capture:
                         probe_log = run_dir / 'probe.log'
                         probe_text = probe_log.read_text(encoding='utf-8', errors='replace') if probe_log.is_file() else ''
                         if 'AC_INPUT_APPEND ready' not in probe_text:
-                            reason = 'missing_live_input_guard'; break
+                            reason = 'missing_end_capture_guard' if end_capture else 'missing_live_input_guard'; break
                 time.sleep(0.5)
         finally:
             if child.poll() is None:
@@ -350,6 +383,11 @@ def run(args):
         receipt['save_state_sha256'] = digest(state_path) if receipt['save_state_written'] else None
     if live_input:
         receipt['live_input_sha256'] = digest(inbox)
+    if end_capture:
+        receipt['end_capture_inbox_sha256'] = digest(inbox)
+        receipt['end_capture_paths'] = [p for p in receipt['screenshots'] if Path(p).name == 'ac-window-end.png']
+    if checkpoint_shots:
+        receipt['checkpoint_files'] = {str(p): digest(p) for p in state_path.parent.glob('checkpoint-*.sav')}
     (run_dir / 'run.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
     print(json.dumps({k: receipt[k] for k in ('game_key', 'rate', 'stop_reason', 'wall_duration_s', 'synthetic_guard_logged', 'run_dir')}), flush=True)
 
@@ -372,6 +410,10 @@ def main():
     ap.add_argument('--save-state-at', type=float,
                     help='observation only: request a private run-local checkpoint at this emulated time')
     ap.add_argument('--load-state', help='explicit private .local savestate; compatibility and scene need review')
+    ap.add_argument('--end-capture', action='store_true',
+                    help='timing only: request an in-program PNG after the65second trace window, for stage review')
+    ap.add_argument('--checkpoint-shots', action='store_true',
+                    help='observation only: compatible probe saves a private state beside each checkpoint-* screenshot')
     ap.add_argument('--input-until', type=float, help='omit later input events, such as a scripted pause')
     ap.add_argument('--seconds', type=int, default=600)
     ap.add_argument('--yaw', type=float, default=0)

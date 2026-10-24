@@ -11,6 +11,7 @@
 //                                Nunchuk stick/buttons/accel).
 // DOLPHINXR_INPUT_APPEND=<file> optional append-only future commands, synthetic offline only.
 // DOLPHINXR_INPUT_SAVE_AT / SAVE_PATH request one observation-only private checkpoint.
+// DOLPHINXR_INPUT_CHECKPOINT_DIR pairs safe checkpoint-* shots with private states, offline only.
 //
 // Script lines: "<from_s> <to_s> <L|R> <control> <value>" or "shot <at_s> <name>".
 // Controls: primary secondary menu thumbclick trigger squeeze stick_x stick_y
@@ -25,6 +26,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <filesystem>
 #include <sstream>
 #include <string>
 #include <variant>
@@ -292,6 +294,22 @@ inline void Feed(double t)
     {
       shot.done = true;
       Core::SaveScreenShot(shot.name);
+      const char* directory = std::getenv("DOLPHINXR_INPUT_CHECKPOINT_DIR");
+      const char* gate = std::getenv("AC_STEREO_PROBE");
+      if (directory && *directory && gate && std::string(gate) == "1" && !VR::g_openxr &&
+          s.probe && shot.name.rfind("checkpoint-", 0) == 0 && Append::SafeName(shot.name))
+      {
+        const std::string filename = (std::filesystem::path(directory) / (shot.name + ".sav")).string();
+        Core::QueueHostJob([filename](Core::System& system) {
+          const char* opt_in = std::getenv("AC_STEREO_PROBE");
+          std::error_code error;
+          if (opt_in && std::string(opt_in) == "1" && !VR::g_openxr &&
+              !std::filesystem::exists(filename, error) && !error)
+            ::State::SaveAs(system, filename);
+        });
+        std::fprintf(s.probe, "t=%.3f AC_INPUT_STATE checkpoint_requested %s\n", t, shot.name.c_str());
+        std::fflush(s.probe);
+      }
       if (s.probe)
       {
         std::fprintf(s.probe, "t=%.3f shot %s\n", t, shot.name.c_str());
