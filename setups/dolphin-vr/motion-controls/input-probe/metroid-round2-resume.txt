@@ -1,0 +1,9 @@
+# E2 independent restore of private R3ME01-tutorial-245.sav; camera movement observed.
+# Button/Z reports reach the game; successful target lock/shot remains unverified.
+# Resume near245. Independent walking/lock/shot probe; all times use the saved clock.
+246 250 L stick_y -1
+252 256 L stick_x 1
+258 262 L stick_x -1
+264 272 L trigger 1
+266 266.35 R trigger 1
+268 268.35 R trigger 1
