@@ -231,7 +231,7 @@ def identify(path, system, seconds=20, seen=None, base_offset=0):
             read = compressed_reader(f, ext[1:], deadline)
         if ext == '.gz':
             stream = gzip.GzipFile(fileobj=f)
-            window = b''
+            window = bytearray()
             position = 0
 
             def read(offset, count):
@@ -241,7 +241,7 @@ def identify(path, system, seconds=20, seen=None, base_offset=0):
                 if offset < position - len(window):
                     stream.close()
                     f.seek(0)
-                    stream, window, position = gzip.GzipFile(fileobj=f), b'', 0
+                    stream, window, position = gzip.GzipFile(fileobj=f), bytearray(), 0
                 while position < offset + count:
                     if time.monotonic() >= deadline:
                         raise Unread('gzip time budget')
@@ -249,9 +249,11 @@ def identify(path, system, seconds=20, seen=None, base_offset=0):
                     if not piece:
                         raise Unread('truncated gzip ISO')
                     position += len(piece)
-                    window = (window + piece)[-4 * MIB:]
+                    window.extend(piece)
+                    if len(window) > 8 * MIB:
+                        del window[:len(window) - 4 * MIB]
                 at = offset - (position - len(window))
-                return window[at:at + count]
+                return bytes(window[at:at + count])
         if system in {'ps2', 'psx'}:
             return iso_serial(read)
         start = read(0, 32)
@@ -348,7 +350,7 @@ def self_test():
         data = bytearray(disc + 0x100000)
         struct.pack_into('<4sI8I', data, 0, b'\0PBP', 0x10000, *([psar] * 8))
         if multidisc:
-            data[psar:psar + 16] = b'PSTITLEIMG000000\0'
+            data[psar:psar + 16] = b'PSTITLEIMG000000'
             put32(data, psar + 0x200, disc - psar)
             # A bogus second disc pointer must never replace the first disc.
             put32(data, psar + 0x204, 0xfffffff0)

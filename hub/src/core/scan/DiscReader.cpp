@@ -71,14 +71,14 @@ struct Disc {
   if(!gzipReady||at<gzipEnd-quint64(gzipWindow.size())){
    if(gzipReady){inflateEnd(&gzip);}gzip={};gzipReady=false;gzipEnd=0;gzipWindow.clear();
    if(!file.seek(0)||inflateInit2(&gzip,31)!=Z_OK)return fail("Gzip inflater initialization failed");
-   gzipReady=true;gzipInput.resize(64*1024);
+   gzipReady=true;gzipInput.resize(64*1024);gzipWindow.reserve(8*MiB+65536);
   }
   QByteArray buffer(64*1024,0);int status=Z_OK;
   while(gzipEnd<at+count&&!stopped()){
    if(!gzip.avail_in){const auto n=file.read(gzipInput.data(),gzipInput.size());if(n<=0)break;gzip.next_in=reinterpret_cast<Bytef *>(gzipInput.data());gzip.avail_in=uInt(n);}
    gzip.next_out=reinterpret_cast<Bytef *>(buffer.data());gzip.avail_out=uInt(buffer.size());
    const auto before=gzip.avail_in;status=inflate(&gzip,Z_NO_FLUSH);const auto n=quint64(buffer.size())-gzip.avail_out;decoded+=n;gzipEnd+=n;
-   gzipWindow+=buffer.left(qsizetype(n));if(gzipWindow.size()>4*MiB)gzipWindow.remove(0,gzipWindow.size()-4*MiB);
+   gzipWindow+=buffer.left(qsizetype(n));if(gzipWindow.size()>8*MiB)gzipWindow.remove(0,gzipWindow.size()-4*MiB);
    if(status!=Z_OK||(n==0&&gzip.avail_in==before))break;
   }
   const auto start=gzipEnd-quint64(gzipWindow.size());

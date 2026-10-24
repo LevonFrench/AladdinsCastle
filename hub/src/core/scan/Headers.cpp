@@ -755,7 +755,7 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
   if (r.kind.isEmpty())
     r.error = "Unsupported header";
   if(cancel){r.identity.clear();r.error="Cancelled";}
-  if(!r.error.isEmpty())r.identity.clear();
+  if(!r.error.isEmpty()&&r.kind!="chd-sha1")r.identity.clear();
   return r;
 }
 } // namespace ac::scan

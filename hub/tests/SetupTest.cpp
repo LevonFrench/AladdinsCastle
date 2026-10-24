@@ -497,7 +497,7 @@ private slots:
     const QVariantMap settings{{"dreamcastGameFolder",folder},{"dreamcastExecutable",program}};
     auto result=ac::setup::scanSystem("dreamcast",settings,{},{},cancel);
     // The US release has the full profile even though a second, unprofiled disc of the same game is present.
-    QVERIFY(entry(result,"ready","hotd2")["detail"].toString().contains("US release"));QVERIFY(entry(result,"ready","hotd2")["file"].toString().endsWith("first.gdi"));
+    QVERIFY(entry(result,"ready","hotd2")["detail"].toString().contains("USA release"));QVERIFY(entry(result,"ready","hotd2")["file"].toString().endsWith("first.gdi"));
     // Confidential Mission (US) has its own VR profile since 2026-10-20: found and ready.
     QVERIFY(!entry(result,"ready","confmiss").isEmpty());QVERIFY(entry(result,"notRight","confmiss").isEmpty());
     QVERIFY(entry(result,"notRight","dcrimson2")["reason"].toString().contains("no VR profile"));
