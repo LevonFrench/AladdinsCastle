@@ -10,7 +10,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { loadModel } from './models.js?v=20261023d';
+import { loadModel } from './models.js?v=20261023r';
 import { paint, GlyphAtlas, cellAspect } from './ascii/runtime/canvas.js';
 
 const canvas = document.getElementById('scene');
