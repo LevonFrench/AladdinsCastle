@@ -1,0 +1,23 @@
+# Restore private Ordon opening-dialogue state669 after the existing boot route. AC Motion Zelda.
+# E2 correct-axis Nunchuk movement795-802; state803 independently restores Ordon field.
+# Invalid initial axis spelling excluded. No later combat, native or headset claim.
+670 670.3 R primary 1
+673 673.3 R primary 1
+676 676.3 R primary 1
+679 679.3 R primary 1
+682 682.3 R primary 1
+685 685.3 R primary 1
+688 688.3 R primary 1
+691 691.3 R primary 1
+694 694.3 R primary 1
+697 697.3 R primary 1
+700 700.3 R primary 1
+shot 703 zelda-after-opening-pages
+shot 706 zelda-walk-first
+shot 711 zelda-walk-later
+shot 714 checkpoint-zelda-after-opening-pages
+795.000 798.000 L stick_x 0.8
+shot 796.500 zelda-walk-right
+799.000 802.000 L stick_y -0.8
+shot 800.500 zelda-walk-back
+shot 803.000 checkpoint-zelda-controlled-world

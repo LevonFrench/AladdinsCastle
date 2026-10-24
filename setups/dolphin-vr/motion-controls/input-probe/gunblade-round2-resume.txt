@@ -1,0 +1,23 @@
+# Restore private SQDE8P-area1-active-281.sav; explicit Gunblade gun profile.
+# E2 four yellow-marker extremes, B-fire effects, advancing counter and later health loss.
+# Press A prompt alone is not play proof. No scored kill, sustained60seconds, native or headset claim. End310 or later.
+shot 281.1 gunblade-resume-before
+281.200 281.450 R u -0.95
+281.200 281.450 R v 0.95
+shot 281.360 gunblade-resume-corner-tl
+281.500 281.750 R u 0.95
+281.500 281.750 R v 0.95
+shot 281.660 gunblade-resume-corner-tr
+281.800 282.050 R u -0.95
+281.800 282.050 R v -0.95
+shot 281.960 gunblade-resume-corner-bl
+282.100 282.350 R u 0.95
+282.100 282.350 R v -0.95
+shot 282.260 gunblade-resume-corner-br
+283 301 R u 0
+283 301 R v 0
+284 300 R trigger 1
+shot 284.3 gunblade-resume-fire
+shot 287 gunblade-resume-fire-progress
+shot 292 gunblade-resume-later
+shot 300 gunblade-resume-end

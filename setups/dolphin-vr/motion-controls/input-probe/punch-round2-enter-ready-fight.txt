@@ -1,0 +1,26 @@
+# Restore the private controller-ready Sideways pause state1094. AC Pad Sideways; Source3 copied seed.
+# Resume uses u0/v0.18, A and Wii2; state1166 is direct Round1.
+# E2 mono1x/single-core: punch animation/stamina/clock. Natural motion, clean dodge and victory unproved.
+1095 1400 R u 0
+1095 1400 R v 0.18
+shot 1096 punch-resume-hover-only
+1163.000 1163.350 R squeeze 1
+shot 1164.000 punch-confirmed-resume-a
+1164.500 1164.750 R primary 1
+shot 1165.000 punch-confirmed-resume-two
+shot 1166.000 checkpoint-punch-actual-sideways-round
+1167.000 1167.200 R trigger 1
+shot 1167.100 punch-actual-hit-0
+1168.000 1168.200 R primary 1
+shot 1168.100 punch-actual-hit-1
+1169.000 1169.200 R trigger 1
+shot 1169.100 punch-actual-hit-2
+1170.000 1170.200 R primary 1
+shot 1170.100 punch-actual-hit-3
+1171.000 1171.200 R trigger 1
+shot 1171.100 punch-actual-hit-4
+1172.000 1172.200 R primary 1
+shot 1172.100 punch-actual-hit-5
+1173.000 1173.200 R trigger 1
+shot 1173.100 punch-actual-hit-6
+shot 1176.000 checkpoint-punch-actual-after-hits

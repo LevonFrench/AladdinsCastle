@@ -1,0 +1,14 @@
+# Restore private RBUP08-train-combat-495.sav. Four live extremes in the first0.9emu seconds.
+# E2 qualitative reticle reach; edge gauge clips. No numeric calibration or sustained window. End502 or later.
+495.100 495.280 R u -0.95
+495.100 495.280 R v 0.95
+shot 495.230 umbrella-quick-tl
+495.300 495.480 R u 0.95
+495.300 495.480 R v 0.95
+shot 495.430 umbrella-quick-tr
+495.500 495.680 R u -0.95
+495.500 495.680 R v -0.95
+shot 495.630 umbrella-quick-bl
+495.700 495.880 R u 0.95
+495.700 495.880 R v -0.95
+shot 495.830 umbrella-quick-br
