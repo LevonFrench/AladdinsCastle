@@ -10,6 +10,7 @@
 //                                reports to the game (buttons, accel, IR dot, MotionPlus,
 //                                Nunchuk stick/buttons/accel).
 // DOLPHINXR_INPUT_APPEND=<file> optional append-only future commands, synthetic offline only.
+// DOLPHINXR_INPUT_SAVE_AT / SAVE_PATH request one observation-only private checkpoint.
 //
 // Script lines: "<from_s> <to_s> <L|R> <control> <value>" or "shot <at_s> <name>".
 // Controls: primary secondary menu thumbclick trigger squeeze stick_x stick_y
@@ -33,6 +34,7 @@
 #include "Core/ACInputAppend.h"
 #include "Core/Core.h"
 #include "Core/HW/WiimoteEmu/DesiredWiimoteState.h"
+#include "Core/State.h"
 #include "VideoCommon/VR/OpenXRManager.h"
 
 namespace ACInputProbe
@@ -64,6 +66,7 @@ struct State
   Append::Inbox inbox;
   std::size_t fixed_steps = 0, fixed_shots = 0;
   bool append_purged = false;
+  bool save_requested = false;
 };
 
 inline State& Get()
@@ -132,6 +135,25 @@ inline void Feed(double t)
   // Feed's BTEmu call site is only ENABLE_VR-guarded. Restrict the NEW inbox
   // explicitly; never infer offline status from the synthetic input snapshot.
   const char* synthetic = std::getenv("AC_STEREO_PROBE");
+  if (!s.save_requested && s.probe && synthetic && std::string(synthetic) == "1" && !VR::g_openxr)
+  {
+    const char* at = std::getenv("DOLPHINXR_INPUT_SAVE_AT");
+    const char* path = std::getenv("DOLPHINXR_INPUT_SAVE_PATH");
+    char* end = nullptr;
+    const double when = at ? std::strtod(at, &end) : -1;
+    if (at && end != at && *end == '\0' && std::isfinite(when) && when >= 0 && path && *path && t >= when)
+    {
+      s.save_requested = true;
+      // Leave the input callback before serializing the emulated machine.
+      Core::QueueHostJob([filename = std::string(path)](Core::System& system) {
+        const char* gate = std::getenv("AC_STEREO_PROBE");
+        if (gate && std::string(gate) == "1" && !VR::g_openxr)
+          ::State::SaveAs(system, filename);
+      });
+      std::fprintf(s.probe, "t=%.3f AC_INPUT_STATE save_requested\n", t);
+      std::fflush(s.probe);
+    }
+  }
   if (!s.append_path.empty() && !s.append_purged && s.probe && synthetic && std::string(synthetic) == "1" &&
       !VR::g_openxr)
   {

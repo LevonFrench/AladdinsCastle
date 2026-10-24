@@ -71,6 +71,15 @@ def run(args):
         raise ValueError('This runner requires Windows hidden-process support.')
     observe_until = getattr(args, 'observe_until', None)
     live_input = getattr(args, 'live_input', False)
+    save_at = getattr(args, 'save_state_at', None)
+    load_state = getattr(args, 'load_state', None)
+    if save_at is not None:
+        if observe_until is None or not math.isfinite(save_at) or not 0 <= save_at <= observe_until - 5:
+            raise ValueError('Saving a state requires observation mode and a five-second completion gap.')
+    if load_state:
+        load_state = Path(load_state).resolve(strict=True)
+        if '.local' not in load_state.parts or not load_state.is_file():
+            raise ValueError('Load only an explicitly selected private .local savestate.')
     if live_input and observe_until is None:
         raise ValueError('--live-input requires --observe-until; navigation is not a timing pass.')
     if observe_until is not None:
@@ -207,8 +216,11 @@ def run(args):
     for c in config:
         argv.extend(['-C', c])
     argv.extend(['-e', str(disc)])
+    if load_state:
+        argv.extend(['-s', str(load_state)])
     env = os.environ.copy()
     env.pop('DOLPHINXR_GUN', None)
+    env.pop('AC_W2_PRESERVE_STEREO_XFB', None)
     # Never inherit a trace/capture path or unrelated probe option.
     for key in list(env):
         if key.startswith(('AC_STEREO_', 'DOLPHINXR_INPUT_')):
@@ -226,6 +238,11 @@ def run(args):
     if live_input:
         inbox.write_text('# Append future timed input or screenshot commands only.\n', encoding='utf-8')
         env['DOLPHINXR_INPUT_APPEND'] = str(inbox)
+    state_path = user / 'StateSaves' / 'route.sav'
+    if save_at is not None:
+        state_path.parent.mkdir()
+        env['DOLPHINXR_INPUT_SAVE_AT'] = str(save_at)
+        env['DOLPHINXR_INPUT_SAVE_PATH'] = str(state_path)
     receipt = {'game_key': args.game, 'view': view_id, 'rate': args.rate,
                'phase': args.phase, 'stage': 'unverified', 'argv': argv,
                'exe': str(exe), 'exe_sha256': digest(exe),
@@ -233,6 +250,11 @@ def run(args):
                'script_source': str(original_script), 'script_sha256': digest(script),
                'input_until_emulated_s': args.input_until,
                'seed_user': str(seed), 'settings_source': str(live),
+               'load_state': str(load_state) if load_state else None,
+               'load_state_sha256': digest(load_state) if load_state else None,
+               'save_state_at_emulated_s': save_at,
+               'save_state_path': str(state_path) if save_at is not None else None,
+               'experimental_xfb_patch_requested': False,
                'window_start_emulated_s': start, 'marker': str(marker),
                'observe_until_emulated_s': observe_until,
                'live_input_path': str(inbox) if live_input else None,
@@ -323,6 +345,9 @@ def run(args):
     receipt['screenshots'] = [str(p) for p in (user / 'ScreenShots').rglob('*.png')]
     receipt['measurement_window_complete'] = observe_until is None and reason == 'complete_wall_window'
     receipt['accepted_as_measurement'] = False  # analysis and stage review are required
+    if save_at is not None:
+        receipt['save_state_written'] = state_path.is_file() and state_path.stat().st_size > 0
+        receipt['save_state_sha256'] = digest(state_path) if receipt['save_state_written'] else None
     if live_input:
         receipt['live_input_sha256'] = digest(inbox)
     (run_dir / 'run.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
@@ -344,6 +369,9 @@ def main():
                     help='stop after this emulated time plus a 3s flush; observation only, no timing-window claim')
     ap.add_argument('--live-input', action='store_true',
                     help='observation-only append inbox for a compatible offline probe; never drives desktop input')
+    ap.add_argument('--save-state-at', type=float,
+                    help='observation only: request a private run-local checkpoint at this emulated time')
+    ap.add_argument('--load-state', help='explicit private .local savestate; compatibility and scene need review')
     ap.add_argument('--input-until', type=float, help='omit later input events, such as a scripted pause')
     ap.add_argument('--seconds', type=int, default=600)
     ap.add_argument('--yaw', type=float, default=0)

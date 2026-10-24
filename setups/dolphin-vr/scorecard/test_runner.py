@@ -1,5 +1,6 @@
 """CPU-only safety checks for the bounded offline runner; never launch Dolphin."""
 import hashlib
+import configparser
 import json
 import os
 from pathlib import Path
@@ -71,6 +72,93 @@ class RunnerTests(unittest.TestCase):
         receipt = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
         script = (run_dir / "input.txt").read_text(encoding="utf-8")
         return receipt, script
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_single_core_option_replaces_default_without_weakening_offline_guards(self):
+        fragment = configparser.ConfigParser()
+        fragment.read(WORKTREE / 'setups/dolphin-vr/metroid-prime-trilogy/single-core.ini')
+        self.assertFalse(fragment.getboolean('Core', 'CPUThread'))
+        manifest = json.loads(self.manifest_path.read_text())
+        manifest['demo']['views']['3d']['config'] = ['Dolphin.Core.CPUThread=True']
+        self.manifest_path.write_text(json.dumps(manifest))
+        self.args.config = ['Dolphin.Core.CPUThread=' + fragment['Core']['CPUThread']]
+        receipt, _ = self.run_with_fake_exited_child()
+        self.assertEqual([x for x in receipt['argv'] if x.startswith('Dolphin.Core.CPUThread=')],
+                         ['Dolphin.Core.CPUThread=False'])
+        self.assertEqual(receipt['guard_config']['Dolphin.DSP.Muted'], 'True')
+        self.assertEqual(receipt['guard_config']['Dolphin.Interface.UsePanicHandlers'], 'False')
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_inherited_checkpoint_request_is_removed_by_default(self):
+        child = mock.Mock(pid=12345, returncode=0)
+        child.poll.return_value = 0
+        with mock.patch.dict(os.environ, {'DOLPHINXR_INPUT_SAVE_PATH': 'must-not-write',
+                                         'DOLPHINXR_INPUT_SAVE_AT': '0',
+                                         'AC_W2_PRESERVE_STEREO_XFB': '1'}), \
+                mock.patch.object(runner.subprocess, 'Popen', return_value=child) as popen, \
+                mock.patch('builtins.print'):
+            runner.run(self.args)
+        env = popen.call_args.kwargs['env']
+        self.assertNotIn('DOLPHINXR_INPUT_SAVE_PATH', env)
+        self.assertNotIn('DOLPHINXR_INPUT_SAVE_AT', env)
+        self.assertNotIn('AC_W2_PRESERVE_STEREO_XFB', env)
+        self.assertNotIn('-s', popen.call_args.args[0])
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_checkpoint_requires_observation_and_completion_gap(self):
+        for at, until in ((10, None), (float('nan'), 30), (-1, 30), (26, 30)):
+            with self.subTest(at=at, until=until):
+                self.args.save_state_at = at
+                self.args.observe_until = until
+                with mock.patch.object(runner.subprocess, 'Popen') as popen:
+                    with self.assertRaises(ValueError):
+                        runner.run(self.args)
+                    popen.assert_not_called()
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_checkpoint_output_is_fresh_run_local_and_never_timing_evidence(self):
+        self.args.save_state_at = 15.0
+        self.args.observe_until = 30.0
+        child = mock.Mock(pid=12345, returncode=0)
+        child.poll.return_value = 0
+        with mock.patch.dict(os.environ, {'DOLPHINXR_INPUT_SAVE_PATH': 'inherited-invalid-path'}), \
+                mock.patch.object(runner.subprocess, 'Popen', return_value=child) as popen, \
+                mock.patch('builtins.print'):
+            runner.run(self.args)
+        env = popen.call_args.kwargs['env']
+        state = self.out / 'runs/demo-native-test/User/StateSaves/route.sav'
+        self.assertEqual(env['DOLPHINXR_INPUT_SAVE_PATH'], str(state))
+        self.assertEqual(env['DOLPHINXR_INPUT_SAVE_AT'], '15.0')
+        receipt = json.loads((state.parents[2] / 'run.json').read_text())
+        self.assertFalse(receipt['save_state_written'])
+        self.assertFalse(receipt['measurement_window_complete'])
+        self.assertFalse(receipt['accepted_as_measurement'])
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_load_state_is_explicit_and_hashed_without_copying_or_modifying_it(self):
+        state = self.out / 'chosen.sav'
+        state.write_bytes(b'synthetic checkpoint')
+        self.args.load_state = str(state)
+        child = mock.Mock(pid=12345, returncode=0)
+        child.poll.return_value = 0
+        with mock.patch.object(runner.subprocess, 'Popen', return_value=child) as popen, \
+                mock.patch('builtins.print'):
+            runner.run(self.args)
+        argv = popen.call_args.args[0]
+        self.assertEqual(argv[argv.index('-s') + 1], str(state))
+        receipt = json.loads((self.out / 'runs/demo-native-test/run.json').read_text())
+        self.assertEqual(receipt['load_state_sha256'], runner.digest(state))
+        self.assertEqual(state.read_bytes(), b'synthetic checkpoint')
+
+    @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
+    def test_load_state_rejects_nonprivate_path_before_launch(self):
+        self.args.load_state = str(self.script)
+        # Fixture root itself is .local, so use an existing standard-library file.
+        self.args.load_state = str(Path(runner.os.__file__).resolve())
+        with mock.patch.object(runner.subprocess, 'Popen') as popen:
+            with self.assertRaises(ValueError):
+                runner.run(self.args)
+            popen.assert_not_called()
 
     @unittest.skipUnless(os.name == "nt", "runner prepares Windows process flags")
     def test_before_window_excludes_original_and_generated_timing_captures(self):

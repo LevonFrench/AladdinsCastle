@@ -1,0 +1,96 @@
+# Mario Kart Wii: Luigi Circuit time trial, verified E2 offline on the private probe.
+# Requires a private Wii user with the tested local player/save data; no data is included.
+# Checkpoint name: RMCP01-race-105.sav. Save at105 emulated seconds; reload uses the saved clock.
+# Single-core1x observations showed timer progression and Nunchuk steering. Live3x quality/pacing untested.
+# Stop before the old terminal Plus pause. See mkw-round2-resume.txt for independent restored input.
+# Mario Kart Wii, Nunchuk set: A every 1.5 s from 10 to 100 s through the default menu choices, then hold A with the Nunchuk stick left (104-110 s) and right (112-118 s).
+10.0 10.3 R primary 1
+11.5 11.8 R primary 1
+13.0 13.3 R primary 1
+14.5 14.8 R primary 1
+16.0 16.3 R primary 1
+17.5 17.8 R primary 1
+19.0 19.3 R primary 1
+20.5 20.8 R primary 1
+22.0 22.3 R primary 1
+23.5 23.8 R primary 1
+25.0 25.3 R primary 1
+26.5 26.8 R primary 1
+28.0 28.3 R primary 1
+29.5 29.8 R primary 1
+31.0 31.3 R primary 1
+32.5 32.8 R primary 1
+34.0 34.3 R primary 1
+35.5 35.8 R primary 1
+37.0 37.3 R primary 1
+38.5 38.8 R primary 1
+40.0 40.3 R primary 1
+41.5 41.8 R primary 1
+43.0 43.3 R primary 1
+44.5 44.8 R primary 1
+46.0 46.3 R primary 1
+47.5 47.8 R primary 1
+49.0 49.3 R primary 1
+50.5 50.8 R primary 1
+52.0 52.3 R primary 1
+53.5 53.8 R primary 1
+55.0 55.3 R primary 1
+56.5 56.8 R primary 1
+58.0 58.3 R primary 1
+59.5 59.8 R primary 1
+61.0 61.3 R primary 1
+62.5 62.8 R primary 1
+64.0 64.3 R primary 1
+65.5 65.8 R primary 1
+67.0 67.3 R primary 1
+68.5 68.8 R primary 1
+70.0 70.3 R primary 1
+71.5 71.8 R primary 1
+73.0 73.3 R primary 1
+74.5 74.8 R primary 1
+76.0 76.3 R primary 1
+77.5 77.8 R primary 1
+79.0 79.3 R primary 1
+80.5 80.8 R primary 1
+82.0 82.3 R primary 1
+83.5 83.8 R primary 1
+85.0 85.3 R primary 1
+86.5 86.8 R primary 1
+88.0 88.3 R primary 1
+89.5 89.8 R primary 1
+91.0 91.3 R primary 1
+92.5 92.8 R primary 1
+94.0 94.3 R primary 1
+95.5 95.8 R primary 1
+97.0 97.3 R primary 1
+98.5 98.8 R primary 1
+100.0 125.0 R primary 1
+104.0 110.0 L stick_x -1
+112.0 118.0 L stick_x 1
+shot 30 p30
+shot 35 p35
+shot 40 p40
+shot 45 p45
+shot 50 p50
+shot 55 p55
+shot 60 p60
+shot 65 p65
+shot 70 p70
+shot 75 p75
+shot 80 p80
+shot 85 p85
+shot 90 p90
+shot 95 p95
+shot 100 r100
+shot 102 r102
+shot 104 r104
+shot 106 r106
+shot 108 r108
+shot 110 r110
+shot 112 r112
+shot 114 r114
+shot 116 r116
+shot 118 r118
+shot 120 r120
+shot 122 r122
+shot 124 r124
