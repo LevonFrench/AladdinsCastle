@@ -17,6 +17,17 @@ VERSION = 1
 MIB = 1024 * 1024
 EXTENSIONS = {'.iso', '.bin', '.cue', '.gdi', '.cdi', '.chd', '.cso', '.gz',
               '.pbp', '.m3u', '.gcm', '.wbfs', '.rvz', '.wia', '.gcz', '.wad', '.nkit'}
+PROTECTED_STEMS = {'credential', 'credentials', 'license', 'licence', 'activation',
+                   'authentication', 'auth', 'token', 'tokens', 'entitlement',
+                   'entitlements', 'keychain', 'keychains'}
+PROTECTED_DIRS = {'.git', '.ssh', '.aws', '.azure', '.gnupg', '.codex', '.claude',
+                  'appdata', 'windows', 'programdata', '$recycle.bin',
+                  'system volume information', 'credentials', 'keychains',
+                  'licenses', 'licences', 'entitlements', 'auth', 'tokens'}
+
+
+def protected_name(name):
+    return Path(name).stem.casefold() in PROTECTED_STEMS or str(name).casefold() in PROTECTED_DIRS
 
 
 class Unread(Exception):
@@ -172,6 +183,8 @@ def compressed_reader(f, kind, deadline):
 
 def identify(path, system, seconds=20, seen=None, base_offset=0):
     seen = set() if seen is None else seen
+    if protected_name(Path(path).name):
+        raise Unread('protected media name')
     path = Path(path).resolve()
     if path in seen or len(seen) >= 8:
         raise Unread('playlist/sheet recursion')
@@ -208,6 +221,8 @@ def identify(path, system, seconds=20, seen=None, base_offset=0):
             if not has_track:
                 tracks = [(name, 0) for name in files]
         for name, offset in tracks:
+            if protected_name(Path(name).name):
+                raise Unread('protected media name')
             reference = path.parent / name
             if reference.is_symlink() or reference.is_junction():
                 raise Unread('linked sheet reference')
@@ -483,6 +498,12 @@ def self_test():
                 with self.subTest(format=name):
                     with self.assertRaises((Unread, OSError, ValueError, EOFError, zlib.error)):
                         identify(self.file(name, data), system)
+            protected = self.file('auth.bin', iso())
+            with self.assertRaisesRegex(Unread, 'protected media name'):
+                identify(protected, 'ps2')
+            cue = self.file('protected.cue', b'FILE "auth.bin" BINARY\n TRACK 01 MODE1/2048\n INDEX 01 00:00:00\n')
+            with self.assertRaises(Unread):
+                identify(cue, 'ps2')
 
     result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(SurveyTests))
     return 0 if result.wasSuccessful() else 1
@@ -514,10 +535,10 @@ def main():
     try:
         for system in ('dreamcast', 'ps2', 'psx', 'wii', 'gc'):
             for folder, dirs, names in os.walk(args.root / system, followlinks=False):
-                dirs[:] = sorted(d for d in dirs if not (Path(folder) / d).is_symlink() and not (Path(folder) / d).is_junction())
+                dirs[:] = sorted(d for d in dirs if not protected_name(d) and not (Path(folder) / d).is_symlink() and not (Path(folder) / d).is_junction())
                 for name in sorted(names):
                     path = Path(folder) / name
-                    if path.suffix.lower() not in EXTENSIONS or path.is_symlink():
+                    if protected_name(name) or path.suffix.lower() not in EXTENSIONS or path.is_symlink():
                         continue
                     if time.monotonic() - start > args.minutes * 60 or (args.stop_file and args.stop_file.exists()):
                         complete = False

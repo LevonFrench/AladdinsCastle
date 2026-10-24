@@ -205,6 +205,10 @@ private slots:
     const auto reader=[&](qint64 at,qint64 bytes){if(!file.seek(at))return QByteArray();auto piece=file.read(bytes);if(++reads==2)cancel=true;return piece;};
     QVERIFY(ac::scan::detail::scanKatana(reader,file.size(),cancel,error).isEmpty());QCOMPARE(reads,2);QCOMPARE(error,QString("Cancelled"));
   }
+  void protectedNamesAreNeverDiscReferences(){
+    QTemporaryDir d;QVERIFY(write(d.filePath("auth.bin"),iso(true)));QVERIFY(write(d.filePath("disc.cue"),"FILE \"auth.bin\" BINARY\n TRACK 01 MODE1/2048\n INDEX 01 00:00:00\n"));
+    const auto direct=inspect(d.filePath("auth.bin"));QCOMPARE(direct.error,QString("Protected media name"));QVERIFY(direct.identity.isEmpty());QVERIFY(inspect(d.filePath("disc.cue")).identity.isEmpty());
+  }
 };
 QTEST_GUILESS_MAIN(DiscFormatsTest)
 #include "DiscFormatsTest.moc"

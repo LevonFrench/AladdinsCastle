@@ -81,5 +81,6 @@ public:
 // and system or credential folders are never entered; cancellable; read-only.
 QStringList walk(const QStringList &roots, const QStringList &extensions, int depth,
                  std::atomic_bool &cancel);
+bool protectedMediaName(const QString &name);
 } // namespace ac::scan
 Q_DECLARE_METATYPE(ac::scan::ScanResult)

@@ -990,6 +990,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
   r.elapsedMs = elapsed.elapsed();
   return r;
 }
+bool protectedMediaName(const QString &name){return blocked(name);}
 QStringList walk(const QStringList &roots, const QStringList &extensions, int depth,
                  std::atomic_bool &cancel) {
   return enumerate(roots, extensions, depth, cancel);

@@ -477,6 +477,7 @@ QString Scanner::dreamcastProduct(const QString &path, std::atomic_bool &cancel,
   Q_UNUSED(thorough);
   if(cancel)return {};
   const QFileInfo info(path);
+  if(protectedMediaName(info.fileName()))return {};
   const auto ext = info.suffix().toLower();
   if(ext=="m3u"){
     const auto read=inspect(path,cancel);return read.system=="dreamcast"?read.identity:QString();
@@ -494,6 +495,7 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
   QFileInfo info(path);
   FileIdentity r;
   r.path = info.absoluteFilePath();
+  if(protectedMediaName(info.fileName())){r.error="Protected media name";return r;}
   r.size = info.size();
   r.mtime = info.lastModified().toMSecsSinceEpoch();
   static thread_local int depth=0;
@@ -528,6 +530,7 @@ FileIdentity Scanner::inspect(const QString &path, std::atomic_bool &cancel) {
     for(const auto &entry:tracks){
       if(cancel)break;
       const QFileInfo track(info.absoluteDir().filePath(entry.first));
+      if(protectedMediaName(track.fileName()))continue;
       if(track.absoluteDir()!=info.absoluteDir()||track.isSymLink()||track.isJunction()||track.canonicalPath()!=info.canonicalPath())continue;
       if(extension=="m3u"||entry.second==0){
         const auto found=inspect(track.absoluteFilePath(),cancel);
