@@ -23,9 +23,11 @@ int regionRank(const QString &region) {
 }
 int formatRank(const QString &system, const QString &file) {
   const auto ext = QFileInfo(file).suffix().toLower();
-  static const QHash<QString, QStringList> order{{"ps2", {"iso", "bin", "chd", "cso", "gz"}},
-                                                 {"wii", {"iso", "wbfs", "rvz", "wia"}},
-                                                 {"dreamcast", {"gdi", "chd", "cdi", "cue"}}};
+  static const QHash<QString, QStringList> order{{"ps2", {"iso", "cue", "bin", "chd", "cso", "gz", "m3u"}},
+                                                 {"ps1", {"cue", "iso", "bin", "chd", "pbp", "m3u"}},
+                                                 {"gamecube", {"iso", "gcm", "gcz", "rvz", "wia", "nkit", "m3u"}},
+                                                 {"wii", {"iso", "wbfs", "rvz", "wia", "gcz", "wad", "nkit", "m3u"}},
+                                                 {"dreamcast", {"gdi", "chd", "cdi", "cue", "m3u"}}};
   const auto i = order.value(system).indexOf(ext);
   return i < 0 ? 9 : i;
 }
@@ -52,7 +54,7 @@ QString rule() {
 }
 namespace {
 // Raised whenever what a file is read as changes, so every saved reading is read again.
-constexpr int kIndexVersion = 2;
+constexpr int kIndexVersion = 3;
 // What one file is: the copies it gives (system and copy), the system it is another disc of, a kind the Hub
 // reads but does not know ("disc" or "archive"), or a pinball table. Kept in the index to be used again.
 QVariantMap classify(const QString &path, const QString &ext, const QSet<QString> &model3Sets, const QSet<QString> &model2Sets,
@@ -79,13 +81,14 @@ QVariantMap classify(const QString &path, const QString &ext, const QSet<QString
   const auto read=scan::Scanner::inspect(path,cancel);
   if(!read.error.isEmpty()||read.identity.isEmpty())return {{"unknown","disc"},{"retry",read.error.contains("budget")||read.error.contains("time")}};
   const auto row=scan::DiscIndex::match(read.system,read.identity);
-  if(row.isEmpty())return read.system.isEmpty()?QVariantMap{{"unknown","disc"}}:QVariantMap{{"other",read.system}};
+  const auto system=read.system=="gc"?QString("gamecube"):read.system;
+  if(row.isEmpty())return system.isEmpty()?QVariantMap{{"unknown","disc"}}:QVariantMap{{"other",system}};
   QVariantMap found{{"file",path},{"identity",read.identity},{"game",row.value("game")},{"title",row.value("title")},
                     {"region",row.value("region")},{"verified",true},{"profile",row.value("profile",false)}};
   if(read.system=="ps1"||read.system=="ps2")found["serial"]=read.identity;
   else if(read.system=="dreamcast")found["product"]=read.identity;
   else if(read.system=="wii"||read.system=="gc")found["id"]=read.identity;
-  return copy(read.system,found);
+  return copy(system,found);
 }
 // The games the Hub knows, as a short stamp: a saved reading made against other lists is read again.
 QString listsStamp() {

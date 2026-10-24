@@ -757,7 +757,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
   if (!o.userRoot.isEmpty())
     try {
       auto table = toml::parse_file(cachePath.toStdString());
-      if (table["version"].value_or(0) == 5)
+      if (table["version"].value_or(0) == 6)
         if (auto a = table["files"].as_array())
           for (const auto &n : *a)
             if (auto p = n.value<std::string>()) {
@@ -957,7 +957,7 @@ ScanResult Scanner::run(const CatalogData &catalog, const ScanOptions &o,
   if (!r.cancelled && !o.userRoot.isEmpty()) {
     QDir().mkpath(o.userRoot + "/cache");
     toml::table table;
-    table.insert("version", 5);
+    table.insert("version", 6);
     toml::array a;
     for (const auto &f : r.files)
       a.push_back(identityJson(f).dump());

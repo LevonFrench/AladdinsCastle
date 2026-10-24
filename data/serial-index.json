@@ -293,12 +293,164 @@
     "region": "NTSC-U",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
   },
+  "SCUS-94103": {
+    "gameId": "ps1-jumping-flash",
+    "title": "Jumping Flash!",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "jumpflsh"
+  },
+  "SCUS-94108": {
+    "gameId": "ps1-jumping-flash-2",
+    "title": "Jumping Flash! 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "jumpfls2"
+  },
+  "SCUS-94152": {
+    "gameId": "ps1-epidemic",
+    "title": "Epidemic",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "epidemic"
+  },
+  "SCUS-94154": {
+    "gameId": "ps1-crash-bandicoot-2-cortex-strikes-back",
+    "title": "Crash Bandicoot 2 - Cortex Strikes Back",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "crash2"
+  },
+  "SCUS-94180": {
+    "gameId": "ps1-bushido-blade",
+    "title": "Bushido Blade",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "bblade"
+  },
+  "SCUS-94182": {
+    "gameId": "ps1-armored-core",
+    "title": "Armored Core",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "armcorea"
+  },
+  "SCUS-94183": {
+    "gameId": "ps1-parappa-the-rapper",
+    "title": "PaRappa the Rapper",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "parappa"
+  },
   "SCUS-94194": {
     "gameId": "ps1-gran-turismo",
     "title": "Gran Turismo",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SCUS-94199": {
+    "gameId": "ps1-bloody-roar",
+    "title": "Bloody Roar",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "bldyroar"
+  },
+  "SCUS-94200": {
+    "gameId": "ps1-battle-arena-toshinden",
+    "title": "Battle Arena Toshinden",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "toshin"
+  },
+  "SCUS-94208": {
+    "gameId": "ps1-tobal-no-1",
+    "title": "Tobal No. 1",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tobal1"
+  },
+  "SCUS-94221": {
+    "gameId": "ps1-final-fantasy-tactics",
+    "title": "Final Fantasy Tactics",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "ffantact"
+  },
+  "SCUS-94227": {
+    "gameId": "ps1-medievil",
+    "title": "MediEvil",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "medievil"
+  },
+  "SCUS-94231": {
+    "gameId": "ps1-3xtreme",
+    "title": "3Xtreme",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "3xtreme"
+  },
+  "SCUS-94236": {
+    "gameId": "ps1-tomba",
+    "title": "Tomba!",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tomba"
+  },
+  "SCUS-94240": {
+    "gameId": "ps1-syphon-filter",
+    "title": "Syphon Filter",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "syphonf"
+  },
+  "SCUS-94243": {
+    "gameId": "ps1-einhander",
+    "title": "Einhänder",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "einhandr"
+  },
+  "SCUS-94244": {
+    "gameId": "ps1-crash-bandicoot-warped",
+    "title": "Crash Bandicoot - Warped",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "crash3"
+  },
+  "SCUS-94249": {
+    "gameId": "ps1-twisted-metal-iii",
+    "title": "Twisted Metal III",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "twistmt3"
+  },
+  "SCUS-94254": {
+    "gameId": "ps1-legend-of-legaia",
+    "title": "Legend of Legaia",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "legaia"
   },
   "SCUS-94300": {
     "gameId": "ps1-ridge-racer",
@@ -314,12 +466,68 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SCUS-94304": {
+    "gameId": "ps1-twisted-metal",
+    "title": "Twisted Metal",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "twistmtl"
+  },
+  "SCUS-94306": {
+    "gameId": "ps1-twisted-metal-2",
+    "title": "Twisted Metal 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "twistmt2"
+  },
+  "SCUS-94309": {
+    "gameId": "ps1-jet-moto",
+    "title": "Jet Moto",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "jetmoto"
+  },
+  "SCUS-94350": {
+    "gameId": "ps1-destruction-derby-2",
+    "title": "Destruction Derby 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "dderby2"
+  },
+  "SCUS-94351": {
+    "gameId": "ps1-wipeout-xl",
+    "title": "Wipeout XL",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "wpoutxl"
+  },
   "SCUS-94355": {
     "gameId": "ps1-motor-toon-grand-prix",
     "title": "Motor Toon Grand Prix",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SCUS-94358": {
+    "gameId": "ps1-cool-boarders-2",
+    "title": "Cool Boarders 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "coolboa2"
+  },
+  "SCUS-94402": {
+    "gameId": "ps1-the-raiden-project",
+    "title": "The Raiden Project",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "raidenpj"
   },
   "SCUS-94403": {
     "gameId": "ps1-philosoma",
@@ -328,12 +536,84 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SCUS-94405": {
+    "gameId": "ps1-assault-rigs",
+    "title": "Assault Rigs",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "assrigs"
+  },
   "SCUS-94408": {
     "gameId": "ps1-project-horned-owl",
     "title": "Project - Horned Owl",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SCUS-94423": {
+    "gameId": "ps1-ape-escape",
+    "title": "Ape Escape",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "apescape"
+  },
+  "SCUS-94424": {
+    "gameId": "ps1-bloody-roar-ii",
+    "title": "Bloody Roar II",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "bldyror2"
+  },
+  "SCUS-94425": {
+    "gameId": "ps1-spyro-2-ripto-s-rage",
+    "title": "Spyro 2 - Ripto's Rage!",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "spyro2"
+  },
+  "SCUS-94426": {
+    "gameId": "ps1-ctr-crash-team-racing",
+    "title": "CTR - Crash Team Racing",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "ctr"
+  },
+  "SCUS-94427": {
+    "gameId": "ps1-tiny-tank",
+    "title": "Tiny Tank",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tinytank"
+  },
+  "SCUS-94449": {
+    "gameId": "ps1-omega-boost",
+    "title": "Omega Boost",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "omegabst"
+  },
+  "SCUS-94451": {
+    "gameId": "ps1-syphon-filter-2",
+    "title": "Syphon Filter 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "syphonf2"
+  },
+  "SCUS-94454": {
+    "gameId": "ps1-tomba-2-the-evil-swine-return",
+    "title": "Tomba! 2 - The Evil Swine Return",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tomba2"
   },
   "SCUS-94455": {
     "gameId": "ps1-gran-turismo-2",
@@ -342,12 +622,108 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SCUS-94467": {
+    "gameId": "ps1-spyro-year-of-the-dragon",
+    "title": "Spyro - Year of the Dragon",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "spyro3"
+  },
+  "SCUS-94476": {
+    "gameId": "ps1-hot-shots-golf-2",
+    "title": "Hot Shots Golf 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "hotshot2"
+  },
+  "SCUS-94484": {
+    "gameId": "ps1-wild-arms-2",
+    "title": "Wild Arms 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "wildarm2"
+  },
   "SCUS-94488": {
     "gameId": "ps1-gran-turismo-2",
     "title": "Gran Turismo 2",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SCUS-94555": {
+    "gameId": "ps1-jet-moto-3",
+    "title": "Jet Moto 3",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "jetmoto3"
+  },
+  "SCUS-94560": {
+    "gameId": "ps1-twisted-metal-4",
+    "title": "Twisted Metal 4",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "twistmt4"
+  },
+  "SCUS-94564": {
+    "gameId": "ps1-medievil-ii",
+    "title": "MediEvil II",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "medievl2"
+  },
+  "SCUS-94570": {
+    "gameId": "ps1-crash-bash",
+    "title": "Crash Bash",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "crashbsh"
+  },
+  "SCUS-94608": {
+    "gameId": "ps1-wild-arms",
+    "title": "Wild Arms",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "wildarms"
+  },
+  "SCUS-94640": {
+    "gameId": "ps1-syphon-filter-3",
+    "title": "Syphon Filter 3",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "syphonf3"
+  },
+  "SCUS-94642": {
+    "gameId": "ps1-twisted-metal-small-brawl",
+    "title": "Twisted Metal - Small Brawl",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "twistmsb"
+  },
+  "SCUS-94666": {
+    "gameId": "ps1-c-12-final-resistance",
+    "title": "C-12 - Final Resistance",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "c12"
+  },
+  "SCUS-94900": {
+    "gameId": "ps1-crash-bandicoot",
+    "title": "Crash Bandicoot",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "crash"
   },
   "SCUS-97101": {
     "gameId": "ps2-twisted-metal-black",
@@ -930,6 +1306,46 @@
     "region": "NTSC-J",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
   },
+  "SLPS-00498": {
+    "gameId": "ps1-harmful-park",
+    "title": "Harmful Park",
+    "system": "ps1",
+    "region": "Japan",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "harmpark"
+  },
+  "SLPS-00728": {
+    "gameId": "ps1-raiden-dx",
+    "title": "Raiden DX",
+    "system": "ps1",
+    "region": "Japan",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "raidendxa"
+  },
+  "SLPS-00766": {
+    "gameId": "ps1-x2-no-relief",
+    "title": "X2 - No Relief",
+    "system": "ps1",
+    "region": "Japan",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "x2"
+  },
+  "SLPS-00899": {
+    "gameId": "ps1-panzer-bandit",
+    "title": "Panzer Bandit",
+    "system": "ps1",
+    "region": "Japan",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "panzband"
+  },
+  "SLPS-01762": {
+    "gameId": "ps1-pepsiman",
+    "title": "Pepsiman",
+    "system": "ps1",
+    "region": "Japan",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "pepsiman"
+  },
   "SLPS-02165": {
     "gameId": "ps1-mighty-hits-special",
     "title": "Mighty Hits Special",
@@ -1035,12 +1451,164 @@
     "region": "NTSC-J",
     "source": "https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml"
   },
+  "SLUS-00005": {
+    "gameId": "ps1-rayman",
+    "title": "Rayman",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "rayman"
+  },
+  "SLUS-00006": {
+    "gameId": "ps1-tekken",
+    "title": "Tekken",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tekken"
+  },
+  "SLUS-00007": {
+    "gameId": "ps1-alien-trilogy",
+    "title": "Alien Trilogy",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "alientri_us"
+  },
+  "SLUS-00012": {
+    "gameId": "ps1-revolution-x-music-is-the-weapon",
+    "title": "Revolution X - Music Is the Weapon",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "revx"
+  },
+  "SLUS-00027": {
+    "gameId": "ps1-blood-omen-legacy-of-kain",
+    "title": "Blood Omen - Legacy of Kain",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "kain"
+  },
+  "SLUS-00035": {
+    "gameId": "ps1-road-rash",
+    "title": "Road Rash",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "roadrash"
+  },
+  "SLUS-00041": {
+    "gameId": "ps1-street-fighter-the-movie",
+    "title": "Street Fighter - The Movie",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "sfmovie"
+  },
+  "SLUS-00045": {
+    "gameId": "ps1-project-overkill",
+    "title": "Project Overkill",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "pjoverkl"
+  },
+  "SLUS-00067": {
+    "gameId": "ps1-castlevania-symphony-of-the-night",
+    "title": "Castlevania - Symphony of the Night",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "sotn"
+  },
+  "SLUS-00070": {
+    "gameId": "ps1-tecmo-super-bowl",
+    "title": "Tecmo Super Bowl",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tecmosb"
+  },
+  "SLUS-00076": {
+    "gameId": "ps1-loaded",
+    "title": "Loaded",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "loaded"
+  },
+  "SLUS-00106": {
+    "gameId": "ps1-grand-theft-auto",
+    "title": "Grand Theft Auto",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gta"
+  },
   "SLUS-00119": {
     "gameId": "ps1-die-hard-trilogy",
     "title": "Die Hard Trilogy",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SLUS-00126": {
+    "gameId": "ps1-primal-rage",
+    "title": "Primal Rage",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "primrage"
+  },
+  "SLUS-00128": {
+    "gameId": "ps1-d",
+    "title": "D",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "d"
+  },
+  "SLUS-00152": {
+    "gameId": "ps1-tomb-raider",
+    "title": "Tomb Raider",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "traida"
+  },
+  "SLUS-00158": {
+    "gameId": "ps1-king-s-field",
+    "title": "King's Field",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "kingsfld"
+  },
+  "SLUS-00170": {
+    "gameId": "ps1-resident-evil",
+    "title": "Resident Evil",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "revil"
+  },
+  "SLUS-00190": {
+    "gameId": "ps1-oddworld-abe-s-oddysee",
+    "title": "Oddworld - Abe's Oddysee",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "abeodyss"
+  },
+  "SLUS-00213": {
+    "gameId": "ps1-tekken-2",
+    "title": "Tekken 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tekken2"
   },
   "SLUS-00214": {
     "gameId": "ps1-ridge-racer-revolution",
@@ -1049,12 +1617,108 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SLUS-00224": {
+    "gameId": "ps1-disruptor",
+    "title": "Disruptor",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "disruptr"
+  },
+  "SLUS-00232": {
+    "gameId": "ps1-pandemonium",
+    "title": "Pandemonium!",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "pandemon"
+  },
+  "SLUS-00236": {
+    "gameId": "ps1-fade-to-black",
+    "title": "Fade to Black",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "fadeblck"
+  },
+  "SLUS-00239": {
+    "gameId": "ps1-alone-in-the-dark-one-eyed-jack-s-revenge",
+    "title": "Alone in the Dark: One-Eyed Jack's Revenge",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "aitd2_us"
+  },
+  "SLUS-00240": {
+    "gameId": "ps1-soul-blade",
+    "title": "Soul Blade",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "soulblad"
+  },
+  "SLUS-00255": {
+    "gameId": "ps1-king-s-field-ii",
+    "title": "King's Field II",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "kingsfl2"
+  },
+  "SLUS-00262": {
+    "gameId": "ps1-syndicate-wars",
+    "title": "Syndicate Wars",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "syndwars"
+  },
+  "SLUS-00283": {
+    "gameId": "ps1-tempest-x3",
+    "title": "Tempest X3",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tempx3"
+  },
+  "SLUS-00288": {
+    "gameId": "ps1-contra-legacy-of-war",
+    "title": "Contra - Legacy of War",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "contralw"
+  },
   "SLUS-00293": {
     "gameId": "ps1-lethal-enforcers-1-2",
     "title": "Lethal Enforcers I & II",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SLUS-00313": {
+    "gameId": "ps1-gunship",
+    "title": "Gunship",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gunship"
+  },
+  "SLUS-00328": {
+    "gameId": "ps1-war-gods",
+    "title": "War Gods",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "wargods"
+  },
+  "SLUS-00330": {
+    "gameId": "ps1-mortal-kombat-trilogy",
+    "title": "Mortal Kombat Trilogy",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mktrilgy"
   },
   "SLUS-00335": {
     "gameId": "ps1-crypt-killer",
@@ -1063,12 +1727,92 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SLUS-00337": {
+    "gameId": "ps1-true-pinball",
+    "title": "True Pinball",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "truepb"
+  },
+  "SLUS-00339": {
+    "gameId": "ps1-persona",
+    "title": "Persona",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "persona"
+  },
+  "SLUS-00340": {
+    "gameId": "ps1-tecmo-s-deception-invitation-to-darkness",
+    "title": "Tecmo's Deception - Invitation to Darkness",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tecmodec"
+  },
+  "SLUS-00348": {
+    "gameId": "ps1-hexen",
+    "title": "Hexen",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "hexen"
+  },
+  "SLUS-00370": {
+    "gameId": "ps1-bubble-bobble-also-featuring-rainbow-islands",
+    "title": "Bubble Bobble also featuring Rainbow Islands",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "bublbobl_us"
+  },
+  "SLUS-00373": {
+    "gameId": "ps1-apocalypse",
+    "title": "Apocalypse",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "apocalyp"
+  },
+  "SLUS-00382": {
+    "gameId": "ps1-re-loaded-the-hardcore-sequel",
+    "title": "Re-Loaded - The Hardcore Sequel",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "reloaded"
+  },
+  "SLUS-00387": {
+    "gameId": "ps1-batman-forever-the-arcade-game",
+    "title": "Batman Forever - The Arcade Game",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "batmanf"
+  },
+  "SLUS-00402": {
+    "gameId": "ps1-tekken-3",
+    "title": "Tekken 3",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tekken3"
+  },
   "SLUS-00403": {
     "gameId": "ps1-rage-racer",
     "title": "Rage Racer",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SLUS-00404": {
+    "gameId": "ps1-ace-combat-2",
+    "title": "Ace Combat 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "acecomb2_us"
   },
   "SLUS-00405": {
     "gameId": "ps1-time-crisis",
@@ -1077,12 +1821,132 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SLUS-00421": {
+    "gameId": "ps1-resident-evil-2",
+    "title": "Resident Evil 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "revil2"
+  },
+  "SLUS-00422": {
+    "gameId": "ps1-breath-of-fire-iii",
+    "title": "Breath of Fire III",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "bof3"
+  },
+  "SLUS-00425": {
+    "gameId": "ps1-wild-9",
+    "title": "Wild 9",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "wild9"
+  },
+  "SLUS-00426": {
+    "gameId": "ps1-mdk",
+    "title": "MDK",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mdk"
+  },
+  "SLUS-00433": {
+    "gameId": "ps1-fighting-force",
+    "title": "Fighting Force",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "fforce"
+  },
+  "SLUS-00437": {
+    "gameId": "ps1-tomb-raider-ii-starring-lara-croft",
+    "title": "Tomb Raider II - Starring Lara Croft",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "traid2a"
+  },
+  "SLUS-00447": {
+    "gameId": "ps1-vandal-hearts",
+    "title": "Vandal Hearts",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "vandalh"
+  },
+  "SLUS-00453": {
+    "gameId": "ps1-mega-man-8",
+    "title": "Mega Man 8",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "megaman8"
+  },
+  "SLUS-00458": {
+    "gameId": "ps1-forsaken",
+    "title": "Forsaken",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "forsaken"
+  },
+  "SLUS-00469": {
+    "gameId": "ps1-one",
+    "title": "One",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "one"
+  },
+  "SLUS-00476": {
+    "gameId": "ps1-mortal-kombat-mythologies-sub-zero",
+    "title": "Mortal Kombat Mythologies - Sub-Zero",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "subzero"
+  },
   "SLUS-00481": {
     "gameId": "ps1-point-blank",
     "title": "Point Blank",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SLUS-00482": {
+    "gameId": "ps1-raystorm",
+    "title": "RayStorm",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "raystorm"
+  },
+  "SLUS-00483": {
+    "gameId": "ps1-battle-arena-toshinden-3",
+    "title": "Battle Arena Toshinden 3",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "toshin3"
+  },
+  "SLUS-00499": {
+    "gameId": "ps1-c-the-contra-adventure",
+    "title": "C - The Contra Adventure",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "contradv"
+  },
+  "SLUS-00502": {
+    "gameId": "ps1-bio-f-r-e-a-k-s",
+    "title": "Bio F.R.E.A.K.S.",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "biofreak"
   },
   "SLUS-00503": {
     "gameId": "ps1-maximum-force",
@@ -1091,12 +1955,244 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SLUS-00505": {
+    "gameId": "ps1-san-francisco-rush-extreme-racing",
+    "title": "San Francisco Rush - Extreme Racing",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "sfrush"
+  },
+  "SLUS-00506": {
+    "gameId": "ps1-frogger",
+    "title": "Frogger",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "frogger"
+  },
+  "SLUS-00507": {
+    "gameId": "ps1-monopoly",
+    "title": "Monopoly",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "monopoly"
+  },
+  "SLUS-00510": {
+    "gameId": "ps1-vigilante-8",
+    "title": "Vigilante 8",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "vigil8"
+  },
+  "SLUS-00513": {
+    "gameId": "ps1-vs",
+    "title": "Vs.",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "vs"
+  },
+  "SLUS-00524": {
+    "gameId": "ps1-road-rash-3d",
+    "title": "Road Rash 3D",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "rrash3d"
+  },
+  "SLUS-00534": {
+    "gameId": "ps1-ray-tracers",
+    "title": "Ray Tracers",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "raytracr"
+  },
+  "SLUS-00539": {
+    "gameId": "ps1-clock-tower",
+    "title": "Clock Tower",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "clocktow"
+  },
   "SLUS-00540": {
     "gameId": "ps1-ridge-racer",
     "title": "Ridge Racer",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SLUS-00543": {
+    "gameId": "ps1-colony-wars",
+    "title": "Colony Wars",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "cwars"
+  },
+  "SLUS-00544": {
+    "gameId": "ps1-g-police",
+    "title": "G-Police",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gpolice"
+  },
+  "SLUS-00548": {
+    "gameId": "ps1-street-fighter-ex-plus-alpha",
+    "title": "Street Fighter EX Plus Alpha",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "sfexpa"
+  },
+  "SLUS-00549": {
+    "gameId": "ps1-rampage-world-tour",
+    "title": "Rampage - World Tour",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "rampage"
+  },
+  "SLUS-00551": {
+    "gameId": "ps1-resident-evil-director-s-cut",
+    "title": "Resident Evil - Director's Cut",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "revildc"
+  },
+  "SLUS-00552": {
+    "gameId": "ps1-ghost-in-the-shell",
+    "title": "Ghost in the Shell",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gits"
+  },
+  "SLUS-00553": {
+    "gameId": "ps1-alundra",
+    "title": "Alundra",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "alundraa"
+  },
+  "SLUS-00561": {
+    "gameId": "ps1-mega-man-x4",
+    "title": "Mega Man X4",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "megamnx4"
+  },
+  "SLUS-00568": {
+    "gameId": "ps1-monster-rancher",
+    "title": "Monster Rancher",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mrancher"
+  },
+  "SLUS-00578": {
+    "gameId": "ps1-pandemonium-2",
+    "title": "Pandemonium 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "pandemn2"
+  },
+  "SLUS-00582": {
+    "gameId": "ps1-nightmare-creatures",
+    "title": "Nightmare Creatures",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "ncreatur"
+  },
+  "SLUS-00585": {
+    "gameId": "ps1-klonoa-door-to-phantomile",
+    "title": "Klonoa - Door to Phantomile",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "klonoa"
+  },
+  "SLUS-00594": {
+    "gameId": "ps1-metal-gear-solid",
+    "title": "Metal Gear Solid",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mgs"
+  },
+  "SLUS-00601": {
+    "gameId": "ps1-skullmonkeys",
+    "title": "Skullmonkeys",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "skullmnk"
+  },
+  "SLUS-00603": {
+    "gameId": "ps1-mega-man-legends",
+    "title": "Mega Man Legends",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mmleg"
+  },
+  "SLUS-00605": {
+    "gameId": "ps1-mortal-kombat-4",
+    "title": "Mortal Kombat 4",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mk4"
+  },
+  "SLUS-00614": {
+    "gameId": "ps1-azure-dreams",
+    "title": "Azure Dreams",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "azuredrm"
+  },
+  "SLUS-00619": {
+    "gameId": "ps1-diablo",
+    "title": "Diablo",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "diablo"
+  },
+  "SLUS-00620": {
+    "gameId": "ps1-need-for-speed-iii-hot-pursuit",
+    "title": "Need for Speed III - Hot Pursuit",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "nfs3"
+  },
+  "SLUS-00624": {
+    "gameId": "ps1-gauntlet-legends",
+    "title": "Gauntlet Legends",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gauntleg"
+  },
+  "SLUS-00628": {
+    "gameId": "ps1-lunar-silver-star-story-complete",
+    "title": "Lunar - Silver Star Story Complete",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "lunar"
   },
   "SLUS-00630": {
     "gameId": "ps1-judge-dredd",
@@ -1105,12 +2201,236 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SLUS-00633": {
+    "gameId": "ps1-alien-resurrection",
+    "title": "Alien Resurrection",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "alienres_us"
+  },
+  "SLUS-00641": {
+    "gameId": "ps1-fighter-maker",
+    "title": "Fighter Maker",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "fightmkr"
+  },
   "SLUS-00654": {
     "gameId": "ps1-elemental-gearbolt",
     "title": "Elemental Gearbolt",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SLUS-00662": {
+    "gameId": "ps1-parasite-eve",
+    "title": "Parasite Eve",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "paraseve"
+  },
+  "SLUS-00663": {
+    "gameId": "ps1-bushido-blade-2",
+    "title": "Bushido Blade 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "bblade2"
+  },
+  "SLUS-00664": {
+    "gameId": "ps1-xenogears",
+    "title": "Xenogears",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "xenogear"
+  },
+  "SLUS-00670": {
+    "gameId": "ps1-armored-core-project-phantasma",
+    "title": "Armored Core - Project Phantasma",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "armcopp"
+  },
+  "SLUS-00680": {
+    "gameId": "ps1-bomberman-world",
+    "title": "Bomberman World",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "bombmwld"
+  },
+  "SLUS-00681": {
+    "gameId": "ps1-rival-schools-united-by-fate",
+    "title": "Rival Schools - United by Fate",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "rvschool"
+  },
+  "SLUS-00684": {
+    "gameId": "ps1-jackie-chan-stuntmaster",
+    "title": "Jackie Chan Stuntmaster",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "jchan"
+  },
+  "SLUS-00687": {
+    "gameId": "ps1-brigandine-the-legend-of-forsena",
+    "title": "Brigandine - The Legend of Forsena",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "brigandn"
+  },
+  "SLUS-00690": {
+    "gameId": "ps1-g-darius",
+    "title": "G. Darius",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gdarius"
+  },
+  "SLUS-00691": {
+    "gameId": "ps1-tomb-raider-iii-adventures-of-lara-croft",
+    "title": "Tomb Raider III - Adventures of Lara Croft",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "traid3a"
+  },
+  "SLUS-00695": {
+    "gameId": "ps1-clock-tower-ii-the-struggle-within",
+    "title": "Clock Tower II - The Struggle Within",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "clocktw2"
+  },
+  "SLUS-00696": {
+    "gameId": "ps1-heart-of-darkness",
+    "title": "Heart of Darkness",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "heartdrk"
+  },
+  "SLUS-00706": {
+    "gameId": "ps1-tenchu-stealth-assassins",
+    "title": "Tenchu - Stealth Assassins",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tenchu"
+  },
+  "SLUS-00707": {
+    "gameId": "ps1-silent-hill",
+    "title": "Silent Hill",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "silenth"
+  },
+  "SLUS-00708": {
+    "gameId": "ps1-legacy-of-kain-soul-reaver",
+    "title": "Legacy of Kain - Soul Reaver",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "kain2"
+  },
+  "SLUS-00710": {
+    "gameId": "ps1-oddworld-abe-s-exoddus",
+    "title": "Oddworld - Abe's Exoddus",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "abexodus"
+  },
+  "SLUS-00711": {
+    "gameId": "ps1-the-fifth-element",
+    "title": "The Fifth Element",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "5element"
+  },
+  "SLUS-00722": {
+    "gameId": "ps1-colony-wars-vengeance",
+    "title": "Colony Wars - Vengeance",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "cwarsvng"
+  },
+  "SLUS-00742": {
+    "gameId": "ps1-rampage-2-universal-tour",
+    "title": "Rampage 2 - Universal Tour",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "rampage2"
+  },
+  "SLUS-00748": {
+    "gameId": "ps1-resident-evil-2-dual-shock-ver",
+    "title": "Resident Evil 2 - Dual Shock Ver.",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "revil2ds"
+  },
+  "SLUS-00753": {
+    "gameId": "ps1-r-types",
+    "title": "R-Types",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "rtypes"
+  },
+  "SLUS-00771": {
+    "gameId": "ps1-rival-schools-united-by-fate",
+    "title": "Rival Schools - United by Fate",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "rvschool"
+  },
+  "SLUS-00772": {
+    "gameId": "ps1-guilty-gear",
+    "title": "Guilty Gear",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "ggear"
+  },
+  "SLUS-00773": {
+    "gameId": "ps1-asteroids",
+    "title": "Asteroids",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "asteroid_us"
+  },
+  "SLUS-00774": {
+    "gameId": "ps1-x-men-mutant-academy",
+    "title": "X-Men - Mutant Academy",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "xmenma"
+  },
+  "SLUS-00789": {
+    "gameId": "ps1-grand-theft-auto-2",
+    "title": "Grand Theft Auto 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gta2"
   },
   "SLUS-00796": {
     "gameId": "ps1-point-blank-2",
@@ -1126,12 +2446,276 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SLUS-00798": {
+    "gameId": "ps1-g-police-weapons-of-justice",
+    "title": "G-Police - Weapons of Justice",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gpolwoj"
+  },
+  "SLUS-00809": {
+    "gameId": "ps1-ehrgeiz-god-bless-the-ring",
+    "title": "Ehrgeiz - God Bless the Ring",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "ehrgeiz"
+  },
+  "SLUS-00812": {
+    "gameId": "ps1-broken-sword-ii-the-smoking-mirror",
+    "title": "Broken Sword II - The Smoking Mirror",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "bsword2"
+  },
+  "SLUS-00824": {
+    "gameId": "ps1-mortal-kombat-special-forces",
+    "title": "Mortal Kombat - Special Forces",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mksf"
+  },
+  "SLUS-00842": {
+    "gameId": "ps1-driver-you-are-the-wheelman",
+    "title": "Driver - You Are the Wheelman",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "driver"
+  },
+  "SLUS-00844": {
+    "gameId": "ps1-chocobo-racing",
+    "title": "Chocobo Racing",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "chocorac"
+  },
+  "SLUS-00846": {
+    "gameId": "ps1-grand-theft-auto-mission-pack-1-london-1969",
+    "title": "Grand Theft Auto - Mission Pack #1 - London 1969",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gtalon69"
+  },
+  "SLUS-00847": {
+    "gameId": "ps1-hydro-thunder",
+    "title": "Hydro Thunder",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "hydrothn"
+  },
+  "SLUS-00851": {
+    "gameId": "ps1-re-volt",
+    "title": "Re-Volt",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "revolt"
+  },
+  "SLUS-00854": {
+    "gameId": "ps1-jade-cocoon-story-of-the-tamamayu",
+    "title": "Jade Cocoon - Story of the Tamamayu",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "jadecoc"
+  },
+  "SLUS-00860": {
+    "gameId": "ps1-tony-hawk-s-pro-skater",
+    "title": "Tony Hawk's Pro Skater",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "thps"
+  },
+  "SLUS-00865": {
+    "gameId": "ps1-wipeout-3",
+    "title": "WipEout 3",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "wipeout3"
+  },
+  "SLUS-00866": {
+    "gameId": "ps1-colony-wars-red-sun",
+    "title": "Colony Wars - Red Sun",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "cwarsrs"
+  },
+  "SLUS-00868": {
+    "gameId": "ps1-vigilante-8-2nd-offense",
+    "title": "Vigilante 8 - 2nd Offense",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "vigil2nd"
+  },
+  "SLUS-00877": {
+    "gameId": "ps1-r-type-delta",
+    "title": "R-Type Delta",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "rtyped"
+  },
+  "SLUS-00885": {
+    "gameId": "ps1-tomb-raider-the-last-revelation",
+    "title": "Tomb Raider - The Last Revelation",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "traid4"
+  },
+  "SLUS-00888": {
+    "gameId": "ps1-worms-armageddon",
+    "title": "Worms Armageddon",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "wormsarm"
+  },
+  "SLUS-00895": {
+    "gameId": "ps1-shadow-man",
+    "title": "Shadow Man",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "shadowmn"
+  },
+  "SLUS-00902": {
+    "gameId": "ps1-silent-bomber",
+    "title": "Silent Bomber",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "slntbomb"
+  },
+  "SLUS-00906": {
+    "gameId": "ps1-intellivision-classic-games",
+    "title": "Intellivision Classic Games",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "intvclas"
+  },
+  "SLUS-00915": {
+    "gameId": "ps1-the-x-files",
+    "title": "The X-Files",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "xfiles"
+  },
+  "SLUS-00917": {
+    "gameId": "ps1-monster-rancher-2",
+    "title": "Monster Rancher 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mranchr2"
+  },
+  "SLUS-00920": {
+    "gameId": "ps1-fear-effect",
+    "title": "Fear Effect",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "fearfx"
+  },
+  "SLUS-00922": {
+    "gameId": "ps1-dino-crisis",
+    "title": "Dino Crisis",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "dinocris"
+  },
+  "SLUS-00928": {
+    "gameId": "ps1-space-invaders",
+    "title": "Space Invaders",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "spaceinv"
+  },
+  "SLUS-00929": {
+    "gameId": "ps1-wu-tang-shaolin-style",
+    "title": "Wu-Tang - Shaolin Style",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "wutang"
+  },
+  "SLUS-00934": {
+    "gameId": "ps1-fighting-force-2",
+    "title": "Fighting Force 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "fforce2"
+  },
+  "SLUS-00939": {
+    "gameId": "ps1-tenchu-2-birth-of-the-stealth-assassins",
+    "title": "Tenchu 2 - Birth of the Stealth Assassins",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "tenchu2"
+  },
+  "SLUS-00940": {
+    "gameId": "ps1-vandal-hearts-ii",
+    "title": "Vandal Hearts II",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "vandalh2"
+  },
+  "SLUS-00957": {
+    "gameId": "ps1-metal-gear-solid-vr-missions",
+    "title": "Metal Gear Solid - VR Missions",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mgsvr"
+  },
+  "SLUS-00972": {
+    "gameId": "ps1-ace-combat-3-electrosphere",
+    "title": "Ace Combat 3: Electrosphere",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "acecomb3_us"
+  },
+  "SLUS-00974": {
+    "gameId": "ps1-medal-of-honor",
+    "title": "Medal of Honor",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mhonr"
+  },
   "SLUS-01011": {
     "gameId": "ps1-front-mission-3",
     "title": "Front Mission 3",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SLUS-01013": {
+    "gameId": "ps1-legend-of-mana",
+    "title": "Legend of Mana",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mana"
   },
   "SLUS-01015": {
     "gameId": "ps1-die-hard-trilogy-2-viva-las-vegas",
@@ -1140,12 +2724,356 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SLUS-01016": {
+    "gameId": "ps1-mission-impossible",
+    "title": "Mission - Impossible",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "missimp"
+  },
+  "SLUS-01017": {
+    "gameId": "ps1-alundra-2-a-new-legend-begins",
+    "title": "Alundra 2 - A New Legend Begins",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "alundra2"
+  },
+  "SLUS-01030": {
+    "gameId": "ps1-armored-core-master-of-arena",
+    "title": "Armored Core - Master of Arena",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "armcomoa"
+  },
+  "SLUS-01031": {
+    "gameId": "ps1-blaster-master-blasting-again",
+    "title": "Blaster Master - Blasting Again",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "bmaster"
+  },
+  "SLUS-01035": {
+    "gameId": "ps1-vanark",
+    "title": "Vanark",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "vanark"
+  },
+  "SLUS-01039": {
+    "gameId": "ps1-samurai-shodown-warriors-rage",
+    "title": "Samurai Shodown - Warriors Rage",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "samshowr"
+  },
+  "SLUS-01040": {
+    "gameId": "ps1-vagrant-story",
+    "title": "Vagrant Story",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "vagstory"
+  },
+  "SLUS-01041": {
+    "gameId": "ps1-chrono-cross",
+    "title": "Chrono Cross",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "ccross"
+  },
+  "SLUS-01042": {
+    "gameId": "ps1-parasite-eve-ii",
+    "title": "Parasite Eve II",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "parasev2"
+  },
+  "SLUS-01053": {
+    "gameId": "ps1-road-rash-jailbreak",
+    "title": "Road Rash - Jailbreak",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "rrashjlb"
+  },
+  "SLUS-01065": {
+    "gameId": "ps1-rampage-through-time",
+    "title": "Rampage - Through Time",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "rampagtt"
+  },
+  "SLUS-01066": {
+    "gameId": "ps1-tony-hawk-s-pro-skater-2",
+    "title": "Tony Hawk's Pro Skater 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "thps2"
+  },
+  "SLUS-01071": {
+    "gameId": "ps1-lunar-2-eternal-blue-complete",
+    "title": "Lunar 2 - Eternal Blue Complete",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "lunar2"
+  },
+  "SLUS-01072": {
+    "gameId": "ps1-evil-dead-hail-to-the-king",
+    "title": "Evil Dead - Hail to the King",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "evildead"
+  },
   "SLUS-01087": {
     "gameId": "ps1-resident-evil-survivor",
     "title": "Resident Evil - Survivor",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SLUS-01093": {
+    "gameId": "ps1-snocross-championship-racing",
+    "title": "SnoCross Championship Racing",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "snocross"
+  },
+  "SLUS-01105": {
+    "gameId": "ps1-street-fighter-ex2-plus",
+    "title": "Street Fighter EX2 Plus",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "sfex2p"
+  },
+  "SLUS-01111": {
+    "gameId": "ps1-mr-driller",
+    "title": "Mr. Driller",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mrdrillr"
+  },
+  "SLUS-01112": {
+    "gameId": "ps1-nightmare-creatures-ii",
+    "title": "Nightmare Creatures II",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "ncreatr2"
+  },
+  "SLUS-01113": {
+    "gameId": "ps1-mat-hoffman-s-pro-bmx",
+    "title": "Mat Hoffman's Pro BMX",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "hoffbmx"
+  },
+  "SLUS-01115": {
+    "gameId": "ps1-harvest-moon-back-to-nature",
+    "title": "Harvest Moon - Back to Nature",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "harvmoon"
+  },
+  "SLUS-01130": {
+    "gameId": "ps1-peter-jacobsen-s-golden-tee-golf",
+    "title": "Peter Jacobsen's Golden Tee Golf",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "goldntee"
+  },
+  "SLUS-01140": {
+    "gameId": "ps1-mega-man-legends-2",
+    "title": "Mega Man Legends 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mmleg2"
+  },
+  "SLUS-01143": {
+    "gameId": "ps1-ultimate-fighting-championship",
+    "title": "Ultimate Fighting Championship",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "ultfc"
+  },
+  "SLUS-01148": {
+    "gameId": "ps1-martian-gothic-unification",
+    "title": "Martian Gothic - Unification",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "martgoth"
+  },
+  "SLUS-01158": {
+    "gameId": "ps1-persona-2-eternal-punishment",
+    "title": "Persona 2 - Eternal Punishment",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "persona2"
+  },
+  "SLUS-01161": {
+    "gameId": "ps1-driver-2",
+    "title": "Driver 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "driver2a"
+  },
+  "SLUS-01163": {
+    "gameId": "ps1-strider-2",
+    "title": "Strider 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "strider2"
+  },
+  "SLUS-01174": {
+    "gameId": "ps1-wheel-of-fortune-2nd-edition",
+    "title": "Wheel of Fortune - 2nd Edition",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "wheelfr2"
+  },
+  "SLUS-01195": {
+    "gameId": "ps1-hogs-of-war",
+    "title": "Hogs of War",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "hogsowar"
+  },
+  "SLUS-01196": {
+    "gameId": "ps1-power-spike-pro-beach-volleyball",
+    "title": "Power Spike - Pro Beach Volleyball",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "pspikebv"
+  },
+  "SLUS-01201": {
+    "gameId": "ps1-alone-in-the-dark-the-new-nightmare",
+    "title": "Alone in the Dark - The New Nightmare",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "aitdnn"
+  },
+  "SLUS-01217": {
+    "gameId": "ps1-raycrisis-series-termination",
+    "title": "RayCrisis - Series Termination",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "raycris"
+  },
+  "SLUS-01226": {
+    "gameId": "ps1-gundam-battle-assault",
+    "title": "Gundam Battle Assault",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gundbass"
+  },
+  "SLUS-01227": {
+    "gameId": "ps1-the-simpsons-wrestling",
+    "title": "The Simpsons Wrestling",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "simpwrst"
+  },
+  "SLUS-01230": {
+    "gameId": "ps1-championship-motocross-2001-featuring-ricky-carmichael",
+    "title": "Championship Motocross 2001 featuring Ricky Carmichael",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "motox2k1"
+  },
+  "SLUS-01258": {
+    "gameId": "ps1-galaga-destination-earth",
+    "title": "Galaga - Destination Earth",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "galagade"
+  },
+  "SLUS-01266": {
+    "gameId": "ps1-fear-effect-2-retro-helix",
+    "title": "Fear Effect 2 - Retro Helix",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "fearfx2"
+  },
+  "SLUS-01270": {
+    "gameId": "ps1-medal-of-honor-underground",
+    "title": "Medal of Honor - Underground",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "mhonrund"
+  },
+  "SLUS-01279": {
+    "gameId": "ps1-dino-crisis-2",
+    "title": "Dino Crisis 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "dinocrs2"
+  },
+  "SLUS-01311": {
+    "gameId": "ps1-tomb-raider-chronicles",
+    "title": "Tomb Raider Chronicles",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "traid5"
+  },
+  "SLUS-01324": {
+    "gameId": "ps1-breath-of-fire-iv",
+    "title": "Breath of Fire IV",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "bof4"
+  },
+  "SLUS-01332": {
+    "gameId": "ps1-the-king-of-fighters-99",
+    "title": "The King of Fighters '99",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "kof99"
+  },
+  "SLUS-01334": {
+    "gameId": "ps1-mega-man-x5",
+    "title": "Mega Man X5",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "megamnx5"
   },
   "SLUS-01336": {
     "gameId": "ps1-time-crisis-project-titan",
@@ -1161,12 +3089,92 @@
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
   },
+  "SLUS-01384": {
+    "gameId": "ps1-castlevania-chronicles",
+    "title": "Castlevania Chronicles",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "cvaniach"
+  },
+  "SLUS-01395": {
+    "gameId": "ps1-mega-man-x6",
+    "title": "Mega Man X6",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "megamnx6"
+  },
   "SLUS-01398": {
     "gameId": "ps1-gunfighter-the-legend-of-jesse-james",
     "title": "Gunfighter - The Legend of Jesse James",
     "system": "ps1",
     "region": "USA",
     "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml"
+  },
+  "SLUS-01414": {
+    "gameId": "ps1-hellboy-asylum-seeker",
+    "title": "Hellboy - Asylum Seeker",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "hellboy"
+  },
+  "SLUS-01418": {
+    "gameId": "ps1-gundam-battle-assault-2",
+    "title": "Gundam Battle Assault 2",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gundbas2"
+  },
+  "SLUS-01419": {
+    "gameId": "ps1-tony-hawk-s-pro-skater-3",
+    "title": "Tony Hawk's Pro Skater 3",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "thps3"
+  },
+  "SLUS-01456": {
+    "gameId": "ps1-austin-powers-pinball",
+    "title": "Austin Powers Pinball",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "apowerpb"
+  },
+  "SLUS-01476": {
+    "gameId": "ps1-capcom-vs-snk-pro",
+    "title": "Capcom vs. SNK Pro",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "cvspro"
+  },
+  "SLUS-01485": {
+    "gameId": "ps1-tony-hawk-s-pro-skater-4",
+    "title": "Tony Hawk's Pro Skater 4",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "thps4"
+  },
+  "SLUS-01498": {
+    "gameId": "ps1-gekioh-shooting-king",
+    "title": "Gekioh - Shooting King",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "gekioh"
+  },
+  "SLUS-01584": {
+    "gameId": "ps1-madden-nfl-2005",
+    "title": "Madden NFL 2005",
+    "system": "ps1",
+    "region": "USA",
+    "source": "https://github.com/mamedev/mame/blob/1a38c50b5d5e0e9e6ed3d944056b3312ad490676/hash/psx.xml",
+    "sourceRecord": "maddn2k5"
   },
   "SLUS-20002": {
     "gameId": "ps2-ridge-racer-v",

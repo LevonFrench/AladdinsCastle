@@ -62,7 +62,7 @@ QByteArray gcz(bool compressed) {
   QByteArray b(44, '\0'); le32(b, 0, 0xb10bc001U);
   le64(b, 8, static_cast<quint64>(payload.size())); le64(b, 16, static_cast<quint64>(image.size()));
   le32(b, 24, 1024); le32(b, 28, 1); le64(b, 32, compressed ? 0 : (quint64(1) << 63));
-  le32(b, 40, static_cast<quint32>(adler32(0, reinterpret_cast<const Bytef *>(payload.constData()), static_cast<uInt>(payload.size()))));
+  le32(b, 40, static_cast<quint32>(adler32(1, reinterpret_cast<const Bytef *>(payload.constData()), static_cast<uInt>(payload.size()))));
   return b + payload;
 }
 bool write(const QString &path, const QByteArray &bytes) {
@@ -208,6 +208,10 @@ private slots:
   void protectedNamesAreNeverDiscReferences(){
     QTemporaryDir d;QVERIFY(write(d.filePath("auth.bin"),iso(true)));QVERIFY(write(d.filePath("disc.cue"),"FILE \"auth.bin\" BINARY\n TRACK 01 MODE1/2048\n INDEX 01 00:00:00\n"));
     const auto direct=inspect(d.filePath("auth.bin"));QCOMPARE(direct.error,QString("Protected media name"));QVERIFY(direct.identity.isEmpty());QVERIFY(inspect(d.filePath("disc.cue")).identity.isEmpty());
+  }
+  void gczRejectsNonstandardChecksumSeed(){
+    auto bytes=gcz(false);const auto payload=bytes.mid(44);le32(bytes,40,quint32(adler32(0,reinterpret_cast<const Bytef *>(payload.constData()),uInt(payload.size()))));
+    QTemporaryDir d;QVERIFY(write(d.filePath("bad.gcz"),bytes));const auto result=inspect(d.filePath("bad.gcz"));QVERIFY(result.identity.isEmpty());QCOMPARE(result.error,QString("GCZ block checksum mismatch"));
   }
 };
 QTEST_GUILESS_MAIN(DiscFormatsTest)

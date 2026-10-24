@@ -82,6 +82,15 @@ private slots:
   QCOMPARE(DiscIndex::match("dreamcast","MK-51002").value("catalogId").toString(),QString("dc-house-of-the-dead-2"));
   QVERIFY(DiscIndex::match("dreamcast","MK-51002-50").isEmpty());
  }
+ void publicPlayStationSerialRecordsRemainExactAndUnambiguous(){
+  using ac::scan::DiscIndex;
+  const auto extreme=DiscIndex::match("ps1","SCUS-94231");QCOMPARE(extreme.value("game").toString(),QString("ps1-3xtreme"));QCOMPARE(extreme.value("title").toString(),QString("3Xtreme"));QCOMPARE(extreme.value("sourceRecord").toString(),QString("3xtreme"));
+  const auto metal=DiscIndex::match("ps1","SLUS-00594");QCOMPARE(metal.value("catalogId").toString(),QString("ps1-metal-gear-solid"));QCOMPARE(metal.value("sourceRecord").toString(),QString("mgs"));
+  QVERIFY(DiscIndex::match("ps2","SCUS-94231").isEmpty());
+  // The pinned public list assigns this same serial to Jet Moto 2 and its
+  // Championship Edition. A serial alone cannot distinguish those records.
+  QVERIFY(DiscIndex::match("ps1","SCUS-94167").isEmpty());
+ }
  void filenamesNeverSupplyDiscIdentity(){
   QTemporaryDir t;QVERIFY(t.isValid());const auto path=t.filePath("House of the Dead 2 Virtua Cop Umbrella.iso");QFile file(path);QVERIFY(file.open(QIODevice::WriteOnly));QCOMPARE(file.write(QByteArray(4096,'x')),qint64(4096));file.close();std::atomic_bool cancel{false};
   QVERIFY(ac::ps2::identify(path,cancel).value("game").toString().isEmpty());QVERIFY(ac::dreamcast::identify(path,cancel).value("game").toString().isEmpty());QVERIFY(ac::wii::identify(path,cancel).value("game").toString().isEmpty());

@@ -277,8 +277,11 @@ private slots:
     c.games[0].raw["media"][0].erase("serial");QVERIFY(!ac::scan::Scanner::run(c,o,stop).bindings[0].verified);
     save(disc,iso());const auto ps2=ac::scan::Scanner::run(c,o,stop);QVERIFY(ps2.bindings[0].verified);
     const auto cache=t.filePath("user/cache/scan.toml");QFile f(cache);QVERIFY(f.open(QIODevice::ReadOnly));auto old=f.readAll();f.close();
-    QVERIFY(old.contains("version = 5"));old.replace("version = 5","version = 4");old.replace("SLUS-20219","SLUS-00000");save(cache,old);
-    const auto rescanned=ac::scan::Scanner::run(c,o,stop);QVERIFY(!rescanned.files[0].cacheHit);QCOMPARE(rescanned.files[0].identity,QString("SLUS-20219"));QVERIFY(rescanned.bindings[0].verified);
+    QVERIFY(old.contains("version = 6"));
+    for(const auto version:{4,5}){
+      auto stale=old;stale.replace("version = 6",QByteArray("version = ")+QByteArray::number(version));stale.replace("SLUS-20219","SLUS-00000");save(cache,stale);
+      const auto rescanned=ac::scan::Scanner::run(c,o,stop);QVERIFY(!rescanned.files[0].cacheHit);QCOMPARE(rescanned.files[0].identity,QString("SLUS-20219"));QVERIFY(rescanned.bindings[0].verified);
+    }
   }
   void wiiIdsMatchRenamedDiscs_data() {
     QTest::addColumn<QByteArray>("id");

@@ -95,7 +95,9 @@ IDs. PBP variants, unsupported codecs, parent-dependent CHDs, encrypted or malfo
 metadata and headers beyond read budgets stay unread or unknown. NKit is accepted
 only where a readable standard disc header survives; no NKit reconstruction occurs.
 A CDI scan searches beyond the former 16 MiB cutoff but remains time/size bounded
-and cancellable. These are source-level implementation boundaries; real-library
+and cancellable. GCZ block checksums use the standard Adler-32 initial value, as
+defined by [Dolphin's checksum implementation](https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/Common/Hash.cpp).
+These are source-level implementation boundaries; real-library
 coverage, first-rescan cost and runtime acceptance require separate private proof.
 
 `tools/build_serial_index.py` retains the offline extractor for pinned PCSX2 facts;
@@ -158,7 +160,7 @@ ScanResult.elapsedMs measures completed run time; fileCount, archiveEntryCount a
 
 Post-review metadata guards: pinned libchdr remains unchanged. Before each chd_read, HeaderSafety resolves normalized v5 self-references with visited-hunk checks, target/map bounds and a 32-step limit. Only terminal codec 0-3 or direct uncompressed type 4 is decoded; parent and all other indirect types remain unverified. LOWRAM mode is disabled so the pinned API's normalized map is available. No recursive self-reference decoder path is entered. Synthetic normalized-map tests cover valid short references, cycles, target overflow, depth cap, indirect forms, cancellation and truncated maps.
 
-The 7z adapter records live SDK allocation extents and validates member-count, name offsets/storage, directory bits, unpack positions and optional CRC storage before accessor calls. Missing optional Name properties remain unverified instead of dereferencing absent offsets. Tests include an ordinary synthetic empty-file 7z with Name omitted. Live metadata allocation count is capped at 4096. Cache schema 4 invalidates older reader results after the map-budget and junction/proof changes.
+The 7z adapter records live SDK allocation extents and validates member-count, name offsets/storage, directory bits, unpack positions and optional CRC storage before accessor calls. Missing optional Name properties remain unverified instead of dereferencing absent offsets. Tests include an ordinary synthetic empty-file 7z with Name omitted. Live metadata allocation count is capped at 4096. Cache schema 6 invalidates older reader results after the map-budget, junction/proof and disc-format changes.
 
 Synthetic Release verification passed. Owner verification passed; receipts are kept privately in `.local/`.
 

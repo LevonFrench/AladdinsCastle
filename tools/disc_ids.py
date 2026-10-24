@@ -165,7 +165,7 @@ def compressed_reader(f, kind, deadline):
                 packed_block = exact(f, start, block if raw else end - start)
                 if kind == 'gcz':
                     checksum = struct.unpack('<I', exact(f, 32 + entries * 8 + number * 4, 4))[0]
-                    if zlib.adler32(packed_block, 0) != checksum:
+                    if zlib.adler32(packed_block) != checksum:
                         raise Unread('GCZ block checksum mismatch')
                 decoder = zlib.decompressobj(15 if kind == 'gcz' else -15)
                 decoded = packed_block if raw else decoder.decompress(packed_block, block + 1)
@@ -356,7 +356,7 @@ def self_test():
         image = nintendo(False)
         payload = zlib.compress(image) if compressed else image
         header = struct.pack('<IIQQIIQI', 0xb10bc001, 0, len(payload), len(image), 1024, 1,
-                             0 if compressed else 1 << 63, zlib.adler32(payload, 0))
+                             0 if compressed else 1 << 63, zlib.adler32(payload))
         return header + payload
 
     def pbp(compressed, multidisc=False):
@@ -491,6 +491,10 @@ def self_test():
             put32(malformed, 24 + 16 * 4, 0x7fffffff)
             broken_gcz = bytearray(gcz(False))
             struct.pack_into('<Q', broken_gcz, 32, 0x7fffffffffffffff)
+            wrong_seed = bytearray(gcz(False))
+            put32(wrong_seed, 40, zlib.adler32(wrong_seed[44:], 0))
+            with self.assertRaisesRegex(Unread, 'checksum mismatch'):
+                identify(self.file('wrong-seed.gcz', wrong_seed), 'gc')
             broken_iso = bytearray(iso())
             put32(broken_iso, 16 * 2048 + 158, 0xffffffff)
             for name, data, system in [('bad.cso', malformed, 'ps2'), ('bad.gcz', broken_gcz, 'gc'),

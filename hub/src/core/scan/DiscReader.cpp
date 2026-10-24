@@ -114,7 +114,7 @@ struct Disc {
     const auto bytes=physical(start,raw?expected:length);if(bytes.isEmpty())return {};
     if(format=="gcz"){
      const auto hash=physical(32+entries*8+number*4,4);if(hash.size()!=4)return {};
-     if(le32(hash,0)!=quint32(adler32(0,reinterpret_cast<const Bytef *>(bytes.constData()),uInt(bytes.size()))))return fail("GCZ block checksum mismatch");
+     if(le32(hash,0)!=quint32(adler32(1,reinterpret_cast<const Bytef *>(bytes.constData()),uInt(bytes.size()))))return fail("GCZ block checksum mismatch");
     }
     cache=raw?bytes:inflateBlock(bytes,format=="gcz"?15:-15,expected);if(cache.isEmpty())return {};
     decoded+=expected;last=number;

@@ -67,15 +67,18 @@ is pressed, never by a diagnostic or offscreen run, and never by a test.
 
 The "Where is it?" step of Set-up has a **Game library** card. You choose one or
 more big folders of your own games, subfolders and all (`libraryRoots`), and the
-Hub finds every game it plays under them.
+Hub identifies games from their media. The summary includes PlayStation and
+GameCube; identification is separate from the launch profiles in Set-up below.
+Unread media and IDs absent from the public indexes remain unknown.
 
 **How it looks:**
 - It goes up to six folders down and never enters links, junctions or system
   folders. It runs off the GUI thread and shows progress. **Stop** ends it at
-  the next file and keeps the last whole result.
+  the next bounded read and keeps the last whole result.
 - The second time is quick: a file whose size and time have not changed since
   the last search is not opened again (`user/cache/library-index.json`). A Hub
-  whose list of games changed reads every file again.
+  whose reader rules or public indexes changed reads every file again. Disc
+  sheets are reread so changed tracks are noticed; deferred timed reads retry.
 - It is read-only: nothing under the roots is written, renamed or moved.
 
 **How it knows each game:**
@@ -99,21 +102,21 @@ the launch.
 
 1. read from the disc itself;
 2. the release with a VR profile;
-3. USA, then World, Europe, Japan;
-4. the plainest format;
-5. a folder named for the system;
+3. an arcade folder named for its system;
+4. USA, then World, Europe, Japan;
+5. the plainest format;
 6. the shortest path.
 
 The game's page lists the copies under "Copy used". Picking one there remembers it
 (`libraryChoice`).
 
 **What it reports:**
-- per system, the games found and the discs that are not in the Hub's list;
+- per system, identified titles and disc IDs without a public mapping;
 - the files it read but did not recognise, as counts of disc images and archives.
 
-On a real collection with about 70 system folders, it read 31,568 candidate files
-in about 96 seconds. That first search is cached; the next one runs only on
-request.
+The first search can take longer while reading compressed images and late
+Dreamcast headers. Its elapsed time appears in the result. Later searches reuse
+unchanged entries, and Stop remains available during bounded reads.
 
 ## One SteamVR policy
 

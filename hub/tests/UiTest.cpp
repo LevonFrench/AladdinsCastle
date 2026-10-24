@@ -925,6 +925,31 @@ class UiTest:public QObject {
   QVERIFY(namedItems(window->contentItem(),"universalControlsView").isEmpty());
   root->setProperty("view","List");QTRY_VERIFY(model->gameId().isEmpty());
  }
+ void gameLibrarySummaryIncludesIdentifiedPs1AndGameCube(){
+  ac::UiController controller(games.get(),&filter,settings.get());
+  QQmlContext context(engine->rootContext());context.setContextProperty("uiController",&controller);
+  QQmlComponent component(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/GameLibraryCard.qml"));
+  QVERIFY2(component.isReady(),qPrintable(component.errorString()));
+  std::unique_ptr<QObject> card(component.create(&context));QVERIFY2(card,qPrintable(component.errorString()));
+  QVERIFY(card->setProperty("width",1000));
+  auto summary=card->findChild<QObject *>("librarySummary");QVERIFY(summary);
+  // Identification counts describe the library; launch profiles are a separate Set-up result.
+  controller.setLibrary({{"files",19},{"systems",QVariantMap{
+   {"ps1",QVariantMap{{"games",3},{"other",1}}},
+   {"gamecube",QVariantMap{{"games",2},{"other",4}}}}},
+   {"unrecognised",QVariantMap{{"discs",7},{"archives",2}}}});
+  QTRY_VERIFY(summary->property("text").toString().contains("PlayStation: 3 (and 1 unknown ID)"));
+  const auto text=summary->property("text").toString();
+  QVERIFY2(text.contains("Nintendo GameCube: 2 (and 4 unknown IDs)"),qPrintable(text));
+  QVERIFY2(text.contains("Unknown: 7 disc images, 2 archives"),qPrintable(text));
+  QVERIFY(!text.contains("Not games the Hub plays",Qt::CaseInsensitive));
+  QVERIFY(!text.contains("unsupported",Qt::CaseInsensitive));
+  // The summary stays bound to the real controller's libraryChanged signal.
+  controller.setLibrary({{"files",1},{"systems",QVariantMap{{"ps1",QVariantMap{{"games",1},{"other",0}}}}},
+   {"unrecognised",QVariantMap{{"discs",0},{"archives",0}}}});
+  QTRY_VERIFY(summary->property("text").toString().contains("PlayStation: 1"));
+  QVERIFY(!summary->property("text").toString().contains("Nintendo GameCube"));
+ }
  void componentLoading(){
   const QStringList components{"PillButton","UiText","GameArt","GradientText","GameCard","SectionHeader","FeaturedBanner","Header","FilterBar","ScanProgress","FiltersDrawer","GameGrid","LibraryTile","RecentlyPlayedRow","ExplorePage","DetailPage","InstallConsole","RecoveryPanel","SettingsPage","SortMenu","HelpPanel"};
   for(const auto &name:components){QQmlComponent c(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/"+name+".qml"));QVERIFY2(c.isReady(),qPrintable(c.errorString()));std::unique_ptr<QObject> o(c.create());QVERIFY2(o!=nullptr,qPrintable(c.errorString()));}

@@ -198,6 +198,13 @@ private slots:
     QCOMPARE(result.value("systems").toMap().value("ps2").toMap().value("other").toInt(), 1);
     QCOMPARE(result.value("systems").toMap().value("ps1").toMap().value("other").toInt(), 1);
   }
+  void gameCubeUsesTheFrontendSystemKey(){
+    QTemporaryDir t;auto header=wiiIso("GFZE01");qToBigEndian<quint32>(0,header.data()+24);qToBigEndian<quint32>(0xc2339f3d,header.data()+28);write(t.filePath("longer-disc.iso"),header);
+    QByteArray packed(44,0);qToLittleEndian<quint32>(0xb10bc001,packed.data());qToLittleEndian<quint64>(quint64(header.size()),packed.data()+8);qToLittleEndian<quint64>(quint64(header.size()),packed.data()+16);
+    qToLittleEndian<quint32>(quint32(header.size()),packed.data()+24);qToLittleEndian<quint32>(1,packed.data()+28);qToLittleEndian<quint64>(quint64(1)<<63,packed.data()+32);
+    quint32 a=1,b=0;for(const auto byte:header){a=(a+quint8(byte))%65521;b=(b+a)%65521;}qToLittleEndian<quint32>((b<<16)|a,packed.data()+40);write(t.filePath("a.gcz"),packed+header);
+    std::atomic_bool cancel=false;const auto result=ac::library::scan({t.path()},{},cancel);const auto copies=ac::library::copies(result,"gamecube","gc-f-zero-gx");QCOMPARE(copies.size(),2);QVERIFY(copies.first().toMap().value("file").toString().endsWith("longer-disc.iso"));QVERIFY(!result.value("systems").toMap().contains("gc"));
+  }
   void aBigTreeIsQuick() {
     // Thousands of files over many folders, as in a large collection: most are not games the Hub plays.
     QTemporaryDir t;
