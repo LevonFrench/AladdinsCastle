@@ -17,8 +17,10 @@
 
   const el = new Audio();
   el.preload = 'auto';
-  if (/[?&]mute\b/.test(location.search)) el.muted = true;  // silent test runs
-  let ctx = null, fadeGain = null, volGain = null;
+  // silent test runs: the output is cut after the meter, so the EQ still moves (no Web Audio: the element is muted)
+  const MUTE = /[?&]mute\b/.test(location.search);
+  if (MUTE) el.muted = true;
+  let ctx = null, fadeGain = null, volGain = null, meter = null;
   let db = Number(store.getLocal('acvr-music-db'));
   if (!Number.isFinite(db) || store.getLocal('acvr-music-db') === null) db = DB_DEFAULT;
   db = Math.min(DB_MAX, Math.max(DB_MIN, db));
@@ -55,7 +57,12 @@
     const src = ctx.createMediaElementSource(el);
     fadeGain = ctx.createGain(); fadeGain.gain.value = 0;
     volGain = ctx.createGain(); volGain.gain.value = gainOf(db);
-    src.connect(fadeGain).connect(volGain).connect(ctx.destination);
+    const out = ctx.createGain(); out.gain.value = MUTE ? 0 : 1;
+    meter = ctx.createAnalyser(); meter.fftSize = 512; meter.smoothingTimeConstant = 0.6;
+    meter.minDecibels = -70; meter.maxDecibels = -20;  // headroom so loud bands are not pinned at the top
+    src.connect(fadeGain).connect(volGain).connect(out).connect(ctx.destination);
+    fadeGain.connect(meter);  // before the volume knob, so the EQ shows the music, not the level
+    el.muted = false;          // the graph carries the sound now (and cuts it when MUTE)
   }
   function fadeTo(target, seconds) {
     if (!ctx) { el.volume = target * gainOf(db); return; }
@@ -78,6 +85,7 @@
     <button type="button" class="music-btn music-stop" aria-label="Stop music">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3.5h9v9h-9z"/></svg>
     </button>
+    <span class="music-eq" aria-hidden="true">▁▁▁▁▁▁▁▁</span>
     <span class="music-track">
       <span class="music-title">${TITLE}</span>
       <input class="music-seek" type="range" min="0" max="1" step="0.1" value="${START}" aria-label="Seek in ${TITLE}">
@@ -98,6 +106,7 @@
   const knob = bar.querySelector('.music-knob');
   const dial = bar.querySelector('.music-dial');
   const dbText = bar.querySelector('.music-db');
+  const eq = bar.querySelector('.music-eq');
   function hideBar() { bar.hidden = true; document.body.classList.remove('has-music'); }  // no track, no bar
 
   const clock = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -126,6 +135,27 @@
     showVolume();
   }
 
+  // ---- EQ: eight bands of the track, drawn in block characters ----
+  const BARS = ' ▁▂▃▄▅▆▇█', EDGES = [1, 2, 4, 7, 12, 20, 34, 58, 100];  // FFT bins, ~94 Hz each
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let eqTimer = 0, bins = null;
+  function drawEq() {
+    bins = bins || new Uint8Array(meter.frequencyBinCount);
+    meter.getByteFrequencyData(bins);
+    let line = '';
+    for (let b = 0; b < 8; b++) {
+      let peak = 0;
+      for (let i = EDGES[b]; i < EDGES[b + 1]; i++) peak = Math.max(peak, bins[i]);
+      line += BARS[Math.max(1, Math.round((peak / 255) * 8))];
+    }
+    eq.textContent = line;
+  }
+  function eqRun(on) {
+    clearInterval(eqTimer);
+    if (on && meter && !reduce) eqTimer = setInterval(drawEq, 50);
+    else eq.textContent = '▁▁▁▁▁▁▁▁';
+  }
+
   // ---- transport ----
   let playing = false, pauseTimer = 0;
   function showState() {
@@ -144,7 +174,7 @@
     playing = true; userStopped = false; store.set('acvr-music-off', '0');
     fadeTo(1, fresh ? 0 : QUICK_FADE);  // straight in from the top, a short ramp on resume
     fresh = false;
-    showState();
+    showState(); eqRun(true);
     return true;
   }
   function pause() {
@@ -152,7 +182,7 @@
     resumeAt = el.currentTime || resumeAt;
     fadeTo(0, QUICK_FADE);
     clearTimeout(pauseTimer);
-    pauseTimer = setTimeout(() => el.pause(), QUICK_FADE * 1000 + 30);
+    pauseTimer = setTimeout(() => { el.pause(); eqRun(false); }, QUICK_FADE * 1000 + 30);
     showState(); showTime();
   }
   function stop() {
@@ -226,5 +256,5 @@
     if (navigator.userActivation ? navigator.userActivation.hasBeenActive : false) play();
   }
 
-  if (/[?&]debug\b/.test(location.search)) window.__music = { el, get ctx() { return ctx; }, get db() { return db; }, setDb, play, pause, stop };
+  if (/[?&]debug\b/.test(location.search)) window.__music = { el, get ctx() { return ctx; }, get eq() { return eq.textContent; }, get db() { return db; }, setDb, play, pause, stop };
 })();
