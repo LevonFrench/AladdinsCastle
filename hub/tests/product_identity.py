@@ -21,7 +21,7 @@ with tempfile.TemporaryDirectory() as temp:
     (data/'product.json').write_text(json.dumps(product),encoding='utf-8')
     (hub/'CMakeLists.txt').write_text('cmake_minimum_required(VERSION 3.28)\nproject(IdentityFixture LANGUAGES NONE)\ninclude(cmake/ProductIdentity.cmake)\nconfigure_file(resources/dashboard.vrmanifest.in "${CMAKE_BINARY_DIR}/dashboard.vrmanifest" @ONLY)\n',encoding='utf-8')
     command=[sys.argv[1],'-S',str(hub),'-B',str(p/'build')]
-    result=subprocess.run(command,capture_output=True,text=True);assert result.returncode==0,result.stdout+result.stderr
+    result=subprocess.run(command,capture_output=True,text=True,timeout=60);assert result.returncode==0,result.stdout+result.stderr
     header=(p/'build/generated/ProductIdentity.h').read_text();assert all(value in header for field,value in product.items() if field!='schema')
     manifest=json.loads((p/'build/dashboard.vrmanifest').read_text())['applications'][0]
     assert manifest['app_key']==product['overlay_key']
@@ -29,5 +29,5 @@ with tempfile.TemporaryDirectory() as temp:
     assert manifest['strings']['en_us']['name']==product['display_name']
     assert (p/'build/generated/product.json').read_bytes()==(data/'product.json').read_bytes()
     product['schema']=2;(data/'product.json').write_text(json.dumps(product))
-    result=subprocess.run(command,capture_output=True,text=True);assert result.returncode!=0,'Unsupported identity schema admitted'
+    result=subprocess.run(command,capture_output=True,text=True,timeout=60);assert result.returncode!=0,'Unsupported identity schema admitted'
 print('PASS QML display-name guard, alternate product identity, manifest/program agreement, exact snapshot and invalid-schema refusal')

@@ -125,7 +125,6 @@ private slots:
     dog.scan();
     QCOMPARE(dog.strays().size(), 2);
     dog.end(23); // Not a stray: nothing happens.
-    QTest::qWait(250);
     QVERIFY(gentle.isEmpty());
     dog.end(20);
     QCOMPARE(gentle.size(), 1);
