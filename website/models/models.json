@@ -10,8 +10,8 @@
    "shape": "Full-size semi-automatic with a separate slide that travels back about 15 mm, chunky rounded grip, cable boss under the grip.",
    "length_mm": 255,
    "tint": {
-    "body": "#d2362e",
-    "accent": "#50535a"
+    "body": "#e8483c",
+    "accent": "#46484f"
    },
    "motion": {
     "trigger": {
@@ -57,7 +57,7 @@
      "translation": [
       0,
       -0.0171,
-      0
+      0.0127
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -71,7 +71,7 @@
      "translation": [
       0,
       -0.0171,
-      0
+      0.0127
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -93,8 +93,8 @@
    "shape": "Stocky pistol with a squared barrel block, a moulded revolver-style cylinder and a wide trigger guard.",
    "length_mm": 245,
    "tint": {
-    "body": "#cf2f2b",
-    "accent": "#50535a"
+    "body": "#e8483c",
+    "accent": "#46484f"
    },
    "motion": {
     "trigger": {
@@ -140,7 +140,7 @@
      "translation": [
       0,
       -0.0225,
-      0
+      0.0193
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -154,7 +154,7 @@
      "translation": [
       0,
       -0.0225,
-      0
+      0.0193
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -176,8 +176,8 @@
    "shape": "Compact semi-automatic outline with a thick grip and a short flat-topped barrel.",
    "length_mm": 230,
    "tint": {
-    "body": "#c8322b",
-    "accent": "#50535a"
+    "body": "#e8483c",
+    "accent": "#46484f"
    },
    "motion": {
     "trigger": {
@@ -204,8 +204,8 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0115,
-      0
+      -0.0216,
+      0.0151
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -218,8 +218,8 @@
      "node": "grip",
      "translation": [
       0,
-      -0.0115,
-      0
+      -0.0216,
+      0.0151
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -241,8 +241,8 @@
    "shape": "Deep box barrel with a round lens in a flat muzzle, long grip angled back, large trigger guard, one oval button on each side below the barrel, cable from the grip base; the top slide kicks back on each shot.",
    "length_mm": 246,
    "tint": {
-    "body": "#1b1b1e",
-    "accent": "#8a8d93"
+    "body": "#3c3d44",
+    "accent": "#8f9298"
    },
    "motion": {
     "trigger": {
@@ -318,7 +318,36 @@
      ]
     }
    },
-   "hands": {},
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      -0.0136,
+      -0.0186
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      -0.0136,
+      -0.0186
+     ],
+     "rotation_xyzw": [
+      0.13052619222005157,
+      0,
+      0,
+      0.9914448613738104
+     ]
+    }
+   },
    "licence": "CC0-1.0",
    "file": "models/funcon.glb"
   },
@@ -331,8 +360,8 @@
    "shape": "Smaller, rounder pistol; small d-pad on the back where a hammer would be; two buttons above the trigger guard; one button at the bottom of the grip.",
    "length_mm": 225,
    "tint": {
-    "body": "#1b1b1e",
-    "accent": "#8a8d93"
+    "body": "#3c3d44",
+    "accent": "#8f9298"
    },
    "motion": {
     "trigger": {
@@ -468,7 +497,7 @@
      "translation": [
       0,
       -0.0261,
-      0
+      0.0105
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -482,7 +511,7 @@
      "translation": [
       0,
       -0.0261,
-      0
+      0.0105
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -504,8 +533,8 @@
    "shape": "Slim automatic-style pistol, long flat barrel, round lens at the muzzle, one oval button on each side under the barrel.",
    "length_mm": 240,
    "tint": {
-    "body": "#1b1b1e",
-    "accent": "#8a8d93"
+    "body": "#3c3d44",
+    "accent": "#8f9298"
    },
    "motion": {
     "trigger": {
@@ -569,7 +598,7 @@
      "translation": [
       0,
       -0.0191,
-      0
+      0.0159
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -583,7 +612,7 @@
      "translation": [
       0,
       -0.0191,
-      0
+      0.0159
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -605,7 +634,7 @@
    "shape": "Short, thick revolver-like pistol with a blocky barrel shroud, a fixed cylinder bulge and a Start button on the left side.",
    "length_mm": 230,
    "tint": {
-    "body": "#1b1b1e",
+    "body": "#3c3d44",
     "accent": "#f2c81e"
    },
    "motion": {
@@ -652,7 +681,7 @@
      "translation": [
       0,
       -0.017,
-      0
+      0.019
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -666,7 +695,7 @@
      "translation": [
       0,
       -0.017,
-      0
+      0.019
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -843,7 +872,7 @@
      "translation": [
       0,
       -0.0163,
-      0
+      0.0197
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -857,7 +886,7 @@
      "translation": [
       0,
       -0.0163,
-      0
+      0.0197
      ],
      "rotation_xyzw": [
       0.13052619222005157,
@@ -1017,7 +1046,7 @@
    "length_mm": 148,
    "tint": {
     "body": "#eef0f3",
-    "accent": "#d9dde2"
+    "accent": "#b8bec6"
    },
    "motion": {
     "button-dpad": {
@@ -1165,7 +1194,36 @@
      ]
     }
    },
-   "hands": {},
+   "hands": {
+    "right": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.0,
+      0,
+      0,
+      1.0
+     ]
+    },
+    "left": {
+     "node": "grip",
+     "translation": [
+      0,
+      0,
+      0
+     ],
+     "rotation_xyzw": [
+      0.0,
+      0,
+      0,
+      1.0
+     ]
+    }
+   },
    "licence": "CC0-1.0",
    "file": "models/con-pointer-remote.glb"
   },
@@ -1178,8 +1236,8 @@
    "shape": "Fat barrel shroud on a yoke that turns and tilts, two rear handles or a rear grip plus a top handle, a thumb button on the side.",
    "length_mm": 650,
    "tint": {
-    "body": "#26262a",
-    "accent": "#7d8087"
+    "body": "#3c3d44",
+    "accent": "#8f9298"
    },
    "motion": {
     "trigger": {
@@ -1337,8 +1395,8 @@
    "licence": "CC0-1.0",
    "file": "models/grip-hand-right.glb",
    "tint": {
-    "body": "#8293a8",
-    "accent": "#a9b8c9"
+    "body": "#9eaec2",
+    "accent": "#c4d0dd"
    }
   },
   {
@@ -1348,8 +1406,8 @@
    "licence": "CC0-1.0",
    "file": "models/grip-hand-left.glb",
    "tint": {
-    "body": "#8293a8",
-    "accent": "#a9b8c9"
+    "body": "#9eaec2",
+    "accent": "#c4d0dd"
    }
   }
  ]

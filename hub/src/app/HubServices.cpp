@@ -323,7 +323,9 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             // What each file was read as last time, so an unchanged file is not opened again.
             QVariantMap index;
             try{QFile saved(install::scopedPath("user/cache/library-index.json",root));if(saved.size()<=256*1024*1024&&saved.open(QIODevice::ReadOnly))index=QJsonDocument::fromJson(saved.readAll()).toVariant().toMap();}catch(const std::exception &){}
-            const auto result=library::scan(roots,progress,*cancel,6,&index);
+            // The index is written every ten seconds during the read too, so a crash or a shut-down part-way keeps what was read.
+            const auto checkpoint=[root](const QVariantMap &partial){try{install::atomicWrite(install::scopedPath("user/cache/library-index.json",root),QJsonDocument::fromVariant(partial).toJson(QJsonDocument::Compact));}catch(const std::exception &){}};
+            const auto result=library::scan(roots,progress,*cancel,6,&index,checkpoint);
             try{install::atomicWrite(install::scopedPath("user/cache/library-index.json",root),QJsonDocument::fromVariant(index).toJson(QJsonDocument::Compact));}catch(const std::exception &){}
             if(!result.value("cancelled").toBool())
                 try{install::atomicWrite(install::scopedPath("user/cache/library.json",root),QJsonDocument::fromVariant(result).toJson(QJsonDocument::Compact));}catch(const std::exception &){}

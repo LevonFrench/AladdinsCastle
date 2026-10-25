@@ -19,6 +19,9 @@ struct Config {
   float letterbox = 0;             // share of the picture's height cut from its top and from its bottom (3DS side by side: .25)
   bool swapEyes = false;           // side by side: the left half goes to the right eye and the other way round (ACVR_PS1_SWAP_EYES)
   bool aimDot = true;              // the orange dot where the right controller's ray meets the screen
+  // Both grips held for about a second put the screen in front of you again. The host turns it off when the game
+  // uses a grip (a pad map with rgrip or lgrip, the face-button layout), so holding both grips in play does not move the screen.
+  bool gripRecentre = true;
   bool frame = true;               // the thin dark frame round the screen
   float edgeFade = 0;              // share of the picture's width and height over which its edges fade into the dark
   // The HUD panel: the game's 2D overlay (a separate picture, transparent elsewhere) on its own flat panel, placed
@@ -31,7 +34,7 @@ struct Input {
   float u = .5f, v = .5f;
   bool active = false, offScreen = true, trigger = false, a = false, b = false, grip = false, quitHeld = false;
   // Left controller as a PlayStation pad: stick = d-pad, trigger = Cross, X (Index: A) = Circle,
-  // grip = Square, menu (Index: stick click) = Start.
+  // grip = Square, stick click (the menu button is the SteamVR dashboard under ALVR) = Start.
   float padX = 0, padY = 0;
   bool padCross = false, padCircle = false, padSquare = false, padStart = false;
   bool stickLeft = false, stickRight = false;   // thumbstick clicks

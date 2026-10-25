@@ -272,6 +272,34 @@ private slots:
     QVERIFY(ac::library::scan({root}, {}, cancel, 6, &index).value("cancelled").toBool());
     QCOMPARE(index.value("files").toMap().size(), kept);
   }
+  // The index keeps what each disc said, not what it matched: when the disc data says something else about it (here
+  // the saved reading is made to name a disc nobody knows), no disc is opened again and the result follows the data.
+  void aDataChangeIsFollowedWithoutReadingAgain() {
+    QTemporaryDir t;
+    const auto root = t.filePath("roms");
+    write(root + "/wii/umbrella.wbfs", wbfs("RBUE08"));
+    write(root + "/ps2/disc.iso", ps2Iso("SLES_512.29"));
+    std::atomic_bool cancel = false;
+    QVariantMap index;
+    const auto first = ac::library::scan({root}, {}, cancel, 6, &index);
+    QCOMPARE(ac::library::copies(first, "wii", "umbrella").size(), 1);
+    index = QJsonDocument::fromJson(QJsonDocument::fromVariant(index).toJson()).toVariant().toMap();
+    auto records = index.value("files").toMap();
+    const auto key = QDir::fromNativeSeparators(root + "/wii/umbrella.wbfs");
+    auto record = records.value(key).toMap();
+    auto outcome = record.value("outcome").toMap();
+    auto reading = outcome.value("reading").toMap();
+    QVERIFY(!reading.value("identity").toString().isEmpty());
+    reading["identity"] = "ZZZZ99";
+    outcome["reading"] = reading;
+    record["outcome"] = outcome;
+    records[key] = record;
+    index["files"] = records;
+    const auto second = ac::library::scan({root}, {}, cancel, 6, &index);
+    QCOMPARE(second.value("reused").toInt(), 2);
+    QVERIFY(ac::library::copies(second, "wii", "umbrella").isEmpty());
+    QCOMPARE(ac::library::copies(second, "ps2", "virtua-cop").size(), 1);
+  }
 };
 QTEST_GUILESS_MAIN(LibraryTest)
 #include "LibraryTest.moc"

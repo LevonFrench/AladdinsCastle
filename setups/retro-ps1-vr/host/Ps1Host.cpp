@@ -701,6 +701,9 @@ theatre::Config TheatreConfig()
   FrameShapeChanged();
   FrameShape(c.aspect, c.letterbox);
   c.aimDot = !PadMode() || EnvFloat("ACVR_PAD_AIM_DOT", 0.f) != 0.f;   // pad games show their own crosshair, if any
+  // The both-grips recentre needs both grips free: a pad map or the face-button layout that uses a grip turns it off.
+  const char *face = std::getenv("ACVR_PS1_FACE_BUTTONS");
+  c.gripRecentre = PadMode() ? !g_padCfg.usesGrip() : !(face && std::atoi(face) == 1);
   // Wide view: the picture holds 1/kx of the game's width and 1/ky of its height, so the surface is that much
   // wider (ACVR_PS1_SCREEN_W gives its width): no frame, edges fading into the dark.
   float kx = 1, ky = 1; glstereo::WideView(kx, ky);
@@ -903,7 +906,7 @@ int main(int argc, char **argv)
   if (!stopFile.empty()) Log("Clean stop file: %s", stopFile.c_str());
   const char *faceEnv = std::getenv("ACVR_PS1_FACE_BUTTONS");
   const bool faceButtons = faceEnv && std::atoi(faceEnv) == 1;
-  if (faceButtons) Log("Face buttons: right A Cross, right B Circle, left X Square, left Y Triangle, left stick Select, right stick Start; gun buttons on the grips");
+  if (faceButtons) Log("Face buttons: right A Cross, right B Circle, left X Square, left Y Triangle, left stick Start, right stick Select; gun buttons on the grips");
   if (const char *aim = std::getenv("ACVR_PS1_AIM")) if (*aim) Log("Aim trim (x scale, x shift, y scale, y shift): %s", aim);
   CleanQuit quit;
   bool quitWasHeld = false;
@@ -952,13 +955,13 @@ int main(int argc, char **argv)
       p.start = controller.padStart || controller.stickLeft;   // left stick click is Start everywhere; the left menu button is dead under ALVR
       if (faceButtons) {
         // The owner's layout: right A Cross, right B Circle, left X Square, left Y Triangle (holding left Y for 3 s
-        // still quits), left stick click Select, right stick click Start. The gun keeps the trigger; its two
+        // still quits), left stick click Start, right stick click Select. The gun keeps the trigger; its two
         // buttons move to the right and left grips.
         p.cross = controller.a || controller.padCross; p.circle = controller.b; p.square = controller.padCircle;
         p.triangle = controller.quitHeld;
-        p.select = controller.stickLeft; p.start = controller.stickRight || controller.padStart;
+        p.start = controller.stickLeft || controller.padStart; p.select = controller.stickRight;
         g.a = controller.grip; g.b = controller.padSquare;   // the gun's own two buttons on the grips
-        g.start = controller.stickRight || controller.padStart; g.select = controller.stickLeft;
+        g.start = controller.stickLeft || controller.padStart; g.select = controller.stickRight;
       }
       g_pad = p;
       if (PadMode()) {

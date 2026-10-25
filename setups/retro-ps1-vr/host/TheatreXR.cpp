@@ -135,8 +135,8 @@ bool InitActions()
       !make("pad_circle", "Pad Circle", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padCircle, s_left) ||
       !make("pad_square", "Pad Square", XR_ACTION_TYPE_FLOAT_INPUT, s_padSquare, s_left) ||
       !make("pad_start", "Pad Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padStart, s_left) ||
-      !make("stick_left", "Left stick click (Select)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickLeft, s_left) ||
-      !make("stick_right", "Right stick click (Start)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickRight, s_right) ||
+      !make("stick_left", "Left stick click (Start)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickLeft, s_left) ||
+      !make("stick_right", "Right stick click (Select)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickRight, s_right) ||
       !make("right_stick", "Right stick", XR_ACTION_TYPE_VECTOR2F_INPUT, s_rightStick, s_right) ||
       !make("recoil", "Recoil", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic, s_right)) return false;
   struct Profile { const char *profile, *quit, *circle, *start; };
@@ -252,7 +252,8 @@ void ThreadBody()
   Renderer renderer; try { renderer.init(s_gun.loaded() ? &s_gun : nullptr); } catch (const std::exception &e) { Log("renderer: %s", e.what()); s_stop = true; }
   ScreenGeometry screen; bool placed = false, running = false; unsigned long frames = 0;
   bool lastTrigger = false; ULONGLONG kickAt = 0;
-  // Both grips held for about a second put the screen in front of you again (the Home key does the same on the PC).
+  // Both grips held for about a second put the screen in front of you again (the Home key does the same on the PC),
+  // unless the game uses a grip (s_config.gripRecentre is off then; Home still works on the PC).
   ULONGLONG bothGripsSince = 0; bool recentreArmed = true, recentreWanted = false;
   while (!s_stop) {
     XrEventDataBuffer ev{ XR_TYPE_EVENT_DATA_BUFFER };
@@ -327,7 +328,7 @@ void ThreadBody()
     }
     if (in.trigger && !lastTrigger) kickAt = GetTickCount64();
     lastTrigger = in.trigger;
-    if (in.gripValue > .6f && in.padGripValue > .6f) {
+    if (s_config.gripRecentre && in.gripValue > .6f && in.padGripValue > .6f) {
       const ULONGLONG t = GetTickCount64(); if (!bothGripsSince) bothGripsSince = t;
       if (recentreArmed && t - bothGripsSince >= 1000) { recentreWanted = true; recentreArmed = false; }
     } else { bothGripsSince = 0; recentreArmed = true; }

@@ -59,6 +59,9 @@ QVariantList models(const QString &root) {
         const auto file=install::scopedPath("data/guns/"+it.key()+".toml",root);
         const auto descriptor=toml::parse(read(file,64*1024).toStdString());
         if(descriptor["id"].value_or(std::string{})!=it.key().toStdString()) continue;
+        // A held controller has a grip but no muzzle node, which libacvr needs for the aim ray (the native room
+        // would refuse it), so it is not offered. Only DolphinXR draws these, for Wii motion games.
+        if(descriptor["asset_kind"].value_or(std::string{"gun"})=="controller") continue;
         const auto name=QString::fromStdString(descriptor["name"].value_or(it.key().toStdString())).left(128);
         out<<QVariantMap{{"id",it.key()},{"title",name}};
       } catch(const std::exception &) { /* A broken model does not hide the others. */ }

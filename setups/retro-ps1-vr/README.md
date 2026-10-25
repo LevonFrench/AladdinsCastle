@@ -26,7 +26,7 @@ It brings no emulator, BIOS or game. You point it at your own:
 | Left stick | Pad d-pad (a standard pad on the other port, for menus and pad-only modes) |
 | Left trigger, left X (Index: left A), left grip | Pad Cross, Circle, Square |
 | Left stick click (also the left menu button, which SteamVR keeps for its dashboard under ALVR) | Pad Start |
-| Home key, or both grips held for about 1 s | Put the screen in front of you again |
+| Home key, or both grips held for about 1 s, when the game uses no grip (see below) | Put the screen in front of you again |
 
 Each trigger pull gives a short vibration and a small visual kick of the gun.
 Escape on the PC also quits cleanly. A launcher or the Hub can quit it by
@@ -73,8 +73,14 @@ picture is smaller than the headset pixels it uses mipmaps instead.
 The screen is placed level, straight ahead of where you look when the first
 picture arrives; Home places it again, and so does holding both grips for about
 a second (in the headset, where there is no Home key; let go and hold again to
-repeat). A game that uses both grips at once, such as boost and brake together,
-triggers it too after that second.
+repeat). The both-grips gesture is on only when the game does not use a grip:
+always in gun mode, and in the pad modes only when the active `ACVR_PAD_MAP`
+(or the aim-hold control) names neither `rgrip` nor `lgrip`. The face-button
+layout (`ACVR_PS1_FACE_BUTTONS=1`) puts the gun's buttons on the grips, so it
+turns the gesture off too. The default pad, wheel and aim maps all use a grip,
+so there the screen is placed at the start and by the Home key on the PC; a
+map such as Star Fox 64 3D's, which holds boost and brake together, never moves
+the screen. (`theatre::Config::gripRecentre`, set from `pad::Config::usesGrip`.)
 
 ## Saves
 
@@ -331,7 +337,9 @@ and R, the right analog stick is the C buttons.
 `ACVR_PAD_MAP` maps VR controls to RetroPad buttons, for example
 `rtrig=b,ltrig=rs-down,rgrip=r,lgrip=l2` (F-Zero X: right trigger accelerates,
 left trigger brakes on C-down, the grips lean). VR names: `rtrig ltrig rgrip
-lgrip ra rb lx ly lmenu rclick lclick rup rdown rleft rright`; RetroPad names:
+lgrip ra rb lx ly lmenu rclick lclick rup rdown rleft rright`
+(`lclick`, the left stick click, is Start in every default map; `lmenu` and,
+where the right stick is unused, `rclick` are aliases); RetroPad names:
 `b y select start up down left right a x l r l2 r2 l3 r3` and `rs-up rs-down
 rs-left rs-right` (the right stick pushed fully). `ACVR_PAD_AIM` is the aim
 trim `x scale, x shift, y scale, y shift` from the screen point to the stick,
@@ -339,6 +347,18 @@ measured per game against its own crosshair. The game's Rumble Pak
 (`--option mupen64plus-pak1=rumble`) pulses the right controller. Saves
 (EEPROM, SRAM, controller pak) are the core's save memory, kept in the saves
 folder like the PlayStation memory card.
+
+Default maps (`PadControls.h`, `DefaultMap`; `ACVR_PAD_MAP` replaces the whole map):
+
+| Mode | Map |
+|---|---|
+| `pad` | `ra=b,rb=y,rtrig=l2,rgrip=r,ltrig=l2,lgrip=l,lx=b,lclick=start,lmenu=start` (no `rclick`: the right stick is the C buttons) |
+| `wheel` | `rtrig=b,ltrig=y,rgrip=r,lgrip=l2,ra=b,rb=y,lx=l,lclick=start,lmenu=start,rclick=start` |
+| `aim` | `rtrig=l2,ra=b,rb=y,lgrip=l2,lx=l,lclick=start,lmenu=start,rclick=start,ltrig=r` |
+
+The left stick click is Start, so L is no longer there: in `wheel` and `aim`
+L is on left X (Index: left A), where it only duplicated Z (`wheel`) or A
+(`aim`). In `pad` L stays on the left grip.
 
 Offline scripts drive a virtual VR controller through the same mapping:
 `roll DEG`, `point U V`, `rtrig V`, `ltrig V`, `rgrip V`, `lgrip V`,
@@ -497,7 +517,7 @@ Azahar's RetroPad A, B, X, Y, L, R are the 3DS buttons of the same names, the
 left stick is the Circle Pad:
 
 ```
-ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=start,lmenu=start,rclick=start
+ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=start
 ```
 
 | VR control | 3DS | Star Fox 64 3D |
@@ -509,7 +529,7 @@ ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=s
 | left grip | B | brake |
 | left trigger, right stick left | L | bank left (twice: barrel roll) |
 | right B, right stick right | R | bank right (twice: barrel roll) |
-| left stick click (also left menu, right stick click) | Start | pause |
+| left stick click | Start | pause (no right stick click alias: the right stick banks here) |
 
 The game asks in its tutorial whether to turn on gyro aiming; the host sends no
 motion, so answer no. Its "tap B to realign the gyro controls" prompt can stay

@@ -34,6 +34,13 @@ jobs:
         run: python -m unittest discover -s tools -p test_shell_models.py -v
       - name: Synthetic Wii frame-rate preparation checks
         run: python -m unittest discover -s data/performance -p test_phase1.py -v
+      - name: Heavy-run lease tests (temporary folders only)
+        working-directory: tools
+        timeout-minutes: 2
+        run: python -B -m unittest -v test_heavy_lease
+      - name: Pre-push check tests
+        timeout-minutes: 2
+        run: python tools/pre_push.py --test
       - name: Wii motion binding checks (fail on a missing section or an empty profile folder)
         timeout-minutes: 2
         run: python setups/dolphin-vr/motion-controls/check_bindings.py
