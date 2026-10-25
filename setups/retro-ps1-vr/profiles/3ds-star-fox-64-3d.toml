@@ -1,0 +1,38 @@
+# Star Fox 64 3D (Nintendo 3DS) through acvr-ps1 with the Azahar libretro core.
+# Catalog id: 3ds-star-fox-64-3d. Run:
+#   acvr-ps1 --profile profiles\3ds-star-fox-64-3d.toml --core <azahar_libretro.dll> --game <your decrypted dump> --system <folder> --saves <folder>
+# No game, core, BIOS or path belongs in this file; those come from the launcher on the command line.
+# The environment (ACVR_*) and the command line (--option, --controls) override anything below.
+schema       = 1
+name         = "Star Fox 64 3D"
+system       = "3ds"
+controls     = "pad"
+default_view = "theatre"
+notes        = "Type A controls. The game asks in its tutorial whether to turn on gyro aiming: answer no, the host sends no motion."
+
+# Azahar: only the top (3D) screen, both eyes side by side at full size.
+[core_options]
+citra_layout_option     = "single_screen"
+citra_render_3d         = "side-by-side-full"
+citra_factor_3d         = 40    # the 3D slider, 0 to 100. 40, not 100: the theatre screen spans ~55 degrees against 12 to 17 for a 3DS
+citra_resolution_factor = 3     # 1200x720 frame, two eyes of 600x360 in the middle rows
+
+[settings]
+ACVR_PS1_SBS       = 1
+ACVR_PS1_LETTERBOX = "auto"     # the host reads the black rows off the core's frame (0.25 at 1200x720)
+
+# RetroPad A, B, X, Y, L, R are the 3DS buttons of the same names; the left stick is the Circle Pad.
+# lclick = start: the left menu button belongs to the SteamVR dashboard under ALVR. No rclick alias: the right stick banks here.
+# The map holds both grips (boost and brake), so the both-grips recentre gesture turns itself off.
+[pad]
+map = { rtrig = "a", ra = "y", rgrip = "x", lgrip = "b", ltrig = "l", rb = "r", rleft = "l", rright = "r", lclick = "start" }
+
+[views.theatre]
+label    = "Theatre screen"
+evidence = "E2 offline: both eyes and the pad map seen in hidden runs; never in a headset"
+
+[views.swap-eyes]
+label = "Eyes swapped (diagnostic)"
+notes = "If far scenery comes towards you instead of receding."
+[views.swap-eyes.settings]
+ACVR_PS1_SWAP_EYES = 1

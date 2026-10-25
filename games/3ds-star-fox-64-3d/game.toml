@@ -1,0 +1,35 @@
+id           = "3ds-star-fox-64-3d"
+title        = "Star Fox 64 3D"
+alt_titles   = []
+genre        = "shooting"
+subgenre     = []
+year         = 2011                   # JP 14 Jul 2011; NA 9 Sep 2011 (remake of the 1997 N64 game)
+manufacturer = "nintendo"
+developer    = "Nintendo EAD / Q-Games"
+hardware     = "nintendo-3ds"
+graphics     = "polygon-3d"
+players      = 4
+series       = "Star Fox"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "other"
+note = "Your own Nintendo 3DS dump (not provided by this catalog)"
+
+[routes]
+vr          = { best = "theatre", via = "acvr-ps1 with the Azahar core and its profile (setups/retro-ps1-vr/profiles/3ds-star-fox-64-3d.toml)" }
+
+[hub]
+pill   = "SF64 3D"
+colour = "#0c1a2e"
+accent = "#5fa8e8"
+blurb  = "Arwing dogfights across the Lylat system in stereo 3D, steered with the controller's stick."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Star_Fox_64_3D"]
+confidence = "medium"
+checked    = "2026-10-25"

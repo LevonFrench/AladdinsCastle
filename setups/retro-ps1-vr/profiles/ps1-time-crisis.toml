@@ -1,0 +1,18 @@
+# Time Crisis (PlayStation), real 3D through the SwanStation stereo patch (setups/retro-ps1-vr/swanstation-stereo.patch).
+# Catalog id: ps1-time-crisis. This is the migration path from profiles.json: its entry for this game gave the gun,
+# the port and the view; those are `gun`, `port` and (here) the stereo switch. Run:
+#   acvr-ps1 --profile profiles\ps1-time-crisis.toml --core <swanstation stereo core dll> --game <your disc> --system <BIOS folder> --saves <folder>
+# Machine facts stay out: the core and disc, the BIOS and save folders, and the paths of the gun model and any
+# cheat file (ACVR_PS1_GUN_MODEL, ACVR_PS1_CHEAT_FILE) are the launcher's. The core's renderer and resolution
+# options stay in the launcher too until their names are checked against the core.
+schema = 1
+name   = "Time Crisis"
+system = "ps1"
+gun    = "guncon"
+port   = 1
+notes  = "Hold GunCon A or B (the right grip) to step out and shoot; let go to take cover and reload."
+
+[settings]
+ACVR_PS1_STEREO = 1     # read by the patched core: draw every picture twice
+ACVR_PS1_SBS    = 1     # the core outputs both eyes side by side; the host shows each half to its eye
+# ACVR_PS1_STEREO_CONV is left at its default, auto: no per-game tuning was needed (README, "Real 3D").
