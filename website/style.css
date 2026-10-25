@@ -479,3 +479,6 @@ a:focus-visible, .btn:focus-visible { outline: 2px solid var(--neon-cyan); outli
   .music { gap: 6px; }
   .music-db { display: none; }  /* the knob's angle shows the level; screen readers get it from the knob */
 }
+
+.music-eq { font: 15px/1 Menlo, Consolas, "DejaVu Sans Mono", monospace; letter-spacing: 1px; color: var(--neon-cyan); text-shadow: 0 0 6px rgba(79, 243, 255, 0.5); white-space: pre; }
+@media (max-width: 720px) { .music-eq { display: none; } }

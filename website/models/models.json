@@ -56,7 +56,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0171,
       0
      ],
      "rotation_xyzw": [
@@ -70,7 +70,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0171,
       0
      ],
      "rotation_xyzw": [
@@ -139,7 +139,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0225,
       0
      ],
      "rotation_xyzw": [
@@ -153,7 +153,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0225,
       0
      ],
      "rotation_xyzw": [
@@ -204,7 +204,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0115,
       0
      ],
      "rotation_xyzw": [
@@ -218,7 +218,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0115,
       0
      ],
      "rotation_xyzw": [
@@ -467,7 +467,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0261,
       0
      ],
      "rotation_xyzw": [
@@ -481,7 +481,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0261,
       0
      ],
      "rotation_xyzw": [
@@ -568,7 +568,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0191,
       0
      ],
      "rotation_xyzw": [
@@ -582,7 +582,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0191,
       0
      ],
      "rotation_xyzw": [
@@ -651,7 +651,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.017,
       0
      ],
      "rotation_xyzw": [
@@ -665,7 +665,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.017,
       0
      ],
      "rotation_xyzw": [
@@ -842,7 +842,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0163,
       0
      ],
      "rotation_xyzw": [
@@ -856,7 +856,7 @@
      "node": "grip",
      "translation": [
       0,
-      0,
+      -0.0163,
       0
      ],
      "rotation_xyzw": [

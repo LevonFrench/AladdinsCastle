@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const loader = new GLTFLoader();
 const files = new Map();     // file -> Promise<gltf>
 // Bump with the ?v= tags in the pages when models/ changes.
-const VER = '20261023d';
+const VER = '20261023r';
 let catalogPromise = null;
 
 export function catalog() {
