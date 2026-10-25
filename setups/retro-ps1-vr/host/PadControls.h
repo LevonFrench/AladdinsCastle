@@ -105,6 +105,7 @@ inline void ForceVrControl(theatre::Input &in, const std::string &name)
 struct TouchLayout {
   bool on = false;
   float top[4] = { 0, 0, 1, 1 }, bottom[4] = { 0, 0, 1, 1 };
+  float pointer[4] = { 0, 0, 1, 1 };          // where the core takes the bottom screen to be when it reads the stylus (ACVR_PS1_3DS_POINTER; default: the bottom rectangle)
   std::string button = "rtrig";               // the VR control that puts the stylus down
   float panel[3] = { .8f, 1.f, -.55f };       // panel width, distance ahead and height against the eyes, metres
   static bool Rect(const char *text, float out[4])
@@ -125,6 +126,9 @@ struct TouchLayout {
     std::string problems;
     if (!Rect(std::getenv("ACVR_PS1_3DS_TOP"), top)) problems += " ACVR_PS1_3DS_TOP is missing or not x,y,w,h as shares of the frame;";
     if (!Rect(std::getenv("ACVR_PS1_3DS_BOTTOM"), bottom)) problems += " ACVR_PS1_3DS_BOTTOM is missing or not x,y,w,h as shares of the frame;";
+    const char *pointerText = std::getenv("ACVR_PS1_3DS_POINTER");
+    if (pointerText && *pointerText) { if (!Rect(pointerText, pointer)) problems += " ACVR_PS1_3DS_POINTER is not x,y,w,h as shares of the frame;"; }
+    else for (int i = 0; i < 4; ++i) pointer[i] = bottom[i];
     if ((e = std::getenv("ACVR_PS1_3DS_STYLUS")) && *e) {
       if (KnownStylusControl(e)) button = e; else problems += std::string(" ACVR_PS1_3DS_STYLUS '") + e + "' is not a VR control;";
     }
@@ -260,9 +264,9 @@ inline RetroPad Map(const theatre::Input &in, const Config &c)
   } else { p.lx = sx; p.ly = sy; }
   for (const auto &m : c.map) if (VrControl(in, m.first)) p.press((unsigned)m.second);   // buttons (and C directions) last
   if (c.touch.on && in.touchHit) {   // the stylus: over the panel, down while the chosen control is held
-    const auto &b = c.touch.bottom;
+    const auto &b = c.touch.pointer;
     p.pointerOn = true; p.pointerDown = VrControl(in, c.touch.button);
-    // The panel's 0..1 is the bottom screen's share of the frame; the core's pointer range -1..1 is the whole frame.
+    // The panel's 0..1 is the bottom screen's share of the frame (as the core takes it to be); the core's pointer range -1..1 is the whole frame.
     p.px = (b[0] + std::clamp(in.touchU, 0.f, 1.f) * b[2]) * 2.f - 1.f;
     p.py = (b[1] + std::clamp(in.touchV, 0.f, 1.f) * b[3]) * 2.f - 1.f;
   }

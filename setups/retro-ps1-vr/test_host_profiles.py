@@ -215,7 +215,7 @@ class Profiles(unittest.TestCase):
 
     def test_touch_settings_are_for_the_3ds_only(self):
         rows = registry()
-        for name in ("ACVR_PS1_3DS_TOUCH", "ACVR_PS1_3DS_TOP", "ACVR_PS1_3DS_BOTTOM", "ACVR_PS1_3DS_STYLUS", "ACVR_PS1_3DS_PANEL"):
+        for name in ("ACVR_PS1_3DS_TOUCH", "ACVR_PS1_3DS_TOP", "ACVR_PS1_3DS_BOTTOM", "ACVR_PS1_3DS_POINTER", "ACVR_PS1_3DS_STYLUS", "ACVR_PS1_3DS_PANEL"):
             self.assertEqual(rows[name]["systems"], SYSTEM_BITS["k3ds"], name)
         # The stylus controls the host accepts are the ones the pad map knows (PadControls.h), so a typo is caught here too.
         pad_h = read(os.path.join(HOST, "PadControls.h"))

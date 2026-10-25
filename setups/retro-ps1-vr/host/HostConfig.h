@@ -70,6 +70,7 @@ inline const std::vector<Setting> &Registry()
     {"ACVR_PS1_3DS_TOUCH",   Type::Flag,  0, "0",     k3ds, false, false, "1 shows the 3DS bottom screen as a touch panel; the right controller's ray is the stylus (needs ACVR_PS1_3DS_TOP and ACVR_PS1_3DS_BOTTOM)"},
     {"ACVR_PS1_3DS_TOP",     Type::Floats, 4, "none", k3ds, false, false, "the top screen's rectangle of the core's frame, as shares of its width and height: x, y, w, h from the top left (both eyes when side by side)"},
     {"ACVR_PS1_3DS_BOTTOM",  Type::Floats, 4, "none", k3ds, false, false, "the bottom screen's rectangle of the core's frame, same units; also where the stylus is sent"},
+    {"ACVR_PS1_3DS_POINTER", Type::Floats, 4, "the bottom rectangle", k3ds, false, false, "where the core takes the bottom screen to be when it reads the stylus, same units (set it if taps land off the spot)"},
     {"ACVR_PS1_3DS_STYLUS",  Type::Text,  0, "rtrig", k3ds, false, false, "the VR control that puts the stylus down while the ray is on the panel (rtrig, ra, rb, rgrip, lgrip, ...)"},
     {"ACVR_PS1_3DS_PANEL",   Type::Floats, 3, "0.8,1,-0.55", k3ds, false, false, "the touch panel's width, its distance ahead and its height against your eyes, metres"},
     {"ACVR_PS1_IPD",        Type::Float, 0, "0.064", kPs1 | kSaturn | kN64, false, false, "eye separation in metres (GL stereo and the patched cores)"},

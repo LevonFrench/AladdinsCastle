@@ -692,6 +692,7 @@ width and height, `x, y, w, h` from the top left, in the profile:
 | `ACVR_PS1_3DS_TOUCH` | 1: the touch panel. Needs a pad profile (`controls = "pad"`), the next two settings, and `ACVR_PS1_SBS=1` when the core draws two eyes |
 | `ACVR_PS1_3DS_TOP` | the top screen, both eyes: `[0, 0.25, 1, 0.25]` at `default` and `side-by-side-full` |
 | `ACVR_PS1_3DS_BOTTOM` | the bottom screen, once (the left copy): `[0.05, 0.5, 0.4, 0.25]`; also where the stylus is sent |
+| `ACVR_PS1_3DS_POINTER` | where the core takes the bottom screen to be when it reads the stylus, default the bottom rectangle. Taps from round 2 landed one button too high with the default (see below): try `[0.1, 0.5, 0.8, 0.5]`, the layout's mono rectangle |
 | `ACVR_PS1_3DS_STYLUS` | the VR control that puts the stylus down, default `rtrig` |
 | `ACVR_PS1_3DS_PANEL` | panel width, distance ahead, height against your eyes, metres: `0.8, 1, -0.55` (it tilts to face you) |
 
@@ -724,7 +725,9 @@ Roll steering does not apply. R, the D-pad, X and Y are not mapped (their uses w
 not checked). Not checked in a headset: the panel's size and position, whether the
 stylus lands where the ray points, aiming comfort, the map above.
 
-Evidence so far (E2, hidden offline run): the layout facts above; the core
+Round 2 (hidden offline runs, corrected rectangles): the host's own `before-panel.png` is exactly the 480x360 bottom screen; a synthetic tap changed the game in all three runs (Mario Kart 7 left copy and right copy: Grand Prix menu to the 50cc page, which does not happen without a tap; Kid Icarus: first dialog to the next one), so the core takes the stylus from `RETRO_DEVICE_POINTER`. The tap aimed at "Time Trials" (panel 0.5, 0.35) opened Grand Prix instead, and the right copy did the same, so the core does not use the copy's own rectangle. The mono layout's rectangle `[0.1, 0.5, 0.8, 0.5]` (a tap at its 0.175 down is on Grand Prix) fits both, but is **not yet tried**: set `ACVR_PS1_3DS_POINTER` to it and tap Time Trials.
+
+Earlier evidence (E2, hidden offline run): the layout facts above; the core
 polls the pointer every frame and reads the stylus pressed on the frames the
 script held it (10 pressed reads for a 10-frame tap, at the frame position the
 mapping gives); the rectangles checked on a raw frame. **Not shown:** a tap on
