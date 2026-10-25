@@ -2611,8 +2611,8 @@ new file mode 100644
 +  info.actionType=type; info.countSubactionPaths=1; info.subactionPaths=hand ? &hand : &right_hand;
 +  return Check(XRGL("xrCreateAction",p_xrCreateAction,gun_actions,&info,&handle),name);
 + };
-+ if (!action("menu_select","Select",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_select,left_hand) ||
-+     !action("menu_start","Start",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_start,right_hand) ||
++ if (!action("menu_select","Select",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_select,right_hand) ||
++     !action("menu_start","Start",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_start,left_hand) ||
 +     !action("menu_spare_start","Spare Start",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_spare_start,left_hand) ||
 +     !action("quit_y","Hold Y to quit",XR_ACTION_TYPE_BOOLEAN_INPUT,quit_y,left_hand)) return false;
 + if (!action("aim","Aim",XR_ACTION_TYPE_POSE_INPUT,gun_aim) ||
@@ -2632,8 +2632,8 @@ new file mode 100644
 +   {gun_b,Path("/user/hand/right/input/b/click")},
 +   {gun_squeeze,Path("/user/hand/right/input/squeeze/value")},
 +   {gun_haptic,Path("/user/hand/right/output/haptic")}};
-+  bindings.push_back({menu_select,Path("/user/hand/left/input/thumbstick/click")});
-+  bindings.push_back({menu_start,Path("/user/hand/right/input/thumbstick/click")});
++  bindings.push_back({menu_select,Path("/user/hand/right/input/thumbstick/click")});
++  bindings.push_back({menu_start,Path("/user/hand/left/input/thumbstick/click")});
 +  // Index reserves the system button; left B is its exposed spare Start.
 +  bindings.push_back({menu_spare_start,Path(std::strcmp(profile,"/interaction_profiles/valve/index_controller")==0 ? "/user/hand/left/input/b/click" : "/user/hand/left/input/menu/click")});
 +  bindings.push_back({quit_y,Path(std::strcmp(profile,"/interaction_profiles/valve/index_controller")==0 ? "/user/hand/left/input/b/click" : "/user/hand/left/input/y/click")});
@@ -2647,7 +2647,7 @@ new file mode 100644
 + asi.action=gun_aim; if (!Check(XRGL("xrCreateActionSpace",p_xrCreateActionSpace,session,&asi,&aim_space),"aim action space")) return false;
 + asi.action=gun_grip_pose; if (!Check(XRGL("xrCreateActionSpace",p_xrCreateActionSpace,session,&asi,&grip_space),"grip action space")) return false;
 + gun_attached=true;
-+ LiveLog("PS2 Controls attached: L-stick Select, R-stick Start, Touch L-menu / Index L-B short release (<0.4s) spare Start; right gun trigger/A/B/grip-C; focus required, menus independent of aim tracking");
++ LiveLog("PS2 Controls attached: L-stick Start, R-stick Select, Touch L-menu / Index L-B short release (<0.4s) spare Start; right gun trigger/A/B/grip-C; focus required, menus independent of aim tracking");
 + return true;
 +}
 +static void ReleaseGunInput()
@@ -2687,7 +2687,7 @@ new file mode 100644
 + if(PS2VRGun::UpdateQuitHold(button(quit_y,left_hand)))LiveLog("Controller Y hold completed: graceful VM quit requested");
 + PS2VRGun::Sample sample;
 + sample.controls_active=PS2VRGun::MenuEnabled();
-+ sample.select=button(menu_select,left_hand); sample.start=button(menu_start,right_hand); sample.spare_start=spare_start_tap.Update(button(menu_spare_start,left_hand),std::chrono::steady_clock::now());
++ sample.select=button(menu_select,right_hand); sample.start=button(menu_start,left_hand); sample.spare_start=spare_start_tap.Update(button(menu_spare_start,left_hand),std::chrono::steady_clock::now());
 + auto pose_active=[](XrAction action)
 + {
 +  XrActionStateGetInfo gi{XR_TYPE_ACTION_STATE_GET_INFO}; gi.action=action; gi.subactionPath=right_hand;

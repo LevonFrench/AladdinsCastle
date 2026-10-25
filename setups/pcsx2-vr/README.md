@@ -428,18 +428,23 @@ unchanged. The action set has Touch and Index suggestions:
 
 | VR control | PS2 input |
 |---|---|
-| Left stick click | Select |
-| Right stick click | Start |
-| Touch left menu / Index left B (short release) | Spare Start. The left menu is the SteamVR dashboard under ALVR, so only Index left B can send it there |
+| Left stick click | Start |
+| Right stick click | Select |
+| Touch left menu / Index left B (short release) | Spare Start, an alias of Start. The left menu is the SteamVR dashboard under ALVR, so only Index left B can send it there |
 | Gun profile: right trigger | GunCon trigger; off-screen aim reloads |
 | Gun profile: right A / B | GunCon A / B |
 | Gun profile: right grip | GunCon C |
 
 Index exposes no application menu button; its system button is reserved. Under
 ALVR the left menu button opens the SteamVR dashboard and never reaches the
-game, so Start on this setup is the right stick click. The other setups use the
-left stick click for Start (`docs/controls.md` section 2.6); moving PS2 to that
-convention is a change to `unattended-capture.patch`, not made yet.
+game, so Start on this setup is the left stick click, the same as the other
+setups (`docs/controls.md` section 2.6). Select is the right stick click, as in
+the PS1 face-button layout; the convention's "tap left Y" is not used because
+left Y (Index left B) carries the three-second quit hold. These VR clicks feed
+only the PS2 Start and Select buttons. They are not L3 or R3: the pad's L3 and
+R3 still come from the normal Pad 1 XInput bindings, so a game that reads L3 or
+R3 is unaffected and no fallback is needed. The change is in
+`unattended-capture.patch` and has not been run in a headset.
 `PCSX2_VR_MENU_SCRIPT=seconds:Select;seconds:Start;seconds:SpareStart`
 provides bounded diagnostic pulses only with OpenXR disabled. Focus loss or a
 500ms stale publication releases every VR control. Gun tracking loss releases
