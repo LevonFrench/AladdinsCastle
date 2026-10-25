@@ -1,0 +1,270 @@
+{
+  "dreamcast": {
+    "games": [
+      {
+        "id": "hotd2",
+        "title": "The House of the Dead 2",
+        "year": 1999,
+        "catalogId": "dc-house-of-the-dead-2"
+      },
+      {
+        "id": "confmiss",
+        "title": "Confidential Mission",
+        "year": 2001,
+        "catalogId": "dc-confidential-mission"
+      },
+      {
+        "id": "dcox",
+        "title": "Death Crimson OX",
+        "year": 2001,
+        "catalogId": "dc-death-crimson-ox"
+      },
+      {
+        "id": "dcrimson2",
+        "title": "Death Crimson 2",
+        "year": 1999,
+        "catalogId": "dc-death-crimson-2"
+      },
+      {
+        "id": "vcop2",
+        "title": "Virtua Cop 2",
+        "year": 2000,
+        "catalogId": "dc-virtua-cop-2"
+      }
+    ],
+    "views": [
+      {
+        "id": "headset",
+        "label": "In the headset",
+        "help": "The game around you in VR."
+      },
+      {
+        "id": "monitor",
+        "label": "On the monitor",
+        "help": "A normal window with no headset. The mouse is the gun."
+      }
+    ]
+  },
+  "ps2": {
+    "games": [
+      {
+        "id": "virtua-cop",
+        "catalogId": "ps2-virtua-cop-elite-edition",
+        "title": "Virtua Cop Elite Edition",
+        "year": 2002,
+        "gun": true,
+        "measured": true
+      },
+      {
+        "id": "outrun-2006",
+        "catalogId": "ps2-outrun-2006-coast-2-coast",
+        "title": "OutRun 2006",
+        "year": 2006,
+        "gun": false,
+        "measured": true
+      },
+      {
+        "id": "wipeout-fusion",
+        "catalogId": "ps2-wipeout-fusion",
+        "title": "Wipeout Fusion",
+        "year": 2002,
+        "gun": false,
+        "measured": false
+      },
+      {
+        "id": "xgra",
+        "catalogId": "ps2-extreme-g-racing-association-xgra",
+        "title": "XGRA",
+        "year": 2003,
+        "gun": false,
+        "measured": false
+      },
+      {
+        "id": "time-crisis-3",
+        "catalogId": "ps2-time-crisis-3",
+        "title": "Time Crisis 3",
+        "year": 2003,
+        "gun": true,
+        "measured": false
+      },
+      {
+        "id": "crisis-zone",
+        "catalogId": "ps2-time-crisis-crisis-zone",
+        "title": "Crisis Zone",
+        "year": 2004,
+        "gun": true,
+        "measured": false
+      },
+      {
+        "id": "time-crisis-2",
+        "catalogId": "ps2-time-crisis-2",
+        "title": "Time Crisis II",
+        "year": 2001,
+        "gun": true,
+        "measured": false
+      },
+      {
+        "id": "vampire-night",
+        "catalogId": "ps2-vampire-night",
+        "title": "Vampire Night",
+        "year": 2001,
+        "gun": true,
+        "measured": false
+      },
+      {
+        "id": "ninja-assault",
+        "catalogId": "ps2-ninja-assault",
+        "title": "Ninja Assault",
+        "year": 2002,
+        "gun": true,
+        "measured": false
+      },
+      {
+        "id": "outrun-2",
+        "catalogId": "ps2-outrun-2-sp-special-tours",
+        "title": "OutRun 2",
+        "year": 2006,
+        "gun": false,
+        "measured": false
+      },
+      {
+        "id": "wipeout-pulse",
+        "catalogId": "ps2-wipeout-pulse",
+        "title": "Wipeout Pulse",
+        "year": 2009,
+        "gun": false,
+        "measured": false
+      },
+      {
+        "id": "xgiii",
+        "catalogId": "ps2-xgiii-extreme-g-racing",
+        "title": "XGIII Extreme G Racing",
+        "year": 2001,
+        "gun": false,
+        "measured": false
+      }
+    ],
+    "insideGames": [],
+    "insideFlag": "--inside",
+    "insideFlagBeforeKey": false,
+    "checkGame": "virtua-cop",
+    "views": [
+      {
+        "id": "inside",
+        "label": "Inside the game",
+        "help": "No frame: the game opens around you, with the depth your launcher's inside profile sets."
+      },
+      {
+        "id": "screen",
+        "label": "3D screen",
+        "help": "A framed 3D screen straight ahead of you in the headset."
+      },
+      {
+        "id": "depth",
+        "label": "Depth trial",
+        "help": "The 3D screen with the depth of the overnight measurement (convergence 2.5 m instead of 1000 m), to compare with 3D screen."
+      },
+      {
+        "id": "check",
+        "label": "Headset check",
+        "help": "The launcher's short check of the PS2 picture in the headset; it ends by itself and writes its result beside the launcher."
+      }
+    ]
+  },
+  "wii": {
+    "games": [
+      {
+        "id": "umbrella",
+        "catalogId": "wii-resident-evil-umbrella-chronicles",
+        "title": "Resident Evil: The Umbrella Chronicles",
+        "year": 2007,
+        "ids": [
+          "RBUE08",
+          "RBUP08",
+          "RBUJ08",
+          "RBUK08"
+        ],
+        "hold": "split",
+        "route": "working"
+      },
+      {
+        "id": "darkside",
+        "catalogId": "wii-resident-evil-darkside-chronicles",
+        "title": "Resident Evil: The Darkside Chronicles",
+        "year": 2009,
+        "ids": [
+          "SBDE08",
+          "SBDP08",
+          "SBDJ08",
+          "SBDK08"
+        ],
+        "hold": "split",
+        "route": "imperfect"
+      },
+      {
+        "id": "overkill",
+        "catalogId": "wii-house-of-the-dead-overkill",
+        "title": "The House of the Dead: Overkill",
+        "year": 2009,
+        "ids": [
+          "RHOE8P",
+          "RHOP8P",
+          "RHOJ8P"
+        ],
+        "hold": "split",
+        "route": "unknown"
+      },
+      {
+        "id": "gunblade",
+        "catalogId": "wii-gunblade-ny-la-machineguns",
+        "title": "Gunblade NY & L.A. Machineguns: Arcade Hits Pack",
+        "year": 2010,
+        "ids": [
+          "SQDE8P",
+          "SQDP8P"
+        ],
+        "hold": "docked",
+        "route": "unknown"
+      },
+      {
+        "id": "sinpunish",
+        "catalogId": "wii-sin-and-punishment-star-successor",
+        "title": "Sin & Punishment: Star Successor",
+        "year": 2009,
+        "ids": [
+          "R2VE01",
+          "R2VP01",
+          "R2VJ01"
+        ],
+        "hold": "split",
+        "route": "unknown"
+      },
+      {
+        "id": "deadspace",
+        "catalogId": "wii-dead-space-extraction",
+        "title": "Dead Space: Extraction",
+        "year": 2009,
+        "ids": [
+          "RZJE69",
+          "RZJP69"
+        ],
+        "hold": "split",
+        "route": "unknown"
+      },
+      {
+        "id": "crossbow",
+        "catalogId": "wii-links-crossbow-training",
+        "title": "Link's Crossbow Training",
+        "year": 2007,
+        "ids": [
+          "RZPE01",
+          "RZPP01",
+          "RZPJ01",
+          "RZPK01"
+        ],
+        "hold": "docked",
+        "route": "unknown"
+      }
+    ]
+  }
+}

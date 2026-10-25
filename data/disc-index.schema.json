@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Public exact disc identity index",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": [
+      "gameId",
+      "system",
+      "region",
+      "source"
+    ],
+    "properties": {
+      "gameId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "system": {
+        "enum": [
+          "ps1",
+          "ps2",
+          "dreamcast",
+          "wii",
+          "gc"
+        ]
+      },
+      "title": {
+        "type": "string"
+      },
+      "region": {
+        "type": "string"
+      },
+      "source": {
+        "type": "string"
+      },
+      "profile": {
+        "type": "boolean"
+      }
+    }
+  }
+}

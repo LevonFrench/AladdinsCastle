@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Disc frontend profiles",
+  "type": "object",
+  "required": [
+    "dreamcast",
+    "ps2",
+    "wii"
+  ],
+  "additionalProperties": {
+    "type": "object",
+    "required": [
+      "games"
+    ],
+    "properties": {
+      "games": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "title",
+            "year"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "year": {
+              "type": "integer"
+            },
+            "catalogId": {
+              "type": "string"
+            },
+            "hold": {
+              "enum": [
+                "split",
+                "docked"
+              ]
+            },
+            "route": {
+              "enum": [
+                "working",
+                "imperfect",
+                "unknown"
+              ]
+            }
+          }
+        }
+      },
+      "views": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id",
+            "label",
+            "help"
+          ]
+        }
+      },
+      "insideGames": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "insideFlag": {
+        "type": "string"
+      },
+      "insideFlagBeforeKey": {
+        "type": "boolean"
+      },
+      "checkGame": {
+        "type": "string"
+      }
+    }
+  }
+}

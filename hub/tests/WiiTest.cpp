@@ -25,8 +25,9 @@ QByteArray iso(const QByteArray &id) { return header(id) + QByteArray(0x400, '\0
 QByteArray wbfs(const QByteArray &id) {
   QByteArray w(0x200, '\0');
   w.replace(0, 4, "WBFS");
-  w[8] = 9; // 512-byte host sectors: the disc header follows at 0x200.
-  return w + header(id) + QByteArray(0x200, '\0');
+  qToBigEndian<quint32>(2, w.data() + 4);
+  w[8] = 9; w[9] = 20; w[12] = 1;
+  return w + header(id) + QByteArray(0x200 - 0x60, '\0');
 }
 QByteArray rvz(const QByteArray &id) {
   QByteArray r(0x58, '\0');
@@ -47,12 +48,13 @@ private slots:
     QCOMPARE(ac::wii::discId(t.filePath("b.wbfs")), QString("R2VE01"));
     QCOMPARE(ac::wii::discId(t.filePath("c.rvz")), QString("SQDE8P"));
     QVERIFY(ac::wii::discId(t.filePath("not-a-disc.iso")).isEmpty());
-    // Any region of a listed game, by its game code and maker; other games are not taken for it.
+    // Explicit regional IDs in the data match; other IDs require their own records.
     QCOMPARE(ac::wii::gameFor("RBUE08"), QString("umbrella"));
     QCOMPARE(ac::wii::gameFor("RHOJ8P"), QString("overkill"));
     QCOMPARE(ac::wii::gameFor("RZPP01"), QString("crossbow"));
     QCOMPARE(ac::wii::gameFor("RZJE69"), QString("deadspace"));
-    QVERIFY(ac::wii::gameFor("R3ME01").isEmpty()); // Metroid Prime Trilogy: not a gun game here.
+    QCOMPARE(ac::wii::gameFor("R3ME01"), QString("wii-metroid-prime-trilogy")); // Known metadata, without a launch profile.
+    QCOMPARE(ac::wii::games().size(), 7);
     QVERIFY(ac::wii::gameFor("RBUE01").isEmpty()); // Same code, another maker.
     // The file name says nothing: a disc named after another game is still itself.
     write(t.filePath("Umbrella.iso"), iso("SBDP08"));
@@ -111,7 +113,7 @@ private slots:
     for (const auto &value : report.value("notRight").toList())
       if (value.toMap().value("id") == "gunblade")
         QVERIFY(value.toMap().value("reason").toString().contains("docked controls"));
-    // A disc not in the list is said with its own game id.
+    // Known metadata without a launch profile stays visible with its game id.
     QCOMPARE(report.value("other").toList().size(), 1);
     QCOMPARE(report.value("other").toList().first().toMap().value("detail").toString(), QString("game id R3ME01"));
     // Without the build every found game says so and nothing is started.

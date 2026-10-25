@@ -27,7 +27,8 @@ QByteArray wiiIso(const QByteArray &id) {
 QByteArray wbfs(const QByteArray &id) {
   QByteArray w(0x200, '\0');
   w.replace(0, 4, "WBFS");
-  w[8] = 9;
+  qToBigEndian<quint32>(3, w.data() + 4);
+  w[8] = 9; w[9] = 20; w[12] = 1;
   return w + wiiIso(id);
 }
 // An ISO 9660 image whose SYSTEM.CNF names the boot file, as a PS2 disc's does.
@@ -105,7 +106,7 @@ private slots:
     // Wii: the same game twice (USA and Europe), under folders named anything at all.
     write(root + "/consoles/nintendo stuff/Umbrella (USA)/game.wbfs", wbfs("RBUE08"));
     write(root + "/misc/re-umbrella-eu.iso", wiiIso("RBUP08"));
-    write(root + "/misc/metroid.iso", wiiIso("R3ME01")); // A Wii disc not in the Hub's list.
+    write(root + "/misc/metroid.iso", wiiIso("R3ME01")); // Known disc metadata, without a launch profile.
     // PS2, by the serial on the disc, whatever the file is called.
     write(root + "/sony/Some Game/disc.iso", ps2Iso("SLES_512.29"));
     // Dreamcast, by the product number in the disc's own header.
@@ -132,7 +133,8 @@ private slots:
     QVERIFY(!said.isEmpty());
     const auto systems = library.value("systems").toMap();
     QCOMPARE(files(ac::library::copies(library, "wii", "umbrella")), QStringList({"game.wbfs", "re-umbrella-eu.iso"})); // USA first.
-    QCOMPARE(systems.value("wii").toMap().value("other").toInt(), 1);
+    QCOMPARE(systems.value("wii").toMap().value("other").toInt(), 0);
+    QCOMPARE(files(ac::library::copies(library, "wii", "wii-metroid-prime-trilogy")), QStringList({"metroid.iso"}));
     QVERIFY(ac::library::copies(library, "wii", "darkside").isEmpty()); // The one too deep.
     QCOMPARE(files(ac::library::copies(library, "ps2", "virtua-cop")), QStringList({"disc.iso"}));
     QCOMPARE(ac::library::copies(library, "ps2", "virtua-cop").first().toMap().value("identity").toString(), QString("SLES-51229"));
@@ -160,6 +162,48 @@ private slots:
         umbrella = value.toMap();
     QVERIFY(QDir::fromNativeSeparators(umbrella.value("file").toString()).endsWith("re-umbrella-eu.iso")); // The chosen copy.
     QCOMPARE(report.value("note").toString(), QString("Started through your DolphinXR build with its own settings; the discs stay where they are."));
+  }
+  void sheetsReopenChangedTracksAndOldCacheIsRejected() {
+    QTemporaryDir t; QVERIFY(t.isValid()); const auto root = t.filePath("roms");
+    write(root + "/disc.bin", ps2Iso("SLES_512.29"));
+    write(root + "/disc.cue", "FILE \"disc.bin\" BINARY\n TRACK 01 MODE1/2048\n INDEX 01 00:00:00\n");
+    write(root + "/set.m3u", "disc.cue\n");
+    std::atomic_bool cancel{false}; QVariantMap index;
+    const auto first = ac::library::scan({root}, {}, cancel, 6, &index);
+    QCOMPARE(files(ac::library::copies(first, "ps2", "virtua-cop")).size(), 2);
+    const auto cueBefore = QFileInfo(root + "/disc.cue").lastModified(); const auto listBefore = QFileInfo(root + "/set.m3u").lastModified();
+    // Only the referenced BIN changes, with exactly the old size. Sheet cache entries must not hide it.
+    auto replacement = ps2Iso("SLES_512.29"); replacement.replace(21 * 2048, 5, "BOOT "); write(root + "/disc.bin", replacement);
+    const auto second = ac::library::scan({root}, {}, cancel, 6, &index);
+    QCOMPARE(QFileInfo(root + "/disc.cue").lastModified(), cueBefore); QCOMPARE(QFileInfo(root + "/set.m3u").lastModified(), listBefore);
+    QVERIFY(ac::library::copies(second, "ps2", "virtua-cop").isEmpty()); QCOMPARE(second.value("systems").toMap().value("ps2").toMap().value("other").toInt(), 0);
+    QCOMPARE(second.value("systems").toMap().value("ps1").toMap().value("other").toInt(), 2);
+    // A pre-reader-rules cache with forged old PS2 outcomes must be discarded even when size/time match.
+    auto old = index; auto entries = old.value("files").toMap();
+    for (auto it = entries.begin(); it != entries.end(); ++it) {
+      auto entry = it.value().toMap(); entry["outcome"] = QVariantMap{{"other", "ps2"}}; it.value() = entry;
+    }
+    old["files"] = entries; old["stamp"] = "old-disc-reader-rules-v1";
+    const auto fresh = ac::library::scan({root}, {}, cancel, 6, &old);
+    QCOMPARE(fresh.value("reused").toInt(), 0); QCOMPARE(fresh.value("systems"), second.value("systems"));
+  }
+  void arcadeAliasAndMisleadingDiscNames() {
+    QTemporaryDir t; QVERIFY(t.isValid()); const auto root = t.filePath("roms");
+    write(root + "/model2/hotd.zip", zip("authored.bin", "metadata fixture"));
+    write(root + "/ps2/virtua-cop.iso", ps2Iso("SLUS_999.98"));
+    auto ps1 = ps2Iso("SLES_512.29"); ps1.replace(21 * 2048, 5, "BOOT "); write(root + "/ps2/virtua-cop-ps1.iso", ps1);
+    std::atomic_bool cancel{false}; const auto result = ac::library::scan({root}, {}, cancel);
+    QCOMPARE(files(ac::library::copies(result, "model2", "hotdo")), QStringList({"hotd.zip"}));
+    QVERIFY(ac::library::copies(result, "ps2", "virtua-cop").isEmpty());
+    QCOMPARE(result.value("systems").toMap().value("ps2").toMap().value("other").toInt(), 1);
+    QCOMPARE(result.value("systems").toMap().value("ps1").toMap().value("other").toInt(), 1);
+  }
+  void gameCubeUsesTheFrontendSystemKey(){
+    QTemporaryDir t;auto header=wiiIso("GFZE01");qToBigEndian<quint32>(0,header.data()+24);qToBigEndian<quint32>(0xc2339f3d,header.data()+28);write(t.filePath("longer-disc.iso"),header);
+    QByteArray packed(44,0);qToLittleEndian<quint32>(0xb10bc001,packed.data());qToLittleEndian<quint64>(quint64(header.size()),packed.data()+8);qToLittleEndian<quint64>(quint64(header.size()),packed.data()+16);
+    qToLittleEndian<quint32>(quint32(header.size()),packed.data()+24);qToLittleEndian<quint32>(1,packed.data()+28);qToLittleEndian<quint64>(quint64(1)<<63,packed.data()+32);
+    quint32 a=1,b=0;for(const auto byte:header){a=(a+quint8(byte))%65521;b=(b+a)%65521;}qToLittleEndian<quint32>((b<<16)|a,packed.data()+40);write(t.filePath("a.gcz"),packed+header);
+    std::atomic_bool cancel=false;const auto result=ac::library::scan({t.path()},{},cancel);const auto copies=ac::library::copies(result,"gamecube","gc-f-zero-gx");QCOMPARE(copies.size(),2);QVERIFY(copies.first().toMap().value("file").toString().endsWith("longer-disc.iso"));QVERIFY(!result.value("systems").toMap().contains("gc"));
   }
   void aBigTreeIsQuick() {
     // Thousands of files over many folders, as in a large collection: most are not games the Hub plays.
@@ -206,6 +250,10 @@ private slots:
     QCOMPARE(QJsonDocument::fromVariant(second.value("systems")).toJson(), QJsonDocument::fromVariant(first.value("systems")).toJson());
     QCOMPARE(second.value("unrecognised"), first.value("unrecognised"));
     QCOMPARE(second.value("pinballFolders"), first.value("pinballFolders"));
+    // A deferred timed read is retried even when the file itself has not changed.
+    auto deferred=index;auto records=deferred.value("files").toMap();const auto key=QDir::fromNativeSeparators(root+"/ps2/disc.iso");auto record=records.value(key).toMap();
+    record["outcome"]=QVariantMap{{"unknown","disc"},{"retry",true}};records[key]=record;deferred["files"]=records;
+    const auto retried=ac::library::scan({root},{},cancel,6,&deferred);QCOMPARE(retried.value("reused").toInt(),5);QCOMPARE(ac::library::copies(retried,"ps2","virtua-cop").size(),1);
     // A file replaced by another game is read again; a new one is read; one removed is gone from the result.
     write(root + "/wii/umbrella.wbfs", wbfs("RBUP08") + QByteArray(16, '\0'));
     write(root + "/wii/more.iso", wiiIso("RBUE08"));

@@ -67,24 +67,27 @@ is pressed, never by a diagnostic or offscreen run, and never by a test.
 
 The "Where is it?" step of Set-up has a **Game library** card. You choose one or
 more big folders of your own games, subfolders and all (`libraryRoots`), and the
-Hub finds every game it plays under them.
+Hub identifies games from their media. The summary includes PlayStation and
+GameCube; identification is separate from the launch profiles in Set-up below.
+Unread media and IDs absent from the public indexes remain unknown.
 
 **How it looks:**
 - It goes up to six folders down and never enters links, junctions or system
   folders. It runs off the GUI thread and shows progress. **Stop** ends it at
-  the next file and keeps the last whole result.
+  the next bounded read and keeps the last whole result.
 - The second time is quick: a file whose size and time have not changed since
   the last search is not opened again (`user/cache/library-index.json`). A Hub
-  whose list of games changed reads every file again.
+  whose reader rules or public indexes changed reads every file again. Disc
+  sheets are reread so changed tracks are noticed; deferred timed reads retry.
 - It is read-only: nothing under the roots is written, renamed or moved.
 
 **How it knows each game:**
 
 | System | How it is known |
 |---|---|
-| Wii | the game id in the disc header (`.iso`, `.wbfs`, `.rvz`, `.wia`) |
-| PS2 | the serial in the disc's SYSTEM.CNF (`.iso`, `.bin`, `.chd`); `.cso` and `.gz` by name |
-| Dreamcast | the product number in the disc's own header (`.gdi`, `.cdi`, `.cue`, `.chd`); a `.bin` named in a cue sheet is read through that sheet |
+| Wii and GameCube | exact game ID from readable disc metadata (`.iso`, `.gcm`, `.wbfs`, `.rvz`, `.wia`, `.gcz`); WiiWare uses the WAD ticket title ID |
+| PS1 and PS2 | distinct BOOT / BOOT2 serials in SYSTEM.CNF (`.iso`, `.bin`, `.cue`, supported `.chd`, `.cso`, `.gz`, `.pbp`); exact index match only |
+| Dreamcast | the product number in the disc's own header (`.gdi`, `.cdi`, `.cue`, `.chd`, `.m3u`); a `.bin` named in a cue sheet is read through that sheet |
 | Model 3 and Model 2 | the zip's set name; the Set-up report then checks what is inside by CRC, as for a system folder |
 | Pinball | `.vpx` tables, counted per folder; "Use this folder for Visual Pinball" sets the pinball folder |
 
@@ -99,21 +102,21 @@ the launch.
 
 1. read from the disc itself;
 2. the release with a VR profile;
-3. USA, then World, Europe, Japan;
-4. the plainest format;
-5. a folder named for the system;
+3. an arcade folder named for its system;
+4. USA, then World, Europe, Japan;
+5. the plainest format;
 6. the shortest path.
 
 The game's page lists the copies under "Copy used". Picking one there remembers it
 (`libraryChoice`).
 
 **What it reports:**
-- per system, the games found and the discs that are not in the Hub's list;
+- per system, identified titles and disc IDs without a public mapping;
 - the files it read but did not recognise, as counts of disc images and archives.
 
-On a real collection with about 70 system folders, it read 31,568 candidate files
-in about 96 seconds. That first search is cached; the next one runs only on
-request.
+The first search can take longer while reading compressed images and late
+Dreamcast headers. Its elapsed time appears in the result. Later searches reuse
+unchanged entries, and Stop remains available during bounded reads.
 
 ## One SteamVR policy
 
@@ -240,9 +243,17 @@ SteamVR's own frame state.
 | Sega Model 2 | `model2GameFolder` | `model2Executable` (the emulator; its viewer and working folder sit beside its folder), optional `model2RuntimePath` for the build's own libraries | With `queryEmulators` on, the emulator build is asked for its own list of the game (`-listxml`, no window, nothing written): the game's files by checksum, and each device set that has files of its own. A stand-in for the billboard set is accepted and said. Controls on Virtua Cop 2 only, new and untested; the others are view only |
 | Namco System 22 | none | `system22Executable` | The native build and a non-empty `roms` folder beside it |
 | Visual Pinball | `pinballFolder` | `pinballExecutable` | The table scan: VR-ready, readable, ROM present |
-| Sony PlayStation 2 | `ps2GameFolder` | `ps2Launcher` (the user's launcher script, run with the `ps2Python` it needs; `ps2StopFile` is the file that asks a running game to quit) | The serial in the disc's own SYSTEM.CNF (`.iso`, `.bin`, `.chd`); the file name for `.gz` and when no serial is read. A game is startable when the launcher has an entry for it. Views: 3D screen, and Inside the game for the games listed in `src/core/ps2/Ps2.cpp` (`kInsideGames`, with the launcher's flag in `kInsideFlag`), none until each is confirmed; the choice is kept per game The launcher plays its own disc copies. Exit and Stop write the stop file and wait; SteamVR must already be running |
-| Sega Dreamcast | `dreamcastGameFolder` | `dreamcastExecutable` | The disc's own product number, read from `.chd`, `.gdi`, `.cdi` or `.cue` images; the file name only when the number cannot be read |
-| Nintendo Wii | `wiiGameFolder` | `wiiExecutable` (the DolphinXR build's Dolphin.exe; its User folder beside it holds its settings) | The game id in each disc's own header (.iso, .wbfs, .rvz, .wia), any region; what the build still lacks per game is said |
+| Sony PlayStation 2 | `ps2GameFolder` | `ps2Launcher` (the user's launcher script, run with the `ps2Python` it needs; `ps2StopFile` is the file that asks a running game to quit) | The PS2 BOOT2 serial in SYSTEM.CNF, read through supported plain, CUE/M3U, CHD, CISO and gzip containers; exact public index match only. PS1 BOOT serials remain PS1. A game is startable when the launcher has an entry for it. Views: 3D screen, and Inside the game for the games listed in `data/disc-profiles.json` (`insideGames`, with the launcher's flag in `insideFlag`), none until each is confirmed; the choice is kept per game The launcher plays its own disc copies. Exit and Stop write the stop file and wait; SteamVR must already be running |
+| Sega Dreamcast | `dreamcastGameFolder` | `dreamcastExecutable` | The disc's own product number, read from supported `.chd`, `.gdi`, `.cdi`, `.cue` or first-disc `.m3u` metadata; exact public index match only |
+| Nintendo Wii | `wiiGameFolder` | `wiiExecutable` (the DolphinXR build's Dolphin.exe; its User folder beside it holds its settings) | The exact ID in readable disc metadata (.iso, .wbfs, .rvz, .wia, .gcz) or WAD ticket title ID; each supported region is explicitly listed in data. What the build still lacks per profiled game is said |
+
+
+Disc matching uses the canonical JSON indexes under `data/`; unreadable and unknown
+IDs remain unknown. M3U identification uses its first declared disc. Readers are
+cancellable and bounded; unsupported codecs and PBP variants can remain unread.
+Recognizing a public game title does not create a launcher profile or prove that
+its VR route works. NKit headers can identify a disc only when their standard
+header remains readable; the Hub does not reconstruct an NKit image.
 
 Systems and their settings are listed in `src/core/setup/Setup.cpp`. Each check
 is one function in `src/core/setup/Report.cpp`; a system without one reports
