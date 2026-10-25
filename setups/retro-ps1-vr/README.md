@@ -25,8 +25,8 @@ It brings no emulator, BIOS or game. You point it at your own:
 | Hold left Y for 3 s (Index: left B) | Quit, saving the memory card |
 | Left stick | Pad d-pad (a standard pad on the other port, for menus and pad-only modes) |
 | Left trigger, left X (Index: left A), left grip | Pad Cross, Circle, Square |
-| Left menu button (Index: left stick click) | Pad Start |
-| Home key | Put the screen in front of you again |
+| Left stick click (also the left menu button, which SteamVR keeps for its dashboard under ALVR) | Pad Start |
+| Home key, or both grips held for about 1 s | Put the screen in front of you again |
 
 Each trigger pull gives a short vibration and a small visual kick of the gun.
 Escape on the PC also quits cleanly. A launcher or the Hub can quit it by
@@ -62,13 +62,19 @@ picture is smaller than the headset pixels it uses mipmaps instead.
 | `ACVR_PS1_CURVE` | 1 | 1 curves around you, 0 is flat, between is gentler |
 | `ACVR_PS1_LIFT` | 0 | screen centre height above your eyes, metres |
 | `ACVR_PS1_CRT` | 0 | 1 adds scanlines |
+| `ACVR_PS1_SBS` | 0 | 1 when the core itself draws both eyes side by side in one picture (left eye in the left half) |
+| `ACVR_PS1_SWAP_EYES` | 0 | 1 swaps the two halves between the eyes, if far things come towards you instead of receding |
+| `ACVR_PS1_LETTERBOX` | worked out | share of the picture's rows cut from the top and from the bottom of each side-by-side eye. Unset, the host works it out from the core's frame size and reported aspect and re-reads it whenever the core changes its geometry; a value here overrides it |
 | `ACVR_PS1_AIM` | 1,0,1,0 | per-game aim trim: x scale, x shift, y scale, y shift around the centre, measured against where the game registers the shot |
 | `ACVR_PS1_HIDE_FLASH` | 1 | keep the games' per-shot white flash frames out of the headset (the game still draws them and reads the gun). Only white frames while the trigger is held or within 20 frames after it count, so menus and fades always show |
 | `ACVR_PS1_CHEAT_FILE`, `ACVR_PS1_CHEATS` | none | a DuckStation-format .cht file and the `;`-separated entries to enable |
 | `ACVR_PS1_GUN_MODEL`, `ACVR_PS1_GUN_META` | none | the gun's `.glb` (`assets/guns`) and `.toml` (`data/guns`) |
 
 The screen is placed level, straight ahead of where you look when the first
-picture arrives; Home places it again.
+picture arrives; Home places it again, and so does holding both grips for about
+a second (in the headset, where there is no Home key; let go and hold again to
+repeat). A game that uses both grips at once, such as boost and brake together,
+triggers it too after that second.
 
 ## Saves
 
@@ -94,7 +100,9 @@ acvr-ps1 --core <dll> --game <disc> --system <BIOS folder> --saves <folder>
          [--gun guncon|justifier] [--port 1|2] [--option key=value]...
 ```
 
-`profiles.json` lists, per catalog game, which gun and port it uses.
+`profiles.json` lists, per catalog game, which gun and port it uses. Nothing in
+this repository reads it yet, so treat it as unused notes until a later round
+either wires it in or removes it.
 `--option` sets a core option, such as
 `--option beetle_psx_internal_resolution=2x`. The program writes every
 option the core offers, with the value in use, to `core-options.txt` in the
@@ -452,32 +460,44 @@ buildbot's Windows x86_64 build) with
 
 ```
 --option citra_layout_option=single_screen --option citra_render_3d=side-by-side-full
---option citra_factor_3d=100 --option citra_resolution_factor=3
-ACVR_PS1_SBS=1  ACVR_PS1_LETTERBOX=.25
+--option citra_factor_3d=40 --option citra_resolution_factor=3
+ACVR_PS1_SBS=1
 ```
 
 `single_screen` keeps only the top (3D) screen. `side-by-side-full` puts the
 left eye in the left half of the picture and the right eye in the right half,
-each at the top screen's full 400x240 (times the resolution factor), but it
-keeps the base 5:3 picture size (1200x720 at 3x), so each eye sits in the
-middle half of the rows with black above and below. `ACVR_PS1_LETTERBOX` is
-the share of the rows the theatre cuts from the top and from the bottom of each
-eye (`.25` here), so the eye fills the screen. `citra_factor_3d` is the 3D
-slider (0 to 100). The core reports the 5:3 aspect itself.
+but it keeps the base 5:3 picture size, so at factor 3 the 1200x720 frame holds
+two eyes of 600x360 in the middle half of the rows, with black above and below.
+That is 1.5 times the top screen's native 400x240 per eye, not 3 times: the
+core fits both eyes into a frame sized for one screen. A higher
+`citra_resolution_factor` sharpens the picture; its cost is untested.
 
-Azahar refuses a decrypted dump whose NCCH header still says it is encrypted
-("This ROM is encrypted"), where the older Citra core forced no crypto. The
-dump's own NoCrypto flag (bit 0x04 of byte 0x18F of each decrypted partition's
-NCCH header) has to be set; set it on a private copy, never on the original.
-At 3x with both eyes the core runs about 110 to 200 frames a second uncapped
-on the owner's PC.
+The host cuts the black rows itself. It reads the frame size and the aspect the
+core reports (5:3), works out the share of rows to cut (`.25` for 1200x720) and
+the aspect of the screen, and does it again whenever the core sends new
+geometry. `ACVR_PS1_LETTERBOX=<share>` overrides the cut. Sampling stays half a
+texel inside each eye, so the cut edge and the other eye's edge do not bleed in.
+Its log line is `Frame shape: ...`.
+
+`citra_factor_3d` is the 3D slider (0 to 100). The recommended start is 40, not
+100: on the 2.4 m curved theatre screen the picture spans about 55 degrees
+against 12 to 17 for a real 3DS, so full-strength parallax is several times a
+comfortable amount (a review's estimate, not yet judged in a headset). Raise it
+per game once it has been looked at. The depth direction has not been confirmed
+either: if far scenery comes towards you instead of receding, set
+`ACVR_PS1_SWAP_EYES=1`.
+
+Azahar refuses a decrypted dump whose header it still reads as encrypted ("This
+ROM is encrypted"). This repository carries no tool and no instructions for
+that; follow Azahar's own documentation, and work on a private copy, never the
+original.
 
 Star Fox 64 3D (Type A controls) in `--controls pad`, from its own tutorial;
 Azahar's RetroPad A, B, X, Y, L, R are the 3DS buttons of the same names, the
 left stick is the Circle Pad:
 
 ```
-ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lmenu=start,rclick=start
+ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=start,lmenu=start,rclick=start
 ```
 
 | VR control | 3DS | Star Fox 64 3D |
@@ -489,17 +509,23 @@ ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lmenu=st
 | left grip | B | brake |
 | left trigger, right stick left | L | bank left (twice: barrel roll) |
 | right B, right stick right | R | bank right (twice: barrel roll) |
-| left menu, right stick click | Start | pause |
+| left stick click (also left menu, right stick click) | Start | pause |
 
 The game asks in its tutorial whether to turn on gyro aiming; the host sends no
-motion, so answer no (or tap B to realign when it asks).
+motion, so answer no. Its "tap B to realign the gyro controls" prompt can stay
+on screen for a tester who answered yes.
 
 Results so far (Azahar 2127.0-alpha3, hidden offline runs, 3x): Star Fox 64
-3D, Kid Icarus: Uprising and Mario Kart 7 boot and draw real per-depth
-disparity (Mario Kart 7's race 1 to 28 px across 24 levels; Star Fox's HUD at
-0, its grid 14 to 24 px). In Star Fox's training course each mapped VR control
-does its job (laser, bomb, boost, brake, bank, steer), and the theatre proof
-shows each eye cropped to fill the curved screen. Not yet seen in a headset.
+3D, Kid Icarus: Uprising and Mario Kart 7 boot and draw per-depth disparity
+(Mario Kart 7's race 1 to 28 px across 24 levels; Star Fox's HUD at 0, its grid
+14 to 24 px; the Kid Icarus measurement hit its search limit, so it says
+nothing). In Star Fox's training course the controls sheet shows the effect of
+the laser (a green bolt) and the bomb (a blast flash). Boost, brake, bank and
+steering are mapped and the core accepted them, but the course moves between
+frames, so there is no controlled before-and-after for them. The theatre proof
+shows each eye cropped to fill the curved screen, rendered offline from a boot
+logo and a training frame; the live headset path is not covered. Not yet seen
+in a headset.
 
 ## Next
 
