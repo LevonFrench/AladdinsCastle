@@ -18,11 +18,18 @@ TIERS = ('generic-pistol', 'arc-pistol-slide', 'arc-pistol-twin',
 LEGACY_BUILD_MODELS = TIERS + ('con-remote-shell','con-stick-grip')
 REDESIGN_PLAN_MODELS = ('game-energy-gun','game-revolver-heavy','game-tool-cutter')
 BUILT_MODELS = LEGACY_BUILD_MODELS + REDESIGN_PLAN_MODELS
+# Shipped GLBs with no plan adapter here (arc-light-gun is built outside the batch; funcon
+# and con-pointer-remote keep plans that predate their GLBs). They still get hand mounts, which
+# tools/hand_assembly.py reads from the GLB.
+EXTRA_ASSEMBLY_MODELS = ('arc-light-gun','funcon','con-pointer-remote')
+HAND_ASSEMBLY_MODELS = BUILT_MODELS + EXTRA_ASSEMBLY_MODELS
 # The redesigned specials are checked and assembled from source-plan adapters,
 # but their GLBs are built only by src-redesign/build_render.py. Keep the legacy
 # Blender batch away from those IDs so it cannot overwrite redesigned assets.
 BUILDABLE_MODELS = LEGACY_BUILD_MODELS
-MATERIAL_RGBA = {'body':(.55,.55,.55,1), 'accent':(.32,.32,.34,1),
+# Colour contract: body and accent base factors are 1.0 so the TOML tint is the
+# colour every renderer shows; dark and glass are fixed.
+MATERIAL_RGBA = {'body':(1,1,1,1), 'accent':(1,1,1,1),
                  'dark':(.012,.012,.018,1), 'glass':(.025,.10,.16,1)}
 RUNTIME_LIGHTING=json.loads((ROOT/'assets/guns/runtime-lighting.json').read_text(encoding='utf-8'))
 
@@ -64,7 +71,7 @@ def runtime_preview_material(mat, color):
 
 
 def preview_material_rgba(tint):
-    """Match native linear base × palette tint, retaining fixed dark/glass."""
+    """Match native linear base (1.0) × palette tint, retaining fixed dark/glass."""
     result = dict(MATERIAL_RGBA)
     for name in ('body','accent'):
         rgb = [int(tint[name][i:i+2],16)/255 for i in (1,3,5)]

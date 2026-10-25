@@ -16,6 +16,6 @@ notes     = "With a gun in each hand there is no free hand for the pump: reload 
 default = "red"
 p1      = "red"
 p2      = "blue"
-red = { body = "#c93a2e", accent = "#1c1c20" }
-blue = { body = "#2f66cc", accent = "#1c1c20" }
-green = { body = "#3c9a48", accent = "#1c1c20" }
+red = { body = "#e8483c", accent = "#46484f" }
+blue = { body = "#3d7fe6", accent = "#46484f" }
+green = { body = "#3c9a48", accent = "#46484f" }

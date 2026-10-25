@@ -16,7 +16,7 @@ default = "grey"
 p1      = "grey"
 p2      = "black"
 grey = { body = "#c9ccd1", accent = "#3a3d44" }
-black = { body = "#1b1b1e", accent = "#8a8d93" }
+black = { body = "#3c3d44", accent = "#8f9298" }
 
 [[button]]
 id    = "b"

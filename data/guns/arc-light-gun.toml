@@ -26,10 +26,10 @@ changes     = ["maker's lettering engraved on the right side removed and the sid
 default = "red"
 p1      = "red"
 p2      = "blue"
-red = { body = "#e0201a", accent = "#b81610" }
-blue = { body = "#2f6fd6", accent = "#2457b0" }
-black = { body = "#1b1b1e", accent = "#2a2a2e" }
-orange = { body = "#f07a1a", accent = "#c85e10" }
+red = { body = "#e8483c", accent = "#46484f" }
+blue = { body = "#3d7fe6", accent = "#46484f" }
+black = { body = "#3c3d44", accent = "#8f9298" }
+orange = { body = "#f58a2a", accent = "#c85e10" }
 
 # Motion ranges use metres (slide) or radians (rotate). Visual recoil never moves the aim anchors.
 

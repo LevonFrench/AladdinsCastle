@@ -15,9 +15,9 @@ features  = ["laser"]
 default = "black"
 p1      = "orange"
 p2      = "blue"
-black = { body = "#1b1b1e", accent = "#8a8d93" }
-orange = { body = "#f07a1a", accent = "#50535a" }
-blue = { body = "#2459c4", accent = "#50535a" }
+black = { body = "#3c3d44", accent = "#8f9298" }
+orange = { body = "#f58a2a", accent = "#46484f" }
+blue = { body = "#3d7fe6", accent = "#46484f" }
 
 [[button]]
 id    = "a"

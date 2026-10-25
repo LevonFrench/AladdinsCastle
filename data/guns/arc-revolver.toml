@@ -15,5 +15,5 @@ features  = ["laser"]
 default = "blue"
 p1      = "blue"
 p2      = "pink"
-blue = { body = "#2a63c9", accent = "#1c1c20" }
-pink = { body = "#e060a8", accent = "#1c1c20" }
+blue = { body = "#2a63c9", accent = "#46484f" }
+pink = { body = "#e060a8", accent = "#46484f" }

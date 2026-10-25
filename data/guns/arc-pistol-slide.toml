@@ -16,10 +16,10 @@ notes     = "Optional node button_select for games with a weapon-select button o
 default = "red"
 p1      = "red"
 p2      = "blue"
-red = { body = "#d2362e", accent = "#50535a" }
-blue = { body = "#2f6fd6", accent = "#50535a" }
-pink = { body = "#e86aa6", accent = "#50535a" }
-orange = { body = "#f07a1a", accent = "#50535a" }
+red = { body = "#e8483c", accent = "#46484f" }
+blue = { body = "#3d7fe6", accent = "#46484f" }
+pink = { body = "#e86aa6", accent = "#46484f" }
+orange = { body = "#f58a2a", accent = "#46484f" }
 
 # Motion ranges use metres (slide) or radians (rotate). Visual recoil never moves the aim anchors.
 
