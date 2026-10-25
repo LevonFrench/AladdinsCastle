@@ -17,6 +17,7 @@ struct Config {
   std::string gunModel, gunMeta;   // GLB and its TOML; empty: no gun drawn
   bool sideBySide = false;         // the picture holds the left eye in its left half, the right eye in its right half
   float letterbox = 0;             // share of the picture's height cut from its top and from its bottom (3DS side by side: .25)
+  bool swapEyes = false;           // side by side: the left half goes to the right eye and the other way round (ACVR_PS1_SWAP_EYES)
   bool aimDot = true;              // the orange dot where the right controller's ray meets the screen
   bool frame = true;               // the thin dark frame round the screen
   float edgeFade = 0;              // share of the picture's width and height over which its edges fade into the dark
@@ -55,6 +56,8 @@ void PublishFramebuffer(unsigned fbo, unsigned w, unsigned h);
 void PublishHudFramebuffer(unsigned overBlack, unsigned overWhite, unsigned w, unsigned h);
 Input ReadInput();          // stale (over 250 ms) input reads as inactive
 void QueuePulse();
+// The picture's shape changed (the core sent new geometry): the screen's aspect and the share of rows cropped top and bottom.
+void SetFrameShape(float aspect, float letterbox);
 bool Stop();
 bool RuntimeExit();         // the runtime ended the session (SteamVR "Exit game"): close the game
 bool Focused();             // the headset shows this game and its controllers reach it (not the SteamVR dashboard)

@@ -103,9 +103,11 @@ struct Config {
   static std::string DefaultMap(const std::string &mode)
   {
     // libretro names; mupen64plus-next reads RetroPad B as N64 A, Y as N64 B, L2 as Z, R as R, L as L, Start as Start.
-    if (mode == "wheel") return "rtrig=b,ltrig=y,rgrip=r,lgrip=l2,ra=b,rb=y,lx=l2,lmenu=start,rclick=start,lclick=l";
-    if (mode == "aim") return "rtrig=l2,ra=b,rb=y,lgrip=l2,lx=b,lmenu=start,rclick=start,lclick=l,ltrig=r";
-    return "ra=b,rb=y,rtrig=l2,rgrip=r,ltrig=l2,lgrip=l,lx=b,lmenu=start,rclick=start";
+    // Start: left stick click everywhere (the left menu button is the SteamVR dashboard under ALVR); the left menu
+    // button and the right stick click stay as aliases. The racing and aiming maps give up L, which sat on the left click.
+    if (mode == "wheel") return "rtrig=b,ltrig=y,rgrip=r,lgrip=l2,ra=b,rb=y,lx=l2,lclick=start,lmenu=start,rclick=start";
+    if (mode == "aim") return "rtrig=l2,ra=b,rb=y,lgrip=l2,lx=b,lclick=start,lmenu=start,rclick=start,ltrig=r";
+    return "ra=b,rb=y,rtrig=l2,rgrip=r,ltrig=l2,lgrip=l,lx=b,lclick=start,lmenu=start,rclick=start";
   }
   // Environment: ACVR_PAD_MAP, ACVR_PAD_WHEEL_DEG, ACVR_PAD_AIM_HOLD, ACVR_PAD_AIM_BUTTON, ACVR_PAD_AIM, ACVR_PAD_AIM_CURVE.
   std::string load(const std::string &m)
