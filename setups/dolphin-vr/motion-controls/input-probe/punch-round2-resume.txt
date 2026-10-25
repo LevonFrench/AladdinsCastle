@@ -1,0 +1,16 @@
+# Restore private R7PE01-sideways-round1-1166.sav, AC Pad Sideways.
+# E2 independent restore: Wii1/2 punches and stamina use in active Round1.
+# End1188 or later. Unsupported dodge attempts excluded; no dodge, win, native or headset claim.
+shot 1166.5 punch-ready-before
+1167 1167.2 R trigger 1
+shot 1167.1 punch-ready-hit-0
+1168 1168.2 R primary 1
+shot 1168.1 punch-ready-hit-1
+1169 1169.2 R trigger 1
+shot 1169.1 punch-ready-hit-2
+1170 1170.2 R primary 1
+shot 1170.1 punch-ready-hit-3
+1171 1171.2 R trigger 1
+shot 1171.1 punch-ready-hit-4
+1172 1172.2 R primary 1
+shot 1172.1 punch-ready-hit-5

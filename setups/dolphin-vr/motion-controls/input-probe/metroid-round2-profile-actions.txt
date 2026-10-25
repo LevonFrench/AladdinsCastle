@@ -1,0 +1,20 @@
+# Restore private R3ME01-tutorial-245.sav; AC Pointer Metroid Prime Trilogy.
+# E2 held A/right-trigger282 shows firing flash/impact; B/right-primary jump, Nunchuk backward.
+# Z packet observed; successful target lock unproved. Native clipping remains; mono1x comparison only.
+246 260 R u 0
+246 260 R v 0
+shot 247 metroid-profile-before-shot
+248 248.3 R trigger 1
+250 250.3 R trigger 1
+shot 251 metroid-profile-after-shot
+253 256 L trigger 1
+shot 255 metroid-profile-lock
+shot 261 checkpoint-metroid-profile-action
+282.000 283.000 R trigger 1
+shot 282.150 metroid-held-fire-one
+shot 282.600 metroid-held-fire-two
+284.000 285.000 R primary 1
+shot 284.300 metroid-jump-action
+286.000 288.000 L stick_y -0.8
+shot 287.000 metroid-nunchuk-back
+shot 289.000 checkpoint-metroid-profile-live

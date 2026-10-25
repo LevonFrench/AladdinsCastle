@@ -1,0 +1,130 @@
+# Round2 partial: A+B title, temporary no-save session, default Link/Epona, opening dialogue.
+# Five down and two right pulses select END on the first name keyboard; horse keyboard retains END.
+# E2 menu/dialogue progression only. State669 is dialogue; persistent saving and gameplay are unverified.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+26.0 26.3 R primary 1
+28.0 28.3 R primary 1
+30.0 30.3 R primary 1
+32.0 32.3 R primary 1
+34.0 34.3 R primary 1
+36.0 36.3 R primary 1
+38.0 38.3 R primary 1
+40.0 40.3 R primary 1
+42.0 42.3 R primary 1
+44.0 44.3 R primary 1
+46.0 46.3 R primary 1
+48.0 48.3 R primary 1
+50.0 50.3 R primary 1
+52.0 52.3 R primary 1
+54.0 54.3 R primary 1
+56.0 56.3 R primary 1
+58.0 58.3 R primary 1
+100.0 100.4 R primary 1
+100.0 100.4 R trigger 1
+104.0 104.4 R primary 1
+104.0 104.4 R trigger 1
+108.0 108.4 R primary 1
+108.0 108.4 R trigger 1
+116.0 116.3 R primary 1
+122.0 122.3 R primary 1
+128.0 128.3 R primary 1
+shot 20 strap-or-title
+shot 60 title-candidate
+shot 93 observed-title-candidate
+shot 99 before-title-ab
+shot 102 after-first-ab
+shot 106 after-second-ab
+shot 110 after-third-ab
+shot 118 next-state-118
+shot 124 next-state-124
+shot 134 next-state-134
+shot 140 before-window-state
+shot 160 terminal
+171.000 171.400 R primary 1
+shot 175.000 save-prompt-return
+176.000 176.250 R stick_x -1
+176.000 176.250 L stick_x -1
+shot 178.000 save-yes-selected
+179.000 179.400 R primary 1
+shot 183.000 zelda-save-next
+259.000 259.300 R stick_x -1
+259.000 259.300 L stick_x -1
+shot 260.000 continue-yes-highlight
+261.000 261.400 R primary 1
+shot 265.000 continue-yes-next
+shot 267.000 checkpoint-zelda-progress
+369.000 369.150 L stick_y -1
+369.000 369.150 R stick_y -1
+370.000 370.150 L stick_y -1
+370.000 370.150 R stick_y -1
+371.000 371.150 L stick_y -1
+371.000 371.150 R stick_y -1
+372.000 372.150 L stick_y -1
+372.000 372.150 R stick_y -1
+373.000 373.150 L stick_y -1
+373.000 373.150 R stick_y -1
+375.000 375.150 L stick_x 1
+375.000 375.150 R stick_x 1
+376.000 376.150 L stick_x 1
+376.000 376.150 R stick_x 1
+shot 378.000 name-end-navigation
+379.000 379.400 R primary 1
+shot 383.000 name-confirm-next
+429.000 429.400 R primary 1
+435.000 435.400 R primary 1
+shot 439.000 zelda-opening
+441.000 441.400 L thumbclick 1
+shot 443.000 zelda-after-plus
+446.000 446.200 L stick_x -1
+448.000 448.400 R primary 1
+shot 453.000 zelda-after-confirm
+455.000 460.000 L stick_y 1
+shot 459.000 zelda-move-attempt
+shot 462.000 checkpoint-zelda-opening
+519.000 519.350 R primary 1
+521.000 521.350 R primary 1
+523.000 523.350 R primary 1
+525.000 525.350 R primary 1
+527.000 527.350 R primary 1
+529.000 529.350 R primary 1
+531.000 531.350 R primary 1
+533.000 533.350 R primary 1
+535.000 535.350 R primary 1
+537.000 537.350 R primary 1
+539.000 539.350 R primary 1
+541.000 541.350 R primary 1
+543.000 543.350 R primary 1
+545.000 545.350 R primary 1
+547.000 547.350 R primary 1
+549.000 549.350 R primary 1
+551.000 551.350 R primary 1
+553.000 553.350 R primary 1
+555.000 555.350 R primary 1
+557.000 557.350 R primary 1
+559.000 559.350 R primary 1
+561.000 561.350 R primary 1
+563.000 563.350 R primary 1
+565.000 565.350 R primary 1
+567.000 567.350 R primary 1
+569.000 569.350 R primary 1
+571.000 571.350 R primary 1
+573.000 573.350 R primary 1
+575.000 575.350 R primary 1
+577.000 577.350 R primary 1
+shot 549.000 zelda-dialogue-progress
+shot 579.000 zelda-after-dialogue
+581.000 586.000 L stick_y 1
+shot 585.000 zelda-walk-after-dialogue
+shot 588.000 checkpoint-zelda-after-dialogue
+shot 659.000 zelda-transition-check
+660.000 663.000 L stick_x -1
+shot 663.000 zelda-transition-left
+665.000 668.000 L stick_x 1
+shot 668.000 zelda-transition-right
+shot 669.000 checkpoint-zelda-last-check

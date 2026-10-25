@@ -1,0 +1,38 @@
+# Restore private keyboard checkpoint 210; explicit Overkill gun profile.
+# Creates the local profile 2 and enters Story Mode; checkpoint 495 is combat.
+# E2: a separate 495 restore registers B-fire and score 0 to 200.
+# Mono 1x / single-core was reviewed; native view and headset delivery are unverified.
+256.000 261.000 R u -0.34
+256.000 261.000 R v 0.3
+258.000 258.400 R trigger 1
+shot 262.000 overkill-name-letter
+264.000 272.000 R u 0
+264.000 272.000 R v -0.85
+267.000 267.400 R trigger 1
+shot 273.000 overkill-name-save
+shot 277.000 checkpoint-overkill-name
+308.000 317.000 R u 0
+308.000 317.000 R v 0
+310.000 310.400 R trigger 1
+shot 314.000 overkill-profile-enter
+shot 318.000 checkpoint-overkill-menu
+339.000 346.000 R u -0.45
+339.000 346.000 R v -0.94
+341.000 341.400 R trigger 1
+shot 346.000 overkill-story
+shot 352.000 checkpoint-overkill-story
+372.000 379.000 R u -0.45
+372.000 379.000 R v -0.7
+374.000 374.400 R trigger 1
+shot 379.000 overkill-story-corrected
+shot 385.000 checkpoint-overkill-story-selected
+421.000 421.400 L thumbclick 1
+424.000 424.400 R primary 1
+shot 428.000 overkill-story-after-intro
+shot 437.000 checkpoint-overkill-stage-setup
+455.000 455.400 R primary 1
+458.000 458.400 L thumbclick 1
+462.000 462.400 R trigger 1
+shot 465.000 overkill-stage-follow-1
+shot 480.000 overkill-stage-follow-2
+shot 495.000 checkpoint-overkill-stage-follow

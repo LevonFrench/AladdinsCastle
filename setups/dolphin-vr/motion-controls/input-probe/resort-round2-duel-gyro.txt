@@ -1,0 +1,14 @@
+# Restore private RZTP01-Duel-ready-855p5.sav; AC Motion Resort.
+# E2 independent live Duel: held B and gyro axes change blue-sword orientation.
+# Player hit, block effectiveness, victory, physical motion, native and headset acceptance unproved. End875 or later.
+856 866 R trigger 1
+shot 856 resort-held-neutral
+857 858 R ang_y 4
+shot 857.6 resort-held-y-positive
+859 860 R ang_y -4
+shot 859.6 resort-held-y-negative
+861 862 R ang_x 4
+shot 861.6 resort-held-x-positive
+863 864 R ang_z 4
+shot 863.6 resort-held-z-positive
+shot 865 resort-held-after

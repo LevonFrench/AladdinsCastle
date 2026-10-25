@@ -1,0 +1,6 @@
+# Restore private Excitebike-Kyoto-race-576.sav; --wiimote-profile "AC Pad Sideways".
+# E2: independently restored race advances under throttle and lane input, including over a bump.
+# Mono theatre at 1x / single-core makes the rider, course and HUD readable.
+# Zero FIFO log mentions in this observation. No 3x pacing or headset acceptance.
+577 592 R primary 1
+579 581 L stick_y 1

@@ -1,0 +1,161 @@
+# Round2 partial: activity menu to Swordplay/Duel,1player,GuestB,practice tutorial.
+# E2 menu/pointing response only; motion/hit registration and gameplay restore unproven.
+# Opening skydiving sequence is excluded from gameplay acceptance.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+26.0 26.3 R primary 1
+28.0 28.3 R primary 1
+30.0 30.3 R primary 1
+32.0 32.3 R primary 1
+34.0 34.3 R primary 1
+36.0 36.3 R primary 1
+38.0 38.3 R primary 1
+40.0 40.3 R primary 1
+42.0 42.3 R primary 1
+44.0 44.3 R primary 1
+46.0 46.3 R primary 1
+48.0 48.3 R primary 1
+50.0 50.3 R primary 1
+52.0 52.3 R primary 1
+54.0 54.3 R primary 1
+56.0 56.3 R primary 1
+58.0 58.3 R primary 1
+shot 10 d10
+shot 14 d14
+shot 18 d18
+shot 22 d22
+shot 26 d26
+shot 30 d30
+shot 34 d34
+shot 38 d38
+shot 42 d42
+shot 46 d46
+shot 50 d50
+shot 54 d54
+shot 58 d58
+shot 62 d62
+63.0 63.3 L thumbclick 1
+45 45.3 R primary 1
+45 45.3 R trigger 1
+50 50.3 R primary 1
+50 50.3 R trigger 1
+55 55.3 R primary 1
+55 55.3 R trigger 1
+60 60.3 R primary 1
+60 60.3 R trigger 1
+65 65.3 R primary 1
+65 65.3 R trigger 1
+70 70.3 R primary 1
+70 70.3 R trigger 1
+75 75.3 R primary 1
+75 75.3 R trigger 1
+80 80.3 R primary 1
+80 80.3 R trigger 1
+85 85.3 R primary 1
+85 85.3 R trigger 1
+90 90.3 R primary 1
+90 90.3 R trigger 1
+95 95.3 R primary 1
+95 95.3 R trigger 1
+100 100.3 R primary 1
+100 100.3 R trigger 1
+105 105.3 R primary 1
+105 105.3 R trigger 1
+110 110.3 R primary 1
+110 110.3 R trigger 1
+115 115.3 R primary 1
+115 115.3 R trigger 1
+120 120.3 R primary 1
+120 120.3 R trigger 1
+125 125.3 R primary 1
+125 125.3 R trigger 1
+130 130.3 R primary 1
+130 130.3 R trigger 1
+shot 49.000 checkpoint-skydiving
+50.000 55.000 R roll 35
+shot 53.000 tilt-right
+56.000 61.000 R roll -35
+shot 59.000 tilt-left
+shot 103.000 resort-current
+104.000 104.500 R primary 1
+shot 105.000 after-a
+107.000 107.500 L thumbclick 1
+shot 109.000 after-plus
+142.000 142.400 R primary 1
+shot 144.000 after-title-a
+146.000 146.400 R primary 1
+shot 148.000 after-confirm-a
+150.000 150.400 R primary 1
+shot 152.000 resort-menu
+205.000 212.000 R u -0.4
+205.000 212.000 R v 0.5
+shot 206.000 sword-hover
+207.000 207.400 R primary 1
+shot 210.000 sword-next
+264.000 280.000 R v 0.3
+266.000 266.400 R primary 1
+shot 269.000 duel-next
+271.000 271.400 R primary 1
+shot 274.000 duel-confirm
+276.000 276.400 R primary 1
+shot 279.000 duel-setup
+323.000 323.400 R primary 1
+325.000 334.000 R u -0.5
+325.000 334.000 R v 0.1
+shot 327.000 one-player-hover
+328.000 328.400 R primary 1
+shot 331.000 one-player-next
+333.000 333.400 R primary 1
+shot 336.000 one-player-confirm
+376.000 376.400 R primary 1
+shot 379.000 guest-next
+381.000 381.400 R primary 1
+shot 384.000 guest-confirm
+386.000 386.400 R primary 1
+shot 389.000 duel-start
+435.000 442.000 R u 0.3
+435.000 442.000 R v -0.4
+shot 436.000 continue-hover
+437.000 437.400 R primary 1
+shot 441.000 continue-next
+445.000 445.400 R primary 1
+shot 449.000 continue-confirm
+494.000 501.000 R u 0.3
+494.000 501.000 R v -0.65
+shot 495.000 continue-corrected-hover
+496.000 496.400 R primary 1
+shot 500.000 continue-corrected-next
+shot 502.000 checkpoint-duel-progress
+558.000 563.000 R u 0.35
+558.000 563.000 R v -0.35
+560.000 560.400 R primary 1
+shot 564.000 duel-ready
+567.000 567.400 R primary 1
+shot 572.000 duel-calibration
+576.000 576.400 R primary 1
+shot 581.000 duel-before-motion
+583.000 584.000 R ang_y 3
+583.000 584.000 R roll 60
+shot 585.000 duel-after-motion
+shot 587.000 checkpoint-duel-candidate
+622.000 622.600 R primary 1
+622.000 622.600 R trigger 1
+shot 628.000 duel-after-ab
+630.000 630.400 R primary 1
+shot 635.000 duel-after-ready
+637.000 638.000 R ang_y 3
+639.000 640.000 R ang_y -3
+shot 642.000 duel-swing-attempt
+shot 644.000 checkpoint-duel-after-ab
+686.000 686.500 R primary 1
+shot 689.000 practice-next
+691.000 691.500 R primary 1
+694.000 695.000 R ang_y 4
+697.000 698.000 R ang_y -4
+shot 700.000 practice-swing
+shot 703.000 checkpoint-practice-candidate

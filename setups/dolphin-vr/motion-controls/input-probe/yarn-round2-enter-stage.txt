@@ -1,0 +1,56 @@
+# Restore private QuiltySquare state445, AC Pad Sideways, mono1x/single-core.
+# Move to Patch Castle via the side ledge, Up, Wii2 select, then One Player.
+# State729 is loading, NOT gameplay. State773 is actual PatchCastle after movement/jump.
+# No later-stage, score, native stereo or headset acceptance.
+446 450 L stick_x -0.8
+shot 450 yarn-further-left
+451 452 L stick_y 1
+453 453.3 R primary 1
+shot 455 yarn-left-door-after-enter
+shot 461 checkpoint-yarn-left-door
+523.000 528.000 L stick_x 1
+shot 525.000 yarn-right-travel
+shot 528.200 yarn-right-stop
+529.000 529.500 L stick_y 1
+530.000 530.300 R primary 1
+shot 533.000 yarn-door-next
+570.000 573.000 L stick_x -1
+shot 571.500 yarn-back-center
+573.200 574.200 R primary 1
+shot 573.600 yarn-center-jump
+574.300 574.800 L stick_y 1
+shot 575.500 yarn-center-after-up
+577.000 577.300 R thumbclick 1
+shot 580.000 yarn-other-two-after
+627.000 627.550 L stick_x -1
+628.000 628.700 R primary 1
+628.300 628.600 R trigger 1
+shot 628.350 yarn-castle-entry-press
+shot 630.000 yarn-castle-entry-after
+632.000 632.300 R primary 1
+shot 636.000 yarn-castle-loaded
+shot 638.000 checkpoint-yarn-castle-entered
+677.000 678.200 L stick_x -1
+677.000 677.700 R primary 1
+shot 678.400 yarn-left-ledge
+679.300 680.550 L stick_x 1
+679.300 680.100 R primary 1
+shot 680.700 yarn-upper-door
+681.000 681.400 L stick_y 1
+shot 683.000 yarn-upper-enter
+shot 685.000 checkpoint-yarn-upper-door
+719.000 719.400 R primary 1
+shot 723.000 yarn-stage-start
+725.000 729.000 L stick_x 1
+shot 726.000 yarn-stage-right
+727.000 727.500 R primary 1
+shot 727.200 yarn-stage-jump
+shot 729.000 checkpoint-yarn-patch-castle-play
+shot 731.000 yarn-stage-after
+shot 766.000 yarn-after-stage-load
+768.000 772.000 L stick_x 1
+shot 769.000 yarn-real-stage-moving
+770.000 770.600 R primary 1
+shot 770.300 yarn-real-stage-jump
+shot 773.000 checkpoint-yarn-real-patch-castle
+shot 775.000 yarn-real-stage-settled

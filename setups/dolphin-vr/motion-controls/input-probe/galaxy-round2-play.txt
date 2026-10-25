@@ -1,0 +1,112 @@
+# Round2 mono theatre route from isolated user without File1; create Mario icon and enter opening plaza.
+# Checkpoint531; E2 forward walk, independently restored backward/right walk, A jump and star-bit collection.
+# Existing File1 users should use the private checkpoint/resume route instead of this fresh-file replay.
+# Native stereo, motion/spin and headset delivery are unverified.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+24.0 24.3 R trigger 1
+26.0 26.3 R primary 1
+28.0 28.3 R primary 1
+30.0 30.3 R primary 1
+30.0 30.3 R trigger 1
+32.0 32.3 R primary 1
+34.0 34.3 R primary 1
+36.0 36.3 R primary 1
+36.0 36.3 R trigger 1
+38.0 38.3 R primary 1
+40.0 40.3 R primary 1
+42.0 42.3 R primary 1
+42.0 42.3 R trigger 1
+44.0 44.3 R primary 1
+46.0 46.3 R primary 1
+48.0 48.3 R primary 1
+48.0 48.3 R trigger 1
+50.0 50.3 R primary 1
+52.0 52.3 R primary 1
+54.0 54.3 R primary 1
+54.0 54.3 R trigger 1
+56.0 56.3 R primary 1
+58.0 58.3 R primary 1
+60.0 60.3 R primary 1
+60.0 60.3 R trigger 1
+62.0 62.3 R primary 1
+64.0 64.3 R primary 1
+66.0 66.3 R primary 1
+66.0 66.3 R trigger 1
+68.0 68.3 R primary 1
+110.0 125.0 R u -0.20
+110.0 125.0 R v -0.14
+116.0 116.3 R primary 1
+120.0 120.3 R primary 1
+126.0 190.0 R u 0
+126.0 190.0 R v 0
+130.0 130.3 R primary 1
+140.0 140.3 R primary 1
+shot 20 title-or-strap
+shot 40 file-menu-candidate
+shot 70 file-menu-70
+shot 102 observed-file-menu-candidate
+shot 112 file1-hover-candidate
+shot 117 after-first-file1-click
+shot 124 after-file1-candidate
+shot 136 possible-create-or-avatar
+shot 146 next-state-146
+shot 150 next-state-before-window
+shot 170 terminal
+159.000 166.000 R u 0.3
+159.000 166.000 R v -0.65
+shot 160.000 create-file-hover
+161.000 161.400 R primary 1
+shot 165.000 create-file-next
+shot 168.000 checkpoint-file-progress
+224.000 230.000 R u -0.6
+224.000 230.000 R v 0.4
+shot 225.000 mario-icon-hover
+226.000 226.400 R primary 1
+shot 229.000 mario-icon-next
+281.000 288.000 R u 0.3
+281.000 288.000 R v -0.65
+283.000 283.400 R primary 1
+shot 287.000 icon-confirmed
+291.000 291.400 R primary 1
+shot 295.000 file-created-next
+339.000 346.000 R u 0.55
+339.000 346.000 R v -0.65
+341.000 341.400 R primary 1
+shot 347.000 play-file-next
+349.000 349.400 R primary 1
+354.000 354.400 R primary 1
+359.000 359.400 R primary 1
+364.000 364.400 R primary 1
+shot 367.000 galaxy-opening
+419.000 427.000 R u 0.55
+419.000 427.000 R v -0.85
+shot 420.000 play-file-corrected-hover
+422.000 422.400 R primary 1
+shot 426.000 play-file-corrected-next
+429.000 429.400 R primary 1
+434.000 434.400 R primary 1
+439.000 439.400 R primary 1
+shot 444.000 galaxy-opening-corrected
+482.000 482.350 R primary 1
+485.000 485.350 R primary 1
+488.000 488.350 R primary 1
+491.000 491.350 R primary 1
+494.000 494.350 R primary 1
+497.000 497.350 R primary 1
+500.000 500.350 R primary 1
+503.000 503.350 R primary 1
+506.000 506.350 R primary 1
+509.000 509.350 R primary 1
+512.000 512.350 R primary 1
+515.000 515.350 R primary 1
+shot 502.000 opening-pages
+shot 522.000 after-opening-pages
+524.000 529.000 L stick_y 1
+shot 528.000 opening-move-attempt
+shot 531.000 checkpoint-after-opening

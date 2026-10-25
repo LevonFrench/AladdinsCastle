@@ -1,0 +1,8 @@
+# Resume the private RMCP01-race-105.sav checkpoint near105 emulated seconds.
+# E2 offline: timer and heading/position changed under this alternate steering sequence.
+# Use post-load captures at108 and116; boot/menu capture times are obsolete after a restore.
+# Resume clock starts near105. No boot/menu inputs. Steering response only.
+105 130 R primary 1
+106 110 L stick_x -1
+112 116 L stick_x 1
+118 122 L stick_x -1

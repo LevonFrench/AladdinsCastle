@@ -1,0 +1,35 @@
+# Round 2: --wiimote-profile "AC Gun House of the Dead Overkill", Source 3.
+# Boot/setup reaches the local profile keyboard; request checkpoint 210.
+# Continue with overkill-round2-profile.txt. This file alone is not play proof.
+# UNPROVEN extension of old aim-overkill title-to-save-prompt route.
+# The old d46 title says A+B; d52 save prompt says SELECT B.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+44.0 44.4 R primary 1
+44.0 44.4 R trigger 1
+47.0 47.4 R primary 1
+47.0 47.4 R trigger 1
+50.0 50.4 R primary 1
+50.0 50.4 R trigger 1
+# Visually estimated Save target x=.28,y=.67, choose only isolated-run save.
+52.0 61.0 R u -0.44
+52.0 61.0 R v -0.34
+55.0 55.3 R trigger 1
+58.0 58.3 R trigger 1
+62.0 100.0 R u 0
+62.0 100.0 R v 0
+# Menu outcomes are unknown; bounded B confirms for next-state discovery.
+66.0 66.3 R trigger 1
+72.0 72.3 R trigger 1
+78.0 78.3 R trigger 1
+shot 28 intro
+shot 42 intro-or-title
+shot 46 title-candidate
+shot 52 save-prompt-candidate
+shot 54 save-hover-candidate
+shot 56 after-first-save
+shot 62 after-save-candidate
+shot 72 next-state
+shot 84 next-state-84
+shot 100 terminal

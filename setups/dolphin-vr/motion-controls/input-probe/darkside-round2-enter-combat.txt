@@ -1,0 +1,36 @@
+# Restore private320 difficulty checkpoint; explicit Darkside gun profile.
+# Select Easy, Chronicles and Leon. Recorded segments use matching private seeds/states.
+# Save717 before firing. A later 603-state replay schedules immediate B-fire and avoids the late-run death.
+# E2: independent717 restore repeats visible shot impact and first enemy falling.
+321 330 R u -0.54
+321 330 R v 0.17
+shot 323 darkside-easy-hover
+325 325.4 R primary 1
+shot 331 darkside-after-easy
+shot 337 checkpoint-darkside-after-easy
+414.000 414.400 R primary 1
+shot 419.000 darkside-chronicles-selected
+shot 424.000 checkpoint-darkside-chronicles-menu
+472.000 472.350 R primary 1
+shot 477.000 darkside-intro-after-a
+shot 485.000 darkside-intro-progress
+shot 494.000 checkpoint-darkside-intro-progress
+539.000 546.000 R u -0.4
+539.000 546.000 R v 0.1
+541.000 541.350 R primary 1
+shot 546.000 darkside-leon-selected
+shot 551.000 checkpoint-darkside-after-leon
+593.000 593.350 R primary 1
+shot 596.000 darkside-after-load-1
+shot 600.000 darkside-after-load-2
+shot 603.000 checkpoint-darkside-after-load
+shot 608.000 darkside-after-load-3
+shot 613.000 darkside-after-load-4
+645.000 645.350 R primary 1
+shot 649.000 darkside-village-after-a
+shot 653.000 darkside-village-control-check
+655.000 655.300 R trigger 1
+shot 655.100 darkside-village-fire-check
+shot 660.000 checkpoint-darkside-village
+714.000 714.300 L thumbclick 1
+shot 717.000 darkside-intro-plus-menu

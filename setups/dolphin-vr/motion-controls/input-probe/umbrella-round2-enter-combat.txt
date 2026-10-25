@@ -1,0 +1,81 @@
+# Restore private tutorial state232 after the existing boot/profile route; explicit Umbrella gun profile.
+# Separate confirm/fire presses close remaining tutorial pages. Save495 before early fire.
+# E2 train encounter, reduced health. Reload/kill and60-second survival unproved.
+shot 233 umbrella-restored-scene
+233.2 233.5 R primary 1
+234.000 234.080 R lin_x 2
+234.080 234.160 R lin_x -2
+234.160 234.240 R lin_x 2
+234.240 234.320 R lin_x -2
+234.320 234.400 R lin_x 2
+234.400 234.480 R lin_x -2
+234.480 234.560 R lin_x 2
+234.560 234.640 R lin_x -2
+234.640 234.720 R lin_x 2
+234.720 234.800 R lin_x -2
+234.800 234.880 R lin_x 2
+234.880 234.960 R lin_x -2
+234.960 235.040 R lin_x 2
+235.040 235.120 R lin_x -2
+235.120 235.200 R lin_x 2
+235.200 235.280 R lin_x -2
+235.280 235.360 R lin_x 2
+235.360 235.440 R lin_x -2
+235.440 235.520 R lin_x 2
+235.520 235.600 R lin_x -2
+235.600 235.680 R lin_x 2
+235.680 235.760 R lin_x -2
+235.760 235.840 R lin_x 2
+235.840 235.920 R lin_x -2
+shot 235.1 umbrella-motion-attempt
+shot 236.4 umbrella-after-motion
+237 237.25 R trigger 1
+shot 237.1 umbrella-early-fire-237
+238 238.25 R trigger 1
+shot 238.1 umbrella-early-fire-238
+239 239.25 R trigger 1
+shot 239.1 umbrella-early-fire-239
+240 240.25 R trigger 1
+shot 240.1 umbrella-early-fire-240
+242 244.2 R u -0.95
+242 244.2 R v 0.95
+shot 243 umbrella-early-corner-tl
+245 247.2 R u 0.95
+245 247.2 R v 0.95
+shot 246 umbrella-early-corner-tr
+248 250.2 R u -0.95
+248 250.2 R v -0.95
+shot 249 umbrella-early-corner-bl
+251 253.2 R u 0.95
+251 253.2 R v -0.95
+shot 252 umbrella-early-corner-br
+376.000 376.400 R primary 1
+shot 377.500 umbrella-page-after-a-0
+379.000 379.400 R primary 1
+shot 380.500 umbrella-page-after-a-3
+382.000 382.400 R primary 1
+shot 383.500 umbrella-page-after-a-6
+385.000 385.300 R trigger 1
+shot 385.100 umbrella-page-after-b-9
+387.000 387.300 R trigger 1
+shot 387.100 umbrella-page-after-b-11
+389.000 389.300 R trigger 1
+shot 389.100 umbrella-page-after-b-13
+shot 392.000 checkpoint-umbrella-after-pages
+477.000 477.300 R primary 1
+shot 478.000 umbrella-more-pages-0
+479.000 479.300 R trigger 1
+shot 480.000 umbrella-more-pages-1
+481.000 481.300 R primary 1
+shot 482.000 umbrella-more-pages-2
+483.000 483.300 R trigger 1
+shot 484.000 umbrella-more-pages-3
+485.000 485.300 R primary 1
+shot 486.000 umbrella-more-pages-4
+487.000 487.300 R trigger 1
+shot 488.000 umbrella-more-pages-5
+489.000 489.300 R primary 1
+shot 490.000 umbrella-more-pages-6
+491.000 491.300 R trigger 1
+shot 492.000 umbrella-more-pages-7
+shot 495.000 checkpoint-umbrella-pages-cleared

@@ -1,0 +1,153 @@
+# Metroid Prime Trilogy: tutorial deck/airlock, E2 offline route and independent restore.
+# Requires the tested private local slot1 save. Checkpoint name: R3ME01-tutorial-245.sav.
+# Save at245; use metroid-round2-resume.txt after restoring. Both scripts use emulated time.
+# Nunchuk walking is visible; lock/shot success is unverified. Severe expanded-view clipping remains.
+# Observed with single-core1x. No live-quality pacing, pointer calibration or headset acceptance.
+# MPT gameplay push (slot 1 filled): menus and cinematic as metroid-long.txt to 230 s, then Nunchuk stick walk,
+# pointer turns, jumps and shots; screenshots every few seconds. Menu part taken from metroid-long.txt.
+12.0 12.3 R trigger 1
+14.0 14.3 R trigger 1
+16.0 16.3 R trigger 1
+18.0 18.3 R trigger 1
+20.0 20.3 R trigger 1
+22.0 22.3 R trigger 1
+24.0 24.3 R trigger 1
+26.0 26.3 R trigger 1
+30.0 37.0 R u -0.46
+30.0 37.0 R v 0.34
+32.0 32.3 R trigger 1
+35.0 35.3 R trigger 1
+37.0 42.0 R u 0
+37.0 42.0 R v 0.45
+39.0 39.3 R trigger 1
+43.0 43.3 R trigger 1
+47.0 47.3 R trigger 1
+51.0 51.3 R trigger 1
+55.0 55.3 R trigger 1
+59.0 59.3 R trigger 1
+63.0 63.3 R trigger 1
+67.0 67.3 R trigger 1
+71.0 71.3 R trigger 1
+75.0 75.3 R trigger 1
+79.0 79.3 R trigger 1
+83.0 83.3 R trigger 1
+87.0 87.3 R trigger 1
+91.0 91.3 R trigger 1
+95.0 95.3 R trigger 1
+99.0 99.3 R trigger 1
+103.0 103.3 R trigger 1
+107.0 107.3 R trigger 1
+111.0 111.3 R trigger 1
+115.0 115.3 R trigger 1
+119.0 119.3 R trigger 1
+123.0 123.3 R trigger 1
+127.0 127.3 R trigger 1
+131.0 131.3 R trigger 1
+135.0 135.3 R trigger 1
+139.0 139.3 R trigger 1
+143.0 143.3 R trigger 1
+147.0 147.3 R trigger 1
+151.0 151.3 R trigger 1
+155.0 155.3 R trigger 1
+159.0 159.3 R trigger 1
+163.0 163.3 R trigger 1
+167.0 167.3 R trigger 1
+171.0 171.3 R trigger 1
+175.0 175.3 R trigger 1
+179.0 179.3 R trigger 1
+183.0 183.3 R trigger 1
+187.0 187.3 R trigger 1
+191.0 191.3 R trigger 1
+195.0 195.3 R trigger 1
+199.0 199.3 R trigger 1
+203.0 203.3 R trigger 1
+207.0 207.3 R trigger 1
+211.0 211.3 R trigger 1
+215.0 215.3 R trigger 1
+219.0 219.3 R trigger 1
+223.0 223.3 R trigger 1
+227.0 227.3 R trigger 1
+232.0 238.0 L stick_y 1
+233.0 233.3 R trigger 1
+234.0 234.3 R primary 1
+235.0 237.0 R u -0.45
+240.0 246.0 L stick_y 1
+241.0 241.3 R trigger 1
+242.0 242.3 R primary 1
+243.0 245.0 R u 0.45
+248.0 254.0 L stick_y 1
+249.0 249.3 R trigger 1
+250.0 250.3 R primary 1
+251.0 253.0 R u 0.45
+256.0 262.0 L stick_y 1
+257.0 257.3 R trigger 1
+258.0 258.3 R primary 1
+259.0 261.0 R u -0.45
+264.0 270.0 L stick_y 1
+265.0 265.3 R trigger 1
+266.0 266.3 R primary 1
+267.0 269.0 R u 0.45
+272.0 278.0 L stick_y 1
+273.0 273.3 R trigger 1
+274.0 274.3 R primary 1
+shot 30.0 g0030
+shot 34.0 g0034
+shot 38.0 g0038
+shot 42.0 g0042
+shot 46.0 g0046
+shot 50.0 g0050
+shot 54.0 g0054
+shot 58.0 g0058
+shot 62.0 g0062
+shot 66.0 g0066
+shot 70.0 g0070
+shot 74.0 g0074
+shot 78.0 g0078
+shot 82.0 g0082
+shot 86.0 g0086
+shot 90.0 g0090
+shot 94.0 g0094
+shot 98.0 g0098
+shot 102.0 g0102
+shot 106.0 g0106
+shot 110.0 g0110
+shot 114.0 g0114
+shot 118.0 g0118
+shot 122.0 g0122
+shot 126.0 g0126
+shot 130.0 g0130
+shot 134.0 g0134
+shot 138.0 g0138
+shot 142.0 g0142
+shot 146.0 g0146
+shot 150.0 g0150
+shot 154.0 g0154
+shot 158.0 g0158
+shot 162.0 g0162
+shot 166.0 g0166
+shot 170.0 g0170
+shot 174.0 g0174
+shot 178.0 g0178
+shot 182.0 g0182
+shot 186.0 g0186
+shot 190.0 g0190
+shot 194.0 g0194
+shot 198.0 g0198
+shot 202.0 g0202
+shot 206.0 g0206
+shot 210.0 g0210
+shot 214.0 g0214
+shot 218.0 g0218
+shot 222.0 g0222
+shot 226.0 g0226
+shot 230.0 g0230
+shot 234.0 g0234
+shot 238.0 g0238
+shot 242.0 g0242
+shot 246.0 g0246
+shot 250.0 g0250
+shot 254.0 g0254
+shot 258.0 g0258
+shot 262.0 g0262
+shot 266.0 g0266
+shot 270.0 g0270

@@ -1,0 +1,8 @@
+# Restore private RZDP01-Ordon-controlled-803.sav. AC Motion Zelda.
+# E2 independent Nunchuk movement toward tree roots; mono1x/single-core. End825 or later.
+# Persistent game-save creation, later equipment/combat, native and headset delivery unverified.
+804 807 L stick_x -0.8
+shot 805 zelda-resume-left
+808 811 L stick_y 0.8
+shot 810 zelda-resume-forward
+shot 813 checkpoint-zelda-restored-world

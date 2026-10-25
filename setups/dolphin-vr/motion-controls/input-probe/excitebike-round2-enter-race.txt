@@ -1,0 +1,8 @@
+# Restore private Kyoto prestart checkpoint 555; --wiimote-profile "AC Pad Sideways".
+# E2: throttle and lane inputs advance the Kyoto race; save moving-race checkpoint 576.
+# Native 1x / single-core clips the course. Observation completed with zero FIFO log mentions.
+# Heat/overheat feedback occurs. Race completion and the B-grade goal remain unverified.
+557 584 R primary 1
+568 570 L stick_y 1
+573 575 L stick_y -1
+571 571.5 R trigger 1

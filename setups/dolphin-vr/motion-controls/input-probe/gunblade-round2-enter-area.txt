@@ -1,0 +1,17 @@
+# Restore private menu state110 following the existing Gunblade boot route; explicit gun profile.
+# Start/continue then hold B; state281 preserves active Area1 with3hearts.
+# E2 fire effects and active counter. No scored kill or mission acceptance.
+shot 111 gunblade-loaded-stage
+113 113.3 R primary 1
+116 116.3 R primary 1
+shot 118 gunblade-after-a
+shot 122 checkpoint-gunblade-after-a
+261.000 261.300 R primary 1
+264.000 264.300 R primary 1
+266.000 286.000 R trigger 1
+261.000 287.000 R u 0
+261.000 287.000 R v 0
+shot 268.000 gunblade-started-fire
+shot 271.000 checkpoint-gunblade-active-fire
+shot 276.000 gunblade-fire-progress
+shot 281.000 checkpoint-gunblade-later-fire

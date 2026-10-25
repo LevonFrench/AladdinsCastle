@@ -1,0 +1,24 @@
+# Restore private RHOP8P-first-combat-495.sav; explicit Overkill gun profile.
+# E2: B-fire consumes ammunition and raises score from 0 to 200.
+# Only the upper corners occur during combat here; use overkill-round2-corners.txt for four live samples.
+# Replay loses its remaining health around 513; this is not a sustained timing route.
+# Restore495 combat; no menus.
+496 503 R u -0.43
+496 503 R v 0.2
+497 497.2 R trigger 1
+498 498.2 R trigger 1
+499 499.2 R trigger 1
+500 500.2 R trigger 1
+501 501.2 R trigger 1
+505 508 R u -0.95
+505 508 R v 0.95
+shot 506 overkill-resume-corner-tl
+509 512 R u 0.95
+509 512 R v 0.95
+shot 510 overkill-resume-corner-tr
+513 516 R u -0.95
+513 516 R v -0.95
+shot 514 overkill-resume-corner-bl
+517 520 R u 0.95
+517 520 R v -0.95
+shot 518 overkill-resume-corner-br

@@ -1,0 +1,39 @@
+# Round 2 setup: explicit AC Gun Darkside Chronicles, copied Source 3.
+# Observed segment reaches a private file-slot checkpoint at220; request its save explicitly.
+# Existing game data can change menus. Continue with the profile segment; setup alone is not play proof.
+12.0 12.3 R primary 1
+14.0 14.3 R primary 1
+16.0 16.3 R primary 1
+18.0 18.3 R primary 1
+20.0 20.3 R primary 1
+22.0 22.3 R primary 1
+24.0 24.3 R primary 1
+26.0 26.3 R primary 1
+28.0 28.3 R primary 1
+30.0 30.3 R primary 1
+32.0 32.3 R primary 1
+34.0 34.3 R primary 1
+36.0 36.3 R primary 1
+38.0 38.3 R primary 1
+44.0 53.0 R u -0.20
+44.0 53.0 R v -0.20
+46.0 46.3 R primary 1
+50.0 50.3 R primary 1
+54.0 90.0 R u 0
+54.0 90.0 R v 0
+60.0 60.3 R primary 1
+65.0 65.3 R primary 1
+70.0 70.3 R primary 1
+75.0 75.3 R primary 1
+shot 22.000 w0-0022-00
+shot 40.000 w0-0040-00
+shot 45.000 w0-0045-00
+shot 48.000 w0-0048-00
+shot 54.000 w0-0054-00
+shot 60.000 w0-0060-00
+shot 75.000 w0-0075-00
+shot 90.000 w0-0090-00
+shot 100.000 w0-0100-00
+shot 130.000 w0-0130-00
+shot 165.000 w0-0165-00
+shot 180.000 w0-0180-00

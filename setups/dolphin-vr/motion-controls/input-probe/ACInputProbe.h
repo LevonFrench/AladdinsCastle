@@ -9,26 +9,35 @@
 // DOLPHINXR_INPUT_PROBE=<file>   appends one line per change of what emulated Wii Remote 1
 //                                reports to the game (buttons, accel, IR dot, MotionPlus,
 //                                Nunchuk stick/buttons/accel).
+// DOLPHINXR_INPUT_APPEND=<file> optional append-only future commands, synthetic offline only.
+// DOLPHINXR_INPUT_SAVE_AT / SAVE_PATH request one observation-only private checkpoint.
+// DOLPHINXR_INPUT_CHECKPOINT_DIR pairs safe checkpoint-* shots with private states, offline only.
 //
 // Script lines: "<from_s> <to_s> <L|R> <control> <value>" or "shot <at_s> <name>".
 // Controls: primary secondary menu thumbclick trigger squeeze stick_x stick_y
-//           roll pitch yaw (degrees, aim orientation) u v (screen hit) ang_x ang_y ang_z.
+//           roll pitch yaw (degrees, aim orientation) u v (screen hit) ang_x ang_y ang_z
+//           lin_x lin_y lin_z (grip linear velocity, meters/second; each component is bounded).
 #pragma once
 
 #ifdef ENABLE_VR
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <filesystem>
 #include <sstream>
 #include <string>
 #include <variant>
 #include <vector>
 
 #include "Common/VR/OpenXRInputState.h"
+#include "Core/ACInputAppend.h"
 #include "Core/Core.h"
 #include "Core/HW/WiimoteEmu/DesiredWiimoteState.h"
+#include "Core/State.h"
+#include "VideoCommon/VR/OpenXRManager.h"
 
 namespace ACInputProbe
 {
@@ -55,6 +64,11 @@ struct State
   std::vector<Shot> shots;
   std::FILE* probe = nullptr;
   std::string last;
+  std::string append_path;
+  Append::Inbox inbox;
+  std::size_t fixed_steps = 0, fixed_shots = 0;
+  bool append_purged = false;
+  bool save_requested = false;
 };
 
 inline State& Get()
@@ -92,6 +106,10 @@ inline State& Get()
     }
     if (const char* path = std::getenv("DOLPHINXR_INPUT_PROBE"); path && *path)
       s.probe = std::fopen(path, "a");
+    if (const char* path = std::getenv("DOLPHINXR_INPUT_APPEND"); path && *path)
+      s.append_path = path;  // No file access until Feed validates the offline gate.
+    s.fixed_steps = s.steps.size();
+    s.fixed_shots = s.shots.size();
   }
   return s;
 }
@@ -116,16 +134,114 @@ inline void Feed(double t)
   if (!s.script_on)
     return;
 
+  // Feed's BTEmu call site is only ENABLE_VR-guarded. Restrict the NEW inbox
+  // explicitly; never infer offline status from the synthetic input snapshot.
+  const char* synthetic = std::getenv("AC_STEREO_PROBE");
+  if (!s.save_requested && s.probe && synthetic && std::string(synthetic) == "1" && !VR::g_openxr)
+  {
+    const char* at = std::getenv("DOLPHINXR_INPUT_SAVE_AT");
+    const char* path = std::getenv("DOLPHINXR_INPUT_SAVE_PATH");
+    char* end = nullptr;
+    const double when = at ? std::strtod(at, &end) : -1;
+    if (at && end != at && *end == '\0' && std::isfinite(when) && when >= 0 && path && *path && t >= when)
+    {
+      s.save_requested = true;
+      // Leave the input callback before serializing the emulated machine.
+      Core::QueueHostJob([filename = std::string(path)](Core::System& system) {
+        const char* gate = std::getenv("AC_STEREO_PROBE");
+        if (gate && std::string(gate) == "1" && !VR::g_openxr)
+          ::State::SaveAs(system, filename);
+      });
+      std::fprintf(s.probe, "t=%.3f AC_INPUT_STATE save_requested\n", t);
+      std::fflush(s.probe);
+    }
+  }
+  if (!s.append_path.empty() && !s.append_purged && s.probe && synthetic && std::string(synthetic) == "1" &&
+      !VR::g_openxr)
+  {
+    auto log = [&](const std::string& message) {
+      std::fprintf(s.probe, "t=%.3f %s\n", t, message.c_str());
+      std::fflush(s.probe);
+    };
+    s.inbox.Poll(s.append_path, t, [&](const Append::Command& command) {
+      if (command.shot)
+      {
+        for (const Shot& old : s.shots)
+          if (Append::SameName(old.name, command.name))
+          {
+            log("AC_INPUT_APPEND rejected reason=duplicate_shot_name");
+            return false;
+          }
+        if (s.shots.size() >= Append::MAX_TOTAL_SHOTS)
+        {
+          log("AC_INPUT_APPEND rejected reason=shot_cap");
+          return false;
+        }
+        s.shots.push_back({command.from, command.name, false});
+        log("AC_INPUT_APPEND accepted shot " + std::to_string(command.from) + " " + command.name);
+      }
+      else
+      {
+        if (s.steps.size() >= Append::MAX_TOTAL_STEPS)
+        {
+          log("AC_INPUT_APPEND rejected reason=step_cap");
+          return false;
+        }
+        s.steps.push_back({command.from, command.to, command.hand, command.control, command.value});
+        log("AC_INPUT_APPEND accepted step " + std::to_string(command.from) + " " +
+            std::to_string(command.to) + " " + (command.hand == 0 ? "L " : "R ") +
+            command.control + " " + std::to_string(command.value));
+      }
+      return true;
+    }, log);
+    if (s.inbox.Disabled() && !s.append_purged)
+    {
+      s.steps.resize(s.fixed_steps);
+      s.shots.resize(s.fixed_shots);
+      s.append_purged = true;
+      log("AC_INPUT_APPEND purged appended actions; fixed replay retained");
+    }
+  }
+  else if (s.inbox.Ready() && !s.append_purged)
+  {
+    // A manager appearing or the opt-in gate changing revokes appended input.
+    // Never reactivate the inbox or replay its already consumed bytes.
+    s.steps.resize(s.fixed_steps);
+    s.shots.resize(s.fixed_shots);
+    s.append_purged = true;
+    if (s.probe)
+    {
+      std::fprintf(s.probe, "t=%.3f AC_INPUT_APPEND disabled reason=offline_gate_lost\n", t);
+      std::fflush(s.probe);
+    }
+  }
+
   std::array<Common::VR::OpenXRControllerState, 2> c{};
   std::array<float, 2> yaw{}, pitch{}, roll{};
+  std::array<bool, 2> scripted_linear_velocity{};
+  for (const Step& st : s.steps)
+  {
+    if (st.control == "lin_x" || st.control == "lin_y" || st.control == "lin_z")
+      scripted_linear_velocity[st.hand] = true;
+  }
   for (int h = 0; h < 2; ++h)
   {
     c[h].connected = true;
     c[h].grip_pose.valid = true;
     c[h].grip_pose.position = {h == 0 ? -0.2f : 0.2f, 1.0f, -0.3f};
+    // When a script uses linear velocity, publish zero outside active steps too. The
+    // velocity edge back to zero is needed for the existing OpenXR-to-accelerometer
+    // derivative path to see both the start and end of a synthetic movement pulse.
+    c[h].grip_velocity.linear_valid = scripted_linear_velocity[h];
     c[h].aim_pose.valid = true;
     c[h].screen_hit = {true, 0.0f, 0.0f, 2.0f};
   }
+  const auto bounded_linear_velocity = [](float value) {
+    if (!std::isfinite(value))
+      return 0.0f;
+    const float limit = static_cast<float>(Append::MAX_LINEAR_VELOCITY_MPS);
+    return std::clamp(value, -limit, limit);
+  };
   for (const Step& st : s.steps)
   {
     if (t < st.from || t >= st.to)
@@ -148,6 +264,21 @@ inline void Feed(double t)
     else if (st.control == "ang_x") { k.grip_velocity.angular[0] = st.value; k.grip_velocity.angular_valid = true; }
     else if (st.control == "ang_y") { k.grip_velocity.angular[1] = st.value; k.grip_velocity.angular_valid = true; }
     else if (st.control == "ang_z") { k.grip_velocity.angular[2] = st.value; k.grip_velocity.angular_valid = true; }
+    else if (st.control == "lin_x")
+    {
+      k.grip_velocity.linear[0] = bounded_linear_velocity(st.value);
+      k.grip_velocity.linear_valid = true;
+    }
+    else if (st.control == "lin_y")
+    {
+      k.grip_velocity.linear[1] = bounded_linear_velocity(st.value);
+      k.grip_velocity.linear_valid = true;
+    }
+    else if (st.control == "lin_z")
+    {
+      k.grip_velocity.linear[2] = bounded_linear_velocity(st.value);
+      k.grip_velocity.linear_valid = true;
+    }
   }
   for (int h = 0; h < 2; ++h)
   {
@@ -163,8 +294,28 @@ inline void Feed(double t)
     {
       shot.done = true;
       Core::SaveScreenShot(shot.name);
+      const char* directory = std::getenv("DOLPHINXR_INPUT_CHECKPOINT_DIR");
+      const char* gate = std::getenv("AC_STEREO_PROBE");
+      if (directory && *directory && gate && std::string(gate) == "1" && !VR::g_openxr &&
+          s.probe && shot.name.rfind("checkpoint-", 0) == 0 && Append::SafeName(shot.name))
+      {
+        const std::string filename = (std::filesystem::path(directory) / (shot.name + ".sav")).string();
+        Core::QueueHostJob([filename](Core::System& system) {
+          const char* opt_in = std::getenv("AC_STEREO_PROBE");
+          std::error_code error;
+          if (opt_in && std::string(opt_in) == "1" && !VR::g_openxr &&
+              !std::filesystem::exists(filename, error) && !error)
+            ::State::SaveAs(system, filename);
+        });
+        std::fprintf(s.probe, "t=%.3f AC_INPUT_STATE checkpoint_requested %s\n", t, shot.name.c_str());
+        std::fflush(s.probe);
+      }
       if (s.probe)
+      {
         std::fprintf(s.probe, "t=%.3f shot %s\n", t, shot.name.c_str());
+        if (!s.append_path.empty())
+          std::fflush(s.probe);
+      }
     }
   }
 }

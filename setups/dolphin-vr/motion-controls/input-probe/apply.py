@@ -14,6 +14,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 BTEMU = Path('Source/Core/Core/IOS/USB/Bluetooth/BTEmu.cpp')
 HEADER = Path('Source/Core/Core/ACInputProbe.h')
+APPEND_HEADER = Path('Source/Core/Core/ACInputAppend.h')
 
 EDITS = [
     ('#include "Core/HW/WiimoteEmu/DesiredWiimoteState.h"\n',
@@ -59,8 +60,10 @@ def main():
     header = root / HEADER
     if args.revert:
         header.unlink(missing_ok=True)
+        (root / APPEND_HEADER).unlink(missing_ok=True)
     else:
         shutil.copyfile(HERE / 'ACInputProbe.h', header)
+        shutil.copyfile(HERE / 'ACInputAppend.h', root / APPEND_HEADER)
     print(('reverted ' if args.revert else 'applied ') + str(target))
 
 
