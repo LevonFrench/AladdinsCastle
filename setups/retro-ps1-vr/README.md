@@ -692,7 +692,7 @@ width and height, `x, y, w, h` from the top left, in the profile:
 | `ACVR_PS1_3DS_TOUCH` | 1: the touch panel. Needs a pad profile (`controls = "pad"`), the next two settings, and `ACVR_PS1_SBS=1` when the core draws two eyes |
 | `ACVR_PS1_3DS_TOP` | the top screen, both eyes: `[0, 0.25, 1, 0.25]` at `default` and `side-by-side-full` |
 | `ACVR_PS1_3DS_BOTTOM` | the bottom screen, once (the left copy): `[0.05, 0.5, 0.4, 0.25]`; also where the stylus is sent |
-| `ACVR_PS1_3DS_POINTER` | where the core takes the bottom screen to be when it reads the stylus, default the bottom rectangle. Taps from round 2 landed one button too high with the default (see below): try `[0.1, 0.5, 0.8, 0.5]`, the layout's mono rectangle |
+| `ACVR_PS1_3DS_POINTER` | where the core takes the bottom screen to be when it reads the stylus, default the bottom rectangle. An override for the stylus's position. The default is right for the crop, but taps do not land where aimed (see below); the mono layout's rectangle `[0.1, 0.5, 0.8, 0.5]` did not fix it |
 | `ACVR_PS1_3DS_STYLUS` | the VR control that puts the stylus down, default `rtrig` |
 | `ACVR_PS1_3DS_PANEL` | panel width, distance ahead, height against your eyes, metres: `0.8, 1, -0.55` (it tilts to face you) |
 
@@ -725,7 +725,7 @@ Roll steering does not apply. R, the D-pad, X and Y are not mapped (their uses w
 not checked). Not checked in a headset: the panel's size and position, whether the
 stylus lands where the ray points, aiming comfort, the map above.
 
-Round 2 (hidden offline runs, corrected rectangles): the host's own `before-panel.png` is exactly the 480x360 bottom screen; a synthetic tap changed the game in all three runs (Mario Kart 7 left copy and right copy: Grand Prix menu to the 50cc page, which does not happen without a tap; Kid Icarus: first dialog to the next one), so the core takes the stylus from `RETRO_DEVICE_POINTER`. The tap aimed at "Time Trials" (panel 0.5, 0.35) opened Grand Prix instead, and the right copy did the same, so the core does not use the copy's own rectangle. The mono layout's rectangle `[0.1, 0.5, 0.8, 0.5]` (a tap at its 0.175 down is on Grand Prix) fits both, but is **not yet tried**: set `ACVR_PS1_3DS_POINTER` to it and tap Time Trials.
+Round 2 (hidden offline runs, corrected rectangles): the host's own `before-panel.png` is exactly the 480x360 bottom screen; a synthetic tap changed the game in all three runs (Mario Kart 7 left copy and right copy: Grand Prix menu to the 50cc page, which does not happen without a tap; Kid Icarus: first dialog to the next one), so the core takes the stylus from `RETRO_DEVICE_POINTER`. The tap aimed at "Time Trials" (panel 0.5, 0.35) opened Grand Prix instead, and the right copy did the same, so the core does not use the copy's own rectangle. The mono layout's rectangle `[0.1, 0.5, 0.8, 0.5]` (a tap at its 0.175 down is on Grand Prix) fits both, but round 3 tried it and it did **not** land: with `ACVR_PS1_3DS_POINTER=0.1,0.5,0.8,0.5` a tap aimed at Time Trials (0.5, 0.35) and one at Coin Runners (0.5, 0.73) both opened Grand Prix again. Five taps in all, at frame y 0.59, 0.68 and 0.87 and x 0.25, 0.5 and 0.75, all opened Grand Prix, so where the core puts the stylus is still unknown (it may clamp to the top button, or any tap may confirm the highlighted item). The stylus reaches the game and changes it; its position is not confirmed.
 
 Earlier evidence (E2, hidden offline run): the layout facts above; the core
 polls the pointer every frame and reads the stylus pressed on the frames the
