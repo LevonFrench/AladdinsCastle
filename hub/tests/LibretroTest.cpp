@@ -18,6 +18,7 @@ QString root() { return QStringLiteral(AC_CATALOG_ROOT); }
 QString native(const QString &path) { return QDir::toNativeSeparators(QFileInfo(path).absoluteFilePath()); }
 QString plainPath(const QString &path) { return QFileInfo(path).absoluteFilePath(); } // As the Hub keeps folders: forward slashes.
 const QString game = "3ds-star-fox-64-3d";
+const QString kart = "3ds-mario-kart-7";
 } // namespace
 class LibretroTest : public QObject {
   Q_OBJECT
@@ -33,22 +34,30 @@ class LibretroTest : public QObject {
       write(host, "synthetic");
       write(core, "synthetic");
       write(profiles + "/" + game + ".toml", "schema = 1\n");
+      write(profiles + "/" + kart + ".toml", "schema = 1\n");
       write(dumps + "/Star Fox 64 3D.3ds", "synthetic");
+      write(dumps + "/Mario Kart 7.cia.3ds", "synthetic");
     }
   };
 private slots:
   void theGameIsListedUnderItsCatalogId() {
     const auto rows = ac::libretro::games();
-    QCOMPARE(rows.size(), 1);
-    const auto row = rows.first().toMap();
-    QCOMPARE(row.value("id").toString(), game);
-    QCOMPARE(row.value("system").toString(), QString("3ds"));
-    QCOMPARE(row.value("profile").toString(), game + ".toml");
-    QVERIFY(!row.value("controls").toString().isEmpty());
-    // The id is the catalog's own, and the repo carries the profile it names; neither names a path of the owner's.
-    QVERIFY(QFileInfo(root() + "/games/" + game + "/game.toml").isFile());
+    QCOMPARE(rows.size(), 2);
+    QCOMPARE(rows.first().toMap().value("id").toString(), game);
+    QCOMPARE(rows.last().toMap().value("id").toString(), kart);
     const auto profiles = ac::libretro::profilesFolder({}, root() + "/hub");
-    QVERIFY2(QFileInfo(profiles + "/" + game + ".toml").isFile(), qPrintable(profiles));
+    for (const auto &value : rows) {
+      const auto row = value.toMap();
+      const auto id = row.value("id").toString();
+      QCOMPARE(row.value("system").toString(), QString("3ds"));
+      QCOMPARE(row.value("profile").toString(), id + ".toml");
+      QVERIFY(!row.value("controls").toString().isEmpty());
+      // The id is the catalog's own, and the repo carries the profile it names; neither names a path of the owner's.
+      QVERIFY(QFileInfo(root() + "/games/" + id + "/game.toml").isFile());
+      QVERIFY2(QFileInfo(profiles + "/" + id + ".toml").isFile(), qPrintable(profiles));
+    }
+    // Racers steer with the stick: the Mario Kart text says so.
+    QVERIFY(rows.last().toMap().value("controls").toString().contains("no tilt steering"));
     QCOMPARE(ac::libretro::profileName("point-blank"), QString());
   }
   void exactCommandLine() {
@@ -61,6 +70,8 @@ private slots:
     QCOMPARE(plan.value("args").toStringList(),
              QStringList({"--core", native(s.core), "--game", native(s.dumps + "/Star Fox 64 3D.3ds"), "--system", native(s.data + "/system"), "--saves", native(s.data + "/saves"),
                           "--profile", native(s.profiles + "/" + game + ".toml")}));
+    const auto racer = ac::libretro::launchPlan(kart, s.host, s.core, s.dumps + "/Mario Kart 7.cia.3ds", s.data, s.profiles, "theatre");
+    QCOMPARE(racer.value("args").toStringList().last(), native(s.profiles + "/" + kart + ".toml"));
     const auto swapped = ac::libretro::launchPlan(game, s.host, s.core, s.dumps + "/Star Fox 64 3D.3ds", s.data, s.profiles, "swap-eyes");
     QCOMPARE(swapped.value("args").toStringList().mid(swapped.value("args").toStringList().size() - 2), QStringList({"--view", "swap-eyes"}));
     QCOMPARE(swapped.value("args").toStringList().size(), plan.value("args").toStringList().size() + 2);
@@ -94,10 +105,15 @@ private slots:
     QTemporaryDir t;
     const Setup s(t.path());
     QVERIFY(ac::libretro::problem(game, s.host, s.core, s.dumps, s.profiles).isEmpty());
-    QVERIFY(ac::libretro::problem(game, {}, s.core, s.dumps, s.profiles).contains("libretroHost"));
-    QVERIFY(ac::libretro::problem(game, s.host, {}, s.dumps, s.profiles).contains("threedsCore"));
-    QVERIFY(ac::libretro::problem(game, s.host, s.core, s.dumps, {}).contains("libretroProfiles"));
-    QVERIFY(ac::libretro::problem(game, s.host, s.core, t.filePath("empty"), s.profiles).contains("threedsGameFolder"));
+    QVERIFY(ac::libretro::problem(kart, s.host, s.core, s.dumps, s.profiles).isEmpty());
+    // Each says where to put it right: the Set-up page, in the words its fields use.
+    const auto noHost = ac::libretro::problem(game, {}, s.core, s.dumps, s.profiles), noCore = ac::libretro::problem(game, s.host, {}, s.dumps, s.profiles);
+    const auto noProfiles = ac::libretro::problem(game, s.host, s.core, s.dumps, {}), noDump = ac::libretro::problem(game, s.host, s.core, t.filePath("empty"), s.profiles);
+    QVERIFY(noHost.contains("acvr-ps1 program") && noHost.contains("Set-up"));
+    QVERIFY(noCore.contains("3DS core") && noCore.contains("Set-up"));
+    QVERIFY(noProfiles.contains("profile folder") && noProfiles.contains("Set-up"));
+    QVERIFY(noDump.contains("3DS folder") && noDump.contains("Set-up"));
+    QVERIFY(ac::libretro::problem(kart, s.host, s.core, t.filePath("empty"), s.profiles).contains("game file was not found"));
     QVERIFY(!ac::libretro::problem("point-blank", s.host, s.core, s.dumps, s.profiles).isEmpty());
   }
   void findsTheDumpByTitle() {
@@ -109,6 +125,8 @@ private slots:
     QCOMPARE(ac::libretro::gameFile(game, t.path()), QFileInfo(t.filePath("starfox64-3d prepared.cci")).absoluteFilePath());
     write(t.filePath("STAR FOX 64 3D.3ds"), "synthetic"); // The exact name wins over a longer one.
     QCOMPARE(QFileInfo(ac::libretro::gameFile(game, t.path())).fileName().toLower(), QString("star fox 64 3d.3ds"));
+    write(t.filePath("Mario Kart 7 (Europe).3ds"), "synthetic");
+    QCOMPARE(ac::libretro::gameFile(kart, t.path()), QFileInfo(t.filePath("Mario Kart 7 (Europe).3ds")).absoluteFilePath());
     QVERIFY(ac::libretro::gameFile(game, {}).isEmpty());
     QVERIFY(ac::libretro::gameFile("point-blank", t.path()).isEmpty());
   }

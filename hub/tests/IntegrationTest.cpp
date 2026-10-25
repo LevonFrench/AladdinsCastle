@@ -764,7 +764,7 @@ private slots:
     settings.set("libretroHost",t.filePath("bin/acvr-ps1.exe"));settings.set("threedsCore",t.filePath("cores/azahar_libretro.dll"));
     settings.set("libretroProfiles",t.filePath("profiles"));settings.set("threedsGameFolder",t.filePath("dumps"));
     {ac::UiController ui(&games,&filter,&settings);const auto found=row(ui);
-     QVERIFY(!found.isEmpty());QCOMPARE(found["system"].toString(),QString("3ds"));QVERIFY(!found["found"].toBool());QVERIFY(found["problem"].toString().contains("threedsGameFolder"));}
+     QVERIFY(!found.isEmpty());QCOMPARE(found["system"].toString(),QString("3ds"));QVERIFY(!found["found"].toBool());QVERIFY(found["problem"].toString().contains("3DS folder"));}
     ac::install::atomicWrite(t.filePath("dumps/Star Fox 64 3D.3ds"),"synthetic");
     ac::UiController ui(&games,&filter,&settings);const auto found=row(ui);
     QVERIFY2(found["found"].toBool(),qPrintable(found["problem"].toString()));QVERIFY(found["file"].toString().endsWith("Star Fox 64 3D.3ds"));

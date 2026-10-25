@@ -9,10 +9,12 @@
 #include "core/ps1/Ps1.h"
 #include "core/n64/N64.h"
 #include "core/saturn/Saturn.h"
+#include "core/libretro/Libretro.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/pinball/Pinball.h"
 #include "core/scan/Scan.h"
 #include "core/scan/DiscIndex.h"
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -259,6 +261,21 @@ QVariantMap scanSaturn(const QVariantMap &settings,const QVariantMap &context,co
  }
  return groups.result("saturn",launcher.isEmpty()?QString("No Saturn launcher chosen."):QString("The Hub starts these through your Saturn launcher, which knows each disc and its gun calibration."));
 }
+QVariantMap scan3ds(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
+ // The program, the core and the profile folder are Hub settings; each game's dump is found in the folder by its title.
+ Q_UNUSED(context);Q_UNUSED(cancel);progress("Reading the 3DS folder");
+ const auto host=settings.value("libretroHost").toString(),core=settings.value("threedsCore").toString(),folder=settings.value("threedsGameFolder").toString();
+ const auto profiles=libretro::profilesFolder(settings.value("libretroProfiles").toString(),QCoreApplication::applicationDirPath());
+ Groups groups;
+ for(const auto &value:libretro::games()){
+  const auto game=value.toMap();const auto id=game.value("id").toString(),title=game.value("title").toString();
+  const auto issue=libretro::problem(id,host,core,folder,profiles);
+  if(issue.isEmpty())groups.ready<<item(id,title,"detail",game.value("controls").toString());
+  else if(issue.contains("game file was not found"))groups.missing<<item(id,title,"expected",title+" (your own decrypted dump, named after the game)");
+  else groups.notRight<<item(id,title,"reason",issue);
+ }
+ return groups.result("3ds",folder.isEmpty()?QString("No 3DS folder chosen."):QString("The Hub starts these through acvr-ps1 and the Azahar core, with a profile for each game; the dumps stay where they are."));
+}
 QVariantMap scanDreamcast(const QVariantMap &settings,const QVariantMap &context,const Progress &progress,std::atomic_bool &cancel){
  const auto folder=settings.value("dreamcastGameFolder").toString();
  const bool programReady=QFileInfo(settings.value("dreamcastExecutable").toString()).isFile();
@@ -324,7 +341,7 @@ QVariantMap scanSystem22(const QVariantMap &settings,const QVariantMap &,const P
  else groups.ready<<item(id,title,"detail","The program and the game files beside it were found.");
  return groups.result("system22",QString());
 }
-const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps2",scanPs2},{"ps1",scanPs1},{"n64",scanN64},{"saturn",scanSaturn},{"dreamcast",scanDreamcast},{"wii",scanWii},{"system22",scanSystem22}};return table;}
+const QHash<QString,Scanner> &scanners(){static const QHash<QString,Scanner> table{{"model3",scanModel3},{"pinball",scanPinball},{"model2",scanModel2},{"ps2",scanPs2},{"ps1",scanPs1},{"n64",scanN64},{"saturn",scanSaturn},{"3ds",scan3ds},{"dreamcast",scanDreamcast},{"wii",scanWii},{"system22",scanSystem22}};return table;}
 }
 QVariantMap mameCheck(const QByteArray &listXml,const QString &game,const QString &folder,const QStringList &cosmetic,std::atomic_bool &cancel){
  // Every machine in the output with the files it loads; the game itself names its parent and its devices.
@@ -380,9 +397,9 @@ QVariantMap scanSystem(const QString &system,const QVariantMap &settings,const Q
 QVariantMap reportStamp(const QVariantMap &settings,const QStringList &systems){
  // Raised whenever a system is read differently, so every saved report is read again.
  static constexpr int kVersion=2;
- static const QStringList folders{"model3GameFolder","model2GameFolder","model2RuntimePath","pinballFolder","pinballRoms","ps2GameFolder","wiiGameFolder","dreamcastGameFolder"};
+ static const QStringList folders{"model3GameFolder","model2GameFolder","model2RuntimePath","pinballFolder","pinballRoms","ps2GameFolder","wiiGameFolder","dreamcastGameFolder","threedsGameFolder"};
  static const QStringList programs{"model3Executable","model2Executable","system22Executable","pinballExecutable","pinballDatabase","pinballMedia","pinballOverrides",
-                                   "ps2Python","ps2StopFile","wiiExecutable","dreamcastExecutable","queryEmulators"};
+                                   "ps2Python","ps2StopFile","wiiExecutable","dreamcastExecutable","libretroHost","threedsCore","libretroProfiles","queryEmulators"};
  static const QStringList launchers{"ps1Launcher","ps2Launcher","n64Launcher","saturnLauncher"};
  // Times as text: a saved number comes back as a double.
  const auto time=[](const QString &path){const QFileInfo info(path);return path.isEmpty()||!info.exists()?QString():QString::number(info.lastModified().toMSecsSinceEpoch());};

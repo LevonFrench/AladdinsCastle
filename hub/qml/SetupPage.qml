@@ -50,7 +50,9 @@ Item {
  readonly property var extras:({
   ps2:[{key:"ps2Python",label:"Python that runs your launcher",kind:"file",help:"The python.exe your PS2 launcher script needs."},
        {key:"ps2StopFile",label:"Stop file your launcher watches",kind:"save",help:"The Hub writes this file to ask a PS2 game to quit, so it saves."}],
-  model2:[{key:"model2RuntimePath",label:"Runtime libraries of the build (optional)",kind:"folder",help:"A folder of DLLs the Model 2 build needs, when they are not beside it."}]})
+  model2:[{key:"model2RuntimePath",label:"Runtime libraries of the build (optional)",kind:"folder",help:"A folder of DLLs the Model 2 build needs, when they are not beside it."}],
+  "3ds":[{key:"threedsCore",label:"Nintendo 3DS core (Azahar's azahar_libretro.dll)",kind:"file",help:"The core acvr-ps1 loads to play 3DS games."},
+         {key:"libretroProfiles",label:"Profile folder (optional)",kind:"folder",help:"The game profiles, setups/retro-ps1-vr/profiles. Left empty, the Hub looks for it above its own folder."}]})
  FileDialog {id:extraFile;title:"Choose the file";onAccepted:uiSettings.set(page.pendingKey,uiController.localPath(selectedFile))}
  FileDialog {id:extraSave;title:"Choose where the stop file goes";fileMode:FileDialog.SaveFile;onAccepted:uiSettings.set(page.pendingKey,uiController.localPath(selectedFile))}
  FolderDialog {id:extraFolder;title:"Choose the folder";onAccepted:uiSettings.set(page.pendingKey,uiController.localPath(selectedFolder))}

@@ -1,0 +1,35 @@
+id           = "3ds-mario-kart-7"
+title        = "Mario Kart 7"
+alt_titles   = []
+genre        = "racing"
+subgenre     = ["kart"]
+year         = 2011                   # JP/EU 2 Dec 2011; NA 4 Dec 2011
+manufacturer = "nintendo"
+developer    = "Nintendo EAD / Retro Studios"
+hardware     = "nintendo-3ds"
+graphics     = "polygon-3d"
+players      = 8
+series       = "Mario Kart"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "other"
+note = "Your own Nintendo 3DS dump (not provided by this catalog)"
+
+[routes]
+vr          = { best = "theatre", via = "acvr-ps1 with the Azahar core and its profile (setups/retro-ps1-vr/profiles/3ds-mario-kart-7.toml)" }
+
+[hub]
+pill   = "MK7"
+colour = "#1a0c0c"
+accent = "#ff5a4a"
+blurb  = "Kart racing with gliders and underwater driving in stereo 3D, steered with the controller's stick."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Mario_Kart_7"]
+confidence = "medium"
+checked    = "2026-10-25"

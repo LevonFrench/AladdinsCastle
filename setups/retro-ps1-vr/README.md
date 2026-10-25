@@ -561,21 +561,24 @@ Eye order below): the left half is the left eye, so no swap is needed. If far
 scenery still comes towards you in a headset, set `ACVR_PS1_SWAP_EYES=1` (the
 profile's `swap-eyes` view does it).
 
-Starting it from the Hub: the catalog entry `3ds-star-fox-64-3d` has a Hub row
-(`hub/src/core/libretro`) that runs `acvr-ps1 --core <core> --game <dump> --system <folder>
---saves <folder> --profile <profile>`, with `--view swap-eyes` for the diagnostic
-view. Nothing but the profile name is in the repo; the Hub reads these from its
-own private settings (`user/hub-settings.toml`):
+Starting it from the Hub: the catalog entries `3ds-star-fox-64-3d` and
+`3ds-mario-kart-7` each have a Hub row (`hub/src/core/libretro`) that runs
+`acvr-ps1 --core <core> --game <dump> --system <folder> --saves <folder> --profile <profile>`,
+with `--view swap-eyes` for the diagnostic view. Nothing but the profile name is
+in the repo. The Hub's Set-up page has a "Nintendo 3DS" card (under Consoles)
+that fills the four settings; they are kept in the Hub's own private settings
+(`user/hub-settings.toml`):
 
-| Setting | What |
-|---|---|
-| `libretroHost` | the `acvr-ps1.exe` to run (a build that reads `--profile`) |
-| `threedsCore` | Azahar's `azahar_libretro.dll` |
-| `threedsGameFolder` | your own decrypted dumps; the file is found by the game's title |
-| `libretroProfiles` | the profile folder; empty = `setups/retro-ps1-vr/profiles` found above the Hub |
+| Set-up page | Setting | What |
+|---|---|---|
+| "acvr-ps1 program" (Locate program) | `libretroHost` | the `acvr-ps1.exe` to run (a build that reads `--profile`) |
+| "Nintendo 3DS core" (Choose) | `threedsCore` | Azahar's `azahar_libretro.dll` |
+| "Your files" (Choose folder) | `threedsGameFolder` | your own decrypted dumps; each file is found by the game's title |
+| "Profile folder (optional)" (Choose) | `libretroProfiles` | the profile folder; empty = `setups/retro-ps1-vr/profiles` found above the Hub |
 
 The row appears once any of the first three is set, and says what is missing
-until all are. The core's system and save folders are the Hub's own, under
+until all are. Set-up's report lists each game as found, not right (and why) or
+not found. The core's system and save folders are the Hub's own, under
 `user/libretro/<id>`. Exit game here asks the host to save and quit through the
 same stop file as PS1 and N64.
 
@@ -606,6 +609,35 @@ ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=s
 The game asks in its tutorial whether to turn on gyro aiming; the host sends no
 motion, so answer no. Its "tap B to realign the gyro controls" prompt can stay
 on screen for a tester who answered yes.
+
+### Mario Kart 7
+
+Profile `profiles/3ds-mario-kart-7.toml`, catalog id `3ds-mario-kart-7`, same
+stereo settings as Star Fox (factor 40: the README has no Mario Kart number of
+its own). The left stick is the Circle Pad and steers; racers steer with the
+stick by default here, and roll or tilt steering is not offered for the 3DS (it
+is an N64 setting and stays off). The map is the game's own controls (A
+accelerate, B brake and reverse, R hop and drift, L item, X look behind, taken
+from its manual as remembered, not checked against a copy of the game) put on
+comfortable VR controls:
+
+```
+ACVR_PAD_MAP=rtrig=a,lgrip=b,rgrip=r,ltrig=l,ra=l,rb=x,lclick=start
+```
+
+| VR control | 3DS | Mario Kart 7 |
+|---|---|---|
+| left stick | Circle Pad | steer |
+| right trigger | A | accelerate |
+| left grip | B | brake, reverse |
+| right grip | R | hop, hold to drift |
+| left trigger, right A | L | use an item (either hand) |
+| right B | X | look behind |
+| left stick click | Start | pause (the left menu button is dead under ALVR) |
+
+Not yet checked in a headset: the pad map, the comfort of factor 40 on a racer,
+and the controls above. The only evidence so far is the offline eye-order run
+below (Mario Kart 7 boots and draws per-depth disparity).
 
 Results so far (Azahar 2127.0-alpha3, hidden offline runs, 3x): Star Fox 64
 3D, Kid Icarus: Uprising and Mario Kart 7 boot and draw per-depth disparity

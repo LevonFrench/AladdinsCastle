@@ -7,7 +7,7 @@
 namespace ac::libretro {
 // Games the Hub starts straight through acvr-ps1 and a per-game profile (setups/retro-ps1-vr/profiles/<id>.toml),
 // with no launcher script of the user's in between. Only the public id, title and profile name are listed here;
-// the program, the core and the game file come from Hub settings and are never named by the repo:
+// the program, the core and the game file come from Hub settings (chosen in Set-up) and are never named by the repo:
 //   libretroHost       acvr-ps1.exe (a build that reads --profile)
 //   threedsCore        the Nintendo 3DS core (Azahar's libretro dll)
 //   threedsGameFolder  the user's own 3DS dumps (decrypted, as Azahar needs them)
