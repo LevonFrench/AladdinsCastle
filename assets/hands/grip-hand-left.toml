@@ -16,7 +16,7 @@ features = []
 default = "glove"
 p1 = "glove"
 p2 = "glove"
-glove = { body = "#8293a8", accent = "#a9b8c9" }
+glove = { body = "#9eaec2", accent = "#c4d0dd" }
 
 [motion.index]
 node="pivot_index"

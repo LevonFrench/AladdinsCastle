@@ -190,6 +190,8 @@ void CoreLog(retro_log_level level, const char *fmt, ...)
   if (level >= RETRO_LOG_INFO) Log("[core %s] %s", names[level & 3], line);
 }
 
+void FrameShapeChanged();   // below, with the theatre's other settings
+
 bool Environment(unsigned cmd, void *data)
 {
   switch (cmd) {
@@ -227,8 +229,8 @@ bool Environment(unsigned cmd, void *data)
   case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: return true;
   case RETRO_ENVIRONMENT_SHUTDOWN: g_shutdownRequested = true; return true;
   case RETRO_ENVIRONMENT_SET_MESSAGE: { auto *m = static_cast<const retro_message *>(data); if (m && m->msg) Log("[core message] %s", m->msg); return true; }
-  case RETRO_ENVIRONMENT_SET_GEOMETRY: g_av.geometry = *static_cast<const retro_game_geometry *>(data); return true;
-  case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: g_av = *static_cast<const retro_system_av_info *>(data); return true;
+  case RETRO_ENVIRONMENT_SET_GEOMETRY: g_av.geometry = *static_cast<const retro_game_geometry *>(data); FrameShapeChanged(); return true;
+  case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO: g_av = *static_cast<const retro_system_av_info *>(data); FrameShapeChanged(); return true;
   case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER: *static_cast<unsigned *>(data) = RETRO_HW_CONTEXT_OPENGL_CORE; return true;
   case RETRO_ENVIRONMENT_SET_HW_RENDER: {
     // Desktop OpenGL only. The driver's compatibility context also serves core-profile requests.
@@ -652,6 +654,38 @@ float EnvFloat(const char *name, float fallback)
   return std::isfinite(f) ? f : fallback;
 }
 
+// The picture's shape from the core's frame geometry: the aspect the screen is drawn at and, for a core that puts
+// both eyes side by side in a frame sized for one screen (Azahar's side-by-side-full: 1200x720 at 3x, each eye
+// 600x360 in the middle rows), the share of rows cut top and bottom. The eye's content has the reported aspect, so
+// the cut is (1 - (W/2) / aspect / H) / 2, and the screen's aspect is (W/2) / (H x (1 - 2 x cut)). A frame whose
+// shape does not fit that reading is not cut. ACVR_PS1_LETTERBOX overrides the cut.
+void FrameShape(float &aspect, float &letterbox)
+{
+  const auto &g = g_av.geometry;
+  const float reported = g.aspect_ratio > .1f ? g.aspect_ratio : 4.f / 3.f, w = (float)g.base_width, h = (float)g.base_height;
+  // Only a core that draws the eyes itself: with GL stereo the host builds the side-by-side picture from full-size eyes.
+  const bool coreSbs = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f && !glstereo::StereoOn(), known = w > 0 && h > 0;
+  const char *forced = std::getenv("ACVR_PS1_LETTERBOX");
+  letterbox = 0;
+  if (forced && *forced) letterbox = std::clamp(EnvFloat("ACVR_PS1_LETTERBOX", 0.f), 0.f, .45f);
+  else if (coreSbs && known && std::fabs(w / h / reported - 1.f) < .02f) letterbox = std::clamp((1.f - w / 2 / reported / h) / 2, 0.f, .45f);
+  if (letterbox < .001f) letterbox = 0;
+  aspect = coreSbs && known && letterbox > 0 ? w / 2 / (h * (1.f - 2 * letterbox)) : reported;
+  // Wide view: the picture holds 1/kx of the game's width and 1/ky of its height.
+  float kx = 1, ky = 1; glstereo::WideView(kx, ky);
+  aspect *= ky / kx;
+}
+void FrameShapeChanged()
+{
+  static float lastAspect = 0, lastLetterbox = -1;
+  float aspect = 0, letterbox = 0; FrameShape(aspect, letterbox);
+  theatre::SetFrameShape(aspect, letterbox);
+  if (aspect == lastAspect && letterbox == lastLetterbox) return;
+  lastAspect = aspect; lastLetterbox = letterbox;
+  Log("Frame shape: screen aspect %.4f, rows cut top and bottom %.3f (core frame %ux%u, reported aspect %.4f)", aspect, letterbox,
+      g_av.geometry.base_width, g_av.geometry.base_height, g_av.geometry.aspect_ratio);
+}
+
 theatre::Config TheatreConfig()
 {
   theatre::Config c;
@@ -661,16 +695,19 @@ theatre::Config TheatreConfig()
   c.lift = EnvFloat("ACVR_PS1_LIFT", 0.f);
   c.crt = EnvFloat("ACVR_PS1_CRT", 0.f) != 0.f;
   const float aspect = g_av.geometry.aspect_ratio;
-  c.aspect = aspect > .1f ? aspect : 4.f / 3.f;
   c.sideBySide = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f || glstereo::StereoOn();
+  c.swapEyes = EnvFloat("ACVR_PS1_SWAP_EYES", 0.f) != 0.f;   // insurance if a core's eyes arrive the other way round
   // The 3DS core's side-by-side frames keep its 5:3 size and letterbox each eye in the middle half of the rows.
-  c.letterbox = std::clamp(EnvFloat("ACVR_PS1_LETTERBOX", 0.f), 0.f, .45f);
+  FrameShapeChanged();
+  FrameShape(c.aspect, c.letterbox);
   c.aimDot = !PadMode() || EnvFloat("ACVR_PAD_AIM_DOT", 0.f) != 0.f;   // pad games show their own crosshair, if any
+  // The both-grips recentre needs both grips free: a pad map or the face-button layout that uses a grip turns it off.
+  const char *face = std::getenv("ACVR_PS1_FACE_BUTTONS");
+  c.gripRecentre = PadMode() ? !g_padCfg.usesGrip() : !(face && std::atoi(face) == 1);
   // Wide view: the picture holds 1/kx of the game's width and 1/ky of its height, so the surface is that much
   // wider (ACVR_PS1_SCREEN_W gives its width): no frame, edges fading into the dark.
   float kx = 1, ky = 1; glstereo::WideView(kx, ky);
   const bool wide = kx < 1 || ky < 1;
-  c.aspect *= ky / kx;
   c.frame = EnvFloat("ACVR_SCREEN_FRAME", wide ? 0.f : 1.f) != 0.f;
   c.edgeFade = EnvFloat("ACVR_SCREEN_FADE", wide ? .06f : 0.f);
   c.hud = glstereo::HudOn();
@@ -701,7 +738,8 @@ void Usage()
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
     "         ACVR_PS1_LIFT (m), ACVR_PS1_CRT (1: scanlines), ACVR_PS1_GUN_MODEL (.glb), ACVR_PS1_GUN_META (.toml),\n"
     "         ACVR_PS1_AIM (per-game aim trim: x scale,x shift,y scale,y shift),\n"
-    "         ACVR_PS1_SBS (1: side-by-side eyes), ACVR_PS1_LETTERBOX (share of rows cut top and bottom, 3DS: .25).\n"
+    "         ACVR_PS1_SBS (1: side-by-side eyes), ACVR_PS1_SWAP_EYES (1: swap them),\n"
+    "         ACVR_PS1_LETTERBOX (share of rows cut top and bottom; unset, it is worked out from the core's frame, 3DS: .25).\n"
     "Clean quit: hold left Y (Index: left B) for 3 s, Escape, or create ACVR_PS1_STOP_FILE.\n");
 }
 
@@ -868,7 +906,7 @@ int main(int argc, char **argv)
   if (!stopFile.empty()) Log("Clean stop file: %s", stopFile.c_str());
   const char *faceEnv = std::getenv("ACVR_PS1_FACE_BUTTONS");
   const bool faceButtons = faceEnv && std::atoi(faceEnv) == 1;
-  if (faceButtons) Log("Face buttons: right A Cross, right B Circle, left X Square, left Y Triangle, left stick Select, right stick Start; gun buttons on the grips");
+  if (faceButtons) Log("Face buttons: right A Cross, right B Circle, left X Square, left Y Triangle, left stick Start, right stick Select; gun buttons on the grips");
   if (const char *aim = std::getenv("ACVR_PS1_AIM")) if (*aim) Log("Aim trim (x scale, x shift, y scale, y shift): %s", aim);
   CleanQuit quit;
   bool quitWasHeld = false;
@@ -913,16 +951,17 @@ int main(int argc, char **argv)
       g.start = controller.a;   // the Justifier's side button; arcade Start
       g.select = gunName == "lightgun" && controller.b;   // arcade Coin
       Pad p; p.left = controller.padX < -.5f; p.right = controller.padX > .5f; p.up = controller.padY > .5f; p.down = controller.padY < -.5f;
-      p.cross = controller.padCross; p.circle = controller.padCircle; p.square = controller.padSquare; p.start = controller.padStart;
+      p.cross = controller.padCross; p.circle = controller.padCircle; p.square = controller.padSquare;
+      p.start = controller.padStart || controller.stickLeft;   // left stick click is Start everywhere; the left menu button is dead under ALVR
       if (faceButtons) {
         // The owner's layout: right A Cross, right B Circle, left X Square, left Y Triangle (holding left Y for 3 s
-        // still quits), left stick click Select, right stick click Start. The gun keeps the trigger; its two
+        // still quits), left stick click Start, right stick click Select. The gun keeps the trigger; its two
         // buttons move to the right and left grips.
         p.cross = controller.a || controller.padCross; p.circle = controller.b; p.square = controller.padCircle;
         p.triangle = controller.quitHeld;
-        p.select = controller.stickLeft; p.start = controller.stickRight || controller.padStart;
+        p.start = controller.stickLeft || controller.padStart; p.select = controller.stickRight;
         g.a = controller.grip; g.b = controller.padSquare;   // the gun's own two buttons on the grips
-        g.start = controller.stickRight || controller.padStart; g.select = controller.stickLeft;
+        g.start = controller.stickLeft || controller.padStart; g.select = controller.stickRight;
       }
       g_pad = p;
       if (PadMode()) {

@@ -302,6 +302,7 @@ private:
     std::vector<InspectionLabel> inspection_labels_{};
     std::array<GunAsset,2> hand_assets_{};
     std::array<std::vector<HandMotion>,2> hand_motions_{};
+    std::array<HandTint,2> hand_tints_{};
     std::array<ControllerButtons,2> hand_controls_{};
     bool hands_ready_=false;
     GLuint label_font_=0;
@@ -880,6 +881,14 @@ acvr_result OpenXrGlHost::prepare_hands() {
     std::vector<uint8_t> bytes;std::string error;
     if(!read_bounded(manifest,1024*1024,bytes))return ACVR_BAD_ARGUMENT;
     if(capture_enabled_&&sha256(bytes)!=assembly_hash_)return ACVR_BAD_ARGUMENT;
+    bool listed=false;
+    if(!hand_assembly_lists_model(std::string_view(reinterpret_cast<const char *>(bytes.data()),bytes.size()),
+                                  model_id_,listed,error))return ACVR_BAD_ARGUMENT;
+    if(!listed){
+        // A gun without a hand mount is still drawn; it just has no hands.
+        std::fprintf(stderr,"libacvr: no hand assembly entry for gun model '%s'; drawing no hands\n",model_id_.c_str());
+        return ACVR_OK;
+    }
     if(!decode_hand_assembly(std::string_view(reinterpret_cast<const char *>(bytes.data()),bytes.size()),
                              model_id_,hand_assembly_,error))return ACVR_BAD_ARGUMENT;
     const auto gun_path=root/"assets"/"guns"/(model_id_+".glb");
@@ -898,6 +907,9 @@ acvr_result OpenXrGlHost::prepare_hands() {
         if(!read_bounded(metadata,1024*1024,bytes)||!decode_hand_motions(
             std::string_view(reinterpret_cast<const char *>(bytes.data()),bytes.size()),
             hand_assets_[i],asset.stem().string(),i==0?"right":"left",hand_motions_[i],error))return ACVR_BAD_ARGUMENT;
+        // The glove colour is authored in the same metadata file.
+        if(!decode_hand_tint(std::string_view(reinterpret_cast<const char *>(bytes.data()),bytes.size()),
+                             hand_tints_[i],error))return ACVR_BAD_ARGUMENT;
     }
     std::string set_text;
     const auto defaults=root/"data"/"controls"/"defaults.toml";
@@ -924,7 +936,7 @@ acvr_result OpenXrGlHost::draw_hand(const acvr_draw_info &info,const GunDraw &gu
     const auto root=product(gun.scene_from_node[gun_index],mount_matrix(attachment.translation,attachment.rotation_xyzw));
     const auto &asset=hand_assets_[hand_index];GunDraw draw;
     draw.asset=&asset;draw.visible=true;draw.laser_mode=ACVR_LASER_OFF;draw.lod=0;
-    draw.body={.51f,.58f,.66f,1};draw.accent={.66f,.72f,.79f,1};
+    draw.body=hand_tints_[hand_index].body;draw.accent=hand_tints_[hand_index].accent;
     const auto &control=hand_controls_[hand_index];
     const HandDriveLevels levels{control.trigger,control.grip,control.primary?1.f:0.f};
     if(!pose_hand_nodes(asset,mount,hand_motions_[hand_index],levels,root,draw.scene_from_node))return ACVR_BAD_ARGUMENT;

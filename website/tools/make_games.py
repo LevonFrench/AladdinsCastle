@@ -25,7 +25,7 @@ SYSTEMS = [
   'Title and menu screens still show stray art around the frame.'),
  ('n64', 'Nintendo 64', '#9bdc3c', '22 games · 47 views', 'acvr-ps1 with mupen64plus: real 3D by intercepting the game\'s drawing, with the HUD on a panel.',
   ['GoldenEye 007', ('Mario Kart 64', E3, 'real 3D'), 'F-Zero X', 'Star Fox 64', 'Wave Race 64', 'Perfect Dark', 'Diddy Kong Racing', 'Beetle Adventure Racing!', '1080° Snowboarding', "Cruis'n USA", "Cruis'n World", "Cruis'n Exotica", 'Hydro Thunder', 'San Francisco Rush: Extreme Racing', 'Rush 2: Extreme Racing USA', 'San Francisco Rush 2049', 'Star Wars Episode I: Racer', 'Super Mario 64', 'The Legend of Zelda: Ocarina of Time', "The Legend of Zelda: Majora's Mask", 'Banjo-Kazooie', 'Turok: Dinosaur Hunter'],
-  'Start is still on the left Menu button, which SteamVR keeps: it needs a host change.'),
+  'Start now sits on the left-stick click (the left Menu button belongs to SteamVR); not yet checked in the headset.'),
  ('ps1', 'PlayStation', '#4ff3ff', '22 games · 37 views', 'acvr-ps1 with SwanStation or Beetle: a big screen in the room with the gun in your hand.',
   ['Time Crisis', 'Time Crisis: Project Titan', 'Point Blank', 'Point Blank 2', 'Point Blank 3', 'Point Blank 2 (arcade, MAME)', 'Ghoul Panic', 'Oh! Bakyuuun (Japan)', 'Mighty Hits Special', 'Mighty Hits Special (Japan)', 'Gunfighter: The Legend of Jesse James', 'Judge Dredd', 'Extreme Ghostbusters: The Ultimate Invasion', 'Die Hard Trilogy', 'Die Hard Trilogy 2: Viva Las Vegas', 'Maximum Force', ('Resident Evil Survivor', None, 'no gun support'), 'Elemental Gearbolt', 'Rescue Shot', 'Rescue Shot Bubibo (Japan)', 'Project: Horned Owl', 'Horned Owl (Japan)'],
   'Open frame is not possible on PlayStation: these games cut everything outside 4:3.'),
@@ -38,7 +38,7 @@ SYSTEMS = [
   ['The House of the Dead 2', ('Confidential Mission', None, 'rebuilt after headset issues'), ('Death Crimson OX', E1), ('Death Crimson 2', E1), ('Virtua Cop 2', E1)], None),
  ('wii', 'Nintendo Wii', '#9bdc3c', '19 games · 26 views', 'DolphinXR: real 3D with the pointer or motion controls, pointer aim within 1.3%.',
   ['Resident Evil: The Umbrella Chronicles', 'Resident Evil: The Darkside Chronicles', 'The House of the Dead: Overkill', 'Gunblade NY & L.A. Machineguns', 'Sin & Punishment: Star Successor', 'Dead Space: Extraction', "Link's Crossbow Training", ('Metroid Prime Trilogy', None, 'drops frames'), 'Donkey Kong Country Returns', 'Mario Strikers Charged', 'New Super Mario Bros. Wii', 'Punch-Out!!'],
-  'Seven more are in the Hub but not named in the public repo. Menus and HUDs sit on a screen in the room in Dead Space, Overkill, Gunblade, New Super Mario Bros. Wii and Punch-Out!!; several others still show them on your face.'),
+  'Menus and HUDs sit on a screen in the room in Dead Space, Overkill, Gunblade, New Super Mario Bros. Wii and Punch-Out!!; several others still show them on your face.'),
  ('gamecube', 'GameCube', '#f6c744', '1 game · 2 views', 'DolphinXR: real 3D with the HUD on a panel.', ['F-Zero GX'], None),
 ]
 

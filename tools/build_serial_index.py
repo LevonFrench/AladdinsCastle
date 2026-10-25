@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
-"""Extract serial/title facts for exact catalog titles from pinned public PCSX2 metadata.
+"""Refresh the PS2 rows of data/serial-index.json from pinned public PCSX2 metadata.
 
-No network calls. Supply the official GameIndex.yaml from the source URL below.
+PS2 only. The PS1 rows (MAME psx.xml), the hand-curated rows and the other disc-index files
+(data/wii-disc-index.json, data/dreamcast-disc-index.json) have no generator and stay hand
+edited; see docs/SCANNER-ART.md and the data sources in docs/legal.md.
+
+No network calls. Supply a local copy of the official GameIndex.yaml and the full commit it
+was taken from (--commit); each generated row cites that exact commit. Only rows whose
+source is a PCSX2 GameIndex URL are added or refreshed. PS1 rows and rows from any other
+source are never touched, and extra fields such as "profile" are kept. Output keeps the
+live schema (data/disc-index.schema.json): system, region, gameId, title, source.
 No YAML code execution or emulator settings are copied.
 """
 import argparse
@@ -11,7 +19,22 @@ import re
 import tomllib
 import unicodedata
 
+# The oldest pin still cited by the catalog (games/ps2-time-crisis-2). The pin used for a refresh is --commit.
 SOURCE = "https://github.com/PCSX2/pcsx2/blob/aa7ab4306e269075784c7ac3eb4b45e6e6c53445/bin/resources/GameIndex.yaml"
+SOURCE_PREFIX = "https://github.com/PCSX2/pcsx2/blob/"
+SOURCE_SUFFIX = "/bin/resources/GameIndex.yaml"
+
+
+def source_url(commit):
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise ValueError("--commit must be the full 40-character commit the GameIndex.yaml was taken from")
+    return SOURCE_PREFIX + commit + SOURCE_SUFFIX
+
+
+def generated(row):
+    # A row this script owns: a PCSX2 GameIndex row on the live schema. Hand-curated PS2 rows cite other pages.
+    source = row.get("source", "")
+    return row.get("system") == "ps2" and source.startswith(SOURCE_PREFIX) and source.endswith(SOURCE_SUFFIX)
 
 
 def key(text):
@@ -29,14 +52,18 @@ def nonretail(text):
         re.search(r"\b(?:demo|trial|replay|prototype|beta|sample)\b|\btest (?:disc|version)|[\[(]test[\])]|\btest$", text, re.I))
 
 
-def extract(source_text, titles):
+def extract(source_text, titles, source=SOURCE):
     records = {}
+    regions = {}
     serial = None
     for line in source_text.splitlines():
         m = re.fullmatch(r"([A-Z0-9]+-[A-Z0-9]+):", line)
         if m:
             serial = m[1]
             records.setdefault(serial, [])
+        m = re.fullmatch(r'  region: "([^"]*)"', line)
+        if m and serial:
+            regions[serial] = m[1]
         m = re.fullmatch(r'  (?:name|name-en): "((?:[^"\\]|\\.)*)"', line)
         if m and serial:
             try:
@@ -51,8 +78,22 @@ def extract(source_text, titles):
         ids = set().union(*(ids for _, ids in matches))
         if len(ids) == 1:
             title = next(title for title, matched in reversed(matches) if matched)
-            result[serial] = {"gameId": next(iter(ids)), "title": title, "source": SOURCE}
+            result[serial] = {"gameId": next(iter(ids)), "title": title, "system": "ps2",
+                              "region": regions.get(serial, "unknown"), "source": source}
     return result
+
+
+def merge(existing, extracted):
+    """The existing index with the extracted PS2 rows added or refreshed, sorted by serial."""
+    merged = dict(existing)
+    for serial, row in extracted.items():
+        old = merged.get(serial)
+        if old is None:
+            merged[serial] = row
+        elif generated(old):
+            # Refresh the facts, keep fields the generator does not know (for example "profile").
+            merged[serial] = {**old, **row}
+    return dict(sorted(merged.items()))
 
 
 def self_test():
@@ -79,14 +120,34 @@ def self_test():
             source = 'SYNTH-00004:\n  name: "Synthetic [本体同梱版]"\n'
             self.assertIn("SYNTH-00004", extract(source, {key("Synthetic"): {"ps2-synthetic"}}))
 
+        def test_live_schema_and_merge(self):
+            commit = "0123456789abcdef0123456789abcdef01234567"
+            url = source_url(commit)
+            with self.assertRaises(ValueError):
+                source_url("master")
+            source = 'SYNTH-00005:\n  name: "Synthetic"\n  region: "NTSC-U"\nSYNTH-00006:\n  name: "Synthetic"\n'
+            row = extract(source, {key("Synthetic"): {"ps2-synthetic"}}, url)
+            self.assertEqual(row["SYNTH-00005"], {"gameId": "ps2-synthetic", "title": "Synthetic", "system": "ps2", "region": "NTSC-U", "source": url})
+            self.assertEqual(row["SYNTH-00006"]["region"], "unknown")
+            ps1 = {"gameId": "ps1-x", "title": "X", "system": "ps1", "region": "USA", "source": "mame", "sourceRecord": "x"}
+            manual = {"gameId": "ps2-y", "title": "Y", "system": "ps2", "region": "PAL", "source": "https://example.test/y"}
+            old = {"SYNTH-00005": {**row["SYNTH-00005"], "source": SOURCE, "profile": True}, "SYNTH-00001": ps1, "SYNTH-00006": manual}
+            merged = merge(old, row)
+            self.assertEqual(merged["SYNTH-00001"], ps1)  # PS1 rows are never touched.
+            self.assertEqual(merged["SYNTH-00006"], manual)  # Hand-curated rows are never overwritten.
+            self.assertEqual(merged["SYNTH-00005"]["source"], url)  # A generated row is refreshed...
+            self.assertTrue(merged["SYNTH-00005"]["profile"])  # ...and keeps the fields it does not own.
+            self.assertEqual(list(merged), sorted(merged))
+
     return 0 if unittest.TextTestRunner().run(unittest.defaultTestLoader.loadTestsFromTestCase(SerialFacts)).wasSuccessful() else 1
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("source", type=pathlib.Path)
+    p.add_argument("source", type=pathlib.Path, help="local copy of GameIndex.yaml")
+    p.add_argument("--commit", required=True, help="full commit of PCSX2 that the GameIndex.yaml was taken from")
     p.add_argument("--root", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1])
-    p.add_argument("--output", type=pathlib.Path)
+    p.add_argument("--output", type=pathlib.Path, help="default: data/serial-index.json under --root")
     args = p.parse_args()
     titles = {}
     for path in sorted((args.root / "games").glob("*/game.toml")):
@@ -95,11 +156,13 @@ def main():
             continue
         for title in [game["title"], *game.get("alt_titles", [])]:
             titles.setdefault(key(title), set()).add(game["id"])
-    result = extract(args.source.read_text(encoding="utf-8"), titles)
-    output = args.output or args.root / "hub/resources/serial-index.json"
+    result = extract(args.source.read_text(encoding="utf-8"), titles, source_url(args.commit))
+    output = args.output or args.root / "data/serial-index.json"
+    existing = json.loads(output.read_text(encoding="utf-8")) if output.exists() else {}
+    merged = merge(existing, result)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"{len(result)} verified public serial/title mappings")
+    output.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"{len(result)} verified public PS2 serial/title mappings extracted; {len(merged)} rows in {output.name}")
 
 
 if __name__ == "__main__":

@@ -23,10 +23,16 @@ namespace ac::library {
 //
 // With an index, a search is quick the second time: a file whose size and time are unchanged since the last
 // reading is not opened again. The index ({stamp, files: {path: {size, modified, outcome}}}) is read and
-// replaced; one made against other lists of games is not used. Stopped part-way, the files not reached keep
-// their last reading.
+// replaced. What it keeps is what each disc itself said (outcome.reading: system and identity, or why it could not
+// be read), not the game it matched: the match is made again on every search, so a change to the disc data or to
+// the Hub's lists of games costs no disc read. Only a change of the disc reader (the stamp) reads everything again.
+// Stopped part-way, the files not reached keep their last reading.
+// The checkpoint, when given, is called with the index as it stands now, about every ten seconds while files are
+// being read, so the caller can save it and a crash part-way keeps the readings made so far.
 using Progress = std::function<void(const QString &)>;
-QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic_bool &cancel, int depth = 6, QVariantMap *index = nullptr);
+using Checkpoint = std::function<void(const QVariantMap &)>;
+QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic_bool &cancel, int depth = 6, QVariantMap *index = nullptr,
+                 const Checkpoint &checkpoint = {});
 // The copy of a game to use: the user's own choice ("system/game" -> file) when it is still there,
 // otherwise by the rule: read from the disc itself, then the release with a VR profile (Dreamcast),
 // then USA, World, Europe, Japan, then the plainest format, then the shortest path.

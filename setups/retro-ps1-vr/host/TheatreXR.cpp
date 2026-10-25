@@ -64,6 +64,8 @@ void UploadInto(Slot &slot, const std::uint32_t *xrgb, unsigned w, unsigned h)
 std::mutex s_inputMutex;
 Input s_input; ULONGLONG s_inputTime = 0;
 std::atomic<unsigned> s_pulses{ 0 };
+// The picture's shape, kept apart from s_config because the emulator thread can change it when the core sends new geometry.
+std::atomic<float> s_aspect{ 4.f / 3.f }, s_letterbox{ 0.f };
 std::atomic<bool> s_stop{ false }, s_started{ false }, s_runtimeExit{ false }, s_gone{ false };
 std::atomic<int> s_state{ 0 };   // the session's XrSessionState
 std::thread s_thread;
@@ -133,8 +135,8 @@ bool InitActions()
       !make("pad_circle", "Pad Circle", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padCircle, s_left) ||
       !make("pad_square", "Pad Square", XR_ACTION_TYPE_FLOAT_INPUT, s_padSquare, s_left) ||
       !make("pad_start", "Pad Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padStart, s_left) ||
-      !make("stick_left", "Left stick click (Select)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickLeft, s_left) ||
-      !make("stick_right", "Right stick click (Start)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickRight, s_right) ||
+      !make("stick_left", "Left stick click (Start)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickLeft, s_left) ||
+      !make("stick_right", "Right stick click (Select)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickRight, s_right) ||
       !make("right_stick", "Right stick", XR_ACTION_TYPE_VECTOR2F_INPUT, s_rightStick, s_right) ||
       !make("recoil", "Recoil", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic, s_right)) return false;
   struct Profile { const char *profile, *quit, *circle, *start; };
@@ -227,7 +229,7 @@ Mat4 PoseMatrix(const XrPosef &p)
 // The screen goes straight ahead of the viewer, level (yaw only), at eye height plus lift.
 ScreenGeometry PlaceScreen(const XrPosef &head)
 {
-  ScreenGeometry g; g.distance = s_config.distance; g.width = s_config.width; g.height = s_config.width / s_config.aspect;
+  ScreenGeometry g; g.distance = s_config.distance; g.width = s_config.width; g.height = s_config.width / s_aspect.load();
   g.curve = s_config.curve; g.lift = s_config.lift;
   const auto m = PoseMatrix(head);
   const float fx = -m.m[8], fz = -m.m[10]; const float yaw = std::atan2(-fx, -fz);
@@ -250,6 +252,9 @@ void ThreadBody()
   Renderer renderer; try { renderer.init(s_gun.loaded() ? &s_gun : nullptr); } catch (const std::exception &e) { Log("renderer: %s", e.what()); s_stop = true; }
   ScreenGeometry screen; bool placed = false, running = false; unsigned long frames = 0;
   bool lastTrigger = false; ULONGLONG kickAt = 0;
+  // Both grips held for about a second put the screen in front of you again (the Home key does the same on the PC),
+  // unless the game uses a grip (s_config.gripRecentre is off then; Home still works on the PC).
+  ULONGLONG bothGripsSince = 0; bool recentreArmed = true, recentreWanted = false;
   while (!s_stop) {
     XrEventDataBuffer ev{ XR_TYPE_EVENT_DATA_BUFFER };
     while (p_xrPollEvent(s_instance, &ev) == XR_SUCCESS) {
@@ -323,6 +328,10 @@ void ThreadBody()
     }
     if (in.trigger && !lastTrigger) kickAt = GetTickCount64();
     lastTrigger = in.trigger;
+    if (s_config.gripRecentre && in.gripValue > .6f && in.padGripValue > .6f) {
+      const ULONGLONG t = GetTickCount64(); if (!bothGripsSince) bothGripsSince = t;
+      if (recentreArmed && t - bothGripsSince >= 1000) { recentreWanted = true; recentreArmed = false; }
+    } else { bothGripsSince = 0; recentreArmed = true; }
     { std::lock_guard<std::mutex> lock(s_inputMutex); s_input = in; s_inputTime = GetTickCount64(); }
     const unsigned pulses = s_pulses.exchange(0);
     if (in.active && pulses) {
@@ -343,11 +352,16 @@ void ThreadBody()
         (vs.viewStateFlags & (XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT)) == (XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT);
       if (located) {
         XrSpaceLocation head{ XR_TYPE_SPACE_LOCATION };
-        if ((!placed || (GetAsyncKeyState(VK_HOME) & 0x8000)) && XR_SUCCEEDED(p_xrLocateSpace(s_view, s_local, fs.predictedDisplayTime, &head))) { screen = PlaceScreen(head.pose); placed = true; }
+        if ((!placed || recentreWanted || (GetAsyncKeyState(VK_HOME) & 0x8000)) && XR_SUCCEEDED(p_xrLocateSpace(s_view, s_local, fs.predictedDisplayTime, &head))) {
+          if (placed && recentreWanted) Log("screen recentred (both grips held)");
+          screen = PlaceScreen(head.pose); placed = true; recentreWanted = false;
+        }
+        const float aspect = s_aspect, letterbox = s_letterbox;
+        screen.height = screen.width / aspect;   // follows a change of the core's frame shape after the screen was placed
         EyeScene scene; scene.screen = screen; scene.crt = s_config.crt;
         if (s_config.sideBySide) scene.uw = .5f;
-        scene.v0 = s_config.letterbox; scene.vh = 1 - 2 * s_config.letterbox;
-        scene.frame = s_config.frame; scene.fadeU = s_config.edgeFade; scene.fadeV = s_config.edgeFade * s_config.aspect;
+        scene.v0 = letterbox; scene.vh = 1 - 2 * letterbox;
+        scene.frame = s_config.frame; scene.fadeU = s_config.edgeFade; scene.fadeV = s_config.edgeFade * aspect;
         {
           std::lock_guard<std::mutex> lock(s_slotMutex); s_inUse = s_front; if (s_front >= 0) { scene.picture = s_slots[s_front].tex; scene.pictureW = s_slots[s_front].w; scene.pictureH = s_slots[s_front].h; }
           s_hudInUse = s_hudFront; if (s_config.hud && s_hudFront >= 0) { scene.hud = s_hudSlots[s_hudFront].tex; scene.hudOverWhite = s_hudWhiteSlots[s_hudFront].tex; scene.hudPanel = HudPanel(screen, s_config); scene.hudOpacity = s_config.hudOpacity; scene.hudKeyBlack = s_config.hudKeyBlack; }
@@ -381,7 +395,7 @@ void ThreadBody()
           if (s_srgb) glEnable(GL_FRAMEBUFFER_SRGB); else glDisable(GL_FRAMEBUFFER_SRGB);
           const auto &f = views[e].fov;
           const Mat4 proj = Mat4::Projection(std::tan(f.angleLeft), std::tan(f.angleRight), std::tan(f.angleDown), std::tan(f.angleUp));
-          scene.u0 = s_config.sideBySide && e ? .5f : 0.f;
+          scene.u0 = s_config.sideBySide && ((e != 0) != s_config.swapEyes) ? .5f : 0.f;
           renderer.draw(scene, proj, PoseMatrix(views[e].pose).RigidInverse(), eye.w, eye.h, !s_srgb);
           glDisable(GL_FRAMEBUFFER_SRGB);
           glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -436,6 +450,7 @@ bool Start(Host_Window *owner, const Config &config)
   if (s_started) return true;
   s_log = std::fopen("acvr-theatre.log", "w");
   s_config = config; s_owner = owner; s_ownerContext = wglGetCurrentContext();
+  s_aspect = config.aspect; s_letterbox = config.letterbox;
   if (!tgl::Load()) { Log("OpenGL 3.3 entry points unavailable"); return false; }
   LoadGun(config);
   Host_GL_SetAttribute(Host_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
@@ -514,6 +529,7 @@ Input ReadInput()
 }
 
 void QueuePulse() { if (s_started && !s_stop) ++s_pulses; }
+void SetFrameShape(float aspect, float letterbox) { if (aspect > .1f) s_aspect = aspect; s_letterbox = letterbox; }
 bool RuntimeExit() { return s_runtimeExit.load(); }
 bool Focused() { return s_state.load() == XR_SESSION_STATE_FOCUSED; }
 bool PresenterGone() { return s_gone.load(); }
@@ -539,7 +555,13 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
   try {
     if (!tgl::Load()) throw std::runtime_error("OpenGL 3.3 entry points unavailable");
     // A hardware core shares this context: drop the errors it left and the pixel state that would bend the upload and the read back.
-    for (int i = 0; i < 32 && glGetError() != GL_NO_ERROR; ++i) {}
+    // The dropped codes are counted and reported in the note, not lost: a real core bug must stay visible.
+    std::string cleared; int clearedCount = 0;
+    for (int i = 0; i < 32; ++i) {
+      const GLenum code = glGetError(); if (code == GL_NO_ERROR) break;
+      char c[16]; std::snprintf(c, sizeof c, "%s0x%04X", clearedCount ? " " : "", (unsigned)code); cleared += c; ++clearedCount;
+    }
+    if (clearedCount) Log("proof: cleared %d OpenGL error(s) left by the core: %s", clearedCount, cleared.c_str());
     tgl::BindBuffer(GL_PIXEL_PACK_BUFFER, 0); tgl::BindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0); glPixelStorei(GL_UNPACK_ALIGNMENT, 4); glPixelStorei(GL_PACK_ROW_LENGTH, 0); glPixelStorei(GL_PACK_ALIGNMENT, 4);
     glDisable(GL_SCISSOR_TEST); glDisable(GL_STENCIL_TEST);
@@ -578,7 +600,7 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     bool ok = true;
     for (int e = 0; e < 2; ++e) {
       const Mat4 eyePose = Mat4::Translation(e ? .032f : -.032f, 0, 0);
-      scene.u0 = config.sideBySide && e ? .5f : 0.f;
+      scene.u0 = config.sideBySide && ((e != 0) != config.swapEyes) ? .5f : 0.f;
       glEnable(GL_FRAMEBUFFER_SRGB);
       renderer.draw(scene, proj, eyePose.RigidInverse(), size, size, false);
       glDisable(GL_FRAMEBUFFER_SRGB);
@@ -589,9 +611,10 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     }
     char note[256]; std::snprintf(note, sizeof note, "aim requested (%.4f, %.4f), ray hit %s (%.4f, %.4f), gun %s", aimU, aimV, on ? "on screen" : "off screen", u, v, s_gun.loaded() ? "drawn" : "not loaded");
     error = note;
+    if (clearedCount) error += "; cleared " + std::to_string(clearedCount) + " core OpenGL error(s) first: " + cleared;
     glBindFramebuffer(GL_FRAMEBUFFER, 0); glDeleteFramebuffers(1, &fbo); glDeleteTextures(1, &color); tgl::DeleteRenderbuffers(1, &depth);
     glDeleteTextures(1, &picture.tex); if (hud.tex) glDeleteTextures(1, &hud.tex); renderer.release();
-    if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL error during the proof render");
+    if (const GLenum code = glGetError(); code != GL_NO_ERROR) { char c[48]; std::snprintf(c, sizeof c, " (0x%04X)", (unsigned)code); throw std::runtime_error(std::string("OpenGL error during the proof render") + c); }
     return ok;
   } catch (const std::exception &e) { error = e.what(); return false; }
 }

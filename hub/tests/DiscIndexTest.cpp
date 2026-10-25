@@ -49,7 +49,8 @@ private slots:
    if(!systems.contains(hardware)){continue;}const auto system=systems.value(hardware);const auto id=QString::fromStdString(game.at("id").get<std::string>());
    QVERIFY2(indexed.value(system).contains(id),qPrintable(entry.absoluteFilePath()+"/game.toml has no exact public disc identity"));++covered[system];
   }
-  QCOMPARE(covered.value("ps1"),28);QCOMPARE(covered.value("ps2"),26);QCOMPARE(covered.value("dreamcast"),15);QCOMPARE(covered.value("wii"),13);QCOMPARE(covered.value("gc"),5);
+  // Every catalog disc title was checked above; the counts move with the catalog, so only "none were seen" is a failure.
+  for(const auto &system:systems)QVERIFY2(covered.value(system)>0,qPrintable("no catalog disc titles seen for "+system));
  }
  void everyFrontendProfileResolvesItsExplicitPublicIdentities(){
   using ac::scan::DiscIndex;

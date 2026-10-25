@@ -25,7 +25,7 @@ namespace tgl {
   X(PFNGLCREATEPROGRAMPROC, CreateProgram) X(PFNGLATTACHSHADERPROC, AttachShader) X(PFNGLLINKPROGRAMPROC, LinkProgram) \
   X(PFNGLGETPROGRAMIVPROC, GetProgramiv) X(PFNGLDELETEPROGRAMPROC, DeleteProgram) X(PFNGLUSEPROGRAMPROC, UseProgram) \
   X(PFNGLGETUNIFORMLOCATIONPROC, GetUniformLocation) X(PFNGLUNIFORMMATRIX4FVPROC, UniformMatrix4fv) \
-  X(PFNGLUNIFORM4FVPROC, Uniform4fv) X(PFNGLUNIFORM2FPROC, Uniform2f) X(PFNGLUNIFORM1IPROC, Uniform1i) X(PFNGLUNIFORM1FPROC, Uniform1f) \
+  X(PFNGLUNIFORM3FVPROC, Uniform3fv) X(PFNGLUNIFORM4FVPROC, Uniform4fv) X(PFNGLUNIFORM2FPROC, Uniform2f) X(PFNGLUNIFORM1IPROC, Uniform1i) X(PFNGLUNIFORM1FPROC, Uniform1f) \
   X(PFNGLGENVERTEXARRAYSPROC, GenVertexArrays) X(PFNGLBINDVERTEXARRAYPROC, BindVertexArray) X(PFNGLDELETEVERTEXARRAYSPROC, DeleteVertexArrays) \
   X(PFNGLGENBUFFERSPROC, GenBuffers) X(PFNGLBINDBUFFERPROC, BindBuffer) X(PFNGLBUFFERDATAPROC, BufferData) X(PFNGLDELETEBUFFERSPROC, DeleteBuffers) \
   X(PFNGLENABLEVERTEXATTRIBARRAYPROC, EnableVertexAttribArray) X(PFNGLVERTEXATTRIBPOINTERPROC, VertexAttribPointer) \
@@ -185,20 +185,22 @@ public:
   void upload()
   {
     if (!loaded()) return;
-    // A part whose tint gives metal/rough values (look.z = 1) is polished: Schlick Fresnel reflecting a small
-    // made-up studio (dark floor, lighter ceiling, a bright horizon band and one key light), with roughness
-    // widened where normals change fast so highlights do not sparkle. Other parts keep the plain matte look.
+    // Matte parts are lit like libacvr's gun renderer (assets/guns/runtime-lighting.json, gun_lighting_r2): 0.35
+    // ambient + 0.65 of a light fixed in the camera's space, no specular, no rim; `lightW` is that light turned
+    // into world space for the eye being drawn. A part whose tint gives metal/rough values (look.z = 1) is
+    // polished: Schlick Fresnel reflecting a small made-up studio (dark floor, lighter ceiling, a bright horizon
+    // band and one key light), with roughness widened where normals change fast so highlights do not sparkle.
     program = Program(
       "#version 330 core\nlayout(location=0)in vec3 p;layout(location=1)in vec3 n;uniform mat4 mvp,model;out vec3 N,W;"
       "void main(){gl_Position=mvp*vec4(p,1);N=mat3(model)*n;W=(model*vec4(p,1)).xyz;}",
-      "#version 330 core\nin vec3 N,W;uniform vec4 base,look,eye;uniform int encode;out vec4 o;"
+      "#version 330 core\nin vec3 N,W;uniform vec4 base,look,eye;uniform vec3 lightW;uniform int encode;out vec4 o;"
       "const vec3 L=normalize(vec3(-.4,.8,.6));"
       "vec3 env(vec3 r,float g){float y=r.y;"
       "vec3 e=mix(vec3(.12,.11,.10),mix(vec3(.38,.37,.36),vec3(.85,.85,.88),smoothstep(0.,.9,y)),smoothstep(-.45,.05,y));"
       "e+=vec3(1.3,1.2,1.05)*exp(-abs(y-.05)*mix(9.,3.,g))*(1.-.4*g);"
       "e+=vec3(6.,5.6,5.)*pow(max(dot(r,L),0.),mix(300.,12.,g))*(1.-.7*g);return e;}"
-      "void main(){vec3 n=normalize(N);float l=.30+.70*max(dot(n,L),0.);vec3 c;"
-      "if(look.z<.5)c=base.rgb*l+vec3(.04)*pow(1.-abs(n.z),3.);"
+      "void main(){vec3 n=normalize(N);float l=.35+.65*max(dot(n,normalize(lightW)),0.);vec3 c;"
+      "if(look.z<.5)c=base.rgb*l;"
       "else{vec3 v=normalize(eye.xyz-W);if(dot(n,v)<0.)n=-n;vec3 r=reflect(-v,n);"
       "float m=clamp(look.x,0.,1.),g=clamp(look.y+.6*length(fwidth(n)),.04,1.);"
       "vec3 F0=mix(vec3(.04),base.rgb,m);vec3 F=F0+(max(vec3(1.-g),F0)-F0)*pow(1.-max(dot(n,v),0.),5.);"
@@ -219,9 +221,16 @@ public:
       if (p.has("material")) {
         const auto &mat = doc["materials"][(std::size_t)p["material"].num()];
         const std::string name = mat.has("name") ? mat["name"].str() : "";
-        if (name == "body") { out.color = body; out.look = bodyLook; } else if (name == "accent") { out.color = accent; out.look = accentLook; }
-        else if (mat.has("pbrMetallicRoughness") && mat["pbrMetallicRoughness"].has("baseColorFactor"))
-          for (int c = 0; c < 4; ++c) out.color[c] = (float)mat["pbrMetallicRoughness"]["baseColorFactor"][c].num();
+        // body and accent: the role's tint times the material's own base factor, as libacvr does. The factor is
+        // read from the GLB (the model builder owns it), not assumed; a material without one counts as 1.
+        const bool hasFactor = mat.has("pbrMetallicRoughness") && mat["pbrMetallicRoughness"].has("baseColorFactor");
+        auto factor = [&](int c) { return hasFactor ? (float)mat["pbrMetallicRoughness"]["baseColorFactor"][c].num() : 1.f; };
+        if (name == "body" || name == "accent") {
+          const bool isBody = name == "body"; out.color = isBody ? body : accent; out.look = isBody ? bodyLook : accentLook;
+          for (int c = 0; c < 3; ++c) out.color[c] *= factor(c);
+        }
+        else if (hasFactor)
+          for (int c = 0; c < 4; ++c) out.color[c] = factor(c);
       }
       tgl::GenVertexArrays(1, &out.vao); tgl::BindVertexArray(out.vao);
       tgl::GenBuffers(1, &out.vbo); tgl::BindBuffer(GL_ARRAY_BUFFER, out.vbo); tgl::BufferData(GL_ARRAY_BUFFER, v.size() * 4, v.data(), GL_STATIC_DRAW);
@@ -259,13 +268,15 @@ public:
   // recoil: 0..1 of the slide's travel this frame (an arcade-style blowback slide, if the model has one).
   float recoilMs() const { return slideMs; }
   // eye: the viewing eye's position in world space (for the polished parts' reflections).
-  void draw(const Mat4 &root, const Mat4 &viewProj, float trigger, bool encode, float recoil = 0.f, const float *eye = nullptr)
+  void draw(const Mat4 &root, const Mat4 &viewProj, float trigger, bool encode, float recoil = 0.f, const float *eye = nullptr, const float *lightWorld = nullptr)
   {
     if (!program) return;
     m_recoil = std::fmin(std::fmax(recoil, 0.f), 1.f);
     tgl::UseProgram(program); tgl::Uniform1i(tgl::GetUniformLocation(program, "encode"), encode ? 1 : 0);
     const float at[4] = { eye ? eye[0] : 0.f, eye ? eye[1] : 0.f, eye ? eye[2] : 0.f, 1 };
     tgl::Uniform4fv(tgl::GetUniformLocation(program, "eye"), 1, at);
+    const float up[3] = { 0.f, 1.f, 0.f };
+    tgl::Uniform3fv(tgl::GetUniformLocation(program, "lightW"), 1, lightWorld ? lightWorld : up);
     drawNode(lod0, root, viewProj, trigger);
   }
 private:
@@ -275,7 +286,8 @@ private:
   mini_json::Value doc; std::vector<unsigned char> bin; std::vector<Node> nodes; std::vector<std::vector<Prim>> meshes;
   int grip = -1, muzzle = -1, lod0 = -1; std::array<int, 2> triggers{ -1, -1 };
   std::array<float, 3> axis{ -1, 0, 0 }; std::array<float, 2> range{ 0, 0 };
-  std::array<int, 2> slides{ -1, -1 }; std::array<float, 3> slideAxis{ 0, 0, 1 }; float slideTravel = 0, slideMs = 45, m_recoil = 0;
+  std::array<int, 2> slides{ -1, -1 }; std::array<float, 3> slideAxis{ 0, 0, 1 }; std::array<float, 2> slideRange{ 0, 0 };   // metres, or radians when slideRotates
+  bool slideRotates = false; float slideMs = 45, m_recoil = 0;
   std::array<float, 4> body{ .1f, .1f, .12f, 1 }, accent{ .3f, .3f, .32f, 1 };
   std::array<float, 4> bodyLook{ 0, 1, 0, 0 }, accentLook{ 0, 1, 0, 0 };   // metal, roughness, polished (1) or matte (0)
   GLuint program = 0;
@@ -292,7 +304,11 @@ private:
   {
     auto local = nodes[i].local;
     if ((i == triggers[0] || i == triggers[1]) && range[1] != range[0]) local = local * Mat4::Rotation(axis[0], axis[1], axis[2], range[0] + std::fmin(std::fmax(trigger, 0.f), 1.f) * (range[1] - range[0]));
-    if ((i == slides[0] || i == slides[1]) && m_recoil > 0) { const float d = slideTravel * m_recoil; local = local * Mat4::Translation(slideAxis[0] * d, slideAxis[1] * d, slideAxis[2] * d); }
+    if ((i == slides[0] || i == slides[1]) && m_recoil > 0) {
+      const float d = slideRange[0] + m_recoil * (slideRange[1] - slideRange[0]);
+      // kind = "slide" moves the node along the axis; kind = "rotate" turns it about the axis through its own origin.
+      local = local * (slideRotates ? Mat4::Rotation(slideAxis[0], slideAxis[1], slideAxis[2], d) : Mat4::Translation(slideAxis[0] * d, slideAxis[1] * d, slideAxis[2] * d));
+    }
     return nodes[i].parent < 0 ? local : world(nodes[i].parent, trigger) * local;
   }
   void drawNode(int index, const Mat4 &root, const Mat4 &vp, float trigger)
@@ -325,10 +341,11 @@ private:
       for (auto it = std::sregex_iterator(names.begin(), names.end(), q); it != std::sregex_iterator() && i < 2; ++it)
         for (std::size_t k = 0; k < nodes.size(); ++k) if (nodes[k].name == (*it)[1].str()) triggers[i++] = (int)k;
     }
-    const auto rec = section("motion.recoil");   // [motion.recoil] drive = "recoil": the slide kicks back per shot
+    const auto rec = section("motion.recoil");   // [motion.recoil] drive = "recoil": the slide kicks back per shot (kind: slide or rotate)
     if (!rec.empty()) {
       const auto a = numbers(value(rec, "axis")), r = numbers(value(rec, "range")); const auto ms = value(rec, "duration_ms");
-      if (a.size() == 3 && r.size() == 2) { slideAxis = { a[0], a[1], a[2] }; slideTravel = r[1]; }
+      if (a.size() == 3 && r.size() == 2) { slideAxis = { a[0], a[1], a[2] }; slideRange = { r[0], r[1] }; }
+      slideRotates = value(rec, "kind").find("rotate") != std::string::npos;
       if (!ms.empty()) slideMs = std::stof(ms);
       std::regex q("\"([^\"]+)\""); const auto names = value(rec, "lod_nodes"); int i = 0;
       for (auto it = std::sregex_iterator(names.begin(), names.end(), q); it != std::sregex_iterator() && i < 2; ++it)
@@ -381,7 +398,9 @@ public:
       // Sharp bilinear: whole texels stay crisp when magnified, edges blend over one screen
       // pixel; minified pictures use the mipmaps. Optional CRT scanlines.
       "#version 330 core\nin vec2 uv0;uniform sampler2D picture;uniform vec2 size,range,rows,fade;uniform int crt,encode;out vec4 o;"
-      "void main(){vec2 uv=vec2(range.x+uv0.x*range.y,rows.x+uv0.y*rows.y);vec2 texel=uv*size;vec2 ppt=1./max(fwidth(texel),vec2(1e-5));vec3 c;"
+      "void main(){vec2 uv=vec2(range.x+uv0.x*range.y,rows.x+uv0.y*rows.y);"
+      // Half a texel inside the crop: bilinear filtering must not blend in the black rows above and below a letterboxed eye or the other eye's edge column.
+      "vec2 hp=.5/size;uv=clamp(uv,vec2(range.x,rows.x)+hp,vec2(range.x+range.y,rows.x+rows.y)-hp);vec2 texel=uv*size;vec2 ppt=1./max(fwidth(texel),vec2(1e-5));vec3 c;"
       "if(min(ppt.x,ppt.y)<1.)c=texture(picture,uv).rgb;else{vec2 k=floor(ppt);vec2 f=fract(texel)-.5;"
       "vec2 r=.5-.5/k;vec2 g=(f-clamp(f,-r,r))*k+.5;c=textureGrad(picture,(floor(texel)+g)/size,dFdx(uv),dFdy(uv)).rgb;}"
       "if(crt!=0){float s=abs(fract(texel.y)-.5)*2.;c*=mix(1.,.62,s*s);}"
@@ -470,7 +489,10 @@ public:
     if (s.showDot) drawDot(s, vp, encode);
     if (s.showGun && m_gun && m_gun->loaded()) {
       const Mat4 eyeWorld = view.RigidInverse(); const float eye[3] = { eyeWorld.m[12], eyeWorld.m[13], eyeWorld.m[14] };
-      m_gun->draw(s.gunRoot, vp, s.trigger, encode, s.recoil, eye);
+      // The light sits at (0.36, 0.70, 0.62) in the viewer's space (runtime-lighting.json), so it is turned into world space for this eye.
+      const float lv[3] = { .36f, .70f, .62f }; const float ln = std::sqrt(lv[0] * lv[0] + lv[1] * lv[1] + lv[2] * lv[2]);
+      float lightWorld[3]; for (int c = 0; c < 3; ++c) lightWorld[c] = (view.m[c * 4] * lv[0] + view.m[c * 4 + 1] * lv[1] + view.m[c * 4 + 2] * lv[2]) / ln;
+      m_gun->draw(s.gunRoot, vp, s.trigger, encode, s.recoil, eye, lightWorld);
     }
     tgl::BindVertexArray(0); tgl::UseProgram(0);
   }

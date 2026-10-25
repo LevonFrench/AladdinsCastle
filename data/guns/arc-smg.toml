@@ -15,9 +15,9 @@ features  = ["auto_fire", "rumble", "shake", "laser"]
 default = "red"
 p1      = "red"
 p2      = "blue"
-red = { body = "#c93a2e", accent = "#1c1c20" }
-blue = { body = "#2f66cc", accent = "#1c1c20" }
-grey = { body = "#6f737a", accent = "#1c1c20" }
+red = { body = "#e8483c", accent = "#46484f" }
+blue = { body = "#3d7fe6", accent = "#46484f" }
+grey = { body = "#6f737a", accent = "#46484f" }
 
 [[button]]
 id    = "grenade"

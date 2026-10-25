@@ -141,6 +141,15 @@ private slots:
       QVERIFY(!ac::gunroom::plan(f.inputs).available());
     }
   }
+  void controllersWithoutAMuzzleAreNotOffered() {
+    Fixture f;auto document=f.assembly;auto entries=document["models"].toObject();
+    entries["pointer-remote"]=entries["synthetic-pistol"];document["models"]=entries;
+    save(f.folder.filePath("assets/hands/assembly.json"),QJsonDocument(document).toJson());
+    save(f.folder.filePath("assets/guns/pointer-remote.glb"),"synthetic asset");
+    save(f.folder.filePath("data/guns/pointer-remote.toml"),"id=\"pointer-remote\"\nname=\"Pointer fixture\"\nasset_kind=\"controller\"\n");
+    QCOMPARE(ac::gunroom::modelIds(f.root),QStringList{"synthetic-pistol"});
+    auto input=f.inputs;input.model="pointer-remote";QVERIFY(!ac::gunroom::plan(input).available());
+  }
   void brokenModelDoesNotHideHealthyMetadata() {
     Fixture f;auto document=f.assembly;auto entries=document["models"].toObject();
     const auto healthy=entries["synthetic-pistol"].toObject();auto broken=healthy;

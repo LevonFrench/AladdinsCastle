@@ -10,8 +10,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { loadModel } from './models.js?v=20261023r';
-import { paint, GlyphAtlas, cellAspect } from './ascii/runtime/canvas.js';
+import { loadModel } from './models.js?v=20261025b';
+import { paint, GlyphAtlas, cellAspect } from './ascii/runtime/canvas.js?v=20261025b';
 
 const canvas = document.getElementById('scene');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -420,7 +420,7 @@ function asciiScreen(slug, { w = 384, h = 288, offset = 0 } = {}) {
   t.userData.spots = [];
   const atlas = new GlyphAtlas();  // one per screen: an atlas resets whenever the cell size changes
   let draw = null, meta = null, last = -1, layout = null;
-  import(`./ascii/pieces/${slug}.js`).then(mod => {
+  import(`./ascii/pieces/${slug}.js?v=20261025b`).then(mod => {
     meta = mod.meta; draw = mod.default();
     const aspect = cellAspect(meta), cw = Math.min(w / meta.cols, h / (meta.rows * aspect)), ch = cw * aspect;
     layout = { cw, ch, x: (w - meta.cols * cw) / 2, y: (h - meta.rows * ch) / 2 };
@@ -1368,14 +1368,26 @@ function govern(ms) {
     bloom.enabled = false;
   }
 }
+// Idle and hidden: the bloom composer and the attract screens (pumped from frame) stop when the tab
+// is hidden or the canvas is off screen, drop to 30 fps after 3 s without input or movement, and to
+// 2 fps under reduced motion (not zero: models still arriving need a redraw).
+let pageHidden = document.hidden, canvasVisible = true, lastInput = performance.now(), wasIdle = false;
+document.addEventListener('visibilitychange', () => { pageHidden = document.hidden; });
+if ('IntersectionObserver' in window) new IntersectionObserver(es => { canvasVisible = es[es.length - 1].isIntersecting; }).observe(canvas);
+const touch = () => { lastInput = performance.now(); };
+for (const type of ['scroll', 'pointermove', 'pointerdown', 'wheel', 'keydown', 'touchstart', 'resize']) addEventListener(type, touch, { passive: true });
 function frame(now = 0) {
   if (stopped) return;
   requestAnimationFrame(frame);
   if (lastRaf && now - lastRaf > 1) minRaf = Math.min(minRaf, now - lastRaf);
   lastRaf = now;
+  if (pageHidden || !canvasVisible) { wasIdle = true; return; }
+  const idle = now - lastInput > 3000 && Math.abs(p - pShown) < 1e-4;
   // skip a frame only on displays well above 60 Hz (120/144/240), so 60, 72 and 75 Hz render every frame
-  if (now - lastFrame < FRAME_MS * 0.75) return;
-  govern(now - lastFrame);
+  const gap = idle ? (reducedMotion ? 500 : 32) : FRAME_MS * 0.75;
+  if (now - lastFrame < gap) return;
+  if (!idle && !wasIdle) govern(now - lastFrame);  // idle frames are slow on purpose, not a slow machine
+  wasIdle = idle;
   lastFrame = now;
   if (renderer.info.autoReset === false) renderer.info.reset();
   const rawDt = clock.getDelta();

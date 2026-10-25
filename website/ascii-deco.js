@@ -23,6 +23,6 @@ function fit() {
   }
 }
 fit();  // before the element is defined, so each piece starts at its final size
-import('./ascii/runtime/ascii.js');
+import('./ascii/runtime/ascii.js?v=20261025b');
 let pending = 0;
 addEventListener('resize', () => { clearTimeout(pending); pending = setTimeout(fit, 200); });

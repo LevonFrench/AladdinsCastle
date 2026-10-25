@@ -273,7 +273,7 @@
           {
             "id": "pause",
             "label": "Pause / options",
-            "part": "menu-button",
+            "part": "stick-click-button",
             "node": "",
             "slot": 0,
             "player": 0,
@@ -283,10 +283,10 @@
             },
             "binding": {
               "role": "left",
-              "control": "menu",
+              "control": "thumbstick_click",
               "mode": "press",
               "hand": "left",
-              "source_openxr_path": "/user/hand/left/input/menu/click"
+              "source_openxr_path": "/user/hand/left/input/thumbstick/click"
             },
             "source_action": "pause",
             "when": "focused",
@@ -377,14 +377,13 @@
             },
             "binding": {
               "role": "left",
-              "control": "thumbstick_click",
+              "control": "menu_chord",
               "mode": "press",
-              "hand": "left",
-              "source_openxr_path": "/user/hand/left/input/thumbstick/click"
+              "hand": "left"
             },
             "source_action": "gun_angle_reset",
             "when": "paused",
-            "binding_evidence": "source",
+            "binding_evidence": "question",
             "anchor": {
               "kind": "controller",
               "node": "",
@@ -392,7 +391,7 @@
             },
             "availability": {
               "state": "unavailable",
-              "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+              "reason": "Controller binding is a question; VR cabinet bridge not implemented"
             }
           },
           {
@@ -519,20 +518,20 @@
           "p1": "red",
           "p2": "blue",
           "red": {
-            "body": "#d2362e",
-            "accent": "#50535a"
+            "body": "#e8483c",
+            "accent": "#46484f"
           },
           "blue": {
-            "body": "#2f6fd6",
-            "accent": "#50535a"
+            "body": "#3d7fe6",
+            "accent": "#46484f"
           },
           "pink": {
             "body": "#e86aa6",
-            "accent": "#50535a"
+            "accent": "#46484f"
           },
           "orange": {
-            "body": "#f07a1a",
-            "accent": "#50535a"
+            "body": "#f58a2a",
+            "accent": "#46484f"
           }
         },
         "motion": {
@@ -644,7 +643,7 @@
         {
           "category": "route-binding",
           "id": "gun-angle-reset",
-          "reason": "Source mapping only; adopted-route live/controller acceptance pending"
+          "reason": "Controller binding is a question; VR cabinet bridge not implemented"
         },
         {
           "category": "route-binding",

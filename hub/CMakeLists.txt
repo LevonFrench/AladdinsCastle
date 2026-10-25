@@ -364,6 +364,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-smoke COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:hub-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-smoke.txt
+        -DTEST_ARGUMENTS=-v1
         -DTEST_TIMEOUT=240
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(catalog-tests tests/CatalogTest.cpp)
@@ -379,7 +380,8 @@ if(BUILD_TESTING)
     add_test(NAME hub-install COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:install-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-install.txt
-        -DTEST_TIMEOUT=240
+        -DTEST_ARGUMENTS=-v1
+        -DTEST_TIMEOUT=1440
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     qt_add_executable(ui-tests tests/UiTest.cpp)
     target_link_libraries(ui-tests PRIVATE hubui Qt6::Test)
@@ -391,6 +393,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-ui COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:ui-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-ui.txt
+        -DTEST_ARGUMENTS=-v1
         -DTEST_TIMEOUT=180
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(hub-ui PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
@@ -444,6 +447,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-integration COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:integration-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-integration.txt
+        -DTEST_ARGUMENTS=-v1
         -DTEST_TIMEOUT=300
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     set_tests_properties(hub-integration PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
@@ -456,6 +460,7 @@ if(BUILD_TESTING)
     add_test(NAME hub-launch-steam COMMAND ${CMAKE_COMMAND}
         -DTEST_EXECUTABLE=$<TARGET_FILE:launch-tests>
         -DTEST_LOG=${CMAKE_BINARY_DIR}/Testing/hub-launch-steam.txt
+        -DTEST_ARGUMENTS=-v1
         -DTEST_TIMEOUT=240
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/RunQtTest.cmake)
     if(NOT WIN32)
@@ -464,12 +469,18 @@ if(BUILD_TESTING)
     # The outer deadline also covers wrappers and their cleanup, including direct Python tests.
     get_property(_ac_tests DIRECTORY PROPERTY TESTS)
     set_tests_properties(${_ac_tests} PROPERTIES TIMEOUT 180)
-    set_tests_properties(hub-smoke hub-install hub-launch-steam PROPERTIES TIMEOUT 270)
+    set_tests_properties(hub-smoke hub-launch-steam PROPERTIES TIMEOUT 270)
+    # hub-install: the inner budget is about 3x the slowest observed Windows run (478.5 s on a loaded PC; 137 s on CI).
+    set_tests_properties(hub-install PROPERTIES TIMEOUT 1500)
     set_tests_properties(hub-ui PROPERTIES TIMEOUT 210)
     set_tests_properties(hub-integration PROPERTIES TIMEOUT 330)
     if(TEST hub-runtime-resources)
         set_tests_properties(hub-runtime-resources PROPERTIES TIMEOUT 300)
     endif()
+    # The heavy offscreen Qt tests are CPU-bound; under `ctest -j` they must not run together.
+    set_tests_properties(hub-smoke hub-install hub-integration hub-launch-steam hub-ui PROPERTIES RESOURCE_LOCK heavy_gui)
+    # A failed smoke test copies its temporary folder here, where CI uploads it.
+    set_tests_properties(hub-smoke PROPERTIES ENVIRONMENT "AC_TEST_ARTIFACT_DIR=${CMAKE_BINARY_DIR}/Testing/artifacts")
     # Optional capture/benchmark modes require an explicit direct invocation, not an inherited CTest environment.
     set_tests_properties(hub-ui PROPERTIES ENVIRONMENT_MODIFICATION
         "AC_UI_PANEL_PICTURES=unset:;AC_UI_BENCH_OUTPUT=unset:")

@@ -12,7 +12,7 @@ from control_sets import ROOT,Resolver,confined_path,integer,load,merge,require,
 
 ROUTE='namco22-vr'
 ROLES={'left','right','saved-primary','saved-off'}
-CONTROLS={'trigger','grip','primary','secondary','thumbstick','thumbstick_click','menu'}
+CONTROLS={'trigger','grip','primary','secondary','thumbstick','thumbstick_click','menu','menu_chord'}
 NATIVE={'native-host':{'cover_mode','weapon_hand','gun_angle','gun_angle_reset','view_distance'},
         'native-cabinet':{'pedal_backward','trigger_left','trigger_right','motion_stop','trackball_x','trackball_y'}}
 
@@ -21,6 +21,7 @@ def physical_hand(role,primary):
     return primary if role=='saved-primary' else ('left' if primary=='right' else 'right') if role=='saved-off' else role
 
 def touch_path(hand,control):
+    require(control!='menu_chord','Menu chord is a host-defined chord with no OpenXR path')
     token={'trigger':'trigger/value','grip':'squeeze/value','primary':('a' if hand=='right' else 'x')+'/click',
            'secondary':('b' if hand=='right' else 'y')+'/click','thumbstick':'thumbstick',
            'thumbstick_click':'thumbstick/click','menu':'menu/click','pointer':'aim/pose'}[control]

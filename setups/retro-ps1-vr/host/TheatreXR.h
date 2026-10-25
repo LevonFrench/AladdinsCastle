@@ -17,7 +17,11 @@ struct Config {
   std::string gunModel, gunMeta;   // GLB and its TOML; empty: no gun drawn
   bool sideBySide = false;         // the picture holds the left eye in its left half, the right eye in its right half
   float letterbox = 0;             // share of the picture's height cut from its top and from its bottom (3DS side by side: .25)
+  bool swapEyes = false;           // side by side: the left half goes to the right eye and the other way round (ACVR_PS1_SWAP_EYES)
   bool aimDot = true;              // the orange dot where the right controller's ray meets the screen
+  // Both grips held for about a second put the screen in front of you again. The host turns it off when the game
+  // uses a grip (a pad map with rgrip or lgrip, the face-button layout), so holding both grips in play does not move the screen.
+  bool gripRecentre = true;
   bool frame = true;               // the thin dark frame round the screen
   float edgeFade = 0;              // share of the picture's width and height over which its edges fade into the dark
   // The HUD panel: the game's 2D overlay (a separate picture, transparent elsewhere) on its own flat panel, placed
@@ -30,7 +34,7 @@ struct Input {
   float u = .5f, v = .5f;
   bool active = false, offScreen = true, trigger = false, a = false, b = false, grip = false, quitHeld = false;
   // Left controller as a PlayStation pad: stick = d-pad, trigger = Cross, X (Index: A) = Circle,
-  // grip = Square, menu (Index: stick click) = Start.
+  // grip = Square, stick click (the menu button is the SteamVR dashboard under ALVR) = Start.
   float padX = 0, padY = 0;
   bool padCross = false, padCircle = false, padSquare = false, padStart = false;
   bool stickLeft = false, stickRight = false;   // thumbstick clicks
@@ -55,6 +59,8 @@ void PublishFramebuffer(unsigned fbo, unsigned w, unsigned h);
 void PublishHudFramebuffer(unsigned overBlack, unsigned overWhite, unsigned w, unsigned h);
 Input ReadInput();          // stale (over 250 ms) input reads as inactive
 void QueuePulse();
+// The picture's shape changed (the core sent new geometry): the screen's aspect and the share of rows cropped top and bottom.
+void SetFrameShape(float aspect, float letterbox);
 bool Stop();
 bool RuntimeExit();         // the runtime ended the session (SteamVR "Exit game"): close the game
 bool Focused();             // the headset shows this game and its controllers reach it (not the SteamVR dashboard)

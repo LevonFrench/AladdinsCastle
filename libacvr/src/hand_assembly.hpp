@@ -38,6 +38,13 @@ struct HandMotion {
     std::array<float,3> axis{};
     float minimum=0,maximum=0;
 };
+// Glove colours from the hand metadata `[tints]` table (the `default` entry), as linear
+// RGBA for GunDraw: the authored sRGB hex is decoded to linear here, not in the host.
+struct HandTint {std::array<float,4> body{1,1,1,1},accent{1,1,1,1};};
+// Whether the manifest lists `model_id`. A model without an entry is drawn without hands
+// (the caller logs it); false is returned only when the manifest itself cannot be parsed.
+bool hand_assembly_lists_model(std::string_view json,std::string_view model_id,
+                               bool &listed,std::string &error) noexcept;
 // Decodes the authored hand-assembly/1 placement. Does not synthesize
 // fallback assets or accept arbitrary paths from the manifest.
 bool decode_hand_assembly(std::string_view json,std::string_view model_id,
@@ -45,6 +52,7 @@ bool decode_hand_assembly(std::string_view json,std::string_view model_id,
 bool decode_hand_motions(std::string_view toml,const GunAsset &asset,
                          std::string_view expected_id,std::string_view expected_hand,
                          std::vector<HandMotion> &out,std::string &error) noexcept;
+bool decode_hand_tint(std::string_view toml,HandTint &out,std::string &error) noexcept;
 bool validate_hand_pose_nodes(const HandMount &mount,const GunAsset &asset,
                               std::string &error) noexcept;
 bool validate_hand_gun_nodes(const HandAssembly &assembly,const GunAsset &asset,

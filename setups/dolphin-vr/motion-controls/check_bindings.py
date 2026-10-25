@@ -8,7 +8,8 @@ Checks every WiimoteNew.ini / profile given (default: the templates next to this
   * every Wii Remote button and D-pad direction has a binding, and so does every Nunchuk
     button and stick direction when the Nunchuk is the selected extension;
   * the device line names the OpenXR controller.
-Exit code 0 when all files pass. Standard library only.
+A file with neither a [Profile] nor a [Wiimote1] section, a missing file, or an empty
+Profiles/Wiimote glob fails. Exit code 0 when all files pass. Standard library only.
 """
 import argparse
 import re
@@ -93,11 +94,22 @@ def main():
     ap.add_argument('--source', help='DolphinXR source root to re-derive input names from')
     args = ap.parse_args()
     valid = names_from_source(args.source) if args.source else builtin_names()
-    files = args.files or [str(HERE / 'WiimoteNew.ini'),
-                           *map(str, sorted((HERE / 'Profiles/Wiimote').glob('*.ini')))]
     errors = []
+    if args.files:
+        files = list(args.files)
+    else:
+        profiles = sorted((HERE / 'Profiles/Wiimote').glob('*.ini'))
+        if not profiles:
+            errors.append('Profiles/Wiimote has no *.ini files to check')
+        files = [str(HERE / 'WiimoteNew.ini'), *map(str, profiles)]
     for f in files:
+        if not Path(f).is_file():
+            errors.append(f'{f}: file not found')
+            print('FAIL ' + f)
+            continue
         sections = parse_ini(f)
+        if 'Profile' not in sections and 'Wiimote1' not in sections:
+            errors.append(f'{f}: has neither a [Profile] nor a [Wiimote1] section')
         if 'Profile' in sections:
             errors += check_section(f + ' [Profile]', sections['Profile'], valid)
         if 'Wiimote1' in sections:

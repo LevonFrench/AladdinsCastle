@@ -103,9 +103,20 @@ struct Config {
   static std::string DefaultMap(const std::string &mode)
   {
     // libretro names; mupen64plus-next reads RetroPad B as N64 A, Y as N64 B, L2 as Z, R as R, L as L, Start as Start.
-    if (mode == "wheel") return "rtrig=b,ltrig=y,rgrip=r,lgrip=l2,ra=b,rb=y,lx=l2,lmenu=start,rclick=start,lclick=l";
-    if (mode == "aim") return "rtrig=l2,ra=b,rb=y,lgrip=l2,lx=b,lmenu=start,rclick=start,lclick=l,ltrig=r";
-    return "ra=b,rb=y,rtrig=l2,rgrip=r,ltrig=l2,lgrip=l,lx=b,lmenu=start,rclick=start";
+    // Start: left stick click everywhere (the left menu button is the SteamVR dashboard under ALVR); the left menu
+    // button stays as an alias, and so does the right stick click where the right stick is unused (racing, aiming).
+    // The pad map has no rclick alias: the right stick is the C buttons there. Racing and aiming moved L from the
+    // left click to left X, which had only duplicated Z (wheel) or A (aim).
+    if (mode == "wheel") return "rtrig=b,ltrig=y,rgrip=r,lgrip=l2,ra=b,rb=y,lx=l,lclick=start,lmenu=start,rclick=start";
+    if (mode == "aim") return "rtrig=l2,ra=b,rb=y,lgrip=l2,lx=l,lclick=start,lmenu=start,rclick=start,ltrig=r";
+    return "ra=b,rb=y,rtrig=l2,rgrip=r,ltrig=l2,lgrip=l,lx=b,lclick=start,lmenu=start";
+  }
+  // True when the active map (or the aim-hold control) uses either grip. The both-grips recentre gesture is only
+  // safe when it does not: a game that holds both grips (Star Fox 64 3D boost and brake) must not move the screen.
+  bool usesGrip() const
+  {
+    for (const auto &m : map) if (m.first == "rgrip" || m.first == "lgrip") return true;
+    return mode == "aim" && (aimHold == "rgrip" || aimHold == "lgrip");
   }
   // Environment: ACVR_PAD_MAP, ACVR_PAD_WHEEL_DEG, ACVR_PAD_AIM_HOLD, ACVR_PAD_AIM_BUTTON, ACVR_PAD_AIM, ACVR_PAD_AIM_CURVE.
   std::string load(const std::string &m)

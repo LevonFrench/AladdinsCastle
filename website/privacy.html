@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy · AC VR Hub</title>
+<meta name="description" content="What the AC VR Hub website does and does not collect: no tracking, no cookies, and the few outside services it still uses.">
+<meta name="theme-color" content="#120c1f">
+<link rel="icon" href="token.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/PressStart2P-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/CinzelDecorative-Black.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/SpaceGrotesk-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css?v=20261025b">
+<link rel="stylesheet" href="flow.css?v=20261025b">
+<script src="music.js?v=20261025b" defer></script>
+</head>
+<body class="flow-page">
+<header class="hud">
+  <a class="brand" href="index.html" aria-label="AC VR Hub, back to the arcade">
+    <img src="token.svg" alt="" width="34" height="34">
+    <span>AC VR Hub</span>
+  </a>
+  <nav class="hud-links" aria-label="Pages">
+    <a href="index.html">The arcade</a>
+    <a href="how-it-works.html">How it works</a>
+    <a href="games.html">Game list</a>
+    <a href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main class="flow-main">
+  <header class="intro">
+    <h1>Privacy</h1>
+    <p class="lede">This site does not track you. It has no analytics, no cookies, no ads, no forms and no account. The project does not collect or keep anything about visitors.</p>
+  </header>
+
+  <div class="prose">
+    <h2>What stays on your device</h2>
+    <p>The music bar remembers a few small settings in your browser, and nothing else does:</p>
+    <ul>
+      <li>the volume you set (kept in local storage until you clear site data);</li>
+      <li>whether you stopped the music and where the track was, so it carries over between pages (kept in session storage, which the browser drops when the tab closes).</li>
+    </ul>
+    <p>None of this is sent anywhere. The music file is only downloaded after you press Play or first click on the page, never before.</p>
+
+    <h2>Outside services the site still uses</h2>
+    <p>Every page request reaches a server run by someone else. That server sees your IP address and browser details, as any web server does.</p>
+    <table>
+      <thead><tr><th>Service</th><th>Used for</th><th>What it sees</th></tr></thead>
+      <tbody>
+        <tr><td>Cloudflare Pages</td><td>Hosting every file on this site.</td><td>Your IP address and the usual request details, in its own server logs. The project adds no analytics script of its own.</td></tr>
+        <tr><td>jsDelivr (cdn.jsdelivr.net)</td><td>Serving the Three.js library for the 3D arcade page (index.html only).</td><td>Your IP address and browser details when that page loads. The other pages do not contact it.</td></tr>
+        <tr><td>GitHub</td><td>Links to the source code.</td><td>Nothing, unless you follow a link; then GitHub's own privacy policy applies.</td></tr>
+      </tbody>
+    </table>
+    <p>The fonts are served from this site, so no font provider is contacted. The 3D models, the ASCII animations and the music are served from this site too.</p>
+
+    <h2>Questions</h2>
+    <p>Open an issue on <a href="https://github.com/LevonFrench/AladdinsCastle/issues" rel="noopener">the project's GitHub page</a>. Licences and credits for the site's parts are on the <a href="notices.html">notices page</a>.</p>
+  </div>
+
+  <footer class="outro">
+    <p class="actions">
+      <a class="btn" href="index.html">Back to the arcade</a>
+      <a class="btn btn-ghost" href="notices.html">Notices</a>
+    </p>
+  </footer>
+</main>
+</body>
+</html>

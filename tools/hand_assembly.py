@@ -7,7 +7,7 @@ import sys
 import tomllib
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'assets/guns/src'));sys.path.insert(0,str(ROOT/'assets/hands/src'))
-from common import BUILT_MODELS,plan
+from common import HAND_ASSEMBLY_MODELS
 from grip_hand import FINGERS
 from check_gun_assets import IDENTITY,accessor,local_matrix,multiply,read_glb,transform
 # The index pad rests on the trigger's front face this far down the blade: low
@@ -52,15 +52,28 @@ def trigger_finger(mid,rotation):
     tip_y=tip[1]*math.cos(pitch)-tip[2]*math.sin(pitch);tip_z=tip[1]*math.sin(pitch)+tip[2]*math.cos(pitch)
     return [0,round(y-tip_y,4),round(min(front)-radii[-1]/1000-tip_z,4)]
 
+def node_positions(mid):
+    """Grip-space bind position of every empty LOD0 node (no mesh, no `_lod1` alias) of the exported gun.
+
+    Label anchors are read from the shipped GLB, not the source plan, so a redesigned model cannot leave stale positions."""
+    doc,_=read_glb(ROOT/'assets/guns'/f'{mid}.glb');nodes=doc['nodes'];found={}
+    def visit(index,world):
+        node=nodes[index];world=multiply(world,local_matrix(node));name=node.get('name','')
+        if 'mesh' not in node and not name.endswith('_lod1'):found[name]=[round(v,4) for v in transform(world,(0,0,0))]
+        for child in node.get('children',[]):visit(child,world)
+    visit(doc['scenes'][0]['nodes'][0],IDENTITY)
+    return found
+
 def compile_assembly():
     policy=tomllib.loads((ROOT/'data/controls/wii/shell-and-stick.toml').read_text())
     models={}
-    for mid in BUILT_MODELS:
-        spec=plan(mid,{})
-        pitch=0 if mid in ('mnt-mg-heavy','con-stick-grip') else math.radians(15)
+    for mid in HAND_ASSEMBLY_MODELS:
+        positions=node_positions(mid)
+        # No trigger finger: a spade-grip mount, the analog controller, and the pointer remote held as a bar.
+        pitch=0 if mid in ('mnt-mg-heavy','con-stick-grip','con-pointer-remote') else math.radians(15)
         rotation=[math.sin(pitch/2),0,0,math.cos(pitch/2)]
         # Spade grips and the stick grip keep the hand at the grip node; pistols put the index on the trigger.
-        translation=[0,0,0] if mid in ('mnt-mg-heavy','con-stick-grip') else trigger_finger(mid,rotation)
+        translation=[0,0,0] if mid in ('mnt-mg-heavy','con-stick-grip','con-pointer-remote') else trigger_finger(mid,rotation)
         hands={hand:dict(asset=f'assets/hands/grip-hand-{hand}.glb',node='grip',translation=list(translation),rotation_xyzw=rotation,finger_pose={}) for hand in ('right','left')}
         if mid=='con-stick-grip':
             for hand,pose in hands.items():
@@ -68,10 +81,10 @@ def compile_assembly():
                 sign=1 if hand=='right' else -1
                 # Keep the base at the palm; turn the distal direction to the cap.
                 pose['finger_pose']={'pivot_thumb':dict(translation_offset=[0,0,0],rotation_xyzw=between([-sign*.037,-.010,.011],[-sign*.022,.045,-.024]),scale=[1.25,1.25,1.25])}
-        anchors={n:dict(node=n,local_offset=[0,0,0],bind_position=list(d['at'])) for n,d in spec['nodes'].items() if n in ('muzzle','grip_two','pivot_trigger') or n.startswith('button_')}
+        anchors={n:dict(node=n,local_offset=[0,0,0],bind_position=list(at)) for n,at in positions.items() if n in ('muzzle','grip_two','pivot_trigger') or n.startswith('button_')}
         anchors['grip']=dict(node='grip',local_offset=[0,0,0],bind_position=[0,0,0])
         models[mid]=dict(hands=hands,label_anchors=anchors,primary_mount_by_hand={hand:dict(node=pose['node'],translation=[0,0,0],rotation_xyzw=[0,0,0,1]) for hand,pose in hands.items()})
-        if 'grip_two' in spec['nodes']:
+        if 'grip_two' in positions:
             models[mid]['support_grip']=dict(node='grip_two',translation=[0,0,0],rotation_xyzw=[0,0,0,1],state='provisional')
             if mid=='con-remote-shell':models[mid]['support_grip']['rotation_xyzw']=policy['holds']['docked']['accessory_rotation_xyzw']
             models[mid]['support_by_primary']={hand:dict(models[mid]['support_grip']) for hand in ('right','left')}
@@ -86,5 +99,5 @@ def main():
     path=ROOT/'assets/hands/assembly.json';payload=json.dumps(compile_assembly(),indent=2)+'\n'
     if args.write:path.write_text(payload,encoding='utf-8')
     elif path.read_text(encoding='utf-8')!=payload:raise ValueError('Stale hand assembly data')
-    print(f'hand-assembly/1: {len(BUILT_MODELS)} models, original left/right hands, semantic label anchors')
+    print(f'hand-assembly/1: {len(HAND_ASSEMBLY_MODELS)} models, original left/right hands, semantic label anchors')
 if __name__=='__main__':main()

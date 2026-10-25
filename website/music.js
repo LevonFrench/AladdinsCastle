@@ -1,9 +1,10 @@
 // Background music: plays from 0:00 (the track has its own fade-in) and loops,
 // and a bar at the bottom has play/pause, stop, the title (a seek bar on hover), a timer and a
-// volume knob (starts at -6 dB). Browsers only allow sound after a click or key press, so the
-// music starts on the first one.
+// volume knob (starts at -6 dB). Browsers only allow sound after a gesture, so the music starts on
+// the first pointer press or Enter/Space (never Tab or other keys), and the 7 MB track is not
+// fetched until then (or until Play).
 (() => {
-  const SRC = 'audio/l-von-theme.mp3?v=20261023m';
+  const SRC = '/audio/l-von-theme.mp3?v=20261023m';  // root-absolute: the 404 page loads this from any depth
   const TITLE = 'L-VON · Theme From Aladdin’s Castle';
   const START = 0;             // a fresh start plays from the top; the track fades itself in
   const QUICK_FADE = 0.35;     // seconds, pause/resume/stop, so they do not click
@@ -42,8 +43,9 @@
           el.addEventListener('error', reject, { once: true });
           el.src = URL.createObjectURL(blob);
         }))
-        .then(() => { loaded = true; });
-      loading.catch(() => { loading = null; hideBar(); });
+        .then(() => { loaded = true; showFailed(false); });
+      // a failed fetch keeps the bar: Play tries again
+      loading.catch(() => { loading = null; showFailed(true); });
     }
     return loading;
   }
@@ -53,7 +55,9 @@
     if (ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;  // no Web Audio: plain element volume, no fades
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* Safari 16.4+: sound even with the ringer switch on */ }
     ctx = new AC();
+    ctx.addEventListener('statechange', wake);
     const src = ctx.createMediaElementSource(el);
     fadeGain = ctx.createGain(); fadeGain.gain.value = 0;
     volGain = ctx.createGain(); volGain.gain.value = gainOf(db);
@@ -107,7 +111,11 @@
   const dial = bar.querySelector('.music-dial');
   const dbText = bar.querySelector('.music-db');
   const eq = bar.querySelector('.music-eq');
-  function hideBar() { bar.hidden = true; document.body.classList.remove('has-music'); }  // no track, no bar
+  const title = bar.querySelector('.music-title');
+  function showFailed(on) {
+    bar.classList.toggle('is-failed', on);
+    title.textContent = on ? 'Music did not load · press Play to retry' : TITLE;
+  }
 
   const clock = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
   let seeking = false;
@@ -164,14 +172,16 @@
   }
   async function play() {
     graph();  // inside the click, so the browser lets the audio start
-    if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+    if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {});  // 'suspended', or 'interrupted' on iOS
     clearTimeout(pauseTimer);
     if (!loaded) { try { await load(); } catch { return false; } }
     if (el.paused) {
       el.currentTime = resumeAt;
-      try { await el.play(); } catch { return false; }  // still blocked: wait for a gesture
+      // after the download the gesture may be spent (iOS): the caller re-arms the gesture listeners
+      try { await el.play(); } catch { return false; }
     }
     playing = true; userStopped = false; store.set('acvr-music-off', '0');
+    disarm();
     fadeTo(1, fresh ? 0 : QUICK_FADE);  // straight in from the top, a short ramp on resume
     fresh = false;
     showState(); eqRun(true);
@@ -192,7 +202,10 @@
     store.set('acvr-music-at', String(START));
     showTime();
   }
-  playBtn.addEventListener('click', () => { if (playing) { pause(); userStopped = true; store.set('acvr-music-off', '1'); } else play(); });
+  playBtn.addEventListener('click', () => {
+    if (playing) { pause(); userStopped = true; store.set('acvr-music-off', '1'); }
+    else play().then(ok => { if (!ok) arm(); });  // blocked after the load: the next gesture plays from the local copy
+  });
   stopBtn.addEventListener('click', stop);
   // loop from the top of the track once it ends
   el.addEventListener('ended', () => { el.currentTime = 0; el.play().catch(() => {}); });
@@ -239,21 +252,42 @@
   // the arcade walks on arrow keys; keep the bar's own keys to itself
   seek.addEventListener('keydown', e => e.stopPropagation());
 
-  // ---- start: right away if the browser allows it, otherwise on the first click or key ----
+  // ---- start: on the first pointer press or Enter/Space, never Tab or other keys ----
+  // A phone or screen-reader user tabbing to the skip link must not get music over the speech.
   function firstGesture(e) {
     if (e && bar.contains(e.target)) return;  // the bar's own controls decide for themselves
-    removeEventListener('pointerup', firstGesture, true);
-    removeEventListener('keydown', firstGesture, true);
-    if (!userStopped) play();
+    if (e && e.type === 'keydown' && (e.repeat || e.ctrlKey || e.altKey || e.metaKey || (e.key !== 'Enter' && e.key !== ' '))) return;
+    disarm();
+    if (userStopped) return;
+    // listeners stay off only if the music really started; if it did not (slow load, iOS dropped
+    // the activation across the download), the next gesture plays from the finished local copy
+    play().then(ok => { if (!ok && !userStopped) arm(); });
   }
-  showVolume(); showTime(); showState();
-  const idle = window.requestIdleCallback || (fn => setTimeout(fn, 1500));
-  idle(() => load().catch(() => {}), { timeout: 4000 });  // ready by the first click
-  if (!userStopped) {
+  let isArmed = false;
+  function arm() {
+    if (isArmed) return;
+    isArmed = true;
     addEventListener('pointerup', firstGesture, true);
     addEventListener('keydown', firstGesture, true);
-    // a direct attempt works where the browser already allows sound for this site
-    if (navigator.userActivation ? navigator.userActivation.hasBeenActive : false) play();
+  }
+  function disarm() {
+    isArmed = false;
+    removeEventListener('pointerup', firstGesture, true);
+    removeEventListener('keydown', firstGesture, true);
+  }
+  // the audio context can stop under us (phone call, lock, tab switch: 'interrupted' on iOS)
+  function wake() {
+    if (ctx && playing && ctx.state !== 'running') ctx.resume().catch(() => {});
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+  addEventListener('pointerup', wake, true);  // a resume refused outside a gesture succeeds inside one
+  showVolume(); showTime(); showState();
+  if (!userStopped) {
+    arm();
+    // already playing in this tab (page change) and the browser keeps the site's activation: carry on
+    if (store.get('acvr-music-off') === '0' && navigator.userActivation && navigator.userActivation.hasBeenActive) {
+      play();
+    }
   }
 
   if (/[?&]debug\b/.test(location.search)) window.__music = { el, get ctx() { return ctx; }, get eq() { return eq.textContent; }, get db() { return db; }, setDb, play, pause, stop };

@@ -7,10 +7,10 @@
 <meta name="description" content="AC VR Hub is one front door for arcade and console light gun and racing games in VR: a desktop window that is also a SteamVR dashboard panel. 143 games across 12 systems, with the project's own gun and control models.">
 <meta name="theme-color" content="#120c1f">
 <link rel="icon" href="token.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261023q">
+<link rel="preload" href="fonts/PressStart2P-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/CinzelDecorative-Black.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/SpaceGrotesk-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css?v=20261025b">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js",
@@ -18,8 +18,8 @@
 } }
 </script>
 <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js" crossorigin>
-<link rel="modulepreload" href="arcade.js?v=20261023r">
-<script src="music.js?v=20261023p" defer></script>
+<link rel="modulepreload" href="arcade.js?v=20261025b">
+<script src="music.js?v=20261025b" defer></script>
 </head>
 <body>
 <a class="skip" href="#walk">Skip to the content</a>
@@ -102,7 +102,7 @@
         </article>
         <article class="panel reveal">
           <h3>Rules from real headset sessions</h3>
-          <p>Game controls stay off the left Menu and the right headset button, since SteamVR and the headset own them (N64 Start is the one left to move). Left-stick click is Start or Plus; hold left Y for Home. Exit game in the SteamVR dashboard ends the game cleanly on PS1, N64, Saturn and Model 3.</p>
+          <p>Game controls stay off the left Menu and the right headset button, since SteamVR and the headset own them (N64 Start now sits on the left-stick click too, not yet checked in the headset). Left-stick click is Start or Plus; hold left Y for Home. Exit game in the SteamVR dashboard ends the game cleanly on PS1, N64, Saturn and Model 3.</p>
         </article>
         <article class="panel reveal">
           <h3>Four ways to see a game</h3>
@@ -221,7 +221,7 @@
       <div class="grid">
         <article class="panel reveal"><h3>Built on the people doing this work</h3><p>Supermodel, MAME, PCSX2, Dolphin and DolphinXR, Flycast, SwanStation, Beetle, mupen64plus, Visual Pinball X, Time Crisis VR, namco22-decompile and many more. We provide VR patches and some installation recipes. Most integrations still need a separately prepared build; setup sources and patches are kept in the repo.</p></article>
         <article class="panel reveal"><h3>No game content</h3><p>AC VR Hub never ships, downloads or links to ROMs, BIOS files or disc images. You bring your own legally obtained games; the Hub reads them where they are.</p></article>
-        <article class="panel reveal"><h3>Licences</h3><p>The Hub is GPL-3.0-only. The shared VR runtime, libacvr, is MIT so any emulator or engine can link it. The project's own gun, hand and control models are CC0; one adapted gun model is CC BY 4.0 and credited in the repo. The ASCII games on the cabinet screens come from <a href="https://github.com/kailashsr38/ascii-magic-art" rel="noopener">ascii-magic-art</a> (MIT). <a href="THIRD-PARTY-NOTICES.md">Website notices</a> cover Three.js, the ASCII art, remote fonts and the separate music rights.</p></article>
+        <article class="panel reveal"><h3>Licences</h3><p>The Hub is GPL-3.0-only. The shared VR runtime, libacvr, is MIT so any emulator or engine can link it. The project's own gun, hand and control models are CC0; one adapted gun model is CC BY 4.0 and credited in the repo. The ASCII games on the cabinet screens come from <a href="https://github.com/kailashsr38/ascii-magic-art" rel="noopener">ascii-magic-art</a> (MIT). <a href="notices.html">Website notices</a> cover Three.js, the ASCII art, the fonts and the separate music rights; the <a href="privacy.html">privacy page</a> says what the site does not collect.</p></article>
       </div>
     </div>
   </section>
@@ -257,7 +257,7 @@
         </article>
         <article class="panel reveal">
           <h3>Still open</h3>
-          <ul class="ticks"><li>Headset verdicts for most games and for the new gun shapes</li><li>Metroid Prime Trilogy drops frames; some Wii games keep their HUD on your face</li><li>N64 Start still sits on the left Menu button</li><li>Easier system switching in the Hub</li></ul>
+          <ul class="ticks"><li>Headset verdicts for most games and for the new gun shapes</li><li>Metroid Prime Trilogy drops frames; some Wii games keep their HUD on your face</li><li>N64 Start on the left-stick click: changed, not yet checked in the headset</li><li>Easier system switching in the Hub</li></ul>
         </article>
       </div>
       <div class="panel reveal">
@@ -266,7 +266,7 @@
           <a class="btn btn-ghost" href="how-it-works.html">How it works</a>
           <a class="btn btn-ghost" href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
         </p>
-        <p class="fine">Inspired by the mall arcades many of us grew up in. Not affiliated with, endorsed by or connected to any arcade operator, console maker or game publisher. Game and system names belong to their owners.</p>
+        <p class="fine">Inspired by the mall arcades many of us grew up in. Not affiliated with, endorsed by or connected to any arcade operator, console maker or game publisher. Game and system names belong to their owners. <a href="privacy.html">Privacy</a> · <a href="notices.html">Notices</a>.</p>
       </div>
     </div>
   </section>
@@ -274,7 +274,7 @@
 
 <noscript><p class="noscript">The walk-through needs JavaScript and WebGL. Everything above is still here to read.</p></noscript>
 <script src="page.js?v=20261023d" defer></script>
-<script type="module" src="arcade.js?v=20261023r"></script>
-<script type="module" src="bench.js?v=20261023r"></script>
+<script type="module" src="arcade.js?v=20261025b"></script>
+<script type="module" src="bench.js?v=20261025b"></script>
 </body>
 </html>

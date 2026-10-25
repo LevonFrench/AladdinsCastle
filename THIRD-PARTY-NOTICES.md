@@ -28,6 +28,18 @@ binary, inspect its actual DLL/plugin inventory and licence payload; source copy
 rules alone do not establish a complete distribution. Provide corresponding
 source and build instructions for the exact published revision.
 
+## Disc identity data (licences to verify)
+
+`data/serial-index.json`, `data/wii-disc-index.json` and `data/dreamcast-disc-index.json` hold public disc ID and title facts for catalog titles, extracted from the sources below. The per-source detail is in [docs/legal.md](docs/legal.md#disc-identity-data). None of these terms has been verified yet; do not ship a build until each is checked.
+
+| Source | Pinned revision | Terms |
+|---|---|---|
+| MAME `hash/psx.xml` (PS1 serials) | `1a38c50b5d5e0e9e6ed3d944056b3312ad490676` | To verify (file header; MAME 0.289 is GPLv2 with per-file exceptions) |
+| PCSX2 `GameIndex.yaml` (PS2 serials) | `904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2`, `aa7ab4306e269075784c7ac3eb4b45e6e6c53445` | To verify (PCSX2 is GPL-3.0-or-later as a project) |
+| GameTDB English title list (Wii and GameCube IDs) | version `20250826093514` | To verify (GameTDB terms of use) |
+| Flycast source files (Dreamcast product numbers) | Not pinned: cited at `master` | To verify (Flycast is GPL-2.0-or-later); pin before release |
+| Redump, PsxPalDB, PSX Data Center, PCSX2 and Dolphin wikis, one retail page | Single rows, cited by page | To verify |
+
 ## Models, images and fonts
 
 | Files | Terms |

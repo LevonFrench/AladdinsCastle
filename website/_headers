@@ -1,5 +1,6 @@
 # Cloudflare Pages response headers. CSS and JS links carry a ?v= tag, so they can be cached;
-# models change rarely and get a day.
+# models change rarely and get a day. Deploy with tools/stage_deploy.py so tools/ and the .md
+# files are not published.
 /audio/*
   Cache-Control: public, max-age=86400
 /models/*
@@ -8,3 +9,11 @@
   Cache-Control: public, max-age=3600
 /*.js
   Cache-Control: public, max-age=3600
+# fonts keep their file names, so a week, not a year
+/fonts/*
+  Cache-Control: public, max-age=604800
+# the ASCII runtime and pieces import each other without a ?v= tag (they are upstream files):
+# revalidate (cheap 304s) instead of serving a stale mix for an hour. Must come after /*.js.
+/ascii/*
+  ! Cache-Control
+  Cache-Control: no-cache

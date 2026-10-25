@@ -1,5 +1,5 @@
 {
-  "_about": "PlayStation light-gun games for acvr-ps1. Keys are catalog ids. gun: the device the game reads; port: the controller port it is plugged into; view: theatre now, true3d planned for polygon games. No locations here: each player's own launcher maps a key to their own disc.",
+  "_about": "UNUSED: nothing reads this file yet (see README.md). PlayStation light-gun games for acvr-ps1. Keys are catalog ids. gun: the device the game reads; port: the controller port it is plugged into; view: theatre now, true3d planned for polygon games. No locations here: each player's own launcher maps a key to their own disc.",
   "ps1-point-blank": {
     "gun": "guncon",
     "port": 1,

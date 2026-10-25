@@ -69,12 +69,18 @@ Disc reads are bounded: ISO9660 PVD, root directory (up to 2 MiB), SYSTEM.CNF
 PS2 BIOS detection checks ROMDIR/ROMVER structures in .bin/.rom/.rom0, not filenames. A discovered same-basename .rom1 is an optional companion path; .mec/.nvm/.inf/.diff auxiliary files are not read. Disc headers
 with no catalog identity remain unverified. CHDv5 sparse decoding uses pinned libchdr to read only ISO9660 PVD/root/SYSTEM.CNF hunks. Dimensions are checked before map allocation: hunk bytes at most 1 MiB, logical bytes at most 100 GiB, normalized map at most 32 MiB (12 bytes per compressed-map entry or 4 per uncompressed entry), with compressed-map bytes also capped at 32 MiB. Reads stop at 64 MiB compressed input and 8 MiB / 128 decoded hunks; parent-dependent discs remain unverified. Combined header SHA1 is retained separately and never treated as an uncompressed disc hash. An explicit chd_sha1 field can identify that distinct combined hash. Raw 2352-byte PS1 data tracks support 16/24-byte sector prefixes. CUE/GDI traversal reads declared local data tracks; M3U uses its first declared disc, with cancellation and bounded traversal. PS1 SYSTEM.CNF BOOT and PS2 BOOT2 retain distinct system identities. Generic BIOS platforms remain unverified unless supported identifying metadata is supplied; no guessed disc filename match becomes Ready.
 
+The Game library's saved index keeps what each disc itself said (system and identity, or why it could not be
+read), keyed by path, size and modification time, under a reader version. The match against these data
+files is made again on every scan, so editing the data does not re-read any disc; only a change of the
+reader version does. The index is handed to the caller about every ten seconds while files are read, so
+a crash part-way keeps the readings made so far.
+
 Canonical public identity facts live in `data/serial-index.json`,
 `data/dreamcast-disc-index.json` and `data/wii-disc-index.json` (the latter includes
 GameCube IDs and WiiWare title IDs). `data/disc-profiles.json` separately holds the
 existing frontend game aliases, controls/profile metadata, holds, routes and views.
-The resource copies are generated from these canonical files; the indexes contain
-metadata facts only, never local media paths. Exact identity and system must both
+The Hub embeds these files as Qt resources straight from `data/` (see `hub/CMakeLists.txt`); there are no other copies.
+The indexes contain metadata facts only, never local media paths. Exact identity and system must both
 match. Unknown IDs stay unknown; Nintendo region bytes are not wildcarded.
 
 Serial facts come from the [official PCSX2 GameIndex](https://github.com/PCSX2/pcsx2/blob/904bd9da01c68bb31ae86f4ea6e0e9a1fb0743e2/bin/resources/GameIndex.yaml)
@@ -100,8 +106,12 @@ defined by [Dolphin's checksum implementation](https://github.com/dolphin-emu/do
 These are source-level implementation boundaries; real-library
 coverage, first-rescan cost and runtime acceptance require separate private proof.
 
-`tools/build_serial_index.py` retains the offline extractor for pinned PCSX2 facts;
-manual curated additions carry their own record provenance. The data currently has
+`tools/build_serial_index.py` is the offline extractor for the **PS2 rows only**. It takes a local
+`GameIndex.yaml` plus the full commit it came from (`--commit`), merges into `data/serial-index.json`
+in the live schema (`system`, `region`, `gameId`, `title`, `source`), and never touches PS1 rows or
+rows from another source. Pinned sources and licence notes are listed in [legal.md](legal.md#disc-identity-data).
+A row may carry an optional `disc` number (2 or more) so a later disc of a set maps to the same game;
+a later disc is never chosen as the start copy. Manual curated additions carry their own record provenance. The data currently has
 at least one explicit public identity for each catalog disc title in these five
 systems; this is catalog coverage, not a claim that every owned disc variant can
 be read or mapped. `hub/tests/DiscIndexTest.cpp` checks this against the catalog

@@ -28,7 +28,10 @@ CPU packing is the actual upload path. It selects one LOD, applies prepared
 scene transforms, multiplies vertex/material colour by linear body/accent tint,
 and sorts translucent triangles per eye. Opaque triangles write shared depth;
 translucent triangles use premultiplied blending without depth writes. Dark/glass
-material roles keep their own base factors. The initial shader is unlit; material
+material roles keep their own base factors; body/accent base factors are 1.0 (the
+colour contract in docs/guns.md), so the tint is the colour. Glove colours come from the
+`[tints]` default of `assets/hands/grip-hand-*.toml`, decoded from sRGB hex to linear by
+`decode_hand_tint`. A model with no hand-assembly entry logs that and draws without hands. The initial shader is unlit; material
 lighting and laser line/hit-dot rendering remain open.
 
 The pass saves/restores program, VAO, array buffer, draw framebuffer, attribute
