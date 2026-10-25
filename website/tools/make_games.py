@@ -38,7 +38,7 @@ SYSTEMS = [
   ['The House of the Dead 2', ('Confidential Mission', None, 'rebuilt after headset issues'), ('Death Crimson OX', E1), ('Death Crimson 2', E1), ('Virtua Cop 2', E1)], None),
  ('wii', 'Nintendo Wii', '#9bdc3c', '19 games · 26 views', 'DolphinXR: real 3D with the pointer or motion controls, pointer aim within 1.3%.',
   ['Resident Evil: The Umbrella Chronicles', 'Resident Evil: The Darkside Chronicles', 'The House of the Dead: Overkill', 'Gunblade NY & L.A. Machineguns', 'Sin & Punishment: Star Successor', 'Dead Space: Extraction', "Link's Crossbow Training", ('Metroid Prime Trilogy', None, 'drops frames'), 'Donkey Kong Country Returns', 'Mario Strikers Charged', 'New Super Mario Bros. Wii', 'Punch-Out!!'],
-  'Seven more are in the Hub but not named in the public repo. Menus and HUDs sit on a screen in the room in Dead Space, Overkill, Gunblade, New Super Mario Bros. Wii and Punch-Out!!; several others still show them on your face.'),
+  'Menus and HUDs sit on a screen in the room in Dead Space, Overkill, Gunblade, New Super Mario Bros. Wii and Punch-Out!!; several others still show them on your face.'),
  ('gamecube', 'GameCube', '#f6c744', '1 game · 2 views', 'DolphinXR: real 3D with the HUD on a panel.', ['F-Zero GX'], None),
 ]
 

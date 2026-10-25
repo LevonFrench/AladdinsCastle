@@ -1,3 +1,9 @@
+/* Self-hosted fonts (SIL OFL 1.1; licence texts in fonts/). No request leaves the site for type. */
+@font-face { font-family: "Cinzel Decorative"; font-style: normal; font-weight: 700; font-display: swap; src: url("fonts/CinzelDecorative-Bold.woff2") format("woff2"); }
+@font-face { font-family: "Cinzel Decorative"; font-style: normal; font-weight: 900; font-display: swap; src: url("fonts/CinzelDecorative-Black.woff2") format("woff2"); }
+@font-face { font-family: "Press Start 2P"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/PressStart2P-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 300 700; font-display: swap; src: url("fonts/SpaceGrotesk-Variable.woff2") format("woff2"); }
+
 :root {
   --bg: #120c1f;
   --ink: #f4ecdc;
@@ -420,6 +426,7 @@ a:focus-visible, .btn:focus-visible { outline: 2px solid var(--neon-cyan); outli
 .music .i-pause, .music.is-playing .i-play { display: none; }
 .music.is-playing .i-pause { display: inline; }
 .music-title { color: var(--ink-dim, #b9b0cc); font: 500 12px/1.2 var(--body); white-space: nowrap; }
+.music.is-failed .music-title { color: var(--brass); }
 .music-time { font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: 0.02em; }
 .music-time b { font-weight: 400; color: var(--ink, #f3ecff); }
 .music-knob {

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notices · AC VR Hub</title>
+<meta name="description" content="Licences and credits for the AC VR Hub website: Three.js, the ASCII animations, the fonts, the models and the music.">
+<meta name="theme-color" content="#120c1f">
+<link rel="icon" href="token.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/PressStart2P-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/CinzelDecorative-Black.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/SpaceGrotesk-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css?v=20261025a">
+<link rel="stylesheet" href="flow.css?v=20261025a">
+<script src="music.js?v=20261025a" defer></script>
+</head>
+<body class="flow-page">
+<header class="hud">
+  <a class="brand" href="index.html" aria-label="AC VR Hub, back to the arcade">
+    <img src="token.svg" alt="" width="34" height="34">
+    <span>AC VR Hub</span>
+  </a>
+  <nav class="hud-links" aria-label="Pages">
+    <a href="index.html">The arcade</a>
+    <a href="how-it-works.html">How it works</a>
+    <a href="games.html">Game list</a>
+    <a href="https://github.com/LevonFrench/AladdinsCastle" rel="noopener">GitHub</a>
+  </nav>
+</header>
+
+<main class="flow-main">
+  <header class="intro">
+    <h1>Notices</h1>
+    <p class="lede">Licences and credits for the parts of this website that are not the project's own code. This page is generated from <code>website/THIRD-PARTY-NOTICES.md</code> in the repository.</p>
+  </header>
+
+  <div class="prose">
+<p>The website source is project code under GPL-3.0-only. Its original model copies are CC0 under the source asset notices. <code>tools/sync_models.py</code> excludes the CC BY 4.0 arc-light-gun; that exception is documented in the repository&#x27;s root notice and must be retained if the model is added here later.</p>
+<h2>Three.js r160</h2>
+<p>The arcade page (<code>index.html</code>) loads Three.js and addons from jsDelivr at version 0.160.0. It is the one library still fetched from a third-party host (see the <a href="privacy.html" rel="noopener">privacy page</a>); no copy of r160 is vendored in this repository. Upstream: <a href="https://github.com/mrdoob/three.js/tree/r160" rel="noopener">https://github.com/mrdoob/three.js/tree/r160</a> . Full upstream MIT notice:</p>
+<pre>The MIT License
+
+Copyright © 2010-2023 three.js authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.</pre>
+<h2>ascii-magic-art</h2>
+<p>The animated ASCII on the cabinet screens, the flow-page headers and dividers and the 404 comes from ascii-magic-art (<a href="https://github.com/kailashsr38/ascii-magic-art" rel="noopener">https://github.com/kailashsr38/ascii-magic-art</a>). <code>tools/sync_ascii.py</code> copies its runtime, helper kit and only the listed pieces into <code>ascii/</code>, with the licence in <code>ascii/LICENSE</code>. The two photo-based pieces that keep the Unsplash License (ocean-sunset, starry-ridge) are never copied.</p>
+<p>Upstream provenance, as far as the repository shows it: the files were copied once, in commit 45452d5 (2026-10-22), from a local checkout of the repository above. The checkout&#x27;s commit and the package version were not recorded then, and nothing in the copied files states a version, so no version number is claimed here. From now on <code>tools/sync_ascii.py</code> writes the upstream commit to <code>ascii/UPSTREAM.txt</code> when the checkout is a git repository. The files are unmodified upstream paths: <code>runtime/{ascii,player,glyphs,canvas}.js</code>, <code>lib/kit.js</code>, and these 21 pieces under <code>pieces/</code>: alien-wave, block-drop, brick-breaker, circuit-lap-racer, circuit-trace, coin-run-platformer, dino-runner, frog-hop-crossing, gem-cascade, maze-chase, paddle-tennis, pipe-flyer, pulse-line, rainbow-warp-road, rock-blaster, snake-autoplay, stars-divider, synthwave-grid, tv-static, vector-space-duel and wave-divider. Full upstream MIT notice:</p>
+<pre>MIT License
+
+Copyright (c) 2026 ASCII Magic (ascii-magic.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre>
+<h2>Fonts (self-hosted)</h2>
+<p>The pages serve their three font families from <code>fonts/</code>; no font provider is contacted. All three are under the SIL Open Font License 1.1, whose complete text, with each copyright line, is kept beside the files (<code>fonts/OFL-*.txt</code>):</p>
+<table><thead><tr><th>Family</th><th>Files</th><th>Version</th><th>Upstream</th></tr></thead><tbody><tr><td>Cinzel Decorative (Bold, Black)</td><td><code>CinzelDecorative-Bold.woff2</code>, <code>CinzelDecorative-Black.woff2</code></td><td>1.002</td><td><a href="https://github.com/google/fonts/tree/main/ofl/cinzeldecorative" rel="noopener">https://github.com/google/fonts/tree/main/ofl/cinzeldecorative</a></td></tr><tr><td>Press Start 2P</td><td><code>PressStart2P-Regular.woff2</code></td><td>3.000</td><td><a href="https://github.com/google/fonts/tree/main/ofl/pressstart2p" rel="noopener">https://github.com/google/fonts/tree/main/ofl/pressstart2p</a></td></tr><tr><td>Space Grotesk (variable, 300 to 700)</td><td><code>SpaceGrotesk-Variable.woff2</code></td><td>2.000</td><td><a href="https://github.com/google/fonts/tree/main/ofl/spacegrotesk" rel="noopener">https://github.com/google/fonts/tree/main/ofl/spacegrotesk</a></td></tr></tbody></table>
+<p>The woff2 files are the Google Fonts distribution TTFs, recompressed to woff2 with fontTools and otherwise unchanged (no glyphs removed, no renaming), so the Reserved Font Names are not misused. They were copied from another local project that vendors the same Google Fonts files with their OFL texts, not downloaded for this site.</p>
+<h2>Music</h2>
+<p><code>audio/l-von-theme.mp3</code> is credited to L-VON as &quot;Theme From Aladdin&#x27;s Castle&quot;, the developer&#x27;s track, in <code>website/README.md</code> and in the music bar. The repository&#x27;s root README does not mention it, and the file carries no embedded credit. It is not covered by the software GPL or model CC0 licences. This notice grants no additional rights to redistribute the recording. A new repository or independently published website must document the rights holder&#x27;s intended music permission before copying it.</p>
+  </div>
+
+  <footer class="outro">
+    <p class="actions">
+      <a class="btn" href="index.html">Back to the arcade</a>
+      <a class="btn btn-ghost" href="privacy.html">Privacy</a>
+    </p>
+  </footer>
+</main>
+</body>
+</html>
