@@ -11,7 +11,6 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFileInfo>
-#include <QCryptographicHash>
 #include <QSet>
 #include <algorithm>
 namespace ac::library {
@@ -42,7 +41,8 @@ bool hinted(const QString &system, const QString &file) {
 }
 auto rank(const QString &system, const QVariantMap &copy) {
   const auto file = copy.value("file").toString();
-  return std::make_tuple(copy.value("verified").toBool() ? 0 : 1, copy.value("profile").toBool() ? 0 : 1,
+  // A later disc of a set is never the one to start; it ranks after every first disc.
+  return std::make_tuple(copy.value("disc", 1).toInt() > 1 ? 1 : 0, copy.value("verified").toBool() ? 0 : 1, copy.value("profile").toBool() ? 0 : 1,
                          hinted(system, file) ? 0 : 1, regionRank(copy.value("region").toString()), formatRank(system, file),
                          file.size(), file);
 }
@@ -53,15 +53,15 @@ QString rule() {
          "Japan, then the plainest format, then the shortest path.";
 }
 namespace {
-// Raised whenever what a file is read as changes, so every saved reading is read again.
-constexpr int kIndexVersion = 3;
-// What one file is: the copies it gives (system and copy), the system it is another disc of, a kind the Hub
-// reads but does not know ("disc" or "archive"), or a pinball table. Kept in the index to be used again.
+// Raised whenever what a disc reader makes of a file changes, so every saved reading is read again. It is the only
+// thing the saved index is keyed on besides the file itself: the games and disc data are looked up on every scan.
+constexpr int kIndexVersion = 4;
+QString indexStamp() { return QString("reader-%1").arg(kIndexVersion); }
+// What one file is, before any game is looked up: a pinball table, an archive's copies (known by its name, so it
+// is worked out on every scan and costs no read), or a disc: {reading: {system, identity}} as the disc itself says,
+// or {unknown: "disc", error, retry} when it could not be read. Kept in the index to be used again.
 QVariantMap classify(const QString &path, const QString &ext, const QSet<QString> &model3Sets, const QSet<QString> &model2Sets,
                      std::atomic_bool &cancel) {
-  const auto copy = [](const QString &system, const QVariantMap &found) {
-    return QVariantMap{{"copies", QVariantList{QVariantMap{{"system", system}, {"copy", found}}}}};
-  };
   if (ext == "vpx")
     return {{"table", true}};
   if (ext == "zip") {
@@ -79,29 +79,37 @@ QVariantMap classify(const QString &path, const QString &ext, const QSet<QString
     return found.isEmpty() ? QVariantMap{{"unknown", "archive"}} : QVariantMap{{"copies", found}};
   }
   const auto read=scan::Scanner::inspect(path,cancel);
-  if(!read.error.isEmpty()||read.identity.isEmpty())return {{"unknown","disc"},{"retry",read.error.contains("budget")||read.error.contains("time")}};
-  const auto row=scan::DiscIndex::match(read.system,read.identity);
-  const auto system=read.system=="gc"?QString("gamecube"):read.system;
-  if(row.isEmpty())return system.isEmpty()?QVariantMap{{"unknown","disc"}}:QVariantMap{{"other",system}};
-  QVariantMap found{{"file",path},{"identity",read.identity},{"game",row.value("game")},{"title",row.value("title")},
-                    {"region",row.value("region")},{"verified",true},{"profile",row.value("profile",false)}};
-  if(read.system=="ps1"||read.system=="ps2")found["serial"]=read.identity;
-  else if(read.system=="dreamcast")found["product"]=read.identity;
-  else if(read.system=="wii"||read.system=="gc")found["id"]=read.identity;
-  return copy(system,found);
+  if(!read.error.isEmpty()||read.identity.isEmpty())return {{"unknown","disc"},{"error",read.error},{"retry",read.error.contains("budget")||read.error.contains("time")}};
+  return {{"reading",QVariantMap{{"system",read.system},{"identity",read.identity}}}};
 }
-// The games the Hub knows, as a short stamp: a saved reading made against other lists is read again.
-QString listsStamp() {
-  QByteArray all = QByteArray::number(kIndexVersion);
-  for (const auto &list : {model3::games(), model2::games(), ps2::games(), wii::games(), dreamcast::games()})
-    for (const auto &game : list)
-      all += '|' + game.toMap().value("id").toString().toUtf8();
-  all+=scan::DiscIndex::fingerprint().toUtf8();
-  return QString::fromLatin1(QCryptographicHash::hash(all, QCryptographicHash::Sha1).toHex().left(16));
+// What a saved or fresh reading gives against the disc data of this build: the copies it gives (system and copy),
+// the system it is another disc of, or a kind the Hub reads but does not know ("disc" or "archive").
+QVariantMap outcomeOf(const QString &path, const QVariantMap &saved) {
+  const auto reading=saved.value("reading").toMap();
+  if(reading.isEmpty())return saved;
+  const auto readSystem=reading.value("system").toString(),identity=reading.value("identity").toString();
+  const auto row=scan::DiscIndex::match(readSystem,identity);
+  const auto system=readSystem=="gc"?QString("gamecube"):readSystem;
+  if(row.isEmpty())return system.isEmpty()?QVariantMap{{"unknown","disc"}}:QVariantMap{{"other",system}};
+  QVariantMap found{{"file",path},{"identity",identity},{"game",row.value("game")},{"title",row.value("title")},
+                    {"region",row.value("region")},{"verified",true},{"profile",row.value("profile",false)}};
+  if(row.contains("disc"))found["disc"]=row.value("disc");
+  if(readSystem=="ps1"||readSystem=="ps2")found["serial"]=identity;
+  else if(readSystem=="dreamcast")found["product"]=identity;
+  else if(readSystem=="wii"||readSystem=="gc")found["id"]=identity;
+  return QVariantMap{{"copies",QVariantList{QVariantMap{{"system",system},{"copy",found}}}}};
+}
+// The index as it would be saved now: every reading made, and the last reading of each file not yet reached.
+QVariantMap indexOf(const QVariantMap &made, const QVariantMap &before) {
+  auto files = made;
+  for (auto it = before.cbegin(); it != before.cend(); ++it)
+    if (!files.contains(it.key()))
+      files.insert(it.key(), it.value());
+  return QVariantMap{{"stamp", indexStamp()}, {"files", files}};
 }
 } // namespace
 
-QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic_bool &cancel, int depth, QVariantMap *index) {
+QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic_bool &cancel, int depth, QVariantMap *index, const Checkpoint &checkpoint) {
   QElapsedTimer clock;
   clock.start();
   QStringList cleanRoots;
@@ -137,12 +145,14 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
         tracks.insert(QDir::cleanPath(QFileInfo(file).absoluteDir().filePath(name)).toLower());
     }
   }
-  // The last reading of each file, used again while its size and time are unchanged; made against the same
-  // lists of games, or not used at all.
-  const auto stamp = listsStamp();
+  // The last reading of each file, used again while its size and time are unchanged. It is what the disc said, not
+  // what it matched, so a change to the disc data or the lists of games does not read a disc again.
+  const auto stamp = indexStamp();
   const auto before = index && index->value("stamp").toString() == stamp ? index->value("files").toMap() : QVariantMap{};
   QVariantMap after;
-  int done = 0, reused = 0;
+  int done = 0, reused = 0, unsaved = 0;
+  QElapsedTimer sinceSave;
+  sinceSave.start();
   for (const auto &file : files) {
     if (cancel)
       break;
@@ -156,16 +166,24 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
     const auto size = info.size();
     const auto modified = info.lastModified().toMSecsSinceEpoch();
     const auto saved = before.value(path).toMap();
-    QVariantMap outcome;
-    if (!QStringList{"cue","gdi","m3u"}.contains(ext) && !saved.value("outcome").toMap().value("retry").toBool() && !saved.isEmpty() && saved.value("size").toLongLong() == size && saved.value("modified").toLongLong() == modified) {
-      outcome = saved.value("outcome").toMap();
+    const auto unchanged = !saved.isEmpty() && saved.value("size").toLongLong() == size && saved.value("modified").toLongLong() == modified;
+    QVariantMap reading;
+    if (ext == "zip" || ext == "vpx") {
+      // Known by name alone: worked out again, as the lists of games may have changed.
+      reading = classify(path, ext, model3Sets, model2Sets, cancel);
+      if (unchanged)
+        ++reused;
+    } else if (!QStringList{"cue","gdi","m3u"}.contains(ext) && unchanged && !saved.value("outcome").toMap().value("retry").toBool()) {
+      reading = saved.value("outcome").toMap();
       ++reused;
     } else {
-      outcome = classify(path, ext, model3Sets, model2Sets, cancel);
+      reading = classify(path, ext, model3Sets, model2Sets, cancel);
       if (cancel)
         break; // A reading cut short is neither counted nor kept.
+      ++unsaved;
     }
-    after.insert(path, QVariantMap{{"size", size}, {"modified", modified}, {"outcome", outcome}});
+    after.insert(path, QVariantMap{{"size", size}, {"modified", modified}, {"outcome", reading}});
+    const auto outcome = outcomeOf(path, reading);
     if (outcome.value("table").toBool())
       ++tables[QDir::fromNativeSeparators(info.absolutePath())];
     for (const auto &value : outcome.value("copies").toList()) {
@@ -179,14 +197,17 @@ QVariantMap scan(const QStringList &roots, const Progress &progress, std::atomic
       ++unknownDiscs;
     else if (outcome.value("unknown") == "archive")
       ++unknownArchives;
+    // The index is handed over every ten seconds while new readings come in, so a crash or a shut-down part-way
+    // keeps what was read.
+    if (checkpoint && index && unsaved > 0 && sinceSave.elapsed() >= 10000) {
+      checkpoint(indexOf(after, before));
+      unsaved = 0;
+      sinceSave.restart();
+    }
   }
   if (index) {
     // Stopped part-way: the files not reached keep their last reading for next time.
-    if (cancel)
-      for (auto it = before.cbegin(); it != before.cend(); ++it)
-        if (!after.contains(it.key()))
-          after.insert(it.key(), it.value());
-    *index = QVariantMap{{"stamp", stamp}, {"files", after}};
+    *index = cancel ? indexOf(after, before) : QVariantMap{{"stamp", stamp}, {"files", after}};
   }
   QVariantMap systems;
   for (auto it = copies.cbegin(); it != copies.cend(); ++it) {

@@ -35,6 +35,11 @@
       },
       "profile": {
         "type": "boolean"
+      },
+      "disc": {
+        "description": "Disc number of a multi-disc set; a later disc maps to the same game and is never the start copy.",
+        "type": "integer",
+        "minimum": 1
       }
     }
   }
