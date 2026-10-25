@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const loader = new GLTFLoader();
 const files = new Map();     // file -> Promise<gltf>
 // Bump with the ?v= tags in the pages when models/ changes.
-const VER = '20261023r';
+const VER = '20261025a';
 let catalogPromise = null;
 
 export function catalog() {
@@ -26,7 +26,7 @@ function loadFile(file) {
   return files.get(file);
 }
 
-const DARK = '#2c2a33', GLASS = '#1d4a5c';
+const DARK = '#1d1d24', GLASS = '#1d4a5c';
 
 // style: 'solid' (lit PBR, tinted, for the arcade scene), 'runtime' (flat Lambert, the hosts' own
 // lighting from assets/guns/runtime-lighting.json) or 'ghost' (see-through cyan ghost controls)

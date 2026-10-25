@@ -7,6 +7,7 @@ keeping the package layout (runtime/, lib/, pieces/) that runtime/ascii.js expec
 photo-based pieces under the Unsplash License (ocean-sunset, starry-ridge) are never copied.
 """
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -36,6 +37,11 @@ def main():
     for slug in CABINETS + PAGES:
         assert slug not in NEVER, slug
         shutil.copy2(src / 'pieces' / f'{slug}.js', dst / 'pieces' / f'{slug}.js')
+    try:  # record which upstream revision this is (THIRD-PARTY-NOTICES.md points here)
+        rev = subprocess.run(['git', '-C', str(src), 'rev-parse', 'HEAD'], capture_output=True, text=True, check=True).stdout.strip()
+        (dst / 'UPSTREAM.txt').write_text(f'https://github.com/kailashsr38/ascii-magic-art\ncommit {rev}\n', encoding='utf-8')
+    except (OSError, subprocess.CalledProcessError):
+        print('note: not a git checkout, so no ascii/UPSTREAM.txt was written')
     print(f'copied {len(RUNTIME)} runtime files and {len(CABINETS) + len(PAGES)} pieces to {dst.name}/')
 
 
