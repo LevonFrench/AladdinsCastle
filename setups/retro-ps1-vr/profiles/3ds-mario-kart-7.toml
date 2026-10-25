@@ -1,0 +1,40 @@
+# Mario Kart 7 (Nintendo 3DS) through acvr-ps1 with the Azahar libretro core.
+# Catalog id: 3ds-mario-kart-7. Run:
+#   acvr-ps1 --profile profiles\3ds-mario-kart-7.toml --core <azahar_libretro.dll> --game <your decrypted dump> --system <folder> --saves <folder>
+# No game, core, BIOS or path belongs in this file; those come from the launcher or the Hub on the command line.
+# The environment (ACVR_*) and the command line (--option, --controls) override anything below.
+schema       = 1
+name         = "Mario Kart 7"
+system       = "3ds"
+controls     = "pad"
+default_view = "theatre"
+notes        = "The left stick steers. There is no tilt or roll steering for the 3DS: roll steering is an N64 setting and stays off. The game's own gyro option, if the menu offers it, should stay off: the host sends no motion."
+
+# Azahar: only the top (3D) screen, both eyes side by side at full size.
+[core_options]
+citra_layout_option     = "single_screen"
+citra_render_3d         = "side-by-side-full"
+citra_factor_3d         = 40    # the 3D slider, 0 to 100. 40, not 100: the theatre screen spans ~55 degrees against 12 to 17 for a 3DS
+citra_resolution_factor = 3     # 1200x720 frame, two eyes of 600x360 in the middle rows
+
+[settings]
+ACVR_PS1_SBS       = 1
+ACVR_PS1_LETTERBOX = "auto"     # the host reads the black rows off the core's frame (0.25 at 1200x720)
+
+# RetroPad A, B, X, Y, L, R are the 3DS buttons of the same names; the left stick is the Circle Pad.
+# Mario Kart 7: A accelerate, B brake and reverse, R hop and drift, L item, X look behind.
+# Right trigger accelerates, the left grip brakes, the right grip hops and holds the drift, the left trigger and right A are the item
+# (two places, so either hand can throw it), right B looks behind. lclick = start: the left menu button belongs to the SteamVR dashboard under ALVR.
+# The map holds both grips, so the both-grips recentre gesture turns itself off.
+[pad]
+map = { rtrig = "a", lgrip = "b", rgrip = "r", ltrig = "l", ra = "l", rb = "x", lclick = "start" }
+
+[views.theatre]
+label    = "Theatre screen"
+evidence = "E2 offline: both eyes seen in a hidden run (Mario Kart 7 boots and draws depth); the pad map and the controls from the game's manual are not yet checked in a headset"
+
+[views.swap-eyes]
+label = "Eyes swapped (diagnostic)"
+notes = "If far scenery comes towards you instead of receding."
+[views.swap-eyes.settings]
+ACVR_PS1_SWAP_EYES = 1

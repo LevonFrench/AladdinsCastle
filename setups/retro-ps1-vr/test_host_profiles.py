@@ -158,8 +158,30 @@ class Profiles(unittest.TestCase):
         self.assertIn("ACVR_PAD_MAP=rtrig=a,ra=y,rgrip=x,lgrip=b,ltrig=l,rb=r,rleft=l,rright=r,lclick=start", read(os.path.join(HERE, "README.md")))
 
     def test_catalog_entry_routes_to_theatre(self):
-        data = tomllib.loads(read(os.path.join(ROOT, "games", "3ds-star-fox-64-3d", "game.toml")))
-        self.assertEqual(data["routes"]["vr"]["best"], "theatre")
+        for game in ("3ds-star-fox-64-3d", "3ds-mario-kart-7"):
+            data = tomllib.loads(read(os.path.join(ROOT, "games", game, "game.toml")))
+            self.assertEqual(data["routes"]["vr"]["best"], "theatre", game)
+
+    def test_mario_kart_7_steers_with_the_stick(self):
+        data = tomllib.loads(read(os.path.join(PROFILES, "3ds-mario-kart-7.toml")))
+        self.assertEqual(data["system"], "3ds")
+        self.assertEqual(data["controls"], "pad", "pad mode: the left stick is the Circle Pad; wheel mode is the roll-steering one")
+        self.assertEqual(data["core_options"]["citra_factor_3d"], 40)
+        pad = data["pad"]["map"]
+        # A accelerate (right trigger), B brake (left grip), R hop and drift (right grip), L item, X look behind, Start on the left stick click.
+        self.assertEqual(pad, {"rtrig": "a", "lgrip": "b", "rgrip": "r", "ltrig": "l", "ra": "l", "rb": "x", "lclick": "start"})
+        # Roll steering is opt-in only: no profile turns it on, and the 3DS never asks for it.
+        for layer in [data] + list(data.get("views", {}).values()):
+            for name in ("ACVR_N64_ROLL_STEER", "ACVR_PAD_ROLL_STEER", "ACVR_PAD_WHEEL_DEG"):
+                self.assertNotIn(name, layer.get("settings", {}))
+            self.assertNotIn("wheel_deg", layer.get("pad", {}))
+        self.assertIn("ACVR_PAD_MAP=" + ",".join("%s=%s" % kv for kv in pad.items()), read(os.path.join(HERE, "README.md")))
+
+    def test_every_3ds_profile_is_a_hub_game(self):
+        # The Hub lists the games it starts through acvr-ps1 in hub/src/core/libretro/Libretro.cpp, by catalog id.
+        listed = set(re.findall(r'^\s*\{"(3ds-[a-z0-9-]+)","', read(os.path.join(ROOT, "hub", "src", "core", "libretro", "Libretro.cpp")), re.M))
+        profiles = {f[:-5] for f in profile_files() if f.startswith("3ds-")}
+        self.assertEqual(listed, profiles)
 
 
 if __name__ == "__main__":

@@ -751,6 +751,25 @@ private slots:
     QVERIFY(row("ps1-point-blank-2")["problem"].toString().contains("Point Blank 2.chd"));
     QVERIFY(row("ps1-time-crisis")["problem"].toString().contains("no entry")); // Not in this launcher at all.
  }
+ // The 3DS game that runs straight through acvr-ps1 and its profile shows once its settings name the program, the core
+ // and the dumps folder, and says what is missing until then. The paths are synthetic and nothing is started.
+ void threeDsGameComesFromSettings(){
+    QTemporaryDir t;const auto id=QString("3ds-star-fox-64-3d");
+    ac::GameListModel games(syntheticCatalog(t.path()));ac::FilterSortModel filter;filter.setSourceModel(&games);
+    ac::UiSettings settings(t.filePath("user"));
+    const auto row=[&](ac::UiController &ui){for(const auto &value:ui.otherGames())if(value.toMap()["id"]==id)return value.toMap();return QVariantMap{};};
+    {ac::UiController ui(&games,&filter,&settings);QVERIFY(row(ui).isEmpty());} // Nothing set: not offered.
+    ac::install::atomicWrite(t.filePath("bin/acvr-ps1.exe"),"synthetic");ac::install::atomicWrite(t.filePath("cores/azahar_libretro.dll"),"synthetic");
+    ac::install::atomicWrite(t.filePath("profiles/"+id+".toml"),"schema = 1");
+    settings.set("libretroHost",t.filePath("bin/acvr-ps1.exe"));settings.set("threedsCore",t.filePath("cores/azahar_libretro.dll"));
+    settings.set("libretroProfiles",t.filePath("profiles"));settings.set("threedsGameFolder",t.filePath("dumps"));
+    {ac::UiController ui(&games,&filter,&settings);const auto found=row(ui);
+     QVERIFY(!found.isEmpty());QCOMPARE(found["system"].toString(),QString("3ds"));QVERIFY(!found["found"].toBool());QVERIFY(found["problem"].toString().contains("3DS folder"));}
+    ac::install::atomicWrite(t.filePath("dumps/Star Fox 64 3D.3ds"),"synthetic");
+    ac::UiController ui(&games,&filter,&settings);const auto found=row(ui);
+    QVERIFY2(found["found"].toBool(),qPrintable(found["problem"].toString()));QVERIFY(found["file"].toString().endsWith("Star Fox 64 3D.3ds"));
+    QCOMPARE(found["views"].toList().size(),2);QCOMPARE(found["view"].toString(),QString("theatre"));
+ }
  // A Set-up report saved by an older Hub, or from other folders, is shown at start and read again in the
  // background; a report made from what is there now is not. The table scan Set-up saves keeps its fingerprint,
  // so the Pinball tab does not scan again for nothing.

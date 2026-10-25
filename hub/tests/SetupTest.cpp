@@ -7,6 +7,7 @@
 #include "core/ps1/Ps1.h"
 #include "core/n64/N64.h"
 #include "core/saturn/Saturn.h"
+#include "core/libretro/Libretro.h"
 #include "core/scripted/Scripted.h"
 #include "core/system22/System22.h"
 #include "core/install/Install.h"
@@ -380,6 +381,32 @@ private slots:
     const auto result=ac::setup::scanSystem("saturn",{{"saturnLauncher",launcher}},{},{},cancel);
     QVERIFY(!entry(result,"ready","virtua-cop-2").isEmpty());
     QCOMPARE(entry(result,"missing","hakaider")["expected"].toString(),QString("Mechanical Violator Hakaider: Last Judgement (an entry in your Saturn launcher)"));
+  }
+  // 3DS: the program, the core and the profile folder are Hub settings that Set-up fills; each dump is found by its title.
+  void threeDsGamesNeedTheirProgramCoreProfilesAndDumps() {
+    QVariantMap system;for(const auto &value:ac::setup::systems())if(value.toMap()["id"]=="3ds")system=value.toMap();
+    QCOMPARE(system["kind"].toString(),QString("consoles"));QCOMPARE(system["folderKey"].toString(),QString("threedsGameFolder"));QCOMPARE(system["programKey"].toString(),QString("libretroHost"));
+    QTemporaryDir t;std::atomic_bool cancel=false;
+    const auto host=t.filePath("bin/acvr-ps1.exe"),core=t.filePath("cores/azahar_libretro.dll");
+    QVariantMap settings{{"libretroHost",host},{"threedsCore",core},{"libretroProfiles",t.filePath("profiles")},{"threedsGameFolder",t.filePath("dumps")}};
+    const auto scan=[&]{return ac::setup::scanSystem("3ds",settings,{},{},cancel);};
+    // Nothing on disk: each game says what to choose first.
+    QVERIFY(entry(scan(),"notRight","3ds-star-fox-64-3d")["reason"].toString().contains("acvr-ps1 program"));
+    write(host,"synthetic");QVERIFY(entry(scan(),"notRight","3ds-mario-kart-7")["reason"].toString().contains("3DS core"));
+    write(core,"synthetic");QVERIFY(entry(scan(),"notRight","3ds-mario-kart-7")["reason"].toString().contains("profile"));
+    for(const auto &id:{"3ds-star-fox-64-3d","3ds-mario-kart-7"})write(t.filePath(QString("profiles/%1.toml").arg(id)),"schema = 1\n");
+    // The program, core and profiles are right: a game without a dump is "not found", with the name to give it.
+    QVERIFY(entry(scan(),"missing","3ds-star-fox-64-3d")["expected"].toString().contains("named after the game"));
+    write(t.filePath("dumps/Mario Kart 7.3ds"),"synthetic");
+    auto result=scan();
+    QVERIFY(!entry(result,"ready","3ds-mario-kart-7").isEmpty());QVERIFY(entry(result,"ready","3ds-mario-kart-7")["detail"].toString().contains("left stick"));
+    QVERIFY(!entry(result,"missing","3ds-star-fox-64-3d").isEmpty());
+    write(t.filePath("dumps/Star Fox 64 3D.cci"),"synthetic");
+    result=scan();QVERIFY(!entry(result,"ready","3ds-star-fox-64-3d").isEmpty());QVERIFY(result["missing"].toList().isEmpty()&&result["notRight"].toList().isEmpty());
+    // The saved report is read again when any of the four settings changes.
+    const auto json=[](const QVariantMap &stamp){return QJsonDocument::fromVariant(stamp).toJson(QJsonDocument::Compact);};
+    const auto stamp=json(ac::setup::reportStamp(settings,{"3ds"}));
+    for(const auto &key:{"libretroHost","threedsCore","libretroProfiles","threedsGameFolder"}){auto moved=settings;moved[key]=t.filePath("elsewhere");QVERIFY2(json(ac::setup::reportStamp(moved,{"3ds"}))!=stamp,key);}
   }
   void timeCrisisNeedsItsProgramAndTheFilesBesideIt() {
     QTemporaryDir t;std::atomic_bool cancel=false;const auto program=t.filePath("build/game.exe");

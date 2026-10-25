@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "core/library/Library.h"
 #include "core/wii/Wii.h"
+#include "core/libretro/Libretro.h"
 #include "HubServices.h"
 #include "core/install/Support.h"
 #include "core/pinball/Pinball.h"
@@ -273,7 +274,7 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
             startPinball(retainedPinball_,retainedPinballExecutable_,retainedPinballView_);return;
         }
         if(id.startsWith("model3-")){startModel3(id.mid(7),variant);return;}
-        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")||id.startsWith("ps1-")||id.startsWith("n64-")||id.startsWith("saturn-")||id.startsWith("wii-")||id.startsWith("mamegun-")||id.startsWith("gamecube-")){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
+        if(id.startsWith("dreamcast-")||id.startsWith("system22-")||id.startsWith("model2-")||id.startsWith("ps2-")||id.startsWith("ps1-")||id.startsWith("n64-")||id.startsWith("saturn-")||id.startsWith("wii-")||id.startsWith("mamegun-")||id.startsWith("gamecube-")||!libretro::profileName(id).isEmpty()){ui_->chooseGameView(id,variant);ui_->playOtherGame(id);return;}
         try{
             const auto request=launch::gameRequest(games_->catalog(),id,root_,bindings_,variant);
             const auto start=[this,request,id,variant]{
@@ -618,6 +619,26 @@ void HubServices::startOtherGame(const QString &id,const QString &view,const QSt
             environment.insert("ACVR_PS1_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
             for(const auto &value:saturn::games())if(value.toMap().value("id")==game){title=value.toMap().value("title").toString()+" · Theatre screen";hint=value.toMap().value("controls").toString();}
             hint+=" Home = put the screen in front of you again. Exit game here, or hold left Y for 3 seconds, quits and saves.";
+        }else if(!libretro::profileName(id).isEmpty()){
+            // Straight through acvr-ps1 and the game's profile; the program, core and dump come from settings.
+            if(!(vrServerProbe_?vrServerProbe_():launch::processRunning({"vrserver.exe","vrserver"})))
+                throw install::Error("E_STEAMVR_NOT_RUNNING","Start SteamVR first, with the headset connected, then start the game again.");
+            const auto host=settings_->get("libretroHost",QString()).toString();
+            const auto profiles=libretro::profilesFolder(settings_->get("libretroProfiles",QString()).toString(),QCoreApplication::applicationDirPath());
+            // The host's own system and save folders are the Hub's, under user/, made here and kept between launches.
+            const auto data=install::scopedPath("user/libretro/"+id+"/x",root_);const auto dataFolder=QFileInfo(data).absolutePath();
+            for(const auto &sub:{"system","saves"})if(!QDir().mkpath(QDir(dataFolder).filePath(sub)))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
+            const auto plan=libretro::launchPlan(id,host,settings_->get("threedsCore",QString()).toString(),file,dataFolder,profiles,view);
+            request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
+            auto &environment=request.runtimeInputs.environment;
+            for(const auto &name:environment.keys())if(name.startsWith("ACVR_",Qt::CaseInsensitive))environment.remove(name);
+            // The same stop file as PS1: acvr-ps1 saves and quits when it appears.
+            ps1StopFile_=install::scopedPath("user/runtime/libretro-"+id+"-"+QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss-zzz")+".stop",root_);
+            if(!QDir().mkpath(QFileInfo(ps1StopFile_).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's runtime folder");
+            if(QFileInfo::exists(ps1StopFile_)&&!QFile::remove(ps1StopFile_))throw install::Error("E_WRITE_DENIED","An old 3DS stop request could not be cleared");
+            environment.insert("ACVR_PS1_STOP_FILE",QDir::toNativeSeparators(ps1StopFile_));
+            for(const auto &value:libretro::games())if(value.toMap().value("id")==id){title=value.toMap().value("title").toString()+" · "+libretro::viewLabel(view);hint=value.toMap().value("controls").toString();}
+            hint+=" Home = put the screen in front of you again. Exit game here, or hold left Y for 3 seconds, quits and saves.";
         }else if(id=="system22-timecris"){
             const auto plan=system22::launchPlan(settings_->get("system22Executable",QString()).toString(),view);
             request.plan.executable=plan.value("executable").toString();request.plan.cwd=plan.value("cwd").toString();request.plan.args=plan.value("args").toStringList();
@@ -866,7 +887,7 @@ void HubServices::stopRunning(){
     if(!launcher_.busy())return;
     const auto id=ui_->nowPlaying().value("gameId").toString();
     if(id.startsWith("model2-")&&askModel2ToQuit(true))return; // Its own wait: the viewer gives MAME 30 s to save.
-    if(id.startsWith("ps1-")||id.startsWith("n64-")||id.startsWith("saturn-")||id.startsWith("mamegun-")){
+    if(id.startsWith("ps1-")||id.startsWith("n64-")||id.startsWith("saturn-")||id.startsWith("mamegun-")||!libretro::profileName(id).isEmpty()){
         QFile request(ps1StopFile_);
         if(!ps1StopFile_.isEmpty()&&request.open(QIODevice::WriteOnly)&&request.write("stop\n")==5){request.close();ui_->launchClosing();later([this]{if(launcher_.busy())launcher_.endEverything();});return;}
         launcher_.stop();return;
@@ -888,7 +909,7 @@ bool HubServices::askPs2ToQuit(){
 }
 bool HubServices::askPs1ToQuit(){
     const auto playing=ui_->nowPlaying().value("gameId").toString();
-    if(!(playing.startsWith("ps1-")||playing.startsWith("n64-")||playing.startsWith("saturn-")||(playing.startsWith("mamegun-")&&!ps1StopFile_.isEmpty()))||!launcher_.busy())return false;
+    if(!(playing.startsWith("ps1-")||playing.startsWith("n64-")||playing.startsWith("saturn-")||!libretro::profileName(playing).isEmpty()||(playing.startsWith("mamegun-")&&!ps1StopFile_.isEmpty()))||!launcher_.busy())return false;
     QFile request(ps1StopFile_);
     if(ps1StopFile_.isEmpty()||!request.open(QIODevice::WriteOnly)||request.write("stop\n")!=5){ui_->showError("PS1","The stop request could not be written. Hold left Y for 3 seconds in the headset to quit the game.");return true;}
     request.close();ui_->launchClosing();return true;

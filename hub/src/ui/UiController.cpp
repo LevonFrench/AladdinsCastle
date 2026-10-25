@@ -10,6 +10,7 @@
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
 #include "core/ps1/Ps1.h"
+#include "core/libretro/Libretro.h"
 #include "core/n64/N64.h"
 #include "core/saturn/Saturn.h"
 #include "core/scripted/Scripted.h"
@@ -407,6 +408,17 @@ QVariantList UiController::buildOtherGames()const{
   add({{"id","saturn-"+id},{"system","saturn"},{"pill","SATURN"},{"title",game.value("title")},{"year",game.value("year")},{"file",QString()},{"warning",game.value("controls")},
    {"problem",media(saturn::problem(id,saturnLauncher),saturnLauncher,{id})}},
    {QVariantMap{{"id","theatre"},{"label","Theatre screen"},{"help","A big screen in the headset, with your controller as the light gun."}}});
+ }
+ // 3DS: straight through acvr-ps1, the Azahar core and the game's profile; every location is a Hub setting.
+ {
+  const auto host=m_settings->get("libretroHost",QString()).toString(),core=m_settings->get("threedsCore",QString()).toString();
+  const auto dumps=m_settings->get("threedsGameFolder",QString()).toString();
+  if(!host.isEmpty()||!core.isEmpty()||!dumps.isEmpty())for(const auto &value:libretro::games()){
+   const auto game=value.toMap();const auto id=game.value("id").toString();
+   const auto profiles=libretro::profilesFolder(m_settings->get("libretroProfiles",QString()).toString(),QCoreApplication::applicationDirPath());
+   add({{"id",id},{"system","3ds"},{"pill","3DS"},{"title",game.value("title")},{"year",game.value("year")},{"file",libretro::gameFile(id,dumps)},{"warning",game.value("controls")},
+    {"problem",libretro::problem(id,host,core,dumps,profiles)}},libretro::views());
+  }
  }
  // Time Crisis: one native program, checked as it is now.
  const auto program=m_settings->get("system22Executable",QString()).toString();
