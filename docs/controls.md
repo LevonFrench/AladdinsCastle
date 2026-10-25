@@ -133,7 +133,7 @@ What each platform does today against this convention:
 | PS2 (PCSX2) | Left stick click: `setups/pcsx2-vr/unattended-capture.patch` (the VR menu action, not the pad's L3, so L3 and R3 games are unaffected). Not yet seen in the headset | n/a | Select is right stick click, as in the PS1 face layout, because left Y carries the 3 s quit hold. The left menu "spare Start" alias is dead under ALVR |
 | Wii (Dolphin) | Left stick click = Plus (profiles) | Game's own (Remote B or 1) | Minus on a Y tap release; Home on a 0.5 s hold; holding Y no longer sends Minus |
 | GameCube (Dolphin) | Left stick click (not while the stick is tilted) | Right B | |
-| Model 2, Model 3, System 22, Pinball | A = Start (arcade) | n/a | System 22's libacvr pause overlay is still on the left Menu: pending (host) |
+| Model 2, Model 3, System 22, Pinball | A = Start (arcade) | n/a | System 22's pause overlay (`data/controls/system22/controls.toml`) is the left stick click, so pause and resume are one button. Its gun-angle reset moved off that click to the left `menu_chord` (no host sets it yet). The host that sends the click is pending |
 
 ## 3. Pause overlay controls (all setups)
 
