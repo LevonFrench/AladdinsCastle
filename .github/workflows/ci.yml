@@ -16,6 +16,7 @@ env:
 jobs:
   catalog:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -26,17 +27,16 @@ jobs:
       - name: Wii DSU packet, hand isolation and motion checks
         run: python -m unittest discover -s tools/wii-bridge -p "test_*.py" -v
       - name: Isolated Dolphin profile checks
-        if: hashFiles('tools/wii-dolphin-profile/test_profile.py') != ''
         run: python -m unittest discover -s tools/wii-dolphin-profile -p 'test_*.py' -v
       - name: Shared Wii shell and stick profiles
-        if: hashFiles('tools/test_wii_shell_stick.py') != ''
         run: python -m unittest discover -s tools -p test_wii_shell_stick.py -v
       - name: Exported shell and stick model contracts
-        if: hashFiles('tools/test_shell_models.py') != ''
         run: python -m unittest discover -s tools -p test_shell_models.py -v
       - name: Synthetic Wii frame-rate preparation checks
-        if: hashFiles('data/performance/test_phase1.py') != ''
         run: python -m unittest discover -s data/performance -p test_phase1.py -v
+      - name: Wii motion binding checks (fail on a missing section or an empty profile folder)
+        timeout-minutes: 2
+        run: python setups/dolphin-vr/motion-controls/check_bindings.py
       - name: Offline Wii scorecard tooling (synthetic CPU only)
         working-directory: setups/dolphin-vr/scorecard
         timeout-minutes: 2
@@ -76,6 +76,7 @@ jobs:
       matrix:
         os: [windows-2022, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -106,7 +107,7 @@ jobs:
           with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
               stream.write(f'AC_PRODUCT_DIR={folder}\nAC_PRODUCT_ARTIFACT={folder}-Windows-x64\n')
       - name: Synthetic frame-rate lease and quiet-machine refusal checks
-        if: runner.os == 'Windows' && hashFiles('data/performance/test_collector_gates.ps1') != ''
+        if: runner.os == 'Windows'
         shell: pwsh
         run: ./data/performance/test_collector_gates.ps1
       - name: Set up MSVC 2022 x64
@@ -127,13 +128,11 @@ jobs:
       - name: Pin CMake and Ninja
         run: python -m pip install cmake==3.31.10 ninja==1.13.0
       - name: Dolphin facing math (CPU only)
-        if: hashFiles('setups/dolphin-vr/facing/CMakeLists.txt') != ''
         run: |
           cmake -S setups/dolphin-vr/facing -B build-dolphin-facing -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TRY_COMPILE_CONFIGURATION=Release
           cmake --build build-dolphin-facing --target ac-dolphin-facing-test
           ctest --test-dir build-dolphin-facing --output-on-failure
       - name: Dolphin route diagnostics (synthetic CPU only)
-        if: hashFiles('setups/dolphin-vr/route-diagnostic/CMakeLists.txt') != ''
         run: |
           cmake -S setups/dolphin-vr/route-diagnostic -B build-dolphin-route -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TRY_COMPILE_CONFIGURATION=Release
           cmake --build build-dolphin-route --target ac-dolphin-route-trace-test
@@ -144,7 +143,6 @@ jobs:
           cmake -S tools/wii-bridge -B build-wii-bridge -G Ninja -DCMAKE_BUILD_TYPE=Release -DOPENVR_SOURCE=${{ github.workspace }}/build/_deps/openvr-src
           cmake --build build-wii-bridge --parallel 2
       - name: Dolphin theatre build and headless checks
-        if: hashFiles('tools/wii-dolphin-profile/theatre/CMakeLists.txt') != ''
         run: |
           cmake -S tools/wii-dolphin-profile/theatre -B build-wii-theatre -G Ninja -DCMAKE_BUILD_TYPE=Release -DOPENVR_SOURCE=${{ github.workspace }}/build/_deps/openvr-src
           cmake --build build-wii-theatre --parallel 2
@@ -155,21 +153,17 @@ jobs:
           cmake --build build-contract --parallel 2
           ctest --test-dir build-contract --output-on-failure
       - name: System 22 synthetic stereo checks
-        if: hashFiles('setups/namco22-vr/CMakeLists.txt') != ''
         run: |
           cmake -S setups/namco22-vr -B build-stereo -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
           cmake --build build-stereo --parallel 2
           ctest --test-dir build-stereo --output-on-failure
       - name: Gun source and malformed-asset checks
-        if: hashFiles('tools/test_check_gun_assets.py') != ''
         run: |
           python tools/test_check_gun_assets.py
           python tools/test_gun_source_plans.py
       - name: Control-set resolver checks
-        if: hashFiles('tools/test_control_sets.py') != ''
         run: python tools/test_control_sets.py
       - name: Native controls and software view checks
-        if: hashFiles('hub/src/controls/CMakeLists.txt') != ''
         run: |
           cmake -S hub/src/controls -B build-controls -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DAC_CONTROLS_TOML_INCLUDE_DIR=${{ github.workspace }}/build/_deps/tomlplusplus-src/include
           cmake --build build-controls --parallel 2
@@ -181,12 +175,14 @@ jobs:
       - run: cmake --build build --parallel 2
         if: runner.os != 'Windows'
       - run: ctest --test-dir build --output-on-failure
-      - name: Upload Qt test reports
+      - name: Upload Qt test reports and failure artifacts
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: hub-test-reports-${{ matrix.os }}
-          path: build/Testing/*.txt
+          path: |
+            build/Testing/**
+            build-*/Testing/Temporary/LastTest.log
           if-no-files-found: warn
       - name: Portable provenance and opt-in staging (synthetic PowerShell 5.1)
         if: runner.os == 'Windows'

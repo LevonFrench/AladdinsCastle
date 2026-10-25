@@ -285,7 +285,7 @@ int main(int argc,char **argv){
             ac::install::atomicWrite(capture+".exit.json",QByteArray::fromStdString(receipt.dump(2)));
         });
     }
-    if(!capture.isEmpty())QTimer::singleShot(6000,&app,[&engine,&ui,&games,&services,capture]{
+    const auto writeCapture=[&engine,&ui,&games,&services,capture]{
         bool imageSaved=false;
         for(auto *object:engine.rootObjects())if(auto *window=qobject_cast<QQuickWindow*>(object)){
             QDir().mkpath(QFileInfo(capture).absolutePath());imageSaved=window->grabWindow().save(capture);break;
@@ -295,7 +295,20 @@ int main(int argc,char **argv){
         ac::install::atomicWrite(capture+".json",QByteArray::fromStdString(receipt.dump(2)));
         // Picture sheets: quit once the picture is saved, when nothing was started.
         if(qEnvironmentVariableIsSet("AC_UI_CAPTURE_QUIT")&&!services.launchBusy())QTimer::singleShot(0,qApp,[]{QCoreApplication::quit();});
-    });
+    };
+    // Test-only: with AC_UI_CAPTURE_WHEN_PLAYING the picture and receipt are taken at the first running session instead
+    // of at a fixed 6 s, and the Hub exits once that session has ended, so a test is decided by events, not by CPU speed.
+    if(!capture.isEmpty()&&qEnvironmentVariableIsSet("AC_UI_CAPTURE_WHEN_PLAYING")){
+        auto captured=std::make_shared<bool>(false);
+        QObject::connect(&ui,&ac::UiController::nowPlayingChanged,&app,[&app,&ui,captured,writeCapture]{
+            if(*captured||!ui.nowPlaying().value("running").toBool())return;
+            *captured=true;QTimer::singleShot(0,&app,writeCapture);
+        });
+        QObject::connect(services.launcher(),&ac::launch::LaunchService::finished,&app,[&services](const QString &,int,const QString &,const QString &){
+            QTimer::singleShot(0,&services,[&services]{services.requestHubExit();});
+        });
+    }
+    else if(!capture.isEmpty())QTimer::singleShot(6000,&app,writeCapture);
     if(overlayInitialized&&options.showDashboard){
         QString error;if(!overlay.showDashboard(&error)){err<<error<<'\n';overlay.shutdown();return 3;}
         out<<"Own dashboard show requested; compositor presentation requires verification.\n";

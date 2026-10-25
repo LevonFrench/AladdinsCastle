@@ -107,6 +107,12 @@ int main(int argc,char **argv){
             QFile file(arguments);if(!file.open(QIODevice::WriteOnly))return 3;
             file.write(QJsonDocument::fromVariant(child.arguments().mid(1)).toJson(QJsonDocument::Compact));
         }
+        // With AC_SYNTHETIC_PINBALL_RELEASE the table plays until that file appears, however slow the machine is;
+        // the 60 s limit is only an orphan failsafe.
+        if(const auto release=qEnvironmentVariable("AC_SYNTHETIC_PINBALL_RELEASE");!release.isEmpty()){
+            QTimer poll;QObject::connect(&poll,&QTimer::timeout,&child,[&]{if(QFileInfo::exists(release))child.quit();});poll.start(50);
+            QTimer::singleShot(60000,&child,&QCoreApplication::quit);return child.exec();
+        }
         const auto duration=qEnvironmentVariableIntValue("AC_SYNTHETIC_PINBALL_CHILD_MS");
         QTimer::singleShot(duration>0?duration:600,&child,&QCoreApplication::quit);return child.exec();
     }
