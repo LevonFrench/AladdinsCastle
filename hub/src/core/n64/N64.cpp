@@ -46,12 +46,12 @@ QString controls(const Game &game){
  switch(game.play){
  case Play::Wheel:text="The left stick steers; the right trigger accelerates, the left trigger brakes; the grips are R and Z.";break;
  case Play::Aim:text="Hold the right grip and point: the game's own crosshair follows your right controller. The right trigger fires; the left stick walks (and strafes while you aim).";break;
- case Play::StarFox:text="Point your right controller where the targeting box should go and the Arwing flies it there. The right trigger fires, right A or B drops a bomb, the left trigger boosts, left X brakes, the grips bank.";break;
+ case Play::StarFox:text="Point your right controller where the targeting box should go and the Arwing flies it there. The right trigger fires (hold to charge a lock-on shot), right A drops a bomb, the right grip boosts, the left grip brakes, the left trigger banks left and right B banks right (twice for a barrel roll).";break;
  case Play::Turok:text="Point where you want to look: the view turns toward it, and the crosshair (the middle of the picture) comes onto what you point at. The right trigger fires; the left stick walks and strafes; the right grip jumps.";break;
  case Play::Pad:text="The N64 pad on your controllers: the left stick moves, the right stick is the C buttons, right A and B are A and B, the right trigger is Z, the right grip is R.";break;
  }
  if(*game.note)text+=" "+QString::fromUtf8(game.note);
- text+=" Left menu is Start; hold left Y for 3 seconds to quit and save.";
+ text+=" Left stick click is Start (pause); hold left Y for 3 seconds to quit and save.";
  if(game.hudPanel)text+=" The game's HUD floats on its own steady panel.";
  return text;
 }

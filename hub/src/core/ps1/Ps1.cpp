@@ -45,7 +45,7 @@ QString controls(const Game &game){
  static const QStringList faceButtons{"extreme-ghostbusters","project-horned-owl","horned-owl-japan"};
  if(faceButtons.contains(id))
   return QString("Your right controller is the %1: trigger fires, point off the screen to reload; its own two buttons are on the grips. "
-                 "Pad: right A Cross, right B Circle, left X Square, left Y Triangle, left stick click Select, right stick click Start. "
+                 "Pad: right A Cross, right B Circle (cancel), left X Square, left Y Triangle, left stick click Start, right stick click Select. "
                  "On a big theatre screen.").arg(QString::fromLatin1(game.gun));
  QString text=QString("Your right controller is the %1: trigger fires, point off the screen to reload, A and B are its buttons").arg(QString::fromLatin1(game.gun));
  text+=QString::fromLatin1(game.gun)=="GunCon"?QString("; the grip is the pedal (hold it to step out and shoot where a game has cover)."):QString(".");

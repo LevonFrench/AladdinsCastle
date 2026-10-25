@@ -17,8 +17,11 @@ Home hold threshold; the parser's latest preceding state can be stale.
 
 The current 19 default-profile observations reached their bounded endpoints:
 18 logged no FIFO errors; Excitebike logged 19 and remains failed. Actual report
-transitions confirm Plus, Minus and Home, including a side effect: holding Y first
-sends Minus, then Home. The configured hold uses 0.5 wall seconds; probe timestamps
+transitions confirm Plus, Minus and Home, including a side effect of the Minus
+expression used at that time: holding Y first sent Minus, then Home (fixed since:
+Minus now fires on release of a short tap, see the mapping table; the fix is checked
+against Dolphin's expression source only, no report transition has been captured
+with it). The configured hold uses 0.5 wall seconds; probe timestamps
 use emulated time. Stick and motion report changes do not establish physical dead
 zones, natural gesture strength or successful game actions. Twelve pointer-game
 observations still lack a validated numeric accuracy result; some stop at menus,
@@ -75,7 +78,7 @@ Menu button is used by these corrected replays.
 | 2 | right stick click |
 | D-pad | right stick directions |
 | + | left stick click (not while left Y is held) |
-| − | tap left Y (Minus is active for the first half second of a press, so holding Y for Home sends a brief Minus first) |
+| − | tap left Y: a 0.12 s Minus pulse when Y is released after under 0.5 s (so Minus lands on release, and holding Y for Home sends no Minus at all; `pulse(!Y)` is Dolphin's release edge, gated by a second `pulse` that is high for 0.3 s after a hold ends) |
 | Home | hold left Y for 0.5 s (a tap of left Y is −) |
 | Nunchuk stick | left stick |
 | Nunchuk C | left X |
