@@ -15,4 +15,4 @@ features  = ["laser"]
 default = "black"
 p1      = "black"
 p2      = "black"
-black = { body = "#26262a", accent = "#b03a2e" }
+black = { body = "#3c3d44", accent = "#b03a2e" }

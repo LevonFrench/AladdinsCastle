@@ -16,4 +16,4 @@ default = "orange"
 p1      = "orange"
 p2      = "blue"
 orange = { body = "#f2811d", accent = "#2b62d0" }
-blue = { body = "#2b62d0", accent = "#f2811d" }
+blue = { body = "#3d7fe6", accent = "#f2811d" }

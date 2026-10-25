@@ -19,8 +19,8 @@ notes = "Drawn in the right hand by the DolphinXR build for Wii motion games (ba
 default = "white"
 p1 = "white"
 p2 = "black"
-white = { body = "#eef0f3", accent = "#d9dde2" }
-black = { body = "#26272b", accent = "#3a3c41" }
+white = { body = "#eef0f3", accent = "#b8bec6" }
+black = { body = "#3c3d44", accent = "#8f9298" }
 
 [[button]]
 id = "dpad"

@@ -15,9 +15,9 @@ features  = ["auto_fire", "recoil_kick", "laser"]
 default = "black"
 p1      = "red"
 p2      = "blue"
-black = { body = "#26262a", accent = "#7d8087" }
-red = { body = "#c93a2e", accent = "#1c1c20" }
-blue = { body = "#2f66cc", accent = "#1c1c20" }
+black = { body = "#3c3d44", accent = "#8f9298" }
+red = { body = "#e8483c", accent = "#46484f" }
+blue = { body = "#3d7fe6", accent = "#46484f" }
 
 [[button]]
 id    = "selector"

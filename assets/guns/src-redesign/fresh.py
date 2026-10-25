@@ -16,8 +16,8 @@ def setup(lod, detail):
 
 def materials():
     # v2 (studio fix 2): the repo convention, assets/guns/src/common.py MATERIAL_RGBA,
-    # roughness .58 (.32 glass) and no metal, as common.blender_run() writes them.
-    values={'body':((.55,.55,.55,1),0,.58),'accent':((.32,.32,.34,1),0,.58),
+    # body/accent base factor 1.0 (the tint is the colour), roughness .58 (.32 glass) and no metal, as common.blender_run() writes them.
+    values={'body':((1,1,1,1),0,.58),'accent':((1,1,1,1),0,.58),
             'dark':((.012,.012,.018,1),0,.58),'glass':((.025,.10,.16,1),0,.32)}
     for name,(color,metal,rough) in values.items():
         m=bpy.data.materials.get(name) or bpy.data.materials.new(name)

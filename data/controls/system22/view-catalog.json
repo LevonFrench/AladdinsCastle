@@ -519,20 +519,20 @@
           "p1": "red",
           "p2": "blue",
           "red": {
-            "body": "#d2362e",
-            "accent": "#50535a"
+            "body": "#e8483c",
+            "accent": "#46484f"
           },
           "blue": {
-            "body": "#2f6fd6",
-            "accent": "#50535a"
+            "body": "#3d7fe6",
+            "accent": "#46484f"
           },
           "pink": {
             "body": "#e86aa6",
-            "accent": "#50535a"
+            "accent": "#46484f"
           },
           "orange": {
-            "body": "#f07a1a",
-            "accent": "#50535a"
+            "body": "#f58a2a",
+            "accent": "#46484f"
           }
         },
         "motion": {

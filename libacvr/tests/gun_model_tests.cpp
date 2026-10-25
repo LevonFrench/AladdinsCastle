@@ -183,6 +183,20 @@ void authored_hand_contract() {
     acvr::HandAssembly assembly;std::string error;
     check(acvr::decode_hand_assembly(data,"synthetic",assembly,error));
     check(assembly.hands[0].node=="grip"&&assembly.labels.size()==1&&assembly.labels[0].semantic=="grip_two");
+    bool listed=false;
+    check(acvr::hand_assembly_lists_model(data,"synthetic",listed,error)&&listed);
+    check(acvr::hand_assembly_lists_model(data,"unlisted-gun",listed,error)&&!listed);
+    check(!acvr::hand_assembly_lists_model("{not json","synthetic",listed,error));
+    check(!acvr::hand_assembly_lists_model(R"({"schema":"hand-assembly/1"})","synthetic",listed,error));
+    acvr::HandTint tint;
+    const std::string glove="[tints]\ndefault='glove'\nglove={body='#ffffff',accent='#808080'}\n";
+    check(acvr::decode_hand_tint(glove,tint,error));
+    check(tint.body[0]==1&&tint.body[1]==1&&tint.body[2]==1&&tint.body[3]==1);
+    // sRGB 0x80 is linear 0.2158, not 0.502: the glove colour is decoded, not copied.
+    check(std::abs(tint.accent[0]-.21586f)<.0001f&&std::abs(tint.accent[2]-.21586f)<.0001f&&tint.accent[3]==1);
+    check(!acvr::decode_hand_tint("[tints]\ndefault='missing'\n",tint,error));
+    check(!acvr::decode_hand_tint("[tints]\ndefault='glove'\nglove={body='ffffff',accent='#808080'}\n",tint,error));
+    check(!acvr::decode_hand_tint("version='x'\n",tint,error));
     auto bad=nlohmann::json::parse(data);bad["models"]["synthetic"]["hands"]["right"]["asset"]="../escape.glb";
     check(!acvr::decode_hand_assembly(bad.dump(),"synthetic",assembly,error));
     check(assembly.hands[0].asset=="assets/hands/grip-hand-right.glb");
@@ -300,6 +314,8 @@ void authored_hand_source(const std::filesystem::path &root,const std::string &m
                                         &hand==&assembly.hands[0]?"right":"left",motions,error));
         check(!acvr::decode_hand_motions(read(meta),asset,"wrong-hand", "right",motions,error));
         check(motions.size()==5);
+        acvr::HandTint glove;
+        check(acvr::decode_hand_tint(read(meta),glove,error));
         check(acvr::validate_hand_pose_nodes(hand,asset,error));
         if(!hand.finger_pose.empty()){
             auto typo=hand;typo.finger_pose.front().node="missing_pivot";

@@ -16,4 +16,4 @@ default = "black"
 p1      = "black"
 p2      = "blue"
 black = { body = "#232327", accent = "#6f737a" }
-blue = { body = "#2b62d0", accent = "#1c1c20" }
+blue = { body = "#3d7fe6", accent = "#46484f" }

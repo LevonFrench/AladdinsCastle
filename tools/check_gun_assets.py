@@ -154,6 +154,17 @@ def ray_hits_triangles(origin, triangles, max_distance=None):
     return False
 
 
+def check_colour_contract(path):
+    """The body and accent base factors of a shipped GLB are 1.0: the TOML tint is the colour.
+
+    Kept apart from check_asset so synthetic fixtures may use any factor."""
+    doc,_=read_glb(path)
+    for material in doc.get('materials',[]):
+        if material.get('name') in ('body','accent'):
+            factor=material.get('pbrMetallicRoughness',{}).get('baseColorFactor',[1,1,1,1])
+            demand(list(factor[:3])==[1,1,1],material['name']+' baseColorFactor must be 1.0 (colour contract; assets/guns/set_base_factors.py)')
+
+
 def check_functional_sights(front, rear, mesh_triangles):
     """Test exported surfaces, not accessor min/max or a claimed notch flag."""
     demand(rear[2]>front[2] and abs(front[0]-rear[0])<1e-6 and abs(front[1]-rear[1])<1e-6,
@@ -401,9 +412,9 @@ def main():
     parser.add_argument('--model',action='append')
     args = parser.parse_args()
     sys.path.insert(0,str(ROOT/'assets/guns/src'))
-    from common import BUILT_MODELS, plan
+    from common import HAND_ASSEMBLY_MODELS, plan
     errors = []
-    for mid in args.model or BUILT_MODELS:
+    for mid in args.model or HAND_ASSEMBLY_MODELS:
         try:
             with (ROOT/'data/guns'/(mid+'.toml')).open('rb') as stream:
                 meta = tomllib.load(stream)
@@ -419,6 +430,7 @@ def main():
                 print(f'{mid}: source plan only, {len(spec["parts"])} primitives; assets NOT verified')
             else:
                 result = check_asset(ROOT/meta['model'],meta)
+                check_colour_contract(ROOT/meta['model'])
                 check_previews(ROOT/'assets/guns/preview',mid,meta)
                 print(mid+': '+json.dumps(result,sort_keys=True))
         except (OSError,ValueError,KeyError,IndexError,TypeError,struct.error) as exc:

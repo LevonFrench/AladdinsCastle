@@ -42,6 +42,17 @@ Matrix rotation(const std::array<float,4> &q){
         0,0,0,1};
 }
 }
+bool hand_assembly_lists_model(std::string_view json,std::string_view model_id,
+                               bool &listed,std::string &error) noexcept {
+    try {
+        require(!json.empty()&&json.size()<=1024*1024&&model_id.size()<=64,"hand assembly size out of bounds");
+        const auto data=Json::parse(json.begin(),json.end(),
+            [](int depth,Json::parse_event_t,Json &){require(depth<=64,"hand JSON nesting too deep");return true;});
+        require(data.is_object()&&data.contains("models")&&data.at("models").is_object(),"hand assembly has no models");
+        listed=data.at("models").contains(std::string(model_id));error.clear();return true;
+    }catch(const std::exception &e){try{error=e.what();}catch(...){}return false;}
+    catch(...){try{error="hand assembly decode failed";}catch(...){}return false;}
+}
 bool decode_hand_assembly(std::string_view json,std::string_view model_id,HandAssembly &out,std::string &error) noexcept {
     try {
         require(!json.empty()&&json.size()<=1024*1024&&model_id.size()<=64,"hand assembly size out of bounds");
@@ -149,6 +160,37 @@ bool decode_hand_motions(std::string_view text,const GunAsset &asset,
         out=std::move(decoded);error.clear();return true;
     }catch(const std::exception &e){try{error=e.what();}catch(...){}return false;}
     catch(...){try{error="hand motion decode failed";}catch(...){}return false;}
+}
+namespace {
+// sRGB hex "#rrggbb" to linear RGBA (alpha 1), by the standard sRGB transfer function.
+std::array<float,4> linear_hex(const std::string &hex){
+    require(hex.size()==7&&hex[0]=='#',"invalid hand tint colour");
+    const auto digit=[](char c){
+        if(c>='0'&&c<='9')return c-'0';
+        if(c>='a'&&c<='f')return c-'a'+10;
+        if(c>='A'&&c<='F')return c-'A'+10;
+        throw std::runtime_error("invalid hand tint colour");
+    };
+    std::array<float,4> out{0,0,0,1};
+    for(unsigned i=0;i<3;++i){
+        const double s=(digit(hex[1+2*i])*16+digit(hex[2+2*i]))/255.0;
+        out[i]=float(s<=.04045?s/12.92:std::pow((s+.055)/1.055,2.4));
+    }
+    return out;
+}
+}
+bool decode_hand_tint(std::string_view text,HandTint &out,std::string &error) noexcept {
+    try {
+        require(!text.empty()&&text.size()<=1024*1024,"hand metadata size out of bounds");
+        const auto doc=toml::parse(text);
+        const auto name=doc["tints"]["default"].value_or(std::string{});
+        require(!name.empty()&&name.size()<=64,"hand metadata has no default tint");
+        HandTint decoded;
+        decoded.body=linear_hex(doc["tints"][name]["body"].value_or(std::string{}));
+        decoded.accent=linear_hex(doc["tints"][name]["accent"].value_or(std::string{}));
+        out=decoded;error.clear();return true;
+    }catch(const std::exception &e){try{error=e.what();}catch(...){}return false;}
+    catch(...){try{error="hand tint decode failed";}catch(...){}return false;}
 }
 bool validate_hand_pose_nodes(const HandMount &mount,const GunAsset &asset,
                               std::string &error) noexcept {

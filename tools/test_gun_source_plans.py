@@ -245,8 +245,10 @@ class SourcePlanTests(unittest.TestCase):
 
     def test_preview_multiplies_exported_linear_factors_for_all_palettes(self):
         # Exported values stay stable; native GL multiplies these factors rather
-        # than replacing them. Black/white/low-sRGB cases exercise both branches.
-        self.assertEqual(MATERIAL_RGBA,{'body':(.55,.55,.55,1),'accent':(.32,.32,.34,1),
+        # than replacing them. The colour contract sets the body/accent factor
+        # to 1.0, so the tint is the colour. Black/white/low-sRGB cases exercise
+        # both branches.
+        self.assertEqual(MATERIAL_RGBA,{'body':(1,1,1,1),'accent':(1,1,1,1),
                                         'dark':(.012,.012,.018,1),'glass':(.025,.10,.16,1)})
         palettes=[{'body':'#000000','accent':'#ffffff'}, {'body':'#0a0bff','accent':'#ff0b0a'}]
         for mid in BUILT_MODELS:

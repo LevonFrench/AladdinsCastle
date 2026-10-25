@@ -284,8 +284,8 @@
             "node": "grip",
             "translation": [
               0,
-              -0.0291,
-              -0.0142
+              -0.0375,
+              0.0151
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -311,8 +311,8 @@
             "node": "grip",
             "translation": [
               0,
-              -0.0291,
-              -0.0142
+              -0.0375,
+              0.0151
             ],
             "rotation_xyzw": [
               0.13052619222005157,
@@ -1024,6 +1024,13 @@
       "image": "con-remote-shell-left-docked-grip.png"
     }
   ],
+  "stale_images": {
+    "cases": [
+      "generic-pistol-right-primary",
+      "generic-pistol-left-primary"
+    ],
+    "reason": "Hand pose was regenerated for the R13 generic-pistol GLB; these images still show the previous pose. Re-render with assets/hands/review_grips.py --only <case> (Blender)."
+  },
   "lighting": {
     "id": "gun_lighting_r2",
     "normal_space": "camera-view",

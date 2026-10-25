@@ -102,8 +102,8 @@ conventions above, so hosts load them unchanged.
   `mnt-mg-heavy`; hosts do not read them (hands attach by node name: `grip`, `grip_two`).
 - The previews in `preview/` for these nine still show the old designs; the review renders and measurements are
   in the owner's private review folder.
-- `generic-pistol` (#011, owner-rated) is unchanged; the redesign's R13 replaced only archived variants and is
-  not wired in. R10-R12 were deferred at that stage and are integrated above.
+- `generic-pistol` (#011, owner-rated) was left unchanged at that stage and R13 was not wired in (R13 was wired in
+  on 2026-10-25, see the last section). R10-R12 were deferred at that stage and are integrated above.
 - Seven `data/guns/*.toml` files (six redesigned guns with tints, plus `generic-pistol`, whose shape is unchanged)
   had their dark accent tint lifted to `#50535a`; the old `#1c1c20` / `#2a2a2e` read as holes under the runtime
   lighting. `con-pistol-dpad` and `con-revolver-chunky` also had button press axes corrected.
@@ -126,7 +126,7 @@ Use `--samples 64` (default and required for this art pass).
 `build.py --model <id>` selects a subset.
 No application installation, downloads, GPU renderer, editor/MCP, or game files
 are involved. The builder exports the neutral model before multiplying its
-linear body/accent base factors by the p1 palette tint for previews, matching
+linear body/accent base factors (1.0 since the 2026-10-25 colour contract) by the p1 palette tint for previews, matching
 native rendering. Fixed dark/glass RGBA stays unchanged. Failures produce a
 nonzero process exit code.
 
@@ -229,3 +229,19 @@ in its model script, metadata/motion in `data/guns/`, and include the id in the 
 Rebuild, run both tools, inspect the previews and report budgets/bounds. Structural
 reproducibility means the same nodes, bounds and budgets, not byte equality.
 Shape-source review flags remain until manuals/photos provide evidence.
+
+## 2026-10-25 fixes: R13, colour contract, hand mounts
+
+- `generic-pistol` (the fallback gun) is now the R13 redesign from the 2026-10-21 v2 build
+  (3,596 / 1,096 triangles, 216 mm; builder `src-redesign/generic.py`). Its preview PNGs in
+  `preview/` still show the old shape and need a Blender re-render.
+- **Colour contract:** body and accent `baseColorFactor` are 1.0 in every gun and hand GLB; the
+  TOML tint is the colour. `set_base_factors.py` edits only the GLB JSON chunk (binary chunk
+  byte-exact, re-padded, lengths fixed); `src/common.py` and `src-redesign/fresh.py` write 1.0 in
+  future builds. Tints in `data/guns/*.toml` and the glove in `assets/hands/grip-hand-*.toml` follow the
+  2026-10-25 palette table (red `#e8483c`, blue `#3d7fe6`, orange `#f58a2a`, dark accent `#46484f`,
+  black body `#3c3d44` with accent `#8f9298`, pointer-remote white accent `#b8bec6`). The existing
+  CPU previews were rendered with the old 0.55/0.32 factors and are stale until re-rendered.
+- `arc-light-gun`, `funcon` and `con-pointer-remote` have hand mounts in `assets/hands/assembly.json`
+  (`tools/hand_assembly.py` reads them from the GLB). Controllers without a `muzzle`
+  (`con-pointer-remote`, `con-stick-grip`) are DolphinXR-only; see docs/guns.md.
