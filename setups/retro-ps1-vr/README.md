@@ -682,7 +682,7 @@ and Kid Icarus: Uprising, Azahar 2127.0-alpha3):
   pointer (`citra_analog_function`); the host uses neither. The pointer
   position is a share of the whole frame, -32767..32767 from its top left;
   the core finds the bottom screen in its own layout (it is assumed to be the
-  left copy: **not yet checked that a tap on it registers**, see below).
+  left copy, as the round-2 runs below show).
 
 So the host cuts two rectangles out of the one frame, given as shares of its
 width and height, `x, y, w, h` from the top left, in the profile:
@@ -692,7 +692,7 @@ width and height, `x, y, w, h` from the top left, in the profile:
 | `ACVR_PS1_3DS_TOUCH` | 1: the touch panel. Needs a pad profile (`controls = "pad"`), the next two settings, and `ACVR_PS1_SBS=1` when the core draws two eyes |
 | `ACVR_PS1_3DS_TOP` | the top screen, both eyes: `[0, 0.25, 1, 0.25]` at `default` and `side-by-side-full` |
 | `ACVR_PS1_3DS_BOTTOM` | the bottom screen, once (the left copy): `[0.05, 0.5, 0.4, 0.25]`; also where the stylus is sent |
-| `ACVR_PS1_3DS_POINTER` | where the core takes the bottom screen to be when it reads the stylus, default the bottom rectangle. An override for the stylus's position. The default is right for the crop, but taps do not land where aimed (see below); the mono layout's rectangle `[0.1, 0.5, 0.8, 0.5]` did not fix it |
+| `ACVR_PS1_3DS_POINTER` | where the core takes the bottom screen to be when it reads the stylus; default the bottom rectangle, which is right (the left copy). An override only: the mono layout's `[0.1, 0.5, 0.8, 0.5]` misses |
 | `ACVR_PS1_3DS_STYLUS` | the VR control that puts the stylus down, default `rtrig` |
 | `ACVR_PS1_3DS_PANEL` | panel width, distance ahead, height against your eyes, metres: `0.8, 1, -0.55` (it tilts to face you) |
 
@@ -725,17 +725,11 @@ Roll steering does not apply. R, the D-pad, X and Y are not mapped (their uses w
 not checked). Not checked in a headset: the panel's size and position, whether the
 stylus lands where the ray points, aiming comfort, the map above.
 
-Round 2 (hidden offline runs, corrected rectangles): the host's own `before-panel.png` is exactly the 480x360 bottom screen; a synthetic tap changed the game in all three runs (Mario Kart 7 left copy and right copy: Grand Prix menu to the 50cc page, which does not happen without a tap; Kid Icarus: first dialog to the next one), so the core takes the stylus from `RETRO_DEVICE_POINTER`. The tap aimed at "Time Trials" (panel 0.5, 0.35) opened Grand Prix instead, and the right copy did the same, so the core does not use the copy's own rectangle. The mono layout's rectangle `[0.1, 0.5, 0.8, 0.5]` (a tap at its 0.175 down is on Grand Prix) fits both, but round 3 tried it and it did **not** land: with `ACVR_PS1_3DS_POINTER=0.1,0.5,0.8,0.5` a tap aimed at Time Trials (0.5, 0.35) and one at Coin Runners (0.5, 0.73) both opened Grand Prix again. Five taps in all, at frame y 0.59, 0.68 and 0.87 and x 0.25, 0.5 and 0.75, all opened Grand Prix, so where the core puts the stylus is still unknown (it may clamp to the top button, or any tap may confirm the highlighted item). The stylus reaches the game and changes it; its position is not confirmed.
+Round 2 (hidden offline runs, corrected rectangles): the host's own `before-panel.png` is exactly the 480x360 bottom screen, and a synthetic tap changes the game, so the core takes the stylus from `RETRO_DEVICE_POINTER`.
 
-Round 4 (owner's sweep, five hidden runs, default rectangles): with the highlight moved to Coin Runners by the D-pad, taps at panel heights 0.10 (Grand Prix's spot), 0.35 (Time Trials), 0.73 (Coin Runners) and at a blank spot (0.85, 0.90) all opened **Coin Runners**, the highlighted item; with Grand Prix highlighted, a tap on Balloon Battle's spot (0.53) opened Grand Prix. So a tap **confirms the highlighted item wherever it lands**: the clamp-to-top reading is refuted, and no tap position has yet changed the outcome. Whether the position matters at all is open; the next test is taps at the frame's corners and edges.
+What looked like a wrong stylus position in the first rounds was the host pressing A as well: Mario Kart 7's map has `rtrig = a` and the stylus control is `rtrig`, so every tap also confirmed the highlighted menu item, wherever it landed (taps aimed at Time Trials, Coin Runners and a blank spot all opened the highlighted item). The host now keeps the stylus control from pressing its mapped button while the ray is on the panel. With `rtrig` taken out of the map (offline, Grand Prix highlighted, panel rectangle as the default): taps aimed at Time Trials (0.5, 0.35), Balloon Battle (0.5, 0.53) and Coin Runners (0.5, 0.73) each opened a mode page and not Grand Prix's 50cc page, a tap on a blank spot (0.85, 0.90) did nothing, and with `ACVR_PS1_3DS_POINTER=[0.1, 0.5, 0.8, 0.5]` the same Time Trials and Coin Runners taps (frame x 0.5, the seam between the copies) did nothing. So position matters and the left copy's rectangle is the one the core uses (E2, offline). Not told apart: which mode opened (the three character-select pages look alike).
 
-Earlier evidence (E2, hidden offline run): the layout facts above; the core
-polls the pointer every frame and reads the stylus pressed on the frames the
-script held it (10 pressed reads for a 10-frame tap, at the frame position the
-mapping gives); the rectangles checked on a raw frame. **Not shown:** a tap on
-the right spot changing something in the game. The run that was meant to show it
-used rectangles that were not yet right (the probe's measurements had not been fed
-back into it), so its taps landed on the seam between the two eyes.
+Earlier evidence (E2, hidden offline run): the layout facts above; the core polls the pointer every frame and reads the stylus pressed on the frames the script held it (10 pressed reads for a 10-frame tap, at the frame position the mapping gives); the rectangles checked on a raw frame.
 
 ### Eye order (offline measurement, 2026-10-25)
 
