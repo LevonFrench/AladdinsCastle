@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cerrno>
 #include <chrono>
 #include <cmath>
@@ -23,6 +24,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <vector>
 
 using BindFbo=void (APIENTRY *)(GLenum,GLuint);
 struct acvr_frame {uint64_t id=0;};
@@ -152,6 +154,45 @@ bool angle_value(const char *text,float &out){
     errno=0;char *end=nullptr;const float value=std::strtof(text,&end);
     if(errno==ERANGE||end==text||*end||!std::isfinite(value)||std::abs(value)>180)return false;
     out=value;return true;
+}
+// A gun's default tint from its metadata TOML, as the linear RGB of "#rrggbb" (libacvr's sRGB transfer).
+// `out` keeps its value when the file, the tint or the colour is missing or malformed.
+void tint_colour(const std::filesystem::path &metadata,const std::string &role,float (&out)[4]){
+    std::ifstream in(metadata);
+    std::string line,name,entry;bool tints=false;
+    const auto quoted=[](const std::string &text,size_t from,std::string &value){
+        const auto open=text.find('"',from);
+        const auto close=open==std::string::npos?open:text.find('"',open+1);
+        if(close==std::string::npos)return false;
+        value=text.substr(open+1,close-open-1);return true;
+    };
+    const auto named=[](const std::string &text,const std::string &key){
+        return text.compare(0,key.size(),key)==0&&text.find_first_not_of(" \t",key.size())!=std::string::npos&&
+               text[text.find_first_not_of(" \t",key.size())]=='=';
+    };
+    std::vector<std::string> rows;
+    while(std::getline(in,line)){
+        const auto first=line.find_first_not_of(" \t\r");
+        if(first==std::string::npos||line[first]=='#')continue;
+        if(line[first]=='['){tints=line.compare(first,7,"[tints]")==0;continue;}
+        if(tints)rows.push_back(line.substr(first));
+    }
+    for(const auto &row:rows)if(named(row,"default")&&quoted(row,7,name))break;
+    if(name.empty())return;
+    for(const auto &row:rows)if(named(row,name)){entry=row;break;}
+    for(size_t at=entry.find(role);at!=std::string::npos;at=entry.find(role,at+1)){
+        if(at>0&&(std::isalnum(static_cast<unsigned char>(entry[at-1]))||entry[at-1]=='_'))continue;
+        const auto rest=entry.find_first_not_of(" \t",at+role.size());
+        if(rest==std::string::npos||entry[rest]!='=')continue;
+        std::string hex;
+        if(!quoted(entry,rest,hex)||hex.size()!=7||hex[0]!='#'||
+           hex.find_first_not_of("0123456789abcdefABCDEF",1)!=std::string::npos)return;
+        for(unsigned i=0;i<3;++i){
+            const double s=std::stoi(hex.substr(1+2*i,2),nullptr,16)/255.0;
+            out[i]=static_cast<float>(s<=.04045?s/12.92:std::pow((s+.055)/1.055,2.4));
+        }
+        return;
+    }
 }
 bool no_reparse_components(std::filesystem::path path){
     for(;;){
@@ -335,6 +376,7 @@ int main(int argc,char **argv){
     const auto angle=use_persisted?room::grip_quaternion(persisted):
                       room::yaw_angle(o.hand==ACVR_HAND_RIGHT?o.right:o.left);
     for(unsigned i=0;i<4;++i){slot.angle_xyzw[i]=angle[i];slot.body_rgba[i]=i==3?1.f:.8f;slot.accent_rgba[i]=i==3?1.f:.35f;}
+    tint_colour(metadata,"body",slot.body_rgba);tint_colour(metadata,"accent",slot.accent_rgba); // the TOML tints are the colour
     auto config=record<acvr_runtime_config>();config.graphics_api=ACVR_GRAPHICS_GL;
     config.anchor_mode=ACVR_ANCHOR_RAIL;config.fallback_aim_distance_m=5;
     config.max_catchup_ticks=4;config.game_id_utf8=o.app_name.c_str();

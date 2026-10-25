@@ -159,6 +159,60 @@ jobs:
           cmake -S libacvr -B build-contract -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DACVR_JSON_INCLUDE_DIR=${{ github.workspace }}/build/_deps/nlohmann_json-src/include -DACVR_TOML_INCLUDE_DIR=${{ github.workspace }}/build/_deps/tomlplusplus-src/include -DACVR_BUILD_GL_GUN_RENDERER=ON
           cmake --build build-contract --parallel 2
           ctest --test-dir build-contract --output-on-failure
+      - name: Fetch pinned OpenXR headers (headers only, SHA-256 checked)
+        if: runner.os == 'Windows'
+        shell: python
+        timeout-minutes: 5
+        run: |
+          # Version and per-file hashes come from the repo's own pin; the tag is derived from it.
+          import hashlib, json, pathlib, time, urllib.request
+          pin = json.loads(pathlib.Path('setups/mame-model2-vr/upstream-pin.json').read_text(encoding='utf-8'))['openxr_headers']
+          tag = 'release-' + pin['version']
+          target = pathlib.Path('build-openxr/include/openxr')
+          target.mkdir(parents=True, exist_ok=True)
+          for name, expected in sorted(pin['sha256'].items()):
+              url = f'https://raw.githubusercontent.com/KhronosGroup/OpenXR-SDK/{tag}/include/openxr/{name}'
+              for attempt in range(3):
+                  try:
+                      with urllib.request.urlopen(url, timeout=60) as response:
+                          data = response.read()
+                      break
+                  except OSError:
+                      if attempt == 2:
+                          raise
+                      time.sleep(5)
+              # The pin hashed openxr_platform_defines.h with CRLF line endings; upstream ships LF. Accept either form of the same text.
+              digest = hashlib.sha256(data).hexdigest()
+              if expected not in (digest, hashlib.sha256(data.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n')).hexdigest()):
+                  raise SystemExit(f'{name} from {tag} has SHA-256 {digest}, expected {expected}')
+              (target / name).write_bytes(data)
+          print(f'Fetched {len(pin["sha256"])} OpenXR {pin["version"]} headers into {target}')
+      - name: Compile acvr-ps1 libretro VR host (MinGW g++, no VR initialization)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          # build-host.ps1 takes the toolchain root; use the image's existing MinGW, never install one.
+          $root = @("$env:SystemDrive\msys64", "$env:SystemDrive\") | Where-Object { Test-Path (Join-Path $_ 'mingw64\bin\g++.exe') } | Select-Object -First 1
+          if (-not $root) { throw 'Existing MinGW g++ required on the runner for the acvr-ps1 host build.' }
+          & (Join-Path $root 'mingw64\bin\g++.exe') --version
+          $out = Join-Path $env:RUNNER_TEMP 'acvr-ps1'
+          try {
+            ./setups/retro-ps1-vr/build-host.ps1 -OpenXRInclude "$env:GITHUB_WORKSPACE/build-openxr/include" -OutputDirectory $out -MsysRoot $root
+          } finally {
+            foreach ($log in 'host-build.log', 'host-build-errors.log') {
+              $path = Join-Path $out $log
+              if (Test-Path $path) { Write-Host "--- $log"; Get-Content -LiteralPath $path }
+            }
+          }
+          if (-not (Test-Path (Join-Path $out 'acvr-ps1.exe'))) { throw 'acvr-ps1.exe was not produced' }
+      - name: Gun room build and CPU-only checks (no XR, graphics or window)
+        if: runner.os == 'Windows'
+        timeout-minutes: 30
+        run: |
+          cmake -S tools/gun-room -B build-gun-room -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DACVR_JSON_INCLUDE_DIR=${{ github.workspace }}/build/_deps/nlohmann_json-src/include -DACVR_TOML_INCLUDE_DIR=${{ github.workspace }}/build/_deps/tomlplusplus-src/include -DACVR_OPENXR_INCLUDE_DIR=${{ github.workspace }}/build-openxr/include
+          cmake --build build-gun-room --parallel 2
+          ctest --test-dir build-gun-room --output-on-failure --timeout 60
       - name: System 22 synthetic stereo checks
         run: |
           cmake -S setups/namco22-vr -B build-stereo -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
