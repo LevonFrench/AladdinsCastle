@@ -9,6 +9,47 @@ roms/
 *.iso
 *.bin
 *.cue
+*.mdf
+*.nrg
+*.cdi
+*.gdi
+*.ciso
+*.cso
+*.pbp
+*.rvz
+*.wbfs
+*.gcm
+*.gcz
+*.wia
+*.wad
+*.nkit.iso
+*.3ds
+*.cia
+*.cci
+*.cxi
+*.nsp
+*.xci
+*.z64
+*.n64
+*.v64
+*.gba
+*.nds
+*.sfc
+*.smc
+
+# Never commit saves, save states, memory cards, keys or credentials
+*.sav
+*.state
+*.srm
+*.mcr
+*.mcd
+*.vmu
+*.keys
+*.pem
+*.p12
+.env
+# Synthetic test certificates are public fixtures
+!hub/tests/fixtures/**/*.pem
 
 # Build output
 build/
@@ -20,6 +61,8 @@ obj/
 
 # Local machine / agent files
 AGENCY.md
+AGENCY-HISTORY.md
+DECISIONS.md
 .claude/
 .vs/
 .vscode/
@@ -27,6 +70,8 @@ AGENCY.md
 
 # Local machine reports (never commit)
 .local/
+# Output files named by a mangled path (a script wrote the path into the file name)
+/projectsgames*
 
 # Runtime data (user art, installs) never published
 /user/

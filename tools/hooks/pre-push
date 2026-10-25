@@ -1,0 +1,6 @@
+#!/bin/sh
+# Git pre-push hook for AladdinsCastle. Install steps: docs/agents/pre-push.md
+# Refuses main and libacvr-contract, then runs the public privacy check of the
+# checkout being pushed from.
+here=$(cd "$(dirname "$0")" && pwd) || exit 1
+exec python "$here/../pre_push.py" "$@"
