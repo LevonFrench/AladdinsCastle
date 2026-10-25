@@ -1,0 +1,44 @@
+# Kid Icarus: Uprising (Nintendo 3DS) through acvr-ps1 with the Azahar libretro core, with the bottom screen as a touch panel.
+# Not a Hub game yet (no catalog entry, no Hub row): start it from the command line. Run:
+#   acvr-ps1 --profile profiles\3ds-kid-icarus-uprising.toml --core <azahar_libretro.dll> --game <your decrypted dump> --system <folder> --saves <folder>
+# No game, core, BIOS or path belongs in this file; those come from the launcher on the command line.
+# The environment (ACVR_*) and the command line (--option, --controls) override anything below.
+schema       = 1
+name         = "Kid Icarus: Uprising"
+system       = "3ds"
+controls     = "pad"
+default_view = "theatre"
+notes        = "The game is aimed with the stylus on the bottom screen: the right controller's ray on the touch panel below the screen is the stylus, down while the right trigger is held. The left trigger fires (L). Not checked in a headset. The game may offer gyro aiming: answer no, the host sends no motion."
+
+# Azahar with both screens in one frame: the top screen as a side-by-side stereo pair, the bottom screen under it.
+# The host cuts the two rectangles out (ACVR_PS1_3DS_TOP and _BOTTOM) and sends the stylus over the whole frame.
+[core_options]
+citra_layout_option               = "default"
+citra_render_3d                   = "side-by-side-full"
+citra_factor_3d                   = 40    # the 3D slider, 0 to 100. 40, not 100: the theatre screen spans ~55 degrees against 12 to 17 for a 3DS
+citra_resolution_factor           = 3
+citra_enable_touch_touchscreen    = "enabled"   # the core reads RETRO_DEVICE_POINTER: the stylus
+citra_analog_function             = "c_stick"   # the right stick is only the C-Stick, it does not also move a drawn touch pointer
+
+[settings]
+ACVR_PS1_SBS        = 1
+ACVR_PS1_3DS_TOUCH  = 1
+ACVR_PS1_3DS_TOP    = [0, 0.25, 1, 0.25]      # the top screen's rectangle of the 1200x1440 frame (both eyes): x, y, w, h as shares of the frame
+ACVR_PS1_3DS_BOTTOM = [0.05, 0.5, 0.4, 0.25]  # the bottom screen (the left eye's copy of it), and where the stylus is sent
+ACVR_PS1_3DS_STYLUS = "rtrig"                 # the stylus is down while this control is held and the ray is on the panel
+
+# RetroPad A, B, X, Y, L, R are the 3DS buttons of the same names; the left stick is the Circle Pad.
+# Left trigger = L (fire), right A and B = A and B (menus and dialogs), lclick = start (the left menu button belongs to the SteamVR dashboard under ALVR).
+# The right trigger is the stylus, so it is not in the map. The grips are free, so the both-grips recentre gesture stays on.
+[pad]
+map = { ltrig = "l", ra = "a", rb = "b", lclick = "start" }
+
+[views.theatre]
+label    = "Theatre screen"
+evidence = "E2 offline: the bottom screen cut from the frame and a synthetic stylus read by the core (hidden runs); never in a headset"
+
+[views.swap-eyes]
+label = "Eyes swapped (diagnostic)"
+notes = "If far scenery comes towards you instead of receding."
+[views.swap-eyes.settings]
+ACVR_PS1_SWAP_EYES = 1

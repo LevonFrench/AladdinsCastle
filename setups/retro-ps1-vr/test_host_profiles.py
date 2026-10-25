@@ -59,6 +59,10 @@ def patch_names():
     return names
 
 
+# Profiles that are not Hub games yet (no catalog entry, no Hub row): started from the command line.
+NOT_HUB_YET = {"3ds-kid-icarus-uprising.toml"}
+
+
 def profile_files():
     return sorted(f for f in os.listdir(PROFILES) if f.endswith(".toml"))
 
@@ -143,6 +147,8 @@ class Profiles(unittest.TestCase):
 
     def test_each_profile_has_a_catalog_entry(self):
         for f in profile_files():
+            if f in NOT_HUB_YET:
+                continue
             game = f[:-5]
             self.assertTrue(os.path.isfile(os.path.join(ROOT, "games", game, "game.toml")), f + " names a catalog id that does not exist")
 
@@ -180,8 +186,41 @@ class Profiles(unittest.TestCase):
     def test_every_3ds_profile_is_a_hub_game(self):
         # The Hub lists the games it starts through acvr-ps1 in hub/src/core/libretro/Libretro.cpp, by catalog id.
         listed = set(re.findall(r'^\s*\{"(3ds-[a-z0-9-]+)","', read(os.path.join(ROOT, "hub", "src", "core", "libretro", "Libretro.cpp")), re.M))
-        profiles = {f[:-5] for f in profile_files() if f.startswith("3ds-")}
+        profiles = {f[:-5] for f in profile_files() if f.startswith("3ds-") and f not in NOT_HUB_YET}
         self.assertEqual(listed, profiles)
+        for f in NOT_HUB_YET:
+            self.assertNotIn(f[:-5], listed, f + " is a Hub game now: take it out of NOT_HUB_YET and give it a catalog entry")
+
+    def test_kid_icarus_uses_the_touch_panel(self):
+        data = tomllib.loads(read(os.path.join(PROFILES, "3ds-kid-icarus-uprising.toml")))
+        self.assertEqual(data["system"], "3ds")
+        self.assertEqual(data["controls"], "pad")
+        s = data["settings"]
+        self.assertEqual(s["ACVR_PS1_3DS_TOUCH"], 1)
+        self.assertEqual(s["ACVR_PS1_SBS"], 1)
+        # Both screens in one frame: the layout that has the bottom screen, with the top screen as a side-by-side pair.
+        self.assertNotEqual(data["core_options"]["citra_layout_option"], "single_screen")
+        self.assertEqual(data["core_options"]["citra_render_3d"], "side-by-side-full")
+        for key in ("ACVR_PS1_3DS_TOP", "ACVR_PS1_3DS_BOTTOM"):
+            x, y, w, h = s[key]
+            self.assertTrue(0 <= x and 0 <= y and w > 0 and h > 0 and x + w <= 1.0001 and y + h <= 1.0001, key)
+        pad = data["pad"]["map"]
+        # The right trigger is the stylus, so it is not also a button; start is on the left stick click; roll steering is off.
+        self.assertEqual(s["ACVR_PS1_3DS_STYLUS"], "rtrig")
+        self.assertNotIn("rtrig", pad)
+        self.assertEqual(pad["lclick"], "start")
+        for layer in [data] + list(data.get("views", {}).values()):
+            for name in ("ACVR_N64_ROLL_STEER", "ACVR_PAD_ROLL_STEER", "ACVR_PAD_WHEEL_DEG"):
+                self.assertNotIn(name, layer.get("settings", {}))
+
+    def test_touch_settings_are_for_the_3ds_only(self):
+        rows = registry()
+        for name in ("ACVR_PS1_3DS_TOUCH", "ACVR_PS1_3DS_TOP", "ACVR_PS1_3DS_BOTTOM", "ACVR_PS1_3DS_STYLUS", "ACVR_PS1_3DS_PANEL"):
+            self.assertEqual(rows[name]["systems"], SYSTEM_BITS["k3ds"], name)
+        # The stylus controls the host accepts are the ones the pad map knows (PadControls.h), so a typo is caught here too.
+        pad_h = read(os.path.join(HOST, "PadControls.h"))
+        known = re.search(r"known\[\] = \{([^}]*)\}", pad_h).group(1)
+        self.assertIn('"rtrig"', known)
 
 
 if __name__ == "__main__":

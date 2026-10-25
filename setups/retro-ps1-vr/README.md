@@ -651,6 +651,87 @@ shows each eye cropped to fill the curved screen, rendered offline from a boot
 logo and a training frame; the live headset path is not covered. Not yet seen
 in a headset.
 
+### Bottom screen as a touch panel (Kid Icarus: Uprising)
+
+Many 3DS games need the touch screen: Kid Icarus: Uprising is aimed with the
+stylus, and menus are tapped. With `ACVR_PS1_3DS_TOUCH=1` the top screen stays the
+stereo theatre screen and the bottom screen is a second, smaller flat panel in
+front of it and below, tilted to face you (like holding the 3DS). The right
+controller's ray on the panel is the stylus: it is down while the right trigger
+is held (`ACVR_PS1_3DS_STYLUS`, any VR control name of the pad map). A little
+past the panel's edge counts as the edge, so a jittery hand does not lift the
+stylus.
+
+How it works, from the core's own behaviour (hidden offline runs, Mario Kart 7
+and Kid Icarus: Uprising, Azahar 2127.0-alpha3):
+
+- `citra_layout_option` is `default` (top over bottom), `single_screen`,
+  `large_screen` or `side_by_side`; `citra_swap_screen` is `Top` or `Bottom`.
+  With `citra_render_3d = side-by-side-full` and 3x, **`default` gives a
+  1200x1440 frame in which each half is one eye's whole layout**: the top screen
+  at 600x360 (x 0..600 and 600..1200, rows 360..720, so the same size per eye
+  as the single-screen path) and **the bottom screen under it at 480x360, drawn
+  twice** (x 60..540 and 660..1140, rows 720..1080), black elsewhere. The other
+  layouts are worse for a panel: `large_screen` 1920x960 makes the bottom screen
+  160x120 per eye, `side_by_side` 2160x720 puts it at 480x360 beside the top
+  screen in each half, `single_screen` with `citra_swap_screen = Bottom` is the
+  bottom screen alone (960x720, two copies) and loses the top screen.
+- The core reads `RETRO_DEVICE_POINTER` every frame (`citra_enable_touch_touchscreen`,
+  on by default) and takes a pressed pointer as the stylus. Its input
+  descriptors also offer R3 as "Touch Screen Touch" and the right stick as a
+  pointer (`citra_analog_function`); the host uses neither. The pointer
+  position is a share of the whole frame, -32767..32767 from its top left;
+  the core finds the bottom screen in its own layout (it is assumed to be the
+  left copy: **not yet checked that a tap on it registers**, see below).
+
+So the host cuts two rectangles out of the one frame, given as shares of its
+width and height, `x, y, w, h` from the top left, in the profile:
+
+| Setting | What |
+|---|---|
+| `ACVR_PS1_3DS_TOUCH` | 1: the touch panel. Needs a pad profile (`controls = "pad"`), the next two settings, and `ACVR_PS1_SBS=1` when the core draws two eyes |
+| `ACVR_PS1_3DS_TOP` | the top screen, both eyes: `[0, 0.25, 1, 0.25]` at `default` and `side-by-side-full` |
+| `ACVR_PS1_3DS_BOTTOM` | the bottom screen, once (the left copy): `[0.05, 0.5, 0.4, 0.25]`; also where the stylus is sent |
+| `ACVR_PS1_3DS_STYLUS` | the VR control that puts the stylus down, default `rtrig` |
+| `ACVR_PS1_3DS_PANEL` | panel width, distance ahead, height against your eyes, metres: `0.8, 1, -0.55` (it tilts to face you) |
+
+The screen's and the panel's aspect ratios come from those rectangles and the
+core's frame size, so a different `citra_resolution_factor` needs no change.
+Offline: the script line `touch <u> <v> [frames]` holds the stylus over the
+panel (0..1 from its top left; `touch off` lifts it); with the setting on, each
+snapshot also saves `<name>-top.png` and `<name>-panel.png` (a cross marks the
+stylus: yellow over the panel, magenta down) and the log says how often the
+core read the pointer. `--theatre-proof <prefix> --test-touch U V` renders both
+eyes with the right hand aimed at the panel.
+
+Profile `profiles/3ds-kid-icarus-uprising.toml` (not a Hub game yet: no catalog
+entry, no Hub row). From the game's manual as remembered, not checked against a
+copy of it:
+
+```
+ACVR_PAD_MAP=ltrig=l,ra=a,rb=b,lclick=start
+```
+
+| VR control | 3DS | Kid Icarus: Uprising |
+|---|---|---|
+| left stick | Circle Pad | move Pit (flick it to dash on the ground) |
+| right controller's ray on the panel, right trigger held | stylus | aim the reticle; tap menus |
+| left trigger | L | shoot (hold to keep firing) |
+| right A, right B | A, B | menus and dialogs |
+| left stick click | Start | pause (the left menu button is dead under ALVR) |
+
+Roll steering does not apply. R, the D-pad, X and Y are not mapped (their uses were
+not checked). Not checked in a headset: the panel's size and position, whether the
+stylus lands where the ray points, aiming comfort, the map above.
+
+Evidence so far (E2, hidden offline run): the layout facts above; the core
+polls the pointer every frame and reads the stylus pressed on the frames the
+script held it (10 pressed reads for a 10-frame tap, at the frame position the
+mapping gives); the rectangles checked on a raw frame. **Not shown:** a tap on
+the right spot changing something in the game. The run that was meant to show it
+used rectangles that were not yet right (the probe's measurements had not been fed
+back into it), so its taps landed on the seam between the two eyes.
+
 ### Eye order (offline measurement, 2026-10-25)
 
 Evidence level: E2 (hidden offline runs; not seen in a headset). Tool:

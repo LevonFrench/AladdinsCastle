@@ -7,6 +7,7 @@
 #include "Png.h"
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
+#include <algorithm>
 #include <atomic>
 #include <cstdarg>
 #include <cstdio>
@@ -65,7 +66,7 @@ std::mutex s_inputMutex;
 Input s_input; ULONGLONG s_inputTime = 0;
 std::atomic<unsigned> s_pulses{ 0 };
 // The picture's shape, kept apart from s_config because the emulator thread can change it when the core sends new geometry.
-std::atomic<float> s_aspect{ 4.f / 3.f }, s_letterbox{ 0.f };
+std::atomic<float> s_aspect{ 4.f / 3.f }, s_letterbox{ 0.f }, s_touchAspect{ 4.f / 3.f };
 std::atomic<bool> s_stop{ false }, s_started{ false }, s_runtimeExit{ false }, s_gone{ false };
 std::atomic<int> s_state{ 0 };   // the session's XrSessionState
 std::thread s_thread;
@@ -245,6 +246,35 @@ ScreenGeometry HudPanel(const ScreenGeometry &screen, const Config &c)
   return h;
 }
 
+// The 3DS touch panel: flat, in the screen's frame, `touchDistance` ahead and `touchLift` above the eyes (below, negative),
+// tilted about its horizontal axis to face the viewer. Its frame is its own centre, so its geometry has no distance or lift.
+ScreenGeometry TouchPanel(const ScreenGeometry &screen, const Config &c, float aspect)
+{
+  ScreenGeometry p; p.curve = 0; p.distance = 0; p.lift = 0; p.width = c.touchWidth;
+  p.height = c.touchWidth / (aspect > .1f ? aspect : 4.f / 3.f);
+  p.frame = screen.frame * Mat4::Translation(0, c.touchLift, -c.touchDistance) * Mat4::Rotation(1, 0, 0, std::atan2(c.touchLift, c.touchDistance));
+  return p;
+}
+// Where a ray meets the panel, with a margin round it: a stylus that slips a little past the edge stays on the edge.
+bool TouchHit(const ScreenGeometry &panel, const float o[3], const float d[3], float &u, float &v)
+{
+  const float margin = .06f;
+  ScreenGeometry wide = panel; wide.width *= 1 + 2 * margin; wide.height *= 1 + 2 * margin;
+  float wu = 0, wv = 0;
+  if (!wide.hit(o, d, wu, wv)) return false;
+  u = std::clamp((wu - .5f) * (1 + 2 * margin) + .5f, 0.f, 1.f);
+  v = std::clamp((wv - .5f) * (1 + 2 * margin) + .5f, 0.f, 1.f);
+  return true;
+}
+// The part of the picture one eye sees: the top screen's rectangle when the touch panel is on (its left or right half when
+// the core draws both eyes side by side), else the whole picture less the letterbox rows.
+void EyeRange(const Config &c, bool rightEye, float letterbox, float &u0, float &uw, float &v0, float &vh)
+{
+  const float x = c.touch ? c.touchTop[0] : 0.f, w = c.touch ? c.touchTop[2] : 1.f;
+  uw = c.sideBySide ? w / 2 : w; u0 = x + (c.sideBySide && rightEye ? uw : 0.f);
+  v0 = c.touch ? c.touchTop[1] : letterbox; vh = c.touch ? c.touchTop[3] : 1 - 2 * letterbox;
+}
+
 void ThreadBody()
 {
   if (Host_GL_MakeCurrent(s_xrWindow, s_xrWindow->context) != 0) { Log("cannot use the XR OpenGL context"); return; }
@@ -323,6 +353,7 @@ void ThreadBody()
           const float o[3] = { aimWorld.m[12], aimWorld.m[13], aimWorld.m[14] }, d[3] = { -aimWorld.m[8], -aimWorld.m[9], -aimWorld.m[10] };
           in.offScreen = !screen.hit(o, d, in.u, in.v);
           if (s_config.hud) { float hu = -9, hv = -9; HudPanel(screen, s_config).hit(o, d, hu, hv); in.hudHit = hu > -8; if (in.hudHit) { in.hudU = hu; in.hudV = hv; } }
+          if (s_config.touch) in.touchHit = TouchHit(TouchPanel(screen, s_config, s_touchAspect), o, d, in.touchU, in.touchV);
         }
       }
     }
@@ -359,14 +390,17 @@ void ThreadBody()
         const float aspect = s_aspect, letterbox = s_letterbox;
         screen.height = screen.width / aspect;   // follows a change of the core's frame shape after the screen was placed
         EyeScene scene; scene.screen = screen; scene.crt = s_config.crt;
-        if (s_config.sideBySide) scene.uw = .5f;
-        scene.v0 = letterbox; scene.vh = 1 - 2 * letterbox;
         scene.frame = s_config.frame; scene.fadeU = s_config.edgeFade; scene.fadeV = s_config.edgeFade * aspect;
+        if (s_config.touch) {
+          scene.touch = true; scene.touchPanel = TouchPanel(screen, s_config, s_touchAspect);
+          scene.touchU0 = s_config.touchBottom[0]; scene.touchUw = s_config.touchBottom[2]; scene.touchV0 = s_config.touchBottom[1]; scene.touchVh = s_config.touchBottom[3];
+          scene.touchDot = in.touchHit; scene.touchDotU = in.touchU; scene.touchDotV = in.touchV;
+        }
         {
           std::lock_guard<std::mutex> lock(s_slotMutex); s_inUse = s_front; if (s_front >= 0) { scene.picture = s_slots[s_front].tex; scene.pictureW = s_slots[s_front].w; scene.pictureH = s_slots[s_front].h; }
           s_hudInUse = s_hudFront; if (s_config.hud && s_hudFront >= 0) { scene.hud = s_hudSlots[s_hudFront].tex; scene.hudOverWhite = s_hudWhiteSlots[s_hudFront].tex; scene.hudPanel = HudPanel(screen, s_config); scene.hudOpacity = s_config.hudOpacity; scene.hudKeyBlack = s_config.hudKeyBlack; }
         }
-        scene.showDot = s_config.aimDot && in.active && !in.offScreen; scene.dotU = in.u; scene.dotV = in.v;
+        scene.showDot = s_config.aimDot && in.active && !in.offScreen && !in.touchHit; scene.dotU = in.u; scene.dotV = in.v;
         if (haveGun && s_gun.loaded()) {
           const float since = (GetTickCount64() - kickAt) / 1000.f;
           scene.showGun = true; scene.trigger = triggerValue;
@@ -395,7 +429,7 @@ void ThreadBody()
           if (s_srgb) glEnable(GL_FRAMEBUFFER_SRGB); else glDisable(GL_FRAMEBUFFER_SRGB);
           const auto &f = views[e].fov;
           const Mat4 proj = Mat4::Projection(std::tan(f.angleLeft), std::tan(f.angleRight), std::tan(f.angleDown), std::tan(f.angleUp));
-          scene.u0 = s_config.sideBySide && ((e != 0) != s_config.swapEyes) ? .5f : 0.f;
+          EyeRange(s_config, (e != 0) != s_config.swapEyes, letterbox, scene.u0, scene.uw, scene.v0, scene.vh);
           renderer.draw(scene, proj, PoseMatrix(views[e].pose).RigidInverse(), eye.w, eye.h, !s_srgb);
           glDisable(GL_FRAMEBUFFER_SRGB);
           glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -451,6 +485,7 @@ bool Start(Host_Window *owner, const Config &config)
   s_log = std::fopen("acvr-theatre.log", "w");
   s_config = config; s_owner = owner; s_ownerContext = wglGetCurrentContext();
   s_aspect = config.aspect; s_letterbox = config.letterbox;
+  if (config.touch) s_touchAspect = config.touchPanelAspect;
   if (!tgl::Load()) { Log("OpenGL 3.3 entry points unavailable"); return false; }
   LoadGun(config);
   Host_GL_SetAttribute(Host_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
@@ -529,7 +564,7 @@ Input ReadInput()
 }
 
 void QueuePulse() { if (s_started && !s_stop) ++s_pulses; }
-void SetFrameShape(float aspect, float letterbox) { if (aspect > .1f) s_aspect = aspect; s_letterbox = letterbox; }
+void SetFrameShape(float aspect, float letterbox, float touchAspect) { if (aspect > .1f) s_aspect = aspect; s_letterbox = letterbox; if (touchAspect > .1f) s_touchAspect = touchAspect; }
 bool RuntimeExit() { return s_runtimeExit.load(); }
 bool Focused() { return s_state.load() == XR_SESSION_STATE_FOCUSED; }
 bool PresenterGone() { return s_gone.load(); }
@@ -570,8 +605,14 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     Renderer renderer; renderer.init(s_gun.loaded() ? &s_gun : nullptr);
     ScreenGeometry screen; screen.distance = config.distance; screen.width = config.width; screen.height = config.width / config.aspect;
     screen.curve = config.curve; screen.lift = config.lift;
-    // Head at the origin looking down -Z; right hand low and forward, aimed at (aimU, aimV).
-    const auto target = screen.local(aimU, aimV);
+    // Head at the origin looking down -Z; right hand low and forward, aimed at (aimU, aimV) on the screen, or on the 3DS panel.
+    const ScreenGeometry panel = TouchPanel(screen, config, config.touchPanelAspect);
+    const bool atPanel = config.touch && config.proofAtPanel;
+    auto panelToWorld = [&](const std::array<float, 3> &q) {   // a point of the panel's own frame, in the head's
+      const float *m = panel.frame.m.data();
+      return std::array<float, 3>{ m[0] * q[0] + m[4] * q[1] + m[8] * q[2] + m[12], m[1] * q[0] + m[5] * q[1] + m[9] * q[2] + m[13], m[2] * q[0] + m[6] * q[1] + m[10] * q[2] + m[14] };
+    };
+    const auto target = atPanel ? panelToWorld(panel.local(aimU, aimV)) : screen.local(aimU, aimV);
     const float hand[3] = { .16f, -.28f, -.32f };
     float dir[3] = { target[0] - hand[0], target[1] - hand[1], target[2] - hand[2] };
     const float len = std::sqrt(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]); for (float &x : dir) x /= len;
@@ -580,14 +621,18 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     const float up[3] = { back[1] * right[2] - back[2] * right[1], back[2] * right[0] - back[0] * right[2], back[0] * right[1] - back[1] * right[0] };
     Mat4 aim = Mat4::Identity();
     for (int i = 0; i < 3; ++i) { aim.m[i] = right[i]; aim.m[4 + i] = up[i]; aim.m[8 + i] = -dir[i]; aim.m[12 + i] = hand[i]; }
-    float u = -1, v = -1; const bool on = screen.hit(hand, dir, u, v);
+    float u = -1, v = -1; const bool on = atPanel ? TouchHit(panel, hand, dir, u, v) : screen.hit(hand, dir, u, v);
     EyeScene scene; scene.screen = screen; scene.crt = config.crt; scene.picture = picture.tex; scene.pictureW = picture.w; scene.pictureH = picture.h;
-    if (config.sideBySide) scene.uw = .5f;
-    scene.v0 = config.letterbox; scene.vh = 1 - 2 * config.letterbox;
-    scene.frame = config.frame; scene.fadeU = config.edgeFade; scene.fadeV = config.edgeFade * config.aspect;
+    scene.frame = config.frame;
+    if (config.touch) {
+      scene.touch = true; scene.touchPanel = panel;
+      scene.touchU0 = config.touchBottom[0]; scene.touchUw = config.touchBottom[2]; scene.touchV0 = config.touchBottom[1]; scene.touchVh = config.touchBottom[3];
+      scene.touchDot = on && atPanel; scene.touchDotU = u; scene.touchDotV = v;
+    }
+    scene.fadeU = config.edgeFade; scene.fadeV = config.edgeFade * config.aspect;
     Slot hud;
     if (config.hud && hudArgb && hudW && hudH) { UploadInto(hud, hudArgb, hudW, hudH); scene.hud = hud.tex; scene.hudPanel = HudPanel(screen, config); scene.hudOpacity = config.hudOpacity; scene.hudKeyBlack = config.hudKeyBlack; }
-    scene.showDot = on && config.aimDot; scene.dotU = u; scene.dotV = v;
+    scene.showDot = on && config.aimDot && !atPanel; scene.dotU = u; scene.dotV = v;
     if (s_gun.loaded()) { scene.showGun = true; scene.gunRoot = s_gun.alignedRoot(aim, aim, 0); }
     const int size = 1440; GLuint fbo = 0, color = 0, depth = 0;
     glGenFramebuffers(1, &fbo); glGenTextures(1, &color); tgl::GenRenderbuffers(1, &depth);
@@ -600,7 +645,7 @@ bool RenderProof(const Config &config, const std::uint32_t *xrgb, unsigned w, un
     bool ok = true;
     for (int e = 0; e < 2; ++e) {
       const Mat4 eyePose = Mat4::Translation(e ? .032f : -.032f, 0, 0);
-      scene.u0 = config.sideBySide && ((e != 0) != config.swapEyes) ? .5f : 0.f;
+      EyeRange(config, (e != 0) != config.swapEyes, config.letterbox, scene.u0, scene.uw, scene.v0, scene.vh);
       glEnable(GL_FRAMEBUFFER_SRGB);
       renderer.draw(scene, proj, eyePose.RigidInverse(), size, size, false);
       glDisable(GL_FRAMEBUFFER_SRGB);

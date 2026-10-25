@@ -385,6 +385,11 @@ struct EyeScene {
   // The HUD panel: either one picture with alpha (sRGB, premultiplied), or the layer over black and over white
   // (linear 8-bit values as the game drew them), whose difference gives the alpha.
   GLuint hud = 0, hudOverWhite = 0; ScreenGeometry hudPanel; float hudOpacity = 1; bool hudKeyBlack = false;
+  // The 3DS touch panel: a flat panel showing one rectangle of the same picture (the bottom screen, the same for both eyes),
+  // and the dot where the right controller's ray meets it.
+  bool touch = false; ScreenGeometry touchPanel;
+  float touchU0 = 0, touchUw = 1, touchV0 = 0, touchVh = 1;
+  bool touchDot = false; float touchDotU = .5f, touchDotV = .5f;
 };
 
 class Renderer {
@@ -455,18 +460,23 @@ public:
       drawStrip(m_frameVerts);
     }
     if (s.picture) {
-      tgl::UseProgram(m_screenProgram);
-      const Mat4 mvp = vp * s.screen.frame;
-      tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_screenProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
-      tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "size"), (float)s.pictureW, (float)s.pictureH);
-      tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "range"), s.u0, s.uw);
-      tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "rows"), s.v0, s.vh);
-      tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "fade"), s.fadeU, s.fadeV);
-      tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "crt"), s.crt ? 1 : 0);
-      tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "encode"), encode ? 1 : 0);
-      tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "picture"), 0);
-      tgl::ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s.picture);
-      drawStrip(m_screenVerts);
+      drawPicture(s, vp, s.screen.frame, s.u0, s.uw, s.v0, s.vh, s.fadeU, s.fadeV, encode, m_screenVerts);
+    }
+    if (s.touch && s.picture) {
+      // A thin dark frame behind the panel, then the bottom screen's rectangle of the picture, flat.
+      if (m_flatProgram) {
+        ScreenGeometry frame = s.touchPanel; frame.width += .03f; frame.height += .03f; frame.distance += .005f;
+        buildScreenInto(frame, m_frameVerts);
+        tgl::UseProgram(m_flatProgram);
+        const Mat4 mvp = vp * s.touchPanel.frame;
+        tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_flatProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
+        const float c[4] = { .012f, .012f, .014f, 1 };
+        tgl::Uniform4fv(tgl::GetUniformLocation(m_flatProgram, "base"), 1, c);
+        tgl::Uniform1i(tgl::GetUniformLocation(m_flatProgram, "encode"), encode ? 1 : 0);
+        drawStrip(m_frameVerts);
+      }
+      buildScreenInto(s.touchPanel, m_touchVerts);
+      drawPicture(s, vp, s.touchPanel.frame, s.touchU0, s.touchUw, s.touchV0, s.touchVh, 0, 0, encode, m_touchVerts);
     }
     if (s.hud && m_hudProgram) {
       // Premultiplied over the world, no depth written (the gun still goes in front where it is nearer).
@@ -486,7 +496,8 @@ public:
       drawStrip(m_hudVerts);
       glDepthMask(GL_TRUE); glDisable(GL_BLEND);
     }
-    if (s.showDot) drawDot(s, vp, encode);
+    if (s.showDot) drawDot(s.screen, s.screen.frame, s.dotU, s.dotV, vp, encode);
+    if (s.touch && s.touchDot) drawDot(s.touchPanel, s.touchPanel.frame, s.touchDotU, s.touchDotV, vp, encode);
     if (s.showGun && m_gun && m_gun->loaded()) {
       const Mat4 eyeWorld = view.RigidInverse(); const float eye[3] = { eyeWorld.m[12], eyeWorld.m[13], eyeWorld.m[14] };
       // The light sits at (0.36, 0.70, 0.62) in the viewer's space (runtime-lighting.json), so it is turned into world space for this eye.
@@ -499,7 +510,7 @@ public:
 private:
   Gun *m_gun = nullptr;
   GLuint m_screenProgram = 0, m_flatProgram = 0, m_hudProgram = 0, m_screenVao = 0, m_screenVbo = 0, m_dotVao = 0, m_dotVbo = 0;
-  std::vector<float> m_screenVerts, m_frameVerts, m_hudVerts;
+  std::vector<float> m_screenVerts, m_frameVerts, m_hudVerts, m_touchVerts;
   static void buildScreenInto(const ScreenGeometry &g, std::vector<float> &out)
   {
     const int columns = g.curve > 0 ? 64 : 1; out.clear();
@@ -509,6 +520,22 @@ private:
     }
   }
   void buildScreen(const ScreenGeometry &g) { buildScreenInto(g, m_screenVerts); }
+  // The picture (or one rectangle of it: range = u start and width, rows = v start and height) on a screen or panel.
+  void drawPicture(const EyeScene &s, const Mat4 &vp, const Mat4 &frame, float u0, float uw, float v0, float vh, float fadeU, float fadeV, bool encode, const std::vector<float> &verts)
+  {
+    tgl::UseProgram(m_screenProgram);
+    const Mat4 mvp = vp * frame;
+    tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_screenProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
+    tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "size"), (float)s.pictureW, (float)s.pictureH);
+    tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "range"), u0, uw);
+    tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "rows"), v0, vh);
+    tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "fade"), fadeU, fadeV);
+    tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "crt"), s.crt ? 1 : 0);
+    tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "encode"), encode ? 1 : 0);
+    tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "picture"), 0);
+    tgl::ActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, s.picture);
+    drawStrip(verts);
+  }
   void drawStrip(const std::vector<float> &verts)
   {
     tgl::BindVertexArray(m_screenVao); tgl::BindBuffer(GL_ARRAY_BUFFER, m_screenVbo);
@@ -518,22 +545,22 @@ private:
     glDrawArrays(GL_TRIANGLE_STRIP, 0, (GLsizei)(verts.size() / 5));
   }
   // An orange disc with a dark rim, lying on the screen just in front of the picture.
-  void drawDot(const EyeScene &s, const Mat4 &vp, bool encode)
+  void drawDot(const ScreenGeometry &g, const Mat4 &frame, float dotU, float dotV, const Mat4 &vp, bool encode)
   {
-    const float r = s.screen.height / 110.f;
+    const float r = g.height / 110.f;
     auto ring = [&](float radius, float lift, const float colour[4]) {
-      std::vector<float> v; const auto c = s.screen.local(s.dotU, s.dotV);
-      const float du = radius / s.screen.width, dv = radius / s.screen.height;
+      std::vector<float> v; const auto c = g.local(dotU, dotV);
+      const float du = radius / g.width, dv = radius / g.height;
       // Toward the viewer: the screen normal at this point, in the frame.
-      float nx = -c[0], nz = -(c[2] + s.screen.distance - (s.screen.curve > 0 ? s.screen.distance / s.screen.curve : 0)); if (s.screen.curve <= 0) { nx = 0; nz = 1; }
+      float nx = -c[0], nz = -(c[2] + g.distance - (g.curve > 0 ? g.distance / g.curve : 0)); if (g.curve <= 0) { nx = 0; nz = 1; }
       const float nl = std::sqrt(nx * nx + nz * nz); nx /= nl; nz /= nl;
       v.insert(v.end(), { c[0] + nx * lift, c[1], c[2] + nz * lift });
       for (int i = 0; i <= 24; ++i) {
-        const float a = i * 6.2831853f / 24, p = s.dotU + du * std::cos(a), q = s.dotV + dv * std::sin(a);
-        const auto e = s.screen.local(p, q); v.insert(v.end(), { e[0] + nx * lift, e[1], e[2] + nz * lift });
+        const float a = i * 6.2831853f / 24, p = dotU + du * std::cos(a), q = dotV + dv * std::sin(a);
+        const auto e = g.local(p, q); v.insert(v.end(), { e[0] + nx * lift, e[1], e[2] + nz * lift });
       }
       tgl::UseProgram(m_flatProgram);
-      const Mat4 mvp = vp * s.screen.frame;
+      const Mat4 mvp = vp * frame;
       tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_flatProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
       tgl::Uniform4fv(tgl::GetUniformLocation(m_flatProgram, "base"), 1, colour);
       tgl::Uniform1i(tgl::GetUniformLocation(m_flatProgram, "encode"), encode ? 1 : 0);

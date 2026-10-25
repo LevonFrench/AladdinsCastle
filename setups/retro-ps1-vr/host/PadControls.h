@@ -28,6 +28,8 @@ namespace pad {
 struct RetroPad {
   std::uint16_t buttons = 0;          // bit = RETRO_DEVICE_ID_JOYPAD_*
   float lx = 0, ly = 0, rx = 0, ry = 0;   // -1..1, libretro convention: +x right, +y down
+  // RETRO_DEVICE_POINTER (the 3DS touch screen): where the stylus is over the core's whole frame, -1..1 from its top left, and whether it is down.
+  bool pointerOn = false, pointerDown = false; float px = 0, py = 0;
   bool on(unsigned id) const { return (buttons >> id) & 1; }
   void press(unsigned id)
   {
@@ -72,6 +74,69 @@ inline bool VrControl(const theatre::Input &in, const std::string &name)
   if (name == "rright") return in.rightX > .6f;
   return false;
 }
+// The VR controls that can put the 3DS stylus down (ACVR_PS1_3DS_STYLUS).
+inline bool KnownStylusControl(const std::string &name)
+{
+  static const char *known[] = { "rtrig", "ltrig", "rgrip", "lgrip", "ra", "rb", "lx", "ly", "lmenu", "rclick", "lclick" };
+  for (const char *k : known) if (name == k) return true;
+  return false;
+}
+// The same control, held: the offline scripts' way of pressing the control a setting names.
+inline void ForceVrControl(theatre::Input &in, const std::string &name)
+{
+  if (name == "rtrig") in.triggerValue = 1;
+  else if (name == "ltrig") in.padTriggerValue = 1;
+  else if (name == "rgrip") in.gripValue = 1;
+  else if (name == "lgrip") in.padGripValue = 1;
+  else if (name == "ra") in.a = true;
+  else if (name == "rb") in.b = true;
+  else if (name == "lx") in.padCircle = true;
+  else if (name == "ly") in.padYButton = true;
+  else if (name == "lmenu") in.padStart = true;
+  else if (name == "rclick") in.stickRight = true;
+  else if (name == "lclick") in.stickLeft = true;
+}
+
+// The Nintendo 3DS bottom-screen touch panel (ACVR_PS1_3DS_TOUCH). Azahar draws both screens into one frame: the top
+// screen (a side-by-side stereo pair) and the bottom screen are two rectangles of it, given as shares of the frame's
+// width and height ("x,y,w,h" from its top left). The theatre draws the top rectangle as the screen and the bottom
+// rectangle as a flat panel; the right controller's ray on the panel is the stylus, sent to the core as
+// RETRO_DEVICE_POINTER over the core's whole frame (the core finds the bottom screen in its own layout).
+struct TouchLayout {
+  bool on = false;
+  float top[4] = { 0, 0, 1, 1 }, bottom[4] = { 0, 0, 1, 1 };
+  std::string button = "rtrig";               // the VR control that puts the stylus down
+  float panel[3] = { .8f, 1.f, -.55f };       // panel width, distance ahead and height against the eyes, metres
+  static bool Rect(const char *text, float out[4])
+  {
+    float v[4]; char extra = 0;
+    if (!text || std::sscanf(text, "%f,%f,%f,%f%c", &v[0], &v[1], &v[2], &v[3], &extra) != 4) return false;
+    if (!(v[0] >= 0 && v[1] >= 0 && v[2] > .02f && v[3] > .02f && v[0] + v[2] <= 1.001f && v[1] + v[3] <= 1.001f)) return false;
+    for (int i = 0; i < 4; ++i) out[i] = v[i];
+    return true;
+  }
+  // Environment: ACVR_PS1_3DS_TOUCH (1), ACVR_PS1_3DS_TOP, ACVR_PS1_3DS_BOTTOM, ACVR_PS1_3DS_STYLUS, ACVR_PS1_3DS_PANEL.
+  // Returns what is wrong, empty when the panel is usable or not asked for.
+  std::string load()
+  {
+    const char *e = std::getenv("ACVR_PS1_3DS_TOUCH");
+    on = false;
+    if (!e || std::atoi(e) == 0) return "";
+    std::string problems;
+    if (!Rect(std::getenv("ACVR_PS1_3DS_TOP"), top)) problems += " ACVR_PS1_3DS_TOP is missing or not x,y,w,h as shares of the frame;";
+    if (!Rect(std::getenv("ACVR_PS1_3DS_BOTTOM"), bottom)) problems += " ACVR_PS1_3DS_BOTTOM is missing or not x,y,w,h as shares of the frame;";
+    if ((e = std::getenv("ACVR_PS1_3DS_STYLUS")) && *e) {
+      if (KnownStylusControl(e)) button = e; else problems += std::string(" ACVR_PS1_3DS_STYLUS '") + e + "' is not a VR control;";
+    }
+    if ((e = std::getenv("ACVR_PS1_3DS_PANEL")) && *e) {
+      float v[3]; char extra = 0;
+      if (std::sscanf(e, "%f,%f,%f%c", &v[0], &v[1], &v[2], &extra) == 3 && v[0] > .1f && v[0] < 3 && v[1] > .3f && v[1] < 4 && v[2] > -2 && v[2] < 2) { for (int i = 0; i < 3; ++i) panel[i] = v[i]; }
+      else problems += " ACVR_PS1_3DS_PANEL is not width,distance,height in metres;";
+    }
+    on = problems.empty();
+    return problems;
+  }
+};
 
 struct Config {
   std::string mode = "pad";                       // pad | wheel | aim
@@ -87,6 +152,7 @@ struct Config {
   // + i * integral of the error, per axis, from where the marker is now (Input::curU/curV).
   // ACVR_PAD_FOLLOW_GAIN = "px,dx,py,dy,ix,iy".
   float follow[6] = { 6, 40, 6, 40, 0, 0 };
+  TouchLayout touch;                              // the 3DS touch panel (ACVR_PS1_3DS_TOUCH and its companions), off unless asked for
 
   // "rtrig=a,ltrig=b,rgrip=r" ; unknown names are reported in `problems`.
   void parseMap(const std::string &text, std::string &problems)
@@ -116,6 +182,7 @@ struct Config {
   bool usesGrip() const
   {
     for (const auto &m : map) if (m.first == "rgrip" || m.first == "lgrip") return true;
+    if (touch.on && (touch.button == "rgrip" || touch.button == "lgrip")) return true;
     return mode == "aim" && (aimHold == "rgrip" || aimHold == "lgrip");
   }
   // Environment: ACVR_PAD_MAP, ACVR_PAD_WHEEL_DEG, ACVR_PAD_AIM_HOLD, ACVR_PAD_AIM_BUTTON, ACVR_PAD_AIM, ACVR_PAD_AIM_CURVE.
@@ -132,6 +199,8 @@ struct Config {
     if ((e = std::getenv("ACVR_PAD_FOLLOW_GAIN")) && *e) std::sscanf(e, "%f,%f,%f,%f,%f,%f", &follow[0], &follow[1], &follow[2], &follow[3], &follow[4], &follow[5]);
     if ((e = std::getenv("ACVR_PAD_AIM")) && *e) std::sscanf(e, "%f,%f,%f,%f", &aimTrim[0], &aimTrim[1], &aimTrim[2], &aimTrim[3]);
     if ((e = std::getenv("ACVR_PAD_AIM_CURVE")) && std::atof(e) > .2) aimCurve = (float)std::atof(e);
+    const std::string touchProblems = touch.load();
+    if (!touchProblems.empty()) problems += " 3DS touch panel not used:" + touchProblems;
     return problems;
   }
   std::string describe() const
@@ -141,6 +210,7 @@ struct Config {
     char extra[200];
     if (mode == "wheel" && rollSteer) { std::snprintf(extra, sizeof extra, "; roll steering on: full lock at %.0f deg roll, dead zone %.0f deg", wheelDegrees, wheelDead); d += extra; }
     if (mode == "wheel" && !rollSteer) d += "; the left stick steers (roll steering off; ACVR_N64_ROLL_STEER=1 turns it on)";
+    if (touch.on) { std::snprintf(extra, sizeof extra, "; 3DS touch panel: stylus down with %s, bottom screen at %.3f,%.3f,%.3f,%.3f of the frame", touch.button.c_str(), touch.bottom[0], touch.bottom[1], touch.bottom[2], touch.bottom[3]); d += extra; }
     if (mode == "aim") { std::snprintf(extra, sizeof extra, "; aim while %s, aim button %d, trim %.3f,%.3f,%.3f,%.3f, curve %.2f", aimHold.c_str(), aimButton, aimTrim[0], aimTrim[1], aimTrim[2], aimTrim[3], aimCurve); d += extra; }
     return d;
   }
@@ -189,6 +259,13 @@ inline RetroPad Map(const theatre::Input &in, const Config &c)
     if (std::fabs(sx) > .3f || std::fabs(sy) > .3f) { p.rx = sx; p.ry = sy; }   // walk/strafe on the C buttons while aiming
   } else { p.lx = sx; p.ly = sy; }
   for (const auto &m : c.map) if (VrControl(in, m.first)) p.press((unsigned)m.second);   // buttons (and C directions) last
+  if (c.touch.on && in.touchHit) {   // the stylus: over the panel, down while the chosen control is held
+    const auto &b = c.touch.bottom;
+    p.pointerOn = true; p.pointerDown = VrControl(in, c.touch.button);
+    // The panel's 0..1 is the bottom screen's share of the frame; the core's pointer range -1..1 is the whole frame.
+    p.px = (b[0] + std::clamp(in.touchU, 0.f, 1.f) * b[2]) * 2.f - 1.f;
+    p.py = (b[1] + std::clamp(in.touchV, 0.f, 1.f) * b[3]) * 2.f - 1.f;
+  }
   return p;
 }
 
@@ -206,6 +283,15 @@ inline std::int16_t State(const RetroPad &p, unsigned device, unsigned index, un
     if (index == RETRO_DEVICE_INDEX_ANALOG_RIGHT) return Axis(id == RETRO_DEVICE_ID_ANALOG_X ? p.rx : p.ry);
     if (index == RETRO_DEVICE_INDEX_ANALOG_BUTTON) return id < 16 && p.on(id) ? 32767 : 0;
     return 0;
+  case RETRO_DEVICE_POINTER:   // the 3DS stylus; one pointer, none unless the touch panel is on
+    if (index != 0 || !p.pointerOn) return 0;
+    switch (id) {
+    case RETRO_DEVICE_ID_POINTER_X: return Axis(p.px);
+    case RETRO_DEVICE_ID_POINTER_Y: return Axis(p.py);
+    case RETRO_DEVICE_ID_POINTER_PRESSED: return p.pointerDown;
+    case RETRO_DEVICE_ID_POINTER_COUNT: return p.pointerDown ? 1 : 0;
+    default: return 0;
+    }
   default: return 0;
   }
 }
@@ -231,6 +317,10 @@ struct Scripted {
     else if (cmd == "lgrip") vr.padGripValue = f(0, 1);
     else if (cmd == "lstick") { vr.padX = f(0, 0); vr.padY = f(1, 0); }
     else if (cmd == "rstick") { vr.rightX = f(0, 0); vr.rightY = f(1, 0); }
+    else if (cmd == "touch") {   // touch <u> <v> [frames]: the stylus over the 3DS panel (0..1 from its top left), down for the frames; "touch off" lifts it away
+      if (!args.empty() && args[0] == "off") { vr.touchHit = false; holdVr["stylus"] = 0; }
+      else { vr.touchHit = true; vr.touchU = f(0, .5f); vr.touchV = f(1, .5f); vr.active = true; holdVr["stylus"] = n(2); }
+    }
     else if (cmd == "vr") { if (args.empty()) { error = "vr needs a control"; return true; } holdVr[args[0]] = n(1); }
     else if (cmd == "btn") {
       const int id = args.empty() ? -1 : RetroButton(args[0]);
@@ -253,6 +343,7 @@ struct Scripted {
     if (held("lgrip")) in.padGripValue = 1;
     if (held("rtrig")) in.triggerValue = 1;
     if (held("ltrig")) in.padTriggerValue = 1;
+    if (c.touch.on && held("stylus")) ForceVrControl(in, c.touch.button);   // after the lines above, which set a, b and the clicks outright
     RetroPad p = Map(in, c);
     for (const auto &h : holdRaw) if (h.second) p.press((unsigned)h.first);
     if (rawStick) { p.lx = rawX; p.ly = rawY; }

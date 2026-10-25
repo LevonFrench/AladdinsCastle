@@ -29,6 +29,14 @@ struct Config {
   bool hud = false;
   float hudDistance = 1.8f, hudWidth = 1.2f, hudLift = -.1f, hudOpacity = 1.f, hudAspect = 16.f / 9.f;
   bool hudKeyBlack = false;        // opaque pure black in the HUD layer (a game's border bars) shows as transparent
+  // The Nintendo 3DS touch panel: the core's frame holds the top screen (the stereo pair the screen shows) and the bottom
+  // screen, each a rectangle given as shares of the frame (x, y, w, h from its top left). The bottom screen is a flat panel
+  // in front of and below the screen, tilted to face the viewer; the right controller's ray on it is the stylus.
+  bool touch = false;
+  float touchTop[4] = { 0, 0, 1, 1 }, touchBottom[4] = { 0, 0, 1, 1 };
+  float touchWidth = .8f, touchDistance = 1.f, touchLift = -.55f;   // panel width, distance ahead, height against the eyes (metres)
+  float touchPanelAspect = 4.f / 3.f;   // the bottom screen's width over its height as drawn in the frame (the host works it out; the core sends new geometry later)
+  bool proofAtPanel = false;       // the offline theatre proof aims the right hand at the panel instead of the screen
 };
 struct Input {
   float u = .5f, v = .5f;
@@ -45,6 +53,8 @@ struct Input {
   bool padYButton = false;             // left Y (Index: left B) pressed at all; held 3 s it still quits
   // Where the right controller's ray meets the HUD panel's plane (u, v may lie outside 0..1), when it does.
   bool hudHit = false; float hudU = .5f, hudV = .5f;
+  // Where the ray meets the 3DS touch panel (a little past its edge counts, clamped), when it does.
+  bool touchHit = false; float touchU = .5f, touchV = .5f;
   // Filled by the host for games whose aim point moves by rate (Star Fox 64): where the game's own target marker
   // is on the picture now, from the game's memory (ACVR_PAD_FOLLOW_U/V), and how far it moved since last frame.
   bool hasCurrent = false; float curU = .5f, curV = .5f, velU = 0, velV = 0, sumU = 0, sumV = 0;   // sum: integral of the error
@@ -60,7 +70,8 @@ void PublishHudFramebuffer(unsigned overBlack, unsigned overWhite, unsigned w, u
 Input ReadInput();          // stale (over 250 ms) input reads as inactive
 void QueuePulse();
 // The picture's shape changed (the core sent new geometry): the screen's aspect and the share of rows cropped top and bottom.
-void SetFrameShape(float aspect, float letterbox);
+// touchAspect: the 3DS bottom screen's aspect on the panel (0 leaves it).
+void SetFrameShape(float aspect, float letterbox, float touchAspect = 0);
 bool Stop();
 bool RuntimeExit();         // the runtime ended the session (SteamVR "Exit game"): close the game
 bool Focused();             // the headset shows this game and its controllers reach it (not the SteamVR dashboard)

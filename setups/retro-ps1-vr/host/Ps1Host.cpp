@@ -312,9 +312,21 @@ void AudioSample(std::int16_t l, std::int16_t r) { const std::int16_t f[2] = { l
 std::size_t AudioBatch(const std::int16_t *d, std::size_t frames) { if (g_audioWanted) g_audio.write(d, frames); return frames; }
 void InputPoll() {}
 
+// The 3DS touch panel: how often the core asked for the pointer, and how often with the stylus down (logged at the end).
+std::uint64_t g_pointerReads = 0, g_pointerDownReads = 0;
 std::int16_t InputState(unsigned port, unsigned device, unsigned index, unsigned id)
 {
-  if (PadMode()) return port == 0 ? pad::State(g_rpad, device, index, id) : 0;
+  if (PadMode()) {
+    if (port != 0) return 0;
+    const std::int16_t value = pad::State(g_rpad, device, index, id);
+    if ((device & RETRO_DEVICE_MASK) == RETRO_DEVICE_POINTER) {
+      if (!g_pointerReads++) Log("The core polls the pointer (RETRO_DEVICE_POINTER)");
+      if (id == RETRO_DEVICE_ID_POINTER_PRESSED && value && !g_pointerDownReads++)
+        Log("First pointer read with the stylus down: x %d, y %d (of -32767..32767 over the core's whole frame)",
+            (int)pad::State(g_rpad, device, index, RETRO_DEVICE_ID_POINTER_X), (int)pad::State(g_rpad, device, index, RETRO_DEVICE_ID_POINTER_Y));
+    }
+    return value;
+  }
   if (port != g_gunPort) {
     if (!g_padOn || port > 1 || (device & RETRO_DEVICE_MASK) != RETRO_DEVICE_JOYPAD) return 0;
     switch (id) {
@@ -610,6 +622,31 @@ bool HideThisFrame(unsigned frame)
   ++g_flashHidden; return true;
 }
 
+// Offline, 3DS touch panel on: the two rectangles the theatre cuts from the frame, saved on their own: <name>-top.png (the top
+// screen, both eyes) and <name>-panel.png (the bottom screen as the panel shows it). A cross marks the stylus: yellow over
+// the panel, magenta while it is down.
+void WriteTouchCrops(const std::string &dir, const std::string &name)
+{
+  const auto &t = g_padCfg.touch;
+  auto crop = [&](const float r[4], const char *suffix, bool cross) {
+    const unsigned x0 = std::min(g_frameW - 1, (unsigned)std::lround(r[0] * g_frameW)), y0 = std::min(g_frameH - 1, (unsigned)std::lround(r[1] * g_frameH));
+    const unsigned w = std::max(1u, std::min(g_frameW - x0, (unsigned)std::lround(r[2] * g_frameW))), h = std::max(1u, std::min(g_frameH - y0, (unsigned)std::lround(r[3] * g_frameH)));
+    std::vector<std::uint32_t> px((std::size_t)w * h);
+    for (unsigned y = 0; y < h; ++y) std::copy_n(g_frame.data() + (std::size_t)(y0 + y) * g_frameW + x0, w, px.data() + (std::size_t)y * w);
+    if (cross && g_rpad.pointerOn) {
+      const int cx = (int)std::lround((g_rpad.px + 1.f) / 2.f * g_frameW) - (int)x0, cy = (int)std::lround((g_rpad.py + 1.f) / 2.f * g_frameH) - (int)y0;
+      const std::uint32_t colour = g_rpad.pointerDown ? 0xff00ffu : 0xffff00u;
+      for (int d = -10; d <= 10; ++d) {
+        if (cx + d >= 0 && cx + d < (int)w && cy >= 0 && cy < (int)h) px[(std::size_t)cy * w + cx + d] = colour;
+        if (cy + d >= 0 && cy + d < (int)h && cx >= 0 && cx < (int)w) px[(std::size_t)(cy + d) * w + cx] = colour;
+      }
+    }
+    const std::string path = dir + "\\" + name + suffix + ".png";
+    Log("Snapshot %s %ux%u: %s", path.c_str(), w, h, acvr_png::write(path.c_str(), px.data(), w, h) ? "written" : "FAILED");
+  };
+  crop(t.top, "-top", false); crop(t.bottom, "-panel", true);
+}
+
 bool WriteSnapshot(const std::string &dir, const std::string &name)
 {
   EnsureCpuFrame();
@@ -617,6 +654,7 @@ bool WriteSnapshot(const std::string &dir, const std::string &name)
   const std::string path = dir + "\\" + name + ".png";
   const bool ok = acvr_png::write(path.c_str(), g_frame.data(), g_frameW, g_frameH);
   Log("Snapshot %s %ux%u: %s", path.c_str(), g_frameW, g_frameH, ok ? "written" : "FAILED");
+  if (PadMode() && g_padCfg.touch.on) WriteTouchCrops(dir, name);
   if (!g_hudFrame.empty() && g_hudFrame.size() == (std::size_t)g_hwW * g_hwH) {
     // The HUD layer alone, over a grey checkerboard so its transparency shows.
     std::vector<std::uint32_t> view(g_hudFrame.size());
@@ -660,10 +698,20 @@ float EnvFloat(const char *name, float fallback)
 // 600x360 in the middle rows), the share of rows cut top and bottom. The eye's content has the reported aspect, so
 // the cut is (1 - (W/2) / aspect / H) / 2, and the screen's aspect is (W/2) / (H x (1 - 2 x cut)). A frame whose
 // shape does not fit that reading is not cut. ACVR_PS1_LETTERBOX overrides the cut.
-void FrameShape(float &aspect, float &letterbox)
+void FrameShape(float &aspect, float &letterbox, float *panelAspect = nullptr)
 {
   const auto &g = g_av.geometry;
   const float reported = g.aspect_ratio > .1f ? g.aspect_ratio : 4.f / 3.f, w = (float)g.base_width, h = (float)g.base_height;
+  // The 3DS touch panel: the top screen is a rectangle of the frame (each eye half of it, when the core draws them side by
+  // side) and the bottom screen another; their aspects come from the rectangles and the frame's size.
+  if (g_padCfg.touch.on && w > 0 && h > 0) {
+    const auto &t = g_padCfg.touch;
+    const bool sbs = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f && !glstereo::StereoOn();
+    letterbox = 0;
+    aspect = (t.top[2] * w / (sbs ? 2.f : 1.f)) / (t.top[3] * h);
+    if (panelAspect) *panelAspect = (t.bottom[2] * w) / (t.bottom[3] * h);
+    return;
+  }
   // Only a core that draws the eyes itself: with GL stereo the host builds the side-by-side picture from full-size eyes.
   const bool coreSbs = EnvFloat("ACVR_PS1_SBS", 0.f) != 0.f && !glstereo::StereoOn(), known = w > 0 && h > 0;
   const char *forced = std::getenv("ACVR_PS1_LETTERBOX");
@@ -678,13 +726,14 @@ void FrameShape(float &aspect, float &letterbox)
 }
 void FrameShapeChanged()
 {
-  static float lastAspect = 0, lastLetterbox = -1;
-  float aspect = 0, letterbox = 0; FrameShape(aspect, letterbox);
-  theatre::SetFrameShape(aspect, letterbox);
-  if (aspect == lastAspect && letterbox == lastLetterbox) return;
-  lastAspect = aspect; lastLetterbox = letterbox;
+  static float lastAspect = 0, lastLetterbox = -1, lastPanel = -1;
+  float aspect = 0, letterbox = 0, panel = 0; FrameShape(aspect, letterbox, &panel);
+  theatre::SetFrameShape(aspect, letterbox, panel);
+  if (aspect == lastAspect && letterbox == lastLetterbox && panel == lastPanel) return;
+  lastAspect = aspect; lastLetterbox = letterbox; lastPanel = panel;
   Log("Frame shape: screen aspect %.4f, rows cut top and bottom %.3f (core frame %ux%u, reported aspect %.4f)", aspect, letterbox,
       g_av.geometry.base_width, g_av.geometry.base_height, g_av.geometry.aspect_ratio);
+  if (panel > 0) Log("3DS touch panel: bottom screen aspect %.4f", panel);
 }
 
 theatre::Config TheatreConfig()
@@ -700,7 +749,14 @@ theatre::Config TheatreConfig()
   c.swapEyes = EnvFloat("ACVR_PS1_SWAP_EYES", 0.f) != 0.f;   // insurance if a core's eyes arrive the other way round
   // The 3DS core's side-by-side frames keep its 5:3 size and letterbox each eye in the middle half of the rows.
   FrameShapeChanged();
-  FrameShape(c.aspect, c.letterbox);
+  float panelAspect = 0;
+  FrameShape(c.aspect, c.letterbox, &panelAspect);
+  if (g_padCfg.touch.on) {
+    const auto &t = g_padCfg.touch;
+    c.touch = true; c.touchPanelAspect = panelAspect > .1f ? panelAspect : 4.f / 3.f;
+    for (int i = 0; i < 4; ++i) { c.touchTop[i] = t.top[i]; c.touchBottom[i] = t.bottom[i]; }
+    c.touchWidth = t.panel[0]; c.touchDistance = t.panel[1]; c.touchLift = t.panel[2];
+  }
   c.aimDot = !PadMode() || EnvFloat("ACVR_PAD_AIM_DOT", 0.f) != 0.f;   // pad games show their own crosshair, if any
   // The both-grips recentre needs both grips free: a pad map or the face-button layout that uses a grip turns it off.
   const char *face = std::getenv("ACVR_PS1_FACE_BUTTONS");
@@ -736,12 +792,13 @@ void Usage()
     "         [--gun guncon|justifier|lightgun|stunner] [--port 1|2] [--controls gun|pad|wheel|aim] [--option key=value]...\n"
     "         [--log <file>] [--no-xr] [--headless --frames N [--script file] [--snapshots dir]]\n"
     "         [--profile <file.toml> [--view <name>]] [--print-config]\n"
-    "         [--theatre-proof <prefix> --test-aim U V] [--state <saved state to start from>]\n"
+    "         [--theatre-proof <prefix> --test-aim U V | --test-touch U V] [--state <saved state to start from>]\n"
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
     "         ACVR_PS1_LIFT (m), ACVR_PS1_CRT (1: scanlines), ACVR_PS1_GUN_MODEL (.glb), ACVR_PS1_GUN_META (.toml),\n"
     "         ACVR_PS1_AIM (per-game aim trim: x scale,x shift,y scale,y shift),\n"
     "         ACVR_PS1_SBS (1: side-by-side eyes), ACVR_PS1_SWAP_EYES (1: swap them),\n"
-    "         ACVR_PS1_LETTERBOX (share of rows cut top and bottom; unset, it is worked out from the core's frame, 3DS: .25).\n"
+    "         ACVR_PS1_LETTERBOX (share of rows cut top and bottom; unset, it is worked out from the core's frame, 3DS: .25),\n"
+    "         ACVR_PS1_3DS_TOUCH (1: the 3DS bottom screen as a touch panel; needs ACVR_PS1_3DS_TOP and _BOTTOM, rectangles of the frame; the right ray is the stylus).\n"
     "Profile: a per-game TOML file of ACVR_* settings, core options, a pad map and views (setups/retro-ps1-vr/profiles);\n"
     "         the environment and the command line override it. --print-config shows every setting and where it came from.\n"
     "Clean quit: hold left Y (Index: left B) for 3 s, Escape, or create ACVR_PS1_STOP_FILE.\n");
@@ -753,7 +810,7 @@ int main(int argc, char **argv)
 {
   std::string game, gunName = "guncon", script, snapshots, logPath, profileNote;
   unsigned frames = 0, seconds = 0; bool headless = false, noXr = false, mute = false, testAim = false;
-  float testU = .5f, testV = .5f; std::string theatreProof, startState, profilePath, viewName;
+  float testU = .5f, testV = .5f; bool testPanel = false; std::string theatreProof, startState, profilePath, viewName;
   bool printConfig = false, controlsGiven = false, gunGiven = false, portGiven = false;
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
@@ -778,6 +835,7 @@ int main(int argc, char **argv)
     else if (a == "--theatre-proof") theatreProof = next();
     else if (a == "--state") startState = next();
     else if (a == "--test-aim") { testAim = true; testU = (float)std::atof(next().c_str()); testV = (float)std::atof(next().c_str()); }
+    else if (a == "--test-touch") { testPanel = true; testU = (float)std::atof(next().c_str()); testV = (float)std::atof(next().c_str()); }   // the proof's hand aims at the 3DS panel
     else if (a == "--frames") frames = (unsigned)std::strtoul(next().c_str(), nullptr, 10);
     else if (a == "--script") script = next();
     else if (a == "--snapshots") snapshots = next();
@@ -834,7 +892,7 @@ int main(int argc, char **argv)
     if (g_follow[0].on || g_follow[1].on) Log("Pad aim follows the game's marker from its memory (%zu + %zu terms), gains %.2f %.2f %.2f %.2f",
                                              g_follow[0].terms.size(), g_follow[1].terms.size(), g_padCfg.follow[0], g_padCfg.follow[1], g_padCfg.follow[2], g_padCfg.follow[3]);
     Log("Pad %s", g_padCfg.describe().c_str());
-    if (!problems.empty()) Log("Pad map entries not understood:%s", problems.c_str());
+    if (!problems.empty()) Log("Pad settings not understood:%s", problems.c_str());
   }
 
   if (!LoadCore(g_corePath)) return 3;
@@ -1030,6 +1088,9 @@ int main(int argc, char **argv)
           WriteSnapshot(snapshots, Arg(e.args, 0, ("f" + std::to_string(frame)).c_str()));
           if (PadMode()) Log("  frame %u pad: buttons 0x%04X left %.3f %.3f right %.3f %.3f%s", frame, g_rpad.buttons, g_rpad.lx, g_rpad.ly, g_rpad.rx, g_rpad.ry,
                              scripted.vr.hasCurrent ? (" marker " + std::to_string(scripted.vr.curU) + " " + std::to_string(scripted.vr.curV) + " target " + std::to_string(scripted.vr.u) + " " + std::to_string(scripted.vr.v)).c_str() : "");
+          if (PadMode() && g_padCfg.touch.on) Log("  frame %u stylus: %s, frame position %.4f %.4f; core pointer reads so far %llu, with the stylus down %llu", frame,
+                                                  !g_rpad.pointerOn ? "off the panel" : g_rpad.pointerDown ? "down" : "over the panel", (g_rpad.px + 1) / 2, (g_rpad.py + 1) / 2,
+                                                  (unsigned long long)g_pointerReads, (unsigned long long)g_pointerDownReads);
           // ACVR_RAM_WATCH: console memory words (hex addresses) logged as floats at each snapshot, to study a game.
           if (const char *watch = std::getenv("ACVR_RAM_WATCH")) {
             const auto *ram = static_cast<const unsigned char *>(g_core.get_memory_data(RETRO_MEMORY_SYSTEM_RAM));
@@ -1103,7 +1164,8 @@ int main(int argc, char **argv)
     else {
       std::string note;
       const bool hud = !g_hudFrame.empty() && g_hudFrame.size() == (std::size_t)g_hwW * g_hwH;
-      const bool ok = theatre::RenderProof(TheatreConfig(), g_frame.data(), g_frameW, g_frameH, testU, testV, theatreProof, note,
+      auto proofConfig = TheatreConfig(); proofConfig.proofAtPanel = testPanel;
+      const bool ok = theatre::RenderProof(proofConfig, g_frame.data(), g_frameW, g_frameH, testU, testV, theatreProof, note,
                                            hud ? g_hudFrame.data() : nullptr, hud ? g_hwW : 0, hud ? g_hwH : 0);
       Log("Theatre proof %s-left.png / -right.png: %s (%s)", theatreProof.c_str(), ok ? "written" : "FAILED", note.c_str());
       if (!ok) result = 8;
@@ -1112,6 +1174,7 @@ int main(int argc, char **argv)
   Log("Ran %u frames; gun reads %llu; trigger presses %llu; last picture %ux%u", frame,
       (unsigned long long)g_gunReads, (unsigned long long)shots, g_frameW, g_frameH);
   if (PadMode()) Log("Rumble started %llu times", (unsigned long long)g_rumbleStarts);
+  if (PadMode() && g_padCfg.touch.on) Log("3DS touch: the core read the pointer %llu times, %llu with the stylus down", (unsigned long long)g_pointerReads, (unsigned long long)g_pointerDownReads);
   if (g_hideFlash) Log("Gun flash frames kept out of the headset: %u (longest white run %u frames)%s", g_flashHidden, g_flashLongest,
                       g_flashAudit ? ("; white frames shown with no shot just before: " + std::to_string(g_flashOutside)).c_str() : "");
   timeEndPeriod(1);
