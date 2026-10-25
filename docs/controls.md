@@ -97,20 +97,50 @@ These rules override the plans above wherever they disagree. They apply to the Q
 | Rule | Why |
 |---|---|
 | No game control on the **left Menu** button or the **right Oculus** button | ALVR gives the left Menu to the SteamVR dashboard, and the headset keeps the Oculus button. With Start on the left Menu, F-Zero GX could not be started and Wii games could not be advanced. |
-| **Start / Plus = left-stick click**; **Home = hold left Y (0.5 s)**; **Minus = tap left Y** (Dolphin) | Buttons a game can actually receive. In the GameCube profile, click-and-tilt is still the D-pad; Minus is active for the first half second of a Y press. |
+| **Start / Plus = left-stick click**; **Home = hold left Y (0.5 s)**; **Minus = tap left Y** (Dolphin) | Buttons a game can actually receive. In the GameCube profile, click-and-tilt is still the D-pad. In the Wii profiles Minus is a pulse sent when Y is released after under 0.5 s, so holding Y for Home sends no Minus first. |
 | Racers: **stick steers, triggers pedal**, by default; roll or tilt steering is an opt-in view only | "Roll steering sucks, make it an option, always off by default." |
 | The Hub's SteamVR panel goes back with its **on-panel Back** button, not B | While the SteamVR dashboard is open, SteamVR does not deliver B to the Hub: its input log showed B unbound for a whole session. |
 | No emulator or Hub error dialog may reach the desktop | Offline runs switch off panic and message boxes (for example Dolphin `UsePanicHandlers=False`). |
 
-The N64 host still maps Start to the left Menu: it needs the same change in `acvr-ps1`.
+### 2.6 One button table for every system
+
+The convention below is the reference. A platform may only differ where its hardware has no such button, and the exception is written in the "Exceptions" column. "Pending" means the Hub text and data already say it but the host default (`acvr-ps1`) or a private launcher map still has to be changed; until then the headset behaves the old way.
+
+| Intent | Button (Quest Touch; Index in brackets where it differs) | Exceptions |
+|---|---|---|
+| Aim / point | Right controller | Not used where the game has no pointer (3DS Star Fox: the Circle Pad steers; N64 pad and wheel games) |
+| Fire, accelerate, primary | Right trigger | Wii B; PS1 gun trigger; 3DS Star Fox laser (3DS A); N64 pad Z |
+| Secondary | Right A | Wii A; PS1 GunCon A; 3DS Star Fox bomb (3DS Y); N64 A; arcade (Model 2, Model 3, System 22, Pinball): A is Start / credits, see the last row |
+| Tertiary, **Back / cancel in menus** | Right B | N64 B and PS1 Circle are right B. Wii has no Back button: right B is Remote 1, and the game's own cancel is Remote B (right trigger). 3DS Star Fox: right B banks right, and the game's cancel (3DS B, brake) is the left grip; the host adds the left grip as a menu Back alias. N64 Star Fox: N64 B is the bomb on right A, as on 3DS |
+| Hold action (boost, pedal, drift) | Right grip | Wii: per-game "second finger" button (A, Z or B), shown on the game's card |
+| Brake, second hold | Left grip (racers: left trigger as the brake pedal) | 3DS Star Fox: left grip brakes. N64 racers: left trigger brakes, grips are R and Z |
+| Move, steer | Left stick | Wii Nunchuk stick; racers steer with the stick by default, roll steering is an opt-in launcher only |
+| **Start / Plus / pause** | **Left stick click** (Index: left stick click) | Right stick click is a silent alias only where the right stick is not used in play (PS1 gun modes, racers). It is dropped where the right stick plays: N64 pad (C buttons), N64 and 3DS Star Fox (bank), Wii (it is Remote 2), GameCube (it is Z). Arcade games keep A = Start, B = Coin because that is the cabinet's own button (Model 2 and 3, System 22, Pinball) |
+| Select / Minus | Tap left Y | PS1 face-button layout: right stick click. GameCube and N64 have no Select |
+| Home / in-game menu | Hold left Y for 0.5 s | Wii only (Remote Home). Nothing else has a Home |
+| Quit and save | Hold left Y for 3 s | Wii and GameCube Dolphin setups: use SteamVR's **Exit game** (the Wii 0.5 s hold is Home) |
+| Recentre the screen | Both grips for 1 s, or follow SteamVR's own recentre | Pending (host). Today: the Home key on the PC. Wii shell profiles: both thumbstick clicks |
+| Gyro, tilt | Off by default | Opt-in launcher only (roll or tilt steering); 3DS Star Fox must be answered "no" to its gyro question |
+| **Left Menu, right Oculus** | **Unused** | ALVR gives the left Menu to the SteamVR dashboard and the headset keeps Oculus (2.5). No game control may sit on either |
+
+What each platform does today against this convention:
+
+| Platform | Start / pause | Back | Notes |
+|---|---|---|---|
+| PS1 (gun and pad) | Hub text: left stick click (face layout) and pad Start. Host default still `lmenu=start`: pending | Right B | Select moves to right stick click in the face layout: pending (private launcher map) |
+| N64 | Hub text says left stick click. Host default still `lmenu=start,rclick=start` (and wheel `lclick=l`): pending | Right B (N64 B); Star Fox: right A | Star Fox 64 text now matches 3DS Star Fox; the launcher map is pending |
+| 3DS (Star Fox) | Host map still `lmenu=start,rclick=start`: pending (`lclick=start`; no `rclick` alias, it collides with bank) | Left grip (game B), menu alias pending | Right B banks right |
+| Wii (Dolphin) | Left stick click = Plus (profiles) | Game's own (Remote B or 1) | Minus on a Y tap release; Home on a 0.5 s hold; holding Y no longer sends Minus |
+| GameCube (Dolphin) | Left stick click (not while the stick is tilted) | Right B | |
+| Model 2, Model 3, System 22, Pinball | A = Start (arcade) | n/a | System 22's libacvr pause overlay is still on the left Menu: pending (host) |
 
 ## 3. Pause overlay controls (all setups)
 
-> Planned before the headset sessions. On Quest through ALVR the left Menu opens the SteamVR dashboard (see 2.5). Setups use SteamVR's **Exit game** and their own button maps instead.
+> Planned before the headset sessions. On Quest through ALVR the left Menu opens the SteamVR dashboard (see 2.5), so the pause button is the **left stick click** (see 2.6). Setups use SteamVR's **Exit game** and their own button maps instead.
 
 | Action | Default |
 |---|---|
-| Open / close the pause overlay | Left menu button |
+| Open / close the pause overlay | Left stick click |
 | Select in the overlay | Point the laser and pull the trigger |
 | Recenter + set standing height | In the overlay, or hold both grips |
-| Quit to desktop / SteamVR | In the overlay, or hold the menu button for 1 s and confirm |
+| Quit to desktop / SteamVR | In the overlay, or hold left Y for 3 s |
