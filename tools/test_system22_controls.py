@@ -37,10 +37,10 @@ class System22ControlsTests(unittest.TestCase):
     def test_no_invented_start_offscreen_reload_or_gun_buttons(self):
         r=self.tc();self.assertFalse(any(e['input']['semantic'] in ('start','reload') for e in r['data']['element']))
         self.assertTrue(all(not e['node'] for e in r['data']['element'] if e['id'] in ('coin','recenter','cover-left','cover-right','pause')))
-    def test_option_sticks_and_menu_keep_fixed_physical_hands(self):
+    def test_option_sticks_and_pause_keep_fixed_physical_hands(self):
         for primary in ('left','right'):
             entries={e['id']:e for e in self.tc(primary)['data']['element']}
-            self.assertEqual(entries['pause']['binding']['source_openxr_path'],'/user/hand/left/input/menu/click')
+            self.assertEqual(entries['pause']['binding']['source_openxr_path'],'/user/hand/left/input/thumbstick/click');self.assertEqual(entries['gun-angle-reset']['binding']['control'],'menu_chord')
             self.assertEqual(entries['gun-angle']['binding']['hand'],'right');self.assertEqual(entries['view-distance']['binding']['hand'],'left')
             self.assertEqual(entries['cover-mode']['when'],'paused')
     def test_racer_bindings_remain_questions_and_no_live_capability_claim(self):

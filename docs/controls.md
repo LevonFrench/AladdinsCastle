@@ -130,10 +130,10 @@ What each platform does today against this convention:
 | PS1 (gun and pad) | Left stick click: Hub text, pad Start and the face layout in the host (`Ps1Host.cpp`). Not yet seen in the headset | Right B | Select is right stick click in the face layout (host and Hub text agree) |
 | N64 | Left stick click: Hub text and the host defaults (`PadControls.h`: `lclick=start` in pad, wheel and aim; `lmenu` kept as an alias; `rclick` alias only in wheel and aim). Not yet seen in the headset | Right B (N64 B); Star Fox: right A | L moved to left X in wheel and aim. Star Fox 64 text now matches 3DS Star Fox; the launcher map is pending |
 | 3DS (Star Fox) | Left stick click: the README map uses `lclick=start`, with no `rclick` alias (it collides with bank). Not yet seen in the headset | Left grip (game B), menu alias pending | Right B banks right |
-| PS2 (PCSX2) | Left stick click is Select, right stick click is Start (`setups/pcsx2-vr/unattended-capture.patch`): differs from the convention, pending (patch change) | n/a | The left menu "spare Start" is dead under ALVR |
+| PS2 (PCSX2) | Left stick click: `setups/pcsx2-vr/unattended-capture.patch` (the VR menu action, not the pad's L3, so L3 and R3 games are unaffected). Not yet seen in the headset | n/a | Select is right stick click, as in the PS1 face layout, because left Y carries the 3 s quit hold. The left menu "spare Start" alias is dead under ALVR |
 | Wii (Dolphin) | Left stick click = Plus (profiles) | Game's own (Remote B or 1) | Minus on a Y tap release; Home on a 0.5 s hold; holding Y no longer sends Minus |
 | GameCube (Dolphin) | Left stick click (not while the stick is tilted) | Right B | |
-| Model 2, Model 3, System 22, Pinball | A = Start (arcade) | n/a | System 22's libacvr pause overlay is still on the left Menu: pending (host) |
+| Model 2, Model 3, System 22, Pinball | A = Start (arcade) | n/a | System 22's pause overlay (`data/controls/system22/controls.toml`) is the left stick click, so pause and resume are one button. Its gun-angle reset moved off that click to the left `menu_chord` (no host sets it yet). The host that sends the click is pending |
 
 ## 3. Pause overlay controls (all setups)
 
