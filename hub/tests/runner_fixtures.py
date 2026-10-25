@@ -7,6 +7,33 @@ import sys
 import tempfile
 
 
+def alive(pid):
+    """Whether a process is still running (Windows only; the tree kill is a Windows feature)."""
+    listing = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True).stdout
+    return f" {pid} " in listing
+
+
+def check_tree_kill(cmake, runner, root, program):
+    """A timeout must end the child's own children too, or they keep its log and temporary files locked."""
+    pid_file = root / "grandchild.pid"
+    try:
+        result = subprocess.run(
+            [cmake, f"-DTEST_EXECUTABLE={sys.executable}", f"-DTEST_ARGUMENTS=-B;{program}",
+             f"-DTEST_LOG={root / 'tree-report.txt'}", "-DTEST_TIMEOUT=8", "-P", runner],
+            env={**os.environ, "AC_QT_RUNNER_FIXTURE": "tree", "AC_QT_RUNNER_GRANDCHILD": str(pid_file)},
+            capture_output=True, text=True, timeout=40,
+        )
+        output = result.stdout + result.stderr
+        assert result.returncode != 0 and "timeout" in output.lower(), output
+        assert pid_file.is_file(), "the fixture never started its grandchild: " + output
+        grandchild = int(pid_file.read_text())
+        assert not alive(grandchild), f"grandchild {grandchild} survived the timeout: " + output
+        print("PASS Qt runner tree kill")
+    finally:
+        if pid_file.is_file():
+            subprocess.run(["taskkill", "/F", "/PID", pid_file.read_text()], capture_output=True)
+
+
 def main():
     cmake, runner = sys.argv[1:]
     with tempfile.TemporaryDirectory(prefix="qt-runner-") as temporary:
@@ -17,6 +44,11 @@ def main():
             "mode = os.environ['AC_QT_RUNNER_FIXTURE']\n"
             "if mode not in ('missing', 'missing-success'): pathlib.Path(sys.argv[2].rsplit(',', 1)[0]).write_text('synthetic Qt report\\n')\n"
             "if mode == 'hang': time.sleep(4)\n"
+            "if mode == 'tree':\n"
+            "    import subprocess\n"
+            "    child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+            "    pathlib.Path(os.environ['AC_QT_RUNNER_GRANDCHILD']).write_text(str(child.pid))\n"
+            "    time.sleep(60)\n"
             "sys.exit(7 if mode in ('fail', 'missing') else 0)\n",
             encoding="utf-8",
         )
@@ -39,6 +71,8 @@ def main():
             else:
                 assert result.returncode != 0 and "Qt test failed (7)" in output, output
             print(f"PASS Qt runner {mode}")
+        if sys.platform == "win32":
+            check_tree_kill(cmake, runner, root, program)
 
 
 if __name__ == "__main__":

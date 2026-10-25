@@ -26,6 +26,29 @@
 #include <QElapsedTimer>
 #include <QTimer>
 #include <QScopeGuard>
+#include <QDirIterator>
+namespace {
+// A stopped test must leave nothing running: end the process and everything it started, on both platforms.
+void killTree(QProcess &process){
+    if(process.state()==QProcess::NotRunning)return;
+    const auto pid=QString::number(process.processId());
+#ifdef Q_OS_WIN
+    QProcess::execute("taskkill",{"/T","/F","/PID",pid});
+#else
+    QProcess::execute("pkill",{"-KILL","-P",pid});
+#endif
+    process.kill();process.waitForFinished(15000);
+}
+// On failure, keep the test's temporary folder where CI uploads it (CTest sets AC_TEST_ARTIFACT_DIR).
+void keepArtifacts(const QString &name,const QString &from){
+    const auto base=qEnvironmentVariable("AC_TEST_ARTIFACT_DIR");if(base.isEmpty())return;
+    const auto to=base+"/"+name;QDirIterator files(from,QDir::Files,QDirIterator::Subdirectories);
+    while(files.hasNext()){
+        const auto source=files.next();const auto target=to+"/"+QDir(from).relativeFilePath(source);
+        QDir().mkpath(QFileInfo(target).absolutePath());QFile::copy(source,target);
+    }
+}
+}
 class SmokeTest : public QObject {
     Q_OBJECT
 private slots:
@@ -71,20 +94,56 @@ private slots:
         auto hub=QCoreApplication::applicationDirPath()+"/aladdinscastle-hub", child=QCoreApplication::applicationDirPath()+"/test-stand-in";
 #ifdef Q_OS_WIN
         hub+=".exe"; child+=".exe";
-        const QString quitAfter="7000";
-#else
-        // This platform asks for VPX to exit itself before Hub can close.
-        const QString quitAfter="12000";
 #endif
+        // A table that plays is decided by events: the Hub captures when the session runs and quits when it ends,
+        // and the stand-in plays until the release file appears. The refused shapes never start a table, so a timed capture is enough.
+        const bool plays=shape=="current"||shape=="private-ini";
+        const auto release=temp.filePath("release");
+        QString quitAfter="120000"; // A failsafe only.
+        if(!plays){
+#ifdef Q_OS_WIN
+            quitAfter="7000";
+#else
+            quitAfter="12000";
+#endif
+        }
         QVERIFY(QFileInfo::exists(child)); QVERIFY(QDir().mkpath(root+"/user"));
         QVERIFY(write(root+"/user/hub-settings.toml",("[ui]\npinballExecutable='"+QDir::fromNativeSeparators(child)+"'\n").toUtf8()));
         auto env=QProcessEnvironment::systemEnvironment();
-        env.remove("AC_UI_PLAY");env.remove("AC_UI_PINBALL_INI");env.insert("AC_UI_PINBALL_ROW",cache);env.insert("AC_UI_CAPTURE",capture);env.insert("AC_SYNTHETIC_PINBALL_CHILD_MS","9000");env.insert("AC_SYNTHETIC_PINBALL_ARGUMENTS",arguments);
+        env.remove("AC_UI_PLAY");env.remove("AC_UI_PINBALL_INI");env.remove("AC_UI_CAPTURE_WHEN_PLAYING");env.remove("AC_SYNTHETIC_PINBALL_RELEASE");env.remove("AC_SYNTHETIC_PINBALL_CHILD_MS");
+        env.insert("AC_UI_PINBALL_ROW",cache);env.insert("AC_UI_CAPTURE",capture);env.insert("AC_SYNTHETIC_PINBALL_ARGUMENTS",arguments);
+        if(plays){env.insert("AC_UI_CAPTURE_WHEN_PLAYING","1");env.insert("AC_SYNTHETIC_PINBALL_RELEASE",release);}
         if(shape.contains("ini"))env.insert("AC_UI_PINBALL_INI",ini);
         if(shape=="ini-without-row")env.remove("AC_UI_PINBALL_ROW");
         env.insert("QT_QPA_PLATFORM","offscreen");env.insert("QT_QUICK_BACKEND","software");env.insert("QT_OPENGL","software");
-        QProcess process;process.setProcessEnvironment(env);process.start(hub,{"--data-root",root,"--install-root",root,"--quit-after-ms",quitAfter});
-        QVERIFY(process.waitForStarted());QVERIFY(process.waitForFinished(30000));QCOMPARE(process.exitStatus(),QProcess::NormalExit);QCOMPARE(process.exitCode(),0);
+        QProcess process;process.setProcessEnvironment(env);
+        QByteArray hubOut,hubErr;
+        // Hub output and which receipt files exist, for a failure message and the kept artifacts.
+        const auto evidence=[&]{
+            hubOut+=process.readAllStandardOutput();hubErr+=process.readAllStandardError();
+            QString text="Hub state "+QString::number(process.state())+", exit "+QString::number(process.exitCode())+"\nstdout: "+QString::fromUtf8(hubOut)+"\nstderr: "+QString::fromUtf8(hubErr);
+            for(const auto &path:{capture,capture+".json",capture+".exit.json",arguments,release}){
+                const QFileInfo info(path);text+="\n"+info.fileName()+": "+(info.exists()?"present, modified "+info.lastModified().toString(Qt::ISODateWithMs):QString("missing"));
+            }
+            return text;
+        };
+        const auto stopHub=qScopeGuard([&]{
+            if(QTest::currentTestFailed()){
+                QFile log(temp.filePath("hub-output.txt"));
+                if(log.open(QIODevice::WriteOnly))log.write(evidence().toUtf8());
+                keepArtifacts(QString("smoke-")+shape,temp.path());
+            }
+            killTree(process);
+        });
+        process.start(hub,{"--data-root",root,"--install-root",root,"--quit-after-ms",quitAfter});
+        QVERIFY(process.waitForStarted(30000));
+        if(plays){
+            QTRY_VERIFY2_WITH_TIMEOUT(QFile::exists(capture+".json")||process.state()==QProcess::NotRunning,qPrintable(evidence()),60000);
+            QVERIFY2(QFile::exists(capture+".json"),qPrintable(evidence()));
+            QVERIFY(write(release,"release"));
+        }
+        QVERIFY2(process.waitForFinished(60000),qPrintable(evidence()));
+        QCOMPARE(process.exitStatus(),QProcess::NormalExit);QVERIFY2(process.exitCode()==0,qPrintable(evidence()));
         QFile receipt(capture+".json");QVERIFY(receipt.open(QIODevice::ReadOnly));const auto captured=QJsonDocument::fromJson(receipt.readAll()).object();
         QVERIFY(!QImage(capture).isNull());QVERIFY(captured["imageSaved"].toBool());
         if(shape=="current"||shape=="private-ini"){
@@ -167,7 +226,7 @@ private slots:
         executable+=".exe";
 #endif
         QProcess first;first.setProcessEnvironment(env);
-        const auto stopFirst=qScopeGuard([&]{if(first.state()!=QProcess::NotRunning){first.kill();if(!first.waitForFinished(15000))QTest::qFail("First Hub did not stop",__FILE__,__LINE__);}});
+        const auto stopFirst=qScopeGuard([&]{killTree(first);if(first.state()!=QProcess::NotRunning)QTest::qFail("First Hub did not stop",__FILE__,__LINE__);});
         // The parent owns the first Hub's lifetime. Its deadline is only an orphan failsafe,
         // not a narrow window in which the second process has to start under CPU load.
         first.start(executable,{"--data-root",root,"--install-root",root,"--quit-after-ms","120000"});
