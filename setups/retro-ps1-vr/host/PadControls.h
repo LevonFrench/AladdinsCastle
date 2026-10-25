@@ -262,7 +262,10 @@ inline RetroPad Map(const theatre::Input &in, const Config &c)
     if (c.aimButton >= 0) p.press((unsigned)c.aimButton);
     if (std::fabs(sx) > .3f || std::fabs(sy) > .3f) { p.rx = sx; p.ry = sy; }   // walk/strafe on the C buttons while aiming
   } else { p.lx = sx; p.ly = sy; }
-  for (const auto &m : c.map) if (VrControl(in, m.first)) p.press((unsigned)m.second);   // buttons (and C directions) last
+  // Buttons (and C directions) last. Over the touch panel the stylus control is the stylus only: a profile that also maps it
+  // (Mario Kart 7: rtrig = a) would otherwise confirm the highlighted menu item on every tap, wherever the tap lands.
+  const bool stylusOnly = c.touch.on && in.touchHit;
+  for (const auto &m : c.map) if (!(stylusOnly && m.first == c.touch.button) && VrControl(in, m.first)) p.press((unsigned)m.second);
   if (c.touch.on && in.touchHit) {   // the stylus: over the panel, down while the chosen control is held
     const auto &b = c.touch.pointer;
     p.pointerOn = true; p.pointerDown = VrControl(in, c.touch.button);
