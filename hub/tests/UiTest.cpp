@@ -1123,7 +1123,7 @@ class UiTest:public QObject {
   root->setProperty("view","Detail");
   int rendered=0;
   for(const auto &g:games->records()){if(rendered++%50==0)qInfo("UI detail %d / 445",rendered);ui->openDetail(g.id);auto d=ui->detail();QCOMPARE(d.value("gameId").toString(),g.id);QVERIFY(!d.value("readme").toString().isEmpty());QVERIFY(!d.value("controls").toList().isEmpty());QCoreApplication::processEvents(QEventLoop::AllEvents,1);}
-  filter.setQuery("scud");QVERIFY(filter.visibleCount()>0);filter.setQuery("unlikely-no-title-synthetic");QCOMPARE(filter.visibleCount(),0);filter.setQuery("");root->setProperty("view","List");QCOMPARE(filter.visibleCount(),444);
+  filter.setQuery("scud");QVERIFY(filter.visibleCount()>0);filter.setQuery("unlikely-no-title-synthetic");QCOMPARE(filter.visibleCount(),0);filter.setQuery("");root->setProperty("view","List");QCOMPARE(filter.visibleCount(),445);
  }
  void signalsAndProofGates(){
   QSignalSpy scans(ui.get(),&ac::UiController::scanRequested),cancels(ui.get(),&ac::UiController::cancelScanRequested);ui->startScan({"synthetic-root"});ui->startScan({"synthetic-root"});QCOMPARE(scans.count(),1);QCOMPARE(cancels.count(),0);QVERIFY(ui->scanning());ui->cancelScan();QCOMPARE(cancels.count(),1);ui->scanStarted();QVERIFY(ui->scanning());ui->scanFinished(true);QVERIFY(filter.scanComplete());
