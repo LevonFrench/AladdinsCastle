@@ -132,6 +132,8 @@ add_library(hubcore STATIC
     src/core/launch/Watchdog.cpp
     src/core/wii/Wii.h
     src/core/wii/Wii.cpp
+    src/core/libretro/Libretro.h
+    src/core/libretro/Libretro.cpp
     src/core/library/Library.h
     src/core/library/Library.cpp
     src/core/settings/Secret.h
@@ -287,6 +289,12 @@ if(BUILD_TESTING)
     ac_project_warnings(wii-tests)
     set_target_properties(wii-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-wii COMMAND wii-tests -o -,txt)
+    qt_add_executable(libretro-tests tests/LibretroTest.cpp)
+    target_link_libraries(libretro-tests PRIVATE hubcore Qt6::Test)
+    target_compile_definitions(libretro-tests PRIVATE AC_CATALOG_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+    ac_project_warnings(libretro-tests)
+    set_target_properties(libretro-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-libretro COMMAND libretro-tests -o -,txt)
     qt_add_executable(watchdog-tests tests/WatchdogTest.cpp)
     target_link_libraries(watchdog-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(watchdog-tests)

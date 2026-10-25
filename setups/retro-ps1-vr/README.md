@@ -556,9 +556,28 @@ Its log line is `Frame shape: ...`.
 100: on the 2.4 m curved theatre screen the picture spans about 55 degrees
 against 12 to 17 for a real 3DS, so full-strength parallax is several times a
 comfortable amount (a review's estimate, not yet judged in a headset). Raise it
-per game once it has been looked at. The depth direction has not been confirmed
-either: if far scenery comes towards you instead of receding, set
-`ACVR_PS1_SWAP_EYES=1`.
+per game once it has been looked at. The eye order was measured offline (see
+Eye order below): the left half is the left eye, so no swap is needed. If far
+scenery still comes towards you in a headset, set `ACVR_PS1_SWAP_EYES=1` (the
+profile's `swap-eyes` view does it).
+
+Starting it from the Hub: the catalog entry `3ds-star-fox-64-3d` has a Hub row
+(`hub/src/core/libretro`) that runs `acvr-ps1 --core <core> --game <dump> --system <folder>
+--saves <folder> --profile <profile>`, with `--view swap-eyes` for the diagnostic
+view. Nothing but the profile name is in the repo; the Hub reads these from its
+own private settings (`user/hub-settings.toml`):
+
+| Setting | What |
+|---|---|
+| `libretroHost` | the `acvr-ps1.exe` to run (a build that reads `--profile`) |
+| `threedsCore` | Azahar's `azahar_libretro.dll` |
+| `threedsGameFolder` | your own decrypted dumps; the file is found by the game's title |
+| `libretroProfiles` | the profile folder; empty = `setups/retro-ps1-vr/profiles` found above the Hub |
+
+The row appears once any of the first three is set, and says what is missing
+until all are. The core's system and save folders are the Hub's own, under
+`user/libretro/<id>`. Exit game here asks the host to save and quit through the
+same stop file as PS1 and N64.
 
 Azahar refuses a decrypted dump whose header it still reads as encrypted ("This
 ROM is encrypted"). This repository carries no tool and no instructions for
@@ -599,6 +618,41 @@ frames, so there is no controlled before-and-after for them. The theatre proof
 shows each eye cropped to fill the curved screen, rendered offline from a boot
 logo and a training frame; the live headset path is not covered. Not yet seen
 in a headset.
+
+### Eye order (offline measurement, 2026-10-25)
+
+Evidence level: E2 (hidden offline runs; not seen in a headset). Tool:
+`eyes.py` (a lane script, not in the repo): for each 24 px block of the left
+half it finds the shift d, from -80 to +80 px, at which the right half matches
+it. Sign convention: d greater than 0 means the right-eye picture is shifted
+right relative to the left, which is uncrossed parallax, behind the screen
+plane (far); d less than 0 is crossed, in front of the screen; 0 is the screen
+plane. Far objects must come out positive. A block whose best match sits at
+-80 or +80 is flagged at the limit (the sign is known, the size is not), and a
+block near the picture's edge whose best sits at its clipped search end is left
+out.
+
+Run: the host with `--profile 3ds-star-fox-64-3d.toml` (factor 40, 3x, 1200x720
+frames), `--headless --no-xr --mute`, 6000 frames, a snapshot every 600 frames
+while a script pressed A and Start; Star Fox 64 3D and Mario Kart 7, 9 frames
+each, one run each. The eyes differ in every frame (mean absolute difference 0.1
+to 11 grey levels).
+
+| Game | Textured blocks used | d greater than 0 | d less than 0 | d = 0 | Far shift | At the limit |
+|---|---|---|---|---|---|---|
+| Mario Kart 7 | 2619 | 2335 | 52 | 232 | per-frame medians +4.5 to +13 px (race frames: median +7, up to +11) | 18 blocks at -80 |
+| Star Fox 64 3D | 1995 | 1281 | 393 | 321 | histogram peaks at +9 and +10 px | 2 blocks at -80 |
+
+The HUD sits at 0 in both games (232 and 321 zero-shift blocks; in Mario Kart 7
+the "8th" and the kart are at the same x in both halves of frame 4200, while the
+banners and the arch at the end of the straight are shifted right). In Star Fox
+two frames (1800 and 4800) have more crossed than uncrossed blocks (medians -1
+and -3): in frame 4800 the near ring fills the picture, down to -37 px in front
+of the screen, while the grid and the stars behind it are at +9 and +10. Both games
+therefore put far scenery on the uncrossed side: **the eyes are not swapped, and
+`ACVR_PS1_SWAP_EYES` stays off in the 3DS profile.** The 20 blocks at -80 are
+near objects or false matches on a repeating texture; their size is unknown. Not
+measured: other games, other frame sizes, and the effect in a headset.
 
 ## Next
 
