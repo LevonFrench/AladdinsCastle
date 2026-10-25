@@ -181,8 +181,9 @@ jobs:
                       if attempt == 2:
                           raise
                       time.sleep(5)
+              # The pin hashed openxr_platform_defines.h with CRLF line endings; upstream ships LF. Accept either form of the same text.
               digest = hashlib.sha256(data).hexdigest()
-              if digest != expected:
+              if expected not in (digest, hashlib.sha256(data.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n')).hexdigest()):
                   raise SystemExit(f'{name} from {tag} has SHA-256 {digest}, expected {expected}')
               (target / name).write_bytes(data)
           print(f'Fetched {len(pin["sha256"])} OpenXR {pin["version"]} headers into {target}')
