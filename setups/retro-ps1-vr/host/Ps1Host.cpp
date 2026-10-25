@@ -11,6 +11,7 @@
 #include "Png.h"
 #include "PadControls.h"
 #include "GlStereo.h"
+#include "HostConfig.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdarg>
@@ -586,7 +587,7 @@ bool IsFlashFrame()
   return total && bright * 100 >= total * share;
 }
 unsigned g_flashRun = 0, g_flashHidden = 0, g_flashLongest = 0;
-const bool g_hideFlash = [] { const char *e = std::getenv("ACVR_PS1_HIDE_FLASH"); return !e || std::atoi(e) != 0; }();
+bool g_hideFlash = true;   // ACVR_PS1_HIDE_FLASH, read in main once a profile has been applied
 // The frame the gun's trigger was last down; a flash only follows a shot (autofire included), so white
 // menus and fades with no shot always show, and no picture is read back while nobody is shooting.
 unsigned g_triggerFrame = 0; bool g_triggerSeen = false;
@@ -734,12 +735,15 @@ void Usage()
     "acvr-ps1 --core <libretro dll> --game <disc> --system <BIOS dir> --saves <dir>\n"
     "         [--gun guncon|justifier|lightgun|stunner] [--port 1|2] [--controls gun|pad|wheel|aim] [--option key=value]...\n"
     "         [--log <file>] [--no-xr] [--headless --frames N [--script file] [--snapshots dir]]\n"
+    "         [--profile <file.toml> [--view <name>]] [--print-config]\n"
     "         [--theatre-proof <prefix> --test-aim U V] [--state <saved state to start from>]\n"
     "Theatre: ACVR_XR_DISTANCE (m, default 2.5), ACVR_PS1_SCREEN_W (m, default 2.4), ACVR_PS1_CURVE (1 curved, 0 flat),\n"
     "         ACVR_PS1_LIFT (m), ACVR_PS1_CRT (1: scanlines), ACVR_PS1_GUN_MODEL (.glb), ACVR_PS1_GUN_META (.toml),\n"
     "         ACVR_PS1_AIM (per-game aim trim: x scale,x shift,y scale,y shift),\n"
     "         ACVR_PS1_SBS (1: side-by-side eyes), ACVR_PS1_SWAP_EYES (1: swap them),\n"
     "         ACVR_PS1_LETTERBOX (share of rows cut top and bottom; unset, it is worked out from the core's frame, 3DS: .25).\n"
+    "Profile: a per-game TOML file of ACVR_* settings, core options, a pad map and views (setups/retro-ps1-vr/profiles);\n"
+    "         the environment and the command line override it. --print-config shows every setting and where it came from.\n"
     "Clean quit: hold left Y (Index: left B) for 3 s, Escape, or create ACVR_PS1_STOP_FILE.\n");
 }
 
@@ -747,9 +751,10 @@ void Usage()
 
 int main(int argc, char **argv)
 {
-  std::string game, gunName = "guncon", script, snapshots, logPath;
+  std::string game, gunName = "guncon", script, snapshots, logPath, profileNote;
   unsigned frames = 0, seconds = 0; bool headless = false, noXr = false, mute = false, testAim = false;
-  float testU = .5f, testV = .5f; std::string theatreProof, startState;
+  float testU = .5f, testV = .5f; std::string theatreProof, startState, profilePath, viewName;
+  bool printConfig = false, controlsGiven = false, gunGiven = false, portGiven = false;
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
     auto next = [&]() -> std::string { if (i + 1 >= argc) { Usage(); std::exit(2); } return argv[++i]; };
@@ -757,9 +762,12 @@ int main(int argc, char **argv)
     else if (a == "--game") game = next();
     else if (a == "--system") g_systemDir = next();
     else if (a == "--saves") g_saveDir = next();
-    else if (a == "--gun") gunName = next();
-    else if (a == "--controls") g_controls = next();
-    else if (a == "--port") g_gunPort = (unsigned)std::atoi(next().c_str()) == 2 ? 1 : 0;
+    else if (a == "--gun") { gunName = next(); gunGiven = true; }
+    else if (a == "--controls") { g_controls = next(); controlsGiven = true; }
+    else if (a == "--port") { g_gunPort = (unsigned)std::atoi(next().c_str()) == 2 ? 1 : 0; portGiven = true; }
+    else if (a == "--profile") profilePath = next();
+    else if (a == "--view") viewName = next();
+    else if (a == "--print-config") printConfig = true;
     else if (a == "--option") { const std::string kv = next(); const auto eq = kv.find('='); if (eq == std::string::npos) { Usage(); return 2; } g_optionOverrides[kv.substr(0, eq)] = kv.substr(eq + 1); }
     else if (a == "--log") logPath = next();
     else if (a == "--headless") headless = true;
@@ -775,10 +783,34 @@ int main(int argc, char **argv)
     else if (a == "--snapshots") snapshots = next();
     else { Usage(); return 2; }
   }
+  // The settings registry and the game's profile. A profile only fills in what the environment and the command
+  // line leave open; with no profile nothing changes. This runs before anything reads an ACVR_* variable.
+  hostcfg::Resolved config;
+  try {
+    if (!viewName.empty() && profilePath.empty()) throw std::runtime_error("--view needs --profile");
+    std::optional<hostcfg::Profile> profile;
+    if (!profilePath.empty()) profile = hostcfg::LoadProfile(profilePath);
+    config = hostcfg::Resolve(profile ? &*profile : nullptr, viewName, g_optionOverrides);
+    if (profile) {
+      if (!controlsGiven && !profile->controls.empty()) g_controls = profile->controls;
+      if (!gunGiven && !profile->gun.empty()) gunName = profile->gun;
+      if (!portGiven && profile->port) g_gunPort = profile->port == 2 ? 1 : 0;
+      profileNote = "Profile: " + (profile->name.empty() ? profilePath : profile->name) + " (" + profilePath + ")" +
+                    (profile->system.empty() ? "" : ", system " + profile->system) + (config.view.empty() ? "" : ", view " + config.view);
+    }
+  } catch (const std::exception &e) { std::fprintf(stderr, "acvr-ps1: %s\n", e.what()); return 2; }
+  g_hideFlash = [] { const char *e = std::getenv("ACVR_PS1_HIDE_FLASH"); return !e || std::atoi(e) != 0; }();
+  if (printConfig) {
+    if (!profileNote.empty()) std::printf("%s\n", profileNote.c_str());
+    for (const auto &line : config.printout()) std::printf("%s\n", line.c_str());
+    return 0;
+  }
   if (g_corePath.empty() || game.empty() || g_systemDir.empty() || g_saveDir.empty() || (headless && !frames)) { Usage(); return 2; }
   if (gunName != "guncon" && gunName != "justifier" && gunName != "lightgun" && gunName != "stunner") { Usage(); return 2; }
   if (g_controls != "gun" && g_controls != "pad" && g_controls != "wheel" && g_controls != "aim") { Usage(); return 2; }
   if (!logPath.empty()) { g_log = std::fopen(logPath.c_str(), "w"); if (!g_log) g_log = stdout; }
+  if (!profileNote.empty()) Log("%s", profileNote.c_str());
+  for (const auto &line : config.summary()) Log("%s", line.c_str());
   // Offline runs stay out of the way; a game in the headset keeps normal priority so it is never starved.
   if (headless || noXr) SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
   CreateDirectoryA(g_saveDir.c_str(), nullptr);

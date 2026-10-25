@@ -106,13 +106,66 @@ acvr-ps1 --core <dll> --game <disc> --system <BIOS folder> --saves <folder>
          [--gun guncon|justifier] [--port 1|2] [--option key=value]...
 ```
 
-`profiles.json` lists, per catalog game, which gun and port it uses. Nothing in
-this repository reads it yet, so treat it as unused notes until a later round
-either wires it in or removes it.
+`profiles.json` is superseded by the per-game files in `profiles\` (see
+Profiles below) and stays only until its remaining entries are migrated; nothing
+reads it.
 `--option` sets a core option, such as
 `--option beetle_psx_internal_resolution=2x`. The program writes every
 option the core offers, with the value in use, to `core-options.txt` in the
 saves folder.
+
+## Profiles
+
+A profile is one TOML file per game in `profiles\`, named by the catalog id
+(`3ds-star-fox-64-3d.toml`, `ps1-time-crisis.toml`). It holds what makes the
+game play right: the host's `ACVR_*` settings, the core options, the pad map,
+and named views. It holds no core, game, BIOS, save folder or other path of one
+machine; those stay on the command line, from the launcher.
+
+```
+acvr-ps1 --profile profiles\3ds-star-fox-64-3d.toml [--view swap-eyes] --core <dll> --game <dump> --system <folder> --saves <folder>
+acvr-ps1 --profile profiles\3ds-star-fox-64-3d.toml --print-config
+```
+
+Precedence, lowest to highest: the program's own default, the profile, the
+profile's chosen view (`--view`, else its `default_view`), the environment
+(`ACVR_*`), the command line (`--option`, `--controls`, `--gun`, `--port`). So
+running with no profile behaves as before, and an exported `ACVR_*` variable
+still wins over a profile for a quick trial. The host logs the resolved
+settings once at start, each with where it came from, and `--print-config`
+prints all of them and exits without starting a core, a window or the headset
+runtime.
+
+The file's keys (anything else is an error, so a typo fails loudly):
+
+| Key | |
+|---|---|
+| `schema = 1`, `name`, `notes` | required version, a title for the log, free text |
+| `system` | `ps1`, `saturn`, `n64` or `3ds`; a setting that does not apply to it is warned about |
+| `controls`, `gun`, `port` | as `--controls`, `--gun`, `--port` |
+| `default_view` | the view used when `--view` is not given |
+| `[settings]` | `ACVR_*` names exactly as in `host\HostConfig.h`; `"auto"` leaves a setting to the host (the letterbox of a 3DS frame) |
+| `[core_options]` | `--option` lines: `citra_factor_3d = 40` |
+| `[pad]` | `map = { rtrig = "a", ... }` or a string, plus `wheel_deg`, `aim_hold`, `aim_button`, `aim`, `aim_curve`, `aim_dot`, `aim_on`, `follow_u`, `follow_v`, `follow_gain` |
+| `[views.<name>]` | `label`, `evidence`, `notes`, and its own `settings`, `core_options` and `pad` tables, layered over the base |
+
+Every setting the host reads is listed once in `host\HostConfig.h` with its
+type, default and the systems it applies to. It warns about any `ACVR_*`
+variable in the environment that nothing reads (with the closest name), and
+about a value of the wrong type. A profile may not set a path (the stop file,
+gun model, cheat file, trace folder). Settings read by our patched cores
+(`ACVR_PS1_STEREO*`, `ACVR_SAT_STEREO*`) are listed too; the host passes them on
+because the profile is applied before the core loads.
+
+The host has no TOML dependency (the Hub's toml++ comes from CMake's
+FetchContent; this program is one g++ command line), so `HostConfig.h` carries a
+small strict reader for the subset the profiles use: `[a.b]` tables,
+`key = value`, one-line `"strings"`, `'literal strings'`, integers, floats,
+`true`/`false`, `[arrays]`, `{ inline = "tables" }` and `#` comments. Dotted
+keys, multi-line strings or arrays, `[[arrays of tables]]` and dates are refused
+with the line number. Checks: `python test_host_profiles.py` (registry against
+the code, profiles against the registry and the catalog) and
+`host\HostConfigTest.cpp` (the reader and the precedence; needs g++).
 
 ## Offline proofs
 
