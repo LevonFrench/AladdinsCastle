@@ -1,0 +1,36 @@
+id           = "gc-star-wars-rogue-squadron-ii-rogue-leader"
+title        = "Star Wars Rogue Squadron II: Rogue Leader"
+alt_titles   = []
+genre        = "shooting"
+subgenre     = []
+year         = 2001
+manufacturer = "nintendo"
+developer    = "Factor 5"
+hardware     = "nintendo-gamecube"
+graphics     = "polygon-3d"
+players      = 1
+series       = "Star Wars: Rogue Squadron"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "disc"
+note = "Your own GameCube disc image (ISO/GCM or RVZ)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "true3d", via = "DolphinXR through the user's launcher (games.json)" }
+
+[hub]
+pill   = "GC-ROGUELDR"
+colour = "#0e1424"
+accent = "#5fa8e8"
+blurb  = "Fly X-wings and snowspeeders through the classic Star Wars battles."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Star_Wars_Rogue_Squadron_II:_Rogue_Leader"]
+confidence = "medium"
+checked    = "2026-10-26"
