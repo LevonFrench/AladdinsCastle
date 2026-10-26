@@ -32,6 +32,15 @@ bool commonWord(const QString &name) {
                                  "install", "data", "temp",  "tmp",    "local", "localhost"};
   return words.contains(name.toLower());
 }
+// The folders of a path, each ending in a separator. A folder name may hold single spaces ("My Games\Secret Name\") only when
+// a separator follows it straight away, so a path ends where the prose starts: "opened <drive>\My Games\x.iso and started"
+// stops after x.iso. A name is at most five words; the words after the first hold no colon, comma or semicolon. The last part of a path
+// is not a folder and is kept as written (a network path drops it too, and then also takes a spaced name that ends in an
+// extension). A folder with no separator after it cannot be told from prose, so as the last part it stays.
+const QString &folderRun() {
+  static const QString run = QStringLiteral(R"re((?:[^\s"'<>|*?\\/:]++(?: [^\s"'<>|*?\\/:,;]++){0,4}+[\\/]++)*+)re");
+  return run;
+}
 // A path that was not the person's own folder: the folders are not wanted, the file's own name often is.
 QString shortenPaths(const QString &text, const QRegularExpression &paths) {
   QString out;
@@ -68,10 +77,15 @@ QString redact(const QString &text, const Redaction &who) {
   replaceFolder(out, who.home, QStringLiteral("<home>"));
   static const QRegularExpression profile(R"re((?<![A-Za-z0-9>])(?:[A-Za-z]:)?[\\/]+(?:Users|home)[\\/]+[^\\/\s"'<>|:;,)]+)re", kNoCase);
   out.replace(profile, QStringLiteral("<home>"));
-  static const QRegularExpression network(R"re((?<![A-Za-z0-9])\\\\[^\s\\/"'<>|]+[\\/][^\s"'<>|]*)re");
+  static const QRegularExpression network(QStringLiteral(R"re((?<![A-Za-z0-9])\\\\[^\s\\/"'<>|]+[\\/]++)re") + folderRun() +
+                                          QStringLiteral(R"re((?:(?:[^\s"'<>|*?\\/:.,;]++ ){1,3}[^\s"'<>|*?\\/:]*\.[A-Za-z0-9]{1,5}(?![A-Za-z0-9])|[^\s"'<>|]*))re"));
   out.replace(network, QStringLiteral("<network path>"));
-  static const QRegularExpression drivePath(R"re((?<![A-Za-z0-9])[A-Za-z]:[\\/][^\s"'<>|*?]*)re");
+  static const QRegularExpression drivePath(QStringLiteral(R"re((?:(?<=")[A-Za-z]:[\\/][^"<>|*?\r\n]*+(?=")|(?<![A-Za-z0-9])[A-Za-z]:[\\/]++)re") + folderRun() +
+                                            QStringLiteral(R"re([^\s"'<>|*?]*))re"));
   out = shortenPaths(out, drivePath);
+  static const QRegularExpression mountPath(QStringLiteral(R"re((?<![A-Za-z0-9_.\-~/\\:>])/(?:mnt|media|Volumes|run/media|srv|opt)/+)re") + folderRun() +
+                                            QStringLiteral(R"re([^\s"'<>|*?]*)re"));
+  out = shortenPaths(out, mountPath);
   // Web logins, keys and tokens.
   static const QRegularExpression login(R"re(\b([a-z][a-z0-9+.\-]*://)[^/\s:@]+(?::[^/\s@]*)?@)re", kNoCase);
   out.replace(login, QStringLiteral("\\1<redacted>@"));
