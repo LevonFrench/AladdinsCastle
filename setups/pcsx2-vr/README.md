@@ -431,7 +431,7 @@ unchanged. The action set has Touch and Index suggestions:
 | Left stick click, alone (U1) | Start |
 | Right stick click, alone (U2) | Select |
 | Both stick clicks together, released within 1 s (U3) | Recentre the screen or inside view at the current head position and yaw |
-| Both stick clicks held 3 s (U4) | Quit and save: graceful VM shutdown, memory cards flush, back to the Hub |
+| Both stick clicks held 3 s (U4) | Quit and save: graceful VM shutdown, memory cards flush, back to the Hub. A ring in each eye image shows the hold: nothing for 1 s, filling to 3 s, one flash, then the quit (gone at once if a click lets go) |
 | Left Y (Index left B) | L3 (native pad) |
 | Left X (Index left A) | R3 (native pad) |
 | Gun profile: right trigger | GunCon trigger; off-screen aim reloads |

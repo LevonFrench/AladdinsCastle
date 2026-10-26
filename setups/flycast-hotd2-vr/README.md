@@ -73,7 +73,7 @@ Model 2 viewer and the Supermodel patch):
 | Left stick click, alone | Start (player 1's; with `vr.DualWield` and a game that shows the player 2 prompt, it lets player 2 join) |
 | Right stick click, alone | Coin (the pad's D; Naomi and Atomiswave coin, nothing in plain Dreamcast games) |
 | Both clicks, the second within 150 ms of the first, released within 1 s | Recentre |
-| Both clicks held for 3 s | Quit through Flycast's normal exit (`dc_exit`, as closing the window), which saves the VMU and NVRAM; on Android builds it only logs, because there is no desktop exit |
+| Both clicks held for 3 s | Quit through Flycast's normal exit (`dc_exit`, as closing the window), which saves the VMU and NVRAM; on Android builds it only logs, because there is no desktop exit. A ring straight ahead in each eye shows the hold: nothing for 1 s, filling to 3 s, one flash, then the quit (gone at once if a click lets go). The patch carries the libacvr ring headers in `core/rend/vr/acvr/` |
 
 A click waits 150 ms for the other, so Start and Coin arrive 150 ms late and never as part of a chord. Right A stays
 an extra Start (it has no other use). No menu or system button is bound on any profile, and left X, left A (Index)
