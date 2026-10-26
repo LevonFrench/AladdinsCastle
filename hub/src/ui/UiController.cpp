@@ -414,7 +414,9 @@ QVariantList UiController::setupSystems()const{
   // A system follows its kind unless the user ticked or cleared it itself.
   row["chosen"]=kinds.value(row.value("kind").toString()).toBool()&&saved.value(id,true).toBool();
   // From the finders and the update check, when they have been asked: a plain flag and the folders worth trying.
-  row["updateAvailable"]=m_emulatorUpdates.contains(id);row["suggestions"]=m_setupSuggestions.value(id).toList();
+  // Update reports are keyed by emulator manifest id; a system's program is built from that emulator.
+  static const QHash<QString,QString> emulatorOf{{"model3","supermodel"},{"model2","mame"},{"pinball","vpx"},{"ps2","pcsx2"},{"wii","dolphin"},{"dreamcast","flycast"}};
+  row["updateAvailable"]=m_emulatorUpdates.contains(id)||m_emulatorUpdates.contains(emulatorOf.value(id));row["suggestions"]=m_setupSuggestions.value(id).toList();
   row["guess"]=row.value("folder").toString().isEmpty()&&!row.value("folderKey").toString().isEmpty()?setup::guessFolder(id,known):QString();
   rows<<row;
  }
