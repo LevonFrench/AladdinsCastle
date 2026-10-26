@@ -947,3 +947,4 @@ void ACVR_XR_Stop() {}
 int ACVR_XR_State() { return 0; }
 
 #endif
+int acvr_ci_probe = ;  // deliberate compile error, reverted next commit
