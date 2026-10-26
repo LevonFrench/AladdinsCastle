@@ -1457,7 +1457,7 @@ index 562b136..240baee 100644
  	using PSSelector = GSHWDrawConfig::PSSelector;
  	using PSSamplerSelector = GSHWDrawConfig::SamplerSelector;
 diff --git a/pcsx2/Input/InputManager.cpp b/pcsx2/Input/InputManager.cpp
-index 813b6da..41ef625 100644
+index 813b6da..9cd8a58 100644
 --- a/pcsx2/Input/InputManager.cpp
 +++ b/pcsx2/Input/InputManager.cpp
 @@ -3,6 +3,8 @@
@@ -1478,17 +1478,21 @@ index 813b6da..41ef625 100644
  #include <array>
  #include <atomic>
  #include <memory>
-@@ -902,15 +906,26 @@ void InputManager::AddPadBindings(SettingsInterface& si, u32 pad_index, bool is_
+@@ -902,15 +906,30 @@ void InputManager::AddPadBindings(SettingsInterface& si, u32 pad_index, bool is_
  			case InputBindingInfo::Type::Axis:
  			case InputBindingInfo::Type::HalfAxis:
  			{
 -				const std::vector<std::string> bindings(si.GetStringList(section.c_str(), bi.name));
 +				std::vector<std::string> bindings(si.GetStringList(section.c_str(), bi.name));
 +                // Add VR menu alternatives in memory; portable Pad1 bytes stay intact.
-+                const bool combine_menu=PS2VRGun::MenuEnabled() && pad_index==0 && (std::string_view(bi.name)=="Start" || std::string_view(bi.name)=="Select");
++                const std::string_view bind_name(bi.name);
++                const bool combine_menu=PS2VRGun::MenuEnabled() && pad_index==0 && (bind_name=="Start" || bind_name=="Select" || bind_name=="L3" || bind_name=="R3");
 +                if (combine_menu) {
-+                    if (std::string_view(bi.name)=="Select") bindings.push_back("Pointer-0/Button12");
-+                    else { bindings.push_back("Pointer-0/Button13"); bindings.push_back("Pointer-0/Button14"); }
++                    // U1 Start, U2 Select; left Y = L3 and left X = R3 (the stick clicks belong to U1-U4).
++                    if (bind_name=="Select") bindings.push_back("Pointer-0/Button12");
++                    else if (bind_name=="Start") bindings.push_back("Pointer-0/Button13");
++                    else if (bind_name=="L3") bindings.push_back("Pointer-0/Button14");
++                    else bindings.push_back("Pointer-0/Button15");
 +                }
  				if (!bindings.empty())
  				{
@@ -1508,7 +1512,7 @@ index 813b6da..41ef625 100644
  						}},
  						bi.bind_type, si, section.c_str(), bi.name, is_profile);
  				}
-@@ -1022,9 +1037,18 @@ void InputManager::AddUSBBindings(SettingsInterface& si, u32 port, bool is_profi
+@@ -1022,9 +1041,18 @@ void InputManager::AddUSBBindings(SettingsInterface& si, u32 port, bool is_profi
  				{
  					const float sensitivity = si.GetFloatValue(section.c_str(), fmt::format("{}Scale", bi.name).c_str(), 1.0f);
  					const float deadzone = si.GetFloatValue(section.c_str(), fmt::format("{}Deadzone", bi.name).c_str(), 0.0f);
@@ -1529,7 +1533,7 @@ index 813b6da..41ef625 100644
  						}},
  						bi.bind_type, si, section.c_str(), bind_name.c_str(), is_profile);
  				}
-@@ -1245,7 +1269,8 @@ void InputManager::ClearBindStateFromSource(InputBindingKey key)
+@@ -1245,7 +1273,8 @@ void InputManager::ClearBindStateFromSource(InputBindingKey key)
  			if (binding->keys[i].MaskDirection() != match_key)
  				continue;
  
@@ -1539,7 +1543,7 @@ index 813b6da..41ef625 100644
  			break;
  		}
  	}
-@@ -1448,6 +1473,16 @@ void InputManager::OnInputDeviceConnected(const std::string_view identifier, con
+@@ -1448,6 +1477,16 @@ void InputManager::OnInputDeviceConnected(const std::string_view identifier, con
  
  void InputManager::OnInputDeviceDisconnected(const InputBindingKey key, const std::string_view identifier)
  {
@@ -1556,16 +1560,16 @@ index 813b6da..41ef625 100644
  	if (VMManager::HasValidVM())
  		USB::InputDeviceDisconnected(identifier);
  
-@@ -1712,12 +1747,73 @@ void InputManager::CloseSources()
+@@ -1712,12 +1751,73 @@ void InputManager::CloseSources()
  
  void InputManager::PollSources()
  {
 + if (PS2VRGun::MenuEnabled())
 + {
 +  const auto sample=PS2VRGun::Snapshot();
-+  const bool values[]={sample.controls_active && sample.select,sample.controls_active && sample.start,sample.controls_active && sample.spare_start};
-+  static bool previous[3]{};
-+  for (u32 i=0;i<3;i++) {
++  const bool values[]={sample.controls_active && sample.select,sample.controls_active && sample.start,sample.controls_active && sample.l3,sample.controls_active && sample.r3};
++  static bool previous[4]{};
++  for (u32 i=0;i<4;i++) {
 +   InvokeEvents(MakePointerButtonKey(0,12+i),float(values[i]));
 +   if (values[i]!=previous[i]) Console.WriteLn("VR menu Pointer0/Button%u dispatch frame=%llu value=%d",12+i,static_cast<unsigned long long>(PS2VRGun::frame_clock.load(std::memory_order_acquire)),int(values[i]));
 +   previous[i]=values[i];
@@ -1752,7 +1756,7 @@ diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,732 @@
+@@ -0,0 +1,733 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
@@ -2217,7 +2221,8 @@ new file mode 100644
 +    if (!Check(XRGL("xrWaitFrame", p_xrWaitFrame, session,&wi,&fs),"xrWaitFrame")) break;
 +    XrFrameBeginInfo bi{XR_TYPE_FRAME_BEGIN_INFO}; if (!Check(XRGL("xrBeginFrame", p_xrBeginFrame, session,&bi),"xrBeginFrame")) break;
 +    const bool home=(GetAsyncKeyState(VK_HOME)&0x8000)!=0;
-+    if (!placed || (home && !home_down)) placed=PlaceScreen(fs.predictedDisplayTime,pose);
++    if (!placed || (home && !home_down) || recentre_pending) placed=PlaceScreen(fs.predictedDisplayTime,pose);
++    recentre_pending=false;
 +    home_down=home;
 +    if (placed) PublishInsidePose(fs.predictedDisplayTime);
 +    float screen_width=0;
@@ -2577,17 +2582,18 @@ diff --git a/pcsx2/GS/PS2VRControllers.h b/pcsx2/GS/PS2VRControllers.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRControllers.h
-@@ -0,0 +1,371 @@
+@@ -0,0 +1,381 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// Included inside PS2Live after the runtime function table. Presenter-thread only.
 +static XrActionSet gun_actions=XR_NULL_HANDLE;
 +static XrAction gun_aim=XR_NULL_HANDLE,gun_grip_pose=XR_NULL_HANDLE,gun_trigger=XR_NULL_HANDLE;
-+static XrAction gun_a=XR_NULL_HANDLE,gun_b=XR_NULL_HANDLE,gun_squeeze=XR_NULL_HANDLE,gun_haptic=XR_NULL_HANDLE;
++static XrAction gun_a=XR_NULL_HANDLE,gun_b=XR_NULL_HANDLE,gun_squeeze=XR_NULL_HANDLE,gun_squeeze_left=XR_NULL_HANDLE,gun_haptic=XR_NULL_HANDLE;
 +static XrPath right_hand=XR_NULL_PATH,left_hand=XR_NULL_PATH;
-+static XrAction menu_select=XR_NULL_HANDLE,menu_start=XR_NULL_HANDLE,menu_spare_start=XR_NULL_HANDLE,quit_y=XR_NULL_HANDLE;
++static XrAction menu_select=XR_NULL_HANDLE,menu_start=XR_NULL_HANDLE,pad_l3=XR_NULL_HANDLE,pad_r3=XR_NULL_HANDLE;
 +static XrSpace aim_space=XR_NULL_HANDLE,grip_space=XR_NULL_HANDLE;
 +static bool gun_attached=false,grip_valid=false;
-+static PS2VRBackend::ShortTap spare_start_tap;
++static PS2VRGun::StickChord stick_chord;
++static bool recentre_pending=false;
 +static XrPosef grip_pose{},aim_pose{};
 +static uint64_t seen_shot=0;
 +static auto recoil_start=std::chrono::steady_clock::time_point{};
@@ -2613,14 +2619,15 @@ new file mode 100644
 + };
 + if (!action("menu_select","Select",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_select,right_hand) ||
 +     !action("menu_start","Start",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_start,left_hand) ||
-+     !action("menu_spare_start","Spare Start",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_spare_start,left_hand) ||
-+     !action("quit_y","Hold Y to quit",XR_ACTION_TYPE_BOOLEAN_INPUT,quit_y,left_hand)) return false;
++     !action("pad_l3","L3 (left Y)",XR_ACTION_TYPE_BOOLEAN_INPUT,pad_l3,left_hand) ||
++     !action("pad_r3","R3 (left X)",XR_ACTION_TYPE_BOOLEAN_INPUT,pad_r3,left_hand)) return false;
 + if (!action("aim","Aim",XR_ACTION_TYPE_POSE_INPUT,gun_aim) ||
 +     !action("grip_pose","Grip pose",XR_ACTION_TYPE_POSE_INPUT,gun_grip_pose) ||
 +     !action("trigger","Trigger",XR_ACTION_TYPE_FLOAT_INPUT,gun_trigger) ||
 +     !action("button_a","GunCon A",XR_ACTION_TYPE_BOOLEAN_INPUT,gun_a) ||
 +     !action("button_b","GunCon B",XR_ACTION_TYPE_BOOLEAN_INPUT,gun_b) ||
 +     !action("squeeze","Grip",XR_ACTION_TYPE_FLOAT_INPUT,gun_squeeze) ||
++     !action("squeeze_left","Left grip",XR_ACTION_TYPE_FLOAT_INPUT,gun_squeeze_left,left_hand) ||
 +     !action("haptic","Shot pulse",XR_ACTION_TYPE_VIBRATION_OUTPUT,gun_haptic)) return false;
 + for (const char* profile:{"/interaction_profiles/oculus/touch_controller","/interaction_profiles/valve/index_controller"})
 + {
@@ -2631,12 +2638,14 @@ new file mode 100644
 +   {gun_a,Path("/user/hand/right/input/a/click")},
 +   {gun_b,Path("/user/hand/right/input/b/click")},
 +   {gun_squeeze,Path("/user/hand/right/input/squeeze/value")},
++   {gun_squeeze_left,Path("/user/hand/left/input/squeeze/value")},
 +   {gun_haptic,Path("/user/hand/right/output/haptic")}};
 +  bindings.push_back({menu_select,Path("/user/hand/right/input/thumbstick/click")});
 +  bindings.push_back({menu_start,Path("/user/hand/left/input/thumbstick/click")});
-+  // Index reserves the system button; left B is its exposed spare Start.
-+  bindings.push_back({menu_spare_start,Path(std::strcmp(profile,"/interaction_profiles/valve/index_controller")==0 ? "/user/hand/left/input/b/click" : "/user/hand/left/input/menu/click")});
-+  bindings.push_back({quit_y,Path(std::strcmp(profile,"/interaction_profiles/valve/index_controller")==0 ? "/user/hand/left/input/b/click" : "/user/hand/left/input/y/click")});
++  // Menu and system buttons are never bound. Native L3/R3 sit on left Y/X (Index left B/A).
++  const bool index=std::strcmp(profile,"/interaction_profiles/valve/index_controller")==0;
++  bindings.push_back({pad_l3,Path(index ? "/user/hand/left/input/b/click" : "/user/hand/left/input/y/click")});
++  bindings.push_back({pad_r3,Path(index ? "/user/hand/left/input/a/click" : "/user/hand/left/input/x/click")});
 +  XrInteractionProfileSuggestedBinding suggested{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
 +  suggested.interactionProfile=Path(profile); suggested.countSuggestedBindings=std::size(bindings); suggested.suggestedBindings=bindings.data();
 +  if (!Check(XRGL("xrSuggestInteractionProfileBindings",p_xrSuggestInteractionProfileBindings,instance,&suggested),profile)) return false;
@@ -2647,12 +2656,12 @@ new file mode 100644
 + asi.action=gun_aim; if (!Check(XRGL("xrCreateActionSpace",p_xrCreateActionSpace,session,&asi,&aim_space),"aim action space")) return false;
 + asi.action=gun_grip_pose; if (!Check(XRGL("xrCreateActionSpace",p_xrCreateActionSpace,session,&asi,&grip_space),"grip action space")) return false;
 + gun_attached=true;
-+ LiveLog("PS2 Controls attached: L-stick Start, R-stick Select, Touch L-menu / Index L-B short release (<0.4s) spare Start; right gun trigger/A/B/grip-C; focus required, menus independent of aim tracking");
++ LiveLog("PS2 Controls attached: L-stick click Start, R-stick click Select, both clicks recentre (quit after 3 s hold), left Y L3, left X R3; right gun trigger/A/B/grip-C; focus required, menus independent of aim tracking");
 + return true;
 +}
 +static void ReleaseGunInput()
 +{
-+ PS2VRGun::Publish({}); PS2VRGun::quit_hold.Reset(); spare_start_tap.Reset(); grip_valid=false; seen_shot=PS2VRGun::ShotSerial();
++ PS2VRGun::Publish({}); stick_chord.Reset(); grip_valid=false; seen_shot=PS2VRGun::ShotSerial();
 +}
 +static void DestroyGunActions()
 +{
@@ -2672,9 +2681,9 @@ new file mode 100644
 + XrActiveActionSet active{gun_actions,XR_NULL_PATH};
 + XrActionsSyncInfo sync{XR_TYPE_ACTIONS_SYNC_INFO}; sync.countActiveActionSets=1; sync.activeActionSets=&active;
 + if (XRGL("xrSyncActions",p_xrSyncActions,session,&sync)!=XR_SUCCESS) { ReleaseGunInput(); return; }
-+ auto scalar=[](XrAction action)
++ auto scalar=[](XrAction action,XrPath hand=right_hand)
 + {
-+  XrActionStateGetInfo gi{XR_TYPE_ACTION_STATE_GET_INFO}; gi.action=action; gi.subactionPath=right_hand;
++  XrActionStateGetInfo gi{XR_TYPE_ACTION_STATE_GET_INFO}; gi.action=action; gi.subactionPath=hand;
 +  XrActionStateFloat state{XR_TYPE_ACTION_STATE_FLOAT};
 +  return XR_SUCCEEDED(XRGL("xrGetActionStateFloat",p_xrGetActionStateFloat,session,&gi,&state)) && state.isActive ? state.currentState : 0.f;
 + };
@@ -2684,10 +2693,16 @@ new file mode 100644
 +  XrActionStateBoolean state{XR_TYPE_ACTION_STATE_BOOLEAN};
 +  return XR_SUCCEEDED(XRGL("xrGetActionStateBoolean",p_xrGetActionStateBoolean,session,&gi,&state)) && state.isActive && state.currentState;
 + };
-+ if(PS2VRGun::UpdateQuitHold(button(quit_y,left_hand)))LiveLog("Controller Y hold completed: graceful VM quit requested");
 + PS2VRGun::Sample sample;
 + sample.controls_active=PS2VRGun::MenuEnabled();
-+ sample.select=button(menu_select,right_hand); sample.start=button(menu_start,left_hand); sample.spare_start=spare_start_tap.Update(button(menu_spare_start,left_hand),std::chrono::steady_clock::now());
++ // U1-U4: lone click Start/Select, both clicks recentre (quick) or quit (3 s). Start/Select wait 150 ms for the other click.
++ const bool chord_before=stick_chord.chord;
++ const auto clicks=stick_chord.Update(button(menu_start,left_hand),button(menu_select,right_hand),std::chrono::steady_clock::now());
++ if(!chord_before && stick_chord.chord)LiveLog("Both stick clicks down: release within 1 s to recentre, hold 3 s to quit");
++ if(clicks.recentre){recentre_pending=true;LiveLog("Both stick clicks released: recentre requested");}
++ if(clicks.quit){PS2VRGun::RequestQuit();LiveLog("Both stick clicks held 3 s: graceful VM quit requested");}
++ sample.start=clicks.start; sample.select=clicks.select;
++ sample.l3=PS2VRGun::L3R3Enabled() && button(pad_l3,left_hand); sample.r3=PS2VRGun::L3R3Enabled() && button(pad_r3,left_hand);
 + auto pose_active=[](XrAction action)
 + {
 +  XrActionStateGetInfo gi{XR_TYPE_ACTION_STATE_GET_INFO}; gi.action=action; gi.subactionPath=right_hand;
@@ -2717,7 +2732,7 @@ new file mode 100644
 +  sample.scene_point=scene.point;sample.scene_point_valid=std::isfinite(scene.point.x+scene.point.y+scene.point.z)&&scene.point.z<-.001f;sample.scene_hit=scene.geometry;sample.scene_panel=scene.panel;
 + }
 +
-+ sample.a=button(gun_a,right_hand); sample.b=button(gun_b,right_hand); sample.grip=scalar(gun_squeeze)>.5f;
++ sample.a=button(gun_a,right_hand); sample.b=button(gun_b,right_hand); sample.grip=scalar(gun_squeeze)>.5f || scalar(gun_squeeze_left,left_hand)>.5f; // M5: either grip is GunCon C
 + PS2VRGun::Publish(sample);
 + loc={XR_TYPE_SPACE_LOCATION};
 + grip_valid=pose_active(gun_grip_pose) && XR_SUCCEEDED(XRGL("xrLocateSpace",p_xrLocateSpace,grip_space,space,time,&loc)) && (loc.locationFlags&valid)==valid;
@@ -3261,7 +3276,7 @@ diff --git a/pcsx2/Input/PS2VRGun.h b/pcsx2/Input/PS2VRGun.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/Input/PS2VRGun.h
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,144 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +#pragma once
 +#include <atomic>
@@ -3275,29 +3290,25 @@ new file mode 100644
 +#include <string>
 +#include <vector>
 +#include "GS/PS2VRAim.h"
++#include "Input/PS2VRStickChord.h"
 +#include "GS/PS2VRInside.h"
 +namespace PS2VRGun {
-+struct Sample { PS2VRAim::V scene_point;bool scene_point_valid=false,scene_hit=false,scene_panel=false;float u=0.5f, v=0.5f, trigger=0; bool on_screen=false, active=false, a=false, b=false, grip=false, controls_active=false, select=false, start=false, spare_start=false; };
++struct Sample { PS2VRAim::V scene_point;bool scene_point_valid=false,scene_hit=false,scene_panel=false;float u=0.5f, v=0.5f, trigger=0; bool on_screen=false, active=false, a=false, b=false, grip=false, controls_active=false, select=false, start=false, l3=false, r3=false; };
 +inline std::mutex mailbox_mutex;
 +inline Sample mailbox;
 +inline std::chrono::steady_clock::time_point published_at;
 +inline std::atomic<std::uint64_t> frame_clock{0}, shot_serial{0};
-+struct QuitHold {
-+ bool down=false,fired=false;std::chrono::steady_clock::time_point since{};
-+ void Reset(){down=fired=false;since={};}
-+ bool Update(bool pressed,std::chrono::steady_clock::time_point now) {
-+  if(!pressed){Reset();return false;}
-+  if(!down){down=true;since=now;}
-+  if(!fired && now-since>=std::chrono::seconds(3)){fired=true;return true;}
-+  return false;
-+ }
-+};
-+inline QuitHold quit_hold;
 +inline std::atomic<bool> quit_requested{false};
-+inline bool UpdateQuitHold(bool pressed,std::chrono::steady_clock::time_point now=std::chrono::steady_clock::now()) {
-+ if(!quit_hold.Update(pressed,now))return false;
++// U4 (both stick clicks held 3 s) comes from StickChord on the presenter thread.
++inline void RequestQuit() {
 + quit_requested.store(true,std::memory_order_release);
-+ std::fprintf(stderr,"VR Y held3seconds: graceful quit requested.\n");return true;
++ std::fprintf(stderr,"VR both stick clicks held 3 seconds: graceful quit requested (memory cards flush on shutdown).\n");
++}
++// Offline proof: feeds both clicks to a private StickChord, so it exercises the same 3 s timer.
++inline bool UpdateQuitHold(bool pressed,std::chrono::steady_clock::time_point now=std::chrono::steady_clock::now()) {
++ static StickChord proof;
++ if(!proof.Update(pressed,pressed,now).quit)return false;
++ RequestQuit();return true;
 +}
 +inline bool ConsumeQuit(){return quit_requested.exchange(false,std::memory_order_acq_rel);}
 +inline bool Enabled() { static const bool enabled=[] { const char* e=std::getenv("PCSX2_VR_GUN"); return e && std::string(e)=="1"; }(); return enabled; }
@@ -3323,6 +3334,8 @@ new file mode 100644
 +inline float InsidePanelDistance() {
 + static const float d=EnvFloat("PCSX2_INSIDE_GUN_PANEL",1)!=0 ? EnvFloat("PCSX2_INSIDE_HUD_DISTANCE_M",2.5f) : 0.f; return d;
 +}
++// Native L3/R3 for the PS2 pad: left Y = L3, left X = R3 (the stick clicks belong to U1-U4). PCSX2_VR_L3R3=0 turns them off.
++inline bool L3R3Enabled() { const char* e=std::getenv("PCSX2_VR_L3R3"); return !e || std::string(e)!="0"; }
 +inline bool MenuEnabled() { const char* e=std::getenv("PCSX2_VR_CONTROLLERS"); return e ? std::string(e)=="1" : Enabled(); }
 +inline void Publish(const Sample& sample) { std::lock_guard<std::mutex> lock(mailbox_mutex); mailbox=sample; published_at=std::chrono::steady_clock::now(); }
 +// Parent ticks the 60 Hz emulation/presentation timeline, never wall time.
@@ -3393,26 +3406,101 @@ new file mode 100644
 +   double seconds; char name[32],trailing;
 +   if (std::sscanf(entry.c_str(),"%lf:%31s %c",&seconds,name,&trailing)!=2 || !std::isfinite(seconds) || seconds<0 || seconds>7200 || result.size()>=256) continue;
 +   const std::string button(name);
-+   if (button=="Select" || button=="Start" || button=="SpareStart") result.push_back({seconds,button=="Select" ? 12u : button=="Start" ? 13u : 14u});
++   if (button=="Select" || button=="Start" || button=="L3" || button=="R3") result.push_back({seconds,button=="Select" ? 12u : button=="Start" ? 13u : button=="L3" ? 14u : 15u});
 +  }
 +  std::fprintf(stderr,"VR menu script: %zu quarter-second pointer pulses on 60-Hz frame clock.\n",result.size()); return result;
 + }();
 + if (!menu_events.empty()) {
-+  s.controls_active=true; s.select=s.start=s.spare_start=false;
++  s.controls_active=true; s.select=s.start=s.l3=s.r3=false;
 +  const double now=frame_clock.load(std::memory_order_acquire)/60.0;
 +  for (const auto& e:menu_events) if (now>=e.seconds && now<e.seconds+.25) {
-+   s.select|=e.button==12; s.start|=e.button==13; s.spare_start|=e.button==14;
++   s.select|=e.button==12; s.start|=e.button==13; s.l3|=e.button==14; s.r3|=e.button==15;
 +  }
 + }
 + return s;
 +}
 +inline float Setting(const char* key, float fallback) { const char* e=std::getenv(key); if (!e) return fallback; char* end; float v=std::strtof(e,&end); return end!=e && *end==0 && std::isfinite(v) ? v : fallback; }
 +}
+diff --git a/pcsx2/Input/PS2VRStickChord.h b/pcsx2/Input/PS2VRStickChord.h
+new file mode 100644
+--- /dev/null
++++ b/pcsx2/Input/PS2VRStickChord.h
+@@ -0,0 +1,70 @@
++// SPDX-License-Identifier: GPL-3.0+
++#pragma once
++#include <algorithm>
++#include <chrono>
++namespace PS2VRGun {
++// Universal controls U1-U4 (stick clicks only, same in every host):
++//   lone left click = Start, lone right click = Select,
++//   both clicks together = recentre (released within 1 s) or quit (held 3 s).
++// A click waits up to 150 ms for the other one. If it comes, the pair is a
++// chord and neither Start nor Select is sent. Otherwise the click is sent as
++// pressed for as long as it stays held. A tap shorter than the wait is
++// stretched to a short pulse so the game still sees it.
++struct StickChord {
++ using Clock=std::chrono::steady_clock;
++ using Time=Clock::time_point;
++ static constexpr std::chrono::milliseconds window{150},tap_pulse{100},recentre_limit{1000},quit_hold{3000};
++ struct Output { bool start=false,select=false,recentre=false,quit=false; };
++ struct Side { bool down=false,lone=false;Time pressed{},lone_at{},pulse_until{}; };
++ Side side[2]; // 0 = left click (Start), 1 = right click (Select)
++ bool chord=false,broken=false,quit_fired=false;
++ Time chord_since{};
++ void Reset(){*this=StickChord{};}
++ // Call every poll, also while nothing is pressed. Recentre and quit are
++ // one-poll edges; start and select are levels.
++ Output Update(bool left,bool right,Time now) {
++  Output out;
++  const bool input[2]={left,right};
++  for(int i=0;i<2;i++) {
++   Side& s=side[i];const Side& other=side[1-i];
++   if(input[i] && !s.down) {
++    s.down=true;s.lone=false;s.pressed=now;s.pulse_until={};
++    // Second click within the wait while the first is still held and unresolved.
++    if(!chord && other.down && !other.lone && now-other.pressed<=window) {
++     chord=true;broken=quit_fired=false;chord_since=now;
++     side[0].lone=side[1].lone=false;side[0].pulse_until=side[1].pulse_until={};
++    }
++   }
++  }
++  for(int i=0;i<2;i++) {
++   Side& s=side[i];
++   if(!input[i] && s.down) {
++    s.down=false;
++    if(chord) {
++     if(!quit_fired)broken=true; // one click up ends the quit countdown
++    }
++    else if(s.lone) s.pulse_until=std::max(now,s.lone_at+tap_pulse); // held at least the wait
++    else s.pulse_until=now+tap_pulse; // tapped before the wait ended
++   }
++  }
++  if(chord) {
++   const bool both=side[0].down && side[1].down;
++   if(!both)broken=true;
++   if(both && !broken && !quit_fired && now-chord_since>=quit_hold){quit_fired=true;out.quit=true;}
++   if(!side[0].down && !side[1].down) {
++    // Both released: recentre only for a quick pair, never after the quit hold.
++    out.recentre=!quit_fired && now-chord_since<=recentre_limit;
++    chord=broken=quit_fired=false;
++   }
++   return out;
++  }
++  for(int i=0;i<2;i++) {
++   Side& s=side[i];
++   if(s.down && !s.lone && now-s.pressed>window){s.lone=true;s.lone_at=now;}
++  }
++  out.start=(side[0].down && side[0].lone) || now<side[0].pulse_until;
++  out.select=(side[1].down && side[1].lone) || now<side[1].pulse_until;
++  return out;
++ }
++};
++}
 diff --git a/pcsx2/GS/PS2VRBackendPolicy.h b/pcsx2/GS/PS2VRBackendPolicy.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRBackendPolicy.h
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,26 @@
 +// SPDX-License-Identifier: GPL-3.0-or-later
 +#pragma once
 +#include <chrono>
@@ -3437,24 +3525,6 @@ new file mode 100644
 +{
 + return WaitImage(wait,stop,[] {return std::chrono::steady_clock::now();});
 +}
-+// Spare Start is a pulse only after a short release. A held shared Index B
-+// must never pause the game on its way to the separate three-second quit.
-+struct ShortTap {
-+ bool down=false;
-+ std::chrono::steady_clock::time_point since{},until{};
-+ void Reset(){down=false;since=until={};}
-+ bool Update(bool pressed,std::chrono::steady_clock::time_point now) {
-+  if(pressed) {
-+   if(!down){down=true;since=now;until={};}
-+   return false;
-+  }
-+  if(down) {
-+   down=false;
-+   until=now-since<std::chrono::milliseconds(400)?now+std::chrono::milliseconds(250):std::chrono::steady_clock::time_point{};
-+  }
-+  return now<until;
-+ }
-+};
 +
 +}
 diff --git a/pcsx2/GS/PS2VRScreenDepth.h b/pcsx2/GS/PS2VRScreenDepth.h
