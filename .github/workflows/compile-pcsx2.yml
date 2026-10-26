@@ -1,0 +1,152 @@
+name: PCSX2 compile check
+# Compiles the patched PCSX2 (frontend and GS runner) from its pinned commit with Visual Studio 2026, so a patch that
+# applies but does not build fails here. Nothing is run: no BIOS, no disc, no VR runtime.
+# Runs on changes to setups/pcsx2-vr (and this file), on demand, and every Monday.
+on:
+  push:
+    paths:
+      - 'setups/pcsx2-vr/**'
+      - '.github/workflows/compile-pcsx2.yml'
+  pull_request:
+    paths:
+      - 'setups/pcsx2-vr/**'
+      - '.github/workflows/compile-pcsx2.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pcsx2:
+    name: pcsx2-vr (windows-2025-vs2026)
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: repo
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Read the pin
+        shell: python
+        run: |
+          import json, os, pathlib, re
+          pin = json.loads(pathlib.Path('repo/setups/pcsx2-vr/upstream-pin.json').read_text(encoding='utf-8'))
+          repo, commit = pin['pcsx2']['repository'], pin['pcsx2']['commit']
+          if not re.fullmatch(r'[0-9a-f]{40}', commit) or not repo.startswith('https://github.com/'):
+              raise SystemExit(f'Bad pin: {repo} {commit}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write(f'UPSTREAM_REPO={repo}\nUPSTREAM_COMMIT={commit}\n')
+
+      - name: Fetch the pinned upstream commit (no history)
+        shell: bash
+        run: |
+          git init upstream
+          cd upstream
+          git remote add origin "$UPSTREAM_REPO"
+          git fetch --depth 1 origin "$UPSTREAM_COMMIT"
+          git checkout FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_COMMIT"
+          if [ -f .gitmodules ]; then git submodule update --init --recursive --depth 1 --jobs 8; fi
+
+      # The official Windows dependency pack (Qt, FFmpeg, SDL and others). The pin records its size and SHA-256.
+      - name: Restore dependency pack cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: depcache
+          key: pcsx2-deps-${{ hashFiles('repo/setups/pcsx2-vr/upstream-pin.json') }}
+      - name: Fetch the pinned dependency pack (SHA-256 checked) and unpack it
+        shell: python
+        timeout-minutes: 15
+        run: |
+          import hashlib, json, pathlib, subprocess, time, urllib.request
+          pin = json.loads(pathlib.Path('repo/setups/pcsx2-vr/upstream-pin.json').read_text(encoding='utf-8'))['windows_dependencies']
+          archive = pathlib.Path('depcache') / pin['archive']
+          archive.parent.mkdir(exist_ok=True)
+          def digest(path):
+              h = hashlib.sha256()
+              with open(path, 'rb') as f:
+                  for chunk in iter(lambda: f.read(1 << 20), b''):
+                      h.update(chunk)
+              return h.hexdigest()
+          if not archive.exists():
+              for attempt in range(3):
+                  try:
+                      urllib.request.urlretrieve(pin['url'], archive)
+                      break
+                  except OSError:
+                      if attempt == 2:
+                          raise
+                      time.sleep(10)
+          got = digest(archive)
+          if got != pin['sha256']:
+              raise SystemExit(f'{archive.name} has SHA-256 {got}, the pin says {pin["sha256"]} (the rolling release was replaced?)')
+          if archive.stat().st_size != pin['size_bytes']:
+              raise SystemExit('dependency pack size differs from the pin')
+          subprocess.run(['7z', 'x', '-y', '-bso0', '-bsp0', str(archive), '-oupstream/deps'], check=True)
+          print('Dependency pack ready in upstream/deps')
+
+      # The patch includes the OpenXR headers from 3rdparty/openxr/include/openxr, which upstream does not have. They come from
+      # the reference source the pin names, at its commit, each checked against the pinned blob hash.
+      - name: Fetch pinned OpenXR headers (headers only, SHA-256 checked)
+        shell: python
+        timeout-minutes: 5
+        run: |
+          import hashlib, json, pathlib, time, urllib.request
+          pin = json.loads(pathlib.Path('repo/setups/pcsx2-vr/upstream-pin.json').read_text(encoding='utf-8'))['openxr_header_source']
+          repo = pin['repository'].replace('https://github.com/', '')
+          target = pathlib.Path('upstream/3rdparty/openxr/include/openxr')
+          target.mkdir(parents=True, exist_ok=True)
+          crlf, lfonly = bytes([13, 10]), bytes([10])
+          for name, info in sorted(pin['files'].items()):
+              url = f'https://raw.githubusercontent.com/{repo}/{pin["commit"]}/{pin["path"]}/{name}'
+              for attempt in range(3):
+                  try:
+                      with urllib.request.urlopen(url, timeout=60) as response:
+                          data = response.read()
+                      break
+                  except OSError:
+                      if attempt == 2:
+                          raise
+                      time.sleep(5)
+              lf = data.replace(crlf, lfonly)
+              ok = {hashlib.sha256(data).hexdigest(), hashlib.sha256(lf).hexdigest(), hashlib.sha256(lf.replace(lfonly, crlf)).hexdigest()}
+              if info['repository_blob_sha256'] not in ok:
+                  raise SystemExit(f'{name} does not match the pinned blob hash')
+              (target / name).write_bytes(data)
+          print(f'Fetched {len(pin["files"])} OpenXR {pin["version"]} headers into {target}')
+
+      - name: Apply the VR patch
+        shell: bash
+        working-directory: upstream
+        run: |
+          git apply --check "$GITHUB_WORKSPACE/repo/setups/pcsx2-vr/unattended-capture.patch"
+          git apply --verbose "$GITHUB_WORKSPACE/repo/setups/pcsx2-vr/unattended-capture.patch" | tail -5
+          git status --short | head -40
+
+      # Each project's own .vcxproj, Release x64, as the setup README describes (toolset v145 is the runner's Visual Studio 2026).
+      - name: Set up MSVC x64
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: x64
+      - name: Compile the patched GS runner and frontend (MSBuild, Release x64)
+        shell: pwsh
+        working-directory: upstream
+        timeout-minutes: 60
+        run: |
+          $root = (Get-Location).Path + '\'
+          foreach ($proj in 'pcsx2-gsrunner\pcsx2-gsrunner.vcxproj', 'pcsx2-qt\pcsx2-qt.vcxproj') {
+            msbuild $proj /t:Build /p:Configuration=Release /p:Platform=x64 /p:PreferredToolArchitecture=x64 "/p:SolutionDir=$root" /m /v:minimal /nologo
+            if ($LASTEXITCODE -ne 0) { throw "msbuild $proj exit $LASTEXITCODE" }
+          }
+          $exes = Get-ChildItem -Recurse -Include pcsx2-gsrunner*.exe, pcsx2-qt*.exe -Path bin | Select-Object -First 4
+          if (-not $exes) { throw 'No PCSX2 executable was produced' }
+          $exes | ForEach-Object { Write-Host "Built $($_.FullName)" }
+          # The patched GS source must have been part of the compile.
+          if (-not (Get-ChildItem -Recurse -Filter GS.obj -Path . | Select-Object -First 1)) { throw 'GS.obj was not produced' }

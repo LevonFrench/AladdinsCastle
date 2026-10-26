@@ -1,0 +1,107 @@
+name: Dolphin VR compile check
+# Compiles the patched DolphinXR source (the facing, draw-trace, route-diagnostic, input-probe and XFB patches together) from
+# its pinned commit with Visual Studio 2026: the core, VideoCommon and Direct3D video libraries that those patches change.
+# Nothing is run: no game, no VR runtime. The Qt front end is not built (none of the patches touch it).
+# Runs only on changes to the patch folders it uses (and this file), on demand, and every Monday.
+on:
+  push:
+    paths:
+      - 'setups/dolphin-vr/upstream-pin.json'
+      - 'setups/dolphin-vr/facing/**'
+      - 'setups/dolphin-vr/instrumentation/**'
+      - 'setups/dolphin-vr/route-diagnostic/**'
+      - 'setups/dolphin-vr/xfb-stereo-preservation/**'
+      - 'setups/dolphin-vr/motion-controls/input-probe/**'
+      - 'setups/dolphin-vr/gamecube/input-probe/**'
+      - '.github/workflows/compile-dolphin.yml'
+  pull_request:
+    paths:
+      - 'setups/dolphin-vr/upstream-pin.json'
+      - 'setups/dolphin-vr/facing/**'
+      - 'setups/dolphin-vr/instrumentation/**'
+      - 'setups/dolphin-vr/route-diagnostic/**'
+      - 'setups/dolphin-vr/xfb-stereo-preservation/**'
+      - 'setups/dolphin-vr/motion-controls/input-probe/**'
+      - 'setups/dolphin-vr/gamecube/input-probe/**'
+      - '.github/workflows/compile-dolphin.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '27 5 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dolphin:
+    name: dolphin-vr (windows-2025-vs2026)
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: repo
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Read the pin
+        shell: python
+        run: |
+          import json, os, pathlib, re
+          pin = json.loads(pathlib.Path('repo/setups/dolphin-vr/upstream-pin.json').read_text(encoding='utf-8'))
+          repo, commit = pin['repository'], pin['source_commit']
+          if not re.fullmatch(r'[0-9a-f]{40}', commit) or not repo.startswith('https://github.com/'):
+              raise SystemExit(f'Bad pin: {repo} {commit}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write(f'UPSTREAM_REPO={repo}\nUPSTREAM_COMMIT={commit}\n')
+
+      # The apply scripts only accept a checkout whose path contains ".local" and whose HEAD is the pin.
+      # Submodules are fetched shallow, except Qt (the Qt front end is not built).
+      - name: Fetch the pinned upstream commit and its submodules (without Qt)
+        shell: bash
+        run: |
+          mkdir -p .local
+          git init .local/dolphin
+          cd .local/dolphin
+          git remote add origin "$UPSTREAM_REPO"
+          git fetch --depth 1 origin "$UPSTREAM_COMMIT"
+          git checkout FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_COMMIT"
+          paths=$(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}' | grep -v '^Externals/Qt$')
+          git submodule update --init --recursive --depth 1 --jobs 8 -- $paths
+
+      - name: Apply the DolphinXR deltas in order
+        shell: bash
+        working-directory: .local/dolphin
+        run: |
+          set -e
+          S="$GITHUB_WORKSPACE/repo/setups/dolphin-vr"
+          SRC="$GITHUB_WORKSPACE/.local/dolphin"
+          python -B "$S/instrumentation/apply.py" "$SRC"
+          python -B "$S/facing/apply.py" "$SRC"
+          python -B "$S/route-diagnostic/apply.py" "$SRC"
+          python -B "$S/motion-controls/input-probe/apply.py" "$SRC"
+          python -B "$S/gamecube/input-probe/apply_gc.py" "$SRC"
+          git apply --check "$S/xfb-stereo-preservation/preserve-stereo-xfb.patch"
+          git apply "$S/xfb-stereo-preservation/preserve-stereo-xfb.patch"
+          git status --short
+
+      - name: Set up MSVC x64
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: x64
+      - name: Configure (CMake, Ninja, OpenXR on, no Qt)
+        shell: pwsh
+        working-directory: .local/dolphin
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_VR=ON -DENABLE_QT=OFF -DENABLE_NOGUI=OFF -DENABLE_TESTS=OFF -DENABLE_CLI_TOOL=OFF -DENABLE_AUTOUPDATE=OFF -DENABLE_ANALYTICS=OFF -DENABLE_LLVM=OFF
+          if ($LASTEXITCODE -ne 0) { throw "cmake configure exit $LASTEXITCODE" }
+      - name: Compile the patched libraries (core, VideoCommon, Direct3D video)
+        shell: pwsh
+        working-directory: .local/dolphin
+        timeout-minutes: 70
+        run: |
+          cmake --build build --target core videocommon videod3d --parallel
+          if ($LASTEXITCODE -ne 0) { throw "cmake build exit $LASTEXITCODE" }
