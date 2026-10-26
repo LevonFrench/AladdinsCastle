@@ -1,0 +1,36 @@
+id           = "gc-pikmin"
+title        = "Pikmin"
+alt_titles   = []
+genre        = "action"
+subgenre     = []
+year         = 2001
+manufacturer = "nintendo"
+developer    = "Nintendo EAD"
+hardware     = "nintendo-gamecube"
+graphics     = "polygon-3d"
+players      = 1
+series       = "Pikmin"
+
+[controls]
+type   = "other"
+extras = ["gamepad"]
+
+[[media]]
+kind = "disc"
+note = "Your own GameCube disc image (ISO/GCM or RVZ)"
+
+[routes]
+dolphin = "unknown"
+vr      = { best = "true3d", via = "DolphinXR through the user's launcher (games.json)" }
+
+[hub]
+pill   = "GC-PIKMIN"
+colour = "#14200e"
+accent = "#8ad04a"
+blurb  = "Captain Olimar leads tiny plant creatures to rebuild his ship in 30 days."
+badges = []
+
+[meta]
+sources    = ["https://en.wikipedia.org/wiki/Pikmin_(video_game)"]
+confidence = "medium"
+checked    = "2026-10-26"
