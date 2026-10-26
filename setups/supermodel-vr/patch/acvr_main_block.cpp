@@ -67,6 +67,9 @@ static bool     s_acvrWantSaveState = false;
 static std::string s_acvrCaptureDir = ".";
 static bool     s_acvrQuit = false;
 static acvr_chord::Resolver s_acvrChord;    // the universal stick-click layer (ACVRChord.h)
+static acvr::HoldRing s_acvrRing;           // U4: the hold ring (libacvr hold_ring.hpp), shown from 1 s, full and flashing at 3 s
+static acvr::HoldRingView s_acvrRingView;   // handed to the presenter with each picture
+static acvr::QuitAfterFlash s_acvrQuitAfterFlash;   // the quit waits for the ring's flash, as in acvr-ps1
 static bool     s_acvrLaserHidden = false;  // right B toggles the laser and aim dot in pointing games
 
 static bool     s_acvrVRWanted = false, s_acvrVRFake = false, s_acvrVRBackdrop = false;
@@ -431,19 +434,24 @@ static void ACVR_ApplyVRInputs(CInputs *inputs, uint32_t gameInputs)
   if (!real && !ACVR_FakeControllers(c))
   {
     s_acvrChord.reset();              // no input (focus lost, thread stopped, stale): nothing stays pending or held
+    s_acvrRingView = acvr::HoldRingView();
+    if (s_acvrQuitAfterFlash.flush()) s_acvrQuit = true;   // a quit that has already fired goes now
     return;
   }
   // The stick clicks, resolved: wall clock for the headset; made-up controllers count frames, because unattended
   // runs are not in real time. Both clicks held for 3 s quit through the normal exit, which saves NVRAM.
   static bool quitCounting = false;
-  const acvr_chord::Output uc = s_acvrChord.step(real ? (std::uint64_t)SDL_GetTicks() : (std::uint64_t)(s_acvrFrame * 1000.0 / 57.5),
-                                                  c.stickClick[0], c.stickClick[1]);
+  const std::uint64_t ucNow = real ? (std::uint64_t)SDL_GetTicks() : (std::uint64_t)(s_acvrFrame * 1000.0 / 57.5);
+  const acvr_chord::Output uc = s_acvrChord.step(ucNow, c.stickClick[0], c.stickClick[1]);
+  // The ring follows the same count that quits: hidden for 1 s, filling to 3 s, one flash; gone when a click lets go
+  s_acvrRingView = s_acvrRing.update(ucNow, uc.bothHeld ? uc.quitProgress : 0.0f);
   if (uc.recentre) ACVR_XR_RequestRecentre();
   if (uc.bothHeld && !quitCounting) { quitCounting = true; printf("ACVR: both stick clicks down; quit in 3 seconds if held\n"); }
   else if (!uc.bothHeld) quitCounting = false;
-  if (uc.quit && !s_acvrQuit)
+  if (uc.quit) printf("ACVR: both stick clicks held for 3 seconds; quitting once the ring has flashed\n");
+  if (s_acvrQuitAfterFlash.update(ucNow, uc.quit) && !s_acvrQuit)
   {
-    printf("ACVR: both stick clicks held for 3 seconds; quitting\n");
+    printf("ACVR: quitting\n");
     s_acvrQuit = true;
   }
 
@@ -1301,6 +1309,7 @@ void ACVR_StereoPresent()
   p.views[1] = s_acvrViews[1];
   p.originPos[0] = s_acvrOriginPos[0]; p.originPos[1] = s_acvrOriginPos[1]; p.originPos[2] = s_acvrOriginPos[2];
   p.originYaw = s_acvrOriginYaw;
+  p.ring = s_acvrRingView;
   ACVR_XR_Publish(p);
 }
 

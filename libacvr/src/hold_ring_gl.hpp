@@ -11,6 +11,12 @@
 // Colours are display values: the helper switches GL_FRAMEBUFFER_SRGB off while it clears, so the numbers land in the
 // image as written whether the target is an sRGB or a plain RGBA8 image (an sRGB image stores them as encoded values).
 // The caller's scissor, clear colour, colour mask and sRGB state are put back.
+// windows.h defines min and max as macros unless NOMINMAX is set, which breaks std::min and std::max; emulator
+// sources often include it first, so they are set aside for this header and put back at its end.
+#pragma push_macro("min")
+#pragma push_macro("max")
+#undef min
+#undef max
 #include "hold_ring.hpp"
 
 #ifndef GL_FRAMEBUFFER_SRGB
@@ -52,3 +58,6 @@ inline void draw_hold_ring_gl(const HoldRingView &view, float cx, float cy, floa
 }
 
 }  // namespace acvr
+
+#pragma pop_macro("max")
+#pragma pop_macro("min")

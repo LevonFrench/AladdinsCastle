@@ -62,13 +62,14 @@ jobs:
           python -B -m unittest -v test_pinball_controls test_system22_controls test_wii_profile_audit test_wii_controls test_cabinet_motion
           python -I ../hub/tests/universal_controls_text.py
         working-directory: tools
-      - name: Universal controls, host profile and binding checks (retro host, PCSX2 patch, Flycast copies)
+      - name: Universal controls, host profile and binding checks (retro host, PCSX2 patch, Flycast copies, Dolphin hold ring)
         timeout-minutes: 5
         run: |
           python setups/retro-ps1-vr/test_host_profiles.py
           python setups/pcsx2-vr/stick_chord_test.py
           python setups/pcsx2-vr/inside_pose_test.py
           python setups/flycast-hotd2-vr/tools/test_chord_copies.py
+          python -B setups/dolphin-vr/hold-ring/test_hold_ring.py
       - name: Universal controls, stick-click resolvers (standalone C++17, CPU only)
         timeout-minutes: 5
         run: |

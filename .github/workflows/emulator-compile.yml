@@ -6,11 +6,15 @@ on:
     paths:
       - 'setups/supermodel-vr/**'
       - 'setups/flycast-hotd2-vr/**'
+      - 'libacvr/src/stick_chord.hpp'
+      - 'libacvr/src/hold_ring*.hpp'
       - '.github/workflows/emulator-compile.yml'
   pull_request:
     paths:
       - 'setups/supermodel-vr/**'
       - 'setups/flycast-hotd2-vr/**'
+      - 'libacvr/src/stick_chord.hpp'
+      - 'libacvr/src/hold_ring*.hpp'
       - '.github/workflows/emulator-compile.yml'
   workflow_dispatch:
 permissions:
