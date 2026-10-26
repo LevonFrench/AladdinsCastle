@@ -127,13 +127,10 @@ jobs:
               shutil.rmtree(target, ignore_errors=True)
               shutil.move(str(top), str(target))
               header = target.joinpath(*pathlib.PurePosixPath(lib['version_header']).parts[2:]).read_bytes()
-              lf = header.replace(b'
-', b'
-')
+              lf = header.replace(bytes([13, 10]), bytes([10]))
               ok = {lib['version_header_sha256']}
-              if not ({hashlib.sha256(lf).hexdigest(), hashlib.sha256(lf.replace(b'
-', b'
-')).hexdigest()} & ok):
+              crlf = lf.replace(bytes([10]), bytes([13, 10]))
+              if not ({hashlib.sha256(lf).hexdigest(), hashlib.sha256(crlf).hexdigest()} & ok):
                   raise SystemExit(f'{name}: version header hash differs from the pin')
               print(f'{name} {lib["version"]} ready in {target}')
 
