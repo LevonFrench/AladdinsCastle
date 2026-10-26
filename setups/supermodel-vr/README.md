@@ -48,6 +48,8 @@ Known limits of the head-tracked mode:
 
 `tools\Build.ps1` does step 4 at low priority.
 
+The `Emulator compile check` workflow in `.github/workflows` does steps 1 to 4 on every change to this folder: it fetches the pinned commit and library sources, the pinned OpenXR headers, applies the patch, and compiles it with Visual Studio 2022 (Windows, toolset v143 instead of the pinned v145) and with g++ (Linux, where the VR presenter compiles to stubs). It runs nothing and needs no game. A compile error in the patched code fails the job.
+
 ## Run
 
 Everything is switched by environment variables, so the same program runs unchanged without them.
