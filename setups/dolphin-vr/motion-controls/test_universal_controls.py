@@ -163,7 +163,7 @@ class ChordResolver(unittest.TestCase):
                             self.assertEqual(run(expr, a + b, 8000), [], (first, gap, order, hold))
 
     def test_recentre_fires_once_on_release_of_a_quick_chord(self):
-        for gap in (0, 100, 220):
+        for gap in (0, 100, 140):
             edges = run(uc.RECENTRE, click('L', 100, 700) + click('R', 100 + gap, 720), 3000, edge=True)
             self.assertEqual(len(edges), 1, gap)
             self.assertTrue(700 <= edges[0] <= 740)
@@ -171,7 +171,8 @@ class ChordResolver(unittest.TestCase):
     def test_recentre_ignores_single_clicks_late_second_click_and_long_holds(self):
         self.assertEqual(run(uc.RECENTRE, click('L', 100, 600), 3000), [])
         self.assertEqual(run(uc.RECENTRE, click('R', 100, 600), 3000), [])
-        # second click 400 ms after the first is not a chord for recentring
+        # second click 200 ms (past the 150 ms window) or 400 ms after the first is not a chord for recentring
+        self.assertEqual(run(uc.RECENTRE, click('L', 100, 900) + click('R', 300, 900), 3000), [])
         self.assertEqual(run(uc.RECENTRE, click('L', 100, 900) + click('R', 500, 900), 3000), [])
         # held past 1 s: the release does nothing
         self.assertEqual(run(uc.RECENTRE, click('L', 100, 1600) + click('R', 130, 1600), 4000), [])
@@ -223,6 +224,16 @@ class ProfileLayer(unittest.TestCase):
         self.assertNotIn('Raw Accel', text)
         for name in re.findall(r'`([^`]*)`', text):
             self.assertTrue(name.startswith(uc.DEVICE + ':'), name)
+
+
+    def test_installers_seed_the_same_hotkeys_and_confirm_stop(self):
+        for path in sorted((uc.ROOT / 'games').glob('wii-*/install.toml')):
+            text = path.read_text(encoding='utf-8')
+            if 'Hotkeys.ini' not in text:
+                continue
+            for key, value in uc.HOTKEYS.items():
+                self.assertIn(f'key = "{key}", value = "{value}"', text, path)
+            self.assertIn('key = "ConfirmStop", value = "False"', text, path)
 
 
 if __name__ == '__main__':

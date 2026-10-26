@@ -6,7 +6,7 @@ stick clicks, so the profiles cannot drift apart. Standard library only.
 
   U1  Start / Plus     left stick click alone
   U2  Select / Minus   right stick click alone (Wii only; GameCube has no Select)
-  U3  Recentre         both clicks, the second within 250 ms of the first, released within 1 s
+  U3  Recentre         both clicks, the second within 150 ms of the first, released within 1 s
   U4  Quit and save    both clicks held 3 s  ->  Dolphin's own Exit hotkey (graceful stop, then exit)
 
 Dolphin has no "wait 150 ms, then decide" primitive, so the chord resolver is expressed with
@@ -32,7 +32,7 @@ X = '`Left Button X`'
 DEVICE = 'OpenXR/0/OpenXR Controller'
 
 CHORD_WAIT = 0.15      # s: a lone click waits this long before it counts as Start/Select
-CHORD_PAIR = 0.25      # s: the second click must follow the first within this
+CHORD_PAIR = 0.15      # s: the second click must follow the first within this (the contract chord window)
 CHORD_RELEASE = 1.0    # s: U3 fires only if both are released within this
 QUIT_HOLD = 3.0        # s: U4
 HOME_HOLD = 0.5        # s: Wii Home (hold left Y)
@@ -55,7 +55,7 @@ GC_X = f'{X} & !{Y}'
 GC_Y = f'{Y} & !{X}'
 GC_Z = f'{X} & {Y}'
 
-# U3: second click within 250 ms of the first, then both released within 1 s.
+# U3: second click within 150 ms of the first, then both released within 1 s.
 _PAIRED = f'pulse({L}, {CHORD_PAIR}) & pulse({R}, {CHORD_PAIR}) & {L} & {R}'
 RECENTRE = f'pulse(!{L} & !{R}, 0.1) & pulse({_PAIRED}, {CHORD_RELEASE})'
 QUIT = f'hold({L} & {R}, {QUIT_HOLD})'

@@ -202,6 +202,7 @@ function Initialize-AcSitting {
     Set-AcIniValues (Join-Path $config 'Dolphin.ini') ([ordered]@{
         Core = [ordered]@{GFXBackend='D3D';EnableCheats='False'}
         Input = [ordered]@{BackgroundInput=$backgroundInput}
+        Interface = [ordered]@{ConfirmStop='False'}
         Display = [ordered]@{RenderToMain='False';RenderWindowWidth='1280';RenderWindowHeight='720';RenderWindowAutoSize='False'}
         General = [ordered]@{ISOPaths='0';RecursiveISOPaths='False';HotkeysRequireFocus='False'}
         Android = [ordered]@{QuestLeftHanded='False'}
@@ -221,7 +222,7 @@ function Initialize-AcSitting {
         Logs = [ordered]@{OpenXR='True';Video='True';CORE='True';Wiimote='True';CI='True'}
     })
     Set-AcIniValues (Join-Path $config 'Hotkeys.ini') ([ordered]@{
-        Hotkeys = [ordered]@{Device='DInput/0/Keyboard Mouse';'VR/Reset VR Position'='@(Shift+R) | (`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`)'}
+        Hotkeys = [ordered]@{Device='DInput/0/Keyboard Mouse';'VR/Reset VR Position'='@(Shift+R) | (pulse(!`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & !`OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 0.1) & pulse(pulse(`OpenXR/0/OpenXR Controller:Left Button Thumbstick`, 0.15) & pulse(`OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 0.15) & `OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 1.0))';'General/Exit'='hold(`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 3.0)'}
     })
     $switches = Get-AcVRSwitches $ForcedVBI $Mirror $ControllerAnchor $CameraAnchor $CameraSmoothing
     Set-AcIniValues (Join-Path $config 'GFX.ini') ([ordered]@{VR=$switches})

@@ -80,7 +80,7 @@ Menu button is used by these corrected replays.
 | + (U1 Start) | left stick click alone |
 | − (U2 Select) | right stick click alone |
 | Home | hold left Y for 0.5 s (a tap of left Y is 2) |
-| Recentre (U3) | both stick clicks, the second within 250 ms of the first, released within 1 s (`Hotkeys.ini`, below) |
+| Recentre (U3) | both stick clicks, the second within 150 ms of the first, released within 1 s (`Hotkeys.ini`, below) |
 | Quit and save (U4) | both stick clicks held 3 s (`Hotkeys.ini`, below) |
 | Nunchuk stick | left stick |
 | Nunchuk C | left X |
@@ -124,7 +124,7 @@ replays the expressions through a small model of Dolphin's `hold()`/`pulse()` (C
   a 100 ms press on release. After a chord the buttons stay blocked for 1.5 s (3.5 s after a hold
   of 1 s or more) so the second click released never sends a stray press.
 - **Recentre**: `Hotkeys.ini` binds `VR/Reset VR Position` (Shift+R kept for the desktop) to both
-  clicks pressed within 250 ms of each other and released within 1 s (`pulse` on the release).
+  clicks pressed within 150 ms of each other and released within 1 s (`pulse` on the release).
 - **Quit and save**: `General/Exit = hold(both clicks, 3 s)`. Dolphin's Exit hotkey runs the same path
   as closing the window: the Wii power event (or `Core::Stop` on GameCube) shuts the game down
   gracefully, which flushes the memory card or NAND saves, then Dolphin exits and the Hub's

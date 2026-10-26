@@ -45,6 +45,7 @@ set = [
   { section = "Core", key = "GFXBackend", value = "D3D" },
   { section = "General", key = "HotkeysRequireFocus", value = "False" },
   { section = "Input", key = "BackgroundInput", value = "True" },
+  { section = "Interface", key = "ConfirmStop", value = "False" },
   { section = "Android", key = "QuestLeftHanded", value = "False" },
   { section = "General", key = "ISOPaths", value = 0 },
   { section = "General", key = "RecursiveISOPaths", value = "False" },
@@ -85,7 +86,7 @@ format = "ini"
 create = true
 only_if_missing = true
 source = "data/controls/wii/generated/dolphinxr/split-right.ini"
-source_sha256 = "edfcccec10a8226ee5366b0fedf500a57a3674dd7b91b72c6bf200e55fc27ebe"
+source_sha256 = "304b9be574afa56c67fc42c948e08136ca10742c96b6e56921ff68c28985a0e5"
 
 [[variant.dolphinxr.step]]
 id = "logs-directory"
@@ -119,7 +120,8 @@ create = true
 only_if_missing = true
 set = [
   { section = "Hotkeys", key = "Device", value = "DInput/0/Keyboard Mouse" },
-  { section = "Hotkeys", key = "VR/Reset VR Position", value = "@(Shift+R) | (`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`)" },
+  { section = "Hotkeys", key = "VR/Reset VR Position", value = "@(Shift+R) | (pulse(!`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & !`OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 0.1) & pulse(pulse(`OpenXR/0/OpenXR Controller:Left Button Thumbstick`, 0.15) & pulse(`OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 0.15) & `OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 1.0))" },
+  { section = "Hotkeys", key = "General/Exit", value = "hold(`OpenXR/0/OpenXR Controller:Left Button Thumbstick` & `OpenXR/0/OpenXR Controller:Right Button Thumbstick`, 3.0)" },
 ]
 
 [variant.dolphinxr.launch]
