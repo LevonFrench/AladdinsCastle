@@ -19,6 +19,10 @@ version = "latest, published 2026-10-06T09:49:07Z"
 archive = "zip"
 note = "The tag latest is rolling, not a version. Pin by published_at plus the sha256 the Hub records at install. Portable zip (installer not used). SSE2 build for older CPUs: duckstation-windows-x64-sse2-release.zip."
 
+[unpinned.windows-x64]
+reason = "rolling tag \"latest\": the release changes under the same name, so no hash can stay true"
+checked = "2026-10-25"
+
 [install.windows-arm64]
 do = "github-release"
 repo = "stenzek/duckstation"
@@ -27,6 +31,10 @@ asset = "duckstation-windows-arm64-release.zip"
 version = "latest, published 2026-10-06T09:49:07Z"
 archive = "zip"
 note = "Windows ARM64 zip (verified asset name)."
+
+[unpinned.windows-arm64]
+reason = "rolling tag \"latest\": the release changes under the same name, so no hash can stay true"
+checked = "2026-10-25"
 
 [install.linux-x64]
 do = "github-release"
@@ -37,6 +45,10 @@ version = "latest, published 2026-10-06T09:49:07Z"
 archive = "none"
 note = "AppImage (verified). An SSE2 AppImage (DuckStation-x64-SSE2.AppImage) also exists."
 
+[unpinned.linux-x64]
+reason = "rolling tag \"latest\": the release changes under the same name, so no hash can stay true"
+checked = "2026-10-25"
+
 [install.linux-arm64]
 do = "github-release"
 repo = "stenzek/duckstation"
@@ -45,6 +57,10 @@ asset = "DuckStation-arm64.AppImage"
 version = "latest, published 2026-10-06T09:49:07Z"
 archive = "none"
 note = "Native ARM64 Linux AppImage (verified). Relevant to ARM64 Linux targets such as Steam Frame. DuckStation-armhf.AppImage is 32-bit ARM and is not listed."
+
+[unpinned.linux-arm64]
+reason = "rolling tag \"latest\": the release changes under the same name, so no hash can stay true"
+checked = "2026-10-25"
 
 [portable]
 marker = "portable.txt"

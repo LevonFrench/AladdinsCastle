@@ -18,6 +18,8 @@ tag = "v17.9"
 asset = "DemulShooter_v17.9.zip"
 version = "v17.9"
 archive = "zip"
+sha256 = "55f135fdd2a326c5dd58522bf51efb30d0347126358d6f9832306461ce7e9560"
+bytes = 48086000
 note = "Latest release published 2026-09-22 (verified). The repo has DemulShooter and DemulShooterX64 projects, and the release notes name DemulShooterX64.exe."
 
 [portable]

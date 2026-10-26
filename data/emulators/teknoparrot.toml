@@ -20,6 +20,10 @@ version = "2.0.0.131"
 archive = "zip"
 note = "Pre-release published 2026-07-13 (verified asset name). The older tag 1.0.0.2215 (2019) is marked Latest and is not used. Official site download (/en/Home/Download) is an alternative."
 
+[unpinned.windows-x64]
+reason = "the releases API returned 404 for tag TeknoParrotUI-net8 on 2026-10-25, so the digest cannot be read; check the tag first"
+checked = "2026-10-25"
+
 [install.linux-x64]
 do = "github-release"
 repo = "teknogods/TeknoParrotUI"
@@ -28,6 +32,10 @@ asset = "TeknoParrotUi-2.0.0.131-linux-x64.zip"
 version = "2.0.0.131"
 archive = "zip"
 note = "Build exists (verified asset name). Running TeknoParrot games on Linux is not verified: do not offer until tested. x64 only, so not an ARM64 route."
+
+[unpinned.linux-x64]
+reason = "the releases API returned 404 for tag TeknoParrotUI-net8 on 2026-10-25, so the digest cannot be read; check the tag first"
+checked = "2026-10-25"
 
 [portable]
 marker = "?"

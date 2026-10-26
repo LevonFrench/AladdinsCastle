@@ -28,6 +28,8 @@ tag = "v0.3a-20260928-git-8b4de23"
 asset = "supermodel-0.3a-20260928-git-8b4de23-linux.tar.gz"
 version = "v0.3a-20260928-git-8b4de23"
 archive = "tar.gz"
+sha256 = "7b94c2d9c54a829ebe9b6a7da9ed199dc78286c75f8c5113d63ed617d3e5173d"
+bytes = 1592846
 note = "Linux tarball exists (verified name). Its architecture is not verified, so do not offer it on ARM64 until it is checked."
 
 [portable]

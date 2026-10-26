@@ -17,6 +17,8 @@ tag = "v3.6"
 asset = "DesktopPlus-3.6.zip"
 version = "v3.6"
 archive = "zip"
+sha256 = "959eec3c525ab335b04738f79069d05fc36d8ebded1c40bdc8488e9091d60be1"
+bytes = 2153254
 note = "Latest stable, published 2026-08-14 (verified asset name). Beta v3.6.1 (2026-10-05) is a pre-release and is not used. The Steam install (app 1494460) is an alternative: the Hub locates it instead. Windows 8.1 or later (README). Architecture is not in the name."
 
 [portable]

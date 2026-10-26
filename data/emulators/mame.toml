@@ -17,6 +17,8 @@ asset = "mame0289b_x64.exe"
 checksum_asset = "SHA256SUMS"
 version = "mame0289"
 archive = "?"
+sha256 = "a1aa7912168c9d1b05e611906bc21b8b9be3935822aead36d12a1da363150b7d"
+bytes = 87626249
 note = "GitHub Latest, published 2026-07-30 (verified). The meaning of the b suffix is not verified. Check whether the file is a self-extracting archive before the Hub runs it. Verify the hash against SHA256SUMS in the same release."
 
 [install.windows-arm64]
@@ -27,6 +29,8 @@ asset = "mame0289b_arm64.exe"
 checksum_asset = "SHA256SUMS"
 version = "mame0289"
 archive = "?"
+sha256 = "f4cb463256c34b6772aee5bc553e770aca8204c31f1f947e849d8f8495bc6346"
+bytes = 85192947
 note = "Windows ARM64 build (verified asset name). Linux: the release holds only mame0289lx.zip, a source package, so no Linux binary manifest is offered."
 
 [portable]

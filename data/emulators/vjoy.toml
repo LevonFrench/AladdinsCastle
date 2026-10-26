@@ -20,6 +20,10 @@ run_installer = true
 elevation = "admin"
 note = "Signed kernel-driver installer (verified asset name, published 2023-12-19). Windows 10 and 11 only per README. The architecture is not stated in the name, so the platform stays unverified. Remove stale vJoy driver packages before reinstalling (secondary guide). Reboot may be needed (not verified)."
 
+[unpinned.windows-x64]
+reason = "the release metadata has no sha256 digest for this asset"
+checked = "2026-10-25"
+
 [portable]
 marker = "none"
 note = "System driver. It installs into Windows and is not portable. The Hub records the install, never bundles it, and offers an uninstall step."

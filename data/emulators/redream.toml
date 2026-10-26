@@ -19,6 +19,10 @@ version = "v1.5.0"
 archive = "zip"
 note = "Stable v1.5.0 (verified file name on the official download page, 2026-10-08). The page publishes no checksum, so the Hub records sha256 at first download. Development builds on the same page are not used."
 
+[unpinned.windows-x64]
+reason = "locate-only by gate; redream.io publishes no checksum and is not on the Hub download allow-list"
+checked = "2026-10-25"
+
 [install.linux-x64]
 do = "download"
 url = "https://redream.io/download/redream.x86_64-linux-v1.5.0.tar.gz"
@@ -26,6 +30,10 @@ sha256 = "?"
 version = "v1.5.0"
 archive = "tar.gz"
 note = "Stable v1.5.0 (verified file name). The Raspberry Pi build is aarch32 and is not an ARM64 route. No ARM64 Linux build is listed."
+
+[unpinned.linux-x64]
+reason = "locate-only by gate; redream.io publishes no checksum and is not on the Hub download allow-list"
+checked = "2026-10-25"
 
 [portable]
 marker = "?"

@@ -111,6 +111,7 @@ add_library(hubcore STATIC
     src/core/install/ArtifactStore.h
     src/core/install/FlatLaunch.cpp
     src/core/update/Update.h
+    src/core/update/Update.cpp
     src/core/launch/Launch.h
     src/core/launch/Launch.cpp
     src/core/launch/ProcessTree.cpp
@@ -307,6 +308,14 @@ if(BUILD_TESTING)
     ac_project_warnings(art-download-tests)
     set_target_properties(art-download-tests PROPERTIES WIN32_EXECUTABLE FALSE)
     add_test(NAME hub-art-download COMMAND art-download-tests -o -,txt)
+    qt_add_executable(update-tests tests/UpdateTest.cpp)
+    target_link_libraries(update-tests PRIVATE hubcore Qt6::Test)
+    ac_project_warnings(update-tests)
+    set_target_properties(update-tests PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME hub-update COMMAND update-tests -o -,txt)
+    add_test(NAME emulator-pin-tool COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/pin_artifact.py --test)
+    add_test(NAME emulator-manifest-lint COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/validate_emulator_manifests.py --test)
+    add_test(NAME emulator-manifests COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tools/validate_emulator_manifests.py)
     qt_add_executable(pinball-settings-tests tests/PinballSettingsTest.cpp)
     target_link_libraries(pinball-settings-tests PRIVATE hubcore Qt6::Test)
     ac_project_warnings(pinball-settings-tests)
