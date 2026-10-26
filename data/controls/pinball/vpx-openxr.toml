@@ -74,7 +74,7 @@ hand="left"
 control="click"
 target="ExitGame"
 warning=true
-reason="No hold-to-quit in pinball: VPX exits on press and cannot time a hold, and the Hub cannot read the controllers while VPX has them. Press the left Menu button (SteamVR dashboard), then the Hub panel's Exit game, or press Esc. Both stick clicks held only adjust the table (U3p)."
+reason="Hold-to-quit (U4) works only in the patched AladdinsCastle build of VPX (setups/vpx-vr): both stick clicks held for 3 s with hand travel under 5 cm close the table through VPX's own Exit Game, so NVRAM and settings are saved. Standard VPX exits on press and cannot time a hold, and the Hub cannot read the controllers while VPX has them: press the left Menu button (SteamVR dashboard), then the Hub panel's Exit game, or press Esc. Both stick clicks held while the hands move only adjust the table (U3p)."
 [[action]]
 id="nudge"
 part="Left stick"
@@ -98,7 +98,7 @@ label="Scale, turn and move the table (U3p): hands apart or together, turn the p
 hand="right"
 control="click"
 target="VRControllerCalibration"
-reason="Same VPX action as Recentre, while both clicks stay held. Scale uses ControllerLockbarScale; Hub passes it unchanged."
+reason="Same VPX action as Recentre. Release to keep holds only in the patched AladdinsCastle VPX (setups/vpx-vr), where the table follows the hands only while both clicks are held. Standard VPX toggles it on each double click: the table keeps following after release until both sticks are clicked again. Scale uses ControllerLockbarScale; Hub passes it unchanged."
 [[action]]
 id="plunger"
 part="Right stick"

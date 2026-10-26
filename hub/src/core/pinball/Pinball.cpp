@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Pinball.h"
+#include "Build.h"
 #include "Identity.h"
 #include "Roms.h"
 #include "Script.h"
@@ -174,8 +175,12 @@ QVariantMap scan(const QString &folder,const QString &database,const QString &ro
  }
  return {{"tables",rows},{"total",rows.size()},{"vrReady",ready}};
 }
-QVariantMap launchGuidance() {
- return {{"launchAllowed",true},{"help","Launch on desktop starts the table with VR off; Launch in headset asks Visual Pinball for VR. Hub does this with a small settings file of its own for that table, layered over your normal settings, which it never changes. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables. There is no hold-to-quit in a table: to leave, press the left Menu button (the SteamVR dashboard), open the Hub panel and choose Exit game, or press Esc."}};
+QVariantMap launchGuidance(bool patched) {
+ const QString common="Launch on desktop starts the table with VR off; Launch in headset asks Visual Pinball for VR. Hub does this with a small settings file of its own for that table, layered over your normal settings, which it never changes. VPX saves its own scores and settings. Hub scans read-only and never edits or copies your tables. ";
+ const QString leave=patched
+  ?"This is the patched AladdinsCastle build of Visual Pinball: hold both stick clicks for 3 seconds with your hands still to leave a table, and it saves as on any exit. The left Menu button (the SteamVR dashboard), then the Hub panel's Exit game, or Esc also work."
+  :"Holding both stick clicks for 3 seconds quits a table only in the patched AladdinsCastle build of Visual Pinball. In the standard Visual Pinball, to leave, press the left Menu button (the SteamVR dashboard), open the Hub panel and choose Exit game, or press Esc.";
+ return {{"launchAllowed",true},{"patchedBuild",patched},{"help",common+leave}};
 }
 QVariantMap launchPlan(const QString &table,const QString &executable,const QString &ownedRoot,bool vr) {
  return launchPlan(table,executable,ownedRoot,vr?QString("headset"):QString());
@@ -183,7 +188,7 @@ QVariantMap launchPlan(const QString &table,const QString &executable,const QStr
 QVariantMap launchPlan(const QString &table,const QString &executable,const QString &ownedRoot,const QString &view,const QString &appSettings) {
  require(QFileInfo(table).isFile()&&QFileInfo(table).suffix().compare("vpx",Qt::CaseInsensitive)==0&&!link(QFileInfo(table))&&QFileInfo(executable).isFile()&&!link(QFileInfo(executable)));
  require(!inspect(table).contains("error"));
- auto plan=launchGuidance();
+ auto plan=launchGuidance(isPatchedBuild(executable));
  plan.insert("executable",QFileInfo(executable).absoluteFilePath());
  plan.insert("cwd",QFileInfo(executable).absolutePath());
  require(view.isEmpty()||view=="headset"||view=="desktop");

@@ -60,7 +60,10 @@ class UiController : public QObject {
  Q_PROPERTY(QVariantMap pinballData READ pinballData NOTIFY pinballChanged)
  Q_PROPERTY(QVariantMap pinballSelection READ pinballSelection NOTIFY pinballChanged)
  Q_PROPERTY(QString pinballPlan READ pinballPlan NOTIFY pinballChanged)
- Q_PROPERTY(QString pinballLaunchHelp READ pinballLaunchHelp CONSTANT)
+ Q_PROPERTY(QString pinballLaunchHelp READ pinballLaunchHelp NOTIFY pinballBuildChanged)
+ // The pinball program is the patched AladdinsCastle VPX ("-acvr" product version): hold-to-quit, hold-only table adjust.
+ Q_PROPERTY(bool pinballPatched READ pinballPatched NOTIFY pinballBuildChanged)
+ Q_PROPERTY(QString pinballHeadsetControls READ pinballHeadsetControls NOTIFY pinballBuildChanged)
  Q_PROPERTY(QString universalControls READ universalControls CONSTANT) // U1-U4, the one sentence every card and help text shows
  Q_PROPERTY(QString universalMenuNote READ universalMenuNote CONSTANT)
  Q_PROPERTY(bool pinballScanning READ pinballScanning NOTIFY pinballChanged)
@@ -134,6 +137,10 @@ class UiController : public QObject {
  QVariantMap pinballSelection()const{return m_pinballSelection;}
  QString pinballPlan()const{return m_pinballPlan;}
  QString pinballLaunchHelp()const;
+ bool pinballPatched()const{return m_pinballPatched;}
+ QString pinballHeadsetControls()const;
+ // Reads the pinball program's version information again when its path, size or date changed (never runs it).
+ void refreshPinballBuild();
  QString universalControls()const;QString universalMenuNote()const;
  bool pinballScanning()const{return m_pinballScanning;}
  QObject *pinballControls(){return &m_pinballControls;}
@@ -356,6 +363,7 @@ class UiController : public QObject {
  void closeLaunchRequested();
  void nowPlayingChanged();
  void pinballChanged();
+ void pinballBuildChanged();
  void pinballPlayRequested(const QString &id,const QString &view);
  void steamVrRunningChanged();
  void steamVrStartingChanged();
@@ -451,6 +459,7 @@ class UiController : public QObject {
  QString m_pinballPlan;
  bool m_pinballScanning=false;
  ControlsViewModel m_pinballControls;
+ bool m_pinballPatched=false;QString m_pinballBuildKey;
  QString m_pinballControlsStatus;
 };
 }
