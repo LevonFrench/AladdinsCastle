@@ -24,6 +24,9 @@ E3 is only ever the owner's. Agents can produce E1 and E2, never E3.
 
 The proofs are offline: identical-input runs compared with and without the input, aim measured against the game's own calibration, open frame measured by how much of the side area the game fills. None of them is a headset verdict.
 
+Every picture proof also checks for black bars: run `python tools/letterbox_check.py <frames or folders>` (add `--eyes 2` for side-by-side stereo frames); it exits 1 when a frame has bars at the top, bottom or sides.
+A game that shows bars in its offline frames has not passed the picture check, so look for them in every new game before calling it E2.
+
 ## Merged since 2026-10-21 (PRs #130 to #139)
 
 | PR | What it is | Evidence |
