@@ -2,6 +2,10 @@
 // The shared tolerant TITLE matcher: table-driven, with many near misses that must not match.
 // It compares titles only. Disc identity never comes from a file name (see DiscIndexTest and
 // LibraryTest); nothing here reads a file, a disc or the network.
+#ifdef _MSC_VER
+// MSVC's optimiser reports Qt's inlined qstringalgorithms.h as unreachable code (C4702) in this test only.
+#pragma warning(disable : 4702)
+#endif
 #include "core/match/TitleMatch.h"
 #include <QtTest>
 using ac::match::Quality;

@@ -1119,7 +1119,7 @@ class UiTest:public QObject {
   QVERIFY(!controller.toolUpdatesChecking());QCOMPARE(answered.size(),1);QCOMPARE(controller.toolUpdates().size(),3);
   QVERIFY(controller.emulatorUpdateAvailable("supermodel"));QVERIFY(!controller.emulatorUpdateAvailable("mame"));QVERIFY(!controller.emulatorUpdateAvailable("pcsx2"));
   QCOMPARE(controller.emulatorUpdates().value("supermodel").toMap().value("text").toString(),QString("Version v2 is available (you have v1)."));
-  controller.checkToolUpdates();QCOMPARE(checks.size(),2);controller.setToolUpdates({});
+  controller.checkToolUpdates();QCOMPARE(checks.size(),2);controller.setToolUpdates({});controller.setEmulatorUpdate("supermodel",false);
   // The unrecognised list reads the finders' library result, and says how many there are when the list is capped.
   QCOMPARE(controller.unrecognisedCount(),0);
   QVariantList files;for(int i=0;i<25;++i)files<<QVariantMap{{"name","disc "+QString::number(i)},{"reason","No game number could be read."},{"size",1048576*(i+1)}};
@@ -1157,6 +1157,10 @@ class UiTest:public QObject {
   QCOMPARE(controller.setupFolderChecks().value(system).toMap().value("matched").toInt(),0);QVERIFY(controller.setupFolderBusy().isEmpty());
   controller.setEmulatorUpdate(system,true,"2","1");
   for(const auto &value:controller.setupSystems()){const auto row=value.toMap();if(row.value("id").toString()==system)QVERIFY(row.value("updateAvailable").toBool());}
+  // Update reports name the emulator; the systems built from it show the flag too.
+  controller.setEmulatorUpdate(system,false);controller.setEmulatorUpdate("supermodel",true);
+  for(const auto &value:controller.setupSystems()){const auto row=value.toMap();QCOMPARE(row.value("updateAvailable").toBool(),row.value("id").toString()=="model3");}
+  controller.setEmulatorUpdate("supermodel",false);
  }
  void componentLoading(){
   const QStringList components{"PillButton","UiText","GameArt","GradientText","GameCard","SectionHeader","FeaturedBanner","Header","FilterBar","ScanProgress","FiltersDrawer","GameGrid","StateNotice","UnrecognisedList","LibraryTile","RecentlyPlayedRow","ExplorePage","DetailPage","InstallConsole","RecoveryPanel","SettingsPage","SortMenu","HelpPanel"};
@@ -1340,7 +1344,7 @@ class UiTest:public QObject {
   root->setProperty("vrOverlayMode",true);QVERIFY(root->property("vrOverlayMode").toBool());QQmlComponent c(engine.get(),QUrl("qrc:/qt/qml/AladdinsCastle/Hub/PillButton.qml"));std::unique_ptr<QObject> button(c.create());button->setProperty("vrOverlayMode",true);QVERIFY(button->property("implicitHeight").toDouble()>=40);root->setProperty("vrOverlayMode",false);
  }
  void allOverlayPillsHaveMinimumTargets(){
-  root->setProperty("vrOverlayMode",true);int checked=0;std::function<void(QQuickItem *)> inspect=[&](QQuickItem *item){if(item->property("targetHeight").isValid()){++checked;QVERIFY2(item->property("vrOverlayMode").toBool(),qPrintable(item->property("text").toString()));QVERIFY(item->height()>=56);QVERIFY(item->width()>=44);}for(auto child:item->childItems())inspect(child);};
+  root->setProperty("vrOverlayMode",true);int checked=0;std::function<void(QQuickItem *)> inspect=[&](QQuickItem *item){if(item->property("targetHeight").isValid()){++checked;QVERIFY2(item->property("vrOverlayMode").toBool(),qPrintable(item->property("text").toString()));QVERIFY2(item->height()>=56,qPrintable(item->objectName()+" \""+item->property("text").toString()+"\" height "+QString::number(item->height())));QVERIFY(item->width()>=44);}for(auto child:item->childItems())inspect(child);};
   ui->openDetail("timecris");for(const auto &view:{"List","Detail","Explore","Settings"}){root->setProperty("view",view);QTRY_COMPARE_WITH_TIMEOUT(root->property("view").toString(),QString(view),15000);QVERIFY(softwareFrame(window,15000));inspect(window->contentItem());}
   for(const auto &name:{"scanDialog","toolDialog","steamDialog","removeDialog"}){auto dialog=window->findChild<QObject *>(name);QVERIFY(dialog);QVERIFY(QMetaObject::invokeMethod(dialog,"open"));QTRY_VERIFY_WITH_TIMEOUT(dialog->property("opened").toBool(),15000);QVERIFY(softwareFrame(window,15000));inspect(window->contentItem());QVERIFY(QMetaObject::invokeMethod(dialog,"close"));}
   QVERIFY(checked>50);root->setProperty("view","List");root->setProperty("vrOverlayMode",false);

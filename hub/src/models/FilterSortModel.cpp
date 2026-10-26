@@ -52,7 +52,11 @@ void FilterSortModel::setQuery(const QString &query) {
     m_query = query;
     m_choicesCache.clear();
     forgetRanks();
-    invalidateFilter();
+    // In A to Z order the ranks change with the words, so rows that stay visible are sorted again too.
+    if (m_sort == "title")
+        invalidate();
+    else
+        invalidateFilter();
     emit queryChanged();
     emit visibleCountChanged();
 }
