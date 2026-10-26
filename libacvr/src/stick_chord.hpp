@@ -55,6 +55,8 @@ public:
             out.chord=true;out.chord_ms=held>UINT32_MAX?UINT32_MAX:uint32_t(held);
             out.quit_progress=t.quit_ms?std::min(1.f,float(held)/float(t.quit_ms)):1.f;
             out.quit_visible=held>=t.recenter_ms;
+            // One let go: the 3 s hold is over for this chord (the contract is both held), as in acvr-ps1's StickChord.h.
+            if(!(cur[0]&&cur[1])) quit_cancelled=true;
             out.quit_cancelled=quit_cancelled;
             if(!quit_fired&&!quit_cancelled&&held>=t.quit_ms) {out.quit=true;quit_fired=true;}
             if(!cur[0]&&!cur[1]) {
