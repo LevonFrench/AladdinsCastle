@@ -758,9 +758,6 @@ theatre::Config TheatreConfig()
     c.touchWidth = t.panel[0]; c.touchDistance = t.panel[1]; c.touchLift = t.panel[2];
   }
   c.aimDot = !PadMode() || EnvFloat("ACVR_PAD_AIM_DOT", 0.f) != 0.f;   // pad games show their own crosshair, if any
-  // The both-grips recentre needs both grips free: a pad map or the face-button layout that uses a grip turns it off.
-  const char *face = std::getenv("ACVR_PS1_FACE_BUTTONS");
-  c.gripRecentre = PadMode() ? !g_padCfg.usesGrip() : !(face && std::atoi(face) == 1);
   // Wide view: the picture holds 1/kx of the game's width and 1/ky of its height, so the surface is that much
   // wider (ACVR_PS1_SCREEN_W gives its width): no frame, edges fading into the dark.
   float kx = 1, ky = 1; glstereo::WideView(kx, ky);
@@ -801,7 +798,8 @@ void Usage()
     "         ACVR_PS1_3DS_TOUCH (1: the 3DS bottom screen as a touch panel; needs ACVR_PS1_3DS_TOP and _BOTTOM, rectangles of the frame; the right ray is the stylus).\n"
     "Profile: a per-game TOML file of ACVR_* settings, core options, a pad map and views (setups/retro-ps1-vr/profiles);\n"
     "         the environment and the command line override it. --print-config shows every setting and where it came from.\n"
-    "Clean quit: hold left Y (Index: left B) for 3 s, Escape, or create ACVR_PS1_STOP_FILE.\n");
+    "Universal controls: left stick click Start, right stick click Select, both clicks together recentre, both held 3 s quit and save.\n"
+    "Clean quit: both stick clicks held for 3 s, Escape, or create ACVR_PS1_STOP_FILE.\n");
 }
 
 }  // namespace
@@ -996,10 +994,11 @@ int main(int argc, char **argv)
   if (!stopFile.empty()) Log("Clean stop file: %s", stopFile.c_str());
   const char *faceEnv = std::getenv("ACVR_PS1_FACE_BUTTONS");
   const bool faceButtons = faceEnv && std::atoi(faceEnv) == 1;
-  if (faceButtons) Log("Face buttons: right A Cross, right B Circle, left X Square, left Y Triangle, left stick Start, right stick Select; gun buttons on the grips");
+  if (faceButtons) Log("Face buttons: right A Cross, right B Circle, left X Square, left Y Triangle; gun buttons on the grips");
+  Log("Universal controls: left stick click Start, right stick click Select, both clicks recentre, both held 3 s quit and save (no menu button is read)");
   if (const char *aim = std::getenv("ACVR_PS1_AIM")) if (*aim) Log("Aim trim (x scale, x shift, y scale, y shift): %s", aim);
   CleanQuit quit;
-  bool quitWasHeld = false;
+  bool quitCounting = false;
   timeBeginPeriod(1);   // 1 ms sleeps, so pacing and audio refill are not 15 ms steps
   const double frameMs = 1000.0 / (g_av.timing.fps > 1 ? g_av.timing.fps : 60.0);
   LARGE_INTEGER freq, t0; QueryPerformanceFrequency(&freq); QueryPerformanceCounter(&t0);
@@ -1016,9 +1015,11 @@ int main(int argc, char **argv)
     if (testAim) { controller.active = true; controller.offScreen = false; controller.u = testU; controller.v = testV; }
     if (!headless) {
       const DWORD attr = stopFile.empty() ? INVALID_FILE_ATTRIBUTES : GetFileAttributesA(stopFile.c_str());
-      quit.poll(now, controller.quitHeld, attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY));
-      // So a quit that does not happen can be told apart from a press that never arrived.
-      if (controller.quitHeld != quitWasHeld) { Log(controller.quitHeld ? "Left Y down (hold 3 s to quit)" : "Left Y up"); quitWasHeld = controller.quitHeld; }
+      quit.poll(now, false, attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY));
+      // The universal quit (both stick clicks held 3 s) is resolved in the presenter. Logged, so a quit that does not
+      // happen can be told apart from a hold that never arrived.
+      if ((controller.quitProgress > .33f) != quitCounting) { quitCounting = controller.quitProgress > .33f; Log(quitCounting ? "Both stick clicks down (hold to 3 s to quit and save)" : "Stick clicks released"); }
+      if (controller.quitFired) { Log("Clean quit: both stick clicks held for 3 s"); break; }
       if (GetAsyncKeyState(VK_ESCAPE) & 1) quit.request(CleanQuit::Reason::escape);
       if (seconds && now - startedAt >= seconds * 1000ull) quit.request(CleanQuit::Reason::time_limit);
       if (quit.requested()) { Log("Clean quit: %s", quit.reason()); break; }
@@ -1038,20 +1039,21 @@ int main(int argc, char **argv)
       Gun g; g.u = controller.u; g.v = controller.v; g.offScreen = !controller.active || controller.offScreen;
       // GunCon A is also on the grip, as the pedal (Time Crisis takes cover with it).
       g.trigger = controller.trigger; g.a = controller.a || controller.grip; g.b = controller.b;
-      g.start = controller.a;   // the Justifier's side button; arcade Start
-      g.select = gunName == "lightgun" && controller.b;   // arcade Coin
+      g.a = g.a || controller.padSquare;   // cover (Time Crisis) with either grip: the left grip is GunCon A too
+      // Start and Select are the stick clicks. Right A and B stay as the gun hand's own aliases: the Justifier's side
+      // button, and arcade Start and Coin.
+      g.start = controller.a || controller.uStart;
+      g.select = (gunName == "lightgun" && controller.b) || controller.uSelect;
       Pad p; p.left = controller.padX < -.5f; p.right = controller.padX > .5f; p.up = controller.padY > .5f; p.down = controller.padY < -.5f;
       p.cross = controller.padCross; p.circle = controller.padCircle; p.square = controller.padSquare;
-      p.start = controller.padStart || controller.stickLeft;   // left stick click is Start everywhere; the left menu button is dead under ALVR
+      p.start = controller.uStart; p.select = controller.uSelect;
       if (faceButtons) {
-        // The owner's layout: right A Cross, right B Circle, left X Square, left Y Triangle (holding left Y for 3 s
-        // still quits), left stick click Start, right stick click Select. The gun keeps the trigger; its two
-        // buttons move to the right and left grips.
+        // The owner's layout: right A Cross, right B Circle, left X Square, left Y Triangle. The gun keeps the trigger;
+        // its two buttons move to the right and left grips. Start and Select stay the stick clicks.
         p.cross = controller.a || controller.padCross; p.circle = controller.b; p.square = controller.padCircle;
-        p.triangle = controller.quitHeld;
-        p.start = controller.stickLeft || controller.padStart; p.select = controller.stickRight;
+        p.triangle = controller.padYButton;
         g.a = controller.grip; g.b = controller.padSquare;   // the gun's own two buttons on the grips
-        g.start = controller.stickLeft || controller.padStart; g.select = controller.stickRight;
+        g.start = controller.uStart; g.select = controller.uSelect;
       }
       g_pad = p;
       if (PadMode()) {
@@ -1126,7 +1128,11 @@ int main(int argc, char **argv)
       static bool aimed = false; aimed = aimed || !g_gun.offScreen;
       g_gun.offScreen = off || !aimed;
       for (unsigned *h : { &timeline.holdTrigger, &timeline.holdA, &timeline.holdB, &timeline.holdStart, &timeline.holdSelect, &timeline.holdOff }) if (*h) --*h;
-      if (PadMode()) { FollowInto(scripted.vr); g_rpad = scripted.frame(g_padCfg); }
+      if (PadMode()) {
+        FollowInto(scripted.vr); g_rpad = scripted.frame(g_padCfg);
+        if (scripted.chordRecentre) { Log("Frame %u: both stick clicks together: recentre", frame); scripted.chordRecentre = false; }
+        if (scripted.chordQuit) { Log("Clean quit: both stick clicks held for 3 s (frame %u)", frame); frames = frame; scripted.chordQuit = false; }
+      }
       if (frames && frame >= frames) break;
     }
     if (g_gun.trigger && !lastTrigger) { ++shots; if (theatreOn) theatre::QueuePulse(); }

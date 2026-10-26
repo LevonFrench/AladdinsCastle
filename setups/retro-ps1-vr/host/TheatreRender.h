@@ -6,6 +6,7 @@
 #pragma once
 #include "WinGL.h"
 #include "MiniJson.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -378,6 +379,7 @@ struct EyeScene {
   ScreenGeometry screen;
   bool showGun = false; Mat4 gunRoot = Mat4::Identity(); float trigger = 0; float recoil = 0;   // slide travel 0..1
   bool showDot = false; float dotU = .5f, dotV = .5f;
+  float quitProgress = 0;   // the two-stick-click quit hold, 0..1 of 3 s: a ring of dots fills in the middle of the screen once it passes the recentre second
   bool crt = false;
   float u0 = 0, uw = 1;   // the part of the picture this eye sees (side-by-side stereo)
   float v0 = 0, vh = 1;   // and its rows (a letterboxed picture)
@@ -498,6 +500,14 @@ public:
     }
     if (s.showDot) drawDot(s.screen, s.screen.frame, s.dotU, s.dotV, vp, encode);
     if (s.touch && s.touchDot) drawDot(s.touchPanel, s.touchPanel.frame, s.touchDotU, s.touchDotV, vp, encode);
+    if (s.quitProgress > .33f) {   // quit countdown: twelve dots round the middle of the screen, one more every 0.25 s from 1 s to 3 s, then all lit
+      const int lit = std::min(12, (int)std::ceil(s.quitProgress * 12.f));
+      const float ringR = s.screen.height * .12f, white[4] = { 1.f, 1.f, 1.f, 1 };
+      for (int i = 0; i < lit; ++i) {
+        const float a = i * 6.2831853f / 12 - 1.5707963f;
+        drawDot(s.screen, s.screen.frame, .5f + ringR / s.screen.width * std::cos(a), .5f + ringR / s.screen.height * std::sin(a), vp, encode, 1.6f, white);
+      }
+    }
     if (s.showGun && m_gun && m_gun->loaded()) {
       const Mat4 eyeWorld = view.RigidInverse(); const float eye[3] = { eyeWorld.m[12], eyeWorld.m[13], eyeWorld.m[14] };
       // The light sits at (0.36, 0.70, 0.62) in the viewer's space (runtime-lighting.json), so it is turned into world space for this eye.
@@ -545,9 +555,9 @@ private:
     glDrawArrays(GL_TRIANGLE_STRIP, 0, (GLsizei)(verts.size() / 5));
   }
   // An orange disc with a dark rim, lying on the screen just in front of the picture.
-  void drawDot(const ScreenGeometry &g, const Mat4 &frame, float dotU, float dotV, const Mat4 &vp, bool encode)
+  void drawDot(const ScreenGeometry &g, const Mat4 &frame, float dotU, float dotV, const Mat4 &vp, bool encode, float scale = 1.f, const float *fillColour = nullptr)
   {
-    const float r = g.height / 110.f;
+    const float r = g.height / 110.f * scale;
     auto ring = [&](float radius, float lift, const float colour[4]) {
       std::vector<float> v; const auto c = g.local(dotU, dotV);
       const float du = radius / g.width, dv = radius / g.height;
@@ -569,7 +579,8 @@ private:
       tgl::EnableVertexAttribArray(0); tgl::VertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12, nullptr);
       glDrawArrays(GL_TRIANGLE_FAN, 0, (GLsizei)(v.size() / 3));
     };
-    const float rim[4] = { 0, 0, 0, 1 }, fill[4] = { 1.f, .2f, .02f, 1 };
+    const float rim[4] = { 0, 0, 0, 1 }, orange[4] = { 1.f, .2f, .02f, 1 };
+    const float *fill = fillColour ? fillColour : orange;
     ring(r * 1.35f, .004f, rim); ring(r, .006f, fill);
   }
 };

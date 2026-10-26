@@ -28,10 +28,10 @@ ACVR_PS1_3DS_BOTTOM = [0.05, 0.5, 0.4, 0.25]  # the bottom screen (the left eye'
 ACVR_PS1_3DS_STYLUS = "rtrig"                 # the stylus is down while this control is held and the ray is on the panel
 
 # RetroPad A, B, X, Y, L, R are the 3DS buttons of the same names; the left stick is the Circle Pad.
-# Left trigger = L (fire), right A and B = A and B (menus and dialogs), lclick = start (the left menu button belongs to the SteamVR dashboard under ALVR).
-# The right trigger is the stylus, so it is not in the map. The grips are free, so the both-grips recentre gesture stays on.
+# Left trigger = L (fire), right A and B = A and B (menus and dialogs). Start and Select are the universal stick clicks (left click Start, right click Select),
+# not map entries; both clicks recentre, both held 3 s quit and save. The right trigger is the stylus, so it is not in the map.
 [pad]
-map = { ltrig = "l", ra = "a", rb = "b", lclick = "start" }
+map = { ltrig = "l", ra = "a", rb = "b" }
 
 [views.theatre]
 label    = "Theatre screen"

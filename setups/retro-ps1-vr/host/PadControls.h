@@ -7,11 +7,14 @@
 //   aim   while aiming (right grip held, or always), the right controller's point on the screen sets the analog
 //         stick so the game's own crosshair follows it, with the game's aim button held; the left stick then
 //         goes to the right analog (the N64 C buttons). Not aiming, the left stick is the analog stick.
+// Start and Select are not in any map: they are the universal stick-click layer (StickChord.h, universal controls U1 and U2),
+// the same in every mode, added to the pad after the map. The map cannot name the stick clicks or a menu button.
 // The same mapping serves the headset and the offline scripts (a scripted virtual controller), so offline
 // proofs exercise exactly what the headset sends.
 #pragma once
 #include "TheatreXR.h"
 #include "retro_abi.h"
+#include "StickChord.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -64,10 +67,7 @@ inline bool VrControl(const theatre::Input &in, const std::string &name)
   if (name == "ra") return in.a;
   if (name == "rb") return in.b;
   if (name == "lx") return in.padCircle;          // left X (Index: left A)
-  if (name == "ly") return in.padYButton;              // left Y (Index: left B); held 3 s it quits
-  if (name == "lmenu") return in.padStart;        // left menu (Index: left stick click)
-  if (name == "rclick") return in.stickRight;
-  if (name == "lclick") return in.stickLeft;
+  if (name == "ly") return in.padYButton;         // left Y (Index: left B): free for a game (L3 where one needs it)
   if (name == "rup") return in.rightY > .6f;
   if (name == "rdown") return in.rightY < -.6f;
   if (name == "rleft") return in.rightX < -.6f;
@@ -77,7 +77,7 @@ inline bool VrControl(const theatre::Input &in, const std::string &name)
 // The VR controls that can put the 3DS stylus down (ACVR_PS1_3DS_STYLUS).
 inline bool KnownStylusControl(const std::string &name)
 {
-  static const char *known[] = { "rtrig", "ltrig", "rgrip", "lgrip", "ra", "rb", "lx", "ly", "lmenu", "rclick", "lclick" };
+  static const char *known[] = { "rtrig", "ltrig", "rgrip", "lgrip", "ra", "rb", "lx", "ly" };
   for (const char *k : known) if (name == k) return true;
   return false;
 }
@@ -92,9 +92,6 @@ inline void ForceVrControl(theatre::Input &in, const std::string &name)
   else if (name == "rb") in.b = true;
   else if (name == "lx") in.padCircle = true;
   else if (name == "ly") in.padYButton = true;
-  else if (name == "lmenu") in.padStart = true;
-  else if (name == "rclick") in.stickRight = true;
-  else if (name == "lclick") in.stickLeft = true;
 }
 
 // The Nintendo 3DS bottom-screen touch panel (ACVR_PS1_3DS_TOUCH). Azahar draws both screens into one frame: the top
@@ -165,6 +162,8 @@ struct Config {
     while (std::getline(s, item, ',')) {
       const auto eq = item.find('='); if (eq == std::string::npos) { if (!item.empty()) problems += " '" + item + "'"; continue; }
       const std::string vr = item.substr(0, eq), retro = item.substr(eq + 1);
+      // The stick clicks are Start, Select, recentre and quit for every game, and the menu buttons are off limits.
+      if (vr == "lclick" || vr == "rclick" || vr == "lmenu" || vr == "rmenu") { problems += " '" + item + "' (owned by the universal layer)"; continue; }
       const int id = RetroButton(retro);
       if (id < 0) { problems += " '" + item + "'"; continue; }
       map.emplace_back(vr, id);
@@ -173,21 +172,11 @@ struct Config {
   static std::string DefaultMap(const std::string &mode)
   {
     // libretro names; mupen64plus-next reads RetroPad B as N64 A, Y as N64 B, L2 as Z, R as R, L as L, Start as Start.
-    // Start: left stick click everywhere (the left menu button is the SteamVR dashboard under ALVR); the left menu
-    // button stays as an alias, and so does the right stick click where the right stick is unused (racing, aiming).
-    // The pad map has no rclick alias: the right stick is the C buttons there. Racing and aiming moved L from the
-    // left click to left X, which had only duplicated Z (wheel) or A (aim).
-    if (mode == "wheel") return "rtrig=b,ltrig=y,rgrip=r,lgrip=l2,ra=b,rb=y,lx=l,lclick=start,lmenu=start,rclick=start";
-    if (mode == "aim") return "rtrig=l2,ra=b,rb=y,lgrip=l2,lx=l,lclick=start,lmenu=start,rclick=start,ltrig=r";
-    return "ra=b,rb=y,rtrig=l2,rgrip=r,ltrig=l2,lgrip=l,lx=b,lclick=start,lmenu=start";
-  }
-  // True when the active map (or the aim-hold control) uses either grip. The both-grips recentre gesture is only
-  // safe when it does not: a game that holds both grips (Star Fox 64 3D boost and brake) must not move the screen.
-  bool usesGrip() const
-  {
-    for (const auto &m : map) if (m.first == "rgrip" || m.first == "lgrip") return true;
-    if (touch.on && (touch.button == "rgrip" || touch.button == "lgrip")) return true;
-    return mode == "aim" && (aimHold == "rgrip" || aimHold == "lgrip");
+    // Start and Select are the stick clicks (universal layer, added in Map), so no map names them. Racing and aiming put
+    // L on left X, which had only duplicated Z (wheel) or A (aim).
+    if (mode == "wheel") return "rtrig=b,ltrig=y,rgrip=r,lgrip=l2,ra=b,rb=y,lx=l";
+    if (mode == "aim") return "rtrig=l2,ra=b,rb=y,lgrip=l2,lx=l,ltrig=r";
+    return "ra=b,rb=y,rtrig=l2,rgrip=r,ltrig=l2,lgrip=l,lx=b";
   }
   // Environment: ACVR_PAD_MAP, ACVR_PAD_WHEEL_DEG, ACVR_PAD_AIM_HOLD, ACVR_PAD_AIM_BUTTON, ACVR_PAD_AIM, ACVR_PAD_AIM_CURVE.
   std::string load(const std::string &m)
@@ -266,6 +255,9 @@ inline RetroPad Map(const theatre::Input &in, const Config &c)
   // (Mario Kart 7: rtrig = a) would otherwise confirm the highlighted menu item on every tap, wherever the tap lands.
   const bool stylusOnly = c.touch.on && in.touchHit;
   for (const auto &m : c.map) if (!(stylusOnly && m.first == c.touch.button) && VrControl(in, m.first)) p.press((unsigned)m.second);
+  // The universal layer: Start (left stick click alone) and Select (right stick click alone), already chord-resolved.
+  if (in.uStart) p.press(RETRO_DEVICE_ID_JOYPAD_START);
+  if (in.uSelect) p.press(RETRO_DEVICE_ID_JOYPAD_SELECT);
   if (c.touch.on && in.touchHit) {   // the stylus: over the panel, down while the chosen control is held
     const auto &b = c.touch.pointer;
     p.pointerOn = true; p.pointerDown = VrControl(in, c.touch.button);
@@ -306,10 +298,12 @@ inline std::int16_t State(const RetroPad &p, unsigned device, unsigned index, un
 // Offline: a scripted virtual controller (the same fields the headset fills) plus raw pad overrides for menus.
 struct Scripted {
   theatre::Input vr;
-  std::map<std::string, unsigned> holdVr;   // ra, rb, rgrip, lgrip, lx, ly, lmenu, rclick, lclick: frames left
+  std::map<std::string, unsigned> holdVr;   // ra, rb, rgrip, lgrip, lx, ly, rclick, lclick: frames left (the clicks go through the chord resolver)
   std::map<int, unsigned> holdRaw;          // RetroPad button: frames left
   bool rawStick = false; float rawX = 0, rawY = 0;
   bool rawRight = false; float rawRX = 0, rawRY = 0;
+  chord::Resolver sticks; std::uint64_t frames = 0;   // the universal layer on a 60 Hz script clock
+  bool chordRecentre = false, chordQuit = false;      // set when the script's stick clicks recentre or quit; the host reads and clears them
 
   // Returns false when the command is not a pad command.
   bool command(const std::string &cmd, const std::vector<std::string> &args, std::string &error)
@@ -344,8 +338,12 @@ struct Scripted {
   {
     theatre::Input in = vr;
     auto held = [&](const char *k) { auto it = holdVr.find(k); return it != holdVr.end() && it->second > 0; };
-    in.a = held("ra"); in.b = held("rb"); in.padCircle = held("lx"); in.padYButton = held("ly"); in.padStart = held("lmenu");
+    in.a = held("ra"); in.b = held("rb"); in.padCircle = held("lx"); in.padYButton = held("ly");
     in.stickRight = held("rclick"); in.stickLeft = held("lclick");
+    {
+      const auto u = sticks.update(frames++ * 1000 / 60, in.stickLeft, in.stickRight);
+      in.uStart = u.start; in.uSelect = u.select; chordRecentre = chordRecentre || u.recentre; chordQuit = chordQuit || u.quit;
+    }
     if (held("rgrip")) in.gripValue = 1;
     if (held("lgrip")) in.padGripValue = 1;
     if (held("rtrig")) in.triggerValue = 1;

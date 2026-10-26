@@ -19,9 +19,6 @@ struct Config {
   float letterbox = 0;             // share of the picture's height cut from its top and from its bottom (3DS side by side: .25)
   bool swapEyes = false;           // side by side: the left half goes to the right eye and the other way round (ACVR_PS1_SWAP_EYES)
   bool aimDot = true;              // the orange dot where the right controller's ray meets the screen
-  // Both grips held for about a second put the screen in front of you again. The host turns it off when the game
-  // uses a grip (a pad map with rgrip or lgrip, the face-button layout), so holding both grips in play does not move the screen.
-  bool gripRecentre = true;
   bool frame = true;               // the thin dark frame round the screen
   float edgeFade = 0;              // share of the picture's width and height over which its edges fade into the dark
   // The HUD panel: the game's 2D overlay (a separate picture, transparent elsewhere) on its own flat panel, placed
@@ -40,17 +37,21 @@ struct Config {
 };
 struct Input {
   float u = .5f, v = .5f;
-  bool active = false, offScreen = true, trigger = false, a = false, b = false, grip = false, quitHeld = false;
-  // Left controller as a PlayStation pad: stick = d-pad, trigger = Cross, X (Index: A) = Circle,
-  // grip = Square, stick click (the menu button is the SteamVR dashboard under ALVR) = Start.
+  bool active = false, offScreen = true, trigger = false, a = false, b = false, grip = false;
+  // Left controller as a PlayStation pad: stick = d-pad, trigger = Cross, X (Index: A) = Circle, grip = Square.
+  // No menu button is read anywhere: the left menu button is the SteamVR dashboard under ALVR.
   float padX = 0, padY = 0;
-  bool padCross = false, padCircle = false, padSquare = false, padStart = false;
-  bool stickLeft = false, stickRight = false;   // thumbstick clicks
+  bool padCross = false, padCircle = false, padSquare = false;
+  // The thumbstick clicks as they are pressed, and what the universal layer (StickChord.h, run by the presenter) makes of
+  // them: Start (left click alone), Select (right click alone), and the 3 s two-click quit with its progress, 0..1 (latched
+  // once it fires). The recentre chord is handled inside the presenter. Games never see the raw clicks.
+  bool stickLeft = false, stickRight = false;
+  bool uStart = false, uSelect = false, quitFired = false; float quitProgress = 0;
   // Analog values and the right controller's roll, for pad games (steering wheel, accelerate/brake).
   float triggerValue = 0, padTriggerValue = 0, gripValue = 0, padGripValue = 0;
   float rightX = 0, rightY = 0;   // right thumbstick
   float roll = 0;                 // right controller roll about its pointing axis, radians, positive turned clockwise (to the right)
-  bool padYButton = false;             // left Y (Index: left B) pressed at all; held 3 s it still quits
+  bool padYButton = false;             // left Y (Index: left B): a free button now (no quit or Select), for a game or a pad map
   // Where the right controller's ray meets the HUD panel's plane (u, v may lie outside 0..1), when it does.
   bool hudHit = false; float hudU = .5f, hudV = .5f;
   // Where the ray meets the 3DS touch panel (a little past its edge counts, clamped), when it does.
