@@ -187,3 +187,60 @@ jobs:
           make -f Makefiles/Makefile.UNIX release -j"$(nproc)" OPT=-O1 CC="ccache gcc" CXX="ccache g++" SILENT=
           test -x bin/supermodel
           ccache -s
+
+  flycast-hotd2-vr:
+    name: flycast-hotd2-vr (windows-2022)
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: repo
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Read the pin
+        shell: python
+        run: |
+          import json, os, pathlib, re
+          pin = json.loads(pathlib.Path('repo/setups/flycast-hotd2-vr/upstream-pin.json').read_text(encoding='utf-8'))
+          repo, commit = pin['repository'], pin['source_commit']
+          if not re.fullmatch(r'[0-9a-f]{40}', commit) or not repo.startswith('https://github.com/'):
+              raise SystemExit(f'Bad pin: {repo} {commit}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write(f'UPSTREAM_REPO={repo}\nUPSTREAM_COMMIT={commit}\n')
+      # The fork carries Flycast's submodules; they are fetched shallow at the commits the pinned commit records.
+      - name: Fetch the pinned upstream commit and its submodules
+        shell: bash
+        run: |
+          git init upstream
+          cd upstream
+          git remote add origin "$UPSTREAM_REPO"
+          git fetch --depth 1 origin "$UPSTREAM_COMMIT"
+          git checkout FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$UPSTREAM_COMMIT"
+          git submodule update --init --recursive --depth 1 --jobs 8
+      - name: Apply the VR patch
+        shell: bash
+        working-directory: upstream
+        run: |
+          git apply --check "$GITHUB_WORKSPACE/repo/setups/flycast-hotd2-vr/patch/acvr-hotd2-vr.patch"
+          git apply --verbose "$GITHUB_WORKSPACE/repo/setups/flycast-hotd2-vr/patch/acvr-hotd2-vr.patch"
+      - name: Set up MSVC 2022 x64
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
+        with:
+          arch: x64
+      # The same configure flags as setups/flycast-hotd2-vr/tools/build.cmd (Ninja, cl, OpenXR on, DirectX 9 off).
+      # The OpenXR SDK source is fetched by the upstream CMakeLists with its own checksum. The gun-model clean-up
+      # (tools/clean_gun_model.py) only rewrites a data header and is not needed to compile.
+      - name: Configure and compile (MSVC, Ninja, Release)
+        shell: pwsh
+        working-directory: upstream
+        timeout-minutes: 40
+        run: |
+          cmake -S . -B build-win -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=Release -DUSE_DX9=OFF -DUSE_OPENXR=ON
+          if ($LASTEXITCODE -ne 0) { throw "cmake configure exit $LASTEXITCODE" }
+          cmake --build build-win --parallel
+          if ($LASTEXITCODE -ne 0) { throw "cmake build exit $LASTEXITCODE" }
+          if (-not (Test-Path build-win/flycast.exe)) { throw 'flycast.exe was not produced' }
+          Get-ChildItem build-win -Recurse -Filter xr_host.cpp.obj | Select-Object -First 1 | ForEach-Object { Write-Host "Compiled $($_.Name)" }
