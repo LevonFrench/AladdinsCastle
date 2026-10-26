@@ -9,6 +9,7 @@
 #include "core/model3/Model3.h"
 #include "core/setup/Setup.h"
 #include "core/setup/Report.h"
+#include "core/app/LogBundle.h"
 #include "core/dreamcast/Dreamcast.h"
 #include "core/model2/Model2.h"
 #include "core/ps2/Ps2.h"
@@ -408,8 +409,16 @@ HubServices::HubServices(GameListModel *games,FilterSortModel *filter,UiControll
     connect(&launcher_,&launch::LaunchService::playingChanged,this,&HubServices::finishPendingExit);
     connect(&launcher_,&launch::LaunchService::raiseHubRequested,this,&HubServices::raiseHubRequested);
     connect(ui_,&UiController::locationRequested,this,[this](const QString &kind){
-        QString path;if(kind=="log")path=root_+"/user/logs/install";else if(kind=="install")path=root_+"/emulators";else if(kind=="downloads")path=root_+"/user/cache";else return;
+        QString path;if(kind=="log")path=root_+"/user/logs/install";else if(kind=="install")path=root_+"/emulators";else if(kind=="downloads")path=root_+"/user/cache";else if(kind=="reports")path=root_+"/user/reports";else return;
         try{path=install::scopedPath(path,root_);QDir().mkpath(path);QDesktopServices::openUrl(QUrl::fromLocalFile(path));}catch(const std::exception &e){report(e);}
+    });
+    // The problem report: the Hub's logs and the last launch's, made plain of names and keys, in one ZIP.
+    connect(ui_,&UiController::reportRequested,this,[this]{
+        try{
+            const auto bundle=ac::report::writeBundle(root_,install::scopedPath("user/reports",root_),ac::report::Redaction::thisPc(root_),QString::fromUtf8(product::display_name),QCoreApplication::applicationVersion());
+            ui_->setReport(bundle.path,bundle.error,static_cast<int>(bundle.included.size()));
+            if(bundle.ok)QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(bundle.path).absolutePath()));
+        }catch(const std::exception &e){ui_->setReport({},QString::fromUtf8(e.what()));}
     });
     restore();
 }

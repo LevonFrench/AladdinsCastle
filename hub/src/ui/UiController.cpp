@@ -38,6 +38,15 @@ QString UiController::pinballLaunchHelp()const{return pinball::launchGuidance().
 namespace {
 QString str(const Json &j,const char *key){return j.contains(key)&&j[key].is_string()?QString::fromStdString(j[key].get<std::string>()):QString();}
 QString eventText(const QVariantMap &e){auto kind=e.value("kind").toString(), text=e.value("text").toString();if(kind=="step")return QString("--- [%1/%2] %3 ---").arg(e.value("index",e.value("step")).toInt()).arg(e.value("total").toInt()).arg(text);const QMap<QString,QString> prefixes{{"ok"," [OK] "},{"warn"," [!!] "},{"fail"," [XX] "},{"work"," [..] "},{"detail","  "},{"prompt"," >>> "},{"done"," >>> "}};return prefixes.value(kind,"  ")+text;}
+QVariantMap makeNotice(const QString &kind,const QString &text,const QString &action,const QString &label,bool trouble=false){
+ return {{"kind",kind},{"text",text},{"action",action},{"actionLabel",label},{"tone",trouble?"trouble":"info"}};
+}
+// A launch that failed because the emulator or its launcher was not there, from the words the launcher gave.
+bool programMissing(const QString &text){
+ static const QRegularExpression gone("(not found|could not be found|cannot find|can't find|no such file|does not exist|is missing)",QRegularExpression::CaseInsensitiveOption);
+ static const QRegularExpression program("(emulator|launcher|executable|program|\\.exe)",QRegularExpression::CaseInsensitiveOption);
+ return gone.match(text).hasMatch()&&program.match(text).hasMatch();
+}
 }
 SectionedGridModel::SectionedGridModel(GameListModel *games,FilterSortModel *filter,int columns,QObject *parent):QAbstractListModel(parent),m_games(games),m_filter(filter),m_columns(std::max(1,columns)){
  connect(filter,&QAbstractItemModel::modelReset,this,[this]{scheduleRefresh();});connect(filter,&QAbstractItemModel::layoutChanged,this,[this]{scheduleRefresh();});
@@ -74,6 +83,9 @@ UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettin
  connect(this,&UiController::nowPlayingChanged,this,&UiController::launchGateChanged);
  connect(this,&UiController::steamVrStartingChanged,this,&UiController::launchGateChanged);
  connect(settings,&UiSettings::changed,this,&UiController::listsChanged);
+ // Every state a notice reads from.
+ for(const auto trigger:{&UiController::facetsChanged,&UiController::scanChanged,&UiController::libraryChanged,&UiController::detailChanged,&UiController::nowPlayingChanged,&UiController::installChanged,&UiController::artworkChanged})
+  connect(this,trigger,this,&UiController::noticesChanged);
  connect(games,&QAbstractItemModel::dataChanged,this,&UiController::catalogReadyChanged);
  connect(games,&QAbstractItemModel::modelReset,this,&UiController::catalogReadyChanged);
  connect(settings,&UiSettings::changed,this,&UiController::setupChanged);
@@ -164,6 +176,83 @@ void UiController::scan(const QStringList &roots){startScan(roots);}
 void UiController::startScan(const QStringList &roots){if(m_scanning)return;if(roots.isEmpty()){message("Choose at least one folder to scan.");return;}m_scanning=true;emit scanChanged();message("Scan requested; waiting for scanner.");emit scanRequested(roots);}
 void UiController::cancelScan(){if(!m_scanning)return;emit cancelScanRequested();message("Scan cancellation requested.");}
 void UiController::showError(const QString &operation,const QString &text){message(operation+": "+text);}
+QVariantMap UiController::artNotice()const{
+ if(m_artworkBusy)return {};
+ if(m_artworkOffline)return makeNotice("artOffline","Pictures could not be downloaded just now. The games still start and play.","retryArt","Try again");
+ if(m_artworkOff&&m_settings->get("artDownload",false).toBool()!=true)return makeNotice("artOff","Picture download is off, so some games show a plain card.","openSettings","Open Settings");
+ return {};
+}
+// What to say about the last game when it did not end well: it did not start, or it crashed.
+static QVariantMap sessionNotice(const QVariantMap &session,bool emulatorMissing){
+ const auto outcome=session.value("outcome").toString();
+ if(outcome!="failed"&&outcome!="crashed")return {};
+ const auto text=session.value("text").toString();
+ if(outcome=="failed"&&(emulatorMissing||programMissing(text+" "+session.value("details").toString())))
+  return makeNotice("emulatorMissing",session.value("title").toString()+" could not start because its emulator was not found.","findEmulator","Find the emulator",true);
+ return makeNotice(outcome=="failed"?"launchFailed":"crashed",text,"saveReport","Save a problem report",true);
+}
+QVariantMap UiController::notice(const QString &place)const{
+ if(place=="library"||place=="explore"){
+  const bool empty=m_filter->visibleCount()==0;
+  QVariantMap found;
+  if(m_scanning||m_libraryScanning)found=makeNotice("scanning","Looking through your folders for games. You can keep using the Hub while it works.","stopScan","Stop looking");
+  else if(empty&&(!m_filter->query().trimmed().isEmpty()||!activeFacets().isEmpty()))found=makeNotice("noMatches","No games match this search or these filters.","clearFilters","Clear filters");
+  else if(empty)found=makeNotice("noGames","No games were found yet. Tell the Hub which folders hold your games.","findGames","Find my games");
+  else found=artNotice();
+  if(!found.isEmpty())found["empty"]=empty;
+  return found;
+ }
+ if(place=="nowPlaying"){
+  if(!m_nowPlaying.isEmpty())return {}; // The running game's card says it all.
+  return sessionNotice(m_lastSession,game(m_lastSession.value("gameId").toString()).value("state").toInt()==6);
+ }
+ if(place=="detail"){
+  const auto source=m_games->find(m_detailId);if(!source||m_installing)return {};
+  auto g=*source;if(const auto *v=variant(g)){g.runtime.selectedVariantId=v->id;resolveState(g);}
+  const int state=g.roles.value("state").toInt();
+  if(m_lastSession.value("gameId").toString()==m_detailId&&m_nowPlaying.isEmpty())
+   if(const auto failed=sessionNotice(m_lastSession,state==6);!failed.isEmpty())return failed;
+  if(state==6&&!g.roles.value("playing").toBool())return makeNotice("emulatorMissing","This game's emulator was not found on this PC.","findEmulator","Find the emulator",true);
+  if(state==5)return makeNotice("noFiles","Your copy of this game was not found on this PC.","findGames","Find my games");
+  if(g.roles.value("artBanner").toString().isEmpty())return artNotice();
+  return {};
+ }
+ return {};
+}
+void UiController::noticeAction(const QString &action){
+ if(action=="clearFilters"){m_filter->clearFacets();m_filter->setQuery(QString());}
+ else if(action=="findGames")emit locationRequested("media");
+ else if(action=="stopScan"){if(m_scanning)cancelScan();if(m_libraryScanning)cancelLibraryScan();}
+ else if(action=="findEmulator")emit locationRequested("tool");
+ else if(action=="saveReport")saveReport();
+ else if(action=="retryArt")getArtwork("all");
+ else if(action=="openSettings")emit pageRequested("Settings");
+ else if(action=="openSetup")emit pageRequested("Setup");
+}
+void UiController::saveReport(){m_reportStatus="Collecting the logs…";m_reportPath.clear();emit reportChanged();emit reportRequested();}
+void UiController::setReport(const QString &path,const QString &error,int files){
+ m_reportPath=path;
+ m_reportStatus=!error.isEmpty()||path.isEmpty()?"The report could not be saved: "+(error.isEmpty()?QString("no reason was given."):error)
+  :QString("Report saved with %1 log file%2. Send this file: %3").arg(files).arg(files==1?"":"s").arg(QDir::toNativeSeparators(path));
+ emit reportChanged();message(m_reportStatus);
+}
+void UiController::setToolUpdates(const QVariantList &reports){
+ m_toolUpdates=reports;m_toolUpdatesChecking=false;
+ for(const auto &value:reports){const auto report=value.toMap();setEmulatorUpdate(report.value("id").toString(),report.value("state").toString()=="available",report.value("latestTag").toString(),report.value("pinnedTag").toString());}
+ emit toolUpdatesChanged();emit toolUpdatesChecked(reports);
+}
+QString UiController::plainError(const QString &code,const QString &fallback)const{
+ if(m_plainErrors&&!code.isEmpty()){const auto text=m_plainErrors(code);if(!text.isEmpty())return text;}
+ return fallback;
+}
+void UiController::setEmulatorUpdate(const QString &id,bool available,const QString &latest,const QString &current){
+ if(id.isEmpty())return;
+ if(!available){if(m_emulatorUpdates.remove(id))emit emulatorUpdatesChanged();return;}
+ const auto text=latest.isEmpty()?QString("A newer version is available."):"Version "+latest+" is available"+(current.isEmpty()?QString("."):" (you have "+current+").");
+ const QVariantMap entry{{"available",true},{"latest",latest},{"current",current},{"text",text}};
+ if(m_emulatorUpdates.contains(id)&&m_emulatorUpdates.value(id).toMap()==entry)return;
+ m_emulatorUpdates[id]=entry;emit emulatorUpdatesChanged();
+}
 void UiController::overlayFallback(const QString &reason){showError("Overlay unavailable",reason);}
 void UiController::settingsSaved(const QString &id){emit detailChanged();message("Settings saved for "+game(id).value("title").toString()+". They apply to the next owned install or repair; existing emulator profiles are preserved.");}
 void UiController::startInstall(const QString &id,const QString &variantId){auto g=m_games->find(id);if(!g)return;if(m_installing){message("An installation is already running. Wait for it to finish.");return;}for(const auto &v:g->variants)if(v.id==variantId){if(!v.generated&&!authoredLaunchSupported(v)){message("Installing and launching this authored setup through the Hub is not enabled yet. Select an available flat route.");return;}message("Install requested; waiting for installer.");emit installRequested(id,variantId);return;}}
@@ -252,7 +341,7 @@ QVariantList UiController::sections()const{QVariantList result;for(const auto &g
 QVariantList UiController::featured()const{QVariantList out;for(const auto &g:m_games->records())if(g.roles.value("featuredEligible").toBool())out<<g.roles;if(out.isEmpty()&&!m_games->records().isEmpty())out<<m_games->records().first().roles;return out;}
 QVariantList UiController::recent()const{QVariantList out;QVector<GameRecord> sorted=m_games->records();std::sort(sorted.begin(),sorted.end(),[](const auto &a,const auto &b){return a.runtime.lastPlayed>b.runtime.lastPlayed;});for(const auto &g:sorted)if(g.runtime.lastPlayed>0&&out.size()<8&&!m_settings->get("hideRecent-"+g.id,false).toBool())out<<g.roles;return out;}
 QVariantList UiController::exploreRows()const{QVariantList out;const QStringList names{"Rail shooters","Cover and sniper","Horror","Hunting, party and water","Circuit and street","Rally and off-road","Kart and futuristic","Bikes, boats and more"};for(int b=0;b<8;++b){QVariantList games;for(int i=0;i<m_filter->rowCount();++i){auto g=filteredGame(i);if((g.value("bucketMask").toInt()&(1<<b))!=0)games<<g;}if(!games.isEmpty())out<<QVariantMap{{"label",names[b]},{"id",b},{"games",games},{"count",games.size()}};}return out;}
-void UiController::copyLog()const{QStringList lines;for(const auto &e:m_events)lines<<e.toMap().value("line").toString();QGuiApplication::clipboard()->setText(lines.join('\n'));}
+void UiController::copyLog()const{QStringList lines;for(const auto &e:m_events){const auto map=e.toMap();lines<<map.value("line").toString();if(!map.value("plain").toString().isEmpty())lines<<"     "+map.value("plain").toString();}QGuiApplication::clipboard()->setText(lines.join('\n'));}
 bool UiController::openLink(const QString &url)const{QUrl u(url);return (u.scheme()=="https"||u.scheme()=="http")&&QDesktopServices::openUrl(u);}
 void UiController::openLocation(const QString &kind){emit locationRequested(kind);}
 void UiController::removeRecent(const QString &id){m_settings->set("hideRecent-"+id,true);emit detailChanged();}
@@ -260,7 +349,7 @@ void UiController::scanStarted(){m_scanning=true;emit scanChanged();message("Sca
 void UiController::scanProgress(const QVariantMap &p){message(p.value("text").toString());}
 void UiController::scanFinished(bool success){m_scanning=false;emit scanChanged();if(success)m_filter->setScanComplete(true);message(success?"Scan complete.":"Scan stopped. Existing results were kept.");}
 void UiController::installStarted(){m_installing=true;m_recovery.clear();emit installChanged();message("Preparing install.");}
-void UiController::installEvent(const QVariantMap &event){auto e=event;e["line"]=eventText(e);m_events<<e;if(e.value("kind")=="step"){m_installing=true;m_recovery.clear();}if(e.value("kind")=="fail"){m_installing=false;m_recovery=e;}emit installChanged();}
+void UiController::installEvent(const QVariantMap &event){auto e=event;e["line"]=eventText(e);if(e.value("kind")=="fail"){const auto plain=plainError(e.value("code").toString());if(!plain.isEmpty())e["plain"]=plain;}m_events<<e;if(e.value("kind")=="step"){m_installing=true;m_recovery.clear();}if(e.value("kind")=="fail"){m_installing=false;m_recovery=e;}emit installChanged();}
 void UiController::installFinished(bool success,const QString &text){m_installing=false;if(success)m_recovery.clear();else if(m_recovery.isEmpty())m_recovery={{"text",text},{"kind","fail"}};emit installChanged();message(text);}
 void UiController::launchPreparing(const QString &id,const QString &text){message("Preparing "+game(id).value("title").toString()+": "+text);}
 void UiController::pinballLoaded(const QVariantMap &data){
@@ -559,12 +648,16 @@ void UiController::addArt(QVariantMap &row,const QString &artId,const QString &s
  row["heroBlur"]=picks.heroBlurred;
 }
 void UiController::setArtwork(bool busy,const QString &status){
- const bool done=m_artworkBusy&&!busy;m_artworkBusy=busy;m_artworkStatus=status;emit artworkChanged();message(status);
+ const bool done=m_artworkBusy&&!busy;m_artworkBusy=busy;m_artworkStatus=status;
+ // The downloader says "try again later" when requests failed: the internet could not be reached.
+ m_artworkOffline=!busy&&status.contains("try again later");
+ emit artworkChanged();message(status);
  if(done)listsChanged(); // New pictures show at once.
 }
 void UiController::getArtwork(const QString &scope){
  if(m_settings->get("artDownload",false).toBool()!=true){
-  setArtwork(false,"Artwork download is off. Turn on \"Download artwork from the internet\" in Settings first.");return;}
+  m_artworkOff=true;setArtwork(false,"Artwork download is off. Turn on \"Download artwork from the internet\" in Settings first.");return;}
+ m_artworkOff=false;
  if(m_artworkBusy){message("Artwork is already being fetched.");return;}
  const auto system=scope.startsWith("system:")?scope.mid(7):QString();
  QVariantList targets;
@@ -572,7 +665,7 @@ void UiController::getArtwork(const QString &scope){
  rows+=otherGames();
  for(const auto &value:rows){
   const auto row=value.toMap();const auto id=row.value("artId",row.value("id")).toString();
-  if(system.isEmpty()?id!=scope:row.value("system")!=system)continue;
+  if(scope!="all"&&(system.isEmpty()?id!=scope:row.value("system")!=system))continue; // "all": every game that has pictures to get
   // The game's own file and folder names match libretro's disc names best; they stay on this PC.
   const auto names=artNames(row,id);
   targets<<QVariantMap{{"id",id},{"system",row.value("system")},{"title",row.value("title")},{"names",names}};

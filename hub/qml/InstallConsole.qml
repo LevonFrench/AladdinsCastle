@@ -13,7 +13,7 @@ Rectangle {
   property bool followTail:true
   onMovementStarted:followTail=contentY>=contentHeight-height-32
   onCountChanged:if(followTail)Qt.callLater(positionViewAtEnd)
-  delegate:UiText {required property var modelData;width:events.width;text:modelData.line;font.family:Theme.get("font.mono")[0];font.pixelSize:13;color:Theme.get("color.console."+(modelData.kind==="done"?"ok":modelData.kind==="prompt"?"warn":modelData.kind));lineHeight:1.4}
+  delegate:UiText {required property var modelData;width:events.width;text:modelData.plain?modelData.line+"\n     "+modelData.plain:modelData.line;font.family:Theme.get("font.mono")[0];font.pixelSize:13;color:Theme.get("color.console."+(modelData.kind==="done"?"ok":modelData.kind==="prompt"?"warn":modelData.kind));lineHeight:1.4}
  }
  Row{anchors.bottom:parent.bottom;anchors.left:parent.left;anchors.margins:6;spacing:8;visible:uiController.installing
   PillButton{vrOverlayMode:installConsole.vrOverlayMode;text:"Cancel after this step";onClicked:uiController.cancelInstall()}

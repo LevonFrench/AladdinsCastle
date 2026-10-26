@@ -12,7 +12,8 @@ Rectangle {
  height:visible?body.implicitHeight+24:0;color:Theme.get("color.notice.fill");border.color:Theme.get("color.notice.line");radius:6
  Column{id:body;anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top;anchors.margins:12;spacing:8
   UiText{width:parent.width;text:"INSTALL STOPPED AT STEP "+(panel.recovery.step||"?")+" OF "+(panel.recovery.total||"?")+" — nothing was marked installed";font.weight:700;color:Theme.get("color.notice.heading")}
-  UiText{width:parent.width;text:panel.recovery.text||"The installer needs your input.";color:Theme.get("color.notice.body")}
+  UiText{objectName:"recoveryText";width:parent.width;text:panel.recovery.plain||panel.recovery.text||"The installer needs your input.";color:Theme.get("color.notice.body")}
+  UiText{objectName:"recoveryDetail";width:parent.width;visible:!!panel.recovery.plain&&!!panel.recovery.text;text:"Details: "+(panel.recovery.text||"")+(panel.recovery.code?" ("+panel.recovery.code+")":"");font.pixelSize:12;color:Theme.get("color.text.muted_detail")}
   UiText{width:parent.width;text:"Drag a downloaded file, folder or archive here, or choose it. The installer validates it before replacing anything."}
   Row{width:parent.width;spacing:8;TextField{id:path;objectName:"handoverPath";width:parent.width-130;height:panel.vrOverlayMode?56:44;placeholderText:"Paste a full path";text:panel.handoverPath;color:Theme.get("color.text.primary");onTextEdited:panel.handoverPath=text;onAccepted:panel.recovery.retryKind==="tool"?uiController.retryFailedTool(false,text):uiController.retryInstall(false,text);background:Rectangle{color:Theme.get("color.surface.pill");border.color:Theme.get("color.line.button");radius:4}} PillButton{vrOverlayMode:panel.vrOverlayMode;text:"Choose file";onClicked:picker.open()}}
   Flow{width:parent.width;spacing:8

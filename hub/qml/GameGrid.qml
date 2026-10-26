@@ -45,5 +45,7 @@ Item {
  }
  Timer{id:quiet;interval:Theme.get("motion.scroll_quiet")}
  Timer{id:featured;property int index:0;interval:300000+Math.random()*600000;repeat:true;running:true;onTriggered:{index=(index+1)%Math.max(1,uiController.featured.length);interval=300000+Math.random()*600000}}
- UiText{anchors.centerIn:parent;visible:gameFilter.visibleCount===0;text:"No games match these filters. Clear filters to show the catalog."}
+ // Nothing listed, or a search running: one sentence and one button, in the middle of the page when empty and along the bottom otherwise.
+ StateNotice{objectName:"gridNotice";z:5;notice:uiController.libraryNotice;vrOverlayMode:root.vrOverlayMode;width:Math.min(parent.width-80,640);anchors.horizontalCenter:parent.horizontalCenter
+  y:notice.empty?Math.max(24,(parent.height-height)/3):parent.height-height-12}
 }

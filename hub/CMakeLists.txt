@@ -52,6 +52,8 @@ add_library(hubcore STATIC
     src/core/app/LaunchOptions.h
     src/core/app/LaunchFailure.cpp
     src/core/app/LaunchFailure.h
+    src/core/app/LogBundle.cpp
+    src/core/app/LogBundle.h
     src/core/app/NetworkPolicy.cpp
     src/core/app/NetworkPolicy.h
     src/core/config/Config.h

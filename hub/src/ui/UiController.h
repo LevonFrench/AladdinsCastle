@@ -6,6 +6,7 @@
 #include "DetailControlsController.h"
 #include "ProductIdentity.h"
 #include <QObject>
+#include <functional>
 #include <optional>
 #include <QUrl>
 namespace ac {
@@ -76,6 +77,26 @@ class UiController : public QObject {
  Q_PROPERTY(QVariantMap setupReport READ setupReport NOTIFY setupChanged)
  Q_PROPERTY(bool setupScanning READ setupScanning NOTIFY setupChanged)
  Q_PROPERTY(QString setupProgress READ setupProgress NOTIFY setupChanged)
+ // Empty and error states, one per place: {kind, text, action, actionLabel, tone, empty}, or empty when there is nothing to say.
+ // text is one plain sentence and action names the one thing to do; noticeAction(action) does it.
+ Q_PROPERTY(QVariantMap libraryNotice READ libraryNotice NOTIFY noticesChanged)
+ Q_PROPERTY(QVariantMap exploreNotice READ exploreNotice NOTIFY noticesChanged)
+ Q_PROPERTY(QVariantMap detailNotice READ detailNotice NOTIFY noticesChanged)
+ Q_PROPERTY(QVariantMap nowPlayingNotice READ nowPlayingNotice NOTIFY noticesChanged)
+ // The problem report: a ZIP of the Hub's logs and the last launch's, saved in the Hub's folder.
+ Q_PROPERTY(QString reportStatus READ reportStatus NOTIFY reportChanged)
+ Q_PROPERTY(QString reportPath READ reportPath NOTIFY reportChanged)
+ // Set by the finders (files the Hub could not identify: [{name, reason, size}], with unrecognisedCount for the whole number
+ // when the list is capped) through the map given to setLibrary().
+ Q_PROPERTY(QVariantList unrecognisedFiles READ unrecognisedFiles NOTIFY libraryChanged)
+ Q_PROPERTY(int unrecognisedCount READ unrecognisedCount NOTIFY libraryChanged)
+ // Set by the update checks: emulator id -> {available, latest, current, text}.
+ Q_PROPERTY(QVariantMap emulatorUpdates READ emulatorUpdates NOTIFY emulatorUpdatesChanged)
+ Q_PROPERTY(int emulatorUpdateCount READ emulatorUpdateCount NOTIFY emulatorUpdatesChanged)
+ // The last "Check for updates" of the tools the Hub installs: one report per tool (state current|available|unknown, id, name,
+ // pinnedTag, latestTag, url, text). Only a note: nothing is downloaded or installed.
+ Q_PROPERTY(QVariantList toolUpdates READ toolUpdates NOTIFY toolUpdatesChanged)
+ Q_PROPERTY(bool toolUpdatesChecking READ toolUpdatesChecking NOTIFY toolUpdatesChanged)
  public:
  UiController(GameListModel *games,FilterSortModel *filter,UiSettings *settings,QObject *parent=nullptr);
  QObject *detailControls(){return m_detailControls.model();}
@@ -243,6 +264,35 @@ class UiController : public QObject {
  Q_INVOKABLE void setupScanProgress(const QString &text){m_setupProgress=text;emit setupChanged();}
  Q_INVOKABLE void setSetupReport(const QVariantMap &report){m_setupReport=report;m_setupScanning=false;m_setupProgress.clear();emit setupChanged();listsChanged();}
  void setPinballPlan(const QString &plan){m_pinballPlan=plan;emit pinballChanged();}
+ QVariantMap notice(const QString &place)const; // "library", "explore", "detail" or "nowPlaying"
+ QVariantMap libraryNotice()const{return notice("library");}
+ QVariantMap exploreNotice()const{return notice("explore");}
+ QVariantMap detailNotice()const{return notice("detail");}
+ QVariantMap nowPlayingNotice()const{return notice("nowPlaying");}
+ Q_INVOKABLE void noticeAction(const QString &action);
+ // The problem report. HubServices makes the ZIP when reportRequested is sent and answers with setReport.
+ QString reportStatus()const{return m_reportStatus;}
+ QString reportPath()const{return m_reportPath;}
+ Q_INVOKABLE void saveReport();
+ Q_INVOKABLE void showReport(){emit locationRequested("reports");}
+ void setReport(const QString &path,const QString &error,int files=0);
+ QVariantList unrecognisedFiles()const{return m_library.value("unrecognised").toList();}
+ int unrecognisedCount()const{const auto list=unrecognisedFiles();return qMax(static_cast<int>(list.size()),m_library.value("unrecognisedCount").toInt());}
+ // The one place an install error becomes plain words: given its code, the provider returns the sentence or nothing
+ // (then the engine's own text stays). The install engine's lane gives the table; until then nothing changes.
+ void setPlainErrors(std::function<QString(const QString &)> provider){m_plainErrors=std::move(provider);}
+ Q_INVOKABLE QString plainError(const QString &code,const QString &fallback={})const;
+ QVariantMap emulatorUpdates()const{return m_emulatorUpdates;}
+ int emulatorUpdateCount()const{return static_cast<int>(m_emulatorUpdates.size());}
+ Q_INVOKABLE void setEmulatorUpdate(const QString &id,bool available,const QString &latest={},const QString &current={});
+ Q_INVOKABLE bool emulatorUpdateAvailable(const QString &id)const{return m_emulatorUpdates.contains(id);}
+ QVariantList toolUpdates()const{return m_toolUpdates;}
+ bool toolUpdatesChecking()const{return m_toolUpdatesChecking;}
+ // Asks HubServices to look for newer releases of the installed tools (only when pressed). It answers with setToolUpdates.
+ Q_INVOKABLE void checkToolUpdates(){if(m_toolUpdatesChecking)return;m_toolUpdatesChecking=true;emit toolUpdatesChanged();emit toolUpdatesCheckRequested();}
+ void setToolUpdates(const QVariantList &reports);
+ // Asks for the update of one emulator; whoever installs emulators answers emulatorUpdateRequested.
+ Q_INVOKABLE void updateEmulator(const QString &id){emit emulatorUpdateRequested(id);}
  Q_INVOKABLE QString localPath(const QUrl &url)const{return url.isLocalFile()?url.toLocalFile():QString();}
  Q_INVOKABLE QString vrLabel(int badge) const;
  Q_INVOKABLE QString primaryLabel(const QString &gameId) const;
@@ -323,6 +373,16 @@ class UiController : public QObject {
  void pinballRestoreRequested(const QString &folder,const QString &database,const QString &roms,const QString &media);
  void retryToolInstallRequested(const QString &gameId,const QString &variantId,bool fromStart,const QString &handover);
  void promptAnswered(bool proceed); void skipStepRequested(); void uninstallPreviewRequested(const QString &gameId,const QString &variantId);
+ void noticesChanged();
+ void reportChanged();
+ void reportRequested();
+ void emulatorUpdatesChanged();
+ void emulatorUpdateRequested(const QString &id);
+ void toolUpdatesChanged();
+ void toolUpdatesCheckRequested();
+ void toolUpdatesChecked(const QVariantList &reports);
+ // The Hub shows this page ("Settings", "Setup"); the root page answers.
+ void pageRequested(const QString &page);
  void locationRequested(const QString &kind); void writeConfigRequested(const QString &gameId,const QVariantMap &settings);
  private:
  DetailControlsController m_detailControls;
@@ -362,6 +422,13 @@ class UiController : public QObject {
  void listsChanged(){m_model3Cache.reset();m_otherCache.reset();emit model3Changed();}
  QVariantList buildModel3Games()const;
  QVariantList buildOtherGames()const;
+ // Pictures that could not be downloaded, or whose download is off: a notice until the next run or the setting changes.
+ QVariantMap artNotice()const;
+ bool m_artworkOffline=false,m_artworkOff=false;
+ QString m_reportStatus,m_reportPath;
+ std::function<QString(const QString &)> m_plainErrors;
+ QVariantMap m_emulatorUpdates;
+ QVariantList m_toolUpdates;bool m_toolUpdatesChecking=false;
  QString m_pinballPlan;
  bool m_pinballScanning=false;
  ControlsViewModel m_pinballControls;
