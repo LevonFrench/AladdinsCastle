@@ -149,8 +149,7 @@ public:
     }
     void hideKeyboard() override { if (m_initialized) vr::VROverlay()->HideKeyboard(); }
     void acknowledgeQuit() override { if (m_system) m_system->AcknowledgeQuit_Exiting(); }
-    bool closeGameHeld(bool active) override { return pollButtons(active,false).closeHeld; }
-    HubButtons pollButtons(bool closeActive,bool panelActive) override {
+    HubButtons pollButtons(bool panelActive) override {
         if (!m_initialized || !vr::VRInput()) return {};
         if (!m_actionsTried) {
             m_actionsTried = true;
@@ -158,13 +157,10 @@ public:
             m_actionsReady = QFileInfo(manifest).isFile()
                 && vr::VRInput()->SetActionManifestPath(manifest.toUtf8().constData()) == vr::VRInputError_None
                 && vr::VRInput()->GetActionSetHandle("/actions/hub", &m_actionSet) == vr::VRInputError_None
-                && vr::VRInput()->GetActionHandle("/actions/hub/in/close_game", &m_closeGame) == vr::VRInputError_None;
-            // Back is optional: an older manifest without it still gives the close button.
-            if (m_actionsReady && vr::VRInput()->GetActionHandle("/actions/hub/in/back", &m_back) != vr::VRInputError_None)
-                m_back = vr::k_ulInvalidActionHandle;
+                && vr::VRInput()->GetActionHandle("/actions/hub/in/back", &m_back) == vr::VRInputError_None;
         }
         if (!m_actionsReady) return {};
-        if (!closeActive && !panelActive) {
+        if (!panelActive) {
             // Give the buttons back to the game.
             if (m_actionsActive) { vr::VRActiveActionSet_t none{}; vr::VRInput()->UpdateActionState(&none, sizeof none, 0); m_actionsActive = false; }
             return {};
@@ -183,8 +179,7 @@ public:
         };
         HubButtons buttons;
         buttons.actionsReady = true;
-        bool closeBound = false, backBound = false;
-        buttons.closeHeld = closeActive && read(m_closeGame, &closeBound);
+        bool backBound = false;
         const bool back = read(m_back, &backBound);
         buttons.backDown = panelActive && back;
         buttons.backBound = backBound;
@@ -210,7 +205,6 @@ private:
     bool m_initialized = false;
     bool m_actionsTried = false, m_actionsReady = false, m_actionsActive = false;
     vr::VRActionSetHandle_t m_actionSet = vr::k_ulInvalidActionSetHandle;
-    vr::VRActionHandle_t m_closeGame = vr::k_ulInvalidActionHandle;
     vr::VRActionHandle_t m_back = vr::k_ulInvalidActionHandle;
 };
 }

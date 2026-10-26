@@ -13,6 +13,8 @@ using namespace ac::report;
 namespace {
 // A drive path, built so that no real-looking path sits in this file.
 QString drive(const char *letter, const QString &tail) { return QString(letter) + ":/" + tail; }
+// Fixture text with a drive letter written as <D>, so that no drive path sits in this file.
+QString withDrives(QString text) { return text.replace(QStringLiteral("<C>"), "C:").replace(QStringLiteral("<D>"), "D:").replace(QStringLiteral("<E>"), "E:"); }
 QDateTime utc(const QString &iso) { return QDateTime::fromString(iso, Qt::ISODate); }
 void saveFile(const QString &path, const QByteArray &bytes, const QDateTime &time = {}) {
   QDir().mkpath(QFileInfo(path).absolutePath());
@@ -88,6 +90,50 @@ private slots:
     QFETCH(QString, text);
     QFETCH(QString, expected);
     QCOMPARE(redact(text, sample()), expected);
+  }
+  void foldersWithSpacesGoWhole_data() {
+    QTest::addColumn<QString>("text");
+    QTest::addColumn<QString>("expected");
+    QTest::newRow("a folder with a space") << "disc " + drive("D", "My Games/Secret Name/ridge.iso") + " ok" << "disc <path>/ridge.iso ok";
+    QTest::newRow("backslashes") << withDrives(R"(disc <D>\My Games\Secret Name\ridge.iso ok)") << QString(R"(disc <path>\ridge.iso ok)");
+    QTest::newRow("several spaces") << "disc " + drive("D", "My Old Games/Secret Name Two/disc image.iso") + " now" << "disc <path>/disc image.iso now";
+    QTest::newRow("a path at the end of the line") << withDrives(R"(wrote <D>\My Games\Secret Name\ridge.iso)") << QString(R"(wrote <path>\ridge.iso)");
+    QTest::newRow("a path at the end of a line, more lines") << "wrote " + drive("D", "My Games/Secret Name/ridge.iso") + "\nnext line" << "wrote <path>/ridge.iso\nnext line";
+    QTest::newRow("a path followed by prose") << withDrives(R"(Opened <D>\My Games\x.iso and started)") << QString(R"(Opened <path>\x.iso and started)");
+    QTest::newRow("two paths in a line") << withDrives(R"(Copied <D>\My Games\a.iso and <E>\More Games\b.iso done)") << QString(R"(Copied <path>\a.iso and <path>\b.iso done)");
+    QTest::newRow("a path with a comma then a mount") << withDrives(R"(Opened <D>\Games\x.iso, then /mnt/d/My Games/y.iso fine)") << QString(R"(Opened <path>\x.iso, then <path>/y.iso fine)");
+    QTest::newRow("a quoted path") << withDrives(R"(run "<C>\Program Files\x\tool.exe" --go)") << QString(R"(run "<path>\tool.exe" --go)");
+    QTest::newRow("a quoted path with brackets") << withDrives(R"(run "<C>\Program Files (x86)\Tool\tool.exe" --go)") << QString(R"(run "<path>\tool.exe" --go)");
+    QTest::newRow("a quoted path with a comma and a long name") << withDrives(R"(run "<D>\Old, Games\A Very Long Folder Name With Many More Words\x.iso" ok)") << QString(R"(run "<path>\x.iso" ok)");
+    QTest::newRow("a path in single quotes") << withDrives(R"(run '<C>\Program Files\x\tool.exe' --go)") << QString(R"(run '<path>\tool.exe' --go)");
+    QTest::newRow("a path in JSON") << withDrives(R"({"p":"<D>\\My Games\\Secret Name\\x.iso","n":1})") << QString(R"({"p":"<path>\x.iso","n":1})");
+    QTest::newRow("a network path with spaces") << QString(R"(share \\nas\My Share\Secret Name\disc.iso gone)") << "share <network path> gone";
+    QTest::newRow("a network file with spaces") << QString(R"(share \\nas\games\Secret Name.iso gone)") << "share <network path> gone";
+    QTest::newRow("a network path, slashes, then prose") << QString(R"(share \\nas/My Share/x.iso and started)") << "share <network path> and started";
+    QTest::newRow("a mounted drive") << "disc /mnt/d/My Games/Secret Name/ridge.iso, done" << "disc <path>/ridge.iso, done";
+    QTest::newRow("a volume") << "disc /Volumes/Big Disk/My Games/ridge.iso" << "disc <path>/ridge.iso";
+    QTest::newRow("a removable drive") << "at /media/me/USB Drive/Secret Name/ridge.iso" << "at <path>/ridge.iso";
+  }
+  void foldersWithSpacesGoWhole() {
+    QFETCH(QString, text);
+    QFETCH(QString, expected);
+    const auto once = redact(text, sample());
+    QCOMPARE(once, expected);
+    QCOMPARE(redact(once, sample()), once);
+  }
+  void textThatIsNotAPathStaysAsItIs_data() {
+    QTest::addColumn<QString>("text");
+    QTest::newRow("a colon in a sentence") << "Note: see below";
+    QTest::newRow("times and ratios") << "Result: ok; time 10:30 start, 7:45pm, ratio 16:9 a:b";
+    QTest::newRow("a clock and a drive name alone") << "Time: 10:30:15 - drive C: is full";
+    QTest::newRow("a link with spaces in it") << "GET https://example.org/My Games/x.iso 200";
+    QTest::newRow("links with folders that look like mounts") << "GET http://localhost:8080/mnt/x and https://h.org/opt/a/b";
+    QTest::newRow("slashes in prose") << "use and/or /dev/null or a/b c/d";
+    QTest::newRow("a file link") << "wrote file:///mnt/x";
+  }
+  void textThatIsNotAPathStaysAsItIs() {
+    QFETCH(QString, text);
+    QCOMPARE(redact(text, sample()), text);
   }
   void personalDetailsAreTakenOut_data() {
     QTest::addColumn<QString>("text");

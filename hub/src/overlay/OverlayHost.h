@@ -26,8 +26,6 @@ public:
     Q_INVOKABLE void dismissKeyboard();
     // The page's answer to one B press, for the input log: "back: <what happened>" or "ignored: <why>".
     Q_INVOKABLE void noteBack(const QString &outcome);
-    // While a game the Hub started runs in the headset, holding the close button for 3 seconds asks it to close.
-    void setCloseGesture(bool active){m_gestureActive=active;}
     // Public input boundary: tests inject synthetic events through the same path.
     void handleRuntimeEvent(const vr::VREvent_t &event);
     // Public button boundary: tests feed the per-frame button state through the same path as tick().
@@ -35,7 +33,6 @@ public:
     void shutdown();
 signals:
     void quitRequested();
-    void closeGameRequested();
     // The controller's B button, pressed once while the panel is shown: the page goes back one level.
     void backRequested();
     void failed(const QString &error);
@@ -59,8 +56,6 @@ private:
     bool m_loggedVisible = false;
     bool m_quitSeen = false;
     bool m_running = false;
-    bool m_gestureActive = false;
-    HoldGesture m_closeHold;
     PressEdge m_backPress;
     QTimer m_timer;
     QElapsedTimer m_clock;

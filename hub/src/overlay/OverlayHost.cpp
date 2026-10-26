@@ -77,7 +77,7 @@ void OverlayHost::logLine(const QByteArray &text) {
 }
 void OverlayHost::noteBack(const QString &outcome) { logLine("b-outcome "+outcome.toUtf8()); }
 void OverlayHost::handleButtons(const HubButtons &buttons,bool panelVisible,qint64 nowMs) {
-    if (m_closeHold.update(buttons.closeHeld && m_gestureActive, nowMs)) emit closeGameRequested();
+    Q_UNUSED(nowMs);
     // The log says whether B can reach the Hub at all (manifest accepted, B bound) whenever that changes while
     // the panel is shown, and every raw press, so a dead B in the headset can be told from a page that ignored it.
     if (panelVisible) {
@@ -111,7 +111,7 @@ void OverlayHost::tick() {
     for (int count = 0; count < 256 && m_runtime->pollEvent(&event); ++count) {
         handleRuntimeEvent(event); if (m_quitSeen) return;
     }
-    handleButtons(m_runtime->pollButtons(m_gestureActive, visible), visible, m_clock.elapsed());
+    handleButtons(m_runtime->pollButtons(visible), visible, m_clock.elapsed());
     m_timer.setInterval(visible ? 16 : 50);
     if (!visible) { m_input.releaseButtons(m_renderer->window()); m_keyboard.close(false, true); }
     if (!m_gate.shouldRender(visible, m_clock.elapsed())) return;

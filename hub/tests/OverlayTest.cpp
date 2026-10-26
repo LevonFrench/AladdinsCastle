@@ -324,16 +324,6 @@ private slots:
         ac::SpikeState state;RuntimeReceipt receipt;receipt.rejectInit=true;QQmlEngine engine;ac::OverlayHost host(state,std::make_unique<FakeRuntime>(receipt));QString error;
         QVERIFY(!host.initialize(engine,{},&error));QCOMPARE(receipt.initializedSize,QSize(1280,800));QCOMPARE(error,QString("Synthetic runtime unavailable"));host.shutdown();
     }
-    // Holding the close button: once at 3 seconds of one unbroken hold, not before and not again until released.
-    void closeGestureNeedsAnUnbrokenThreeSecondHold() {
-        ac::HoldGesture hold;
-        QVERIFY(!hold.update(true,0));QVERIFY(!hold.update(true,2999));QVERIFY(hold.update(true,3000));QVERIFY(!hold.update(true,9000));
-        QVERIFY(!hold.update(false,9050));QVERIFY(!hold.update(true,9100));QVERIFY(!hold.update(true,12000));QVERIFY(hold.update(true,12100));
-        // Let go before 3 seconds: the count starts again.
-        ac::HoldGesture tap;QVERIFY(!tap.update(true,0));QVERIFY(!tap.update(false,2500));QVERIFY(!tap.update(true,2600));QVERIFY(!tap.update(true,5000));QVERIFY(tap.update(true,5600));
-        // A runtime without SteamVR input never reports the button.
-        RuntimeReceipt receipt;FakeRuntime runtime(receipt);QVERIFY(!runtime.closeGameHeld(true));
-    }
     // B on the controller: one step back per press, never repeated while held, never while the panel is hidden.
     // SteamVR cannot follow "../" in a manifest: the Hub writes its own absolute path, folder and action manifest
     // into it, once, and leaves an up-to-date manifest untouched.
@@ -358,8 +348,8 @@ private slots:
         ac::PressEdge edge;
         QVERIFY(edge.update(true));QVERIFY(!edge.update(true));QVERIFY(!edge.update(false));QVERIFY(edge.update(true));
         ac::SpikeState state;RuntimeReceipt receipt;ac::OverlayHost host(state,std::make_unique<FakeRuntime>(receipt));
-        QSignalSpy back(&host,&ac::OverlayHost::backRequested),close(&host,&ac::OverlayHost::closeGameRequested);
-        const ac::HubButtons up{false,false},down{false,true};
+        QSignalSpy back(&host,&ac::OverlayHost::backRequested);
+        const ac::HubButtons up{false},down{true};
         host.handleButtons(down,true,0);QCOMPARE(back.size(),1);
         // Held for many frames: still one.
         for(int frame=1;frame<120;++frame)host.handleButtons(down,true,frame*16);
@@ -371,18 +361,18 @@ private slots:
         host.handleButtons(up,false,3000);host.handleButtons(down,false,3016);QCOMPARE(back.size(),11);
         host.handleButtons(down,true,3032);QCOMPARE(back.size(),11);
         host.handleButtons(up,true,3048);host.handleButtons(down,true,3064);QCOMPARE(back.size(),12);
-        // B never closes the game, and the close hold still needs its own button and three seconds.
-        QCOMPARE(close.size(),0);host.setCloseGesture(true);
-        host.handleButtons({true,false},true,4000);host.handleButtons({true,false},true,7000);QCOMPARE(close.size(),1);QCOMPARE(back.size(),12);
-        // A runtime without SteamVR input reports neither button.
-        FakeRuntime runtime(receipt);const auto none=runtime.pollButtons(true,true);QVERIFY(!none.closeHeld);QVERIFY(!none.backDown);
-        // The shipped action manifest names B, and each controller binds it to the right hand's B, apart from the close button.
+        // A runtime without SteamVR input reports no button.
+        FakeRuntime runtime(receipt);const auto none=runtime.pollButtons(true);QVERIFY(!none.backDown);
+        // The shipped action manifest names B only: the old left-Y close action is gone, and each controller binds just the right hand's B,
+        // never a menu or system button (universal controls contract: the Hub takes nothing the game or the stick clicks need).
         const auto resources=QCoreApplication::applicationDirPath()+"/resources/";
         if(!QFileInfo::exists(resources+"hub-actions.json"))QSKIP("Runtime resources are not beside this test binary.");
         const auto read=[&](const QString &name){QFile file(resources+name);return file.open(QIODevice::ReadOnly)?QString::fromUtf8(file.readAll()):QString();};
-        QVERIFY(read("hub-actions.json").contains("/actions/hub/in/back"));
+        const auto actions=read("hub-actions.json");QVERIFY(actions.contains("/actions/hub/in/back"));QVERIFY(!actions.contains("close_game"));
         for(const auto &name:{"hub-bindings-knuckles.json","hub-bindings-oculus_touch.json"}){
-            const auto text=read(name);QVERIFY2(text.contains("/user/hand/right/input/b"),name);QVERIFY2(text.contains("/actions/hub/in/back"),name);QVERIFY2(text.contains("/actions/hub/in/close_game"),name);
+            const auto text=read(name);QVERIFY2(text.contains("/user/hand/right/input/b"),name);QVERIFY2(text.contains("/actions/hub/in/back"),name);QVERIFY2(!text.contains("close_game"),name);
+            for(const auto &forbidden:{"/input/y","/input/x","/input/a","/input/menu","/input/system","/input/application_menu","/input/thumbstick","/input/joystick","/input/trigger","/input/grip"})QVERIFY2(!text.contains(forbidden),name);
+            QCOMPARE(text.count(QStringLiteral("\"path\"")),1);
         }
     }
     void quitAcknowledgedOnceBeforeExitSignal() {
