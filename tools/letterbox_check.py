@@ -13,6 +13,9 @@ it is at least --min-thickness pixels thick. --eyes 2 treats a side-by-side ster
 frame as two pictures and measures each half on its own, so the centre gap between
 the eyes is not mistaken for a pillarbox.
 
+--bands 0.9 also reports black bands inside the picture (rows that are at least 90% black),
+for frames where the bars float inside a larger eye buffer instead of touching the edge.
+
 Exit code: 0 no bars, 1 bars found in at least one frame, 2 a file could not be read.
 A frame that is entirely black is reported as BLANK (a fade or a loading screen is not
 a bar); --fail-on-blank makes it count as bars. Reads 8-bit non-interlaced PNGs of any
@@ -121,7 +124,23 @@ def edge_runs(flags, tolerance_ok):
     return lead, trail
 
 
-def measure(width, rows, threshold, tolerance, x0=0, x1=None):
+def band_runs(row_bad, w, coverage, min_rows):
+    """Runs of at least min_rows consecutive rows whose black share is at least coverage.
+    Returns [(first_row, row_count)]. Unlike the edge bars this finds bands anywhere, such
+    as black bars drawn inside a frame that is itself larger than the picture."""
+    runs, start = [], None
+    for y, bad in enumerate(row_bad + [w]):             # the sentinel closes a run at the end
+        black = y < len(row_bad) and (w - bad) >= coverage * w
+        if black and start is None:
+            start = y
+        elif not black and start is not None:
+            if y - start >= min_rows:
+                runs.append((start, y - start))
+            start = None
+    return runs
+
+
+def measure(width, rows, threshold, tolerance, x0=0, x1=None, band_coverage=None, min_rows=4):
     """Measure one picture (columns x0..x1 of every row). Returns a dict with the number
     of black rows at the top and bottom and black columns at the left and right."""
     x1 = width if x1 is None else x1
@@ -147,17 +166,22 @@ def measure(width, rows, threshold, tolerance, x0=0, x1=None):
     col_limit = tolerance * height
     top, bottom = edge_runs(row_bad, lambda n: n <= row_limit)
     left, right = edge_runs(col_total, lambda n: n <= col_limit)
-    return {"width": w, "height": height, "top": top, "bottom": bottom,
-            "left": left, "right": right,
-            "blank": top == height or left == w}
+    result = {"width": w, "height": height, "top": top, "bottom": bottom,
+              "left": left, "right": right,
+              "blank": top == height or left == w, "bands": []}
+    if band_coverage is not None and not result["blank"]:
+        # interior bands only; the rows touching the top or bottom edge are the edge bars
+        result["bands"] = [(y, n) for y, n in band_runs(row_bad, w, band_coverage, min_rows)
+                           if y > 0 and y + n < height]
+    return result
 
 
-def analyse(data, threshold, tolerance, eyes):
+def analyse(data, threshold, tolerance, eyes, band_coverage=None, min_rows=4):
     width, height, rows = read_png(data)
     pictures = []
     for e in range(eyes):
         x0, x1 = width * e // eyes, width * (e + 1) // eyes
-        pictures.append(measure(width, rows, threshold, tolerance, x0, x1))
+        pictures.append(measure(width, rows, threshold, tolerance, x0, x1, band_coverage, min_rows))
     return width, height, pictures
 
 
@@ -175,6 +199,8 @@ def verdict(pictures, min_thickness, fail_on_blank):
                                 ("left", m["left"], m["width"]), ("right", m["right"], m["width"])):
             if px >= min_thickness:
                 found.append("%s %d px (%.1f%%)" % (name, px, 100.0 * px / total))
+        for y, n in m["bands"]:
+            found.append("band rows %d-%d (%d px)" % (y, y + n - 1, n))
         if found:
             bars = True
             parts.append(label + "BARS " + ", ".join(found))
@@ -264,6 +290,14 @@ def self_test():
     assert analyse(png, 8, 0.0, 1)[2][0]["right"] == 0
     pics = analyse(png, 8, 0.0, 2)[2]
     assert pics[0]["right"] == 6 and pics[1]["right"] == 0 and all(p["top"] == 4 and p["bottom"] == 4 for p in pics)
+    # interior bands: a black stripe inside the picture, found only with band coverage on
+    def striped(x, y):
+        return (0, 0, 0) if 10 <= y < 14 and 2 <= x < W - 2 else scene(x, y)
+    png = _encode_png(W, H, striped)
+    assert analyse(png, 8, 0.0, 1)[2][0]["bands"] == []
+    assert analyse(png, 8, 0.0, 1, 0.9, 4)[2][0]["bands"] == [(10, 4)]
+    assert analyse(png, 8, 0.0, 1, 0.99, 4)[2][0]["bands"] == []
+    assert verdict(analyse(png, 8, 0.0, 1, 0.9, 4)[2], 4, False)[0] is True
     # blank frame, and the verdict text / thresholds
     blank = analyse(_encode_png(W, H, lambda x, y: (0, 0, 0)), 8, 0.0, 1)[2]
     assert blank[0]["blank"] and verdict(blank, 4, False)[0] is False and verdict(blank, 4, True)[0] is True
@@ -298,6 +332,9 @@ def main(argv=None):
                     help="fraction of pixels in a row or column allowed above the threshold (default 0)")
     ap.add_argument("--min-thickness", type=int, default=4,
                     help="a bar must be at least this many pixels thick to count (default 4)")
+    ap.add_argument("--bands", type=float, default=None, metavar="COVERAGE",
+                    help="also report black bands anywhere in the picture: runs of at least "
+                         "--min-thickness rows that are at least this share black (for example 0.9)")
     ap.add_argument("--eyes", type=int, default=1, choices=(1, 2),
                     help="2 = side-by-side stereo frame, measure each half on its own")
     ap.add_argument("--fail-on-blank", action="store_true", help="count an entirely black frame as bars")
@@ -307,6 +344,8 @@ def main(argv=None):
         return self_test()
     if not 0 <= args.threshold <= 255 or not 0 <= args.tolerance < 1 or args.min_thickness < 1:
         ap.error("threshold 0-255, tolerance 0 to below 1, min-thickness at least 1")
+    if args.bands is not None and not 0 < args.bands <= 1:
+        ap.error("--bands takes a share above 0 and up to 1")
     files = gather(args.paths)
     if not files:
         print("no PNG files found", file=sys.stderr)
@@ -314,7 +353,7 @@ def main(argv=None):
     found = failed = False
     for f in files:
         try:
-            width, height, pictures = analyse(f.read_bytes(), args.threshold, args.tolerance, args.eyes)
+            width, height, pictures = analyse(f.read_bytes(), args.threshold, args.tolerance, args.eyes, args.bands, args.min_thickness)
         except (OSError, ValueError, zlib.error, struct.error) as error:
             print("%s: ERROR %s" % (f, error))
             failed = True
