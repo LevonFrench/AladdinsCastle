@@ -23,11 +23,11 @@ ACVR_PS1_LETTERBOX = "auto"     # the host reads the black rows off the core's f
 
 # RetroPad A, B, X, Y, L, R are the 3DS buttons of the same names; the left stick is the Circle Pad.
 # Mario Kart 7: A accelerate, B brake and reverse, R hop and drift, L item, X look behind.
-# Right trigger accelerates, the left grip brakes, the right grip hops and holds the drift, the left trigger and right A are the item
-# (two places, so either hand can throw it), right B looks behind. lclick = start: the left menu button belongs to the SteamVR dashboard under ALVR.
-# The map holds both grips, so the both-grips recentre gesture turns itself off.
+# Racers follow the universal motion rule (M6): the left stick steers, the right trigger accelerates, the left trigger brakes, the grips are the
+# hold actions. So the right grip hops and holds the drift (R), the left grip and right A throw the item (L, two places so either hand can), right B looks behind.
+# Start and Select are the universal stick clicks, not map entries; both clicks recentre, both held 3 s quit and save.
 [pad]
-map = { rtrig = "a", lgrip = "b", rgrip = "r", ltrig = "l", ra = "l", rb = "x", lclick = "start" }
+map = { rtrig = "a", ltrig = "b", rgrip = "r", lgrip = "l", ra = "l", rb = "x" }
 
 [views.theatre]
 label    = "Theatre screen"

@@ -5,6 +5,7 @@
 #include "TheatreRender.h"
 #include "ImageWait.h"
 #include "Png.h"
+#include "StickChord.h"
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 #include <algorithm>
@@ -68,6 +69,7 @@ std::atomic<unsigned> s_pulses{ 0 };
 // The picture's shape, kept apart from s_config because the emulator thread can change it when the core sends new geometry.
 std::atomic<float> s_aspect{ 4.f / 3.f }, s_letterbox{ 0.f }, s_touchAspect{ 4.f / 3.f };
 std::atomic<bool> s_stop{ false }, s_started{ false }, s_runtimeExit{ false }, s_gone{ false };
+bool s_quitFired = false;   // the two-stick-click quit (U4) fired: latched for the emulator thread, which saves and quits
 std::atomic<int> s_state{ 0 };   // the session's XrSessionState
 std::thread s_thread;
 Host_Window *s_owner = nullptr, *s_xrWindow = nullptr;
@@ -95,8 +97,8 @@ XrInstance s_instance = XR_NULL_HANDLE; XrSystemId s_system = XR_NULL_SYSTEM_ID;
 XrSpace s_local = XR_NULL_HANDLE, s_view = XR_NULL_HANDLE, s_aimSpace = XR_NULL_HANDLE, s_gripSpace = XR_NULL_HANDLE;
 XrActionSet s_set = XR_NULL_HANDLE;
 XrAction s_aim = XR_NULL_HANDLE, s_gripPose = XR_NULL_HANDLE, s_trigger = XR_NULL_HANDLE, s_a = XR_NULL_HANDLE, s_b = XR_NULL_HANDLE,
-         s_squeeze = XR_NULL_HANDLE, s_quit = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE,
-         s_padStick = XR_NULL_HANDLE, s_padCross = XR_NULL_HANDLE, s_padCircle = XR_NULL_HANDLE, s_padSquare = XR_NULL_HANDLE, s_padStart = XR_NULL_HANDLE,
+         s_squeeze = XR_NULL_HANDLE, s_padY = XR_NULL_HANDLE, s_haptic = XR_NULL_HANDLE,
+         s_padStick = XR_NULL_HANDLE, s_padCross = XR_NULL_HANDLE, s_padCircle = XR_NULL_HANDLE, s_padSquare = XR_NULL_HANDLE,
          s_stickLeft = XR_NULL_HANDLE, s_stickRight = XR_NULL_HANDLE, s_rightStick = XR_NULL_HANDLE;
 XrPath s_right = XR_NULL_PATH, s_left = XR_NULL_PATH;
 struct EyeChain { XrSwapchain chain = XR_NULL_HANDLE; std::vector<XrSwapchainImageOpenGLKHR> images; int w = 0, h = 0; GLuint fbo = 0, depth = 0; };
@@ -130,27 +132,27 @@ bool InitActions()
       !make("button_a", "Gun button A", XR_ACTION_TYPE_BOOLEAN_INPUT, s_a, s_right) ||
       !make("button_b", "Gun button B", XR_ACTION_TYPE_BOOLEAN_INPUT, s_b, s_right) ||
       !make("squeeze", "Pedal (grip)", XR_ACTION_TYPE_FLOAT_INPUT, s_squeeze, s_right) ||
-      !make("quit", "Hold to quit", XR_ACTION_TYPE_BOOLEAN_INPUT, s_quit, s_left) ||
+      !make("pad_y", "Pad Triangle (left Y)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padY, s_left) ||
       !make("pad_stick", "Pad directions", XR_ACTION_TYPE_VECTOR2F_INPUT, s_padStick, s_left) ||
       !make("pad_cross", "Pad Cross", XR_ACTION_TYPE_FLOAT_INPUT, s_padCross, s_left) ||
       !make("pad_circle", "Pad Circle", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padCircle, s_left) ||
       !make("pad_square", "Pad Square", XR_ACTION_TYPE_FLOAT_INPUT, s_padSquare, s_left) ||
-      !make("pad_start", "Pad Start", XR_ACTION_TYPE_BOOLEAN_INPUT, s_padStart, s_left) ||
-      !make("stick_left", "Left stick click (Start)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickLeft, s_left) ||
-      !make("stick_right", "Right stick click (Select)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickRight, s_right) ||
+      !make("stick_left", "Left stick click (Start; both clicks recentre or quit)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickLeft, s_left) ||
+      !make("stick_right", "Right stick click (Select; both clicks recentre or quit)", XR_ACTION_TYPE_BOOLEAN_INPUT, s_stickRight, s_right) ||
       !make("right_stick", "Right stick", XR_ACTION_TYPE_VECTOR2F_INPUT, s_rightStick, s_right) ||
       !make("recoil", "Recoil", XR_ACTION_TYPE_VIBRATION_OUTPUT, s_haptic, s_right)) return false;
-  struct Profile { const char *profile, *quit, *circle, *start; };
-  const Profile profiles[] = { { "/interaction_profiles/oculus/touch_controller", "/user/hand/left/input/y/click", "/user/hand/left/input/x/click", "/user/hand/left/input/menu/click" },
-                               { "/interaction_profiles/valve/index_controller", "/user/hand/left/input/b/click", "/user/hand/left/input/a/click", "/user/hand/left/input/thumbstick/click" } };
+  // Left Y and X (Index: left B and A) are free buttons. No profile binds a menu or system button: the left menu button is the SteamVR dashboard.
+  struct Profile { const char *profile, *y, *circle; };
+  const Profile profiles[] = { { "/interaction_profiles/oculus/touch_controller", "/user/hand/left/input/y/click", "/user/hand/left/input/x/click" },
+                               { "/interaction_profiles/valve/index_controller", "/user/hand/left/input/b/click", "/user/hand/left/input/a/click" } };
   for (const auto &pr : profiles) {
     const std::pair<XrAction, const char *> list[] = {
       { s_aim, "/user/hand/right/input/aim/pose" }, { s_gripPose, "/user/hand/right/input/grip/pose" },
       { s_trigger, "/user/hand/right/input/trigger/value" }, { s_a, "/user/hand/right/input/a/click" },
       { s_b, "/user/hand/right/input/b/click" }, { s_squeeze, "/user/hand/right/input/squeeze/value" },
-      { s_quit, pr.quit }, { s_haptic, "/user/hand/right/output/haptic" },
+      { s_padY, pr.y }, { s_haptic, "/user/hand/right/output/haptic" },
       { s_padStick, "/user/hand/left/input/thumbstick" }, { s_padCross, "/user/hand/left/input/trigger/value" },
-      { s_padCircle, pr.circle }, { s_padSquare, "/user/hand/left/input/squeeze/value" }, { s_padStart, pr.start },
+      { s_padCircle, pr.circle }, { s_padSquare, "/user/hand/left/input/squeeze/value" },
       { s_stickLeft, "/user/hand/left/input/thumbstick/click" }, { s_stickRight, "/user/hand/right/input/thumbstick/click" },
       { s_rightStick, "/user/hand/right/input/thumbstick" } };
     std::vector<XrActionSuggestedBinding> b;
@@ -282,9 +284,9 @@ void ThreadBody()
   Renderer renderer; try { renderer.init(s_gun.loaded() ? &s_gun : nullptr); } catch (const std::exception &e) { Log("renderer: %s", e.what()); s_stop = true; }
   ScreenGeometry screen; bool placed = false, running = false; unsigned long frames = 0;
   bool lastTrigger = false; ULONGLONG kickAt = 0;
-  // Both grips held for about a second put the screen in front of you again (the Home key does the same on the PC),
-  // unless the game uses a grip (s_config.gripRecentre is off then; Home still works on the PC).
-  ULONGLONG bothGripsSince = 0; bool recentreArmed = true, recentreWanted = false;
+  // Both stick clicks together put the screen in front of you again, and held for 3 s quit and save (the universal layer,
+  // StickChord.h); the Home key does the recentre on the PC. The same resolver gives the games Start and Select.
+  chord::Resolver sticks; bool recentreWanted = false; bool quitShown = false;
   while (!s_stop) {
     XrEventDataBuffer ev{ XR_TYPE_EVENT_DATA_BUFFER };
     while (p_xrPollEvent(s_instance, &ev) == XR_SUCCESS) {
@@ -312,24 +314,23 @@ void ThreadBody()
     if (p_xrSyncActions(s_session, &sync) == XR_SUCCESS) {
       XrActionStateGetInfo get{ XR_TYPE_ACTION_STATE_GET_INFO }; get.subactionPath = s_right;
       XrActionStatePose aim{ XR_TYPE_ACTION_STATE_POSE }; XrActionStateFloat trig{ XR_TYPE_ACTION_STATE_FLOAT }, sq{ XR_TYPE_ACTION_STATE_FLOAT };
-      XrActionStateBoolean a{ XR_TYPE_ACTION_STATE_BOOLEAN }, b{ XR_TYPE_ACTION_STATE_BOOLEAN }, quit{ XR_TYPE_ACTION_STATE_BOOLEAN };
+      XrActionStateBoolean a{ XR_TYPE_ACTION_STATE_BOOLEAN }, b{ XR_TYPE_ACTION_STATE_BOOLEAN }, padY{ XR_TYPE_ACTION_STATE_BOOLEAN };
       get.action = s_aim; const bool aimOk = XR_SUCCEEDED(p_xrGetActionStatePose(s_session, &get, &aim)) && aim.isActive;
       get.action = s_trigger; const bool trigOk = XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &trig)) && trig.isActive;
       get.action = s_squeeze; const bool sqOk = XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &sq)) && sq.isActive;
       get.action = s_a; const bool aOk = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &a)) && a.isActive;
       get.action = s_b; const bool bOk = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &b)) && b.isActive;
-      get.action = s_quit; get.subactionPath = s_left; in.quitHeld = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &quit)) && quit.isActive && quit.currentState;
+      get.action = s_padY; get.subactionPath = s_left;
       {
         XrActionStateVector2f stick{ XR_TYPE_ACTION_STATE_VECTOR2F }; XrActionStateFloat cross{ XR_TYPE_ACTION_STATE_FLOAT }, square{ XR_TYPE_ACTION_STATE_FLOAT };
-        XrActionStateBoolean circle{ XR_TYPE_ACTION_STATE_BOOLEAN }, start{ XR_TYPE_ACTION_STATE_BOOLEAN };
+        XrActionStateBoolean circle{ XR_TYPE_ACTION_STATE_BOOLEAN };
         get.action = s_padStick; if (XR_SUCCEEDED(p_xrGetActionStateVector2f(s_session, &get, &stick)) && stick.isActive) { in.padX = stick.currentState.x; in.padY = stick.currentState.y; }
         get.action = s_padCross; in.padCross = XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &cross)) && cross.isActive && cross.currentState > .55f;
         if (cross.isActive) in.padTriggerValue = cross.currentState;
         get.action = s_padSquare; in.padSquare = XR_SUCCEEDED(p_xrGetActionStateFloat(s_session, &get, &square)) && square.isActive && square.currentState > .6f;
         if (square.isActive) in.padGripValue = square.currentState;
-        in.padYButton = quit.isActive && quit.currentState;
+        in.padYButton = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &padY)) && padY.isActive && padY.currentState;
         get.action = s_padCircle; in.padCircle = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &circle)) && circle.isActive && circle.currentState;
-        get.action = s_padStart; in.padStart = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &start)) && start.isActive && start.currentState;
         XrActionStateBoolean sl{ XR_TYPE_ACTION_STATE_BOOLEAN }, sr{ XR_TYPE_ACTION_STATE_BOOLEAN };
         get.action = s_stickLeft; in.stickLeft = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &sl)) && sl.isActive && sl.currentState;
         get.action = s_stickRight; get.subactionPath = s_right; in.stickRight = XR_SUCCEEDED(p_xrGetActionStateBoolean(s_session, &get, &sr)) && sr.isActive && sr.currentState;
@@ -359,10 +360,15 @@ void ThreadBody()
     }
     if (in.trigger && !lastTrigger) kickAt = GetTickCount64();
     lastTrigger = in.trigger;
-    if (s_config.gripRecentre && in.gripValue > .6f && in.padGripValue > .6f) {
-      const ULONGLONG t = GetTickCount64(); if (!bothGripsSince) bothGripsSince = t;
-      if (recentreArmed && t - bothGripsSince >= 1000) { recentreWanted = true; recentreArmed = false; }
-    } else { bothGripsSince = 0; recentreArmed = true; }
+    {
+      const auto u = sticks.update(GetTickCount64(), in.stickLeft, in.stickRight);
+      in.uStart = u.start; in.uSelect = u.select; in.quitProgress = u.quitProgress;
+      if (u.recentre) recentreWanted = true;
+      if (u.quit) { s_quitFired = true; Log("both stick clicks held for 3 s: quit and save"); }
+      in.quitFired = s_quitFired;
+      if (u.quitProgress > .33f && !quitShown) { quitShown = true; Log("both stick clicks held: keep holding for 3 s to quit and save"); }
+      else if (u.quitProgress == 0) quitShown = false;
+    }
     { std::lock_guard<std::mutex> lock(s_inputMutex); s_input = in; s_inputTime = GetTickCount64(); }
     const unsigned pulses = s_pulses.exchange(0);
     if (in.active && pulses) {
@@ -384,7 +390,7 @@ void ThreadBody()
       if (located) {
         XrSpaceLocation head{ XR_TYPE_SPACE_LOCATION };
         if ((!placed || recentreWanted || (GetAsyncKeyState(VK_HOME) & 0x8000)) && XR_SUCCEEDED(p_xrLocateSpace(s_view, s_local, fs.predictedDisplayTime, &head))) {
-          if (placed && recentreWanted) Log("screen recentred (both grips held)");
+          if (placed && recentreWanted) Log("screen recentred (both stick clicks)");
           screen = PlaceScreen(head.pose); placed = true; recentreWanted = false;
         }
         const float aspect = s_aspect, letterbox = s_letterbox;
@@ -401,6 +407,7 @@ void ThreadBody()
           s_hudInUse = s_hudFront; if (s_config.hud && s_hudFront >= 0) { scene.hud = s_hudSlots[s_hudFront].tex; scene.hudOverWhite = s_hudWhiteSlots[s_hudFront].tex; scene.hudPanel = HudPanel(screen, s_config); scene.hudOpacity = s_config.hudOpacity; scene.hudKeyBlack = s_config.hudKeyBlack; }
         }
         scene.showDot = s_config.aimDot && in.active && !in.offScreen && !in.touchHit; scene.dotU = in.u; scene.dotV = in.v;
+        scene.quitProgress = in.quitProgress;
         if (haveGun && s_gun.loaded()) {
           const float since = (GetTickCount64() - kickAt) / 1000.f;
           scene.showGun = true; scene.trigger = triggerValue;
