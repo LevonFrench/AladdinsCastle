@@ -119,7 +119,7 @@ Item {
   }
   UiText {objectName:"model3Setup";visible:false;text:page.setupProblem}
   StateNotice {objectName:"model3Notice";Layout.fillWidth:true;Layout.margins:page.vrOverlayMode?20:16;vrOverlayMode:page.vrOverlayMode
-   notice:page.rows.length===0?({kind:"noGames",text:"No games are set up on this PC yet. Open Set-up to add your systems.",action:"openSetup",actionLabel:"Open Set-up",tone:"info"}):({})}
+   notice:page.rows.length===0?({kind:"noGames",text:"No games are set up on this PC yet; open Set-up to add your systems.",action:"openSetup",actionLabel:"Open Set-up",tone:"info"}):({})}
   ListView {id:shelfList;objectName:"model3Grid";property int count:page.rows.length;Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:page.vrOverlayMode?18:24;model:page.shelves
    boundsBehavior:Flickable.StopAtBounds;topMargin:4;bottomMargin:24
    delegate:ShelfRow {required property var modelData;required property int index;width:shelfList.width;vrOverlayMode:page.vrOverlayMode;tileName:"model3Card"

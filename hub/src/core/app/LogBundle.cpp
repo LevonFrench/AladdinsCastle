@@ -204,10 +204,10 @@ QList<Candidate> gather(const QString &logsFolder) {
   const QDir logs(logsFolder);
   for (const auto &info : QDir(logs.filePath("install")).entryInfoList(QDir::Files | QDir::NoSymLinks))
     if (readable(info))
-      found.append({"hub-logs/install/" + info.fileName(), info.absoluteFilePath(), info.lastModified(), 3});
+      found.append(Candidate{"hub-logs/install/" + info.fileName(), info.absoluteFilePath(), info.lastModified(), 3});
   for (const auto &info : logs.entryInfoList(QDir::Files | QDir::NoSymLinks))
     if (readable(info))
-      found.append({"hub-logs/" + info.fileName(), info.absoluteFilePath(), info.lastModified(),
+      found.append(Candidate{"hub-logs/" + info.fileName(), info.absoluteFilePath(), info.lastModified(),
                     info.fileName() == "crashes.json" ? 1 : info.fileName().startsWith("launch-") ? 2 : 4});
   // The last launch: the newest .log inside any game's own folder of launch logs.
   Candidate last;
@@ -216,7 +216,7 @@ QList<Candidate> gather(const QString &logsFolder) {
       continue;
     for (const auto &info : QDir(folder.absoluteFilePath()).entryInfoList(QDir::Files | QDir::NoSymLinks))
       if (readable(info) && info.suffix().toLower() == "log" && (last.path.isEmpty() || info.lastModified() > last.time))
-        last = {"last-launch/" + folder.fileName() + "/" + info.fileName(), info.absoluteFilePath(), info.lastModified(), 0};
+        last = Candidate{"last-launch/" + folder.fileName() + "/" + info.fileName(), info.absoluteFilePath(), info.lastModified(), 0};
   }
   if (!last.path.isEmpty())
     found.append(last);

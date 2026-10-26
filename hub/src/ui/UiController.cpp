@@ -178,7 +178,7 @@ void UiController::cancelScan(){if(!m_scanning)return;emit cancelScanRequested()
 void UiController::showError(const QString &operation,const QString &text){message(operation+": "+text);}
 QVariantMap UiController::artNotice()const{
  if(m_artworkBusy)return {};
- if(m_artworkOffline)return makeNotice("artOffline","Pictures could not be downloaded just now. The games still start and play.","retryArt","Try again");
+ if(m_artworkOffline)return makeNotice("artOffline","Pictures could not be downloaded just now, but the games still start and play.","retryArt","Try again");
  if(m_artworkOff&&m_settings->get("artDownload",false).toBool()!=true)return makeNotice("artOff","Picture download is off, so some games show a plain card.","openSettings","Open Settings");
  return {};
 }
@@ -195,9 +195,9 @@ QVariantMap UiController::notice(const QString &place)const{
  if(place=="library"||place=="explore"){
   const bool empty=m_filter->visibleCount()==0;
   QVariantMap found;
-  if(m_scanning||m_libraryScanning)found=makeNotice("scanning","Looking through your folders for games. You can keep using the Hub while it works.","stopScan","Stop looking");
+  if(m_scanning||m_libraryScanning)found=makeNotice("scanning","Looking through your folders for games; you can keep using the Hub meanwhile.","stopScan","Stop looking");
   else if(empty&&(!m_filter->query().trimmed().isEmpty()||!activeFacets().isEmpty()))found=makeNotice("noMatches","No games match this search or these filters.","clearFilters","Clear filters");
-  else if(empty)found=makeNotice("noGames","No games were found yet. Tell the Hub which folders hold your games.","findGames","Find my games");
+  else if(empty)found=makeNotice("noGames","No games were found yet; choose the folders that hold your games.","findGames","Find my games");
   else found=artNotice();
   if(!found.isEmpty())found["empty"]=empty;
   return found;
