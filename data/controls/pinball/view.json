@@ -112,15 +112,15 @@
       },
       {
         "id": "start",
-        "part": "A",
-        "label": "Start",
+        "part": "Left stick click",
+        "label": "Start (U1)",
         "slot": 0,
         "player": 0,
         "node": "",
         "warning": false,
         "binding": {
-          "hand": "right",
-          "control": "primary"
+          "hand": "left",
+          "control": "click"
         },
         "input": {
           "kind": "pinball",
@@ -136,19 +136,43 @@
       },
       {
         "id": "coin",
-        "part": "B",
-        "label": "Insert coin",
+        "part": "Right stick click",
+        "label": "Insert coin (U2)",
         "slot": 0,
         "player": 0,
         "node": "",
         "warning": false,
         "binding": {
           "hand": "right",
-          "control": "secondary"
+          "control": "click"
         },
         "input": {
           "kind": "pinball",
           "semantic": "AddCredit"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      },
+      {
+        "id": "launch",
+        "part": "A",
+        "label": "Launch ball (plunger button)",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "right",
+          "control": "primary"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "LaunchBall"
         },
         "availability": {
           "state": "planned",
@@ -184,15 +208,15 @@
       },
       {
         "id": "exit",
-        "part": "Y \u2014 EXIT",
-        "label": "WARNING: exits the current table",
+        "part": "Both stick clicks, held 3 s",
+        "label": "Quit and save (U4): the Hub closes the table the ordinary way",
         "slot": 0,
         "player": 0,
         "node": "",
         "warning": true,
         "binding": {
           "hand": "left",
-          "control": "secondary"
+          "control": "click"
         },
         "input": {
           "kind": "pinball",
@@ -200,7 +224,7 @@
         },
         "availability": {
           "state": "planned",
-          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
+          "reason": "Not a VPX binding: VPX exits on press and cannot time a hold. The Hub's own SteamVR input holds both clicks for 3 s, cancelled by over 5 cm of hand travel, then closes VPX normally."
         },
         "threshold": null,
         "staged_threshold": null,
@@ -232,8 +256,8 @@
       },
       {
         "id": "recenter",
-        "part": "Left stick click",
-        "label": "Recenter \u2014 unavailable",
+        "part": "Both stick clicks",
+        "label": "Recentre the table (U3)",
         "slot": 0,
         "player": 0,
         "node": "",
@@ -244,11 +268,35 @@
         },
         "input": {
           "kind": "pinball",
-          "semantic": "VRRecenter"
+          "semantic": "VRControllerCalibration"
         },
         "availability": {
-          "state": "unavailable",
-          "reason": "Enum exists, but this tag comments out the plugin action map. No callable recenter bridge."
+          "state": "planned",
+          "reason": "VPX's own Align VR view using controllers. It seats the table at the hands, not in front of the head; no timing window, so Start and Coin can fire before the second click."
+        },
+        "threshold": null,
+        "staged_threshold": null,
+        "scale": 1
+      },
+      {
+        "id": "table-adjust",
+        "part": "Both stick clicks, held",
+        "label": "Scale, turn and move the table (U3p): hands apart or together, turn the pair, move both; release to keep",
+        "slot": 0,
+        "player": 0,
+        "node": "",
+        "warning": false,
+        "binding": {
+          "hand": "right",
+          "control": "click"
+        },
+        "input": {
+          "kind": "pinball",
+          "semantic": "VRControllerCalibration"
+        },
+        "availability": {
+          "state": "planned",
+          "reason": "Same VPX action as Recentre, while both clicks stay held. Scale uses ControllerLockbarScale; Hub passes it unchanged."
         },
         "threshold": null,
         "staged_threshold": null,
@@ -277,30 +325,6 @@
         "threshold": null,
         "staged_threshold": null,
         "scale": -1.0
-      },
-      {
-        "id": "launch",
-        "part": "Right stick click",
-        "label": "Launch ball",
-        "slot": 0,
-        "player": 0,
-        "node": "",
-        "warning": false,
-        "binding": {
-          "hand": "right",
-          "control": "click"
-        },
-        "input": {
-          "kind": "pinball",
-          "semantic": "LaunchBall"
-        },
-        "availability": {
-          "state": "planned",
-          "reason": "Controller binding exists in source; reviewed host bridge and table acceptance pending"
-        },
-        "threshold": null,
-        "staged_threshold": null,
-        "scale": 1
       }
     ],
     "policy": {
@@ -315,7 +339,8 @@
       "src/input/XRInputHandler.h:125",
       "src/core/VPXPluginAPIImpl.cpp:135",
       "src/core/VPXPluginAPIImpl.cpp:558",
-      "plugins/plugins/VPXPlugin.h:243"
+      "plugins/plugins/VPXPlugin.h:243",
+      "VPinballX 10.8 BGFX build: Mapping.VRControllerCalibration (Align VR view using controllers), Mapping.VRCenter, ControllerLockbarScale"
     ],
     "source_commit": "af26b2d9392b4c9ec3e3edff4bbd69562085a44c"
   },
@@ -328,7 +353,7 @@
     {
       "category": "runtime-acceptance",
       "id": "vpx-bridge",
-      "reason": "No reviewed execution bridge; recenter is not callable"
+      "reason": "Hub quit hold (both sticks, 3 s) and the 150 ms chord window are not in VPX; live headset acceptance pending"
     }
   ]
 }

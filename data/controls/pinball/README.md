@@ -8,10 +8,24 @@ controls-view format. The synthetic ID `pinball-vpx-openxr` is a route selection
 not a catalog or table identity. `quest-controllers` describes the controller
 illustration; there is no gun asset requirement.
 
-The view is intentionally read-only: source-backed bindings have planned
-execution availability. Y exits the table and carries a warning. Recenter is
-unavailable because the pinned tag comments out its plugin action map; the
-native resolver rejects any catalog that claims otherwise. The native XR
-plunger and nudge mappings exist, but the plugin clears the analog state mask.
-No host bridge or controller event emitter is included here. The Hub owns the
-execution, source capability review and table launch/return acceptance gates.
+The layout follows the universal controls contract (2026-10-25). The Hub writes it
+into its copy of VPX's settings for every headset launch
+(`ac::pinball::headsetControls`, `hub/src/core/pinball/Gamepad.cpp`):
+
+| Intent | Control | VPX action |
+|---|---|---|
+| U1 Start | Left stick click | `Mapping.Start` |
+| U2 Coin | Right stick click | `Mapping.Credit1` |
+| U3 Recentre, U3p scale, turn and move the table | Both stick clicks, held | `Mapping.VRControllerCalibration` (VPX's "Align VR view using controllers") |
+| U4 Quit and save | Both stick clicks, held 3 s | None: the Hub holds the clicks and closes VPX normally |
+| Plunger button | A | `Mapping.LaunchBall` |
+
+The menu buttons are bound to nothing, and Y no longer exits. Flippers, grips
+(Magna-save), X (in-game menu), the left stick (nudge) and the right stick
+(plunger) are VPX's own.
+
+What VPX's settings cannot do: time a hold (the 3 s quit), wait 150 ms for a
+second click (so Start or Coin can fire just before a chord), or tell Start from
+a chord; nudge by a physical push (VPX reads only the controllers' buttons and
+sticks). The view is read-only: every action has planned execution availability
+until a headset session accepts it.

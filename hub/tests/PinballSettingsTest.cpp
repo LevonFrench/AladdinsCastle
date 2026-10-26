@@ -97,15 +97,31 @@ private slots:
     auto odd=pads[0].toMap();odd["name"]="Pad\r\n[PlayerVR]\r\nAskToTurnOn = 0";QVERIFY(!ac::pinball::gamepadSettings(mine,{odd}).contains("AskToTurnOn = 0"));
     QCOMPARE(ac::pinball::gamepadLayout().size(),9);
   }
-  void aSingleYTapNoLongerExitsInTheHeadset() {
-    const QByteArray mine="[Input]\nDevices = Key;OpenXR\nMapping.ExitGame = Key;41 | OpenXR;9\nDevice.OpenXR.Element9 = 9;B;user_hand_left_input_y_click\nDevice.OpenXR.Element12 = 12;B;user_hand_left_input_thumbstick_click\n";
-    const auto out=ac::pinball::exitOnChord(mine);
-    QVERIFY(out.contains("Mapping.ExitGame = Key;41 | OpenXR;9 & OpenXR;12\n"));QVERIFY(!out.contains("| OpenXR;9\n"));
-    QCOMPARE(ac::pinball::exitOnChord(out),out);
-    // VPX's own default would exit on Y: with no mapping of the user's own, the chord is written.
-    QVERIFY(ac::pinball::exitOnChord("[Input]\nDevices = Key;OpenXR\n").contains("Mapping.ExitGame = Key;41 | OpenXR;9 & OpenXR;12\n"));
-    // No VR controller, or no [Input] section: nothing changes.
-    QCOMPARE(ac::pinball::exitOnChord("[Input]\nDevices = Key\n"),QByteArray("[Input]\nDevices = Key\n"));QCOMPARE(ac::pinball::exitOnChord("[Player]\nX = 1\n"),QByteArray("[Player]\nX = 1\n"));
+  void theHeadsetGetsTheUniversalLayer() {
+    // VPX 10.8's own VR controller numbers: left stick click 12, right 13, A 10, B 11, X 8, Y 9, menus 2 and 3.
+    const QByteArray mine="[Input]\nDevices = Key;OpenXR\nMapping.LeftMagna = Key;224 | OpenXR;4 | OpenXR;12\nMapping.LaunchBall = Key;40 | OpenXR;13\nMapping.Credit1 = Key;34 | OpenXR;11\n"
+      "Mapping.Start = Key;30 | OpenXR;10\nMapping.ExitGame = Key;41 | OpenXR;9 | OpenXR;9 & OpenXR;12\nMapping.InGameUI = Key;69 | OpenXR;8 | OpenXR;2\nMapping.VRCenter = Key;93\n"
+      "Mapping.VRControllerCalibration = OpenXR;12\nDevice.OpenXR.Element2 = 2;B;user_hand_left_input_menu_click\nDevice.OpenXR.Element12 = 12;B;user_hand_left_input_thumbstick_click\n\n[PlayerVR]\nAskToTurnOn = 0\n";
+    const auto out=ac::pinball::headsetControls(mine);const auto text=QString::fromUtf8(out);
+    const QMap<QString,QString> expected{
+      {"Start","Key;30 | OpenXR;12"},{"Credit1","Key;34 | OpenXR;13"},{"LaunchBall","Key;40 | OpenXR;10"},{"ExitGame","Key;41"},
+      {"VRControllerCalibration","OpenXR;12 & OpenXR;13"},{"VRCenter","Key;93"},
+      {"LeftMagna","Key;224 | OpenXR;4"},{"InGameUI","Key;69 | OpenXR;8"}}; // Grips and X stay; the stick click and the menu button go.
+    for(auto it=expected.cbegin();it!=expected.cend();++it)QVERIFY2(text.contains("Mapping."+it.key()+" = "+it.value()+"\n"),qPrintable(it.key()));
+    QVERIFY(text.contains("Devices = Key;OpenXR\n"));QVERIFY(text.contains("Device.OpenXR.NoAutoLayout = 1\n"));QVERIFY(text.contains("Device.OpenXR.Type = 4\n"));
+    QVERIFY(text.contains("\n\n[PlayerVR]\nAskToTurnOn = 0\n")); // The other sections stay as they were.
+    QCOMPARE(ac::pinball::headsetControls(out),out);
+    QCOMPARE(ac::pinball::exitOnChord(mine),out);
+    // No mappings, no [Input] section and no OpenXR device yet: the layer is written with VPX's keyboard keys kept.
+    const auto bare=QString::fromUtf8(ac::pinball::headsetControls("[Player]\nX = 1\n"));
+    QVERIFY(bare.startsWith("[Player]\nX = 1\n\n[Input]\n"));
+    for(const auto &line:QStringList{"Mapping.Start = Key;30 | OpenXR;12","Mapping.Credit1 = Key;34 | OpenXR;13","Mapping.LaunchBall = Key;40 | OpenXR;10","Mapping.ExitGame = Key;41",
+                                     "Mapping.VRControllerCalibration = OpenXR;12 & OpenXR;13","Devices = Key;OpenXR"})
+      QVERIFY2(bare.contains(line+"\n"),qPrintable(line));
+    // The numbers VPX lists win, and a CRLF file stays CRLF.
+    const auto odd=ac::pinball::headsetControls("[Input]\r\nDevice.OpenXR.Element5 = 5;B;user_hand_left_input_thumbstick_click\r\nDevice.OpenXR.Element6 = 6;B;user_hand_right_input_thumbstick_click\r\n");
+    QVERIFY(odd.contains("Mapping.Start = Key;30 | OpenXR;5\r\n"));QVERIFY(odd.contains("Mapping.VRControllerCalibration = OpenXR;5 & OpenXR;6\r\n"));
+    QVERIFY(!QByteArray(odd).replace("\r\n","").contains('\n'));
   }
   void aPlanWithoutAnOwnedFileWritesNothing() {
     QTemporaryDir folder;ac::pinball::writeVrSettings({{"args",QStringList{"-Play","x"}}});
