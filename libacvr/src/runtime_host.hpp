@@ -3,6 +3,7 @@
 #include "acvr.h"
 #include "gun_model.hpp"
 #include "controls.hpp"
+#include "hold_ring.hpp"
 #include <memory>
 #include <vector>
 
@@ -64,6 +65,13 @@ struct Host {
     // Called after world draw for each eye, using its existing depth attachment.
     // Do not retain pointers, mutate draw state, or advance motion here.
     virtual acvr_result draw_gun(const acvr_draw_info &, const GunDraw &) { return ACVR_UNSUPPORTED; }
+    // U4 hold ring (hold_ring.hpp). A provider that can draw over the finished eye image returns true here: the runtime
+    // then hands it the ring state every tick (show_hold_ring) and asks it to draw after the game and the gun
+    // (draw_hold_ring), and it holds the quit back for the 0.7 s flash so the player sees it. The default draws nothing
+    // and quits at once.
+    virtual bool draws_hold_ring() const noexcept { return false; }
+    virtual void show_hold_ring(const HoldRingView &) {}
+    virtual acvr_result draw_hold_ring(const acvr_draw_info &) { return ACVR_OK; }
 };
 // Headless is accepted only here, never through the public XR create export.
 // The host's lifetime transfers on success or failure. Optional model/control
