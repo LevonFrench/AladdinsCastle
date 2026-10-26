@@ -111,19 +111,23 @@ jobs:
       # MSYS2 MINGW64, as the pin records. The runner image already carries MSYS2; the packages are added with pacman.
       - name: Windows build packages (MSYS2 MINGW64)
         if: runner.os == 'Windows'
-        shell: cmd
+        shell: pwsh
         timeout-minutes: 20
         run: |
-          C:\msys64\usr\bin\bash.exe -lc "pacman -S --needed --noconfirm make python git mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-ccache"
+          $bash = Join-Path $env:SystemDrive 'msys64\usr\bin\bash.exe'
+          & $bash -lc 'pacman -S --needed --noconfirm make python git mingw-w64-x86_64-gcc mingw-w64-x86_64-python mingw-w64-x86_64-ccache'
+          if ($LASTEXITCODE -ne 0) { throw "pacman exit $LASTEXITCODE" }
       - name: Compile the patched Model 2 driver (MinGW g++, SUBTARGET=model2)
         if: runner.os == 'Windows'
-        shell: C:\msys64\usr\bin\bash.exe --login -eo pipefail "{0}"
-        env:
-          MSYSTEM: MINGW64
-          MSYS2_PATH_TYPE: inherit
-          CHERE_INVOKING: '1'
+        shell: pwsh
         timeout-minutes: 75
         run: |
+          $env:MSYSTEM = 'MINGW64'
+          $env:MSYS2_PATH_TYPE = 'inherit'
+          $env:CHERE_INVOKING = '1'
+          $bash = Join-Path $env:SystemDrive 'msys64\usr\bin\bash.exe'
+          $script = @'
+          set -eo pipefail
           cd "$(cygpath -u "$GITHUB_WORKSPACE")/upstream"
           export CCACHE_DIR="$(cygpath -u "$GITHUB_WORKSPACE")/.ccache"
           export PATH="/mingw64/lib/ccache/bin:/mingw64/bin:$PATH"
@@ -131,6 +135,11 @@ jobs:
             REGENIE=1 OPTIMIZE=0 SYMBOLS=0 PRECOMPILE=0 NOWERROR=1 NO_USE_MIDI=1 NO_OPENGL=1 USE_SDL=0 USE_SDL3=0 TOOLS=0
           ls -l model2.exe
           ccache -s
+          '@
+          $file = Join-Path $env:RUNNER_TEMP 'build-mame.sh'
+          [IO.File]::WriteAllText($file, ($script -replace "`r", '') + "`n")
+          & $bash --login $file
+          if ($LASTEXITCODE -ne 0) { throw "MAME build exit $LASTEXITCODE" }
       - name: Fetch pinned OpenXR headers (headers only, SHA-256 checked)
         if: runner.os == 'Windows'
         shell: python
