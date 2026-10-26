@@ -341,6 +341,12 @@ struct EyeScene {
   acvr::HoldRingView holdRing;   // the two-stick-click quit hold (U4): a ring in the middle of the screen, from 1 s, full and flashing at 3 s
   bool crt = false;
   float u0 = 0, uw = 1;   // the part of the picture this eye sees (side-by-side stereo)
+  // Soft edges (opt-in, 0 = off): the screen continues past the picture by these fractions of
+  // its width (each side) and height (top and bottom). The added band shows the picture's own
+  // outer strip, mirrored, stretched, blurred and fading to the dark room, so the frame has no
+  // hard edge. It is not new game picture: the screen geometry and aim still end at the picture.
+  float softX = 0, softY = 0;
+  float softLod = 6;      // blur at the band's outer end, in mip levels of the picture texture
 };
 
 class Renderer {
@@ -353,11 +359,21 @@ public:
       "void main(){gl_Position=mvp*vec4(p,1);uv0=t;}",
       // Sharp bilinear: whole texels stay crisp when magnified, edges blend over one screen
       // pixel; minified pictures use the mipmaps. Optional CRT scanlines.
-      "#version 330 core\nin vec2 uv0;uniform sampler2D picture;uniform vec2 size,range;uniform int crt,encode;out vec4 o;"
-      "void main(){vec2 uv=vec2(range.x+uv0.x*range.y,uv0.y);vec2 texel=uv*size;vec2 ppt=1./max(fwidth(texel),vec2(1e-5));vec3 c;"
-      "if(min(ppt.x,ppt.y)<1.)c=texture(picture,uv).rgb;else{vec2 k=floor(ppt);vec2 f=fract(texel)-.5;"
-      "vec2 r=.5-.5/k;vec2 g=(f-clamp(f,-r,r))*k+.5;c=textureGrad(picture,(floor(texel)+g)/size,dFdx(uv),dFdy(uv)).rgb;}"
-      "if(crt!=0){float s=abs(fract(texel.y)-.5)*2.;c*=mix(1.,.62,s*s);}"
+      // Soft edges, outside 0..1 only: the picture's outer strip, mirrored and stretched over the
+      // band, blurred more and faded further out; continuous with the picture at its edge.
+      // Derivatives are taken before any branch.
+      "#version 330 core\nin vec2 uv0;uniform sampler2D picture;uniform vec2 size,range,soft;uniform float softLod;uniform int crt,encode;out vec4 o;"
+      "vec3 fetch(vec2 m,float lod){m=clamp(m,0.,1.);return textureLod(picture,vec2(range.x+m.x*range.y,m.y),lod).rgb;}"
+      "void main(){vec2 inside=clamp(uv0,0.,1.);vec2 uv=vec2(range.x+inside.x*range.y,inside.y);vec2 texel=uv*size;"
+      "vec2 ppt=1./max(fwidth(texel),vec2(1e-5));vec2 gx=dFdx(uv),gy=dFdy(uv);vec3 c;"
+      "vec2 beyond=max(max(-uv0,uv0-1.),0.);"
+      "if(beyond.x>0.||beyond.y>0.){vec2 band=max(soft,vec2(1e-5));vec2 a=min(beyond/band,1.);float t=min(length(a),1.);"
+      "vec2 m=inside+sign(.5-inside)*a*min(band*.25,vec2(.1));float lod=softLod*sqrt(t);vec2 d=exp2(lod)/size;"
+      "c=(fetch(m,lod)*2.+fetch(m+d,lod)+fetch(m-d,lod)+fetch(m+vec2(d.x,-d.y),lod)+fetch(m+vec2(-d.x,d.y),lod))/6.;"
+      "float f=1.-t;c*=f*f*(3.-2.*f);}"
+      "else{if(min(ppt.x,ppt.y)<1.)c=texture(picture,uv).rgb;else{vec2 k=floor(ppt);vec2 f=fract(texel)-.5;"
+      "vec2 r=.5-.5/k;vec2 g=(f-clamp(f,-r,r))*k+.5;c=textureGrad(picture,(floor(texel)+g)/size,gx,gy).rgb;}"
+      "if(crt!=0){float s=abs(fract(texel.y)-.5)*2.;c*=mix(1.,.62,s*s);}}"
       "o=vec4(encode!=0?pow(c,vec3(1./2.2)):c,1);}");
     m_flatProgram = Program(
       "#version 330 core\nlayout(location=0)in vec3 p;uniform mat4 mvp;void main(){gl_Position=mvp*vec4(p,1);}",
@@ -383,9 +399,10 @@ public:
     const float bg = encode ? .03f : .002f;   // a dark theatre
     glClearColor(bg, bg, bg * 1.2f, 1); glClearDepth(1); glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     const Mat4 vp = projection * view;
-    buildScreen(s.screen);
-    // A thin dark frame behind the picture edges.
-    if (m_flatProgram) {
+    const bool soft = s.softX > 0 || s.softY > 0;
+    buildScreenInto(s.screen, m_screenVerts, -s.softX, 1 + s.softX, -s.softY, 1 + s.softY);
+    // A thin dark frame behind the picture edges (none with soft edges: the picture fades out instead).
+    if (m_flatProgram && !soft) {
       ScreenGeometry frame = s.screen; frame.width += .06f; frame.height += .06f; frame.distance += .01f;
       buildScreenInto(frame, m_frameVerts);
       tgl::UseProgram(m_flatProgram);
@@ -402,6 +419,8 @@ public:
       tgl::UniformMatrix4fv(tgl::GetUniformLocation(m_screenProgram, "mvp"), 1, GL_FALSE, mvp.m.data());
       tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "size"), (float)s.pictureW, (float)s.pictureH);
       tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "range"), s.u0, s.uw);
+      tgl::Uniform2f(tgl::GetUniformLocation(m_screenProgram, "soft"), s.softX, s.softY);
+      tgl::Uniform1f(tgl::GetUniformLocation(m_screenProgram, "softLod"), s.softLod);
       tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "crt"), s.crt ? 1 : 0);
       tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "encode"), encode ? 1 : 0);
       tgl::Uniform1i(tgl::GetUniformLocation(m_screenProgram, "picture"), 0);
@@ -423,15 +442,15 @@ private:
   Gun *m_gun = nullptr;
   GLuint m_screenProgram = 0, m_flatProgram = 0, m_screenVao = 0, m_screenVbo = 0, m_dotVao = 0, m_dotVbo = 0;
   std::vector<float> m_screenVerts, m_frameVerts;
-  static void buildScreenInto(const ScreenGeometry &g, std::vector<float> &out)
+  // The screen from picture coordinates (u0,v0) to (u1,v1); 0..1 is the picture itself.
+  static void buildScreenInto(const ScreenGeometry &g, std::vector<float> &out, float u0 = 0, float u1 = 1, float v0 = 0, float v1 = 1)
   {
     const int columns = g.curve > 0 ? 64 : 1; out.clear();
     for (int i = 0; i <= columns; ++i) {
-      const float u = (float)i / columns;
-      for (int row = 0; row < 2; ++row) { const float v = (float)row; const auto p = g.local(u, v); out.insert(out.end(), { p[0], p[1], p[2], u, v }); }
+      const float u = u0 + (u1 - u0) * i / columns;
+      for (int row = 0; row < 2; ++row) { const float v = row ? v1 : v0; const auto p = g.local(u, v); out.insert(out.end(), { p[0], p[1], p[2], u, v }); }
     }
   }
-  void buildScreen(const ScreenGeometry &g) { buildScreenInto(g, m_screenVerts); }
   void drawStrip(const std::vector<float> &verts)
   {
     tgl::BindVertexArray(m_screenVao); tgl::BindBuffer(GL_ARRAY_BUFFER, m_screenVbo);
