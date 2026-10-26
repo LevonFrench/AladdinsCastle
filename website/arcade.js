@@ -1191,13 +1191,13 @@ sizeFxaa();
 const STOPS = [
   { pos: v(0, 1.62, 9.8), look: v(0, 2.55, 0), fov: 58 },            // mall, facing the sign
   { pos: v(0.9, 1.6, -0.2), look: v(-2.76, 1.49, -4.95), fov: 50, subject: v(-1.75, 1.42, -2.6), side: 'right' },  // motion controls
-  { pos: v(-2.9, 1.6, -6.4), look: v(-8.53, 1.27, -8.46), fov: 46, subject: v(-5.0, 1.45, -6.5), side: 'right' }, // the gun
-  { pos: v(4.6, 1.8, -11.45), look: v(10.04, -0.71, -11.72), fov: 52, subject: v(6.2, 1.0, -11.0), side: 'left' }, // racing, over the seat
-  { pos: v(-3.3, 1.6, -12.0), look: v(-9.16, 1.34, -13.25), fov: 58, subject: v(-7.0, 1.4, -11.9), side: 'right' }, // Model 3
+  { pos: v(-2.9, 1.6, -6.4), look: v(-8.53, 1.27, -8.46), fov: 46, subject: v(-5.0, 1.45, -6.5), side: 'left' }, // the gun
+  { pos: v(4.6, 1.8, -11.45), look: v(10.04, -0.71, -11.72), fov: 52, subject: v(6.2, 1.0, -11.0), side: 'right' }, // racing, over the seat
+  { pos: v(-3.3, 1.6, -12.0), look: v(-9.16, 1.34, -13.25), fov: 58, subject: v(-7.0, 1.4, -11.9), side: 'left' }, // Model 3
   { pos: v(3.0, 1.6, -15.9), look: v(9.2, 1.2, -15.9), fov: 64, subject: v(7.0, 1.2, -15.9), side: 'right' },  // consoles: Wii and PS2 kiosks
   { pos: v(1.2, 1.6, -18.3), look: v(3.7, 1.32, -23.75), fov: 58, subject: v(4.0, 1.1, -21.6), side: 'left' },  // prize counter
   { pos: v(-1.8, 1.6, -16.9), look: v(-5.51, 1.18, -21.59), fov: 52, subject: v(-4.2, 1.45, -18.6), side: 'right' }, // the Hub
-  { pos: v(0.6, 1.65, -19.4), look: v(1.82, 1.92, -25.27), fov: 58, subject: v(-0.4, 2.0, -25.9), side: 'right' }, // scoreboard
+  { pos: v(0.6, 1.65, -19.4), look: v(1.82, 1.92, -25.27), fov: 58, subject: v(-0.4, 2.0, -25.9), side: 'left' }, // scoreboard
 ];
 // in-between waypoints keep the path at least 0.5 m off the cabinets
 const PATH = [STOPS[0].pos, v(0, 1.61, 5.2), v(0, 1.6, 2.0), STOPS[1].pos, v(0.2, 1.6, -4.2), v(-2.6, 1.6, -5.0), STOPS[2].pos,
@@ -1211,15 +1211,15 @@ const N = STOPS.length;
 function aimStops() {
   STOPS[0].pos.set(0, 1.62, portrait ? 16.5 : 9.8);
   for (const st of STOPS) {
-    // Panels take one side of the screen; the camera turns so the stop's exhibit sits about 22% in
-    // from the open edge (desktop), or in the top fifth above the panels (portrait phones).
+    // Panels take two thirds of the screen, alternating sides; the camera turns so the stop's exhibit
+    // sits in the middle of the open third (desktop), or in the top fifth above the panels (portrait phones).
     let target = st.look, yawShift = 0, pitchShift = 0;
     if (st.subject) {
       const tv = Math.tan(THREE.MathUtils.degToRad(st.fov + (portrait ? 16 : 0)) / 2);
       if (portrait) { target = st.subject; pitchShift = -Math.atan(0.56 * tv); }
       else if (innerWidth >= 900 && (st.side === 'right' || st.side === 'left')) {  // the CSS side layout starts at 900px
         target = st.subject;
-        yawShift = (st.side === 'right' ? 1 : -1) * Math.atan(0.56 * tv * camera.aspect);
+        yawShift = (st.side === 'right' ? 1 : -1) * Math.atan((2 / 3) * tv * camera.aspect);
       }
     }
     const d = target.clone().sub(st.pos);

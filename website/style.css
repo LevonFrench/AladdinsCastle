@@ -199,13 +199,23 @@ body:not(.js) .stop { min-height: 0; padding: 72px 0 24px; }
 .grid-4 { --cols: 4; }
 .span-2 { grid-column: span 2; }
 
-/* each section keeps one side of the screen open for its exhibit in the scene */
+/* each section takes two thirds of the page, alternating sides, and leaves the other third open
+   for its exhibit in the scene. Widths are fractions of the page, so browser zoom keeps the split. */
 @media (min-width: 900px) {
-  .stop[data-side="right"] .wrap { width: min(660px, 52vw); margin: 0 clamp(110px, 9vw, 150px) 0 auto; }
-  .stop[data-side="left"] .wrap { width: min(660px, 52vw); margin: 0 auto 0 clamp(24px, 5vw, 72px); }
-  .stop[data-side="center"] .wrap { width: min(720px, 54vw); }
+  .stop { --gut-l: clamp(24px, 3vw, 72px); --gut-r: clamp(110px, 9vw, 150px); }  /* right: room for the section dots */
+  .stop-hero .wrap { width: calc(200% / 3); }
+  .stop[data-side="right"] .wrap { width: calc(200% / 3 - var(--gut-r)); margin: 0 var(--gut-r) 0 auto; }
+  .stop[data-side="left"] .wrap { width: calc(200% / 3 - var(--gut-l)); margin: 0 auto 0 var(--gut-l); }
   .stop[data-side] .grid { --cols: 2; }
   .stop[data-side] .section-head { max-width: none; }
+}
+/* panels follow their own width, not the window's: one column when a side panel gets narrow */
+.wrap { container-type: inline-size; }
+@container (max-width: 640px) { .grid-4 { --cols: 2; } }
+@container (max-width: 560px) {
+  .grid:not(.stats) { --cols: 1 !important; }
+  .span-2 { grid-column: auto; }
+  .bench { grid-template-columns: 1fr; }
 }
 
 .panel {
