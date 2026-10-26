@@ -34,8 +34,8 @@ a two-layer texture does not validate that geometry. Keep rejected detections an
 points explicit. Scripted screen hits and motion inputs do not measure tracking, hand-eye
 alignment, natural shake strength, comfort or haptics.
 
-The three binding replays now use a short left-Y tap for Minus and leave the
-long-Y Home test free of reserved Menu input. Five play-route candidates
+The three binding replays now use right stick click for Minus and a short left-Y tap for
+Remote 2 (universal controls contract v1), and leave the long-Y Home test free of reserved Menu input. Five play-route candidates
 (`galaxy2-play`, `kirbyrtdl-play`, `kirbyyarn-play`, `nsmbw-play`, `snp2-play`)
 now send their intended Plus pulses through left-stick click. Those pulses may
 pause after a story ends, so the changed routes require fresh scene review;
@@ -75,11 +75,13 @@ Menu button is used by these corrected replays.
 | A | right A |
 | B | right trigger |
 | 1 | right B |
-| 2 | right stick click |
+| 2 | tap left Y: a 0.12 s pulse when Y is released after under 0.5 s (so 2 lands on release, and holding Y for Home sends no 2 at all; `pulse(!Y)` is Dolphin's release edge, gated by a second `pulse` that is high for 0.3 s after a hold ends) |
 | D-pad | right stick directions |
-| + | left stick click (not while left Y is held) |
-| − | tap left Y: a 0.12 s Minus pulse when Y is released after under 0.5 s (so Minus lands on release, and holding Y for Home sends no Minus at all; `pulse(!Y)` is Dolphin's release edge, gated by a second `pulse` that is high for 0.3 s after a hold ends) |
-| Home | hold left Y for 0.5 s (a tap of left Y is −) |
+| + (U1 Start) | left stick click alone |
+| − (U2 Select) | right stick click alone |
+| Home | hold left Y for 0.5 s (a tap of left Y is 2) |
+| Recentre (U3) | both stick clicks, the second within 250 ms of the first, released within 1 s (`Hotkeys.ini`, below) |
+| Quit and save (U4) | both stick clicks held 3 s (`Hotkeys.ini`, below) |
 | Nunchuk stick | left stick |
 | Nunchuk C | left X |
 | Nunchuk Z | left trigger |
@@ -89,8 +91,8 @@ Menu button is used by these corrected replays.
 Mario Kart Wii defaults to `AC Motion Kart` (Wii Remote + Nunchuk, steering on the left stick; controller tilt does not steer), the owner's choice of 2026-10-20. Tilt steering is opt-in: profile `AC Motion Wheel` (no Nunchuk, so the game uses its wheel scheme; 2 = right trigger, 1 = right B, B = right grip or left trigger, D-pad = either stick) through a separate "(tilt steer)" launcher. Both launchers write `GameSettings/RMCP01.ini` before starting (`GameSettings/RMCP01.ini` and `RMCP01-tilt-steer.ini` here), because the game INI picks the profile. Any other racer set up later defaults to stick steering too.
 
 Profile `AC Motion Resort` (Wii Sports Resort): the generic set, but the Nunchuk starts detached and
-**left Y + left stick click** attaches or detaches it (`Extension = toggle(...)`; − is gated off
-while Y is held). Offline, Resort with a Nunchuk attached stopped on a screen asking to remove the
+**left X + left Y together** attaches or detaches it (`Extension = toggle(...)`; the stick clicks
+are the universal layer and are not used here). Offline, Resort with a Nunchuk attached stopped on a screen asking to remove the
 extension from the MotionPlus; without it the game went on to its intro.
 
 | Game | ID | Set |
@@ -109,13 +111,38 @@ device.
 The wrist-strap/health screen takes **A** (no pointing needed). Super Mario Galaxy's and
 Twilight Princess's title screens ask for **A + B** together (right A + right trigger).
 
+## Universal controls (U1-U4) in the Dolphin profiles
+
+`universal_controls.py` is the single source for every expression that touches the stick clicks;
+`python universal_controls.py --write` rewrites every Wii Remote profile, GameCube profile and
+`templates/Hotkeys.ini`, and `check_bindings.py` fails when any of them drifts. `test_universal_controls.py`
+replays the expressions through a small model of Dolphin's `hold()`/`pulse()` (CPU only).
+
+- **Plus** and **Minus** are the left and right stick clicks alone. Dolphin has no "wait 150 ms,
+  then decide" primitive, so the chord wait is `hold(click & !other, 0.15)`: a click held alone sends
+  its button 150 ms after the press and releases with the click; a tap shorter than 150 ms is sent as
+  a 100 ms press on release. After a chord the buttons stay blocked for 1.5 s (3.5 s after a hold
+  of 1 s or more) so the second click released never sends a stray press.
+- **Recentre**: `Hotkeys.ini` binds `VR/Reset VR Position` (Shift+R kept for the desktop) to both
+  clicks pressed within 250 ms of each other and released within 1 s (`pulse` on the release).
+- **Quit and save**: `General/Exit = hold(both clicks, 3 s)`. Dolphin's Exit hotkey runs the same path
+  as closing the window: the Wii power event (or `Core::Stop` on GameCube) shuts the game down
+  gracefully, which flushes the memory card or NAND saves, then Dolphin exits and the Hub's
+  SteamVR-launched process ends. `Dolphin.ini [Interface] ConfirmStop = False` is required
+  (`templates/Dolphin.ini`), otherwise Exit pauses on a "Do you want to stop" message box that
+  nobody can press in the headset. No save state is written.
+- **Remote 2** moved from the right stick click to a tap of left Y; **Home** stays the 0.5 s hold of left Y.
+  Wheel and Sideways sets keep their own 2 (right trigger, right A).
+- **Motion**: pointer is the right controller's aim ray, the Nunchuk is the left stick, and shake,
+  tilt and roll steering stay off unless a launcher opts in.
+
 ## Wii gun games (separate user folder)
 
 The gun games' `WiimoteNew.ini` had the same gap (Source and Device only). `gun/WiimoteNew.ini`
 is the default for that user folder and `gun/<ID>.controls.ini` holds the `[Controls]` block to
 append to each game's existing private `GameSettings/<ID>.ini` (those already carry frame-rate codes;
 keep them). Every set maps every Wii button the generic way (B = right trigger, A = right A,
-1 = right B, 2 = right stick click, D-pad = right stick, + = left stick click, − = tap left Y,
+1 = right B, 2 = tap left Y, D-pad = right stick, + = left stick click, − = right stick click,
 Home = hold left Y, Nunchuk stick/C/Z = left stick/left X/left trigger) plus the right
 grip as a second-finger button where the game's reload or action sits:
 

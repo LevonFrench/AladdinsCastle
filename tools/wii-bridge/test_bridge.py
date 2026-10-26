@@ -141,9 +141,10 @@ class CanonicalInput(unittest.TestCase):
         pads = mapper.update(frame)
         self.assertEqual(self.wire_mask(0, pads[0]), 1 << 11) # secondary fallback R1, not automatic reload
         frame['hands'][1]['buttons'][3] = False
-        frame['hands'][1]['buttons'][5] = True
+        frame['hands'][1]['buttons'][1] = True
+        frame['hands'][1]['stick'] = [.9, 0]
         pads = mapper.update(frame)
-        self.assertEqual(self.wire_mask(0, pads[0]), 1 << 10) # solo click swing fallback
+        self.assertEqual(self.wire_mask(0, pads[0]), 1 << 10) # grip + right swing fallback
         with self.assertRaises(ValueError): Mapper(policy=self.profile(), offscreen='hide')
 
     def test_left_primary_role_tracking_and_recenter_suppression(self):
@@ -155,7 +156,8 @@ class CanonicalInput(unittest.TestCase):
         self.assertEqual(self.wire_mask(0, pads[0]), 1 << 9)
         self.assertEqual(self.wire_mask(1, pads[1]), 1 << 8)
         frame['hands'][0]['buttons'][1] = True
-        frame['hands'][0]['buttons'][5] = True # grip+click asks for unsupported Home
+        frame['hands'][0]['stick'] = [-.9, 0] # grip+left asks for unsupported Home
+        frame['hands'][0]['buttons'][5] = True # first click of the chord below
         pads = mapper.update(frame)
         self.assertEqual(self.wire_mask(0, pads[0]), 0)
         frame['hands'][1]['buttons'][5] = True # both clicks reserve theatre recenter

@@ -57,7 +57,7 @@ class ProfileAuditTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'source review'):render_producer_profile(gid,'canonical-live')
         self.assertEqual(render_producer_profile(gid,'native-openxr'),render_profile())
         self.assertEqual(render_producer_profile(gid,'scripted-dsu'),render_scripted_profile(gid))
-        self.assertEqual(hashlib.sha256(render_profile()).hexdigest(),'edfcccec10a8226ee5366b0fedf500a57a3674dd7b91b72c6bf200e55fc27ebe')
+        self.assertEqual(hashlib.sha256(render_profile()).hexdigest(),'304b9be574afa56c67fc42c948e08136ca10742c96b6e56921ff68c28985a0e5')
 
     def test_descriptor_roles_requirements_and_unsupported_home(self):
         for game in compile_library()['games']:

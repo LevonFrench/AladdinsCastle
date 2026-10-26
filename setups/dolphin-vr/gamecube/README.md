@@ -29,16 +29,17 @@ folder `UserGCRoll` with "(roll steer)" launchers that share `UserGC`'s memory c
 | Control stick | left stick (roll-steer set only: rolling the right controller also steers, 10Â° dead zone, full lock at about 37Â°) |
 | A (accelerate in all three racers) | **right trigger** or right A |
 | B (brake / reverse; crouch in Wave Race) | **left trigger** or right B |
-| X / Y | left X / left Y |
-| Z | right stick click |
-| Start | left stick click (not while the stick is tilted: click and tilt is the D-pad) |
+| X / Y | left X / left Y (alone) |
+| Z | left X and left Y together (the stick clicks belong to the universal layer; X and Y alone stay X and Y) |
+| Start (U1) | left stick click alone (150 ms chord wait, see `../motion-controls/README.md`); the right click is U2 Select and does nothing on GameCube |
+| Recentre (U3), quit and save (U4) | both clicks (released within 1 s) and both clicks held 3 s, through the Dolphin hotkeys in `../templates/Hotkeys.ini` |
 | L / R (analog and click) | left grip / right grip |
 | C stick | right stick |
-| D-pad | hold left stick click and push the left stick (the control stick is held off meanwhile) |
+| D-pad | not bound: the clicks are no longer modifiers and no racer needs it (menus take the control stick) |
 | Rumble | right controller |
 
 Roll-steer expression (Dolphin's own expression language, no code change):
-`Main Stick/Right = max(`Left Thumbstick X+` & !`Left Button Thumbstick`, clamp((`Right Raw Accel Left` - 0.17) * 2.2, 0, 1))`.
+`Main Stick/Right = max(`Left Thumbstick X+`, clamp((`Right Raw Accel Left` - 0.17) * 2.2, 0, 1))`.
 
 ## Install (private user folder)
 
