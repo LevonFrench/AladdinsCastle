@@ -447,6 +447,17 @@ private slots:
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::scripted::launchPlan(arcade,"timecris","body"));
     QVERIFY_THROWS_EXCEPTION(ac::install::Error,ac::scripted::launchPlan(arcade,"Bad Key","theatre"));
     QCOMPARE(ac::scripted::viewLabel("3d"),QString("Real 3D"));QCOMPARE(ac::scripted::viewLabel("x-new"),QString("x-new"));
+    // Soft edges (opt-in) come after the theatre screen, keep the Hub's label and are never the default.
+    write(t.filePath("play/mame-gun/games.json"),"{\"timecris\":{\"views\":{\"soft-edges\":{},\"open-frame-soft\":{},\"theatre\":{},\"open-frame\":{}}},"
+      "\"lethalen\":{\"views\":{\"soft-edges\":{},\"theatre\":{}}}}");
+    const auto soft=ac::scripted::games(arcade);QCOMPARE(soft.size(),2);
+    ids.clear();for(const auto &v:soft[1].toMap()["views"].toList())ids<<v.toMap()["id"].toString();
+    QCOMPARE(ids,(QStringList{"open-frame","theatre","open-frame-soft","soft-edges"}));
+    const auto softViews=soft[1].toMap()["views"].toList();
+    QCOMPARE(softViews[2].toMap()["label"].toString(),QString("Open frame, soft edges"));QCOMPARE(softViews[3].toMap()["label"].toString(),QString("Soft edges"));
+    QVERIFY(softViews[3].toMap()["optIn"].toBool());QVERIFY(softViews[2].toMap()["optIn"].toBool());QVERIFY(!softViews[0].toMap()["optIn"].toBool());
+    ids.clear();for(const auto &v:soft[0].toMap()["views"].toList())ids<<v.toMap()["id"].toString();QCOMPARE(ids,(QStringList{"theatre","soft-edges"}));
+    QCOMPARE(ac::scripted::viewLabel("soft-edges"),QString("Soft edges"));
   }
   // A launcher's game whose own file is gone is not found, and the path is said: a disc, ROM or file on the
   // entry or on any of its views, a relative one read beside games.json. A game naming no file is not judged.
