@@ -85,6 +85,58 @@ jobs:
               (target / name).write_bytes(data)
           print(f'Fetched {len(pin["sha256"])} OpenXR {pin["version"]} headers into {target}')
 
+      # Windows only: Supermodel's own Libraries\Get_*.cmd download these three source trees; the same release tags are
+      # fetched here and each is checked against the version-header hash in the pin. The zips are cached.
+      - name: Restore library source cache
+        if: runner.os == 'Windows'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: libzips
+          key: supermodel-libs-${{ hashFiles('repo/setups/supermodel-vr/upstream-pin.json') }}
+      - name: Fetch pinned SDL2, SDL2_net and zlib sources (hash checked)
+        if: runner.os == 'Windows'
+        shell: python
+        timeout-minutes: 5
+        run: |
+          import hashlib, json, pathlib, shutil, time, urllib.request, zipfile
+          libs = json.loads(pathlib.Path('repo/setups/supermodel-vr/upstream-pin.json').read_text(encoding='utf-8'))['libraries']
+          cache = pathlib.Path('libzips'); cache.mkdir(exist_ok=True)
+          dest_root = pathlib.Path('upstream/Libraries')
+          for name, lib in sorted(libs.items()):
+              folder = pathlib.PurePosixPath(lib['version_header']).parts[1]      # e.g. SDL2-2.30.11
+              source = lib['source']
+              assert '/tree/' in source and source.startswith('https://github.com/'), source
+              url = source.replace('/tree/', '/archive/refs/tags/') + '.zip'
+              zpath = cache / (folder + '.zip')
+              if not zpath.exists():
+                  for attempt in range(3):
+                      try:
+                          with urllib.request.urlopen(url, timeout=120) as response:
+                              zpath.write_bytes(response.read())
+                          break
+                      except OSError:
+                          if attempt == 2:
+                              raise
+                          time.sleep(5)
+              tmp = pathlib.Path('libtmp') / folder
+              shutil.rmtree(tmp, ignore_errors=True)
+              with zipfile.ZipFile(zpath) as archive:
+                  archive.extractall(tmp)
+              (top,) = list(tmp.iterdir())
+              target = dest_root / folder
+              shutil.rmtree(target, ignore_errors=True)
+              shutil.move(str(top), str(target))
+              header = target.joinpath(*pathlib.PurePosixPath(lib['version_header']).parts[2:]).read_bytes()
+              lf = header.replace(b'
+', b'
+')
+              ok = {lib['version_header_sha256']}
+              if not ({hashlib.sha256(lf).hexdigest(), hashlib.sha256(lf.replace(b'
+', b'
+')).hexdigest()} & ok):
+                  raise SystemExit(f'{name}: version header hash differs from the pin')
+              print(f'{name} {lib["version"]} ready in {target}')
+
       - name: Apply the VR patch
         shell: bash
         working-directory: upstream
