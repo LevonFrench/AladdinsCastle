@@ -53,13 +53,13 @@
       <li class="node">
         <i class="sprite" data-sprite="folder"></i>
         <h3>Your files</h3>
-        <p>Point the Hub at your ROM, disc and PC game folders. Supported files are matched by archive metadata, disc identity or a system-specific name check and read where they are. Game files are never downloaded.</p>
+        <p>Point the Hub at your ROM, disc and PC game folders. Supported files are matched by archive metadata, disc identity or a system-specific name check and read where they are. Files it does not recognise are listed with a plain reason, and duplicate discs are grouped. Game files are never downloaded.</p>
         <span class="state ok">Working</span>
       </li>
       <li class="node">
         <i class="sprite" data-sprite="scroll"></i>
         <h3>Recipe</h3>
-        <p>Some catalog entries have an <code>install.toml</code> for a supported upstream build. Most systems still need a separately prepared emulator or launcher folder; Set-up finds those inputs and does not build them.</p>
+        <p>Some catalog entries have an <code>install.toml</code> for a supported upstream build. Most systems still need a separately prepared emulator or launcher folder; Set-up finds those inputs and does not build them. A Check for updates button says if a newer emulator release exists, and installs nothing.</p>
         <span class="state ok">Working</span>
       </li>
       <li class="node">
@@ -191,6 +191,18 @@
       </article>
 
       <article class="route">
+        <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>Nintendo 3DS</h3><span class="state wip">E2 · offline proof</span></header>
+        <ol class="flow flow-4">
+          <li class="node node-sm"><span class="step">Game</span><p><b>acvr-ps1</b> with the Azahar core, started by the Hub with a profile for each game</p></li>
+          <li class="node node-sm"><span class="step">Stereo hook</span><p><b>The game's own two eyes</b>: the core draws both, the host crops each to the top screen and shows it on a big screen</p></li>
+          <li class="node node-sm"><span class="step">OpenXR</span><p><b>One projection layer per eye</b>; the eye order was measured on real frames and is right</p></li>
+          <li class="node node-sm"><span class="step">Headset</span><p><b>SteamVR</b>; hold both stick clicks for 3 seconds to quit and save</p></li>
+        </ol>
+        <p class="input"><span>Input back</span> controller → the 3DS pad, with the left stick as the Circle Pad; optionally the right controller's ray touches the bottom screen, shown as a panel below the top one (off by default)</p>
+        <p class="note">Star Fox 64 3D and Mario Kart 7 start from the Hub. Kid Icarus: Uprising has a profile but no Hub entry yet. Never tried in a headset. You supply your own game dump and the Azahar core.</p>
+      </article>
+
+      <article class="route">
         <header class="route-head"><i class="sprite" data-sprite="chip"></i><h3>PlayStation 2</h3><span class="state wip">E2 · offline proof</span></header>
         <ol class="flow flow-4">
           <li class="node node-sm"><span class="step">Game</span><p><b>PCSX2</b>, patched</p></li>
@@ -211,7 +223,7 @@
           <li class="node node-sm"><span class="step">Headset</span><p><b>SteamVR</b> to your headset</p></li>
         </ol>
         <p class="input"><span>Input back</span> controller → Wii Remote pointer or motion, Nunchuk on the other hand; pointer aim within 1.3%</p>
-        <p class="note">19 Wii games and F-Zero GX. Metroid Prime Trilogy still drops frames.</p>
+        <p class="note">20 Wii games and F-Zero GX. Metroid Prime Trilogy still drops frames.</p>
       </article>
 
       <article class="route">
