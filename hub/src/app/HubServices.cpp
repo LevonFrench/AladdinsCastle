@@ -765,7 +765,7 @@ void HubServices::startPinball(const QVariantMap &row,const QString &executable,
                 appSettings=install::scopedPath("user/pinball/VPinballX.ini",root_);
                 if(!QDir().mkpath(QFileInfo(appSettings).absolutePath()))throw install::Error("E_WRITE_DENIED","Cannot create the Hub's Pinball settings folder");
                 auto settings=pinball::gamepadSettings(mine,pads);
-                if(view=="headset")settings=pinball::exitOnChord(settings);
+                if(view=="headset")settings=pinball::headsetControls(settings);
                 install::atomicWrite(appSettings,settings);
                 if(!pads.isEmpty())gamepad=pads.first().toMap().value("name").toString();
             }

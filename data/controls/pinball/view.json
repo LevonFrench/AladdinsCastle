@@ -208,8 +208,8 @@
       },
       {
         "id": "exit",
-        "part": "Both stick clicks, held 3 s",
-        "label": "Quit and save (U4): the Hub closes the table the ordinary way",
+        "part": "Left Menu, then the Hub panel (or Esc)",
+        "label": "Exit game (no U4 in pinball): the Hub closes the table the ordinary way",
         "slot": 0,
         "player": 0,
         "node": "",
@@ -224,7 +224,7 @@
         },
         "availability": {
           "state": "planned",
-          "reason": "Not a VPX binding: VPX exits on press and cannot time a hold. The Hub's own SteamVR input holds both clicks for 3 s, cancelled by over 5 cm of hand travel, then closes VPX normally."
+          "reason": "No hold-to-quit in pinball: VPX exits on press and cannot time a hold, and the Hub cannot read the controllers while VPX has them. Press the left Menu button (SteamVR dashboard), then the Hub panel's Exit game, or press Esc. Both stick clicks held only adjust the table (U3p)."
         },
         "threshold": null,
         "staged_threshold": null,
@@ -353,7 +353,7 @@
     {
       "category": "runtime-acceptance",
       "id": "vpx-bridge",
-      "reason": "Hub quit hold (both sticks, 3 s) and the 150 ms chord window are not in VPX; live headset acceptance pending"
+      "reason": "VPX has no hold-to-quit (U4) and no 150 ms chord window; the way out is the left Menu button, the Hub panel (Exit game), or Esc; live headset acceptance pending"
     }
   ]
 }

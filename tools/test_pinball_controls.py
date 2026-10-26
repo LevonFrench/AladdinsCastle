@@ -7,7 +7,7 @@ class PinballControlsTests(unittest.TestCase):
         row=resolve_route();self.assertEqual(row,json.loads((ROOT/'data/controls/pinball/view.json').read_text()))
         actions={a['id']:a for a in row['data']['element']}
         self.assertEqual(actions['recenter']['availability']['state'],'planned')
-        self.assertTrue(actions['exit']['warning']);self.assertIn('Quit and save',actions['exit']['label'])
+        self.assertTrue(actions['exit']['warning']);self.assertIn('Exit game',actions['exit']['label']);self.assertIn('Menu',actions['exit']['part']);self.assertNotIn('hold both',actions['exit']['label'].lower())
         # Universal layer: stick clicks only; no menu button and no Y binding anywhere.
         self.assertEqual(actions['start']['binding'],{'hand':'left','control':'click'})
         self.assertEqual(actions['coin']['binding'],{'hand':'right','control':'click'})
