@@ -180,7 +180,7 @@ Selection selectModel(const Map &game,const Map &games,const Map &models,const M
 }
 void validateBinding(const Map &binding) {
     check(QSet<QString>{"slot","left","right","either"}.contains(binding.value("hand").toString()),"Invalid binding hand");
-    check(QSet<QString>{"trigger","grip","primary","secondary","thumbstick_click","offscreen_trigger","flick_up","pump","slide","menu_chord"}.contains(binding.value("control").toString()),"Invalid binding control");
+    check(QSet<QString>{"trigger","grip","primary","secondary","thumbstick_click","offscreen_trigger","flick_up","pump","slide"}.contains(binding.value("control").toString()),"Invalid binding control");
     check(QSet<QString>{"hold","press","toggle"}.contains(binding.value("mode").toString()),"Invalid binding mode");
     if (binding.contains("threshold")) check(number(binding.value("threshold"))&&std::isfinite(binding.value("threshold").toDouble())&&binding.value("threshold").toDouble()>=0&&binding.value("threshold").toDouble()<=1,"Invalid trigger/grip threshold");
     if (binding.contains("invert")) check(binding.value("invert").metaType().id()==QMetaType::Bool,"Binding invert must be boolean");

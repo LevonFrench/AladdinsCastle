@@ -197,7 +197,6 @@ QString ControlsViewModel::bindingLabel(const QVariantMap &binding, const QStrin
     else if (control == "pump") label = "Pump with free hand";
     else if (control == "slide") label = "Slide with free hand";
     else if (control == "thumbstick_click") label = side + " thumbstick click";
-    else if (control == "menu_chord") label = "Menu chord";
     else if (control == "pointer") label = side + " gun direction";
     else if (control == "thumbstick") label = side + " thumbstick" + (binding.value("component")=="x" ? " left/right" : binding.value("component")=="y" ? " forward/back" : "");
     else if (control == "click") label = side + " thumbstick click";

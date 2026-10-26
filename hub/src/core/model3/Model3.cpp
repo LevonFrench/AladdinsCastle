@@ -41,8 +41,8 @@ const QList<View> &table(){
    {"-window","-res=1920,1080","-ss=2","-wide-screen","-input-system=xinput"}},
   {"depth","Depth trial","The 3D screen with the depth from the overnight measurement, to compare with Screen.",
    {{"ACVR_XR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_XR_DISTANCE","2.5"},{"ACVR_XR_SIZE","1"}},screenArgs},
-  {"inside-wheel","Inside the game, with the wheel","Inside the game, with the cabinet's wheel (or handlebars) drawn in front of you: hold both grips on it and turn your hands.",
-   {{"ACVR_CONTROLS","1"},{"ACVR_WHEEL_GRAB","1"},{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"}},
+  {"inside-wheel","Inside the game, with the wheel","Inside the game, with the cabinet's wheel (or handlebars) drawn in front of you; it turns with your steering.",
+   {{"ACVR_CONTROLS","1"},{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"}},
    {"-window","-res=1344,1344","-stretch","-ss=2","-input-system=xinput"}},
   {"inside-stick","Inside the game, grab the stick","Inside the game with 1:1 pointing by a laser; grabbing the stick is optional.",
    {{"ACVR_XR","1"},{"ACVR_VR","1"},{"ACVR_WORLD_SCALE","1"},{"ACVR_HUD_DISTANCE","1.6"},{"ACVR_HUD_WIDTH","1.6"},{"ACVR_STICK_GRAB","1"}},
@@ -84,7 +84,7 @@ QString viewControls(const QString &game,const QString &view){
  const QString keys="Keys: 1 = start, 3 = coin, arrows = steer and pedals, Esc = quit.";
  const QString sit=view.startsWith("inside")?"Sit how you will play before you recentre.":"";
  if(view=="sbs-monitor")return "Needs no headset. "+keys;
- if(view=="inside-wheel")return QString("Hold BOTH grips on the drawn %1 and turn your hands; or the left stick. Triggers = pedals. ").arg(game=="harley"?"handlebars":"wheel")+vr(sit);
+ if(view=="inside-wheel")return QString("The drawn %1 turns as you steer with the left stick. Triggers = pedals. ").arg(game=="harley"?"handlebars":"wheel")+vr(sit);
  if(view=="inside-stick")return "Point the right controller: the game's crosshair goes where the red laser ends. Right trigger = fire, A = event button. Holding the right grip still takes the old tilt stick. "+vr(sit);
  if(game=="swtrilgy")return vr("Point the right controller to aim, right trigger = fire.");
  if(QStringList{"vf3","fvipers2","spikeout","vs2"}.contains(game))return vr("VR: the game's buttons are on the pad.");

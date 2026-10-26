@@ -58,7 +58,7 @@ elements stay visible as unavailable in the controls view and send no input.
 `binding.hand`: `slot`, `left`, `right`, `either`. Slot resolves through current
 hand assignment; two active guns always use `slot` for fire/reload/pedal.
 `binding.control`: `trigger`, `grip`, `primary`, `secondary`, `thumbstick_click`,
-`offscreen_trigger`, `flick_up`, `pump`, `slide`, or `menu_chord`.
+`offscreen_trigger`, `flick_up`, `pump`, or `slide`.
 `binding.mode`: `hold`, `press`, `toggle`. A trigger/grip threshold is optional
 `threshold` (0..1, default 0.55); `invert` is optional boolean, default false.
 Off-screen trigger reload is a composite trigger edge plus off-screen aim, not
