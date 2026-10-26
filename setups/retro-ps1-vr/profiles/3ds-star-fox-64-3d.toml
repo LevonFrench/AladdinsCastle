@@ -8,7 +8,7 @@ name         = "Star Fox 64 3D"
 system       = "3ds"
 controls     = "pad"
 default_view = "theatre"
-notes        = "Type A controls. The game asks in its tutorial whether to turn on gyro aiming: answer no, the host sends no motion."
+notes        = "Type A controls. The game asks in its tutorial whether to turn on gyro aiming: answer No (left stick left, then right trigger), the host sends no motion. Yes is the default and leaves a realign-the-gyro prompt on screen."
 
 # Azahar: only the top (3D) screen, both eyes side by side at full size.
 [core_options]
