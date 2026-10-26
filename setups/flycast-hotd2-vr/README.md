@@ -50,6 +50,8 @@ The hidden window and every `ACVR_*` test aid change nothing unless their enviro
    The configure step downloads the Khronos OpenXR SDK source pinned by checksum in the
    upstream CMakeLists.
 
+The `Emulator compile check` workflow in `.github/workflows` clones the pinned commit with its submodules, applies the patch and compiles it with MSVC and Ninja on every change to this folder (about 9 minutes). It skips the gun-model clean-up in step 2, which only rewrites a data header. It runs nothing and needs no game.
+
 ## Play
 
 Copy `build-win\flycast.exe` to a folder of its own (its settings and saves live beside it),
