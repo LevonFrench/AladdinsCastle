@@ -192,6 +192,20 @@ void archiveFile(const QString &path, const QStringList &names,
   archive_write_close(a);
   archive_write_free(a);
 }
+// Update generations: `<install_dir>.previous-<run>` folders beside the live one.
+QStringList previousGenerations(const QString &root) {
+  return QDir(root + "/installed/synthetic").entryList({"flat.previous-*", "flat.pruning-*"}, QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+}
+void bumpVersion(Request &request, const QString &root, const QString &version) {
+  request.recipe["variant"]["flat"]["version"] = version.toStdString();
+  atomicWrite(root + "/games/synthetic/setup/example.exe", "synthetic binary " + version.toUtf8());
+}
+// A run id that no real run has, for a folder an older Hub left behind.
+QString oldRun(int n) { return QString("%1-0000-4000-8000-000000000000").arg(n, 8, 16, QLatin1Char('0')); }
+void makeFolder(const QString &path) {
+  QVERIFY(QDir().mkpath(path));
+  atomicWrite(path + "/keep.txt", "old generation");
+}
 } // namespace
 class InstallTest : public QObject {
   Q_OBJECT
@@ -2077,6 +2091,244 @@ private slots:
     atomicWrite(marker, "outside routing\n");
     QVERIFY_THROWS_EXCEPTION(Error, prepareFlatLaunch(plan, temp.path()));
     QCOMPARE(readBytes(marker), QByteArray("outside routing\n"));
+  }
+  // The one table of plain-language error text must cover every E_* code the engine can raise,
+  // so a new code cannot ship with only a technical message.
+  void everyEngineErrorHasPlainWords() {
+    const QDir source(QDir::cleanPath(QFileInfo(QString(__FILE__)).absolutePath() + "/../src/core/install"));
+    if (!source.exists()) QSKIP("The install sources are not next to the test");
+    QSet<QString> raised;
+    const QRegularExpression code("\"(E_[A-Z0-9_]+)\"");
+    for (const auto *name : {"Install.cpp", "Support.cpp", "Archive.cpp", "FlatLaunch.cpp", "ConfigEdit.cpp", "ArtifactStore.cpp"}) {
+      QFile file(source.filePath(name));
+      QVERIFY2(file.open(QIODevice::ReadOnly), name);
+      auto matches = code.globalMatch(QString::fromUtf8(file.readAll()));
+      while (matches.hasNext()) raised.insert(matches.next().captured(1));
+    }
+    QVERIFY2(raised.size() > 40, "The scan found too few error codes to be trusted");
+    for (const auto &c : raised) QVERIFY2(hasPlainError(c), qPrintable(c + " has no plain-language text"));
+    for (const auto &c : plainErrorCodes()) {
+      const auto e = plainError(c);
+      QVERIFY2(!e.what.isEmpty() && !e.todo.isEmpty(), qPrintable(c));
+      QVERIFY2(e.what.endsWith('.') && e.todo.endsWith('.'), qPrintable(c));
+      QVERIFY2(e.what.size() <= 200 && e.todo.size() <= 200, qPrintable(c));
+      QVERIFY2(!e.text().contains("E_") && !e.text().contains("exception", Qt::CaseInsensitive), qPrintable(c));
+    }
+    QVERIFY(!hasPlainError("E_NOT_A_REAL_CODE"));
+    QVERIFY(!plainErrorText("E_NOT_A_REAL_CODE").isEmpty());
+    QVERIFY(!plainErrorText("E_NOT_A_REAL_CODE").contains("E_NOT_A_REAL_CODE"));
+  }
+  void failureEventsAndResultsCarryPlainWords() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options o; o.survivalMs = 0;
+    r.recipe["variant"]["flat"]["installed_when"] = "file:${install_dir}/missing.exe";
+    QVariantMap fail;
+    o.event = [&](const QVariantMap &v) { if (v.value("kind") == "fail" && fail.isEmpty()) fail = v; };
+    const auto result = Engine(o).install(r);
+    QVERIFY(!result.success);
+    QCOMPARE(result.code, QString("E_VERIFY_FAILED"));
+    QCOMPARE(result.plain(), plainErrorText("E_VERIFY_FAILED"));
+    QCOMPARE(fail.value("code").toString(), result.code);
+    QCOMPARE(fail.value("plain").toString(), plainErrorText("E_VERIFY_FAILED"));
+    // The technical wording stays in `text` for the log; the plain words are separate.
+    QCOMPARE(fail.value("text").toString(), QString("installed_when failed"));
+    QVERIFY(!fail.value("plain").toString().contains("installed_when"));
+    o.event = {};
+    r.recipe["variant"]["flat"]["installed_when"] = "file:${install_dir}/example.exe";
+    QVERIFY(Engine(o).install(r).plain().isEmpty());
+  }
+  // Pruning: the live folder and one previous generation stay; older ones are removed once an
+  // update has committed. The kept one is named in the committed state, not guessed from dates.
+  void updatesKeepOnlyOnePreviousGeneration() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options o; o.survivalMs = 0;
+    QVERIFY(Engine(o).install(r).success);
+    const auto live = temp.path() + "/installed/synthetic/flat";
+    atomicWrite(live + "/save.dat", "unowned save");
+    QVERIFY(previousGenerations(temp.path()).isEmpty());
+    QString priorVersion = "v1";
+    for (const auto *next : {"v2", "v3", "v4"}) {
+      bumpVersion(r, temp.path(), next);
+      QStringList log;
+      o.event = [&](const QVariantMap &v) { log << v.value("kind").toString() + ":" + v.value("text").toString(); };
+      const auto result = Engine(o).install(r);
+      QVERIFY2(result.success, qPrintable(result.message));
+      const auto kept = previousGenerations(temp.path());
+      QCOMPARE(kept.size(), 1);
+      const auto state = readEnvelope(stateBase(r) + ".toml");
+      QCOMPARE(string(state, "previous_generation"), string(state, "run"));
+      QCOMPARE(kept[0], "flat.previous-" + string(state, "run"));
+      QCOMPARE(readBytes(live + "/example.exe"), "synthetic binary " + QByteArray(next));
+      QCOMPARE(readBytes(live + "/save.dat"), QByteArray("unowned save"));
+      const auto previous = temp.path() + "/installed/synthetic/" + kept[0];
+      QCOMPARE(readBytes(previous + "/example.exe"), "synthetic binary " + priorVersion.toUtf8());
+      QCOMPARE(readBytes(previous + "/save.dat"), QByteArray("unowned save"));
+      QCOMPARE(log.filter("detail:Removed an older copy").size(), QString(next) == "v2" ? 0 : 1);
+      priorVersion = next;
+    }
+    // A repair of the same version keeps the generation the last update left.
+    const auto before = previousGenerations(temp.path());
+    const auto stateBeforeRepair = readEnvelope(stateBase(r) + ".toml");
+    o.event = {};
+    QVERIFY(Engine(o).install(r).success);
+    QCOMPARE(previousGenerations(temp.path()), before);
+    QCOMPARE(string(readEnvelope(stateBase(r) + ".toml"), "previous_generation"), string(stateBeforeRepair, "previous_generation"));
+  }
+  void aGenerationInUseIsNeverPruned() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options o; o.survivalMs = 0;
+    QVERIFY(Engine(o).install(r).success);
+    bumpVersion(r, temp.path(), "v2");
+    QVERIFY(Engine(o).install(r).success);
+    const auto first = previousGenerations(temp.path());
+    QCOMPARE(first.size(), 1);
+    const auto firstPath = temp.path() + "/installed/synthetic/" + first[0];
+    {
+      ResourceLocks use({firstPath}, ResourceAccess::Use);
+      QStringList codes;
+      o.event = [&](const QVariantMap &v) { if (v.value("kind") == "warn") codes << v.value("code").toString(); };
+      bumpVersion(r, temp.path(), "v3");
+      const auto result = Engine(o).install(r);
+      QVERIFY2(result.success, qPrintable(result.message));
+      QVERIFY2(QFileInfo(firstPath).isDir(), "A generation that is in use was removed");
+      QCOMPARE(previousGenerations(temp.path()).size(), 2);
+      QVERIFY(codes.contains("E_LOCKED"));
+      QVERIFY(Engine(o).pruneGenerations(r).isEmpty());
+      QVERIFY(QFileInfo(firstPath).isDir());
+    }
+    o.event = {};
+    const auto removed = Engine(o).pruneGenerations(r);
+    QCOMPARE(removed.size(), 1);
+    QCOMPARE(QFileInfo(removed[0]).fileName(), first[0]);
+    QVERIFY(!QFileInfo(firstPath).exists());
+    QCOMPARE(previousGenerations(temp.path()).size(), 1);
+  }
+  void pruningTouchesOnlyOldGenerationFolders() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options o; o.survivalMs = 0;
+    QVERIFY(Engine(o).install(r).success);
+    bumpVersion(r, temp.path(), "v2");
+    QVERIFY(Engine(o).install(r).success);
+    const auto kept = previousGenerations(temp.path());
+    QCOMPARE(kept.size(), 1);
+    const auto parent = temp.path() + "/installed/synthetic/";
+    const auto old = parent + "flat.previous-" + oldRun(1), interrupted = parent + "flat.pruning-" + oldRun(2);
+    makeFolder(old); makeFolder(interrupted);
+    const QStringList lookalikes{parent + "flat.previous-notarun", parent + "flat.previous-" + oldRun(3) + ".bak",
+                                 parent + "other.previous-" + oldRun(4), parent + "flat-backup"};
+    for (const auto &folder : lookalikes) makeFolder(folder);
+    QCOMPARE(Engine(o).pruneGenerations(r).size(), 2);
+    QVERIFY(!QFileInfo(old).exists()); QVERIFY(!QFileInfo(interrupted).exists());
+    for (const auto &folder : lookalikes) QVERIFY2(QFileInfo(folder + "/keep.txt").isFile(), qPrintable(folder));
+    QVERIFY(QFileInfo(parent + kept[0] + "/example.exe").isFile());
+    QCOMPARE(readBytes(parent + "flat/example.exe"), QByteArray("synthetic binary v2"));
+  }
+  // An install that never recorded a kept generation (made before pruning existed) is left alone
+  // until an update names one; nothing is guessed from folder dates.
+  void pruningWaitsForARecordedGeneration() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options o; o.survivalMs = 0;
+    QVERIFY(Engine(o).install(r).success);
+    const auto parent = temp.path() + "/installed/synthetic/";
+    makeFolder(parent + "flat.previous-" + oldRun(1)); makeFolder(parent + "flat.previous-" + oldRun(2));
+    QVERIFY(Engine(o).pruneGenerations(r).isEmpty());
+    QVERIFY(Engine(o).install(r).success);
+    QCOMPARE(previousGenerations(temp.path()).size(), 2);
+    bumpVersion(r, temp.path(), "v2");
+    QVERIFY(Engine(o).install(r).success);
+    const auto left = previousGenerations(temp.path());
+    QCOMPARE(left.size(), 1);
+    QCOMPARE(left[0], "flat.previous-" + string(readEnvelope(stateBase(r) + ".toml"), "run"));
+  }
+  void aFailedUpdateRemovesNothing() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options o; o.survivalMs = 0;
+    QVERIFY(Engine(o).install(r).success);
+    bumpVersion(r, temp.path(), "v2");
+    QVERIFY(Engine(o).install(r).success);
+    const auto parent = temp.path() + "/installed/synthetic/";
+    const auto older = parent + "flat.previous-" + oldRun(1);
+    makeFolder(older);
+    const auto generations = previousGenerations(temp.path());
+    bumpVersion(r, temp.path(), "v3");
+    r.recipe["variant"]["flat"]["installed_when"] = "file:${install_dir}/missing.exe";
+    QVERIFY(!Engine(o).install(r).success);
+    QCOMPARE(previousGenerations(temp.path()), generations);
+    QVERIFY(QFileInfo(older + "/keep.txt").isFile());
+  }
+  void aCrashWhilePruningLeavesACommittedUpdateAndFinishesLater() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options o; o.survivalMs = 0;
+    QVERIFY(Engine(o).install(r).success);
+    bumpVersion(r, temp.path(), "v2");
+    QVERIFY(Engine(o).install(r).success);
+    const auto first = previousGenerations(temp.path());
+    QCOMPARE(first.size(), 1);
+    bumpVersion(r, temp.path(), "v3");
+    auto faulted = o;
+    faulted.fault = [](const QString &point) { if (point == "prune") throw std::runtime_error("crash"); };
+    bool crashed = false;
+    try { Engine(faulted).install(r); } catch (...) { crashed = true; }
+    QVERIFY(crashed);
+    // The old generation was set aside, not half-deleted under the name of the kept one.
+    const auto parent = temp.path() + "/installed/synthetic/";
+    QVERIFY(QFileInfo(parent + QString(first[0]).replace(".previous-", ".pruning-")).isDir());
+    QVERIFY(Engine(o).recover(r).success);
+    QCOMPARE(string(readEnvelope(stateBase(r) + ".toml"), "installed_version"), QString("v3"));
+    QCOMPARE(readBytes(parent + "flat/example.exe"), QByteArray("synthetic binary v3"));
+    QCOMPARE(Engine(o).pruneGenerations(r).size(), 1);
+    const auto left = previousGenerations(temp.path());
+    QCOMPARE(left.size(), 1);
+    QVERIFY(left[0].startsWith("flat.previous-"));
+    QCOMPARE(readBytes(parent + left[0] + "/example.exe"), QByteArray("synthetic binary v2"));
+  }
+  void aRollbackThatCannotFinishReportsIncompleteAndRecoverRepeatsIt() {
+    QTemporaryDir temp; auto r = fixture(temp.path());
+    Options normal; normal.survivalMs = 0;
+    auto options = normal;
+    options.event = [&](const QVariantMap &v) {
+      if (v.value("kind") == "verify") throw Error("E_VERIFY", "Synthetic verification failure");
+      if (v.value("kind") == "rollback") throw std::runtime_error("Synthetic rollback failure");
+    };
+    Result result;
+    try { result = Engine(options).install(r); } catch (...) { QFAIL("The rollback failure escaped the engine"); }
+    QVERIFY(!result.success);
+    QCOMPARE(result.state, QString("rollback-incomplete"));
+    QCOMPARE(result.exitCode, 2);
+    QCOMPARE(string(readEnvelope(stateBase(r) + ".toml"), "state"), QString("installing"));
+    const auto recovered = Engine(normal).recover(r);
+    QVERIFY2(recovered.success, qPrintable(recovered.message));
+    QVERIFY(!QFileInfo(temp.path() + "/installed/synthetic/flat/example.exe").exists());
+    QCOMPARE(string(readEnvelope(stateBase(r) + ".toml"), "state"), QString("failed"));
+  }
+  void uninstallReportsAnUnexpectedExceptionAsAFailedRun() {
+    QTemporaryDir temp; auto r = fixture(temp.path()); Options o; o.survivalMs = 0;
+    QVERIFY(Engine(o).install(r).success);
+    const auto live = temp.path() + "/installed/synthetic/flat";
+    atomicWrite(live + "/example.exe", "user changed");
+    const auto before = tree(live);
+    QVariantMap fail;
+    auto options = o;
+    options.event = [&](const QVariantMap &v) {
+      if (v.value("kind") == "warn") throw std::runtime_error("Synthetic unexpected failure");
+      if (v.value("kind") == "fail" && fail.isEmpty()) fail = v;
+    };
+    Result result;
+    try { result = Engine(options).uninstall(r); } catch (...) { QFAIL("The exception escaped the engine"); }
+    QVERIFY(!result.success);
+    QCOMPARE(result.state, QString("uninstall-incomplete"));
+    QCOMPARE(result.code, QString("E_PLAN_INVALID"));
+    QCOMPARE(fail.value("plain").toString(), plainErrorText("E_PLAN_INVALID"));
+    QCOMPARE(tree(live), before);
+    QCOMPARE(string(readEnvelope(stateBase(r) + ".toml"), "state"), QString("installed"));
+  }
+  // A crash after the commit but before cleanup must not leave the run's extract folder behind.
+  void recoverCleansTheStagingOfACommittedRun() {
+    QTemporaryDir temp; auto r = fixture(temp.path());
+    Options normal; normal.survivalMs = 0;
+    auto faulted = normal;
+    faulted.fault = [](const QString &point) { if (point == "after-state") throw std::runtime_error("crash"); };
+    bool crashed = false;
+    try { Engine(faulted).install(r); } catch (...) { crashed = true; }
+    QVERIFY(crashed);
+    const auto staging = temp.path() + "/user/state/staging/" + quarantineRun(r);
+    QVERIFY(QFileInfo(staging).isDir());
+    QVERIFY(Engine(normal).recover(r).success);
+    QVERIFY2(!QFileInfo(staging).exists(), "Staging of a committed run was left behind");
+    QCOMPARE(string(readEnvelope(stateBase(r) + ".toml"), "state"), QString("installed"));
   }
   void goldenPlan() {
     QTemporaryDir temp;

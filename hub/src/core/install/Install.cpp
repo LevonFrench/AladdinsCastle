@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Install.h"
 #include "ArtifactStore.h"
+#include "ErrorText.h"
 #include "Support.h"
 #include "core/catalog/CatalogLoader.h"
 #include <QDateTime>
@@ -272,6 +273,9 @@ void event(const Options &o, const QString &run, const QString &kind,
       {"step", step},
       {"index", index},
       {"total", total}};
+  // A person-readable "what happened, what to do" beside the technical text.
+  if (!code.isEmpty())
+    value["plain"] = plainErrorText(code);
   if (o.event)
     o.event(value);
 }
@@ -303,6 +307,55 @@ void fault(const Options &o, const QString &point) {
       throw Abrupt();
     }
 }
+// Old update generations are the live folder's `.previous-<run>` siblings. The committed state names
+// the one to keep for a manual rollback (its run id); every older one is removed. A generation is
+// renamed to `.pruning-<run>` before it is deleted, so a half-deleted folder never looks like the
+// kept one and an interrupted removal is simply finished next time. Nothing is removed unless the
+// state names a kept generation that still exists, and a generation another process holds is left.
+QStringList pruneOldGenerations(const Request &r, const QString &installDir, const QString &keepRun,
+                                const Options &options, const QString &run) {
+  QStringList removed;
+  try {
+    if (!runId(keepRun) || installDir.isEmpty()) return removed;
+    const QFileInfo live(installDir);
+    const auto parent = live.absolutePath(), name = live.fileName();
+    if (!QFileInfo(parent + "/" + name + ".previous-" + keepRun).isDir()) return removed;
+    const QRegularExpression generation("\\A" + QRegularExpression::escape(name) +
+        "\\.(previous|pruning)-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\z");
+    for (const auto &entry : QDir(parent).entryInfoList(QDir::Dirs | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot)) {
+      const auto match = generation.match(entry.fileName());
+      if (!match.hasMatch()) continue;
+      const bool pruning = match.captured(1) == "pruning";
+      if (!pruning && match.captured(2) == keepRun) continue;
+      const auto path = entry.absoluteFilePath();
+      if (entry.isSymLink() || entry.isJunction()) continue;
+      try {
+        scopedPath(path, r.root);
+        // Held for the removal: refuses a folder some process still uses.
+        ResourceLocks inUse({path}, ResourceAccess::Mutation);
+        auto target = path;
+        if (!pruning) {
+          target = parent + "/" + name + ".pruning-" + match.captured(2);
+          if (QFileInfo::exists(target) || !QDir().rename(path, target))
+            throw Error("E_FILE_IN_USE", "Cannot set aside an old version folder");
+        }
+        fault(options, "prune");
+        if (!QDir(target).removeRecursively())
+          throw Error("E_FILE_IN_USE", "Cannot finish removing an old version folder");
+        removed << path;
+        event(options, run, "detail", "Removed an older copy of the previous version: " + entry.fileName());
+      } catch (const Error &e) {
+        // Advisory: the install is already committed. Whatever remains is retried next time.
+        event(options, run, "warn", "Kept an old version folder " + entry.fileName() + ": " + QString::fromUtf8(e.what()), e.code);
+      } catch (const std::exception &e) {
+        event(options, run, "warn", "Kept an old version folder " + entry.fileName() + ": " + QString::fromUtf8(e.what()),
+              "E_FILE_IN_USE");
+      }
+    }
+  } catch (const std::exception &) {
+  }
+  return removed;
+}
 Json emptyManifest(const Request &r, const Plan &p, const QString &run) {
   return Json{
       {"game", r.gameId.toStdString()},
@@ -324,6 +377,8 @@ public:
   Options options;
   QString base, run, dir, activeStep;
   Json manifest, baseline, stateBefore, manifestBefore, guard = Json::object();
+  // Run id of the retained previous generation (`.previous-<run>`), recorded atomically with the commit.
+  QString previousGeneration;
   bool warning = false;
   Transaction(Request req, Options opts, Plan p)
       : r(std::move(req)), options(std::move(opts)), base(stateBase(r)),
@@ -654,6 +709,8 @@ public:
                {"recipe_sha256", manifest["recipe_sha256"]},
                {"install_dir", manifest["install_dir"]},
                {"bindings", r.bindings}};
+    if (!previousGeneration.isEmpty())
+      final["previous_generation"] = previousGeneration.toStdString();
     append(Json{{"kind", "commit"}, {"state", final}, {"manifest", manifest}});
     fault(options, "commit");
     fault(options, "before-state");
@@ -679,8 +736,8 @@ Json loadJournal(const QString &path) {
   }
   return records;
 }
-bool rollback(const Request &r, const Json &records, const Options &options,
-              const QString &errorCode = "E_INTERRUPTED") {
+bool rollbackSteps(const Request &r, const Json &records, const Options &options,
+                   const QString &errorCode) {
   // A journal pointing outside this request's folder is refused before anything is touched.
   if (!journalInScope(r, records)) {
     event(options, {}, "fail", "The interrupted-run record points outside this installation; nothing was changed", "E_RECEIPT_SCOPE");
@@ -763,6 +820,20 @@ bool rollback(const Request &r, const Json &records, const Options &options,
         complete ? "Changes rolled back" : "Rollback incomplete",
         complete ? QString() : "E_ROLLBACK_INCOMPLETE");
   return complete;
+}
+// A rollback that itself throws (disk full, a locked state file) must not escape the engine: the
+// journal is untouched, so the run reports "rollback-incomplete" and Recover can repeat it.
+bool rollback(const Request &r, const QString &journalPath, const Options &options,
+              const QString &errorCode = "E_INTERRUPTED") {
+  try {
+    return rollbackSteps(r, loadJournal(journalPath), options, errorCode);
+  } catch (const std::exception &e) {
+    try {
+      event(options, {}, "fail", "Rollback stopped: " + QString::fromUtf8(e.what()), "E_ROLLBACK_INCOMPLETE");
+    } catch (const std::exception &) {
+    }
+    return false;
+  }
 }
 void verify(const Transaction &tx, const Plan &plan) {
   auto predicate = string(plan.variant, "installed_when");
@@ -1428,6 +1499,7 @@ Result Engine::install(const Request &r) {
     if (update) {
       const auto previous = live + ".previous-" + tx->run;
       tx->rename(live, previous);
+      tx->previousGeneration = tx->run;
       tx->rename(stage, live);
       tx->dir = live;
       for (auto &directory : tx->manifest["directory"]) {
@@ -1437,6 +1509,9 @@ Result Engine::install(const Request &r) {
       }
       verify(*tx, p);
     }
+    // A repair keeps the previous generation an earlier update left; an update just made a new one.
+    if (tx->previousGeneration.isEmpty())
+      tx->previousGeneration = string(tx->stateBefore, "previous_generation");
     const auto state = !r.skipSteps.isEmpty()
                            ? QString("installed-with-skipped")
                        : tx->warning ? QString("installed-with-warnings")
@@ -1444,12 +1519,13 @@ Result Engine::install(const Request &r) {
     tx->commit(state, p.version);
     cleanStaging(r, tx->run);
     cleanMediaRemovals(r, tx->run, options_);
+    pruneOldGenerations(r, live, tx->previousGeneration, tx->options, tx->run);
     return {true, 0, state, {}, "Installed and verified", tx->manifest};
   } catch (const Error &e) {
     bool complete = true;
     if (tx)
       complete =
-          rollback(r, loadJournal(tx->base + ".journal.jsonl"), options_,
+          rollback(r, tx->base + ".journal.jsonl", options_,
                    tx->activeStep.isEmpty() ? e.code : tx->activeStep + ": " + e.code);
     event(options_, {}, "fail", QString::fromUtf8(e.what()), e.code);
     return {false,
@@ -1460,7 +1536,7 @@ Result Engine::install(const Request &r) {
             Json::object()};
   } catch (const std::exception &e) {
     const bool complete =
-        !tx || rollback(r, loadJournal(tx->base + ".journal.jsonl"), options_, "E_PLAN_INVALID");
+        !tx || rollback(r, tx->base + ".journal.jsonl", options_, "E_PLAN_INVALID");
     event(options_, {}, "fail", QString::fromUtf8(e.what()), "E_PLAN_INVALID");
     return {false,
             complete ? 1 : 2,
@@ -1579,11 +1655,23 @@ Result Engine::uninstall(const Request &r) {
             tx->manifest};
   } catch (const Error &e) {
     if (tx)
-      rollback(r, loadJournal(tx->base + ".journal.jsonl"), options_, e.code);
+      rollback(r, tx->base + ".journal.jsonl", options_, e.code);
+    event(options_, {}, "fail", QString::fromUtf8(e.what()), e.code);
     return {false,
             2,
             "uninstall-incomplete",
             e.code,
+            QString::fromUtf8(e.what()),
+            Json::object()};
+  } catch (const std::exception &e) {
+    // Not an engine error (a malformed record, say): the same rollback and a Result, never an escape.
+    if (tx)
+      rollback(r, tx->base + ".journal.jsonl", options_, "E_PLAN_INVALID");
+    event(options_, {}, "fail", QString::fromUtf8(e.what()), "E_PLAN_INVALID");
+    return {false,
+            2,
+            "uninstall-incomplete",
+            "E_PLAN_INVALID",
             QString::fromUtf8(e.what()),
             Json::object()};
   }
@@ -1698,6 +1786,8 @@ Result Engine::recover(const Request &r) {
       if (string(*it, "kind") == "commit") {
         writeEnvelope(base + ".manifest.toml", (*it)["manifest"]);
         writeEnvelope(base + ".toml", (*it)["state"]);
+        // A crash between the commit and its cleanup leaves the download/extract staging behind.
+        cleanStaging(r, string(records[0], "run"));
         cleanMediaRemovals(r, string(records[0], "run"), options_);
         return {true,
                 0,
@@ -1707,7 +1797,7 @@ Result Engine::recover(const Request &r) {
                 (*it)["manifest"]};
       }
     }
-    const auto ok = rollback(r, records, options_);
+    const auto ok = rollback(r, base + ".journal.jsonl", options_);
     return {ok,
             ok ? 0 : 2,
             ok ? string(readEnvelope(base + ".toml"), "state") : QString("rollback-incomplete"),
@@ -1721,6 +1811,29 @@ Result Engine::recover(const Request &r) {
             e.code,
             QString::fromUtf8(e.what()),
             Json::object()};
+  } catch (const std::exception &e) {
+    return {false,
+            2,
+            "rollback-incomplete",
+            "E_PLAN_INVALID",
+            QString::fromUtf8(e.what()),
+            Json::object()};
+  }
+}
+QStringList Engine::pruneGenerations(const Request &r) const {
+  try {
+    Lock lock(r);
+    const auto base = stateBase(r);
+    const auto state = readEnvelope(base + ".toml");
+    const auto manifest = readEnvelope(base + ".manifest.toml");
+    // Only a settled install: an interrupted run's folders belong to its journal.
+    if (manifest.empty() || !string(state, "state").startsWith("installed"))
+      return {};
+    requireOwnReceipt(r, manifest);
+    return pruneOldGenerations(r, scopedPath(string(manifest, "install_dir"), r.root),
+                               string(state, "previous_generation"), options_, string(state, "run"));
+  } catch (const std::exception &) {
+    return {};
   }
 }
 RuntimeState Engine::runtimeState(const Request &r) const {
@@ -1857,11 +1970,13 @@ InstallService::InstallService(QObject *parent) : QObject(parent) {
     } catch (const std::exception &e) {
       emit event({{"kind", "fail"},
                   {"code", "E_SERVICE"},
+                  {"plain", plainErrorText("E_SERVICE")},
                   {"text", QString::fromUtf8(e.what())}});
       emit finished(false, QString::fromUtf8(e.what()));
     } catch (...) {
       emit event({{"kind", "fail"},
                   {"code", "E_SERVICE"},
+                  {"plain", plainErrorText("E_SERVICE")},
                   {"text", "Worker stopped unexpectedly; recover this run"}});
       emit finished(false, "Worker stopped unexpectedly; recover this run");
     }
@@ -1887,7 +2002,8 @@ void InstallService::start(const Request &request) {
     pending_.push_back(request);
     emit event({{"kind", "warn"},
                 {"text", "Install queued behind the active run"},
-                {"code", "E_LOCKED"}});
+                {"code", "E_LOCKED"},
+                {"plain", plainErrorText("E_LOCKED")}});
     return;
   }
   request_ = request;
