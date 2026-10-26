@@ -24,6 +24,11 @@ Rectangle {
   const u=result.unrecognised||{};if(result.files!==undefined)parts.push("Unknown: "+(u.discs||0)+" disc images, "+(u.archives||0)+" archives")
   return parts.join("\n")
  }
+ property bool showUnknown:false
+ readonly property int unknownTotal:{const u=result.unrecognised||{};return u.total!==undefined?u.total:(u.files||[]).length}
+ readonly property int twice:{let n=0;const systems=result.systems||{};for(const key of Object.keys(systems))n+=systems[key].duplicateGames||0;return n}
+ // A read that finished and found no game for any system and no table folder.
+ readonly property bool foundNothing:result.files!==undefined&&Object.keys(result.systems||{}).length===0&&(result.pinballFolders||[]).length===0
  implicitHeight:column.implicitHeight+(vrOverlayMode?40:32)
  radius:Theme.get("size.card.radius");color:Theme.get("color.surface.card")
  FolderDialog {id:dialog;title:"Choose a folder of your games";onAccepted:{const path=uiController.localPath(selectedFolder);if(card.roots.indexOf(path)<0)uiSettings.set("libraryRoots",card.roots.concat([path]))}}
@@ -44,9 +49,29 @@ Rectangle {
    PillButton {objectName:"libraryStop";visible:uiController.libraryScanning;vrOverlayMode:card.vrOverlayMode;text:"Stop";onClicked:uiController.cancelLibraryScan()}
    UiText {visible:card.vrOverlayMode&&card.roots.length===0;text:"Add folders on the desktop.";font.pixelSize:15}
   }
+  // Empty and nothing-found states, each with the one thing to do. Optional: a Hub with no big games folder can use the systems below instead.
+  UiText {objectName:"libraryEmpty";Layout.fillWidth:true;visible:!card.vrOverlayMode&&card.roots.length===0;wrapMode:Text.Wrap;font.pixelSize:card.vrOverlayMode?16:13;color:Theme.get("color.text.muted")
+   text:"No folder yet. Choose Add a folder, then Find my games. Or skip this and choose a folder for each system below."}
+  UiText {objectName:"libraryNothing";Layout.fillWidth:true;visible:!uiController.libraryScanning&&card.foundNothing;wrapMode:Text.Wrap;font.pixelSize:card.vrOverlayMode?16:13;color:Theme.get("color.state.needs_neon")
+   text:"No games were recognised in these folders. Check that you chose the folder that holds your discs or game files, then choose Look again."}
   UiText {objectName:"libraryProgress";visible:uiController.libraryScanning;text:uiController.libraryProgress;font.pixelSize:card.vrOverlayMode?16:13}
   UiText {objectName:"librarySummary";Layout.fillWidth:true;visible:!uiController.libraryScanning&&card.summary.length>0;wrapMode:Text.Wrap;font.pixelSize:card.vrOverlayMode?16:13;color:Theme.get("color.text.body")
    text:card.summary+(card.result.seconds!==undefined?"\nLooked through "+card.result.files+" files in "+Number(card.result.seconds).toFixed(1)+" seconds"+(card.result.scanned?", "+card.result.scanned:"")+".":"")}
+  // Files the search read but did not recognise, each with why (lane L3's list, library.unrecognised.files), and games found
+  // in more than one file. Shown only when the search result carries them; nothing here changes a file.
+  UiText {objectName:"libraryTwice";Layout.fillWidth:true;visible:!uiController.libraryScanning&&card.twice>0;wrapMode:Text.Wrap;font.pixelSize:card.vrOverlayMode?16:13;color:Theme.get("color.text.muted")
+   text:card.twice+(card.twice===1?" game was":" games were")+" found in more than one file. The Hub uses one copy of each; the Set-up report below says which and why."}
+  PillButton {objectName:"libraryUnrecognisedToggle";visible:!uiController.libraryScanning&&card.unknownTotal>0;vrOverlayMode:card.vrOverlayMode
+   text:(card.showUnknown?"Hide the ":"Show the ")+card.unknownTotal+(card.unknownTotal===1?" file":" files")+" not recognised";onClicked:card.showUnknown=!card.showUnknown}
+  Column {objectName:"libraryUnrecognised";Layout.fillWidth:true;spacing:6;visible:card.showUnknown&&children.length>1
+   Repeater {model:card.showUnknown?Array.from((card.result.unrecognised||{}).files||[]).slice(0,12):[]
+    ColumnLayout {id:unknown;required property var modelData;width:parent.width;spacing:0
+     UiText {Layout.fillWidth:true;text:unknown.modelData.name||"";elide:Text.ElideMiddle;wrapMode:Text.NoWrap;font.pixelSize:card.vrOverlayMode?16:13;color:Theme.get("color.text.body")}
+     UiText {Layout.fillWidth:true;text:unknown.modelData.reason||"";wrapMode:Text.Wrap;font.pixelSize:card.vrOverlayMode?15:12;color:Theme.get("color.text.muted")}
+    }
+   }
+   UiText {width:parent.width;visible:card.unknownTotal>12;wrapMode:Text.Wrap;font.pixelSize:card.vrOverlayMode?15:12;color:Theme.get("color.text.muted");text:"and "+(card.unknownTotal-12)+" more"}
+  }
   // Pinball tables are played from one folder: the library can offer the one with the most tables.
   PillButton {objectName:"libraryUsePinball";vrOverlayMode:card.vrOverlayMode
    readonly property var best:(card.result.pinballFolders||[])[0]

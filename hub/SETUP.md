@@ -15,8 +15,34 @@ not build them or configure the Quest-to-PC connection.
 
 Connect your headset to a working SteamVR session first. Adding the Hub to
 SteamVR is a separate registration step, and does not enable automatic startup.
-See [the tester walkthrough](../docs/TESTER-QUICKSTART.md) for the prerequisites,
-wizard pages and a conditional first-game example.
+See [the tester walkthrough](../docs/TESTER-QUICKSTART.md) for the short path
+from download to first game.
+
+## First run, in order
+
+Set-up has five pages. A line under the page names says which step you are on and
+the one thing to do now, and a page whose job is done carries a tick.
+
+1. **SteamVR and headset.** Connect the headset, start SteamVR, add the Hub.
+2. **What you have.** Tick the systems you own game files for.
+3. **Folders and programs.** For each ticked system, the folder of your files and
+   the program that plays it. Each system's card shows one status (needs a
+   folder, needs its program, ready to read) and the one next action.
+4. **Read.** The Hub reads the folders, changing nothing in them, and lists what
+   can start, what is not right and what was not found, again with one next
+   action per system.
+
+Nothing is a dead end: **Next** and **Skip set-up** always work, an empty page
+says what to do (tick a system, choose a folder, choose Rescan), and a read that
+stops early shows why with a way back to the folders. Set-up can be reopened
+from **···**, **Set-up** at any time.
+
+In a game the same controls apply everywhere: left stick click = Start, right
+stick click = Select or Coin, both sticks clicked together = put the screen in
+front of you again, both held for 3 seconds = quit and save. The left Menu
+button opens the SteamVR dashboard, where the Hub panel is: that is the way back
+to the Hub from any game. A pinball table is the one exception to the quit: leave
+it from the Hub panel with **Exit game**.
 
 ## In the headset
 
@@ -34,6 +60,8 @@ The same Hub is also a panel in SteamVR's dashboard whenever SteamVR runs:
 - `--desktop` keeps the Hub a window only.
 - Adding Hub to SteamVR (below) does not by itself start it. SteamVR starts the
   Hub only once "Choose Startup Overlay Apps" lists it as on.
+- **Getting back to the panel from a game:** press the left Menu button to open
+  SteamVR's dashboard; the Hub panel is in it.
 - **Going back in the panel:** use the large **Back** button at the bottom left of
   every page. While SteamVR's dashboard is open, SteamVR does not give the
   controller's B to the Hub (checked in the owner's 2026-10-21 session).
@@ -220,20 +248,34 @@ SteamVR's own frame state.
 
 ## Pages
 
-1. **Welcome**: what Hub is, and that the user's folders are only read.
+1. **Welcome**: what Hub is, that the user's folders are only read, and the four
+   jobs in order, each with where it stands and a button to open it.
 2. **SteamVR**: if SteamVR's own application list already names Hub, the page
-   says so. Otherwise it asks; **Yes** registers Hub's dashboard manifest and
-   nothing else. Plain steps follow for finding Hub in the headset and for
-   starting it with SteamVR.
+   says so. If Steam is not found it says so, and that the rest of set-up does
+   not need it. Otherwise it asks; **Yes** registers Hub's dashboard manifest and
+   nothing else. Plain steps follow for the headset, for finding Hub in the
+   dashboard, for starting it with SteamVR and for the in-game controls.
 3. **What you have**: Arcade, Pinball, Consoles, and under them the systems Hub
-   can start today.
-4. **Where it is**: per ticked system, the folder of the user's files and the
-   program that plays them. A folder found beside one already chosen is offered.
+   can start today. Nothing ticked is said, with how to carry on.
+4. **Where it is**: the Game library card, then per ticked system the folder of
+   the user's files and the program that plays them, with a status and one next
+   action. A folder found beside one already chosen is offered, and **Skip**
+   leaves the system out. The Next button reads **Read my files** here.
 5. **Report**: each game is Ready, Not right (with the reason) or Missing (only
-   the name Hub looks for). The report is saved in `user/cache/` and **Rescan**
-   repeats the read. Hub never says where to get game files. Until it is
-   answered, the page asks whether the Hub may run the emulators it found for
-   their game lists.
+   the name Hub looks for). A summary line says how many games can start, and
+   each system ends with its next action. The report is saved in `user/cache/`
+   and **Rescan** repeats the read. Hub never says where to get game files. Until
+   it is answered, the page asks whether the Hub may run the emulators it found
+   for their game lists. If nothing is ticked, nothing has been read or the read
+   failed, the page says so and offers the way on.
+
+The report entry of each system also shows what the folder checks found, each
+only when the data exists and never changing a file: a count of **files not
+recognised** that opens into a short list with a plain reason for each; **games
+found more than once**, with the copy the Hub uses, why the others lose and the
+rule in words; and, for a folder that fits nothing, a note of what it holds and
+suggested folders with **Use this folder**. An "update available" flag per
+system is shown the same way. The fields are listed in `src/core/setup/Setup.h`.
 
 ## Systems
 
