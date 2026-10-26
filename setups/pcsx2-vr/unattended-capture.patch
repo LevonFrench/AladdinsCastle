@@ -1457,7 +1457,7 @@ index 562b136..240baee 100644
  	using PSSelector = GSHWDrawConfig::PSSelector;
  	using PSSamplerSelector = GSHWDrawConfig::SamplerSelector;
 diff --git a/pcsx2/Input/InputManager.cpp b/pcsx2/Input/InputManager.cpp
-index 813b6da..9cd8a58 100644
+index 813b6da..8ef5b1e 100644
 --- a/pcsx2/Input/InputManager.cpp
 +++ b/pcsx2/Input/InputManager.cpp
 @@ -3,6 +3,8 @@
@@ -1560,10 +1560,22 @@ index 813b6da..9cd8a58 100644
  	if (VMManager::HasValidVM())
  		USB::InputDeviceDisconnected(identifier);
  
-@@ -1712,12 +1751,73 @@ void InputManager::CloseSources()
+@@ -1712,12 +1751,85 @@ void InputManager::CloseSources()
  
  void InputManager::PollSources()
  {
++ if (PS2VRGun::PadEnabled())
++ {
++  // Touch as a DualShock2 on port 1. Start, Select, L3 and R3 (and the Analog and Pressure slots) belong to the menu
++  // bindings below, so this loop never writes them.
++  const auto sample=PS2VRGun::Snapshot();
++  static float previous[26]{};
++  for (u32 i=0;i<26;i++) {
++   if ((i>=8 && i<=9) || (i>=14 && i<=17)) continue;
++   const float value=sample.pad_active ? sample.pad[i] : 0.f;
++   if (value!=previous[i]) { Pad::SetControllerState(0,i,value); previous[i]=value; }
++  }
++ }
 + if (PS2VRGun::MenuEnabled())
 + {
 +  const auto sample=PS2VRGun::Snapshot();
@@ -1756,7 +1768,7 @@ diff --git a/pcsx2/GS/PS2StereoLive.h b/pcsx2/GS/PS2StereoLive.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2StereoLive.h
-@@ -0,0 +1,733 @@
+@@ -0,0 +1,748 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// In-process screen presenter adapted from AladdinsCastle's ACVRXR.cpp
 +// (claude/supermodel-vr), with PCSX2 GLContext sharing, two eye-only chains,
@@ -2010,7 +2022,7 @@ new file mode 100644
 + X(xrEndFrame) X(xrLocateSpace) X(xrGetOpenGLGraphicsRequirementsKHR) \
 + X(xrStringToPath) X(xrCreateActionSet) X(xrDestroyActionSet) X(xrCreateAction) \
 + X(xrSuggestInteractionProfileBindings) X(xrAttachSessionActionSets) X(xrCreateActionSpace) \
-+ X(xrSyncActions) X(xrGetActionStatePose) X(xrGetActionStateFloat) X(xrGetActionStateBoolean) \
++ X(xrSyncActions) X(xrGetActionStatePose) X(xrGetActionStateFloat) X(xrGetActionStateBoolean) X(xrGetActionStateVector2f) \
 + X(xrApplyHapticFeedback) X(xrStopHapticFeedback) X(xrLocateViews)
 + #define X(name) static PFN_##name p_##name = nullptr;
 + PS2_XR_FUNCS(X)
@@ -2144,7 +2156,7 @@ new file mode 100644
 +  if (!Check(XRGL("xrCreateReferenceSpace", p_xrCreateReferenceSpace, session,&rs,&space),"local space")) return false;
 +  rs.referenceSpaceType=XR_REFERENCE_SPACE_TYPE_VIEW;
 +  if (!Check(XRGL("xrCreateReferenceSpace", p_xrCreateReferenceSpace, session,&rs,&view),"view space")) return false;
-+  if ((PS2VRGun::MenuEnabled() || PS2VRGun::Enabled()) && !InitGunActions()) LiveLog("VR controls unavailable; gamepad remains active");
++  if ((PS2VRGun::MenuEnabled() || PS2VRGun::Enabled() || PS2VRGun::PadEnabled()) && !InitGunActions()) LiveLog("VR controls unavailable; gamepad remains active");
 +  u32 n=0;
 +  if (!Check(XRGL("xrEnumerateSwapchainFormats", p_xrEnumerateSwapchainFormats, session,0,&n,nullptr),"swapchain formats")) return false;
 +  std::vector<int64_t> formats(n);
@@ -2464,6 +2476,21 @@ new file mode 100644
 + {
 +  if (live_log) { std::fprintf(live_log,"Published pair %lu (GS tick %lu): textures %u/%u, %ux%u, upscale %.1fx, speed %.2f%%\n",serial,ticks,eyes[0],eyes[1],w,h,GSConfig.UpscaleMultiplier,PerformanceMetrics::GetSpeed()); std::fflush(live_log); }
 + }
++ // Offline proof film strip: PCSX2_LIVE_SAVE_LIST="f1,f2,..." saves the left eye at each listed GS tick as <path>-f<tick>-left.png.
++ static const std::vector<unsigned long> save_list=[] {
++  std::vector<unsigned long> frames; const char* text=std::getenv("PCSX2_LIVE_SAVE_LIST");
++  if (text) { std::string all(text),item; std::istringstream in(all); while (std::getline(in,item,',') && frames.size()<96) { char* end=nullptr; const unsigned long v=std::strtoul(item.c_str(),&end,10); if (end!=item.c_str()) frames.push_back(v); } }
++  return frames; }();
++ if (!save_list.empty())
++ {
++  bool listed=false; for (const unsigned long f:save_list) listed|=f==ticks;
++  if (listed) if (const char* list_path=std::getenv("PCSX2_LIVE_SAVE_PATH"))
++  {
++   std::vector<u32> pixels(static_cast<size_t>(w)*h);
++   glGetTextureImage(eyes[0],0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<GLsizei>(pixels.size()*4),pixels.data());
++   RGBA8Image image(w,h,std::move(pixels)); image.SaveToFile(fmt::format("{}-f{}-left.png",list_path,ticks).c_str());
++  }
++ }
 + const char* save_frame=std::getenv("PCSX2_LIVE_SAVE_FRAME");
 + if (save_frame && ticks==std::strtoul(save_frame,nullptr,10))
 + {
@@ -2582,7 +2609,7 @@ diff --git a/pcsx2/GS/PS2VRControllers.h b/pcsx2/GS/PS2VRControllers.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/GS/PS2VRControllers.h
-@@ -0,0 +1,381 @@
+@@ -0,0 +1,423 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +// Included inside PS2Live after the runtime function table. Presenter-thread only.
 +static XrActionSet gun_actions=XR_NULL_HANDLE;
@@ -2590,6 +2617,7 @@ new file mode 100644
 +static XrAction gun_a=XR_NULL_HANDLE,gun_b=XR_NULL_HANDLE,gun_squeeze=XR_NULL_HANDLE,gun_squeeze_left=XR_NULL_HANDLE,gun_haptic=XR_NULL_HANDLE;
 +static XrPath right_hand=XR_NULL_PATH,left_hand=XR_NULL_PATH;
 +static XrAction menu_select=XR_NULL_HANDLE,menu_start=XR_NULL_HANDLE,pad_l3=XR_NULL_HANDLE,pad_r3=XR_NULL_HANDLE;
++static XrAction pad_lstick=XR_NULL_HANDLE,pad_rstick=XR_NULL_HANDLE,pad_ltrigger=XR_NULL_HANDLE;
 +static XrSpace aim_space=XR_NULL_HANDLE,grip_space=XR_NULL_HANDLE;
 +static bool gun_attached=false,grip_valid=false;
 +static PS2VRGun::StickChord stick_chord;
@@ -2621,6 +2649,9 @@ new file mode 100644
 +     !action("menu_start","Start",XR_ACTION_TYPE_BOOLEAN_INPUT,menu_start,left_hand) ||
 +     !action("pad_l3","L3 (left Y)",XR_ACTION_TYPE_BOOLEAN_INPUT,pad_l3,left_hand) ||
 +     !action("pad_r3","R3 (left X)",XR_ACTION_TYPE_BOOLEAN_INPUT,pad_r3,left_hand)) return false;
++ if (!action("pad_lstick","Left stick",XR_ACTION_TYPE_VECTOR2F_INPUT,pad_lstick,left_hand) ||
++     !action("pad_rstick","Right stick",XR_ACTION_TYPE_VECTOR2F_INPUT,pad_rstick,right_hand) ||
++     !action("pad_ltrigger","L2",XR_ACTION_TYPE_FLOAT_INPUT,pad_ltrigger,left_hand)) return false;
 + if (!action("aim","Aim",XR_ACTION_TYPE_POSE_INPUT,gun_aim) ||
 +     !action("grip_pose","Grip pose",XR_ACTION_TYPE_POSE_INPUT,gun_grip_pose) ||
 +     !action("trigger","Trigger",XR_ACTION_TYPE_FLOAT_INPUT,gun_trigger) ||
@@ -2642,6 +2673,9 @@ new file mode 100644
 +   {gun_haptic,Path("/user/hand/right/output/haptic")}};
 +  bindings.push_back({menu_select,Path("/user/hand/right/input/thumbstick/click")});
 +  bindings.push_back({menu_start,Path("/user/hand/left/input/thumbstick/click")});
++  bindings.push_back({pad_lstick,Path("/user/hand/left/input/thumbstick")});
++  bindings.push_back({pad_rstick,Path("/user/hand/right/input/thumbstick")});
++  bindings.push_back({pad_ltrigger,Path("/user/hand/left/input/trigger/value")});
 +  // Menu and system buttons are never bound. Native L3/R3 sit on left Y/X (Index left B/A).
 +  const bool index=std::strcmp(profile,"/interaction_profiles/valve/index_controller")==0;
 +  bindings.push_back({pad_l3,Path(index ? "/user/hand/left/input/b/click" : "/user/hand/left/input/y/click")});
@@ -2656,7 +2690,7 @@ new file mode 100644
 + asi.action=gun_aim; if (!Check(XRGL("xrCreateActionSpace",p_xrCreateActionSpace,session,&asi,&aim_space),"aim action space")) return false;
 + asi.action=gun_grip_pose; if (!Check(XRGL("xrCreateActionSpace",p_xrCreateActionSpace,session,&asi,&grip_space),"grip action space")) return false;
 + gun_attached=true;
-+ LiveLog("PS2 Controls attached: L-stick click Start, R-stick click Select, both clicks recentre (quit after 3 s hold), left Y L3, left X R3; right gun trigger/A/B/grip-C; focus required, menus independent of aim tracking");
++ LiveLog("PS2 Controls attached: L-stick click Start, R-stick click Select, both clicks recentre (quit after 3 s hold), left Y L3, left X R3; right gun trigger/A/B/grip-C; pad games (PCSX2_VR_PAD=1): A Cross, B Circle, X Square, Y Triangle, triggers R2/L2, grips R1/L1, sticks; focus required, menus independent of aim tracking");
 + return true;
 +}
 +static void ReleaseGunInput()
@@ -2674,6 +2708,39 @@ new file mode 100644
 + if (aim_space) XRGL("xrDestroySpace",p_xrDestroySpace,aim_space);
 + if (grip_space) XRGL("xrDestroySpace",p_xrDestroySpace,grip_space);
 + aim_space=grip_space=XR_NULL_HANDLE; gun_attached=false;
++}
++// Touch as a DualShock2 for games with no gun (PCSX2_VR_PAD=1): A Cross, B Circle, X Square, Y Triangle, triggers R2/L2,
++// grips R1/L1, sticks analog (the left stick is also the D-pad past half). Start, Select and the recentre/quit chord stay
++// on the stick clicks (universal U1-U4); L3/R3 are not used (their buttons are Square/Triangle here).
++// PCSX2_VR_PAD_RT / PCSX2_VR_PAD_LT move a trigger onto another button (cross, square, ...).
++template<class Scalar,class Button>
++static void PadSample(PS2VRGun::Sample& sample,Scalar scalar,Button button)
++{
++ auto vector=[](XrAction action,XrPath hand)
++ {
++  XrActionStateGetInfo gi{XR_TYPE_ACTION_STATE_GET_INFO}; gi.action=action; gi.subactionPath=hand;
++  XrActionStateVector2f state{XR_TYPE_ACTION_STATE_VECTOR2F};
++  return XR_SUCCEEDED(XRGL("xrGetActionStateVector2f",p_xrGetActionStateVector2f,session,&gi,&state)) && state.isActive ? state.currentState : XrVector2f{};
++ };
++ auto slot=[](const char* key,int fallback)
++ {
++  static const char* names[]={"up","right","down","left","triangle","circle","cross","square","select","start","l1","l2","r1","r2"};
++  const char* e=std::getenv(key); if (!e) return fallback;
++  for (int i=0;i<int(std::size(names));i++) if (std::strcmp(e,names[i])==0) return i;
++  return fallback;
++ };
++ static const int rt=slot("PCSX2_VR_PAD_RT",13),lt=slot("PCSX2_VR_PAD_LT",11);
++ auto& pad=sample.pad;
++ const auto l=vector(pad_lstick,left_hand),r=vector(pad_rstick,right_hand);
++ auto axis=[](float v){return std::clamp(v,0.f,1.f);};
++ pad[18]=axis(l.y); pad[19]=axis(l.x); pad[20]=axis(-l.y); pad[21]=axis(-l.x);
++ pad[22]=axis(r.y); pad[23]=axis(r.x); pad[24]=axis(-r.y); pad[25]=axis(-r.x);
++ pad[0]=l.y>.5f; pad[1]=l.x>.5f; pad[2]=l.y<-.5f; pad[3]=l.x<-.5f;
++ pad[4]=button(pad_l3,left_hand); pad[5]=button(gun_b,right_hand); pad[6]=button(gun_a,right_hand); pad[7]=button(pad_r3,left_hand);
++ pad[10]=scalar(gun_squeeze_left,left_hand)>.5f; pad[12]=scalar(gun_squeeze)>.5f;
++ pad[lt]=std::max(pad[lt],std::clamp(scalar(pad_ltrigger,left_hand),0.f,1.f));
++ pad[rt]=std::max(pad[rt],std::clamp(scalar(gun_trigger),0.f,1.f));
++ sample.pad_active=true;
 +}
 +static void PollGunActions(XrTime time,bool focused,const XrPosef& screen,float sw,float sh,bool gun_tracking_allowed)
 +{
@@ -2702,7 +2769,9 @@ new file mode 100644
 + if(clicks.recentre){recentre_pending=true;LiveLog("Both stick clicks released: recentre requested");}
 + if(clicks.quit){PS2VRGun::RequestQuit();LiveLog("Both stick clicks held 3 s: graceful VM quit requested");}
 + sample.start=clicks.start; sample.select=clicks.select;
-+ sample.l3=PS2VRGun::L3R3Enabled() && button(pad_l3,left_hand); sample.r3=PS2VRGun::L3R3Enabled() && button(pad_r3,left_hand);
++ // Pad games read the same two buttons as Triangle and Square, so they never also press L3/R3.
++ if (PS2VRGun::PadEnabled()) PadSample(sample,scalar,button);
++ else { sample.l3=PS2VRGun::L3R3Enabled() && button(pad_l3,left_hand); sample.r3=PS2VRGun::L3R3Enabled() && button(pad_r3,left_hand); }
 + auto pose_active=[](XrAction action)
 + {
 +  XrActionStateGetInfo gi{XR_TYPE_ACTION_STATE_GET_INFO}; gi.action=action; gi.subactionPath=right_hand;
@@ -3276,7 +3345,7 @@ diff --git a/pcsx2/Input/PS2VRGun.h b/pcsx2/Input/PS2VRGun.h
 new file mode 100644
 --- /dev/null
 +++ b/pcsx2/Input/PS2VRGun.h
-@@ -0,0 +1,144 @@
+@@ -0,0 +1,178 @@
 +// SPDX-License-Identifier: GPL-3.0+
 +#pragma once
 +#include <atomic>
@@ -3293,7 +3362,9 @@ new file mode 100644
 +#include "Input/PS2VRStickChord.h"
 +#include "GS/PS2VRInside.h"
 +namespace PS2VRGun {
-+struct Sample { PS2VRAim::V scene_point;bool scene_point_valid=false,scene_hit=false,scene_panel=false;float u=0.5f, v=0.5f, trigger=0; bool on_screen=false, active=false, a=false, b=false, grip=false, controls_active=false, select=false, start=false, l3=false, r3=false; };
++struct Sample { PS2VRAim::V scene_point;bool scene_point_valid=false,scene_hit=false,scene_panel=false;float u=0.5f, v=0.5f, trigger=0; bool on_screen=false, active=false, a=false, b=false, grip=false, controls_active=false, select=false, start=false, l3=false, r3=false;
++ // Touch as a DualShock2 (PCSX2_VR_PAD=1): Pad::Dualshock2::Inputs order, 0..1 each.
++ bool pad_active=false; float pad[26]{}; };
 +inline std::mutex mailbox_mutex;
 +inline Sample mailbox;
 +inline std::chrono::steady_clock::time_point published_at;
@@ -3336,6 +3407,9 @@ new file mode 100644
 +}
 +// Native L3/R3 for the PS2 pad: left Y = L3, left X = R3 (the stick clicks belong to U1-U4). PCSX2_VR_L3R3=0 turns them off.
 +inline bool L3R3Enabled() { const char* e=std::getenv("PCSX2_VR_L3R3"); return !e || std::string(e)!="0"; }
++// Non-gun games: the Touch controllers are the whole DualShock2 on port 1 (A Cross, B Circle, X Square, Y Triangle,
++// triggers R2/L2, grips R1/L1, sticks). Start/Select/L3/R3 stay with the universal layer above.
++inline bool PadEnabled() { static const bool enabled=[] { const char* e=std::getenv("PCSX2_VR_PAD"); return e && std::string(e)=="1"; }(); return enabled; }
 +inline bool MenuEnabled() { const char* e=std::getenv("PCSX2_VR_CONTROLLERS"); return e ? std::string(e)=="1" : Enabled(); }
 +inline void Publish(const Sample& sample) { std::lock_guard<std::mutex> lock(mailbox_mutex); mailbox=sample; published_at=std::chrono::steady_clock::now(); }
 +// Parent ticks the 60 Hz emulation/presentation timeline, never wall time.
@@ -3415,6 +3489,35 @@ new file mode 100644
 +  const double now=frame_clock.load(std::memory_order_acquire)/60.0;
 +  for (const auto& e:menu_events) if (now>=e.seconds && now<e.seconds+.25) {
 +   s.select|=e.button==12; s.start|=e.button==13; s.l3|=e.button==14; s.r3|=e.button==15;
++  }
++ }
++ // Hidden deterministic pad proof: PCSX2_VR_PAD_SCRIPT="seconds:name[:hold];..." on the 60-Hz frame clock, offline only.
++ // Names: up right down left triangle circle cross square l1 l2 r1 r2 lup lright ldown lleft rup rright rdown rleft, plus start/select.
++ struct PadEvent { double seconds,hold; int index; bool start,select; };
++ static const auto pad_events=[] {
++  std::vector<PadEvent> result;
++  const char* text=std::getenv("PCSX2_VR_PAD_SCRIPT"); if (!text || !*text) return result;
++  const char* xr=std::getenv("PCSX2_OPENXR");
++  if (!xr || std::string(xr)!="0") { std::fprintf(stderr,"VR pad script rejected: requires PCSX2_OPENXR=0.\n"); return result; }
++  static const char* names[]={"up","right","down","left","triangle","circle","cross","square","select","start","l1","l2","r1","r2","-","-","-","-","lup","lright","ldown","lleft","rup","rright","rdown","rleft"};
++  std::istringstream input(text); std::string entry;
++  while (std::getline(input,entry,';')) {
++   double seconds=0,hold=.25; char name[32]{},trailing;
++   int got=std::sscanf(entry.c_str(),"%lf:%31[a-z0-9]:%lf %c",&seconds,name,&hold,&trailing);
++   if (got!=3) { hold=.25; got=std::sscanf(entry.c_str(),"%lf:%31[a-z0-9] %c",&seconds,name,&trailing)==2 ? 2 : 0; }
++   if (got<2 || !std::isfinite(seconds) || seconds<0 || seconds>7200 || !std::isfinite(hold) || hold<=0 || hold>60 || result.size()>=512) continue;
++   PadEvent e{seconds,hold,-1,false,false};
++   for (int i=0;i<int(sizeof(names)/sizeof(names[0]));i++) if (std::string(name)==names[i] && std::string(name)!="-") e.index=i;
++   if (e.index==8) {e.select=true;e.index=-1;} else if (e.index==9) {e.start=true;e.index=-1;}
++   if (e.index>=0 || e.start || e.select) result.push_back(e);
++  }
++  std::fprintf(stderr,"VR pad script: %zu presses on 60-Hz frame clock.\n",result.size()); return result;
++ }();
++ if (!pad_events.empty()) {
++  s.pad_active=true; const double now=frame_clock.load(std::memory_order_acquire)/60.0;
++  for (const auto& e:pad_events) if (now>=e.seconds && now<e.seconds+e.hold) {
++   if (e.index>=0) s.pad[e.index]=1.f;
++   if (e.start||e.select) { s.controls_active=true; s.start|=e.start; s.select|=e.select; }
 +  }
 + }
 + return s;

@@ -432,11 +432,36 @@ unchanged. The action set has Touch and Index suggestions:
 | Right stick click, alone (U2) | Select |
 | Both stick clicks together, released within 1 s (U3) | Recentre the screen or inside view at the current head position and yaw |
 | Both stick clicks held 3 s (U4) | Quit and save: graceful VM shutdown, memory cards flush, back to the Hub |
-| Left Y (Index left B) | L3 (native pad) |
-| Left X (Index left A) | R3 (native pad) |
+| Left Y (Index left B) | L3 (native pad); in a pad game (below) Triangle |
+| Left X (Index left A) | R3 (native pad); in a pad game (below) Square |
 | Gun profile: right trigger | GunCon trigger; off-screen aim reloads |
 | Gun profile: right A / B | GunCon A / B |
 | Gun profile: either grip | GunCon C |
+
+### Pad games: Touch as the whole DualShock 2
+
+A game with no gun (the racers: Wipeout Pulse and Fusion, OutRun 2 and 2006, XGRA, XGIII) has USB1 `None`.
+Before 2026-10-26 the Touch controllers gave such a game only Start and Select, so the owner could press
+"Press Start" in Wipeout Pulse but not confirm anything after it (headset report 2026-10-22, "no way to progress").
+With `PCSX2_VR_PAD=1` (set by the launcher for every non-gun game) the presenter also sends:
+
+| Touch | DualShock 2 |
+|---|---|
+| Right A / B | Cross / Circle |
+| Left X / Y (Index left A / B) | Square / Triangle |
+| Right trigger / left trigger | R2 / L2 |
+| Right grip / left grip | R1 / L1 |
+| Left stick | Left analog stick, and the D-pad past half travel |
+| Right stick | Right analog stick |
+
+Start, Select, recentre and quit stay on the stick clicks (U1-U4). L3 and R3 are off in a pad game because
+their buttons are Triangle and Square. `PCSX2_VR_PAD_RT` and `PCSX2_VR_PAD_LT` (`cross`, `square`, ...) move a trigger
+onto another button for a game that wants it, as the launcher does for the racers.
+
+Offline proof input (OpenXR must be off): `PCSX2_VR_PAD_SCRIPT="seconds:button[:hold];..."` presses buttons on the
+60 Hz frame clock (`start`, `select`, `cross`, `circle`, `square`, `triangle`, `l1`, `l2`, `r1`, `r2`, `up`, `down`, `left`,
+`right`, `lup`, `lright`, `ldown`, `lleft`, `rup`, `rright`, `rdown`, `rleft`). `PCSX2_LIVE_SAVE_LIST="f1,f2,..."`
+(with `PCSX2_LIVE_SAVE_PATH`) saves the left eye at each listed frame, for a film strip of a scripted run.
 
 This follows the universal controls contract (2026-10-25). No menu or system
 button is bound on either controller: under ALVR the left menu button opens the
