@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import struct
+import sys
 import time
 import zlib
 
@@ -525,8 +526,13 @@ def main():
         return self_test()
     if args.root is None or args.output is None:
         parser.error('--root and --output are required for a private survey')
-    prior = json.loads(args.output.read_text(encoding='utf-8')) if args.output.exists() else {}
-    rows = {r['file']: r for r in prior.get('files', [])} if prior.get('version') == VERSION else {}
+    try:
+        prior = json.loads(args.output.read_text(encoding='utf-8')) if args.output.exists() else {}
+        rows = {r['file']: r for r in prior.get('files', [])} if prior.get('version') == VERSION else {}
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as error:
+        # An unreadable earlier run only costs the resume: the survey starts again.
+        print(f'ignoring unreadable earlier output ({type(error).__name__}); starting again', file=sys.stderr)
+        rows = {}
     start = time.monotonic()
 
     def save(complete=False):
@@ -547,7 +553,10 @@ def main():
                     if time.monotonic() - start > args.minutes * 60 or (args.stop_file and args.stop_file.exists()):
                         complete = False
                         return
-                    stat = path.stat()
+                    try:
+                        stat = path.stat()
+                    except OSError:
+                        continue  # vanished or unreadable since the folder was listed
                     key = str(path)
                     retry_reason = rows.get(key, {}).get('reason', '')
                     retry = retry_reason in {'PBP codec', 'gzip 256 MiB/time budget'} or retry_reason.startswith("'ascii' codec")
@@ -558,7 +567,7 @@ def main():
                     try:
                         actual, identity = identify(path, system, args.file_seconds)
                         row.update(system=actual, identity=identity, status='read')
-                    except (Unread, OSError, ValueError, EOFError, zlib.error) as error:
+                    except (Unread, OSError, ValueError, EOFError, zlib.error, struct.error) as error:
                         row.update(system=system, identity='', status='unread', reason=str(error))
                     row['seconds'] = time.monotonic() - then
                     rows[key] = row

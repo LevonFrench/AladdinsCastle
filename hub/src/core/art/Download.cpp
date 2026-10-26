@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "Download.h"
 #include "ProductIdentity.h"
+#include "core/match/TitleMatch.h"
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
@@ -63,29 +64,19 @@ QString libretroName(QString name) {
     name.replace(c, '_');
   return name;
 }
-QString matchKey(QString name) {
-  name = name.toLower();
-  name.remove(QRegularExpression("\\([^)]*\\)|\\[[^\\]]*\\]"));
-  name.replace('&', " and ").replace('_', ' ');
-  // "House of the Dead 2, The" and "The House of the Dead 2" are one title.
-  name.remove(QRegularExpression(",\\s*(the|a|an)(?=\\s*($|-|:))"));
-  name = name.trimmed();
-  name.remove(QRegularExpression("^(the|a|an)\\s+"));
-  name.remove(QRegularExpression("[^a-z0-9]"));
-  return name;
-}
+QString matchKey(QString name) { return match::titleKey(name); }
 QString bestLibretroMatch(const QStringList &wanted, const QStringList &listing) {
   for (const auto &w : wanted)
     if (!w.trimmed().isEmpty() && listing.contains(libretroName(w.trimmed())))
       return libretroName(w.trimmed());
+  // The same title once case, accents, "&", numerals (II = 2), articles and tags are set aside.
+  // Extra words, a missing word or another number never match: "Ridge Racer" is not "Ridge Racer V".
   for (const auto &w : wanted) {
-    const auto key = matchKey(w);
-    if (key.isEmpty())
+    if (matchKey(w).isEmpty())
       continue;
     QStringList same;
-    for (const auto &entry : listing)
-      if (matchKey(entry) == key)
-        same << entry;
+    for (const int i : match::bestMatches(w, listing, match::Quality::Same))
+      same << listing[i];
     if (same.isEmpty())
       continue;
     std::stable_sort(same.begin(), same.end(), [](const QString &a, const QString &b) {

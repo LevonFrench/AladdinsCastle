@@ -167,4 +167,33 @@ class IdentityChecks(unittest.TestCase):
         self.assertEqual(rows['Orbit_(Bally_1995)']['maker'],'Bally')
         self.assertNotIn('vpsId',rows['Orbit_(Bally_1995)'])
 
+    def test_numeral_ampersand_and_article_spellings_match_one_machine(self):
+        db=[dict(id='roman',name='Orbit II',manufacturer='Williams',year=1999),
+            dict(id='amp',name='Rock & Roll',manufacturer='Bally',year=1980),
+            dict(id='article',name='The Comet',manufacturer='Bally',year=1962)]
+        rows=self.scan(db,[('Orbit_2_(Williams_1999)','Orbit 2','Fixture','1'),
+                           ('Rock_and_Roll_(Bally_1980)','Rock and Roll','Fixture','1'),
+                           ('Comet_(Bally_1962)','Comet','Fixture','1')])
+        self.assertEqual(rows['Orbit_2_(Williams_1999)']['vpsId'],'roman')
+        self.assertEqual(rows['Orbit_2_(Williams_1999)']['machine'],'Orbit II')
+        self.assertEqual(rows['Rock_and_Roll_(Bally_1980)']['vpsId'],'amp')
+        self.assertEqual(rows['Comet_(Bally_1962)']['vpsId'],'article')
+
+    def test_near_miss_titles_and_other_machines_do_not_match(self):
+        db=[dict(id='roman',name='Orbit II',manufacturer='Williams',year=1999),
+            dict(id='plain',name='Meteor',manufacturer='Bally',year=1980),
+            dict(id='long',name='Meteor Storm',manufacturer='Bally',year=1980),
+            dict(id='amb-a',name='Zeta II',manufacturer='Williams',year=1990),
+            dict(id='amb-b',name='Zeta II',manufacturer='Bally',year=1991)]
+        rows=self.scan(db,[('Orbit_3_(Williams_1999)','Orbit 3','Fixture','1'),
+                           ('Orbit_(Williams_1999)','Orbit','Fixture','1'),
+                           ('Orbit_2_(Bally_1999)','Orbit 2','Fixture','1'),
+                           ('Meteor_(Bally_1980)','Meteor','Fixture','1'),
+                           ('Zeta_2','Zeta 2','Fixture','1')])
+        self.assertNotIn('vpsId',rows['Orbit_3_(Williams_1999)'])
+        self.assertNotIn('vpsId',rows['Orbit_(Williams_1999)'])
+        self.assertNotIn('vpsId',rows['Orbit_2_(Bally_1999)'])
+        self.assertEqual(rows['Meteor_(Bally_1980)']['vpsId'],'plain')
+        self.assertNotIn('vpsId',rows['Zeta_2'])  # two machines called Zeta II: no guess
+
 if __name__=='__main__':unittest.main()

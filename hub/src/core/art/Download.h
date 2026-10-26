@@ -17,10 +17,12 @@ namespace ac::art {
 
 // libretro thumbnail file names: these characters of a display name become "_".
 QString libretroName(QString name);
-// A loose key for comparing names: case, punctuation, articles and bracketed tags removed.
+// A loose key for comparing names: case, accents, punctuation, articles and bracketed tags removed,
+// "&" as "and", roman numerals as digits (see core/match/TitleMatch.h). Empty when nothing is left.
 QString matchKey(QString name);
 // The best file in a libretro folder for a game: an exact name first, then the same title with
 // the most usual region (USA, World, Europe, Japan) and the fewest extra tags. Empty when none.
+// Never a different game: extra words, a missing word or another number do not match.
 QString bestLibretroMatch(const QStringList &wanted, const QStringList &listing);
 // The libretro thumbnail folder for a Hub system, or empty when libretro has none.
 QString libretroSystem(const QString &system);

@@ -640,6 +640,61 @@ class CatalogTest : public QObject {
         QCOMPARE(sourceReset.size(), 0);
         QCOMPARE(proxyReset.size(), 0);
     }
+    // Typed search finds a game despite a slip, a closed-up space or a roman numeral, and lists exact and
+    // prefix hits before the rest. The "NOT" rows are near misses that must stay out of the results.
+    void typedSearch_data() {
+        QTest::addColumn<QString>("query");
+        QTest::addColumn<QStringList>("expected");
+        QTest::addColumn<QString>("sortMode");
+        const QString title = "title";
+        QTest::newRow("closed-up number") << "mario kart7" << QStringList{"mk7"} << title;
+        QTest::newRow("roman numeral") << "mario kart vii" << QStringList{"mk7"} << title;
+        QTest::newRow("run together") << "starfox" << QStringList{"sf64", "sf643d"} << title;
+        QTest::newRow("two words") << "star fox" << QStringList{"sf64", "sf643d"} << title;
+        QTest::newRow("swapped letters") << "mraio kart" << QStringList{"mk64", "mk7", "mkdd"} << title;
+        QTest::newRow("slip in the last word") << "ocarina of tmie" << QStringList{"oot"} << title;
+        QTest::newRow("accents and case") << "ZELDA" << QStringList{"z2", "oot"} << title;
+        QTest::newRow("roman in the title") << "ridge racer 5" << QStringList{"rr5"} << title;
+        QTest::newRow("exact, then prefix") << "ridge racer" << QStringList{"rr", "rr7", "rr5"} << title;
+        QTest::newRow("exact number only") << "ridge racer 7" << QStringList{"rr7"} << title;
+        QTest::newRow("prefix before contains") << "zelda" << QStringList{"z2", "oot"} << title;
+        QTest::newRow("another sort keeps its order") << "zelda" << QStringList{"oot", "z2"} << QString("year");
+        QTest::newRow("NOT another number") << "mario kart 8" << QStringList{} << title;
+        QTest::newRow("NOT a sequel") << "star fox adventures" << QStringList{} << title;
+        QTest::newRow("NOT another word") << "star wars" << QStringList{} << title;
+        QTest::newRow("NOT a short word slip") << "star fax" << QStringList{} << title;
+        QTest::newRow("NOT another game's subtitle") << "zelda majora" << QStringList{} << title;
+        QTest::newRow("NOT mixed up numbers") << "ridge racer 8" << QStringList{} << title;
+    }
+    void typedSearch() {
+        QFETCH(QString, query);
+        QFETCH(QStringList, expected);
+        QFETCH(QString, sortMode);
+        QTemporaryDir temp;
+        vocab(temp.path());
+        const QList<std::pair<QString, QString>> games{{"mk7", "Mario Kart 7"},
+                                                       {"mk64", "Mario Kart 64"},
+                                                       {"mkdd", "Mario Kart: Double Dash!!"},
+                                                       {"sf64", "Star Fox 64"},
+                                                       {"sf643d", "Star Fox 64 3D"},
+                                                       {"rr", "Ridge Racer"},
+                                                       {"rr5", "Ridge Racer V"},
+                                                       {"rr7", "Ridge Racer 7"},
+                                                       {"dead", "Resident Evil: Dead Aim"},
+                                                       {"oot", "The Legend of Zelda: Ocarina of Time"},
+                                                       {"z2", "Zelda II: The Adventure of Link"}};
+        for (const auto &[id, title] : games)
+            game(temp.path(), id, title);
+        ac::GameListModel model(ac::CatalogLoader().load(temp.path()));
+        ac::FilterSortModel proxy;
+        proxy.setSourceModel(&model);
+        proxy.setSortMode(sortMode);
+        proxy.setQuery(query);
+        QCOMPARE(visible(proxy), expected);
+        // Clearing the search brings every game back, in the chosen order.
+        proxy.setQuery("");
+        QCOMPARE(proxy.rowCount(), int(games.size()));
+    }
     void duplicateAndTypeValidation() {
         QTemporaryDir temp;
         vocab(temp.path());
