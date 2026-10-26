@@ -4,6 +4,7 @@
 #include "UiController.h"
 #include "core/settings/Secret.h"
 #include "core/pinball/Pinball.h"
+#include "core/pinball/Build.h"
 #include "core/model3/Model3.h"
 #include "core/setup/Setup.h"
 #include "core/dreamcast/Dreamcast.h"
@@ -34,7 +35,16 @@
 namespace ac {
 QString UiController::universalControls()const{return universal::controls();}
 QString UiController::universalMenuNote()const{return universal::menuNote();}
-QString UiController::pinballLaunchHelp()const{return pinball::launchGuidance().value("help").toString();}
+QString UiController::pinballLaunchHelp()const{return pinball::launchGuidance(m_pinballPatched).value("help").toString();}
+QString UiController::pinballHeadsetControls()const{return universal::pinballControls(m_pinballPatched);}
+void UiController::refreshPinballBuild(){
+ const QFileInfo exe(m_settings->get("pinballExecutable",QString()).toString());
+ const QString key=exe.isFile()?exe.absoluteFilePath()+"|"+QString::number(exe.size())+"|"+QString::number(exe.lastModified().toMSecsSinceEpoch()):QString();
+ if(key==m_pinballBuildKey)return;
+ m_pinballBuildKey=key;
+ const bool patched=!key.isEmpty()&&pinball::isPatchedBuild(exe.absoluteFilePath());
+ if(patched!=m_pinballPatched){m_pinballPatched=patched;emit pinballBuildChanged();}
+}
 namespace {
 QString str(const Json &j,const char *key){return j.contains(key)&&j[key].is_string()?QString::fromStdString(j[key].get<std::string>()):QString();}
 QString eventText(const QVariantMap &e){auto kind=e.value("kind").toString(), text=e.value("text").toString();if(kind=="step")return QString("--- [%1/%2] %3 ---").arg(e.value("index",e.value("step")).toInt()).arg(e.value("total").toInt()).arg(text);const QMap<QString,QString> prefixes{{"ok"," [OK] "},{"warn"," [!!] "},{"fail"," [XX] "},{"work"," [..] "},{"detail","  "},{"prompt"," >>> "},{"done"," >>> "}};return prefixes.value(kind,"  ")+text;}
@@ -89,6 +99,8 @@ UiController::UiController(GameListModel *games,FilterSortModel *filter,UiSettin
  connect(games,&QAbstractItemModel::dataChanged,this,&UiController::catalogReadyChanged);
  connect(games,&QAbstractItemModel::modelReset,this,&UiController::catalogReadyChanged);
  connect(settings,&UiSettings::changed,this,&UiController::setupChanged);
+ connect(settings,&UiSettings::changed,this,&UiController::refreshPinballBuild);
+ refreshPinballBuild();
  m_detailControls.configure(games->catalog().root,games->catalog().packIds);
  // A key saved in the clear by an earlier Hub is protected now, and the clear copy removed.
  if(const auto plain=m_settings->get("steamGridDbKey").toString();!plain.isEmpty()){if(setSteamGridDbKey(plain))m_settings->remove("steamGridDbKey");}
@@ -390,7 +402,7 @@ void UiController::launchPinballQueued(const QVariantMap &row,const QString &clo
  m_nowPlaying["title"]=row.value("title");m_nowPlaying["pinballId"]=row.value("id");m_nowPlaying["view"]=view;
  const bool headset=view!="desktop";
  const QString pad=gamepad.isEmpty()?QString():" Gamepad ("+gamepad+"): LB/RB or the triggers are the flippers, pull the right stick down for the plunger, Start and Back together exit.";
- if(headset)m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table: "+universal::pinballControls()+" X opens the menu."+pad;
+ if(headset)m_nowPlaying["hint"]="Visual Pinball was asked to start in the headset. If the table does not appear there, look at the PC monitor: Visual Pinball asks on it whether to retry the headset. In the table: "+universal::pinballControls(m_pinballPatched)+" X opens the menu."+pad;
  else m_nowPlaying["hint"]="On the desktop, with VR off."+(pad.isEmpty()?QString(" No gamepad was found; the keyboard plays as Visual Pinball is set."):pad);
  emit nowPlayingChanged();
 }

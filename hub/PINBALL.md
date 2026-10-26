@@ -56,7 +56,12 @@ The patched AladdinsCastle build of VPX (`setups/vpx-vr`, built by CI) adds the
 quit: hold both stick clicks for 3 seconds with your hands still, and VPX closes
 the table through its own Exit Game, so scores and settings are saved the same
 way. If a hand moves more than 5 cm during the hold, you are adjusting the table
-and it does not quit. It works only after you install that build. Esc on the keyboard also exits. For headset launches Hub always passes
+and it does not quit. In that build the table also follows your hands only while
+both clicks are held, and stays put when you let go; in the standard VPX each
+double click switches following on or off. It works only after you install that
+build. Hub reads the program's version information (never runs it): a product
+version ending in `-acvr` is the patched build, and the Pinball page and the
+now-playing hint then describe that build's controls. Esc on the keyboard also exits. For headset launches Hub always passes
 its settings copy (below) with these bindings.
 
 ## Gamepad

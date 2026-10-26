@@ -98,7 +98,7 @@ label="Scale, turn and move the table (U3p): hands apart or together, turn the p
 hand="right"
 control="click"
 target="VRControllerCalibration"
-reason="Same VPX action as Recentre, while both clicks stay held. Scale uses ControllerLockbarScale; Hub passes it unchanged."
+reason="Same VPX action as Recentre. Release to keep holds only in the patched AladdinsCastle VPX (setups/vpx-vr), where the table follows the hands only while both clicks are held. Standard VPX toggles it on each double click: the table keeps following after release until both sticks are clicked again. Scale uses ControllerLockbarScale; Hub passes it unchanged."
 [[action]]
 id="plunger"
 part="Right stick"

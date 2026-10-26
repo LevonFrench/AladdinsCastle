@@ -16,7 +16,7 @@ into its copy of VPX's settings for every headset launch
 |---|---|---|
 | U1 Start | Left stick click | `Mapping.Start` |
 | U2 Coin | Right stick click | `Mapping.Credit1` |
-| U3 Recentre, U3p scale, turn and move the table | Both stick clicks, held | `Mapping.VRControllerCalibration` (VPX's "Align VR view using controllers") |
+| U3 Recentre, U3p scale, turn and move the table | Both stick clicks, held | `Mapping.VRControllerCalibration` (VPX's "Align VR view using controllers"). Patched VPX: follows the hands only while held. Standard VPX: each double click toggles following on or off |
 | U4 Quit and save | Both stick clicks, held 3 s, hands still | Only in the patched VPX (`setups/vpx-vr`): it presses VPX's own Exit Game. Standard VPX: none; leave with the left Menu button and the Hub panel's Exit game |
 | Plunger button | A | `Mapping.LaunchBall` |
 

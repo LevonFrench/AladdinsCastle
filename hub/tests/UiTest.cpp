@@ -580,6 +580,11 @@ class UiTest:public QObject {
   const auto helpText=ui->property("pinballLaunchHelp").toString();
   QVERIFY(helpText.contains("normal settings"));QVERIFY(helpText.contains("scores"));
   QCOMPARE(launchHelp->property("text").toString(),helpText);
+  // No patched VPX here: the page states the standard build's controls, taken from the same sentence as the hint.
+  QVERIFY(!ui->property("pinballPatched").toBool());
+  QTRY_VERIFY(!namedItems(window->contentItem(),"pinballHeadsetControls").isEmpty());
+  QVERIFY(namedItems(window->contentItem(),"pinballHeadsetControls").first()->property("text").toString().contains(ui->property("pinballHeadsetControls").toString()));
+  QVERIFY(ui->property("pinballHeadsetControls").toString().contains("click both sticks again"));
   // Two launches, each exactly what it says. With SteamVR off, Launch in headset still works: it says SteamVR starts first.
   QSignalSpy play(ui.get(),SIGNAL(pinballPlayRequested(QString,QString)));
   QTRY_VERIFY(!namedItems(window->contentItem(),"pinballLaunchDesktop").isEmpty());

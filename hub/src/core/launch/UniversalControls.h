@@ -16,15 +16,21 @@ inline QString controls(){
 inline QString menuNote(){
  return QStringLiteral("The left Menu button opens the SteamVR dashboard, where the Hub panel is; games never use it or the right Oculus button.");
 }
-// Pinball (U1, U2, U3p, and U4 only in the patched VPX). Standard VPX cannot time a hold and the Hub cannot read the
-// controllers while VPX has them, so U4 needs the AladdinsCastle VPX build (setups/vpx-vr); until the owner installs
-// it, the way out is the SteamVR dashboard.
-inline QString pinballControls(){
+// Pinball (U1, U2, U3p, U4). The patched AladdinsCastle VPX (setups/vpx-vr; the Hub tells it by its "-acvr" product
+// version, pinball/Build.h) has U4 and a hold-only table adjust. Standard VPX cannot time a hold, toggles the table
+// adjust on each double click, and the Hub cannot read the controllers while VPX has them, so there the way out is
+// the SteamVR dashboard.
+inline QString pinballControls(bool patched=false){
+ if(patched)
+  return QStringLiteral("Left stick click = Start. Right stick click = Coin. A = the plunger button. "
+                        "Click both sticks together = align the table to your hands: keep them held and move your hands apart or together to scale it, "
+                        "turn the pair to turn it, move both to move it, and let go to keep it. "
+                        "Hold both stick clicks for 3 seconds with your hands still = quit and save.");
  return QStringLiteral("Left stick click = Start. Right stick click = Coin. A = the plunger button. "
-                       "Click both sticks together = align the table to your hands: keep them held and move your hands apart or together to scale it, "
-                       "turn the pair to turn it, move both to move it, and let go to keep it. "
-                       "Hold both stick clicks for 3 seconds with your hands still = quit and save, but only in the patched AladdinsCastle build of Visual Pinball. "
-                       "In the standard Visual Pinball it does not quit: press the left Menu button, open the Hub panel and choose Exit game.");
+                       "Click both sticks together = the table follows your hands: move them apart or together to scale it, "
+                       "turn the pair to turn it, move both to move it, and click both sticks again to keep it there. "
+                       "Holding both stick clicks quits only in the patched AladdinsCastle build of Visual Pinball. "
+                       "In this standard Visual Pinball, press the left Menu button, open the Hub panel and choose Exit game.");
 }
 // A game's own controls text followed by U1-U4. Safe to call twice on the same text.
 inline QString with(const QString &own){
